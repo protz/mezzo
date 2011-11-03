@@ -1,55 +1,4 @@
-(* This module offers machinery for declaring RULES that govern which types
-   satisfy which modes and for proving GOALS according to these rules. *)
-
-(* Typical examples of modes are: ``duplicable'', ``exclusive'', ``affine'',
-   ``linear''. Modes can be viewed as predicates over types: certain types
-   satisfy certain modes. *)
-
-(* Modes are ordered: certain modes represent larger sets of types than
-   others. For instance, ``duplicable'' is typically a sub-mode of ``affine'',
-   and ``affine'' is typically a sub-mode of ``linear''. *)
-
-(* Typical examples of rules include: ``a reference is exclusive'', ``a purely
-   functional list is duplicable if its elements are duplicable'', ``a purely
-   functional list is affine it its elements are affine'', and so on. *)
-
-(* The building blocks of rules and goals are constraints. We work with two
-   kinds of constraints: (a) ordering constraints between modes, of the form
-   mode <= mode, where each mode is either a variable or a constant; (b)
-   mode constraints, of the form mode(tau), where mode is again a variable
-   or a constant, and tau is a type. *)
-
-(* More precisely, a rule is a Horn clause of the following very specific form:
-
-       forall q, forall alphas, hypothesis* <-> head
-
-   A rule is universally quantified over exactly ONE mode variable q and over
-   an arbitrary number of type variables alphas. The head MUST be of the form
-   
-       q (T as)
-
-   where T is a type constructor. The number of hypotheses is arbitrary, and
-   each hypothesis MUST be
-
-       either a mode ordering constraint mode <= mode
-              (whose only free variable is q)
-       or     a mode constraint mode alpha
-              (whose free variables are alpha, a member of alphas,
-                                    and possibly also q)
-
-*)
-
-(* A context is a set of rules, each of which MUST concern a distinct type
-   constructor T. Thus, a rule is really a logical equivalence, not just
-   an implication. *)
-
-(* A goal is a mode constraint of the form mode tau, where tau is a ground
-   type, that is, a type built entirely out of type constructors T. *)
-
-(* ---------------------------------------------------------------------------- *)
-
-(* The code is organized as a functor. It is parameterized over a partially
-   ordered set of modes and over a set of type constructors. *)
+open Printf
 
 module Make
 
@@ -92,7 +41,7 @@ type type_variable =
       (* a de Bruijn level: leftmost member of [alphas] is zero *)
 
 type hypothesis =
-  | OrderingConstraintHypothesis of mode * mode
+  | OrderingConstraintHypothesis of mode_constant * mode
   | ModeConstraintHypothesis of mode * type_variable
 
 type hypotheses =
@@ -146,67 +95,129 @@ let add (Rule (_, _, tycon) as rule) context =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Functions for deciding whether a context entails a goal. *)
+(* Pretty-printing utilities. *)
 
-exception NO of string
+(* We assume that the syntax of type applications is based on whitespace,
+   as in Haskell and Coq. Perhaps we should instead parameterize this
+   module over a printer for ground types. *)
 
-open Printf
+let rec show_ground_type_0 = function
+  | TyConApp (tycon, []) ->
+      TyCon.show tycon
+  | TyConApp (_, _ :: _) as gty ->
+      "(" ^ show_ground_type gty ^ ")"
 
-let rec show_ground_type = function
+and show_ground_type = function
   | TyConApp (tycon, gtys) ->
       List.fold_left (fun accu gty ->
-	accu ^ " " ^ show_ground_type gty (* TEMPORARY parenthesize! *)
+	accu ^ " " ^ show_ground_type_0 gty
       ) (TyCon.show tycon) gtys
 
 let show_goal = function
-  | ModeConstraintGoal (mode, gty) ->
+  | ModeConstraintGoal (cmode, gty) ->
       sprintf "%s (%s)"
-	(Mode.show mode)
+	(Mode.show cmode)
 	(show_ground_type gty)
 
-let instantiate
-    (mode : mode_constant)
-    (gtys : ground_type list)
-    (hypothesis : hypothesis)
-    : goal =
-  assert false (* TEMPORARY *)
+(* ---------------------------------------------------------------------------- *)
 
+(* Functions for deciding whether a context entails a goal. *)
 
+(* Internally, we use an exception to signal that a goal does not hold, and
+   construct an error message and explanation. At the very end, we catch
+   this exception and return a sum. *)
 
-let rec entails toplevel context (ModeConstraintGoal (mode, TyConApp (tycon, gtys)) as goal) : unit =
+exception NO of string (* explanation *)
+
+(* [instantiate_mode qmode mode] substitutes the mode constant [qmode]
+   for the variable [q] within the mode expression [mode]. *)
+
+let instantiate_mode qmode = function
+  | ModeVariable ->
+      qmode
+  | ModeConstant cmode ->
+      cmode
+
+(* [entails toplevel context goal] checks that the set of rules in [context]
+   entails the goal [goal]. The Boolean flag [toplevel] is used only when
+   constructing an error message: the first line of the message differs
+   slightly from the following lines. *)
+
+let rec entails toplevel context (ModeConstraintGoal (qmode, TyConApp (tycon, gtys)) as goal) : unit =
 
   (* Find which rule in the context governs the type constructor
      that appears at the head of this ground type. If there is
      no such rule, then the goal is not provable. *)
 
   try
-    let Rule (alphas, hypotheses, _) = TyConMap.find tycon context in
-    
-    (* Instantiate the parameter q with the mode constant [mode] and the type
-       variables [alphas] with the ground types [gtys]. Then, check that every
-       sub-goal holds.*)
-
-    assert (alphas = List.length gtys); (* otherwise, arity mismatch on [tycon] *)
-
     try
+      let Rule (alphas, hypotheses, _) = TyConMap.find tycon context in
+      assert (alphas = List.length gtys); (* otherwise, arity mismatch on [tycon] *)
+
+      (* Within each hypothesis, substitute the mode constant [qmode] for the
+	 variable [q] and the ground types [gtys] for the type variables
+	 [alphas]. This yields a ground constraint. If it is a mode ordering
+	 constraint, check that this constraint is valid. If it is a mode
+	 constraint, then it forms a subgoal, whose validity we check by
+	 (recursively) invoking [entails]. *)
 
       List.iter (fun hypothesis ->
-	let subgoal = instantiate mode gtys hypothesis in
-	entails false context subgoal
+
+	match hypothesis with
+	| OrderingConstraintHypothesis (cmode1, mode2) ->
+	    let cmode2 = instantiate_mode qmode mode2 in
+	    if not (Mode.leq cmode1 cmode2) then
+	      (* This ground mode ordering constraint is invalid. A good
+		 error message must not just print this invalid ground
+		 constraint, because the user will see that the constraint
+		 is invalid but will not see how it is connected to the
+		 previous goal. Instead, we must reason in terms of the
+		 un-instantiated mode ordering constraint and produce an
+		 intuitive explanation in natural language. *)
+	      begin match mode2 with
+	      | ModeVariable ->
+		  (* This is the expected case. The un-instantiated
+		     constraint is [cmode1 <= q]. This means that
+		     every type whose head constructor is [tycon]
+		     is at least [cmode1], and this is the intuitive
+		     reason why it cannot be [cmode2]. *)
+		  raise (NO (sprintf "%s\"%s\" is always at least %s,\n\
+				      so this assertion does not hold.\n"
+			             (if toplevel then "" else "But ")
+				     (TyCon.show tycon) (Mode.show cmode1)))
+	      | ModeConstant _ ->
+		  (* This case should not arise, because it would mean that the
+		     client has constructed a rule with an invalid hypothesis,
+		     a rule that is never applicable. Nevertheless, we handle it. *)
+		  raise (NO ("This is never the case.\n"))
+	      end
+	| ModeConstraintHypothesis (mode, alpha) ->
+	    let subgoal =
+	      ModeConstraintGoal (
+		instantiate_mode qmode mode,
+		List.nth gtys alpha
+	      )
+	    in
+	    entails false context subgoal
+
       ) hypotheses
 
-    with NO explanation ->
+    with Not_found ->
+      raise (NO (sprintf "%sI know nothing about \"%s\".\n"
+		   (if toplevel then "" else "But ")
+		   (TyCon.show tycon)))
 
-      let line =
-	if toplevel then
-	  sprintf "I cannot establish: %s.\n" (show_goal goal)
-	else
-	  sprintf "This would imply: %s.\n" (show_goal goal)
-      in
-      raise (NO (line ^ explanation))
+  with NO explanation ->
+    (* Prepend a new line, showing the current goal, in front of the
+       explanation that came up from the recursive call. *)
+    raise (NO (sprintf "%s: %s.\n%s"
+		 (if toplevel then "I cannot establish" else "This requires")
+		 (show_goal goal)
+		 explanation))
 
-  with Not_found ->
-    raise (NO (sprintf "But I know nothing about \"%s\".\n" (TyCon.show tycon)))
+(* ---------------------------------------------------------------------------- *)
+
+(* There remains to wrap up. *)
 
 type result =
   | Yes
@@ -220,4 +231,10 @@ let entails context goal : result =
     No explanation
 
 end
+
+(* TEMPORARY at the moment, we do not have the axiom "forall tau, top(tau)",
+   where "top" is the top element of the mode lattice (for us, "affine").
+   Should we add it? Or perhaps not? After all, "top(tau)" could be
+   used to encode a certain notion of well-formedness of tau, i.e. not
+   universally true. *)
 
