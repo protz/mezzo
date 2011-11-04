@@ -5,6 +5,8 @@ type mode =
   | Exclusive
   | Affine
 
+val is_universal: mode -> bool
+
 val leq: mode -> mode -> bool
 
 val show: mode -> string

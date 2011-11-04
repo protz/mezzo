@@ -6,6 +6,7 @@ module Make
 
   (Mode : sig
     type mode
+    val is_universal: mode -> bool
     val leq: mode -> mode -> bool
     val show: mode -> string
   end)
@@ -145,75 +146,80 @@ let instantiate_mode qmode = function
 
 let rec entails toplevel context (ModeConstraintGoal (qmode, TyConApp (tycon, gtys)) as goal) : unit =
 
-  (* Find which rule in the context governs the type constructor
-     that appears at the head of this ground type. If there is
-     no such rule, then the goal is not provable. *)
+  (* If [qmode] is universal, then the goal is true, regardless of the
+     rule that governs [tycon] -- in fact, this rule may not even exist. *)
 
-  try
+  if not (Mode.is_universal qmode) then
+
+    (* Find which rule in the context governs the type constructor
+       that appears at the head of this ground type. If there is
+       no such rule, then the goal is not provable. *)
+
     try
-      let Rule (alphas, hypotheses, _) = TyConMap.find tycon context in
-      assert (alphas = List.length gtys); (* otherwise, arity mismatch on [tycon] *)
+      try
+	let Rule (alphas, hypotheses, _) = TyConMap.find tycon context in
+	assert (alphas = List.length gtys); (* otherwise, arity mismatch on [tycon] *)
 
-      (* Within each hypothesis, substitute the mode constant [qmode] for the
-	 variable [q] and the ground types [gtys] for the type variables
-	 [alphas]. This yields a ground constraint. If it is a mode ordering
-	 constraint, check that this constraint is valid. If it is a mode
-	 constraint, then it forms a subgoal, whose validity we check by
-	 (recursively) invoking [entails]. *)
+	(* Within each hypothesis, substitute the mode constant [qmode] for the
+	   variable [q] and the ground types [gtys] for the type variables
+	   [alphas]. This yields a ground constraint. If it is a mode ordering
+	   constraint, check that this constraint is valid. If it is a mode
+	   constraint, then it forms a subgoal, whose validity we check by
+	   (recursively) invoking [entails]. *)
 
-      List.iter (fun hypothesis ->
+	List.iter (fun hypothesis ->
 
-	match hypothesis with
-	| OrderingConstraintHypothesis (cmode1, mode2) ->
-	    let cmode2 = instantiate_mode qmode mode2 in
-	    if not (Mode.leq cmode1 cmode2) then
-	      (* This ground mode ordering constraint is invalid. A good
-		 error message must not just print this invalid ground
-		 constraint, because the user will see that the constraint
-		 is invalid but will not see how it is connected to the
-		 previous goal. Instead, we must reason in terms of the
-		 un-instantiated mode ordering constraint and produce an
-		 intuitive explanation in natural language. *)
-	      begin match mode2 with
-	      | ModeVariable ->
-		  (* This is the expected case. The un-instantiated
-		     constraint is [cmode1 <= q]. This means that
-		     every type whose head constructor is [tycon]
-		     is at least [cmode1], and this is the intuitive
-		     reason why it cannot be [cmode2]. *)
-		  raise (NO (sprintf "%s\"%s\" is always at least %s,\n\
-				      so this assertion does not hold.\n"
-			             (if toplevel then "" else "But ")
-				     (TyCon.show tycon) (Mode.show cmode1)))
-	      | ModeConstant _ ->
-		  (* This case should not arise, because it would mean that the
-		     client has constructed a rule with an invalid hypothesis,
-		     a rule that is never applicable. Nevertheless, we handle it. *)
-		  raise (NO ("This is never the case.\n"))
-	      end
-	| ModeConstraintHypothesis (mode, alpha) ->
-	    let subgoal =
-	      ModeConstraintGoal (
-		instantiate_mode qmode mode,
-		List.nth gtys alpha
-	      )
-	    in
-	    entails false context subgoal
+	  match hypothesis with
+	  | OrderingConstraintHypothesis (cmode1, mode2) ->
+	      let cmode2 = instantiate_mode qmode mode2 in
+	      if not (Mode.leq cmode1 cmode2) then
+		(* This ground mode ordering constraint is invalid. A good
+		   error message must not just print this invalid ground
+		   constraint, because the user will see that the constraint
+		   is invalid but will not see how it is connected to the
+		   previous goal. Instead, we must reason in terms of the
+		   un-instantiated mode ordering constraint and produce an
+		   intuitive explanation in natural language. *)
+		begin match mode2 with
+		| ModeVariable ->
+		    (* This is the expected case. The un-instantiated
+		       constraint is [cmode1 <= q]. This means that
+		       every type whose head constructor is [tycon]
+		       is at least [cmode1], and this is the intuitive
+		       reason why it cannot be [cmode2]. *)
+		    raise (NO (sprintf "%s\"%s\" is always at least %s,\n\
+					so this assertion does not hold.\n"
+				       (if toplevel then "" else "But ")
+				       (TyCon.show tycon) (Mode.show cmode1)))
+		| ModeConstant _ ->
+		    (* This case should not arise, because it would mean that the
+		       client has constructed a rule with an invalid hypothesis,
+		       a rule that is never applicable. Nevertheless, we handle it. *)
+		    raise (NO ("This is never the case.\n"))
+		end
+	  | ModeConstraintHypothesis (mode, alpha) ->
+	      let subgoal =
+		ModeConstraintGoal (
+		  instantiate_mode qmode mode,
+		  List.nth gtys alpha
+		)
+	      in
+	      entails false context subgoal
 
-      ) hypotheses
+	) hypotheses
 
-    with Not_found ->
-      raise (NO (sprintf "%sI know nothing about \"%s\".\n"
-		   (if toplevel then "" else "But ")
-		   (TyCon.show tycon)))
+      with Not_found ->
+	raise (NO (sprintf "%sI know nothing about \"%s\".\n"
+		     (if toplevel then "" else "But ")
+		     (TyCon.show tycon)))
 
-  with NO explanation ->
-    (* Prepend a new line, showing the current goal, in front of the
-       explanation that came up from the recursive call. *)
-    raise (NO (sprintf "%s: %s.\n%s"
-		 (if toplevel then "I cannot establish" else "This requires")
-		 (show_goal goal)
-		 explanation))
+    with NO explanation ->
+      (* Prepend a new line, showing the current goal, in front of the
+	 explanation that came up from the recursive call. *)
+      raise (NO (sprintf "%s: %s.\n%s"
+		   (if toplevel then "I cannot establish" else "This requires")
+		   (show_goal goal)
+		   explanation))
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -231,10 +237,4 @@ let entails context goal : result =
     No explanation
 
 end
-
-(* TEMPORARY at the moment, we do not have the axiom "forall tau, top(tau)",
-   where "top" is the top element of the mode lattice (for us, "affine").
-   Should we add it? Or perhaps not? After all, "top(tau)" could be
-   used to encode a certain notion of well-formedness of tau, i.e. not
-   universally true. *)
 

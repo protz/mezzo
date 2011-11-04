@@ -9,6 +9,12 @@
    others. For instance, ``duplicable'' is typically a sub-mode of ``affine'',
    and ``exclusive'' is typically a sub-mode of ``affine''. *)
 
+(* If the ordering on modes has a universal element, one that is true of
+   every type, then the constraint "universal (tau)" must be considered
+   true even if nothing is known about tau. We set things up so that it
+   is possible (but not required) to declare the existence of such a
+   universal element. *)
+
 (* Typical examples of rules include: ``a reference is exclusive'', ``a purely
    functional list is duplicable if its elements are duplicable'', ``a purely
    functional list is affine if its elements are affine'', and so on. *)
@@ -64,6 +70,7 @@ module Make
 
   (Mode : sig
     type mode
+    val is_universal: mode -> bool
     val leq: mode -> mode -> bool
     val show: mode -> string
   end)
@@ -97,7 +104,12 @@ type type_variable =
       (* a de Bruijn level: leftmost member of [alphas] is zero *)
 
 type hypothesis =
-  | OrderingConstraintHypothesis of mode_constant * mode (* TEMPORARY force rhs to be a variable *)
+  | OrderingConstraintHypothesis of mode_constant * mode
+      (* Here, one could force the right-hand side to be [q], that
+	 is, [ModeVariable], because the other case is trivial. I
+	 am keeping things this way because we might allow more
+	 general right-hand sides in the future: for instance, a
+	 monotonic function of [q] would be ok. *)
   | ModeConstraintHypothesis of mode * type_variable
 
 type hypotheses =
