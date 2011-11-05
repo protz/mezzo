@@ -1,6 +1,7 @@
 .PHONY: all clean
 
 OCAMLBUILD := ocamlbuild -classic-display -use-menhir -cflags "-g" -lflags "-g"
+INCLUDE    := -Is sets
 MAIN       := Main
 
 all:

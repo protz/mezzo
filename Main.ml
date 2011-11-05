@@ -106,3 +106,5 @@ let () =
         flush stdout
   ) unsuccessful_goals
 
+open PersistentUnionFind (* TEMPORARY *)
+
