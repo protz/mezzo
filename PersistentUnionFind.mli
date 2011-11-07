@@ -36,3 +36,16 @@ val union: point -> point -> 'a state -> 'a state
 
 val find: point -> 'a state -> 'a
 
+(* [update f x state] updates the descriptor associated with [x]'s equivalence
+   class. The new descriptor is obtained by applying the function [f] to the
+   previous descriptor. *)
+
+val update: ('a -> 'a) -> point -> 'a state -> 'a state
+
+(* [union_computed f x y state] first makes [x] and [y] equivalent, just like
+   [union]; then, only if [x] and [y] were not already equivalent, it assigns
+   a new descriptor to [x] and [y], which is computed by applying [f] to the
+   descriptors previously associated with [x] and [y]. *)
+
+val union_computed: ('a -> 'a -> 'a) -> point -> point -> 'a state -> 'a state
+

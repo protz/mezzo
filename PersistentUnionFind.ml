@@ -3,7 +3,7 @@
 (* The internal representation of the state of the algorithm is
    not just a persistent store, but a reference to a persistent
    store. This allows path compression to update the store in
-   place, and yields to slightly more efficient code (this saves
+   place, and leads to slightly more efficient code (this saves
    the need for allocating pairs) and a slightly more pleasant
    user interface ([find] does not need to return a new state). *)
 
@@ -93,4 +93,33 @@ let find x state =
 	      desc
 	  | Link _ ->
 	      assert false
+
+(* [update f x state] updates the descriptor associated with [x]'s equivalence
+   class. The new descriptor is obtained by applying the function [f] to the
+   previous descriptor. *)
+
+let update f x state =
+  let rx = repr x state in
+  let descx = find rx state in
+  (* careful: an in-place update would not be ok here! *)
+  ref (set rx (Root (f descx)) !state)
+
+(* [union_computed f x y state] first makes [x] and [y] equivalent, just like
+   [union]; then, only if [x] and [y] were not already equivalent, it assigns
+   a new descriptor to [x] and [y], which is computed by applying [f] to the
+   descriptors previously associated with [x] and [y]. *)
+
+let union_computed f x y state =
+  let rx = repr x state in
+  let ry = repr y state in
+  if eq rx ry then
+    state
+  else
+     (* careful: an in-place update would not be ok here! *)
+     let store = set rx (Link ry) !state in
+     let descx = find rx state
+     and descy = find ry state in
+     (* careful: an in-place update would not be ok here! *)
+     let store = set ry (Root (f descx descy)) store in
+     ref store
 

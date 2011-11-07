@@ -106,5 +106,8 @@ let () =
         flush stdout
   ) unsuccessful_goals
 
-open PersistentUnionFind (* TEMPORARY *)
+(* Fake opens, for ocamlbuild. *)
+
+open PersistentUnionFind
+open PermissionDeduction
 
