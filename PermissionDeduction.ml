@@ -51,7 +51,13 @@ and ustate =
    case, all folded concrete permissions must be for the same [tycon],
    possibly with distinct parameters. *)
 
+(* We keep track of whether at least one (concrete and abstract) permission is
+   exclusive. This allows us to easily enforce the following rule: if two
+   exclusive permissions (for a single object) are available, then the typing
+   context is inconsistent. *)
+
 and canonical_permission = {
+  exclusive: bool;
   concrete_permissions: concrete_permissions;
   abstract_permissions: abstract_type list
 }
@@ -73,6 +79,9 @@ let is_inconsistent = function
 (* ---------------------------------------------------------------------------- *)
 
 (* TEMPORARY move to module [Data] *)
+
+let is_exclusive_ty (ty : typ) : bool =
+  assert false
 
 let is_exclusive_datacon datacon : bool =
   assert false
@@ -192,19 +201,11 @@ end) = struct
     match cperm1, cperm2 with
 
     | Unfolded (datacon1, fields1), Unfolded (datacon2, fields2) ->
-	(* We have two unfolded permissions. *)
-	(* An object cannot simultaneously carry two distinct tags, so
-	   [datacon1] and [datacon2] must coincide, or this typing context
-	   is inconsistent. *)
+	(* We have two unfolded permissions. In fact, this must be two
+	   copies of the same permission: we can require that the tags
+	   coincide, and unify the fields. *)
 	if not (eq_datacon datacon1 datacon2) then
 	  raise Inconsistency;
-	(* The class with which [datacon1] is associated cannot be exclusive,
-	   or this typing context is inconsistent. *)
-	if is_exclusive_datacon datacon1 then
-	  raise Inconsistency;
-	(* Thus, both permissions are duplicable. In fact, this must be two
-	   copies of the same permission: we can unify the fields. Schedule
-	   unification requests. *)
 	iter2_fields request_unify fields1 fields2;
 	(* The two permissions are now equivalent. Keep either of them. *)
 	cperm1
@@ -216,8 +217,6 @@ end) = struct
 	   to unfold any as-yet-unfolded permissions found on the other
 	   side. *)
 	List.iter (fun cty ->
-	  if is_exclusive_datacon datacon then
-	    raise Inconsistency;
 	  (* Out of the definition of [tycon], extract the definition
 	     of [datacon], and instantiate it appropriately. Here, we
 	     prepare the instantiation function, and use it on the fly
@@ -267,7 +266,15 @@ end) = struct
 
     (* Lists of abstract permissions are merged by simple concatenation. *)
 
+    (* If both sides contain an exclusive permission, then the combination
+       is inconsistent. *)
+
+    if perm1.exclusive && perm2.exclusive then
+      raise Inconsistency;
+
     {
+      exclusive =
+	perm1.exclusive || perm2.exclusive;
       concrete_permissions =
 	merge_concrete perm1.concrete_permissions perm2.concrete_permissions;
       abstract_permissions =
@@ -317,6 +324,7 @@ end) = struct
 	    (* This permission cannot be unfolded, because there are
 	       at least two branches. It is a canonical permission. *)
 	    let perm = {
+	      exclusive = is_exclusive_ty ty;
 	      concrete_permissions = Folded [ cty ];
 	      abstract_permissions = []
 	    } in
@@ -330,6 +338,7 @@ end) = struct
 	   point for each field, and schedule a permission addition for
 	   each of these points. *)
         let no_permission = {
+	  exclusive = false;
 	  concrete_permissions = Folded [];
 	  abstract_permissions = []
 	} in
@@ -342,6 +351,7 @@ end) = struct
 	in
 	(* Build and install a canonical permission. *)
 	let perm = {
+	  exclusive = is_exclusive_datacon datacon; (* or: is_exclusive_ty ty *)
 	  concrete_permissions = Unfolded (datacon, points);
 	  abstract_permissions = []
 	} in
@@ -350,6 +360,7 @@ end) = struct
         (* An abstract permission can be considered a canonical permission.
 	   Build it and install it. *)
 	let perm = {
+	  exclusive = is_exclusive_ty ty;
 	  concrete_permissions = Folded [];
 	  abstract_permissions = [ aty ]
 	} in
