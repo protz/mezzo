@@ -65,19 +65,19 @@ separated_or_preceded_list(sep, X):
    of multiple-argument functions and (2) it would depart from the mathematical
    notation for tuples. *)
 
+(* I thought for a moment that, in order to avoid a conflict with the
+   standard use of parentheses as a desambiguation construct, tuples
+   of length one would have to be made syntactically unavailable. I
+   have changed my mind, because this position is untenable; tuples
+   of length one are actually useful, e.g. in a function type of the
+   form [(x: t) -> u] or [(consumes t) -> u]. So, my new position is,
+   tuples are unrestricted, and there is no other use of parentheses.
+   A post-processing phase determines how tuples of length one should
+   be interpreted. *)
+
 tuple(X):
   LPAREN xs = separated_list(COMMA, X) RPAREN
     { xs }
-
-(* In order to avoid a conflict with the standard use of parentheses as
-   a desambiguation construct, tuples of length one must sometimes be
-   made syntactically unavailable. *)
-
-nontrivial_tuple(X):
-| LPAREN RPAREN (* tuple of length 0 *)
-    { [] }
-| LPAREN x = X COMMA xs = separated_nonempty_list(COMMA, X) RPAREN (* tuple of length 2 or greater *)
-    { x :: xs }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -158,9 +158,7 @@ tuple_type_component:
     {}
 
 typ0:
-| LPAREN typ RPAREN
-    {}
-| nontrivial_tuple(tuple_type_component) (* tuple types à la Haskell *)
+| tuple(tuple_type_component) (* tuple types à la Haskell; this includes the normal use of parentheses! *)
     {}
 | UNKNOWN (* a type which means no permission; the top type *)
     {}
