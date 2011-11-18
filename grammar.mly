@@ -2,8 +2,13 @@
 
 (* Syntactic categories of names. *)
 
-(* Term variables, type variables, type constructors, fields are not syntactically
-   distinguished. *)
+(* Term variables, type variables, type constructors, fields are not
+   syntactically distinguished. Placing term variables, type variables, and
+   type constructors within a single syntactic category is natural because
+   they share certain mechanisms (e.g. types and terms can be abstracted over
+   them). They will be distinguished using sorts. Placing term variables and
+   fields within a single syntactic category is natural because we wish to
+   allow puns. *)
 
 %token LIDENT
 
@@ -17,10 +22,14 @@
 
 (* Other tokens. *)
 
+%token KTERM KTYPE KPERM
 %token PERMISSION UNKNOWN DYNAMIC
 %token DATA BAR
 %token LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
-%token COMMA COLON SEMI ARROW
+%token COMMA COLON COLONCOLON SEMI ARROW STAR
+%token EQUAL
+%token EMPTY
+(* %token WHERE CONSUMES PRODUCES *)
 %token EOF
 
 (* ---------------------------------------------------------------------------- *)
@@ -49,52 +58,140 @@ separated_or_preceded_list(sep, X):
 | xs = separated_nonempty_list(sep, X)
     { xs }
 
+(* Tuples. *)
+
+(* I would have liked to use curly braces and semicolons, by analogy with
+   records, but this would be too extreme: (1) it would impact the syntax
+   of multiple-argument functions and (2) it would depart from the mathematical
+   notation for tuples. *)
+
+tuple(X):
+  LPAREN xs = separated_list(COMMA, X) RPAREN
+    { xs }
+
+(* In order to avoid a conflict with the standard use of parentheses as
+   a desambiguation construct, tuples of length one must sometimes be
+   made syntactically unavailable. *)
+
+%inline nontrivial_tuple(X):
+| LPAREN RPAREN (* tuple of length 0 *)
+    { [] }
+| LPAREN x = X COMMA xs = separated_nonempty_list(COMMA, X) RPAREN (* tuple of length 2 or greater *)
+    { x :: xs }
+
 (* ---------------------------------------------------------------------------- *)
 
-(* Types. *)
+(* Kinds. *)
 
-tycon:
-  LIDENT
+kind0:
+| LPAREN kind RPAREN
     {}
+| KTERM
+    {}
+| KTYPE
+    {}
+| KPERM
+    {}
+
+kind:
+| k = kind0
+    { k }
+| kind0 ARROW kind
+    {}
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Types and permissions. *)
+
+(* Because types and permissions are distinguished via the kind system,
+   they are not (and must not be) distinguished in the syntax. Thus,
+   the productions that concern permissions (the empty permission,
+   anchored permissions, permission conjunction, etc.) appear as part
+   of the syntax of types. *)
 
 type_application(X, Y):
-  X LBRACKET separated_list(COMMA, Y) RBRACKET
+  X LBRACKET separated_nonempty_list(COMMA, Y) RBRACKET
     {}
 
-concrete_type:
-  type_application(tycon, typ)
+type_binding:
+  LIDENT COLONCOLON kind
     {}
 
-typ:
-| UNKNOWN (* no permission *)
+(* Every function argument must come with a type. At worst, this type
+   could be UNKNOWN, if one does not wish to specify a type. *)
+
+function_parameters:
+| typ0 (* TEMPORARY tuple(anchored_permission) *)
     {}
-| DYNAMIC (* permission to test membership in a dynamic region *)
+
+function_results:
+  typ1 (* TEMPORARY *)
     {}
-| tycon   (* type variable, abstract type, or concrete type *)
+
+typ0:
+| LPAREN typ RPAREN
     {}
-| type_application(typ, typ)
+| UNKNOWN (* a type which means no permission; the top type *)
+    {}
+| DYNAMIC (* a type which means permission to test membership in a dynamic region *)
+    {}
+| EMPTY   (* the empty permission; neutral element for permission conjunction *)
+    {}
+| LIDENT  (* term variable, type variable, permission variable, abstract type, or concrete type *)
     {}
 | data_type_def_branch (* concrete type with known branch *)
     {}
-(*| function_parameters ARROW function_results
-   {} *)
-(* TEMPORARY
-   function types; consumes/produces plus sugar
-   ghost function parameters
-   polymorphic types
-   syntax for anonymous tuples/sums?
-   forms that require term variables within types:
-   =x
-   t@x
-   non-closed function types *)
+| EQUAL LIDENT (* singleton type *)
+    {}
+| type_application(typ0, typ1)
+    {}
 
-(* A permission mentions a variable, which is free. This is not a
-   binding form. *)
-permission:
-  var COLON typ
+typ1:
+| t = typ0
+    { t }
+| function_parameters ARROW function_results
+    {}
+| anchored_permission
     {}
 (* TEMPORARY
-  permission variables *)
+   function types; consumes/produces plus sugar
+   polymorphic types
+   syntax for anonymous tuples/sums?
+*)
+
+typ2:
+| t = typ1
+    { t }
+| typ1 STAR typ2 (* conjunction of permissions *)
+    {}
+
+(* I considered using COMMA for separating conjunction because this seems
+   natural; think of the PRODUCES and CONSUMES clauses in function types.
+   However, COMMA is already used to separate multiple arguments in a type
+   application, so this means that parentheses will sometimes be necessary
+   (e.g. when a conjunction of permissions is used as an argument in a type
+   application). Even worse, COMMA is used in the syntax of tuples, and this
+   leads to conflicts with tuple types and multi-argument function types.
+   So, I give up and use a dedicated symbol, STAR, for conjunction. *)
+
+%inline typ:
+  t = typ2
+    { t }
+
+(* We distinguish anchored permissions, of the form x: t, and
+   general permissions, which are not necessarily anchored.
+   General permissions are just types of kind KPERM. *)
+
+(* In an anchored permission x: t, the variable x is free. This
+   is not a binding form. However, anchored permissions are
+   re-used as part of named field definitions, where they are
+   viewed as a binding form. *)
+
+anchored_permission:
+| LIDENT COLON typ1
+    {}
+| LIDENT EQUAL LIDENT (* x = y is sugar for x: =y *)
+    {}
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -106,20 +203,14 @@ datacon:
   UIDENT
     {}
 
-field:
-  LIDENT
-    {}
-
 (* A named field definition binds a field name and at the same time
-   specifies a permission for it. *)
+   specifies an anchored permission for it. *)
 named_field_def:
-  field COLON typ
+  anchored_permission
     {}
-(* TEMPORARY sugar: f = x for f: (=x)
-             sugar: f for f = f *)
 
 permission_field_def:
-  PERMISSION permission
+  PERMISSION typ (* a type of kind KPERM *)
     {}
 
 data_field_def:
@@ -130,14 +221,12 @@ data_field_def:
 (* TEMPORARY
   adopts clauses
   mode assertions
-  type equality constraints
-  ghost fields
   ... *)
 
 datacon_application(X, Y):
-| X
+| X (* a pair of empty braces can be omitted *)
     {}
-| X LBRACE separated_list(SEMI, Y) RBRACE
+| X LBRACE separated_or_terminated_list(SEMI, Y) RBRACE
     {}
 
 data_type_def_branch:
@@ -145,7 +234,7 @@ data_type_def_branch:
     {}
 
 data_type_def_lhs:
-  DATA concrete_type
+  DATA type_application(LIDENT, type_binding)
     {}
 
 data_type_def_rhs:
@@ -160,10 +249,6 @@ data_type_def:
 (* ---------------------------------------------------------------------------- *)
 
 (* Terms. *)
-
-var:
-  LIDENT
-    {}
 
 (* ---------------------------------------------------------------------------- *)
 
