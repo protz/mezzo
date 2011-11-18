@@ -29,7 +29,7 @@
 %token COMMA COLON COLONCOLON SEMI ARROW STAR
 %token EQUAL
 %token EMPTY
-(* %token WHERE CONSUMES PRODUCES *)
+%token CONSUMES
 %token EOF
 
 (* ---------------------------------------------------------------------------- *)
@@ -73,7 +73,7 @@ tuple(X):
    a desambiguation construct, tuples of length one must sometimes be
    made syntactically unavailable. *)
 
-%inline nontrivial_tuple(X):
+nontrivial_tuple(X):
 | LPAREN RPAREN (* tuple of length 0 *)
     { [] }
 | LPAREN x = X COMMA xs = separated_nonempty_list(COMMA, X) RPAREN (* tuple of length 2 or greater *)
@@ -120,16 +120,47 @@ type_binding:
 (* Every function argument must come with a type. At worst, this type
    could be UNKNOWN, if one does not wish to specify a type. *)
 
-function_parameters:
-| typ0 (* TEMPORARY tuple(anchored_permission) *)
+(* It seems difficult to avoid conflicts in the syntax of function types. One
+   sure thing is, we wish to allow traditional function types of the form [typ
+   -> typ], because these will remain common.  However, we also want to allow
+   multi-argument dependent function types, of the form [(x: typ, ..., x: typ)
+   -> ... ]. As a consequence, it seems that we must view [(x: typ, ...,
+   x:typ)] as a type. Since the syntax of tuple types is [(typ, ..., typ)], it
+   seems that we must identify these two forms, that is, we must allow tuple
+   types that bind names for their components. Finally, there is an artificial
+   ambiguity because (x: typ) is a type (of kind KPERM). It is not a real
+   ambiguity because the tuple type of the form [(x: typ, ..., x: typ)] is
+   ill-kinded if each (x: typ) is viewed as a permission. We must simply
+   adjust the syntax of tuple types so that the types that appear within
+   tuples cannot be anchored permissions. In conclusion, we allow a component
+   of a tuple type to be optionally named. It is up to a post-processing phase
+   to determine what this name means and how it be should de-sugared into
+   normal tuple types. For the same reason, we allow a component of a tuple
+   type to carry the [CONSUMES] keyword. This does not make sense in a normal
+   tuple type, but makes sense if this tuple serves as a function argument. *)
+
+%inline function_parameter_modifier: (* %inline required *)
+| (* by default, permission is consumed and produced *)
+    {}
+| CONSUMES
     {}
 
-function_results:
-  typ1 (* TEMPORARY *)
+%inline tuple_component_name: (* %inline required *)
+| (* unnamed: this is the normal case *)
+    {}
+| LIDENT COLON (* named: this tuple is presumably used as argument or result of a function type *)
+    {}
+
+tuple_type_component:
+  function_parameter_modifier (* optional CONSUMES annotation *)
+  tuple_component_name        (* optional name *)
+  typ1                        (* type *)
     {}
 
 typ0:
 | LPAREN typ RPAREN
+    {}
+| nontrivial_tuple(tuple_type_component) (* tuple types à la Haskell *)
     {}
 | UNKNOWN (* a type which means no permission; the top type *)
     {}
@@ -149,20 +180,24 @@ typ0:
 typ1:
 | t = typ0
     { t }
-| function_parameters ARROW function_results
+| typ0 ARROW typ1 (* ioption(preceded(CONSUMES, typ3)) ioption(preceded(PRODUCES, typ3)) TEMPORARY *)
     {}
-| anchored_permission
-    {}
-(* TEMPORARY
-   function types; consumes/produces plus sugar
-   polymorphic types
-   syntax for anonymous tuples/sums?
-*)
 
 typ2:
 | t = typ1
     { t }
-| typ1 STAR typ2 (* conjunction of permissions *)
+| anchored_permission
+    {}
+(* TEMPORARY
+   function types; consumes/produces/affects plus various sugar
+   polymorphic types
+   syntax for anonymous tuples/sums?
+*)
+
+typ3:
+| t = typ2
+    { t }
+| typ2 STAR typ3 (* conjunction of permissions *)
     {}
 
 (* I considered using COMMA for separating conjunction because this seems
@@ -174,8 +209,8 @@ typ2:
    leads to conflicts with tuple types and multi-argument function types.
    So, I give up and use a dedicated symbol, STAR, for conjunction. *)
 
-%inline typ:
-  t = typ2
+typ:
+  t = typ3
     { t }
 
 (* We distinguish anchored permissions, of the form x: t, and
