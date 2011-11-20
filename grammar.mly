@@ -145,16 +145,24 @@ type_binding:
 | CONSUMES
     {}
 
-%inline tuple_component_name: (* %inline required *)
+%inline tuple_type_component_name: (* %inline required *)
 | (* unnamed: this is the normal case *)
     {}
 | LIDENT COLON (* named: this tuple is presumably used as argument or result of a function type *)
     {}
 
+(* A tuple type component can be either a value (which exists at runtime)
+   or a permission. This is natural, because we allow the same flexibility
+   in records, and because we need this flexibility in order to specify
+   function domains and codomains. *)
+
 tuple_type_component:
   function_parameter_modifier (* optional CONSUMES annotation *)
-  tuple_component_name        (* optional name *)
+  tuple_type_component_name   (* optional name *)
   typ1                        (* type *)
+    {}
+| function_parameter_modifier (* optional CONSUMES annotation *)
+  permission_field_def        (* permission *)
     {}
 
 typ0:
@@ -172,13 +180,13 @@ typ0:
     {}
 | EQUAL LIDENT (* singleton type *)
     {}
-| type_application(typ0, typ1)
+| type_application(typ0, typ3)
     {}
 
 typ1:
 | t = typ0
     { t }
-| typ0 ARROW typ1 (* ioption(preceded(CONSUMES, typ3)) ioption(preceded(PRODUCES, typ3)) TEMPORARY *)
+| typ0 ARROW typ1
     {}
 
 typ2:
@@ -187,7 +195,6 @@ typ2:
 | anchored_permission
     {}
 (* TEMPORARY
-   function types; consumes/produces/affects plus various sugar
    polymorphic types
    syntax for anonymous tuples/sums?
 *)
