@@ -2,6 +2,9 @@
 
 (* Syntactic categories of names. *)
 
+(* We assume that names are hash-consed (or internalized, in Java parlance)
+   on the fly by the lexer, so the lexer produces integer codes for names. *)
+
 (* Term variables, type variables, type constructors, fields are not
    syntactically distinguished. Placing term variables, type variables, and
    type constructors within a single syntactic category is natural because
@@ -10,13 +13,13 @@
    fields within a single syntactic category is natural because we wish to
    allow puns. *)
 
-%token LIDENT
+%token<int> LIDENT
 
 (* As in ocaml, we set up a separate namespace for data constructors. This allows
    distinguishing variables and data constructors in a pattern. (Another solution
    would be to require data constructors to be explicitly followed with braces.) *)
 
-%token UIDENT
+%token<int> UIDENT
 
 (* ---------------------------------------------------------------------------- *)
 

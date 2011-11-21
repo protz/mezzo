@@ -111,3 +111,4 @@ let () =
 open PersistentUnionFind
 open PermissionDeduction
 open Grammar
+open WellKindedness
