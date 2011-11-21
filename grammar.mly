@@ -109,12 +109,23 @@ kind:
    anchored permissions, permission conjunction, etc.) appear as part
    of the syntax of types. *)
 
+(* The syntax of type applications involves square brackets and commas.
+   This can be viewed as noisy; perhaps one would prefer to simply use
+   juxtaposition, as in applications of terms to terms. Within the
+   syntax of types, this would be possible. However, within the syntax
+   of terms, we will need to distinguish between an application of a
+   term to a type and an application of a term to a term. So we might
+   as well use square brackets wherever something is applied to a type. *)
+(* TEMPORARY change this decision? *)
+
 type_application(X, Y):
   X LBRACKET separated_nonempty_list(COMMA, Y) RBRACKET
     {}
 
 type_binding:
-  LIDENT COLONCOLON kind
+| LIDENT (* KTYPE is the default kind *)
+    {}
+| LIDENT COLONCOLON kind
     {}
 
 (* Every function argument must come with a type. At worst, this type
@@ -182,6 +193,7 @@ typ0:
     {}
 | type_application(typ0, typ3)
     {}
+(* TEMPORARY inhabitants of static group regions *)
 
 typ1:
 | t = typ0
@@ -196,7 +208,8 @@ typ2:
     {}
 (* TEMPORARY
    polymorphic types
-   syntax for anonymous tuples/sums?
+   mode constraints as function preconditions and/or as tuple components?
+   syntax for anonymous sums?
 *)
 
 typ3:
@@ -285,6 +298,10 @@ data_type_def:
   data_type_def_lhs
   data_type_def_rhs
     {}
+
+(* A concrete data type is necessarily of kind KTYPE. We do not allow defining
+   concrete data types of kind KPERM. In principle, we could allow it. I think
+   we can live without it (experience will tell). *)
 
 (* ---------------------------------------------------------------------------- *)
 
