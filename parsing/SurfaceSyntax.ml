@@ -27,6 +27,9 @@ type kind =
 
 (* Types and permissions. *)
 
+type type_binding =
+    identifier * kind
+
 type consumes_annotation =
   | Consumes
   | ConsumesAndProduces
@@ -37,10 +40,11 @@ type typ =
   | TyDynamic
   | TyEmpty
   | TyVar of identifier
-  | TyConcreteUnfolded of (datacon * data_field_def list)
+  | TyConcreteUnfolded of data_type_def_branch
   | TySingleton of identifier
-  | TyApp of (typ * typ list)
+  | TyApp of typ * typ
   | TyArrow of typ * typ
+  | TyForall of type_binding * typ
   | TyAnchoredPermission of anchored_permission
   | TyStar of typ * typ
 
@@ -51,6 +55,9 @@ and tuple_type_component_aux =
   | TyTupleComponentAnonymousValue of typ
   | TyTupleComponentNamedValue of anchored_permission
   | TyTupleComponentPermission of typ
+
+and data_type_def_branch =
+    datacon * data_field_def list
 
 and data_field_def =
   | FieldValue of anchored_permission
@@ -63,18 +70,17 @@ and anchored_permission =
 
 (* Algebraic data type definitions. *)
 
-type type_binding =
-    identifier * kind
-
 type data_type_def_lhs =
     identifier * type_binding list
-
-type data_type_def_branch =
-    datacon * data_field_def list
 
 type data_type_def_rhs =
     data_type_def_branch list
 
 type data_type_def =
     data_type_def_lhs * data_type_def_rhs
+
+(* A data type group is a group of mutually recursive data type definitions. *)
+
+type data_type_group =
+    data_type_def list
 
