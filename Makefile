@@ -1,14 +1,17 @@
 .PHONY: all clean
 
 OCAMLBUILD := ocamlbuild -classic-display -use-menhir -menhir "menhir --explain --infer -la 1" -cflags "-g" -lflags "-g"
-INCLUDE    := -Is sets
-MAIN       := Main
+INCLUDE    := -Is sets -Is typing -Is parsing -Is ulex -Is lib
+MAIN       := hamlet
+TEST	   := test
 
-all:
-	$(OCAMLBUILD) $(INCLUDE) $(MAIN).native
-	ln -sf $(MAIN).native $(MAIN)
+all: $(MAIN).native $(TEST).native
+
+%.native:
+	$(OCAMLBUILD) $(INCLUDE) $*.native
+	ln -sf $*.native $*
 
 clean:
-	rm -f *~ $(MAIN) $(MAIN).native
+	rm -f *~ $(MAIN) $(MAIN).native $(TEST) $(TEST).native
 	$(OCAMLBUILD) -clean
 

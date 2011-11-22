@@ -29,7 +29,7 @@
 %token PERMISSION UNKNOWN DYNAMIC
 %token DATA BAR
 %token LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
-%token COMMA COLON COLONCOLON SEMI ARROW STAR
+%token COMMA COLON COLONCOLON SEMI DBLARROW ARROW STAR
 %token EQUAL
 %token EMPTY
 %token CONSUMES
@@ -39,7 +39,22 @@
 
 (* Miscellaneous directives. *)
 
-%start<unit> unit
+%{
+ open SurfaceSyntax
+ open Ulexing
+ open Utils
+%}
+
+%type <SurfaceSyntax.kind> kind
+%type <SurfaceSyntax.typ> typ
+%type <SurfaceSyntax.typ> typ0
+%type <SurfaceSyntax.typ> typ1
+%type <SurfaceSyntax.typ> typ2
+%type <SurfaceSyntax.typ> typ3
+%type <SurfaceSyntax.typ> type_application
+%type <SurfaceSyntax.data_type_def> data_type_def
+
+%start<SurfaceSyntax.data_type_def list> unit
 
 %%
 
@@ -87,20 +102,20 @@ tuple(X):
 (* Kinds. *)
 
 kind0:
-| LPAREN kind RPAREN
-    {}
+| LPAREN k = kind RPAREN
+    { k }
 | KTERM
-    {}
+    { KTerm }
 | KTYPE
-    {}
+    { KType }
 | KPERM
-    {}
+    { KPerm }
 
 kind:
 | k = kind0
     { k }
-| kind0 ARROW kind
-    {}
+| k1 = kind0 ARROW k2 = kind
+    { KArrow (k1, k2) }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -122,14 +137,14 @@ kind:
 (* TEMPORARY change this decision? *)
 
 type_application(X, Y):
-  X LBRACKET separated_nonempty_list(COMMA, Y) RBRACKET
-    {}
+  t1 = X LBRACKET t2 = separated_nonempty_list(COMMA, Y) RBRACKET
+    { (t1, t2) }
 
 type_binding:
-| LIDENT (* KTYPE is the default kind *)
-    {}
-| LIDENT COLONCOLON kind
-    {}
+| id = LIDENT (* KTYPE is the default kind *)
+    { (id, KType) }
+| id = LIDENT COLONCOLON k = kind
+    { (id, k) }
 
 (* Every function argument must come with a type. At worst, this type
    could be UNKNOWN, if one does not wish to specify a type. *)
@@ -155,15 +170,15 @@ type_binding:
 
 %inline function_parameter_modifier: (* %inline required *)
 | (* by default, permission is consumed and produced *)
-    {}
+    { ConsumesAndProduces }
 | CONSUMES
-    {}
+    { Consumes }
 
 %inline tuple_type_component_name: (* %inline required *)
 | (* unnamed: this is the normal case *)
-    {}
-| LIDENT COLON (* named: this tuple is presumably used as argument or result of a function type *)
-    {}
+    { None }
+| id = LIDENT COLON (* named: this tuple is presumably used as argument or result of a function type *)
+    { Some id }
 
 (* A tuple type component can be either a value (which exists at runtime)
    or a permission. This is natural, because we allow the same flexibility
@@ -171,44 +186,50 @@ type_binding:
    function domains and codomains. *)
 
 tuple_type_component:
-  function_parameter_modifier (* optional CONSUMES annotation *)
-  tuple_type_component_name   (* optional name *)
-  typ1                        (* type *)
-    {}
-| function_parameter_modifier (* optional CONSUMES annotation *)
-  permission_field_def        (* permission *)
-    {}
+  annot = function_parameter_modifier (* optional CONSUMES annotation *)
+  name = tuple_type_component_name   (* optional name *)
+  t = typ1                        (* type *)
+    {
+      annot, match name with
+      | None -> TyTupleComponentAnonymousValue t
+      | Some id -> TyTupleComponentNamedValue (id, t)
+    }
+| annot = function_parameter_modifier (* optional CONSUMES annotation *)
+  p = permission_field_def        (* permission *)
+    {
+      annot, TyTupleComponentPermission p
+    }
 
 typ0:
-| tuple(tuple_type_component) (* tuple types à la Haskell; this includes the normal use of parentheses! *)
-    {}
+| components = tuple(tuple_type_component) (* tuple types à la Haskell; this includes the normal use of parentheses! *)
+    { TyTuple components }
 | UNKNOWN (* a type which means no permission; the top type *)
-    {}
+    { TyUnknown}
 | DYNAMIC (* a type which means permission to test membership in a dynamic region *)
-    {}
+    { TyDynamic }
 | EMPTY   (* the empty permission; neutral element for permission conjunction *)
-    {}
-| LIDENT  (* term variable, type variable, permission variable, abstract type, or concrete type *)
-    {}
-| data_type_def_branch (* concrete type with known branch *)
-    {}
-| EQUAL LIDENT (* singleton type *)
-    {}
-| type_application(typ0, typ3)
-    {}
+    { TyEmpty }
+| id = LIDENT  (* term variable, type variable, permission variable, abstract type, or concrete type *)
+    { TyVar id }
+| d = data_type_def_branch (* concrete type with known branch *)
+    { TyConcreteUnfolded d }
+| EQUAL id = LIDENT (* singleton type *)
+    { TySingleton id }
+| t = type_application(typ0, typ3)
+    { TyApp t }
 (* TEMPORARY inhabitants of static group regions *)
 
 typ1:
 | t = typ0
     { t }
-| typ0 ARROW typ1
-    {}
+| t1 = typ0 ARROW t2 = typ1
+    { TyArrow (t1, t2) }
 
 typ2:
 | t = typ1
     { t }
-| anchored_permission
-    {}
+| t = anchored_permission
+    { TyAnchoredPermission t }
 (* TEMPORARY
    polymorphic types
    mode constraints as function preconditions and/or as tuple components?
@@ -218,8 +239,8 @@ typ2:
 typ3:
 | t = typ2
     { t }
-| typ2 STAR typ3 (* conjunction of permissions *)
-    {}
+| t1 = typ2 STAR t2 = typ3 (* conjunction of permissions *)
+    { TyStar (t1, t2) }
 
 (* I considered using COMMA for separating conjunction because this seems
    natural; think of the PRODUCES and CONSUMES clauses in function types.
@@ -244,10 +265,10 @@ typ:
    viewed as a binding form. *)
 
 anchored_permission:
-| LIDENT COLON typ1
-    {}
-| LIDENT EQUAL LIDENT (* x = y is sugar for x: =y *)
-    {}
+| id = LIDENT COLON t = typ1
+    { (id, t) }
+| id = LIDENT EQUAL id2 = LIDENT (* x = y is sugar for x: =y *)
+    { (id, TySingleton id2) }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -256,51 +277,51 @@ anchored_permission:
 (* TEMPORARY allow exclusive/mutable declarations *)
 
 datacon:
-  UIDENT
-    {}
+  id = UIDENT
+    { id }
 
 (* A named field definition binds a field name and at the same time
    specifies an anchored permission for it. *)
 named_field_def:
-  anchored_permission
-    {}
+  p = anchored_permission
+    { p }
 
 permission_field_def:
-  PERMISSION typ (* a type of kind KPERM *)
-    {}
+  PERMISSION t = typ (* a type of kind KPERM *)
+    { t }
 
 data_field_def:
-| named_field_def
-    {}
-| permission_field_def
-    {}
+| v = named_field_def
+    { FieldValue v }
+| p = permission_field_def
+    { FieldPermission p }
 (* TEMPORARY
   adopts clauses
   mode assertions
   ... *)
 
 datacon_application(X, Y):
-| X (* a pair of empty braces can be omitted *)
-    {}
-| X LBRACE separated_or_terminated_list(SEMI, Y) RBRACE
-    {}
+| id = X (* a pair of empty braces can be omitted *)
+    { (id, []) }
+| id = X LBRACE bindings = separated_or_terminated_list(SEMI, Y) RBRACE
+    { (id, bindings) }
 
 data_type_def_branch:
-  datacon_application(datacon, data_field_def)
-    {}
+  app = datacon_application(datacon, data_field_def)
+    { app }
 
 data_type_def_lhs:
-  DATA type_application(LIDENT, type_binding)
-    {}
+  DATA app = type_application(LIDENT, type_binding)
+    { app }
 
 data_type_def_rhs:
-  separated_or_preceded_list(BAR, data_type_def_branch)
-    {}
+  l = separated_or_preceded_list(BAR, data_type_def_branch)
+    { l }
 
 data_type_def:
-  data_type_def_lhs
-  data_type_def_rhs
-    {}
+  lhs = data_type_def_lhs
+  rhs = data_type_def_rhs
+    { (lhs, rhs) }
 
 (* A concrete data type is necessarily of kind KTYPE. We do not allow defining
    concrete data types of kind KPERM. In principle, we could allow it. I think
@@ -315,6 +336,6 @@ data_type_def:
 (* Program units. *)
 
 unit:
-  data_type_def*
+  definitions = data_type_def*
   EOF
-    {}
+    { definitions }
