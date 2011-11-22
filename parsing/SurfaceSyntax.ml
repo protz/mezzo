@@ -39,7 +39,7 @@ type typ =
   | TyVar of identifier
   | TyConcreteUnfolded of (datacon * data_field_def list)
   | TySingleton of identifier
-  | TyApp of (typ * typ list)
+  | TyApp of (typ * typ)
   | TyArrow of typ * typ
   | TyAnchoredPermission of anchored_permission
   | TyStar of typ * typ

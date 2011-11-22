@@ -216,7 +216,12 @@ typ0:
 | EQUAL id = LIDENT (* singleton type *)
     { TySingleton id }
 | t = type_application(typ0, typ3)
-    { TyApp t }
+    {
+      let t1, t2 = t in
+      let t2 = List.rev t2 in
+      let hd :: tl = t2 in
+      let t2 = List.fold_left (fun acc t -> TyApp (t, acc)) hd tl in
+      TyApp (t1, t2) }
 (* TEMPORARY inhabitants of static group regions *)
 
 typ1:
