@@ -17,14 +17,14 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-open Utils
-
 type error =
-  | UnexpectedEndOfComment of position
-  | UnterminatedComment of position
-  | GeneralError of position * string
+  | UnexpectedEndOfComment
+  | UnterminatedComment
+  | GeneralError of string
 
 exception LexingError of error
 
-val print_error: Buffer.t -> error -> unit
-val token: Ulexing.lexbuf -> Grammar.token
+val token: Ulexing.lexbuf -> Lexing.position * Grammar.token * Lexing.position
+
+val print_error: Buffer.t -> (Ulexing.lexbuf * error) -> unit
+val print_position: Buffer.t -> Ulexing.lexbuf -> unit

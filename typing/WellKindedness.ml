@@ -22,6 +22,9 @@ module M =
 type env =
     kind M.t
 
+let empty =
+    M.empty
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Error messages. *)

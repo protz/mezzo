@@ -336,6 +336,7 @@ datacon_application(X, Y):
 
 %inline data_type_def:
   lhs = data_type_def_lhs
+  EQUAL
   rhs = data_type_def_rhs
     { lhs, rhs }
 

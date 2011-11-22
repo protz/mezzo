@@ -19,38 +19,63 @@
 
 open Ulexing
 open Grammar
-open Utils
+
+(* Position handling *)
+
+let pos_fname = ref "<dummy>"
+let pos_lnum = ref 0
+let pos_bol = ref 0
+let pos pos_cnum =
+  let open Lexing in {
+    pos_fname = !pos_fname;
+    pos_lnum = !pos_lnum;
+    pos_bol = !pos_bol;
+    pos_cnum;
+  }
+
+let start_pos lexbuf = pos (lexeme_start lexbuf)
+let end_pos lexbuf = pos (lexeme_end lexbuf)
+
+let locate lexbuf token =
+  (start_pos lexbuf, token, end_pos lexbuf)
+
+let break_line lexbuf =
+  pos_lnum := !pos_lnum + 1;
+  pos_bol := lexeme_end lexbuf
+
+let print_position buf lexbuf =
+  let open Lexing in
+  let start_pos = start_pos lexbuf in
+  let end_pos = end_pos lexbuf in
+  let filename = start_pos.pos_fname in
+  let line = start_pos.pos_lnum in
+  let start_col = start_pos.pos_cnum in
+  let end_col = end_pos.pos_cnum in
+  Printf.bprintf buf "File \"%s\", line %i, characters %i-%i:"
+    filename line start_col end_col
+
+(* Error handling *)
 
 type error =
-  | UnexpectedEndOfComment of position
-  | UnterminatedComment of position
-  | GeneralError of position * string
+  | UnexpectedEndOfComment
+  | UnterminatedComment
+  | GeneralError of string
 
 exception LexingError of error
 
 let raise_error x =
   raise (LexingError x)
 
-let print_error buf = function
-  | UnexpectedEndOfComment p ->
-      Printf.bprintf buf "%a\nUnexpected end of comment" print_position p
-  | UnterminatedComment p ->
-      Printf.bprintf buf "%a\nUnterminated comment" print_position p
-  | GeneralError (p, e) ->
-      Printf.bprintf buf "%a\nLexing error: %s" print_position p e
+let print_error buf (lexbuf, error) =
+  match error with
+    | UnexpectedEndOfComment ->
+        Printf.bprintf buf "%a\nUnexpected end of comment" print_position lexbuf
+    | UnterminatedComment ->
+        Printf.bprintf buf "%a\nUnterminated comment" print_position lexbuf
+    | GeneralError e ->
+        Printf.bprintf buf "%a\nLexing error: %s" print_position lexbuf e
 
-let locate lexbuf token =
-  let start_offset = lexeme_start lexbuf in
-  let end_offset = lexeme_end lexbuf in
-  position.start_col <- start_offset - position.offset;
-  position.end_col <- end_offset - position.offset;
-  token
-
-let break_line lexbuf =
-  position.line <- position.line + 1;
-  position.start_col <- 1;
-  position.end_col <- 1;
-  position.offset <- lexeme_end lexbuf
+(* Various regexps *)
 
 let regexp whitespace = ['\t' ' ']+
 let regexp linebreak = ['\n' '\r' "\r\n"]
@@ -64,15 +89,17 @@ let regexp alpha_greek = alpha | greek
 let regexp digit = ['0'-'9']
 let regexp int = digit+
 let regexp lid =
-  (low_alpha | alpha_greek)+ (['_' '\''] | alpha_greek | digit)*
+  (low_alpha | low_greek) alpha_greek* (['_' '\''] | alpha_greek | digit)*
 let regexp uid =
-  up_alpha alpha_greek+ (['_' '\''] | alpha_greek | digit)*
+  (up_alpha | up_greek) alpha_greek* (['_' '\''] | alpha_greek | digit)*
+
+(* The lexer *)
 
 let rec token = lexer
 | linebreak -> break_line lexbuf; token lexbuf
 | whitespace -> token lexbuf
 | "(*" -> comment 0 lexbuf
-| "*)" -> raise_error (UnexpectedEndOfComment (get_position ()))
+| "*)" -> raise_error UnexpectedEndOfComment
 (* | "-" -> locate lexbuf MINUS
 | "+" -> locate lexbuf PLUS
 | "*" -> locate lexbuf AST
@@ -120,7 +147,7 @@ let rec token = lexer
 | ";" -> locate lexbuf SEMI
 | "=>" | 8658 (* ⇒ *) -> locate lexbuf DBLARROW
 | "->" | 8594 (* → *) -> locate lexbuf ARROW
-| 9733 (* ★ *) -> locate lexbuf STAR
+| "*" | 9733 (* ★ *) -> locate lexbuf STAR
 | "=" -> locate lexbuf EQUAL
 | "consumes" -> locate lexbuf CONSUMES
 
@@ -128,7 +155,7 @@ let rec token = lexer
 | uid -> locate lexbuf (UIDENT (*(utf8_lexeme lexbuf)*) 42)
 | eof -> locate lexbuf EOF
 | _ ->
-    raise_error (GeneralError (get_position (), utf8_lexeme lexbuf))
+    raise_error (GeneralError (utf8_lexeme lexbuf))
 
 and comment level = lexer
 | "(*" ->
@@ -143,7 +170,7 @@ and comment level = lexer
     break_line lexbuf;
     comment level lexbuf
 | eof ->
-    raise_error (UnterminatedComment (get_position ()))
+    raise_error UnterminatedComment
 | _ ->
     comment level lexbuf
 

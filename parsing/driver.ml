@@ -17,18 +17,21 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-let include_dirs = ref ["."]
+open Lexer
 
-let add_include_dir dir =
-  include_dirs := dir :: !include_dirs
+let include_dirs: string list ref = ref []
+let add_include_dir dir = include_dirs := dir :: !include_dirs
 
 let lex_and_parse file_desc =
   let lexbuf = Ulexing.from_utf8_channel file_desc in
+  let parser = MenhirLib.Convert.traditional2revised
+    (fun (_, y, _) -> y)
+    (fun (x, _, _) -> x)
+    (fun (_, _, z) -> z)
+    Grammar.unit
+  in
   try
-    let ast =
-      Grammar.unit (fun _ -> Lexer.token lexbuf) (Lexing.from_string "dummy")
-    in
-    ast
+    parser (fun _ -> Lexer.token lexbuf)
   with 
     | Ulexing.Error -> 
 	Printf.eprintf 
@@ -40,8 +43,9 @@ let lex_and_parse file_desc =
         exit 254
     | Grammar.Error ->
         Hml_String.beprintf "%a\nError: Syntax error\n"
-          Utils.print_current_position ();
+          print_position lexbuf;
         exit 253
     | Lexer.LexingError e ->
-        Hml_String.beprintf "%a\n" Lexer.print_error e;
+        Hml_String.beprintf "%a\n"
+          Lexer.print_error (lexbuf, e);
         exit 252

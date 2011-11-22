@@ -48,8 +48,5 @@ let _ =
     else
       Log.error "Filename ambiguous.\n"
   in
-  Utils.(position.filename <- arg_filename);
   let ast = Driver.lex_and_parse file_desc in
-  Printf.printf "%d datatypes parsed\n" (List.length ast);
-  (* let env = Typecheck.(type_check initial_env ast) in
-  Typecheck.dump_env env *)
+  WellKindedness.(check_data_type_group empty ast)
