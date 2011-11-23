@@ -1,0 +1,4 @@
+true: explain, use_menhir, use_ocamlbuild, use_bigarray, use_menhirlib, use_str
+not <ulex/**/*> and not <parsing/lexer.*> and not <typing/**/*> and not <sets/**/*>: my_warnings
+"parsing/lexer.ml": syntax_camlp4o, use_ulex
+"ulex/pa_ulex.ml": camlp4orf, use_camlp4
