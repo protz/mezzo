@@ -1,6 +1,7 @@
 .PHONY: all clean
 
-OCAMLBUILD := ocamlbuild -classic-display -use-menhir \
+USE_OCAMLFIND := $(shell if `which ocamlfind > /dev/null`; then echo "-use-ocamlfind"; fi)
+OCAMLBUILD := ocamlbuild $(USE_OCAMLFIND) -classic-display -use-menhir \
   -menhir "menhir --explain --infer -la 1" \
   -cflags "-g" -lflags "-g"
 INCLUDE    := -Is sets,typing,parsing,ulex,lib 
