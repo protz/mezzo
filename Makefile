@@ -8,13 +8,10 @@ INCLUDE    := -Is sets,typing,parsing,ulex,lib
 MAIN       := hamlet
 TEST	   := test
 
-.PHONY: clean foo
-
-all: $(MAIN).native $(TEST).native
-
-%.native: foo
-	$(OCAMLBUILD) $(INCLUDE) $*.native
-	ln -sf $*.native $*
+all:
+	$(OCAMLBUILD) $(INCLUDE) $(MAIN).native $(TEST).native
+	ln -sf $(MAIN).native $(MAIN)
+	ln -sf $(TEST).native $(TEST)
 
 clean:
 	rm -f *~ $(MAIN) $(MAIN).native $(TEST) $(TEST).native
