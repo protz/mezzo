@@ -42,9 +42,8 @@ dispatch begin function
     dep ["ocaml"; "ocamldep"; "use_ulex"] ["ulex/pa_ulex.cma"];
     ocaml_lib ~tag_name:"use_ulex" "ulexing";
     flag ["ocaml"; "compile"; "use_menhirlib"] cflags;
-    flag ["ocaml"; "link"; "native"; "use_menhirlib"] cflags;
+    flag ["ocaml"; "link"; "use_menhirlib"] cflags;
     flag ["ocaml"; "link"; "native"; "use_menhirlib"] olflags;
-    flag ["ocaml"; "link"; "byte"; "use_menhirlib"] cflags;
     flag ["ocaml"; "link"; "byte"; "use_menhirlib"] blflags;
 | _ -> ()
 end;;
