@@ -112,3 +112,6 @@ open PersistentUnionFind
 open PermissionDeduction
 open Grammar
 open WellKindedness
+open Hml_List
+open Hml_Map
+open Bash

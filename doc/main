@@ -1,0 +1,13 @@
+{1 HaMLet}
+
+HaMLet is a dialect of ML with effects control and a fine-grained type system.
+
+{2 Some data structures}
+{!modules: Hashcons GMap GSet Patricia InfiniteArray
+}
+
+{2 Some helper modules}
+{!modules: Bash Hml_List Hml_Map Hml_String Option Log
+}
+
+{1 Dependency graph}
