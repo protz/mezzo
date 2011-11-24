@@ -5,3 +5,32 @@ data t a =
   | Bar {
     baz: a;
   }
+
+data tree a =
+  | Leaf
+  | Node {
+      datum: a;
+      left: tree a;
+      right: tree a
+    }
+
+data ty = DummyType
+
+data typechecker =
+  TC { typechecker: [a] (consumes t: tree a) -> (ty, permission t: tree ty) }
+
+data list a =
+  | Nil
+  | Cons { head: a; tail: list a }
+
+data int = Zero
+
+data bool = False | True 
+
+data listops =
+  ListOps {
+    length: [a] list a -> int;
+    find: [key, a] (* duplicable a => *) (list (key, a), (key, key) -> bool, key) -> a;
+    concat: [a] (consumes l1: list a, consumes l2: list a) -> list a
+  }
+

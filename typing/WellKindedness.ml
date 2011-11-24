@@ -72,7 +72,7 @@ let rec bi ty : env =
 	match component with
 	| TyTupleComponentNamedValue (x, _) ->
 	    (* These names must be distinct. *)
-	    strict_add x KType env
+	    strict_add x KTerm env
 	| TyTupleComponentAnonymousValue _
 	| TyTupleComponentPermission _ ->
 	    env
@@ -96,6 +96,9 @@ let rec infer special env = function
 	 as a tuple, hence it would be forced to have kind [KType]. *)
       infer special env ty
   | TyTuple components ->
+      (* TEMPORARY should we allow dependent tuples? This seems important
+	 in order to allow function results to be named, and to have
+	 dependencies. Think! *)
       List.iter (check_tuple_type_component special env) components;
       KType
   | TyUnknown ->
@@ -184,9 +187,14 @@ and check_data_field_def env = function
 (* Kind checking for algebraic data type definitions. *)
 
 let check_data_type_def_branch env (datacon, fields) =
+  (* TEMPORARY should we allow dependencies? i.e. every field name could
+     be bound within every field type. Think! *)
+  (* TEMPORARY could also allow "this" to be bound *)
+  (* TEMPORARY check that field names are pairwise distinct *)
   List.iter (check_data_field_def env) fields
 
 let check_data_type_def_rhs env rhs =
+  (* TEMPORARY check that the datacons are pairwise distinct *)
   List.iter (check_data_type_def_branch env) rhs
 
 let collect_data_type_def_lhs_parameters env (tycon, bindings) : env =
