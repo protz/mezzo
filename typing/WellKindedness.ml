@@ -1,7 +1,9 @@
 (* This module implements a well-kindedness check for the types of
-   the surface language. *)
+   the surface language. At the same time, types are translated
+   down into the kernel language. *)
 
 open SurfaceSyntax
+module T = Types
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -11,19 +13,6 @@ let karrow bindings kind =
   List.fold_right (fun (x, kind1) kind2 ->
     KArrow (kind1, kind2)
   ) bindings kind
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Environments map identifiers to kinds. *)
-
-module M =
-  Patricia.Little
-
-type env =
-    kind M.t
-
-let empty : env =
-    M.empty
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -47,11 +36,93 @@ let deconstruct_arrow = function
   | kind ->
       assert false (* TEMPORARY *)
 
+let bound_twice x =
+  assert false (* TEMPORARY *)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Maps of identifiers to things. *)
+
+module M =
+  Patricia.Little
+
 let strict_add x kind env =
   try
     M.strict_add x kind env
   with M.Unchanged ->
-    assert false (* TEMPORARY *)
+    bound_twice x
+
+(* ---------------------------------------------------------------------------- *)
+
+(* An environment maps an identifier to a pair of a kind and a de Bruijn level
+   (not to be confused with a de Bruijn index!). An environment also keeps
+   track of the current de Bruijn level. *)
+
+type level = 
+    int
+
+type env = {
+  (* The current de Bruijn level. *)
+  level: level;
+  (* A mapping of identifiers to pairs of a kind and a level. *)
+  mapping: (kind * level) M.t;
+}
+
+type fragment =
+    kind M.t
+
+(* The empty environment. *)
+
+let empty : env =
+  { level = 0; mapping = M.empty }
+
+(* [find x env] looks up the name [x] in the environment [env] and returns a
+   pair of a kind and a de Bruijn index (not a de Bruijn level!). *)
+
+let find x env =
+  try
+    let kind, level = M.find x env.mapping in
+    kind, env.level - level
+  with Not_found ->
+    unbound x
+
+(* [bind env (x, kind)] binds the name [x] with kind [kind]. *)
+
+let bind env (x, kind) : env =
+  (* The current level becomes [x]'s level. The current level is
+     then incremented. *)
+  { level = env.level + 1;
+    mapping = M.add x (kind, env.level) env.mapping }
+
+(* [extend env xs] extends the current environment with new bindings; [xs] is
+   a fragment, that is, a map of identifiers to kinds. Because an arbitrary
+   order is chosen for the bindings, the function returns not only an extended
+   environment, but also a list of bindings, which indicates in which order
+   the bindings are performed. At the head of the list comes the innermost
+   binding. *)
+
+let extend (env : env) (xs : fragment) : env * type_binding list =
+  M.fold (fun x kind (env, bindings) ->
+    let binding = (x, kind) in
+    bind env binding,
+    binding :: bindings
+  ) xs (env, [])
+
+(* [forall bindings ty] builds a series of universal quantifiers.
+   The innermost binding comes first in the list [bindings]. *)
+
+let forall bindings ty =
+  List.fold_left (fun ty binding ->
+    T.TyForall (binding, ty)
+  ) ty bindings
+
+(* [exist bindings ty] builds a series of existential quantifiers.
+   The innermost binding comes first in the list [bindings]. *)
+
+let exist bindings ty =
+  List.fold_left (fun ty binding ->
+    T.TyExists (binding, ty)
+  ) ty bindings
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -60,7 +131,7 @@ let strict_add x kind env =
    In short, a tuple type can bind names for some or all of its components;
    any other type does not bind any names. *)
 
-let rec bi ty : env =
+let rec bi ty : fragment =
   match ty with
   | TyTuple [ (ConsumesAndProduces, TyTupleComponentValue (None, ty)) ] ->
       (* A tuple of one anonymous component is interpreted as a pair
@@ -90,94 +161,137 @@ let rec bi ty : env =
    and names for components are ignored (because they have been bound already).
    The environment [env] maps variables to kinds. *)
 
-let rec infer special env = function
+(* [infer] and [check] also perform the translation down to the kernel
+   language. [infer] returns a pair of a kind and a type, whereas [check]
+   returns just a type. *)
+
+let rec infer special env ty : kind * T.typ =
+  match ty with
   | TyTuple [ (ConsumesAndProduces, TyTupleComponentValue (None, ty)) ] ->
       (* A tuple of one anonymous component is interpreted as a pair
 	 of parentheses. This special case is important: without it,
          any type that is placed within parentheses would be viewed
 	 as a tuple, hence it would be forced to have kind [KType]. *)
       infer special env ty
-  | TyTuple components as ty ->
+  | TyTuple components ->
       (* Normally, a tuple type binds names for its components. We
 	 extract these names and build a new environment within
 	 which the components are checked. However, if [special]
 	 is set, then we have already extracted and bound these
 	 names, so we must not do it again. *)
-      let env =
-	if special then env else M.union env (bi ty)
-      in
-      List.iter (check_tuple_type_component special env) components;
-      KType
+      KType,
+      if special then
+	T.TyTuple (List.flatten (List.map (check_tuple_type_component special env) components))
+      else
+	let env, bindings = extend env (bi ty) in
+	exist bindings (
+	  T.TyTuple (List.flatten (List.map (check_tuple_type_component special env) components))
+	)
   | TyUnknown ->
-      KType
+      KType,
+      T.TyUnknown
   | TyDynamic ->
-      KType
+      KType,
+      T.TyDynamic
   | TyEmpty ->
-      KPerm
+      KPerm,
+      T.TyEmpty
   | TyVar x ->
-      begin try
-	M.find x env
-      with Not_found ->
-	unbound x
-      end
+      let kind, index = find x env in
+      kind,
+      T.TyVar index
   | TyConcreteUnfolded (datacon, fields) ->
       (* TEMPORARY check that this is consistent with the definition of datacon *)
-      List.iter (check_data_field_def env) fields;
-      KType
-  | TySingleton x ->
-      check false env (TyVar x) KTerm;
-      KType
+      KType,
+      T.TyConcreteUnfolded (datacon, List.map (check_data_field_def env) fields)
+  | TySingleton tyx ->
+      KType,
+      T.TySingleton (check false env tyx KTerm)
   | TyApp (ty1, ty2) ->
-      let domain, codomain = deconstruct_arrow (infer false env ty1) in
-      check false env ty2 domain;
-      codomain
+      let kind1, ty1 = infer false env ty1 in
+      let domain, codomain = deconstruct_arrow kind1 in
+      codomain,
+      T.TyApp (
+	ty1,
+	check false env ty2 domain
+      )
   | TyArrow (ty1, ty2) ->
       (* Gather the names bound by the left-hand side, if any. These names
 	 are bound in the left-hand and right-hand sides. *)
-      let env = M.union env (bi ty1) in
+      let env, bindings = extend env (bi ty1) in
       (* Check the left-hand and right-hand sides. *)
-      check true env ty1 KType;
-      check false env ty2 KType;
-      KType
-  | TyForall ((x, kind), ty) ->
-      let env = M.add x kind env in
+      KType,
+      forall bindings (T.TyArrow (
+	check true env ty1 KType,
+	check false env ty2 KType
+      ))
+      (* TEMPORARY any components that are marked [ConsumesAndProduces]
+	 in the left-hand side should be copied (as a permission only)
+	 to the right-hand side; this requires generating a name if the
+	 component is anonymous. I imagine it can be done as a source-to-source
+	 transformation (on-the-fly, right here), but generating a fresh
+	 identifier is somewhat tricky. Let me think about this later... *)
+  | TyForall (binding, ty) ->
+      let env = bind env binding in
       (* It seems that we can require the body of a universal type to
 	 have type [KType]. Allowing [KTerm] does not make sense, and
 	 allowing [KPerm] makes sense but does not sound useful in
 	 practice. *)
-      check false env ty KType;
-      KType
-  | TyAnchoredPermission (x, ty) ->
-      check false env (TyVar x) KTerm;
-      check false env ty KType;
-      KPerm
+      KType,
+      forall [ binding ] (check false env ty KType)
+  | TyAnchoredPermission (tyx, ty) ->
+      KPerm,
+      T.TyAnchoredPermission (
+	check false env tyx KTerm,
+	check false env ty KType
+      )
   | TyStar (ty1, ty2) ->
-      check false env ty1 KPerm;
-      check false env ty2 KPerm;
-      KPerm
+      KPerm,
+      T.TyStar (
+	check false env ty1 KPerm,
+	check false env ty2 KPerm
+      )
 
-and check special env ty expected_kind : unit =
-  let inferred_kind = infer special env ty in
-  if expected_kind <> inferred_kind (* generic equality at kinds! *)
-  then mismatch expected_kind inferred_kind
+and check special env ty expected_kind =
+  let inferred_kind, ty = infer special env ty in
+  if expected_kind = inferred_kind (* generic equality at kinds! *) then
+    ty
+  else
+    mismatch expected_kind inferred_kind
 
-and check_tuple_type_component special env (annotation, component) =
+(* The following function performs kind checking and translation for a tuple
+   component. The component is expected to have kind [KType]. It can be
+   translated into one or two components. *)
+
+and check_tuple_type_component special env (annotation, component) : T.tuple_type_component list =
   (* Check that [consumes] is used only where meaningful, that is,
      only under the left-hand side of an arrow. *)
   if (annotation = Consumes) && (not special) then
     illegal_consumes ();
+  (* TEMPORARY translate ConsumesAndProduces correctly! *)
   (* Check this tuple component. *)
   match component with
-  | TyTupleComponentValue (_, ty) ->
-      check false env ty KType
+  | TyTupleComponentValue (Some x, ty) ->
+      (* When translating a component named [x], the name [x] has
+	 already been bound. Look up the index associated with [x],
+	 and translate this component as two components: a value
+	 component of singleton type [=x] and a permission component
+	 of type [x: ty]. *)
+      let (_ : kind), index = find x env in
+      let var = T.TyVar index in
+      [ T.TyTupleComponentValue (T.TySingleton var);
+	T.TyTupleComponentPermission (T.TyAnchoredPermission (var, check false env ty KType)) ]
+  | TyTupleComponentValue (None, ty) ->
+      [ T.TyTupleComponentValue (check false env ty KType) ]
   | TyTupleComponentPermission ty ->
-      check false env ty KPerm
+      [ T.TyTupleComponentPermission (check false env ty KPerm) ]
 
 and check_data_field_def env = function
-  | FieldValue (_, ty) ->
-      check false env ty KType
+  | FieldValue (f, ty) ->
+      (* Field names are preserved. *)
+      T.FieldValue (f, check false env ty KType)
   | FieldPermission ty ->
-      check false env ty KPerm
+      T.FieldPermission (check false env ty KPerm)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -188,36 +302,36 @@ let check_data_type_def_branch env (datacon, fields) =
      be bound within every field type. Think! *)
   (* TEMPORARY could also allow "this" to be bound *)
   (* TEMPORARY check that field names are pairwise distinct *)
-  List.iter (check_data_field_def env) fields
+  datacon,
+  List.map (check_data_field_def env) fields
 
 let check_data_type_def_rhs env rhs =
   (* TEMPORARY check that the datacons are pairwise distinct *)
-  List.iter (check_data_type_def_branch env) rhs
+  List.map (check_data_type_def_branch env) rhs
 
 let collect_data_type_def_lhs_parameters env (tycon, bindings) : env =
   (* Do not bother checking that the parameters are distinct. *)
-  List.fold_left (fun env (x, kind) ->
-    M.add x kind env
-  ) env bindings
+  List.fold_left bind env bindings
 
 let check_data_type_def env (lhs, rhs) =
   check_data_type_def_rhs (collect_data_type_def_lhs_parameters env lhs) rhs
 
-let collect_data_type_def_lhs_tycon env (tycon, bindings) : env =
-  strict_add tycon (karrow bindings KType) env
+let collect_data_type_def_lhs_tycon tycons (tycon, bindings) : fragment =
+  strict_add tycon (karrow bindings KType) tycons
 
-let collect_data_type_def_tycon env (lhs, _) : env =
-  collect_data_type_def_lhs_tycon env lhs
+let collect_data_type_def_tycon tycons (lhs, _) : fragment =
+  collect_data_type_def_lhs_tycon tycons lhs
 
-let collect_data_type_group_tycon group : env =
+let collect_data_type_group_tycon group : fragment =
   List.fold_left collect_data_type_def_tycon M.empty group
 
 let check_data_type_group env group : env =
   (* Collect the names and kinds of the data types that are being
      defined. Check that they are distinct. Extend the environment. *)
-  let env = M.union env (collect_data_type_group_tycon group) in
+  let env, _ = extend empty (collect_data_type_group_tycon group) in
   (* Check every data type definition. *)
-  List.iter (check_data_type_def env) group;
+  (* TEMPORARY do not drop the final result of the translation... *)
+  let _ = List.map (check_data_type_def env) group in
   (* Return the extended environment. *)
   env
 

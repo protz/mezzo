@@ -41,11 +41,11 @@ type typ =
   | TyEmpty
   | TyVar of identifier
   | TyConcreteUnfolded of data_type_def_branch
-  | TySingleton of identifier
+  | TySingleton of typ
   | TyApp of typ * typ
   | TyArrow of typ * typ
   | TyForall of type_binding * typ
-  | TyAnchoredPermission of anchored_permission
+  | TyAnchoredPermission of typ * typ
   | TyStar of typ * typ
 
 and tuple_type_component =

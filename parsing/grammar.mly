@@ -233,7 +233,7 @@ quasi_atomic_type:
 | ty = atomic_type
     { ty }
 | EQUAL x = LIDENT (* singleton type *)
-    { TySingleton x }
+    { TySingleton (TyVar x) }
 | ty = type_type_application(quasi_atomic_type, atomic_type) (* type application *)
     { ty }
 
@@ -249,7 +249,7 @@ loose_type:
 | ty = normal_type
     { ty }
 | p = anchored_permission (* anchored permission *)
-    { TyAnchoredPermission p }
+    { let x, ty = p in TyAnchoredPermission (TyVar x, ty) }
 (* TEMPORARY
    mode constraints as function preconditions and/or as tuple components?
    syntax for anonymous sums?
@@ -283,7 +283,7 @@ anchored_permission:
 | x = LIDENT COLON ty = normal_type
     { x, ty }
 | x = LIDENT EQUAL y = LIDENT (* x = y is sugar for x: =y *)
-    { x, TySingleton y }
+    { x, TySingleton (TyVar y) }
 
 (* ---------------------------------------------------------------------------- *)
 
