@@ -1,5 +1,9 @@
 .PHONY: all clean graph doc
 
+# The variables below should be determined by a configure script...
+FIND       := find
+-include Makefile.local
+
 USE_OCAMLFIND := $(shell if `which ocamlfind > /dev/null`; then echo "-use-ocamlfind"; fi)
 OCAMLBUILD := ocamlbuild $(USE_OCAMLFIND) -classic-display -use-menhir \
   -menhir "menhir --explain --infer -la 1" \
@@ -7,7 +11,7 @@ OCAMLBUILD := ocamlbuild $(USE_OCAMLFIND) -classic-display -use-menhir \
 INCLUDE    := -Is sets,typing,parsing,ulex,lib 
 MAIN	   := hamlet
 TEST	   := test
-BUILDDIRS  := $(shell gfind _build -maxdepth 1 -type d -printf "-I _build/%f ")
+BUILDDIRS  := $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
 MY_DIRS	   := lib parsing sets typing
 
 
@@ -25,7 +29,7 @@ graph: all
 	   -I $(shell ocamlbuild -where)\
 	   -I $(shell ocamlc -where)\
 	   $(shell menhir --suggest-comp-flags --table)\
-	   $(shell find $(MY_DIRS) -iname '*.ml' -or -iname '*.mli')\
+	   $(shell $(FIND) $(MY_DIRS) -iname '*.ml' -or -iname '*.mli')\
 	   hamlet.ml\
 	   -o graph.dot
 	dot -Tpng graph.dot > misc/graph.png
@@ -36,7 +40,7 @@ doc: graph
 	ocamldoc -html $(BUILDDIRS) \
 	  -I `ocamlc -where` -d doc \
 	  -intro doc/main \
-	  $(shell find _build -maxdepth 2 -iname '*.mli')
+	  $(shell $(FIND) _build -maxdepth 2 -iname '*.mli')
 	sed -i 's/iso-8859-1/utf-8/g' doc/*.html
 	sed -i 's/<\/body>/<img src="..\/misc\/graph.png" \/><\/body>/' doc/index.html
 	cp -f misc/ocamlstyle.css doc/style.css
