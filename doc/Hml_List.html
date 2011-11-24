@@ -50,11 +50,8 @@ Same as <code class="code">List.split</code> but for triples instead of pairs.<b
 <pre><span id="VALignore_map"><span class="keyword">val</span> ignore_map</span> : <code class="type">('a -> 'b) -> 'a list -> unit</code></pre><div class="info">
 Map a function and then discard the result.<br>
 </div>
-<pre><span id="VALiteri"><span class="keyword">val</span> iteri</span> : <code class="type">(int -> 'a -> unit) -> 'a list -> unit</code></pre><div class="info">
-Iterate a function that also takes the index as an argument.<br>
-</div>
 <pre><span id="VALiter2i"><span class="keyword">val</span> iter2i</span> : <code class="type">(int -> 'a -> 'b -> unit) -> 'a list -> 'b list -> unit</code></pre><div class="info">
-Same as <code class="code">Jlist.iteri</code> but with two lists.<br>
+Same as <code class="code">List.iteri</code> but with two lists.<br>
 </div>
 <pre><span id="VALappend_rev_front"><span class="keyword">val</span> append_rev_front</span> : <code class="type">'a list -> 'a list -> 'a list</code></pre><div class="info">
 <code class="code">append_rev_front l1 l2</code> is tail-rec and returns <code class="code">(List.rev l1) :: l2</code>.<br>
@@ -84,7 +81,7 @@ Same as <code class="code">fold_left</code> except that the function takes the c
    list<br>
 </div>
 <pre><span id="VALconcat"><span class="keyword">val</span> concat</span> : <code class="type">('a -> 'a -> 'a) -> 'a list -> 'a</code></pre><div class="info">
-Same as fold left, but start folding on the head of the list instead of
+Same as <code class="code">fold_left</code>, but start folding on the head of the list instead of
     giving an initial element.<br>
 </div>
 <pre><span id="VALlast"><span class="keyword">val</span> last</span> : <code class="type">'a list -> 'a</code></pre><div class="info">
