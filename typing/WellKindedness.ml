@@ -22,7 +22,7 @@ module M =
 type env =
     kind M.t
 
-let empty =
+let empty : env =
     M.empty
 
 (* ---------------------------------------------------------------------------- *)
@@ -62,7 +62,7 @@ let strict_add x kind env =
 
 let rec bi ty : env =
   match ty with
-  | TyTuple [ (ConsumesAndProduces, TyTupleComponentAnonymousValue ty) ] ->
+  | TyTuple [ (ConsumesAndProduces, TyTupleComponentValue (None, ty)) ] ->
       (* A tuple of one anonymous component is interpreted as a pair
 	 of parentheses. *)
       bi ty
@@ -70,10 +70,10 @@ let rec bi ty : env =
       (* A tuple type can bind names for some or all of its components. *)
       List.fold_left (fun env (_, component) ->
 	match component with
-	| TyTupleComponentNamedValue (x, _) ->
+	| TyTupleComponentValue (Some x, _) ->
 	    (* These names must be distinct. *)
 	    strict_add x KTerm env
-	| TyTupleComponentAnonymousValue _
+	| TyTupleComponentValue (None, _)
 	| TyTupleComponentPermission _ ->
 	    env
       ) M.empty components
@@ -85,20 +85,27 @@ let rec bi ty : env =
 
 (* [infer special env ty] and [check special env ty kind] perform bottom-up
    kind inference and kind checking. The flag [special] tells whether we are
-   under the left-hand side of an arrow. The environment [env] maps variables
-   to kinds. *)
+   under the left-hand side of an arrow. When this flag is set, and only then,
+   tuple types are treated differently: the [consumes] keyword is permitted,
+   and names for components are ignored (because they have been bound already).
+   The environment [env] maps variables to kinds. *)
 
 let rec infer special env = function
-  | TyTuple [ (ConsumesAndProduces, TyTupleComponentAnonymousValue ty) ] ->
+  | TyTuple [ (ConsumesAndProduces, TyTupleComponentValue (None, ty)) ] ->
       (* A tuple of one anonymous component is interpreted as a pair
 	 of parentheses. This special case is important: without it,
          any type that is placed within parentheses would be viewed
 	 as a tuple, hence it would be forced to have kind [KType]. *)
       infer special env ty
-  | TyTuple components ->
-      (* TEMPORARY should we allow dependent tuples? This seems important
-	 in order to allow function results to be named, and to have
-	 dependencies. Think! *)
+  | TyTuple components as ty ->
+      (* Normally, a tuple type binds names for its components. We
+	 extract these names and build a new environment within
+	 which the components are checked. However, if [special]
+	 is set, then we have already extracted and bound these
+	 names, so we must not do it again. *)
+      let env =
+	if special then env else M.union env (bi ty)
+      in
       List.iter (check_tuple_type_component special env) components;
       KType
   | TyUnknown ->
@@ -126,8 +133,7 @@ let rec infer special env = function
       codomain
   | TyArrow (ty1, ty2) ->
       (* Gather the names bound by the left-hand side, if any. These names
-	 are bound in the left-hand and right-hand sides. Yes, this means
-	 that recursive dependencies are permitted. *)
+	 are bound in the left-hand and right-hand sides. *)
       let env = M.union env (bi ty1) in
       (* Check the left-hand and right-hand sides. *)
       check true env ty1 KType;
@@ -157,21 +163,12 @@ and check special env ty expected_kind : unit =
 
 and check_tuple_type_component special env (annotation, component) =
   (* Check that [consumes] is used only where meaningful, that is,
-     only under the left-hand side of an arrow. Similarly, named
-     tuple components are permitted only under the left-hand side
-     of an arrow. *)
-  begin match annotation, component, special with
-  | Consumes, _, false ->
-      illegal_consumes ()
-  | _, TyTupleComponentNamedValue (x, _), false ->
-      illegal_named_tuple_component x
-  | _, _, _ ->
-      ()
-  end;
+     only under the left-hand side of an arrow. *)
+  if (annotation = Consumes) && (not special) then
+    illegal_consumes ();
   (* Check this tuple component. *)
   match component with
-  | TyTupleComponentAnonymousValue ty
-  | TyTupleComponentNamedValue (_, ty) ->
+  | TyTupleComponentValue (_, ty) ->
       check false env ty KType
   | TyTupleComponentPermission ty ->
       check false env ty KPerm

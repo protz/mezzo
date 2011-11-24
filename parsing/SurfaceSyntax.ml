@@ -52,8 +52,7 @@ and tuple_type_component =
     consumes_annotation * tuple_type_component_aux
 
 and tuple_type_component_aux =
-  | TyTupleComponentAnonymousValue of typ
-  | TyTupleComponentNamedValue of anchored_permission
+  | TyTupleComponentValue of identifier option * typ
   | TyTupleComponentPermission of typ
 
 and data_type_def_branch =

@@ -30,7 +30,8 @@ data bool = False | True
 data listops =
   ListOps {
     length: [a] list a -> int;
+    length: [a] (consumes xs: list a) -> (result: int, permission xs: list a); (* more explicit form *)
     find: [key, a] (* duplicable a => *) (list (key, a), (key, key) -> bool, key) -> a;
-    concat: [a] (consumes l1: list a, consumes l2: list a) -> list a
+    concat: [a] (consumes l1: list a, consumes l2: list a) -> (l3: list a)
   }
 

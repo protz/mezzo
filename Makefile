@@ -1,4 +1,4 @@
-.PHONY: all clean
+.PHONY: all clean graph doc
 
 USE_OCAMLFIND := $(shell if `which ocamlfind > /dev/null`; then echo "-use-ocamlfind"; fi)
 OCAMLBUILD := ocamlbuild $(USE_OCAMLFIND) -classic-display -use-menhir \
@@ -7,7 +7,7 @@ OCAMLBUILD := ocamlbuild $(USE_OCAMLFIND) -classic-display -use-menhir \
 INCLUDE    := -Is sets,typing,parsing,ulex,lib 
 MAIN	   := hamlet
 TEST	   := test
-BUILDDIRS  := $(shell find _build -maxdepth 1 -type d -printf "-I _build/%f ")
+BUILDDIRS  := $(shell gfind _build -maxdepth 1 -type d -printf "-I _build/%f ")
 MY_DIRS	   := lib parsing sets typing
 
 

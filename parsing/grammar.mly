@@ -71,10 +71,10 @@ separated_or_preceded_list(sep, X):
 
 (* Syntax for tuples. *)
 
-(* I would have liked to use curly braces and semicolons, by analogy with
-   records, but this would be too extreme: (1) it would impact the syntax
-   of multiple-argument functions and (2) it would depart from the mathematical
-   notation for tuples. *)
+(* I considered using curly braces and semicolons, by analogy with
+   records, but this would be too extreme: (1) it would impact the
+   syntax of multiple-argument functions and (2) it would depart from
+   the mathematical notation for tuples. *)
 
 (* I thought for a moment that, in order to avoid a conflict with the
    standard use of parentheses as a desambiguation construct, tuples
@@ -158,29 +158,31 @@ kind:
    permissions, permission conjunction, etc.) appear as part of the syntax of
    types. *)
 
-(* It seems difficult to avoid conflicts in the syntax of function
-   types. One sure thing is, we wish to allow traditional function types of
-   the form [typ -> typ], because these will remain common.  However, we
-   also want to allow multi-argument dependent function types, of the form
-   [(x: typ, ..., x: typ) -> ... ]. As a consequence, it seems that we must
-   view [(x: typ, ..., x:typ)] as a type. Since the syntax of tuple types is
-   [(typ, ..., typ)], it seems that we must identify these two forms, that
-   is, we must allow tuple types that bind names for their
-   components. Finally, there is an artificial ambiguity because (x: typ) is
-   a type (of kind KPerm). It is not a real ambiguity because the tuple type
-   [(x: typ, ..., x: typ)] is ill-kinded if each (x: typ) is viewed as a
-   permission. We must simply adjust the syntax of tuple types so that the
-   types that appear within tuples cannot be anchored permissions. In
-   conclusion, we allow a component of a tuple type to be optionally
-   named. It is up to a post-processing phase to determine what this name
-   means and how it be should de-sugared into normal tuple types. For the
-   same reason, we allow a component of a tuple type to carry the [CONSUMES]
-   keyword. This does not make sense in a normal tuple type, but makes sense
-   if this tuple serves as a function argument. *)
+(* Tuple types follow the Haskell style [(typ, ..., typ)] and can introduce
+   names for their components [(x: typ, ..., x: typ)]. Every name is bound in
+   every component, so mutual dependencies are allowed. Furthermore, if a
+   tuple type appears on the left-hand side of an arrow, then the scope of
+   these bindings extends to the right-hand side of the arrow. Anyway, these
+   scoping rules have no influence on the grammar per se. *)
 
-(* Every function argument is optionally annotated with [CONSUMES]. Every
-   function argument must come with a type. At worst, this type can be
-   [UNKNOWN], if one does not really wish to specify a type. *)
+(* Function types take the traditional form [typ -> typ]. It is possible to
+   write a multi-argument dependent function type [(x: typ, ..., x: typ) ->
+   ... ]: it is interpreted syntactically as a function type whose domain
+   is a tuple type. *)
+
+(* There is a potential ambiguity because the anchored permission [x: typ] is
+   an anchored permission, hence a type (of kind [KPerm]). This means that
+   [(x: typ)] can be interpreted either as a tuple type whose component is
+   named [x] and has type [typ] or as a tuple type whose anonymous component
+   has type [x: typ]. Fortunately, the second alternative does not make sense,
+   because a type that serves as a tuple component must have kind
+   [KType]. Thus, we adjust the syntax of tuple types so that the types that
+   appear within tuples cannot be anchored permissions. *)
+
+(* We allow a component of a tuple type to carry the [CONSUMES] keyword. This
+   does not make sense in a normal tuple type, but makes sense if this tuple
+   serves as a function argument. It is up to a post-processing phase to check
+   that [CONSUMES] is used only where it makes sense, and to desugar it. *)
 
 %inline tuple_type_component:
   m = function_parameter_modifier (* optional CONSUMES annotation *)
@@ -203,13 +205,10 @@ function_parameter_modifier:
    anonymous or named. *)
 
 tuple_type_component_aux:
-|                                 (* no name: this is the normal case *)
-  ty = normal_type               (* type *)
-    { TyTupleComponentAnonymousValue ty }
-| x = LIDENT COLON                (* a name: this is allowed under the left-hand side of an arrow *)
-  ty = normal_type               (* type *)
-    { TyTupleComponentNamedValue (x, ty) }
-| ty = permission_field_def       (* permission *)
+| x = ioption(terminated(LIDENT, COLON)) (* an optional name for this component *)
+  ty = normal_type                       (* a type for this component *)
+    { TyTupleComponentValue (x, ty) }
+| ty = permission_field_def              (* this component is an anonymous permission *)
     { TyTupleComponentPermission ty }
 
 (* The syntax of types is stratified into the following levels, so as
