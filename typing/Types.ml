@@ -1,9 +1,9 @@
 (* This module defines the syntax of types, as manipulated by the
    type-checker. *)
 
-(* In the surface syntax, variables are identifiers. Here, variables are
-   represented as de Bruijn indices. We keep an identifier at each binding
-   site as a pretty-printing hint. *)
+(* In the surface syntax, variables are named. Here, variables are
+   represented as de Bruijn indices. We keep a variable name at each
+   binding site as a pretty-printing hint. *)
 
 type index =
     int
@@ -11,8 +11,9 @@ type index =
 type type_binding =
     SurfaceSyntax.type_binding
 
-type datacon =
-    SurfaceSyntax.datacon
+(* Record fields remain named. *)
+
+module Field = Variable
 
 (* The annotations [Consumes] and [ConsumesAndProduces] that appear in the
    surface syntax are desugared. They do not appear at this level. *)
@@ -41,34 +42,44 @@ type datacon =
    eta-expansions instead. This requires thought! *)
 
 type typ =
-  | TyTuple of tuple_type_component list
+    (* Special type constants. *)
   | TyUnknown
   | TyDynamic
-  | TyEmpty
+
+    (* Type variables and quantification. Type application. *)
   | TyVar of index
-  | TyConcreteUnfolded of data_type_def_branch
-  | TySingleton of typ
-  | TyApp of typ * typ
-  | TyArrow of typ * typ
   | TyForall of type_binding * typ
   | TyExists of type_binding * typ
+  | TyApp of typ * typ
+
+    (* Structural types. *)
+  | TyTuple of tuple_type_component list
+  | TyConcreteUnfolded of data_type_def_branch
+
+    (* Singleton types. *)
+  | TySingleton of typ
+
+    (* Function types. *)
+  | TyArrow of typ * typ
+
+    (* Permissions. *)
   | TyAnchoredPermission of typ * typ
+  | TyEmpty
   | TyStar of typ * typ
-  (* TEMPORARY TyShift constructor for lazy shifting of de Bruijn indices? *)
+  (* TEMPORARY perhaps TyEmpty and TyStar can be removed because we already
+               have TyTuple, which could serve to construct tuples of
+               permissions. Investigate. *)
 
 and tuple_type_component =
   | TyTupleComponentValue of typ
   | TyTupleComponentPermission of typ
 
 and data_type_def_branch =
-    datacon * data_field_def list
+    Datacon.name * data_field_def list
 
 and data_field_def =
-  | FieldValue of anchored_permission
+  | FieldValue of (Field.name * typ)
   | FieldPermission of typ
-
-and anchored_permission =
-    index * typ
 
 (* ---------------------------------------------------------------------------- *)
 

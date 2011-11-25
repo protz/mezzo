@@ -5,16 +5,6 @@
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Identifiers are (unique) integer codes. *)
-
-type identifier =
-    int
-
-type datacon =
-    int
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Kinds. *)
 
 type kind =
@@ -28,7 +18,7 @@ type kind =
 (* Types and permissions. *)
 
 type type_binding =
-    identifier * kind
+    Variable.name * kind
 
 type consumes_annotation =
   | Consumes
@@ -39,7 +29,7 @@ type typ =
   | TyUnknown
   | TyDynamic
   | TyEmpty
-  | TyVar of identifier
+  | TyVar of Variable.name
   | TyConcreteUnfolded of data_type_def_branch
   | TySingleton of typ
   | TyApp of typ * typ
@@ -52,25 +42,25 @@ and tuple_type_component =
     consumes_annotation * tuple_type_component_aux
 
 and tuple_type_component_aux =
-  | TyTupleComponentValue of identifier option * typ
+  | TyTupleComponentValue of Variable.name option * typ
   | TyTupleComponentPermission of typ
 
 and data_type_def_branch =
-    datacon * data_field_def list
+    Datacon.name * data_field_def list
 
 and data_field_def =
   | FieldValue of anchored_permission
   | FieldPermission of typ
 
 and anchored_permission =
-    identifier * typ
+    Variable.name * typ
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Algebraic data type definitions. *)
 
 type data_type_def_lhs =
-    identifier * type_binding list
+    Variable.name * type_binding list
 
 type data_type_def_rhs =
     data_type_def_branch list

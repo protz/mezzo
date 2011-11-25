@@ -44,7 +44,7 @@ let bound_twice x =
 (* Maps of identifiers to things. *)
 
 module M =
-  Patricia.Little
+  Variable.Map
 
 let strict_add x kind env =
   try

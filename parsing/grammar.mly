@@ -2,24 +2,21 @@
 
 (* Syntactic categories of names. *)
 
-(* We assume that names are hash-consed (or internalized, in Java parlance)
-   on the fly by the lexer, so the lexer produces integer codes for names. *)
-
 (* Term variables, type variables, type constructors, fields are not
    syntactically distinguished. Placing term variables, type variables, and
    type constructors within a single syntactic category is natural because
    they share certain mechanisms (e.g. types and terms can be abstracted over
    them). They will be distinguished using sorts. Placing term variables and
-   fields within a single syntactic category is natural because we wish to
+   fields within a single syntactic category is required because we wish to
    allow puns. *)
 
-%token<int> LIDENT
+%token<string> LIDENT
 
 (* As in ocaml, we set up a separate namespace for data constructors. This allows
    distinguishing variables and data constructors in a pattern. (Another solution
    would be to require data constructors to be explicitly followed with braces.) *)
 
-%token<int> UIDENT
+%token<string> UIDENT
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -48,6 +45,23 @@ open SurfaceSyntax
 %}
 
 %%
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Namespaces. *)
+
+(* We work with several namespaces, each of which is obtained by applying
+   the functor [Identifier.Make] and defines an abstract type [name]. This
+   should help us avoid confusions between namespaces: names for variables,
+   data constructors, etc. have distinct types. *)
+
+%inline variable:
+  x = LIDENT
+    { Variable.register x }
+
+%inline datacon:
+  datacon = UIDENT
+    { Datacon.register datacon }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -117,7 +131,7 @@ separated_or_preceded_list(sep, X):
    syntax of type variable bindings must be atomic (well-delimited). *)
 
 atomic_type_binding:
-| x = LIDENT (* KTYPE is the default kind *)
+| x = variable (* KTYPE is the default kind *)
     { x, KType }
 | LPAREN b = type_binding RPAREN
     { b }
@@ -125,7 +139,7 @@ atomic_type_binding:
 type_binding:
 | b = atomic_type_binding
     { b }
-| x = LIDENT COLONCOLON kind = kind
+| x = variable COLONCOLON kind = kind
     { x, kind }
 
 (* ---------------------------------------------------------------------------- *)
@@ -205,10 +219,10 @@ function_parameter_modifier:
    anonymous or named. *)
 
 tuple_type_component_aux:
-| x = ioption(terminated(LIDENT, COLON)) (* an optional name for this component *)
-  ty = normal_type                       (* a type for this component *)
+| x = ioption(terminated(variable, COLON)) (* an optional name for this component *)
+  ty = normal_type                         (* a type for this component *)
     { TyTupleComponentValue (x, ty) }
-| ty = permission_field_def              (* this component is an anonymous permission *)
+| ty = permission_field_def                (* this component is an anonymous permission *)
     { TyTupleComponentPermission ty }
 
 (* The syntax of types is stratified into the following levels, so as
@@ -223,7 +237,7 @@ atomic_type:
     { TyDynamic }
 | EMPTY   (* the empty permission; neutral element for permission conjunction *)
     { TyEmpty }
-| x = LIDENT  (* term variable, type variable, permission variable, abstract type, or concrete type *)
+| x = variable  (* term variable, type variable, permission variable, abstract type, or concrete type *)
     { TyVar x }
 | b = data_type_def_branch (* concrete type with known branch *)
     { TyConcreteUnfolded b }
@@ -232,7 +246,7 @@ atomic_type:
 quasi_atomic_type:
 | ty = atomic_type
     { ty }
-| EQUAL x = LIDENT (* singleton type *)
+| EQUAL x = variable (* singleton type *)
     { TySingleton (TyVar x) }
 | ty = type_type_application(quasi_atomic_type, atomic_type) (* type application *)
     { ty }
@@ -280,9 +294,9 @@ very_loose_type:
    viewed as a binding form. *)
 
 anchored_permission:
-| x = LIDENT COLON ty = normal_type
+| x = variable COLON ty = normal_type
     { x, ty }
-| x = LIDENT EQUAL y = LIDENT (* x = y is sugar for x: =y *)
+| x = variable EQUAL y = variable (* x = y is sugar for x: =y *)
     { x, TySingleton (TyVar y) }
 
 (* ---------------------------------------------------------------------------- *)
@@ -290,10 +304,6 @@ anchored_permission:
 (* Data type definitions. *)
 
 (* TEMPORARY allow exclusive/mutable declarations *)
-
-%inline datacon:
-  d = UIDENT
-    { d }
 
 (* A named field definition binds a field name and at the same time
    specifies an anchored permission for it. *)
@@ -326,12 +336,14 @@ datacon_application(X, Y):
     { dfs }
 
 %inline data_type_def_lhs:
-  DATA tbs = iterated_type_type_application(LIDENT, atomic_type_binding)
+  DATA tbs = iterated_type_type_application(variable, atomic_type_binding)
     { tbs }
 
 %inline data_type_def_rhs:
   bs = separated_or_preceded_list(BAR, data_type_def_branch)
     { bs }
+(* TEMPORARY could allow datacon to be omitted if there is only one branch
+   -- i.e. this is a record type *)
 
 %inline data_type_def:
   lhs = data_type_def_lhs

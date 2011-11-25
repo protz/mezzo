@@ -95,8 +95,6 @@ let regexp uid =
 
 (* The lexer *)
 
-let atoms = Hashcons.create ()
-
 let rec token = lexer
 | linebreak -> break_line lexbuf; token lexbuf
 | whitespace -> token lexbuf
@@ -153,8 +151,8 @@ let rec token = lexer
 | "=" -> locate lexbuf EQUAL
 | "consumes" -> locate lexbuf CONSUMES
 
-| lid -> locate lexbuf (LIDENT (Hashcons.add atoms (utf8_lexeme lexbuf)))
-| uid -> locate lexbuf (UIDENT (Hashcons.add atoms (utf8_lexeme lexbuf)))
+| lid -> locate lexbuf (LIDENT (utf8_lexeme lexbuf))
+| uid -> locate lexbuf (UIDENT (utf8_lexeme lexbuf))
 | eof -> locate lexbuf EOF
 | _ ->
     raise_error (GeneralError (utf8_lexeme lexbuf))
