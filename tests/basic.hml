@@ -31,7 +31,7 @@ data listops =
   ListOps {
     length: [a] list a -> int;
     length: [a] (consumes xs: list a) -> (result: int, permission xs: list a); (* more explicit form *)
-    length: [a] (consumes xs: unknown, permission xs: list a) ->
+    length: [a] (consumes xs: unknown, consumes permission xs: list a) ->
                 (result: int, permission xs: list a); (* even more explicit form *)
     find: [key, a] (* duplicable a => *) (list (key, a), (key, key) -> bool, key) -> a;
     concat: [a] (consumes l1: list a, consumes l2: list a) -> (l3: list a)
