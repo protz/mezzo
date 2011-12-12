@@ -8,8 +8,18 @@
 type index =
     int
 
+module IndexMap = Map.Make(struct
+  type t = index
+  let compare = Pervasives.compare
+end)
+
 type type_binding =
     SurfaceSyntax.type_binding
+
+module DataconMap = Map.Make(struct
+  type t = Datacon.name
+  let compare = Pervasives.compare
+end)
 
 (* Record fields remain named. *)
 
@@ -80,6 +90,24 @@ and data_type_def_branch =
 and data_field_def =
   | FieldValue of (Field.name * typ)
   | FieldPermission of typ
+
+(** This environment contains information about all the types that have been
+   defined in the global scope, and is used in the rest of the type-checking
+   process.
+    A data type defined in the global scope is assigned a “global De Bruijn
+   index”. Therefore, all right-hand sides must be understood to be defined in
+   that global environemnt, where all global names have been assigned indexes
+   already. *)
+type env = {
+  (** Maps global indexes to their meaning, i.e. a name for debugging, a kind,
+     and a definition that has been converted to De Bruijn. *)
+  data_type_map: data_type_entry IndexMap.t;
+  (** Allows one to jump back from a constructor to the global index of its
+     defining type. *)
+  cons_map: index DataconMap.t;
+} and data_type_entry =
+  Variable.name * SurfaceSyntax.kind * data_type_def_branch list
+
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -8,7 +8,7 @@ USE_OCAMLFIND := $(shell if `which ocamlfind > /dev/null`; then echo "-use-ocaml
 OCAMLBUILD := ocamlbuild $(USE_OCAMLFIND) -classic-display -use-menhir \
   -menhir "menhir --explain --infer -la 1" \
   -cflags "-g" -lflags "-g"
-INCLUDE    := -Is sets,typing,parsing,ulex,lib 
+INCLUDE    := -Is sets,typing,parsing,ulex,lib,pprint
 MAIN	   := hamlet
 TEST	   := test
 BUILDDIRS  := $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
@@ -44,3 +44,6 @@ doc: graph
 	sed -i 's/iso-8859-1/utf-8/g' doc/*.html
 	sed -i 's/<\/body>/<img src="..\/misc\/graph.png" \/><\/body>/' doc/index.html
 	cp -f misc/ocamlstyle.css doc/style.css
+
+test: all
+	OCAMLRUNPARAM=b=1 ./hamlet tests/basic.hml

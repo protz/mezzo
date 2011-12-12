@@ -1,4 +1,4 @@
-(* This module defines the abstract syntax of the surface language. *)
+(** This module defines the abstract syntax of the surface language. *)
 
 (* In principle, very little desugaring is performed on the fly by the
    parser. *)

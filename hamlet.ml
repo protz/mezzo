@@ -49,4 +49,7 @@ let _ =
       Log.error "Filename ambiguous.\n"
   in
   let ast = Driver.lex_and_parse file_desc in
-  WellKindedness.(check_data_type_group empty ast)
+  let env = WellKindedness.(check_data_type_group empty ast) in
+  let facts = FactInference.analyze_data_types env in
+  Printf.printf "%s\n" (Printers.string_of_env env);
+  Printf.printf "%s\n" (FactInference.string_of_facts facts)

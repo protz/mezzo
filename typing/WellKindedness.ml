@@ -325,13 +325,31 @@ let collect_data_type_def_tycon tycons (lhs, _) : fragment =
 let collect_data_type_group_tycon group : fragment =
   List.fold_left collect_data_type_def_tycon M.empty group
 
-let check_data_type_group env group : env =
+let rec check_data_type_group env (group: SurfaceSyntax.data_type_group) : T.env =
   (* Collect the names and kinds of the data types that are being
      defined. Check that they are distinct. Extend the environment. *)
-  let env, _ = extend empty (collect_data_type_group_tycon group) in
+  let env, lhs = extend env (collect_data_type_group_tycon group) in
   (* Check every data type definition. *)
-  (* TEMPORARY do not drop the final result of the translation... *)
-  let _ = List.map (check_data_type_def env) group in
-  (* Return the extended environment. *)
-  env
+  let rhs = List.map (check_data_type_def env) group in
+  let defs =  List.combine lhs rhs in
+  (* Turn this into a viable environment that we can pass further down. *)
+  make_type_env env defs
+
+and make_type_env { mapping; _ } defs : Types.env =
+  let open T in
+  let empty = {
+    data_type_map = IndexMap.empty;
+    cons_map = DataconMap.empty;
+  } in
+  List.fold_left (fun { data_type_map; cons_map; } ((var, k), branches) ->
+    let kind, global_index = M.find var mapping in
+    Log.affirm (k = kind) "The returned left hand sides and the mapping should be consistent";
+    let cons_map = List.fold_left (fun cons_map (name, _) ->
+      DataconMap.add name global_index cons_map
+    ) cons_map branches in  
+    let data_type_map =
+      IndexMap.add global_index (var, k, branches) data_type_map
+    in
+    { cons_map; data_type_map }
+  ) empty defs
 
