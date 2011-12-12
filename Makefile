@@ -46,4 +46,4 @@ doc: graph
 	cp -f misc/ocamlstyle.css doc/style.css
 
 test: all
-	OCAMLRUNPARAM=b=1 ./hamlet tests/basic.hml
+	OCAMLRUNPARAM=b=1 ./hamlet -debug tests/basic.hml
