@@ -1,4 +1,4 @@
-(* A persistent version of the classic union-find algorithm. *)
+(** A persistent version of the classic union-find algorithm. *)
 
 (* A point. *)
 

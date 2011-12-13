@@ -44,7 +44,10 @@
 </div>
 <center><h1>Module <a href="type_PermissionDeduction.html">PermissionDeduction</a></h1></center>
 <br>
-<pre><span class="keyword">module</span> PermissionDeduction: <code class="code">sig</code> <a href="PermissionDeduction.html">..</a> <code class="code">end</code></pre><hr width="100%">
+<pre><span class="keyword">module</span> PermissionDeduction: <code class="code">sig</code> <a href="PermissionDeduction.html">..</a> <code class="code">end</code></pre>This module offers a representation of typing contexts -- which,
+   roughly speaking, can be thought of as a conjunction of permissions
+   and equations.<br>
+<hr width="100%">
 <pre><span id="TYPEcontext"><span class="keyword">type</span> <code class="type"></code>context</span> </pre>
 
 <pre><span id="VALis_inconsistent"><span class="keyword">val</span> is_inconsistent</span> : <code class="type"><a href="PermissionDeduction.html#TYPEcontext">context</a> -> bool</code></pre><pre><span id="VALunify"><span class="keyword">val</span> unify</span> : <code class="type">Data.termvar -><br>       Data.termvar -> <a href="PermissionDeduction.html#TYPEcontext">context</a> -> <a href="PermissionDeduction.html#TYPEcontext">context</a></code></pre><pre><span id="VALadd"><span class="keyword">val</span> add</span> : <code class="type">Data.termvar -><br>       Data.typ -> <a href="PermissionDeduction.html#TYPEcontext">context</a> -> <a href="PermissionDeduction.html#TYPEcontext">context</a></code></pre></body></html>

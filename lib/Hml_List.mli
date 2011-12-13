@@ -41,10 +41,10 @@ val remove_duplicates :
 (** Find the biggest element in a list *)
 val max: int list -> int
 
-(** Turns [Some a; None; ...] into [a; ...] *)
+(** Turns [[Some a; None; ...]] into [[a; ...]] *)
 val filter_some: 'a option list -> 'a list
 
-(** Create a list filled with [elt] repeated [n] times. *)
+(** [make n f] creates [[f 1; ...; f n]]. *)
 val make: int -> (int -> 'a) -> 'a list
 
 (** Same as [map2] but pass an extra parameter that represents the index *)
@@ -59,7 +59,7 @@ val fold_lefti: (int -> 'a -> 'b -> 'a) -> 'a -> 'b list -> 'a
 
 (** Same as [fold_left], but start folding on the head of the list instead of
     giving an initial element. *)
-val concat: ('a -> 'a -> 'a) -> 'a list -> 'a
+val reduce: ('a -> 'a -> 'a) -> 'a list -> 'a
 
 (** Get the last element of a list. *)
 val last: 'a list -> 'a

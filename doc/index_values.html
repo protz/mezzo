@@ -137,11 +137,20 @@ Make a title.
 <tr><td><a href="Pprint.html#VALbrackets">brackets</a> [<a href="Pprint.html">Pprint</a>]</td>
 <td></td></tr>
 <tr><td><a href="Pprint.html#VALbreak">break</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">break n</code> Puts <code class="code">n</code> spaces in flat mode and a new line otherwise.
+</div>
+</td></tr>
 <tr><td><a href="Pprint.html#VALbreak0">break0</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">break0</code> equivalent to <code class="code">break 0</code>
+</div>
+</td></tr>
 <tr><td><a href="Pprint.html#VALbreak1">break1</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">break1</code> equivalent to <code class="code">break 1</code>
+</div>
+</td></tr>
 <tr><td><a href="Hml_String.html#VALbsprintf">bsprintf</a> [<a href="Hml_String.html">Hml_String</a>]</td>
 <td><div class="info">
 Make all your pretty-printers work with buffers and use this to get a
@@ -186,12 +195,6 @@ They have been chosen arbitrarily out of the 256-color set available.
 <td></td></tr>
 <tr><td><a href="Utf8.html#VALcompute_len">compute_len</a> [<a href="Utf8.html">Utf8</a>]</td>
 <td></td></tr>
-<tr><td><a href="Hml_List.html#VALconcat">concat</a> [<a href="Hml_List.html">Hml_List</a>]</td>
-<td><div class="info">
-Same as <code class="code">fold_left</code>, but start folding on the head of the list instead of
-    giving an initial element.
-</div>
-</td></tr>
 <tr><td><a href="GMap.S.html#VALcorestrict">corestrict</a> [<a href="GMap.S.html">GMap.S</a>]</td>
 <td></td></tr>
 <tr><td><a href="PersistentUnionFind.html#VALcreate">create</a> [<a href="PersistentUnionFind.html">PersistentUnionFind</a>]</td>
@@ -300,7 +303,7 @@ When you're sure you have <code class="code">Some</code>
 <td></td></tr>
 <tr><td><a href="Hml_List.html#VALfilter_some">filter_some</a> [<a href="Hml_List.html">Hml_List</a>]</td>
 <td><div class="info">
-Turns <code class="code">Some a; None; ...</code> into <code class="code">a; ...</code>
+Turns <code class="code">[Some a; None; ...]</code> into <code class="code">[a; ...]</code>
 </div>
 </td></tr>
 <tr><td><a href="PersistentUnionFind.html#VALfind">find</a> [<a href="PersistentUnionFind.html">PersistentUnionFind</a>]</td>
@@ -429,9 +432,15 @@ Direct access to the starting position of the lexeme in the
 <tr><td><a href="Pprint.html#VALgroup">group</a> [<a href="Pprint.html">Pprint</a>]</td>
 <td></td></tr>
 <tr><td><a href="Pprint.html#VALgroup1">group1</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">group1 d</code> equivalent to <code class="code">group (nest 1 d)</code>
+</div>
+</td></tr>
 <tr><td><a href="Pprint.html#VALgroup2">group2</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">group2 d</code> equivalent to <code class="code">group (nest 2 d)</code>
+</div>
+</td></tr>
 <tr><td align="left"><br>H</td></tr>
 <tr><td><a href="Pprint.html#VALhang">hang</a> [<a href="Pprint.html">Pprint</a>]</td>
 <td></td></tr>
@@ -448,11 +457,29 @@ Map a function and then discard the result.
 <tr><td><a href="Pprint.html#VALindent">indent</a> [<a href="Pprint.html">Pprint</a>]</td>
 <td></td></tr>
 <tr><td><a href="Pprint.html#VALinfix">infix</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">infix middle left right</code>
+      Flat layout: <code class="code">left</code> <code class="code">middle</code> <code class="code">right</code>
+      Otherwise:   <code class="code">left</code> <code class="code">middle</code>
+                     <code class="code">right</code>
+</div>
+</td></tr>
 <tr><td><a href="Pprint.html#VALinfix_com">infix_com</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">infix_com middle left right</code>
+      Flat layout: <code class="code">left</code><code class="code">middle</code> <code class="code">right</code>
+      Otherwise:   <code class="code">left</code><code class="code">middle</code>
+                     <code class="code">right</code>
+</div>
+</td></tr>
 <tr><td><a href="Pprint.html#VALinfix_dot">infix_dot</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">infix_dot middle left right</code>
+      Flat layout: <code class="code">left</code><code class="code">middle</code><code class="code">right</code>
+      Otherwise: <code class="code">left</code><code class="code">middle</code>
+                    <code class="code">right</code>
+</div>
+</td></tr>
 <tr><td><a href="PersistentUnionFind.html#VALinit">init</a> [<a href="PersistentUnionFind.html">PersistentUnionFind</a>]</td>
 <td></td></tr>
 <tr><td><a href="Pprint.REPRESENTATION.html#VALint">int</a> [<a href="Pprint.REPRESENTATION.html">Pprint.REPRESENTATION</a>]</td>
@@ -566,7 +593,10 @@ As <code class="code">Ulexing.sub_lexeme</code> with a result encoded in Latin1.
 <tr><td><a href="GMap.S.html#VALlift">lift</a> [<a href="GMap.S.html">GMap.S</a>]</td>
 <td></td></tr>
 <tr><td><a href="Pprint.html#VALline">line</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+Deprecated
+</div>
+</td></tr>
 <tr><td><a href="Pprint.html#VALlinebreak">linebreak</a> [<a href="Pprint.html">Pprint</a>]</td>
 <td></td></tr>
 <tr><td><a href="Pprint.REPRESENTATION.html#VALlist">list</a> [<a href="Pprint.REPRESENTATION.html">Pprint.REPRESENTATION</a>]</td>
@@ -588,7 +618,7 @@ As <code class="code">Ulexing.sub_lexeme</code> with a result encoded in Latin1.
 <td></td></tr>
 <tr><td><a href="Hml_List.html#VALmake">make</a> [<a href="Hml_List.html">Hml_List</a>]</td>
 <td><div class="info">
-Create a list filled with <code class="code">elt</code> repeated <code class="code">n</code> times.
+<code class="code">make n f</code> creates <code class="code">[f 1; ...; f n]</code>.
 </div>
 </td></tr>
 <tr><td><a href="InfiniteArray.html#VALmake">make</a> [<a href="InfiniteArray.html">InfiniteArray</a>]</td>
@@ -675,7 +705,13 @@ Find the biggest element in a list
 <tr><td><a href="Ulex.html#VALplus">plus</a> [<a href="Ulex.html">Ulex</a>]</td>
 <td></td></tr>
 <tr><td><a href="Pprint.html#VALprefix">prefix</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">prefix left right</code>
+      Flat layout: <code class="code">left</code> <code class="code">right</code>
+      Otherwise:   <code class="code">left</code>
+                     <code class="code">right</code>
+</div>
+</td></tr>
 <tr><td><a href="Pprint.RENDERER.html#VALpretty">pretty</a> [<a href="Pprint.RENDERER.html">Pprint.RENDERER</a>]</td>
 <td></td></tr>
 <tr><td><a href="Identifier.Make.html#VALprint">print</a> [<a href="Identifier.Make.html">Identifier.Make</a>]</td>
@@ -695,7 +731,18 @@ Find the biggest element in a list
 <tr><td><a href="Pprint.html#VALrbracket">rbracket</a> [<a href="Pprint.html">Pprint</a>]</td>
 <td></td></tr>
 <tr><td><a href="Pprint.REPRESENTATION.html#VALrecord">record</a> [<a href="Pprint.REPRESENTATION.html">Pprint.REPRESENTATION</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">record type_name fields</code>
+        Given a type name and a list of record fields, this function
+        produces the value representation of a record.
+</div>
+</td></tr>
+<tr><td><a href="Hml_List.html#VALreduce">reduce</a> [<a href="Hml_List.html">Hml_List</a>]</td>
+<td><div class="info">
+Same as <code class="code">fold_left</code>, but start folding on the head of the list instead of
+    giving an initial element.
+</div>
+</td></tr>
 <tr><td><a href="Pprint.REPRESENTATION.html#VALref">ref</a> [<a href="Pprint.REPRESENTATION.html">Pprint.REPRESENTATION</a>]</td>
 <td></td></tr>
 <tr><td><a href="Identifier.Make.html#VALregister">register</a> [<a href="Identifier.Make.html">Identifier.Make</a>]</td>
@@ -727,13 +774,24 @@ Remove duplicates from a list.
 <tr><td><a href="Pprint.html#VALsepmap">sepmap</a> [<a href="Pprint.html">Pprint</a>]</td>
 <td></td></tr>
 <tr><td><a href="Pprint.html#VALseq">seq</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">seq indent break empty_seq open_seq sep_seq close_seq contents</code>
+</div>
+</td></tr>
 <tr><td><a href="Ulex.html#VALseq">seq</a> [<a href="Ulex.html">Ulex</a>]</td>
 <td></td></tr>
 <tr><td><a href="Pprint.html#VALseq1">seq1</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">seq1 open_seq sep_seq close_seq contents</code>
+     Flat layout: <code class="code">open_seq</code><code class="code">contents</code><code class="code">sep_seq</code>...
+</div>
+</td></tr>
 <tr><td><a href="Pprint.html#VALseq2">seq2</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">seq2 open_seq sep_seq close_seq contents</code>
+     Flat layout: <code class="code">open_seq</code> <code class="code">contents</code><code class="code">sep_seq</code>...
+</div>
+</td></tr>
 <tr><td><a href="PersistentRef.html#VALset">set</a> [<a href="PersistentRef.html">PersistentRef</a>]</td>
 <td></td></tr>
 <tr><td><a href="InfiniteArray.html#VALset">set</a> [<a href="InfiniteArray.html">InfiniteArray</a>]</td>
@@ -751,7 +809,10 @@ Remove duplicates from a list.
 <tr><td><a href="GSet.S.html#VALsingleton">singleton</a> [<a href="GSet.S.html">GSet.S</a>]</td>
 <td></td></tr>
 <tr><td><a href="Pprint.html#VALsoft_surround">soft_surround</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">soft_surround nesting break open_doc contents close_doc</code>
+</div>
+</td></tr>
 <tr><td><a href="Pprint.html#VALsoftbreak">softbreak</a> [<a href="Pprint.html">Pprint</a>]</td>
 <td></td></tr>
 <tr><td><a href="Pprint.html#VALsoftline">softline</a> [<a href="Pprint.html">Pprint</a>]</td>
@@ -796,11 +857,28 @@ Same as <code class="code">List.split</code> but for triples instead of pairs.
 <tr><td><a href="Pprint.html#VALsubstring">substring</a> [<a href="Pprint.html">Pprint</a>]</td>
 <td></td></tr>
 <tr><td><a href="Pprint.html#VALsurround">surround</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">surround nesting break open_doc contents close_doc</code>
+</div>
+</td></tr>
 <tr><td><a href="Pprint.html#VALsurround1">surround1</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">surround1 open_txt contents close_txt</code>
+     Flat:      <code class="code">open_txt</code><code class="code">contents</code><code class="code">close_txt</code>
+     Otherwise: <code class="code">open_txt</code>
+                 <code class="code">contents</code>
+                <code class="code">close_txt</code>
+</div>
+</td></tr>
 <tr><td><a href="Pprint.html#VALsurround2">surround2</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">surround2 open_txt contents close_txt</code>
+     Flat:      <code class="code">open_txt</code> <code class="code">contents</code> <code class="code">close_txt</code>
+     Otherwise: <code class="code">open_txt</code>
+                  <code class="code">contents</code>
+                <code class="code">close_txt</code>
+</div>
+</td></tr>
 <tr><td align="left"><br>T</td></tr>
 <tr><td><a href="Pprint.html#VALtext">text</a> [<a href="Pprint.html">Pprint</a>]</td>
 <td></td></tr>
@@ -821,7 +899,12 @@ The terminal's height.
 <tr><td><a href="Lexer.html#VALtoken">token</a> [<a href="Lexer.html">Lexer</a>]</td>
 <td></td></tr>
 <tr><td><a href="Pprint.REPRESENTATION.html#VALtuple">tuple</a> [<a href="Pprint.REPRESENTATION.html">Pprint.REPRESENTATION</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">tuple arguments</code>
+        Given a list of value representation this function produces
+        a new value representation.
+</div>
+</td></tr>
 <tr><td><a href="Bash.html#VALtwidth">twidth</a> [<a href="Bash.html">Bash</a>]</td>
 <td><div class="info">
 The terminal's width.
@@ -854,7 +937,10 @@ Since <code class="code">unit option</code> and <code class="code">bool</code> a
 </div>
 </td></tr>
 <tr><td><a href="Pprint.REPRESENTATION.html#VALunknown">unknown</a> [<a href="Pprint.REPRESENTATION.html">Pprint.REPRESENTATION</a>]</td>
-<td></td></tr>
+<td><div class="info">
+Value representation for any other value.
+</div>
+</td></tr>
 <tr><td><a href="PersistentUnionFind.html#VALupdate">update</a> [<a href="PersistentUnionFind.html">PersistentUnionFind</a>]</td>
 <td></td></tr>
 <tr><td><a href="Ulexing.html#VALutf8_lexeme">utf8_lexeme</a> [<a href="Ulexing.html">Ulexing</a>]</td>
@@ -869,7 +955,12 @@ As <code class="code">Ulexing.sub_lexeme</code> with a result encoded in UTF-8.
 </td></tr>
 <tr><td align="left"><br>V</td></tr>
 <tr><td><a href="Pprint.REPRESENTATION.html#VALvariant">variant</a> [<a href="Pprint.REPRESENTATION.html">Pprint.REPRESENTATION</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">variant type_name data_constructor_name tag arguments</code>
+        Given information about the variant and its arguments,
+        this function produces a new value representation.
+</div>
+</td></tr>
 <tr><td align="left"><br>W</td></tr>
 <tr><td><a href="Utf8.html#VALwidth">width</a> [<a href="Utf8.html">Utf8</a>]</td>
 <td></td></tr>

@@ -1,4 +1,4 @@
-(* This module implements a persistent store: in other words, it
+(** This module implements a persistent store: in other words, it
    is a purely functional implementation of references, with an
    explicit store. *)
 

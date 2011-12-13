@@ -42,7 +42,9 @@
 &nbsp;</div>
 <center><h1>Module <a href="type_ModeDeduction.html">ModeDeduction</a></h1></center>
 <br>
-<pre><span class="keyword">module</span> ModeDeduction: <code class="code">sig</code> <a href="ModeDeduction.html">..</a> <code class="code">end</code></pre><hr width="100%">
+<pre><span class="keyword">module</span> ModeDeduction: <code class="code">sig</code> <a href="ModeDeduction.html">..</a> <code class="code">end</code></pre>This module offers machinery for declaring RULES that govern which types
+   satisfy which modes and for proving GOALS according to these rules.<br>
+<hr width="100%">
 <pre><span class="keyword">module</span> <a href="ModeDeduction.Make.html">Make</a>: <div class="sig_block"><code class="code">functor (</code><code class="code">Mode</code><code class="code"> : </code><code class="code">sig</code><div class="sig_block"><pre><span id="TYPEmode"><span class="keyword">type</span> <code class="type"></code>mode</span> </pre>
 
 <pre><span id="VALis_universal"><span class="keyword">val</span> is_universal</span> : <code class="type"><a href="ModeDeduction.Make.html#TYPEmode">mode</a> -> bool</code></pre><pre><span id="VALleq"><span class="keyword">val</span> leq</span> : <code class="type"><a href="ModeDeduction.Make.html#TYPEmode">mode</a> -> <a href="ModeDeduction.Make.html#TYPEmode">mode</a> -> bool</code></pre><pre><span id="VALshow"><span class="keyword">val</span> show</span> : <code class="type"><a href="ModeDeduction.Make.html#TYPEmode">mode</a> -> string</code></pre></div><code class="code">end</code><code class="code">) -&gt; </code><div class="sig_block"><code class="code">functor (</code><code class="code">TyCon</code><code class="code"> : </code><code class="code">sig</code><div class="sig_block"><pre><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> </pre>

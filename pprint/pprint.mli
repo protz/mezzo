@@ -11,9 +11,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(** Pprint is an adaptation of Daan Leijen's [PPrint] library, which itself is
+   based on the ideas developed by Philip Wadler in ``A Prettier Printer''. *)
+
 (* ------------------------------------------------------------------------- *)
 
-(* Basic combinators for building documents. *)
+(** {4 Basic combinators for building documents.} *)
 
 type document
 
@@ -33,7 +36,7 @@ val ifflat: document -> document -> document
 
 (* ------------------------------------------------------------------------- *)
 
-(* Low-level combinators for alignment and indentation. *)
+(** {4 Low-level combinators for alignment and indentation.} *)
 
 val align: document -> document
 val hang: int -> document -> document
@@ -41,16 +44,16 @@ val indent: int -> document -> document
 
 (* ------------------------------------------------------------------------- *)
 
-(* High-level combinators for building documents. *)
+(** {4 High-level combinators for building documents.} *)
 
-(* [break n] Puts [n] spaces in flat mode and a new line otherwise.
+(** [break n] Puts [n] spaces in flat mode and a new line otherwise.
    Equivalent to: [ifflat (String.make n ' ') hardline] *)
 val break: int -> document
 
-(* [break0] equivalent to [break 0] *)
+(** [break0] equivalent to [break 0] *)
 val break0: document
 
-(* [break1] equivalent to [break 1] *)
+(** [break1] equivalent to [break 1] *)
 val break1: document
 
 val string: string -> document
@@ -106,38 +109,38 @@ val sepmap: document -> ('a -> document) -> 'a list -> document
 
 val optional: ('a -> document) -> 'a option -> document
 
-(* [prefix left right]
+(** [prefix left right]
       Flat layout: [left] [right]
       Otherwise:   [left]
                      [right]
  *)
 val prefix: string -> document -> document
 
-(* [infix middle left right]
+(** [infix middle left right]
       Flat layout: [left] [middle] [right]
       Otherwise:   [left] [middle]
                      [right]
  *)
 val infix: string -> document -> document -> document
 
-(* [infix_com middle left right]
+(** [infix_com middle left right]
       Flat layout: [left][middle] [right]
       Otherwise:   [left][middle]
                      [right]
  *)
 val infix_com: string -> document -> document -> document
 
-(* [infix_dot middle left right]
+(** [infix_dot middle left right]
       Flat layout: [left][middle][right]
       Otherwise: [left][middle]
                     [right]
  *)
 val infix_dot: string -> document -> document -> document
 
-(* [surround nesting break open_doc contents close_doc] *)
+(** [surround nesting break open_doc contents close_doc] *)
 val surround: int -> document -> document -> document -> document -> document
 
-(* [surround1 open_txt contents close_txt]
+(** [surround1 open_txt contents close_txt]
      Flat:      [open_txt][contents][close_txt]
      Otherwise: [open_txt]
                  [contents]
@@ -145,7 +148,7 @@ val surround: int -> document -> document -> document -> document -> document
  *)
 val surround1: string -> document -> string -> document
 
-(* [surround2 open_txt contents close_txt]
+(** [surround2 open_txt contents close_txt]
      Flat:      [open_txt] [contents] [close_txt]
      Otherwise: [open_txt]
                   [contents]
@@ -153,14 +156,14 @@ val surround1: string -> document -> string -> document
  *)
 val surround2: string -> document -> string -> document
 
-(* [soft_surround nesting break open_doc contents close_doc] *)
+(** [soft_surround nesting break open_doc contents close_doc] *)
 val soft_surround: int -> document -> document -> document -> document -> document
 
-(* [seq indent break empty_seq open_seq sep_seq close_seq contents] *)
+(** [seq indent break empty_seq open_seq sep_seq close_seq contents] *)
 val seq: int -> document -> document -> document -> document -> document ->
          document list -> document 
 
-(* [seq1 open_seq sep_seq close_seq contents]
+(** [seq1 open_seq sep_seq close_seq contents]
      Flat layout: [open_seq][contents][sep_seq]...[sep_seq][contents][close_seq]
      Otherwise:   [open_seq]
                    [contents][sep_seq]...[sep_seq][contents]
@@ -168,7 +171,7 @@ val seq: int -> document -> document -> document -> document -> document ->
  *)
 val seq1: string -> string -> string -> document list -> document
 
-(* [seq2 open_seq sep_seq close_seq contents]
+(** [seq2 open_seq sep_seq close_seq contents]
      Flat layout: [open_seq] [contents][sep_seq]...[sep_seq][contents] [close_seq]
      Otherwise:   [open_seq]
                     [contents][sep_seq]...[sep_seq][contents]
@@ -176,10 +179,10 @@ val seq1: string -> string -> string -> document list -> document
  *)
 val seq2: string -> string -> string -> document list -> document
 
-(* [group1 d] equivalent to [group (nest 1 d)] *)
+(** [group1 d] equivalent to [group (nest 1 d)] *)
 val group1: document -> document
 
-(* [group2 d] equivalent to [group (nest 2 d)] *)
+(** [group2 d] equivalent to [group (nest 2 d)] *)
 val group2: document -> document
 
 module Operators : sig
@@ -193,15 +196,15 @@ end
 
 (* ------------------------------------------------------------------------- *)
 
-(* A signature for document renderers. *)
+(** A signature for document renderers. *)
 
 module type RENDERER = sig
   
-  (* Output channels. *)
+  (** Output channels. *)
 
   type channel
 
-  (* [pretty rfrac width channel document] pretty-prints the document
+  (** [pretty rfrac width channel document] pretty-prints the document
      [document] to the output channel [channel]. The parameter [width] is the
      maximum number of characters per line. The parameter [rfrac] is the
      ribbon width, a fraction relative to [width]. The ribbon width is the
@@ -209,7 +212,7 @@ module type RENDERER = sig
 
   val pretty: float -> int -> channel -> document -> unit
 
-  (* [compact channel document] prints the document [document] to the output
+  (** [compact channel document] prints the document [document] to the output
      channel [channel]. No indentation is used. All newline instructions are
      respected, that is, no groups are flattened. *)
 
@@ -219,7 +222,7 @@ end
 
 (* ------------------------------------------------------------------------- *)
 
-(* Renderers to output channels and to memory buffers. *)
+(** {4 Renderers to output channels and to memory buffers.} *)
 
 module Channel : RENDERER with type channel = out_channel
 
@@ -234,32 +237,32 @@ type type_name = string
 type record_field = string
 type tag = int
 
-(* A signature for value representations.
+(** A signature for value representations.
    This is compatible with the associated Camlp4 generator:
      Camlp4RepresentationGenerator *)
 
 module type REPRESENTATION = sig
-  (* The type of value representation *)
+  (** The type of value representation *)
   type representation
 
-  (* [variant type_name data_constructor_name tag arguments]
+  (** [variant type_name data_constructor_name tag arguments]
         Given information about the variant and its arguments,
         this function produces a new value representation. *)
   val variant : type_name -> constructor -> tag -> representation list -> representation
 
-  (* [record type_name fields]
+  (** [record type_name fields]
         Given a type name and a list of record fields, this function
         produces the value representation of a record. *)
   val record : type_name -> (record_field * representation) list -> representation
 
-  (* [tuple arguments]
+  (** [tuple arguments]
         Given a list of value representation this function produces
         a new value representation. *)
   val tuple : representation list -> representation
 
   (* ------------------------------------------------------------------------- *)
 
-  (* Value representation for primitive types. *)
+  (** {4 Value representation for primitive types.} *)
 
   val string : string -> representation
   val int : int -> representation
@@ -274,18 +277,18 @@ module type REPRESENTATION = sig
   val array : ('a -> representation) -> 'a array -> representation
   val ref : ('a -> representation) -> 'a ref -> representation
 
-  (* Value representation for any other value. *)
+  (** Value representation for any other value. *)
   val unknown : type_name -> 'a -> representation
 end
 
-(* A signature for source printers. *)
+(** A signature for source printers. *)
 
 module type DOCUMENT_REPRESENTATION =
   REPRESENTATION with type representation = document
 
 module ML : DOCUMENT_REPRESENTATION
 
-(* Deprecated *)
+(** {4 Deprecated} *)
 val line: document
 val linebreak: document
 val softline: document

@@ -1,8 +1,8 @@
-open Data
-
-(* This module offers a representation of typing contexts -- which,
+(** This module offers a representation of typing contexts -- which,
    roughly speaking, can be thought of as a conjunction of permissions
    and equations. *)
+
+open Data
 
 (* This representation is persistent: the operations below produce new
    contexts without destroying their arguments. *)

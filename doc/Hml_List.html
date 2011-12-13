@@ -67,10 +67,10 @@ Remove duplicates from a list. You can provide a hash function as well as a
 Find the biggest element in a list<br>
 </div>
 <pre><span id="VALfilter_some"><span class="keyword">val</span> filter_some</span> : <code class="type">'a option list -> 'a list</code></pre><div class="info">
-Turns <code class="code">Some a; None; ...</code> into <code class="code">a; ...</code><br>
+Turns <code class="code">[Some a; None; ...]</code> into <code class="code">[a; ...]</code><br>
 </div>
 <pre><span id="VALmake"><span class="keyword">val</span> make</span> : <code class="type">int -> (int -> 'a) -> 'a list</code></pre><div class="info">
-Create a list filled with <code class="code">elt</code> repeated <code class="code">n</code> times.<br>
+<code class="code">make n f</code> creates <code class="code">[f 1; ...; f n]</code>.<br>
 </div>
 <pre><span id="VALmap2i"><span class="keyword">val</span> map2i</span> : <code class="type">(int -> 'a -> 'b -> 'c) -> 'a list -> 'b list -> 'c list</code></pre><div class="info">
 Same as <code class="code">map2</code> but pass an extra parameter that represents the index<br>
@@ -82,7 +82,7 @@ Same as <code class="code">map</code> but pass an extra parameter that represent
 Same as <code class="code">fold_left</code> except that the function takes the current index in the
    list<br>
 </div>
-<pre><span id="VALconcat"><span class="keyword">val</span> concat</span> : <code class="type">('a -> 'a -> 'a) -> 'a list -> 'a</code></pre><div class="info">
+<pre><span id="VALreduce"><span class="keyword">val</span> reduce</span> : <code class="type">('a -> 'a -> 'a) -> 'a list -> 'a</code></pre><div class="info">
 Same as <code class="code">fold_left</code>, but start folding on the head of the list instead of
     giving an initial element.<br>
 </div>

@@ -44,5 +44,8 @@
 </div>
 <center><h1>Module <a href="type_Patricia.html">Patricia</a></h1></center>
 <br>
-<pre><span class="keyword">module</span> Patricia: <code class="code">sig</code> <a href="Patricia.html">..</a> <code class="code">end</code></pre><hr width="100%">
+<pre><span class="keyword">module</span> Patricia: <code class="code">sig</code> <a href="Patricia.html">..</a> <code class="code">end</code></pre>This is an implementation of Patricia trees, following Chris Okasaki's paper at the 1998 ML Workshop in Baltimore.
+   Both big-endian and little-endian trees are provided. Both sets and maps are implemented on top of Patricia
+   trees.<br>
+<hr width="100%">
 <pre><span class="keyword">module</span> <a href="Patricia.Little.html">Little</a>: <code class="type"><a href="GMap.S.html">GMap.S</a></code><code class="type">  with type key = int</code></pre><pre><span class="keyword">module</span> <a href="Patricia.Big.html">Big</a>: <code class="type"><a href="GMap.S.html">GMap.S</a></code><code class="type">  with type key = int</code></pre></body></html>

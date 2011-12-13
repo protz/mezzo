@@ -41,8 +41,61 @@
 <center><h1>Module <a href="type_GMap.S.Domain.html">GMap.S.Domain</a></h1></center>
 <br>
 <pre><span class="keyword">module</span> Domain: <code class="type"><a href="GSet.S.html">GSet.S</a></code><code class="type">  with type element = key</code></pre><hr width="100%">
+<br>
+Elements are assumed to have a natural total order.<br>
 <pre><span id="TYPEelement"><span class="keyword">type</span> <code class="type"></code>element</span> </pre>
 
+<br>
+Sets.<br>
 <pre><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> </pre>
 
-<pre><span id="VALempty"><span class="keyword">val</span> empty</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a></code></pre><pre><span id="VALis_empty"><span class="keyword">val</span> is_empty</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> bool</code></pre><pre><span id="VALsingleton"><span class="keyword">val</span> singleton</span> : <code class="type"><a href="GSet.S.html#TYPEelement">element</a> -> <a href="GSet.S.html#TYPEt">t</a></code></pre><pre><span id="VALcardinal"><span class="keyword">val</span> cardinal</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> int</code></pre><pre><span id="VALchoose"><span class="keyword">val</span> choose</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEelement">element</a></code></pre><pre><span id="VALmem"><span class="keyword">val</span> mem</span> : <code class="type"><a href="GSet.S.html#TYPEelement">element</a> -> <a href="GSet.S.html#TYPEt">t</a> -> bool</code></pre><pre><span id="VALadd"><span class="keyword">val</span> add</span> : <code class="type"><a href="GSet.S.html#TYPEelement">element</a> -> <a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a></code></pre><pre><span id="VALremove"><span class="keyword">val</span> remove</span> : <code class="type"><a href="GSet.S.html#TYPEelement">element</a> -> <a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a></code></pre><pre><span id="VALunion"><span class="keyword">val</span> union</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a></code></pre><pre><span id="VALinter"><span class="keyword">val</span> inter</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a></code></pre><pre><span id="VALdisjoint"><span class="keyword">val</span> disjoint</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a> -> bool</code></pre><pre><span id="VALiter"><span class="keyword">val</span> iter</span> : <code class="type">(<a href="GSet.S.html#TYPEelement">element</a> -> unit) -> <a href="GSet.S.html#TYPEt">t</a> -> unit</code></pre><pre><span id="VALfold"><span class="keyword">val</span> fold</span> : <code class="type">(<a href="GSet.S.html#TYPEelement">element</a> -> 'b -> 'b) -> <a href="GSet.S.html#TYPEt">t</a> -> 'b -> 'b</code></pre><pre><span id="VALelements"><span class="keyword">val</span> elements</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEelement">element</a> list</code></pre><pre><span id="VALcompare"><span class="keyword">val</span> compare</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a> -> int</code></pre><pre><span id="VALequal"><span class="keyword">val</span> equal</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a> -> bool</code></pre><pre><span id="VALsubset"><span class="keyword">val</span> subset</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a> -> bool</code></pre></body></html>
+<br>
+The empty set.<br>
+<pre><span id="VALempty"><span class="keyword">val</span> empty</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a></code></pre><br>
+<code class="code">is_empty s</code> tells whether <code class="code">s</code> is the empty set.<br>
+<pre><span id="VALis_empty"><span class="keyword">val</span> is_empty</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> bool</code></pre><br>
+<code class="code">singleton x</code> returns a singleton set containing <code class="code">x</code> as its only
+     element.<br>
+<pre><span id="VALsingleton"><span class="keyword">val</span> singleton</span> : <code class="type"><a href="GSet.S.html#TYPEelement">element</a> -> <a href="GSet.S.html#TYPEt">t</a></code></pre><br>
+<code class="code">cardinal s</code> returns the cardinal of <code class="code">s</code>.<br>
+<pre><span id="VALcardinal"><span class="keyword">val</span> cardinal</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> int</code></pre><br>
+<code class="code">choose s</code> returns an arbitrarily chosen element of <code class="code">s</code>, if <code class="code">s</code>
+     is nonempty, and raises <code class="code">Not_found</code> otherwise.<br>
+<pre><span id="VALchoose"><span class="keyword">val</span> choose</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEelement">element</a></code></pre><br>
+<code class="code">mem x s</code> returns <code class="code">true</code> if and only if <code class="code">x</code> appears in the set
+     <code class="code">s</code>.<br>
+<pre><span id="VALmem"><span class="keyword">val</span> mem</span> : <code class="type"><a href="GSet.S.html#TYPEelement">element</a> -> <a href="GSet.S.html#TYPEt">t</a> -> bool</code></pre><br>
+<code class="code">add x s</code> returns a set whose elements are all elements of <code class="code">s</code>,
+     plus <code class="code">x</code>.<br>
+<pre><span id="VALadd"><span class="keyword">val</span> add</span> : <code class="type"><a href="GSet.S.html#TYPEelement">element</a> -> <a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a></code></pre><br>
+<code class="code">remove x s</code> returns a set whose elements are all elements of
+     <code class="code">s</code>, except <code class="code">x</code>.<br>
+<pre><span id="VALremove"><span class="keyword">val</span> remove</span> : <code class="type"><a href="GSet.S.html#TYPEelement">element</a> -> <a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a></code></pre><br>
+<code class="code">union s1 s2</code> returns the union of the sets <code class="code">s1</code> and <code class="code">s2</code>.<br>
+<pre><span id="VALunion"><span class="keyword">val</span> union</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a></code></pre><br>
+<code class="code">inter s t</code> returns the set intersection of <code class="code">s</code> and <code class="code">t</code>, that is,
+     $s\cap t$.<br>
+<pre><span id="VALinter"><span class="keyword">val</span> inter</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a></code></pre><br>
+<code class="code">disjoint s1 s2</code> returns <code class="code">true</code> if and only if the sets <code class="code">s1</code> and
+     <code class="code">s2</code> are disjoint, i.e. iff their intersection is empty.<br>
+<pre><span id="VALdisjoint"><span class="keyword">val</span> disjoint</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a> -> bool</code></pre><br>
+<code class="code">iter f s</code> invokes <code class="code">f x</code>, in turn, for each element <code class="code">x</code> of the
+     set <code class="code">s</code>. Elements are presented to <code class="code">f</code> in increasing order.<br>
+<pre><span id="VALiter"><span class="keyword">val</span> iter</span> : <code class="type">(<a href="GSet.S.html#TYPEelement">element</a> -> unit) -> <a href="GSet.S.html#TYPEt">t</a> -> unit</code></pre><br>
+<code class="code">fold f s seed</code> invokes <code class="code">f x accu</code>, in turn, for each element <code class="code">x</code>
+     of the set <code class="code">s</code>. Elements are presented to <code class="code">f</code> in increasing
+     order. The initial value of <code class="code">accu</code> is <code class="code">seed</code>; then, at each new
+     call, its value is the value returned by the previous invocation
+     of <code class="code">f</code>. The value returned by <code class="code">fold</code> is the final value of
+     <code class="code">accu</code>. In other words, if $s = { x_1, x_2, \ldots, x_n }$,
+     where $x_1 &lt; x_2 &lt; \ldots &lt; x_n$, then <code class="code">fold f s seed</code> computes
+     $(<code class="code">f</code>\,x_n\,\ldots\,(<code class="code">f</code>\,x_2\,(<code class="code">f</code>\,x_1\,<code class="code">seed</code>))\ldots)$.<br>
+<pre><span id="VALfold"><span class="keyword">val</span> fold</span> : <code class="type">(<a href="GSet.S.html#TYPEelement">element</a> -> 'b -> 'b) -> <a href="GSet.S.html#TYPEt">t</a> -> 'b -> 'b</code></pre><br>
+<code class="code">elements s</code> is a list of all elements in the set <code class="code">s</code>.<br>
+<pre><span id="VALelements"><span class="keyword">val</span> elements</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEelement">element</a> list</code></pre><br>
+<code class="code">compare</code> is an ordering over sets.<br>
+<pre><span id="VALcompare"><span class="keyword">val</span> compare</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a> -> int</code></pre><br>
+<code class="code">equal</code> implements equality over sets.<br>
+<pre><span id="VALequal"><span class="keyword">val</span> equal</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a> -> bool</code></pre><br>
+<code class="code">subset</code> implements the subset predicate over sets.<br>
+<pre><span id="VALsubset"><span class="keyword">val</span> subset</span> : <code class="type"><a href="GSet.S.html#TYPEt">t</a> -> <a href="GSet.S.html#TYPEt">t</a> -> bool</code></pre></body></html>

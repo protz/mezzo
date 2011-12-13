@@ -1,4 +1,4 @@
-(* This module offers machinery for declaring RULES that govern which types
+(** This module offers machinery for declaring RULES that govern which types
    satisfy which modes and for proving GOALS according to these rules. *)
 
 (* Typical examples of modes are: ``duplicable'', ``exclusive'', ``affine'',

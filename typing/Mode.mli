@@ -1,4 +1,4 @@
-(* This module implements modes and their partial ordering. *)
+(** This module implements modes and their partial ordering. *)
 
 type mode =
   | Duplicable

@@ -17,6 +17,8 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+(** The lexer for HaMLeT. *)
+
 type error =
   | UnexpectedEndOfComment
   | UnterminatedComment

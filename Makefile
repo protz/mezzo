@@ -32,8 +32,8 @@ graph: all
 	   $(shell $(FIND) $(MY_DIRS) -iname '*.ml' -or -iname '*.mli')\
 	   hamlet.ml\
 	   -o graph.dot
-	dot -Tpng graph.dot > misc/graph.png
-	convert misc/graph.png -rotate 90 misc/graph.png
+	sed -i 's/rotate=90;//g' graph.dot
+	dot -Tsvg graph.dot > misc/graph.svg
 	rm -f graph.dot
 
 doc: graph
@@ -42,7 +42,7 @@ doc: graph
 	  -intro doc/main \
 	  $(shell $(FIND) _build -maxdepth 2 -iname '*.mli')
 	sed -i 's/iso-8859-1/utf-8/g' doc/*.html
-	sed -i 's/<\/body>/<img src="..\/misc\/graph.png" \/><\/body>/' doc/index.html
+	sed -i 's/<\/body>/<p align="center"><img src="..\/misc\/graph.svg" \/><\/p><\/body>/' doc/index.html
 	cp -f misc/ocamlstyle.css doc/style.css
 
 test: all

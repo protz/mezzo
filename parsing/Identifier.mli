@@ -1,4 +1,4 @@
-(* This functor creates a fresh abstract type of names.
+(** This functor creates a fresh abstract type of names.
    It is typically invoked once for each namespace. *)
 
 module Make (U : sig end) : sig

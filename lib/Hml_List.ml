@@ -114,7 +114,7 @@ let fold_lefti f init l =
   in
   fold_lefti 0 init l
 
-let concat f l =
+let reduce f l =
   List.fold_left f (List.hd l) (List.tl l)
 
 let last l = List.nth l (List.length l - 1)
