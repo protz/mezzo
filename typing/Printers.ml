@@ -2,6 +2,9 @@ open Types
 open Pprint
 
 module MyPprint = struct
+  let arrow = string "->"
+  let int i = string (string_of_int i)
+
   (* [heading head body] prints [head]; breaks a line and indents by 2,
    if necessary; then prints [body]. *)
   let heading head body =
@@ -27,9 +30,8 @@ module MyPprint = struct
     ) ^^ line ^^
     cont
 
-  (*   [join sep (s1 :: s2 :: ... :: sn)]
-   * returns
-   *   [s1 ^^ sep ^^ s2 ^^ ... ^^ sep ^^ sn] *)
+  (* [join sep (s1 :: s2 :: ... :: sn)] returns
+   * [s1 ^^ sep ^^ s2 ^^ ... ^^ sep ^^ sn] *)
   let join sep strings =
     match strings with
     | hd :: tl ->
@@ -37,6 +39,8 @@ module MyPprint = struct
     | [] ->
         empty
 
+  (* [join_left sep (s1 :: s2 :: ... :: sn)] returns
+   * [sep ^^ s1 ^^ sep ^^ s2 ^^ ... ^^ sep ^^ sn] *)
   let join_left sep strings =
     List.fold_left (fun sofar s -> sofar ^^ sep ^^ s) empty strings
 end
@@ -52,16 +56,35 @@ type print_env = {
   index: int;
 }
 
+(** Aad a name ([string]) to the [print_env] and bump the index. *)
 let add str { names; index } =
-  Log.debug "Adding %s at %d" str index;
   { index = index + 1; names = IndexMap.add index str names }
 
+(** Aad a name ([Variable.name]) to the [print_env] and bump the index. *)
 let add_var var print_env =
   add (Variable.print var) print_env
 
-(* --------------------------------------------------------------------------- *)
+(* This is for debugging purposes. Use with [Log.debug] and [%a]. *)
+let p_con buf con =
+  Buffer.add_string buf (Datacon.print con)
 
-let arrow = (string "->")
+(* This is for debugging purposes. Use with [Log.debug] and [%a]. *)
+let p_var buf var =
+  Buffer.add_string buf (Variable.print var)
+
+(* Transforms [κ₁ → ... → κₙ → κ₀] in [[κ₁; ...; κₙ], κ₀] *)
+let flatten_kind kind =
+  let open SurfaceSyntax in
+  let rec flatten_kind acc = function
+    | KArrow (k1, k2) ->
+        flatten_kind (k1 :: acc) k2
+    | _ as k ->
+        acc, k
+  in
+  let acc, k = flatten_kind [] kind in
+  List.rev acc, k
+
+(* --------------------------------------------------------------------------- *)
 
 let print_var var =
   string (Variable.print var)
@@ -72,7 +95,7 @@ let print_datacon datacon =
 let print_field field =
   string (Field.print field)
 
-let print_kind =
+let rec print_kind =
   let open SurfaceSyntax in
   function
   | KTerm ->
@@ -81,11 +104,12 @@ let print_kind =
       string "perm"
   | KType ->
       string "*"
-  | _ ->
-      assert false
+  | KArrow (k1, k2) ->
+      print_kind k1 ^^ space ^^ arrow ^^ space ^^ print_kind k2
 
-let print_index { names; _ } index =
-  string (IndexMap.find index names)
+let print_index { names; index } i =
+  let name = IndexMap.find (index - i) names in
+  string name
 
 let rec print_quantified
     (print_env: print_env)
@@ -166,17 +190,39 @@ and print_data_type_def_branch print_env (branch: data_type_def_branch) =
   in
   bar ^^ space ^^ (print_datacon name) ^^ record
 
-let p_var buf var =
-  Buffer.add_string buf (Variable.print var)
+(* Prints a data type defined in the global scope. Assumes [print_env] has been
+   properly populated. *)
+let print_data_type_def print_env name kind branches =
+  let params, _return_kind = flatten_kind kind in
+  (* Turn the list of parameters into letters *)
+  let params: string list =
+    (* Of course, won't work nice if more than 26 type parameters... *)
+    let a = Char.code 'a' in
+    List.mapi (fun i acc ->
+      let code = a + i in
+      String.make 1 (Char.chr code)
+    ) params
+  in
+  (* Add all these letters into the printing environment *)
+  let print_env = List.fold_left (fun print_env param ->
+    add param print_env) print_env params
+  in
+  (* Make these printable now *)
+  let params = List.map string params in
+  (* The whole blurb *)
+  (string "data") ^^ space ^^ (print_var name) ^^ colon ^^ colon ^^ space ^^
+  (print_kind kind) ^^ space ^^ (join_left space params) ^^
+  space ^^ equals ^^
+  (nest 2
+    (break1 ^^ join break1 (List.map (print_data_type_def_branch print_env) branches)))
 
-(** This function prints the contents of a [Types.env]. *)
+(* This function prints the contents of a [Types.env]. *)
 let print_env env =
   (* Create an empty printing environment *)
   let print_env = { index = 0; names = IndexMap.empty; } in
   (* First, find out how many toplevel data types are defined in the current
    * environment. *)
   let n_cons = IndexMap.cardinal env.data_type_map in
-  Log.debug "%d bindings found" n_cons;
   (* This small helper function registers all global indexes with their names in
    * the name map. *)
   let rec bind_datacon_names print_env =
@@ -187,49 +233,16 @@ let print_env env =
       let name, _, _ = IndexMap.find index env.data_type_map in
       bind_datacon_names (add_var name print_env)
   in
-  Log.debug "Index is now at %d" print_env.index;
   let print_env = bind_datacon_names print_env in
-  Log.debug "Index is now at %d" print_env.index;
-  (* Then, for each of the data types, bind all its parameters to names, and
-   * pretty-print it! *)
-  let rec print_decl i =
+  (* Now we have a pretty-printing environment that's ready, proceed. *)
+  let defs = Hml_List.make n_cons (fun i ->
     let name, kind, branches = IndexMap.find i env.data_type_map in
-    Log.debug "Entering %a at %d" p_var name i;
-    (* This small helper function recursively inspects the kind, and if the kind
-     * is κ₁ → κ₂, then it adds an extra binding for the parameter with kind κ₁
-     * and picks a letter for it. We pass a char code, and we start with letter
-     * a. The accumulator is here to return a list of all the names we picked
-     * for pretty-printing them later on. *)
-    let rec bind_param_names print_env letter acc =
-      let open SurfaceSyntax in
-      function
-      | KTerm | KPerm ->
-          (* The remaining kind after we've popped all the arguments has to be
-           * KType, because data types are kinded as KType. *)
-          assert false
-      | KType ->
-          print_env, acc
-      | KArrow (k1, k2) ->
-          let str = String.make 1 (Char.chr letter) in
-          let print_env = add str print_env in
-          bind_param_names print_env (letter + 1) ((str, k1) :: acc) k2
-    in
-    let print_env, acc = bind_param_names print_env (Char.code 'a') [] kind in
-    let params = List.rev_map
-      (fun (var, k) ->
-        lparen ^^ (string var) ^^ colon ^^ colon ^^ space ^^ (print_kind k) ^^ rparen)
-      acc
-    in
-    (string "data") ^^ space ^^ (print_var name) ^^ (join_left space params) ^^
-    space ^^ equals ^^
-    (nest 2
-      (break1 ^^ join break1 (List.map (print_data_type_def_branch print_env) branches)))
+    print_data_type_def print_env name kind branches)
   in
-  let decls = List.map print_decl (Hml_List.make n_cons (fun x -> x)) in
-  join (hardline ^^ hardline) decls
+  join (hardline ^^ hardline) defs
 
-(** This function takes a [Types.env] and returns a string representation of it
- * suitable for debugging / pretty-printing. *)
+(* This function takes a [Types.env] and returns a string representation of it
+   suitable for debugging / pretty-printing. *)
 let string_of_env e =
   let buf = Buffer.create 16 in
   let doc = (print_env e) ^^ hardline in

@@ -67,14 +67,14 @@ let filter_some l =
   let l = List.filter (fun x -> x <> None) l in
   List.map Option.extract l
 
-let make i f =
+let make i' f =
   let rec make acc i =
-    if i >= 0 then
-      make ((f i) :: acc) (i - 1)
+    if i = i' then
+      List.rev acc
     else
-      acc
+      make ((f i) :: acc) (i + 1)
   in
-  make [] (i - 1)
+  make [] 0
 
 let map2i f l1 l2 =
   let rec map2i acc i l1 l2 =

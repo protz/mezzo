@@ -328,28 +328,33 @@ let collect_data_type_group_tycon group : fragment =
 let rec check_data_type_group env (group: SurfaceSyntax.data_type_group) : T.env =
   (* Collect the names and kinds of the data types that are being
      defined. Check that they are distinct. Extend the environment. *)
-  let env, lhs = extend env (collect_data_type_group_tycon group) in
+  let env, _unordered_lhs = extend env (collect_data_type_group_tycon group) in
+  (* We can't use the left-hand-sides returned by this function because they're
+   * in a random order, so just get the names in the same order as rhs. *)
+  let data_type_defs_lhs, _ = List.split group in
+  let names, _ = List.split data_type_defs_lhs in
   (* Check every data type definition. *)
   let rhs = List.map (check_data_type_def env) group in
-  let defs =  List.combine lhs rhs in
   (* Turn this into a viable environment that we can pass further down. *)
-  make_type_env env defs
+  make_type_env env names rhs
 
-and make_type_env { mapping; _ } defs : Types.env =
+and make_type_env { mapping; _ } names rhs : Types.env =
   let open T in
   let empty = {
     data_type_map = IndexMap.empty;
     cons_map = DataconMap.empty;
   } in
-  List.fold_left (fun { data_type_map; cons_map; } ((var, k), branches) ->
+  List.fold_left2 (fun { data_type_map; cons_map; } var branches ->
     let kind, global_index = M.find var mapping in
-    Log.affirm (k = kind) "The returned left hand sides and the mapping should be consistent";
+    (* Log.debug "%a has global index %d and its first datacon is %a"
+      Printers.p_var var global_index
+      Printers.p_con (fst (List.hd branches)); *)
     let cons_map = List.fold_left (fun cons_map (name, _) ->
       DataconMap.add name global_index cons_map
     ) cons_map branches in  
     let data_type_map =
-      IndexMap.add global_index (var, k, branches) data_type_map
+      IndexMap.add global_index (var, kind, branches) data_type_map
     in
     { cons_map; data_type_map }
-  ) empty defs
+  ) empty names rhs
 
