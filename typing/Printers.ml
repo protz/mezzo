@@ -1,5 +1,9 @@
+(** This modules provides various printers. *)
+
 open Types
 open Pprint
+
+(* This module contains extra helper functions for [Pprint]. *)
 
 module MyPprint = struct
   let arrow = string "->"
@@ -125,6 +129,7 @@ let rec print_quantified
 and print_type print_env = function
   | TyUnknown ->
       string "unknown"
+
   | TyDynamic ->
       string "dynamic"
 
@@ -161,8 +166,10 @@ and print_type print_env = function
     (* Permissions. *)
   | TyAnchoredPermission (t1, t2) ->
       (print_type print_env t1) ^^ colon ^^ space ^^ (print_type print_env t2)
+
   | TyEmpty ->
       (string "empty")
+
   | TyStar (t1, t2) ->
       (print_type print_env t1) ^^ star ^^ (print_type print_env t2)
 
@@ -176,6 +183,7 @@ and print_tuple_type_component print_env = function
 and print_data_field_def print_env = function
   | FieldValue (name, typ) ->
       (print_field name) ^^ colon ^^ space ^^ (print_type print_env typ)
+
   | FieldPermission typ ->
       (string "permission") ^^ space ^^ (print_type print_env typ)
 

@@ -2,8 +2,19 @@
 
 HaMLet is a dialect of ML with effects control and a fine-grained type system.
 
+{2 Driver modules}
+
+{!modules: Hamlet Driver}
+
+{2 Core type-checker modules}
+{!modules: WellKindedness ModeDeduction PermissionDeduction FactInference}
+
+{2 Type-checker data structures}
+{!modules: SurfaceSyntax Data Types Identifier}
+
 {2 Some data structures}
-{!modules: Hashcons GMap GSet Patricia InfiniteArray
+{!modules: Hashcons GMap GSet Patricia InfiniteArray PersistentUnionFind
+PersistentRef
 }
 
 {2 Some helper modules}
@@ -12,6 +23,6 @@ HaMLet is a dialect of ML with effects control and a fine-grained type system.
 
 {2 Third-party modules}
 Some extra software is bundled.
-{!modules: Ulexing}
+{!modules: Ulexing Pprint}
 
 {1 Dependency graph}
