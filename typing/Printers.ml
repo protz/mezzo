@@ -7,6 +7,9 @@ open Pprint
 
 module MyPprint = struct
   let arrow = string "->"
+
+  let ccolon = colon ^^ colon
+
   let int i = string (string_of_int i)
 
   (* [heading head body] prints [head]; breaks a line and indents by 2,
@@ -21,9 +24,9 @@ module MyPprint = struct
 
   (* [jump body] either displays a space, followed with [body], followed
      with a space, all on a single line; or breaks a line, prints [body]
-     at indentation 2, and breaks another line. *)
+     at indentation 2. *)
   let jump body =
-    group (nest 2 (line ^^ body) ^^ line)
+    group (nest 2 (line ^^ body))
 
   (* [definition head body cont] prints [head]; prints [body], surrounded
      with spaces and, if necessary, indented by 2; prints the keyword [in];
@@ -107,7 +110,7 @@ let rec print_kind =
   | KPerm ->
       string "perm"
   | KType ->
-      string "*"
+      string "∗"
   | KArrow (k1, k2) ->
       print_kind k1 ^^ space ^^ arrow ^^ space ^^ print_kind k2
 
@@ -121,8 +124,8 @@ let rec print_quantified
     (name: Variable.name) 
     (kind: SurfaceSyntax.kind)
     (typ: typ) =
-  (fancystring q 1) ^^ lparen ^^ (print_var name) ^^ colon ^^ colon ^^
-  (print_kind kind) ^^ rparen ^^ dot ^^ space ^^ (print_type print_env typ)
+  fancystring q 1 ^^ lparen ^^ print_var name ^^ space ^^ ccolon ^^ space ^^
+  print_kind kind ^^ rparen ^^ dot ^^ jump (print_type print_env typ)
 
 (* TEMPORARY this does not respect precedence and won't insert parentheses at
  * all! *)
@@ -145,11 +148,13 @@ and print_type print_env = function
       print_quantified print_env "∃" name kind typ
 
   | TyApp (t1, t2) ->
-      (print_type print_env t1) ^^ space ^^ (print_type print_env t2)
+      print_type print_env t1 ^^ space ^^ print_type print_env t2
 
   | TyTuple components ->
-      lparen ^^ (join (comma ^^ space)
-        (List.map (print_tuple_type_component print_env) components)) ^^
+      lparen ^^
+      join
+        (comma ^^ space)
+        (List.map (print_tuple_type_component print_env) components) ^^
       rparen
 
   | TyConcreteUnfolded branch ->
@@ -161,42 +166,47 @@ and print_type print_env = function
 
     (* Function types. *)
   | TyArrow (t1, t2) ->
-      (print_type print_env t1) ^^ arrow ^^ (print_type print_env t2)
+      print_type print_env t1 ^^ space ^^ arrow ^^
+      group (break1 ^^ print_type print_env t2)
 
     (* Permissions. *)
   | TyAnchoredPermission (t1, t2) ->
-      (print_type print_env t1) ^^ colon ^^ space ^^ (print_type print_env t2)
+      print_type print_env t1 ^^ colon ^^ space ^^ print_type print_env t2
 
   | TyEmpty ->
-      (string "empty")
+      string "empty"
 
   | TyStar (t1, t2) ->
-      (print_type print_env t1) ^^ star ^^ (print_type print_env t2)
+      print_type print_env t1 ^^ star ^^ print_type print_env t2
 
 and print_tuple_type_component print_env = function
   | TyTupleComponentValue typ ->
       print_type print_env typ
 
   | TyTupleComponentPermission typ ->
-      (string "permission") ^^ space ^^ (print_type print_env typ)
+      string "permission" ^^ space ^^ print_type print_env typ
 
 and print_data_field_def print_env = function
   | FieldValue (name, typ) ->
-      (print_field name) ^^ colon ^^ space ^^ (print_type print_env typ)
+      print_field name ^^ colon ^^ jump (print_type print_env typ)
 
   | FieldPermission typ ->
-      (string "permission") ^^ space ^^ (print_type print_env typ)
+      string "permission" ^^ space ^^ print_type print_env typ
 
 and print_data_type_def_branch print_env (branch: data_type_def_branch) =
   let name, fields = branch in
   let record =
     if List.length fields > 0 then
       space ^^ lbrace ^^
-      nest 2 (break1 ^^ (join break1 (List.map (print_data_field_def print_env) fields))) ^^
-      break1 ^^ rbrace
-    else empty
+      nest 4
+        (break1 ^^ join
+          (semi ^^ break1)
+          (List.map (print_data_field_def print_env) fields)) ^^
+      nest 2 (break1 ^^ rbrace)
+    else
+      empty
   in
-  bar ^^ space ^^ (print_datacon name) ^^ record
+  print_datacon name ^^ record
 
 (* Prints a data type defined in the global scope. Assumes [print_env] has been
    properly populated. *)
@@ -217,12 +227,15 @@ let print_data_type_def print_env name kind branches =
   in
   (* Make these printable now *)
   let params = List.map string params in
+  let sep = break1 ^^ bar ^^ space in
   (* The whole blurb *)
-  (string "data") ^^ space ^^ (print_var name) ^^ colon ^^ colon ^^ space ^^
-  (print_kind kind) ^^ space ^^ (join_left space params) ^^
+  string "data" ^^ space ^^ lparen ^^
+  print_var name ^^ space ^^ ccolon ^^ space ^^
+  print_kind kind ^^ rparen ^^ join_left space params ^^
   space ^^ equals ^^
-  (nest 2
-    (break1 ^^ join break1 (List.map (print_data_type_def_branch print_env) branches)))
+  jump
+    ((ifflat empty (bar ^^ space)) ^^
+    join sep (List.map (print_data_type_def_branch print_env) branches))
 
 (* This function prints the contents of a [Types.env]. *)
 let print_env env =
@@ -247,12 +260,12 @@ let print_env env =
     let name, kind, branches = IndexMap.find i env.data_type_map in
     print_data_type_def print_env name kind branches)
   in
-  join (hardline ^^ hardline) defs
+  join (break1 ^^ break1) defs
 
 (* This function takes a [Types.env] and returns a string representation of it
    suitable for debugging / pretty-printing. *)
 let string_of_env e =
   let buf = Buffer.create 16 in
-  let doc = (print_env e) ^^ hardline in
+  let doc = (print_env e) in
   Pprint.PpBuffer.pretty 1.0 Bash.twidth buf doc;
   Buffer.contents buf
