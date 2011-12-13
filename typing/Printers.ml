@@ -206,7 +206,7 @@ let print_data_type_def print_env name kind branches =
   let params: string list =
     (* Of course, won't work nice if more than 26 type parameters... *)
     let a = Char.code 'a' in
-    List.mapi (fun i acc ->
+    Hml_List.mapi (fun i acc ->
       let code = a + i in
       String.make 1 (Char.chr code)
     ) params
