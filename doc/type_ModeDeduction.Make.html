@@ -7,47 +7,35 @@
 <link title="Index of values" rel=Appendix href="index_values.html">
 <link title="Index of modules" rel=Appendix href="index_modules.html">
 <link title="Index of module types" rel=Appendix href="index_module_types.html">
-<link title="Utf8" rel="Chapter" href="Utf8.html">
-<link title="Ulexing" rel="Chapter" href="Ulexing.html">
-<link title="Ulex" rel="Chapter" href="Ulex.html">
-<link title="Pprint" rel="Chapter" href="Pprint.html">
-<link title="Option" rel="Chapter" href="Option.html">
-<link title="InfiniteArray" rel="Chapter" href="InfiniteArray.html">
-<link title="Hml_List" rel="Chapter" href="Hml_List.html">
-<link title="Bash" rel="Chapter" href="Bash.html">
-<link title="Hml_String" rel="Chapter" href="Hml_String.html">
-<link title="Log" rel="Chapter" href="Log.html">
-<link title="Hml_Map" rel="Chapter" href="Hml_Map.html">
 <link title="GSet" rel="Chapter" href="GSet.html">
 <link title="Patricia" rel="Chapter" href="Patricia.html">
 <link title="GMap" rel="Chapter" href="GMap.html">
+<link title="Log" rel="Chapter" href="Log.html">
+<link title="Hml_String" rel="Chapter" href="Hml_String.html">
+<link title="Hml_Map" rel="Chapter" href="Hml_Map.html">
+<link title="Hml_List" rel="Chapter" href="Hml_List.html">
+<link title="Option" rel="Chapter" href="Option.html">
+<link title="Bash" rel="Chapter" href="Bash.html">
+<link title="InfiniteArray" rel="Chapter" href="InfiniteArray.html">
+<link title="Pprint" rel="Chapter" href="Pprint.html">
 <link title="Driver" rel="Chapter" href="Driver.html">
 <link title="Hashcons" rel="Chapter" href="Hashcons.html">
-<link title="Lexer" rel="Chapter" href="Lexer.html">
 <link title="Grammar" rel="Chapter" href="Grammar.html">
 <link title="Identifier" rel="Chapter" href="Identifier.html">
-<link title="Mode" rel="Chapter" href="Mode.html">
+<link title="Lexer" rel="Chapter" href="Lexer.html">
+<link title="Ulex" rel="Chapter" href="Ulex.html">
+<link title="Utf8" rel="Chapter" href="Utf8.html">
+<link title="Ulexing" rel="Chapter" href="Ulexing.html">
 <link title="PersistentRef" rel="Chapter" href="PersistentRef.html">
-<link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
+<link title="Mode" rel="Chapter" href="Mode.html">
 <link title="PermissionDeduction" rel="Chapter" href="PermissionDeduction.html">
-<link title="ModeDeduction" rel="Chapter" href="ModeDeduction.html"><title>ModeDeduction.Make</title>
+<link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
+<link title="ModeDeduction" rel="Chapter" href="ModeDeduction.html">
+<link title="FactInference" rel="Chapter" href="FactInference.html"><title>ModeDeduction.Make</title>
 </head>
 <body>
-<code class="code"><span class="keyword">functor</span><br>
-&nbsp;&nbsp;(<span class="constructor">Mode</span>&nbsp;:&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;mode<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;is_universal&nbsp;:&nbsp;<span class="constructor">ModeDeduction</span>.<span class="constructor">Make</span>.mode&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;bool<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;leq&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">ModeDeduction</span>.<span class="constructor">Make</span>.mode&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">ModeDeduction</span>.<span class="constructor">Make</span>.mode&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;bool<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;show&nbsp;:&nbsp;<span class="constructor">ModeDeduction</span>.<span class="constructor">Make</span>.mode&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>)&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;<span class="keyword">functor</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">TyCon</span>&nbsp;:&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">ModeDeduction</span>.<span class="constructor">Make</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">ModeDeduction</span>.<span class="constructor">Make</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;show&nbsp;:&nbsp;<span class="constructor">ModeDeduction</span>.<span class="constructor">Make</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>)&nbsp;<span class="keywordsign">-&gt;</span><br>
+<code class="code"><span class="keyword">functor</span>&nbsp;(<span class="constructor">Mode</span>&nbsp;:&nbsp;<span class="constructor">MODE</span>)&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;<span class="keyword">functor</span>&nbsp;(<span class="constructor">TyCon</span>&nbsp;:&nbsp;<span class="constructor">TYCON</span>)&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;mode_constant&nbsp;=&nbsp;<span class="constructor">Mode</span>.mode<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;mode&nbsp;=<br>

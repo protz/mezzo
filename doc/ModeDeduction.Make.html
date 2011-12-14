@@ -10,41 +10,38 @@
 <link title="Index of values" rel=Appendix href="index_values.html">
 <link title="Index of modules" rel=Appendix href="index_modules.html">
 <link title="Index of module types" rel=Appendix href="index_module_types.html">
-<link title="Utf8" rel="Chapter" href="Utf8.html">
-<link title="Ulexing" rel="Chapter" href="Ulexing.html">
-<link title="Ulex" rel="Chapter" href="Ulex.html">
-<link title="Pprint" rel="Chapter" href="Pprint.html">
-<link title="Option" rel="Chapter" href="Option.html">
-<link title="InfiniteArray" rel="Chapter" href="InfiniteArray.html">
-<link title="Hml_List" rel="Chapter" href="Hml_List.html">
-<link title="Bash" rel="Chapter" href="Bash.html">
-<link title="Hml_String" rel="Chapter" href="Hml_String.html">
-<link title="Log" rel="Chapter" href="Log.html">
-<link title="Hml_Map" rel="Chapter" href="Hml_Map.html">
 <link title="GSet" rel="Chapter" href="GSet.html">
 <link title="Patricia" rel="Chapter" href="Patricia.html">
 <link title="GMap" rel="Chapter" href="GMap.html">
+<link title="Log" rel="Chapter" href="Log.html">
+<link title="Hml_String" rel="Chapter" href="Hml_String.html">
+<link title="Hml_Map" rel="Chapter" href="Hml_Map.html">
+<link title="Hml_List" rel="Chapter" href="Hml_List.html">
+<link title="Option" rel="Chapter" href="Option.html">
+<link title="Bash" rel="Chapter" href="Bash.html">
+<link title="InfiniteArray" rel="Chapter" href="InfiniteArray.html">
+<link title="Pprint" rel="Chapter" href="Pprint.html">
 <link title="Driver" rel="Chapter" href="Driver.html">
 <link title="Hashcons" rel="Chapter" href="Hashcons.html">
-<link title="Lexer" rel="Chapter" href="Lexer.html">
 <link title="Grammar" rel="Chapter" href="Grammar.html">
 <link title="Identifier" rel="Chapter" href="Identifier.html">
-<link title="Mode" rel="Chapter" href="Mode.html">
+<link title="Lexer" rel="Chapter" href="Lexer.html">
+<link title="Ulex" rel="Chapter" href="Ulex.html">
+<link title="Utf8" rel="Chapter" href="Utf8.html">
+<link title="Ulexing" rel="Chapter" href="Ulexing.html">
 <link title="PersistentRef" rel="Chapter" href="PersistentRef.html">
-<link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
+<link title="Mode" rel="Chapter" href="Mode.html">
 <link title="PermissionDeduction" rel="Chapter" href="PermissionDeduction.html">
-<link title="ModeDeduction" rel="Chapter" href="ModeDeduction.html"><title>ModeDeduction.Make</title>
+<link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
+<link title="ModeDeduction" rel="Chapter" href="ModeDeduction.html">
+<link title="FactInference" rel="Chapter" href="FactInference.html"><title>ModeDeduction.Make</title>
 </head>
 <body>
 <div class="navbar">&nbsp;<a href="ModeDeduction.html">Up</a>
 &nbsp;</div>
 <center><h1>Functor <a href="type_ModeDeduction.Make.html">ModeDeduction.Make</a></h1></center>
 <br>
-<pre><span class="keyword">module</span> Make: <div class="sig_block"><code class="code">functor (</code><code class="code">Mode</code><code class="code"> : </code><code class="code">sig</code><div class="sig_block"><pre><span id="TYPEmode"><span class="keyword">type</span> <code class="type"></code>mode</span> </pre>
-
-<pre><span id="VALis_universal"><span class="keyword">val</span> is_universal</span> : <code class="type"><a href="ModeDeduction.Make.html#TYPEmode">mode</a> -> bool</code></pre><pre><span id="VALleq"><span class="keyword">val</span> leq</span> : <code class="type"><a href="ModeDeduction.Make.html#TYPEmode">mode</a> -> <a href="ModeDeduction.Make.html#TYPEmode">mode</a> -> bool</code></pre><pre><span id="VALshow"><span class="keyword">val</span> show</span> : <code class="type"><a href="ModeDeduction.Make.html#TYPEmode">mode</a> -> string</code></pre></div><code class="code">end</code><code class="code">) -&gt; </code><div class="sig_block"><code class="code">functor (</code><code class="code">TyCon</code><code class="code"> : </code><code class="code">sig</code><div class="sig_block"><pre><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> </pre>
-
-<pre><span id="VALcompare"><span class="keyword">val</span> compare</span> : <code class="type">t -> t -> int</code></pre><pre><span id="VALshow"><span class="keyword">val</span> show</span> : <code class="type">t -> string</code></pre></div><code class="code">end</code><code class="code">) -&gt; </code><code class="code">sig</code> <a href="ModeDeduction.Make.html">..</a> <code class="code">end</code></div></div></pre><table border="0" cellpadding="3" width="100%">
+<pre><span class="keyword">module</span> Make: <div class="sig_block"><code class="code">functor (</code><code class="code">Mode</code><code class="code"> : </code><code class="type"><a href="ModeDeduction.MODE.html">MODE</a></code><code class="code">) -&gt; </code><div class="sig_block"><code class="code">functor (</code><code class="code">TyCon</code><code class="code"> : </code><code class="type"><a href="ModeDeduction.TYCON.html">TYCON</a></code><code class="code">) -&gt; </code><code class="code">sig</code> <a href="ModeDeduction.Make.html">..</a> <code class="code">end</code></div></div></pre><table border="0" cellpadding="3" width="100%">
 <tr>
 <td align="left" valign="top" width="1%%"><b>Parameters: </b></td>
 <td>
@@ -53,21 +50,12 @@
 <td align="center" valign="top" width="15%">
 <code>Mode</code></td>
 <td align="center" valign="top">:</td>
-<td><code class="type">sig
-    type mode
-    val is_universal: mode -> bool
-    val leq: mode -> mode -> bool
-    val show: mode -> string
-  end</code>
+<td><code class="type"><a href="ModeDeduction.MODE.html">MODE</a></code>
 <tr>
 <td align="center" valign="top" width="15%">
 <code>TyCon</code></td>
 <td align="center" valign="top">:</td>
-<td><code class="type">sig
-      type t
-      val compare: t -> t -> int
-      val show: t -> string
-  end</code>
+<td><code class="type"><a href="ModeDeduction.TYCON.html">TYCON</a></code>
 </table>
 </td>
 </tr>
