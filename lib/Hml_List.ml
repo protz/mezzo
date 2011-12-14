@@ -105,6 +105,18 @@ let mapi f l1 =
   in
   mapi [] 0 l1
 
+let fold_left3 f init l1 l2 l3 =
+  let rec fold_left3 acc l1 l2 l3 =
+    match l1, l2, l3 with
+    | hd1 :: tl1, hd2 :: tl2, hd3 :: tl3 ->
+        fold_left3 (f acc hd1 hd2 hd3) tl1 tl2 tl3
+    | [], [], [] ->
+        acc
+    | _ ->
+        raise (Invalid_argument "Hml_List.fold_left3")
+  in
+  fold_left3 init l1 l2 l3
+
 let fold_lefti f init l =
   let rec fold_lefti i acc = function
     | hd :: tl ->

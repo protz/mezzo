@@ -26,6 +26,7 @@ type error =
 
 exception LexingError of error
 
+val init: string -> unit
 val token: Ulexing.lexbuf -> Lexing.position * Grammar.token * Lexing.position
 
 val print_error: Buffer.t -> (Ulexing.lexbuf * error) -> unit

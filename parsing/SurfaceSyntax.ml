@@ -65,8 +65,10 @@ type data_type_def_lhs =
 type data_type_def_rhs =
     data_type_def_branch list
 
+type data_type_flag = Exclusive | Duplicable
+
 type data_type_def =
-    data_type_def_lhs * data_type_def_rhs
+    data_type_flag * data_type_def_lhs * data_type_def_rhs
 
 (* A data type group is a group of mutually recursive data type definitions. *)
 

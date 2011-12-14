@@ -313,13 +313,13 @@ let collect_data_type_def_lhs_parameters env (tycon, bindings) : env =
   (* Do not bother checking that the parameters are distinct. *)
   List.fold_left bind env bindings
 
-let check_data_type_def env (lhs, rhs) =
+let check_data_type_def env (_flag, lhs, rhs) =
   check_data_type_def_rhs (collect_data_type_def_lhs_parameters env lhs) rhs
 
 let collect_data_type_def_lhs_tycon tycons (tycon, bindings) : fragment =
   strict_add tycon (karrow bindings KType) tycons
 
-let collect_data_type_def_tycon tycons (lhs, _) : fragment =
+let collect_data_type_def_tycon tycons (_flag, lhs, _) : fragment =
   collect_data_type_def_lhs_tycon tycons lhs
 
 let collect_data_type_group_tycon group : fragment =
@@ -331,20 +331,20 @@ let rec check_data_type_group env (group: SurfaceSyntax.data_type_group) : T.env
   let env, _unordered_lhs = extend env (collect_data_type_group_tycon group) in
   (* We can't use the left-hand-sides returned by this function because they're
    * in a random order, so just get the names in the same order as rhs. *)
-  let data_type_defs_lhs, _ = List.split group in
+  let flags, data_type_defs_lhs, _ = Hml_List.split3 group in
   let names, _ = List.split data_type_defs_lhs in
   (* Check every data type definition. *)
   let rhs = List.map (check_data_type_def env) group in
   (* Turn this into a viable environment that we can pass further down. *)
-  make_type_env env names rhs
+  make_type_env env flags names rhs
 
-and make_type_env { mapping; _ } names rhs : Types.env =
+and make_type_env { mapping; _ } flags names rhs : Types.env =
   let open T in
   let empty = {
     data_type_map = IndexMap.empty;
     cons_map = DataconMap.empty;
   } in
-  List.fold_left2 (fun { data_type_map; cons_map; } var branches ->
+  Hml_List.fold_left3 (fun { data_type_map; cons_map; } flag var branches ->
     let kind, global_index = M.find var mapping in
     (* Log.debug "%a has global index %d and its first datacon is %a"
       Printers.p_var var global_index
@@ -353,8 +353,8 @@ and make_type_env { mapping; _ } names rhs : Types.env =
       DataconMap.add name global_index cons_map
     ) cons_map branches in  
     let data_type_map =
-      IndexMap.add global_index (var, kind, branches) data_type_map
+      IndexMap.add global_index (flag, var, kind, branches) data_type_map
     in
     { cons_map; data_type_map }
-  ) empty names rhs
+  ) empty flags names rhs
 

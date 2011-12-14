@@ -23,7 +23,7 @@ open Grammar
 (* Position handling *)
 
 let pos_fname = ref "<dummy>"
-let pos_lnum = ref 0
+let pos_lnum = ref 1
 let pos_bol = ref 0
 let pos pos_cnum =
   let open Lexing in {
@@ -32,6 +32,11 @@ let pos pos_cnum =
     pos_bol = !pos_bol;
     pos_cnum;
   }
+
+let init file_name =
+  pos_fname := file_name;
+  pos_lnum := 1;
+  pos_bol := 0
 
 let start_pos lexbuf = pos (lexeme_start lexbuf)
 let end_pos lexbuf = pos (lexeme_end lexbuf)
@@ -49,8 +54,8 @@ let print_position buf lexbuf =
   let end_pos = end_pos lexbuf in
   let filename = start_pos.pos_fname in
   let line = start_pos.pos_lnum in
-  let start_col = start_pos.pos_cnum in
-  let end_col = end_pos.pos_cnum in
+  let start_col = start_pos.pos_cnum - start_pos.pos_bol in
+  let end_col = end_pos.pos_cnum - end_pos.pos_bol in
   Printf.bprintf buf "File \"%s\", line %i, characters %i-%i:"
     filename line start_col end_col
 
@@ -132,6 +137,7 @@ let rec token = lexer
 | "unknown" -> locate lexbuf UNKNOWN
 | "dynamic" -> locate lexbuf DYNAMIC
 | "data" -> locate lexbuf DATA
+| "exclusive" -> locate lexbuf EXCLUSIVE
 | "|" -> locate lexbuf BAR
 
 | "[" -> locate lexbuf LBRACKET

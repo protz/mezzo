@@ -210,7 +210,7 @@ and print_data_type_def_branch print_env (branch: data_type_def_branch) =
 
 (* Prints a data type defined in the global scope. Assumes [print_env] has been
    properly populated. *)
-let print_data_type_def print_env name kind branches =
+let print_data_type_def print_env flag name kind branches =
   let params, _return_kind = flatten_kind kind in
   (* Turn the list of parameters into letters *)
   let params: string list =
@@ -228,8 +228,12 @@ let print_data_type_def print_env name kind branches =
   (* Make these printable now *)
   let params = List.map string params in
   let sep = break1 ^^ bar ^^ space in
+  let flag = match flag with
+    | SurfaceSyntax.Exclusive -> string "exclusive" ^^ space
+    | SurfaceSyntax.Duplicable -> empty
+  in
   (* The whole blurb *)
-  string "data" ^^ space ^^ lparen ^^
+  flag ^^ string "data" ^^ space ^^ lparen ^^
   print_var name ^^ space ^^ ccolon ^^ space ^^
   print_kind kind ^^ rparen ^^ join_left space params ^^
   space ^^ equals ^^
@@ -238,7 +242,7 @@ let print_data_type_def print_env name kind branches =
     join sep (List.map (print_data_type_def_branch print_env) branches))
 
 (* This function prints the contents of a [Types.env]. *)
-let print_env env =
+let print_type_env env =
   (* Create an empty printing environment *)
   let print_env = { index = 0; names = IndexMap.empty; } in
   (* First, find out how many toplevel data types are defined in the current
@@ -251,14 +255,14 @@ let print_env env =
     if index = n_cons then
       print_env
     else
-      let name, _, _ = IndexMap.find index env.data_type_map in
+      let _, name, _, _ = IndexMap.find index env.data_type_map in
       bind_datacon_names (add_var name print_env)
   in
   let print_env = bind_datacon_names print_env in
   (* Now we have a pretty-printing environment that's ready, proceed. *)
   let defs = Hml_List.make n_cons (fun i ->
-    let name, kind, branches = IndexMap.find i env.data_type_map in
-    print_data_type_def print_env name kind branches)
+    let flag, name, kind, branches = IndexMap.find i env.data_type_map in
+    print_data_type_def print_env flag name kind branches)
   in
   join (break1 ^^ break1) defs
 
@@ -266,6 +270,6 @@ let print_env env =
    suitable for debugging / pretty-printing. *)
 let string_of_env e =
   let buf = Buffer.create 16 in
-  let doc = print_env e in
+  let doc = print_type_env e in
   Pprint.PpBuffer.pretty 1.0 Bash.twidth buf doc;
   Buffer.contents buf

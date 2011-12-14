@@ -23,7 +23,7 @@
 (* Other tokens. *)
 
 %token KTERM KTYPE KPERM
-%token PERMISSION UNKNOWN DYNAMIC
+%token PERMISSION UNKNOWN DYNAMIC EXCLUSIVE
 %token DATA BAR
 %token LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
 %token COMMA COLON COLONCOLON SEMI DBLARROW ARROW STAR
@@ -345,11 +345,18 @@ datacon_application(X, Y):
 (* TEMPORARY could allow datacon to be omitted if there is only one branch
    -- i.e. this is a record type *)
 
+%inline data_type_flag:
+| /* nothing */
+  { Duplicable }
+| EXCLUSIVE
+  { Exclusive }
+
 %inline data_type_def:
+  flag = data_type_flag
   lhs = data_type_def_lhs
   EQUAL
   rhs = data_type_def_rhs
-    { lhs, rhs }
+    { flag, lhs, rhs }
 
 %inline data_type_group:
   defs = data_type_def*

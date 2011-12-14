@@ -106,7 +106,7 @@ type env = {
      defining type. *)
   cons_map: index DataconMap.t;
 } and data_type_entry =
-  Variable.name * SurfaceSyntax.kind * data_type_def_branch list
+  SurfaceSyntax.data_type_flag * Variable.name * SurfaceSyntax.kind * data_type_def_branch list
 
 
 (* ---------------------------------------------------------------------------- *)

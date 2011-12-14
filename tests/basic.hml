@@ -37,3 +37,14 @@ data listops =
     concat: [a] (consumes l1: list a, consumes l2: list a) -> (l3: list a)
   }
 
+exclusive data foo a b c =
+  Foo {
+    bar: a;
+    baz: baz b c a;
+  }
+
+data baz a b c =
+  Baz {
+    foo: foo a b c;
+  }
+
