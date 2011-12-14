@@ -234,7 +234,7 @@ let print_data_type_def print_env name kind branches =
   print_kind kind ^^ rparen ^^ join_left space params ^^
   space ^^ equals ^^
   jump
-    ((ifflat empty (bar ^^ space)) ^^
+    (ifflat empty (bar ^^ space) ^^
     join sep (List.map (print_data_type_def_branch print_env) branches))
 
 (* This function prints the contents of a [Types.env]. *)
@@ -266,6 +266,6 @@ let print_env env =
    suitable for debugging / pretty-printing. *)
 let string_of_env e =
   let buf = Buffer.create 16 in
-  let doc = (print_env e) in
+  let doc = print_env e in
   Pprint.PpBuffer.pretty 1.0 Bash.twidth buf doc;
   Buffer.contents buf

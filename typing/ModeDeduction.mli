@@ -64,26 +64,30 @@
 (* The code is organized as a functor. It is parameterized over a partially
    ordered set of modes and over a set of type constructors. *)
 
+module type MODE = sig
+  type mode
+  val is_universal: mode -> bool
+  val leq: mode -> mode -> bool
+  val show: mode -> string
+end
+
+module type TYCON = sig
+  type t
+  val compare: t -> t -> int
+  val show: t -> string
+end
+
 module Make
 
   (* The mode constants must form a partial order. *)
 
-  (Mode : sig
-    type mode
-    val is_universal: mode -> bool
-    val leq: mode -> mode -> bool
-    val show: mode -> string
-  end)
+  (Mode : MODE)
 
   (* The type constructors must be equipped with an arbitrary total order
      (which is used only for implementation purposes) and must be printable
      in an unambiguous manner (for error reporting). *)
 
-  (TyCon : sig
-      type t
-      val compare: t -> t -> int
-      val show: t -> string
-  end)
+  (TyCon : TYCON)
 
 : sig
 
