@@ -7,6 +7,11 @@
 
 (* Kinds. *)
 
+(* Arrow kinds are not accessible to the user. They are used internally:
+   a user-defined algebraic data type constructor receives an arrow kind.
+   Thus, even internally, we only use first-order kinds (that is, the
+   left-hand argument of an arrow kind is never itself an arrow kind). *)
+
 type kind =
   | KTerm
   | KType

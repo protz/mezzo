@@ -156,11 +156,19 @@ atomic_kind:
 | KPERM
     { KPerm }
 
-kind:
+%inline kind:
 | kind = atomic_kind
     { kind }
+(* We remove arrow kinds because they complicate the inference
+   and expression of ``mode facts''. That is, in the presence
+   of type variables of higher kinds, it becomes difficult to
+   specify exactly under what conditions a type is duplicable,
+   exclusive, or affine. Perhaps the loss of arrow kinds will
+   be compensated by introducing a module system (functors, etc.)
+   where facts can appear as module components.
 | kind1 = atomic_kind ARROW kind2 = kind
     { KArrow (kind1, kind2) }
+*)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -302,8 +310,6 @@ anchored_permission:
 (* ---------------------------------------------------------------------------- *)
 
 (* Data type definitions. *)
-
-(* TEMPORARY allow exclusive/mutable declarations *)
 
 (* A named field definition binds a field name and at the same time
    specifies an anchored permission for it. *)
