@@ -24,6 +24,9 @@ let bfprintf ?new_line oc fmt =
   Printf.kbprintf (fun buf -> Buffer.output_buffer oc buf; if Option.unit_bool new_line then
     output_string oc "\n";) (Buffer.create 16) fmt
 
+let bprintf fmt =
+  bfprintf stdout fmt
+
 let beprintf fmt =
   bfprintf stderr fmt
 

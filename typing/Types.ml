@@ -8,7 +8,7 @@
 type index =
     int
 
-module IndexMap = Map.Make(struct
+module IndexMap = Hml_Map.Make(struct
   type t = index
   let compare = Pervasives.compare
 end)

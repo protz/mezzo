@@ -48,3 +48,25 @@ data baz a b c =
     foo: foo a b c;
   }
 
+data v α = V {
+  foo: u α;
+}
+
+data u α = U {
+  bar: α;
+  baz: v α;
+}
+
+(* The example discussed on the board. Takes three rounds to get to the
+ * fixpoint. *)
+
+data t1 a b = T1 {
+  foo: t2 a b;
+}
+
+data t2 a b = T2 {
+  bar: t1 (a, b) b;
+  baz: a;
+}
+
+data odd a b c d = S { foo: b; bar: d }

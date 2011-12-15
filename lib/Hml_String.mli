@@ -28,6 +28,10 @@ val bsprintf: ('a, Buffer.t, unit, string) format4 -> 'a
 val bfprintf : ?new_line:unit -> out_channel -> ('a, Buffer.t, unit, unit) format4 -> 'a
 
 (** Make all your pretty-printers work with buffers, use them with [%a] and use
+    this to get a [Printf.printf] *)
+val bprintf : ('a, Buffer.t, unit, unit) format4 -> 'a
+
+(** Make all your pretty-printers work with buffers, use them with [%a] and use
     this to get a [Printf.eprintf] *)
 val beprintf : ('a, Buffer.t, unit, unit) format4 -> 'a
 

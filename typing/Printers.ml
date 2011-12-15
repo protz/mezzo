@@ -79,18 +79,6 @@ let p_con buf con =
 let p_var buf var =
   Buffer.add_string buf (Variable.print var)
 
-(* Transforms [κ₁ → ... → κₙ → κ₀] in [[κ₁; ...; κₙ], κ₀] *)
-let flatten_kind kind =
-  let open SurfaceSyntax in
-  let rec flatten_kind acc = function
-    | KArrow (k1, k2) ->
-        flatten_kind (k1 :: acc) k2
-    | _ as k ->
-        acc, k
-  in
-  let acc, k = flatten_kind [] kind in
-  List.rev acc, k
-
 (* --------------------------------------------------------------------------- *)
 
 let print_var var =
@@ -211,7 +199,7 @@ and print_data_type_def_branch print_env (branch: data_type_def_branch) =
 (* Prints a data type defined in the global scope. Assumes [print_env] has been
    properly populated. *)
 let print_data_type_def print_env flag name kind branches =
-  let params, _return_kind = flatten_kind kind in
+  let _return_kind, params = SurfaceSyntax.flatten_kind kind in
   (* Turn the list of parameters into letters *)
   let params: string list =
     (* Of course, won't work nice if more than 26 type parameters... *)

@@ -18,6 +18,19 @@ type kind =
   | KPerm
   | KArrow of kind * kind
 
+(* A small helper function that transforms
+ * [κ₁ → ... → κₙ → κ₀] into [[κ₁; ...; κₙ], κ₀] *)
+let flatten_kind kind =
+  let rec flatten_kind acc = function
+    | KArrow (k1, k2) ->
+        flatten_kind (k1 :: acc) k2
+    | _ as k ->
+        acc, k
+  in
+  let acc, k = flatten_kind [] kind in
+  k, List.rev acc
+
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Types and permissions. *)

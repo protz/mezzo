@@ -338,7 +338,7 @@ let rec check_data_type_group env (group: SurfaceSyntax.data_type_group) : T.env
   (* Turn this into a viable environment that we can pass further down. *)
   make_type_env env flags names rhs
 
-and make_type_env { mapping; _ } flags names rhs : Types.env =
+and make_type_env { mapping; _ } flags names rhs : T.env =
   let open T in
   let empty = {
     data_type_map = IndexMap.empty;
