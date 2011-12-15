@@ -34,6 +34,8 @@ graph: all
 	   -o graph.dot
 	sed -i 's/rotate=90;//g' graph.dot
 	dot -Tsvg graph.dot > misc/graph.svg
+	sed -i 's/^<text\([^>]\+\)>\([^<]\+\)/<text\1><a xlink:href="..\/doc\/\2.html" target="_parent">\2<\/a>/' misc/graph.svg
+	sed -i 's/Times Roman,serif/DejaVu Sans, Helvetica, sans/g' misc/graph.svg
 	rm -f graph.dot
 
 doc: graph
@@ -42,7 +44,7 @@ doc: graph
 	  -intro doc/main \
 	  $(shell $(FIND) _build -maxdepth 2 -iname '*.mli')
 	sed -i 's/iso-8859-1/utf-8/g' doc/*.html
-	sed -i 's/<\/body>/<p align="center"><img src="..\/misc\/graph.svg" \/><\/p><\/body>/' doc/index.html
+	sed -i 's/<\/body>/<p align="center"><object type="image\/svg+xml" data="..\/misc\/graph.svg"><\/object><\/p><\/body>/' doc/index.html
 	cp -f misc/ocamlstyle.css doc/style.css
 
 test: all

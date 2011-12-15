@@ -5,7 +5,7 @@
 
 a:visited, a:link, a {
   color: #6895c3;
-  text-decoration: none; 
+  text-decoration: none;
 }
 
 a:hover {
@@ -14,59 +14,59 @@ a:hover {
 }
 
 a:active {
-  text-decoration: underline; 
+  text-decoration: underline;
 }
 
 .keyword {
-  font-weight: bold; color: Red 
+  font-weight: bold; color: Red
 }
 
 .keywordsign {
-  color: #C04600 
+  color: #C04600
 }
 
 .superscript {
-  font-size: 4 
+  font-size: 4
 }
 
 .subscript {
-  font-size: 4 
+  font-size: 4
 }
 
 .comment {
-  color: Green 
+  color: Green
 }
 
 .constructor {
-  color: Blue 
+  color: Blue
 }
 
 .type {
-  color: #5C6585 
+  color: #5C6585
 }
 
 .string {
-  color: Maroon 
+  color: Maroon
 }
 
 .warning {
-  color: Red; font-weight: bold 
+  color: Red; font-weight: bold
 }
 
 .info {
-  margin-left: 3em; margin-right: 3em 
+  margin-left: 3em; margin-right: 3em
 }
 
 .param_info {
-  margin-top: 4px; margin-left: 3em; margin-right: 3em 
+  margin-top: 4px; margin-left: 3em; margin-right: 3em
 }
 
 .code {
-  color: #465F91; 
+  color: #465F91;
 }
 
 h1 {
-  font-size: 2rem; text-align: center; 
+  font-size: 2rem; text-align: center;
 }
 
 h2 {
@@ -197,6 +197,7 @@ pre, code {
   margin-left: 1em;
 }
 
-img {
+object {
   width: 100%;
   max-width: 1200px;
+}

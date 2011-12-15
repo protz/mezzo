@@ -12,12 +12,12 @@
 <!-- Log -->
 <g id="node1" class="node"><title>Log</title>
 <ellipse fill="darkturquoise" stroke="darkturquoise" cx="232" cy="-551" rx="27.9903" ry="18"/>
-<text text-anchor="middle" x="232" y="-546.9" font-family="Times Roman,serif" font-size="14.00">Log</text>
+<text text-anchor="middle" x="232" y="-546.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Log.html" target="_parent">Log</a></text>
 </g>
 <!-- Hml_String -->
 <g id="node3" class="node"><title>Hml_String</title>
 <ellipse fill="darkturquoise" stroke="darkturquoise" cx="198" cy="-475" rx="64.1231" ry="18"/>
-<text text-anchor="middle" x="198" y="-470.9" font-family="Times Roman,serif" font-size="14.00">Hml_String</text>
+<text text-anchor="middle" x="198" y="-470.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Hml_String.html" target="_parent">Hml_String</a></text>
 </g>
 <!-- Log&#45;&gt;Hml_String -->
 <g id="edge2" class="edge"><title>Log&#45;&gt;Hml_String</title>
@@ -27,7 +27,7 @@
 <!-- Option -->
 <g id="node5" class="node"><title>Option</title>
 <ellipse fill="darkturquoise" stroke="darkturquoise" cx="362" cy="-399" rx="43.7776" ry="18"/>
-<text text-anchor="middle" x="362" y="-394.9" font-family="Times Roman,serif" font-size="14.00">Option</text>
+<text text-anchor="middle" x="362" y="-394.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Option.html" target="_parent">Option</a></text>
 </g>
 <!-- Hml_String&#45;&gt;Option -->
 <g id="edge4" class="edge"><title>Hml_String&#45;&gt;Option</title>
@@ -37,17 +37,17 @@
 <!-- Bash -->
 <g id="node4" class="node"><title>Bash</title>
 <ellipse fill="darkturquoise" stroke="darkturquoise" cx="428" cy="-475" rx="34.2406" ry="18"/>
-<text text-anchor="middle" x="428" y="-470.9" font-family="Times Roman,serif" font-size="14.00">Bash</text>
+<text text-anchor="middle" x="428" y="-470.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Bash.html" target="_parent">Bash</a></text>
 </g>
 <!-- Hml_Map -->
 <g id="node7" class="node"><title>Hml_Map</title>
 <ellipse fill="darkturquoise" stroke="darkturquoise" cx="784" cy="-399" rx="55.0898" ry="18"/>
-<text text-anchor="middle" x="784" y="-394.9" font-family="Times Roman,serif" font-size="14.00">Hml_Map</text>
+<text text-anchor="middle" x="784" y="-394.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Hml_Map.html" target="_parent">Hml_Map</a></text>
 </g>
 <!-- Hml_List -->
 <g id="node8" class="node"><title>Hml_List</title>
 <ellipse fill="darkturquoise" stroke="darkturquoise" cx="533" cy="-475" rx="52.8111" ry="18"/>
-<text text-anchor="middle" x="533" y="-470.9" font-family="Times Roman,serif" font-size="14.00">Hml_List</text>
+<text text-anchor="middle" x="533" y="-470.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Hml_List.html" target="_parent">Hml_List</a></text>
 </g>
 <!-- Hml_List&#45;&gt;Option -->
 <g id="edge6" class="edge"><title>Hml_List&#45;&gt;Option</title>
@@ -57,12 +57,12 @@
 <!-- InfiniteArray -->
 <g id="node10" class="node"><title>InfiniteArray</title>
 <ellipse fill="darkturquoise" stroke="darkturquoise" cx="551" cy="-95" rx="71.7694" ry="18"/>
-<text text-anchor="middle" x="551" y="-90.9" font-family="Times Roman,serif" font-size="14.00">InfiniteArray</text>
+<text text-anchor="middle" x="551" y="-90.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/InfiniteArray.html" target="_parent">InfiniteArray</a></text>
 </g>
 <!-- Driver -->
 <g id="node11" class="node"><title>Driver</title>
 <ellipse fill="#eead0e" stroke="#eead0e" cx="125" cy="-551" rx="41.1906" ry="18"/>
-<text text-anchor="middle" x="125" y="-546.9" font-family="Times Roman,serif" font-size="14.00">Driver</text>
+<text text-anchor="middle" x="125" y="-546.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Driver.html" target="_parent">Driver</a></text>
 </g>
 <!-- Driver&#45;&gt;Hml_String -->
 <g id="edge8" class="edge"><title>Driver&#45;&gt;Hml_String</title>
@@ -72,7 +72,7 @@
 <!-- Lexer -->
 <g id="node14" class="node"><title>Lexer</title>
 <ellipse fill="#eead0e" stroke="#eead0e" cx="39" cy="-475" rx="38.9134" ry="18"/>
-<text text-anchor="middle" x="39" y="-470.9" font-family="Times Roman,serif" font-size="14.00">Lexer</text>
+<text text-anchor="middle" x="39" y="-470.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Lexer.html" target="_parent">Lexer</a></text>
 </g>
 <!-- Driver&#45;&gt;Lexer -->
 <g id="edge10" class="edge"><title>Driver&#45;&gt;Lexer</title>
@@ -82,7 +82,7 @@
 <!-- SurfaceSyntax -->
 <g id="node16" class="node"><title>SurfaceSyntax</title>
 <ellipse fill="#eead0e" stroke="#eead0e" cx="554" cy="-399" rx="80.8024" ry="18"/>
-<text text-anchor="middle" x="554" y="-394.9" font-family="Times Roman,serif" font-size="14.00">SurfaceSyntax</text>
+<text text-anchor="middle" x="554" y="-394.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/SurfaceSyntax.html" target="_parent">SurfaceSyntax</a></text>
 </g>
 <!-- Driver&#45;&gt;SurfaceSyntax -->
 <g id="edge12" class="edge"><title>Driver&#45;&gt;SurfaceSyntax</title>
@@ -92,7 +92,7 @@
 <!-- Variable -->
 <g id="node19" class="node"><title>Variable</title>
 <ellipse fill="#eead0e" stroke="#eead0e" cx="686" cy="-323" rx="50.0315" ry="18"/>
-<text text-anchor="middle" x="686" y="-318.9" font-family="Times Roman,serif" font-size="14.00">Variable</text>
+<text text-anchor="middle" x="686" y="-318.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Variable.html" target="_parent">Variable</a></text>
 </g>
 <!-- SurfaceSyntax&#45;&gt;Variable -->
 <g id="edge26" class="edge"><title>SurfaceSyntax&#45;&gt;Variable</title>
@@ -102,7 +102,7 @@
 <!-- Datacon -->
 <g id="node27" class="node"><title>Datacon</title>
 <ellipse fill="#eead0e" stroke="#eead0e" cx="553" cy="-323" rx="50.9221" ry="18"/>
-<text text-anchor="middle" x="553" y="-318.9" font-family="Times Roman,serif" font-size="14.00">Datacon</text>
+<text text-anchor="middle" x="553" y="-318.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Datacon.html" target="_parent">Datacon</a></text>
 </g>
 <!-- SurfaceSyntax&#45;&gt;Datacon -->
 <g id="edge28" class="edge"><title>SurfaceSyntax&#45;&gt;Datacon</title>
@@ -112,7 +112,7 @@
 <!-- Hashcons -->
 <g id="node17" class="node"><title>Hashcons</title>
 <ellipse fill="#eead0e" stroke="#eead0e" cx="551" cy="-171" rx="56.9803" ry="18"/>
-<text text-anchor="middle" x="551" y="-166.9" font-family="Times Roman,serif" font-size="14.00">Hashcons</text>
+<text text-anchor="middle" x="551" y="-166.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Hashcons.html" target="_parent">Hashcons</a></text>
 </g>
 <!-- Hashcons&#45;&gt;InfiniteArray -->
 <g id="edge14" class="edge"><title>Hashcons&#45;&gt;InfiniteArray</title>
@@ -122,7 +122,7 @@
 <!-- Identifier -->
 <g id="node21" class="node"><title>Identifier</title>
 <ellipse fill="#eead0e" stroke="#eead0e" cx="551" cy="-247" rx="54.8957" ry="18"/>
-<text text-anchor="middle" x="551" y="-242.9" font-family="Times Roman,serif" font-size="14.00">Identifier</text>
+<text text-anchor="middle" x="551" y="-242.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Identifier.html" target="_parent">Identifier</a></text>
 </g>
 <!-- Variable&#45;&gt;Identifier -->
 <g id="edge16" class="edge"><title>Variable&#45;&gt;Identifier</title>
@@ -137,7 +137,7 @@
 <!-- Patricia -->
 <g id="node24" class="node"><title>Patricia</title>
 <ellipse fill="cyan" stroke="cyan" cx="385" cy="-171" rx="46.7546" ry="18"/>
-<text text-anchor="middle" x="385" y="-166.9" font-family="Times Roman,serif" font-size="14.00">Patricia</text>
+<text text-anchor="middle" x="385" y="-166.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Patricia.html" target="_parent">Patricia</a></text>
 </g>
 <!-- Identifier&#45;&gt;Patricia -->
 <g id="edge20" class="edge"><title>Identifier&#45;&gt;Patricia</title>
@@ -147,7 +147,7 @@
 <!-- GMap -->
 <g id="node26" class="node"><title>GMap</title>
 <ellipse fill="cyan" stroke="cyan" cx="404" cy="-95" rx="38.9134" ry="18"/>
-<text text-anchor="middle" x="404" y="-90.9" font-family="Times Roman,serif" font-size="14.00">GMap</text>
+<text text-anchor="middle" x="404" y="-90.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/GMap.html" target="_parent">GMap</a></text>
 </g>
 <!-- Identifier&#45;&gt;GMap -->
 <g id="edge22" class="edge"><title>Identifier&#45;&gt;GMap</title>
@@ -162,7 +162,7 @@
 <!-- GSet -->
 <g id="node32" class="node"><title>GSet</title>
 <ellipse fill="cyan" stroke="cyan" cx="404" cy="-19" rx="34.9399" ry="18"/>
-<text text-anchor="middle" x="404" y="-14.9" font-family="Times Roman,serif" font-size="14.00">GSet</text>
+<text text-anchor="middle" x="404" y="-14.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/GSet.html" target="_parent">GSet</a></text>
 </g>
 <!-- GMap&#45;&gt;GSet -->
 <g id="edge32" class="edge"><title>GMap&#45;&gt;GSet</title>
@@ -177,7 +177,7 @@
 <!-- PersistentRef -->
 <g id="node34" class="node"><title>PersistentRef</title>
 <ellipse fill="green" stroke="green" cx="384" cy="-247" rx="73.8534" ry="18"/>
-<text text-anchor="middle" x="384" y="-242.9" font-family="Times Roman,serif" font-size="14.00">PersistentRef</text>
+<text text-anchor="middle" x="384" y="-242.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/PersistentRef.html" target="_parent">PersistentRef</a></text>
 </g>
 <!-- PersistentRef&#45;&gt;Patricia -->
 <g id="edge34" class="edge"><title>PersistentRef&#45;&gt;Patricia</title>
@@ -187,7 +187,7 @@
 <!-- WellKindedness -->
 <g id="node36" class="node"><title>WellKindedness</title>
 <ellipse fill="green" stroke="green" cx="876" cy="-551" rx="86.1654" ry="18"/>
-<text text-anchor="middle" x="876" y="-546.9" font-family="Times Roman,serif" font-size="14.00">WellKindedness</text>
+<text text-anchor="middle" x="876" y="-546.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/WellKindedness.html" target="_parent">WellKindedness</a></text>
 </g>
 <!-- WellKindedness&#45;&gt;Hml_List -->
 <g id="edge42" class="edge"><title>WellKindedness&#45;&gt;Hml_List</title>
@@ -207,7 +207,7 @@
 <!-- Types -->
 <g id="node39" class="node"><title>Types</title>
 <ellipse fill="green" stroke="green" cx="719" cy="-475" rx="38.9134" ry="18"/>
-<text text-anchor="middle" x="719" y="-470.9" font-family="Times Roman,serif" font-size="14.00">Types</text>
+<text text-anchor="middle" x="719" y="-470.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Types.html" target="_parent">Types</a></text>
 </g>
 <!-- WellKindedness&#45;&gt;Types -->
 <g id="edge38" class="edge"><title>WellKindedness&#45;&gt;Types</title>
@@ -237,22 +237,22 @@
 <!-- Data -->
 <g id="node42" class="node"><title>Data</title>
 <ellipse fill="green" stroke="green" cx="212" cy="-323" rx="34.2406" ry="18"/>
-<text text-anchor="middle" x="212" y="-318.9" font-family="Times Roman,serif" font-size="14.00">Data</text>
+<text text-anchor="middle" x="212" y="-318.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Data.html" target="_parent">Data</a></text>
 </g>
 <!-- Mode -->
 <g id="node43" class="node"><title>Mode</title>
 <ellipse fill="green" stroke="green" cx="469" cy="-551" rx="36.8288" ry="18"/>
-<text text-anchor="middle" x="469" y="-546.9" font-family="Times Roman,serif" font-size="14.00">Mode</text>
+<text text-anchor="middle" x="469" y="-546.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Mode.html" target="_parent">Mode</a></text>
 </g>
 <!-- ModeDeduction -->
 <g id="node44" class="node"><title>ModeDeduction</title>
 <ellipse fill="green" stroke="green" cx="686" cy="-551" rx="86.1654" ry="18"/>
-<text text-anchor="middle" x="686" y="-546.9" font-family="Times Roman,serif" font-size="14.00">ModeDeduction</text>
+<text text-anchor="middle" x="686" y="-546.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/ModeDeduction.html" target="_parent">ModeDeduction</a></text>
 </g>
 <!-- Printers -->
 <g id="node49" class="node"><title>Printers</title>
 <ellipse fill="green" stroke="green" cx="327" cy="-551" rx="48.8383" ry="18"/>
-<text text-anchor="middle" x="327" y="-546.9" font-family="Times Roman,serif" font-size="14.00">Printers</text>
+<text text-anchor="middle" x="327" y="-546.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Printers.html" target="_parent">Printers</a></text>
 </g>
 <!-- Printers&#45;&gt;Bash -->
 <g id="edge62" class="edge"><title>Printers&#45;&gt;Bash</title>
@@ -287,7 +287,7 @@
 <!-- PermissionDeduction -->
 <g id="node56" class="node"><title>PermissionDeduction</title>
 <ellipse fill="green" stroke="green" cx="150" cy="-399" rx="111.876" ry="18"/>
-<text text-anchor="middle" x="150" y="-394.9" font-family="Times Roman,serif" font-size="14.00">PermissionDeduction</text>
+<text text-anchor="middle" x="150" y="-394.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/PermissionDeduction.html" target="_parent">PermissionDeduction</a></text>
 </g>
 <!-- PermissionDeduction&#45;&gt;Patricia -->
 <g id="edge64" class="edge"><title>PermissionDeduction&#45;&gt;Patricia</title>
@@ -302,7 +302,7 @@
 <!-- PersistentUnionFind -->
 <g id="node59" class="node"><title>PersistentUnionFind</title>
 <ellipse fill="green" stroke="green" cx="375" cy="-323" rx="107.206" ry="18"/>
-<text text-anchor="middle" x="375" y="-318.9" font-family="Times Roman,serif" font-size="14.00">PersistentUnionFind</text>
+<text text-anchor="middle" x="375" y="-318.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/PersistentUnionFind.html" target="_parent">PersistentUnionFind</a></text>
 </g>
 <!-- PermissionDeduction&#45;&gt;PersistentUnionFind -->
 <g id="edge66" class="edge"><title>PermissionDeduction&#45;&gt;PersistentUnionFind</title>
@@ -317,7 +317,7 @@
 <!-- FactInference -->
 <g id="node62" class="node"><title>FactInference</title>
 <ellipse fill="green" stroke="green" cx="501" cy="-627" rx="75.9375" ry="18"/>
-<text text-anchor="middle" x="501" y="-622.9" font-family="Times Roman,serif" font-size="14.00">FactInference</text>
+<text text-anchor="middle" x="501" y="-622.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/FactInference.html" target="_parent">FactInference</a></text>
 </g>
 <!-- FactInference&#45;&gt;Log -->
 <g id="edge76" class="edge"><title>FactInference&#45;&gt;Log</title>
@@ -367,7 +367,7 @@
 <!-- Hamlet -->
 <g id="node72" class="node"><title>Hamlet</title>
 <ellipse fill="magenta" stroke="magenta" cx="327" cy="-703" rx="45.8622" ry="18"/>
-<text text-anchor="middle" x="327" y="-698.9" font-family="Times Roman,serif" font-size="14.00">Hamlet</text>
+<text text-anchor="middle" x="327" y="-698.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Hamlet.html" target="_parent">Hamlet</a></text>
 </g>
 <!-- Hamlet&#45;&gt;Log -->
 <g id="edge94" class="edge"><title>Hamlet&#45;&gt;Log</title>
