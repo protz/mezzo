@@ -19,7 +19,7 @@ type facts = rule list
    - the data type τ is either marked as exclusive, and then we have no
    constraints on its parameters
    - or τ is marked as duplicable, and then some of its parameters are
-   duplicable; those are in the [IndexMap] *)
+   duplicable; those are in the [bitmap] *)
 type state = Exclusive | Duplicable of bitmap | Affine
 
 (* This maps De Bruijn indices (inside a given type) to () if the parameter with
@@ -51,7 +51,6 @@ let state { level; types } i =
     assert false
 
 (* A small helper function. *)
-
 let flatten_tyapp t =
   let rec flatten_tyapp acc = function
     | TyApp (t1, t2) ->
@@ -78,11 +77,15 @@ let rev_duplicables
         map
 
     | TyVar i ->
+        (* TEMPORARY this only works because we're not going through any binders
+         * inside the type definition. The treatment of De Bruijn indexes is
+         * definitely less than satisfactory... *)
         Log.debug "Duplicable: %d" i;
         IndexMap.add i () map
         
     (* Is this the correct behavior? We assume we only have ∀ followed by a
-     * function type, which is always duplicable... and that we don't run into ∃ *)
+     * function type, which is always duplicable... and that we don't run into ∃
+     * at all. *)
     | TyForall _
     | TyExists _ ->
         map
@@ -107,7 +110,7 @@ let rev_duplicables
                  * bitmap keys are De Bruijn indexes. *)
                 Hml_List.fold_lefti (fun i map ti ->
                   let index = arity - i in
-                  match IndexMap.find_opt arity hd_bitmap with
+                  match IndexMap.find_opt index hd_bitmap with
                   | Some () ->
                       rev_duplicables map ti
                   | None ->
@@ -167,7 +170,7 @@ let create_and_populate_env (type_env: Types.env) : env =
   ) type_env.data_type_map { types = IndexMap.empty; level = n_cons } in
   env
 
-(* Because inside the types, we're using De Bruijn indexes, the bitmap are
+(* Because inside the types, we're using De Bruijn indexes, the bitmaps are
  * reversed compared to the type declaration [data p1 p2 ...]. We flip them for
  * display purposes. *)
 let string_of_bitmap bitmap max =
@@ -185,27 +188,42 @@ let print_env (env: env) : unit =
     match state with
     | Duplicable bitmap ->
         let bits = string_of_bitmap bitmap arity in
-        Hml_String.beprintf "%d: %a [%s]\n" index p_var name bits
+        Log.debug "%d: %a [%s]" index p_var name bits
     | Exclusive ->
-        Hml_String.beprintf "%d: %a [%s]\n" index p_var name "exclusive"
+        Log.debug "%d: %a [%s]" index p_var name "exclusive"
     | Affine ->
-        Hml_String.beprintf "%d: %a [%s]\n" index p_var name "affine"
+        Log.debug "%d: %a [%s]" index p_var name "affine"
   ) env.types
 
+(* This performs one round of constraint propagation.
+   - If the type is initially marked as Exclusive, it remains Exclusive.
+   - If the type is marked as Duplicable, we recursively determine which ones of
+   its type variables should be marked as duplicable for the whole type to be
+   duplicable. We first iterate on the branches, then on the fields inside the
+   branches. *)
 let one_round (type_env: Types.env) (env: env) : env =
   IndexMap.fold (fun level (name, arity, state) env ->
+    (* The [level] variable is the global level of the data type we're currently
+     * examining. *)
     match state with
     | Exclusive | Affine ->
         env
     | Duplicable bitmap ->
+        (* TEMPORARY I wonder if we should put that in [env] and get rid of
+         * [type_env]. *)
         let _flag, _name, _kind, branches =
           IndexMap.find level type_env.data_type_map
         in
         Log.debug "Processing %a, arity %d" Printers.p_var name arity;
         let base_level = env.level in
+        (* The type is in De Bruijn, so keep track of how many binders we've
+         * crossed to get inside the type. *)
         let env = { env with level = base_level + arity } in
         let new_mode =
           try
+            (* For each field, find out which parameters should be duplicable
+             * for that field's type to be duplicable; merge them with the
+             * current environment. *)
             let bitmap = List.fold_left (fun map (_name, fields) ->
                 List.fold_left (fun map -> function
                   | FieldValue (_name, typ) ->
@@ -217,27 +235,47 @@ let one_round (type_env: Types.env) (env: env) : env =
               ) bitmap branches in
             Duplicable bitmap
           with NotDuplicable _ ->
+            (* Some exception was raised: we hit a type that's [Exclusive] or
+             * [Affine], so the whole type need to be affine... *)
             Affine
         in
         let new_state = name, arity, new_mode in
         let env = {
           types = IndexMap.add level new_state env.types;
-          level = base_level
+          level = base_level (* back at the base level *)
         } in
         env
 
   ) env.types env
 
-
-
 let analyze_data_types
     (type_env: Types.env)
     : facts =
+  (* In the initial environment, all the bitmaps are empty. *)
   let env = create_and_populate_env type_env in
-  print_env env;
-  let env = one_round type_env env in
-  print_env env;
-  let env = one_round type_env env in
+  (* We could be even smarter and make the function return both a new env and a
+   * boolean telling whether we udpated the maps or not, but that would require
+   * threading some [was_modified] variable throughout all the code. Because
+   * premature optimization is the root of all evil, let's leave it as is for
+   * now. *)
+  let rec run_to_fixpoint env =
+    Bash.(Log.debug "%sOne round...%s" colors.blue colors.default);
+    let new_env = one_round type_env env in
+    let states_equal = fun (_, _, m1) (_, _, m2) ->
+      match m1, m2 with
+      | Duplicable b1, Duplicable b2 ->
+          IndexMap.equal (=) b1 b2
+      | Exclusive, Exclusive | Affine, Affine ->
+          true
+      | _ ->
+          false
+    in
+    if IndexMap.equal states_equal new_env.types env.types then
+      new_env
+    else
+      run_to_fixpoint new_env
+  in
+  let env = run_to_fixpoint env in
   print_env env;
   []
 

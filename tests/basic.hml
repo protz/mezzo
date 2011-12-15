@@ -59,7 +59,6 @@ data u α = U {
 
 (* The example discussed on the board. Takes three rounds to get to the
  * fixpoint. *)
-
 data t1 a b = T1 {
   foo: t2 a b;
 }
@@ -69,4 +68,9 @@ data t2 a b = T2 {
   baz: a;
 }
 
+(* Only b and d should be constrained. *)
 data odd a b c d = S { foo: b; bar: d }
+
+(* [list_of_refs] should be affine *)
+exclusive data ref a = Ref { contents: a }
+data list_of_refs a = L { list: list (ref a) }
