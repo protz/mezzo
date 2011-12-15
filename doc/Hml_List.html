@@ -47,14 +47,37 @@
 <br>
 <pre><span class="keyword">module</span> Hml_List: <code class="code">sig</code> <a href="Hml_List.html">..</a> <code class="code">end</code></pre>A bunch of useful functions for lists.<br>
 <hr width="100%">
-<pre><span id="VALsplit3"><span class="keyword">val</span> split3</span> : <code class="type">('a * 'b * 'c) list -> 'a list * 'b list * 'c list</code></pre><div class="info">
-Same as <code class="code">List.split</code> but for triples instead of pairs.<br>
+<pre><span id="VALmapi"><span class="keyword">val</span> mapi</span> : <code class="type">(int -> 'a -> 'b) -> 'a list -> 'b list</code></pre><div class="info">
+Same as <code class="code">map</code> but pass an extra parameter that represents the index<br>
 </div>
-<pre><span id="VALignore_map"><span class="keyword">val</span> ignore_map</span> : <code class="type">('a -> 'b) -> 'a list -> unit</code></pre><div class="info">
-Map a function and then discard the result.<br>
+<pre><span id="VALmap2i"><span class="keyword">val</span> map2i</span> : <code class="type">(int -> 'a -> 'b -> 'c) -> 'a list -> 'b list -> 'c list</code></pre><div class="info">
+Same as <code class="code">map2</code> but pass an extra parameter that represents the index<br>
+</div>
+<pre><span id="VALfold_lefti"><span class="keyword">val</span> fold_lefti</span> : <code class="type">(int -> 'a -> 'b -> 'a) -> 'a -> 'b list -> 'a</code></pre><div class="info">
+Same as <code class="code">fold_left</code> except that the function takes the current index in the
+   list<br>
+</div>
+<pre><span id="VALfold_left3"><span class="keyword">val</span> fold_left3</span> : <code class="type">('acc -> 't1 -> 't2 -> 't3 -> 'acc) -><br>       'acc -> 't1 list -> 't2 list -> 't3 list -> 'acc</code></pre><div class="info">
+Same as <code class="code">fold_left2</code> but with three lists.<br>
+</div>
+<pre><span id="VALreduce"><span class="keyword">val</span> reduce</span> : <code class="type">('a -> 'a -> 'a) -> 'a list -> 'a</code></pre><div class="info">
+Same as <code class="code">fold_left</code>, but start folding on the head of the list instead of
+    giving an initial element.<br>
 </div>
 <pre><span id="VALiter2i"><span class="keyword">val</span> iter2i</span> : <code class="type">(int -> 'a -> 'b -> unit) -> 'a list -> 'b list -> unit</code></pre><div class="info">
 Same as <code class="code">List.iteri</code> but with two lists.<br>
+</div>
+<pre><span id="VALsplit3"><span class="keyword">val</span> split3</span> : <code class="type">('a * 'b * 'c) list -> 'a list * 'b list * 'c list</code></pre><div class="info">
+Same as <code class="code">List.split</code> but for triples instead of pairs.<br>
+</div>
+<pre><span id="VALmake"><span class="keyword">val</span> make</span> : <code class="type">int -> (int -> 'a) -> 'a list</code></pre><div class="info">
+<code class="code">make n f</code> creates <code class="code">[f 1; ...; f n]</code>.<br>
+</div>
+<pre><span id="VALlast"><span class="keyword">val</span> last</span> : <code class="type">'a list -> 'a</code></pre><div class="info">
+Get the last element of a list.<br>
+</div>
+<pre><span id="VALignore_map"><span class="keyword">val</span> ignore_map</span> : <code class="type">('a -> 'b) -> 'a list -> unit</code></pre><div class="info">
+Map a function and then discard the result.<br>
 </div>
 <pre><span id="VALappend_rev_front"><span class="keyword">val</span> append_rev_front</span> : <code class="type">'a list -> 'a list -> 'a list</code></pre><div class="info">
 <code class="code">append_rev_front l1 l2</code> is tail-rec and returns <code class="code">(List.rev l1) :: l2</code>.<br>
@@ -69,25 +92,5 @@ Find the biggest element in a list<br>
 </div>
 <pre><span id="VALfilter_some"><span class="keyword">val</span> filter_some</span> : <code class="type">'a option list -> 'a list</code></pre><div class="info">
 Turns <code class="code">[Some a; None; ...]</code> into <code class="code">[a; ...]</code><br>
-</div>
-<pre><span id="VALmake"><span class="keyword">val</span> make</span> : <code class="type">int -> (int -> 'a) -> 'a list</code></pre><div class="info">
-<code class="code">make n f</code> creates <code class="code">[f 1; ...; f n]</code>.<br>
-</div>
-<pre><span id="VALmap2i"><span class="keyword">val</span> map2i</span> : <code class="type">(int -> 'a -> 'b -> 'c) -> 'a list -> 'b list -> 'c list</code></pre><div class="info">
-Same as <code class="code">map2</code> but pass an extra parameter that represents the index<br>
-</div>
-<pre><span id="VALmapi"><span class="keyword">val</span> mapi</span> : <code class="type">(int -> 'a -> 'b) -> 'a list -> 'b list</code></pre><div class="info">
-Same as <code class="code">map</code> but pass an extra parameter that represents the index<br>
-</div>
-<pre><span id="VALfold_lefti"><span class="keyword">val</span> fold_lefti</span> : <code class="type">(int -> 'a -> 'b -> 'a) -> 'a -> 'b list -> 'a</code></pre><div class="info">
-Same as <code class="code">fold_left</code> except that the function takes the current index in the
-   list<br>
-</div>
-<pre><span id="VALreduce"><span class="keyword">val</span> reduce</span> : <code class="type">('a -> 'a -> 'a) -> 'a list -> 'a</code></pre><div class="info">
-Same as <code class="code">fold_left</code>, but start folding on the head of the list instead of
-    giving an initial element.<br>
-</div>
-<pre><span id="VALlast"><span class="keyword">val</span> last</span> : <code class="type">'a list -> 'a</code></pre><div class="info">
-Get the last element of a list.<br>
 </div>
 </body></html>

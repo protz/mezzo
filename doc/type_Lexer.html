@@ -40,6 +40,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">UnterminatedComment</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">GeneralError</span>&nbsp;<span class="keyword">of</span>&nbsp;string<br>
 &nbsp;&nbsp;<span class="keyword">exception</span>&nbsp;<span class="constructor">LexingError</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Lexer</span>.error<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;init&nbsp;:&nbsp;string&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;token&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Ulexing</span>.lexbuf&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Lexing</span>.position&nbsp;*&nbsp;<span class="constructor">Grammar</span>.token&nbsp;*&nbsp;<span class="constructor">Lexing</span>.position<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;print_error&nbsp;:&nbsp;<span class="constructor">Buffer</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Ulexing</span>.lexbuf&nbsp;*&nbsp;<span class="constructor">Lexer</span>.error&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>

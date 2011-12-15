@@ -12,6 +12,23 @@ module MyPprint = struct
 
   let int i = string (string_of_int i)
 
+  let utf8_length s =
+    (* Stolen from Batteries *)
+    let rec length_aux s c i =
+      if i >= String.length s then c else
+      let n = Char.code (String.unsafe_get s i) in
+      let k =
+        if n < 0x80 then 1 else
+        if n < 0xe0 then 2 else
+        if n < 0xf0 then 3 else 4
+      in
+      length_aux s (c + 1) (i + k)
+    in
+    length_aux s 0 0
+
+  let print_string s =
+    fancystring s (utf8_length s)
+
   (* [heading head body] prints [head]; breaks a line and indents by 2,
    if necessary; then prints [body]. *)
   let heading head body =
@@ -82,13 +99,13 @@ let p_var buf var =
 (* --------------------------------------------------------------------------- *)
 
 let print_var var =
-  string (Variable.print var)
+  print_string (Variable.print var)
 
 let print_datacon datacon =
-  string (Datacon.print datacon)
+  print_string (Datacon.print datacon)
 
 let print_field field =
-  string (Field.print field)
+  print_string (Field.print field)
 
 let rec print_kind =
   let open SurfaceSyntax in
@@ -104,7 +121,7 @@ let rec print_kind =
 
 let print_index { names; index } i =
   let name = IndexMap.find (index - i) names in
-  string name
+  print_string name
 
 let rec print_quantified
     (print_env: print_env)
@@ -112,7 +129,7 @@ let rec print_quantified
     (name: Variable.name) 
     (kind: SurfaceSyntax.kind)
     (typ: typ) =
-  fancystring q 1 ^^ lparen ^^ print_var name ^^ space ^^ ccolon ^^ space ^^
+  print_string q ^^ lparen ^^ print_var name ^^ space ^^ ccolon ^^ space ^^
   print_kind kind ^^ rparen ^^ dot ^^ jump (print_type print_env typ)
 
 (* TEMPORARY this does not respect precedence and won't insert parentheses at
@@ -214,7 +231,7 @@ let print_data_type_def print_env flag name kind branches =
     add param print_env) print_env params
   in
   (* Make these printable now *)
-  let params = List.map string params in
+  let params = List.map print_string params in
   let sep = break1 ^^ bar ^^ space in
   let flag = match flag with
     | SurfaceSyntax.Exclusive -> string "exclusive" ^^ space
