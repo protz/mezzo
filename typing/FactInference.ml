@@ -240,11 +240,12 @@ let rec rev_duplicables
             merge_sub_env env (rev_duplicables env t)
       ) env ts
 
-  (* TEMPORARY: for now on, let's say we're not dealing with these. In the
-   * future, we'll have to match these to the correct data type, figure out what
-   * its parameters are, and then proceed just like with TyApp. *)
-  | TyConcreteUnfolded _ ->
-      assert false
+  | TyConcreteUnfolded (_con, fields) ->
+      List.fold_left (fun env -> function
+        | FieldValue (_, typ)
+        | FieldPermission typ ->
+            merge_sub_env env (rev_duplicables env typ)
+      ) env fields
 
   (* Singleton types are always duplicable. *)
   | TySingleton _ ->
