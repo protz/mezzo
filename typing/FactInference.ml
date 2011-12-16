@@ -112,12 +112,13 @@ let mark_duplicable env i =
 (* [ith_param_duplicable bitmap i] tells whether the i-th parameter of the type
  * whose bitmap is [bitmap] should be duplicable. *)
 let ith_param_duplicable env bitmap i =
+  (* Some fun with the De Bruijn index to find out about the global level. *)
   let level = IndexMap.cardinal env.types + i in
   Option.unit_bool (IndexMap.find_opt level bitmap)
 
-(* [add_binder env name] returns the new environment after we've entered an
+(* [bind env name] returns the new environment after we've entered an
  * extra binder whose name is [name] *)
-let add_binder env name =
+let bind env name =
   let new_level = env.level + 1 in
   let extra = IndexMap.add new_level name env.extra in
   { env with level = new_level; extra }
@@ -180,9 +181,10 @@ let print_env (env: env) : unit =
 
 (* The core of the algorithm. *)
 
-(* Perform a reverse-analysis of a type, and return an env with the current
- * field set to a bitmap of all indexes that must be marked as duplicable for
- * the original type to be duplicable itself. *)
+(* Perform a reverse-analysis of a type, and return an env with the [current]
+ * field set to a bitmap. If bitmap index [i] is present, this means that the
+ * type's parameter with *level* [i] must be marked as duplicable for the
+ * original type to be duplicable itself. *)
 let rev_duplicables
     (type_env: Types.env)
     (env: env)
@@ -197,12 +199,9 @@ let rev_duplicables
         Log.debug "Duplicable: %d" i;
         mark_duplicable env i
 
-    (* Is this the correct behavior? We assume we only have ∀ followed by a
-     * function type, which is always duplicable... and that we don't run into ∃
-     * at all. *)
     | TyForall ((name, kind), t)
     | TyExists ((name, kind), t) ->
-        let sub_env = add_binder env name in
+        let sub_env = bind env name in
         merge_sub_env env (rev_duplicables sub_env t)
 
     | TyApp _ as t ->
@@ -219,9 +218,7 @@ let rev_duplicables
                  * its i-th argument has to be duplicable, then:
                  * - find all type variables present in the argument that have
                  * to be duplicable for the argument to be duplicable as well
-                 * - and add them to the map of variables so far.
-                 * Beware, the index in the list is not the De Bruijn index! The
-                 * bitmap keys are De Bruijn indexes. *)
+                 * - and add them to the map of variables so far. *)
                 Hml_List.fold_lefti (fun i env ti ->
                   if ith_param_duplicable env hd_bitmap i then
                     merge_sub_env env (rev_duplicables env ti)
@@ -237,8 +234,8 @@ let rev_duplicables
         List.fold_left (fun env -> function
           | TyTupleComponentValue t
           | TyTupleComponentPermission t ->
-              (* For a permission to be duplicable, the underlying type has to be
-               * duplicable too. *)
+              (* For a permission to be duplicable, the underlying type has to
+               * be duplicable too. *)
               merge_sub_env env (rev_duplicables env t)
         ) env ts
 
@@ -265,7 +262,6 @@ let rev_duplicables
     | TyArrow _ ->
         env
 
-    (* TEMPORARY This doesn't really count, does it? *)
     | TyAnchoredPermission (x, t) ->
         (* That shouldn't be an issue, since x is probably TySingleton *)
         let env = merge_sub_env env (rev_duplicables env x) in
@@ -343,6 +339,9 @@ let one_round (type_env: Types.env) (env: env) : env =
                   | FieldPermission typ ->
                       Log.affirm (IndexMap.cardinal sub_env.extra = 0)
                         "Someone didn't clean up their environment.";
+                      (* We should in theory use [merge_sub_env] here, but since
+                       * [sub_env.extra] is [IndexMap.empty] anyway, this would
+                       * be a no-op. *)
                       rev_duplicables type_env sub_env typ
                 ) sub_env fields
               ) sub_env branches in
