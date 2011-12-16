@@ -61,7 +61,8 @@ and var = Variable.name
 
 (* ------------------------------------------------------------------------- *)
 
-(* Helper functions for working with environments and types. *)
+(* Helper functions for working with environments and types. All the functions
+ * below take *indexes* as parameters. *)
 
 exception NotDuplicable of typ
 (* TEMPORARY this one will have to go eventually *)
@@ -120,6 +121,15 @@ let add_binder env name =
   let new_level = env.level + 1 in
   let extra = IndexMap.add new_level name env.extra in
   { env with level = new_level; extra }
+
+(* The situation is a little bit awkward, because in an environment, there's a
+ * part that doesn't change: [types], a part that's threaded through all
+ * computations: [current], and a part that's discarded after a recursive call:
+ * [extra]. This helper function should hopefully make it easier to deal with. *)
+let merge_sub_env env sub_env =
+  (* Get the new bitmap from the sub-environment, because that's the part that
+   * we need to thread through the computations. *)
+  { env with current = sub_env.current }
 
 (* A small helper function. *)
 let flatten_tyapp t =
@@ -188,9 +198,10 @@ let rec rev_duplicables
   (* Is this the correct behavior? We assume we only have ∀ followed by a
    * function type, which is always duplicable... and that we don't run into ∃
    * at all. *)
-  | TyForall _
-  | TyExists _ ->
-      env
+  | TyForall ((name, kind), t)
+  | TyExists ((name, kind), t) ->
+      let sub_env = add_binder env name in
+      merge_sub_env env (rev_duplicables sub_env t)
 
   | TyApp _ as t ->
     begin
@@ -211,7 +222,7 @@ let rec rev_duplicables
                * bitmap keys are De Bruijn indexes. *)
               Hml_List.fold_lefti (fun i env ti ->
                 if ith_param_duplicable env hd_bitmap i then
-                  rev_duplicables env ti
+                  merge_sub_env env (rev_duplicables env ti)
                 else
                   env
               ) env ts
@@ -222,12 +233,11 @@ let rec rev_duplicables
 
   | TyTuple ts ->
       List.fold_left (fun env -> function
-        | TyTupleComponentValue t ->
-            rev_duplicables env t
+        | TyTupleComponentValue t
         | TyTupleComponentPermission t ->
             (* For a permission to be duplicable, the underlying type has to be
              * duplicable too. *)
-            rev_duplicables env t
+            merge_sub_env env (rev_duplicables env t)
       ) env ts
 
   (* TEMPORARY: for now on, let's say we're not dealing with these. In the
@@ -247,15 +257,15 @@ let rec rev_duplicables
   (* TEMPORARY This doesn't really count, does it? *)
   | TyAnchoredPermission (x, t) ->
       (* That shouldn't be an issue, since x is probably TySingleton *)
-      let env = rev_duplicables env x in
+      let env = merge_sub_env env (rev_duplicables env x) in
       (* For x: τ to be duplicable, τ has to be duplicable as well *)
-      rev_duplicables env t
+      merge_sub_env env (rev_duplicables env t)
   | TyEmpty ->
       env
   | TyStar (p, q) ->
       (* For p ∗ q  to be duplicable, both p and q have to be duplicable. *)
-      let env = rev_duplicables env p in
-      rev_duplicables env q
+      let env = merge_sub_env env (rev_duplicables env p) in
+      merge_sub_env env (rev_duplicables env q)
 
 (* This creates the environment in its initial state, and transforms the
  * knowledge we have gathered on the data types into a form that's suitable
@@ -318,6 +328,8 @@ let one_round (type_env: Types.env) (env: env) : env =
                 List.fold_left (fun sub_env -> function
                   | FieldValue (_, typ)
                   | FieldPermission typ ->
+                      Log.affirm (IndexMap.cardinal sub_env.extra = 0)
+                        "Someone didn't clean up their environment.";
                       rev_duplicables sub_env typ
                 ) sub_env fields
               ) sub_env branches in
@@ -345,6 +357,8 @@ let analyze_data_types
   let rec run_to_fixpoint env =
     Bash.(Log.debug "%sOne round...%s" colors.blue colors.default);
     let new_env = one_round type_env env in
+    Log.affirm (IndexMap.cardinal (snd env.current) = 0)
+      "Someone didn't clean up their environment";
     let states_equal = fun (_, _, m1) (_, _, m2) ->
       match m1, m2 with
       | Duplicable b1, Duplicable b2 ->
