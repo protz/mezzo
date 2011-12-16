@@ -183,90 +183,102 @@ let print_env (env: env) : unit =
 (* Perform a reverse-analysis of a type, and return an env with the current
  * field set to a bitmap of all indexes that must be marked as duplicable for
  * the original type to be duplicable itself. *)
-let rec rev_duplicables
+let rev_duplicables
+    (type_env: Types.env)
     (env: env)
     (t: typ) : env =
-  match t with
-  | TyUnknown
-  | TyDynamic ->
-      env
+  let rec rev_duplicables (env: env) (t: typ) : env =
+    match t with
+    | TyUnknown
+    | TyDynamic ->
+        env
 
-  | TyVar i ->
-      Log.debug "Duplicable: %d" i;
-      mark_duplicable env i
+    | TyVar i ->
+        Log.debug "Duplicable: %d" i;
+        mark_duplicable env i
 
-  (* Is this the correct behavior? We assume we only have ∀ followed by a
-   * function type, which is always duplicable... and that we don't run into ∃
-   * at all. *)
-  | TyForall ((name, kind), t)
-  | TyExists ((name, kind), t) ->
-      let sub_env = add_binder env name in
-      merge_sub_env env (rev_duplicables sub_env t)
+    (* Is this the correct behavior? We assume we only have ∀ followed by a
+     * function type, which is always duplicable... and that we don't run into ∃
+     * at all. *)
+    | TyForall ((name, kind), t)
+    | TyExists ((name, kind), t) ->
+        let sub_env = add_binder env name in
+        merge_sub_env env (rev_duplicables sub_env t)
 
-  | TyApp _ as t ->
-    begin
-      let hd, ts = flatten_tyapp t in
-      match hd with
-      | TyVar i ->
+    | TyApp _ as t ->
+      begin
+        let hd, ts = flatten_tyapp t in
+        match hd with
+        | TyVar i ->
+          begin
+            match state env i with
+            | Exclusive | Affine ->
+                raise (NotDuplicable t)
+            | Duplicable hd_bitmap ->
+                (* For each argument of the type application, if [hd] says that
+                 * its i-th argument has to be duplicable, then:
+                 * - find all type variables present in the argument that have
+                 * to be duplicable for the argument to be duplicable as well
+                 * - and add them to the map of variables so far.
+                 * Beware, the index in the list is not the De Bruijn index! The
+                 * bitmap keys are De Bruijn indexes. *)
+                Hml_List.fold_lefti (fun i env ti ->
+                  if ith_param_duplicable env hd_bitmap i then
+                    merge_sub_env env (rev_duplicables env ti)
+                  else
+                    env
+                ) env ts
+          end
+        | _ ->
+            raise (NotSupported "Sorry, we don't allow Fω yet, you can only apply types to a globally defined data type.")
+      end
+
+    | TyTuple ts ->
+        List.fold_left (fun env -> function
+          | TyTupleComponentValue t
+          | TyTupleComponentPermission t ->
+              (* For a permission to be duplicable, the underlying type has to be
+               * duplicable too. *)
+              merge_sub_env env (rev_duplicables env t)
+        ) env ts
+
+    | TyConcreteUnfolded (cons, fields) as t ->
+        let level = DataconMap.find cons type_env.cons_map in
+        let flag, _, _, _ = IndexMap.find level type_env.data_type_map in
         begin
-          match state env i with
-          | Exclusive | Affine ->
+          match flag with
+          | SurfaceSyntax.Duplicable ->
+              List.fold_left (fun env -> function
+                | FieldValue (_, typ)
+                | FieldPermission typ ->
+                    merge_sub_env env (rev_duplicables env typ)
+              ) env fields
+          | SurfaceSyntax.Exclusive ->
               raise (NotDuplicable t)
-          | Duplicable hd_bitmap ->
-              (* For each argument of the type application, if [hd] says that
-               * its i-th argument has to be duplicable, then:
-               * - find all type variables present in the argument that have
-               * to be duplicable for the argument to be duplicable as well
-               * - and add them to the map of variables so far.
-               * Beware, the index in the list is not the De Bruijn index! The
-               * bitmap keys are De Bruijn indexes. *)
-              Hml_List.fold_lefti (fun i env ti ->
-                if ith_param_duplicable env hd_bitmap i then
-                  merge_sub_env env (rev_duplicables env ti)
-                else
-                  env
-              ) env ts
         end
-      | _ ->
-          raise (NotSupported "Sorry, we don't allow Fω yet, you can only apply types to a globally defined data type.")
-    end
 
-  | TyTuple ts ->
-      List.fold_left (fun env -> function
-        | TyTupleComponentValue t
-        | TyTupleComponentPermission t ->
-            (* For a permission to be duplicable, the underlying type has to be
-             * duplicable too. *)
-            merge_sub_env env (rev_duplicables env t)
-      ) env ts
+    (* Singleton types are always duplicable. *)
+    | TySingleton _ ->
+        env
 
-  | TyConcreteUnfolded (_con, fields) ->
-      List.fold_left (fun env -> function
-        | FieldValue (_, typ)
-        | FieldPermission typ ->
-            merge_sub_env env (rev_duplicables env typ)
-      ) env fields
+    (* Arrows are always duplicable *)
+    | TyArrow _ ->
+        env
 
-  (* Singleton types are always duplicable. *)
-  | TySingleton _ ->
-      env
-
-  (* Arrows are always duplicable *)
-  | TyArrow _ ->
-      env
-
-  (* TEMPORARY This doesn't really count, does it? *)
-  | TyAnchoredPermission (x, t) ->
-      (* That shouldn't be an issue, since x is probably TySingleton *)
-      let env = merge_sub_env env (rev_duplicables env x) in
-      (* For x: τ to be duplicable, τ has to be duplicable as well *)
-      merge_sub_env env (rev_duplicables env t)
-  | TyEmpty ->
-      env
-  | TyStar (p, q) ->
-      (* For p ∗ q  to be duplicable, both p and q have to be duplicable. *)
-      let env = merge_sub_env env (rev_duplicables env p) in
-      merge_sub_env env (rev_duplicables env q)
+    (* TEMPORARY This doesn't really count, does it? *)
+    | TyAnchoredPermission (x, t) ->
+        (* That shouldn't be an issue, since x is probably TySingleton *)
+        let env = merge_sub_env env (rev_duplicables env x) in
+        (* For x: τ to be duplicable, τ has to be duplicable as well *)
+        merge_sub_env env (rev_duplicables env t)
+    | TyEmpty ->
+        env
+    | TyStar (p, q) ->
+        (* For p ∗ q  to be duplicable, both p and q have to be duplicable. *)
+        let env = merge_sub_env env (rev_duplicables env p) in
+        merge_sub_env env (rev_duplicables env q)
+  in
+  rev_duplicables env t
 
 (* This creates the environment in its initial state, and transforms the
  * knowledge we have gathered on the data types into a form that's suitable
@@ -331,7 +343,7 @@ let one_round (type_env: Types.env) (env: env) : env =
                   | FieldPermission typ ->
                       Log.affirm (IndexMap.cardinal sub_env.extra = 0)
                         "Someone didn't clean up their environment.";
-                      rev_duplicables sub_env typ
+                      rev_duplicables type_env sub_env typ
                 ) sub_env fields
               ) sub_env branches in
             Duplicable (snd sub_env.current)

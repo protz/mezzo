@@ -76,3 +76,13 @@ exclusive data ref a = Ref { contents: a }
 data list_of_refs a = L { list: list (ref a) }
 
 (* data not_well_kinded container a = N { contents: container a; } *)
+
+data should_be_dup a = D {
+  foo: Nil;
+  bar: a;
+  foo: Cons { head: a; tail: list a };
+}
+
+data should_be_aff a = A {
+  foo: Cons { head: ref a; tail: list (ref a) };
+}
