@@ -40,5 +40,7 @@ let _ =
   let ast = Driver.lex_and_parse !arg_filename in
   let env = WellKindedness.(check_data_type_group empty ast) in
   let facts = FactInference.analyze_data_types env in
-  Printf.printf "%s\n" (Printers.string_of_env env);
-  Printf.printf "%s\n" (FactInference.string_of_facts facts)
+  Printf.printf "%s\n" (Bash.box "Kinds");
+  Printf.printf "%s\n\n" (Printers.string_of_env env);
+  Printf.printf "%s\n" (Bash.box "Facts");
+  Printf.printf "%s\n\n" (FactInference.string_of_facts env facts)

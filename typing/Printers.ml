@@ -29,6 +29,15 @@ module MyPprint = struct
   let print_string s =
     fancystring s (utf8_length s)
 
+  let name_gen count =
+    (* Of course, won't work nice if more than 26 type parameters... *)
+    let alpha = "α" in
+    let c0 = Char.code alpha.[1] in
+    Hml_List.make count (fun i ->
+      let code = c0 + i in
+      Printf.sprintf "%c%c" alpha.[0] (Char.chr code)
+    )
+
   (* [heading head body] prints [head]; breaks a line and indents by 2,
    if necessary; then prints [body]. *)
   let heading head body =
@@ -218,14 +227,7 @@ and print_data_type_def_branch print_env (branch: data_type_def_branch) =
 let print_data_type_def print_env flag name kind branches =
   let _return_kind, params = SurfaceSyntax.flatten_kind kind in
   (* Turn the list of parameters into letters *)
-  let params: string list =
-    (* Of course, won't work nice if more than 26 type parameters... *)
-    let a = Char.code 'a' in
-    Hml_List.mapi (fun i acc ->
-      let code = a + i in
-      String.make 1 (Char.chr code)
-    ) params
-  in
+  let params: string list = name_gen (List.length params) in
   (* Add all these letters into the printing environment *)
   let print_env = List.fold_left (fun print_env param ->
     add param print_env) print_env params

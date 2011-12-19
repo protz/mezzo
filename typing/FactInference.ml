@@ -1,19 +1,5 @@
 open Types
 
-module TyCon = struct
-  (* The name is here for printing purposes only. The “real” information is
-   * contained in the global index. *)
-  type t = Variable.name * index
-  let compare = fun (_, x) (_, y) -> compare x y
-  let show (name, _) = Variable.print name
-end
-
-module MD = ModeDeduction.Make(Mode)(TyCon)
-
-(* This is what we return *)
-type facts = MD.rule list
-
-
 (* ------------------------------------------------------------------------- *)
 
 (* Data structures for the fact inference algorithm. *)
@@ -48,7 +34,9 @@ type env = {
    no constraints on its parameters
    - or τ is marked as duplicable, and then some of its parameters are
    duplicable; those are in the [bitmap] *)
-and state = Exclusive | Duplicable of bitmap | Affine
+and state = fact
+
+and fact = Exclusive | Duplicable of bitmap | Affine
 
 (* This maps levels of the current type parameters to () if that index has to be
  * duplicable, nothing otherwise. *)
@@ -57,6 +45,8 @@ and bitmap = unit IndexMap.t
 (* The information we know about a variable bound inside a type, with ∀ for
  * instance. *)
 and var = Variable.name
+
+and facts = fact IndexMap.t
 
 
 (* ------------------------------------------------------------------------- *)
@@ -319,7 +309,7 @@ let one_round (type_env: Types.env) (env: env) : env =
         let _flag, _name, _kind, branches =
           IndexMap.find level type_env.data_type_map
         in
-        Log.debug "Processing %a, arity %d" Printers.p_var name arity;
+        (* Log.debug "Processing %a, arity %d" Printers.p_var name arity; *)
         (* The type is in De Bruijn, so keep track of how many binders we've
          * crossed to get inside the type. *)
         let sub_env = {
@@ -367,7 +357,7 @@ let analyze_data_types
    * premature optimization is the root of all evil, let's leave it as is for
    * now. *)
   let rec run_to_fixpoint env =
-    Bash.(Log.debug "%sOne round...%s" colors.blue colors.default);
+    Bash.(Log.debug "%sOne round of fact analysis...%s" colors.blue colors.default);
     let new_env = one_round type_env env in
     Log.affirm (IndexMap.cardinal (snd env.current) = 0)
       "Someone didn't clean up their environment";
@@ -386,8 +376,56 @@ let analyze_data_types
       run_to_fixpoint new_env
   in
   let env = run_to_fixpoint env in
-  print_env env;
-  []
+  (* print_env env; *)
+  IndexMap.map (fun (_, _, fact) -> fact) env.types
 
-let string_of_facts facts =
-  ""
+let string_of_facts (env: Types.env) facts =
+  let open Bash in
+  let n_cons = IndexMap.cardinal env.data_type_map in
+  let string_of_fact name arity fact =
+    let params = Printers.MyPprint.name_gen arity in
+    let all_params = String.concat " " params in
+    let all_params = if List.length params > 0 then " " ^ all_params else "" in
+    let print_simple w =
+      Hml_String.bsprintf "%s%a%s%s is %s"
+        colors.underline Printers.p_var name all_params colors.default w
+    in
+    match fact with
+    | Exclusive ->
+        print_simple "exclusive"
+    | Affine ->
+        print_simple "affine"
+    | Duplicable bitmap when List.length params = 0 ->
+        print_simple "duplicable"
+    | Duplicable bitmap ->
+        let verb = if List.length params > 1 then "are" else "is" in
+        let dup_params = List.mapi (fun i param ->
+          match IndexMap.find_opt (n_cons + i) bitmap with
+          | Some () ->
+              Some param
+          | None ->
+              None
+        ) params in
+        let dup_params = Hml_List.filter_some dup_params in
+        let rec fancy_join = function
+          | [] ->
+              ""
+          | e :: [] ->
+              e
+          | e1 :: e2 :: [] ->
+              Printf.sprintf "%s and %s" e1 e2
+          | hd :: tl ->
+              Printf.sprintf "%s, %s" hd (fancy_join tl)
+        in
+        Hml_String.bsprintf "%s%a%s%s is duplicable if %s %s duplicable"
+          colors.underline Printers.p_var name
+          all_params colors.default (fancy_join dup_params) verb
+  in
+  let strings = IndexMap.fold (fun i fact acc ->
+    let _flag, name, kind, _branches = IndexMap.find i env.data_type_map in
+    let _hd, params = SurfaceSyntax.flatten_kind kind in
+    let arity = List.length params in
+    (string_of_fact name arity (IndexMap.find i facts)) :: acc
+  ) facts [] in
+  let strings = List.sort String.compare strings in
+  String.concat "\n" strings

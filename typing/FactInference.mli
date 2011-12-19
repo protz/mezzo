@@ -1,13 +1,11 @@
 (** This module analyzes data type declaration to synthetize facts about the
    data types. *)
 
-(** The {!TyCon} module builds upon the previously defined {!Types} and
-   {!Variable} modules. *)
-module TyCon: ModeDeduction.TYCON
+type bitmap = unit Types.IndexMap.t
 
-module MD: module type of ModeDeduction.Make(Mode)(TyCon)
+type fact = Exclusive | Duplicable of bitmap | Affine
 
-type facts = MD.rule list
+type facts = fact Types.IndexMap.t
 
 val analyze_data_types: Types.env -> facts
-val string_of_facts: facts -> string
+val string_of_facts: Types.env -> facts -> string
