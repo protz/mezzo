@@ -186,7 +186,7 @@ let rev_duplicables
         env
 
     | TyVar i ->
-        Log.debug "Duplicable: %d" i;
+        (* Log.debug "Duplicable: %d" i; *)
         mark_duplicable env i
 
     | TyForall ((name, kind), t)
@@ -399,7 +399,7 @@ let string_of_facts (env: Types.env) facts =
         print_simple "duplicable"
     | Duplicable bitmap ->
         let verb = if List.length params > 1 then "are" else "is" in
-        let dup_params = List.mapi (fun i param ->
+        let dup_params = Hml_List.mapi (fun i param ->
           match IndexMap.find_opt (n_cons + i) bitmap with
           | Some () ->
               Some param
