@@ -99,7 +99,7 @@ and data_field_def =
    that global environemnt, where all global names have been assigned indexes
    already. *)
 type env = {
-  (** Maps global indexes to their meaning, i.e. a name for debugging, a kind,
+  (** Maps global levels to their meaning, i.e. a name for debugging, a kind,
      and a definition that has been converted to De Bruijn. *)
   data_type_map: data_type_entry IndexMap.t;
   (** Allows one to jump back from a constructor to the global index of its
