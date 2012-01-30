@@ -1,5 +1,6 @@
 (** This modules provides various printers. *)
 
+open WellKindedness
 open Types
 open Pprint
 

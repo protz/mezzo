@@ -1,3 +1,4 @@
+open WellKindedness
 open Types
 
 (* ------------------------------------------------------------------------- *)
@@ -26,7 +27,7 @@ type env = {
   extra: var IndexMap.t;
 
   (* The current De Bruijn level. *)
-  level: index;
+  level: level;
 }
 
 (* When constraining type parameters, we know that:
@@ -40,13 +41,14 @@ and fact = Exclusive | Duplicable of bitmap | Affine
 
 (* This maps levels of the current type parameters to () if that index has to be
  * duplicable, nothing otherwise. *)
-and bitmap = unit IndexMap.t
+and bitmap = unit LevelMap.t
 
 (* The information we know about a variable bound inside a type, with ∀ for
- * instance. *)
+ * instance. This will probably be something like Variable.name * mode in the
+ * future. *)
 and var = Variable.name
 
-and facts = fact IndexMap.t
+and facts = fact LevelMap.t
 
 
 (* ------------------------------------------------------------------------- *)
@@ -176,7 +178,7 @@ let print_env (env: env) : unit =
  * type's parameter with *level* [i] must be marked as duplicable for the
  * original type to be duplicable itself. *)
 let rev_duplicables
-    (type_env: Types.env)
+    (type_env: WellKindedness.data_type_env)
     (env: env)
     (t: typ) : env =
   let rec rev_duplicables (env: env) (t: typ) : env =
@@ -269,7 +271,7 @@ let rev_duplicables
 (* This creates the environment in its initial state, and transforms the
  * knowledge we have gathered on the data types into a form that's suitable
  * for our analysis. *)
-let create_and_populate_env (type_env: Types.env) : env =
+let create_and_populate_env (type_env: WellKindedness.data_type_env) : env =
   let n_cons = IndexMap.cardinal type_env.data_type_map in
   let empty = {
     types = IndexMap.empty;
@@ -296,7 +298,7 @@ let create_and_populate_env (type_env: Types.env) : env =
    its type variables should be marked as duplicable for the whole type to be
    duplicable. We first iterate on the branches, then on the fields inside the
    branches. *)
-let one_round (type_env: Types.env) (env: env) : env =
+let one_round (type_env: WellKindedness.data_type_env) (env: env) : env =
   IndexMap.fold (fun level (name, arity, state) env ->
     (* The [level] variable is the global level of the data type we're currently
      * examining. *)
@@ -347,7 +349,7 @@ let one_round (type_env: Types.env) (env: env) : env =
   ) env.types env
 
 let analyze_data_types
-    (type_env: Types.env)
+    (type_env: WellKindedness.data_type_env)
     : facts =
   (* In the initial environment, all the bitmaps are empty. *)
   let env = create_and_populate_env type_env in
@@ -379,7 +381,7 @@ let analyze_data_types
   (* print_env env; *)
   IndexMap.map (fun (_, _, fact) -> fact) env.types
 
-let string_of_facts (env: Types.env) facts =
+let string_of_facts (env: WellKindedness.data_type_env) facts =
   let open Bash in
   let n_cons = IndexMap.cardinal env.data_type_map in
   let string_of_fact name arity fact =

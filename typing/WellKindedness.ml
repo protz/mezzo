@@ -7,6 +7,29 @@ module T = Types
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Things we define for other modules *)
+
+(** This environment contains information about all the types that have been
+   defined in the global scope, and is used in the rest of the type-checking
+   process.
+    A data type defined in the global scope is assigned a “global De Bruijn
+   index”. Therefore, all right-hand sides must be understood to be defined in
+   that global environemnt, where all global names have been assigned indexes
+   already. *)
+type data_type_env = {
+  (** Maps global levels to their meaning, i.e. a name for debugging, a kind,
+     and a definition that has been converted to De Bruijn. *)
+  data_type_map: data_type_entry T.LevelMap.t;
+  (** Allows one to jump back from a constructor to the global index of its
+     defining type. *)
+  cons_map: T.index T.DataconMap.t;
+}
+
+and data_type_entry =
+  SurfaceSyntax.data_type_flag * Variable.name * SurfaceSyntax.kind * T.data_type_def_branch list
+
+(* ---------------------------------------------------------------------------- *)
+
 (* Kind constructors. *)
 
 let karrow bindings kind =
@@ -325,7 +348,7 @@ let collect_data_type_def_tycon tycons (_flag, lhs, _) : fragment =
 let collect_data_type_group_tycon group : fragment =
   List.fold_left collect_data_type_def_tycon M.empty group
 
-let rec check_data_type_group env (group: SurfaceSyntax.data_type_group) : T.env =
+let rec check_data_type_group env (group: SurfaceSyntax.data_type_group) : data_type_env =
   (* Collect the names and kinds of the data types that are being
      defined. Check that they are distinct. Extend the environment. *)
   let env, _unordered_lhs = extend env (collect_data_type_group_tycon group) in
@@ -338,7 +361,7 @@ let rec check_data_type_group env (group: SurfaceSyntax.data_type_group) : T.env
   (* Turn this into a viable environment that we can pass further down. *)
   make_type_env env flags names rhs
 
-and make_type_env { mapping; _ } flags names rhs : T.env =
+and make_type_env { mapping; _ } flags names rhs : data_type_env =
   let open T in
   let empty = {
     data_type_map = IndexMap.empty;

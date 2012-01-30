@@ -3,32 +3,27 @@ open Command;;
 
 let substring s i j =
   String.sub s i (j - i)
-
-type t = Two of string * string | One of string
+;;
 
 let split s c =
-  let rec split1 s =
+  let rec break s acc =
     try begin
       let i = String.index s c in
       let l = String.length s in
-      Two (substring s 0 i, substring s (i+1) l)
+      let s1, s2 = substring s 0 i, substring s (i+1) l in
+      break s2 (s1 :: acc)
     end with Not_found ->
-      One s
-  in
-  let rec break s acc =
-    match split1 s with
-    | One s ->
-        s :: acc
-    | Two (s1, s2) ->
-        break s2 (s1 :: acc)
+      s :: acc
   in
   List.rev (break s [])
+;;
 
 let make_flags str =
   let l = String.length str in
   let str = if str.[l - 1] == '\n' then substring str 0 (l-1) else str in
   let bits = split str ' ' in
   S (List.map (fun x -> A x) bits)
+;;
 
 let cflags = make_flags (run_and_read "menhir --suggest-comp-flags --table");;
 let blflags = make_flags (run_and_read "menhir --suggest-link-flags-byte --table");;
