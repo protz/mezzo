@@ -93,3 +93,44 @@ type data_type_def =
 type data_type_group =
     data_type_def list
 
+(* ---------------------------------------------------------------------------- *)
+
+(* Patterns *)
+
+type pattern =
+  (* x: τ *)
+  | PConstraint of pattern * typ
+  (* x *)
+  | PVar of Variable.name
+  (* (x: τ, …) *)
+  | PTuple of tuple_type_component list
+  (* Foo { bar = bar; baz = baz; … } *)
+  | PConstruct of Datacon.name * (Variable.name * typ) list
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Expressions *)
+
+type rec_flag = Nonrecursive | Recursive
+
+type expression =
+  (* e: τ *)
+  | EConstraint of expression * typ
+  (* v *)
+  | EVar of Variable.name
+  (* let rec f p₁ … pₙ: τ = e₁ and … and g = e₂ in e *)
+  | ELet of rec_flag * (pattern list * typ * expression) list * expression
+  (* v.f <- e *)
+  | EAssign of Variable.name * Variable.name * expression
+  (* e e₁ … eₙ *)
+  | EApply of expression * expression list
+  (* match e with pᵢ -> eᵢ *)
+  | EMatch of expression * (pattern * expression) list
+  (* (e₁, …, eₙ) *)
+  | ETuple of expression list
+  (* Foo { bar = bar; baz = baz; … *)
+  | EConstruct of Datacon.name * (Variable.name * expression) list
+  (* if e₁ then e₂ else e₃ *)
+  | EIfThenElse of expression * expression * expression
+  (* e₁; e₂ *)
+  | ESequence of expression * expression
