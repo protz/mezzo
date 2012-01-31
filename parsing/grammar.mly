@@ -27,16 +27,17 @@
 %token DATA BAR
 %token LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
 %token COMMA COLON COLONCOLON SEMI DBLARROW ARROW STAR
-%token EQUAL
+%token EQUAL SEMISEMI
 %token EMPTY
 %token CONSUMES
+%token VAL LET REC AND
 %token EOF
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Miscellaneous directives. *)
 
-%start<SurfaceSyntax.data_type_group> unit
+%start<SurfaceSyntax.data_type_group * SurfaceSyntax.declaration_group> unit
 
 %{
 
@@ -374,7 +375,62 @@ datacon_application(X, Y):
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Patterns. *)
+
+pattern:
+  | p = pat1
+    { PLocated (p, $startpos, $endpos) }
+
+pat1:
+  | x = LIDENT
+    { PVar (Variable.register x) }
+
+(* ---------------------------------------------------------------------------- *)
+
 (* Terms. *)
+
+%inline rec_flag:
+  | REC { Recursive }
+  |     { Nonrecursive }
+
+expression:
+  | e = expr1
+    { ELocated (e, $startpos, $endpos) } 
+
+expr1:
+  | { assert false }
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Top-level declarations. *)
+
+(* A declaration group is a sequence of mutually recursive definitions separated
+ * by ;;. We require the double-semicolon here (it may be made optional later)
+ * in the hope that this makes parsing fail earlier, therefore giving better
+ * error messages. *)
+declaration_group:
+  l = separated_list(SEMISEMI, declaration)
+    { l }
+
+declaration:
+  | d = decl1
+    { DLocated (d, $startpos, $endpos) }
+
+(* We use the keyword [val] for top-level declarations. *)
+decl1:
+  | VAL flag = rec_flag declarations = separated_list(AND, inner_decl1)
+    { DMultiple (flag, declarations) }
+
+  (* We make a distinction between a single pattern and a function definition. The
+   * former encompasses idioms such as [val x,y = ...]. The latter allows one to
+   * define a function. There are additional rules that ought to be verified at
+   * some point (e.g. only variables are allowed on the left-hand side of a
+   * let-rec *)
+  inner_decl1:
+    | p = pattern EQUAL e = expression
+      { DValues (p, e) }
+    | f_name = LIDENT f_args = pattern+ COLON t = normal_type EQUAL e = expression
+      { DFunction (Variable.register f_name, f_args, t, e) }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -382,5 +438,6 @@ datacon_application(X, Y):
 
 unit:
   group = data_type_group
+  declarations = declaration_group
   EOF
-    { group }
+    { group, declarations }

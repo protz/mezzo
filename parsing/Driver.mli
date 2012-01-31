@@ -20,4 +20,5 @@
 (** This module sets up a lexer and a parser to create an AST. *)
 
 val add_include_dir: string -> unit
-val lex_and_parse: string -> SurfaceSyntax.data_type_group
+val lex_and_parse: string ->
+  SurfaceSyntax.data_type_group * SurfaceSyntax.declaration_group

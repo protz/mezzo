@@ -105,7 +105,8 @@ type pattern =
   (* (x: τ, …) *)
   | PTuple of tuple_type_component list
   (* Foo { bar = bar; baz = baz; … } *)
-  | PConstruct of Datacon.name * (Variable.name * typ) list
+  | PConstruct of Datacon.name * (Variable.name * Variable.name) list
+  | PLocated of pattern * Lexing.position * Lexing.position
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -118,8 +119,10 @@ type expression =
   | EConstraint of expression * typ
   (* v *)
   | EVar of Variable.name
-  (* let rec f p₁ … pₙ: τ = e₁ and … and g = e₂ in e *)
+  (* let rec f p₁ … pₙ: τ = e₁ and … and v = e₂ in e *)
   | ELet of rec_flag * (pattern list * typ * expression) list * expression
+  (* fun pat -> expr *)
+  | EFun of pattern * expression
   (* v.f <- e *)
   | EAssign of Variable.name * Variable.name * expression
   (* e e₁ … eₙ *)
@@ -134,3 +137,21 @@ type expression =
   | EIfThenElse of expression * expression * expression
   (* e₁; e₂ *)
   | ESequence of expression * expression
+  | ELocated of expression * Lexing.position * Lexing.position
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Top-level declarations *)
+
+type inner_declaration =
+  (* val x, y = ... *)
+  | DValues of pattern * expression
+  (* val f p₁ … pₙ: τ = ... *)
+  | DFunction of Variable.name * pattern list * typ * expression
+
+type declaration =
+  | DMultiple of rec_flag * inner_declaration list
+  | DLocated of declaration * Lexing.position * Lexing.position
+
+type declaration_group =
+  declaration list

@@ -27,7 +27,7 @@ type expression =
   | EConstraint of expression * typ
   (* v *)
   | EVar of Variable.name
-  (* let rec f: ∀… = fun p₁ … pₙ -> e₁ and … and g = e₂ in e *)
+  (* let rec pat = expr and pat' = expr' in expr *)
   | ELet of rec_flag * (pattern * expression) list * expression
   (* v.f <- e *)
   | EAssign of Variable.name * Field.name * expression
@@ -46,3 +46,6 @@ type expression =
   (* fun p -> e *)
   | EFun of pattern * expression
 
+type declaration =
+  | DValue of rec_flag * (pattern * expression) list
+  | DLocated of declaration * Lexing.position * Lexing.position

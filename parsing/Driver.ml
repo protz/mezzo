@@ -25,12 +25,7 @@ let add_include_dir dir = include_dirs := dir :: !include_dirs
 let lex_and_parse file_path =
   let file_desc = open_in file_path in
   let lexbuf = Ulexing.from_utf8_channel file_desc in
-  let parser = MenhirLib.Convert.traditional2revised
-    (fun (_, y, _) -> y)
-    (fun (x, _, _) -> x)
-    (fun (_, _, z) -> z)
-    Grammar.unit
-  in
+  let parser = MenhirLib.Convert.Simplified.traditional2revised Grammar.unit in
   try
     Lexer.init file_path;
     parser (fun _ -> Lexer.token lexbuf)

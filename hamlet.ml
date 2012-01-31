@@ -37,7 +37,7 @@ let _ =
     usage;
   if !arg_debug then
     Log.enable_debug ();
-  let ast = Driver.lex_and_parse !arg_filename in
+  let ast, _decls = Driver.lex_and_parse !arg_filename in
   let kenv = WellKindedness.(check_data_type_group empty ast) in
   let facts = FactInference.analyze_data_types kenv in
   let env = Env.create kenv facts in

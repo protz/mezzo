@@ -42,7 +42,7 @@ let start_pos lexbuf = pos (lexeme_start lexbuf)
 let end_pos lexbuf = pos (lexeme_end lexbuf)
 
 let locate lexbuf token =
-  (start_pos lexbuf, token, end_pos lexbuf)
+  (token, start_pos lexbuf, end_pos lexbuf)
 
 let break_line lexbuf =
   pos_lnum := !pos_lnum + 1;
@@ -105,6 +105,7 @@ let rec token = lexer
 | whitespace -> token lexbuf
 | "(*" -> comment 0 lexbuf
 | "*)" -> raise_error UnexpectedEndOfComment
+
 (* | "-" -> locate lexbuf MINUS
 | "+" -> locate lexbuf PLUS
 | "*" -> locate lexbuf AST
@@ -124,14 +125,16 @@ let rec token = lexer
 | "of" -> locate lexbuf OF
 | "switch" -> locate lexbuf SWITCH
 | "with" -> locate lexbuf WITH
-| "let" -> locate lexbuf LET
-| "val" -> locate lexbuf DVAL
 | "in" -> locate lexbuf IN
 | "as" -> locate lexbuf AS
 | "unpack" -> locate lexbuf UNPACK
 | "pack" -> locate lexbuf PACK
 | "forall" | 8704 (* ∀ *) -> locate lexbuf FORALL
 | "exists" | 8707 (* ∃ *) -> locate lexbuf EXISTS*)
+| "val" -> locate lexbuf VAL
+| "let" -> locate lexbuf LET
+| "rec" -> locate lexbuf REC
+| "and" -> locate lexbuf AND
 
 | "permission" -> locate lexbuf PERMISSION
 | "unknown" -> locate lexbuf UNKNOWN
@@ -150,6 +153,7 @@ let rec token = lexer
 | "," -> locate lexbuf COMMA
 | ":" -> locate lexbuf COLON
 | "::" -> locate lexbuf COLONCOLON
+| ";;" -> locate lexbuf SEMISEMI
 | ";" -> locate lexbuf SEMI
 | "=>" | 8658 (* ⇒ *) -> locate lexbuf DBLARROW
 | "->" | 8594 (* → *) -> locate lexbuf ARROW
