@@ -27,17 +27,22 @@
 %token DATA BAR
 %token LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
 %token COMMA COLON COLONCOLON SEMI DBLARROW ARROW STAR
+%token LARROW
 %token EQUAL SEMISEMI
 %token EMPTY
 %token CONSUMES
-%token VAL LET REC AND
+%token VAL LET REC AND FUN IN DOT WITH BEGIN END MATCH
+%token IF THEN ELSE
 %token EOF
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Miscellaneous directives. *)
 
-%start<SurfaceSyntax.data_type_group * SurfaceSyntax.declaration_group> unit
+%start <SurfaceSyntax.data_type_group * SurfaceSyntax.declaration_group> unit
+%type <SurfaceSyntax.inner_declaration> inner_declaration
+%type <SurfaceSyntax.expression> expression
+%type <SurfaceSyntax.declaration> declaration
 
 %{
 
@@ -81,6 +86,10 @@ separated_or_preceded_list(sep, X):
 | xs = preceded(sep, X)+
 | xs = separated_nonempty_list(sep, X)
     { xs }
+
+%inline atleast_two_list(sep, X):
+| x1 = X sep x2 = separated_list(sep, X)
+    { x1 :: x2 }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -260,12 +269,16 @@ quasi_atomic_type:
 | ty = type_type_application(quasi_atomic_type, atomic_type) (* type application *)
     { ty }
 
+type_parameters:
+| LBRACKET bs = separated_or_terminated_list(COMMA, type_binding) RBRACKET
+    { bs }
+
 normal_type:
 | ty = quasi_atomic_type
     { ty }
 | ty1 = quasi_atomic_type ARROW ty2 = normal_type (* function type *)
     { TyArrow (ty1, ty2) }
-| LBRACKET bs = separated_or_terminated_list(COMMA, type_binding) RBRACKET ty = normal_type (* polymorphic type *)
+| bs = type_parameters ty = normal_type (* polymorphic type *)
     { List.fold_right (fun b ty -> TyForall (b, ty)) bs ty }
 
 loose_type:
@@ -377,60 +390,197 @@ datacon_application(X, Y):
 
 (* Patterns. *)
 
-pattern:
-  | p = pat1
-    { PLocated (p, $startpos, $endpos) }
+%inline plocated (X):
+| x = X
+    { PLocated (x, $startpos, $endpos) }
 
-pat1:
-  | x = LIDENT
-    { PVar (Variable.register x) }
+%inline pattern:
+| p = pat1
+    { p }
+
+  %inline pat1:
+  | p = plocated(raw_pat1)
+      { p }
+
+  raw_pat1:
+  | LPAREN p = pat1 COLON t = normal_type RPAREN
+      { PConstraint (p, t) }
+  | x = variable
+      { PVar x }
+  | LPAREN ps = atleast_two_list(COMMA, pat1) RPAREN
+      { PTuple ps }
+  | dc = datacon_application(datacon, data_field_pat)
+      { PConstruct dc }
+  | LPAREN p = pat1 RPAREN
+      { p }
+
+    %inline data_field_pat:
+    | f = variable EQUAL p = variable
+        { f, p }
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Terms. *)
 
 %inline rec_flag:
-  | REC { Recursive }
-  |     { Nonrecursive }
+| REC
+    { Recursive }
+|
+    { Nonrecursive }
 
-expression:
-  | e = expr1
-    { ELocated (e, $startpos, $endpos) } 
+%inline elocated (X):
+| x = X
+    { ELocated (x, $startpos, $endpos) }
 
-expr1:
-  | { assert false }
+(* Main expression rule *)
+%inline expression:
+| e = expr1
+    { e }
+
+  (* Let-bindings *)
+  %inline expr1:
+  | e = elocated(raw_expr1)
+      { e }
+
+  raw_expr1:
+  | LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = expr1
+      { ELet (f, declarations, e) }
+  | e = raw_expr2
+      { e }
+
+  (* Type annotations, sequence, assignment *)
+  %inline expr2:
+  | e = elocated(raw_expr2)
+      { e }
+
+  raw_expr2:
+  | e = expr3 COLON t = very_loose_type
+      { EConstraint (e, t) }
+  | e1 = expr2 SEMI e2 = expr3
+      { ESequence (e1, e2) }
+  | e1 = expr2 DOT f = variable LARROW e2 = expr3
+      { EAssign (e1, f, e2) }
+  | e = raw_expr3
+      { e }
+
+  (* Constructor *)
+  %inline expr3:
+  | e = elocated(raw_expr3)
+      { e }
+
+  (* OCaml parses { foo = let () = () in 1 };; and we don't. Too bad! *)
+  raw_expr3:
+  | dc = datacon_application(datacon, data_field_assign)
+      { EConstruct dc }
+  | e = raw_expr4
+      { e }
+
+    %inline data_field_assign:
+    | f = variable EQUAL e = expr4
+        { f, e }
+
+  (* Application *)
+  %inline expr4:
+  | e = elocated(raw_expr4)
+      { e }
+
+  raw_expr4:
+  | e1 = expr4 e2 = expr5
+      { EApply (e1, e2) }
+  | e = raw_expr5
+      { e }
+
+  (* If-then-else *)
+  %inline expr5:
+  | e = elocated(raw_expr5)
+      { e }
+
+  raw_expr5:
+  | e = ifnoelse
+      { e }
+  | e = ifelse
+      { e }
+  | e = raw_expr6
+      { e }
+
+    ifnoelse:
+    | IF e1 = expr5 THEN e2 = expr5
+        { EIfThenElse (e1, e2, ETuple []) }
+
+    ifelse:
+    | IF e1 = expr5 THEN e2 = ifnoelse ELSE e3 = expr5
+        { EIfThenElse (e1, e2, e3) }
+    | IF e1 = expr5 THEN e2 = expr6 ELSE e3 = expr5
+        { EIfThenElse (e1, e2, e3) }
+
+  (* The rest *)
+  %inline expr6:
+  | e = elocated(raw_expr6)
+      { e }
+
+  raw_expr6:
+  | v = variable
+      { EVar v }
+  | LPAREN es = atleast_two_list(COMMA, expr1) RPAREN
+      { ETuple es }
+  | MATCH e = expr1 WITH bs = separated_or_preceded_list(BAR, match_branch) END
+      { EMatch (e, bs) }
+  | BEGIN e = expr1 END
+      { e }
+  | LPAREN e = expr1 RPAREN
+      { e }
+
+    %inline match_branch:
+    | p = pattern ARROW e = expr1
+        { p, e }
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Top-level declarations. *)
+
+%inline dlocated (X):
+| x = X
+    { DLocated (x, $startpos, $endpos) }
 
 (* A declaration group is a sequence of mutually recursive definitions separated
  * by ;;. We require the double-semicolon here (it may be made optional later)
  * in the hope that this makes parsing fail earlier, therefore giving better
  * error messages. *)
 declaration_group:
-  l = separated_list(SEMISEMI, declaration)
+| l = separated_list(SEMISEMI, declaration)
     { l }
 
-declaration:
-  | d = decl1
-    { DLocated (d, $startpos, $endpos) }
+%inline declaration:
+| d = decl1
+    { d }
+
+%inline decl1:
+| d = dlocated(raw_decl1)
+    { d }
 
 (* We use the keyword [val] for top-level declarations. *)
-decl1:
-  | VAL flag = rec_flag declarations = separated_list(AND, inner_decl1)
+raw_decl1:
+| VAL flag = rec_flag declarations = separated_list(AND, inner_declaration)
     { DMultiple (flag, declarations) }
 
-  (* We make a distinction between a single pattern and a function definition. The
-   * former encompasses idioms such as [val x,y = ...]. The latter allows one to
-   * define a function. There are additional rules that ought to be verified at
-   * some point (e.g. only variables are allowed on the left-hand side of a
-   * let-rec *)
-  inner_decl1:
-    | p = pattern EQUAL e = expression
-      { DValues (p, e) }
-    | f_name = LIDENT f_args = pattern+ COLON t = normal_type EQUAL e = expression
-      { DFunction (Variable.register f_name, f_args, t, e) }
+(* ---------------------------------------------------------------------------- *)
+
+(* Inner declarations, also used by let-bindings. *)
+
+(* We make a distinction between a single pattern and a function definition. The
+ * former encompasses idioms such as [val x,y = ...]. The latter allows one to
+ * define a function. There are additional rules that ought to be verified at
+ * some point (e.g. only variables are allowed on the left-hand side of a
+ * let-rec *)
+inner_declaration:
+| p = pattern EQUAL e = expression
+    { IValues (p, e) }
+| f_name = variable bs = type_parameters? f_args = one_tuple+ COLON t = normal_type EQUAL e = expression
+    { IFunction (f_name, Option.map_none [] bs, f_args, t, e) }
+
+  %inline one_tuple:
+  | tcs = tuple(tuple_type_component)
+      { TyTuple tcs }
 
 (* ---------------------------------------------------------------------------- *)
 

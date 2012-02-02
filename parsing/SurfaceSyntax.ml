@@ -103,9 +103,9 @@ type pattern =
   (* x *)
   | PVar of Variable.name
   (* (x: τ, …) *)
-  | PTuple of tuple_type_component list
+  | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)
-  | PConstruct of Datacon.name * (Variable.name * Variable.name) list
+  | PConstruct of (Datacon.name * (Variable.name * Variable.name) list)
   | PLocated of pattern * Lexing.position * Lexing.position
 
 (* ---------------------------------------------------------------------------- *)
@@ -114,25 +114,33 @@ type pattern =
 
 type rec_flag = Nonrecursive | Recursive
 
-type expression =
+(* An inner declaration can appear either in a let-binding or a top-level val
+ * binding. The types in the surface syntax and the parsing rules are shared. *)
+type inner_declaration =
+  (* val x, y = ... *)
+  | IValues of pattern * expression
+  (* val f t₁ … tₙ: τ = ... where tᵢ is a tuple type *)
+  | IFunction of Variable.name * (Variable.name * kind) list * typ list * typ * expression
+
+and expression =
   (* e: τ *)
   | EConstraint of expression * typ
   (* v *)
   | EVar of Variable.name
   (* let rec f p₁ … pₙ: τ = e₁ and … and v = e₂ in e *)
-  | ELet of rec_flag * (pattern list * typ * expression) list * expression
-  (* fun pat -> expr *)
-  | EFun of pattern * expression
+  | ELet of rec_flag * inner_declaration list * expression
+  (*(* fun pat -> expr *)
+  | EFun of pattern * expression*)
   (* v.f <- e *)
-  | EAssign of Variable.name * Variable.name * expression
+  | EAssign of expression * Variable.name * expression
   (* e e₁ … eₙ *)
-  | EApply of expression * expression list
+  | EApply of expression * expression
   (* match e with pᵢ -> eᵢ *)
   | EMatch of expression * (pattern * expression) list
   (* (e₁, …, eₙ) *)
   | ETuple of expression list
   (* Foo { bar = bar; baz = baz; … *)
-  | EConstruct of Datacon.name * (Variable.name * expression) list
+  | EConstruct of (Datacon.name * (Variable.name * expression) list)
   (* if e₁ then e₂ else e₃ *)
   | EIfThenElse of expression * expression * expression
   (* e₁; e₂ *)
@@ -142,12 +150,6 @@ type expression =
 (* ---------------------------------------------------------------------------- *)
 
 (* Top-level declarations *)
-
-type inner_declaration =
-  (* val x, y = ... *)
-  | DValues of pattern * expression
-  (* val f p₁ … pₙ: τ = ... *)
-  | DFunction of Variable.name * pattern list * typ * expression
 
 type declaration =
   | DMultiple of rec_flag * inner_declaration list

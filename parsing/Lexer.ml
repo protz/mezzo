@@ -115,22 +115,29 @@ let rec token = lexer
     locate lexbuf (INT (int_of_string l))
 | "<" | 9001 (* 〈 *) -> locate lexbuf LANGLE
 | ">" | 9002 (* 〉 *) -> locate lexbuf RANGLE
-| "." -> locate lexbuf DOT
 | "type" -> locate lexbuf TYPE
 | "mu" | 956 (* μ *) -> locate lexbuf MU
 | "epsilon" | 949 (* ε *) -> locate lexbuf EPSILON
-| "fun" | 955 (* λ *) -> locate lexbuf LAMBDA
 | "Fun" | 923 (* Λ *) -> locate lexbuf UPLAMBDA
 | "case" -> locate lexbuf CASE
 | "of" -> locate lexbuf OF
 | "switch" -> locate lexbuf SWITCH
-| "with" -> locate lexbuf WITH
-| "in" -> locate lexbuf IN
 | "as" -> locate lexbuf AS
 | "unpack" -> locate lexbuf UNPACK
 | "pack" -> locate lexbuf PACK
 | "forall" | 8704 (* ∀ *) -> locate lexbuf FORALL
 | "exists" | 8707 (* ∃ *) -> locate lexbuf EXISTS*)
+| "match" -> locate lexbuf MATCH
+| "if" -> locate lexbuf IF
+| "then" -> locate lexbuf THEN
+| "else" -> locate lexbuf ELSE
+| "begin" -> locate lexbuf BEGIN
+| "end" -> locate lexbuf END
+| "with" -> locate lexbuf WITH
+| "<-" -> locate lexbuf LARROW
+| "." -> locate lexbuf DOT
+| "in" -> locate lexbuf IN
+| "fun" | 955 (* λ *) -> locate lexbuf FUN
 | "val" -> locate lexbuf VAL
 | "let" -> locate lexbuf LET
 | "rec" -> locate lexbuf REC
