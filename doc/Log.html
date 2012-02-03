@@ -54,7 +54,7 @@ Enable debugging information.<br>
 <pre><span id="VALdebug"><span class="keyword">val</span> debug</span> : <code class="type">('a, Buffer.t, unit, unit) Pervasives.format4 -> 'a</code></pre><div class="info">
 Report some debugging information. Use it like <code class="code">Printf.printf</code><br>
 </div>
-<pre><span id="VALerror"><span class="keyword">val</span> error</span> : <code class="type">('a, unit, string, 'b) Pervasives.format4 -> 'a</code></pre><div class="info">
+<pre><span id="VALerror"><span class="keyword">val</span> error</span> : <code class="type">('a, Buffer.t, unit, 'b) Pervasives.format4 -> 'a</code></pre><div class="info">
 Report a fatal error. For now, this raises an exception, but it might do
     better in the future. Use it like <code class="code">Printf.printf</code>.<br>
 </div>

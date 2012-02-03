@@ -26,14 +26,17 @@
 %token PERMISSION UNKNOWN DYNAMIC EXCLUSIVE
 %token DATA BAR
 %token LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
-%token COMMA COLON COLONCOLON SEMI DBLARROW ARROW STAR
+%token COMMA COLON COLONCOLON SEMI ARROW STAR
 %token LARROW
 %token EQUAL SEMISEMI
 %token EMPTY
 %token CONSUMES
-%token VAL LET REC AND FUN IN DOT WITH BEGIN END MATCH
+%token VAL LET REC AND IN DOT WITH BEGIN END MATCH
 %token IF THEN ELSE
 %token EOF
+
+%nonassoc THEN
+%nonassoc ELSE
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -372,11 +375,10 @@ datacon_application(X, Y):
   { Exclusive }
 
 %inline data_type_def:
-  flag = data_type_flag
-  lhs = data_type_def_lhs
-  EQUAL
-  rhs = data_type_def_rhs
-    { flag, lhs, rhs }
+| flag = data_type_flag lhs = data_type_def_lhs EQUAL rhs = data_type_def_rhs
+    { Concrete (flag, lhs, rhs) }
+| DATA name = variable
+    { Abstract name }
 
 %inline data_type_group:
   defs = data_type_def*
@@ -437,7 +439,7 @@ datacon_application(X, Y):
 | e = expr1
     { e }
 
-  (* Let-bindings *)
+  (* Let-bindings, if-then-else *)
   %inline expr1:
   | e = elocated(raw_expr1)
       { e }
@@ -445,6 +447,10 @@ datacon_application(X, Y):
   raw_expr1:
   | LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = expr1
       { ELet (f, declarations, e) }
+  | IF e1 = expr1 THEN e2 = expr1
+      { EIfThenElse (e1, e2, ETuple []) }
+  | IF e1 = expr1 THEN e2 = expr1 ELSE e3 = expr1
+      { EIfThenElse (e1, e2, e3) }
   | e = raw_expr2
       { e }
 
@@ -485,33 +491,10 @@ datacon_application(X, Y):
       { e }
 
   raw_expr4:
-  | e1 = expr4 e2 = expr5
+  | e1 = expr4 e2 = expr6
       { EApply (e1, e2) }
-  | e = raw_expr5
-      { e }
-
-  (* If-then-else *)
-  %inline expr5:
-  | e = elocated(raw_expr5)
-      { e }
-
-  raw_expr5:
-  | e = ifnoelse
-      { e }
-  | e = ifelse
-      { e }
   | e = raw_expr6
       { e }
-
-    ifnoelse:
-    | IF e1 = expr5 THEN e2 = expr5
-        { EIfThenElse (e1, e2, ETuple []) }
-
-    ifelse:
-    | IF e1 = expr5 THEN e2 = ifnoelse ELSE e3 = expr5
-        { EIfThenElse (e1, e2, e3) }
-    | IF e1 = expr5 THEN e2 = expr6 ELSE e3 = expr5
-        { EIfThenElse (e1, e2, e3) }
 
   (* The rest *)
   %inline expr6:

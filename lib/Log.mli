@@ -28,7 +28,7 @@ val debug : ('a, Buffer.t, unit, unit) format4 -> 'a
 
 (** Report a fatal error. For now, this raises an exception, but it might do
     better in the future. Use it like [Printf.printf]. *)
-val error : ('a, unit, string, 'b) format4 -> 'a
+val error : ('a, Buffer.t, unit, 'b) format4 -> 'a
 
 (** Assert something, otherwise display an error message and fail *)
 val affirm: bool -> ('a, out_channel, unit, unit) format4 -> 'a

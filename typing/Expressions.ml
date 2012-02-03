@@ -2,6 +2,8 @@
 
 open Types
 
+type kind = SurfaceSyntax.kind
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Patterns *)
@@ -12,9 +14,10 @@ type pattern =
   (* x *)
   | PVar of Variable.name
   (* (x₁, …, xₙ) *)
-  | PTuple of Variable.name list
+  | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)
   | PConstruct of Datacon.name * (Field.name * Variable.name) list
+  | PLocated of pattern * Lexing.position * Lexing.position
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -22,13 +25,21 @@ type pattern =
 
 type rec_flag = Nonrecursive | Recursive
 
-type expression =
+(* An inner declaration can appear either in a let-binding or a top-level val
+ * binding. The types in the surface syntax and the parsing rules are shared. *)
+type inner_declaration =
+  (* val x, y = ... *)
+  | IValues of pattern * expression
+  (* val f t₁ … tₙ: τ = ... where tᵢ is a tuple type *)
+  | IFunction of Variable.name * (Variable.name * kind) list * typ list * typ * expression
+
+and expression =
   (* e: τ *)
   | EConstraint of expression * typ
   (* v *)
   | EVar of Variable.name
   (* let rec pat = expr and pat' = expr' in expr *)
-  | ELet of rec_flag * (pattern * expression) list * expression
+  | ELet of rec_flag * inner_declaration list * expression
   (* v.f <- e *)
   | EAssign of Variable.name * Field.name * expression
   (* e e₁ … eₙ *)
@@ -43,9 +54,11 @@ type expression =
   | EIfThenElse of expression * expression * expression
   (* e₁; e₂ *)
   | ESequence of expression * expression
-  (* fun p -> e *)
-  | EFun of pattern * expression
+  | ELocated of expression * Lexing.position * Lexing.position
 
 type declaration =
-  | DValue of rec_flag * (pattern * expression) list
+  | DMultiple of rec_flag * inner_declaration list
   | DLocated of declaration * Lexing.position * Lexing.position
+
+type declaration_group =
+  declaration list

@@ -42,18 +42,23 @@ and permissions = {
 let create
     (data_type_env: WellKindedness.data_type_env)
     (facts: FactInference.facts): program_env =
+  let open WellKindedness in
   let kind_for_type =
     LevelMap.map
-      (fun (_flag, _name, kind, _def) -> kind)
+      (function Concrete (_, _name, kind, _) | Abstract (_name, kind) -> kind)
       data_type_env.WellKindedness.data_type_map
   in
   let fact_for_type = facts in
   let type_for_datacon =
     let map = DataconMap.empty in
     LevelMap.fold
-      (fun level (_flag, _name, _kind, branches) map ->
-        List.fold_left (fun map (name, _fields) ->
-          DataconMap.add name level map) map branches)
+      (fun level def map ->
+        match def with
+        | Concrete (_flag, _name, _kind, branches) ->
+            List.fold_left (fun map (name, _fields) ->
+              DataconMap.add name level map) map branches
+        | Abstract (_name, _kind) ->
+            map)
       data_type_env.WellKindedness.data_type_map map
   in
   { kind_for_type; fact_for_type; type_for_datacon }

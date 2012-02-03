@@ -1,0 +1,18 @@
+(* Test: adding a permission x: t α should result in it being expanded at once.
+ * *)
+data t1 a =
+  | Foo { bar: a }
+
+(* Test: adding x: t2 α then x: Bar { baz: β } should fusion the two
+ * permissions. *)
+data t2 a =
+  | Foo
+  | Bar { baz: a }
+
+(* Test: apply length to x: list b and see how it works. *)
+data listops =
+  ListOps {
+    length: [a] list a -> int;
+    concat: [a] (consumes l1: list a, consumes l2: list a) -> (l3: list a)
+  }
+ 

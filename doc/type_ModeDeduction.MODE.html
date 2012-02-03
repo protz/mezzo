@@ -31,16 +31,12 @@
 <link title="PersistentRef" rel="Chapter" href="PersistentRef.html">
 <link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
 <link title="PermissionDeduction" rel="Chapter" href="PermissionDeduction.html">
-<link title="ModeDeduction" rel="Chapter" href="ModeDeduction.html"><title>Log</title>
+<link title="ModeDeduction" rel="Chapter" href="ModeDeduction.html"><title>ModeDeduction.MODE</title>
 </head>
 <body>
 <code class="code"><span class="keyword">sig</span><br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;enable_debug&nbsp;:&nbsp;unit&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;debug&nbsp;:&nbsp;(<span class="keywordsign">'</span>a,&nbsp;<span class="constructor">Buffer</span>.t,&nbsp;unit,&nbsp;unit)&nbsp;<span class="constructor">Pervasives</span>.format4&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="keywordsign">'</span>a<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;error&nbsp;:&nbsp;(<span class="keywordsign">'</span>a,&nbsp;<span class="constructor">Buffer</span>.t,&nbsp;unit,&nbsp;<span class="keywordsign">'</span>b)&nbsp;<span class="constructor">Pervasives</span>.format4&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="keywordsign">'</span>a<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;affirm&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;bool&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(<span class="keywordsign">'</span>a,&nbsp;<span class="constructor">Pervasives</span>.out_channel,&nbsp;unit,&nbsp;unit)&nbsp;<span class="constructor">Pervasives</span>.format4&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="keywordsign">'</span>a<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;debug_simple&nbsp;:&nbsp;string&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;dinc&nbsp;:&nbsp;unit&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;ddec&nbsp;:&nbsp;unit&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;mode<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;is_universal&nbsp;:&nbsp;<span class="constructor">ModeDeduction</span>.<span class="constructor">MODE</span>.mode&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;bool<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;leq&nbsp;:&nbsp;<span class="constructor">ModeDeduction</span>.<span class="constructor">MODE</span>.mode&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">ModeDeduction</span>.<span class="constructor">MODE</span>.mode&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;bool<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;show&nbsp;:&nbsp;<span class="constructor">ModeDeduction</span>.<span class="constructor">MODE</span>.mode&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
 <span class="keyword">end</span></code></body></html>

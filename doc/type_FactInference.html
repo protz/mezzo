@@ -31,16 +31,15 @@
 <link title="PersistentRef" rel="Chapter" href="PersistentRef.html">
 <link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
 <link title="PermissionDeduction" rel="Chapter" href="PermissionDeduction.html">
-<link title="ModeDeduction" rel="Chapter" href="ModeDeduction.html"><title>Log</title>
+<link title="ModeDeduction" rel="Chapter" href="ModeDeduction.html"><title>FactInference</title>
 </head>
 <body>
 <code class="code"><span class="keyword">sig</span><br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;enable_debug&nbsp;:&nbsp;unit&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;debug&nbsp;:&nbsp;(<span class="keywordsign">'</span>a,&nbsp;<span class="constructor">Buffer</span>.t,&nbsp;unit,&nbsp;unit)&nbsp;<span class="constructor">Pervasives</span>.format4&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="keywordsign">'</span>a<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;error&nbsp;:&nbsp;(<span class="keywordsign">'</span>a,&nbsp;<span class="constructor">Buffer</span>.t,&nbsp;unit,&nbsp;<span class="keywordsign">'</span>b)&nbsp;<span class="constructor">Pervasives</span>.format4&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="keywordsign">'</span>a<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;affirm&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;bool&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(<span class="keywordsign">'</span>a,&nbsp;<span class="constructor">Pervasives</span>.out_channel,&nbsp;unit,&nbsp;unit)&nbsp;<span class="constructor">Pervasives</span>.format4&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="keywordsign">'</span>a<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;debug_simple&nbsp;:&nbsp;string&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;dinc&nbsp;:&nbsp;unit&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;ddec&nbsp;:&nbsp;unit&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;bitmap&nbsp;=&nbsp;unit&nbsp;<span class="constructor">Types</span>.<span class="constructor">LevelMap</span>.t<br>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;fact&nbsp;=&nbsp;<span class="constructor">Exclusive</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Duplicable</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">FactInference</span>.bitmap&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Affine</span><br>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;facts&nbsp;=&nbsp;<span class="constructor">FactInference</span>.fact&nbsp;<span class="constructor">Types</span>.<span class="constructor">LevelMap</span>.t<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;analyze_data_types&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">WellKindedness</span>.data_type_env&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">FactInference</span>.facts<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_facts&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">WellKindedness</span>.data_type_env&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">FactInference</span>.facts&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
 <span class="keyword">end</span></code></body></html>

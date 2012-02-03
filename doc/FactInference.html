@@ -4,8 +4,8 @@
 <link rel="stylesheet" href="style.css" type="text/css">
 <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
 <link rel="Start" href="index.html">
-<link rel="previous" href="Hashcons.html">
-<link rel="next" href="Grammar.html">
+<link rel="previous" href="Identifier.html">
+<link rel="next" href="Mode.html">
 <link rel="Up" href="index.html">
 <link title="Index of types" rel=Appendix href="index_types.html">
 <link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
@@ -36,40 +36,44 @@
 <link title="PersistentRef" rel="Chapter" href="PersistentRef.html">
 <link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
 <link title="PermissionDeduction" rel="Chapter" href="PermissionDeduction.html">
-<link title="ModeDeduction" rel="Chapter" href="ModeDeduction.html"><title>Lexer</title>
+<link title="ModeDeduction" rel="Chapter" href="ModeDeduction.html"><title>FactInference</title>
 </head>
 <body>
-<div class="navbar"><a href="Hashcons.html">Previous</a>
+<div class="navbar"><a href="Identifier.html">Previous</a>
 &nbsp;<a href="index.html">Up</a>
-&nbsp;<a href="Grammar.html">Next</a>
+&nbsp;<a href="Mode.html">Next</a>
 </div>
-<center><h1>Module <a href="type_Lexer.html">Lexer</a></h1></center>
+<center><h1>Module <a href="type_FactInference.html">FactInference</a></h1></center>
 <br>
-<pre><span class="keyword">module</span> Lexer: <code class="code">sig</code> <a href="Lexer.html">..</a> <code class="code">end</code></pre>The lexer for HaMLeT.<br>
+<pre><span class="keyword">module</span> FactInference: <code class="code">sig</code> <a href="FactInference.html">..</a> <code class="code">end</code></pre>This module analyzes data type declaration to synthetize facts about the
+   data types.<br>
 <hr width="100%">
-<br><code><span id="TYPEerror"><span class="keyword">type</span> <code class="type"></code>error</span> = </code><table class="typetable">
+<pre><span id="TYPEbitmap"><span class="keyword">type</span> <code class="type"></code>bitmap</span> = <code class="type">unit Types.LevelMap.t</code> </pre>
+
+<br><code><span id="TYPEfact"><span class="keyword">type</span> <code class="type"></code>fact</span> = </code><table class="typetable">
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span class="constructor">UnexpectedEndOfComment</span></code></td>
+<code><span class="constructor">Exclusive</span></code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span class="constructor">UnterminatedComment</span></code></td>
+<code><span class="constructor">Duplicable</span> <span class="keyword">of</span> <code class="type"><a href="FactInference.html#TYPEbitmap">bitmap</a></code></code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span class="constructor">GeneralError</span> <span class="keyword">of</span> <code class="type">string</code></code></td>
+<code><span class="constructor">Affine</span></code></td>
 
 </tr></table>
 
 
-<pre><span id="EXCEPTIONLexingError"><span class="keyword">exception</span> LexingError</span> <span class="keyword">of</span> <code class="type"><a href="Lexer.html#TYPEerror">error</a></code></pre>
-<pre><span id="VALinit"><span class="keyword">val</span> init</span> : <code class="type">string -> unit</code></pre><pre><span id="VALtoken"><span class="keyword">val</span> token</span> : <code class="type"><a href="Ulexing.html#TYPElexbuf">Ulexing.lexbuf</a> -> <a href="Grammar.html#TYPEtoken">Grammar.token</a> * Lexing.position * Lexing.position</code></pre><pre><span id="VALprint_error"><span class="keyword">val</span> print_error</span> : <code class="type">Buffer.t -> <a href="Ulexing.html#TYPElexbuf">Ulexing.lexbuf</a> * <a href="Lexer.html#TYPEerror">error</a> -> unit</code></pre><pre><span id="VALprint_position"><span class="keyword">val</span> print_position</span> : <code class="type">Buffer.t -> <a href="Ulexing.html#TYPElexbuf">Ulexing.lexbuf</a> -> unit</code></pre></body></html>
+<pre><span id="TYPEfacts"><span class="keyword">type</span> <code class="type"></code>facts</span> = <code class="type"><a href="FactInference.html#TYPEfact">fact</a> Types.LevelMap.t</code> </pre>
+
+<pre><span id="VALanalyze_data_types"><span class="keyword">val</span> analyze_data_types</span> : <code class="type">WellKindedness.data_type_env -> <a href="FactInference.html#TYPEfacts">facts</a></code></pre><pre><span id="VALstring_of_facts"><span class="keyword">val</span> string_of_facts</span> : <code class="type">WellKindedness.data_type_env -> <a href="FactInference.html#TYPEfacts">facts</a> -> string</code></pre></body></html>

@@ -232,19 +232,24 @@ let rev_duplicables
         ) env ts
 
     | TyConcreteUnfolded (cons, fields) as t ->
+      begin
         let level = DataconMap.find cons type_env.cons_map in
-        let flag, _, _, _ = IndexMap.find level type_env.data_type_map in
-        begin
-          match flag with
-          | SurfaceSyntax.Duplicable ->
-              List.fold_left (fun env -> function
-                | FieldValue (_, typ)
-                | FieldPermission typ ->
-                    merge_sub_env env (rev_duplicables env typ)
-              ) env fields
-          | SurfaceSyntax.Exclusive ->
-              raise (NotDuplicable t)
-        end
+        match IndexMap.find level type_env.data_type_map with
+        | Concrete (flag, _, _, _) ->
+          begin
+            match flag with
+            | SurfaceSyntax.Duplicable ->
+                List.fold_left (fun env -> function
+                  | FieldValue (_, typ)
+                  | FieldPermission typ ->
+                      merge_sub_env env (rev_duplicables env typ)
+                ) env fields
+            | SurfaceSyntax.Exclusive ->
+                raise (NotDuplicable t)
+          end
+        | Abstract _ ->
+            assert false
+      end
 
     (* Singleton types are always duplicable. *)
     | TySingleton _ ->
@@ -279,16 +284,30 @@ let create_and_populate_env (type_env: WellKindedness.data_type_env) : env =
     extra = IndexMap.empty;
     level = n_cons;
   } in
-  let env = IndexMap.fold (fun i (flag, name, kind, _branches) env ->
-    let _hd, kargs = SurfaceSyntax.flatten_kind kind in
-    let arity = List.length kargs in
-    match flag with
-    | SurfaceSyntax.Exclusive ->
+  let env = IndexMap.fold (fun i def env ->
+    match def with
+    | Concrete (flag, name, kind, _branches) ->
+      begin
+        let _hd, kargs = SurfaceSyntax.flatten_kind kind in
+        let arity = List.length kargs in
+        match flag with
+        | SurfaceSyntax.Exclusive ->
+            { env with types =
+              IndexMap.add i (name, arity, Exclusive) env.types }
+        | SurfaceSyntax.Duplicable ->
+            { env with types =
+              IndexMap.add i (name, arity, (Duplicable IndexMap.empty)) env.types }
+      end
+    | Abstract (name, kind) ->
+        (* In the absence of exported facts, we are conservative, and assume
+         * that an abstract type is affine. Of course, later on, we might want
+         * to inject here the assumptions revealed by, say, a module signature.
+         * *)
+        let _hd, kargs = SurfaceSyntax.flatten_kind kind in
+        let arity = List.length kargs in
         { env with types =
-          IndexMap.add i (name, arity, Exclusive) env.types }
-    | SurfaceSyntax.Duplicable ->
-        { env with types =
-          IndexMap.add i (name, arity, (Duplicable IndexMap.empty)) env.types }
+          IndexMap.add i (name, arity, Affine) env.types }
+
   ) type_env.data_type_map empty in
   env
 
@@ -308,8 +327,12 @@ let one_round (type_env: WellKindedness.data_type_env) (env: env) : env =
     | Duplicable bitmap ->
         (* TEMPORARY I wonder if we should put that in [env] and get rid of
          * [type_env]. *)
-        let _flag, _name, _kind, branches =
-          IndexMap.find level type_env.data_type_map
+        let branches =
+          match IndexMap.find level type_env.data_type_map with
+            | Concrete (_flag, _name, _kind, branches) ->
+                branches
+            | Abstract _ ->
+                assert false
         in
         (* Log.debug "Processing %a, arity %d" Printers.p_var name arity; *)
         (* The type is in De Bruijn, so keep track of how many binders we've
@@ -424,10 +447,15 @@ let string_of_facts (env: WellKindedness.data_type_env) facts =
           all_params colors.default (fancy_join dup_params) verb
   in
   let strings = IndexMap.fold (fun i fact acc ->
-    let _flag, name, kind, _branches = IndexMap.find i env.data_type_map in
-    let _hd, params = SurfaceSyntax.flatten_kind kind in
-    let arity = List.length params in
-    (string_of_fact name arity (IndexMap.find i facts)) :: acc
+    match IndexMap.find i env.data_type_map with
+    | Concrete (_flag, name, kind, _branches) ->
+        let _hd, params = SurfaceSyntax.flatten_kind kind in
+        let arity = List.length params in
+        (string_of_fact name arity (IndexMap.find i facts)) :: acc
+    | Abstract (name, _kind) ->
+        Hml_String.bsprintf "%s%a%s is abstract"
+          colors.underline Printers.p_var name
+          colors.default :: acc
   ) facts [] in
   let strings = List.sort String.compare strings in
   String.concat "\n" strings

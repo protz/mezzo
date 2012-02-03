@@ -39,10 +39,10 @@ let _ =
     Log.enable_debug ();
   let ast, _decls = Driver.lex_and_parse !arg_filename in
   let kenv = WellKindedness.(check_data_type_group empty ast) in
+  Printf.printf "%s\n" (Bash.box "Kinds");
+  Printf.printf "%s\n\n" (WellKindedness.KindPrinter.string_of_env kenv);
   let facts = FactInference.analyze_data_types kenv in
   let env = Env.create kenv facts in
-  ignore env;
-  Printf.printf "%s\n" (Bash.box "Kinds");
-  Printf.printf "%s\n\n" (Printers.string_of_env kenv);
   Printf.printf "%s\n" (Bash.box "Facts");
-  Printf.printf "%s\n\n" (FactInference.string_of_facts kenv facts)
+  Printf.printf "%s\n\n" (FactInference.string_of_facts kenv facts);
+  ignore env

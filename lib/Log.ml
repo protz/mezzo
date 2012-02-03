@@ -33,8 +33,8 @@ let debug fmt =
   end else
     Hml_String.biprintf fmt
 
-let error f =
-  Printf.kprintf failwith f
+let error fmt =
+  Printf.kbprintf (fun buf -> Buffer.add_char buf '\n'; Buffer.output_buffer stderr buf; assert false) (Buffer.create 16) fmt
 
 let affirm b fmt =
   let open Printf in

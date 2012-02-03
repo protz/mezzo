@@ -100,3 +100,149 @@ and data_field_def =
 
 (* Fun with de Bruijn indices. *)
 
+(* ---------------------------------------------------------------------------- *)
+
+(* Printers. *)
+
+module TypePrinter = struct
+
+  open Printers
+
+  (* --------------------------------------------------------------------------- *)
+
+  (** This is an internal type that is used for pretty-printing. It's not related
+   * to the env type defined in [Types]. *)
+  type print_env = {
+    names: string IndexMap.t;
+    index: int;
+  }
+
+  (** Aad a name ([string]) to the [print_env] and bump the index. *)
+  let add str { names; index } =
+    { index = index + 1; names = IndexMap.add index str names }
+
+  (** Aad a name ([Variable.name]) to the [print_env] and bump the index. *)
+  let add_var var print_env =
+    add (Variable.print var) print_env
+
+
+  let print_var var =
+    print_string (Variable.print var)
+
+  let print_datacon datacon =
+    print_string (Datacon.print datacon)
+
+  let print_field field =
+    print_string (Field.print field)
+
+  let rec print_kind =
+    let open SurfaceSyntax in
+    function
+    | KTerm ->
+        string "term"
+    | KPerm ->
+        string "perm"
+    | KType ->
+        string "∗"
+    | KArrow (k1, k2) ->
+        print_kind k1 ^^ space ^^ arrow ^^ space ^^ print_kind k2
+
+  (* This is for debugging purposes. Use with [Log.debug] and [%a]. *)
+  let p_kind buf kind =
+    Pprint.PpBuffer.pretty 1.0 80 buf (print_kind kind)
+
+  let print_index { names; index } i =
+    let name = IndexMap.find (index - i) names in
+    print_string name
+
+  let rec print_quantified
+      (print_env: print_env)
+      (q: string)
+      (name: Variable.name) 
+      (kind: SurfaceSyntax.kind)
+      (typ: typ) =
+    print_string q ^^ lparen ^^ print_var name ^^ space ^^ ccolon ^^ space ^^
+    print_kind kind ^^ rparen ^^ dot ^^ jump (print_type print_env typ)
+
+  (* TEMPORARY this does not respect precedence and won't insert parentheses at
+   * all! *)
+  and print_type print_env = function
+    | TyUnknown ->
+        string "unknown"
+
+    | TyDynamic ->
+        string "dynamic"
+
+    | TyVar index ->
+        print_index print_env index
+
+    | TyForall ((name, kind), typ) ->
+        let print_env = add_var name print_env in
+        print_quantified print_env "∀" name kind typ
+
+    | TyExists ((name, kind), typ) ->
+        let print_env = add_var name print_env in
+        print_quantified print_env "∃" name kind typ
+
+    | TyApp (t1, t2) ->
+        print_type print_env t1 ^^ space ^^ print_type print_env t2
+
+    | TyTuple components ->
+        lparen ^^
+        join
+          (comma ^^ space)
+          (List.map (print_tuple_type_component print_env) components) ^^
+        rparen
+
+    | TyConcreteUnfolded branch ->
+        print_data_type_def_branch print_env branch
+
+      (* Singleton types. *)
+    | TySingleton typ ->
+        equals ^^ print_type print_env typ
+
+      (* Function types. *)
+    | TyArrow (t1, t2) ->
+        print_type print_env t1 ^^ space ^^ arrow ^^
+        group (break1 ^^ print_type print_env t2)
+
+      (* Permissions. *)
+    | TyAnchoredPermission (t1, t2) ->
+        print_type print_env t1 ^^ colon ^^ space ^^ print_type print_env t2
+
+    | TyEmpty ->
+        string "empty"
+
+    | TyStar (t1, t2) ->
+        print_type print_env t1 ^^ star ^^ print_type print_env t2
+
+  and print_tuple_type_component print_env = function
+    | TyTupleComponentValue typ ->
+        print_type print_env typ
+
+    | TyTupleComponentPermission typ ->
+        string "permission" ^^ space ^^ print_type print_env typ
+
+  and print_data_field_def print_env = function
+    | FieldValue (name, typ) ->
+        print_field name ^^ colon ^^ jump (print_type print_env typ)
+
+    | FieldPermission typ ->
+        string "permission" ^^ space ^^ print_type print_env typ
+
+  and print_data_type_def_branch print_env (branch: data_type_def_branch) =
+    let name, fields = branch in
+    let record =
+      if List.length fields > 0 then
+        space ^^ lbrace ^^
+        nest 4
+          (break1 ^^ join
+            (semi ^^ break1)
+            (List.map (print_data_field_def print_env) fields)) ^^
+        nest 2 (break1 ^^ rbrace)
+      else
+        empty
+    in
+    print_datacon name ^^ record
+
+end
