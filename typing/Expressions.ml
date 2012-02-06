@@ -2,8 +2,6 @@
 
 open Types
 
-type kind = SurfaceSyntax.kind
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Patterns *)
@@ -25,21 +23,15 @@ type pattern =
 
 type rec_flag = Nonrecursive | Recursive
 
-(* An inner declaration can appear either in a let-binding or a top-level val
- * binding. The types in the surface syntax and the parsing rules are shared. *)
-type inner_declaration =
-  (* val x, y = ... *)
-  | IValues of pattern * expression
-  (* val f t₁ … tₙ: τ = ... where tᵢ is a tuple type *)
-  | IFunction of Variable.name * (Variable.name * kind) list * typ list * typ * expression
-
-and expression =
+type expression =
   (* e: τ *)
   | EConstraint of expression * typ
   (* v *)
   | EVar of Variable.name
   (* let rec pat = expr and pat' = expr' in expr *)
-  | ELet of rec_flag * inner_declaration list * expression
+  | ELet of rec_flag * (pattern * expression list) * expression
+  (* fun [a] (x: τ): τ -> e *)
+  | EFun of Variable.name * (Variable.name * kind) list * typ list * typ * expression
   (* v.f <- e *)
   | EAssign of Variable.name * Field.name * expression
   (* e e₁ … eₙ *)
@@ -56,8 +48,10 @@ and expression =
   | ESequence of expression * expression
   | ELocated of expression * Lexing.position * Lexing.position
 
+(* The grammar below doesn't enforce the “only variables are allowed on the
+ * left-hand side of a let rec” rule. We'll see to that later. *)
 type declaration =
-  | DMultiple of rec_flag * inner_declaration list
+  | DMultiple of rec_flag * (pattern * expression list)
   | DLocated of declaration * Lexing.position * Lexing.position
 
 type declaration_group =

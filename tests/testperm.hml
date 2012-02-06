@@ -1,3 +1,5 @@
+data int
+
 (* Test: adding a permission x: t α should result in it being expanded at once.
  * *)
 data t1 a =
@@ -8,6 +10,10 @@ data t1 a =
 data t2 a =
   | Foo
   | Bar { baz: a }
+
+data list a =
+  | Nil
+  | Cons { head: a; tail: list a }
 
 (* Test: apply length to x: list b and see how it works. *)
 data listops =

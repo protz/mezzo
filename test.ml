@@ -1,8 +1,8 @@
 (*
-- Ajouter TyAbstract, TyFlexible... ?
-val add_perm: working_env -> typ -> working_env
+val add_perm: working_env -> typ -> working_env (* performs the merge operation *)
 val unfold_perm_one_round: general_env -> typ -> typ
-val
+val substract_perm: working_env -> typ -> working_env
+val collect_flexible: typ -> typ
 *)
 
 let _ =
@@ -10,5 +10,5 @@ let _ =
   let ast, _decls = Driver.lex_and_parse "tests/testperm.hml" in
   let kenv = WellKindedness.(check_data_type_group empty ast) in
   let facts = FactInference.analyze_data_types kenv in
-  let env = Env.create kenv facts in
-  ignore (env, facts, kenv, ast);
+  let program_env, working_env = Env.create kenv facts in
+  ignore (program_env, working_env, facts, kenv, ast);

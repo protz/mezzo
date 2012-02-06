@@ -72,10 +72,10 @@ let state env i =
      * NB: we're currently rejecting type parameters that don't have kind ∗.
      * Reaching this code would mean that the well-kindedness check failed. *)
     IndexMap.iter (fun k (name, arity, _state) ->
-      Log.debug "%d: %a[%d]" k Printers.p_var name arity
+      Log.debug "%d: %a[%d]" k Variable.p name arity
     ) env.types;
-    Log.debug "Wanted: %d, level = %d" i env.level;
-    assert false
+    Log.error "Wanted: %d, level = %d" i env.level
+;;
 
 (* [mark_duplicable env i] returns a new environment where the type parameter
  * corresponding to De Bruijn index [i] has been marked as duplicable. *)
@@ -100,6 +100,7 @@ let mark_duplicable env i =
   end;
   let bitmap = IndexMap.add level () bitmap in
   { env with current = arity, bitmap }
+;;
 
 (* [ith_param_duplicable bitmap i] tells whether the i-th parameter of the type
  * whose bitmap is [bitmap] should be duplicable. *)
@@ -107,6 +108,7 @@ let ith_param_duplicable env bitmap i =
   (* Some fun with the De Bruijn index to find out about the global level. *)
   let level = IndexMap.cardinal env.types + i in
   Option.unit_bool (IndexMap.find_opt level bitmap)
+;;
 
 (* [bind env name] returns the new environment after we've entered an
  * extra binder whose name is [name] *)
@@ -114,6 +116,7 @@ let bind env name =
   let new_level = env.level + 1 in
   let extra = IndexMap.add new_level name env.extra in
   { env with level = new_level; extra }
+;;
 
 (* The situation is a little bit awkward, because in an environment, there's a
  * part that doesn't change: [types], a part that's threaded through all
@@ -123,6 +126,7 @@ let merge_sub_env env sub_env =
   (* Get the new bitmap from the sub-environment, because that's the part that
    * we need to thread through the computations. *)
   { env with current = sub_env.current }
+;;
 
 (* A small helper function. *)
 let flatten_tyapp t =
@@ -133,6 +137,7 @@ let flatten_tyapp t =
         x, List.rev acc
   in
   flatten_tyapp [] t
+;;
 
 
 (* ------------------------------------------------------------------------- *)
@@ -154,12 +159,12 @@ let string_of_state env i =
       "exclusive"
   | Affine ->
       "affine"
+;;
 
 (* For debugging purposes. *)
 let print_env (env: env) : unit =
-  let open Printers in
   IndexMap.iter (fun index (name, arity, state) ->
-    Log.debug "%d: %a [%s]" index p_var name (string_of_state env index);
+    Log.debug "%d: %a [%s]" index Variable.p name (string_of_state env index);
     match state with
     | Duplicable bitmap ->
         Log.debug "  keys: %s" (String.concat ","
@@ -167,7 +172,64 @@ let print_env (env: env) : unit =
     | _ ->
         ()
   ) env.types
+;;
 
+let string_of_facts (env: WellKindedness.data_type_env) facts =
+  let open Bash in
+  let n_cons = IndexMap.cardinal env.data_type_map in
+  let string_of_fact name arity fact =
+    let params = Hml_Pprint.name_gen arity in
+    let all_params = String.concat " " params in
+    let all_params = if List.length params > 0 then " " ^ all_params else "" in
+    let print_simple w =
+      Hml_String.bsprintf "%s%a%s%s is %s"
+        colors.underline Variable.p name all_params colors.default w
+    in
+    match fact with
+    | Exclusive ->
+        print_simple "exclusive"
+    | Affine ->
+        print_simple "affine"
+    | Duplicable bitmap when List.length params = 0 ->
+        print_simple "duplicable"
+    | Duplicable bitmap ->
+        let verb = if List.length params > 1 then "are" else "is" in
+        let dup_params = Hml_List.mapi (fun i param ->
+          match IndexMap.find_opt (n_cons + i) bitmap with
+          | Some () ->
+              Some param
+          | None ->
+              None
+        ) params in
+        let dup_params = Hml_List.filter_some dup_params in
+        let rec fancy_join = function
+          | [] ->
+              ""
+          | e :: [] ->
+              e
+          | e1 :: e2 :: [] ->
+              Printf.sprintf "%s and %s" e1 e2
+          | hd :: tl ->
+              Printf.sprintf "%s, %s" hd (fancy_join tl)
+        in
+        Hml_String.bsprintf "%s%a%s%s is duplicable if %s %s duplicable"
+          colors.underline Variable.p name
+          all_params colors.default (fancy_join dup_params) verb
+  in
+  let strings = IndexMap.fold (fun i fact acc ->
+    match IndexMap.find i env.data_type_map with
+    | Concrete (_flag, name, kind, _branches) ->
+        let _hd, params = SurfaceSyntax.flatten_kind kind in
+        let arity = List.length params in
+        (string_of_fact name arity (IndexMap.find i facts)) :: acc
+    | Abstract (name, _kind) ->
+        Hml_String.bsprintf "%s%a%s is abstract"
+          colors.underline Variable.p name
+          colors.default :: acc
+  ) facts [] in
+  let strings = List.sort String.compare strings in
+  String.concat "\n" strings
+;;
 
 (* ------------------------------------------------------------------------- *)
 
@@ -188,8 +250,10 @@ let rev_duplicables
         env
 
     | TyVar i ->
-        (* Log.debug "Duplicable: %d" i; *)
         mark_duplicable env i
+
+    | TyFlexible _ ->
+        Log.error "No flexible variable should appear at that stage."
 
     | TyForall ((name, kind), t)
     | TyExists ((name, kind), t) ->
@@ -272,6 +336,7 @@ let rev_duplicables
         merge_sub_env env (rev_duplicables env q)
   in
   rev_duplicables env t
+;;
 
 (* This creates the environment in its initial state, and transforms the
  * knowledge we have gathered on the data types into a form that's suitable
@@ -310,31 +375,33 @@ let create_and_populate_env (type_env: WellKindedness.data_type_env) : env =
 
   ) type_env.data_type_map empty in
   env
+;;
+
+let branches_for_type (data_type_env: WellKindedness.data_type_env) (level: level): data_type_def_branch list =
+  let open WellKindedness in
+  match LevelMap.find_opt level data_type_env.data_type_map with
+  | Some (Concrete (_, _name, _kind, branches)) ->
+      branches
+  | Some (Abstract (name, _)) ->
+      Log.error "No branches for type %a, it is abstract" Variable.p name
+  | None ->
+      Log.error "There is no type defined at level %d" level
+;;
 
 (* This performs one round of constraint propagation.
    - If the type is initially marked as Exclusive, it remains Exclusive.
    - If the type is marked as Duplicable, we recursively determine which ones of
    its type variables should be marked as duplicable for the whole type to be
-   duplicable. We first iterate on the branches, then on the fields inside the
-   branches. *)
+   duplicable. *)
 let one_round (type_env: WellKindedness.data_type_env) (env: env) : env =
+  (* Folding on all the data types. *)
   IndexMap.fold (fun level (name, arity, state) env ->
-    (* The [level] variable is the global level of the data type we're currently
-     * examining. *)
+    (* What knowledge do we have from the previous round? *)
     match state with
     | Exclusive | Affine ->
         env
     | Duplicable bitmap ->
-        (* TEMPORARY I wonder if we should put that in [env] and get rid of
-         * [type_env]. *)
-        let branches =
-          match IndexMap.find level type_env.data_type_map with
-            | Concrete (_flag, _name, _kind, branches) ->
-                branches
-            | Abstract _ ->
-                assert false
-        in
-        (* Log.debug "Processing %a, arity %d" Printers.p_var name arity; *)
+        let branches = branches_for_type type_env level in
         (* The type is in De Bruijn, so keep track of how many binders we've
          * crossed to get inside the type. *)
         let sub_env = {
@@ -343,33 +410,39 @@ let one_round (type_env: WellKindedness.data_type_env) (env: env) : env =
           extra = IndexMap.empty;
           level = env.level + arity;
         } in
+        (* Use the knowledge acquired in the previous round to see how this
+         * affects the mode of the current type mode. *)
         let new_mode =
           try
-            (* For each field, find out which parameters should be duplicable
-             * for that field's type to be duplicable; merge them with the
-             * current environment. *)
+            (* Folding on the branches. *)
             let sub_env = List.fold_left (fun sub_env (_label, fields) ->
+                (* Folding on the fields. *)
                 List.fold_left (fun sub_env -> function
                   | FieldValue (_, typ)
                   | FieldPermission typ ->
-                      Log.affirm (IndexMap.cardinal sub_env.extra = 0)
+                      (* There should be no binders left, since [extra] is for
+                       * binders inside the field (e.g. for a function type). *)
+                      Log.affirm
+                        (IndexMap.cardinal sub_env.extra = 0)
                         "Someone didn't clean up their environment.";
-                      (* We should in theory use [merge_sub_env] here, but since
-                       * [sub_env.extra] is [IndexMap.empty] anyway, this would
-                       * be a no-op. *)
-                      rev_duplicables type_env sub_env typ
+                      (* This field said some variables had to be duplicable:
+                        * merge in this information before moving on with
+                        * [sub_env]. *)
+                      merge_sub_env sub_env (rev_duplicables type_env sub_env typ)
                 ) sub_env fields
               ) sub_env branches in
             Duplicable (snd sub_env.current)
           with NotDuplicable _t ->
-            (* Some exception was raised: we hit a type that's [Exclusive] or
-             * [Affine], so the whole type need to be affine... *)
+            (* Some exception was raised: the type, although initially
+             * duplicable, contains a sub-part whose type is [Exclusive] or
+             * [Affine], so the whole type need to be affine. *)
             Affine
         in
         let new_state = name, arity, new_mode in
         { env with types = IndexMap.add level new_state env.types }
 
   ) env.types env
+;;
 
 let analyze_data_types
     (type_env: WellKindedness.data_type_env)
@@ -401,61 +474,6 @@ let analyze_data_types
       run_to_fixpoint new_env
   in
   let env = run_to_fixpoint env in
-  (* print_env env; *)
+  (* We only want to return the facts. *)
   IndexMap.map (fun (_, _, fact) -> fact) env.types
-
-let string_of_facts (env: WellKindedness.data_type_env) facts =
-  let open Bash in
-  let n_cons = IndexMap.cardinal env.data_type_map in
-  let string_of_fact name arity fact =
-    let params = Printers.MyPprint.name_gen arity in
-    let all_params = String.concat " " params in
-    let all_params = if List.length params > 0 then " " ^ all_params else "" in
-    let print_simple w =
-      Hml_String.bsprintf "%s%a%s%s is %s"
-        colors.underline Printers.p_var name all_params colors.default w
-    in
-    match fact with
-    | Exclusive ->
-        print_simple "exclusive"
-    | Affine ->
-        print_simple "affine"
-    | Duplicable bitmap when List.length params = 0 ->
-        print_simple "duplicable"
-    | Duplicable bitmap ->
-        let verb = if List.length params > 1 then "are" else "is" in
-        let dup_params = Hml_List.mapi (fun i param ->
-          match IndexMap.find_opt (n_cons + i) bitmap with
-          | Some () ->
-              Some param
-          | None ->
-              None
-        ) params in
-        let dup_params = Hml_List.filter_some dup_params in
-        let rec fancy_join = function
-          | [] ->
-              ""
-          | e :: [] ->
-              e
-          | e1 :: e2 :: [] ->
-              Printf.sprintf "%s and %s" e1 e2
-          | hd :: tl ->
-              Printf.sprintf "%s, %s" hd (fancy_join tl)
-        in
-        Hml_String.bsprintf "%s%a%s%s is duplicable if %s %s duplicable"
-          colors.underline Printers.p_var name
-          all_params colors.default (fancy_join dup_params) verb
-  in
-  let strings = IndexMap.fold (fun i fact acc ->
-    match IndexMap.find i env.data_type_map with
-    | Concrete (_flag, name, kind, _branches) ->
-        let _hd, params = SurfaceSyntax.flatten_kind kind in
-        let arity = List.length params in
-        (string_of_fact name arity (IndexMap.find i facts)) :: acc
-    | Abstract (name, _kind) ->
-        Hml_String.bsprintf "%s%a%s is abstract"
-          colors.underline Printers.p_var name
-          colors.default :: acc
-  ) facts [] in
-  let strings = List.sort String.compare strings in
-  String.concat "\n" strings
+;;

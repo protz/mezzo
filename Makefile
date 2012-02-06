@@ -5,7 +5,7 @@ FIND       := find
 -include Makefile.local
 
 USE_OCAMLFIND := $(shell if `which ocamlfind > /dev/null`; then echo "-use-ocamlfind"; fi)
-OCAMLBUILD := ocamlbuild $(USE_OCAMLFIND) -classic-display -use-menhir \
+OCAMLBUILD := ocamlbuild $(USE_OCAMLFIND) -use-menhir \
   -menhir "menhir --explain --infer -la 1" \
   -cflags "-g" -lflags "-g"
 INCLUDE    := -Is sets,typing,parsing,ulex,lib,pprint
@@ -47,5 +47,8 @@ doc: graph
 	sed -i 's/<\/body>/<p align="center"><object type="image\/svg+xml" data="..\/misc\/graph.svg"><\/object><\/p><\/body>/' doc/index.html
 	cp -f misc/ocamlstyle.css doc/style.css
 
-test: all
+test_types: all
 	OCAMLRUNPARAM=b=1 ./hamlet -debug tests/basic.hml
+
+test: all
+	OCAMLRUNPARAM=b=1 ./test

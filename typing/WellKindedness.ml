@@ -43,7 +43,7 @@ let karrow bindings kind =
 (* Error messages. *)
 
 let unbound x =
-  Log.error "Unbound type %a" Printers.p_var x
+  Log.error "Unbound type %a" Variable.p x
 
 let mismatch expected_kind inferred_kind =
   Log.error "This type has kind %a but we were expecting kind %a"
@@ -407,13 +407,40 @@ and make_type_env { mapping; _ } infos : data_type_env =
 
 module KindPrinter = struct
 
-  open Printers
+  open Hml_Pprint
   open Types
   open TypePrinter
+
+  (** This (very useful) function takes a [WellKindedness.data_type_entry LevelMap.t]
+   * and uses it to populate a [Types.TypePrinter.print_env] that's
+   * suitable for passing to functions such as [print_type]. *)
+  let create_and_populate_print_env data_type_map =
+    (* Create an empty printing environment *)
+    let print_env = { level = 0; names = LevelMap.empty; } in
+    (* First, find out how many toplevel data types are defined in the current
+     * environment. *)
+    let n_cons = LevelMap.cardinal data_type_map in
+    (* This small helper function registers all levels with their names in
+     * the name map. *)
+    let rec bind_datacon_names print_env =
+      let { level; names } = print_env in
+      if level = n_cons then
+        print_env
+      else begin
+        match LevelMap.find level data_type_map with
+        | Concrete (_, name, _, _)
+        | Abstract (name, _) ->
+            bind_datacon_names (add_var name print_env)
+      end
+    in
+    let print_env = bind_datacon_names print_env in
+    print_env
+  ;;
 
   (* Prints an abstract data type. Very straightforward. *)
   let print_abstract_type_def print_env name kind =
     string "data" ^^ space ^^ print_var name
+  ;;
 
   (* Prints a data type defined in the global scope. Assumes [print_env] has been
      properly populated. *)
@@ -440,29 +467,12 @@ module KindPrinter = struct
     jump
       (ifflat empty (bar ^^ space) ^^
       join sep (List.map (print_data_type_def_branch print_env) branches))
+  ;;
 
   (* This function prints the contents of a [Types.env]. *)
   let print_type_env env =
-    (* Create an empty printing environment *)
-    let print_env = { index = 0; names = IndexMap.empty; } in
-    (* First, find out how many toplevel data types are defined in the current
-     * environment. *)
+    let print_env = create_and_populate_print_env env.data_type_map in
     let n_cons = IndexMap.cardinal env.data_type_map in
-    (* This small helper function registers all levels with their names in
-     * the name map. *)
-    let rec bind_datacon_names print_env =
-      let { index; names } = print_env in
-      if index = n_cons then
-        print_env
-      else begin
-          (String.concat " " (List.map string_of_int (LevelMap.keys env.data_type_map)));
-        match IndexMap.find index env.data_type_map with
-        | Concrete (_, name, _, _)
-        | Abstract (name, _) ->
-            bind_datacon_names (add_var name print_env)
-      end
-    in
-    let print_env = bind_datacon_names print_env in
     (* Now we have a pretty-printing environment that's ready, proceed. *)
     let defs = Hml_List.make n_cons (fun i ->
       match IndexMap.find i env.data_type_map with
@@ -472,6 +482,8 @@ module KindPrinter = struct
           print_abstract_type_def print_env name kind)
     in
     join (break1 ^^ break1) defs
+  ;;
+
 
   (* This function takes a [Types.env] and returns a string representation of it
      suitable for debugging / pretty-printing. *)
@@ -480,4 +492,6 @@ module KindPrinter = struct
     let doc = print_type_env e in
     Pprint.PpBuffer.pretty 1.0 Bash.twidth buf doc;
     Buffer.contents buf
+  ;;
+
 end

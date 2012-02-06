@@ -11,6 +11,9 @@ type index =
 type level =
   int
 
+type kind =
+  SurfaceSyntax.kind
+
 module IndexMap = Hml_Map.Make(struct
   type t = index
   let compare = Pervasives.compare
@@ -21,7 +24,7 @@ module LevelMap = IndexMap
 type type_binding =
     SurfaceSyntax.type_binding
 
-module DataconMap = Map.Make(struct
+module DataconMap = Hml_Map.Make(struct
   type t = Datacon.name
   let compare = Pervasives.compare
 end)
@@ -60,6 +63,9 @@ type typ =
     (* Special type constants. *)
   | TyUnknown
   | TyDynamic
+
+    (* Flexible type variables. *)
+  | TyFlexible of PersistentUnionFind.point
 
     (* Type variables and quantification. Type application. *)
   | TyVar of index
@@ -106,20 +112,20 @@ and data_field_def =
 
 module TypePrinter = struct
 
-  open Printers
+  open Hml_Pprint
 
   (* --------------------------------------------------------------------------- *)
 
   (** This is an internal type that is used for pretty-printing. It's not related
    * to the env type defined in [Types]. *)
   type print_env = {
-    names: string IndexMap.t;
-    index: int;
+    names: string LevelMap.t;
+    level: level;
   }
 
   (** Aad a name ([string]) to the [print_env] and bump the index. *)
-  let add str { names; index } =
-    { index = index + 1; names = IndexMap.add index str names }
+  let add str { names; level } =
+    { level = level + 1; names = LevelMap.add level str names }
 
   (** Aad a name ([Variable.name]) to the [print_env] and bump the index. *)
   let add_var var print_env =
@@ -151,8 +157,8 @@ module TypePrinter = struct
   let p_kind buf kind =
     Pprint.PpBuffer.pretty 1.0 80 buf (print_kind kind)
 
-  let print_index { names; index } i =
-    let name = IndexMap.find (index - i) names in
+  let print_index { names; level } i =
+    let name = LevelMap.find (level - i) names in
     print_string name
 
   let rec print_quantified
@@ -175,6 +181,9 @@ module TypePrinter = struct
 
     | TyVar index ->
         print_index print_env index
+
+    | TyFlexible _ ->
+        string "[flexible]"
 
     | TyForall ((name, kind), typ) ->
         let print_env = add_var name print_env in
