@@ -488,10 +488,7 @@ module KindPrinter = struct
   (* This function takes a [Types.env] and returns a string representation of it
      suitable for debugging / pretty-printing. *)
   let string_of_env e =
-    let buf = Buffer.create 16 in
-    let doc = print_type_env e in
-    Pprint.PpBuffer.pretty 1.0 Bash.twidth buf doc;
-    Buffer.contents buf
+    render (print_type_env e)
   ;;
 
 end

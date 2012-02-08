@@ -74,3 +74,8 @@ let join sep strings =
  * [sep ^^ s1 ^^ sep ^^ s2 ^^ ... ^^ sep ^^ sn] *)
 let join_left sep strings =
   List.fold_left (fun sofar s -> sofar ^^ sep ^^ s) empty strings
+
+let render doc =
+  let buf = Buffer.create 16 in
+  Pprint.PpBuffer.pretty 1.0 Bash.twidth buf doc;
+  Buffer.contents buf

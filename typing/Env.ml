@@ -125,4 +125,10 @@ let type_for_datacon (program_env: program_env) (datacon: Datacon.name): level =
 
 module EnvPrinter = struct
 
+  let string_of_type (working_env: working_env) (t: typ): string =
+    let open TypePrinter in
+    let print_env = { level = working_env.tlevel; names = working_env.name_for_type } in
+    Hml_Pprint.render (print_type print_env t)
+  ;;
+
 end

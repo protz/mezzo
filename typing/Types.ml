@@ -131,7 +131,6 @@ module TypePrinter = struct
   let add_var var print_env =
     add (Variable.print var) print_env
 
-
   let print_var var =
     print_string (Variable.print var)
 
