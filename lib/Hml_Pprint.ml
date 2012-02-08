@@ -2,7 +2,25 @@
 
 include Pprint
 
-(* This module contains extra helper functions for [Pprint]. *)
+(* Some Bash-isms *)
+
+type colors = {
+  green: document;
+  red: document;
+  blue: document;
+  yellow: document;
+  default: document;
+  underline: document;
+}
+
+let colors = {
+  green = fancystring Bash.colors.Bash.green 0;
+  red = fancystring Bash.colors.Bash.red 0;
+  blue = fancystring Bash.colors.Bash.blue 0;
+  yellow = fancystring Bash.colors.Bash.yellow 0;
+  default = fancystring Bash.colors.Bash.default 0;
+  underline = fancystring Bash.colors.Bash.underline 0;
+}
 
 let arrow = string "->"
 
