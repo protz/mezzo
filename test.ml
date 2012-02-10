@@ -21,9 +21,9 @@ let level_for_data_type (working_env: working_env) (name: string): level =
 
 let parse_and_build_types () =
   let ast, _decls = Driver.lex_and_parse "tests/testperm.hml" in
-  let kenv = WellKindedness.(check_data_type_group empty ast) in
-  let facts = FactInference.analyze_data_types kenv in
-  let program_env, working_env = Env.create kenv facts in
+  let program_env = WellKindedness.(check_data_type_group empty ast) in
+  let working_env = Env.create_working_env program_env in
+  let program_env = FactInference.analyze_data_types program_env working_env in
   program_env, working_env
 ;;
 
@@ -61,7 +61,7 @@ let test_adding_one_perm (program_env: program_env) (working_env: working_env) =
 
 let _ =
   let open EnvPrinter in
-  Log.enable_debug ();
+  Log.enable_debug 4;
   let program_env, working_env = parse_and_build_types () in
   (* The function above may output some debug information. *)
   flush stderr;

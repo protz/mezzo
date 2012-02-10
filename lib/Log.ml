@@ -18,17 +18,14 @@
 (*****************************************************************************)
 
 
-let debug_enabled = ref false
-let enable_debug () = debug_enabled := true
-
 let debug_level = ref 0
-let dinc () = debug_level := !debug_level + 1
-let ddec () = debug_level := !debug_level - 1
-let write_indent oc = output_string oc (String.make !debug_level ' ')
+let enable_debug level = debug_level := level
 
-let debug fmt =
-  if !debug_enabled then begin
-    write_indent stderr;
+let debug ?level fmt =
+  (* If no level is provided, the message is only displayed in very verbose
+   * mode. *)
+  let level = Option.map_none 4 level in
+  if level <= !debug_level then begin
     Hml_String.bfprintf ~new_line:() stderr fmt
   end else
     Hml_String.biprintf fmt
@@ -43,9 +40,3 @@ let affirm b fmt =
   else begin
     kfprintf (fun _ -> assert false) stdout fmt
   end
-
-let debug_simple fmt =
-  if !debug_enabled then
-    (write_indent stderr; Hml_String.bfprintf stderr "%s" fmt)
-  else
-    Hml_String.biprintf "%s" fmt

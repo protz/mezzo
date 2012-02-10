@@ -14,6 +14,9 @@ type level =
 type kind =
   SurfaceSyntax.kind
 
+let flatten_kind =
+  SurfaceSyntax.flatten_kind
+
 module IndexMap = Hml_Map.Make(struct
   type t = index
   let compare = Pervasives.compare
@@ -102,6 +105,90 @@ and data_field_def =
   | FieldValue of (Field.name * typ)
   | FieldPermission of typ
 
+and data_type_entry =
+  | Concrete of SurfaceSyntax.data_type_flag * Variable.name * kind * data_type_def_branch list
+  | Abstract of Variable.name * kind
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Program-wide environment. *)
+
+(* A fact refers to a data type, and is obtained after running an analysis on
+ * the data type definition. A type can be either, affine, or duplicable. The
+ * bitmap indicates which levels have to be duplicable for the type itself to be
+ * duplicable; it is affine otherwise. *)
+type fact = Exclusive | Duplicable of bitmap | Affine
+
+(* This maps levels of the current type parameters to () if that index has to be
+ * duplicable, nothing otherwise. *)
+and bitmap = unit LevelMap.t
+
+(** Currently, there's only one such environment per file. It's created after we
+ * analyzed all type definitions, their well-kindedness, and inferred the facts
+ * related to them. It is created once, and doesn't change afterwards.
+ * Everything in there has levels as keys. *)
+type program_env = {
+  type_for_datacon: level DataconMap.t;
+  fact_for_type: fact LevelMap.t;
+  def_for_type: data_type_entry LevelMap.t;
+}
+
+(* Various helper functions. *)
+
+let fact_for_type (program_env: program_env) (level: level): fact =
+  match LevelMap.find_opt level program_env.fact_for_type with
+  | Some fact ->
+      fact
+  | None ->
+      Log.error "There is no type defined at level %d" level
+;;
+
+let total_number_of_data_types (program_env: program_env): int =
+  LevelMap.cardinal program_env.def_for_type
+;;
+
+let branches_for_type (program_env: program_env) (level: level): data_type_def_branch list =
+  match LevelMap.find_opt level program_env.def_for_type with
+  | Some (Concrete (_, _name, _kind, branches)) ->
+      branches 
+  | Some (Abstract (name, _)) ->
+      Log.error "No branches for type %a, it is abstract" Variable.p name
+  | None ->
+      Log.error "There is no type defined at level %d" level
+;;
+
+let kind_for_type (program_env: program_env) (level: level): kind =
+  match LevelMap.find_opt level program_env.def_for_type with
+  | Some (Concrete (_, _name, kind, _) | Abstract (_name, kind)) ->
+      kind
+  | None ->
+      Log.error "There is no type defined at level %d" level
+;;
+
+let type_for_datacon (program_env: program_env) (datacon: Datacon.name): level =
+  match DataconMap.find_opt datacon program_env.type_for_datacon with
+  | Some level ->
+      level
+  | None ->
+      Log.error "There is no type for constructor %a" Datacon.p datacon
+;;
+
+let arity_for_data_type (program_env: program_env) (l: level): int =
+  let _, tl = flatten_kind (kind_for_type program_env l) in
+  List.length tl
+;;
+
+(* TODO: we should flatten type applications as soon as we can... *)
+let flatten_tyapp t =
+  let rec flatten_tyapp acc = function
+    | TyApp (t1, t2) ->
+        flatten_tyapp (t2 :: acc) t1
+    | _ as x ->
+        x, acc
+  in
+  flatten_tyapp [] t
+;;
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Fun with de Bruijn indices. *)
@@ -126,19 +213,24 @@ module TypePrinter = struct
   (** Aad a name ([string]) to the [print_env] and bump the index. *)
   let add str { names; level } =
     { level = level + 1; names = LevelMap.add level str names }
+  ;;
 
   (** Aad a name ([Variable.name]) to the [print_env] and bump the index. *)
   let add_var var print_env =
     add (Variable.print var) print_env
+  ;;
 
   let print_var var =
     print_string (Variable.print var)
+  ;;
 
   let print_datacon datacon =
     print_string (Datacon.print datacon)
+  ;;
 
   let print_field field =
     print_string (Field.print field)
+  ;;
 
   let rec print_kind =
     let open SurfaceSyntax in
@@ -151,14 +243,17 @@ module TypePrinter = struct
         string "∗"
     | KArrow (k1, k2) ->
         print_kind k1 ^^ space ^^ arrow ^^ space ^^ print_kind k2
+  ;;
 
   (* This is for debugging purposes. Use with [Log.debug] and [%a]. *)
   let p_kind buf kind =
     Pprint.PpBuffer.pretty 1.0 80 buf (print_kind kind)
+  ;;
 
   let print_index { names; level } i =
     let name = LevelMap.find (level - i) names in
     print_string name
+  ;;
 
   let rec print_quantified
       (print_env: print_env)
@@ -252,5 +347,74 @@ module TypePrinter = struct
         empty
     in
     print_datacon name ^^ record
+  ;;
+
+  (* Prints a sequence of characters representing whether each parameter has to
+   * be duplicable (x) or not (nothing). *)
+  let print_fact (program_env, l: program_env * level): document =
+    let n = total_number_of_data_types program_env in
+    let arity = arity_for_data_type program_env l in
+    match fact_for_type program_env l with
+    | Duplicable bitmap ->
+        join empty (Hml_List.make arity (fun l ->
+          match IndexMap.find_opt (n + l) bitmap with
+          | Some () -> string "x"
+          | None -> string "-")
+        )
+    | Exclusive ->
+        string "exclusive"
+    | Affine ->
+        string "affine"
+  ;;
+
+  let print_facts (program_env: program_env): document =
+    let is name ?params w =
+      let params =
+        match params with
+        | Some params -> join_left space (List.map print_string params)
+        | None -> empty
+      in
+      colors.underline ^^ print_var name ^^ params ^^
+      colors.default ^^ string " is " ^^ print_string w
+    in
+    let n = total_number_of_data_types program_env in
+    let print_fact name arity fact =
+      let params = Hml_Pprint.name_gen arity in
+      let is w = is name ~params w in
+      match fact with
+      | Exclusive ->
+          is "exclusive"
+      | Affine ->
+          is "affine"
+      | Duplicable bitmap when LevelMap.cardinal bitmap = 0 ->
+          is "duplicable"
+      | Duplicable bitmap ->
+          let dup_params = Hml_List.mapi (fun i param ->
+            match LevelMap.find_opt (n + i) bitmap with
+            | Some () ->
+                Some param
+            | None ->
+                None
+          ) params in
+          let dup_params = Hml_List.filter_some dup_params in
+          let verb = string (if List.length dup_params > 1 then " are " else " is ") in
+          let dup_params = List.map print_string dup_params in
+          is "duplicable if " ^^ english_join dup_params ^^ verb ^^
+          string "duplicable"
+    in
+    let lines =
+      Hml_List.make n (fun level ->
+        match LevelMap.find level program_env.def_for_type with
+        | Concrete (_flag, name, kind, _branches) ->
+            let fact = fact_for_type program_env level in
+            let arity = arity_for_data_type program_env level in
+            print_fact name arity fact
+        | Abstract (name, _kind) ->
+            is name "abstract"
+      )
+    in
+    join hardline lines
+  ;;
+
 
 end

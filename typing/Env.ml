@@ -3,15 +3,6 @@
 
 open Types
 
-(** Currently, there's only one such environment per file. It's created after we
- * analyzed all type definitions, their well-kindedness, and inferred the facts
- * related to them. It is created once, and doesn't change afterwards.
- * Everything in there has levels as keys. *)
-type program_env = {
-  type_for_datacon: level DataconMap.t;
-  fact_for_type: FactInference.fact LevelMap.t;
-  def_for_type: WellKindedness.data_type_entry LevelMap.t;
-}
 
 (** This is what is used by the various modules when type-checking a program.
  * Everything in there is levels too, and we're storing the current levels (both
@@ -49,6 +40,12 @@ type working_env = {
   (** A mapping from De Bruijn levels, to names suitable for printing. Use it
    * to build a [TypePrinter.print_env]. *)
   name_for_type: string LevelMap.t;
+
+  (** A mapping from De Bruijn levels to facts known about variables introduced
+   * in the context. [vfact] is different from [Types.fact], because top-level
+   * data types may have requirements on their parameters. Conversely, type
+   * variables introduced in the [working_env] expect no parameters. *)
+  fact_for_var: vfact LevelMap.t;
 }
 
 (** We separate duplicable permissions and exclusive permissions *)
@@ -61,31 +58,25 @@ and descriptor = {
   structure: typ option; (* No mutable keyword here, since we're using a functional union-find. *)
 }
 
+and vfact = VExclusive | VAffine | VDuplicable
 
-let create
-    (data_type_env: WellKindedness.data_type_env)
-    (facts: FactInference.facts): program_env * working_env =
-  let fact_for_type = facts in
-  let type_for_datacon = data_type_env.WellKindedness.cons_map in
-  let def_for_type = data_type_env.WellKindedness.data_type_map in
-  let program_env = {
-    fact_for_type;
-    type_for_datacon;
-    def_for_type
-  } in
+
+let create_working_env (program_env: program_env): working_env =
   let print_env =
     WellKindedness.KindPrinter.create_and_populate_print_env program_env.def_for_type
   in
+  let n = total_number_of_data_types program_env in
   let working_env = {
     point_of_ident = LevelMap.empty;
     state = PersistentUnionFind.init ();
     flexible_state = PersistentUnionFind.init ();
     elevel = 0;
     name_for_expr = LevelMap.empty;
-    tlevel = print_env.TypePrinter.level;
+    tlevel = n;
     name_for_type = print_env.TypePrinter.names;
+    fact_for_var = LevelMap.empty;
   } in
-  program_env, working_env
+  working_env
 ;;
 
 let name_for_expr (working_env: working_env) (level: level): string =
@@ -106,43 +97,22 @@ let name_for_type (working_env: working_env) (level: level): string =
       Log.error "There is no type defined at level %d" level
 ;;
 
-let branches_for_type (program_env: program_env) (level: level): data_type_def_branch list =
-  let open WellKindedness in
-  match LevelMap.find_opt level program_env.def_for_type with
-  | Some (Concrete (_, _name, _kind, branches)) ->
-      branches 
-  | Some (Abstract (name, _)) ->
-      Log.error "No branches for type %a, it is abstract" Variable.p name
-  | None ->
-      Log.error "There is no type defined at level %d" level
+
+let bind_type (working_env: working_env) (name: Variable.name): working_env =
+  { working_env with
+    tlevel = working_env.tlevel + 1; 
+    name_for_type =
+      LevelMap.add working_env.tlevel (Variable.print name)
+      working_env.name_for_type;
+    fact_for_var =
+      LevelMap.add working_env.tlevel VAffine
+      working_env.fact_for_var;
+  }
 ;;
 
-let fact_for_type (program_env: program_env) (level: level): FactInference.fact =
-  let open WellKindedness in
-  match LevelMap.find_opt level program_env.fact_for_type with
-  | Some fact ->
-      fact
-  | None ->
-      Log.error "There is no type defined at level %d" level
-;;
-
-let kind_for_type (program_env: program_env) (level: level): kind =
-  let open WellKindedness in
-  match LevelMap.find_opt level program_env.def_for_type with
-  | Some (Concrete (_, _name, kind, _) | Abstract (_name, kind)) ->
-      kind
-  | None ->
-      Log.error "There is no type defined at level %d" level
-;;
-
-let type_for_datacon (program_env: program_env) (datacon: Datacon.name): level =
-  let open WellKindedness in
-  match DataconMap.find_opt datacon program_env.type_for_datacon with
-  | Some level ->
-      level
-  | None ->
-      Log.error "There is no type for constructor %a" Datacon.p datacon
-;;
+(* TEMPORARY we will want a function that allows one to change the assumption on
+ * a bound type variable, for instance when crossing [(duplicable a) =>] in a
+ * function type. *)
 
 let permissions_for_ident (working_env: working_env) (level: level): permissions =
   let point = LevelMap.find level working_env.point_of_ident in

@@ -86,3 +86,6 @@ data should_be_dup a = D {
 data should_be_aff a = A {
   foo: Cons { head: ref a; tail: list (ref a) };
 }
+
+exclusive data noparams = NoParams
+data dup = Whatever { whatever: noparams; }

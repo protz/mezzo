@@ -19,13 +19,13 @@
 
 let _ =
   let arg_filename = ref "" in
-  let arg_debug = ref false in
+  let arg_debug = ref 0 in
   let usage = "HaMLet: a next-generation version of ML\n\
     Usage: " ^ Sys.argv.(0) ^ " [OPTIONS] FILE\n"
   in
   Arg.parse
     [
-    "-debug", Arg.Set arg_debug, "output possibly boring debug information";
+    "-debug", Arg.Set_int arg_debug, "output level: 0 (default) = no messages, 4 = super verbose";
     "-I", Arg.String Driver.add_include_dir, "include this directory";
     ]
     (fun f ->
@@ -35,14 +35,10 @@ let _ =
         failwith "Only one filename should be specified.\n"
     )
     usage;
-  if !arg_debug then
-    Log.enable_debug ();
+  Log.enable_debug !arg_debug;
   let ast, _decls = Driver.lex_and_parse !arg_filename in
-  let kenv = WellKindedness.(check_data_type_group empty ast) in
-  Printf.printf "%s\n" (Bash.box "Kinds");
-  Printf.printf "%s\n\n" (WellKindedness.KindPrinter.string_of_env kenv);
-  let facts = FactInference.analyze_data_types kenv in
-  let env = Env.create kenv facts in
-  Printf.printf "%s\n" (Bash.box "Facts");
-  Printf.printf "%s\n\n" (FactInference.string_of_facts kenv facts);
-  ignore env
+  let program_env = WellKindedness.(check_data_type_group empty ast) in
+  let working_env = Env.create_working_env program_env in
+  let program_env = FactInference.analyze_data_types program_env working_env in
+  Log.debug ~level:1 "%s" (WellKindedness.KindPrinter.string_of_program_env program_env);
+  ignore working_env

@@ -22,11 +22,17 @@ let colors = {
   underline = fancystring Bash.colors.Bash.underline 0;
 }
 
-let arrow = string "->"
+let arrow =
+  string "->"
+;;
 
-let ccolon = colon ^^ colon
+let ccolon =
+  colon ^^ colon
+;;
 
-let int i = string (string_of_int i)
+let int i =
+  string (string_of_int i)
+;;
 
 let utf8_length s =
   (* Stolen from Batteries *)
@@ -41,9 +47,11 @@ let utf8_length s =
     length_aux s (c + 1) (i + k)
   in
   length_aux s 0 0
+;;
 
 let print_string s =
   fancystring s (utf8_length s)
+;;
 
 let name_gen count =
   (* Of course, won't work nice if more than 26 type parameters... *)
@@ -53,6 +61,7 @@ let name_gen count =
     let code = c0 + i in
     Printf.sprintf "%c%c" alpha.[0] (Char.chr code)
   )
+;;
 
 (* [heading head body] prints [head]; breaks a line and indents by 2,
  if necessary; then prints [body]. *)
@@ -63,12 +72,14 @@ let heading head body =
       body
     )
   )
+;;
 
 (* [jump body] either displays a space, followed with [body], followed
    with a space, all on a single line; or breaks a line, prints [body]
    at indentation 2. *)
 let jump body =
   group (nest 2 (line ^^ body))
+;;
 
 (* [definition head body cont] prints [head]; prints [body], surrounded
    with spaces and, if necessary, indented by 2; prints the keyword [in];
@@ -78,6 +89,7 @@ let definition head body cont =
     group head ^^ jump body ^^ text "in"
   ) ^^ line ^^
   cont
+;;
 
 (* [join sep (s1 :: s2 :: ... :: sn)] returns
  * [s1 ^^ sep ^^ s2 ^^ ... ^^ sep ^^ sn] *)
@@ -87,11 +99,24 @@ let join sep strings =
       List.fold_left (fun sofar s -> sofar ^^ sep ^^ s) hd tl
   | [] ->
       empty
+;;
 
 (* [join_left sep (s1 :: s2 :: ... :: sn)] returns
  * [sep ^^ s1 ^^ sep ^^ s2 ^^ ... ^^ sep ^^ sn] *)
 let join_left sep strings =
   List.fold_left (fun sofar s -> sofar ^^ sep ^^ s) empty strings
+;;
+
+let rec english_join = function
+  | [] ->
+      empty
+  | e :: [] ->
+      e
+  | e1 :: e2 :: [] ->
+      e1 ^^ string " and " ^^ e2
+  | hd :: tl ->
+      hd ^^ string ", " ^^ english_join tl
+;;
 
 let render doc =
   let buf = Buffer.create 16 in

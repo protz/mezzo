@@ -48,7 +48,10 @@ doc: graph
 	cp -f misc/ocamlstyle.css doc/style.css
 
 test_types: all
-	OCAMLRUNPARAM=b=1 ./hamlet -debug tests/basic.hml
+	OCAMLRUNPARAM=b=1 ./hamlet -debug 1 tests/basic.hml
 
 test: all
-	OCAMLRUNPARAM=b=1 ./test
+	OCAMLRUNPARAM=b=1 ./test -debug 4
+
+build:
+	$(OCAMLBUILD) $(INCLUDE) $(FILE).native
