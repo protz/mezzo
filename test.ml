@@ -27,7 +27,7 @@ let parse_and_build_types () =
 
 let print_env (env: env) =
   let open TypePrinter in
-  Log.debug "%a" pdoc (print_permissions, env);
+  Log.debug ~level:1 "%a" pdoc (print_permissions, env);
 ;;
 
 let test_adding_one_perm (env: env) =
@@ -42,7 +42,7 @@ let test_adding_one_perm (env: env) =
 
 let _ =
   let open TypePrinter in
-  Log.enable_debug 4;
+  Log.enable_debug 2;
   let env = parse_and_build_types () in
   Log.debug ~level:1 "%a"
     Types.TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds_and_facts, env);

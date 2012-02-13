@@ -51,7 +51,7 @@ test_types: all
 	OCAMLRUNPARAM=b=1 ./hamlet -debug 2 tests/basic.hml
 
 test: all
-	OCAMLRUNPARAM=b=1 ./test -debug 4
+	OCAMLRUNPARAM=b=1 ./test
 
 build:
 	$(OCAMLBUILD) $(INCLUDE) $(FILE).native

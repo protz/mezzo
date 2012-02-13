@@ -249,7 +249,7 @@ let analyze_data_types (env: env): env =
     let new_facts = ByIndex.map_down (fun { fact; _ } -> copy_fact fact) new_env.type_bindings in 
     Hml_List.iter2i (fun level old_fact new_fact ->
       let index = ByIndex.cardinal env.type_bindings - level - 1 in
-      Log.debug ~level:2
+      Log.debug ~level:3
         "name %s\t index %d bitmap %a\t | bitmap %a"
         (name_for_type env index)
         index
