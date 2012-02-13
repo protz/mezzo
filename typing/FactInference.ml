@@ -1,11 +1,15 @@
-open WellKindedness
 open Types
 
 (* ------------------------------------------------------------------------- *)
 
 (* The core of the algorithm. *)
 
-exception NotDuplicable of typ
+(* The [duplicables] function may throw either one of these two to indicate the
+ * reason why the type it's currently analyzing is not duplicable. I'm not sure
+ * the code always gives the most precise reason. *)
+exception EAffine of typ
+exception EExclusive of typ
+
 (* TEMPORARY this one will have to go eventually *)
 exception NotSupported of string
 
@@ -18,8 +22,8 @@ type phase = Elaborating of bitmap | Checking
 
 (* This function performs a reverse-analysis of a type. As it goes, it marks
  * those variables that needs to be duplicable by updating the bitmap contained
- * in [phase]. It may throw [NotDuplicable] if it turns out the type it's
- * currently analyzing is not duplicable. *)
+ * in [phase]. It may throw [EAffine] if it turns out the type it's
+ * currently analyzing is affine. *)
 let duplicables
     (env: env) 
     (phase: phase)
@@ -35,7 +39,7 @@ let duplicables
         begin
           match fact_for_type env index with
           | Exclusive | Affine ->
-              raise (NotDuplicable t)
+              raise (EAffine t)
           | Duplicable bitmap ->
               if Array.length bitmap != 0 then
                 Log.error "Partial type applications are not allowed"
@@ -87,7 +91,7 @@ let duplicables
             | Fuzzy ->
                 Log.error "I messed up my index computations. Oops!";
             | Exclusive | Affine ->
-                raise (NotDuplicable t)
+                raise (EAffine t)
             | Duplicable cons_bitmap ->
                 Log.affirm (List.length args = Array.length cons_bitmap)
                   "Arity mismatch, [WellKindedness] should've checked that";
@@ -133,7 +137,7 @@ let duplicables
                     duplicables env typ
               ) fields
           | SurfaceSyntax.Exclusive ->
-              raise (NotDuplicable t)
+              raise (EExclusive t)
         end
       end
 
@@ -171,8 +175,12 @@ let one_round (env: env): env =
   Log.affirm (env.toplevel_size = ByIndex.cardinal env.type_bindings) "Huh?";
   TypePrinter.(Log.debug "env:\n  %a" pdoc (print_types_in_scope, env));
   (* Folding on all the data types. *)
-  ByIndex.fold (fun index env { fact; tname; _ } ->
+  ByIndex.fold (fun index env { fact; tname; definition } ->
     (* What knowledge do we have from the previous round? *)
+    match definition with
+    | Abstract _ ->
+        env
+    | _ ->
     match fact with
     | Fuzzy ->
         Log.error "I messed up my index computations. Oops!";
@@ -199,7 +207,7 @@ let one_round (env: env): env =
             ) fields
           ) branches;
           env
-        with NotDuplicable _t ->
+        with EAffine _t ->
           (* Some exception was raised: the type, although initially
            * duplicable, contains a sub-part whose type is [Exclusive] or
            * [Affine], so the whole type need to be affine. *)
@@ -209,6 +217,18 @@ let one_round (env: env): env =
           { env with type_bindings }
   ) env env.type_bindings
 ;;
+
+let analyze_type (env: env) (t: typ): fact =
+  try
+    duplicables env Checking t;
+    Duplicable [||]
+  with
+  | EExclusive t' when t = t' ->
+      Exclusive
+  | _ ->
+      Affine
+;;
+    
 
 let analyze_data_types (env: env): env =
   (* We could be even smarter and make the function return both a new env and a

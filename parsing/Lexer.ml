@@ -125,7 +125,6 @@ let rec token = lexer
 | "as" -> locate lexbuf AS
 | "unpack" -> locate lexbuf UNPACK
 | "pack" -> locate lexbuf PACK
-| "=>" | 8658 (* ⇒ *) -> locate lexbuf DBLARROW
 | "fun" | 955 (* λ *) -> locate lexbuf FUN
 | "forall" | 8704 (* ∀ *) -> locate lexbuf FORALL
 | "exists" | 8707 (* ∃ *) -> locate lexbuf EXISTS*)
@@ -151,6 +150,11 @@ let rec token = lexer
 | "exclusive" -> locate lexbuf EXCLUSIVE
 | "|" -> locate lexbuf BAR
 
+| "fact" -> locate lexbuf FACT
+| "duplicable" -> locate lexbuf DUPLICABLE
+| "abstract" -> locate lexbuf ABSTRACT
+| "TYPE" -> locate lexbuf KTYPE
+
 | "[" -> locate lexbuf LBRACKET
 | "]" -> locate lexbuf RBRACKET
 | "{" -> locate lexbuf LBRACE
@@ -164,6 +168,7 @@ let rec token = lexer
 | ";;" -> locate lexbuf SEMISEMI
 | ";" -> locate lexbuf SEMI
 | "->" | 8594 (* → *) -> locate lexbuf ARROW
+| "=>" | 8658 (* ⇒ *) -> locate lexbuf DBLARROW
 | "*" | 9733 (* ★ *) -> locate lexbuf STAR
 | "=" -> locate lexbuf EQUAL
 | "consumes" -> locate lexbuf CONSUMES

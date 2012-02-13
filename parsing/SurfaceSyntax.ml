@@ -85,9 +85,15 @@ type data_type_def_rhs =
 
 type data_type_flag = Exclusive | Duplicable
 
+type abstract_fact = 
+  | FExclusive of typ
+  (* The first [typ] is a tuple that only holds [Variable] names. This is an
+   * artifact of the parsing rules. *)
+  | FDuplicableIf of tuple_type_component list * typ
+
 type data_type_def =
   | Concrete of data_type_flag * data_type_def_lhs * data_type_def_rhs
-  | Abstract of Variable.name
+  | Abstract of Variable.name * (Variable.name * kind) list * kind * abstract_fact option
 
 (* A data type group is a group of mutually recursive data type definitions. *)
 

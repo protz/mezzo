@@ -16,7 +16,7 @@ MY_DIRS	   := lib parsing sets typing
 
 
 all:
-	$(OCAMLBUILD) $(INCLUDE) $(MAIN).native #$(TEST).native test_old.native
+	$(OCAMLBUILD) $(INCLUDE) $(MAIN).native $(TEST).native test_old.native
 	ln -sf $(MAIN).native $(MAIN)
 	ln -sf $(TEST).native $(TEST)
 

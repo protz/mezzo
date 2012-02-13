@@ -10,7 +10,7 @@ open Types
 let index_for_data_type (env: env) (name: string): index =
   let module T = struct exception Found of index end in
   try
-    ByIndex.iter_downi
+    ByIndex.iter_upi
       (fun index { tname; _ } -> if Variable.print tname = name then raise (T.Found index))
       env.type_bindings;
     raise Not_found
@@ -44,6 +44,8 @@ let _ =
   let open TypePrinter in
   Log.enable_debug 4;
   let env = parse_and_build_types () in
+  Log.debug ~level:1 "%a"
+    Types.TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds_and_facts, env);
   (* The function above may output some debug information. *)
   flush stderr;
   print_newline ();

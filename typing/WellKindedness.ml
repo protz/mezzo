@@ -325,9 +325,13 @@ let collect_data_type_def_tycon tycons (def: SurfaceSyntax.data_type_def) : frag
   match def with
   | SurfaceSyntax.Concrete (_flag, lhs, _) ->
       collect_data_type_def_lhs_tycon tycons lhs
-  | SurfaceSyntax.Abstract name ->
-      (* All abstract types have [KType] for the time being. *)
-      strict_add name KType tycons
+  | SurfaceSyntax.Abstract (name, params, return_kind, fact) ->
+      let kind = List.fold_right
+        (fun (_name, kind) acc -> KArrow (kind, acc))
+        params
+        return_kind
+      in
+      strict_add name kind tycons
 
 let collect_data_type_group_tycon group : fragment =
   List.fold_left collect_data_type_def_tycon M.empty group
@@ -341,7 +345,7 @@ let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : T.
   (* It's crucial that we fold in the right order, for the binders to be added
    * in the right order... *)
   let index = SurfaceSyntax.(function
-    | Abstract name
+    | Abstract (name, _, _, _)
     | Concrete (_, (name, _), _) -> snd (M.find name env.mapping))
   in
   let group = List.sort (fun x y -> index x - index y) group in
@@ -373,10 +377,37 @@ let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : T.
           bind_type type_env name fact (Concrete (flag, name, kind, rhs))
         in
         { type_env with type_for_datacon; toplevel_size = type_env.toplevel_size + 1 }
-    | SurfaceSyntax.Abstract name ->
-        let kind, level = M.find name env.mapping in
+    | SurfaceSyntax.Abstract (name, params, _return_kind, fact) ->
+        let kind, _level = M.find name env.mapping in
+        let fact =
+          let env =
+            List.fold_left (fun env var -> bind env var) env params
+          in
+          match fact with
+          | None ->
+              Affine
+          | Some (FExclusive _) ->
+              Exclusive
+          | Some (FDuplicableIf (components, _)) ->
+              let vars =
+                let open SurfaceSyntax in
+                List.map (function
+                  | _, TyTupleComponentValue (None, TyVar name) ->
+                      name
+                  | _ ->
+                      Log.error "We only support very simple facts."
+                ) components
+              in
+              let _kinds, indices = List.split (List.map (fun x -> find x env) vars) in
+              let _hd, tl = flatten_kind kind in
+              let arity = List.length tl in
+              let param_numbers = List.map (fun x -> arity - x - 1) indices in
+              let bitmap = Array.make arity false in
+              List.iter (fun i -> bitmap.(i) <- true) param_numbers;
+              Duplicable bitmap
+        in
         (* Just remember that the type is defined as abstract. *)
-        let type_env = bind_type type_env name Affine (Abstract (name, kind)) in
+        let type_env = bind_type type_env name fact (Abstract (name, kind)) in
         { type_env with toplevel_size = type_env.toplevel_size + 1 }
   ) empty_env group
 
@@ -392,7 +423,8 @@ module KindPrinter = struct
 
   (* Prints an abstract data type. Very straightforward. *)
   let print_abstract_type_def print_env name kind =
-    string "data" ^^ space ^^ print_var name
+    string "abstract" ^^ space ^^ print_var name ^^ space ^^ ccolon ^^ space ^^
+    print_kind kind
   ;;
 
   (* Prints a data type defined in the global scope. Assumes [print_env] has been

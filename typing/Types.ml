@@ -683,18 +683,20 @@ module TypePrinter = struct
   ;;
 
   let print_facts (env: env): document =
-    let is name ?params w =
+    let is name is_abstract ?params w =
       let params =
         match params with
         | Some params -> join_left space (List.map print_string params)
         | None -> empty
       in
       colors.underline ^^ print_var name ^^ params ^^
-      colors.default ^^ string " is " ^^ print_string w
+      colors.default ^^ string " is " ^^
+      (if is_abstract then string "abstract and " else empty) ^^
+      print_string w
     in
-    let print_fact name arity fact =
+    let print_fact name is_abstract arity fact =
       let params = Hml_Pprint.name_gen arity in
-      let is w = is name ~params w in
+      let is w = is name is_abstract ~params w in
       match fact with
       | Fuzzy ->
           is "fuzzy"
@@ -724,9 +726,11 @@ module TypePrinter = struct
         | Concrete (_flag, name, kind, _branches) ->
             let _hd, tl = flatten_kind kind in 
             let arity = List.length tl in
-            print_fact name arity fact
-        | Abstract (name, _kind) ->
-            is name "abstract"
+            print_fact name false arity fact
+        | Abstract (name, kind) ->
+            let _hd, tl = flatten_kind kind in 
+            let arity = List.length tl in
+            print_fact name true arity fact
       ) env.type_bindings
     in
     join hardline lines
