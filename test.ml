@@ -6,68 +6,49 @@ val collect_flexible: typ -> typ
 *)
 
 open Types
-open Env
 
-let level_for_data_type (working_env: working_env) (name: string): level =
-  let module T = struct exception Found of level end in
+let index_for_data_type (env: env) (name: string): index =
+  let module T = struct exception Found of index end in
   try
-    LevelMap.iter
-      (fun level the_name -> if name = the_name then raise (T.Found level))
-      working_env.name_for_type;
+    ByIndex.iter_downi
+      (fun index { tname; _ } -> if Variable.print tname = name then raise (T.Found index))
+      env.type_bindings;
     raise Not_found
-  with T.Found level ->
-    level
+  with T.Found index ->
+  index
 ;;
 
 let parse_and_build_types () =
   let ast, _decls = Driver.lex_and_parse "tests/testperm.hml" in
-  let program_env = WellKindedness.(check_data_type_group empty ast) in
-  let working_env = Env.create_working_env program_env in
-  let program_env = FactInference.analyze_data_types program_env working_env in
-  program_env, working_env
+  let env = WellKindedness.(check_data_type_group empty ast) in
+  let env = FactInference.analyze_data_types env in
+  env
 ;;
 
-let add_expr_binder (working_env: working_env) (name: string): working_env * level =
-  (* Create a set of permissions for that new binder. *)
-  let permissions = { duplicable = []; exclusive = [] } in
-  let elevel = working_env.elevel in
-  let point, state = PersistentUnionFind.create permissions working_env.state in 
-  let point_of_ident = LevelMap.add elevel point working_env.point_of_ident in
-  let name_for_expr = LevelMap.add elevel name working_env.name_for_expr in
-  { working_env with
-    point_of_ident;
-    elevel = elevel + 1;
-    state; name_for_expr
-  }, elevel
+let print_env (env: env) =
+  let open TypePrinter in
+  Log.debug "%a" pdoc (print_permissions, env);
 ;;
 
-let print_env (working_env: working_env) =
-  let open EnvPrinter in
-  Log.debug "%a" pdoc (print_working_env, working_env);
-;;
-
-let test_adding_one_perm (program_env: program_env) (working_env: working_env) =
-  let tyvar level: typ =
-    TyVar (working_env.tlevel - level)
+let test_adding_one_perm (env: env) =
+  let t1 = TyVar (index_for_data_type env "t1") in
+  let int = TyVar (index_for_data_type env "int") in
+  let env = bind_expr env (Variable.register "foobar") in
+  let env =
+    Permissions.raw_add env 0 (TyApp (t1, int))
   in
-  let t1 = tyvar (level_for_data_type working_env "t1") in
-  let int = tyvar (level_for_data_type working_env "int") in
-  let working_env, foobar = add_expr_binder working_env "foobar" in
-  let working_env =
-    Permissions.raw_add program_env working_env foobar (TyApp (t1, int))
-  in
-  print_env working_env;
+  print_env env;
 ;;
 
 let _ =
-  let open EnvPrinter in
+  let open TypePrinter in
   Log.enable_debug 4;
-  let program_env, working_env = parse_and_build_types () in
+  let env = parse_and_build_types () in
   (* The function above may output some debug information. *)
   flush stderr;
   print_newline ();
   (* This should print no permissions at all *)
-  print_env working_env;
+  print_env env;
   (* Test [t1]. *)
-  test_adding_one_perm program_env working_env;
+  test_adding_one_perm env;
 ;;

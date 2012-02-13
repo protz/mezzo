@@ -84,7 +84,7 @@ let empty : env =
 let find x env =
   try
     let kind, level = M.find x env.mapping in
-    kind, env.level - level
+    kind, env.level - level - 1
   with Not_found ->
     unbound x
 
@@ -332,44 +332,53 @@ let collect_data_type_def_tycon tycons (def: SurfaceSyntax.data_type_def) : frag
 let collect_data_type_group_tycon group : fragment =
   List.fold_left collect_data_type_def_tycon M.empty group
 
-let check_data_type_group env (group: SurfaceSyntax.data_type_group) : T.program_env =
+let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : T.env =
   let open Types in
-  (* Create our fresh environment. The [fact_for_type] field will be filled in
-   * later on by {!FactInference}. *)
-  let empty = {
-    type_for_datacon = DataconMap.empty;
-    fact_for_type = LevelMap.empty;
-    def_for_type = LevelMap.empty;
-  } in
   (* Collect the names and kinds of the data types that are being
      defined. Check that they are distinct. Extend the environment. *)
-  let env, _ = extend env (collect_data_type_group_tycon group) in
+  let env, bindings = extend env (collect_data_type_group_tycon group) in
+  let total_number_of_bindings = List.length bindings in
+  (* It's crucial that we fold in the right order, for the binders to be added
+   * in the right order... *)
+  let index = SurfaceSyntax.(function
+    | Abstract name
+    | Concrete (_, (name, _), _) -> snd (M.find name env.mapping))
+  in
+  let group = List.sort (fun x y -> index x - index y) group in
   (* Fold over all the type definitions, and enrich the [program_env] with them
    * as we go. *)
-  List.fold_left (fun program_env -> function
+  List.fold_left (fun type_env -> function
     | SurfaceSyntax.Concrete (flag, data_type_def_lhs, rhs) ->
-        let name, _parameters = data_type_def_lhs in
+        let name, parameters = data_type_def_lhs in
+        let arity = List.length parameters in
         (* Check every data type definition. Get a [datacon * T.data_field_def list]
          * with the [data_field_def] in De Bruijn, of course. *)
         let rhs = check_data_type_def env (flag, data_type_def_lhs, rhs) in
         let kind, level = M.find name env.mapping in
-        (* Map all the constructor names to the level of the corresponding type. *)
+        let index = total_number_of_bindings - level - 1 in
+        (* Map all the constructor names to the index of the corresponding type. *)
         let type_for_datacon = List.fold_left (fun type_for_datacon (name, _) ->
-          DataconMap.add name level type_for_datacon
-        ) program_env.type_for_datacon rhs in  
-        (* Keep the definition as we will need to refer to it later on. *)
-        let def_for_type =
-          LevelMap.add level (Concrete (flag, name, kind, rhs)) program_env.def_for_type
+          DataconMap.add name index type_for_datacon
+        ) type_env.type_for_datacon rhs in  
+        (* The thing is, by default, duplicable; this will probably change later
+         * on. *)
+        let fact = match flag with
+          | SurfaceSyntax.Duplicable ->
+              Duplicable (Array.make arity false)
+          | SurfaceSyntax.Exclusive ->
+              Exclusive
         in
-        { program_env with type_for_datacon; def_for_type }
+        (* Keep the definition as we will need to refer to it later on. *)
+        let type_env =
+          bind_type type_env name fact (Concrete (flag, name, kind, rhs))
+        in
+        { type_env with type_for_datacon; toplevel_size = type_env.toplevel_size + 1 }
     | SurfaceSyntax.Abstract name ->
         let kind, level = M.find name env.mapping in
         (* Just remember that the type is defined as abstract. *)
-        let def_for_type =
-          LevelMap.add level (Abstract (name, kind)) program_env.def_for_type
-        in
-        { program_env with def_for_type }
-  ) empty group
+        let type_env = bind_type type_env name Affine (Abstract (name, kind)) in
+        { type_env with toplevel_size = type_env.toplevel_size + 1 }
+  ) empty_env group
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -381,32 +390,6 @@ module KindPrinter = struct
   open Types
   open TypePrinter
 
-  (** This (very useful) function takes a [WellKindedness.data_type_entry LevelMap.t]
-   * and uses it to populate a [Types.TypePrinter.print_env] that's
-   * suitable for passing to functions such as [print_type]. *)
-  let create_and_populate_print_env data_type_map =
-    (* Create an empty printing environment *)
-    let print_env = { level = 0; names = LevelMap.empty; } in
-    (* First, find out how many toplevel data types are defined in the current
-     * environment. *)
-    let n_cons = LevelMap.cardinal data_type_map in
-    (* This small helper function registers all levels with their names in
-     * the name map. *)
-    let rec bind_datacon_names print_env =
-      let { level; names } = print_env in
-      if level = n_cons then
-        print_env
-      else begin
-        match LevelMap.find level data_type_map with
-        | Concrete (_, name, _, _)
-        | Abstract (name, _) ->
-            bind_datacon_names (add_var name print_env)
-      end
-    in
-    let print_env = bind_datacon_names print_env in
-    print_env
-  ;;
-
   (* Prints an abstract data type. Very straightforward. *)
   let print_abstract_type_def print_env name kind =
     string "data" ^^ space ^^ print_var name
@@ -414,16 +397,12 @@ module KindPrinter = struct
 
   (* Prints a data type defined in the global scope. Assumes [print_env] has been
      properly populated. *)
-  let print_data_type_def print_env flag name kind branches =
-    let _return_kind, params = SurfaceSyntax.flatten_kind kind in
+  let print_data_type_def env flag name kind branches =
+    let _return_kind, params = flatten_kind kind in
     (* Turn the list of parameters into letters *)
-    let params: string list = name_gen (List.length params) in
-    (* Add all these letters into the printing environment *)
-    let print_env = List.fold_left (fun print_env param ->
-      add param print_env) print_env params
-    in
-    (* Make these printable now *)
-    let params = List.map print_string params in
+    let letters: string list = name_gen (List.length params) in
+    let letters = List.map print_string letters in
+    let env = bind_datacon_parameters env kind in
     let sep = break1 ^^ bar ^^ space in
     let flag = match flag with
       | SurfaceSyntax.Exclusive -> string "exclusive" ^^ space
@@ -432,39 +411,33 @@ module KindPrinter = struct
     (* The whole blurb *)
     flag ^^ string "data" ^^ space ^^ lparen ^^
     print_var name ^^ space ^^ ccolon ^^ space ^^
-    print_kind kind ^^ rparen ^^ join_left space params ^^
+    print_kind kind ^^ rparen ^^ join_left space letters ^^
     space ^^ equals ^^
     jump
       (ifflat empty (bar ^^ space) ^^
-      join sep (List.map (print_data_type_def_branch print_env) branches))
+      join sep (List.map (print_data_type_def_branch env) branches))
   ;;
 
   (* This function prints the contents of a [Types.env]. *)
-  let print_type_env env =
-    let print_env = create_and_populate_print_env env.def_for_type in
-    let n_cons = IndexMap.cardinal env.def_for_type in
+  let print_kinds env =
+    Log.affirm (env.toplevel_size = ByIndex.cardinal env.type_bindings)
+      "This function can only print toplevel environments (size: %d) (toplevel: %d)"
+      (ByIndex.cardinal env.type_bindings) env.toplevel_size;
     (* Now we have a pretty-printing environment that's ready, proceed. *)
-    let defs = Hml_List.make n_cons (fun i ->
-      match IndexMap.find i env.def_for_type with
+    let defs = ByIndex.map_down (fun { definition; _ } ->
+      match definition with
       | Concrete (flag, name, kind, branches) ->
-          print_data_type_def print_env flag name kind branches
+          print_data_type_def env flag name kind branches
       | Abstract (name, kind) ->
-          print_abstract_type_def print_env name kind)
+          print_abstract_type_def env name kind) env.type_bindings
     in
     join (break1 ^^ break1) defs
   ;;
 
-  let print_program_env program_env =
-    string "KINDS:" ^^ nest 2 (hardline ^^ print_type_env program_env) ^^ hardline ^^
+  let print_kinds_and_facts program_env =
+    string "KINDS:" ^^ nest 2 (hardline ^^ print_kinds program_env) ^^ hardline ^^
     hardline ^^
     string "FACTS:" ^^ nest 2 (hardline ^^ print_facts program_env) ^^ hardline
-  ;;
-
-
-  (* This function takes a [Types.env] and returns a string representation of it
-     suitable for debugging / pretty-printing. *)
-  let string_of_program_env program_env =
-    render (print_program_env program_env)
   ;;
 
 end

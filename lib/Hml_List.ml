@@ -130,3 +130,9 @@ let reduce f l =
   List.fold_left f (List.hd l) (List.tl l)
 
 let last l = List.nth l (List.length l - 1)
+
+let nth_opt list index =
+  try
+    Some (List.nth list index)
+  with Not_found ->
+    None

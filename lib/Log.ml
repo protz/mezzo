@@ -36,7 +36,8 @@ let error fmt =
 let affirm b fmt =
   let open Printf in
   if b then
-    ifprintf stdout fmt
+    ifprintf stderr fmt
   else begin
-    kfprintf (fun _ -> assert false) stdout fmt
+    output_string stderr Bash.colors.Bash.red;
+    kfprintf (fun oc -> output_string oc (Bash.colors.Bash.default ^ "\n"); assert false) stderr fmt
   end

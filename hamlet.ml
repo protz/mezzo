@@ -37,8 +37,8 @@ let _ =
     usage;
   Log.enable_debug !arg_debug;
   let ast, _decls = Driver.lex_and_parse !arg_filename in
-  let program_env = WellKindedness.(check_data_type_group empty ast) in
-  let working_env = Env.create_working_env program_env in
-  let program_env = FactInference.analyze_data_types program_env working_env in
-  Log.debug ~level:1 "%s" (WellKindedness.KindPrinter.string_of_program_env program_env);
-  ignore working_env
+  let env = WellKindedness.(check_data_type_group empty ast) in
+  let env = FactInference.analyze_data_types env in
+  Log.debug ~level:1 "%a"
+    Types.TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds_and_facts, env);
+;;

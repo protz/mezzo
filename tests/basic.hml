@@ -73,7 +73,7 @@ data odd a b c d = S { foo: b; bar: d }
 
 (* [list_of_refs] should be affine *)
 exclusive data ref a = Ref { contents: a }
-data list_of_refs a = L { list: list (ref a) }
+data list_refs a = L { list: list (ref a) }
 
 (* data not_well_kinded container a = N { contents: container a; } *)
 

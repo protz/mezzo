@@ -66,3 +66,6 @@ val max: int list -> int
 
 (** Turns [[Some a; None; ...]] into [[a; ...]] *)
 val filter_some: 'a option list -> 'a list
+
+(** Just like [List.nth] except it returns an [Option] type. *)
+val nth_opt: 'a list -> int -> 'a option
