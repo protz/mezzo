@@ -175,12 +175,11 @@ end = struct
   let map_down =
     List.rev_map
   ;;
-  let iter_upi f l =
-    List.iteri f (List.rev l)
+  let iter_upi =
+    List.iteri
   ;;
-  let fold f acc the_list =
-    Hml_List.fold_lefti (fun i acc elt ->
-      f i acc elt) acc the_list
+  let fold =
+    Hml_List.fold_lefti
   ;;
   let replace j f the_list =
     List.mapi (fun i elt -> if j = i then f elt else elt) the_list
