@@ -137,7 +137,7 @@ module ByIndex: sig
   val empty: 'a t
   (* Map from the topmost binding down to the innermost. *)
   val map_down: ('a -> 'b) -> 'a t -> 'b list
-  (* Iter from the topmost binding down to the innermost. *)
+  (* Iter from the innermost binding up to the topmost. *)
   val iter_upi: (int -> 'a -> unit) -> 'a t -> unit
   (* Fold *)
   val fold: (int -> 'acc -> 'a -> 'acc) -> 'acc -> 'a t -> 'acc

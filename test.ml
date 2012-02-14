@@ -30,13 +30,19 @@ let print_env (env: env) =
   Log.debug ~level:1 "%a" pdoc (print_permissions, env);
 ;;
 
-let test_adding_one_perm (env: env) =
+let test_adding_perms (env: env) =
+  (* Add two bindings in the environment *)
+  let env = bind_expr env (Variable.register "foo") in
+  let env = bind_expr env (Variable.register "bar") in
+  (* Find the indices so that we can build the type ourselves. *)
   let t1 = TyVar (index_for_data_type env "t1") in
   let int = TyVar (index_for_data_type env "int") in
-  let env = bind_expr env (Variable.register "foobar") in
-  let env =
-    Permissions.raw_add env 0 (TyApp (t1, int))
-  in
+  let ref = TyVar (index_for_data_type env "ref") in
+  (* We add: [bar: t1 int] *)
+  let env = Permissions.raw_add env 0 (TyApp (t1, int)) in
+  (* We add: [foo: ref int] *)
+  let env = Permissions.raw_add env 1 (TyApp (ref, int)) in
+  (* Let's see what happens now. *)
   print_env env;
 ;;
 
@@ -51,6 +57,6 @@ let _ =
   print_newline ();
   (* This should print no permissions at all *)
   print_env env;
-  (* Test [t1]. *)
-  test_adding_one_perm env;
+  (* Test [t1] and [ref]. *)
+  test_adding_perms env;
 ;;
