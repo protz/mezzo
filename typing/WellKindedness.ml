@@ -452,16 +452,16 @@ module KindPrinter = struct
 
   (* This function prints the contents of a [Types.env]. *)
   let print_kinds env =
-    Log.affirm (env.toplevel_size = ByIndex.cardinal env.type_bindings)
+    Log.affirm (env.toplevel_size = ByIndex.cardinal env.bindings)
       "This function can only print toplevel environments (size: %d) (toplevel: %d)"
-      (ByIndex.cardinal env.type_bindings) env.toplevel_size;
+      (ByIndex.cardinal env.bindings) env.toplevel_size;
     (* Now we have a pretty-printing environment that's ready, proceed. *)
-    let defs = ByIndex.map_down (fun { definition; _ } ->
+    let defs = T.map_down_types env (fun _ { definition; _ } ->
       match definition with
       | Concrete (flag, name, kind, branches) ->
           print_data_type_def env flag name kind branches
       | Abstract (name, kind) ->
-          print_abstract_type_def env name kind) env.type_bindings
+          print_abstract_type_def env name kind)
     in
     join (break1 ^^ break1) defs
   ;;

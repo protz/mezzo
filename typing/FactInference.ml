@@ -52,7 +52,7 @@ let duplicables
                      * current type's parameters. *)
                     let my_arity = Array.length my_bitmap in
                     let param_number =
-                      ByIndex.cardinal env.type_bindings - index - env.toplevel_size - 1
+                      ByIndex.cardinal env.bindings - index - env.toplevel_size - 1
                     in
                     Log.debug "↳ marking parameter %d" param_number;
                     Log.affirm (param_number >= 0 && param_number < my_arity)
@@ -172,10 +172,10 @@ let duplicables
    its type variables should be marked as duplicable for the whole type to be
    duplicable. *)
 let one_round (env: env): env =
-  Log.affirm (env.toplevel_size = ByIndex.cardinal env.type_bindings) "Huh?";
+  Log.affirm (env.toplevel_size = ByIndex.cardinal env.bindings) "Huh?";
   TypePrinter.(Log.debug "env:\n  %a" pdoc (print_types_in_scope, env));
   (* Folding on all the data types. *)
-  ByIndex.fold (fun index env { fact; tname; definition } ->
+  fold_types env (fun index env tname { fact; definition } ->
     (* What knowledge do we have from the previous round? *)
     match definition with
     | Abstract _ ->
@@ -211,11 +211,8 @@ let one_round (env: env): env =
           (* Some exception was raised: the type, although initially
            * duplicable, contains a sub-part whose type is [Exclusive] or
            * [Affine], so the whole type need to be affine. *)
-          let type_bindings =
-            ByIndex.replace index (fun entry -> { entry with fact = Affine }) env.type_bindings
-          in
-          { env with type_bindings }
-  ) env env.type_bindings
+          replace_type env index (fun entry -> { entry with fact = Affine })
+  ) env
 ;;
 
 let analyze_type (env: env) (t: typ): fact =
@@ -244,11 +241,11 @@ let analyze_data_types (env: env): env =
       | _ as x ->
           x
     in
-    let old_facts = ByIndex.map_down (fun { fact; _ } -> copy_fact fact) env.type_bindings in 
+    let old_facts = map_down_types env (fun _ { fact; _ } -> copy_fact fact) in
     let new_env = one_round env in
-    let new_facts = ByIndex.map_down (fun { fact; _ } -> copy_fact fact) new_env.type_bindings in 
+    let new_facts = map_down_types new_env (fun _ { fact; _ } -> copy_fact fact) in
     Hml_List.iter2i (fun level old_fact new_fact ->
-      let index = ByIndex.cardinal env.type_bindings - level - 1 in
+      let index = ByIndex.cardinal env.bindings - level - 1 in
       Log.debug ~level:3
         "name %s\t index %d bitmap %a\t | bitmap %a"
         (name_for_type env index)

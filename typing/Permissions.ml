@@ -4,7 +4,7 @@
 open Types
 
 let raw_add (env: env) (index: index) (t: typ): env =
-  let { point; _ } = ByIndex.find index env.expr_bindings in
+  let _name, { point; _ } = find_expr env index in
   let is_duplicable =
     match FactInference.analyze_type env t with
     | Duplicable _ ->

@@ -25,7 +25,7 @@ end)
 module LevelMap = IndexMap
 
 type type_binding =
-    SurfaceSyntax.type_binding
+  SurfaceSyntax.type_binding
 
 module DataconMap = Hml_Map.Make(struct
   type t = Datacon.name
@@ -227,17 +227,21 @@ type env = {
    *)
   flexible_state: descriptor PersistentUnionFind.state;
 
-  (* Everything about the type binders in scope. *)
-  type_bindings: type_entry ByIndex.t;
-
-  (* Everything about the expr binders in scope. *)
-  expr_bindings: expr_entry ByIndex.t;
+  (** We mix together type binders and expression binders. Since types can refer
+   * to identifiers bound in expressions (think [x: (=y)]) and expressions have
+   * permissions which are types, this sounds like the most sensible thing to
+   * do. *)
+  bindings: binding ByIndex.t;
 }
 
+and binding =
+  Variable.name * raw_binding
+
+and raw_binding =
+  TypeBinding of type_binder | ExprBinding of expr_binder
+
 (* This is an entry in our [ByIndex.t] for binders in types. *)
-and type_entry = {
-  (* Name, for debugging. Known at bind-time. *)
-  tname: Variable.name;
+and type_binder = {
   (* Definition: abstract, or concrete. *)
   definition: type_def;
   (* Associated fact. *)
@@ -245,10 +249,7 @@ and type_entry = {
 }
 
 (* This is an entry in our [ByIndex.t] for binders in expressions. *)
-and expr_entry = {
-  (* Name, for debugging. Known at bind-time. *)
-  ename: Variable.name;
-
+and expr_binder = {
   (** We map a program identifier to the corresponding persistent union-find
    * point.  This implictly represents the fact that we have equations between
    * program identifiers. The various maps and lists thus refer to
@@ -258,6 +259,15 @@ and expr_entry = {
 
 (** We separate duplicable permissions and exclusive permissions *)
 and permissions = {
+  (* We need to know at which level these permissions make sense, so that we
+   * know how to lift them into the current context. We may have a binder in
+   * expressions at level [l] whose permissions are defined at level [l']
+   * because there was a unification performed between binders defined at a
+   * different levels.
+   *
+   * When unifying two bindings, we keep the lowest level, we concatenate
+   * permissions, and we shift the types accordingly. *)
+  level: level;
   duplicable: typ list;
   exclusive: typ list;
 }
@@ -272,8 +282,7 @@ let empty_env = {
   toplevel_size = 0;
   state = PersistentUnionFind.init ();
   flexible_state = PersistentUnionFind.init ();
-  type_bindings = ByIndex.empty;
-  expr_bindings = ByIndex.empty;
+  bindings = ByIndex.empty;
 }
 
 (* ---------------------------------------------------------------------------- *)
@@ -416,35 +425,92 @@ let subst (t2: typ) (i: int) (t1: typ) =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Various helper functions. *)
+(* Various functions related to binding and finding. *)
 
-let bind_expr (env: env) (ename: Variable.name): env =
-  (* TODO: add the corresponding singleton type variable in the environment. *)
-  let permissions = { duplicable = []; exclusive = [] } in
+let bind_expr (env: env) (name: Variable.name): env =
+  let level = ByIndex.cardinal env.bindings in
+  let permissions = { duplicable = []; exclusive = []; level } in
   let point, state = PersistentUnionFind.create permissions env.state in 
-  let entry = { ename; point } in
-  { env with expr_bindings = ByIndex.add entry env.expr_bindings; state }
+  let entry = name, ExprBinding { point } in
+  { env with bindings = ByIndex.add entry env.bindings; state }
 ;;
 
-let bind_type (env: env) (tname: Variable.name) (fact: fact) (definition: type_def): env =
-  let entry = { tname; fact; definition } in
-  { env with type_bindings = ByIndex.add entry env.type_bindings }
+let bind_type (env: env) (name: Variable.name) (fact: fact) (definition: type_def): env =
+  let entry = name, TypeBinding { fact; definition } in
+  { env with bindings = ByIndex.add entry env.bindings }
 ;;
 
-let name_for_expr (env: env) (index: index): string =
-  match ByIndex.find_opt index env.expr_bindings with
-  | Some { ename; _ } ->
-      Variable.print ename
+let find_type (env: env) (index: index): Variable.name * type_binder =
+  match ByIndex.find_opt index env.bindings with
+  | Some (name, TypeBinding binding) ->
+      name, binding
+  | Some (name, _) ->
+      Log.error "Binder at index %d is not a type" index
+  | None ->
+      Log.error "There is no type binder at index %d" index
+;;
+
+let find_expr (env: env) (index: index): Variable.name * expr_binder =
+  match ByIndex.find_opt index env.bindings with
+  | Some (name, ExprBinding binding) ->
+      name, binding
+  | Some (name, _) ->
+      Log.error "Binder at index %d is not an expr" index
   | None ->
       Log.error "There is no expr binder at index %d" index
 ;;
 
+let name_for_expr (env: env) (index: index): string =
+  Variable.print (fst (find_expr env index))
+;;
+
 let name_for_type (env: env) (index: index): string =
-  match ByIndex.find_opt index env.type_bindings with
-  | Some { tname; _ } ->
-      Variable.print tname
-  | None ->
-      Log.error "There is no type binder at index %d" index
+  Variable.print (fst (find_type env index))
+;;
+
+(* Functions for traversing the binders list. *)
+
+let map_down_types env f =
+  Hml_List.filter_some
+    (ByIndex.map_down
+      (function (name, TypeBinding b) -> Some (f name b) | _ -> None)
+      env.bindings)
+;;
+
+let map_down_exprs env f =
+  Hml_List.filter_some
+    (ByIndex.map_down
+      (function (name, ExprBinding b) -> Some (f name b) | _ -> None)
+      env.bindings)
+;;
+
+let map_down env f =
+  ByIndex.map_down (fun (name, binder) -> f name binder) env.bindings
+;;
+
+let fold env f acc =
+  ByIndex.fold (fun index env (name, binder) ->
+    f index env name binder) acc env.bindings
+;;
+
+let fold_types env f acc =
+  ByIndex.fold (fun index env (name, binder) ->
+    match binder with
+    | TypeBinding binder ->
+      f index env name binder
+    | _ ->
+      env) acc env.bindings
+;;
+
+let replace_type env index f =
+  { env with bindings =
+      ByIndex.replace index (function
+        | name, TypeBinding b ->
+            name, TypeBinding (f b)
+        | _ ->
+            Log.error "Not a type at index %d" index
+      ) env.bindings
+  }
 ;;
 
 
@@ -453,42 +519,35 @@ let name_for_type (env: env) (index: index): string =
  * function type. *)
 
 let permissions_for_ident (env: env) (index: index): permissions =
-  let { point; _ } = ByIndex.find index env.expr_bindings in
+  let _, { point; _ } = find_expr env index in
   PersistentUnionFind.find point env.state
 
 let fact_for_type (env: env) (index: index): fact =
-  match ByIndex.find_opt index env.type_bindings with
-  | Some { fact; _ } ->
-      fact
-  | None ->
-      Log.error "There is no type binder at index %d" index
+  let _, { fact; _ } = find_type env index in
+  fact
 ;;
 
 let branches_for_type (env: env) (index: index): data_type_def_branch list =
-  match ByIndex.find_opt index env.type_bindings with
-  | Some { definition = Concrete def; _ } ->
-      let k = ByIndex.cardinal env.type_bindings - env.toplevel_size in
+  match snd (find_type env index) with
+  | { definition = Concrete def; _ } ->
+      let k = ByIndex.cardinal env.bindings - env.toplevel_size in
       let _, _name, _kind, branches = lift_data_type_def k def in
       branches
-  | Some { definition = Abstract (name, _); _ } ->
+  | { definition = Abstract (name, _); _ } ->
       Log.error "No branches for type %a, it is abstract" Variable.p name
-  | None ->
-      Log.error "There is no type binder at index %d" index
 ;;
 
 let kind_for_type (env: env) (index: index): kind =
-  match ByIndex.find_opt index env.type_bindings with
-  | Some { definition = Concrete (_, _name, kind, _) | Abstract (_name, kind); _ } ->
+  match snd (find_type env index) with
+  | { definition = Concrete (_, _name, kind, _) | Abstract (_name, kind) } ->
       kind
-  | None ->
-      Log.error "There is no type binders at index %d" index
 ;;
 
 let def_for_datacon (env: env) (datacon: Datacon.name): data_type_def =
   match DataconMap.find_opt datacon env.type_for_datacon with
   | Some index ->
-      let k = ByIndex.cardinal env.type_bindings - env.toplevel_size in
-      begin match ByIndex.find (index + k) env.type_bindings with
+      let k = ByIndex.cardinal env.bindings - env.toplevel_size in
+      begin match snd (find_type env (index + k)) with
       | { definition = Concrete def; _ } ->
           lift_data_type_def k def
       | { definition = Abstract _; _ } ->
@@ -721,7 +780,7 @@ module TypePrinter = struct
           end
     in
     let lines =
-      ByIndex.map_down (fun { definition; fact; } ->
+      map_down_types env (fun _ { definition; fact; } ->
         match definition with
         | Concrete (_flag, name, kind, _branches) ->
             let _hd, tl = flatten_kind kind in 
@@ -731,7 +790,7 @@ module TypePrinter = struct
             let _hd, tl = flatten_kind kind in 
             let arity = List.length tl in
             print_fact name true arity fact
-      ) env.type_bindings
+      )
     in
     join hardline lines
   ;;
@@ -744,18 +803,18 @@ module TypePrinter = struct
       let exclusive = List.map
         (fun doc -> colors.underline ^^ doc ^^ colors.default) exclusive
       in
-      join (comma ^^ break1) (duplicable @ exclusive)
+      join (comma ^^ space) (duplicable @ exclusive)
     in
     let header =
       let str = "PERMISSIONS:" in
       let line = String.make (String.length str) '-' in
       (string str) ^^ hardline ^^ (string line)
     in
-    let lines = ByIndex.map_down (fun { ename; point } ->
+    let lines = map_down_exprs env (fun name { point } ->
       let permissions = PersistentUnionFind.find point env.state in
       let perms = print_permissions permissions in
-      (print_var ename) ^^ colon ^^ space ^^ (nest 2 perms)
-    ) env.expr_bindings in
+      (print_var name) ^^ colon ^^ space ^^ (nest 2 perms)
+    ) in
     let lines = join break1 lines in
     header ^^ (nest 2 (break1 ^^ lines))
   ;;
@@ -767,7 +826,9 @@ module TypePrinter = struct
 
   let print_types_in_scope (env: env): document =
     print_string "Γ = " ^^
-    join (semi ^^ space) (ByIndex.map_down (fun { tname; _ } -> print_var tname) env.type_bindings)
+    join
+      (semi ^^ space)
+      (map_down env (fun name _ -> print_var name))
   ;;
 
 
