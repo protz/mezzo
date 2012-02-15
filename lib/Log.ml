@@ -22,9 +22,8 @@ let debug_level = ref 0
 let enable_debug level = debug_level := level
 
 let debug ?level fmt =
-  (* If no level is provided, the message is only displayed in very verbose
-   * mode. *)
-  let level = Option.map_none 4 level in
+  (* If no level is provided, the message is always displayed. *)
+  let level = Option.map_none 1 level in
   if level <= !debug_level then begin
     Hml_String.bfprintf ~new_line:() stderr fmt
   end else

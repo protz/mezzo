@@ -518,9 +518,21 @@ let replace_type env index f =
  * a bound type variable, for instance when crossing [(duplicable a) =>] in a
  * function type. *)
 
+let lift_permissions (env: env) (permissions: permissions): permissions =
+  let level = ByIndex.cardinal env.bindings in
+  let k = level - permissions.level in
+  Log.debug "Lifting by %d" k;
+  { level;
+    duplicable = List.map (lift k) permissions.duplicable;
+    exclusive = List.map (lift k) permissions.exclusive;
+  }
+;;
+
 let permissions_for_ident (env: env) (index: index): permissions =
   let _, { point; _ } = find_expr env index in
-  PersistentUnionFind.find point env.state
+  let permissions = PersistentUnionFind.find point env.state in
+  lift_permissions env permissions
+;;
 
 let fact_for_type (env: env) (index: index): fact =
   let _, { fact; _ } = find_type env index in
@@ -797,6 +809,7 @@ module TypePrinter = struct
 
   let print_permissions (env: env): document =
     let print_permissions permissions: document =
+      let permissions = lift_permissions env permissions in
       let { duplicable; exclusive } = permissions in
       let duplicable = List.map (print_type env) duplicable in
       let exclusive = List.map (print_type env) exclusive in
@@ -824,7 +837,7 @@ module TypePrinter = struct
     PpBuffer.pretty 1.0 Bash.twidth buf (f env)
   ;;
 
-  let print_types_in_scope (env: env): document =
+  let print_binders (env: env): document =
     print_string "Γ = " ^^
     join
       (semi ^^ space)

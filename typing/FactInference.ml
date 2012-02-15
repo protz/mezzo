@@ -35,7 +35,7 @@ let duplicables
         ()
 
     | TyVar index ->
-        Log.debug "TyVar index=%d" index;
+        Log.debug ~level:4 "TyVar index=%d" index;
         begin
           match fact_for_type env index with
           | Exclusive | Affine ->
@@ -54,7 +54,7 @@ let duplicables
                     let param_number =
                       ByIndex.cardinal env.bindings - index - env.toplevel_size - 1
                     in
-                    Log.debug "↳ marking parameter %d" param_number;
+                    Log.debug ~level:4 "↳ marking parameter %d" param_number;
                     Log.affirm (param_number >= 0 && param_number < my_arity)
                       "Marking as duplicable a variable that's not in the right\
                       range!\ param_number = %d" param_number;
@@ -84,7 +84,7 @@ let duplicables
         match cons with
         | TyVar index ->
           begin
-            Log.debug "Applying %s (index=%d, bitmap=%a)"
+            Log.debug ~level:4 "Applying %s (index=%d, bitmap=%a)"
               (name_for_type env index) index
               TypePrinter.pdoc (TypePrinter.print_fact, (env, index));
             match fact_for_type env index with
@@ -97,17 +97,17 @@ let duplicables
                   "Arity mismatch, [WellKindedness] should've checked that";
                 (* For each argument of the type application... *)
                 List.iteri (fun i ti ->
-                  (match ti with | TyVar i -> Log.debug "• ti is TyVar %d" i; | _ -> ());
+                  (match ti with | TyVar i -> Log.debug ~level:4 "• ti is TyVar %d" i; | _ -> ());
                   (* The type at [level] may request its [i]-th parameter to be
                    * duplicable. *)
                   if cons_bitmap.(i) then begin
-                      Log.debug "parameter %d HAS to be duplicable" i;
+                      Log.debug ~level:4 "parameter %d HAS to be duplicable" i;
                       (* The answer is yes: the [i]-th parameter for the type
                        * application is [ti] and it has to be duplicable for the
                        * type at [level] to be duplicable too. *)
                       duplicables env ti
                   end else begin
-                      Log.debug "parameter %d does NOT have to be duplicable" i
+                      Log.debug ~level:4 "parameter %d does NOT have to be duplicable" i
                       (* The answer is no: there are no constraints on [ti]. *)
                   end
                 ) args
@@ -173,7 +173,7 @@ let duplicables
    duplicable. *)
 let one_round (env: env): env =
   Log.affirm (env.toplevel_size = ByIndex.cardinal env.bindings) "Huh?";
-  TypePrinter.(Log.debug "env:\n  %a" pdoc (print_types_in_scope, env));
+  TypePrinter.(Log.debug ~level:4 "env:\n  %a" pdoc (print_binders, env));
   (* Folding on all the data types. *)
   fold_types env (fun index env tname { fact; definition } ->
     (* What knowledge do we have from the previous round? *)
@@ -188,13 +188,13 @@ let one_round (env: env): env =
         (* This fact cannot evolve anymore, pass [env] through. *)
         env
     | Duplicable bitmap ->
-        Log.debug "Attacking %s%s%s %i %a" Bash.colors.Bash.red
+        Log.debug ~level:4 "Attacking %s%s%s %i %a" Bash.colors.Bash.red
           (name_for_type env index) Bash.colors.Bash.default
           index Variable.p tname;
         (* [bitmap] is shared! *)
         let phase = Elaborating bitmap in
         let inner_env = bind_datacon_parameters env (kind_for_type env index) in
-        TypePrinter.(Log.debug "inner_env:\n  %a" pdoc (print_types_in_scope, inner_env));
+        TypePrinter.(Log.debug ~level:4 "inner_env:\n  %a" pdoc (print_binders, inner_env));
         let branches = branches_for_type env index in
         try
           (* Iterating on the branches. *)

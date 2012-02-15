@@ -33,7 +33,7 @@ let parse_and_build_types () =
 
 let print_env (env: env) =
   let open TypePrinter in
-  Log.debug ~level:1 "%a" pdoc (print_permissions, env);
+  Log.debug ~level:1 "%a\n" pdoc (print_permissions, env);
 ;;
 
 let test_adding_perms (env: env) =
@@ -51,6 +51,11 @@ let test_adding_perms (env: env) =
   (* We add: [foo: ref (t1 int)] *)
   let env = Permissions.raw_add env 1 (TyApp (t1, TyApp (ref, int))) in
   (* Let's see what happens now. *)
+  print_env env;
+  (* This should ensure we properly lift the permissions when we call
+   * permissions_for_ident. *)
+  let env = bind_expr env (Variable.register "baz") in
+  (* Log.debug "%a\n" TypePrinter.pdoc (TypePrinter.print_binders, env); *)
   print_env env;
 ;;
 

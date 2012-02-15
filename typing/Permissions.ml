@@ -12,6 +12,7 @@ let raw_add (env: env) (index: index) (t: typ): env =
     | _ ->
         false
   in
+  (* TODO Need to play with levels here. *)
   let state =
     PersistentUnionFind.update (fun permissions ->
       if is_duplicable then
