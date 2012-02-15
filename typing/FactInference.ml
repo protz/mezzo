@@ -222,7 +222,8 @@ let analyze_type (env: env) (t: typ): fact =
   with
   | EExclusive t' when t = t' ->
       Exclusive
-  | _ ->
+  | EExclusive _
+  | EAffine _ ->
       Affine
 ;;
     

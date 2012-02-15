@@ -38,18 +38,24 @@ let print_env (env: env) =
 
 let test_adding_perms (env: env) =
   (* Add two bindings in the environment *)
-  let env = bind_expr env (Variable.register "foo") in
-  let env = bind_expr env (Variable.register "bar") in
-  (* Find the indices so that we can build the type ourselves. *)
-  let t1 = TyVar (index_for_data_type env "t1") in
   let int = TyVar (index_for_data_type env "int") in
+  let t1 = TyVar (index_for_data_type env "t1") in
   let ref = TyVar (index_for_data_type env "ref") in
+  let env = bind_expr env (Variable.register "foo") in
+  print_env env;
+  (* We add: [foo: ref int] *)
+  let env = Permissions.raw_add env 0 (TyApp (ref, int)) in
+  (* We add: [foo: t1 (ref int)] *)
+  let env = Permissions.raw_add env 0 (TyApp (t1, TyApp (ref, int))) in
+  print_env env;
+  (* Re-get the various permissions *)
+  let int = TyVar (index_for_data_type env "int") in
+  let t1 = TyVar (index_for_data_type env "t1") in
+  let ref = TyVar (index_for_data_type env "ref") in
+  ignore ref;
+  let env = bind_expr env (Variable.register "bar") in
   (* We add: [bar: t1 int] *)
   let env = Permissions.raw_add env 0 (TyApp (t1, int)) in
-  (* We add: [foo: ref int] *)
-  let env = Permissions.raw_add env 1 (TyApp (ref, int)) in
-  (* We add: [foo: ref (t1 int)] *)
-  let env = Permissions.raw_add env 1 (TyApp (t1, TyApp (ref, int))) in
   (* Let's see what happens now. *)
   print_env env;
   (* This should ensure we properly lift the permissions when we call
