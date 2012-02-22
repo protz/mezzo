@@ -402,8 +402,8 @@ let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : T.
   (* Collect the names and kinds of the data types that are being
      defined. Check that they are distinct. Extend the environment. *)
   let env, bindings = extend env (collect_data_type_group_tycon group) in
-  (* Fold over all the type definitions, and enrich the [program_env] with them
-   * as we go. *)
+  (* Fold over all the type definitions, and enrich the [type_env: Types.env]
+   * with them as we go. *)
   let type_env, points = List.fold_left (fun (type_env, points) -> function
     | SurfaceSyntax.Concrete (flag, data_type_def_lhs, rhs) ->
         let name, parameters = data_type_def_lhs in
@@ -413,10 +413,9 @@ let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : T.
         let rhs = check_data_type_def env (flag, data_type_def_lhs, rhs) in
         let kind, level = M.find name env.mapping in
         Log.debug ~level:4 "Level %d name %a" level Variable.p name;
-        (* The thing is, by default, duplicable; this will probably change later
-         * on. *)
         let fact = match flag with
           | SurfaceSyntax.Duplicable ->
+              (* This fact is bound to evolve later on in [FactInference]. *)
               Duplicable (Array.make arity false)
           | SurfaceSyntax.Exclusive ->
               Exclusive
@@ -425,24 +424,37 @@ let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : T.
         let type_env, point =
           bind_type type_env name fact (Concrete (flag, name, kind, rhs))
         in
-        (* Map all the constructor names to the index of the corresponding type. *)
+        (* Map all the constructor names to the corresponding type. *)
         let type_for_datacon = List.fold_left (fun type_for_datacon (name, _) ->
           DataconMap.add name point type_for_datacon
         ) type_env.type_for_datacon rhs in  
+        (* We keep the point corresponding to the level, so that we can, later
+         * on, replace all bound variables in the data type definitions with the
+         * corresponding [TyPoint]s. *)
         { type_env with type_for_datacon }, (level, point) :: points
     | SurfaceSyntax.Abstract (name, params, _return_kind, fact) ->
         let kind, level = M.find name env.mapping in
         Log.debug ~level:4 "Level %d name %a" level Variable.p name;
+        (* We should probably move the part below into some sort of
+         * [check_abstract_type_fact] function. *)
         let fact =
+          (* The variables that appear in the fact are considered to be bound in
+           * the abstract type declaration above. E.g. in
+           *   abstract list a
+           *   fact duplicable a => duplicable (list a)
+           * a is bound on the first line. So add them all in the environment. *)
           let env =
             List.fold_left (fun env var -> bind env var) env params
           in
+          (* Inspect the (original) AST fact *)
           match fact with
           | None ->
               Affine
           | Some (FExclusive _) ->
               Exclusive
           | Some (FDuplicableIf (components, _)) ->
+              (* We collect the type variables that appear in the LHS of the
+               * =>. *)
               let vars =
                 let open SurfaceSyntax in
                 List.map (function
@@ -452,19 +464,25 @@ let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : T.
                       Log.error "We only support very simple facts."
                 ) components
               in
+              (* Get the levels of the type parameters that appear in the LHS of
+               * the =>. *)
               let _kinds, indices = List.split (List.map (fun x -> find x env) vars) in
+              (* Compute the arity of the type. *)
               let _hd, tl = flatten_kind kind in
               let arity = List.length tl in
+              (* Turn this into "the i-th parameter has to be duplicable". *)
               let param_numbers = List.map (fun x -> arity - x - 1) indices in
+              (* Create and modify the bitmap accordingly. This one won't evolve
+               * anymore. *)
               let bitmap = Array.make arity false in
               List.iter (fun i -> bitmap.(i) <- true) param_numbers;
+              (* TEMPORARY One thing we didn't check is the RHS of the =>. *)
               Duplicable bitmap
         in
         (* Just remember that the type is defined as abstract. *)
         let type_env, point = bind_type type_env name fact (Abstract (name, kind)) in
         type_env, (level, point) :: points
   ) (empty_env, []) group in
-  Log.debug ~level:5 "Kinds (before substitution):\n%a\n\n---\n" TypePrinter.pdoc (KindPrinter.print_kinds, type_env);
   (* Now substitute the TyVars for the TyPoints: for all definitions *)
   let total_number_of_data_types = List.length points in
   fold_types type_env (fun type_env point names { definition; _ } ->

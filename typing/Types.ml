@@ -237,7 +237,10 @@ let lift_data_type_def_branch k branch =
   name, List.map (lift_field k) fields
 ;;
 
-(* Substitute [t2] for [i] in [t1]. *)
+(* Substitute [t2] for [i] in [t1]. This function is easy because [t2] is
+ * expected not to have any free [TyVar]s: they've all been converted to
+ * [TyPoint]s. Therefore, [t2] will *not* be lifted when substituted for [i] in
+ * [t1]. *)
 let subst (t2: typ) (i: int) (t1: typ) =
   let rec subst t2 i t1 =
     match t1 with
@@ -336,8 +339,6 @@ let bind_type_in_type
   env, typ
 ;;
 
-(* This needs a special treatment because the type parameters are not binders
- * per se (unlike TyForall, for instance...). *)
 let bind_param_at_index_in_data_type_def_branches
     (env: env)
     (name: Variable.name)
@@ -345,6 +346,8 @@ let bind_param_at_index_in_data_type_def_branches
     (definition: type_def)
     (index: index)
     (branches: data_type_def_branch list): env * data_type_def_branch list =
+  (* This needs a special treatment because the type parameters are not binders
+   * per se (unlike TyForall, for instance...). *)
   let env, point = bind_type env name fact definition in
   let branches =
     List.map (subst_data_type_def_branch (TyPoint point) index) branches
@@ -376,7 +379,18 @@ let name_for_type (env: env) (point: point): string =
   Variable.print (fst (find_type env point))
 ;;
 
-(* Functions for traversing the binders list. *)
+(* Functions for traversing the binders list. Bindings are traversed in an
+ * unspecified, but fixed, order. The [replace_*] functions preserve the order.
+ *
+ * Indeed, it turns out that the implementation of [PersistentUnionFind] is such
+ * that:
+ * - when updating a descriptor, the entry in the persistent store is
+ * udpated in the same location,
+ * - [map_types] is implemented using [PersistentUnionFind.fold] which is in
+ * turn implemented using [PersistentRef.fold], itself a proxy for
+ * [Patricia.Little.fold]. The comment in [patricia.ml] tells us that fold
+ * runs over the keys in an unspecified, but fixed, order.
+*)
 
 let map_types env f =
   Hml_List.filter_some
@@ -584,9 +598,8 @@ module TypePrinter = struct
     | TyPoint point ->
         string (name_for_type env point)
 
-    | TyVar i ->
-        int i
-        (* Log.error "All variables should've been bound at this stage" *)
+    | TyVar _ ->
+        Log.error "All variables should've been bound at this stage"
 
     | TyForall ((name, kind), typ) ->
         let env, typ = bind_type_in_type env name Affine (Abstract (name, kind)) typ in

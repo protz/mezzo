@@ -234,9 +234,8 @@ let analyze_data_types (env: env): env =
       | _ as x ->
           x
     in
-    (* This comparison works, but seems fragile; more precisely, map_types
-     * offers no guarantee on the order of the elements, and we don't have the
-     * levels anymore at that stage to help us sort the list of facts... *)
+    (* This works because [map_types] guarantees an unspecified, but fixed,
+     * order, and because [replace_type] doesn't change that order. *)
     let old_facts = map_types env (fun _ { fact; _ } -> copy_fact fact) in
     let new_env = one_round env in
     let new_facts = map_types new_env (fun _ { fact; _ } -> copy_fact fact) in

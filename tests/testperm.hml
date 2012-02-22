@@ -9,6 +9,9 @@ fact exclusive (ref a)
 abstract list (a :: TYPE) :: TYPE
 fact duplicable (a) => duplicable (list a)
 
+abstract foobar (a :: TYPE) (b :: TYPE) (c :: TYPE) :: TYPE
+fact duplicable (c) => duplicable (foobar a b c)
+
 (* Test: adding a permission x: t α should result in it being expanded at once.
  * *)
 data t1 a =
