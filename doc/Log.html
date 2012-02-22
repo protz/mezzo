@@ -48,10 +48,12 @@
 <pre><span class="keyword">module</span> Log: <code class="code">sig</code> <a href="Log.html">..</a> <code class="code">end</code></pre>This module provides error reporting functions for ChaML. Any module can use
     it.<br>
 <hr width="100%">
-<pre><span id="VALenable_debug"><span class="keyword">val</span> enable_debug</span> : <code class="type">unit -> unit</code></pre><div class="info">
-Enable debugging information.<br>
+<pre><span id="VALenable_debug"><span class="keyword">val</span> enable_debug</span> : <code class="type">int -> unit</code></pre><div class="info">
+Enable debugging information. You should provide a debugging level. The
+ * higher the level, the more verbose the information. Currently, verbosity
+ * levels range from 0 to 4 (inclusive).<br>
 </div>
-<pre><span id="VALdebug"><span class="keyword">val</span> debug</span> : <code class="type">('a, Buffer.t, unit, unit) Pervasives.format4 -> 'a</code></pre><div class="info">
+<pre><span id="VALdebug"><span class="keyword">val</span> debug</span> : <code class="type">?level:int -> ('a, Buffer.t, unit, unit) Pervasives.format4 -> 'a</code></pre><div class="info">
 Report some debugging information. Use it like <code class="code">Printf.printf</code><br>
 </div>
 <pre><span id="VALerror"><span class="keyword">val</span> error</span> : <code class="type">('a, Buffer.t, unit, 'b) Pervasives.format4 -> 'a</code></pre><div class="info">
@@ -60,14 +62,5 @@ Report a fatal error. For now, this raises an exception, but it might do
 </div>
 <pre><span id="VALaffirm"><span class="keyword">val</span> affirm</span> : <code class="type">bool -> ('a, Pervasives.out_channel, unit, unit) Pervasives.format4 -> 'a</code></pre><div class="info">
 Assert something, otherwise display an error message and fail<br>
-</div>
-<pre><span id="VALdebug_simple"><span class="keyword">val</span> debug_simple</span> : <code class="type">string -> unit</code></pre><div class="info">
-Report some debugging information. Use it like <code class="code">print_string</code><br>
-</div>
-<pre><span id="VALdinc"><span class="keyword">val</span> dinc</span> : <code class="type">unit -> unit</code></pre><div class="info">
-Increment the debug indentation<br>
-</div>
-<pre><span id="VALddec"><span class="keyword">val</span> ddec</span> : <code class="type">unit -> unit</code></pre><div class="info">
-Decrement the debug indentation<br>
 </div>
 </body></html>

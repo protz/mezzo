@@ -48,32 +48,4 @@
 <pre><span class="keyword">module</span> FactInference: <code class="code">sig</code> <a href="FactInference.html">..</a> <code class="code">end</code></pre>This module analyzes data type declaration to synthetize facts about the
    data types.<br>
 <hr width="100%">
-<pre><span id="TYPEbitmap"><span class="keyword">type</span> <code class="type"></code>bitmap</span> = <code class="type">unit Types.LevelMap.t</code> </pre>
-
-<br><code><span id="TYPEfact"><span class="keyword">type</span> <code class="type"></code>fact</span> = </code><table class="typetable">
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
-<code><span class="constructor">Exclusive</span></code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
-<code><span class="constructor">Duplicable</span> <span class="keyword">of</span> <code class="type"><a href="FactInference.html#TYPEbitmap">bitmap</a></code></code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
-<code><span class="constructor">Affine</span></code></td>
-
-</tr></table>
-
-
-<pre><span id="TYPEfacts"><span class="keyword">type</span> <code class="type"></code>facts</span> = <code class="type"><a href="FactInference.html#TYPEfact">fact</a> Types.LevelMap.t</code> </pre>
-
-<pre><span id="VALanalyze_data_types"><span class="keyword">val</span> analyze_data_types</span> : <code class="type">WellKindedness.data_type_env -> <a href="FactInference.html#TYPEfacts">facts</a></code></pre><pre><span id="VALstring_of_facts"><span class="keyword">val</span> string_of_facts</span> : <code class="type">WellKindedness.data_type_env -> <a href="FactInference.html#TYPEfacts">facts</a> -> string</code></pre></body></html>
+<pre><span id="VALanalyze_data_types"><span class="keyword">val</span> analyze_data_types</span> : <code class="type">Types.env -> Types.env</code></pre><pre><span id="VALanalyze_type"><span class="keyword">val</span> analyze_type</span> : <code class="type">Types.env -> Types.typ -> Types.fact</code></pre></body></html>

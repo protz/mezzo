@@ -57,6 +57,10 @@ Same as <code class="code">map2</code> but pass an extra parameter that represen
 Same as <code class="code">fold_left</code> except that the function takes the current index in the
    list<br>
 </div>
+<pre><span id="VALfold_left2i"><span class="keyword">val</span> fold_left2i</span> : <code class="type">(int -> 'acc -> 'b -> 'c -> 'acc) -> 'acc -> 'b list -> 'c list -> 'acc</code></pre><div class="info">
+Same as <code class="code">fold_left2</code> except that the function takes the current index in the
+   list<br>
+</div>
 <pre><span id="VALfold_left3"><span class="keyword">val</span> fold_left3</span> : <code class="type">('acc -> 't1 -> 't2 -> 't3 -> 'acc) -><br>       'acc -> 't1 list -> 't2 list -> 't3 list -> 'acc</code></pre><div class="info">
 Same as <code class="code">fold_left2</code> but with three lists.<br>
 </div>
@@ -92,5 +96,8 @@ Find the biggest element in a list<br>
 </div>
 <pre><span id="VALfilter_some"><span class="keyword">val</span> filter_some</span> : <code class="type">'a option list -> 'a list</code></pre><div class="info">
 Turns <code class="code">[Some a; None; ...]</code> into <code class="code">[a; ...]</code><br>
+</div>
+<pre><span id="VALnth_opt"><span class="keyword">val</span> nth_opt</span> : <code class="type">'a list -> int -> 'a option</code></pre><div class="info">
+Just like <code class="code">List.nth</code> except it returns an <code class="code">Option</code> type.<br>
 </div>
 </body></html>

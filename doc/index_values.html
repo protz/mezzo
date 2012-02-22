@@ -78,6 +78,8 @@ Assert something, otherwise display an error message and fail
 <td></td></tr>
 <tr><td><a href="FactInference.html#VALanalyze_data_types">analyze_data_types</a> [<a href="FactInference.html">FactInference</a>]</td>
 <td></td></tr>
+<tr><td><a href="FactInference.html#VALanalyze_type">analyze_type</a> [<a href="FactInference.html">FactInference</a>]</td>
+<td></td></tr>
 <tr><td><a href="Pprint.html#VALangles">angles</a> [<a href="Pprint.html">Pprint</a>]</td>
 <td></td></tr>
 <tr><td><a href="Hml_List.html#VALappend_rev_front">append_rev_front</a> [<a href="Hml_List.html">Hml_List</a>]</td>
@@ -218,24 +220,9 @@ Create a generic lexer buffer.
 </div>
 </td></tr>
 <tr><td align="left"><br>D</td></tr>
-<tr><td><a href="Log.html#VALddec">ddec</a> [<a href="Log.html">Log</a>]</td>
-<td><div class="info">
-Decrement the debug indentation
-</div>
-</td></tr>
 <tr><td><a href="Log.html#VALdebug">debug</a> [<a href="Log.html">Log</a>]</td>
 <td><div class="info">
 Report some debugging information.
-</div>
-</td></tr>
-<tr><td><a href="Log.html#VALdebug_simple">debug_simple</a> [<a href="Log.html">Log</a>]</td>
-<td><div class="info">
-Report some debugging information.
-</div>
-</td></tr>
-<tr><td><a href="Log.html#VALdinc">dinc</a> [<a href="Log.html">Log</a>]</td>
-<td><div class="info">
-Increment the debug indentation
 </div>
 </td></tr>
 <tr><td><a href="GSet.S.html#VALdisjoint">disjoint</a> [<a href="GSet.S.html">GSet.S</a>]</td>
@@ -336,6 +323,10 @@ same as <code class="code">Map.find</code> but returns a 'a option
 <td></td></tr>
 <tr><td><a href="Pprint.REPRESENTATION.html#VALfloat">float</a> [<a href="Pprint.REPRESENTATION.html">Pprint.REPRESENTATION</a>]</td>
 <td></td></tr>
+<tr><td><a href="PersistentUnionFind.html#VALfold">fold</a> [<a href="PersistentUnionFind.html">PersistentUnionFind</a>]</td>
+<td></td></tr>
+<tr><td><a href="PersistentRef.html#VALfold">fold</a> [<a href="PersistentRef.html">PersistentRef</a>]</td>
+<td></td></tr>
 <tr><td><a href="GMap.S.html#VALfold">fold</a> [<a href="GMap.S.html">GMap.S</a>]</td>
 <td></td></tr>
 <tr><td><a href="GSet.S.html#VALfold">fold</a> [<a href="GSet.S.html">GSet.S</a>]</td>
@@ -346,6 +337,12 @@ same as <code class="code">Map.find</code> but returns a 'a option
 <td></td></tr>
 <tr><td><a href="Pprint.html#VALfold1map">fold1map</a> [<a href="Pprint.html">Pprint</a>]</td>
 <td></td></tr>
+<tr><td><a href="Hml_List.html#VALfold_left2i">fold_left2i</a> [<a href="Hml_List.html">Hml_List</a>]</td>
+<td><div class="info">
+Same as <code class="code">fold_left2</code> except that the function takes the current index in the
+   list
+</div>
+</td></tr>
 <tr><td><a href="Hml_List.html#VALfold_left3">fold_left3</a> [<a href="Hml_List.html">Hml_List</a>]</td>
 <td><div class="info">
 Same as <code class="code">fold_left2</code> but with three lists.
@@ -524,6 +521,10 @@ Map a function and then discard the result.
 <tr><td><a href="ModeDeduction.MODE.html#VALis_universal">is_universal</a> [<a href="ModeDeduction.MODE.html">ModeDeduction.MODE</a>]</td>
 <td></td></tr>
 <tr><td><a href="Mode.html#VALis_universal">is_universal</a> [<a href="Mode.html">Mode</a>]</td>
+<td></td></tr>
+<tr><td><a href="PersistentUnionFind.html#VALiter">iter</a> [<a href="PersistentUnionFind.html">PersistentUnionFind</a>]</td>
+<td></td></tr>
+<tr><td><a href="PersistentRef.html#VALiter">iter</a> [<a href="PersistentRef.html">PersistentRef</a>]</td>
 <td></td></tr>
 <tr><td><a href="GMap.S.html#VALiter">iter</a> [<a href="GMap.S.html">GMap.S</a>]</td>
 <td></td></tr>
@@ -710,6 +711,11 @@ Find the biggest element in a list
 </td></tr>
 <tr><td><a href="Utf8.html#VALnext">next</a> [<a href="Utf8.html">Utf8</a>]</td>
 <td></td></tr>
+<tr><td><a href="Hml_List.html#VALnth_opt">nth_opt</a> [<a href="Hml_List.html">Hml_List</a>]</td>
+<td><div class="info">
+Just like <code class="code">List.nth</code> except it returns an <code class="code">Option</code> type.
+</div>
+</td></tr>
 <tr><td align="left"><br>O</td></tr>
 <tr><td><a href="Pprint.REPRESENTATION.html#VALoption">option</a> [<a href="Pprint.REPRESENTATION.html">Pprint.REPRESENTATION</a>]</td>
 <td></td></tr>
@@ -871,8 +877,6 @@ Same as <code class="code">List.split</code> but for triples instead of pairs.
 <tr><td><a href="Pprint.REPRESENTATION.html#VALstring">string</a> [<a href="Pprint.REPRESENTATION.html">Pprint.REPRESENTATION</a>]</td>
 <td></td></tr>
 <tr><td><a href="Pprint.html#VALstring">string</a> [<a href="Pprint.html">Pprint</a>]</td>
-<td></td></tr>
-<tr><td><a href="FactInference.html#VALstring_of_facts">string_of_facts</a> [<a href="FactInference.html">FactInference</a>]</td>
 <td></td></tr>
 <tr><td><a href="Ulexing.html#VALsub_lexeme">sub_lexeme</a> [<a href="Ulexing.html">Ulexing</a>]</td>
 <td><div class="info">

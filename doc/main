@@ -10,7 +10,7 @@ HaMLet is a dialect of ML with effects control and a fine-grained type system.
 {!modules: WellKindedness ModeDeduction PermissionDeduction FactInference}
 
 {2 Type-checker data structures}
-{!modules: SurfaceSyntax Data Types Identifier Mode Env}
+{!modules: SurfaceSyntax Data Types Identifier Mode}
 
 {2 Some data structures}
 {!modules: Hashcons GMap GSet Patricia InfiniteArray PersistentUnionFind

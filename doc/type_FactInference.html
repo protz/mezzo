@@ -35,11 +35,6 @@
 </head>
 <body>
 <code class="code"><span class="keyword">sig</span><br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;bitmap&nbsp;=&nbsp;unit&nbsp;<span class="constructor">Types</span>.<span class="constructor">LevelMap</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;fact&nbsp;=&nbsp;<span class="constructor">Exclusive</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Duplicable</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">FactInference</span>.bitmap&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Affine</span><br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;facts&nbsp;=&nbsp;<span class="constructor">FactInference</span>.fact&nbsp;<span class="constructor">Types</span>.<span class="constructor">LevelMap</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;analyze_data_types&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">WellKindedness</span>.data_type_env&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">FactInference</span>.facts<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_facts&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">WellKindedness</span>.data_type_env&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">FactInference</span>.facts&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;analyze_data_types&nbsp;:&nbsp;<span class="constructor">Types</span>.env&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Types</span>.env<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;analyze_type&nbsp;:&nbsp;<span class="constructor">Types</span>.env&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Types</span>.typ&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Types</span>.fact<br>
 <span class="keyword">end</span></code></body></html>
