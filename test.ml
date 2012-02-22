@@ -65,29 +65,37 @@ let test_adding_perms (env: env) =
 let test_expansion (env: env) =
   let env, foo = bind_expr env (Variable.register "foo") in
   let list x = TyApp (find_point env "list", x) in
+  let t1 x = TyApp (find_point env "t1", x) in
   let int = find_point env "int" in
   let cons (head, tail) =
     TyConcreteUnfolded (Datacon.register "Cons",
       [FieldValue (Field.register "head", head);
        FieldValue (Field.register "tail", tail)])
   in
-  let _nil =
+  let nil =
     TyConcreteUnfolded (Datacon.register "Nil", [])
   in
+  let points_to x = TySingleton (TyPoint x) in
   let t = cons (int, list int) in
   let env = Permissions.add env foo t in
-  print_env env
+  print_env env;
+  let env, bar = bind_expr env (Variable.register "bar") in
+  let env = Permissions.add env bar (t1 nil) in
+  let env, baz = bind_expr env (Variable.register "baz") in
+  let env = Permissions.add env baz (t1 (points_to foo)) in
+  print_env env;
 ;;
 
 let _ =
   let open TypePrinter in
   Log.enable_debug 3;
   let env = parse_and_build_types () in
-  (* Check that the kinds and facts we're built are correct. *)
+  (* Check that the kinds and facts we've built are correct. *)
   Log.debug ~level:1 "%a"
     Types.TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds_and_facts, env);
   flush stderr;
   print_newline ();
+  (* Test various features. *)
   test_adding_perms env;
   test_expansion env;
 ;;

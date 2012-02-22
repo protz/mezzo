@@ -479,13 +479,13 @@ let fact_for_type (env: env) (point: point): fact =
   fact
 ;;
 
-let branches_for_type (env: env) (point: point): data_type_def_branch list =
+let branches_for_type (env: env) (point: point): data_type_def_branch list option =
   match find_type env point with
   | _, { definition = Concrete def; _ } ->
       let _, _name, _kind, branches = def in
-      branches
-  | name, _ ->
-      Log.error "No branches for type %a, it is not concrete" Variable.p name
+      Some branches
+  | _ ->
+      None
 ;;
 
 let kind_for_def (def: type_def): kind =

@@ -183,7 +183,7 @@ let one_round (env: env): env =
           Variable.p tname;
         (* [bitmap] is shared! *)
         let phase = Elaborating bitmap in
-        let branches = branches_for_type env point in
+        let branches = Option.extract (branches_for_type env point) in
         let inner_env, branches =
           bind_datacon_parameters env (kind_for_type env point) branches
         in

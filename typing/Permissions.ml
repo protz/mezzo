@@ -22,13 +22,20 @@ let fresh_name prefix =
 (* [unfold env t] returns [env, t] where [t] has been unfolded, which
  * potentially led us into adding new points to [env]. *)
 let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
+
+  (* This auxiliary function takes care of inserting an indirection if needed,
+   * that is, a [=foo] type with [foo] being a newly-allocated [point]. *)
   let rec insert_point (env: env) (hint: string) (t: typ): env * typ =
-    (* The [expr_binder] also serves as the binder for the corresponding TERM
-     * type variable. *)
-    let env, p = bind_expr env (Variable.register hint) in
-    (* This will take care of unfolding where necessary. *)
-    let env = add env p t in
-    env, TySingleton (TyPoint p)
+    match t with
+    | TySingleton _ ->
+        env, t
+    | _ ->
+        (* The [expr_binder] also serves as the binder for the corresponding
+         * TERM type variable. *)
+        let env, p = bind_expr env (Variable.register hint) in
+        (* This will take care of unfolding where necessary. *)
+        let env = add env p t in
+        env, TySingleton (TyPoint p)
 
   and unfold (env: env) ?(hint: string option) (t: typ): env * typ =
     let hint = Option.map_none (fresh_name "t_") hint in
@@ -38,7 +45,6 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
     | TyPoint _
     | TyForall _
     | TyExists _
-    | TyApp _
     | TySingleton _
     | TyArrow _
     | TyAnchoredPermission _
@@ -48,6 +54,31 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
 
     | TyVar _ ->
         Log.error "No unbound variables allowed here"
+
+    (* If this is the application of a data type that only has one branch, we
+     * know how to unfold this. Otherwise, we don't! *)
+    | TyApp _ ->
+      begin
+        let cons, args = flatten_tyapp t in
+        match cons with
+        | TyPoint p ->
+          begin
+            match branches_for_type env p with
+            | Some [branch] ->
+                (* Reversing so that the i-th element in the list has De Bruijn
+                 * index i in the data type def. *)
+                let args = List.rev args in
+                let branch = Hml_List.fold_lefti (fun i branch arg ->
+                  subst_data_type_def_branch arg i branch) branch args
+                in
+                let t = TyConcreteUnfolded branch in
+                unfold env ~hint t
+            | _ ->
+              env, t
+          end
+        | _ ->
+            Log.error "The head of a type application should be a type variable."
+      end
 
     (* We're only interested in unfolding structural types. *)
     | TyTuple components ->
