@@ -18,6 +18,10 @@ let point_for_data_type (env: env) (name: string): point =
     point
 ;;
 
+let find_point env name =
+  TyPoint (point_for_data_type env name)
+;;
+
 let parse_and_build_types () =
   let ast, _decls = Driver.lex_and_parse "tests/testperm.hml" in
   let env = WellKindedness.(check_data_type_group empty ast) in
@@ -34,9 +38,9 @@ let print_env (env: env) =
 let test_adding_perms (env: env) =
   (* Since these are global names, they won't change, so we can fetch them right
    * now. *)
-  let int = TyPoint (point_for_data_type env "int") in
-  let t1 = TyPoint (point_for_data_type env "t1") in
-  let ref = TyPoint (point_for_data_type env "ref") in
+  let int = find_point env "int" in
+  let t1 = find_point env "t1" in
+  let ref = find_point env "ref" in
   (* First binding. *)
   let env, foo = bind_expr env (Variable.register "foo") in
   print_env env;
@@ -58,17 +62,32 @@ let test_adding_perms (env: env) =
   print_env env;
 ;;
 
+let test_expansion (env: env) =
+  let env, foo = bind_expr env (Variable.register "foo") in
+  let list x = TyApp (find_point env "list", x) in
+  let int = find_point env "int" in
+  let cons (head, tail) =
+    TyConcreteUnfolded (Datacon.register "Cons",
+      [FieldValue (Field.register "head", head);
+       FieldValue (Field.register "tail", tail)])
+  in
+  let _nil =
+    TyConcreteUnfolded (Datacon.register "Nil", [])
+  in
+  let t = cons (int, list int) in
+  let env = Permissions.add env foo t in
+  print_env env
+;;
+
 let _ =
   let open TypePrinter in
-  Log.enable_debug 4;
+  Log.enable_debug 3;
   let env = parse_and_build_types () in
+  (* Check that the kinds and facts we're built are correct. *)
   Log.debug ~level:1 "%a"
     Types.TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds_and_facts, env);
-  (* The function above may output some debug information. *)
   flush stderr;
   print_newline ();
-  (* This should print no permissions at all *)
-  print_env env;
-  (* Test [t1] and [ref]. *)
   test_adding_perms env;
+  test_expansion env;
 ;;

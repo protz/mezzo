@@ -63,7 +63,7 @@ type typ =
   | TyUnknown
   | TyDynamic
 
-    (* We adopt a locally nameless styles. Local names are [TyVar]s, global
+    (* We adopt a locally nameless style. Local names are [TyVar]s, global
      * names are [TyPoint]s *)
   | TyVar of index
   | TyPoint of point
@@ -87,9 +87,6 @@ type typ =
   | TyAnchoredPermission of typ * typ
   | TyEmpty
   | TyStar of typ * typ
-  (* TEMPORARY perhaps TyEmpty and TyStar can be removed because we already
-               have TyTuple, which could serve to construct tuples of
-               permissions. Investigate. *)
 
 and tuple_type_component =
   | TyTupleComponentValue of typ
@@ -371,12 +368,32 @@ let find_expr (env: env) (point: point): Variable.name * expr_binder =
       Log.error "Binder is not an expr"
 ;;
 
-let name_for_expr (env: env) (point: point): string =
-  Variable.print (fst (find_expr env point))
+let name_for_binder (env: env) (point: point): string option =
+  match PersistentUnionFind.find point env.state with
+  | name :: _, _ ->
+      Some (Variable.print name)
+  | _ ->
+      None
 ;;
 
-let name_for_type (env: env) (point: point): string =
-  Variable.print (fst (find_type env point))
+let name_for_expr (env: env) (point: point): string option =
+  match PersistentUnionFind.find point env.state with
+  | name :: _, ExprBinding _ ->
+      Some (Variable.print name)
+  | [], ExprBinding _ ->
+      None 
+  | _, TypeBinding _ ->
+      Log.error "Binder is not an expr"
+;;
+
+let name_for_type (env: env) (point: point): string option =
+  match PersistentUnionFind.find point env.state with
+  | name :: _, TypeBinding _ ->
+      Some (Variable.print name)
+  | [], TypeBinding _ ->
+      None 
+  | _, ExprBinding _ ->
+      Log.error "Binder is not a type"
 ;;
 
 (* Functions for traversing the binders list. Bindings are traversed in an
@@ -596,7 +613,7 @@ module TypePrinter = struct
         string "dynamic"
 
     | TyPoint point ->
-        string (name_for_type env point)
+        string (Option.extract (name_for_binder env point))
 
     | TyVar _ ->
         Log.error "All variables should've been bound at this stage"

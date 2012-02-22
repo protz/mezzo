@@ -6,8 +6,9 @@ fact duplicable (int)
 abstract ref (a :: TYPE) :: TYPE
 fact exclusive (ref a)
 
-abstract list (a :: TYPE) :: TYPE
-fact duplicable (a) => duplicable (list a)
+data list a =
+  | Nil
+  | Cons { head: a; tail: list a }
 
 abstract foobar (a :: TYPE) (b :: TYPE) (c :: TYPE) :: TYPE
 fact duplicable (c) => duplicable (foobar a b c)
