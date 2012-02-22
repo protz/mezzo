@@ -23,7 +23,8 @@ data list a =
   | Nil
   | Cons { head: a; tail: list a }
 
-data int
+abstract int
+fact duplicable (int)
 
 data bool = False | True 
 

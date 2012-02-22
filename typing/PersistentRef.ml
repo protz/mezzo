@@ -56,3 +56,10 @@ let eq (l1 : int) (l2 : int) =
 let neq (l1 : int) (l2 : int) =
   l1 <> l2
 
+(* Folding an iterating *)
+
+let iter f { heap; _ } =
+  Map.iter (fun _k v -> f v) heap
+
+let fold f acc { heap; _ } =
+  Map.fold (fun k v acc -> f acc k v) heap acc

@@ -11,18 +11,14 @@ type index =
 type level =
   int
 
+type point =
+  PersistentUnionFind.point
+
 type kind =
   SurfaceSyntax.kind
 
 let flatten_kind =
   SurfaceSyntax.flatten_kind
-
-module IndexMap = Hml_Map.Make(struct
-  type t = index
-  let compare = Pervasives.compare
-end)
-
-module LevelMap = IndexMap
 
 type type_binding =
   SurfaceSyntax.type_binding
@@ -67,11 +63,12 @@ type typ =
   | TyUnknown
   | TyDynamic
 
-    (* Flexible type variables. *)
-  | TyFlexible of PersistentUnionFind.point
-
-    (* Type variables and quantification. Type application. *)
+    (* We adopt a locally nameless styles. Local names are [TyVar]s, global
+     * names are [TyPoint]s *)
   | TyVar of index
+  | TyPoint of point
+
+    (* Quantification and type application. *)
   | TyForall of type_binding * typ
   | TyExists of type_binding * typ
   | TyApp of typ * typ
@@ -114,77 +111,11 @@ and abstract_type_def =
 and type_def =
   | Concrete of data_type_def
   | Abstract of abstract_type_def
+  | Flexible of typ option
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Program-wide environment. *)
-
-(** We abstract away all the operations on our data structure (currenlty, lists)
- * so that it's easy to switch to a more efficient data structure afterwards. *)
-module ByIndex: sig
-  type 'a t
-  (* Total number of bindings in an environment. *)
-  val cardinal: 'a t -> int
-  (* Add a new binding in the environment. *)
-  val add: 'a -> 'a t -> 'a t
-  (* This returns an option so that one can do deep pattern-matching easily. *)
-  val find_opt: int -> 'a t -> 'a option
-  (* Use when the binding ought to be found. *)
-  val find: int -> 'a t -> 'a
-  (* Return a subset of the environment with only the topmost [n] bindings. *)
-  val toplevel: int -> 'a t -> 'a t
-  (* The empty environment. *)
-  val empty: 'a t
-  (* Map from the topmost binding down to the innermost. *)
-  val map_down: ('a -> 'b) -> 'a t -> 'b list
-  (* Iter from the innermost binding up to the topmost. *)
-  val iter_upi: (int -> 'a -> unit) -> 'a t -> unit
-  (* Fold *)
-  val fold: (int -> 'acc -> 'a -> 'acc) -> 'acc -> 'a t -> 'acc
-  (* Replace the entry at index. *)
-  val replace: int -> ('a -> 'a) -> 'a t -> 'a t
-end = struct
-  type 'a t = 'a list
-  let cardinal =
-    List.length
-  ;;
-  let add x l =
-    x :: l
-  ;;
-  let find_opt i l =
-    Hml_List.nth_opt l i
-  ;;
-  let find i l =
-    List.nth l i
-  ;;
-  let empty =
-    []
-  ;;
-  let toplevel i l =
-    let l = List.rev l in
-    let rec chop remaining acc = function
-    | _ when remaining = 0 ->
-        acc
-    | hd :: tl ->
-        chop (remaining - 1) (hd :: acc) tl
-    | [] ->
-        raise Not_found
-    in
-    chop i [] l
-  ;;
-  let map_down =
-    List.rev_map
-  ;;
-  let iter_upi =
-    List.iteri
-  ;;
-  let fold =
-    Hml_List.fold_lefti
-  ;;
-  let replace j f the_list =
-    List.mapi (fun i elt -> if j = i then f elt else elt) the_list
-  ;;
-end
 
 (* A fact refers to any type variable available in scope; the first few facts
  * refer to toplevel data types, and the following facts refer to type variables
@@ -193,96 +124,45 @@ end
  *
  * The [Fuzzy] case is used when we are inferring facts for a top-level data
  * type; we need to introduce the data type's parameters in the environment, but
- * the correponding facts are evolving as we work through our analysis. *)
-type fact = Exclusive | Duplicable of bitmap | Affine | Fuzzy
+ * the correponding facts are evolving as we work through our analysis. The
+ * integer tells the number of the parameter. *)
+type fact = Exclusive | Duplicable of bitmap | Affine | Fuzzy of int
 
 (* The 0-th element is the first parameter of the type, and the value is true if
   * it has to be duplicable for the type to be duplicable. *)
 and bitmap = bool array
 
-(** This is the environment that we use throughout HaMLeT. Our representation
- * uses De Bruijn indexes. Right now, they're implemented using lists, but we
- * may switch to a more efficient data structure later on if needed. *)
+(** This is the environment that we use throughout HaMLeT. *)
 type env = {
-  (* For any [datacon], get the index of the corresponding type. *)
-  type_for_datacon: index DataconMap.t;
+  (* For any [datacon], get the point of the corresponding type. *)
+  type_for_datacon: point DataconMap.t;
 
-  (* The map above gives indices that are valid in the top-level context. That
-   * is to say, if Γ = α, bar, foo where only bar and foo are top-level data
-   * types, with foo being defined first, foo's index in the current scope is 2,
-   * but [type_for_datacon] will map foo to 1, because [type_for_datacon]
-   * assumes only the top-level context, that is Γ = bar, foo. Therefore, we
-   * need to keep the number of types defined in the top-level context. This
-   * number may change if, for instance, we go through another data type
-   * definition group. *)
-  toplevel_size: int;
-
-  (** The persistent version the union-find algorithm associates points with
-   * permissions. *)
-  state: permissions PersistentUnionFind.state;
-
-  (** The state of flexible variables. We introduce flexible variables to
-   * perform some sort of limited, local type inference. Flexible variables can
-   * be unified together, and unified with a “real” type.
-   *)
-  flexible_state: descriptor PersistentUnionFind.state;
-
-  (** We mix together type binders and expression binders. Since types can refer
-   * to identifiers bound in expressions (think [x: (=y)]) and expressions have
-   * permissions which are types, this sounds like the most sensible thing to
-   * do. *)
-  bindings: binding ByIndex.t;
+  (* This maps global names (i.e. [TyPoint]s) to their corresponding binding. *)
+  state: binding PersistentUnionFind.state;
 }
 
 and binding =
-  Variable.name * raw_binding
+  Variable.name list * raw_binding
 
 and raw_binding =
   TypeBinding of type_binder | ExprBinding of expr_binder
 
-(* This is an entry in our [ByIndex.t] for binders in types. *)
 and type_binder = {
-  (* Definition: abstract, or concrete. *)
+  (* Definition: abstract, concrete, or flexible *)
   definition: type_def;
   (* Associated fact. *)
   fact: fact;
 }
 
-(* This is an entry in our [ByIndex.t] for binders in expressions. *)
 and expr_binder = {
-  (** We map a program identifier to the corresponding persistent union-find
-   * point.  This implictly represents the fact that we have equations between
-   * program identifiers. The various maps and lists thus refer to
-   * union-find points, not program identifiers. *)
-  point: PersistentUnionFind.point;
-}
-
-(** We separate duplicable permissions and exclusive permissions *)
-and permissions = {
-  (* We need to know at which level these permissions make sense, so that we
-   * know how to lift them into the current context. We may have a binder in
-   * expressions at level [l] whose permissions are defined at level [l']
-   * because there was a unification performed between binders defined at a
-   * different levels.
-   *
-   * When unifying two bindings, we keep the lowest level, we concatenate
-   * permissions, and we shift the types accordingly. *)
-  level: level;
   duplicable: typ list;
   exclusive: typ list;
-}
-
-and descriptor = {
-  structure: typ option; (* No mutable keyword here, since we're using a functional union-find. *)
 }
 
 (* The empty environment. *)
 let empty_env = {
   type_for_datacon = DataconMap.empty;
-  toplevel_size = 0;
   state = PersistentUnionFind.init ();
-  flexible_state = PersistentUnionFind.init ();
-  bindings = ByIndex.empty;
 }
 
 (* ---------------------------------------------------------------------------- *)
@@ -297,15 +177,14 @@ let lift (k: int) (t: typ) =
     | TyDynamic ->
         t
 
-      (* Flexible type variables. *)
-    | TyFlexible _ ->
-        Log.error "Not implemented yet."
-
     | TyVar j ->
         if j < i then
           TyVar j
         else
           TyVar (j + k)
+
+    | TyPoint _ ->
+        t
 
     | TyForall (binder, t) ->
         TyForall (binder, lift (i+1) t)
@@ -346,21 +225,16 @@ let lift (k: int) (t: typ) =
   lift 0 t
 ;;
 
-let lift1 =
-  lift 1
+let lift_field k = function
+  | FieldValue (name, typ) ->
+      FieldValue (name, lift k typ)
+  | FieldPermission typ ->
+      FieldPermission (lift k typ)
 ;;
 
-let lift_data_type_def (k: int) (def: data_type_def): data_type_def =
-  let flag, name, kind, branches = def in
-  let branches = List.map (fun (datacon, fields) ->
-    datacon, List.map (function
-      | FieldPermission t ->
-          FieldPermission (lift k t)
-      | FieldValue (field_name, t) ->
-          FieldValue (field_name, lift k t)
-    ) fields) branches
-  in
-  flag, name, kind, branches
+let lift_data_type_def_branch k branch =
+  let name, fields = branch in
+  name, List.map (lift_field k) fields
 ;;
 
 (* Substitute [t2] for [i] in [t1]. *)
@@ -372,17 +246,14 @@ let subst (t2: typ) (i: int) (t1: typ) =
     | TyDynamic ->
         t1
 
-      (* Flexible type variables. *)
-    | TyFlexible _ ->
-        Log.error "Not implemented yet."
-
     | TyVar j ->
         if j = i then
           t2
-        else if j < i then
-          TyVar j
         else
-          TyVar (j - 1)
+          TyVar j
+
+    | TyPoint _ ->
+        t1
 
     | TyForall (binder, t) ->
         TyForall (binder, subst t2 (i+1) t)
@@ -423,154 +294,202 @@ let subst (t2: typ) (i: int) (t1: typ) =
   subst t2 i t1
 ;;
 
+let subst_field t2 i = function
+  | FieldValue (name, typ) ->
+      FieldValue (name, subst t2 i typ)
+  | FieldPermission typ ->
+      FieldPermission (subst t2 i typ)
+;;
+
+let subst_data_type_def_branch t2 i branch =
+  let name, fields = branch in
+  name, List.map (subst_field t2 i) fields
+;;
+
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Various functions related to binding and finding. *)
 
-let bind_expr (env: env) (name: Variable.name): env =
-  let level = ByIndex.cardinal env.bindings in
-  let permissions = { duplicable = []; exclusive = []; level } in
-  let point, state = PersistentUnionFind.create permissions env.state in 
-  let entry = name, ExprBinding { point } in
-  { env with bindings = ByIndex.add entry env.bindings; state }
+let bind_expr (env: env) (name: Variable.name):
+    env * point =
+  let binding = [name], ExprBinding { duplicable = []; exclusive = [] } in
+  let point, state = PersistentUnionFind.create binding env.state in
+  { env with state }, point
 ;;
 
-let bind_type (env: env) (name: Variable.name) (fact: fact) (definition: type_def): env =
-  let entry = name, TypeBinding { fact; definition } in
-  { env with bindings = ByIndex.add entry env.bindings }
+let bind_type (env: env) (name: Variable.name) (fact: fact) (definition: type_def):
+    env * point =
+  let binding = [name], TypeBinding { fact; definition } in
+  let point, state = PersistentUnionFind.create binding env.state in
+  { env with state }, point
 ;;
 
-let find_type (env: env) (index: index): Variable.name * type_binder =
-  match ByIndex.find_opt index env.bindings with
-  | Some (name, TypeBinding binding) ->
-      name, binding
-  | Some (name, _) ->
-      Log.error "Binder at index %d is not a type" index
-  | None ->
-      Log.error "There is no type binder at index %d" index
+let bind_type_in_type
+    (env: env)
+    (name: Variable.name)
+    (fact: fact)
+    (definition: type_def)
+    (typ: typ): env * typ =
+  let env, point = bind_type env name fact definition in
+  let typ = subst (TyPoint point) 0 typ in
+  env, typ
 ;;
 
-let find_expr (env: env) (index: index): Variable.name * expr_binder =
-  match ByIndex.find_opt index env.bindings with
-  | Some (name, ExprBinding binding) ->
-      name, binding
-  | Some (name, _) ->
-      Log.error "Binder at index %d is not an expr" index
-  | None ->
-      Log.error "There is no expr binder at index %d" index
+(* This needs a special treatment because the type parameters are not binders
+ * per se (unlike TyForall, for instance...). *)
+let bind_param_at_index_in_data_type_def_branches
+    (env: env)
+    (name: Variable.name)
+    (fact: fact)
+    (definition: type_def)
+    (index: index)
+    (branches: data_type_def_branch list): env * data_type_def_branch list =
+  let env, point = bind_type env name fact definition in
+  let branches =
+    List.map (subst_data_type_def_branch (TyPoint point) index) branches
+  in
+  env, branches
 ;;
 
-let name_for_expr (env: env) (index: index): string =
-  Variable.print (fst (find_expr env index))
+let find_type (env: env) (point: point): Variable.name * type_binder =
+  match PersistentUnionFind.find point env.state with
+  | names, TypeBinding binding ->
+      List.hd names, binding
+  | names, ExprBinding _ ->
+      Log.error "Binder is not a type"
 ;;
 
-let name_for_type (env: env) (index: index): string =
-  Variable.print (fst (find_type env index))
+let find_expr (env: env) (point: point): Variable.name * expr_binder =
+  match PersistentUnionFind.find point env.state with
+  | names, ExprBinding binding ->
+      List.hd names, binding
+  | name, TypeBinding _ ->
+      Log.error "Binder is not an expr"
+;;
+
+let name_for_expr (env: env) (point: point): string =
+  Variable.print (fst (find_expr env point))
+;;
+
+let name_for_type (env: env) (point: point): string =
+  Variable.print (fst (find_type env point))
 ;;
 
 (* Functions for traversing the binders list. *)
 
-let map_down_types env f =
+let map_types env f =
   Hml_List.filter_some
-    (ByIndex.map_down
-      (function (name, TypeBinding b) -> Some (f name b) | _ -> None)
-      env.bindings)
+    (List.rev
+      (PersistentUnionFind.fold
+        (fun acc _k -> function
+          | (names, TypeBinding b) -> Some (f names b) :: acc
+          | _ -> None :: acc)
+        [] env.state))
 ;;
 
-let map_down_exprs env f =
+let map_exprs env f =
   Hml_List.filter_some
-    (ByIndex.map_down
-      (function (name, ExprBinding b) -> Some (f name b) | _ -> None)
-      env.bindings)
+    (List.rev
+      (PersistentUnionFind.fold
+        (fun acc _k -> function
+          | (names, ExprBinding b) -> Some (f names b) :: acc
+          | _ -> None :: acc)
+        [] env.state))
 ;;
 
-let map_down env f =
-  ByIndex.map_down (fun (name, binder) -> f name binder) env.bindings
+let map env f =
+  List.rev
+    (PersistentUnionFind.fold
+      (fun acc _k (names, binding) -> f names binding :: acc)
+      [] env.state)
 ;;
 
 let fold env f acc =
-  ByIndex.fold (fun index env (name, binder) ->
-    f index env name binder) acc env.bindings
+  PersistentUnionFind.fold (fun acc k _v ->
+    f acc k)
+  acc env.state
 ;;
 
 let fold_types env f acc =
-  ByIndex.fold (fun index env (name, binder) ->
-    match binder with
-    | TypeBinding binder ->
-      f index env name binder
-    | _ ->
-      env) acc env.bindings
+  PersistentUnionFind.fold (fun acc k (names, binding) ->
+    match binding with TypeBinding b -> f acc k names b | _ -> acc)
+  acc env.state
 ;;
 
-let replace_type env index f =
-  { env with bindings =
-      ByIndex.replace index (function
-        | name, TypeBinding b ->
-            name, TypeBinding (f b)
+let replace_expr env point f =
+  { env with state =
+      PersistentUnionFind.update (function
+        | names, ExprBinding b ->
+            names, ExprBinding (f b)
         | _ ->
-            Log.error "Not a type at index %d" index
-      ) env.bindings
+            Log.error "Not an expr"
+      ) point env.state
   }
 ;;
 
-
-(* TEMPORARY we will want a function that allows one to change the assumption on
- * a bound type variable, for instance when crossing [(duplicable a) =>] in a
- * function type. *)
-
-let lift_permissions (env: env) (permissions: permissions): permissions =
-  let level = ByIndex.cardinal env.bindings in
-  let k = level - permissions.level in
-  Log.debug "Lifting by %d" k;
-  { level;
-    duplicable = List.map (lift k) permissions.duplicable;
-    exclusive = List.map (lift k) permissions.exclusive;
+let replace_type env point f =
+  { env with state =
+      PersistentUnionFind.update (function
+        | names, TypeBinding b ->
+            names, TypeBinding (f b)
+        | _ ->
+            Log.error "Not a type"
+      ) point env.state
   }
 ;;
 
-let permissions_for_ident (env: env) (index: index): permissions =
-  let _, { point; _ } = find_expr env index in
-  let permissions = PersistentUnionFind.find point env.state in
-  lift_permissions env permissions
+let permissions_for_ident (env: env) (point: point): expr_binder =
+  snd (find_expr env point)
 ;;
 
-let fact_for_type (env: env) (index: index): fact =
-  let _, { fact; _ } = find_type env index in
+let fact_for_type (env: env) (point: point): fact =
+  let _, { fact; _ } = find_type env point in
   fact
 ;;
 
-let branches_for_type (env: env) (index: index): data_type_def_branch list =
-  match snd (find_type env index) with
-  | { definition = Concrete def; _ } ->
-      let k = ByIndex.cardinal env.bindings - env.toplevel_size in
-      let _, _name, _kind, branches = lift_data_type_def k def in
+let branches_for_type (env: env) (point: point): data_type_def_branch list =
+  match find_type env point with
+  | _, { definition = Concrete def; _ } ->
+      let _, _name, _kind, branches = def in
       branches
-  | { definition = Abstract (name, _); _ } ->
-      Log.error "No branches for type %a, it is abstract" Variable.p name
+  | name, _ ->
+      Log.error "No branches for type %a, it is not concrete" Variable.p name
 ;;
 
-let kind_for_type (env: env) (index: index): kind =
-  match snd (find_type env index) with
-  | { definition = Concrete (_, _name, kind, _) | Abstract (_name, kind) } ->
+let kind_for_def (def: type_def): kind =
+  match def with
+  | Concrete (_, _name, kind, _) | Abstract (_name, kind) ->
       kind
+  | _ ->
+      Log.error "Not implemented yet"
+;;
+
+let kind_for_type (env: env) (point: point): kind =
+  let _, { definition; _ } = find_type env point in
+  kind_for_def definition
 ;;
 
 let def_for_datacon (env: env) (datacon: Datacon.name): data_type_def =
   match DataconMap.find_opt datacon env.type_for_datacon with
-  | Some index ->
-      let k = ByIndex.cardinal env.bindings - env.toplevel_size in
-      begin match snd (find_type env (index + k)) with
+  | Some point ->
+      begin match snd (find_type env point) with
       | { definition = Concrete def; _ } ->
-          lift_data_type_def k def
-      | { definition = Abstract _; _ } ->
+          def
+      | _ ->
           assert false
       end
   | None ->
       Log.error "There is no type for constructor %a" Datacon.p datacon
 ;;
 
-let arity_for_data_type (env: env) (index: index): int =
-  let _, tl = flatten_kind (kind_for_type env index) in
+let arity_for_def (def: type_def): int =
+  let _, tl = flatten_kind (kind_for_def def) in
+  List.length tl
+;;
+
+let arity_for_data_type (env: env) (point: point): int =
+  let _, tl = flatten_kind (kind_for_type env point) in
   List.length tl
 ;;
 
@@ -585,15 +504,22 @@ let flatten_tyapp t =
   flatten_tyapp [] t
 ;;
 
-let bind_datacon_parameters (env: env) (kind: kind): env =
+let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_branch list):
+    env * data_type_def_branch list =
   let _return_kind, params = flatten_kind kind in
+  let arity = List.length params in
   (* Turn the list of parameters into letters *)
   let letters: string list = Hml_Pprint.name_gen (List.length params) in
-  let env = List.fold_left2 (fun env letter kind ->
+  let env, branches = Hml_List.fold_left2i (fun i (env, branches) letter kind ->
     let letter = Variable.register letter in
-    bind_type env letter Fuzzy (Abstract (letter, kind))
-  ) env letters params in
-  env
+    let env, branches =
+      let index = arity - i - 1 in
+      bind_param_at_index_in_data_type_def_branches
+        env letter (Fuzzy i) (Abstract (letter, kind)) index branches
+    in
+    env, branches
+  ) (env, branches) letters params in
+  env, branches
 ;;
 
 
@@ -655,18 +581,19 @@ module TypePrinter = struct
     | TyDynamic ->
         string "dynamic"
 
-    | TyVar index ->
-        string (name_for_type env index)
+    | TyPoint point ->
+        string (name_for_type env point)
 
-    | TyFlexible _ ->
-        string "[flexible]"
+    | TyVar i ->
+        int i
+        (* Log.error "All variables should've been bound at this stage" *)
 
     | TyForall ((name, kind), typ) ->
-        let env = bind_type env name Affine (Abstract (name, kind)) in
+        let env, typ = bind_type_in_type env name Affine (Abstract (name, kind)) typ in
         print_quantified env "∀" name kind typ
 
     | TyExists ((name, kind), typ) ->
-        let env = bind_type env name Affine (Abstract (name, kind)) in
+        let env, typ = bind_type_in_type env name Affine (Abstract (name, kind)) typ in
         print_quantified env "∃" name kind typ
 
     | TyApp (t1, t2) ->
@@ -743,14 +670,14 @@ module TypePrinter = struct
         string "exclusive"
     | Affine ->
         string "affine"
-    | Fuzzy ->
-        string "fuzzy"
+    | Fuzzy i ->
+        string "fuzzy " ^^ int i
   ;;
 
   (* Prints a sequence of characters representing whether each parameter has to
    * be duplicable (x) or not (nothing). *)
-  let print_fact (env, index: env * index): document =
-    do_print_fact (fact_for_type env index);
+  let print_fact (env, point: env * point): document =
+    do_print_fact (fact_for_type env point);
   ;;
 
   let print_facts (env: env): document =
@@ -769,7 +696,7 @@ module TypePrinter = struct
       let params = Hml_Pprint.name_gen arity in
       let is w = is name is_abstract ~params w in
       match fact with
-      | Fuzzy ->
+      | Fuzzy _ ->
           is "fuzzy"
       | Exclusive ->
           is "exclusive"
@@ -792,7 +719,7 @@ module TypePrinter = struct
           end
     in
     let lines =
-      map_down_types env (fun _ { definition; fact; } ->
+      map_types env (fun _ { definition; fact; } ->
         match definition with
         | Concrete (_flag, name, kind, _branches) ->
             let _hd, tl = flatten_kind kind in 
@@ -802,6 +729,8 @@ module TypePrinter = struct
             let _hd, tl = flatten_kind kind in 
             let arity = List.length tl in
             print_fact name true arity fact
+        | Flexible _ ->
+            Log.error "Not implemented yet"
       )
     in
     join hardline lines
@@ -809,7 +738,6 @@ module TypePrinter = struct
 
   let print_permissions (env: env): document =
     let print_permissions permissions: document =
-      let permissions = lift_permissions env permissions in
       let { duplicable; exclusive } = permissions in
       let duplicable = List.map (print_type env) duplicable in
       let exclusive = List.map (print_type env) exclusive in
@@ -823,9 +751,9 @@ module TypePrinter = struct
       let line = String.make (String.length str) '-' in
       (string str) ^^ hardline ^^ (string line)
     in
-    let lines = map_down_exprs env (fun name { point } ->
-      let permissions = PersistentUnionFind.find point env.state in
-      let perms = print_permissions permissions in
+    let lines = map_exprs env (fun names binder ->
+      let name = List.hd names in
+      let perms = print_permissions binder in
       (print_var name) ^^ colon ^^ space ^^ (nest 2 perms)
     ) in
     let lines = join break1 lines in
@@ -838,10 +766,10 @@ module TypePrinter = struct
   ;;
 
   let print_binders (env: env): document =
-    print_string "Γ = " ^^
+    print_string "Γ (unordered) = " ^^
     join
       (semi ^^ space)
-      (map_down env (fun name _ -> print_var name))
+      (map env (fun names _ -> join (string " = ") (List.map print_var names)))
   ;;
 
 

@@ -117,6 +117,18 @@ let fold_left3 f init l1 l2 l3 =
   in
   fold_left3 init l1 l2 l3
 
+let fold_left2i f acc l1 l2 =
+  let rec fold_left2i i acc l1 l2 =
+    match l1, l2 with
+    | hd1 :: tl1, hd2 :: tl2 ->
+        fold_left2i (i + 1) (f i acc hd1 hd2) tl1 tl2
+    | [], [] ->
+        acc
+    | _ ->
+        raise (Invalid_argument "fold_left2i")
+  in
+  fold_left2i 0 acc l1 l2
+
 let fold_lefti f init l =
   let rec fold_lefti i acc = function
     | hd :: tl ->

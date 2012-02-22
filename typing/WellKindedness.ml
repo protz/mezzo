@@ -16,6 +16,67 @@ let karrow bindings kind =
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Printers. *)
+
+module KindPrinter = struct
+
+  open Hml_Pprint
+  open Types
+  open TypePrinter
+
+  (* Prints an abstract data type. Very straightforward. *)
+  let print_abstract_type_def print_env name kind =
+    string "abstract" ^^ space ^^ print_var name ^^ space ^^ ccolon ^^ space ^^
+    print_kind kind
+  ;;
+
+  (* Prints a data type defined in the global scope. Assumes [print_env] has been
+     properly populated. *)
+  let print_data_type_def (env: env) flag name kind branches =
+    let _return_kind, params = flatten_kind kind in
+    (* Turn the list of parameters into letters *)
+    let letters: string list = name_gen (List.length params) in
+    let letters = List.map print_string letters in
+    let env, branches = bind_datacon_parameters env kind branches in
+    let sep = break1 ^^ bar ^^ space in
+    let flag = match flag with
+      | SurfaceSyntax.Exclusive -> string "exclusive" ^^ space
+      | SurfaceSyntax.Duplicable -> empty
+    in
+    (* The whole blurb *)
+    flag ^^ string "data" ^^ space ^^ lparen ^^
+    print_var name ^^ space ^^ ccolon ^^ space ^^
+    print_kind kind ^^ rparen ^^ join_left space letters ^^
+    space ^^ equals ^^
+    jump
+      (ifflat empty (bar ^^ space) ^^
+      join sep (List.map (print_data_type_def_branch env) branches))
+  ;;
+
+  (* This function prints the contents of a [Types.env]. *)
+  let print_kinds env =
+    (* Now we have a pretty-printing environment that's ready, proceed. *)
+    let defs = map_types env (fun _ { definition; _ } ->
+      match definition with
+      | Concrete (flag, name, kind, branches) ->
+          print_data_type_def env flag name kind branches
+      | Abstract (name, kind) ->
+          print_abstract_type_def env name kind
+      | _ ->
+          assert false)
+    in
+    join (break1 ^^ break1) defs
+  ;;
+
+  let print_kinds_and_facts program_env =
+    string "KINDS:" ^^ nest 2 (hardline ^^ print_kinds program_env) ^^ hardline ^^
+    hardline ^^
+    string "FACTS:" ^^ nest 2 (hardline ^^ print_facts program_env) ^^ hardline
+  ;;
+
+end
+(* ---------------------------------------------------------------------------- *)
+
 (* Error messages. *)
 
 let unbound x =
@@ -341,17 +402,9 @@ let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : T.
   (* Collect the names and kinds of the data types that are being
      defined. Check that they are distinct. Extend the environment. *)
   let env, bindings = extend env (collect_data_type_group_tycon group) in
-  let total_number_of_bindings = List.length bindings in
-  (* It's crucial that we fold in the right order, for the binders to be added
-   * in the right order... *)
-  let index = SurfaceSyntax.(function
-    | Abstract (name, _, _, _)
-    | Concrete (_, (name, _), _) -> snd (M.find name env.mapping))
-  in
-  let group = List.sort (fun x y -> index x - index y) group in
   (* Fold over all the type definitions, and enrich the [program_env] with them
    * as we go. *)
-  List.fold_left (fun type_env -> function
+  let type_env, points = List.fold_left (fun (type_env, points) -> function
     | SurfaceSyntax.Concrete (flag, data_type_def_lhs, rhs) ->
         let name, parameters = data_type_def_lhs in
         let arity = List.length parameters in
@@ -359,11 +412,7 @@ let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : T.
          * with the [data_field_def] in De Bruijn, of course. *)
         let rhs = check_data_type_def env (flag, data_type_def_lhs, rhs) in
         let kind, level = M.find name env.mapping in
-        let index = total_number_of_bindings - level - 1 in
-        (* Map all the constructor names to the index of the corresponding type. *)
-        let type_for_datacon = List.fold_left (fun type_for_datacon (name, _) ->
-          DataconMap.add name index type_for_datacon
-        ) type_env.type_for_datacon rhs in  
+        Log.debug ~level:4 "Level %d name %a" level Variable.p name;
         (* The thing is, by default, duplicable; this will probably change later
          * on. *)
         let fact = match flag with
@@ -373,12 +422,17 @@ let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : T.
               Exclusive
         in
         (* Keep the definition as we will need to refer to it later on. *)
-        let type_env =
+        let type_env, point =
           bind_type type_env name fact (Concrete (flag, name, kind, rhs))
         in
-        { type_env with type_for_datacon; toplevel_size = type_env.toplevel_size + 1 }
+        (* Map all the constructor names to the index of the corresponding type. *)
+        let type_for_datacon = List.fold_left (fun type_for_datacon (name, _) ->
+          DataconMap.add name point type_for_datacon
+        ) type_env.type_for_datacon rhs in  
+        { type_env with type_for_datacon }, (level, point) :: points
     | SurfaceSyntax.Abstract (name, params, _return_kind, fact) ->
-        let kind, _level = M.find name env.mapping in
+        let kind, level = M.find name env.mapping in
+        Log.debug ~level:4 "Level %d name %a" level Variable.p name;
         let fact =
           let env =
             List.fold_left (fun env var -> bind env var) env params
@@ -407,69 +461,28 @@ let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : T.
               Duplicable bitmap
         in
         (* Just remember that the type is defined as abstract. *)
-        let type_env = bind_type type_env name fact (Abstract (name, kind)) in
-        { type_env with toplevel_size = type_env.toplevel_size + 1 }
-  ) empty_env group
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Printers. *)
-
-module KindPrinter = struct
-
-  open Hml_Pprint
-  open Types
-  open TypePrinter
-
-  (* Prints an abstract data type. Very straightforward. *)
-  let print_abstract_type_def print_env name kind =
-    string "abstract" ^^ space ^^ print_var name ^^ space ^^ ccolon ^^ space ^^
-    print_kind kind
-  ;;
-
-  (* Prints a data type defined in the global scope. Assumes [print_env] has been
-     properly populated. *)
-  let print_data_type_def env flag name kind branches =
-    let _return_kind, params = flatten_kind kind in
-    (* Turn the list of parameters into letters *)
-    let letters: string list = name_gen (List.length params) in
-    let letters = List.map print_string letters in
-    let env = bind_datacon_parameters env kind in
-    let sep = break1 ^^ bar ^^ space in
-    let flag = match flag with
-      | SurfaceSyntax.Exclusive -> string "exclusive" ^^ space
-      | SurfaceSyntax.Duplicable -> empty
-    in
-    (* The whole blurb *)
-    flag ^^ string "data" ^^ space ^^ lparen ^^
-    print_var name ^^ space ^^ ccolon ^^ space ^^
-    print_kind kind ^^ rparen ^^ join_left space letters ^^
-    space ^^ equals ^^
-    jump
-      (ifflat empty (bar ^^ space) ^^
-      join sep (List.map (print_data_type_def_branch env) branches))
-  ;;
-
-  (* This function prints the contents of a [Types.env]. *)
-  let print_kinds env =
-    Log.affirm (env.toplevel_size = ByIndex.cardinal env.bindings)
-      "This function can only print toplevel environments (size: %d) (toplevel: %d)"
-      (ByIndex.cardinal env.bindings) env.toplevel_size;
-    (* Now we have a pretty-printing environment that's ready, proceed. *)
-    let defs = T.map_down_types env (fun _ { definition; _ } ->
-      match definition with
-      | Concrete (flag, name, kind, branches) ->
-          print_data_type_def env flag name kind branches
-      | Abstract (name, kind) ->
-          print_abstract_type_def env name kind)
-    in
-    join (break1 ^^ break1) defs
-  ;;
-
-  let print_kinds_and_facts program_env =
-    string "KINDS:" ^^ nest 2 (hardline ^^ print_kinds program_env) ^^ hardline ^^
-    hardline ^^
-    string "FACTS:" ^^ nest 2 (hardline ^^ print_facts program_env) ^^ hardline
-  ;;
-
-end
+        let type_env, point = bind_type type_env name fact (Abstract (name, kind)) in
+        type_env, (level, point) :: points
+  ) (empty_env, []) group in
+  Log.debug ~level:5 "Kinds (before substitution):\n%a\n\n---\n" TypePrinter.pdoc (KindPrinter.print_kinds, type_env);
+  (* Now substitute the TyVars for the TyPoints: for all definitions *)
+  let total_number_of_data_types = List.length points in
+  fold_types type_env (fun type_env point names { definition; _ } ->
+    match definition with
+    | Abstract _ ->
+        type_env
+    | Concrete (flag, name, kind, branches) ->
+        let arity = arity_for_def definition in
+        (* Replace each TyVar with the corresponding TyPoint *)
+        let branches = List.fold_left (fun branches (level, point) ->
+          let index = total_number_of_data_types - level - 1 + arity in
+          List.map
+            (subst_data_type_def_branch (TyPoint point) index)
+            branches
+        ) branches points in
+        replace_type type_env point (fun binder ->
+          { binder with definition = Concrete (flag, name, kind, branches) }
+        )
+    | _ ->
+        assert false
+  ) type_env

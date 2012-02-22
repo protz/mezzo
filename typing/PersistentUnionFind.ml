@@ -123,3 +123,11 @@ let union_computed f x y state =
      let store = set ry (Root (f descx descy)) store in
      ref store
 
+
+let iter f state =
+  iter (function Link _ -> () | Root v -> f v) !state
+
+let fold f acc state =
+  fold (fun acc k -> function
+    | Link _ -> acc
+    | Root v -> f acc k v) acc !state

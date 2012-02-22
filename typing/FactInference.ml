@@ -34,16 +34,18 @@ let duplicables
     | TyDynamic ->
         ()
 
-    | TyVar index ->
-        Log.debug ~level:4 "TyVar index=%d" index;
+    | TyVar _ ->
+        Log.error "There should be no free variables here."
+
+    | TyPoint point ->
         begin
-          match fact_for_type env index with
+          match fact_for_type env point with
           | Exclusive | Affine ->
               raise (EAffine t)
           | Duplicable bitmap ->
               if Array.length bitmap != 0 then
                 Log.error "Partial type applications are not allowed"
-          | Fuzzy ->
+          | Fuzzy param_number ->
               (* Only the current type's parameters are marked as fuzzy. *)
               begin
                 match phase with
@@ -51,9 +53,6 @@ let duplicables
                     (* Levels in the interval [n, n + myarity[ are those for the
                      * current type's parameters. *)
                     let my_arity = Array.length my_bitmap in
-                    let param_number =
-                      ByIndex.cardinal env.bindings - index - env.toplevel_size - 1
-                    in
                     Log.debug ~level:4 "↳ marking parameter %d" param_number;
                     Log.affirm (param_number >= 0 && param_number < my_arity)
                       "Marking as duplicable a variable that's not in the right\
@@ -64,31 +63,22 @@ let duplicables
               end
           end
 
-    | TyFlexible _ ->
-      begin
-        match phase with
-        | Elaborating _ ->
-            Log.error "No flexible variables should appear at that stage"
-        | Checking ->
-            raise (NotSupported "I don't know how to analyze flexible variables yet, sorry")
-      end
-
     | TyForall ((name, kind), t)
     | TyExists ((name, kind), t) ->
-        let env = bind_type env name Affine (Abstract (name, kind)) in
+        let env, t = bind_type_in_type env name Affine (Abstract (name, kind)) t in
         duplicables env t
 
     | TyApp _ as t ->
       begin
         let cons, args = flatten_tyapp t in
         match cons with
-        | TyVar index ->
+        | TyPoint point ->
           begin
-            Log.debug ~level:4 "Applying %s (index=%d, bitmap=%a)"
-              (name_for_type env index) index
-              TypePrinter.pdoc (TypePrinter.print_fact, (env, index));
-            match fact_for_type env index with
-            | Fuzzy ->
+            Log.debug ~level:4 "Applying %s (bitmap=%a)"
+              (name_for_type env point)
+              TypePrinter.pdoc (TypePrinter.print_fact, (env, point));
+            match fact_for_type env point with
+            | Fuzzy _ ->
                 Log.error "I messed up my index computations. Oops!";
             | Exclusive | Affine ->
                 raise (EAffine t)
@@ -97,7 +87,7 @@ let duplicables
                   "Arity mismatch, [WellKindedness] should've checked that";
                 (* For each argument of the type application... *)
                 List.iteri (fun i ti ->
-                  (match ti with | TyVar i -> Log.debug ~level:4 "• ti is TyVar %d" i; | _ -> ());
+                  (* (match ti with | TyVar i -> Log.debug ~level:4 "• ti is TyVar %d" i; | _ -> ()); *)
                   (* The type at [level] may request its [i]-th parameter to be
                    * duplicable. *)
                   if cons_bitmap.(i) then begin
@@ -172,30 +162,32 @@ let duplicables
    its type variables should be marked as duplicable for the whole type to be
    duplicable. *)
 let one_round (env: env): env =
-  Log.affirm (env.toplevel_size = ByIndex.cardinal env.bindings) "Huh?";
   TypePrinter.(Log.debug ~level:4 "env:\n  %a" pdoc (print_binders, env));
   (* Folding on all the data types. *)
-  fold_types env (fun index env tname { fact; definition } ->
+  fold_types env (fun env point names { fact; definition } ->
+    let tname = List.hd names in
     (* What knowledge do we have from the previous round? *)
     match definition with
     | Abstract _ ->
         env
     | _ ->
     match fact with
-    | Fuzzy ->
+    | Fuzzy _ ->
         Log.error "I messed up my index computations. Oops!";
     | Exclusive | Affine ->
         (* This fact cannot evolve anymore, pass [env] through. *)
         env
     | Duplicable bitmap ->
-        Log.debug ~level:4 "Attacking %s%s%s %i %a" Bash.colors.Bash.red
-          (name_for_type env index) Bash.colors.Bash.default
-          index Variable.p tname;
+        Log.debug ~level:4 "Attacking %s%s%s %a" Bash.colors.Bash.red
+          (name_for_type env point) Bash.colors.Bash.default
+          Variable.p tname;
         (* [bitmap] is shared! *)
         let phase = Elaborating bitmap in
-        let inner_env = bind_datacon_parameters env (kind_for_type env index) in
+        let branches = branches_for_type env point in
+        let inner_env, branches =
+          bind_datacon_parameters env (kind_for_type env point) branches
+        in
         TypePrinter.(Log.debug ~level:4 "inner_env:\n  %a" pdoc (print_binders, inner_env));
-        let branches = branches_for_type env index in
         try
           (* Iterating on the branches. *)
           List.iter (fun (_label, fields) ->
@@ -211,7 +203,7 @@ let one_round (env: env): env =
           (* Some exception was raised: the type, although initially
            * duplicable, contains a sub-part whose type is [Exclusive] or
            * [Affine], so the whole type need to be affine. *)
-          replace_type env index (fun entry -> { entry with fact = Affine })
+          replace_type env point (fun entry -> { entry with fact = Affine })
   ) env
 ;;
 
@@ -242,10 +234,13 @@ let analyze_data_types (env: env): env =
       | _ as x ->
           x
     in
-    let old_facts = map_down_types env (fun _ { fact; _ } -> copy_fact fact) in
+    (* This comparison works, but seems fragile; more precisely, map_types
+     * offers no guarantee on the order of the elements, and we don't have the
+     * levels anymore at that stage to help us sort the list of facts... *)
+    let old_facts = map_types env (fun _ { fact; _ } -> copy_fact fact) in
     let new_env = one_round env in
-    let new_facts = map_down_types new_env (fun _ { fact; _ } -> copy_fact fact) in
-    Hml_List.iter2i (fun level old_fact new_fact ->
+    let new_facts = map_types new_env (fun _ { fact; _ } -> copy_fact fact) in
+    (* Hml_List.iter2i (fun level old_fact new_fact ->
       let index = ByIndex.cardinal env.bindings - level - 1 in
       Log.debug ~level:3
         "name %s\t index %d bitmap %a\t | bitmap %a"
@@ -253,7 +248,7 @@ let analyze_data_types (env: env): env =
         index
         TypePrinter.pdoc (TypePrinter.do_print_fact, old_fact)
         TypePrinter.pdoc (TypePrinter.do_print_fact, new_fact);
-    ) old_facts new_facts;
+    ) old_facts new_facts; *)
     if new_facts <> old_facts then
       run_to_fixpoint new_env
     else

@@ -22,6 +22,14 @@ val get: location -> 'a store -> 'a
 
 val set: location -> 'a -> 'a store -> 'a store
 
+(* Iterating on all locations. *)
+
+val iter: ('a -> unit) -> 'a store -> unit
+
+(* Folding *)
+
+val fold: ('acc -> location -> 'a -> 'acc) -> 'acc -> 'a store -> 'acc
+
 (* Address comparison. *)
 
 val eq: location -> location -> bool

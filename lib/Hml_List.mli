@@ -29,6 +29,10 @@ val map2i: (int -> 'a -> 'b -> 'c) -> 'a list -> 'b list -> 'c list
    list *)
 val fold_lefti: (int -> 'a -> 'b -> 'a) -> 'a -> 'b list -> 'a
 
+(** Same as [fold_left2] except that the function takes the current index in the
+   list *)
+val fold_left2i: (int -> 'acc -> 'b -> 'c -> 'acc) -> 'acc -> 'b list -> 'c list -> 'acc
+
 (** Same as [fold_left2] but with three lists. *)
 val fold_left3: ('acc -> 't1 -> 't2 -> 't3 -> 'acc) -> 'acc -> 't1 list -> 't2 list -> 't3 list -> 'acc
 

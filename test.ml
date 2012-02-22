@@ -7,26 +7,21 @@ val collect_flexible: typ -> typ
 
 open Types
 
-let index_for_data_type (env: env) (name: string): index =
-  let module T = struct exception Found of index end in
+let point_for_data_type (env: env) (name: string): point =
+  let module T = struct exception Found of point end in
   try
-    ByIndex.iter_upi
-      (fun index ->
-        function
-          | (tname, TypeBinding _) when Variable.print tname = name ->
-            raise (T.Found index)
-          | _ ->
-            ()
-      )
-      env.bindings;
+    fold_types env (fun () point names _binding ->
+      if Variable.print (List.hd names) = name then
+        raise (T.Found point)) ();
     raise Not_found
-  with T.Found index ->
-  index
+  with T.Found point ->
+    point
 ;;
 
 let parse_and_build_types () =
   let ast, _decls = Driver.lex_and_parse "tests/testperm.hml" in
   let env = WellKindedness.(check_data_type_group empty ast) in
+  Log.debug ~level:4 "%a\n" TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds, env);
   let env = FactInference.analyze_data_types env in
   env
 ;;
@@ -37,37 +32,35 @@ let print_env (env: env) =
 ;;
 
 let test_adding_perms (env: env) =
-  (* Add two bindings in the environment *)
-  let int = TyVar (index_for_data_type env "int") in
-  let t1 = TyVar (index_for_data_type env "t1") in
-  let ref = TyVar (index_for_data_type env "ref") in
-  let env = bind_expr env (Variable.register "foo") in
+  (* Since these are global names, they won't change, so we can fetch them right
+   * now. *)
+  let int = TyPoint (point_for_data_type env "int") in
+  let t1 = TyPoint (point_for_data_type env "t1") in
+  let ref = TyPoint (point_for_data_type env "ref") in
+  (* First binding. *)
+  let env, foo = bind_expr env (Variable.register "foo") in
   print_env env;
   (* We add: [foo: ref int] *)
-  let env = Permissions.raw_add env 0 (TyApp (ref, int)) in
+  let env = Permissions.raw_add env foo (TyApp (ref, int)) in
   (* We add: [foo: t1 (ref int)] *)
-  let env = Permissions.raw_add env 0 (TyApp (t1, TyApp (ref, int))) in
+  let env = Permissions.raw_add env foo (TyApp (t1, TyApp (ref, int))) in
   print_env env;
-  (* Re-get the various permissions *)
-  let int = TyVar (index_for_data_type env "int") in
-  let t1 = TyVar (index_for_data_type env "t1") in
-  let ref = TyVar (index_for_data_type env "ref") in
-  ignore ref;
-  let env = bind_expr env (Variable.register "bar") in
+  (* Second binding. *)
+  let env, bar = bind_expr env (Variable.register "bar") in
   (* We add: [bar: t1 int] *)
-  let env = Permissions.raw_add env 0 (TyApp (t1, int)) in
+  let env = Permissions.raw_add env bar (TyApp (t1, int)) in
+  let env = Permissions.raw_add env foo (TyApp (t1, int)) in
   (* Let's see what happens now. *)
   print_env env;
-  (* This should ensure we properly lift the permissions when we call
-   * permissions_for_ident. *)
-  let env = bind_expr env (Variable.register "baz") in
+  (* Third binding. *)
+  let env, _baz = bind_expr env (Variable.register "baz") in
   (* Log.debug "%a\n" TypePrinter.pdoc (TypePrinter.print_binders, env); *)
   print_env env;
 ;;
 
 let _ =
   let open TypePrinter in
-  Log.enable_debug 2;
+  Log.enable_debug 4;
   let env = parse_and_build_types () in
   Log.debug ~level:1 "%a"
     Types.TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds_and_facts, env);

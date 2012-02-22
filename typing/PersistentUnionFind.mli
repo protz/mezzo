@@ -49,3 +49,9 @@ val update: ('a -> 'a) -> point -> 'a state -> 'a state
 
 val union_computed: ('a -> 'a -> 'a) -> point -> point -> 'a state -> 'a state
 
+(* [iter f state] calls [f] with each descriptor present in the union-find. *)
+val iter: ('a -> unit) -> 'a state -> unit
+
+
+(* [fold f acc state] folds over all the descriptors in the union-find. *)
+val fold: ('acc -> point -> 'a -> 'acc) -> 'acc -> 'a state -> 'acc

@@ -18,7 +18,7 @@ data t1 a =
  * permissions. *)
 data t2 a =
   | Foo
-  | Bar { baz: a }
+  | Bar { baz: t1 a }
 
 (* Test: apply length to x: list b and see how it works. *)
 data listops =
