@@ -136,10 +136,18 @@ type env = {
 
   (* This maps global names (i.e. [TyPoint]s) to their corresponding binding. *)
   state: binding PersistentUnionFind.state;
+
+  (* A mark that is used during various traversals of the [state]. *)
+  mark: Mark.t;
 }
 
 and binding =
-  Variable.name list * raw_binding
+  binding_head * raw_binding
+
+and binding_head = {
+  names: Variable.name list;
+  binding_mark: Mark.t;
+}
 
 and raw_binding =
   TypeBinding of type_binder | ExprBinding of expr_binder
@@ -160,6 +168,7 @@ and expr_binder = {
 let empty_env = {
   type_for_datacon = DataconMap.empty;
   state = PersistentUnionFind.init ();
+  mark = Mark.create ();
 }
 
 (* ---------------------------------------------------------------------------- *)
@@ -311,16 +320,23 @@ let subst_data_type_def_branch t2 i branch =
 
 (* Various functions related to binding and finding. *)
 
+let head name =
+  {
+    names = [name];
+    binding_mark = Mark.create ();
+  }
+;;
+
 let bind_expr (env: env) (name: Variable.name):
     env * point =
-  let binding = [name], ExprBinding { duplicable = []; exclusive = [] } in
+  let binding = head name, ExprBinding { duplicable = []; exclusive = [] } in
   let point, state = PersistentUnionFind.create binding env.state in
   { env with state }, point
 ;;
 
 let bind_type (env: env) (name: Variable.name) (fact: fact) (definition: type_def):
     env * point =
-  let binding = [name], TypeBinding { fact; definition } in
+  let binding = head name, TypeBinding { fact; definition } in
   let point, state = PersistentUnionFind.create binding env.state in
   { env with state }, point
 ;;
@@ -354,23 +370,23 @@ let bind_param_at_index_in_data_type_def_branches
 
 let find_type (env: env) (point: point): Variable.name * type_binder =
   match PersistentUnionFind.find point env.state with
-  | names, TypeBinding binding ->
+  | { names; _ }, TypeBinding binding ->
       List.hd names, binding
-  | names, ExprBinding _ ->
+  | { names; _ }, ExprBinding _ ->
       Log.error "Binder is not a type"
 ;;
 
 let find_expr (env: env) (point: point): Variable.name * expr_binder =
   match PersistentUnionFind.find point env.state with
-  | names, ExprBinding binding ->
+  | { names; _ }, ExprBinding binding ->
       List.hd names, binding
-  | name, TypeBinding _ ->
+  | { names; _ }, TypeBinding _ ->
       Log.error "Binder is not an expr"
 ;;
 
 let name_for_binder (env: env) (point: point): string option =
   match PersistentUnionFind.find point env.state with
-  | name :: _, _ ->
+  | { names = name :: _; _ }, _ ->
       Some (Variable.print name)
   | _ ->
       None
@@ -378,9 +394,9 @@ let name_for_binder (env: env) (point: point): string option =
 
 let name_for_expr (env: env) (point: point): string option =
   match PersistentUnionFind.find point env.state with
-  | name :: _, ExprBinding _ ->
+  | { names = name :: _; _ }, ExprBinding _ ->
       Some (Variable.print name)
-  | [], ExprBinding _ ->
+  | { names = []; _ }, ExprBinding _ ->
       None 
   | _, TypeBinding _ ->
       Log.error "Binder is not an expr"
@@ -388,9 +404,9 @@ let name_for_expr (env: env) (point: point): string option =
 
 let name_for_type (env: env) (point: point): string option =
   match PersistentUnionFind.find point env.state with
-  | name :: _, TypeBinding _ ->
+  | { names = name :: _; _ }, TypeBinding _ ->
       Some (Variable.print name)
-  | [], TypeBinding _ ->
+  | { names = []; _ }, TypeBinding _ ->
       None 
   | _, ExprBinding _ ->
       Log.error "Binder is not a type"
@@ -414,7 +430,7 @@ let map_types env f =
     (List.rev
       (PersistentUnionFind.fold
         (fun acc _k -> function
-          | (names, TypeBinding b) -> Some (f names b) :: acc
+          | ({ names; _ }, TypeBinding b) -> Some (f names b) :: acc
           | _ -> None :: acc)
         [] env.state))
 ;;
@@ -424,7 +440,7 @@ let map_exprs env f =
     (List.rev
       (PersistentUnionFind.fold
         (fun acc _k -> function
-          | (names, ExprBinding b) -> Some (f names b) :: acc
+          | ({ names; _ }, ExprBinding b) -> Some (f names b) :: acc
           | _ -> None :: acc)
         [] env.state))
 ;;
@@ -432,7 +448,7 @@ let map_exprs env f =
 let map env f =
   List.rev
     (PersistentUnionFind.fold
-      (fun acc _k (names, binding) -> f names binding :: acc)
+      (fun acc _k ({ names; _ }, binding) -> f names binding :: acc)
       [] env.state)
 ;;
 
@@ -443,7 +459,7 @@ let fold env f acc =
 ;;
 
 let fold_types env f acc =
-  PersistentUnionFind.fold (fun acc k (names, binding) ->
+  PersistentUnionFind.fold (fun acc k ({ names; _ }, binding) ->
     match binding with TypeBinding b -> f acc k names b | _ -> acc)
   acc env.state
 ;;
@@ -468,6 +484,25 @@ let replace_type env point f =
             Log.error "Not a type"
       ) point env.state
   }
+;;
+
+(* Various convenience getters and setters. *)
+
+let get_mark (env: env) (point: point): Mark.t =
+  let { binding_mark; _ }, _ = PersistentUnionFind.find point env.state in
+  binding_mark
+;;
+
+let set_mark (env: env) (point: point) (binding_mark: Mark.t): env =
+  { env with state =
+      PersistentUnionFind.update (fun (head, binding) ->
+        { head with binding_mark }, binding
+      ) point env.state
+  }
+;;
+
+let refresh_mark (env: env): env =
+  { env with mark = Mark.create () }
 ;;
 
 let permissions_for_ident (env: env) (point: point): expr_binder =

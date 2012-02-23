@@ -30,4 +30,7 @@ data listops =
     length: [a] list a -> int;
     concat: [a] (consumes l1: list a, consumes l2: list a) -> (l3: list a)
   }
+
+(* Test: make sure we don't unfold this infinitely. *)
+data loop a = Loop { loop: loop a }
  

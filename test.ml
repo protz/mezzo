@@ -62,9 +62,10 @@ let test_adding_perms (env: env) =
   print_env env;
 ;;
 
-let test_expansion (env: env) =
-  let env, foo = bind_expr env (Variable.register "foo") in
+let test_unfolding (env: env) =
+  (* Some wrappers for easily building types by hand. *)
   let list x = TyApp (find_point env "list", x) in
+  let loop x = TyApp (find_point env "loop", x) in
   let t1 x = TyApp (find_point env "t1", x) in
   let int = find_point env "int" in
   let cons (head, tail) =
@@ -75,14 +76,28 @@ let test_expansion (env: env) =
   let nil =
     TyConcreteUnfolded (Datacon.register "Nil", [])
   in
+  let tuple l = TyTuple (List.map (fun x -> TyTupleComponentValue x) l) in
   let points_to x = TySingleton (TyPoint x) in
+  (* Make sure the unfolding is properly performed. *)
+  let env, foo = bind_expr env (Variable.register "foo") in
   let t = cons (int, list int) in
   let env = Permissions.add env foo t in
   print_env env;
+  (* Make sure data types with one branch are unfolded. *)
   let env, bar = bind_expr env (Variable.register "bar") in
   let env = Permissions.add env bar (t1 nil) in
+  (* Make sure we don't introduce extra indirections when the field is already a
+   * singleton. *)
   let env, baz = bind_expr env (Variable.register "baz") in
   let env = Permissions.add env baz (t1 (points_to foo)) in
+  print_env env;
+  (* Make sure the mechanism works for tuples as well. *)
+  let env, toto = bind_expr env (Variable.register "toto") in
+  let env = Permissions.add env toto (tuple [int; list int; points_to foo]) in
+  print_env env;
+  (* Make sure we don't end up in an infinite loop here. *)
+  let env, ananas = bind_expr env (Variable.register "ananas") in
+  let env = Permissions.add env ananas (loop int) in
   print_env env;
 ;;
 
@@ -97,5 +112,5 @@ let _ =
   print_newline ();
   (* Test various features. *)
   test_adding_perms env;
-  test_expansion env;
+  test_unfolding env;
 ;;
