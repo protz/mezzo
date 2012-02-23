@@ -32,5 +32,5 @@ data listops =
   }
 
 (* Test: make sure we don't unfold this infinitely. *)
-data loop a = Loop { loop: loop a }
+(* data loop a = Loop { loop: loop a } *)
  

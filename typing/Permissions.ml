@@ -34,7 +34,7 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
          * TERM type variable. *)
         let env, p = bind_expr env (Variable.register hint) in
         (* This will take care of unfolding where necessary. *)
-        let env = add_no_refresh env p t in
+        let env = add env p t in
         env, TySingleton (TyPoint p)
 
   and unfold (env: env) ?(hint: string option) (t: typ): env * typ =
@@ -75,18 +75,14 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
           begin
             match branches_for_type env p with
             | Some [branch] ->
-                if Mark.equals env.mark (get_mark env p) then
-                  env, t
-                else
-                  let env = set_mark env p env.mark in
-                  (* Reversing so that the i-th element in the list has De Bruijn
-                   * index i in the data type def. *)
-                  let args = List.rev args in
-                  let branch = Hml_List.fold_lefti (fun i branch arg ->
-                    subst_data_type_def_branch arg i branch) branch args
-                  in
-                  let t = TyConcreteUnfolded branch in
-                  unfold env ~hint t
+                (* Reversing so that the i-th element in the list has De Bruijn
+                 * index i in the data type def. *)
+                let args = List.rev args in
+                let branch = Hml_List.fold_lefti (fun i branch arg ->
+                  subst_data_type_def_branch arg i branch) branch args
+                in
+                let t = TyConcreteUnfolded branch in
+                unfold env ~hint t
             | _ ->
               env, t
           end
@@ -129,15 +125,10 @@ and refine_type (env: env) (t1: typ) (t2: typ): typ option =
 and refine (env: env) (point: point) (t: typ): env =
   assert false
 
-and add_no_refresh (env: env) (point: point) (t: typ): env =
+(* [add env point t] adds [t] to the list of permissions for [p], performing all
+ * the necessary legwork. *)
+and add (env: env) (point: point) (t: typ): env =
   let hint = name_for_expr env point in
   let env, t = unfold env ?hint t in
   raw_add env point t
-;;
-
-(* [add env point t] adds [t] to the list of permissions for [p], performing all
- * the necessary legwork. *)
-let add (env: env) (point: point) (t: typ): env =
-  let env = refresh_mark env in
-  add_no_refresh env point t
 ;;
