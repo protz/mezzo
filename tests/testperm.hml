@@ -13,6 +13,8 @@ data list a =
 abstract foobar (a :: TYPE) (b :: TYPE) (c :: TYPE) :: TYPE
 fact duplicable (c) => duplicable (foobar a b c)
 
+data pair a b = Pair { left: a; right: b }
+
 (* Test: adding a permission x: t α should result in it being expanded at once.
  * *)
 data t1 a =

@@ -2,11 +2,6 @@
 
 open Types
 
-(* [raw_add env p t] adds [t] to the list of permissions for [p]. *)
-let raw_add (env: env) (point: point) (t: typ): env =
-  replace_expr env point (fun binder -> { (* binder with *) permissions = t :: binder.permissions })
-;;
-
 let fresh_name prefix =
   let counter = ref 0 in
   let n = string_of_int !counter in
@@ -14,7 +9,7 @@ let fresh_name prefix =
   prefix ^ n
 ;;
 
-type refined_type = Two of typ * typ | One of typ
+type refined_type = Both | One of typ
 
 exception Inconsistent
 
@@ -138,7 +133,7 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
   let f1 = FactInference.analyze_type env t1 in
   let f2 = FactInference.analyze_type env t2 in
   TypePrinter.(
-    Log.debug "Refinement: %a, %a" pdoc (do_print_fact, f1) pdoc (do_print_fact, f2)
+    Log.debug ~level:4 "Refinement: %a, %a" pdoc (do_print_fact, f1) pdoc (do_print_fact, f2)
   );
   try
 
@@ -166,7 +161,8 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
         begin match def cons1, def cons2 with
         | (p1, Concrete _), (p2, Concrete _) ->
             if same env p1 p2 then
-              (* TEMPORARY unify arguments here or at least check they're equal ? *)
+              (* Nothing we can say about the arguments here. This could very
+               * well be a data type that does not use its arguments. *)
               env, One t1
             else
               raise Inconsistent
@@ -174,7 +170,7 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
         | (_, Abstract _), _
         | _, (_, Abstract _) ->
             (* There's nothing we can say here. The [Abstract] could hide anything, even [TyUnknown]. *)
-            env, Two (t1, t2)
+            env, Both
 
         | _ ->
             Log.error "Huh? Flexible?"
@@ -257,7 +253,8 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
         Log.error "We can only refine types that have kind TYPE."
 
     | _ ->
-        Log.error "Not implemented yet."
+        (* If there's nothing we can say, keep both. *)
+        env, Both
 
   with Inconsistent ->
 
@@ -268,20 +265,42 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
     (* We could possibly be smarter here, and mark the entire permission soup as
      * being inconsistent. This would allow us to implement some sort of
      * [absurd] construct that asserts that the program point is not reachable. *)
-    env, Two (t1, t2)
+    env, Both
 
-and refine (env: env) (point: point) (t: typ): env =
-  ignore (env, point, t);
-  assert false
 
+(* [refine env p t] adds [t] to the list of available permissions for [p],
+ * possibly by refining some of these permissions into more precise ones. *)
+and refine (env: env) (point: point) (t': typ): env =
+  let { permissions } = permissions_for_ident env point in
+  let rec refine_list (env, acc) t' = function
+    | t :: ts ->
+        let env, r = refine_type env t t' in
+        begin match r with
+        | Both ->
+            refine_list (env, (t :: acc)) t' ts
+        | One t' ->
+            refine_list (env, acc) t' ts
+        end
+    | [] ->
+        env, t' :: acc
+  in
+  let env, permissions = refine_list (env, []) t' permissions in
+  replace_expr env point (fun _ -> { permissions })
+
+
+(* [unify env p1 p2] merges two points, and takes care of dealing with how the
+ * permissions should be merged. *)
 and unify (env: env) (p1: point) (p2: point): env =
-  ignore (env, p1, p2);
-  assert false
+  let env =
+    List.fold_left (fun env t -> refine env p1 t) env (permissions_for_ident env p2).permissions
+  in
+  merge_left env p1 p2
+
 
 (* [add env point t] adds [t] to the list of permissions for [p], performing all
  * the necessary legwork. *)
 and add (env: env) (point: point) (t: typ): env =
   let hint = name_for_expr env point in
   let env, t = unfold env ?hint t in
-  raw_add env point t
+  refine env point t
 ;;

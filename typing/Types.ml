@@ -170,9 +170,78 @@ let empty_env = {
   mark = Mark.create ();
 }
 
+(* Dealing with the union-find nature of the environment. *)
+let same env p1 p2 =
+  PersistentUnionFind.same p1 p2 env.state
+;;
+
+(* Merge while keeping the descriptor of the leftmost argument. *)
+let merge_left env p2 p1 =
+  { env with state = PersistentUnionFind.union p1 p2 env.state }
+;;
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Fun with de Bruijn indices. *)
+
+let equal env (t1: typ) (t2: typ) =
+  let rec equal (t1: typ) (t2: typ) =
+    match t1, t2 with
+      (* Special type constants. *)
+    | TyUnknown, TyUnknown
+    | TyDynamic, TyDynamic ->
+        true
+
+    | TyVar i, TyVar i' ->
+        i = i'
+
+    | TyPoint p1, TyPoint p2 ->
+        same env p1 p2
+
+    | TyExists ((_, k1), t1), TyExists ((_, k2), t2)
+    | TyForall ((_, k1), t1), TyForall ((_, k2), t2) ->
+        k1 = k2 && equal t1 t2
+
+    | TyArrow (t2, t'2), TyArrow (t2, t'2) ->
+    | TyApp (t1, t'1), TyApp (t2, t'2)  ->
+        equal t1 t2 && equal t'1 t'2
+
+    | TyTuple ts1, TyTuple ts2 ->
+        List.fold_left (fun acc t1 t2 ->
+          match t1, t2 with
+          | TyTupleComponentValue t1, TyTupleComponentValue t2 ->
+          | TyTupleComponentPermission t1, TyTupleComponentPermission t2 ->
+              acc && equal t1 t2
+          | _ ->
+              false) true ts1 ts2
+
+    | TyConcreteUnfolded (name1, fields1), TyConcreteUnfolded (name2, fields2) ->
+        Datacon.equal name1 name2 &&
+        List.fold_left2 (fun acc f1 f2 ->
+          match f1, f2 with
+          | FieldValue (f1, t1), FieldValue (f2, t2) ->
+              acc && Field.equal f1 f2 && equal t1 t2
+          | FieldPermission t1, FieldPermission t2 ->
+              acc && equal t1 t2
+          | _ ->
+              false) true fields1 fields2
+
+    | TySingleton t1, TySingleton t2 ->
+        equal t1 t2
+
+
+    | TyStar (p1, q1), TyStar (p2, q2)
+    | TyAnchoredPermission (p1, q1), TyAnchoredPermission (p2, q2) ->
+        equal p1 p2 && equal q1 q2
+
+    | TyEmpty, TyEmpty ->
+        true
+
+    | _ ->
+        false
+  in
+  equal t1 t2
+;;
 
 let lift (k: int) (t: typ) =
   let rec lift (i: int) (t: typ) =
@@ -491,11 +560,6 @@ let replace_type env point f =
             Log.error "Not a type"
       ) point env.state
   }
-;;
-
-(* Dealing with the union-find nature of the environment. *)
-let same env p1 p2 =
-  PersistentUnionFind.same p1 p2 env.state
 ;;
 
 (* Dealing with marks. *)

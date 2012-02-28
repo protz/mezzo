@@ -45,15 +45,15 @@ let test_adding_perms (env: env) =
   let env, foo = bind_expr env (Variable.register "foo") in
   print_env env;
   (* We add: [foo: ref int] *)
-  let env = Permissions.raw_add env foo (TyApp (ref, int)) in
+  let env = Permissions.add env foo (TyApp (ref, int)) in
   (* We add: [foo: t1 (ref int)] *)
-  let env = Permissions.raw_add env foo (TyApp (t1, TyApp (ref, int))) in
+  let env = Permissions.add env foo (TyApp (t1, TyApp (ref, int))) in
   print_env env;
   (* Second binding. *)
   let env, bar = bind_expr env (Variable.register "bar") in
   (* We add: [bar: t1 int] *)
-  let env = Permissions.raw_add env bar (TyApp (t1, int)) in
-  let env = Permissions.raw_add env foo (TyApp (t1, int)) in
+  let env = Permissions.add env bar (TyApp (t1, int)) in
+  let env = Permissions.add env foo (TyApp (t1, int)) in
   (* Let's see what happens now. *)
   print_env env;
   (* Third binding. *)
@@ -104,6 +104,7 @@ let test_unfolding (env: env) =
 
 let test_refinement (env: env) =
   (* Some wrappers for easily building types by hand. *)
+  let pair (x, y) = TyApp (TyApp (find_point env "pair", x), y) in
   let list x = TyApp (find_point env "list", x) in
   let ref x = TyApp (find_point env "ref", x) in
   let t1 x = TyApp (find_point env "t1", x) in
@@ -123,14 +124,15 @@ let test_refinement (env: env) =
   let env = match Permissions.refine_type env nil (list int) with
     | env, Permissions.One t ->
         Permissions.add env foo t
-    | _, Permissions.Two _ ->
+    | _, Permissions.Both ->
         Log.error "This permissions should be refined into just one"
   in
   print_env env;
   (* This should print out that an inconsistency was detected. *)
   let env, unreachable = bind_expr env (Variable.register "unreachable") in
-  let env = match Permissions.refine_type env (ref int) (ref (ref int)) with
-    | env, Permissions.Two (t, t') ->
+  let t = ref int and t' = ref (ref int) in
+  let env = match Permissions.refine_type env t t' with
+    | env, Permissions.Both ->
         let env = Permissions.add env unreachable t in
         let env = Permissions.add env unreachable t' in
         env
@@ -138,12 +140,19 @@ let test_refinement (env: env) =
         Log.error "These two permissions are mutually exclusive"
   in
   print_env env;
-
+  (* More elaborate. *)
+  let env, bar = bind_expr env (Variable.register "bar") in
+  let env, l = bind_expr env (Variable.register "l") in
+  let env, r = bind_expr env (Variable.register "r") in
+  let env = Permissions.add env bar (pair (points_to l, points_to r)) in
+  print_env env;
+  let env = Permissions.refine env bar (pair (int, int)) in
+  print_env env;
 ;;
 
 let _ =
   let open TypePrinter in
-  Log.enable_debug 4;
+  Log.enable_debug 3;
   let env = parse_and_build_types () in
   (* Check that the kinds and facts we've built are correct. *)
   Log.debug ~level:1 "%a"
