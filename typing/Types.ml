@@ -160,8 +160,7 @@ and type_binder = {
 }
 
 and expr_binder = {
-  duplicable: typ list;
-  exclusive: typ list;
+  permissions: typ list;
 }
 
 (* The empty environment. *)
@@ -315,6 +314,14 @@ let subst_data_type_def_branch t2 i branch =
   name, List.map (subst_field t2 i) fields
 ;;
 
+let instantiate_branch branch args =
+  let args = List.rev args in
+  let branch = Hml_List.fold_lefti (fun i branch arg ->
+    subst_data_type_def_branch arg i branch) branch args
+  in
+  branch
+;;
+
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -329,7 +336,7 @@ let head name =
 
 let bind_expr (env: env) (name: Variable.name):
     env * point =
-  let binding = head name, ExprBinding { duplicable = []; exclusive = [] } in
+  let binding = head name, ExprBinding { permissions = []; } in
   let point, state = PersistentUnionFind.create binding env.state in
   { env with state }, point
 ;;
@@ -372,7 +379,7 @@ let find_type (env: env) (point: point): Variable.name * type_binder =
   match PersistentUnionFind.find point env.state with
   | { names; _ }, TypeBinding binding ->
       List.hd names, binding
-  | { names; _ }, ExprBinding _ ->
+  | _, ExprBinding _ ->
       Log.error "Binder is not a type"
 ;;
 
@@ -380,7 +387,7 @@ let find_expr (env: env) (point: point): Variable.name * expr_binder =
   match PersistentUnionFind.find point env.state with
   | { names; _ }, ExprBinding binding ->
       List.hd names, binding
-  | { names; _ }, TypeBinding _ ->
+  | _, TypeBinding _ ->
       Log.error "Binder is not an expr"
 ;;
 
@@ -486,7 +493,12 @@ let replace_type env point f =
   }
 ;;
 
-(* Various convenience getters and setters. *)
+(* Dealing with the union-find nature of the environment. *)
+let same env p1 p2 =
+  PersistentUnionFind.same p1 p2 env.state
+;;
+
+(* Dealing with marks. *)
 
 let get_mark (env: env) (point: point): Mark.t =
   let { binding_mark; _ }, _ = PersistentUnionFind.find point env.state in
@@ -504,6 +516,8 @@ let set_mark (env: env) (point: point) (binding_mark: Mark.t): env =
 let refresh_mark (env: env): env =
   { env with mark = Mark.create () }
 ;;
+
+(* The utility functions below should save us the hassle of matching. *)
 
 let permissions_for_ident (env: env) (point: point): expr_binder =
   snd (find_expr env point)
@@ -536,17 +550,35 @@ let kind_for_type (env: env) (point: point): kind =
   kind_for_def definition
 ;;
 
+let def_for_type (env: env) (point: point): type_def =
+  (snd (find_type env point)).definition
+;;
+
 let def_for_datacon (env: env) (datacon: Datacon.name): data_type_def =
   match DataconMap.find_opt datacon env.type_for_datacon with
   | Some point ->
-      begin match snd (find_type env point) with
-      | { definition = Concrete def; _ } ->
+      begin match def_for_type env point with
+      | Concrete def ->
           def
       | _ ->
           assert false
       end
   | None ->
       Log.error "There is no type for constructor %a" Datacon.p datacon
+;;
+
+let is_abstract (env: env) (point: point): bool =
+  match def_for_type env point with
+  | Abstract _ ->
+      true
+  | _ -> false
+;;
+
+let is_concrete (env: env) (point: point): bool =
+  match def_for_type env point with
+  | Concrete _ ->
+      true
+  | _ -> false
 ;;
 
 let arity_for_def (def: type_def): int =
@@ -728,9 +760,11 @@ module TypePrinter = struct
   let do_print_fact (fact: fact): document =
     match fact with
     | Duplicable bitmap ->
+        lbracket ^^
         join
           empty
-          ((List.map (fun b -> if b then string "x" else string "-")) (Array.to_list bitmap))
+          ((List.map (fun b -> if b then string "x" else string "-")) (Array.to_list bitmap)) ^^
+        rbracket
     | Exclusive ->
         string "exclusive"
     | Affine ->
@@ -802,14 +836,12 @@ module TypePrinter = struct
   ;;
 
   let print_permissions (env: env): document =
-    let print_permissions permissions: document =
-      let { duplicable; exclusive } = permissions in
-      let duplicable = List.map (print_type env) duplicable in
-      let exclusive = List.map (print_type env) exclusive in
-      let exclusive = List.map
+    let print_permissions { permissions }: document =
+      let permissions = List.map (print_type env) permissions in
+      (*let exclusive = List.map
         (fun doc -> colors.underline ^^ doc ^^ colors.default) exclusive
-      in
-      join (comma ^^ space) (duplicable @ exclusive)
+      in*)
+      join (comma ^^ space) permissions
     in
     let header =
       let str = "PERMISSIONS:" in
@@ -828,6 +860,10 @@ module TypePrinter = struct
   (* Example: Log.debug "%a" pdoc (f, args) *)
   let pdoc (buf: Buffer.t) (f, env: ('env -> document) * 'env): unit =
     PpBuffer.pretty 1.0 Bash.twidth buf (f env)
+  ;;
+
+  let ptype (env, t) =
+    print_type env t
   ;;
 
   let print_binders (env: env): document =

@@ -40,7 +40,9 @@ let duplicables
     | TyPoint point ->
         begin
           match fact_for_type env point with
-          | Exclusive | Affine ->
+          | Exclusive ->
+              raise (EExclusive t)
+          | Affine ->
               raise (EAffine t)
           | Duplicable bitmap ->
               if Array.length bitmap != 0 then
@@ -80,7 +82,9 @@ let duplicables
             match fact_for_type env point with
             | Fuzzy _ ->
                 Log.error "I messed up my index computations. Oops!";
-            | Exclusive | Affine ->
+            | Exclusive ->
+                raise (EExclusive t)
+            | Affine ->
                 raise (EAffine t)
             | Duplicable cons_bitmap ->
                 Log.affirm (List.length args = Array.length cons_bitmap)
@@ -212,7 +216,7 @@ let analyze_type (env: env) (t: typ): fact =
     duplicables env Checking t;
     Duplicable [||]
   with
-  | EExclusive t' when t = t' ->
+  | EExclusive t' when t == t' ->
       Exclusive
   | EExclusive _
   | EAffine _ ->

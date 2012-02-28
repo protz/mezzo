@@ -4,11 +4,7 @@ open Types
 
 (* [raw_add env p t] adds [t] to the list of permissions for [p]. *)
 let raw_add (env: env) (point: point) (t: typ): env =
-  match FactInference.analyze_type env t with
-  | Duplicable _ ->
-      replace_expr env point (fun binder -> { binder with duplicable = t :: binder.duplicable })
-  | _ ->
-      replace_expr env point (fun binder -> { binder with exclusive = t :: binder.exclusive })
+  replace_expr env point (fun binder -> { (* binder with *) permissions = t :: binder.permissions })
 ;;
 
 let fresh_name prefix =
@@ -18,6 +14,9 @@ let fresh_name prefix =
   prefix ^ n
 ;;
 
+type refined_type = Two of typ * typ | One of typ
+
+exception Inconsistent
 
 (* [unfold env t] returns [env, t] where [t] has been unfolded, which
  * potentially led us into adding new points to [env]. *)
@@ -75,12 +74,7 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
           begin
             match branches_for_type env p with
             | Some [branch] ->
-                (* Reversing so that the i-th element in the list has De Bruijn
-                 * index i in the data type def. *)
-                let args = List.rev args in
-                let branch = Hml_List.fold_lefti (fun i branch arg ->
-                  subst_data_type_def_branch arg i branch) branch args
-                in
+                let branch = instantiate_branch branch args in
                 let t = TyConcreteUnfolded branch in
                 unfold env ~hint t
             | _ ->
@@ -119,10 +113,169 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
   in
   unfold env ?hint t
 
-and refine_type (env: env) (t1: typ) (t2: typ): typ option =
-  assert false
+(* [refine_type env t1 t2] tries, given [t1], to turn it into something more
+ * precise using [t2]. It returns [Both] if both types are to be kept, or [One
+ * t3] if [t1] and [t2] can be combined into a more precise [t3]. *)
+and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
+  (* Save us the trouble of matching all the time. *)
+  let (!!) = function TyPoint x -> x | _ -> assert false in
+
+  (* TEMPORARY find a better name for that function; what it means is « someone else can view this
+   * type » *)
+  let views t =
+    match t with
+    | TyApp _ ->
+        let cons, _ = flatten_tyapp t in
+        is_concrete env !!cons
+    | TyConcreteUnfolded _
+    | TyArrow _
+    | TyTuple _ ->
+        true
+    | _ ->
+        false
+  in
+
+  let f1 = FactInference.analyze_type env t1 in
+  let f2 = FactInference.analyze_type env t2 in
+  TypePrinter.(
+    Log.debug "Refinement: %a, %a" pdoc (do_print_fact, f1) pdoc (do_print_fact, f2)
+  );
+  try
+
+    (* Having two exclusive permissions on the same point means we're duplicating an *exclusive*
+     * access right to the heap. *)
+    if f1 = Exclusive && f2 = Exclusive then
+      raise Inconsistent;
+
+    (* Exclusive means we're the only one « seeing » this type; if someone else can see the type,
+     * we're inconsistent too. Having [t1] exclusive and [t2 = TyAbstract] is not a problem: [t2]
+     * could be a hidden [TyDynamic], for instance. *)
+    if f1 = Exclusive && views t2 || f2 = Exclusive && views t1 then
+      raise Inconsistent;
+
+    match t1, t2 with
+    | TyApp _, TyApp _ ->
+        (* Type applications. This covers the following cases:
+           - abstract vs abstract
+           - concrete vs concrete (NOT unfolded)
+           - concrete vs abstract *)
+        let cons1, _args1 = flatten_tyapp t1 in
+        let cons2, _args2 = flatten_tyapp t2 in
+
+        let def p = !!p, def_for_type env !!p in
+        begin match def cons1, def cons2 with
+        | (p1, Concrete _), (p2, Concrete _) ->
+            if same env p1 p2 then
+              (* TEMPORARY unify arguments here or at least check they're equal ? *)
+              env, One t1
+            else
+              raise Inconsistent
+
+        | (_, Abstract _), _
+        | _, (_, Abstract _) ->
+            (* There's nothing we can say here. The [Abstract] could hide anything, even [TyUnknown]. *)
+            env, Two (t1, t2)
+
+        | _ ->
+            Log.error "Huh? Flexible?"
+        end
+
+    | TyConcreteUnfolded branch as t, other
+    | other, (TyConcreteUnfolded branch as t) ->
+        (* Unfolded concrete types. This covers:
+           - unfolded vs unfolded,
+           - unfolded vs nominal. *)
+        begin match other with
+        | TyConcreteUnfolded branch' ->
+            (* Unfolded vs unfolded *)
+            let datacon, fields = branch in
+            let datacon', fields' = branch' in
+
+            if Datacon.equal datacon datacon' then
+              (* The names are equal. Both types are unfolded, so recursively unify their fields. *)
+              let env = List.fold_left2 (fun env f1 f2 ->
+                match f1, f2 with
+                | FieldValue (name1, t1), FieldValue (name2, t2) ->
+                    (* I don't think this should raise en error, but to be on the safe side, we
+                     * could sort fields beforehand. *)
+                    if not (Field.equal name1 name2) then
+                      Log.error "Fields are not in the same order, FIXME";
+
+                    (* [unify] is responsible for performing the entire job. *)
+                    begin match t1, t2 with
+                    | TySingleton (TyPoint p1), TySingleton (TyPoint p2) ->
+                        unify env p1 p2
+                    | _ ->
+                        Log.error "Not supported"
+                    end
+
+                | _ ->
+                    Log.error "Not supported"
+              ) env fields fields' in
+              env, One t1
+
+            else
+              raise Inconsistent
+
+        | TyApp _ ->
+            (* Unfolded vs nominal, we transform this into unfolded vs unfolded. *)
+            let cons, args = flatten_tyapp other in
+            let datacon, _ = branch in
+
+            if same env (DataconMap.find datacon env.type_for_datacon) !!cons then
+              let branches' = Option.extract (branches_for_type env !!cons) in
+              let branch' =
+                List.find
+                  (fun (datacon', _) -> Datacon.equal datacon datacon')
+                  branches'
+              in
+              let branch' = instantiate_branch branch' args in
+              let env, t' = unfold env (TyConcreteUnfolded branch') in
+              refine_type env t t'
+
+            else
+              raise Inconsistent
+
+        | _ ->
+            raise Inconsistent
+
+        end
+
+    | TyForall _, _
+    | _, TyForall _
+    | TyExists _, _
+    | _, TyExists _ ->
+        Log.error "Don't know how to refine in the presence of quantifiers. We should think\
+          about it hard."
+
+    | TyAnchoredPermission _, _
+    | _, TyAnchoredPermission _
+    | TyEmpty, _
+    | _, TyEmpty
+    | TyStar _, _
+    | _, TyStar _ ->
+        Log.error "We can only refine types that have kind TYPE."
+
+    | _ ->
+        Log.error "Not implemented yet."
+
+  with Inconsistent ->
+
+    let open TypePrinter in
+    Log.debug ~level:4 "Inconsistency detected %a cannot coexist with %a"
+      pdoc (ptype, (env, t1)) pdoc (ptype, (env, t2));
+
+    (* We could possibly be smarter here, and mark the entire permission soup as
+     * being inconsistent. This would allow us to implement some sort of
+     * [absurd] construct that asserts that the program point is not reachable. *)
+    env, Two (t1, t2)
 
 and refine (env: env) (point: point) (t: typ): env =
+  ignore (env, point, t);
+  assert false
+
+and unify (env: env) (p1: point) (p2: point): env =
+  ignore (env, p1, p2);
   assert false
 
 (* [add env point t] adds [t] to the list of permissions for [p], performing all

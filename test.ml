@@ -92,7 +92,7 @@ let test_unfolding (env: env) =
   print_env env;
   (* Make sure the mechanism works for tuples as well. *)
   let env, toto = bind_expr env (Variable.register "toto") in
-  let env = Permissions.add env toto (tuple [int; list int; points_to foo]) in
+  let env = Permissions.add env toto (tuple [int; list int; points_to toto]) in
   print_env env;
   (* The two lines below throw [Permissions] into an infinite loop. Making sure
    * we don't loop is non-trivial, see notes from 2012/02/23. *)
@@ -102,9 +102,48 @@ let test_unfolding (env: env) =
   print_env env; *)
 ;;
 
+let test_refinement (env: env) =
+  (* Some wrappers for easily building types by hand. *)
+  let list x = TyApp (find_point env "list", x) in
+  let ref x = TyApp (find_point env "ref", x) in
+  let t1 x = TyApp (find_point env "t1", x) in
+  let int = find_point env "int" in
+  let cons (head, tail) =
+    TyConcreteUnfolded (Datacon.register "Cons",
+      [FieldValue (Field.register "head", head);
+       FieldValue (Field.register "tail", tail)])
+  in
+  let nil =
+    TyConcreteUnfolded (Datacon.register "Nil", [])
+  in
+  let tuple l = TyTuple (List.map (fun x -> TyTupleComponentValue x) l) in
+  let points_to x = TySingleton (TyPoint x) in
+  (* Make sure the unfolding is properly performed. *)
+  let env, foo = bind_expr env (Variable.register "foo") in
+  let env = match Permissions.refine_type env nil (list int) with
+    | env, Permissions.One t ->
+        Permissions.add env foo t
+    | _, Permissions.Two _ ->
+        Log.error "This permissions should be refined into just one"
+  in
+  print_env env;
+  (* This should print out that an inconsistency was detected. *)
+  let env, unreachable = bind_expr env (Variable.register "unreachable") in
+  let env = match Permissions.refine_type env (ref int) (ref (ref int)) with
+    | env, Permissions.Two (t, t') ->
+        let env = Permissions.add env unreachable t in
+        let env = Permissions.add env unreachable t' in
+        env
+    | _, Permissions.One _ ->
+        Log.error "These two permissions are mutually exclusive"
+  in
+  print_env env;
+
+;;
+
 let _ =
   let open TypePrinter in
-  Log.enable_debug 3;
+  Log.enable_debug 4;
   let env = parse_and_build_types () in
   (* Check that the kinds and facts we've built are correct. *)
   Log.debug ~level:1 "%a"
@@ -114,4 +153,5 @@ let _ =
   (* Test various features. *)
   test_adding_perms env;
   test_unfolding env;
+  test_refinement env;
 ;;
