@@ -149,6 +149,8 @@ let test_refinement (env: env) =
   let env = Permissions.refine env bar (pair (int, int)) in
   let env = Permissions.refine env bar (pair (int, int)) in
   print_env env;
+  let env = Permissions.unify env l r in
+  print_env env;
 ;;
 
 let _ =

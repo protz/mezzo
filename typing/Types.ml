@@ -8,9 +8,6 @@
 type index =
   int
 
-type level =
-  int
-
 type point =
   PersistentUnionFind.point
 
