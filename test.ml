@@ -147,6 +147,7 @@ let test_refinement (env: env) =
   let env = Permissions.add env bar (pair (points_to l, points_to r)) in
   print_env env;
   let env = Permissions.refine env bar (pair (int, int)) in
+  let env = Permissions.refine env bar (pair (int, int)) in
   print_env env;
 ;;
 

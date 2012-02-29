@@ -154,23 +154,30 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
            - abstract vs abstract
            - concrete vs concrete (NOT unfolded)
            - concrete vs abstract *)
-        let cons1, _args1 = flatten_tyapp t1 in
-        let cons2, _args2 = flatten_tyapp t2 in
+        let cons1, args1 = flatten_tyapp t1 in
+        let cons2, args2 = flatten_tyapp t2 in
 
-        let def p = !!p, def_for_type env !!p in
-        begin match def cons1, def cons2 with
-        | (p1, Concrete _), (p2, Concrete _) ->
-            if same env p1 p2 then
-              (* Nothing we can say about the arguments here. This could very
-               * well be a data type that does not use its arguments. *)
-              env, One t1
+        begin match def_for_type env !!cons1, def_for_type env !!cons2 with
+        | Concrete _, Concrete _ ->
+            if same env !!cons1 !!cons2 then
+              if List.for_all2 (equal env) args1 args2 then
+                (* Small optimisation: if the arguments are equal, just keep one
+                 * of the two. *)
+                env, One t1
+              else
+                (* Nothing we can say about the arguments here. This could very
+                 * well be a data type that does not use its arguments. *)
+                env, Both
             else
               raise Inconsistent
 
-        | (_, Abstract _), _
-        | _, (_, Abstract _) ->
-            (* There's nothing we can say here. The [Abstract] could hide anything, even [TyUnknown]. *)
-            env, Both
+        | Abstract _, _
+        | _, Abstract _ ->
+            if same env !!cons1 !!cons2 && List.for_all2 (equal env) args1 args2 then
+              env, One t1
+            else
+              (* There's nothing we can say here. The [Abstract] could hide anything, even [TyUnknown]. *)
+              env, Both
 
         | _ ->
             Log.error "Huh? Flexible?"
@@ -253,8 +260,12 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
         Log.error "We can only refine types that have kind TYPE."
 
     | _ ->
-        (* If there's nothing we can say, keep both. *)
-        env, Both
+        (* TEMPORARY this seems overly aggressive and expensive *)
+        if equal env t1 t2 then
+          env, One t1
+        else
+          (* If there's nothing we can say, keep both. *)
+          env, Both
 
   with Inconsistent ->
 

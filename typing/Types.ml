@@ -184,6 +184,8 @@ let merge_left env p2 p1 =
 
 (* Fun with de Bruijn indices. *)
 
+(* [equal env t1 t2] provides an equality relation between [t1] and [t2] modulo
+ * equivalence in the [PersistentUnionFind]. *)
 let equal env (t1: typ) (t2: typ) =
   let rec equal (t1: typ) (t2: typ) =
     match t1, t2 with
@@ -202,14 +204,14 @@ let equal env (t1: typ) (t2: typ) =
     | TyForall ((_, k1), t1), TyForall ((_, k2), t2) ->
         k1 = k2 && equal t1 t2
 
-    | TyArrow (t2, t'2), TyArrow (t2, t'2) ->
+    | TyArrow (t1, t'1), TyArrow (t2, t'2)
     | TyApp (t1, t'1), TyApp (t2, t'2)  ->
         equal t1 t2 && equal t'1 t'2
 
     | TyTuple ts1, TyTuple ts2 ->
-        List.fold_left (fun acc t1 t2 ->
+        List.fold_left2 (fun acc t1 t2 ->
           match t1, t2 with
-          | TyTupleComponentValue t1, TyTupleComponentValue t2 ->
+          | TyTupleComponentValue t1, TyTupleComponentValue t2
           | TyTupleComponentPermission t1, TyTupleComponentPermission t2 ->
               acc && equal t1 t2
           | _ ->
