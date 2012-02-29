@@ -13,6 +13,89 @@ type refined_type = Both | One of typ
 
 exception Inconsistent
 
+(* [collect t] recursively walks down a type with kind TYPE, extracts all
+ * the permissions that appear into it (as tuple or record components), and
+ * returns the type without permissions as well as a list of types with kind
+ * PERM, which represents all the permissions that were just extracted. *)
+let collect (t: typ): typ * typ list =
+  let rec collect (t: typ): typ * typ list =
+    match t with
+    | TyUnknown
+    | TyDynamic
+
+    | TyVar _
+    | TyPoint _
+
+    | TyForall _
+    | TyExists _
+    | TyApp _ 
+
+    | TySingleton _
+
+    | TyArrow _ ->
+        t, []
+
+    (* Interesting stuff happens for strctural types only *)
+    | TyTuple components ->
+        let permissions, values = List.partition
+          (function TyTupleComponentPermission _ -> true | TyTupleComponentValue _ -> false)
+          components
+        in
+        let permissions = List.map (function
+          | TyTupleComponentPermission p -> p
+          | _ -> assert false) permissions
+        in
+        let sub_permissions, values =
+          List.fold_left (fun (collected_perms, reversed_values) ->
+            function 
+              | TyTupleComponentValue value ->
+                  let value, permissions = collect value in
+                  permissions :: collected_perms, (TyTupleComponentValue value) :: reversed_values
+              | _ ->
+                  assert false)
+            ([],[])
+            values
+        in
+        let t =
+          if List.length values = 1 then
+            match List.nth values 0 with
+              | TyTupleComponentValue v -> v
+              | _ -> assert false
+          else
+            TyTuple (List.rev values)
+        in
+        t, List.flatten (permissions :: sub_permissions)
+
+    | TyConcreteUnfolded (datacon, fields) ->
+        let permissions, values = List.partition
+          (function FieldPermission _ -> true | FieldValue _ -> false)
+          fields
+        in
+        let permissions = List.map (function
+          | FieldPermission p -> p
+          | _ -> assert false) permissions
+        in
+        let sub_permissions, values =
+         List.fold_left (fun (collected_perms, reversed_values) ->
+            function 
+              | FieldValue (name, value) ->
+                  let value, permissions = collect value in
+                  permissions :: collected_perms, (FieldValue (name, value)) :: reversed_values
+              | _ ->
+                  assert false)
+            ([],[])
+            values
+        in
+        TyConcreteUnfolded (datacon, List.rev values), List.flatten (permissions :: sub_permissions)
+
+    | TyAnchoredPermission _
+    | TyEmpty
+    | TyStar _ ->
+        Log.error "This function takes a [type] with kind [TYPE]."
+  in
+  collect t
+;;
+
 (* [unfold env t] returns [env, t] where [t] has been unfolded, which
  * potentially led us into adding new points to [env]. *)
 let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
@@ -132,6 +215,18 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
 
   let f1 = FactInference.analyze_type env t1 in
   let f2 = FactInference.analyze_type env t2 in
+
+  (* Small wrapper that makes sure we only return one permission if the two
+   * original ones were duplicable. *)
+  let one_if t =
+    if f1 = Duplicable [||] then begin
+      Log.affirm (f1 = f2) "Two equal types should have equal facts";
+      One t
+    end else
+      Both
+  in
+
+
   TypePrinter.(
     Log.debug ~level:4 "Refinement: %a, %a" pdoc (do_print_fact, f1) pdoc (do_print_fact, f2)
   );
@@ -163,7 +258,7 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
               if List.for_all2 (equal env) args1 args2 then
                 (* Small optimisation: if the arguments are equal, just keep one
                  * of the two. *)
-                env, One t1
+                env, one_if t1
               else
                 (* Nothing we can say about the arguments here. This could very
                  * well be a data type that does not use its arguments. *)
@@ -174,13 +269,16 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
         | Abstract _, _
         | _, Abstract _ ->
             if same env !!cons1 !!cons2 && List.for_all2 (equal env) args1 args2 then
-              env, One t1
+              env, one_if t1
             else
               (* There's nothing we can say here. The [Abstract] could hide anything, even [TyUnknown]. *)
               env, Both
 
         | _ ->
-            Log.error "Huh? Flexible?"
+            if equal env t1 t2 then
+              env, one_if t1
+            else
+              env, Both
         end
 
     | TyConcreteUnfolded branch as t, other
@@ -199,21 +297,19 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
               let env = List.fold_left2 (fun env f1 f2 ->
                 match f1, f2 with
                 | FieldValue (name1, t1), FieldValue (name2, t2) ->
-                    (* I don't think this should raise en error, but to be on the safe side, we
-                     * could sort fields beforehand. *)
-                    if not (Field.equal name1 name2) then
-                      Log.error "Fields are not in the same order, FIXME";
+                    Log.affirm (Field.equal name1 name2)
+                      "Fields are not in the same order, I thought they were";
 
                     (* [unify] is responsible for performing the entire job. *)
                     begin match t1, t2 with
                     | TySingleton (TyPoint p1), TySingleton (TyPoint p2) ->
                         unify env p1 p2
                     | _ ->
-                        Log.error "Not supported"
+                        Log.error "The type should've been run through [unfold] before"
                     end
 
                 | _ ->
-                    Log.error "Not supported"
+                    Log.error "The type should've been run through [collect] before"
               ) env fields fields' in
               env, One t1
 
@@ -244,6 +340,27 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
 
         end
 
+    | TyTuple components1, TyTuple components2 ->
+        if List.(length components1 <> length components2) then
+          raise Inconsistent
+
+        else
+          let env = List.fold_left2 (fun env c1 c2 ->
+            match c1, c2 with
+            | TyTupleComponentValue t1, TyTupleComponentValue t2 ->
+                (* [unify] is responsible for performing the entire job. *)
+                begin match t1, t2 with
+                | TySingleton (TyPoint p1), TySingleton (TyPoint p2) ->
+                    unify env p1 p2
+                | _ ->
+                    Log.error "The type should've been run through [unfold] before"
+                end
+
+            | _ ->
+                Log.error "The type should've been run through [collect] before"
+          ) env components1 components2 in
+          env, One t1
+
     | TyForall _, _
     | _, TyForall _
     | TyExists _, _
@@ -262,7 +379,7 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
     | _ ->
         (* TEMPORARY this seems overly aggressive and expensive *)
         if equal env t1 t2 then
-          env, One t1
+          env, one_if t1
         else
           (* If there's nothing we can say, keep both. *)
           env, Both
@@ -302,16 +419,31 @@ and refine (env: env) (point: point) (t': typ): env =
 (* [unify env p1 p2] merges two points, and takes care of dealing with how the
  * permissions should be merged. *)
 and unify (env: env) (p1: point) (p2: point): env =
-  let env =
-    List.fold_left (fun env t -> refine env p1 t) env (permissions_for_ident env p2).permissions
-  in
-  merge_left env p1 p2
+  if same env p1 p2 then
+    env
+  else
+    let env =
+      List.fold_left (fun env t -> refine env p1 t) env (permissions_for_ident env p2).permissions
+    in
+    merge_left env p1 p2
 
 
 (* [add env point t] adds [t] to the list of permissions for [p], performing all
  * the necessary legwork. *)
 and add (env: env) (point: point) (t: typ): env =
   let hint = name_for_expr env point in
+  let t, perms = collect t in
+  let rec add_perm env = function
+    | TyAnchoredPermission (TyPoint p, t) ->
+        add env p t
+    | TyStar (p, q) ->
+        add_perm (add_perm env p) q
+    | TyEmpty ->
+        env
+    | _ ->
+        Log.error "[collect] should only return one of the types above"
+  in
+  let env = List.fold_left add_perm env perms in
   let env, t = unfold env ?hint t in
   refine env point t
 ;;

@@ -117,8 +117,16 @@ let test_refinement (env: env) =
   let nil =
     TyConcreteUnfolded (Datacon.register "Nil", [])
   in
-  let tuple l = TyTuple (List.map (fun x -> TyTupleComponentValue x) l) in
-  let points_to x = TySingleton (TyPoint x) in
+  let tuple l = TyTuple (List.map (function
+    | TyEmpty as p
+    | (TyStar _ as p)
+    | (TyAnchoredPermission _ as p) -> 
+        TyTupleComponentPermission p
+    | x ->
+        TyTupleComponentValue x) l) in
+  let point x = TyPoint x in
+  let points_to x = TySingleton (point x) in
+  let permission (p, x) = TyAnchoredPermission (p, x) in
   (* Make sure the unfolding is properly performed. *)
   let env, foo = bind_expr env (Variable.register "foo") in
   let env = match Permissions.refine_type env nil (list int) with
@@ -150,6 +158,9 @@ let test_refinement (env: env) =
   let env = Permissions.refine env bar (pair (int, int)) in
   print_env env;
   let env = Permissions.unify env l r in
+  print_env env;
+  (* Moar elaborate. *)
+  let env = Permissions.add env l (tuple [int; permission (point foo, int)]) in
   print_env env;
 ;;
 
