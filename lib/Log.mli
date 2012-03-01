@@ -21,8 +21,8 @@
     it. *)
 
 (** Enable debugging information. You should provide a debugging level. The
- * higher the level, the more verbose the information. Currently, verbosity
- * levels range from 0 to 4 (inclusive). *)
+    higher the level, the more verbose the information. Currently, verbosity
+    levels range from 0 to 4 (inclusive). *)
 val enable_debug : int -> unit
 
 (** Report some debugging information. Use it like [Printf.printf] *)

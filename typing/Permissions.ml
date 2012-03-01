@@ -1,4 +1,4 @@
-(** This module provides permission manipulation functions. *)
+(* There are useful comments in the corresponding .mli *)
 
 open Types
 
@@ -13,10 +13,6 @@ type refined_type = Both | One of typ
 
 exception Inconsistent
 
-(* [collect t] recursively walks down a type with kind TYPE, extracts all
- * the permissions that appear into it (as tuple or record components), and
- * returns the type without permissions as well as a list of types with kind
- * PERM, which represents all the permissions that were just extracted. *)
 let collect (t: typ): typ * typ list =
   let rec collect (t: typ): typ * typ list =
     match t with
@@ -96,13 +92,10 @@ let collect (t: typ): typ * typ list =
   collect t
 ;;
 
-(* [unfold env t] returns [env, t] where [t] has been unfolded, which
- * potentially led us into adding new points to [env]. *)
 let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
-
   (* This auxiliary function takes care of inserting an indirection if needed,
    * that is, a [=foo] type with [foo] being a newly-allocated [point]. *)
-  let rec insert_point (env: env) (hint: string) (t: typ): env * typ =
+  let insert_point (env: env) (hint: string) (t: typ): env * typ =
     match t with
     | TySingleton _ ->
         env, t
@@ -113,8 +106,9 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
         (* This will take care of unfolding where necessary. *)
         let env = add env p t in
         env, TySingleton (TyPoint p)
+  in
 
-  and unfold (env: env) ?(hint: string option) (t: typ): env * typ =
+  let unfold (env: env) ?(hint: string option) (t: typ): env * typ =
     let hint = Option.map_none (fresh_name "t_") hint in
     match t with
     | TyUnknown
@@ -191,9 +185,6 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
   in
   unfold env ?hint t
 
-(* [refine_type env t1 t2] tries, given [t1], to turn it into something more
- * precise using [t2]. It returns [Both] if both types are to be kept, or [One
- * t3] if [t1] and [t2] can be combined into a more precise [t3]. *)
 and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
   (* Save us the trouble of matching all the time. *)
   let (!!) = function TyPoint x -> x | _ -> assert false in
@@ -226,10 +217,10 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
       Both
   in
 
-
   TypePrinter.(
     Log.debug ~level:4 "Refinement: %a, %a" pdoc (do_print_fact, f1) pdoc (do_print_fact, f2)
   );
+
   try
 
     (* Having two exclusive permissions on the same point means we're duplicating an *exclusive*
@@ -376,6 +367,10 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
     | _, TyStar _ ->
         Log.error "We can only refine types that have kind TYPE."
 
+    | TyUnknown, (_ as t)
+    | (_ as t), TyUnknown ->
+        env, One t
+
     | _ ->
         (* TEMPORARY this seems overly aggressive and expensive *)
         if equal env t1 t2 then
@@ -396,8 +391,6 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
     env, Both
 
 
-(* [refine env p t] adds [t] to the list of available permissions for [p],
- * possibly by refining some of these permissions into more precise ones. *)
 and refine (env: env) (point: point) (t': typ): env =
   let { permissions } = permissions_for_ident env point in
   let rec refine_list (env, acc) t' = function
@@ -416,8 +409,6 @@ and refine (env: env) (point: point) (t': typ): env =
   replace_expr env point (fun _ -> { permissions })
 
 
-(* [unify env p1 p2] merges two points, and takes care of dealing with how the
- * permissions should be merged. *)
 and unify (env: env) (p1: point) (p2: point): env =
   if same env p1 p2 then
     env
@@ -428,22 +419,30 @@ and unify (env: env) (p1: point) (p2: point): env =
     merge_left env p1 p2
 
 
-(* [add env point t] adds [t] to the list of permissions for [p], performing all
- * the necessary legwork. *)
 and add (env: env) (point: point) (t: typ): env =
   let hint = name_for_expr env point in
-  let t, perms = collect t in
-  let rec add_perm env = function
-    | TyAnchoredPermission (TyPoint p, t) ->
-        add env p t
-    | TyStar (p, q) ->
-        add_perm (add_perm env p) q
-    | TyEmpty ->
-        env
-    | _ ->
-        Log.error "[collect] should only return one of the types above"
-  in
-  let env = List.fold_left add_perm env perms in
+
+  (* We first perform unfolding, so that constructors with one branch are
+   * simplified. *)
   let env, t = unfold env ?hint t in
+
+  (* Now we may have more opportunities for collecting permissions. [collect]
+   * doesn't go "through" [TyPoint]s but when indirections are inserted via
+   * [insert_point], [add] is recursively called, so inner permissions are
+   * collected as well. *)
+  let t, perms = collect t in
+  let env = List.fold_left add_perm env perms in
   refine env point t
+
+
+and add_perm (env: env) (t: typ): env =
+  match t with
+  | TyAnchoredPermission (TyPoint p, t) ->
+      add env p t
+  | TyStar (p, q) ->
+      add_perm (add_perm env p) q
+  | TyEmpty ->
+      env
+  | _ ->
+      Log.error "[add_perm] only works with types that have kind PERM"
 ;;

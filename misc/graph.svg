@@ -335,42 +335,42 @@
 <text text-anchor="middle" x="228" y="-1071.9" font-family="DejaVu Sans, Helvetica, sans" font-size="14.00"><a xlink:href="../doc/Permissions.html" target="_parent">Permissions</a></text>
 </g>
 <!-- Permissions&#45;&gt;Option -->
-<g id="edge84" class="edge"><title>Permissions&#45;&gt;Option</title>
+<g id="edge90" class="edge"><title>Permissions&#45;&gt;Option</title>
 <path fill="none" stroke="black" d="M197.251,-1059.69C135.017,-1024.19 0,-933.529 0,-815 0,-815 0,-815 0,-685 0,-573.251 118.763,-483.153 179.341,-444.465"/>
 <polygon fill="black" stroke="black" points="181.575,-447.195 188.187,-438.917 177.855,-441.265 181.575,-447.195"/>
 </g>
 <!-- Permissions&#45;&gt;Hml_List -->
-<g id="edge90" class="edge"><title>Permissions&#45;&gt;Hml_List</title>
+<g id="edge84" class="edge"><title>Permissions&#45;&gt;Hml_List</title>
 <path fill="none" stroke="black" d="M214.94,-1058.25C172.174,-997.796 44.0489,-796.484 133,-667 147.512,-645.875 298.451,-595.086 378.209,-569.412"/>
 <polygon fill="black" stroke="black" points="379.583,-572.647 388.036,-566.26 377.445,-565.981 379.583,-572.647"/>
 </g>
 <!-- Permissions&#45;&gt;Hml_String -->
-<g id="edge88" class="edge"><title>Permissions&#45;&gt;Hml_String</title>
+<g id="edge86" class="edge"><title>Permissions&#45;&gt;Hml_String</title>
 <path fill="none" stroke="black" d="M198.033,-1059.88C166.899,-1041.23 119.991,-1007.31 100,-963 45.9033,-843.082 64.801,-793.759 100,-667 109.086,-634.28 130.468,-601.545 146.849,-579.794"/>
 <polygon fill="black" stroke="black" points="149.727,-581.794 153.067,-571.739 144.186,-577.516 149.727,-581.794"/>
 </g>
 <!-- Permissions&#45;&gt;Log -->
-<g id="edge86" class="edge"><title>Permissions&#45;&gt;Log</title>
+<g id="edge88" class="edge"><title>Permissions&#45;&gt;Log</title>
 <path fill="none" stroke="black" d="M216.904,-1058.04C204.231,-1036.42 184.194,-998.565 176,-963 155.453,-873.812 162.048,-764.254 166.853,-713.413"/>
 <polygon fill="black" stroke="black" points="170.362,-713.499 167.871,-703.201 163.397,-712.805 170.362,-713.499"/>
 </g>
 <!-- Permissions&#45;&gt;Datacon -->
-<g id="edge94" class="edge"><title>Permissions&#45;&gt;Datacon</title>
+<g id="edge80" class="edge"><title>Permissions&#45;&gt;Datacon</title>
 <path fill="none" stroke="black" d="M289.488,-1068.75C319.994,-1065.28 357.413,-1061.18 391,-1058 524.154,-1045.38 1500.23,-1061.24 1591,-963 1642.18,-907.606 1886.82,-1097.86 1559,-667 1507.55,-599.381 1408.39,-571.958 1344.8,-561.023"/>
 <polygon fill="black" stroke="black" points="1345.34,-557.566 1334.91,-559.406 1344.21,-564.474 1345.34,-557.566"/>
 </g>
 <!-- Permissions&#45;&gt;Variable -->
-<g id="edge80" class="edge"><title>Permissions&#45;&gt;Variable</title>
+<g id="edge92" class="edge"><title>Permissions&#45;&gt;Variable</title>
 <path fill="none" stroke="black" d="M286.242,-1067.06C510.963,-1032.13 1313.58,-903.412 1404,-833 1466.26,-784.515 1511.9,-731.893 1467,-667 1452.06,-645.411 1296.18,-594.262 1215.23,-568.854"/>
 <polygon fill="black" stroke="black" points="1215.86,-565.384 1205.27,-565.74 1213.77,-572.065 1215.86,-565.384"/>
 </g>
 <!-- Permissions&#45;&gt;FactInference -->
-<g id="edge92" class="edge"><title>Permissions&#45;&gt;FactInference</title>
+<g id="edge82" class="edge"><title>Permissions&#45;&gt;FactInference</title>
 <path fill="none" stroke="black" d="M238.408,-1058.06C251.298,-1035.84 273.377,-997.785 288.321,-972.026"/>
 <polygon fill="black" stroke="black" points="291.483,-973.55 293.474,-963.144 285.428,-970.037 291.483,-973.55"/>
 </g>
 <!-- Permissions&#45;&gt;Types -->
-<g id="edge82" class="edge"><title>Permissions&#45;&gt;Types</title>
+<g id="edge94" class="edge"><title>Permissions&#45;&gt;Types</title>
 <path fill="none" stroke="black" d="M254.285,-1059.38C286.935,-1038.34 343.846,-1000.3 389,-963 437.912,-922.6 490.022,-869.834 519.049,-839.452"/>
 <polygon fill="black" stroke="black" points="521.906,-841.527 526.259,-831.868 516.832,-836.704 521.906,-841.527"/>
 </g>

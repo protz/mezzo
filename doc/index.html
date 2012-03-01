@@ -33,6 +33,7 @@
 <link title="PersistentRef" rel="Chapter" href="PersistentRef.html">
 <link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
 <link title="PermissionDeduction" rel="Chapter" href="PermissionDeduction.html">
+<link title="Permissions" rel="Chapter" href="Permissions.html">
 <link title="Mark" rel="Chapter" href="Mark.html">
 <link title="ModeDeduction" rel="Chapter" href="ModeDeduction.html"><title></title>
 </head>
@@ -62,22 +63,16 @@ This module sets up a lexer and a parser to create an AST.
 <br>
 <table class="indextable">
 <tr><td>WellKindedness</td><td></td></tr>
-<tr><td><a href="ModeDeduction.html">ModeDeduction</a></td><td><div class="info">
-This module offers machinery for declaring RULES that govern which types
-   satisfy which modes and for proving GOALS according to these rules.
-</div>
-</td></tr>
-<tr><td><a href="PermissionDeduction.html">PermissionDeduction</a></td><td><div class="info">
-This module offers a representation of typing contexts -- which,
-   roughly speaking, can be thought of as a conjunction of permissions
-   and equations.
-</div>
-</td></tr>
 <tr><td><a href="FactInference.html">FactInference</a></td><td><div class="info">
 This module analyzes data type declaration to synthetize facts about the
    data types.
 </div>
 </td></tr>
+<tr><td><a href="Permissions.html">Permissions</a></td><td><div class="info">
+This module provides permission manipulation functions.
+</div>
+</td></tr>
+<tr><td>Types</td><td></td></tr>
 </table>
 
 <p>
@@ -87,13 +82,8 @@ This module analyzes data type declaration to synthetize facts about the
 <table class="indextable">
 <tr><td>SurfaceSyntax</td><td></td></tr>
 <tr><td>Data</td><td></td></tr>
-<tr><td>Types</td><td></td></tr>
 <tr><td><a href="Identifier.html">Identifier</a></td><td><div class="info">
 This functor creates a fresh abstract type of names.
-</div>
-</td></tr>
-<tr><td><a href="Mode.html">Mode</a></td><td><div class="info">
-This module implements modes and their partial ordering.
 </div>
 </td></tr>
 </table>

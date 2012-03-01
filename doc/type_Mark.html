@@ -33,17 +33,11 @@
 <link title="PermissionDeduction" rel="Chapter" href="PermissionDeduction.html">
 <link title="Permissions" rel="Chapter" href="Permissions.html">
 <link title="Mark" rel="Chapter" href="Mark.html">
-<link title="ModeDeduction" rel="Chapter" href="ModeDeduction.html"><title>PermissionDeduction</title>
+<link title="ModeDeduction" rel="Chapter" href="ModeDeduction.html"><title>Mark</title>
 </head>
 <body>
 <code class="code"><span class="keyword">sig</span><br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;context<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;is_inconsistent&nbsp;:&nbsp;<span class="constructor">PermissionDeduction</span>.context&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;bool<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;unify&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Data</span>.termvar&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Data</span>.termvar&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">PermissionDeduction</span>.context&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">PermissionDeduction</span>.context<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;add&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Data</span>.termvar&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Data</span>.typ&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">PermissionDeduction</span>.context&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">PermissionDeduction</span>.context<br>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;create&nbsp;:&nbsp;unit&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Mark</span>.t<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;equals&nbsp;:&nbsp;<span class="constructor">Mark</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Mark</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;bool<br>
 <span class="keyword">end</span></code></body></html>

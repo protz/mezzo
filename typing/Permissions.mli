@@ -1,0 +1,37 @@
+(** This module provides permission manipulation functions. *)
+
+open Types
+
+(** [collect t] recursively walks down a type with kind TYPE, extracts all
+    the permissions that appear into it (as tuple or record components), and
+    returns the type without permissions as well as a list of types with kind
+    PERM, which represents all the permissions that were just extracted. *)
+val collect: typ -> typ * typ list
+
+(** [unfold env t] returns [env, t] where [t] has been unfolded, which
+    potentially led us into adding new points to [env]. The [hint] serves when
+    making up names for intermediary variables. *)
+val unfold: env -> ?hint:string -> typ -> env * typ
+
+type refined_type = Both | One of typ
+
+(** [refine_type env t1 t2] tries, given [t1], to turn it into something more
+    precise using [t2]. It returns [Both] if both types are to be kept, or [One
+    t3] if [t1] and [t2] can be combined into a more precise [t3]. *)
+val refine_type: env -> typ -> typ -> env * refined_type
+
+(** [refine env p t] adds [t] to the list of available permissions for [p],
+    possibly by refining some of these permissions into more precise ones. *)
+val refine: env -> point -> typ -> env
+
+(** [unify env p1 p2] merges two points, and takes care of dealing with how the
+    permissions should be merged. *)
+val unify: env -> point -> point -> env
+
+(** [add env point t] adds [t] to the list of permissions for [p], performing all
+    the necessary legwork. *)
+val add: env -> point -> typ -> env
+
+(** [add_perm env t] adds a type [t] with kind PERM to [env], returning the new
+    environment. *)
+val add_perm: env -> typ -> env
