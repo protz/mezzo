@@ -382,14 +382,6 @@ let subst_data_type_def_branch t2 i branch =
   name, List.map (subst_field t2 i) fields
 ;;
 
-let instantiate_branch branch args =
-  let args = List.rev args in
-  let branch = Hml_List.fold_lefti (fun i branch arg ->
-    subst_data_type_def_branch arg i branch) branch args
-  in
-  branch
-;;
-
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -606,6 +598,29 @@ let branches_for_type (env: env) (point: point): data_type_def_branch list optio
       Some branches
   | _ ->
       None
+;;
+
+let instantiate_branch branch args =
+  let args = List.rev args in
+  let branch = Hml_List.fold_lefti (fun i branch arg ->
+    subst_data_type_def_branch arg i branch) branch args
+  in
+  branch
+;;
+
+let find_and_instantiate_branch
+    (env: env)
+    (point: point)
+    (datacon: Datacon.name)
+    (args: typ list): data_type_def_branch =
+  let branches = Option.extract (branches_for_type env point) in
+  let branch =
+    List.find
+      (fun (datacon', _) -> Datacon.equal datacon datacon')
+      branches
+  in
+  let branch = instantiate_branch branch args in
+  branch
 ;;
 
 let kind_for_def (def: type_def): kind =

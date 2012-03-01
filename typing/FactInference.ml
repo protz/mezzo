@@ -90,7 +90,7 @@ let duplicables
                 Log.affirm (List.length args = Array.length cons_bitmap)
                   "Arity mismatch, [WellKindedness] should've checked that";
                 (* For each argument of the type application... *)
-                List.iteri (fun i ti ->
+                Hml_List.iteri (fun i ti ->
                   (* (match ti with | TyVar i -> Log.debug ~level:4 "• ti is TyVar %d" i; | _ -> ()); *)
                   (* The type at [level] may request its [i]-th parameter to be
                    * duplicable. *)

@@ -200,6 +200,12 @@ let test_substraction (env: env) =
   print_env env;
   (* We can't take that permission twice. *)
   assert (Permissions.sub env foo (tuple [int; ref int]) = None);
+  let env, bar = bind_expr env (Variable.register "bar") in
+  let env = Permissions.add env bar nil in
+  (* This tests the "unfolded vs nominal" case. *)
+  let env = Option.extract (Permissions.sub env bar (list int)) in
+  let env = Option.extract (Permissions.sub env bar (list (ref int))) in
+  print_env env;
 ;;
 
 let _ =

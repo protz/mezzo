@@ -40,6 +40,9 @@ val fold_left3: ('acc -> 't1 -> 't2 -> 't3 -> 'acc) -> 'acc -> 't1 list -> 't2 l
     giving an initial element. *)
 val reduce: ('a -> 'a -> 'a) -> 'a list -> 'a
 
+(** Same as [List.iter] but the function takes an index. *)
+val iteri : (int -> 'a -> unit) -> 'a list -> unit
+
 (** Same as [List.iteri] but with two lists. *)
 val iter2i : (int -> 'a -> 'b -> unit) -> 'a list -> 'b list -> unit
 

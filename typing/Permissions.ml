@@ -189,7 +189,6 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
   unfold env ?hint t
 
 and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
-
   (* TEMPORARY find a better name for that function; what it means is « someone else can view this
    * type » *)
   let views t =
@@ -314,16 +313,9 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
             let datacon, _ = branch in
 
             if same env (DataconMap.find datacon env.type_for_datacon) !!cons then
-              let branches' = Option.extract (branches_for_type env !!cons) in
-              let branch' =
-                List.find
-                  (fun (datacon', _) -> Datacon.equal datacon datacon')
-                  branches'
-              in
-              let branch' = instantiate_branch branch' args in
+              let branch' = find_and_instantiate_branch env !!cons datacon args in
               let env, t' = unfold env (TyConcreteUnfolded branch') in
               refine_type env t t'
-
             else
               raise Inconsistent
 
@@ -559,16 +551,8 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       let point1 = DataconMap.find datacon1 env.type_for_datacon in
       
       if same env point1 !!cons2 then
-        let branches2 = Option.extract (branches_for_type env !!cons2) in
-        let branch2 =
-          List.find
-            (fun (datacon2, _) -> Datacon.equal datacon2 datacon1)
-            branches2
-        in
-        let branch2 = instantiate_branch branch2 args2 in
-        
+        let branch2 = find_and_instantiate_branch env !!cons2 datacon1 args2 in
         sub_type env t1 (TyConcreteUnfolded branch2)
-
       else
         None
 

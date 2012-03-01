@@ -27,6 +27,13 @@ let rec split3 = function
 let ignore_map f l =
   ignore (List.map (fun x -> ignore (f x)) l)
 
+let iteri f l =
+  let rec iteri i f = function
+    | [] -> ()
+    | e :: rest -> f i e; iteri (i + 1) f rest
+  in
+  iteri 0 f l
+
 let iter2i f l l' =
   let rec iter2i i f l l' = match l, l' with
     | ([], []) -> ()
