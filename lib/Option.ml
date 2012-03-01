@@ -36,3 +36,8 @@ let extract = function
 let iter = fun f -> function
   | Some i -> f i
   | None -> ()
+
+let bind = fun opt f ->
+  match opt with
+  | None -> None
+  | Some x -> f x

@@ -420,6 +420,9 @@ and unify (env: env) (p1: point) (p2: point): env =
 
 
 and add (env: env) (point: point) (t: typ): env =
+  Log.affirm (is_term env point) "You can only add permissions to a point that\
+    represents a program identifier.";
+
   let hint = name_for_expr env point in
 
   (* We first perform unfolding, so that constructors with one branch are
@@ -445,4 +448,106 @@ and add_perm (env: env) (t: typ): env =
       env
   | _ ->
       Log.error "[add_perm] only works with types that have kind PERM"
+;;
+
+
+let rec sub (env: env) (point: point) (t: typ): env option =
+  Log.affirm (is_term env point) "You can only add permissions to a point that\
+    represents a program identifier.";
+
+  (* Get a "clean" type without nested permissions. *)
+  let t, perms = collect t in
+
+  (* TEMPORARY we should probably switch to a more sophisticated strategy,
+   * based on a work list. The code would scan the work list for a permission
+   * that it knows how to extract. A failure would happen when there are
+   * permissions left but we don't know how to extract them because the
+   * variables are still flexible, for instance... *)
+  let env = sub_clean env point t in
+  List.fold_left
+    (fun env perm -> (Option.bind env (fun env -> sub_perm env perm)))
+    env
+    perms 
+
+
+(* [sub_clean env point t] takes a "clean" type [t] (without nested permissions)
+ * and performs the actual work of extracting [t] from the list of permissions
+ * for [point]. *)
+and sub_clean (env: env) (point: point) (t: typ): env option =
+
+  let { permissions } = permissions_for_ident env point in
+
+  (* This is a very dumb strategy, that may want further improvements: we just
+   * take the first permission that “works” *)
+  let rec traverse (env: env) (seen: typ list) (remaining: typ list): env option =
+    match remaining with
+    | hd :: remaining ->
+        (* Try to extract [t] from [hd]. *)
+        begin match sub_type env hd t with
+        | Some env ->
+            (* We're taking out [hd] from the list of permissions for [point].
+             * Is it something duplicable? *)
+            let fact = FactInference.analyze_type env hd in
+            if fact = Duplicable [||] then
+              Some env
+            else
+              Some (replace_expr env point (fun _ ->
+                { permissions = seen @ remaining }))
+        | None ->
+            traverse env (hd :: seen) remaining
+        end
+
+    | [] ->
+        (* We haven't found any suitable permission. Fail. *)
+        None
+  in
+  traverse env [] permissions
+
+
+and sub_type (env: env) (t1: typ) (t2: typ): env option =
+  match t1, t2 with
+  | TyTuple components1, TyTuple components2 ->
+      (* We can only substract a tuple from another one if they have the same
+       * length. *)
+      if List.length components1 <> List.length components2 then
+        None
+
+      (* We assume here that the [t1] is in expanded form, that is, that [t1] is
+       * only a tuple of singletons. *)
+      else
+        List.fold_left2 (fun env c1 c2 ->
+          Option.bind env (fun env ->
+            match c1 with
+            | TyTupleComponentValue (TySingleton (TyPoint p)) ->
+                begin match c2 with
+                | TyTupleComponentValue t ->
+                    sub_clean env p t
+                | _ ->
+                    Log.error "The type we're trying to extract should've been\
+                      cleaned first."
+                end
+            | _ ->
+                Log.error "All permissions should be in expanded form."
+          )
+        ) (Some env) components1 components2
+
+  | _ ->
+      if equal env t1 t2 then
+        Some env
+      else
+        None
+
+
+and sub_perm (env: env) (t: typ): env option =
+  match t with
+  | TyAnchoredPermission (TyPoint p, t) ->
+      sub env p t
+  | TyStar (p, q) ->
+      Option.bind
+        (sub_perm env p)
+        (fun env -> sub_perm env q)
+  | TyEmpty ->
+      Some env
+  | _ ->
+      Log.error "[sub_perm] only works with types that have kind PERM"
 ;;

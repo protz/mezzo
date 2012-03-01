@@ -459,6 +459,14 @@ let find_expr (env: env) (point: point): Variable.name * expr_binder =
       Log.error "Binder is not an expr"
 ;;
 
+let is_term (env: env) (point: point): bool =
+  match PersistentUnionFind.find point env.state with
+  | _, ExprBinding _ ->
+      true
+  | _ ->
+      false
+;;
+
 let name_for_binder (env: env) (point: point): string option =
   match PersistentUnionFind.find point env.state with
   | { names = name :: _; _ }, _ ->

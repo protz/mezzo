@@ -107,9 +107,9 @@ let test_refinement (env: env) =
   let pair (x, y) = TyApp (TyApp (find_point env "pair", x), y) in
   let list x = TyApp (find_point env "list", x) in
   let ref x = TyApp (find_point env "ref", x) in
-  let t1 x = TyApp (find_point env "t1", x) in
+  let _t1 x = TyApp (find_point env "t1", x) in
   let int = find_point env "int" in
-  let cons (head, tail) =
+  let _cons (head, tail) =
     TyConcreteUnfolded (Datacon.register "Cons",
       [FieldValue (Field.register "head", head);
        FieldValue (Field.register "tail", tail)])
@@ -164,6 +164,40 @@ let test_refinement (env: env) =
   print_env env;
 ;;
 
+
+let test_substraction (env: env) =
+  (* Some wrappers for easily building types by hand. *)
+  let pair (x, y) = TyApp (TyApp (find_point env "pair", x), y) in
+  let list x = TyApp (find_point env "list", x) in
+  let ref x = TyApp (find_point env "ref", x) in
+  let _t1 x = TyApp (find_point env "t1", x) in
+  let int = find_point env "int" in
+  let _cons (head, tail) =
+    TyConcreteUnfolded (Datacon.register "Cons",
+      [FieldValue (Field.register "head", head);
+       FieldValue (Field.register "tail", tail)])
+  in
+  let nil =
+    TyConcreteUnfolded (Datacon.register "Nil", [])
+  in
+  let tuple l = TyTuple (List.map (function
+    | TyEmpty as p
+    | (TyStar _ as p)
+    | (TyAnchoredPermission _ as p) -> 
+        TyTupleComponentPermission p
+    | x ->
+        TyTupleComponentValue x) l) in
+  let point x = TyPoint x in
+  let points_to x = TySingleton (point x) in
+  let permission (p, x) = TyAnchoredPermission (p, x) in
+  (* Make sure the unfolding is properly performed. *)
+  let env, foo = bind_expr env (Variable.register "foo") in
+  let env = Permissions.add env foo (tuple [int; ref int]) in
+  print_env env;
+  let env = Option.extract (Permissions.sub env foo (tuple [int; ref int])) in
+  print_env env;
+;;
+
 let _ =
   let open TypePrinter in
   Log.enable_debug 3;
@@ -174,7 +208,12 @@ let _ =
   flush stderr;
   print_newline ();
   (* Test various features. *)
+  Printf.eprintf "%s" (Bash.box "Adding permissions");
   test_adding_perms env;
+  Printf.eprintf "%s" (Bash.box "Unfolding permissions");
   test_unfolding env;
+  Printf.eprintf "%s" (Bash.box "Refining permissions");
   test_refinement env;
+  Printf.eprintf "%s" (Bash.box "Substracting permissions");
+  test_substraction env;
 ;;

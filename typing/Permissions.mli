@@ -35,3 +35,11 @@ val add: env -> point -> typ -> env
 (** [add_perm env t] adds a type [t] with kind PERM to [env], returning the new
     environment. *)
 val add_perm: env -> typ -> env
+
+(** [sub env point t] tries to extract [t] from the available permissions for
+    [point] and returns, if successful, the resulting environment. *)
+val sub: env -> point -> typ -> env option
+
+(** [sub_perm env t] takes a type [t] with kind PERM, and tries to return the
+    environment without the corresponding permission. *)
+val sub_perm: env -> typ -> env option
