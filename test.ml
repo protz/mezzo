@@ -195,7 +195,11 @@ let test_substraction (env: env) =
   let env = Permissions.add env foo (tuple [int; ref int]) in
   print_env env;
   let env = Option.extract (Permissions.sub env foo (tuple [int; ref int])) in
+  (* The cool thing is, at that stage, the [ref int] permission has been removed
+   * but the other ones are still valid. *)
   print_env env;
+  (* We can't take that permission twice. *)
+  assert (Permissions.sub env foo (tuple [int; ref int]) = None);
 ;;
 
 let _ =

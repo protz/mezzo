@@ -9,6 +9,9 @@ let fresh_name prefix =
   prefix ^ n
 ;;
 
+(* Saves us the trouble of matching all the time. *)
+let (!!) = function TyPoint x -> x | _ -> assert false;;
+
 type refined_type = Both | One of typ
 
 exception Inconsistent
@@ -186,8 +189,6 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
   unfold env ?hint t
 
 and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
-  (* Save us the trouble of matching all the time. *)
-  let (!!) = function TyPoint x -> x | _ -> assert false in
 
   (* TEMPORARY find a better name for that function; what it means is « someone else can view this
    * type » *)
@@ -530,6 +531,46 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
                 Log.error "All permissions should be in expanded form."
           )
         ) (Some env) components1 components2
+
+  | TyConcreteUnfolded (datacon1, fields1), TyConcreteUnfolded (datacon2, fields2) ->
+      if Datacon.equal datacon1 datacon2 then
+        List.fold_left2 (fun env f1 f2 ->
+          Option.bind env (fun env ->
+            match f1 with
+            | FieldValue (name1, TySingleton (TyPoint p)) ->
+                begin match f2 with
+                | FieldValue (name2, t) ->
+                    Log.affirm (Field.equal name1 name2) "Not in order?";
+                    sub_clean env p t
+                | _ ->
+                    Log.error "The type we're trying to extract should've been\
+                      cleaned first."
+                end
+            | _ ->
+                Log.error "All permissions should be in expanded form."
+          )
+        ) (Some env) fields1 fields2
+
+      else
+        None
+
+  | TyConcreteUnfolded (datacon1, _), TyApp _ ->
+      let cons2, args2 = flatten_tyapp t2 in
+      let point1 = DataconMap.find datacon1 env.type_for_datacon in
+      
+      if same env point1 !!cons2 then
+        let branches2 = Option.extract (branches_for_type env !!cons2) in
+        let branch2 =
+          List.find
+            (fun (datacon2, _) -> Datacon.equal datacon2 datacon1)
+            branches2
+        in
+        let branch2 = instantiate_branch branch2 args2 in
+        
+        sub_type env t1 (TyConcreteUnfolded branch2)
+
+      else
+        None
 
   | _ ->
       if equal env t1 t2 then
