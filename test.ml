@@ -167,7 +167,7 @@ let test_refinement (env: env) =
 
 let test_substraction (env: env) =
   (* Some wrappers for easily building types by hand. *)
-  let pair (x, y) = TyApp (TyApp (find_point env "pair", x), y) in
+  let _pair (x, y) = TyApp (TyApp (find_point env "pair", x), y) in
   let list x = TyApp (find_point env "list", x) in
   let ref x = TyApp (find_point env "ref", x) in
   let _t1 x = TyApp (find_point env "t1", x) in
@@ -188,8 +188,8 @@ let test_substraction (env: env) =
     | x ->
         TyTupleComponentValue x) l) in
   let point x = TyPoint x in
-  let points_to x = TySingleton (point x) in
-  let permission (p, x) = TyAnchoredPermission (p, x) in
+  let _points_to x = TySingleton (point x) in
+  let _permission (p, x) = TyAnchoredPermission (p, x) in
   (* Make sure the unfolding is properly performed. *)
   let env, foo = bind_expr env (Variable.register "foo") in
   let env = Permissions.add env foo (tuple [int; ref int]) in
@@ -205,6 +205,46 @@ let test_substraction (env: env) =
   (* This tests the "unfolded vs nominal" case. *)
   let env = Option.extract (Permissions.sub env bar (list int)) in
   let env = Option.extract (Permissions.sub env bar (list (ref int))) in
+  print_env env;
+;;
+
+let test_function_call (env: env) =
+  (* Some wrappers for easily building types by hand. *)
+  let _pair (x, y) = TyApp (TyApp (find_point env "pair", x), y) in
+  let list x = TyApp (find_point env "list", x) in
+  let ref x = TyApp (find_point env "ref", x) in
+  let _t1 x = TyApp (find_point env "t1", x) in
+  let int = find_point env "int" in
+  let _cons (head, tail) =
+    TyConcreteUnfolded (Datacon.register "Cons",
+      [FieldValue (Field.register "head", head);
+       FieldValue (Field.register "tail", tail)])
+  in
+  let nil =
+    TyConcreteUnfolded (Datacon.register "Nil", [])
+  in
+  let _tuple l = TyTuple (List.map (function
+    | TyEmpty as p
+    | (TyStar _ as p)
+    | (TyAnchoredPermission _ as p) -> 
+        TyTupleComponentPermission p
+    | x ->
+        TyTupleComponentValue x) l) in
+  let point x = TyPoint x in
+  let _points_to x = TySingleton (point x) in
+  let _permission (p, x) = TyAnchoredPermission (p, x) in
+  (* Testing the function call *)
+  let (@->) x y = TyArrow (x, y) in
+  (* Make sure the unfolding is properly performed. *)
+  let env, length = bind_expr env (Variable.register "length") in
+  let env, x = bind_expr env (Variable.register "x") in
+  let env = Permissions.add env length (list (ref int) @-> int) in
+  let env = Permissions.add env x nil in
+  print_env env;
+  let env, t2 = TypeChecker.check_function_call env length x in
+  TypePrinter.(
+    Log.debug "Function call succeeded with type %a"
+      pdoc (ptype, (env, t2)));
   print_env env;
 ;;
 
@@ -226,4 +266,6 @@ let _ =
   test_refinement env;
   Printf.eprintf "%s" (Bash.box "Substracting permissions");
   test_substraction env;
+  Printf.eprintf "%s" (Bash.box "Function call");
+  test_function_call env;
 ;;

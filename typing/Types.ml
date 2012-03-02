@@ -920,15 +920,16 @@ module TypePrinter = struct
     in
     join hardline lines
   ;;
+  
+  let print_permission_list (env, { permissions }): document =
+    let permissions = List.map (print_type env) permissions in
+    (*let exclusive = List.map
+      (fun doc -> colors.underline ^^ doc ^^ colors.default) exclusive
+    in*)
+    join (comma ^^ space) permissions
+  ;;
 
   let print_permissions (env: env): document =
-    let print_permissions { permissions }: document =
-      let permissions = List.map (print_type env) permissions in
-      (*let exclusive = List.map
-        (fun doc -> colors.underline ^^ doc ^^ colors.default) exclusive
-      in*)
-      join (comma ^^ space) permissions
-    in
     let header =
       let str = "PERMISSIONS:" in
       let line = String.make (String.length str) '-' in
@@ -936,7 +937,7 @@ module TypePrinter = struct
     in
     let lines = map_exprs env (fun names binder ->
       let name = List.hd names in
-      let perms = print_permissions binder in
+      let perms = print_permission_list (env, binder) in
       (print_var name) ^^ colon ^^ space ^^ (nest 2 perms)
     ) in
     let lines = join break1 lines in
