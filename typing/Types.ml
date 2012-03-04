@@ -105,7 +105,7 @@ and abstract_type_def =
 and type_def =
   | Concrete of data_type_def
   | Abstract of abstract_type_def
-  | Flexible of typ option
+  | Flexible
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -914,7 +914,7 @@ module TypePrinter = struct
             let _hd, tl = flatten_kind kind in 
             let arity = List.length tl in
             print_fact name true arity fact
-        | Flexible _ ->
+        | Flexible ->
             Log.error "Not implemented yet"
       )
     in

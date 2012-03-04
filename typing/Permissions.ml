@@ -471,7 +471,10 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
   let { permissions } = permissions_for_ident env point in
 
   (* This is a very dumb strategy, that may want further improvements: we just
-   * take the first permission that “works” *)
+   * take the first permission that “works”.
+   * TODO: if we get to choose between a duplicable and a non-duplicable
+   * permission, we should always pick the duplicable one. E.g.:
+   * { Nil, list ref int } - list ref int  *)
   let rec traverse (env: env) (seen: typ list) (remaining: typ list): env option =
     match remaining with
     | hd :: remaining ->

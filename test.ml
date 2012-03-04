@@ -233,12 +233,15 @@ let test_function_call (env: env) =
   let point x = TyPoint x in
   let _points_to x = TySingleton (point x) in
   let _permission (p, x) = TyAnchoredPermission (p, x) in
+  let forall (x, k) t = TyForall ((Variable.register x, k), t) in
   (* Testing the function call *)
   let (@->) x y = TyArrow (x, y) in
   (* Make sure the unfolding is properly performed. *)
   let env, length = bind_expr env (Variable.register "length") in
   let env, x = bind_expr env (Variable.register "x") in
-  let env = Permissions.add env length (list (ref int) @-> int) in
+  let env = Permissions.add env length
+    (forall ("a", SurfaceSyntax.KType) (list (ref int) @-> int))
+  in
   let env = Permissions.add env x nil in
   print_env env;
   let env, t2 = TypeChecker.check_function_call env length x in
