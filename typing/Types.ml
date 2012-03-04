@@ -105,7 +105,7 @@ and abstract_type_def =
 and type_def =
   | Concrete of data_type_def
   | Abstract of abstract_type_def
-  | Flexible
+  | Flexible of typ option
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -561,6 +561,7 @@ let replace_type env point f =
   }
 ;;
 
+
 (* Dealing with marks. *)
 
 let get_mark (env: env) (point: point): Mark.t =
@@ -580,7 +581,7 @@ let refresh_mark (env: env): env =
   { env with mark = Mark.create () }
 ;;
 
-(* The utility functions below should save us the hassle of matching. *)
+(* A hodge-podge of getters. *)
 
 let permissions_for_ident (env: env) (point: point): expr_binder =
   snd (find_expr env point)
@@ -598,29 +599,6 @@ let branches_for_type (env: env) (point: point): data_type_def_branch list optio
       Some branches
   | _ ->
       None
-;;
-
-let instantiate_branch branch args =
-  let args = List.rev args in
-  let branch = Hml_List.fold_lefti (fun i branch arg ->
-    subst_data_type_def_branch arg i branch) branch args
-  in
-  branch
-;;
-
-let find_and_instantiate_branch
-    (env: env)
-    (point: point)
-    (datacon: Datacon.name)
-    (args: typ list): data_type_def_branch =
-  let branches = Option.extract (branches_for_type env point) in
-  let branch =
-    List.find
-      (fun (datacon', _) -> Datacon.equal datacon datacon')
-      branches
-  in
-  let branch = instantiate_branch branch args in
-  branch
 ;;
 
 let kind_for_def (def: type_def): kind =
@@ -653,9 +631,28 @@ let def_for_datacon (env: env) (datacon: Datacon.name): data_type_def =
       Log.error "There is no type for constructor %a" Datacon.p datacon
 ;;
 
+let arity_for_def (def: type_def): int =
+  let _, tl = flatten_kind (kind_for_def def) in
+  List.length tl
+;;
+
+let arity_for_data_type (env: env) (point: point): int =
+  let _, tl = flatten_kind (kind_for_type env point) in
+  List.length tl
+;;
+
+(* What type am I dealing with? *)
+
 let is_abstract (env: env) (point: point): bool =
   match def_for_type env point with
   | Abstract _ ->
+      true
+  | _ -> false
+;;
+
+let is_flexible (env: env) (point: point): bool =
+  match def_for_type env point with
+  | Flexible None ->
       true
   | _ -> false
 ;;
@@ -667,15 +664,49 @@ let is_concrete (env: env) (point: point): bool =
   | _ -> false
 ;;
 
-let arity_for_def (def: type_def): int =
-  let _, tl = flatten_kind (kind_for_def def) in
-  List.length tl
+(* Instantiating. *)
+
+let internal_ptype = ref (fun _ -> assert false);;
+let internal_pdoc = ref (fun _ -> assert false);;
+
+let instantiate_flexible env p t =
+  Log.affirm (is_flexible env p) "Trying to instantiate a variable that's not flexible";
+  Log.debug "Instantiating %s with %a"
+    (Option.extract (name_for_type env p))
+    !internal_pdoc (!internal_ptype, (env, t));
+  { env with state =
+      PersistentUnionFind.update (function
+        | names, TypeBinding b ->
+            names, TypeBinding { b with definition = Flexible (Some t) }
+        | _ ->
+            Log.error "Not a type"
+      ) p env.state }
 ;;
 
-let arity_for_data_type (env: env) (point: point): int =
-  let _, tl = flatten_kind (kind_for_type env point) in
-  List.length tl
+let instantiate_branch branch args =
+  let args = List.rev args in
+  let branch = Hml_List.fold_lefti (fun i branch arg ->
+    subst_data_type_def_branch arg i branch) branch args
+  in
+  branch
 ;;
+
+let find_and_instantiate_branch
+    (env: env)
+    (point: point)
+    (datacon: Datacon.name)
+    (args: typ list): data_type_def_branch =
+  let branches = Option.extract (branches_for_type env point) in
+  let branch =
+    List.find
+      (fun (datacon', _) -> Datacon.equal datacon datacon')
+      branches
+  in
+  let branch = instantiate_branch branch args in
+  branch
+;;
+
+(* Misc. *)
 
 (* TODO: we should flatten type applications as soon as we can... *)
 let flatten_tyapp t =
@@ -766,7 +797,12 @@ module TypePrinter = struct
         string "dynamic"
 
     | TyPoint point ->
-        string (Option.extract (name_for_binder env point))
+        begin match PersistentUnionFind.find point env.state with
+        | _, TypeBinding { definition = Flexible (Some t); _ } ->
+            lparen ^^ string "f=" ^^ print_type env t ^^ rparen
+        | _ ->
+            string (Option.extract (name_for_binder env point))
+        end
 
     | TyVar _ ->
         Log.error "All variables should've been bound at this stage"
@@ -914,7 +950,7 @@ module TypePrinter = struct
             let _hd, tl = flatten_kind kind in 
             let arity = List.length tl in
             print_fact name true arity fact
-        | Flexible ->
+        | Flexible _ ->
             Log.error "Not implemented yet"
       )
     in
@@ -949,9 +985,13 @@ module TypePrinter = struct
     PpBuffer.pretty 1.0 Bash.twidth buf (f env)
   ;;
 
+  internal_pdoc := pdoc;;
+
   let ptype (env, t) =
     print_type env t
   ;;
+
+  internal_ptype := ptype;;
 
   let print_binders (env: env): document =
     print_string "Γ (unordered) = " ^^
@@ -962,3 +1002,4 @@ module TypePrinter = struct
 
 
 end
+

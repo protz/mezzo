@@ -10,7 +10,12 @@ let has_flexible env t =
         false
 
     | TyPoint p ->
-        def_for_type env p = Flexible
+        begin match def_for_type env p with
+        | Flexible None ->
+            true
+        | _ ->
+            false
+        end
 
     | TyForall (_, t)
     | TyExists (_, t) ->
@@ -70,8 +75,8 @@ let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x:
     | TyForall ((name, kind), t) ->
         if kind <> SurfaceSyntax.KType then
           Log.error "Not implemented";
+        let env, t = bind_type_in_type env name Affine (Flexible None) t in
         let env, t = flex env t in
-        let env, t = bind_type_in_type env name Affine Flexible t in
         env, t
     | _ as t ->
         env, t

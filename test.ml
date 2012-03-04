@@ -213,9 +213,9 @@ let test_function_call (env: env) =
   let _pair (x, y) = TyApp (TyApp (find_point env "pair", x), y) in
   let list x = TyApp (find_point env "list", x) in
   let ref x = TyApp (find_point env "ref", x) in
-  let _t1 x = TyApp (find_point env "t1", x) in
+  let var x = TyVar x in
   let int = find_point env "int" in
-  let _cons (head, tail) =
+  let cons (head, tail) =
     TyConcreteUnfolded (Datacon.register "Cons",
       [FieldValue (Field.register "head", head);
        FieldValue (Field.register "tail", tail)])
@@ -240,15 +240,29 @@ let test_function_call (env: env) =
   let env, length = bind_expr env (Variable.register "length") in
   let env, x = bind_expr env (Variable.register "x") in
   let env = Permissions.add env length
-    (forall ("a", SurfaceSyntax.KType) (list (ref int) @-> int))
+    (forall ("a", SurfaceSyntax.KType) (list (var 0) @-> int))
   in
   let env = Permissions.add env x nil in
-  print_env env;
-  let env, t2 = TypeChecker.check_function_call env length x in
-  TypePrinter.(
-    Log.debug "Function call succeeded with type %a"
-      pdoc (ptype, (env, t2)));
-  print_env env;
+  let test_call env f x =
+    Bash.(
+      Log.debug "Testing with %s%s%s" colors.underline
+        (Option.extract (name_for_expr env x)) colors.default);
+    let env, t2 = TypeChecker.check_function_call env f x in
+    TypePrinter.(
+      Log.debug "Function call succeeded with type %a.\n\
+                 Remaining permissions:\n"
+        pdoc (ptype, (env, t2)));
+    print_env env;
+    env
+  in
+  let env = test_call env length x in
+  let env, y = bind_expr env (Variable.register "y") in
+  let env = Permissions.add env y (list (ref int)) in
+  let env = test_call env length y in
+  let env, z = bind_expr env (Variable.register "z") in
+  let env = Permissions.add env z (cons (ref int, list (ref int))) in
+  let env = test_call env length z in
+  ignore env;
 ;;
 
 let _ =

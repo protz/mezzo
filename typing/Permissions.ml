@@ -501,6 +501,10 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
 
 
 and sub_type (env: env) (t1: typ) (t2: typ): env option =
+  TypePrinter.(
+    Log.debug ~level:4 "sub_type\n  t1=%a\n  t2=%a"
+      pdoc (ptype, (env, t1))
+      pdoc (ptype, (env, t2)));
   match t1, t2 with
   | TyTuple components1, TyTuple components2 ->
       (* We can only substract a tuple from another one if they have the same
@@ -558,6 +562,35 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         sub_type env t1 (TyConcreteUnfolded branch2)
       else
         None
+
+  | TyApp _, TyApp _ ->
+      let cons1, args1 = flatten_tyapp t1 in
+      let cons2, args2 = flatten_tyapp t2 in
+
+      if same env !!cons1 !!cons2 then
+        List.fold_left2
+          (fun env arg1 arg2 -> Option.bind env (fun env -> sub_type env arg1 arg2))
+          (Some env) args1 args2
+      else
+        None
+
+  | TyPoint p1, TyPoint p2 ->
+      if same env p1 p2 then
+        Some env
+      else if is_flexible env p2 then
+        Some (merge_left env p1 p2)
+      else
+        None
+
+  | _, TyPoint p2 ->
+      begin match def_for_type env p2 with
+      | Flexible None ->
+          Some (instantiate_flexible env p2 t1)
+      | Flexible (Some t2) ->
+          sub_type env t1 t2
+      | _ ->
+          None
+      end
 
   | _ ->
       if equal env t1 t2 then
