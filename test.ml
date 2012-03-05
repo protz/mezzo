@@ -59,6 +59,10 @@ let forall (x, k) t = TyForall ((Variable.register x, k), t);;
 let var x = TyVar x;;
 (* This is right-associative, so you can write [list int @-> int @-> tuple []] *)
 let (@->) x y = TyArrow (x, y);;
+let ktype = SurfaceSyntax.KType;;
+let unit = tuple [];;
+
+let check = Bash.(Hml_String.bsprintf "%s✓%s" colors.green colors.default);;
 
 let test_adding_perms (env: env) =
   (* Since these are global names, they won't change, so we can fetch them right
@@ -189,12 +193,13 @@ let test_function_call (env: env) =
   let list x = TyApp (find_point env "list", x) in
   let ref x = TyApp (find_point env "ref", x) in
   let int = find_point env "int" in
+  let _t1 x = TyApp (find_point env "t1", x) in
   (* Testing the function call *)
   (* Make sure the unfolding is properly performed. *)
   let env, length = bind_expr env (Variable.register "length") in
   let env, x = bind_expr env (Variable.register "x") in
   let env = Permissions.add env length
-    (forall ("a", SurfaceSyntax.KType) (list (var 0) @-> int))
+    (forall ("a", ktype) (list (var 0) @-> int))
   in
   let env = Permissions.add env x nil in
   let test_call env f x =
@@ -203,9 +208,9 @@ let test_function_call (env: env) =
         (Option.extract (name_for_expr env x)) colors.default);
     let env, t2 = TypeChecker.check_function_call env f x in
     TypePrinter.(
-      Log.debug "Function call succeeded with type %a.\n\
+      Log.debug "%s Function call succeeded with type %a.\n\
                  Remaining permissions:\n"
-        pdoc (ptype, (env, t2)));
+        check pdoc (ptype, (env, t2)));
     print_env env;
     env
   in
@@ -216,12 +221,42 @@ let test_function_call (env: env) =
   let env, z = bind_expr env (Variable.register "z") in
   let env = Permissions.add env z (cons (ref int, list (ref int))) in
   let env = test_call env length z in
+
+  (* Make sure these calls fail. *)
+  try
+    ignore (test_call env length z);
+    Log.error "This call shouldn't be allowed; the permissions have been consumed already";
+  with _ ->
+    Log.debug "%s Test passed -- the error message above should be:\n   “\
+      Expected an argument of type list a but the only permissions available \
+      for z are Cons {…”" check;
+
+  try
+    let env, arg = bind_expr env (Variable.register "arg") in
+    let env, newref = bind_expr env (Variable.register "newref") in
+    let env = Permissions.add env newref (forall ("a", ktype) (tuple [] @-> (var 0))) in
+    let env = Permissions.add env arg unit in
+    ignore (test_call env newref arg);
+    Log.error "This call shouldn't be allowed because there's flexible\
+      variables in the return type"
+  with _ ->
+    Log.debug "%s Test passed -- the error message above should be:\n   “\
+      The following type still contains flexible variables: a”" check;
+
+  (* This one can't be expanded because it's abstract, tests a different
+   * codepath (the one where the point is directly merged using [merge_left]). *)
+  let env, deref = bind_expr env (Variable.register "deref") in
+  let env = Permissions.add env deref (forall ("a", ktype) (ref (var 0) @-> (var 0))) in
+  let env, arg = bind_expr env (Variable.register "arg") in
+  let env = Permissions.add env arg (ref int) in
+  let env = test_call env deref arg in
+
   ignore env;
 ;;
 
 let _ =
   let open TypePrinter in
-  Log.enable_debug 3;
+  Log.enable_debug 4;
   let env = parse_and_build_types () in
   (* Check that the kinds and facts we've built are correct. *)
   Log.debug ~level:1 "%a"

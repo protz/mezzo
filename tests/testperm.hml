@@ -23,7 +23,7 @@ data t1 a =
 (* Test: adding x: t2 α then x: Bar { baz: β } should fusion the two
  * permissions. *)
 data t2 a =
-  | Foo
+  | Foo2
   | Bar { baz: t1 a }
 
 (* Test: apply length to x: list b and see how it works. *)
