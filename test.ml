@@ -35,6 +35,31 @@ let print_env (env: env) =
   Log.debug ~level:1 "%a\n" pdoc (print_permissions, env);
 ;;
 
+(* A few convenience constructors *)
+let cons (head, tail) =
+  TyConcreteUnfolded (Datacon.register "Cons",
+    [FieldValue (Field.register "head", head);
+     FieldValue (Field.register "tail", tail)])
+;;
+let nil =
+  TyConcreteUnfolded (Datacon.register "Nil", [])
+;;
+let tuple l = TyTuple (List.map (function
+  | TyEmpty as p
+  | (TyStar _ as p)
+  | (TyAnchoredPermission _ as p) ->
+      TyTupleComponentPermission p
+  | x ->
+      TyTupleComponentValue x) l)
+;;
+let point x = TyPoint x;;
+let points_to x = TySingleton (point x);;
+let permission (p, x) = TyAnchoredPermission (p, x);;
+let forall (x, k) t = TyForall ((Variable.register x, k), t);;
+let var x = TyVar x;;
+(* This is right-associative, so you can write [list int @-> int @-> tuple []] *)
+let (@->) x y = TyArrow (x, y);;
+
 let test_adding_perms (env: env) =
   (* Since these are global names, they won't change, so we can fetch them right
    * now. *)
@@ -67,16 +92,6 @@ let test_unfolding (env: env) =
   let list x = TyApp (find_point env "list", x) in
   let t1 x = TyApp (find_point env "t1", x) in
   let int = find_point env "int" in
-  let cons (head, tail) =
-    TyConcreteUnfolded (Datacon.register "Cons",
-      [FieldValue (Field.register "head", head);
-       FieldValue (Field.register "tail", tail)])
-  in
-  let nil =
-    TyConcreteUnfolded (Datacon.register "Nil", [])
-  in
-  let tuple l = TyTuple (List.map (fun x -> TyTupleComponentValue x) l) in
-  let points_to x = TySingleton (TyPoint x) in
   (* Make sure the unfolding is properly performed. *)
   let env, foo = bind_expr env (Variable.register "foo") in
   let t = cons (int, list int) in
@@ -107,26 +122,7 @@ let test_refinement (env: env) =
   let pair (x, y) = TyApp (TyApp (find_point env "pair", x), y) in
   let list x = TyApp (find_point env "list", x) in
   let ref x = TyApp (find_point env "ref", x) in
-  let _t1 x = TyApp (find_point env "t1", x) in
   let int = find_point env "int" in
-  let _cons (head, tail) =
-    TyConcreteUnfolded (Datacon.register "Cons",
-      [FieldValue (Field.register "head", head);
-       FieldValue (Field.register "tail", tail)])
-  in
-  let nil =
-    TyConcreteUnfolded (Datacon.register "Nil", [])
-  in
-  let tuple l = TyTuple (List.map (function
-    | TyEmpty as p
-    | (TyStar _ as p)
-    | (TyAnchoredPermission _ as p) -> 
-        TyTupleComponentPermission p
-    | x ->
-        TyTupleComponentValue x) l) in
-  let point x = TyPoint x in
-  let points_to x = TySingleton (point x) in
-  let permission (p, x) = TyAnchoredPermission (p, x) in
   (* Make sure the unfolding is properly performed. *)
   let env, foo = bind_expr env (Variable.register "foo") in
   let env = match Permissions.refine_type env nil (list int) with
@@ -167,29 +163,9 @@ let test_refinement (env: env) =
 
 let test_substraction (env: env) =
   (* Some wrappers for easily building types by hand. *)
-  let _pair (x, y) = TyApp (TyApp (find_point env "pair", x), y) in
   let list x = TyApp (find_point env "list", x) in
   let ref x = TyApp (find_point env "ref", x) in
-  let _t1 x = TyApp (find_point env "t1", x) in
   let int = find_point env "int" in
-  let _cons (head, tail) =
-    TyConcreteUnfolded (Datacon.register "Cons",
-      [FieldValue (Field.register "head", head);
-       FieldValue (Field.register "tail", tail)])
-  in
-  let nil =
-    TyConcreteUnfolded (Datacon.register "Nil", [])
-  in
-  let tuple l = TyTuple (List.map (function
-    | TyEmpty as p
-    | (TyStar _ as p)
-    | (TyAnchoredPermission _ as p) -> 
-        TyTupleComponentPermission p
-    | x ->
-        TyTupleComponentValue x) l) in
-  let point x = TyPoint x in
-  let _points_to x = TySingleton (point x) in
-  let _permission (p, x) = TyAnchoredPermission (p, x) in
   (* Make sure the unfolding is properly performed. *)
   let env, foo = bind_expr env (Variable.register "foo") in
   let env = Permissions.add env foo (tuple [int; ref int]) in
@@ -210,32 +186,10 @@ let test_substraction (env: env) =
 
 let test_function_call (env: env) =
   (* Some wrappers for easily building types by hand. *)
-  let _pair (x, y) = TyApp (TyApp (find_point env "pair", x), y) in
   let list x = TyApp (find_point env "list", x) in
   let ref x = TyApp (find_point env "ref", x) in
-  let var x = TyVar x in
   let int = find_point env "int" in
-  let cons (head, tail) =
-    TyConcreteUnfolded (Datacon.register "Cons",
-      [FieldValue (Field.register "head", head);
-       FieldValue (Field.register "tail", tail)])
-  in
-  let nil =
-    TyConcreteUnfolded (Datacon.register "Nil", [])
-  in
-  let _tuple l = TyTuple (List.map (function
-    | TyEmpty as p
-    | (TyStar _ as p)
-    | (TyAnchoredPermission _ as p) -> 
-        TyTupleComponentPermission p
-    | x ->
-        TyTupleComponentValue x) l) in
-  let point x = TyPoint x in
-  let _points_to x = TySingleton (point x) in
-  let _permission (p, x) = TyAnchoredPermission (p, x) in
-  let forall (x, k) t = TyForall ((Variable.register x, k), t) in
   (* Testing the function call *)
-  let (@->) x y = TyArrow (x, y) in
   (* Make sure the unfolding is properly performed. *)
   let env, length = bind_expr env (Variable.register "length") in
   let env, x = bind_expr env (Variable.register "x") in

@@ -13,6 +13,8 @@ let has_flexible env t =
         begin match def_for_type env p with
         | Flexible None ->
             true
+        | Flexible (Some t) ->
+            has_flexible t
         | _ ->
             false
         end

@@ -38,32 +38,36 @@ let duplicables
         Log.error "There should be no free variables here."
 
     | TyPoint point ->
-        begin
-          match fact_for_type env point with
-          | Exclusive ->
-              raise (EExclusive t)
-          | Affine ->
-              raise (EAffine t)
-          | Duplicable bitmap ->
-              if Array.length bitmap != 0 then
-                Log.error "Partial type applications are not allowed"
-          | Fuzzy param_number ->
-              (* Only the current type's parameters are marked as fuzzy. *)
-              begin
-                match phase with
-                | Elaborating my_bitmap ->
-                    (* Levels in the interval [n, n + myarity[ are those for the
-                     * current type's parameters. *)
-                    let my_arity = Array.length my_bitmap in
-                    Log.debug ~level:4 "↳ marking parameter %d" param_number;
-                    Log.affirm (param_number >= 0 && param_number < my_arity)
-                      "Marking as duplicable a variable that's not in the right\
-                      range!\ param_number = %d" param_number;
-                    my_bitmap.(param_number) <- true
-                | Checking ->
-                    Log.error "No fuzzy variables should be present when checking."
-              end
-          end
+        begin match structure env point with
+        | Some t ->
+            duplicables env t
+        | None ->
+            begin match fact_for_type env point with
+            | Exclusive ->
+                raise (EExclusive t)
+            | Affine ->
+                raise (EAffine t)
+            | Duplicable bitmap ->
+                if Array.length bitmap != 0 then
+                  Log.error "Partial type applications are not allowed"
+            | Fuzzy param_number ->
+                (* Only the current type's parameters are marked as fuzzy. *)
+                begin
+                  match phase with
+                  | Elaborating my_bitmap ->
+                      (* Levels in the interval [n, n + myarity[ are those for the
+                       * current type's parameters. *)
+                      let my_arity = Array.length my_bitmap in
+                      Log.debug ~level:4 "↳ marking parameter %d" param_number;
+                      Log.affirm (param_number >= 0 && param_number < my_arity)
+                        "Marking as duplicable a variable that's not in the right\
+                        range!\ param_number = %d" param_number;
+                      my_bitmap.(param_number) <- true
+                  | Checking ->
+                      Log.error "No fuzzy variables should be present when checking."
+                end
+            end
+        end
 
     | TyForall ((name, kind), t)
     | TyExists ((name, kind), t) ->

@@ -177,6 +177,15 @@ let merge_left env p2 p1 =
   { env with state = PersistentUnionFind.union p1 p2 env.state }
 ;;
 
+(* Deal with flexible variables that have a structure. *)
+let structure (env: env) (point: point): typ option =
+  match PersistentUnionFind.find point env.state with
+  | _, TypeBinding { definition = Flexible (Some t); _ } ->
+      Some t
+  | _ ->
+      None
+;;
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Fun with de Bruijn indices. *)
@@ -195,7 +204,14 @@ let equal env (t1: typ) (t2: typ) =
         i = i'
 
     | TyPoint p1, TyPoint p2 ->
-        same env p1 p2
+        begin match structure env p1, structure env p2 with
+        | Some t1, Some t2 ->
+            equal t1 t2
+        | None, None ->
+            same env p1 p2
+        | _ ->
+            false
+        end
 
     | TyExists ((_, k1), t1), TyExists ((_, k2), t2)
     | TyForall ((_, k1), t1), TyForall ((_, k2), t2) ->
@@ -797,8 +813,8 @@ module TypePrinter = struct
         string "dynamic"
 
     | TyPoint point ->
-        begin match PersistentUnionFind.find point env.state with
-        | _, TypeBinding { definition = Flexible (Some t); _ } ->
+        begin match structure env point with
+        | Some t ->
             lparen ^^ string "f=" ^^ print_type env t ^^ rparen
         | _ ->
             string (Option.extract (name_for_binder env point))
