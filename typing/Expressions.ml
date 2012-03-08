@@ -6,6 +6,8 @@ open Types
 
 (* Patterns *)
 
+(* The De Bruijn numbering is defined according to a depth-first traversal of
+ * the pattern: the first variable encountered will have index 0, and so on. *)
 type pattern =
   (* x: τ *)
   | PConstraint of pattern * typ
@@ -21,7 +23,7 @@ type pattern =
 
 (* Expressions *)
 
-type rec_flag = Nonrecursive | Recursive
+type rec_flag = SurfaceSyntax.rec_flag
 
 type expression =
   (* e: τ *)
@@ -29,9 +31,9 @@ type expression =
   (* v *)
   | EVar of Variable.name
   (* let rec pat = expr and pat' = expr' in expr *)
-  | ELet of rec_flag * (pattern * expression list) * expression
+  | ELet of rec_flag * (pattern * expression) list * expression
   (* fun [a] (x: τ): τ -> e *)
-  | EFun of Variable.name * (Variable.name * kind) list * typ list * typ * expression
+  | EFun of (Variable.name * kind) list * typ list * typ * expression
   (* v.f <- e *)
   | EAssign of Variable.name * Field.name * expression
   (* e e₁ … eₙ *)
@@ -47,11 +49,22 @@ type expression =
   (* e₁; e₂ *)
   | ESequence of expression * expression
   | ELocated of expression * Lexing.position * Lexing.position
+  (* Arithmetic *)
+  | EPlus of expression * expression
+  | EMinus of expression * expression
+  | ETimes of expression * expression
+  | EDiv of expression * expression
+  | EUMinus of expression
+  | EInt of int
+
 
 (* The grammar below doesn't enforce the “only variables are allowed on the
- * left-hand side of a let rec” rule. We'll see to that later. *)
+ * left-hand side of a let rec” rule. We'll see to that later. Here too, the
+ * order of the bindings is significant: if the binding is recursive, the
+ * variables in all the patterns are collected in order before type-checking the
+ * expressions. *)
 type declaration =
-  | DMultiple of rec_flag * (pattern * expression list)
+  | DMultiple of rec_flag * (pattern * expression) list
   | DLocated of declaration * Lexing.position * Lexing.position
 
 type declaration_group =

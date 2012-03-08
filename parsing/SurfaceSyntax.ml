@@ -121,23 +121,16 @@ type pattern =
 
 type rec_flag = Nonrecursive | Recursive
 
-(* An inner declaration can appear either in a let-binding or a top-level val
- * binding. The types in the surface syntax and the parsing rules are shared. *)
-type inner_declaration =
-  (* val x, y = ... *)
-  | IValues of pattern * expression
-  (* val f t₁ … tₙ: τ = ... where tᵢ is a tuple type *)
-  | IFunction of Variable.name * (Variable.name * kind) list * typ list * typ * expression
-
 and expression =
   (* e: τ *)
   | EConstraint of expression * typ
   (* v *)
   | EVar of Variable.name
   (* let rec f p₁ … pₙ: τ = e₁ and … and v = e₂ in e *)
-  | ELet of rec_flag * inner_declaration list * expression
-  (*(* fun pat -> expr *)
-  | EFun of pattern * expression*)
+  | ELet of rec_flag * (pattern * expression) list * expression
+  (* fun [a] (x: τ): τ -> e -- the programmer can't write a fun-expression
+   * directly, but the parser desugars let f x = ... on-the-fly to this form. *)
+  | EFun of (Variable.name * kind) list * typ list * typ * expression
   (* v.f <- e *)
   | EAssign of expression * Variable.name * expression
   (* e e₁ … eₙ *)
@@ -153,14 +146,24 @@ and expression =
   (* e₁; e₂ *)
   | ESequence of expression * expression
   | ELocated of expression * Lexing.position * Lexing.position
+  (* Arithmetic *)
+  | EPlus of expression * expression
+  | EMinus of expression * expression
+  | ETimes of expression * expression
+  | EDiv of expression * expression
+  | EUMinus of expression
+  | EInt of int
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Top-level declarations *)
 
 type declaration =
-  | DMultiple of rec_flag * inner_declaration list
+  | DMultiple of rec_flag * (pattern * expression) list
   | DLocated of declaration * Lexing.position * Lexing.position
 
 type declaration_group =
   declaration list
+
+type program =
+  data_type_group * declaration_group

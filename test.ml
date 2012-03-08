@@ -1,4 +1,18 @@
 open Types
+(* Some test helpers to easily build types by hand. *)
+
+let parse_and_build_types () =
+  let program = Driver.lex_and_parse "tests/testperm.hml" in
+  let env, _declarations = WellKindedness.check_program program in
+  Log.debug ~level:4 "%a\n" TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds, env);
+  let env = FactInference.analyze_data_types env in
+  env
+;;
+
+let print_env (env: env) =
+  let open TypePrinter in
+  Log.debug ~level:1 "%a\n" pdoc (print_permissions, env);
+;;
 
 (* ------------------------------------------------------------------------- *)
 

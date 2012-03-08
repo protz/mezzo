@@ -36,9 +36,10 @@ let _ =
     )
     usage;
   Log.enable_debug !arg_debug;
-  let ast, _decls = Driver.lex_and_parse !arg_filename in
-  let env = WellKindedness.(check_data_type_group empty ast) in
+  let program = Driver.lex_and_parse !arg_filename in
+  let env, declarations = WellKindedness.check_program program in
   let env = FactInference.analyze_data_types env in
   Log.debug ~level:1 "%a"
     Types.TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds_and_facts, env);
+  ignore (declarations);
 ;;

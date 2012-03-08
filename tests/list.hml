@@ -1,0 +1,15 @@
+abstract int :: TYPE
+fact duplicable (int)
+
+data list a =
+  | Nil
+  | Cons { head: a; tail: list a }
+
+val rec length [a] (x: list a): int =
+  match x with
+  | Nil ->
+      0
+  | Cons { tail = tail } ->
+      1 + length tail
+  end
+;;

@@ -106,13 +106,7 @@ let rec token = lexer
 | "(*" -> comment 0 lexbuf
 | "*)" -> raise_error UnexpectedEndOfComment
 
-(* | "-" -> locate lexbuf MINUS
-| "+" -> locate lexbuf PLUS
-| "*" -> locate lexbuf AST
-| "/" -> locate lexbuf SLASH
-| int ->
-    let l = utf8_lexeme lexbuf in
-    locate lexbuf (INT (int_of_string l))
+(*
 | "<" | 9001 (* 〈 *) -> locate lexbuf LANGLE
 | ">" | 9002 (* 〉 *) -> locate lexbuf RANGLE
 | "type" -> locate lexbuf TYPE
@@ -172,6 +166,13 @@ let rec token = lexer
 | "*" | 9733 (* ★ *) -> locate lexbuf STAR
 | "=" -> locate lexbuf EQUAL
 | "consumes" -> locate lexbuf CONSUMES
+
+| int ->
+    let l = utf8_lexeme lexbuf in
+    locate lexbuf (INT (int_of_string l))
+| "+" -> locate lexbuf PLUS
+| "/" -> locate lexbuf SLASH
+| "-" -> locate lexbuf MINUS
 
 | lid -> locate lexbuf (LIDENT (utf8_lexeme lexbuf))
 | uid -> locate lexbuf (UIDENT (utf8_lexeme lexbuf))

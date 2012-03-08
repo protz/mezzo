@@ -4,6 +4,7 @@
 
 open SurfaceSyntax
 module T = Types
+module E = Expressions
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -75,6 +76,7 @@ module KindPrinter = struct
   ;;
 
 end
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Error messages. *)
@@ -129,6 +131,8 @@ type env = {
   level: level;
   (* A mapping of identifiers to pairs of a kind and a level. *)
   mapping: (kind * level) M.t;
+  (* The current start and end positions *)
+  location: Lexing.position * Lexing.position;
 }
 
 type fragment =
@@ -137,7 +141,7 @@ type fragment =
 (* The empty environment. *)
 
 let empty : env =
-  { level = 0; mapping = M.empty }
+  { level = 0; mapping = M.empty; location = Lexing.dummy_pos, Lexing.dummy_pos }
 
 (* [find x env] looks up the name [x] in the environment [env] and returns a
    pair of a kind and a de Bruijn index (not a de Bruijn level!). *)
@@ -154,8 +158,13 @@ let find x env =
 let bind env (x, kind) : env =
   (* The current level becomes [x]'s level. The current level is
      then incremented. *)
-  { level = env.level + 1;
+  { env with
+    level = env.level + 1;
     mapping = M.add x (kind, env.level) env.mapping }
+
+(* [locate env p1 p2] extends [env] with the provided location information. *)
+let locate env p1 p2: env =
+  { env with location = p1, p2 }
 
 (* [extend env xs] extends the current environment with new bindings; [xs] is
    a fragment, that is, a map of identifiers to kinds. Because an arbitrary
@@ -397,7 +406,7 @@ let collect_data_type_def_tycon tycons (def: SurfaceSyntax.data_type_def) : frag
 let collect_data_type_group_tycon group : fragment =
   List.fold_left collect_data_type_def_tycon M.empty group
 
-let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : T.env =
+let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : env * T.env =
   let open Types in
   (* Collect the names and kinds of the data types that are being
      defined. Check that they are distinct. Extend the environment. *)
@@ -485,7 +494,7 @@ let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : T.
   ) (empty_env, []) group in
   (* Now substitute the TyVars for the TyPoints: for all definitions *)
   let total_number_of_data_types = List.length points in
-  fold_types type_env (fun type_env point names { definition; _ } ->
+  env, fold_types type_env (fun type_env point names { definition; _ } ->
     match definition with
     | Abstract _ ->
         type_env
@@ -504,3 +513,103 @@ let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : T.
     | _ ->
         assert false
   ) type_env
+;;
+
+
+let ploc (f: env -> pattern -> env * E.pattern): env -> pattern -> env * E.pattern =
+  fun (env: env) (pattern: pattern) ->
+    match pattern with
+    | PLocated (pattern, p1, p2) ->
+        let env = locate env p1 p2 in
+        let env, pattern = f env pattern in
+        env, E.PLocated (pattern, p1, p2)
+    | _ ->
+        f env pattern
+;;
+
+(* [collect_and_check_pattern env pattern] performs two tasks at once: first, it
+ * collects in a depth-first search all bindings in the pattern, adds them to
+ * the environment, and returns the environment; second, it translates [pattern]
+ * from [SurfaceSyntax.pattern] to [Expressions.pattern]. *)
+let rec collect_and_check_pattern (env: env) (pattern: pattern): env * E.pattern =
+  match pattern with
+  | PConstraint (p, t) ->
+      let t = check false env t KType in
+      let env, p = collect_and_check_pattern env pattern in
+      env, E.PConstraint (p, t)
+  | PVar name ->
+      let env = bind env (name, KTerm) in
+      env, E.PVar name
+  | PTuple patterns ->
+      let env, patterns = List.fold_left (fun (env, patterns) pattern ->
+        let env, pattern = collect_and_check_pattern env pattern in
+        env, pattern :: patterns) (env, []) patterns
+      in
+      env, E.PTuple (List.rev patterns)
+  | PConstruct (datacon, fields) ->
+      let env = List.fold_left (fun env field ->
+          let _field_name, bound_name = field in
+          let env = bind env (bound_name, KTerm) in
+        env) env fields
+      in
+      env, E.PConstruct (datacon, fields)
+  | PLocated _ ->
+      ploc collect_and_check_pattern env pattern
+;;
+
+
+let rec check_expression (env: env) (expression: expression): E.expression =
+  assert false
+;;
+
+
+let dloc (f: env -> declaration -> env * E.declaration): env -> declaration -> env * E.declaration =
+  fun (env: env) (declaration: declaration) ->
+    match declaration with
+    | DLocated (declaration, p1, p2) ->
+        let env = locate env p1 p2 in
+        let env, declaration = f env declaration in
+        env, E.DLocated (declaration, p1, p2)
+    | _ ->
+        f env declaration
+;;
+
+
+let rec collect_and_check_declaration (env: env) (declaration: declaration): env * E.declaration =
+  match declaration with
+  | DMultiple (rec_flag, bindings) ->
+      let patterns, expressions = List.split bindings in
+      let sub_env, patterns = List.fold_left (fun (env, patterns) pattern ->
+        let env, pattern = collect_and_check_pattern env pattern in
+        env, pattern :: patterns) (env, []) patterns
+      in
+      let patterns = List.rev patterns in
+      let check = match rec_flag with
+        | Recursive -> check_expression sub_env
+        | Nonrecursive -> check_expression env
+      in
+      let expressions = List.map check expressions in
+      sub_env, E.DMultiple (rec_flag, List.combine patterns expressions)
+  | DLocated _ ->
+     dloc collect_and_check_declaration env declaration
+;;
+
+
+(* This function transforms a [SurfaceSyntax.expression] into an
+ * [Expressions.expression] while converting everything into a De Bruijn
+ * representation (indices) and checking that the types that appear in the
+ * expression are correct. *)
+let check_declaration_group (env: env) (declarations: declaration_group): Expressions.declaration_group =
+  let _env, declarations = List.fold_left (fun (env, declarations) declaration ->
+    let env, declaration = collect_and_check_declaration env declaration in
+    env, declaration :: declarations) (env, []) declarations
+  in
+  List.rev declarations
+;;
+
+let check_program (program: program): T.env * Expressions.declaration_group =
+  let data_type_group, declaration_group = program in
+  let env, type_env = check_data_type_group empty data_type_group in
+  let declarations = check_declaration_group env declaration_group in
+  type_env, declarations
+;;

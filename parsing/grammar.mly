@@ -33,6 +33,8 @@
 %token CONSUMES DUPLICABLE FACT ABSTRACT
 %token VAL LET REC AND IN DOT WITH BEGIN END MATCH
 %token IF THEN ELSE
+%token<int> INT 
+%token PLUS MINUS SLASH
 %token EOF
 
 %nonassoc THEN
@@ -42,8 +44,7 @@
 
 (* Miscellaneous directives. *)
 
-%start <SurfaceSyntax.data_type_group * SurfaceSyntax.declaration_group> unit
-%type <SurfaceSyntax.inner_declaration> inner_declaration
+%start <SurfaceSyntax.program> unit
 %type <SurfaceSyntax.expression> expression
 %type <SurfaceSyntax.declaration> declaration
 
@@ -497,12 +498,43 @@ fact:
   raw_expr3:
   | dc = datacon_application(datacon, data_field_assign)
       { EConstruct dc }
-  | e = raw_expr4
+  | e = raw_sum
       { e }
 
     %inline data_field_assign:
     | f = variable EQUAL e = expr4
         { f, e }
+
+  (* Arithmetic expressions... *)
+  %inline sum:
+  | e = elocated(raw_sum)
+      { e }
+
+  raw_sum:
+  | s = sum PLUS f = factor
+    { EPlus (s, f) }
+  | s = sum MINUS f = factor
+    { EMinus (s, f) }
+  | f = raw_factor
+    { f }
+
+  %inline factor:
+  | e = elocated(raw_factor)
+      { e }
+
+  raw_factor:
+  | f = factor SLASH a = expr4
+    { EDiv (f, a) }
+  | f = factor STAR a = expr4
+    { ETimes (f, a) }
+  | a = uminus
+    { a }
+
+  uminus:
+  | MINUS a = expr4
+    { EUMinus a }
+  | a = raw_expr4
+    { a }
 
   (* Application *)
   %inline expr4:
@@ -523,6 +555,8 @@ fact:
   raw_expr6:
   | v = variable
       { EVar v }
+  | i = INT
+      { EInt i }
   | LPAREN es = atleast_two_list(COMMA, expr1) RPAREN
       { ETuple es }
   | MATCH e = expr1 WITH bs = separated_or_preceded_list(BAR, match_branch) END
@@ -549,7 +583,7 @@ fact:
  * in the hope that this makes parsing fail earlier, therefore giving better
  * error messages. *)
 declaration_group:
-| l = separated_list(SEMISEMI, declaration)
+| l = separated_or_terminated_list(SEMISEMI, declaration)
     { l }
 
 %inline declaration:
@@ -576,9 +610,9 @@ raw_decl1:
  * let-rec *)
 inner_declaration:
 | p = pattern EQUAL e = expression
-    { IValues (p, e) }
+    { p, e }
 | f_name = variable bs = type_parameters? f_args = one_tuple+ COLON t = normal_type EQUAL e = expression
-    { IFunction (f_name, Option.map_none [] bs, f_args, t, e) }
+    { PVar f_name, EFun (Option.map_none [] bs, f_args, t, e) }
 
   %inline one_tuple:
   | tcs = tuple(tuple_type_component)
