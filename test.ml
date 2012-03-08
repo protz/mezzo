@@ -1,11 +1,21 @@
-(*
-val add_perm: working_env -> typ -> working_env (* performs the merge operation *)
-val unfold_perm_one_round: general_env -> typ -> typ
-val substract_perm: working_env -> typ -> working_env
-val collect_flexible: typ -> typ
-*)
-
 open Types
+
+(* ------------------------------------------------------------------------- *)
+
+(* Some test helpers to easily build types by hand. *)
+
+let parse_and_build_types () =
+  let ast, _decls = Driver.lex_and_parse "tests/testperm.hml" in
+  let env = WellKindedness.(check_data_type_group empty ast) in
+  Log.debug ~level:4 "%a\n" TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds, env);
+  let env = FactInference.analyze_data_types env in
+  env
+;;
+
+let print_env (env: env) =
+  let open TypePrinter in
+  Log.debug ~level:1 "%a\n" pdoc (print_permissions, env);
+;;
 
 let point_for_data_type (env: env) (name: string): point =
   let module T = struct exception Found of point end in
@@ -22,47 +32,75 @@ let find_point env name =
   TyPoint (point_for_data_type env name)
 ;;
 
-let parse_and_build_types () =
-  let ast, _decls = Driver.lex_and_parse "tests/testperm.hml" in
-  let env = WellKindedness.(check_data_type_group empty ast) in
-  Log.debug ~level:4 "%a\n" TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds, env);
-  let env = FactInference.analyze_data_types env in
-  env
-;;
+(* Some OCaml functions that create HaMLeT types. *)
 
-let print_env (env: env) =
-  let open TypePrinter in
-  Log.debug ~level:1 "%a\n" pdoc (print_permissions, env);
-;;
-
-(* A few convenience constructors *)
 let cons (head, tail) =
   TyConcreteUnfolded (Datacon.register "Cons",
     [FieldValue (Field.register "head", head);
      FieldValue (Field.register "tail", tail)])
 ;;
+
 let nil =
   TyConcreteUnfolded (Datacon.register "Nil", [])
 ;;
-let tuple l = TyTuple (List.map (function
-  | TyEmpty as p
-  | (TyStar _ as p)
-  | (TyAnchoredPermission _ as p) ->
-      TyTupleComponentPermission p
-  | x ->
-      TyTupleComponentValue x) l)
+
+let tuple l =
+  TyTuple (List.map (function
+    | TyEmpty as p
+    | (TyStar _ as p)
+    | (TyAnchoredPermission _ as p) ->
+        TyTupleComponentPermission p
+    | x ->
+        TyTupleComponentValue x) l)
 ;;
-let point x = TyPoint x;;
-let points_to x = TySingleton (point x);;
-let permission (p, x) = TyAnchoredPermission (p, x);;
-let forall (x, k) t = TyForall ((Variable.register x, k), t);;
-let var x = TyVar x;;
+
+let point x =
+  TyPoint x
+;;
+
+let points_to x =
+  TySingleton (point x)
+;;
+
+let permission (p, x) =
+  TyAnchoredPermission (p, x)
+;;
+
+let forall (x, k) t =
+  TyForall ((Variable.register x, k), t)
+;;
+
+let var x =
+  TyVar x
+;;
+
 (* This is right-associative, so you can write [list int @-> int @-> tuple []] *)
-let (@->) x y = TyArrow (x, y);;
-let ktype = SurfaceSyntax.KType;;
-let unit = tuple [];;
+let (@->) x y =
+  TyArrow (x, y)
+;;
+
+let ktype =
+  SurfaceSyntax.KType
+;;
+
+let unit =
+  tuple []
+;;
+
+(* Green ☑ checkmark (for the debug output). *)
 
 let check = Bash.(Hml_String.bsprintf "%s✓%s" colors.green colors.default);;
+
+(* ------------------------------------------------------------------------- *)
+
+(* Various test points. The output is a bit messy right now, and there's very
+ * few assertions for the correctness of the results.
+ *
+ * TODO: make sure [Permissions], [TypeChecker] and others fail in a meaningful
+ * way (that is, by throwing a specific exception depending on the error), so
+ * that we can assert that they failed "the right way". We should also write
+ * some test helpers that assert that a given permission is present or not in
+ * the environment, to ensure that everything goes "as expected". *)
 
 let test_adding_perms (env: env) =
   (* Since these are global names, they won't change, so we can fetch them right
