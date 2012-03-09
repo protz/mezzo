@@ -19,8 +19,8 @@ let print_env (env: env) =
 (* Some test helpers to easily build types by hand. *)
 
 let parse_and_build_types () =
-  let ast, _decls = Driver.lex_and_parse "tests/testperm.hml" in
-  let env = WellKindedness.(check_data_type_group empty ast) in
+  let program = Driver.lex_and_parse "tests/testperm.hml" in
+  let env, _declarations = WellKindedness.check_program program in
   Log.debug ~level:4 "%a\n" TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds, env);
   let env = FactInference.analyze_data_types env in
   env
