@@ -11,8 +11,11 @@ type index =
 type point =
   PersistentUnionFind.point
 
-type kind =
-  SurfaceSyntax.kind
+type kind = SurfaceSyntax.kind = 
+  | KTerm
+  | KType
+  | KPerm
+  | KArrow of kind * kind
 
 let flatten_kind =
   SurfaceSyntax.flatten_kind
@@ -154,6 +157,8 @@ and type_binder = {
   definition: type_def;
   (* Associated fact. *)
   fact: fact;
+  (* Kind. Currently this can be one of [KType] and [KTerm]. *)
+  kind: kind;
 }
 
 and expr_binder = {
@@ -417,9 +422,9 @@ let bind_expr (env: env) (name: Variable.name):
   { env with state }, point
 ;;
 
-let bind_type (env: env) (name: Variable.name) (fact: fact) (definition: type_def):
+let bind_type (env: env) ?(kind=KType) (name: Variable.name) (fact: fact) (definition: type_def):
     env * point =
-  let binding = head name, TypeBinding { fact; definition } in
+    let binding = head name, TypeBinding { fact; definition; kind } in
   let point, state = PersistentUnionFind.create binding env.state in
   { env with state }, point
 ;;
@@ -957,7 +962,7 @@ module TypePrinter = struct
           end
     in
     let lines =
-      map_types env (fun _ { definition; fact; } ->
+      map_types env (fun _ { definition; fact; _ } ->
         match definition with
         | Concrete (_flag, name, kind, _branches) ->
             let _hd, tl = flatten_kind kind in 
