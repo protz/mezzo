@@ -207,3 +207,113 @@ and subst_decl t2 i d =
   | DLocated (d, p1, p2) ->
       DLocated (subst_decl t2 i d, p1, p2)
 ;;
+
+let rec esubst_patexprs e2 i rec_flag patexprs =
+  let patterns, expressions = List.split patexprs in
+  let names = List.fold_left (fun acc p ->
+    collect_pattern p :: acc) [] patterns
+  in
+  let names = List.flatten names in
+  let n = List.length names in
+  let expressions = match rec_flag with
+    | Recursive ->
+        List.map (esubst e2 (i + n)) expressions
+    | Nonrecursive ->
+        List.map (esubst e2 i) expressions
+  in
+  n, List.combine patterns expressions
+
+(* [esubst e2 i e1] substitutes expression [e2] for index [i] in expression [e1]. *)
+and esubst e2 i e1 =
+  match e1 with
+  | EConstraint (e, t) ->
+      let e = esubst e2 i e in
+      EConstraint (e, t)
+
+  | EVar index ->
+      if i = index then
+        e2
+      else
+        e1
+
+  | EPoint _ ->
+      e1
+
+  | ELet (rec_flag, patexprs, body) ->
+      let n, patexprs = esubst_patexprs e2 i rec_flag patexprs in
+      let body = esubst e2 (i + n) body in
+      ELet (rec_flag, patexprs, body)
+
+  | EFun (vars, params, return_type, body) ->
+      let n = List.length vars in
+      let body = esubst e2 (i + n) body in
+      EFun (vars, params, return_type, body)
+
+  | EAssign (e, f, e') ->
+      let e = esubst e2 i e in
+      let e' = esubst e2 i e' in
+      EAssign (e, f, e')
+
+  | EApply (f, args) ->
+      let f = esubst e2 i f in
+      let args = List.map (esubst e2 i) args in
+      EApply (f, args)
+
+  | EMatch (e, patexprs) ->
+      let e = esubst e2 i e in
+      let patexprs = List.map (fun (pat, expr) ->
+        let names = collect_pattern pat in
+        let n = List.length names in
+        let expr = esubst e2 (i + n) expr in
+        pat, expr) patexprs
+      in
+      EMatch (e, patexprs)
+
+  | ETuple exprs ->
+      let exprs = List.map (esubst e2 i) exprs in
+      ETuple exprs
+
+  | EConstruct (name, fieldexprs) ->
+      let fieldexprs = List.map (fun (field, expr) ->
+        field, esubst e2 i expr) fieldexprs
+      in
+      EConstruct (name, fieldexprs)
+
+  | EIfThenElse (e, e', e'') ->
+      let e = esubst e2 i e in
+      let e' = esubst e2 i e' in
+      let e'' = esubst e2 i e'' in
+      EIfThenElse (e, e', e'')
+
+
+  | ELocated (e, p1, p2) ->
+      let e = esubst e2 i e in
+      ELocated (e, p1, p2)
+
+  | EPlus (e, e') ->
+      let e = esubst e2 i e in
+      let e' = esubst e2 i e' in
+      EPlus (e, e')
+
+  | EMinus (e, e') ->
+      let e = esubst e2 i e in
+      let e' = esubst e2 i e' in
+      EMinus (e, e')
+
+  | ETimes (e, e') ->
+      let e = esubst e2 i e in
+      let e' = esubst e2 i e' in
+      ETimes (e, e')
+
+  | EDiv (e, e') ->
+      let e = esubst e2 i e in
+      let e' = esubst e2 i e' in
+      EDiv (e, e')
+
+  | EUMinus e ->
+      let e = esubst e2 i e in
+      EUMinus e
+
+  | EInt _ ->
+      e1
+;;
