@@ -406,7 +406,9 @@ let collect_data_type_def_tycon tycons (def: SurfaceSyntax.data_type_def) : frag
 let collect_data_type_group_tycon group : fragment =
   List.fold_left collect_data_type_def_tycon M.empty group
 
-let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : env * T.env =
+let check_data_type_group
+    (env: env)
+    (group: SurfaceSyntax.data_type_group): env * (level * T.point) list * T.env =
   let open Types in
   (* Collect the names and kinds of the data types that are being
      defined. Check that they are distinct. Extend the environment. *)
@@ -494,7 +496,7 @@ let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : en
   ) (empty_env, []) group in
   (* Now substitute the TyVars for the TyPoints: for all definitions *)
   let total_number_of_data_types = List.length points in
-  env, fold_types type_env (fun type_env point names { definition; _ } ->
+  env, points, fold_types type_env (fun type_env point names { definition; _ } ->
     match definition with
     | Abstract _ ->
         type_env
@@ -752,7 +754,25 @@ let check_declaration_group (env: env) (declarations: declaration_group): Expres
 
 let check_program (program: program): T.env * Expressions.declaration_group =
   let data_type_group, declaration_group = program in
-  let env, type_env = check_data_type_group empty data_type_group in
+  (* [env] is a [WellKindedness.env]; we need it to translate the declarations
+   *   because the data type declarations are bound in it already, and we freely
+   *   mix type binders and expr binders.
+   * [points] is a [(level, point) list]: we need it to replace all [TyVar]s
+   *   that refer to data types in the declarations by the corresponding points.
+   * [type_env] is a [Types.env]; we need it for the rest of the type-checker.
+   * *)
+  let env, points, type_env = check_data_type_group empty data_type_group in
+  (* This desugars everything, including function types present in the various
+   * declarations, and also translates this into a [Types.declaration list]. *)
   let declarations = check_declaration_group env declaration_group in
+  (* However, at this stage, there's only [TyVar]s in the declarations. We need
+   * to replace those that refer to data types with the corresponding
+   * [TyPoint]s. *)
+  let total_number_of_data_types = List.length points in
+  let declarations = List.fold_left (fun declarations (level, point) ->
+      let index = total_number_of_data_types - level - 1 in
+      List.map (E.subst_decl (T.TyPoint point) index) declarations
+    ) declarations points
+  in
   type_env, declarations
 ;;

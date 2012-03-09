@@ -23,7 +23,7 @@ type pattern =
 
 (* Expressions *)
 
-type rec_flag = SurfaceSyntax.rec_flag
+type rec_flag = SurfaceSyntax.rec_flag = Nonrecursive | Recursive
 
 type expression =
   (* e: τ *)
@@ -48,8 +48,6 @@ type expression =
   | EConstruct of Datacon.name * (Field.name * expression) list
   (* if e₁ then e₂ else e₃ *)
   | EIfThenElse of expression * expression * expression
-  (* e₁; e₂ *)
-  | ESequence of expression * expression
   | ELocated of expression * Lexing.position * Lexing.position
   (* Arithmetic *)
   | EPlus of expression * expression
@@ -71,3 +69,141 @@ type declaration =
 
 type declaration_group =
   declaration list
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Moar fun with De Bruijn. *)
+
+(* [collect_pattern] returns, in order, the list of bindings present in the
+ * pattern. *)
+let collect_pattern p =
+  let rec collect_pattern acc = function
+  | PConstraint (p, _) ->
+      collect_pattern acc p
+  | PVar name ->
+      name :: acc
+  | PTuple patterns ->
+      List.fold_left collect_pattern acc patterns
+  | PConstruct (_, fields) ->
+      Hml_List.append_rev_front (snd (List.split fields)) acc
+  | PLocated (p, _, _) ->
+      collect_pattern acc p
+  in
+  List.rev (collect_pattern [] p)
+;;
+
+let rec subst_patexprs t2 i rec_flag patexprs =
+  let patterns, expressions = List.split patexprs in
+  let names = List.fold_left (fun acc p ->
+    collect_pattern p :: acc) [] patterns
+  in
+  let names = List.flatten names in
+  let n = List.length names in
+  let expressions = match rec_flag with
+    | Recursive ->
+        List.map (subst_expr t2 (i + n)) expressions
+    | Nonrecursive ->
+        List.map (subst_expr t2 i) expressions
+  in
+  n, List.combine patterns expressions
+
+
+(* [subst_expr t2 i e] substitutes type [t2] for index [i] in expression [e]. *)
+and subst_expr t2 i e =
+  match e with
+  | EConstraint (e, t) ->
+      EConstraint (subst_expr t2 i e, subst t2 i t)
+
+  | EVar _
+  | EPoint _ ->
+      e
+
+  | ELet (rec_flag, patexprs, body) ->
+      let n, patexprs = subst_patexprs t2 i rec_flag patexprs in
+      let body = subst_expr t2 (i + n) body in
+      ELet (rec_flag, patexprs, body)
+
+  | EFun (vars, args, return_type, body) ->
+      let i = i + List.length vars in
+      let args = List.map (subst t2 i) args in
+      let return_type = subst t2 i return_type in
+      let body = subst_expr t2 i body in
+      EFun (vars, args, return_type, body)
+
+  | EAssign (e1, field, e2) ->
+      let e1 = subst_expr t2 i e1 in
+      let e2 = subst_expr t2 i e2 in
+      EAssign (e1, field, e2)
+
+  | EApply (f, args) ->
+      let f = subst_expr t2 i f in
+      let args = List.map (subst_expr t2 i) args in
+      EApply (f, args)
+
+  | EMatch (e, patexprs) ->
+      let e = subst_expr t2 i e in
+      let patexprs = List.map (fun (pat, expr) ->
+          let names = collect_pattern pat in
+          let n = List.length names in
+          pat, subst_expr t2 (i + n) expr
+        ) patexprs
+      in
+      EMatch (e, patexprs)
+
+  | ETuple exprs ->
+      let exprs = List.map (subst_expr t2 i) exprs in
+      ETuple exprs
+
+  | EConstruct (name, fieldexprs) ->
+      let fieldexprs = List.map (fun (field, expr) ->
+        field, subst_expr t2 i expr) fieldexprs
+      in
+      EConstruct (name, fieldexprs)
+
+  | EIfThenElse (e1, e2, e3) ->
+      let e1 = subst_expr t2 i e1 in
+      let e2 = subst_expr t2 i e2 in
+      let e3 = subst_expr t2 i e3 in
+      EIfThenElse (e1, e2, e3)
+
+  | ELocated (e, p1, p2) ->
+      let e = subst_expr t2 i e in
+      ELocated (e, p1, p2)
+
+  | EPlus (e1, e2) ->
+      let e1 = subst_expr t2 i e1 in
+      let e2 = subst_expr t2 i e2 in
+      EPlus (e1, e2)
+
+  | EMinus (e1, e2) ->
+      let e1 = subst_expr t2 i e1 in
+      let e2 = subst_expr t2 i e2 in
+      EMinus (e1, e2)
+
+  | ETimes (e1, e2) ->
+      let e1 = subst_expr t2 i e1 in
+      let e2 = subst_expr t2 i e2 in
+      ETimes (e1, e2)
+
+  | EDiv (e1, e2) ->
+      let e1 = subst_expr t2 i e1 in
+      let e2 = subst_expr t2 i e2 in
+      EDiv (e1, e2)
+
+  | EUMinus e ->
+      let e = subst_expr t2 i e in
+      EUMinus e
+
+  | EInt _ ->
+      e
+
+
+and subst_decl t2 i d =
+  match d with
+  | DMultiple (rec_flag, patexprs) ->
+      let _n, patexprs = subst_patexprs t2 i rec_flag patexprs in
+      DMultiple (rec_flag, patexprs)
+
+  | DLocated (d, p1, p2) ->
+      DLocated (subst_decl t2 i d, p1, p2)
+;;
