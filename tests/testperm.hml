@@ -20,8 +20,6 @@ data pair a b = Pair { left: a; right: b }
 data t1 a =
   | Foo { bar: a }
 
-(* Test: adding x: t2 α then x: Bar { baz: β } should fusion the two
- * permissions. *)
 data t2 a =
   | Foo2
   | Bar { baz: t1 a }

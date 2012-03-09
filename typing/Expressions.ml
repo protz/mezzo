@@ -28,14 +28,16 @@ type rec_flag = SurfaceSyntax.rec_flag
 type expression =
   (* e: τ *)
   | EConstraint of expression * typ
-  (* v *)
-  | EVar of Variable.name
+  (* v, bound *)
+  | EVar of index
+  (* v, free *)
+  | EPoint of point
   (* let rec pat = expr and pat' = expr' in expr *)
   | ELet of rec_flag * (pattern * expression) list * expression
   (* fun [a] (x: τ): τ -> e *)
   | EFun of (Variable.name * kind) list * typ list * typ * expression
   (* v.f <- e *)
-  | EAssign of Variable.name * Field.name * expression
+  | EAssign of expression * Field.name * expression
   (* e e₁ … eₙ *)
   | EApply of expression * expression list
   (* match e with pᵢ -> eᵢ *)

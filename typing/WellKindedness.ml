@@ -515,6 +515,9 @@ let check_data_type_group (env: env) (group: SurfaceSyntax.data_type_group) : en
   ) type_env
 ;;
 
+(* ---------------------------------------------------------------------------- *)
+
+(* Desugaring and checking expressions. *)
 
 let ploc (f: env -> pattern -> env * E.pattern): env -> pattern -> env * E.pattern =
   fun (env: env) (pattern: pattern) ->
@@ -525,6 +528,30 @@ let ploc (f: env -> pattern -> env * E.pattern): env -> pattern -> env * E.patte
         env, E.PLocated (pattern, p1, p2)
     | _ ->
         f env pattern
+;;
+
+
+let eloc (f: env -> expression -> E.expression): env -> expression -> E.expression =
+  fun (env: env) (expression: expression) ->
+    match expression with
+    | ELocated (expression, p1, p2) ->
+        let env = locate env p1 p2 in
+        let expression = f env expression in
+        E.ELocated (expression, p1, p2)
+    | _ ->
+        f env expression
+;;
+
+
+let dloc (f: env -> declaration -> env * E.declaration): env -> declaration -> env * E.declaration =
+  fun (env: env) (declaration: declaration) ->
+    match declaration with
+    | DLocated (declaration, p1, p2) ->
+        let env = locate env p1 p2 in
+        let env, declaration = f env declaration in
+        env, E.DLocated (declaration, p1, p2)
+    | _ ->
+        f env declaration
 ;;
 
 (* [collect_and_check_pattern env pattern] performs two tasks at once: first, it
@@ -557,39 +584,155 @@ let rec collect_and_check_pattern (env: env) (pattern: pattern): env * E.pattern
       ploc collect_and_check_pattern env pattern
 ;;
 
-
-let rec check_expression (env: env) (expression: expression): E.expression =
-  assert false
+let collect_and_check_function_parameter (env: env) (t: typ): env * (Variable.name * kind) list * T.typ =
+  (* Collect all the names that appear in the type. *)
+  let env, bindings = extend env (bi t) in
+  (* Translate the type. *)
+  let t = check true env t KType in
+  (* Return the enhanced environment, the bindings that were created when
+   * desugaring, and the desugared type. *)
+  env, bindings, t
 ;;
 
 
-let dloc (f: env -> declaration -> env * E.declaration): env -> declaration -> env * E.declaration =
-  fun (env: env) (declaration: declaration) ->
-    match declaration with
-    | DLocated (declaration, p1, p2) ->
-        let env = locate env p1 p2 in
-        let env, declaration = f env declaration in
-        env, E.DLocated (declaration, p1, p2)
-    | _ ->
-        f env declaration
-;;
+let rec collect_and_check_patexprs
+    (env: env)
+    (rec_flag: rec_flag)
+    (patexprs: (pattern * expression) list): env * (E.pattern * E.expression) list
+  = 
+
+  let patterns, expressions = List.split patexprs in
+  let sub_env, patterns = List.fold_left (fun (env, patterns) pattern ->
+    let env, pattern = collect_and_check_pattern env pattern in
+    env, pattern :: patterns) (env, []) patterns
+  in
+  let patterns = List.rev patterns in
+  let check = match rec_flag with
+    | Recursive -> check_expression sub_env
+    | Nonrecursive -> check_expression env
+  in
+  let expressions = List.map check expressions in
+  sub_env, List.combine patterns expressions
 
 
-let rec collect_and_check_declaration (env: env) (declaration: declaration): env * E.declaration =
+and check_expression (env: env) (expression: expression): E.expression =
+  match expression with
+  | EConstraint (e, t) ->
+      let t = check false env t KType in
+      let e = check_expression env e in
+      E.EConstraint (e, t)
+
+  | EVar x ->
+      let _kind, index = find x env in
+      E.EVar index
+
+  | ELet (rec_flag, patexprs, e) ->
+      let env, patexprs = collect_and_check_patexprs env rec_flag patexprs in
+      let e = check_expression env e in
+      E.ELet (rec_flag, patexprs, e)
+
+  | EFun (vars, params, return_type, body) ->
+      (* Add all the function's type parameters into the environment. *)
+      let env = List.fold_left bind env vars in
+      (* While desugaring the function types, [(x: τ)] will translate to
+       * [∀(x::TERM), (=x, permission x: τ)], so we need to collect bindings for
+       * each one of the function parameters. *)
+      let env, bindings, params = List.fold_left (fun (env, bindings, params) param ->
+        let env, binding, param = collect_and_check_function_parameter env param in
+        env, binding :: bindings, param :: params) (env, [], []) params
+      in
+      let params = List.rev params in
+      (* We're going great lengths to ensure we handle currified functions, even
+       * though no one's every going to use them... is that really reasonable? *)
+      let vars = List.flatten (vars :: bindings) in
+      let return_type = check false env return_type KType in
+      let body = check_expression env body in
+      E.EFun (vars, params, return_type, body)
+
+  | EAssign (e1, var, e2) ->
+      let e1 = check_expression env e1 in
+      let e2 = check_expression env e2 in
+      E.EAssign (e1, var, e2)
+
+  | EApply _ ->
+      let rec flatten_app acc = function
+        | EApply (e1, e2) ->
+            flatten_app (e2 :: acc) e1
+        | e ->
+            e, acc
+      in
+      let f, args = flatten_app [] expression in
+      let f = check_expression env f in
+      let args = List.map (check_expression env) args in
+      E.EApply (f, args)
+
+  | EMatch (e, patexprs) ->
+      let e = check_expression env e in
+      let patexprs = List.map (fun (pat, expr) ->
+        let env, pat = collect_and_check_pattern env pat in
+        let expr = check_expression env expr in
+        (pat, expr)) patexprs
+      in
+      E.EMatch (e, patexprs)
+
+  | ETuple exprs ->
+      let exprs = List.map (check_expression env) exprs in
+      E.ETuple exprs
+
+  | EConstruct (datacon, fields) ->
+      let fields = List.map (fun (name, expr) ->
+        let expr = check_expression env expr in
+        name, expr) fields
+      in
+      E.EConstruct (datacon, fields)
+
+  | EIfThenElse (e1, e2, e3) ->
+      let e1 = check_expression env e1 in
+      let e2 = check_expression env e2 in
+      let e3 = check_expression env e3 in
+      E.EIfThenElse (e1, e2, e3)
+
+  | ESequence (e1, e2) ->
+      let e1 = check_expression env e1 in
+      let e2 = check_expression env e2 in
+      E.ELet (Nonrecursive, [E.PTuple [], e1], e2)
+
+  | ELocated _ ->
+      eloc check_expression env expression
+
+  | EPlus (e1, e2) ->
+      let e1 = check_expression env e1 in
+      let e2 = check_expression env e2 in
+      E.EPlus (e1, e2)
+
+  | EMinus (e1, e2) ->
+      let e1 = check_expression env e1 in
+      let e2 = check_expression env e2 in
+      E.EMinus (e1, e2)
+
+  | ETimes (e1, e2) ->
+      let e1 = check_expression env e1 in
+      let e2 = check_expression env e2 in
+      E.ETimes (e1, e2)
+
+  | EDiv (e1, e2) ->
+      let e1 = check_expression env e1 in
+      let e2 = check_expression env e2 in
+      E.EDiv (e1, e2)
+
+  | EUMinus e ->
+      let e = check_expression env e in
+      E.EUMinus e
+
+  | EInt i ->
+      E.EInt i
+
+
+and collect_and_check_declaration (env: env) (declaration: declaration): env * E.declaration =
   match declaration with
-  | DMultiple (rec_flag, bindings) ->
-      let patterns, expressions = List.split bindings in
-      let sub_env, patterns = List.fold_left (fun (env, patterns) pattern ->
-        let env, pattern = collect_and_check_pattern env pattern in
-        env, pattern :: patterns) (env, []) patterns
-      in
-      let patterns = List.rev patterns in
-      let check = match rec_flag with
-        | Recursive -> check_expression sub_env
-        | Nonrecursive -> check_expression env
-      in
-      let expressions = List.map check expressions in
-      sub_env, E.DMultiple (rec_flag, List.combine patterns expressions)
+  | DMultiple (rec_flag, patexprs) ->
+      let env, patexprs = collect_and_check_patexprs env rec_flag patexprs in
+      env, E.DMultiple (rec_flag, patexprs)
   | DLocated _ ->
      dloc collect_and_check_declaration env declaration
 ;;

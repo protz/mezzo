@@ -820,8 +820,9 @@ module TypePrinter = struct
             string (Option.extract (name_for_binder env point))
         end
 
-    | TyVar _ ->
-        Log.error "All variables should've been bound at this stage"
+    | TyVar i ->
+        int i
+        (* Log.error "All variables should've been bound at this stage" *)
 
     | TyForall ((name, kind), typ) ->
         let env, typ = bind_type_in_type env name Affine (Abstract (name, kind)) typ in

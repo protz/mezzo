@@ -260,7 +260,7 @@ let test_function_call (env: env) =
         (Option.extract (name_for_expr env x)) colors.default);
     let env, t2 = TypeChecker.check_function_call env f x in
     TypePrinter.(
-      Log.debug "%s Function call succeeded with type %a.\n\
+      Log.debug "%s Function call succeeded with type %a.\n\n\
                  Remaining permissions:\n"
         check pdoc (ptype, (env, t2)));
     print_env env;
@@ -279,9 +279,9 @@ let test_function_call (env: env) =
     ignore (test_call env length z);
     Log.error "This call shouldn't be allowed; the permissions have been consumed already";
   with _ ->
-    Log.debug "%s Test passed -- the error message above should be:\n   “\
+    Log.debug "%s Test passed -- the error message above should be:\n  “\
       Expected an argument of type list a but the only permissions available \
-      for z are Cons {…”" check;
+      for z are Cons {…”\n" check;
 
   try
     let env, arg = bind_expr env (Variable.register "arg") in
@@ -292,8 +292,8 @@ let test_function_call (env: env) =
     Log.error "This call shouldn't be allowed because there's flexible\
       variables in the return type"
   with _ ->
-    Log.debug "%s Test passed -- the error message above should be:\n   “\
-      The following type still contains flexible variables: a”" check;
+    Log.debug "%s Test passed -- the error message above should be:\n  “\
+      The following type still contains flexible variables: a”\n" check;
 
   (* This one can't be expanded because it's abstract, tests a different
    * codepath (the one where the point is directly merged using [merge_left]). *)
