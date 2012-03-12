@@ -42,7 +42,7 @@ let duplicables
         | Some t ->
             duplicables env t
         | None ->
-            begin match fact_for_type env point with
+            begin match get_fact env point with
             | Exclusive ->
                 raise (EExclusive t)
             | Affine ->
@@ -69,9 +69,9 @@ let duplicables
             end
         end
 
-    | TyForall ((name, kind), t)
-    | TyExists ((name, kind), t) ->
-        let env, t = bind_type_in_type env name Affine (Abstract (name, kind)) t in
+    | TyForall (binding, t)
+    | TyExists (binding, t) ->
+        let env, t = bind_var_in_type env binding t in
         duplicables env t
 
     | TyApp _ as t ->
@@ -80,10 +80,10 @@ let duplicables
         match cons with
         | TyPoint point ->
           begin
-            Log.debug ~level:4 "Applying %s (bitmap=%a)"
-              (Option.extract (name_for_type env point))
+            Log.debug ~level:4 "Applying %a (bitmap=%a)"
+              Variable.p (get_name env point)
               TypePrinter.pdoc (TypePrinter.print_fact, (env, point));
-            match fact_for_type env point with
+            match get_fact env point with
             | Fuzzy _ ->
                 Log.error "I messed up my index computations. Oops!";
             | Exclusive ->
@@ -125,7 +125,7 @@ let duplicables
 
     | TyConcreteUnfolded (datacon, fields) as t ->
       begin
-        let flag, _, _, _ = def_for_datacon env datacon in
+        let flag, _ = def_for_datacon env datacon in
         begin
           match flag with
           | SurfaceSyntax.Duplicable ->
@@ -172,46 +172,46 @@ let duplicables
 let one_round (env: env): env =
   TypePrinter.(Log.debug ~level:4 "env:\n  %a" pdoc (print_binders, env));
   (* Folding on all the data types. *)
-  fold_types env (fun env point names { fact; definition } ->
+  fold_types env (fun env point { names; kind; _ } { fact; definition } ->
     let tname = List.hd names in
     (* What knowledge do we have from the previous round? *)
     match definition with
-    | Abstract _ ->
+    | None ->
         env
-    | _ ->
-    match fact with
-    | Fuzzy _ ->
-        Log.error "I messed up my index computations. Oops!";
-    | Exclusive | Affine ->
-        (* This fact cannot evolve anymore, pass [env] through. *)
-        env
-    | Duplicable bitmap ->
-        Log.debug ~level:4 "Attacking %s%s%s %a" Bash.colors.Bash.red
-          (Option.extract (name_for_type env point)) Bash.colors.Bash.default
-          Variable.p tname;
-        (* [bitmap] is shared! *)
-        let phase = Elaborating bitmap in
-        let branches = Option.extract (branches_for_type env point) in
-        let inner_env, branches =
-          bind_datacon_parameters env (kind_for_type env point) branches
-        in
-        TypePrinter.(Log.debug ~level:4 "inner_env:\n  %a" pdoc (print_binders, inner_env));
-        try
-          (* Iterating on the branches. *)
-          List.iter (fun (_label, fields) ->
-            (* Iterating on the fields. *)
-            List.iter (function
-              | FieldValue (_, typ)
-              | FieldPermission typ ->
-                  duplicables inner_env phase typ
-            ) fields
-          ) branches;
-          env
-        with EAffine _t ->
-          (* Some exception was raised: the type, although initially
-           * duplicable, contains a sub-part whose type is [Exclusive] or
-           * [Affine], so the whole type need to be affine. *)
-          replace_type env point (fun entry -> { entry with fact = Affine })
+    | Some (_flag, branches) ->
+        match fact with
+        | Fuzzy _ ->
+            Log.error "I messed up my index computations. Oops!";
+        | Exclusive | Affine ->
+            (* This fact cannot evolve anymore, pass [env] through. *)
+            env
+        | Duplicable bitmap ->
+            Log.debug ~level:4 "Attacking %s%a%s %a" Bash.colors.Bash.red
+              Variable.p (get_name env point)
+              Bash.colors.Bash.default
+              Variable.p tname;
+            (* [bitmap] is shared! *)
+            let phase = Elaborating bitmap in
+            let inner_env, branches =
+              bind_datacon_parameters env kind branches
+            in
+            TypePrinter.(Log.debug ~level:4 "inner_env:\n  %a" pdoc (print_binders, inner_env));
+            try
+              (* Iterating on the branches. *)
+              List.iter (fun (_label, fields) ->
+                (* Iterating on the fields. *)
+                List.iter (function
+                  | FieldValue (_, typ)
+                  | FieldPermission typ ->
+                      duplicables inner_env phase typ
+                ) fields
+              ) branches;
+              env
+            with EAffine _t ->
+              (* Some exception was raised: the type, although initially
+               * duplicable, contains a sub-part whose type is [Exclusive] or
+               * [Affine], so the whole type need to be affine. *)
+              replace_type env point (fun entry -> { entry with fact = Affine })
   ) env
 ;;
 

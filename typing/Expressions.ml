@@ -330,7 +330,7 @@ let bind_patexprs env rec_flag patexprs body =
   in
   let names = List.flatten names in
   let env, points = List.fold_left (fun (env, points) name ->
-    let env, point = bind_expr env name in
+    let env, point = bind_term env name false in
     env, point :: points) (env, []) names
   in
   (* Trick: keep the list reversed so that the index in the list is also the De
@@ -351,10 +351,11 @@ let bind_patexprs env rec_flag patexprs body =
 ;;
 
 
-let bind_vars env vars =
-  let env, points = List.fold_left (fun (env, points) (name, kind) ->
-    let env, point = bind_type env name ~kind Affine Abstract in
-    env, point :: points) env vars
+let bind_vars (env: env) (vars: type_binding list) =
+  (* List kept in reverse, the usual trick *)
+  let env, points = List.fold_left (fun (env, points) binding ->
+    let env, point = bind_var env binding in
+    env, point :: points) (env, []) vars
   in
   let subst_type t =
     Hml_List.fold_lefti (fun i t point -> subst (TyPoint point) i t) t points
@@ -416,7 +417,7 @@ module ExprPrinter = struct
         int i
 
     | EPoint point ->
-        string (Option.extract (name_for_expr env point))
+        print_var (get_name env point)
 
     | ELet (rec_flag, patexprs, body) ->
         let env, patexprs, body = bind_patexprs env rec_flag patexprs (Some body) in
@@ -432,10 +433,10 @@ module ExprPrinter = struct
         let return_type = subst_type return_type in
         let body = subst_expr body in
         string "fun " ^^ lbracket ^^ join (comma ^^ space) (List.map print_binder vars) ^^
-        rbracket ^^ nest (
+        rbracket ^^ nest 2 (
           join break1 (List.map (print_type env) args)
         ) ^^ colon ^^ space ^^ print_type env return_type ^^ space ^^ equals ^^
-        nest (print_expr env body)
+        nest 2 (print_expr env body)
 
     (* | EAssign of expression * Field.name * expression
 
@@ -465,6 +466,10 @@ module ExprPrinter = struct
         string " rec"
     | Nonrecursive ->
         empty
+
+
+  and print_binder (name, kind) =
+    print_var name ^^ space ^^ ccolon ^^ print_kind kind
 
 
   ;;

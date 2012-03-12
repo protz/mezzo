@@ -34,7 +34,7 @@ let print_env (env: env) =
 let point_for_data_type (env: env) (name: string): point =
   let module T = struct exception Found of point end in
   try
-    fold_types env (fun () point names _binding ->
+    fold_types env (fun () point { names; _ } _binding ->
       if Variable.print (List.hd names) = name then
         raise (T.Found point)) ();
     raise Not_found
@@ -123,7 +123,7 @@ let test_adding_perms (env: env) =
   let t1 = find_point env "t1" in
   let ref = find_point env "ref" in
   (* First binding. *)
-  let env, foo = bind_expr env (Variable.register "foo") in
+  let env, foo = bind_term env (Variable.register "foo") false in
   print_env env;
   (* We add: [foo: ref int] *)
   let env = Permissions.add env foo (TyApp (ref, int)) in
@@ -131,14 +131,14 @@ let test_adding_perms (env: env) =
   let env = Permissions.add env foo (TyApp (t1, TyApp (ref, int))) in
   print_env env;
   (* Second binding. *)
-  let env, bar = bind_expr env (Variable.register "bar") in
+  let env, bar = bind_term env (Variable.register "bar") false in
   (* We add: [bar: t1 int] *)
   let env = Permissions.add env bar (TyApp (t1, int)) in
   let env = Permissions.add env foo (TyApp (t1, int)) in
   (* Let's see what happens now. *)
   print_env env;
   (* Third binding. *)
-  let env, _baz = bind_expr env (Variable.register "baz") in
+  let env, _baz = bind_term env (Variable.register "baz") false in
   (* Log.debug "%a\n" TypePrinter.pdoc (TypePrinter.print_binders, env); *)
   print_env env;
 ;;
@@ -149,26 +149,26 @@ let test_unfolding (env: env) =
   let t1 x = TyApp (find_point env "t1", x) in
   let int = find_point env "int" in
   (* Make sure the unfolding is properly performed. *)
-  let env, foo = bind_expr env (Variable.register "foo") in
+  let env, foo = bind_term env (Variable.register "foo") false in
   let t = cons (int, list int) in
   let env = Permissions.add env foo t in
   print_env env;
   (* Make sure data types with one branch are unfolded. *)
-  let env, bar = bind_expr env (Variable.register "bar") in
+  let env, bar = bind_term env (Variable.register "bar") false in
   let env = Permissions.add env bar (t1 nil) in
   (* Make sure we don't introduce extra indirections when the field is already a
    * singleton. *)
-  let env, baz = bind_expr env (Variable.register "baz") in
+  let env, baz = bind_term env (Variable.register "baz") false in
   let env = Permissions.add env baz (t1 (points_to foo)) in
   print_env env;
   (* Make sure the mechanism works for tuples as well. *)
-  let env, toto = bind_expr env (Variable.register "toto") in
+  let env, toto = bind_term env (Variable.register "toto") false in
   let env = Permissions.add env toto (tuple [int; list int; points_to toto]) in
   print_env env;
   (* The two lines below throw [Permissions] into an infinite loop. Making sure
    * we don't loop is non-trivial, see notes from 2012/02/23. *)
   (* let loop x = TyApp ( env "loop", x) in
-  let env, ananas = bind_expr env (Variable.register "ananas") in
+  let env, ananas = bind_term env (Variable.register "ananas") false in
   let env = Permissions.add env ananas (loop int) in
   print_env env; *)
 ;;
@@ -180,7 +180,7 @@ let test_refinement (env: env) =
   let ref x = TyApp (find_point env "ref", x) in
   let int = find_point env "int" in
   (* Make sure the unfolding is properly performed. *)
-  let env, foo = bind_expr env (Variable.register "foo") in
+  let env, foo = bind_term env (Variable.register "foo") false in
   let env = match Permissions.refine_type env nil (list int) with
     | env, Permissions.One t ->
         Permissions.add env foo t
@@ -189,7 +189,7 @@ let test_refinement (env: env) =
   in
   print_env env;
   (* This should print out that an inconsistency was detected. *)
-  let env, unreachable = bind_expr env (Variable.register "unreachable") in
+  let env, unreachable = bind_term env (Variable.register "unreachable") false in
   let t = ref int and t' = ref (ref int) in
   let env = match Permissions.refine_type env t t' with
     | env, Permissions.Both ->
@@ -201,9 +201,9 @@ let test_refinement (env: env) =
   in
   print_env env;
   (* More elaborate. *)
-  let env, bar = bind_expr env (Variable.register "bar") in
-  let env, l = bind_expr env (Variable.register "l") in
-  let env, r = bind_expr env (Variable.register "r") in
+  let env, bar = bind_term env (Variable.register "bar") false in
+  let env, l = bind_term env (Variable.register "l") false in
+  let env, r = bind_term env (Variable.register "r") false in
   let env = Permissions.add env bar (pair (points_to l, points_to r)) in
   print_env env;
   let env = Permissions.refine env bar (pair (int, int)) in
@@ -223,7 +223,7 @@ let test_substraction (env: env) =
   let ref x = TyApp (find_point env "ref", x) in
   let int = find_point env "int" in
   (* Make sure the unfolding is properly performed. *)
-  let env, foo = bind_expr env (Variable.register "foo") in
+  let env, foo = bind_term env (Variable.register "foo") false in
   let env = Permissions.add env foo (tuple [int; ref int]) in
   print_env env;
   let env = Option.extract (Permissions.sub env foo (tuple [int; ref int])) in
@@ -232,7 +232,7 @@ let test_substraction (env: env) =
   print_env env;
   (* We can't take that permission twice. *)
   assert (Permissions.sub env foo (tuple [int; ref int]) = None);
-  let env, bar = bind_expr env (Variable.register "bar") in
+  let env, bar = bind_term env (Variable.register "bar") false in
   let env = Permissions.add env bar nil in
   (* This tests the "unfolded vs nominal" case. *)
   let env = Option.extract (Permissions.sub env bar (list int)) in
@@ -248,16 +248,16 @@ let test_function_call (env: env) =
   let _t1 x = TyApp (find_point env "t1", x) in
   (* Testing the function call *)
   (* Make sure the unfolding is properly performed. *)
-  let env, length = bind_expr env (Variable.register "length") in
-  let env, x = bind_expr env (Variable.register "x") in
+  let env, length = bind_term env (Variable.register "length") false in
+  let env, x = bind_term env (Variable.register "x") false in
   let env = Permissions.add env length
     (forall ("a", ktype) (list (var 0) @-> int))
   in
   let env = Permissions.add env x nil in
   let test_call env f x =
     Bash.(
-      Log.debug "Testing with %s%s%s" colors.underline
-        (Option.extract (name_for_expr env x)) colors.default);
+      Log.debug "Testing with %s%a%s" colors.underline
+        Variable.p (get_name env x) colors.default);
     let env, t2 = TypeChecker.check_function_call env f x in
     TypePrinter.(
       Log.debug "%s Function call succeeded with type %a.\n\n\
@@ -267,10 +267,10 @@ let test_function_call (env: env) =
     env
   in
   let env = test_call env length x in
-  let env, y = bind_expr env (Variable.register "y") in
+  let env, y = bind_term env (Variable.register "y") false in
   let env = Permissions.add env y (list (ref int)) in
   let env = test_call env length y in
-  let env, z = bind_expr env (Variable.register "z") in
+  let env, z = bind_term env (Variable.register "z") false in
   let env = Permissions.add env z (cons (ref int, list (ref int))) in
   let env = test_call env length z in
 
@@ -284,8 +284,8 @@ let test_function_call (env: env) =
       for z are Cons {…”\n" check;
 
   try
-    let env, arg = bind_expr env (Variable.register "arg") in
-    let env, newref = bind_expr env (Variable.register "newref") in
+    let env, arg = bind_term env (Variable.register "arg") false in
+    let env, newref = bind_term env (Variable.register "newref") false in
     let env = Permissions.add env newref (forall ("a", ktype) (tuple [] @-> (var 0))) in
     let env = Permissions.add env arg unit in
     ignore (test_call env newref arg);
@@ -297,9 +297,9 @@ let test_function_call (env: env) =
 
   (* This one can't be expanded because it's abstract, tests a different
    * codepath (the one where the point is directly merged using [merge_left]). *)
-  let env, deref = bind_expr env (Variable.register "deref") in
+  let env, deref = bind_term env (Variable.register "deref") false in
   let env = Permissions.add env deref (forall ("a", ktype) (ref (var 0) @-> (var 0))) in
-  let env, arg = bind_expr env (Variable.register "arg") in
+  let env, arg = bind_term env (Variable.register "arg") false in
   let env = Permissions.add env arg (ref int) in
   let env = test_call env deref arg in
 

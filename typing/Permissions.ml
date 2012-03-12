@@ -112,7 +112,7 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
     | _ ->
         (* The [expr_binder] also serves as the binder for the corresponding
          * TERM type variable. *)
-        let env, p = bind_expr env (Variable.register hint) in
+        let env, p = bind_term env (Variable.register hint) false in
         (* This will take care of unfolding where necessary. *)
         let env = add env p t in
         env, TySingleton (TyPoint p)
@@ -154,8 +154,8 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
         match cons with
         | TyPoint p ->
           begin
-            match branches_for_type env p with
-            | Some [branch] ->
+            match get_definition env p with
+            | Some (_, [branch]) ->
                 let branch = instantiate_branch branch args in
                 let t = TyConcreteUnfolded branch in
                 unfold env ~hint t
@@ -209,7 +209,7 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
     match t with
     | TyApp _ ->
         let cons, _ = flatten_tyapp t in
-        is_concrete env !!cons
+        has_definition env !!cons
     | TyConcreteUnfolded _
     | TyArrow _
     | TyTuple _ ->
@@ -257,34 +257,10 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
         let cons1, args1 = flatten_tyapp t1 in
         let cons2, args2 = flatten_tyapp t2 in
 
-        begin match def_for_type env !!cons1, def_for_type env !!cons2 with
-        | Concrete _, Concrete _ ->
-            if same env !!cons1 !!cons2 then
-              if List.for_all2 (equal env) args1 args2 then
-                (* Small optimisation: if the arguments are equal, just keep one
-                 * of the two. *)
-                env, one_if t1
-              else
-                (* Nothing we can say about the arguments here. This could very
-                 * well be a data type that does not use its arguments. *)
-                env, Both
-            else
-              raise Inconsistent
-
-        | Abstract _, _
-        | _, Abstract _ ->
-            if same env !!cons1 !!cons2 && List.for_all2 (equal env) args1 args2 then
-              env, one_if t1
-            else
-              (* There's nothing we can say here. The [Abstract] could hide anything, even [TyUnknown]. *)
-              env, Both
-
-        | _ ->
-            if equal env t1 t2 then
-              env, one_if t1
-            else
-              env, Both
-        end
+        if same env !!cons1 !!cons2 && List.for_all2 (equal env) args1 args2 then
+          env, one_if t1
+        else
+          raise Inconsistent
 
     | TyConcreteUnfolded branch as t, other
     | other, (TyConcreteUnfolded branch as t) ->
@@ -410,7 +386,7 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
 (** [refine env p t] adds [t] to the list of available permissions for [p],
     possibly by refining some of these permissions into more precise ones. *)
 and refine (env: env) (point: point) (t': typ): env =
-  let { permissions } = permissions_for_ident env point in
+  let permissions = get_permissions env point in
   let rec refine_list (env, acc) t' = function
     | t :: ts ->
         let env, r = refine_type env t t' in
@@ -424,7 +400,7 @@ and refine (env: env) (point: point) (t': typ): env =
         env, t' :: acc
   in
   let env, permissions = refine_list (env, []) t' permissions in
-  replace_expr env point (fun _ -> { permissions })
+  replace_term env point (fun binder -> { binder with permissions })
 
 
 (** [unify env p1 p2] merges two points, and takes care of dealing with how the
@@ -437,7 +413,7 @@ and unify (env: env) (p1: point) (p2: point): env =
     env
   else
     let env =
-      List.fold_left (fun env t -> refine env p1 t) env (permissions_for_ident env p2).permissions
+      List.fold_left (fun env t -> refine env p1 t) env (get_permissions env p2)
     in
     merge_left env p1 p2
 
@@ -448,11 +424,11 @@ and add (env: env) (point: point) (t: typ): env =
   Log.affirm (is_term env point) "You can only add permissions to a point that\
     represents a program identifier.";
 
-  let hint = name_for_expr env point in
+  let hint = Variable.print (get_name env point) in
 
   (* We first perform unfolding, so that constructors with one branch are
    * simplified. *)
-  let env, t = unfold env ?hint t in
+  let env, t = unfold env ~hint t in
 
   (* Now we may have more opportunities for collecting permissions. [collect]
    * doesn't go "through" [TyPoint]s but when indirections are inserted via
@@ -503,7 +479,7 @@ let rec sub (env: env) (point: point) (t: typ): env option =
     and performs the actual work of extracting [t] from the list of permissions
     for [point]. *)
 and sub_clean (env: env) (point: point) (t: typ): env option =
-  let { permissions } = permissions_for_ident env point in
+  let permissions = get_permissions env point in
 
   (* This is a very dumb strategy, that may want further improvements: we just
    * take the first permission that “works”. *)
@@ -514,16 +490,16 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
         begin match sub_type env hd t with
         | Some env ->
             TypePrinter.(
-              Log.debug "Taking %a out of the permissions for %s"
-                pdoc (ptype, (env, hd)) (Option.extract (name_for_expr env point)));
+              Log.debug "Taking %a out of the permissions for %a"
+                pdoc (ptype, (env, hd)) Variable.p (get_name env point));
             (* We're taking out [hd] from the list of permissions for [point].
              * Is it something duplicable? *)
             let fact = FactInference.analyze_type env hd in
             if fact = Duplicable [||] then
               Some env
             else
-              Some (replace_expr env point (fun _ ->
-                { permissions = seen @ remaining }))
+              Some (replace_term env point (fun binder ->
+                { binder with permissions = seen @ remaining }))
         | None ->
             traverse env (hd :: seen) remaining
         end
@@ -624,16 +600,17 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         None
 
   | _, TyPoint p2 ->
-      begin match def_for_type env p2 with
-      | Flexible None ->
+      if is_flexible env p2 then
           (* Same remark as above, there are more checks involved before
            * allowing this instantiation. *)
           Some (instantiate_flexible env p2 t1)
-      | Flexible (Some t2) ->
-          sub_type env t1 t2
-      | _ ->
-          None
-      end
+      else
+        begin match structure env p2 with
+        | Some t2 ->
+            sub_type env t1 t2
+        | None ->
+            None
+        end
 
   | _ ->
       if equal env t1 t2 then

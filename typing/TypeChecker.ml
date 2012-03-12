@@ -10,14 +10,15 @@ let has_flexible env t =
         false
 
     | TyPoint p ->
-        begin match def_for_type env p with
-        | Flexible None ->
-            true
-        | Flexible (Some t) ->
-            has_flexible t
-        | _ ->
-            false
-        end
+        if is_flexible env p then
+          true
+        else
+          begin match structure env p with
+          | Some t ->
+              has_flexible t
+          | None ->
+              false
+          end
 
     | TyForall (_, t)
     | TyExists (_, t) ->
@@ -61,7 +62,7 @@ let has_flexible env t =
  * call amounts to type-checking a point applied to another point. The default
  * behavior is: do not return a type that contains flexible variables. *)
 let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x: point): env * typ =
-  let fname, fbinder = find_expr env f in
+  let fname, fbinder = find_term env f in
   (* Find a suitable permission for [f] first *)
   let rec is_quantified_arrow = function
     | TyForall (_, t) ->
@@ -74,10 +75,8 @@ let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x:
   let permissions = List.filter is_quantified_arrow fbinder.permissions in
   (* Instantiate all universally quantified variables with flexible variables. *)
   let rec flex = fun env -> function
-    | TyForall ((name, kind), t) ->
-        if kind <> SurfaceSyntax.KType then
-          Log.error "Not implemented";
-        let env, t = bind_type_in_type env name Affine (Flexible None) t in
+    | TyForall (binding, t) ->
+        let env, t = bind_var_in_type env ~flexible:true binding t in
         let env, t = flex env t in
         env, t
     | _ as t ->
@@ -108,7 +107,7 @@ let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x:
         flex_deconstruct t
   in
   (* Examine [x]. *)
-  let xname, xbinder = find_expr env x in
+  let xname, xbinder = find_term env x in
   match Permissions.sub env x t1 with
   | Some env ->
       (* If we're not allowed to have flexible variables, make sure there aren't

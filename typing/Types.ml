@@ -100,15 +100,10 @@ and data_field_def =
   | FieldPermission of typ
 
 and data_type_def =
-  SurfaceSyntax.data_type_flag * Variable.name * kind * data_type_def_branch list
-
-and abstract_type_def =
-  Variable.name * kind
+  data_type_def_branch list
 
 and type_def =
-  | Concrete of data_type_def
-  | Abstract of abstract_type_def
-  | Flexible of typ option
+  (SurfaceSyntax.data_type_flag * data_type_def) option
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -129,6 +124,10 @@ type fact = Exclusive | Duplicable of bitmap | Affine | Fuzzy of int
   * it has to be duplicable for the type to be duplicable. *)
 and bitmap = bool array
 
+type structure = Rigid | Flexible of typ option
+
+type permissions = typ list
+
 (** This is the environment that we use throughout HaMLeT. *)
 type env = {
   (* For any [datacon], get the point of the corresponding type. *)
@@ -146,23 +145,36 @@ and binding =
 
 and binding_head = {
   names: Variable.name list;
+  structure: structure;
+  kind: kind;
   binding_mark: Mark.t;
 }
 
 and raw_binding =
-  TypeBinding of type_binder | ExprBinding of expr_binder
+  BType of type_binder | BTerm of term_binder | BPerm of perm_binder
 
 and type_binder = {
-  (* Definition: abstract, concrete, or flexible *)
+  (* Definition: if it's a data type (e.g. [list]) there's a definition for it,
+   * otherwise it's none. *)
   definition: type_def;
   (* Associated fact. *)
   fact: fact;
-  (* Kind. Currently this can be one of [KType] and [KTerm]. *)
-  kind: kind;
 }
 
-and expr_binder = {
-  permissions: typ list;
+and term_binder = {
+  (* A list of available permissions for that identifier. *)
+  permissions: permissions;
+  (* A ghost variable has been introduced, say, through [x :: TERM], and does
+   * not represent we can compile. *)
+  ghost: bool;
+}
+
+and perm_binder = {
+  (* XXX this is temporary, we still need to think about how we should represent
+   * permissions that are not attached to a particular identifier. A simple
+   * strategy would be to attach to the environment a list of all points
+   * representing PERM binders. *)
+  consumed: bool;
 }
 
 (* The empty environment. *)
@@ -185,7 +197,7 @@ let merge_left env p2 p1 =
 (* Deal with flexible variables that have a structure. *)
 let structure (env: env) (point: point): typ option =
   match PersistentUnionFind.find point env.state with
-  | _, TypeBinding { definition = Flexible (Some t); _ } ->
+  | { structure = Flexible (Some t); _ }, _ ->
       Some t
   | _ ->
       None
@@ -408,34 +420,68 @@ let subst_data_type_def_branch t2 i branch =
 
 (* Various functions related to binding and finding. *)
 
-let head name =
+let head name ~flexible kind =
+  let structure = if flexible then Flexible None else Rigid in
   {
     names = [name];
     binding_mark = Mark.create ();
+    structure;
+    kind;
   }
 ;;
 
-let bind_expr (env: env) (name: Variable.name):
-    env * point =
-  let binding = head name, ExprBinding { permissions = []; } in
-  let point, state = PersistentUnionFind.create binding env.state in
-  { env with state }, point
-;;
-
-let bind_type (env: env) ?(kind=KType) (name: Variable.name) (fact: fact) (definition: type_def):
-    env * point =
-    let binding = head name, TypeBinding { fact; definition; kind } in
-  let point, state = PersistentUnionFind.create binding env.state in
-  { env with state }, point
-;;
-
-let bind_type_in_type
+let bind_term
     (env: env)
     (name: Variable.name)
+    ?(flexible=false)
+    (ghost: bool): env * point
+  =
+  let binding =
+    head name ~flexible KTerm,
+    BTerm { permissions = []; ghost }
+  in
+  let point, state = PersistentUnionFind.create binding env.state in
+  { env with state }, point
+;;
+
+let bind_type
+    (env: env)
+    (name: Variable.name)
+    ?(flexible=false)
+    ?(definition: type_def)
     (fact: fact)
-    (definition: type_def)
-    (typ: typ): env * typ =
-  let env, point = bind_type env name fact definition in
+    (kind: kind): env * point
+  =
+  let return_kind, _args = flatten_kind kind in
+  Log.affirm (return_kind = KType) "[bind_type] is for variables with kind TYPE only";
+  let binding = head name ~flexible kind, BType { fact; definition; } in
+  let point, state = PersistentUnionFind.create binding env.state in
+  { env with state }, point
+;;
+
+let bind_var (env: env) ?(flexible=false) (name, kind: type_binding): env * point =
+  let fact = Affine in
+  match kind with
+    | KType ->
+        (* Of course, such a type variable does not have a definition. *)
+        bind_type env name ~flexible fact kind
+    | KTerm ->
+        bind_term env name ~flexible true
+    | KPerm ->
+        Log.error "TODO"
+    | KArrow _ ->
+        Log.error "No arrows expected here"
+;;
+
+(* When crossing a binder, say, [a :: TYPE], use this function to properly add
+ * [a] in scope. *)
+let bind_var_in_type
+    (env: env)
+    (binding: type_binding)
+    ?(flexible=false)
+    (typ: typ): env * typ
+  =
+  let env, point = bind_var env ~flexible binding in
   let typ = subst (TyPoint point) 0 typ in
   env, typ
 ;;
@@ -444,12 +490,12 @@ let bind_param_at_index_in_data_type_def_branches
     (env: env)
     (name: Variable.name)
     (fact: fact)
-    (definition: type_def)
+    (kind: kind)
     (index: index)
     (branches: data_type_def_branch list): env * data_type_def_branch list =
   (* This needs a special treatment because the type parameters are not binders
    * per se (unlike TyForall, for instance...). *)
-  let env, point = bind_type env name fact definition in
+  let env, point = bind_type env name fact kind in
   let branches =
     List.map (subst_data_type_def_branch (TyPoint point) index) branches
   in
@@ -458,54 +504,34 @@ let bind_param_at_index_in_data_type_def_branches
 
 let find_type (env: env) (point: point): Variable.name * type_binder =
   match PersistentUnionFind.find point env.state with
-  | { names; _ }, TypeBinding binding ->
+  | { names; _ }, BType binding ->
       List.hd names, binding
-  | _, ExprBinding _ ->
+  | _ ->
       Log.error "Binder is not a type"
 ;;
 
-let find_expr (env: env) (point: point): Variable.name * expr_binder =
+let find_term (env: env) (point: point): Variable.name * term_binder =
   match PersistentUnionFind.find point env.state with
-  | { names; _ }, ExprBinding binding ->
+  | { names; _ }, BTerm binding ->
       List.hd names, binding
-  | _, TypeBinding _ ->
-      Log.error "Binder is not an expr"
+  | _ ->
+      Log.error "Binder is not a term"
 ;;
 
-let is_term (env: env) (point: point): bool =
+let is_type (env: env) (point: point): bool =
   match PersistentUnionFind.find point env.state with
-  | _, ExprBinding _ ->
+  | _, BType _ ->
       true
   | _ ->
       false
 ;;
 
-let name_for_binder (env: env) (point: point): string option =
+let is_term (env: env) (point: point): bool =
   match PersistentUnionFind.find point env.state with
-  | { names = name :: _; _ }, _ ->
-      Some (Variable.print name)
+  | _, BTerm _ ->
+      true
   | _ ->
-      None
-;;
-
-let name_for_expr (env: env) (point: point): string option =
-  match PersistentUnionFind.find point env.state with
-  | { names = name :: _; _ }, ExprBinding _ ->
-      Some (Variable.print name)
-  | { names = []; _ }, ExprBinding _ ->
-      None 
-  | _, TypeBinding _ ->
-      Log.error "Binder is not an expr"
-;;
-
-let name_for_type (env: env) (point: point): string option =
-  match PersistentUnionFind.find point env.state with
-  | { names = name :: _; _ }, TypeBinding _ ->
-      Some (Variable.print name)
-  | { names = []; _ }, TypeBinding _ ->
-      None 
-  | _, ExprBinding _ ->
-      Log.error "Binder is not a type"
+      false
 ;;
 
 (* Functions for traversing the binders list. Bindings are traversed in an
@@ -526,17 +552,17 @@ let map_types env f =
     (List.rev
       (PersistentUnionFind.fold
         (fun acc _k -> function
-          | ({ names; _ }, TypeBinding b) -> Some (f names b) :: acc
+          | (head, BType b) -> Some (f head b) :: acc
           | _ -> None :: acc)
         [] env.state))
 ;;
 
-let map_exprs env f =
+let map_terms env f =
   Hml_List.filter_some
     (List.rev
       (PersistentUnionFind.fold
         (fun acc _k -> function
-          | ({ names; _ }, ExprBinding b) -> Some (f names b) :: acc
+          | (head, BTerm b) -> Some (f head b) :: acc
           | _ -> None :: acc)
         [] env.state))
 ;;
@@ -555,18 +581,18 @@ let fold env f acc =
 ;;
 
 let fold_types env f acc =
-  PersistentUnionFind.fold (fun acc k ({ names; _ }, binding) ->
-    match binding with TypeBinding b -> f acc k names b | _ -> acc)
+  PersistentUnionFind.fold (fun acc k (head, binding) ->
+    match binding with BType b -> f acc k head b | _ -> acc)
   acc env.state
 ;;
 
-let replace_expr env point f =
+let replace_term env point f =
   { env with state =
       PersistentUnionFind.update (function
-        | names, ExprBinding b ->
-            names, ExprBinding (f b)
+        | names, BTerm b ->
+            names, BTerm (f b)
         | _ ->
-            Log.error "Not an expr"
+            Log.error "Not a term"
       ) point env.state
   }
 ;;
@@ -574,8 +600,8 @@ let replace_expr env point f =
 let replace_type env point f =
   { env with state =
       PersistentUnionFind.update (function
-        | names, TypeBinding b ->
-            names, TypeBinding (f b)
+        | names, BType b ->
+            names, BType (f b)
         | _ ->
             Log.error "Not a type"
       ) point env.state
@@ -604,85 +630,68 @@ let refresh_mark (env: env): env =
 
 (* A hodge-podge of getters. *)
 
-let permissions_for_ident (env: env) (point: point): expr_binder =
-  snd (find_expr env point)
+let get_name (env: env) (point: point): Variable.name =
+  match PersistentUnionFind.find point env.state with
+  | { names = name :: _; _ }, _ ->
+      name
+  | _ ->
+      Log.error "No name for this binder ?!"
 ;;
 
-let fact_for_type (env: env) (point: point): fact =
+let get_permissions (env: env) (point: point): permissions =
+  let _, { permissions; _ } = find_term env point in
+  permissions
+;;
+
+let get_fact (env: env) (point: point): fact =
   let _, { fact; _ } = find_type env point in
   fact
 ;;
 
-let branches_for_type (env: env) (point: point): data_type_def_branch list option =
-  match find_type env point with
-  | _, { definition = Concrete def; _ } ->
-      let _, _name, _kind, branches = def in
-      Some branches
-  | _ ->
-      None
-;;
-
-let kind_for_def (def: type_def): kind =
-  match def with
-  | Concrete (_, _name, kind, _) | Abstract (_name, kind) ->
+let get_kind (env: env) (point: point): kind =
+  match PersistentUnionFind.find point env.state with
+  | { kind; _ }, _ ->
       kind
-  | _ ->
-      Log.error "Not implemented yet"
 ;;
 
-let kind_for_type (env: env) (point: point): kind =
+let get_definition (env: env) (point: point): type_def =
   let _, { definition; _ } = find_type env point in
-  kind_for_def definition
+  definition
 ;;
 
-let def_for_type (env: env) (point: point): type_def =
-  (snd (find_type env point)).definition
+let get_arity_for_kind kind =
+  let _, tl = flatten_kind kind in
+  List.length tl
 ;;
 
-let def_for_datacon (env: env) (datacon: Datacon.name): data_type_def =
+let get_arity (env: env) (point: point): int =
+  get_arity_for_kind (get_kind env point)
+;;
+
+let def_for_datacon (env: env) (datacon: Datacon.name): SurfaceSyntax.data_type_flag * data_type_def =
   match DataconMap.find_opt datacon env.type_for_datacon with
   | Some point ->
-      begin match def_for_type env point with
-      | Concrete def ->
-          def
-      | _ ->
-          assert false
-      end
+      Option.extract (get_definition env point)
   | None ->
       Log.error "There is no type for constructor %a" Datacon.p datacon
 ;;
 
-let arity_for_def (def: type_def): int =
-  let _, tl = flatten_kind (kind_for_def def) in
-  List.length tl
-;;
-
-let arity_for_data_type (env: env) (point: point): int =
-  let _, tl = flatten_kind (kind_for_type env point) in
-  List.length tl
-;;
-
 (* What type am I dealing with? *)
 
-let is_abstract (env: env) (point: point): bool =
-  match def_for_type env point with
-  | Abstract _ ->
-      true
-  | _ -> false
-;;
-
 let is_flexible (env: env) (point: point): bool =
-  match def_for_type env point with
-  | Flexible None ->
+  match PersistentUnionFind.find point env.state with
+  | { structure = Flexible None; _ }, _ ->
       true
-  | _ -> false
+  | _ ->
+      false
 ;;
 
-let is_concrete (env: env) (point: point): bool =
-  match def_for_type env point with
-  | Concrete _ ->
+let has_definition (env: env) (point: point): bool =
+  match get_definition env point with
+  | Some _ ->
       true
-  | _ -> false
+  | _ ->
+      false
 ;;
 
 (* Instantiating. *)
@@ -692,15 +701,13 @@ let internal_pdoc = ref (fun _ -> assert false);;
 
 let instantiate_flexible env p t =
   Log.affirm (is_flexible env p) "Trying to instantiate a variable that's not flexible";
-  Log.debug "Instantiating %s with %a"
-    (Option.extract (name_for_type env p))
+  Log.debug "Instantiating %a with %a"
+    Variable.p (get_name env p)
     !internal_pdoc (!internal_ptype, (env, t));
   { env with state =
       PersistentUnionFind.update (function
-        | names, TypeBinding b ->
-            names, TypeBinding { b with definition = Flexible (Some t) }
-        | _ ->
-            Log.error "Not a type"
+        | head, binding ->
+            { head with structure = Flexible (Some t) }, binding
       ) p env.state }
 ;;
 
@@ -717,7 +724,7 @@ let find_and_instantiate_branch
     (point: point)
     (datacon: Datacon.name)
     (args: typ list): data_type_def_branch =
-  let branches = Option.extract (branches_for_type env point) in
+  let _flag, branches = Option.extract (get_definition env point) in
   let branch =
     List.find
       (fun (datacon', _) -> Datacon.equal datacon datacon')
@@ -751,7 +758,7 @@ let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_bra
     let env, branches =
       let index = arity - i - 1 in
       bind_param_at_index_in_data_type_def_branches
-        env letter (Fuzzy i) (Abstract (letter, kind)) index branches
+        env letter (Fuzzy i) kind index branches
     in
     env, branches
   ) (env, branches) letters params in
@@ -822,19 +829,19 @@ module TypePrinter = struct
         | Some t ->
             lparen ^^ string "f=" ^^ print_type env t ^^ rparen
         | _ ->
-            string (Option.extract (name_for_binder env point))
+            print_var (get_name env point)
         end
 
     | TyVar i ->
         int i
         (* Log.error "All variables should've been bound at this stage" *)
 
-    | TyForall ((name, kind), typ) ->
-        let env, typ = bind_type_in_type env name Affine (Abstract (name, kind)) typ in
+    | TyForall (((name, kind) as binding), typ) ->
+        let env, typ = bind_var_in_type env binding typ in
         print_quantified env "∀" name kind typ
 
-    | TyExists ((name, kind), typ) ->
-        let env, typ = bind_type_in_type env name Affine (Abstract (name, kind)) typ in
+    | TyExists (((name, kind) as binding), typ) ->
+        let env, typ = bind_var_in_type env binding typ in
         print_quantified env "∃" name kind typ
 
     | TyApp (t1, t2) ->
@@ -920,7 +927,7 @@ module TypePrinter = struct
   (* Prints a sequence of characters representing whether each parameter has to
    * be duplicable (x) or not (nothing). *)
   let print_fact (env, point: env * point): document =
-    do_print_fact (fact_for_type env point);
+    do_print_fact (get_fact env point);
   ;;
 
   let print_facts (env: env): document =
@@ -962,24 +969,20 @@ module TypePrinter = struct
           end
     in
     let lines =
-      map_types env (fun _ { definition; fact; _ } ->
+      map_types env (fun { names; kind; _ } { definition; fact; _ } ->
+        let name = List.hd names in
+        let arity = get_arity_for_kind kind in
         match definition with
-        | Concrete (_flag, name, kind, _branches) ->
-            let _hd, tl = flatten_kind kind in 
-            let arity = List.length tl in
+        | Some _ ->
             print_fact name false arity fact
-        | Abstract (name, kind) ->
-            let _hd, tl = flatten_kind kind in 
-            let arity = List.length tl in
+        | None ->
             print_fact name true arity fact
-        | Flexible _ ->
-            Log.error "Not implemented yet"
       )
     in
     join hardline lines
   ;;
   
-  let print_permission_list (env, { permissions }): document =
+  let print_permission_list (env, { permissions; _ }): document =
     let permissions = List.map (print_type env) permissions in
     (*let exclusive = List.map
       (fun doc -> colors.underline ^^ doc ^^ colors.default) exclusive
@@ -993,7 +996,7 @@ module TypePrinter = struct
       let line = String.make (String.length str) '-' in
       (string str) ^^ hardline ^^ (string line)
     in
-    let lines = map_exprs env (fun names binder ->
+    let lines = map_terms env (fun { names; _ } binder ->
       let name = List.hd names in
       let perms = print_permission_list (env, binder) in
       (print_var name) ^^ colon ^^ space ^^ (nest 2 perms)

@@ -57,15 +57,14 @@ module KindPrinter = struct
   (* This function prints the contents of a [Types.env]. *)
   let print_kinds env =
     (* Now we have a pretty-printing environment that's ready, proceed. *)
-    let defs = map_types env (fun _ { definition; _ } ->
+    let defs = map_types env (fun { names; kind } { definition; _ } ->
+      let name = List.hd names in
       match definition with
-      | Concrete (flag, name, kind, branches) ->
+      | Some (flag, branches) ->
           print_data_type_def env flag name kind branches
-      | Abstract (name, kind) ->
+      | None ->
           print_abstract_type_def env name kind
-      | _ ->
-          assert false)
-    in
+    ) in
     join (break1 ^^ break1) defs
   ;;
 
@@ -433,7 +432,7 @@ let check_data_type_group
         in
         (* Keep the definition as we will need to refer to it later on. *)
         let type_env, point =
-          bind_type type_env name fact (Concrete (flag, name, kind, rhs))
+          bind_type type_env name ~definition:(flag, rhs) fact kind
         in
         (* Map all the constructor names to the corresponding type. *)
         let type_for_datacon = List.fold_left (fun type_for_datacon (name, _) ->
@@ -491,17 +490,17 @@ let check_data_type_group
               Duplicable bitmap
         in
         (* Just remember that the type is defined as abstract. *)
-        let type_env, point = bind_type type_env name fact (Abstract (name, kind)) in
+        let type_env, point = bind_type type_env name fact kind in
         type_env, (level, point) :: points
   ) (empty_env, []) group in
   (* Now substitute the TyVars for the TyPoints: for all definitions *)
   let total_number_of_data_types = List.length points in
-  env, points, fold_types type_env (fun type_env point names { definition; _ } ->
+  env, points, fold_types type_env (fun type_env point { names; kind } { definition; _ } ->
     match definition with
-    | Abstract _ ->
+    | None ->
         type_env
-    | Concrete (flag, name, kind, branches) ->
-        let arity = arity_for_def definition in
+    | Some (flag, branches) ->
+        let arity = get_arity_for_kind kind in
         (* Replace each TyVar with the corresponding TyPoint *)
         let branches = List.fold_left (fun branches (level, point) ->
           let index = total_number_of_data_types - level - 1 + arity in
@@ -510,10 +509,8 @@ let check_data_type_group
             branches
         ) branches points in
         replace_type type_env point (fun binder ->
-          { binder with definition = Concrete (flag, name, kind, branches) }
+          { binder with definition = Some (flag, branches) }
         )
-    | _ ->
-        assert false
   ) type_env
 ;;
 
