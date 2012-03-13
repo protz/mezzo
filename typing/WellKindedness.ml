@@ -655,17 +655,10 @@ and check_expression (env: env) (expression: expression): E.expression =
       let e2 = check_expression env e2 in
       E.EAssign (e1, var, e2)
 
-  | EApply _ ->
-      let rec flatten_app acc = function
-        | EApply (e1, e2) ->
-            flatten_app (e2 :: acc) e1
-        | e ->
-            e, acc
-      in
-      let f, args = flatten_app [] expression in
+  | EApply (f, arg) ->
       let f = check_expression env f in
-      let args = List.map (check_expression env) args in
-      E.EApply (f, args)
+      let arg = check_expression env arg in
+      E.EApply (f, arg)
 
   | EMatch (e, patexprs) ->
       let e = check_expression env e in

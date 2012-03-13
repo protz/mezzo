@@ -38,8 +38,8 @@ type expression =
   | EFun of (Variable.name * kind) list * typ list * typ * expression
   (* v.f <- e *)
   | EAssign of expression * Field.name * expression
-  (* e e₁ … eₙ *)
-  | EApply of expression * expression list
+  (* e₁ e₂ *)
+  | EApply of expression * expression
   (* match e with pᵢ -> eᵢ *)
   | EMatch of expression * (pattern * expression) list
   (* (e₁, …, eₙ) *)
@@ -135,10 +135,10 @@ and subst_expr t2 i e =
       let e2 = subst_expr t2 i e2 in
       EAssign (e1, field, e2)
 
-  | EApply (f, args) ->
+  | EApply (f, arg) ->
       let f = subst_expr t2 i f in
-      let args = List.map (subst_expr t2 i) args in
-      EApply (f, args)
+      let arg = subst_expr t2 i arg in
+      EApply (f, arg)
 
   | EMatch (e, patexprs) ->
       let e = subst_expr t2 i e in
@@ -254,10 +254,10 @@ and esubst e2 i e1 =
       let e' = esubst e2 i e' in
       EAssign (e, f, e')
 
-  | EApply (f, args) ->
+  | EApply (f, arg) ->
       let f = esubst e2 i f in
-      let args = List.map (esubst e2 i) args in
-      EApply (f, args)
+      let arg = esubst e2 i arg in
+      EApply (f, arg)
 
   | EMatch (e, patexprs) ->
       let e = esubst e2 i e in
@@ -441,10 +441,10 @@ module ExprPrinter = struct
     | EAssign (e1, f, e2) ->
         print_expr env e1 ^^ dot ^^ print_field f ^^ space ^^ larrow ^^ jump (print_expr env e2)
 
-    | EApply (f, args) ->
-        let args = List.map (print_expr env) args in
+    | EApply (f, arg) ->
+        let arg = print_expr env arg in
         let f = print_expr env f in
-        f ^^ space ^^ (join space args)
+        f ^^ space ^^ arg
 
     | ETuple exprs ->
         let exprs = List.map (print_expr env) exprs in
