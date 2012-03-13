@@ -48,16 +48,20 @@ let break_line lexbuf =
   pos_lnum := !pos_lnum + 1;
   pos_bol := lexeme_end lexbuf
 
-let print_position buf lexbuf =
+let p buf (start_pos, end_pos: Lexing.position * Lexing.position) =
   let open Lexing in
-  let start_pos = start_pos lexbuf in
-  let end_pos = end_pos lexbuf in
   let filename = start_pos.pos_fname in
   let line = start_pos.pos_lnum in
   let start_col = start_pos.pos_cnum - start_pos.pos_bol in
   let end_col = end_pos.pos_cnum - end_pos.pos_bol in
   Printf.bprintf buf "File \"%s\", line %i, characters %i-%i:"
     filename line start_col end_col
+
+let print_position buf lexbuf =
+  let open Lexing in
+  let start_pos = start_pos lexbuf in
+  let end_pos = end_pos lexbuf in
+  p buf (start_pos, end_pos)
 
 (* Error handling *)
 

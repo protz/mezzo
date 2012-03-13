@@ -78,10 +78,33 @@ end
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Maps of identifiers to things. *)
+
+module M =
+  Variable.Map
+
+(* An environment maps an identifier to a pair of a kind and a de Bruijn level
+   (not to be confused with a de Bruijn index!). An environment also keeps
+   track of the current de Bruijn level. *)
+
+type level = 
+    int
+
+type env = {
+  (* The current de Bruijn level. *)
+  level: level;
+  (* A mapping of identifiers to pairs of a kind and a level. *)
+  mapping: (kind * level) M.t;
+  (* The current start and end positions *)
+  location: Lexing.position * Lexing.position;
+}
+
 (* Error messages. *)
 
-let unbound x =
-  Log.error "Unbound type %a" Variable.p x
+let unbound env x =
+  Log.error "%a unbound identifier %a"
+    Lexer.p env.location
+    Variable.p x
 
 let mismatch expected_kind inferred_kind =
   Log.error "This type has kind %a but we were expecting kind %a"
@@ -105,11 +128,6 @@ let bound_twice x =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Maps of identifiers to things. *)
-
-module M =
-  Variable.Map
-
 let strict_add x kind env =
   try
     M.strict_add x kind env
@@ -117,22 +135,6 @@ let strict_add x kind env =
     bound_twice x
 
 (* ---------------------------------------------------------------------------- *)
-
-(* An environment maps an identifier to a pair of a kind and a de Bruijn level
-   (not to be confused with a de Bruijn index!). An environment also keeps
-   track of the current de Bruijn level. *)
-
-type level = 
-    int
-
-type env = {
-  (* The current de Bruijn level. *)
-  level: level;
-  (* A mapping of identifiers to pairs of a kind and a level. *)
-  mapping: (kind * level) M.t;
-  (* The current start and end positions *)
-  location: Lexing.position * Lexing.position;
-}
 
 type fragment =
     kind M.t
@@ -150,7 +152,7 @@ let find x env =
     let kind, level = M.find x env.mapping in
     kind, env.level - level - 1
   with Not_found ->
-    unbound x
+    unbound env x
 
 (* [bind env (x, kind)] binds the name [x] with kind [kind]. *)
 

@@ -13,3 +13,6 @@ val rec length [a] (x: list a): int =
       1 + length tail
   end
 ;;
+
+val rec (x,y) = (z,t)
+and (z,t) = (x, y);;

@@ -31,3 +31,4 @@ val token: Ulexing.lexbuf -> Grammar.token * Lexing.position * Lexing.position
 
 val print_error: Buffer.t -> (Ulexing.lexbuf * error) -> unit
 val print_position: Buffer.t -> Ulexing.lexbuf -> unit
+val p: Buffer.t -> Lexing.position * Lexing.position -> unit
