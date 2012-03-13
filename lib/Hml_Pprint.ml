@@ -26,12 +26,24 @@ let arrow =
   string "->"
 ;;
 
+let semisemi =
+  semi ^^ semi
+;;
+
 let ccolon =
   colon ^^ colon
 ;;
 
 let int i =
   string (string_of_int i)
+;;
+
+let larrow =
+  string "<-"
+;;
+
+let slash =
+  string "/"
 ;;
 
 let utf8_length s =
@@ -77,8 +89,8 @@ let heading head body =
 (* [jump body] either displays a space, followed with [body], followed
    with a space, all on a single line; or breaks a line, prints [body]
    at indentation 2. *)
-let jump body =
-  group (nest 2 (line ^^ body))
+let jump ?(indent=2) body =
+  group (nest indent (line ^^ body))
 ;;
 
 (* [definition head body cont] prints [head]; prints [body], surrounded

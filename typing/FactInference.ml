@@ -207,7 +207,7 @@ let one_round (env: env): env =
                 ) fields
               ) branches;
               env
-            with EAffine _t ->
+            with EAffine _t | EExclusive _t ->
               (* Some exception was raised: the type, although initially
                * duplicable, contains a sub-part whose type is [Exclusive] or
                * [Affine], so the whole type need to be affine. *)

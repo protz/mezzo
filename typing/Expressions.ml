@@ -319,6 +319,28 @@ and esubst e2 i e1 =
 ;;
 
 
+(* [bind_vars env bindings] adds [bindings] in the environment, and returns the
+ * new environment, and specialized versions of subst, subst_expr, and esubst
+ * that perform the substitutions. *)
+let bind_vars (env: env) (bindings: type_binding list) =
+  (* List kept in reverse, the usual trick *)
+  let env, points = List.fold_left (fun (env, points) binding ->
+    let env, point = bind_var env binding in
+    env, point :: points) (env, []) bindings
+  in
+  let subst_type t =
+    Hml_List.fold_lefti (fun i t point -> subst (TyPoint point) i t) t points
+  in
+  let subst_expr t =
+    Hml_List.fold_lefti (fun i t point -> subst_expr (TyPoint point) i t) t points
+  in
+  let esubst t =
+    Hml_List.fold_lefti (fun i t point -> esubst (EPoint point) i t) t points
+  in
+  env, subst_type, subst_expr, esubst
+;;
+
+
 (* [bind_patexprs env rec_flag patexprs body] takes a list of patterns and
  * expressions, whose recursivity depends on [rec_flag], collects the variables
  * in the patterns, binds them to new points, and performs the correct
@@ -329,41 +351,16 @@ let bind_patexprs env rec_flag patexprs body =
     collect_pattern p :: acc) [] patterns
   in
   let names = List.flatten names in
-  let env, points = List.fold_left (fun (env, points) name ->
-    let env, point = bind_term env name false in
-    env, point :: points) (env, []) names
-  in
-  (* Trick: keep the list reversed so that the index in the list is also the De
-   * Bruijn index. *)
-  let perform_all_substitutions expression =
-    Hml_List.fold_lefti
-      (fun i expr point -> esubst (EPoint point) i expr)
-      expression points
-  in
+  let bindings = List.map (fun n -> (n, KType)) names in
+  let env, _subst, _subst_expr, esubst = bind_vars env bindings in
   let expressions = match rec_flag with
     | Recursive ->
-        List.map perform_all_substitutions expressions
+        List.map esubst expressions
     | Nonrecursive ->
         expressions
   in
-  let body = Option.map perform_all_substitutions body in
+  let body = Option.map esubst body in
   env, List.combine patterns expressions, body
-;;
-
-
-let bind_vars (env: env) (vars: type_binding list) =
-  (* List kept in reverse, the usual trick *)
-  let env, points = List.fold_left (fun (env, points) binding ->
-    let env, point = bind_var env binding in
-    env, point :: points) (env, []) vars
-  in
-  let subst_type t =
-    Hml_List.fold_lefti (fun i t point -> subst (TyPoint point) i t) t points
-  in
-  let subst_expr t =
-    Hml_List.fold_lefti (fun i t point -> subst_expr (TyPoint point) i t) t points
-  in
-  env, subst_type, subst_expr
 ;;
 
 
@@ -394,15 +391,15 @@ module ExprPrinter = struct
 
     (* Foo { bar = bar; baz = baz; … } *)
     | PConstruct (name, fieldnames) ->
-        print_datacon name ^^ space ^^
+        print_datacon name ^^
           if List.length fieldnames > 0 then
             space ^^ lbrace ^^
-            nest 4
-              (break1 ^^ join
+            jump ~indent:4
+              (join
                 (semi ^^ break1)
                 (List.map (fun (field, name) -> print_field field ^^ space ^^
                   equals ^^ space ^^ print_var name) fieldnames)) ^^
-            nest 2 (break1 ^^ rbrace)
+            jump rbrace
           else
             empty
 
@@ -428,38 +425,76 @@ module ExprPrinter = struct
 
     (* fun [a] (x: τ): τ -> e *)
     | EFun (vars, args, return_type, body) ->
-        let env, subst_type, subst_expr = bind_vars env vars in
+        let env, subst_type, subst_expr, esubst = bind_vars env vars in
+        (* Remember: this is all in desugared form, so the variables in [args]
+         * are all bound. *)
         let args = List.map subst_type args in
         let return_type = subst_type return_type in
         let body = subst_expr body in
+        let body = esubst body in
         string "fun " ^^ lbracket ^^ join (comma ^^ space) (List.map print_binder vars) ^^
-        rbracket ^^ nest 2 (
+        rbracket ^^ jump (
           join break1 (List.map (print_type env) args)
         ) ^^ colon ^^ space ^^ print_type env return_type ^^ space ^^ equals ^^
-        nest 2 (print_expr env body)
+        jump (print_expr env body)
 
-    (* | EAssign of expression * Field.name * expression
+    | EAssign (e1, f, e2) ->
+        print_expr env e1 ^^ dot ^^ print_field f ^^ space ^^ larrow ^^ jump (print_expr env e2)
 
-    | EApply of expression * expression list
+    | EApply (f, args) ->
+        let args = List.map (print_expr env) args in
+        let f = print_expr env f in
+        f ^^ space ^^ (join space args)
 
-    | EMatch of expression * (pattern * expression) list
+    | ETuple exprs ->
+        let exprs = List.map (print_expr env) exprs in
+        lparen ^^ join (comma ^^ space) exprs ^^ rparen
 
-    | ETuple of expression list
+    | EMatch (e, patexprs) ->
+        let patexprs = List.map (fun (pat, expr) ->
+          let vars = collect_pattern pat in
+          let bindings = List.map (fun v -> (v, KType)) vars in
+          let env, _subst_type, subst_expr, esubst = bind_vars env bindings in
+          let expr = subst_expr expr in
+          let expr = esubst expr in
+          print_pat env pat ^^ space ^^ arrow ^^ jump (print_expr env expr)
+        ) patexprs in
+        string "match" ^^ space ^^ print_expr env e ^^ space ^^ string "with" ^^
+        jump ~indent:0 (ifflat empty (bar ^^ space) ^^ join (break1 ^^ bar ^^ space) patexprs)
 
-    | EConstruct of Datacon.name * (Field.name * expression) list
 
-    | EIfThenElse of expression * expression * expression
-    | ELocated of expression * Lexing.position * Lexing.position
+    | EConstruct (datacon, fieldexprs) ->
+        let fieldexprs = List.map (fun (field, expr) ->
+          print_field field ^^ space ^^ equals ^^ space ^^ print_expr env expr
+        ) fieldexprs in
+        let fieldexprs = join (semi ^^ break1) fieldexprs in
+        print_datacon datacon ^^ space ^^ lbrace ^^ jump fieldexprs ^^ break1 ^^ rbrace
 
-    | EPlus of expression * expression
-    | EMinus of expression * expression
-    | ETimes of expression * expression
-    | EDiv of expression * expression
-    | EUMinus of expression
-    | EInt of int *)
+    | EIfThenElse (e1, e2, e3) ->
+        string "if" ^^ space ^^ print_expr env e1 ^^ space ^^ string "then" ^^
+        jump (print_expr env e2) ^^ break1 ^^ string "else" ^^ 
+        jump (print_expr env e3)
 
-    | _ ->
-        assert false
+    | ELocated (e, _, _) ->
+        print_expr env e
+
+    | EPlus (e1, e2) ->
+        print_expr env e1 ^^ space ^^ plus ^^ space ^^ print_expr env e2
+
+    | EMinus (e1, e2) ->
+        print_expr env e1 ^^ space ^^ minus ^^ space ^^ print_expr env e2
+
+    | ETimes (e1, e2) ->
+        print_expr env e1 ^^ space ^^ star ^^ space ^^ print_expr env e2
+
+    | EDiv (e1, e2) ->
+        print_expr env e1 ^^ space ^^ slash ^^ space ^^ print_expr env e2
+
+    | EUMinus e ->
+        minus ^^ print_expr env e
+
+    | EInt i ->
+        int i
 
   and print_rec_flag = function
     | Recursive ->
@@ -469,9 +504,34 @@ module ExprPrinter = struct
 
 
   and print_binder (name, kind) =
-    print_var name ^^ space ^^ ccolon ^^ print_kind kind
+    print_var name ^^ space ^^ ccolon ^^ space ^^ print_kind kind
+
+  ;;
+
+  let rec print_declaration env declaration: env * document =
+    match declaration with
+    | DLocated (declaration, _, _) ->
+        print_declaration env declaration
+    | DMultiple (rec_flag, patexprs) ->
+        let env, patexprs, _ = bind_patexprs env rec_flag patexprs None in
+        env, string "val" ^^ print_rec_flag rec_flag ^^ space ^^
+        print_patexprs env patexprs
+  ;;
 
 
+  let print_declarations env declarations =
+    let _env, declarations = List.fold_left (fun (env, declarations) declaration ->
+      let env, declaration = print_declaration env declaration in
+      env, declaration :: declarations) (env, []) declarations
+    in
+    let declarations = List.rev declarations in
+    join
+      (break1 ^^ semisemi ^^ hardline ^^ hardline)
+      declarations
+  ;;
+
+  let pdeclarations (env, declarations) =
+    print_declarations env declarations
   ;;
 
 end

@@ -41,5 +41,6 @@ let _ =
   let env = FactInference.analyze_data_types env in
   Log.debug ~level:1 "%a"
     Types.TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds_and_facts, env);
-  ignore (declarations);
+  Log.debug ~level:1 "%a"
+    Types.TypePrinter.pdoc (Expressions.ExprPrinter.pdeclarations, (env, declarations));
 ;;
