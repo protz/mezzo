@@ -1,3 +1,7 @@
+(* TEMPORARY si on fermait les if, donc if/end, on pourrait à nouveau autoriser un
+   let dans une branche then ou else *)
+(* TEMPORARY songer à BEGIN suivi de n SEMI ou LET suivi de END *)
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Syntactic categories of names. *)
