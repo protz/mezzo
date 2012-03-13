@@ -260,7 +260,7 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
         if same env !!cons1 !!cons2 && List.for_all2 (equal env) args1 args2 then
           env, one_if t1
         else
-          raise Inconsistent
+          env, Both
 
     | TyConcreteUnfolded branch as t, other
     | other, (TyConcreteUnfolded branch as t) ->
@@ -307,10 +307,19 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
               let env, t' = unfold env (TyConcreteUnfolded branch') in
               refine_type env t t'
             else
-              raise Inconsistent
+              (* This is fairly imprecise as well. If both types are concrete
+               * *and* different, this is inconsistent. However, if [other] is
+               * the applicatino of an abstract data type, then of course it is
+               * not inconsistent. *)
+              env, Both
 
         | _ ->
-            raise Inconsistent
+            (* This is fairly imprecise. [TyConcreteUnfolded] vs [TyForall] is
+             * of course inconsistent, but [TyConcreteUnfolded] vs [TyPoint]
+             * where [TyPoint] is an abstract type is not inconsistent. However,
+             * if the [TyPoint] is [int], it definitely is inconsistent. But we
+             * have no way to distinguish "base types" and abstract types... *)
+            env, Both
 
         end
 
@@ -374,6 +383,8 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
 
   with Inconsistent ->
 
+    (* XXX our inconsistency analysis is sub-optimal, see various comments
+     * above. *)
     let open TypePrinter in
     Log.debug ~level:4 "Inconsistency detected %a cannot coexist with %a"
       pdoc (ptype, (env, t1)) pdoc (ptype, (env, t2));
@@ -407,8 +418,8 @@ and refine (env: env) (point: point) (t': typ): env =
 (** [unify env p1 p2] merges two points, and takes care of dealing with how the
     permissions should be merged. *)
 and unify (env: env) (p1: point) (p2: point): env =
-  Log.affirm (is_term env p1 && is_term env p2) "[unify p1 p2] expects [p1] and\
-    [p2] to be variables in expressions, not types";
+  Log.affirm (is_term env p1 && is_term env p2) "[unify p1 p2] expects [p1] and \
+    [p2] to be variables with kind TERM, not TYPE";
 
   if same env p1 p2 then
     env
@@ -422,7 +433,7 @@ and unify (env: env) (p1: point) (p2: point): env =
 (** [add env point t] adds [t] to the list of permissions for [p], performing all
     the necessary legwork. *)
 and add (env: env) (point: point) (t: typ): env =
-  Log.affirm (is_term env point) "You can only add permissions to a point that\
+  Log.affirm (is_term env point) "You can only add permissions to a point that \
     represents a program identifier.";
 
   let hint = Variable.print (get_name env point) in
@@ -458,7 +469,7 @@ and add_perm (env: env) (t: typ): env =
 (** [sub env point t] tries to extract [t] from the available permissions for
     [point] and returns, if successful, the resulting environment. *)
 let rec sub (env: env) (point: point) (t: typ): env option =
-  Log.affirm (is_term env point) "You can only add permissions to a point that\
+  Log.affirm (is_term env point) "You can only add permissions to a point that \
     represents a program identifier.";
 
   (* Get a "clean" type without nested permissions. *)
@@ -538,7 +549,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
                 | TyTupleComponentValue t ->
                     sub_clean env p t
                 | _ ->
-                    Log.error "The type we're trying to extract should've been\
+                    Log.error "The type we're trying to extract should've been \
                       cleaned first."
                 end
             | _ ->
@@ -557,7 +568,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
                     Log.affirm (Field.equal name1 name2) "Not in order?";
                     sub_clean env p t
                 | _ ->
-                    Log.error "The type we're trying to extract should've been\
+                    Log.error "The type we're trying to extract should've been \
                       cleaned first."
                 end
             | _ ->
