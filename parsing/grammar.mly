@@ -456,53 +456,46 @@ fact:
 
 (* Main expression rule *)
 %inline expression:
-| e = expr1
+| e = elocated(semi_or_x(let_or_raw1))
     { e }
 
   (* Let-bindings, if-then-else *)
-  %inline expr1:
+  %inline let_or_expr1:
+  | e = elocated(let_or_raw1)
+      { e }
+
+  let_or_raw1: /* tout sauf semi */
+  | LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = expression
+      { ELet (f, declarations, e) }
+/* TEMPORARY for later:
+  | FUN bs = type_parameters? f_args = one_tuple+ COLON t = normal_type EQUAL expression
+      { assert false }
+*/
+  | e = raw_expr1
+      { e }
+
+  semi_or_x(X): /* tout sauf let */
+  | e1 = elocated(raw_expr1) SEMI e2 = expression
+      { ESequence (e1, e2) }
+  | e = X
+      { e }
+
+  expr1:
   | e = elocated(raw_expr1)
       { e }
 
-  raw_expr1:
-  | LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = expr1
-      { ELet (f, declarations, e) }
-  | IF e1 = expr1 THEN e2 = expr1
+  raw_expr1: /* tout sauf let et semi */
+  | IF e1 = expression THEN e2 = expr1 /* disallow let inside of "then", too fragile */
       { EIfThenElse (e1, e2, ETuple []) }
-  | IF e1 = expr1 THEN e2 = expr1 ELSE e3 = expr1
+  | IF e1 = expression THEN e2 = expr1 ELSE e3 = expr1
       { EIfThenElse (e1, e2, e3) }
-  | e = raw_expr2
-      { e }
-
-  (* Type annotations, sequence, assignment *)
-  %inline expr2:
-  | e = elocated(raw_expr2)
-      { e }
-
-  raw_expr2:
-  | e = expr3 COLON t = very_loose_type
-      { EConstraint (e, t) }
-  | e1 = expr2 SEMI e2 = expr3
-      { ESequence (e1, e2) }
-  | e1 = expr2 DOT f = variable LARROW e2 = expr3
+  | e1 = expr6 DOT f = variable LARROW e2 = expr1 /* cannot allow let because right-hand side of let can contain a semi-colon */
       { EAssign (e1, f, e2) }
-  | e = raw_expr3
-      { e }
-
-  (* Constructor *)
-  %inline expr3:
-  | e = elocated(raw_expr3)
-      { e }
-
-  (* OCaml parses { foo = let () = () in 1 };; and we don't. Too bad! *)
-  raw_expr3:
-  | dc = datacon_application(datacon, data_field_assign)
-      { EConstruct dc }
   | e = raw_sum
       { e }
-
+  
     %inline data_field_assign:
-    | f = variable EQUAL e = expr4
+    | f = variable EQUAL e = expr1 /* cannot allow let because right-hand side of let can contain a semi-colon */
         { f, e }
 
   (* Arithmetic expressions... *)
@@ -557,17 +550,23 @@ fact:
       { EVar v }
   | i = INT
       { EInt i }
-  | LPAREN es = atleast_two_list(COMMA, expr1) RPAREN
+  | dc = datacon_application(datacon, data_field_assign)
+      { EConstruct dc }
+  | LPAREN es = atleast_two_list(COMMA, let_or_expr1) RPAREN
       { ETuple es }
-  | MATCH e = expr1 WITH bs = separated_or_preceded_list(BAR, match_branch) END
+  | MATCH e = let_or_expr1 WITH bs = separated_or_preceded_list(BAR, match_branch) END
       { EMatch (e, bs) }
-  | BEGIN e = expr1 END
+  | e = expr6 DOT f = variable
+      { assert false } /* TEMPORARY */
+  | BEGIN e = let_or_expr1 END
       { e }
-  | LPAREN e = expr1 RPAREN
+  | LPAREN e = let_or_expr1 COLON t = very_loose_type RPAREN
+      { EConstraint (e, t) }
+  | LPAREN e = let_or_expr1 RPAREN
       { e }
 
     %inline match_branch:
-    | p = pattern ARROW e = expr1
+    | p = pattern ARROW e = let_or_expr1
         { p, e }
 
 (* ---------------------------------------------------------------------------- *)
