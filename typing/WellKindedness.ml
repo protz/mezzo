@@ -446,7 +446,7 @@ let check_data_type_group
         let branches = List.fold_left (fun branches (level, point) ->
           let index = total_number_of_data_types - level - 1 + arity in
           List.map
-            (subst_data_type_def_branch (TyPoint point) index)
+            (tsubst_data_type_def_branch (TyPoint point) index)
             branches
         ) branches points in
         replace_type type_env point (fun binder ->
@@ -702,7 +702,7 @@ let check_program (program: program): T.env * Expressions.declaration_group =
   let total_number_of_data_types = List.length points in
   let declarations = List.fold_left (fun declarations (level, point) ->
       let index = total_number_of_data_types - level - 1 in
-      List.map (E.subst_decl (T.TyPoint point) index) declarations
+      E.tsubst_decl (T.TyPoint point) index declarations
     ) declarations points
   in
   type_env, declarations

@@ -92,7 +92,7 @@ let collect_pattern p =
   List.rev (collect_pattern [] p)
 ;;
 
-let rec subst_patexprs t2 i rec_flag patexprs =
+let rec tsubst_patexprs t2 i rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
   let names = List.fold_left (fun acc p ->
     collect_pattern p :: acc) [] patterns
@@ -101,111 +101,116 @@ let rec subst_patexprs t2 i rec_flag patexprs =
   let n = List.length names in
   let expressions = match rec_flag with
     | Recursive ->
-        List.map (subst_expr t2 (i + n)) expressions
+        List.map (tsubst_expr t2 (i + n)) expressions
     | Nonrecursive ->
-        List.map (subst_expr t2 i) expressions
+        List.map (tsubst_expr t2 i) expressions
   in
   n, List.combine patterns expressions
 
 
-(* [subst_expr t2 i e] substitutes type [t2] for index [i] in expression [e]. *)
-and subst_expr t2 i e =
+(* [tsubst_expr t2 i e] substitutes type [t2] for index [i] in expression [e]. *)
+and tsubst_expr t2 i e =
   match e with
   | EConstraint (e, t) ->
-      EConstraint (subst_expr t2 i e, subst t2 i t)
+      EConstraint (tsubst_expr t2 i e, tsubst t2 i t)
 
   | EVar _
   | EPoint _ ->
       e
 
   | ELet (rec_flag, patexprs, body) ->
-      let n, patexprs = subst_patexprs t2 i rec_flag patexprs in
-      let body = subst_expr t2 (i + n) body in
+      let n, patexprs = tsubst_patexprs t2 i rec_flag patexprs in
+      let body = tsubst_expr t2 (i + n) body in
       ELet (rec_flag, patexprs, body)
 
   | EFun (vars, args, return_type, body) ->
       let i = i + List.length vars in
-      let args = List.map (subst t2 i) args in
-      let return_type = subst t2 i return_type in
-      let body = subst_expr t2 i body in
+      let args = List.map (tsubst t2 i) args in
+      let return_type = tsubst t2 i return_type in
+      let body = tsubst_expr t2 i body in
       EFun (vars, args, return_type, body)
 
   | EAssign (e1, field, e2) ->
-      let e1 = subst_expr t2 i e1 in
-      let e2 = subst_expr t2 i e2 in
+      let e1 = tsubst_expr t2 i e1 in
+      let e2 = tsubst_expr t2 i e2 in
       EAssign (e1, field, e2)
 
   | EApply (f, arg) ->
-      let f = subst_expr t2 i f in
-      let arg = subst_expr t2 i arg in
+      let f = tsubst_expr t2 i f in
+      let arg = tsubst_expr t2 i arg in
       EApply (f, arg)
 
   | EMatch (e, patexprs) ->
-      let e = subst_expr t2 i e in
+      let e = tsubst_expr t2 i e in
       let patexprs = List.map (fun (pat, expr) ->
           let names = collect_pattern pat in
           let n = List.length names in
-          pat, subst_expr t2 (i + n) expr
+          pat, tsubst_expr t2 (i + n) expr
         ) patexprs
       in
       EMatch (e, patexprs)
 
   | ETuple exprs ->
-      let exprs = List.map (subst_expr t2 i) exprs in
+      let exprs = List.map (tsubst_expr t2 i) exprs in
       ETuple exprs
 
   | EConstruct (name, fieldexprs) ->
       let fieldexprs = List.map (fun (field, expr) ->
-        field, subst_expr t2 i expr) fieldexprs
+        field, tsubst_expr t2 i expr) fieldexprs
       in
       EConstruct (name, fieldexprs)
 
   | EIfThenElse (e1, e2, e3) ->
-      let e1 = subst_expr t2 i e1 in
-      let e2 = subst_expr t2 i e2 in
-      let e3 = subst_expr t2 i e3 in
+      let e1 = tsubst_expr t2 i e1 in
+      let e2 = tsubst_expr t2 i e2 in
+      let e3 = tsubst_expr t2 i e3 in
       EIfThenElse (e1, e2, e3)
 
   | ELocated (e, p1, p2) ->
-      let e = subst_expr t2 i e in
+      let e = tsubst_expr t2 i e in
       ELocated (e, p1, p2)
 
   | EPlus (e1, e2) ->
-      let e1 = subst_expr t2 i e1 in
-      let e2 = subst_expr t2 i e2 in
+      let e1 = tsubst_expr t2 i e1 in
+      let e2 = tsubst_expr t2 i e2 in
       EPlus (e1, e2)
 
   | EMinus (e1, e2) ->
-      let e1 = subst_expr t2 i e1 in
-      let e2 = subst_expr t2 i e2 in
+      let e1 = tsubst_expr t2 i e1 in
+      let e2 = tsubst_expr t2 i e2 in
       EMinus (e1, e2)
 
   | ETimes (e1, e2) ->
-      let e1 = subst_expr t2 i e1 in
-      let e2 = subst_expr t2 i e2 in
+      let e1 = tsubst_expr t2 i e1 in
+      let e2 = tsubst_expr t2 i e2 in
       ETimes (e1, e2)
 
   | EDiv (e1, e2) ->
-      let e1 = subst_expr t2 i e1 in
-      let e2 = subst_expr t2 i e2 in
+      let e1 = tsubst_expr t2 i e1 in
+      let e2 = tsubst_expr t2 i e2 in
       EDiv (e1, e2)
 
   | EUMinus e ->
-      let e = subst_expr t2 i e in
+      let e = tsubst_expr t2 i e in
       EUMinus e
 
   | EInt _ ->
       e
 
 
-and subst_decl t2 i d =
-  match d with
-  | DMultiple (rec_flag, patexprs) ->
-      let _n, patexprs = subst_patexprs t2 i rec_flag patexprs in
-      DMultiple (rec_flag, patexprs)
-
-  | DLocated (d, p1, p2) ->
-      DLocated (subst_decl t2 i d, p1, p2)
+(* [tsubst_decl t2 i decls] substitutes type [t2] for index [i] in a list of
+ * declarations [decls]. *)
+and tsubst_decl e2 i decls =
+  let rec tsubst_decl acc i = function
+    | DLocated (DMultiple (rec_flag, patexprs), p1, p2) :: decls ->
+        let n, patexprs = tsubst_patexprs e2 i rec_flag patexprs in
+        tsubst_decl (DLocated (DMultiple (rec_flag, patexprs), p1, p2) :: acc) (i + n) decls
+    | [] ->
+        List.rev acc
+    | _ ->
+        assert false
+  in
+  tsubst_decl [] i decls
 ;;
 
 let rec esubst_patexprs e2 i rec_flag patexprs =
@@ -317,39 +322,36 @@ and esubst e2 i e1 =
   | EInt _ ->
       e1
 
-(* [dsubst e2 i decls] substitutes expression [e2] for index [i] in a list of
+(* [esubst_decl e2 i decls] substitutes expression [e2] for index [i] in a list of
  * declarations [decls]. *)
-and dsubst e2 i decls =
-  let rec dsubst acc i = function
+and esubst_decl e2 i decls =
+  let rec esubst_decl acc i = function
     | DLocated (DMultiple (rec_flag, patexprs), p1, p2) :: decls ->
         let n, patexprs = esubst_patexprs e2 i rec_flag patexprs in
-        dsubst (DLocated (DMultiple (rec_flag, patexprs), p1, p2) :: acc) (i + n) decls
+        esubst_decl (DLocated (DMultiple (rec_flag, patexprs), p1, p2) :: acc) (i + n) decls
     | [] ->
         List.rev acc
     | _ ->
         assert false
   in
-  dsubst [] i decls
+  esubst_decl [] i decls
 ;;
 
 
-(* The idea is that when you bind, say, a list of type variables, or some
- * pattern, you want to perform the substitutions on whatever's under the bound
- * variables. The functions that perform the binding are self-contained, so that
- * they can be reused. In order to be as generic as possible, they return a
- * [substitution_kit], that is, a set of functions that will substitute all
- * bounds variables with the corresponding points. *)
+(* The idea is that when you bind, say, a list of variables, either PERM, TYPE
+ * or TERM, (through type bindings, or a pattern in a let-binding), you want to
+ * perform the substitutions on whatever's under the bound variables. The
+ * functions that perform the binding are [bind_vars] and [bind_patexprs], and
+ * they're self-contained, so that they can be reused. In order to be as generic
+ * as possible, they return a [substitution_kit], that is, a set of functions
+ * that will substitute all bounds variables with the corresponding points. *)
 type substitution_kit = {
-  (* Substitute [TyVar]s for [TyPoint]s in a [typ]. *)
+  (* substitute [TyVar]s for [TyPoint]s in a [typ]. *)
   subst_type: typ -> typ;
-  (* Substitute [TyVar]s for [TyPoint]s in an [expression]. *)
+  (* substitute [TyVar]s for [TyPoint]s, [EVar]s for [EPoint]s in an [expression]. *)
   subst_expr: expression -> expression;
-  (* Substitute [TyVar]s for [TyPoint]s in a [declaration list]. *)
-  (* subst_decl: declaration list -> declaration list; *)
-  (* Substitute [EVar]s for [EPoint]s in an [expression]. *)
-  esubst: expression -> expression;
-  (* Substitute [EVar]s for [EPoint]s in a [declaration]. *)
-  dsubst: declaration list -> declaration list;
+  (* substitute [TyVar]s for [TyPoint]s, [EVar]s for [EPoint]s in an [expression]. *)
+  subst_decl: declaration list -> declaration list;
 }
 
 (* [bind_vars env bindings] adds [bindings] in the environment, and returns the
@@ -361,18 +363,19 @@ let bind_vars (env: env) (bindings: type_binding list): env * substitution_kit =
     env, point :: points) (env, []) bindings
   in
   let subst_type t =
-    Hml_List.fold_lefti (fun i t point -> subst (TyPoint point) i t) t points
+    Hml_List.fold_lefti (fun i t point -> tsubst (TyPoint point) i t) t points
   in
   let subst_expr t =
-    Hml_List.fold_lefti (fun i t point -> subst_expr (TyPoint point) i t) t points
+    Hml_List.fold_lefti (fun i t point ->
+      let t = tsubst_expr (TyPoint point) i t in
+      esubst (EPoint point) i t) t points
   in
-  let esubst t =
-    Hml_List.fold_lefti (fun i t point -> esubst (EPoint point) i t) t points
+  let subst_decl t =
+    Hml_List.fold_lefti (fun i t point ->
+      let t = tsubst_decl (TyPoint point) i t in
+      esubst_decl (EPoint point) i t) t points
   in
-  let dsubst t =
-    Hml_List.fold_lefti (fun i t point -> dsubst (EPoint point) i t) t points
-  in
-  env, { subst_type; subst_expr; esubst; dsubst }
+  env, { subst_type; subst_expr; subst_decl }
 ;;
 
 
@@ -391,7 +394,8 @@ let bind_patexprs env rec_flag patexprs =
   let env, kit = bind_vars env bindings in
   let expressions = match rec_flag with
     | Recursive ->
-        List.map kit.esubst expressions
+        let expressions = List.map kit.subst_expr expressions in
+        expressions
     | Nonrecursive ->
         expressions
   in
@@ -452,21 +456,20 @@ module ExprPrinter = struct
         print_var (get_name env point)
 
     | ELet (rec_flag, patexprs, body) ->
-        let env, patexprs, { esubst; _ } = bind_patexprs env rec_flag patexprs in
-        let body = esubst body in
+        let env, patexprs, { subst_expr; _ } = bind_patexprs env rec_flag patexprs in
+        let body = subst_expr body in
         string "let" ^^ print_rec_flag rec_flag ^^ space ^^
         print_patexprs env patexprs ^^ break1 ^^ string "in" ^^ break1 ^^
         print_expr env body
 
     (* fun [a] (x: τ): τ -> e *)
     | EFun (vars, args, return_type, body) ->
-        let env, { subst_type; subst_expr; esubst; _ } = bind_vars env vars in
+        let env, { subst_type; subst_expr; _ } = bind_vars env vars in
         (* Remember: this is all in desugared form, so the variables in [args]
          * are all bound. *)
         let args = List.map subst_type args in
         let return_type = subst_type return_type in
         let body = subst_expr body in
-        let body = esubst body in
         string "fun " ^^ lbracket ^^ join (comma ^^ space) (List.map print_binder vars) ^^
         rbracket ^^ jump (
           join break1 (List.map (print_type env) args)
@@ -489,9 +492,8 @@ module ExprPrinter = struct
         let patexprs = List.map (fun (pat, expr) ->
           let vars = collect_pattern pat in
           let bindings = List.map (fun v -> (v, KType)) vars in
-          let env, { subst_expr; esubst; _ } = bind_vars env bindings in
+          let env, { subst_expr; _ } = bind_vars env bindings in
           let expr = subst_expr expr in
-          let expr = esubst expr in
           print_pat env pat ^^ space ^^ arrow ^^ jump (print_expr env expr)
         ) patexprs in
         string "match" ^^ space ^^ print_expr env e ^^ space ^^ string "with" ^^
@@ -543,23 +545,23 @@ module ExprPrinter = struct
 
   ;;
 
-  let rec print_declaration env declaration: env * document * _ =
+  let rec print_declaration env declaration: env * document * _  =
     match declaration with
     | DLocated (declaration, _, _) ->
         print_declaration env declaration
     | DMultiple (rec_flag, patexprs) ->
-        let env, patexprs, { dsubst; _ } = bind_patexprs env rec_flag patexprs in
+        let env, patexprs, { subst_decl; _ } = bind_patexprs env rec_flag patexprs in
         env,
         string "val" ^^ print_rec_flag rec_flag ^^ space ^^ print_patexprs env patexprs,
-        dsubst 
+        subst_decl
   ;;
 
   let print_declarations env declarations =
     let rec print_declarations env acc declarations =
       match declarations with
       | declaration :: declarations ->
-          let env, doc, dsubst = print_declaration env declaration in
-          let declarations = dsubst declarations in
+          let env, doc, subst_decl = print_declaration env declaration in
+          let declarations = subst_decl declarations in
           print_declarations env (doc :: acc) declarations
       | [] ->
           List.rev acc

@@ -355,8 +355,8 @@ let lift_data_type_def_branch k branch =
  * expected not to have any free [TyVar]s: they've all been converted to
  * [TyPoint]s. Therefore, [t2] will *not* be lifted when substituted for [i] in
  * [t1]. *)
-let subst (t2: typ) (i: int) (t1: typ) =
-  let rec subst t2 i t1 =
+let tsubst (t2: typ) (i: int) (t1: typ) =
+  let rec tsubst t2 i t1 =
     match t1 with
       (* Special type constants. *)
     | TyUnknown
@@ -373,54 +373,54 @@ let subst (t2: typ) (i: int) (t1: typ) =
         t1
 
     | TyForall (binder, t) ->
-        TyForall (binder, subst t2 (i+1) t)
+        TyForall (binder, tsubst t2 (i+1) t)
 
     | TyExists (binder, t) ->
-        TyExists (binder, subst t2 (i+1) t)
+        TyExists (binder, tsubst t2 (i+1) t)
 
     | TyApp (t, t') ->
-        TyApp (subst t2 i t, subst t2 i t')
+        TyApp (tsubst t2 i t, tsubst t2 i t')
 
     | TyTuple ts ->
         TyTuple (List.map (function
           | TyTupleComponentValue t ->
-              TyTupleComponentValue (subst t2 i t)
+              TyTupleComponentValue (tsubst t2 i t)
           | TyTupleComponentPermission t ->
-              TyTupleComponentPermission (subst t2 i t)) ts)
+              TyTupleComponentPermission (tsubst t2 i t)) ts)
 
     | TyConcreteUnfolded (name, fields) ->
        TyConcreteUnfolded (name, List.map (function
-         | FieldValue (field_name, t) -> FieldValue (field_name, subst t2 i t)
-         | FieldPermission t -> FieldPermission (subst t2 i t)) fields)
+         | FieldValue (field_name, t) -> FieldValue (field_name, tsubst t2 i t)
+         | FieldPermission t -> FieldPermission (tsubst t2 i t)) fields)
 
     | TySingleton t ->
-        TySingleton (subst t2 i t)
+        TySingleton (tsubst t2 i t)
 
     | TyArrow (t, t') ->
-        TyArrow (subst t2 i t, subst t2 i t')
+        TyArrow (tsubst t2 i t, tsubst t2 i t')
 
     | TyAnchoredPermission (p, q) ->
-        TyAnchoredPermission (subst t2 i p, subst t2 i q)
+        TyAnchoredPermission (tsubst t2 i p, tsubst t2 i q)
 
     | TyEmpty ->
         t1
 
     | TyStar (p, q) ->
-        TyStar (subst t2 i p, subst t2 i q)
+        TyStar (tsubst t2 i p, tsubst t2 i q)
   in
-  subst t2 i t1
+  tsubst t2 i t1
 ;;
 
-let subst_field t2 i = function
+let tsubst_field t2 i = function
   | FieldValue (name, typ) ->
-      FieldValue (name, subst t2 i typ)
+      FieldValue (name, tsubst t2 i typ)
   | FieldPermission typ ->
-      FieldPermission (subst t2 i typ)
+      FieldPermission (tsubst t2 i typ)
 ;;
 
-let subst_data_type_def_branch t2 i branch =
+let tsubst_data_type_def_branch t2 i branch =
   let name, fields = branch in
-  name, List.map (subst_field t2 i) fields
+  name, List.map (tsubst_field t2 i) fields
 ;;
 
 
@@ -497,7 +497,7 @@ let bind_var_in_type
     (typ: typ): env * typ
   =
   let env, point = bind_var env ~flexible binding in
-  let typ = subst (TyPoint point) 0 typ in
+  let typ = tsubst (TyPoint point) 0 typ in
   env, typ
 ;;
 
@@ -512,7 +512,7 @@ let bind_param_at_index_in_data_type_def_branches
    * per se (unlike TyForall, for instance...). *)
   let env, point = bind_type env name fact kind in
   let branches =
-    List.map (subst_data_type_def_branch (TyPoint point) index) branches
+    List.map (tsubst_data_type_def_branch (TyPoint point) index) branches
   in
   env, branches
 ;;
@@ -729,7 +729,7 @@ let instantiate_flexible env p t =
 let instantiate_branch branch args =
   let args = List.rev args in
   let branch = Hml_List.fold_lefti (fun i branch arg ->
-    subst_data_type_def_branch arg i branch) branch args
+    tsubst_data_type_def_branch arg i branch) branch args
   in
   branch
 ;;
