@@ -203,6 +203,14 @@ let structure (env: env) (point: point): typ option =
       None
 ;;
 
+let point x =
+  TyPoint x
+;;
+
+let points_to x =
+  TySingleton (point x)
+;;
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Fun with de Bruijn indices. *)
@@ -441,6 +449,13 @@ let bind_term
     BTerm { permissions = []; ghost }
   in
   let point, state = PersistentUnionFind.create binding env.state in
+  let state = PersistentUnionFind.update
+    (function
+      | (head, BTerm raw) -> head, BTerm { raw with permissions = [ points_to point ] }
+      | _ -> assert false)
+    point
+    state
+  in
   { env with state }, point
 ;;
 

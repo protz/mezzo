@@ -339,8 +339,9 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
     | _, TyForall _
     | TyExists _, _
     | _, TyExists _ ->
-        Log.error "Don't know how to refine in the presence of quantifiers. We should think\
-          about it hard."
+        (* We don't know how to refine in the presence of quantifiers. We should
+         * probably think about it hard and do something very fancy. *)
+        env, Both
 
     | TyAnchoredPermission _, _
     | _, TyAnchoredPermission _
