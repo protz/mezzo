@@ -16,3 +16,5 @@ val rec length [a] (x: list a): int =
 
 val rec (x,y) = (z,t)
 and (z,t) = (x, y);;
+
+val (x, y) = (x, y);;

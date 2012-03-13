@@ -316,13 +316,45 @@ and esubst e2 i e1 =
 
   | EInt _ ->
       e1
+
+(* [dsubst e2 i decls] substitutes expression [e2] for index [i] in a list of
+ * declarations [decls]. *)
+and dsubst e2 i decls =
+  let rec dsubst acc i = function
+    | DLocated (DMultiple (rec_flag, patexprs), p1, p2) :: decls ->
+        let n, patexprs = esubst_patexprs e2 i rec_flag patexprs in
+        dsubst (DLocated (DMultiple (rec_flag, patexprs), p1, p2) :: acc) (i + n) decls
+    | [] ->
+        List.rev acc
+    | _ ->
+        assert false
+  in
+  dsubst [] i decls
 ;;
 
 
+(* The idea is that when you bind, say, a list of type variables, or some
+ * pattern, you want to perform the substitutions on whatever's under the bound
+ * variables. The functions that perform the binding are self-contained, so that
+ * they can be reused. In order to be as generic as possible, they return a
+ * [substitution_kit], that is, a set of functions that will substitute all
+ * bounds variables with the corresponding points. *)
+type substitution_kit = {
+  (* Substitute [TyVar]s for [TyPoint]s in a [typ]. *)
+  subst_type: typ -> typ;
+  (* Substitute [TyVar]s for [TyPoint]s in an [expression]. *)
+  subst_expr: expression -> expression;
+  (* Substitute [TyVar]s for [TyPoint]s in a [declaration list]. *)
+  (* subst_decl: declaration list -> declaration list; *)
+  (* Substitute [EVar]s for [EPoint]s in an [expression]. *)
+  esubst: expression -> expression;
+  (* Substitute [EVar]s for [EPoint]s in a [declaration]. *)
+  dsubst: declaration list -> declaration list;
+}
+
 (* [bind_vars env bindings] adds [bindings] in the environment, and returns the
- * new environment, and specialized versions of subst, subst_expr, and esubst
- * that perform the substitutions. *)
-let bind_vars (env: env) (bindings: type_binding list) =
+ * new environment, and a [substitution_kit]. *)
+let bind_vars (env: env) (bindings: type_binding list): env * substitution_kit =
   (* List kept in reverse, the usual trick *)
   let env, points = List.fold_left (fun (env, points) binding ->
     let env, point = bind_var env binding in
@@ -337,7 +369,10 @@ let bind_vars (env: env) (bindings: type_binding list) =
   let esubst t =
     Hml_List.fold_lefti (fun i t point -> esubst (EPoint point) i t) t points
   in
-  env, subst_type, subst_expr, esubst
+  let dsubst t =
+    Hml_List.fold_lefti (fun i t point -> dsubst (EPoint point) i t) t points
+  in
+  env, { subst_type; subst_expr; esubst; dsubst }
 ;;
 
 
@@ -345,22 +380,22 @@ let bind_vars (env: env) (bindings: type_binding list) =
  * expressions, whose recursivity depends on [rec_flag], collects the variables
  * in the patterns, binds them to new points, and performs the correct
  * substitutions according to the recursivity flag. *)
-let bind_patexprs env rec_flag patexprs body =
+let bind_patexprs env rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
   let names = List.fold_left (fun acc p ->
     collect_pattern p :: acc) [] patterns
   in
+  let names = List.rev names in
   let names = List.flatten names in
   let bindings = List.map (fun n -> (n, KType)) names in
-  let env, _subst, _subst_expr, esubst = bind_vars env bindings in
+  let env, kit = bind_vars env bindings in
   let expressions = match rec_flag with
     | Recursive ->
-        List.map esubst expressions
+        List.map kit.esubst expressions
     | Nonrecursive ->
         expressions
   in
-  let body = Option.map esubst body in
-  env, List.combine patterns expressions, body
+  env, List.combine patterns expressions, kit
 ;;
 
 
@@ -417,15 +452,15 @@ module ExprPrinter = struct
         print_var (get_name env point)
 
     | ELet (rec_flag, patexprs, body) ->
-        let env, patexprs, body = bind_patexprs env rec_flag patexprs (Some body) in
-        let body = Option.extract body in
+        let env, patexprs, { esubst; _ } = bind_patexprs env rec_flag patexprs in
+        let body = esubst body in
         string "let" ^^ print_rec_flag rec_flag ^^ space ^^
         print_patexprs env patexprs ^^ break1 ^^ string "in" ^^ break1 ^^
         print_expr env body
 
     (* fun [a] (x: τ): τ -> e *)
     | EFun (vars, args, return_type, body) ->
-        let env, subst_type, subst_expr, esubst = bind_vars env vars in
+        let env, { subst_type; subst_expr; esubst; _ } = bind_vars env vars in
         (* Remember: this is all in desugared form, so the variables in [args]
          * are all bound. *)
         let args = List.map subst_type args in
@@ -454,7 +489,7 @@ module ExprPrinter = struct
         let patexprs = List.map (fun (pat, expr) ->
           let vars = collect_pattern pat in
           let bindings = List.map (fun v -> (v, KType)) vars in
-          let env, _subst_type, subst_expr, esubst = bind_vars env bindings in
+          let env, { subst_expr; esubst; _ } = bind_vars env bindings in
           let expr = subst_expr expr in
           let expr = esubst expr in
           print_pat env pat ^^ space ^^ arrow ^^ jump (print_expr env expr)
@@ -508,23 +543,28 @@ module ExprPrinter = struct
 
   ;;
 
-  let rec print_declaration env declaration: env * document =
+  let rec print_declaration env declaration: env * document * _ =
     match declaration with
     | DLocated (declaration, _, _) ->
         print_declaration env declaration
     | DMultiple (rec_flag, patexprs) ->
-        let env, patexprs, _ = bind_patexprs env rec_flag patexprs None in
-        env, string "val" ^^ print_rec_flag rec_flag ^^ space ^^
-        print_patexprs env patexprs
+        let env, patexprs, { dsubst; _ } = bind_patexprs env rec_flag patexprs in
+        env,
+        string "val" ^^ print_rec_flag rec_flag ^^ space ^^ print_patexprs env patexprs,
+        dsubst 
   ;;
 
-
   let print_declarations env declarations =
-    let _env, declarations = List.fold_left (fun (env, declarations) declaration ->
-      let env, declaration = print_declaration env declaration in
-      env, declaration :: declarations) (env, []) declarations
+    let rec print_declarations env acc declarations =
+      match declarations with
+      | declaration :: declarations ->
+          let env, doc, dsubst = print_declaration env declaration in
+          let declarations = dsubst declarations in
+          print_declarations env (doc :: acc) declarations
+      | [] ->
+          List.rev acc
     in
-    let declarations = List.rev declarations in
+    let declarations = print_declarations env [] declarations in
     join
       (break1 ^^ semisemi ^^ hardline ^^ hardline)
       declarations

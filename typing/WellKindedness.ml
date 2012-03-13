@@ -17,67 +17,6 @@ let karrow bindings kind =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Printers. *)
-
-module KindPrinter = struct
-
-  open Hml_Pprint
-  open Types
-  open TypePrinter
-
-  (* Prints an abstract data type. Very straightforward. *)
-  let print_abstract_type_def print_env name kind =
-    string "abstract" ^^ space ^^ print_var name ^^ space ^^ ccolon ^^ space ^^
-    print_kind kind
-  ;;
-
-  (* Prints a data type defined in the global scope. Assumes [print_env] has been
-     properly populated. *)
-  let print_data_type_def (env: env) flag name kind branches =
-    let _return_kind, params = flatten_kind kind in
-    (* Turn the list of parameters into letters *)
-    let letters: string list = name_gen (List.length params) in
-    let letters = List.map print_string letters in
-    let env, branches = bind_datacon_parameters env kind branches in
-    let sep = break1 ^^ bar ^^ space in
-    let flag = match flag with
-      | SurfaceSyntax.Exclusive -> string "exclusive" ^^ space
-      | SurfaceSyntax.Duplicable -> empty
-    in
-    (* The whole blurb *)
-    flag ^^ string "data" ^^ space ^^ lparen ^^
-    print_var name ^^ space ^^ ccolon ^^ space ^^
-    print_kind kind ^^ rparen ^^ join_left space letters ^^
-    space ^^ equals ^^
-    jump
-      (ifflat empty (bar ^^ space) ^^
-      join sep (List.map (print_data_type_def_branch env) branches))
-  ;;
-
-  (* This function prints the contents of a [Types.env]. *)
-  let print_kinds env =
-    (* Now we have a pretty-printing environment that's ready, proceed. *)
-    let defs = map_types env (fun { names; kind } { definition; _ } ->
-      let name = List.hd names in
-      match definition with
-      | Some (flag, branches) ->
-          print_data_type_def env flag name kind branches
-      | None ->
-          print_abstract_type_def env name kind
-    ) in
-    join (break1 ^^ break1) defs
-  ;;
-
-  let print_kinds_and_facts program_env =
-    string "KINDS:" ^^ nest 2 (hardline ^^ print_kinds program_env) ^^ hardline ^^
-    hardline ^^
-    string "FACTS:" ^^ nest 2 (hardline ^^ print_facts program_env) ^^ hardline
-  ;;
-
-end
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Maps of identifiers to things. *)
 
 module M =
@@ -768,3 +707,66 @@ let check_program (program: program): T.env * Expressions.declaration_group =
   in
   type_env, declarations
 ;;
+
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Printers. *)
+
+module KindPrinter = struct
+
+  open Hml_Pprint
+  open Types
+  open TypePrinter
+
+  (* Prints an abstract data type. Very straightforward. *)
+  let print_abstract_type_def print_env name kind =
+    string "abstract" ^^ space ^^ print_var name ^^ space ^^ ccolon ^^ space ^^
+    print_kind kind
+  ;;
+
+  (* Prints a data type defined in the global scope. Assumes [print_env] has been
+     properly populated. *)
+  let print_data_type_def (env: env) flag name kind branches =
+    let _return_kind, params = flatten_kind kind in
+    (* Turn the list of parameters into letters *)
+    let letters: string list = name_gen (List.length params) in
+    let letters = List.map print_string letters in
+    let env, branches = bind_datacon_parameters env kind branches in
+    let sep = break1 ^^ bar ^^ space in
+    let flag = match flag with
+      | SurfaceSyntax.Exclusive -> string "exclusive" ^^ space
+      | SurfaceSyntax.Duplicable -> empty
+    in
+    (* The whole blurb *)
+    flag ^^ string "data" ^^ space ^^ lparen ^^
+    print_var name ^^ space ^^ ccolon ^^ space ^^
+    print_kind kind ^^ rparen ^^ join_left space letters ^^
+    space ^^ equals ^^
+    jump
+      (ifflat empty (bar ^^ space) ^^
+      join sep (List.map (print_data_type_def_branch env) branches))
+  ;;
+
+  (* This function prints the contents of a [Types.env]. *)
+  let print_kinds env =
+    (* Now we have a pretty-printing environment that's ready, proceed. *)
+    let defs = map_types env (fun { names; kind } { definition; _ } ->
+      let name = List.hd names in
+      match definition with
+      | Some (flag, branches) ->
+          print_data_type_def env flag name kind branches
+      | None ->
+          print_abstract_type_def env name kind
+    ) in
+    join (break1 ^^ break1) defs
+  ;;
+
+  let print_kinds_and_facts program_env =
+    string "KINDS:" ^^ nest 2 (hardline ^^ print_kinds program_env) ^^ hardline ^^
+    hardline ^^
+    string "FACTS:" ^^ nest 2 (hardline ^^ print_facts program_env) ^^ hardline
+  ;;
+
+end
+
