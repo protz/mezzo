@@ -31,13 +31,13 @@
 %token DATA BAR
 %token LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
 %token COMMA COLON COLONCOLON SEMI ARROW STAR
-%token LARROW DBLARROW
+%token LARROW DBLARROW FUN
 %token EQUAL SEMISEMI
 %token EMPTY
 %token CONSUMES DUPLICABLE FACT ABSTRACT
 %token VAL LET REC AND IN DOT WITH BEGIN END MATCH
 %token IF THEN ELSE
-%token<int> INT 
+%token<int> INT
 %token PLUS MINUS SLASH
 %token EOF
 
@@ -374,19 +374,19 @@ datacon_application(X, Y):
    -- i.e. this is a record type *)
 
 %inline data_type_flag:
-| /* nothing */
+| (* nothing *)
     { Duplicable }
 | EXCLUSIVE
     { Exclusive }
 
 %inline optional_kind_annotation:
-| /* nothing */
+| (* nothing *)
     { KType }
 | COLONCOLON k = kind
     { k }
 
 %inline fact_conditions:
-| /* nothing */
+| (* nothing *)
     { [] }
 | DUPLICABLE t = tuple(tuple_type_component) DBLARROW
     { t }
@@ -460,117 +460,113 @@ fact:
 
 (* Main expression rule *)
 %inline expression:
-| e = elocated(semi_or_x(let_or_raw1))
+| e = elocated(semi_or(everything_except_semi_raw))
     { e }
 
-  (* Let-bindings, if-then-else *)
-  %inline let_or_expr1:
-  | e = elocated(let_or_raw1)
-      { e }
-
-  let_or_raw1: /* tout sauf semi */
-  | LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = expression
-      { ELet (f, declarations, e) }
-/* TEMPORARY for later:
-  | FUN bs = type_parameters? f_args = one_tuple+ COLON t = normal_type EQUAL expression
-      { assert false }
-*/
-  | e = raw_expr1
-      { e }
-
-  semi_or_x(X): /* tout sauf let */
-  | e1 = elocated(raw_expr1) SEMI e2 = expression
+  semi_or(X):
+  | e1 = everything_except_let_and_semi SEMI e2 = expression
       { ESequence (e1, e2) }
   | e = X
       { e }
 
-  expr1:
-  | e = elocated(raw_expr1)
+  everything_except_semi_raw:
+  | LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = expression
+      { ELet (f, declarations, e) }
+  | FUN bs = type_parameters? f_args = one_tuple+ COLON t = normal_type EQUAL e = expression
+      { EFun (Option.map_none [] bs, f_args, t, e) }
+  | e = everything_except_let_and_semi_raw
       { e }
 
-  raw_expr1: /* tout sauf let et semi */
-  | IF e1 = expression THEN e2 = expr1 /* disallow let inside of "then", too fragile */
-      { EIfThenElse (e1, e2, ETuple []) }
-  | IF e1 = expression THEN e2 = expr1 ELSE e3 = expr1
-      { EIfThenElse (e1, e2, e3) }
-  | e1 = expr6 DOT f = variable LARROW e2 = expr1 /* cannot allow let because right-hand side of let can contain a semi-colon */
-      { EAssign (e1, f, e2) }
-  | e = raw_sum
+  everything_except_let_and_semi:
+  | e = elocated(everything_except_let_and_semi_raw)
       { e }
-  
-    %inline data_field_assign:
-    | f = variable EQUAL e = expr1 /* cannot allow let because right-hand side of let can contain a semi-colon */
-        { f, e }
+
+  everything_except_let_and_semi_raw:
+  (* disallow let inside of "then", too fragile *)
+  | IF e1 = expression THEN e2 = everything_except_let_and_semi
+      { EIfThenElse (e1, e2, ETuple []) }
+  | IF e1 = expression THEN e2 = everything_except_let_and_semi ELSE e3 = everything_except_let_and_semi
+      { EIfThenElse (e1, e2, e3) }
+  (* cannot allow let because right-hand side of let can contain a semi-colon *)
+  | e1 = atomic DOT f = variable LARROW e2 = everything_except_let_and_semi
+      { EAssign (e1, f, e2) }
+  | e = sum_raw
+      { e }
 
   (* Arithmetic expressions... *)
   %inline sum:
-  | e = elocated(raw_sum)
+  | e = elocated(sum_raw)
       { e }
 
-  raw_sum:
+  sum_raw:
   | s = sum PLUS f = factor
     { EPlus (s, f) }
   | s = sum MINUS f = factor
     { EMinus (s, f) }
-  | f = raw_factor
+  | f = factor_raw
     { f }
 
   %inline factor:
-  | e = elocated(raw_factor)
+  | e = elocated(factor_raw)
       { e }
 
-  raw_factor:
-  | f = factor SLASH a = expr4
+  factor_raw:
+  | f = factor SLASH a = app
     { EDiv (f, a) }
-  | f = factor STAR a = expr4
+  | f = factor STAR a = app
     { ETimes (f, a) }
   | a = uminus
     { a }
 
   uminus:
-  | MINUS a = expr4
+  | MINUS a = app
     { EUMinus a }
-  | a = raw_expr4
+  | a = app_raw
     { a }
 
   (* Application *)
-  %inline expr4:
-  | e = elocated(raw_expr4)
+  %inline app:
+  | e = elocated(app_raw)
       { e }
 
-  raw_expr4:
-  | e1 = expr4 e2 = expr6
+  app_raw:
+  | e1 = app e2 = atomic
       { EApply (e1, e2) }
-  | e = raw_expr6
+  | e = atomic_raw
       { e }
 
-  (* The rest *)
-  %inline expr6:
-  | e = elocated(raw_expr6)
+  (* Tightly-knit productions *)
+  %inline atomic:
+  | e = elocated(atomic_raw)
       { e }
 
-  raw_expr6:
+  atomic_raw:
   | v = variable
       { EVar v }
   | i = INT
       { EInt i }
   | dc = datacon_application(datacon, data_field_assign)
       { EConstruct dc }
-  | LPAREN es = atleast_two_list(COMMA, let_or_expr1) RPAREN
+  | LPAREN es = atleast_two_list(COMMA, expression) RPAREN
       { ETuple es }
-  | MATCH e = let_or_expr1 WITH bs = separated_or_preceded_list(BAR, match_branch) END
+  | MATCH e = expression WITH bs = separated_or_preceded_list(BAR, match_branch) END
       { EMatch (e, bs) }
-  | e = expr6 DOT f = variable
-      { assert false } /* TEMPORARY */
-  | BEGIN e = let_or_expr1 END
+  | e = atomic DOT f = variable
+      { assert false } (* TEMPORARY *)
+  | BEGIN e = expression END
       { e }
-  | LPAREN e = let_or_expr1 COLON t = very_loose_type RPAREN
+  | LPAREN e = expression COLON t = very_loose_type RPAREN
       { EConstraint (e, t) }
-  | LPAREN e = let_or_expr1 RPAREN
+  | LPAREN e = expression RPAREN
       { e }
 
+    %inline data_field_assign:
+    (* cannot allow let because right-hand side of let can contain a semi-colon *)
+    | f = variable EQUAL e = everything_except_let_and_semi 
+        { f, e }
+
     %inline match_branch:
-    | p = pattern ARROW e = let_or_expr1
+    | p = pattern ARROW e = expression
         { p, e }
 
 (* ---------------------------------------------------------------------------- *)
