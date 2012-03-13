@@ -460,16 +460,12 @@ fact:
 
 (* Main expression rule *)
 %inline expression:
-| e = elocated(semi_or(everything_except_semi_raw))
+| e = elocated(expression_raw)
     { e }
 
-  semi_or(X):
+  expression_raw:
   | e1 = everything_except_let_and_semi SEMI e2 = expression
       { ESequence (e1, e2) }
-  | e = X
-      { e }
-
-  everything_except_semi_raw:
   | LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = expression
       { ELet (f, declarations, e) }
   | FUN bs = type_parameters? f_args = one_tuple+ COLON t = normal_type EQUAL e = expression
