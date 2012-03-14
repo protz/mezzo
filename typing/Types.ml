@@ -213,6 +213,18 @@ let points_to x =
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Fact-related functions. *)
+
+let fact_leq f1 f2 =
+  match f1, f2 with
+  | _, Affine ->
+      true
+  | _ ->
+      false
+;;
+
+(* ---------------------------------------------------------------------------- *)
+
 (* Fun with de Bruijn indices. *)
 
 (* [equal env t1 t2] provides an equality relation between [t1] and [t2] modulo
@@ -789,6 +801,13 @@ module TypePrinter = struct
 
   open Hml_Pprint
 
+  (* Example: Log.debug "%a" pdoc (f, args) *)
+  let pdoc (buf: Buffer.t) (f, env: ('env -> document) * 'env): unit =
+    PpBuffer.pretty 1.0 Bash.twidth buf (f env)
+  ;;
+
+  internal_pdoc := pdoc;;
+
   (* --------------------------------------------------------------------------- *)
 
   let print_var var =
@@ -923,7 +942,7 @@ module TypePrinter = struct
 
   (* Prints a sequence of characters representing whether each parameter has to
    * be duplicable (x) or not (nothing). *)
-  let do_print_fact (fact: fact): document =
+  let print_fact (fact: fact): document =
     match fact with
     | Duplicable bitmap ->
         lbracket ^^
@@ -941,8 +960,8 @@ module TypePrinter = struct
 
   (* Prints a sequence of characters representing whether each parameter has to
    * be duplicable (x) or not (nothing). *)
-  let print_fact (env, point: env * point): document =
-    do_print_fact (get_fact env point);
+  let pfact buf (fact: fact) =
+    pdoc buf (print_fact, fact)
   ;;
 
   let print_facts (env: env): document =
@@ -1019,13 +1038,6 @@ module TypePrinter = struct
     let lines = join break1 lines in
     header ^^ (nest 2 (break1 ^^ lines))
   ;;
-
-  (* Example: Log.debug "%a" pdoc (f, args) *)
-  let pdoc (buf: Buffer.t) (f, env: ('env -> document) * 'env): unit =
-    PpBuffer.pretty 1.0 Bash.twidth buf (f env)
-  ;;
-
-  internal_pdoc := pdoc;;
 
   let ptype (env, t) =
     print_type env t

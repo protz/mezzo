@@ -32,7 +32,7 @@
 %token LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
 %token COMMA COLON COLONCOLON SEMI ARROW STAR
 %token LARROW DBLARROW FUN
-%token EQUAL SEMISEMI
+%token EQUAL
 %token EMPTY
 %token CONSUMES DUPLICABLE FACT ABSTRACT
 %token VAL LET REC AND IN DOT WITH BEGIN END MATCH
@@ -573,24 +573,17 @@ fact:
 | x = X
     { DLocated (x, $startpos, $endpos) }
 
-(* A declaration group is a sequence of mutually recursive definitions separated
- * by ;;. We require the double-semicolon here (it may be made optional later)
- * in the hope that this makes parsing fail earlier, therefore giving better
- * error messages. *)
+(* A declaration group is a sequence of mutually recursive definitions. *)
 declaration_group:
-| l = separated_or_terminated_list(SEMISEMI, declaration)
+| l = declaration*
     { l }
 
 %inline declaration:
-| d = decl1
-    { d }
-
-%inline decl1:
-| d = dlocated(raw_decl1)
+| d = dlocated(decl_raw)
     { d }
 
 (* We use the keyword [val] for top-level declarations. *)
-raw_decl1:
+decl_raw:
 | VAL flag = rec_flag declarations = separated_list(AND, inner_declaration)
     { DMultiple (flag, declarations) }
 

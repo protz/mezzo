@@ -82,7 +82,7 @@ let duplicables
           begin
             Log.debug ~level:4 "Applying %a (bitmap=%a)"
               Variable.p (get_name env point)
-              TypePrinter.pdoc (TypePrinter.print_fact, (env, point));
+              TypePrinter.pfact (get_fact env point);
             match get_fact env point with
             | Fuzzy _ ->
                 Log.error "I messed up my index computations. Oops!";

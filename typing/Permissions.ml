@@ -16,6 +16,25 @@ type refined_type = Both | One of typ
 
 exception Inconsistent
 
+(** [can_merge env t1 p2] tells whether, assuming that [t2] is a flexible
+    variable, it can be safely merged with [t1]. This function checks that the
+    facts are compatible. *)
+let can_merge (env: env) (t1: typ) (p2: point): bool =
+  match t1 with
+  | TyPoint p1 ->
+      Log.affirm (is_flexible env p2) "[can_merge] takes a flexible variable \
+        as its second parameter";
+      Log.affirm (get_kind env p1 = get_kind env p2) "Wait, what?";
+      let f1, f2 = get_fact env p1, get_fact env p2 in
+      fact_leq f1 f2
+  | _ ->
+      Log.affirm (is_flexible env p2) "[can_merge] takes a flexible variable \
+        as its second parameter";
+      let f2 = get_fact env p2 in
+      let f1 = FactInference.analyze_type env t1 in
+      fact_leq f1 f2
+;;
+
 (** [collect t] recursively walks down a type with kind TYPE, extracts all
     the permissions that appear into it (as tuple or record components), and
     returns the type without permissions as well as a list of types with kind
@@ -232,7 +251,7 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
   in
 
   TypePrinter.(
-    Log.debug ~level:4 "Refinement: %a, %a" pdoc (do_print_fact, f1) pdoc (do_print_fact, f2)
+    Log.debug ~level:4 "Refinement: %a, %a" pfact f1 pfact f2
   );
 
   try
@@ -603,19 +622,17 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   | TyPoint p1, TyPoint p2 ->
       if same env p1 p2 then
         Some env
-      else if is_flexible env p2 then
-        (* TODO p2 may already have a fact, we should check that it is
-         * compatible. Also, this merge operation works because all our type
-         * variables have kind TYPE, but this may change later. *)
+      else if is_flexible env p2 && can_merge env t1 p2 then
         Some (merge_left env p1 p2)
       else
         None
 
   | _, TyPoint p2 ->
       if is_flexible env p2 then
-          (* Same remark as above, there are more checks involved before
-           * allowing this instantiation. *)
-          Some (instantiate_flexible env p2 t1)
+          if can_merge env t1 p2 then
+            Some (instantiate_flexible env p2 t1)
+          else
+            None
       else
         begin match structure env p2 with
         | Some t2 ->

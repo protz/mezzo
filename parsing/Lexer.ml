@@ -123,6 +123,7 @@ let rec token = lexer
 | "as" -> locate lexbuf AS
 | "unpack" -> locate lexbuf UNPACK
 | "pack" -> locate lexbuf PACK
+| ";;" -> locate lexbuf SEMISEMI
 | "forall" | 8704 (* ∀ *) -> locate lexbuf FORALL
 | "exists" | 8707 (* ∃ *) -> locate lexbuf EXISTS*)
 | "fun" | 955 (* λ *) -> locate lexbuf FUN
@@ -163,7 +164,6 @@ let rec token = lexer
 | "," -> locate lexbuf COMMA
 | ":" -> locate lexbuf COLON
 | "::" -> locate lexbuf COLONCOLON
-| ";;" -> locate lexbuf SEMISEMI
 | ";" -> locate lexbuf SEMI
 | "->" | 8594 (* → *) -> locate lexbuf ARROW
 | "=>" | 8658 (* ⇒ *) -> locate lexbuf DBLARROW

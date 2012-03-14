@@ -517,8 +517,13 @@ module ExprPrinter = struct
         let fieldexprs = List.map (fun (field, expr) ->
           print_field field ^^ space ^^ equals ^^ space ^^ print_expr env expr
         ) fieldexprs in
-        let fieldexprs = join (semi ^^ break1) fieldexprs in
-        print_datacon datacon ^^ space ^^ lbrace ^^ jump fieldexprs ^^ break1 ^^ rbrace
+        let fieldexprs =
+          if List.length fieldexprs > 0 then
+            space ^^ lbrace ^^ jump (join (semi ^^ break1) fieldexprs) ^^ break1 ^^ rbrace
+          else
+            empty
+        in
+        print_datacon datacon ^^ fieldexprs
 
     | EIfThenElse (e1, e2, e3) ->
         string "if" ^^ space ^^ print_expr env e1 ^^ space ^^ string "then" ^^
@@ -581,7 +586,7 @@ module ExprPrinter = struct
     in
     let declarations = print_declarations env [] declarations in
     join
-      (break1 ^^ semisemi ^^ hardline ^^ hardline)
+      (hardline ^^ hardline)
       declarations
   ;;
 
