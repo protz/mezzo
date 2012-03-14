@@ -123,9 +123,9 @@ let rec token = lexer
 | "as" -> locate lexbuf AS
 | "unpack" -> locate lexbuf UNPACK
 | "pack" -> locate lexbuf PACK
-| "fun" | 955 (* λ *) -> locate lexbuf FUN
 | "forall" | 8704 (* ∀ *) -> locate lexbuf FORALL
 | "exists" | 8707 (* ∃ *) -> locate lexbuf EXISTS*)
+| "fun" | 955 (* λ *) -> locate lexbuf FUN
 | "match" -> locate lexbuf MATCH
 | "if" -> locate lexbuf IF
 | "then" -> locate lexbuf THEN

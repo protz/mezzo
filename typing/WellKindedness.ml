@@ -594,6 +594,10 @@ and check_expression (env: env) (expression: expression): E.expression =
       let e2 = check_expression env e2 in
       E.EAssign (e1, var, e2)
 
+  | EAccess (e, var) ->
+      let e = check_expression env e in
+      E.EAccess (e, var)
+
   | EApply (f, arg) ->
       let f = check_expression env f in
       let arg = check_expression env arg in

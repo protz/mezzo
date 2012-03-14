@@ -5,6 +5,10 @@ data list a =
   | Nil
   | Cons { head: a; tail: list a }
 
+exclusive data ref a = Ref {
+  contents: a;
+}
+
 val rec length [a] (x: list a): int =
   match x with
   | Nil ->
@@ -14,7 +18,17 @@ val rec length [a] (x: list a): int =
   end
 ;;
 
-val rec (x,y) = (z,t)
+val wrong =
+  let r = Ref { contents = Nil } in
+  fun [a] (x: a): () =
+    r.contents <- Cons { head = a; tail = r.contents }
+;;
+
+(* Various tests to make sure I didn't mess up with the bindings. *)
+
+(* val rec (x,y) = (z,t)
 and (z,t) = (x, y);;
 
 val (x, y) = (x, y);;
+
+val (x, y) = (y,x,x) and (z,t) = (t, z);;*)

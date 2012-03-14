@@ -133,6 +133,8 @@ and expression =
   | EFun of (Variable.name * kind) list * typ list * typ * expression
   (* v.f <- e *)
   | EAssign of expression * Variable.name * expression
+  (* v.f *)
+  | EAccess of expression * Variable.name
   (* e e₁ … eₙ *)
   | EApply of expression * expression
   (* match e with pᵢ -> eᵢ *)

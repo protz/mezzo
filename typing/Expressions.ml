@@ -38,6 +38,8 @@ type expression =
   | EFun of (Variable.name * kind) list * typ list * typ * expression
   (* v.f <- e *)
   | EAssign of expression * Field.name * expression
+  (* v.f *)
+  | EAccess of expression * Field.name
   (* e₁ e₂ *)
   | EApply of expression * expression
   (* match e with pᵢ -> eᵢ *)
@@ -134,6 +136,10 @@ and tsubst_expr t2 i e =
       let e1 = tsubst_expr t2 i e1 in
       let e2 = tsubst_expr t2 i e2 in
       EAssign (e1, field, e2)
+
+  | EAccess (e1, field) ->
+      let e1 = tsubst_expr t2 i e1 in
+      EAccess (e1, field)
 
   | EApply (f, arg) ->
       let f = tsubst_expr t2 i f in
@@ -258,6 +264,10 @@ and esubst e2 i e1 =
       let e = esubst e2 i e in
       let e' = esubst e2 i e' in
       EAssign (e, f, e')
+
+  | EAccess (e, f) ->
+      let e = esubst e2 i e in
+      EAccess (e, f)
 
   | EApply (f, arg) ->
       let f = esubst e2 i f in
@@ -478,6 +488,9 @@ module ExprPrinter = struct
 
     | EAssign (e1, f, e2) ->
         print_expr env e1 ^^ dot ^^ print_field f ^^ space ^^ larrow ^^ jump (print_expr env e2)
+
+    | EAccess (e, f) ->
+        print_expr env e ^^ dot ^^ print_field f
 
     | EApply (f, arg) ->
         let arg = print_expr env arg in

@@ -548,7 +548,7 @@ fact:
   | MATCH e = expression WITH bs = separated_or_preceded_list(BAR, match_branch) END
       { EMatch (e, bs) }
   | e = atomic DOT f = variable
-      { assert false } (* TEMPORARY *)
+      { EAccess (e, f) }
   | BEGIN e = expression END
       { e }
   | LPAREN e = expression COLON t = very_loose_type RPAREN
