@@ -1,4 +1,5 @@
 open Types
+open Expressions
 
 (* [has_flexible env t] checks [t] for flexible variables. *)
 let has_flexible env t =
@@ -127,4 +128,14 @@ let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x:
         pdoc (ptype, (env, t1)) Variable.p xname
         pdoc (print_permission_list, (env, xbinder))
 
+;;
+
+
+let rec check_expression (env: env) (expr: expression): env * point =
+  match expr with
+  | EPoint p ->
+      env, p
+
+  | _ ->
+      assert false
 ;;

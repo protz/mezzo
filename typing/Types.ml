@@ -801,7 +801,7 @@ module TypePrinter = struct
 
   open Hml_Pprint
 
-  (* Example: Log.debug "%a" pdoc (f, args) *)
+  (* If [f arg] returns a [document], then write [Log.debug "%a" pdoc (f, arg)] *)
   let pdoc (buf: Buffer.t) (f, env: ('env -> document) * 'env): unit =
     PpBuffer.pretty 1.0 Bash.twidth buf (f env)
   ;;

@@ -663,3 +663,24 @@ and sub_perm (env: env) (t: typ): env option =
   | _ ->
       Log.error "[sub_perm] only works with types that have kind PERM"
 ;;
+
+
+let point_for_name (env: env) (name: string): point =
+  let module T = struct exception Found of point end in
+  try
+    fold_types env (fun () point { names; _ } _binding ->
+      if Variable.(equal (register name) (List.hd names)) then
+        raise (T.Found point)) ();
+    raise Not_found
+  with T.Found point ->
+    point
+;;
+
+
+(** This function is actually fairly ugly. This is a temporary solution so that
+    [TypeChecker] as well as the test files can refer to type constructors
+    defined in the file (e.g. int), for type-checking arithmetic expressions, for
+    instance... *)
+let find_type env name =
+  TyPoint (point_for_name env name)
+;;

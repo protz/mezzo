@@ -1,18 +1,4 @@
 open Types
-(* Some test helpers to easily build types by hand. *)
-
-let parse_and_build_types () =
-  let program = Driver.lex_and_parse "tests/testperm.hml" in
-  let env, _declarations = WellKindedness.check_program program in
-  Log.debug ~level:4 "%a\n" TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds, env);
-  let env = FactInference.analyze_data_types env in
-  env
-;;
-
-let print_env (env: env) =
-  let open TypePrinter in
-  Log.debug ~level:1 "%a\n" pdoc (print_permissions, env);
-;;
 
 (* ------------------------------------------------------------------------- *)
 
@@ -29,21 +15,6 @@ let parse_and_build_types () =
 let print_env (env: env) =
   let open TypePrinter in
   Log.debug ~level:1 "%a\n" pdoc (print_permissions, env);
-;;
-
-let point_for_data_type (env: env) (name: string): point =
-  let module T = struct exception Found of point end in
-  try
-    fold_types env (fun () point { names; _ } _binding ->
-      if Variable.print (List.hd names) = name then
-        raise (T.Found point)) ();
-    raise Not_found
-  with T.Found point ->
-    point
-;;
-
-let find_point env name =
-  TyPoint (point_for_data_type env name)
 ;;
 
 (* Some OCaml functions that create HaMLeT types. *)
@@ -119,9 +90,9 @@ let check = Bash.(Hml_String.bsprintf "%s✓%s" colors.green colors.default);;
 let test_adding_perms (env: env) =
   (* Since these are global names, they won't change, so we can fetch them right
    * now. *)
-  let int = find_point env "int" in
-  let t1 = find_point env "t1" in
-  let ref = find_point env "ref" in
+  let int = Permissions.find_type env "int" in
+  let t1 = Permissions.find_type env "t1" in
+  let ref = Permissions.find_type env "ref" in
   (* First binding. *)
   let env, foo = bind_term env (Variable.register "foo") false in
   print_env env;
@@ -145,9 +116,9 @@ let test_adding_perms (env: env) =
 
 let test_unfolding (env: env) =
   (* Some wrappers for easily building types by hand. *)
-  let list x = TyApp (find_point env "list", x) in
-  let t1 x = TyApp (find_point env "t1", x) in
-  let int = find_point env "int" in
+  let list x = TyApp (Permissions.find_type env "list", x) in
+  let t1 x = TyApp (Permissions.find_type env "t1", x) in
+  let int = Permissions.find_type env "int" in
   (* Make sure the unfolding is properly performed. *)
   let env, foo = bind_term env (Variable.register "foo") false in
   let t = cons (int, list int) in
@@ -175,10 +146,10 @@ let test_unfolding (env: env) =
 
 let test_refinement (env: env) =
   (* Some wrappers for easily building types by hand. *)
-  let pair (x, y) = TyApp (TyApp (find_point env "pair", x), y) in
-  let list x = TyApp (find_point env "list", x) in
-  let ref x = TyApp (find_point env "ref", x) in
-  let int = find_point env "int" in
+  let pair (x, y) = TyApp (TyApp (Permissions.find_type env "pair", x), y) in
+  let list x = TyApp (Permissions.find_type env "list", x) in
+  let ref x = TyApp (Permissions.find_type env "ref", x) in
+  let int = Permissions.find_type env "int" in
   (* Make sure the unfolding is properly performed. *)
   let env, foo = bind_term env (Variable.register "foo") false in
   let env = match Permissions.refine_type env nil (list int) with
@@ -219,9 +190,9 @@ let test_refinement (env: env) =
 
 let test_substraction (env: env) =
   (* Some wrappers for easily building types by hand. *)
-  let list x = TyApp (find_point env "list", x) in
-  let ref x = TyApp (find_point env "ref", x) in
-  let int = find_point env "int" in
+  let list x = TyApp (Permissions.find_type env "list", x) in
+  let ref x = TyApp (Permissions.find_type env "ref", x) in
+  let int = Permissions.find_type env "int" in
   (* Make sure the unfolding is properly performed. *)
   let env, foo = bind_term env (Variable.register "foo") false in
   let env = Permissions.add env foo (tuple [int; ref int]) in
@@ -242,10 +213,10 @@ let test_substraction (env: env) =
 
 let test_function_call (env: env) =
   (* Some wrappers for easily building types by hand. *)
-  let list x = TyApp (find_point env "list", x) in
-  let ref x = TyApp (find_point env "ref", x) in
-  let int = find_point env "int" in
-  let _t1 x = TyApp (find_point env "t1", x) in
+  let list x = TyApp (Permissions.find_type env "list", x) in
+  let ref x = TyApp (Permissions.find_type env "ref", x) in
+  let int = Permissions.find_type env "int" in
+  let _t1 x = TyApp (Permissions.find_type env "t1", x) in
   (* Testing the function call *)
   (* Make sure the unfolding is properly performed. *)
   let env, length = bind_term env (Variable.register "length") false in
