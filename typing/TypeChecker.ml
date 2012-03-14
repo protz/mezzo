@@ -1,5 +1,6 @@
 open Types
 open Expressions
+open Utils
 
 (* [has_flexible env t] checks [t] for flexible variables. *)
 let has_flexible env t =
@@ -131,10 +132,60 @@ let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x:
 ;;
 
 
-let rec check_expression (env: env) (expr: expression): env * point =
+let check_return_type (env: env) (point: point) (t: typ): env =
+  match Permissions.sub env point t with
+  | Some env ->
+      env
+  | None ->
+      let open TypePrinter in
+      let name, binder = find_term env point in
+      Log.error "%a %a should have type %a but the only permissions available for it are %a"
+        Lexer.p env.position
+        Variable.p name
+        pdoc (ptype, (env, t))
+        pdoc (print_permission_list, (env, binder))
+;;
+
+
+let rec check_expression (env: env) ?(hint: string option) (expr: expression): env * point =
+
+  (* TEMPORARY this is just a quick and dirty way to talk about user-defined
+   * types. *)
+  let int = Permissions.find_type_by_name env "int" in
+
+  (* [return t] creates a new point with type [t] available for it, and returns
+   * the environment as well as the point *)
+  let return env t =
+    (* Not the most clever function, but will do for now on *)
+    let hint = Option.map_none (fresh_name "x_") hint in
+    let env, x = bind_term env (Variable.register hint) false in
+    let env = Permissions.add env x t in
+    env, x
+  in
+
   match expr with
   | EPoint p ->
       env, p
+
+  | EInt _ ->
+      return env int
+
+  | EPlus (e1, e2) ->
+      let hint1 = Option.map (fun x -> x ^ "_+l") hint in
+      let hint2 = Option.map (fun x -> x ^ "_+r") hint in
+      let env, x1 = check_expression env ?hint:hint1 e1 in
+      let env, x2 = check_expression env ?hint:hint2 e2 in
+      let env = check_return_type env x1 int in
+      let env = check_return_type env x2 int in
+      return env int
+
+  | EApply (e1, e2) ->
+      let hint1 = Option.map (fun x -> x ^ "_fun") hint in
+      let hint2 = Option.map (fun x -> x ^ "_arg") hint in
+      let env, x1 = check_expression env ?hint:hint1 e1 in
+      let env, x2 = check_expression env ?hint:hint2 e2 in
+      let env, return_type = check_function_call env x1 x2 in
+      return env return_type
 
   | _ ->
       assert false

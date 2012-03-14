@@ -90,9 +90,9 @@ let check = Bash.(Hml_String.bsprintf "%s✓%s" colors.green colors.default);;
 let test_adding_perms (env: env) =
   (* Since these are global names, they won't change, so we can fetch them right
    * now. *)
-  let int = Permissions.find_type env "int" in
-  let t1 = Permissions.find_type env "t1" in
-  let ref = Permissions.find_type env "ref" in
+  let int = Permissions.find_type_by_name env "int" in
+  let t1 = Permissions.find_type_by_name env "t1" in
+  let ref = Permissions.find_type_by_name env "ref" in
   (* First binding. *)
   let env, foo = bind_term env (Variable.register "foo") false in
   print_env env;
@@ -116,9 +116,9 @@ let test_adding_perms (env: env) =
 
 let test_unfolding (env: env) =
   (* Some wrappers for easily building types by hand. *)
-  let list x = TyApp (Permissions.find_type env "list", x) in
-  let t1 x = TyApp (Permissions.find_type env "t1", x) in
-  let int = Permissions.find_type env "int" in
+  let list x = TyApp (Permissions.find_type_by_name env "list", x) in
+  let t1 x = TyApp (Permissions.find_type_by_name env "t1", x) in
+  let int = Permissions.find_type_by_name env "int" in
   (* Make sure the unfolding is properly performed. *)
   let env, foo = bind_term env (Variable.register "foo") false in
   let t = cons (int, list int) in
@@ -146,10 +146,10 @@ let test_unfolding (env: env) =
 
 let test_refinement (env: env) =
   (* Some wrappers for easily building types by hand. *)
-  let pair (x, y) = TyApp (TyApp (Permissions.find_type env "pair", x), y) in
-  let list x = TyApp (Permissions.find_type env "list", x) in
-  let ref x = TyApp (Permissions.find_type env "ref", x) in
-  let int = Permissions.find_type env "int" in
+  let pair (x, y) = TyApp (TyApp (Permissions.find_type_by_name env "pair", x), y) in
+  let list x = TyApp (Permissions.find_type_by_name env "list", x) in
+  let ref x = TyApp (Permissions.find_type_by_name env "ref", x) in
+  let int = Permissions.find_type_by_name env "int" in
   (* Make sure the unfolding is properly performed. *)
   let env, foo = bind_term env (Variable.register "foo") false in
   let env = match Permissions.refine_type env nil (list int) with
@@ -190,9 +190,9 @@ let test_refinement (env: env) =
 
 let test_substraction (env: env) =
   (* Some wrappers for easily building types by hand. *)
-  let list x = TyApp (Permissions.find_type env "list", x) in
-  let ref x = TyApp (Permissions.find_type env "ref", x) in
-  let int = Permissions.find_type env "int" in
+  let list x = TyApp (Permissions.find_type_by_name env "list", x) in
+  let ref x = TyApp (Permissions.find_type_by_name env "ref", x) in
+  let int = Permissions.find_type_by_name env "int" in
   (* Make sure the unfolding is properly performed. *)
   let env, foo = bind_term env (Variable.register "foo") false in
   let env = Permissions.add env foo (tuple [int; ref int]) in
@@ -213,10 +213,10 @@ let test_substraction (env: env) =
 
 let test_function_call (env: env) =
   (* Some wrappers for easily building types by hand. *)
-  let list x = TyApp (Permissions.find_type env "list", x) in
-  let ref x = TyApp (Permissions.find_type env "ref", x) in
-  let int = Permissions.find_type env "int" in
-  let _t1 x = TyApp (Permissions.find_type env "t1", x) in
+  let list x = TyApp (Permissions.find_type_by_name env "list", x) in
+  let ref x = TyApp (Permissions.find_type_by_name env "ref", x) in
+  let int = Permissions.find_type_by_name env "int" in
+  let _t1 x = TyApp (Permissions.find_type_by_name env "t1", x) in
   (* Testing the function call *)
   (* Make sure the unfolding is properly performed. *)
   let env, length = bind_term env (Variable.register "length") false in

@@ -8,11 +8,11 @@ USE_OCAMLFIND := $(shell if `which ocamlfind > /dev/null`; then echo "-use-ocaml
 OCAMLBUILD := ocamlbuild $(USE_OCAMLFIND) -use-menhir \
   -menhir "menhir --explain --infer -la 1" \
   -cflags "-g" -lflags "-g"
-INCLUDE    := -Is sets,typing,parsing,ulex,lib,pprint
+INCLUDE    := -Is sets,typing,parsing,ulex,lib,pprint,utils
 MAIN	   := hamlet
 TEST	   := test
 BUILDDIRS  := $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
-MY_DIRS	   := lib parsing sets typing
+MY_DIRS	   := lib parsing sets typing utils
 
 
 all:

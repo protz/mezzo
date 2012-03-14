@@ -138,6 +138,9 @@ type env = {
 
   (* A mark that is used during various traversals of the [state]. *)
   mark: Mark.t;
+
+  (* The current position. *)
+  position: Lexing.position * Lexing.position;
 }
 
 and binding =
@@ -182,6 +185,7 @@ let empty_env = {
   type_for_datacon = DataconMap.empty;
   state = PersistentUnionFind.init ();
   mark = Mark.create ();
+  position = Lexing.dummy_pos, Lexing.dummy_pos;
 }
 
 (* Dealing with the union-find nature of the environment. *)

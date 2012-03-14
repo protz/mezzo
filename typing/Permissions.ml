@@ -1,13 +1,7 @@
 (* There are useful comments in the corresponding .mli *)
 
 open Types
-
-let fresh_name prefix =
-  let counter = ref 0 in
-  let n = string_of_int !counter in
-  counter := !counter + 1;
-  prefix ^ n
-;;
+open Utils
 
 (* Saves us the trouble of matching all the time. *)
 let (!!) = function TyPoint x -> x | _ -> assert false;;
@@ -124,7 +118,8 @@ let collect (t: typ): typ * typ list =
 let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
   (* This auxiliary function takes care of inserting an indirection if needed,
    * that is, a [=foo] type with [foo] being a newly-allocated [point]. *)
-  let insert_point (env: env) (hint: string) (t: typ): env * typ =
+  let insert_point (env: env) ?(hint: string option) (t: typ): env * typ =
+    let hint = Option.map_none (fresh_name "t_") hint in
     match t with
     | TySingleton _ ->
         env, t
@@ -137,8 +132,7 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
         env, TySingleton (TyPoint p)
   in
 
-  let unfold (env: env) ?(hint: string option) (t: typ): env * typ =
-    let hint = Option.map_none (fresh_name "t_") hint in
+  let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
     match t with
     | TyUnknown
     | TyDynamic
@@ -157,12 +151,12 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
         env, t
 
     | TyStar (p, q) ->
-        let env, p = unfold env ~hint p in
-        let env, q = unfold env ~hint q in
+        let env, p = unfold env ?hint p in
+        let env, q = unfold env ?hint q in
         env, TyStar (p, q)
 
     | TyAnchoredPermission (x, t) ->
-        let env, t = unfold env ~hint t in
+        let env, t = unfold env ?hint t in
         env, TyAnchoredPermission (x, t)
 
     (* If this is the application of a data type that only has one branch, we
@@ -177,7 +171,7 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
             | Some (_, [branch]) ->
                 let branch = instantiate_branch branch args in
                 let t = TyConcreteUnfolded branch in
-                unfold env ~hint t
+                unfold env ?hint t
             | _ ->
               env, t
           end
@@ -191,8 +185,8 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
           | TyTupleComponentPermission _ as component ->
               env, component :: components
           | TyTupleComponentValue component ->
-              let hint = Printf.sprintf "%s_%d" hint i in
-              let env, component = insert_point env hint component in
+              let hint = Option.map (fun hint -> Printf.sprintf "%s_%d" hint i) hint in
+              let env, component = insert_point env ?hint component in
               env, TyTupleComponentValue component :: components
         ) (env, []) components in
         env, TyTuple (List.rev components)
@@ -202,10 +196,10 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
           | FieldPermission _ as field ->
               env, field :: fields
           | FieldValue (name, field) ->
-              let hint =
+              let hint = Option.map (fun hint ->
                 Hml_String.bsprintf "%s_%a_%a" hint Datacon.p datacon Field.p name
-              in
-              let env, field = insert_point env hint field in
+              ) hint in
+              let env, field = insert_point env ?hint field in
               env, FieldValue (name, field) :: fields
         ) (env, []) fields
         in
@@ -665,7 +659,7 @@ and sub_perm (env: env) (t: typ): env option =
 ;;
 
 
-let point_for_name (env: env) (name: string): point =
+let point_by_name (env: env) (name: string): point =
   let module T = struct exception Found of point end in
   try
     fold_types env (fun () point { names; _ } _binding ->
@@ -681,6 +675,6 @@ let point_for_name (env: env) (name: string): point =
     [TypeChecker] as well as the test files can refer to type constructors
     defined in the file (e.g. int), for type-checking arithmetic expressions, for
     instance... *)
-let find_type env name =
-  TyPoint (point_for_name env name)
+let find_type_by_name env name =
+  TyPoint (point_by_name env name)
 ;;

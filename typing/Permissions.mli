@@ -51,6 +51,6 @@ val sub_perm: env -> typ -> env option
     [TypeChecker] as well as the test files can refer to type constructors
     defined in the file (e.g. int), for type-checking arithmetic expressions, for
     instance... *)
-val find_type: env -> string -> typ
+val find_type_by_name: env -> string -> typ
 
-val point_for_name: env -> string -> point
+val point_by_name: env -> string -> point
