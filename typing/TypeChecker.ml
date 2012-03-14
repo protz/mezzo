@@ -163,6 +163,16 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
     env, x
   in
 
+  let check_arith_binop env e1 e2 op =
+    let hint1 = Option.map (fun x -> Printf.sprintf "%s_%s_l" x op) hint in
+    let hint2 = Option.map (fun x -> Printf.sprintf "%s_%s_r" x op) hint in
+    let env, x1 = check_expression env ?hint:hint1 e1 in
+    let env, x2 = check_expression env ?hint:hint2 e2 in
+    let env = check_return_type env x1 int in
+    let env = check_return_type env x2 int in
+    return env int
+  in
+
   match expr with
   | EPoint p ->
       env, p
@@ -170,14 +180,23 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
   | EInt _ ->
       return env int
 
-  | EPlus (e1, e2) ->
-      let hint1 = Option.map (fun x -> x ^ "_+l") hint in
-      let hint2 = Option.map (fun x -> x ^ "_+r") hint in
-      let env, x1 = check_expression env ?hint:hint1 e1 in
-      let env, x2 = check_expression env ?hint:hint2 e2 in
-      let env = check_return_type env x1 int in
-      let env = check_return_type env x2 int in
+  | EUMinus e ->
+      let hint = Option.map (fun x -> "-" ^ x) hint in
+      let env, x = check_expression env ?hint e in
+      let env = check_return_type env x int in
       return env int
+
+  | EPlus (e1, e2) ->
+      check_arith_binop env e1 e2 "+"
+
+  | EMinus (e1, e2) ->
+      check_arith_binop env e1 e2 "-"
+
+  | ETimes (e1, e2) ->
+      check_arith_binop env e1 e2 "×"
+
+  | EDiv (e1, e2) ->
+      check_arith_binop env e1 e2 "/"
 
   | EApply (e1, e2) ->
       let hint1 = Option.map (fun x -> x ^ "_fun") hint in
