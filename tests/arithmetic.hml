@@ -1,0 +1,5 @@
+abstract int :: TYPE
+fact duplicable (int)
+
+val x = 355 / 113
+val y = x - 3141592

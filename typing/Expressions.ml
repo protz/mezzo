@@ -13,6 +13,9 @@ type pattern =
   | PConstraint of pattern * typ
   (* x *)
   | PVar of Variable.name
+  (* Once the variables in a pattern have been bound, they may replaced by
+   * [PPoint]s so that we know how to speak about the bound variables. *)
+  | PPoint of point
   (* (x₁, …, xₙ) *)
   | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)
@@ -90,12 +93,76 @@ let collect_pattern p =
       Hml_List.append_rev_front (snd (List.split fields)) acc
   | PLocated (p, _, _) ->
       collect_pattern acc p
+  | PPoint _ ->
+      assert false
   in
   List.rev (collect_pattern [] p)
 ;;
 
+(* [psubst pat points] replaces names in [pat] as it goes, by popping points off
+ * the front of [points]. *)
+let rec psubst (pat: pattern) (points: point list) =
+  match pat with
+  | PConstraint (p, t) ->
+      let p, points = psubst p points in
+      PConstraint (p, t), points
+
+  | PVar _ ->
+      begin match points with
+      | hd :: tl ->
+          PPoint hd, tl
+      | _ ->
+          Log.error "Wrong variable count for [psubst]"
+      end
+
+  | PPoint _ ->
+      Log.error "You ran a pattern through [psubst] twice"
+
+  | PTuple pats ->
+      let pats, points = List.fold_left (fun (pats, points) pat ->
+          let pat, points = psubst pat points in
+          pat :: pats, points
+        ) ([], points) pats
+      in
+      let pats = List.rev pats in
+      PTuple pats, points
+
+  | PConstruct _ ->
+      pat, points
+
+  | PLocated (pat, p1, p2) ->
+      let pat, points = psubst pat points in
+      PLocated (pat, p1, p2), points
+;;
+
+
+(* [tsubst_pat t2 i p] replaces all occurrences of [TyVar i] with [t2] in
+ * pattern [p]. *)
+let rec tsubst_pat t2 i p =
+  match p with
+  | PConstraint (p, t) ->
+      let p = tsubst_pat t2 i p in
+      let t = tsubst t2 i t in
+      PConstraint (p, t)
+
+  | PVar _
+  | PPoint _
+  | PConstruct _ ->
+      p
+
+  | PTuple p ->
+      let p = List.map (tsubst_pat t2 i) p in
+      PTuple p
+
+  | PLocated (p, p1, p2) ->
+      let p = tsubst_pat t2 i p in
+      PLocated (p, p1, p2)
+;;
+
+
 let rec tsubst_patexprs t2 i rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
+  let patterns = List.map (tsubst_pat t2 i) patterns in
   let names = List.fold_left (fun acc p ->
     collect_pattern p :: acc) [] patterns
   in
@@ -149,6 +216,7 @@ and tsubst_expr t2 i e =
   | EMatch (e, patexprs) ->
       let e = tsubst_expr t2 i e in
       let patexprs = List.map (fun (pat, expr) ->
+          let pat = tsubst_pat t2 i pat in
           let names = collect_pattern pat in
           let n = List.length names in
           pat, tsubst_expr t2 (i + n) expr
@@ -362,7 +430,24 @@ type substitution_kit = {
   subst_expr: expression -> expression;
   (* substitute [TyVar]s for [TyPoint]s, [EVar]s for [EPoint]s in an [expression]. *)
   subst_decl: declaration list -> declaration list;
+  (* substitute [PVar]s for [PPoint]s in a pattern *)
+  subst_pat: pattern -> pattern;
 }
+
+(* [eunloc e] removes any [ELocated] located in front of [e]. *)
+let eunloc = function
+  | ELocated (e, _, _)
+  | (_ as e) ->
+      e
+;;
+
+(* [punloc p] removes any [PLocated] located in front of [p]. *)
+let punloc = function
+  | PLocated (p, _, _)
+  | (_ as p) ->
+      p
+;;
+
 
 (* [bind_vars env bindings] adds [bindings] in the environment, and returns the
  * new environment, and a [substitution_kit]. *)
@@ -385,11 +470,16 @@ let bind_vars (env: env) (bindings: type_binding list): env * substitution_kit =
       let t = tsubst_decl (TyPoint point) i t in
       esubst_decl (EPoint point) i t) t points
   in
-  env, { subst_type; subst_expr; subst_decl }
+  let subst_pat p =
+    let pat, points = psubst p points in
+    assert (points = []);
+    pat
+  in
+  env, { subst_type; subst_expr; subst_decl; subst_pat }
 ;;
 
 
-(* [bind_patexprs env rec_flag patexprs body] takes a list of patterns and
+(* [bind_patexprs env rec_flag patexprs] takes a list of patterns and
  * expressions, whose recursivity depends on [rec_flag], collects the variables
  * in the patterns, binds them to new points, and performs the correct
  * substitutions according to the recursivity flag. *)
@@ -400,7 +490,7 @@ let bind_patexprs env rec_flag patexprs =
   in
   let names = List.rev names in
   let names = List.flatten names in
-  let bindings = List.map (fun n -> (n, KType)) names in
+  let bindings = List.map (fun n -> (n, KTerm)) names in
   let env, kit = bind_vars env bindings in
   let expressions = match rec_flag with
     | Recursive ->
@@ -432,6 +522,9 @@ module ExprPrinter = struct
 
     | PVar v ->
         print_var v
+
+    | PPoint _ ->
+        assert false
 
     | PTuple pats ->
         lparen ^^
@@ -504,7 +597,7 @@ module ExprPrinter = struct
     | EMatch (e, patexprs) ->
         let patexprs = List.map (fun (pat, expr) ->
           let vars = collect_pattern pat in
-          let bindings = List.map (fun v -> (v, KType)) vars in
+          let bindings = List.map (fun v -> (v, KTerm)) vars in
           let env, { subst_expr; _ } = bind_vars env bindings in
           let expr = subst_expr expr in
           print_pat env pat ^^ space ^^ arrow ^^ jump (print_expr env expr)
@@ -527,7 +620,7 @@ module ExprPrinter = struct
 
     | EIfThenElse (e1, e2, e3) ->
         string "if" ^^ space ^^ print_expr env e1 ^^ space ^^ string "then" ^^
-        jump (print_expr env e2) ^^ break1 ^^ string "else" ^^ 
+        jump (print_expr env e2) ^^ break1 ^^ string "else" ^^
         jump (print_expr env e3)
 
     | ELocated (e, _, _) ->

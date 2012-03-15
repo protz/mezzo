@@ -147,6 +147,18 @@ let check_return_type (env: env) (point: point) (t: typ): env =
 ;;
 
 
+let type_for_function_def (env: env) (expression: expression): typ =
+  ignore (env, expression);
+  assert false
+;;
+
+
+let unify_pattern (env: env) (pattern: pattern) (point: point): env =
+  ignore (env, pattern, point);
+  assert false
+;;
+
+
 let rec check_expression (env: env) ?(hint: string option) (expr: expression): env * point =
 
   (* TEMPORARY this is just a quick and dirty way to talk about user-defined
@@ -166,8 +178,8 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
   let check_arith_binop env e1 e2 op =
     let hint1 = Option.map (fun x -> Printf.sprintf "%s_%s_l" x op) hint in
     let hint2 = Option.map (fun x -> Printf.sprintf "%s_%s_r" x op) hint in
-    let _env, x1 = check_expression env ?hint:hint1 e1 in
-    let _env, x2 = check_expression env ?hint:hint2 e2 in
+    let env, x1 = check_expression env ?hint:hint1 e1 in
+    let env, x2 = check_expression env ?hint:hint2 e2 in
     let env = check_return_type env x1 int in
     let env = check_return_type env x2 int in
     return env int
@@ -197,22 +209,23 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
   | EApply (e1, e2) ->
       let hint1 = Option.map (fun x -> x ^ "_fun") hint in
       let hint2 = Option.map (fun x -> x ^ "_arg") hint in
-      let _env, x1 = check_expression env ?hint:hint1 e1 in
-      let _env, x2 = check_expression env ?hint:hint2 e2 in
+      let env, x1 = check_expression env ?hint:hint1 e1 in
+      let env, x2 = check_expression env ?hint:hint2 e2 in
       let env, return_type = check_function_call env x1 x2 in
       return env return_type
 
   (* | EMatch of expression * (pattern * expression) list *)
 
   | ETuple exprs ->
-      let types = Hml_List.mapi
-        (fun i e ->
+      let env, components = Hml_List.fold_lefti
+        (fun i (env, components) expr ->
           let hint = Option.map (fun x -> Printf.sprintf "%s_%d" x i) hint in
-          let _env, p = check_expression env ?hint e in
-          TyTupleComponentValue (ty_equals p))
-        exprs
+          let env, p = check_expression env ?hint expr in
+          env, TyTupleComponentValue (ty_equals p) :: components)
+        (env, []) exprs
       in
-      return env (TyTuple types)
+      let components = List.rev components in
+      return env (TyTuple components)
 
   (* | EConstruct of Datacon.name * (Field.name * expression) list
 
@@ -223,7 +236,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
 
   | EUMinus e ->
       let hint = Option.map (fun x -> "-" ^ x) hint in
-      let _env, x = check_expression env ?hint e in
+      let env, x = check_expression env ?hint e in
       let env = check_return_type env x int in
       return env int
 
@@ -245,4 +258,35 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
 
   | _ ->
       assert false
+
+
+and check_bindings
+  (env: env)
+  (rec_flag: rec_flag)
+  (patexprs: (pattern * expression) list): env
+  =
+    let env, patexprs, { subst_expr; subst_pat; _ } = bind_patexprs env rec_flag patexprs in
+    let patterns, expressions = List.split patexprs in
+    let expressions = List.map subst_expr expressions in
+    let patterns = List.map subst_pat patterns in
+    let env = match rec_flag with
+      | Recursive ->
+          List.fold_left2 (fun env expr pat ->
+            let pat = punloc pat in
+            let expr = eunloc expr in
+            match pat, expr with
+            | PPoint p, EFun _ ->
+                Permissions.add env p (type_for_function_def env expr)
+            | _ ->
+                Log.error "Recursive definitions are for functions only"
+          ) env expressions patterns
+      | Nonrecursive ->
+          env
+    in
+    let env = List.fold_left2 (fun env pat expr ->
+      let env, point = check_expression env expr in
+      let env = unify_pattern env pat point in
+      env) env patterns expressions
+    in
+    env
 ;;
