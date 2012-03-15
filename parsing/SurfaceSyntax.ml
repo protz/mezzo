@@ -112,7 +112,7 @@ type pattern =
   (* (x: τ, …) *)
   | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)
-  | PConstruct of (Datacon.name * (Variable.name * Variable.name) list)
+  | PConstruct of (Datacon.name * (Variable.name * pattern) list)
   | PLocated of pattern * Lexing.position * Lexing.position
 
 (* ---------------------------------------------------------------------------- *)

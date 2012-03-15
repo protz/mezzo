@@ -147,15 +147,77 @@ let check_return_type (env: env) (point: point) (t: typ): env =
 ;;
 
 
-let type_for_function_def (env: env) (expression: expression): typ =
-  ignore (env, expression);
-  assert false
+let type_for_function_def (expression: expression): typ =
+  match expression with
+  | EFun (vars, args, return_type, _) ->
+      let t = List.fold_right (fun t acc -> TyArrow (t, acc)) args return_type in
+      let t = List.fold_right (fun var acc -> TyForall (var, acc)) vars t in
+      t
+  | _ ->
+      Log.error "[type_for_function_def], as the name implies, expects a \
+        function expression...";
 ;;
 
 
-let unify_pattern (env: env) (pattern: pattern) (point: point): env =
-  ignore (env, pattern, point);
-  assert false
+let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
+
+  match pattern with
+  | PConstraint (pattern, t) ->
+      let env = check_return_type env point t in
+      unify_pattern env pattern point
+
+  | PVar _ ->
+      Log.error "[unify_pattern] takes a pattern that has been run through \
+        [subst_pat] first"
+
+  | PPoint p ->
+      (* [point] is the descriptor that has all the information; [p] just has
+       * [=p] as a permission, and maybe an extra one if it's a [val rec f]
+       * where [f] is a recursive function *)
+      merge_left env point p
+
+  | PTuple patterns ->
+      let permissions = get_permissions env point in
+      let t = List.map (function TyTuple x -> Some x | _ -> None) permissions in
+      let t = Hml_List.filter_some t in
+      Log.affirm (List.length t = 1) "Multiple candidates as a tuple type for \
+        this pattern";
+      let t = List.hd t in
+      List.fold_left2 (fun env pattern component ->
+        match component with
+        | TyTupleComponentValue (TySingleton (TyPoint p')) ->
+            unify_pattern env pattern p'
+        | _ ->
+            Log.error "Expecting a type that went through [unfold] and [collect] here"
+      ) env patterns t
+
+  | PConstruct (datacon, field_pats) ->
+      let permissions = get_permissions env point in
+      let field_defs = List.map
+        (function
+          | TyConcreteUnfolded (datacon', x) when Datacon.equal datacon datacon' ->
+              Some x
+          | _ ->
+              None)
+        permissions
+      in
+      let field_defs = Hml_List.filter_some field_defs in
+      Log.affirm (List.length field_defs = 1) "Multiple candidates as a concrete type for \
+        this pattern";
+      let field_defs = List.hd field_defs in
+      List.fold_left2 (fun env (name, pat) field ->
+        match field with
+        | FieldValue (name', TySingleton (TyPoint p')) ->
+            Log.affirm (name = name') "I thought the fields were in the same order";
+            unify_pattern env pat p'
+        | _ ->
+            Log.error "Expecting a type that went through [unfold] and [collect] here"
+      ) env field_pats field_defs
+
+  | PLocated (pat, p1, p2) ->
+      let env = locate env (p1, p2) in
+      unify_pattern env pat point
+
 ;;
 
 
@@ -276,7 +338,7 @@ and check_bindings
             let expr = eunloc expr in
             match pat, expr with
             | PPoint p, EFun _ ->
-                Permissions.add env p (type_for_function_def env expr)
+                Permissions.add env p (type_for_function_def expr)
             | _ ->
                 Log.error "Recursive definitions are for functions only"
           ) env expressions patterns

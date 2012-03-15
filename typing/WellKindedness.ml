@@ -514,12 +514,12 @@ let rec collect_and_check_pattern (env: env) (pattern: pattern): env * E.pattern
       in
       env, E.PTuple (List.rev patterns)
   | PConstruct (datacon, fields) ->
-      let env = List.fold_left (fun env field ->
-          let _field_name, bound_name = field in
-          let env = bind env (bound_name, KTerm) in
-        env) env fields
+      let env, fieldpats = List.fold_left (fun (env, fieldpats) field ->
+        let field_name, pattern = field in
+        let env, pattern = collect_and_check_pattern env pattern in
+        env, (field_name, pattern) :: fieldpats) (env, []) fields
       in
-      env, E.PConstruct (datacon, fields)
+      env, E.PConstruct (datacon, fieldpats)
   | PLocated _ ->
       ploc collect_and_check_pattern env pattern
 ;;

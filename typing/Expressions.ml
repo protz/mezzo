@@ -19,7 +19,7 @@ type pattern =
   (* (x₁, …, xₙ) *)
   | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)
-  | PConstruct of Datacon.name * (Field.name * Variable.name) list
+  | PConstruct of Datacon.name * (Field.name * pattern) list
   | PLocated of pattern * Lexing.position * Lexing.position
 
 (* ---------------------------------------------------------------------------- *)
@@ -79,8 +79,9 @@ type declaration_group =
 
 (* Moar fun with De Bruijn. *)
 
-(* [collect_pattern] returns, in order, the list of bindings present in the
- * pattern. *)
+(* [collect_pattern] returns the list of bindings present in the pattern. The
+ * binding with index [i] in the returned list has De Bruijn index [i] in the
+ * bound term. *)
 let collect_pattern p =
   let rec collect_pattern acc = function
   | PConstraint (p, _) ->
@@ -90,7 +91,8 @@ let collect_pattern p =
   | PTuple patterns ->
       List.fold_left collect_pattern acc patterns
   | PConstruct (_, fields) ->
-      Hml_List.append_rev_front (snd (List.split fields)) acc
+      let patterns = snd (List.split fields) in
+      List.fold_left collect_pattern acc patterns
   | PLocated (p, _, _) ->
       collect_pattern acc p
   | PPoint _ ->
@@ -540,7 +542,7 @@ module ExprPrinter = struct
               (join
                 (semi ^^ break1)
                 (List.map (fun (field, name) -> print_field field ^^ space ^^
-                  equals ^^ space ^^ print_var name) fieldnames)) ^^
+                  equals ^^ space ^^ print_pat env name) fieldnames)) ^^
             jump rbrace
           else
             empty

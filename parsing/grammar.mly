@@ -441,7 +441,7 @@ fact:
       { p }
 
     %inline data_field_pat:
-    | f = variable EQUAL p = variable
+    | f = variable EQUAL p = pattern
         { f, p }
 
 (* ---------------------------------------------------------------------------- *)
