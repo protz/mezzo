@@ -689,4 +689,8 @@ module ExprPrinter = struct
     print_declarations env declarations
   ;;
 
+  let pexpr (env, expr) =
+    print_expr env expr
+  ;;
+
 end

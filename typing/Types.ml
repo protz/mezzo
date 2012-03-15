@@ -199,7 +199,17 @@ let same env p1 p2 =
 
 (* Merge while keeping the descriptor of the leftmost argument. *)
 let merge_left env p2 p1 =
-  { env with state = PersistentUnionFind.union p1 p2 env.state }
+  (* All this work is just to make sure we keep the names from both sides. *)
+  let state = env.state in
+  let { names = names; _ }, _ = PersistentUnionFind.find p1 state in
+  let { names = names'; _ }, _ = PersistentUnionFind.find p2 state in
+  let names = names @ names' in
+  let names = Hml_List.remove_duplicates ~equal_func:Variable.equal names in
+  let state = PersistentUnionFind.update (fun (head, raw) ->
+    { head with names }, raw) p2 state
+  in
+  (* If we don't want to be fancy, the line below is enough. It keeps [p2]. *)
+  { env with state = PersistentUnionFind.union p1 p2 state }
 ;;
 
 (* Deal with flexible variables that have a structure. *)
@@ -1035,9 +1045,10 @@ module TypePrinter = struct
       (string str) ^^ hardline ^^ (string line)
     in
     let lines = map_terms env (fun { names; _ } binder ->
-      let name = List.hd names in
+      let names = List.map print_var names in
+      let names = join (string " a.k.a. ") names in
       let perms = print_permission_list (env, binder) in
-      (print_var name) ^^ colon ^^ space ^^ (nest 2 perms)
+      names ^^ colon ^^ space ^^ (nest 2 perms)
     ) in
     let lines = join break1 lines in
     header ^^ (nest 2 (break1 ^^ lines))
@@ -1045,6 +1056,10 @@ module TypePrinter = struct
 
   let ptype (env, t) =
     print_type env t
+  ;;
+
+  let penv buf (env: env) =
+    pdoc buf (print_permissions, env)
   ;;
 
   internal_ptype := ptype;;

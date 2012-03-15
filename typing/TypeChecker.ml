@@ -139,6 +139,7 @@ let check_return_type (env: env) (point: point) (t: typ): env =
   | None ->
       let open TypePrinter in
       let name, binder = find_term env point in
+      Log.debug ~level:4 "%a\n------------\n" penv env;
       Log.error "%a %a should have type %a but the only permissions available for it are %a"
         Lexer.p env.position
         Variable.p name
@@ -325,9 +326,9 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
 and check_bindings
   (env: env)
   (rec_flag: rec_flag)
-  (patexprs: (pattern * expression) list): env
+  (patexprs: (pattern * expression) list): env * _
   =
-    let env, patexprs, { subst_expr; subst_pat; _ } = bind_patexprs env rec_flag patexprs in
+    let env, patexprs, { subst_expr; subst_pat; subst_decl; _ } = bind_patexprs env rec_flag patexprs in
     let patterns, expressions = List.split patexprs in
     let expressions = List.map subst_expr expressions in
     let patterns = List.map subst_pat patterns in
@@ -346,9 +347,28 @@ and check_bindings
           env
     in
     let env = List.fold_left2 (fun env pat expr ->
-      let env, point = check_expression env expr in
+      let hint = match pat with
+        | PLocated ((PPoint p), _, _) ->
+            Some (Variable.print (get_name env p))
+        | _ ->
+            None
+      in
+      let env, point = check_expression env ?hint expr in
       let env = unify_pattern env pat point in
       env) env patterns expressions
     in
-    env
+    env, subst_decl
+;;
+
+let rec check_declaration_group (env: env) (declarations: declaration_group): env =
+  match declarations with
+  | DLocated (declarations, p1, p2) :: tl ->
+      let env = locate env (p1, p2) in
+      check_declaration_group env (declarations :: tl)
+  | DMultiple (rec_flag, patexprs) :: tl ->
+      let env, subst_decl = check_bindings env rec_flag patexprs in
+      let tl = subst_decl tl in
+      check_declaration_group env tl
+  | [] ->
+      env
 ;;

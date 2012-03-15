@@ -43,4 +43,7 @@ let _ =
     Types.TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds_and_facts, env);
   Log.debug ~level:1 "%a"
     Types.TypePrinter.pdoc (Expressions.ExprPrinter.pdeclarations, (env, declarations));
+  let env = TypeChecker.check_declaration_group env declarations in
+  Log.debug ~level:1 "%a"
+    Types.TypePrinter.pdoc (Types.TypePrinter.print_permissions, env);
 ;;
