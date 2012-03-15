@@ -502,7 +502,7 @@ let rec collect_and_check_pattern (env: env) (pattern: pattern): env * E.pattern
   match pattern with
   | PConstraint (p, t) ->
       let t = check false env t KType in
-      let env, p = collect_and_check_pattern env pattern in
+      let env, p = collect_and_check_pattern env p in
       env, E.PConstraint (p, t)
   | PVar name ->
       let env = bind env (name, KTerm) in

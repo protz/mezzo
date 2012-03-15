@@ -2,4 +2,4 @@ abstract int :: TYPE
 fact duplicable (int)
 
 val foo = 355 / 113
-val bar = foo - 3141592
+val (bar: int) = foo - 3141592
