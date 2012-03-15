@@ -188,6 +188,10 @@ let empty_env = {
   position = Lexing.dummy_pos, Lexing.dummy_pos;
 }
 
+let locate env position =
+  { env with position }
+;;
+
 (* Dealing with the union-find nature of the environment. *)
 let same env p1 p2 =
   PersistentUnionFind.same p1 p2 env.state
@@ -205,14 +209,6 @@ let structure (env: env) (point: point): typ option =
       Some t
   | _ ->
       None
-;;
-
-let point x =
-  TyPoint x
-;;
-
-let points_to x =
-  TySingleton (point x)
 ;;
 
 (* ---------------------------------------------------------------------------- *)
@@ -454,6 +450,10 @@ let head name ~flexible kind =
   }
 ;;
 
+let ty_equals x =
+  TySingleton (TyPoint x)
+;;
+
 let bind_term
     (env: env)
     (name: Variable.name)
@@ -467,7 +467,7 @@ let bind_term
   let point, state = PersistentUnionFind.create binding env.state in
   let state = PersistentUnionFind.update
     (function
-      | (head, BTerm raw) -> head, BTerm { raw with permissions = [ points_to point ] }
+      | (head, BTerm raw) -> head, BTerm { raw with permissions = [ ty_equals point ] }
       | _ -> assert false)
     point
     state

@@ -166,23 +166,64 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
   let check_arith_binop env e1 e2 op =
     let hint1 = Option.map (fun x -> Printf.sprintf "%s_%s_l" x op) hint in
     let hint2 = Option.map (fun x -> Printf.sprintf "%s_%s_r" x op) hint in
-    let env, x1 = check_expression env ?hint:hint1 e1 in
-    let env, x2 = check_expression env ?hint:hint2 e2 in
+    let _env, x1 = check_expression env ?hint:hint1 e1 in
+    let _env, x2 = check_expression env ?hint:hint2 e2 in
     let env = check_return_type env x1 int in
     let env = check_return_type env x2 int in
     return env int
   in
 
   match expr with
+  | EConstraint (e, t) ->
+      let env, p = check_expression env ?hint e in
+      let env = check_return_type env p t in
+      return env t
+
+  | EVar _ ->
+      Log.error "[check_expression] expects an expression where all variables \
+        has been opened";
+
   | EPoint p ->
       env, p
+
+  (*| ELet of rec_flag * (pattern * expression) list * expression
+
+  | EFun of (Variable.name * kind) list * typ list * typ * expression
+
+  | EAssign of expression * Field.name * expression
+
+  | EAccess of expression * Field.name*)
+
+  | EApply (e1, e2) ->
+      let hint1 = Option.map (fun x -> x ^ "_fun") hint in
+      let hint2 = Option.map (fun x -> x ^ "_arg") hint in
+      let _env, x1 = check_expression env ?hint:hint1 e1 in
+      let _env, x2 = check_expression env ?hint:hint2 e2 in
+      let env, return_type = check_function_call env x1 x2 in
+      return env return_type
+
+  (* | EMatch of expression * (pattern * expression) list *)
+
+  | ETuple exprs ->
+      let types = Hml_List.mapi
+        (fun i e ->
+          let hint = Option.map (fun x -> Printf.sprintf "%s_%d" x i) hint in
+          let _env, p = check_expression env ?hint e in
+          TyTupleComponentValue (ty_equals p))
+        exprs
+      in
+      return env (TyTuple types)
+
+  (* | EConstruct of Datacon.name * (Field.name * expression) list
+
+  | EIfThenElse of expression * expression * expression *)
 
   | EInt _ ->
       return env int
 
   | EUMinus e ->
       let hint = Option.map (fun x -> "-" ^ x) hint in
-      let env, x = check_expression env ?hint e in
+      let _env, x = check_expression env ?hint e in
       let env = check_return_type env x int in
       return env int
 
@@ -198,13 +239,9 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
   | EDiv (e1, e2) ->
       check_arith_binop env e1 e2 "/"
 
-  | EApply (e1, e2) ->
-      let hint1 = Option.map (fun x -> x ^ "_fun") hint in
-      let hint2 = Option.map (fun x -> x ^ "_arg") hint in
-      let env, x1 = check_expression env ?hint:hint1 e1 in
-      let env, x2 = check_expression env ?hint:hint2 e2 in
-      let env, return_type = check_function_call env x1 x2 in
-      return env return_type
+  | ELocated (e, p1, p2) ->
+      let env = locate env (p1, p2) in
+      check_expression env ?hint e
 
   | _ ->
       assert false
