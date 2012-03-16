@@ -616,8 +616,8 @@ let map env f =
 ;;
 
 let fold env f acc =
-  PersistentUnionFind.fold (fun acc k _v ->
-    f acc k)
+  PersistentUnionFind.fold (fun acc k v ->
+    f acc k v)
   acc env.state
 ;;
 
@@ -776,6 +776,26 @@ let find_and_instantiate_branch
 ;;
 
 (* Misc. *)
+
+let point_by_name (env: env) (name: string): point =
+  let module T = struct exception Found of point end in
+  try
+    fold env (fun () point ({ names; _ }, _binding) ->
+      if List.exists (fun name' -> Variable.(equal (register name) name')) names then
+        raise (T.Found point)) ();
+    raise Not_found
+  with T.Found point ->
+    point
+;;
+
+(** This function is actually fairly ugly. This is a temporary solution so that
+    [TypeChecker] as well as the test files can refer to type constructors
+    defined in the file (e.g. int), for type-checking arithmetic expressions, for
+    instance... *)
+let find_type_by_name env name =
+  TyPoint (point_by_name env name)
+;;
+
 
 (* TODO: we should flatten type applications as soon as we can... *)
 let flatten_tyapp t =

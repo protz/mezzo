@@ -11,17 +11,19 @@ OCAMLBUILD := ocamlbuild $(USE_OCAMLFIND) -use-menhir \
 INCLUDE    := -Is sets,typing,parsing,ulex,lib,pprint,utils
 MAIN	   := hamlet
 TEST	   := test
+TESTSUITE  := testsuite
 BUILDDIRS  := $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
 MY_DIRS	   := lib parsing sets typing utils
 
 
 all:
-	$(OCAMLBUILD) $(INCLUDE) $(MAIN).native $(TEST).native
+	$(OCAMLBUILD) $(INCLUDE) $(MAIN).native $(TESTSUITE).native $(TEST).native
 	ln -sf $(MAIN).native $(MAIN)
 	ln -sf $(TEST).native $(TEST)
+	ln -sf $(TESTSUITE).native $(TESTSUITE)
 
 clean:
-	rm -f *~ $(MAIN) $(MAIN).native $(TEST) $(TEST).native
+	rm -f *~ $(MAIN) $(MAIN).native $(TEST) $(TEST).native $(TESTSUITE) $(TESTSUITE).native
 	$(OCAMLBUILD) -clean
 
 graph: all
@@ -47,11 +49,8 @@ doc: graph
 	sed -i 's/<\/body>/<p align="center"><object type="image\/svg+xml" data="..\/misc\/graph.svg"><\/object><\/p><\/body>/' doc/index.html
 	cp -f misc/ocamlstyle.css doc/style.css
 
-test_list: all
-	OCAMLRUNPARAM=b=1 ./hamlet -I tests -debug 4 tests/list.hml
-
-test_types: all
-	OCAMLRUNPARAM=b=1 ./hamlet -I tests -debug 2 tests/basic.hml
+testsuite: all
+	OCAMLRUNPARAM=b=1 ./testsuite
 
 test: all
 	OCAMLRUNPARAM=b=1 ./test

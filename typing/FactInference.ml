@@ -55,13 +55,11 @@ let duplicables
                 begin
                   match phase with
                   | Elaborating my_bitmap ->
-                      (* Levels in the interval [n, n + myarity[ are those for the
-                       * current type's parameters. *)
                       let my_arity = Array.length my_bitmap in
                       Log.debug ~level:4 "↳ marking parameter %d" param_number;
                       Log.affirm (param_number >= 0 && param_number < my_arity)
                         "Marking as duplicable a variable that's not in the right\
-                        range!\ param_number = %d" param_number;
+                        range! param_number = %d" param_number;
                       my_bitmap.(param_number) <- true
                   | Checking ->
                       Log.error "No fuzzy variables should be present when checking."

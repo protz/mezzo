@@ -46,11 +46,3 @@ val sub: env -> point -> typ -> env option
 (** [sub_perm env t] takes a type [t] with kind PERM, and tries to return the
     environment without the corresponding permission. *)
 val sub_perm: env -> typ -> env option
-
-(** This function is actually fairly ugly. This is a temporary solution so that
-    [TypeChecker] as well as the test files can refer to type constructors
-    defined in the file (e.g. int), for type-checking arithmetic expressions, for
-    instance... *)
-val find_type_by_name: env -> string -> typ
-
-val point_by_name: env -> string -> point

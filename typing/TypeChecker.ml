@@ -261,7 +261,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
 
   (* TEMPORARY this is just a quick and dirty way to talk about user-defined
    * types. *)
-  let int = Permissions.find_type_by_name env "int" in
+  let int = find_type_by_name env "int" in
 
   (* [return t] creates a new point with type [t] available for it, and returns
    * the environment as well as the point *)

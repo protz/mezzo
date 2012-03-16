@@ -5,3 +5,5 @@ val rec length [a] (x: list a): int =
   | Cons { tail = tail } ->
       1 + length tail
   end
+
+val zero = length Nil

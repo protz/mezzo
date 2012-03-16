@@ -71,10 +71,10 @@ let type_check type_env kind_env subst_decl program =
   let type_env, kind_env, declarations, new_subst_decl = WellKindedness.check_program type_env kind_env program in
   let declarations = subst_decl declarations in
   let type_env = FactInference.analyze_data_types type_env in
-  Log.debug ~level:1 "%a"
+  Log.debug ~level:2 "%a"
     Types.TypePrinter.pdoc
     (WellKindedness.KindPrinter.print_kinds_and_facts, type_env);
-  Log.debug ~level:1 "%a"
+  Log.debug ~level:2 "%a"
     Types.TypePrinter.pdoc
     (Expressions.ExprPrinter.pdeclarations, (type_env, declarations));
   let type_env = TypeChecker.check_declaration_group type_env declarations in
