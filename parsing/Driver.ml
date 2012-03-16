@@ -19,8 +19,27 @@
 
 open Lexer
 
-let include_dirs: string list ref = ref []
-let add_include_dir dir = include_dirs := dir :: !include_dirs
+let include_dirs: string list ref =
+  ref []
+;;
+
+let add_include_dir dir =
+  include_dirs := dir :: !include_dirs
+;;
+
+type substitution = Expressions.declaration_group -> Expressions.declaration_group
+
+type state = {
+  type_env: Types.env;
+  kind_env: WellKindedness.env;
+  subst: substitution;
+}
+
+let empty_state = {
+  type_env = Types.empty_env;
+  kind_env = WellKindedness.empty;
+  subst = fun x -> x;
+}
 
 let lex_and_parse file_path =
   let file_desc = open_in file_path in
@@ -46,3 +65,49 @@ let lex_and_parse file_path =
         Hml_String.beprintf "%a\n"
           Lexer.print_error (lexbuf, e);
         exit 252
+;;
+
+let type_check type_env kind_env subst_decl program = 
+  let type_env, kind_env, declarations, new_subst_decl = WellKindedness.check_program type_env kind_env program in
+  let declarations = subst_decl declarations in
+  let type_env = FactInference.analyze_data_types type_env in
+  Log.debug ~level:1 "%a"
+    Types.TypePrinter.pdoc
+    (WellKindedness.KindPrinter.print_kinds_and_facts, type_env);
+  Log.debug ~level:1 "%a"
+    Types.TypePrinter.pdoc
+    (Expressions.ExprPrinter.pdeclarations, (type_env, declarations));
+  let type_env = TypeChecker.check_declaration_group type_env declarations in
+  let subst_decl = function decls ->
+    (* I HAVE NO IDEA WHAT I'M DOING *)
+    subst_decl (new_subst_decl decls)
+  in
+  type_env, kind_env, subst_decl
+;;
+
+let process { type_env; kind_env; subst } file_path =
+  let program = lex_and_parse file_path in
+  let type_env, kind_env, subst = type_check type_env kind_env subst program in
+  { type_env; kind_env; subst }
+;;
+
+let find_in_include_dirs (filename: string): string =
+  let module M = struct exception Found of string end in
+  try
+    List.iter (fun dir ->
+      let open Filename in
+      let dir =
+        if is_relative dir then
+          current_dir_name ^ dir_sep ^ dir
+        else
+          dir
+      in
+      let path = concat dir filename in
+      Log.debug "Trying %s" path;
+      if Sys.file_exists path then
+        raise (M.Found path)
+    ) !include_dirs;
+    Log.error "File %s not found in any include directory." filename
+  with M.Found s ->
+    s
+;;

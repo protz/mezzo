@@ -6,7 +6,7 @@ open Types
 
 let parse_and_build_types () =
   let program = Driver.lex_and_parse "tests/testperm.hml" in
-  let env, _declarations = WellKindedness.check_program program in
+  let env, _kind_env, _ = Driver.type_check Types.empty_env WellKindedness.empty (fun x -> x) program in
   Log.debug ~level:4 "%a\n" TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds, env);
   let env = FactInference.analyze_data_types env in
   env

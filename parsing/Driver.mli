@@ -19,6 +19,21 @@
 
 (** This module sets up a lexer and a parser to create an AST. *)
 
+type state = {
+  type_env: Types.env;
+  kind_env: WellKindedness.env;
+  subst: substitution;
+}
+
+and substitution = Expressions.declaration_group -> Expressions.declaration_group
+
 val add_include_dir: string -> unit
-val lex_and_parse: string ->
-  SurfaceSyntax.data_type_group * SurfaceSyntax.declaration_group
+val find_in_include_dirs: string -> string
+
+val lex_and_parse: string -> SurfaceSyntax.program
+val type_check:
+  Types.env -> WellKindedness.env -> substitution -> SurfaceSyntax.program ->
+  Types.env * WellKindedness.env * substitution
+val process: state -> string -> state
+
+val empty_state: state

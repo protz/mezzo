@@ -1,5 +1,2 @@
-abstract int :: TYPE
-fact duplicable (int)
-
 val foo = 355 / 113
 val (bar: int) = foo - 3141592

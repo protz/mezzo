@@ -347,6 +347,7 @@ let collect_data_type_group_tycon group : fragment =
   List.fold_left collect_data_type_def_tycon M.empty group
 
 let check_data_type_group
+    (type_env: T.env)
     (env: env)
     (group: SurfaceSyntax.data_type_group): env * (level * T.point) list * T.env =
   let open Types in
@@ -433,7 +434,7 @@ let check_data_type_group
         (* Just remember that the type is defined as abstract. *)
         let type_env, point = bind_type type_env name fact kind in
         type_env, (level, point) :: points
-  ) (empty_env, []) group in
+  ) (type_env, []) group in
   (* Now substitute the TyVars for the TyPoints: for all definitions *)
   let total_number_of_data_types = List.length points in
   env, points, fold_types type_env (fun type_env point { names; kind } { definition; _ } ->
@@ -687,7 +688,9 @@ let check_declaration_group (env: env) (declarations: declaration_group): Expres
   List.rev declarations
 ;;
 
-let check_program (program: program): T.env * Expressions.declaration_group =
+let check_program (type_env: T.env) (env: env) (program: program):
+    T.env * env * Expressions.declaration_group * (Expressions.declaration_group -> Expressions.declaration_group)
+  =
   let data_type_group, declaration_group = program in
   (* [env] is a [WellKindedness.env]; we need it to translate the declarations
    *   because the data type declarations are bound in it already, and we freely
@@ -696,7 +699,7 @@ let check_program (program: program): T.env * Expressions.declaration_group =
    *   that refer to data types in the declarations by the corresponding points.
    * [type_env] is a [Types.env]; we need it for the rest of the type-checker.
    * *)
-  let env, points, type_env = check_data_type_group empty data_type_group in
+  let env, points, type_env = check_data_type_group type_env env data_type_group in
   (* This desugars everything, including function types present in the various
    * declarations, and also translates this into a [Types.declaration list]. *)
   let declarations = check_declaration_group env declaration_group in
@@ -704,12 +707,14 @@ let check_program (program: program): T.env * Expressions.declaration_group =
    * to replace those that refer to data types with the corresponding
    * [TyPoint]s. *)
   let total_number_of_data_types = List.length points in
-  let declarations = List.fold_left (fun declarations (level, point) ->
+  let subst_decl = fun declarations ->
+    List.fold_left (fun declarations (level, point) ->
       let index = total_number_of_data_types - level - 1 in
       E.tsubst_decl (T.TyPoint point) index declarations
     ) declarations points
   in
-  type_env, declarations
+  let declarations = subst_decl declarations in
+  type_env, env, declarations, subst_decl
 ;;
 
 

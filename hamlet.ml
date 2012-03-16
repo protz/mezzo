@@ -36,14 +36,9 @@ let _ =
     )
     usage;
   Log.enable_debug !arg_debug;
-  let program = Driver.lex_and_parse !arg_filename in
-  let env, declarations = WellKindedness.check_program program in
-  let env = FactInference.analyze_data_types env in
+  let path_to_pervasives = Driver.find_in_include_dirs "pervasives.hml" in
+  let state = Driver.process Driver.empty_state path_to_pervasives in
+  let state = Driver.process state !arg_filename in
   Log.debug ~level:1 "%a"
-    Types.TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds_and_facts, env);
-  Log.debug ~level:1 "%a"
-    Types.TypePrinter.pdoc (Expressions.ExprPrinter.pdeclarations, (env, declarations));
-  let env = TypeChecker.check_declaration_group env declarations in
-  Log.debug ~level:1 "%a"
-    Types.TypePrinter.pdoc (Types.TypePrinter.print_permissions, env);
+    Types.TypePrinter.pdoc (Types.TypePrinter.print_permissions, state.Driver.type_env);
 ;;
