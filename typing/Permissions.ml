@@ -557,7 +557,7 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
     unifying some flexible variables); it returns [None] otherwise. *)
 and sub_type (env: env) (t1: typ) (t2: typ): env option =
   TypePrinter.(
-    Log.debug ~level:4 "sub_type\n  t1=%a\n  t2=%a"
+    Log.debug ~level:4 "sub_type\n  t1 %a\n  t2 %a"
       pdoc (ptype, (env, t1))
       pdoc (ptype, (env, t2)));
   match t1, t2 with
@@ -612,11 +612,23 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       let cons2, args2 = flatten_tyapp t2 in
       let point1 = DataconMap.find datacon1 env.type_for_datacon in
 
-      if same env point1 !!cons2 then
+      if same env point1 !!cons2 then begin
         let branch2 = find_and_instantiate_branch env !!cons2 datacon1 args2 in
         sub_type env t1 (TyConcreteUnfolded branch2)
-      else
+      end else begin
         None
+      end
+
+  | TyConcreteUnfolded (datacon1, _), TyPoint point2 ->
+      let point1 = DataconMap.find datacon1 env.type_for_datacon in
+
+      if same env point1 point2 then begin
+        let branch2 = find_and_instantiate_branch env point2 datacon1 [] in
+        sub_type env t1 (TyConcreteUnfolded branch2)
+      end else begin
+        None
+      end
+
 
   | TyApp _, TyApp _ ->
       let cons1, args1 = flatten_tyapp t1 in

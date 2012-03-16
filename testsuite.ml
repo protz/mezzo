@@ -36,6 +36,9 @@ let tests = [
   ("field_access_bad.hml",
     simple_test Fail (function NoSuchField _ -> true | _ -> false));
 
+  ("field_assignment.hml",
+    simple_test Pass (fun _ -> false));
+
   ("arithmetic.hml", fun do_it ->
     let env = do_it () in
     let int = find_type_by_name env "int" in
