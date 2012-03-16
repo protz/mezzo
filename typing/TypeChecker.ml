@@ -373,9 +373,47 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       check_expression env body
 
 
-  (*| EFun of (Variable.name * kind) list * typ list * typ * expression
+  (*| EFun of (Variable.name * kind) list * typ list * typ * expression*)
 
-  | EAssign of expression * Field.name * expression*)
+  | EAssign (e1, fname, e2) ->
+      let hint = Option.map (fun x -> Printf.sprintf "%s_%s" x (Field.print fname)) hint in
+      let env, p1 = check_expression env ?hint e1 in
+      let env, p2 = check_expression env e2 in
+      let env = replace_term env p1 (fun binder ->
+        let permissions = binder.permissions in
+        let found = ref false in
+        let permissions = List.map (fun t ->
+            match t with
+            | TyConcreteUnfolded (datacon, fieldexprs) ->
+                let fieldexprs = List.map (function
+                  | FieldValue (field, expr) ->
+                      let expr = 
+                        if Field.equal field fname then
+                          begin match expr with
+                          | TySingleton (TyPoint _) ->
+                              if !found then
+                                Log.error "Two matching permissions? That's strange...";
+                              found := true;
+                              TySingleton (TyPoint p2)
+                          | t ->
+                              let open TypePrinter in
+                              Log.error "Not a point %a" pdoc (ptype, (env, t))
+                          end
+                        else
+                          expr
+                      in
+                      FieldValue (field, expr)
+                  | FieldPermission _ as f ->
+                      f
+                ) fieldexprs in
+                TyConcreteUnfolded (datacon, fieldexprs)
+            | _ ->
+                t
+          ) permissions
+        in
+        { binder with permissions })
+      in
+      return env ty_unit
 
   | EAccess (e, fname) ->
       let hint = Option.map (fun x -> Printf.sprintf "%s_%s" x (Field.print fname)) hint in

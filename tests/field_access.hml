@@ -1,0 +1,6 @@
+data foo = Foo { foo: int }
+
+val main =
+  let x = Foo { foo = 2 } in
+  x.foo
+

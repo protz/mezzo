@@ -1,0 +1,6 @@
+data t = A | B
+data u = C { foo: int }
+
+val a = A
+val b = B
+val c = C { foo = 2; }
