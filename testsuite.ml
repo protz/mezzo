@@ -7,7 +7,29 @@ open TestUtils
 let check env point t =
   ignore (check_return_type env point t)
 
+type outcome = Fail | Pass
+
+let simple_test outcome f = fun do_it ->
+  try
+    ignore (do_it ());
+    match outcome with Fail -> raise (Failure "") | Pass -> ();
+  with TypeCheckerError e ->
+    match e with
+    | _, e when f e ->
+        ()
+    | _ ->
+        raise (Failure "")
+
 let tests = [
+  ("constructors.hml",
+    simple_test Pass (fun _ -> false));
+
+  ("constructors_bad_1.hml",
+    simple_test Fail (function MissingField _ -> true | _ -> false));
+
+  ("constructors_bad_2.hml",
+    simple_test Fail (function ExtraField _ -> true | _ -> false));
+
   ("arithmetic.hml", fun do_it ->
     let env = do_it () in
     let int = find_type_by_name env "int" in
@@ -15,6 +37,18 @@ let tests = [
     let bar = point_by_name env "bar" in
     check env foo int;
     check env bar int);
+
+  ("wrong_type_annotation.hml", fun do_it ->
+    try
+      ignore (do_it ());
+      raise (Failure "")
+    with TypeCheckerError e ->
+      match e with
+      | env, ExpectedType (t, _, _) ->
+          let int = find_type_by_name env "int" in
+          assert (equal env t (int @-> int))
+      | _ ->
+          raise (Failure ""));
 
   ("list.hml", fun do_it ->
     let env = do_it () in
@@ -35,18 +69,6 @@ let tests = [
             TyApp (c, x)
           in
           assert (equal env t (xlist int))
-      | _ ->
-          raise (Failure ""));
-
-  ("wrong_type_annotation.hml", fun do_it ->
-    try
-      ignore (do_it ());
-      raise (Failure "")
-    with TypeCheckerError e ->
-      match e with
-      | env, ExpectedType (t, _, _) ->
-          let int = find_type_by_name env "int" in
-          assert (equal env t (int @-> int))
       | _ ->
           raise (Failure ""));
 
