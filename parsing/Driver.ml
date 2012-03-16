@@ -92,7 +92,6 @@ let find_in_include_dirs (filename: string): string =
           dir
       in
       let path = concat dir filename in
-      Log.debug "Trying %s" path;
       if Sys.file_exists path then
         raise (M.Found path)
     ) !include_dirs;

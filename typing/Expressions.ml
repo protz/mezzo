@@ -693,4 +693,8 @@ module ExprPrinter = struct
     print_expr env expr
   ;;
 
+  let ppat (env, pat) =
+    print_pat env pat
+  ;;
+
 end

@@ -15,6 +15,7 @@ and raw_error =
   | RecursiveOnlyForFunctions
   | MissingField of Field.name
   | ExtraField of Field.name
+  | SubPattern of pattern
 
 exception TypeCheckerError of error
 
@@ -58,6 +59,11 @@ let print_error buf (env, raw_error) =
         "%a field %a is superfluous in that constructor"
         Lexer.p env.position
         Field.p f
+  | SubPattern pat ->
+      Printf.bprintf buf
+        "%a there's a sub-constraint in that pattern, not allowed: %a"
+        Lexer.p env.position
+        pdoc (ppat, (env, pat))
 ;;
 
 (* -------------------------------------------------------------------------- *)
@@ -203,6 +209,50 @@ let type_for_function_def (expression: expression): typ =
   | _ ->
       Log.error "[type_for_function_def], as the name implies, expects a \
         function expression...";
+;;
+
+
+let extract_constraint (env: env) (pattern: pattern): pattern =
+
+  let rec extract_constraint (env: env) (pattern: pattern): pattern * typ =
+    match pattern with
+    | PConstraint (pattern, typ) ->
+        let pattern, sub_typ = extract_constraint env pattern in
+        begin match sub_typ with
+        | TyUnknown ->
+            pattern, typ
+        | _ ->
+            raise_error env (SubPattern pattern)
+        end
+
+    | PVar name ->
+        PVar name, TyUnknown
+
+    | PPoint point ->
+        PPoint point, TyUnknown
+
+    | PTuple pats ->
+        let pats, ts = List.split (List.map (extract_constraint env) pats) in
+        PTuple pats, TyTuple (List.map (fun x -> TyTupleComponentValue x) ts)
+
+    | PConstruct (name, fieldpats) ->
+        let fieldpats, fieldtypes = List.fold_left
+          (fun (fieldpats, fieldtypes) (field, pat) ->
+            let pat, t = extract_constraint env pat in
+            (field, pat) :: fieldpats, (field, t) :: fieldtypes)
+          ([], []) fieldpats
+        in
+        let fieldtypes = List.map (fun x -> FieldValue x) fieldtypes in
+        PConstruct (name, fieldpats), TyConcreteUnfolded (name, fieldtypes)
+
+
+    | PLocated (pattern, p1, p2) ->
+        let pattern, typ = extract_constraint (locate env (p1, p2)) pattern in
+        PLocated (pattern, p1, p2), typ
+  in
+  
+  let pattern, t = extract_constraint env pattern in
+  PConstraint (pattern, t)
 ;;
 
 
@@ -441,6 +491,7 @@ and check_bindings
             None
       in
       let env, point = check_expression env ?hint expr in
+      let pat = extract_constraint env pat in
       let env = unify_pattern env pat point in
       env) env patterns expressions
     in

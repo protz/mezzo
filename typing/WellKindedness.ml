@@ -499,30 +499,34 @@ let dloc (f: env -> declaration -> env * E.declaration): env -> declaration -> e
  * collects in a depth-first search all bindings in the pattern, adds them to
  * the environment, and returns the environment; second, it translates [pattern]
  * from [SurfaceSyntax.pattern] to [Expressions.pattern]. *)
-let rec collect_and_check_pattern (env: env) (pattern: pattern): env * E.pattern =
-  match pattern with
-  | PConstraint (p, t) ->
-      let t = check false env t KType in
-      let env, p = collect_and_check_pattern env p in
-      env, E.PConstraint (p, t)
-  | PVar name ->
-      let env = bind env (name, KTerm) in
-      env, E.PVar name
-  | PTuple patterns ->
-      let env, patterns = List.fold_left (fun (env, patterns) pattern ->
-        let env, pattern = collect_and_check_pattern env pattern in
-        env, pattern :: patterns) (env, []) patterns
-      in
-      env, E.PTuple (List.rev patterns)
-  | PConstruct (datacon, fields) ->
-      let env, fieldpats = List.fold_left (fun (env, fieldpats) field ->
-        let field_name, pattern = field in
-        let env, pattern = collect_and_check_pattern env pattern in
-        env, (field_name, pattern) :: fieldpats) (env, []) fields
-      in
-      env, E.PConstruct (datacon, fieldpats)
-  | PLocated _ ->
-      ploc collect_and_check_pattern env pattern
+let collect_and_check_pattern (env: env) (pattern: pattern): env * E.pattern =
+  let env0 = env in
+  let rec collect_and_check_pattern (env: env) (pattern: pattern): env * E.pattern =
+    match pattern with
+    | PConstraint (p, t) ->
+        let env, p = collect_and_check_pattern env p in
+        let t = check false env0 t KType in
+        env, E.PConstraint (p, t)
+    | PVar name ->
+        let env = bind env (name, KTerm) in
+        env, E.PVar name
+    | PTuple patterns ->
+        let env, patterns = List.fold_left (fun (env, patterns) pattern ->
+          let env, pattern = collect_and_check_pattern env pattern in
+          env, pattern :: patterns) (env, []) patterns
+        in
+        env, E.PTuple (List.rev patterns)
+    | PConstruct (datacon, fields) ->
+        let env, fieldpats = List.fold_left (fun (env, fieldpats) field ->
+          let field_name, pattern = field in
+          let env, pattern = collect_and_check_pattern env pattern in
+          env, (field_name, pattern) :: fieldpats) (env, []) fields
+        in
+        env, E.PConstruct (datacon, fieldpats)
+    | PLocated _ ->
+        ploc collect_and_check_pattern env pattern
+  in
+  collect_and_check_pattern env pattern
 ;;
 
 let collect_and_check_function_parameter (env: env) (t: typ): env * (Variable.name * kind) list * T.typ =

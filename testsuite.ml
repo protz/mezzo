@@ -50,12 +50,6 @@ let tests = [
       | _ ->
           raise (Failure ""));
 
-  ("list.hml", fun do_it ->
-    let env = do_it () in
-    let int = find_type_by_name env "int" in
-    let zero = point_by_name env "zero" in
-    check env zero int);
-
   ("constraints_in_patterns.hml", fun do_it ->
     try
       ignore (do_it ());
@@ -68,9 +62,15 @@ let tests = [
             let c = find_type_by_name env "xlist" in
             TyApp (c, x)
           in
-          assert (equal env t (xlist int))
+          assert (equal env t (tuple [xlist int; xlist int]))
       | _ ->
           raise (Failure ""));
+
+  ("list.hml", fun do_it ->
+    let env = do_it () in
+    let int = find_type_by_name env "int" in
+    let zero = point_by_name env "zero" in
+    check env zero int);
 
   ("value_restriction.hml", fun do_it ->
     try

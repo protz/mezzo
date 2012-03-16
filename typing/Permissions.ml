@@ -485,19 +485,35 @@ let rec sub (env: env) (point: point) (t: typ): env option =
   Log.affirm (is_term env point) "You can only add permissions to a point that \
     represents a program identifier.";
 
-  (* Get a "clean" type without nested permissions. *)
-  let t, perms = collect t in
+  match t with
+  | TyUnknown ->
+      Some env
 
-  (* TEMPORARY we should probably switch to a more sophisticated strategy,
-   * based on a work list. The code would scan the work list for a permission
-   * that it knows how to extract. A failure would happen when there are
-   * permissions left but we don't know how to extract them because the
-   * variables are still flexible, for instance... *)
-  let env = sub_clean env point t in
-  List.fold_left
-    (fun env perm -> (Option.bind env (fun env -> sub_perm env perm)))
-    env
-    perms
+  | TyDynamic ->
+      if begin
+        List.exists
+          (fun t -> FactInference.analyze_type env t = Exclusive)
+          (get_permissions env point)
+      end then
+        Some env
+      else
+        None
+
+  | _ ->
+
+      (* Get a "clean" type without nested permissions. *)
+      let t, perms = collect t in
+
+      (* TEMPORARY we should probably switch to a more sophisticated strategy,
+       * based on a work list. The code would scan the work list for a permission
+       * that it knows how to extract. A failure would happen when there are
+       * permissions left but we don't know how to extract them because the
+       * variables are still flexible, for instance... *)
+      let env = sub_clean env point t in
+      List.fold_left
+        (fun env perm -> (Option.bind env (fun env -> sub_perm env perm)))
+        env
+        perms
 
 
 (** [sub_clean env point t] takes a "clean" type [t] (without nested permissions)
