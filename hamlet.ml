@@ -36,9 +36,7 @@ let _ =
     )
     usage;
   Log.enable_debug !arg_debug;
-  let path_to_pervasives = Driver.find_in_include_dirs "pervasives.hml" in
-  let state = Driver.process Driver.empty_state path_to_pervasives in
-  let state = Driver.process state !arg_filename in
+  let env = Driver.run (fun () -> Driver.process !arg_filename) in
   Log.debug ~level:1 "%a"
-    Types.TypePrinter.pdoc (Types.TypePrinter.print_permissions, state.Driver.type_env);
+    Types.TypePrinter.pdoc (Types.TypePrinter.print_permissions, env);
 ;;

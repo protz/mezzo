@@ -32,19 +32,16 @@ val empty_state: state
 val add_include_dir: string -> unit
 val find_in_include_dirs: string -> string
 
-(** [process state file] will process the HaMLet file [file], and return a new
-    [state]. *)
-val process: state -> string -> state
-
 (** [lex_and_parse] is useful for tests that want to manipulate directly the
     AST. Otherwise, you should probably use [process]. *)
 val lex_and_parse: string -> SurfaceSyntax.program
 
 (** [type_check] is the next step after [lex_and_parse]. *)
-val type_check:
-  Types.env -> WellKindedness.env -> substitution -> SurfaceSyntax.program ->
-  Types.env * WellKindedness.env * substitution
+val type_check: SurfaceSyntax.program -> Types.env
 
-(** [process_raw] won't catch exceptions. This is useful for tests that want to
+(** [process] doesn't catch exceptions. This is useful for tests that want to
     assert that a test program failed in a certain way. *)
-val process_raw: state -> string -> state
+val process: string -> Types.env
+
+(** [run] runs the specified function and prints any error that may pop up. *)
+val run: (unit -> 'a) -> 'a

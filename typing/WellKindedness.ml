@@ -688,8 +688,7 @@ let check_declaration_group (env: env) (declarations: declaration_group): Expres
   List.rev declarations
 ;;
 
-let check_program (type_env: T.env) (env: env) (program: program):
-    T.env * env * Expressions.declaration_group * (Expressions.declaration_group -> Expressions.declaration_group)
+let check_program (type_env: T.env) (program: program): T.env * Expressions.declaration_group
   =
   let data_type_group, declaration_group = program in
   (* [env] is a [WellKindedness.env]; we need it to translate the declarations
@@ -699,7 +698,7 @@ let check_program (type_env: T.env) (env: env) (program: program):
    *   that refer to data types in the declarations by the corresponding points.
    * [type_env] is a [Types.env]; we need it for the rest of the type-checker.
    * *)
-  let env, points, type_env = check_data_type_group type_env env data_type_group in
+  let env, points, type_env = check_data_type_group type_env empty data_type_group in
   (* This desugars everything, including function types present in the various
    * declarations, and also translates this into a [Types.declaration list]. *)
   let declarations = check_declaration_group env declaration_group in
@@ -714,7 +713,7 @@ let check_program (type_env: T.env) (env: env) (program: program):
     ) declarations points
   in
   let declarations = subst_decl declarations in
-  type_env, env, declarations, subst_decl
+  type_env, declarations
 ;;
 
 

@@ -9,7 +9,7 @@ let check env point t =
 
 let tests = [
   ("arithmetic.hml", fun do_it ->
-    let { type_env = env; _ } = do_it () in
+    let env = do_it () in
     let int = find_type_by_name env "int" in
     let foo = point_by_name env "foo" in
     let bar = point_by_name env "bar" in
@@ -17,7 +17,7 @@ let tests = [
     check env bar int);
 
   ("list.hml", fun do_it ->
-    let { type_env = env; _ } = do_it () in
+    let env = do_it () in
     let int = find_type_by_name env "int" in
     let zero = point_by_name env "zero" in
     check env zero int);
@@ -68,12 +68,10 @@ let _ =
   let open Bash in
   Log.enable_debug 1;
   Driver.add_include_dir "tests";
-  let path_to_pervasives = Driver.find_in_include_dirs "pervasives.hml" in
-  let state = Driver.process Driver.empty_state path_to_pervasives in
   List.iter (fun (file, test) ->
     let do_it = fun () ->
-      let state = Driver.process_raw state (Filename.concat "tests" file) in
-      state
+      let env = Driver.process (Filename.concat "tests" file) in
+      env
     in
     try
       test do_it;

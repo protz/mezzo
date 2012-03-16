@@ -67,9 +67,8 @@ let lex_and_parse file_path =
         exit 252
 ;;
 
-let type_check type_env kind_env subst_decl program = 
-  let type_env, kind_env, declarations, new_subst_decl = WellKindedness.check_program type_env kind_env program in
-  let declarations = subst_decl declarations in
+let type_check program = 
+  let type_env, declarations = WellKindedness.check_program Types.empty_env program in
   let type_env = FactInference.analyze_data_types type_env in
   Log.debug ~level:2 "%a"
     Types.TypePrinter.pdoc
@@ -78,27 +77,7 @@ let type_check type_env kind_env subst_decl program =
     Types.TypePrinter.pdoc
     (Expressions.ExprPrinter.pdeclarations, (type_env, declarations));
   let type_env = TypeChecker.check_declaration_group type_env declarations in
-  let subst_decl = function decls ->
-    (* I HAVE NO IDEA WHAT I'M DOING *)
-    subst_decl (new_subst_decl decls)
-  in
-  type_env, kind_env, subst_decl
-;;
-
-let process_raw { type_env; kind_env; subst } file_path =
-  let program = lex_and_parse file_path in
-  let type_env, kind_env, subst = type_check type_env kind_env subst program in
-  { type_env; kind_env; subst }
-;;
-
-let process state file =
-  let open TypeChecker in
-  try
-    process_raw state file
-  with
-  | TypeCheckerError e ->
-      Hml_String.beprintf "%a\n" print_error e;
-      exit 251
+  type_env
 ;;
 
 let find_in_include_dirs (filename: string): string =
@@ -120,4 +99,23 @@ let find_in_include_dirs (filename: string): string =
     Log.error "File %s not found in any include directory." filename
   with M.Found s ->
     s
+;;
+
+let process file_path =
+  let path_to_pervasives = find_in_include_dirs "pervasives.hml" in
+  let defs, declarations = lex_and_parse path_to_pervasives in
+  let defs', declarations' = lex_and_parse file_path in
+  (* HACK HACK HACK *)
+  let program = defs @ defs', declarations @ declarations' in
+  type_check program
+;;
+
+let run f =
+  let open TypeChecker in
+  try
+    f ()
+  with
+  | TypeCheckerError e ->
+      Hml_String.beprintf "%a\n" print_error e;
+      exit 251
 ;;
