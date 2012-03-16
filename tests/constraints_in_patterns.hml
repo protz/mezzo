@@ -1,0 +1,3 @@
+val ((x: xlist int), (y: xlist int)) =
+  let z = XNil in
+  (z, z)

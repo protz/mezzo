@@ -85,10 +85,20 @@ let type_check type_env kind_env subst_decl program =
   type_env, kind_env, subst_decl
 ;;
 
-let process { type_env; kind_env; subst } file_path =
+let process_raw { type_env; kind_env; subst } file_path =
   let program = lex_and_parse file_path in
   let type_env, kind_env, subst = type_check type_env kind_env subst program in
   { type_env; kind_env; subst }
+;;
+
+let process state file =
+  let open TypeChecker in
+  try
+    process_raw state file
+  with
+  | TypeCheckerError e ->
+      Hml_String.beprintf "%a\n" print_error e;
+      exit 251
 ;;
 
 let find_in_include_dirs (filename: string): string =

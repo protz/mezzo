@@ -1,6 +1,10 @@
 abstract int :: TYPE
 fact duplicable (int)
 
+exclusive data xlist a =
+  | XNil
+  | XCons { xhead: a; xtail: xlist a }
+
 data list a =
   | Nil
   | Cons { head: a; tail: list a }

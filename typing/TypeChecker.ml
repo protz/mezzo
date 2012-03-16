@@ -2,6 +2,55 @@ open Types
 open Expressions
 open Utils
 
+(* -------------------------------------------------------------------------- *)
+
+(* Error handling *)
+
+type error = env * raw_error
+
+and raw_error =
+  | NotAFunction of Variable.name * term_binder
+  | HasFlexible of typ
+  | ExpectedType of typ * Variable.name * term_binder
+  | RecursiveOnlyForFunctions
+
+exception TypeCheckerError of error
+
+let raise_error env e =
+  raise (TypeCheckerError (env, e))
+;;
+
+let print_error buf (env, raw_error) =
+  let open TypePrinter in
+  let open WellKindedness.KindPrinter in
+  let open ExprPrinter in
+  match raw_error with
+  | NotAFunction (fname, fbinder) ->
+      Printf.bprintf buf
+        "%a %a is not a function, the only permissions available for it are %a"
+        Lexer.p env.position
+        Variable.p fname
+        pdoc (print_permission_list, (env, fbinder))
+  | HasFlexible t ->
+      Printf.bprintf buf
+        "%a the following type still contains flexible variables: %a"
+        Lexer.p env.position
+        pdoc (ptype, (env, t));
+  | ExpectedType (t1, xname, xbinder) ->
+      Printf.bprintf buf
+        "%a expected an argument of type %a but the only permissions available for %a are %a"
+        Lexer.p env.position
+        pdoc (ptype, (env, t1)) Variable.p xname
+        pdoc (print_permission_list, (env, xbinder))
+  | RecursiveOnlyForFunctions ->
+      Printf.bprintf buf
+        "%a recursive definitions are enabled for functions only"
+        Lexer.p env.position
+
+;;
+
+(* -------------------------------------------------------------------------- *)
+
 (* [has_flexible env t] checks [t] for flexible variables. *)
 let has_flexible env t =
   let rec has_flexible t =
@@ -97,10 +146,7 @@ let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x:
   let env, (t1, t2) =
     match permissions with
     | [] ->
-        let open TypePrinter in
-        Log.error "%a is not a function, the only permissions available for it are %a"
-          Variable.p fname
-          pdoc (print_permission_list, (env, fbinder))
+        raise_error env (NotAFunction (fname, fbinder))
     | t :: [] ->
         flex_deconstruct t
     | t :: _ ->
@@ -115,19 +161,12 @@ let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x:
       (* If we're not allowed to have flexible variables, make sure there aren't
        * any of them left hanging around. *)
       if not (Option.unit_bool allow_flexible) && has_flexible env t2 then begin
-        let open TypePrinter in
-        Log.error
-          "The following type still contains flexible variables: %a"
-          pdoc (ptype, (env, t2));
+        raise_error env (HasFlexible t2)
       end;
       (* Return the "good" type. *)
       env, t2
   | None ->
-      let open TypePrinter in
-      Log.error
-        "Expected an argument of type %a but the only permissions available for %a are %a"
-        pdoc (ptype, (env, t1)) Variable.p xname
-        pdoc (print_permission_list, (env, xbinder))
+      raise_error env (ExpectedType (t1, xname, xbinder))
 
 ;;
 
@@ -140,11 +179,7 @@ let check_return_type (env: env) (point: point) (t: typ): env =
       let open TypePrinter in
       let name, binder = find_term env point in
       Log.debug ~level:4 "%a\n------------\n" penv env;
-      Log.error "%a %a should have type %a but the only permissions available for it are %a"
-        Lexer.p env.position
-        Variable.p name
-        pdoc (ptype, (env, t))
-        pdoc (print_permission_list, (env, binder))
+      raise_error env (ExpectedType (t, name, binder))
 ;;
 
 
@@ -320,7 +355,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       check_expression env ?hint e
 
   | _ ->
-      assert false
+      Log.error "Not implemented yet!"
 
 
 and check_bindings
@@ -341,7 +376,7 @@ and check_bindings
             | PPoint p, EFun _ ->
                 Permissions.add env p (type_for_function_def expr)
             | _ ->
-                Log.error "Recursive definitions are for functions only"
+                raise_error env RecursiveOnlyForFunctions
           ) env expressions patterns
       | Nonrecursive ->
           env
