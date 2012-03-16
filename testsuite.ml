@@ -78,7 +78,8 @@ let _ =
     try
       test do_it;
       Printf.printf "%s✓ OH YEY %s%s\n" colors.green colors.default file
-    with _ ->
+    with e ->
       Printf.printf "%s✗ OH NOES %s%s\n" colors.red colors.default file;
+      print_endline (Printexc.to_string e);
       Printexc.print_backtrace stdout;
   ) tests

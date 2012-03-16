@@ -1,2 +1,7 @@
-val foo = 355 / 113
-val (bar: int) = foo - 3141592
+val foo =
+  let x = 355 in
+  let y = 113 in
+  x / y
+
+val (bar: int) =
+  foo - 3141592

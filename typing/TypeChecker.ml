@@ -13,6 +13,8 @@ and raw_error =
   | HasFlexible of typ
   | ExpectedType of typ * Variable.name * term_binder
   | RecursiveOnlyForFunctions
+  | MissingField of Field.name
+  | ExtraField of Field.name
 
 exception TypeCheckerError of error
 
@@ -46,7 +48,16 @@ let print_error buf (env, raw_error) =
       Printf.bprintf buf
         "%a recursive definitions are enabled for functions only"
         Lexer.p env.position
-
+  | MissingField f ->
+      Printf.bprintf buf
+        "%a field %a is missing in that constructor"
+        Lexer.p env.position
+        Field.p f
+  | ExtraField f ->
+      Printf.bprintf buf
+        "%a field %a is superfluous in that constructor"
+        Lexer.p env.position
+        Field.p f
 ;;
 
 (* -------------------------------------------------------------------------- *)
@@ -296,9 +307,13 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
   | EPoint p ->
       env, p
 
-  (*| ELet of rec_flag * (pattern * expression) list * expression
+  | ELet (rec_flag, patexprs, body) ->
+      let env, { subst_expr; _ } = check_bindings env rec_flag patexprs in
+      let body = subst_expr body in
+      check_expression env body
 
-  | EFun of (Variable.name * kind) list * typ list * typ * expression
+
+  (*| EFun of (Variable.name * kind) list * typ list * typ * expression
 
   | EAssign of expression * Field.name * expression
 
@@ -325,9 +340,45 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       let components = List.rev components in
       return env (TyTuple components)
 
-  (* | EConstruct of Datacon.name * (Field.name * expression) list
+  | EConstruct (datacon, fieldexprs) ->
+      (* Find the corresponding definition. *)
+      let _flag, branches = def_for_datacon env datacon in
+      (* And the corresponding branch, so that we obtain the field names in order. *)
+      let branch =
+        List.find (fun (datacon', _) -> Datacon.equal datacon datacon') branches
+      in
+      (* Take out of the provided fields one of them. *)
+      let take env name' l =
+        try
+          let elt = List.find (fun (name, _) -> Field.equal name name') l in
+          snd elt, List.filter (fun x -> x != elt) l
+        with Not_found ->
+          raise_error env (MissingField name')
+      in
+      (* Do the bulk of the work. *)
+      let env, remaining, fieldvals = List.fold_left (fun (env, remaining, fieldvals) -> function
+        | FieldValue (name, _t) ->
+            (* Actually we don't care about the expected type for the field. We
+             * just want to make sure all fields are provided. *)
+            let e, remaining = take env name remaining in
+            let hint = Option.map (fun hint -> hint ^ "_" ^ Field.print name) hint in
+            let env, p = check_expression env ?hint e in
+            env, remaining, FieldValue (name, ty_equals p) :: fieldvals
+        | FieldPermission _ ->
+            env, remaining, fieldvals
+      ) (env, fieldexprs, []) (snd branch) in
+      (* Make sure the user hasn't written any superfluous fields. *)
+      begin match remaining with
+      | (name, _) :: _ ->
+          raise_error env (ExtraField name)
+      | _ ->
+          ()
+      end;
+      let fieldvals = List.rev fieldvals in
+      return env (TyConcreteUnfolded (datacon, fieldvals))
 
-  | EIfThenElse of expression * expression * expression *)
+
+  (* | EIfThenElse of expression * expression * expression *)
 
   | EInt _ ->
       return env int
@@ -361,9 +412,10 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
 and check_bindings
   (env: env)
   (rec_flag: rec_flag)
-  (patexprs: (pattern * expression) list): env * _
+  (patexprs: (pattern * expression) list): env * substitution_kit
   =
-    let env, patexprs, { subst_expr; subst_pat; subst_decl; _ } = bind_patexprs env rec_flag patexprs in
+    let env, patexprs, subst_kit = bind_patexprs env rec_flag patexprs in
+    let { subst_expr; subst_pat; _ } = subst_kit in
     let patterns, expressions = List.split patexprs in
     let expressions = List.map subst_expr expressions in
     let patterns = List.map subst_pat patterns in
@@ -392,7 +444,7 @@ and check_bindings
       let env = unify_pattern env pat point in
       env) env patterns expressions
     in
-    env, subst_decl
+    env, subst_kit
 ;;
 
 let rec check_declaration_group (env: env) (declarations: declaration_group): env =
@@ -401,7 +453,7 @@ let rec check_declaration_group (env: env) (declarations: declaration_group): en
       let env = locate env (p1, p2) in
       check_declaration_group env (declarations :: tl)
   | DMultiple (rec_flag, patexprs) :: tl ->
-      let env, subst_decl = check_bindings env rec_flag patexprs in
+      let env, { subst_decl; _ } = check_bindings env rec_flag patexprs in
       let tl = subst_decl tl in
       check_declaration_group env tl
   | [] ->
