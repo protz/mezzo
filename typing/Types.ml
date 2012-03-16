@@ -464,6 +464,10 @@ let ty_equals x =
   TySingleton (TyPoint x)
 ;;
 
+let ty_unit =
+  TyTuple []
+;;
+
 let bind_term
     (env: env)
     (name: Variable.name)

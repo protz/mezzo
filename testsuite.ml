@@ -30,6 +30,12 @@ let tests = [
   ("constructors_bad_2.hml",
     simple_test Fail (function ExtraField _ -> true | _ -> false));
 
+  ("field_access.hml",
+    simple_test Pass (fun _ -> false));
+
+  ("field_access_bad.hml",
+    simple_test Fail (function NoSuchField _ -> true | _ -> false));
+
   ("arithmetic.hml", fun do_it ->
     let env = do_it () in
     let int = find_type_by_name env "int" in

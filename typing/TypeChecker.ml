@@ -15,6 +15,7 @@ and raw_error =
   | RecursiveOnlyForFunctions
   | MissingField of Field.name
   | ExtraField of Field.name
+  | NoSuchField of point * Field.name
   | SubPattern of pattern
 
 exception TypeCheckerError of error
@@ -59,6 +60,15 @@ let print_error buf (env, raw_error) =
         "%a field %a is superfluous in that constructor"
         Lexer.p env.position
         Field.p f
+  | NoSuchField (point, f) ->
+      let name, binder = find_term env point in
+      Printf.bprintf buf
+        "%a %a has no suitable permission with field %a, the only permissions \
+          available for it are %a"
+        Lexer.p env.position
+        Variable.p name
+        Field.p f
+        pdoc (print_permission_list, (env, binder))
   | SubPattern pat ->
       Printf.bprintf buf
         "%a there's a sub-constraint in that pattern, not allowed: %a"
@@ -365,9 +375,36 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
 
   (*| EFun of (Variable.name * kind) list * typ list * typ * expression
 
-  | EAssign of expression * Field.name * expression
+  | EAssign of expression * Field.name * expression*)
 
-  | EAccess of expression * Field.name*)
+  | EAccess (e, fname) ->
+      let hint = Option.map (fun x -> Printf.sprintf "%s_%s" x (Field.print fname)) hint in
+      let env, p = check_expression env ?hint e in
+      let module M = struct exception Found of point end in
+      begin try
+        List.iter (fun t ->
+          match t with
+          | TyConcreteUnfolded (_, fieldexprs) ->
+              List.iter (function
+                | FieldValue (field, expr) ->
+                    if Field.equal field fname then
+                      begin match expr with
+                      | TySingleton (TyPoint p) ->
+                          raise (M.Found p)
+                      | t ->
+                          let open TypePrinter in
+                          Log.error "Not a point %a" pdoc (ptype, (env, t))
+                      end;
+                | FieldPermission _ ->
+                    ()
+              ) fieldexprs
+          | _ ->
+              ()
+        ) (get_permissions env p);
+        raise_error env (NoSuchField (p, fname))
+      with M.Found p' ->
+        env, p'
+      end
 
   | EApply (e1, e2) ->
       let hint1 = Option.map (fun x -> x ^ "_fun") hint in

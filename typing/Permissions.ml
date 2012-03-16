@@ -674,3 +674,11 @@ and sub_perm (env: env) (t: typ): env option =
       Log.error "[sub_perm] only works with types that have kind PERM"
 ;;
 
+
+let full_merge (env: env) (p: point) (p': point): env =
+  Log.affirm (is_term env p && is_term env p') "Only interested in TERMs here.";
+
+  let perms = get_permissions env p' in
+  let env = merge_left env p p' in
+  List.fold_left (fun env t -> add env p t) env perms
+;;
