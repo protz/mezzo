@@ -1,0 +1,13 @@
+val inc (x: int): int = x + 1
+
+val y = inc 2
+
+val rec f (x: int): int =
+  f (inc x)
+
+val count = cref 0
+
+val counter (): int =
+  let x = rget count in
+  rset x (count + 1);
+  x

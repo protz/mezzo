@@ -110,11 +110,13 @@ let process file_path =
 ;;
 
 let run f =
-  let open TypeChecker in
   try
     f ()
   with
-  | TypeCheckerError e ->
-      Hml_String.beprintf "%a\n" print_error e;
+  | TypeChecker.TypeCheckerError e ->
+      Hml_String.beprintf "%a\n" TypeChecker.print_error e;
       exit 251
+  | WellKindedness.WellKindednessError e ->
+      Hml_String.beprintf "%a\n" WellKindedness.print_error e;
+      exit 250
 ;;

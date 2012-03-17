@@ -625,6 +625,12 @@ let fold env f acc =
   acc env.state
 ;;
 
+let fold_terms env f acc =
+  PersistentUnionFind.fold (fun acc k (head, binding) ->
+    match binding with BTerm b -> f acc k head b | _ -> acc)
+  acc env.state
+;;
+
 let fold_types env f acc =
   PersistentUnionFind.fold (fun acc k (head, binding) ->
     match binding with BType b -> f acc k head b | _ -> acc)
@@ -901,7 +907,10 @@ module TypePrinter = struct
         | Some t ->
             lparen ^^ string "f=" ^^ print_type env t ^^ rparen
         | _ ->
-            print_var (get_name env point)
+            if is_flexible env point then
+              print_var (get_name env point) ^^ star
+            else
+              print_var (get_name env point)
         end
 
     | TyVar i ->

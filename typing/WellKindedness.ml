@@ -38,17 +38,71 @@ type env = {
   location: Lexing.position * Lexing.position;
 }
 
+(* The empty environment. *)
+
+let empty : env =
+  { level = 0; mapping = M.empty; location = Lexing.dummy_pos, Lexing.dummy_pos }
+
 (* Error messages. *)
 
-let unbound env x =
-  Log.error "%a unbound identifier %a"
-    Lexer.p env.location
-    Variable.p x
+type error = env * raw_error
 
-let mismatch expected_kind inferred_kind =
-  Log.error "This type has kind %a but we were expecting kind %a"
-    T.TypePrinter.p_kind inferred_kind
-    T.TypePrinter.p_kind expected_kind
+and raw_error =
+  | Unbound of Variable.name
+  | Mismatch of kind * kind
+  | NotAnArrow of T.typ * kind
+  | BoundTwice of Variable.name
+
+exception WellKindednessError of error
+
+let raise_error env e =
+  raise (WellKindednessError (env, e))
+;;
+
+let print_error buf (env, raw_error) =
+  let open T.TypePrinter in
+  begin match raw_error with
+  | Unbound x ->
+      Printf.bprintf buf
+        "%a unbound identifier %a"
+        Lexer.p env.location
+        Variable.p x
+  | Mismatch (expected_kind, inferred_kind) ->
+      Printf.bprintf buf
+        "%a this type has kind %a but we were expecting kind %a"
+        Lexer.p env.location
+        p_kind inferred_kind
+        p_kind expected_kind
+  | NotAnArrow (t, kind) ->
+      Printf.bprintf buf
+        "%a cannot apply arguments to type %a since it has kind %a"
+        Lexer.p env.location
+        pdoc (ptype, (Types.empty_env, t))
+        p_kind kind
+  | BoundTwice x ->
+      Printf.bprintf buf
+        "%a variable %a is bound twice"
+        Lexer.p env.location
+        Variable.p x
+  end;
+  Printf.bprintf buf "\n";
+  let bindings = M.fold (fun x (kind, level) acc ->
+    (level, (x, kind)) :: acc) env.mapping []
+  in
+  let bindings = List.sort (fun (x, _) (y, _) -> compare x y) bindings in
+  List.iter (fun (level, (x, kind)) ->
+    Printf.bprintf buf "At level %d, variable %a with kind=%a\n"
+      level
+      Variable.p x
+      p_kind kind
+  ) bindings;
+;;
+
+let unbound env x =
+  raise_error env (Unbound x)
+
+let mismatch env expected_kind inferred_kind =
+  raise_error env (Mismatch (expected_kind, inferred_kind))
 
 let illegal_consumes () =
   assert false (* TEMPORARY *)
@@ -56,14 +110,14 @@ let illegal_consumes () =
 let illegal_named_tuple_component x =
   assert false (* TEMPORARY *)
 
-let deconstruct_arrow = function
+let deconstruct_arrow env t = function
   | KArrow (ty1, ty2) ->
       ty1, ty2
   | kind ->
-      assert false (* TEMPORARY *)
+      raise_error env (NotAnArrow (t, kind))
 
 let bound_twice x =
-  assert false (* TEMPORARY *)
+  raise_error empty (BoundTwice x)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -77,11 +131,6 @@ let strict_add x kind env =
 
 type fragment =
     kind M.t
-
-(* The empty environment. *)
-
-let empty : env =
-  { level = 0; mapping = M.empty; location = Lexing.dummy_pos, Lexing.dummy_pos }
 
 (* [find x env] looks up the name [x] in the environment [env] and returns a
    pair of a kind and a de Bruijn index (not a de Bruijn level!). *)
@@ -221,7 +270,7 @@ let rec infer special env ty : kind * T.typ =
       T.TySingleton (check false env tyx KTerm)
   | TyApp (ty1, ty2) ->
       let kind1, ty1 = infer false env ty1 in
-      let domain, codomain = deconstruct_arrow kind1 in
+      let domain, codomain = deconstruct_arrow env ty1 kind1 in
       codomain,
       T.TyApp (
 	ty1,
@@ -269,7 +318,7 @@ and check special env ty expected_kind =
   if expected_kind = inferred_kind (* generic equality at kinds! *) then
     ty
   else
-    mismatch expected_kind inferred_kind
+    mismatch env expected_kind inferred_kind
 
 (* The following function performs kind checking and translation for a tuple
    component. The component is expected to have kind [KType]. It can be

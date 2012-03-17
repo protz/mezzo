@@ -12,3 +12,12 @@ data list a =
 exclusive data ref a = Ref {
   contents: a;
 }
+
+val cref [a] (x: a): ref a =
+  Ref { contents = a }
+
+val rget [a] (x: ref a): a =
+  x.contents
+
+val rset [a] (x: ref a) (c: a): () =
+  x.contents <- a

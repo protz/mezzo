@@ -18,9 +18,15 @@ let can_merge (env: env) (t1: typ) (p2: point): bool =
   | TyPoint p1 ->
       Log.affirm (is_flexible env p2) "[can_merge] takes a flexible variable \
         as its second parameter";
-      Log.affirm (get_kind env p1 = get_kind env p2) "Wait, what?";
-      let f1, f2 = get_fact env p1, get_fact env p2 in
-      fact_leq f1 f2
+      if (is_type env p2) then begin
+        Log.affirm (get_kind env p1 = get_kind env p2) "Wait, what?";
+        let f1, f2 = get_fact env p1, get_fact env p2 in
+        fact_leq f1 f2
+      end else if (is_term env p2) then begin
+        (* TODO check for [ghost] here? *)
+        true
+      end else
+        true
   | _ ->
       Log.affirm (is_flexible env p2) "[can_merge] takes a flexible variable \
         as its second parameter";
@@ -648,6 +654,9 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         Some (merge_left env p1 p2)
       else
         None
+
+  | TySingleton t1, TySingleton t2 ->
+      sub_type env t1 t2
 
   | _, TyPoint p2 ->
       if is_flexible env p2 then

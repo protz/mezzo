@@ -199,6 +199,10 @@ let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x:
 
 
 let check_return_type (env: env) (point: point) (t: typ): env =
+  TypePrinter.(
+    Log.debug ~level:4 "Expected return type %a"
+      pdoc (ptype, (env, t)));
+    
   match Permissions.sub env point t with
   | Some env ->
       env
@@ -373,7 +377,49 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       check_expression env body
 
 
-  (*| EFun of (Variable.name * kind) list * typ list * typ * expression*)
+  | EFun (vars, args, return_type, body) ->
+      let sub_env = fold_terms env (fun sub_env point _ _ ->
+        replace_term sub_env point (fun raw ->
+          let permissions =
+            List.filter (fun t ->
+              match FactInference.analyze_type env t with
+              | Duplicable [||] ->
+                  true
+              | Duplicable _
+              | Fuzzy _ ->
+                  Log.error "This is unexpected"
+              | _ ->
+                  false
+            ) raw.permissions
+          in
+          { raw with permissions }
+        )) env
+      in
+      let sub_env, { subst_type; subst_expr; _ } = bind_vars sub_env vars in
+      let args = List.map subst_type args in
+      let return_type = subst_type return_type in
+      let body = subst_expr body in
+      let sub_env = List.fold_left
+        (fun sub_env arg ->
+          match arg with
+          | TyTuple (components) ->
+              List.fold_left (fun sub_env -> function
+                | TyTupleComponentValue (TySingleton (TyPoint _)) ->
+                    sub_env
+                | TyTupleComponentPermission t ->
+                    Permissions.add_perm sub_env t
+                | _ ->
+                   Log.error "All types should be in expanded form" 
+              ) sub_env components
+          | _ ->
+              Log.error "Previous passes should enforce that all function \
+                types are tuples, right?"
+        ) sub_env args
+      in
+      let sub_env, p = check_expression sub_env body in
+      let _sub_env = check_return_type sub_env p return_type in
+      let expected_type = type_for_function_def expr in
+      return env expected_type
 
   | EAssign (e1, fname, e2) ->
       let hint = Option.map (fun x -> Printf.sprintf "%s_%s" x (Field.print fname)) hint in
