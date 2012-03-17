@@ -626,6 +626,9 @@ and check_expression (env: env) (expression: expression): E.expression =
       E.ELet (rec_flag, patexprs, e)
 
   | EFun (vars, params, return_type, body) ->
+      (* TEMPORARY there's a bug here, this doesn't work properly in case the
+       * function has multiple arguments. *)
+
       (* Add all the function's type parameters into the environment. *)
       let env = List.fold_left bind env vars in
       (* While desugaring the function types, [(x: τ)] will translate to
@@ -633,7 +636,7 @@ and check_expression (env: env) (expression: expression): E.expression =
        * each one of the function parameters. *)
       let env, bindings, params = List.fold_left (fun (env, bindings, params) param ->
         let env, binding, param = collect_and_check_function_parameter env param in
-        env, binding :: bindings, param :: params) (env, [], []) params
+        env, List.rev binding :: bindings, param :: params) (env, [], []) params
       in
       let params = List.rev params in
       (* We're going great lengths to ensure we handle currified functions, even
@@ -641,7 +644,8 @@ and check_expression (env: env) (expression: expression): E.expression =
       let vars = List.flatten (vars :: bindings) in
       let return_type = check false env return_type KType in
       let body = check_expression env body in
-      E.EFun (vars, params, return_type, body)
+      let r = E.EFun (vars, params, return_type, body) in
+      r
 
   | EAssign (e1, var, e2) ->
       let e1 = check_expression env e1 in

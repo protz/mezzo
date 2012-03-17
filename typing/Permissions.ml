@@ -3,6 +3,35 @@
 open Types
 open Utils
 
+(* -------------------------------------------------------------------------- *)
+
+(* Error handling *)
+
+type error = env * raw_error
+
+and raw_error =
+  | ExpectedATerm of point
+
+exception PermissionsError of error
+
+let raise_error env e =
+  raise (PermissionsError (env, e))
+;;
+
+let print_error buf (env, raw_error) =
+  let open TypePrinter in
+  let open WellKindedness.KindPrinter in
+  let open Expressions.ExprPrinter in
+  match raw_error with
+  | ExpectedATerm p ->
+      Printf.bprintf buf
+        "%a %a is not a term"
+        Lexer.p env.position
+        Variable.p (get_name env p)
+;;
+
+(* -------------------------------------------------------------------------- *)
+
 (* Saves us the trouble of matching all the time. *)
 let (!!) = function TyPoint x -> x | _ -> assert false;;
 
@@ -526,6 +555,9 @@ let rec sub (env: env) (point: point) (t: typ): env option =
     and performs the actual work of extracting [t] from the list of permissions
     for [point]. *)
 and sub_clean (env: env) (point: point) (t: typ): env option =
+  if (not (is_term env point)) then
+    raise_error env (ExpectedATerm point);
+
   let permissions = get_permissions env point in
 
   (* This is a very dumb strategy, that may want further improvements: we just
@@ -563,7 +595,8 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
     unifying some flexible variables); it returns [None] otherwise. *)
 and sub_type (env: env) (t1: typ) (t2: typ): env option =
   TypePrinter.(
-    Log.debug ~level:4 "sub_type\n  t1 %a\n  t2 %a"
+    Log.debug ~level:4 "sub_type @ %a\n  t1 %a\n  t2 %a"
+      Lexer.p env.position
       pdoc (ptype, (env, t1))
       pdoc (ptype, (env, t2)));
   match t1, t2 with

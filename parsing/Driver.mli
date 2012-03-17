@@ -41,7 +41,7 @@ val type_check: SurfaceSyntax.program -> Types.env
 
 (** [process] doesn't catch exceptions. This is useful for tests that want to
     assert that a test program failed in a certain way. *)
-val process: string -> Types.env
+val process: bool -> string -> Types.env
 
 (** [run] runs the specified function and prints any error that may pop up. *)
 val run: (unit -> 'a) -> 'a

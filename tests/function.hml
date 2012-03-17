@@ -7,7 +7,7 @@ val rec f (x: int): int =
 
 val count = cref 0
 
-val counter (): int =
+val counter (permission count: ref int): int =
   let x = rget count in
-  rset x (count + 1);
+  rset (count, x + 1);
   x

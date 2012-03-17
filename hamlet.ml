@@ -20,11 +20,13 @@
 let _ =
   let arg_filename = ref "" in
   let arg_debug = ref 0 in
+  let arg_pervasives = ref true in
   let usage = "HaMLet: a next-generation version of ML\n\
     Usage: " ^ Sys.argv.(0) ^ " [OPTIONS] FILE\n"
   in
   Arg.parse
     [
+    "-nopervasives", Arg.Clear arg_pervasives, "don't try to prepend pervasives.hml to the file";
     "-debug", Arg.Set_int arg_debug, "output level: 0 (default) = no messages, 4 = super verbose";
     "-I", Arg.String Driver.add_include_dir, "include this directory";
     ]
@@ -36,7 +38,7 @@ let _ =
     )
     usage;
   Log.enable_debug !arg_debug;
-  let env = Driver.run (fun () -> Driver.process !arg_filename) in
+  let env = Driver.run (fun () -> Driver.process !arg_pervasives !arg_filename) in
   (* let env = Driver.process !arg_filename in *)
   Log.debug ~level:1 "%a"
     Types.TypePrinter.pdoc (Types.TypePrinter.print_permissions, env);

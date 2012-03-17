@@ -100,12 +100,17 @@ let find_in_include_dirs (filename: string): string =
     s
 ;;
 
-let process file_path =
+let process use_pervasives file_path =
   let path_to_pervasives = find_in_include_dirs "pervasives.hml" in
   let defs, declarations = lex_and_parse path_to_pervasives in
   let defs', declarations' = lex_and_parse file_path in
   (* HACK HACK HACK *)
-  let program = defs @ defs', declarations @ declarations' in
+  let program =
+    if use_pervasives then
+      defs @ defs', declarations @ declarations'
+    else
+      defs', declarations'
+  in
   type_check program
 ;;
 
@@ -118,5 +123,8 @@ let run f =
       exit 251
   | WellKindedness.WellKindednessError e ->
       Hml_String.beprintf "%a\n" WellKindedness.print_error e;
+      exit 250
+  | Permissions.PermissionsError e ->
+      Hml_String.beprintf "%a\n" Permissions.print_error e;
       exit 250
 ;;

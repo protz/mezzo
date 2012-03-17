@@ -200,8 +200,12 @@ let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x:
 
 let check_return_type (env: env) (point: point) (t: typ): env =
   TypePrinter.(
-    Log.debug ~level:4 "Expected return type %a"
-      pdoc (ptype, (env, t)));
+    let _, binder = find_term env point in
+    Log.debug ~level:4 "Expecting return type %a; permissions for the point: %a"
+      pdoc (ptype, (env, t))
+      pdoc (print_permission_list, (env, binder));
+    TestUtils.print_env env;
+  );
     
   match Permissions.sub env point t with
   | Some env ->

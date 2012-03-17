@@ -104,7 +104,7 @@ let _ =
   Driver.add_include_dir "tests";
   List.iter (fun (file, test) ->
     let do_it = fun () ->
-      let env = Driver.process (Filename.concat "tests" file) in
+      let env = Driver.process true (Filename.concat "tests" file) in
       env
     in
     try
