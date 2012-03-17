@@ -36,8 +36,8 @@ let _ =
     )
     usage;
   Log.enable_debug !arg_debug;
-  (* let env = Driver.run (fun () -> Driver.process !arg_filename) in *)
-  let env = Driver.process !arg_filename in
+  let env = Driver.run (fun () -> Driver.process !arg_filename) in
+  (* let env = Driver.process !arg_filename in *)
   Log.debug ~level:1 "%a"
     Types.TypePrinter.pdoc (Types.TypePrinter.print_permissions, env);
 ;;

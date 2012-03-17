@@ -411,6 +411,8 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
                 t
           ) permissions
         in
+        if not !found then
+          raise_error env (NoSuchField (p1, fname));
         { binder with permissions })
       in
       return env ty_unit
