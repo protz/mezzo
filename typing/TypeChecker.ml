@@ -9,9 +9,9 @@ open Utils
 type error = env * raw_error
 
 and raw_error =
-  | NotAFunction of Variable.name * term_binder
+  | NotAFunction of point
   | HasFlexible of typ
-  | ExpectedType of typ * Variable.name * term_binder
+  | ExpectedType of typ * point
   | RecursiveOnlyForFunctions
   | MissingField of Field.name
   | ExtraField of Field.name
@@ -28,24 +28,52 @@ let print_error buf (env, raw_error) =
   let open TypePrinter in
   let open WellKindedness.KindPrinter in
   let open ExprPrinter in
+  let print_permissions () =
+    Printf.bprintf buf "\nOH NOES. Printing permissions.\n%a" pdoc (print_permissions, env);
+    Printf.bprintf buf "Error message follows.\n";
+  in
   match raw_error with
-  | NotAFunction (fname, fbinder) ->
-      Printf.bprintf buf
-        "%a %a is not a function, the only permissions available for it are %a"
-        Lexer.p env.position
-        Variable.p fname
-        pdoc (print_permission_list, (env, fbinder))
+  | NotAFunction p ->
+      let fname, fbinder = find_term env p in
+      begin match Permissions.fold env p with
+      | Some t ->
+          Printf.bprintf buf
+            "%a %a is not a function, it has type %a"
+            Lexer.p env.position
+            Variable.p fname
+            pdoc (ptype, (env, t))
+      | None ->
+          print_permissions ();
+          Printf.bprintf buf
+            "%a %a is not a function, the only permissions available for it are %a"
+            Lexer.p env.position
+            Variable.p fname
+            pdoc (print_permission_list, (env, fbinder))
+      end
   | HasFlexible t ->
       Printf.bprintf buf
         "%a the following type still contains flexible variables: %a"
         Lexer.p env.position
         pdoc (ptype, (env, t));
-  | ExpectedType (t1, xname, xbinder) ->
-      Printf.bprintf buf
-        "%a expected an argument of type %a but the only permissions available for %a are %a"
-        Lexer.p env.position
-        pdoc (ptype, (env, t1)) Variable.p xname
-        pdoc (print_permission_list, (env, xbinder))
+  | ExpectedType (t, point) ->
+      let xname, xbinder = find_term env point in
+      let t1 = Permissions.fold_type env t in
+      let t2 = Permissions.fold env point in
+      begin match t1, t2 with
+      | Some t1, Some t2 -> (* #winning *)
+           Printf.bprintf buf
+            "%a expected an argument of type %a but the argument has type %a"
+            Lexer.p env.position
+            pdoc (ptype, (env, t1))
+            pdoc (ptype, (env, t2))
+      | _ ->
+          print_permissions ();
+          Printf.bprintf buf
+            "%a expected an argument of type %a but the only permissions available for %a are %a"
+            Lexer.p env.position
+            pdoc (ptype, (env, t)) Variable.p xname
+            pdoc (print_permission_list, (env, xbinder))
+      end
   | RecursiveOnlyForFunctions ->
       Printf.bprintf buf
         "%a recursive definitions are enabled for functions only"
@@ -62,13 +90,24 @@ let print_error buf (env, raw_error) =
         Field.p f
   | NoSuchField (point, f) ->
       let name, binder = find_term env point in
-      Printf.bprintf buf
-        "%a %a has no suitable permission with field %a, the only permissions \
-          available for it are %a"
-        Lexer.p env.position
-        Variable.p name
-        Field.p f
-        pdoc (print_permission_list, (env, binder))
+      begin match Permissions.fold env point with
+      | Some t ->
+          Printf.bprintf buf
+            "%a %a has type %a, which doesn't have a field named %a"
+            Lexer.p env.position
+            Variable.p name
+            pdoc (ptype, (env, t))
+            Field.p f
+      | None ->
+          print_permissions ();
+          Printf.bprintf buf
+            "%a %a has no suitable permission with field %a, the only permissions \
+              available for it are %a"
+            Lexer.p env.position
+            Variable.p name
+            Field.p f
+            pdoc (print_permission_list, (env, binder))
+      end
   | SubPattern pat ->
       Printf.bprintf buf
         "%a there's a sub-constraint in that pattern, not allowed: %a"
@@ -173,7 +212,7 @@ let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x:
   let env, (t1, t2) =
     match permissions with
     | [] ->
-        raise_error env (NotAFunction (fname, fbinder))
+        raise_error env (NotAFunction f)
     | t :: [] ->
         flex_deconstruct t
     | t :: _ ->
@@ -182,7 +221,6 @@ let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x:
         flex_deconstruct t
   in
   (* Examine [x]. *)
-  let xname, xbinder = find_term env x in
   match Permissions.sub env x t1 with
   | Some env ->
       (* If we're not allowed to have flexible variables, make sure there aren't
@@ -191,9 +229,12 @@ let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x:
         raise_error env (HasFlexible t2)
       end;
       (* Return the "good" type. *)
+      (* TODO enter all existential quantifiers here *)
+      let t2, perms = Permissions.collect t2 in
+      let env = List.fold_left Permissions.add_perm env perms in
       env, t2
   | None ->
-      raise_error env (ExpectedType (t1, xname, xbinder))
+      raise_error env (ExpectedType (t1, x))
 
 ;;
 
@@ -204,7 +245,7 @@ let check_return_type (env: env) (point: point) (t: typ): env =
     Log.debug ~level:4 "Expecting return type %a; permissions for the point: %a"
       pdoc (ptype, (env, t))
       pdoc (print_permission_list, (env, binder));
-    TestUtils.print_env env;
+    (* TestUtils.print_env env ;*)
   );
     
   match Permissions.sub env point t with
@@ -212,9 +253,8 @@ let check_return_type (env: env) (point: point) (t: typ): env =
       env
   | None ->
       let open TypePrinter in
-      let name, binder = find_term env point in
       Log.debug ~level:4 "%a\n------------\n" penv env;
-      raise_error env (ExpectedType (t, name, binder))
+      raise_error env (ExpectedType (t, point))
 ;;
 
 
@@ -497,10 +537,15 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       end
 
   | EApply (e1, e2) ->
+      let pos = env.position in
       let hint1 = Option.map (fun x -> x ^ "_fun") hint in
       let hint2 = Option.map (fun x -> x ^ "_arg") hint in
       let env, x1 = check_expression env ?hint:hint1 e1 in
       let env, x2 = check_expression env ?hint:hint2 e2 in
+      (* Give an error message that mentions the entire function call. We should
+       * probably have a function called nearest_loc that returns the location
+       * of [e2] so that we can be even more precise in the error message. *)
+      let env = locate env pos in
       let env, return_type = check_function_call env x1 x2 in
       return env return_type
 

@@ -56,7 +56,7 @@ let tests = [
       raise (Failure "")
     with TypeCheckerError e ->
       match e with
-      | env, ExpectedType (t, _, _) ->
+      | env, ExpectedType (t, _) ->
           let int = find_type_by_name env "int" in
           assert (equal env t (int @-> int))
       | _ ->
@@ -68,7 +68,7 @@ let tests = [
       raise (Failure "")
     with TypeCheckerError e ->
       match e with
-      | env, ExpectedType (t, _, _) ->
+      | env, ExpectedType (t, _) ->
           let int = find_type_by_name env "int" in
           let xlist x =
             let c = find_type_by_name env "xlist" in
@@ -90,7 +90,8 @@ let tests = [
       raise (Failure "")
     with TypeCheckerError e ->
       match e with
-      | env, ExpectedType (_, _, r) ->
+      | env, ExpectedType (_, p) ->
+          let _, r = find_term env p in
           let p = point_by_name env "r" in
           let _, r' = find_term env p in
           assert (r = r')

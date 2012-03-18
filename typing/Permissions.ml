@@ -736,3 +736,104 @@ let full_merge (env: env) (p: point) (p': point): env =
   let env = merge_left env p p' in
   List.fold_left (fun env t -> add env p t) env perms
 ;;
+
+exception NotFoldable
+
+(** [fold env point] tries to find (hopefully) one "main" type for [point], by
+    folding back its "main" type [t] into a form that's suitable for one
+    thing, and one thing only: printing. *)
+let rec fold (env: env) (point: point): typ option =
+  let perms = get_permissions env point in
+  let perms = List.filter
+    (function
+      | TySingleton (TyPoint p) when same env p point ->
+          false
+      | _ ->
+          true
+    ) perms
+  in
+  match perms with
+  | [] ->
+      Some TyUnknown
+  | t :: [] ->
+      begin try
+        Some (fold_type_raw env t)
+      with NotFoldable ->
+        None
+      end
+  | _ ->
+      None
+
+
+and fold_type_raw (env: env) (t: typ): typ =
+  match t with
+  | TyUnknown
+  | TyDynamic ->
+      t
+
+  | TyVar _ ->
+      Log.error "All types should've been opened at that stage"
+
+  | TyPoint _ ->
+      t
+
+  | TyForall _
+  | TyExists _
+  | TyApp _ ->
+      t
+
+  | TySingleton (TyPoint p) ->
+      begin match fold env p with
+      | Some t ->
+          t
+      | None ->
+          raise NotFoldable
+      end
+
+  | TyTuple components ->
+      let rec fold_components = function
+        | TyTupleComponentValue (TySingleton (TyPoint p)) ::
+          TyTupleComponentPermission (TyAnchoredPermission (TyPoint p', t)) ::
+          components when same env p p' ->
+            TyTupleComponentValue (fold_type_raw env t) :: fold_components components
+        | TyTupleComponentValue t :: ts ->
+            TyTupleComponentValue (fold_type_raw env t) :: fold_components ts
+        | TyTupleComponentPermission t :: ts ->
+            TyTupleComponentPermission (fold_type_raw env t) :: fold_components ts
+        | [] ->
+            []
+      in
+      begin match components with
+      | TyTupleComponentValue t :: [] ->
+          t
+      | _ ->
+          TyTuple (fold_components components)
+      end
+
+  (* TODO *)
+  | TyConcreteUnfolded _ ->
+      t
+
+  | TySingleton _ ->
+      t
+
+  | TyArrow _ ->
+      t
+
+  | TyAnchoredPermission (x, t) ->
+      TyAnchoredPermission (x, fold_type_raw env t)
+
+  | TyEmpty ->
+      t
+
+  | TyStar _ ->
+      Log.error "Huh I don't think we should have that here"
+
+;;
+
+let fold_type env t =
+  try
+    Some (fold_type_raw env t)
+  with NotFoldable ->
+    None
+;;

@@ -54,3 +54,11 @@ val sub: env -> point -> typ -> env option
 (** [sub_perm env t] takes a type [t] with kind PERM, and tries to return the
     environment without the corresponding permission. *)
 val sub_perm: env -> typ -> env option
+
+(** [fold env point] tries to find (hopefully) one "main" type for [point], by
+    folding back its "main" type [t] into a form that's suitable for one
+    thing, and one thing only: printing. *)
+val fold: env -> point -> typ option
+
+val fold_type: env -> typ -> typ option
+
