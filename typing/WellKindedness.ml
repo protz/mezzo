@@ -85,7 +85,8 @@ let print_error buf (env, raw_error) =
         Lexer.p env.location
         Variable.p x
   end;
-  Printf.bprintf buf "\n";
+  (* Uncomment this part to get a really verbose error message. *)
+  (* Printf.bprintf buf "\n";
   let bindings = M.fold (fun x (kind, level) acc ->
     (level, (x, kind)) :: acc) env.mapping []
   in
@@ -95,7 +96,7 @@ let print_error buf (env, raw_error) =
       level
       Variable.p x
       p_kind kind
-  ) bindings;
+  ) bindings; *)
 ;;
 
 let unbound env x =
@@ -617,7 +618,9 @@ and check_expression (env: env) (expression: expression): E.expression =
       E.EConstraint (e, t)
 
   | EVar x ->
-      let _kind, index = find x env in
+      let kind, index = find x env in
+      if kind <> KTerm then
+        raise_error env (Mismatch (KTerm, kind));
       E.EVar index
 
   | ELet (rec_flag, patexprs, e) ->
