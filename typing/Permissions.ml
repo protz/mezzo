@@ -10,7 +10,7 @@ open Utils
 type error = env * raw_error
 
 and raw_error =
-  | ExpectedATerm of point
+  | Foobar
 
 exception PermissionsError of error
 
@@ -23,11 +23,10 @@ let print_error buf (env, raw_error) =
   let open WellKindedness.KindPrinter in
   let open Expressions.ExprPrinter in
   match raw_error with
-  | ExpectedATerm p ->
+  | Foobar ->
       Printf.bprintf buf
-        "%a %a is not a term"
+        "%a foobar"
         Lexer.p env.position
-        Variable.p (get_name env p)
 ;;
 
 (* -------------------------------------------------------------------------- *)
@@ -556,7 +555,7 @@ let rec sub (env: env) (point: point) (t: typ): env option =
     for [point]. *)
 and sub_clean (env: env) (point: point) (t: typ): env option =
   if (not (is_term env point)) then
-    raise_error env (ExpectedATerm point);
+    Log.error "[WellKindedness] should've checked that for us";
 
   let permissions = get_permissions env point in
 
