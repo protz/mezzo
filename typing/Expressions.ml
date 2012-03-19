@@ -443,6 +443,15 @@ let eunloc = function
       e
 ;;
 
+
+let eloc = function
+  | ELocated (_, p1, p2) ->
+      p1, p2
+  | _ ->
+      Log.error "Only call this function when you're sure there's a ELocated node."
+;;
+
+
 (* [punloc p] removes any [PLocated] located in front of [p]. *)
 let punloc = function
   | PLocated (p, _, _)

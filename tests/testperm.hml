@@ -3,14 +3,14 @@
 abstract int :: TYPE
 fact duplicable (int)
 
-abstract ref (a :: TYPE) :: TYPE
-fact exclusive (ref a)
+(*abstract ref (a :: TYPE) :: TYPE
+fact exclusive (ref a) *)
 
 data list a =
   | Nil
   | Cons { head: a; tail: list a }
 
-abstract foobar (a :: TYPE) (b :: TYPE) (c :: TYPE) :: TYPE
+(* abstract foobar (a :: TYPE) (b :: TYPE) (c :: TYPE) :: TYPE
 fact duplicable (c) => duplicable (foobar a b c)
 
 data pair a b = Pair { left: a; right: b }
@@ -22,13 +22,14 @@ data t1 a =
 
 data t2 a =
   | Foo2
-  | Bar { baz: t1 a }
+  | Bar { baz: t1 a }*)
 
 (* Test: apply length to x: list b and see how it works. *)
 data listops =
   ListOps {
-    length: [a, b, c] (x: list a) -> (y: list b, z: list c) -> int;
-    concat: [a] (consumes l1: list a, consumes l2: list a) -> (l3: list a)
+    length: [a] list a -> int;
+    foo: [a] (consumes l: list a) -> (permission l: list unknown);
+    (* concat: [a] (consumes l1: list a, consumes l2: list a) -> (l3: list a) *)
   }
 
 (* Test: make sure we don't unfold this infinitely. *)

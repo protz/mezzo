@@ -101,15 +101,15 @@ let find_in_include_dirs (filename: string): string =
 ;;
 
 let process use_pervasives file_path =
-  let path_to_pervasives = find_in_include_dirs "pervasives.hml" in
-  let defs, declarations = lex_and_parse path_to_pervasives in
-  let defs', declarations' = lex_and_parse file_path in
   (* HACK HACK HACK *)
   let program =
     if use_pervasives then
+      let path_to_pervasives = find_in_include_dirs "pervasives.hml" in
+      let defs, declarations = lex_and_parse path_to_pervasives in
+      let defs', declarations' = lex_and_parse file_path in
       defs @ defs', declarations @ declarations'
     else
-      defs', declarations'
+      lex_and_parse file_path
   in
   type_check program
 ;;

@@ -599,6 +599,9 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       pdoc (ptype, (env, t1))
       pdoc (ptype, (env, t2)));
   match t1, t2 with
+  | _, TyUnknown ->
+      Some env
+
   | TyTuple components1, TyTuple components2 ->
       (* We can only substract a tuple from another one if they have the same
        * length. *)

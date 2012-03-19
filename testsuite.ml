@@ -50,17 +50,8 @@ let tests = [
     check env foo int;
     check env bar int);
 
-  ("wrong_type_annotation.hml", fun do_it ->
-    try
-      ignore (do_it ());
-      raise (Failure "")
-    with TypeCheckerError e ->
-      match e with
-      | env, ExpectedType (t, _) ->
-          let int = find_type_by_name env "int" in
-          assert (equal env t (int @-> int))
-      | _ ->
-          raise (Failure ""));
+  ("wrong_type_annotation.hml",
+    simple_test Fail (function ExpectedType _ -> true | _ -> false));
 
   ("constraints_in_patterns.hml", fun do_it ->
     try
@@ -77,6 +68,12 @@ let tests = [
           assert (equal env t (tuple [xlist int; xlist int]))
       | _ ->
           raise (Failure ""));
+
+  ("function.hml", fun do_it ->
+    let env = do_it () in
+    let int = find_type_by_name env "int" in
+    let foobar = point_by_name env "foobar" in
+    check env foobar (tuple [int; int]));
 
   ("list.hml", fun do_it ->
     let env = do_it () in

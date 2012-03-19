@@ -29,8 +29,8 @@ let print_error buf (env, raw_error) =
   let open WellKindedness.KindPrinter in
   let open ExprPrinter in
   let print_permissions () =
-    Printf.bprintf buf "\nOH NOES. Printing permissions.\n%a" pdoc (print_permissions, env);
-    Printf.bprintf buf "Error message follows.\n";
+    Printf.bprintf buf "\nOH NOES. Printing permissions.\n\n%a" pdoc (print_permissions, env);
+    Printf.bprintf buf "\nError message follows.\n\n";
   in
   match raw_error with
   | NotAFunction p ->
@@ -62,7 +62,7 @@ let print_error buf (env, raw_error) =
       begin match t1, t2 with
       | Some t1, Some t2 -> (* #winning *)
            Printf.bprintf buf
-            "%a expected an argument of type %a but the argument has type %a"
+            "%a expected a subexpression of type %a but it has type %a"
             Lexer.p env.position
             pdoc (ptype, (env, t1))
             pdoc (ptype, (env, t2))
@@ -461,6 +461,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
         ) sub_env args
       in
       let sub_env, p = check_expression sub_env body in
+      let sub_env = locate sub_env (eloc body) in
       let _sub_env = check_return_type sub_env p return_type in
       let expected_type = type_for_function_def expr in
       return env expected_type
@@ -537,7 +538,6 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       end
 
   | EApply (e1, e2) ->
-      let pos = env.position in
       let hint1 = Option.map (fun x -> x ^ "_fun") hint in
       let hint2 = Option.map (fun x -> x ^ "_arg") hint in
       let env, x1 = check_expression env ?hint:hint1 e1 in
@@ -545,7 +545,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       (* Give an error message that mentions the entire function call. We should
        * probably have a function called nearest_loc that returns the location
        * of [e2] so that we can be even more precise in the error message. *)
-      let env = locate env pos in
+      let env = locate env (eloc e2) in
       let env, return_type = check_function_call env x1 x2 in
       return env return_type
 

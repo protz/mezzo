@@ -11,3 +11,6 @@ val counter (permission count: ref int): int =
   let x = rget count in
   rset (count, x + 1);
   x
+
+val foobar =
+  (counter (), counter ())

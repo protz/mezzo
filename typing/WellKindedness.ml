@@ -216,6 +216,58 @@ let rec bi ty : fragment =
 
 (* ---------------------------------------------------------------------------- *)
 
+(* [insert_permissions_rhs t] inserts the right set of permissions in [t], where
+ * [t] is on the rhs of an arrow. *)
+let insert_permissions_rhs perms = function
+  | TyTuple components ->
+      TyTuple (perms @ components)
+  | _ as t ->
+      if List.length perms > 0 then
+        (* The [ConsumesAndProduces] shouldn't matter here. *)
+        TyTuple ((ConsumesAndProduces, TyTupleComponentValue (None, t)) :: perms)
+      else
+        t
+
+(* [populate_arrow_lhs] assigns names to tuple type components, and also returns
+ * a list of type components that should be added to the rhs for good measure. *) 
+let rec populate_arrow_lhs env ty : typ * tuple_type_component list =
+  let rec find_name () =
+    let name = Utils.fresh_name "arg_" in
+    try
+      ignore (M.find (Variable.register name) env.mapping);
+      find_name ()
+    with Not_found ->
+      Variable.register name
+  in
+  let assign_name = function
+    | ConsumesAndProduces, TyTupleComponentValue (None, ty) ->
+        let name = find_name () in
+        ConsumesAndProduces, TyTupleComponentValue (Some name, ty)
+    | _ as c ->
+        c
+  in
+  let gather_permission = function
+    | ConsumesAndProduces, TyTupleComponentValue (Some name, ty) ->
+        Some (ConsumesAndProduces, TyTupleComponentPermission (TyAnchoredPermission (TyVar name, ty)))
+    | ConsumesAndProduces, TyTupleComponentValue (None, _) ->
+        assert false
+    | (ConsumesAndProduces, _) as component ->
+        Some component
+    | _ ->
+        None
+  in
+  let components = match ty with
+    | TyTuple components ->
+        components
+    | _ ->
+        [ConsumesAndProduces, TyTupleComponentValue (None, ty)]
+  in
+  let components = List.map assign_name components in
+  let perms = List.map gather_permission components in
+  let perms = Hml_List.filter_some perms in
+  TyTuple components, perms
+
+
 (* [infer special env ty] and [check special env ty kind] perform bottom-up
    kind inference and kind checking. The flag [special] tells whether we are
    under the left-hand side of an arrow. When this flag is set, and only then,
@@ -227,7 +279,7 @@ let rec bi ty : fragment =
    language. [infer] returns a pair of a kind and a type, whereas [check]
    returns just a type. *)
 
-let rec infer special env ty : kind * T.typ =
+and infer special env ty : kind * T.typ =
   match ty with
   | TyTuple [ (ConsumesAndProduces, TyTupleComponentValue (None, ty)) ] ->
       (* A tuple of one anonymous component is interpreted as a pair
@@ -278,21 +330,21 @@ let rec infer special env ty : kind * T.typ =
 	check false env ty2 domain
       )
   | TyArrow (ty1, ty2) ->
+      (* Add names wherever needed, and also collect a list of permissions that
+       * should be added to the rhs because they were marked
+       * [ConsumesAndProduces]. *)
+      let ty1, perms = populate_arrow_lhs env ty1 in
       (* Gather the names bound by the left-hand side, if any. These names
 	 are bound in the left-hand and right-hand sides. *)
       let env, bindings = extend env (bi ty1) in
-      (* Check the left-hand and right-hand sides. *)
+      (* Complete the rhs with the extra permissions *)
+      let ty2 = insert_permissions_rhs perms ty2 in
+      (* Check both sides *)
+      let ty1 = check true env ty1 KType in
+      let ty2 = check false env ty2 KType in
+      (* We're good. *)
       KType,
-      forall bindings (T.TyArrow (
-	check true env ty1 KType,
-	check false env ty2 KType
-      ))
-      (* TEMPORARY any components that are marked [ConsumesAndProduces]
-	 in the left-hand side should be copied (as a permission only)
-	 to the right-hand side; this requires generating a name if the
-	 component is anonymous. I imagine it can be done as a source-to-source
-	 transformation (on-the-fly, right here), but generating a fresh
-	 identifier is somewhat tricky. Let me think about this later... *)
+      forall bindings (T.TyArrow (ty1, ty2))
   | TyForall (binding, ty) ->
       let env = bind env binding in
       (* It seems that we can require the body of a universal type to
@@ -579,16 +631,6 @@ let collect_and_check_pattern (env: env) (pattern: pattern): env * E.pattern =
   collect_and_check_pattern env pattern
 ;;
 
-let collect_and_check_function_parameter (env: env) (t: typ): env * (Variable.name * kind) list * T.typ =
-  (* Collect all the names that appear in the type. *)
-  let env, bindings = extend env (bi t) in
-  (* Translate the type. *)
-  let t = check true env t KType in
-  (* Return the enhanced environment, the bindings that were created when
-   * desugaring, and the desugared type. *)
-  env, bindings, t
-;;
-
 
 let rec collect_and_check_patexprs
     (env: env)
@@ -629,25 +671,40 @@ and check_expression (env: env) (expression: expression): E.expression =
       E.ELet (rec_flag, patexprs, e)
 
   | EFun (vars, params, return_type, body) ->
-      (* TEMPORARY there's a bug here, this doesn't work properly in case the
-       * function has multiple arguments. *)
+      (* TEMPORARY there's a fundamental flaw here, in the sense that if we
+       * really have functions with multiple arguments, we need to insert
+       * quantifiers between parameters, which the definition of [EFun] doesn't
+       * allow at all. So let's just assume we only have one parameter, and
+       * leave this for later. *)
+      let param = match params with
+        | param :: [] ->
+            param
+        | _ ->
+            Log.error "We don't know how to deal with functions with multiple \
+              arguments yet.";
+      in
 
       (* Add all the function's type parameters into the environment. *)
       let env = List.fold_left bind env vars in
+
       (* While desugaring the function types, [(x: τ)] will translate to
        * [∀(x::TERM), (=x, permission x: τ)], so we need to collect bindings for
        * each one of the function parameters. *)
-      let env, bindings, params = List.fold_left (fun (env, bindings, params) param ->
-        let env, binding, param = collect_and_check_function_parameter env param in
-        env, List.rev binding :: bindings, param :: params) (env, [], []) params
-      in
-      let params = List.rev params in
+      let param, perms = populate_arrow_lhs env param in
+      (* Gather the names bound by the left-hand side, if any. These names
+	 are bound in the left-hand and right-hand sides. *)
+      let env, bindings = extend env (bi param) in
+      (* Complete the rhs with the extra permissions *)
+      let return_type = insert_permissions_rhs perms return_type in
+      (* Check both sides *)
+      let param = check true env param KType in
+      let return_type = check false env return_type KType in
+
       (* We're going great lengths to ensure we handle currified functions, even
        * though no one's every going to use them... is that really reasonable? *)
-      let vars = List.flatten (vars :: bindings) in
-      let return_type = check false env return_type KType in
+      let vars = vars @ bindings in
       let body = check_expression env body in
-      let r = E.EFun (vars, params, return_type, body) in
+      let r = E.EFun (vars, [param], return_type, body) in
       r
 
   | EAssign (e1, var, e2) ->

@@ -13,11 +13,11 @@ exclusive data ref a = Ref {
   contents: a;
 }
 
-val cref [a] (x: a): ref a =
+val cref [a] (consumes x: a): ref a =
   Ref { contents = x }
 
-val rget [a] (x: ref a): a =
+val rget [a] (consumes x: ref a): (a, permission x: ref unknown) =
   x.contents
 
-val rset [a] (x: ref a, c: a): () =
+val rset [a, b] (consumes x: ref a, consumes c: b): (permission x: ref b) =
   x.contents <- c

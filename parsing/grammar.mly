@@ -545,6 +545,8 @@ fact:
       { EConstruct dc }
   | LPAREN es = atleast_two_list(COMMA, expression) RPAREN
       { ETuple es }
+  | LPAREN RPAREN
+      { ETuple [] }
   | MATCH e = expression WITH bs = separated_or_preceded_list(BAR, match_branch) END
       { EMatch (e, bs) }
   | e = atomic DOT f = variable
