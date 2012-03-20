@@ -461,7 +461,6 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
         ) sub_env args
       in
       let sub_env, p = check_expression sub_env body in
-      let sub_env = locate sub_env (eloc body) in
       let _sub_env = check_return_type sub_env p return_type in
       let expected_type = type_for_function_def expr in
       return env expected_type
@@ -509,6 +508,14 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       return env ty_unit
 
   | EAccess (e, fname) ->
+      (* We could be a little bit smarter, and generic here. Instead of iterating
+       * on the permissions, we could use a reverse map from field names to
+       * types. We could then substract the type (instanciated using flexible
+       * variables) from the expression. In case the substraction function does
+       * something super fancy, like using P ∗ P -o τ to obtain τ, this would
+       * allow us to reuse the code. Of course, this raises the question of
+       * “what do we do in case there's an ambiguity”, that is, multiple
+       * datacons that feature this field name... We'll leave that for later. *)
       let hint = Option.map (fun x -> Printf.sprintf "%s_%s" x (Field.print fname)) hint in
       let env, p = check_expression env ?hint e in
       let module M = struct exception Found of point end in
@@ -545,7 +552,6 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       (* Give an error message that mentions the entire function call. We should
        * probably have a function called nearest_loc that returns the location
        * of [e2] so that we can be even more precise in the error message. *)
-      let env = locate env (eloc e2) in
       let env, return_type = check_function_call env x1 x2 in
       return env return_type
 
@@ -624,8 +630,10 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       check_arith_binop env e1 e2 "/"
 
   | ELocated (e, p1, p2) ->
+      let pos = env.position in
       let env = locate env (p1, p2) in
-      check_expression env ?hint e
+      let env, p = check_expression env ?hint e in
+      locate env pos, p
 
   | _ ->
       Log.error "Not implemented yet!"

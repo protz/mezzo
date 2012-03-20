@@ -1079,6 +1079,7 @@ module TypePrinter = struct
     in
     let lines = map_terms env (fun { names; _ } binder ->
       let names = List.map print_var names in
+      let names = List.map (fun x -> colors.blue ^^ x ^^ colors.default) names in
       let names = join (string " a.k.a. ") names in
       let perms = print_permission_list (env, binder) in
       names ^^ colon ^^ space ^^ (nest 2 perms)
