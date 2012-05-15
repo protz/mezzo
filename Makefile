@@ -7,7 +7,7 @@ FIND       := find
 USE_OCAMLFIND := $(shell if `which ocamlfind > /dev/null`; then echo "-use-ocamlfind"; fi)
 OCAMLBUILD := ocamlbuild $(USE_OCAMLFIND) -use-menhir \
   -menhir "menhir --explain --infer -la 1" \
-  -cflags "-g" -lflags "-g"
+  -cflags "-g" -lflags "-g" -classic-display
 INCLUDE    := -Is sets,typing,parsing,ulex,lib,pprint,utils
 MAIN	   := hamlet
 TEST	   := test
