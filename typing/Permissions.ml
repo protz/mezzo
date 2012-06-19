@@ -5,32 +5,6 @@ open Utils
 
 (* -------------------------------------------------------------------------- *)
 
-(* Error handling *)
-
-type error = env * raw_error
-
-and raw_error =
-  | Foobar
-
-exception PermissionsError of error
-
-let raise_error env e =
-  raise (PermissionsError (env, e))
-;;
-
-let print_error buf (env, raw_error) =
-  let open TypePrinter in
-  let open WellKindedness.KindPrinter in
-  let open Expressions.ExprPrinter in
-  match raw_error with
-  | Foobar ->
-      Printf.bprintf buf
-        "%a foobar"
-        Lexer.p env.position
-;;
-
-(* -------------------------------------------------------------------------- *)
-
 (* Saves us the trouble of matching all the time. *)
 let (!!) = function TyPoint x -> x | _ -> assert false;;
 
@@ -349,6 +323,8 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
             let cons, args = flatten_tyapp other in
             let datacon, _ = branch in
 
+            (* TEMPORARY do we really need this reverse-map? What about we
+             * lookup the definition of [cons] to find its constructors? *)
             if same env (DataconMap.find datacon env.type_for_datacon) !!cons then
               let branch' = find_and_instantiate_branch env !!cons datacon args in
               let env, t' = unfold env (TyConcreteUnfolded branch') in
@@ -555,7 +531,7 @@ let rec sub (env: env) (point: point) (t: typ): env option =
     for [point]. *)
 and sub_clean (env: env) (point: point) (t: typ): env option =
   if (not (is_term env point)) then
-    Log.error "[WellKindedness] should've checked that for us";
+    Log.error "[KindCheck] should've checked that for us";
 
   let permissions = get_permissions env point in
 

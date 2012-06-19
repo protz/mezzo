@@ -8,7 +8,7 @@ open TestUtils
 let parse_and_build_types () =
   let program = Driver.lex_and_parse "tests/testperm.hml" in
   let env = Driver.type_check program in
-  Log.debug ~level:4 "%a\n" TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds, env);
+  Log.debug ~level:4 "%a\n" TypePrinter.pdoc (KindCheck.KindPrinter.print_kinds, env);
   let env = FactInference.analyze_data_types env in
   env
 ;;
@@ -225,7 +225,7 @@ let _ =
   let env = parse_and_build_types () in
   (* Check that the kinds and facts we've built are correct. *)
   Log.debug ~level:1 "%a"
-    Types.TypePrinter.pdoc (WellKindedness.KindPrinter.print_kinds_and_facts, env);
+    Types.TypePrinter.pdoc (KindCheck.KindPrinter.print_kinds_and_facts, env);
   flush stderr;
   print_newline ();
   (* Test various features. *)

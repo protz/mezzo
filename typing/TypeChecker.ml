@@ -26,7 +26,6 @@ let raise_error env e =
 
 let print_error buf (env, raw_error) =
   let open TypePrinter in
-  let open WellKindedness.KindPrinter in
   let open ExprPrinter in
   let print_permissions () =
     Printf.bprintf buf "\nOH NOES. Printing permissions.\n\n%a" pdoc (print_permissions, env);

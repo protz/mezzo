@@ -10,9 +10,6 @@ open Types
 exception EAffine of typ
 exception EExclusive of typ
 
-(* TEMPORARY this one will have to go eventually *)
-exception NotSupported of string
-
 (* The algorithm below can be used in two distinct phases. The first one
  * analyses a given data type definition, so the algorithm is allowed to request
  * that a parameter be duplicable for the whole type to be duplicable. The

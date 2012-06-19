@@ -29,6 +29,7 @@ let flatten_kind kind =
   in
   let acc, k = flatten_kind [] kind in
   k, List.rev acc
+;;
 
 
 (* ---------------------------------------------------------------------------- *)
@@ -38,12 +39,9 @@ let flatten_kind kind =
 type type_binding =
     Variable.name * kind
 
-type consumes_annotation =
-  | Consumes
-  | ConsumesAndProduces
-
 type typ =
-  | TyTuple of tuple_type_component list
+  | TyLocated of typ * Lexing.position * Lexing.position
+  | TyTuple of typ list
   | TyUnknown
   | TyDynamic
   | TyEmpty
@@ -55,23 +53,36 @@ type typ =
   | TyForall of type_binding * typ
   | TyAnchoredPermission of typ * typ
   | TyStar of typ * typ
-
-and tuple_type_component =
-    consumes_annotation * tuple_type_component_aux
-
-and tuple_type_component_aux =
-  | TyTupleComponentValue of Variable.name option * typ
-  | TyTupleComponentPermission of typ
+  | TyNameIntro of Variable.name * typ
+  | TyConsumes of typ
+  | TyBar of typ * typ
 
 and data_type_def_branch =
     Datacon.name * data_field_def list
 
 and data_field_def =
-  | FieldValue of anchored_permission
+  | FieldValue of Variable.name * typ
   | FieldPermission of typ
 
-and anchored_permission =
-    Variable.name * typ
+let ty_equals (v: Variable.name) =
+  TySingleton (TyVar v)
+;;
+
+let rec flatten_star = function
+  | TyStar (t1, t2) ->
+      flatten_star t1 @ flatten_star t2
+  | TyEmpty ->
+      []
+  | TyAnchoredPermission _ as p ->
+      [p]
+  | _ ->
+      Log.error "[flatten_star] only works for types with kind PERM"
+;;
+
+let fold_star perms =
+  List.fold_left (fun acc x -> TyStar (acc, x)) TyEmpty perms
+;;
+
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -87,18 +98,17 @@ type data_type_flag = Exclusive | Duplicable
 
 type abstract_fact = 
   | FExclusive of typ
-  (* The first [typ] is a tuple that only holds [Variable] names. This is an
-   * artifact of the parsing rules. *)
-  | FDuplicableIf of tuple_type_component list * typ
+  | FDuplicableIf of typ list * typ
 
 type data_type_def =
   | Concrete of data_type_flag * data_type_def_lhs * data_type_def_rhs
-  | Abstract of Variable.name * (Variable.name * kind) list * kind * abstract_fact option
+  | Abstract of data_type_def_lhs * kind * abstract_fact option
 
 (* A data type group is a group of mutually recursive data type definitions. *)
 
 type data_type_group =
     data_type_def list
+
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -114,6 +124,7 @@ type pattern =
   (* Foo { bar = bar; baz = baz; … } *)
   | PConstruct of (Datacon.name * (Variable.name * pattern) list)
   | PLocated of pattern * Lexing.position * Lexing.position
+
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -155,6 +166,7 @@ and expression =
   | EDiv of expression * expression
   | EUMinus of expression
   | EInt of int
+
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -1,6 +1,4 @@
-open Driver
 open Types
-open Expressions
 open TypeChecker
 open TestUtils
 

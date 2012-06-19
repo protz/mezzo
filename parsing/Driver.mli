@@ -19,16 +19,6 @@
 
 (** This module sets up a lexer and a parser to create an AST. *)
 
-type state = {
-  type_env: Types.env;
-  kind_env: WellKindedness.env;
-  subst: substitution;
-}
-
-and substitution = Expressions.declaration_group -> Expressions.declaration_group
-
-val empty_state: state
-
 val add_include_dir: string -> unit
 val find_in_include_dirs: string -> string
 

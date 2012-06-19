@@ -27,20 +27,6 @@ let add_include_dir dir =
   include_dirs := dir :: !include_dirs
 ;;
 
-type substitution = Expressions.declaration_group -> Expressions.declaration_group
-
-type state = {
-  type_env: Types.env;
-  kind_env: WellKindedness.env;
-  subst: substitution;
-}
-
-let empty_state = {
-  type_env = Types.empty_env;
-  kind_env = WellKindedness.empty;
-  subst = fun x -> x;
-}
-
 let lex_and_parse file_path =
   let file_desc = open_in file_path in
   let lexbuf = Ulexing.from_utf8_channel file_desc in
@@ -68,11 +54,12 @@ let lex_and_parse file_path =
 ;;
 
 let type_check program = 
-  let type_env, declarations = WellKindedness.check_program Types.empty_env program in
+  KindCheck.check_program program;
+  let type_env, declarations = TransSurface.translate Types.empty_env program in
   let type_env = FactInference.analyze_data_types type_env in
   Log.debug ~level:2 "%a"
     Types.TypePrinter.pdoc
-    (WellKindedness.KindPrinter.print_kinds_and_facts, type_env);
+    (KindCheck.KindPrinter.print_kinds_and_facts, type_env);
   Log.debug ~level:2 "%a"
     Types.TypePrinter.pdoc
     (Expressions.ExprPrinter.pdeclarations, (type_env, declarations));
@@ -121,10 +108,7 @@ let run f =
   | TypeChecker.TypeCheckerError e ->
       Hml_String.beprintf "%a\n" TypeChecker.print_error e;
       exit 251
-  | WellKindedness.WellKindednessError e ->
-      Hml_String.beprintf "%a\n" WellKindedness.print_error e;
-      exit 250
-  | Permissions.PermissionsError e ->
-      Hml_String.beprintf "%a\n" Permissions.print_error e;
+  | KindCheck.KindError e ->
+      Hml_String.beprintf "%a\n" KindCheck.print_error e;
       exit 250
 ;;

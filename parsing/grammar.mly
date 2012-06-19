@@ -1,12 +1,8 @@
-(* TEMPORARY si on fermait les if, donc if/end, on pourrait à nouveau autoriser un
-   let dans une branche then ou else *)
-(* TEMPORARY songer à BEGIN suivi de n SEMI ou LET suivi de END *)
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Syntactic categories of names. *)
 
-(* Term variables, type variables, type constructors, fields are not
+(* Term variables, type variables, type constructors, and fields are not
    syntactically distinguished. Placing term variables, type variables, and
    type constructors within a single syntactic category is natural because
    they share certain mechanisms (e.g. types and terms can be abstracted over
@@ -30,7 +26,7 @@
 %token PERMISSION UNKNOWN DYNAMIC EXCLUSIVE
 %token DATA BAR
 %token LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
-%token COMMA COLON COLONCOLON SEMI ARROW STAR
+%token COMMA COLON COLONCOLON SEMI ARROW STAR AT
 %token LARROW DBLARROW FUN
 %token EQUAL
 %token EMPTY
@@ -95,32 +91,9 @@ separated_or_preceded_list(sep, X):
 | xs = separated_nonempty_list(sep, X)
     { xs }
 
-%inline atleast_two_list(sep, X):
+%inline separated_list_of_at_least_two(sep, X):
 | x1 = X sep x2 = separated_list(sep, X)
     { x1 :: x2 }
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Syntax for tuples. *)
-
-(* I considered using curly braces and semicolons, by analogy with
-   records, but this would be too extreme: (1) it would impact the
-   syntax of multiple-argument functions and (2) it would depart from
-   the mathematical notation for tuples. *)
-
-(* I thought for a moment that, in order to avoid a conflict with the
-   standard use of parentheses as a desambiguation construct, tuples
-   of length one would have to be made syntactically unavailable. I
-   have changed my mind, because this position is untenable; tuples
-   of length one are actually useful, e.g. in a function type of the
-   form [(x: t) -> u] or [(consumes t) -> u]. So, my new position is,
-   tuples are unrestricted, and there is no other use of parentheses.
-   A post-processing phase determines how tuples of length one should
-   be interpreted. *)
-
-%inline tuple(X):
-  LPAREN xs = separated_list(COMMA, X) RPAREN
-    { xs }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -140,6 +113,14 @@ separated_or_preceded_list(sep, X):
 %inline iterated_type_type_application(X, Y):
   x = X ys = Y* (* iterated juxtaposition *)
     { x, ys }
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Syntax for type abstraction and universal quantification. *)
+
+type_parameters:
+| LBRACKET bs = separated_or_terminated_list(COMMA, type_binding) RBRACKET
+    { bs }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -177,16 +158,6 @@ atomic_kind:
 %inline kind:
 | kind = atomic_kind
     { kind }
-(* We remove arrow kinds because they complicate the inference
-   and expression of ``mode facts''. That is, in the presence
-   of type variables of higher kinds, it becomes difficult to
-   specify exactly under what conditions a type is duplicable,
-   exclusive, or affine. Perhaps the loss of arrow kinds will
-   be compensated by introducing a module system (functors, etc.)
-   where facts can appear as module components.
-| kind1 = atomic_kind ARROW kind2 = kind
-    { KArrow (kind1, kind2) }
-*)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -198,160 +169,152 @@ atomic_kind:
    permissions, permission conjunction, etc.) appear as part of the syntax of
    types. *)
 
-(* Tuple types follow the Haskell style [(typ, ..., typ)] and can introduce
-   names for their components [(x: typ, ..., x: typ)]. Every name is bound in
-   every component, so mutual dependencies are allowed. Furthermore, if a
-   tuple type appears on the left-hand side of an arrow, then the scope of
-   these bindings extends to the right-hand side of the arrow. Anyway, these
-   scoping rules have no influence on the grammar per se. *)
+(* The syntax of types is stratified into the following levels, so as to
+   eliminate all ambiguity. *)
 
-(* Function types take the traditional form [typ -> typ]. It is possible to
-   write a multi-argument dependent function type [(x: typ, ..., x: typ) ->
-   ... ]: it is interpreted syntactically as a function type whose domain
-   is a tuple type. *)
+%inline tlocated (X):
+| x = X
+    { TyLocated (x, $startpos, $endpos) }
 
-(* There is a potential ambiguity because the anchored permission [x: typ] is
-   an anchored permission, hence a type (of kind [KPerm]). This means that
-   [(x: typ)] can be interpreted either as a tuple type whose component is
-   named [x] and has type [typ] or as a tuple type whose anonymous component
-   has type [x: typ]. Fortunately, the second alternative does not make sense,
-   because a type that serves as a tuple component must have kind
-   [KType]. Thus, we adjust the syntax of tuple types so that the types that
-   appear within tuples cannot be anchored permissions. *)
+%inline atomic_type:
+| t = tlocated(raw_atomic_type)
+  { t }
 
-(* We allow a component of a tuple type to carry the [CONSUMES] keyword. This
-   does not make sense in a normal tuple type, but makes sense if this tuple
-   serves as a function argument. It is up to a post-processing phase to check
-   that [CONSUMES] is used only where it makes sense, and to desugar it. *)
+  raw_atomic_type:
+  (* The empty tuple type. *)
+  | LPAREN RPAREN
+      { TyTuple [] }
+  (* Parentheses are used as a disambiguation device, as is standard. *)
+  | LPAREN t = arbitrary_type RPAREN
+      { t }
+  (* The top type. *)
+  | UNKNOWN
+      { TyUnknown }
+  (* The type [dynamic] represents a permission to test membership in a dynamic region. *)
+  | DYNAMIC
+      { TyDynamic }
+  (* The top permission. A neutral element for permission conjunction. *)
+  | EMPTY
+      { TyEmpty }
+  (* Term variable, type variable, permission variable, abstract type, or concrete type. *)
+  | x = variable
+      { TyVar x }
+  (* A structural type explicitly mentions a data constructor. *)
+  | b = data_type_def_branch
+      { TyConcreteUnfolded b }
 
-%inline tuple_type_component:
-  m = function_parameter_modifier (* optional CONSUMES annotation *)
-  a = tuple_type_component_aux
-    { m, a }
+%inline quasi_atomic_type:
+| t = tlocated(raw_quasi_atomic_type)
+  { t }
 
-(* The [CONSUMES] annotation is explicit, while the default is that
-   (permissions for) function arguments are consumed and produced. *)
+  raw_quasi_atomic_type:
+  | ty = raw_atomic_type
+      { ty }
+  (* A singleton type. *)
+  | EQUAL x = variable
+      { TySingleton (TyVar x) }
+  (* A type application. *)
+  | ty = type_type_application(quasi_atomic_type, atomic_type)
+      { ty }
 
-function_parameter_modifier:
-| (* by default, permission is consumed and produced *)
-    { ConsumesAndProduces }
-| CONSUMES
-    { Consumes }
+%inline normal_type:
+| t = tlocated(raw_normal_type)
+  { t }
 
-(* A tuple type component can be either a value (which exists at runtime)
-   or a permission. This is natural, because we allow the same flexibility
-   in records, and because we need this flexibility in order to specify
-   function domains and codomains. If it is a value, it can be either
-   anonymous or named. *)
+  raw_normal_type:
+  | ty = raw_quasi_atomic_type
+      { ty }
+  (* The syntax of function types is [t -> t], as usual. *)
+  | ty1 = quasi_atomic_type ARROW ty2 = normal_type
+      { TyArrow (ty1, ty2) }
+  (* A polymorphic type. *)
+  | bs = type_parameters ty = normal_type
+      { List.fold_right (fun b ty -> TyForall (b, ty)) bs ty }
 
-tuple_type_component_aux:
-| x = ioption(terminated(variable, COLON)) (* an optional name for this component *)
-  ty = normal_type                         (* a type for this component *)
-    { TyTupleComponentValue (x, ty) }
-| ty = permission_field_def                (* this component is an anonymous permission *)
-    { TyTupleComponentPermission ty }
+%inline loose_type:
+| t = tlocated(raw_loose_type)
+  { t }
 
-(* The syntax of types is stratified into the following levels, so as
-   to eliminate all ambiguity. *)
+  raw_loose_type:
+  | ty = raw_normal_type
+      { ty }
+  (* In an anchored permission [x@t], the name [x] is free. This
+     represents an assertion that we have permission to use [x] at
+     type [t]. *)
+  | x = variable AT ty = normal_type
+      { TyAnchoredPermission (TyVar x, ty) }
+  (* [x = y] is also an anchored permission; it is sugar for [x@=y]. *)
+  | x = variable EQUAL y = variable
+      { TyAnchoredPermission (TyVar x, TySingleton (TyVar y)) }
+  (* In a name introduction form [x:t], the name [x] is bound. The scope
+     of [x] is defined by somewhat subtle rules that need not concern us
+     here. These rules are spelled out later on when we desugar the surface-level
+     types into a lower-level representation. *)
+  | x = variable COLON ty = normal_type
+      { TyNameIntro (x, ty) }
 
-atomic_type:
-| tcs = tuple(tuple_type_component) (* tuple types à la Haskell; this includes the normal use of parentheses! *)
-    { TyTuple tcs }
-| UNKNOWN (* a type which means no permission; the top type *)
-    { TyUnknown }
-| DYNAMIC (* a type which means permission to test membership in a dynamic region *)
-    { TyDynamic }
-| EMPTY   (* the empty permission; neutral element for permission conjunction *)
-    { TyEmpty }
-| x = variable  (* term variable, type variable, permission variable, abstract type, or concrete type *)
-    { TyVar x }
-| b = data_type_def_branch (* concrete type with known branch *)
-    { TyConcreteUnfolded b }
-(* TEMPORARY inhabitants of static group regions *)
+%inline consumes_type:
+| t = tlocated(raw_consumes_type)
+  { t }
 
-quasi_atomic_type:
-| ty = atomic_type
-    { ty }
-| EQUAL x = variable (* singleton type *)
-    { TySingleton (TyVar x) }
-| ty = type_type_application(quasi_atomic_type, atomic_type) (* type application *)
-    { ty }
+  raw_consumes_type:
+  | ty = raw_loose_type
+      { ty }
+  (* A type can be annotated with the [CONSUMES] keyword. This really
+     makes sense only in certain contexts, e.g. in the left-hand side of an
+     arrow, and possibly further down under tuples, stars, etc. The grammar
+     allows this everywhere. This notation is checked for consistency and
+     desugared in a separate pass. *)
+  | CONSUMES ty = loose_type
+      { TyConsumes ty }
 
-type_parameters:
-| LBRACKET bs = separated_or_terminated_list(COMMA, type_binding) RBRACKET
-    { bs }
+%inline very_loose_type:
+| t = tlocated(raw_very_loose_type)
+  { t }
 
-normal_type:
-| ty = quasi_atomic_type
-    { ty }
-| ty1 = quasi_atomic_type ARROW ty2 = normal_type (* function type *)
-    { TyArrow (ty1, ty2) }
-| bs = type_parameters ty = normal_type (* polymorphic type *)
-    { List.fold_right (fun b ty -> TyForall (b, ty)) bs ty }
+  raw_very_loose_type:
+  | ty = raw_consumes_type
+      { ty }
+  (* Permission conjunction is a binary operator. *)
+  | ty1 = consumes_type STAR ty2 = very_loose_type
+      { TyStar (ty1, ty2) }
+  (* A tuple type of length at least two is written [t1, ..., tn], without
+     parentheses. A tuple type of length one cannot be written -- there is
+     no syntax for it. *)
+  | tcs = separated_list_of_at_least_two(COMMA, consumes_type)
+      { TyTuple tcs }
 
-loose_type:
-| ty = normal_type
-    { ty }
-| p = anchored_permission (* anchored permission *)
-    { let x, ty = p in TyAnchoredPermission (TyVar x, ty) }
-(* TEMPORARY
-   mode constraints as function preconditions and/or as tuple components?
-   syntax for anonymous sums?
-*)
+%inline fat_type:
+| t = tlocated(raw_fat_type)
+  { t }
 
-(* I considered using COMMA for separating conjunction because this seems
-   natural; think of the PRODUCES and CONSUMES clauses in function types.
-   However, COMMA is already used to separate multiple arguments in a type
-   application, so this means that parentheses will sometimes be necessary
-   (e.g. when a conjunction of permissions is used as an argument in a type
-   application). Even worse, COMMA is used in the syntax of tuples, and this
-   leads to conflicts with tuple types and multi-argument function types.
-   So, I give up and use a dedicated symbol, STAR, for conjunction. *)
+  raw_fat_type:
+  | ty = raw_very_loose_type
+      { ty }
+  (* The conjunction of a type and a permission is written [t | p]. It is
+     typically used as the domain or codomain of a function type. *)
+  | ty1 = fat_type BAR ty2 = very_loose_type
+      { TyBar (ty1, ty2) }
+  | BAR ty2 = very_loose_type
+      { TyBar (TyTuple [], ty2) }
 
-very_loose_type:
-| ty = loose_type
-    { ty }
-| ty1 = loose_type STAR ty2 = very_loose_type (* conjunction of permissions *)
-    { TyStar (ty1, ty2) }
-
-(* We distinguish anchored permissions, of the form [x: t], and
-   general permissions, which are not necessarily anchored.
-   General permissions are just types of kind KPERM. *)
-
-(* In an anchored permission x: t, the variable x is free. This
-   is not a binding form. However, anchored permissions are
-   re-used as part of named field definitions, where they are
-   viewed as a binding form. *)
-
-anchored_permission:
-| x = variable COLON ty = normal_type
-    { x, ty }
-| x = variable EQUAL y = variable (* x = y is sugar for x: =y *)
-    { x, TySingleton (TyVar y) }
+%inline arbitrary_type:
+  t = fat_type
+    { t }
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Data type definitions. *)
 
+data_field_def:
 (* A named field definition binds a field name and at the same time
    specifies an anchored permission for it. *)
-%inline named_field_def:
-  p = anchored_permission
-    { p }
-
-permission_field_def:
-  PERMISSION ty = very_loose_type (* a type of kind KPERM *)
-    { ty }
-
-data_field_def:
-| p = named_field_def
-    { FieldValue p }
-| ty = permission_field_def
+| x = variable COLON ty = normal_type
+    { FieldValue (x, ty) }
+(* A permission field is anonymous. *)
+(* TEMPORARY use the new BAR syntax here; remove PERMISSION keyword *)
+| PERMISSION ty = arbitrary_type (* a type of kind KPERM *)
     { FieldPermission ty }
-(* TEMPORARY
-  adopts clauses
-  mode assertions
-  ... *)
 
 datacon_application(X, Y):
 | x = X (* a pair of empty braces can be omitted *)
@@ -370,8 +333,6 @@ datacon_application(X, Y):
 %inline data_type_def_rhs:
   bs = separated_or_preceded_list(BAR, data_type_def_branch)
     { bs }
-(* TEMPORARY could allow datacon to be omitted if there is only one branch
-   -- i.e. this is a record type *)
 
 %inline data_type_flag:
 | (* nothing *)
@@ -388,13 +349,14 @@ datacon_application(X, Y):
 %inline fact_conditions:
 | (* nothing *)
     { [] }
-| DUPLICABLE t = tuple(tuple_type_component) DBLARROW
-    { t }
+| DUPLICABLE t = atomic_type DBLARROW
+    { [t] }
+(* TEMPORARY la syntaxe de fact_conditions/fact me semble trop restrictive? *)
 
 fact:
-| FACT tup = fact_conditions DUPLICABLE t = very_loose_type
+| FACT tup = fact_conditions DUPLICABLE t = arbitrary_type
     { FDuplicableIf (tup, t) }
-| FACT EXCLUSIVE LPAREN t = very_loose_type RPAREN
+| FACT EXCLUSIVE t = arbitrary_type
     { FExclusive t }
 
 %inline data_type_def:
@@ -402,7 +364,7 @@ fact:
     { Concrete (flag, lhs, rhs) }
 | ABSTRACT name = variable params = atomic_type_binding*
   k = optional_kind_annotation f = fact?
-    { Abstract (name, params, k, f) }
+    { Abstract ((name, params), k, f) }
 
 %inline data_type_group:
   defs = data_type_def*
@@ -433,7 +395,7 @@ fact:
       { PConstraint (p, t) }
   | x = variable
       { PVar x }
-  | LPAREN ps = atleast_two_list(COMMA, pat1) RPAREN
+  | LPAREN ps = separated_list_of_at_least_two(COMMA, pat1) RPAREN
       { PTuple ps }
   | dc = datacon_application(datacon, data_field_pat)
       { PConstruct dc }
@@ -468,7 +430,7 @@ fact:
       { ESequence (e1, e2) }
   | LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = expression
       { ELet (f, declarations, e) }
-  | FUN bs = type_parameters? f_args = one_tuple+ COLON t = normal_type EQUAL e = expression
+  | FUN bs = type_parameters? f_args = atomic_type+ COLON t = normal_type EQUAL e = expression
       { EFun (Option.map_none [] bs, f_args, t, e) }
   | e = everything_except_let_and_semi_raw
       { e }
@@ -543,7 +505,7 @@ fact:
       { EInt i }
   | dc = datacon_application(datacon, data_field_assign)
       { EConstruct dc }
-  | LPAREN es = atleast_two_list(COMMA, expression) RPAREN
+  | LPAREN es = separated_list_of_at_least_two(COMMA, expression) RPAREN
       { ETuple es }
   | LPAREN RPAREN
       { ETuple [] }
@@ -553,7 +515,7 @@ fact:
       { EAccess (e, f) }
   | BEGIN e = expression END
       { e }
-  | LPAREN e = expression COLON t = very_loose_type RPAREN
+  | LPAREN e = expression COLON t = arbitrary_type RPAREN
       { EConstraint (e, t) }
   | LPAREN e = expression RPAREN
       { e }
@@ -601,12 +563,8 @@ decl_raw:
 inner_declaration:
 | p = pattern EQUAL e = expression
     { p, e }
-| f_name = variable bs = type_parameters? f_args = one_tuple+ COLON t = normal_type EQUAL e = expression
+| f_name = variable bs = type_parameters? f_args = atomic_type+ COLON t = normal_type EQUAL e = expression
     { PVar f_name, EFun (Option.map_none [] bs, f_args, t, e) }
-
-  %inline one_tuple:
-  | tcs = tuple(tuple_type_component)
-      { TyTuple tcs }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -617,3 +575,40 @@ unit:
   declarations = declaration_group
   EOF
     { group, declarations }
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Below this line: ideas for the record or for future consideration. *)
+
+(* We have removed arrow kinds because they complicate the inference and
+   expression of ``mode facts''. That is, in the presence of type variables of
+   higher kinds, it becomes difficult to specify exactly under what conditions
+   a type is duplicable, exclusive, or affine. Perhaps the loss of arrow kinds
+   will be compensated by introducing a module system (functors, etc.) where
+   facts can appear as module components. *)
+
+(* If the [if] construct was closed with [endif], then one could again
+   authorize a [let] construct to appear naked within a [then] or [else]
+   branch. *)
+
+(* I considered using COMMA for separating conjunction. However, COMMA is
+   already used to separate multiple arguments in a type application, so this
+   means that parentheses will sometimes be necessary (e.g. when a conjunction
+   of permissions is used as an argument in a type application). Even worse,
+   COMMA is used in the syntax of tuples, and this leads to conflicts with
+   tuple types and multi-argument function types. So, I give up and use a
+   dedicated symbol, STAR, for conjunction. Somewhat analogously, yet another
+   symbol, BAR, is now used for the conjunction of a type and a permission. *)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Below this line: things to do. *)
+
+(* TODO *)
+
+(* 
+   mode constraints as function preconditions and as tuple/record components
+   syntax for anonymous sums?
+   adopts clauses
+*)
+

@@ -16,8 +16,8 @@ exclusive data ref a = Ref {
 val cref [a] (consumes x: a): ref a =
   Ref { contents = x }
 
-val rget [a] (consumes x: ref a): (a, permission x: ref unknown) =
+val rget [a] (consumes x: ref a): (a | x @ ref unknown) =
   x.contents
 
-val rset [a, b] (consumes x: ref a, consumes c: b): (permission x: ref b) =
+val rset [a, b] (consumes x: ref a, consumes c: b): ( | x @ ref b) =
   x.contents <- c

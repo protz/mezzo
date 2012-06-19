@@ -2,14 +2,6 @@
 
 open Types
 
-type raw_error
-
-type error = env * raw_error
-
-exception PermissionsError of error
-
-val print_error: Buffer.t -> Types.env * raw_error -> unit
-
 (** [collect t] recursively walks down a type with kind TYPE, extracts all
     the permissions that appear into it (as tuple or record components), and
     returns the type without permissions as well as a list of types with kind
@@ -62,3 +54,4 @@ val fold: env -> point -> typ option
 
 val fold_type: env -> typ -> typ option
 
+val full_merge: env -> point -> point -> env

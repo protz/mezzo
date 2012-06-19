@@ -155,3 +155,6 @@ let nth_opt list index =
     Some (List.nth list index)
   with Not_found ->
     None
+
+let map_some f l =
+  filter_some (List.map f l)

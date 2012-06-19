@@ -76,3 +76,6 @@ val filter_some: 'a option list -> 'a list
 
 (** Just like [List.nth] except it returns an [Option] type. *)
 val nth_opt: 'a list -> int -> 'a option
+
+(** Map and discard some elements at the same time. *)
+val map_some: ('a -> 'b option) -> 'a list -> 'b list

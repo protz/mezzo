@@ -28,7 +28,7 @@ data t2 a =
 data listops =
   ListOps {
     length: [a] list a -> int;
-    foo: [a] (consumes l: list a) -> (permission l: list unknown);
+    foo: [a] (consumes l: list a) -> ( | l @ list unknown);
     (* concat: [a] (consumes l1: list a, consumes l2: list a) -> (l3: list a) *)
   }
 

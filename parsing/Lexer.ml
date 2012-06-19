@@ -174,6 +174,7 @@ let rec token = lexer
 | "=>" | 8658 (* ⇒ *) -> locate lexbuf DBLARROW
 | "*" | 9733 (* ★ *) -> locate lexbuf STAR
 | "=" -> locate lexbuf EQUAL
+| "@" -> locate lexbuf AT
 | "consumes" -> locate lexbuf CONSUMES
 
 | int ->

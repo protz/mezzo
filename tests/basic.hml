@@ -17,7 +17,7 @@ data tree a =
 data ty = DummyType
 
 data typechecker =
-  TC { typechecker: [a] (consumes t: tree a) -> (ty, permission t: tree ty) }
+  TC { typechecker: [a] (consumes t: tree a) -> (ty | t @ tree ty) }
 
 data list a =
   | Nil
@@ -31,9 +31,9 @@ data bool = False | True
 data listops =
   ListOps {
     length: [a] list a -> int;
-    length: [a] (consumes xs: list a) -> (result: int, permission xs: list a); (* more explicit form *)
-    length: [a] (consumes xs: unknown, consumes permission xs: list a) ->
-                (result: int, permission xs: list a); (* even more explicit form *)
+    length: [a] (consumes xs: list a) -> (result: int | xs @ list a); (* more explicit form *)
+    length: [a] (consumes xs: unknown | consumes xs @ list a) ->
+                (result: int | xs @ list a); (* even more explicit form *)
     find: [key, a] (* duplicable a => *) (list (key, a), (key, key) -> bool, key) -> a;
     concat: [a] (consumes l1: list a, consumes l2: list a) -> (l3: list a)
   }
