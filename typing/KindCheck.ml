@@ -240,6 +240,15 @@ let flatten_tyapp t =
   flatten_tyapp [] t
 ;;
 
+let check_for_duplicates (elements: 'a list) (exit: 'a -> 'b): unit =
+  let tbl = Hashtbl.create 11 in
+  List.iter (fun x ->
+    if Hashtbl.mem tbl x then
+      exit x
+    else
+      Hashtbl.add tbl x ()) elements
+;;
+
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -280,10 +289,10 @@ let rec names ty : fragment =
       M.empty
 ;;
 
-(* [names_data_type_group] returns a list of names that the whole data type
+(* [bindings_data_type_group] returns a list of names that the whole data type
    group binds, with the corresponding kinds. The list is in the same order as
    the data type definitions. *)
-let names_data_type_group (data_type_group: data_type_def list): type_binding list =
+let bindings_data_type_group (data_type_group: data_type_def list): type_binding list =
   List.map (function
       | Concrete (_flag, (name, params), _) ->
           let k = karrow params KType in
@@ -295,14 +304,29 @@ let names_data_type_group (data_type_group: data_type_def list): type_binding li
 ;;
 
 
+(* [bindings_pattern] returns in prefix order the list of names bound in a
+   pattern. *)
+let rec bindings_pattern (pattern: pattern): type_binding list =
+  match pattern with
+  | PConstraint (p, _) ->
+      bindings_pattern p
+  | PVar x ->
+      [x, KTerm]
+  | PTuple patterns ->
+      List.flatten (List.map bindings_pattern patterns)
+  | PConstruct (_, name_pats) ->
+      let _, patterns = List.split name_pats in
+      List.flatten (List.map bindings_pattern patterns)
+  | PLocated (p, _, _) ->
+      bindings_pattern p
+;;
+
+
+
 (* ---------------------------------------------------------------------------- *)
 
 (* The kind-checking functions. *)
 
-let check_declaration_group (env: env) (declaration_group: declaration list): unit =
-  ignore (env, declaration_group);
-  assert false
-;;
 
 (* This just makes sure that the type parameters mentioned in the fact are in
    the list of the original type parameters. *)
@@ -459,12 +483,7 @@ let check_data_type_def (env: env) (def: data_type_def) =
       let env = List.fold_left bind env bindings in
       (* Check that the constructors are unique. *)
       let constructors = fst (List.split branches) in
-      let tbl = Hashtbl.create 11 in
-      List.iter (fun x ->
-        if Hashtbl.mem tbl x then
-          duplicate_constructor env name x
-        else
-          Hashtbl.add tbl x ()) constructors;
+      check_for_duplicates constructors (fun x -> duplicate_constructor env name x);
       (* Check the branches. *)
       List.iter (check_data_type_def_branch env) branches
 ;;
@@ -475,6 +494,151 @@ let check_data_type_group (env: env) (data_type_group: data_type_def list) =
 ;;
 
 
+
+let rec check_pattern (env: env) (pattern: pattern) =
+  match pattern with
+  | PConstraint (p, t) ->
+      check_pattern env p;
+      check env t KType
+  | PVar x ->
+      ignore (find x env)
+  | PTuple patterns ->
+      List.iter (check_pattern env) patterns
+  | PConstruct (_, name_pats) ->
+      let _, patterns = List.split name_pats in
+      List.iter (check_pattern env) patterns
+  | PLocated (p, _, _) ->
+      check_pattern env p
+;;
+
+
+let rec check_patexpr (env: env) (flag: rec_flag) (pat_exprs: (pattern * expression) list): env =
+  let patterns, expressions = List.split pat_exprs in
+  (* Introduce all bindings from the patterns *)
+  let bindings = List.flatten (List.map bindings_pattern patterns) in
+  check_for_duplicates
+    (fst (List.split bindings))
+    (fun x -> bound_twice x);
+  let sub_env = List.fold_left bind env bindings in
+  (* Type annotation in patterns may reference names introduced in the entire
+   * pattern (same behavior as tuple types). *)
+  List.iter (check_pattern sub_env) patterns;
+  (* Whether the variables defined in the pattern are available in the
+   * expressions depends, of course, on whether this is a recursive binding. *)
+  begin match flag with
+  | Recursive ->
+      List.iter (check_expression sub_env) expressions
+  | Nonrecursive ->
+      List.iter (check_expression env) expressions
+  end;
+  (* Return the environment extended with bindings so that we can check whatever
+   * comes afterwards. *)
+  sub_env
+
+
+and check_expression (env: env) (expr: expression) =
+  match expr with
+  | EConstraint (e, t) ->
+      check_expression env e;
+      check env t KType
+
+  | EVar x ->
+      let k, _ = find x env in
+      if k <> KTerm then
+        mismatch env KTerm k
+      
+  | ELet (flag, pat_exprs, expr) ->
+      let env = check_patexpr env flag pat_exprs in
+      check_expression env expr
+
+  | EFun (bindings, args, return_type, body) ->
+      let env = List.fold_left bind env bindings in
+      if List.length args > 0 then
+        Log.error "Don't know how to treat a function with multiple arguments";
+      let arg = List.hd args in
+      let arg_bindings = names arg in
+      let env, _ = extend env arg_bindings in
+      check env arg KType;
+      check_expression env body;
+      let return_bindings = names return_type in
+      let env, _ = extend env return_bindings in
+      check env return_type KType
+
+  | EAssign (e1, _, e2) ->
+      check_expression env e1;
+      check_expression env e2 
+
+  | EAccess (e, _) ->
+      check_expression env e
+
+  | EApply (e1, e2) ->
+      check_expression env e1;
+      check_expression env e2
+
+  | EMatch (e, pat_exprs) ->
+      check_expression env e;
+      List.iter
+        (fun pat_expr -> ignore (check_patexpr env Nonrecursive [pat_expr]))
+        pat_exprs
+
+  | ETuple exprs ->
+      List.iter (check_expression env) exprs
+
+  | EConstruct (_, field_exprs) ->
+      let _, exprs = List.split field_exprs in
+      List.iter (check_expression env) exprs
+
+  | EIfThenElse (e1, e2, e3) ->
+      check_expression env e1;
+      check_expression env e2;
+      check_expression env e3
+
+  | ESequence (e1, e2) ->
+      check_expression env e1;
+      check_expression env e2
+
+  | ELocated (e, p1, p2) ->
+      check_expression (locate env p1 p2) e
+
+  | EPlus (e1, e2) ->
+      check_expression env e1;
+      check_expression env e2
+
+  | EMinus (e1, e2) ->
+      check_expression env e1;
+      check_expression env e2
+
+  | ETimes (e1, e2) ->
+      check_expression env e1;
+      check_expression env e2
+
+  | EDiv (e1, e2) ->
+      check_expression env e1;
+      check_expression env e2
+
+  | EUMinus e ->
+      check_expression env e
+
+  | EInt _ ->
+      ()
+;;
+
+
+let check_declaration_group (env: env) (declaration_group: declaration list) =
+  let rec check_declaration_group env decls =
+    match decls with
+    | DLocated (DMultiple (rec_flag, pat_exprs), p1, p2) :: decls ->
+      let env = locate env p1 p2 in
+      let env = check_patexpr env rec_flag pat_exprs in
+      check_declaration_group env decls
+    | [] ->
+        ()
+    | _ ->
+        Log.error "Unexpected shape for a [declaration_group]."
+  in
+  check_declaration_group env declaration_group
+;;
+
 let check_program (program: program) =
   (* A program is made up of a data type definitions and value definitions. We
    * will probably want to change that later on, this should be easily doable in
@@ -483,7 +647,7 @@ let check_program (program: program) =
   (* First collect the names from the data type definitions, since they will be
    * made available in both the data type definitions themselves, and the value
    * definitions. All definitions in a data type groupe are mutually recursive. *)
-  let bindings = names_data_type_group data_type_group in
+  let bindings = bindings_data_type_group data_type_group in
   (* Create an environment that already features those names. *)
   let env = List.fold_left (bind ~strict:()) empty bindings in 
   (* Check both the data type definitions and the values in the freshly-created
