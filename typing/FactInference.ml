@@ -89,7 +89,7 @@ let duplicables
                 Log.affirm (List.length args = Array.length cons_bitmap)
                   "Arity mismatch, [WellKindedness] should've checked that";
                 (* For each argument of the type application... *)
-                Hml_List.iteri (fun i ti ->
+                List.iteri (fun i ti ->
                   (* (match ti with | TyVar i -> Log.debug ~level:4 "• ti is TyVar %d" i; | _ -> ()); *)
                   (* The type at [level] may request its [i]-th parameter to be
                    * duplicable. *)
@@ -110,13 +110,7 @@ let duplicables
       end
 
     | TyTuple ts ->
-        List.iter (function
-          | TyTupleComponentValue t
-          | TyTupleComponentPermission t ->
-              (* For a permission to be duplicable, the underlying type has to
-               * be duplicable too. *)
-              duplicables env t
-        ) ts
+        List.iter (duplicables env) ts
 
     | TyConcreteUnfolded (datacon, fields) as t ->
       begin

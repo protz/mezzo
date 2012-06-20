@@ -60,9 +60,9 @@ let collect (t: typ): typ * typ list =
         t, []
 
     (* Interesting stuff happens for strctural types only *)
-    | TyBar (t, permissions) ->
+    | TyBar (t, permission) ->
         let t, permissions' = collect t in
-        t, permissions @ permissions'
+        t, permission :: permissions'
 
     | TyTuple ts ->
         let ts, permissions = List.split (List.map collect ts) in

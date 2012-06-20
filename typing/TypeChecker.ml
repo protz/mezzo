@@ -140,6 +140,7 @@ let has_flexible env t =
     | TyExists (_, t) ->
         has_flexible t
 
+    | TyBar (t1, t2)
     | TyArrow (t1, t2)
     | TyApp (t1, t2) ->
         has_flexible t1 || has_flexible t2
@@ -390,7 +391,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       (* Collect all the permissions that the arguments bring into scope, add
        * them into the environment for checking the function body. *)
       let _, perms = List.split (List.map Permissions.collect args) in
-      let sub_env = List.fold_left Permissions.add_perm env (List.flatten perms) in
+      let sub_env = List.fold_left Permissions.add_perm sub_env (List.flatten perms) in
       (* Perform the checks proper. *)
       let sub_env, p = check_expression sub_env body in
       let _sub_env = check_return_type sub_env p return_type in
@@ -574,17 +575,16 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
 and check_bindings
   (env: env)
   (rec_flag: rec_flag)
-  (patexprs: (pattern * typ option * expression) list): env * substitution_kit
+  (patexprs: (pattern * expression) list): env * substitution_kit
   =
     let env, patexprs, subst_kit = bind_patexprs env rec_flag patexprs in
     let { subst_expr; subst_pat; _ } = subst_kit in
-    let patterns, types, expressions = Hml_List.split3 patexprs in
+    let patterns, expressions = List.split patexprs in
     let expressions = List.map subst_expr expressions in
     let patterns = List.map subst_pat patterns in
     let env = match rec_flag with
       | Recursive ->
           List.fold_left2 (fun env expr pat ->
-            let pat = punloc pat in
             let expr = eunloc expr in
             match pat, expr with
             | PPoint p, EFun _ ->
@@ -597,13 +597,12 @@ and check_bindings
     in
     let env = List.fold_left2 (fun env pat expr ->
       let hint = match pat with
-        | PLocated ((PPoint p), _, _) ->
+        | PPoint p ->
             Some (Variable.print (get_name env p))
         | _ ->
             None
       in
       let env, point = check_expression env ?hint expr in
-      let pat = extract_constraint env pat in
       let env = unify_pattern env pat point in
       env) env patterns expressions
     in

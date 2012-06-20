@@ -18,13 +18,7 @@ let nil =
 ;;
 
 let tuple l =
-  TyTuple (List.map (function
-    | TyEmpty as p
-    | (TyStar _ as p)
-    | (TyAnchoredPermission _ as p) ->
-        TyTupleComponentPermission p
-    | x ->
-        TyTupleComponentValue x) l)
+  TyTuple l
 ;;
 
 let point x =

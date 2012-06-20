@@ -129,21 +129,19 @@ let rec psubst (pat: pattern) (points: point list) =
 
 
 let rec tsubst_patexprs t2 i rec_flag patexprs =
-  let patterns, types, expressions = Hml_List.split3 patexprs in
+  let patterns, expressions = List.split patexprs in
   let names = List.fold_left (fun acc p ->
     collect_pattern p :: acc) [] patterns
   in
   let names = List.flatten names in
   let n = List.length names in
-  let types = List.map (Option.map (tsubst t2 (i + n))) types
-  in
   let expressions = match rec_flag with
     | Recursive ->
         List.map (tsubst_expr t2 (i + n)) expressions
     | Nonrecursive ->
         List.map (tsubst_expr t2 i) expressions
   in
-  n, Hml_List.combine3 patterns types expressions
+  n, List.combine patterns expressions
 
 
 (* [tsubst_expr t2 i e] substitutes type [t2] for index [i] in expression [e]. *)
@@ -184,11 +182,10 @@ and tsubst_expr t2 i e =
 
   | EMatch (e, patexprs) ->
       let e = tsubst_expr t2 i e in
-      let patexprs = List.map (fun (pat, t, expr) ->
-          let t = Option.map (tsubst t2 i) t in
+      let patexprs = List.map (fun (pat, expr) ->
           let names = collect_pattern pat in
           let n = List.length names in
-          pat, t, tsubst_expr t2 (i + n) expr
+          pat, tsubst_expr t2 (i + n) expr
         ) patexprs
       in
       EMatch (e, patexprs)
@@ -257,7 +254,7 @@ and tsubst_decl e2 i decls =
 ;;
 
 let rec esubst_patexprs e2 i rec_flag patexprs =
-  let patterns, types, expressions = Hml_List.split3 patexprs in
+  let patterns, expressions = List.split patexprs in
   let names = List.fold_left (fun acc p ->
     collect_pattern p :: acc) [] patterns
   in
@@ -269,7 +266,7 @@ let rec esubst_patexprs e2 i rec_flag patexprs =
     | Nonrecursive ->
         List.map (esubst e2 i) expressions
   in
-  n, Hml_List.combine3 patterns types expressions
+  n, List.combine patterns expressions
 
 (* [esubst e2 i e1] substitutes expression [e2] for index [i] in expression [e1]. *)
 and esubst e2 i e1 =
@@ -313,11 +310,11 @@ and esubst e2 i e1 =
 
   | EMatch (e, patexprs) ->
       let e = esubst e2 i e in
-      let patexprs = List.map (fun (pat, t, expr) ->
+      let patexprs = List.map (fun (pat, expr) ->
         let names = collect_pattern pat in
         let n = List.length names in
         let expr = esubst e2 (i + n) expr in
-        pat, t, expr) patexprs
+        pat, expr) patexprs
       in
       EMatch (e, patexprs)
 
@@ -454,7 +451,7 @@ let bind_vars (env: env) (bindings: type_binding list): env * substitution_kit =
  * in the patterns, binds them to new points, and performs the correct
  * substitutions according to the recursivity flag. *)
 let bind_patexprs env rec_flag patexprs =
-  let patterns, types, expressions = Hml_List.split3 patexprs in
+  let patterns, expressions = List.split patexprs in
   let names = List.fold_left (fun acc p ->
     collect_pattern p :: acc) [] patterns
   in
@@ -469,7 +466,7 @@ let bind_patexprs env rec_flag patexprs =
     | Nonrecursive ->
         expressions
   in
-  env, Hml_List.combine3 patterns types expressions, kit
+  env, List.combine patterns expressions, kit
 ;;
 
 
@@ -478,10 +475,12 @@ module ExprPrinter = struct
   open Hml_Pprint
   open TypePrinter
 
-  let rec print_patexpr env (pat, typ, expr) =
-    let type_annot = match typ with
-      | Some t -> colon ^^ space ^^ print_type env t
-      | None -> empty
+  let rec print_patexpr env (pat, expr) =
+    let type_annot, expr = match expr with
+      | EConstraint (expr, t) ->
+          colon ^^ space ^^ print_type env t, expr
+      | _ ->
+          empty, expr
     in
     print_pat env pat ^^ type_annot ^^ space ^^ equals ^^ jump (
       print_expr env expr
@@ -563,16 +562,12 @@ module ExprPrinter = struct
         lparen ^^ join (comma ^^ space) exprs ^^ rparen
 
     | EMatch (e, patexprs) ->
-        let patexprs = List.map (fun (pat, t, expr) ->
+        let patexprs = List.map (fun (pat, expr) ->
           let vars = collect_pattern pat in
           let bindings = List.map (fun v -> (v, KTerm)) vars in
           let env, { subst_expr; _ } = bind_vars env bindings in
           let expr = subst_expr expr in
-          let type_annot = match t with
-            | Some t -> colon ^^ space ^^ print_type env t
-            | None -> empty
-          in
-          print_pat env pat ^^ type_annot ^^ space ^^ arrow ^^ jump (print_expr env expr)
+          print_pat env pat ^^ space ^^ arrow ^^ jump (print_expr env expr)
         ) patexprs in
         string "match" ^^ space ^^ print_expr env e ^^ space ^^ string "with" ^^
         jump ~indent:0 (ifflat empty (bar ^^ space) ^^ join (break1 ^^ bar ^^ space) patexprs)
