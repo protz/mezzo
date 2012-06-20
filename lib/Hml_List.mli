@@ -19,9 +19,6 @@
 
 (** A bunch of useful functions for lists. *)
 
-(** Same as [map] but pass an extra parameter that represents the index *)
-val mapi: (int -> 'a -> 'b) -> 'a list -> 'b list
-
 (** Same as [map2] but pass an extra parameter that represents the index *)
 val map2i: (int -> 'a -> 'b -> 'c) -> 'a list -> 'b list -> 'c list
 
@@ -40,11 +37,11 @@ val fold_left3: ('acc -> 't1 -> 't2 -> 't3 -> 'acc) -> 'acc -> 't1 list -> 't2 l
     giving an initial element. *)
 val reduce: ('a -> 'a -> 'a) -> 'a list -> 'a
 
-(** Same as [List.iter] but the function takes an index. *)
-val iteri : (int -> 'a -> unit) -> 'a list -> unit
-
 (** Same as [List.iteri] but with two lists. *)
 val iter2i : (int -> 'a -> 'b -> unit) -> 'a list -> 'b list -> unit
+
+(** Same as [List.combine] but for triples instead of pairs. *)
+val combine3 : 'a list -> 'b list -> 'c list -> ('a * 'b * 'c) list
 
 (** Same as [List.split] but for triples instead of pairs. *)
 val split3 : ('a * 'b * 'c) list -> 'a list * 'b list * 'c list
@@ -79,3 +76,6 @@ val nth_opt: 'a list -> int -> 'a option
 
 (** Map and discard some elements at the same time. *)
 val map_some: ('a -> 'b option) -> 'a list -> 'b list
+
+(** Find the index of an element in a list. Structural comparison by default. *)
+val index: ?equal_func:('a -> 'a -> bool) -> 'a -> 'a list -> int

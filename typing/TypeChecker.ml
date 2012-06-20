@@ -145,12 +145,7 @@ let has_flexible env t =
         has_flexible t1 || has_flexible t2
 
     | TyTuple components ->
-        let components = List.map (function
-          | TyTupleComponentValue t
-          | TyTupleComponentPermission t ->
-              has_flexible t
-        ) components in
-        List.exists (fun x -> x) components
+        List.exists has_flexible components
 
     | TyConcreteUnfolded (_, fields) ->
         let fields = List.map (function
@@ -269,57 +264,10 @@ let type_for_function_def (expression: expression): typ =
 ;;
 
 
-let extract_constraint (env: env) (pattern: pattern): pattern =
-
-  let rec extract_constraint (env: env) (pattern: pattern): pattern * typ =
-    match pattern with
-    | PConstraint (pattern, typ) ->
-        let pattern, sub_typ = extract_constraint env pattern in
-        begin match sub_typ with
-        | TyUnknown ->
-            pattern, typ
-        | _ ->
-            raise_error env (SubPattern pattern)
-        end
-
-    | PVar name ->
-        PVar name, TyUnknown
-
-    | PPoint point ->
-        PPoint point, TyUnknown
-
-    | PTuple pats ->
-        let pats, ts = List.split (List.map (extract_constraint env) pats) in
-        PTuple pats, TyTuple (List.map (fun x -> TyTupleComponentValue x) ts)
-
-    | PConstruct (name, fieldpats) ->
-        let fieldpats, fieldtypes = List.fold_left
-          (fun (fieldpats, fieldtypes) (field, pat) ->
-            let pat, t = extract_constraint env pat in
-            (field, pat) :: fieldpats, (field, t) :: fieldtypes)
-          ([], []) fieldpats
-        in
-        let fieldtypes = List.map (fun x -> FieldValue x) fieldtypes in
-        PConstruct (name, fieldpats), TyConcreteUnfolded (name, fieldtypes)
-
-
-    | PLocated (pattern, p1, p2) ->
-        let pattern, typ = extract_constraint (locate env (p1, p2)) pattern in
-        PLocated (pattern, p1, p2), typ
-  in
-  
-  let pattern, t = extract_constraint env pattern in
-  PConstraint (pattern, t)
-;;
-
 
 let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
 
   match pattern with
-  | PConstraint (pattern, t) ->
-      let env = check_return_type env point t in
-      unify_pattern env pattern point
-
   | PVar _ ->
       Log.error "[unify_pattern] takes a pattern that has been run through \
         [subst_pat] first"
@@ -332,14 +280,13 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
 
   | PTuple patterns ->
       let permissions = get_permissions env point in
-      let t = List.map (function TyTuple x -> Some x | _ -> None) permissions in
-      let t = Hml_List.filter_some t in
+      let t = Hml_List.map_some (function TyTuple x -> Some x | _ -> None) permissions in
       Log.affirm (List.length t = 1) "Multiple candidates as a tuple type for \
         this pattern";
       let t = List.hd t in
       List.fold_left2 (fun env pattern component ->
         match component with
-        | TyTupleComponentValue (TySingleton (TyPoint p')) ->
+        | TySingleton (TyPoint p') ->
             unify_pattern env pattern p'
         | _ ->
             Log.error "Expecting a type that went through [unfold] and [collect] here"
@@ -347,7 +294,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
 
   | PConstruct (datacon, field_pats) ->
       let permissions = get_permissions env point in
-      let field_defs = List.map
+      let field_defs = Hml_List.map_some
         (function
           | TyConcreteUnfolded (datacon', x) when Datacon.equal datacon datacon' ->
               Some x
@@ -355,7 +302,6 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
               None)
         permissions
       in
-      let field_defs = Hml_List.filter_some field_defs in
       Log.affirm (List.length field_defs = 1) "Multiple candidates as a concrete type for \
         this pattern";
       let field_defs = List.hd field_defs in
@@ -367,10 +313,6 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
         | _ ->
             Log.error "Expecting a type that went through [unfold] and [collect] here"
       ) env field_pats field_defs
-
-  | PLocated (pat, p1, p2) ->
-      let env = locate env (p1, p2) in
-      unify_pattern env pat point
 
 ;;
 
@@ -421,6 +363,8 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
 
 
   | EFun (vars, args, return_type, body) ->
+      (* We can't create a closure over exclusive variables. Create a stripped
+       * environment with only the duplicable parts. *)
       let sub_env = fold_terms env (fun sub_env point _ _ ->
         replace_term sub_env point (fun raw ->
           let permissions =
@@ -438,27 +382,16 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
           { raw with permissions }
         )) env
       in
+      (* Bind all variables. *)
       let sub_env, { subst_type; subst_expr; _ } = bind_vars sub_env vars in
       let args = List.map subst_type args in
       let return_type = subst_type return_type in
       let body = subst_expr body in
-      let sub_env = List.fold_left
-        (fun sub_env arg ->
-          match arg with
-          | TyTuple (components) ->
-              List.fold_left (fun sub_env -> function
-                | TyTupleComponentValue (TySingleton (TyPoint _)) ->
-                    sub_env
-                | TyTupleComponentPermission t ->
-                    Permissions.add_perm sub_env t
-                | _ ->
-                   Log.error "All types should be in expanded form" 
-              ) sub_env components
-          | _ ->
-              Log.error "Previous passes should enforce that all function \
-                types are tuples, right?"
-        ) sub_env args
-      in
+      (* Collect all the permissions that the arguments bring into scope, add
+       * them into the environment for checking the function body. *)
+      let _, perms = List.split (List.map Permissions.collect args) in
+      let sub_env = List.fold_left Permissions.add_perm env (List.flatten perms) in
+      (* Perform the checks proper. *)
       let sub_env, p = check_expression sub_env body in
       let _sub_env = check_return_type sub_env p return_type in
       let expected_type = type_for_function_def expr in
@@ -561,7 +494,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
         (fun i (env, components) expr ->
           let hint = Option.map (fun x -> Printf.sprintf "%s_%d" x i) hint in
           let env, p = check_expression env ?hint expr in
-          env, TyTupleComponentValue (ty_equals p) :: components)
+          env, (ty_equals p) :: components)
         (env, []) exprs
       in
       let components = List.rev components in
@@ -641,11 +574,11 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
 and check_bindings
   (env: env)
   (rec_flag: rec_flag)
-  (patexprs: (pattern * expression) list): env * substitution_kit
+  (patexprs: (pattern * typ option * expression) list): env * substitution_kit
   =
     let env, patexprs, subst_kit = bind_patexprs env rec_flag patexprs in
     let { subst_expr; subst_pat; _ } = subst_kit in
-    let patterns, expressions = List.split patexprs in
+    let patterns, types, expressions = Hml_List.split3 patexprs in
     let expressions = List.map subst_expr expressions in
     let patterns = List.map subst_pat patterns in
     let env = match rec_flag with

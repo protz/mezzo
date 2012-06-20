@@ -27,13 +27,6 @@ let rec split3 = function
 let ignore_map f l =
   ignore (List.map (fun x -> ignore (f x)) l)
 
-let iteri f l =
-  let rec iteri i f = function
-    | [] -> ()
-    | e :: rest -> f i e; iteri (i + 1) f rest
-  in
-  iteri 0 f l
-
 let iter2i f l l' =
   let rec iter2i i f l l' = match l, l' with
     | ([], []) -> ()
@@ -99,19 +92,6 @@ let map2i f l1 l2 =
   in
   map2i [] 0 l1 l2
 
-let mapi f l1 =
-  let rec mapi acc i l1 =
-    match l1 with
-    | x :: xs ->
-        mapi
-          ((f i x) :: acc)
-          (i + 1)
-          xs
-    | [] ->
-        List.rev acc
-  in
-  mapi [] 0 l1
-
 let fold_left3 f init l1 l2 l3 =
   let rec fold_left3 acc l1 l2 l3 =
     match l1, l2, l3 with
@@ -158,3 +138,23 @@ let nth_opt list index =
 
 let map_some f l =
   filter_some (List.map f l)
+
+let index ?(equal_func=(=)) e l =
+  let module M = struct exception Found of int end in
+  try
+    List.iteri (fun i e' -> if equal_func e e' then raise (M.Found i)) l;
+    raise Not_found
+  with M.Found i ->
+    i
+
+let combine3 l1 l2 l3 =
+  let rec combine3 acc l1 l2 l3 =
+    match l1, l2, l3 with
+    | hd1 :: tl1, hd2 :: tl2, hd3 :: tl3 ->
+        combine3 ((hd1, hd2, hd3) :: acc) tl1 tl2 tl3
+    | [], [], [] ->
+        List.rev acc
+    | _ ->
+        raise (Invalid_argument "combine3")
+  in
+  combine3 [] l1 l2 l3

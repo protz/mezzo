@@ -74,7 +74,7 @@ type typ =
   | TyApp of typ * typ
 
     (* Structural types. *)
-  | TyTuple of tuple_type_component list
+  | TyTuple of typ list
   | TyConcreteUnfolded of data_type_def_branch
 
     (* Singleton types. *)
@@ -83,14 +83,13 @@ type typ =
     (* Function types. *)
   | TyArrow of typ * typ
 
+    (* The bar *)
+  | TyBar of typ * typ
+
     (* Permissions. *)
   | TyAnchoredPermission of typ * typ
   | TyEmpty
   | TyStar of typ * typ
-
-and tuple_type_component =
-  | TyTupleComponentValue of typ
-  | TyTupleComponentPermission of typ
 
 and data_type_def_branch =
     Datacon.name * data_field_def list
@@ -99,10 +98,10 @@ and data_field_def =
   | FieldValue of (Field.name * typ)
   | FieldPermission of typ
 
-and data_type_def =
+type data_type_def =
   data_type_def_branch list
 
-and type_def =
+type type_def =
   (SurfaceSyntax.data_type_flag * data_type_def) option
 
 (* ---------------------------------------------------------------------------- *)
@@ -269,13 +268,7 @@ let equal env (t1: typ) (t2: typ) =
         equal t1 t2 && equal t'1 t'2
 
     | TyTuple ts1, TyTuple ts2 ->
-        List.fold_left2 (fun acc t1 t2 ->
-          match t1, t2 with
-          | TyTupleComponentValue t1, TyTupleComponentValue t2
-          | TyTupleComponentPermission t1, TyTupleComponentPermission t2 ->
-              acc && equal t1 t2
-          | _ ->
-              false) true ts1 ts2
+        List.for_all2 equal ts1 ts2
 
     | TyConcreteUnfolded (name1, fields1), TyConcreteUnfolded (name2, fields2) ->
         Datacon.equal name1 name2 &&
@@ -332,11 +325,7 @@ let lift (k: int) (t: typ) =
         TyApp (lift i t1, lift i t2)
 
     | TyTuple ts ->
-        TyTuple (List.map (function
-          | TyTupleComponentValue t ->
-              TyTupleComponentValue (lift i t)
-          | TyTupleComponentPermission t ->
-              TyTupleComponentPermission (lift i t)) ts)
+        TyTuple (List.map (lift i) ts)
 
     | TyConcreteUnfolded (name, fields) ->
        TyConcreteUnfolded (name, List.map (function
@@ -404,11 +393,7 @@ let tsubst (t2: typ) (i: int) (t1: typ) =
         TyApp (tsubst t2 i t, tsubst t2 i t')
 
     | TyTuple ts ->
-        TyTuple (List.map (function
-          | TyTupleComponentValue t ->
-              TyTupleComponentValue (tsubst t2 i t)
-          | TyTupleComponentPermission t ->
-              TyTupleComponentPermission (tsubst t2 i t)) ts)
+        TyTuple (List.map (tsubst t2 i) ts)
 
     | TyConcreteUnfolded (name, fields) ->
        TyConcreteUnfolded (name, List.map (function
@@ -932,7 +917,7 @@ module TypePrinter = struct
         lparen ^^
         join
           (comma ^^ space)
-          (List.map (print_tuple_type_component env) components) ^^
+          (List.map (print_type env) components) ^^
         rparen
 
     | TyConcreteUnfolded branch ->
@@ -956,13 +941,6 @@ module TypePrinter = struct
 
     | TyStar (t1, t2) ->
         print_type env t1 ^^ star ^^ print_type env t2
-
-  and print_tuple_type_component env = function
-    | TyTupleComponentValue typ ->
-        print_type env typ
-
-    | TyTupleComponentPermission typ ->
-        string "permission" ^^ space ^^ print_type env typ
 
   and print_data_field_def env = function
     | FieldValue (name, typ) ->

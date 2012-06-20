@@ -9,8 +9,6 @@ open Types
 (* The De Bruijn numbering is defined according to a depth-first traversal of
  * the pattern: the first variable encountered will have index 0, and so on. *)
 type pattern =
-  (* x: τ *)
-  | PConstraint of pattern * typ
   (* x *)
   | PVar of Variable.name
   (* Once the variables in a pattern have been bound, they may replaced by
@@ -20,7 +18,6 @@ type pattern =
   | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)
   | PConstruct of Datacon.name * (Field.name * pattern) list
-  | PLocated of pattern * Lexing.position * Lexing.position
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -36,7 +33,7 @@ type expression =
   (* v, free *)
   | EPoint of point
   (* let rec pat = expr and pat' = expr' in expr *)
-  | ELet of rec_flag * (pattern * expression) list * expression
+  | ELet of rec_flag * binding list * expression
   (* fun [a] (x: τ): τ -> e *)
   | EFun of (Variable.name * kind) list * typ list * typ * expression
   (* v.f <- e *)
@@ -46,7 +43,7 @@ type expression =
   (* e₁ e₂ *)
   | EApply of expression * expression
   (* match e with pᵢ -> eᵢ *)
-  | EMatch of expression * (pattern * expression) list
+  | EMatch of expression * binding list
   (* (e₁, …, eₙ) *)
   | ETuple of expression list
   (* Foo { bar = bar; baz = baz; … *)
@@ -62,6 +59,11 @@ type expression =
   | EUMinus of expression
   | EInt of int
 
+and binding =
+  (* A binding is made up of a pattern, an optional type annotation for the
+   * entire pattern (desugared), and an expression. *)
+  pattern * expression
+
 
 (* The grammar below doesn't enforce the “only variables are allowed on the
  * left-hand side of a let rec” rule. We'll see to that later. Here too, the
@@ -69,7 +71,7 @@ type expression =
  * variables in all the patterns are collected in order before type-checking the
  * expressions. *)
 type declaration =
-  | DMultiple of rec_flag * (pattern * expression) list
+  | DMultiple of rec_flag * binding list
   | DLocated of declaration * Lexing.position * Lexing.position
 
 type declaration_group =
@@ -84,8 +86,6 @@ type declaration_group =
  * bound term. *)
 let collect_pattern p =
   let rec collect_pattern acc = function
-  | PConstraint (p, _) ->
-      collect_pattern acc p
   | PVar name ->
       name :: acc
   | PTuple patterns ->
@@ -93,8 +93,6 @@ let collect_pattern p =
   | PConstruct (_, fields) ->
       let patterns = snd (List.split fields) in
       List.fold_left collect_pattern acc patterns
-  | PLocated (p, _, _) ->
-      collect_pattern acc p
   | PPoint _ ->
       assert false
   in
@@ -105,10 +103,6 @@ let collect_pattern p =
  * the front of [points]. *)
 let rec psubst (pat: pattern) (points: point list) =
   match pat with
-  | PConstraint (p, t) ->
-      let p, points = psubst p points in
-      PConstraint (p, t), points
-
   | PVar _ ->
       begin match points with
       | hd :: tl ->
@@ -131,52 +125,25 @@ let rec psubst (pat: pattern) (points: point list) =
 
   | PConstruct _ ->
       pat, points
-
-  | PLocated (pat, p1, p2) ->
-      let pat, points = psubst pat points in
-      PLocated (pat, p1, p2), points
-;;
-
-
-(* [tsubst_pat t2 i p] replaces all occurrences of [TyVar i] with [t2] in
- * pattern [p]. *)
-let rec tsubst_pat t2 i p =
-  match p with
-  | PConstraint (p, t) ->
-      let p = tsubst_pat t2 i p in
-      let t = tsubst t2 i t in
-      PConstraint (p, t)
-
-  | PVar _
-  | PPoint _
-  | PConstruct _ ->
-      p
-
-  | PTuple p ->
-      let p = List.map (tsubst_pat t2 i) p in
-      PTuple p
-
-  | PLocated (p, p1, p2) ->
-      let p = tsubst_pat t2 i p in
-      PLocated (p, p1, p2)
 ;;
 
 
 let rec tsubst_patexprs t2 i rec_flag patexprs =
-  let patterns, expressions = List.split patexprs in
-  let patterns = List.map (tsubst_pat t2 i) patterns in
+  let patterns, types, expressions = Hml_List.split3 patexprs in
   let names = List.fold_left (fun acc p ->
     collect_pattern p :: acc) [] patterns
   in
   let names = List.flatten names in
   let n = List.length names in
+  let types = List.map (Option.map (tsubst t2 (i + n))) types
+  in
   let expressions = match rec_flag with
     | Recursive ->
         List.map (tsubst_expr t2 (i + n)) expressions
     | Nonrecursive ->
         List.map (tsubst_expr t2 i) expressions
   in
-  n, List.combine patterns expressions
+  n, Hml_List.combine3 patterns types expressions
 
 
 (* [tsubst_expr t2 i e] substitutes type [t2] for index [i] in expression [e]. *)
@@ -217,11 +184,11 @@ and tsubst_expr t2 i e =
 
   | EMatch (e, patexprs) ->
       let e = tsubst_expr t2 i e in
-      let patexprs = List.map (fun (pat, expr) ->
-          let pat = tsubst_pat t2 i pat in
+      let patexprs = List.map (fun (pat, t, expr) ->
+          let t = Option.map (tsubst t2 i) t in
           let names = collect_pattern pat in
           let n = List.length names in
-          pat, tsubst_expr t2 (i + n) expr
+          pat, t, tsubst_expr t2 (i + n) expr
         ) patexprs
       in
       EMatch (e, patexprs)
@@ -290,7 +257,7 @@ and tsubst_decl e2 i decls =
 ;;
 
 let rec esubst_patexprs e2 i rec_flag patexprs =
-  let patterns, expressions = List.split patexprs in
+  let patterns, types, expressions = Hml_List.split3 patexprs in
   let names = List.fold_left (fun acc p ->
     collect_pattern p :: acc) [] patterns
   in
@@ -302,7 +269,7 @@ let rec esubst_patexprs e2 i rec_flag patexprs =
     | Nonrecursive ->
         List.map (esubst e2 i) expressions
   in
-  n, List.combine patterns expressions
+  n, Hml_List.combine3 patterns types expressions
 
 (* [esubst e2 i e1] substitutes expression [e2] for index [i] in expression [e1]. *)
 and esubst e2 i e1 =
@@ -346,11 +313,11 @@ and esubst e2 i e1 =
 
   | EMatch (e, patexprs) ->
       let e = esubst e2 i e in
-      let patexprs = List.map (fun (pat, expr) ->
+      let patexprs = List.map (fun (pat, t, expr) ->
         let names = collect_pattern pat in
         let n = List.length names in
         let expr = esubst e2 (i + n) expr in
-        pat, expr) patexprs
+        pat, t, expr) patexprs
       in
       EMatch (e, patexprs)
 
@@ -452,14 +419,6 @@ let eloc = function
 ;;
 
 
-(* [punloc p] removes any [PLocated] located in front of [p]. *)
-let punloc = function
-  | PLocated (p, _, _)
-  | (_ as p) ->
-      p
-;;
-
-
 (* [bind_vars env bindings] adds [bindings] in the environment, and returns the
  * new environment, and a [substitution_kit]. *)
 let bind_vars (env: env) (bindings: type_binding list): env * substitution_kit =
@@ -495,7 +454,7 @@ let bind_vars (env: env) (bindings: type_binding list): env * substitution_kit =
  * in the patterns, binds them to new points, and performs the correct
  * substitutions according to the recursivity flag. *)
 let bind_patexprs env rec_flag patexprs =
-  let patterns, expressions = List.split patexprs in
+  let patterns, types, expressions = Hml_List.split3 patexprs in
   let names = List.fold_left (fun acc p ->
     collect_pattern p :: acc) [] patterns
   in
@@ -510,7 +469,7 @@ let bind_patexprs env rec_flag patexprs =
     | Nonrecursive ->
         expressions
   in
-  env, List.combine patterns expressions, kit
+  env, Hml_List.combine3 patterns types expressions, kit
 ;;
 
 
@@ -519,8 +478,12 @@ module ExprPrinter = struct
   open Hml_Pprint
   open TypePrinter
 
-  let rec print_patexpr env (pat, expr) =
-    print_pat env pat ^^ space ^^ equals ^^ jump (
+  let rec print_patexpr env (pat, typ, expr) =
+    let type_annot = match typ with
+      | Some t -> colon ^^ space ^^ print_type env t
+      | None -> empty
+    in
+    print_pat env pat ^^ type_annot ^^ space ^^ equals ^^ jump (
       print_expr env expr
     )
 
@@ -528,9 +491,6 @@ module ExprPrinter = struct
     join (break1 ^^ string "and" ^^ space) (List.map (print_patexpr env) patexprs)
 
   and print_pat env = function
-    | PConstraint (p, t) ->
-        print_pat env p ^^ colon ^^ space ^^ print_type env t
-
     | PVar v ->
         print_var v
 
@@ -555,9 +515,6 @@ module ExprPrinter = struct
             jump rbrace
           else
             empty
-
-    | PLocated (pat, _, _) ->
-        print_pat env pat
 
   and print_expr env = function
     | EConstraint (e, t) ->
@@ -606,12 +563,16 @@ module ExprPrinter = struct
         lparen ^^ join (comma ^^ space) exprs ^^ rparen
 
     | EMatch (e, patexprs) ->
-        let patexprs = List.map (fun (pat, expr) ->
+        let patexprs = List.map (fun (pat, t, expr) ->
           let vars = collect_pattern pat in
           let bindings = List.map (fun v -> (v, KTerm)) vars in
           let env, { subst_expr; _ } = bind_vars env bindings in
           let expr = subst_expr expr in
-          print_pat env pat ^^ space ^^ arrow ^^ jump (print_expr env expr)
+          let type_annot = match t with
+            | Some t -> colon ^^ space ^^ print_type env t
+            | None -> empty
+          in
+          print_pat env pat ^^ type_annot ^^ space ^^ arrow ^^ jump (print_expr env expr)
         ) patexprs in
         string "match" ^^ space ^^ print_expr env e ^^ space ^^ string "with" ^^
         jump ~indent:0 (ifflat empty (bar ^^ space) ^^ join (break1 ^^ bar ^^ space) patexprs)

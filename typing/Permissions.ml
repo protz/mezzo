@@ -60,35 +60,14 @@ let collect (t: typ): typ * typ list =
         t, []
 
     (* Interesting stuff happens for strctural types only *)
-    | TyTuple components ->
-        let permissions, values = List.partition
-          (function TyTupleComponentPermission _ -> true | TyTupleComponentValue _ -> false)
-          components
-        in
-        let permissions = List.map (function
-          | TyTupleComponentPermission p -> p
-          | _ -> assert false) permissions
-        in
-        let sub_permissions, values =
-          List.fold_left (fun (collected_perms, reversed_values) ->
-            function
-              | TyTupleComponentValue value ->
-                  let value, permissions = collect value in
-                  permissions :: collected_perms, (TyTupleComponentValue value) :: reversed_values
-              | _ ->
-                  assert false)
-            ([],[])
-            values
-        in
-        let t =
-          if List.length values = 1 then
-            match List.nth values 0 with
-              | TyTupleComponentValue v -> v
-              | _ -> assert false
-          else
-            TyTuple (List.rev values)
-        in
-        t, List.flatten (permissions :: sub_permissions)
+    | TyBar (t, permissions) ->
+        let t, permissions' = collect t in
+        t, permissions @ permissions'
+
+    | TyTuple ts ->
+        let ts, permissions = List.split (List.map collect ts) in
+        let permissions = List.flatten permissions in
+        TyTuple ts, permissions
 
     | TyConcreteUnfolded (datacon, fields) ->
         let permissions, values = List.partition
@@ -189,13 +168,10 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
 
     (* We're only interested in unfolding structural types. *)
     | TyTuple components ->
-        let env, components = Hml_List.fold_lefti (fun i (env, components) -> function
-          | TyTupleComponentPermission _ as component ->
-              env, component :: components
-          | TyTupleComponentValue component ->
-              let hint = Option.map (fun hint -> Printf.sprintf "%s_%d" hint i) hint in
-              let env, component = insert_point env ?hint component in
-              env, TyTupleComponentValue component :: components
+        let env, components = Hml_List.fold_lefti (fun i (env, components) component ->
+          let hint = Option.map (fun hint -> Printf.sprintf "%s_%d" hint i) hint in
+          let env, component = insert_point env ?hint component in
+          env, component :: components
         ) (env, []) components in
         env, TyTuple (List.rev components)
 
@@ -351,19 +327,14 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
           raise Inconsistent
 
         else
-          let env = List.fold_left2 (fun env c1 c2 ->
-            match c1, c2 with
-            | TyTupleComponentValue t1, TyTupleComponentValue t2 ->
-                (* [unify] is responsible for performing the entire job. *)
-                begin match t1, t2 with
-                | TySingleton (TyPoint p1), TySingleton (TyPoint p2) ->
-                    unify env p1 p2
-                | _ ->
-                    Log.error "The type should've been run through [unfold] before"
-                end
-
+          let env = List.fold_left2 (fun env t1 t2 ->
+              (* [unify] is responsible for performing the entire job. *)
+            begin match t1, t2 with
+            | TySingleton (TyPoint p1), TySingleton (TyPoint p2) ->
+                unify env p1 p2
             | _ ->
-                Log.error "The type should've been run through [collect] before"
+                Log.error "The type should've been run through [unfold] before"
+            end
           ) env components1 components2 in
           env, One t1
 
@@ -590,14 +561,8 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         List.fold_left2 (fun env c1 c2 ->
           Option.bind env (fun env ->
             match c1 with
-            | TyTupleComponentValue (TySingleton (TyPoint p)) ->
-                begin match c2 with
-                | TyTupleComponentValue t ->
-                    sub_clean env p t
-                | _ ->
-                    Log.error "The type we're trying to extract should've been \
-                      cleaned first."
-                end
+            | TySingleton (TyPoint p) ->
+                sub_clean env p c2
             | _ ->
                 Log.error "All permissions should be in expanded form."
           )
@@ -769,24 +734,7 @@ and fold_type_raw (env: env) (t: typ): typ =
       end
 
   | TyTuple components ->
-      let rec fold_components = function
-        | TyTupleComponentValue (TySingleton (TyPoint p)) ::
-          TyTupleComponentPermission (TyAnchoredPermission (TyPoint p', t)) ::
-          components when same env p p' ->
-            TyTupleComponentValue (fold_type_raw env t) :: fold_components components
-        | TyTupleComponentValue t :: ts ->
-            TyTupleComponentValue (fold_type_raw env t) :: fold_components ts
-        | TyTupleComponentPermission t :: ts ->
-            TyTupleComponentPermission (fold_type_raw env t) :: fold_components ts
-        | [] ->
-            []
-      in
-      begin match components with
-      | TyTupleComponentValue t :: [] ->
-          t
-      | _ ->
-          TyTuple (fold_components components)
-      end
+      TyTuple (List.map (fold_type_raw env) components)
 
   (* TODO *)
   | TyConcreteUnfolded _ ->

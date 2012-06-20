@@ -494,7 +494,6 @@ let check_data_type_group (env: env) (data_type_group: data_type_def list) =
 ;;
 
 
-
 let rec check_pattern (env: env) (pattern: pattern) =
   match pattern with
   | PConstraint (p, t) ->
