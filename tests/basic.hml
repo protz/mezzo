@@ -1,6 +1,6 @@
 (* This is just a sample file. Try changing menhir to menhir --trace in the
  * Makefile to see the tokens being accepted and/or rejected. *)
-(* data t a =
+data t a =
   | Foo
   | Bar {
     baz: a;
@@ -23,22 +23,22 @@ data list a =
   | Nil
   | Cons { head: a; tail: list a }
 
-data bool = False | True  *)
-
 abstract int
 fact duplicable (int)
 
+data bool = False | True 
+
 data listops =
   ListOps {
-    (* length: [a] list a -> int;
-    length: [a] (consumes xs: list a) -> (result: int | xs @ list a); (* more explicit form *) *)
-    length: [a] (consumes xs: unknown | consumes xs @ a) ->
-                (result: int | xs @ a); (* even more explicit form *)
-    (* find: [key, a] (* duplicable a => *) (list (key, a), (key, key) -> bool, key) -> a;
-    concat: [a] (consumes l1: list a, consumes l2: list a) -> (l3: list a) *)
+    length: [a] list a -> int;
+    length: [a] (consumes xs: list a) -> (result: int | xs @ list a); (* more explicit form *)
+    length: [a] (consumes xs: unknown | consumes xs @ list a) ->
+                (result: int | xs @ list a); (* even more explicit form *)
+    find: [key, a] (* duplicable a => *) (list (key, a), (key, key) -> bool, key) -> a;
+    concat: [a] (consumes l1: list a, consumes l2: list a) -> (l3: list a)
   }
 
-(* exclusive data foo a b c =
+exclusive data foo a b c =
   Foo {
     bar: a;
     baz: baz b c a;
@@ -89,4 +89,4 @@ data should_be_aff a = A {
 }
 
 exclusive data noparams = NoParams
-data dup = Whatever { whatever: noparams; } *)
+data aff = Whatever { whatever: noparams; }

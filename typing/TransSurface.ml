@@ -349,6 +349,18 @@ let translate_data_type_group
   ) translated_definitions in
   let points = List.rev points in
 
+  (* Construct the reverse-map from constructors to points. *)
+  let tenv = List.fold_left2 (fun tenv (_, def, _, _) point ->
+    match def with
+    | None ->
+        tenv
+    | Some (_, def) ->
+        let type_for_datacon = List.fold_left (fun type_for_datacon (name, _) ->
+          T.DataconMap.add name point type_for_datacon
+        ) tenv.T.type_for_datacon def in  
+        { tenv with T.type_for_datacon }
+  ) tenv translated_definitions points in
+
   (* Finally, open the types in the type definitions themselves. *)
   let total_number_of_data_types = List.length points in
   let tenv = T.fold_types tenv (fun tenv point { T.kind; _ } { T.definition; _ } ->

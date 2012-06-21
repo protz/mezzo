@@ -940,7 +940,7 @@ module TypePrinter = struct
 
       (* Permissions. *)
     | TyAnchoredPermission (t1, t2) ->
-        print_type env t1 ^^ colon ^^ space ^^ print_type env t2
+        print_type env t1 ^^ space ^^ at ^^ space ^^ print_type env t2
 
     | TyEmpty ->
         string "empty"
