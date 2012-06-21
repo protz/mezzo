@@ -124,7 +124,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
         acc @ consumed
 
     | TyConsumes t ->
-        let name = Variable.register (fresh_name "☺ c") in
+        let name = Variable.register (fresh_name "/c") in
         let perm = TyAnchoredPermission (TyVar name, t) in
         ty_equals name, [Some name, perm]
 
@@ -203,20 +203,28 @@ let rec translate_type (env: env) (t: typ): T.typ =
       (* Now we give a name to [t1] so that we can speak about the argument in
        * the returned type. Note: this variable name is not lexable, so no risk
        * of conflict. *)
-      let root = Variable.register "☺ root" in
-      let root_binding = root, KTerm in
+      let root, root_binding, t1 =
+        match tunloc t1 with
+        | TyNameIntro (x, t) ->
+            x, [], t
+        | _ ->
+            let root = Variable.register (fresh_name "/root") in
+            let root_binding = root, KTerm in
+            root, [root_binding], t1
+      in
 
       (* We now turn the argument into (=root | root @ t1 ∗ c @ … ∗ …) with [t1]
        * now devoid of any consumes annotations. *)
-      let t1 = TyBar (
+      let fat_t1 = TyBar (
         ty_equals root,
         fold_star (TyAnchoredPermission (TyVar root, t1) :: perms)
       ) in
 
       (* So that we don't mess up, we use unique names in the surface syntax and
        * let the translation phase do the proper index computations. *)
-      let universal_bindings = t1_bindings @ perm_bindings @ [root_binding] in
+      let universal_bindings = t1_bindings @ perm_bindings @ root_binding in
       let env = List.fold_left bind env universal_bindings in
+      let fat_t1 = translate_type env fat_t1 in
 
       (* The return type can also bind variables with [x: t]. These are
        * existentially quantified. *)
@@ -234,10 +242,9 @@ let rec translate_type (env: env) (t: typ): T.typ =
       let env = List.fold_left bind env t2_bindings in
 
       (* Build the resulting type. *)
-      let t1 = translate_type env t1 in
       let t2 = translate_type env t2 in
       let t2 = fold_exists t2_bindings t2 in
-      let arrow = T.TyArrow (t1, t2) in
+      let arrow = T.TyArrow (fat_t1, t2) in
       fold_forall universal_bindings arrow
 
   | TyForall (binding, t) ->

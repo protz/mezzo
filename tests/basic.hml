@@ -30,7 +30,7 @@ data bool = False | True
 
 data listops =
   ListOps {
-    length: [a] list a -> int;
+    length: [a] (x: list a) -> int;
     length: [a] (consumes xs: list a) -> (result: int | xs @ list a); (* more explicit form *)
     length: [a] (consumes xs: unknown | consumes xs @ list a) ->
                 (result: int | xs @ list a); (* even more explicit form *)
