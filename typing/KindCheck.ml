@@ -393,7 +393,7 @@ and infer (env: env) (t: typ) =
       KPerm
 
   | TyVar x ->
-      let kind, _level = find x env in
+      let kind, _index = find x env in
       kind
 
   | TyConcreteUnfolded branch ->

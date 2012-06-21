@@ -73,9 +73,18 @@ let rec flatten_star = function
       flatten_star t1 @ flatten_star t2
   | TyEmpty ->
       []
+  | TyConsumes _ as p ->
+      [p]
   | TyAnchoredPermission _ as p ->
       [p]
-  | _ ->
+  | TyLocated (p, _, _) ->
+      flatten_star p
+  | _ as p ->
+      let open Obj in
+      if is_block (repr p) then
+        Log.debug "%d-th block constructor\n" (tag (repr p))
+      else
+        Log.debug "%d-th constant constructor\n" (magic p);
       Log.error "[flatten_star] only works for types with kind PERM"
 ;;
 

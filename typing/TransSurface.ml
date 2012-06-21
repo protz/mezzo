@@ -2,7 +2,7 @@
    representation.
 
    - All implicit name bindings made through [TyNameIntro] are turned into
-     explicit quantifiers, either [TyForAll] or [TyExists].
+     explicit quantifiers, either [TyForall] or [TyExists].
    - Function parameters that are not consumed, when desugared, generate a
      permission in the returned type. [TyConsumes] annotations are removed.
    - Type annotations in patterns are removed, and are attached to let or val
@@ -12,6 +12,7 @@
 
 open SurfaceSyntax
 open KindCheck
+open Utils
 
 module T = Types
 module E = Expressions
@@ -59,13 +60,214 @@ module E = Expressions
   PConstraint (pattern, t)
 ;; *)
 
+let fold_forall bindings t =
+  List.fold_right (fun binding t ->
+    T.TyForall (binding, t)
+  ) bindings t
+;;
 
-let translate_type (_env: env) (_t: typ): T.typ =
-  assert false
+let fold_exists bindings t =
+  List.fold_right (fun binding t ->
+    T.TyExists (binding, t)
+  ) bindings t
 ;;
 
 
-let translate_data_type_branch (env: env) (branch: data_type_def_branch): T.data_type_def_branch =
+
+let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
+  (* I don't think it's worth having a tail-rec function here... *)
+  let rec strip_consumes env t =
+    match t with
+    | TyLocated (t, p1, p2) ->
+        (* Keep the location information, may be useful later on. *)
+        let env = locate env p1 p2 in
+        let t, acc = strip_consumes env t in
+        TyLocated (t, p1, p2), acc
+
+    | TyTuple ts ->
+        let ts, accs = List.split (List.map (strip_consumes env) ts) in
+        TyTuple ts, List.flatten accs
+
+    | TyConcreteUnfolded (datacon, fields) ->
+        let accs, fields = List.fold_left (fun (accs, fields) field ->
+          match field with
+          | FieldPermission _ ->
+              (accs, field :: fields)
+          | FieldValue (name, t) ->
+              let t, acc = strip_consumes env t in
+              (acc :: accs, FieldValue (name, t) :: fields)
+        ) ([], []) fields in
+        let fields = List.rev fields in
+        let acc = List.flatten accs in
+        TyConcreteUnfolded (datacon, fields), acc
+
+    | TyNameIntro (x, t) ->
+        let t, acc = strip_consumes env t in
+        TyNameIntro (x, t), acc
+
+    | TyBar (t, p) ->
+        (* Strip all consumes annotations from [t]. *)
+        let t, acc = strip_consumes env t in
+        (* Get the permissions contained in [p] as a list. *)
+        let perms = flatten_star p in
+        (* Some of them are consumed, and should be returned in the accumulator
+         * of consumed permissions. Others are kept. *)
+        let consumed, kept =
+          List.partition (function TyConsumes _ -> true | _ -> false) perms
+        in
+        let consumed =
+          List.map (function TyConsumes p -> None, p | _ -> assert false) consumed
+        in
+        let p = fold_star kept in
+        (* Minimal cleanup. *)
+        (if List.length kept > 0 then TyBar (t, p) else t),
+        acc @ consumed
+
+    | TyConsumes t ->
+        let name = Variable.register (fresh_name "☺ c") in
+        let perm = TyAnchoredPermission (TyVar name, t) in
+        ty_equals name, [Some name, perm]
+
+    | TyUnknown
+    | TyDynamic
+    | TyVar _
+    | TySingleton _
+    (* These are opaque, no consumes annotations inside of these. *)
+    | TyForall _
+    | TyApp _
+    | TyArrow _ ->
+        t, []
+
+    (* Permissions *)
+    | TyAnchoredPermission _
+    | TyEmpty
+    | TyStar _ ->
+        Log.error "These should've been removed already?!" 
+
+  in
+  let t, name_perms = strip_consumes env t in
+  let names, perms = List.split name_perms in
+  let names = Hml_List.filter_some names in
+  let bindings = List.map (fun x -> x, KTerm) names in
+  t, bindings, perms
+;;
+
+
+let rec translate_type (env: env) (t: typ): T.typ =
+  match t with
+  | TyLocated (t, p1, p2) ->
+      translate_type (locate env p1 p2) t
+
+  | TyTuple ts ->
+      T.TyTuple (List.map (translate_type env) ts)
+
+  | TyUnknown ->
+      T.TyUnknown
+
+  | TyDynamic ->
+      T.TyDynamic
+
+  | TyEmpty ->
+      T.TyEmpty
+
+  | TyVar x ->
+      let _, index = find x env in
+      T.TyVar index
+
+  | TyConcreteUnfolded branch ->
+      T.TyConcreteUnfolded (translate_data_type_def_branch env branch)
+
+  | TySingleton t ->
+      T.TySingleton (translate_type env t)
+
+  | TyApp (t1, t2) ->
+      T.TyApp (translate_type env t1, translate_type env t2)
+
+  | TyArrow (t1, t2) ->
+      (* Get the keys of a [Patricia.Map]. *)
+      let keys =
+        fun m -> List.rev (M.fold (fun k _v acc -> k :: acc) m [])
+      in
+
+      (* Get the implicitly quantified variables in [t1]. These will be
+         quantified as universal variables above the arrow type. *)
+      let t1_bindings = names t1 in
+      let t1_bindings = keys t1_bindings in
+      let t1_bindings = List.map (fun x -> (x, KTerm)) t1_bindings in
+
+      (* This is the procedure that removes the consumes annotations. It is
+       * performed in the surface syntax. The first step consists in carving out
+       * the [consumes] annotations, replacing them with [=c]. *)
+      let t1, perm_bindings, perms = strip_consumes env t1 in
+
+      (* Now we give a name to [t1] so that we can speak about the argument in
+       * the returned type. Note: this variable name is not lexable, so no risk
+       * of conflict. *)
+      let root = Variable.register "☺ root" in
+      let root_binding = root, KTerm in
+
+      (* We now turn the argument into (=root | root @ t1 ∗ c @ … ∗ …) with [t1]
+       * now devoid of any consumes annotations. *)
+      let t1 = TyBar (
+        ty_equals root,
+        fold_star (TyAnchoredPermission (TyVar root, t1) :: perms)
+      ) in
+
+      (* So that we don't mess up, we use unique names in the surface syntax and
+       * let the translation phase do the proper index computations. *)
+      let universal_bindings = t1_bindings @ perm_bindings @ [root_binding] in
+      let env = List.fold_left bind env universal_bindings in
+
+      (* The return type can also bind variables with [x: t]. These are
+       * existentially quantified. *)
+      let t2_bindings = names t2 in
+      let t2_bindings = keys t2_bindings in
+      let t2_bindings = List.map (fun x -> (x, KTerm)) t2_bindings in
+
+      (* We need to return the original permission on [t1], minus the components
+       * that were consumed: these have been carved out of [t1] by
+       * [strip_consumes]. *)
+      let t2 = TyBar (
+        t2,
+        TyAnchoredPermission (TyVar root, t1)
+      ) in
+      let env = List.fold_left bind env t2_bindings in
+
+      (* Build the resulting type. *)
+      let t1 = translate_type env t1 in
+      let t2 = translate_type env t2 in
+      let t2 = fold_exists t2_bindings t2 in
+      let arrow = T.TyArrow (t1, t2) in
+      fold_forall universal_bindings arrow
+
+  | TyForall (binding, t) ->
+      let env = bind env binding in
+      T.TyForall (binding, translate_type env t)
+
+  | TyAnchoredPermission (t1, t2) ->
+      T.TyAnchoredPermission (translate_type env t1, translate_type env t2)
+
+  | TyStar (t1, t2) ->
+      T.TyStar (translate_type env t1, translate_type env t2)
+
+  | TyNameIntro (x, t) ->
+      (* [x: t] translates into [(=x | x@t)] -- with [x] bound somewhere above
+         us. *)
+      let _, index = find x env in
+      T.TyBar (
+        T.TySingleton (T.TyVar index),
+        T.TyAnchoredPermission (T.TyVar index, translate_type env t)
+      )
+
+  | TyConsumes _ ->
+      (* These should've been removed by [strip_consumes]. *)
+      illegal_consumes env
+
+  | TyBar (t1, t2) ->
+      T.TyBar (translate_type env t1, translate_type env t2)
+
+
+and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.data_type_def_branch =
   let datacon, fields = branch in
   let fields = List.map (function
     | FieldValue (name, t) ->
@@ -101,7 +303,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
       (* Add the type parameters in the environment. *)
       let env = List.fold_left bind env params in
       (* Translate! *)
-      let branches = List.map (translate_data_type_branch env) branches in
+      let branches = List.map (translate_data_type_def_branch env) branches in
       (* This fact will be refined later on. *)
       let arity = List.length params in
       let fact = match flag with
@@ -193,7 +395,7 @@ let open_type_definitions (points: T.point list) (declarations: E.declaration_gr
 
 
 let translate_declaration_group _ _ =
-  assert false
+  []
 ;;
 
 

@@ -149,6 +149,10 @@ let duplicables
         (* For p ∗ q  to be duplicable, both p and q have to be duplicable. *)
         duplicables env p;
         duplicables env q
+
+    | TyBar (t, p) ->
+        duplicables env t;
+        duplicables env p
   in
   duplicables env t
 ;;

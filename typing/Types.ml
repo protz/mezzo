@@ -346,6 +346,9 @@ let lift (k: int) (t: typ) =
 
     | TyStar (p, q) ->
         TyStar (lift i p, lift i q)
+
+    | TyBar (t, p) ->
+        TyBar (lift i t, lift i p)
   in
   lift 0 t
 ;;
@@ -414,6 +417,9 @@ let tsubst (t2: typ) (i: int) (t1: typ) =
 
     | TyStar (p, q) ->
         TyStar (tsubst t2 i p, tsubst t2 i q)
+
+    | TyBar (t, p) ->
+        TyBar (tsubst t2 i t, tsubst t2 i p)
   in
   tsubst t2 i t1
 ;;
@@ -940,7 +946,11 @@ module TypePrinter = struct
         string "empty"
 
     | TyStar (t1, t2) ->
-        print_type env t1 ^^ star ^^ print_type env t2
+        print_type env t1 ^^ space ^^ string "∗" ^^ space ^^ print_type env t2
+
+    | TyBar (p, q) ->
+        lparen ^^ print_type env p ^^ space ^^ bar ^^ space ^^
+        print_type env q ^^ rparen
 
   and print_data_field_def env = function
     | FieldValue (name, typ) ->
