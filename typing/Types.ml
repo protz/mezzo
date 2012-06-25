@@ -451,6 +451,13 @@ let head name ~flexible kind =
   }
 ;;
 
+let fold_star perms =
+  if List.length perms > 0 then
+    Hml_List.reduce (fun acc x -> TyStar (acc, x)) perms
+  else
+    TyEmpty
+;;
+
 let ty_equals x =
   TySingleton (TyPoint x)
 ;;
@@ -489,7 +496,7 @@ let bind_type
     (kind: kind): env * point
   =
   let return_kind, _args = flatten_kind kind in
-  Log.affirm (return_kind = KType) "[bind_type] is for variables with kind TYPE only";
+  Log.check (return_kind = KType) "[bind_type] is for variables with kind TYPE only";
   let binding = head name ~flexible kind, BType { fact; definition; } in
   let point, state = PersistentUnionFind.create binding env.state in
   { env with state }, point
@@ -742,7 +749,7 @@ let internal_ptype = ref (fun _ -> assert false);;
 let internal_pdoc = ref (fun _ -> assert false);;
 
 let instantiate_flexible env p t =
-  Log.affirm (is_flexible env p) "Trying to instantiate a variable that's not flexible";
+  Log.check (is_flexible env p) "Trying to instantiate a variable that's not flexible";
   Log.debug "Instantiating %a with %a"
     Variable.p (get_name env p)
     !internal_pdoc (!internal_ptype, (env, t));

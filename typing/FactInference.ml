@@ -54,7 +54,7 @@ let duplicables
                   | Elaborating my_bitmap ->
                       let my_arity = Array.length my_bitmap in
                       Log.debug ~level:4 "↳ marking parameter %d" param_number;
-                      Log.affirm (param_number >= 0 && param_number < my_arity)
+                      Log.check (param_number >= 0 && param_number < my_arity)
                         "Marking as duplicable a variable that's not in the right\
                         range! param_number = %d" param_number;
                       my_bitmap.(param_number) <- true
@@ -86,7 +86,7 @@ let duplicables
             | Affine ->
                 raise (EAffine t)
             | Duplicable cons_bitmap ->
-                Log.affirm (List.length args = Array.length cons_bitmap)
+                Log.check (List.length args = Array.length cons_bitmap)
                   "Arity mismatch, [WellKindedness] should've checked that";
                 (* For each argument of the type application... *)
                 List.iteri (fun i ti ->

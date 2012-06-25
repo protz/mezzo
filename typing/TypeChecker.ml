@@ -282,7 +282,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
   | PTuple patterns ->
       let permissions = get_permissions env point in
       let t = Hml_List.map_some (function TyTuple x -> Some x | _ -> None) permissions in
-      Log.affirm (List.length t = 1) "Multiple candidates as a tuple type for \
+      Log.check (List.length t = 1) "Multiple candidates as a tuple type for \
         this pattern";
       let t = List.hd t in
       List.fold_left2 (fun env pattern component ->
@@ -303,13 +303,13 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
               None)
         permissions
       in
-      Log.affirm (List.length field_defs = 1) "Multiple candidates as a concrete type for \
+      Log.check (List.length field_defs = 1) "Multiple candidates as a concrete type for \
         this pattern";
       let field_defs = List.hd field_defs in
       List.fold_left2 (fun env (name, pat) field ->
         match field with
         | FieldValue (name', TySingleton (TyPoint p')) ->
-            Log.affirm (name = name') "I thought the fields were in the same order";
+            Log.check (name = name') "I thought the fields were in the same order";
             unify_pattern env pat p'
         | _ ->
             Log.error "Expecting a type that went through [unfold] and [collect] here"

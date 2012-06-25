@@ -18,10 +18,10 @@ exception Inconsistent
 let can_merge (env: env) (t1: typ) (p2: point): bool =
   match t1 with
   | TyPoint p1 ->
-      Log.affirm (is_flexible env p2) "[can_merge] takes a flexible variable \
+      Log.check (is_flexible env p2) "[can_merge] takes a flexible variable \
         as its second parameter";
       if (is_type env p2) then begin
-        Log.affirm (get_kind env p1 = get_kind env p2) "Wait, what?";
+        Log.check (get_kind env p1 = get_kind env p2) "Wait, what?";
         let f1, f2 = get_fact env p1, get_fact env p2 in
         fact_leq f1 f2
       end else if (is_term env p2) then begin
@@ -30,7 +30,7 @@ let can_merge (env: env) (t1: typ) (p2: point): bool =
       end else
         true
   | _ ->
-      Log.affirm (is_flexible env p2) "[can_merge] takes a flexible variable \
+      Log.check (is_flexible env p2) "[can_merge] takes a flexible variable \
         as its second parameter";
       let f2 = get_fact env p2 in
       let f1 = FactInference.analyze_type env t1 in
@@ -222,7 +222,7 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
    * original ones were duplicable. *)
   let one_if t =
     if f1 = Duplicable [||] then begin
-      Log.affirm (f1 = f2) "Two equal types should have equal facts";
+      Log.check (f1 = f2) "Two equal types should have equal facts";
       One t
     end else
       Both
@@ -275,7 +275,7 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
               let env = List.fold_left2 (fun env f1 f2 ->
                 match f1, f2 with
                 | FieldValue (name1, t1), FieldValue (name2, t2) ->
-                    Log.affirm (Field.equal name1 name2)
+                    Log.check (Field.equal name1 name2)
                       "Fields are not in the same order, I thought they were";
 
                     (* [unify] is responsible for performing the entire job. *)
@@ -412,7 +412,7 @@ and refine (env: env) (point: point) (t': typ): env =
 (** [unify env p1 p2] merges two points, and takes care of dealing with how the
     permissions should be merged. *)
 and unify (env: env) (p1: point) (p2: point): env =
-  Log.affirm (is_term env p1 && is_term env p2) "[unify p1 p2] expects [p1] and \
+  Log.check (is_term env p1 && is_term env p2) "[unify p1 p2] expects [p1] and \
     [p2] to be variables with kind TERM, not TYPE";
 
   if same env p1 p2 then
@@ -427,7 +427,7 @@ and unify (env: env) (p1: point) (p2: point): env =
 (** [add env point t] adds [t] to the list of permissions for [p], performing all
     the necessary legwork. *)
 and add (env: env) (point: point) (t: typ): env =
-  Log.affirm (is_term env point) "You can only add permissions to a point that \
+  Log.check (is_term env point) "You can only add permissions to a point that \
     represents a program identifier.";
 
   let hint = Variable.print (get_name env point) in
@@ -463,7 +463,7 @@ and add_perm (env: env) (t: typ): env =
 (** [sub env point t] tries to extract [t] from the available permissions for
     [point] and returns, if successful, the resulting environment. *)
 let rec sub (env: env) (point: point) (t: typ): env option =
-  Log.affirm (is_term env point) "You can only add permissions to a point that \
+  Log.check (is_term env point) "You can only add permissions to a point that \
     represents a program identifier.";
 
   match t with
@@ -576,7 +576,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
             | FieldValue (name1, TySingleton (TyPoint p)) ->
                 begin match f2 with
                 | FieldValue (name2, t) ->
-                    Log.affirm (Field.equal name1 name2) "Not in order?";
+                    Log.check (Field.equal name1 name2) "Not in order?";
                     sub_clean env p t
                 | _ ->
                     Log.error "The type we're trying to extract should've been \
@@ -673,7 +673,7 @@ and sub_perm (env: env) (t: typ): env option =
 
 
 let full_merge (env: env) (p: point) (p': point): env =
-  Log.affirm (is_term env p && is_term env p') "Only interested in TERMs here.";
+  Log.check (is_term env p && is_term env p') "Only interested in TERMs here.";
 
   let perms = get_permissions env p' in
   let env = merge_left env p p' in

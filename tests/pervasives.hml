@@ -1,4 +1,4 @@
-abstract int :: TYPE
+abstract int :: ∗
 fact duplicable (int)
 
 exclusive data xlist a =

@@ -22,15 +22,18 @@
 
 (** Enable debugging information. You should provide a debugging level. The
     higher the level, the more verbose the information. Currently, verbosity
-    levels range from 0 to 4 (inclusive). *)
+    levels range from 0 (no debug messages) to 4 (all debug messages). *)
 val enable_debug : int -> unit
 
 (** Report some debugging information. Use it like [Printf.printf] *)
-val debug : ?level:int -> ('a, Buffer.t, unit, unit) format4 -> 'a
+val debug: ?level:int -> ('a, Buffer.t, unit, unit) format4 -> 'a
+
+(** A warning is a message that always appears, even when debug is disabled. *)
+val warn: ('a, Buffer.t, unit, unit) format4 -> 'a
 
 (** Report a fatal error. For now, this raises an exception, but it might do
     better in the future. Use it like [Printf.printf]. *)
-val error : ('a, Buffer.t, unit, 'b) format4 -> 'a
+val error: ('a, Buffer.t, unit, 'b) format4 -> 'a
 
 (** Assert something, otherwise display an error message and fail *)
-val affirm: bool -> ('a, out_channel, unit, unit) format4 -> 'a
+val check: bool -> ('a, out_channel, unit, unit) format4 -> 'a

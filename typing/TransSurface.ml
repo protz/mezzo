@@ -17,48 +17,10 @@ open Utils
 module T = Types
 module E = Expressions
 
-(* let translate_pattern (env: env) (pattern: pattern): pattern =
 
-  let rec extract_constraint (env: env) (pattern: pattern): pattern * typ =
-    match pattern with
-    | PConstraint (pattern, typ) ->
-        let pattern, sub_typ = extract_constraint env pattern in
-        begin match sub_typ with
-        | TyUnknown ->
-            pattern, typ
-        | _ ->
-            raise_error env (SubPattern pattern)
-        end
+(* -------------------------------------------------------------------------- *)
 
-    | PVar name ->
-        PVar name, TyUnknown
-
-    | PPoint point ->
-        PPoint point, TyUnknown
-
-    | PTuple pats ->
-        let pats, ts = List.split (List.map (extract_constraint env) pats) in
-        PTuple pats, TyTuple (List.map (fun x -> TyTupleComponentValue x) ts)
-
-    | PConstruct (name, fieldpats) ->
-        let fieldpats, fieldtypes = List.fold_left
-          (fun (fieldpats, fieldtypes) (field, pat) ->
-            let pat, t = extract_constraint env pat in
-            (field, pat) :: fieldpats, (field, t) :: fieldtypes)
-          ([], []) fieldpats
-        in
-        let fieldtypes = List.map (fun x -> FieldValue x) fieldtypes in
-        PConstruct (name, fieldpats), TyConcreteUnfolded (name, fieldtypes)
-
-
-    | PLocated (pattern, p1, p2) ->
-        let pattern, typ = extract_constraint (locate env (p1, p2)) pattern in
-        PLocated (pattern, p1, p2), typ
-  in
-  
-  let pattern, t = extract_constraint env pattern in
-  PConstraint (pattern, t)
-;; *)
+(* Types *)
 
 let fold_forall bindings t =
   List.fold_right (fun binding t ->
@@ -73,10 +35,19 @@ let fold_exists bindings t =
 ;;
 
 
-
+(* [strip_consumes env t] removes all the consumes annotations from [t]. A
+   [consumes t] annotation is replaced by [=c] with [c] fresh, as well as
+   [c @ t] at top-level. The function returns:
+   - [t] without its consumes annotations
+   - the list of fresh names such as [c]
+   - the list of permissions such as [c @ t].
+*)
 let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
-  (* I don't think it's worth having a tail-rec function here... *)
-  let rec strip_consumes env t =
+  (* I don't think it's worth having a tail-rec function here... this internal
+   * function returns pairs of [name * typ], except that permissions that are
+   * marked as [consumes] do not allocate a fresh name, so they have no
+   * associated name, hence the [Variable.name option]. *)
+  let rec strip_consumes (env: env) (t: typ): typ * (Variable.name option * typ) list  =
     match t with
     | TyLocated (t, p1, p2) ->
         (* Keep the location information, may be useful later on. *)
@@ -142,7 +113,8 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
     | TyAnchoredPermission _
     | TyEmpty
     | TyStar _ ->
-        Log.error "These should've been removed already?!" 
+        Log.error "[KindCheck] made sure there are no unwanted permissions here, and \
+          the right-hand side of a [TyBar] gets a special treatment in [TyBar]." 
 
   in
   let t, name_perms = strip_consumes env t in
@@ -184,67 +156,8 @@ let rec translate_type (env: env) (t: typ): T.typ =
       T.TyApp (translate_type env t1, translate_type env t2)
 
   | TyArrow (t1, t2) ->
-      (* Get the keys of a [Patricia.Map]. *)
-      let keys =
-        fun m -> List.rev (M.fold (fun k _v acc -> k :: acc) m [])
-      in
-
-      (* Get the implicitly quantified variables in [t1]. These will be
-         quantified as universal variables above the arrow type. *)
-      let t1_bindings = names t1 in
-      let t1_bindings = keys t1_bindings in
-      let t1_bindings = List.map (fun x -> (x, KTerm)) t1_bindings in
-
-      (* This is the procedure that removes the consumes annotations. It is
-       * performed in the surface syntax. The first step consists in carving out
-       * the [consumes] annotations, replacing them with [=c]. *)
-      let t1, perm_bindings, perms = strip_consumes env t1 in
-
-      (* Now we give a name to [t1] so that we can speak about the argument in
-       * the returned type. Note: this variable name is not lexable, so no risk
-       * of conflict. *)
-      let root, root_binding, t1 =
-        match tunloc t1 with
-        | TyNameIntro (x, t) ->
-            x, [], t
-        | _ ->
-            let root = Variable.register (fresh_name "/root") in
-            let root_binding = root, KTerm in
-            root, [root_binding], t1
-      in
-
-      (* We now turn the argument into (=root | root @ t1 ∗ c @ … ∗ …) with [t1]
-       * now devoid of any consumes annotations. *)
-      let fat_t1 = TyBar (
-        ty_equals root,
-        fold_star (TyAnchoredPermission (TyVar root, t1) :: perms)
-      ) in
-
-      (* So that we don't mess up, we use unique names in the surface syntax and
-       * let the translation phase do the proper index computations. *)
-      let universal_bindings = t1_bindings @ perm_bindings @ root_binding in
-      let env = List.fold_left bind env universal_bindings in
-      let fat_t1 = translate_type env fat_t1 in
-
-      (* The return type can also bind variables with [x: t]. These are
-       * existentially quantified. *)
-      let t2_bindings = names t2 in
-      let t2_bindings = keys t2_bindings in
-      let t2_bindings = List.map (fun x -> (x, KTerm)) t2_bindings in
-
-      (* We need to return the original permission on [t1], minus the components
-       * that were consumed: these have been carved out of [t1] by
-       * [strip_consumes]. *)
-      let t2 = TyBar (
-        t2,
-        TyAnchoredPermission (TyVar root, t1)
-      ) in
-      let env = List.fold_left bind env t2_bindings in
-
-      (* Build the resulting type. *)
-      let t2 = translate_type env t2 in
-      let t2 = fold_exists t2_bindings t2 in
-      let arrow = T.TyArrow (fat_t1, t2) in
+      let universal_bindings, t1, t2 = translate_arrow_type env t1 t2 in
+      let arrow = T.TyArrow (t1, t2) in
       fold_forall universal_bindings arrow
 
   | TyForall (binding, t) ->
@@ -283,6 +196,71 @@ and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.
         T.FieldPermission (translate_type env t)
   ) fields in
   datacon, fields
+
+and translate_arrow_type env t1 t2 =
+
+  (* Get the keys of a [Patricia.Map]. *)
+  let keys =
+    fun m -> List.rev (M.fold (fun k _v acc -> k :: acc) m [])
+  in
+
+  (* Get the implicitly quantified variables in [t1]. These will be
+     quantified as universal variables above the arrow type. *)
+  let t1_bindings = names t1 in
+  let t1_bindings = keys t1_bindings in
+  let t1_bindings = List.map (fun x -> (x, KTerm)) t1_bindings in
+
+  (* This is the procedure that removes the consumes annotations. It is
+   * performed in the surface syntax. The first step consists in carving out
+   * the [consumes] annotations, replacing them with [=c]. *)
+  let t1, perm_bindings, perms = strip_consumes env t1 in
+
+  (* Now we give a name to [t1] so that we can speak about the argument in
+   * the returned type. Note: this variable name is not lexable, so no risk
+   * of conflict. *)
+  let root, root_binding, t1 =
+    match tunloc t1 with
+    | TyNameIntro (x, t) ->
+        x, [], t
+    | _ ->
+        let root = Variable.register (fresh_name "/root") in
+        let root_binding = root, KTerm in
+        root, [root_binding], t1
+  in
+
+  (* We now turn the argument into (=root | root @ t1 ∗ c @ … ∗ …) with [t1]
+   * now devoid of any consumes annotations. *)
+  let fat_t1 = TyBar (
+    ty_equals root,
+    fold_star (TyAnchoredPermission (TyVar root, t1) :: perms)
+  ) in
+
+  (* So that we don't mess up, we use unique names in the surface syntax and
+   * let the translation phase do the proper index computations. *)
+  let universal_bindings = t1_bindings @ perm_bindings @ root_binding in
+  let env = List.fold_left bind env universal_bindings in
+  let fat_t1 = translate_type env fat_t1 in
+
+  (* The return type can also bind variables with [x: t]. These are
+   * existentially quantified. *)
+  let t2_bindings = names t2 in
+  let t2_bindings = keys t2_bindings in
+  let t2_bindings = List.map (fun x -> (x, KTerm)) t2_bindings in
+
+  (* We need to return the original permission on [t1], minus the components
+   * that were consumed: these have been carved out of [t1] by
+   * [strip_consumes]. *)
+  let t2 = TyBar (
+    t2,
+    TyAnchoredPermission (TyVar root, t1)
+  ) in
+  let env = List.fold_left bind env t2_bindings in
+
+  (* Build the resulting type. *)
+  let t2 = translate_type env t2 in
+  let t2 = fold_exists t2_bindings t2 in
+
+  universal_bindings, fat_t1, t2
 ;;
 
 
@@ -340,8 +318,8 @@ let translate_data_type_group
   let bindings = bindings_data_type_group data_type_group in
 
   (* We're recycling the environments from [SurfaceSyntax] because we're lazy.
-   * We don't really need the kind information here, but all the other functions
-   * such as [bind] and [find] are defined already. *)
+   * We don't really need the [Types.kind] information here, but all the other
+   * functions such as [bind] and [find] are defined already. *)
   let env = List.fold_left (bind ~strict:()) env bindings in 
 
   (* First do the translation pass. *)
@@ -373,7 +351,8 @@ let translate_data_type_group
   let tenv = T.fold_types tenv (fun tenv point { T.kind; _ } { T.definition; _ } ->
     match definition with
     | None ->
-        (* It's an abstract type, it has no branches that should be replaced. *)
+        (* It's an abstract type, it has no branches where we should perform the
+         * opening. *)
         tenv
 
     | Some (flag, branches) ->
@@ -401,6 +380,252 @@ let translate_data_type_group
 ;;
 
 
+(* -------------------------------------------------------------------------- *)
+
+(* Patterns *)
+
+let clean_pattern env pattern =
+  let rec pattern_to_type = function
+    | PVar x ->
+        ty_equals x
+    
+    | PTuple patterns ->
+        TyTuple (List.map pattern_to_type patterns)
+
+    | PConstruct (name, fieldpats) ->
+        let fieldtypes = List.map (fun (field, pat) ->
+          FieldValue (field, pattern_to_type pat)) fieldpats
+        in
+        TyConcreteUnfolded (name, fieldtypes)
+
+    | PLocated (p, _, _) ->
+        pattern_to_type p
+
+    | PConstraint _ ->
+        Log.error "[clean_pattern] should've been called on that type before!"
+  in
+  let rec clean_pattern env = function
+    | PVar _ as pattern ->
+        pattern, []
+
+    | PTuple patterns ->
+        let patterns, assertions = List.split (List.map (clean_pattern env) patterns) in
+        PTuple patterns, List.flatten assertions
+
+    | PConstruct (name, fieldpats) ->
+        let fieldpats, assertions = List.fold_left
+          (fun (fieldpats, assertions) (field, pat) ->
+            let pat, assertion = clean_pattern env pat in
+            (field, pat) :: fieldpats, assertion :: assertions)
+          ([], []) fieldpats
+        in
+        PConstruct (name, fieldpats), List.flatten assertions
+
+    | PConstraint (pattern, typ) ->
+        let pattern, assertions = clean_pattern env pattern in
+        if List.length assertions > 0 then
+          Log.warn "%a there are nested type annotations in this pattern, the \
+            nested parts may end up being asserted twice, even though they may \
+            not be duplicable"
+            Lexer.p env.location;
+        let assertion = TyAnchoredPermission (pattern_to_type pattern, typ) in
+        pattern, assertion :: assertions
+
+    | PLocated (pattern, p1, p2) ->
+        let pattern, assertion = clean_pattern (locate env p1 p2) pattern in
+        PLocated (pattern, p1, p2), assertion
+  in
+  let pattern, assertions = clean_pattern env pattern in
+  pattern, List.rev assertions
+;;
+
+
+let rec translate_pattern = function
+  | PVar x ->
+      E.PVar x
+  | PTuple ps ->
+      E.PTuple (List.map translate_pattern ps)
+  | PConstruct (name, fieldpats) ->
+      let fields, pats = List.split fieldpats in
+      let pats = List.map translate_pattern pats in
+      E.PConstruct (name, List.combine fields pats)
+  | PLocated (p, _, _) ->
+      translate_pattern p
+  | PConstraint _ ->
+        Log.error "[clean_pattern] should've been called on that type before!"
+;;
+
+
+(* -------------------------------------------------------------------------- *)
+
+(* Expressions *)
+
+let rec translate_expr (env: env) (expr: expression): E.expression =
+  match expr with
+  | EConstraint (e, t) ->
+      let e = translate_expr env e in
+      let t = translate_type env t in
+      E.EConstraint (e, t)
+
+  | EVar x ->
+      let _, index = find x env in
+      E.EVar index
+
+  | ELet (flag, patexprs, body) ->
+      let env, patexprs, assertions = translate_patexprs env flag patexprs in
+      let body = translate_expr env body in
+      let assertions = fold_star assertions in
+      let assertions = translate_type env assertions in
+      let body = E.e_assert assertions body in
+      E.ELet (flag, patexprs, body)
+
+  | EFun (vars, args, return_type, body) ->
+      (* TEMPORARY we'll keep it simple for now. *)
+      let arg =
+        if List.length args > 1 then
+          Log.error "Don't know how to desugar functions with more than one \
+            argument"
+        else
+          List.hd args
+      in
+
+      (* Introduce all universal bindings. *)
+      let env = List.fold_left bind env vars in
+
+      (* Translate the function type. *)
+      let universal_bindings, arg, return_type =
+        translate_arrow_type env arg return_type
+      in
+
+      (* Introduce all other bindings in scope *)
+      let env = List.fold_left bind env universal_bindings in
+
+      (* Now translate the body (which will probably refer to these bound
+       * names). *)
+      let body = translate_expr env body in
+      E.EFun (vars @ universal_bindings, [arg], return_type, body)
+
+  | EAssign (e1, x, e2) ->
+      let e1 = translate_expr env e1 in
+      let e2 = translate_expr env e2 in
+      E.EAssign (e1, x, e2)
+
+  | EAccess (e, x) ->
+      let e = translate_expr env e in
+      E.EAccess (e, x)
+
+  | EAssert t ->
+      let t = translate_type env t in
+      E.EConstraint (E.e_unit, T.TyBar (T.ty_unit, t))
+
+  | EApply (e1, e2) ->
+      let e1 = translate_expr env e1 in
+      let e2 = translate_expr env e2 in
+      E.EApply (e1, e2)
+
+  | EMatch (e, patexprs) ->
+      let e = translate_expr env e in
+      let patexprs = List.map (fun (pat, expr) ->
+        (* Extract assertions from the pattern. *)
+        let pat, assertions = clean_pattern env pat in
+        (* Collect the names. *)
+        let names = bindings_pattern pat in
+        (* Translate the pattern. *)
+        let pat = translate_pattern pat in
+        (* Bind the names for further translating, and don't forget to include
+         * assertions in the translation as well. *)
+        let sub_env = List.fold_left bind env names in
+        let expr = translate_expr sub_env expr in
+        let assertions = translate_type env (fold_star assertions) in
+        let expr = E.e_assert assertions expr in
+        pat, expr) patexprs
+      in
+      E.EMatch (e, patexprs)
+
+  | ETuple expressions ->
+      E.ETuple (List.map (translate_expr env) expressions)
+
+  | EConstruct (name, fieldexprs) ->
+      let fieldexprs = List.map (fun (field, expr) ->
+        field, translate_expr env expr) fieldexprs
+      in
+      E.EConstruct (name, fieldexprs)
+
+  | EIfThenElse (e1, e2, e3) ->
+      let e1 = translate_expr env e1 in
+      let e2 = translate_expr env e2 in
+      let e3 = translate_expr env e3 in
+      E.EIfThenElse (e1, e2, e3)
+
+  | ESequence (e1, e2) ->
+      let e1 = translate_expr env e1 in
+      let e2 = translate_expr env e2 in
+      E.(ELet (Nonrecursive, [p_unit, e1], e2))
+
+  | ELocated (e, p1, p2) ->
+      let e = translate_expr env e in
+      E.ELocated (e, p1, p2)
+
+  | EPlus (e1, e2) ->
+      let e1 = translate_expr env e1 in
+      let e2 = translate_expr env e2 in
+      E.EPlus (e1, e2)
+
+  | EMinus (e1, e2) ->
+      let e1 = translate_expr env e1 in
+      let e2 = translate_expr env e2 in
+      E.EMinus (e1, e2)
+
+  | ETimes (e1, e2) ->
+      let e1 = translate_expr env e1 in
+      let e2 = translate_expr env e2 in
+      E.ETimes (e1, e2)
+
+  | EDiv (e1, e2) ->
+      let e1 = translate_expr env e1 in
+      let e2 = translate_expr env e2 in
+      E.EDiv (e1, e2)
+
+  | EUMinus e ->
+      let e = translate_expr env e in
+      E.EUMinus e
+
+  | EInt i ->
+      E.EInt i
+
+(* This function desugars a list of [pattern * expression] and returns the
+ * desugared version, as well as a list of assertions (read: types with kind
+ * PERM) that should be enforced later on when the names in the patterns have
+ * been bound (typically, below). The assertions are returned as surface syntax. *)
+and translate_patexprs
+      (env: env)
+      (flag: rec_flag)
+      (pat_exprs: (pattern * expression) list): env * E.binding list * typ list
+    =
+  let patterns, expressions = List.split pat_exprs in
+  (* Remove all inner type annotations and transform them into a list of
+   * assertions. *)
+  let patterns, assertions = List.fold_left (fun (patterns, assertions) pattern ->
+    let pattern, assertion = clean_pattern env pattern in
+    pattern :: patterns, assertion :: assertions) ([], []) patterns
+  in
+  (* Keep the assertions in order as well so as to enforce readability. *)
+  let patterns = List.rev patterns and assertions = List.rev assertions in
+  (* Find names in patterns. *)
+  let names = List.flatten (List.map bindings_pattern patterns) in
+  (* Translate the patterns. *)
+  let patterns = List.map translate_pattern patterns in
+  (* Bind all the names in the sub-environment. *)
+  let sub_env = List.fold_left bind env names in
+  (* Translate the expressions. *)
+  let expressions = match flag with
+    | Recursive -> List.map (translate_expr sub_env) expressions
+    | Nonrecursive -> List.map (translate_expr env) expressions
+  in
+  sub_env, List.combine patterns expressions, List.flatten assertions
+;;
+
+
 let open_type_definitions (points: T.point list) (declarations: E.declaration_group) =
   let total_number_of_data_types = List.length points in
   let subst_decl = fun declarations ->
@@ -413,8 +638,31 @@ let open_type_definitions (points: T.point list) (declarations: E.declaration_gr
 ;;
 
 
-let translate_declaration_group _ _ =
-  []
+let translate_declaration_group (env: env) (decls: declaration_group): E.declaration_group =
+  let _env, decls = List.fold_left (fun (env, acc) decl ->
+    match decl with
+    | DLocated (DMultiple (flag, pat_exprs), p1, p2) ->
+        let env = locate env p1 p2 in
+        let env, pat_exprs, assertions = translate_patexprs env flag pat_exprs in
+        let decl = E.DLocated (E.DMultiple (flag, pat_exprs), p1, p2) in
+        (* Generate an extra declaration that enforces the type annotations. *)
+        let extra =
+          if List.length assertions > 0 then
+            let assertions = List.map (translate_type env) assertions in
+            let open E in
+            let open T in
+            (* val () = (): (| assertions) *)
+            Some (DLocated (DMultiple (Nonrecursive, [
+              p_unit, EConstraint (e_unit, TyBar (ty_unit, fold_star assertions))
+            ]), p1, p2))
+          else
+            None
+        in
+        env, extra :: (Some decl) :: acc
+    | _ ->
+        Log.error "The structure of declarations is supposed to be very simple"
+  ) (env, []) decls in
+  List.rev (Hml_List.filter_some decls)
 ;;
 
 

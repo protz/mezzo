@@ -11,13 +11,13 @@ open Types
 type pattern =
   (* x *)
   | PVar of Variable.name
-  (* Once the variables in a pattern have been bound, they may replaced by
-   * [PPoint]s so that we know how to speak about the bound variables. *)
-  | PPoint of point
   (* (x₁, …, xₙ) *)
   | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)
   | PConstruct of Datacon.name * (Field.name * pattern) list
+  (* Once the variables in a pattern have been bound, they may replaced by
+   * [PPoint]s so that we know how to speak about the bound variables. *)
+  | PPoint of point
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -76,6 +76,23 @@ type declaration =
 
 type declaration_group =
   declaration list
+
+let e_unit =
+  ETuple []
+;;
+
+let p_unit =
+  PTuple []
+;;
+
+let e_assert perm expr =
+  ELet (
+    Nonrecursive,
+    [p_unit,
+    EConstraint (e_unit, TyBar (ty_unit, perm))],
+    expr
+  )
+;;
 
 (* ---------------------------------------------------------------------------- *)
 

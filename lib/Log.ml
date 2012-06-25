@@ -29,10 +29,12 @@ let debug ?level fmt =
   end else
     Hml_String.biprintf fmt
 
+let warn x = debug ~level:0 x
+
 let error fmt =
   Printf.kbprintf (fun buf -> Buffer.add_char buf '\n'; Buffer.output_buffer stderr buf; assert false) (Buffer.create 16) fmt
 
-let affirm b fmt =
+let check b fmt =
   let open Printf in
   if b then
     ifprintf stderr fmt

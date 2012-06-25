@@ -29,7 +29,7 @@
 %token COMMA COLON COLONCOLON SEMI ARROW STAR AT
 %token LARROW DBLARROW FUN
 %token EQUAL
-%token EMPTY
+%token EMPTY ASSERT
 %token CONSUMES DUPLICABLE FACT ABSTRACT
 %token VAL LET REC AND IN DOT WITH BEGIN END MATCH
 %token IF THEN ELSE
@@ -517,6 +517,8 @@ fact:
       { e }
   | LPAREN e = expression COLON t = arbitrary_type RPAREN
       { EConstraint (e, t) }
+  | ASSERT LPAREN t = arbitrary_type RPAREN
+      { EAssert t }
   | LPAREN e = expression RPAREN
       { e }
 

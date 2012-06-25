@@ -133,15 +133,16 @@ type data_type_group =
 (* Patterns *)
 
 type pattern =
-  (* x: τ *)
-  | PConstraint of pattern * typ
   (* x *)
   | PVar of Variable.name
   (* (x: τ, …) *)
   | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)
   | PConstruct of (Datacon.name * (Variable.name * pattern) list)
+  (* Location information. *)
   | PLocated of pattern * Lexing.position * Lexing.position
+  (* x: τ *)
+  | PConstraint of pattern * typ
 
 
 (* ---------------------------------------------------------------------------- *)
@@ -164,6 +165,8 @@ and expression =
   | EAssign of expression * Variable.name * expression
   (* v.f *)
   | EAccess of expression * Variable.name
+  (* assert τ *)
+  | EAssert of typ
   (* e e₁ … eₙ *)
   | EApply of expression * expression
   (* match e with pᵢ -> eᵢ *)

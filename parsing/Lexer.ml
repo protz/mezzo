@@ -146,6 +146,7 @@ let rec token = lexer
 | "let" -> locate lexbuf LET
 | "rec" -> locate lexbuf REC
 | "and" -> locate lexbuf AND
+| "assert" -> locate lexbuf ASSERT
 
 | "permission" -> locate lexbuf PERMISSION
 | "unknown" -> locate lexbuf UNKNOWN
@@ -157,7 +158,7 @@ let rec token = lexer
 | "fact" -> locate lexbuf FACT
 | "duplicable" -> locate lexbuf DUPLICABLE
 | "abstract" -> locate lexbuf ABSTRACT
-| "TYPE" -> locate lexbuf KTYPE
+| "TYPE" | 8727 (* ∗ *) -> locate lexbuf KTYPE
 
 | "[" -> locate lexbuf LBRACKET
 | "]" -> locate lexbuf RBRACKET
@@ -172,7 +173,7 @@ let rec token = lexer
 | ";" -> locate lexbuf SEMI
 | "->" | 8594 (* → *) -> locate lexbuf ARROW
 | "=>" | 8658 (* ⇒ *) -> locate lexbuf DBLARROW
-| "*" | 9733 (* ★ *) -> locate lexbuf STAR
+| "*" -> locate lexbuf STAR
 | "=" -> locate lexbuf EQUAL
 | "@" -> locate lexbuf AT
 | "consumes" -> locate lexbuf CONSUMES

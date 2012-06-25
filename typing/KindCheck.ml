@@ -552,7 +552,7 @@ and check_expression (env: env) (expr: expression) =
 
   | EFun (bindings, args, return_type, body) ->
       let env = List.fold_left bind env bindings in
-      if List.length args > 0 then
+      if List.length args > 1 then
         Log.error "Don't know how to treat a function with multiple arguments";
       let arg = List.hd args in
       let arg_bindings = names arg in
@@ -570,15 +570,22 @@ and check_expression (env: env) (expr: expression) =
   | EAccess (e, _) ->
       check_expression env e
 
+  | EAssert t ->
+      check env t KPerm
+
   | EApply (e1, e2) ->
       check_expression env e1;
       check_expression env e2
 
   | EMatch (e, pat_exprs) ->
       check_expression env e;
-      List.iter
-        (fun pat_expr -> ignore (check_patexpr env Nonrecursive [pat_expr]))
-        pat_exprs
+      List.iter (fun (pat, expr) ->
+        let bindings = bindings_pattern pat in
+        check_for_duplicates bindings (fun (x, _) -> bound_twice x);
+        let sub_env = List.fold_left bind env bindings in
+        check_pattern sub_env pat;
+        check_expression sub_env expr
+      ) pat_exprs
 
   | ETuple exprs ->
       List.iter (check_expression env) exprs
