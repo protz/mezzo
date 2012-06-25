@@ -103,11 +103,14 @@ let _ =
       let env = Driver.process true (Filename.concat "tests" file) in
       env
     in
-    try
+    begin try
       test do_it;
-      Printf.printf "%s✓ OH YEY %s%s\n" colors.green colors.default file
+      Printf.printf "%s✓ OH YEY %s%s\n" colors.green colors.default file;
     with e ->
       Printf.printf "%s✗ OH NOES %s%s\n" colors.red colors.default file;
       print_endline (Printexc.to_string e);
       Printexc.print_backtrace stdout;
+    end;
+    flush stdout;
+    flush stderr;
   ) tests

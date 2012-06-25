@@ -1,4 +1,4 @@
 val wrong =
   let r = Ref { contents = Nil } in
   fun [a] (x: a): () =
-    r.contents <- Cons { head = a; tail = r.contents }
+    r.contents <- Cons { head = x; tail = r.contents }

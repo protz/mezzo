@@ -142,6 +142,11 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
         let env, q = unfold env ?hint q in
         env, TyStar (p, q)
 
+    | TyBar (t, p) ->
+        let env, t = unfold env ?hint t in
+        let env, p = unfold env ?hint p in
+        env, TyBar (t, p)
+
     | TyAnchoredPermission (x, t) ->
         let env, t = unfold env ?hint t in
         env, TyAnchoredPermission (x, t)

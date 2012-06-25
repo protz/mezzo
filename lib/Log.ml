@@ -32,7 +32,11 @@ let debug ?level fmt =
 let warn x = debug ~level:0 x
 
 let error fmt =
-  Printf.kbprintf (fun buf -> Buffer.add_char buf '\n'; Buffer.output_buffer stderr buf; assert false) (Buffer.create 16) fmt
+  Printf.kbprintf (fun buf ->
+    Buffer.add_char buf '\n';
+    Buffer.output_buffer stderr buf;
+    raise (Failure (Buffer.contents buf))
+  ) (Buffer.create 16) fmt
 
 let check b fmt =
   let open Printf in
