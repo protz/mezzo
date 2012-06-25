@@ -884,6 +884,17 @@ module TypePrinter = struct
     print_string q ^^ lparen ^^ print_var name ^^ space ^^ ccolon ^^ space ^^
     print_kind kind ^^ rparen ^^ dot ^^ jump (print_type env typ)
 
+  and print_point env point =
+    match structure env point with
+    | Some t ->
+        lparen ^^ string "f=" ^^ print_type env t ^^ rparen
+    | _ ->
+        if is_flexible env point then
+          print_var (get_name env point) ^^ star
+        else
+          print_var (get_name env point)
+
+
   (* TEMPORARY this does not respect precedence and won't insert parentheses at
    * all! *)
   and print_type env = function
@@ -894,19 +905,15 @@ module TypePrinter = struct
         string "dynamic"
 
     | TyPoint point ->
-        begin match structure env point with
-        | Some t ->
-            lparen ^^ string "f=" ^^ print_type env t ^^ rparen
-        | _ ->
-            if is_flexible env point then
-              print_var (get_name env point) ^^ star
-            else
-              print_var (get_name env point)
-        end
+        print_point env point
 
     | TyVar i ->
         int i
         (* Log.error "All variables should've been bound at this stage" *)
+
+      (* Special-casing *)
+    | TyAnchoredPermission (TyPoint p, TySingleton (TyPoint p')) ->
+        print_point env p ^^ space ^^ equals ^^ space ^^ print_point env p'
 
     | TyForall (((name, kind) as binding), typ) ->
         let env, typ = bind_var_in_type env binding typ in
