@@ -179,6 +179,13 @@ and perm_binder = {
   consumed: bool;
 }
 
+(* This is not pretty, but we need some of these functions for debugging, and
+ * the printer is near the end. *)
+
+let internal_ptype = ref (fun _ -> assert false);;
+let internal_pdoc = ref (fun _ -> assert false);;
+let internal_pnames = ref (fun _ -> assert false);;
+
 (* The empty environment. *)
 let empty_env = {
   type_for_datacon = DataconMap.empty;
@@ -695,12 +702,14 @@ let refresh_mark (env: env): env =
 
 (* A hodge-podge of getters. *)
 
-let get_name (env: env) (point: point): Variable.name =
+let get_names (env: env) (point: point): Variable.name list =
   match PersistentUnionFind.find point env.state with
-  | { names = name :: _; _ }, _ ->
-      name
-  | _ ->
-      Log.error "No name for this binder ?!"
+  | { names; _ }, _ ->
+      names
+;;
+
+let get_name env p =
+  List.hd (get_names env p)
 ;;
 
 let get_permissions (env: env) (point: point): permissions =
@@ -761,13 +770,10 @@ let has_definition (env: env) (point: point): bool =
 
 (* Instantiating. *)
 
-let internal_ptype = ref (fun _ -> assert false);;
-let internal_pdoc = ref (fun _ -> assert false);;
-
 let instantiate_flexible env p t =
   Log.check (is_flexible env p) "Trying to instantiate a variable that's not flexible";
   Log.debug "Instantiating %a with %a"
-    Variable.p (get_name env p)
+    !internal_pnames (get_names env p)
     !internal_pdoc (!internal_ptype, (env, t));
   { env with state =
       PersistentUnionFind.update (function
@@ -1089,6 +1095,22 @@ module TypePrinter = struct
     join (comma ^^ space) permissions
   ;;
 
+  let print_names names =
+    if List.length names > 0 then
+      let names = List.map print_var names in
+      let names = List.map (fun x -> colors.blue ^^ x ^^ colors.default) names in
+      let names = join (string " a.k.a. ") names in
+      names
+    else
+      colors.red ^^ string "[no name]" ^^ colors.default
+  ;;
+
+  let pnames buf names =
+    pdoc buf (print_names, names)
+  ;;
+
+  internal_pnames := pnames;;
+
   let print_permissions (env: env): document =
     let header =
       let str = "PERMISSIONS:" in
@@ -1096,9 +1118,7 @@ module TypePrinter = struct
       (string str) ^^ hardline ^^ (string line)
     in
     let lines = map_terms env (fun { names; _ } binder ->
-      let names = List.map print_var names in
-      let names = List.map (fun x -> colors.blue ^^ x ^^ colors.default) names in
-      let names = join (string " a.k.a. ") names in
+      let names = print_names names in
       let perms = print_permission_list (env, binder) in
       names ^^ colon ^^ space ^^ (nest 2 perms)
     ) in

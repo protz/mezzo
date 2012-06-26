@@ -21,3 +21,9 @@ val rget [a] (consumes x: ref a): (a | x @ ref unknown) =
 
 val rset [a, b] (consumes x: ref a, consumes c: b): ( | x @ ref b) =
   x.contents <- c
+
+val (nil: [a] list a) =
+  Nil
+
+val cons [a] (consumes hd: a, consumes tl: list a): list a =
+  Cons { head = hd; tail = tl }

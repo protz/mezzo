@@ -55,3 +55,6 @@ val fold: env -> point -> typ option
 val fold_type: env -> typ -> typ option
 
 val full_merge: env -> point -> point -> env
+
+(** [has_flexible env t] checks [t] for flexible variables. *)
+val has_flexible: env -> typ -> bool

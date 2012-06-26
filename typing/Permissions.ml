@@ -99,6 +99,60 @@ let collect (t: typ): typ * typ list =
   collect t
 ;;
 
+(* [has_flexible env t] checks [t] for flexible variables. *)
+let has_flexible env t =
+  let rec has_flexible t =
+    match t with
+    | TyUnknown
+    | TyDynamic
+    | TyVar _ ->
+        false
+
+    | TyPoint p ->
+        if is_flexible env p then
+          true
+        else
+          begin match structure env p with
+          | Some t ->
+              has_flexible t
+          | None ->
+              false
+          end
+
+    | TyForall (_, t)
+    | TyExists (_, t) ->
+        has_flexible t
+
+    | TyBar (t1, t2)
+    | TyArrow (t1, t2)
+    | TyApp (t1, t2) ->
+        has_flexible t1 || has_flexible t2
+
+    | TyTuple components ->
+        List.exists has_flexible components
+
+    | TyConcreteUnfolded (_, fields) ->
+        let fields = List.map (function
+          | FieldValue (_, t)
+          | FieldPermission t ->
+              has_flexible t
+        ) fields in
+        List.exists (fun x -> x) fields
+
+    | TySingleton t ->
+        has_flexible t
+
+    | TyAnchoredPermission (t1, t2)
+    | TyStar (t1, t2) ->
+        has_flexible t1 || has_flexible t2
+
+    | TyEmpty ->
+        false
+
+  in
+  has_flexible t
+;;
+
 (** [unfold env t] returns [env, t] where [t] has been unfolded, which
     potentially led us into adding new points to [env]. The [hint] serves when
     making up names for intermediary variables. *)
@@ -615,6 +669,11 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       end else begin
         None
       end
+
+  | TyConcreteUnfolded _, TyForall (binding, t2) ->
+      (* Typical use-case: Nil vs [a] list a. *)
+      let env, t2 = bind_var_in_type env ~flexible:true binding t2 in
+      sub_type env t1 t2
 
 
   | TyApp _, TyApp _ ->

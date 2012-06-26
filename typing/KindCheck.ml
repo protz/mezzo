@@ -716,9 +716,11 @@ module KindPrinter = struct
   ;;
 
   let print_kinds_and_facts program_env =
-    string "KINDS:" ^^ nest 2 (hardline ^^ print_kinds program_env) ^^ hardline ^^
+    colors.red ^^ string "KINDS:" ^^ colors.default ^^
+    nest 2 (hardline ^^ print_kinds program_env) ^^ hardline ^^
     hardline ^^
-    string "FACTS:" ^^ nest 2 (hardline ^^ print_facts program_env) ^^ hardline
+    colors.red ^^ string "FACTS:" ^^ colors.default ^^
+    nest 2 (hardline ^^ print_facts program_env) ^^ hardline
   ;;
 
 end

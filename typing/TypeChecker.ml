@@ -116,60 +116,6 @@ let print_error buf (env, raw_error) =
 
 (* -------------------------------------------------------------------------- *)
 
-(* [has_flexible env t] checks [t] for flexible variables. *)
-let has_flexible env t =
-  let rec has_flexible t =
-    match t with
-    | TyUnknown
-    | TyDynamic
-    | TyVar _ ->
-        false
-
-    | TyPoint p ->
-        if is_flexible env p then
-          true
-        else
-          begin match structure env p with
-          | Some t ->
-              has_flexible t
-          | None ->
-              false
-          end
-
-    | TyForall (_, t)
-    | TyExists (_, t) ->
-        has_flexible t
-
-    | TyBar (t1, t2)
-    | TyArrow (t1, t2)
-    | TyApp (t1, t2) ->
-        has_flexible t1 || has_flexible t2
-
-    | TyTuple components ->
-        List.exists has_flexible components
-
-    | TyConcreteUnfolded (_, fields) ->
-        let fields = List.map (function
-          | FieldValue (_, t)
-          | FieldPermission t ->
-              has_flexible t
-        ) fields in
-        List.exists (fun x -> x) fields
-
-    | TySingleton t ->
-        has_flexible t
-
-    | TyAnchoredPermission (t1, t2)
-    | TyStar (t1, t2) ->
-        has_flexible t1 || has_flexible t2
-
-    | TyEmpty ->
-        false
-
-  in
-  has_flexible t
-;;
-
 (* Since everything is, or will be, in A-normal form, type-checking a function
  * call amounts to type-checking a point applied to another point. The default
  * behavior is: do not return a type that contains flexible variables. *)
@@ -220,7 +166,7 @@ let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x:
   | Some env ->
       (* If we're not allowed to have flexible variables, make sure there aren't
        * any of them left hanging around. *)
-      if not (Option.unit_bool allow_flexible) && has_flexible env t2 then begin
+      if not (Option.unit_bool allow_flexible) && Permissions.has_flexible env t2 then begin
         raise_error env (HasFlexible t2)
       end;
       (* Return the "good" type. *)
@@ -322,7 +268,8 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
 
   (* TEMPORARY this is just a quick and dirty way to talk about user-defined
    * types. *)
-  let int = find_type_by_name env "int" in
+  let int = lazy (find_type_by_name env "int") in
+  let (!*) = Lazy.force in
 
   (* [return t] creates a new point with type [t] available for it, and returns
    * the environment as well as the point *)
@@ -339,9 +286,9 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
     let hint2 = Option.map (fun x -> Printf.sprintf "%s_%s_r" x op) hint in
     let env, x1 = check_expression env ?hint:hint1 e1 in
     let env, x2 = check_expression env ?hint:hint2 e2 in
-    let env = check_return_type env x1 int in
-    let env = check_return_type env x2 int in
-    return env int
+    let env = check_return_type env x1 !*int in
+    let env = check_return_type env x2 !*int in
+    return env !*int
   in
 
   match expr with
@@ -542,13 +489,13 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
   (* | EIfThenElse of expression * expression * expression *)
 
   | EInt _ ->
-      return env int
+      return env !*int
 
   | EUMinus e ->
       let hint = Option.map (fun x -> "-" ^ x) hint in
       let env, x = check_expression env ?hint e in
-      let env = check_return_type env x int in
-      return env int
+      let env = check_return_type env x !*int in
+      return env !*int
 
   | EPlus (e1, e2) ->
       check_arith_binop env e1 e2 "+"
