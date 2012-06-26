@@ -405,6 +405,9 @@ fact:
     %inline data_field_pat:
     | f = variable EQUAL p = pattern
         { f, p }
+    | f = variable
+        (* Punning *)
+        { f, PVar f }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -526,6 +529,9 @@ fact:
     (* cannot allow let because right-hand side of let can contain a semi-colon *)
     | f = variable EQUAL e = everything_except_let_and_semi 
         { f, e }
+    | f = variable
+        (* Punning *)
+        { f, EVar f }
 
     %inline match_branch:
     | p = pattern ARROW e = expression

@@ -605,7 +605,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
 and translate_patexprs
       (env: env)
       (flag: rec_flag)
-      (pat_exprs: (pattern * expression) list): env * E.binding list * typ list
+      (pat_exprs: (pattern * expression) list): env * E.patexpr list * typ list
     =
   let patterns, expressions = List.split pat_exprs in
   (* Remove all inner type annotations and transform them into a list of

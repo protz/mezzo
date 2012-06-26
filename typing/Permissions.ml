@@ -671,8 +671,9 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       end
 
   | TyConcreteUnfolded _, TyForall (binding, t2) ->
-      (* Typical use-case: Nil vs [a] list a. *)
-      let env, t2 = bind_var_in_type env ~flexible:true binding t2 in
+      (* Typical use-case: Nil vs [a] list a. We're binding this as a *rigid*
+       * type variable. *)
+      let env, t2 = bind_var_in_type env binding t2 in
       sub_type env t1 t2
 
 

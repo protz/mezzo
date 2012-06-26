@@ -33,7 +33,7 @@ type expression =
   (* v, free *)
   | EPoint of point
   (* let rec pat = expr and pat' = expr' in expr *)
-  | ELet of rec_flag * binding list * expression
+  | ELet of rec_flag * patexpr list * expression
   (* fun [a] (x: τ): τ -> e *)
   | EFun of (Variable.name * kind) list * typ list * typ * expression
   (* v.f <- e *)
@@ -43,7 +43,7 @@ type expression =
   (* e₁ e₂ *)
   | EApply of expression * expression
   (* match e with pᵢ -> eᵢ *)
-  | EMatch of expression * binding list
+  | EMatch of expression * patexpr list
   (* (e₁, …, eₙ) *)
   | ETuple of expression list
   (* Foo { bar = bar; baz = baz; … *)
@@ -59,7 +59,7 @@ type expression =
   | EUMinus of expression
   | EInt of int
 
-and binding =
+and patexpr =
   (* A binding is made up of a pattern, an optional type annotation for the
    * entire pattern (desugared), and an expression. *)
   pattern * expression
@@ -71,7 +71,7 @@ and binding =
  * variables in all the patterns are collected in order before type-checking the
  * expressions. *)
 type declaration =
-  | DMultiple of rec_flag * binding list
+  | DMultiple of rec_flag * patexpr list
   | DLocated of declaration * Lexing.position * Lexing.position
 
 type declaration_group =
