@@ -673,7 +673,14 @@ and sub_perm (env: env) (t: typ): env option =
   | TyEmpty ->
       Some env
   | _ ->
-      Log.error "[sub_perm] only works with types that have kind PERM"
+      let open TypePrinter in
+      let open Obj in
+      if is_block (repr t) then
+        Log.debug "%d-th block constructor" (tag (repr t))
+      else
+        Log.debug "%d-th constant constructor" (magic t);
+      Log.error "[sub_perm] the following type does not have kind PERM: %a"
+        pdoc (ptype, (env, t))
 ;;
 
 
@@ -750,6 +757,9 @@ and fold_type_raw (env: env) (t: typ): typ =
 
   | TyArrow _ ->
       t
+
+  | TyBar (t, p) ->
+      TyBar (fold_type_raw env t, p)
 
   | TyAnchoredPermission (x, t) ->
       TyAnchoredPermission (x, fold_type_raw env t)

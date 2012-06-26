@@ -439,6 +439,30 @@ let tsubst_data_type_def_branch t2 i branch =
 
 (* ---------------------------------------------------------------------------- *)
 
+let ty_equals x =
+  TySingleton (TyPoint x)
+;;
+
+let ty_unit =
+  TyTuple []
+;;
+
+let ty_tuple ts =
+  TyTuple ts
+;;
+
+(* This is right-associative, so you can write [list int @-> int @-> tuple []] *)
+let (@->) x y =
+  TyArrow (x, y)
+;;
+
+let ty_bar t p =
+  TyBar (t, p)
+;;
+
+
+(* ---------------------------------------------------------------------------- *)
+
 (* Various functions related to binding and finding. *)
 
 let head name ~flexible kind =
@@ -456,14 +480,6 @@ let fold_star perms =
     Hml_List.reduce (fun acc x -> TyStar (acc, x)) perms
   else
     TyEmpty
-;;
-
-let ty_equals x =
-  TySingleton (TyPoint x)
-;;
-
-let ty_unit =
-  TyTuple []
 ;;
 
 let bind_term

@@ -51,21 +51,8 @@ let tests = [
   ("wrong_type_annotation.hml",
     simple_test Fail (function ExpectedType _ -> true | _ -> false));
 
-  ("constraints_in_patterns.hml", fun do_it ->
-    try
-      ignore (do_it ());
-      raise (Failure "")
-    with TypeCheckerError e ->
-      match e with
-      | env, ExpectedType (t, _) ->
-          let int = find_type_by_name env "int" in
-          let xlist x =
-            let c = find_type_by_name env "xlist" in
-            TyApp (c, x)
-          in
-          assert (equal env t (tuple [xlist int; xlist int]))
-      | _ ->
-          raise (Failure ""));
+  ("constraints_in_patterns.hml",
+    simple_test Fail (function ExpectedType _ -> true | _ -> false));
 
   ("function.hml", fun do_it ->
     let env = do_it () in
@@ -79,20 +66,9 @@ let tests = [
     let zero = point_by_name env "zero" in
     check env zero int);
 
-  ("value_restriction.hml", fun do_it ->
-    try
-      ignore (do_it ());
-      raise (Failure "")
-    with TypeCheckerError e ->
-      match e with
-      | env, ExpectedType (_, p) ->
-          let _, r = find_term env p in
-          let p = point_by_name env "r" in
-          let _, r' = find_term env p in
-          assert (r = r')
-      | _ ->
-          raise (Failure ""));
-]
+  ("value_restriction.hml",
+    simple_test Fail (function NoSuchField _ -> true | _ -> false));
+ ]
 
 let _ =
   let open Bash in

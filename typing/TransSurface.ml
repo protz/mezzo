@@ -385,21 +385,21 @@ let translate_data_type_group
 (* Patterns *)
 
 let clean_pattern env pattern =
-  let rec pattern_to_type = function
+  let rec pattern_to_type env = function
     | PVar x ->
-        ty_equals x
+        TyVar x
     
     | PTuple patterns ->
-        TyTuple (List.map pattern_to_type patterns)
+        TyTuple (List.map (pattern_to_type env) patterns)
 
     | PConstruct (name, fieldpats) ->
         let fieldtypes = List.map (fun (field, pat) ->
-          FieldValue (field, pattern_to_type pat)) fieldpats
+          FieldValue (field, pattern_to_type env pat)) fieldpats
         in
         TyConcreteUnfolded (name, fieldtypes)
 
     | PLocated (p, _, _) ->
-        pattern_to_type p
+        pattern_to_type env p
 
     | PConstraint _ ->
         Log.error "[clean_pattern] should've been called on that type before!"
@@ -428,7 +428,7 @@ let clean_pattern env pattern =
             nested parts may end up being asserted twice, even though they may \
             not be duplicable"
             Lexer.p env.location;
-        let assertion = TyAnchoredPermission (pattern_to_type pattern, typ) in
+        let assertion = TyAnchoredPermission (pattern_to_type env pattern, typ) in
         pattern, assertion :: assertions
 
     | PLocated (pattern, p1, p2) ->
@@ -474,9 +474,14 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   | ELet (flag, patexprs, body) ->
       let env, patexprs, assertions = translate_patexprs env flag patexprs in
       let body = translate_expr env body in
-      let assertions = fold_star assertions in
-      let assertions = translate_type env assertions in
-      let body = E.e_assert assertions body in
+      let body =
+        if List.length assertions > 0 then
+          let assertions = fold_star assertions in
+          let assertions = translate_type env assertions in
+          E.e_assert assertions body
+        else
+          body
+      in
       E.ELet (flag, patexprs, body)
 
   | EFun (vars, args, return_type, body) ->

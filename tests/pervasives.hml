@@ -1,5 +1,5 @@
 abstract int :: ∗
-fact duplicable (int)
+fact duplicable int
 
 exclusive data xlist a =
   | XNil
