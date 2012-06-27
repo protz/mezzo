@@ -1,0 +1,3 @@
+exclusive data t a = T | U
+
+val (x: [a] t a) = T
