@@ -493,6 +493,7 @@ let bind_term
     (env: env)
     (name: Variable.name)
     ?(flexible=false)
+    ?(include_equals=true)
     (ghost: bool): env * point
   =
   let binding =
@@ -500,9 +501,10 @@ let bind_term
     BTerm { permissions = []; ghost }
   in
   let point, state = PersistentUnionFind.create binding env.state in
+  let initial_permissions = if include_equals then [ ty_equals point ] else [] in
   let state = PersistentUnionFind.update
     (function
-      | (head, BTerm raw) -> head, BTerm { raw with permissions = [ ty_equals point ] }
+      | (head, BTerm raw) -> head, BTerm { raw with permissions = initial_permissions }
       | _ -> assert false)
     point
     state

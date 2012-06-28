@@ -112,18 +112,14 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
   let left_env, left_root = left in
   let right_env, right_root = right in
   let root_name = Variable.register (fresh_name "merge_root") in
-  let dest_env, dest_root = bind_term dest_env root_name false in
-  let dest_env = replace_term dest_env dest_root (fun binder ->
-      { binder with permissions = [] }
-    )
-  in
+  let dest_env, dest_root = bind_term ~include_equals:false dest_env root_name false in
   push_job (left_root, right_root, dest_root);
 
 
   (* This is the core of the merge algorithm: this is where we compare a type
    * from the left with a type from the right and decide how to merge the two
    * together. *)
-  let merge_type
+  let rec merge_type
       ((left_env, left_perm): env * typ)
       ((right_env, right_perm): env * typ)
       (dest_env: env): (env * typ) option
@@ -131,7 +127,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
 
     let bind_merge dest_env left_p right_p =
       let name = Variable.register (fresh_name "merge_point") in
-      let dest_env, dest_p = bind_term dest_env name false in
+      let dest_env, dest_p = bind_term ~include_equals:false dest_env name false in
       push_job (left_p, right_p, dest_p);
       dest_env, dest_p
     in
@@ -149,6 +145,9 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
     | TyPoint left_p, TyPoint right_p ->
         let dest_env, dest_p = bind_merge dest_env left_p right_p in
         Some (dest_env, TyPoint dest_p)
+
+    | TySingleton left_t, TySingleton right_t ->
+        merge_type (left_env, left_t) (right_env, right_t) dest_env
 
     | TyConcreteUnfolded (datacon_l, fields_l), TyConcreteUnfolded (datacon_r, fields_r) ->
         if Datacon.equal datacon_l datacon_r then
@@ -183,12 +182,22 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       ((right_env, right_point): env * point)
       ((dest_env, dest_point): env * point): mapping * env * env * env
     =
+
+    let left_name = get_name left_env left_point in
+    let right_name = get_name right_env right_point in
+    let dest_name = get_name dest_env dest_point in
+    Log.debug "--- New round of [merge_points] %a %a %a."
+      Variable.p left_name
+      Variable.p right_name
+      Variable.p dest_name;
+
     match try_map mapping left_point right_point (dest_env, dest_point) with
     | None ->
         (* Can't perform the merge, do nothing. *)
         mapping, left_env, right_env, dest_env
 
     | Some (dest_env, mapping) ->
+
         (* This function will just take an initially empty [dest_perms] and try
           all combinations pairwise from [left_perms] and [right_perms] to build
           [dest_perms]. It will return the unused permissions. *)
@@ -214,8 +223,11 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
                     (right_env, right_perm)
                     dest_env
                 in
-                if Option.is_some merge_result then
-                  Log.debug ~level:4 "  → this merge was succesful";
+                if Option.is_some merge_result then begin
+                  Log.debug ~level:4 "  → this merge between %a and %a was succesful"
+                    Variable.p left_name
+                    Variable.p right_name;
+                end;
                 right_perm, merge_result) right_perms
               in
               let worked, didnt_work =
@@ -274,8 +286,21 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
     (* And save it. *)
     state := (mapping, left_env, right_env, dest_env);
   done;
+
   (* Now we're just interested in [dest_env]. *)
-  let _, _, _, dest_env = !state in
+  let mapping, _, _, dest_env = !state in
+
+  Log.debug ~level:4 "Mapping for [left]:";
+  PointMap.iter (fun p p' ->
+    Log.debug ~level:4 "%a → %a"
+      TypePrinter.pnames (get_names left_env p)
+      Variable.p (get_name dest_env p')) mapping.left;
+  Log.debug ~level:4 "Mapping for [right]:";
+  PointMap.iter (fun p p' ->
+    Log.debug ~level:4 "%a → %a"
+      TypePrinter.pnames (get_names right_env p)
+      Variable.p (get_name dest_env p')) mapping.right;
+
   (* So return it. *)
   dest_env, dest_root
 ;;
