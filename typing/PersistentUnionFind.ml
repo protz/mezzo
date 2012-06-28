@@ -131,3 +131,5 @@ let fold f acc state =
   fold (fun acc k -> function
     | Link _ -> acc
     | Root v -> f acc k v) acc !state
+
+let compare = PersistentRef.compare

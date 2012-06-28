@@ -39,3 +39,5 @@ val iter: ('a -> unit) -> 'a option -> unit
 
 (** Maps [None] to [None] and [Some x] to [f x]. *)
 val bind: 'a option -> ('a -> 'b option) -> 'b option
+
+val is_some: 'a option -> bool

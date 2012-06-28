@@ -41,3 +41,5 @@ let bind = fun opt f ->
   match opt with
   | None -> None
   | Some x -> f x
+
+let is_some = function Some _ -> true | _ -> false

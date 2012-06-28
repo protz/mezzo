@@ -17,6 +17,7 @@ and raw_error =
   | ExtraField of Field.name
   | NoSuchField of point * Field.name
   | SubPattern of pattern
+  | NoTwoConstructors of point
 
 exception TypeCheckerError of error
 
@@ -87,6 +88,24 @@ let print_error buf (env, raw_error) =
         "%a field %a is superfluous in that constructor"
         Lexer.p env.position
         Field.p f
+  | NoTwoConstructors point ->
+      let name, binder = find_term env point in
+      begin match Permissions.fold env point with
+      | Some t ->
+          Printf.bprintf buf
+            "%a %a has type %a, is is not a type with two constructors"
+            Lexer.p env.position
+            Variable.p name
+            pdoc (ptype, (env, t))
+      | None ->
+          print_permissions ();
+          Printf.bprintf buf
+            "%a %a has no suitable permission for a type with two constructors, \
+              the only permissions available for it are %a"
+            Lexer.p env.position
+            Variable.p name
+            pdoc (print_permission_list, (env, binder))
+      end
   | NoSuchField (point, f) ->
       let name, binder = find_term env point in
       begin match Permissions.fold env point with
@@ -115,6 +134,10 @@ let print_error buf (env, raw_error) =
 ;;
 
 (* -------------------------------------------------------------------------- *)
+
+let (!!) =
+  Permissions.(!!)
+;;
 
 (* Since everything is, or will be, in A-normal form, type-checking a function
  * call amounts to type-checking a point applied to another point. The default
@@ -515,8 +538,52 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       let env, p = check_expression env ?hint e in
       locate env pos, p
 
-  | _ ->
-      Log.error "Not implemented yet!"
+  | EIfThenElse (e1, e2, e3) ->
+      let hint_1 = Option.map (fun x -> x ^ "-if") hint in
+      let env, x1 = check_expression env ?hint:hint_1 e1 in
+      
+      (* The condition of an if-then-else statement is well-typed if it is a
+       * data type with two branches. *)
+      let is_data_type_with_two_constructors t =
+        let has_two_branches p =
+          if is_type env p then
+            match get_definition env p with
+            | Some (_, branches) ->
+                List.length branches = 2
+            | None ->
+                false
+          else
+            false
+        in
+        match t with
+        | TyPoint p ->
+            (* e.g. bool *)
+            has_two_branches p
+        | TyApp _ ->
+            (* e.g. list a *)
+            let cons, _args = flatten_tyapp t in
+            has_two_branches !!cons
+        | TyConcreteUnfolded (datacon, _) ->
+            (* e.g. False *)
+            let _, branches = def_for_datacon env datacon in
+            List.length branches = 2
+        | _ ->
+            false
+      in
+
+      if not (List.exists is_data_type_with_two_constructors (get_permissions env x1)) then
+        raise_error env (NoTwoConstructors x1);
+
+      (* The control-flow diverges. *)
+      let hint_l = Option.map (fun x -> x ^ "-then") hint in
+      let left = check_expression env ?hint:hint_l e2 in
+      let hint_r = Option.map (fun x -> x ^ "-else") hint in
+      let right = check_expression env ?hint:hint_r e3 in
+
+      Merge.merge_envs env left right
+
+   | EMatch _ ->
+       Log.error "Not implemented"
 
 
 and check_bindings

@@ -56,6 +56,9 @@ let eq (l1 : int) (l2 : int) =
 let neq (l1 : int) (l2 : int) =
   l1 <> l2
 
+let compare (l1 : int) (l2 : int) =
+  l1 - l2
+
 (* Folding an iterating *)
 
 let iter f { heap; _ } =

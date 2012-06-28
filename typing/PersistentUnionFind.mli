@@ -55,3 +55,5 @@ val iter: ('a -> unit) -> 'a state -> unit
 
 (* [fold f acc state] folds over all the descriptors in the union-find. *)
 val fold: ('acc -> point -> 'a -> 'acc) -> 'acc -> 'a state -> 'acc
+
+val compare: point -> point -> int

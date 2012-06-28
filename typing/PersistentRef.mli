@@ -34,4 +34,4 @@ val fold: ('acc -> location -> 'a -> 'acc) -> 'acc -> 'a store -> 'acc
 
 val eq: location -> location -> bool
 val neq: location -> location -> bool
-
+val compare: location -> location -> int

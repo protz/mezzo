@@ -167,7 +167,7 @@ and term_binder = {
   (* A list of available permissions for that identifier. *)
   permissions: permissions;
   (* A ghost variable has been introduced, say, through [x :: TERM], and does
-   * not represent we can compile. *)
+   * not represent something we can compile. *)
   ghost: bool;
 }
 

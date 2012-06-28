@@ -58,3 +58,6 @@ val full_merge: env -> point -> point -> env
 
 (** [has_flexible env t] checks [t] for flexible variables. *)
 val has_flexible: env -> typ -> bool
+
+(** When you're sure the type is a point. *)
+val (!!): typ -> point
