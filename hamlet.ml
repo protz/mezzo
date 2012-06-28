@@ -46,6 +46,6 @@ let _ =
     else
       Driver.process !arg_pervasives !arg_filename
   in
-  Log.debug ~level:1 "%a"
+  Log.debug ~level:1 "\n%a"
     Types.TypePrinter.pdoc (Types.TypePrinter.print_permissions, env);
 ;;

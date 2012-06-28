@@ -685,15 +685,15 @@ let replace_type env point f =
 
 (* Dealing with marks. *)
 
-let get_mark (env: env) (point: point): Mark.t =
+let is_marked (env: env) (point: point): bool =
   let { binding_mark; _ }, _ = PersistentUnionFind.find point env.state in
-  binding_mark
+  Mark.equals binding_mark env.mark
 ;;
 
-let set_mark (env: env) (point: point) (binding_mark: Mark.t): env =
+let mark (env: env) (point: point): env =
   { env with state =
       PersistentUnionFind.update (fun (head, binding) ->
-        { head with binding_mark }, binding
+        { head with binding_mark = env.mark }, binding
       ) point env.state
   }
 ;;

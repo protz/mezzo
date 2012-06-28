@@ -6,11 +6,27 @@ module PointMap = Hml_Map.Make(struct
   let compare = PersistentUnionFind.compare
 end)
 
-type ('a, 'b) pair = { mutable left: 'a; mutable right: 'b }
 type job = point * point * point
-type mapping = (point PointMap.t, point PointMap.t) pair
+
+(* A mapping maps points from the [left] or the [right] side of the merge to
+ * their corresponding nodes in the [dest] environment. *)
+type mapping = {
+  left: point PointMap.t;
+  right: point PointMap.t;
+}
+
+type mapping_outcome =
+  (* Invalid attempt, caller has to abort. *)
+  | Nope
+  (* Turns out the work has been done already, so the caller
+  just has to pick up the new destination environment. *)
+  | NoMergeRequired of env
+  (* Well, some work is needed. *)
+  | WorkNeeded of env * mapping
 
 let merge_envs (top: env) (left: env * point) (right: env * point): env * point =
+  Log.debug ~level:1 "--------- START MERGE ----------\n\n%a"
+    TypePrinter.pdoc (TypePrinter.print_permissions, top);
 
   (* We use a work list (a LIFO) to schedule points for merging. *)
   let worklist: job list ref = ref [] in
@@ -45,11 +61,17 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       situation is not principal (situation 1 in the notebook).
   *)
   let try_map
-      (mapping: mapping)
-      (left_point: point)
-      (right_point: point)
-      (dest_env, dest_point): (env * mapping) option
+      mapping
+      (left_env, left_point)
+      (right_env, right_point)
+      (dest_env, dest_point): mapping_outcome
     =
+
+    (* We're using these as keys so we better make sure we're using the real
+     * descriptor. This is safe: there will be no more merging operations on
+     * [left_env] and [right_env]. *)
+    let left_point = PersistentUnionFind.repr left_point left_env.state in
+    let right_point = PersistentUnionFind.repr right_point right_env.state in
     
     if List.length (get_permissions dest_env dest_point) <> 0 then begin
       let open TypePrinter in
@@ -68,30 +90,45 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
     | Some left_dest_point, Some right_dest_point ->
         if same dest_env left_dest_point right_dest_point then begin
           (* situation ii. *)
-          if same dest_env left_dest_point dest_point then begin
-            (* situation ii.a. *)
-            Some (dest_env, mapping)
-          end else begin
-            (* situation ii.b.
+          let dest_env =
+            if same dest_env left_dest_point dest_point then begin
+              Log.debug ~level:4 "No action required for %a"
+                TypePrinter.pnames (get_names dest_env dest_point);
+              (* situation ii.a. *)
+              dest_env
+            end else begin
+              (* situation ii.b.
 
-              The assertion at the beginning of the function makes sure it's
-              safe to drop the descriptor of [dest_point]. *)
-            let dest_env = merge_left dest_env left_dest_point dest_point in
-            Some (dest_env, mapping)
-          end
+                The assertion at the beginning of the function makes sure it's
+                safe to drop the descriptor of [dest_point]. *)
+              Log.debug ~level:4 "Mappings agree: merging %a with %a"
+                TypePrinter.pnames (get_names dest_env left_dest_point)
+                TypePrinter.pnames (get_names dest_env dest_point);
+              (* We always keep the point that was there in the first place. *)
+              let dest_env = merge_left dest_env left_dest_point dest_point in
+              dest_env
+            end
+          in
+          if is_marked dest_env dest_point then
+            NoMergeRequired dest_env
+          else
+            WorkNeeded (dest_env, mapping)
         end else begin
           (* situation iii. *)
-          None
+          Nope
         end
     | None, None ->
+        Log.debug ~level:4 "Work needed to perform a merge with destination %a"
+          TypePrinter.pnames (get_names dest_env dest_point);
+
         (* situation i. *)
-        Some (dest_env, {
+        WorkNeeded (dest_env, {
           left = PointMap.add left_point dest_point mapping.left;
           right = PointMap.add right_point dest_point mapping.right;
         })
     | _ ->
         (* situation iii. *)
-        None
+        Nope
   in
 
   (* This is the destination environment; it will evolve over time. Initially,
@@ -102,6 +139,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       { binder with permissions = [] }
     )) top
   in
+  let dest_env = refresh_mark dest_env in
 
   (* All the roots should be merged. *)
   let roots = fold_terms top (fun acc k _ _ -> k :: acc) [] in
@@ -129,14 +167,18 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       let name = Variable.register (fresh_name "merge_point") in
       let dest_env, dest_p = bind_term ~include_equals:false dest_env name false in
       push_job (left_p, right_p, dest_p);
+      Log.debug ~level:4
+        "  [push_job] %a / %a / %a"
+        TypePrinter.pnames (get_names left_env left_p)
+        TypePrinter.pnames (get_names right_env right_p)
+        TypePrinter.pnames (get_names dest_env dest_p);
       dest_env, dest_p
     in
 
     let () =
       let open TypePrinter in
       Log.debug ~level:4
-        "%a [merge_type] %a with %a"
-        Lexer.p dest_env.position
+        "  [merge_type] %a with %a"
         pdoc (ptype, (left_env, left_perm))
         pdoc (ptype, (right_env, right_perm));
     in
@@ -147,7 +189,9 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
         Some (dest_env, TyPoint dest_p)
 
     | TySingleton left_t, TySingleton right_t ->
-        merge_type (left_env, left_t) (right_env, right_t) dest_env
+        Option.bind
+          (merge_type (left_env, left_t) (right_env, right_t) dest_env)
+          (fun (dest_env, dest_t) -> Some (dest_env, TySingleton dest_t))
 
     | TyConcreteUnfolded (datacon_l, fields_l), TyConcreteUnfolded (datacon_r, fields_r) ->
         if Datacon.equal datacon_l datacon_r then
@@ -183,20 +227,32 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       ((dest_env, dest_point): env * point): mapping * env * env * env
     =
 
-    let left_name = get_name left_env left_point in
-    let right_name = get_name right_env right_point in
-    let dest_name = get_name dest_env dest_point in
-    Log.debug "--- New round of [merge_points] %a %a %a."
-      Variable.p left_name
-      Variable.p right_name
-      Variable.p dest_name;
+    Log.debug "[taking merge job] %a / %a / %a."
+      TypePrinter.pnames (get_names left_env left_point)
+      TypePrinter.pnames (get_names right_env right_point)
+      TypePrinter.pnames (get_names dest_env dest_point);
 
-    match try_map mapping left_point right_point (dest_env, dest_point) with
-    | None ->
+    Log.debug ~level:4 "Mapping for [left]:";
+    PointMap.iter (fun p p' ->
+      Log.debug ~level:4 "%a → %a"
+        TypePrinter.pnames (get_names left_env p)
+        Variable.p (get_name dest_env p')) mapping.left;
+    Log.debug ~level:4 "Mapping for [right]:";
+    PointMap.iter (fun p p' ->
+      Log.debug ~level:4 "%a → %a"
+        TypePrinter.pnames (get_names right_env p)
+        Variable.p (get_name dest_env p')) mapping.right;
+
+
+    match try_map mapping (left_env, left_point) (right_env, right_point) (dest_env, dest_point) with
+    | Nope ->
         (* Can't perform the merge, do nothing. *)
         mapping, left_env, right_env, dest_env
+    
+    | NoMergeRequired dest_env ->
+        mapping, left_env, right_env, dest_env
 
-    | Some (dest_env, mapping) ->
+    | WorkNeeded (dest_env, mapping) ->
 
         (* This function will just take an initially empty [dest_perms] and try
           all combinations pairwise from [left_perms] and [right_perms] to build
@@ -225,8 +281,8 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
                 in
                 if Option.is_some merge_result then begin
                   Log.debug ~level:4 "  → this merge between %a and %a was succesful"
-                    Variable.p left_name
-                    Variable.p right_name;
+                    Variable.p (get_name left_env left_point)
+                    Variable.p (get_name right_env right_point);
                 end;
                 right_perm, merge_result) right_perms
               in
@@ -264,6 +320,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
         let dest_env =
           replace_term dest_env dest_point (fun b -> { b with permissions = dest_perms })
         in
+        let dest_env = mark dest_env dest_point in
         mapping, left_env, right_env, dest_env
   in
 
@@ -290,6 +347,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
   (* Now we're just interested in [dest_env]. *)
   let mapping, _, _, dest_env = !state in
 
+  Log.debug ~level:4 "------------ END MERGE ------------\n";
   Log.debug ~level:4 "Mapping for [left]:";
   PointMap.iter (fun p p' ->
     Log.debug ~level:4 "%a → %a"
