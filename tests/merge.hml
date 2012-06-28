@@ -1,0 +1,8 @@
+data bool = True | False
+data t = T
+
+val f =
+  if True then
+    T
+  else
+    T

@@ -51,8 +51,17 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       (dest_env, dest_point): (env * mapping) option
     =
     
-    Log.check (List.length (get_permissions dest_env dest_point) = 0)
-      "The destination point must have an empty list of permissions!";
+    if List.length (get_permissions dest_env dest_point) <> 0 then begin
+      let open TypePrinter in
+      Log.debug ~level:4 "Here is the state of [dest_env]\n%a" pdoc (print_permissions, dest_env);
+      let name, binder = find_term dest_env dest_point in
+      Log.debug ~level:4
+        "%a %a shouldn't have any permissions but it has %a"
+        Lexer.p dest_env.position
+        Variable.p name
+        pdoc (print_permission_list, (dest_env, binder));
+      Log.error "The destination point must have an empty list of permissions!"
+    end;
     let left_mapping = PointMap.find_opt left_point mapping.left in
     let right_mapping = PointMap.find_opt right_point mapping.right in
     match left_mapping, right_mapping with
@@ -88,8 +97,8 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
   (* This is the destination environment; it will evolve over time. Initially,
    * it is empty. As an optimization, we keep the points that were previously
    * defined so that the mapping is the identity for all the points from [top]. *)
-  let dest_env = fold_terms top (fun dest point _head _binder ->
-    replace_term dest point (fun binder ->
+  let dest_env = fold_terms top (fun dest_env point _head _binder ->
+    replace_term dest_env point (fun binder ->
       { binder with permissions = [] }
     )) top
   in
@@ -104,6 +113,10 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
   let right_env, right_root = right in
   let root_name = Variable.register (fresh_name "merge_root") in
   let dest_env, dest_root = bind_term dest_env root_name false in
+  let dest_env = replace_term dest_env dest_root (fun binder ->
+      { binder with permissions = [] }
+    )
+  in
   push_job (left_root, right_root, dest_root);
 
 
@@ -123,8 +136,14 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       dest_env, dest_p
     in
 
-    (* FIXME *)
-    ignore (left_env, right_env);
+    let () =
+      let open TypePrinter in
+      Log.debug ~level:4
+        "%a [merge_type] %a with %a"
+        Lexer.p dest_env.position
+        pdoc (ptype, (left_env, left_perm))
+        pdoc (ptype, (right_env, right_perm));
+    in
 
     match left_perm, right_perm with
     | TyPoint left_p, TyPoint right_p ->
@@ -151,7 +170,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
           None
 
     | _ ->
-       assert false
+        None
 
   in
 
@@ -189,11 +208,15 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
               (* Try to find an item in [right_perms] that can be merged with
                * [left_perm]. *)
               let attempts = List.map (fun right_perm ->
-                right_perm,
-                merge_type
-                  (left_env, left_perm)
-                  (right_env, right_perm)
-                  dest_env) right_perms
+                let merge_result = 
+                  merge_type
+                    (left_env, left_perm)
+                    (right_env, right_perm)
+                    dest_env
+                in
+                if Option.is_some merge_result then
+                  Log.debug ~level:4 "  → this merge was succesful";
+                right_perm, merge_result) right_perms
               in
               let worked, didnt_work =
                 List.partition (fun (_, x) -> Option.is_some x) attempts
