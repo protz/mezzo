@@ -35,7 +35,7 @@ type expression =
   (* let rec pat = expr and pat' = expr' in expr *)
   | ELet of rec_flag * patexpr list * expression
   (* fun [a] (x: τ): τ -> e *)
-  | EFun of (Variable.name * kind) list * typ list * typ * expression
+  | EFun of (Variable.name * kind) list * typ * typ * expression
   (* v.f <- e *)
   | EAssign of expression * Field.name * expression
   (* v.f *)
@@ -176,12 +176,12 @@ and tsubst_expr t2 i e =
       let body = tsubst_expr t2 (i + n) body in
       ELet (rec_flag, patexprs, body)
 
-  | EFun (vars, args, return_type, body) ->
+  | EFun (vars, arg, return_type, body) ->
       let i = i + List.length vars in
-      let args = List.map (tsubst t2 i) args in
+      let arg = tsubst t2 i arg in
       let return_type = tsubst t2 i return_type in
       let body = tsubst_expr t2 i body in
-      EFun (vars, args, return_type, body)
+      EFun (vars, arg, return_type, body)
 
   | EAssign (e1, field, e2) ->
       let e1 = tsubst_expr t2 i e1 in
@@ -306,10 +306,10 @@ and esubst e2 i e1 =
       let body = esubst e2 (i + n) body in
       ELet (rec_flag, patexprs, body)
 
-  | EFun (vars, params, return_type, body) ->
+  | EFun (vars, arg, return_type, body) ->
       let n = List.length vars in
       let body = esubst e2 (i + n) body in
-      EFun (vars, params, return_type, body)
+      EFun (vars, arg, return_type, body)
 
   | EAssign (e, f, e') ->
       let e = esubst e2 i e in
@@ -550,16 +550,16 @@ module ExprPrinter = struct
         print_expr env body
 
     (* fun [a] (x: τ): τ -> e *)
-    | EFun (vars, args, return_type, body) ->
+    | EFun (vars, arg, return_type, body) ->
         let env, { subst_type; subst_expr; _ } = bind_vars env vars in
         (* Remember: this is all in desugared form, so the variables in [args]
          * are all bound. *)
-        let args = List.map subst_type args in
+        let arg = subst_type arg in
         let return_type = subst_type return_type in
         let body = subst_expr body in
         string "fun " ^^ lbracket ^^ join (comma ^^ space) (List.map print_binder vars) ^^
         rbracket ^^ jump (
-          join break1 (List.map (print_type env) args)
+          print_type env arg
         ) ^^ colon ^^ space ^^ print_type env return_type ^^ space ^^ equals ^^
         jump (print_expr env body)
 

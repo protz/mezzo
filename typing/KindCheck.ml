@@ -550,11 +550,8 @@ and check_expression (env: env) (expr: expression) =
       let env = check_patexpr env flag pat_exprs in
       check_expression env expr
 
-  | EFun (bindings, args, return_type, body) ->
+  | EFun (bindings, arg, return_type, body) ->
       let env = List.fold_left bind env bindings in
-      if List.length args > 1 then
-        Log.error "Don't know how to treat a function with multiple arguments";
-      let arg = List.hd args in
       let arg_bindings = names arg in
       let env, _ = extend env arg_bindings in
       check env arg KType;

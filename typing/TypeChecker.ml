@@ -224,8 +224,8 @@ let check_return_type (env: env) (point: point) (t: typ): env =
 
 let type_for_function_def (expression: expression): typ =
   match expression with
-  | EFun (vars, args, return_type, _) ->
-      let t = List.fold_right (fun t acc -> TyArrow (t, acc)) args return_type in
+  | EFun (vars, arg, return_type, _) ->
+      let t = TyArrow (arg, return_type) in
       let t = List.fold_right (fun var acc -> TyForall (var, acc)) vars t in
       t
   | _ ->
@@ -333,7 +333,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       check_expression env body
 
 
-  | EFun (vars, args, return_type, body) ->
+  | EFun (vars, arg, return_type, body) ->
       (* We can't create a closure over exclusive variables. Create a stripped
        * environment with only the duplicable parts. *)
       let sub_env = fold_terms env (fun sub_env point _ _ ->
@@ -346,13 +346,13 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       in
       (* Bind all variables. *)
       let sub_env, { subst_type; subst_expr; _ } = bind_vars sub_env vars in
-      let args = List.map subst_type args in
+      let arg = subst_type arg in
       let return_type = subst_type return_type in
       let body = subst_expr body in
       (* Collect all the permissions that the arguments bring into scope, add
        * them into the environment for checking the function body. *)
-      let _, perms = List.split (List.map Permissions.collect args) in
-      let sub_env = List.fold_left Permissions.add_perm sub_env (List.flatten perms) in
+      let _, perms = Permissions.collect arg in
+      let sub_env = List.fold_left Permissions.add_perm sub_env perms in
       (* Perform the checks proper. *)
       let sub_env, p = check_expression sub_env body in
       let _sub_env = check_return_type sub_env p return_type in
@@ -499,8 +499,6 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       let fieldvals = List.rev fieldvals in
       return env (TyConcreteUnfolded (datacon, fieldvals))
 
-
-  (* | EIfThenElse of expression * expression * expression *)
 
   | EInt _ ->
       return env !*int

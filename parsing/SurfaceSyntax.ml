@@ -158,9 +158,8 @@ and expression =
   | EVar of Variable.name
   (* let rec f p₁ … pₙ: τ = e₁ and … and v = e₂ in e *)
   | ELet of rec_flag * (pattern * expression) list * expression
-  (* fun [a] (x: τ): τ -> e -- the programmer can't write a fun-expression
-   * directly, but the parser desugars let f x = ... on-the-fly to this form. *)
-  | EFun of (Variable.name * kind) list * typ list * typ * expression
+  (* fun [a] (x: τ): τ -> e *)
+  | EFun of (Variable.name * kind) list * typ * typ * expression
   (* v.f <- e *)
   | EAssign of expression * Variable.name * expression
   (* v.f *)

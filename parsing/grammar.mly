@@ -433,8 +433,8 @@ fact:
       { ESequence (e1, e2) }
   | LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = expression
       { ELet (f, declarations, e) }
-  | FUN bs = type_parameters? f_args = atomic_type+ COLON t = normal_type EQUAL e = expression
-      { EFun (Option.map_none [] bs, f_args, t, e) }
+  | FUN bs = type_parameters? arg = atomic_type COLON t = normal_type EQUAL e = expression
+      { EFun (Option.map_none [] bs, arg, t, e) }
   | e = everything_except_let_and_semi_raw
       { e }
 
@@ -571,8 +571,8 @@ decl_raw:
 inner_declaration:
 | p = pattern EQUAL e = expression
     { p, e }
-| f_name = variable bs = type_parameters? f_args = atomic_type+ COLON t = normal_type EQUAL e = expression
-    { PVar f_name, EFun (Option.map_none [] bs, f_args, t, e) }
+| f_name = variable bs = type_parameters? arg = atomic_type COLON t = normal_type EQUAL e = expression
+    { PVar f_name, EFun (Option.map_none [] bs, arg, t, e) }
 
 (* ---------------------------------------------------------------------------- *)
 

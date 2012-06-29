@@ -484,15 +484,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       in
       E.ELet (flag, patexprs, body)
 
-  | EFun (vars, args, return_type, body) ->
-      (* TEMPORARY we'll keep it simple for now. *)
-      let arg =
-        if List.length args > 1 then
-          Log.error "Don't know how to desugar functions with more than one \
-            argument"
-        else
-          List.hd args
-      in
+  | EFun (vars, arg, return_type, body) ->
 
       (* Introduce all universal bindings. *)
       let env = List.fold_left bind env vars in
@@ -508,7 +500,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       (* Now translate the body (which will probably refer to these bound
        * names). *)
       let body = translate_expr env body in
-      E.EFun (vars @ universal_bindings, [arg], return_type, body)
+      E.EFun (vars @ universal_bindings, arg, return_type, body)
 
   | EAssign (e1, x, e2) ->
       let e1 = translate_expr env e1 in
