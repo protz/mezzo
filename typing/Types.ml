@@ -752,6 +752,10 @@ let def_for_datacon (env: env) (datacon: Datacon.name): SurfaceSyntax.data_type_
       Log.error "There is no type for constructor %a" Datacon.p datacon
 ;;
 
+let type_for_datacon (env: env) (datacon: Datacon.name): point =
+  DataconMap.find datacon env.type_for_datacon
+;;
+
 (* What type am I dealing with? *)
 
 let is_flexible (env: env) (point: point): bool =

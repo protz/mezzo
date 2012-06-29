@@ -17,10 +17,10 @@ MY_DIRS	   := lib parsing sets typing utils
 
 
 all:
-	$(OCAMLBUILD) $(INCLUDE) $(MAIN).native $(TESTSUITE).native $(TEST).native
-	ln -sf $(MAIN).native $(MAIN)
-	ln -sf $(TEST).native $(TEST)
-	ln -sf $(TESTSUITE).native $(TESTSUITE)
+	$(OCAMLBUILD) $(INCLUDE) $(MAIN).byte $(TESTSUITE).byte $(TEST).byte
+	ln -sf $(MAIN).byte $(MAIN)
+	ln -sf $(TEST).byte $(TEST)
+	ln -sf $(TESTSUITE).byte $(TESTSUITE)
 
 clean:
 	rm -f *~ $(MAIN) $(MAIN).native $(TEST) $(TEST).native $(TESTSUITE) $(TESTSUITE).native

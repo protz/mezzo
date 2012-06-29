@@ -1,4 +1,4 @@
-true: explain, use_menhir, use_ocamlbuild, use_menhirlib, annot
+true: explain, use_menhir, use_ocamlbuild, use_menhirlib, annot, use_unix
 not <test.*> and not <ulex/**/*> and not <parsing/Lexer.*> and not <typing/WellKindedness.*> and not <sets/**/*>: my_warnings
 "parsing/Lexer.ml": syntax_camlp4o, use_ulex
 "ulex/pa_ulex.ml": camlp4orf, use_camlp4

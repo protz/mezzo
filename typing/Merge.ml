@@ -39,6 +39,22 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       Log.debug "";
   in
 
+  (* If one of our job is based on [left_point] and [right_point], we may have
+   * mapped these two to a point in the destination environment already. *)
+  let merge_candidate (left_env, left_point) (right_env, right_point): point option =
+    let merge_candidates = List.filter
+      (fun (left_point', right_point', _) ->
+        same left_env left_point left_point' &&
+        same right_env right_point right_point')
+      !known_triples
+    in
+    Log.check (List.length merge_candidates <= 1)
+      "The list of known triples is not consistent";
+    match merge_candidates with
+    | [_, _, dest_point'] -> Some dest_point'
+    | _ -> None
+  in
+
 
   (* This oracle decides what to do with a given job. There are three outcomes:
     - we've already mapped the left and right points to a certain point in the
@@ -57,31 +73,25 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       (right_env, right_point)
       (dest_env, dest_point): outcome
     =
+
     (* We're using these as keys so we better make sure we're using the real
      * descriptor. This is safe: there will be no more merging operations on
-     * [left_env] and [right_env]. *)
+     * [left_env] and [right_env].
+     *
+     * XXX: I think that because [merge_candidates] uses [same], this is
+     * overkill. *)
     let left_point = PersistentUnionFind.repr left_point left_env.state in
     let right_point = PersistentUnionFind.repr right_point right_env.state in
 
-    (* Try to find a sharing opportunity. *)
-    let merge_candidates = List.filter
-      (fun (left_point', right_point', _) ->
-        same left_env left_point left_point' &&
-        same right_env right_point right_point')
-      !known_triples
-    in
-    Log.check (List.length merge_candidates <= 1)
-      "The list of known triples is not consistent";
-
-    match merge_candidates with
-    | [_, _, dest_point'] ->
+    match merge_candidate (left_env, left_point) (right_env, right_point) with
+    | Some dest_point' ->
         (* We can share! *)
         Log.debug ~level:4 "[oracle] merge job %a → %a"
           TypePrinter.pnames (get_names dest_env dest_point)
           TypePrinter.pnames (get_names dest_env dest_point');
         MergeWith dest_point'
 
-    | _ ->
+    | None ->
         (* Try to see if we've processed this point already. *)
         let same_dest = List.filter (fun (_, _, dest_point') ->
           same dest_env dest_point dest_point') !known_triples
@@ -141,6 +151,10 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
   let root_name = Variable.register (fresh_name "merge_root") in
   let dest_env, dest_root = bind_term ~include_equals:false dest_env root_name false in
   push_job (left_root, right_root, dest_root);
+
+  (* All bound types are kept, so remember that we know how these are mapped. *)
+  let type_triples = fold_types top (fun ps p _ _ -> (p, p, p) :: ps) [] in
+  List.iter (push known_triples) type_triples;
 
 
   (* This function, assuming the [left_point, right_point, dest_point] triple is
@@ -253,24 +267,29 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
     =
 
     let bind_merge dest_env left_p right_p =
-      let name = Variable.register (fresh_name "merge_point") in
-      let dest_env, dest_p = bind_term ~include_equals:false dest_env name false in
-      push_job (left_p, right_p, dest_p);
-      Log.debug ~level:4
-        "  [push_job] %a / %a / %a"
-        TypePrinter.pnames (get_names left_env left_p)
-        TypePrinter.pnames (get_names right_env right_p)
-        TypePrinter.pnames (get_names dest_env dest_p);
-      dest_env, dest_p
+      (* As a small optimization, if the point we're allocating is bound to be
+       * merged immediately by [merge_points], we don't allocate it at all
+       * (which means less output, less fresh names, etc.). *)
+      match merge_candidate (left_env, left_p) (right_env, right_p) with
+      | Some dest_p ->
+          dest_env, dest_p
+      | None ->
+          let name = Variable.register (fresh_name "merge_point") in
+          let dest_env, dest_p = bind_term ~include_equals:false dest_env name false in
+          push_job (left_p, right_p, dest_p);
+          Log.debug ~level:4
+            "  [push_job] %a / %a / %a"
+            TypePrinter.pnames (get_names left_env left_p)
+            TypePrinter.pnames (get_names right_env right_p)
+            TypePrinter.pnames (get_names dest_env dest_p);
+          dest_env, dest_p
     in
 
-    let () =
-      let open TypePrinter in
-      Log.debug ~level:4
-        "  [merge_type] %a with %a"
-        pdoc (ptype, (left_env, left_perm))
-        pdoc (ptype, (right_env, right_perm));
-    in
+    let open TypePrinter in
+    Log.debug ~level:4
+      "  [merge_type] %a with %a"
+      pdoc (ptype, (left_env, left_perm))
+      pdoc (ptype, (right_env, right_perm));
 
     match left_perm, right_perm with
     | TyPoint left_p, TyPoint right_p ->

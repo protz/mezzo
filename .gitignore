@@ -3,3 +3,4 @@ hamlet
 test
 testsuite
 *.native
+*.byte
