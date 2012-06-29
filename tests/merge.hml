@@ -2,16 +2,22 @@ data bool = True | False
 data t = T
 data u = U { left: t; right: t }
 
-(*
-val (v1: t) =
+(* Un exemple tout bête: on obtient
+
+   v1 @ T {}
+*)
+val v1 =
   if True then
     T
   else
     T
-*)
 
-(*
-val (v2: u) =
+(* Un exemple plus sophistiqué où l'on cherche à conserver le partage dans
+   l'environnement de retour. On obtient
+
+   ∃(? :: TERM). v2 @ U { left = ?; right = ? } ∗ ? @ T
+*)
+val v2 =
   if True then begin
     let x = T in
     U { left = x; right = x }
@@ -20,9 +26,18 @@ val (v2: u) =
     let y = T in
     U { left = y; right = y }
   end
-*)
 
-val (v3: u) =
+(* Un exemple encore plus compliqué, où il y a du partage d'un côté mais pas de
+   l'autre. Il est quand même possible d'obtenir une bonne permission en sortie
+   pour le résultat de ce if, car le type [t] est duplicable ce qui permet
+   d'utiliser (à gauche) [x @ T] deux fois. On obtient
+
+   ∃(?, ?' :: TERM). v2 @ U { left = ?; right = ?' } ∗ ? @ T ∗ ?' @ T
+
+   À noter qu'on ne peut plus obtenir [v3 @ u] si jamais l'on déclare [t] comme
+   étant exclusif.
+*)
+val v3 =
   if True then begin
     let x = T in
     U { left = x; right = x }

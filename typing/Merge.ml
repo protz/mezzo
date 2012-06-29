@@ -35,7 +35,8 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       Log.debug "%a / %a / %a"
         pnames (get_names left_env left_point)
         pnames (get_names right_env right_point)
-        pnames (get_names dest_env dest_point)) !known_triples
+        pnames (get_names dest_env dest_point)) !known_triples;
+      Log.debug "";
   in
 
 
