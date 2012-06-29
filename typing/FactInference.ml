@@ -219,7 +219,22 @@ let analyze_type (env: env) (t: typ): fact =
   | EAffine _ ->
       Affine
 ;;
-    
+
+let is_duplicable env t =
+  match analyze_type env t with
+  | Duplicable [||] ->
+      true
+  | Duplicable _
+  | Fuzzy _ ->
+      Log.error "[is_duplicable] works only on types, not definitions, and must \
+        be run after the fact elaboration phase is done"
+  | _ ->
+      false
+;;
+
+let is_exclusive env t =
+  analyze_type env t = Exclusive
+;;
 
 let analyze_data_types (env: env): env =
   (* We could be even smarter and make the function return both a new env and a

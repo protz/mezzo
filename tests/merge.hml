@@ -2,13 +2,16 @@ data bool = True | False
 data t = T
 data u = U { left: t; right: t }
 
-(* val v1 =
+(*
+val (v1: t) =
   if True then
     T
   else
-    T *)
+    T
+*)
 
-val v2 =
+(*
+val (v2: u) =
   if True then begin
     let x = T in
     U { left = x; right = x }
@@ -16,4 +19,15 @@ val v2 =
     let z = T in
     let y = T in
     U { left = y; right = y }
+  end
+*)
+
+val (v3: u) =
+  if True then begin
+    let x = T in
+    U { left = x; right = x }
+  end else begin
+    let z = T in
+    let y = T in
+    U { left = y; right = z }
   end

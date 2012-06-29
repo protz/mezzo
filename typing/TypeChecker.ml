@@ -339,16 +339,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       let sub_env = fold_terms env (fun sub_env point _ _ ->
         replace_term sub_env point (fun raw ->
           let permissions =
-            List.filter (fun t ->
-              match FactInference.analyze_type env t with
-              | Duplicable [||] ->
-                  true
-              | Duplicable _
-              | Fuzzy _ ->
-                  Log.error "This is unexpected"
-              | _ ->
-                  false
-            ) raw.permissions
+            List.filter (FactInference.is_duplicable env) raw.permissions
           in
           { raw with permissions }
         )) env

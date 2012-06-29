@@ -287,9 +287,9 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
       Both
   in
 
-  TypePrinter.(
+  (* TypePrinter.(
     Log.debug ~level:4 "Refinement: %a, %a" pfact f1 pfact f2
-  );
+  ); *)
 
   try
 
@@ -532,7 +532,7 @@ let rec sub (env: env) (point: point) (t: typ): env option =
   | TyDynamic ->
       if begin
         List.exists
-          (fun t -> FactInference.analyze_type env t = Exclusive)
+          (FactInference.is_exclusive env)
           (get_permissions env point)
       end then
         Some env
@@ -578,8 +578,7 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
                 pdoc (ptype, (env, hd)) Variable.p (get_name env point));
             (* We're taking out [hd] from the list of permissions for [point].
              * Is it something duplicable? *)
-            let fact = FactInference.analyze_type env hd in
-            if fact = Duplicable [||] then
+            if FactInference.is_duplicable env hd then
               Some env
             else
               Some (replace_term env point (fun binder ->
