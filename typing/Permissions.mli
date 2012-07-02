@@ -47,6 +47,11 @@ val sub: env -> point -> typ -> env option
     environment without the corresponding permission. *)
 val sub_perm: env -> typ -> env option
 
+(** [sub_type env t1 t2] tries to perform [t1 - t2]. It is up to the caller to
+    "do the right thing" by not discarding [t1] if it was not duplicable.
+    Unifications may be performed, hence the return environment. *)
+val sub_type: env -> typ -> typ -> env option
+
 (** [fold env point] tries to find (hopefully) one "main" type for [point], by
     folding back its "main" type [t] into a form that's suitable for one
     thing, and one thing only: printing. *)

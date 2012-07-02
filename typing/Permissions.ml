@@ -358,8 +358,6 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
             let cons, args = flatten_tyapp other in
             let datacon, _ = branch in
 
-            (* TEMPORARY do we really need this reverse-map? What about we
-             * lookup the definition of [cons] to find its constructors? *)
             if same env (DataconMap.find datacon env.type_for_datacon) !!cons then
               let branch' = find_and_instantiate_branch env !!cons datacon args in
               let env, t' = unfold env (TyConcreteUnfolded branch') in
@@ -573,12 +571,16 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
         (* Try to extract [t] from [hd]. *)
         begin match sub_type env hd t with
         | Some env ->
+            let duplicable = FactInference.is_duplicable env hd in
             TypePrinter.(
-              Log.debug ~level:4 "Taking %a out of the permissions for %a"
-                pdoc (ptype, (env, hd)) Variable.p (get_name env point));
+              Log.debug ~level:4 "Taking %a out of the permissions for %a \
+                (really? %b)"
+                pdoc (ptype, (env, hd))
+                Variable.p (get_name env point)
+                (not duplicable));
             (* We're taking out [hd] from the list of permissions for [point].
              * Is it something duplicable? *)
-            if FactInference.is_duplicable env hd then
+            if duplicable then
               Some env
             else
               Some (replace_term env point (fun binder ->
@@ -606,6 +608,12 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   match t1, t2 with
   | _, TyUnknown ->
       Some env
+
+  | _, TyForall (binding, t2) ->
+      (* Typical use-case: Nil vs [a] list a. We're binding this as a *rigid*
+       * type variable. *)
+      let env, t2 = bind_var_in_type env binding t2 in
+      sub_type env t1 t2
 
   | TyTuple components1, TyTuple components2 ->
       (* We can only substract a tuple from another one if they have the same
@@ -668,13 +676,6 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       end else begin
         None
       end
-
-  | TyConcreteUnfolded _, TyForall (binding, t2) ->
-      (* Typical use-case: Nil vs [a] list a. We're binding this as a *rigid*
-       * type variable. *)
-      let env, t2 = bind_var_in_type env binding t2 in
-      sub_type env t1 t2
-
 
   | TyApp _, TyApp _ ->
       let cons1, args1 = flatten_tyapp t1 in

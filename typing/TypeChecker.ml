@@ -192,8 +192,9 @@ let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x:
       if not (Option.unit_bool allow_flexible) && Permissions.has_flexible env t2 then begin
         raise_error env (HasFlexible t2)
       end;
+      (* XXX we should generalize all flexible variables left here *)
+      (* let t2 = generalize_flexible t2 in *)
       (* Return the "good" type. *)
-      (* TODO enter all existential quantifiers here *)
       let t2, perms = Permissions.collect t2 in
       let env = List.fold_left Permissions.add_perm env perms in
       env, t2

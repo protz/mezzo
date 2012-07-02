@@ -55,6 +55,14 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
     | _ -> None
   in
 
+  let is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p) =
+    match merge_candidate (left_env, left_p) (right_env, right_p) with
+    | Some dest_p' ->
+        same dest_env dest_p dest_p'
+    | None ->
+        false
+  in
+
 
   (* This oracle decides what to do with a given job. There are three outcomes:
     - we've already mapped the left and right points to a certain point in the
@@ -199,45 +207,62 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
                * environment. *)
               didnt_work_left_perms, right_perms, dest_env, dest_perms
           | left_perm :: left_perms, right_perms ->
-              (* Try to find an item in [right_perms] that can be merged with
-               * [left_perm]. *)
-              let attempts = List.map (fun right_perm ->
-                let merge_result =
-                  merge_type
-                    (left_env, left_perm)
-                    (right_env, right_perm)
-                    dest_env
-                in
-                if Option.is_some merge_result then begin
+
+              (* This function returns the first right permission we found that
+               * works, the remaining ones, and the result of the merge
+               * operation. *)
+              let rec find_couple didnt_work_right_perms right_perms =
+                match right_perms with
+                | [] ->
+                    None
+                | right_perm :: right_perms ->
+                    let result =
+                      merge_type (left_env, left_perm) (right_env, right_perm) dest_env
+                    in
+                    match result with
+                    | Some result ->
+                        Some (right_perm, didnt_work_right_perms @ right_perms, result)
+                    | None ->
+                        find_couple (right_perm :: didnt_work_right_perms) right_perms
+              in
+
+              begin match find_couple [] right_perms with
+              | Some (right_perm, right_perms, (left_env, right_env, dest_env, dest_perm)) ->
+
                   Log.debug ~level:4 "  → this merge between %a and %a was succesful"
                     Variable.p (get_name left_env left_point)
                     Variable.p (get_name right_env right_point);
-                end;
-                right_perm, merge_result) right_perms
-              in
-              let worked, didnt_work =
-                List.partition (fun (_, x) -> Option.is_some x) attempts
-              in
-              match worked with
-              | (_, hd) :: tl ->
-                  (* We just keep the first item that worked. *)
-                  let the_rest = List.map fst (tl @ didnt_work) in
-                  let dest_env, dest_perm = Option.extract hd in
-                  let left_perms =
-                    if FactInference.is_duplicable left_env left_perm then
-                      left_perm :: left_perms
-                    else
-                      left_perms
+
+                  let left_is_duplicable = FactInference.is_duplicable left_env left_perm in
+                  let right_is_duplicable = FactInference.is_duplicable right_env right_perm in
+                  let duplicable =
+                    match left_is_duplicable, right_is_duplicable with
+                    | true, true ->
+                        true
+                    | false, false ->
+                        false
+                    | _ ->
+                        Log.error "Can we merge a non-duplicable permission with \
+                          a duplicable one?"
                   in
-                  merge_lists
-                    (left_env, left_perms, didnt_work_left_perms)
-                    (right_env, the_rest)
-                    (dest_env, dest_perm :: dest_perms)
-              | [] ->
+                  if duplicable then
+                    merge_lists
+                      (left_env, left_perms, left_perm :: didnt_work_left_perms)
+                      (right_env, right_perm :: right_perms)
+                      (dest_env, dest_perm :: dest_perms)
+                  else
+                    merge_lists
+                      (left_env, left_perms, didnt_work_left_perms)
+                      (right_env, right_perms)
+                      (dest_env, dest_perm :: dest_perms)
+              | None ->
                   merge_lists
                     (left_env, left_perms, left_perm :: didnt_work_left_perms)
                     (right_env, right_perms)
                     (dest_env, dest_perms)
+              end
+
+
         in
 
         let left_perms = get_permissions left_env left_point in
@@ -263,7 +288,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
   and merge_type
       ((left_env, left_perm): env * typ)
       ((right_env, right_perm): env * typ)
-      (dest_env: env): (env * typ) option
+      (dest_env: env): (env * env * env * typ) option
     =
 
     let bind_merge dest_env left_p right_p =
@@ -293,16 +318,60 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
 
     match left_perm, right_perm with
     | TyPoint left_p, TyPoint right_p ->
-        let dest_env, dest_p = bind_merge dest_env left_p right_p in
-        Some (dest_env, TyPoint dest_p)
+        Log.check (is_type left_env left_p && is_type right_env right_p
+          || is_term left_env left_p && is_term right_env right_p)
+          "Sanity check failed";
+
+        begin match is_flexible left_env left_p, is_flexible right_env right_p with
+        | false, false ->
+            let dest_env, dest_p = bind_merge dest_env left_p right_p in
+            Some (left_env, right_env, dest_env, TyPoint dest_p)
+        | false, true ->
+            let dest_p = PersistentUnionFind.repr left_p left_env.state in
+
+            (* This must be a top-level type and [left_p] must be valid in the
+             * destination environment. *)
+            Log.check (is_type dest_env dest_p) "A flexible variable must refer \
+              to a type defined in the top-level scope, we don't know how to treat \
+              flexible variables with kind other than TYPE yet.";
+
+            let right_env = merge_left right_env dest_p right_p in
+            Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
+              "All top-level types should be in known_triples by default";
+
+            Some (left_env, right_env, dest_env, TyPoint dest_p)
+        | true, false ->
+            let dest_p = PersistentUnionFind.repr right_p right_env.state in
+
+            (* This must be a top-level type and [right_p] must be valid in the
+             * destination environment. *)
+            Log.check (is_type dest_env dest_p) "A flexible variable must refer \
+              to a type defined in the top-level scope, we don't know how to treat \
+              flexible variables with kind other than TYPE yet.";
+
+            let left_env = merge_left left_env dest_p left_p in
+            Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
+              "All top-level types should be in known_triples by default";
+
+            Some (left_env, right_env, dest_env, TyPoint dest_p)
+        | true, true ->
+            Log.error "Not implemented"
+        end
+
 
     | TySingleton left_t, TySingleton right_t ->
         Option.bind
           (merge_type (left_env, left_t) (right_env, right_t) dest_env)
-          (fun (dest_env, dest_t) -> Some (dest_env, TySingleton dest_t))
+          (fun (left_env, right_env, dest_env, dest_t) ->
+            Some (left_env, right_env, dest_env, TySingleton dest_t))
 
     | TyConcreteUnfolded (datacon_l, fields_l), TyConcreteUnfolded (datacon_r, fields_r) ->
+        let t_left: point = type_for_datacon left_env datacon_l in
+        let t_right: point = type_for_datacon right_env datacon_r in
+
         if Datacon.equal datacon_l datacon_r then
+          (* Same constructors: both are in expanded form so just schedule the
+           * points in their fields for merging. *)
           let dest_env, dest_fields =
             List.fold_left2 (fun (dest_env, dest_fields) field_l field_r ->
               match field_l, field_r with
@@ -315,10 +384,91 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
                   Log.error "All permissions should be in expanded form."
             ) (dest_env, []) fields_l fields_r
           in
-          Some (dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields))
+          Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields))
+
+        else if same dest_env t_left t_right then
+          (* Same nominal type (e.g. [Nil] vs [Cons]). The procedure here is a
+           * little bit more complicated. We need to take the nominal type (e.g.
+           * [list]), and apply it to [a] flexible on both sides, allocate [a]
+           * in [dest_env] and add the relevant triples in [known_triples].
+           * Then, perform [Nil - list a] and [Cons - list a]. Then recursively
+           * merge the variables pairwise, and if it's still flexible,
+           * generalize (or maybe not?).
+           *)
+
+          (* First, find the definition of the type so that we know how to
+           * instanciate parameters. *)
+          let t_dest = t_left in
+          let return_kind, arg_kinds = flatten_kind (get_kind dest_env t_dest) in
+          Log.check (return_kind = KType) "Not implemented";
+
+          let letters = Hml_Pprint.name_gen (List.length arg_kinds) in
+
+          (* Build the type application, left environment. *)
+          let left_env, arg_points_l = List.fold_left2 (fun (env, points) kind letter ->
+            let env, point =
+              bind_type env (Variable.register letter) ~flexible:true Affine kind
+            in
+            env, point :: points) (left_env, []) arg_kinds letters
+          in
+          let t_app_left = List.fold_left
+            (fun t arg -> TyApp (t, arg))
+            (TyPoint t_left)
+            (List.map (fun x -> TyPoint x) arg_points_l)
+          in
+          (* Chances are this will perform a merge in [left_env]: this is why
+           * we're returning [left_env]. *)
+          let left_env = Permissions.sub_type left_env left_perm t_app_left in
+ 
+          (* Build the type application, right environment. *)
+          let right_env, arg_points_r = List.fold_left2 (fun (env, points) kind letter ->
+            let env, point =
+              bind_type env (Variable.register letter) ~flexible:true Affine kind
+            in
+            env, point :: points) (right_env, []) arg_kinds letters
+          in
+          let t_app_right = List.fold_left
+            (fun t arg -> TyApp (t, arg))
+            (TyPoint t_right)
+            (List.map (fun x -> TyPoint x) arg_points_r)
+          in
+          let right_env = Permissions.sub_type right_env right_perm t_app_right in
+
+          (* Did the subtractions succeed? *)
+          begin match left_env, right_env with
+          | Some left_env, Some right_env ->
+              Log.debug "[cons_vs_cons] subtractions performed, got: %a vs %a"
+                TypePrinter.pdoc (TypePrinter.ptype, (left_env, t_app_left))
+                TypePrinter.pdoc (TypePrinter.ptype, (right_env, t_app_right));
+          
+              (* TODO Add to known_triples (arg_points_l, arg_points_r, arg_points_dest). *)
+
+              Option.bind
+                (merge_type (left_env, t_app_left) (right_env, t_app_right) dest_env)
+                (fun (left_env, right_env, dest_env, dest_perm) ->
+
+                  if Permissions.has_flexible left_env t_app_left then
+                    Log.error "Not implemented (permissions left)";
+                  if Permissions.has_flexible right_env t_app_right then
+                    Log.error "Not implemented (permissions right)";
+
+                  (* TODO Generalize_flexibles. *)
+                  Some (left_env, right_env, dest_env, dest_perm)
+                )
+
+          | _ ->
+              None
+          end
 
         else
           None
+
+    | TyApp (tl1, tl2), TyApp (tr1, tr2) ->
+        Option.bind (merge_type (left_env, tl1) (right_env, tr1) dest_env)
+          (fun (left_env, right_env, dest_env, t1) ->
+            Option.bind (merge_type (left_env, tl2) (right_env, tr2) dest_env)
+              (fun (left_env, right_env, dest_env, t2) ->
+                Some (left_env, right_env, dest_env, TyApp (t1, t2))))
 
     | _ ->
         None
