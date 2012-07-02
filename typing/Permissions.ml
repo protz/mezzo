@@ -468,38 +468,44 @@ let (|||) o1 o2 =
 (** [sub env point t] tries to extract [t] from the available permissions for
     [point] and returns, if successful, the resulting environment. *)
 let rec sub (env: env) (point: point) (t: typ): env option =
-  Log.check (is_term env point) "You can only add permissions to a point that \
-    represents a program identifier.";
+  Log.check (is_term env point) "You can only subtract permissions from a point \
+  that represents a program identifier.";
 
-  match t with
-  | TyUnknown ->
-      Some env
+  match structure env point with
+  | Some (TyPoint point) ->
+      (* This is for a flexible type variable with kind TERM. *)
+      sub env point t
 
-  | TyDynamic ->
-      if begin
-        List.exists
-          (FactInference.is_exclusive env)
-          (get_permissions env point)
-      end then
-        Some env
-      else
-        None
+  | None ->
+      match t with
+      | TyUnknown ->
+          Some env
 
-  | _ ->
+      | TyDynamic ->
+          if begin
+            List.exists
+              (FactInference.is_exclusive env)
+              (get_permissions env point)
+          end then
+            Some env
+          else
+            None
 
-      (* Get a "clean" type without nested permissions. *)
-      let t, perms = collect t in
+      | _ ->
 
-      (* TEMPORARY we should probably switch to a more sophisticated strategy,
-       * based on a work list. The code would scan the work list for a permission
-       * that it knows how to extract. A failure would happen when there are
-       * permissions left but we don't know how to extract them because the
-       * variables are still flexible, for instance... *)
-      let env = sub_clean env point t in
-      List.fold_left
-        (fun env perm -> (Option.bind env (fun env -> sub_perm env perm)))
-        env
-        perms
+          (* Get a "clean" type without nested permissions. *)
+          let t, perms = collect t in
+
+          (* TEMPORARY we should probably switch to a more sophisticated strategy,
+           * based on a work list. The code would scan the work list for a permission
+           * that it knows how to extract. A failure would happen when there are
+           * permissions left but we don't know how to extract them because the
+           * variables are still flexible, for instance... *)
+          let env = sub_clean env point t in
+          List.fold_left
+            (fun env perm -> (Option.bind env (fun env -> sub_perm env perm)))
+            env
+            perms
 
 
 (** [sub_clean env point t] takes a "clean" type [t] (without nested permissions)
@@ -528,8 +534,10 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
         | Some env ->
             let duplicable = FactInference.is_duplicable env hd in
             TypePrinter.(
-              Log.debug ~level:4 "Taking %a out of the permissions for %a \
+              let open Bash in
+              Log.debug ~level:4 "%sTaking%s %a out of the permissions for %a \
                 (really? %b)"
+                colors.yellow colors.default
                 pdoc (ptype, (env, hd))
                 Variable.p (get_name env point)
                 (not duplicable));
@@ -556,8 +564,7 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
     unifying some flexible variables); it returns [None] otherwise. *)
 and sub_type (env: env) (t1: typ) (t2: typ): env option =
   TypePrinter.(
-    Log.debug ~level:4 "sub_type @ %a\n  t1 %a\n  t2 %a"
-      Lexer.p env.position
+    Log.debug ~level:4 "[sub_type] t1 %a\n  t2 %a"
       pdoc (ptype, (env, t1))
       pdoc (ptype, (env, t2)));
   match t1, t2 with
@@ -573,6 +580,21 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
        * type variable. *)
       let env, t2 = bind_var_in_type env binding t2 in
       sub_type env t1 t2
+
+  | TyExists (binding, t1), _ ->
+      let env, t1 = bind_var_in_type env binding t1 in
+      (* TODO collect permissions inside [t1] and add them to the environment!
+       * We should probably do something similar for the two cases above
+       * although I'm not sure I understand what should happen... *)
+      sub_type env t1 t2
+
+  | _, TyExists (binding, t2) ->
+      let env, t2 = bind_var_in_type ~flexible:true env binding t2 in
+      let t2, perms = collect t2 in
+      List.fold_left
+        (fun env perm -> (Option.bind env (fun env -> sub_perm env perm)))
+        (sub_type env t1 t2)
+        perms
 
   | TyTuple components1, TyTuple components2 ->
       (* We can only subtract a tuple from another one if they have the same
@@ -651,7 +673,9 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       if same env p1 p2 then
         Some env
       else
-        try_merge_flex env p1 t2 ||| try_merge_flex env p2 t1
+        try_merge_flex env p1 t2 ||| try_merge_flex env p2 t1 |||
+        Option.bind (structure env p1) (fun t1 -> sub_type env t1 t2) |||
+        Option.bind (structure env p2) (fun t2 -> sub_type env t1 t2)
 
   | TyPoint p1, _ ->
       try_merge_flex env p1 t2 |||
@@ -681,6 +705,10 @@ and try_merge_flex env p t =
 (** [sub_perm env t] takes a type [t] with kind PERM, and tries to return the
     environment without the corresponding permission. *)
 and sub_perm (env: env) (t: typ): env option =
+  TypePrinter.(
+    Log.debug ~level:4 "[sub_perm] %a"
+      pdoc (ptype, (env, t)));
+
   match t with
   | TyAnchoredPermission (TyPoint p, t) ->
       sub env p t

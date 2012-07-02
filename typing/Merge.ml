@@ -11,7 +11,7 @@ type job = point * point * point
 type outcome = MergeWith of point | Proceed | Abort
 
 let merge_envs (top: env) (left: env * point) (right: env * point): env * point =
-  Log.debug ~level:1 "--------- START MERGE ----------\n\n%a"
+  Log.debug ~level:3 "--------- START MERGE ----------\n\n%a"
     TypePrinter.pdoc (TypePrinter.print_permissions, top);
 
   (* We use a work list (a LIFO) to schedule points for merging. This implements
@@ -32,7 +32,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
   let dump_known_triples left_env right_env dest_env =
     let open TypePrinter in
     List.iter (fun (left_point, right_point, dest_point) ->
-      Log.debug "%a / %a / %a"
+      Log.debug ~level:3 "%a / %a / %a"
         pnames (get_names left_env left_point)
         pnames (get_names right_env right_point)
         pnames (get_names dest_env dest_point)) !known_triples;
@@ -94,7 +94,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
     match merge_candidate (left_env, left_point) (right_env, right_point) with
     | Some dest_point' ->
         (* We can share! *)
-        Log.debug ~level:4 "[oracle] merge job %a → %a"
+        Log.debug ~level:3 "[oracle] merge job %a → %a"
           TypePrinter.pnames (get_names dest_env dest_point)
           TypePrinter.pnames (get_names dest_env dest_point');
         MergeWith dest_point'
@@ -124,7 +124,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
           (* Remember the triple. *)
           push known_triples (left_point, right_point, dest_point);
 
-          Log.debug "[oracle] processing job %a / %a / %a."
+          Log.debug ~level:3 "[oracle] processing job %a / %a / %a."
             TypePrinter.pnames (get_names left_env left_point)
             TypePrinter.pnames (get_names right_env right_point)
             TypePrinter.pnames (get_names dest_env dest_point);
@@ -174,7 +174,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       ((dest_env, dest_point): env * point): env * env * env
     =
 
-    Log.debug "[merge_points] %a / %a / %a."
+    Log.debug ~level:3 "[merge_points] %a / %a / %a."
       TypePrinter.pnames (get_names left_env left_point)
       TypePrinter.pnames (get_names right_env right_point)
       TypePrinter.pnames (get_names dest_env dest_point);
