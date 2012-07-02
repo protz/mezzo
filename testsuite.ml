@@ -171,7 +171,7 @@ let tests = [
 
 let _ =
   let open Bash in
-  Log.enable_debug 1;
+  Log.enable_debug 0;
   Driver.add_include_dir "tests";
   List.iter (fun (file, test) ->
     let do_it = fun pervasives ->

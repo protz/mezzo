@@ -431,19 +431,26 @@ and add (env: env) (point: point) (t: typ): env =
   Log.check (is_term env point) "You can only add permissions to a point that \
     represents a program identifier.";
 
-  let hint = Variable.print (get_name env point) in
+  match structure env point with
+  | Some (TyPoint point) ->
+      (* This is for a flexible type variable with kind TERM. *)
+      add env point t
 
-  (* We first perform unfolding, so that constructors with one branch are
-   * simplified. *)
-  let env, t = unfold env ~hint t in
+  | None ->
 
-  (* Now we may have more opportunities for collecting permissions. [collect]
-   * doesn't go "through" [TyPoint]s but when indirections are inserted via
-   * [insert_point], [add] is recursively called, so inner permissions are
-   * collected as well. *)
-  let t, perms = collect t in
-  let env = List.fold_left add_perm env perms in
-  refine env point t
+      let hint = Variable.print (get_name env point) in
+
+      (* We first perform unfolding, so that constructors with one branch are
+       * simplified. *)
+      let env, t = unfold env ~hint t in
+
+      (* Now we may have more opportunities for collecting permissions. [collect]
+       * doesn't go "through" [TyPoint]s but when indirections are inserted via
+       * [insert_point], [add] is recursively called, so inner permissions are
+       * collected as well. *)
+      let t, perms = collect t in
+      let env = List.fold_left add_perm env perms in
+      refine env point t
 
 
 (** [add_perm env t] adds a type [t] with kind PERM to [env], returning the new
