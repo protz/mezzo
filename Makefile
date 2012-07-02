@@ -27,7 +27,7 @@ clean:
 	$(OCAMLBUILD) -clean
 
 graph: all
-	ocamldoc -dot $(BUILDDIRS)\
+	ocamlfind ocamldoc -dot $(BUILDDIRS)\
 	   -I $(shell ocamlbuild -where)\
 	   -I $(shell ocamlc -where)\
 	   $(shell menhir --suggest-comp-flags --table)\

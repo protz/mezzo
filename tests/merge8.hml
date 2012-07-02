@@ -1,0 +1,28 @@
+data bool = True | False
+
+abstract int
+fact duplicable int
+
+data v a b = A { a: a } | B { b: b } | C | D
+
+(* Cet exemple oblige à avoir une opération de soustraction avec des flexibles à
+   gauche et à droite. Comme on travaille avec des types duplicables, deux
+   permissions seront disponibles pour [v6]. On aura de même une soustraction
+   avec des flexibles si l'on fait :
+
+   data list' a = Nil | Nil' | Cons { ... }
+   val x = length (if True then Nil else Nil')
+
+   parce que la soustraction fera list a* - list b* avec a* et b* flexibles.
+   Dans ce cas-là, la bonne réponse est d'unifier, et d'accepter l'argument.
+   Dans l'exemple avec [v6], on exerce en plus le cas dans [merge_types] où l'on
+   a des flexibles des deux côtés, et qu'on doit merger ça en une même flexible
+   dans l'environnement de destination. Tout ça pour obtenir :
+
+   v8 @ ∀ab. v a b ∗ v6 @ ∀a. v a a
+*)
+val (v8: [a] v a a) =
+  if True then
+    D
+  else
+    C

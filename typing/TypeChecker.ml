@@ -142,7 +142,7 @@ let (!!) =
 (* Since everything is, or will be, in A-normal form, type-checking a function
  * call amounts to type-checking a point applied to another point. The default
  * behavior is: do not return a type that contains flexible variables. *)
-let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x: point): env * typ =
+let check_function_call (env: env) (f: point) (x: point): env * typ =
   let fname, fbinder = find_term env f in
   (* Find a suitable permission for [f] first *)
   let rec is_quantified_arrow = function
@@ -187,16 +187,10 @@ let check_function_call (env: env) ?(allow_flexible: unit option) (f: point) (x:
   (* Examine [x]. *)
   match Permissions.sub env x t1 with
   | Some env ->
-      (* If we're not allowed to have flexible variables, make sure there aren't
-       * any of them left hanging around. *)
-      if not (Option.unit_bool allow_flexible) && Permissions.has_flexible env t2 then begin
-        raise_error env (HasFlexible t2)
-      end;
-      (* XXX we should generalize all flexible variables left here *)
-      (* let t2 = generalize_flexible t2 in *)
       (* Return the "good" type. *)
       let t2, perms = Permissions.collect t2 in
       let env = List.fold_left Permissions.add_perm env perms in
+      let t2 = Flexible.generalize env t2 in
       env, t2
   | None ->
       raise_error env (ExpectedType (t1, x))
@@ -405,8 +399,8 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
   | EAccess (e, fname) ->
       (* We could be a little bit smarter, and generic here. Instead of iterating
        * on the permissions, we could use a reverse map from field names to
-       * types. We could then substract the type (instanciated using flexible
-       * variables) from the expression. In case the substraction function does
+       * types. We could then subtract the type (instanciated using flexible
+       * variables) from the expression. In case the subtraction function does
        * something super fancy, like using P ∗ P -o τ to obtain τ, this would
        * allow us to reuse the code. Of course, this raises the question of
        * “what do we do in case there's an ambiguity”, that is, multiple

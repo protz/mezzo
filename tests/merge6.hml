@@ -1,0 +1,16 @@
+data bool = True | False
+
+abstract int
+fact duplicable int
+
+data v a b = A { a: a } | B { b: b } | C | D
+
+(* Là on aimerait avoir une valeur généralisée pour [v5], idéalement :
+
+   v6 @ ∀b. v int b 
+*)
+val v6 =
+  if True then
+    A { a = 1 }
+  else
+    C

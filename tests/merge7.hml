@@ -1,0 +1,15 @@
+data bool = True | False
+
+abstract int
+fact duplicable int
+
+data v a b = A { a: a } | B { b: b } | C | D
+(* Idem.
+
+   v7 @ ∀ab. v a b 
+*)
+val v7 =
+  if True then
+    D
+  else
+    C

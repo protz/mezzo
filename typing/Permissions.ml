@@ -16,10 +16,9 @@ exception Inconsistent
     variable, it can be safely merged with [t1]. This function checks that the
     facts are compatible. *)
 let can_merge (env: env) (t1: typ) (p2: point): bool =
+  Log.check (is_flexible env p2) "[can_merge] takes a flexible variable as its second parameter";
   match t1 with
   | TyPoint p1 ->
-      Log.check (is_flexible env p2) "[can_merge] takes a flexible variable \
-        as its second parameter";
       if (is_type env p2) then begin
         Log.check (get_kind env p1 = get_kind env p2) "Wait, what?";
         let f1, f2 = get_fact env p1, get_fact env p2 in
@@ -30,8 +29,6 @@ let can_merge (env: env) (t1: typ) (p2: point): bool =
       end else
         true
   | _ ->
-      Log.check (is_flexible env p2) "[can_merge] takes a flexible variable \
-        as its second parameter";
       let f2 = get_fact env p2 in
       let f1 = FactInference.analyze_type env t1 in
       fact_leq f1 f2
@@ -99,59 +96,6 @@ let collect (t: typ): typ * typ list =
   collect t
 ;;
 
-(* [has_flexible env t] checks [t] for flexible variables. *)
-let has_flexible env t =
-  let rec has_flexible t =
-    match t with
-    | TyUnknown
-    | TyDynamic
-    | TyVar _ ->
-        false
-
-    | TyPoint p ->
-        if is_flexible env p then
-          true
-        else
-          begin match structure env p with
-          | Some t ->
-              has_flexible t
-          | None ->
-              false
-          end
-
-    | TyForall (_, t)
-    | TyExists (_, t) ->
-        has_flexible t
-
-    | TyBar (t1, t2)
-    | TyArrow (t1, t2)
-    | TyApp (t1, t2) ->
-        has_flexible t1 || has_flexible t2
-
-    | TyTuple components ->
-        List.exists has_flexible components
-
-    | TyConcreteUnfolded (_, fields) ->
-        let fields = List.map (function
-          | FieldValue (_, t)
-          | FieldPermission t ->
-              has_flexible t
-        ) fields in
-        List.exists (fun x -> x) fields
-
-    | TySingleton t ->
-        has_flexible t
-
-    | TyAnchoredPermission (t1, t2)
-    | TyStar (t1, t2) ->
-        has_flexible t1 || has_flexible t2
-
-    | TyEmpty ->
-        false
-
-  in
-  has_flexible t
-;;
 
 (** [unfold env t] returns [env, t] where [t] has been unfolded, which
     potentially led us into adding new points to [env]. The [hint] serves when
@@ -516,6 +460,10 @@ and add_perm (env: env) (t: typ): env =
       Log.error "[add_perm] only works with types that have kind PERM"
 ;;
 
+let (|||) o1 o2 =
+  if Option.is_some o1 then o1 else o2
+;;
+
 
 (** [sub env point t] tries to extract [t] from the available permissions for
     [point] and returns, if successful, the resulting environment. *)
@@ -562,6 +510,13 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
     Log.error "[KindCheck] should've checked that for us";
 
   let permissions = get_permissions env point in
+  (* This is part of our heuristic: in case this subtraction operation triggers
+   * a unification of a flexible variable (this happens when merging), we want
+   * the flexible variable to preferably unify with *not* a singleton type. *)
+  let singletons, non_singletons =
+    List.partition (function TySingleton _ -> true | _ -> false) permissions
+  in
+  let permissions = non_singletons @ singletons in
 
   (* This is a very dumb strategy, that may want further improvements: we just
    * take the first permission that “works”. *)
@@ -609,6 +564,10 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   | _, TyUnknown ->
       Some env
 
+  | TyForall (binding, t1), _ ->
+      let env, t1 = bind_var_in_type ~flexible:true env binding t1 in
+      sub_type env t1 t2
+
   | _, TyForall (binding, t2) ->
       (* Typical use-case: Nil vs [a] list a. We're binding this as a *rigid*
        * type variable. *)
@@ -616,7 +575,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       sub_type env t1 t2
 
   | TyTuple components1, TyTuple components2 ->
-      (* We can only substract a tuple from another one if they have the same
+      (* We can only subtract a tuple from another one if they have the same
        * length. *)
       if List.length components1 <> List.length components2 then
         None
@@ -691,33 +650,32 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   | TyPoint p1, TyPoint p2 ->
       if same env p1 p2 then
         Some env
-      else if is_flexible env p2 && can_merge env t1 p2 then
-        Some (merge_left env p1 p2)
       else
-        None
+        try_merge_flex env p1 t2 ||| try_merge_flex env p2 t1
+
+  | TyPoint p1, _ ->
+      try_merge_flex env p1 t2 |||
+      Option.bind (structure env p1) (fun t1 -> sub_type env t1 t2)
+
+  | _, TyPoint p2 ->
+      try_merge_flex env p2 t1 |||
+      Option.bind (structure env p2) (fun t2 -> sub_type env t1 t2)
 
   | TySingleton t1, TySingleton t2 ->
       sub_type env t1 t2
-
-  | _, TyPoint p2 ->
-      if is_flexible env p2 then
-          if can_merge env t1 p2 then
-            Some (instantiate_flexible env p2 t1)
-          else
-            None
-      else
-        begin match structure env p2 with
-        | Some t2 ->
-            sub_type env t1 t2
-        | None ->
-            None
-        end
 
   | _ ->
       if equal env t1 t2 then
         Some env
       else
         None
+
+
+and try_merge_flex env p t =
+  if is_flexible env p && can_merge env t p then
+    Some (instantiate_flexible env p t)
+  else
+    None
 
 
 (** [sub_perm env t] takes a type [t] with kind PERM, and tries to return the

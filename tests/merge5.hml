@@ -1,0 +1,18 @@
+data bool = True | False
+
+abstract int
+fact duplicable int
+
+data v a b = A { a: a } | B { b: b } | C | D
+
+(* Quelques exemples avec le type [v]. Celui-ci est très simple, et permet de
+   tester la situation où l'on doit réconcilier deux constructeurs différents
+   pour le même type. On obtient :
+   
+   v5 @ v int int
+*)
+val v5 =
+  if True then
+    A { a = 1 }
+  else
+    B { b = 2 }

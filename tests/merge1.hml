@@ -1,0 +1,13 @@
+data bool = True | False
+
+data t = T
+
+(* Un exemple tout bête : on obtient
+
+   v1 @ T {}
+*)
+val v1 =
+  if True then
+    T
+  else
+    T

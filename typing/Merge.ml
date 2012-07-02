@@ -156,7 +156,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
    * merging, at the front of the list (this implements our first heuristic). *)
   let left_env, left_root = left in
   let right_env, right_root = right in
-  let root_name = Variable.register (fresh_name "merge_root") in
+  let root_name = Variable.register (fresh_name "/merge_root") in
   let dest_env, dest_root = bind_term ~include_equals:false dest_env root_name false in
   push_job (left_root, right_root, dest_root);
 
@@ -167,7 +167,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
 
   (* This function, assuming the [left_point, right_point, dest_point] triple is
    * legal, will do a cross-product of [merge_type], trying as it goes to match
-   * permissions together and substract them from their environments. *)
+   * permissions together and subtract them from their environments. *)
   let rec merge_points
       ((left_env, left_point): env * point)
       ((right_env, right_point): env * point)
@@ -197,7 +197,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
         let rec merge_lists
             (left_env, remaining_left_perms, didnt_work_left_perms)
             (right_env, right_perms)
-            (dest_env, dest_perms) =
+            (dest_env, dest_perms): env * (typ list) * env * (typ list) * env * (typ list) =
           (* [left_perms] and [right_perms] are the remaining permissions that
            * we need to match together. *)
           match remaining_left_perms, right_perms with
@@ -205,7 +205,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
           | _, [] ->
               (* Return the permissions left for both the left and the right
                * environment. *)
-              didnt_work_left_perms, right_perms, dest_env, dest_perms
+              left_env, didnt_work_left_perms, right_env, right_perms, dest_env, dest_perms
           | left_perm :: left_perms, right_perms ->
 
               (* This function returns the first right permission we found that
@@ -267,7 +267,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
 
         let left_perms = get_permissions left_env left_point in
         let right_perms = get_permissions right_env right_point in
-        let left_perms, right_perms, dest_env, dest_perms =
+        let left_env, left_perms, right_env, right_perms, dest_env, dest_perms =
           merge_lists (left_env, left_perms, []) (right_env, right_perms) (dest_env, [])
         in
 
@@ -299,7 +299,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       | Some dest_p ->
           dest_env, dest_p
       | None ->
-          let name = Variable.register (fresh_name "merge_point") in
+          let name = Variable.register (fresh_name "/merge_point") in
           let dest_env, dest_p = bind_term ~include_equals:false dest_env name false in
           push_job (left_p, right_p, dest_p);
           Log.debug ~level:4
@@ -326,36 +326,63 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
         | false, false ->
             let dest_env, dest_p = bind_merge dest_env left_p right_p in
             Some (left_env, right_env, dest_env, TyPoint dest_p)
+
         | false, true ->
-            let dest_p = PersistentUnionFind.repr left_p left_env.state in
+            begin match structure left_env left_p with
+            | Some left_perm ->
+                merge_type (left_env, left_perm) (right_env, right_perm) dest_env
+            | None ->
+                let dest_p = PersistentUnionFind.repr left_p left_env.state in
 
-            (* This must be a top-level type and [left_p] must be valid in the
-             * destination environment. *)
-            Log.check (is_type dest_env dest_p) "A flexible variable must refer \
-              to a type defined in the top-level scope, we don't know how to treat \
-              flexible variables with kind other than TYPE yet.";
+                (* This must be a top-level type and [left_p] must be valid in the
+                 * destination environment. *)
+                Log.check (is_type dest_env dest_p) "A flexible variable must refer \
+                  to a type defined in the top-level scope, we don't know how to treat \
+                  flexible variables with kind other than TYPE yet.";
 
-            let right_env = merge_left right_env dest_p right_p in
-            Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
-              "All top-level types should be in known_triples by default";
+                let right_env = merge_left right_env dest_p right_p in
+                Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
+                  "All top-level types should be in known_triples by default";
 
-            Some (left_env, right_env, dest_env, TyPoint dest_p)
+                Some (left_env, right_env, dest_env, TyPoint dest_p)
+            end
+
         | true, false ->
-            let dest_p = PersistentUnionFind.repr right_p right_env.state in
+            begin match structure right_env right_p with
+            | Some right_perm ->
+                merge_type (left_env, left_perm) (right_env, right_perm) dest_env
+            | None ->
+                let dest_p = PersistentUnionFind.repr right_p right_env.state in
 
-            (* This must be a top-level type and [right_p] must be valid in the
-             * destination environment. *)
-            Log.check (is_type dest_env dest_p) "A flexible variable must refer \
-              to a type defined in the top-level scope, we don't know how to treat \
-              flexible variables with kind other than TYPE yet.";
+                (* This must be a top-level type and [right_p] must be valid in the
+                 * destination environment. *)
+                Log.check (is_type dest_env dest_p) "A flexible variable must refer \
+                  to a type defined in the top-level scope, we don't know how to treat \
+                  flexible variables with kind other than TYPE yet.";
 
-            let left_env = merge_left left_env dest_p left_p in
-            Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
-              "All top-level types should be in known_triples by default";
+                let left_env = merge_left left_env dest_p left_p in
+                Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
+                  "All top-level types should be in known_triples by default";
 
-            Some (left_env, right_env, dest_env, TyPoint dest_p)
+                Some (left_env, right_env, dest_env, TyPoint dest_p)
+            end
+
         | true, true ->
-            Log.error "Not implemented"
+            let k = get_kind left_env left_p in
+            Log.check (k = get_kind right_env right_p) "Kinds inconsistent!";
+
+            begin match merge_candidate (left_env, left_p) (right_env, right_p) with
+            | Some dest_p ->
+                Some (left_env, right_env, dest_env, TyPoint dest_p)
+            | None ->
+                let dest_env, dest_p =
+                  bind_type dest_env (get_name left_env left_p) ~flexible:true Affine k
+                in
+                push known_triples (left_p, right_p, dest_p);
+
+                Some (left_env, right_env, dest_env, TyPoint dest_p)
+            end
+
         end
 
 
@@ -398,7 +425,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
 
           (* First, find the definition of the type so that we know how to
            * instanciate parameters. *)
-          let t_dest = t_left in
+          let t_dest = PersistentUnionFind.repr t_left left_env.state in
           let return_kind, arg_kinds = flatten_kind (get_kind dest_env t_dest) in
           Log.check (return_kind = KType) "Not implemented";
 
@@ -432,6 +459,8 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
             (TyPoint t_right)
             (List.map (fun x -> TyPoint x) arg_points_r)
           in
+          (* Chances are this will perform a merge in [right_env]: this is why
+           * we're returning [right_env]. *)
           let right_env = Permissions.sub_type right_env right_perm t_app_right in
 
           (* Did the subtractions succeed? *)
@@ -440,19 +469,11 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
               Log.debug "[cons_vs_cons] subtractions performed, got: %a vs %a"
                 TypePrinter.pdoc (TypePrinter.ptype, (left_env, t_app_left))
                 TypePrinter.pdoc (TypePrinter.ptype, (right_env, t_app_right));
-          
-              (* TODO Add to known_triples (arg_points_l, arg_points_r, arg_points_dest). *)
 
               Option.bind
                 (merge_type (left_env, t_app_left) (right_env, t_app_right) dest_env)
                 (fun (left_env, right_env, dest_env, dest_perm) ->
-
-                  if Permissions.has_flexible left_env t_app_left then
-                    Log.error "Not implemented (permissions left)";
-                  if Permissions.has_flexible right_env t_app_right then
-                    Log.error "Not implemented (permissions right)";
-
-                  (* TODO Generalize_flexibles. *)
+                  let dest_perm = Flexible.generalize dest_env dest_perm in
                   Some (left_env, right_env, dest_env, dest_perm)
                 )
 
@@ -494,7 +515,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
   done;
 
   (* Now we're just interested in [dest_env]. *)
-  let _, _, dest_env = !state in
+  let left_env, right_env, dest_env = !state in
 
   Log.debug ~level:4 "------------ END MERGE ------------\n";
   dump_known_triples left_env right_env dest_env;

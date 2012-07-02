@@ -1,0 +1,16 @@
+data bool = True | False
+
+data w a = W { w: a } | X
+
+abstract int
+fact duplicable int
+
+(* Un premier exemple, avec une variable flexible déjà... On obtient :
+
+   v4 @ w int
+*)
+val v4 =
+  if True then
+    W { w = 1 }
+  else
+    X

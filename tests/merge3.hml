@@ -1,0 +1,24 @@
+data bool = True | False
+
+data t = T
+data u = U { left: t; right: t }
+
+(* Un exemple encore plus compliqué, où il y a du partage d'un côté mais pas de
+   l'autre. Il est quand même possible d'obtenir une bonne permission en sortie
+   pour le résultat de ce if, car le type [t] est duplicable ce qui permet
+   d'utiliser (à gauche) [x @ T] deux fois. On obtient
+
+   ∃(?, ?' :: TERM). v3 @ U { left = ?; right = ?' } ∗ ? @ T ∗ ?' @ T
+
+   À noter qu'on ne peut plus obtenir [v3 @ u] si jamais l'on déclare [t] comme
+   étant exclusif.
+*)
+val v3 =
+  if True then begin
+    let x = T in
+    U { left = x; right = x }
+  end else begin
+    let z = T in
+    let y = T in
+    U { left = y; right = z }
+  end

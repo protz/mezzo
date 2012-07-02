@@ -922,7 +922,7 @@ module TypePrinter = struct
   and print_point env point =
     match structure env point with
     | Some t ->
-        lparen ^^ string "f=" ^^ print_type env t ^^ rparen
+        lparen ^^ string "flex→" ^^ print_type env t ^^ rparen
     | _ ->
         if is_flexible env point then
           print_var (get_name env point) ^^ star
