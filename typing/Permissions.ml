@@ -431,26 +431,21 @@ and add (env: env) (point: point) (t: typ): env =
   Log.check (is_term env point) "You can only add permissions to a point that \
     represents a program identifier.";
 
-  match structure env point with
-  | Some (TyPoint point) ->
-      (* This is for a flexible type variable with kind TERM. *)
-      add env point t
+  Log.check (not (has_structure env point)) "I don't understand what's happening";
 
-  | None ->
+  let hint = Variable.print (get_name env point) in
 
-      let hint = Variable.print (get_name env point) in
+  (* We first perform unfolding, so that constructors with one branch are
+   * simplified. *)
+  let env, t = unfold env ~hint t in
 
-      (* We first perform unfolding, so that constructors with one branch are
-       * simplified. *)
-      let env, t = unfold env ~hint t in
-
-      (* Now we may have more opportunities for collecting permissions. [collect]
-       * doesn't go "through" [TyPoint]s but when indirections are inserted via
-       * [insert_point], [add] is recursively called, so inner permissions are
-       * collected as well. *)
-      let t, perms = collect t in
-      let env = List.fold_left add_perm env perms in
-      refine env point t
+  (* Now we may have more opportunities for collecting permissions. [collect]
+   * doesn't go "through" [TyPoint]s but when indirections are inserted via
+   * [insert_point], [add] is recursively called, so inner permissions are
+   * collected as well. *)
+  let t, perms = collect t in
+  let env = List.fold_left add_perm env perms in
+  refine env point t
 
 
 (** [add_perm env t] adds a type [t] with kind PERM to [env], returning the new
@@ -478,41 +473,37 @@ let rec sub (env: env) (point: point) (t: typ): env option =
   Log.check (is_term env point) "You can only subtract permissions from a point \
   that represents a program identifier.";
 
-  match structure env point with
-  | Some (TyPoint point) ->
-      (* This is for a flexible type variable with kind TERM. *)
-      sub env point t
+  Log.check (not (has_structure env point)) "I don't understand what's happening";
 
-  | None ->
-      match t with
-      | TyUnknown ->
-          Some env
+  match t with
+  | TyUnknown ->
+      Some env
 
-      | TyDynamic ->
-          if begin
-            List.exists
-              (FactInference.is_exclusive env)
-              (get_permissions env point)
-          end then
-            Some env
-          else
-            None
+  | TyDynamic ->
+      if begin
+        List.exists
+          (FactInference.is_exclusive env)
+          (get_permissions env point)
+      end then
+        Some env
+      else
+        None
 
-      | _ ->
+  | _ ->
 
-          (* Get a "clean" type without nested permissions. *)
-          let t, perms = collect t in
+      (* Get a "clean" type without nested permissions. *)
+      let t, perms = collect t in
 
-          (* TEMPORARY we should probably switch to a more sophisticated strategy,
-           * based on a work list. The code would scan the work list for a permission
-           * that it knows how to extract. A failure would happen when there are
-           * permissions left but we don't know how to extract them because the
-           * variables are still flexible, for instance... *)
-          let env = sub_clean env point t in
-          List.fold_left
-            (fun env perm -> (Option.bind env (fun env -> sub_perm env perm)))
-            env
-            perms
+      (* TEMPORARY we should probably switch to a more sophisticated strategy,
+       * based on a work list. The code would scan the work list for a permission
+       * that it knows how to extract. A failure would happen when there are
+       * permissions left but we don't know how to extract them because the
+       * variables are still flexible, for instance... *)
+      let env = sub_clean env point t in
+      List.fold_left
+        (fun env perm -> (Option.bind env (fun env -> sub_perm env perm)))
+        env
+        perms
 
 
 (** [sub_clean env point t] takes a "clean" type [t] (without nested permissions)
@@ -680,7 +671,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       if same env p1 p2 then
         Some env
       else
-        try_merge_flex env p1 t2 ||| try_merge_flex env p2 t1 |||
+        try_merge_point_to_point env p1 p2 ||| try_merge_point_to_point env p2 p1 |||
         Option.bind (structure env p1) (fun t1 -> sub_type env t1 t2) |||
         Option.bind (structure env p2) (fun t2 -> sub_type env t1 t2)
 
@@ -705,6 +696,13 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 and try_merge_flex env p t =
   if is_flexible env p && can_merge env t p then
     Some (instantiate_flexible env p t)
+  else
+    None
+
+
+and try_merge_point_to_point env p1 p2 =
+  if is_flexible env p2 then
+    Some (merge_left env p1 p2)
   else
     None
 

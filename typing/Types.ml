@@ -227,6 +227,10 @@ let structure (env: env) (point: point): typ option =
       None
 ;;
 
+let has_structure env p =
+  Option.is_some (structure env p)
+;;
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Fact-related functions. *)
