@@ -59,3 +59,5 @@ val fold: ('acc -> point -> 'a -> 'acc) -> 'acc -> 'a state -> 'acc
 val compare: point -> point -> int
 
 val repr: point -> 'a state -> point
+
+val valid: point -> 'a state -> bool

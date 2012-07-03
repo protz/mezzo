@@ -133,3 +133,5 @@ let fold f acc state =
     | Root v -> f acc k v) acc !state
 
 let compare = PersistentRef.compare
+
+let valid p state = PersistentRef.valid p !state

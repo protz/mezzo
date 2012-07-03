@@ -167,6 +167,18 @@ let tests = [
     in
     check env v8 t);
 
+  ("merge_generalize_val.hml", fun do_it ->
+    let env = do_it false in
+    let x = point_by_name env "x" in
+    let y = point_by_name env "y" in
+    let z = point_by_name env "z" in
+    let u = find_type_by_name env "u" in
+    let t = TyForall ((Variable.register "foo", KType), TyApp (u, TyVar 0)) in
+    check env x t;
+    check env y t;
+    check env z t;
+  );
+
  ]
 
 let _ =

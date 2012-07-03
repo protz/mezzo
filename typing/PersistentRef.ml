@@ -66,3 +66,8 @@ let iter f { heap; _ } =
 
 let fold f acc { heap; _ } =
   Map.fold (fun k v acc -> f acc k v) heap acc
+
+(* Misc *)
+
+let valid l { limit; _ } =
+  l < limit

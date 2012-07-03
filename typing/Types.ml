@@ -247,6 +247,12 @@ let fact_leq f1 f2 =
 
 (* Fun with de Bruijn indices. *)
 
+let valid env p =
+  PersistentUnionFind.valid p env.state
+;;
+
+exception UnboundPoint
+
 (* [equal env t1 t2] provides an equality relation between [t1] and [t2] modulo
  * equivalence in the [PersistentUnionFind]. *)
 let equal env (t1: typ) (t2: typ) =
@@ -261,6 +267,9 @@ let equal env (t1: typ) (t2: typ) =
         i = i'
 
     | TyPoint p1, TyPoint p2 ->
+        if not (valid env p1) || not (valid env p2) then
+          raise UnboundPoint;
+
         begin match structure env p1, structure env p2 with
         | Some t1, Some t2 ->
             equal t1 t2
@@ -275,6 +284,7 @@ let equal env (t1: typ) (t2: typ) =
         k1 = k2 && equal t1 t2
 
     | TyArrow (t1, t'1), TyArrow (t2, t'2)
+    | TyBar (t1, t'1), TyBar (t2, t'2)
     | TyApp (t1, t'1), TyApp (t2, t'2)  ->
         equal t1 t2 && equal t'1 t'2
 
@@ -547,14 +557,24 @@ let bind_var (env: env) ?(flexible=false) (name, kind: type_binding): env * poin
 
 (* When crossing a binder, say, [a :: TYPE], use this function to properly add
  * [a] in scope. *)
+let bind_var_in_type2
+    (env: env)
+    (binding: type_binding)
+    ?(flexible=false)
+    (typ: typ): env * typ * point
+  =
+  let env, point = bind_var env ~flexible binding in
+  let typ = tsubst (TyPoint point) 0 typ in
+  env, typ, point
+;;
+
 let bind_var_in_type
     (env: env)
     (binding: type_binding)
     ?(flexible=false)
     (typ: typ): env * typ
   =
-  let env, point = bind_var env ~flexible binding in
-  let typ = tsubst (TyPoint point) 0 typ in
+  let env, typ, _ = bind_var_in_type2 env binding ~flexible typ in
   env, typ
 ;;
 

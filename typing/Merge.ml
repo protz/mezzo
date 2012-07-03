@@ -316,185 +316,219 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       pdoc (ptype, (left_env, left_perm))
       pdoc (ptype, (right_env, right_perm));
 
-    match left_perm, right_perm with
-    | TyPoint left_p, TyPoint right_p ->
-        Log.check (is_type left_env left_p && is_type right_env right_p
-          || is_term left_env left_p && is_term right_env right_p)
-          "Sanity check failed";
+    let simple_equals = try equal top left_perm right_perm with UnboundPoint -> false in
 
-        begin match is_flexible left_env left_p, is_flexible right_env right_p with
-        | false, false ->
-            let dest_env, dest_p = bind_merge dest_env left_p right_p in
-            Some (left_env, right_env, dest_env, TyPoint dest_p)
+    if simple_equals then begin
+      Log.debug "→ fast_path, the types are equal in the original environment, \
+        don't touch them";
+      Some (left_env, right_env, dest_env, left_perm)
 
-        | false, true ->
-            begin match structure left_env left_p with
-            | Some left_perm ->
-                merge_type (left_env, left_perm) (right_env, right_perm) dest_env
-            | None ->
-                let dest_p = PersistentUnionFind.repr left_p left_env.state in
+    end else begin
+      match left_perm, right_perm with
+      | TyPoint left_p, TyPoint right_p ->
+          Log.check (is_type left_env left_p && is_type right_env right_p
+            || is_term left_env left_p && is_term right_env right_p)
+            "Sanity check failed";
 
-                (* This must be a top-level type and [left_p] must be valid in the
-                 * destination environment. *)
-                Log.check (is_type dest_env dest_p) "A flexible variable must refer \
-                  to a type defined in the top-level scope, we don't know how to treat \
-                  flexible variables with kind other than TYPE yet.";
+          begin match is_flexible left_env left_p, is_flexible right_env right_p with
+          | false, false ->
+              let dest_env, dest_p = bind_merge dest_env left_p right_p in
+              Some (left_env, right_env, dest_env, TyPoint dest_p)
 
-                let right_env = merge_left right_env dest_p right_p in
-                Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
-                  "All top-level types should be in known_triples by default";
+          | false, true ->
+              begin match structure left_env left_p with
+              | Some left_perm ->
+                  merge_type (left_env, left_perm) (right_env, right_perm) dest_env
+              | None ->
+                  let dest_p = PersistentUnionFind.repr left_p left_env.state in
 
-                Some (left_env, right_env, dest_env, TyPoint dest_p)
-            end
+                  (* This must be a top-level type and [left_p] must be valid in the
+                   * destination environment. *)
+                  Log.check (is_type dest_env dest_p) "A flexible variable must refer \
+                    to a type defined in the top-level scope, we don't know how to treat \
+                    flexible variables with kind other than TYPE yet.";
 
-        | true, false ->
-            begin match structure right_env right_p with
-            | Some right_perm ->
-                merge_type (left_env, left_perm) (right_env, right_perm) dest_env
-            | None ->
-                let dest_p = PersistentUnionFind.repr right_p right_env.state in
+                  let right_env = merge_left right_env dest_p right_p in
+                  Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
+                    "All top-level types should be in known_triples by default";
 
-                (* This must be a top-level type and [right_p] must be valid in the
-                 * destination environment. *)
-                Log.check (is_type dest_env dest_p) "A flexible variable must refer \
-                  to a type defined in the top-level scope, we don't know how to treat \
-                  flexible variables with kind other than TYPE yet.";
+                  Some (left_env, right_env, dest_env, TyPoint dest_p)
+              end
 
-                let left_env = merge_left left_env dest_p left_p in
-                Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
-                  "All top-level types should be in known_triples by default";
+          | true, false ->
+              begin match structure right_env right_p with
+              | Some right_perm ->
+                  merge_type (left_env, left_perm) (right_env, right_perm) dest_env
+              | None ->
+                  let dest_p = PersistentUnionFind.repr right_p right_env.state in
 
-                Some (left_env, right_env, dest_env, TyPoint dest_p)
-            end
+                  (* This must be a top-level type and [right_p] must be valid in the
+                   * destination environment. *)
+                  Log.check (is_type dest_env dest_p) "A flexible variable must refer \
+                    to a type defined in the top-level scope, we don't know how to treat \
+                    flexible variables with kind other than TYPE yet.";
 
-        | true, true ->
-            let k = get_kind left_env left_p in
-            Log.check (k = get_kind right_env right_p) "Kinds inconsistent!";
+                  let left_env = merge_left left_env dest_p left_p in
+                  Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
+                    "All top-level types should be in known_triples by default";
 
-            begin match merge_candidate (left_env, left_p) (right_env, right_p) with
-            | Some dest_p ->
-                Some (left_env, right_env, dest_env, TyPoint dest_p)
-            | None ->
-                let dest_env, dest_p =
-                  bind_type dest_env (get_name left_env left_p) ~flexible:true Affine k
-                in
-                push known_triples (left_p, right_p, dest_p);
+                  Some (left_env, right_env, dest_env, TyPoint dest_p)
+              end
 
-                Some (left_env, right_env, dest_env, TyPoint dest_p)
-            end
+          | true, true ->
+              let k = get_kind left_env left_p in
+              Log.check (k = get_kind right_env right_p) "Kinds inconsistent!";
 
-        end
+              begin match merge_candidate (left_env, left_p) (right_env, right_p) with
+              | Some dest_p ->
+                  Some (left_env, right_env, dest_env, TyPoint dest_p)
+              | None ->
+                  let dest_env, dest_p =
+                    bind_type dest_env (get_name left_env left_p) ~flexible:true Affine k
+                  in
+                  push known_triples (left_p, right_p, dest_p);
 
+                  Some (left_env, right_env, dest_env, TyPoint dest_p)
+              end
 
-    | TySingleton left_t, TySingleton right_t ->
-        Option.bind
-          (merge_type (left_env, left_t) (right_env, right_t) dest_env)
-          (fun (left_env, right_env, dest_env, dest_t) ->
-            Some (left_env, right_env, dest_env, TySingleton dest_t))
-
-    | TyConcreteUnfolded (datacon_l, fields_l), TyConcreteUnfolded (datacon_r, fields_r) ->
-        let t_left: point = type_for_datacon left_env datacon_l in
-        let t_right: point = type_for_datacon right_env datacon_r in
-
-        if Datacon.equal datacon_l datacon_r then
-          (* Same constructors: both are in expanded form so just schedule the
-           * points in their fields for merging. *)
-          let dest_env, dest_fields =
-            List.fold_left2 (fun (dest_env, dest_fields) field_l field_r ->
-              match field_l, field_r with
-              | FieldValue (name_l, TySingleton (TyPoint left_p)),
-                FieldValue (name_r, TySingleton (TyPoint right_p)) ->
-                  Log.check (Field.equal name_l name_r) "Not in order?";
-                  let dest_env, dest_p = bind_merge dest_env left_p right_p in
-                  (dest_env, FieldValue (name_l, ty_equals dest_p) :: dest_fields)
-              | _ ->
-                  Log.error "All permissions should be in expanded form."
-            ) (dest_env, []) fields_l fields_r
-          in
-          Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields))
-
-        else if same dest_env t_left t_right then
-          (* Same nominal type (e.g. [Nil] vs [Cons]). The procedure here is a
-           * little bit more complicated. We need to take the nominal type (e.g.
-           * [list]), and apply it to [a] flexible on both sides, allocate [a]
-           * in [dest_env] and add the relevant triples in [known_triples].
-           * Then, perform [Nil - list a] and [Cons - list a]. Then recursively
-           * merge the variables pairwise, and if it's still flexible,
-           * generalize (or maybe not?).
-           *)
-
-          (* First, find the definition of the type so that we know how to
-           * instanciate parameters. *)
-          let t_dest = PersistentUnionFind.repr t_left left_env.state in
-          let return_kind, arg_kinds = flatten_kind (get_kind dest_env t_dest) in
-          Log.check (return_kind = KType) "Not implemented";
-
-          let letters = Hml_Pprint.name_gen (List.length arg_kinds) in
-
-          (* Build the type application, left environment. *)
-          let left_env, arg_points_l = List.fold_left2 (fun (env, points) kind letter ->
-            let env, point =
-              bind_type env (Variable.register letter) ~flexible:true Affine kind
-            in
-            env, point :: points) (left_env, []) arg_kinds letters
-          in
-          let t_app_left = List.fold_left
-            (fun t arg -> TyApp (t, arg))
-            (TyPoint t_left)
-            (List.map (fun x -> TyPoint x) arg_points_l)
-          in
-          (* Chances are this will perform a merge in [left_env]: this is why
-           * we're returning [left_env]. *)
-          let left_env = Permissions.sub_type left_env left_perm t_app_left in
- 
-          (* Build the type application, right environment. *)
-          let right_env, arg_points_r = List.fold_left2 (fun (env, points) kind letter ->
-            let env, point =
-              bind_type env (Variable.register letter) ~flexible:true Affine kind
-            in
-            env, point :: points) (right_env, []) arg_kinds letters
-          in
-          let t_app_right = List.fold_left
-            (fun t arg -> TyApp (t, arg))
-            (TyPoint t_right)
-            (List.map (fun x -> TyPoint x) arg_points_r)
-          in
-          (* Chances are this will perform a merge in [right_env]: this is why
-           * we're returning [right_env]. *)
-          let right_env = Permissions.sub_type right_env right_perm t_app_right in
-
-          (* Did the subtractions succeed? *)
-          begin match left_env, right_env with
-          | Some left_env, Some right_env ->
-              Log.debug "[cons_vs_cons] subtractions performed, got: %a vs %a"
-                TypePrinter.pdoc (TypePrinter.ptype, (left_env, t_app_left))
-                TypePrinter.pdoc (TypePrinter.ptype, (right_env, t_app_right));
-
-              Option.bind
-                (merge_type (left_env, t_app_left) (right_env, t_app_right) dest_env)
-                (fun (left_env, right_env, dest_env, dest_perm) ->
-                  let dest_perm = Flexible.generalize dest_env dest_perm in
-                  Some (left_env, right_env, dest_env, dest_perm)
-                )
-
-          | _ ->
-              None
           end
 
-        else
+
+      | TySingleton left_t, TySingleton right_t ->
+          Option.bind
+            (merge_type (left_env, left_t) (right_env, right_t) dest_env)
+            (fun (left_env, right_env, dest_env, dest_t) ->
+              Some (left_env, right_env, dest_env, TySingleton dest_t))
+
+      | TyConcreteUnfolded (datacon_l, fields_l), TyConcreteUnfolded (datacon_r, fields_r) ->
+          let t_left: point = type_for_datacon left_env datacon_l in
+          let t_right: point = type_for_datacon right_env datacon_r in
+
+          if Datacon.equal datacon_l datacon_r then
+            (* Same constructors: both are in expanded form so just schedule the
+             * points in their fields for merging. *)
+            let dest_env, dest_fields =
+              List.fold_left2 (fun (dest_env, dest_fields) field_l field_r ->
+                match field_l, field_r with
+                | FieldValue (name_l, TySingleton (TyPoint left_p)),
+                  FieldValue (name_r, TySingleton (TyPoint right_p)) ->
+                    Log.check (Field.equal name_l name_r) "Not in order?";
+                    let dest_env, dest_p = bind_merge dest_env left_p right_p in
+                    (dest_env, FieldValue (name_l, ty_equals dest_p) :: dest_fields)
+                | _ ->
+                    Log.error "All permissions should be in expanded form."
+              ) (dest_env, []) fields_l fields_r
+            in
+            Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields))
+
+          else if same dest_env t_left t_right then
+            (* Same nominal type (e.g. [Nil] vs [Cons]). The procedure here is a
+             * little bit more complicated. We need to take the nominal type (e.g.
+             * [list]), and apply it to [a] flexible on both sides, allocate [a]
+             * in [dest_env] and add the relevant triples in [known_triples].
+             * Then, perform [Nil - list a] and [Cons - list a]. Then recursively
+             * merge the variables pairwise, and if it's still flexible,
+             * generalize (or maybe not?).
+             *)
+
+            (* First, find the definition of the type so that we know how to
+             * instanciate parameters. *)
+            let t_dest = PersistentUnionFind.repr t_left left_env.state in
+            let return_kind, arg_kinds = flatten_kind (get_kind dest_env t_dest) in
+            Log.check (return_kind = KType) "Not implemented";
+
+            let letters = Hml_Pprint.name_gen (List.length arg_kinds) in
+
+            (* Build the type application, left environment. *)
+            let left_env, arg_points_l = List.fold_left2 (fun (env, points) kind letter ->
+              let env, point =
+                bind_type env (Variable.register letter) ~flexible:true Affine kind
+              in
+              env, point :: points) (left_env, []) arg_kinds letters
+            in
+            let t_app_left = List.fold_left
+              (fun t arg -> TyApp (t, arg))
+              (TyPoint t_left)
+              (List.map (fun x -> TyPoint x) arg_points_l)
+            in
+            (* Chances are this will perform a merge in [left_env]: this is why
+             * we're returning [left_env]. *)
+            let left_env = Permissions.sub_type left_env left_perm t_app_left in
+
+            (* Build the type application, right environment. *)
+            let right_env, arg_points_r = List.fold_left2 (fun (env, points) kind letter ->
+              let env, point =
+                bind_type env (Variable.register letter) ~flexible:true Affine kind
+              in
+              env, point :: points) (right_env, []) arg_kinds letters
+            in
+            let t_app_right = List.fold_left
+              (fun t arg -> TyApp (t, arg))
+              (TyPoint t_right)
+              (List.map (fun x -> TyPoint x) arg_points_r)
+            in
+            (* Chances are this will perform a merge in [right_env]: this is why
+             * we're returning [right_env]. *)
+            let right_env = Permissions.sub_type right_env right_perm t_app_right in
+
+            (* Did the subtractions succeed? *)
+            begin match left_env, right_env with
+            | Some left_env, Some right_env ->
+                Log.debug ~level:3 "[cons_vs_cons] subtractions performed, got: %a vs %a"
+                  TypePrinter.pdoc (TypePrinter.ptype, (left_env, t_app_left))
+                  TypePrinter.pdoc (TypePrinter.ptype, (right_env, t_app_right));
+
+                Option.bind
+                  (merge_type (left_env, t_app_left) (right_env, t_app_right) dest_env)
+                  (fun (left_env, right_env, dest_env, dest_perm) ->
+                    let dest_perm = Flexible.generalize dest_env dest_perm in
+                    Some (left_env, right_env, dest_env, dest_perm)
+                  )
+
+            | _ ->
+                None
+            end
+
+          else
+            None
+
+      | TyApp (tl1, tl2), TyApp (tr1, tr2) ->
+          Option.bind (merge_type (left_env, tl1) (right_env, tr1) dest_env)
+            (fun (left_env, right_env, dest_env, t1) ->
+              Option.bind (merge_type (left_env, tl2) (right_env, tr2) dest_env)
+                (fun (left_env, right_env, dest_env, t2) ->
+                  Some (left_env, right_env, dest_env, TyApp (t1, t2))))
+
+      | TyForall (binding_left, t_l), TyForall (binding_right, t_r) ->
+          (* First, check that the kinds are equal. *)
+          let k_l, k_r = snd binding_left, snd binding_right in
+          if k_l = k_r then
+            (* Bind the variables as rigid. *)
+            let left_env, t_l, left_point = bind_var_in_type2 left_env binding_left t_l in
+            let right_env, t_r, right_point = bind_var_in_type2 right_env binding_right t_r in
+            (* Pick the name from the left... *)
+            let binding = binding_left in
+            let name, k = binding in
+            (* Bind the corresponding rigid variable in the destination
+             * environment. Remember the triple. *)
+            let dest_env, dest_point = bind_type dest_env name Affine k in
+            push known_triples (left_point, right_point, dest_point);
+            (* Try to perform the merge. *)
+            Option.bind (merge_type (left_env, t_l) (right_env, t_r) dest_env)
+              (fun (left_env, right_env, dest_env, t) ->
+                (* Yes? Re-generalize... *)
+                Some (
+                  left_env, right_env, dest_env,
+                  TyForall (binding, Flexible.tpsubst dest_env (TyVar 0) dest_point t)
+                )
+              )
+          else
+            None
+
+      | _ ->
           None
 
-    | TyApp (tl1, tl2), TyApp (tr1, tr2) ->
-        Option.bind (merge_type (left_env, tl1) (right_env, tr1) dest_env)
-          (fun (left_env, right_env, dest_env, t1) ->
-            Option.bind (merge_type (left_env, tl2) (right_env, tr2) dest_env)
-              (fun (left_env, right_env, dest_env, t2) ->
-                Some (left_env, right_env, dest_env, TyApp (t1, t2))))
-
-    | _ ->
-        None
-
-  in
+  end in (* end merge_types *)
 
   (* The main loop. *)
   let state = ref (left_env, right_env, dest_env) in

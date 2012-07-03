@@ -431,6 +431,11 @@ and add (env: env) (point: point) (t: typ): env =
   Log.check (is_term env point) "You can only add permissions to a point that \
     represents a program identifier.";
 
+  (* The point is supposed to represent a term, not a type. If it has a
+   * structure, this means that it's a type variable with kind TERM that has
+   * been flex'd, then instanciated onto something. We make sure in
+   * {Permissions.sub} that we're actually merging, not instanciating, when
+   * faced with two [TyPoint]s. *)
   Log.check (not (has_structure env point)) "I don't understand what's happening";
 
   let hint = Variable.print (get_name env point) in
@@ -473,6 +478,7 @@ let rec sub (env: env) (point: point) (t: typ): env option =
   Log.check (is_term env point) "You can only subtract permissions from a point \
   that represents a program identifier.";
 
+  (* See the explanation in [add]. *)
   Log.check (not (has_structure env point)) "I don't understand what's happening";
 
   match t with

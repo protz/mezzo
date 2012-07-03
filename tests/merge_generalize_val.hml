@@ -1,0 +1,21 @@
+data bool = True | False
+data u a = A | B | C { a: a }
+
+val f [a] (): u a =
+  A
+
+val x = f ()
+
+val y = if True then A else B
+
+val z =
+  if True then
+    if True then
+      A
+    else
+      B
+  else
+    if False then
+      A
+    else
+      B
