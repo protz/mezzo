@@ -1,0 +1,1 @@
+val x = match 1 with Foo -> () end

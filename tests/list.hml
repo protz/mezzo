@@ -1,3 +1,8 @@
+abstract int
+fact duplicable int
+
+data list a = Nil | Cons { head: a; tail: list a }
+
 val rec length [a] (x: list a): int =
   match x with
   | Nil ->

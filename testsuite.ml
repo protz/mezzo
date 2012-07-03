@@ -66,6 +66,9 @@ let tests = [
     let zero = point_by_name env "zero" in
     check env zero int);
 
+  ("stupid_match.hml",
+    simple_test Fail (function NotNominal _ -> true | _ -> false));
+
   ("value_restriction.hml",
     simple_test Fail (function NoSuchField _ -> true | _ -> false));
 
