@@ -61,7 +61,7 @@ let tests = [
     check env foobar (tuple [int; int]));
 
   ("list.hml", fun do_it ->
-    let env = do_it true in
+    let env = do_it false in
     let int = find_type_by_name env "int" in
     let zero = point_by_name env "zero" in
     check env zero int);

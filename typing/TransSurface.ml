@@ -533,8 +533,13 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
          * assertions in the translation as well. *)
         let sub_env = List.fold_left bind env names in
         let expr = translate_expr sub_env expr in
-        let assertions = translate_type env (fold_star assertions) in
-        let expr = E.e_assert assertions expr in
+        let expr =
+          if List.length assertions > 0 then
+            let assertions = translate_type env (fold_star assertions) in
+            E.e_assert assertions expr
+          else
+            expr
+        in
         pat, expr) patexprs
       in
       E.EMatch (e, patexprs)

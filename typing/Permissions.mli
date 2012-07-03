@@ -39,9 +39,15 @@ val add: env -> point -> typ -> env
     environment. *)
 val add_perm: env -> typ -> env
 
+(** Should we remove the permission after the subtraction?
+    - In [Auto] mode, depends on whether the permission is duplicable or not.
+    - In [Yes] mode, the permission is removed anyway.
+*)
+type subtract_mode = Yes | Auto
+
 (** [sub env point t] tries to extract [t] from the available permissions for
     [point] and returns, if successful, the resulting environment. *)
-val sub: env -> point -> typ -> env option
+val sub: env -> ?subtract:subtract_mode -> point -> typ -> env option
 
 (** [sub_perm env t] takes a type [t] with kind PERM, and tries to return the
     environment without the corresponding permission. *)

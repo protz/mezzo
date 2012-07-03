@@ -140,8 +140,14 @@ let rec psubst (pat: pattern) (points: point list) =
       let pats = List.rev pats in
       PTuple pats, points
 
-  | PConstruct _ ->
-      pat, points
+  | PConstruct (datacon, fieldpats) ->
+      let fieldpats, points = List.fold_left (fun (fieldpats, points) (field, pat) ->
+          let pat, points = psubst pat points in
+          (field, pat) :: fieldpats, points
+        ) ([], points) fieldpats
+      in
+      let fieldpats = List.rev fieldpats in
+      PConstruct (datacon, fieldpats), points
 ;;
 
 

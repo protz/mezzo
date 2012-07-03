@@ -548,6 +548,8 @@ let bind_var (env: env) ?(flexible=false) (name, kind: type_binding): env * poin
         (* Of course, such a type variable does not have a definition. *)
         bind_type env name ~flexible fact kind
     | KTerm ->
+        (* This is false because we're floating "real" paramters of a function
+           as type variables with kind TERM, so it's not a ghost variable... *)
         bind_term env name ~flexible true
     | KPerm ->
         Log.error "TODO"

@@ -303,14 +303,20 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
       Log.check (List.length field_defs = 1) "Multiple candidates as a concrete type for \
         this pattern";
       let field_defs = List.hd field_defs in
-      List.fold_left2 (fun env (name, pat) field ->
+      List.fold_left (fun env (name, pat) ->
+        (* The pattern fields may not all be there or in an arbitrary order. *)
+        let field = List.find
+          (function
+            | FieldValue (name', _) when Field.equal name name' -> true
+            | _ -> false)
+          field_defs
+        in
         match field with
-        | FieldValue (name', TySingleton (TyPoint p')) ->
-            Log.check (name = name') "I thought the fields were in the same order";
+        | FieldValue (_, TySingleton (TyPoint p')) ->
             unify_pattern env pat p'
         | _ ->
             Log.error "Expecting a type that went through [unfold] and [collect] here"
-      ) env field_pats field_defs
+      ) env field_pats
 
 ;;
 
@@ -622,13 +628,19 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
         with Not_found ->
           raise_error env (NotNominal x)
       in
+
+      TypePrinter.(
+        Log.debug ~level:3 "The matched expression has type %a"
+          pdoc (ptype, (env, nominal_type))
+      );
+
       let nominal_cons, nominal_args = flatten_tyapp nominal_type in
       let nominal_point = !!nominal_cons in
 
       (* Now, check that all the patterns are valid ones. Our matches only allow
        * to match on data types only. Use a let-binding to destructure a
        * tuple... *)
-      List.iter (fun (pat, _) ->
+      let constructors = List.map (fun (pat, _) ->
         match pat with
         | PConstruct (datacon, _) ->
             let p =
@@ -638,15 +650,41 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
                 raise_error env (MatchBadDatacon (nominal_type, datacon))
             in
             if not (same env p nominal_point) then
-              raise_error env (MatchBadDatacon (nominal_type, datacon))
+              raise_error env (MatchBadDatacon (nominal_type, datacon));
+            datacon
         | _ ->
             raise_error env (MatchBadPattern pat)
-      ) patexprs;
+      ) patexprs in
 
-      (* Refine the permissions. We *have* to consume the previous permission,
-       * otherwise this is unsound, even with duplicable permissions. *)
-      ignore (nominal_args);
-      Log.error "Not implemented"
+      (* Type-check each branch separately, returning an environment for that
+       * branch as well as a point. *)
+      let sub_envs = List.map2 (fun (pat, expr) datacon ->
+        (* Refine the permissions. We *have* to remove the previous permission,
+         * otherwise this is unsound, even with duplicable permissions. *)
+        let env = replace_term env x (fun binding ->
+          let permissions' = binding.permissions in
+          (* Assert while we can *)
+          let permissions = List.filter (fun x -> x != nominal_type) permissions' in
+          Log.check (List.length permissions = List.length permissions' - 1)
+            "We didn't strip the right number of permissions";
+          { binding with permissions }
+        ) in
+        (* Trade the old permission for the new one. *)
+        let branch =
+          find_and_instantiate_branch env nominal_point datacon nominal_args
+        in
+        let env = Permissions.add env x (TyConcreteUnfolded branch) in
+        let env, { subst_expr; _ } =
+          check_bindings env Nonrecursive [pat, EPoint x]
+        in
+        let expr = subst_expr expr in
+        let hint = Option.map (fun x -> x ^ "-" ^ (Datacon.print datacon)) hint in
+        check_expression env ?hint expr
+      ) patexprs constructors in
+
+      (* Combine all of these left-to-right to obtain a single return
+       * environment *)
+      Hml_List.reduce (Merge.merge_envs env) sub_envs
 
 
 and check_bindings
