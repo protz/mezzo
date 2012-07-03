@@ -472,11 +472,9 @@ let (|||) o1 o2 =
 ;;
 
 
-type subtract_mode = Yes | Auto
-
 (** [sub env point t] tries to extract [t] from the available permissions for
     [point] and returns, if successful, the resulting environment. *)
-let rec sub (env: env) ?(subtract:subtract_mode option) (point: point) (t: typ): env option =
+let rec sub (env: env) (point: point) (t: typ): env option =
   Log.check (is_term env point) "You can only subtract permissions from a point \
   that represents a program identifier.";
 
@@ -507,7 +505,7 @@ let rec sub (env: env) ?(subtract:subtract_mode option) (point: point) (t: typ):
        * that it knows how to extract. A failure would happen when there are
        * permissions left but we don't know how to extract them because the
        * variables are still flexible, for instance... *)
-      let env = sub_clean ?subtract env point t in
+      let env = sub_clean env point t in
       List.fold_left
         (fun env perm -> (Option.bind env (fun env -> sub_perm env perm)))
         env
@@ -517,7 +515,7 @@ let rec sub (env: env) ?(subtract:subtract_mode option) (point: point) (t: typ):
 (** [sub_clean env point t] takes a "clean" type [t] (without nested permissions)
     and performs the actual work of extracting [t] from the list of permissions
     for [point]. *)
-and sub_clean (env: env) ?(subtract=Auto) (point: point) (t: typ): env option =
+and sub_clean (env: env) (point: point) (t: typ): env option =
   if (not (is_term env point)) then
     Log.error "[KindCheck] should've checked that for us";
 
@@ -549,11 +547,11 @@ and sub_clean (env: env) ?(subtract=Auto) (point: point) (t: typ): env option =
                 (not duplicable));
             (* We're taking out [hd] from the list of permissions for [point].
              * Is it something duplicable? *)
-            if not duplicable || subtract = Yes then
+            if duplicable then
+              Some env
+            else
               Some (replace_term env point (fun binder ->
                 { binder with permissions = seen @ remaining }))
-            else
-              Some env
         | None ->
             traverse env (hd :: seen) remaining
         end
