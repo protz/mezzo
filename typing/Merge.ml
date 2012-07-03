@@ -439,37 +439,32 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
 
             let letters = Hml_Pprint.name_gen (List.length arg_kinds) in
 
-            (* Build the type application, left environment. *)
-            let left_env, arg_points_l = List.fold_left2 (fun (env, points) kind letter ->
-              let env, point =
-                bind_type env (Variable.register letter) ~flexible:true Affine kind
+            (* The logic is the same on both sides, but I'm writing this with
+             * the left-side in mind. *)
+            let build_type_application left_env left_perm t_left =
+              let left_env, arg_points_l = List.fold_left2 (fun (env, points) kind letter ->
+                let env, point =
+                  bind_type env (Variable.register letter) ~flexible:true Affine kind
+                in
+                env, point :: points) (left_env, []) arg_kinds letters
               in
-              env, point :: points) (left_env, []) arg_kinds letters
+              let t_app_left = List.fold_left
+                (fun t arg -> TyApp (t, arg))
+                (TyPoint t_left)
+                (List.map (fun x -> TyPoint x) arg_points_l)
+              in
+              (* Chances are this will perform a merge in [left_env]: this is why
+               * we're returning [left_env]. *)
+              let left_env = Permissions.sub_type left_env left_perm t_app_left in
+              left_env, t_app_left
             in
-            let t_app_left = List.fold_left
-              (fun t arg -> TyApp (t, arg))
-              (TyPoint t_left)
-              (List.map (fun x -> TyPoint x) arg_points_l)
-            in
-            (* Chances are this will perform a merge in [left_env]: this is why
-             * we're returning [left_env]. *)
-            let left_env = Permissions.sub_type left_env left_perm t_app_left in
 
-            (* Build the type application, right environment. *)
-            let right_env, arg_points_r = List.fold_left2 (fun (env, points) kind letter ->
-              let env, point =
-                bind_type env (Variable.register letter) ~flexible:true Affine kind
-              in
-              env, point :: points) (right_env, []) arg_kinds letters
+            let left_env, t_app_left =
+              build_type_application left_env left_perm t_left
             in
-            let t_app_right = List.fold_left
-              (fun t arg -> TyApp (t, arg))
-              (TyPoint t_right)
-              (List.map (fun x -> TyPoint x) arg_points_r)
+            let right_env, t_app_right =
+              build_type_application right_env right_perm t_right
             in
-            (* Chances are this will perform a merge in [right_env]: this is why
-             * we're returning [right_env]. *)
-            let right_env = Permissions.sub_type right_env right_perm t_app_right in
 
             (* Did the subtractions succeed? *)
             begin match left_env, right_env with
@@ -500,6 +495,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
                   Some (left_env, right_env, dest_env, TyApp (t1, t2))))
 
       | TyForall (binding_left, t_l), TyForall (binding_right, t_r) ->
+          (* XXX I'm pretty sure this codepath is untested... *)
           (* First, check that the kinds are equal. *)
           let k_l, k_r = snd binding_left, snd binding_right in
           if k_l = k_r then
