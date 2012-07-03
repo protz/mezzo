@@ -516,8 +516,8 @@ module ExprPrinter = struct
     | PVar v ->
         print_var v
 
-    | PPoint _ ->
-        assert false
+    | PPoint point ->
+        print_var (get_name env point)
 
     | PTuple pats ->
         lparen ^^

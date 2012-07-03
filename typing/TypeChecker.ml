@@ -16,6 +16,7 @@ and raw_error =
   | MissingField of Field.name
   | ExtraField of Field.name
   | NoSuchField of point * Field.name
+  | NoSuchFieldInPattern of pattern * Field.name
   | SubPattern of pattern
   | NoTwoConstructors of point
   | NotNominal of point
@@ -164,7 +165,13 @@ let print_error buf (env, raw_error) =
           constructors are allowed"
         Lexer.p env.position
         pdoc (ppat, (env, pat))
- ;;
+  | NoSuchFieldInPattern (pat, field) ->
+      Printf.bprintf buf
+        "%a the pattern %a mentions field %a which is unknown for that branch"
+        Lexer.p env.position
+        pdoc (ppat, (env, pat))
+        Field.p field
+  ;;
 
 (* -------------------------------------------------------------------------- *)
 
@@ -305,11 +312,13 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
       let field_defs = List.hd field_defs in
       List.fold_left (fun env (name, pat) ->
         (* The pattern fields may not all be there or in an arbitrary order. *)
-        let field = List.find
-          (function
-            | FieldValue (name', _) when Field.equal name name' -> true
-            | _ -> false)
-          field_defs
+        let field =
+          try
+            List.find (function
+              | FieldValue (name', _) when Field.equal name name' -> true
+              | _ -> false) field_defs
+          with Not_found ->
+            raise_error env (NoSuchFieldInPattern (pattern, name))
         in
         match field with
         | FieldValue (_, TySingleton (TyPoint p')) ->
