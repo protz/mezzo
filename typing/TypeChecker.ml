@@ -22,6 +22,7 @@ and raw_error =
   | NotNominal of point
   | MatchBadDatacon of typ * Datacon.name
   | MatchBadPattern of pattern
+  | NoSuchPermission of typ
 
 exception TypeCheckerError of error
 
@@ -54,7 +55,12 @@ let print_error buf (env, raw_error) =
             Variable.p fname
             pdoc (print_permission_list, (env, fbinder))
       end
-  | HasFlexible t ->
+  | NoSuchPermission t ->
+      Printf.bprintf buf
+        "%a unable to extract the following permission: %a"
+        Lexer.p env.position
+        pdoc (ptype, (env, t));
+   | HasFlexible t ->
       Printf.bprintf buf
         "%a the following type still contains flexible variables: %a"
         Lexer.p env.position
@@ -388,18 +394,38 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
           { raw with permissions }
         )) env
       in
+
       (* Bind all variables. *)
       let sub_env, { subst_type; subst_expr; _ } = bind_vars sub_env vars in
       let arg = subst_type arg in
       let return_type = subst_type return_type in
       let body = subst_expr body in
+
       (* Collect all the permissions that the arguments bring into scope, add
        * them into the environment for checking the function body. *)
       let _, perms = Permissions.collect arg in
       let sub_env = List.fold_left Permissions.add_perm sub_env perms in
-      (* Perform the checks proper. *)
+
+      (* Type-check the function body. *)
       let sub_env, p = check_expression sub_env body in
-      let _sub_env = check_return_type sub_env p return_type in
+
+      (* The return type may contain permissions. Strip them... *)
+      let bare_return_type, expected_perms = Permissions.collect return_type in
+
+      (* And check that they are actually present once we're done type-checking
+       * the body. *)
+      let sub_env = List.fold_left (fun sub_env perm ->
+        match Permissions.sub_perm sub_env perm with
+        | None ->
+            raise_error sub_env (NoSuchPermission perm)
+        | Some sub_env ->
+            sub_env
+      ) sub_env expected_perms in
+
+      (* Check that the return type is actually there. *)
+      ignore (check_return_type sub_env p bare_return_type);
+
+      (* Return the entire arrow type. *)
       let expected_type = type_for_function_def expr in
       return env expected_type
 
@@ -492,8 +518,6 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
        * of [e2] so that we can be even more precise in the error message. *)
       let env, return_type = check_function_call env x1 x2 in
       return env return_type
-
-  (* | EMatch of expression * (pattern * expression) list *)
 
   | ETuple exprs ->
       let env, components = Hml_List.fold_lefti

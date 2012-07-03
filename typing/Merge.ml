@@ -10,9 +10,44 @@ type job = point * point * point
 
 type outcome = MergeWith of point | Proceed | Abort
 
+(* The logic is the same on both sides, but I'm writing this with
+ * the left-side in mind. *)
+let build_flexible_type_application (left_env, left_perm) (dest_env, t_dest) =
+  (* First, find the definition of the type so that we know how to
+   * instanciate parameters. *)
+  let return_kind, arg_kinds = flatten_kind (get_kind dest_env t_dest) in
+  Log.check (return_kind = KType) "Not implemented";
+
+  let letters = Hml_Pprint.name_gen (List.length arg_kinds) in
+
+  let left_env, arg_points_l = List.fold_left2 (fun (env, points) kind letter ->
+    let env, point =
+      bind_type env (Variable.register letter) ~flexible:true Affine kind
+    in
+    env, point :: points) (left_env, []) arg_kinds letters
+  in
+  let t_app_left = List.fold_left
+    (fun t arg -> TyApp (t, arg))
+    (TyPoint t_dest)
+    (List.map (fun x -> TyPoint x) arg_points_l)
+  in
+  (* Chances are this will perform a merge in [left_env]: this is why
+   * we're returning [left_env]. *)
+  let left_env = Permissions.sub_type left_env left_perm t_app_left in
+  left_env, t_app_left
+;;
+
 let merge_envs (top: env) (left: env * point) (right: env * point): env * point =
   Log.debug ~level:3 "--------- START MERGE ----------\n\n%a"
     TypePrinter.pdoc (TypePrinter.print_permissions, top);
+
+  Log.debug ~level:3 "\n------------ LEFT --------------\n\n%a"
+    TypePrinter.pdoc (TypePrinter.print_permissions, fst left);
+
+  Log.debug ~level:3 "\n------------ RIGHT -------------\n\n%a"
+    TypePrinter.pdoc (TypePrinter.print_permissions, fst right);
+
+  Log.debug ~level:3 "\n\n--------------------------------\n\n";
 
   (* We use a work list (a LIFO) to schedule points for merging. This implements
    * a depth-first traversal of the graph, which is indeed what we want (for the
@@ -239,11 +274,8 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
                     match left_is_duplicable, right_is_duplicable with
                     | true, true ->
                         true
-                    | false, false ->
-                        false
                     | _ ->
-                        Log.error "Can we merge a non-duplicable permission with \
-                          a duplicable one?"
+                        false
                   in
                   if duplicable then
                     merge_lists
@@ -431,39 +463,13 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
              * generalize (or maybe not?).
              *)
 
-            (* First, find the definition of the type so that we know how to
-             * instanciate parameters. *)
             let t_dest = PersistentUnionFind.repr t_left left_env.state in
-            let return_kind, arg_kinds = flatten_kind (get_kind dest_env t_dest) in
-            Log.check (return_kind = KType) "Not implemented";
-
-            let letters = Hml_Pprint.name_gen (List.length arg_kinds) in
-
-            (* The logic is the same on both sides, but I'm writing this with
-             * the left-side in mind. *)
-            let build_type_application left_env left_perm t_left =
-              let left_env, arg_points_l = List.fold_left2 (fun (env, points) kind letter ->
-                let env, point =
-                  bind_type env (Variable.register letter) ~flexible:true Affine kind
-                in
-                env, point :: points) (left_env, []) arg_kinds letters
-              in
-              let t_app_left = List.fold_left
-                (fun t arg -> TyApp (t, arg))
-                (TyPoint t_left)
-                (List.map (fun x -> TyPoint x) arg_points_l)
-              in
-              (* Chances are this will perform a merge in [left_env]: this is why
-               * we're returning [left_env]. *)
-              let left_env = Permissions.sub_type left_env left_perm t_app_left in
-              left_env, t_app_left
-            in
 
             let left_env, t_app_left =
-              build_type_application left_env left_perm t_left
+              build_flexible_type_application (left_env, left_perm) (dest_env, t_dest)
             in
             let right_env, t_app_right =
-              build_type_application right_env right_perm t_right
+              build_flexible_type_application (right_env, right_perm) (dest_env, t_dest)
             in
 
             (* Did the subtractions succeed? *)
@@ -486,6 +492,33 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
 
           else
             None
+
+
+      | TyConcreteUnfolded (datacon_l, _), _ ->
+          let t_left = type_for_datacon left_env datacon_l in
+          let t_dest = PersistentUnionFind.repr t_left left_env.state in
+
+          let left_env, t_app_left =
+            build_flexible_type_application (left_env, left_perm) (dest_env, t_dest)
+          in
+
+          Option.bind left_env (fun left_env ->
+            merge_type (left_env, t_app_left) (right_env, right_perm) dest_env
+          )
+
+
+      | _, TyConcreteUnfolded (datacon_r, _) ->
+          let t_right = type_for_datacon right_env datacon_r in
+          let t_dest = PersistentUnionFind.repr t_right right_env.state in
+
+          let right_env, t_app_right =
+            build_flexible_type_application (right_env, right_perm) (dest_env, t_dest)
+          in
+
+          Option.bind right_env (fun right_env ->
+            merge_type (left_env, left_perm) (right_env, t_app_right) dest_env
+          )
+
 
       | TyApp (tl1, tl2), TyApp (tr1, tr2) ->
           Option.bind (merge_type (left_env, tl1) (right_env, tr1) dest_env)
@@ -547,8 +580,9 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
   (* Now we're just interested in [dest_env]. *)
   let left_env, right_env, dest_env = !state in
 
-  Log.debug ~level:4 "------------ END MERGE ------------\n";
   dump_known_triples left_env right_env dest_env;
+  Log.debug ~level:3 "--------- END MERGE ----------\n\n%a"
+    TypePrinter.pdoc (TypePrinter.print_permissions, dest_env);
 
   (* So return it. *)
   dest_env, dest_root

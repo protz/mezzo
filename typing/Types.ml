@@ -203,8 +203,19 @@ let same env p1 p2 =
   PersistentUnionFind.same p1 p2 env.state
 ;;
 
+let get_names (env: env) (point: point): Variable.name list =
+  match PersistentUnionFind.find point env.state with
+  | { names; _ }, _ ->
+      names
+;;
+
 (* Merge while keeping the descriptor of the leftmost argument. *)
 let merge_left env p2 p1 =
+  let open Bash in
+  Log.debug "%sMerging%s %a into %a"
+    colors.red colors.default
+    !internal_pnames (get_names env p1)
+    !internal_pnames (get_names env p2);
   (* All this work is just to make sure we keep the names from both sides. *)
   let state = env.state in
   let { names = names; _ }, _ = PersistentUnionFind.find p1 state in
@@ -729,12 +740,6 @@ let refresh_mark (env: env): env =
 ;;
 
 (* A hodge-podge of getters. *)
-
-let get_names (env: env) (point: point): Variable.name list =
-  match PersistentUnionFind.find point env.state with
-  | { names; _ }, _ ->
-      names
-;;
 
 let get_name env p =
   List.hd (get_names env p)
