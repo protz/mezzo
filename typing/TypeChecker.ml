@@ -19,6 +19,8 @@ and raw_error =
   | SubPattern of pattern
   | NoTwoConstructors of point
   | NotNominal of point
+  | MatchBadDatacon of typ * Datacon.name
+  | MatchBadPattern of pattern
 
 exception TypeCheckerError of error
 
@@ -150,7 +152,19 @@ let print_error buf (env, raw_error) =
         "%a there's a sub-constraint in that pattern, not allowed: %a"
         Lexer.p env.position
         pdoc (ppat, (env, pat))
-;;
+  | MatchBadDatacon (t, datacon) ->
+      Printf.bprintf buf
+        "%a matching on a value with type %a: it has no constructor named %a"
+        Lexer.p env.position
+        pdoc (ptype, (env, t))
+        Datacon.p datacon
+  | MatchBadPattern pat ->
+      Printf.bprintf buf
+        "%a the pattern %a is not valid inside a match; only matches on data \
+          constructors are allowed"
+        Lexer.p env.position
+        pdoc (ppat, (env, pat))
+ ;;
 
 (* -------------------------------------------------------------------------- *)
 
@@ -304,7 +318,8 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
 let rec check_expression (env: env) ?(hint: string option) (expr: expression): env * point =
 
   (* TEMPORARY this is just a quick and dirty way to talk about user-defined
-   * types. *)
+   * types. This is lazy because we want to write simple test cases that do not
+   * define the "int" type. *)
   let int = lazy (find_type_by_name env "int") in
   let (!*) = Lazy.force in
 
@@ -585,7 +600,9 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
 
       Merge.merge_envs env left right
 
-   | EMatch (e, _patexprs) ->
+  | EMatch (e, patexprs) ->
+      (* First of all, make sure there's a nominal type that corresponds to the
+       * expression being matched, and that we have its definition. *)
       let hint = Option.map (fun x -> x ^ "-match") hint in
       let env, x = check_expression env ?hint e in
       let nominal_type =
@@ -605,7 +622,30 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
         with Not_found ->
           raise_error env (NotNominal x)
       in
-      ignore (nominal_type);
+      let nominal_cons, nominal_args = flatten_tyapp nominal_type in
+      let nominal_point = !!nominal_cons in
+
+      (* Now, check that all the patterns are valid ones. Our matches only allow
+       * to match on data types only. Use a let-binding to destructure a
+       * tuple... *)
+      List.iter (fun (pat, _) ->
+        match pat with
+        | PConstruct (datacon, _) ->
+            let p =
+              try
+                type_for_datacon env datacon
+              with Not_found ->
+                raise_error env (MatchBadDatacon (nominal_type, datacon))
+            in
+            if not (same env p nominal_point) then
+              raise_error env (MatchBadDatacon (nominal_type, datacon))
+        | _ ->
+            raise_error env (MatchBadPattern pat)
+      ) patexprs;
+
+      (* Refine the permissions. We *have* to consume the previous permission,
+       * otherwise this is unsound, even with duplicable permissions. *)
+      ignore (nominal_args);
       Log.error "Not implemented"
 
 
