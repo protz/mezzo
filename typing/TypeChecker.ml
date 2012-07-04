@@ -238,7 +238,8 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
           Variable.p fname;
         flex_deconstruct t
   in
-  (* Examine [x]. *)
+  (* Examine [x]. [sub] will take care of running collect on [t1] so that the
+   * expected permissions are subtracted as well from the environment. *)
   match Permissions.sub env x t1 with
   | Some env ->
       (* Return the "good" type. *)
@@ -417,25 +418,14 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       (* Type-check the function body. *)
       let sub_env, p = check_expression sub_env body in
 
-      (* The return type may contain permissions. Strip them... *)
-      let bare_return_type, expected_perms = Permissions.collect return_type in
-
-      (* And check that they are actually present once we're done type-checking
-       * the body. *)
-      let sub_env = List.fold_left (fun sub_env perm ->
-        match Permissions.sub_perm sub_env perm with
-        | None ->
-            raise_error sub_env (NoSuchPermission perm)
-        | Some sub_env ->
-            sub_env
-      ) sub_env expected_perms in
-
-      (* Check that the return type is actually there. *)
-      ignore (check_return_type sub_env p bare_return_type);
-
-      (* Return the entire arrow type. *)
-      let expected_type = type_for_function_def expr in
-      return env expected_type
+      begin match Permissions.sub sub_env p return_type with
+      | Some _ ->
+          (* Return the entire arrow type. *)
+          let expected_type = type_for_function_def expr in
+          return env expected_type
+      | None ->
+          raise_error sub_env (NoSuchPermission return_type)
+      end
 
   | EAssign (e1, fname, e2) ->
       let hint = Option.map (fun x -> Printf.sprintf "%s_%s" x (Field.print fname)) hint in
