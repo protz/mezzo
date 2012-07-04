@@ -394,20 +394,26 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
     possibly by refining some of these permissions into more precise ones. *)
 and refine (env: env) (point: point) (t': typ): env =
   let permissions = get_permissions env point in
-  let rec refine_list (env, acc) t' = function
-    | t :: ts ->
-        let env, r = refine_type env t t' in
-        begin match r with
-        | Both ->
-            refine_list (env, (t :: acc)) t' ts
-        | One t' ->
-            refine_list (env, acc) t' ts
-        end
-    | [] ->
-        env, t' :: acc
-  in
-  let env, permissions = refine_list (env, []) t' permissions in
-  replace_term env point (fun binder -> { binder with permissions })
+  match t' with
+  | TySingleton (TyPoint point') when not (same env point point') ->
+      let permissions' = get_permissions env point' in
+      let env = merge_left env point point' in
+      List.fold_left (fun env t' -> refine env point t') env permissions'
+  | _ ->
+      let rec refine_list (env, acc) t' = function
+        | t :: ts ->
+            let env, r = refine_type env t t' in
+            begin match r with
+            | Both ->
+                refine_list (env, (t :: acc)) t' ts
+            | One t' ->
+                refine_list (env, acc) t' ts
+            end
+        | [] ->
+            env, t' :: acc
+      in
+      let env, permissions = refine_list (env, []) t' permissions in
+      replace_term env point (fun binder -> { binder with permissions })
 
 
 (** [unify env p1 p2] merges two points, and takes care of dealing with how the
