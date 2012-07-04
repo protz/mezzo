@@ -66,6 +66,15 @@ let tests = [
     let zero = point_by_name env "zero" in
     check env zero int);
 
+  ("list-concat.hml", fun do_it ->
+    let env = do_it false in
+    let x = point_by_name env "x" in
+    let list = find_type_by_name env "list" in
+    let t = TyForall ((Variable.register "foo", KType),
+      TyApp (list, TyVar 0)
+    ) in
+    check env x t);
+
   ("stupid_match.hml",
     simple_test Fail (function NotNominal _ -> true | _ -> false));
 
