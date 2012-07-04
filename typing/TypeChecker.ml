@@ -23,6 +23,7 @@ and raw_error =
   | MatchBadDatacon of typ * Datacon.name
   | MatchBadPattern of pattern
   | NoSuchPermission of typ
+  | AssignNotExclusive of typ * Datacon.name
 
 exception TypeCheckerError of error
 
@@ -177,7 +178,14 @@ let print_error buf (env, raw_error) =
         Lexer.p env.position
         pdoc (ppat, (env, pat))
         Field.p field
-  ;;
+  | AssignNotExclusive (t, datacon) ->
+      Printf.bprintf buf
+        "%a this value has type %a: constructor %a belongs to a data type that \
+          is not defined as exclusive"
+        Lexer.p env.position
+        ptype (env, t)
+        Datacon.p datacon
+;;
 
 (* -------------------------------------------------------------------------- *)
 
@@ -439,6 +447,13 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
         let permissions = List.map (fun t ->
             match t with
             | TyConcreteUnfolded (datacon, fieldexprs) ->
+                (* Check that datacon points to a type that is defined as
+                 * exclusive. *)
+                let flag, _ = def_for_datacon env datacon in
+                if flag <> SurfaceSyntax.Exclusive then
+                  raise_error env (AssignNotExclusive (t, datacon));
+
+                (* Perform the assignment. *)
                 let fieldexprs = List.map (function
                   | FieldValue (field, expr) ->
                       let expr = 
