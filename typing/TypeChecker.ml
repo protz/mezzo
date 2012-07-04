@@ -24,6 +24,7 @@ and raw_error =
   | MatchBadPattern of pattern
   | NoSuchPermission of typ
   | AssignNotExclusive of typ * Datacon.name
+  | NoMultipleArguments
 
 exception TypeCheckerError of error
 
@@ -185,6 +186,10 @@ let print_error buf (env, raw_error) =
         Lexer.p env.position
         ptype (env, t)
         Datacon.p datacon
+  | NoMultipleArguments ->
+      Printf.bprintf buf
+        "%a functions take only one tuple argument in HaMLet"
+        Lexer.p env.position
 ;;
 
 (* -------------------------------------------------------------------------- *)
@@ -514,6 +519,12 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       end
 
   | EApply (e1, e2) ->
+      begin match eunloc e1 with
+      | EApply _ ->
+          raise_error env NoMultipleArguments
+      | _ ->
+          ()
+      end;
       let hint1 = Option.map (fun x -> x ^ "_fun") hint in
       let hint2 = Option.map (fun x -> x ^ "_arg") hint in
       let env, x1 = check_expression env ?hint:hint1 e1 in

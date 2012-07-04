@@ -10,3 +10,5 @@ val rec concat [a] (consumes xs: list a, consumes ys: list a): list a =
         tail = concat (xs.tail, ys)
       }
   end
+
+val x = concat Nil Nil
