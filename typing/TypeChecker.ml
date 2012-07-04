@@ -47,7 +47,7 @@ let print_error buf (env, raw_error) =
             "%a %a is not a function, it has type %a"
             Lexer.p env.position
             Variable.p fname
-            pdoc (ptype, (env, t))
+            ptype (env, t)
       | None ->
           print_permissions ();
           Printf.bprintf buf
@@ -60,12 +60,12 @@ let print_error buf (env, raw_error) =
       Printf.bprintf buf
         "%a unable to extract the following permission: %a"
         Lexer.p env.position
-        pdoc (ptype, (env, t));
+        ptype (env, t);
    | HasFlexible t ->
       Printf.bprintf buf
         "%a the following type still contains flexible variables: %a"
         Lexer.p env.position
-        pdoc (ptype, (env, t));
+        ptype (env, t);
   | ExpectedType (t, point) ->
       let xname, xbinder = find_term env point in
       let t1 = Permissions.fold_type env t in
@@ -75,14 +75,14 @@ let print_error buf (env, raw_error) =
            Printf.bprintf buf
             "%a expected a subexpression of type %a but it has type %a"
             Lexer.p env.position
-            pdoc (ptype, (env, t1))
-            pdoc (ptype, (env, t2))
+            ptype (env, t1)
+            ptype (env, t2)
       | _ ->
           print_permissions ();
           Printf.bprintf buf
             "%a expected an argument of type %a but the only permissions available for %a are %a"
             Lexer.p env.position
-            pdoc (ptype, (env, t)) Variable.p xname
+            ptype (env, t) Variable.p xname
             pdoc (print_permission_list, (env, xbinder))
       end
   | RecursiveOnlyForFunctions ->
@@ -107,7 +107,7 @@ let print_error buf (env, raw_error) =
             "%a %a has type %a, we can't match on it"
             Lexer.p env.position
             Variable.p name
-            pdoc (ptype, (env, t))
+            ptype (env, t)
       | None ->
           print_permissions ();
           Printf.bprintf buf
@@ -125,7 +125,7 @@ let print_error buf (env, raw_error) =
             "%a %a has type %a, is is not a type with two constructors"
             Lexer.p env.position
             Variable.p name
-            pdoc (ptype, (env, t))
+            ptype (env, t)
       | None ->
           print_permissions ();
           Printf.bprintf buf
@@ -143,7 +143,7 @@ let print_error buf (env, raw_error) =
             "%a %a has type %a, which doesn't have a field named %a"
             Lexer.p env.position
             Variable.p name
-            pdoc (ptype, (env, t))
+            ptype (env, t)
             Field.p f
       | None ->
           print_permissions ();
@@ -164,7 +164,7 @@ let print_error buf (env, raw_error) =
       Printf.bprintf buf
         "%a matching on a value with type %a: it has no constructor named %a"
         Lexer.p env.position
-        pdoc (ptype, (env, t))
+        ptype (env, t)
         Datacon.p datacon
   | MatchBadPattern pat ->
       Printf.bprintf buf
@@ -257,7 +257,7 @@ let check_return_type (env: env) (point: point) (t: typ): env =
   TypePrinter.(
     let _, binder = find_term env point in
     Log.debug ~level:4 "Expecting return type %a; permissions for the point: %a"
-      pdoc (ptype, (env, t))
+      ptype (env, t)
       pdoc (print_permission_list, (env, binder));
     (* TestUtils.print_env env ;*)
   );
@@ -456,7 +456,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
                               TySingleton (TyPoint p2)
                           | t ->
                               let open TypePrinter in
-                              Log.error "Not a point %a" pdoc (ptype, (env, t))
+                              Log.error "Not a point %a" ptype (env, t)
                           end
                         else
                           expr
@@ -500,7 +500,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
                           raise (M.Found p)
                       | t ->
                           let open TypePrinter in
-                          Log.error "Not a point %a" pdoc (ptype, (env, t))
+                          Log.error "Not a point %a" ptype (env, t)
                       end;
                 | FieldPermission _ ->
                     ()
@@ -669,7 +669,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
 
       TypePrinter.(
         Log.debug ~level:3 "The matched expression has type %a"
-          pdoc (ptype, (env, nominal_type))
+          ptype (env, nominal_type)
       );
 
       let nominal_cons, nominal_args = flatten_tyapp nominal_type in

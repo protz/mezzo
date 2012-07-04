@@ -175,7 +175,7 @@ let test_function_call (env: env) =
     TypePrinter.(
       Log.debug "%s Function call succeeded with type %a.\n\n\
                  Remaining permissions:\n"
-        check pdoc (ptype, (env, t2)));
+        check ptype (env, t2));
     print_env env;
     env
   in

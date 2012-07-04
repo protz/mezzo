@@ -382,7 +382,7 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
      * above. *)
     let open TypePrinter in
     Log.debug ~level:4 "Inconsistency detected %a cannot coexist with %a"
-      pdoc (ptype, (env, t1)) pdoc (ptype, (env, t2));
+      ptype (env, t1) ptype (env, t2);
 
     (* We could possibly be smarter here, and mark the entire permission soup as
      * being inconsistent. This would allow us to implement some sort of
@@ -548,7 +548,7 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
               Log.debug ~level:4 "%sTaking%s %a out of the permissions for %a \
                 (really? %b)"
                 colors.yellow colors.default
-                pdoc (ptype, (env, hd))
+                ptype (env, hd)
                 Variable.p (get_name env point)
                 (not duplicable));
             (* We're taking out [hd] from the list of permissions for [point].
@@ -575,8 +575,8 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
 and sub_type (env: env) (t1: typ) (t2: typ): env option =
   TypePrinter.(
     Log.debug ~level:4 "[sub_type] t1 %a\n  t2 %a"
-      pdoc (ptype, (env, t1))
-      pdoc (ptype, (env, t2)));
+      ptype (env, t1)
+      ptype (env, t2));
   match t1, t2 with
   | _, TyUnknown ->
       Some env
@@ -724,7 +724,7 @@ and try_merge_point_to_point env p1 p2 =
 and sub_perm (env: env) (t: typ): env option =
   TypePrinter.(
     Log.debug ~level:4 "[sub_perm] %a"
-      pdoc (ptype, (env, t)));
+      ptype (env, t));
 
   match t with
   | TyAnchoredPermission (TyPoint p, t) ->
@@ -743,7 +743,7 @@ and sub_perm (env: env) (t: typ): env option =
       else
         Log.debug "%d-th constant constructor" (magic t);
       Log.error "[sub_perm] the following type does not have kind PERM: %a"
-        pdoc (ptype, (env, t))
+        ptype (env, t)
 ;;
 
 

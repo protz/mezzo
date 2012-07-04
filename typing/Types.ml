@@ -183,8 +183,8 @@ and perm_binder = {
  * the printer is near the end. *)
 
 let internal_ptype = ref (fun _ -> assert false);;
-let internal_pdoc = ref (fun _ -> assert false);;
 let internal_pnames = ref (fun _ -> assert false);;
+let internal_ppermissions = ref (fun _ -> assert false);;
 
 (* The empty environment. *)
 let empty_env = {
@@ -222,11 +222,13 @@ let merge_left env p2 p1 =
   let { names = names'; _ }, _ = PersistentUnionFind.find p2 state in
   let names = names @ names' in
   let names = Hml_List.remove_duplicates ~equal_func:Variable.equal names in
+  (* XXX we should probably keeps permissions too, no? *)
   let state = PersistentUnionFind.update (fun (head, raw) ->
     { head with names }, raw) p2 state
   in
   (* If we don't want to be fancy, the line below is enough. It keeps [p2]. *)
-  { env with state = PersistentUnionFind.union p1 p2 state }
+  let env = { env with state = PersistentUnionFind.union p1 p2 state } in
+  env
 ;;
 
 (* Deal with flexible variables that have a structure. *)
@@ -811,7 +813,7 @@ let instantiate_flexible env p t =
   Log.check (is_flexible env p) "Trying to instantiate a variable that's not flexible";
   Log.debug "Instantiating %a with %a"
     !internal_pnames (get_names env p)
-    !internal_pdoc (!internal_ptype, (env, t));
+    !internal_ptype (env, t);
   { env with state =
       PersistentUnionFind.update (function
         | head, binding ->
@@ -906,8 +908,6 @@ module TypePrinter = struct
   let pdoc (buf: Buffer.t) (f, env: ('env -> document) * 'env): unit =
     PpBuffer.pretty 1.0 Bash.twidth buf (f env)
   ;;
-
-  internal_pdoc := pdoc;;
 
   (* --------------------------------------------------------------------------- *)
 
@@ -1163,8 +1163,14 @@ module TypePrinter = struct
     header ^^ (nest 2 (break1 ^^ lines))
   ;;
 
-  let ptype (env, t) =
-    print_type env t
+  let ppermissions buf permissions =
+    pdoc buf (print_permissions, permissions)
+  ;;
+
+  internal_ppermissions := ppermissions;;
+
+  let ptype buf (env, t) =
+    pdoc buf ((fun (env, t) -> print_type env t), (env, t))
   ;;
 
   let penv buf (env: env) =

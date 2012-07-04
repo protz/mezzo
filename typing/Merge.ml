@@ -345,8 +345,8 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
     let open TypePrinter in
     Log.debug ~level:4
       "  [merge_type] %a with %a"
-      pdoc (ptype, (left_env, left_perm))
-      pdoc (ptype, (right_env, right_perm));
+      ptype (left_env, left_perm)
+      ptype (right_env, right_perm);
 
     let simple_equals = try equal top left_perm right_perm with UnboundPoint -> false in
 
@@ -476,8 +476,8 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
             begin match left_env, right_env with
             | Some left_env, Some right_env ->
                 Log.debug ~level:3 "[cons_vs_cons] subtractions performed, got: %a vs %a"
-                  TypePrinter.pdoc (TypePrinter.ptype, (left_env, t_app_left))
-                  TypePrinter.pdoc (TypePrinter.ptype, (right_env, t_app_right));
+                  TypePrinter.ptype (left_env, t_app_left)
+                  TypePrinter.ptype (right_env, t_app_right);
 
                 Option.bind
                   (merge_type (left_env, t_app_left) (right_env, t_app_right) dest_env)
