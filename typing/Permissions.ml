@@ -698,11 +698,20 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   | TySingleton t1, TySingleton t2 ->
       sub_type env t1 t2
 
+  | TyArrow (t1, t2), TyArrow (t'1, t'2) ->
+      Option.bind (sub_type env t1 t'1) (fun env ->
+        sub_type env t'2 t2)
+
+  | TyBar (t1, p1), TyBar (t2, p2) ->
+      Option.bind (sub_type env t1 t2) (fun env ->
+        let env = add_perm env p1 in
+        sub_perm env p2)
+
   | _ ->
       if equal env t1 t2 then
         Some env
       else
-        None
+        (Log.debug "Fail"; None)
 
 
 and try_merge_flex env p t =
