@@ -419,6 +419,7 @@ let clean_pattern env pattern =
             (field, pat) :: fieldpats, assertion :: assertions)
           ([], []) fieldpats
         in
+        let fieldpats = List.rev fieldpats in
         PConstruct (name, fieldpats), List.flatten assertions
 
     | PConstraint (pattern, typ) ->

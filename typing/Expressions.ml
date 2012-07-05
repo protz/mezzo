@@ -461,7 +461,7 @@ let bind_vars (env: env) (bindings: type_binding list): env * substitution_kit =
       esubst_decl (EPoint point) i t) t points
   in
   let subst_pat p =
-    let pat, points = psubst p points in
+    let pat, points = psubst p (List.rev points) in
     assert (points = []);
     pat
   in
