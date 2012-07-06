@@ -279,10 +279,9 @@ let check_return_type (env: env) (point: point) (t: typ): env =
 
 let type_for_function_def (expression: expression): typ =
   match expression with
-  | EFun (vars, arg, return_type, _) ->
+  | EFun (bindings, arg, return_type, _) ->
       let t = TyArrow (arg, return_type) in
-      let t = List.fold_right (fun var acc -> TyForall (var, acc)) vars t in
-      t
+      TypeOps.add_forall bindings t
   | _ ->
       Log.error "[type_for_function_def], as the name implies, expects a \
         function expression...";
@@ -398,6 +397,18 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
 
 
   | EFun (vars, arg, return_type, body) ->
+      (* TODO we should have a separate pass that performs optimizations on a
+       * [Expressions.expression] tree with a [Types.env] environment. Right
+       * now, there's no such thing, so I'm putting this optimization here as
+       * a temporary measure. *)
+      Log.debug "About to optimize\n%a" TypePrinter.ptype (env, type_for_function_def expr);
+      let vars, arg, return_type =
+        TypeOps.simplify_function_def env vars arg return_type
+      in
+      let expr = EFun (vars, arg, return_type, body) in
+      Log.debug "Optimized this type into\n%a" TypePrinter.ptype (env, type_for_function_def expr);
+      if true then assert false;
+
       (* We can't create a closure over exclusive variables. Create a stripped
        * environment with only the duplicable parts. *)
       let sub_env = fold_terms env (fun sub_env point _ _ ->
