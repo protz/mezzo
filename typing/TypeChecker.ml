@@ -1,6 +1,7 @@
 open Types
 open Expressions
 open Utils
+open Debug
 
 (* -------------------------------------------------------------------------- *)
 
@@ -73,7 +74,8 @@ let print_error buf (env, raw_error) =
       let t2 = Permissions.fold env point in
       begin match t1, t2 with
       | Some t1, Some t2 -> (* #winning *)
-           Printf.bprintf buf
+          print_permissions ();
+          Printf.bprintf buf
             "%a expected a subexpression of type %a but it has type %a"
             Lexer.p env.position
             ptype (env, t1)
@@ -202,6 +204,8 @@ let (!!) =
  * call amounts to type-checking a point applied to another point. The default
  * behavior is: do not return a type that contains flexible variables. *)
 let check_function_call (env: env) (f: point) (x: point): env * typ =
+  trace env (FunctionCall (f, x));
+
   let fname, fbinder = find_term env f in
   (* Find a suitable permission for [f] first *)
   let rec is_quantified_arrow = function
@@ -247,10 +251,14 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
    * expected permissions are subtracted as well from the environment. *)
   match Permissions.sub env x t1 with
   | Some env ->
+      trace env (FunctionArg x);
       (* Return the "good" type. *)
       let t2, perms = Permissions.collect t2 in
       let env = List.fold_left Permissions.add_perm env perms in
       let t2 = Flexible.generalize env t2 in
+      trace_one env (AfterFunctionCall t2);
+      clear_trace ();
+      clear_trace ();
       env, t2
   | None ->
       raise_error env (ExpectedType (t1, x))

@@ -46,7 +46,7 @@ let twidth, theight =
     !width, !height
   with
   | Failure _ ->
-      0, 0
+      24, 80
 
 let box txt =
   let boxw = String.length txt + 4 in
@@ -70,3 +70,7 @@ let box txt =
     colors.blue
     whitespace top whitespace middle whitespace bottom
     colors.default
+
+
+let reset () =
+  ignore (Sys.command "clear")

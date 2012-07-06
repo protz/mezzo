@@ -941,6 +941,22 @@ module TypePrinter = struct
     Pprint.PpBuffer.pretty 1.0 80 buf (print_kind kind)
   ;;
 
+  let print_names names =
+    if List.length names > 0 then
+      let names = List.map print_var names in
+      let names = List.map (fun x -> colors.blue ^^ x ^^ colors.default) names in
+      let names = join (string ", ") names in
+      names
+    else
+      colors.red ^^ string "[no name]" ^^ colors.default
+  ;;
+
+  let pnames buf names =
+    pdoc buf (print_names, names)
+  ;;
+
+  internal_pnames := pnames;;
+
   let rec print_quantified
       (env: env)
       (q: string)
@@ -979,7 +995,10 @@ module TypePrinter = struct
 
       (* Special-casing *)
     | TyAnchoredPermission (TyPoint p, TySingleton (TyPoint p')) ->
-        print_point env p ^^ space ^^ equals ^^ space ^^ print_point env p'
+        let star = if is_flexible env p then star else empty in
+        let star' = if is_flexible env p' then star else empty in
+        print_names (get_names env p) ^^ star ^^ space ^^ equals ^^ space ^^
+        print_names (get_names env p') ^^ star'
 
     | TyForall (((name, kind) as binding), typ) ->
         let env, typ = bind_var_in_type env binding typ in
@@ -1132,21 +1151,10 @@ module TypePrinter = struct
     join (comma ^^ space) permissions
   ;;
 
-  let print_names names =
-    if List.length names > 0 then
-      let names = List.map print_var names in
-      let names = List.map (fun x -> colors.blue ^^ x ^^ colors.default) names in
-      let names = join (string " a.k.a. ") names in
-      names
-    else
-      colors.red ^^ string "[no name]" ^^ colors.default
+  let ppermission_list buf (env, point) =
+    let _, binder = find_term env point in
+    pdoc buf (print_permission_list, (env, binder))
   ;;
-
-  let pnames buf names =
-    pdoc buf (print_names, names)
-  ;;
-
-  internal_pnames := pnames;;
 
   let print_permissions (env: env): document =
     let header =

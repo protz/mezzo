@@ -22,11 +22,14 @@ let _ =
   let arg_debug = ref 0 in
   let arg_pervasives = ref true in
   let arg_backtraces = ref true in
+  let arg_trace = ref false in
   let usage = "HaMLet: a next-generation version of ML\n\
     Usage: " ^ Sys.argv.(0) ^ " [OPTIONS] FILE\n"
   in
   Arg.parse
     [
+    "-trace", Arg.Set arg_trace, "stop at various points in the program trying \
+      to explain what is happening";
     "-nopervasives", Arg.Clear arg_pervasives, "don't try to prepend pervasives.hml to the file";
     "-nofancypants", Arg.Clear arg_backtraces, "don't try to give nice error messages";
     "-debug", Arg.Set_int arg_debug, "output level: 0 (default) = no messages, 4 = super verbose";
@@ -40,6 +43,7 @@ let _ =
     )
     usage;
   Log.enable_debug !arg_debug;
+  Debug.enable_trace !arg_trace;
   let env =
     if !arg_backtraces then
       Driver.run (fun () -> Driver.process !arg_pervasives !arg_filename)

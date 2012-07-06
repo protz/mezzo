@@ -40,3 +40,6 @@ val theight : int
 
 (** Make a title. *)
 val box : string -> string
+
+(** Reset the cursor to the top-left corner of the screen *)
+val reset : unit -> unit

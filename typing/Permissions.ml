@@ -57,9 +57,10 @@ let collect (t: typ): typ * typ list =
         t, []
 
     (* Interesting stuff happens for strctural types only *)
-    | TyBar (t, permission) ->
-        let t, permissions' = collect t in
-        t, permission :: permissions'
+    | TyBar (t, p) ->
+        let t, t_perms = collect t in
+        let p, p_perms = collect p in
+        t, p :: t_perms @ p_perms
 
     | TyTuple ts ->
         let ts, permissions = List.split (List.map collect ts) in
@@ -88,10 +89,17 @@ let collect (t: typ): typ * typ list =
         in
         TyConcreteUnfolded (datacon, List.rev values), List.flatten (permissions :: sub_permissions)
 
-    | TyAnchoredPermission _
-    | TyEmpty
-    | TyStar _ ->
-        Log.error "This function takes a [type] with kind [TYPE]."
+    | TyAnchoredPermission (x, t) ->
+        let t, t_perms = collect t in
+        TyAnchoredPermission (x, t), t_perms
+
+    | TyEmpty ->
+        TyEmpty, []
+
+    | TyStar (p, q) ->
+        let p, p_perms = collect p in
+        let q, q_perms = collect q in
+        TyStar (p, q), p_perms @ q_perms
   in
   collect t
 ;;
@@ -462,6 +470,9 @@ and add (env: env) (point: point) (t: typ): env =
 (** [add_perm env t] adds a type [t] with kind PERM to [env], returning the new
     environment. *)
 and add_perm (env: env) (t: typ): env =
+  TypePrinter.(
+    Log.debug ~level:4 "[add_perm] %a"
+      ptype (env, t));
   match t with
   | TyAnchoredPermission (TyPoint p, t) ->
       add env p t
@@ -711,7 +722,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       if equal env t1 t2 then
         Some env
       else
-        (Log.debug "Fail"; None)
+        None
 
 
 and try_merge_flex env p t =

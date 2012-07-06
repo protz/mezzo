@@ -26,8 +26,9 @@ let debug ?level fmt =
   let level = Option.map_none 1 level in
   if level <= !debug_level then begin
     Hml_String.bfprintf ~new_line:() stderr fmt
-  end else
+  end else begin
     Hml_String.biprintf fmt
+  end
 
 let warn x = debug ~level:0 x
 
