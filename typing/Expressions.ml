@@ -421,6 +421,8 @@ type substitution_kit = {
   subst_decl: declaration list -> declaration list;
   (* substitute [PVar]s for [PPoint]s in a pattern *)
   subst_pat: pattern -> pattern;
+  (* the points, in left-to-right order *)
+  points: point list;
 }
 
 (* [eunloc e] removes any [ELocated] located in front of [e]. *)
@@ -465,7 +467,7 @@ let bind_vars (env: env) (bindings: type_binding list): env * substitution_kit =
     assert (points = []);
     pat
   in
-  env, { subst_type; subst_expr; subst_decl; subst_pat }
+  env, { subst_type; subst_expr; subst_decl; subst_pat; points = List.rev points }
 ;;
 
 
@@ -491,6 +493,25 @@ let bind_patexprs env rec_flag patexprs =
   in
   env, List.combine patterns expressions, kit
 ;;
+
+
+let elift (k: int) (e: expression) =
+  ignore (k, e);
+  assert false
+;;
+
+
+let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression =
+  ignore (env, e2, p, e1);
+  assert false
+;;
+
+
+let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
+  ignore (env, t2, p, e1);
+  assert false
+;;
+
 
 
 module ExprPrinter = struct

@@ -2,6 +2,7 @@
 
 open Types
 open Permissions
+open Expressions
 
 let rec flatten_star = function
   | TyStar (p, q) ->
@@ -36,88 +37,84 @@ let add_forall bindings t =
 
    ∀(x::TERM) τ -> τ'
 *)
-let cleanup_function_type env t =
+let cleanup_function_type env t body =
 
-  let bind_forall env t =
-    let rec bind acc env = function
-      | TyForall (binding, t) ->
-          let env, t, p = bind_var_in_type2 env binding t in
-          bind ((binding, p) :: acc) env t
-      | _ as t ->
-          env, List.rev acc, t
-    in
-    bind [] env t
-  in
-
-  let rec find env t =
+  let rec find (env: env) (t: typ) (e: expression option): typ * expression option =
     match t with
     | TyForall _ ->
-        let env, vars, t = bind_forall env t in
+        let vars, t = strip_forall t in
+        let env, { points; subst_type; subst_expr; _ } = bind_vars env vars in
+        let vars = List.combine vars points in
+        let t = subst_type t in
+        let e = Option.map subst_expr e in
         begin match t with
         | TyArrow _ ->
-            let t = cleanup env vars t in
-            t
+            cleanup env vars t e
         | _ ->
-            let t = find env t in
+            let t, _ = find env t e in
             List.fold_right (fun ((x, k), p) t ->
               TyForall ((x, k), Flexible.tpsubst env (TyVar 0) p t)
-            ) vars t
+            ) vars t, None
         end
 
     | TyUnknown
     | TyDynamic ->
-        t
+        t, None
 
     | TyVar _
     | TyPoint _ ->
-        t
+        t, None
 
     | TyExists _ ->
-        t
+        t, None
 
     | TyApp _ ->
-        t
+        t, None
 
     | TyTuple ts ->
-        TyTuple (List.map (find env) ts)
+        TyTuple (List.map (fun t -> fst (find env t e)) ts), None
 
     | TyConcreteUnfolded (datacon, fields) ->
         let fields = List.map (fun field ->
           match field with
           | FieldValue (name, t) ->
-              FieldValue (name, find env t)
+              let t, _ = find env t e in
+              FieldValue (name, t)
           | _ ->
               field
         ) fields in
-        TyConcreteUnfolded (datacon, fields)
+        TyConcreteUnfolded (datacon, fields), None
 
     | TySingleton _ ->
-        t
+        t, None
 
     | TyArrow (t1, t2) ->
-        TyArrow (find env t1, find env t2)
+        TyArrow (fst (find env t1 e), fst (find env t2 e)), None
 
     | TyBar _ ->
         Log.error "[find] expects a type that has been run through [collect] before"
 
     | TyAnchoredPermission (x, t) ->
-        TyAnchoredPermission (x, find env t)
+        TyAnchoredPermission (x, fst (find env t e)), None
 
     | TyEmpty ->
-        t
+        t, None
 
     | TyStar (p, q) ->
-        TyStar (find env p, find env q)
+        TyStar (fst (find env p e), fst (find env q e)), None
 
-  and cleanup env vars = function
+  (* [vars] have been opened in [t] and [e]. *)
+  and cleanup (env: env) (vars: (type_binding * point) list) (t: typ) (e: expression option)
+      : typ * expression option =
+    match t with
     | TyArrow (t1, t2) ->
         (* Get all permissions in [t1]. *)
         let t1, perms = collect t1 in
         let perms = List.flatten (List.map flatten_star perms) in
 
         (* Recursively clean up [t1], and the permissions too. *)
-        let t1 = find env t1 in
-        let perms = List.map (find env) perms in
+        let t1, _ = find env t1 None in
+        let perms, _ = List.split (List.map (fun t -> find env t None) perms) in
 
         (* Is this one of the quantifiers just above us? *)
         let suitable p =
@@ -147,8 +144,8 @@ let cleanup_function_type env t =
         let t2 =
           let t2, perms = collect t2 in
           let perms = List.flatten (List.map flatten_star perms) in
-          let t2 = find env t2 in
-          let perms = List.map (find env) perms in
+          let t2, _ = find env t2 None in
+          let perms = List.map (fun t -> fst (find env t None)) perms in
           let perms = List.filter (function
             | TyAnchoredPermission (TyPoint p, TySingleton (TyPoint p')) ->
                 not (same env p p')
@@ -163,9 +160,9 @@ let cleanup_function_type env t =
         (* Now put back the quantifiers into place, skipping those that have
          * been put back already. *)
         let env = refresh_mark env in
-        let _env, t = List.fold_right (fun ((_, k), p) (env, t) ->
+        let _env, t, e = List.fold_right (fun ((_, k), p) (env, t, e) ->
           if is_marked env p then
-            env, t
+            env, t, e
           else
             let env = mark env p in
             let name =
@@ -173,24 +170,28 @@ let cleanup_function_type env t =
               try List.find (fun x -> (Variable.print x).[0] <> '/') names
               with Not_found -> List.hd names
             in
-            env, TyForall ((name, k), Flexible.tpsubst env (TyVar 0) p t)
-        ) vars (env, t) in
+            let t = Flexible.tpsubst env (TyVar 0) p t in
+            let e = Option.map (epsubst env (EVar 0) p) e in
+            let e = Option.map (tepsubst env (TyVar 0) p) e in
+            env, TyForall ((name, k), t), e
+        ) vars (env, t, e) in
         
-        t
+        t, e
 
     | _ ->
         Log.error "[cleanup_function_type] only accepts TyArrow"
 
   in
 
-  find env t
+  let t, e = find env t (Some body) in
+  t, Option.extract e
 ;;
 
-let simplify_function_def env bindings arg return_type =
+let simplify_function_def env bindings arg return_type body =
   let t = TyArrow (arg, return_type) in
   let t = add_forall bindings t in
-  let t = cleanup_function_type env t in
+  let t, body = cleanup_function_type env t body in
   let bindings, t = strip_forall t in
   let arg, return_type = match t with TyArrow (t1, t2) -> t1, t2 | _ -> assert false in
-  bindings, arg, return_type
+  bindings, arg, return_type, body
 ;;

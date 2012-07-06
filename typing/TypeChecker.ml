@@ -401,13 +401,10 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
        * [Expressions.expression] tree with a [Types.env] environment. Right
        * now, there's no such thing, so I'm putting this optimization here as
        * a temporary measure. *)
-      Log.debug "About to optimize\n%a" TypePrinter.ptype (env, type_for_function_def expr);
-      let vars, arg, return_type =
-        TypeOps.simplify_function_def env vars arg return_type
+      let vars, arg, return_type, body =
+        TypeOps.simplify_function_def env vars arg return_type body
       in
       let expr = EFun (vars, arg, return_type, body) in
-      Log.debug "Optimized this type into\n%a" TypePrinter.ptype (env, type_for_function_def expr);
-      if true then assert false;
 
       (* We can't create a closure over exclusive variables. Create a stripped
        * environment with only the duplicable parts. *)
