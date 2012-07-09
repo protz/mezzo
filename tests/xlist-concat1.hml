@@ -1,0 +1,20 @@
+exclusive data xlist a =
+  | XNil
+  | XCons { head: a; tail: xlist a }
+
+val rec concat1 [a] (xs: XCons { head: a; tail: xlist a }, consumes ys: xlist a): () =
+  match xs.tail with
+  | XNil ->
+      xs.tail <- ys
+  | XCons ->
+      concat1 (xs.tail, ys)
+  end
+
+val concat [a] (consumes xs: xlist a, consumes ys: xlist a): xlist a =
+  match xs with
+  | XNil ->
+      ys
+  | XCons ->
+      concat1 (xs, ys);
+      xs
+  end

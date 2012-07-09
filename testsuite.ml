@@ -78,6 +78,12 @@ let tests = [
   ("list-map1.hml", fun do_it ->
     ignore (do_it false));
 
+  ("xlist-concat.hml", fun do_it ->
+    ignore (do_it false));
+
+  ("xlist-concat1.hml", fun do_it ->
+    ignore (do_it false));
+
   ("stupid_match.hml",
     simple_test Fail (function NotNominal _ -> true | _ -> false));
 

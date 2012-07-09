@@ -1,0 +1,12 @@
+exclusive data xlist a =
+  | XNil
+  | XCons { head: a; tail: xlist a }
+
+val rec concat [a] (consumes xs: xlist a, consumes ys: xlist a): xlist a =
+  match xs with
+  | XNil ->
+      ys
+  | XCons ->
+      xs.tail <- concat (xs.tail, ys);
+      xs
+  end
