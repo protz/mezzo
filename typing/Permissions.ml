@@ -611,8 +611,9 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
     unifying some flexible variables); it returns [None] otherwise. *)
 and sub_type (env: env) (t1: typ) (t2: typ): env option =
   TypePrinter.(
-    Log.debug ~level:4 "[sub_type] t1 %a\n  t2 %a"
+    Log.debug ~level:4 "[sub_type] %a %s→%s %a"
       ptype (env, t1)
+      Bash.colors.Bash.red Bash.colors.Bash.default
       ptype (env, t2));
 
   if equal env t1 t2 then

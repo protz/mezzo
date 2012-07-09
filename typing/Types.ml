@@ -108,6 +108,8 @@ type type_def =
 
 (* Program-wide environment. *)
 
+let (^=>) x y = x && y || not x;;
+
 (* A fact refers to any type variable available in scope; the first few facts
  * refer to toplevel data types, and the following facts refer to type variables
  * introduced in the scope, because, for instance, we went through a binder in a

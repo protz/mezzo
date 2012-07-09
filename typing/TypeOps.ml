@@ -123,6 +123,7 @@ let cleanup_function_type env t body =
           | _ ->
               env, perm :: perms
         ) (env, []) perms in
+        let perms = List.rev perms in
 
         (* Now keep [t1] without these useless permissions! *)
         let t1 =
@@ -131,15 +132,26 @@ let cleanup_function_type env t body =
 
         (* Perform some light cleanup on [t2] too. *)
         let t2 =
+          let t1_perms = perms in
           let t2, perms = collect t2 in
+          (* Make sure we get a list of individual permissions. *)
           let perms = List.flatten (List.map flatten_star perms) in
           let t2, _ = find env t2 None in
+          (* Recursively simplify these permissions. *)
           let perms = List.map (fun t -> fst (find env t None)) perms in
+          (* If there are equalities, only keep the meaningful ones. *)
           let perms = List.filter (function
             | TyAnchoredPermission (TyPoint p, TySingleton (TyPoint p')) ->
                 not (same env p p')
             | _ ->
                 true
+          ) perms in
+          (* Final refinement: only keep those permissions that are either not
+           * duplicable or not already taken as an argument by the function. The
+           * caller will always be able to duplicate it. *)
+          let perms = List.filter (fun p ->
+            FactInference.is_duplicable env p ^=>
+            not (List.exists (fun p' -> equal env p p') t1_perms)
           ) perms in
           if List.length perms > 0 then TyBar (t2, fold_star perms) else t2
         in

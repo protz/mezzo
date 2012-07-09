@@ -137,8 +137,12 @@ let duplicables
         ()
 
     | TyAnchoredPermission (x, t) ->
-        (* That shouldn't be an issue, since x is probably TySingleton *)
-        duplicables env x;
+        begin match x with
+        | TyPoint p ->
+            Log.check (is_term env p) "Malformed type"
+        | _ ->
+            Log.error "Malformed type"
+        end;
         (* For x: τ to be duplicable, τ has to be duplicable as well *)
         duplicables env t
 
