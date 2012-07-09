@@ -614,7 +614,10 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
     Log.debug ~level:4 "[sub_type] t1 %a\n  t2 %a"
       ptype (env, t1)
       ptype (env, t2));
-  match t1, t2 with
+
+  if equal env t1 t2 then
+    Some env
+  else match t1, t2 with
   | _, TyUnknown ->
       Some env
 
