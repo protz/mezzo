@@ -74,7 +74,6 @@ let print_error buf (env, raw_error) =
       let t2 = Permissions.fold env point in
       begin match t1, t2 with
       | Some t1, Some t2 -> (* #winning *)
-          print_permissions ();
           Printf.bprintf buf
             "%a expected a subexpression of type %a but it has type %a"
             Lexer.p env.position
@@ -413,12 +412,10 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
        * Actually it would be hard to un-entangle the two phases, because
        * [check_bindings] needs to put in the environment the simplified version
        * of the type for recursive functions... *)
-      Log.debug "This is a function:\n\n%a\n" ExprPrinter.pexpr (env, expr);
       let vars, arg, return_type, body =
         TypeOps.simplify_function_def env vars arg return_type body
       in
       let expr = EFun (vars, arg, return_type, body) in
-      Log.debug "Desugared a function:\n\n%a\n" ExprPrinter.pexpr (env, expr);
 
       (* We can't create a closure over exclusive variables. Create a stripped
        * environment with only the duplicable parts. *)

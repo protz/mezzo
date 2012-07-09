@@ -509,6 +509,17 @@ let head name ~flexible kind =
   }
 ;;
 
+let rec flatten_star = function
+  | TyStar (p, q) ->
+      flatten_star p @ flatten_star q
+  | TyEmpty ->
+      []
+  | TyAnchoredPermission _ as p ->
+      [p]
+  | _ ->
+      Log.error "[flatten_star] only works for types with kind PERM"
+;;
+
 let fold_star perms =
   if List.length perms > 0 then
     Hml_List.reduce (fun acc x -> TyStar (acc, x)) perms

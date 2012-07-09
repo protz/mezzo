@@ -4,17 +4,6 @@ open Types
 open Permissions
 open Expressions
 
-let rec flatten_star = function
-  | TyStar (p, q) ->
-      flatten_star p @ flatten_star q
-  | TyEmpty ->
-      []
-  | TyAnchoredPermission _ as p ->
-      [p]
-  | _ ->
-      Log.error "[flatten_star] only works for types with kind PERM"
-;;
-
 let strip_forall t =
   let rec strip acc = function
   | TyForall (b, t) ->

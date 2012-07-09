@@ -516,6 +516,7 @@ let rec sub (env: env) (point: point) (t: typ): env option =
 
       (* Get a "clean" type without nested permissions. *)
       let t, perms = collect t in
+      let perms = List.flatten (List.map flatten_star perms) in
 
       (* TEMPORARY we should probably switch to a more sophisticated strategy,
        * based on a work list. The code would scan the work list for a permission
