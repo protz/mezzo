@@ -75,6 +75,9 @@ let tests = [
     ) in
     check env x t);
 
+  ("list-map1.hml", fun do_it ->
+    ignore (do_it false));
+
   ("stupid_match.hml",
     simple_test Fail (function NotNominal _ -> true | _ -> false));
 

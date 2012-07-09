@@ -1,0 +1,10 @@
+data list a = Nil | Cons { head: a; tail: list a }
+
+val rec map [a, b] (f: (consumes x: a) -> b, consumes xs: list a): list b =
+  match xs with
+  | Nil ->
+      Nil
+  | Cons { head; tail } ->
+      Cons { head = f head; tail = map (f, tail) }
+  end
+
