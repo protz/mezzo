@@ -243,26 +243,12 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
               left_env, didnt_work_left_perms, right_env, right_perms, dest_env, dest_perms
           | left_perm :: left_perms, right_perms ->
 
-              (* This function returns the first right permission we found that
-               * works, the remaining ones, and the result of the merge
-               * operation. *)
-              let rec find_couple didnt_work_right_perms right_perms =
-                match right_perms with
-                | [] ->
-                    None
-                | right_perm :: right_perms ->
-                    let result =
-                      merge_type (left_env, left_perm) (right_env, right_perm) dest_env
-                    in
-                    match result with
-                    | Some result ->
-                        Some (right_perm, didnt_work_right_perms @ right_perms, result)
-                    | None ->
-                        find_couple (right_perm :: didnt_work_right_perms) right_perms
+              let works right_perm =
+                merge_type (left_env, left_perm) (right_env, right_perm) dest_env
               in
 
-              begin match find_couple [] right_perms with
-              | Some (right_perm, right_perms, (left_env, right_env, dest_env, dest_perm)) ->
+              begin match Hml_List.take works right_perms with
+              | Some (right_perms, (right_perm, (left_env, right_env, dest_env, dest_perm))) ->
 
                   Log.debug ~level:4 "  → this merge between %a and %a was succesful"
                     Variable.p (get_name left_env left_point)

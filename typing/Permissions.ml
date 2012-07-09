@@ -527,10 +527,9 @@ let rec sub (env: env) (point: point) (t: typ): env option =
          * that is not flexible, i.e. a point that hopefully should have more to
          * extract than (=itself). As we go, more flexible variables will be
          * unified, which will make more candidates suitable for subtraction. *)
-        let works env perm =
-          match perm with
+        let works env = function
           | TyAnchoredPermission (TyPoint x, _) when not (is_flexible env x) ->
-              Some perm
+              Some ()
           | _ ->
               None
         in
@@ -541,7 +540,7 @@ let rec sub (env: env) (point: point) (t: typ): env option =
           | None ->
               false
 
-          | Some (worklist, perm) ->
+          | Some (worklist, (perm, ())) ->
               match sub_perm env perm with
               | Some env ->
                   state := (env, worklist);

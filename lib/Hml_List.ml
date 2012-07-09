@@ -176,8 +176,8 @@ let take f l =
         None
     | elt :: l' ->
         match f elt with
-        | Some elt ->
-            Some (append_rev_front l l', elt)
+        | Some result ->
+            Some (append_rev_front l l', (elt, result))
         | None ->
             take (elt :: l) l'
   in

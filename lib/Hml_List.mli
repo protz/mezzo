@@ -88,4 +88,4 @@ val index: ?equal_func:('a -> 'a -> bool) -> 'a -> 'a list -> int
 (** If [f] may convert an 'a into a 'b, then [take f l] returns the first
    convertible element in the list, along with the remaining elements in the
    list. *)
-val take: ('a -> 'b option) -> 'a list -> ('a list * 'b) option
+val take: ('a -> 'b option) -> 'a list -> ('a list * ('a * 'b)) option
