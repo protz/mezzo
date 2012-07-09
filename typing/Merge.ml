@@ -55,6 +55,13 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
   let pending_jobs: job list ref = ref [] in
   let pop r = let v = List.hd !r in r := List.tl !r; v in
   let push r v = r := v :: !r in
+  let remove r v =
+    match Hml_List.take (fun v' -> if v = v' then Some () else None) !r with
+    | Some (remaining, _) ->
+        r := remaining
+    | None ->
+        assert false
+  in
 
   (* One invariant is that if you push a job, the job's destination point has
    * been allocated in the destination environment already. *)
@@ -514,29 +521,43 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
                   Some (left_env, right_env, dest_env, TyApp (t1, t2))))
 
       | TyForall (binding_left, t_l), TyForall (binding_right, t_r) ->
-          (* XXX I'm pretty sure this codepath is untested... *)
+          (* This code-path is correct but frankly, we shouldn't have to
+           * go there _at all_ yet. If two types are equal, then they must go
+           * through the fast-path. Otherwise, this means that they contain TERM
+           * variables that are local to a branch, and we don't know how to
+           * handle that... *)
+
           (* First, check that the kinds are equal. *)
           let k_l, k_r = snd binding_left, snd binding_right in
           if k_l = k_r then
+
             (* Bind the variables as rigid. *)
             let left_env, t_l, left_point = bind_var_in_type2 left_env binding_left t_l in
             let right_env, t_r, right_point = bind_var_in_type2 right_env binding_right t_r in
+
             (* Pick the name from the left... *)
             let binding = binding_left in
             let name, k = binding in
+
             (* Bind the corresponding rigid variable in the destination
              * environment. Remember the triple. *)
-            let dest_env, dest_point = bind_type dest_env name Affine k in
+            let dest_env, dest_point = bind_var dest_env (name, k) in
             push known_triples (left_point, right_point, dest_point);
+
             (* Try to perform the merge. *)
-            Option.bind (merge_type (left_env, t_l) (right_env, t_r) dest_env)
-              (fun (left_env, right_env, dest_env, t) ->
+            begin match merge_type (left_env, t_l) (right_env, t_r) dest_env with
+            | Some (left_env, right_env, dest_env, t) ->
                 (* Yes? Re-generalize... *)
                 Some (
                   left_env, right_env, dest_env,
                   TyForall (binding, Flexible.tpsubst dest_env (TyVar 0) dest_point t)
                 )
-              )
+            | None ->
+                (* Don't keep this triple since we're throwing away the
+                 * environments. *)
+                remove known_triples (left_point, right_point, dest_point);
+                None
+            end
           else
             None
 
