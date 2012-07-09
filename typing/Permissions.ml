@@ -518,16 +518,44 @@ let rec sub (env: env) (point: point) (t: typ): env option =
       let t, perms = collect t in
       let perms = List.flatten (List.map flatten_star perms) in
 
-      (* TEMPORARY we should probably switch to a more sophisticated strategy,
-       * based on a work list. The code would scan the work list for a permission
-       * that it knows how to extract. A failure would happen when there are
-       * permissions left but we don't know how to extract them because the
-       * variables are still flexible, for instance... *)
+      (* Start off by subtracting the type without associated permissions. *)
       let env = sub_clean env point t in
-      List.fold_left
-        (fun env perm -> (Option.bind env (fun env -> sub_perm env perm)))
-        env
-        perms
+
+      Option.bind env (fun env ->
+        (* We use a worklist-based approch, where we try to find a permission that
+         * "works". A permission that works is one where the left-side is a point
+         * that is not flexible, i.e. a point that hopefully should have more to
+         * extract than (=itself). As we go, more flexible variables will be
+         * unified, which will make more candidates suitable for subtraction. *)
+        let works env perm =
+          match perm with
+          | TyAnchoredPermission (TyPoint x, _) when not (is_flexible env x) ->
+              Some perm
+          | _ ->
+              None
+        in
+        let state = ref (env, perms) in
+        while begin
+          let env, worklist = !state in
+          match Hml_List.take (works env) worklist with
+          | None ->
+              false
+
+          | Some (worklist, perm) ->
+              match sub_perm env perm with
+              | Some env ->
+                  state := (env, worklist);
+                  true
+              | None ->
+                  false
+        end do () done;
+
+        let env, worklist = !state in
+        if List.length worklist > 0 then
+          None
+        else
+          Some env
+      )
 
 
 (** [sub_clean env point t] takes a "clean" type [t] (without nested permissions)
