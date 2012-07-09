@@ -125,6 +125,16 @@ let fold_lefti f init l =
   in
   fold_lefti 0 init l
 
+let fold_righti f l acc =
+  let rec fold_righti i l acc =
+    match l with
+    | hd :: tl ->
+        fold_righti (i + 1) tl (f i hd acc)
+    | [] ->
+        acc
+  in
+  fold_righti 0 l acc
+
 let reduce f l =
   List.fold_left f (List.hd l) (List.tl l)
 

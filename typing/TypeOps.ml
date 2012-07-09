@@ -160,9 +160,9 @@ let cleanup_function_type env t body =
         (* Now put back the quantifiers into place, skipping those that have
          * been put back already. *)
         let env = refresh_mark env in
-        let _env, t, e = List.fold_right (fun ((_, k), p) (env, t, e) ->
+        let _env, t, e, _i = List.fold_right (fun ((_, k), p) (env, t, e, i) ->
           if is_marked env p then
-            env, t, e
+            env, t, e, i
           else
             let env = mark env p in
             let name =
@@ -171,10 +171,13 @@ let cleanup_function_type env t body =
               with Not_found -> List.hd names
             in
             let t = Flexible.tpsubst env (TyVar 0) p t in
-            let e = Option.map (epsubst env (EVar 0) p) e in
-            let e = Option.map (tepsubst env (TyVar 0) p) e in
-            env, TyForall ((name, k), t), e
-        ) vars (env, t, e) in
+            (* The substitution functions won't traverse the binder we just
+             * added, because there no [EBigLambda], so we need to take into
+             * account the fact that we've traversed so many binders. *)
+            let e = Option.map (epsubst env (EVar i) p) e in
+            let e = Option.map (tepsubst env (TyVar i) p) e in
+            env, TyForall ((name, k), t), e, i + 1
+        ) vars (env, t, e, 0) in
         
         t, e
 

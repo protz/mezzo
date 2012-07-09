@@ -1177,8 +1177,8 @@ module TypePrinter = struct
 
   internal_ppermissions := ppermissions;;
 
-  let ptype buf (env, t) =
-    pdoc buf ((fun (env, t) -> print_type env t), (env, t))
+  let ptype buf arg =
+    pdoc buf ((fun (env, t) -> print_type env t), arg)
   ;;
 
   let penv buf (env: env) =

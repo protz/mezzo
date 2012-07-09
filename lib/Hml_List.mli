@@ -22,9 +22,14 @@
 (** Same as [map2] but pass an extra parameter that represents the index *)
 val map2i: (int -> 'a -> 'b -> 'c) -> 'a list -> 'b list -> 'c list
 
+(** Same as [fold_right] except that the function takes the current index in the
+   list. The index starts counting from the right of the list, so the first call
+   will pass 0 for [i]. *)
+val fold_righti: (int -> 'elt -> 'acc -> 'acc) -> 'elt list -> 'acc -> 'acc
+
 (** Same as [fold_left] except that the function takes the current index in the
    list *)
-val fold_lefti: (int -> 'a -> 'b -> 'a) -> 'a -> 'b list -> 'a
+val fold_lefti: (int -> 'acc -> 'elt -> 'acc) -> 'acc -> 'elt list -> 'acc
 
 (** Same as [fold_left2] except that the function takes the current index in the
    list *)

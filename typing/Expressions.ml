@@ -1,6 +1,7 @@
 (* This file contains our internal syntax for expressions. *)
 
 open Types
+open Flexible
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -477,10 +478,7 @@ let bind_vars (env: env) (bindings: type_binding list): env * substitution_kit =
  * substitutions according to the recursivity flag. *)
 let bind_patexprs env rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
-  let names = List.fold_left (fun acc p ->
-    collect_pattern p :: acc) [] patterns
-  in
-  let names = List.rev names in
+  let names = List.rev_map collect_pattern patterns in
   let names = List.flatten names in
   let bindings = List.map (fun n -> (n, KTerm)) names in
   let env, kit = bind_vars env bindings in
@@ -496,22 +494,283 @@ let bind_patexprs env rec_flag patexprs =
 
 
 let elift (k: int) (e: expression) =
-  ignore (k, e);
-  assert false
+  let rec elift (i: int) (e: expression) =
+  match e with
+  | EConstraint (e, t) ->
+      EConstraint (elift i e, lift i t)
+
+  | EVar j ->
+      if j < i then
+        EVar j
+      else
+        EVar (j + k)
+
+  | EPoint _ ->
+      e
+
+  | ELet (flag, patexprs, body) ->
+      let patterns, expressions = List.split patexprs in
+      let names = List.map collect_pattern patterns in
+      let n = List.length (List.flatten names) in
+      let expressions = match flag with
+        | Recursive ->
+            List.map (elift (i + n)) expressions
+        | Nonrecursive ->
+            List.map (elift i) expressions
+      in
+      let patexprs = List.combine patterns expressions in
+      let body = elift (i + n) body in
+      ELet (flag, patexprs, body)
+
+
+  | EFun (vars, arg, return_type, body) ->
+      let n = List.length vars in
+      let arg = lift (i + n) arg in
+      let return_type = lift (i + n) return_type in
+      let body = elift (i + n) body in
+      EFun (vars, arg, return_type, body)
+
+  | EAssign (e1, f, e2) ->
+      EAssign (elift i e1, f, elift i e2)
+
+  | EAccess (e, f) ->
+      EAccess (elift i e, f)
+
+  | EApply (e1, e2) ->
+      EApply (elift i e1, elift i e2)
+
+  | EMatch (e, patexprs) ->
+      let e = elift i e in
+      let patexprs = List.map (fun (pat, expr) ->
+        let n = List.length (collect_pattern pat) in
+        pat, elift (i + n) expr
+      ) patexprs in
+      EMatch (e, patexprs)
+
+  | ETuple es ->
+      ETuple (List.map (elift i) es)
+
+  | EConstruct (datacon, fieldexprs) ->
+      let fieldexprs = List.map (fun (field, expr) ->
+        field, elift i expr
+      ) fieldexprs in
+      EConstruct (datacon, fieldexprs)
+
+  | EIfThenElse (e1, e2, e3) ->
+      EIfThenElse (elift i e1, elift i e2, elift i e3)
+
+  | ELocated (e, p1, p2) ->
+      ELocated (elift i e, p1, p2)
+
+  | EPlus (e1, e2) ->
+      EPlus (elift i e1, elift i e2)
+
+  | EMinus (e1, e2) ->
+      EMinus (elift i e1, elift i e2)
+
+  | ETimes (e1, e2) ->
+      ETimes (elift i e1, elift i e2)
+
+  | EDiv (e1, e2) ->
+      EDiv (elift i e1, elift i e2)
+
+  | EUMinus e ->
+      EUMinus (elift i e)
+
+  | EInt _ ->
+      e
+  in
+  elift 0 e
+
 ;;
 
 
 let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression =
-  ignore (env, e2, p, e1);
-  assert false
-;;
+  let rec epsubst e2 e1 =
+    match e1 with
+    | EConstraint (e1, t) ->
+        EConstraint (epsubst e2 e1, t)
 
+    | EVar _ ->
+        e1
+
+    | EPoint p' ->
+        if same env p p' then
+          e2
+        else
+          e1
+
+    | ELet (flag, patexprs, body) ->
+        let patterns, expressions = List.split patexprs in
+        let names = List.map collect_pattern patterns in
+        let n = List.length (List.flatten names) in
+        let expressions = match flag with
+          | Recursive ->
+              let e2 = elift n e2 in
+              List.map (epsubst e2) expressions
+          | Nonrecursive ->
+              List.map (epsubst e2) expressions
+        in
+        let patexprs = List.combine patterns expressions in
+        let e2 = elift n e2 in
+        let body = epsubst e2 body in
+        ELet (flag, patexprs, body)
+
+
+    | EFun (vars, arg, return_type, body) ->
+        let n = List.length vars in
+        let e2 = elift n e2 in
+        let body = epsubst e2 body in
+        EFun (vars, arg, return_type, body)
+
+    | EAssign (e1, f, e'1) ->
+        EAssign (epsubst e2 e1, f, epsubst e2 e'1)
+
+    | EAccess (e1, f) ->
+        EAccess (epsubst e2 e1, f)
+
+    | EApply (e1, e'1) ->
+        EApply (epsubst e2 e1, epsubst e2 e'1)
+
+    | EMatch (e1, patexprs) ->
+        let e1 = epsubst e2 e1 in
+        let patexprs = List.map (fun (pat, expr) ->
+          let n = List.length (collect_pattern pat) in
+          let e2 = elift n e2 in
+          pat, epsubst e2 expr
+        ) patexprs in
+        EMatch (e1, patexprs)
+
+
+    | ETuple es ->
+        ETuple (List.map (epsubst e2) es)
+
+    | EConstruct (datacon, fieldexprs) ->
+        let fieldexprs = List.map (fun (field, expr) ->
+          field, epsubst e2 expr
+        ) fieldexprs in
+        EConstruct (datacon, fieldexprs)
+
+    | EIfThenElse (e1, e1', e1'') ->
+        EIfThenElse (epsubst e2 e1, epsubst e2 e1', epsubst e2 e1'')
+
+    | ELocated (e, p1, p2) ->
+        ELocated (epsubst e2 e, p1, p2)
+
+    | EPlus (e1, e1') ->
+        EPlus (epsubst e2 e1, epsubst e2 e1')
+
+    | EMinus (e1, e1') ->
+        EMinus (epsubst e2 e1, epsubst e2 e1')
+
+    | ETimes (e1, e1') ->
+        ETimes (epsubst e2 e1, epsubst e2 e1')
+
+    | EDiv (e1, e1') ->
+        EDiv (epsubst e2 e1, epsubst e2 e1')
+
+    | EUMinus e ->
+        EUMinus (epsubst e2 e)
+
+    | EInt _ ->
+        e1
+  in
+
+  epsubst e2 e1
+;;
 
 let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
-  ignore (env, t2, p, e1);
-  assert false
-;;
+  let rec tepsubst t2 e1 =
+    match e1 with
+    | EConstraint (e1, t) ->
+        EConstraint (tepsubst t2 e1, tpsubst env t2 p t)
 
+    | EVar _ ->
+        e1
+
+    | EPoint _ ->
+        e1
+
+    | ELet (flag, patexprs, body) ->
+        let patterns, expressions = List.split patexprs in
+        let names = List.map collect_pattern patterns in
+        let n = List.length (List.flatten names) in
+        let expressions = match flag with
+          | Recursive ->
+              let t2 = lift n t2 in
+              List.map (tepsubst t2) expressions
+          | Nonrecursive ->
+              List.map (tepsubst t2) expressions
+        in
+        let patexprs = List.combine patterns expressions in
+        let t2 = lift n t2 in
+        let body = tepsubst t2 body in
+        ELet (flag, patexprs, body)
+
+
+    | EFun (vars, arg, return_type, body) ->
+        let n = List.length vars in
+        let t2 = lift n t2 in
+        let body = tepsubst t2 body in
+        let arg = tpsubst env t2 p arg in
+        let return_type = tpsubst env t2 p return_type in
+        EFun (vars, arg, return_type, body)
+
+    | EAssign (e1, f, e'1) ->
+        EAssign (tepsubst t2 e1, f, tepsubst t2 e'1)
+
+    | EAccess (e1, f) ->
+        EAccess (tepsubst t2 e1, f)
+
+    | EApply (e1, e'1) ->
+        EApply (tepsubst t2 e1, tepsubst t2 e'1)
+
+    | EMatch (e1, patexprs) ->
+        let e1 = tepsubst t2 e1 in
+        let patexprs = List.map (fun (pat, expr) ->
+          let n = List.length (collect_pattern pat) in
+          let t2 = lift n t2 in
+          pat, tepsubst t2 expr
+        ) patexprs in
+        EMatch (e1, patexprs)
+
+
+    | ETuple es ->
+        ETuple (List.map (tepsubst t2) es)
+
+    | EConstruct (datacon, fieldexprs) ->
+        let fieldexprs = List.map (fun (field, expr) ->
+          field, tepsubst t2 expr
+        ) fieldexprs in
+        EConstruct (datacon, fieldexprs)
+
+    | EIfThenElse (e1, e1', e1'') ->
+        EIfThenElse (tepsubst t2 e1, tepsubst t2 e1', tepsubst t2 e1'')
+
+    | ELocated (e, p1, p2) ->
+        ELocated (tepsubst t2 e, p1, p2)
+
+    | EPlus (e1, e1') ->
+        EPlus (tepsubst t2 e1, tepsubst t2 e1')
+
+    | EMinus (e1, e1') ->
+        EMinus (tepsubst t2 e1, tepsubst t2 e1')
+
+    | ETimes (e1, e1') ->
+        ETimes (tepsubst t2 e1, tepsubst t2 e1')
+
+    | EDiv (e1, e1') ->
+        EDiv (tepsubst t2 e1, tepsubst t2 e1')
+
+    | EUMinus e ->
+        EUMinus (tepsubst t2 e)
+
+    | EInt _ ->
+        e1
+  in
+
+  tepsubst t2 e1
+;;
 
 
 module ExprPrinter = struct
@@ -694,16 +953,16 @@ module ExprPrinter = struct
     nest 2 declarations ^^ hardline
   ;;
 
-  let pdeclarations (env, declarations) =
-    print_declarations env declarations
+  let pdeclarations buf arg =
+    pdoc buf ((fun (env, declarations) -> print_declarations env declarations), arg)
   ;;
 
-  let pexpr (env, expr) =
-    print_expr env expr
+  let pexpr buf arg =
+    pdoc buf ((fun (env, expr) -> print_expr env expr), arg)
   ;;
 
-  let ppat (env, pat) =
-    print_pat env pat
+  let ppat buf arg =
+    pdoc buf ((fun (env, pat) -> print_pat env pat), arg)
   ;;
 
 end

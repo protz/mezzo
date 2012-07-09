@@ -61,8 +61,7 @@ let type_check program =
     Types.TypePrinter.pdoc
     (KindCheck.KindPrinter.print_kinds_and_facts, type_env);
   Log.debug ~level:2 "%a"
-    Types.TypePrinter.pdoc
-    (Expressions.ExprPrinter.pdeclarations, (type_env, declarations));
+    Expressions.ExprPrinter.pdeclarations (type_env, declarations);
   let type_env = TypeChecker.check_declaration_group type_env declarations in
   type_env
 ;;

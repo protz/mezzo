@@ -162,7 +162,7 @@ let print_error buf (env, raw_error) =
       Printf.bprintf buf
         "%a there's a sub-constraint in that pattern, not allowed: %a"
         Lexer.p env.position
-        pdoc (ppat, (env, pat))
+        ppat (env, pat)
   | MatchBadDatacon (t, datacon) ->
       Printf.bprintf buf
         "%a matching on a value with type %a: it has no constructor named %a"
@@ -174,12 +174,12 @@ let print_error buf (env, raw_error) =
         "%a the pattern %a is not valid inside a match; only matches on data \
           constructors are allowed"
         Lexer.p env.position
-        pdoc (ppat, (env, pat))
+        ppat (env, pat)
   | NoSuchFieldInPattern (pat, field) ->
       Printf.bprintf buf
         "%a the pattern %a mentions field %a which is unknown for that branch"
         Lexer.p env.position
-        pdoc (ppat, (env, pat))
+        ppat (env, pat)
         Field.p field
   | AssignNotExclusive (t, datacon) ->
       Printf.bprintf buf
@@ -408,11 +408,17 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       (* TODO we should have a separate pass that performs optimizations on a
        * [Expressions.expression] tree with a [Types.env] environment. Right
        * now, there's no such thing, so I'm putting this optimization here as
-       * a temporary measure. *)
+       * a temporary measure.
+       *
+       * Actually it would be hard to un-entangle the two phases, because
+       * [check_bindings] needs to put in the environment the simplified version
+       * of the type for recursive functions... *)
+      Log.debug "This is a function:\n\n%a\n" ExprPrinter.pexpr (env, expr);
       let vars, arg, return_type, body =
         TypeOps.simplify_function_def env vars arg return_type body
       in
       let expr = EFun (vars, arg, return_type, body) in
+      Log.debug "Desugared a function:\n\n%a\n" ExprPrinter.pexpr (env, expr);
 
       (* We can't create a closure over exclusive variables. Create a stripped
        * environment with only the duplicable parts. *)
@@ -767,7 +773,12 @@ and check_bindings
           List.fold_left2 (fun env expr pat ->
             let expr = eunloc expr in
             match pat, expr with
-            | PPoint p, EFun _ ->
+            | PPoint p, EFun (vars, arg, return_type, body) ->
+                (* We need to add the simplified type here. *)
+                let vars, arg, return_type, body =
+                  TypeOps.simplify_function_def env vars arg return_type body
+                in
+                let expr = EFun (vars, arg, return_type, body) in
                 Permissions.add env p (type_for_function_def expr)
             | _ ->
                 raise_error env RecursiveOnlyForFunctions
