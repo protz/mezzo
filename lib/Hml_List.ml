@@ -168,3 +168,17 @@ let combine3 l1 l2 l3 =
         raise (Invalid_argument "combine3")
   in
   combine3 [] l1 l2 l3
+
+let take f l =
+  let rec take l l' =
+    match l' with
+    | [] ->
+        None
+    | elt :: l' ->
+        match f elt with
+        | Some elt ->
+            Some (append_rev_front l l', elt)
+        | None ->
+            take (elt :: l) l'
+  in
+  take [] l
