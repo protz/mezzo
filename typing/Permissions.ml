@@ -239,163 +239,160 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
       Both
   in
 
-  (* TypePrinter.(
-    Log.debug ~level:4 "Refinement: %a, %a" pfact f1 pfact f2
-  ); *)
+  if equal env t1 t2 then begin
+    env, one_if t1
 
-  try
+  end else begin
+    try
 
-    (* Having two exclusive permissions on the same point means we're duplicating an *exclusive*
-     * access right to the heap. *)
-    if f1 = Exclusive && f2 = Exclusive then
-      raise Inconsistent;
+      (* Having two exclusive permissions on the same point means we're duplicating an *exclusive*
+       * access right to the heap. *)
+      if f1 = Exclusive && f2 = Exclusive then
+        raise Inconsistent;
 
-    (* Exclusive means we're the only one « seeing » this type; if someone else can see the type,
-     * we're inconsistent too. Having [t1] exclusive and [t2 = TyAbstract] is not a problem: [t2]
-     * could be a hidden [TyDynamic], for instance. *)
-    if f1 = Exclusive && views t2 || f2 = Exclusive && views t1 then
-      raise Inconsistent;
+      (* Exclusive means we're the only one « seeing » this type; if someone else can see the type,
+       * we're inconsistent too. Having [t1] exclusive and [t2 = TyAbstract] is not a problem: [t2]
+       * could be a hidden [TyDynamic], for instance. *)
+      if f1 = Exclusive && views t2 || f2 = Exclusive && views t1 then
+        raise Inconsistent;
 
-    match t1, t2 with
-    | TyApp _, TyApp _ ->
-        (* Type applications. This covers the following cases:
-           - abstract vs abstract
-           - concrete vs concrete (NOT unfolded)
-           - concrete vs abstract *)
-        let cons1, args1 = flatten_tyapp t1 in
-        let cons2, args2 = flatten_tyapp t2 in
+      match t1, t2 with
+      | TyApp _, TyApp _ ->
+          (* Type applications. This covers the following cases:
+             - abstract vs abstract
+             - concrete vs concrete (NOT unfolded)
+             - concrete vs abstract *)
+          let cons1, args1 = flatten_tyapp t1 in
+          let cons2, args2 = flatten_tyapp t2 in
 
-        if same env !!cons1 !!cons2 && List.for_all2 (equal env) args1 args2 then
-          env, one_if t1
-        else
-          env, Both
+          if same env !!cons1 !!cons2 && List.for_all2 (equal env) args1 args2 then
+            env, one_if t1
+          else
+            env, Both
 
-    | TyConcreteUnfolded branch as t, other
-    | other, (TyConcreteUnfolded branch as t) ->
-        (* Unfolded concrete types. This covers:
-           - unfolded vs unfolded,
-           - unfolded vs nominal. *)
-        begin match other with
-        | TyConcreteUnfolded branch' ->
-            (* Unfolded vs unfolded *)
-            let datacon, fields = branch in
-            let datacon', fields' = branch' in
+      | TyConcreteUnfolded branch as t, other
+      | other, (TyConcreteUnfolded branch as t) ->
+          (* Unfolded concrete types. This covers:
+             - unfolded vs unfolded,
+             - unfolded vs nominal. *)
+          begin match other with
+          | TyConcreteUnfolded branch' ->
+              (* Unfolded vs unfolded *)
+              let datacon, fields = branch in
+              let datacon', fields' = branch' in
 
-            if Datacon.equal datacon datacon' then
-              (* The names are equal. Both types are unfolded, so recursively unify their fields. *)
-              let env = List.fold_left2 (fun env f1 f2 ->
-                match f1, f2 with
-                | FieldValue (name1, t1), FieldValue (name2, t2) ->
-                    Log.check (Field.equal name1 name2)
-                      "Fields are not in the same order, I thought they were";
+              if Datacon.equal datacon datacon' then
+                (* The names are equal. Both types are unfolded, so recursively unify their fields. *)
+                let env = List.fold_left2 (fun env f1 f2 ->
+                  match f1, f2 with
+                  | FieldValue (name1, t1), FieldValue (name2, t2) ->
+                      Log.check (Field.equal name1 name2)
+                        "Fields are not in the same order, I thought they were";
 
-                    (* [unify] is responsible for performing the entire job. *)
-                    begin match t1, t2 with
-                    | TySingleton (TyPoint p1), TySingleton (TyPoint p2) ->
-                        unify env p1 p2
-                    | _ ->
-                        Log.error "The type should've been run through [unfold] before"
-                    end
+                      (* [unify] is responsible for performing the entire job. *)
+                      begin match t1, t2 with
+                      | TySingleton (TyPoint p1), TySingleton (TyPoint p2) ->
+                          unify env p1 p2
+                      | _ ->
+                          Log.error "The type should've been run through [unfold] before"
+                      end
 
-                | _ ->
-                    Log.error "The type should've been run through [collect] before"
-              ) env fields fields' in
-              env, One t1
+                  | _ ->
+                      Log.error "The type should've been run through [collect] before"
+                ) env fields fields' in
+                env, One t1
 
-            else
-              raise Inconsistent
+              else
+                raise Inconsistent
 
-        | TyApp _ ->
-            (* Unfolded vs nominal, we transform this into unfolded vs unfolded. *)
-            let cons, args = flatten_tyapp other in
-            let datacon, _ = branch in
+          | TyApp _ ->
+              (* Unfolded vs nominal, we transform this into unfolded vs unfolded. *)
+              let cons, args = flatten_tyapp other in
+              let datacon, _ = branch in
 
-            if same env (DataconMap.find datacon env.type_for_datacon) !!cons then
-              let branch' = find_and_instantiate_branch env !!cons datacon args in
-              let env, t' = unfold env (TyConcreteUnfolded branch') in
-              refine_type env t t'
-            else
-              (* This is fairly imprecise as well. If both types are concrete
-               * *and* different, this is inconsistent. However, if [other] is
-               * the applicatino of an abstract data type, then of course it is
-               * not inconsistent. *)
+              if same env (DataconMap.find datacon env.type_for_datacon) !!cons then
+                let branch' = find_and_instantiate_branch env !!cons datacon args in
+                let env, t' = unfold env (TyConcreteUnfolded branch') in
+                refine_type env t t'
+              else
+                (* This is fairly imprecise as well. If both types are concrete
+                 * *and* different, this is inconsistent. However, if [other] is
+                 * the applicatino of an abstract data type, then of course it is
+                 * not inconsistent. *)
+                env, Both
+
+          | _ ->
+              (* This is fairly imprecise. [TyConcreteUnfolded] vs [TyForall] is
+               * of course inconsistent, but [TyConcreteUnfolded] vs [TyPoint]
+               * where [TyPoint] is an abstract type is not inconsistent. However,
+               * if the [TyPoint] is [int], it definitely is inconsistent. But we
+               * have no way to distinguish "base types" and abstract types... *)
               env, Both
 
-        | _ ->
-            (* This is fairly imprecise. [TyConcreteUnfolded] vs [TyForall] is
-             * of course inconsistent, but [TyConcreteUnfolded] vs [TyPoint]
-             * where [TyPoint] is an abstract type is not inconsistent. However,
-             * if the [TyPoint] is [int], it definitely is inconsistent. But we
-             * have no way to distinguish "base types" and abstract types... *)
-            env, Both
+          end
 
-        end
+      | TyTuple components1, TyTuple components2 ->
+          if List.(length components1 <> length components2) then
+            raise Inconsistent
 
-    | TyTuple components1, TyTuple components2 ->
-        if List.(length components1 <> length components2) then
-          raise Inconsistent
+          else
+            let env = List.fold_left2 (fun env t1 t2 ->
+                (* [unify] is responsible for performing the entire job. *)
+              begin match t1, t2 with
+              | TySingleton (TyPoint p1), TySingleton (TyPoint p2) ->
+                  unify env p1 p2
+              | _ ->
+                  Log.error "The type should've been run through [unfold] before"
+              end
+            ) env components1 components2 in
+            env, One t1
 
-        else
-          let env = List.fold_left2 (fun env t1 t2 ->
-              (* [unify] is responsible for performing the entire job. *)
-            begin match t1, t2 with
-            | TySingleton (TyPoint p1), TySingleton (TyPoint p2) ->
-                unify env p1 p2
-            | _ ->
-                Log.error "The type should've been run through [unfold] before"
-            end
-          ) env components1 components2 in
-          env, One t1
-
-    | TyForall _, _
-    | _, TyForall _
-    | TyExists _, _
-    | _, TyExists _ ->
-        (* We don't know how to refine in the presence of quantifiers. We should
-         * probably think about it hard and do something very fancy. *)
-        env, Both
-
-    | TyAnchoredPermission _, _
-    | _, TyAnchoredPermission _
-    | TyEmpty, _
-    | _, TyEmpty
-    | TyStar _, _
-    | _, TyStar _ ->
-        Log.error "We can only refine types that have kind TYPE."
-
-    | TyUnknown, (_ as t)
-    | (_ as t), TyUnknown ->
-        env, One t
-
-    | (_ as t), TyPoint p
-    | TyPoint p, (_ as t) ->
-        begin match structure env p with
-        | Some t' ->
-            refine_type env t t'
-        | None ->
-            env, Both
-        end
-
-    | _ ->
-        (* TEMPORARY this seems overly aggressive and expensive *)
-        if equal env t1 t2 then
-          env, one_if t1
-        else
-          (* If there's nothing we can say, keep both. *)
+      | TyForall _, _
+      | _, TyForall _
+      | TyExists _, _
+      | _, TyExists _ ->
+          (* We don't know how to refine in the presence of quantifiers. We should
+           * probably think about it hard and do something very fancy. *)
           env, Both
 
-  with Inconsistent ->
+      | TyAnchoredPermission _, _
+      | _, TyAnchoredPermission _
+      | TyEmpty, _
+      | _, TyEmpty
+      | TyStar _, _
+      | _, TyStar _ ->
+          Log.error "We can only refine types that have kind TYPE."
 
-    (* XXX our inconsistency analysis is sub-optimal, see various comments
-     * above. *)
-    let open TypePrinter in
-    Log.debug ~level:4 "Inconsistency detected %a cannot coexist with %a"
-      ptype (env, t1) ptype (env, t2);
+      | TyUnknown, (_ as t)
+      | (_ as t), TyUnknown ->
+          env, One t
 
-    (* We could possibly be smarter here, and mark the entire permission soup as
-     * being inconsistent. This would allow us to implement some sort of
-     * [absurd] construct that asserts that the program point is not reachable. *)
-    env, Both
+      | (_ as t), TyPoint p
+      | TyPoint p, (_ as t) ->
+          begin match structure env p with
+          | Some t' ->
+              refine_type env t t'
+          | None ->
+              env, Both
+          end
+
+      | _ ->
+          env, Both
+
+    with Inconsistent ->
+
+      (* XXX our inconsistency analysis is sub-optimal, see various comments
+       * above. *)
+      let open TypePrinter in
+      Log.debug ~level:4 "Inconsistency detected %a cannot coexist with %a"
+        ptype (env, t1) ptype (env, t2);
+
+      (* We could possibly be smarter here, and mark the entire permission soup as
+       * being inconsistent. This would allow us to implement some sort of
+       * [absurd] construct that asserts that the program point is not reachable. *)
+      env, Both
+
+  end
 
 
 (** [refine env p t] adds [t] to the list of available permissions for [p],
@@ -551,6 +548,7 @@ let rec sub (env: env) (point: point) (t: typ): env option =
 
         let env, worklist = !state in
         if List.length worklist > 0 then
+          (* TODO Throw an exception. *)
           None
         else
           Some env
