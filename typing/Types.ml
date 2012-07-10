@@ -1157,8 +1157,14 @@ module TypePrinter = struct
   ;;
   
   let print_permission_list (env, { permissions; _ }): document =
-    let permissions = List.map (print_type env) permissions in
-    join (comma ^^ space) permissions
+    let permissions = List.filter (function
+      TySingleton (TyPoint _) -> false | _ -> true
+    ) permissions in
+    if List.length permissions > 0 then
+      let permissions = List.map (print_type env) permissions in
+      join (comma ^^ space) permissions
+    else
+      string "unknown"
   ;;
 
   let ppermission_list buf (env, point) =
@@ -1174,7 +1180,7 @@ module TypePrinter = struct
     in
     let lines = map_terms env (fun { names; _ } binder ->
       let names = print_names names in
-      let perms = break1 ^^ print_permission_list (env, binder) in
+      let perms = print_permission_list (env, binder) in
       names ^^ space ^^ at ^^ space ^^ (nest 2 perms)
     ) in
     let lines = join break1 lines in

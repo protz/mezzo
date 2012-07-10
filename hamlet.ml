@@ -28,7 +28,7 @@ let _ =
   in
   Arg.parse
     [
-    "-trace", Arg.Set arg_trace, "stop at various points in the program trying \
+    "-enable-explain", Arg.Set arg_trace, "stop at various points in the program trying \
       to explain what is happening";
     "-nopervasives", Arg.Clear arg_pervasives, "don't try to prepend pervasives.hml to the file";
     "-nofancypants", Arg.Clear arg_backtraces, "don't try to give nice error messages";

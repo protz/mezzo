@@ -16,5 +16,5 @@ val concat [a] (consumes xs: xlist a, consumes ys: xlist a): xlist a =
       ys
   | XCons ->
       concat1 (xs, ys);
-      xs
+      xs explain
   end

@@ -624,6 +624,9 @@ and check_expression (env: env) (expr: expression) =
 
   | EInt _ ->
       ()
+
+  | EExplained e ->
+      check_expression env e
 ;;
 
 

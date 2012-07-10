@@ -1,7 +1,6 @@
 open Types
 open Expressions
 open Utils
-open Debug
 
 (* -------------------------------------------------------------------------- *)
 
@@ -203,8 +202,6 @@ let (!!) =
  * call amounts to type-checking a point applied to another point. The default
  * behavior is: do not return a type that contains flexible variables. *)
 let check_function_call (env: env) (f: point) (x: point): env * typ =
-  trace env (FunctionCall (f, x));
-
   let fname, fbinder = find_term env f in
   (* Find a suitable permission for [f] first *)
   let rec is_quantified_arrow = function
@@ -250,14 +247,10 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
    * expected permissions are subtracted as well from the environment. *)
   match Permissions.sub env x t1 with
   | Some env ->
-      trace env (FunctionArg x);
       (* Return the "good" type. *)
       let t2, perms = Permissions.collect t2 in
       let env = List.fold_left Permissions.add_perm env perms in
       let t2 = Flexible.generalize env t2 in
-      trace_one env (AfterFunctionCall t2);
-      clear_trace ();
-      clear_trace ();
       env, t2
   | None ->
       raise_error env (ExpectedType (t1, x))
@@ -747,12 +740,19 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
         in
         let expr = subst_expr expr in
         let hint = Option.map (fun x -> x ^ "-" ^ (Datacon.print datacon)) hint in
+
         check_expression env ?hint expr
       ) patexprs constructors in
 
       (* Combine all of these left-to-right to obtain a single return
        * environment *)
       Hml_List.reduce (Merge.merge_envs env) sub_envs
+
+
+  | EExplained e ->
+      let env, x = check_expression env ?hint e in
+      Debug.explain env x;
+      env, x
 
 
 and check_bindings

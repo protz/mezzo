@@ -596,6 +596,10 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   | EInt i ->
       E.EInt i
 
+  | EExplained e ->
+      let e = translate_expr env e in
+      E.EExplained e
+
 (* This function desugars a list of [pattern * expression] and returns the
  * desugared version, as well as a list of assertions (read: types with kind
  * PERM) that should be enforced later on when the names in the patterns have

@@ -59,6 +59,8 @@ type expression =
   | EDiv of expression * expression
   | EUMinus of expression
   | EInt of int
+  (* Explanations *)
+  | EExplained of expression
 
 and patexpr =
   (* A binding is made up of a pattern, an optional type annotation for the
@@ -261,6 +263,10 @@ and tsubst_expr t2 i e =
   | EInt _ ->
       e
 
+  | EExplained e ->
+      let e = tsubst_expr t2 i e in
+      EExplained e
+
 
 (* [tsubst_decl t2 i decls] substitutes type [t2] for index [i] in a list of
  * declarations [decls]. *)
@@ -389,6 +395,10 @@ and esubst e2 i e1 =
 
   | EInt _ ->
       e1
+
+  | EExplained e ->
+      let e = esubst e2 i e in
+      EExplained e
 
 (* [esubst_decl e2 i decls] substitutes expression [e2] for index [i] in a list of
  * declarations [decls]. *)
@@ -579,6 +589,9 @@ let elift (k: int) (e: expression) =
 
   | EInt _ ->
       e
+
+  | EExplained e ->
+      EExplained (elift i e)
   in
   elift 0 e
 
@@ -674,6 +687,9 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
 
     | EInt _ ->
         e1
+
+    | EExplained e ->
+        EExplained (epsubst e2 e)
   in
 
   epsubst e2 e1
@@ -767,6 +783,9 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
 
     | EInt _ ->
         e1
+
+    | EExplained e ->
+        EExplained (tepsubst t2 e)
   in
 
   tepsubst t2 e1
@@ -913,6 +932,9 @@ module ExprPrinter = struct
 
     | EInt i ->
         int i
+
+    | EExplained e ->
+        print_expr env e ^^ space ^^ string "explained"
 
   and print_rec_flag = function
     | Recursive ->

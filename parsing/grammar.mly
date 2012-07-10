@@ -29,7 +29,7 @@
 %token COMMA COLON COLONCOLON SEMI ARROW STAR AT
 %token LARROW DBLARROW FUN
 %token EQUAL
-%token EMPTY ASSERT
+%token EMPTY ASSERT EXPLAINED
 %token CONSUMES DUPLICABLE FACT ABSTRACT
 %token VAL LET REC AND IN DOT WITH BEGIN END MATCH
 %token IF THEN ELSE
@@ -451,6 +451,12 @@ fact:
   (* cannot allow let because right-hand side of let can contain a semi-colon *)
   | e1 = atomic DOT f = variable LARROW e2 = everything_except_let_and_semi
       { EAssign (e1, f, e2) }
+  | e = explained_raw
+      { e }
+
+  explained_raw:
+  | e = sum EXPLAINED
+      { EExplained e }
   | e = sum_raw
       { e }
 

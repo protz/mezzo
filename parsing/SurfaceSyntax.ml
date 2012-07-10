@@ -186,6 +186,8 @@ and expression =
   | EDiv of expression * expression
   | EUMinus of expression
   | EInt of int
+  (* Explanations *)
+  | EExplained of expression
 
 
 (* ---------------------------------------------------------------------------- *)
