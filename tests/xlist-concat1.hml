@@ -7,7 +7,7 @@ val rec concat1 [a] (xs: XCons { head: a; tail: xlist a }, consumes ys: xlist a)
   | XNil ->
       xs.tail <- ys
   | XCons ->
-      concat1 (xs.tail, ys)
+      concat1 (xs.tail, ys) explain
   end
 
 val concat [a] (consumes xs: xlist a, consumes ys: xlist a): xlist a =
@@ -16,5 +16,5 @@ val concat [a] (consumes xs: xlist a, consumes ys: xlist a): xlist a =
       ys
   | XCons ->
       concat1 (xs, ys);
-      xs explain
+      xs
   end
