@@ -1,0 +1,40 @@
+exclusive data list a =
+  | Nil
+  | Cons { head: a; tail: list a }
+
+exclusive data xlist a =
+  | XNil
+  | XCons { head: a; tail: xlist a }
+
+val rec concat1 [a] (
+   consumes dst: XCons { head: a; tail: () },
+   consumes xs: list a,
+   consumes ys: list a): (| dst @ list a)
+  =
+  match xs with
+  | Nil ->
+      dst.tail <- ys;
+      dst <- Cons
+  | Cons { head; tail } ->
+      let dst' = XCons {
+        head = head; tail = ()
+      } in
+      dst.tail <- dst';
+      concat1 (dst', tail, ys);
+      dst <- Cons
+  end
+
+val concat: [a] (
+   consumes xs: list a,
+   consumes ys: list a): list a
+  =
+  match xs with
+  | Nil ->
+      ys
+  | Cons { head; tail } ->
+      let dst = XCons {
+        head = head; tail = ()
+      } in
+      concat1 (dst, tail, ys);
+      dst
+  end

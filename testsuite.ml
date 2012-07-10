@@ -60,30 +60,6 @@ let tests = [
     let foobar = point_by_name env "foobar" in
     check env foobar (tuple [int; int]));
 
-  ("list-length.hml", fun do_it ->
-    let env = do_it false in
-    let int = find_type_by_name env "int" in
-    let zero = point_by_name env "zero" in
-    check env zero int);
-
-  ("list-concat.hml", fun do_it ->
-    let env = do_it false in
-    let x = point_by_name env "x" in
-    let list = find_type_by_name env "list" in
-    let t = TyForall ((Variable.register "foo", KType),
-      TyApp (list, TyVar 0)
-    ) in
-    check env x t);
-
-  ("list-map1.hml", fun do_it ->
-    ignore (do_it false));
-
-  ("xlist-concat.hml", fun do_it ->
-    ignore (do_it false));
-
-  ("xlist-concat1.hml", fun do_it ->
-    ignore (do_it false));
-
   ("stupid_match.hml",
     simple_test Fail (function NotNominal _ -> true | _ -> false));
 
@@ -199,6 +175,33 @@ let tests = [
     check env y t;
     check env z t;
   );
+
+  ("list-length.hml", fun do_it ->
+    let env = do_it false in
+    let int = find_type_by_name env "int" in
+    let zero = point_by_name env "zero" in
+    check env zero int);
+
+  ("list-concat.hml", fun do_it ->
+    let env = do_it false in
+    let x = point_by_name env "x" in
+    let list = find_type_by_name env "list" in
+    let t = TyForall ((Variable.register "foo", KType),
+      TyApp (list, TyVar 0)
+    ) in
+    check env x t);
+
+  ("list-map1.hml", fun do_it ->
+    ignore (do_it false));
+
+  ("xlist-concat.hml", fun do_it ->
+    ignore (do_it false));
+
+  ("xlist-concat1.hml", fun do_it ->
+    ignore (do_it false));
+
+  ("xlist-concat2.hml", fun do_it ->
+    ignore (do_it false));
 
  ]
 
