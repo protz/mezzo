@@ -38,7 +38,7 @@ let build_flexible_type_application (left_env, left_perm) (dest_env, t_dest) =
 ;;
 
 let merge_envs (top: env) (left: env * point) (right: env * point): env * point =
-  Log.debug ~level:3 "--------- START MERGE ----------\n\n%a"
+  Log.debug ~level:3 "\n--------- START MERGE ----------\n\n%a"
     TypePrinter.pdoc (TypePrinter.print_permissions, top);
 
   Log.debug ~level:3 "\n------------ LEFT --------------\n\n%a"
@@ -47,7 +47,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
   Log.debug ~level:3 "\n------------ RIGHT -------------\n\n%a"
     TypePrinter.pdoc (TypePrinter.print_permissions, fst right);
 
-  Log.debug ~level:3 "\n\n--------------------------------\n\n";
+  Log.debug ~level:3 "\n--------------------------------\n";
 
   (* We use a work list (a LIFO) to schedule points for merging. This implements
    * a depth-first traversal of the graph, which is indeed what we want (for the
@@ -587,9 +587,10 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
   (* Now we're just interested in [dest_env]. *)
   let left_env, right_env, dest_env = !state in
 
-  dump_known_triples left_env right_env dest_env;
-  Log.debug ~level:3 "--------- END MERGE ----------\n\n%a"
+  if false then dump_known_triples left_env right_env dest_env;
+  Log.debug ~level:3 "\n--------- END MERGE ----------\n\n%a"
     TypePrinter.pdoc (TypePrinter.print_permissions, dest_env);
+  Log.debug ~level:3 "\n--------------------------------\n";
 
   (* So return it. *)
   dest_env, dest_root

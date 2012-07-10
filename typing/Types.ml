@@ -1158,9 +1158,6 @@ module TypePrinter = struct
   
   let print_permission_list (env, { permissions; _ }): document =
     let permissions = List.map (print_type env) permissions in
-    (*let exclusive = List.map
-      (fun doc -> colors.underline ^^ doc ^^ colors.default) exclusive
-    in*)
     join (comma ^^ space) permissions
   ;;
 
@@ -1177,8 +1174,8 @@ module TypePrinter = struct
     in
     let lines = map_terms env (fun { names; _ } binder ->
       let names = print_names names in
-      let perms = print_permission_list (env, binder) in
-      names ^^ colon ^^ space ^^ (nest 2 perms)
+      let perms = break1 ^^ print_permission_list (env, binder) in
+      names ^^ space ^^ at ^^ space ^^ (nest 2 perms)
     ) in
     let lines = join break1 lines in
     header ^^ (nest 2 (break1 ^^ lines))
