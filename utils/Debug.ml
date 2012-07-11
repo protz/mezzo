@@ -15,6 +15,7 @@ module Graph = struct
   let draw_point oc env point permissions =
     let id = id_of_point env point in
     let names = List.map (Variable.print) (get_names env point) in
+    let names = List.filter (fun x -> x.[0] != '/') names in
     let names = String.concat " = " names in
 
     (* Get a meaningful type. *)
@@ -52,25 +53,31 @@ module Graph = struct
 
       | TyTuple ts ->
           let blocks, edges = List.split (List.mapi (fun i t ->
-            let name = string_of_int i in
+            let name = Printf.sprintf "_%d" i in
             gen env name t
           ) ts) in
           String.concat "|" blocks, edges
 
       | _ ->
+          (* Dump the type as a string. *)
           let s = Hml_String.bsprintf "%a" ptype (env, t) in
+          (* Collapse whitespace. *)
           let regexp = Str.regexp " +" in
           let s = Str.global_replace regexp " " s in
+          (* Remove newlines. *)
           let regexp = Str.regexp "\n" in
           let s = Str.global_replace regexp "" s in
+          (* Quote special characters. *)
           let regexp = Str.regexp "[<>| {}]" in
           let s = Str.global_replace regexp "\\\\\\0" s in
+          (* Trim the string to a reasonable length. *)
           let s =
             if String.length s > 50 then
               String.sub s 0 50 ^ "…"
             else
               s
           in
+          (* Done. *)
           s, []
     in
 
@@ -83,7 +90,10 @@ module Graph = struct
 
     (* Print the node. *)
     Printf.fprintf oc "\"node%d\" [\n" id;
-    Printf.fprintf oc "  label = \"{{%s}|%s}\"\n" line names;
+    if String.length names > 0 then
+      Printf.fprintf oc "  label = \"{{%s}|%s}\"\n" line names
+    else
+      Printf.fprintf oc "  label = \"%s\"\n" line;
     Printf.fprintf oc "  shape = \"record\"\n";
     Printf.fprintf oc "];\n";
   ;;

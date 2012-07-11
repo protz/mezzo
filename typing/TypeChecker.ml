@@ -361,7 +361,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
    * the environment as well as the point *)
   let return env t =
     (* Not the most clever function, but will do for now on *)
-    let hint = Option.map_none (fresh_name "x_") hint in
+    let hint = Option.map_none (fresh_name "/x_") hint in
     let env, x = bind_term env (Variable.register hint) false in
     let env = Permissions.add env x t in
     env, x
