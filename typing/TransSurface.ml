@@ -325,7 +325,7 @@ let translate_data_type_group
 
   (* Then build up the resulting environment. *)
   let tenv, points = List.fold_left (fun (tenv, acc) (name, def, fact, kind) ->
-    let name = T.Auto name in
+    let name = T.User name in
     let tenv, point = T.bind_type tenv name tenv.T.location ?definition:def fact kind in
     tenv, point :: acc) (tenv, []
   ) translated_definitions in

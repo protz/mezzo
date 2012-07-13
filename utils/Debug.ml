@@ -58,7 +58,13 @@ module Graph = struct
             let name = Printf.sprintf "_%d" i in
             gen env name t
           ) ts) in
-          String.concat "|" blocks, edges
+          let line =
+            if List.length blocks > 0 then
+              String.concat "|" blocks
+            else
+              "()"
+          in
+          line, edges
 
       | _ ->
           (* Dump the type as a string. *)
