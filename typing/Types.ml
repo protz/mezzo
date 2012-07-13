@@ -20,8 +20,13 @@ type kind = SurfaceSyntax.kind =
 let flatten_kind =
   SurfaceSyntax.flatten_kind
 
+(** Has this name been auto-generated or not? *)
+type name = User of Variable.name | Auto of Variable.name
+
+type location = Lexing.position * Lexing.position
+
 type type_binding =
-  SurfaceSyntax.type_binding
+  name * kind * location
 
 module DataconMap = Hml_Map.Make(struct
   type t = Datacon.name
@@ -31,32 +36,6 @@ end)
 (* Record fields remain named. *)
 
 module Field = Variable
-
-(* The annotations [Consumes] and [ConsumesAndProduces] that appear in the
-   surface syntax are desugared. They do not appear at this level. *)
-
-(* In the surface syntax, tuple types can bind names for their components.
-   Here, this is desugared using singleton types, universal quantification,
-   and existential quantification. Tuple type components are now anonymous. *)
-
-(* TEMPORARY we need a notion of type equality, or subtyping, that deals with
-   quantifiers in a transparent way -- especially the quantifiers introduced
-   by the translation of named tuple components down to this kernel syntax.
-   E.g. we need (the translation of) [t] to be interconvertible with (the
-   translation of) [(x: t)], which is [exists x :: term. (=x, permission x: t)].
-   Hmm, tricky, tricky. Do we really want to go this way? *)
-
-(* TEMPORARY also, subtyping must take into account the AC axioms for TyStar,
-   the fact that TyEmpty is neutral for TyStar, and (perhaps) the fact that
-   duplicable permissions are idempotent for TyStar. Tricky, tricky. *)
-
-(* TEMPORARY also, subtyping must take into account the fact that tuple
-   components which are anonymous permissions can freely move around
-   within a tuple. Hmm, hmm. *)
-
-(* TEMPORARY perhaps we could completely avoid the need for subtyping
-   (and solve all three problems above) by working with explicit
-   eta-expansions instead. This requires thought! *)
 
 type typ =
     (* Special type constants. *)
@@ -140,17 +119,27 @@ type env = {
   (* A mark that is used during various traversals of the [state]. *)
   mark: Mark.t;
 
-  (* The current position. *)
-  position: Lexing.position * Lexing.position;
+  (* The current location. *)
+  location: location;
 }
 
 and binding =
   binding_head * raw_binding
 
 and binding_head = {
-  names: Variable.name list;
+  (* This information is only for printing and debugging. *)
+  names: name list;
+  locations: location list;
+
+  (* Is this a flexible variable, and has it been unified with something? *)
   structure: structure;
+
+  (* The kind of this variable. If kind is TERM, then the [raw_binding] is a
+   * [term_binder]. *)
   kind: kind;
+
+  (* For some passes, we need to mark points as visited. This module provides a
+   * set of functions to deal with marks. *)
   binding_mark: Mark.t;
 }
 
@@ -159,8 +148,9 @@ and raw_binding =
 
 and type_binder = {
   (* Definition: if it's a data type (e.g. [list]) there's a definition for it,
-   * otherwise it's none. *)
+   * otherwise it's abstract and there's no definition. *)
   definition: type_def;
+
   (* Associated fact. *)
   fact: fact;
 }
@@ -168,8 +158,12 @@ and type_binder = {
 and term_binder = {
   (* A list of available permissions for that identifier. *)
   permissions: permissions;
+
   (* A ghost variable has been introduced, say, through [x :: TERM], and does
-   * not represent something we can compile. *)
+   * not represent something we can compile.
+   *
+   * TEMPORARY: as of 2012/07/12 this information is not accurate and one should
+   * not rely on it. *)
   ghost: bool;
 }
 
@@ -177,7 +171,12 @@ and perm_binder = {
   (* XXX this is temporary, we still need to think about how we should represent
    * permissions that are not attached to a particular identifier. A simple
    * strategy would be to attach to the environment a list of all points
-   * representing PERM binders. *)
+   * representing PERM binders.
+   *
+   * 2012/07/12: and make sure that as soon as some flexible variable happens to
+   * be unified, we run through the list of floating permissions to see if
+   * [x* @ t] turned into [x @ t], which means we should attach [t] to the
+   * list of available permissions for point [x]. *)
   consumed: bool;
 }
 
@@ -193,22 +192,37 @@ let empty_env = {
   type_for_datacon = DataconMap.empty;
   state = PersistentUnionFind.init ();
   mark = Mark.create ();
-  position = Lexing.dummy_pos, Lexing.dummy_pos;
+  location = Lexing.dummy_pos, Lexing.dummy_pos;
 }
 
-let locate env position =
-  { env with position }
+let locate env location =
+  { env with location }
 ;;
+
+
+(* ---------------------------------------------------------------------------- *)
+
+(** Some functions related to the manipulation of the union-find structure of
+ * the environment. *)
 
 (* Dealing with the union-find nature of the environment. *)
 let same env p1 p2 =
   PersistentUnionFind.same p1 p2 env.state
 ;;
 
-let get_names (env: env) (point: point): Variable.name list =
+let get_names (env: env) (point: point): name list =
   match PersistentUnionFind.find point env.state with
   | { names; _ }, _ ->
       names
+;;
+
+let names_equal n1 n2 =
+  match n1, n2 with
+  | User n1, User n2 | Auto n1, Auto n2
+    when Variable.equal n1 n2 ->
+      true
+  | _ ->
+      false
 ;;
 
 (* Merge while keeping the descriptor of the leftmost argument. *)
@@ -218,15 +232,24 @@ let merge_left env p2 p1 =
     colors.red colors.default
     !internal_pnames (get_names env p1)
     !internal_pnames (get_names env p2);
-  (* All this work is just to make sure we keep the names from both sides. *)
+
+  (* All this work is just to make sure we keep the names, positions... from
+   * both sides. *)
   let state = env.state in
-  let { names = names; _ }, _ = PersistentUnionFind.find p1 state in
-  let { names = names'; _ }, _ = PersistentUnionFind.find p2 state in
+  let { names = names; locations = locations; _ }, _ =
+    PersistentUnionFind.find p1 state
+  in
+  let { names = names'; locations = locations'; _ }, _ =
+    PersistentUnionFind.find p2 state
+  in
   let names = names @ names' in
-  let names = Hml_List.remove_duplicates ~equal_func:Variable.equal names in
-  (* XXX we should probably keeps permissions too, no? *)
+  let names = Hml_List.remove_duplicates names in
+  let locations = locations @ locations' in
+  let locations = Hml_List.remove_duplicates locations in
+
+  (* It is up to the caller to move the permissions if needed... *)
   let state = PersistentUnionFind.update (fun (head, raw) ->
-    { head with names }, raw) p2 state
+    { head with names; locations }, raw) p2 state
   in
   (* If we don't want to be fancy, the line below is enough. It keeps [p2]. *)
   let env = { env with state = PersistentUnionFind.union p1 p2 state } in
@@ -246,6 +269,7 @@ let has_structure env p =
   Option.is_some (structure env p)
 ;;
 
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Fact-related functions. *)
@@ -257,6 +281,7 @@ let fact_leq f1 f2 =
   | _ ->
       false
 ;;
+
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -294,8 +319,8 @@ let equal env (t1: typ) (t2: typ) =
             false
         end
 
-    | TyExists ((_, k1), t1), TyExists ((_, k2), t2)
-    | TyForall ((_, k1), t1), TyForall ((_, k2), t2) ->
+    | TyExists ((_, k1, _), t1), TyExists ((_, k2, _), t2)
+    | TyForall ((_, k1, _), t1), TyForall ((_, k2, _), t2) ->
         k1 = k2 && equal t1 t2
 
     | TyArrow (t1, t'1), TyArrow (t2, t'2)
@@ -475,6 +500,8 @@ let tsubst_data_type_def_branch t2 i branch =
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Various helpers for creating and destructuring [typ]s easily. *)
+
 let ty_equals x =
   TySingleton (TyPoint x)
 ;;
@@ -497,20 +524,6 @@ let ty_bar t p =
 ;;
 
 
-(* ---------------------------------------------------------------------------- *)
-
-(* Various functions related to binding and finding. *)
-
-let head name ~flexible kind =
-  let structure = if flexible then Flexible None else Rigid in
-  {
-    names = [name];
-    binding_mark = Mark.create ();
-    structure;
-    kind;
-  }
-;;
-
 let rec flatten_star = function
   | TyStar (p, q) ->
       flatten_star p @ flatten_star q
@@ -529,15 +542,46 @@ let fold_star perms =
     TyEmpty
 ;;
 
+let strip_forall t =
+  let rec strip acc = function
+  | TyForall (b, t) ->
+      strip (b :: acc) t
+  | _ as t ->
+      List.rev acc, t
+  in
+  strip [] t
+;;
+
+let add_forall bindings t =
+  List.fold_right (fun binding t -> TyForall (binding, t)) bindings t
+;;
+
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Various functions related to binding and finding. *)
+
+let head name location ~flexible kind =
+  let structure = if flexible then Flexible None else Rigid in
+  {
+    names = [name];
+    locations = [location];
+    binding_mark = Mark.create ();
+    structure;
+    kind;
+  }
+;;
+
 let bind_term
     (env: env)
-    (name: Variable.name)
+    (name: name)
+    (location: location)
     ?(flexible=false)
     ?(include_equals=true)
     (ghost: bool): env * point
   =
   let binding =
-    head name ~flexible KTerm,
+    head name location ~flexible KTerm,
     BTerm { permissions = []; ghost }
   in
   let point, state = PersistentUnionFind.create binding env.state in
@@ -554,7 +598,8 @@ let bind_term
 
 let bind_type
     (env: env)
-    (name: Variable.name)
+    (name: name)
+    (location: location)
     ?(flexible=false)
     ?(definition: type_def)
     (fact: fact)
@@ -562,21 +607,21 @@ let bind_type
   =
   let return_kind, _args = flatten_kind kind in
   Log.check (return_kind = KType) "[bind_type] is for variables with kind TYPE only";
-  let binding = head name ~flexible kind, BType { fact; definition; } in
+  let binding = head name location ~flexible kind, BType { fact; definition; } in
   let point, state = PersistentUnionFind.create binding env.state in
   { env with state }, point
 ;;
 
-let bind_var (env: env) ?(flexible=false) (name, kind: type_binding): env * point =
+let bind_var (env: env) ?(flexible=false) (name, kind, location: type_binding): env * point =
   let fact = Affine in
   match kind with
     | KType ->
         (* Of course, such a type variable does not have a definition. *)
-        bind_type env name ~flexible fact kind
+        bind_type env name location ~flexible fact kind
     | KTerm ->
-        (* This is false because we're floating "real" paramters of a function
+        (* This is wrong because we're floating "real" parameters of a function
            as type variables with kind TERM, so it's not a ghost variable... *)
-        bind_term env name ~flexible true
+        bind_term env name location ~flexible true
     | KPerm ->
         Log.error "TODO"
     | KArrow _ ->
@@ -608,21 +653,21 @@ let bind_var_in_type
 
 let bind_param_at_index_in_data_type_def_branches
     (env: env)
-    (name: Variable.name)
+    (name: name)
     (fact: fact)
     (kind: kind)
     (index: index)
     (branches: data_type_def_branch list): env * data_type_def_branch list =
   (* This needs a special treatment because the type parameters are not binders
    * per se (unlike TyForall, for instance...). *)
-  let env, point = bind_type env name fact kind in
+  let env, point = bind_type env name env.location fact kind in
   let branches =
     List.map (tsubst_data_type_def_branch (TyPoint point) index) branches
   in
   env, branches
 ;;
 
-let find_type (env: env) (point: point): Variable.name * type_binder =
+let find_type (env: env) (point: point): name * type_binder =
   match PersistentUnionFind.find point env.state with
   | { names; _ }, BType binding ->
       List.hd names, binding
@@ -630,7 +675,7 @@ let find_type (env: env) (point: point): Variable.name * type_binder =
       Log.error "Binder is not a type"
 ;;
 
-let find_term (env: env) (point: point): Variable.name * term_binder =
+let find_term (env: env) (point: point): name * term_binder =
   match PersistentUnionFind.find point env.state with
   | { names; _ }, BTerm binding ->
       List.hd names, binding
@@ -712,6 +757,10 @@ let fold_types env f acc =
   acc env.state
 ;;
 
+let replace env point f =
+  { env with state = PersistentUnionFind.update f point env.state }
+;;
+
 let replace_term env point f =
   { env with state =
       PersistentUnionFind.update (function
@@ -768,6 +817,12 @@ let get_permissions (env: env) (point: point): permissions =
 let get_fact (env: env) (point: point): fact =
   let _, { fact; _ } = find_type env point in
   fact
+;;
+
+let get_locations (env: env) (point: point): location list =
+  match PersistentUnionFind.find point env.state with
+  | { locations; _ }, _ ->
+      locations
 ;;
 
 let get_kind (env: env) (point: point): kind =
@@ -863,7 +918,7 @@ let point_by_name (env: env) (name: string): point =
   let module T = struct exception Found of point end in
   try
     fold env (fun () point ({ names; _ }, _binding) ->
-      if List.exists (fun name' -> Variable.(equal (register name) name')) names then
+      if List.exists (names_equal (User (Variable.register name))) names then
         raise (T.Found point)) ();
     raise Not_found
   with T.Found point ->
@@ -897,7 +952,7 @@ let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_bra
   (* Turn the list of parameters into letters *)
   let letters: string list = Hml_Pprint.name_gen (List.length params) in
   let env, branches = Hml_List.fold_left2i (fun i (env, branches) letter kind ->
-    let letter = Variable.register letter in
+    let letter = Auto (Variable.register letter) in
     let env, branches =
       let index = arity - i - 1 in
       bind_param_at_index_in_data_type_def_branches
@@ -924,8 +979,15 @@ module TypePrinter = struct
 
   (* --------------------------------------------------------------------------- *)
 
-  let print_var var =
-    print_string (Variable.print var)
+  let print_var = function
+    | User var ->
+        print_string (Variable.print var)
+    | Auto var ->
+        colors.yellow ^^ print_string (Variable.print var) ^^ colors.default
+  ;;
+
+  let pvar buf (var: name) =
+    pdoc buf (print_var, var)
   ;;
 
   let print_datacon datacon =
@@ -973,7 +1035,7 @@ module TypePrinter = struct
   let rec print_quantified
       (env: env)
       (q: string)
-      (name: Variable.name) 
+      (name: name) 
       (kind: SurfaceSyntax.kind)
       (typ: typ) =
     print_string q ^^ lparen ^^ print_var name ^^ space ^^ ccolon ^^ space ^^
@@ -1013,11 +1075,11 @@ module TypePrinter = struct
         print_names (get_names env p) ^^ star ^^ space ^^ equals ^^ space ^^
         print_names (get_names env p') ^^ star'
 
-    | TyForall (((name, kind) as binding), typ) ->
+    | TyForall (((name, kind, _) as binding), typ) ->
         let env, typ = bind_var_in_type env binding typ in
         print_quantified env "∀" name kind typ
 
-    | TyExists (((name, kind) as binding), typ) ->
+    | TyExists (((name, kind, _) as binding), typ) ->
         let env, typ = bind_var_in_type env binding typ in
         print_quantified env "∃" name kind typ
 

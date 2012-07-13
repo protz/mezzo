@@ -11,7 +11,7 @@ val collect: typ -> typ * typ list
 (** [unfold env t] returns [env, t] where [t] has been unfolded, which
     potentially led us into adding new points to [env]. The [hint] serves when
     making up names for intermediary variables. *)
-val unfold: env -> ?hint:string -> typ -> env * typ
+val unfold: env -> ?hint:name -> typ -> env * typ
 
 type refined_type = Both | One of typ
 
@@ -63,3 +63,5 @@ val full_merge: env -> point -> point -> env
 
 (** When you're sure the type is a point. *)
 val (!!): typ -> point
+
+val add_hint: (name option) -> string -> (name option)

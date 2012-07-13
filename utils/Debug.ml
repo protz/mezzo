@@ -14,8 +14,10 @@ module Graph = struct
 
   let draw_point oc env point permissions =
     let id = id_of_point env point in
-    let names = List.map (Variable.print) (get_names env point) in
-    let names = List.filter (fun x -> x.[0] != '/') names in
+    let names = Hml_List.map_some
+      (function User v -> Some (Variable.print v) | Auto _ -> None)
+      (get_names env point)
+    in
     let names = String.concat " = " names in
 
     (* Get a meaningful type. *)
@@ -134,7 +136,7 @@ let explain env x =
     (* Print the current position. *)
     Hml_String.bprintf "Last checked expression: %a at %a\n"
       pnames (get_names env x)
-      Lexer.p env.position;
+      Lexer.p env.location;
 
     (* Print MOAR. *)
     Hml_String.bprintf "\n";

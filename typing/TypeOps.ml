@@ -3,20 +3,6 @@
 open Types
 open Permissions
 open Expressions
-
-let strip_forall t =
-  let rec strip acc = function
-  | TyForall (b, t) ->
-      strip (b :: acc) t
-  | _ as t ->
-      List.rev acc, t
-  in
-  strip [] t
-;;
-
-let add_forall bindings t =
-  List.fold_right (fun binding t -> TyForall (binding, t)) bindings t
-;;
  
 (* This function tries to find all function types of the form
 
@@ -41,8 +27,8 @@ let cleanup_function_type env t body =
             cleanup env vars t e
         | _ ->
             let t, _ = find env t e in
-            List.fold_right (fun ((x, k), p) t ->
-              TyForall ((x, k), Flexible.tpsubst env (TyVar 0) p t)
+            List.fold_right (fun (b, p) t ->
+              TyForall (b, Flexible.tpsubst env (TyVar 0) p t)
             ) vars t, None
         end
 
@@ -161,14 +147,14 @@ let cleanup_function_type env t body =
         (* Now put back the quantifiers into place, skipping those that have
          * been put back already. *)
         let env = refresh_mark env in
-        let _env, t, e, _i = List.fold_right (fun ((_, k), p) (env, t, e, i) ->
+        let _env, t, e, _i = List.fold_right (fun ((_, k, pos), p) (env, t, e, i) ->
           if is_marked env p then
             env, t, e, i
           else
             let env = mark env p in
             let name =
               let names = get_names env p in
-              try List.find (fun x -> (Variable.print x).[0] <> '/') names
+              try List.find (function User _ -> true | _ -> false) names
               with Not_found -> List.hd names
             in
             let t = Flexible.tpsubst env (TyVar 0) p t in
@@ -177,7 +163,7 @@ let cleanup_function_type env t body =
              * account the fact that we've traversed so many binders. *)
             let e = Option.map (epsubst env (EVar i) p) e in
             let e = Option.map (tepsubst env (TyVar i) p) e in
-            env, TyForall ((name, k), t), e, i + 1
+            env, TyForall ((name, k, pos), t), e, i + 1
         ) vars (env, t, e, 0) in
         
         t, e

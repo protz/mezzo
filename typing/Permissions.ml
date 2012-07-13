@@ -8,6 +8,15 @@ open Utils
 (* Saves us the trouble of matching all the time. *)
 let (!!) = function TyPoint x -> x | _ -> assert false;;
 
+let add_hint hint str =
+  match hint with
+  | Some (Auto n)
+  | Some (User n) ->
+      Some (Auto (Variable.register (Variable.print n ^ "_" ^ str)))
+  | None ->
+      None
+;;
+
 type refined_type = Both | One of typ
 
 exception Inconsistent
@@ -108,24 +117,24 @@ let collect (t: typ): typ * typ list =
 (** [unfold env t] returns [env, t] where [t] has been unfolded, which
     potentially led us into adding new points to [env]. The [hint] serves when
     making up names for intermediary variables. *)
-let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
+let rec unfold (env: env) ?(hint: name option) (t: typ): env * typ =
   (* This auxiliary function takes care of inserting an indirection if needed,
    * that is, a [=foo] type with [foo] being a newly-allocated [point]. *)
-  let insert_point (env: env) ?(hint: string option) (t: typ): env * typ =
-    let hint = Option.map_none (fresh_name "t_") hint in
+  let insert_point (env: env) ?(hint: name option) (t: typ): env * typ =
+    let hint = Option.map_none (Auto (Variable.register (fresh_name "t_"))) hint in
     match t with
     | TySingleton _ ->
         env, t
     | _ ->
         (* The [expr_binder] also serves as the binder for the corresponding
          * TERM type variable. *)
-        let env, p = bind_term env (Variable.register hint) false in
+        let env, p = bind_term env hint env.location false in
         (* This will take care of unfolding where necessary. *)
         let env = add env p t in
         env, TySingleton (TyPoint p)
   in
 
-  let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
+  let rec unfold (env: env) ?(hint: name option) (t: typ): env * typ =
     match t with
     | TyUnknown
     | TyDynamic
@@ -180,7 +189,7 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
     (* We're only interested in unfolding structural types. *)
     | TyTuple components ->
         let env, components = Hml_List.fold_lefti (fun i (env, components) component ->
-          let hint = Option.map (fun hint -> Printf.sprintf "%s_%d" hint i) hint in
+          let hint = add_hint hint (string_of_int i) in
           let env, component = insert_point env ?hint component in
           env, component :: components
         ) (env, []) components in
@@ -191,9 +200,9 @@ let rec unfold (env: env) ?(hint: string option) (t: typ): env * typ =
           | FieldPermission _ as field ->
               env, field :: fields
           | FieldValue (name, field) ->
-              let hint = Option.map (fun hint ->
-                Hml_String.bsprintf "%s_%a_%a" hint Datacon.p datacon Field.p name
-              ) hint in
+              let hint =
+                add_hint hint (Hml_String.bsprintf "%a_%a" Datacon.p datacon Field.p name)
+              in
               let env, field = insert_point env ?hint field in
               env, FieldValue (name, field) :: fields
         ) (env, []) fields
@@ -449,7 +458,7 @@ and add (env: env) (point: point) (t: typ): env =
    * faced with two [TyPoint]s. *)
   Log.check (not (has_structure env point)) "I don't understand what's happening";
 
-  let hint = Variable.print (get_name env point) in
+  let hint = get_name env point in
 
   (* We first perform unfolding, so that constructors with one branch are
    * simplified. *)
@@ -586,7 +595,7 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
                 (really? %b)"
                 colors.yellow colors.default
                 ptype (env, hd)
-                Variable.p (get_name env point)
+                pvar (get_name env point)
                 (not duplicable));
             (* We're taking out [hd] from the list of permissions for [point].
              * Is it something duplicable? *)

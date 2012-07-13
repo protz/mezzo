@@ -37,7 +37,7 @@ let flatten_kind kind =
 (* Types and permissions. *)
 
 type type_binding =
-    Variable.name * kind
+    Variable.name * kind * (Lexing.position * Lexing.position)
 
 type typ =
   | TyLocated of typ * Lexing.position * Lexing.position
@@ -159,7 +159,7 @@ and expression =
   (* let rec f p₁ … pₙ: τ = e₁ and … and v = e₂ in e *)
   | ELet of rec_flag * (pattern * expression) list * expression
   (* fun [a] (x: τ): τ -> e *)
-  | EFun of (Variable.name * kind) list * typ * typ * expression
+  | EFun of type_binding list * typ * typ * expression
   (* v.f <- e *)
   | EAssign of expression * Variable.name * expression
   (* v.f *)

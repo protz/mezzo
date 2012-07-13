@@ -4,6 +4,7 @@ open TestUtils
 
 let check env point t =
   ignore (check_return_type env point t)
+;;
 
 type outcome = Fail | Pass
 
@@ -17,6 +18,19 @@ let simple_test outcome f = fun do_it ->
         ()
     | _ ->
         raise (Failure "")
+;;
+
+let dummy_loc =
+  Lexing.dummy_pos, Lexing.dummy_pos
+;;
+
+let dummy_name =
+  User (Variable.register "foo")
+;;
+
+let dummy_binding k =
+  dummy_name, k, dummy_loc
+;;
 
 let tests = [
   ("constructors.hml",
@@ -74,7 +88,7 @@ let tests = [
   ("merge2.hml", fun do_it ->
     let env = do_it false in
     let v2 = point_by_name env "v2" in
-    let t = TyExists ((Variable.register "foo", KTerm),
+    let t = TyExists (dummy_binding KTerm,
       TyBar (
         ty_equals v2,
         TyStar (
@@ -94,8 +108,8 @@ let tests = [
   ("merge3.hml", fun do_it ->
     let env = do_it false in
     let v3 = point_by_name env "v3" in
-    let t = TyExists ((Variable.register "foo", KTerm),
-      TyExists ((Variable.register "bar", KTerm),
+    let t = TyExists (dummy_binding KTerm,
+      TyExists (dummy_binding KTerm,
         TyBar (
           ty_equals v3,
           fold_star [
@@ -137,7 +151,7 @@ let tests = [
     let v6 = point_by_name env "v6" in
     let v = find_type_by_name env "v" in
     let int = find_type_by_name env "int" in
-    let t = TyForall ((Variable.register "foo", KType),
+    let t = TyForall (dummy_binding KType,
       TyApp (TyApp (v, int), TyVar 0)
     )
     in
@@ -147,8 +161,8 @@ let tests = [
     let env = do_it false in
     let v7 = point_by_name env "v7" in
     let v = find_type_by_name env "v" in
-    let t = TyForall ((Variable.register "foo", KType),
-      TyForall ((Variable.register "bar", KType),
+    let t = TyForall (dummy_binding KType,
+      TyForall (dummy_binding KType,
         TyApp (TyApp (v, TyVar 1), TyVar 0)
       ))
     in
@@ -158,7 +172,7 @@ let tests = [
     let env = do_it false in
     let v8 = point_by_name env "v8" in
     let v = find_type_by_name env "v" in
-    let t = TyForall ((Variable.register "foo", KType),
+    let t = TyForall (dummy_binding KType,
         TyApp (TyApp (v, TyVar 0), TyVar 0)
       )
     in
@@ -170,7 +184,7 @@ let tests = [
     let y = point_by_name env "y" in
     let z = point_by_name env "z" in
     let u = find_type_by_name env "u" in
-    let t = TyForall ((Variable.register "foo", KType), TyApp (u, TyVar 0)) in
+    let t = TyForall (dummy_binding KType, TyApp (u, TyVar 0)) in
     check env x t;
     check env y t;
     check env z t;
@@ -186,7 +200,7 @@ let tests = [
     let env = do_it false in
     let x = point_by_name env "x" in
     let list = find_type_by_name env "list" in
-    let t = TyForall ((Variable.register "foo", KType),
+    let t = TyForall (dummy_binding KType,
       TyApp (list, TyVar 0)
     ) in
     check env x t);

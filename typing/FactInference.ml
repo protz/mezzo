@@ -76,7 +76,7 @@ let duplicables
         | TyPoint point ->
           begin
             Log.debug ~level:4 "Applying %a (bitmap=%a)"
-              Variable.p (get_name env point)
+              TypePrinter.pvar (get_name env point)
               TypePrinter.pfact (get_fact env point);
             match get_fact env point with
             | Fuzzy _ ->
@@ -184,9 +184,9 @@ let one_round (env: env): env =
             env
         | Duplicable bitmap ->
             Log.debug ~level:4 "Attacking %s%a%s %a" Bash.colors.Bash.red
-              Variable.p (get_name env point)
+              TypePrinter.pvar (get_name env point)
               Bash.colors.Bash.default
-              Variable.p tname;
+              TypePrinter.pvar tname;
             (* [bitmap] is shared! *)
             let phase = Elaborating bitmap in
             let inner_env, branches =

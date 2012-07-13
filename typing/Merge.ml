@@ -10,6 +10,12 @@ type job = point * point * point
 
 type outcome = MergeWith of point | Proceed | Abort
 
+let add_location dest_env dest_point right_location =
+  replace dest_env dest_point (fun (head, binding) ->
+    { head with locations = right_location :: head.locations }, binding
+  )
+;;
+
 (* The logic is the same on both sides, but I'm writing this with
  * the left-side in mind. *)
 let build_flexible_type_application (left_env, left_perm) (dest_env, t_dest) =
@@ -22,7 +28,8 @@ let build_flexible_type_application (left_env, left_perm) (dest_env, t_dest) =
 
   let left_env, arg_points_l = List.fold_left2 (fun (env, points) kind letter ->
     let env, point =
-      bind_type env (Variable.register letter) ~flexible:true Affine kind
+      let letter = Auto (Variable.register letter) in
+      bind_type env letter env.location ~flexible:true Affine kind
     in
     env, point :: points) (left_env, []) arg_kinds letters
   in
@@ -157,8 +164,8 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
             let name, binder = find_term dest_env dest_point in
             Log.debug ~level:4
               "%a %a shouldn't have any permissions but it has %a"
-              Lexer.p dest_env.position
-              Variable.p name
+              Lexer.p dest_env.location
+              pvar name
               pdoc (print_permission_list, (dest_env, binder));
             Log.error "The destination point must have an empty list of permissions!"
           end;
@@ -198,8 +205,8 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
    * merging, at the front of the list (this implements our first heuristic). *)
   let left_env, left_root = left in
   let right_env, right_root = right in
-  let root_name = Variable.register (fresh_name "/merge_root") in
-  let dest_env, dest_root = bind_term ~include_equals:false dest_env root_name false in
+  let root_name = Auto (Variable.register (fresh_name "merge_root")) in
+  let dest_env, dest_root = bind_term ~include_equals:false dest_env root_name dest_env.location false in
   push_job (left_root, right_root, dest_root);
 
   (* All bound types are kept, so remember that we know how these are mapped. *)
@@ -220,6 +227,9 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       TypePrinter.pnames (get_names left_env left_point)
       TypePrinter.pnames (get_names right_env right_point)
       TypePrinter.pnames (get_names dest_env dest_point);
+
+    let left_env = locate left_env (List.hd (get_locations left_env left_point)) in
+    let right_env = locate right_env (List.hd (get_locations right_env right_point)) in
 
     match what_should_i_do (left_env, left_point) (right_env, right_point) (dest_env, dest_point) with
     | Abort ->
@@ -258,8 +268,8 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
               | Some (right_perms, (right_perm, (left_env, right_env, dest_env, dest_perm))) ->
 
                   Log.debug ~level:4 "  → this merge between %a and %a was succesful"
-                    Variable.p (get_name left_env left_point)
-                    Variable.p (get_name right_env right_point);
+                    TypePrinter.pvar (get_name left_env left_point)
+                    TypePrinter.pvar (get_name right_env right_point);
 
                   let left_is_duplicable = FactInference.is_duplicable left_env left_perm in
                   let right_is_duplicable = FactInference.is_duplicable right_env right_perm in
@@ -324,8 +334,9 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       | Some dest_p ->
           dest_env, dest_p
       | None ->
-          let name = Variable.register (fresh_name "/merge_point") in
-          let dest_env, dest_p = bind_term ~include_equals:false dest_env name false in
+          let name = Auto (Variable.register (fresh_name "merge_point")) in
+          let dest_env, dest_p = bind_term ~include_equals:false dest_env name left_env.location false in
+          let dest_env = add_location dest_env dest_p right_env.location in
           push_job (left_p, right_p, dest_p);
           Log.debug ~level:4
             "  [push_job] %a / %a / %a"
@@ -409,7 +420,9 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
                   Some (left_env, right_env, dest_env, TyPoint dest_p)
               | None ->
                   let dest_env, dest_p =
-                    bind_type dest_env (get_name left_env left_p) ~flexible:true Affine k
+                    (* XXX fingers crossed that it works for flexible type
+                     * variables with kind TERM... *)
+                    bind_var dest_env ~flexible:true (get_name left_env left_p, k, dest_env.location)
                   in
                   push known_triples (left_p, right_p, dest_p);
 
@@ -528,7 +541,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
            * handle that... *)
 
           (* First, check that the kinds are equal. *)
-          let k_l, k_r = snd binding_left, snd binding_right in
+          let (_, k_l, left_location), (_, k_r, right_location) = binding_left, binding_right in
           if k_l = k_r then
 
             (* Bind the variables as rigid. *)
@@ -537,11 +550,12 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
 
             (* Pick the name from the left... *)
             let binding = binding_left in
-            let name, k = binding in
+            let name, k, _ = binding in
 
             (* Bind the corresponding rigid variable in the destination
              * environment. Remember the triple. *)
-            let dest_env, dest_point = bind_var dest_env (name, k) in
+            let dest_env, dest_point = bind_var dest_env (name, k, left_location) in
+            let dest_env = add_location dest_env dest_point right_location in
             push known_triples (left_point, right_point, dest_point);
 
             (* Try to perform the merge. *)

@@ -132,8 +132,8 @@ let mismatch env expected_kind inferred_kind =
 let illegal_consumes env =
   raise_error env IllegalConsumes
 
-let bound_twice x =
-  raise_error empty (BoundTwice x)
+let bound_twice env x =
+  raise_error env (BoundTwice x)
 
 let bad_condition_in_fact env x =
   raise_error env (BadConditionsInFact x)
@@ -170,11 +170,11 @@ type fragment =
 
 (* [strict_add x kind env] adds the name [x] in the environment [env] with kind
    [kind], and ensures that is hasn't been bound already. *)
-let strict_add x kind env =
+let strict_add env x kind mapping =
   try
-    M.strict_add x kind env
+    M.strict_add x kind mapping
   with M.Unchanged ->
-    bound_twice x
+    bound_twice env x
 
 (* [find x env] looks up the name [x] in the environment [env] and returns a
    pair of a kind and a de Bruijn index (not a de Bruijn level!). *)
@@ -189,7 +189,7 @@ let find x env =
 let bind ?strict env (x, kind) : env =
   (* The current level becomes [x]'s level. The current level is
      then incremented. *)
-  let add = if Option.unit_bool strict then strict_add else M.add in
+  let add = if Option.unit_bool strict then strict_add env else M.add in
   { env with
     level = env.level + 1;
     mapping = add x (kind, env.level) env.mapping }
@@ -204,12 +204,9 @@ let locate env p1 p2: env =
    environment, but also a list of bindings, which indicates in which order
    the bindings are performed. At the head of the list comes the innermost
    binding. *)
-let extend (env : env) (xs : fragment) : env * type_binding list =
-  M.fold (fun x kind (env, bindings) ->
-    let binding = (x, kind) in
-    bind env binding,
-    binding :: bindings
-  ) xs (env, [])
+let extend (env : env) (xs : type_binding list) : env =
+  List.fold_left (fun env (x, k, _) ->
+    bind env (x, k)) env xs
 
 (* [forall bindings ty] builds a series of universal quantifiers.
    The innermost binding comes first in the list [bindings]. *)
@@ -258,46 +255,51 @@ let check_for_duplicates (elements: 'a list) (exit: 'a -> 'b): unit =
    is up to the [check] function to introduce the binders in scope in the right
    places. The order is not important here, since this will be passed on to the
    [extend] function which will then pick a give order. *)
-let rec names ty : fragment =
-  let merge ts =
-    let envs = List.map names ts in
-    List.fold_left (M.fold strict_add) M.empty envs
+let names env ty : type_binding list =
+  let rec names env ty =
+    match ty with
+    | TyLocated (t, p1, p2) ->
+        names (locate env p1 p2) t
+    | TyNameIntro (x, t) ->
+        let bindings = names env t in
+        (x, KTerm, env.location) :: bindings
+    | TyTuple ts ->
+        List.flatten (List.map (names env) ts)
+    | TyConcreteUnfolded (_cons, fields) ->
+        let ts = Hml_List.map_some
+          (function FieldValue (_, t) -> Some t | FieldPermission _ -> None) 
+          fields
+        in
+        List.flatten (List.map (names env) ts)
+    | TySingleton t
+    | TyConsumes t
+    | TyForall (_, t) ->
+        names env t
+    | TyStar (t1, t2)
+    | TyAnchoredPermission (t1, t2)
+    | TyBar (t1, t2) ->
+        (names env t1) @ (names env t2)
+    | TyUnknown | TyDynamic | TyEmpty | TyVar _ | TyApp _ | TyArrow _ ->
+        []
   in
-  match ty with
-  | TyLocated (t, _, _) ->
-      names t
-  | TyNameIntro (x, t) ->
-      let env = names t in
-      strict_add x KTerm env
-  | TyTuple ts ->
-      merge ts
-  | TyConcreteUnfolded (_cons, fields) ->
-      let ts = Hml_List.map_some
-        (function FieldValue (_, t) -> Some t | FieldPermission _ -> None) 
-        fields
-      in
-      merge ts
-  | TySingleton t
-  | TyConsumes t
-  | TyForall (_, t) ->
-      names t
-  | TyStar (t1, t2)
-  | TyAnchoredPermission (t1, t2)
-  | TyBar (t1, t2) ->
-      merge [t1; t2]
-  | _ ->
-      M.empty
+  let names = names env ty in
+  check_for_duplicates
+    (List.map (fun (x, _, _) -> x) names)
+    (fun x -> bound_twice env x);
+  names
 ;;
 
 (* [bindings_data_type_group] returns a list of names that the whole data type
    group binds, with the corresponding kinds. The list is in the same order as
    the data type definitions. *)
-let bindings_data_type_group (data_type_group: data_type_def list): type_binding list =
+let bindings_data_type_group (data_type_group: data_type_def list): (Variable.name * kind) list =
   List.map (function
       | Concrete (_flag, (name, params), _) ->
+          let params = List.map (fun (x, y, _) -> x, y) params in
           let k = karrow params KType in
           (name, k)
       | Abstract ((name, params), return_kind, _fact) ->
+          let params = List.map (fun (x, y, _) -> x, y) params in
           let k = karrow params return_kind in
           (name, k))
     data_type_group
@@ -306,7 +308,7 @@ let bindings_data_type_group (data_type_group: data_type_def list): type_binding
 
 (* [bindings_pattern] returns in prefix order the list of names bound in a
    pattern. *)
-let rec bindings_pattern (pattern: pattern): type_binding list =
+let rec bindings_pattern (pattern: pattern): (Variable.name * kind) list =
   match pattern with
   | PConstraint (p, _) ->
       bindings_pattern p
@@ -410,16 +412,16 @@ and infer (env: env) (t: typ) =
       k'
 
   | TyArrow (t1, t2) ->
-      let f1 = names t1 in
-      let f2 = names t2 in
-      let env, _bindings = extend env f1 in
+      let f1 = names env t1 in
+      let f2 = names env t2 in
+      let env = extend env f1 in
       check env t1 KType;
-      let env, _bindings = extend env f2 in
+      let env = extend env f2 in
       check env t2 KType;
       KType
 
-  | TyForall (binding, t) ->
-      let env = bind env binding in
+  | TyForall ((x, k, _), t) ->
+      let env = bind env (x, k) in
       infer env t
 
   | TyAnchoredPermission (t1, t2) ->
@@ -447,12 +449,12 @@ and infer (env: env) (t: typ) =
 and check_field (env: env) (field: data_field_def) =
   match field with
   | FieldValue (_name, t) ->
-      let fragment = names t in
-      let env, _bindings = extend env fragment in
+      let fragment = names env t in
+      let env = extend env fragment in
       check env t KType
   | FieldPermission t ->
-      let fragment = names t in
-      let env, _bindings = extend env fragment in
+      let fragment = names env t in
+      let env = extend env fragment in
       check env t KPerm
 
 and check_data_type_def_branch (env: env) (branch: data_type_def_branch) =
@@ -468,7 +470,7 @@ let check_data_type_def (env: env) (def: data_type_def) =
   match def with
   | Abstract ((name, bindings), _return_kind, fact) ->
       (* Get the names of the parameters. *)
-      let args = fst (List.split bindings) in
+      let args = List.map (fun (x, _, _) -> x) bindings in
       (* Perform a tedious check. *)
       begin match fact with
       | Some (FDuplicableIf (clauses, conclusion)) ->
@@ -480,6 +482,7 @@ let check_data_type_def (env: env) (def: data_type_def) =
           ()
       end
   | Concrete (_flag, (name, bindings), branches) ->
+      let bindings = List.map (fun (x, y, _) -> x, y) bindings in
       let env = List.fold_left bind env bindings in
       (* Check that the constructors are unique. *)
       let constructors = fst (List.split branches) in
@@ -517,7 +520,7 @@ let rec check_patexpr (env: env) (flag: rec_flag) (pat_exprs: (pattern * express
   let bindings = List.flatten (List.map bindings_pattern patterns) in
   check_for_duplicates
     (fst (List.split bindings))
-    (fun x -> bound_twice x);
+    (fun x -> bound_twice env x);
   let sub_env = List.fold_left bind env bindings in
   (* Type annotation in patterns may reference names introduced in the entire
    * pattern (same behavior as tuple types). *)
@@ -551,13 +554,14 @@ and check_expression (env: env) (expr: expression) =
       check_expression env expr
 
   | EFun (bindings, arg, return_type, body) ->
+      let bindings = List.map (fun (x, y, _) -> x, y) bindings in
       let env = List.fold_left bind env bindings in
-      let arg_bindings = names arg in
-      let env, _ = extend env arg_bindings in
+      let arg_bindings = names env arg in
+      let env = extend env arg_bindings in
       check env arg KType;
       check_expression env body;
-      let return_bindings = names return_type in
-      let env, _ = extend env return_bindings in
+      let return_bindings = names env return_type in
+      let env = extend env return_bindings in
       check env return_type KType
 
   | EAssign (e1, _, e2) ->
@@ -578,7 +582,7 @@ and check_expression (env: env) (expr: expression) =
       check_expression env e;
       List.iter (fun (pat, expr) ->
         let bindings = bindings_pattern pat in
-        check_for_duplicates bindings (fun (x, _) -> bound_twice x);
+        check_for_duplicates bindings (fun (x, _) -> bound_twice env x);
         let sub_env = List.fold_left bind env bindings in
         check_pattern sub_env pat;
         check_expression sub_env expr

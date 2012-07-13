@@ -46,26 +46,26 @@ let print_error buf (env, raw_error) =
       | Some t ->
           Printf.bprintf buf
             "%a %a is not a function, it has type %a"
-            Lexer.p env.position
-            Variable.p fname
+            Lexer.p env.location
+            pvar fname
             ptype (env, t)
       | None ->
           print_permissions ();
           Printf.bprintf buf
             "%a %a is not a function, the only permissions available for it are %a"
-            Lexer.p env.position
-            Variable.p fname
+            Lexer.p env.location
+            pvar fname
             pdoc (print_permission_list, (env, fbinder))
       end
   | NoSuchPermission t ->
       Printf.bprintf buf
         "%a unable to extract the following permission: %a"
-        Lexer.p env.position
+        Lexer.p env.location
         ptype (env, t);
    | HasFlexible t ->
       Printf.bprintf buf
         "%a the following type still contains flexible variables: %a"
-        Lexer.p env.position
+        Lexer.p env.location
         ptype (env, t);
   | ExpectedType (t, point) ->
       let xname, xbinder = find_term env point in
@@ -75,30 +75,30 @@ let print_error buf (env, raw_error) =
       | Some t1, Some t2 -> (* #winning *)
           Printf.bprintf buf
             "%a expected a subexpression of type %a but it has type %a"
-            Lexer.p env.position
+            Lexer.p env.location
             ptype (env, t1)
             ptype (env, t2)
       | _ ->
           print_permissions ();
           Printf.bprintf buf
             "%a expected an argument of type %a but the only permissions available for %a are %a"
-            Lexer.p env.position
-            ptype (env, t) Variable.p xname
+            Lexer.p env.location
+            ptype (env, t) pvar xname
             pdoc (print_permission_list, (env, xbinder))
       end
   | RecursiveOnlyForFunctions ->
       Printf.bprintf buf
         "%a recursive definitions are enabled for functions only"
-        Lexer.p env.position
+        Lexer.p env.location
   | MissingField f ->
       Printf.bprintf buf
         "%a field %a is missing in that constructor"
-        Lexer.p env.position
+        Lexer.p env.location
         Field.p f
   | ExtraField f ->
       Printf.bprintf buf
         "%a field %a is superfluous in that constructor"
-        Lexer.p env.position
+        Lexer.p env.location
         Field.p f
   | NotNominal point ->
       let name, binder = find_term env point in
@@ -106,16 +106,16 @@ let print_error buf (env, raw_error) =
       | Some t ->
           Printf.bprintf buf
             "%a %a has type %a, we can't match on it"
-            Lexer.p env.position
-            Variable.p name
+            Lexer.p env.location
+            pvar name
             ptype (env, t)
       | None ->
           print_permissions ();
           Printf.bprintf buf
             "%a %a has no permission with a nominal type suitable for matching, \
               the only permissions available for it are %a"
-            Lexer.p env.position
-            Variable.p name
+            Lexer.p env.location
+            pvar name
             pdoc (print_permission_list, (env, binder))
       end
   | NoTwoConstructors point ->
@@ -124,16 +124,16 @@ let print_error buf (env, raw_error) =
       | Some t ->
           Printf.bprintf buf
             "%a %a has type %a, is is not a type with two constructors"
-            Lexer.p env.position
-            Variable.p name
+            Lexer.p env.location
+            pvar name
             ptype (env, t)
       | None ->
           print_permissions ();
           Printf.bprintf buf
             "%a %a has no suitable permission for a type with two constructors, \
               the only permissions available for it are %a"
-            Lexer.p env.position
-            Variable.p name
+            Lexer.p env.location
+            pvar name
             pdoc (print_permission_list, (env, binder))
       end
   | NoSuchField (point, f) ->
@@ -142,8 +142,8 @@ let print_error buf (env, raw_error) =
       | Some t ->
           Printf.bprintf buf
             "%a %a has type %a, which doesn't have a field named %a"
-            Lexer.p env.position
-            Variable.p name
+            Lexer.p env.location
+            pvar name
             ptype (env, t)
             Field.p f
       | None ->
@@ -151,51 +151,55 @@ let print_error buf (env, raw_error) =
           Printf.bprintf buf
             "%a %a has no suitable permission with field %a, the only permissions \
               available for it are %a"
-            Lexer.p env.position
-            Variable.p name
+            Lexer.p env.location
+            pvar name
             Field.p f
             pdoc (print_permission_list, (env, binder))
       end
   | SubPattern pat ->
       Printf.bprintf buf
         "%a there's a sub-constraint in that pattern, not allowed: %a"
-        Lexer.p env.position
+        Lexer.p env.location
         ppat (env, pat)
   | MatchBadDatacon (t, datacon) ->
       Printf.bprintf buf
         "%a matching on a value with type %a: it has no constructor named %a"
-        Lexer.p env.position
+        Lexer.p env.location
         ptype (env, t)
         Datacon.p datacon
   | MatchBadPattern pat ->
       Printf.bprintf buf
         "%a the pattern %a is not valid inside a match; only matches on data \
           constructors are allowed"
-        Lexer.p env.position
+        Lexer.p env.location
         ppat (env, pat)
   | NoSuchFieldInPattern (pat, field) ->
       Printf.bprintf buf
         "%a the pattern %a mentions field %a which is unknown for that branch"
-        Lexer.p env.position
+        Lexer.p env.location
         ppat (env, pat)
         Field.p field
   | AssignNotExclusive (t, datacon) ->
       Printf.bprintf buf
         "%a this value has type %a: constructor %a belongs to a data type that \
           is not defined as exclusive"
-        Lexer.p env.position
+        Lexer.p env.location
         ptype (env, t)
         Datacon.p datacon
   | NoMultipleArguments ->
       Printf.bprintf buf
         "%a functions take only one tuple argument in HaMLet"
-        Lexer.p env.position
+        Lexer.p env.location
 ;;
 
 (* -------------------------------------------------------------------------- *)
 
 let (!!) =
   Permissions.(!!)
+;;
+
+let add_hint =
+  Permissions.add_hint
 ;;
 
 (* Since everything is, or will be, in A-normal form, type-checking a function
@@ -240,7 +244,7 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
         flex_deconstruct t
     | t :: _ ->
         Log.debug "More than one permission available for %a, strange"
-          Variable.p fname;
+          TypePrinter.pvar fname;
         flex_deconstruct t
   in
   (* Examine [x]. [sub] will take care of running collect on [t1] so that the
@@ -281,7 +285,7 @@ let type_for_function_def (expression: expression): typ =
   match expression with
   | EFun (bindings, arg, return_type, _) ->
       let t = TyArrow (arg, return_type) in
-      TypeOps.add_forall bindings t
+      add_forall bindings t
   | _ ->
       Log.error "[type_for_function_def], as the name implies, expects a \
         function expression...";
@@ -349,7 +353,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
 ;;
 
 
-let rec check_expression (env: env) ?(hint: string option) (expr: expression): env * point =
+let rec check_expression (env: env) ?(hint: name option) (expr: expression): env * point =
 
   (* TEMPORARY this is just a quick and dirty way to talk about user-defined
    * types. This is lazy because we want to write simple test cases that do not
@@ -361,15 +365,15 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
    * the environment as well as the point *)
   let return env t =
     (* Not the most clever function, but will do for now on *)
-    let hint = Option.map_none (fresh_name "/x_") hint in
-    let env, x = bind_term env (Variable.register hint) false in
+    let hint = Option.map_none (Auto (Variable.register (fresh_name "/x_"))) hint in
+    let env, x = bind_term env hint env.location false in
     let env = Permissions.add env x t in
     env, x
   in
 
   let check_arith_binop env e1 e2 op =
-    let hint1 = Option.map (fun x -> Printf.sprintf "%s_%s_l" x op) hint in
-    let hint2 = Option.map (fun x -> Printf.sprintf "%s_%s_r" x op) hint in
+    let hint1 = add_hint hint (Printf.sprintf "%s_l" op) in
+    let hint2 = add_hint hint (Printf.sprintf "%s_r" op) in
     let env, x1 = check_expression env ?hint:hint1 e1 in
     let env, x2 = check_expression env ?hint:hint2 e2 in
     let env = check_return_type env x1 !*int in
@@ -445,7 +449,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       end
 
   | EAssign (e1, fname, e2) ->
-      let hint = Option.map (fun x -> Printf.sprintf "%s_%s" x (Field.print fname)) hint in
+      let hint = add_hint hint (Field.print fname) in
       let env, p1 = check_expression env ?hint e1 in
       let env, p2 = check_expression env e2 in
       let env = replace_term env p1 (fun binder ->
@@ -502,7 +506,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
        * allow us to reuse the code. Of course, this raises the question of
        * “what do we do in case there's an ambiguity”, that is, multiple
        * datacons that feature this field name... We'll leave that for later. *)
-      let hint = Option.map (fun x -> Printf.sprintf "%s_%s" x (Field.print fname)) hint in
+      let hint = add_hint hint (Field.print fname) in
       let env, p = check_expression env ?hint e in
       let module M = struct exception Found of point end in
       begin try
@@ -537,8 +541,8 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       | _ ->
           ()
       end;
-      let hint1 = Option.map (fun x -> x ^ "_fun") hint in
-      let hint2 = Option.map (fun x -> x ^ "_arg") hint in
+      let hint1 = add_hint hint "fun" in
+      let hint2 = add_hint hint "arg" in
       let env, x1 = check_expression env ?hint:hint1 e1 in
       let env, x2 = check_expression env ?hint:hint2 e2 in
       (* Give an error message that mentions the entire function call. We should
@@ -550,7 +554,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
   | ETuple exprs ->
       let env, components = Hml_List.fold_lefti
         (fun i (env, components) expr ->
-          let hint = Option.map (fun x -> Printf.sprintf "%s_%d" x i) hint in
+          let hint = add_hint hint (string_of_int i) in
           let env, p = check_expression env ?hint expr in
           env, (ty_equals p) :: components)
         (env, []) exprs
@@ -579,7 +583,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
             (* Actually we don't care about the expected type for the field. We
              * just want to make sure all fields are provided. *)
             let e, remaining = take env name remaining in
-            let hint = Option.map (fun hint -> hint ^ "_" ^ Field.print name) hint in
+            let hint = add_hint hint (Field.print name) in
             let env, p = check_expression env ?hint e in
             env, remaining, FieldValue (name, ty_equals p) :: fieldvals
         | FieldPermission _ ->
@@ -600,7 +604,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       return env !*int
 
   | EUMinus e ->
-      let hint = Option.map (fun x -> "-" ^ x) hint in
+      let hint = add_hint hint "-" in
       let env, x = check_expression env ?hint e in
       let env = check_return_type env x !*int in
       return env !*int
@@ -618,13 +622,13 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
       check_arith_binop env e1 e2 "/"
 
   | ELocated (e, p1, p2) ->
-      let pos = env.position in
+      let pos = env.location in
       let env = locate env (p1, p2) in
       let env, p = check_expression env ?hint e in
       locate env pos, p
 
   | EIfThenElse (e1, e2, e3) ->
-      let hint_1 = Option.map (fun x -> x ^ "-if") hint in
+      let hint_1 = add_hint hint "if" in
       let env, x1 = check_expression env ?hint:hint_1 e1 in
       
       (* The condition of an if-then-else statement is well-typed if it is a
@@ -660,9 +664,9 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
         raise_error env (NoTwoConstructors x1);
 
       (* The control-flow diverges. *)
-      let hint_l = Option.map (fun x -> x ^ "-then") hint in
+      let hint_l = add_hint hint "then" in
       let left = check_expression env ?hint:hint_l e2 in
-      let hint_r = Option.map (fun x -> x ^ "-else") hint in
+      let hint_r = add_hint hint "else" in
       let right = check_expression env ?hint:hint_r e3 in
 
       Merge.merge_envs env left right
@@ -670,7 +674,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
   | EMatch (e, patexprs) ->
       (* First of all, make sure there's a nominal type that corresponds to the
        * expression being matched, and that we have its definition. *)
-      let hint = Option.map (fun x -> x ^ "-match") hint in
+      let hint = add_hint hint "match" in 
       let env, x = check_expression env ?hint e in
       let nominal_type =
         try
@@ -739,7 +743,7 @@ let rec check_expression (env: env) ?(hint: string option) (expr: expression): e
           check_bindings env Nonrecursive [pat, EPoint x]
         in
         let expr = subst_expr expr in
-        let hint = Option.map (fun x -> x ^ "-" ^ (Datacon.print datacon)) hint in
+        let hint = add_hint hint (Datacon.print datacon) in
 
         check_expression env ?hint expr
       ) patexprs constructors in
@@ -786,7 +790,7 @@ and check_bindings
     let env = List.fold_left2 (fun env pat expr ->
       let hint = match pat with
         | PPoint p ->
-            Some (Variable.print (get_name env p))
+            Some (get_name env p)
         | _ ->
             None
       in

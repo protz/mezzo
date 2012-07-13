@@ -131,7 +131,7 @@ type_parameters:
 
 atomic_type_binding:
 | x = variable (* KTYPE is the default kind *)
-    { x, KType }
+    { x, KType, ($startpos, $endpos) }
 | LPAREN b = type_binding RPAREN
     { b }
 
@@ -139,7 +139,7 @@ type_binding:
 | b = atomic_type_binding
     { b }
 | x = variable COLONCOLON kind = kind
-    { x, kind }
+    { x, kind, ($startpos, $endpos) }
 
 (* ---------------------------------------------------------------------------- *)
 

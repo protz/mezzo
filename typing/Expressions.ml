@@ -11,7 +11,7 @@ open Flexible
  * the pattern: the first variable encountered will have index 0, and so on. *)
 type pattern =
   (* x *)
-  | PVar of Variable.name
+  | PVar of Variable.name * (Lexing.position * Lexing.position)
   (* (x₁, …, xₙ) *)
   | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)
@@ -36,7 +36,7 @@ type expression =
   (* let rec pat = expr and pat' = expr' in expr *)
   | ELet of rec_flag * patexpr list * expression
   (* fun [a] (x: τ): τ -> e *)
-  | EFun of (Variable.name * kind) list * typ * typ * expression
+  | EFun of type_binding list * typ * typ * expression
   (* v.f <- e *)
   | EAssign of expression * Field.name * expression
   (* v.f *)
@@ -104,10 +104,10 @@ let e_assert perm expr =
 (* [collect_pattern] returns the list of bindings present in the pattern. The
  * binding with index [i] in the returned list has De Bruijn index [i] in the
  * bound term. *)
-let collect_pattern p =
+let collect_pattern (p: pattern): ((Types.name * (Lexing.position * Lexing.position)) list) =
   let rec collect_pattern acc = function
-  | PVar name ->
-      name :: acc
+  | PVar (name, p) ->
+      (User name, p) :: acc
   | PTuple patterns ->
       List.fold_left collect_pattern acc patterns
   | PConstruct (_, fields) ->
@@ -490,7 +490,7 @@ let bind_patexprs env rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
   let names = List.rev_map collect_pattern patterns in
   let names = List.flatten names in
-  let bindings = List.map (fun n -> (n, KTerm)) names in
+  let bindings = List.map (fun (v, p) -> (v, KTerm, p)) names in
   let env, kit = bind_vars env bindings in
   let expressions = match rec_flag with
     | Recursive ->
@@ -812,8 +812,8 @@ module ExprPrinter = struct
     join (break1 ^^ string "and" ^^ space) (List.map (print_patexpr env) patexprs)
 
   and print_pat env = function
-    | PVar v ->
-        print_var v
+    | PVar (v, _) ->
+        print_var (User v)
 
     | PPoint point ->
         print_var (get_name env point)
@@ -886,7 +886,7 @@ module ExprPrinter = struct
     | EMatch (e, patexprs) ->
         let patexprs = List.map (fun (pat, expr) ->
           let vars = collect_pattern pat in
-          let bindings = List.map (fun v -> (v, KTerm)) vars in
+          let bindings = List.map (fun (v, p) -> (v, KTerm, p)) vars in
           let env, { subst_expr; _ } = bind_vars env bindings in
           let expr = subst_expr expr in
           print_pat env pat ^^ space ^^ arrow ^^ jump (print_expr env expr)
@@ -943,7 +943,7 @@ module ExprPrinter = struct
         empty
 
 
-  and print_binder (name, kind) =
+  and print_binder (name, kind, _) =
     print_var name ^^ space ^^ ccolon ^^ space ^^ print_kind kind
 
   ;;

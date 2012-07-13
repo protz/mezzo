@@ -34,6 +34,10 @@ let fold_exists bindings t =
   ) bindings t
 ;;
 
+(* We need to tell the next AST which names are used provided and which are
+ * auto-generated. *)
+let name_user = fun (x, k, l) -> (T.User x, k, l);;
+let name_auto = fun (x, k, l) -> (T.Auto x, k, l);;
 
 (* [strip_consumes env t] removes all the consumes annotations from [t]. A
    [consumes t] annotation is replaced by [=c] with [c] fresh, as well as
@@ -47,7 +51,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
    * function returns pairs of [name * typ], except that permissions that are
    * marked as [consumes] do not allocate a fresh name, so they have no
    * associated name, hence the [Variable.name option]. *)
-  let rec strip_consumes (env: env) (t: typ): typ * (Variable.name option * typ) list  =
+  let rec strip_consumes (env: env) (t: typ): typ * (Variable.name option * typ * T.location) list  =
     match t with
     | TyLocated (t, p1, p2) ->
         (* Keep the location information, may be useful later on. *)
@@ -87,7 +91,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
           List.partition (function TyConsumes _ -> true | _ -> false) perms
         in
         let consumed =
-          List.map (function TyConsumes p -> None, p | _ -> assert false) consumed
+          List.map (function TyConsumes p -> None, p, env.location | _ -> assert false) consumed
         in
         let p = fold_star kept in
         (* Minimal cleanup. *)
@@ -97,7 +101,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
     | TyConsumes t ->
         let name = Variable.register (fresh_name "/c") in
         let perm = TyAnchoredPermission (TyVar name, t) in
-        ty_equals name, [Some name, perm]
+        ty_equals name, [Some name, perm, env.location]
 
     | TyUnknown
     | TyDynamic
@@ -118,9 +122,9 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
 
   in
   let t, name_perms = strip_consumes env t in
-  let names, perms = List.split name_perms in
+  let names, perms, locations = Hml_List.split3 name_perms in
   let names = Hml_List.filter_some names in
-  let bindings = List.map (fun x -> x, KTerm) names in
+  let bindings = List.map2 (fun x loc -> x, KTerm, loc) names locations in
   t, bindings, perms
 ;;
 
@@ -160,9 +164,9 @@ let rec translate_type (env: env) (t: typ): T.typ =
       let arrow = T.TyArrow (t1, t2) in
       fold_forall universal_bindings arrow
 
-  | TyForall (binding, t) ->
-      let env = bind env binding in
-      T.TyForall (binding, translate_type env t)
+  | TyForall ((x, k, loc), t) ->
+      let env = bind env (x, k) in
+      T.TyForall ((T.User x, k, loc), translate_type env t)
 
   | TyAnchoredPermission (t1, t2) ->
       T.TyAnchoredPermission (translate_type env t1, translate_type env t2)
@@ -199,16 +203,9 @@ and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.
 
 and translate_arrow_type env t1 t2 =
 
-  (* Get the keys of a [Patricia.Map]. *)
-  let keys =
-    fun m -> List.rev (M.fold (fun k _v acc -> k :: acc) m [])
-  in
-
   (* Get the implicitly quantified variables in [t1]. These will be
      quantified as universal variables above the arrow type. *)
-  let t1_bindings = names t1 in
-  let t1_bindings = keys t1_bindings in
-  let t1_bindings = List.map (fun x -> (x, KTerm)) t1_bindings in
+  let t1_bindings = names env t1 in
 
   (* This is the procedure that removes the consumes annotations. It is
    * performed in the surface syntax. The first step consists in carving out
@@ -218,15 +215,8 @@ and translate_arrow_type env t1 t2 =
   (* Now we give a name to [t1] so that we can speak about the argument in
    * the returned type. Note: this variable name is not lexable, so no risk
    * of conflict. *)
-  let root, root_binding, t1 =
-    match tunloc t1 with
-    | TyNameIntro (x, t) ->
-        x, [], t
-    | _ ->
-        let root = Variable.register (fresh_name "/root") in
-        let root_binding = root, KTerm in
-        root, [root_binding], t1
-  in
+  let root = Variable.register (fresh_name "/root") in
+  let root_binding = root, KTerm, env.location in
 
   (* We now turn the argument into (=root | root @ t1 ∗ c @ … ∗ …) with [t1]
    * now devoid of any consumes annotations. *)
@@ -237,15 +227,13 @@ and translate_arrow_type env t1 t2 =
 
   (* So that we don't mess up, we use unique names in the surface syntax and
    * let the translation phase do the proper index computations. *)
-  let universal_bindings = t1_bindings @ perm_bindings @ root_binding in
-  let env = List.fold_left bind env universal_bindings in
+  let universal_bindings = t1_bindings @ perm_bindings @ [root_binding] in
+  let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env universal_bindings in
   let fat_t1 = translate_type env fat_t1 in
 
   (* The return type can also bind variables with [x: t]. These are
    * existentially quantified. *)
-  let t2_bindings = names t2 in
-  let t2_bindings = keys t2_bindings in
-  let t2_bindings = List.map (fun x -> (x, KTerm)) t2_bindings in
+  let t2_bindings = names env t2 in
 
   (* We need to return the original permission on [t1], minus the components
    * that were consumed: these have been carved out of [t1] by
@@ -254,12 +242,18 @@ and translate_arrow_type env t1 t2 =
     t2,
     TyAnchoredPermission (TyVar root, t1)
   ) in
-  let env = List.fold_left bind env t2_bindings in
+  let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env t2_bindings in
 
   (* Build the resulting type. *)
   let t2 = translate_type env t2 in
-  let t2 = fold_exists t2_bindings t2 in
+  let t2 = fold_exists (List.map name_user t2_bindings) t2 in
 
+  (* Finally, translate the universal bindings as well. *)
+  let universal_bindings =
+    List.map name_user t1_bindings @
+    List.map name_auto perm_bindings @
+    List.map name_auto [root_binding]
+  in
   universal_bindings, fat_t1, t2
 ;;
 
@@ -285,6 +279,7 @@ let translate_abstract_fact (params: Variable.name list) (fact: abstract_fact op
 let translate_data_type_def (env: env) (data_type_def: data_type_def) =
   match data_type_def with
   | Concrete (flag, (name, params), branches) ->
+      let params = List.map (fun (x, k, _) -> x, k) params in
       (* Add the type parameters in the environment. *)
       let env = List.fold_left bind env params in
       (* Translate! *)
@@ -297,6 +292,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
       in
       name, Some (flag, branches), fact, karrow params KType
   | Abstract ((name, params), kind, fact) ->
+      let params = List.map (fun (x, k, _) -> x, k) params in
       let fact = translate_abstract_fact (fst (List.split params)) fact in
       name, None, fact, karrow params kind
 ;;
@@ -329,7 +325,8 @@ let translate_data_type_group
 
   (* Then build up the resulting environment. *)
   let tenv, points = List.fold_left (fun (tenv, acc) (name, def, fact, kind) ->
-    let tenv, point = T.bind_type tenv name ?definition:def fact kind in
+    let name = T.Auto name in
+    let tenv, point = T.bind_type tenv name tenv.T.location ?definition:def fact kind in
     tenv, point :: acc) (tenv, []
   ) translated_definitions in
   let points = List.rev points in
@@ -441,17 +438,17 @@ let clean_pattern env pattern =
 ;;
 
 
-let rec translate_pattern = function
+let rec translate_pattern env = function
   | PVar x ->
-      E.PVar x
+      E.PVar (x, env.location)
   | PTuple ps ->
-      E.PTuple (List.map translate_pattern ps)
+      E.PTuple (List.map (translate_pattern env) ps)
   | PConstruct (name, fieldpats) ->
       let fields, pats = List.split fieldpats in
-      let pats = List.map translate_pattern pats in
+      let pats = List.map (translate_pattern env) pats in
       E.PConstruct (name, List.combine fields pats)
-  | PLocated (p, _, _) ->
-      translate_pattern p
+  | PLocated (p, p1, p2) ->
+      translate_pattern (locate env p1 p2) p
   | PConstraint _ ->
         Log.error "[clean_pattern] should've been called on that type before!"
 ;;
@@ -488,7 +485,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   | EFun (vars, arg, return_type, body) ->
 
       (* Introduce all universal bindings. *)
-      let env = List.fold_left bind env vars in
+      let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env vars in
 
       (* Translate the function type. *)
       let universal_bindings, arg, return_type =
@@ -496,11 +493,14 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       in
 
       (* Introduce all other bindings in scope *)
-      let env = List.fold_left bind env universal_bindings in
+      let env = List.fold_left (fun env -> function
+        | (T.Auto x, k, _) | (T.User x, k, _) -> bind env (x, k)
+      ) env universal_bindings in
 
       (* Now translate the body (which will probably refer to these bound
        * names). *)
       let body = translate_expr env body in
+      let vars = List.map name_user vars in
       E.EFun (vars @ universal_bindings, arg, return_type, body)
 
   | EAssign (e1, x, e2) ->
@@ -529,7 +529,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
         (* Collect the names. *)
         let names = bindings_pattern pat in
         (* Translate the pattern. *)
-        let pat = translate_pattern pat in
+        let pat = translate_pattern env pat in
         (* Bind the names for further translating, and don't forget to include
          * assertions in the translation as well. *)
         let sub_env = List.fold_left bind env names in
@@ -621,7 +621,7 @@ and translate_patexprs
   (* Find names in patterns. *)
   let names = List.flatten (List.map bindings_pattern patterns) in
   (* Translate the patterns. *)
-  let patterns = List.map translate_pattern patterns in
+  let patterns = List.map (translate_pattern env) patterns in
   (* Bind all the names in the sub-environment. *)
   let sub_env = List.fold_left bind env names in
   (* Translate the expressions. *)
