@@ -117,14 +117,18 @@ module Graph = struct
     Printf.fprintf oc "}";
   ;;
 
-  let graph env =
-    let filename = Filename.temp_file "hamlet" ".dot" in
-    let oc = open_out filename in
+  let write_graph env oc =
     write_intro oc;
     fold_terms env (fun () point _head { permissions; _ } ->
       draw_point oc env point permissions
     ) ();
     write_outro oc;
+  ;;
+
+  let graph env =
+    let filename = Filename.temp_file "hamlet" ".dot" in
+    let oc = open_out filename in
+    write_graph env oc;
     close_out oc;
     let err = Sys.command (Printf.sprintf "dot -Tx11 %s" (Filename.quote filename)) in
     if err = 0 then
@@ -132,6 +136,57 @@ module Graph = struct
   ;;
 
 end
+
+
+module Html = struct
+
+  let pygmentize f =
+    let cmd = Printf.sprintf "pygmentize -l ocaml -f html %s" (Filename.quote f) in
+    Ocamlbuild_plugin.run_and_read cmd
+  ;;
+
+  let json_of_loc loc =
+    let open Lexing in
+    let f pos =
+      let line = pos.pos_lnum in
+      let col = pos.pos_cnum - pos.pos_bol in
+      `Assoc [("line", `Int line); ("col", `Int col)]
+    in
+    `Assoc [("start", f (fst loc)); ("end", f (snd loc))]
+  ;;
+
+  let render env =
+    (* Create the SVG. *)
+    let ic, oc = Unix.open_process "dot -Tsvg" in
+    Graph.write_graph env oc;
+    close_out oc;
+    let svg = Utils.read ic in
+    close_in ic;
+
+    (* Create the syntax-highlighted HTML. *)
+    let f = (fst env.location).Lexing.pos_fname in
+    let syntax = pygmentize f in
+
+    (* Create the JSON data. *)
+    let json = `Assoc [
+      ("syntax", `String syntax);
+      ("current_location", json_of_loc env.location);
+      ("file_name", `String f);
+      ("svg", `String svg);
+    ] in
+
+    (* Output it to a file. *)
+    let json_file =
+      let f = Hml_String.replace "/" "_" f in
+      Printf.sprintf "viewer/data/%s.json" f
+    in
+    let oc = open_out json_file in
+    Yojson.Safe.to_channel oc json;
+    close_out oc;
+  ;;
+
+end
+
 
 let explain env x =
   if !enabled then begin
@@ -149,6 +204,7 @@ let explain env x =
     Hml_String.bprintf "%a\n\n" ppermissions env;
     Hml_String.bprintf "%s\n\n" (String.make twidth '-');
     flush stdout; flush stderr;
+    Html.render env;
     Graph.graph env
   end
 ;;

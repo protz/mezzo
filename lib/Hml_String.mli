@@ -37,3 +37,6 @@ val beprintf : ('a, Buffer.t, unit, unit) format4 -> 'a
 
 (** In case you need to ignore some stuff. *)
 val biprintf : ('a, Buffer.t, unit) format -> 'a
+
+(** [replace s1 s2 s] replaces all occurrences of [s1] with [s2] in [s]. *)
+val replace: string -> string -> string -> string

@@ -1,0 +1,35 @@
+body {
+  font-family: sans-serif;
+}
+
+svg * {
+  font-family: monospace;
+  font-size: 8pt;
+}
+
+#heading {
+  text-align: center;
+}
+
+#main > div {
+  display: inline-block;
+}
+
+#syntax {
+  position: relative;
+}
+
+.locationBlock {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.locationSection {
+  background-color: rgba(196, 92, 92, .6);
+}
+
+#details {
+  vertical-align: top;
+  margin-left: 3em;
+}

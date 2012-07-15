@@ -6,3 +6,17 @@ let fresh_name =
     prefix ^ n
 ;;
 
+let read ic =
+  let buf = Buffer.create 4096 in
+  let s = String.create 2048 in
+  while begin
+    let l = input ic s 0 (String.length s) in
+    if l > 0 then begin
+      Buffer.add_string buf (String.sub s 0 l);
+      true
+    end else begin
+      false
+    end
+  end do () done;
+  Buffer.contents buf
+;;

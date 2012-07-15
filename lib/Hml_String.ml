@@ -32,3 +32,8 @@ let beprintf fmt =
 
 let buf = Buffer.create 0
 let biprintf fmt = Printf.ifprintf buf fmt
+
+let replace s1 s2 s =
+  let s1 = Str.regexp_string s1 in
+  let s = Str.global_replace s1 s2 s in
+  s

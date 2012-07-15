@@ -1,0 +1,8 @@
+The language yet-to-be-named requires:
+- OCaml 4.00
+- a properly-working ocamlfind command,
+- the following packages: menhirLib, yojson
+
+These packages are present in Debian but Debian hasn't switched to OCaml 4.00
+yet. We recommend odb.ml <https://github.com/thelema/odb> to easily install
+these dependencies.
