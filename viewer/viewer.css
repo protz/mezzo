@@ -22,14 +22,18 @@ svg * {
 .locationBlock {
   position: absolute;
   top: 0;
-  right: 0;
+  left: 0;
 }
 
 .locationSection {
-  background-color: rgba(196, 92, 92, .6);
+  background-color: #F08A8A;
 }
 
 #details {
   vertical-align: top;
   margin-left: 3em;
+}
+
+.node {
+  cursor: pointer;
 }

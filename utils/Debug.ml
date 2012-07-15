@@ -98,6 +98,7 @@ module Graph = struct
 
     (* Print the node. *)
     Printf.fprintf oc "\"node%d\" [\n" id;
+    Printf.fprintf oc "  id = \"node%d\"\n" id;
     if String.length names > 0 then
       Printf.fprintf oc "  label = \"{{%s}|%s}\"\n" line names
     else
@@ -155,7 +156,30 @@ module Html = struct
     `Assoc [("start", f (fst loc)); ("end", f (snd loc))]
   ;;
 
+  let json_of_points env =
+    fold_terms env (fun json point { names; locations; kind; _ } { permissions; _ } ->
+      let open TypePrinter in
+      let names = `List (List.map (function
+        | User v -> `List [`String "user"; `String (Variable.print v)]
+        | Auto v -> `List [`String "auto"; `String (Variable.print v)]
+      ) names) in
+      let locations = `List (List.map json_of_loc locations) in
+      let kind = `String (Hml_String.bsprintf "%a" pdoc (print_kind, kind)) in
+      let permissions = `List (List.map (fun perm ->
+        `String (Hml_String.bsprintf "%a" ptype (env, perm))
+      ) permissions) in
+      (string_of_int (Graph.id_of_point env point), `Assoc [
+        ("names", names);
+        ("locations", locations);
+        ("kind", kind);
+        ("permissions", permissions);
+      ]) :: json
+    ) []
+  ;;
+
   let render env =
+    Hml_Pprint.disable_colors ();
+
     (* Create the SVG. *)
     let ic, oc = Unix.open_process "dot -Tsvg" in
     Graph.write_graph env oc;
@@ -173,6 +197,7 @@ module Html = struct
       ("current_location", json_of_loc env.location);
       ("file_name", `String f);
       ("svg", `String svg);
+      ("points", `Assoc (json_of_points env));
     ] in
 
     (* Output it to a file. *)
@@ -183,6 +208,8 @@ module Html = struct
     let oc = open_out json_file in
     Yojson.Safe.to_channel oc json;
     close_out oc;
+
+    Hml_Pprint.enable_colors ();
   ;;
 
 end
@@ -203,8 +230,8 @@ let explain env x =
     Hml_String.bprintf "\n";
     Hml_String.bprintf "%a\n\n" ppermissions env;
     Hml_String.bprintf "%s\n\n" (String.make twidth '-');
-    flush stdout; flush stderr;
     Html.render env;
+    flush stdout; flush stderr;
     Graph.graph env
   end
 ;;

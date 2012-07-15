@@ -5,22 +5,43 @@ include Pprint
 (* Some Bash-isms *)
 
 type colors = {
-  green: document;
-  red: document;
-  blue: document;
-  yellow: document;
-  default: document;
-  underline: document;
+  mutable green: document;
+  mutable red: document;
+  mutable blue: document;
+  mutable yellow: document;
+  mutable default: document;
+  mutable underline: document;
 }
 
 let colors = {
-  green = fancystring Bash.colors.Bash.green 0;
-  red = fancystring Bash.colors.Bash.red 0;
-  blue = fancystring Bash.colors.Bash.blue 0;
-  yellow = fancystring Bash.colors.Bash.yellow 0;
-  default = fancystring Bash.colors.Bash.default 0;
-  underline = fancystring Bash.colors.Bash.underline 0;
+  green = empty;
+  red = empty;
+  blue = empty;
+  yellow = empty;
+  default = empty;
+  underline = empty;
 }
+
+let enable_colors () =
+  colors.green <- fancystring Bash.colors.Bash.green 0;
+  colors.red <- fancystring Bash.colors.Bash.red 0;
+  colors.blue <- fancystring Bash.colors.Bash.blue 0;
+  colors.yellow <- fancystring Bash.colors.Bash.yellow 0;
+  colors.default <- fancystring Bash.colors.Bash.default 0;
+  colors.underline <- fancystring Bash.colors.Bash.underline 0;
+;;
+
+let disable_colors () =
+  colors.green <- empty;
+  colors.red <- empty;
+  colors.blue <- empty;
+  colors.yellow <- empty;
+  colors.default <- empty;
+  colors.underline <- empty;
+;;
+
+let _ =
+  enable_colors ()
 
 let arrow =
   string "->"
