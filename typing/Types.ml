@@ -825,6 +825,10 @@ let get_locations (env: env) (point: point): location list =
       locations
 ;;
 
+let get_location env p =
+  List.hd (get_locations env p)
+;;
+
 let get_kind (env: env) (point: point): kind =
   match PersistentUnionFind.find point env.state with
   | { kind; _ }, _ ->

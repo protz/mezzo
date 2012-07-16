@@ -216,7 +216,7 @@ and translate_arrow_type env t1 t2 =
    * the returned type. Note: this variable name is not lexable, so no risk
    * of conflict. *)
   let root = Variable.register (fresh_name "/root") in
-  let root_binding = root, KTerm, env.location in
+  let root_binding = root, KTerm, (tloc t1) in
 
   (* We now turn the argument into (=root | root @ t1 ∗ c @ … ∗ …) with [t1]
    * now devoid of any consumes annotations. *)
