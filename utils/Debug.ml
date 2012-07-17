@@ -2,7 +2,7 @@ open Types
 open TypePrinter
 open Bash
 
-let enabled = ref false;;
+let enabled = ref "";;
 let enable_trace v = enabled := v;;
 
 module Graph = struct
@@ -216,7 +216,9 @@ end
 
 
 let explain env x =
-  if !enabled then begin
+  if !enabled = "html" then
+    Html.render env;
+  if !enabled = "x11" then begin
     (* Reset the screen. *)
     flush stdout; flush stderr;
     reset ();
@@ -230,7 +232,6 @@ let explain env x =
     Hml_String.bprintf "\n";
     Hml_String.bprintf "%a\n\n" ppermissions env;
     Hml_String.bprintf "%s\n\n" (String.make twidth '-');
-    Html.render env;
     flush stdout; flush stderr;
     Graph.graph env
   end
