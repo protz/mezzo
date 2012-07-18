@@ -145,7 +145,7 @@ end
 module Html = struct
 
   let pygmentize f =
-    let cmd = Printf.sprintf "pygmentize -l ocaml -f html %s" (Filename.quote f) in
+    let cmd = Printf.sprintf "pygmentize -l ocaml -f html -O encoding=utf-8 %s" (Filename.quote f) in
     Ocamlbuild_plugin.run_and_read cmd
   ;;
 
