@@ -3,23 +3,32 @@ function fail(aMsg) {
   throw new Error(aMsg);
 }
 
+function buildGraph({ svg, points, root }) {
+  let node = $("<div>").addClass("graph").appendTo($("#graph"));
+
+  // Fill in the graph
+  svg = svg.substring(244, svg.length);
+  node.html(svg);
+  node.find("title").first().next().attr("fill", "transparent");
+
+  // Register stuff for the nodes
+  registerNodeHandlers(node, points);
+
+  // The root nodes should be marked with a special color
+  if (root) {
+    node.find("#node"+root)
+      .attr("fill", "#9e2828")
+      .css("font-weight", "bold");
+  }
+}
+
 function fillInterface(aJson) {
-  let {
-    svg: svg,
-    syntax: syntax,
-    current_location: current_location,
-    file_name: file_name
-  } = aJson;
+  let { type, syntax, current_location, file_name } = aJson;
 
   $("#heading").append($("<h1>").text("Explanations for "+file_name));
 
   // Fill in the syntax-highlighted HTML.
   $("#syntax").html(syntax);
-
-  // Fill in the graph
-  svg = svg.substring(244, svg.length);
-  $("#graph").html(svg);
-  $("#graph").find("title").first().next().attr("fill", "transparent");
 
   // Highlight the sub-expression that was last type-checked.
   highlightLocation(current_location);
@@ -27,22 +36,32 @@ function fillInterface(aJson) {
   // Display information
   $("#details").text("Last checked expression: "+printLoc(current_location)+" (highlighted).");
 
-  // Register stuff for the nodes
-  registerNodeHandlers(aJson);
-
   // Resize accordingly.
   let w = $(window).width() - $("#syntax").width() - 100;
   $("#details").width(w);
+
+  if (type == "single") {
+    // There's only one environment to draw.
+    buildGraph(aJson);
+  } else if (type == "merge") {
+    // There's many sub-environments
+    for (let env of aJson.sub_envs)
+      buildGraph(env);
+    // That merge into
+    $("#graph").append($("<hr>"));
+    // Another environment
+    buildGraph(aJson.merged_env);
+  }
 }
 
-function registerNodeHandlers(aJson) {
-  $(".node > polygon").attr("fill", "white");
-  $(".node").click(function () {
+function registerNodeHandlers(aNode, aPoints) {
+  aNode.find(".node > polygon").attr("fill", "white");
+  aNode.find(".node").click(function () {
     $(".node > polygon").attr("fill", "white");
     $(this).find("polygon").attr("fill", "#f08a8a");
 
     let id = $(this).attr("id").match(/node(\d+)/)[1];
-    let infos = aJson.points[id];
+    let infos = aPoints[id];
     console.log("Displaying information for node", id);
     displayDetails(infos);
   });
@@ -54,12 +73,7 @@ function displayDetails(infos) {
     return;
   }
 
-  let {
-    names: names,
-    locations: locations,
-    kind: kind,
-    permissions: permissions
-  } = infos;
+  let { names, locations, kind, permissions } = infos;
 
   clearLocations();
   for (let loc of locations)
@@ -133,6 +147,20 @@ function highlightLocation({ start, end }) {
   $("#syntax").append(pre);
 }
 
+let zoomFactor = 1;
+let zoomStep = .1;
+
+function registerEventHandlers() {
+  $("#zoom_out").click(function () {
+    zoomFactor -= zoomStep;
+    $(".graph").css("-moz-transform", "scale("+zoomFactor+")");
+  });
+  $("#zoom_in").click(function () {
+    zoomFactor += zoomStep;
+    $(".graph").css("-moz-transform", "scale("+zoomFactor+")");
+  });
+}
+
 window.addEventListener("load", function () {
   let params = decodeUrlParameters(document.location.href);
   if (!("json_file" in params))
@@ -140,5 +168,6 @@ window.addEventListener("load", function () {
 
   $.getJSON(params.json_file, function (json) {
     fillInterface(json);
+    registerEventHandlers();
   });
 });

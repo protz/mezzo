@@ -578,7 +578,7 @@ and check_expression (env: env) (expr: expression) =
       check_expression env e1;
       check_expression env e2
 
-  | EMatch (e, pat_exprs) ->
+  | EMatch (_, e, pat_exprs) ->
       check_expression env e;
       List.iter (fun (pat, expr) ->
         let bindings = bindings_pattern pat in

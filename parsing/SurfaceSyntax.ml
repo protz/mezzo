@@ -176,7 +176,7 @@ and expression =
   (* e e₁ … eₙ *)
   | EApply of expression * expression
   (* match e with pᵢ -> eᵢ *)
-  | EMatch of expression * (pattern * expression) list
+  | EMatch of bool * expression * (pattern * expression) list
   (* (e₁, …, eₙ) *)
   | ETuple of expression list
   (* Foo { bar = bar; baz = baz; … *)

@@ -37,3 +37,10 @@ svg * {
 .node {
   cursor: pointer;
 }
+
+.graph {
+  display: inline-block;
+  border: 2px dotted black;
+  margin: 1em;
+  padding: 1em;
+}

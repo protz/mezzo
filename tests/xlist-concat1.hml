@@ -3,11 +3,11 @@ exclusive data xlist a =
   | XCons { head: a; tail: xlist a }
 
 val rec concat1 [a] (xs: XCons { head: a; tail: xlist a }, consumes ys: xlist a): () =
-  match xs.tail with
+  match explain xs.tail with
   | XNil ->
       xs.tail <- ys
   | XCons ->
-      concat1 (xs.tail, ys) explain
+      concat1 (xs.tail, ys)
   end
 
 val concat [a] (consumes xs: xlist a, consumes ys: xlist a): xlist a =

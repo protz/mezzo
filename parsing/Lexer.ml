@@ -147,7 +147,7 @@ let rec token = lexer
 | "rec" -> locate lexbuf REC
 | "and" -> locate lexbuf AND
 | "assert" -> locate lexbuf ASSERT
-| "explain" -> locate lexbuf EXPLAINED
+| "explain" -> locate lexbuf EXPLAIN
 
 | "permission" -> locate lexbuf PERMISSION
 | "unknown" -> locate lexbuf UNKNOWN

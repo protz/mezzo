@@ -521,7 +521,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let e2 = translate_expr env e2 in
       E.EApply (e1, e2)
 
-  | EMatch (e, patexprs) ->
+  | EMatch (b, e, patexprs) ->
       let e = translate_expr env e in
       let patexprs = List.map (fun (pat, expr) ->
         (* Extract assertions from the pattern. *)
@@ -543,7 +543,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
         in
         pat, expr) patexprs
       in
-      E.EMatch (e, patexprs)
+      E.EMatch (b, e, patexprs)
 
   | ETuple expressions ->
       E.ETuple (List.map (translate_expr env) expressions)

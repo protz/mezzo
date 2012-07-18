@@ -671,7 +671,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
 
       Merge.merge_envs env left right
 
-  | EMatch (e, patexprs) ->
+  | EMatch (explain, e, patexprs) ->
       (* First of all, make sure there's a nominal type that corresponds to the
        * expression being matched, and that we have its definition. *)
       let hint = add_hint hint "match" in 
@@ -750,8 +750,12 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
 
       (* Combine all of these left-to-right to obtain a single return
        * environment *)
-      Hml_List.reduce (Merge.merge_envs env) sub_envs
+      let env = Hml_List.reduce (Merge.merge_envs env) sub_envs in
 
+      if explain then
+        Debug.explain_merge env sub_envs;
+
+      env
 
   | EExplained e ->
       let env, x = check_expression env ?hint e in

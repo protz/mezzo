@@ -29,7 +29,7 @@
 %token COMMA COLON COLONCOLON SEMI ARROW STAR AT
 %token LARROW DBLARROW FUN
 %token EQUAL
-%token EMPTY ASSERT EXPLAINED
+%token EMPTY ASSERT EXPLAIN
 %token CONSUMES DUPLICABLE FACT ABSTRACT
 %token VAL LET REC AND IN DOT WITH BEGIN END MATCH
 %token IF THEN ELSE
@@ -455,7 +455,7 @@ fact:
       { e }
 
   explained_raw:
-  | e = sum EXPLAINED
+  | e = sum EXPLAIN
       { EExplained e }
   | e = sum_raw
       { e }
@@ -507,6 +507,12 @@ fact:
   | e = elocated(atomic_raw)
       { e }
 
+  explain:
+  |
+      { false }
+  | EXPLAIN
+      { true }
+
   atomic_raw:
   | v = variable
       { EVar v }
@@ -518,8 +524,8 @@ fact:
       { ETuple es }
   | LPAREN RPAREN
       { ETuple [] }
-  | MATCH e = expression WITH bs = separated_or_preceded_list(BAR, match_branch) END
-      { EMatch (e, bs) }
+  | MATCH b = explain e = expression WITH bs = separated_or_preceded_list(BAR, match_branch) END
+      { EMatch (b, e, bs) }
   | e = atomic DOT f = variable
       { EAccess (e, f) }
   | BEGIN e = expression END

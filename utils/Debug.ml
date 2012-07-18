@@ -80,8 +80,8 @@ module Graph = struct
           let s = Str.global_replace regexp "\\\\\\0" s in
           (* Trim the string to a reasonable length. *)
           let s =
-            if String.length s > 50 then
-              String.sub s 0 50 ^ "…"
+            if String.length s > 30 then
+              String.sub s 0 30 ^ "…"
             else
               s
           in
@@ -127,13 +127,10 @@ module Graph = struct
   ;;
 
   let graph env =
-    let filename = Filename.temp_file "hamlet" ".dot" in
-    let oc = open_out filename in
+    let ic, oc = Unix.open_process "dot -Tx11" in
     write_graph env oc;
     close_out oc;
-    let err = Sys.command (Printf.sprintf "dot -Tx11 %s" (Filename.quote filename)) in
-    if err = 0 then
-      Unix.unlink filename;
+    close_in ic;
   ;;
 
 end
@@ -177,28 +174,27 @@ module Html = struct
     ) []
   ;;
 
-  let render env =
-    Hml_Pprint.disable_colors ();
-
+  let render_svg env =
     (* Create the SVG. *)
     let ic, oc = Unix.open_process "dot -Tsvg" in
     Graph.write_graph env oc;
     close_out oc;
     let svg = Utils.read ic in
     close_in ic;
+    svg
+  ;;
 
+  let render_base env extra =
     (* Create the syntax-highlighted HTML. *)
     let f = (fst env.location).Lexing.pos_fname in
     let syntax = pygmentize f in
 
     (* Create the JSON data. *)
-    let json = `Assoc [
+    let json = `Assoc ([
       ("syntax", `String syntax);
       ("current_location", json_of_loc env.location);
       ("file_name", `String f);
-      ("svg", `String svg);
-      ("points", `Assoc (json_of_points env));
-    ] in
+    ] @ extra) in
 
     (* Output it to a file. *)
     let json_file =
@@ -208,6 +204,41 @@ module Html = struct
     let oc = open_out json_file in
     Yojson.Safe.to_channel oc json;
     close_out oc;
+  ;;
+
+  let render env =
+    Hml_Pprint.disable_colors ();
+
+    let extra = [
+      ("type", `String "single");
+      ("svg", `String (render_svg env));
+      ("points", `Assoc (json_of_points env));
+    ] in
+
+    render_base env extra;
+
+    Hml_Pprint.enable_colors ();
+  ;;
+
+  let render_merge env sub_envs =
+    Hml_Pprint.disable_colors ();
+
+    let render_env_point (env, point) =
+      `Assoc [
+        ("svg", `String (render_svg env));
+        ("root", `Int (Graph.id_of_point env point));
+        ("points", `Assoc (json_of_points env));
+      ]
+    in
+
+    (* Create the JSON data. *)
+    let extra = [
+      ("type", `String "merge");
+      ("merged_env", render_env_point env);
+      ("sub_envs", `List (List.map render_env_point sub_envs));
+    ] in
+
+    render_base (fst env) extra;
 
     Hml_Pprint.enable_colors ();
   ;;
@@ -235,4 +266,10 @@ let explain env x =
     flush stdout; flush stderr;
     Graph.graph env
   end
+;;
+
+
+let explain_merge env sub_envs =
+  if !enabled = "html" then
+    Html.render_merge env sub_envs;
 ;;

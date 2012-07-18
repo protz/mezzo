@@ -44,7 +44,7 @@ type expression =
   (* e₁ e₂ *)
   | EApply of expression * expression
   (* match e with pᵢ -> eᵢ *)
-  | EMatch of expression * patexpr list
+  | EMatch of bool * expression * patexpr list
   (* (e₁, …, eₙ) *)
   | ETuple of expression list
   (* Foo { bar = bar; baz = baz; … *)
@@ -206,7 +206,7 @@ and tsubst_expr t2 i e =
       let arg = tsubst_expr t2 i arg in
       EApply (f, arg)
 
-  | EMatch (e, patexprs) ->
+  | EMatch (b, e, patexprs) ->
       let e = tsubst_expr t2 i e in
       let patexprs = List.map (fun (pat, expr) ->
           let names = collect_pattern pat in
@@ -214,7 +214,7 @@ and tsubst_expr t2 i e =
           pat, tsubst_expr t2 (i + n) expr
         ) patexprs
       in
-      EMatch (e, patexprs)
+      EMatch (b, e, patexprs)
 
   | ETuple exprs ->
       let exprs = List.map (tsubst_expr t2 i) exprs in
@@ -338,7 +338,7 @@ and esubst e2 i e1 =
       let arg = esubst e2 i arg in
       EApply (f, arg)
 
-  | EMatch (e, patexprs) ->
+  | EMatch (b, e, patexprs) ->
       let e = esubst e2 i e in
       let patexprs = List.map (fun (pat, expr) ->
         let names = collect_pattern pat in
@@ -346,7 +346,7 @@ and esubst e2 i e1 =
         let expr = esubst e2 (i + n) expr in
         pat, expr) patexprs
       in
-      EMatch (e, patexprs)
+      EMatch (b, e, patexprs)
 
   | ETuple exprs ->
       let exprs = List.map (esubst e2 i) exprs in
@@ -549,13 +549,13 @@ let elift (k: int) (e: expression) =
   | EApply (e1, e2) ->
       EApply (elift i e1, elift i e2)
 
-  | EMatch (e, patexprs) ->
+  | EMatch (b, e, patexprs) ->
       let e = elift i e in
       let patexprs = List.map (fun (pat, expr) ->
         let n = List.length (collect_pattern pat) in
         pat, elift (i + n) expr
       ) patexprs in
-      EMatch (e, patexprs)
+      EMatch (b, e, patexprs)
 
   | ETuple es ->
       ETuple (List.map (elift i) es)
@@ -645,14 +645,14 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
     | EApply (e1, e'1) ->
         EApply (epsubst e2 e1, epsubst e2 e'1)
 
-    | EMatch (e1, patexprs) ->
+    | EMatch (b, e1, patexprs) ->
         let e1 = epsubst e2 e1 in
         let patexprs = List.map (fun (pat, expr) ->
           let n = List.length (collect_pattern pat) in
           let e2 = elift n e2 in
           pat, epsubst e2 expr
         ) patexprs in
-        EMatch (e1, patexprs)
+        EMatch (b, e1, patexprs)
 
 
     | ETuple es ->
@@ -741,14 +741,14 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
     | EApply (e1, e'1) ->
         EApply (tepsubst t2 e1, tepsubst t2 e'1)
 
-    | EMatch (e1, patexprs) ->
+    | EMatch (b, e1, patexprs) ->
         let e1 = tepsubst t2 e1 in
         let patexprs = List.map (fun (pat, expr) ->
           let n = List.length (collect_pattern pat) in
           let t2 = lift n t2 in
           pat, tepsubst t2 expr
         ) patexprs in
-        EMatch (e1, patexprs)
+        EMatch (b, e1, patexprs)
 
 
     | ETuple es ->
@@ -883,7 +883,7 @@ module ExprPrinter = struct
         let exprs = List.map (print_expr env) exprs in
         lparen ^^ join (comma ^^ space) exprs ^^ rparen
 
-    | EMatch (e, patexprs) ->
+    | EMatch (b, e, patexprs) ->
         let patexprs = List.map (fun (pat, expr) ->
           let vars = collect_pattern pat in
           let bindings = List.map (fun (v, p) -> (v, KTerm, p)) vars in
@@ -891,7 +891,8 @@ module ExprPrinter = struct
           let expr = subst_expr expr in
           print_pat env pat ^^ space ^^ arrow ^^ jump (print_expr env expr)
         ) patexprs in
-        string "match" ^^ space ^^ print_expr env e ^^ space ^^ string "with" ^^
+        let explain = if b then string "explain" ^^ space else empty in
+        string "match" ^^ space ^^ explain ^^ print_expr env e ^^ space ^^ string "with" ^^
         jump ~indent:0 (ifflat empty (bar ^^ space) ^^ join (break1 ^^ bar ^^ space) patexprs)
 
 
