@@ -178,6 +178,14 @@ let tests = [
     in
     check env v8 t);
 
+  ("merge9.hml", fun do_it ->
+    let env = do_it false in
+    let v9 = point_by_name env "v9" in
+    let ref = find_type_by_name env "ref" in
+    let int = find_type_by_name env "int" in
+    let t = TyApp (ref, int) in
+    check env v9 t);
+
   ("merge_generalize_val.hml", fun do_it ->
     let env = do_it false in
     let x = point_by_name env "x" in

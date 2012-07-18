@@ -51,7 +51,13 @@ module Graph = struct
             in
             gen env name t
           ) fields) in
-          Datacon.print datacon ^ "|" ^ String.concat "|" blocks, edges
+          let blocks =
+            if List.length blocks > 0 then
+              "|" ^ String.concat "|" blocks
+            else
+              ""
+          in
+          Datacon.print datacon ^ blocks, edges
 
       | TyTuple ts ->
           let blocks, edges = List.split (List.mapi (fun i t ->

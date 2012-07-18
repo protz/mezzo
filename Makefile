@@ -1,4 +1,4 @@
-.PHONY: all clean graph doc
+.PHONY: all clean graph doc index
 
 # The variables below should be determined by a configure script...
 FIND       := find
@@ -57,3 +57,6 @@ test: all
 
 build:
 	$(OCAMLBUILD) $(INCLUDE) $(FILE).native
+
+index:
+	$(shell cd viewer && ./gen_index.sh)

@@ -595,7 +595,7 @@ and check_expression (env: env) (expr: expression) =
       let _, exprs = List.split field_exprs in
       List.iter (check_expression env) exprs
 
-  | EIfThenElse (e1, e2, e3) ->
+  | EIfThenElse (_, e1, e2, e3) ->
       check_expression env e1;
       check_expression env e2;
       check_expression env e3

@@ -554,11 +554,11 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       in
       E.EConstruct (name, fieldexprs)
 
-  | EIfThenElse (e1, e2, e3) ->
+  | EIfThenElse (b, e1, e2, e3) ->
       let e1 = translate_expr env e1 in
       let e2 = translate_expr env e2 in
       let e3 = translate_expr env e3 in
-      E.EIfThenElse (e1, e2, e3)
+      E.EIfThenElse (b, e1, e2, e3)
 
   | ESequence (e1, e2) ->
       let e1 = translate_expr env e1 in

@@ -1,0 +1,30 @@
+data bool = True | False
+abstract int
+fact duplicable int
+
+exclusive data ref a = Nil | Ref { contents: a }
+
+(* Cet exemple illustre un point un peu particulier. Ici, on obtient [y @ ref int] en sortie, mais
+   une autre possibilité aurait été de dire [y @ ref (=x)] qui est en fait une permission plus
+   précise que [y @ ref int]. Cependant, on ne peut pas en l'état actuel des choses (il faudrait
+   implémenter une "tactique") troquer [y @ ref (=x) ∗ x @ int] en [y @ ref int] sans test
+   dynamique. D'ailleurs, ça n'est pas toujours possible. Imaginons en effet le cas d'une liste: [y
+   @ list (=x) ∗ x @ τ] ne se transforme pas en [y @ list τ], car si [τ] n'est pas duplicable, il
+   faut un test dynamique pour vérifier que la liste a au plus un élément.
+
+  Un critère (correct ? peut-être...) est de dire : cette transformation est légale si le paramètre
+  du type n'apparaît qu'au plus une fois dans chaque branche et que le type n'est pas récursif. Une
+  tactique serait alors envisageable...
+
+  Pour l'instant, tout ça est trop compliqué, et il est plus important de permettre d'annoter
+  l'ensemble des permissions attendues.
+*)
+val v9 =
+  let x = 3 in
+  let y =
+    if explain True then
+      Nil
+    else
+      Ref { contents = x }
+  in
+  y

@@ -7,7 +7,7 @@ data t = T
    v1 @ T {}
 *)
 val v1 =
-  if True then
+  if explain True then
     T
   else
     T

@@ -10,7 +10,7 @@ fact duplicable int
    v4 @ w int
 *)
 val v4 =
-  if True then
+  if explain True then
     W { w = 1 }
   else
     X

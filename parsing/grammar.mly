@@ -444,10 +444,10 @@ fact:
 
   everything_except_let_and_semi_raw:
   (* disallow let inside of "then", too fragile *)
-  | IF e1 = expression THEN e2 = everything_except_let_and_semi
-      { EIfThenElse (e1, e2, ETuple []) }
-  | IF e1 = expression THEN e2 = everything_except_let_and_semi ELSE e3 = everything_except_let_and_semi
-      { EIfThenElse (e1, e2, e3) }
+  | IF b = explain e1 = expression THEN e2 = everything_except_let_and_semi
+      { EIfThenElse (b, e1, e2, ETuple []) }
+  | IF b = explain e1 = expression THEN e2 = everything_except_let_and_semi ELSE e3 = everything_except_let_and_semi
+      { EIfThenElse (b, e1, e2, e3) }
   (* cannot allow let because right-hand side of let can contain a semi-colon *)
   | e1 = atomic DOT f = variable LARROW e2 = everything_except_let_and_semi
       { EAssign (e1, f, e2) }

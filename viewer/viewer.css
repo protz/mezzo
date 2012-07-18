@@ -60,6 +60,7 @@ svg * {
 #details {
   vertical-align: top;
   margin-left: 3em;
+  font-size: 10pt;
 }
 
 .node {

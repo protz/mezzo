@@ -182,7 +182,7 @@ and expression =
   (* Foo { bar = bar; baz = baz; … *)
   | EConstruct of (Datacon.name * (Variable.name * expression) list)
   (* if e₁ then e₂ else e₃ *)
-  | EIfThenElse of expression * expression * expression
+  | EIfThenElse of bool * expression * expression * expression
   (* e₁; e₂ → desugared as let () = e₁ in e₂ *)
   | ESequence of expression * expression
   | ELocated of expression * Lexing.position * Lexing.position

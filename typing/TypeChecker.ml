@@ -627,7 +627,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       let env, p = check_expression env ?hint e in
       locate env pos, p
 
-  | EIfThenElse (e1, e2, e3) ->
+  | EIfThenElse (explain, e1, e2, e3) ->
       let hint_1 = add_hint hint "if" in
       let env, x1 = check_expression env ?hint:hint_1 e1 in
       
@@ -669,7 +669,12 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       let hint_r = add_hint hint "else" in
       let right = check_expression env ?hint:hint_r e3 in
 
-      Merge.merge_envs env left right
+      let dest = Merge.merge_envs env left right in
+
+      if explain then
+        Debug.explain_merge dest [left; right];
+
+      dest
 
   | EMatch (explain, e, patexprs) ->
       (* First of all, make sure there's a nominal type that corresponds to the
@@ -750,12 +755,12 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
 
       (* Combine all of these left-to-right to obtain a single return
        * environment *)
-      let env = Hml_List.reduce (Merge.merge_envs env) sub_envs in
+      let dest = Hml_List.reduce (Merge.merge_envs env) sub_envs in
 
       if explain then
-        Debug.explain_merge env sub_envs;
+        Debug.explain_merge dest sub_envs;
 
-      env
+      dest
 
   | EExplained e ->
       let env, x = check_expression env ?hint e in

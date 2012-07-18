@@ -1079,9 +1079,20 @@ module TypePrinter = struct
         print_names (get_names env p) ^^ star ^^ space ^^ equals ^^ space ^^
         print_names (get_names env p') ^^ star'
 
-    | TyForall (((name, kind, _) as binding), typ) ->
-        let env, typ = bind_var_in_type env binding typ in
-        print_quantified env "∀" name kind typ
+    | (TyForall _) as t ->
+        let vars, t = strip_forall t in
+        let env, t = List.fold_right (fun binding (env, t) ->
+          bind_var_in_type env binding t
+        ) vars (env, t) in
+        let vars = List.map (fun (x, k, _) ->
+          if k = KType then
+            print_var x
+          else
+            print_var x ^^ space ^^ colon ^^ colon ^^ space ^^ print_kind k
+        ) vars in
+        let vars = join (comma ^^ space) vars in
+        let vars = lbracket ^^ vars ^^ rbracket in
+        vars ^^ space ^^ print_type env t
 
     | TyExists (((name, kind, _) as binding), typ) ->
         let env, typ = bind_var_in_type env binding typ in

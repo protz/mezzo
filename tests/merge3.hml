@@ -14,7 +14,7 @@ data u = U { left: t; right: t }
    étant exclusif.
 *)
 val v3 =
-  if True then begin
+  if explain True then begin
     let x = T in
     U { left = x; right = x }
   end else begin

@@ -50,7 +50,7 @@ type expression =
   (* Foo { bar = bar; baz = baz; … *)
   | EConstruct of Datacon.name * (Field.name * expression) list
   (* if e₁ then e₂ else e₃ *)
-  | EIfThenElse of expression * expression * expression
+  | EIfThenElse of bool * expression * expression * expression
   | ELocated of expression * Lexing.position * Lexing.position
   (* Arithmetic *)
   | EPlus of expression * expression
@@ -226,11 +226,11 @@ and tsubst_expr t2 i e =
       in
       EConstruct (name, fieldexprs)
 
-  | EIfThenElse (e1, e2, e3) ->
+  | EIfThenElse (b, e1, e2, e3) ->
       let e1 = tsubst_expr t2 i e1 in
       let e2 = tsubst_expr t2 i e2 in
       let e3 = tsubst_expr t2 i e3 in
-      EIfThenElse (e1, e2, e3)
+      EIfThenElse (b, e1, e2, e3)
 
   | ELocated (e, p1, p2) ->
       let e = tsubst_expr t2 i e in
@@ -358,11 +358,11 @@ and esubst e2 i e1 =
       in
       EConstruct (name, fieldexprs)
 
-  | EIfThenElse (e, e', e'') ->
+  | EIfThenElse (b, e, e', e'') ->
       let e = esubst e2 i e in
       let e' = esubst e2 i e' in
       let e'' = esubst e2 i e'' in
-      EIfThenElse (e, e', e'')
+      EIfThenElse (b, e, e', e'')
 
 
   | ELocated (e, p1, p2) ->
@@ -566,8 +566,8 @@ let elift (k: int) (e: expression) =
       ) fieldexprs in
       EConstruct (datacon, fieldexprs)
 
-  | EIfThenElse (e1, e2, e3) ->
-      EIfThenElse (elift i e1, elift i e2, elift i e3)
+  | EIfThenElse (b, e1, e2, e3) ->
+      EIfThenElse (b, elift i e1, elift i e2, elift i e3)
 
   | ELocated (e, p1, p2) ->
       ELocated (elift i e, p1, p2)
@@ -664,8 +664,8 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
         ) fieldexprs in
         EConstruct (datacon, fieldexprs)
 
-    | EIfThenElse (e1, e1', e1'') ->
-        EIfThenElse (epsubst e2 e1, epsubst e2 e1', epsubst e2 e1'')
+    | EIfThenElse (b, e1, e1', e1'') ->
+        EIfThenElse (b, epsubst e2 e1, epsubst e2 e1', epsubst e2 e1'')
 
     | ELocated (e, p1, p2) ->
         ELocated (epsubst e2 e, p1, p2)
@@ -760,8 +760,8 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
         ) fieldexprs in
         EConstruct (datacon, fieldexprs)
 
-    | EIfThenElse (e1, e1', e1'') ->
-        EIfThenElse (tepsubst t2 e1, tepsubst t2 e1', tepsubst t2 e1'')
+    | EIfThenElse (b, e1, e1', e1'') ->
+        EIfThenElse (b, tepsubst t2 e1, tepsubst t2 e1', tepsubst t2 e1'')
 
     | ELocated (e, p1, p2) ->
         ELocated (tepsubst t2 e, p1, p2)
@@ -908,8 +908,9 @@ module ExprPrinter = struct
         in
         print_datacon datacon ^^ fieldexprs
 
-    | EIfThenElse (e1, e2, e3) ->
-        string "if" ^^ space ^^ print_expr env e1 ^^ space ^^ string "then" ^^
+    | EIfThenElse (b, e1, e2, e3) ->
+        let explain = if b then string "explain" ^^ space else empty in
+        string "if" ^^ space ^^ explain ^^ print_expr env e1 ^^ space ^^ string "then" ^^
         jump (print_expr env e2) ^^ break1 ^^ string "else" ^^
         jump (print_expr env e3)
 

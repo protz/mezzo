@@ -10,7 +10,7 @@ data v a b = A { a: a } | B { b: b } | C | D
    v6 @ ∀b. v int b 
 *)
 val v6 =
-  if True then
+  if explain True then
     A { a = 1 }
   else
     C

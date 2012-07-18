@@ -9,7 +9,7 @@ data v a b = A { a: a } | B { b: b } | C | D
    v7 @ ∀ab. v a b 
 *)
 val v7 =
-  if True then
+  if explain True then
     D
   else
     C
