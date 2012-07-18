@@ -18,3 +18,15 @@ function decodeUrlParameters(aStr) {
   }
   return params;
 }
+
+/**
+ * Python-style range function to use in list comprehensions.
+ *  @param {Number} begin
+ *  @param {Number} end
+ *  @return {Iterator} An iterator that yields from begin to end - 1.
+ */
+function range(begin, end) {
+  for (let i = begin; i < end; ++i) {
+    yield i;
+  }
+}

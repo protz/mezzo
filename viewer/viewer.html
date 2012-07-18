@@ -14,7 +14,7 @@
 <body>
 
   <div id="heading">
-
+    Explaining <span id="type"></span> from <span id="filename"></span>.
   </div>
 
   <div id="commands">
@@ -26,13 +26,27 @@
   </div>
 
   <div id="main">
-    <div id="syntax">
+    <div>
+      <p class="label">Source code</p>
+      <div id="source">
+        <div id="linenos">
+          <pre></pre>
+        </div>
+        <div id="syntax">
+        </div>
+      </div>
     </div>
-    <div id="details">
+    <div id="detailsWrapper">
+      <p class="label">Inspect</p>
+      <div id="details">
+      </div>
     </div>
   </div>
 
+  <div id="subgraphs">
+  </div>
   <div id="graph">
+    <div style="text-align: center; font-size: 50px">↓</div>
   </div>
 
 </body>

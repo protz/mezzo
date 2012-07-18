@@ -4,7 +4,7 @@ function fail(aMsg) {
 }
 
 function buildGraph({ svg, points, root }) {
-  let node = $("<div>").addClass("graph").appendTo($("#graph"));
+  let node = $("<div>").addClass("graph");
 
   // Fill in the graph
   svg = svg.substring(244, svg.length);
@@ -20,15 +20,34 @@ function buildGraph({ svg, points, root }) {
       .attr("fill", "#9e2828")
       .css("font-weight", "bold");
   }
+
+  return node;
+}
+
+function generateLineNumbers() {
+  let total = $("#syntax").text().split("\n").length - 2;
+  let digits = function (x) (x+"").length;
+  let pad = function (x) {
+    let str = "";
+    let n = digits(total) - digits(x);
+    for (let i = 0; i < n; ++i)
+      str += " ";
+    return str;
+  };
+  $("#linenos pre").text(
+    [pad(i) + i for (i in range(0, total))].join("\n")
+  );
 }
 
 function fillInterface(aJson) {
   let { type, syntax, current_location, file_name } = aJson;
 
-  $("#heading").append($("<h1>").text("Explanations for "+file_name));
+  $("#filename").text(file_name);
 
   // Fill in the syntax-highlighted HTML.
   $("#syntax").html(syntax);
+
+  generateLineNumbers();
 
   // Highlight the sub-expression that was last type-checked.
   highlightLocation(current_location);
@@ -36,21 +55,23 @@ function fillInterface(aJson) {
   // Display information
   $("#details").text("Last checked expression: "+printLoc(current_location)+" (highlighted).");
 
-  // Resize accordingly.
-  let w = $(window).width() - $("#syntax").width() - 100;
-  $("#details").width(w);
-
   if (type == "single") {
+    $("#type").text("a program point");
     // There's only one environment to draw.
-    buildGraph(aJson);
+    buildGraph(aJson).appendTo($("#graph"));
   } else if (type == "merge") {
+    $("#type").text("a merge operation");
     // There's many sub-environments
+    $("#subgraphs").show();
     for (let env of aJson.sub_envs)
-      buildGraph(env);
-    // That merge into
-    $("#graph").append($("<hr>"));
-    // Another environment
-    buildGraph(aJson.merged_env);
+      buildGraph(env)
+        .prepend($("<p>").addClass("label").text("Sub-environment"))
+        .appendTo($("#subgraphs"))
+
+    // That merge into the resulting environment
+    buildGraph(aJson.merged_env)
+      .prepend($("<p>").addClass("label").text("Merged environment"))
+      .appendTo($("#graph"))
   }
 }
 
@@ -69,7 +90,7 @@ function registerNodeHandlers(aNode, aPoints) {
 
 function displayDetails(infos) {
   if (!infos) {
-    $("#details").text("No information for this node");
+    $("#details").text("No information for this node. This is unexpected");
     return;
   }
 
@@ -81,7 +102,7 @@ function displayDetails(infos) {
 
   $("#details").empty();
 
-  $("#details").append($("<h2>").text("Names"));
+  $("#details").append($("<p>").addClass("label2").text("Names"));
   for each (let [, [type, name]] in Iterator(names)) {
     if (type == "user")
       $("#details").append($("<span>").text(name));
@@ -90,10 +111,10 @@ function displayDetails(infos) {
     $("#details").append($("<span>").text(", "));
   }
 
-  $("#details").append($("<h2>").text("Kind"));
-  $("#details").append($("<strong>").text(kind));
+  $("#details").append($("<p>").addClass("label2").text("Kind"));
+  $("#details").append($("<span>").text(kind));
 
-  $("#details").append($("<h2>").text("Known permissions"));
+  $("#details").append($("<p>").addClass("label2").text("Known permissions"));
   let l = $("<ul>");
   for each (let [, t] in Iterator(permissions)) {
     l.append($("<li>").text(t));
@@ -115,7 +136,7 @@ function clearLocations() {
 
 function highlightLocation({ start, end }) {
   let cur = { line: 1, col: 0 };
-  let ref = $("#syntax").text();
+  let ref = $("#syntax > div").text();
   let before = "";
   let middle = "";
   let after = "";
@@ -151,13 +172,34 @@ let zoomFactor = 1;
 let zoomStep = .1;
 
 function registerEventHandlers() {
+  let resize = function () {
+    $(".graph").css("-moz-transform", "scale("+zoomFactor+")");
+    $(".graph").each(function () {
+      let h = $(this).data("originalHeight");
+      if (!h) {
+        h = $(this).height();
+        $(this).data("originalHeight", h);
+      }
+
+      let w = $(this).data("originalWidth");
+      if (!w) {
+        w = $(this).width();
+        $(this).data("originalWidth", w);
+      }
+
+      $(this).width(w*zoomFactor);
+      $(this).height(h*zoomFactor);
+    });
+  };
+
   $("#zoom_out").click(function () {
     zoomFactor -= zoomStep;
-    $(".graph").css("-moz-transform", "scale("+zoomFactor+")");
+    resize();
   });
+
   $("#zoom_in").click(function () {
     zoomFactor += zoomStep;
-    $(".graph").css("-moz-transform", "scale("+zoomFactor+")");
+    resize();
   });
 }
 
