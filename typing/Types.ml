@@ -1080,10 +1080,14 @@ module TypePrinter = struct
         print_names (get_names env p') ^^ star'
 
     | (TyForall _) as t ->
-        let vars, t = strip_forall t in
-        let env, t = List.fold_right (fun binding (env, t) ->
-          bind_var_in_type env binding t
-        ) vars (env, t) in
+        let rec strip_bind acc env = function
+          | TyForall (binding, t) ->
+              let env, t = bind_var_in_type env binding t in
+              strip_bind (binding :: acc) env t
+          | _ as t ->
+              List.rev acc, env, t
+        in
+        let vars, env, t = strip_bind [] env t in
         let vars = List.map (fun (x, k, _) ->
           if k = KType then
             print_var x
