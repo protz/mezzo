@@ -20,7 +20,7 @@ exclusive data ref a = Nil | Ref { contents: a }
   l'ensemble des permissions attendues.
 *)
 val v9 =
-  let x = 3 in
+  let x = Ref { contents = 3 } in
   let y =
     if explain True then
       Nil

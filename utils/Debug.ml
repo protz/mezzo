@@ -245,7 +245,7 @@ module Html = struct
         ("svg", `String (render_svg env));
         ("root", `Int (Graph.id_of_point env point));
         ("points", `Assoc (json_of_points env));
-        ("dot", `String (Hml_String.bsprintf "%a" Graph.write_simple_graph (env, point)));
+        ("dot", `String (Hml_String.bsprintf "%a" Graph.write_graph env));
       ]
     in
 

@@ -94,9 +94,9 @@ function fillInterface(aJson) {
     $("#type").text("a merge operation");
     // There's many sub-environments
     $("#subgraphs").show();
-    for (let env of aJson.sub_envs)
+    for each (let [i, env] in Iterator(aJson.sub_envs))
       buildGraph(env)
-        .prepend($("<p>").addClass("label").text("Sub-environment"))
+        .prepend($("<p>").addClass("label").text("Sub-environment "+(i+1)))
         .appendTo($("#subgraphs"))
 
     // That merge into the resulting environment
