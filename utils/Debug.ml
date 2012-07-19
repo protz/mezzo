@@ -12,7 +12,7 @@ module Graph = struct
     Obj.magic p
   ;;
 
-  let draw_point oc env point permissions =
+  let draw_point buf env point permissions =
     let id = id_of_point env point in
     let names = Hml_List.map_some
       (function User v -> Some (Variable.print v) | Auto _ -> None)
@@ -97,44 +97,55 @@ module Graph = struct
 
     (* Print the edges *)
     List.iter (fun (field, dest) ->
-      Printf.fprintf oc "\"node%d\":%s -> \"node%d\" [\n" id field dest;
+      Printf.bprintf buf "\"node%d\":%s -> \"node%d\" [\n" id field dest;
       (* Printf.fprintf oc "id = 6\n"; *)
-      Printf.fprintf oc "];\n";
+      Printf.bprintf buf "];\n";
     ) edges;
 
     (* Print the node. *)
-    Printf.fprintf oc "\"node%d\" [\n" id;
-    Printf.fprintf oc "  id = \"node%d\"\n" id;
+    Printf.bprintf buf "\"node%d\" [\n" id;
+    Printf.bprintf buf "  id = \"node%d\"\n" id;
     if String.length names > 0 then
-      Printf.fprintf oc "  label = \"{{%s}|%s}\"\n" line names
+      Printf.bprintf buf "  label = \"{{%s}|%s}\"\n" line names
     else
-      Printf.fprintf oc "  label = \"%s\"\n" line;
-    Printf.fprintf oc "  shape = \"record\"\n";
-    Printf.fprintf oc "];\n";
+      Printf.bprintf buf "  label = \"%s\"\n" line;
+    Printf.bprintf buf "  shape = \"record\"\n";
+    Printf.bprintf buf "];\n";
   ;;
 
-  let write_intro oc =
-    Printf.fprintf oc "digraph g {\n";
-    Printf.fprintf oc "graph [\n";
-    Printf.fprintf oc "  rankdir = \"BT\"\n";
-    Printf.fprintf oc "];\n";
+  let write_intro buf =
+    Printf.bprintf buf "digraph g {\n";
+    Printf.bprintf buf "graph [\n";
+    Printf.bprintf buf "  rankdir = \"BT\"\n";
+    Printf.bprintf buf "];\n";
   ;;
 
-  let write_outro oc =
-    Printf.fprintf oc "}";
+  let write_outro buf =
+    Printf.bprintf buf "}";
   ;;
 
-  let write_graph env oc =
-    write_intro oc;
+  let write_simple_graph buf (env, root) =
+    write_intro buf;
+    let env = refresh_mark env in
+    let env = TypeOps.mark_reachable env (TyPoint root) in
     fold_terms env (fun () point _head { permissions; _ } ->
-      draw_point oc env point permissions
+      if is_marked env point then
+        draw_point buf env point permissions
     ) ();
-    write_outro oc;
+    write_outro buf;
+  ;;
+
+  let write_graph buf env =
+    write_intro buf;
+    fold_terms env (fun () point _head { permissions; _ } ->
+      draw_point buf env point permissions
+    ) ();
+    write_outro buf;
   ;;
 
   let graph env =
     let ic, oc = Unix.open_process "dot -Tx11" in
-    write_graph env oc;
+    Hml_String.bfprintf oc "%a" write_graph env;
     close_out oc;
     close_in ic;
   ;;
@@ -183,7 +194,7 @@ module Html = struct
   let render_svg env =
     (* Create the SVG. *)
     let ic, oc = Unix.open_process "dot -Tsvg" in
-    Graph.write_graph env oc;
+    Hml_String.bfprintf oc "%a" Graph.write_graph env;
     close_out oc;
     let svg = Utils.read ic in
     close_in ic;
@@ -234,6 +245,7 @@ module Html = struct
         ("svg", `String (render_svg env));
         ("root", `Int (Graph.id_of_point env point));
         ("points", `Assoc (json_of_points env));
+        ("dot", `String (Hml_String.bsprintf "%a" Graph.write_simple_graph (env, point)));
       ]
     in
 

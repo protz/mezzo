@@ -3,22 +3,53 @@ function fail(aMsg) {
   throw new Error(aMsg);
 }
 
-function buildGraph({ svg, points, root }) {
+function buildGraph({ svg, points, root, dot }) {
   let node = $("<div>").addClass("graph");
 
   // Fill in the graph
   svg = svg.substring(244, svg.length);
-  node.html(svg);
-  node.find("title").first().next().attr("fill", "transparent");
+  let svgNode = $("<div>")
+    .html(svg)
+    .appendTo(node)
+    .find("title").first().next().attr("fill", "transparent");
 
   // Register stuff for the nodes
-  registerNodeHandlers(node, points);
+  registerNodeHandlers(svgNode, points);
 
   // The root nodes should be marked with a special color
   if (root) {
-    node.find("#node"+root)
+    svgNode.find("#node"+root)
       .attr("fill", "#9e2828")
       .css("font-weight", "bold");
+  }
+
+  if (dot) {
+    let showSource = function (event) {
+      let x = event.pageX;
+      let y = event.pageY;
+      let div = $("<div>")
+        .append($("<input type='text'>").val(dot))
+        .append($("<span>")
+          .text(" (hide)")
+          .css("cursor", "pointer")
+          .css("font-size", "8pt")
+          .click(function () { $(this).parent().remove(); })
+        )
+        .addClass("popup")
+        .css("position", "absolute")
+        .css("left", x)
+        .css("top", y)
+        .appendTo($("body"));
+    };
+    $("<div>")
+      .css("text-align", "right")
+      .append(
+        $("<a>")
+          .text("dot source")
+          .addClass("button")
+          .click(showSource)
+      )
+      .appendTo(node);
   }
 
   return node;

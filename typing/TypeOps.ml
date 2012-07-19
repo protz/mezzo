@@ -185,3 +185,55 @@ let simplify_function_def env bindings arg return_type body =
   let arg, return_type = match t with TyArrow (t1, t2) -> t1, t2 | _ -> assert false in
   bindings, arg, return_type, body
 ;;
+
+let rec mark_reachable env = function
+  | TyUnknown
+  | TyDynamic
+  | TyEmpty
+  | TyVar _ ->
+      env
+
+  | TyPoint p ->
+      if is_marked env p then
+        env
+      else
+        let env = mark env p in
+        begin match structure env p with
+        | Some t ->
+            mark_reachable env t
+        | None ->
+            if is_term env p then
+              let permissions = get_permissions env p in
+              List.fold_left mark_reachable env permissions
+            else
+              env
+        end
+
+  | TyForall (_, t)
+  | TyExists (_, t) ->
+      mark_reachable env t
+
+  | TyBar (t1, t2)
+  | TyAnchoredPermission (t1, t2)
+  | TyStar (t1, t2)
+  | TyApp (t1, t2) ->
+      List.fold_left mark_reachable env [t1; t2]
+
+  | TyTuple ts ->
+      List.fold_left mark_reachable env ts
+
+  | TyConcreteUnfolded (_, fields) ->
+      let ts = List.map (function
+        | FieldValue (_, t) ->
+            t
+        | FieldPermission _ ->
+            Log.error "[collect] wanted here"
+      ) fields in
+      List.fold_left mark_reachable env ts
+
+  | TySingleton t ->
+      mark_reachable env t
+
+  | TyArrow _ ->
+      env
+;;

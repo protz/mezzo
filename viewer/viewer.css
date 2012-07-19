@@ -82,7 +82,7 @@ svg * {
   right: 1em;
 }
 
-#commands a {
+a.button {
   display: inline-block;
   background-color: #7fbf4d;
   background-image: -moz-linear-gradient(top, #7fbf4d, #63a62f);
@@ -100,7 +100,7 @@ svg * {
   width: 100px;
 }
 
-#commands a:hover {
+a.button:hover {
   background-color: #76b347;
   background-image: -moz-linear-gradient(top, #76b347, #5e9e2e);
   background-image: linear-gradient(top, #76b347, #5e9e2e);
@@ -108,7 +108,7 @@ svg * {
   cursor: pointer;
 }
 
-#commands a:active {
+a.button:active {
   border: 1px solid #5b992b;
   border-bottom: 1px solid #538c27;
   box-shadow: inset 0 0 8px 4px #548c29, 0 1px 0 0 #eeeeee;
@@ -128,4 +128,11 @@ p.label, p.label2 {
 p.label2 {
   margin-left: -.8em;
   font-size: 100%;
+}
+
+.popup {
+  border-radius: 5px;
+  border: 5px solid rgba(0, 0, 0, .2);
+  padding: 3px;
+  background-color: white;
 }
