@@ -10,8 +10,8 @@ function buildGraph({ svg, points, root, dot }) {
   svg = svg.substring(244, svg.length);
   let svgNode = $("<div>")
     .html(svg)
-    .appendTo(node)
-    .find("title").first().next().attr("fill", "transparent");
+    .appendTo(node);
+  svgNode.find("title").first().next().attr("fill", "transparent");
 
   // Register stuff for the nodes
   registerNodeHandlers(svgNode, points);

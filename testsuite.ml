@@ -186,6 +186,14 @@ let tests = [
     let t = TyApp (ref, int) in
     check env v9 t);
 
+  ("merge10.hml", fun do_it ->
+    let env = do_it false in
+    let v10 = point_by_name env "v10" in
+    let foo = find_type_by_name env "foo" in
+    let t = find_type_by_name env "t" in
+    let t = TyApp (foo, t) in
+    check env v10 t);
+
   ("merge_generalize_val.hml", fun do_it ->
     let env = do_it false in
     let x = point_by_name env "x" in

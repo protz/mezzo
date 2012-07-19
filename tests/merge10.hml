@@ -1,0 +1,11 @@
+data bool = True | False
+
+exclusive data t = T
+data foo a = Foo { foo: a }
+
+val v10 =
+  let y = T in
+  if explain True then
+    Foo { foo = y }
+  else
+    Foo { foo = T }
