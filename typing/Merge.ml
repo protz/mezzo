@@ -44,6 +44,18 @@ let build_flexible_type_application (left_env, left_perm) (dest_env, t_dest) =
   left_env, t_app_left
 ;;
 
+
+let merge_flexible_with_term_in_sub_env top right_env p p' =
+  let works = valid top p' in
+  if works then begin
+    Log.check (is_term top p') "Malformed singleton type";
+    Some (merge_left right_env p' p)
+  end else begin
+    None
+  end
+;;
+
+
 let merge_envs (top: env) (left: env * point) (right: env * point): env * point =
   Log.debug ~level:3 "\n--------- START MERGE ----------\n\n%a"
     TypePrinter.pdoc (TypePrinter.print_permissions, top);
@@ -500,6 +512,9 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
             None
 
 
+      (* The two cases above will result in α (flexible) vs. Ref { contents = x }
+       * yielding ref int as a merge result. This is good, but completely
+       * fragile. I guess this is one more heuristic... *)
       | TyConcreteUnfolded (datacon_l, _), _ ->
           let t_left = type_for_datacon left_env datacon_l in
           let t_dest = PersistentUnionFind.repr t_left left_env.state in
@@ -529,6 +544,8 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       | TyApp (tl1, tl2), TyApp (tr1, tr2) ->
           Option.bind (merge_type (left_env, tl1) (right_env, tr1) dest_env)
             (fun (left_env, right_env, dest_env, t1) ->
+              (* FIXME this will call [merge_type] which is covariant, we should
+               * be at least invariant until we write a variance analysis *)
               Option.bind (merge_type (left_env, tl2) (right_env, tr2) dest_env)
                 (fun (left_env, right_env, dest_env, t2) ->
                   Some (left_env, right_env, dest_env, TyApp (t1, t2))))
@@ -580,26 +597,38 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
            * with [=x]. This happens because, say, we're searching for the
            * "right" value of a type parameter. This is legal only if [x] makes
            * sense in the top-level context. *)
-          let works = valid top p' in
-          if works then begin
-            Log.check (is_term top p') "Malformed singleton type";
-            let right_env = merge_left right_env p' p in
+          let right_env = merge_flexible_with_term_in_sub_env top right_env p p' in
+          Option.bind right_env (fun right_env ->
             Some (left_env, right_env, dest_env, ty_equals p')
-          end else begin
+          )
+
+      | TyPoint p, TySingleton (TyPoint p') when is_flexible left_env p ->
+          (* Symmetrical. *)
+          let left_env = merge_flexible_with_term_in_sub_env top left_env p p' in
+          Option.bind left_env (fun left_env ->
+            Some (left_env, right_env, dest_env, ty_equals p')
+          )
+
+      (* If nothing else worked, we still can instantiate a flexible variable,
+       * as long as the type on the other side makes sense in the original
+       * environment. *)
+      | TyPoint p, t when is_flexible left_env p ->
+          begin try
+            (* Will raise [UnboundPoint] if we can't get [t] to make sense in
+               the toplevel environment. *)
+            let t = clean top right_env t in
+            let left_env = instantiate_flexible left_env p t in
+            Some (left_env, right_env, dest_env, t)
+          with UnboundPoint ->
             None
           end
 
-      | TyPoint p, TySingleton (TyPoint p') when is_flexible left_env p ->
-          (* What's happening is that we're unifying a flexible type variable
-           * with [=x]. This happens because, say, we're searching for the
-           * "right" value of a type parameter. This is legal only if [x] makes
-           * sense in the top-level context. *)
-          let works = valid top p' in
-          if works then begin
-            Log.check (is_term top p') "Malformed singleton type";
-            let left_env = merge_left left_env p' p in
-            Some (left_env, right_env, dest_env, ty_equals p')
-          end else begin
+      | t, TyPoint p when is_flexible right_env p ->
+          begin try
+            let t = clean top left_env t in
+            let right_env = instantiate_flexible right_env p t in
+            Some (left_env, right_env, dest_env, t)
+          with UnboundPoint ->
             None
           end
 

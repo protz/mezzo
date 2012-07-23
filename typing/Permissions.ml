@@ -65,7 +65,7 @@ let collect (t: typ): typ * typ list =
     | TyArrow _ ->
         t, []
 
-    (* Interesting stuff happens for strctural types only *)
+    (* Interesting stuff happens for structural types only *)
     | TyBar (t, p) ->
         let t, t_perms = collect t in
         let p, p_perms = collect p in
@@ -708,7 +708,9 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         None
       end
 
-  | TyConcreteUnfolded (datacon1, _), TyPoint point2 ->
+  | TyConcreteUnfolded (datacon1, _), TyPoint point2 when not (is_flexible env point2) ->
+      (* The case where [point2] is flexible is taken into account further down,
+       * as we may need to perform a unification. *)
       let point1 = DataconMap.find datacon1 env.type_for_datacon in
 
       if same env point1 point2 then begin
