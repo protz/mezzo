@@ -575,6 +575,34 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
           else
             None
 
+      | TySingleton (TyPoint p'), TyPoint p when is_flexible right_env p ->
+          (* What's happening is that we're unifying a flexible type variable
+           * with [=x]. This happens because, say, we're searching for the
+           * "right" value of a type parameter. This is legal only if [x] makes
+           * sense in the top-level context. *)
+          let works = valid top p' in
+          if works then begin
+            Log.check (is_term top p') "Malformed singleton type";
+            let right_env = merge_left right_env p' p in
+            Some (left_env, right_env, dest_env, ty_equals p')
+          end else begin
+            None
+          end
+
+      | TyPoint p, TySingleton (TyPoint p') when is_flexible left_env p ->
+          (* What's happening is that we're unifying a flexible type variable
+           * with [=x]. This happens because, say, we're searching for the
+           * "right" value of a type parameter. This is legal only if [x] makes
+           * sense in the top-level context. *)
+          let works = valid top p' in
+          if works then begin
+            Log.check (is_term top p') "Malformed singleton type";
+            let left_env = merge_left left_env p' p in
+            Some (left_env, right_env, dest_env, ty_equals p')
+          end else begin
+            None
+          end
+
       | _ ->
           None
 
