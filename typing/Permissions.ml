@@ -724,6 +724,8 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       let cons1, args1 = flatten_tyapp t1 in
       let cons2, args2 = flatten_tyapp t2 in
 
+      (* FIXME the code below is wrong, because it is able to extract
+       * [list (ref int)] out of [list (=x) * x @ ref int]. *)
       if same env !!cons1 !!cons2 then
         List.fold_left2
           (fun env arg1 arg2 -> Option.bind env (fun env -> sub_type env arg1 arg2))

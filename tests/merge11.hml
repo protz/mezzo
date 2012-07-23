@@ -1,0 +1,16 @@
+data bool = True | False
+abstract int
+fact duplicable int
+
+exclusive data ref a = Nil | Ref { contents: a }
+
+(* Cet exemple permet de mettre en évidence une situation encore plus
+ * compliquée. Lors du merge, on a d'un côté Nil, et l'autre côté Ref, donc on
+ * essaye de convertir les deux en list α.
+*)
+val v11 =
+  let x = Ref { contents = 19 } in
+  if explain True then
+    Nil
+  else
+    Ref { contents = x }
