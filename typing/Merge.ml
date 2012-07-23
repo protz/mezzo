@@ -596,7 +596,10 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
           (* What's happening is that we're unifying a flexible type variable
            * with [=x]. This happens because, say, we're searching for the
            * "right" value of a type parameter. This is legal only if [x] makes
-           * sense in the top-level context. *)
+           * sense in the top-level context.
+           * This only gives [=x] as a structure for the flexible type variable,
+           * it does *not* replace [=x] with one of the permissions available
+           * for [x]. *)
           let right_env = merge_flexible_with_term_in_sub_env top right_env p p' in
           Option.bind right_env (fun right_env ->
             Some (left_env, right_env, dest_env, ty_equals p')
