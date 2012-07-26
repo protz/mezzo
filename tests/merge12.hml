@@ -1,0 +1,13 @@
+data bool = True | False
+abstract int
+fact duplicable int
+
+exclusive data ref a = Nil | Ref { contents: a }
+
+(* Avec des fonctions.
+*)
+val v12 =
+  if explain True then
+    (fun (x: int): int = x + 1)
+  else
+    (fun (y: int): int = y - 1)

@@ -487,11 +487,6 @@ and add_perm (env: env) (t: typ): env =
       Log.error "[add_perm] only works with types that have kind PERM"
 ;;
 
-let (|||) o1 o2 =
-  if Option.is_some o1 then o1 else o2
-;;
-
-
 (** [sub env point t] tries to extract [t] from the available permissions for
     [point] and returns, if successful, the resulting environment. *)
 let rec sub (env: env) (point: point) (t: typ): env option =

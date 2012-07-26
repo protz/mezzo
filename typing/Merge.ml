@@ -367,6 +367,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       Some (left_env, right_env, dest_env, left_perm)
 
     end else begin
+      try_merge_flexible (left_env, left_perm) (right_env, right_perm) dest_env |||
       match left_perm, right_perm with
       | TyPoint left_p, TyPoint right_p ->
           Log.check (is_type left_env left_p && is_type right_env right_p
@@ -504,9 +505,6 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
             None
 
 
-      (* The two cases above will result in α (flexible) vs. Ref { contents = x }
-       * yielding ref int as a merge result. This is good, but completely
-       * fragile. I guess this is one more heuristic... *)
       | TyConcreteUnfolded (datacon_l, _), _ ->
           let t_left = type_for_datacon left_env datacon_l in
           let t_dest = PersistentUnionFind.repr t_left left_env.state in
@@ -613,7 +611,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
           Some (left_env, right_env, dest_env, ty_equals p')
 
       | _ ->
-          try_merge_flexible (left_env, left_perm) (right_env, right_perm) dest_env
+          None
 
   end
           

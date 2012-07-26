@@ -202,6 +202,21 @@ let tests = [
     let t = TyApp (ref, TyApp (ref, int)) in
     check env v11 t);
 
+  ("merge12.hml", fun do_it ->
+    let env = do_it false in
+    let v12 = point_by_name env "v12" in
+    let int = find_type_by_name env "int" in
+    (* Urgh, have to input internal syntax to check function types... maybe we
+     * should write surface syntax here and have it simplified by the desugar
+     * procedure? ... *)
+    let t = TyForall (dummy_binding KTerm, TyArrow (
+      TyBar (
+        TySingleton (TyVar 0),
+        TyAnchoredPermission (TyVar 0, int)
+      ), int))
+    in
+    check env v12 t);
+
   ("merge_generalize_val.hml", fun do_it ->
     let env = do_it false in
     let x = point_by_name env "x" in
