@@ -257,8 +257,7 @@ let tests = [
     check_variance "bi" [bi];
     check_variance "inv" [inv];
     check_variance "test" [co; co; bi];
-    (* Test broken. *)
-    (* check_variance "contra" [contra]; *)
+    check_variance "contra" [contra];
   );
 
  ]
