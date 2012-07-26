@@ -251,7 +251,7 @@ let tests = [
       | _ ->
           failwith "Variances don't match"
     in
-    let co = Covariant and _contra = Contravariant and bi = Bivariant and inv = Invariant in
+    let co = Covariant and contra = Contravariant and bi = Bivariant and inv = Invariant in
     check_variance "list" [co];
     check_variance "ref" [co]; (* yes *)
     check_variance "bi" [bi];

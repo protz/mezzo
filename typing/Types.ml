@@ -936,6 +936,12 @@ let type_for_datacon (env: env) (datacon: Datacon.name): point =
   DataconMap.find datacon env.type_for_datacon
 ;;
 
+let variance env point i =
+  let _, { definition; _ } = find_type env point in
+  let variance = snd (Option.extract definition) in
+  List.nth variance i
+;;
+
 (* What type am I dealing with? *)
 
 let is_flexible (env: env) (point: point): bool =

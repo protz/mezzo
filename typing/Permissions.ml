@@ -721,30 +721,23 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       let cons1, args1 = flatten_tyapp t1 in
       let cons2, args2 = flatten_tyapp t2 in
 
-      (* FIXME the code below is wrong, because it is able to extract
-       * [list (ref int)] out of [list (=x) * x @ ref int]. *)
       if same env !!cons1 !!cons2 then
-        List.fold_left2
-          (fun env arg1 arg2 -> Option.bind env (fun env -> sub_type env arg1 arg2))
+        Hml_List.fold_left2i
+          (fun i env arg1 arg2 ->
+            Option.bind env (fun env ->
+              match variance env !!cons1 i with
+              | Covariant ->
+                  sub_type env arg1 arg2
+              | Contravariant ->
+                  sub_type env arg2 arg1
+              | Bivariant ->
+                  Some env
+              | Invariant ->
+                  equal_modulo_flex env arg1 arg2
+          ))
           (Some env) args1 args2
       else
         None
-
-  | TyPoint p1, TyPoint p2 ->
-      if same env p1 p2 then
-        Some env
-      else
-        try_merge_point_to_point env p1 p2 ||| try_merge_point_to_point env p2 p1 |||
-        Option.bind (structure env p1) (fun t1 -> sub_type env t1 t2) |||
-        Option.bind (structure env p2) (fun t2 -> sub_type env t1 t2)
-
-  | TyPoint p1, _ ->
-      try_merge_flex env p1 t2 |||
-      Option.bind (structure env p1) (fun t1 -> sub_type env t1 t2)
-
-  | _, TyPoint p2 ->
-      try_merge_flex env p2 t1 |||
-      Option.bind (structure env p2) (fun t2 -> sub_type env t1 t2)
 
   | TySingleton t1, TySingleton t2 ->
       sub_type env t1 t2
@@ -759,10 +752,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         sub_perm env p2)
 
   | _ ->
-      if equal env t1 t2 then
-        Some env
-      else
-        None
+      compare_modulo_flex env sub_type t1 t2
 
 
 and try_merge_flex env p t =
@@ -778,6 +768,33 @@ and try_merge_point_to_point env p1 p2 =
   else
     None
 
+and compare_modulo_flex env k t1 t2 =
+  let c = compare_modulo_flex in
+  match t1, t2 with
+  | TyPoint p1, TyPoint p2 ->
+      if same env p1 p2 then
+        Some env
+      else
+        try_merge_point_to_point env p1 p2 ||| try_merge_point_to_point env p2 p1 |||
+        Option.bind (structure env p1) (fun t1 -> c env k t1 t2) |||
+        Option.bind (structure env p2) (fun t2 -> c env k t1 t2)
+
+  | TyPoint p1, _ ->
+      try_merge_flex env p1 t2 |||
+      Option.bind (structure env p1) (fun t1 -> c env k t1 t2)
+
+  | _, TyPoint p2 ->
+      try_merge_flex env p2 t1 |||
+      Option.bind (structure env p2) (fun t2 -> c env k t1 t2)
+
+  | _ ->
+      if equal env t1 t2 then
+        Some env
+      else
+        None
+
+and equal_modulo_flex env t1 t2 =
+  compare_modulo_flex env equal_modulo_flex t1 t2
 
 (** [sub_perm env t] takes a type [t] with kind PERM, and tries to return the
     environment without the corresponding permission. *)
