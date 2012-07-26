@@ -524,41 +524,40 @@ let rec sub (env: env) (point: point) (t: typ): env option =
       (* Start off by subtracting the type without associated permissions. *)
       let env = sub_clean env point t in
 
-      Option.bind env (fun env ->
-        (* We use a worklist-based approch, where we try to find a permission that
-         * "works". A permission that works is one where the left-side is a point
-         * that is not flexible, i.e. a point that hopefully should have more to
-         * extract than (=itself). As we go, more flexible variables will be
-         * unified, which will make more candidates suitable for subtraction. *)
-        let works env = function
-          | TyAnchoredPermission (TyPoint x, _) when not (is_flexible env x) ->
-              Some ()
-          | _ ->
-              None
-        in
-        let state = ref (env, perms) in
-        while begin
-          let env, worklist = !state in
-          match Hml_List.take (works env) worklist with
-          | None ->
-              false
-
-          | Some (worklist, (perm, ())) ->
-              match sub_perm env perm with
-              | Some env ->
-                  state := (env, worklist);
-                  true
-              | None ->
-                  false
-        end do () done;
-
+      env >>= fun env ->
+      (* We use a worklist-based approch, where we try to find a permission that
+       * "works". A permission that works is one where the left-side is a point
+       * that is not flexible, i.e. a point that hopefully should have more to
+       * extract than (=itself). As we go, more flexible variables will be
+       * unified, which will make more candidates suitable for subtraction. *)
+      let works env = function
+        | TyAnchoredPermission (TyPoint x, _) when not (is_flexible env x) ->
+            Some ()
+        | _ ->
+            None
+      in
+      let state = ref (env, perms) in
+      while begin
         let env, worklist = !state in
-        if List.length worklist > 0 then
-          (* TODO Throw an exception. *)
-          None
-        else
-          Some env
-      )
+        match Hml_List.take (works env) worklist with
+        | None ->
+            false
+
+        | Some (worklist, (perm, ())) ->
+            match sub_perm env perm with
+            | Some env ->
+                state := (env, worklist);
+                true
+            | None ->
+                false
+      end do () done;
+
+      let env, worklist = !state in
+      if List.length worklist > 0 then
+        (* TODO Throw an exception. *)
+        None
+      else
+        Some env
 
 
 (** [sub_clean env point t] takes a "clean" type [t] (without nested permissions)
@@ -649,7 +648,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       let env, t2 = bind_var_in_type ~flexible:true env binding t2 in
       let t2, perms = collect t2 in
       List.fold_left
-        (fun env perm -> (Option.bind env (fun env -> sub_perm env perm)))
+        (fun env perm -> (env >>= fun env -> sub_perm env perm))
         (sub_type env t1 t2)
         perms
 
@@ -663,32 +662,30 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
        * only a tuple of singletons. *)
       else
         List.fold_left2 (fun env c1 c2 ->
-          Option.bind env (fun env ->
-            match c1 with
-            | TySingleton (TyPoint p) ->
-                sub_clean env p c2
-            | _ ->
-                Log.error "All permissions should be in expanded form."
-          )
+          env >>= fun env ->
+          match c1 with
+          | TySingleton (TyPoint p) ->
+              sub_clean env p c2
+          | _ ->
+              Log.error "All permissions should be in expanded form."
         ) (Some env) components1 components2
 
   | TyConcreteUnfolded (datacon1, fields1), TyConcreteUnfolded (datacon2, fields2) ->
       if Datacon.equal datacon1 datacon2 then
         List.fold_left2 (fun env f1 f2 ->
-          Option.bind env (fun env ->
-            match f1 with
-            | FieldValue (name1, TySingleton (TyPoint p)) ->
-                begin match f2 with
-                | FieldValue (name2, t) ->
-                    Log.check (Field.equal name1 name2) "Not in order?";
-                    sub_clean env p t
-                | _ ->
-                    Log.error "The type we're trying to extract should've been \
-                      cleaned first."
-                end
-            | _ ->
-                Log.error "All permissions should be in expanded form."
-          )
+          env >>= fun env ->
+          match f1 with
+          | FieldValue (name1, TySingleton (TyPoint p)) ->
+              begin match f2 with
+              | FieldValue (name2, t) ->
+                  Log.check (Field.equal name1 name2) "Not in order?";
+                  sub_clean env p t
+              | _ ->
+                  Log.error "The type we're trying to extract should've been \
+                    cleaned first."
+              end
+          | _ ->
+              Log.error "All permissions should be in expanded form."
         ) (Some env) fields1 fields2
 
       else
@@ -722,20 +719,18 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       let cons2, args2 = flatten_tyapp t2 in
 
       if same env !!cons1 !!cons2 then
-        Hml_List.fold_left2i
-          (fun i env arg1 arg2 ->
-            Option.bind env (fun env ->
-              match variance env !!cons1 i with
-              | Covariant ->
-                  sub_type env arg1 arg2
-              | Contravariant ->
-                  sub_type env arg2 arg1
-              | Bivariant ->
-                  Some env
-              | Invariant ->
-                  equal_modulo_flex env arg1 arg2
-          ))
-          (Some env) args1 args2
+        Hml_List.fold_left2i (fun i env arg1 arg2 ->
+          env >>= fun env ->
+          match variance env !!cons1 i with
+          | Covariant ->
+              sub_type env arg1 arg2
+          | Contravariant ->
+              sub_type env arg2 arg1
+          | Bivariant ->
+              Some env
+          | Invariant ->
+              equal_modulo_flex env arg1 arg2
+        ) (Some env) args1 args2
       else
         None
 
@@ -743,13 +738,13 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       sub_type env t1 t2
 
   | TyArrow (t1, t2), TyArrow (t'1, t'2) ->
-      Option.bind (sub_type env t1 t'1) (fun env ->
-        sub_type env t'2 t2)
+      sub_type env t1 t'1 >>= fun env ->
+      sub_type env t'2 t2
 
   | TyBar (t1, p1), TyBar (t2, p2) ->
-      Option.bind (sub_type env t1 t2) (fun env ->
-        let env = add_perm env p1 in
-        sub_perm env p2)
+      sub_type env t1 t2 >>= fun env ->
+      let env = add_perm env p1 in
+      sub_perm env p2
 
   | _ ->
       compare_modulo_flex env sub_type t1 t2
@@ -775,17 +770,18 @@ and compare_modulo_flex env k t1 t2 =
       if same env p1 p2 then
         Some env
       else
-        try_merge_point_to_point env p1 p2 ||| try_merge_point_to_point env p2 p1 |||
-        Option.bind (structure env p1) (fun t1 -> c env k t1 t2) |||
-        Option.bind (structure env p2) (fun t2 -> c env k t1 t2)
+        try_merge_point_to_point env p1 p2 |||
+        try_merge_point_to_point env p2 p1 |||
+        (structure env p1 >>= fun t1 -> c env k t1 t2) |||
+        (structure env p2 >>= fun t2 -> c env k t1 t2)
 
   | TyPoint p1, _ ->
       try_merge_flex env p1 t2 |||
-      Option.bind (structure env p1) (fun t1 -> c env k t1 t2)
+      (structure env p1 >>= fun t1 -> c env k t1 t2)
 
   | _, TyPoint p2 ->
       try_merge_flex env p2 t1 |||
-      Option.bind (structure env p2) (fun t2 -> c env k t1 t2)
+      (structure env p2 >>= fun t2 -> c env k t1 t2)
 
   | _ ->
       if equal env t1 t2 then
@@ -807,9 +803,8 @@ and sub_perm (env: env) (t: typ): env option =
   | TyAnchoredPermission (TyPoint p, t) ->
       sub env p t
   | TyStar (p, q) ->
-      Option.bind
-        (sub_perm env p)
-        (fun env -> sub_perm env q)
+      sub_perm env p >>= fun env ->
+      sub_perm env q
   | TyEmpty ->
       Some env
   | _ ->

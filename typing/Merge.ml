@@ -440,10 +440,9 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
 
 
       | TySingleton left_t, TySingleton right_t ->
-          Option.bind
-            (merge_type (left_env, left_t) (right_env, right_t) dest_env)
-            (fun (left_env, right_env, dest_env, dest_t) ->
-              Some (left_env, right_env, dest_env, TySingleton dest_t))
+          let r = merge_type (left_env, left_t) (right_env, right_t) dest_env in
+          r >>= fun (left_env, right_env, dest_env, dest_t) ->
+          Some (left_env, right_env, dest_env, TySingleton dest_t)
 
       | TyConcreteUnfolded (datacon_l, fields_l), TyConcreteUnfolded (datacon_r, fields_r) ->
           let t_left: point = type_for_datacon left_env datacon_l in
@@ -492,12 +491,10 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
                   TypePrinter.ptype (left_env, t_app_left)
                   TypePrinter.ptype (right_env, t_app_right);
 
-                Option.bind
-                  (merge_type (left_env, t_app_left) (right_env, t_app_right) dest_env)
-                  (fun (left_env, right_env, dest_env, dest_perm) ->
-                    let dest_perm = Flexible.generalize dest_env dest_perm in
-                    Some (left_env, right_env, dest_env, dest_perm)
-                  )
+                let r = merge_type (left_env, t_app_left) (right_env, t_app_right) dest_env in
+                r >>= fun (left_env, right_env, dest_env, dest_perm) ->
+                let dest_perm = Flexible.generalize dest_env dest_perm in
+                Some (left_env, right_env, dest_env, dest_perm)
 
             | _ ->
                 None
@@ -518,9 +515,8 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
             build_flexible_type_application (left_env, left_perm) (dest_env, t_dest)
           in
 
-          Option.bind left_env (fun left_env ->
-            merge_type (left_env, t_app_left) (right_env, right_perm) dest_env
-          )
+          left_env >>= fun left_env ->
+          merge_type (left_env, t_app_left) (right_env, right_perm) dest_env
 
 
       | _, TyConcreteUnfolded (datacon_r, _) ->
@@ -531,33 +527,30 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
             build_flexible_type_application (right_env, right_perm) (dest_env, t_dest)
           in
 
-          Option.bind right_env (fun right_env ->
-            merge_type (left_env, left_perm) (right_env, t_app_right) dest_env
-          )
+          right_env >>= fun right_env ->
+          merge_type (left_env, left_perm) (right_env, t_app_right) dest_env
 
 
       | TyApp _, TyApp _ ->
           let consl, argsl = flatten_tyapp left_perm in
           let consr, argsr = flatten_tyapp right_perm in
-          Option.bind (merge_type (left_env, consl) (right_env, consr) dest_env) (fun (left_env, right_env, dest_env, cons) ->
-            Option.bind (Hml_List.fold_left2i (fun i acc argl argr ->
-              Option.bind acc (fun (left_env, right_env, dest_env, args) ->
-                Option.bind (
-                  match variance dest_env !!cons i with
-                  | Covariant ->
-                      merge_type (left_env, argl) (right_env, argr) dest_env
-                  | _ ->
-                      try_merge_flexible (left_env, argl) (right_env, argr) dest_env
-                ) (fun (left_env, right_env, dest_env, arg) ->
-                  Some (left_env, right_env, dest_env, arg :: args)
-                )
-              )
-            ) (Some (left_env, right_env, dest_env, [])) argsl argsr) (fun (left_env, right_env, dest_env, args) ->
-              let args = List.rev args in
-              let t = fold_tyapp cons args in
-              Some (left_env, right_env, dest_env, t)
-            )
-          )
+          let r = merge_type (left_env, consl) (right_env, consr) dest_env in
+          r >>= fun (left_env, right_env, dest_env, cons) ->
+          Hml_List.fold_left2i (fun i acc argl argr ->
+            acc >>= fun (left_env, right_env, dest_env, args) ->
+            let v =
+              match variance dest_env !!cons i with
+              | Covariant ->
+                  merge_type (left_env, argl) (right_env, argr) dest_env
+              | _ ->
+                  try_merge_flexible (left_env, argl) (right_env, argr) dest_env
+            in
+            v >>= fun (left_env, right_env, dest_env, arg) ->
+            Some (left_env, right_env, dest_env, arg :: args)
+          ) (Some (left_env, right_env, dest_env, [])) argsl argsr >>= fun (left_env, right_env, dest_env, args) ->
+          let args = List.rev args in
+          let t = fold_tyapp cons args in
+          Some (left_env, right_env, dest_env, t)
 
       | TyForall (binding_left, t_l), TyForall (binding_right, t_r) ->
           (* This code-path is correct but frankly, we shouldn't have to
@@ -610,17 +603,14 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
            * it does *not* replace [=x] with one of the permissions available
            * for [x]. *)
           let right_env = merge_flexible_with_term_in_sub_env top right_env p p' in
-          Option.bind right_env (fun right_env ->
-            Some (left_env, right_env, dest_env, ty_equals p')
-          )
+          right_env >>= fun right_env ->
+          Some (left_env, right_env, dest_env, ty_equals p')
 
       | TyPoint p, TySingleton (TyPoint p') when is_flexible left_env p ->
           (* Symmetrical. *)
           let left_env = merge_flexible_with_term_in_sub_env top left_env p p' in
-          Option.bind left_env (fun left_env ->
-            Some (left_env, right_env, dest_env, ty_equals p')
-          )
-
+          left_env >>= fun left_env ->
+          Some (left_env, right_env, dest_env, ty_equals p')
 
       | _ ->
           try_merge_flexible (left_env, left_perm) (right_env, right_perm) dest_env
