@@ -61,7 +61,6 @@ let type_check program =
   Log.debug ~level:2 "%a"
     Types.TypePrinter.pdoc
     (KindCheck.KindPrinter.print_kinds_and_facts, type_env);
-  if true then assert false;
   Log.debug ~level:2 "%a"
     Expressions.ExprPrinter.pdeclarations (type_env, declarations);
   let type_env = TypeChecker.check_declaration_group type_env declarations in

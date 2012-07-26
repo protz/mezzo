@@ -238,8 +238,28 @@ let tests = [
   ("xlist-concat1.hml", fun do_it ->
     ignore (do_it false));
 
-  ("xlist-concat2.hml", fun do_it ->
-    ignore (do_it false));
+  (*("xlist-concat2.hml", fun do_it ->
+    ignore (do_it false));*)
+
+  ("variance.hml", fun do_it ->
+    let env = do_it false in
+    let check_variance n vs =
+      let t = find_type_by_name env n in
+      match find_type env !!t with
+      | _, { definition = Some (_, vs'); _ } when vs = vs' ->
+          ()
+      | _ ->
+          failwith "Variances don't match"
+    in
+    let co = Covariant and _contra = Contravariant and bi = Bivariant and inv = Invariant in
+    check_variance "list" [co];
+    check_variance "ref" [co]; (* yes *)
+    check_variance "bi" [bi];
+    check_variance "inv" [inv];
+    check_variance "test" [co; co; bi];
+    (* Test broken. *)
+    (* check_variance "contra" [contra]; *)
+  );
 
  ]
 

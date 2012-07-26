@@ -5,3 +5,9 @@ data list a = Nil | Cons { head: a; tail: list a }
 exclusive data ref a = Ref { contents: a }
 
 data contra a = C { c: a -> int }
+
+data bi a = A
+
+data inv a = A { a: a -> a }
+
+data test a b c = A { a: a } | B { b: b }

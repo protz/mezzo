@@ -132,16 +132,6 @@ let analyze_data_types env =
     ) (original_env, [])
   in
 
-  (* Debug. *)
-  let explain buf var =
-    let cons, (vars, _) = List.find (fun (_, (vars, _)) ->
-      List.exists (same env var) vars
-    ) store in
-    let index = Hml_List.index ~equal_func:(same env) var vars in
-    let open TypePrinter in
-    Printf.bprintf buf "cons %a %d-th parameter" pnames (get_names env cons) index
-  in
-
   (* This function is needed inside [variance]. *)
   let var_for_ith cons i =
     let _, (vars, _) = List.find (fun (cons', _) -> same env cons cons') store in
@@ -158,12 +148,7 @@ let analyze_data_types env =
         (variance env var_for_ith valuation var)
         (List.map (fun x -> TyConcreteUnfolded x) branches)
       in
-      let v = List.fold_left lub Bivariant vs in
-      Log.debug "%a" explain var;
-      List.iter (fun v ->
-        Log.debug "%a" TypePrinter.pdoc (KindCheck.KindPrinter.print_variance, v)
-      ) vs;
-      v
+      List.fold_left lub Bivariant vs
     )
   in
 
@@ -173,11 +158,6 @@ let analyze_data_types env =
   (* Update the data type definitions. *)
   let original_env = List.fold_left (fun env (cons, (vars, _)) ->
     let variance = List.map valuation vars in
-    List.iter (fun var ->
-      let open TypePrinter in
-      let open KindCheck.KindPrinter in
-      Log.debug "%a" pdoc (print_variance, var)
-    ) variance;
     replace_type env cons (fun binding ->
       let definition =
         match binding.definition with
