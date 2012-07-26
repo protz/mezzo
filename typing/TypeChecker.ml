@@ -194,10 +194,6 @@ let print_error buf (env, raw_error) =
 
 (* -------------------------------------------------------------------------- *)
 
-let (!!) =
-  Permissions.(!!)
-;;
-
 let add_hint =
   Permissions.add_hint
 ;;
@@ -637,9 +633,9 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
         let has_two_branches p =
           if is_type env p then
             match get_definition env p with
-            | Some (_, branches) ->
+            | Some (Some (_, branches), _) ->
                 List.length branches = 2
-            | None ->
+            | _ ->
                 false
           else
             false

@@ -290,11 +290,17 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
         | Exclusive -> T.Exclusive
         | Duplicable -> T.Duplicable (Array.make arity false)
       in
-      name, Some (flag, branches), fact, karrow params KType
+      (* This is wrong but the variance inference will take care of setting the
+       * right values for the variance of the parameters. *)
+      let variance = Hml_List.make arity (fun _ -> T.Bivariant) in
+      name, (Some (flag, branches), variance), fact, karrow params KType
   | Abstract ((name, params), kind, fact) ->
       let params = List.map (fun (x, k, _) -> x, k) params in
       let fact = translate_abstract_fact (fst (List.split params)) fact in
-      name, None, fact, karrow params kind
+      (* TODO: add +, -, and = syntax in the parser to annotate in abstract type
+       * definitions some parameters as being co, contra, or bi-variant. *)
+      let variance = Hml_List.make (List.length params) (fun _ -> T.Invariant) in
+      name, (None, variance), fact, karrow params kind
 ;;
 
 
@@ -326,7 +332,7 @@ let translate_data_type_group
   (* Then build up the resulting environment. *)
   let tenv, points = List.fold_left (fun (tenv, acc) (name, def, fact, kind) ->
     let name = T.User name in
-    let tenv, point = T.bind_type tenv name tenv.T.location ?definition:def fact kind in
+    let tenv, point = T.bind_type tenv name tenv.T.location ~definition:def fact kind in
     tenv, point :: acc) (tenv, []
   ) translated_definitions in
   let points = List.rev points in
@@ -334,9 +340,9 @@ let translate_data_type_group
   (* Construct the reverse-map from constructors to points. *)
   let tenv = List.fold_left2 (fun tenv (_, def, _, _) point ->
     match def with
-    | None ->
+    | None, _ ->
         tenv
-    | Some (_, def) ->
+    | Some (_, def), _ ->
         let type_for_datacon = List.fold_left (fun type_for_datacon (name, _) ->
           T.DataconMap.add name point type_for_datacon
         ) tenv.T.type_for_datacon def in  
@@ -347,12 +353,12 @@ let translate_data_type_group
   let total_number_of_data_types = List.length points in
   let tenv = T.fold_types tenv (fun tenv point { T.kind; _ } { T.definition; _ } ->
     match definition with
-    | None ->
+    | Some (None, _) ->
         (* It's an abstract type, it has no branches where we should perform the
          * opening. *)
         tenv
 
-    | Some (flag, branches) ->
+    | Some (Some (flag, branches), variance) ->
         let arity = T.get_arity_for_kind kind in
 
         (* Replace each TyVar with the corresponding TyPoint, for all branches. *)
@@ -368,8 +374,11 @@ let translate_data_type_group
 
         (* And replace the corresponding definition in [tenv]. *)
         T.replace_type tenv point (fun binder ->
-          { binder with T.definition = Some (flag, branches) }
+          { binder with T.definition = Some (Some (flag, branches), variance) }
         )
+
+    | None ->
+        Log.error "There should be only type definitions at this stage"
   ) tenv in
 
   (* Return both environments and the list of points. *)

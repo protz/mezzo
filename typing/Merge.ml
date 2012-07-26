@@ -1,11 +1,6 @@
 open Types
 open Utils
 
-module PointMap = Hml_Map.Make(struct
-  type t = PersistentUnionFind.point
-  let compare = PersistentUnionFind.compare
-end)
-
 type job = point * point * point
 
 type outcome = MergeWith of point | Proceed | Abort

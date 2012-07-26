@@ -5,9 +5,6 @@ open Utils
 
 (* -------------------------------------------------------------------------- *)
 
-(* Saves us the trouble of matching all the time. *)
-let (!!) = function TyPoint x -> x | _ -> assert false;;
-
 let add_hint hint str =
   match hint with
   | Some (Auto n)
@@ -175,7 +172,7 @@ let rec unfold (env: env) ?(hint: name option) (t: typ): env * typ =
         | TyPoint p ->
           begin
             match get_definition env p with
-            | Some (_, [branch]) ->
+            | Some (Some (_, [branch]), _) ->
                 let branch = instantiate_branch branch args in
                 let t = TyConcreteUnfolded branch in
                 unfold env ?hint t

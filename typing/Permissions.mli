@@ -61,7 +61,4 @@ val fold_type: env -> typ -> typ option
 
 val full_merge: env -> point -> point -> env
 
-(** When you're sure the type is a point. *)
-val (!!): typ -> point
-
 val add_hint: (name option) -> string -> (name option)

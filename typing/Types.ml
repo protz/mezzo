@@ -37,6 +37,8 @@ end)
 
 module Field = Variable
 
+type variance = Invariant | Covariant | Contravariant | Bivariant
+
 type typ =
     (* Special type constants. *)
   | TyUnknown
@@ -81,7 +83,8 @@ type data_type_def =
   data_type_def_branch list
 
 type type_def =
-  (SurfaceSyntax.data_type_flag * data_type_def) option
+    (SurfaceSyntax.data_type_flag * data_type_def) option
+  * variance list
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -147,9 +150,11 @@ and raw_binding =
   BType of type_binder | BTerm of term_binder | BPerm of perm_binder
 
 and type_binder = {
-  (* Definition: if it's a data type (e.g. [list]) there's a definition for it,
-   * otherwise it's abstract and there's no definition. *)
-  definition: type_def;
+  (* Definition: if it's a variable, there's no definition for it. If it's a
+   * data type definition, we at least know the variance of its parameters. If
+   * the type is concrete (e.g. [list]) there's a flag and branches, otherwise
+   * it's abstract and we don't have any more information. *)
+  definition: type_def option;
 
   (* Associated fact. *)
   fact: fact;
@@ -204,6 +209,11 @@ let locate env location =
 
 (** Some functions related to the manipulation of the union-find structure of
  * the environment. *)
+
+module PointMap = Hml_Map.Make(struct
+  type t = PersistentUnionFind.point
+  let compare = PersistentUnionFind.compare
+end)
 
 (* Dealing with the union-find nature of the environment. *)
 let same env p1 p2 =
@@ -563,6 +573,9 @@ let tsubst_data_type_def_branch t2 i branch =
 
 (* Various helpers for creating and destructuring [typ]s easily. *)
 
+(* Saves us the trouble of matching all the time. *)
+let (!!) = function TyPoint x -> x | _ -> assert false;;
+
 let ty_equals x =
   TySingleton (TyPoint x)
 ;;
@@ -662,7 +675,7 @@ let bind_type
     (name: name)
     (location: location)
     ?(flexible=false)
-    ?(definition: type_def)
+    ?(definition: type_def option)
     (fact: fact)
     (kind: kind): env * point
   =
@@ -718,14 +731,14 @@ let bind_param_at_index_in_data_type_def_branches
     (fact: fact)
     (kind: kind)
     (index: index)
-    (branches: data_type_def_branch list): env * data_type_def_branch list =
+    (branches: data_type_def_branch list): env * point * data_type_def_branch list =
   (* This needs a special treatment because the type parameters are not binders
    * per se (unlike TyForall, for instance...). *)
   let env, point = bind_type env name env.location fact kind in
   let branches =
     List.map (tsubst_data_type_def_branch (TyPoint point) index) branches
   in
-  env, branches
+  env, point, branches
 ;;
 
 let find_type (env: env) (point: point): name * type_binder =
@@ -896,7 +909,7 @@ let get_kind (env: env) (point: point): kind =
       kind
 ;;
 
-let get_definition (env: env) (point: point): type_def =
+let get_definition (env: env) (point: point): type_def option =
   let _, { definition; _ } = find_type env point in
   definition
 ;;
@@ -913,7 +926,8 @@ let get_arity (env: env) (point: point): int =
 let def_for_datacon (env: env) (datacon: Datacon.name): SurfaceSyntax.data_type_flag * data_type_def =
   match DataconMap.find_opt datacon env.type_for_datacon with
   | Some point ->
-      Option.extract (get_definition env point)
+      let def, _ = Option.extract (get_definition env point) in
+      Option.extract def
   | None ->
       Log.error "There is no type for constructor %a" Datacon.p datacon
 ;;
@@ -934,7 +948,7 @@ let is_flexible (env: env) (point: point): bool =
 
 let has_definition (env: env) (point: point): bool =
   match get_definition env point with
-  | Some _ ->
+  | Some (Some _, _) ->
       true
   | _ ->
       false
@@ -967,7 +981,12 @@ let find_and_instantiate_branch
     (point: point)
     (datacon: Datacon.name)
     (args: typ list): data_type_def_branch =
-  let _flag, branches = Option.extract (get_definition env point) in
+  let branches = match get_definition env point with
+    | Some (Some (_, branches), _) ->
+        branches
+    | _ ->
+        Log.error "This is not a concrete data type."
+  in
   let branch =
     List.find
       (fun (datacon', _) -> Datacon.equal datacon datacon')
@@ -1011,21 +1030,21 @@ let flatten_tyapp t =
 ;;
 
 let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_branch list):
-    env * data_type_def_branch list =
+    env * point list * data_type_def_branch list =
   let _return_kind, params = flatten_kind kind in
   let arity = List.length params in
   (* Turn the list of parameters into letters *)
   let letters: string list = Hml_Pprint.name_gen (List.length params) in
-  let env, branches = Hml_List.fold_left2i (fun i (env, branches) letter kind ->
+  let env, points, branches = Hml_List.fold_left2i (fun i (env, points, branches) letter kind ->
     let letter = Auto (Variable.register letter) in
-    let env, branches =
+    let env, point, branches =
       let index = arity - i - 1 in
       bind_param_at_index_in_data_type_def_branches
         env letter (Fuzzy i) kind index branches
     in
-    env, branches
-  ) (env, branches) letters params in
-  env, branches
+    env, point :: points, branches
+  ) (env, [], branches) letters params in
+  env, List.rev points, branches
 ;;
 
 

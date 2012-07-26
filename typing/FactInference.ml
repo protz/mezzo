@@ -174,8 +174,10 @@ let one_round (env: env): env =
     (* What knowledge do we have from the previous round? *)
     match definition with
     | None ->
+        Log.error "Only data type definitions here"
+    | Some (None, _) ->
         env
-    | Some (_flag, branches) ->
+    | Some (Some (_flag, branches), _) ->
         match fact with
         | Fuzzy _ ->
             Log.error "I messed up my index computations. Oops!";
@@ -189,7 +191,7 @@ let one_round (env: env): env =
               TypePrinter.pvar tname;
             (* [bitmap] is shared! *)
             let phase = Elaborating bitmap in
-            let inner_env, branches =
+            let inner_env, _, branches =
               bind_datacon_parameters env kind branches
             in
             TypePrinter.(Log.debug ~level:4 "inner_env:\n  %a" pdoc (print_binders, inner_env));

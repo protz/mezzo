@@ -689,7 +689,7 @@ module KindPrinter = struct
     (* Turn the list of parameters into letters *)
     let letters: string list = name_gen (List.length params) in
     let letters = List.map print_string letters in
-    let env, branches = bind_datacon_parameters env kind branches in
+    let env, _, branches = bind_datacon_parameters env kind branches in
     let sep = break1 ^^ bar ^^ space in
     let flag = match flag with
       | SurfaceSyntax.Exclusive -> string "exclusive" ^^ space
@@ -711,10 +711,12 @@ module KindPrinter = struct
     let defs = map_types env (fun { names; kind; _ } { definition; _ } ->
       let name = List.hd names in
       match definition with
-      | Some (flag, branches) ->
+      | Some (Some (flag, branches), _) ->
           print_data_type_def env flag name kind branches
-      | None ->
+      | Some (None, _) ->
           print_abstract_type_def env name kind
+      | None ->
+          Log.error "This is strange"
     ) in
     join (break1 ^^ break1) defs
   ;;
