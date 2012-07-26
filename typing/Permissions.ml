@@ -716,6 +716,8 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       if same env !!cons1 !!cons2 then
         Hml_List.fold_left2i (fun i env arg1 arg2 ->
           env >>= fun env ->
+          (* Variance comes into play here as well. The behavior is fairly
+           * intuitive. *)
           match variance env !!cons1 i with
           | Covariant ->
               sub_type env arg1 arg2

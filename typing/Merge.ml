@@ -530,13 +530,28 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
 
 
       | TyApp _, TyApp _ ->
+          (* Sigh, we still don't flatten automatically type applications... *)
           let consl, argsl = flatten_tyapp left_perm in
           let consr, argsr = flatten_tyapp right_perm in
+          (* Merge the constructors. This should be a no-op, unless they're
+           * distinct, in which case we stop here. *)
           let r = merge_type (left_env, consl) (right_env, consr) dest_env in
           r >>= fun (left_env, right_env, dest_env, cons) ->
-          Hml_List.fold_left2i (fun i acc argl argr ->
+          (* So the constructors match. Let's now merge pairwise the arguments. *)
+          let r = Hml_List.fold_left2i (fun i acc argl argr ->
+            (* We keep the current triple of environments and the merge
+             * arguments in the accumulator. *)
             acc >>= fun (left_env, right_env, dest_env, args) ->
             let v =
+              (* Here, variance comes into play. The merge operation is a
+               * disjunction, so it "goes up" (subtyping-wise), that is, it is
+               * covariant. So if we need to recursively merge type parameters,
+               * we need to make sure the type is covariant for that parameter!
+               * If it's contravariant, we should do a conjunction (that is, the
+               * intersection) of types: this is the dual operation of the
+               * merge. I'm not going to write 1000 more lines just for that, so
+               * we're conservative, and move up the variance lattice, and
+               * consider the parameter to be invariant. *)
               match variance dest_env !!cons i with
               | Covariant ->
                   merge_type (left_env, argl) (right_env, argr) dest_env
@@ -544,10 +559,15 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
                   try_merge_flexible (left_env, argl) (right_env, argr) dest_env
             in
             v >>= fun (left_env, right_env, dest_env, arg) ->
+            (* The parameter was merged. Return a valid accumulator. *)
             Some (left_env, right_env, dest_env, arg :: args)
-          ) (Some (left_env, right_env, dest_env, [])) argsl argsr >>= fun (left_env, right_env, dest_env, args) ->
+          ) (Some (left_env, right_env, dest_env, [])) argsl argsr in
+          r >>= fun (left_env, right_env, dest_env, args) ->
+          (* Yay! All type parameters were merged. Reverse the list. *)
           let args = List.rev args in
+          (* Re-fold the type application. *)
           let t = fold_tyapp cons args in
+          (* And we're good to go. *)
           Some (left_env, right_env, dest_env, t)
 
       | TyForall (binding_left, t_l), TyForall (binding_right, t_r) ->
@@ -593,13 +613,15 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
             None
 
       | TySingleton (TyPoint p'), TyPoint p when is_flexible right_env p ->
-          (* What's happening is that we're unifying a flexible type variable
-           * with [=x]. This happens because, say, we're searching for the
-           * "right" value of a type parameter. This is legal only if [x] makes
-           * sense in the top-level context.
-           * This only gives [=x] as a structure for the flexible type variable,
-           * it does *not* replace [=x] with one of the permissions available
-           * for [x]. *)
+          (*  What's happening is that we're unifying a flexible type variable
+           * with [=x]. The flexible variable therefore has kind TERM.
+           *  This happens because, say, we're looking for the "right" value of
+           * a type parameter. This is legal only if [x] makes sense in the
+           * top-level context, i.e. [x] is not local to the sub-environment.
+           *  This only makes sure we do not give [=x] as a structure for the
+           * flexible type variable, but merge it right away with [x] (the
+           * point). It does *not* replace [=x] with one of the permissions
+           * available for [x]. *)
           let right_env = merge_flexible_with_term_in_sub_env top right_env p p' in
           right_env >>= fun right_env ->
           Some (left_env, right_env, dest_env, ty_equals p')
