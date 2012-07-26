@@ -89,3 +89,5 @@ val index: ?equal_func:('a -> 'a -> bool) -> 'a -> 'a list -> int
    convertible element in the list, along with the remaining elements in the
    list. *)
 val take: ('a -> 'b option) -> 'a list -> ('a list * ('a * 'b)) option
+
+val find_opt: ('a -> 'b option) -> 'a list -> 'b option

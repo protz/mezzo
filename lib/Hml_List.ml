@@ -182,3 +182,16 @@ let take f l =
             take (elt :: l) l'
   in
   take [] l
+
+let find_opt f l =
+  let rec find = function
+    | [] ->
+        None
+    | hd :: tl ->
+        match f hd with
+        | Some x ->
+            Some x
+        | None ->
+            find tl
+  in
+  find l
