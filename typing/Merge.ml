@@ -380,6 +380,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
           None
       end;
 
+
       (* Flexible type variable vs [=x] strategy..
        *
        * The flexible variable must have kind TERM. We should perform a
@@ -413,15 +414,14 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
             None
       end;
 
-      (* Flexible type variable strategy.
-       *
-       * If we have a flexible variable on one side or another, just merge it
-       * and we're done. *)
-      lazy begin
-        try_merge_flexible (left_env, left_perm) (right_env, right_perm) dest_env
-      end;
 
-      (* General strategy. *)
+      (** Point-to-point strategy.
+       *
+       * This covers the following cases. Greek letters are flexible variables.
+       * - int vs int
+       * - α vs int
+       * - α vs [structure=τ]
+       * - α vs β *)
       lazy begin
         match left_perm, right_perm with
         | TyPoint left_p, TyPoint right_p ->
@@ -493,8 +493,26 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
                 end
 
             end
+        | _ ->
+            None
+      end;
 
 
+      (* Flexible type variable strategy.
+       *
+       * If we have a flexible variable on one side or another, just merge it
+       * and we're done (as long as the other type makes sense in the
+       * destination environment).
+       *
+       * This must come *after* the point-to-point and flex vs [=x] strategies. *)
+      lazy begin
+        try_merge_flexible (left_env, left_perm) (right_env, right_perm) dest_env
+      end;
+
+
+      (* General strategy. *)
+      lazy begin
+        match left_perm, right_perm with
         | TySingleton left_t, TySingleton right_t ->
             let r = merge_type (left_env, left_t) (right_env, right_t) dest_env in
             r >>= fun (left_env, right_env, dest_env, dest_t) ->
