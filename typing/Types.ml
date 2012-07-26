@@ -575,6 +575,7 @@ let tsubst_data_type_def_branch t2 i branch =
 
 (* Saves us the trouble of matching all the time. *)
 let (!!) = function TyPoint x -> x | _ -> assert false;;
+let (>>=) = Option.bind;;
 
 let ty_equals x =
   TySingleton (TyPoint x)
@@ -1033,6 +1034,10 @@ let flatten_tyapp t =
         x, acc
   in
   flatten_tyapp [] t
+;;
+
+let fold_tyapp cons args =
+  List.fold_left (fun t arg -> TyApp (t, arg)) cons args
 ;;
 
 let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_branch list):
