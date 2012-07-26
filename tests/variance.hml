@@ -1,0 +1,7 @@
+abstract int
+
+data list a = Nil | Cons { head: a; tail: list a }
+
+exclusive data ref a = Ref { contents: a }
+
+data contra a = C { c: a -> int }

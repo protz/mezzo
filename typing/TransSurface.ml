@@ -290,9 +290,9 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
         | Exclusive -> T.Exclusive
         | Duplicable -> T.Duplicable (Array.make arity false)
       in
-      (* This is wrong but the variance inference will take care of setting the
-       * right values for the variance of the parameters. *)
-      let variance = Hml_List.make arity (fun _ -> T.Bivariant) in
+      (* This is conservative but the variance inference will take care of
+       * setting the right values for the variance of the parameters. *)
+      let variance = Hml_List.make arity (fun _ -> T.Invariant) in
       name, (Some (flag, branches), variance), fact, karrow params KType
   | Abstract ((name, params), kind, fact) ->
       let params = List.map (fun (x, k, _) -> x, k) params in

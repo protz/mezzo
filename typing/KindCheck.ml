@@ -682,13 +682,26 @@ module KindPrinter = struct
     print_kind kind
   ;;
 
+  let print_variance = function
+    | Invariant ->
+        empty
+    | Covariant ->
+        plus
+    | Contravariant ->
+        minus
+    | Bivariant ->
+        equals
+  ;;
+
   (* Prints a data type defined in the global scope. Assumes [print_env] has been
      properly populated. *)
-  let print_data_type_def (env: env) flag name kind branches =
+  let print_data_type_def (env: env) flag name kind variance branches =
     let _return_kind, params = flatten_kind kind in
     (* Turn the list of parameters into letters *)
     let letters: string list = name_gen (List.length params) in
-    let letters = List.map print_string letters in
+    let letters = List.map2 (fun variance letter ->
+      print_variance variance ^^ print_string letter
+    ) variance letters in
     let env, _, branches = bind_datacon_parameters env kind branches in
     let sep = break1 ^^ bar ^^ space in
     let flag = match flag with
@@ -711,8 +724,8 @@ module KindPrinter = struct
     let defs = map_types env (fun { names; kind; _ } { definition; _ } ->
       let name = List.hd names in
       match definition with
-      | Some (Some (flag, branches), _) ->
-          print_data_type_def env flag name kind branches
+      | Some (Some (flag, branches), variance) ->
+          print_data_type_def env flag name kind variance branches
       | Some (None, _) ->
           print_abstract_type_def env name kind
       | None ->
