@@ -9,6 +9,7 @@ val count = cref 0
 
 val counter (| count @ ref int): int =
   let x = rget count in
+  () explain;
   rset (count, x + 1);
   x
 

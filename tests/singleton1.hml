@@ -1,0 +1,7 @@
+data bool = True | False
+
+exclusive data t a = A | B { b: a }
+
+val s1 =
+  let x = A in
+  if explain True then A else B { b = x }
