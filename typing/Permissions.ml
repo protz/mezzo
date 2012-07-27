@@ -659,7 +659,6 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       sub_type env t1 t2
 
   | _, TyExists (binding, t2) ->
-      Log.debug "FOOBARZ";
       let env, t2 = bind_var_in_type ~flexible:true env binding t2 in
       let t2, perms = collect t2 in
       List.fold_left

@@ -1,0 +1,14 @@
+abstract int
+fact duplicable int
+data bool = True | False
+
+data t a = A | B { b: a }
+
+val v14 =
+  if explain True then begin
+    let x = 2 in
+    if True then A else B { b = x }
+  end else begin
+    let y = 2 in
+    if True then A else B { b = y }
+  end

@@ -710,6 +710,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
           let left_env = instantiate_flexible left_env p t in
           Some (left_env, right_env, dest_env, t)
         with UnboundPoint ->
+          (* This is a limited implementation of the singleton-subtyping rule. *)
           match t with
           | TySingleton (TyPoint p') ->
               let perms =

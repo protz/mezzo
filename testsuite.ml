@@ -217,6 +217,29 @@ let tests = [
     in
     check env v12 t);
 
+  ("merge13.hml", fun do_it ->
+    let env = do_it false in
+    let v13 = point_by_name env "v13" in
+    let x = point_by_name env "x" in
+    let int = find_type_by_name env "int" in
+    let t = find_type_by_name env "t" in
+    let t = TyApp (t, ty_equals x) in
+    check env v13 t;
+    check env x int);
+
+  ("merge14.hml", fun do_it ->
+    let env = do_it false in
+    let v14 = point_by_name env "v14" in
+    let int = find_type_by_name env "int" in
+    let t = find_type_by_name env "t" in
+    let t = TyExists (dummy_binding KTerm, TyBar (
+      TyApp (t, TySingleton (TyVar 0)),
+      TyAnchoredPermission (TyVar 0, int)
+    )) in
+    check env v14 t);
+
+  (*("", fun _ -> raise Exit);*)
+
   ("merge_generalize_val.hml", fun do_it ->
     let env = do_it false in
     let x = point_by_name env "x" in
@@ -293,6 +316,8 @@ let _ =
       Printf.printf "%s✗ OH NOES %s%s\n" colors.red colors.default file;
       print_endline (Printexc.to_string e);
       Printexc.print_backtrace stdout;
+      if e = Exit then
+        raise e
     end;
     flush stdout;
     flush stderr;
