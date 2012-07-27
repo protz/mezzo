@@ -1,0 +1,18 @@
+abstract int
+fact duplicable int
+
+exclusive data tree a = 
+  | Leaf
+  | Node { left: tree a; right: tree a; size: a }
+
+val rec tree_size (consumes x: tree unknown): (int | x @ tree int) =
+  match explain x with
+  | Leaf ->
+      1
+  | Node { left; right } ->
+      let l = tree_size left in
+      let r = tree_size right in
+      let total = l + r + 1 in
+      x.size <- total;
+      total
+  end

@@ -315,6 +315,9 @@ let tests = [
     check_variance "contra" [contra];
   );
 
+  ("tree_size.hml", fun do_it ->
+    ignore (do_it false));
+
  ]
 
 let _ =
