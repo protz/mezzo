@@ -684,12 +684,12 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
   (* end merge_types *)
 
   (* I feel like this is the only place where we need to apply the singleton
-   * subtyping rule.
+   * subtyping rule (for the merge operation).
    *
    * Let us imagine that [t] is a singleton type [=x].
    * - If the try block succeeds,
    *   * [x] makes sense in both environments,
-   *   * [p] is instantiated to [=x],
+   *   * [p] is instantiated into [=x],
    *   * the flexible-structure strategy will call [merge_type] again with [=x]
    *     vs [=x]
    *   * this will merge into [=x].
