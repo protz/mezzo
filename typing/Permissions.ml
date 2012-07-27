@@ -405,6 +405,12 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
     possibly by refining some of these permissions into more precise ones. *)
 and refine (env: env) (point: point) (t': typ): env =
   let permissions = get_permissions env point in
+  let t' = match t' with
+    | TyPoint p ->
+        (match structure env p with Some t' -> t' | None -> t')
+    | _ ->
+       t'
+  in
   match t' with
   | TySingleton (TyPoint point') when not (same env point point') ->
       let permissions' = get_permissions env point' in
