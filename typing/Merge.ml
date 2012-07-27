@@ -692,44 +692,6 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
             None
       end;
 
-
-      (* Last resort strategy.
-       *
-       * Must come after both the flexible type variable strategy and the
-       * flexible type vs [=x] strategy. *)
-      lazy begin
-        let is_equals = function TySingleton (TyPoint _) -> true | _ -> false in
-        match left_perm, right_perm with
-        | TySingleton (TyPoint p), _ ->
-            Log.check (not (is_equals right_perm)) "Dafuq?";
-            (* We're being ultra-conservative here. *)
-            let perms =
-              List.filter (FactInference.is_duplicable left_env) (get_permissions left_env p)
-            in
-            let perms = List.filter (function
-              | TySingleton (TyPoint p') when same left_env p p' ->
-                  false
-              | _ -> true
-            ) perms in
-            Hml_List.find_opt
-              (fun left_perm -> merge_type (left_env, left_perm) (right_env, right_perm) dest_env)
-              perms
-        | _, TySingleton (TyPoint p) ->
-            Log.check (not (is_equals left_perm)) "Dafuq?";
-            let perms =
-              List.filter (FactInference.is_duplicable right_env) (get_permissions right_env p)
-            in
-            let perms = List.filter (function
-              | TySingleton (TyPoint p') when same right_env p p' ->
-                  false
-              | _ -> true
-            ) perms in
-            Hml_List.find_opt
-              (fun right_perm -> merge_type (left_env, left_perm) (right_env, right_perm) dest_env)
-              perms
-        | _ ->
-            None
-      end;
     ] in
 
     Hml_List.find_opt Lazy.force strategies
@@ -748,7 +710,21 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
           let left_env = instantiate_flexible left_env p t in
           Some (left_env, right_env, dest_env, t)
         with UnboundPoint ->
-          None
+          match t with
+          | TySingleton (TyPoint p') ->
+              let perms =
+                List.filter (FactInference.is_duplicable right_env) (get_permissions right_env p')
+              in
+              let perms = List.filter (function
+                | TySingleton (TyPoint p'') when same right_env p'' p' ->
+                    false
+                | _ -> true
+              ) perms in
+              Hml_List.find_opt
+                (fun right_perm -> merge_type (left_env, left_perm) (right_env, right_perm) dest_env)
+                perms
+          | _ ->
+              None
         end
 
     | t, TyPoint p when is_flexible right_env p ->
@@ -757,7 +733,21 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
           let right_env = instantiate_flexible right_env p t in
           Some (left_env, right_env, dest_env, t)
         with UnboundPoint ->
-          None
+          match t with
+          | TySingleton (TyPoint p') ->
+              let perms =
+                List.filter (FactInference.is_duplicable left_env) (get_permissions left_env p')
+              in
+              let perms = List.filter (function
+                | TySingleton (TyPoint p'') when same left_env p'' p' ->
+                    false
+                | _ -> true
+              ) perms in
+              Hml_List.find_opt
+                (fun left_perm -> merge_type (left_env, left_perm) (right_env, right_perm) dest_env)
+                perms
+          | _ ->
+              None
         end
 
     | _ ->
