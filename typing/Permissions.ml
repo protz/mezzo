@@ -763,6 +763,18 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       let env = add_perm env p1 in
       sub_perm env p2
 
+  (* This is the singleton-subtyping rule. *)
+  | TySingleton (TyPoint p), _ when FactInference.is_duplicable env t2 ->
+      let perms =
+        List.filter (FactInference.is_duplicable env) (get_permissions env p)
+      in
+      let perms = List.filter (function
+        | TySingleton (TyPoint p') when same env p p' ->
+            false
+        | _ -> true
+      ) perms in
+      Hml_List.find_opt (fun t1 -> sub_type env t1 t2) perms
+
   | _ ->
       compare_modulo_flex env sub_type t1 t2
 
