@@ -26,8 +26,8 @@
 %token PERMISSION UNKNOWN DYNAMIC EXCLUSIVE
 %token DATA BAR
 %token LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
-%token COMMA COLON COLONCOLON SEMI ARROW STAR AT
-%token LARROW DBLARROW FUN
+%token COMMA COLON COLONCOLON SEMI STAR AT
+%token ARROW LARROW DBLARROW DBLLARROW FUN
 %token EQUAL
 %token EMPTY ASSERT EXPLAIN
 %token CONSUMES DUPLICABLE FACT ABSTRACT
@@ -451,6 +451,8 @@ fact:
   (* cannot allow let because right-hand side of let can contain a semi-colon *)
   | e1 = atomic DOT f = variable LARROW e2 = everything_except_let_and_semi
       { EAssign (e1, f, e2) }
+  | e1 = atomic DBLLARROW d = datacon
+      { EAssignTag (e1, d) }
   | e = explained_raw
       { e }
 

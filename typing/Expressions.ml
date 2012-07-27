@@ -39,6 +39,8 @@ type expression =
   | EFun of type_binding list * typ * typ * expression
   (* v.f <- e *)
   | EAssign of expression * Field.name * expression
+  (* v <- Foo *)
+  | EAssignTag of expression * Datacon.name
   (* v.f *)
   | EAccess of expression * Field.name
   (* e₁ e₂ *)
@@ -197,6 +199,10 @@ and tsubst_expr t2 i e =
       let e2 = tsubst_expr t2 i e2 in
       EAssign (e1, field, e2)
 
+  | EAssignTag (e1, datacon) ->
+      let e1 = tsubst_expr t2 i e1 in
+      EAssignTag (e1, datacon)
+
   | EAccess (e1, field) ->
       let e1 = tsubst_expr t2 i e1 in
       EAccess (e1, field)
@@ -328,6 +334,10 @@ and esubst e2 i e1 =
       let e = esubst e2 i e in
       let e' = esubst e2 i e' in
       EAssign (e, f, e')
+
+  | EAssignTag (e, d) ->
+      let e = esubst e2 i e in
+      EAssignTag (e, d)
 
   | EAccess (e, f) ->
       let e = esubst e2 i e in
@@ -540,8 +550,12 @@ let elift (k: int) (e: expression) =
       let body = elift (i + n) body in
       EFun (vars, arg, return_type, body)
 
+
   | EAssign (e1, f, e2) ->
       EAssign (elift i e1, f, elift i e2)
+
+  | EAssignTag (e1, d) ->
+      EAssignTag (elift i e1, d)
 
   | EAccess (e, f) ->
       EAccess (elift i e, f)
@@ -639,6 +653,9 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
     | EAssign (e1, f, e'1) ->
         EAssign (epsubst e2 e1, f, epsubst e2 e'1)
 
+    | EAssignTag (e1, d) ->
+        EAssignTag (epsubst e2 e1, d)
+
     | EAccess (e1, f) ->
         EAccess (epsubst e2 e1, f)
 
@@ -734,6 +751,9 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
 
     | EAssign (e1, f, e'1) ->
         EAssign (tepsubst t2 e1, f, tepsubst t2 e'1)
+
+    | EAssignTag (e1, d) ->
+        EAssignTag (tepsubst t2 e1, d)
 
     | EAccess (e1, f) ->
         EAccess (tepsubst t2 e1, f)
@@ -870,6 +890,10 @@ module ExprPrinter = struct
 
     | EAssign (e1, f, e2) ->
         print_expr env e1 ^^ dot ^^ print_field f ^^ space ^^ larrow ^^ jump (print_expr env e2)
+
+    | EAssignTag (e1, d) ->
+        print_expr env e1 ^^ dot ^^ print_datacon d ^^ space ^^ langle ^^ equals ^^
+        print_datacon d
 
     | EAccess (e, f) ->
         print_expr env e ^^ dot ^^ print_field f

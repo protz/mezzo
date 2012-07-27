@@ -174,6 +174,7 @@ let rec token = lexer
 | ";" -> locate lexbuf SEMI
 | "->" | 8594 (* → *) -> locate lexbuf ARROW
 | "=>" | 8658 (* ⇒ *) -> locate lexbuf DBLARROW
+| "<=" | 8656 (* ⇐ *) -> locate lexbuf DBLLARROW
 | "*" -> locate lexbuf STAR
 | "=" -> locate lexbuf EQUAL
 | "@" -> locate lexbuf AT

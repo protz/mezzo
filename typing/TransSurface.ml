@@ -517,6 +517,10 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let e2 = translate_expr env e2 in
       E.EAssign (e1, x, e2)
 
+  | EAssignTag (e1, x) ->
+      let e1 = translate_expr env e1 in
+      E.EAssignTag (e1, x)
+
   | EAccess (e, x) ->
       let e = translate_expr env e in
       E.EAccess (e, x)

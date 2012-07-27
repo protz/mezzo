@@ -169,6 +169,8 @@ and expression =
   | EFun of type_binding list * typ * typ * expression
   (* v.f <- e *)
   | EAssign of expression * Variable.name * expression
+  (* v <- Datacon *)
+  | EAssignTag of expression * Datacon.name
   (* v.f *)
   | EAccess of expression * Variable.name
   (* assert τ *)
