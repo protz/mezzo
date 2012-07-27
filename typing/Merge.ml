@@ -381,46 +381,39 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
       end;
 
 
-      (* Flexible type variable vs [=x] strategy..
+      (* The flex-with-structure strategy, lefty version.
        *
-       * The flexible variable must have kind TERM. We should perform a
-       * union-find merge between these points, not instanciate the flexible
-       * term variable with [=x] as its structure! *)
-      (* lazy begin
+       * This just steps through a flexible variable that has a structure. *)
+      lazy begin
         match left_perm, right_perm with
-        | TySingleton (TyPoint p'), TyPoint p when is_flexible right_env p ->
-            (*  What's happening is that we're unifying a flexible type variable
-             * with [=x]. The x variable therefore has kind TERM.
-             *  This happens because, say, we're looking for the "right" value of
-             * a type parameter. This is legal only if [x] makes sense in the
-             * top-level context, i.e. [x] is not local to the sub-environment.
-             *  This only makes sure we do not give [=x] as a structure for the
-             * flexible type variable, but merge it right away with [x] (the
-             * point). It does *not* replace [=x] with one of the permissions
-             * available for [x]. *)
-            Log.check (get_kind right_env p' = KTerm) "Not well-kinded?";
-            let right_env = merge_flexible_with_term_in_sub_env top right_env p p' in
-            right_env >>= fun right_env ->
-            Some (left_env, right_env, dest_env, ty_equals p')
-
-        | TyPoint p, TySingleton (TyPoint p') when is_flexible left_env p ->
-            (* Symmetrical. *)
-            Log.check (get_kind left_env p' = KTerm) "Not well-kinded?";
-            let left_env = merge_flexible_with_term_in_sub_env top left_env p p' in
-            left_env >>= fun left_env ->
-            Some (left_env, right_env, dest_env, ty_equals p')
-
+        | TyPoint left_p, _ ->
+            structure left_env left_p >>= fun left_perm ->
+            merge_type (left_env, left_perm) (right_env, right_perm) dest_env
         | _ ->
             None
-      end; *)
+      end;
+
+      (* The flex-with-structure strategy, righty version.
+       *
+       * And just for the record, this is *not* the same as putting both in the
+       * same match statement!
+       *)
+      lazy begin
+        match left_perm, right_perm with
+        | _, TyPoint right_p ->
+            structure right_env right_p >>= fun right_perm ->
+            merge_type (left_env, left_perm) (right_env, right_perm) dest_env
+        | _ ->
+            None
+      end;
 
 
-      (** Point-to-point strategy.
+      (* Point-to-point strategy.
        *
        * This covers the following cases. Greek letters are flexible variables.
        * - int vs int
+       * - x vs y
        * - α vs int
-       * - α vs [structure=τ]
        * - α vs β *)
       lazy begin
         match left_perm, right_perm with
@@ -435,44 +428,34 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
                 Some (left_env, right_env, dest_env, TyPoint dest_p)
 
             | false, true ->
-                begin match structure left_env left_p with
-                | Some left_perm ->
-                    merge_type (left_env, left_perm) (right_env, right_perm) dest_env
-                | None ->
-                    let dest_p = PersistentUnionFind.repr left_p left_env.state in
+                let dest_p = PersistentUnionFind.repr left_p left_env.state in
 
-                    (* This must be a top-level type and [left_p] must be valid in the
-                     * destination environment. *)
-                    Log.check (is_type dest_env dest_p) "A flexible variable must refer \
-                      to a type defined in the top-level scope, we don't know how to treat \
-                      flexible variables with kind other than TYPE yet.";
+                (* This must be a top-level type and [left_p] must be valid in the
+                 * destination environment. *)
+                Log.check (is_type dest_env dest_p) "A flexible variable must refer \
+                  to a type defined in the top-level scope, we don't know how to treat \
+                  flexible variables with kind other than TYPE yet.";
 
-                    let right_env = merge_left right_env dest_p right_p in
-                    Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
-                      "All top-level types should be in known_triples by default";
+                let right_env = merge_left right_env dest_p right_p in
+                Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
+                  "All top-level types should be in known_triples by default";
 
-                    Some (left_env, right_env, dest_env, TyPoint dest_p)
-                end
+                Some (left_env, right_env, dest_env, TyPoint dest_p)
 
             | true, false ->
-                begin match structure right_env right_p with
-                | Some right_perm ->
-                    merge_type (left_env, left_perm) (right_env, right_perm) dest_env
-                | None ->
-                    let dest_p = PersistentUnionFind.repr right_p right_env.state in
+                let dest_p = PersistentUnionFind.repr right_p right_env.state in
 
-                    (* This must be a top-level type and [right_p] must be valid in the
-                     * destination environment. *)
-                    Log.check (is_type dest_env dest_p) "A flexible variable must refer \
-                      to a type defined in the top-level scope, we don't know how to treat \
-                      flexible variables with kind other than TYPE yet.";
+                (* This must be a top-level type and [right_p] must be valid in the
+                 * destination environment. *)
+                Log.check (is_type dest_env dest_p) "A flexible variable must refer \
+                  to a type defined in the top-level scope, we don't know how to treat \
+                  flexible variables with kind other than TYPE yet.";
 
-                    let left_env = merge_left left_env dest_p left_p in
-                    Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
-                      "All top-level types should be in known_triples by default";
+                let left_env = merge_left left_env dest_p left_p in
+                Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
+                  "All top-level types should be in known_triples by default";
 
-                    Some (left_env, right_env, dest_env, TyPoint dest_p)
-                end
+                Some (left_env, right_env, dest_env, TyPoint dest_p)
 
             | true, true ->
                 let k = get_kind left_env left_p in
@@ -504,7 +487,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
        * and we're done (as long as the other type makes sense in the
        * destination environment).
        *
-       * This must come *after* the point-to-point and flex vs [=x] strategies. *)
+       * This must come *after* the point-to-point strategy. *)
       lazy begin
         try_merge_flexible (left_env, left_perm) (right_env, right_perm) dest_env
       end;
@@ -697,7 +680,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
     Hml_List.find_opt Lazy.force strategies
 
   (* end merge_types *)
-          
+
   and try_merge_flexible (left_env, left_perm) (right_env, right_perm) dest_env =
     match left_perm, right_perm with
     (* We can instantiate a flexible variable, as long as the type on the other
@@ -710,20 +693,31 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
           let left_env = instantiate_flexible left_env p t in
           Some (left_env, right_env, dest_env, t)
         with UnboundPoint ->
-          (* This is a limited implementation of the singleton-subtyping rule. *)
+          (* I feel like this is the only place where we need to apply the
+           * singleton-subtyping rule.
+           *
+           * Let us imagine that [t] is a singleton type [=x].
+           * - If the try block above succeeds,
+           *   * [x] makes sense in both environments,
+           *   * [p] is instantiated to [=x],
+           *   * the flexible-structure strategy will call [merge_type] again
+           *     with [=x] vs [=x]
+           *   * this will merge into [=x].
+           * - If the try block above does not succeed, [x] is local to this
+           *   sub-environment.
+           *   * we get the duplicable permissions of [p],
+           *   * we try to merge [p] with one of them, preferably not the
+           *   singleton one, since that one, again, doesn't make sense in a
+           *   top-level environment.
+           *)
           match t with
           | TySingleton (TyPoint p') ->
-              let perms =
-                List.filter (FactInference.is_duplicable right_env) (get_permissions right_env p')
-              in
-              let perms = List.filter (function
-                | TySingleton (TyPoint p'') when same right_env p'' p' ->
-                    false
-                | _ -> true
-              ) perms in
               Hml_List.find_opt
                 (fun right_perm -> merge_type (left_env, left_perm) (right_env, right_perm) dest_env)
-                perms
+                (Permissions.dup_perms_no_singleton right_env p')
+          | TyPoint _ ->
+              Log.error "This should've been taken care of by the point-to-point \
+                strategy";
           | _ ->
               None
         end
@@ -736,17 +730,12 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
         with UnboundPoint ->
           match t with
           | TySingleton (TyPoint p') ->
-              let perms =
-                List.filter (FactInference.is_duplicable left_env) (get_permissions left_env p')
-              in
-              let perms = List.filter (function
-                | TySingleton (TyPoint p'') when same left_env p'' p' ->
-                    false
-                | _ -> true
-              ) perms in
               Hml_List.find_opt
                 (fun left_perm -> merge_type (left_env, left_perm) (right_env, right_perm) dest_env)
-                perms
+                (Permissions.dup_perms_no_singleton left_env p')
+          | TyPoint _ ->
+              Log.error "This should've been taken care of by the point-to-point \
+                strategy";
           | _ ->
               None
         end

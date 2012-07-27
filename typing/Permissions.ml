@@ -111,6 +111,20 @@ let collect (t: typ): typ * typ list =
 ;;
 
 
+let dup_perms_no_singleton env p =
+  let perms =
+    List.filter (FactInference.is_duplicable env) (get_permissions env p)
+  in
+  let perms = List.filter (function
+    | TySingleton (TyPoint p') when same env p p' ->
+        false
+    | _ -> true
+  ) perms in
+  perms
+;;
+
+
+
 (** [unfold env t] returns [env, t] where [t] has been unfolded, which
     potentially led us into adding new points to [env]. The [hint] serves when
     making up names for intermediary variables. *)
@@ -764,15 +778,9 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
   (* This is the singleton-subtyping rule. *)
   | TySingleton (TyPoint p), _ when FactInference.is_duplicable env t2 ->
-      let perms =
-        List.filter (FactInference.is_duplicable env) (get_permissions env p)
-      in
-      let perms = List.filter (function
-        | TySingleton (TyPoint p') when same env p p' ->
-            false
-        | _ -> true
-      ) perms in
-      Hml_List.find_opt (fun t1 -> sub_type env t1 t2) perms
+      Hml_List.find_opt
+        (fun t1 -> sub_type env t1 t2)
+        (dup_perms_no_singleton env p)
 
   | _ ->
       compare_modulo_flex env sub_type t1 t2
@@ -846,14 +854,6 @@ and sub_perm (env: env) (t: typ): env option =
         ptype (env, t)
 ;;
 
-
-let full_merge (env: env) (p: point) (p': point): env =
-  Log.check (is_term env p && is_term env p') "Only interested in TERMs here.";
-
-  let perms = get_permissions env p' in
-  let env = merge_left env p p' in
-  List.fold_left (fun env t -> add env p t) env perms
-;;
 
 exception NotFoldable
 
