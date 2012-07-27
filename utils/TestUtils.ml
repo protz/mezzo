@@ -53,3 +53,7 @@ let ktype =
 let unit =
   tuple []
 ;;
+
+let datacon d f =
+  TyConcreteUnfolded (Datacon.register d, f)
+;;

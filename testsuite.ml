@@ -238,8 +238,6 @@ let tests = [
     )) in
     check env v14 t);
 
-  (*("", fun _ -> raise Exit);*)
-
   ("merge_generalize_val.hml", fun do_it ->
     let env = do_it false in
     let x = point_by_name env "x" in
@@ -251,6 +249,25 @@ let tests = [
     check env y t;
     check env z t;
   );
+
+  ("singleton1.hml", fun do_it ->
+    let env = do_it false in
+    let x = point_by_name env "x" in
+    let s1 = point_by_name env "s1" in
+    let t = find_type_by_name env "t" in
+    (* We have to perform a syntactic comparison here, otherwise [check] which
+     * uses [sub] under the hood might implicitly perform the
+     * singleton-subtyping-rule -- this would defeat the whole purpose of the
+     * test. *)
+    let perms = get_permissions env x in
+    if perms <> [ty_equals x] then
+      failwith "The permission on [x] should've been consumed";
+    let perms = get_permissions env s1 in
+    if not (List.exists ((=) (TyApp (t, datacon "A" []))) perms) then
+      failwith "The right permission was not extracted for [s1].";
+  );
+
+  (*("", fun _ -> raise Exit);*)
 
   ("list-length.hml", fun do_it ->
     let env = do_it false in
