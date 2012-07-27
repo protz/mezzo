@@ -16,6 +16,7 @@ and raw_error =
   | MissingField of Field.name
   | ExtraField of Field.name
   | NoSuchField of point * Field.name
+  | CantAssignTag of point
   | NoSuchFieldInPattern of pattern * Field.name
   | SubPattern of pattern
   | NoTwoConstructors of point
@@ -24,6 +25,7 @@ and raw_error =
   | MatchBadPattern of pattern
   | NoSuchPermission of typ
   | AssignNotExclusive of typ * Datacon.name
+  | FieldCountMismatch of typ * Datacon.name
   | NoMultipleArguments
 
 exception TypeCheckerError of error
@@ -156,6 +158,24 @@ let print_error buf (env, raw_error) =
             Field.p f
             pdoc (print_permission_list, (env, binder))
       end
+   | CantAssignTag point ->
+      let name, binder = find_term env point in
+      begin match Permissions.fold env point with
+      | Some t ->
+          Printf.bprintf buf
+            "%a %a has type %a, we can't assign a tag to it"
+            Lexer.p env.location
+            pvar name
+            ptype (env, t)
+      | None ->
+          print_permissions ();
+          Printf.bprintf buf
+            "%a %a has no suitable permission that would accept a tag update, \
+              the only permissions available for it are %a"
+            Lexer.p env.location
+            pvar name
+            pdoc (print_permission_list, (env, binder))
+      end
   | SubPattern pat ->
       Printf.bprintf buf
         "%a there's a sub-constraint in that pattern, not allowed: %a"
@@ -183,6 +203,13 @@ let print_error buf (env, raw_error) =
       Printf.bprintf buf
         "%a this value has type %a: constructor %a belongs to a data type that \
           is not defined as exclusive"
+        Lexer.p env.location
+        ptype (env, t)
+        Datacon.p datacon
+  | FieldCountMismatch (t, datacon) ->
+      Printf.bprintf buf
+        "%a this value has type %a: constructor %a belongs to a data type that \
+          does not have the same number of fields"
         Lexer.p env.location
         ptype (env, t)
         Datacon.p datacon
@@ -478,8 +505,8 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
                           expr
                       in
                       FieldValue (field, expr)
-                  | FieldPermission _ as f ->
-                      f
+                  | FieldPermission _ ->
+                      Log.error "These should've been inserted in the environment"
                 ) fieldexprs in
                 TyConcreteUnfolded (datacon, fieldexprs)
             | _ ->
@@ -491,6 +518,63 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
         { binder with permissions })
       in
       return env ty_unit
+
+  | EAssignTag (e1, datacon) ->
+      (* Type-check [e1]. *)
+      let env, p1 = check_expression env e1 in
+
+      (* Find the type [datacon] corresponds to. *)
+      let _, branches = def_for_datacon env datacon in
+      let _, fields =
+        List.find (fun (datacon', _) -> Datacon.equal datacon datacon') branches
+      in
+      let field_names = List.map (function
+        | FieldValue (name, _) ->
+            name
+        | FieldPermission _ ->
+            (* We should just subtract the requireed permissions from the
+             * environment. *)
+            Log.error "Not implemented yet"
+      ) fields in
+
+      let permissions = get_permissions env p1 in
+      let found = ref false in
+      let permissions = List.map (function
+        | TyConcreteUnfolded (datacon', fieldexprs) as t ->
+            (* The current type should be mutable. *)
+            let flag, _ = def_for_datacon env datacon' in
+            if flag <> SurfaceSyntax.Exclusive then
+              raise_error env (AssignNotExclusive (t, datacon'));
+
+            (* Also, the number of fields should be the same. *)
+            if List.length fieldexprs <> List.length field_names then
+              raise_error env (FieldCountMismatch (t, datacon));
+
+            (* Change the field names. *)
+            let fieldexprs = List.map2 (fun field -> function
+              | FieldValue (_, e) ->
+                  FieldValue (field, e)
+              | FieldPermission _ ->
+                  Log.error "These should've been inserted in the environment"
+            ) field_names fieldexprs in
+
+            if !found then
+              Log.error "Two suitable permissions, strange...";
+            found := true;
+
+            (* And don't forget to change the datacon as well. *)
+            TyConcreteUnfolded (datacon, fieldexprs)
+
+        | _ as t ->
+            t
+      ) permissions in
+
+      if not !found then
+        raise_error env (CantAssignTag p1);
+
+      let env = replace_term env p1 (fun binder -> { binder with permissions }) in
+      return env ty_unit
+
 
   | EAccess (e, fname) ->
       (* We could be a little bit smarter, and generic here. Instead of iterating

@@ -293,8 +293,8 @@ let tests = [
   ("xlist-concat1.hml", fun do_it ->
     ignore (do_it false));
 
-  (*("xlist-concat2.hml", fun do_it ->
-    ignore (do_it false));*)
+  ("xlist-concat2.hml", fun do_it ->
+    ignore (do_it false));
 
   ("variance.hml", fun do_it ->
     let env = do_it false in
