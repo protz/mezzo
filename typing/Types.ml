@@ -235,9 +235,16 @@ let names_equal n1 n2 =
       false
 ;;
 
+let get_kind (env: env) (point: point): kind =
+  match PersistentUnionFind.find point env.state with
+  | { kind; _ }, _ ->
+      kind
+;;
+
 (* Merge while keeping the descriptor of the leftmost argument. *)
 let merge_left env p2 p1 =
   let open Bash in
+  Log.check (get_kind env p1 = get_kind env p2) "Kind mismatch when merging";
   Log.debug "%sMerging%s %a into %a"
     colors.red colors.default
     !internal_pnames (get_names env p1)
@@ -907,12 +914,6 @@ let get_location env p =
   List.hd (get_locations env p)
 ;;
 
-let get_kind (env: env) (point: point): kind =
-  match PersistentUnionFind.find point env.state with
-  | { kind; _ }, _ ->
-      kind
-;;
-
 let get_definition (env: env) (point: point): type_def option =
   let _, { definition; _ } = find_type env point in
   definition
@@ -1332,9 +1333,9 @@ module TypePrinter = struct
   ;;
   
   let print_permission_list (env, { permissions; _ }): document =
-    let permissions = List.filter (function
+    (* let permissions = List.filter (function
       TySingleton (TyPoint _) -> false | _ -> true
-    ) permissions in
+    ) permissions in *)
     if List.length permissions > 0 then
       let permissions = List.map (print_type env) permissions in
       join (comma ^^ space) permissions

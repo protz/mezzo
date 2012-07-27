@@ -1,6 +1,6 @@
 open Types
 open TypeChecker
-open TestUtils
+(* open TestUtils *)
 
 let check env point t =
   ignore (check_return_type env point t)
@@ -33,7 +33,7 @@ let dummy_binding k =
 ;;
 
 let tests = [
-  ("constructors.hml",
+  (*("constructors.hml",
     simple_test Pass (fun _ -> false));
 
   ("constructors_bad_1.hml",
@@ -83,7 +83,7 @@ let tests = [
   ("merge1.hml", fun do_it ->
     let env = do_it false in
     let v1 = point_by_name env "v1" in
-    check env v1 (TyConcreteUnfolded (Datacon.register "T", [])));
+    check env v1 (TyConcreteUnfolded (Datacon.register "T", [])));*)
 
   ("merge2.hml", fun do_it ->
     let env = do_it false in
@@ -105,7 +105,7 @@ let tests = [
     in
     check env v2 t);
 
-  ("merge3.hml", fun do_it ->
+  (*("merge3.hml", fun do_it ->
     let env = do_it false in
     let v3 = point_by_name env "v3" in
     let t = TyExists (dummy_binding KTerm,
@@ -273,13 +273,13 @@ let tests = [
     check_variance "inv" [inv];
     check_variance "test" [co; co; bi];
     check_variance "contra" [contra];
-  );
+  );*)
 
  ]
 
 let _ =
   let open Bash in
-  Log.enable_debug 0;
+  Log.enable_debug 4;
   Driver.add_include_dir "tests";
   List.iter (fun (file, test) ->
     let do_it = fun pervasives ->

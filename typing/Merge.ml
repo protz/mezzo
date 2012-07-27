@@ -334,7 +334,7 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
     (* Allocate a new point [dest_p] in [dest_env] and schedule [left_p] and [right_p]
      * for merging with [dest_p]. Return [dest_env, dest_p]. *)
     let bind_merge dest_env left_p right_p =
-      (* As a small optimization, if the point we're allocating is bound to be
+      (* As a small optimization, if the point we're allocating is about to be
        * merged immediately by [merge_points], we don't allocate it at all
        * (which means less output, less fresh names, etc.). *)
       match merge_candidate (left_env, left_p) (right_env, right_p) with
@@ -386,11 +386,11 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
        * The flexible variable must have kind TERM. We should perform a
        * union-find merge between these points, not instanciate the flexible
        * term variable with [=x] as its structure! *)
-      lazy begin
+      (* lazy begin
         match left_perm, right_perm with
         | TySingleton (TyPoint p'), TyPoint p when is_flexible right_env p ->
             (*  What's happening is that we're unifying a flexible type variable
-             * with [=x]. The flexible variable therefore has kind TERM.
+             * with [=x]. The x variable therefore has kind TERM.
              *  This happens because, say, we're looking for the "right" value of
              * a type parameter. This is legal only if [x] makes sense in the
              * top-level context, i.e. [x] is not local to the sub-environment.
@@ -398,21 +398,21 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
              * flexible type variable, but merge it right away with [x] (the
              * point). It does *not* replace [=x] with one of the permissions
              * available for [x]. *)
-            Log.check (get_kind right_env p = KTerm) "Not well-kinded?";
+            Log.check (get_kind right_env p' = KTerm) "Not well-kinded?";
             let right_env = merge_flexible_with_term_in_sub_env top right_env p p' in
             right_env >>= fun right_env ->
             Some (left_env, right_env, dest_env, ty_equals p')
 
         | TyPoint p, TySingleton (TyPoint p') when is_flexible left_env p ->
             (* Symmetrical. *)
-            Log.check (get_kind left_env p = KTerm) "Not well-kinded?";
+            Log.check (get_kind left_env p' = KTerm) "Not well-kinded?";
             let left_env = merge_flexible_with_term_in_sub_env top left_env p p' in
             left_env >>= fun left_env ->
             Some (left_env, right_env, dest_env, ty_equals p')
 
         | _ ->
             None
-      end;
+      end; *)
 
 
       (** Point-to-point strategy.
@@ -688,6 +688,45 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
               None
 
 
+        | _ ->
+            None
+      end;
+
+
+      (* Last resort strategy.
+       *
+       * Must come after both the flexible type variable strategy and the
+       * flexible type vs [=x] strategy. *)
+      lazy begin
+        let is_equals = function TySingleton (TyPoint _) -> true | _ -> false in
+        match left_perm, right_perm with
+        | TySingleton (TyPoint p), _ ->
+            Log.check (not (is_equals right_perm)) "Dafuq?";
+            (* We're being ultra-conservative here. *)
+            let perms =
+              List.filter (FactInference.is_duplicable left_env) (get_permissions left_env p)
+            in
+            let perms = List.filter (function
+              | TySingleton (TyPoint p') when same left_env p p' ->
+                  false
+              | _ -> true
+            ) perms in
+            Hml_List.find_opt
+              (fun left_perm -> merge_type (left_env, left_perm) (right_env, right_perm) dest_env)
+              perms
+        | _, TySingleton (TyPoint p) ->
+            Log.check (not (is_equals left_perm)) "Dafuq?";
+            let perms =
+              List.filter (FactInference.is_duplicable right_env) (get_permissions right_env p)
+            in
+            let perms = List.filter (function
+              | TySingleton (TyPoint p') when same right_env p p' ->
+                  false
+              | _ -> true
+            ) perms in
+            Hml_List.find_opt
+              (fun right_perm -> merge_type (left_env, left_perm) (right_env, right_perm) dest_env)
+              perms
         | _ ->
             None
       end;
