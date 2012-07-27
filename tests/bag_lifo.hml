@@ -1,0 +1,16 @@
+exclusive data bag a = Bag { contents: list a }
+
+val push [a] (consumes x: a, b: bag a): () =
+  b.contents <- cons (x, b.contents)
+
+val pop [a] (b: bag a): option a =
+  match b.contents with
+  | Nil ->
+      none
+  | Cons { head; tail } ->
+      b.contents <- tail;
+      some head
+  end
+
+val is_empty [a] (b: bag a): bool =
+  if b.contents then true else false

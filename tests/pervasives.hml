@@ -1,4 +1,4 @@
-abstract int :: ∗
+abstract int
 fact duplicable int
 
 exclusive data xlist a =
@@ -12,6 +12,10 @@ data list a =
 exclusive data ref a = Ref {
   contents: a;
 }
+
+data option a = None | Some { contents: a }
+
+data bool = True | False
 
 val cref [a] (consumes x: a): ref a =
   Ref { contents = x }
@@ -27,3 +31,12 @@ val (nil: [a] list a) =
 
 val cons [a] (consumes hd: a, consumes tl: list a): list a =
   Cons { head = hd; tail = tl }
+
+val none =
+  None
+
+val some [a] (consumes x: a): option a =
+  Some { contents = x }
+
+val true = True
+val false = False
