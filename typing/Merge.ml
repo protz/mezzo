@@ -465,9 +465,11 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
                 | Some dest_p ->
                     Some (left_env, right_env, dest_env, TyPoint dest_p)
                 | None ->
+                    Log.check (k <> KTerm) "Remove this when we have a testcase, \
+                      and try to understand what's happening, and if it's \
+                      correct!";
+
                     let dest_env, dest_p =
-                      (* XXX fingers crossed that it works for flexible type
-                       * variables with kind TERM... *)
                       bind_var dest_env ~flexible:true (get_name left_env left_p, k, dest_env.location)
                     in
                     push known_triples (left_p, right_p, dest_p);
@@ -681,6 +683,21 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
 
   (* end merge_types *)
 
+  (* I feel like this is the only place where we need to apply the singleton
+   * subtyping rule.
+   *
+   * Let us imagine that [t] is a singleton type [=x].
+   * - If the try block succeeds,
+   *   * [x] makes sense in both environments,
+   *   * [p] is instantiated to [=x],
+   *   * the flexible-structure strategy will call [merge_type] again with [=x]
+   *     vs [=x]
+   *   * this will merge into [=x].
+   * - If the try block above does not succeed, [x] is local to this sub-environment.
+   *   * we get the duplicable permissions of [p],
+   *   * we try to merge [p] with one of them, preferably not the singleton one,
+   *     since that one, again, doesn't make sense in a top-level environment.
+   *)
   and try_merge_flexible (left_env, left_perm) (right_env, right_perm) dest_env =
     match left_perm, right_perm with
     (* We can instantiate a flexible variable, as long as the type on the other
@@ -693,23 +710,6 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
           let left_env = instantiate_flexible left_env p t in
           Some (left_env, right_env, dest_env, t)
         with UnboundPoint ->
-          (* I feel like this is the only place where we need to apply the
-           * singleton-subtyping rule.
-           *
-           * Let us imagine that [t] is a singleton type [=x].
-           * - If the try block above succeeds,
-           *   * [x] makes sense in both environments,
-           *   * [p] is instantiated to [=x],
-           *   * the flexible-structure strategy will call [merge_type] again
-           *     with [=x] vs [=x]
-           *   * this will merge into [=x].
-           * - If the try block above does not succeed, [x] is local to this
-           *   sub-environment.
-           *   * we get the duplicable permissions of [p],
-           *   * we try to merge [p] with one of them, preferably not the
-           *   singleton one, since that one, again, doesn't make sense in a
-           *   top-level environment.
-           *)
           match t with
           | TySingleton (TyPoint p') ->
               Hml_List.find_opt
