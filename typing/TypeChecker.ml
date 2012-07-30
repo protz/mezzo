@@ -882,7 +882,7 @@ and check_bindings
     let { subst_expr; subst_pat; _ } = subst_kit in
     let patterns, expressions = List.split patexprs in
     let expressions = List.map subst_expr expressions in
-    let patterns = List.map subst_pat patterns in
+    let patterns = subst_pat patterns in
     let env = match rec_flag with
       | Recursive ->
           List.fold_left2 (fun env expr pat ->

@@ -122,6 +122,7 @@ let collect_pattern (p: pattern): ((Types.name * (Lexing.position * Lexing.posit
   | PPoint _ ->
       assert false
   in
+  (* Return the names in reading order, i.e. left-to-right. *)
   List.rev (collect_pattern [] p)
 ;;
 
@@ -461,7 +462,7 @@ type substitution_kit = {
   (* substitute [TyVar]s for [TyPoint]s, [EVar]s for [EPoint]s in an [expression]. *)
   subst_decl: declaration list -> declaration list;
   (* substitute [PVar]s for [PPoint]s in a pattern *)
-  subst_pat: pattern -> pattern;
+  subst_pat: pattern list -> pattern list;
   (* the points, in left-to-right order *)
   points: point list;
 }
@@ -483,12 +484,15 @@ let eloc = function
 
 
 (* [bind_vars env bindings] adds [bindings] in the environment, and returns the
- * new environment, and a [substitution_kit]. *)
+ * new environment, and a [substitution_kit]. It takes a list of bindings in
+ * reading order. *)
 let bind_vars (env: env) (bindings: type_binding list): env * substitution_kit =
   (* List kept in reverse, the usual trick *)
-  let env, points = List.fold_left (fun (env, points) binding ->
-    let env, point = bind_var env binding in
-    env, point :: points) (env, []) bindings
+  let env, points =
+    List.fold_left (fun (env, points) binding ->
+      let env, point = bind_var env binding in
+      env, point :: points
+    ) (env, []) bindings
   in
   let subst_type t =
     Hml_List.fold_lefti (fun i t point -> tsubst (TyPoint point) i t) t points
@@ -503,12 +507,18 @@ let bind_vars (env: env) (bindings: type_binding list): env * substitution_kit =
       let t = tsubst_decl (TyPoint point) i t in
       esubst_decl (EPoint point) i t) t points
   in
-  let subst_pat p =
-    let pat, points = psubst p (List.rev points) in
+  (* Now keep the list in order. *)
+  let points = List.rev points in
+  let subst_pat patterns =
+    let points, patterns = List.fold_left (fun (points, pats) pat ->
+      let pat, points = psubst pat points in
+      points, pat :: pats
+    ) (points, []) patterns in
     assert (points = []);
-    pat
+    let patterns = List.rev patterns in
+    patterns
   in
-  env, { subst_type; subst_expr; subst_decl; subst_pat; points = List.rev points }
+  env, { subst_type; subst_expr; subst_decl; subst_pat; points = points }
 ;;
 
 
@@ -518,7 +528,7 @@ let bind_vars (env: env) (bindings: type_binding list): env * substitution_kit =
  * substitutions according to the recursivity flag. *)
 let bind_patexprs env rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
-  let names = List.rev_map collect_pattern patterns in
+  let names = List.map collect_pattern patterns in
   let names = List.flatten names in
   let bindings = List.map (fun (v, p) -> (v, KTerm, p)) names in
   let env, kit = bind_vars env bindings in
