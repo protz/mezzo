@@ -845,14 +845,9 @@ and sub_perm (env: env) (t: typ): env option =
   | TyEmpty ->
       Some env
   | _ ->
-      let open TypePrinter in
-      let open Obj in
-      if is_block (repr t) then
-        Log.debug "%d-th block constructor" (tag (repr t))
-      else
-        Log.debug "%d-th constant constructor" (magic t);
-      Log.error "[sub_perm] the following type does not have kind PERM: %a"
-        ptype (env, t)
+      Log.error "[sub_perm] the following type does not have kind PERM: %a (%a)"
+        TypePrinter.ptype (env, t)
+        Utils.ptag t
 ;;
 
 

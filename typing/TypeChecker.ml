@@ -411,8 +411,18 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
   (* TEMPORARY this is just a quick and dirty way to talk about user-defined
    * types. This is lazy because we want to write simple test cases that do not
    * define the "int" type. *)
-  let int = lazy (find_type_by_name env "int") in
-  let bool = lazy (find_type_by_name env "bool") in
+  let int = lazy begin
+    try
+      find_type_by_name env "int"
+    with Not_found ->
+      failwith "please define type int"
+  end in
+  let bool = lazy begin
+    try
+      find_type_by_name env "bool"
+    with Not_found ->
+      failwith "please define type bool"
+  end in
 
   (* [return t] creates a new point with type [t] available for it, and returns
    * the environment as well as the point *)

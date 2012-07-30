@@ -318,6 +318,9 @@ let tests = [
   ("tree_size.hml", fun do_it ->
     ignore (do_it false));
 
+  ("in_place_traversal.hml", fun do_it ->
+    ignore (do_it false));
+
  ]
 
 let _ =

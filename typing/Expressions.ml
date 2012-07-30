@@ -468,9 +468,10 @@ type substitution_kit = {
 }
 
 (* [eunloc e] removes any [ELocated] located in front of [e]. *)
-let eunloc = function
-  | ELocated (e, _, _)
-  | (_ as e) ->
+let rec eunloc = function
+  | ELocated (e, _, _) ->
+      eunloc e
+  | _ as e ->
       e
 ;;
 

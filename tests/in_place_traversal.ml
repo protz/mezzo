@@ -10,6 +10,8 @@
 (* We do not include any data in the tree, because this is an
    orthogonal concern. *)
 
+data bool = False | True
+
 exclusive data tree =
   | TEmpty
   | TNode { left: tree; right: tree }
@@ -31,7 +33,7 @@ exclusive data continuation =
    The stack is encoded in the tree via link inversion. No memory
    allocation is performed. *)
 
-val rec traverse (t: tree, k: continuation): (u: tree) =
+val rec traverse (consumes t: tree, consumes k: continuation): tree =
   (* t: tree, k: continuation *)
   match t with
   | TEmpty ->
@@ -46,10 +48,10 @@ val rec traverse (t: tree, k: continuation): (u: tree) =
       t.right <- right;
       (* t: KLeft { father = k, right = right }, left, right: tree, k: continuation *)
       (* t: continuation, left: tree *)
-      traverse (t, left)
+      traverse ((left, t) explain)
   end
 
-and continue (k: continuation, t: tree): (u: tree) =
+and continue (consumes k: continuation, consumes t: tree): tree =
   (* k: continuation, t: tree *)
   match k with
   | KInitial ->
@@ -88,7 +90,7 @@ val traverse (t: tree): () =
   (* We now have a permission for [u], and have lost the permission for
      [t]. Fortunately, the two trees should be equal: the link inversion
      process, in the end, reconstructs the original tree. *)
-  if (t == u) then
+  if explain (t == u) then
     (* We are done. *)
     (* t: tree *)
     ()

@@ -20,3 +20,11 @@ let read ic =
   end do () done;
   Buffer.contents buf
 ;;
+
+let ptag buf p =
+  let open Obj in
+  if is_block (repr p) then
+    Printf.bprintf buf "%d-th block constructor" ((tag (repr p) + 1))
+  else
+    Printf.bprintf buf "%d-th constant constructor" ((magic p) + 1);
+;;

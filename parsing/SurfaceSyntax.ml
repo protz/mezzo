@@ -80,12 +80,8 @@ let rec flatten_star = function
   | TyLocated (p, _, _) ->
       flatten_star p
   | _ as p ->
-      let open Obj in
-      if is_block (repr p) then
-        Log.debug "%d-th block constructor\n" (tag (repr p))
-      else
-        Log.debug "%d-th constant constructor\n" (magic p);
-      Log.error "[flatten_star] only works for types with kind PERM"
+      Log.error "[flatten_star] only works for types with kind PERM (%a)"
+        Utils.ptag p
 ;;
 
 let fold_star perms =
