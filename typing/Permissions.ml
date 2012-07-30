@@ -422,6 +422,7 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
     possibly by refining some of these permissions into more precise ones. *)
 and refine (env: env) (point: point) (t': typ): env =
   let permissions = get_permissions env point in
+
   (* First, if this is a flexible type variable that was instanciated, operate
    * on the corresponding type directly. *)
   let t' = match t' with
@@ -430,11 +431,27 @@ and refine (env: env) (point: point) (t': typ): env =
     | _ ->
        t'
   in
+
+  (* Some cases get a special treatment. *)
   match t' with
   | TySingleton (TyPoint point') when not (same env point point') ->
       let permissions' = get_permissions env point' in
       let env = merge_left env point point' in
       List.fold_left (fun env t' -> refine env point t') env permissions'
+
+  | TyExists ((_, k, _) as binding, t') ->
+      begin match k with
+      | KTerm ->
+          let env, t' = bind_var_in_type env binding t' in
+          add env point t'
+      | _ ->
+          Log.error "We don't know how to deal with existentially-quantified \
+            types or permissions."
+      end
+
+  | TyBar _ ->
+      Log.error "This should've been run through [collect] before."
+
   | _ ->
       let rec refine_list (env, acc) t' = function
         | t :: ts ->

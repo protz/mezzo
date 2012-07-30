@@ -33,7 +33,7 @@ exclusive data continuation =
    The stack is encoded in the tree via link inversion. No memory
    allocation is performed. *)
 
-val rec traverse (consumes t: tree, consumes k: continuation): tree =
+val rec traverse (consumes t: tree, consumes k: continuation): (u: tree) =
   (* t: tree, k: continuation *)
   match explain t with
   | TEmpty ->
@@ -51,7 +51,7 @@ val rec traverse (consumes t: tree, consumes k: continuation): tree =
       traverse (left, t)
   end
 
-and continue (consumes k: continuation, consumes t: tree): tree =
+and continue (consumes k: continuation, consumes t: tree): (u: tree) =
   (* k: continuation, t: tree *)
   match k with
   | KInitial ->
