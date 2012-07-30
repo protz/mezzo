@@ -763,7 +763,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
             let hint_y = add_hint hint "==_r" in
             let env, x = check_expression env ?hint:hint_x e in
             let env, y = check_expression env ?hint:hint_y e' in
-            let env = Permissions.merge_points env x y in
+            let env = Permissions.unify env x y in
             env
         | _ ->
             env

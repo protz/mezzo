@@ -368,12 +368,15 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
             env, One t1
 
       | TyForall _, _
-      | _, TyForall _
-      | TyExists _, _
-      | _, TyExists _ ->
+      | _, TyForall _ ->
           (* We don't know how to refine in the presence of quantifiers. We should
            * probably think about it hard and do something very fancy. *)
           env, Both
+
+      | TyExists _, _
+      | _, TyExists _ ->
+          Log.error "We should always open existential types as soon as we add \
+            them to a point!"
 
       | TyAnchoredPermission _, _
       | _, TyAnchoredPermission _
@@ -419,6 +422,8 @@ and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
     possibly by refining some of these permissions into more precise ones. *)
 and refine (env: env) (point: point) (t': typ): env =
   let permissions = get_permissions env point in
+  (* First, if this is a flexible type variable that was instanciated, operate
+   * on the corresponding type directly. *)
   let t' = match t' with
     | TyPoint p ->
         (match structure env p with Some t' -> t' | None -> t')
@@ -850,14 +855,6 @@ and sub_perm (env: env) (t: typ): env option =
         Utils.ptag t
 ;;
 
-
-let merge_points (env: env) (p: point) (p': point): env =
-  Log.check (is_term env p && is_term env p') "Only interested in TERMs here.";
-
-  let perms = get_permissions env p' in
-  let env = merge_left env p p' in
-  List.fold_left (fun env t -> add env p t) env perms
-;;
 
 (* -------------------------------------------------------------------------- *)
 

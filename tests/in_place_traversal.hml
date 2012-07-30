@@ -35,7 +35,7 @@ exclusive data continuation =
 
 val rec traverse (consumes t: tree, consumes k: continuation): tree =
   (* t: tree, k: continuation *)
-  match t with
+  match explain t with
   | TEmpty ->
       continue (k, t)
   | TNode { left; right } ->
@@ -48,7 +48,7 @@ val rec traverse (consumes t: tree, consumes k: continuation): tree =
       t.right <- right;
       (* t: KLeft { father = k, right = right }, left, right: tree, k: continuation *)
       (* t: continuation, left: tree *)
-      traverse ((left, t) explain)
+      traverse (left, t)
   end
 
 and continue (consumes k: continuation, consumes t: tree): tree =
