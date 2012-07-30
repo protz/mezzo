@@ -414,7 +414,7 @@ let equal env (t1: typ) (t2: typ) =
         equal t1 t2 && equal t'1 t'2
 
     | TyTuple ts1, TyTuple ts2 ->
-        List.for_all2 equal ts1 ts2
+        List.length ts1 = List.length ts2 && List.for_all2 equal ts1 ts2
 
     | TyConcreteUnfolded (name1, fields1), TyConcreteUnfolded (name2, fields2) ->
         Datacon.equal name1 name2 &&

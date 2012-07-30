@@ -158,6 +158,7 @@ let rec unify (env: env) (p1: point) (p2: point): env =
      * infinite loop when hitting the TySingletons... *)
     let perms = get_permissions env p2 in
     let env = merge_left env p1 p2 in
+    let () = Log.debug "%a" TypePrinter.penv env in
     List.fold_left (fun env t -> add env p1 t) env perms
 
 
@@ -237,8 +238,9 @@ and add_perm (env: env) (t: typ): env =
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
  * to the list of available permissions for [p] *)
 and add_type (env: env) (p: point) (t: typ): env =
-  match sub env p t with
+ match sub env p t with
   | Some env ->
+      Log.debug "→ sub worked";
       if FactInference.is_exclusive env t then begin
         (* If [t] is exclusive, then this makes the environment inconsistent. *)
         Log.debug "%sInconsistency detected%s, adding %a as an exclusive \
@@ -257,6 +259,7 @@ and add_type (env: env) (p: point) (t: typ): env =
         )
       end
   | None ->
+      Log.debug "→ sub didn't work";
       replace_term env p (fun binding ->
         { binding with permissions = t :: binding.permissions }
       )
