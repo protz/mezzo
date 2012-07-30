@@ -47,7 +47,7 @@ let merge_flexible_with_term_in_sub_env top right_env p p' =
 ;;
 
 
-let merge_envs (top: env) (left: env * point) (right: env * point): env * point =
+let actually_merge_envs (top: env) (left: env * point) (right: env * point): env * point =
   Log.debug ~level:3 "\n--------- START MERGE ----------\n\n%a"
     TypePrinter.pdoc (TypePrinter.print_permissions, top);
 
@@ -785,3 +785,14 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
   (* So return it. *)
   dest_env, dest_root
 ;;
+
+
+let merge_envs (top: env) (left: env * point) (right: env * point): env * point =
+  if (fst left).inconsistent then
+    right
+  else if (fst right).inconsistent then
+    left
+  else
+    actually_merge_envs top left right
+;;
+

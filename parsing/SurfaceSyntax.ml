@@ -199,6 +199,8 @@ and expression =
   | EExplained of expression
   (* x == y *)
   | EEquals of expression * expression
+  (* fail *)
+  | EFail
 
 
 (* ---------------------------------------------------------------------------- *)

@@ -638,6 +638,9 @@ and check_expression (env: env) (expr: expression) =
   | EEquals (e1, e2) ->
       check_expression env e1;
       check_expression env e2
+
+  | EFail ->
+      ()
 ;;
 
 

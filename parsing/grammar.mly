@@ -29,7 +29,7 @@
 %token COMMA COLON COLONCOLON SEMI STAR AT
 %token ARROW LARROW DBLARROW DBLLARROW FUN
 %token EQUAL EQUALEQUAL
-%token EMPTY ASSERT EXPLAIN
+%token EMPTY ASSERT EXPLAIN FAIL
 %token CONSUMES DUPLICABLE FACT ABSTRACT
 %token VAL LET REC AND IN DOT WITH BEGIN END MATCH
 %token IF THEN ELSE
@@ -530,6 +530,8 @@ fact:
       { EVar v }
   | i = INT
       { EInt i }
+  | FAIL
+      { EFail }
   | dc = datacon_application(datacon, data_field_assign)
       { EConstruct dc }
   | LPAREN es = separated_list_of_at_least_two(COMMA, expression) RPAREN

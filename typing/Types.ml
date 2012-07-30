@@ -124,6 +124,12 @@ type env = {
 
   (* The current location. *)
   location: location;
+
+  (* Did we figure out that this environment is inconsistent? It may be because
+   * a point acquired two exclusive permissions, or maybe because the user wrote
+   * "fail" at some point. This is by no means exhaustive: we only detect a few
+   * inconsistencies when we're lucky. *)
+  inconsistent: bool;
 }
 
 and binding =
@@ -198,6 +204,7 @@ let empty_env = {
   state = PersistentUnionFind.init ();
   mark = Mark.create ();
   location = Lexing.dummy_pos, Lexing.dummy_pos;
+  inconsistent = false;
 }
 
 let locate env location =

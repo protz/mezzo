@@ -866,6 +866,12 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
   | EEquals (_, _) ->
       return env !*bool
 
+  | EFail ->
+      let name = Auto (Variable.register "/inconsistent") in
+      let env, x = bind_term env name env.location false in
+      { env with inconsistent = true }, x
+
+
 
 and check_bindings
   (env: env)

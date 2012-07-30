@@ -65,6 +65,8 @@ type expression =
   | EExplained of expression
   (* e1 == e2 *)
   | EEquals of expression * expression
+  (* fail *)
+  | EFail
 
 and patexpr =
   (* A binding is made up of a pattern, an optional type annotation for the
@@ -280,6 +282,9 @@ and tsubst_expr t2 i e =
       let e2 = tsubst_expr t2 i e2 in
       EEquals (e1, e2)
 
+  | EFail ->
+      EFail
+
 
 (* [tsubst_decl t2 i decls] substitutes type [t2] for index [i] in a list of
  * declarations [decls]. *)
@@ -421,6 +426,9 @@ and esubst e2 i e1 =
       let e = esubst e2 i e in
       let e' = esubst e2 i e' in
       EEquals (e, e')
+
+  | EFail ->
+      EFail
 
 (* [esubst_decl e2 i decls] substitutes expression [e2] for index [i] in a list of
  * declarations [decls]. *)
@@ -621,6 +629,9 @@ let elift (k: int) (e: expression) =
 
   | EEquals (e1, e2) ->
       EEquals (elift i e1, elift i e2)
+
+  | EFail ->
+      EFail
   in
   elift 0 e
 
@@ -725,6 +736,9 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
 
     | EEquals (e1, e1') ->
         EEquals (epsubst e2 e1, epsubst e2 e1')
+
+    | EFail ->
+        EFail
   in
 
   epsubst e2 e1
@@ -827,6 +841,9 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
 
     | EEquals (e1, e1') ->
         EEquals (tepsubst t2 e1, tepsubst t2 e1')
+
+    | EFail ->
+        EFail
   in
 
   tepsubst t2 e1
@@ -985,6 +1002,9 @@ module ExprPrinter = struct
 
     | EEquals (e1, e2) ->
         print_expr env e1 ^^ space ^^ equals ^^ equals ^^ space ^^ print_expr env e2
+
+    | EFail ->
+        string "fail"
 
   and print_rec_flag = function
     | Recursive ->
