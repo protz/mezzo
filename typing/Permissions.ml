@@ -435,9 +435,7 @@ and refine (env: env) (point: point) (t': typ): env =
   (* Some cases get a special treatment. *)
   match t' with
   | TySingleton (TyPoint point') when not (same env point point') ->
-      let permissions' = get_permissions env point' in
-      let env = merge_left env point point' in
-      List.fold_left (fun env t' -> refine env point t') env permissions'
+      unify env point point'
 
   | TyExists ((_, k, _) as binding, t') ->
       begin match k with
@@ -478,10 +476,11 @@ and unify (env: env) (p1: point) (p2: point): env =
   if same env p1 p2 then
     env
   else
-    let env =
-      List.fold_left (fun env t -> refine env p1 t) env (get_permissions env p2)
-    in
-    merge_left env p1 p2
+    (* We need to first merge the environment, otherwise this will go into an
+     * infinite loop when hitting the TySingletons... *)
+    let perms = get_permissions env p2 in
+    let env = merge_left env p1 p2 in
+    List.fold_left (fun env t -> refine env p1 t) env perms
 
 
 (** [add env point t] adds [t] to the list of permissions for [p], performing all
