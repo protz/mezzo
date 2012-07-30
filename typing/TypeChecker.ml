@@ -225,6 +225,36 @@ let add_hint =
   Permissions.add_hint
 ;;
 
+
+(* The condition of an if-then-else statement is well-typed if it is a
+ * data type with two branches. *)
+let is_data_type_with_two_constructors env t =
+  let has_two_branches p =
+    if is_type env p then
+      match get_definition env p with
+      | Some (Some (_, branches), _) ->
+          List.length branches = 2
+      | _ ->
+          false
+    else
+      false
+  in
+  match t with
+  | TyPoint p ->
+      (* e.g. bool *)
+      has_two_branches p
+  | TyApp _ ->
+      (* e.g. list a *)
+      let cons, _args = flatten_tyapp t in
+      has_two_branches !!cons
+  | TyConcreteUnfolded (datacon, _) ->
+      (* e.g. False *)
+      let _, branches = def_for_datacon env datacon in
+      List.length branches = 2
+  | _ ->
+      false
+;;
+
 (* Since everything is, or will be, in A-normal form, type-checking a function
  * call amounts to type-checking a point applied to another point. The default
  * behavior is: do not return a type that contains flexible variables. *)
@@ -710,44 +740,30 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
   | EIfThenElse (explain, e1, e2, e3) ->
       let hint_1 = add_hint hint "if" in
       let env, x1 = check_expression env ?hint:hint_1 e1 in
-      
-      (* The condition of an if-then-else statement is well-typed if it is a
-       * data type with two branches. *)
-      let is_data_type_with_two_constructors t =
-        let has_two_branches p =
-          if is_type env p then
-            match get_definition env p with
-            | Some (Some (_, branches), _) ->
-                List.length branches = 2
-            | _ ->
-                false
-          else
-            false
-        in
-        match t with
-        | TyPoint p ->
-            (* e.g. bool *)
-            has_two_branches p
-        | TyApp _ ->
-            (* e.g. list a *)
-            let cons, _args = flatten_tyapp t in
-            has_two_branches !!cons
-        | TyConcreteUnfolded (datacon, _) ->
-            (* e.g. False *)
-            let _, branches = def_for_datacon env datacon in
-            List.length branches = 2
-        | _ ->
-            false
-      in
 
-      if not (List.exists is_data_type_with_two_constructors (get_permissions env x1)) then
+      if not (List.exists (is_data_type_with_two_constructors env) (get_permissions env x1)) then
         raise_error env (NoTwoConstructors x1);
+
+      (* If [e1] is a x == y test, then we need to type-check the then-branch
+       * with an extra equality taken into account. *)
+      let right_env = env in
+      let left_env = match eunloc e1 with
+        | EEquals (e, e') ->
+            let hint_x = add_hint hint "==_l" in
+            let hint_y = add_hint hint "==_r" in
+            let env, x = check_expression env ?hint:hint_x e in
+            let env, y = check_expression env ?hint:hint_y e' in
+            let env = Permissions.merge_points env x y in
+            env
+        | _ ->
+            env
+      in
 
       (* The control-flow diverges. *)
       let hint_l = add_hint hint "then" in
-      let left = check_expression env ?hint:hint_l e2 in
+      let left = check_expression left_env ?hint:hint_l e2 in
       let hint_r = add_hint hint "else" in
-      let right = check_expression env ?hint:hint_r e3 in
+      let right = check_expression right_env ?hint:hint_r e3 in
 
       let dest = Merge.merge_envs env left right in
 
