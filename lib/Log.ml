@@ -36,7 +36,12 @@ let error fmt =
   Printf.kbprintf (fun buf ->
     Buffer.add_char buf '\n';
     Buffer.output_buffer stderr buf;
-    raise (Failure (Buffer.contents buf))
+    let c = Buffer.contents buf in
+    let summary =
+      let i = String.index c '\n' in
+      if i >= 0 then String.sub c 0 i else c
+    in
+    raise (Failure summary)
   ) (Buffer.create 16) fmt
 
 let check b fmt =

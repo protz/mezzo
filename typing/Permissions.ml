@@ -5,6 +5,27 @@ open Utils
 
 (* -------------------------------------------------------------------------- *)
 
+(* This should help debuggnig. *)
+
+let safety_check dest_env =
+  (* Be paranoid, perform an expensive safety check. *)
+  fold_terms dest_env (fun () _point _ ({ permissions; _ }) ->
+    let l = List.filter (function
+      | TySingleton (TyPoint _) ->
+          true
+      | _ ->
+          false
+    ) permissions in
+    if List.length l <> 1 then
+      Log.error
+        "Inconsistency detected\n%a\n"
+        TypePrinter.pdoc (TypePrinter.print_permissions, dest_env);
+  ) ()
+;;
+
+
+(* -------------------------------------------------------------------------- *)
+
 let add_hint hint str =
   match hint with
   | Some (Auto n)
@@ -13,10 +34,6 @@ let add_hint hint str =
   | None ->
       None
 ;;
-
-type refined_type = Both | One of typ
-
-exception Inconsistent
 
 (** [can_merge env t1 p2] tells whether, assuming that [t2] is a flexible
     variable, it can be safely merged with [t1]. This function checks that the
@@ -124,11 +141,115 @@ let dup_perms_no_singleton env p =
 ;;
 
 
+(* -------------------------------------------------------------------------- *)
+
+(* For adding new permissions into the environment. *)
+
+(** [unify env p1 p2] merges two points, and takes care of dealing with how the
+    permissions should be merged. *)
+let rec unify (env: env) (p1: point) (p2: point): env =
+  Log.check (is_term env p1 && is_term env p2) "[unify p1 p2] expects [p1] and \
+    [p2] to be variables with kind TERM, not TYPE";
+
+  if same env p1 p2 then
+    env
+  else
+    (* We need to first merge the environment, otherwise this will go into an
+     * infinite loop when hitting the TySingletons... *)
+    let perms = get_permissions env p2 in
+    let env = merge_left env p1 p2 in
+    List.fold_left (fun env t -> add env p1 t) env perms
+
+
+
+(** [add env point t] adds [t] to the list of permissions for [p], performing all
+    the necessary legwork. *)
+and add (env: env) (point: point) (t: typ): env =
+  Log.check (is_term env point) "You can only add permissions to a point that \
+    represents a program identifier.";
+
+  (* The point is supposed to represent a term, not a type. If it has a
+   * structure, this means that it's a type variable with kind TERM that has
+   * been flex'd, then instanciated onto something. We make sure in
+   * {Permissions.sub} that we're actually merging, not instanciating, when
+   * faced with two [TyPoint]s. *)
+  Log.check (not (has_structure env point)) "I don't understand what's happening";
+
+  TypePrinter.(Log.debug ~level:4 "[add] %a" ptype (env, t));
+
+  begin match t with
+  | TyPoint p when has_structure env p ->
+      add env point (Option.extract (structure env p))
+
+  | TySingleton (TyPoint p) when not (same env point p) ->
+      unify env point p
+
+  | TyExists (binding, t) ->
+      begin match binding with
+      | _, KTerm, _ ->
+          let env, t = bind_var_in_type env binding t in
+          add env point t
+      | _ ->
+          Log.error "I don't know how to deal with an existentially-quantified \
+            type or permission";
+      end
+
+  | _ ->
+      let hint = get_name env point in
+
+      (* We first perform unfolding, so that constructors with one branch are
+       * simplified. *)
+      let env, t = unfold env ~hint t in
+
+      (* Break up this into a type + permissions. *)
+      let t, perms = collect t in
+      let env = List.fold_left add_perm env perms in
+
+      (* Add the "bare" type. Recursive calls took care of calling [add]. *)
+      let env = add_type env point t in
+      safety_check env;
+      env
+  end
+
+
+(** [add_perm env t] adds a type [t] with kind PERM to [env], returning the new
+    environment. *)
+and add_perm (env: env) (t: typ): env =
+  match t with
+  | TyAnchoredPermission (p, t) ->
+      add env !!p t
+  | TyStar (p, q) ->
+      add_perm (add_perm env p) q
+  | TyEmpty ->
+      env
+  | _ ->
+      Log.error "This only works for types with kind PERM."
+
+
+(* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
+ * to the list of available permissions for [p] *)
+and add_type (env: env) (p: point) (t: typ): env =
+  match sub env p t with
+  | Some env ->
+      if FactInference.is_exclusive env t then begin
+        Log.debug "%sInconsistency detected%s, adding %a as an exclusive \
+            permission, but it's already available."
+          Bash.colors.Bash.red Bash.colors.Bash.default
+          TypePrinter.ptype (env, t);
+        { env with inconsistent = true }
+      end else begin
+        env
+      end
+  | None ->
+      replace_term env p (fun binding ->
+        { binding with permissions = t :: binding.permissions }
+      )
+
 
 (** [unfold env t] returns [env, t] where [t] has been unfolded, which
     potentially led us into adding new points to [env]. The [hint] serves when
     making up names for intermediary variables. *)
-let rec unfold (env: env) ?(hint: name option) (t: typ): env * typ =
+and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
   (* This auxiliary function takes care of inserting an indirection if needed,
    * that is, a [=foo] type with [foo] being a newly-allocated [point]. *)
   let insert_point (env: env) ?(hint: name option) (t: typ): env * typ =
@@ -223,314 +344,9 @@ let rec unfold (env: env) ?(hint: name option) (t: typ): env * typ =
   in
   unfold env ?hint t
 
-
-(** [refine_type env t1 t2] tries, given [t1], to turn it into something more
-    precise using [t2]. It returns [Both] if both types are to be kept, or [One
-    t3] if [t1] and [t2] can be combined into a more precise [t3].
-
-    The order of the arguments does not matter: [refine_type env t1 t2] is equal
-    to [refine_type env t2 t1]. *)
-and refine_type (env: env) (t1: typ) (t2: typ): env * refined_type =
-  (* TEMPORARY find a better name for that function; what it means is « someone else can view this
-   * type » *)
-  let views t =
-    match t with
-    | TyApp _ ->
-        let cons, _ = flatten_tyapp t in
-        has_definition env !!cons
-    | TyConcreteUnfolded _
-    | TyArrow _
-    | TyTuple _ ->
-        true
-    | _ ->
-        false
-  in
-
-  let f1 = FactInference.analyze_type env t1 in
-  let f2 = FactInference.analyze_type env t2 in
-
-  (* Small wrapper that makes sure we only return one permission if the two
-   * original ones were duplicable. *)
-  let one_if t =
-    if f1 = Duplicable [||] then begin
-      Log.check (f1 = f2) "Two equal types should have equal facts";
-      One t
-    end else
-      Both
-  in
-
-  if equal env t1 t2 then begin
-    env, one_if t1
-
-  end else begin
-    try
-
-      (* Having two exclusive permissions on the same point means we're duplicating an *exclusive*
-       * access right to the heap. *)
-      if f1 = Exclusive && f2 = Exclusive then
-        raise Inconsistent;
-
-      (* Exclusive means we're the only one « seeing » this type; if someone else can see the type,
-       * we're inconsistent too. Having [t1] exclusive and [t2 = TyAbstract] is not a problem: [t2]
-       * could be a hidden [TyDynamic], for instance. *)
-      if f1 = Exclusive && views t2 || f2 = Exclusive && views t1 then
-        raise Inconsistent;
-
-      match t1, t2 with
-      | TyApp _, TyApp _ ->
-          (* Type applications. This covers the following cases:
-             - abstract vs abstract
-             - concrete vs concrete (NOT unfolded)
-             - concrete vs abstract *)
-          let cons1, args1 = flatten_tyapp t1 in
-          let cons2, args2 = flatten_tyapp t2 in
-
-          if same env !!cons1 !!cons2 && List.for_all2 (equal env) args1 args2 then
-            env, one_if t1
-          else
-            env, Both
-
-      | TyConcreteUnfolded branch as t, other
-      | other, (TyConcreteUnfolded branch as t) ->
-          (* Unfolded concrete types. This covers:
-             - unfolded vs unfolded,
-             - unfolded vs nominal. *)
-          begin match other with
-          | TyConcreteUnfolded branch' ->
-              (* Unfolded vs unfolded *)
-              let datacon, fields = branch in
-              let datacon', fields' = branch' in
-
-              if Datacon.equal datacon datacon' then
-                (* The names are equal. Both types are unfolded, so recursively unify their fields. *)
-                let env = List.fold_left2 (fun env f1 f2 ->
-                  match f1, f2 with
-                  | FieldValue (name1, t1), FieldValue (name2, t2) ->
-                      Log.check (Field.equal name1 name2)
-                        "Fields are not in the same order, I thought they were";
-
-                      (* [unify] is responsible for performing the entire job. *)
-                      begin match t1, t2 with
-                      | TySingleton (TyPoint p1), TySingleton (TyPoint p2) ->
-                          unify env p1 p2
-                      | _ ->
-                          Log.error "The type should've been run through [unfold] before"
-                      end
-
-                  | _ ->
-                      Log.error "The type should've been run through [collect] before"
-                ) env fields fields' in
-                env, One t1
-
-              else
-                raise Inconsistent
-
-          | TyApp _ ->
-              (* Unfolded vs nominal, we transform this into unfolded vs unfolded. *)
-              let cons, args = flatten_tyapp other in
-              let datacon, _ = branch in
-
-              if same env (DataconMap.find datacon env.type_for_datacon) !!cons then
-                let branch' = find_and_instantiate_branch env !!cons datacon args in
-                let env, t' = unfold env (TyConcreteUnfolded branch') in
-                refine_type env t t'
-              else
-                (* This is fairly imprecise as well. If both types are concrete
-                 * *and* different, this is inconsistent. However, if [other] is
-                 * the applicatino of an abstract data type, then of course it is
-                 * not inconsistent. *)
-                env, Both
-
-          | _ ->
-              (* This is fairly imprecise. [TyConcreteUnfolded] vs [TyForall] is
-               * of course inconsistent, but [TyConcreteUnfolded] vs [TyPoint]
-               * where [TyPoint] is an abstract type is not inconsistent. However,
-               * if the [TyPoint] is [int], it definitely is inconsistent. But we
-               * have no way to distinguish "base types" and abstract types... *)
-              env, Both
-
-          end
-
-      | TyTuple components1, TyTuple components2 ->
-          if List.(length components1 <> length components2) then
-            raise Inconsistent
-
-          else
-            let env = List.fold_left2 (fun env t1 t2 ->
-                (* [unify] is responsible for performing the entire job. *)
-              begin match t1, t2 with
-              | TySingleton (TyPoint p1), TySingleton (TyPoint p2) ->
-                  unify env p1 p2
-              | _ ->
-                  Log.error "The type should've been run through [unfold] before"
-              end
-            ) env components1 components2 in
-            env, One t1
-
-      | TyForall _, _
-      | _, TyForall _ ->
-          (* We don't know how to refine in the presence of quantifiers. We should
-           * probably think about it hard and do something very fancy. *)
-          env, Both
-
-      | TyExists _, _
-      | _, TyExists _ ->
-          Log.error "We should always open existential types as soon as we add \
-            them to a point!"
-
-      | TyAnchoredPermission _, _
-      | _, TyAnchoredPermission _
-      | TyEmpty, _
-      | _, TyEmpty
-      | TyStar _, _
-      | _, TyStar _ ->
-          Log.error "We can only refine types that have kind TYPE."
-
-      | TyUnknown, (_ as t)
-      | (_ as t), TyUnknown ->
-          env, One t
-
-      | (_ as t), TyPoint p
-      | TyPoint p, (_ as t) ->
-          begin match structure env p with
-          | Some t' ->
-              refine_type env t t'
-          | None ->
-              env, Both
-          end
-
-      | _ ->
-          env, Both
-
-    with Inconsistent ->
-
-      (* XXX our inconsistency analysis is sub-optimal, see various comments
-       * above. *)
-      let open TypePrinter in
-      Log.debug ~level:4 "Inconsistency detected %a cannot coexist with %a"
-        ptype (env, t1) ptype (env, t2);
-
-      (* We could possibly be smarter here, and mark the entire permission soup as
-       * being inconsistent. This would allow us to implement some sort of
-       * [absurd] construct that asserts that the program point is not reachable. *)
-      env, Both
-
-  end
-
-
-(** [refine env p t] adds [t] to the list of available permissions for [p],
-    possibly by refining some of these permissions into more precise ones. *)
-and refine (env: env) (point: point) (t': typ): env =
-  let permissions = get_permissions env point in
-
-  (* First, if this is a flexible type variable that was instanciated, operate
-   * on the corresponding type directly. *)
-  let t' = match t' with
-    | TyPoint p ->
-        (match structure env p with Some t' -> t' | None -> t')
-    | _ ->
-       t'
-  in
-
-  (* Some cases get a special treatment. *)
-  match t' with
-  | TySingleton (TyPoint point') when not (same env point point') ->
-      unify env point point'
-
-  | TyExists ((_, k, _) as binding, t') ->
-      begin match k with
-      | KTerm ->
-          let env, t' = bind_var_in_type env binding t' in
-          add env point t'
-      | _ ->
-          Log.error "We don't know how to deal with existentially-quantified \
-            types or permissions."
-      end
-
-  | TyBar _ ->
-      Log.error "This should've been run through [collect] before."
-
-  | _ ->
-      let rec refine_list (env, acc) t' = function
-        | t :: ts ->
-            let env, r = refine_type env t t' in
-            begin match r with
-            | Both ->
-                refine_list (env, (t :: acc)) t' ts
-            | One t' ->
-                refine_list (env, acc) t' ts
-            end
-        | [] ->
-            env, t' :: acc
-      in
-      let env, permissions = refine_list (env, []) t' permissions in
-      replace_term env point (fun binder -> { binder with permissions })
-
-
-(** [unify env p1 p2] merges two points, and takes care of dealing with how the
-    permissions should be merged. *)
-and unify (env: env) (p1: point) (p2: point): env =
-  Log.check (is_term env p1 && is_term env p2) "[unify p1 p2] expects [p1] and \
-    [p2] to be variables with kind TERM, not TYPE";
-
-  if same env p1 p2 then
-    env
-  else
-    (* We need to first merge the environment, otherwise this will go into an
-     * infinite loop when hitting the TySingletons... *)
-    let perms = get_permissions env p2 in
-    let env = merge_left env p1 p2 in
-    List.fold_left (fun env t -> refine env p1 t) env perms
-
-
-(** [add env point t] adds [t] to the list of permissions for [p], performing all
-    the necessary legwork. *)
-and add (env: env) (point: point) (t: typ): env =
-  Log.check (is_term env point) "You can only add permissions to a point that \
-    represents a program identifier.";
-
-  (* The point is supposed to represent a term, not a type. If it has a
-   * structure, this means that it's a type variable with kind TERM that has
-   * been flex'd, then instanciated onto something. We make sure in
-   * {Permissions.sub} that we're actually merging, not instanciating, when
-   * faced with two [TyPoint]s. *)
-  Log.check (not (has_structure env point)) "I don't understand what's happening";
-
-  let hint = get_name env point in
-
-  (* We first perform unfolding, so that constructors with one branch are
-   * simplified. *)
-  let env, t = unfold env ~hint t in
-
-  (* Now we may have more opportunities for collecting permissions. [collect]
-   * doesn't go "through" [TyPoint]s but when indirections are inserted via
-   * [insert_point], [add] is recursively called, so inner permissions are
-   * collected as well. *)
-  let t, perms = collect t in
-  let env = List.fold_left add_perm env perms in
-  refine env point t
-
-
-(** [add_perm env t] adds a type [t] with kind PERM to [env], returning the new
-    environment. *)
-and add_perm (env: env) (t: typ): env =
-  TypePrinter.(
-    Log.debug ~level:4 "[add_perm] %a"
-      ptype (env, t));
-  match t with
-  | TyAnchoredPermission (TyPoint p, t) ->
-      add env p t
-  | TyStar (p, q) ->
-      add_perm (add_perm env p) q
-  | TyEmpty ->
-      env
-  | _ ->
-      Log.error "[add_perm] only works with types that have kind PERM"
-;;
-
 (** [sub env point t] tries to extract [t] from the available permissions for
     [point] and returns, if successful, the resulting environment. *)
-let rec sub (env: env) (point: point) (t: typ): env option =
+and sub (env: env) (point: point) (t: typ): env option =
   Log.check (is_term env point) "You can only subtract permissions from a point \
   that represents a program identifier.";
 
@@ -874,6 +690,7 @@ and sub_perm (env: env) (t: typ): env option =
 
 (* -------------------------------------------------------------------------- *)
 
+(* For pretty-printing. *)
 
 exception NotFoldable
 

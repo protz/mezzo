@@ -771,16 +771,7 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
     TypePrinter.pdoc (TypePrinter.print_permissions, dest_env);
   Log.debug ~level:3 "\n--------------------------------\n";
 
-  (* Be paranoid, perform an expensive safety check. *)
-  fold_terms dest_env (fun () point _ ({ permissions; _ }) ->
-    let l = List.filter (function
-      | TySingleton (TyPoint p) when same dest_env point p ->
-          true
-      | _ ->
-          false
-    ) permissions in
-    Log.check (List.length l = 1) "Inconsistency detected";
-  ) ();
+  Permissions.safety_check dest_env;
 
   (* So return it. *)
   dest_env, dest_root
@@ -795,4 +786,3 @@ let merge_envs (top: env) (left: env * point) (right: env * point): env * point 
   else
     actually_merge_envs top left right
 ;;
-

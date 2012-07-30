@@ -13,20 +13,6 @@ val collect: typ -> typ * typ list
     making up names for intermediary variables. *)
 val unfold: env -> ?hint:name -> typ -> env * typ
 
-type refined_type = Both | One of typ
-
-(** [refine_type env t1 t2] tries, given [t1], to turn it into something more
-    precise using [t2]. It returns [Both] if both types are to be kept, or [One
-    t3] if [t1] and [t2] can be combined into a more precise [t3].
-
-    The order of the arguments does not matter: [refine_type env t1 t2] is equal
-    to [refine_type env t2 t1]. *)
-val refine_type: env -> typ -> typ -> env * refined_type
-
-(** [refine env p t] adds [t] to the list of available permissions for [p],
-    possibly by refining some of these permissions into more precise ones. *)
-val refine: env -> point -> typ -> env
-
 (** [unify env p1 p2] merges two points, and takes care of dealing with how the
     permissions should be merged. *)
 val unify: env -> point -> point -> env
@@ -64,3 +50,5 @@ val add_hint: (name option) -> string -> (name option)
 (** Returns all the duplicable permissions for a given point [p], except [=p]
    itself. *)
 val dup_perms_no_singleton: env -> point -> typ list
+
+val safety_check: env -> unit
