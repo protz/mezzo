@@ -238,7 +238,10 @@ and add_type (env: env) (p: point) (t: typ): env =
           TypePrinter.ptype (env, t);
         { env with inconsistent = true }
       end else begin
-        env
+        (* We just removed it, let's put it back in. *)
+        replace_term env p (fun binding ->
+          { binding with permissions = t :: binding.permissions }
+        )
       end
   | None ->
       replace_term env p (fun binding ->
