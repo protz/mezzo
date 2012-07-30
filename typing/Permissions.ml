@@ -19,7 +19,7 @@ let safety_check dest_env =
     if List.length l <> 1 then
       Log.error
         "Inconsistency detected\n%a\n"
-        TypePrinter.pdoc (TypePrinter.print_permissions, dest_env);
+        TypePrinter.penv dest_env
   ) ()
 ;;
 
@@ -175,7 +175,21 @@ and add (env: env) (point: point) (t: typ): env =
    * faced with two [TyPoint]s. *)
   Log.check (not (has_structure env point)) "I don't understand what's happening";
 
-  TypePrinter.(Log.debug ~level:4 "[add] %a" ptype (env, t));
+  TypePrinter.(Log.debug ~level:4 "[adding to %a] %a"
+    pnames (get_names env point)
+    ptype (env, t));
+
+  let hint = get_name env point in
+
+  (* We first perform unfolding, so that constructors with one branch are
+   * simplified. *)
+  let env, t = unfold env ~hint t in
+
+  (* Break up this into a type + permissions. *)
+  let t, perms = collect t in
+
+  (* Add the permissions. *)
+  let env = List.fold_left add_perm env perms in
 
   begin match t with
   | TyPoint p when has_structure env p ->
@@ -195,19 +209,10 @@ and add (env: env) (point: point) (t: typ): env =
       end
 
   | _ ->
-      let hint = get_name env point in
-
-      (* We first perform unfolding, so that constructors with one branch are
-       * simplified. *)
-      let env, t = unfold env ~hint t in
-
-      (* Break up this into a type + permissions. *)
-      let t, perms = collect t in
-      let env = List.fold_left add_perm env perms in
-
       (* Add the "bare" type. Recursive calls took care of calling [add]. *)
       let env = add_type env point t in
       safety_check env;
+
       env
   end
 
@@ -215,6 +220,9 @@ and add (env: env) (point: point) (t: typ): env =
 (** [add_perm env t] adds a type [t] with kind PERM to [env], returning the new
     environment. *)
 and add_perm (env: env) (t: typ): env =
+  TypePrinter.(Log.debug ~level:4 "[add_perm] %a"
+    ptype (env, t));
+
   match t with
   | TyAnchoredPermission (p, t) ->
       add env !!p t
@@ -232,13 +240,18 @@ and add_type (env: env) (p: point) (t: typ): env =
   match sub env p t with
   | Some env ->
       if FactInference.is_exclusive env t then begin
+        (* If [t] is exclusive, then this makes the environment inconsistent. *)
         Log.debug "%sInconsistency detected%s, adding %a as an exclusive \
             permission, but it's already available."
           Bash.colors.Bash.red Bash.colors.Bash.default
           TypePrinter.ptype (env, t);
         { env with inconsistent = true }
+      end else if FactInference.is_duplicable env t then begin
+        (* If the type is duplicable, then the [sub] operation didn't perform
+         * anything, so we just the environment as-is. *)
+        env
       end else begin
-        (* We just removed it, let's put it back in. *)
+        (* We don't know, be conservative. *)
         replace_term env p (fun binding ->
           { binding with permissions = t :: binding.permissions }
         )
