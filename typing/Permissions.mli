@@ -64,3 +64,7 @@ val add_hint: (name option) -> string -> (name option)
 (** Returns all the duplicable permissions for a given point [p], except [=p]
    itself. *)
 val dup_perms_no_singleton: env -> point -> typ list
+
+(* Merge points while taking care of adding the permissions from one into
+ * another. *)
+val merge_points: env -> point -> point -> env

@@ -613,6 +613,11 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let e = translate_expr env e in
       E.EExplained e
 
+  | EEquals (e1, e2) ->
+      let e1 = translate_expr env e1 in
+      let e2 = translate_expr env e2 in
+      E.EEquals (e1, e2)
+
 (* This function desugars a list of [pattern * expression] and returns the
  * desugared version, as well as a list of assertions (read: types with kind
  * PERM) that should be enforced later on when the names in the patterns have

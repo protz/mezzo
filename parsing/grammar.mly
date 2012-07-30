@@ -28,7 +28,7 @@
 %token LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
 %token COMMA COLON COLONCOLON SEMI STAR AT
 %token ARROW LARROW DBLARROW DBLLARROW FUN
-%token EQUAL
+%token EQUAL EQUALEQUAL
 %token EMPTY ASSERT EXPLAIN
 %token CONSUMES DUPLICABLE FACT ABSTRACT
 %token VAL LET REC AND IN DOT WITH BEGIN END MATCH
@@ -451,10 +451,20 @@ fact:
   (* cannot allow let because right-hand side of let can contain a semi-colon *)
   | e1 = atomic DOT f = variable LARROW e2 = everything_except_let_and_semi
       { EAssign (e1, f, e2) }
+  (* This generates a conflict. *)
+  (* | e1 = atomic LARROW d = datacon_application(datacon, data_field_assign)
+      { assert false } *)
   | e1 = atomic DBLLARROW d = datacon
       { EAssignTag (e1, d) }
+  | e1 = explained EQUALEQUAL e2 = explained
+      { EEquals (e1, e2) }
   | e = explained_raw
       { e }
+
+  %inline explained:
+  | e = elocated(explained_raw)
+      { e }
+
 
   explained_raw:
   | e = sum EXPLAIN
@@ -541,7 +551,7 @@ fact:
 
     %inline data_field_assign:
     (* cannot allow let because right-hand side of let can contain a semi-colon *)
-    | f = variable EQUAL e = everything_except_let_and_semi 
+    | f = variable EQUAL e = everything_except_let_and_semi
         { f, e }
     | f = variable
         (* Punning *)
@@ -628,7 +638,7 @@ unit:
 
 (* TODO *)
 
-(* 
+(*
    mode constraints as function preconditions and as tuple/record components
    syntax for anonymous sums?
    adopts clauses

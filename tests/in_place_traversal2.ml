@@ -1,0 +1,92 @@
+(* In-place traversal of a tree, after Sobel and Friedman (1998), continued. *)
+
+(* Now, let's fix the above limitation. In order to overcome this
+   problem, "all we need" is types indexed with objects and dependent
+   function types. *)
+
+(* A continuation is a path that leads from a certain point in the
+   tree, the hole, back up to the root of the tree. We index the
+   type of continuations with both of these objects, so the type
+   of continuations takes the general form [path hole root], which
+   means path from hole to root. *)
+
+(* In the case of the empty path, [KInitial], the parameters
+   [hole] and [root] must be equal. We require this by making the
+   equation [hole == root] a "field" of [KInitial]. This is just like
+   a GADT. *)
+
+(* A nonempty path, [KLeft] or [KRight], is a path from [hole] to
+   [root] provided that the rest of the path ([father]) is a path
+   from [this] object to [root]. (Here, I assume that the keyword
+   "this" is implicitly bound to "this object".) This definition
+   requires some thought, I suppose. It is surprising because the
+   parameter [hole] does not appear in it: it is unconstrained. This
+   is because one can stick any tree into the hole of a zipper. *)
+
+(* One can sum up the meaning of the type [path hole root] by saying:
+   if this is an empty path, then [hole == root]; otherwise, [hole]
+   is arbitrary and [root] is the address of the root node of this
+   nonempty path. *)
+
+exclusive data path hole root =
+  | KInitial { hole == root }
+  | KLeft { father: path this root; right: tree }
+  | KRight { left: tree; father: path this root }
+
+(* The code of the functions [traverse] and [continue] is entirely
+   identical to the first versions of these functions above. Only
+   the types change. The signature of these functions say, give me
+   a (sub)tree [t] and a path from [t] back to the [root], and
+   eventually I will return a permission to the entire tree at
+   [root]. No dynamic check is required in this version of the
+   code. Note that this signature is dependent: the type of [k]
+   mentions [t]. Also, this signature is universally quantified
+   over [root]. *)
+
+val rec traverse (consumes t: tree, consumes k: path t root): (| root @ tree) =
+  (* t: tree, k: path t root *)
+  match t with
+  | TEmpty ->
+      continue (k, t)
+  | TNode { left; right } ->
+      (* t: TNode { left = left, right = right }, left, right: tree, k: path t root *)
+      t <- KLeft { father = k; right = right };
+      (* t: KLeft { father = k, right = right }, left, right: tree, k: path t root *)
+      (* t: path left root, left: tree *)
+      traverse (t, left)
+
+and continue (consumes k: path t root, consumes t: tree) : (| root @ tree) =
+  (* t: tree, k: path t root *)
+  match k with
+  | KInitial ->
+      (* The equation [t == root] appears in this branch. *)
+      (* t: tree, k: KInitial {}, t == root *)
+      (* root: tree *)
+      t
+  | KLeft { father; right } ->
+      (* k: KLeft { father = father; right = right }, father: path k root, right: tree, t: tree *)
+      k <- KRight { left = t; father = father };
+      (* k: KRight { left = t; father = father }, father: path k root, right: tree, t: tree *)
+      (* k: path right root, right: tree *)
+      traverse (right, k)
+  | KRight { left; father } ->
+      (* k: KRight { left = left; father = father }, left: tree, father: path k root, t: tree *)
+      k <- TNode { left = left; right = t };
+      (* k: TNode { left = left; right = t }, left: tree, father: path k root, t: tree *)
+      (* k: tree, father: path k root *)
+      continue (father, k)
+
+let traverse (t: tree): () =
+  (* t: tree *)
+  (* Call the above version of [traverse] with an initial continuation. *)
+  let k = new KInitial {} in
+  (* t: tree, k: KInitial {} *)
+  (* The equation [t == t] is checked here. *)
+  (* t: tree, k: path t t *)
+  traverse (t, k)
+  (* t: tree *)
+
+(* TODO: tree copy instead of just tree traversal *)
+(* TODO: graph traversal instead of just tree traversal *)
+(* TODO: combine the two and do a graph copy *)
+

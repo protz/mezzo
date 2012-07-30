@@ -382,6 +382,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
    * types. This is lazy because we want to write simple test cases that do not
    * define the "int" type. *)
   let int = lazy (find_type_by_name env "int") in
+  let bool = lazy (find_type_by_name env "bool") in
 
   (* [return t] creates a new point with type [t] available for it, and returns
    * the environment as well as the point *)
@@ -845,6 +846,9 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       let env, x = check_expression env ?hint e in
       Debug.explain env x;
       env, x
+
+  | EEquals (_, _) ->
+      return env !*bool
 
 
 and check_bindings

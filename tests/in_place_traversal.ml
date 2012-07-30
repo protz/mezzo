@@ -1,0 +1,97 @@
+(* In-place traversal of a tree, after Sobel and Friedman (1998). *)
+
+(* If we wish to publish this example, we must cite Walker and Morrisett,
+   ``Alias Types for Recursive Data Structures'', who do this already. *)
+
+(* We declare the type of trees as [exclusive] because we need trees
+   to be affine (that is, there must be no sharing) and we will
+   temporarily mutate them while we traverse them. *)
+
+(* We do not include any data in the tree, because this is an
+   orthogonal concern. *)
+
+exclusive data tree =
+  | TEmpty
+  | TNode { left: tree; right: tree }
+
+(* The continuations used by the tree traversal procedure below.
+   These continuations can be thought of as contexts or zippers. *)
+
+exclusive data continuation =
+  | KInitial
+  | KLeft { father: continuation; right: tree }
+  | KRight { left: tree; father: continuation }
+
+(* Tree traversal. *)
+
+(* This procedure does nothing, but traverses the tree. One could adapt
+   it to actually do something at every node. *)
+
+(* Even though this procedure traverses a tree, it is tail-recursive.
+   The stack is encoded in the tree via link inversion. No memory
+   allocation is performed. *)
+
+val rec traverse (t: tree, k: continuation): (u: tree) =
+  (* t: tree, k: continuation *)
+  match t with
+  | TEmpty ->
+      continue (k, t)
+  | TNode { left; right } ->
+      (* t: TNode { left = left, right = right }, left, right: tree, k: continuation *)
+      (* New syntax for mutating the tag and the fields at once: conflict in the
+       * grammar. *)
+      (* t <- KLeft { father = k; right = right }; *)
+      t <= KLeft;
+      t.father <- k;
+      t.right <- right;
+      (* t: KLeft { father = k, right = right }, left, right: tree, k: continuation *)
+      (* t: continuation, left: tree *)
+      traverse (t, left)
+  end
+
+and continue (k: continuation, t: tree): (u: tree) =
+  (* k: continuation, t: tree *)
+  match k with
+  | KInitial ->
+      (* t: tree *)
+      t
+  | KLeft { father; right } ->
+      (* k: KLeft { father = father; right = right }, father: continuation, right: tree, t: tree *)
+      (* k <- KRight { left = t; father = father }; *)
+      k <= KRight;
+      k.left <- t;
+      k.father <- father;
+      (* k: KRight { left = t; father = father }, father: continuation, right: tree, t: tree *)
+      (* k: continuation, right: tree *)
+      traverse (right, k)
+  | KRight { left; father } ->
+      (* k: KRight { left = left; father = father }, left: tree, father: continuation, t: tree *)
+      (* k <- TNode { left = left; right = t }; *)
+      k <= TNode;
+      k.left <- left;
+      k.right <- t;
+      (* k: TNode { left = left; right = t }, left: tree, father: continuation, t: tree *)
+      (* k: tree, father: continuation *)
+      continue (father, k)
+  end
+
+(* The procedure [traverse] above is pretty simple and elegant, but has the
+   drawback that the call [traverse (t, new KInitial {})] returns a new tree,
+   instead of the original tree. The quick-and-dirty way of fixing this problem
+   is to add one dynamic check at the end, as follows. *)
+
+val traverse (t: tree): () =
+  (* t: tree *)
+  (* Call the above version of [traverse] with an initial continuation. *)
+  let u = traverse (t, KInitial) in
+  (* u: tree *)
+  (* We now have a permission for [u], and have lost the permission for
+     [t]. Fortunately, the two trees should be equal: the link inversion
+     process, in the end, reconstructs the original tree. *)
+  if (t == u) then
+    (* We are done. *)
+    (* t: tree *)
+    ()
+  else
+    (* Oops! *)
+    fail

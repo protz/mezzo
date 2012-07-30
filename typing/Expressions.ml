@@ -63,6 +63,8 @@ type expression =
   | EInt of int
   (* Explanations *)
   | EExplained of expression
+  (* e1 == e2 *)
+  | EEquals of expression * expression
 
 and patexpr =
   (* A binding is made up of a pattern, an optional type annotation for the
@@ -273,6 +275,11 @@ and tsubst_expr t2 i e =
       let e = tsubst_expr t2 i e in
       EExplained e
 
+  | EEquals (e1, e2) ->
+      let e1 = tsubst_expr t2 i e1 in
+      let e2 = tsubst_expr t2 i e2 in
+      EEquals (e1, e2)
+
 
 (* [tsubst_decl t2 i decls] substitutes type [t2] for index [i] in a list of
  * declarations [decls]. *)
@@ -409,6 +416,11 @@ and esubst e2 i e1 =
   | EExplained e ->
       let e = esubst e2 i e in
       EExplained e
+
+  | EEquals (e, e') ->
+      let e = esubst e2 i e in
+      let e' = esubst e2 i e' in
+      EEquals (e, e')
 
 (* [esubst_decl e2 i decls] substitutes expression [e2] for index [i] in a list of
  * declarations [decls]. *)
@@ -606,6 +618,9 @@ let elift (k: int) (e: expression) =
 
   | EExplained e ->
       EExplained (elift i e)
+
+  | EEquals (e1, e2) ->
+      EEquals (elift i e1, elift i e2)
   in
   elift 0 e
 
@@ -707,6 +722,9 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
 
     | EExplained e ->
         EExplained (epsubst e2 e)
+
+    | EEquals (e1, e1') ->
+        EEquals (epsubst e2 e1, epsubst e2 e1')
   in
 
   epsubst e2 e1
@@ -806,6 +824,9 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
 
     | EExplained e ->
         EExplained (tepsubst t2 e)
+
+    | EEquals (e1, e1') ->
+        EEquals (tepsubst t2 e1, tepsubst t2 e1')
   in
 
   tepsubst t2 e1
@@ -961,6 +982,9 @@ module ExprPrinter = struct
 
     | EExplained e ->
         print_expr env e ^^ space ^^ string "explained"
+
+    | EEquals (e1, e2) ->
+        print_expr env e1 ^^ space ^^ equals ^^ equals ^^ space ^^ print_expr env e2
 
   and print_rec_flag = function
     | Recursive ->

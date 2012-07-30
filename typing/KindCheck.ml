@@ -634,6 +634,10 @@ and check_expression (env: env) (expr: expression) =
 
   | EExplained e ->
       check_expression env e
+
+  | EEquals (e1, e2) ->
+      check_expression env e1;
+      check_expression env e2
 ;;
 
 

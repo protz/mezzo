@@ -591,6 +591,7 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
   (* For when there's exclusive permissions. *)
   and sort_non_dup = function
     | _ as t when not (FactInference.is_duplicable env t) -> 0
+    | TySingleton _ -> 2
     | _ -> 1
   in
   let sort_non_dup x y = sort_non_dup x - sort_non_dup y
@@ -853,6 +854,17 @@ and sub_perm (env: env) (t: typ): env option =
       Log.error "[sub_perm] the following type does not have kind PERM: %a"
         ptype (env, t)
 ;;
+
+
+let merge_points (env: env) (p: point) (p': point): env =
+  Log.check (is_term env p && is_term env p') "Only interested in TERMs here.";
+
+  let perms = get_permissions env p' in
+  let env = merge_left env p p' in
+  List.fold_left (fun env t -> add env p t) env perms
+;;
+
+(* -------------------------------------------------------------------------- *)
 
 
 exception NotFoldable

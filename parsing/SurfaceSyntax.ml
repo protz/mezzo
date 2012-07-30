@@ -197,6 +197,8 @@ and expression =
   | EInt of int
   (* Explanations *)
   | EExplained of expression
+  (* x == y *)
+  | EEquals of expression * expression
 
 
 (* ---------------------------------------------------------------------------- *)
