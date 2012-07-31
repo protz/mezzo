@@ -7,20 +7,37 @@ open Utils
 
 (* This should help debuggnig. *)
 
-let safety_check dest_env =
+let safety_check env =
   (* Be paranoid, perform an expensive safety check. *)
-  fold_terms dest_env (fun () _point _ ({ permissions; _ }) ->
-    let l = List.filter (function
+  fold_terms env (fun () _point _ ({ permissions; _ }) ->
+    (* Each term should have exactly one singleton permission. *)
+    let singletons = List.filter (function
       | TySingleton (TyPoint _) ->
           true
       | _ ->
           false
     ) permissions in
-    if List.length l <> 1 then
+    if List.length singletons <> 1 then
       Log.error
-        "Inconsistency detected\n%a\n"
-        TypePrinter.penv dest_env
-  ) ()
+        "Inconsistency detected: not one singleton type\n%a\n"
+        TypePrinter.penv env;
+
+    (* Unless the environment is inconsistent, a given type should have no
+     * more than one concrete type. It may happen that we fail to detect this
+     * situation and mark the environment as inconsistent, so this check will
+     * explode, and remind us that this is one more situation that will mark an
+     * environment as inconsistent. *)
+    let concrete = List.filter (function
+      | TyConcreteUnfolded _ ->
+          true
+      | _ ->
+          false
+    ) permissions in
+    if not (env.inconsistent) && List.length concrete > 1 then
+      Log.error
+        "Inconsistency detected: more than one concrete type\n%a\n"
+        TypePrinter.penv env;
+  ) ();
 ;;
 
 
@@ -183,7 +200,7 @@ and add (env: env) (point: point) (t: typ): env =
   let hint = get_name env point in
 
   (* We first perform unfolding, so that constructors with one branch are
-   * simplified. *)
+   * simplified. [unfold] calls [add] recursively whenever it adds new points. *)
   let env, t = unfold env ~hint t in
 
   (* Break up this into a type + permissions. *)
@@ -282,7 +299,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
         let env, p = bind_term env hint env.location false in
         (* This will take care of unfolding where necessary. *)
         let env = add env p t in
-        env, TySingleton (TyPoint p)
+        env, ty_equals p
   in
 
   let rec unfold (env: env) ?(hint: name option) (t: typ): env * typ =
