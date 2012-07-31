@@ -1,7 +1,7 @@
 exclusive data t = T
 data bool = True | False
 abstract u
-fact duplicable u
+fact exclusive u
 
 val f1 (x: u, y: u): ((), ()) =
   if x == y then

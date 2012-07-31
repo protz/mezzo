@@ -469,12 +469,24 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
         (* Try to extract [t] from [hd]. *)
         begin match sub_type env hd t with
         | Some env ->
-            let duplicable = FactInference.is_duplicable env hd in
+            (* So we need to check the duplicity of [t] here, not [hd], because
+             * we may have extracted [t] through [=x] (singleton subtyping
+             * rule). This is completely sub-optimal. What we could do is:
+             * - if everything is duplicable, just try to subtract [=x] and let
+             *   the singleton-subtyping rule do the job.
+             * - if something is exclusive, keep the current code, even though
+             *   it may end up doing redundant operations.
+             * We should probably factor out the singleton-subtyping rule as a
+             * separate piece of code and only call it when absolutely
+             * necessary.
+             *)
+            let duplicable = FactInference.is_duplicable env t in
             TypePrinter.(
               let open Bash in
-              Log.debug ~level:4 "%sTaking%s %a out of the permissions for %a \
+              Log.debug ~level:4 "%sTaking%s %a through %a out of the permissions for %a \
                 (really? %b)"
                 colors.yellow colors.default
+                ptype (env, t)
                 ptype (env, hd)
                 pvar (get_name env point)
                 (not duplicable));
