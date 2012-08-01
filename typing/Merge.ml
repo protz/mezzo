@@ -412,6 +412,7 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
        *
        * This covers the following cases. Greek letters are flexible variables.
        * - int vs int
+       * - int vs float
        * - x vs y
        * - α vs int
        * - α vs β *)
@@ -422,10 +423,34 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
               || is_term left_env left_p && is_term right_env right_p)
               "Sanity check failed";
 
-            begin match is_flexible left_env left_p, is_flexible right_env right_p with
+            let flex_left = is_flexible left_env left_p
+            and flex_right = is_flexible right_env right_p in
+            Log.debug "  [p2p] %b, %b" flex_left flex_right;
+
+            begin match flex_left, flex_right with
             | false, false ->
-                let dest_env, dest_p = bind_merge dest_env left_p right_p in
-                Some (left_env, right_env, dest_env, TyPoint dest_p)
+                if is_type left_env left_p then begin
+                  (* Type vs type. *)
+                  let left_p = PersistentUnionFind.repr left_p left_env.state in
+                  let right_p = PersistentUnionFind.repr right_p right_env.state in
+                  (* This could happen because a function has return type:
+                   *   ∃(t::★). ...
+                   * and after calling that function in one of the
+                   * sub-environments, we opened [t] in the local environment. *)
+                  if not (valid dest_env left_p) || not (valid dest_env right_p) then
+                    Log.error "Local types are not supported yet";
+
+                  if not (same dest_env left_p right_p) then
+                    (* e.g. [int] vs [float] *)
+                    None
+                  else
+                    (* e.g. [int] vs [int] *)
+                    Some (left_env, right_env, dest_env, TyPoint left_p)
+                end else begin
+                  (* Term vs term *)
+                  let dest_env, dest_p = bind_merge dest_env left_p right_p in
+                  Some (left_env, right_env, dest_env, TyPoint dest_p)
+                end
 
             | false, true ->
                 let dest_p = PersistentUnionFind.repr left_p left_env.state in
@@ -466,7 +491,7 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
                     Some (left_env, right_env, dest_env, TyPoint dest_p)
                 | None ->
                     Log.check (k <> KTerm) "Remove this when we have a testcase, \
-                      and try to understand what's happening, and if it's \
+                      and try to understand what's happening, and whether it's \
                       correct!";
 
                     let dest_env, dest_p =

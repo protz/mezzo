@@ -323,6 +323,9 @@ let tests = [
 
   ("inconsistent1.hml", fun do_it ->
     ignore (do_it false));
+
+  ("counter.hml", fun do_it ->
+    ignore (do_it false));
  ]
 
 let _ =
