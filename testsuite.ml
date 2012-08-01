@@ -321,6 +321,8 @@ let tests = [
   ("in_place_traversal.hml", fun do_it ->
     ignore (do_it false));
 
+  ("inconsistent1.hml", fun do_it ->
+    ignore (do_it false));
  ]
 
 let _ =
