@@ -3,7 +3,7 @@ abstract u
 data pair a b = Pair { left: a; right: b }
 data bool = False | True
 
-val f3 (x: t, y: u): ((), ()) =
+val f3 (x: t, y: u): pair unknown unknown =
   if True then
     Pair { left = x; right = y }
   else
