@@ -764,7 +764,7 @@ let find_type (env: env) (point: point): name * type_binder =
   | { names; _ }, BType binding ->
       List.hd names, binding
   | _ ->
-      Log.error "Binder is not a type"
+      Log.error "Binder %a is not a type" !internal_pnames (get_names env point)
 ;;
 
 let find_term (env: env) (point: point): name * term_binder =
@@ -772,7 +772,7 @@ let find_term (env: env) (point: point): name * term_binder =
   | { names; _ }, BTerm binding ->
       List.hd names, binding
   | _ ->
-      Log.error "Binder is not a term"
+      Log.error "Binder %a is not a term" !internal_pnames (get_names env point)
 ;;
 
 let is_type (env: env) (point: point): bool =
@@ -1357,7 +1357,9 @@ module TypePrinter = struct
 
   let print_permissions (env: env): document =
     let header =
-      let str = "PERMISSIONS:" in
+      let str = "PERMISSIONS:" ^
+        (if env.inconsistent then " ⚠ inconsistent ⚠" else "")
+      in
       let line = String.make (String.length str) '-' in
       (string str) ^^ hardline ^^ (string line)
     in

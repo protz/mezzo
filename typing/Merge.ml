@@ -422,7 +422,11 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
               || is_term left_env left_p && is_term right_env right_p)
               "Sanity check failed";
 
-            begin match is_flexible left_env left_p, is_flexible right_env right_p with
+            let flex_left = is_flexible left_env left_p
+            and flex_right = is_flexible right_env right_p in
+            Log.debug "  [p2p] %b, %b" flex_left flex_right;
+
+            begin match flex_left, flex_right with
             | false, false ->
                 let dest_env, dest_p = bind_merge dest_env left_p right_p in
                 Some (left_env, right_env, dest_env, TyPoint dest_p)

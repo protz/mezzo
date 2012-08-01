@@ -1,0 +1,10 @@
+abstract t
+abstract u
+data pair a b = Pair { left: a; right: b }
+data bool = False | True
+
+val f3 (x: t, y: u): ((), ()) =
+  if True then
+    Pair { left = x; right = y }
+  else
+    Pair { left = y; right = x }
