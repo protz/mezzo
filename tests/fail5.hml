@@ -1,10 +1,10 @@
-exclusive data ref a = Ref { contents: a }
+exclusive data option a = None | Some { contents: a }
 abstract int
 fact duplicable int
 
 (* That example is correct but the type-checker doesn't have a linearity
- * analysis for the [ref] type. A value of type [ref] may contain at most one
- * pointer to its argument so it's safe to apply the singleton subtyping rule
- * here. *)
-val f (consumes x: ref (=y), consumes y: ref int): ref (ref int) =
+ * analysis for the [option] type. A value of type [option] may contain at most
+ * one pointer to its argument so it's safe to apply the singleton subtyping
+ * rule here. *)
+val f (consumes x: option (=y), consumes y: option int): option (option int) =
   x
