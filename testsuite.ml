@@ -370,6 +370,7 @@ let _ =
   let open Bash in
   Log.enable_debug 0;
   Driver.add_include_dir "tests";
+  let failed = ref 0 in
   List.iter (fun (file, test) ->
     let do_it = fun pervasives ->
       let env = Driver.process pervasives (Filename.concat "tests" file) in
@@ -377,9 +378,10 @@ let _ =
     in
     begin try
       test do_it;
-      Printf.printf "%s✓ OH YEY %s%s\n" colors.green colors.default file;
+      Printf.printf "%s✓ %s%s\n" colors.green colors.default file;
     with e ->
-      Printf.printf "%s✗ OH NOES %s%s\n" colors.red colors.default file;
+      failed := !failed + 1;
+      Printf.printf "%s✗ %s%s\n" colors.red colors.default file;
       print_endline (Printexc.to_string e);
       Printexc.print_backtrace stdout;
       if e = Exit then
@@ -387,4 +389,10 @@ let _ =
     end;
     flush stdout;
     flush stderr;
-  ) tests
+  ) tests;
+  Printf.printf "%s%d%s tests run, " colors.blue (List.length tests) colors.default;
+  if !failed > 0 then
+    Printf.printf "%s%d failed, this is BAD!%s\n" colors.red !failed colors.default
+  else
+    Printf.printf "%sall passed%s, congratulations.\n" colors.green colors.default;
+;;
