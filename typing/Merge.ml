@@ -200,6 +200,12 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
     )) top
   in
 
+  (* TODO we should iterate over all pairs of roots here, and see if they've
+   * been merged in both sub-environments. In that case, they should be merged
+   * beforehand in the destination environment too. Merges in local
+   * sub-environments can happen because a dynamic == test refined the
+   * permissions. *)
+
   (* All the roots should be merged. *)
   let roots = fold_terms top (fun acc k _ _ -> k :: acc) [] in
   List.iter (fun p -> push_job (p, p, p)) roots;
