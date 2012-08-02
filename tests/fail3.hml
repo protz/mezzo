@@ -1,0 +1,10 @@
+exclusive data ref a = Ref { contents: a }
+abstract int
+fact duplicable int
+
+val make_counter (): (() -> int) =
+  let c = Ref { contents = 0 } in
+  fun (): int =
+    let v = c.contents in
+    c.contents <- v + 1;
+    v

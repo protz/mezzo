@@ -1,0 +1,25 @@
+data list a = Nil | Cons { head: a; tail: list a }
+
+val rev [a] (consumes l: list a): list a =
+  let rec rev1 (consumes acc: list a, consumes tl: list a): list a =
+    match tl with
+    | Nil ->
+        acc
+    | Cons { head; tail } ->
+        rev1 (Cons { head = head; tail = acc }, tail)
+    end
+  in
+  rev1 (Nil, l)
+
+(* This fails because we need [duplicable a] as a hypothesis. *)
+val copy [a] (l: list a): list a =
+  let rec copy1 (acc: list a, l: list a): list a =
+    match l with
+    | Nil ->
+        rev acc
+    | Cons { head; tail } ->
+        let acc = Cons { head; tail = acc } in
+        copy1 (acc, tail)
+    end
+  in
+  copy1 (Nil, l)

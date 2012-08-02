@@ -1,0 +1,12 @@
+data list a = Nil | Cons { head: a; tail: list a }
+
+val rev [a] (consumes l: list a): list a =
+  let rec rev1 (consumes acc: list a, consumes tl: list a): list a =
+    match tl with
+    | Nil ->
+        acc
+    | Cons { head; tail } ->
+        rev1 (Cons { head = head; tail = acc }, tail)
+    end
+  in
+  rev1 (Nil, l)
