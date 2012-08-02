@@ -47,8 +47,13 @@ let error fmt =
 let check b fmt =
   let open Printf in
   if b then
-    ifprintf stderr fmt
+    Hml_String.biprintf fmt
   else begin
-    output_string stderr Bash.colors.Bash.red;
-    kfprintf (fun oc -> output_string oc (Bash.colors.Bash.default ^ "\n"); assert false) stderr fmt
+    let buf = Buffer.create 16 in
+    Buffer.add_string buf Bash.colors.Bash.red;
+    kbprintf (fun buf ->
+      Buffer.add_string buf (Bash.colors.Bash.default ^ "\n");
+      Buffer.output_buffer stderr buf;
+      assert false
+    ) buf fmt
   end

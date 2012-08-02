@@ -302,6 +302,8 @@ let fact_leq f1 f2 =
   match f1, f2 with
   | _, Affine ->
       true
+  | _ when f1 = f2 ->
+      true
   | _ ->
       false
 ;;

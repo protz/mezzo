@@ -497,27 +497,38 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
         (* Try to extract [t] from [hd]. *)
         begin match sub_type env hd t with
         | Some env ->
-            (* So we need to check the duplicity of [t] here, not [hd], because
-             * we may have extracted [t] through [=x] (singleton subtyping
-             * rule). This is completely sub-optimal. What we could do is:
-             * - if everything is duplicable, just try to subtract [=x] and let
-             *   the singleton-subtyping rule do the job.
-             * - if something is exclusive, keep the current code, even though
-             *   it may end up doing redundant operations.
-             * We should probably factor out the singleton-subtyping rule as a
-             * separate piece of code and only call it when absolutely
-             * necessary.
+            (* Is this piece of code correct when the singleton-subtyping rule
+             * kicks in? Yes, because if we chose to extract [t'] through [=x],
+             * [t'] is necessarily duplicable, as is [=x].
+             *
+             * Is this piece of code optimal? Clearly not, because if [sub_type]
+             * encounters [=x], it may go "through" it looking for [x]'s
+             * duplicable permissions! This is because [sub_type] doesn't know
+             * the context it is called in.
+             *
+             * [duplicable] has to refer to [hd] since we may do [Nil - list a].
+             * [list a] is affine, but that doesn't mean we should take [Nil]
+             * out of the list of permissions!
              *)
-            let duplicable = FactInference.is_duplicable env t in
-            TypePrinter.(
-              let open Bash in
-              Log.debug ~level:4 "%sTaking%s %a through %a out of the permissions for %a \
-                (really? %b)"
-                colors.yellow colors.default
-                ptype (env, t)
-                ptype (env, hd)
-                pvar (get_name env point)
-                (not duplicable));
+            let duplicable = FactInference.is_duplicable env hd in
+
+            let open TypePrinter in
+            let open Bash in
+            let f1 = FactInference.analyze_type env hd in
+            let f2 = FactInference.analyze_type env t in
+            Log.check
+              (fact_leq f1 f2)
+              "Fact inconsistency %a <= %a"
+              pfact f1
+              pfact f2;
+            Log.debug ~level:4 "%sTaking%s %a through %a out of the permissions for %a \
+              (really? %b)"
+              colors.yellow colors.default
+              ptype (env, t)
+              ptype (env, hd)
+              pvar (get_name env point)
+              (not duplicable);
+
             (* We're taking out [hd] from the list of permissions for [point].
              * Is it something duplicable? *)
             if duplicable then
