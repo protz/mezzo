@@ -6,18 +6,25 @@ let check env point t =
   ignore (check_return_type env point t)
 ;;
 
-type outcome = Fail | Pass
+type outcome = Fail of (TypeChecker.raw_error -> bool) | Pass
 
-let simple_test outcome f = fun do_it ->
+let simple_test ?(stdlib=true) outcome = fun do_it ->
   try
-    ignore (do_it true);
-    match outcome with Fail -> raise (Failure "") | Pass -> ();
-  with TypeCheckerError e ->
-    match e with
-    | _, e when f e ->
-        ()
-    | _ ->
-        raise (Failure "")
+    ignore (do_it stdlib);
+    match outcome with
+    | Fail _ ->
+        raise (Failure "Test passed, it was supposed to fail")
+    | Pass ->
+        ();
+  with TypeCheckerError (_, e) ->
+    match outcome with
+    | Pass ->
+        raise (Failure "Test failed, it was supposed to pass")
+    | Fail f ->
+        if f e then
+          ()
+        else
+          raise (Failure "Test failed but not for the right reason")
 ;;
 
 let dummy_loc =
@@ -32,27 +39,27 @@ let dummy_binding k =
   dummy_name, k, dummy_loc
 ;;
 
-let tests = [
+let tests: (string * ((bool -> env) -> unit)) list = [
   ("constructors.hml",
-    simple_test Pass (fun _ -> false));
+    simple_test Pass);
 
   ("constructors_bad_1.hml",
-    simple_test Fail (function MissingField _ -> true | _ -> false));
+    simple_test (Fail (function MissingField _ -> true | _ -> false)));
 
   ("constructors_bad_2.hml",
-    simple_test Fail (function ExtraField _ -> true | _ -> false));
+    simple_test (Fail (function ExtraField _ -> true | _ -> false)));
 
   ("field_access.hml",
-    simple_test Pass (fun _ -> false));
+    simple_test Pass);
 
   ("field_access_bad.hml",
-    simple_test Fail (function NoSuchField _ -> true | _ -> false));
+    simple_test (Fail (function NoSuchField _ -> true | _ -> false)));
 
   ("field_assignment.hml",
-    simple_test Pass (fun _ -> false));
+    simple_test Pass);
 
   ("field_assignment_bad.hml",
-    simple_test Fail (function NoSuchField _ -> true | _ -> false));
+    simple_test (Fail (function NoSuchField _ -> true | _ -> false)));
 
   ("arithmetic.hml", fun do_it ->
     let env = do_it true in
@@ -63,10 +70,10 @@ let tests = [
     check env bar int);
 
   ("wrong_type_annotation.hml",
-    simple_test Fail (function ExpectedType _ -> true | _ -> false));
+    simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
 
   ("constraints_in_patterns.hml",
-    simple_test Fail (function ExpectedType _ -> true | _ -> false));
+    simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
 
   ("function.hml", fun do_it ->
     let env = do_it true in
@@ -75,10 +82,10 @@ let tests = [
     check env foobar (tuple [int; int]));
 
   ("stupid_match.hml",
-    simple_test Fail (function NotNominal _ -> true | _ -> false));
+    simple_test (Fail (function NotNominal _ -> true | _ -> false)));
 
   ("value_restriction.hml",
-    simple_test Fail (function NoSuchField _ -> true | _ -> false));
+    simple_test (Fail (function NoSuchField _ -> true | _ -> false)));
 
   ("merge1.hml", fun do_it ->
     let env = do_it false in
@@ -267,6 +274,10 @@ let tests = [
       failwith "The right permission was not extracted for [s1].";
   );
 
+  ("singleton2.hml",
+    simple_test ~stdlib:false Pass
+  );
+
   (*("", fun _ -> raise Exit);*)
 
   ("list-length.hml", fun do_it ->
@@ -284,17 +295,25 @@ let tests = [
     ) in
     check env x t);
 
-  ("list-map1.hml", fun do_it ->
-    ignore (do_it false));
+  ("list-map1.hml",
+    simple_test ~stdlib:false Pass
+  );
 
-  ("xlist-concat.hml", fun do_it ->
-    ignore (do_it false));
+  ("list-rev.hml",
+    simple_test ~stdlib:false Pass
+  );
 
-  ("xlist-concat1.hml", fun do_it ->
-    ignore (do_it false));
+  ("xlist-concat.hml",
+    simple_test ~stdlib:false Pass
+  );
 
-  ("xlist-concat2.hml", fun do_it ->
-    ignore (do_it false));
+  ("xlist-concat1.hml",
+    simple_test ~stdlib:false Pass
+  );
+
+  ("xlist-concat2.hml",
+    simple_test ~stdlib:false Pass
+  );
 
   ("variance.hml", fun do_it ->
     let env = do_it false in
@@ -315,15 +334,39 @@ let tests = [
     check_variance "contra" [contra];
   );
 
-  ("tree_size.hml", fun do_it ->
-    ignore (do_it false));
+  ("tree_size.hml",
+    simple_test ~stdlib:false Pass
+  );
 
-  ("in_place_traversal.hml", fun do_it ->
-    ignore (do_it false));
+  ("in_place_traversal.hml",
+    simple_test ~stdlib:false Pass
+  );
+
+  ("inconsistent1.hml",
+    simple_test ~stdlib:false Pass
+  );
+
+  ("counter.hml",
+    simple_test ~stdlib:false Pass
+  );
+
+  ("fail1.hml",
+    simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+
+  ("fail2.hml",
+    simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+
+  ("fail3.hml",
+    simple_test ~stdlib:false ((Fail (function NoSuchField _ -> true | _ -> false))));
 
   ("counter.hml", fun do_it ->
     ignore (do_it false));
 
+  ("fail4.hml",
+    simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+
+  ("fail5.hml",
+    simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
  ]
 
 let _ =

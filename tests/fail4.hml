@@ -1,0 +1,7 @@
+exclusive data ref a = Ref { contents: a }
+data list a = Nil | Cons { head: a; tail: list a }
+abstract int
+fact duplicable int
+
+val f (consumes x: list (=y), consumes y: ref int): list (ref int) =
+  x

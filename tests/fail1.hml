@@ -1,0 +1,18 @@
+data bool = False | True
+data list a = Nil | Cons { head: a; tail: list a }
+data option a = None | Some { contents: a }
+
+(* This fails because we need [duplicable a] as a hypothesis. *)
+val find [a] (l: list a, f: a -> bool): option a =
+  let rec find1 (l: list a): option a =
+    match l with
+    | Cons { head; tail } ->
+        if f head then
+          Some { contents = head }
+        else
+          find1 tail
+    | Nil ->
+        None
+    end
+  in
+  find1 l

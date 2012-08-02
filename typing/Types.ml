@@ -396,12 +396,12 @@ let equal env (t1: typ) (t2: typ) =
           raise UnboundPoint;
 
         begin match structure env p1, structure env p2 with
-        | Some t1, Some t2 ->
+        | Some t1, _ ->
+            equal t1 t2
+        | _, Some t2 ->
             equal t1 t2
         | None, None ->
             same env p1 p2
-        | _ ->
-            false
         end
 
     | TyExists ((_, k1, _), t1), TyExists ((_, k2, _), t2)

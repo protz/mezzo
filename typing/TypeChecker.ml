@@ -41,6 +41,7 @@ let print_error buf (env, raw_error) =
     Printf.bprintf buf "\nOH NOES. Printing permissions.\n\n%a" pdoc (print_permissions, env);
     Printf.bprintf buf "\nError message follows.\n\n";
   in
+  print_permissions ();
   match raw_error with
   | NotAFunction p ->
       let fname, fbinder = find_term env p in
@@ -52,7 +53,6 @@ let print_error buf (env, raw_error) =
             pvar fname
             ptype (env, t)
       | None ->
-          print_permissions ();
           Printf.bprintf buf
             "%a %a is not a function, the only permissions available for it are %a"
             Lexer.p env.location
@@ -81,7 +81,6 @@ let print_error buf (env, raw_error) =
             ptype (env, t1)
             ptype (env, t2)
       | _ ->
-          print_permissions ();
           Printf.bprintf buf
             "%a expected an argument of type %a but the only permissions available for %a are %a"
             Lexer.p env.location
@@ -112,7 +111,6 @@ let print_error buf (env, raw_error) =
             pvar name
             ptype (env, t)
       | None ->
-          print_permissions ();
           Printf.bprintf buf
             "%a %a has no permission with a nominal type suitable for matching, \
               the only permissions available for it are %a"
@@ -130,7 +128,6 @@ let print_error buf (env, raw_error) =
             pvar name
             ptype (env, t)
       | None ->
-          print_permissions ();
           Printf.bprintf buf
             "%a %a has no suitable permission for a type with two constructors, \
               the only permissions available for it are %a"
@@ -149,7 +146,6 @@ let print_error buf (env, raw_error) =
             ptype (env, t)
             Field.p f
       | None ->
-          print_permissions ();
           Printf.bprintf buf
             "%a %a has no suitable permission with field %a, the only permissions \
               available for it are %a"
@@ -168,7 +164,6 @@ let print_error buf (env, raw_error) =
             pvar name
             ptype (env, t)
       | None ->
-          print_permissions ();
           Printf.bprintf buf
             "%a %a has no suitable permission that would accept a tag update, \
               the only permissions available for it are %a"
