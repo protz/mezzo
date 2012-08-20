@@ -1,5 +1,9 @@
 exclusive data t = T
 data bool = True | False
+data phys_equal (x :: TERM) (y :: TERM) =
+| Equal { permission x = y }
+| NotEqual
+
 abstract u
 fact exclusive u
 

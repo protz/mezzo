@@ -1,6 +1,6 @@
 exclusive data xlist a =
-  | XNil
   | XCons { head: a; tail: xlist a }
+  | XNil
 
 val rec concat [a] (consumes xs: xlist a, consumes ys: xlist a): xlist a =
   match xs with

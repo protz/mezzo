@@ -1,7 +1,7 @@
 abstract int
 fact duplicable int
 
-data list a = Nil | Cons { head: a; tail: list a }
+data list a = Cons { head: a; tail: list a } | Nil
 
 val rec length [a] (x: list a): int =
   match x with

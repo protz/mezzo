@@ -1,7 +1,7 @@
 abstract t
 abstract u
 data pair a b = Pair { left: a; right: b }
-data bool = False | True
+data bool = True | False
 
 val f3 (x: t, y: u): pair unknown unknown =
   if True then

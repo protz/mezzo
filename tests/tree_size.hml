@@ -2,8 +2,8 @@ abstract int
 fact duplicable int
 
 exclusive data tree a = 
-  | Leaf
   | Node { left: tree a; right: tree a; size: a }
+  | Leaf
 
 val rec tree_size (consumes x: tree unknown): (int | x @ tree int) =
   match explain x with

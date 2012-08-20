@@ -7,8 +7,8 @@ fact duplicable (int)
 fact exclusive (ref a) *)
 
 data list a =
-  | Nil
   | Cons { head: a; tail: list a }
+  | Nil
 
 (* abstract foobar (a :: TYPE) (b :: TYPE) (c :: TYPE) :: TYPE
 fact duplicable (c) => duplicable (foobar a b c)

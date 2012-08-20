@@ -10,7 +10,10 @@
 (* We do not include any data in the tree, because this is an
    orthogonal concern. *)
 
-data bool = False | True
+data bool = True | False
+data phys_equal (x :: TERM) (y :: TERM) =
+| Equal { permission x = y }
+| NotEqual
 
 exclusive data tree =
   | TEmpty

@@ -1,4 +1,4 @@
-data list a = Nil | Cons { head: a; tail: list a }
+data list a = Cons { head: a; tail: list a } | Nil
 
 val rev [a] (consumes l: list a): list a =
   let rec rev1 (consumes acc: list a, consumes tl: list a): list a =

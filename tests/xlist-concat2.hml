@@ -1,10 +1,10 @@
 exclusive data list a =
-  | Nil
   | Cons { head: a; tail: list a }
+  | Nil
 
 exclusive data xlist a =
-  | XNil
   | XCons { head: a; tail: xlist a }
+  | XNil
 
 val rec concat1 [a] (
    consumes dst: XCons { head: a; tail: () },

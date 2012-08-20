@@ -1,6 +1,6 @@
-data bool = False | True
-data list a = Nil | Cons { head: a; tail: list a }
-data option a = None | Some { contents: a }
+data bool = True | False
+data list a = Cons { head: a; tail: list a } | Nil
+data option a = Some { contents: a } | None
 
 (* This fails because we need [duplicable a] as a hypothesis. *)
 val find [a] (l: list a, f: a -> bool): option a =

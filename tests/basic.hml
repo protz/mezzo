@@ -20,8 +20,8 @@ data typechecker =
   TC { typechecker: [a] (consumes t: tree a) -> (ty | t @ tree ty) }
 
 data list a =
-  | Nil
   | Cons { head: a; tail: list a }
+  | Nil
 
 abstract int
 fact duplicable (int)

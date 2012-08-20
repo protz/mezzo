@@ -1,4 +1,4 @@
-data list a = Nil | Cons { head: a; tail: list a }
+data list a = Cons { head: a; tail: list a } | Nil
 
 val rec map [a, b] (f: (consumes x: a) -> b, consumes xs: list a): list b =
   match xs with

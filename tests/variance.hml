@@ -1,6 +1,6 @@
 abstract int
 
-data list a = Nil | Cons { head: a; tail: list a }
+data list a = Cons { head: a; tail: list a } | Nil
 
 exclusive data ref a = Ref { contents: a }
 

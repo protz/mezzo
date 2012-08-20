@@ -1,4 +1,4 @@
-data list a = Nil | Cons { head: a; tail: list a }
+data list a = Cons { head: a; tail: list a } | Nil
 
 val rec concat [a] (consumes xs: list a, consumes ys: list a): list a =
   match xs with
