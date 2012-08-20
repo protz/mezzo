@@ -1,0 +1,16 @@
+exclusive data t = T
+data bool = True | False
+abstract u
+fact exclusive u
+
+val f1 (x: u, y: u): ((), ()) =
+  if x == y then
+    ()
+  else
+    ((), ())
+
+val f2 (x: t, y: t): ((), ()) =
+  if x == y then
+    ()
+  else
+    ((), ())

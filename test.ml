@@ -86,51 +86,7 @@ let test_unfolding (env: env) =
   print_env env; *)
 ;;
 
-let test_refinement (env: env) =
-  (* Some wrappers for easily building types by hand. *)
-  let pair (x, y) = TyApp (TyApp (find_type_by_name env "pair", x), y) in
-  let list x = TyApp (find_type_by_name env "list", x) in
-  let ref x = TyApp (find_type_by_name env "ref", x) in
-  let int = find_type_by_name env "int" in
-  (* Make sure the unfolding is properly performed. *)
-  let env, foo = bind_term env (User (Variable.register "foo")) env.location false in
-  let env = match Permissions.refine_type env nil (list int) with
-    | env, Permissions.One t ->
-        Permissions.add env foo t
-    | _, Permissions.Both ->
-        Log.error "This permissions should be refined into just one"
-  in
-  print_env env;
-  (* This should print out that an inconsistency was detected. *)
-  let env, unreachable = bind_term env (User (Variable.register "unreachable")) env.location false in
-  let t = ref int and t' = ref (ref int) in
-  let env = match Permissions.refine_type env t t' with
-    | env, Permissions.Both ->
-        let env = Permissions.add env unreachable t in
-        let env = Permissions.add env unreachable t' in
-        env
-    | _, Permissions.One _ ->
-        Log.error "These two permissions are mutually exclusive"
-  in
-  print_env env;
-  (* More elaborate. *)
-  let env, bar = bind_term env (User (Variable.register "bar")) env.location false in
-  let env, l = bind_term env (User (Variable.register "l")) env.location false in
-  let env, r = bind_term env (User (Variable.register "r")) env.location false in
-  let env = Permissions.add env bar (pair (points_to l, points_to r)) in
-  print_env env;
-  let env = Permissions.refine env bar (pair (int, int)) in
-  let env = Permissions.refine env bar (pair (int, int)) in
-  print_env env;
-  let env = Permissions.unify env l r in
-  print_env env;
-  (* Moar elaborate. *)
-  let env = Permissions.add env l (tuple [int; permission (point foo, int)]) in
-  print_env env;
-;;
-
-
-let test_substraction (env: env) =
+let test_subtraction (env: env) =
   (* Some wrappers for easily building types by hand. *)
   let list x = TyApp (find_type_by_name env "list", x) in
   let ref x = TyApp (find_type_by_name env "ref", x) in
@@ -235,10 +191,8 @@ let _ =
   test_adding_perms env;
   Printf.eprintf "%s" (Bash.box "Unfolding permissions");
   test_unfolding env;
-  Printf.eprintf "%s" (Bash.box "Refining permissions");
-  test_refinement env;
-  Printf.eprintf "%s" (Bash.box "Substracting permissions");
-  test_substraction env;
+  Printf.eprintf "%s" (Bash.box "Subtracting permissions");
+  test_subtraction env;
   Printf.eprintf "%s" (Bash.box "Function call");
   test_function_call env;
 ;;

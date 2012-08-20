@@ -36,4 +36,4 @@ val warn: ('a, Buffer.t, unit, unit) format4 -> 'a
 val error: ('a, Buffer.t, unit, 'b) format4 -> 'a
 
 (** Assert something, otherwise display an error message and fail *)
-val check: bool -> ('a, out_channel, unit, unit) format4 -> 'a
+val check: bool -> ('a, Buffer.t, unit, unit) format4 -> 'a

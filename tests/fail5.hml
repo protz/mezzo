@@ -1,4 +1,5 @@
 exclusive data option a = None | Some { contents: a }
+data t a = A | B { b: a }
 abstract int
 fact duplicable int
 
@@ -6,5 +7,5 @@ fact duplicable int
  * analysis for the [option] type. A value of type [option] may contain at most
  * one pointer to its argument so it's safe to apply the singleton subtyping
  * rule here. *)
-val f (consumes x: option (=y), consumes y: option int): option (option int) =
+val f (consumes x: t (=y), consumes y: option int): t (option int) =
   x

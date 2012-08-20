@@ -36,14 +36,24 @@ let error fmt =
   Printf.kbprintf (fun buf ->
     Buffer.add_char buf '\n';
     Buffer.output_buffer stderr buf;
-    raise (Failure (Buffer.contents buf))
+    let c = Buffer.contents buf in
+    let summary =
+      let i = String.index c '\n' in
+      if i >= 0 then String.sub c 0 i else c
+    in
+    raise (Failure summary)
   ) (Buffer.create 16) fmt
 
 let check b fmt =
   let open Printf in
   if b then
-    ifprintf stderr fmt
+    Hml_String.biprintf fmt
   else begin
-    output_string stderr Bash.colors.Bash.red;
-    kfprintf (fun oc -> output_string oc (Bash.colors.Bash.default ^ "\n"); assert false) stderr fmt
+    let buf = Buffer.create 16 in
+    Buffer.add_string buf Bash.colors.Bash.red;
+    kbprintf (fun buf ->
+      Buffer.add_string buf (Bash.colors.Bash.default ^ "\n");
+      Buffer.output_buffer stderr buf;
+      assert false
+    ) buf fmt
   end
