@@ -706,8 +706,7 @@ let bind_type
   { env with state }, point
 ;;
 
-let bind_var (env: env) ?(flexible=false) (name, kind, location: type_binding): env * point =
-  let fact = Affine in
+let bind_var (env: env) ?(flexible=false) ?(fact=Affine) (name, kind, location: type_binding): env * point =
   match kind with
     | KType ->
         (* Of course, such a type variable does not have a definition. *)
@@ -754,7 +753,7 @@ let bind_param_at_index_in_data_type_def_branches
     (branches: data_type_def_branch list): env * point * data_type_def_branch list =
   (* This needs a special treatment because the type parameters are not binders
    * per se (unlike TyForall, for instance...). *)
-  let env, point = bind_type env name env.location fact kind in
+  let env, point = bind_var env ~fact (name, kind, env.location) in
   let branches =
     List.map (tsubst_data_type_def_branch (TyPoint point) index) branches
   in

@@ -406,18 +406,14 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
   (* TEMPORARY this is just a quick and dirty way to talk about user-defined
    * types. This is lazy because we want to write simple test cases that do not
    * define the "int" type. *)
-  let int = lazy begin
+  let make_lazy_getter t = lazy begin
     try
-      find_type_by_name env "int"
+      find_type_by_name env t
     with Not_found ->
-      failwith "please define type int"
+      Log.error "please define type %s" t
   end in
-  let bool = lazy begin
-    try
-      find_type_by_name env "bool"
-    with Not_found ->
-      failwith "please define type bool"
-  end in
+  let int = make_lazy_getter "int" in
+  let phys_equal = make_lazy_getter "phys_equal" in
 
   (* [return t] creates a new point with type [t] available for it, and returns
    * the environment as well as the point *)
@@ -746,23 +742,35 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       let hint_1 = add_hint hint "if" in
       let env, x1 = check_expression env ?hint:hint_1 e1 in
 
-      if not (List.exists (is_data_type_with_two_constructors env) (get_permissions env x1)) then
-        raise_error env (NoTwoConstructors x1);
-
-      (* If [e1] is a x == y test, then we need to type-check the then-branch
-       * with an extra equality taken into account. *)
-      let right_env = env in
-      let left_env = match eunloc e1 with
-        | EEquals (e, e') ->
-            let hint_x = add_hint hint "==_l" in
-            let hint_y = add_hint hint "==_r" in
-            let env, x = check_expression env ?hint:hint_x e in
-            let env, y = check_expression env ?hint:hint_y e' in
-            let env = Permissions.unify env x y in
-            env
-        | _ ->
-            env
+      let env, (left_t, right_t) =
+        match Hml_List.take_bool (is_data_type_with_two_constructors env) (get_permissions env x1) with
+        | Some (permissions, t) ->
+            let env = replace_term env x1 (fun binding -> { binding with permissions }) in
+            let split_apply cons args =
+              match get_definition env cons with
+              | Some (Some (_, [b1; b2]), _) ->
+                  let t1 = TyConcreteUnfolded (instantiate_branch b1 args) in
+                  let t2 = TyConcreteUnfolded (instantiate_branch b2 args) in
+                  t1, t2
+              | _ ->
+                  assert false
+            in
+            env, begin match t with
+            | TyPoint p ->
+                split_apply p []
+            | TyApp _ ->
+                let cons, args = flatten_tyapp t in
+                split_apply !!cons args
+            | TyConcreteUnfolded _ ->
+                t, t
+            | _ ->
+                Log.error "Contradicts [is_data_type_with_two_constructors]";
+            end
+        | None ->
+            raise_error env (NoTwoConstructors x1);
       in
+      let left_env = Permissions.add env x1 left_t in
+      let right_env = Permissions.add env x1 right_t in
 
       (* The control-flow diverges. *)
       let hint_l = add_hint hint "then" in
@@ -868,8 +876,11 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       Debug.explain env x;
       env, x
 
-  | EEquals (_, _) ->
-      return env !*bool
+  | EEquals (e1, e2) ->
+      let env, x = check_expression env ?hint e1 in
+      let env, y = check_expression env ?hint e2 in
+      let t = TyApp (TyApp (!*phys_equal, TyPoint x), TyPoint y) in
+      return env t
 
   | EFail ->
       let name = Auto (Variable.register "/inconsistent") in

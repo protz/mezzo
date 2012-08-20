@@ -1,0 +1,12 @@
+data phys_equal (x :: TERM) (y :: TERM) =
+  | Equal { permission x = y }
+  | NotEqual
+
+abstract t
+fact exclusive t
+
+val f (consumes x: t, y: unknown): t =
+  if explain x == y then
+    y
+  else
+    fail

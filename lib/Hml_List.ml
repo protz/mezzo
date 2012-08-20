@@ -195,3 +195,10 @@ let find_opt f l =
             find tl
   in
   find l
+
+let take_bool f l =
+  match take (fun x -> if f x then Some () else None) l with
+  | Some (l, (elt, ())) ->
+      Some (l, elt)
+  | None ->
+      None

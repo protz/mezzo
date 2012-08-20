@@ -2,18 +2,18 @@ abstract int
 fact duplicable int
 
 exclusive data xlist a =
-  | XNil
   | XCons { xhead: a; xtail: xlist a }
+  | XNil
 
 data list a =
-  | Nil
   | Cons { head: a; tail: list a }
+  | Nil
 
 exclusive data ref a = Ref {
   contents: a;
 }
 
-data option a = None | Some { contents: a }
+data option a = Some { contents: a } | None
 
 data bool = True | False
 
