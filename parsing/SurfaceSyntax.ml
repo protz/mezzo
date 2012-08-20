@@ -184,17 +184,9 @@ and expression =
   (* e₁; e₂ → desugared as let () = e₁ in e₂ *)
   | ESequence of expression * expression
   | ELocated of expression * Lexing.position * Lexing.position
-  (* Arithmetic *)
-  | EPlus of expression * expression
-  | EMinus of expression * expression
-  | ETimes of expression * expression
-  | EDiv of expression * expression
-  | EUMinus of expression
   | EInt of int
   (* Explanations *)
   | EExplained of expression
-  (* x == y *)
-  | EEquals of expression * expression
   (* fail *)
   | EFail
 

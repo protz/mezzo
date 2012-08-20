@@ -210,7 +210,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     check env v11 t);
 
   ("merge12.hml", fun do_it ->
-    let env = do_it false in
+    let env = do_it true in
     let v12 = point_by_name env "v12" in
     let int = find_type_by_name env "int" in
     (* Urgh, have to input internal syntax to check function types... maybe we
@@ -281,7 +281,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   (*("", fun _ -> raise Exit);*)
 
   ("list-length.hml", fun do_it ->
-    let env = do_it false in
+    let env = do_it true in
     let int = find_type_by_name env "int" in
     let zero = point_by_name env "zero" in
     check env zero int);
@@ -335,19 +335,19 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   );
 
   ("tree_size.hml",
-    simple_test ~stdlib:false Pass
+    simple_test ~stdlib:true Pass
   );
 
   ("in_place_traversal.hml",
-    simple_test ~stdlib:false Pass
+    simple_test ~stdlib:true Pass
   );
 
   ("inconsistent1.hml",
-    simple_test ~stdlib:false Pass
+    simple_test ~stdlib:true Pass
   );
 
   ("counter.hml",
-    simple_test ~stdlib:false Pass
+    simple_test ~stdlib:true Pass
   );
 
   ("fail1.hml",
@@ -357,7 +357,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
 
   ("fail3.hml",
-    simple_test ~stdlib:false ((Fail (function NoSuchField _ -> true | _ -> false))));
+    simple_test ~stdlib:true ((Fail (function NoSuchField _ -> true | _ -> false))));
 
   ("fail4.hml",
     simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));

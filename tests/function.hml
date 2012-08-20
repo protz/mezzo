@@ -5,11 +5,11 @@ val y = inc 2
 val rec f (x: int): int =
   f (inc x)
 
-val count = cref 0
+val count = newref 0
 
 val counter (| count @ ref int): int =
-  let x = rget count in
-  rset (count, x + 1);
+  let x = !count in
+  count := x + 1;
   x
 
 val foobar =

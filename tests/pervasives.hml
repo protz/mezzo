@@ -1,5 +1,23 @@
+(* Arithmetic *)
+
 abstract int
 fact duplicable int
+
+(* Standard types *)
+
+data bool = True | False
+
+data option a = Some { contents: a } | None
+
+exclusive data ref a = Ref {
+  contents: a;
+}
+
+data phys_equal (x :: TERM) (y :: TERM) =
+  | Equals { permission x = y }
+  | NotEquals
+
+(* Lists *)
 
 exclusive data xlist a =
   | XCons { xhead: a; xtail: xlist a }
@@ -9,28 +27,14 @@ data list a =
   | Cons { head: a; tail: list a }
   | Nil
 
-exclusive data ref a = Ref {
-  contents: a;
-}
+(* Arithmetic *)
 
-data option a = Some { contents: a } | None
+val ( * ) (x: int, y: int): int = fail
+val ( - ) (x: int, y: int): int = fail
+val ( / ) (x: int, y: int): int = fail
+val ( + ) (x: int, y: int): int = fail
 
-data bool = True | False
-
-val cref [a] (consumes x: a): ref a =
-  Ref { contents = x }
-
-val rget [a] (consumes x: ref a): (a | x @ ref unknown) =
-  x.contents
-
-val rset [a, b] (consumes x: ref a, consumes c: b): ( | x @ ref b) =
-  x.contents <- c
-
-val (nil: [a] list a) =
-  Nil
-
-val cons [a] (consumes hd: a, consumes tl: list a): list a =
-  Cons { head = hd; tail = tl }
+(* Standard types *)
 
 val none =
   None
@@ -40,3 +44,24 @@ val some [a] (consumes x: a): option a =
 
 val true = True
 val false = False
+
+val ( == ) [a, b] (x: a, y: b): phys_equal x y = fail
+
+(* References *)
+
+val newref [a] (consumes x: a): ref a =
+  Ref { contents = x }
+
+val (!) [a] (consumes x: ref a): (a | x @ ref unknown) =
+  x.contents
+
+val (:=) [a, b] (consumes x: ref a, consumes c: b): ( | x @ ref b) =
+  x.contents <- c
+
+(* Lists *)
+
+val (nil: [a] list a) =
+  Nil
+
+val cons [a] (consumes hd: a, consumes tl: list a): list a =
+  Cons { head = hd; tail = tl }

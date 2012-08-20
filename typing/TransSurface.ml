@@ -582,41 +582,12 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let e = translate_expr env e in
       E.ELocated (e, p1, p2)
 
-  | EPlus (e1, e2) ->
-      let e1 = translate_expr env e1 in
-      let e2 = translate_expr env e2 in
-      E.EPlus (e1, e2)
-
-  | EMinus (e1, e2) ->
-      let e1 = translate_expr env e1 in
-      let e2 = translate_expr env e2 in
-      E.EMinus (e1, e2)
-
-  | ETimes (e1, e2) ->
-      let e1 = translate_expr env e1 in
-      let e2 = translate_expr env e2 in
-      E.ETimes (e1, e2)
-
-  | EDiv (e1, e2) ->
-      let e1 = translate_expr env e1 in
-      let e2 = translate_expr env e2 in
-      E.EDiv (e1, e2)
-
-  | EUMinus e ->
-      let e = translate_expr env e in
-      E.EUMinus e
-
   | EInt i ->
       E.EInt i
 
   | EExplained e ->
       let e = translate_expr env e in
       E.EExplained e
-
-  | EEquals (e1, e2) ->
-      let e1 = translate_expr env e1 in
-      let e2 = translate_expr env e2 in
-      E.EEquals (e1, e2)
 
   | EFail ->
       E.EFail

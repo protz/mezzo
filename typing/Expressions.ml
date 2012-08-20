@@ -54,17 +54,9 @@ type expression =
   (* if e₁ then e₂ else e₃ *)
   | EIfThenElse of bool * expression * expression * expression
   | ELocated of expression * Lexing.position * Lexing.position
-  (* Arithmetic *)
-  | EPlus of expression * expression
-  | EMinus of expression * expression
-  | ETimes of expression * expression
-  | EDiv of expression * expression
-  | EUMinus of expression
   | EInt of int
   (* Explanations *)
   | EExplained of expression
-  (* e1 == e2 *)
-  | EEquals of expression * expression
   (* fail *)
   | EFail
 
@@ -247,41 +239,12 @@ and tsubst_expr t2 i e =
       let e = tsubst_expr t2 i e in
       ELocated (e, p1, p2)
 
-  | EPlus (e1, e2) ->
-      let e1 = tsubst_expr t2 i e1 in
-      let e2 = tsubst_expr t2 i e2 in
-      EPlus (e1, e2)
-
-  | EMinus (e1, e2) ->
-      let e1 = tsubst_expr t2 i e1 in
-      let e2 = tsubst_expr t2 i e2 in
-      EMinus (e1, e2)
-
-  | ETimes (e1, e2) ->
-      let e1 = tsubst_expr t2 i e1 in
-      let e2 = tsubst_expr t2 i e2 in
-      ETimes (e1, e2)
-
-  | EDiv (e1, e2) ->
-      let e1 = tsubst_expr t2 i e1 in
-      let e2 = tsubst_expr t2 i e2 in
-      EDiv (e1, e2)
-
-  | EUMinus e ->
-      let e = tsubst_expr t2 i e in
-      EUMinus e
-
   | EInt _ ->
       e
 
   | EExplained e ->
       let e = tsubst_expr t2 i e in
       EExplained e
-
-  | EEquals (e1, e2) ->
-      let e1 = tsubst_expr t2 i e1 in
-      let e2 = tsubst_expr t2 i e2 in
-      EEquals (e1, e2)
 
   | EFail ->
       EFail
@@ -392,41 +355,12 @@ and esubst e2 i e1 =
       let e = esubst e2 i e in
       ELocated (e, p1, p2)
 
-  | EPlus (e, e') ->
-      let e = esubst e2 i e in
-      let e' = esubst e2 i e' in
-      EPlus (e, e')
-
-  | EMinus (e, e') ->
-      let e = esubst e2 i e in
-      let e' = esubst e2 i e' in
-      EMinus (e, e')
-
-  | ETimes (e, e') ->
-      let e = esubst e2 i e in
-      let e' = esubst e2 i e' in
-      ETimes (e, e')
-
-  | EDiv (e, e') ->
-      let e = esubst e2 i e in
-      let e' = esubst e2 i e' in
-      EDiv (e, e')
-
-  | EUMinus e ->
-      let e = esubst e2 i e in
-      EUMinus e
-
   | EInt _ ->
       e1
 
   | EExplained e ->
       let e = esubst e2 i e in
       EExplained e
-
-  | EEquals (e, e') ->
-      let e = esubst e2 i e in
-      let e' = esubst e2 i e' in
-      EEquals (e, e')
 
   | EFail ->
       EFail
@@ -617,29 +551,11 @@ let elift (k: int) (e: expression) =
   | ELocated (e, p1, p2) ->
       ELocated (elift i e, p1, p2)
 
-  | EPlus (e1, e2) ->
-      EPlus (elift i e1, elift i e2)
-
-  | EMinus (e1, e2) ->
-      EMinus (elift i e1, elift i e2)
-
-  | ETimes (e1, e2) ->
-      ETimes (elift i e1, elift i e2)
-
-  | EDiv (e1, e2) ->
-      EDiv (elift i e1, elift i e2)
-
-  | EUMinus e ->
-      EUMinus (elift i e)
-
   | EInt _ ->
       e
 
   | EExplained e ->
       EExplained (elift i e)
-
-  | EEquals (e1, e2) ->
-      EEquals (elift i e1, elift i e2)
 
   | EFail ->
       EFail
@@ -724,29 +640,11 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
     | ELocated (e, p1, p2) ->
         ELocated (epsubst e2 e, p1, p2)
 
-    | EPlus (e1, e1') ->
-        EPlus (epsubst e2 e1, epsubst e2 e1')
-
-    | EMinus (e1, e1') ->
-        EMinus (epsubst e2 e1, epsubst e2 e1')
-
-    | ETimes (e1, e1') ->
-        ETimes (epsubst e2 e1, epsubst e2 e1')
-
-    | EDiv (e1, e1') ->
-        EDiv (epsubst e2 e1, epsubst e2 e1')
-
-    | EUMinus e ->
-        EUMinus (epsubst e2 e)
-
     | EInt _ ->
         e1
 
     | EExplained e ->
         EExplained (epsubst e2 e)
-
-    | EEquals (e1, e1') ->
-        EEquals (epsubst e2 e1, epsubst e2 e1')
 
     | EFail ->
         EFail
@@ -829,29 +727,11 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
     | ELocated (e, p1, p2) ->
         ELocated (tepsubst t2 e, p1, p2)
 
-    | EPlus (e1, e1') ->
-        EPlus (tepsubst t2 e1, tepsubst t2 e1')
-
-    | EMinus (e1, e1') ->
-        EMinus (tepsubst t2 e1, tepsubst t2 e1')
-
-    | ETimes (e1, e1') ->
-        ETimes (tepsubst t2 e1, tepsubst t2 e1')
-
-    | EDiv (e1, e1') ->
-        EDiv (tepsubst t2 e1, tepsubst t2 e1')
-
-    | EUMinus e ->
-        EUMinus (tepsubst t2 e)
-
     | EInt _ ->
         e1
 
     | EExplained e ->
         EExplained (tepsubst t2 e)
-
-    | EEquals (e1, e1') ->
-        EEquals (tepsubst t2 e1, tepsubst t2 e1')
 
     | EFail ->
         EFail
@@ -990,29 +870,11 @@ module ExprPrinter = struct
     | ELocated (e, _, _) ->
         print_expr env e
 
-    | EPlus (e1, e2) ->
-        print_expr env e1 ^^ space ^^ plus ^^ space ^^ print_expr env e2
-
-    | EMinus (e1, e2) ->
-        print_expr env e1 ^^ space ^^ minus ^^ space ^^ print_expr env e2
-
-    | ETimes (e1, e2) ->
-        print_expr env e1 ^^ space ^^ star ^^ space ^^ print_expr env e2
-
-    | EDiv (e1, e2) ->
-        print_expr env e1 ^^ space ^^ slash ^^ space ^^ print_expr env e2
-
-    | EUMinus e ->
-        minus ^^ print_expr env e
-
     | EInt i ->
         int i
 
     | EExplained e ->
         print_expr env e ^^ space ^^ string "explained"
-
-    | EEquals (e1, e2) ->
-        print_expr env e1 ^^ space ^^ equals ^^ equals ^^ space ^^ print_expr env e2
 
     | EFail ->
         string "fail"

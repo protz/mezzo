@@ -413,7 +413,6 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       Log.error "please define type %s" t
   end in
   let int = make_lazy_getter "int" in
-  let phys_equal = make_lazy_getter "phys_equal" in
 
   (* [return t] creates a new point with type [t] available for it, and returns
    * the environment as well as the point *)
@@ -423,16 +422,6 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
     let env, x = bind_term env hint env.location false in
     let env = Permissions.add env x t in
     env, x
-  in
-
-  let check_arith_binop env e1 e2 op =
-    let hint1 = add_hint hint (Printf.sprintf "%s_l" op) in
-    let hint2 = add_hint hint (Printf.sprintf "%s_r" op) in
-    let env, x1 = check_expression env ?hint:hint1 e1 in
-    let env, x2 = check_expression env ?hint:hint2 e2 in
-    let env = check_return_type env x1 !*int in
-    let env = check_return_type env x2 !*int in
-    return env !*int
   in
 
   match expr with
@@ -714,24 +703,6 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
   | EInt _ ->
       return env !*int
 
-  | EUMinus e ->
-      let hint = add_hint hint "-" in
-      let env, x = check_expression env ?hint e in
-      let env = check_return_type env x !*int in
-      return env !*int
-
-  | EPlus (e1, e2) ->
-      check_arith_binop env e1 e2 "+"
-
-  | EMinus (e1, e2) ->
-      check_arith_binop env e1 e2 "-"
-
-  | ETimes (e1, e2) ->
-      check_arith_binop env e1 e2 "×"
-
-  | EDiv (e1, e2) ->
-      check_arith_binop env e1 e2 "/"
-
   | ELocated (e, p1, p2) ->
       let pos = env.location in
       let env = locate env (p1, p2) in
@@ -875,12 +846,6 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       let env, x = check_expression env ?hint e in
       Debug.explain env x;
       env, x
-
-  | EEquals (e1, e2) ->
-      let env, x = check_expression env ?hint e1 in
-      let env, y = check_expression env ?hint e2 in
-      let t = TyApp (TyApp (!*phys_equal, TyPoint x), TyPoint y) in
-      return env t
 
   | EFail ->
       let name = Auto (Variable.register "/inconsistent") in

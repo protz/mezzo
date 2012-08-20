@@ -22,23 +22,29 @@
 
 (* Other tokens. *)
 
-%token KTERM KTYPE KPERM
-%token PERMISSION UNKNOWN DYNAMIC EXCLUSIVE
-%token DATA BAR
-%token LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
-%token COMMA COLON COLONCOLON SEMI STAR AT
-%token ARROW LARROW DBLARROW DBLLARROW FUN
-%token EQUAL EQUALEQUAL
-%token EMPTY ASSERT EXPLAIN FAIL
-%token CONSUMES DUPLICABLE FACT ABSTRACT
-%token VAL LET REC AND IN DOT WITH BEGIN END MATCH
-%token IF THEN ELSE
-%token<int> INT
-%token PLUS MINUS SLASH
-%token EOF
+%token          KTERM KTYPE KPERM
+%token          PERMISSION UNKNOWN DYNAMIC EXCLUSIVE
+%token          DATA BAR
+%token          LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
+%token          COMMA COLON COLONCOLON SEMI STAR AT
+%token          ARROW LARROW DBLARROW DBLLARROW FUN
+%token          EQUAL
+%token          EMPTY ASSERT EXPLAIN FAIL
+%token          CONSUMES DUPLICABLE FACT ABSTRACT
+%token          VAL LET REC AND IN DOT WITH BEGIN END MATCH
+%token          IF THEN ELSE
+%token<int>     INT
+%token          MINUS
+%token<string>  OPPREFIX OPINFIX0 OPINFIX1 OPINFIX2 OPINFIX3
+%token          EOF
 
 %nonassoc THEN
 %nonassoc ELSE
+
+%left     OPINFIX0 MINUS
+%right    OPINFIX1
+%left     OPINFIX2
+%left     OPINFIX3
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -51,6 +57,8 @@
 %{
 
 open SurfaceSyntax
+
+let mkinfix e1 o e2 = EApply (EVar (Variable.register o), ETuple [e1; e2]);;
 
 %}
 
@@ -65,8 +73,21 @@ open SurfaceSyntax
    should help us avoid confusions between namespaces: names for variables,
    data constructors, etc. have distinct types. *)
 
+%inline operator:
+  | o = OPPREFIX
+  | o = OPINFIX0
+  | o = OPINFIX1
+  | o = OPINFIX2
+  | o = OPINFIX3
+    { o }
+  | STAR
+    { "*" }
+  | MINUS
+    { "-" }
+
 %inline variable:
-  x = LIDENT
+  | x = LIDENT
+  | LPAREN x = operator RPAREN
     { Variable.register x }
 
 %inline datacon:
@@ -456,52 +477,45 @@ fact:
       { assert false } *)
   | e1 = atomic DBLLARROW d = datacon
       { EAssignTag (e1, d) }
-  | e1 = explained EQUALEQUAL e2 = explained
-      { EEquals (e1, e2) }
   | e = explained_raw
       { e }
 
-  %inline explained:
-  | e = elocated(explained_raw)
-      { e }
-
-
   explained_raw:
-  | e = sum EXPLAIN
+  | e = prefix_op EXPLAIN
       { EExplained e }
-  | e = sum_raw
+  | e = prefix_op_raw
       { e }
 
   (* Arithmetic expressions... *)
-  %inline sum:
-  | e = elocated(sum_raw)
+  %inline prefix_op:
+  | e = elocated(prefix_op_raw)
       { e }
 
-  sum_raw:
-  | s = sum PLUS f = factor
-    { EPlus (s, f) }
-  | s = sum MINUS f = factor
-    { EMinus (s, f) }
-  | f = factor_raw
-    { f }
-
-  %inline factor:
-  | e = elocated(factor_raw)
+  prefix_op_raw:
+  | MINUS e = prefix_op
+      { mkinfix (EInt 0) "-" e }
+  | o = OPPREFIX e = prefix_op
+      { EApply (EVar (Variable.register o), e) }
+  | e = infix_op_raw
       { e }
 
-  factor_raw:
-  | f = factor SLASH a = app
-    { EDiv (f, a) }
-  | f = factor STAR a = app
-    { ETimes (f, a) }
-  | a = uminus
-    { a }
+  %inline infix_op:
+  | e = elocated(infix_op_raw)
+      { e }
 
-  uminus:
-  | MINUS a = app
-    { EUMinus a }
-  | a = app_raw
-    { a }
+  infix_op_raw:
+  | e1 = infix_op o = OPINFIX0 e2 = infix_op
+      { mkinfix e1 o e2 }
+  | e1 = infix_op o = OPINFIX1 e2 = infix_op
+      { mkinfix e1 o e2 }
+  | e1 = infix_op o = OPINFIX2 e2 = infix_op
+      { mkinfix e1 o e2 }
+  | e1 = infix_op o = OPINFIX3 e2 = infix_op
+      { mkinfix e1 o e2 }
+  | e1 = infix_op MINUS e2 = infix_op
+      { mkinfix e1 "-" e2 }
+  | e = app_raw
+      { e }
 
   (* Application *)
   %inline app:

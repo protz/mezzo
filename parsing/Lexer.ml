@@ -107,6 +107,16 @@ let regexp lid =
 let regexp uid =
   (up_alpha | up_greek) alpha_greek* (['_' '\''] | alpha_greek | digit)*
 
+(* Simplified OCaml-like table for operators, from
+ * http://stackoverflow.com/questions/6150551/ocaml-why-i-cant-use-this-operator-infix
+ * *)
+let regexp op_prefix = ['!' '~' '?']
+let regexp op_infix0 = ['=' '<' '>' '|' '&' '$'] (* left *)
+let regexp op_infix1 = ['@' '^'] (* right *)
+let regexp op_infix2 = ['+' '-'] (* left *)
+let regexp op_infix3 = ['*' '/'] (* left *)
+let regexp symbolchar = op_prefix | op_infix0 | op_infix1 | op_infix2 | op_infix3 | ['%' '.' ':']
+
 (* The lexer *)
 
 let rec token = lexer
@@ -171,6 +181,7 @@ let rec token = lexer
 | ")" -> locate lexbuf RPAREN
 
 | "," -> locate lexbuf COMMA
+| ":=" -> locate lexbuf (OPINFIX0 (utf8_lexeme lexbuf))
 | ":" -> locate lexbuf COLON
 | "::" -> locate lexbuf COLONCOLON
 | ";" -> locate lexbuf SEMI
@@ -178,17 +189,20 @@ let rec token = lexer
 | "=>" | 8658 (* ⇒ *) -> locate lexbuf DBLARROW
 | "<=" | 8656 (* ⇐ *) -> locate lexbuf DBLLARROW
 | "*" -> locate lexbuf STAR
-| "==" -> locate lexbuf EQUALEQUAL
 | "=" -> locate lexbuf EQUAL
 | "@" -> locate lexbuf AT
+
+| "-" -> locate lexbuf MINUS
+| op_prefix symbolchar* -> locate lexbuf (OPPREFIX (utf8_lexeme lexbuf))
+| op_infix0 symbolchar* -> locate lexbuf (OPINFIX0 (utf8_lexeme lexbuf))
+| op_infix1 symbolchar* -> locate lexbuf (OPINFIX1 (utf8_lexeme lexbuf))
+| op_infix2 symbolchar* -> locate lexbuf (OPINFIX2 (utf8_lexeme lexbuf))
+| op_infix3 symbolchar* -> locate lexbuf (OPINFIX3 (utf8_lexeme lexbuf))
 | "consumes" -> locate lexbuf CONSUMES
 
 | int ->
     let l = utf8_lexeme lexbuf in
     locate lexbuf (INT (int_of_string l))
-| "+" -> locate lexbuf PLUS
-| "/" -> locate lexbuf SLASH
-| "-" -> locate lexbuf MINUS
 
 | lid -> locate lexbuf (LIDENT (utf8_lexeme lexbuf))
 | uid -> locate lexbuf (UIDENT (utf8_lexeme lexbuf))

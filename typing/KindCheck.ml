@@ -610,34 +610,11 @@ and check_expression (env: env) (expr: expression) =
   | ELocated (e, p1, p2) ->
       check_expression (locate env p1 p2) e
 
-  | EPlus (e1, e2) ->
-      check_expression env e1;
-      check_expression env e2
-
-  | EMinus (e1, e2) ->
-      check_expression env e1;
-      check_expression env e2
-
-  | ETimes (e1, e2) ->
-      check_expression env e1;
-      check_expression env e2
-
-  | EDiv (e1, e2) ->
-      check_expression env e1;
-      check_expression env e2
-
-  | EUMinus e ->
-      check_expression env e
-
   | EInt _ ->
       ()
 
   | EExplained e ->
       check_expression env e
-
-  | EEquals (e1, e2) ->
-      check_expression env e1;
-      check_expression env e2
 
   | EFail ->
       ()

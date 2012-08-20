@@ -400,63 +400,66 @@ and sub (env: env) (point: point) (t: typ): env option =
   (* See the explanation in [add]. *)
   Log.check (not (has_structure env point)) "I don't understand what's happening";
 
-  match t with
-  | TyUnknown ->
-      Some env
-
-  | TyDynamic ->
-      if begin
-        List.exists
-          (FactInference.is_exclusive env)
-          (get_permissions env point)
-      end then
+  if env.inconsistent then
+    Some env
+  else
+    match t with
+    | TyUnknown ->
         Some env
-      else
-        None
 
-  | _ ->
+    | TyDynamic ->
+        if begin
+          List.exists
+            (FactInference.is_exclusive env)
+            (get_permissions env point)
+        end then
+          Some env
+        else
+          None
 
-      (* Get a "clean" type without nested permissions. *)
-      let t, perms = collect t in
-      let perms = List.flatten (List.map flatten_star perms) in
+    | _ ->
 
-      (* Start off by subtracting the type without associated permissions. *)
-      let env = sub_clean env point t in
+        (* Get a "clean" type without nested permissions. *)
+        let t, perms = collect t in
+        let perms = List.flatten (List.map flatten_star perms) in
 
-      env >>= fun env ->
-      (* We use a worklist-based approch, where we try to find a permission that
-       * "works". A permission that works is one where the left-side is a point
-       * that is not flexible, i.e. a point that hopefully should have more to
-       * extract than (=itself). As we go, more flexible variables will be
-       * unified, which will make more candidates suitable for subtraction. *)
-      let works env = function
-        | TyAnchoredPermission (TyPoint x, _) when not (is_flexible env x) ->
-            Some ()
-        | _ ->
-            None
-      in
-      let state = ref (env, perms) in
-      while begin
+        (* Start off by subtracting the type without associated permissions. *)
+        let env = sub_clean env point t in
+
+        env >>= fun env ->
+        (* We use a worklist-based approch, where we try to find a permission that
+         * "works". A permission that works is one where the left-side is a point
+         * that is not flexible, i.e. a point that hopefully should have more to
+         * extract than (=itself). As we go, more flexible variables will be
+         * unified, which will make more candidates suitable for subtraction. *)
+        let works env = function
+          | TyAnchoredPermission (TyPoint x, _) when not (is_flexible env x) ->
+              Some ()
+          | _ ->
+              None
+        in
+        let state = ref (env, perms) in
+        while begin
+          let env, worklist = !state in
+          match Hml_List.take (works env) worklist with
+          | None ->
+              false
+
+          | Some (worklist, (perm, ())) ->
+              match sub_perm env perm with
+              | Some env ->
+                  state := (env, worklist);
+                  true
+              | None ->
+                  false
+        end do () done;
+
         let env, worklist = !state in
-        match Hml_List.take (works env) worklist with
-        | None ->
-            false
-
-        | Some (worklist, (perm, ())) ->
-            match sub_perm env perm with
-            | Some env ->
-                state := (env, worklist);
-                true
-            | None ->
-                false
-      end do () done;
-
-      let env, worklist = !state in
-      if List.length worklist > 0 then
-        (* TODO Throw an exception. *)
-        None
-      else
-        Some env
+        if List.length worklist > 0 then
+          (* TODO Throw an exception. *)
+          None
+        else
+          Some env
 
 
 (** [sub_clean env point t] takes a "clean" type [t] (without nested permissions)
@@ -465,6 +468,7 @@ and sub (env: env) (point: point) (t: typ): env option =
 and sub_clean (env: env) (point: point) (t: typ): env option =
   if (not (is_term env point)) then
     Log.error "[KindCheck] should've checked that for us";
+  Log.check (not (has_structure env point)) "Strange";
 
   let permissions = get_permissions env point in
 

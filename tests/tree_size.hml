@@ -1,6 +1,3 @@
-abstract int
-fact duplicable int
-
 exclusive data tree a = 
   | Node { left: tree a; right: tree a; size: a }
   | Leaf

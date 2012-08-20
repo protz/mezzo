@@ -1,7 +1,3 @@
-data phys_equal (x :: TERM) (y :: TERM) =
-  | Equal { permission x = y }
-  | NotEqual
-
 abstract t
 fact exclusive t
 
