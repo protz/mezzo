@@ -242,6 +242,16 @@ atomic_kind:
 | t = tlocated(raw_normal_type)
   { t }
 
+  %inline duplicity_constraint:
+  | EXCLUSIVE t = quasi_atomic_type
+      { Exclusive, t }
+  | DUPLICABLE t = quasi_atomic_type
+      { Duplicable, t }
+
+  %inline duplicity_constraints:
+  | LPAREN dc = separated_nonempty_list (COMMA, duplicity_constraint) RPAREN DBLARROW
+      { dc }
+
   raw_normal_type:
   | ty = raw_quasi_atomic_type
       { ty }
@@ -251,6 +261,8 @@ atomic_kind:
   (* A polymorphic type. *)
   | bs = type_parameters ty = normal_type
       { List.fold_right (fun b ty -> TyForall (b, ty)) bs ty }
+  | dc = duplicity_constraints ty = normal_type
+      { TyConstraints (dc, ty) }
 
 %inline loose_type:
 | t = tlocated(raw_loose_type)

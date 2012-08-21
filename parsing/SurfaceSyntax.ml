@@ -56,6 +56,9 @@ type typ =
   | TyNameIntro of Variable.name * typ
   | TyConsumes of typ
   | TyBar of typ * typ
+  | TyConstraints of duplicity_constraint list * typ
+
+and duplicity_constraint = data_type_flag * typ
 
 and data_type_def_branch =
     Datacon.name * data_field_def list
@@ -63,6 +66,8 @@ and data_type_def_branch =
 and data_field_def =
   | FieldValue of Variable.name * typ
   | FieldPermission of typ
+
+and data_type_flag = Exclusive | Duplicable
 
 let ty_equals (v: Variable.name) =
   TySingleton (TyVar v)
@@ -114,8 +119,6 @@ type data_type_def_lhs =
 
 type data_type_def_rhs =
     data_type_def_branch list
-
-type data_type_flag = Exclusive | Duplicable
 
 type abstract_fact = 
   | FExclusive of typ

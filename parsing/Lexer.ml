@@ -125,22 +125,6 @@ let rec token = lexer
 | "(*" -> comment 0 lexbuf
 | "*)" -> raise_error UnexpectedEndOfComment
 
-(*
-| "<" | 9001 (* 〈 *) -> locate lexbuf LANGLE
-| ">" | 9002 (* 〉 *) -> locate lexbuf RANGLE
-| "type" -> locate lexbuf TYPE
-| "mu" | 956 (* μ *) -> locate lexbuf MU
-| "epsilon" | 949 (* ε *) -> locate lexbuf EPSILON
-| "Fun" | 923 (* Λ *) -> locate lexbuf UPLAMBDA
-| "case" -> locate lexbuf CASE
-| "of" -> locate lexbuf OF
-| "switch" -> locate lexbuf SWITCH
-| "as" -> locate lexbuf AS
-| "unpack" -> locate lexbuf UNPACK
-| "pack" -> locate lexbuf PACK
-| ";;" -> locate lexbuf SEMISEMI
-| "forall" | 8704 (* ∀ *) -> locate lexbuf FORALL
-| "exists" | 8707 (* ∃ *) -> locate lexbuf EXISTS*)
 | "fun" | 955 (* λ *) -> locate lexbuf FUN
 | "match" -> locate lexbuf MATCH
 | "if" -> locate lexbuf IF
@@ -160,6 +144,7 @@ let rec token = lexer
 | "fail" -> locate lexbuf FAIL
 | "explain" -> locate lexbuf EXPLAIN
 
+| "consumes" -> locate lexbuf CONSUMES
 | "permission" -> locate lexbuf PERMISSION
 | "unknown" -> locate lexbuf UNKNOWN
 | "dynamic" -> locate lexbuf DYNAMIC
@@ -182,8 +167,8 @@ let rec token = lexer
 
 | "," -> locate lexbuf COMMA
 | ":=" -> locate lexbuf (OPINFIX0 (utf8_lexeme lexbuf))
-| ":" -> locate lexbuf COLON
 | "::" -> locate lexbuf COLONCOLON
+| ":" -> locate lexbuf COLON
 | ";" -> locate lexbuf SEMI
 | "->" | 8594 (* → *) -> locate lexbuf ARROW
 | "=>" | 8658 (* ⇒ *) -> locate lexbuf DBLARROW
@@ -198,7 +183,6 @@ let rec token = lexer
 | op_infix1 symbolchar* -> locate lexbuf (OPINFIX1 (utf8_lexeme lexbuf))
 | op_infix2 symbolchar* -> locate lexbuf (OPINFIX2 (utf8_lexeme lexbuf))
 | op_infix3 symbolchar* -> locate lexbuf (OPINFIX3 (utf8_lexeme lexbuf))
-| "consumes" -> locate lexbuf CONSUMES
 
 | int ->
     let l = utf8_lexeme lexbuf in
