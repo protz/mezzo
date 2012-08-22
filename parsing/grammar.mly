@@ -248,9 +248,19 @@ atomic_kind:
   | DUPLICABLE t = quasi_atomic_type
       { Duplicable, t }
 
-  %inline duplicity_constraints:
-  | LPAREN dc = separated_nonempty_list (COMMA, duplicity_constraint) RPAREN DBLARROW
-      { dc }
+  %inline raw_constrained_type:
+  | LPAREN dc = separated_nonempty_list (COMMA, duplicity_constraint) RPAREN DBLARROW ty = normal_type
+      { TyConstraints (dc, ty) }
+
+  %inline constrained_type:
+  | t = tlocated(raw_constrained_type)
+    { t }
+
+  %inline constrained_or_atomic_type:
+  | ty = constrained_type
+      { ty }
+  | ty = atomic_type
+      { ty }
 
   raw_normal_type:
   | ty = raw_quasi_atomic_type
@@ -261,8 +271,8 @@ atomic_kind:
   (* A polymorphic type. *)
   | bs = type_parameters ty = normal_type
       { List.fold_right (fun b ty -> TyForall (b, ty)) bs ty }
-  | dc = duplicity_constraints ty = normal_type
-      { TyConstraints (dc, ty) }
+  | ty = raw_constrained_type
+      { ty }
 
 %inline loose_type:
 | t = tlocated(raw_loose_type)
@@ -623,7 +633,7 @@ decl_raw:
 inner_declaration:
 | p = pattern EQUAL e = expression
     { p, e }
-| f_name = variable bs = type_parameters? arg = atomic_type COLON t = normal_type EQUAL e = expression
+| f_name = variable bs = type_parameters? arg = constrained_or_atomic_type COLON t = normal_type EQUAL e = expression
     { PVar f_name, EFun (Option.map_none [] bs, arg, t, e) }
 
 (* ---------------------------------------------------------------------------- *)
