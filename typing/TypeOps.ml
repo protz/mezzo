@@ -14,22 +14,29 @@ open Expressions
 *)
 let cleanup_function_type env t body =
 
+  (* It's a little bit tricky because in a function expression, we need to
+   * update the body so that the references to the universally quantified
+   * variables are correct: we're removing binders! Therefore, these functions
+   * take an optional argument that is only used in a meaningful way for the
+   * "toplevel" function type (the one whose universally quantified binders are
+   * referenced by the function body). The argument is just discarded for
+   * nested, first-class function types that appear in the outermost function
+   * type. *)
+
   let rec find (env: env) (t: typ) (e: expression option): typ * expression option =
     match t with
     | TyForall _ ->
-        let vars, t = strip_forall t in
-        let env, { points; subst_type; subst_expr; _ } = bind_vars env vars in
-        let vars = List.combine vars points in
-        let t = subst_type t in
-        let e = Option.map subst_expr e in
-        begin match t with
+        let vars, t' = strip_forall t in
+        begin match t' with
         | TyArrow _ ->
-            cleanup env vars t e
+            let env, { points; subst_type; subst_expr; _ } = bind_vars env vars in
+            let vars = List.combine vars points in
+            let t' = subst_type t' in
+            let e = Option.map subst_expr e in
+            (* [cleanup] will close back the binders *)
+            cleanup env vars t' e
         | _ ->
-            let t, _ = find env t e in
-            List.fold_right (fun (b, p) t ->
-              TyForall (b, Flexible.tpsubst env (TyVar 0) p t)
-            ) vars t, None
+            t, None
         end
 
     | TyUnknown
