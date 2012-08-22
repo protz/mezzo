@@ -23,17 +23,19 @@ let cleanup_function_type env t body =
    * nested, first-class function types that appear in the outermost function
    * type. *)
 
+  (* This function always returns [None] except when returning [cleanup env ...]. *)
   let rec find (env: env) (t: typ) (e: expression option): typ * expression option =
     match t with
     | TyForall _ ->
         let vars, t' = strip_forall t in
         begin match t' with
+        | TyConstraints (constraints, (TyArrow _ as t')) ->
+            (* FIXME what if one of the variables in [constraints] is found to
+             * be usesless? Possible fix: open them here by hand and check
+             * whether they are marked, or overhaul [cleanup]. *)
+            let t', e = cleanup env vars t' e in
+            TyConstraints (constraints, t'), e
         | TyArrow _ ->
-            let env, { points; subst_type; subst_expr; _ } = bind_vars env vars in
-            let vars = List.combine vars points in
-            let t' = subst_type t' in
-            let e = Option.map subst_expr e in
-            (* [cleanup] will close back the binders *)
             cleanup env vars t' e
         | _ ->
             t, None
@@ -85,9 +87,22 @@ let cleanup_function_type env t body =
     | TyStar (p, q) ->
         TyStar (fst (find env p e), fst (find env q e)), None
 
+    | TyConstraints (constraints, t) ->
+        let constraints = List.map (fun (c, t) ->
+          c, fst (find env t e)
+        ) constraints in
+        TyConstraints (constraints, fst (find env t e)), None
+
   (* [vars] have been opened in [t] and [e]. *)
-  and cleanup (env: env) (vars: (type_binding * point) list) (t: typ) (e: expression option)
+  and cleanup (env: env) (vars: type_binding list) (t: typ) (e: expression option)
       : typ * expression option =
+
+    (* Open the binders before working on the type. *)
+    let env, { points; subst_type; subst_expr; _ } = bind_vars env vars in
+    let vars = List.combine vars points in
+    let t = subst_type t in
+    let e = Option.map subst_expr e in
+
     match t with
     | TyArrow (t1, t2) ->
         (* Get all permissions in [t1]. *)
@@ -243,4 +258,10 @@ let rec mark_reachable env = function
 
   | TyArrow _ ->
       env
+
+  | TyConstraints (constraints, t) ->
+      let env = List.fold_left (fun env (_, t) ->
+        mark_reachable env t
+      ) env constraints in
+      mark_reachable env t
 ;;

@@ -196,7 +196,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyConstraints (constraints, t) ->
       let constraints = List.map (fun (f, t) -> f, translate_type env t) constraints in
-      TyConstraints (constraints, translate_type env t)
+      T.TyConstraints (constraints, translate_type env t)
 
 
 and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.data_type_def_branch =

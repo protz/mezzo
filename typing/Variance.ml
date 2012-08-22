@@ -85,6 +85,11 @@ let variance env var_for_ith valuation b t =
     | TyAnchoredPermission (t1, t2)
     | TyStar (t1, t2) ->
         lub (var t1) (var t2)
+
+    | TyConstraints (constraints, t) ->
+        let ts = List.map snd constraints in
+        let vs = List.map var (t :: ts) in
+        List.fold_left lub Bivariant vs
   in
   var t
 ;;

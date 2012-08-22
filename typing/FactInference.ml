@@ -157,6 +157,10 @@ let duplicables
     | TyBar (t, p) ->
         duplicables env t;
         duplicables env p
+
+    | TyConstraints (constraints, t) ->
+        let ts = List.map snd constraints in
+        List.iter (duplicables env) (t :: ts)
   in
   duplicables env t
 ;;
