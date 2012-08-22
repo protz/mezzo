@@ -247,6 +247,22 @@ and add (env: env) (point: point) (t: typ): env =
             type or permission";
       end
 
+  | TyConstraints (constraints, t) ->
+      let env = List.fold_left (fun env (f, t) ->
+        let f = fact_of_flag f in
+        match t with
+        | TyPoint p ->
+            let f' = get_fact env p in
+            if fact_leq f f' then
+            (* [f] tells, for instance, that [p] be exclusive *)
+              refresh_fact env p f
+            else
+              env
+        | _ ->
+            Log.error "The parser shouldn't allow this"
+      ) env constraints in
+      add env point t
+
   | _ ->
       (* Add the "bare" type. Recursive calls took care of calling [add]. *)
       let env = add_type env point t in
@@ -580,6 +596,28 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   else match t1, t2 with
   | _, TyUnknown ->
       Some env
+
+  | TyConstraints _, _ ->
+      Log.error "Constraints should've been processed when this permission was added"
+
+  | _, TyConstraints (constraints, t2) ->
+      let env = List.fold_left (fun env (f, t) ->
+        env >>= fun env ->
+        let f = fact_of_flag f in
+        match t with
+        | TyPoint p ->
+            let f' = get_fact env p in
+            (* [f] demands, for instance, that [p] be exclusive *)
+            if fact_leq f' f then
+              Some env
+            else
+              None
+        | _ ->
+            Log.error "The parser shouldn't allow this"
+      ) (Some env) constraints in
+      env >>= fun env ->
+      sub_type env t1 t2
+
 
   | TyForall (binding, t1), _ ->
       let env, t1 = bind_var_in_type ~flexible:true env binding t1 in

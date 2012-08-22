@@ -313,6 +313,13 @@ let fact_leq f1 f2 =
       false
 ;;
 
+let fact_of_flag = function
+  | SurfaceSyntax.Exclusive ->
+      Exclusive
+  | SurfaceSyntax.Duplicable ->
+      Duplicable [||]
+;;
+
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -901,6 +908,10 @@ let replace_type env point f =
   }
 ;;
 
+let refresh_fact env p fact =
+  replace_type env p (fun binder -> { binder with fact })
+;;
+
 
 (* Dealing with marks. *)
 
@@ -1268,7 +1279,7 @@ module TypePrinter = struct
 
     | TyConstraints (constraints, t) ->
         let constraints = List.map (fun (f, t) ->
-          print_data_type_flag f ^^ print_type env t
+          print_data_type_flag f ^^ space ^^ print_type env t
         ) constraints in
         let constraints = join comma constraints in
         lparen ^^ constraints ^^ rparen ^^ space ^^ equals ^^ rangle ^^ space ^^

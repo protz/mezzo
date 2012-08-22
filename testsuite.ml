@@ -350,6 +350,10 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:true Pass
   );
 
+  ("duplicity1.hml",
+    simple_test ~stdlib:false Pass
+  );
+
   ("fail1.hml",
     simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
 
@@ -363,6 +367,9 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
 
   ("fail5.hml",
+    simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+
+  ("fail6.hml",
     simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
  ]
 
