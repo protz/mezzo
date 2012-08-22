@@ -80,6 +80,10 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
         let t, acc = strip_consumes env t in
         TyNameIntro (x, t), acc
 
+    | TyConstraints (constraints, t) ->
+        let t, acc = strip_consumes env t in
+        TyConstraints (constraints, t), acc
+
     | TyBar (t, p) ->
         (* Strip all consumes annotations from [t]. *)
         let t, acc = strip_consumes env t in
@@ -189,6 +193,10 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyBar (t1, t2) ->
       T.TyBar (translate_type env t1, translate_type env t2)
+
+  | TyConstraints (constraints, t) ->
+      let constraints = List.map (fun (f, t) -> f, translate_type env t) constraints in
+      TyConstraints (constraints, translate_type env t)
 
 
 and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.data_type_def_branch =

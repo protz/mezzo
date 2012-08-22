@@ -52,6 +52,10 @@ let has_flexible env t =
     | TyEmpty ->
         false
 
+    | TyConstraints (constraints, t) ->
+        List.exists (fun (_, t) -> has_flexible t) constraints ||
+        has_flexible t
+
   in
   has_flexible t
 ;;
@@ -107,6 +111,10 @@ let find_flexible env t =
 
     | TyEmpty ->
         []
+
+    | TyConstraints (constraints, t) ->
+        find_flexible t @
+        Hml_List.map_flatten (fun (_, t) -> find_flexible t) constraints
   in
   let points = find_flexible t in
   let rec strip_duplicates acc = function
@@ -173,6 +181,10 @@ let tpsubst env (t2: typ) (p: point) (t1: typ) =
 
     | TyBar (t, p) ->
         TyBar (tsubst t2 t, tsubst t2 p)
+
+    | TyConstraints (constraints, t) ->
+        let constraints = List.map (fun (f, t) -> f, tsubst t2 t) constraints in
+        TyConstraints (constraints, tsubst t2 t)
   in
   tsubst t2 t1
 ;;

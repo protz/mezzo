@@ -202,3 +202,6 @@ let take_bool f l =
       Some (l, elt)
   | None ->
       None
+
+let map_flatten f l =
+  List.flatten (List.map f l)

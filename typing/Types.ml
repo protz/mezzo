@@ -72,6 +72,11 @@ type typ =
   | TyEmpty
   | TyStar of typ * typ
 
+    (* Constraint *)
+  | TyConstraints of duplicity_constraint list * typ
+
+and duplicity_constraint = SurfaceSyntax.data_type_flag * typ
+
 and data_type_def_branch =
     Datacon.name * data_field_def list
 
@@ -376,6 +381,10 @@ let clean top sub t =
 
     | TyStar (t1, t2) ->
         TyStar (clean t1, clean t2)
+
+    | TyConstraints (constraints, t) ->
+        let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
+        TyConstraints (constraints, clean t)
   in
   clean t
 ;;
@@ -440,6 +449,11 @@ let equal env (t1: typ) (t2: typ) =
     | TyEmpty, TyEmpty ->
         true
 
+    | TyConstraints (c1, t1), TyConstraints (c2, t2) ->
+        List.for_all2 (fun (f1, t1) (f2, t2) ->
+          f1 = f2 && equal t1 t2) c1 c2
+        && equal t1 t2
+
     | _ ->
         false
   in
@@ -497,6 +511,11 @@ let lift (k: int) (t: typ) =
 
     | TyBar (t, p) ->
         TyBar (lift i t, lift i p)
+
+    | TyConstraints (constraints, t) ->
+        let constraints = List.map (fun (f, t) -> f, lift i t) constraints in
+        TyConstraints (constraints, lift i t)
+
   in
   lift 0 t
 ;;
@@ -568,6 +587,12 @@ let tsubst (t2: typ) (i: int) (t1: typ) =
 
     | TyBar (t, p) ->
         TyBar (tsubst t2 i t, tsubst t2 i p)
+
+    | TyConstraints (constraints, t) ->
+        let constraints = List.map (fun (f, t) ->
+          f, tsubst t2 i t
+        ) constraints in
+        TyConstraints (constraints, tsubst t2 i t)
   in
   tsubst t2 i t1
 ;;
@@ -1241,6 +1266,14 @@ module TypePrinter = struct
         lparen ^^ print_type env p ^^ space ^^ bar ^^ space ^^
         print_type env q ^^ rparen
 
+    | TyConstraints (constraints, t) ->
+        let constraints = List.map (fun (f, t) ->
+          print_data_type_flag f ^^ print_type env t
+        ) constraints in
+        let constraints = join comma constraints in
+        lparen ^^ constraints ^^ rparen ^^ space ^^ equals ^^ rangle ^^ space ^^
+        print_type env t
+
   and print_data_field_def env = function
     | FieldValue (name, typ) ->
         print_field name ^^ colon ^^ jump (print_type env typ)
@@ -1262,6 +1295,12 @@ module TypePrinter = struct
         empty
     in
     print_datacon name ^^ record
+
+  and print_data_type_flag = function
+    | SurfaceSyntax.Exclusive ->
+        string "exclusive"
+    | SurfaceSyntax.Duplicable ->
+        string "duplicable"
   ;;
 
   (* Prints a sequence of characters representing whether each parameter has to
