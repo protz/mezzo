@@ -20,20 +20,6 @@ module E = Expressions
 
 (* -------------------------------------------------------------------------- *)
 
-(* Types *)
-
-let fold_forall bindings t =
-  List.fold_right (fun binding t ->
-    T.TyForall (binding, t)
-  ) bindings t
-;;
-
-let fold_exists bindings t =
-  List.fold_right (fun binding t ->
-    T.TyExists (binding, t)
-  ) bindings t
-;;
-
 (* We need to tell the next AST which names are used provided and which are
  * auto-generated. *)
 let name_user = fun (x, k, l) -> (T.User x, k, l);;
@@ -166,7 +152,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyArrow (t1, t2) ->
       let universal_bindings, t1, t2 = translate_arrow_type env t1 t2 in
       let arrow = T.TyArrow (t1, t2) in
-      fold_forall universal_bindings arrow
+      T.fold_forall universal_bindings arrow
 
   | TyForall ((x, k, loc), t) ->
       let env = bind env (x, k) in
@@ -211,6 +197,36 @@ and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.
 
 and translate_arrow_type env t1 t2 =
 
+  (* Collect nested constraints and put them in an outermost position to
+   * simplify as much as possible the function type. *)
+  let rec collect_constraints t =
+    match t with
+    | TyBar (t, p) ->
+        let ct, t = collect_constraints t in
+        let cp, p = collect_constraints p in
+        ct @ cp, TyBar (t, p)
+    | TyArrow (t, t') ->
+        let ct, t = collect_constraints t in
+        ct, TyArrow (t, t')
+    | TyStar (p, q) ->
+        let cp, p = collect_constraints p in
+        let cq, q = collect_constraints q in
+        cp @ cq, TyStar (p, q)
+    | TyTuple ts ->
+        let cs, ts = List.split (List.map collect_constraints ts) in
+        List.flatten cs, TyTuple ts
+    | TyConstraints (cs, t) ->
+        let cs', t = collect_constraints t in
+        cs @ cs', t
+    | TyLocated (t, p1, p2) ->
+        let cs, t = collect_constraints t in
+        cs, TyLocated (t, p1, p2)
+    | _ ->
+        [], t
+  in
+
+  let constraints, t1 = collect_constraints t1 in
+
   (* Get the implicitly quantified variables in [t1]. These will be
      quantified as universal variables above the arrow type. *)
   let t1_bindings = names env t1 in
@@ -237,7 +253,14 @@ and translate_arrow_type env t1 t2 =
    * let the translation phase do the proper index computations. *)
   let universal_bindings = t1_bindings @ perm_bindings @ [root_binding] in
   let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env universal_bindings in
+  let fat_t1 =
+    if List.length constraints > 0 then
+      TyConstraints (constraints, fat_t1)
+    else
+      fat_t1
+  in
   let fat_t1 = translate_type env fat_t1 in
+
 
   (* The return type can also bind variables with [x: t]. These are
    * existentially quantified. *)
@@ -254,7 +277,7 @@ and translate_arrow_type env t1 t2 =
 
   (* Build the resulting type. *)
   let t2 = translate_type env t2 in
-  let t2 = fold_exists (List.map name_user t2_bindings) t2 in
+  let t2 = T.fold_exists (List.map name_user t2_bindings) t2 in
 
   (* Finally, translate the universal bindings as well. *)
   let universal_bindings =

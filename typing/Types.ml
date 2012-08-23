@@ -678,8 +678,16 @@ let strip_forall t =
   strip [] t
 ;;
 
-let add_forall bindings t =
-  List.fold_right (fun binding t -> TyForall (binding, t)) bindings t
+let fold_forall bindings t =
+  List.fold_right (fun binding t ->
+    TyForall (binding, t)
+  ) bindings t
+;;
+
+let fold_exists bindings t =
+  List.fold_right (fun binding t ->
+    TyExists (binding, t)
+  ) bindings t
 ;;
 
 

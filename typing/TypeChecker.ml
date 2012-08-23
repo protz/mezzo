@@ -333,7 +333,7 @@ let type_for_function_def (expression: expression): typ =
   match expression with
   | EFun (bindings, arg, return_type, _) ->
       let t = TyArrow (arg, return_type) in
-      add_forall bindings t
+      fold_forall bindings t
   | _ ->
       Log.error "[type_for_function_def], as the name implies, expects a \
         function expression...";
@@ -456,6 +456,8 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
         TypeOps.simplify_function_def env vars arg return_type body
       in
       let expr = EFun (vars, arg, return_type, body) in
+      Log.debug ~level:4 "Type-checking function body, desugared type %a"
+        TypePrinter.ptype (env, type_for_function_def expr);
 
       (* We can't create a closure over exclusive variables. Create a stripped
        * environment with only the duplicable parts. *)
@@ -477,6 +479,8 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       (* Collect all the permissions that the arguments bring into scope, add
        * them into the environment for checking the function body. *)
       let _, perms = Permissions.collect arg in
+      let _, constraints = Permissions.collect_constraints arg in
+      let sub_env = Permissions.add_constraints sub_env constraints in
       let sub_env = List.fold_left Permissions.add_perm sub_env perms in
 
       (* Type-check the function body. *)

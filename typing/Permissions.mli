@@ -51,4 +51,10 @@ val add_hint: (name option) -> string -> (name option)
    itself. *)
 val dup_perms_no_singleton: env -> point -> typ list
 
+(** This is for debugging, it runs a consistency check on a given environment. *)
 val safety_check: env -> unit
+
+(* Strip out all the constraints from a type. *)
+val collect_constraints: typ -> typ * duplicity_constraint list
+
+val add_constraints: env -> duplicity_constraint list -> env

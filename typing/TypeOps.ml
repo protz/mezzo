@@ -29,12 +29,6 @@ let cleanup_function_type env t body =
     | TyForall _ ->
         let vars, t' = strip_forall t in
         begin match t' with
-        | TyConstraints (constraints, (TyArrow _ as t')) ->
-            (* FIXME what if one of the variables in [constraints] is found to
-             * be usesless? Possible fix: open them here by hand and check
-             * whether they are marked, or overhaul [cleanup]. *)
-            let t', e = cleanup env vars t' e in
-            TyConstraints (constraints, t'), e
         | TyArrow _ ->
             cleanup env vars t' e
         | _ ->
@@ -105,6 +99,13 @@ let cleanup_function_type env t body =
 
     match t with
     | TyArrow (t1, t2) ->
+        (* Put aside the constraints since we can't really simplify these, and
+         * if we try to, they end up being copied in the return type, which
+         * doesn't make much sense. *)
+        let constraints, t1 =
+          match t1 with TyConstraints (cs, t1) -> cs, t1 | _ -> [], t1
+        in
+
         (* Get all permissions in [t1]. *)
         let t1, perms = collect t1 in
         let perms = List.flatten (List.map flatten_star perms) in
@@ -136,6 +137,12 @@ let cleanup_function_type env t body =
         (* Now keep [t1] without these useless permissions! *)
         let t1 =
           if List.length perms > 0 then TyBar (t1, fold_star perms) else t1
+        in
+
+        (* TODO: make sure that there's no chance we're left with constraints
+         * that refer to variables that [cleanup] decided to get rid of. *)
+        let t1 =
+          if List.length constraints > 0 then TyConstraints (constraints, t1) else t1
         in
 
         (* Perform some light cleanup on [t2] too. *)
@@ -201,7 +208,7 @@ let cleanup_function_type env t body =
 
 let simplify_function_def env bindings arg return_type body =
   let t = TyArrow (arg, return_type) in
-  let t = add_forall bindings t in
+  let t = fold_forall bindings t in
   let t, body = cleanup_function_type env t body in
   let bindings, t = strip_forall t in
   let arg, return_type = match t with TyArrow (t1, t2) -> t1, t2 | _ -> assert false in

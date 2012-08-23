@@ -166,6 +166,31 @@ let collect (t: typ): typ * typ list =
 ;;
 
 
+(* Collect nested constraints and put them in an outermost position to
+ * simplify as much as possible the function type. *)
+let rec collect_constraints t =
+  match t with
+  | TyBar (t, p) ->
+      let t, ct = collect_constraints t in
+      let p, cp = collect_constraints p in
+      TyBar (t, p), ct @ cp
+  | TyArrow (t, t') ->
+      let t, ct = collect_constraints t in
+      TyArrow (t, t'), ct
+  | TyStar (p, q) ->
+      let p, cp = collect_constraints p in
+      let q, cq = collect_constraints q in
+      TyStar (p, q), cp @ cq
+  | TyTuple ts ->
+      let ts, cs = List.split (List.map collect_constraints ts) in
+      TyTuple ts, List.flatten cs
+  | TyConstraints (cs, t) ->
+      let t, cs' = collect_constraints t in
+      t, cs @ cs'
+  | _ ->
+      t, []
+;;
+
 let dup_perms_no_singleton env p =
   let perms =
     List.filter (FactInference.is_duplicable env) (get_permissions env p)
@@ -183,6 +208,23 @@ let dup_perms_no_singleton env p =
 
 (* For adding new permissions into the environment. *)
 
+let add_constraints env constraints =
+  let env = List.fold_left (fun env (f, t) ->
+    let f = fact_of_flag f in
+    match t with
+    | TyPoint p ->
+        let f' = get_fact env p in
+        if fact_leq f f' then
+        (* [f] tells, for instance, that [p] be exclusive *)
+          refresh_fact env p f
+        else
+          env
+    | _ ->
+        Log.error "The parser shouldn't allow this"
+  ) env constraints in
+  env
+;;
+
 (** [unify env p1 p2] merges two points, and takes care of dealing with how the
     permissions should be merged. *)
 let rec unify (env: env) (p1: point) (p2: point): env =
@@ -198,7 +240,6 @@ let rec unify (env: env) (p1: point) (p2: point): env =
     let env = merge_left env p1 p2 in
     let () = Log.debug "%a" TypePrinter.penv env in
     List.fold_left (fun env t -> add env p1 t) env perms
-
 
 
 (** [add env point t] adds [t] to the list of permissions for [p], performing all
@@ -248,19 +289,7 @@ and add (env: env) (point: point) (t: typ): env =
       end
 
   | TyConstraints (constraints, t) ->
-      let env = List.fold_left (fun env (f, t) ->
-        let f = fact_of_flag f in
-        match t with
-        | TyPoint p ->
-            let f' = get_fact env p in
-            if fact_leq f f' then
-            (* [f] tells, for instance, that [p] be exclusive *)
-              refresh_fact env p f
-            else
-              env
-        | _ ->
-            Log.error "The parser shouldn't allow this"
-      ) env constraints in
+      let env = add_constraints env constraints in
       add env point t
 
   | _ ->
