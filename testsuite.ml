@@ -245,6 +245,10 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     )) in
     check env v14 t);
 
+  ("merge15.hml",
+    simple_test ~stdlib:false Pass
+  );
+
   ("merge_generalize_val.hml", fun do_it ->
     let env = do_it false in
     let x = point_by_name env "x" in

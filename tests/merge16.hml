@@ -1,0 +1,10 @@
+data bool = True | False
+data list a = Cons { head: a; tail: list a} | Nil
+
+val id [a] (l: list a): () =
+  match explain l with
+  | Nil ->
+      Nil
+  | Cons { head; tail } ->
+      Cons { head; tail }
+  end

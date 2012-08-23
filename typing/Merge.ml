@@ -567,9 +567,11 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
 
               let t_dest = PersistentUnionFind.repr t_left left_env.state in
 
+              Log.debug ~level:4 "[cons_vs_cons] left";
               let left_env, t_app_left =
                 build_flexible_type_application (left_env, left_perm) (dest_env, t_dest)
               in
+              Log.debug ~level:4 "[cons_vs_cons] right";
               let right_env, t_app_right =
                 build_flexible_type_application (right_env, right_perm) (dest_env, t_dest)
               in

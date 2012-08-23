@@ -1,0 +1,14 @@
+data option a = Some { contents: a } | None
+data bool = True | False
+data list a = Cons { head: a; tail: list a} | Nil
+
+val rec find [a] (duplicable a) => (l: list a, f: a -> bool): option a =
+  match explain l with
+  | Nil ->
+      None
+  | Cons { head; tail } ->
+      if f head then
+        Some { contents = head }
+      else
+        None
+  end

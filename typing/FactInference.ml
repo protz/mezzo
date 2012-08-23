@@ -75,9 +75,6 @@ let duplicables
         match cons with
         | TyPoint point ->
           begin
-            Log.debug ~level:4 "Applying %a (bitmap=%a)"
-              TypePrinter.pvar (get_name env point)
-              TypePrinter.pfact (get_fact env point);
             match get_fact env point with
             | Fuzzy _ ->
                 Log.error "I messed up my index computations. Oops!";
@@ -86,22 +83,18 @@ let duplicables
             | Affine ->
                 raise (EAffine t)
             | Duplicable cons_bitmap ->
-                Log.check (List.length args = Array.length cons_bitmap)
-                  "Arity mismatch, [WellKindedness] should've checked that";
                 (* For each argument of the type application... *)
                 List.iteri (fun i ti ->
-                  (* (match ti with | TyVar i -> Log.debug ~level:4 "• ti is TyVar %d" i; | _ -> ()); *)
                   (* The type at [level] may request its [i]-th parameter to be
                    * duplicable. *)
                   if cons_bitmap.(i) then begin
-                      Log.debug ~level:4 "parameter %d HAS to be duplicable" i;
-                      (* The answer is yes: the [i]-th parameter for the type
-                       * application is [ti] and it has to be duplicable for the
-                       * type at [level] to be duplicable too. *)
-                      duplicables env ti
+                    (* The answer is yes: the [i]-th parameter for the type
+                     * application is [ti] and it has to be duplicable for the
+                     * type at [level] to be duplicable too. *)
+                    duplicables env ti
                   end else begin
-                      Log.debug ~level:4 "parameter %d does NOT have to be duplicable" i
-                      (* The answer is no: there are no constraints on [ti]. *)
+                    (* The answer is no: there are no constraints on [ti]. *)
+                    ()
                   end
                 ) args
           end
