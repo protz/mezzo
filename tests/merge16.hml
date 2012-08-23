@@ -1,10 +1,12 @@
 data bool = True | False
-data list a = Cons { head: a; tail: list a} | Nil
+exclusive data xlist a = Cons { head: a; tail: xlist a} | Nil
+abstract int
+fact duplicable int
 
-val id [a] (l: list a): () =
+val id [a] (l: xlist int): () =
   match explain l with
   | Nil ->
-      Nil
+      ()
   | Cons { head; tail } ->
-      Cons { head; tail }
+      ()
   end
