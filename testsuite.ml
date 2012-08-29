@@ -354,6 +354,10 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:true Pass
   );
 
+  ("xswap.hml",
+    simple_test ~stdlib:false Pass
+  );
+
   ("duplicity1.hml",
     simple_test ~stdlib:false Pass
   );

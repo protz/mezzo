@@ -1,0 +1,8 @@
+exclusive data xpair a b =
+  XPair { left: a; right: b }
+
+val xswap [a, b] (consumes x: xpair a b):
+    (| x @ xpair b a) =
+  let t = x.left in
+  x.left <- x.right;
+  x.right <- t
