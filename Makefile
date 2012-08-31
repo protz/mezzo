@@ -17,9 +17,9 @@ MY_DIRS	   := lib parsing sets typing utils
 
 
 all:
-	$(OCAMLBUILD) $(INCLUDE) $(MAIN).byte $(TESTSUITE).byte $(TEST).byte
+	$(OCAMLBUILD) $(INCLUDE) $(MAIN).byte $(TESTSUITE).byte #$(TEST).byte
 	ln -sf $(MAIN).byte $(MAIN)
-	ln -sf $(TEST).byte $(TEST)
+	#ln -sf $(TEST).byte $(TEST)
 	ln -sf $(TESTSUITE).byte $(TESTSUITE)
 
 clean:
@@ -49,11 +49,11 @@ doc: graph
 	sed -i 's/<\/body>/<p align="center"><object type="image\/svg+xml" data="..\/misc\/graph.svg"><\/object><\/p><\/body>/' doc/index.html
 	cp -f misc/ocamlstyle.css doc/style.css
 
-testsuite: all
+test: all
 	OCAMLRUNPARAM=b=1 ./testsuite
 
-test: all
-	OCAMLRUNPARAM=b=1 ./test
+# test: all
+#	OCAMLRUNPARAM=b=1 ./test
 
 build:
 	$(OCAMLBUILD) $(INCLUDE) $(FILE).native

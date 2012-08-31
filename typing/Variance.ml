@@ -123,7 +123,7 @@ let analyze_data_types env =
    * the data type parameters. We keep a list of instantiated branches with
    * their corresponding point. *)
   let env, store =
-    fold_types original_env (fun (env, acc) point { kind; _ } { definition; _ } ->
+    Env.fold_types original_env (fun (env, acc) point { kind; _ } { definition; _ } ->
       match definition with
       | None ->
           Log.error "Only data type definitions here"
@@ -163,7 +163,7 @@ let analyze_data_types env =
   (* Update the data type definitions. *)
   let original_env = List.fold_left (fun env (cons, (vars, _)) ->
     let variance = List.map valuation vars in
-    replace_type env cons (fun binding ->
+    Env.replace_type env cons (fun binding ->
       let definition =
         match binding.definition with
         | Some ((Some _) as branches, _) ->

@@ -382,7 +382,7 @@ let translate_data_type_group
 
   (* Finally, open the types in the type definitions themselves. *)
   let total_number_of_data_types = List.length points in
-  let tenv = T.fold_types tenv (fun tenv point { T.kind; _ } { T.definition; _ } ->
+  let tenv = T.Env.fold_types tenv (fun tenv point { T.kind; _ } { T.definition; _ } ->
     match definition with
     | Some (None, _) ->
         (* It's an abstract type, it has no branches where we should perform the
@@ -404,7 +404,7 @@ let translate_data_type_group
         ) branches points in
 
         (* And replace the corresponding definition in [tenv]. *)
-        T.replace_type tenv point (fun binder ->
+        T.Env.replace_type tenv point (fun binder ->
           { binder with T.definition = Some (Some (flag, branches), variance) }
         )
 

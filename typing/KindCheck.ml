@@ -713,7 +713,7 @@ module KindPrinter = struct
   (* This function prints the contents of a [Types.env]. *)
   let print_kinds env =
     (* Now we have a pretty-printing environment that's ready, proceed. *)
-    let defs = map_types env (fun { names; kind; _ } { definition; _ } ->
+    let defs = Env.map_types env (fun { names; kind; _ } { definition; _ } ->
       let name = List.hd names in
       match definition with
       | Some (Some (flag, branches), variance) ->

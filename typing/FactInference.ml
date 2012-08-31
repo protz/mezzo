@@ -166,7 +166,7 @@ let duplicables
 let one_round (env: env): env =
   TypePrinter.(Log.debug ~level:4 "env:\n  %a" pdoc (print_binders, env));
   (* Folding on all the data types. *)
-  fold_types env (fun env point { names; kind; _ } { fact; definition } ->
+  Env.fold_types env (fun env point { names; kind; _ } { fact; definition } ->
     let tname = List.hd names in
     (* What knowledge do we have from the previous round? *)
     match definition with
@@ -207,7 +207,7 @@ let one_round (env: env): env =
               (* Some exception was raised: the type, although initially
                * duplicable, contains a sub-part whose type is [Exclusive] or
                * [Affine], so the whole type need to be affine. *)
-              replace_type env point (fun entry -> { entry with fact = Affine })
+              Env.replace_type env point (fun entry -> { entry with fact = Affine })
   ) env
 ;;
 
@@ -255,9 +255,9 @@ let analyze_data_types (env: env): env =
     in
     (* This works because [map_types] guarantees an unspecified, but fixed,
      * order, and because [replace_type] doesn't change that order. *)
-    let old_facts = map_types env (fun _ { fact; _ } -> copy_fact fact) in
+    let old_facts = Env.map_types env (fun _ { fact; _ } -> copy_fact fact) in
     let new_env = one_round env in
-    let new_facts = map_types new_env (fun _ { fact; _ } -> copy_fact fact) in
+    let new_facts = Env.map_types new_env (fun _ { fact; _ } -> copy_fact fact) in
     (* Hml_List.iter2i (fun level old_fact new_fact ->
       let index = ByIndex.cardinal env.bindings - level - 1 in
       Log.debug ~level:3

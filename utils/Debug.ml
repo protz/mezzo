@@ -128,7 +128,7 @@ module Graph = struct
     write_intro buf;
     let env = refresh_mark env in
     let env = TypeOps.mark_reachable env (TyPoint root) in
-    fold_terms env (fun () point _head { permissions; _ } ->
+    Env.fold_terms env (fun () point _head { permissions; _ } ->
       if is_marked env point then
         draw_point buf env point permissions
     ) ();
@@ -137,7 +137,7 @@ module Graph = struct
 
   let write_graph buf env =
     write_intro buf;
-    fold_terms env (fun () point _head { permissions; _ } ->
+    Env.fold_terms env (fun () point _head { permissions; _ } ->
       draw_point buf env point permissions
     ) ();
     write_outro buf;
@@ -171,7 +171,7 @@ module Html = struct
   ;;
 
   let json_of_points env =
-    fold_terms env (fun json point { names; locations; kind; _ } { permissions; _ } ->
+    Env.fold_terms env (fun json point { names; locations; kind; _ } { permissions; _ } ->
       let open TypePrinter in
       let names = `List (List.map (function
         | User v -> `List [`String "user"; `String (Variable.print v)]

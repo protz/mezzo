@@ -45,3 +45,7 @@ let bind = fun opt f ->
 let is_some = function Some _ -> true | _ -> false
 
 let flatten = function Some x -> x | None -> None
+
+let either o1 o2 = if is_some o1 then o1 else o2
+
+let (>>=) = bind

@@ -1,6 +1,12 @@
 open Types
 open Expressions
 open Utils
+open Monadic
+
+open MOption
+
+module Merge = Merge.Make(MOption)
+module Permissions = Permissions.Make(MOption)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -301,7 +307,8 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
   | Some env ->
       (* Return the "good" type. *)
       let t2, perms = Permissions.collect t2 in
-      let env = List.fold_left Permissions.add_perm env perms in
+      let env = foldm Permissions.add_perm (Some env) perms in
+      let env = Option.extract env in
       let t2 = Flexible.generalize env t2 in
       env, t2
   | None ->
@@ -421,6 +428,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
     let hint = Option.map_none (Auto (Variable.register (fresh_name "/x_"))) hint in
     let env, x = bind_term env hint env.location false in
     let env = Permissions.add env x t in
+    let env = Option.extract env in
     env, x
   in
 
@@ -461,8 +469,8 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
 
       (* We can't create a closure over exclusive variables. Create a stripped
        * environment with only the duplicable parts. *)
-      let sub_env = fold_terms env (fun sub_env point _ _ ->
-        replace_term sub_env point (fun raw ->
+      let sub_env = Env.fold_terms env (fun sub_env point _ _ ->
+        Env.replace_term sub_env point (fun raw ->
           let permissions =
             List.filter (FactInference.is_duplicable env) raw.permissions
           in
@@ -481,7 +489,8 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       let _, perms = Permissions.collect arg in
       let _, constraints = Permissions.collect_constraints arg in
       let sub_env = Permissions.add_constraints sub_env constraints in
-      let sub_env = List.fold_left Permissions.add_perm sub_env perms in
+      let sub_env = foldm Permissions.add_perm (Some sub_env) perms in
+      let sub_env = Option.extract sub_env in
 
       (* Type-check the function body. *)
       let sub_env, p = check_expression sub_env body in
@@ -499,7 +508,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       let hint = add_hint hint (Field.print fname) in
       let env, p1 = check_expression env ?hint e1 in
       let env, p2 = check_expression env e2 in
-      let env = replace_term env p1 (fun binder ->
+      let env = Env.replace_term env p1 (fun binder ->
         let permissions = binder.permissions in
         let found = ref false in
         let permissions = List.map (fun t ->
@@ -597,7 +606,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       if not !found then
         raise_error env (CantAssignTag p1);
 
-      let env = replace_term env p1 (fun binder -> { binder with permissions }) in
+      let env = Env.replace_term env p1 (fun binder -> { binder with permissions }) in
       return env ty_unit
 
 
@@ -720,7 +729,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       let env, (left_t, right_t) =
         match Hml_List.take_bool (is_data_type_with_two_constructors env) (get_permissions env x1) with
         | Some (permissions, t) ->
-            let env = replace_term env x1 (fun binding -> { binding with permissions }) in
+            let env = Env.replace_term env x1 (fun binding -> { binding with permissions }) in
             let split_apply cons args =
               match get_definition env cons with
               | Some (Some (_, [b1; b2]), _) ->
@@ -745,7 +754,9 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
             raise_error env (NoTwoConstructors x1);
       in
       let left_env = Permissions.add env x1 left_t in
+      let left_env = Option.extract left_env in
       let right_env = Permissions.add env x1 right_t in
+      let right_env = Option.extract right_env in
 
       (* The control-flow diverges. *)
       let hint_l = add_hint hint "then" in
@@ -753,7 +764,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       let hint_r = add_hint hint "else" in
       let right = check_expression right_env ?hint:hint_r e3 in
 
-      let dest = Merge.merge_envs env left right in
+      let dest = Option.extract (Merge.merge_envs env left right) in
 
       if explain then
         Debug.explain_merge dest [left; right];
@@ -815,7 +826,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       let sub_envs = List.map2 (fun (pat, expr) datacon ->
         (* Refine the permissions. We *have* to remove the previous permission,
          * otherwise this is unsound, even with duplicable permissions. *)
-        let env = replace_term env x (fun binding ->
+        let env = Env.replace_term env x (fun binding ->
           let permissions' = binding.permissions in
           (* Assert while we can *)
           let permissions = List.filter (fun x -> x != nominal_type) permissions' in
@@ -828,6 +839,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
           find_and_instantiate_branch env nominal_point datacon nominal_args
         in
         let env = Permissions.add env x (TyConcreteUnfolded branch) in
+        let env = Option.extract env in
         let env, { subst_expr; _ } =
           check_bindings env Nonrecursive [pat, EPoint x]
         in
@@ -839,7 +851,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
 
       (* Combine all of these left-to-right to obtain a single return
        * environment *)
-      let dest = Hml_List.reduce (Merge.merge_envs env) sub_envs in
+      let dest = Hml_List.reduce (fun sub sub' -> Option.extract (Merge.merge_envs env sub sub')) sub_envs in
 
       if explain then
         Debug.explain_merge dest sub_envs;
@@ -879,7 +891,8 @@ and check_bindings
                   TypeOps.simplify_function_def env vars arg return_type body
                 in
                 let expr = EFun (vars, arg, return_type, body) in
-                Permissions.add env p (type_for_function_def expr)
+                let env = Permissions.add env p (type_for_function_def expr) in
+                Option.extract env
             | _ ->
                 raise_error env RecursiveOnlyForFunctions
           ) env expressions patterns

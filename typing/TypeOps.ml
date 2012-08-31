@@ -1,8 +1,11 @@
 (** A module for performing various transformations on types. *)
 
 open Types
-open Permissions
 open Expressions
+open Monadic
+
+module Merge = Merge.Make(MOption)
+module Permissions = Permissions.Make(MOption)
  
 (* This function tries to find all function types of the form
 
@@ -107,7 +110,7 @@ let cleanup_function_type env t body =
         in
 
         (* Get all permissions in [t1]. *)
-        let t1, perms = collect t1 in
+        let t1, perms = Permissions.collect t1 in
         let perms = List.flatten (List.map flatten_star perms) in
 
         (* Recursively clean up [t1], and the permissions too. *)
@@ -148,7 +151,7 @@ let cleanup_function_type env t body =
         (* Perform some light cleanup on [t2] too. *)
         let t2 =
           let t1_perms = perms in
-          let t2, perms = collect t2 in
+          let t2, perms = Permissions.collect t2 in
           (* Make sure we get a list of individual permissions. *)
           let perms = List.flatten (List.map flatten_star perms) in
           let t2, _ = find env t2 None in

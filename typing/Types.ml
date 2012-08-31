@@ -624,9 +624,6 @@ let tsubst_data_type_def_branch t2 i branch =
 (* Saves us the trouble of matching all the time. *)
 let (!!) = function TyPoint x -> x | _ -> assert false;;
 let (!*) = Lazy.force;;
-let (>>=) = Option.bind;;
-let (|||) o1 o2 = if Option.is_some o1 then o1 else o2 ;;
-
 
 let ty_equals x =
   TySingleton (TyPoint x)
@@ -845,81 +842,84 @@ let is_term (env: env) (point: point): bool =
  * runs over the keys in an unspecified, but fixed, order.
 *)
 
-let map_types env f =
-  Hml_List.filter_some
-    (List.rev
+module Env = struct
+
+  let map_types env f =
+    Hml_List.filter_some
+      (List.rev
+        (PersistentUnionFind.fold
+          (fun acc _k -> function
+            | (head, BType b) -> Some (f head b) :: acc
+            | _ -> None :: acc)
+          [] env.state))
+  ;;
+
+  let map_terms env f =
+    Hml_List.filter_some
+      (List.rev
+        (PersistentUnionFind.fold
+          (fun acc _k -> function
+            | (head, BTerm b) -> Some (f head b) :: acc
+            | _ -> None :: acc)
+          [] env.state))
+  ;;
+
+  let map env f =
+    List.rev
       (PersistentUnionFind.fold
-        (fun acc _k -> function
-          | (head, BType b) -> Some (f head b) :: acc
-          | _ -> None :: acc)
-        [] env.state))
-;;
+        (fun acc _k ({ names; _ }, binding) -> f names binding :: acc)
+        [] env.state)
+  ;;
 
-let map_terms env f =
-  Hml_List.filter_some
-    (List.rev
-      (PersistentUnionFind.fold
-        (fun acc _k -> function
-          | (head, BTerm b) -> Some (f head b) :: acc
-          | _ -> None :: acc)
-        [] env.state))
-;;
+  let fold env f acc =
+    PersistentUnionFind.fold (fun acc k v ->
+      f acc k v)
+    acc env.state
+  ;;
 
-let map env f =
-  List.rev
-    (PersistentUnionFind.fold
-      (fun acc _k ({ names; _ }, binding) -> f names binding :: acc)
-      [] env.state)
-;;
+  let fold_terms env f acc =
+    PersistentUnionFind.fold (fun acc k (head, binding) ->
+      match binding with BTerm b -> f acc k head b | _ -> acc)
+    acc env.state
+  ;;
 
-let fold env f acc =
-  PersistentUnionFind.fold (fun acc k v ->
-    f acc k v)
-  acc env.state
-;;
+  let fold_types env f acc =
+    PersistentUnionFind.fold (fun acc k (head, binding) ->
+      match binding with BType b -> f acc k head b | _ -> acc)
+    acc env.state
+  ;;
 
-let fold_terms env f acc =
-  PersistentUnionFind.fold (fun acc k (head, binding) ->
-    match binding with BTerm b -> f acc k head b | _ -> acc)
-  acc env.state
-;;
+  let replace env point f =
+    { env with state = PersistentUnionFind.update f point env.state }
+  ;;
 
-let fold_types env f acc =
-  PersistentUnionFind.fold (fun acc k (head, binding) ->
-    match binding with BType b -> f acc k head b | _ -> acc)
-  acc env.state
-;;
+  let replace_term env point f =
+    { env with state =
+        PersistentUnionFind.update (function
+          | names, BTerm b ->
+              names, BTerm (f b)
+          | _ ->
+              Log.error "Not a term"
+        ) point env.state
+    }
+  ;;
 
-let replace env point f =
-  { env with state = PersistentUnionFind.update f point env.state }
-;;
+  let replace_type env point f =
+    { env with state =
+        PersistentUnionFind.update (function
+          | names, BType b ->
+              names, BType (f b)
+          | _ ->
+              Log.error "Not a type"
+        ) point env.state
+    }
+  ;;
 
-let replace_term env point f =
-  { env with state =
-      PersistentUnionFind.update (function
-        | names, BTerm b ->
-            names, BTerm (f b)
-        | _ ->
-            Log.error "Not a term"
-      ) point env.state
-  }
-;;
+  let refresh_fact env p fact =
+    replace_type env p (fun binder -> { binder with fact })
+  ;;
 
-let replace_type env point f =
-  { env with state =
-      PersistentUnionFind.update (function
-        | names, BType b ->
-            names, BType (f b)
-        | _ ->
-            Log.error "Not a type"
-      ) point env.state
-  }
-;;
-
-let refresh_fact env p fact =
-  replace_type env p (fun binder -> { binder with fact })
-;;
-
+end
 
 (* Dealing with marks. *)
 
@@ -1064,7 +1064,7 @@ let find_and_instantiate_branch
 let point_by_name (env: env) (name: string): point =
   let module T = struct exception Found of point end in
   try
-    fold env (fun () point ({ names; _ }, _binding) ->
+    Env.fold env (fun () point ({ names; _ }, _binding) ->
       if List.exists (names_equal (User (Variable.register name))) names then
         raise (T.Found point)) ();
     raise Not_found
@@ -1385,7 +1385,7 @@ module TypePrinter = struct
           end
     in
     let lines =
-      map_types env (fun { names; kind; _ } { definition; fact; _ } ->
+      Env.map_types env (fun { names; kind; _ } { definition; fact; _ } ->
         let name = List.hd names in
         let arity = get_arity_for_kind kind in
         match definition with
@@ -1422,7 +1422,7 @@ module TypePrinter = struct
       let line = String.make (String.length str) '-' in
       (string str) ^^ hardline ^^ (string line)
     in
-    let lines = map_terms env (fun { names; _ } binder ->
+    let lines = Env.map_terms env (fun { names; _ } binder ->
       let names = print_names names in
       let perms = print_permission_list (env, binder) in
       names ^^ space ^^ at ^^ space ^^ (nest 2 perms)
@@ -1451,7 +1451,7 @@ module TypePrinter = struct
     print_string "Γ (unordered) = " ^^
     join
       (semi ^^ space)
-      (map env (fun names _ -> join (string " = ") (List.map print_var names)))
+      (Env.map env (fun names _ -> join (string " = ") (List.map print_var names)))
   ;;
 
 
