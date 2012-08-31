@@ -1,6 +1,6 @@
 (** This module provides permission manipulation functions. *)
 
-module Make: functor (M: Monadic.MONAD) -> sig
+module Make: functor (M: Monadic.NDMONAD) -> sig
 
   open M
 

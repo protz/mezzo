@@ -1,6 +1,6 @@
 open Monadic
 
-module Make = functor (M: MONAD) -> struct
+module Make = functor (M: NDMONAD) -> struct
 
 (* There are useful comments in the corresponding .mli *)
 
