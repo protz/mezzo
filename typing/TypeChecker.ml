@@ -3,10 +3,10 @@ open Expressions
 open Utils
 open Monadic
 
-open MOption
+open MList
 
-module Merge = Merge.Make(MOption)
-module Permissions = Permissions.Make(MOption)
+module Merge = Merge.Make(MList)
+module Permissions = Permissions.Make(MList)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -303,16 +303,19 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
   in
   (* Examine [x]. [sub] will take care of running collect on [t1] so that the
    * expected permissions are subtracted as well from the environment. *)
-  match Permissions.sub env x t1 with
-  | Some env ->
-      (* Return the "good" type. *)
-      let t2, perms = Permissions.collect t2 in
-      let env = foldm Permissions.add_perm (Some env) perms in
-      let env = Option.extract env in
+  let env = Permissions.sub env x t1 in
+
+  (* Return the "good" type. *)
+  let t2, perms = Permissions.collect t2 in
+  let env = foldm Permissions.add_perm env perms in
+
+  match env with
+  | [env] ->
       let t2 = Flexible.generalize env t2 in
       env, t2
-  | None ->
-      raise_error env (ExpectedType (t1, x))
+  | _ ->
+      (* raise_error env (ExpectedType (t1, x)) *)
+      Log.error "TODO: provide a good explanation here"
 
 ;;
 
@@ -327,9 +330,11 @@ let check_return_type (env: env) (point: point) (t: typ): env =
   );
     
   match Permissions.sub env point t with
-  | Some env ->
+  | [env] ->
       env
-  | None ->
+  | _ :: _ :: _ ->
+      Log.error "TODO: more than one environment in [check_return_type]"
+  | [] ->
       let open TypePrinter in
       Log.debug ~level:4 "%a\n------------\n" penv env;
       raise_error env (ExpectedType (t, point))
@@ -428,8 +433,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
     let hint = Option.map_none (Auto (Variable.register (fresh_name "/x_"))) hint in
     let env, x = bind_term env hint env.location false in
     let env = Permissions.add env x t in
-    let env = Option.extract env in
-    env, x
+    just env, x
   in
 
   match expr with
@@ -489,18 +493,18 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       let _, perms = Permissions.collect arg in
       let _, constraints = Permissions.collect_constraints arg in
       let sub_env = Permissions.add_constraints sub_env constraints in
-      let sub_env = foldm Permissions.add_perm (Some sub_env) perms in
-      let sub_env = Option.extract sub_env in
+      let sub_env = foldm Permissions.add_perm [sub_env] perms in
+      let sub_env = just sub_env in
 
       (* Type-check the function body. *)
       let sub_env, p = check_expression sub_env body in
 
       begin match Permissions.sub sub_env p return_type with
-      | Some _ ->
+      | _ :: _ ->
           (* Return the entire arrow type. *)
           let expected_type = type_for_function_def expr in
           return env expected_type
-      | None ->
+      | _ ->
           raise_error sub_env (NoSuchPermission return_type)
       end
 
@@ -754,9 +758,9 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
             raise_error env (NoTwoConstructors x1);
       in
       let left_env = Permissions.add env x1 left_t in
-      let left_env = Option.extract left_env in
+      let left_env = just left_env in
       let right_env = Permissions.add env x1 right_t in
-      let right_env = Option.extract right_env in
+      let right_env = just right_env in
 
       (* The control-flow diverges. *)
       let hint_l = add_hint hint "then" in
@@ -764,7 +768,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
       let hint_r = add_hint hint "else" in
       let right = check_expression right_env ?hint:hint_r e3 in
 
-      let dest = Option.extract (Merge.merge_envs env left right) in
+      let dest = just (Merge.merge_envs env left right) in
 
       if explain then
         Debug.explain_merge dest [left; right];
@@ -839,7 +843,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
           find_and_instantiate_branch env nominal_point datacon nominal_args
         in
         let env = Permissions.add env x (TyConcreteUnfolded branch) in
-        let env = Option.extract env in
+        let env = just env in
         let env, { subst_expr; _ } =
           check_bindings env Nonrecursive [pat, EPoint x]
         in
@@ -851,7 +855,10 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
 
       (* Combine all of these left-to-right to obtain a single return
        * environment *)
-      let dest = Hml_List.reduce (fun sub sub' -> Option.extract (Merge.merge_envs env sub sub')) sub_envs in
+      let dest = foldm (Merge.merge_envs env) [List.hd sub_envs] (List.tl sub_envs) in
+
+      (* TODO *)
+      let dest = just dest in
 
       if explain then
         Debug.explain_merge dest sub_envs;
@@ -892,7 +899,7 @@ and check_bindings
                 in
                 let expr = EFun (vars, arg, return_type, body) in
                 let env = Permissions.add env p (type_for_function_def expr) in
-                Option.extract env
+                just env
             | _ ->
                 raise_error env RecursiveOnlyForFunctions
           ) env expressions patterns

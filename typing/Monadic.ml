@@ -7,6 +7,7 @@ end
 module type NDMONAD = sig
   include MONAD
 
+  val just: 'a mon -> 'a
   val either: 'a mon -> 'a mon -> 'a mon
   val fail: 'a mon
 
@@ -50,6 +51,7 @@ module MOption: NDMONAD with type 'a mon = 'a option = struct
   let iter = Option.iter
   let take = Hml_List.take
   let dispatch = Hml_List.find_opt
+  let just = Option.extract
 
   include Common(M)
 end
@@ -70,7 +72,18 @@ module MList: NDMONAD with type 'a mon = 'a list = struct
   let map = List.map
   let iter = List.iter
   let dispatch = Hml_List.map_flatten
-  let take = assert false
+  let take f l =
+    let rec take sofar bss = function
+      | hd :: tl ->
+          let bs = f hd in
+          let bs = List.map (fun b -> sofar @ tl, (hd, b)) bs in
+          take (hd :: sofar) (bs :: bss) tl
+      | [] ->
+          bss
+    in
+    let bss = take [] [] l in
+    List.flatten bss
+  let just l = assert (List.length l = 1); List.hd l
 
   include Common(M)
 end

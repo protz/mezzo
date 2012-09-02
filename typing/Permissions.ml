@@ -14,8 +14,9 @@ open Utils
 (* This should help debuggnig. *)
 
 let safety_check env =
+  if false then
   (* Be paranoid, perform an expensive safety check. *)
-  Env.fold_terms env (fun () _point _ ({ permissions; _ }) ->
+  Env.fold_terms env (fun () point _ ({ permissions; _ }) ->
     (* Each term should have exactly one singleton permission. If we fail here,
      * this is SEVERE: this means one of our internal invariants broken, so
      * someone messed up the code somewhere. *)
@@ -27,7 +28,8 @@ let safety_check env =
     ) permissions in
     if List.length singletons <> 1 then
       Log.error
-        "Inconsistency detected: not one singleton type\n%a\n"
+        "Inconsistency detected: not one singleton type for %a\n%a\n"
+        TypePrinter.pnames (get_names env point)
         TypePrinter.penv env;
 
     (* The inconsistencies below are suspicious, but it may just be that we

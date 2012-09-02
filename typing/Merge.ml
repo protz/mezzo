@@ -789,19 +789,19 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): (en
   in
 
   (* The main loop. *)
-  let state = ref (return (left_env, right_env, dest_env)) in
-  while List.length !pending_jobs > 0 do
-    (* Get the current merge state. *)
-    state :=
-      !state >>= fun (left_env, right_env, dest_env) ->
-      (* Next task: merge [left_point] and [right_point] into [dest_point]. *)
+  let rec loop (left_env, right_env, dest_env) =
+    if List.length !pending_jobs > 0 then
       let left_point, right_point, dest_point = pop_job () in
-      (* Well, let's do it. *)
       merge_points
         (left_env, left_point)
         (right_env, right_point)
-        (dest_env, dest_point)
-  done;
+        (dest_env, dest_point) >>= fun state ->
+      loop state 
+    else
+      return (left_env, right_env, dest_env)
+  in
+
+  let state = loop (left_env, right_env, dest_env) in
 
   (* Now we're just interested in [dest_env]. *)
   iter (fun (left_env, right_env, dest_env) ->
@@ -812,10 +812,10 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): (en
     Log.debug ~level:3 "\n--------------------------------\n";
 
     Permissions.safety_check dest_env;
-  ) !state;
+  ) state;
 
   (* So return it. *)
-  map (fun (_, _, dest_env) -> dest_env, dest_root) !state
+  map (fun (_, _, dest_env) -> dest_env, dest_root) state
 ;;
 
 
