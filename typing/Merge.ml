@@ -280,10 +280,8 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): (en
                 merge_type (left_env, left_perm) (right_env, right_perm) dest_env
               in
 
-              either
-                begin
-                  take works right_perms >>= fun (right_perms, (right_perm, (left_env, right_env, dest_env, dest_perm))) ->
-
+              trywith (take works right_perms)
+                begin fun (right_perms, (right_perm, (left_env, right_env, dest_env, dest_perm))) ->
                   Log.debug ~level:4 "  → this merge between %a and %a was succesful"
                     TypePrinter.pvar (get_name left_env left_point)
                     TypePrinter.pvar (get_name right_env right_point);
@@ -697,20 +695,19 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): (en
               push known_triples (left_point, right_point, dest_point);
 
               (* Try to perform the merge. *)
-              either begin
-                merge_type (left_env, t_l) (right_env, t_r) dest_env >>=
-                fun (left_env, right_env, dest_env, t) ->
+              trywith (merge_type (left_env, t_l) (right_env, t_r) dest_env)
+                begin fun (left_env, right_env, dest_env, t) ->
                   (* Yes? Re-generalize... *)
                   return (
                     left_env, right_env, dest_env,
                     TyForall (binding, Flexible.tpsubst dest_env (TyVar 0) dest_point t)
                   )
-              end begin
-                (* Don't keep this triple since we're throwing away the
-                 * environments. *)
-                remove known_triples (left_point, right_point, dest_point);
-                fail
-              end
+                end begin
+                  (* Don't keep this triple since we're throwing away the
+                   * environments. *)
+                  remove known_triples (left_point, right_point, dest_point);
+                  fail
+                end
 
             else
               fail
@@ -796,7 +793,7 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): (en
         (left_env, left_point)
         (right_env, right_point)
         (dest_env, dest_point) >>= fun state ->
-      loop state 
+      loop state
     else
       return (left_env, right_env, dest_env)
   in

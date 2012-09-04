@@ -14,9 +14,8 @@ open Utils
 (* This should help debuggnig. *)
 
 let safety_check env =
-  if false then
   (* Be paranoid, perform an expensive safety check. *)
-  Env.fold_terms env (fun () point _ ({ permissions; _ }) ->
+  Env.fold_terms env (fun () _point _ ({ permissions; _ }) ->
     (* Each term should have exactly one singleton permission. If we fail here,
      * this is SEVERE: this means one of our internal invariants broken, so
      * someone messed up the code somewhere. *)
@@ -28,8 +27,7 @@ let safety_check env =
     ) permissions in
     if List.length singletons <> 1 then
       Log.error
-        "Inconsistency detected: not one singleton type for %a\n%a\n"
-        TypePrinter.pnames (get_names env point)
+        "Inconsistency detected: not one singleton type\n%a\n"
         TypePrinter.penv env;
 
     (* The inconsistencies below are suspicious, but it may just be that we
@@ -331,8 +329,7 @@ and add_perm (env: env) (t: typ): env mon =
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
  * to the list of available permissions for [p] *)
 and add_type (env: env) (p: point) (t: typ): env mon =
-  either begin
-    sub env p t >>= fun env ->
+  trywith (sub env p t) begin fun env ->
     Log.debug "→ sub worked";
     if FactInference.is_exclusive env t then begin
       (* If [t] is exclusive, then this makes the environment inconsistent. *)
@@ -557,8 +554,7 @@ and sub_clean (env: env) (point: point) (t: typ): env mon =
     match remaining with
     | hd :: remaining ->
         (* Try to extract [t] from [hd]. *)
-        either begin
-          sub_type env hd t >>= fun env ->
+        trywith (sub_type env hd t) begin fun env ->
           (* Is this piece of code correct when the singleton-subtyping rule
            * kicks in? Yes, because if we chose to extract [t'] through [=x],
            * [t'] is necessarily duplicable, as is [=x].

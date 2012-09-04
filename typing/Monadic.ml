@@ -9,6 +9,7 @@ module type NDMONAD = sig
 
   val just: 'a mon -> 'a
   val either: 'a mon -> 'a mon -> 'a mon
+  val trywith: 'a mon -> ('a -> 'b mon) -> 'b mon -> 'b mon
   val fail: 'a mon
 
   val map: ('a -> 'b) -> 'a mon -> 'b mon
@@ -47,6 +48,7 @@ module MOption: NDMONAD with type 'a mon = 'a option = struct
   let (|||) = Option.either
   let either = Option.either
   let fail = None
+  let trywith v f x = match v with None -> x | _ -> v >>= f
   let map = Option.map
   let iter = Option.iter
   let take = Hml_List.take
@@ -66,9 +68,10 @@ module MList: NDMONAD with type 'a mon = 'a list = struct
   include M
 
   let (>>?=) = function Some x -> fun f -> f x | None -> fun _ -> []
-  let (|||) = (@)
+  let (|||) l1 l2 = match l1 with [] -> l2 | _ -> l1
   let either = (@)
   let fail = []
+  let trywith v f x = match v with [] -> x | _ -> v >>= f
   let map = List.map
   let iter = List.iter
   let dispatch = Hml_List.map_flatten
