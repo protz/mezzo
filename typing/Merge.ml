@@ -719,7 +719,8 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): (en
 
     ] in
 
-    dispatch Lazy.force strategies
+    let rec find = function hd :: tl -> !*hd ||| find tl | _ -> fail in
+    find strategies
 
   (* end merge_types *)
 

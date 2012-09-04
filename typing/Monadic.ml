@@ -21,7 +21,8 @@ module type NDMONAD = sig
   (* Conversion from the option monad. *)
   val (>>?=): 'a option -> ('a -> 'b mon) -> 'b mon
 
-  (* Same as [either]. *)
+  (* This is a precedence operator: take the first value, unless it's [fail],
+   * and then take the second value. *)
   val (|||): 'a mon -> 'a mon -> 'a mon
 
   (* Generic operations *)
