@@ -19,6 +19,10 @@
 
 (** This module sets up a lexer and a parser to create an AST. *)
 
+type run_options = {
+  html_errors: bool;
+}
+
 val add_include_dir: string -> unit
 val find_in_include_dirs: string -> string
 
@@ -34,4 +38,4 @@ val type_check: SurfaceSyntax.program -> Types.env
 val process: bool -> string -> Types.env
 
 (** [run] runs the specified function and prints any error that may pop up. *)
-val run: (unit -> 'a) -> 'a
+val run: run_options -> (unit -> 'a) -> 'a

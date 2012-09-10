@@ -3,7 +3,7 @@ function fail(aMsg) {
   throw new Error(aMsg);
 }
 
-function buildGraph({ svg, points, root, dot }) {
+function buildGraph({ svg, points, root, dot, error_message }) {
   let node = $("<div>").addClass("graph");
 
   // Fill in the graph
@@ -12,6 +12,14 @@ function buildGraph({ svg, points, root, dot }) {
     .html(svg)
     .appendTo(node);
   svgNode.find("title").first().next().attr("fill", "transparent");
+
+  // Display the error message if any
+  if (error_message) {
+    $("#errors").append($("<p>").addClass("label").text("Error message:"));
+    $("#errors").append($("<pre>").text(error_message));
+  } else {
+    console.log("no error msg");
+  }
 
   // Register stuff for the nodes
   registerNodeHandlers(svgNode, points);

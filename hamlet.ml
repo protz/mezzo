@@ -23,6 +23,7 @@ let _ =
   let arg_pervasives = ref true in
   let arg_backtraces = ref true in
   let arg_trace = ref "" in
+  let arg_html_errors = ref false in
   let usage = "HaMLet: a next-generation version of ML\n\
     Usage: " ^ Sys.argv.(0) ^ " [OPTIONS] FILE\n"
   in
@@ -33,6 +34,7 @@ let _ =
     "-nopervasives", Arg.Clear arg_pervasives, "don't try to prepend pervasives.hml to the file";
     "-nofancypants", Arg.Clear arg_backtraces, "don't try to give nice error messages";
     "-debug", Arg.Set_int arg_debug, "output level: 0 (default) = no messages, 4 = super verbose";
+    "-html-errors", Arg.Set arg_html_errors, "use a browser to display errors";
     "-I", Arg.String Driver.add_include_dir, "include this directory";
     ]
     (fun f ->
@@ -44,12 +46,16 @@ let _ =
     usage;
   Log.enable_debug !arg_debug;
   Debug.enable_trace !arg_trace;
+  let opts =
+    let open Driver in
+    { html_errors = !arg_html_errors }
+  in
   let env =
     if !arg_backtraces then
-      Driver.run (fun () -> Driver.process !arg_pervasives !arg_filename)
+      Driver.run opts (fun () -> Driver.process !arg_pervasives !arg_filename)
     else
       Driver.process !arg_pervasives !arg_filename
   in
-  Log.debug ~level:1 "\n%a"
+  Log.debug ~level:0 "\n%a"
     Types.TypePrinter.pdoc (Types.TypePrinter.print_permissions, env);
 ;;

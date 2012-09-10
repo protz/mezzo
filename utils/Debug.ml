@@ -223,13 +223,14 @@ module Html = struct
     close_out oc;
   ;;
 
-  let render env =
+  let render env text =
     Hml_Pprint.disable_colors ();
 
     let extra = [
       ("type", `String "single");
       ("svg", `String (render_svg env));
       ("points", `Assoc (json_of_points env));
+      ("error_message", `String text);
     ] in
 
     render_base env extra;
@@ -264,18 +265,23 @@ module Html = struct
 end
 
 
-let explain env x =
+let explain ?(text="") ?x env =
   if !enabled = "html" then
-    Html.render env;
+    Html.render env text;
   if !enabled = "x11" then begin
     (* Reset the screen. *)
     flush stdout; flush stderr;
     reset ();
 
-    (* Print the current position. *)
-    Hml_String.bprintf "Last checked expression: %a at %a\n"
-      pnames (get_names env x)
-      Lexer.p env.location;
+    begin match x with
+    | Some x ->
+      (* Print the current position. *)
+      Hml_String.bprintf "Last checked expression: %a at %a\n"
+        pnames (get_names env x)
+        Lexer.p env.location;
+    | None ->
+        ()
+    end;
 
     (* Print MOAR. *)
     Hml_String.bprintf "\n";

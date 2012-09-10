@@ -64,7 +64,7 @@ let print_error buf (env, raw_error) =
         "%a unable to extract the following permission: %a"
         Lexer.p env.location
         ptype (env, t);
-   | HasFlexible t ->
+  | HasFlexible t ->
       Printf.bprintf buf
         "%a the following type still contains flexible variables: %a"
         Lexer.p env.location
@@ -848,7 +848,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
 
   | EExplained e ->
       let env, x = check_expression env ?hint e in
-      Debug.explain env x;
+      Debug.explain env ~x;
       env, x
 
   | EFail ->
