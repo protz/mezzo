@@ -501,11 +501,20 @@ and sub (env: env) (point: point) (t: typ): env mon =
          * unified, which will make more candidates suitable for subtraction. *)
         let works env = function
           | TyAnchoredPermission (TyPoint x, _) when not (is_flexible env x) ->
-              return ()
+              Some ()
           | _ ->
-              fail
+              None
         in
-        let rec loop = fun (env, worklist) ->
+
+        (* Is the order in which we unify these flexible TERM variables
+         * important? If there are multiple choices for unifying a flexible TERM
+         * variable, this means there's an equality between terms not reflected
+         * in the environment. I'm not sure how that can happen. The code below
+         * is generic enough, but it generates several (identical) environments
+         * by picking different orders, which is bad, so we use something more
+         * down-to-earth. *)
+
+        (* let rec loop = fun (env, worklist) ->
           if List.length worklist > 0 then begin
             take (works env) worklist >>= fun (worklist, (perm, ())) ->
             sub_perm env perm >>= fun env ->
@@ -514,7 +523,22 @@ and sub (env: env) (point: point) (t: typ): env mon =
             return env
         in
 
-        loop (env, perms)
+        loop (env, perms) *)
+
+        let rec loop = fun env worklist ->
+          if List.length worklist = 0 then
+            env
+          else
+            env >>= fun env ->
+            match Hml_List.take (works env) worklist with
+            | None ->
+                fail
+            | Some (worklist, (perm, ())) ->
+                let env = sub_perm env perm in
+                loop env worklist
+        in
+        loop (return env) perms
+
 
 
 (** [sub_clean env point t] takes a "clean" type [t] (without nested permissions)
