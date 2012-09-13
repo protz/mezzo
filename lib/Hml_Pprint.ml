@@ -41,7 +41,8 @@ let disable_colors () =
 ;;
 
 let _ =
-  enable_colors ()
+  if Sys.getenv "TERM" <> "dumb" then
+    enable_colors ()
 
 let arrow =
   string "->"

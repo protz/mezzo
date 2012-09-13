@@ -17,8 +17,6 @@ function buildGraph({ svg, points, root, dot, error_message }) {
   if (error_message) {
     $("#errors").append($("<p>").addClass("label").text("Error message:"));
     $("#errors").append($("<pre>").text(error_message));
-  } else {
-    console.log("no error msg");
   }
 
   // Register stuff for the nodes
