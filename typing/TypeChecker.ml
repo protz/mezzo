@@ -315,7 +315,9 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
       env, t2
   | _ ->
       (* raise_error env (ExpectedType (t1, x)) *)
-      Log.error "TODO: provide a good explanation here"
+      Log.debug "Type-checking this function call yielded %d environments\n" (List.length env);
+      List.iter (fun env -> Log.debug "%a\n" TypePrinter.penv env) env;
+      Log.error "Bailing";
 
 ;;
 

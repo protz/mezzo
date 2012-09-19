@@ -719,7 +719,9 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): (en
 
     ] in
 
-    let rec find = function hd :: tl -> !*hd ||| find tl | _ -> fail in
+    (* This is a priority list so we have to take the first match, not
+     * consider all of them! *)
+    let rec find = function hd :: tl -> let v = !*hd in if v <> fail then v else find tl | _ -> fail in
     find strategies
 
   (* end merge_types *)

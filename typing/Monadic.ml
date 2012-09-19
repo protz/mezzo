@@ -62,13 +62,15 @@ end
 module MList: NDMONAD with type 'a mon = 'a list = struct
   module M: MONAD with type 'a mon = 'a list = struct
     type 'a mon = 'a list
-    let (>>=) l f = Hml_List.map_flatten f l
+    let (>>=) l f =
+      Log.debug "%s%d%s" Bash.colors.Bash.red (List.length l) Bash.colors.Bash.default;
+      Hml_List.map_flatten f l
     let return x = [x]
   end
 
   include M
 
-  let (>>?=) = function Some x -> fun f -> f x | None -> fun _ -> []
+  let (>>?=) = fun o f -> match o with Some x -> f x | None -> []
   let (|||) l1 l2 = match l1 with [] -> l2 | _ -> l1
   let either = (@)
   let fail = []
@@ -80,6 +82,7 @@ module MList: NDMONAD with type 'a mon = 'a list = struct
     let rec take sofar bss = function
       | hd :: tl ->
           let bs = f hd in
+          Log.debug "%s%d%s" Bash.colors.Bash.green (List.length bs) Bash.colors.Bash.default;
           let bs = List.map (fun b -> sofar @ tl, (hd, b)) bs in
           take (hd :: sofar) (bs :: bss) tl
       | [] ->
