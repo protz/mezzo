@@ -86,15 +86,6 @@ let p_unit =
   PTuple []
 ;;
 
-let e_assert perm expr =
-  ELet (
-    Nonrecursive,
-    [p_unit,
-    EConstraint (e_unit, TyBar (ty_unit, perm))],
-    expr
-  )
-;;
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Moar fun with De Bruijn. *)

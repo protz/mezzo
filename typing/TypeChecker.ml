@@ -401,7 +401,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
 ;;
 
 
-let rec check_expression (env: env) ?(hint: name option) (expr: expression): env * point =
+let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * point =
 
   (* TEMPORARY this is just a quick and dirty way to talk about user-defined
    * types. This is lazy because we want to write simple test cases that do not
@@ -426,7 +426,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
 
   match expr with
   | EConstraint (e, t) ->
-      let env, p = check_expression env ?hint e in
+      let env, p = check_expression env ?hint ~annot:t e in
       let env = check_return_type env p t in
       return env t
 
@@ -710,7 +710,7 @@ let rec check_expression (env: env) ?(hint: name option) (expr: expression): env
   | ELocated (e, p1, p2) ->
       let pos = env.location in
       let env = locate env (p1, p2) in
-      let env, p = check_expression env ?hint e in
+      let env, p = check_expression env ?hint ?annot e in
       locate env pos, p
 
   | EIfThenElse (explain, e1, e2, e3) ->

@@ -421,60 +421,47 @@ let translate_data_type_group
 
 (* Patterns *)
 
-let clean_pattern env pattern =
-  let rec pattern_to_type env = function
-    | PVar x ->
-        TyVar x
-    
-    | PTuple patterns ->
-        TyTuple (List.map (pattern_to_type env) patterns)
-
-    | PConstruct (name, fieldpats) ->
-        let fieldtypes = List.map (fun (field, pat) ->
-          FieldValue (field, pattern_to_type env pat)) fieldpats
-        in
-        TyConcreteUnfolded (name, fieldtypes)
-
-    | PLocated (p, _, _) ->
-        pattern_to_type env p
-
-    | PConstraint _ ->
-        Log.error "[clean_pattern] should've been called on that type before!"
-  in
+(* [clean_pattern] takes a pattern, and removes type annotations from it,
+ * constructing a top-level type where "holes" have been replaced by
+ * [TyUnknown]s. (x: τ, y) will be cleaned up into (x, y) and (τ, TyUnknown) *)
+let clean_pattern pattern =
   let rec clean_pattern env = function
     | PVar _ as pattern ->
-        pattern, []
+        pattern, TyUnknown
 
     | PTuple patterns ->
-        let patterns, assertions = List.split (List.map (clean_pattern env) patterns) in
-        PTuple patterns, List.flatten assertions
+        let patterns, annotations = List.split (List.map (clean_pattern env) patterns) in
+        PTuple patterns,
+        if List.exists ((<>) TyUnknown) annotations then
+          TyTuple annotations
+        else
+          TyUnknown
 
     | PConstruct (name, fieldpats) ->
-        let fieldpats, assertions = List.fold_left
-          (fun (fieldpats, assertions) (field, pat) ->
-            let pat, assertion = clean_pattern env pat in
-            (field, pat) :: fieldpats, assertion :: assertions)
-          ([], []) fieldpats
+        let fields, pats, annotations = Hml_List.split3 (List.map
+          (fun (field, pat) ->
+            let pat, annotation = clean_pattern env pat in
+            field, pat, annotation
+          ) fieldpats)
         in
-        let fieldpats = List.rev fieldpats in
-        PConstruct (name, fieldpats), List.flatten assertions
+        PConstruct (name, List.combine fields pats),
+        if List.exists ((<>) TyUnknown) annotations then
+          TyConcreteUnfolded (name, List.map2 (fun field t -> FieldValue (field, t)) fields annotations)
+        else
+          TyUnknown
 
     | PConstraint (pattern, typ) ->
-        let pattern, assertions = clean_pattern env pattern in
-        if List.length assertions > 0 then
-          Log.warn "%a there are nested type annotations in this pattern, the \
-            nested parts may end up being asserted twice, even though they may \
-            not be duplicable"
-            Lexer.p env.location;
-        let assertion = TyAnchoredPermission (pattern_to_type env pattern, typ) in
-        pattern, assertion :: assertions
+        let pattern, annotation = clean_pattern env pattern in
+        if annotation <> TyUnknown then
+          (* TODO provide a real error reporting mechanism for this module *)
+          Log.warn "%a nested type annotations are forbidden" Lexer.p env.location;
+        pattern, typ
 
     | PLocated (pattern, p1, p2) ->
-        let pattern, assertion = clean_pattern (locate env p1 p2) pattern in
-        PLocated (pattern, p1, p2), assertion
+        let pattern, annotation = clean_pattern (locate env p1 p2) pattern in
+        PLocated (pattern, p1, p2), annotation
   in
-  let pattern, assertions = clean_pattern env pattern in
-  pattern, List.rev assertions
+  clean_pattern empty pattern
 ;;
 
 
@@ -510,16 +497,8 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       E.EVar index
 
   | ELet (flag, patexprs, body) ->
-      let env, patexprs, assertions = translate_patexprs env flag patexprs in
+      let env, patexprs = translate_patexprs env flag patexprs in
       let body = translate_expr env body in
-      let body =
-        if List.length assertions > 0 then
-          let assertions = fold_star assertions in
-          let assertions = translate_type env assertions in
-          E.e_assert assertions body
-        else
-          body
-      in
       E.ELet (flag, patexprs, body)
 
   | EFun (vars, arg, return_type, body) ->
@@ -569,7 +548,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let e = translate_expr env e in
       let patexprs = List.map (fun (pat, expr) ->
         (* Extract assertions from the pattern. *)
-        let pat, assertions = clean_pattern env pat in
+        let pat, annotation = clean_pattern pat in
         (* Collect the names. *)
         let names = bindings_pattern pat in
         (* Translate the pattern. *)
@@ -579,9 +558,9 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
         let sub_env = List.fold_left bind env names in
         let expr = translate_expr sub_env expr in
         let expr =
-          if List.length assertions > 0 then
-            let assertions = translate_type env (fold_star assertions) in
-            E.e_assert assertions expr
+          if annotation <> TyUnknown then
+            let annotation = translate_type env annotation in
+            E.EConstraint (expr, annotation)
           else
             expr
         in
@@ -624,35 +603,41 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       E.EFail
 
 (* This function desugars a list of [pattern * expression] and returns the
- * desugared version, as well as a list of assertions (read: types with kind
- * PERM) that should be enforced later on when the names in the patterns have
- * been bound (typically, below). The assertions are returned as surface syntax. *)
+ * desugared version. The expressions may have been annotated with type
+ * constraints, according to the type annotations present in the pattern. *)
 and translate_patexprs
       (env: env)
       (flag: rec_flag)
-      (pat_exprs: (pattern * expression) list): env * E.patexpr list * typ list
+      (pat_exprs: (pattern * expression) list): env * E.patexpr list
     =
   let patterns, expressions = List.split pat_exprs in
-  (* Remove all inner type annotations and transform them into a list of
-   * assertions. *)
-  let patterns, assertions = List.fold_left (fun (patterns, assertions) pattern ->
-    let pattern, assertion = clean_pattern env pattern in
-    pattern :: patterns, assertion :: assertions) ([], []) patterns
-  in
-  (* Keep the assertions in order as well so as to enforce readability. *)
-  let patterns = List.rev patterns and assertions = List.rev assertions in
+  (* Remove all inner type annotations and transform them into a bigger type
+   * constraint.*)
+  let patterns, annotations = List.split (List.map clean_pattern patterns) in
   (* Find names in patterns. *)
-  let names = List.flatten (List.map bindings_pattern patterns) in
+  let names = Hml_List.map_flatten bindings_pattern patterns in
   (* Translate the patterns. *)
   let patterns = List.map (translate_pattern env) patterns in
   (* Bind all the names in the sub-environment. *)
   let sub_env = List.fold_left bind env names in
-  (* Translate the expressions. *)
-  let expressions = match flag with
-    | Recursive -> List.map (translate_expr sub_env) expressions
-    | Nonrecursive -> List.map (translate_expr env) expressions
+  (* Translate the expressions and annotations. *)
+  let expressions, annotations = match flag with
+    | Recursive ->
+        List.map (translate_expr sub_env) expressions,
+        List.map (translate_type sub_env) annotations
+    | Nonrecursive ->
+        List.map (translate_expr env) expressions,
+        List.map (translate_type env) annotations
   in
-  sub_env, List.combine patterns expressions, List.flatten assertions
+  (* Turn them into constrainted expressions if need be. *)
+  let expressions = List.map2 (fun expr annot ->
+      if annot <> T.TyUnknown then
+        E.EConstraint (expr, annot)
+      else
+        expr
+    ) expressions annotations
+  in
+  sub_env, List.combine patterns expressions
 ;;
 
 
@@ -673,26 +658,13 @@ let translate_declaration_group (env: env) (decls: declaration_group): E.declara
     match decl with
     | DLocated (DMultiple (flag, pat_exprs), p1, p2) ->
         let env = locate env p1 p2 in
-        let env, pat_exprs, assertions = translate_patexprs env flag pat_exprs in
+        let env, pat_exprs = translate_patexprs env flag pat_exprs in
         let decl = E.DLocated (E.DMultiple (flag, pat_exprs), p1, p2) in
-        (* Generate an extra declaration that enforces the type annotations. *)
-        let extra =
-          if List.length assertions > 0 then
-            let assertions = List.map (translate_type env) assertions in
-            let open E in
-            let open T in
-            (* val () = (): (| assertions) *)
-            Some (DLocated (DMultiple (Nonrecursive, [
-              p_unit, EConstraint (e_unit, TyBar (ty_unit, fold_star assertions))
-            ]), p1, p2))
-          else
-            None
-        in
-        env, extra :: (Some decl) :: acc
+        env, decl :: acc
     | _ ->
         Log.error "The structure of declarations is supposed to be very simple"
   ) (env, []) decls in
-  List.rev (Hml_List.filter_some decls)
+  List.rev decls
 ;;
 
 
