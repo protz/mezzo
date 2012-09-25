@@ -484,7 +484,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let sub_env = List.fold_left Permissions.add_perm sub_env perms in
 
       (* Type-check the function body. *)
-      let sub_env, p = check_expression sub_env body in
+      let sub_env, p = check_expression sub_env ~annot:return_type body in
 
       begin match Permissions.sub sub_env p return_type with
       | Some _ ->
@@ -656,12 +656,18 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       return env return_type
 
   | ETuple exprs ->
-      let env, components = Hml_List.fold_lefti
-        (fun i (env, components) expr ->
+      let annotations = match annot with
+        | Some (TyTuple annotations) when List.length annotations = List.length exprs ->
+            List.map (fun x -> Some x) annotations
+        | _ ->
+            Hml_List.make (List.length exprs) (fun _ -> None)
+      in
+      let env, components = Hml_List.fold_left2i
+        (fun i (env, components) expr annot ->
           let hint = add_hint hint (string_of_int i) in
-          let env, p = check_expression env ?hint expr in
+          let env, p = check_expression env ?hint ?annot expr in
           env, (ty_equals p) :: components)
-        (env, []) exprs
+        (env, []) exprs annotations
       in
       let components = List.rev components in
       return env (TyTuple components)
@@ -749,11 +755,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       (* The control-flow diverges. *)
       let hint_l = add_hint hint "then" in
-      let left = check_expression left_env ?hint:hint_l e2 in
+      let left = check_expression left_env ?hint:hint_l ?annot e2 in
       let hint_r = add_hint hint "else" in
-      let right = check_expression right_env ?hint:hint_r e3 in
+      let right = check_expression right_env ?hint:hint_r ?annot e3 in
 
-      let dest = Merge.merge_envs env left right in
+      let dest = Merge.merge_envs env ?annot left right in
 
       if explain then
         Debug.explain_merge dest [left; right];
@@ -834,12 +840,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         let expr = subst_expr expr in
         let hint = add_hint hint (Datacon.print datacon) in
 
-        check_expression env ?hint expr
+        check_expression env ?hint ?annot expr
       ) patexprs constructors in
 
       (* Combine all of these left-to-right to obtain a single return
        * environment *)
-      let dest = Hml_List.reduce (Merge.merge_envs env) sub_envs in
+      let dest = Hml_List.reduce (Merge.merge_envs env ?annot) sub_envs in
 
       if explain then
         Debug.explain_merge dest sub_envs;

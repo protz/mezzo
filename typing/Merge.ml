@@ -811,7 +811,8 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
 ;;
 
 
-let merge_envs (top: env) (left: env * point) (right: env * point): env * point =
+let merge_envs (top: env) ?(annot: typ option) (left: env * point) (right: env * point): env * point =
+  ignore (annot);
   if (fst left).inconsistent then
     right
   else if (fst right).inconsistent then
