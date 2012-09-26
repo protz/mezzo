@@ -312,6 +312,10 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:false Pass
   );
 
+  ("list-id.hml",
+    simple_test ~stdlib:false Pass
+  );
+
   ("xlist-concat.hml",
     simple_test ~stdlib:false Pass
   );

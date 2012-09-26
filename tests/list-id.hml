@@ -1,0 +1,9 @@
+data list a = Cons { head: a; tail: list a } | Nil
+
+val id [a] (duplicable a) => (x: list a): list a =
+  match x with
+  | Nil ->
+      x
+  | Cons ->
+      x
+  end
