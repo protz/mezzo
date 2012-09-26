@@ -47,7 +47,21 @@ let merge_flexible_with_term_in_sub_env top right_env p p' =
 ;;
 
 
-let actually_merge_envs (top: env) (left: env * point) (right: env * point): env * point =
+module Lifo = struct
+  type t = job list ref
+  let create () = ref [];;
+  let pop r = let v = List.hd !r in r := List.tl !r; v;;
+  let push r v = r := v :: !r;;
+  let remove r v =
+    match Hml_List.take (fun v' -> if v = v' then Some () else None) !r with
+    | Some (remaining, _) ->
+        r := remaining
+    | None ->
+        assert false
+  ;;
+end
+
+let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (right: env * point): env * point =
   Log.debug ~level:3 "\n--------- START MERGE ----------\n\n%a"
     TypePrinter.pdoc (TypePrinter.print_permissions, top);
 
@@ -62,25 +76,18 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
   (* We use a work list (a LIFO) to schedule points for merging. This implements
    * a depth-first traversal of the graph, which is indeed what we want (for the
    * moment). *)
-  let pending_jobs: job list ref = ref [] in
-  let pop r = let v = List.hd !r in r := List.tl !r; v in
-  let push r v = r := v :: !r in
-  let remove r v =
-    match Hml_List.take (fun v' -> if v = v' then Some () else None) !r with
-    | Some (remaining, _) ->
-        r := remaining
-    | None ->
-        assert false
-  in
+  let pending_jobs = Lifo.create () in
 
   (* One invariant is that if you push a job, the job's destination point has
    * been allocated in the destination environment already. *)
-  let push_job = push pending_jobs in
-  let pop_job () = pop pending_jobs in
+  let push_job = Lifo.push pending_jobs in
+  let pop_job () = Lifo.pop pending_jobs in
 
   (* We also keep a list of [left_point, right_point, dest_point] triples that
    * have been processed already. *)
-  let known_triples: job list ref = ref [] in
+  let known_triples = Lifo.create () in
+  let remember_triple = Lifo.push known_triples in
+  let forget_triple = Lifo.remove known_triples in
   let dump_known_triples left_env right_env dest_env =
     let open TypePrinter in
     List.iter (fun (left_point, right_point, dest_point) ->
@@ -156,25 +163,11 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
         let same_dest = List.filter (fun (_, _, dest_point') ->
           same dest_env dest_point dest_point') !known_triples
         in
-        Log.check (List.length same_dest <= 1)
-          "The list of known triples is not consistent";
+        Log.check (List.length same_dest <= 1) "The list of known triples is not consistent";
 
         if List.length same_dest = 0 then begin
-          (* Sanity check. *)
-          if List.length (get_permissions dest_env dest_point) <> 0 then begin
-            let open TypePrinter in
-            Log.debug ~level:4 "Here is the state of [dest_env]\n%a" pdoc (print_permissions, dest_env);
-            let name, binder = find_term dest_env dest_point in
-            Log.debug ~level:4
-              "%a %a shouldn't have any permissions but it has %a"
-              Lexer.p dest_env.location
-              pvar name
-              pdoc (print_permission_list, (dest_env, binder));
-            Log.error "The destination point must have an empty list of permissions!"
-          end;
-
           (* Remember the triple. *)
-          push known_triples (left_point, right_point, dest_point);
+          remember_triple (left_point, right_point, dest_point);
 
           Log.debug ~level:3 "[oracle] processing job %a / %a / %a."
             TypePrinter.pnames (get_names left_env left_point)
@@ -191,36 +184,69 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
         end
   in
 
-  (* This is the destination environment; it will evolve over time. Initially,
-   * it is empty. As an optimization, we keep the points that were previously
-   * defined so that the mapping is the identity for all the points from [top]. *)
-  let dest_env = fold_terms top (fun dest_env point _head _binder ->
-    replace_term dest_env point (fun binder ->
-      { binder with permissions = [] }
-    )) top
+
+  let make_base_envs ?annot () =
+
+    (* This is the destination environment; it will evolve over time. Initially,
+     * it is empty. As an optimization, we keep the points that were previously
+     * defined so that the mapping is the identity for all the points from [top]. *)
+    let dest_env = fold_terms top (fun dest_env point _head _binder ->
+      replace_term dest_env point (fun binder ->
+        { binder with permissions = [ty_equals point] }
+      )) top
+    in
+
+    (* TODO we should iterate over all pairs of roots here, and see if they've
+     * been merged in both sub-environments. In that case, they should be merged
+     * beforehand in the destination environment too. Merges in local
+     * sub-environments can happen because a dynamic == test refined the
+     * permissions. *)
+
+    (* All the roots should be merged. *)
+    let roots = fold_terms top (fun acc k _ _ -> k :: acc) [] in
+    List.iter (fun p -> push_job (p, p, p)) roots;
+
+    (* Create an additional root for the result of the match. Schedule it for
+     * merging, at the front of the list (this implements our first heuristic). *)
+    let left_env, left_root = left in
+    let right_env, right_root = right in
+    let root_name = Auto (Variable.register (fresh_name "merge_root")) in
+    let dest_env, dest_root = bind_term dest_env root_name dest_env.location false in
+    push_job (left_root, right_root, dest_root);
+
+    (* All bound types are kept, so remember that we know how these are mapped. *)
+    let type_triples = fold_types top (fun ps p _ _ -> (p, p, p) :: ps) [] in
+    List.iter remember_triple type_triples;
+
+    (* If the user requested that part of the merge be solved in a certain way,
+     * through type annotations, we should subtract from each of the
+     * sub-environments the expected type annotations, and put them in the
+     * destination environment already. *)
+    match annot with
+    | None ->
+        dest_env, dest_root, left_env, right_env
+    | Some annot ->
+        Log.debug ~level:4 "[make_base] annot: %a" TypePrinter.ptype (top, annot);
+
+        let sub_annot env root =
+          match Permissions.sub env root annot with
+          | None ->
+              let open TypeErrors in
+              raise_error env (ExpectedType (annot, root))
+          | Some env ->
+              env
+        in
+        let left_env = sub_annot left_env left_root in
+        let right_env = sub_annot right_env right_root in
+        let dest_env = Permissions.add dest_env dest_root annot in
+
+        Log.debug ~level:3 "\n------------ DEST -------------\n\n%a"
+          TypePrinter.pdoc (TypePrinter.print_permissions, dest_env);
+
+        dest_env, dest_root, left_env, right_env
+
   in
-
-  (* TODO we should iterate over all pairs of roots here, and see if they've
-   * been merged in both sub-environments. In that case, they should be merged
-   * beforehand in the destination environment too. Merges in local
-   * sub-environments can happen because a dynamic == test refined the
-   * permissions. *)
-
-  (* All the roots should be merged. *)
-  let roots = fold_terms top (fun acc k _ _ -> k :: acc) [] in
-  List.iter (fun p -> push_job (p, p, p)) roots;
-
-  (* Create an additional root for the result of the match. Schedule it for
-   * merging, at the front of the list (this implements our first heuristic). *)
-  let left_env, left_root = left in
-  let right_env, right_root = right in
-  let root_name = Auto (Variable.register (fresh_name "merge_root")) in
-  let dest_env, dest_root = bind_term ~include_equals:false dest_env root_name dest_env.location false in
-  push_job (left_root, right_root, dest_root);
-
-  (* All bound types are kept, so remember that we know how these are mapped. *)
-  let type_triples = fold_types top (fun ps p _ _ -> (p, p, p) :: ps) [] in
-  List.iter (push known_triples) type_triples;
+  let dest_env, dest_root, left_env, right_env = make_base_envs ?annot () in
 
 
   (* This function, assuming the [left_point, right_point, dest_point] triple is
@@ -305,8 +331,6 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
                     (right_env, right_perms)
                     (dest_env, dest_perms)
               end
-
-
         in
 
         let left_perms = get_permissions left_env left_point in
@@ -321,8 +345,15 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
         let right_env =
           replace_term right_env right_point (fun b -> { b with permissions = right_perms })
         in
-        let dest_env =
-          replace_term dest_env dest_point (fun b -> { b with permissions = dest_perms })
+
+        (* We can't just brutally replace the list of permissions using
+         * [replace_term], since, because there are some permissions already for
+         * [dest_point] in [dest_env]: at least [=dest_point], but maybe more,
+         * depending on user-provided type annotations. *)
+        let dest_env = List.fold_left
+          (fun dest_env t -> Permissions.add dest_env dest_point t)
+          dest_env 
+          dest_perms
         in
         left_env, right_env, dest_env
 
@@ -348,7 +379,7 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
           dest_env, dest_p
       | None ->
           let name = Auto (Variable.register (fresh_name "merge_point")) in
-          let dest_env, dest_p = bind_term ~include_equals:false dest_env name left_env.location false in
+          let dest_env, dest_p = bind_term dest_env name left_env.location false in
           let dest_env = add_location dest_env dest_p right_env.location in
           push_job (left_p, right_p, dest_p);
           Log.debug ~level:4
@@ -503,7 +534,7 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
                     let dest_env, dest_p =
                       bind_var dest_env ~flexible:true (get_name left_env left_p, k, dest_env.location)
                     in
-                    push known_triples (left_p, right_p, dest_p);
+                    remember_triple (left_p, right_p, dest_p);
 
                     Some (left_env, right_env, dest_env, TyPoint dest_p)
                 end
@@ -555,7 +586,7 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
               in
               Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields))
 
-            else if same dest_env t_left t_right then
+            else if same dest_env t_left t_right then begin
               (* Same nominal type (e.g. [Nil] vs [Cons]). The procedure here is a
                * little bit more complicated. We need to take the nominal type (e.g.
                * [list]), and apply it to [a] flexible on both sides, allocate [a]
@@ -566,6 +597,11 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
                *)
 
               let t_dest = PersistentUnionFind.repr t_left left_env.state in
+
+              if get_arity dest_env t_dest > 0 then
+                Log.warn "Merging distinct constructors into a nominal \
+                  type with type parameters, results are unpredictable, you should \
+                  consider providing annotations";
 
               Log.debug ~level:4 "[cons_vs_cons] left";
               let left_env, t_app_left =
@@ -589,7 +625,7 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
               let dest_perm = Flexible.generalize dest_env dest_perm in
               Some (left_env, right_env, dest_env, dest_perm)
 
-            else
+            end else
               None
 
 
@@ -686,7 +722,7 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
                * environment. Remember the triple. *)
               let dest_env, dest_point = bind_var dest_env (name, k, left_location) in
               let dest_env = add_location dest_env dest_point right_location in
-              push known_triples (left_point, right_point, dest_point);
+              remember_triple (left_point, right_point, dest_point);
 
               (* Try to perform the merge. *)
               begin match merge_type (left_env, t_l) (right_env, t_r) dest_env with
@@ -699,7 +735,7 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
               | None ->
                   (* Don't keep this triple since we're throwing away the
                    * environments. *)
-                  remove known_triples (left_point, right_point, dest_point);
+                  forget_triple (left_point, right_point, dest_point);
                   None
               end
             else
@@ -812,11 +848,10 @@ let actually_merge_envs (top: env) (left: env * point) (right: env * point): env
 
 
 let merge_envs (top: env) ?(annot: typ option) (left: env * point) (right: env * point): env * point =
-  ignore (annot);
   if (fst left).inconsistent then
     right
   else if (fst right).inconsistent then
     left
   else
-    actually_merge_envs top left right
+    actually_merge_envs top ?annot left right
 ;;

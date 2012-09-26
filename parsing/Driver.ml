@@ -109,24 +109,24 @@ let run { html_errors } f =
   try
     f ()
   with
-  | TypeChecker.TypeCheckerError ((env, _) as e) ->
+  | TypeErrors.TypeCheckerError ((env, _) as e) ->
       if html_errors then begin
         (* Get a plain-text version of the error *)
         Hml_Pprint.disable_colors ();
-        let text = Hml_String.bsprintf "%a\n" TypeChecker.print_error e in
+        let text = Hml_String.bsprintf "%a\n" TypeErrors.print_error e in
         (* Generate the HTML explanation. *)
         Debug.explain ~text env;
         (* Find out about the command to run. *)
         let f = (fst env.Types.location).Lexing.pos_fname in
         let f = Hml_String.replace "/" "_" f in
         let cmd = Printf.sprintf
-          "firefox \"viewer/viewer.html?json_file=data/%s.json\" &"
+          "firefox -new-window \"viewer/viewer.html?json_file=data/%s.json\" &"
           f
         in
         (* Let's do it! *)
         ignore (Sys.command cmd)
       end else begin
-        Hml_String.beprintf "%a\n" TypeChecker.print_error e;
+        Hml_String.beprintf "%a\n" TypeErrors.print_error e;
       end;
       exit 251
   | KindCheck.KindError e ->

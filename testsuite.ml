@@ -1,12 +1,13 @@
 open Types
 open TypeChecker
 open TestUtils
+open TypeErrors
 
 let check env point t =
   ignore (check_return_type env point t)
 ;;
 
-type outcome = Fail of (TypeChecker.raw_error -> bool) | Pass
+type outcome = Fail of (raw_error -> bool) | Pass
 
 let simple_test ?(stdlib=true) outcome = fun do_it ->
   try
@@ -285,7 +286,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   (*("", fun _ -> raise Exit);*)
 
   ("list-length.hml", fun do_it ->
-    let env = do_it true in
+    let env = do_it false in
     let int = find_type_by_name env "int" in
     let zero = point_by_name env "zero" in
     check env zero int);
@@ -363,10 +364,10 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   );
 
   ("fail1.hml",
-    simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+    simple_test ~stdlib:false ((Fail (function ExpectedType _ -> true | _ -> false))));
 
   ("fail2.hml",
-    simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+    simple_test ~stdlib:false ((Fail (function ExpectedType _ -> true | _ -> false))));
 
   ("fail3.hml",
     simple_test ~stdlib:true ((Fail (function NoSuchField _ -> true | _ -> false))));

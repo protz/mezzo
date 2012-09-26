@@ -321,7 +321,7 @@ and add_perm (env: env) (t: typ): env =
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
  * to the list of available permissions for [p] *)
 and add_type (env: env) (p: point) (t: typ): env =
- match sub env p t with
+  match sub env p t with
   | Some env ->
       Log.debug "→ sub worked";
       if FactInference.is_exclusive env t then begin
