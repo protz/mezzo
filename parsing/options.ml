@@ -1,0 +1,3 @@
+let pedantic =
+  ref false
+;;
