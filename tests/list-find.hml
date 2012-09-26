@@ -1,0 +1,20 @@
+data bool = True | False
+data list a = Cons { head: a; tail: list a } | Nil
+data option a = Some { contents: a } | None
+
+val find [a] (duplicable a) => (l: list a, f: a -> bool): option a =
+  let rec find1 (l: list a): option a =
+    match l with
+    | Cons { head; tail } ->
+        if f head then
+          (* So here we would fold this as option (=head) and then fail. Thanks
+           * to the type annotation that propagates downwards, we don't do that!
+           * Yay! 😸 *)
+          Some { contents = head }
+        else
+          find1 tail
+    | Nil ->
+        None
+    end
+  in
+  find1 l

@@ -308,6 +308,10 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:false Pass
   );
 
+  ("list-find.hml",
+    simple_test ~stdlib:false Pass
+  );
+
   ("xlist-concat.hml",
     simple_test ~stdlib:false Pass
   );

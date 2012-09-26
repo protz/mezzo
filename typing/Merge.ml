@@ -296,7 +296,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
           | left_perm :: left_perms, right_perms ->
 
               let works right_perm =
-                merge_type (left_env, left_perm) (right_env, right_perm) dest_env
+                merge_type (left_env, left_perm) (right_env, right_perm) ~dest_point dest_env
               in
 
               begin match Hml_List.take works right_perms with
@@ -361,10 +361,14 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
   (* This is the core of the merge algorithm: this is where we compare a type
    * from the left with a type from the right and decide how to merge the two
-   * together. *)
+   * together. The destination point may not be always present (e.g. in the
+   * point-to-point strategy) but is useful for figuring out whether we should
+   * just forget about whatever we're doing in case the user provided type
+   * annotations. *)
   and merge_type
       ((left_env, left_perm): env * typ)
       ((right_env, right_perm): env * typ)
+      ?(dest_point: point option)
       (dest_env: env): (env * env * env * typ) option
     =
 
@@ -389,6 +393,20 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             TypePrinter.pnames (get_names dest_env dest_p);
           dest_env, dest_p
     in
+
+    let has_nominal_type_annotation dest_env dest_point t_dest =
+      List.exists (fun t ->
+        match t with
+        | TyApp _ ->
+            let cons, _args = flatten_tyapp t in
+            same dest_env t_dest !!cons
+        | TyPoint p ->
+            same dest_env t_dest p
+        | _ ->
+            false
+      ) (get_permissions dest_env dest_point)
+    in
+
 
     let open TypePrinter in
     Log.debug ~level:4
@@ -425,7 +443,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
         match left_perm, right_perm with
         | TyPoint left_p, _ ->
             structure left_env left_p >>= fun left_perm ->
-            merge_type (left_env, left_perm) (right_env, right_perm) dest_env
+            merge_type (left_env, left_perm) (right_env, right_perm) ?dest_point dest_env
         | _ ->
             None
       end;
@@ -439,7 +457,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
         match left_perm, right_perm with
         | _, TyPoint right_p ->
             structure right_env right_p >>= fun right_perm ->
-            merge_type (left_env, left_perm) (right_env, right_perm) dest_env
+            merge_type (left_env, left_perm) (right_env, right_perm) ?dest_point dest_env
         | _ ->
             None
       end;
@@ -553,7 +571,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
        *
        * This must come *after* the point-to-point strategy. *)
       lazy begin
-        try_merge_flexible (left_env, left_perm) (right_env, right_perm) dest_env
+        try_merge_flexible (left_env, left_perm) (right_env, right_perm) ?dest_point dest_env
       end;
 
 
@@ -598,32 +616,39 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
               let t_dest = PersistentUnionFind.repr t_left left_env.state in
 
-              if get_arity dest_env t_dest > 0 then
-                Log.warn "Merging distinct constructors into a nominal \
-                  type with type parameters, results are unpredictable, you should \
-                  consider providing annotations";
+              (* Ok, if the user already told us how to fold this type, then
+               * don't bother doing the work at all. Otherwise, complain. *)
+              let dest_point = Option.extract dest_point in
+              if has_nominal_type_annotation dest_env dest_point t_dest then begin
+                None
+              end else begin
+                if get_arity dest_env t_dest > 0 then
+                  Log.warn "Merging distinct constructors into a nominal \
+                    type with type parameters, results are unpredictable, you should \
+                    consider providing annotations";
 
-              Log.debug ~level:4 "[cons_vs_cons] left";
-              let left_env, t_app_left =
-                build_flexible_type_application (left_env, left_perm) (dest_env, t_dest)
-              in
-              Log.debug ~level:4 "[cons_vs_cons] right";
-              let right_env, t_app_right =
-                build_flexible_type_application (right_env, right_perm) (dest_env, t_dest)
-              in
+                Log.debug ~level:4 "[cons_vs_cons] left";
+                let left_env, t_app_left =
+                  build_flexible_type_application (left_env, left_perm) (dest_env, t_dest)
+                in
+                Log.debug ~level:4 "[cons_vs_cons] right";
+                let right_env, t_app_right =
+                  build_flexible_type_application (right_env, right_perm) (dest_env, t_dest)
+                in
 
-              (* Did the subtractions succeed? *)
-              left_env >>= fun left_env ->
-              right_env >>= fun right_env ->
+                (* Did the subtractions succeed? *)
+                left_env >>= fun left_env ->
+                right_env >>= fun right_env ->
 
-              Log.debug ~level:3 "[cons_vs_cons] subtractions performed, got: %a vs %a"
-                TypePrinter.ptype (left_env, t_app_left)
-                TypePrinter.ptype (right_env, t_app_right);
+                Log.debug ~level:3 "[cons_vs_cons] subtractions performed, got: %a vs %a"
+                  TypePrinter.ptype (left_env, t_app_left)
+                  TypePrinter.ptype (right_env, t_app_right);
 
-              let r = merge_type (left_env, t_app_left) (right_env, t_app_right) dest_env in
-              r >>= fun (left_env, right_env, dest_env, dest_perm) ->
-              let dest_perm = Flexible.generalize dest_env dest_perm in
-              Some (left_env, right_env, dest_env, dest_perm)
+                let r = merge_type (left_env, t_app_left) (right_env, t_app_right) ~dest_point dest_env in
+                r >>= fun (left_env, right_env, dest_env, dest_perm) ->
+                let dest_perm = Flexible.generalize dest_env dest_perm in
+                Some (left_env, right_env, dest_env, dest_perm)
+              end
 
             end else
               None
@@ -638,7 +663,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             in
 
             left_env >>= fun left_env ->
-            merge_type (left_env, t_app_left) (right_env, right_perm) dest_env
+            merge_type (left_env, t_app_left) (right_env, right_perm) ?dest_point dest_env
 
 
         | _, TyConcreteUnfolded (datacon_r, _) ->
@@ -650,7 +675,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             in
 
             right_env >>= fun right_env ->
-            merge_type (left_env, left_perm) (right_env, t_app_right) dest_env
+            merge_type (left_env, left_perm) (right_env, t_app_right) ?dest_point dest_env
 
 
         | TyApp _, TyApp _ ->
@@ -660,44 +685,47 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
             (* Merge the constructors. This should be a no-op, unless they're
              * distinct, in which case we stop here. *)
-            let r = merge_type (left_env, consl) (right_env, consr) dest_env in
+            let r = merge_type (left_env, consl) (right_env, consr) ?dest_point dest_env in
             r >>= fun (left_env, right_env, dest_env, cons) ->
 
-            (* So the constructors match. Let's now merge pairwise the arguments. *)
-            let r = Hml_List.fold_left2i (fun i acc argl argr ->
-              (* We keep the current triple of environments and the merge
-               * arguments in the accumulator. *)
-              acc >>= fun (left_env, right_env, dest_env, args) ->
-              let v =
-                (* Here, variance comes into play. The merge operation is a
-                 * disjunction, so it "goes up" (subtyping-wise), that is, it is
-                 * covariant. So if we need to recursively merge type parameters,
-                 * we need to make sure the type is covariant for that parameter!
-                 * If it's contravariant, we should do a conjunction (that is, the
-                 * intersection) of types: this is the dual operation of the
-                 * merge. I'm not going to write 1000 more lines just for that, so
-                 * we're conservative, and move up the variance lattice, and
-                 * consider the parameter to be invariant. *)
-                match variance dest_env !!cons i with
-                | Covariant ->
-                    merge_type (left_env, argl) (right_env, argr) dest_env
-                | _ ->
-                    try_merge_flexible (left_env, argl) (right_env, argr) dest_env
-              in
-              v >>= fun (left_env, right_env, dest_env, arg) ->
-              (* The parameter was merged. Return a valid accumulator. *)
-              Some (left_env, right_env, dest_env, arg :: args)
-            ) (Some (left_env, right_env, dest_env, [])) argsl argsr in
-            r >>= fun (left_env, right_env, dest_env, args) ->
+            if has_nominal_type_annotation dest_env (Option.extract dest_point) !!cons then
+              None
+            else
+              (* So the constructors match. Let's now merge pairwise the arguments. *)
+              let r = Hml_List.fold_left2i (fun i acc argl argr ->
+                (* We keep the current triple of environments and the merge
+                 * arguments in the accumulator. *)
+                acc >>= fun (left_env, right_env, dest_env, args) ->
+                let v =
+                  (* Here, variance comes into play. The merge operation is a
+                   * disjunction, so it "goes up" (subtyping-wise), that is, it is
+                   * covariant. So if we need to recursively merge type parameters,
+                   * we need to make sure the type is covariant for that parameter!
+                   * If it's contravariant, we should do a conjunction (that is, the
+                   * intersection) of types: this is the dual operation of the
+                   * merge. I'm not going to write 1000 more lines just for that, so
+                   * we're conservative, and move up the variance lattice, and
+                   * consider the parameter to be invariant. *)
+                  match variance dest_env !!cons i with
+                  | Covariant ->
+                      merge_type (left_env, argl) (right_env, argr) ?dest_point dest_env
+                  | _ ->
+                      try_merge_flexible (left_env, argl) (right_env, argr) ?dest_point dest_env
+                in
+                v >>= fun (left_env, right_env, dest_env, arg) ->
+                (* The parameter was merged. Return a valid accumulator. *)
+                Some (left_env, right_env, dest_env, arg :: args)
+              ) (Some (left_env, right_env, dest_env, [])) argsl argsr in
+              r >>= fun (left_env, right_env, dest_env, args) ->
 
-            (* Yay! All type parameters were merged. Reverse the list. *)
-            let args = List.rev args in
+              (* Yay! All type parameters were merged. Reverse the list. *)
+              let args = List.rev args in
 
-            (* Re-fold the type application. *)
-            let t = fold_tyapp cons args in
+              (* Re-fold the type application. *)
+              let t = fold_tyapp cons args in
 
-            (* And we're good to go. *)
-            Some (left_env, right_env, dest_env, t)
+              (* And we're good to go. *)
+              Some (left_env, right_env, dest_env, t)
 
         | TyForall (binding_left, t_l), TyForall (binding_right, t_r) ->
             (* This code-path is correct but frankly, we shouldn't have to
@@ -725,7 +753,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
               remember_triple (left_point, right_point, dest_point);
 
               (* Try to perform the merge. *)
-              begin match merge_type (left_env, t_l) (right_env, t_r) dest_env with
+              begin match merge_type (left_env, t_l) (right_env, t_r) ~dest_point dest_env with
               | Some (left_env, right_env, dest_env, t) ->
                   (* Yes? Re-generalize... *)
                   Some (
@@ -767,7 +795,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
    *   * we try to merge [p] with one of them, preferably not the singleton one,
    *     since that one, again, doesn't make sense in a top-level environment.
    *)
-  and try_merge_flexible (left_env, left_perm) (right_env, right_perm) dest_env =
+  and try_merge_flexible (left_env, left_perm) (right_env, right_perm) ?dest_point dest_env =
     match left_perm, right_perm with
     (* We can instantiate a flexible variable, as long as the type on the other
      * side makes sense in the original environment. *)
@@ -782,7 +810,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
           match t with
           | TySingleton (TyPoint p') ->
               Hml_List.find_opt
-                (fun right_perm -> merge_type (left_env, left_perm) (right_env, right_perm) dest_env)
+                (fun right_perm -> merge_type (left_env, left_perm) (right_env, right_perm) ?dest_point dest_env)
                 (Permissions.dup_perms_no_singleton right_env p')
           | TyPoint _ ->
               Log.error "This should've been taken care of by the point-to-point \
@@ -800,7 +828,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
           match t with
           | TySingleton (TyPoint p') ->
               Hml_List.find_opt
-                (fun left_perm -> merge_type (left_env, left_perm) (right_env, right_perm) dest_env)
+                (fun left_perm -> merge_type (left_env, left_perm) (right_env, right_perm) ?dest_point dest_env)
                 (Permissions.dup_perms_no_singleton left_env p')
           | TyPoint _ ->
               Log.error "This should've been taken care of by the point-to-point \
