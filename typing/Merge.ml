@@ -192,7 +192,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
      * defined so that the mapping is the identity for all the points from [top]. *)
     let dest_env = fold_terms top (fun dest_env point _head _binder ->
       replace_term dest_env point (fun binder ->
-        { binder with permissions = [ty_equals point] }
+        { binder with permissions = initial_permissions_for_point point }
       )) top
     in
 

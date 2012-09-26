@@ -706,6 +706,10 @@ let head name location ~flexible kind =
   }
 ;;
 
+let initial_permissions_for_point p =
+  [ ty_equals point; TyUnknown ]
+;;
+
 let bind_term
     (env: env)
     (name: name)
@@ -718,7 +722,7 @@ let bind_term
     BTerm { permissions = []; ghost }
   in
   let point, state = PersistentUnionFind.create binding env.state in
-  let initial_permissions = [ ty_equals point; TyUnknown ] in
+  let initial_permissions = initial_permissions_for_point point in
   let state = PersistentUnionFind.update
     (function
       | (head, BTerm raw) -> head, BTerm { raw with permissions = initial_permissions }
