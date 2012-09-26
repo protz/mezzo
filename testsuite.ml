@@ -272,7 +272,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
      * singleton-subtyping-rule -- this would defeat the whole purpose of the
      * test. *)
     let perms = get_permissions env x in
-    if perms <> [ty_equals x] then
+    if List.exists (FactInference.is_exclusive env) perms then
       failwith "The permission on [x] should've been consumed";
     let perms = get_permissions env s1 in
     if not (List.exists ((=) (TyApp (t, datacon "A" []))) perms) then

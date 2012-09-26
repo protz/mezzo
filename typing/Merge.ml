@@ -407,6 +407,16 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
       ) (get_permissions dest_env dest_point)
     in
 
+    let has_datacon_type_annotation dest_env dest_point datacon =
+      List.exists (fun t ->
+        match t with
+        | TyConcreteUnfolded (datacon', _) ->
+            Datacon.equal datacon datacon'
+        | _ ->
+            false
+      ) (get_permissions dest_env dest_point)
+    in
+
 
     let open TypePrinter in
     Log.debug ~level:4
@@ -586,23 +596,27 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
         | TyConcreteUnfolded (datacon_l, fields_l), TyConcreteUnfolded (datacon_r, fields_r) ->
             let t_left: point = type_for_datacon left_env datacon_l in
             let t_right: point = type_for_datacon right_env datacon_r in
+            let dest_point = Option.extract dest_point in
 
             if Datacon.equal datacon_l datacon_r then
-              (* Same constructors: both are in expanded form so just schedule the
-               * points in their fields for merging. *)
-              let dest_env, dest_fields =
-                List.fold_left2 (fun (dest_env, dest_fields) field_l field_r ->
-                  match field_l, field_r with
-                  | FieldValue (name_l, TySingleton (TyPoint left_p)),
-                    FieldValue (name_r, TySingleton (TyPoint right_p)) ->
-                      Log.check (Field.equal name_l name_r) "Not in order?";
-                      let dest_env, dest_p = bind_merge dest_env left_p right_p in
-                      (dest_env, FieldValue (name_l, ty_equals dest_p) :: dest_fields)
-                  | _ ->
-                      Log.error "All permissions should be in expanded form."
-                ) (dest_env, []) fields_l fields_r
-              in
-              Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields))
+              if has_datacon_type_annotation dest_env dest_point datacon_l then
+                None
+              else
+                (* Same constructors: both are in expanded form so just schedule the
+                 * points in their fields for merging. *)
+                let dest_env, dest_fields =
+                  List.fold_left2 (fun (dest_env, dest_fields) field_l field_r ->
+                    match field_l, field_r with
+                    | FieldValue (name_l, TySingleton (TyPoint left_p)),
+                      FieldValue (name_r, TySingleton (TyPoint right_p)) ->
+                        Log.check (Field.equal name_l name_r) "Not in order?";
+                        let dest_env, dest_p = bind_merge dest_env left_p right_p in
+                        (dest_env, FieldValue (name_l, ty_equals dest_p) :: dest_fields)
+                    | _ ->
+                        Log.error "All permissions should be in expanded form."
+                  ) (dest_env, []) fields_l fields_r
+                in
+                Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields))
 
             else if same dest_env t_left t_right then begin
               (* Same nominal type (e.g. [Nil] vs [Cons]). The procedure here is a
@@ -618,7 +632,6 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
               (* Ok, if the user already told us how to fold this type, then
                * don't bother doing the work at all. Otherwise, complain. *)
-              let dest_point = Option.extract dest_point in
               if has_nominal_type_annotation dest_env dest_point t_dest then begin
                 None
               end else begin

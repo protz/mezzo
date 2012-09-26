@@ -36,6 +36,8 @@ let safety_check env =
     let concrete = List.filter (function
       | TyConcreteUnfolded _ ->
           true
+      | TyTuple _ ->
+          true
       | _ ->
           false
     ) permissions in
@@ -466,10 +468,10 @@ and sub (env: env) (point: point) (t: typ): env option =
     Some env
   else
     match t with
-    | TyUnknown ->
-        Some env
-
     | TyDynamic ->
+        (* FIXME this should be added right away into the list of permissions
+         * when the point is allocated or whenever an exclusive permission is
+         * added to it. *)
         if begin
           List.exists
             (FactInference.is_exclusive env)
@@ -537,11 +539,13 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
   (* For when everything's duplicable. *)
   let sort_dup = function
     | TySingleton _ -> 0
+    | TyUnknown -> 3
     | _ -> 1
   (* For when there's exclusive permissions. *)
   and sort_non_dup = function
     | _ as t when not (FactInference.is_duplicable env t) -> 0
     | TySingleton _ -> 2
+    | TyUnknown -> 3
     | _ -> 1
   in
   let sort_non_dup x y = sort_non_dup x - sort_non_dup y
@@ -626,9 +630,6 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   if equal env t1 t2 then
     Some env
   else match t1, t2 with
-  | _, TyUnknown ->
-      Some env
-
   | TyConstraints _, _ ->
       Log.error "Constraints should've been processed when this permission was added"
 

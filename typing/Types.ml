@@ -718,7 +718,7 @@ let bind_term
     BTerm { permissions = []; ghost }
   in
   let point, state = PersistentUnionFind.create binding env.state in
-  let initial_permissions = [ ty_equals point ] in
+  let initial_permissions = [ ty_equals point; TyUnknown ] in
   let state = PersistentUnionFind.update
     (function
       | (head, BTerm raw) -> head, BTerm { raw with permissions = initial_permissions }
@@ -1038,21 +1038,23 @@ let instantiate_branch branch args =
   branch
 ;;
 
+let get_branches env point =
+  match get_definition env point with
+  | Some (Some (_, branches), _) ->
+      branches
+  | _ ->
+      Log.error "This is not a concrete data type."
+;;
+
 let find_and_instantiate_branch
     (env: env)
     (point: point)
     (datacon: Datacon.name)
     (args: typ list): data_type_def_branch =
-  let branches = match get_definition env point with
-    | Some (Some (_, branches), _) ->
-        branches
-    | _ ->
-        Log.error "This is not a concrete data type."
-  in
   let branch =
     List.find
       (fun (datacon', _) -> Datacon.equal datacon datacon')
-      branches
+      (get_branches env point)
   in
   let branch = instantiate_branch branch args in
   branch
