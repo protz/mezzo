@@ -1,0 +1,11 @@
+exclusive data t = T
+data pair a b = Pair { left: a; right: b }
+data bool = True | False
+
+val v =
+  if True then begin
+    let x = T in
+    Pair { left = x; right = x }
+  end else begin
+    Pair { left = T; right = T }
+  end
