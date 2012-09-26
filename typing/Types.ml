@@ -706,7 +706,7 @@ let head name location ~flexible kind =
   }
 ;;
 
-let initial_permissions_for_point p =
+let initial_permissions_for_point point =
   [ ty_equals point; TyUnknown ]
 ;;
 

@@ -165,6 +165,36 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
         in
         Log.check (List.length same_dest <= 1) "The list of known triples is not consistent";
 
+        (* Because [merge_candidates] returned [None], we know that we're not in
+         * a case of sharing. So if one of the two checks below succeeds, this
+         * means that we've visited either the left point with a different path
+         * on the right side, or the converse. If the point is marked (and
+         * [make_base_envs] marked those points that originally contained a
+         * non-duplicable permission), then we're in a case of exclusive
+         * resource allocation conflict: we're trying to use, say, the same
+         * left_point for a different right_point. *)
+        if List.exists (fun (l, _, _) ->
+          same left_env left_point l && is_marked left_env l
+        ) !known_triples then begin
+          let open TypeErrors in
+          let error = ResourceAllocationConflict left_point in
+          if !Options.pedantic then
+            raise_error left_env error
+          else
+            Log.warn "%a" print_error (left_env, error)
+        end;
+        if List.exists (fun (_, r, _) ->
+          same right_env right_point r && is_marked right_env r
+        ) !known_triples then begin
+          let open TypeErrors in
+          let error = ResourceAllocationConflict right_point in
+          if !Options.pedantic then
+            TypeErrors.raise_error right_env error
+          else
+            Log.warn "%a" print_error (right_env, error)
+        end;
+
+
         if List.length same_dest = 0 then begin
           (* Remember the triple. *)
           remember_triple (left_point, right_point, dest_point);
@@ -178,7 +208,12 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
         end else begin
           Log.debug ~level:4 "[oracle] discarding job since %a has been visited already"
             TypePrinter.pnames (get_names dest_env dest_point);
-          (* We've proceed this point already, don't process it again. *)
+
+          (* LOL! This piece of code is dead. (But it will be undead if you
+           * remove the smart hack in [bind_merge].) *)
+          if true then assert false;
+
+          (* Do nothing, since it would be illegal! *)
           Abort
 
         end
@@ -218,6 +253,19 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
     let type_triples = fold_types top (fun ps p _ _ -> (p, p, p) :: ps) [] in
     List.iter remember_triple type_triples;
 
+    (* In order to properly detect exclusive resource allocation conflicts, we
+     * mark those points that have non-duplicable permissions. *)
+    let mark_duplicable_points env =
+      fold_terms env (fun env point _head { permissions; _ } ->
+        if List.exists (fun x -> not (FactInference.is_duplicable env x)) permissions then
+          mark env point
+        else
+          env
+      ) env
+    in
+    let left_env = mark_duplicable_points left_env in
+    let right_env = mark_duplicable_points right_env in
+
     (* If the user requested that part of the merge be solved in a certain way,
      * through type annotations, we should subtract from each of the
      * sub-environments the expected type annotations, and put them in the
@@ -246,8 +294,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
         dest_env, dest_root, left_env, right_env
 
   in
-  let dest_env, dest_root, left_env, right_env = make_base_envs ?annot () in
 
+  let dest_env, dest_root, left_env, right_env = make_base_envs ?annot () in
 
   (* This function, assuming the [left_point, right_point, dest_point] triple is
    * legal, will do a cross-product of [merge_type], trying as it goes to match
@@ -352,7 +400,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
          * depending on user-provided type annotations. *)
         let dest_env = List.fold_left
           (fun dest_env t -> Permissions.add dest_env dest_point t)
-          dest_env 
+          dest_env
           dest_perms
         in
         left_env, right_env, dest_env
@@ -635,12 +683,14 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
               if has_nominal_type_annotation dest_env dest_point t_dest then begin
                 None
               end else begin
-                if get_arity dest_env t_dest > 0 then
-                  Log.warn "%a merging distinct constructors into a nominal \
-                    type with type parameters, results are unpredictable, you should \
-                    consider providing annotations for %a"
-                  Lexer.p dest_env.location
-                  TypePrinter.pnames (get_names dest_env dest_point);
+                if get_arity dest_env t_dest > 0 then begin
+                  let open TypeErrors in
+                  let error = UncertainMerge dest_point in
+                  if !Options.pedantic then
+                    raise_error dest_env error
+                  else
+                    Log.warn "%a" print_error (dest_env, error)
+                end;
 
                 Log.debug ~level:4 "[cons_vs_cons] left";
                 let left_env, t_app_left =

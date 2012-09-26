@@ -24,6 +24,8 @@ and raw_error =
   | AssignNotExclusive of typ * Datacon.name
   | FieldCountMismatch of typ * Datacon.name
   | NoMultipleArguments
+  | ResourceAllocationConflict of point
+  | UncertainMerge of point
 
 exception TypeCheckerError of error
 
@@ -38,7 +40,8 @@ let print_error buf (env, raw_error) =
     Printf.bprintf buf "\nOH NOES. Printing permissions.\n\n%a" pdoc (print_permissions, env);
     Printf.bprintf buf "\nError message follows.\n\n";
   in
-  print_permissions ();
+  if false then
+    print_permissions ();
   match raw_error with
   | NotAFunction p ->
       let fname, fbinder = find_term env p in
@@ -209,5 +212,15 @@ let print_error buf (env, raw_error) =
       Printf.bprintf buf
         "%a functions take only one tuple argument in HaMLet"
         Lexer.p env.location
+  | ResourceAllocationConflict point ->
+      Printf.bprintf buf "%a exclusive resource allocation conflict on %a"
+        Lexer.p env.location
+        TypePrinter.pnames (get_names env point);
+  | UncertainMerge point ->
+      Printf.bprintf buf "%a merging distinct constructors into a nominal \
+          type with type parameters, results are unpredictable, you should \
+          consider providing annotations for %a"
+        Lexer.p env.location
+        TypePrinter.pnames (get_names env point)
 ;;
 

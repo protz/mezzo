@@ -35,6 +35,7 @@ let _ =
     "-nofancypants", Arg.Clear arg_backtraces, "don't try to give nice error messages";
     "-debug", Arg.Set_int arg_debug, "output level: 0 (default) = no messages, 4 = super verbose";
     "-html-errors", Arg.Set arg_html_errors, "use a browser to display errors";
+    "-pedantic", Arg.Set Options.pedantic, "non-principal situations are errors";
     "-I", Arg.String Driver.add_include_dir, "include this directory";
     ]
     (fun f ->
