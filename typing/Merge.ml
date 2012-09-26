@@ -623,9 +623,11 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                 None
               end else begin
                 if get_arity dest_env t_dest > 0 then
-                  Log.warn "Merging distinct constructors into a nominal \
+                  Log.warn "%a merging distinct constructors into a nominal \
                     type with type parameters, results are unpredictable, you should \
-                    consider providing annotations";
+                    consider providing annotations for %a"
+                  Lexer.p dest_env.location
+                  TypePrinter.pnames (get_names dest_env dest_point);
 
                 Log.debug ~level:4 "[cons_vs_cons] left";
                 let left_env, t_app_left =
