@@ -229,7 +229,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
   let make_base_envs ?annot () =
 
-    Log.debug ~level:3 "\n--------- START MERGE ----------\n\n%a"
+    Log.debug ~level:3 "\n--------- START MERGE ----------\n\n%a\n\n"
       TypePrinter.pdoc (TypePrinter.print_permissions, top);
 
     (* This is the destination environment; it will evolve over time. Initially,

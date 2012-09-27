@@ -390,6 +390,9 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   ("fail6.hml",
     simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
 
+  ("constraints_merge.hml",
+    simple_test ~stdlib:false ~pedantic:true Pass);
+
   ("conflict1.hml",
     simple_test
       ~stdlib:false

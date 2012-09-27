@@ -100,7 +100,7 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
 ;;
 
 
-let check_return_type (env: env) (point: point) (t: typ): env =
+let check_return_type (env: env) (point: point) (t: typ): unit =
   TypePrinter.(
     let _, binder = find_term env point in
     Log.debug ~level:4 "Expecting return type %a; permissions for the point: %a"
@@ -110,8 +110,8 @@ let check_return_type (env: env) (point: point) (t: typ): env =
   );
     
   match Permissions.sub env point t with
-  | Some env ->
-      env
+  | Some _ ->
+      ()
   | None ->
       let open TypePrinter in
       Log.debug ~level:4 "%a\n------------\n" penv env;
@@ -217,8 +217,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   match expr with
   | EConstraint (e, t) ->
       let env, p = check_expression env ?hint ~annot:t e in
-      let env = check_return_type env p t in
-      return env t
+      check_return_type env p t;
+      env, p
 
   | EVar _ ->
       Log.error "[check_expression] expects an expression where all variables \
