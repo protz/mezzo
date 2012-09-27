@@ -1,0 +1,12 @@
+data u = U
+data bool = True | False
+
+val ((v: u), w) =
+  if explain True then begin
+    let x = U in
+    (x, x)
+  end else begin
+    (U, U)
+  end
+
+val y = assert (w @ u)
