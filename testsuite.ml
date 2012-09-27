@@ -9,8 +9,9 @@ let check env point t =
 
 type outcome = Fail of (raw_error -> bool) | Pass
 
-let simple_test ?(stdlib=true) outcome = fun do_it ->
+let simple_test ?(stdlib=true) ?(pedantic=false) outcome = fun do_it ->
   try
+    Options.pedantic := pedantic;
     ignore (do_it stdlib);
     match outcome with
     | Fail _ ->
@@ -388,6 +389,13 @@ let tests: (string * ((bool -> env) -> unit)) list = [
 
   ("fail6.hml",
     simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+
+  ("conflict1.hml",
+    simple_test
+      ~stdlib:false
+      ~pedantic:true
+      ((Fail (function ResourceAllocationConflict _ -> true | _ -> false)))
+  );
  ]
 
 let _ =
