@@ -273,34 +273,37 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
           env
       ) env
     in
-    let left_env = mark_duplicable_points left_env in
-    let right_env = mark_duplicable_points right_env in
 
     (* If the user requested that part of the merge be solved in a certain way,
      * through type annotations, we should subtract from each of the
      * sub-environments the expected type annotations, and put them in the
      * destination environment already. *)
-    match annot with
-    | None ->
-        dump_envs left_env right_env dest_env;
-        dest_env, dest_root, left_env, right_env
-    | Some annot ->
-        Log.debug ~level:4 "[make_base] annot: %a" TypePrinter.ptype (top, annot);
+    let dest_env, dest_root, left_env, right_env =
+      match annot with
+      | None ->
+          dest_env, dest_root, left_env, right_env
+      | Some annot ->
+          Log.debug ~level:4 "[make_base] annot: %a" TypePrinter.ptype (top, annot);
 
-        let sub_annot env root =
-          match Permissions.sub env root annot with
-          | None ->
-              let open TypeErrors in
-              raise_error env (ExpectedType (annot, root))
-          | Some env ->
-              env
-        in
-        let left_env = sub_annot left_env left_root in
-        let right_env = sub_annot right_env right_root in
-        let dest_env = Permissions.add dest_env dest_root annot in
+          let sub_annot env root =
+            match Permissions.sub env root annot with
+            | None ->
+                let open TypeErrors in
+                raise_error env (ExpectedType (annot, root))
+            | Some env ->
+                env
+          in
+          let left_env = sub_annot left_env left_root in
+          let right_env = sub_annot right_env right_root in
+          let dest_env = Permissions.add dest_env dest_root annot in
 
-        dump_envs left_env right_env dest_env;
-        dest_env, dest_root, left_env, right_env
+          dest_env, dest_root, left_env, right_env
+    in
+    dump_envs left_env right_env dest_env;
+
+    let left_env = mark_duplicable_points left_env in
+    let right_env = mark_duplicable_points right_env in
+    dest_env, dest_root, left_env, right_env
 
   in
 
