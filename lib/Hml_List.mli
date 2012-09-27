@@ -45,6 +45,9 @@ val reduce: ('a -> 'a -> 'a) -> 'a list -> 'a
 (** Same as [List.iteri] but with two lists. *)
 val iter2i : (int -> 'a -> 'b -> unit) -> 'a list -> 'b list -> unit
 
+(** Same as [List.iter] but with three lists. *)
+val iter3 : ('a -> 'b -> 'c -> unit) -> 'a list -> 'b list -> 'c list -> unit
+
 (** Same as [List.combine] but for triples instead of pairs. *)
 val combine3 : 'a list -> 'b list -> 'c list -> ('a * 'b * 'c) list
 

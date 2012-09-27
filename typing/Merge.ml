@@ -62,17 +62,6 @@ module Lifo = struct
 end
 
 let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (right: env * point): env * point =
-  Log.debug ~level:3 "\n--------- START MERGE ----------\n\n%a"
-    TypePrinter.pdoc (TypePrinter.print_permissions, top);
-
-  Log.debug ~level:3 "\n------------ LEFT --------------\n\n%a"
-    TypePrinter.pdoc (TypePrinter.print_permissions, fst left);
-
-  Log.debug ~level:3 "\n------------ RIGHT -------------\n\n%a"
-    TypePrinter.pdoc (TypePrinter.print_permissions, fst right);
-
-  Log.debug ~level:3 "\n--------------------------------\n";
-
   (* We use a work list (a LIFO) to schedule points for merging. This implements
    * a depth-first traversal of the graph, which is indeed what we want (for the
    * moment). *)
@@ -222,7 +211,26 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
   in
 
 
+  let dump_envs left_env right_env dest_env =
+
+    Log.debug ~level:3 "\n------------ LEFT --------------\n\n%a"
+      TypePrinter.pdoc (TypePrinter.print_permissions, left_env);
+
+    Log.debug ~level:3 "\n------------ RIGHT -------------\n\n%a"
+      TypePrinter.pdoc (TypePrinter.print_permissions, right_env);
+
+    Log.debug ~level:3 "\n------------ DEST -------------\n\n%a"
+      TypePrinter.pdoc (TypePrinter.print_permissions, dest_env);
+
+    Log.debug ~level:3 "\n--------------------------------\n";
+
+  in
+
+
   let make_base_envs ?annot () =
+
+    Log.debug ~level:3 "\n--------- START MERGE ----------\n\n%a"
+      TypePrinter.pdoc (TypePrinter.print_permissions, top);
 
     (* This is the destination environment; it will evolve over time. Initially,
      * it is empty. As an optimization, we keep the points that were previously
@@ -274,6 +282,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
      * destination environment already. *)
     match annot with
     | None ->
+        dump_envs left_env right_env dest_env;
         dest_env, dest_root, left_env, right_env
     | Some annot ->
         Log.debug ~level:4 "[make_base] annot: %a" TypePrinter.ptype (top, annot);
@@ -290,9 +299,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
         let right_env = sub_annot right_env right_root in
         let dest_env = Permissions.add dest_env dest_root annot in
 
-        Log.debug ~level:3 "\n------------ DEST -------------\n\n%a"
-          TypePrinter.pdoc (TypePrinter.print_permissions, dest_env);
-
+        dump_envs left_env right_env dest_env;
         dest_env, dest_root, left_env, right_env
 
   in
@@ -464,6 +471,16 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             Datacon.equal datacon datacon'
         | _ ->
             false
+      ) (get_permissions dest_env dest_point)
+    in
+
+    let has_tuple_type_annotation dest_env dest_point =
+      Hml_List.find_opt (fun t ->
+        match t with
+        | TyTuple ts ->
+            Some ts
+        | _ ->
+            None
       ) (get_permissions dest_env dest_point)
     in
 
@@ -649,8 +666,15 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             let dest_point = Option.extract dest_point in
 
             if Datacon.equal datacon_l datacon_r then
-              if has_datacon_type_annotation dest_env dest_point datacon_l then
-                None
+             if has_datacon_type_annotation dest_env dest_point datacon_l then
+                (* FIXME we should probably be more subtle than that: it may be
+                 * that we have a partial type annotation (e.g. only one some
+                 * fields of the concrete data type, the others being annotated
+                 * as [unknown]), so we need to schedule the point for merging,
+                 * except that since we have a type annotation for that conrete
+                 * data type, we already have a destination point allocated in
+                 * the destination environment. *)
+                 None
               else
                 (* Same constructors: both are in expanded form so just schedule the
                  * points in their fields for merging. *)
@@ -836,6 +860,39 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             else
               None
 
+
+        | TyTuple ts_l, TyTuple ts_r when List.length ts_l = List.length ts_r ->
+
+            let dest_point = Option.extract dest_point in
+            let ts_d = match has_tuple_type_annotation dest_env dest_point with
+              | Some ts ->
+                  List.map (fun ts -> Some ts) ts
+              | None ->
+                  Hml_List.make (List.length ts_l) (fun _ -> None)
+            in
+
+            let dest_env, dest_points =
+              Hml_List.fold_left3 (fun (dest_env, dest_points) t_l t_r t_d ->
+                let left_p = !!=t_l in
+                let right_p = !!=t_r in
+                match t_d with
+                | Some (TySingleton (TyPoint dest_p)) ->
+                    (* We still need to schedule this job, because we may have a
+                     * partial type annotation for one of the tuple components.
+                     * Think of it as a job whose destination point has been
+                     * pre-allocated!. *)
+                    push_job (left_p, right_p, dest_p);
+                    (dest_env, dest_p :: dest_points)
+                | Some _ ->
+                    assert false
+                | None ->
+                    let dest_env, dest_point = bind_merge dest_env left_p right_p in
+                    (dest_env, dest_point :: dest_points)
+              ) (dest_env, []) ts_l ts_r ts_d
+            in
+            let dest_points = List.rev dest_points in
+            let ts = List.map ty_equals dest_points in
+            Some (left_env, right_env, dest_env, TyTuple ts)
 
         | _ ->
             None

@@ -628,6 +628,13 @@ let (>>=) = Option.bind;;
 let (|||) o1 o2 = if Option.is_some o1 then o1 else o2 ;;
 
 
+let (!!=) = function
+  | TySingleton (TyPoint x) ->
+      x
+  | _ ->
+      assert false
+;;
+
 let ty_equals x =
   TySingleton (TyPoint x)
 ;;

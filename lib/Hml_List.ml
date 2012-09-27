@@ -27,11 +27,21 @@ let rec split3 = function
 let ignore_map f l =
   ignore (List.map (fun x -> ignore (f x)) l)
 
+let rec iter3 f l l' l'' =
+  match l, l', l'' with
+  | hd :: tl, hd' :: tl', hd'' :: tl'' ->
+      f hd hd' hd'';
+      iter3 f tl tl' tl''
+  | [], [], [] ->
+      ()
+  | _ ->
+      raise (Invalid_argument "iter3")
+
 let iter2i f l l' =
   let rec iter2i i f l l' = match l, l' with
     | ([], []) -> ()
     | (e :: rest, e' :: rest') -> f i e e'; iter2i (i + 1) f rest rest'
-    | _ -> failwith "iter2i: lengths do not match"
+    | _ -> raise (Invalid_argument "iter2i")
   in
   iter2i 0 f l l'
 

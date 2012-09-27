@@ -396,6 +396,9 @@ let tests: (string * ((bool -> env) -> unit)) list = [
       ~pedantic:true
       ((Fail (function ResourceAllocationConflict _ -> true | _ -> false)))
   );
+
+  ("conflict2.hml",
+    simple_test ~stdlib:false ~pedantic:true Pass);
  ]
 
 let _ =
