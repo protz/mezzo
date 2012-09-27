@@ -10,7 +10,6 @@ OCAMLBUILD := ocamlbuild $(USE_OCAMLFIND) -use-menhir \
   -cflags "-g" -lflags "-g" -classic-display
 INCLUDE    := -Is sets,typing,parsing,ulex,lib,pprint,utils,fix
 MAIN	   := hamlet
-TEST	   := test
 TESTSUITE  := testsuite
 BUILDDIRS  := $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
 MY_DIRS	   := lib parsing sets typing utils
@@ -19,7 +18,6 @@ MY_DIRS	   := lib parsing sets typing utils
 all:
 	$(OCAMLBUILD) $(INCLUDE) $(MAIN).byte $(TESTSUITE).byte #$(TEST).byte
 	ln -sf $(MAIN).byte $(MAIN)
-	#ln -sf $(TEST).byte $(TEST)
 	ln -sf $(TESTSUITE).byte $(TESTSUITE)
 
 clean:
@@ -50,10 +48,7 @@ doc: graph
 	cp -f misc/ocamlstyle.css doc/style.css
 
 test: all
-	OCAMLRUNPARAM=b=1 ./testsuite
-
-# test: all
-#	OCAMLRUNPARAM=b=1 ./test
+	OCAMLRUNPARAM=b ./testsuite
 
 build:
 	$(OCAMLBUILD) $(INCLUDE) $(FILE).native

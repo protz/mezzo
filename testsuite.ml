@@ -251,6 +251,10 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:false Pass
   );
 
+  ("merge16.hml",
+    simple_test ~stdlib:false Pass
+  );
+
   ("merge_generalize_val.hml", fun do_it ->
     let env = do_it false in
     let x = point_by_name env "x" in
@@ -360,6 +364,10 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:true Pass
   );
 
+  ("inconsistent2.hml",
+    simple_test ~stdlib:true Pass
+  );
+
   ("counter.hml",
     simple_test ~stdlib:true Pass
   );
@@ -369,6 +377,10 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   );
 
   ("duplicity1.hml",
+    simple_test ~stdlib:false Pass
+  );
+
+  ("duplicity2.hml",
     simple_test ~stdlib:false Pass
   );
 

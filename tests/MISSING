@@ -1,0 +1,4 @@
+bag_lifo.hml: propagate type annotations inside constructors with one branch
+basic.hml: Invalid_Argument("List.map2") (no idea)
+in_place_traversal2.hml: missing implementation for the [this] keyword
+pervasives.hml: must be included
