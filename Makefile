@@ -9,7 +9,7 @@ OCAMLBUILD := ocamlbuild $(USE_OCAMLFIND) -use-menhir \
   -menhir "menhir --explain --infer -la 1" \
   -cflags "-g" -lflags "-g" -classic-display
 INCLUDE    := -Is sets,typing,parsing,ulex,lib,pprint,utils,fix
-MAIN	   := hamlet
+MAIN	   := mezzo
 TESTSUITE  := testsuite
 BUILDDIRS  := $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
 MY_DIRS	   := lib parsing sets typing utils
@@ -30,7 +30,7 @@ graph: all
 	   -I $(shell ocamlc -where)\
 	   $(shell menhir --suggest-comp-flags --table)\
 	   $(shell $(FIND) $(MY_DIRS) -iname '*.ml' -or -iname '*.mli')\
-	   hamlet.ml\
+	   mezzo.ml\
 	   -o graph.dot
 	sed -i 's/rotate=90;//g' graph.dot
 	dot -Tsvg graph.dot > misc/graph.svg
