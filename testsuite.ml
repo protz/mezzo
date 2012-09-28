@@ -79,6 +79,9 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   ("constraints_in_patterns.hml",
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
 
+  ("constraints_in_patterns2.hml",
+    simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
+
   ("function.hml", fun do_it ->
     let env = do_it true in
     let int = find_type_by_name env "int" in

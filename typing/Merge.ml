@@ -501,6 +501,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
      * knows how to deal with that. *)
     let strategies = [
 
+
       (* The flex-with-structure strategy, lefty version.
        *
        * This just steps through a flexible variable that has a structure. *)
@@ -545,14 +546,15 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
             let flex_left = is_flexible left_env left_p
             and flex_right = is_flexible right_env right_p in
+            let left_p = PersistentUnionFind.repr left_p left_env.state in
+            let right_p = PersistentUnionFind.repr right_p right_env.state in
             Log.debug "  [p2p] %b, %b" flex_left flex_right;
 
             begin match flex_left, flex_right with
             | false, false ->
                 if is_type left_env left_p then begin
                   (* Type vs type. *)
-                  let left_p = PersistentUnionFind.repr left_p left_env.state in
-                  let right_p = PersistentUnionFind.repr right_p right_env.state in
+
                   (* This could happen because a function has return type:
                    *   ∃(t::★). ...
                    * and after calling that function in one of the
@@ -568,8 +570,11 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                     Some (left_env, right_env, dest_env, TyPoint left_p)
                 end else begin
                   (* Term vs term *)
-                  let dest_env, dest_p = bind_merge dest_env left_p right_p in
-                  Some (left_env, right_env, dest_env, TyPoint dest_p)
+                  if (valid dest_env left_p) && (valid dest_env right_p) && (same dest_env left_p right_p) then
+                    Some (left_env, right_env, dest_env, TyPoint left_p)
+                  else
+                    let dest_env, dest_p = bind_merge dest_env left_p right_p in
+                    Some (left_env, right_env, dest_env, TyPoint dest_p)
                 end
 
             | false, true ->
@@ -827,7 +832,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
               (* And we're good to go. *)
               Some (left_env, right_env, dest_env, t)
 
-        | TyForall (binding_left, t_l), TyForall (binding_right, t_r) ->
+        | TyForall (binding_left, t_l), TyForall (binding_right, t_r) when false ->
             (* This code-path is correct but frankly, we shouldn't have to
              * go there _at all_ yet. If two types are equal, then they must go
              * through the fast-path. Otherwise, this means that they contain TERM
