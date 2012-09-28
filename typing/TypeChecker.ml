@@ -216,6 +216,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
   match expr with
   | EConstraint (e, t) ->
+      if annot <> None then
+        Log.error "Not implemented yet: do a function that is able to merge type \
+          annotations so that (τ, unknown) ∨ (unknown, σ) ⇝ (τ, σ) and errors \
+          out if there are conflicting type annotations";
       let env, p = check_expression env ?hint ~annot:t e in
       check_return_type env p t;
       env, p

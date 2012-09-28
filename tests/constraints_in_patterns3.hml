@@ -1,0 +1,7 @@
+exclusive data foo = Foo { foo: (); bar: () }
+
+val f (x: foo): () =
+  match x with
+  | Foo { foo; bar = (bar: ()) } ->
+      ()
+  end
