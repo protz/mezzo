@@ -42,6 +42,8 @@ let dummy_binding k =
 ;;
 
 let tests: (string * ((bool -> env) -> unit)) list = [
+  (* Some very simple tests. *)
+
   ("constructors.hml",
     simple_test Pass);
 
@@ -88,6 +90,27 @@ let tests: (string * ((bool -> env) -> unit)) list = [
 
   ("value_restriction.hml",
     simple_test (Fail (function NoSuchField _ -> true | _ -> false)));
+
+  ("variance.hml", fun do_it ->
+    let env = do_it false in
+    let check_variance n vs =
+      let t = find_type_by_name env n in
+      match find_type env !!t with
+      | _, { definition = Some (_, vs'); _ } when vs = vs' ->
+          ()
+      | _ ->
+          failwith "Variances don't match"
+    in
+    let co = Covariant and contra = Contravariant and bi = Bivariant and inv = Invariant in
+    check_variance "list" [co];
+    check_variance "ref" [co]; (* yes *)
+    check_variance "bi" [bi];
+    check_variance "inv" [inv];
+    check_variance "test" [co; co; bi];
+    check_variance "contra" [contra];
+  );
+
+  (* The merge operation and all its variations. *)
 
   ("merge1.hml", fun do_it ->
     let env = do_it false in
@@ -267,7 +290,25 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     check env z t;
   );
 
+  ("constraints_merge.hml",
+    simple_test ~stdlib:false ~pedantic:true Pass);
+
+  (* Resource allocation conflicts. *)
+
+  ("conflict1.hml",
+    simple_test
+      ~stdlib:false
+      ~pedantic:true
+      ((Fail (function ResourceAllocationConflict _ -> true | _ -> false)))
+  );
+
+  ("conflict2.hml",
+    simple_test ~stdlib:false ~pedantic:true Pass);
+
+  (* Singleton types. *)
+
   ("singleton1.hml", fun do_it ->
+    Options.pedantic := false;
     let env = do_it false in
     let x = point_by_name env "x" in
     let s1 = point_by_name env "s1" in
@@ -288,7 +329,47 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:false Pass
   );
 
-  (*("", fun _ -> raise Exit);*)
+  (* Marking environments as inconsistent. *)
+
+  ("inconsistent1.hml",
+    simple_test ~stdlib:true Pass
+  );
+
+  ("inconsistent2.hml",
+    simple_test ~stdlib:true Pass
+  );
+
+  (* Duplicity constraints. *)
+
+  ("duplicity1.hml",
+    simple_test ~stdlib:false Pass
+  );
+
+  ("duplicity2.hml",
+    simple_test ~stdlib:false Pass
+  );
+
+  (* Tests are expected to fail. *)
+
+  ("fail1.hml",
+    simple_test ~stdlib:false ((Fail (function ExpectedType _ -> true | _ -> false))));
+
+  ("fail2.hml",
+    simple_test ~stdlib:false ((Fail (function ExpectedType _ -> true | _ -> false))));
+
+  ("fail3.hml",
+    simple_test ~stdlib:true ((Fail (function NoSuchField _ -> true | _ -> false))));
+
+  ("fail4.hml",
+    simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+
+  ("fail5.hml",
+    simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+
+  ("fail6.hml",
+    simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+
+  (* Bigger examples. *)
 
   ("list-length.hml", fun do_it ->
     let env = do_it false in
@@ -333,38 +414,11 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:false Pass
   );
 
-  ("variance.hml", fun do_it ->
-    let env = do_it false in
-    let check_variance n vs =
-      let t = find_type_by_name env n in
-      match find_type env !!t with
-      | _, { definition = Some (_, vs'); _ } when vs = vs' ->
-          ()
-      | _ ->
-          failwith "Variances don't match"
-    in
-    let co = Covariant and contra = Contravariant and bi = Bivariant and inv = Invariant in
-    check_variance "list" [co];
-    check_variance "ref" [co]; (* yes *)
-    check_variance "bi" [bi];
-    check_variance "inv" [inv];
-    check_variance "test" [co; co; bi];
-    check_variance "contra" [contra];
-  );
-
   ("tree_size.hml",
     simple_test ~stdlib:true Pass
   );
 
   ("in_place_traversal.hml",
-    simple_test ~stdlib:true Pass
-  );
-
-  ("inconsistent1.hml",
-    simple_test ~stdlib:true Pass
-  );
-
-  ("inconsistent2.hml",
     simple_test ~stdlib:true Pass
   );
 
@@ -376,45 +430,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:false Pass
   );
 
-  ("duplicity1.hml",
-    simple_test ~stdlib:false Pass
-  );
-
-  ("duplicity2.hml",
-    simple_test ~stdlib:false Pass
-  );
-
-  ("fail1.hml",
-    simple_test ~stdlib:false ((Fail (function ExpectedType _ -> true | _ -> false))));
-
-  ("fail2.hml",
-    simple_test ~stdlib:false ((Fail (function ExpectedType _ -> true | _ -> false))));
-
-  ("fail3.hml",
-    simple_test ~stdlib:true ((Fail (function NoSuchField _ -> true | _ -> false))));
-
-  ("fail4.hml",
-    simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
-
-  ("fail5.hml",
-    simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
-
-  ("fail6.hml",
-    simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
-
-  ("constraints_merge.hml",
-    simple_test ~stdlib:false ~pedantic:true Pass);
-
-  ("conflict1.hml",
-    simple_test
-      ~stdlib:false
-      ~pedantic:true
-      ((Fail (function ResourceAllocationConflict _ -> true | _ -> false)))
-  );
-
-  ("conflict2.hml",
-    simple_test ~stdlib:false ~pedantic:true Pass);
- ]
+  ("bag_lifo.hml", simple_test Pass);
+]
 
 let _ =
   let open Bash in
