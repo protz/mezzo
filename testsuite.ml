@@ -80,7 +80,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
 
   ("constraints_in_patterns2.hml",
-    simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
+    simple_test ~stdlib:false Pass);
 
   ("function.hml", fun do_it ->
     let env = do_it true in

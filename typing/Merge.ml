@@ -198,12 +198,6 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
           Log.debug ~level:4 "[oracle] discarding job since %a has been visited already"
             TypePrinter.pnames (get_names dest_env dest_point);
 
-          (* This piece of code is actually dead because we always allocate a
-           * fresh (existentially-quantified) point in the destination
-           * environment. This means always call this function with [dest_point]
-           * fresh, which means there's no way we processed it already. *)
-          if true then assert false;
-
           (* Do nothing, since it would be illegal! *)
           Abort
 
