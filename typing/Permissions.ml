@@ -377,11 +377,19 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
     match t with
     | TyUnknown
     | TyDynamic
-    | TyPoint _
     | TySingleton _
     | TyArrow _
     | TyEmpty ->
         env, t
+
+    | TyPoint _
+    | TyApp _ ->
+        begin match expand_if_one_branch env t with
+        | TyConcreteUnfolded _ as t->
+            unfold env t
+        | _ ->
+            env, t
+        end
 
     | TyVar _ ->
         Log.error "No unbound variables allowed here"
@@ -404,26 +412,6 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
     | TyAnchoredPermission (x, t) ->
         let env, t = unfold env ?hint t in
         env, TyAnchoredPermission (x, t)
-
-    (* If this is the application of a data type that only has one branch, we
-     * know how to unfold this. Otherwise, we don't! *)
-    | TyApp _ ->
-      begin
-        let cons, args = flatten_tyapp t in
-        match cons with
-        | TyPoint p ->
-          begin
-            match get_definition env p with
-            | Some (Some (_, [branch]), _) ->
-                let branch = instantiate_branch branch args in
-                let t = TyConcreteUnfolded branch in
-                unfold env ?hint t
-            | _ ->
-              env, t
-          end
-        | _ ->
-            Log.error "The head of a type application should be a type variable."
-      end
 
     (* We're only interested in unfolding structural types. *)
     | TyTuple components ->

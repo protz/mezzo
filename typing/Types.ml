@@ -1126,6 +1126,31 @@ let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_bra
   env, List.rev points, branches
 ;;
 
+let expand_if_one_branch (env: env) (t: typ) =
+  let cons_args =
+    match t with
+    | TyApp (_, _) ->
+        let cons, args = flatten_tyapp t in
+        Some (!!cons, args)
+    | TyPoint cons ->
+        Some (cons, [])
+    | _ ->
+        None
+  in
+  match cons_args with
+  | Some (cons, args) ->
+      if has_definition env cons then
+        match get_branches env cons with
+        | [branch] ->
+            TyConcreteUnfolded (instantiate_branch branch args)
+        | _ ->
+            t
+      else
+        t
+  | None ->
+      t
+;;
+
 
 (* ---------------------------------------------------------------------------- *)
 

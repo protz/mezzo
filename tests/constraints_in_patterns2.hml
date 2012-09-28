@@ -1,10 +1,10 @@
 exclusive data foo = Foo { foo: (); bar: () }
+data bool = True | False
 
 val f (consumes x: foo): () =
-  let y =
-    match x with
-    | Foo { foo; bar = (bar: ()) } ->
-        foo
-    end
+  (* If we're not smart, we just keep bar @ unknown instead of trying to extract
+   * more out of it. *)
+  let (Foo { foo = (foo: ()); bar }) =
+    if True then x else x
   in
-  y
+  bar

@@ -1,0 +1,12 @@
+exclusive data foo = Foo { foo: (); bar: () }
+
+val f (consumes x: foo): () =
+  let y =
+    match x with
+    | Foo { foo; bar = (bar: ()) } ->
+        (* We need to make sure the annotation inside the pattern is desugared
+         * as something meaningful. (There was a bug in the desugaring.) *)
+        foo
+    end
+  in
+  y

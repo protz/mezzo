@@ -450,6 +450,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       return env return_type
 
   | ETuple exprs ->
+      (* Propagate type annotations inside the tuple. *)
       let annotations = match annot with
         | Some (TyTuple annotations) when List.length annotations = List.length exprs ->
             List.map (fun x -> Some x) annotations
@@ -467,6 +468,31 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       return env (TyTuple components)
 
   | EConstruct (datacon, fieldexprs) ->
+      let annot = Option.map (expand_if_one_branch env) annot in
+      (* Propagate type annotations inside the constructor. *)
+      let annotations = match annot with
+        | Some (TyConcreteUnfolded (_, fields)) ->
+            let annots = List.map (function
+                | FieldValue (name, t) ->
+                    name, t
+                | _ ->
+                    assert false
+              ) fields
+            in
+            (* Every field in the type annotation corresponds to a field in the
+             * expression, i.e. the type annotation makes sense. *)
+            if List.for_all (fun (name, _) ->
+                List.exists (function
+                  | name', _ ->
+                      Field.equal name name'
+                ) fieldexprs
+            ) annots then
+              annots
+            else
+              []
+        | _ ->
+            []
+      in
       (* Find the corresponding definition. *)
       let _flag, branches = def_for_datacon env datacon in
       (* And the corresponding branch, so that we obtain the field names in order. *)
@@ -481,6 +507,15 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         with Not_found ->
           raise_error env (MissingField name')
       in
+      (* Find the annotation for one of the fields. *)
+      let annot name =
+        Hml_List.find_opt (function
+          | name', t when Field.equal name name' ->
+              Some t
+          | _ ->
+              None
+        ) annotations
+      in
       (* Do the bulk of the work. *)
       let env, remaining, fieldvals = List.fold_left (fun (env, remaining, fieldvals) -> function
         | FieldValue (name, _t) ->
@@ -488,7 +523,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
              * just want to make sure all fields are provided. *)
             let e, remaining = take env name remaining in
             let hint = add_hint hint (Field.print name) in
-            let env, p = check_expression env ?hint e in
+            let env, p = check_expression env ?hint ?annot:(annot name) e in
             env, remaining, FieldValue (name, ty_equals p) :: fieldvals
         | FieldPermission _ ->
             env, remaining, fieldvals

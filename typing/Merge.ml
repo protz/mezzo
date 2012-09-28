@@ -468,12 +468,12 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
     in
 
     let has_datacon_type_annotation dest_env dest_point datacon =
-      List.exists (fun t ->
+      Hml_List.find_opt (fun t ->
         match t with
-        | TyConcreteUnfolded (datacon', _) ->
-            Datacon.equal datacon datacon'
+        | TyConcreteUnfolded (datacon', fields) when Datacon.equal datacon datacon' ->
+            Some fields
         | _ ->
-            false
+            None
       ) (get_permissions dest_env dest_point)
     in
 
@@ -669,31 +669,52 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             let dest_point = Option.extract dest_point in
 
             if Datacon.equal datacon_l datacon_r then
-             if has_datacon_type_annotation dest_env dest_point datacon_l then
-                (* FIXME we should probably be more subtle than that: it may be
-                 * that we have a partial type annotation (e.g. only one some
-                 * fields of the concrete data type, the others being annotated
-                 * as [unknown]), so we need to schedule the point for merging,
-                 * except that since we have a type annotation for that conrete
-                 * data type, we already have a destination point allocated in
-                 * the destination environment. *)
-                 None
-              else
-                (* Same constructors: both are in expanded form so just schedule the
-                 * points in their fields for merging. *)
-                let dest_env, dest_fields =
-                  List.fold_left2 (fun (dest_env, dest_fields) field_l field_r ->
-                    match field_l, field_r with
-                    | FieldValue (name_l, TySingleton (TyPoint left_p)),
-                      FieldValue (name_r, TySingleton (TyPoint right_p)) ->
-                        Log.check (Field.equal name_l name_r) "Not in order?";
-                        let dest_env, dest_p = bind_merge dest_env left_p right_p in
-                        (dest_env, FieldValue (name_l, ty_equals dest_p) :: dest_fields)
-                    | _ ->
-                        Log.error "All permissions should be in expanded form."
-                  ) (dest_env, []) fields_l fields_r
-                in
-                Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields))
+              (* We need to use a potential type annotation here, so if we
+               * already have some information in the destination environment,
+               * use it! This is exercised by
+               * [test_constraints_in_patterns2.hml] *)
+              let annotation = has_datacon_type_annotation dest_env dest_point datacon_l in
+              let fields_annot = match annotation with
+                | None ->
+                    List.map (function
+                      | FieldValue (name, _) ->
+                          name, None
+                      | _ ->
+                          assert false
+                    ) fields_l
+                | Some fields ->
+                    List.map (function
+                      | FieldValue (name, t) ->
+                          name, Some t
+                      | _ ->
+                          assert false
+                    ) fields
+              in
+              (* Same constructors: both are in expanded form so just schedule the
+               * points in their fields for merging. *)
+              let dest_env, dest_fields =
+                Hml_List.fold_left3 (fun (dest_env, dest_fields) field_l field_r field_annot ->
+                  match field_l, field_r, field_annot with
+                  | FieldValue (name_l, TySingleton (TyPoint left_p)),
+                    FieldValue (name_r, TySingleton (TyPoint right_p)),
+                    (name_annot, annot) ->
+                      Log.check (Field.equal name_l name_r) "Not in order?";
+                      Log.check (Field.equal name_l name_annot) "Not in order?";
+                      let dest_env, dest_p = match annot with
+                        | Some (TySingleton (TyPoint dest_p)) ->
+                            push_job (left_p, right_p, dest_p);
+                            dest_env, dest_p
+                        | Some _ ->
+                            assert false
+                        | None ->
+                            bind_merge dest_env left_p right_p
+                      in
+                      (dest_env, FieldValue (name_l, ty_equals dest_p) :: dest_fields)
+                  | _ ->
+                      Log.error "All permissions should be in expanded form."
+                ) (dest_env, []) fields_l fields_r fields_annot
+              in
+              Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields))
 
             else if same dest_env t_left t_right then begin
               (* Same nominal type (e.g. [Nil] vs [Cons]). The procedure here is a
