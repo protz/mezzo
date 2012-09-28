@@ -1,4 +1,4 @@
-exclusive data foo = Foo { foo: (); bar: () }
+data foo = Foo { foo: (); bar: () }
 data bool = True | False
 
 val f (consumes x: foo): () =

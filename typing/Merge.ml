@@ -501,21 +501,6 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
      * knows how to deal with that. *)
     let strategies = [
 
-      (* Simple equals strategy. *)
-      lazy begin
-        try
-          if equal top left_perm right_perm then begin
-            Log.debug "→ fast_path, the types are equal in the original environment, \
-              don't touch them";
-            Some (left_env, right_env, dest_env, left_perm)
-          end else begin
-            None
-          end
-        with UnboundPoint ->
-          None
-      end;
-
-
       (* The flex-with-structure strategy, lefty version.
        *
        * This just steps through a flexible variable that has a structure. *)
@@ -920,6 +905,21 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
         | _ ->
             None
+      end;
+
+
+      (* Simple equals strategy. *)
+      lazy begin
+        try
+          if equal top left_perm right_perm then begin
+            Log.debug "→ fast_path, the types are equal in the original environment, \
+              don't touch them";
+            Some (left_env, right_env, dest_env, left_perm)
+          end else begin
+            None
+          end
+        with UnboundPoint ->
+          None
       end;
 
     ] in
