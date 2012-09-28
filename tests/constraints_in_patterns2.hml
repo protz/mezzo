@@ -1,8 +1,10 @@
 exclusive data foo = Foo { foo: (); bar: () }
 
 val f (consumes x: foo): () =
-  let y = x in
-  match y with
-  | Foo { foo; bar = (bar: ()) } ->
-      foo
-  end
+  let y =
+    match x with
+    | Foo { foo; bar = (bar: ()) } ->
+        foo
+    end
+  in
+  y

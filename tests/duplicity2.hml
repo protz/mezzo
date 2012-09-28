@@ -3,7 +3,9 @@ data bool = True | False
 data list a = Cons { head: a; tail: list a} | Nil
 
 val rec find [a] (duplicable a) => (l: list a, f: a -> bool): option a =
-  match explain l with
+  (* Make sure type annotations are propagated properly. *)
+  let l2 = l in
+  match explain l2 with
   | Nil ->
       None
   | Cons { head; tail } ->

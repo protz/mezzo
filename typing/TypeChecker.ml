@@ -234,7 +234,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   | ELet (rec_flag, patexprs, body) ->
       let env, { subst_expr; _ } = check_bindings env rec_flag patexprs in
       let body = subst_expr body in
-      check_expression env body
+      check_expression env ?annot body
 
 
   | EFun (vars, arg, return_type, body) ->
