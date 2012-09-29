@@ -1,9 +1,18 @@
 data foo = Foo { foo: (); bar: () }
 data bool = True | False
 
+(* Side-note: this test becomes much more interesting when [foo] is defined as
+ * exclusive. Because we extract the permission from the start, with only
+ * [unknown] for the [bar] field, the [Foo { ... }] structural permission
+ * disappearas from the left and right environments, and then the merge
+ * operation has no way to re-visit the [bar] field... leaving it with [unknown]
+ * as its only permission. I wonder how we could fix this... *)
+
 val f (consumes x: foo): () =
   (* If we're not smart, we just keep bar @ unknown instead of trying to extract
-   * more out of it. *)
+   * more out of it. The *partial* type-annotation in the Foo pattern propagates
+   * onto the merge operation, and tests whether we are able to fully merge
+   * concrete structural types in the presence of partial type annotations. *)
   let (Foo { foo = (foo: ()); bar }) =
     if True then x else x
   in

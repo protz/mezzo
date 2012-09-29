@@ -1,9 +1,7 @@
 exclusive data foo = Foo { foo: (); bar: () }
 
 val f (consumes x: foo): foo =
-  match x with
-  | Foo { foo; bar } ->
-      (* There are two type annotations being propagated down on bar here. It
-       * checks that we properly implemented [merge_type_annotations]. *)
-      Foo { foo; bar = (bar: ()) }
-  end
+  let Foo { foo; bar } = x in
+  (* There are two type annotations being propagated down on bar here. It
+   * checks that we properly implemented [merge_type_annotations]. *)
+  Foo { foo; bar = (bar: ()) }
