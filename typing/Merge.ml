@@ -495,6 +495,168 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
      * knows how to deal with that. *)
     let strategies = [
 
+      (* Structural strategy. This must come first, as we need to learn about
+       * pre-allocated destination points in structural types, because of type
+       * annotations. *)
+      lazy begin
+        match left_perm, right_perm with
+        | TyConcreteUnfolded (datacon_l, fields_l), TyConcreteUnfolded (datacon_r, fields_r) ->
+            let t_left: point = type_for_datacon left_env datacon_l in
+            let t_right: point = type_for_datacon right_env datacon_r in
+            let dest_point = Option.extract dest_point in
+
+            if Datacon.equal datacon_l datacon_r then
+              (* We need to use a potential type annotation here, so if we
+               * already have some information in the destination environment,
+               * use it! This is exercised by
+               * [test_constraints_in_patterns2.hml] *)
+              let annotation = has_datacon_type_annotation dest_env dest_point datacon_l in
+              let fields_annot = match annotation with
+                | None ->
+                    List.map (function
+                      | FieldValue (name, _) ->
+                          name, None
+                      | _ ->
+                          assert false
+                    ) fields_l
+                | Some fields ->
+                    List.map (function
+                      | FieldValue (name, t) ->
+                          name, Some t
+                      | _ ->
+                          assert false
+                    ) fields
+              in
+              (* Same constructors: both are in expanded form so just schedule the
+               * points in their fields for merging. *)
+              let dest_env, dest_fields =
+                Hml_List.fold_left3 (fun (dest_env, dest_fields) field_l field_r field_annot ->
+                  match field_l, field_r, field_annot with
+                  | FieldValue (name_l, TySingleton (TyPoint left_p)),
+                    FieldValue (name_r, TySingleton (TyPoint right_p)),
+                    (name_annot, annot) ->
+                      Log.check (Field.equal name_l name_r) "Not in order?";
+                      Log.check (Field.equal name_l name_annot) "Not in order?";
+                      let dest_env, dest_p = match annot with
+                        | Some (TySingleton (TyPoint dest_p)) ->
+                            push_job (left_p, right_p, dest_p);
+                            dest_env, dest_p
+                        | Some _ ->
+                            assert false
+                        | None ->
+                            bind_merge dest_env left_p right_p
+                      in
+                      (dest_env, FieldValue (name_l, ty_equals dest_p) :: dest_fields)
+                  | _ ->
+                      Log.error "All permissions should be in expanded form."
+                ) (dest_env, []) fields_l fields_r fields_annot
+              in
+              Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields))
+
+            else if same dest_env t_left t_right then begin
+              (* Same nominal type (e.g. [Nil] vs [Cons]). The procedure here is a
+               * little bit more complicated. We need to take the nominal type (e.g.
+               * [list]), and apply it to [a] flexible on both sides, allocate [a]
+               * in [dest_env] and add the relevant triples in [known_triples].
+               * Then, perform [Nil - list a] and [Cons - list a]. Then recursively
+               * merge the variables pairwise, and if it's still flexible,
+               * generalize (or maybe not?).
+               *)
+
+              let t_dest = PersistentUnionFind.repr t_left left_env.state in
+
+              (* Ok, if the user already told us how to fold this type, then
+               * don't bother doing the work at all. Otherwise, complain. *)
+              if has_nominal_type_annotation dest_env dest_point t_dest then begin
+                None
+              end else begin
+                if get_arity dest_env t_dest > 0 then begin
+                  let open TypeErrors in
+                  let error = UncertainMerge dest_point in
+                  if !Options.pedantic then
+                    raise_error dest_env error
+                  else
+                    Log.warn "%a" print_error (dest_env, error)
+                end;
+
+                Log.debug ~level:4 "[cons_vs_cons] left";
+                let left_env, t_app_left =
+                  build_flexible_type_application (left_env, left_perm) (dest_env, t_dest)
+                in
+                Log.debug ~level:4 "[cons_vs_cons] right";
+                let right_env, t_app_right =
+                  build_flexible_type_application (right_env, right_perm) (dest_env, t_dest)
+                in
+
+                (* Did the subtractions succeed? *)
+                left_env >>= fun left_env ->
+                right_env >>= fun right_env ->
+
+                Log.debug ~level:3 "[cons_vs_cons] subtractions performed, got: %a vs %a"
+                  TypePrinter.ptype (left_env, t_app_left)
+                  TypePrinter.ptype (right_env, t_app_right);
+
+                let r = merge_type (left_env, t_app_left) (right_env, t_app_right) ~dest_point dest_env in
+                r >>= fun (left_env, right_env, dest_env, dest_perm) ->
+                let dest_perm = Flexible.generalize dest_env dest_perm in
+                Some (left_env, right_env, dest_env, dest_perm)
+              end
+
+            end else
+              None
+
+        | TyTuple ts_l, TyTuple ts_r when List.length ts_l = List.length ts_r ->
+
+            let dest_point = Option.extract dest_point in
+            let ts_d = match has_tuple_type_annotation dest_env dest_point with
+              | Some ts ->
+                  List.map (fun ts -> Some ts) ts
+              | None ->
+                  Hml_List.make (List.length ts_l) (fun _ -> None)
+            in
+
+            let dest_env, dest_points =
+              Hml_List.fold_left3 (fun (dest_env, dest_points) t_l t_r t_d ->
+                let left_p = !!=t_l in
+                let right_p = !!=t_r in
+                match t_d with
+                | Some (TySingleton (TyPoint dest_p)) ->
+                    (* We still need to schedule this job, because we may have a
+                     * partial type annotation for one of the tuple components.
+                     * Think of it as a job whose destination point has been
+                     * pre-allocated!. *)
+                    push_job (left_p, right_p, dest_p);
+                    (dest_env, dest_p :: dest_points)
+                | Some _ ->
+                    assert false
+                | None ->
+                    let dest_env, dest_point = bind_merge dest_env left_p right_p in
+                    (dest_env, dest_point :: dest_points)
+              ) (dest_env, []) ts_l ts_r ts_d
+            in
+            let dest_points = List.rev dest_points in
+            let ts = List.map ty_equals dest_points in
+            Some (left_env, right_env, dest_env, TyTuple ts)
+
+        | _ ->
+            None
+      end;
+
+
+      (* Simple equals strategy. *)
+      lazy begin
+        try
+          if equal top left_perm right_perm then begin
+            Log.debug "→ fast_path, the types are equal in the original environment, \
+              don't touch them";
+            Some (left_env, right_env, dest_env, left_perm)
+          end else begin
+            None
+          end
+        with UnboundPoint ->
+          None
+      end;
+
 
       (* The flex-with-structure strategy, lefty version.
        *
@@ -647,112 +809,6 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             r >>= fun (left_env, right_env, dest_env, dest_t) ->
             Some (left_env, right_env, dest_env, TySingleton dest_t)
 
-        | TyConcreteUnfolded (datacon_l, fields_l), TyConcreteUnfolded (datacon_r, fields_r) ->
-            let t_left: point = type_for_datacon left_env datacon_l in
-            let t_right: point = type_for_datacon right_env datacon_r in
-            let dest_point = Option.extract dest_point in
-
-            if Datacon.equal datacon_l datacon_r then
-              (* We need to use a potential type annotation here, so if we
-               * already have some information in the destination environment,
-               * use it! This is exercised by
-               * [test_constraints_in_patterns2.hml] *)
-              let annotation = has_datacon_type_annotation dest_env dest_point datacon_l in
-              let fields_annot = match annotation with
-                | None ->
-                    List.map (function
-                      | FieldValue (name, _) ->
-                          name, None
-                      | _ ->
-                          assert false
-                    ) fields_l
-                | Some fields ->
-                    List.map (function
-                      | FieldValue (name, t) ->
-                          name, Some t
-                      | _ ->
-                          assert false
-                    ) fields
-              in
-              (* Same constructors: both are in expanded form so just schedule the
-               * points in their fields for merging. *)
-              let dest_env, dest_fields =
-                Hml_List.fold_left3 (fun (dest_env, dest_fields) field_l field_r field_annot ->
-                  match field_l, field_r, field_annot with
-                  | FieldValue (name_l, TySingleton (TyPoint left_p)),
-                    FieldValue (name_r, TySingleton (TyPoint right_p)),
-                    (name_annot, annot) ->
-                      Log.check (Field.equal name_l name_r) "Not in order?";
-                      Log.check (Field.equal name_l name_annot) "Not in order?";
-                      let dest_env, dest_p = match annot with
-                        | Some (TySingleton (TyPoint dest_p)) ->
-                            push_job (left_p, right_p, dest_p);
-                            dest_env, dest_p
-                        | Some _ ->
-                            assert false
-                        | None ->
-                            bind_merge dest_env left_p right_p
-                      in
-                      (dest_env, FieldValue (name_l, ty_equals dest_p) :: dest_fields)
-                  | _ ->
-                      Log.error "All permissions should be in expanded form."
-                ) (dest_env, []) fields_l fields_r fields_annot
-              in
-              Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields))
-
-            else if same dest_env t_left t_right then begin
-              (* Same nominal type (e.g. [Nil] vs [Cons]). The procedure here is a
-               * little bit more complicated. We need to take the nominal type (e.g.
-               * [list]), and apply it to [a] flexible on both sides, allocate [a]
-               * in [dest_env] and add the relevant triples in [known_triples].
-               * Then, perform [Nil - list a] and [Cons - list a]. Then recursively
-               * merge the variables pairwise, and if it's still flexible,
-               * generalize (or maybe not?).
-               *)
-
-              let t_dest = PersistentUnionFind.repr t_left left_env.state in
-
-              (* Ok, if the user already told us how to fold this type, then
-               * don't bother doing the work at all. Otherwise, complain. *)
-              if has_nominal_type_annotation dest_env dest_point t_dest then begin
-                None
-              end else begin
-                if get_arity dest_env t_dest > 0 then begin
-                  let open TypeErrors in
-                  let error = UncertainMerge dest_point in
-                  if !Options.pedantic then
-                    raise_error dest_env error
-                  else
-                    Log.warn "%a" print_error (dest_env, error)
-                end;
-
-                Log.debug ~level:4 "[cons_vs_cons] left";
-                let left_env, t_app_left =
-                  build_flexible_type_application (left_env, left_perm) (dest_env, t_dest)
-                in
-                Log.debug ~level:4 "[cons_vs_cons] right";
-                let right_env, t_app_right =
-                  build_flexible_type_application (right_env, right_perm) (dest_env, t_dest)
-                in
-
-                (* Did the subtractions succeed? *)
-                left_env >>= fun left_env ->
-                right_env >>= fun right_env ->
-
-                Log.debug ~level:3 "[cons_vs_cons] subtractions performed, got: %a vs %a"
-                  TypePrinter.ptype (left_env, t_app_left)
-                  TypePrinter.ptype (right_env, t_app_right);
-
-                let r = merge_type (left_env, t_app_left) (right_env, t_app_right) ~dest_point dest_env in
-                r >>= fun (left_env, right_env, dest_env, dest_perm) ->
-                let dest_perm = Flexible.generalize dest_env dest_perm in
-                Some (left_env, right_env, dest_env, dest_perm)
-              end
-
-            end else
-              None
-
-
         | TyConcreteUnfolded (datacon_l, _), _ ->
             let t_left = type_for_datacon left_env datacon_l in
             let t_dest = PersistentUnionFind.repr t_left left_env.state in
@@ -869,56 +925,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
               None
 
 
-        | TyTuple ts_l, TyTuple ts_r when List.length ts_l = List.length ts_r ->
-
-            let dest_point = Option.extract dest_point in
-            let ts_d = match has_tuple_type_annotation dest_env dest_point with
-              | Some ts ->
-                  List.map (fun ts -> Some ts) ts
-              | None ->
-                  Hml_List.make (List.length ts_l) (fun _ -> None)
-            in
-
-            let dest_env, dest_points =
-              Hml_List.fold_left3 (fun (dest_env, dest_points) t_l t_r t_d ->
-                let left_p = !!=t_l in
-                let right_p = !!=t_r in
-                match t_d with
-                | Some (TySingleton (TyPoint dest_p)) ->
-                    (* We still need to schedule this job, because we may have a
-                     * partial type annotation for one of the tuple components.
-                     * Think of it as a job whose destination point has been
-                     * pre-allocated!. *)
-                    push_job (left_p, right_p, dest_p);
-                    (dest_env, dest_p :: dest_points)
-                | Some _ ->
-                    assert false
-                | None ->
-                    let dest_env, dest_point = bind_merge dest_env left_p right_p in
-                    (dest_env, dest_point :: dest_points)
-              ) (dest_env, []) ts_l ts_r ts_d
-            in
-            let dest_points = List.rev dest_points in
-            let ts = List.map ty_equals dest_points in
-            Some (left_env, right_env, dest_env, TyTuple ts)
-
         | _ ->
             None
-      end;
-
-
-      (* Simple equals strategy. *)
-      lazy begin
-        try
-          if equal top left_perm right_perm then begin
-            Log.debug "→ fast_path, the types are equal in the original environment, \
-              don't touch them";
-            Some (left_env, right_env, dest_env, left_perm)
-          end else begin
-            None
-          end
-        with UnboundPoint ->
-          None
       end;
 
     ] in
