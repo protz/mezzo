@@ -30,7 +30,8 @@ let debug ?level fmt =
     Hml_String.biprintf fmt
   end
 
-let warn x = debug ~level:0 x
+let warn_count = ref 0
+let warn x = incr warn_count; debug ~level:0 x
 
 let error fmt =
   Printf.kbprintf (fun buf ->

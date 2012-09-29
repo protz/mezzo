@@ -444,17 +444,24 @@ let tests: (string * ((bool -> env) -> unit)) list = [
 
 let _ =
   let open Bash in
-  Log.enable_debug 0;
+  Log.enable_debug (-1);
   Driver.add_include_dir "tests";
   let failed = ref 0 in
   List.iter (fun (file, test) ->
+    Log.warn_count := 0;
     let do_it = fun pervasives ->
       let env = Driver.process pervasives (Filename.concat "tests" file) in
       env
     in
     begin try
       test do_it;
-      Printf.printf "%s✓ %s%s\n" colors.green colors.default file;
+      if !Log.warn_count > 0 then
+        Printf.printf "%s✓ %s%s, %s%d%s warning%s\n"
+          colors.green colors.default file
+          colors.red !Log.warn_count colors.default
+          (if !Log.warn_count > 1 then "s" else "")
+      else
+        Printf.printf "%s✓ %s%s\n" colors.green colors.default file;
     with e ->
       failed := !failed + 1;
       Printf.printf "%s✗ %s%s\n" colors.red colors.default file;
