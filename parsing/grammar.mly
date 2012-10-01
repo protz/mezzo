@@ -547,6 +547,8 @@ fact:
   app_raw:
   | e1 = app e2 = atomic
       { EApply (e1, e2) }
+  | e1 = app LBRACKET ts = separated_nonempty_list(COMMA, normal_type) RBRACKET
+      { ETApply (e1, ts) }
   | e = atomic_raw
       { e }
 

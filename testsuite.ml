@@ -361,6 +361,14 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:false Pass
   );
 
+  (* Polymorphic function calls *)
+
+  ("polycall1.hml",
+    simple_test ~stdlib:false (Fail (function IllKindedTypeApplication _ -> true | _ -> false)));
+
+  ("polycall2.hml",
+    simple_test ~stdlib:false (Fail (function IllKindedTypeApplication _ -> true | _ -> false)));
+
   (* Tests are expected to fail. *)
 
   ("fail1.hml",

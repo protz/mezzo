@@ -1,0 +1,2 @@
+val f [a] (consumes x: a): a = x
+val v = f [(f @ ())] ()

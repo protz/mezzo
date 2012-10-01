@@ -586,6 +586,12 @@ and check_expression (env: env) (expr: expression) =
       check_expression env e1;
       check_expression env e2
 
+  | ETApply (e1, _) ->
+      (* The kind-checking of [ts] is deferred until we have performed type
+       * inference, which will allow [TypeChecker] to tell whether this type
+       * application is valid or not. *)
+      check_expression env e1
+
   | EMatch (_, e, pat_exprs) ->
       check_expression env e;
       List.iter (fun (pat, expr) ->

@@ -45,6 +45,8 @@ type expression =
   | EAccess of expression * Field.name
   (* e₁ e₂ *)
   | EApply of expression * expression
+  (* e [τ₁, …, τₙ] *)
+  | ETApply of expression * typ * kind
   (* match e with pᵢ -> eᵢ *)
   | EMatch of bool * expression * patexpr list
   (* (e₁, …, eₙ) *)
@@ -144,6 +146,9 @@ let rec psubst (pat: pattern) (points: point list) =
 ;;
 
 
+(* [tsubst_patexprs t2 i rec_flag pat_exprs] substitutes type [t2] for index [i]
+ * in the list of pattern-expressions [pat_exprs], defined recursively or not,
+ * depending on [rec_flag]. *)
 let rec tsubst_patexprs t2 i rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
   let names = List.fold_left (fun acc p ->
@@ -199,6 +204,11 @@ and tsubst_expr t2 i e =
       let f = tsubst_expr t2 i f in
       let arg = tsubst_expr t2 i arg in
       EApply (f, arg)
+
+  | ETApply (f, arg, k) ->
+      let f = tsubst_expr t2 i f in
+      let arg = tsubst t2 i arg in
+      ETApply (f, arg, k)
 
   | EMatch (b, e, patexprs) ->
       let e = tsubst_expr t2 i e in
@@ -256,6 +266,9 @@ and tsubst_decl e2 i decls =
   tsubst_decl [] i decls
 ;;
 
+(* [esubst_patexprs e2 i rec_flag pat_exprs] substitutes expression [e2] for index [i]
+ * in the list of pattern-expressions [pat_exprs], defined recursively or not,
+ * depending on [rec_flag]. *)
 let rec esubst_patexprs e2 i rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
   let names = List.fold_left (fun acc p ->
@@ -314,6 +327,10 @@ and esubst e2 i e1 =
       let f = esubst e2 i f in
       let arg = esubst e2 i arg in
       EApply (f, arg)
+
+  | ETApply (f, arg, k) ->
+      let f = esubst e2 i f in
+      ETApply (f, arg, k)
 
   | EMatch (b, e, patexprs) ->
       let e = esubst e2 i e in
@@ -469,6 +486,7 @@ let bind_patexprs env rec_flag patexprs =
 ;;
 
 
+(* [elift k e] lifts expression [e] by [k] *)
 let elift (k: int) (e: expression) =
   let rec elift (i: int) (e: expression) =
   match e with
@@ -519,6 +537,9 @@ let elift (k: int) (e: expression) =
   | EApply (e1, e2) ->
       EApply (elift i e1, elift i e2)
 
+  | ETApply (e1, arg, k) ->
+      ETApply (elift i e1, lift i arg, k)
+
   | EMatch (b, e, patexprs) ->
       let e = elift i e in
       let patexprs = List.map (fun (pat, expr) ->
@@ -556,6 +577,7 @@ let elift (k: int) (e: expression) =
 ;;
 
 
+(* [epsubst env e2 p e1] substitutes expression [e2] for point [p] in expression [e1] *)
 let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression =
   let rec epsubst e2 e1 =
     match e1 with
@@ -606,6 +628,9 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
     | EApply (e1, e'1) ->
         EApply (epsubst e2 e1, epsubst e2 e'1)
 
+    | ETApply (e1, arg, k) ->
+        ETApply (epsubst e2 e1, arg, k)
+
     | EMatch (b, e1, patexprs) ->
         let e1 = epsubst e2 e1 in
         let patexprs = List.map (fun (pat, expr) ->
@@ -644,6 +669,8 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
   epsubst e2 e1
 ;;
 
+
+(* [tepsubst env e2 p e1] substitutes type [t2] for point [p] in expression [e1] *)
 let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
   let rec tepsubst t2 e1 =
     match e1 with
@@ -692,6 +719,9 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
 
     | EApply (e1, e'1) ->
         EApply (tepsubst t2 e1, tepsubst t2 e'1)
+
+    | ETApply (e1, arg, k) ->
+        ETApply (tepsubst t2 e1, tpsubst env t2 p arg, k)
 
     | EMatch (b, e1, patexprs) ->
         let e1 = tepsubst t2 e1 in
@@ -822,6 +852,12 @@ module ExprPrinter = struct
         let arg = print_expr env arg in
         let f = print_expr env f in
         f ^^ space ^^ arg
+
+    | ETApply (f, arg, k) ->
+        let arg = print_type env arg in
+        let f = print_expr env f in
+        f ^^ space ^^ lbracket ^^ arg ^^ space ^^ colon ^^ colon ^^ space ^^
+        print_kind k ^^ rbracket
 
     | ETuple exprs ->
         let exprs = List.map (print_expr env) exprs in

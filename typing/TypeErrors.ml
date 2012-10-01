@@ -27,6 +27,9 @@ and raw_error =
   | ResourceAllocationConflict of point
   | UncertainMerge of point
   | ConflictingTypeAnnotations of typ * typ
+  | IllKindedTypeApplication of typ * kind * kind
+  | BadTypeApplication of point
+  | PolymorphicFunctionCall
 
 exception TypeCheckerError of error
 
@@ -230,5 +233,22 @@ let print_error buf (env, raw_error) =
         Lexer.p env.location
         TypePrinter.ptype (env, t1)
         TypePrinter.ptype (env, t2);
- ;;
-
+  | BadTypeApplication point ->
+      let _, binder = find_term env point in
+      Printf.bprintf buf "%a point %a does not have a polymorphic type, the only \
+          permissions available for it are %a"
+        Lexer.p env.location
+        TypePrinter.pnames (get_names env point)
+        TypePrinter.pdoc (TypePrinter.print_permission_list, (env, binder));
+  | IllKindedTypeApplication (t, k, k') ->
+      Printf.bprintf buf "%a while applying type %a: this type has kind %a but \
+          the sub-expression has a polymorphic type with kind %a"
+        Lexer.p env.location
+        TypePrinter.ptype (env, t)
+        TypePrinter.pdoc (TypePrinter.print_kind, k) 
+        TypePrinter.pdoc (TypePrinter.print_kind, k');
+  | PolymorphicFunctionCall ->
+      Printf.bprintf buf "%a this is a polymorphic function all, results are \
+          undefined; consider using a type application"
+        Lexer.p env.location
+;;

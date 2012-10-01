@@ -55,9 +55,11 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
         false
   in
   let permissions = List.filter is_quantified_arrow fbinder.permissions in
+  let is_polymorphic = ref false in
   (* Instantiate all universally quantified variables with flexible variables. *)
   let rec flex = fun env -> function
     | TyForall (binding, t) ->
+        is_polymorphic := true;
         let env, t = bind_var_in_type env ~flexible:true binding t in
         let env, t = flex env t in
         env, t
@@ -85,6 +87,12 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
           TypePrinter.pvar fname;
         flex_deconstruct t
   in
+  (* Warn the user if relying on our inference of polymorphic function calls. *)
+  let error = TypeErrors.PolymorphicFunctionCall in
+  if !Options.pedantic then
+    TypeErrors.raise_error env error
+  else
+    Log.warn "%a" TypeErrors.print_error (env, error);
   (* Examine [x]. [sub] will take care of running collect on [t1] so that the
    * expected permissions are subtracted as well from the environment. *)
   match Permissions.sub env x t1 with
@@ -492,6 +500,27 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
        * of [e2] so that we can be even more precise in the error message. *)
       let env, return_type = check_function_call env x1 x2 in
       return env return_type
+
+  | ETApply (e, t, k) ->
+      let env, x = check_expression env e in
+      replace_term env x (fun binding ->
+        let perms = binding.permissions in
+        let found = ref false in
+        let perms = List.map (function
+          | TyForall ((_, k', _), t') ->
+              if k <> k' then begin
+                raise_error env (IllKindedTypeApplication (t, k, k'))
+              end else begin
+                found := true;
+                tsubst t 0 t'
+              end
+          | _ as t ->
+              t
+        ) perms in
+        if not !found then
+          raise_error env (BadTypeApplication x);
+        { binding with permissions = perms }
+      ), x
 
   | ETuple exprs ->
       (* Propagate type annotations inside the tuple. *)

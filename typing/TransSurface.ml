@@ -549,6 +549,11 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let e2 = translate_expr env e2 in
       E.EApply (e1, e2)
 
+  | ETApply (e1, ts) ->
+      let e1 = translate_expr env e1 in
+      let ts = List.map (fun t -> translate_type env t, infer env t) ts in
+      List.fold_left (fun e (t, k) -> E.ETApply (e, t, k)) e1 ts
+
   | EMatch (b, e, patexprs) ->
       let e = translate_expr env e in
       let patexprs = List.map (fun (pat, expr) ->

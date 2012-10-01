@@ -16,7 +16,7 @@ MY_DIRS	   := lib parsing sets typing utils
 
 
 all:
-	$(OCAMLBUILD) $(INCLUDE) $(MAIN).byte $(TESTSUITE).byte #$(TEST).byte
+	$(OCAMLBUILD) $(INCLUDE) $(MAIN).byte $(TESTSUITE).byte
 	ln -sf $(MAIN).byte $(MAIN)
 	ln -sf $(TESTSUITE).byte $(TESTSUITE)
 
