@@ -44,6 +44,9 @@ let dummy_binding k =
 let tests: (string * ((bool -> env) -> unit)) list = [
   (* Some very simple tests. *)
 
+  ("basic.hml",
+    simple_test ~stdlib:false Pass);
+
   ("constructors.hml",
     simple_test Pass);
 

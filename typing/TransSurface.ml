@@ -113,8 +113,13 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
   in
   let t, name_perms = strip_consumes env t in
   let names, perms, locations = Hml_List.split3 name_perms in
-  let names = Hml_List.filter_some names in
-  let bindings = List.map2 (fun x loc -> x, KTerm, loc) names locations in
+  let bindings = Hml_List.map_some (function
+    | Some x, loc ->
+        Some (x, KTerm, loc)
+    | None, _ ->
+        None
+
+  ) (List.combine names locations) in
   t, bindings, perms
 ;;
 
