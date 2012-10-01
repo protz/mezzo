@@ -131,6 +131,12 @@ let type_for_function_def (expression: expression): typ =
 
 
 
+(** [unify_pattern] is useful when type-checking [let pat = e] where [pat] is
+ * a pattern and [e] is an expression. Type-checking [e] will add a new
+ * permission to a point named [p]. We then need to glue the points in the
+ * pattern to the intermediate points in the permission for [p]. If, for
+ * instance, [pat] is [(p1, p2)] and [p @ (=p'1, =p'2)] holds, this function
+ * will merge [p1] and [p'1], as well as [p2] and [p'2]. *)
 let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
 
   match pattern with
@@ -191,6 +197,44 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
 ;;
 
 
+(** [merge_type_annotations] is useful when the context provides a type
+ * annotation and we hit a [EConstraint] expression. We need to make sure the
+ * type annotations are consistent: (unknown, τ) and (σ, unknown) are consistent
+ * type annotations; τ and τ are. We are conservative, and refuse to merge a lot
+ * other cases: (τ | σ) and (τ | σ') should probably be merged in a clever
+ * manner, but that's too complicated. *)
+let merge_type_annotations env t1 t2 =
+  let error () =
+    raise_error env (ConflictingTypeAnnotations (t1, t2))
+  in
+  let rec merge_type_annotations t1 t2 =
+    match t1, t2 with
+    | _, _ when t1 = t2 ->
+        t1
+    | TyUnknown, _ ->
+        t2
+    | _, TyUnknown ->
+        t1
+    | TyTuple ts1, TyTuple ts2 when List.length ts1 = List.length ts2 ->
+        TyTuple (List.map2 merge_type_annotations ts1 ts2)
+    | TyConcreteUnfolded (datacon1, fields1),
+      TyConcreteUnfolded (datacon2, fields2)
+      when Datacon.equal datacon1 datacon2 && List.length fields1 = List.length fields2 ->
+        TyConcreteUnfolded (datacon1, List.map2 (fun f1 f2 ->
+          match f1, f2 with
+          | FieldValue (f1, t1), FieldValue (f2, t2) when Field.equal f1 f2 ->
+              FieldValue (f1, merge_type_annotations t1 t2)
+          | _ ->
+              error ()
+        ) fields1 fields2)
+    | _ ->
+        error ()
+  in
+  merge_type_annotations t1 t2
+;;
+
+
+
 let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * point =
 
   (* TEMPORARY this is just a quick and dirty way to talk about user-defined
@@ -216,11 +260,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
   match expr with
   | EConstraint (e, t) ->
-      if annot <> None then
-        Log.error "Not implemented yet: do a function that is able to merge type \
-          annotations so that (τ, unknown) ∨ (unknown, σ) ⇝ (τ, σ) and errors \
-          out if there are conflicting type annotations";
-      let env, p = check_expression env ?hint ~annot:t e in
+      let annot = Option.map (merge_type_annotations env t) annot in
+      let env, p = check_expression env ?hint ?annot e in
       check_return_type env p t;
       env, p
 

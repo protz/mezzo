@@ -26,6 +26,7 @@ and raw_error =
   | NoMultipleArguments
   | ResourceAllocationConflict of point
   | UncertainMerge of point
+  | ConflictingTypeAnnotations of typ * typ
 
 exception TypeCheckerError of error
 
@@ -222,5 +223,12 @@ let print_error buf (env, raw_error) =
           consider providing annotations for %a"
         Lexer.p env.location
         TypePrinter.pnames (get_names env point)
-;;
+  | ConflictingTypeAnnotations (t1, t2) ->
+      Printf.bprintf buf "%a the context provides a type annotation, namely %a \
+        but here is a type annotation, namely %a, that is conflicting the \
+        context-provided type annotation"
+        Lexer.p env.location
+        TypePrinter.ptype (env, t1)
+        TypePrinter.ptype (env, t2);
+ ;;
 
