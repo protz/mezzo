@@ -260,8 +260,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
   match expr with
   | EConstraint (e, t) ->
-      let annot = Option.map (merge_type_annotations env t) annot in
-      let env, p = check_expression env ?hint ?annot e in
+      let annot = match annot with
+        | Some t' -> merge_type_annotations env t t'
+        | None -> t
+      in
+      let env, p = check_expression env ?hint ~annot e in
       check_return_type env p t;
       env, p
 
