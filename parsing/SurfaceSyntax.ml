@@ -36,8 +36,12 @@ let flatten_kind kind =
 
 (* Types and permissions. *)
 
+(* Some quantifiers can be instantiated by a user, some cannot, especially those
+ * introduced in the desugaring phase. *)
+type binding_flavor = CanInstantiate | CannotInstantiate
+
 type type_binding =
-    Variable.name * kind * (Lexing.position * Lexing.position)
+    Variable.name * kind * (Lexing.position * Lexing.position) * binding_flavor
 
 type typ =
   | TyLocated of typ * Lexing.position * Lexing.position

@@ -88,7 +88,7 @@ let cleanup_function_type env t body =
         TyConstraints (constraints, fst (find env t e)), None
 
   (* [vars] have been opened in [t] and [e]. *)
-  and cleanup (env: env) (vars: type_binding list) (t: typ) (e: expression option)
+  and cleanup (env: env) (vars: (type_binding * flavor) list) (t: typ) (e: expression option)
       : typ * expression option =
 
     (* Open the binders before working on the type. *)

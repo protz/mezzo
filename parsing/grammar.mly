@@ -152,7 +152,7 @@ type_parameters:
 
 atomic_type_binding:
 | x = variable (* KTYPE is the default kind *)
-    { x, KType, ($startpos, $endpos) }
+    { x, KType, ($startpos, $endpos), CanInstantiate }
 | LPAREN b = type_binding RPAREN
     { b }
 
@@ -160,7 +160,7 @@ type_binding:
 | b = atomic_type_binding
     { b }
 | x = variable COLONCOLON kind = kind
-    { x, kind, ($startpos, $endpos) }
+    { x, kind, ($startpos, $endpos), CanInstantiate }
 
 (* ---------------------------------------------------------------------------- *)
 

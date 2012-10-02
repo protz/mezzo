@@ -197,6 +197,6 @@ let generalize env t =
   List.fold_right (fun p t ->
     let x = Variable.register (Utils.fresh_name "g") in
     let k = get_kind env p in
-    TyForall ((Auto x, k, env.location), tpsubst env (TyVar 0) p t)
+    TyForall (((Auto x, k, env.location), CanInstantiate), tpsubst env (TyVar 0) p t)
   ) flexible t
 ;;
