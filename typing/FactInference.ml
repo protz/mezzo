@@ -211,6 +211,10 @@ let one_round (env: env): env =
   ) env
 ;;
 
+
+(* If this function is correct (and I'm not even sure of that), it only is for
+ * types that have been expanded (it would return Exclusive for
+ * [(xpair int int, int)], for instance, instead of affine. *)
 let analyze_type (env: env) (t: typ): fact =
   try
     duplicables env Checking t;
