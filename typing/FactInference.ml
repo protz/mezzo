@@ -64,7 +64,7 @@ let duplicables
             end
         end
 
-    | TyForall (binding, t)
+    | TyForall ((binding, _), t)
     | TyExists (binding, t) ->
         let env, t = bind_var_in_type env binding t in
         duplicables env t

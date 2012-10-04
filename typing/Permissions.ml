@@ -640,11 +640,11 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       sub_type env t1 t2
 
 
-  | TyForall (binding, t1), _ ->
+  | TyForall ((binding, _), t1), _ ->
       let env, t1 = bind_var_in_type ~flexible:true env binding t1 in
       sub_type env t1 t2
 
-  | _, TyForall (binding, t2) ->
+  | _, TyForall ((binding, _), t2) ->
       (* Typical use-case: Nil vs [a] list a. We're binding this as a *rigid*
        * type variable. *)
       let env, t2 = bind_var_in_type env binding t2 in

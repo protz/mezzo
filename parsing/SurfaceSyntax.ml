@@ -41,7 +41,7 @@ let flatten_kind kind =
 type binding_flavor = CanInstantiate | CannotInstantiate
 
 type type_binding =
-    Variable.name * kind * (Lexing.position * Lexing.position) * binding_flavor
+    Variable.name * kind * (Lexing.position * Lexing.position)
 
 type typ =
   | TyLocated of typ * Lexing.position * Lexing.position

@@ -34,7 +34,7 @@ let permission (p, x) =
 ;;
 
 let forall (x, k) t =
-  TyForall ((User (Variable.register x), k, (Lexing.dummy_pos, Lexing.dummy_pos)), t)
+  TyForall (((User (Variable.register x), k, (Lexing.dummy_pos, Lexing.dummy_pos)), CanInstantiate), t)
 ;;
 
 let var x =

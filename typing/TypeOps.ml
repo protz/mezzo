@@ -91,6 +91,8 @@ let cleanup_function_type env t body =
   and cleanup (env: env) (vars: (type_binding * flavor) list) (t: typ) (e: expression option)
       : typ * expression option =
 
+    let vars, flavors = List.split vars in
+
     (* Open the binders before working on the type. *)
     let env, { points; subst_type; subst_expr; _ } = bind_vars env vars in
     let vars = List.combine vars points in
@@ -140,7 +142,11 @@ let cleanup_function_type env t body =
         in
 
         (* TODO: make sure that there's no chance we're left with constraints
-         * that refer to variables that [cleanup] decided to get rid of. *)
+         * that refer to variables that [cleanup] will decide to get rid of.
+         * 20121004: but we never remove variables, do we? We just merge the
+         * redundant ones together... so in the worst case, since all variables
+         * are opened at this stage, when we close them, we will just refer to
+         * the merged variable... *)
         let t1 =
           if List.length constraints > 0 then TyConstraints (constraints, t1) else t1
         in
@@ -163,7 +169,7 @@ let cleanup_function_type env t body =
           ) perms in
           (* Final refinement: only keep those permissions that are either not
            * duplicable or not already taken as an argument by the function. The
-           * caller will always be able to duplicate it. *)
+           * caller will always be able to duplicate it (η-expansion argument). *)
           let perms = List.filter (fun p ->
             FactInference.is_duplicable env p ^=>
             not (List.exists (fun p' -> equal env p p') t1_perms)
@@ -174,11 +180,18 @@ let cleanup_function_type env t body =
         let t = TyArrow (t1, t2) in
 
         (* Now put back the quantifiers into place, skipping those that have
-         * been put back already. *)
+         * been put back already. This function is correct because (total
+         * handwaving time): the binders are kept in order, so if we go
+         * left-to-right, we first hit user-defined binders, which *remain*
+         * user-defined, and then we hit automatically-inserted-by-desugaring
+         * binders, which will remain as such. What happens if we're too clever
+         * and we remove a redundant binder written by the user? ... *)
         let env = refresh_mark env in
-        let _env, t, e, _i = List.fold_right (fun ((_, k, pos), p) (env, t, e, i) ->
-          if is_marked env p then
-            env, t, e, i
+        let _env, t, e = List.fold_left2 (fun (env, t, e) ((_, k, pos), p) flavor ->
+          if is_marked env p && flavor <> CanInstantiate then
+            (* We shouldn't remove a binder that the user expects to be able to
+             * instantiate. *)
+            env, t, e
           else
             let env = mark env p in
             let name =
@@ -186,14 +199,11 @@ let cleanup_function_type env t body =
               try List.find (function User _ -> true | _ -> false) names
               with Not_found -> List.hd names
             in
+            let t = lift 1 t in
+            let e = Option.map (elift 1) e in
             let t = Flexible.tpsubst env (TyVar 0) p t in
-            (* The substitution functions won't traverse the binder we just
-             * added, because there no [EBigLambda], so we need to take into
-             * account the fact that we've traversed so many binders. *)
-            let e = Option.map (epsubst env (EVar i) p) e in
-            let e = Option.map (tepsubst env (TyVar i) p) e in
-            env, TyForall ((name, k, pos), t), e, i + 1
-        ) vars (env, t, e, 0) in
+            env, TyForall (((name, k, pos), flavor), t), e
+        ) (env, t, e) vars flavors in
         
         t, e
 

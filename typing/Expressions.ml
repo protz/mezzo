@@ -36,7 +36,7 @@ type expression =
   (* let rec pat = expr and pat' = expr' in expr *)
   | ELet of rec_flag * patexpr list * expression
   (* fun [a] (x: τ): τ -> e *)
-  | EFun of type_binding list * typ * typ * expression
+  | EFun of (type_binding * flavor) list * typ * typ * expression
   (* v.f <- e *)
   | EAssign of expression * Field.name * expression
   (* v <- Foo *)
@@ -826,7 +826,7 @@ module ExprPrinter = struct
 
     (* fun [a] (x: τ): τ -> e *)
     | EFun (vars, arg, return_type, body) ->
-        let env, { subst_type; subst_expr; _ } = bind_vars env vars in
+        let env, { subst_type; subst_expr; _ } = bind_vars env (List.map fst vars) in
         (* Remember: this is all in desugared form, so the variables in [args]
          * are all bound. *)
         let arg = subst_type arg in
@@ -913,8 +913,9 @@ module ExprPrinter = struct
         empty
 
 
-  and print_binder (name, kind, _) =
-    print_var name ^^ space ^^ ccolon ^^ space ^^ print_kind kind
+  and print_binder ((name, kind, _), f) =
+    let f = if f = CannotInstantiate then star else empty in
+    print_var name ^^ f ^^ space ^^ ccolon ^^ space ^^ print_kind kind
 
   ;;
 

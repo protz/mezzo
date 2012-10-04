@@ -53,7 +53,7 @@ type typ =
 
     (* Quantification and type application. *)
   | TyForall of (type_binding * flavor) * typ
-  | TyExists of (type_binding * flavor) * typ
+  | TyExists of type_binding * typ
   | TyApp of typ * typ
 
     (* Structural types. *)
@@ -424,7 +424,7 @@ let equal env (t1: typ) (t2: typ) =
             same env p1 p2
         end
 
-    | TyExists (((_, k1, _), _), t1), TyExists (((_, k2, _), _), t2)
+    | TyExists ((_, k1, _), t1), TyExists ((_, k2, _), t2)
     | TyForall (((_, k1, _), _), t1), TyForall (((_, k2, _), _), t2) ->
         k1 = k2 && equal t1 t2
 
@@ -1284,7 +1284,7 @@ module TypePrinter = struct
         let vars = lbracket ^^ vars ^^ rbracket in
         vars ^^ space ^^ print_type env t
 
-    | TyExists (((name, kind, _) as binding, _), typ) ->
+    | TyExists ((name, kind, _) as binding, typ) ->
         let env, typ = bind_var_in_type env binding typ in
         print_quantified env "∃" name kind typ
 

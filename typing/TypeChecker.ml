@@ -58,8 +58,8 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
   let is_polymorphic = ref false in
   (* Instantiate all universally quantified variables with flexible variables. *)
   let rec flex = fun env -> function
-    | TyForall (binding, t) ->
-        is_polymorphic := true;
+    | TyForall ((binding, flavor), t) ->
+        is_polymorphic := !is_polymorphic || flavor = CanInstantiate;
         let env, t = bind_var_in_type env ~flexible:true binding t in
         let env, t = flex env t in
         env, t
@@ -317,6 +317,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       in
 
       (* Bind all variables. *)
+      let vars = List.map fst vars in
       let sub_env, { subst_type; subst_expr; _ } = bind_vars sub_env vars in
       let arg = subst_type arg in
       let return_type = subst_type return_type in
@@ -507,7 +508,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         let perms = binding.permissions in
         let found = ref false in
         let perms = List.map (function
-          | TyForall ((_, k', _), t') ->
+          | TyForall (((_, k', _), CanInstantiate), t') ->
               if k <> k' then begin
                 raise_error env (IllKindedTypeApplication (t, k, k'))
               end else begin
