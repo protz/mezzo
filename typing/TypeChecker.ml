@@ -307,8 +307,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         TypeOps.simplify_function_def env vars arg return_type body
       in
       let expr = EFun (vars, arg, return_type, body) in
-      Log.debug ~level:4 "Type-checking function body, desugared type %a"
-        TypePrinter.ptype (env, type_for_function_def expr);
+      Log.debug ~level:4 "Type-checking function body, desugared type %a \
+        desugared body %a"
+        TypePrinter.ptype (env, type_for_function_def expr) 
+        ExprPrinter.pexpr (env, body);
 
       (* We can't create a closure over exclusive variables. Create a stripped
        * environment with only the duplicable parts. *)

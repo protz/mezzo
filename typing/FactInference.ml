@@ -129,15 +129,16 @@ let duplicables
         (* Arrows are always duplicable *)
         ()
 
-    | TyAnchoredPermission (x, t) ->
+    | TyAnchoredPermission (x, t') ->
         begin match x with
         | TyPoint p ->
-            Log.check (is_term env p) "Malformed type"
+            Log.check (is_term env p) "Malformed term %a"
+              TypePrinter.ptype (env, t)
         | _ ->
-            Log.error "Malformed type"
+            Log.error "Malformed type %a" TypePrinter.ptype (env, t)
         end;
         (* For x: τ to be duplicable, τ has to be duplicable as well *)
-        duplicables env t
+        duplicables env t'
 
     | TyEmpty ->
         ()

@@ -204,8 +204,10 @@ let cleanup_function_type env t body =
               with Not_found -> List.hd names
             in
             let t = lift 1 t in
-            let e = Option.map (elift 1) e in
             let t = Flexible.tpsubst env (TyVar 0) p t in
+            let e = Option.map (elift 1) e in
+            let e = Option.map (epsubst env (EVar 0) p) e in
+            let e = Option.map (tepsubst env (TyVar 0) p) e in
             env, ((name, k, pos), flavor) :: vars, t, e
         ) (env, [], t, e) vars flavors in
 
