@@ -191,11 +191,9 @@ let cleanup_function_type env t body =
          * user-defined, and then we hit automatically-inserted-by-desugaring
          * binders, which will remain as such. *)
         let env = refresh_mark env in
-        let _env, vars, t, e = List.fold_left2 (fun (env, vars, t, e) ((_, k, pos), p) flavor ->
-          if is_marked env p && flavor <> CanInstantiate then
-            (* We shouldn't remove a binder that the user expects to be able to
-             * instantiate. *)
-            env, vars, t, e
+        let _env, vars = List.fold_left2 (fun (env, vars) ((_, k, pos), p) flavor ->
+          if is_marked env p then
+            env, vars
           else
             let env = mark env p in
             let name =
@@ -203,17 +201,19 @@ let cleanup_function_type env t body =
               try List.find (function User _ -> true | _ -> false) names
               with Not_found -> List.hd names
             in
-            let t = lift 1 t in
-            let t = Flexible.tpsubst env (TyVar 0) p t in
-            let e = Option.map (elift 1) e in
-            let e = Option.map (epsubst env (EVar 0) p) e in
-            let e = Option.map (tepsubst env (TyVar 0) p) e in
-            env, ((name, k, pos), flavor) :: vars, t, e
-        ) (env, [], t, e) vars flavors in
-
+            env, (name, k, pos, flavor, p) :: vars
+        ) (env, []) vars flavors in
         let vars = List.rev vars in
-        let t = fold_forall vars t in
-        
+        let _env, t, e, _i = List.fold_right (fun (name, k, pos, flavor, p) (env, t, e, i) ->
+          let t = Flexible.tpsubst env (TyVar 0) p t in
+          (* The substitution functions won't traverse the binder we just
+           * added, because there no [EBigLambda], so we need to take into
+           * account the fact that we've traversed so many binders. *)
+          let e = Option.map (epsubst env (EVar i) p) e in
+          let e = Option.map (tepsubst env (TyVar i) p) e in
+          env, TyForall (((name, k, pos), flavor), t), e, i + 1
+        ) vars (env, t, e, 0) in
+
         t, e
 
     | _ ->
