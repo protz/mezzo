@@ -88,11 +88,13 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
         flex_deconstruct t
   in
   (* Warn the user if relying on our inference of polymorphic function calls. *)
-  let error = TypeErrors.PolymorphicFunctionCall in
-  if !Options.pedantic then
-    TypeErrors.raise_error env error
-  else
-    Log.warn "%a" TypeErrors.print_error (env, error);
+  if !is_polymorphic then begin
+    let error = TypeErrors.PolymorphicFunctionCall in
+    if !Options.pedantic then
+      TypeErrors.raise_error env error
+    else
+      Log.warn "%a" TypeErrors.print_error (env, error);
+  end;
   (* Examine [x]. [sub] will take care of running collect on [t1] so that the
    * expected permissions are subtracted as well from the environment. *)
   match Permissions.sub env x t1 with

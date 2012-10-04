@@ -373,6 +373,12 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   ("polycall2.hml",
     simple_test ~stdlib:false (Fail (function BadTypeApplication _ -> true | _ -> false)));
 
+  ("polycall3.hml",
+    simple_test ~stdlib:false ~pedantic:true Pass);
+
+  ("polycall4.hml",
+    simple_test ~stdlib:false ~pedantic:true Pass);
+
   (* Tests are expected to fail. *)
 
   ("fail1.hml",
