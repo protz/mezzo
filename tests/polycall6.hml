@@ -1,0 +1,9 @@
+data list a = Cons { head: a; tail: list a } | Nil
+abstract int
+fact duplicable int
+
+val mklist [a] (consumes x: a): list a =
+  Cons { head = x; tail = Nil }
+
+val mklist2 [a, b] (consumes x: a, consumes y: b): list (a, b) =
+  mklist [(a,b)] (x, y)
