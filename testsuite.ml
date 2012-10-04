@@ -37,8 +37,12 @@ let dummy_name =
   User (Variable.register "foo")
 ;;
 
-let dummy_binding k =
+let edummy_binding k =
   dummy_name, k, dummy_loc
+;;
+
+let dummy_binding k =
+  (dummy_name, k, dummy_loc), CanInstantiate
 ;;
 
 let tests: (string * ((bool -> env) -> unit)) list = [
@@ -132,7 +136,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   ("merge2.hml", fun do_it ->
     let env = do_it false in
     let v2 = point_by_name env "v2" in
-    let t = TyExists (dummy_binding KTerm,
+    let t = TyExists (edummy_binding KTerm,
       TyBar (
         ty_equals v2,
         TyStar (
@@ -152,8 +156,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   ("merge3.hml", fun do_it ->
     let env = do_it false in
     let v3 = point_by_name env "v3" in
-    let t = TyExists (dummy_binding KTerm,
-      TyExists (dummy_binding KTerm,
+    let t = TyExists (edummy_binding KTerm,
+      TyExists (edummy_binding KTerm,
         TyBar (
           ty_equals v3,
           fold_star [
@@ -276,7 +280,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let v14 = point_by_name env "v14" in
     let int = find_type_by_name env "int" in
     let t = find_type_by_name env "t" in
-    let t = TyExists (dummy_binding KTerm, TyBar (
+    let t = TyExists (edummy_binding KTerm, TyBar (
       TyApp (t, TySingleton (TyVar 0)),
       TyAnchoredPermission (TyVar 0, int)
     )) in
@@ -360,6 +364,20 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   ("duplicity2.hml",
     simple_test ~stdlib:false Pass
   );
+
+  (* Polymorphic function calls *)
+
+  ("polycall1.hml",
+    simple_test ~stdlib:false (Fail (function IllKindedTypeApplication _ -> true | _ -> false)));
+
+  ("polycall2.hml",
+    simple_test ~stdlib:false (Fail (function BadTypeApplication _ -> true | _ -> false)));
+
+  ("polycall3.hml",
+    simple_test ~stdlib:false ~pedantic:true Pass);
+
+  ("polycall4.hml",
+    simple_test ~stdlib:false ~pedantic:true Pass);
 
   (* Tests are expected to fail. *)
 

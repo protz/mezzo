@@ -55,9 +55,11 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
         false
   in
   let permissions = List.filter is_quantified_arrow fbinder.permissions in
+  let is_polymorphic = ref false in
   (* Instantiate all universally quantified variables with flexible variables. *)
   let rec flex = fun env -> function
-    | TyForall (binding, t) ->
+    | TyForall ((binding, flavor), t) ->
+        is_polymorphic := !is_polymorphic || flavor = CanInstantiate;
         let env, t = bind_var_in_type env ~flexible:true binding t in
         let env, t = flex env t in
         env, t
@@ -85,6 +87,14 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
           TypePrinter.pvar fname;
         flex_deconstruct t
   in
+  (* Warn the user if relying on our inference of polymorphic function calls. *)
+  if !is_polymorphic then begin
+    let error = TypeErrors.PolymorphicFunctionCall in
+    if !Options.pedantic then
+      TypeErrors.raise_error env error
+    else
+      Log.warn "%a" TypeErrors.print_error (env, error);
+  end;
   (* Examine [x]. [sub] will take care of running collect on [t1] so that the
    * expected permissions are subtracted as well from the environment. *)
   match Permissions.sub env x t1 with
@@ -282,6 +292,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
 
   | EFun (vars, arg, return_type, body) ->
+      List.iter (fun binding ->
+        let open TypePrinter in
+        let open ExprPrinter in
+        Log.debug "%a" pdoc (print_binder, binding)
+      ) vars;
       (* TODO we should have a separate pass that performs optimizations on a
        * [Expressions.expression] tree with a [Types.env] environment. Right
        * now, there's no such thing, so I'm putting this optimization here as
@@ -294,8 +309,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         TypeOps.simplify_function_def env vars arg return_type body
       in
       let expr = EFun (vars, arg, return_type, body) in
-      Log.debug ~level:4 "Type-checking function body, desugared type %a"
-        TypePrinter.ptype (env, type_for_function_def expr);
+      Log.debug ~level:4 "Type-checking function body, desugared type %a \
+        desugared body %a"
+        TypePrinter.ptype (env, type_for_function_def expr) 
+        ExprPrinter.pexpr (env, body);
 
       (* We can't create a closure over exclusive variables. Create a stripped
        * environment with only the duplicable parts. *)
@@ -309,6 +326,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       in
 
       (* Bind all variables. *)
+      let vars = List.map fst vars in
       let sub_env, { subst_type; subst_expr; _ } = bind_vars sub_env vars in
       let arg = subst_type arg in
       let return_type = subst_type return_type in
@@ -492,6 +510,27 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
        * of [e2] so that we can be even more precise in the error message. *)
       let env, return_type = check_function_call env x1 x2 in
       return env return_type
+
+  | ETApply (e, t, k) ->
+      let env, x = check_expression env e in
+      replace_term env x (fun binding ->
+        let perms = binding.permissions in
+        let found = ref false in
+        let perms = List.map (function
+          | TyForall (((_, k', _), CanInstantiate), t') ->
+              if k <> k' then begin
+                raise_error env (IllKindedTypeApplication (t, k, k'))
+              end else begin
+                found := true;
+                tsubst t 0 t'
+              end
+          | _ as t ->
+              t
+        ) perms in
+        if not !found then
+          raise_error env (BadTypeApplication x);
+        { binding with permissions = perms }
+      ), x
 
   | ETuple exprs ->
       (* Propagate type annotations inside the tuple. *)

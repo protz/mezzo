@@ -76,7 +76,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
    * have been processed already. *)
   let known_triples = Lifo.create () in
   let remember_triple = Lifo.push known_triples in
-  let forget_triple = Lifo.remove known_triples in
+  let _forget_triple = Lifo.remove known_triples in
   let dump_known_triples left_env right_env dest_env =
     let open TypePrinter in
     List.iter (fun (left_point, right_point, dest_point) ->
@@ -885,7 +885,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
               (* And we're good to go. *)
               Some (left_env, right_env, dest_env, t)
 
-        | TyForall (binding_left, t_l), TyForall (binding_right, t_r) when false ->
+        (*| TyForall (binding_left, t_l), TyForall (binding_right, t_r) ->
             (* This code-path is correct but frankly, we shouldn't have to
              * go there _at all_ yet. If two types are equal, then they must go
              * through the fast-path. Otherwise, this means that they contain TERM
@@ -925,7 +925,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                   None
               end
             else
-              None
+              None*)
 
 
         | _ ->

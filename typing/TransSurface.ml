@@ -161,7 +161,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyForall ((x, k, loc), t) ->
       let env = bind env (x, k) in
-      T.TyForall ((T.User x, k, loc), translate_type env t)
+      T.TyForall (((T.User x, k, loc), CanInstantiate), translate_type env t)
 
   | TyAnchoredPermission (t1, t2) ->
       T.TyAnchoredPermission (translate_type env t1, translate_type env t2)
@@ -290,6 +290,7 @@ and translate_arrow_type env t1 t2 =
     List.map name_auto perm_bindings @
     List.map name_auto [root_binding]
   in
+  let universal_bindings = List.map (fun x -> x, CannotInstantiate) universal_bindings in
   universal_bindings, fat_t1, t2
 ;;
 
@@ -518,13 +519,14 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
 
       (* Introduce all other bindings in scope *)
       let env = List.fold_left (fun env -> function
-        | (T.Auto x, k, _) | (T.User x, k, _) -> bind env (x, k)
+        | ((T.Auto x, k, _), _) | ((T.User x, k, _), _) -> bind env (x, k)
       ) env universal_bindings in
 
       (* Now translate the body (which will probably refer to these bound
        * names). *)
       let body = translate_expr env body in
       let vars = List.map name_user vars in
+      let vars = List.map (fun x -> x, CanInstantiate) vars in
       E.EFun (vars @ universal_bindings, arg, return_type, body)
 
   | EAssign (e1, x, e2) ->
@@ -548,6 +550,11 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let e1 = translate_expr env e1 in
       let e2 = translate_expr env e2 in
       E.EApply (e1, e2)
+
+  | ETApply (e1, ts) ->
+      let e1 = translate_expr env e1 in
+      let ts = List.map (fun t -> translate_type env t, infer env t) ts in
+      List.fold_left (fun e (t, k) -> E.ETApply (e, t, k)) e1 ts
 
   | EMatch (b, e, patexprs) ->
       let e = translate_expr env e in

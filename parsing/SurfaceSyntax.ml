@@ -36,6 +36,10 @@ let flatten_kind kind =
 
 (* Types and permissions. *)
 
+(* Some quantifiers can be instantiated by a user, some cannot, especially those
+ * introduced in the desugaring phase. *)
+type binding_flavor = CanInstantiate | CannotInstantiate
+
 type type_binding =
     Variable.name * kind * (Lexing.position * Lexing.position)
 
@@ -176,6 +180,8 @@ and expression =
   | EAssert of typ
   (* e e₁ … eₙ *)
   | EApply of expression * expression
+  (* e [τ₁, …, τₙ] *)
+  | ETApply of expression * typ list
   (* match e with pᵢ -> eᵢ *)
   | EMatch of bool * expression * (pattern * expression) list
   (* (e₁, …, eₙ) *)

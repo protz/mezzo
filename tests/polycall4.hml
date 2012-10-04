@@ -1,0 +1,4 @@
+abstract int
+
+val f (consumes x: int): int = x
+val v = f 2

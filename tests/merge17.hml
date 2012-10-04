@@ -1,0 +1,17 @@
+exclusive data t = T { t: t }
+data bool = True | False
+
+val v =
+  if True then begin
+    let x = T { t = () } in
+    x.t <- x;
+    x
+  end else begin
+    let x = T { t = () } in
+    x.t <- x;
+    x
+  end
+
+val w =
+  (* This makes the type-checker loop! Hah hah! *)
+  assert (v @ t)

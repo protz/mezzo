@@ -28,6 +28,8 @@ type location = Lexing.position * Lexing.position
 type type_binding =
   name * kind * location
 
+type flavor = SurfaceSyntax.binding_flavor = CanInstantiate | CannotInstantiate
+
 module DataconMap = Hml_Map.Make(struct
   type t = Datacon.name
   let compare = Pervasives.compare
@@ -50,7 +52,7 @@ type typ =
   | TyPoint of point
 
     (* Quantification and type application. *)
-  | TyForall of type_binding * typ
+  | TyForall of (type_binding * flavor) * typ
   | TyExists of type_binding * typ
   | TyApp of typ * typ
 
@@ -423,7 +425,7 @@ let equal env (t1: typ) (t2: typ) =
         end
 
     | TyExists ((_, k1, _), t1), TyExists ((_, k2, _), t2)
-    | TyForall ((_, k1, _), t1), TyForall ((_, k2, _), t2) ->
+    | TyForall (((_, k1, _), _), t1), TyForall (((_, k2, _), _), t2) ->
         k1 = k2 && equal t1 t2
 
     | TyArrow (t1, t'1), TyArrow (t2, t'2)
@@ -1265,7 +1267,7 @@ module TypePrinter = struct
 
     | (TyForall _) as t ->
         let rec strip_bind acc env = function
-          | TyForall (binding, t) ->
+          | TyForall ((binding, _), t) ->
               let env, t = bind_var_in_type env binding t in
               strip_bind (binding :: acc) env t
           | _ as t ->
@@ -1282,7 +1284,7 @@ module TypePrinter = struct
         let vars = lbracket ^^ vars ^^ rbracket in
         vars ^^ space ^^ print_type env t
 
-    | TyExists (((name, kind, _) as binding), typ) ->
+    | TyExists ((name, kind, _) as binding, typ) ->
         let env, typ = bind_var_in_type env binding typ in
         print_quantified env "∃" name kind typ
 
