@@ -290,6 +290,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
 
   | EFun (vars, arg, return_type, body) ->
+      List.iter (fun binding ->
+        let open TypePrinter in
+        let open ExprPrinter in
+        Log.debug "%a" pdoc (print_binder, binding)
+      ) vars;
       (* TODO we should have a separate pass that performs optimizations on a
        * [Expressions.expression] tree with a [Types.env] environment. Right
        * now, there's no such thing, so I'm putting this optimization here as

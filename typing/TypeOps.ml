@@ -90,6 +90,11 @@ let cleanup_function_type env t body =
   (* [vars] have been opened in [t] and [e]. *)
   and cleanup (env: env) (vars: (type_binding * flavor) list) (t: typ) (e: expression option)
       : typ * expression option =
+      List.iter (fun binding ->
+        let open TypePrinter in
+        let open ExprPrinter in
+        Log.debug "%a" pdoc (print_binder, binding)
+      ) vars;
 
     let vars, flavors = List.split vars in
 
@@ -184,14 +189,13 @@ let cleanup_function_type env t body =
          * handwaving time): the binders are kept in order, so if we go
          * left-to-right, we first hit user-defined binders, which *remain*
          * user-defined, and then we hit automatically-inserted-by-desugaring
-         * binders, which will remain as such. What happens if we're too clever
-         * and we remove a redundant binder written by the user? ... *)
+         * binders, which will remain as such. *)
         let env = refresh_mark env in
-        let _env, t, e = List.fold_left2 (fun (env, t, e) ((_, k, pos), p) flavor ->
+        let _env, vars, t, e = List.fold_left2 (fun (env, vars, t, e) ((_, k, pos), p) flavor ->
           if is_marked env p && flavor <> CanInstantiate then
             (* We shouldn't remove a binder that the user expects to be able to
              * instantiate. *)
-            env, t, e
+            env, vars, t, e
           else
             let env = mark env p in
             let name =
@@ -202,8 +206,11 @@ let cleanup_function_type env t body =
             let t = lift 1 t in
             let e = Option.map (elift 1) e in
             let t = Flexible.tpsubst env (TyVar 0) p t in
-            env, TyForall (((name, k, pos), flavor), t), e
-        ) (env, t, e) vars flavors in
+            env, ((name, k, pos), flavor) :: vars, t, e
+        ) (env, [], t, e) vars flavors in
+
+        let vars = List.rev vars in
+        let t = fold_forall vars t in
         
         t, e
 
