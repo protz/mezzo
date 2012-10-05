@@ -192,10 +192,11 @@ let one_round (env: env): env =
             let inner_env, _, branches, clause =
               bind_datacon_parameters env kind branches clause
             in
+            Log.check (clause = None) "We allow adopts clauses for types marked \
+              as exclusive, and these should start right away with the exclusive \
+              flag, so we shouldn't be here.";
             TypePrinter.(Log.debug ~level:4 "inner_env:\n  %a" pdoc (print_binders, inner_env));
             try
-              (* Iterating on the clause. *)
-              Option.iter (duplicables inner_env phase) clause;
               (* Iterating on the branches. *)
               List.iter (fun (_label, fields) ->
                 (* Iterating on the fields. *)
