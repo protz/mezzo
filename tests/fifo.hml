@@ -1,0 +1,57 @@
+(* Data type definitions. *)
+
+exclusive data cell a =
+  Cell { contents: a; next: dynamic }
+
+exclusive data bag a =
+  Empty { head: (); tail: () }
+| NonEmpty { head: dynamic; tail: dynamic }
+adopts cell a
+
+(* Some dummy definitions. We don't include pervasives because that would make
+ * debugging harder (many more identifiers in scope). *)
+
+data bool = True | False
+data option a = Some { value: a } | None
+
+val (==) [a] (x: a, y: a): bool = fail
+
+(* The real functions. *)
+
+val create [a] (): bag a =
+  Empty { head = (); tail = () }
+
+val insert [a] (consumes x: a, b: bag a): () =
+  let c = Cell {
+    contents = x; next = ()
+  } in
+  c.next <- c;
+  give c to b;
+  match b with
+  | Empty ->
+      b <= NonEmpty;
+      b.head <- c;
+      b.tail <- c
+  | NonEmpty { tail } ->
+      take tail from b;
+      tail.next <- c;
+      give tail to b;
+      b.tail <- c
+  end
+
+val retrieve [a] (b: bag a): option a =
+  match b with
+  | Empty ->
+      None
+  | NonEmpty { head; tail } ->
+      take head from b;
+      if head == tail then begin
+        b <= Empty;
+        b.head <- ();
+        b.tail <- ()
+      end else begin
+        b.head <- head.next
+      end;
+      let x = head.contents in
+      Some { value = x }
+  end
