@@ -55,6 +55,7 @@ and raw_error =
   | BadConditionsInFact of Variable.name
   | BadConclusionInFact of Variable.name
   | DuplicateConstructor of Variable.name * Datacon.name
+  | AdopterNotExclusive of Variable.name
 
 exception KindError of error
 
@@ -108,6 +109,11 @@ let print_error buf (env, raw_error) =
         Lexer.p env.location
         Variable.p x
         Datacon.p d
+  | AdopterNotExclusive x ->
+      Printf.bprintf buf
+        "%a type %a is trying to adopt something but it is not marked as exclusive"
+        Lexer.p env.location
+        Variable.p x
   end;
   (* Uncomment this part to get a really verbose error message. *)
   Printf.bprintf buf "\n";
@@ -295,7 +301,7 @@ let names env ty : type_binding list =
    the data type definitions. *)
 let bindings_data_type_group (data_type_group: data_type_def list): (Variable.name * kind) list =
   List.map (function
-      | Concrete (_flag, (name, params), _) ->
+      | Concrete (_flag, (name, params), _, _) ->
           let params = List.map (fun (x, y, _) -> x, y) params in
           let k = karrow params KType in
           (name, k)
@@ -486,14 +492,22 @@ let check_data_type_def (env: env) (def: data_type_def) =
       | None ->
           ()
       end
-  | Concrete (_flag, (name, bindings), branches) ->
+  | Concrete (flag, (name, bindings), branches, clause) ->
       let bindings = List.map (fun (x, y, _) -> x, y) bindings in
       let env = List.fold_left bind env bindings in
       (* Check that the constructors are unique. *)
       let constructors = fst (List.split branches) in
       check_for_duplicates constructors (fun x -> duplicate_constructor env name x);
       (* Check the branches. *)
-      List.iter (check_data_type_def_branch env) branches
+      List.iter (check_data_type_def_branch env) branches;
+      match clause with
+      | None ->
+          ()
+      | Some t ->
+          check env t KType;
+          (* We can do that early. *)
+          if flag <> Exclusive then
+            raise_error env (AdopterNotExclusive name);
 ;;
 
 
@@ -725,7 +739,7 @@ module KindPrinter = struct
     let defs = map_types env (fun { names; kind; _ } { definition; _ } ->
       let name = List.hd names in
       match definition with
-      | Some (Some (flag, branches), variance) ->
+      | Some (Some (flag, branches, _), variance) ->
           print_data_type_def env flag name kind variance branches
       | Some (None, _) ->
           print_abstract_type_def env name kind

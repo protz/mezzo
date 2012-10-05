@@ -124,12 +124,16 @@ type data_type_def_lhs =
 type data_type_def_rhs =
     data_type_def_branch list
 
+type adopts_clause =
+    typ option
+
 type abstract_fact = 
   | FExclusive of typ
   | FDuplicableIf of typ list * typ
 
 type data_type_def =
-  | Concrete of data_type_flag * data_type_def_lhs * data_type_def_rhs
+  | Concrete of data_type_flag * data_type_def_lhs * data_type_def_rhs *
+      adopts_clause
   | Abstract of data_type_def_lhs * kind * abstract_fact option
 
 (* A data type group is a group of mutually recursive data type definitions. *)

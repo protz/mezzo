@@ -17,7 +17,7 @@ let is_data_type_with_two_constructors env t =
   let has_two_branches p =
     if is_type env p then
       match get_definition env p with
-      | Some (Some (_, branches), _) ->
+      | Some (Some (_, branches, _), _) ->
           List.length branches = 2
       | _ ->
           false
@@ -34,7 +34,7 @@ let is_data_type_with_two_constructors env t =
       has_two_branches !!cons
   | TyConcreteUnfolded (datacon, _) ->
       (* e.g. False *)
-      let _, branches = def_for_datacon env datacon in
+      let _, branches, _ = def_for_datacon env datacon in
       List.length branches = 2
   | _ ->
       false
@@ -363,7 +363,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             | TyConcreteUnfolded (datacon, fieldexprs) ->
                 (* Check that datacon points to a type that is defined as
                  * exclusive. *)
-                let flag, _ = def_for_datacon env datacon in
+                let flag, _, _ = def_for_datacon env datacon in
                 if flag <> SurfaceSyntax.Exclusive then
                   raise_error env (AssignNotExclusive (t, datacon));
 
@@ -405,7 +405,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let env, p1 = check_expression env e1 in
 
       (* Find the type [datacon] corresponds to. *)
-      let _, branches = def_for_datacon env datacon in
+      let _, branches, _ = def_for_datacon env datacon in
       let _, fields =
         List.find (fun (datacon', _) -> Datacon.equal datacon datacon') branches
       in
@@ -423,7 +423,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let permissions = List.map (function
         | TyConcreteUnfolded (datacon', fieldexprs) as t ->
             (* The current type should be mutable. *)
-            let flag, _ = def_for_datacon env datacon' in
+            let flag, _, _ = def_for_datacon env datacon' in
             if flag <> SurfaceSyntax.Exclusive then
               raise_error env (AssignNotExclusive (t, datacon'));
 
@@ -577,7 +577,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             []
       in
       (* Find the corresponding definition. *)
-      let _flag, branches = def_for_datacon env datacon in
+      let _flag, branches, _ = def_for_datacon env datacon in
       (* And the corresponding branch, so that we obtain the field names in order. *)
       let branch =
         List.find (fun (datacon', _) -> Datacon.equal datacon datacon') branches
@@ -641,7 +641,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             let env = replace_term env x1 (fun binding -> { binding with permissions }) in
             let split_apply cons args =
               match get_definition env cons with
-              | Some (Some (_, [b1; b2]), _) ->
+              | Some (Some (_, [b1; b2], _), _) ->
                   let t1 = TyConcreteUnfolded (instantiate_branch b1 args) in
                   let t2 = TyConcreteUnfolded (instantiate_branch b2 args) in
                   t1, t2

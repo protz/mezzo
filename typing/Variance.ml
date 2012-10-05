@@ -129,7 +129,7 @@ let analyze_data_types env =
           Log.error "Only data type definitions here"
       | Some (None, _) ->
           env, acc
-      | Some (Some (_flag, branches), _) ->
+      | Some (Some (_flag, branches, _), _) ->
           let env, points, instantiated_branches =
             bind_datacon_parameters env kind branches
           in

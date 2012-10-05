@@ -86,11 +86,16 @@ and data_field_def =
   | FieldValue of (Field.name * typ)
   | FieldPermission of typ
 
+type adopts_clause =
+  (* option here because not all concrete types adopt someone *)
+  typ option
+
 type data_type_def =
   data_type_def_branch list
 
 type type_def =
-    (SurfaceSyntax.data_type_flag * data_type_def) option
+  (* option here because abstract types do not have a definition *)
+    (SurfaceSyntax.data_type_flag * data_type_def * adopts_clause) option
   * variance list
 
 (* ---------------------------------------------------------------------------- *)
@@ -992,7 +997,7 @@ let get_arity (env: env) (point: point): int =
   get_arity_for_kind (get_kind env point)
 ;;
 
-let def_for_datacon (env: env) (datacon: Datacon.name): SurfaceSyntax.data_type_flag * data_type_def =
+let def_for_datacon (env: env) (datacon: Datacon.name): SurfaceSyntax.data_type_flag * data_type_def * adopts_clause=
   match DataconMap.find_opt datacon env.type_for_datacon with
   | Some point ->
       let def, _ = Option.extract (get_definition env point) in
@@ -1051,9 +1056,17 @@ let instantiate_branch branch args =
   branch
 ;;
 
-let get_branches env point =
+let get_adopts_clause env point: adopts_clause =
   match get_definition env point with
-  | Some (Some (_, branches), _) ->
+  | Some (Some (_, _, clause), _) ->
+      clause
+  | _ ->
+      Log.error "This is not a concrete data type."
+;;
+
+let get_branches env point: data_type_def_branch list =
+  match get_definition env point with
+  | Some (Some (_, branches, _), _) ->
       branches
   | _ ->
       Log.error "This is not a concrete data type."

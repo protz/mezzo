@@ -33,7 +33,7 @@
 %token          CONSUMES DUPLICABLE FACT ABSTRACT
 %token          VAL LET REC AND IN DOT WITH BEGIN END MATCH
 %token          IF THEN ELSE
-%token          TAKE FROM GIVE TO
+%token          TAKE FROM GIVE TO ADOPTS
 %token<int>     INT
 %token          MINUS
 %token<string>  OPPREFIX OPINFIX0 OPINFIX1 OPINFIX2 OPINFIX3
@@ -378,6 +378,10 @@ datacon_application(X, Y):
   bs = separated_or_preceded_list(BAR, data_type_def_branch)
     { bs }
 
+%inline adopts_clause:
+  ADOPTS t = arbitrary_type
+    { t }
+
 %inline data_type_flag:
 | (* nothing *)
     { Duplicable }
@@ -405,7 +409,8 @@ fact:
 
 %inline data_type_def:
 | flag = data_type_flag lhs = data_type_def_lhs EQUAL rhs = data_type_def_rhs
-    { Concrete (flag, lhs, rhs) }
+  a = adopts_clause?
+    { Concrete (flag, lhs, rhs, a) }
 | ABSTRACT name = variable params = atomic_type_binding*
   k = optional_kind_annotation f = fact?
     { Abstract ((name, params), k, f) }

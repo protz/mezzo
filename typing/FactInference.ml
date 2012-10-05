@@ -107,7 +107,7 @@ let duplicables
 
     | TyConcreteUnfolded (datacon, fields) as t ->
       begin
-        let flag, _ = def_for_datacon env datacon in
+        let flag, _, _ = def_for_datacon env datacon in
         begin
           match flag with
           | SurfaceSyntax.Duplicable ->
@@ -175,7 +175,7 @@ let one_round (env: env): env =
         Log.error "Only data type definitions here"
     | Some (None, _) ->
         env
-    | Some (Some (_flag, branches), _) ->
+    | Some (Some (_flag, branches, _), _) ->
         match fact with
         | Fuzzy _ ->
             Log.error "I messed up my index computations. Oops!";
