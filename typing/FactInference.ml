@@ -175,7 +175,7 @@ let one_round (env: env): env =
         Log.error "Only data type definitions here"
     | Some (None, _) ->
         env
-    | Some (Some (_flag, branches, _), _) ->
+    | Some (Some (_flag, branches, clause), _) ->
         match fact with
         | Fuzzy _ ->
             Log.error "I messed up my index computations. Oops!";
@@ -189,11 +189,13 @@ let one_round (env: env): env =
               TypePrinter.pvar tname;
             (* [bitmap] is shared! *)
             let phase = Elaborating bitmap in
-            let inner_env, _, branches =
-              bind_datacon_parameters env kind branches
+            let inner_env, _, branches, clause =
+              bind_datacon_parameters env kind branches clause
             in
             TypePrinter.(Log.debug ~level:4 "inner_env:\n  %a" pdoc (print_binders, inner_env));
             try
+              (* Iterating on the clause. *)
+              Option.iter (duplicables inner_env phase) clause;
               (* Iterating on the branches. *)
               List.iter (fun (_label, fields) ->
                 (* Iterating on the fields. *)

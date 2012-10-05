@@ -710,14 +710,16 @@ module KindPrinter = struct
 
   (* Prints a data type defined in the global scope. Assumes [print_env] has been
      properly populated. *)
-  let print_data_type_def (env: env) flag name kind variance branches =
+  let print_data_type_def (env: env) flag name kind variance branches clause =
     let _return_kind, params = flatten_kind kind in
     (* Turn the list of parameters into letters *)
     let letters: string list = name_gen (List.length params) in
     let letters = List.map2 (fun variance letter ->
       print_variance variance ^^ print_string letter
     ) variance letters in
-    let env, _, branches = bind_datacon_parameters env kind branches in
+    let env, _, branches, clause =
+      bind_datacon_parameters env kind branches clause
+    in
     let sep = break1 ^^ bar ^^ space in
     let flag = match flag with
       | SurfaceSyntax.Exclusive -> string "exclusive" ^^ space
@@ -730,7 +732,12 @@ module KindPrinter = struct
     space ^^ equals ^^
     jump
       (ifflat empty (bar ^^ space) ^^
-      join sep (List.map (print_data_type_def_branch env) branches))
+      join sep (List.map (print_data_type_def_branch env) branches)) ^^
+    match clause with
+    | Some t ->
+        break1 ^^ string "adopts" ^^ space ^^ print_type env t
+    | None ->
+        empty
   ;;
 
   (* This function prints the contents of a [Types.env]. *)
@@ -739,8 +746,8 @@ module KindPrinter = struct
     let defs = map_types env (fun { names; kind; _ } { definition; _ } ->
       let name = List.hd names in
       match definition with
-      | Some (Some (flag, branches, _), variance) ->
-          print_data_type_def env flag name kind variance branches
+      | Some (Some (flag, branches, clause), variance) ->
+          print_data_type_def env flag name kind variance branches clause
       | Some (None, _) ->
           print_abstract_type_def env name kind
       | None ->

@@ -401,15 +401,18 @@ let translate_data_type_group
         let arity = T.get_arity_for_kind kind in
 
         (* Replace each TyVar with the corresponding TyPoint, for all branches. *)
-        let branches = Hml_List.fold_lefti (fun level branches point ->
-          (* We need to add [arity] because one has to move up through the type
-           * parameters to reach the typed defined at [level]. *)
-          let index = total_number_of_data_types - level - 1 + arity in
-          (* Perform the substitution. *)
-          List.map
-            (T.tsubst_data_type_def_branch (T.TyPoint point) index)
-            branches
-        ) branches points in
+        let branches, clause =
+          Hml_List.fold_lefti (fun level (branches, clause) point ->
+            (* We need to add [arity] because one has to move up through the type
+             * parameters to reach the typed defined at [level]. *)
+            let index = total_number_of_data_types - level - 1 + arity in
+            (* Perform the substitution. *)
+            List.map
+              (T.tsubst_data_type_def_branch (T.TyPoint point) index)
+              branches,
+            Option.map (T.tsubst (T.TyPoint point) index) clause
+          ) (branches, clause) points
+        in
 
         (* And replace the corresponding definition in [tenv]. *)
         T.replace_type tenv point (fun binder ->

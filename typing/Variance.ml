@@ -129,9 +129,19 @@ let analyze_data_types env =
           Log.error "Only data type definitions here"
       | Some (None, _) ->
           env, acc
-      | Some (Some (_flag, branches, _), _) ->
-          let env, points, instantiated_branches =
-            bind_datacon_parameters env kind branches
+      | Some (Some (_flag, branches, clause), _) ->
+          let env, points, instantiated_branches, clause =
+            bind_datacon_parameters env kind branches clause
+          in
+          let instantiated_branches = match clause with
+            | Some clause ->
+                let fake_branch =
+                  Datacon.register ("__internal__adopts"),
+                  [FieldValue (Field.register "__internal_adopts", clause)]
+                in
+                fake_branch :: instantiated_branches
+            | None ->
+                instantiated_branches
           in
           env, (point, (points, instantiated_branches)) :: acc
     ) (original_env, [])

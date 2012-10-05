@@ -1123,22 +1123,28 @@ let fold_tyapp cons args =
   List.fold_left (fun t arg -> TyApp (t, arg)) cons args
 ;;
 
-let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_branch list):
-    env * point list * data_type_def_branch list =
+let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_branch list) (clause: adopts_clause):
+    env * point list * data_type_def_branch list * adopts_clause =
   let _return_kind, params = flatten_kind kind in
   let arity = List.length params in
   (* Turn the list of parameters into letters *)
   let letters: string list = Hml_Pprint.name_gen (List.length params) in
-  let env, points, branches = Hml_List.fold_left2i (fun i (env, points, branches) letter kind ->
-    let letter = Auto (Variable.register letter) in
-    let env, point, branches =
-      let index = arity - i - 1 in
-      bind_param_at_index_in_data_type_def_branches
-        env letter (Fuzzy i) kind index branches
-    in
-    env, point :: points, branches
-  ) (env, [], branches) letters params in
-  env, List.rev points, branches
+  let env, points, branches, clause =
+    Hml_List.fold_left2i (fun i (env, points, branches, clause) letter kind ->
+      let letter = Auto (Variable.register letter) in
+      let env, point, branches, clause =
+        let index = arity - i - 1 in
+        let env, point, branches =
+          bind_param_at_index_in_data_type_def_branches
+            env letter (Fuzzy i) kind index branches
+        in
+        let clause = Option.map (tsubst (TyPoint point) index) clause in
+        env, point, branches, clause
+      in
+      env, point :: points, branches, clause
+    ) (env, [], branches, clause) letters params
+  in
+  env, List.rev points, branches, clause
 ;;
 
 let expand_if_one_branch (env: env) (t: typ) =
