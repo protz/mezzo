@@ -764,6 +764,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       dest
 
+  | EGive (_, _)
+  | ETake (_, _) ->
+     assert false 
+
   | EExplained e ->
       let env, x = check_expression env ?hint e in
       Debug.explain env ~x;

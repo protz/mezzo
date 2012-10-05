@@ -624,8 +624,11 @@ and check_expression (env: env) (expr: expression) =
   | EInt _ ->
       ()
 
-  | EExplained e ->
+  | EExplained e
+  | EGive (_, e)
+  | ETake (_, e) ->
       check_expression env e
+
 
   | EFail ->
       ()

@@ -196,6 +196,9 @@ and expression =
   | EInt of int
   (* Explanations *)
   | EExplained of expression
+  (* Adoption/abandon *)
+  | EGive of Variable.name * expression
+  | ETake of Variable.name * expression
   (* fail *)
   | EFail
 

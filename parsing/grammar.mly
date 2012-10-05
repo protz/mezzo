@@ -33,6 +33,7 @@
 %token          CONSUMES DUPLICABLE FACT ABSTRACT
 %token          VAL LET REC AND IN DOT WITH BEGIN END MATCH
 %token          IF THEN ELSE
+%token          TAKE FROM GIVE TO
 %token<int>     INT
 %token          MINUS
 %token<string>  OPPREFIX OPINFIX0 OPINFIX1 OPINFIX2 OPINFIX3
@@ -499,6 +500,10 @@ fact:
       { assert false } *)
   | e1 = atomic DBLLARROW d = datacon
       { EAssignTag (e1, d) }
+  | TAKE v = variable FROM e = everything_except_let_and_semi
+      { EGive (v, e) }
+  | GIVE v = variable TO e = everything_except_let_and_semi
+      { ETake (v, e) } 
   | e = explained_raw
       { e }
 

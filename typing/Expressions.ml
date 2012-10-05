@@ -59,6 +59,9 @@ type expression =
   | EInt of int
   (* Explanations *)
   | EExplained of expression
+  (* Adoption/abandon *)
+  | EGive of expression * expression
+  | ETake of expression * expression
   (* fail *)
   | EFail
 
@@ -247,6 +250,16 @@ and tsubst_expr t2 i e =
       let e = tsubst_expr t2 i e in
       EExplained e
 
+  | ETake (e1, e2) ->
+      let e1 = tsubst_expr t2 i e1 in
+      let e2 = tsubst_expr t2 i e2 in
+      ETake (e1, e2)
+
+  | EGive (e1, e2) ->
+      let e1 = tsubst_expr t2 i e1 in
+      let e2 = tsubst_expr t2 i e2 in
+      EGive (e1, e2)
+
   | EFail ->
       EFail
 
@@ -369,6 +382,16 @@ and esubst e2 i e1 =
   | EExplained e ->
       let e = esubst e2 i e in
       EExplained e
+
+  | ETake (e, e') ->
+      let e = esubst e2 i e in
+      let e' = esubst e2 i e' in
+      ETake (e, e')
+
+  | EGive (e, e') ->
+      let e = esubst e2 i e in
+      let e' = esubst e2 i e' in
+      EGive (e, e')
 
   | EFail ->
       EFail
@@ -569,6 +592,12 @@ let elift (k: int) (e: expression) =
   | EExplained e ->
       EExplained (elift i e)
 
+  | EGive (e1, e2) ->
+      EGive (elift i e1, elift i e2)
+
+  | ETake (e1, e2) ->
+      ETake (elift i e1, elift i e2)
+
   | EFail ->
       EFail
   in
@@ -662,6 +691,16 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
     | EExplained e ->
         EExplained (epsubst e2 e)
 
+    | ETake (e, e') ->
+        let e = epsubst e2 e in
+        let e' = epsubst e2 e' in
+        ETake (e, e')
+
+    | EGive (e, e') ->
+        let e = epsubst e2 e in
+        let e' = epsubst e2 e' in
+        EGive (e, e')
+
     | EFail ->
         EFail
   in
@@ -753,6 +792,16 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
 
     | EExplained e ->
         EExplained (tepsubst t2 e)
+
+    | ETake (e, e') ->
+        let e = tepsubst t2 e in
+        let e' = tepsubst t2 e' in
+        ETake (e, e')
+
+    | EGive (e, e') ->
+        let e = tepsubst t2 e in
+        let e' = tepsubst t2 e' in
+        EGive (e, e')
 
     | EFail ->
         EFail
@@ -902,6 +951,14 @@ module ExprPrinter = struct
 
     | EExplained e ->
         print_expr env e ^^ space ^^ string "explained"
+
+    | EGive (e1, e2) ->
+        string "give" ^^ space ^^ print_expr env e1 ^^
+        string "to" ^^ space ^^ print_expr env e2
+
+    | ETake (e1, e2) ->
+        string "take" ^^ space ^^ print_expr env e1 ^^
+        string "from" ^^ space ^^ print_expr env e2
 
     | EFail ->
         string "fail"

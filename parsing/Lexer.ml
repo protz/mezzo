@@ -144,6 +144,10 @@ let rec token = lexer
 | "fail" -> locate lexbuf FAIL
 | "explain" -> locate lexbuf EXPLAIN
 
+| "take" -> locate lexbuf TAKE
+| "from" -> locate lexbuf FROM
+| "give" -> locate lexbuf GIVE
+| "to" -> locate lexbuf TO
 | "consumes" -> locate lexbuf CONSUMES
 | "permission" -> locate lexbuf PERMISSION
 | "unknown" -> locate lexbuf UNKNOWN
