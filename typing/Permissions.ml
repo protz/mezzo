@@ -348,9 +348,17 @@ and add_type (env: env) (p: point) (t: typ): env =
       end
   | None ->
       Log.debug "→ sub didn't work";
-      replace_term env p (fun binding ->
-        { binding with permissions = t :: binding.permissions }
-      )
+      let env =
+        replace_term env p (fun binding ->
+          { binding with permissions = t :: binding.permissions }
+        )
+      in
+      (* If we just added an exclusive type to the point, then it automatically
+       * gains the [dynamic] type. *)
+      if FactInference.is_exclusive env t then
+        add_type env p TyDynamic
+      else
+        env
 
 
 (** [unfold env t] returns [env, t] where [t] has been unfolded, which
@@ -456,19 +464,6 @@ and sub (env: env) (point: point) (t: typ): env option =
     Some env
   else
     match t with
-    | TyDynamic ->
-        (* FIXME this should be added right away into the list of permissions
-         * when the point is allocated or whenever an exclusive permission is
-         * added to it. *)
-        if begin
-          List.exists
-            (FactInference.is_exclusive env)
-            (get_permissions env point)
-        end then
-          Some env
-        else
-          None
-
     | _ ->
 
         (* Get a "clean" type without nested permissions. *)
