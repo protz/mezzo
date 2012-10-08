@@ -470,8 +470,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
     let has_datacon_type_annotation dest_env dest_point datacon =
       Hml_List.find_opt (fun t ->
         match t with
-        | TyConcreteUnfolded (datacon', fields) when Datacon.equal datacon datacon' ->
-            Some fields
+        | TyConcreteUnfolded (datacon', fields, annot) when Datacon.equal datacon datacon' ->
+            Some (fields, annot)
         | _ ->
             None
       ) (get_permissions dest_env dest_point)
@@ -506,7 +506,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
        * annotations. *)
       lazy begin
         match left_perm, right_perm with
-        | TyConcreteUnfolded (datacon_l, fields_l), TyConcreteUnfolded (datacon_r, fields_r) ->
+        | TyConcreteUnfolded (datacon_l, fields_l, clause_l), TyConcreteUnfolded (datacon_r, fields_r, clause_r) ->
             let t_left: point = type_for_datacon left_env datacon_l in
             let t_right: point = type_for_datacon right_env datacon_r in
             let dest_point = Option.extract dest_point in
@@ -517,21 +517,21 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                * use it! This is exercised by
                * [test_constraints_in_patterns2.hml] *)
               let annotation = has_datacon_type_annotation dest_env dest_point datacon_l in
-              let fields_annot = match annotation with
+              let fields_annot, clause_annot = match annotation with
                 | None ->
                     List.map (function
                       | FieldValue (name, _) ->
                           name, None
                       | _ ->
                           assert false
-                    ) fields_l
-                | Some fields ->
+                    ) fields_l, None
+                | Some (fields, clause) ->
                     List.map (function
                       | FieldValue (name, t) ->
                           name, Some t
                       | _ ->
                           assert false
-                    ) fields
+                    ) fields, if equal top clause ty_bottom then None else Some clause
               in
               (* Same constructors: both are in expanded form so just schedule the
                * points in their fields for merging. *)
@@ -557,7 +557,19 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                       Log.error "All permissions should be in expanded form."
                 ) (dest_env, []) fields_l fields_r fields_annot
               in
-              Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields))
+              let r = match clause_annot with
+                | Some clause ->
+                    (* Don't be smart. If we're here, the initial set of expected
+                     * permissions was successfully extracted, so keep what the
+                     * user specified. *)
+                    Some (left_env, right_env, dest_env, clause)
+                | None ->
+                    (* Recursively merge the clause (covariant). *)
+                    merge_type (left_env, clause_l) (right_env, clause_r) dest_env
+              in
+              r >>= fun (left_env, right_env, dest_env, clause) ->
+              Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields, clause))
+
 
             else if same dest_env t_left t_right then begin
               (* Same nominal type (e.g. [Nil] vs [Cons]). The procedure here is a
@@ -812,7 +824,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             r >>= fun (left_env, right_env, dest_env, dest_t) ->
             Some (left_env, right_env, dest_env, TySingleton dest_t)
 
-        | TyConcreteUnfolded (datacon_l, _), _ ->
+        | TyConcreteUnfolded (datacon_l, _, _), _ ->
             let t_left = type_for_datacon left_env datacon_l in
             let t_dest = PersistentUnionFind.repr t_left left_env.state in
 
@@ -824,7 +836,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             merge_type (left_env, t_app_left) (right_env, right_perm) ?dest_point dest_env
 
 
-        | _, TyConcreteUnfolded (datacon_r, _) ->
+        | _, TyConcreteUnfolded (datacon_r, _, _) ->
             let t_right = type_for_datacon right_env datacon_r in
             let t_dest = PersistentUnionFind.repr t_right right_env.state in
 

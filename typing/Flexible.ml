@@ -34,12 +34,13 @@ let has_flexible env t =
     | TyTuple components ->
         List.exists has_flexible components
 
-    | TyConcreteUnfolded (_, fields) ->
+    | TyConcreteUnfolded (_, fields, clause) ->
         let fields = List.map (function
           | FieldValue (_, t)
           | FieldPermission t ->
               has_flexible t
         ) fields in
+        let fields = has_flexible clause :: fields in
         List.exists (fun x -> x) fields
 
     | TySingleton t ->
@@ -94,12 +95,13 @@ let find_flexible env t =
     | TyTuple components ->
         List.flatten (List.map find_flexible components)
 
-    | TyConcreteUnfolded (_, fields) ->
+    | TyConcreteUnfolded (_, fields, clause) ->
         let fields = List.map (function
           | FieldValue (_, t)
           | FieldPermission t ->
               find_flexible t
         ) fields in
+        let fields = find_flexible clause :: fields in
         List.flatten fields
 
     | TySingleton t ->
@@ -159,10 +161,10 @@ let tpsubst env (t2: typ) (p: point) (t1: typ) =
     | TyTuple ts ->
         TyTuple (List.map (tsubst t2) ts)
 
-    | TyConcreteUnfolded (name, fields) ->
+    | TyConcreteUnfolded (name, fields, clause) ->
        TyConcreteUnfolded (name, List.map (function
          | FieldValue (field_name, t) -> FieldValue (field_name, tsubst t2 t)
-         | FieldPermission t -> FieldPermission (tsubst t2 t)) fields)
+         | FieldPermission t -> FieldPermission (tsubst t2 t)) fields, tsubst t2 clause)
 
     | TySingleton t ->
         TySingleton (tsubst t2 t)

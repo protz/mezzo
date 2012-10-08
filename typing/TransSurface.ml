@@ -146,7 +146,8 @@ let rec translate_type (env: env) (t: typ): T.typ =
       T.TyVar index
 
   | TyConcreteUnfolded branch ->
-      T.TyConcreteUnfolded (translate_data_type_def_branch env branch)
+      let datacon, branches = translate_data_type_def_branch env branch in
+      T.TyConcreteUnfolded (datacon, branches, T.ty_bottom)
 
   | TySingleton t ->
       T.TySingleton (translate_type env t)

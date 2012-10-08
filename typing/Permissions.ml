@@ -123,7 +123,7 @@ let collect (t: typ): typ * typ list =
         let permissions = List.flatten permissions in
         TyTuple ts, permissions
 
-    | TyConcreteUnfolded (datacon, fields) ->
+    | TyConcreteUnfolded (datacon, fields, clause) ->
         let permissions, values = List.partition
           (function FieldPermission _ -> true | FieldValue _ -> false)
           fields
@@ -143,7 +143,7 @@ let collect (t: typ): typ * typ list =
             ([],[])
             values
         in
-        TyConcreteUnfolded (datacon, List.rev values), List.flatten (permissions :: sub_permissions)
+        TyConcreteUnfolded (datacon, List.rev values, clause), List.flatten (permissions :: sub_permissions)
 
     | TyAnchoredPermission (x, t) ->
         let t, t_perms = collect t in
@@ -430,7 +430,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
         ) (env, []) components in
         env, TyTuple (List.rev components)
 
-    | TyConcreteUnfolded (datacon, fields) ->
+    | TyConcreteUnfolded (datacon, fields, clause) ->
         let env, fields = List.fold_left (fun (env, fields) -> function
           | FieldPermission _ as field ->
               env, field :: fields
@@ -442,7 +442,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
               env, FieldValue (name, field) :: fields
         ) (env, []) fields
         in
-        env, TyConcreteUnfolded (datacon, List.rev fields)
+        env, TyConcreteUnfolded (datacon, List.rev fields, clause)
 
     | TyConstraints (constraints, t) ->
         let env, t = unfold env ?hint t in
@@ -678,8 +678,10 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
               Log.error "All permissions should be in expanded form."
         ) (Some env) components1 components2
 
-  | TyConcreteUnfolded (datacon1, fields1), TyConcreteUnfolded (datacon2, fields2) ->
+  | TyConcreteUnfolded (datacon1, fields1, clause1), TyConcreteUnfolded (datacon2, fields2, clause2) ->
       if Datacon.equal datacon1 datacon2 then
+        sub_type env clause1 clause2 >>=
+        fun env ->
         List.fold_left2 (fun env f1 f2 ->
           env >>= fun env ->
           match f1 with
@@ -699,25 +701,25 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       else
         None
 
-  | TyConcreteUnfolded (datacon1, _), TyApp _ ->
+  | TyConcreteUnfolded (datacon1, _, _), TyApp _ ->
       let cons2, args2 = flatten_tyapp t2 in
       let point1 = DataconMap.find datacon1 env.type_for_datacon in
 
       if same env point1 !!cons2 then begin
-        let branch2 = find_and_instantiate_branch env !!cons2 datacon1 args2 in
-        sub_type env t1 (TyConcreteUnfolded branch2)
+        let datacon2, fields2, clause2 = find_and_instantiate_branch env !!cons2 datacon1 args2 in
+        sub_type env t1 (TyConcreteUnfolded (datacon2, fields2, clause2))
       end else begin
         None
       end
 
-  | TyConcreteUnfolded (datacon1, _), TyPoint point2 when not (is_flexible env point2) ->
+  | TyConcreteUnfolded (datacon1, _, _), TyPoint point2 when not (is_flexible env point2) ->
       (* The case where [point2] is flexible is taken into account further down,
        * as we may need to perform a unification. *)
       let point1 = DataconMap.find datacon1 env.type_for_datacon in
 
       if same env point1 point2 then begin
-        let branch2 = find_and_instantiate_branch env point2 datacon1 [] in
-        sub_type env t1 (TyConcreteUnfolded branch2)
+        let datacon2, fields2, clause2 = find_and_instantiate_branch env point2 datacon1 [] in
+        sub_type env t1 (TyConcreteUnfolded (datacon2, fields2, clause2))
       end else begin
         None
       end

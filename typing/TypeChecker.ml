@@ -32,7 +32,7 @@ let is_data_type_with_two_constructors env t =
       (* e.g. list a *)
       let cons, _args = flatten_tyapp t in
       has_two_branches !!cons
-  | TyConcreteUnfolded (datacon, _) ->
+  | TyConcreteUnfolded (datacon, _, _) ->
       (* e.g. False *)
       let _, branches, _ = def_for_datacon env datacon in
       List.length branches = 2
@@ -178,7 +178,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
       let permissions = get_permissions env point in
       let field_defs = Hml_List.map_some
         (function
-          | TyConcreteUnfolded (datacon', x) when Datacon.equal datacon datacon' ->
+          | TyConcreteUnfolded (datacon', x, _) when Datacon.equal datacon datacon' ->
               Some x
           | _ ->
               None)
@@ -227,8 +227,8 @@ let merge_type_annotations env t1 t2 =
         t1
     | TyTuple ts1, TyTuple ts2 when List.length ts1 = List.length ts2 ->
         TyTuple (List.map2 merge_type_annotations ts1 ts2)
-    | TyConcreteUnfolded (datacon1, fields1),
-      TyConcreteUnfolded (datacon2, fields2)
+    | TyConcreteUnfolded (datacon1, fields1, clause1),
+      TyConcreteUnfolded (datacon2, fields2, clause2)
       when Datacon.equal datacon1 datacon2 && List.length fields1 = List.length fields2 ->
         TyConcreteUnfolded (datacon1, List.map2 (fun f1 f2 ->
           match f1, f2 with
@@ -236,7 +236,8 @@ let merge_type_annotations env t1 t2 =
               FieldValue (f1, merge_type_annotations t1 t2)
           | _ ->
               error ()
-        ) fields1 fields2)
+        ) fields1 fields2,
+        merge_type_annotations clause1 clause2)
     | _ ->
         error ()
   in
@@ -360,7 +361,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         let found = ref false in
         let permissions = List.map (fun t ->
             match t with
-            | TyConcreteUnfolded (datacon, fieldexprs) ->
+            | TyConcreteUnfolded (datacon, fieldexprs, clause) ->
                 (* Check that datacon points to a type that is defined as
                  * exclusive. *)
                 let flag, _, _ = def_for_datacon env datacon in
@@ -389,7 +390,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                   | FieldPermission _ ->
                       Log.error "These should've been inserted in the environment"
                 ) fieldexprs in
-                TyConcreteUnfolded (datacon, fieldexprs)
+                TyConcreteUnfolded (datacon, fieldexprs, clause)
             | _ ->
                 t
           ) permissions
@@ -421,7 +422,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let permissions = get_permissions env p1 in
       let found = ref false in
       let permissions = List.map (function
-        | TyConcreteUnfolded (datacon', fieldexprs) as t ->
+        | TyConcreteUnfolded (datacon', fieldexprs, clause) as t ->
             (* The current type should be mutable. *)
             let flag, _, _ = def_for_datacon env datacon' in
             if flag <> SurfaceSyntax.Exclusive then
@@ -444,7 +445,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             found := true;
 
             (* And don't forget to change the datacon as well. *)
-            TyConcreteUnfolded (datacon, fieldexprs)
+            TyConcreteUnfolded (datacon, fieldexprs, clause)
 
         | _ as t ->
             t
@@ -472,7 +473,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       begin try
         List.iter (fun t ->
           match t with
-          | TyConcreteUnfolded (_, fieldexprs) ->
+          | TyConcreteUnfolded (_, fieldexprs, _) ->
               List.iter (function
                 | FieldValue (field, expr) ->
                     if Field.equal field fname then
@@ -553,8 +554,14 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   | EConstruct (datacon, fieldexprs) ->
       let annot = Option.map (expand_if_one_branch env) annot in
       (* Propagate type annotations inside the constructor. *)
+      let clause = match annot with
+        | Some (TyConcreteUnfolded (_, _, clause)) ->
+            clause
+        | _ ->
+            ty_bottom
+      in
       let annotations = match annot with
-        | Some (TyConcreteUnfolded (_, fields)) ->
+        | Some (TyConcreteUnfolded (_, fields, _)) ->
             let annots = List.map (function
                 | FieldValue (name, t) ->
                     name, t
@@ -619,7 +626,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           ()
       end;
       let fieldvals = List.rev fieldvals in
-      return env (TyConcreteUnfolded (datacon, fieldvals))
+      return env (TyConcreteUnfolded (datacon, fieldvals, clause))
 
 
   | EInt _ ->
@@ -641,9 +648,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             let env = replace_term env x1 (fun binding -> { binding with permissions }) in
             let split_apply cons args =
               match get_definition env cons with
-              | Some (Some (_, [b1; b2], _), _) ->
-                  let t1 = TyConcreteUnfolded (instantiate_branch b1 args) in
-                  let t2 = TyConcreteUnfolded (instantiate_branch b2 args) in
+              | Some (Some (_, [b1; b2], clause), _) ->
+                  let dc1, branch1 = instantiate_branch b1 args in
+                  let dc2, branch2 = instantiate_branch b2 args in
+                  let clause = instantiate_adopts_clause clause args in
+                  let t1 = TyConcreteUnfolded (dc1, branch1, clause) in
+                  let t2 = TyConcreteUnfolded (dc2, branch2, clause) in
                   t1, t2
               | _ ->
                   assert false
@@ -742,10 +752,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           { binding with permissions }
         ) in
         (* Trade the old permission for the new one. *)
-        let branch =
+        let dc, fields, clause =
           find_and_instantiate_branch env nominal_point datacon nominal_args
         in
-        let env = Permissions.add env x (TyConcreteUnfolded branch) in
+        let env = Permissions.add env x (TyConcreteUnfolded (dc, fields, clause)) in
         let env, { subst_expr; _ } =
           check_bindings env Nonrecursive [pat, EPoint x]
         in

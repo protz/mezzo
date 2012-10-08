@@ -52,7 +52,7 @@ let cleanup_function_type env t body =
     | TyTuple ts ->
         TyTuple (List.map (fun t -> fst (find env t e)) ts), None
 
-    | TyConcreteUnfolded (datacon, fields) ->
+    | TyConcreteUnfolded (datacon, fields, clause) ->
         let fields = List.map (fun field ->
           match field with
           | FieldValue (name, t) ->
@@ -61,7 +61,7 @@ let cleanup_function_type env t body =
           | _ ->
               field
         ) fields in
-        TyConcreteUnfolded (datacon, fields), None
+        TyConcreteUnfolded (datacon, fields, clause), None
 
     | TySingleton _ ->
         t, None
@@ -270,13 +270,14 @@ let rec mark_reachable env = function
   | TyTuple ts ->
       List.fold_left mark_reachable env ts
 
-  | TyConcreteUnfolded (_, fields) ->
+  | TyConcreteUnfolded (_, fields, clause) ->
       let ts = List.map (function
         | FieldValue (_, t) ->
             t
         | FieldPermission _ ->
             Log.error "[collect] wanted here"
       ) fields in
+      let ts = clause :: ts in
       List.fold_left mark_reachable env ts
 
   | TySingleton t ->

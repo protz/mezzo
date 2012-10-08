@@ -66,13 +66,14 @@ let variance env var_for_ith valuation b t =
         let vs = List.map var ts in
         List.fold_left lub Bivariant vs
 
-    | TyConcreteUnfolded (_, fields) ->
+    | TyConcreteUnfolded (_, fields, clause) ->
         let vs = List.map (function
           | FieldValue (_, t) ->
               var t
           | FieldPermission p ->
               var p
         ) fields in
+        let vs = var clause :: vs in
         List.fold_left lub Bivariant vs
 
     | TySingleton t ->
@@ -133,17 +134,11 @@ let analyze_data_types env =
           let env, points, instantiated_branches, clause =
             bind_datacon_parameters env kind branches clause
           in
-          let instantiated_branches = match clause with
-            | Some clause ->
-                let fake_branch =
-                  Datacon.register ("__internal__adopts"),
-                  [FieldValue (Field.register "__internal_adopts", clause)]
-                in
-                fake_branch :: instantiated_branches
-            | None ->
-                instantiated_branches
-          in
-          env, (point, (points, instantiated_branches)) :: acc
+          let clause = match clause with Some clause -> clause | None -> ty_bottom in
+          (* Keep the clause along with the branches so that [equations] can
+           * generate proper concrete types, which will in turn use the clause
+           * to generate correct equations. *)
+          env, (point, (points, (List.map (fun (x, y) -> x, y, clause) instantiated_branches))) :: acc
     ) (original_env, [])
   in
 
@@ -161,7 +156,7 @@ let analyze_data_types env =
     (fun valuation ->
       let vs = List.map
         (variance env var_for_ith valuation var)
-        (List.map (fun x -> TyConcreteUnfolded x) branches)
+        (List.map (fun (x, y, z) -> TyConcreteUnfolded (x, y, z)) branches)
       in
       List.fold_left lub Bivariant vs
     )

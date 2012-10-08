@@ -732,7 +732,9 @@ module KindPrinter = struct
     space ^^ equals ^^
     jump
       (ifflat empty (bar ^^ space) ^^
-      join sep (List.map (print_data_type_def_branch env) branches)) ^^
+      join sep (
+        List.map (fun (x, y) -> print_data_type_def_branch env x y ty_bottom) branches)
+      ) ^^
     match clause with
     | Some t ->
         break1 ^^ string "adopts" ^^ space ^^ print_type env t

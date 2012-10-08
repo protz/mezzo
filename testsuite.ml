@@ -131,7 +131,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   ("merge1.hml", fun do_it ->
     let env = do_it false in
     let v1 = point_by_name env "v1" in
-    check env v1 (TyConcreteUnfolded (Datacon.register "T", [])));
+    check env v1 (TyConcreteUnfolded (Datacon.register "T", [], ty_bottom)));
 
   ("merge2.hml", fun do_it ->
     let env = do_it false in
@@ -143,10 +143,10 @@ let tests: (string * ((bool -> env) -> unit)) list = [
           TyAnchoredPermission (TyPoint v2,
             TyConcreteUnfolded (Datacon.register "U",
               [FieldValue (Field.register "left", TySingleton (TyVar 0));
-               FieldValue (Field.register "right", TySingleton (TyVar 0))])),
+               FieldValue (Field.register "right", TySingleton (TyVar 0))], ty_bottom)),
           TyAnchoredPermission (
             TyVar 0,
-            TyConcreteUnfolded (Datacon.register "T", [])
+            TyConcreteUnfolded (Datacon.register "T", [], ty_bottom)
           )
         )
       ))
@@ -164,14 +164,15 @@ let tests: (string * ((bool -> env) -> unit)) list = [
             TyAnchoredPermission (TyPoint v3,
               TyConcreteUnfolded (Datacon.register "U",
                 [FieldValue (Field.register "left", TySingleton (TyVar 0));
-                 FieldValue (Field.register "right", TySingleton (TyVar 1))]));
+                 FieldValue (Field.register "right", TySingleton (TyVar 1))],
+                 ty_bottom));
             TyAnchoredPermission (
               TyVar 0,
-              TyConcreteUnfolded (Datacon.register "T", [])
+              TyConcreteUnfolded (Datacon.register "T", [], ty_bottom)
             );
             TyAnchoredPermission (
               TyVar 1,
-              TyConcreteUnfolded (Datacon.register "T", [])
+              TyConcreteUnfolded (Datacon.register "T", [], ty_bottom)
             );
           ]
         )))

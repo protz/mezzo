@@ -105,7 +105,7 @@ let duplicables
     | TyTuple ts ->
         List.iter (duplicables env) ts
 
-    | TyConcreteUnfolded (datacon, fields) as t ->
+    | TyConcreteUnfolded (datacon, fields, _) as t ->
       begin
         let flag, _, _ = def_for_datacon env datacon in
         begin
