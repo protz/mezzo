@@ -40,6 +40,23 @@ let is_data_type_with_two_constructors env t =
       false
 ;;
 
+let has_adopts_clause env t =
+  match t with
+  | TyPoint p ->
+      get_adopts_clause env p
+  | TyApp _ ->
+      let cons, _ = flatten_tyapp t in
+      get_adopts_clause env !!cons
+  | TyConcreteUnfolded (_, _, clause) ->
+      if FactInference.is_exclusive env t then
+        Some clause
+      else
+        None
+  | _ ->
+      None
+;;
+
+
 (* Since everything is, or will be, in A-normal form, type-checking a function
  * call amounts to type-checking a point applied to another point. The default
  * behavior is: do not return a type that contains flexible variables. *)
@@ -774,7 +791,25 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       dest
 
-  | EGive (_, _)
+  | EGive (x, e) ->
+      let env, x = check_expression env ?hint x in
+      let env, y = check_expression env ?hint e in
+      begin match Hml_List.find_opt (has_adopts_clause env) (get_permissions env y) with
+      | None ->
+          raise_error env (NoAdoptsClause y)
+      | Some clause ->
+          match Hml_List.take (fun x -> Permissions.sub_type env x clause) (get_permissions env x) with
+          | Some (remaining_perms, (perm_that_worked, env)) ->
+              Log.check (FactInference.is_exclusive env perm_that_worked)
+                "Using a non-exclusive permission for adoption?!!";
+              let env =
+                replace_term env x (fun raw -> { raw with permissions = remaining_perms })
+              in
+              return env ty_unit
+          | None ->
+              raise_error env (NoSuitableTypeForAdopts (x, clause))
+      end
+
   | ETake (_, _) ->
      assert false 
 

@@ -31,6 +31,8 @@ and raw_error =
   | BadTypeApplication of point
   | PolymorphicFunctionCall
   | BadFactForAdoptedType of point * typ * fact
+  | NoAdoptsClause of point
+  | NoSuitableTypeForAdopts of point * typ
 
 exception TypeCheckerError of error
 
@@ -252,11 +254,27 @@ let print_error buf (env, raw_error) =
       Printf.bprintf buf "%a this is a polymorphic function all, results are \
           undefined; consider using a type application"
         Lexer.p env.location
- | BadFactForAdoptedType (p, t, f) ->
+  | BadFactForAdoptedType (p, t, f) ->
       Printf.bprintf buf "%a type %a cannot adopt type %a because it is not \
           marked as exclusive but %a"
         Lexer.p env.location
         TypePrinter.pnames (get_names env p)
         TypePrinter.ptype (env, t)
         TypePrinter.pfact f
+  | NoAdoptsClause p ->
+      let _, binder = find_term env p in
+      Printf.bprintf buf "%a trying to give/take to/from %a but this expression \
+          cannot adopt; the only permissions available for it are %a"
+        Lexer.p env.location
+        TypePrinter.pnames (get_names env p)
+        TypePrinter.pdoc (TypePrinter.print_permission_list, (env, binder));
+  | NoSuitableTypeForAdopts (p, t) ->
+      let _, binder = find_term env p in
+      Printf.bprintf buf "%a trying to give/take %a to/from some expression, but \
+          the expression adopts %a and the only permissions available for %a are %a"
+        Lexer.p env.location
+        TypePrinter.pnames (get_names env p)
+        TypePrinter.ptype (env, t)
+        TypePrinter.pnames (get_names env p)
+        TypePrinter.pdoc (TypePrinter.print_permission_list, (env, binder));
 ;;
