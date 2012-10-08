@@ -23,7 +23,7 @@
 (* Other tokens. *)
 
 %token          KTERM KTYPE KPERM
-%token          PERMISSION UNKNOWN DYNAMIC EXCLUSIVE
+%token          UNKNOWN DYNAMIC EXCLUSIVE
 %token          DATA BAR
 %token          LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
 %token          COMMA COLON COLONCOLON SEMI STAR AT
@@ -348,26 +348,63 @@ atomic_kind:
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Some generic definitions concerning applications of data constructors. *)
+
+(* A data constructor application takes the generic form [D { ... }]. As a
+   special case, a pair of empty braces can be omitted. *)
+
+generic_datacon_application(Y):
+| dc = datacon (* a pair of empty braces can be omitted *)
+    { dc, [] }
+| dc = datacon LBRACE ys = Y RBRACE
+    { dc, ys }
+
+(* It is often the case that the contents of the curly braces is a semicolon-
+   separated (or -terminated) list of things. *)
+
+%inline datacon_application(Y):
+| xys = generic_datacon_application(separated_or_terminated_list(SEMI, Y))
+    { xys }
+
+(* ---------------------------------------------------------------------------- *)
+
 (* Data type definitions. *)
 
 data_field_def:
-(* A named field definition binds a field name and at the same time
-   specifies an anchored permission for it. *)
-| x = variable COLON ty = normal_type
-    { FieldValue (x, ty) }
-(* A permission field is anonymous. *)
-(* TEMPORARY use the new BAR syntax here; remove PERMISSION keyword *)
-| PERMISSION ty = arbitrary_type (* a type of kind KPERM *)
-    { FieldPermission ty }
+(* A field definition normally mentions a field name and a field type. Multiple
+   field names, separated with commas, can be specified: this means that they
+   share a common type. *)
+| fs = separated_nonempty_list(COMMA, variable) COLON ty = normal_type
+    { List.map (fun f -> FieldValue (f, ty)) fs }
+(* We also allow a field definition to take the form of an equality between
+   a field name [f] and a term variable [y]. This is understood as sugar for
+   a definition of the field [f] at the singleton type [=y]. In this case,
+   only one field name is allowed. This short-hand is useful in the syntax
+   of structural permissions. *)
+| f = variable EQUAL y = variable
+    { [ FieldValue (f, TySingleton (TyVar y)) ] }
 
-datacon_application(X, Y):
-| x = X (* a pair of empty braces can be omitted *)
-    { x, [] }
-| x = X LBRACE ys = separated_or_terminated_list(SEMI, Y) RBRACE
-    { x, ys }
+(* Field definitions are semicolon-separated or -terminated. *)
+
+%inline data_fields_def:
+  fss = separated_or_terminated_list(SEMI, data_field_def)
+    { List.flatten fss }
+
+(* A list of field definitions is optionally followed with BAR and a
+   permission. *)
+
+data_type_def_branch_content:
+  fs = data_fields_def
+    { fs }
+| fs = data_fields_def BAR perm = very_loose_type
+    { fs @ [ FieldPermission perm ] }
+
+(* A branch in a data type definition is a constructor application,
+   where, within the braces, we have the above content. This is also
+   the syntax of structural permissions. *)
 
 %inline data_type_def_branch:
-  dfs = datacon_application(datacon, data_field_def)
+  dfs = generic_datacon_application(data_type_def_branch_content)
     { dfs }
 
 %inline data_type_def_lhs:
@@ -446,7 +483,7 @@ data_type_def:
       { PVar x }
   | LPAREN ps = separated_list_of_at_least_two(COMMA, pat1) RPAREN
       { PTuple ps }
-  | dc = datacon_application(datacon, data_field_pat)
+  | dc = datacon_application(data_field_pat)
       { PConstruct dc }
   | LPAREN p = pat1 RPAREN
       { p }
@@ -577,7 +614,7 @@ data_type_def:
       { EInt i }
   | FAIL
       { EFail }
-  | dc = datacon_application(datacon, data_field_assign)
+  | dc = datacon_application(data_field_assign)
       { EConstruct dc }
   | LPAREN es = separated_list_of_at_least_two(COMMA, expression) RPAREN
       { ETuple es }

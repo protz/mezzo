@@ -463,6 +463,14 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:false Pass
   );
 
+  ("stupid-swap.hml",
+    simple_test ~stdlib:false Pass
+  );
+
+  ("multiple_fields_and_permissions.hml",
+    simple_test ~stdlib:true Pass
+  );
+
   ("bag_lifo.hml", simple_test Pass);
 ]
 

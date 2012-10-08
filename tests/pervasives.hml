@@ -17,7 +17,7 @@ exclusive data ref a = Ref {
  * permission revealing that the two identifiers are equal. *)
 
 data phys_equal (x :: TERM) (y :: TERM) =
-  | Equals { permission x = y }
+  | Equals { | x = y }
   | NotEquals
 
 (* Lists *)

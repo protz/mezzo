@@ -1,0 +1,10 @@
+(* Parsing: a structural permission with sugar for singleton types. *)
+
+exclusive data xpair a b =
+  XPair { left: a; right: b }
+
+val xswap [v :: TERM] (x: XPair { left = v; right = v }) : () =
+  let t = x.left in
+  x.left <- x.right;
+  x.right <- t
+
