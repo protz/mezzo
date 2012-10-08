@@ -41,7 +41,7 @@ val rec traverse (consumes t: tree, consumes k: continuation): (u: tree) =
       (* New syntax for mutating the tag and the fields at once: conflict in the
        * grammar. *)
       (* t <- KLeft { father = k; right = right }; *)
-      t <= KLeft;
+      tag of t <- KLeft;
       t.father <- k;
       t.right <- right;
       (* t: KLeft { father = k, right = right }, left, right: tree, k: continuation *)
@@ -58,7 +58,7 @@ and continue (consumes k: continuation, consumes t: tree): (u: tree) =
   | KLeft { father; right } ->
       (* k: KLeft { father = father; right = right }, father: continuation, right: tree, t: tree *)
       (* k <- KRight { left = t; father = father }; *)
-      k <= KRight;
+      tag of k <- KRight;
       k.left <- t;
       k.father <- father;
       (* k: KRight { left = t; father = father }, father: continuation, right: tree, t: tree *)
@@ -67,7 +67,7 @@ and continue (consumes k: continuation, consumes t: tree): (u: tree) =
   | KRight { left; father } ->
       (* k: KRight { left = left; father = father }, left: tree, father: continuation, t: tree *)
       (* k <- TNode { left = left; right = t }; *)
-      k <= TNode;
+      tag of k <- TNode;
       k.left <- left;
       k.right <- t;
       (* k: TNode { left = left; right = t }, left: tree, father: continuation, t: tree *)

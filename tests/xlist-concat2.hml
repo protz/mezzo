@@ -14,14 +14,14 @@ val rec concat1 [a] (
   match explain xs with
   | Nil ->
       dst.tail <- ys;
-      dst <= Cons
+      tag of dst <- Cons
   | Cons { head; tail } ->
       let dst' = XCons {
         head = head; tail = ()
       } in
       dst.tail <- dst';
       concat1 (dst', tail, ys);
-      dst <= Cons
+      tag of dst <- Cons
   end
 
 val concat [a] (

@@ -27,7 +27,7 @@
 %token          DATA BAR
 %token          LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
 %token          COMMA COLON COLONCOLON SEMI STAR AT
-%token          ARROW LARROW DBLARROW DBLLARROW FUN
+%token          ARROW LARROW DBLARROW TAGOF FUN
 %token          EQUAL
 %token          EMPTY ASSERT EXPLAIN FAIL
 %token          CONSUMES DUPLICABLE FACT ABSTRACT
@@ -243,7 +243,7 @@ atomic_kind:
 | t = tlocated(raw_normal_type)
   { t }
 
-  %inline duplicity_constraint:
+  duplicity_constraint:
   | EXCLUSIVE t = quasi_atomic_type
       { Exclusive, t }
   | DUPLICABLE t = quasi_atomic_type
@@ -257,7 +257,7 @@ atomic_kind:
   | t = tlocated(raw_constrained_type)
     { t }
 
-  %inline constrained_or_atomic_type:
+  constrained_or_atomic_type:
   | ty = constrained_type
       { ty }
   | ty = atomic_type
@@ -407,7 +407,7 @@ fact:
 | FACT EXCLUSIVE t = arbitrary_type
     { FExclusive t }
 
-%inline data_type_def:
+data_type_def:
 | flag = data_type_flag lhs = data_type_def_lhs EQUAL rhs = data_type_def_rhs
   a = adopts_clause?
     { Concrete (flag, lhs, rhs, a) }
@@ -451,7 +451,7 @@ fact:
   | LPAREN p = pat1 RPAREN
       { p }
 
-    %inline data_field_pat:
+    data_field_pat:
     | f = variable EQUAL p = pattern
         { f, p }
     | f = variable
@@ -500,10 +500,7 @@ fact:
   (* cannot allow let because right-hand side of let can contain a semi-colon *)
   | e1 = atomic DOT f = variable LARROW e2 = everything_except_let_and_semi
       { EAssign (e1, f, e2) }
-  (* This generates a conflict. *)
-  (* | e1 = atomic DBLLARROW d = datacon_application(datacon, data_field_assign)
-      { assert false } *)
-  | e1 = atomic DBLLARROW d = datacon
+  | TAGOF e1 = atomic LARROW d = datacon
       { EAssignTag (e1, d) }
   | TAKE v = variable FROM e = everything_except_let_and_semi
       { EGive (v, e) }
@@ -599,7 +596,7 @@ fact:
   | LPAREN e = expression RPAREN
       { e }
 
-    %inline data_field_assign:
+    data_field_assign:
     (* cannot allow let because right-hand side of let can contain a semi-colon *)
     | f = variable EQUAL e = everything_except_let_and_semi
         { f, e }

@@ -143,6 +143,7 @@ let rec token = lexer
 | "assert" -> locate lexbuf ASSERT
 | "fail" -> locate lexbuf FAIL
 | "explain" -> locate lexbuf EXPLAIN
+| "tag" whitespace "of" -> locate lexbuf TAGOF
 
 | "adopts" -> locate lexbuf ADOPTS
 | "take" -> locate lexbuf TAKE
@@ -177,7 +178,6 @@ let rec token = lexer
 | ";" -> locate lexbuf SEMI
 | "->" | 8594 (* → *) -> locate lexbuf ARROW
 | "=>" | 8658 (* ⇒ *) -> locate lexbuf DBLARROW
-| "<=" | 8656 (* ⇐ *) -> locate lexbuf DBLLARROW
 | "*" -> locate lexbuf STAR
 | "=" -> locate lexbuf EQUAL
 | "@" -> locate lexbuf AT
