@@ -58,7 +58,9 @@ type typ =
 
     (* Structural types. *)
   | TyTuple of typ list
-  | TyConcreteUnfolded of data_type_def_branch
+  | TyConcreteUnfolded of Datacon.name * data_field_def list * typ
+      (* [typ] is for the type of the adoptees; initially it's bottom and then
+       * it gets instantiated to something more precise. *)
 
     (* Singleton types. *)
   | TySingleton of typ
@@ -372,14 +374,14 @@ let clean top sub t =
     | TyTuple ts ->
         TyTuple (List.map clean ts)
 
-    | TyConcreteUnfolded (datacon, fields) ->
+    | TyConcreteUnfolded (datacon, fields, clause) ->
         let fields = List.map (function
           | FieldValue (f, t) ->
               FieldValue (f, clean t)
           | FieldPermission p ->
               FieldPermission (clean p)
         ) fields in
-        TyConcreteUnfolded (datacon, fields)
+        TyConcreteUnfolded (datacon, fields, clean clause)
 
     | TySingleton t ->
         TySingleton (clean t)
@@ -441,8 +443,9 @@ let equal env (t1: typ) (t2: typ) =
     | TyTuple ts1, TyTuple ts2 ->
         List.length ts1 = List.length ts2 && List.for_all2 equal ts1 ts2
 
-    | TyConcreteUnfolded (name1, fields1), TyConcreteUnfolded (name2, fields2) ->
+    | TyConcreteUnfolded (name1, fields1, clause1), TyConcreteUnfolded (name2, fields2, clause2) ->
         Datacon.equal name1 name2 &&
+        equal clause1 clause2 &&
         List.fold_left2 (fun acc f1 f2 ->
           match f1, f2 with
           | FieldValue (f1, t1), FieldValue (f2, t2) ->
@@ -503,10 +506,14 @@ let lift (k: int) (t: typ) =
     | TyTuple ts ->
         TyTuple (List.map (lift i) ts)
 
-    | TyConcreteUnfolded (name, fields) ->
-       TyConcreteUnfolded (name, List.map (function
-         | FieldValue (field_name, t) -> FieldValue (field_name, lift i t)
-         | FieldPermission t -> FieldPermission (lift i t)) fields)
+    | TyConcreteUnfolded (name, fields, clause) ->
+        TyConcreteUnfolded (
+          name,
+          List.map (function
+            | FieldValue (field_name, t) -> FieldValue (field_name, lift i t)
+            | FieldPermission t -> FieldPermission (lift i t)) fields,
+          lift i clause
+        )
 
     | TySingleton t ->
         TySingleton (lift i t)
@@ -579,10 +586,11 @@ let tsubst (t2: typ) (i: int) (t1: typ) =
     | TyTuple ts ->
         TyTuple (List.map (tsubst t2 i) ts)
 
-    | TyConcreteUnfolded (name, fields) ->
+    | TyConcreteUnfolded (name, fields, clause) ->
        TyConcreteUnfolded (name, List.map (function
          | FieldValue (field_name, t) -> FieldValue (field_name, tsubst t2 i t)
-         | FieldPermission t -> FieldPermission (tsubst t2 i t)) fields)
+         | FieldPermission t -> FieldPermission (tsubst t2 i t)) fields,
+       tsubst t2 i clause)
 
     | TySingleton t ->
         TySingleton (tsubst t2 i t)
@@ -654,13 +662,25 @@ let ty_tuple ts =
   TyTuple ts
 ;;
 
+let ty_bottom =
+  TyForall (
+    (
+      (Auto (Variable.register "⊥"), KType, (Lexing.dummy_pos, Lexing.dummy_pos)),
+      CannotInstantiate
+    ),
+    TyVar 0
+  )
+
 (* This is right-associative, so you can write [list int @-> int @-> tuple []] *)
 let (@->) x y =
   TyArrow (x, y)
 ;;
 
 let ty_bar t p =
-  TyBar (t, p)
+  if p = TyEmpty then
+    t
+  else
+    TyBar (t, p)
 ;;
 
 
@@ -1048,6 +1068,12 @@ let instantiate_flexible env p t =
       ) p env.state }
 ;;
 
+let instantiate_adopts_clause clause args =
+  let clause = Option.map_none ty_bottom clause in
+  let args = List.rev args in
+  Hml_List.fold_lefti (fun i clause arg -> tsubst arg i clause) clause args
+;;
+
 let instantiate_branch branch args =
   let args = List.rev args in
   let branch = Hml_List.fold_lefti (fun i branch arg ->
@@ -1076,14 +1102,15 @@ let find_and_instantiate_branch
     (env: env)
     (point: point)
     (datacon: Datacon.name)
-    (args: typ list): data_type_def_branch =
+    (args: typ list) =
   let branch =
     List.find
       (fun (datacon', _) -> Datacon.equal datacon datacon')
       (get_branches env point)
   in
-  let branch = instantiate_branch branch args in
-  branch
+  let dc, fields = instantiate_branch branch args in
+  let clause = instantiate_adopts_clause (get_adopts_clause env point) args in
+  dc, fields, clause
 ;;
 
 (* Misc. *)
@@ -1160,14 +1187,14 @@ let expand_if_one_branch (env: env) (t: typ) =
   in
   match cons_args with
   | Some (cons, args) ->
-      if has_definition env cons then
-        match get_branches env cons with
-        | [branch] ->
-            TyConcreteUnfolded (instantiate_branch branch args)
-        | _ ->
-            t
-      else
+      begin match get_definition env cons with
+      | Some (Some (_, [branch], clause), _) ->
+          let dc, fields = instantiate_branch branch args in
+          let clause = instantiate_adopts_clause clause args in
+          TyConcreteUnfolded (dc, fields, clause)
+      | _ ->
         t
+      end
   | None ->
       t
 ;;
@@ -1317,8 +1344,8 @@ module TypePrinter = struct
           (List.map (print_type env) components) ^^
         rparen
 
-    | TyConcreteUnfolded branch ->
-        print_data_type_def_branch env branch
+    | TyConcreteUnfolded (name, fields, clause) ->
+        print_data_type_def_branch env name fields clause
 
       (* Singleton types. *)
     | TySingleton typ ->
@@ -1358,8 +1385,7 @@ module TypePrinter = struct
     | FieldPermission typ ->
         string "permission" ^^ space ^^ print_type env typ
 
-  and print_data_type_def_branch env (branch: data_type_def_branch) =
-    let name, fields = branch in
+  and print_data_type_def_branch env name fields clause =
     let record =
       if List.length fields > 0 then
         space ^^ lbrace ^^
@@ -1371,7 +1397,13 @@ module TypePrinter = struct
       else
         empty
     in
-    print_datacon name ^^ record
+    let clause =
+      if equal env ty_bottom clause then
+        empty
+      else
+        space ^^ string "adopts" ^^ space ^^ print_type env clause
+    in
+    print_datacon name ^^ record ^^ clause
 
   and print_data_type_flag = function
     | SurfaceSyntax.Exclusive ->

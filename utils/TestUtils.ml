@@ -10,11 +10,11 @@ let print_env (env: env) =
 let cons (head, tail) =
   TyConcreteUnfolded (Datacon.register "Cons",
     [FieldValue (Field.register "head", head);
-     FieldValue (Field.register "tail", tail)])
+     FieldValue (Field.register "tail", tail)], ty_bottom)
 ;;
 
 let nil =
-  TyConcreteUnfolded (Datacon.register "Nil", [])
+  TyConcreteUnfolded (Datacon.register "Nil", [], ty_bottom)
 ;;
 
 let tuple l =
@@ -55,5 +55,5 @@ let unit =
 ;;
 
 let datacon d f =
-  TyConcreteUnfolded (Datacon.register d, f)
+  TyConcreteUnfolded (Datacon.register d, f, ty_bottom)
 ;;
