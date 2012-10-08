@@ -86,7 +86,7 @@ let mkinfix e1 o e2 = EApply (EVar (Variable.register o), ETuple [e1; e2]);;
   | MINUS
     { "-" }
 
-%inline variable:
+variable:
   | x = LIDENT
   | LPAREN x = operator RPAREN
     { Variable.register x }
@@ -501,7 +501,7 @@ fact:
   | e1 = atomic DOT f = variable LARROW e2 = everything_except_let_and_semi
       { EAssign (e1, f, e2) }
   (* This generates a conflict. *)
-  (* | e1 = atomic LARROW d = datacon_application(datacon, data_field_assign)
+  (* | e1 = atomic DBLLARROW d = datacon_application(datacon, data_field_assign)
       { assert false } *)
   | e1 = atomic DBLLARROW d = datacon
       { EAssignTag (e1, d) }
