@@ -1,0 +1,11 @@
+(* Make sure folding and unfolding (including instantiating the initial
+ * "adopts ⊥" clause) work for structural types in the presence of adopts
+ * directives. *)
+
+abstract bar
+fact exclusive bar
+
+exclusive data foo = Foo adopts bar
+
+val (v: foo) = Foo
+val f (consumes x: foo): foo = x

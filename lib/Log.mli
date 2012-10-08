@@ -25,6 +25,8 @@
     levels range from 0 (no debug messages) to 4 (all debug messages). *)
 val enable_debug : int -> unit
 
+val debug_level: unit -> int
+
 (** Report some debugging information. Use it like [Printf.printf] *)
 val debug: ?level:int -> ('a, Buffer.t, unit, unit) format4 -> 'a
 

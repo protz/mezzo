@@ -124,6 +124,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     check_variance "inv" [inv];
     check_variance "test" [co; co; bi];
     check_variance "contra" [contra];
+    check_variance "adopts_contra" [contra];
   );
 
   (* The merge operation and all its variations. *)
@@ -402,6 +403,28 @@ let tests: (string * ((bool -> env) -> unit)) list = [
 
   ("fail6.hml",
     simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+
+  (* Adoption. *)
+
+  ("adopts1.hml",
+    simple_test ~stdlib:false Pass);
+
+  ("adopts2.hml",
+    simple_test ~stdlib:false (Fail (function BadTypeForAdopts _ -> true | _ -> false)));
+
+  ("adopts3.hml", fun do_it ->
+    let open KindCheck in
+    try
+      ignore (do_it false);
+      failwith "We shouldn't allow a non-exclusive type to adopt stuff."
+    with
+      | KindError (_, KindCheck.AdopterNotExclusive _) ->
+          ()
+      | _ ->
+          failwith "Test failed for a wrong reason");
+
+  ("adopts4.hml",
+    simple_test ~stdlib:false (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
 
   (* Bigger examples. *)
 

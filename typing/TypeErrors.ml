@@ -46,7 +46,7 @@ let print_error buf (env, raw_error) =
     Printf.bprintf buf "\nOH NOES. Printing permissions.\n\n%a" pdoc (print_permissions, env);
     Printf.bprintf buf "\nError message follows.\n\n";
   in
-  if false then
+  if Log.debug_level () >= 5 then
     print_permissions ();
   match raw_error with
   | NotAFunction p ->

@@ -18,13 +18,14 @@
 (*****************************************************************************)
 
 
-let debug_level = ref 0
-let enable_debug level = debug_level := level
+let the_debug_level = ref 0
+let debug_level () = !the_debug_level
+let enable_debug level = the_debug_level := level
 
 let debug ?level fmt =
   (* If no level is provided, the message is always displayed. *)
   let level = Option.map_none 1 level in
-  if level <= !debug_level then begin
+  if level <= !the_debug_level then begin
     Hml_String.bfprintf ~new_line:() stderr fmt
   end else begin
     Hml_String.biprintf fmt

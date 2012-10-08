@@ -1,0 +1,2 @@
+data foo = Foo
+exclusive data bar = Bar adopts foo
