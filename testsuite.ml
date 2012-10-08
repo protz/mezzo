@@ -410,7 +410,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:false Pass);
 
   ("adopts2.hml",
-    simple_test ~stdlib:false (Fail (function BadTypeForAdopts _ -> true | _ -> false)));
+    simple_test ~stdlib:false (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
 
   ("adopts3.hml", fun do_it ->
     let open KindCheck in
@@ -427,6 +427,9 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:false (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
 
   ("adopts5.hml",
+    simple_test ~stdlib:false Pass);
+
+  ("adopts6.hml",
     simple_test ~stdlib:false Pass);
 
   (* Bigger examples. *)

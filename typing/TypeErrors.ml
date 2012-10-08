@@ -30,7 +30,6 @@ and raw_error =
   | IllKindedTypeApplication of typ * kind * kind
   | BadTypeApplication of point
   | PolymorphicFunctionCall
-  | BadTypeForAdopts of point * typ
   | BadFactForAdoptedType of point * typ * fact
 
 exception TypeCheckerError of error
@@ -253,13 +252,7 @@ let print_error buf (env, raw_error) =
       Printf.bprintf buf "%a this is a polymorphic function all, results are \
           undefined; consider using a type application"
         Lexer.p env.location
-  | BadTypeForAdopts (p, t) ->
-      Printf.bprintf buf "%a type %a cannot adopt type %a because it is not a \
-          nominal type"
-        Lexer.p env.location
-        TypePrinter.pnames (get_names env p)
-        TypePrinter.ptype (env, t)
-  | BadFactForAdoptedType (p, t, f) ->
+ | BadFactForAdoptedType (p, t, f) ->
       Printf.bprintf buf "%a type %a cannot adopt type %a because it is not \
           marked as exclusive but %a"
         Lexer.p env.location
