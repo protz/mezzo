@@ -1,0 +1,8 @@
+exclusive data bar = Bar
+exclusive data foo = Foo adopts bar
+data baz = Baz
+
+val v =
+  let f = Foo in
+  let b = Baz in
+  give (b: baz) to f

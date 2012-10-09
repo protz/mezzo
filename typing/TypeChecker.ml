@@ -854,8 +854,16 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           end
       end
 
-  | ETake (_, _) ->
-     assert false 
+  | ETake (x, e) ->
+      let env, x = check_expression env ?hint x in
+      let env, y = check_expression env ?hint e in
+      begin match Hml_List.find_opt (has_adopts_clause env) (get_permissions env y) with
+      | None ->
+          raise_error env (NoAdoptsClause y)
+      | Some clause ->
+          let env = Permissions.add env x clause in
+          return env ty_unit
+      end
 
   | EExplained e ->
       let env, x = check_expression env ?hint e in

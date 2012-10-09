@@ -1,0 +1,12 @@
+exclusive data bar = Bar
+exclusive data foo = Foo adopts bar
+data baz = Baz
+
+val (v: bar) =
+  let f = Foo in
+  let b = Bar in
+  give (b: bar) to f;
+  take b from f;
+  give b to f;
+  take b from f;
+  b

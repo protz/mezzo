@@ -435,6 +435,12 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   ("adopts7.hml",
     simple_test ~stdlib:false Pass);
 
+  ("adopts8.hml",
+    simple_test ~stdlib:false (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
+
+  ("adopts9.hml",
+    simple_test ~stdlib:false Pass);
+
   (* Bigger examples. *)
 
   ("list-length.hml", fun do_it ->
