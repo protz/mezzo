@@ -5,3 +5,4 @@ merge17.hml: type-checker loops
 constraints_in_patterns4.hml: bug in [TransSurface]
 polycall5.hml: assert failure, "the parser shouldn't allow this" (no idea)
 map3.hml: TODO implement permissions not yet attached to a point
+adopts10.hml: assert failure (merging cons vs cons without a destination point)
