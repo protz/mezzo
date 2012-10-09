@@ -511,6 +511,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   );
 
   ("bag_lifo.hml", simple_test Pass);
+
+  ("bag_fifo.hml", simple_test ~stdlib:false Pass);
 ]
 
 let _ =
