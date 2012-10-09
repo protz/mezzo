@@ -29,7 +29,7 @@ val insert [a] (consumes x: a, b: bag a): () =
   give c to b;
   match b with
   | Empty ->
-      b <= NonEmpty;
+      tag of b <- NonEmpty;
       b.head <- c;
       b.tail <- c
   | NonEmpty { tail } ->
@@ -46,7 +46,7 @@ val retrieve [a] (b: bag a): option a =
   | NonEmpty { head; tail } ->
       take head from b;
       if head == tail then begin
-        b <= Empty;
+        tag of b <- Empty;
         b.head <- ();
         b.tail <- ()
       end else begin

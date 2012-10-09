@@ -45,8 +45,13 @@ let has_adopts_clause env t =
   | TyPoint p ->
       get_adopts_clause env p
   | TyApp _ ->
-      let cons, _ = flatten_tyapp t in
-      get_adopts_clause env !!cons
+      let cons, args = flatten_tyapp t in
+      begin match get_adopts_clause env !!cons with
+      | Some clause ->
+          Some (instantiate_adopts_clause (Some clause) args)
+      | None ->
+          None
+      end
   | TyConcreteUnfolded (_, _, clause) ->
       if FactInference.is_exclusive env t then
         Some clause
