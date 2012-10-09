@@ -201,8 +201,8 @@ and expression =
   (* Explanations *)
   | EExplained of expression
   (* Adoption/abandon *)
-  | EGive of Variable.name * expression
-  | ETake of Variable.name * expression
+  | EGive of expression * expression
+  | ETake of expression * expression
   (* fail *)
   | EFail
 

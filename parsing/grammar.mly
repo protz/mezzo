@@ -539,10 +539,10 @@ data_type_def:
       { EAssign (e1, f, e2) }
   | TAGOF e1 = atomic LARROW d = datacon
       { EAssignTag (e1, d) }
-  | TAKE v = variable FROM e = everything_except_let_and_semi
-      { ETake (v, e) }
-  | GIVE v = variable TO e = everything_except_let_and_semi
-      { EGive (v, e) } 
+  | TAKE e1 = expression FROM e2 = everything_except_let_and_semi
+      { ETake (e1, e2) }
+  | GIVE e1 = expression TO e2 = everything_except_let_and_semi
+      { EGive (e1, e2) } 
   | e = explained_raw
       { e }
 

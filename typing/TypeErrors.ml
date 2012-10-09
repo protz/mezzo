@@ -33,6 +33,7 @@ and raw_error =
   | BadFactForAdoptedType of point * typ * fact
   | NoAdoptsClause of point
   | NoSuitableTypeForAdopts of point * typ
+  | AdoptsNoAnnotation
 
 exception TypeCheckerError of error
 
@@ -277,4 +278,8 @@ let print_error buf (env, raw_error) =
         TypePrinter.ptype (env, t)
         TypePrinter.pnames (get_names env p)
         TypePrinter.pdoc (TypePrinter.print_permission_list, (env, binder));
+  | AdoptsNoAnnotation ->
+      Printf.bprintf buf "%a in this “give e1 to e2” statement, please provide a \
+          type annotation for e1"
+        Lexer.p env.location;
 ;;

@@ -792,22 +792,66 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       dest
 
   | EGive (x, e) ->
-      let env, x = check_expression env ?hint x in
+      (* Small helper function. *)
+      let replace_clause perm clause =
+        match perm with
+        | TyConcreteUnfolded (dc, branch, _old_clause) ->
+            TyConcreteUnfolded (dc, branch, clause)
+        | _ ->
+            Log.error "[perm] must be a nominal type, and we don't allow the \
+              user to declare a nominal type that adopts [ty_bottom]."
+      in
+      (* Find the type annotation provided on x, if any. *)
+      let env, x, t =
+        match eunloc x with
+        | EConstraint (_, t) ->
+            (* Check the entire [EConstraint] thing, so that we can fail early
+             * and with a good location if the user messed up their type
+             * annotations. *)
+            let env, x = check_expression env ?hint x in
+            env, x, Some t
+        | _ ->
+            let env, x = check_expression env ?hint x in
+            env, x, None
+      in
       let env, y = check_expression env ?hint e in
-      begin match Hml_List.find_opt (has_adopts_clause env) (get_permissions env y) with
+      (* Find the adopts clause for this structural permission. *)
+      begin match Hml_List.take (has_adopts_clause env) (get_permissions env y) with
       | None ->
           raise_error env (NoAdoptsClause y)
-      | Some clause ->
-          match Hml_List.take (fun x -> Permissions.sub_type env x clause) (get_permissions env x) with
-          | Some (remaining_perms, (perm_that_worked, env)) ->
-              Log.check (FactInference.is_exclusive env perm_that_worked)
-                "Using a non-exclusive permission for adoption?!!";
-              let env =
-                replace_term env x (fun raw -> { raw with permissions = remaining_perms })
-              in
-              return env ty_unit
-          | None ->
-              raise_error env (NoSuitableTypeForAdopts (x, clause))
+      | Some (remaining_perms, (perm, clause)) ->
+          if equal env clause ty_bottom then
+            (* The clause is unspecified; we must rely on the user-provided type
+             * annotation to find out what is is. *)
+            match t with
+            | None ->
+                raise_error env AdoptsNoAnnotation
+            | Some t ->
+                (* First of all, check that the user wants to adopt something
+                 * legit. *)
+                if not (FactInference.is_exclusive env t) then
+                  raise_error env (BadFactForAdoptedType (y, t, FactInference.analyze_type env t));
+                (* The clause is now [t]. Extract it from the list of available
+                 * permissions for [x]. We know it works because we type-checked
+                 * the whole [EConstraint] already. *)
+                let env = Option.extract (Permissions.sub env x t) in
+                (* Refresh the structural permission for [e], using the new
+                 * clause. *)
+                let perm = replace_clause perm t in
+                let env = replace_term env y (fun raw -> { raw with permissions = perm :: remaining_perms }) in
+                (* We're done. *)
+                return env ty_unit
+          else begin
+            Log.check (FactInference.is_exclusive env clause)
+              "We erroneously allowed a non-exclusive adopts clause";
+            (* The clause is known. Just take the required permission out of the
+             * permissions for x. *)
+            match Permissions.sub env x clause with
+            | Some env ->
+                return env ty_unit
+            | None ->
+                raise_error env (NoSuitableTypeForAdopts (x, clause))
+          end
       end
 
   | ETake (_, _) ->

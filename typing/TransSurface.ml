@@ -618,11 +618,9 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       E.EExplained e
 
   | EGive (x, e) ->
-      let x = EVar x in
       E.EGive (translate_expr env x, translate_expr env e)
 
   | ETake (x, e) ->
-      let x = EVar x in
       E.ETake (translate_expr env x, translate_expr env e)
 
   | EFail ->
