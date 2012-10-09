@@ -2,12 +2,12 @@ abstract int
 
 data list a = Cons { head: a; tail: list a } | Nil
 
-exclusive data ref a = Ref { contents: a }
+mutable data ref a = Ref { contents: a }
 
 (* If we remove the consumes annotation, this is not contravariant anymore,
  * because this desugars as [x::term] (=x | x@a) -> (int | x@a) an a now appears
  * on both sides of the arrow. *)
-exclusive data contra a = C { c: (consumes a) -> int }
+mutable data contra a = C { c: (consumes a) -> int }
 
 data bi a = A
 
@@ -16,4 +16,4 @@ data inv a = A { a: a -> a }
 data test a b c = A { a: a } | B { b: b }
 
 (* foo should be invariant *)
-exclusive data adopts_contra a = Foo adopts contra a
+mutable data adopts_contra a = Foo adopts contra a

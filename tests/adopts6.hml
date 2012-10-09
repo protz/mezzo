@@ -1,2 +1,2 @@
-exclusive data bar = Bar
-exclusive data foo = Foo adopts Bar
+mutable data bar = Bar
+mutable data foo = Foo adopts Bar

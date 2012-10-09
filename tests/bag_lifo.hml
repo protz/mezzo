@@ -1,4 +1,4 @@
-exclusive data bag a = Bag { contents: list a }
+mutable data bag a = Bag { contents: list a }
 
 val push [a] (consumes x: a, b: bag a): () =
   b.contents <- cons (x, b.contents)

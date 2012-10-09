@@ -1,6 +1,6 @@
 data bool = True | False
 
-exclusive data t = T
+mutable data t = T
 data foo a = Foo { foo: a }
 
 val v10 =

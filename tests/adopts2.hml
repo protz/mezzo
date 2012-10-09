@@ -1,1 +1,1 @@
-exclusive data bar = Bar adopts (bar -> bar)
+mutable data bar = Bar adopts (bar -> bar)

@@ -1,8 +1,8 @@
-exclusive data list a =
+mutable data list a =
   | Cons { head: a; tail: list a }
   | Nil
 
-exclusive data xlist a =
+mutable data xlist a =
   | XCons { head: a; tail: xlist a }
   | XNil
 

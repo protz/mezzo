@@ -1,4 +1,4 @@
-exclusive data t = T { t: t }
+mutable data t = T { t: t }
 data bool = True | False
 
 val v =

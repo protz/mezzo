@@ -1,5 +1,5 @@
 data bool = True | False
-exclusive data xlist a = Cons { head: a; tail: xlist a} | Nil
+mutable data xlist a = Cons { head: a; tail: xlist a} | Nil
 abstract int
 fact duplicable int
 

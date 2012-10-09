@@ -1,9 +1,9 @@
 (* Data type definitions. *)
 
-exclusive data cell a =
+mutable data cell a =
   Cell { contents: a; next: dynamic }
 
-exclusive data bag a =
+mutable data bag a =
   Empty { head: (); tail: () }
 | NonEmpty { head: dynamic; tail: dynamic }
 adopts cell a

@@ -28,7 +28,7 @@
    is arbitrary and [root] is the address of the root node of this
    nonempty path. *)
 
-exclusive data path hole root =
+mutable data path hole root =
   | KInitial { hole == root }
   | KLeft { father: path this root; right: tree }
   | KRight { left: tree; father: path this root }

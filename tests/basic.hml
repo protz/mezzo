@@ -38,7 +38,7 @@ data listops =
     concat: [a] (consumes l1: list a, consumes l2: list a) -> (l3: list a)
   }
 
-exclusive data foo a b c =
+mutable data foo a b c =
   Foo {
     bar: a;
     baz: baz b c a;
@@ -73,7 +73,7 @@ data t2 a b = T2 {
 data odd a b c d = S { foo: b; bar: d }
 
 (* [list_of_refs] should be affine *)
-exclusive data ref a = Ref { contents: a }
+mutable data ref a = Ref { contents: a }
 data list_refs a = L { list: list (ref a) }
 
 (* data not_well_kinded container a = N { contents: container a; } *)
@@ -88,5 +88,5 @@ data should_be_aff a = A {
   foo: Cons { head: ref a; tail: list (ref a) };
 }
 
-exclusive data noparams = NoParams
+mutable data noparams = NoParams
 data aff = Whatever { whatever: noparams; }

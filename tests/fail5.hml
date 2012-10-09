@@ -1,4 +1,4 @@
-exclusive data option a = Some { contents: a } | None
+mutable data option a = Some { contents: a } | None
 data t a = A | B { b: a }
 abstract int
 fact duplicable int

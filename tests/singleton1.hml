@@ -1,6 +1,6 @@
 data bool = True | False
 
-exclusive data t a = A | B { b: a }
+mutable data t a = A | B { b: a }
 
 val s1 =
   let x = A in

@@ -1,6 +1,6 @@
 data bool = True | False
 
-exclusive data t = T
+mutable data t = T
 data u = U { left: t; right: t }
 
 (* Un exemple plus sophistiqué où l'on cherche à conserver le partage dans

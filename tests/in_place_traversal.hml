@@ -10,14 +10,14 @@
 (* We do not include any data in the tree, because this is an
    orthogonal concern. *)
 
-exclusive data tree =
+mutable data tree =
   | TEmpty
   | TNode { left: tree; right: tree }
 
 (* The continuations used by the tree traversal procedure below.
    These continuations can be thought of as contexts or zippers. *)
 
-exclusive data continuation =
+mutable data continuation =
   | KInitial
   | KLeft { father: continuation; right: tree }
   | KRight { left: tree; father: continuation }

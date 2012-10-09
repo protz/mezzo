@@ -5,7 +5,7 @@
 abstract bar
 fact exclusive bar
 
-exclusive data foo = Foo adopts bar
+mutable data foo = Foo adopts bar
 
 val (v: foo) = Foo
 val f (consumes x: foo): foo = x

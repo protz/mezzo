@@ -1,4 +1,4 @@
-exclusive data xlist a =
+mutable data xlist a =
   | XCons { head: a; tail: xlist a }
   | XNil
 

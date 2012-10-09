@@ -2,7 +2,7 @@ data bool = True | False
 abstract int
 fact duplicable int
 
-exclusive data ref a = Nil | Ref { contents: a }
+mutable data ref a = Nil | Ref { contents: a }
 
 (* Cet exemple illustre un point un peu particulier. Ici, on obtient [y @ ref int] en sortie, mais
    une autre possibilité aurait été de dire [y @ ref (=x)] qui est en fait une permission plus

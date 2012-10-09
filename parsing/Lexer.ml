@@ -155,6 +155,7 @@ let rec token = lexer
 | "dynamic" -> locate lexbuf DYNAMIC
 | "data" -> locate lexbuf DATA
 | "exclusive" -> locate lexbuf EXCLUSIVE
+| "mutable" -> locate lexbuf MUTABLE
 | "|" -> locate lexbuf BAR
 
 | "fact" -> locate lexbuf FACT

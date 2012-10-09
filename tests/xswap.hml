@@ -1,4 +1,4 @@
-exclusive data xpair a b =
+mutable data xpair a b =
   XPair { left: a; right: b }
 
 val xswap [a, b] (consumes x: xpair a b):

@@ -9,7 +9,7 @@ data bool = True | False
 
 data option a = Some { contents: a } | None
 
-exclusive data ref a = Ref {
+mutable data ref a = Ref {
   contents: a;
 }
 
@@ -22,7 +22,7 @@ data phys_equal (x :: TERM) (y :: TERM) =
 
 (* Lists *)
 
-exclusive data xlist a =
+mutable data xlist a =
   | XCons { xhead: a; xtail: xlist a }
   | XNil
 

@@ -1,6 +1,6 @@
 (* Parsing: multiple fields with a common type. *)
 
-exclusive data bag a =
+mutable data bag a =
       Empty { head, tail: ();      cardinal: int }
  | NonEmpty { head, tail: dynamic; cardinal: int }
 

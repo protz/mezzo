@@ -1,4 +1,4 @@
-exclusive data t = T
+mutable data t = T
 abstract u
 fact exclusive u
 

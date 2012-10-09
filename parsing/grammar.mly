@@ -23,7 +23,7 @@
 (* Other tokens. *)
 
 %token          KTERM KTYPE KPERM
-%token          UNKNOWN DYNAMIC EXCLUSIVE
+%token          UNKNOWN DYNAMIC EXCLUSIVE MUTABLE
 %token          DATA BAR
 %token          LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
 %token          COMMA COLON COLONCOLON SEMI STAR AT
@@ -422,7 +422,7 @@ data_type_def_branch_content:
 %inline data_type_flag:
 | (* nothing *)
     { Duplicable }
-| EXCLUSIVE
+| MUTABLE
     { Exclusive }
 
 %inline optional_kind_annotation:
