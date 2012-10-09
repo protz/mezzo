@@ -39,3 +39,7 @@ val process: bool -> string -> Types.env
 
 (** [run] runs the specified function and prints any error that may pop up. *)
 val run: run_options -> (unit -> 'a) -> 'a
+
+(** [print_signature] prints out (in order, and in a fancy manner) the types that have been
+   found in the file. *)
+val print_signature: Buffer.t -> Types.env -> unit

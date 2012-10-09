@@ -134,3 +134,37 @@ let run { html_errors } f =
       Hml_String.beprintf "%a\n" KindCheck.print_error e;
       exit 250
 ;;
+
+let print_signature (buf: Buffer.t) (env: Types.env): unit =
+  flush stdout;
+  flush stderr;
+  let open Types in
+  let compare_locs loc1 loc2 =
+    Lexing.(compare loc1.pos_cnum loc2.pos_cnum)
+  in
+  let perms = fold_terms env (fun acc point { locations; _ } { permissions; _ } ->
+    let locations = List.sort (fun (loc1, _) (loc2, _) -> compare_locs loc1 loc2) locations in
+    let location = fst (List.hd locations) in
+    List.map (fun x -> point, location, x) permissions :: acc
+  ) [] in
+  let perms = List.flatten perms in
+  let perms = List.filter (fun (point, _, perm) ->
+    match perm with
+    | TyUnknown ->
+        false
+    | TySingleton (TyPoint point') when same env point point' ->
+        false
+    | _ ->
+        true
+  ) perms in
+  let perms = List.sort (fun (_, loc1, _) (_, loc2, _) -> compare_locs loc1 loc2) perms in
+  List.iter (fun (point, _, perm) ->
+    let open TypePrinter in
+    let open Hml_Pprint in
+    pdoc buf ((fun () ->
+      let t = print_type env perm in
+      print_names (get_names env point) ^^ space ^^ at ^^ space ^^ (nest 2 t) ^^
+      break1
+    ), ())
+  ) perms
+;;
