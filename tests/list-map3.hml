@@ -1,0 +1,13 @@
+(* Section 4.1.4 of the tutorial, "List map" *)
+
+data list a = Cons { head: a; tail: list a } | Nil
+
+val rec map [a, b, p :: PERM, q :: PERM] (
+    f: (consumes (x: a | p)) -> (b | q),
+    consumes (xs: list a | p)): (list b | q) =
+  match xs with
+  | Nil ->
+      Nil
+  | Cons { head; tail } ->
+      Cons { head = f head; tail = map [a, b, p, q] (f, tail) }
+  end

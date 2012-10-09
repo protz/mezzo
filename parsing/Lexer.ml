@@ -162,6 +162,7 @@ let rec token = lexer
 | "abstract" -> locate lexbuf ABSTRACT
 | "TYPE" | 8727 (* ∗ *) -> locate lexbuf KTYPE
 | "TERM" -> locate lexbuf KTERM
+| "PERM" -> locate lexbuf KPERM
 
 | "[" -> locate lexbuf LBRACKET
 | "]" -> locate lexbuf RBRACKET

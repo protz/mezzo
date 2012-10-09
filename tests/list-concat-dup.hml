@@ -1,0 +1,21 @@
+data list a = Cons { head: a; tail: list a } | Nil
+
+val rec concat [a] (duplicable a) => (xs: list a, ys: list a): list a =
+  match xs with
+  | Nil ->
+      ys
+  | Cons ->
+      Cons {
+        head = xs.head;
+        (* The polymorphic instantiation is mandatory. If we omit it, we use a
+         * flexible variable α to represent the polymorphic variable a in the
+         * recursive call. Because α is not yet determined, we don't have any
+         * hypotheses on it, and we can't satisfy the (duplicable α) constraint
+         * that appears in the recursive call, so we fail. We could be more
+         * clever, and perform the subtraction anyway and, if the subtraction
+         * instantiates α, check afterwards that the instantiation we picked
+         * does satisfy (duplicable α). *)
+        tail = concat [a] (xs.tail, ys)
+      }
+  end
+

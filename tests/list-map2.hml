@@ -1,0 +1,15 @@
+(* Section 4.1.4 of the tutorial, "List map" *)
+
+data list a = Cons { head: a; tail: list a } | Nil
+
+val rec map [a1, a2, b] (
+    f: (consumes x: a1) -> (b | x @ a2),
+    consumes xs: list a1): (list b | xs @ list a2) =
+  match xs with
+  | Nil ->
+      Nil
+  | Cons { head; tail } ->
+      (* Doesn't work without the polymorphic instantiation. I don't want to
+       * understand why. *)
+      Cons { head = f head; tail = map [a1, a2, b] (f, tail) }
+  end

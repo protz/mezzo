@@ -458,9 +458,29 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     ) in
     check env x t);
 
+  ("list-concat-dup.hml",
+    simple_test ~stdlib:false Pass
+  );
+
+  ("list-length.hml",
+    simple_test ~stdlib:false Pass
+  );
+
+  ("list-map0.hml",
+    simple_test ~stdlib:false Pass
+  );
+
   ("list-map1.hml",
     simple_test ~stdlib:false Pass
   );
+
+  ("list-map2.hml",
+    simple_test ~stdlib:false Pass
+  );
+
+  (*("list-map3.hml",
+    simple_test ~stdlib:false Pass
+  );*)
 
   ("list-rev.hml",
     simple_test ~stdlib:false Pass
@@ -474,6 +494,9 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:false Pass
   );
 
+  ("xlist-copy.hml",
+    simple_test ~stdlib:false Pass
+  );
   ("xlist-concat.hml",
     simple_test ~stdlib:false Pass
   );
