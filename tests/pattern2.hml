@@ -1,0 +1,6 @@
+data foo = Foo { foo: () }
+
+val f (x: foo): () =
+  match x with
+  | Foo { foo } -> foo
+  end
