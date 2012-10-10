@@ -34,6 +34,7 @@ and raw_error =
   | NoAdoptsClause of point
   | NoSuitableTypeForAdopts of point * typ
   | AdoptsNoAnnotation
+  | NotMergingClauses of env * typ * typ * env * typ * typ
 
 exception TypeCheckerError of error
 
@@ -282,4 +283,13 @@ let print_error buf (env, raw_error) =
       Printf.bprintf buf "%a in this “give e1 to e2” statement, please provide a \
           type annotation for e1"
         Lexer.p env.location;
+  | NotMergingClauses (left_env, left_point, left_t, right_env, right_point, right_t) ->
+      Printf.bprintf buf "%a while merging %a and %a, it turns out they have \
+          different adopts clauses, namely %a and %a; I refuse to merge these, \
+          so please annotate using identical adopts clauses"
+        Lexer.p env.location
+        TypePrinter.ptype (left_env, left_point)
+        TypePrinter.ptype (right_env, right_point)
+        TypePrinter.ptype (left_env, left_t)
+        TypePrinter.ptype (right_env, right_t)
 ;;

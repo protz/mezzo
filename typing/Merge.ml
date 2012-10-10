@@ -559,13 +559,32 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
               in
               let r = match clause_annot with
                 | Some clause ->
+                    Log.check (equal top clause ty_bottom)
+                      "If the clause is other than bottom, this means the type \
+                      is exclusive, and we provided a type annotation for it. \
+                      Since we subtract type annotations early on, left_perm and \
+                      right_perm should be gone already!";
                     (* Don't be smart. If we're here, the initial set of expected
                      * permissions was successfully extracted, so keep what the
                      * user specified. *)
                     Some (left_env, right_env, dest_env, clause)
                 | None ->
-                    (* Recursively merge the clause (covariant). *)
-                    merge_type (left_env, clause_l) (right_env, clause_r) dest_env
+                    let open TypeErrors in
+                    try
+                      let clause_l = clean top left_env clause_l in
+                      let clause_r = clean top right_env clause_r in
+                      (* We don't want to be smart here, because
+                       * i) the type is not in expanded form and I'm not sure
+                       * what it means for it be merged in closed form and
+                       * ii) the user had to annotate, so they could at least
+                       * annotate properly! *)
+                      if not (equal top clause_l clause_r) then
+                        raise_error top (NotMergingClauses (left_env, left_perm, clause_l, right_env, right_perm, clause_r))
+                      else
+                        (* Recursively merge the clause (covariant). *)
+                        merge_type (left_env, clause_l) (right_env, clause_r) dest_env
+                    with UnboundPoint ->
+                      raise_error top (NotMergingClauses (left_env, left_perm, clause_l, right_env, right_perm, clause_r))
               in
               r >>= fun (left_env, right_env, dest_env, clause) ->
               Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields, clause))

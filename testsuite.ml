@@ -446,6 +446,12 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   ("adopts9.hml",
     simple_test ~stdlib:false Pass);
 
+  ("adopts10.hml",
+    simple_test ~stdlib:false (Fail (function NotMergingClauses _ -> true | _ -> false)));
+
+  ("adopts12.hml",
+    simple_test ~stdlib:false Pass);
+
   (* Bigger examples. *)
 
   ("list-length.hml", fun do_it ->

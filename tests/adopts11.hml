@@ -5,7 +5,7 @@ data bool = True | False
 
 val f [a] (elt: a): listmaster a =
   let x = Listmaster in
-  let y =
+  let (y: listmaster a) =
     if True then begin
       give (XCons { head = elt; tail = XNil }: XCons { head = elt; tail: XNil }) to x;
       x

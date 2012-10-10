@@ -1,8 +1,35 @@
-pervasives.hml: must be included
+Non-problems:
+-------------
+  pervasives.hml: doesn't appear as a test file but is included
 
-in_place_traversal2.hml: missing implementation for the [this] keyword
-merge17.hml: type-checker loops
-map3.hml: TODO implement permissions not yet attached to a point
-adopts10.hml: assert failure (merging cons vs cons without a destination point)
-  + if type annotation, assert failure (all types should be in expanded form)
-pattern2.hml: can't match on a structural type...
+Failures (should be fixed):
+---------------------------
+  in_place_traversal2.hml: missing implementation for the [this] keyword
+  merge17.hml: type-checker loops
+  map3.hml: TODO implement permissions not yet attached to a point
+  pattern2.hml: can't match on a structural type...
+  adopts11.hml: an assert failure (all types should be in expanded form)
+
+Could be improved:
+------------------
+  adopts10.hml:
+    Initially, an assert failure (merging cons vs cons without a destination
+    point). Solved by requiring that the adopts clauses agree when merging, but
+    could conceivably be improved to work.
+  list-concat-dup.hml:
+    we could perform the subtraction on duplicable α ⇒ τ with α flexible by
+    first performing the subtraction on τ, and then checking whether α has been
+    instantiated, and whether it is now duplicable.
+  xlist-copy.hml:
+    idem
+  list-map2.hml:
+    we should be able to get rid of the polymorphic variable instanciation
+
+Misc:
+-----
+
+for a in *; do
+  if ! grep "$a" ../testsuite.ml > /dev/null 2>&1 ; then
+    echo $a;
+  fi;
+done | sort
