@@ -19,6 +19,7 @@ type pattern =
   (* Once the variables in a pattern have been bound, they may replaced by
    * [PPoint]s so that we know how to speak about the bound variables. *)
   | PPoint of point
+  | PAs of pattern * pattern
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -109,6 +110,8 @@ let collect_pattern (p: pattern): ((Types.name * (Lexing.position * Lexing.posit
       List.fold_left collect_pattern acc patterns
   | PPoint _ ->
       assert false
+  | PAs (p1, p2) ->
+      List.fold_left collect_pattern acc [p1; p2]
   in
   (* Return the names in reading order, i.e. left-to-right. *)
   List.rev (collect_pattern [] p)
@@ -146,6 +149,16 @@ let rec psubst (pat: pattern) (points: point list) =
       in
       let fieldpats = List.rev fieldpats in
       PConstruct (datacon, fieldpats), points
+
+  | PAs (p1, p2) ->
+      let pats, points = List.fold_left (fun (pats, points) pat ->
+          let pat, points = psubst pat points in
+          pat :: pats, points
+        ) ([], points) [p1; p2]
+      in
+      let pats = List.rev pats in
+      let p1, p2 = match pats with [p1; p2] -> p1, p2 | _ -> assert false in
+      PAs (p1, p2), points
 ;;
 
 
@@ -855,6 +868,9 @@ module ExprPrinter = struct
             jump rbrace
           else
             empty
+
+    | PAs (p1, p2) ->
+        print_pat env p1 ^^ space ^^ string "as" ^^ space ^^ print_pat env p2
 
   and print_expr env = function
     | EConstraint (e, t) ->

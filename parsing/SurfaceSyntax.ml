@@ -157,6 +157,8 @@ type pattern =
   | PLocated of pattern * Lexing.position * Lexing.position
   (* x: τ *)
   | PConstraint of pattern * typ
+  (* p as x *)
+  | PAs of pattern * pattern
 
 
 (* ---------------------------------------------------------------------------- *)

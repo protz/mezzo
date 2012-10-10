@@ -144,6 +144,7 @@ let rec token = lexer
 | "fail" -> locate lexbuf FAIL
 | "explain" -> locate lexbuf EXPLAIN
 | "tag" whitespace "of" -> locate lexbuf TAGOF
+| "as" -> locate lexbuf AS
 
 | "adopts" -> locate lexbuf ADOPTS
 | "take" -> locate lexbuf TAKE

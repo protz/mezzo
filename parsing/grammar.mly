@@ -26,7 +26,7 @@
 %token          UNKNOWN DYNAMIC EXCLUSIVE MUTABLE
 %token          DATA BAR
 %token          LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
-%token          COMMA COLON COLONCOLON SEMI STAR AT
+%token          COMMA COLON COLONCOLON SEMI STAR AT AS
 %token          ARROW LARROW DBLARROW TAGOF FUN
 %token          EQUAL
 %token          EMPTY ASSERT EXPLAIN FAIL
@@ -485,6 +485,8 @@ data_type_def:
       { PTuple ps }
   | dc = datacon_application(data_field_pat)
       { PConstruct dc }
+  | p = pattern AS v = variable
+      { PAs (p, PVar v) }
   | LPAREN p = pat1 RPAREN
       { p }
 

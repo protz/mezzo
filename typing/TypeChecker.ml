@@ -182,6 +182,16 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
        * where [f] is a recursive function *)
       merge_left env point p
 
+  | PAs (p1, p2) ->
+      let p2 = match p2 with
+        | PPoint p2 ->
+            p2
+        | _ ->
+            Log.error "Bad desugaring?!!"
+      in
+      let env = merge_left env point p2 in
+      unify_pattern env p1 point
+
   | PTuple patterns ->
       let permissions = get_permissions env point in
       let t = Hml_List.map_some (function TyTuple x -> Some x | _ -> None) permissions in

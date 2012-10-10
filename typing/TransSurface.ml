@@ -469,6 +469,10 @@ let clean_pattern pattern =
           Log.warn "%a nested type annotations are forbidden" Lexer.p env.location;
         pattern, typ
 
+    | PAs (pattern, var) ->
+        let pattern, annotation = clean_pattern env pattern in
+        PAs (pattern, var), annotation
+
     | PLocated (pattern, p1, p2) ->
         let pattern, annotation = clean_pattern (locate env p1 p2) pattern in
         PLocated (pattern, p1, p2), annotation
@@ -488,6 +492,8 @@ let rec translate_pattern env = function
       E.PConstruct (name, List.combine fields pats)
   | PLocated (p, p1, p2) ->
       translate_pattern (locate env p1 p2) p
+  | PAs (p, x) ->
+      E.PAs (translate_pattern env p, translate_pattern env x)
   | PConstraint _ ->
         Log.error "[clean_pattern] should've been called on that type before!"
 ;;

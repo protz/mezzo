@@ -127,6 +127,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     check_variance "adopts_contra" [contra];
   );
 
+  ("pattern1.hml", simple_test ~stdlib:false Pass);
+
   (* The merge operation and all its variations. *)
 
   ("merge1.hml", fun do_it ->

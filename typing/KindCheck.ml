@@ -328,6 +328,8 @@ let rec bindings_pattern (pattern: pattern): (Variable.name * kind) list =
       List.flatten (List.map bindings_pattern patterns)
   | PLocated (p, _, _) ->
       bindings_pattern p
+  | PAs (p1, p2) ->
+      bindings_pattern p1 @ bindings_pattern p2
 ;;
 
 
@@ -530,6 +532,9 @@ let rec check_pattern (env: env) (pattern: pattern) =
       List.iter (check_pattern env) patterns
   | PLocated (p, _, _) ->
       check_pattern env p
+  | PAs (p1, p2) ->
+      check_pattern env p1;
+      check_pattern env p2
 ;;
 
 
