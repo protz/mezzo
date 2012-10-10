@@ -222,6 +222,7 @@ atomic_kind:
   | x = variable
       { TyVar x }
   (* A structural type explicitly mentions a data constructor. *)
+  (* TEMPORARY add support for optional adopts clause in structural permissions *)
   | b = data_type_def_branch
       { TyConcreteUnfolded b }
 
