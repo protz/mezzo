@@ -92,8 +92,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   ("constraints_in_patterns3.hml",
     simple_test ~stdlib:false Pass);
 
-  (*("constraints_in_patterns4.hml",
-    simple_test ~stdlib:false Pass);*)
+  ("constraints_in_patterns4.hml",
+    simple_test ~stdlib:false Pass);
 
   ("function.hml", fun do_it ->
     let env = do_it true in

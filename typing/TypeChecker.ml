@@ -756,6 +756,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
        * tuple... *)
       let constructors = List.map (fun (pat, _) ->
         match pat with
+        | PAs (PConstruct (datacon, _), _)
         | PConstruct (datacon, _) ->
             let p =
               try

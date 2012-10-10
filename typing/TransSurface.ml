@@ -573,6 +573,19 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let patexprs = List.map (fun (pat, expr) ->
         (* Extract assertions from the pattern. *)
         let pat, annotation = clean_pattern pat in
+        (* If there is an annotation, and there's no top-level enclosing PAs
+         * already, we need to add one! *)
+        let pat, name =
+          if annotation = TyUnknown then
+            pat, None
+          else
+            match pat with
+            | PLocated (PAs (_, PVar x), _, _) ->
+                pat, Some x
+            | _ ->
+                let name = Variable.register (fresh_name "/a") in
+                PAs (pat, PVar name), Some name
+        in
         (* Collect the names. *)
         let names = bindings_pattern pat in
         (* Translate the pattern. *)
@@ -580,13 +593,21 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
         (* Bind the names for further translating, and don't forget to include
          * assertions in the translation as well. *)
         let sub_env = List.fold_left bind env names in
-        let expr = translate_expr sub_env expr in
         let expr =
           if annotation <> TyUnknown then
-            let annotation = translate_type env annotation in
-            E.EConstraint (expr, annotation)
+            translate_expr sub_env (
+              ESequence (
+                EAssert (
+                  TyAnchoredPermission (
+                    TyVar (Option.extract name),
+                    annotation
+                  )
+                ),
+                expr
+              )
+            )
           else
-            expr
+            translate_expr sub_env expr
         in
         pat, expr) patexprs
       in
