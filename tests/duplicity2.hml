@@ -2,7 +2,7 @@ data option a = Some { contents: a } | None
 data bool = True | False
 data list a = Cons { head: a; tail: list a} | Nil
 
-val rec find [a] (duplicable a) => (l: list a, f: a -> bool): option a =
+val rec find [a] duplicable a => (l: list a, f: a -> bool): option a =
   (* Make sure type annotations are propagated properly. *)
   let l2 = l in
   match explain l2 with

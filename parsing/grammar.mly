@@ -250,7 +250,7 @@ atomic_kind:
       { Duplicable, t }
 
   %inline raw_constrained_type:
-  | LPAREN dc = separated_nonempty_list (COMMA, duplicity_constraint) RPAREN DBLARROW ty = normal_type
+  | dc = separated_nonempty_list (COMMA, duplicity_constraint) DBLARROW ty = normal_type
       { TyConstraints (dc, ty) }
 
   %inline constrained_type:

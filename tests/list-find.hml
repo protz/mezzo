@@ -2,7 +2,7 @@ data bool = True | False
 data list a = Cons { head: a; tail: list a } | Nil
 data option a = Some { contents: a } | None
 
-val find [a] (duplicable a) => (l: list a, f: a -> bool): option a =
+val find [a] duplicable a => (l: list a, f: a -> bool): option a =
   let rec find1 (l: list a): option a =
     match l with
     | Cons { head; tail } ->

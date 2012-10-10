@@ -383,6 +383,9 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   ("polycall4.hml",
     simple_test ~stdlib:false ~pedantic:true Pass);
 
+  ("polycall5.hml",
+    simple_test ~stdlib:false ~pedantic:true Pass);
+
   ("polycall6.hml",
     simple_test ~stdlib:false ~pedantic:true Pass);
 

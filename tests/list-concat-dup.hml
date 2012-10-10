@@ -1,6 +1,6 @@
 data list a = Cons { head: a; tail: list a } | Nil
 
-val rec concat [a] (duplicable a) => (xs: list a, ys: list a): list a =
+val rec concat [a] duplicable a => (xs: list a, ys: list a): list a =
   match xs with
   | Nil ->
       ys
