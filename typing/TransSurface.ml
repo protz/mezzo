@@ -188,6 +188,13 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyConstraints (constraints, t) ->
       let constraints = List.map (fun (f, t) -> f, translate_type env t) constraints in
+      List.iter (fun (_, t) ->
+        match t with
+        | T.TyVar _ ->
+            ()
+        | _ ->
+            Log.error "We support mode constraints only on type variables"
+      ) constraints;
       T.TyConstraints (constraints, translate_type env t)
 
 
