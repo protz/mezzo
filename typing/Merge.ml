@@ -263,17 +263,6 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
     let type_triples = fold_types top (fun ps p _ _ -> (p, p, p) :: ps) [] in
     List.iter remember_triple type_triples;
 
-    (* In order to properly detect exclusive resource allocation conflicts, we
-     * mark those points that have non-duplicable permissions. *)
-    let mark_duplicable_points env =
-      fold_terms env (fun env point _head { permissions; _ } ->
-        if List.exists (fun x -> not (FactInference.is_duplicable env x)) permissions then
-          mark env point
-        else
-          env
-      ) env
-    in
-
     (* If the user requested that part of the merge be solved in a certain way,
      * through type annotations, we should subtract from each of the
      * sub-environments the expected type annotations, and put them in the
@@ -300,6 +289,17 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
           dest_env, dest_root, left_env, right_env
     in
     dump_envs left_env right_env dest_env;
+
+    (* In order to properly detect exclusive resource allocation conflicts, we
+     * mark those points that have non-duplicable permissions. *)
+    let mark_duplicable_points env =
+      fold_terms env (fun env point _head { permissions; _ } ->
+        if List.exists (fun x -> not (FactInference.is_duplicable env x)) permissions then
+          mark env point
+        else
+          env
+      ) env
+    in
 
     let left_env = mark_duplicable_points left_env in
     let right_env = mark_duplicable_points right_env in
@@ -407,7 +407,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
         in
 
         (* We can't just brutally replace the list of permissions using
-         * [replace_term], since, because there are some permissions already for
+         * [replace_term], because there are some permissions already for
          * [dest_point] in [dest_env]: at least [=dest_point], but maybe more,
          * depending on user-provided type annotations. *)
         let dest_env = List.fold_left
@@ -915,49 +915,6 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
               (* And we're good to go. *)
               Some (left_env, right_env, dest_env, t)
-
-        (*| TyForall (binding_left, t_l), TyForall (binding_right, t_r) ->
-            (* This code-path is correct but frankly, we shouldn't have to
-             * go there _at all_ yet. If two types are equal, then they must go
-             * through the fast-path. Otherwise, this means that they contain TERM
-             * variables that are local to a branch, and we don't know how to
-             * handle that... *)
-
-            (* First, check that the kinds are equal. *)
-            let (_, k_l, left_location), (_, k_r, right_location) = binding_left, binding_right in
-            if k_l = k_r then
-
-              (* Bind the variables as rigid. *)
-              let left_env, t_l, left_point = bind_var_in_type2 left_env binding_left t_l in
-              let right_env, t_r, right_point = bind_var_in_type2 right_env binding_right t_r in
-
-              (* Pick the name from the left... *)
-              let binding = binding_left in
-              let name, k, _ = binding in
-
-              (* Bind the corresponding rigid variable in the destination
-               * environment. Remember the triple. *)
-              let dest_env, dest_point = bind_var dest_env (name, k, left_location) in
-              let dest_env = add_location dest_env dest_point right_location in
-              remember_triple (left_point, right_point, dest_point);
-
-              (* Try to perform the merge. *)
-              begin match merge_type (left_env, t_l) (right_env, t_r) ~dest_point dest_env with
-              | Some (left_env, right_env, dest_env, t) ->
-                  (* Yes? Re-generalize... *)
-                  Some (
-                    left_env, right_env, dest_env,
-                    TyForall (binding, Flexible.tpsubst dest_env (TyVar 0) dest_point t)
-                  )
-              | None ->
-                  (* Don't keep this triple since we're throwing away the
-                   * environments. *)
-                  forget_triple (left_point, right_point, dest_point);
-                  None
-              end
-            else
-              None*)
-
 
         | _ ->
             None

@@ -1,7 +1,25 @@
+(* This module is entirely devoted to computing the variance of type parameters
+ * in data type.
+ *
+ * This module uses [Fix], which we bundle as part of Mezzo. See
+ * http://gallium.inria.fr/~fpottier/fix/fix.html.en
+ *)
+
 open Types
 
 type t = variance
 
+(* We only have four possible variances:
+
+          invariant
+       /             \
+  covariant    contravariant
+       \             /
+          bivariant
+
+*)
+
+(* This computes [a ∪ b]. *)
 let lub a b =
   match a, b with
   | Invariant, _
@@ -17,6 +35,7 @@ let lub a b =
         Invariant
 ;;
 
+(* Variance inversion (e.g. left of an arrow). *)
 let (~~) = function
   | Invariant -> Invariant
   | Covariant -> Contravariant
@@ -24,6 +43,13 @@ let (~~) = function
   | Bivariant -> Bivariant
 ;;
 
+(* When variable [a] is used in place of [b] in a type application, this
+ * generates a new constraint for [a].
+ *
+ * For instance, if "foo a" is defined as "Foo { foo: list (a, a) }" and "b"
+ * represents the type variable that appears for "list", then the variance of
+ * "a" in the definition of "foo" is "b.(variance of a in (a, a))".
+ * In our case, covariant. *)
 let dot a b =
   match a, b with
   | Invariant, _ ->
@@ -36,6 +62,10 @@ let dot a b =
       Bivariant
 ;;
 
+(* This computes the variance of solver variable [b] in type [t]. [var_for_ith]
+ * gives the solver variable associated to the i-th type parameter of a
+ * constructor. [env] is needed to compare that two variables are equal (we use
+ * points as variables of the [Fix] module). *)
 let variance env var_for_ith valuation b t =
   let rec var = function
     | TyUnknown
@@ -119,7 +149,7 @@ let analyze_data_types env =
   (* Keep the original env fresh, since we're going to throw away most of the
    * work below. *)
   let original_env = env in
-  
+
   (* Create a sub-enviroment where points have been allocated for each one of
    * the data type parameters. We keep a list of instantiated branches with
    * their corresponding point. *)
@@ -150,10 +180,15 @@ let analyze_data_types env =
 
   (* This computes the rhs for a given variable. *)
   let equations var =
+    (* Find which type this variable belongs to. *)
     let _, (_, branches) = List.find (fun (_, (vars, _)) ->
       List.exists (same env var) vars
     ) store in
+    (* The equations for a given variable depend on the valuation. (At this
+     * stagae, you should really, really read the doc for [Fix].) *)
     (fun valuation ->
+      (* The [z] parameter is actually the adopts clause that has been
+       * distributed in all the branches so as to give the correct behavior. *)
       let vs = List.map
         (variance env var_for_ith valuation var)
         (List.map (fun (x, y, z) -> TyConcreteUnfolded (x, y, z)) branches)

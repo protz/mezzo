@@ -348,7 +348,7 @@ and add_type (env: env) (p: point) (t: typ): env =
       else
         (* Either the type is not duplicable (so we need to add it!), or it is
          * duplicable, but doesn't exist per se (e.g. α flexible with
-         * [duplicable α] in the permission list. Add it. *)
+         * [duplicable α]) in the permission list. Add it. *)
         replace_term env p (fun binding ->
           { binding with permissions = t :: binding.permissions }
         )
