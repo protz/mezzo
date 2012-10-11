@@ -980,7 +980,11 @@ let refresh_mark (env: env): env =
 (* A hodge-podge of getters. *)
 
 let get_name env p =
-  List.hd (get_names env p)
+  let names = get_names env p in
+  try
+    List.find (function User _ -> true | Auto _ -> false) names
+  with Not_found ->
+    List.hd names
 ;;
 
 let get_permissions (env: env) (point: point): permissions =
