@@ -9,7 +9,6 @@ val rec map [a1, a2, b] (
   | Nil ->
       Nil
   | Cons { head; tail } ->
-      (* Doesn't work without the polymorphic instantiation. I don't want to
-       * understand why. *)
-      Cons { head = f head; tail = map [a1, a2, b] (f, tail) }
+      (* Woohoo! Works without instantiating the polymorphic variables by hand! *)
+      Cons { head = f head; tail = map (f, tail) }
   end

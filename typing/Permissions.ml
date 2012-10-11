@@ -327,8 +327,15 @@ and add_perm (env: env) (t: typ): env =
  * to the list of available permissions for [p] *)
 and add_type (env: env) (p: point) (t: typ): env =
   match sub env p t with
-  | Some env ->
+  | Some _ ->
+      (* We're not re-binding env because this has bad consequences: in
+       * particular, when adding a flexible type variable to a point, it
+       * instantiates it into, say, [=x], which is usually *not* what we want to
+       * do. *)
       Log.debug "→ sub worked";
+      let in_there_already =
+        List.exists (fun x -> equal env x t) (get_permissions env p)
+      in
       if FactInference.is_exclusive env t then begin
         (* If [t] is exclusive, then this makes the environment inconsistent. *)
         Log.debug "%sInconsistency detected%s, adding %a as an exclusive \
@@ -336,16 +343,15 @@ and add_type (env: env) (p: point) (t: typ): env =
           Bash.colors.Bash.red Bash.colors.Bash.default
           TypePrinter.ptype (env, t);
         { env with inconsistent = true }
-      end else if FactInference.is_duplicable env t then begin
-        (* If the type is duplicable, then the [sub] operation didn't perform
-         * anything, so we just the environment as-is. *)
+      end else if FactInference.is_duplicable env t && in_there_already then
         env
-      end else begin
-        (* We don't know, be conservative. *)
+      else
+        (* Either the type is not duplicable (so we need to add it!), or it is
+         * duplicable, but doesn't exist per se (e.g. α flexible with
+         * [duplicable α] in the permission list. Add it. *)
         replace_term env p (fun binding ->
           { binding with permissions = t :: binding.permissions }
         )
-      end
   | None ->
       Log.debug "→ sub didn't work";
       let env =
