@@ -1,0 +1,71 @@
+(* Landin's knot, or recursion via a hidden reference cell, in Mezzo. *)
+
+(* Remarkably, we are able to pull this trick without using weak references
+   or locks or any other mechanism for hiding a *mutable* invariant. We use
+   the fact that a closure can hide an *immutable* invariant, together with
+   the ability to freeze a reference, and together with a recursive type. *)
+
+(* The following type is the standard notion of a mutable reference cell. *)
+
+mutable data ref a =
+    Ref { content : a }
+
+(* The following recursive type is defined in such a way that the permission
+   [r @ narcissic_cell r a b] means that the immutable cell [r] contains a
+   function [f] that requires a copy of itself to be stored in [r]. Note
+   that this is a duplicable permission. *)
+
+data narcissic_cell (r :: TERM) a b =
+  Narcissic { content : (a | r @ narcissic_cell r a b) -> b }
+
+(* Let us now define a fixed point combinator. *)
+
+val fix [ a, b ] (ff : (a -> b) -> (a -> b)) : a -> b =
+
+  let r = Ref { content = () } in
+  (* We have r @ Ref { content : () } *)
+
+  let f (x : a | r @ narcissic_cell r a b) : b =
+
+    (* We have r @ narcissic_cell r a b, so we can read r.content *)
+    let self = r.content in
+    (* We now have self @ (a | r @ narcissic_cell r a b) -> b *)
+    (* Furthermore, we still have r @ narcissic_cell r a b *)
+
+    (* By subtyping (an annotation might be required), or by explicit
+       eta-expansion, when a duplicable permission p is available, a
+       function of type (a | p) -> b can be viewed as a function of
+       type a -> b. *)
+
+    (* Thus, we have self @ a -> b. *)
+
+    (* This allows us to invoke [ff]. *)
+
+    ff self x
+
+  in
+
+  (* We have f @ (a | r @ narcissic_cell r a b) -> b *)
+
+  (* Tie the knot. *)
+
+  r.content <- f;
+
+  (* We now have r @ Ref { content : (a | r @ narcissic_cell r a b) -> b } *)
+
+  (* Freeze the knot. *)
+
+  tag of r <- Narcissic;
+
+  (* We now have r @ Narcissic { f : (a | r @ narcissic_cell r a b) -> b } *)
+
+  (* By folding the definition of the recursive type, this means: *)
+
+  (* We have r @ narcissic_cell r a b *)
+
+  (* Thus, by the same subtyping step as above, we may deduce: *)
+
+  (* We have f @ a -> b *)
+
+  f
+
