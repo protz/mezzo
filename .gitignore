@@ -4,4 +4,3 @@ test
 testsuite
 *.native
 *.byte
-passing-tests
