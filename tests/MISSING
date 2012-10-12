@@ -9,6 +9,9 @@ Failures (should be fixed):
   list-map3.hml: TODO implement permissions not yet attached to a point
   pattern2.hml: can't match on a structural type...
   adopts11.hml: an assert failure (all types should be in expanded form)
+  landin.hml: doesn't type-check, breaks an invariant (several concrete types
+    for the same point), and loops if we allow the invariant to be broken; also,
+    we probably need to implement the subtyping rule mentioned in the comments.
 
 Could be improved:
 ------------------

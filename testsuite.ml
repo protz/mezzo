@@ -9,6 +9,12 @@ let check env point t =
 
 type outcome = Fail of (raw_error -> bool) | Pass
 
+(* Ugly hack to get a list of tests that pass, so that I can easily generate the
+ * code sample gallery. *)
+let f = open_out "passing-tests";;
+let current_file = ref "";;
+let test_passes = fun () -> output_string f !current_file; output_string f "\n";;
+
 let simple_test ?(stdlib=true) ?(pedantic=false) outcome = fun do_it ->
   try
     Options.pedantic := pedantic;
@@ -17,6 +23,7 @@ let simple_test ?(stdlib=true) ?(pedantic=false) outcome = fun do_it ->
     | Fail _ ->
         raise (Failure "Test passed, it was supposed to fail")
     | Pass ->
+        test_passes ();
         ();
   with TypeCheckerError (_, e) ->
     match outcome with
@@ -78,7 +85,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let foo = point_by_name env "foo" in
     let bar = point_by_name env "bar" in
     check env foo int;
-    check env bar int);
+    check env bar int;
+    test_passes ());
 
   ("wrong_type_annotation.hml",
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
@@ -99,7 +107,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let env = do_it true in
     let int = find_type_by_name env "int" in
     let foobar = point_by_name env "foobar" in
-    check env foobar (tuple [int; int]));
+    check env foobar (tuple [int; int]);
+    test_passes ());
 
   ("stupid_match.hml",
     simple_test (Fail (function NotNominal _ -> true | _ -> false)));
@@ -125,6 +134,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     check_variance "test" [co; co; bi];
     check_variance "contra" [contra];
     check_variance "adopts_contra" [contra];
+    test_passes ();
   );
 
   ("pattern1.hml", simple_test ~stdlib:false Pass);
@@ -134,7 +144,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   ("merge1.hml", fun do_it ->
     let env = do_it false in
     let v1 = point_by_name env "v1" in
-    check env v1 (TyConcreteUnfolded (Datacon.register "T", [], ty_bottom)));
+    check env v1 (TyConcreteUnfolded (Datacon.register "T", [], ty_bottom));
+    test_passes ());
 
   ("merge2.hml", fun do_it ->
     let env = do_it false in
@@ -154,7 +165,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
         )
       ))
     in
-    check env v2 t);
+    check env v2 t;
+    test_passes ());
 
   ("merge3.hml", fun do_it ->
     let env = do_it false in
@@ -180,7 +192,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
           ]
         )))
     in
-    check env v3 t);
+    check env v3 t;
+    test_passes ());
 
   ("merge4.hml", fun do_it ->
     let env = do_it false in
@@ -188,7 +201,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let w = find_type_by_name env "w" in
     let int = find_type_by_name env "int" in
     let t = TyApp (w, int) in
-    check env v4 t);
+    check env v4 t;
+    test_passes ());
 
   ("merge5.hml", fun do_it ->
     let env = do_it false in
@@ -196,7 +210,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let v = find_type_by_name env "v" in
     let int = find_type_by_name env "int" in
     let t = TyApp (TyApp (v, int), int) in
-    check env v5 t);
+    check env v5 t;
+    test_passes ());
 
   ("merge6.hml", fun do_it ->
     let env = do_it false in
@@ -207,7 +222,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
       TyApp (TyApp (v, int), TyVar 0)
     )
     in
-    check env v6 t);
+    check env v6 t;
+    test_passes ());
 
   ("merge7.hml", fun do_it ->
     let env = do_it false in
@@ -218,7 +234,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
         TyApp (TyApp (v, TyVar 1), TyVar 0)
       ))
     in
-    check env v7 t);
+    check env v7 t;
+    test_passes ());
 
   ("merge8.hml", fun do_it ->
     let env = do_it false in
@@ -228,7 +245,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
         TyApp (TyApp (v, TyVar 0), TyVar 0)
       )
     in
-    check env v8 t);
+    check env v8 t;
+    test_passes ());
 
   ("merge9.hml", fun do_it ->
     let env = do_it false in
@@ -236,7 +254,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let ref = find_type_by_name env "ref" in
     let int = find_type_by_name env "int" in
     let t = TyApp (ref, int) in
-    check env v9 t);
+    check env v9 t;
+    test_passes ());
 
   ("merge10.hml", fun do_it ->
     let env = do_it false in
@@ -244,7 +263,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let foo = find_type_by_name env "foo" in
     let t = find_type_by_name env "t" in
     let t = TyApp (foo, t) in
-    check env v10 t);
+    check env v10 t;
+    test_passes ());
 
   ("merge11.hml", fun do_it ->
     let env = do_it false in
@@ -252,7 +272,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let ref = find_type_by_name env "ref" in
     let int = find_type_by_name env "int" in
     let t = TyApp (ref, TyApp (ref, int)) in
-    check env v11 t);
+    check env v11 t;
+    test_passes ());
 
   ("merge12.hml", fun do_it ->
     let env = do_it true in
@@ -267,7 +288,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
         TyAnchoredPermission (TyVar 0, int)
       ), int))
     in
-    check env v12 t);
+    check env v12 t;
+    test_passes ());
 
   ("merge13.hml", fun do_it ->
     let env = do_it false in
@@ -277,7 +299,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let t = find_type_by_name env "t" in
     let t = TyApp (t, ty_equals x) in
     check env v13 t;
-    check env x int);
+    check env x int;
+    test_passes ());
 
   ("merge14.hml", fun do_it ->
     let env = do_it false in
@@ -288,7 +311,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
       TyApp (t, TySingleton (TyVar 0)),
       TyAnchoredPermission (TyVar 0, int)
     )) in
-    check env v14 t);
+    check env v14 t;
+    test_passes ());
 
   ("merge15.hml",
     simple_test ~stdlib:false Pass
@@ -308,6 +332,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     check env x t;
     check env y t;
     check env z t;
+    test_passes ();
   );
 
   ("constraints_merge.hml",
@@ -343,6 +368,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let perms = get_permissions env s1 in
     if not (List.exists ((=) (TyApp (t, datacon "A" []))) perms) then
       failwith "The right permission was not extracted for [s1].";
+    test_passes ();
   );
 
   ("singleton2.hml",
@@ -424,6 +450,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
       failwith "We shouldn't allow a non-exclusive type to adopt stuff."
     with
       | KindError (_, KindCheck.AdopterNotExclusive _) ->
+          test_passes ();
           ()
       | _ ->
           failwith "Test failed for a wrong reason");
@@ -458,7 +485,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let env = do_it false in
     let int = find_type_by_name env "int" in
     let zero = point_by_name env "zero" in
-    check env zero int);
+    check env zero int;
+    test_passes ());
 
   ("list-concat.hml", fun do_it ->
     let env = do_it false in
@@ -467,7 +495,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let t = TyForall (dummy_binding KType,
       TyApp (list, TyVar 0)
     ) in
-    check env x t);
+    check env x t;
+    test_passes ());
 
   ("list-concat-dup.hml",
     simple_test ~stdlib:false Pass
@@ -555,6 +584,7 @@ let _ =
   Driver.add_include_dir "tests";
   let failed = ref 0 in
   List.iter (fun (file, test) ->
+    current_file := file;
     Log.warn_count := 0;
     let do_it = fun pervasives ->
       let env = Driver.process pervasives (Filename.concat "tests" file) in
