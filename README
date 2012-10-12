@@ -1,8 +1,30 @@
-The language yet-to-be-named requires:
+Mezzo, a programming language with permissions
+----------------------------------------------
+            http://gallium.inria.fr/~protzenk/mezzo-lang
+
+In order to compile, Mezzo requires:
 - OCaml 4.00
 - a properly-working ocamlfind command,
 - the following packages: menhirLib, yojson
 
 These packages are present in Debian but Debian hasn't switched to OCaml 4.00
-yet. We recommend odb.ml <https://github.com/thelema/odb> to easily install
+yet. We recommend OPAM <http://opam.ocamlpro.com> to easily install
 these dependencies.
+
+
+Compiling
+---------
+
+make
+
+
+Running Mezzo
+-------------
+
+./mezzo --help
+
+
+Running tests
+-------------
+
+make test

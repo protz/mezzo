@@ -1,6 +1,6 @@
 (*****************************************************************************)
-(*  HaMLet, a ML dialect with a type-and-capability system                   *)
-(*  Copyright (C) 2011 Jonathan Protzenko                                    *)
+(*  Mezzo, a programming language based on permissions                       *)
+(*  Copyright (C) 2011, 2012 Jonathan Protzenko and François Pottier         *)
 (*                                                                           *)
 (*  This program is free software: you can redistribute it and/or modify     *)
 (*  it under the terms of the GNU General Public License as published by     *)
