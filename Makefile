@@ -50,8 +50,14 @@ doc: graph
 test: all
 	OCAMLRUNPARAM=b ./testsuite
 
-build:
+# Hacky target to build a specific file with all the right ocamlbuild flags. Say
+# you want to compile foo.ml, do: FILE=foo.ml make build-one
+build-one:
 	$(OCAMLBUILD) $(INCLUDE) $(FILE).native
 
 index:
 	$(shell cd viewer && ./gen_index.sh)
+
+# TAG=m1 make release
+release:
+	git archive --format tar --prefix mezzo-$(TAG)/ $(TAG) | bzip2 -9 > ../mezzo-$(TAG).tar.bz2
