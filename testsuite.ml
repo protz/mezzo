@@ -512,6 +512,10 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     simple_test ~stdlib:false Pass
   );*)
 
+  ("list-map4.hml",
+    simple_test ~stdlib:false Pass
+  );
+
   ("list-rev.hml",
     simple_test ~stdlib:false Pass
   );

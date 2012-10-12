@@ -1,0 +1,47 @@
+(* This file implements a destination-passing style, almost tail-recursive
+ * version of [List.map] for immutable lists. It uses a temporary mutable cell
+ * that is later on "freezed" when it's ready. *)
+
+data list a = Cons { head: a; tail: list a } | Nil
+mutable data xlist a = XCons { head: a; tail: list a } | XNil
+
+(* This version will be tail-rec if the compiler is smart enough to figure out
+ * that "tag of x0 <- Cons" is a no-op. *)
+val rec map1 [a, b] (
+          f: a -> b,
+          consumes c0: XCons { head: b; tail: () },
+          consumes xs: list a
+        ): (| c0 @ list b)
+      =
+  match xs with
+  | Nil ->
+      (* c0 @ XCons { head: b; tail: () } *)
+      c0.tail <- Nil;
+      (* c0 @ XCons { head: b; tail: Nil } *)
+      tag of c0 <- Cons
+      (* c0 @ Cons { head: b; tail: Nil } *)
+      (* c0 @ list b *)
+  | Cons { head; tail } ->
+      (* c0 @ XCons { head: b; tail: () } *)
+      let c1 = XCons { head = f head; tail = () } in
+      (* c0 @ XCons { head: b; tail: () } * c1 @ XCons { head: b; tail: () } *)
+      c0.tail <- c1;
+      (* c0 @ XCons { head: b; tail = c1 } * c1 @ XCons { head: b; tail: () } *)
+      map1 (f, c1, tail);
+      (* c0 @ XCons { head: b; tail = c1 } * c1 @ list b *)
+      tag of c0 <- Cons
+      (* c0 @ Cons { head: b; tail = c1 } * c1 @ list b *)
+      (* c0 @ list b *)
+  end
+
+
+(* We need to unroll the recursion to take into account empty lists. *)
+val map [a, b] (f: a -> b, consumes xs: list a): list b =
+  match xs with
+  | Nil ->
+      xs
+  | Cons { head; tail } ->
+      let c = XCons { head = f head; tail = () } in
+      map1 (f, c, tail);
+      c
+  end
