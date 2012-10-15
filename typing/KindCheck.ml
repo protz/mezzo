@@ -775,21 +775,39 @@ module KindPrinter = struct
         empty
   ;;
 
+  let print_def env name kind def =
+    match def with
+    | Some (Some (flag, branches, clause), variance) ->
+        print_data_type_def env flag name kind variance branches clause
+    | Some (None, _) ->
+        print_abstract_type_def env name kind
+    | None ->
+        Log.error "This is strange"
+  ;;
+
   (* This function prints the contents of a [Types.env]. *)
   let print_kinds env =
     (* Now we have a pretty-printing environment that's ready, proceed. *)
     let defs = map_types env (fun { names; kind; _ } { definition; _ } ->
       let name = List.hd names in
-      match definition with
-      | Some (Some (flag, branches, clause), variance) ->
-          print_data_type_def env flag name kind variance branches clause
-      | Some (None, _) ->
-          print_abstract_type_def env name kind
-      | None ->
-          Log.error "This is strange"
+      print_def env name kind definition
     ) in
     join (break1 ^^ break1) defs
   ;;
+
+  let print_group env (group: data_type_group) =
+    let defs = List.map (fun (name, _, def, _, kind) ->
+      let name = User name in
+      print_def env name kind (Some def)
+    ) group in
+    nest 2 (join (break1 ^^ break1) defs) ^^ hardline
+  ;;
+
+
+  let pgroup buf arg =
+    pdoc buf ((fun (env, group) -> print_group env group), arg)
+  ;;
+
 
   let print_kinds_and_facts program_env =
     colors.red ^^ string "KINDS:" ^^ colors.default ^^

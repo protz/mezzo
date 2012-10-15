@@ -1048,8 +1048,8 @@ module ExprPrinter = struct
           List.rev acc
     in
     let declarations = print_declarations env [] declarations in
-    let declarations = hardline ^^ join (hardline ^^ hardline) declarations in
-    colors.red ^^ string "DECLARATIONS:" ^^ colors.default ^^
+    let declarations = (* hardline ^^ *) join (hardline ^^ hardline) declarations in
+    (* colors.red ^^ string "DECLARATIONS:" ^^ colors.default ^^ *)
     nest 2 declarations ^^ hardline
   ;;
 

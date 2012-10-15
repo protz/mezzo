@@ -64,6 +64,10 @@ let type_check program =
   let rec type_check env program =
     match program with
     | Program.DataTypeGroup group :: blocks ->
+        Log.debug ~level:2 "\n%s***%s Processing data type group:\n%a"
+          Bash.colors.Bash.yellow Bash.colors.Bash.default
+          KindCheck.KindPrinter.pgroup (env, group);
+
         (* The binders in the data type group will be opened in the rest of the
          * blocks. Also performs the actual binding in the data type group, as
          * well as the variance and fact inference. *)
@@ -71,8 +75,8 @@ let type_check program =
         (* Move on to the rest of the blocks. *)
         type_check env blocks
     | Program.Declarations decls :: blocks ->
-        (* The pretty-printing is not done in order... *)
-        Log.debug ~level:2 "%a"
+        Log.debug ~level:2 "\n%s***%s Processing declarations:\n%a"
+          Bash.colors.Bash.yellow Bash.colors.Bash.default
           Expressions.ExprPrinter.pdeclarations (env, decls);
 
         (* Perform the actual checking. The binders in the declaration group
@@ -82,7 +86,8 @@ let type_check program =
         type_check env blocks
     | [] ->
         (* Print some extra debugging information. *)
-        Log.debug ~level:2 "%a"
+        Log.debug ~level:2 "\n%s***%s Done type-checking:\n%a"
+          Bash.colors.Bash.yellow Bash.colors.Bash.default
           Types.TypePrinter.pdoc
           (KindCheck.KindPrinter.print_kinds_and_facts, env);
 

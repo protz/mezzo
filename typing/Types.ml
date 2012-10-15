@@ -1275,7 +1275,7 @@ module TypePrinter = struct
 
   (* This is for debugging purposes. Use with [Log.debug] and [%a]. *)
   let p_kind buf kind =
-    Pprint.PpBuffer.pretty 1.0 80 buf (print_kind kind)
+    pdoc buf (print_kind, kind)
   ;;
 
   let print_names names =
