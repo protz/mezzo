@@ -35,7 +35,6 @@ open Utils
 
 module T = Types
 module E = Expressions
-module P = Program
 
 
 (* -------------------------------------------------------------------------- *)

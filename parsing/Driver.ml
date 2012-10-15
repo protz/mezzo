@@ -73,7 +73,7 @@ let type_check program =
         (* The binders in the data type group will be opened in the rest of the
          * blocks. Also performs the actual binding in the data type group, as
          * well as the variance and fact inference. *)
-        let env, blocks = Program.bind_data_type_group env group blocks in
+        let env, blocks = DataTypeGroup.bind_data_type_group env group blocks in
         (* Move on to the rest of the blocks. *)
         type_check env blocks
     | Declarations decls :: blocks ->
