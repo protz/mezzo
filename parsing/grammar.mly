@@ -473,7 +473,7 @@ data_type_def:
     { Abstract ((name, params), k, f) }
 
 %inline data_type_group:
-  defs = data_type_def*
+  defs = data_type_def+
     { defs }
 
 (* A concrete data type is necessarily of kind KTYPE. We do not allow defining
@@ -677,7 +677,7 @@ data_type_def:
 
 (* A declaration group is a sequence of mutually recursive definitions. *)
 declaration_group:
-| l = declaration*
+| l = declaration+
     { l }
 
 %inline declaration:
@@ -708,16 +708,28 @@ inner_declaration:
 
 (* Program units. *)
 
-block:
+block_data:
 | group = data_type_group
     { DataTypeGroup group }
+
+block_decl:
 | declarations = declaration_group
     { Declarations declarations }
 
+block:
+| b1 = block_decl b2 = block_data
+    { [b1; b2] }
+
+block_alt:
+| b1 = block_data b2 = block_decl
+    { [b1; b2] }
+
+(* I don't know how to better express this... *)
 unit:
-  blocks = block+
-  EOF
-    { blocks }
+  | b1 = block_data bs = block* bn = block_decl?  EOF
+    { b1 :: List.flatten bs @ Option.to_list bn }
+  | b1 = block_decl bs = block_alt* bn = block_data?  EOF
+    { b1 :: List.flatten bs @ Option.to_list bn }
 
 (* ---------------------------------------------------------------------------- *)
 

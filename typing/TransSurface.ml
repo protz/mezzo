@@ -35,6 +35,7 @@ open Utils
 
 module T = Types
 module E = Expressions
+module P = Program
 
 
 (* -------------------------------------------------------------------------- *)
@@ -370,17 +371,13 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
 ;;
 
 
-(* [translate_data_type_group env tenv data_type_group] returns [env, tenv, points] where:
+(* [translate_data_type_group env tenv data_type_group] returns [env, group] where:
   - the type definitions have been added with the corresponding levels in [env]
-  - type definitions have been desugared and added to [tenv]; the types have been
-    opened inside the branches,
-  - the points corresponding to the various types are in [points]; the item at
-    index i has level i (the list is in order)
+  - type definitions have been desugared into [group],
 *)
 let translate_data_type_group
     (env: env)
-    (tenv: T.env)
-    (data_type_group: data_type_group): env * T.env * T.point list
+    (data_type_group: data_type_group): env
   =
 
   let bindings = bindings_data_type_group data_type_group in
@@ -391,67 +388,12 @@ let translate_data_type_group
   let env = List.fold_left (bind ~strict:()) env bindings in 
 
   (* First do the translation pass. *)
-  let translated_definitions: (Variable.name * T.type_def * T.fact * T.kind) list =
+  let translated_definitions: T.data_type_group list =
     List.map (translate_data_type_def env) data_type_group
   in
 
-  (* Then build up the resulting environment. *)
-  let tenv, points = List.fold_left (fun (tenv, acc) (name, def, fact, kind) ->
-    let name = T.User name in
-    let tenv, point = T.bind_type tenv name tenv.T.location ~definition:def fact kind in
-    tenv, point :: acc) (tenv, []
-  ) translated_definitions in
-  let points = List.rev points in
-
-  (* Construct the reverse-map from constructors to points. *)
-  let tenv = List.fold_left2 (fun tenv (_, def, _, _) point ->
-    match def with
-    | None, _ ->
-        tenv
-    | Some (_, def, _), _ ->
-        let type_for_datacon = List.fold_left (fun type_for_datacon (name, _) ->
-          T.DataconMap.add name point type_for_datacon
-        ) tenv.T.type_for_datacon def in  
-        { tenv with T.type_for_datacon }
-  ) tenv translated_definitions points in
-
-  (* Finally, open the types in the type definitions themselves. *)
-  let total_number_of_data_types = List.length points in
-  let tenv = T.fold_types tenv (fun tenv point { T.kind; _ } { T.definition; _ } ->
-    match definition with
-    | Some (None, _) ->
-        (* It's an abstract type, it has no branches where we should perform the
-         * opening. *)
-        tenv
-
-    | Some (Some (flag, branches, clause), variance) ->
-        let arity = T.get_arity_for_kind kind in
-
-        (* Replace each TyVar with the corresponding TyPoint, for all branches. *)
-        let branches, clause =
-          Hml_List.fold_lefti (fun level (branches, clause) point ->
-            (* We need to add [arity] because one has to move up through the type
-             * parameters to reach the typed defined at [level]. *)
-            let index = total_number_of_data_types - level - 1 + arity in
-            (* Perform the substitution. *)
-            List.map
-              (T.tsubst_data_type_def_branch (T.TyPoint point) index)
-              branches,
-            Option.map (T.tsubst (T.TyPoint point) index) clause
-          ) (branches, clause) points
-        in
-
-        (* And replace the corresponding definition in [tenv]. *)
-        T.replace_type tenv point (fun binder ->
-          { binder with T.definition = Some (Some (flag, branches, clause), variance) }
-        )
-
-    | None ->
-        Log.error "There should be only type definitions at this stage"
-  ) tenv in
-
-  (* Return both environments and the list of points. *)
-  env, tenv, points
+  (* Return both the environment and the desugared definitions. *)
+  env, translated_definitions
 ;;
 
 
@@ -718,20 +660,9 @@ and translate_patexprs
 ;;
 
 
-let open_type_definitions (points: T.point list) (declarations: E.declaration_group) =
-  let total_number_of_data_types = List.length points in
-  let subst_decl = fun declarations ->
-    Hml_List.fold_lefti (fun level declarations point ->
-      let index = total_number_of_data_types - level - 1 in
-      E.tsubst_decl (T.TyPoint point) index declarations
-    ) declarations points
-  in
-  subst_decl declarations
-;;
-
 
 let translate_declaration_group (env: env) (decls: declaration_group): E.declaration_group =
-  let _env, decls = List.fold_left (fun (env, acc) decl ->
+  let env, decls = List.fold_left (fun (env, acc) decl ->
     match decl with
     | DLocated (DMultiple (flag, pat_exprs), p1, p2) ->
         let env = locate env p1 p2 in
@@ -741,30 +672,27 @@ let translate_declaration_group (env: env) (decls: declaration_group): E.declara
     | _ ->
         Log.error "The structure of declarations is supposed to be very simple"
   ) (env, []) decls in
-  List.rev decls
+  env, List.rev decls
 ;;
 
 
-(* [translate env program] returns [env, decls] where:
-  - type definitions from [program] have been added to the table of type
-    definitions in [env] _and_ opened in both the type definitions themselves
-    and [decls], which means all references to these types through [TyVar]s have
-    been replaced by [TyPoint]s
-  - [decls] is the desugared version of the original declarations; type
-    definitions have been opened in there as well.
-*)
-let translate (tenv: T.env) (program: program): T.env * E.declaration_group =
-  (* TEMPORARY we should probably accept an [env] here so that we can safely
-   * compose this operation accross files... *)
-  let data_type_group, declaration_group = program in
-  (* This will just desugar the data type definitions, fill [tenv] with the
-   * desugared definitions, an return a list of [points] so that we can
-   * perform the substitution in the expressions once we've desugared them. *)
-  let env, tenv, points = translate_data_type_group empty tenv data_type_group in
-  (* Desugar the definitions. *)
-  let declarations = translate_declaration_group env declaration_group in
-  (* Perform the required substitutions. *)
-  let declarations = open_type_definitions points declarations in
-  (* And return everything. *)
-  tenv, declarations
-;;
+(* [translate_program program] returns a [Program.program], i.e. a desugared
+ * version of the entire program. *)
+let translate_program (program: program): P.program =
+  let rec translate_program env blocks =
+    match blocks with
+    | DataTypeGroup data_type_group :: blocks ->
+        (* This just desugars the data type definitions, no binder is opened yet! *)
+        let env, defs = translate_data_type_group env data_type_group in
+        let blocks = translate_program env blocks in
+        P.DataTypeGroup defs :: blocks
+    | Declarations decls :: blocks ->
+        (* Same here, we're only performing desugaring, we're not opening any
+         * binders. *)
+        let env, decls = translate_declaration_group env declaration_group in
+        let blocks = translate_program env blocks in
+        P.Declarations decls :: blocks
+    | [] ->
+        []
+  in
+  translate_program empty program

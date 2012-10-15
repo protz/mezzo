@@ -119,6 +119,9 @@ type type_def =
     (SurfaceSyntax.data_type_flag * data_type_def * adopts_clause) option
   * variance list
 
+type data_type_group =
+  (Variable.name * data_type_def * fact * kind) list
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Program-wide environment. *)

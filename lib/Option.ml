@@ -45,3 +45,5 @@ let bind = fun opt f ->
 let is_some = function Some _ -> true | _ -> false
 
 let flatten = function Some x -> x | None -> None
+
+let to_list = function Some x -> [x] | None -> []

@@ -20,6 +20,7 @@
 open Types
 open TypeErrors
 open Expressions
+open Program
 open Utils
 
 
@@ -954,7 +955,12 @@ and check_bindings
     env, subst_kit
 ;;
 
-let rec check_declaration_group (env: env) (declarations: declaration_group): env =
+let rec check_declaration_group
+    (env: env)
+    (declarations: declaration_group)
+    (blocks: block list): env =
+  (* Log.debug ~level:2 "%a"
+    Expressions.ExprPrinter.pdeclarations (type_env, declarations); *)
   match declarations with
   | DLocated (declarations, p1, p2) :: tl ->
       let env = locate env (p1, p2) in

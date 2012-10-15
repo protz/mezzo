@@ -54,18 +54,24 @@ let lex_and_parse file_path =
 ;;
 
 let type_check program = 
+  (* First pass of kind-checking; it checks for unbound variables and variables
+   * with the wrong kind. *)
   KindCheck.check_program program;
-  let type_env, declarations = TransSurface.translate Types.empty_env program in
-  let type_env = FactInference.analyze_data_types type_env in
-  let type_env = Variance.analyze_data_types type_env in
-  ExtraChecks.check_env type_env;
-  Log.debug ~level:2 "%a"
-    Types.TypePrinter.pdoc
-    (KindCheck.KindPrinter.print_kinds_and_facts, type_env);
-  Log.debug ~level:2 "%a"
-    Expressions.ExprPrinter.pdeclarations (type_env, declarations);
-  let type_env = TypeChecker.check_declaration_group type_env declarations in
-  type_env
+  (* We need to translate the program down to the internal syntax. *)
+  let program = TransSurface.translate_program program in
+  let rec type_check env program =
+    match program with
+    | DataTypeGroup group :: blocks ->
+        let env, blocks = Program.bind_data_type_group env group blocks in
+        type_check env blocks
+    | Declarations decls :: blocks ->
+        let env, blocks = TypeChecker.check_declaration_group env decls blocks in
+        type_check env blocks
+    | [] ->
+        ExtraChecks.check_env type_env;
+        env
+  in
+  type_check env program
 ;;
 
 let find_in_include_dirs (filename: string): string =
