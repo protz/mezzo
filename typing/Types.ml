@@ -1043,6 +1043,14 @@ let get_arity (env: env) (point: point): int =
   get_arity_for_kind (get_kind env point)
 ;;
 
+let get_variance (env: env) (point: point): variance list =
+  match get_definition env point with
+  | Some (_, v) ->
+      v
+  | None ->
+      assert false
+;;
+
 let def_for_datacon (env: env) (datacon: Datacon.name): SurfaceSyntax.data_type_flag * data_type_def * adopts_clause=
   match DataconMap.find_opt datacon env.type_for_datacon with
   | Some point ->

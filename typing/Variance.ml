@@ -106,8 +106,13 @@ let variance env var_for_ith valuation b t =
     | TyApp _ as t ->
         let cons, args = flatten_tyapp t in
         let vs = List.mapi (fun i arg ->
-          let a = var_for_ith !!cons i in
-          dot (valuation a) (var arg)
+          let valuation_a =
+            try
+              valuation (var_for_ith !!cons i)
+            with Not_found ->
+              List.nth (get_variance env !!cons) i
+          in
+          dot valuation_a (var arg)
         ) args in
         List.fold_left lub Bivariant vs
 
@@ -193,7 +198,8 @@ let analyze_data_types env points =
     ) (original_env, []) points
   in
 
-  (* This function is needed inside [variance]. *)
+  (* This function is needed inside [variance]. It returns a variable (i.e. a
+   * point) that represents the i-th parameter of the given constructor. *)
   let var_for_ith cons i =
     let _, (vars, _) = List.find (fun (cons', _) -> same env cons cons') store in
     List.nth vars i

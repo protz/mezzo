@@ -1,8 +1,8 @@
-data foo a = Foo
+data foo a = Foo | Foo2 { foo: a }
 
 val x = Foo
 
-data bar a b = Bar { bar: foo b; baz: foo a }
+data bar a b = Bar { bar: foo b; baz: foo b }
 
 val y =
   let bar = Foo in
