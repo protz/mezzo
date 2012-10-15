@@ -9,8 +9,8 @@ val y =
   let baz = bar in
   Bar { bar; baz }
 
-(* Shadowing *)
+(*(* Shadowing *)
 data bar = Toto { toto: =y }
 data foo = Tutu { tutu: bar }
 
-val (y: bar) = Tutu { tutu = Toto { toto = y } }
+val (y: bar) = Tutu { tutu = Toto { toto = y } }*)

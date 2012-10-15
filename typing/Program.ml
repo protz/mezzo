@@ -58,8 +58,10 @@ let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_typ
 let rec tsubst_blocks t2 i blocks =
   match blocks with
   | DataTypeGroup group :: blocks ->
-      let group = tsubst_data_type_group t2 i group in
       let n = List.length group in
+      (* Since the type bindings are all mutually recursive, they're considered
+       * to be all bound in the data type groups. *)
+      let group = tsubst_data_type_group t2 (i + n) group in
       let blocks = tsubst_blocks t2 (i + n) blocks in
       DataTypeGroup group :: blocks
   | Declarations decls :: blocks ->
@@ -128,6 +130,20 @@ let bind_group_in_blocks (points: point list) (blocks: block list) =
 ;;
 
 
+let debug_blocks env blocks =
+  Log.debug "#### DEBUGGING BLOCKS ####\n";
+  List.iter (function
+    | DataTypeGroup group ->
+        Log.debug "%a\n"
+          KindCheck.KindPrinter.pgroup (env, group);
+    | Declarations decls ->
+        Log.debug "%a\n"
+          Expressions.ExprPrinter.pdeclarations (env, decls);
+  ) blocks;
+  Log.debug "#### END DEBUGGING BLOCKS ####\n"
+;;
+
+
 let bind_data_type_group
     (env: env)
     (group: data_type_group)
@@ -142,8 +158,10 @@ let bind_data_type_group
   (* Now we can perform some more advanced analyses. *)
   let env = FactInference.analyze_data_types env points in
   let env = Variance.analyze_data_types env points in
+  debug_blocks env blocks;
   (* Open references to these data types in the rest of the program. *)
   let blocks = bind_group_in_blocks points blocks in
+  debug_blocks env blocks;
   (* We're done. *)
   env, blocks
 ;;
