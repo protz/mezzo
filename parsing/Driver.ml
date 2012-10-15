@@ -54,6 +54,8 @@ let lex_and_parse file_path =
 ;;
 
 let type_check program = 
+  let open Expressions in
+
   (* First pass of kind-checking; it checks for unbound variables and variables
    * with the wrong kind. *)
   KindCheck.check_program program;
@@ -63,7 +65,7 @@ let type_check program =
 
   let rec type_check env program =
     match program with
-    | Program.DataTypeGroup group :: blocks ->
+    | DataTypeGroup group :: blocks ->
         Log.debug ~level:2 "\n%s***%s Processing data type group:\n%a"
           Bash.colors.Bash.yellow Bash.colors.Bash.default
           KindCheck.KindPrinter.pgroup (env, group);
@@ -74,14 +76,14 @@ let type_check program =
         let env, blocks = Program.bind_data_type_group env group blocks in
         (* Move on to the rest of the blocks. *)
         type_check env blocks
-    | Program.Declarations decls :: blocks ->
+    | Declarations decls :: blocks ->
         Log.debug ~level:2 "\n%s***%s Processing declarations:\n%a"
           Bash.colors.Bash.yellow Bash.colors.Bash.default
           Expressions.ExprPrinter.pdeclarations (env, decls);
 
         (* Perform the actual checking. The binders in the declaration group
          * will be opened in [blocks] as well. *)
-        let env = TypeChecker.check_declaration_group env decls blocks in
+        let env, blocks = TypeChecker.check_declaration_group env decls blocks in
         (* Move on to the rest of the blocks. *)
         type_check env blocks
     | [] ->

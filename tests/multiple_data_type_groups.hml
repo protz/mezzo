@@ -1,16 +1,20 @@
-data foo a = Foo | Foo2 { foo: a }
+data foo a = Foo (* | Foo2 { foo: a; bar: foo a } *)
 
 val x = Foo
 
-data bar a b = Bar { bar: foo b; baz: foo b }
+val y = Foo
 
-val y =
+data bar a b = Bar (* { bar: foo b; baz: foo b } *)
+
+(* val y =
   let bar = Foo in
   let baz = bar in
-  Bar { bar; baz }
+  Bar { bar; baz } *)
 
-(*(* Shadowing *)
+val z = x
+
+(* Shadowing *)
 data bar = Toto { toto: =y }
 data foo = Tutu { tutu: bar }
 
-val (y: bar) = Tutu { tutu = Toto { toto = y } }*)
+val (y: bar) = Tutu { tutu = Toto { toto = y } }

@@ -20,59 +20,6 @@
 open Types
 open Expressions
 
-type program =
-  block list
-
-and block =
-  | DataTypeGroup of data_type_group
-  | Declarations of declaration_group
-
-let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_type_group =
-  let group = List.map (function ((name, loc, def, fact, kind) as elt) ->
-    match def with
-    | None, _ ->
-        (* It's an abstract type, it has no branches where we should perform the
-         * opening. *)
-        elt
-
-    | Some (flag, branches, clause), variance ->
-        let arity = get_arity_for_kind kind in
-
-        (* We need to add [arity] because one has to move up through the type
-         * parameters to reach the typed defined at [i]. *)
-        let index = i + arity in
-
-        (* Replace each TyVar with the corresponding TyPoint, for all branches. *)
-        let branches = List.map (tsubst_data_type_def_branch t2 index) branches in
-
-        (* Do the same for the clause *)
-        let clause = Option.map (tsubst t2 index) clause in
-        
-        let def = Some (flag, branches, clause), variance in
-        name, loc, def, fact, kind
-  ) group in
-  group
-;;
-
-
-let rec tsubst_blocks t2 i blocks =
-  match blocks with
-  | DataTypeGroup group :: blocks ->
-      let n = List.length group in
-      (* Since the type bindings are all mutually recursive, they're considered
-       * to be all bound in the data type groups. *)
-      let group = tsubst_data_type_group t2 (i + n) group in
-      let blocks = tsubst_blocks t2 (i + n) blocks in
-      DataTypeGroup group :: blocks
-  | Declarations decls :: blocks ->
-      let decls = tsubst_decl t2 i decls in
-      let n = n_decls decls in
-      let blocks = tsubst_blocks t2 (i + n) blocks in
-      Declarations decls :: blocks
-  | [] ->
-      []
-;;
-
 let bind_group_in (points: point list) subst_func_for_thing thing =
   let total_number_of_data_types = List.length points in
   let thing =

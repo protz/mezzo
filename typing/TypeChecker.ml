@@ -20,7 +20,6 @@
 open Types
 open TypeErrors
 open Expressions
-open Program
 open Utils
 
 
@@ -955,20 +954,33 @@ and check_bindings
     env, subst_kit
 ;;
 
-let rec check_declaration_group
+let check_declaration_group
     (env: env)
     (declarations: declaration_group)
-    (blocks: block list): env =
-  match declarations with
-  | DLocated (declarations, p1, p2) :: tl ->
-      let env = locate env (p1, p2) in
-      check_declaration_group env (declarations :: tl) blocks
-  | DMultiple (rec_flag, patexprs) :: tl ->
-      let env, { subst_decl; _ } = check_bindings env rec_flag patexprs in
-      let tl = subst_decl tl in
-      (* TODO allow data types to refer to top-level value definitions. *)
-      (* let blocks = subst_block blocks in *)
-      check_declaration_group env tl blocks
-  | [] ->
-      env
+    (blocks: block list): env * block list =
+  let rec check_declaration_group env declarations acc =
+    match declarations with
+    | DLocated (declarations, p1, p2) :: tl ->
+        let env = locate env (p1, p2) in
+        check_declaration_group env (declarations :: tl) acc
+    | DMultiple (rec_flag, patexprs) :: tl ->
+        let env, { subst_decl; points; _ } = check_bindings env rec_flag patexprs in
+        let tl = subst_decl tl in
+        check_declaration_group env tl (points :: acc)
+    | [] ->
+        env, acc
+  in
+  let env, acc = check_declaration_group env declarations [] in
+  (* Alright, this is an UGLY manipulation of De Bruijn indices... *)
+  let points = List.rev acc in
+  let points = List.flatten points in
+  (* List kept in reverse, the usual trick. *)
+  let points = List.rev points in
+  let subst_blocks b =
+    Hml_List.fold_lefti (fun i b point ->
+      let b = tsubst_blocks (TyPoint point) i b in
+      esubst_blocks (EPoint point) i b) b points
+  in
+  (* ...but it works! *)
+  env, subst_blocks blocks
 ;;

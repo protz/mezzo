@@ -681,20 +681,20 @@ let translate_declaration_group (env: env) (decls: declaration_group): env * E.d
 
 (* [translate_program program] returns a [Program.program], i.e. a desugared
  * version of the entire program. *)
-let translate_program (program: program): P.program =
+let translate_program (program: program): E.program =
   let rec translate_program env blocks =
     match blocks with
     | DataTypeGroup data_type_group :: blocks ->
         (* This just desugars the data type definitions, no binder is opened yet! *)
         let env, defs = translate_data_type_group env data_type_group in
         let blocks = translate_program env blocks in
-        P.DataTypeGroup defs :: blocks
+        E.DataTypeGroup defs :: blocks
     | Declarations decls :: blocks ->
         (* Same here, we're only performing desugaring, we're not opening any
          * binders. *)
         let env, decls = translate_declaration_group env decls in
         let blocks = translate_program env blocks in
-        P.Declarations decls :: blocks
+        E.Declarations decls :: blocks
     | [] ->
         []
   in

@@ -653,6 +653,39 @@ let tsubst_data_type_def_branch t2 i branch =
   name, List.map (tsubst_field t2 i) fields
 ;;
 
+let get_arity_for_kind kind =
+  let _, tl = flatten_kind kind in
+  List.length tl
+;;
+
+let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_type_group =
+  let group = List.map (function ((name, loc, def, fact, kind) as elt) ->
+    match def with
+    | None, _ ->
+        (* It's an abstract type, it has no branches where we should perform the
+         * opening. *)
+        elt
+
+    | Some (flag, branches, clause), variance ->
+        let arity = get_arity_for_kind kind in
+
+        (* We need to add [arity] because one has to move up through the type
+         * parameters to reach the typed defined at [i]. *)
+        let index = i + arity in
+
+        (* Replace each TyVar with the corresponding TyPoint, for all branches. *)
+        let branches = List.map (tsubst_data_type_def_branch t2 index) branches in
+
+        (* Do the same for the clause *)
+        let clause = Option.map (tsubst t2 index) clause in
+        
+        let def = Some (flag, branches, clause), variance in
+        name, loc, def, fact, kind
+  ) group in
+  group
+;;
+
+
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -1032,11 +1065,6 @@ let get_location env p =
 let get_definition (env: env) (point: point): type_def option =
   let _, { definition; _ } = find_type env point in
   definition
-;;
-
-let get_arity_for_kind kind =
-  let _, tl = flatten_kind kind in
-  List.length tl
 ;;
 
 let get_arity (env: env) (point: point): int =

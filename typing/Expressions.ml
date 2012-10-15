@@ -103,6 +103,13 @@ type declaration =
 type declaration_group =
   declaration list
 
+type program =
+  block list
+
+and block =
+  | DataTypeGroup of data_type_group
+  | Declarations of declaration_group
+
 let e_unit =
   ETuple []
 ;;
@@ -326,6 +333,24 @@ and tsubst_decl t2 i decls =
   tsubst_decl [] i decls
 ;;
 
+let rec tsubst_blocks t2 i blocks =
+  match blocks with
+  | DataTypeGroup group :: blocks ->
+      let n = List.length group in
+      (* Since the type bindings are all mutually recursive, they're considered
+       * to be all bound in the data type groups. *)
+      let group = tsubst_data_type_group t2 (i + n) group in
+      let blocks = tsubst_blocks t2 (i + n) blocks in
+      DataTypeGroup group :: blocks
+  | Declarations decls :: blocks ->
+      let decls = tsubst_decl t2 i decls in
+      let n = n_decls decls in
+      let blocks = tsubst_blocks t2 (i + n) blocks in
+      Declarations decls :: blocks
+  | [] ->
+      []
+;;
+
 (* [esubst_patexprs e2 i rec_flag pat_exprs] substitutes expression [e2] for index [i]
  * in the list of pattern-expressions [pat_exprs], defined recursively or not,
  * depending on [rec_flag]. *)
@@ -456,6 +481,22 @@ and esubst_decl e2 i decls =
         assert false
   in
   esubst_decl [] i decls
+;;
+
+let rec esubst_blocks e2 i blocks =
+  match blocks with
+  | DataTypeGroup group :: blocks ->
+      (* Nothing to substitute here, only binders to cross. *)
+      let n = List.length group in
+      let blocks = esubst_blocks e2 (i + n) blocks in
+      DataTypeGroup group :: blocks
+  | Declarations decls :: blocks ->
+      let decls = esubst_decl e2 i decls in
+      let n = n_decls decls in
+      let blocks = esubst_blocks e2 (i + n) blocks in
+      Declarations decls :: blocks
+  | [] ->
+      []
 ;;
 
 
