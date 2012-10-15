@@ -183,7 +183,7 @@ let duplicables
    - If the type is marked as Duplicable, we recursively determine which ones of
    its type variables should be marked as duplicable for the whole type to be
    duplicable. *)
-let one_round (env: env): env points =
+let one_round (env: env) (points: point list): env =
   TypePrinter.(Log.debug ~level:4 "env:\n  %a" pdoc (print_binders, env));
   (* Folding on all the data types. *)
   List.fold_left (fun env point ->

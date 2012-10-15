@@ -63,34 +63,36 @@ let type_check program =
 
   let rec type_check env program =
     match program with
-    | DataTypeGroup group :: blocks ->
+    | Program.DataTypeGroup group :: blocks ->
         (* The binders in the data type group will be opened in the rest of the
          * blocks. Also performs the actual binding in the data type group, as
          * well as the variance and fact inference. *)
         let env, blocks = Program.bind_data_type_group env group blocks in
         (* Move on to the rest of the blocks. *)
         type_check env blocks
-    | Declarations decls :: blocks ->
+    | Program.Declarations decls :: blocks ->
         (* The pretty-printing is not done in order... *)
         Log.debug ~level:2 "%a"
-          Expressions.ExprPrinter.pdeclarations (env, declarations);
+          Expressions.ExprPrinter.pdeclarations (env, decls);
+
         (* Perform the actual checking. The binders in the declaration group
          * will be opened in [blocks] as well. *)
-        let env, blocks = TypeChecker.check_declaration_group env decls blocks in
+        let env = TypeChecker.check_declaration_group env decls blocks in
         (* Move on to the rest of the blocks. *)
         type_check env blocks
     | [] ->
-        ExtraChecks.check_env type_env;
+        (* Print some extra debugging information. *)
+        Log.debug ~level:2 "%a"
+          Types.TypePrinter.pdoc
+          (KindCheck.KindPrinter.print_kinds_and_facts, env);
+
+        (* Do the final checks (is this the right time?) *)
+        ExtraChecks.check_env env;
         env
   in
 
-  (* Print some extra debugging information. *)
-  Log.debug ~level:2 "%a"
-    Types.TypePrinter.pdoc
-    (KindCheck.KindPrinter.print_kinds_and_facts, env);
-
   (* Let's do it! *)
-  type_check env program
+  type_check Types.empty_env program
 ;;
 
 let find_in_include_dirs (filename: string): string =
@@ -118,9 +120,9 @@ let process use_pervasives file_path =
   let program =
     if use_pervasives then
       let path_to_pervasives = find_in_include_dirs "pervasives.hml" in
-      let defs, declarations = lex_and_parse path_to_pervasives in
-      let defs', declarations' = lex_and_parse file_path in
-      defs @ defs', declarations @ declarations'
+      let program = lex_and_parse path_to_pervasives in
+      let program' = lex_and_parse file_path in
+      program @ program'
     else
       lex_and_parse file_path
   in

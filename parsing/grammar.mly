@@ -716,20 +716,25 @@ block_decl:
 | declarations = declaration_group
     { Declarations declarations }
 
-block:
-| b1 = block_decl b2 = block_data
-    { [b1; b2] }
+blocks:
+| 
+    { [] }
+| b1 = block_decl
+    { [b1] }
+| b1 = block_decl b2 = block_data bs = blocks
+    { [b1; b2] @ bs }
 
-block_alt:
-| b1 = block_data b2 = block_decl
-    { [b1; b2] }
-
-(* I don't know how to better express this... *)
 unit:
-  | b1 = block_data bs = block* bn = block_decl?  EOF
-    { b1 :: List.flatten bs @ Option.to_list bn }
-  | b1 = block_decl bs = block_alt* bn = block_data?  EOF
-    { b1 :: List.flatten bs @ Option.to_list bn }
+  | b1 = block_decl EOF
+    { [b1] }
+  | b1 = block_decl b2 = unit_starts_with_data
+    { b1 :: b2 }
+  | u = unit_starts_with_data
+    { u }
+
+unit_starts_with_data:
+  | b1 = block_data bs = blocks EOF
+    { b1 :: bs }
 
 (* ---------------------------------------------------------------------------- *)
 

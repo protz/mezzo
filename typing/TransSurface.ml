@@ -377,7 +377,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
 *)
 let translate_data_type_group
     (env: env)
-    (data_type_group: data_type_group): env
+    (data_type_group: data_type_group): env * T.data_type_group
   =
 
   let bindings = bindings_data_type_group data_type_group in
@@ -388,7 +388,7 @@ let translate_data_type_group
   let env = List.fold_left (bind ~strict:()) env bindings in 
 
   (* First do the translation pass. *)
-  let translated_definitions: T.data_type_group list =
+  let translated_definitions: T.data_type_group =
     List.map (translate_data_type_def env) data_type_group
   in
 
@@ -661,7 +661,7 @@ and translate_patexprs
 
 
 
-let translate_declaration_group (env: env) (decls: declaration_group): E.declaration_group =
+let translate_declaration_group (env: env) (decls: declaration_group): env * E.declaration_group =
   let env, decls = List.fold_left (fun (env, acc) decl ->
     match decl with
     | DLocated (DMultiple (flag, pat_exprs), p1, p2) ->
@@ -689,7 +689,7 @@ let translate_program (program: program): P.program =
     | Declarations decls :: blocks ->
         (* Same here, we're only performing desugaring, we're not opening any
          * binders. *)
-        let env, decls = translate_declaration_group env declaration_group in
+        let env, decls = translate_declaration_group env decls in
         let blocks = translate_program env blocks in
         P.Declarations decls :: blocks
     | [] ->

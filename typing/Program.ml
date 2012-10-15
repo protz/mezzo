@@ -71,10 +71,10 @@ let rec tsubst_blocks t2 i blocks =
       []
 ;;
 
-let bind_group_in (env: env) (points: point list) subst_func_for_thing thing =
+let bind_group_in (points: point list) subst_func_for_thing thing =
   let total_number_of_data_types = List.length points in
-  let group =
-    Hml_List.fold_lefti (fun level group point ->
+  let thing =
+    Hml_List.fold_lefti (fun level thing point ->
       let index = total_number_of_data_types - level - 1 in
       subst_func_for_thing (TyPoint point) index thing
     ) thing points
@@ -83,8 +83,8 @@ let bind_group_in (env: env) (points: point list) subst_func_for_thing thing =
 ;;
 
 
-let bind_group_in_group (env: env) (points: point list) (group: data_type_group) =
-  bind_group_in env points tsubst_data_type_group group
+let bind_group_in_group (points: point list) (group: data_type_group) =
+  bind_group_in points tsubst_data_type_group group
 ;;
 
 
@@ -100,7 +100,7 @@ let bind_group_definitions (env: env) (points: point list) (group: data_type_gro
 
 let bind_group (env: env) (group: data_type_group) =
   (* Allocate the points in the environment. We don't put a definition yet. *)
-  let env, points = List.fold_left (fun (env, acc) (name, location, def, fact, kind) ->
+  let env, points = List.fold_left (fun (env, acc) (name, location, _, fact, kind) ->
     let name = User name in
     let env, point = bind_type env name location fact kind in
     env, point :: acc
@@ -123,8 +123,8 @@ let bind_group (env: env) (group: data_type_group) =
 ;;
 
 
-let bind_group_in_blocks (env: env) (points: point list) (blocks: block list) =
-  bind_group_in env points tsubst_blocks blocks
+let bind_group_in_blocks (points: point list) (blocks: block list) =
+  bind_group_in points tsubst_blocks blocks
 ;;
 
 
@@ -136,14 +136,14 @@ let bind_data_type_group
   let env, points = bind_group env group in
   (* Open references to these data types in the branches themselves, since the
    * definitions are all mutually recursive. *)
-  let group = bind_group_in_group env points group in
+  let group = bind_group_in_group points group in
   (* Attach the definitions! *)
   let env = bind_group_definitions env points group in
   (* Now we can perform some more advanced analyses. *)
   let env = FactInference.analyze_data_types env points in
   let env = Variance.analyze_data_types env points in
   (* Open references to these data types in the rest of the program. *)
-  let blocks = bind_group_in_blocks env points blocks in
+  let blocks = bind_group_in_blocks points blocks in
   (* We're done. *)
   env, blocks
 ;;
