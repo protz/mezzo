@@ -27,74 +27,124 @@ and block =
   | DataTypeGroup of data_type_group
   | Declarations of declaration_group
 
-let bind_types_in_types =
-  (* Then build up the resulting environment. *)
-  let tenv, points = List.fold_left (fun (tenv, acc) (name, def, fact, kind) ->
-    let name = T.User name in
-    let tenv, point = T.bind_type tenv name tenv.T.location ~definition:def fact kind in
-    tenv, point :: acc) (tenv, []
-  ) translated_definitions in
-  let points = List.rev points in
-
-  (* Construct the reverse-map from constructors to points. *)
-  let tenv = List.fold_left2 (fun tenv (_, def, _, _) point ->
+let tsubst_data_type_group t2 i group =
+  let group = List.map (fun (name, loc, def, fact, kind) ->
     match def with
-    | None, _ ->
-        tenv
-    | Some (_, def, _), _ ->
-        let type_for_datacon = List.fold_left (fun type_for_datacon (name, _) ->
-          T.DataconMap.add name point type_for_datacon
-        ) tenv.T.type_for_datacon def in  
-        { tenv with T.type_for_datacon }
-  ) tenv translated_definitions points in
-
-  (* Finally, open the types in the type definitions themselves. *)
-  let total_number_of_data_types = List.length points in
-  let tenv = T.fold_types tenv (fun tenv point { T.kind; _ } { T.definition; _ } ->
-    match definition with
     | Some (None, _) ->
         (* It's an abstract type, it has no branches where we should perform the
          * opening. *)
-        tenv
+        def
 
     | Some (Some (flag, branches, clause), variance) ->
-        let arity = T.get_arity_for_kind kind in
+        let arity = get_arity_for_kind kind in
+
+        (* We need to add [arity] because one has to move up through the type
+         * parameters to reach the typed defined at [i]. *)
+        let index = i + arity in
 
         (* Replace each TyVar with the corresponding TyPoint, for all branches. *)
-        let branches, clause =
-          Hml_List.fold_lefti (fun level (branches, clause) point ->
-            (* We need to add [arity] because one has to move up through the type
-             * parameters to reach the typed defined at [level]. *)
-            let index = total_number_of_data_types - level - 1 + arity in
-            (* Perform the substitution. *)
-            List.map
-              (T.tsubst_data_type_def_branch (T.TyPoint point) index)
-              branches,
-            Option.map (T.tsubst (T.TyPoint point) index) clause
-          ) (branches, clause) points
-        in
+        let branches = List.map (tsubst_data_type_def_branch t2 index) branches in
 
-        (* And replace the corresponding definition in [tenv]. *)
-        T.replace_type tenv point (fun binder ->
-          { binder with T.definition = Some (Some (flag, branches, clause), variance) }
-        )
+        (* Do the same for the clause *)
+        let clause = Option.map (tsubst t2 index) clause in
+        
+        let def = Some (Some (flag, branches, clause), variance) in
+        name, loc, def, fact, kind
 
     | None ->
         Log.error "There should be only type definitions at this stage"
-  ) tenv in
+  ) group in
+  group
 ;;
 
-let open_types
-    (group: data_type_group)
-    (points: point list)
-    (blocks: block list) =
+
+let rec tsubst_blocks t2 i blocks =
+  match blocks with
+  | DataTypeGroup group :: blocks ->
+      let group = tsubst_data_type_group t2 i group in
+      let n = List.length group in
+      let blocks = tsubst_blocks t2 (i + n) blocks in
+      DataTypeGroup group :: blocks
+  | Declarations decls :: blocks ->
+      let decls = tsubst_decls t2 i decls in
+      let n = n_decls decls in
+      let blocks = tsubst_blocks t2 (i + n) blocks in
+      Declarations decls :: blocks
+;;
+
+let bind_group_in (env; env) (points: point list) subst_func_for_thing thing =
   let total_number_of_data_types = List.length points in
-  let subst_decl = fun declarations ->
-    Hml_List.fold_lefti (fun level declarations point ->
+  let group =
+    Hml_List.fold_lefti (fun level group point ->
       let index = total_number_of_data_types - level - 1 in
-      E.tsubst_decl (T.TyPoint point) index declarations
-    ) declarations points
+      subst_func_for_thing (TyPoint point) index thing
+    ) thing points
   in
-  subst_decl declarations
+  thing
 ;;
 
+
+let bind_group_in_group (env: env) (points: point list) (group: data_type_group) =
+  bind_group_in env points tsubst_data_type_group group
+;;
+
+
+let bind_group_definitions (env: env) (points: point list) (group: group): env
+  List.fold_left2 (fun env point (_, _, definition, _, _) ->
+    (* Replace the corresponding definition in [env]. *)
+    replace_type env point (fun binder ->
+      { binder with definition }
+    )
+  ) env points group
+;;
+
+
+let bind_group (env: env) (group: data_type_group) =
+  (* Allocate the points in the environment. We don't put a definition yet. *)
+  let env, points = List.fold_left (fun (env, acc) (name, location, def, fact, kind) ->
+    let name = T.User name in
+    let env, point = bind_type env name location fact kind in
+    env, point :: acc
+  ) (env, []) group in
+  let points = List.rev points in
+
+  (* Construct the reverse-map from constructors to points. *)
+  let env = List.fold_left2 (fun env (_, _, def, _, _) point ->
+    match def with
+    | None, _ ->
+        env
+    | Some (_, def, _), _ ->
+        let type_for_datacon = List.fold_left (fun type_for_datacon (name, _) ->
+          DataconMap.add name point type_for_datacon
+        ) env.type_for_datacon def in  
+        { env with type_for_datacon }
+  ) env group points in
+
+  env, group
+;;
+
+
+let bind_group_in_blocks (env: env) (points: point list) (blocks: block list) =
+  bind_group_in env points tsubst_blocks blocks
+;;
+
+
+let bind_data_type_group
+    (env: env)
+    (group: data_type_group)
+    (blocks: block list): env =
+  (* First, allocate points for all the data types. *)
+  let env, points = bind_group env group in
+  (* Open references to these data types in the branches themselves, since the
+   * definitions are all mutually recursive. *)
+  let group = bind_group_in_group env points group in
+  (* Attach the definitions! *)
+  let env = bind_group_definitions env points group in
+  (* Now we can perform some more advanced analyses. *)
+  let env = FactInference.analyze_data_types env points in
+  let env = Variance.analyze_data_types env points in
+  (* Open references to these data types in the rest of the program. *)
+  let blocks = bind_group_in_blocks env points blocks in
+  (* We're done. *)
+  env, blocks
+;;

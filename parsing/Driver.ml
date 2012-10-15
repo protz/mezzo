@@ -57,20 +57,39 @@ let type_check program =
   (* First pass of kind-checking; it checks for unbound variables and variables
    * with the wrong kind. *)
   KindCheck.check_program program;
+
   (* We need to translate the program down to the internal syntax. *)
   let program = TransSurface.translate_program program in
+
   let rec type_check env program =
     match program with
     | DataTypeGroup group :: blocks ->
+        (* The binders in the data type group will be opened in the rest of the
+         * blocks. Also performs the actual binding in the data type group, as
+         * well as the variance and fact inference. *)
         let env, blocks = Program.bind_data_type_group env group blocks in
+        (* Move on to the rest of the blocks. *)
         type_check env blocks
     | Declarations decls :: blocks ->
+        (* The pretty-printing is not done in order... *)
+        Log.debug ~level:2 "%a"
+          Expressions.ExprPrinter.pdeclarations (env, declarations);
+        (* Perform the actual checking. The binders in the declaration group
+         * will be opened in [blocks] as well. *)
         let env, blocks = TypeChecker.check_declaration_group env decls blocks in
+        (* Move on to the rest of the blocks. *)
         type_check env blocks
     | [] ->
         ExtraChecks.check_env type_env;
         env
   in
+
+  (* Print some extra debugging information. *)
+  Log.debug ~level:2 "%a"
+    Types.TypePrinter.pdoc
+    (KindCheck.KindPrinter.print_kinds_and_facts, env);
+
+  (* Let's do it! *)
   type_check env program
 ;;
 

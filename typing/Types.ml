@@ -120,13 +120,11 @@ type type_def =
   * variance list
 
 type data_type_group =
-  (Variable.name * data_type_def * fact * kind) list
+  (Variable.name * location * data_type_def * fact * kind) list
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Program-wide environment. *)
-
-let (^=>) x y = x && y || not x;;
 
 (* A fact refers to any type variable available in scope; the first few facts
  * refer to toplevel data types, and the following facts refer to type variables
@@ -137,7 +135,7 @@ let (^=>) x y = x && y || not x;;
  * type; we need to introduce the data type's parameters in the environment, but
  * the correponding facts are evolving as we work through our analysis. The
  * integer tells the number of the parameter. *)
-type fact = Exclusive | Duplicable of bitmap | Affine | Fuzzy of int
+and fact = Exclusive | Duplicable of bitmap | Affine | Fuzzy of int
 
 (* The 0-th element is the first parameter of the type, and the value is true if
   * it has to be duplicable for the type to be duplicable. *)
@@ -229,6 +227,8 @@ and perm_binder = {
 
 (* This is not pretty, but we need some of these functions for debugging, and
  * the printer is near the end. *)
+
+let (^=>) x y = x && y || not x;;
 
 let internal_ptype = ref (fun _ -> assert false);;
 let internal_pnames = ref (fun _ -> assert false);;

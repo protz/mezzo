@@ -959,16 +959,16 @@ let rec check_declaration_group
     (env: env)
     (declarations: declaration_group)
     (blocks: block list): env =
-  (* Log.debug ~level:2 "%a"
-    Expressions.ExprPrinter.pdeclarations (type_env, declarations); *)
   match declarations with
   | DLocated (declarations, p1, p2) :: tl ->
       let env = locate env (p1, p2) in
-      check_declaration_group env (declarations :: tl)
+      check_declaration_group env (declarations :: tl) blocks
   | DMultiple (rec_flag, patexprs) :: tl ->
-      let env, { subst_decl; _ } = check_bindings env rec_flag patexprs in
+      let env, { subst_decl; subst_block; _ } = check_bindings env rec_flag patexprs in
       let tl = subst_decl tl in
-      check_declaration_group env tl
+      (* TODO allow data types to refer to top-level binders *)
+      (* let blocks = subst_block blocks in *)
+      check_declaration_group env tl blocks
   | [] ->
       env
 ;;

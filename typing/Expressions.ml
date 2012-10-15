@@ -136,6 +136,21 @@ let collect_pattern (p: pattern): ((Types.name * (Lexing.position * Lexing.posit
   List.rev (collect_pattern [] p)
 ;;
 
+(* How many binders in this declaration group? *)
+let rec n_decls decls =
+  let counts = List.map (function
+    | DLocated (DMultiple (_, patexprs)) ->
+        let names = List.flatten
+          (List.map collect_pattern (fst (List.split patexprs)))
+        in
+        List.length names
+    | _ ->
+        assert false
+  ) decls in
+  List.fold_left (fun acc x -> acc + x) 0 counts
+;;
+
+
 (* [psubst pat points] replaces names in [pat] as it goes, by popping points off
  * the front of [points]. *)
 let rec psubst (pat: pattern) (points: point list) =
@@ -298,10 +313,10 @@ and tsubst_expr t2 i e =
 
 (* [tsubst_decl t2 i decls] substitutes type [t2] for index [i] in a list of
  * declarations [decls]. *)
-and tsubst_decl e2 i decls =
+and tsubst_decl t2 i decls =
   let rec tsubst_decl acc i = function
     | DLocated (DMultiple (rec_flag, patexprs), p1, p2) :: decls ->
-        let n, patexprs = tsubst_patexprs e2 i rec_flag patexprs in
+        let n, patexprs = tsubst_patexprs t2 i rec_flag patexprs in
         tsubst_decl (DLocated (DMultiple (rec_flag, patexprs), p1, p2) :: acc) (i + n) decls
     | [] ->
         List.rev acc

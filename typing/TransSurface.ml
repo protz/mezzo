@@ -360,14 +360,14 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
       (* This is conservative but the variance inference will take care of
        * setting the right values for the variance of the parameters. *)
       let variance = Hml_List.make arity (fun _ -> T.Invariant) in
-      name, (Some (flag, branches, adopts_clause), variance), fact, karrow params KType
+      name, env.location, (Some (flag, branches, adopts_clause), variance), fact, karrow params KType
   | Abstract ((name, params), kind, fact) ->
       let params = List.map (fun (x, k, _) -> x, k) params in
       let fact = translate_abstract_fact (fst (List.split params)) fact in
       (* TODO: add +, -, and = syntax in the parser to annotate in abstract type
        * definitions some parameters as being co, contra, or bi-variant. *)
       let variance = Hml_List.make (List.length params) (fun _ -> T.Invariant) in
-      name, (None, variance), fact, karrow params kind
+      name, env.location, (None, variance), fact, karrow params kind
 ;;
 
 
