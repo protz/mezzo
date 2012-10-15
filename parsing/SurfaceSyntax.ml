@@ -157,8 +157,10 @@ type data_type_def =
 
 (* A data type group is a group of mutually recursive data type definitions. *)
 
+type location = Lexing.position * Lexing.position
+
 type data_type_group =
-    data_type_def list
+    location * data_type_def list
 
 
 (* ---------------------------------------------------------------------------- *)

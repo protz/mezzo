@@ -689,16 +689,18 @@ let check_declaration_group (env: env) (declaration_group: declaration list) =
 
 let check_program (program: program) =
   let env = List.fold_left (fun env -> function
-    | DataTypeGroup data_type_group ->
+    | DataTypeGroup ((p1, p2), data_type_group) ->
         (* Collect the names from the data type definitions, since they
          * will be made available in both the data type definitions themselves,
          * and the value definitions. All definitions in a data type groupe are
          * mutually recursive. *)
         let bindings = bindings_data_type_group data_type_group in
+        check_for_duplicates (List.map fst bindings) (fun x -> bound_twice env x);
         (* Create an environment that includes those names. The strict parameter
          * makes sure we don't bind the same name twice. Admittedly, we could do
          * something better for error reporting. *)
-        let env = List.fold_left (bind ~strict:()) env bindings in 
+        let env = locate env p1 p2 in
+        let env = List.fold_left bind env bindings in 
         (* Check the data type definitions in the environment. *)
         check_data_type_group env data_type_group;
 

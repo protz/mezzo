@@ -474,7 +474,7 @@ data_type_def:
 
 %inline data_type_group:
   defs = data_type_def+
-    { defs }
+    { ($startpos, $endpos), defs }
 
 (* A concrete data type is necessarily of kind KTYPE. We do not allow defining
    concrete data types of kind KPERM. In principle, we could allow it. I think

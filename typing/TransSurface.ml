@@ -380,12 +380,15 @@ let translate_data_type_group
     (data_type_group: data_type_group): env * T.data_type_group
   =
 
+  let data_type_group = snd data_type_group in
+
   let bindings = bindings_data_type_group data_type_group in
+  (* The check for duplicate names has been performed already. *)
 
   (* We're recycling the environments from [SurfaceSyntax] because we're lazy.
    * We don't really need the [Types.kind] information here, but all the other
    * functions such as [bind] and [find] are defined already. *)
-  let env = List.fold_left (bind ~strict:()) env bindings in 
+  let env = List.fold_left bind env bindings in 
 
   (* First do the translation pass. *)
   let translated_definitions: T.data_type_group =
