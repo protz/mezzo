@@ -183,10 +183,14 @@ let duplicables
    - If the type is marked as Duplicable, we recursively determine which ones of
    its type variables should be marked as duplicable for the whole type to be
    duplicable. *)
-let one_round (env: env): env =
+let one_round (env: env): env points =
   TypePrinter.(Log.debug ~level:4 "env:\n  %a" pdoc (print_binders, env));
   (* Folding on all the data types. *)
-  fold_types env (fun env point { names; kind; _ } { fact; definition } ->
+  List.fold_left (fun env point ->
+    let names = get_names env point in
+    let kind = get_kind env point in
+    let fact = get_fact env point in
+    let definition = get_definition env point in
     let tname = List.hd names in
     (* What knowledge do we have from the previous round? *)
     match definition with
@@ -231,7 +235,7 @@ let one_round (env: env): env =
                * duplicable, contains a sub-part whose type is [Exclusive] or
                * [Affine], so the whole type need to be affine. *)
               replace_type env point (fun entry -> { entry with fact = Affine })
-  ) env
+  ) env points
 ;;
 
 
@@ -266,7 +270,7 @@ let is_exclusive env t =
   analyze_type env t = Exclusive
 ;;
 
-let analyze_data_types (env: env): env =
+let analyze_data_types (env: env) (points: point list): env =
   (* We could be even smarter and make the function return both a new env and a
    * boolean telling whether we udpated the maps or not, but that would require
    * threading some [was_modified] variable throughout all the code. Because
@@ -282,9 +286,9 @@ let analyze_data_types (env: env): env =
     in
     (* This works because [map_types] guarantees an unspecified, but fixed,
      * order, and because [replace_type] doesn't change that order. *)
-    let old_facts = map_types env (fun _ { fact; _ } -> copy_fact fact) in
-    let new_env = one_round env in
-    let new_facts = map_types new_env (fun _ { fact; _ } -> copy_fact fact) in
+    let old_facts = List.map (fun point -> copy_fact (get_fact env point)) points in
+    let new_env = one_round env points in
+    let new_facts = List.map (fun point -> copy_fact (get_fact new_env point)) points in
     (* Hml_List.iter2i (fun level old_fact new_fact ->
       let index = ByIndex.cardinal env.bindings - level - 1 in
       Log.debug ~level:3

@@ -27,15 +27,15 @@ and block =
   | DataTypeGroup of data_type_group
   | Declarations of declaration_group
 
-let tsubst_data_type_group t2 i group =
-  let group = List.map (fun (name, loc, def, fact, kind) ->
+let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_type_group =
+  let group = List.map (function ((name, loc, def, fact, kind) as elt) ->
     match def with
-    | Some (None, _) ->
+    | None, _ ->
         (* It's an abstract type, it has no branches where we should perform the
          * opening. *)
-        def
+        elt
 
-    | Some (Some (flag, branches, clause), variance) ->
+    | Some (flag, branches, clause), variance ->
         let arity = get_arity_for_kind kind in
 
         (* We need to add [arity] because one has to move up through the type
@@ -48,11 +48,8 @@ let tsubst_data_type_group t2 i group =
         (* Do the same for the clause *)
         let clause = Option.map (tsubst t2 index) clause in
         
-        let def = Some (Some (flag, branches, clause), variance) in
+        let def = Some (flag, branches, clause), variance in
         name, loc, def, fact, kind
-
-    | None ->
-        Log.error "There should be only type definitions at this stage"
   ) group in
   group
 ;;
@@ -66,13 +63,15 @@ let rec tsubst_blocks t2 i blocks =
       let blocks = tsubst_blocks t2 (i + n) blocks in
       DataTypeGroup group :: blocks
   | Declarations decls :: blocks ->
-      let decls = tsubst_decls t2 i decls in
+      let decls = tsubst_decl t2 i decls in
       let n = n_decls decls in
       let blocks = tsubst_blocks t2 (i + n) blocks in
       Declarations decls :: blocks
+  | [] ->
+      []
 ;;
 
-let bind_group_in (env; env) (points: point list) subst_func_for_thing thing =
+let bind_group_in (env: env) (points: point list) subst_func_for_thing thing =
   let total_number_of_data_types = List.length points in
   let group =
     Hml_List.fold_lefti (fun level group point ->
@@ -89,11 +88,11 @@ let bind_group_in_group (env: env) (points: point list) (group: data_type_group)
 ;;
 
 
-let bind_group_definitions (env: env) (points: point list) (group: group): env
-  List.fold_left2 (fun env point (_, _, definition, _, _) ->
+let bind_group_definitions (env: env) (points: point list) (group: data_type_group): env =
+  List.fold_left2 (fun env point (_, _, def, _, _) ->
     (* Replace the corresponding definition in [env]. *)
     replace_type env point (fun binder ->
-      { binder with definition }
+      { binder with definition = Some def }
     )
   ) env points group
 ;;
@@ -102,7 +101,7 @@ let bind_group_definitions (env: env) (points: point list) (group: group): env
 let bind_group (env: env) (group: data_type_group) =
   (* Allocate the points in the environment. We don't put a definition yet. *)
   let env, points = List.fold_left (fun (env, acc) (name, location, def, fact, kind) ->
-    let name = T.User name in
+    let name = User name in
     let env, point = bind_type env name location fact kind in
     env, point :: acc
   ) (env, []) group in
@@ -120,7 +119,7 @@ let bind_group (env: env) (group: data_type_group) =
         { env with type_for_datacon }
   ) env group points in
 
-  env, group
+  env, points
 ;;
 
 
@@ -132,7 +131,7 @@ let bind_group_in_blocks (env: env) (points: point list) (blocks: block list) =
 let bind_data_type_group
     (env: env)
     (group: data_type_group)
-    (blocks: block list): env =
+    (blocks: block list): env * program =
   (* First, allocate points for all the data types. *)
   let env, points = bind_group env group in
   (* Open references to these data types in the branches themselves, since the

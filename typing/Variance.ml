@@ -164,7 +164,7 @@ end
 
 module Solver = Fix.Make(M)(P)
 
-let analyze_data_types env =
+let analyze_data_types env points =
   (* Keep the original env fresh, since we're going to throw away most of the
    * work below. *)
   let original_env = env in
@@ -173,7 +173,9 @@ let analyze_data_types env =
    * the data type parameters. We keep a list of instantiated branches with
    * their corresponding point. *)
   let env, store =
-    fold_types original_env (fun (env, acc) point { kind; _ } { definition; _ } ->
+    List.fold_left (fun (env, acc) point ->
+      let kind = get_kind env point in
+      let definition = get_definition env point in
       match definition with
       | None ->
           Log.error "Only data type definitions here"
@@ -188,7 +190,7 @@ let analyze_data_types env =
            * generate proper concrete types, which will in turn use the clause
            * to generate correct equations. *)
           env, (point, (points, (List.map (fun (x, y) -> x, y, clause) instantiated_branches))) :: acc
-    ) (original_env, [])
+    ) (original_env, []) points
   in
 
   (* This function is needed inside [variance]. *)

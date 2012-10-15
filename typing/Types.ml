@@ -120,7 +120,7 @@ type type_def =
   * variance list
 
 type data_type_group =
-  (Variable.name * location * data_type_def * fact * kind) list
+  (Variable.name * location * type_def * fact * kind) list
 
 (* ---------------------------------------------------------------------------- *)
 

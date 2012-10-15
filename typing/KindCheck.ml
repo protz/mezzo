@@ -700,12 +700,14 @@ let check_program (program: program) =
          * something better for error reporting. *)
         let env = List.fold_left (bind ~strict:()) env bindings in 
         (* Check the data type definitions in the environment. *)
-        check_data_type_group env data_type_group
+        check_data_type_group env data_type_group;
+
+        env
 
     | Declarations declaration_group ->
         (* This function does everything at once and takes care of both binding
          * the variables and checking the bodies. *)
-        check_declaration_group env declaration_group
+        check_declaration_group env declaration_group;
   ) empty program in
   ignore (env);
 ;;

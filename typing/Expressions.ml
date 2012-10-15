@@ -137,9 +137,9 @@ let collect_pattern (p: pattern): ((Types.name * (Lexing.position * Lexing.posit
 ;;
 
 (* How many binders in this declaration group? *)
-let rec n_decls decls =
+let n_decls decls =
   let counts = List.map (function
-    | DLocated (DMultiple (_, patexprs)) ->
+    | DLocated (DMultiple (_, patexprs), _, _) ->
         let names = List.flatten
           (List.map collect_pattern (fst (List.split patexprs)))
         in

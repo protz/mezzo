@@ -964,7 +964,7 @@ let rec check_declaration_group
       let env = locate env (p1, p2) in
       check_declaration_group env (declarations :: tl) blocks
   | DMultiple (rec_flag, patexprs) :: tl ->
-      let env, { subst_decl; subst_block; _ } = check_bindings env rec_flag patexprs in
+      let env, { subst_decl; _ } = check_bindings env rec_flag patexprs in
       let tl = subst_decl tl in
       (* TODO allow data types to refer to top-level binders *)
       (* let blocks = subst_block blocks in *)
