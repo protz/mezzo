@@ -673,36 +673,41 @@ and check_expression (env: env) (expr: expression) =
 ;;
 
 
+(* Because the binding structure of top-level declarations is possibly
+ * complicated, because of patterns, this function does both the binding and the
+ * checking at the same time (i.e. there's no [bindings_declaration_group]
+ * function. However, it returns the environment with all the bindings added. *)
 let check_declaration_group (env: env) (declaration_group: declaration list) =
-  let rec check_declaration_group env decls =
-    match decls with
-    | DLocated (DMultiple (rec_flag, pat_exprs), p1, p2) :: decls ->
+  List.fold_left (fun env -> function
+    | DLocated (DMultiple (rec_flag, pat_exprs), p1, p2) ->
       let env = locate env p1 p2 in
-      let env = check_patexpr env rec_flag pat_exprs in
-      check_declaration_group env decls
-    | [] ->
-        ()
+      check_patexpr env rec_flag pat_exprs
     | _ ->
         Log.error "Unexpected shape for a [declaration_group]."
-  in
-  check_declaration_group env declaration_group
+  ) env declaration_group
 ;;
 
 let check_program (program: program) =
-  (* A program is made up of a data type definitions and value definitions. We
-   * will probably want to change that later on, this should be easily doable in
-   * this function. *)
-  let data_type_group, declaration_group = program in
-  (* First collect the names from the data type definitions, since they will be
-   * made available in both the data type definitions themselves, and the value
-   * definitions. All definitions in a data type groupe are mutually recursive. *)
-  let bindings = bindings_data_type_group data_type_group in
-  (* Create an environment that already features those names. *)
-  let env = List.fold_left (bind ~strict:()) empty bindings in 
-  (* Check both the data type definitions and the values in the freshly-created
-   * environment. *)
-  check_data_type_group env data_type_group;
-  check_declaration_group env declaration_group;
+  let env = List.fold_left (fun env -> function
+    | DataTypeGroup data_type_group ->
+        (* Collect the names from the data type definitions, since they
+         * will be made available in both the data type definitions themselves,
+         * and the value definitions. All definitions in a data type groupe are
+         * mutually recursive. *)
+        let bindings = bindings_data_type_group data_type_group in
+        (* Create an environment that includes those names. The strict parameter
+         * makes sure we don't bind the same name twice. Admittedly, we could do
+         * something better for error reporting. *)
+        let env = List.fold_left (bind ~strict:()) env bindings in 
+        (* Check the data type definitions in the environment. *)
+        check_data_type_group env data_type_group
+
+    | Declarations declaration_group ->
+        (* This function does everything at once and takes care of both binding
+         * the variables and checking the bodies. *)
+        check_declaration_group env declaration_group
+  ) empty program in
+  ignore (env);
 ;;
 
 (* ---------------------------------------------------------------------------- *)

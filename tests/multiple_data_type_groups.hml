@@ -1,0 +1,16 @@
+data foo a = Foo
+
+val x = Foo
+
+data bar a b = Bar { bar: foo b; baz: foo a }
+
+val y =
+  let bar = Foo in
+  let baz = bar in
+  Bar { bar; baz }
+
+(* Shadowing *)
+data bar = Toto { toto: =y }
+data foo = Tutu { tutu: bar }
+
+val (y: bar) = Tutu { tutu = Toto { toto = y } }

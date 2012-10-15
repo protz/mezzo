@@ -708,11 +708,16 @@ inner_declaration:
 
 (* Program units. *)
 
+block:
+| group = data_type_group
+    { DataTypeGroup group }
+| declarations = declaration_group
+    { Declarations declarations }
+
 unit:
-  group = data_type_group
-  declarations = declaration_group
+  blocks = block+
   EOF
-    { group, declarations }
+    { blocks }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -745,8 +750,6 @@ unit:
 (* TODO *)
 
 (*
-   mode constraints as function preconditions and as tuple/record components
    syntax for anonymous sums?
-   adopts clauses
 *)
 

@@ -239,5 +239,9 @@ type declaration =
 type declaration_group =
   declaration list
 
+type block =
+  | DataTypeGroup of data_type_group
+  | Declarations of declaration_group
+
 type program =
-  data_type_group * declaration_group
+  block list
