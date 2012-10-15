@@ -156,6 +156,8 @@ let tests: (string * ((bool -> env) -> unit)) list = [
 
   ("pattern1.hml", simple_test ~stdlib:false Pass);
 
+  ("multiple_data_type_groups.hml", simple_test ~stdlib:false Pass);
+
   (* The merge operation and all its variations. *)
 
   ("merge1.hml", fun do_it ->

@@ -17,4 +17,4 @@ val z = x
 data bar = Toto { toto: =y }
 data foo = Tutu { tutu: bar }
 
-val (y: bar) = Tutu { tutu = Toto { toto = y } }
+val (y: foo) = Tutu { tutu = Toto { toto = y } }
