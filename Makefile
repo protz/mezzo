@@ -50,6 +50,9 @@ doc: graph
 test: all
 	OCAMLRUNPARAM=b ./testsuite
 
+tags:
+	otags $(shell $(FIND) $(MY_DIRS) -iname '*.ml' -or -iname '*.mli')
+
 # Hacky target to build a specific file with all the right ocamlbuild flags. Say
 # you want to compile foo.ml, do: FILE=foo.ml make build-one
 build-one:
