@@ -149,15 +149,6 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
       (dest_env, dest_point): outcome
     =
 
-    (* We're using these as keys so we better make sure we're using the real
-     * descriptor. This is safe: there will be no more merging operations on
-     * [left_env] and [right_env].
-     *
-     * XXX: I think that because [merge_candidates] uses [same], this is
-     * overkill. *)
-    let left_point = PersistentUnionFind.repr left_point left_env.state in
-    let right_point = PersistentUnionFind.repr right_point right_env.state in
-
     match merge_candidate (left_env, left_point) (right_env, right_point) with
     | Some dest_point' ->
         (* We can share! *)
@@ -618,8 +609,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                * merge the variables pairwise, and if it's still flexible,
                * generalize (or maybe not?).
                *)
-
-              let t_dest = PersistentUnionFind.repr t_left left_env.state in
+              let t_dest = t_left in
 
               (* Ok, if the user already told us how to fold this type, then
                * don't bother doing the work at all. Otherwise, complain. *)
@@ -864,7 +854,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
         | TyConcreteUnfolded (datacon_l, _, _), _ ->
             let t_left = type_for_datacon left_env datacon_l in
-            let t_dest = PersistentUnionFind.repr t_left left_env.state in
+            let t_dest = t_left in
 
             let left_env, t_app_left =
               build_flexible_type_application (left_env, left_perm) (dest_env, t_dest)
@@ -876,7 +866,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
         | _, TyConcreteUnfolded (datacon_r, _, _) ->
             let t_right = type_for_datacon right_env datacon_r in
-            let t_dest = PersistentUnionFind.repr t_right right_env.state in
+            let t_dest = t_right in
 
             let right_env, t_app_right =
               build_flexible_type_application (right_env, right_perm) (dest_env, t_dest)
