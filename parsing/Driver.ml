@@ -126,7 +126,7 @@ let process use_pervasives file_path =
   (* HACK HACK HACK *)
   let program =
     if use_pervasives then
-      let path_to_pervasives = find_in_include_dirs "pervasives.hml" in
+      let path_to_pervasives = find_in_include_dirs "pervasives.mz" in
       let program = lex_and_parse path_to_pervasives in
       let program' = lex_and_parse file_path in
       program @ program'

@@ -67,31 +67,31 @@ let dummy_binding k =
 let tests: (string * ((bool -> env) -> unit)) list = [
   (* Some very simple tests. *)
 
-  ("basic.hml",
+  ("basic.mz",
     simple_test ~stdlib:false Pass);
 
-  ("constructors.hml",
+  ("constructors.mz",
     simple_test Pass);
 
-  ("constructors_bad_1.hml",
+  ("constructors_bad_1.mz",
     simple_test (Fail (function MissingField _ -> true | _ -> false)));
 
-  ("constructors_bad_2.hml",
+  ("constructors_bad_2.mz",
     simple_test (Fail (function ExtraField _ -> true | _ -> false)));
 
-  ("field_access.hml",
+  ("field_access.mz",
     simple_test Pass);
 
-  ("field_access_bad.hml",
+  ("field_access_bad.mz",
     simple_test (Fail (function NoSuchField _ -> true | _ -> false)));
 
-  ("field_assignment.hml",
+  ("field_assignment.mz",
     simple_test Pass);
 
-  ("field_assignment_bad.hml",
+  ("field_assignment_bad.mz",
     simple_test (Fail (function NoSuchField _ -> true | _ -> false)));
 
-  ("arithmetic.hml", fun do_it ->
+  ("arithmetic.mz", fun do_it ->
     let env = do_it true in
     let int = find_type_by_name env "int" in
     let foo = point_by_name env "foo" in
@@ -99,34 +99,34 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     check env foo int;
     check env bar int);
 
-  ("wrong_type_annotation.hml",
+  ("wrong_type_annotation.mz",
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
 
-  ("constraints_in_patterns.hml",
+  ("constraints_in_patterns.mz",
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
 
-  ("constraints_in_patterns2.hml",
+  ("constraints_in_patterns2.mz",
     simple_test ~stdlib:false Pass);
 
-  ("constraints_in_patterns3.hml",
+  ("constraints_in_patterns3.mz",
     simple_test ~stdlib:false Pass);
 
-  ("constraints_in_patterns4.hml",
+  ("constraints_in_patterns4.mz",
     simple_test ~stdlib:false Pass);
 
-  ("function.hml", fun do_it ->
+  ("function.mz", fun do_it ->
     let env = do_it true in
     let int = find_type_by_name env "int" in
     let foobar = point_by_name env "foobar" in
     check env foobar (tuple [int; int]));
 
-  ("stupid_match.hml",
+  ("stupid_match.mz",
     simple_test (Fail (function NotNominal _ -> true | _ -> false)));
 
-  ("value_restriction.hml",
+  ("value_restriction.mz",
     simple_test (Fail (function NoSuchField _ -> true | _ -> false)));
 
-  ("variance.hml", fun do_it ->
+  ("variance.mz", fun do_it ->
     let env = do_it false in
     let check_variance n vs =
       let t = find_type_by_name env n in
@@ -146,26 +146,26 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     check_variance "adopts_contra" [contra];
   );
 
-  ("stupid-swap.hml",
+  ("stupid-swap.mz",
     simple_test ~stdlib:false Pass
   );
 
-  ("multiple_fields_and_permissions.hml",
+  ("multiple_fields_and_permissions.mz",
     simple_test ~stdlib:true Pass
   );
 
-  ("pattern1.hml", simple_test ~stdlib:false Pass);
+  ("pattern1.mz", simple_test ~stdlib:false Pass);
 
-  ("multiple_data_type_groups.hml", simple_test ~stdlib:false Pass);
+  ("multiple_data_type_groups.mz", simple_test ~stdlib:false Pass);
 
   (* The merge operation and all its variations. *)
 
-  ("merge1.hml", fun do_it ->
+  ("merge1.mz", fun do_it ->
     let env = do_it false in
     let v1 = point_by_name env "v1" in
     check env v1 (TyConcreteUnfolded (Datacon.register "T", [], ty_bottom)));
 
-  ("merge2.hml", fun do_it ->
+  ("merge2.mz", fun do_it ->
     let env = do_it false in
     let v2 = point_by_name env "v2" in
     let t = TyExists (edummy_binding KTerm,
@@ -185,7 +185,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     in
     check env v2 t);
 
-  ("merge3.hml", fun do_it ->
+  ("merge3.mz", fun do_it ->
     let env = do_it false in
     let v3 = point_by_name env "v3" in
     let t = TyExists (edummy_binding KTerm,
@@ -211,7 +211,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     in
     check env v3 t);
 
-  ("merge4.hml", fun do_it ->
+  ("merge4.mz", fun do_it ->
     let env = do_it false in
     let v4 = point_by_name env "v4" in
     let w = find_type_by_name env "w" in
@@ -219,7 +219,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let t = TyApp (w, int) in
     check env v4 t);
 
-  ("merge5.hml", fun do_it ->
+  ("merge5.mz", fun do_it ->
     let env = do_it false in
     let v5 = point_by_name env "v5" in
     let v = find_type_by_name env "v" in
@@ -227,7 +227,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let t = TyApp (TyApp (v, int), int) in
     check env v5 t);
 
-  ("merge6.hml", fun do_it ->
+  ("merge6.mz", fun do_it ->
     let env = do_it false in
     let v6 = point_by_name env "v6" in
     let v = find_type_by_name env "v" in
@@ -238,7 +238,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     in
     check env v6 t);
 
-  ("merge7.hml", fun do_it ->
+  ("merge7.mz", fun do_it ->
     let env = do_it false in
     let v7 = point_by_name env "v7" in
     let v = find_type_by_name env "v" in
@@ -249,7 +249,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     in
     check env v7 t);
 
-  ("merge8.hml", fun do_it ->
+  ("merge8.mz", fun do_it ->
     let env = do_it false in
     let v8 = point_by_name env "v8" in
     let v = find_type_by_name env "v" in
@@ -259,7 +259,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     in
     check env v8 t);
 
-  ("merge9.hml", fun do_it ->
+  ("merge9.mz", fun do_it ->
     let env = do_it false in
     let v9 = point_by_name env "v9" in
     let ref = find_type_by_name env "ref" in
@@ -267,7 +267,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let t = TyApp (ref, int) in
     check env v9 t);
 
-  ("merge10.hml", fun do_it ->
+  ("merge10.mz", fun do_it ->
     let env = do_it false in
     let v10 = point_by_name env "v10" in
     let foo = find_type_by_name env "foo" in
@@ -275,7 +275,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let t = TyApp (foo, t) in
     check env v10 t);
 
-  ("merge11.hml", fun do_it ->
+  ("merge11.mz", fun do_it ->
     let env = do_it false in
     let v11 = point_by_name env "v11" in
     let ref = find_type_by_name env "ref" in
@@ -283,7 +283,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let t = TyApp (ref, TyApp (ref, int)) in
     check env v11 t);
 
-  ("merge12.hml", fun do_it ->
+  ("merge12.mz", fun do_it ->
     let env = do_it true in
     let v12 = point_by_name env "v12" in
     let int = find_type_by_name env "int" in
@@ -298,7 +298,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     in
     check env v12 t);
 
-  ("merge13.hml", fun do_it ->
+  ("merge13.mz", fun do_it ->
     let env = do_it false in
     let v13 = point_by_name env "v13" in
     let x = point_by_name env "x" in
@@ -308,7 +308,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     check env v13 t;
     check env x int);
 
-  ("merge14.hml", fun do_it ->
+  ("merge14.mz", fun do_it ->
     let env = do_it false in
     let v14 = point_by_name env "v14" in
     let int = find_type_by_name env "int" in
@@ -319,15 +319,15 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     )) in
     check env v14 t);
 
-  ("merge15.hml",
+  ("merge15.mz",
     simple_test ~stdlib:false Pass
   );
 
-  ("merge16.hml",
+  ("merge16.mz",
     simple_test ~stdlib:false Pass
   );
 
-  ("merge_generalize_val.hml", fun do_it ->
+  ("merge_generalize_val.mz", fun do_it ->
     let env = do_it false in
     let x = point_by_name env "x" in
     let y = point_by_name env "y" in
@@ -339,24 +339,24 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     check env z t;
   );
 
-  ("constraints_merge.hml",
+  ("constraints_merge.mz",
     simple_test ~stdlib:false ~pedantic:true Pass);
 
   (* Resource allocation conflicts. *)
 
-  ("conflict1.hml",
+  ("conflict1.mz",
     simple_test
       ~stdlib:false
       ~pedantic:true
       ((Fail (function ResourceAllocationConflict _ -> true | _ -> false)))
   );
 
-  ("conflict2.hml",
+  ("conflict2.mz",
     simple_test ~stdlib:false ~pedantic:true Pass);
 
   (* Singleton types. *)
 
-  ("singleton1.hml", fun do_it ->
+  ("singleton1.mz", fun do_it ->
     Options.pedantic := false;
     let env = do_it false in
     let x = point_by_name env "x" in
@@ -374,79 +374,79 @@ let tests: (string * ((bool -> env) -> unit)) list = [
       failwith "The right permission was not extracted for [s1].";
   );
 
-  ("singleton2.hml",
+  ("singleton2.mz",
     simple_test ~stdlib:false Pass
   );
 
   (* Marking environments as inconsistent. *)
 
-  ("inconsistent1.hml",
+  ("inconsistent1.mz",
     simple_test ~stdlib:true Pass
   );
 
-  ("inconsistent2.hml",
+  ("inconsistent2.mz",
     simple_test ~stdlib:true Pass
   );
 
   (* Duplicity constraints. *)
 
-  ("duplicity1.hml",
+  ("duplicity1.mz",
     simple_test ~stdlib:false Pass
   );
 
-  ("duplicity2.hml",
+  ("duplicity2.mz",
     simple_test ~stdlib:false Pass
   );
 
   (* Polymorphic function calls *)
 
-  ("polycall1.hml",
+  ("polycall1.mz",
     simple_test ~stdlib:false (Fail (function IllKindedTypeApplication _ -> true | _ -> false)));
 
-  ("polycall2.hml",
+  ("polycall2.mz",
     simple_test ~stdlib:false (Fail (function BadTypeApplication _ -> true | _ -> false)));
 
-  ("polycall3.hml",
+  ("polycall3.mz",
     simple_test ~stdlib:false ~pedantic:true Pass);
 
-  ("polycall4.hml",
+  ("polycall4.mz",
     simple_test ~stdlib:false ~pedantic:true Pass);
 
-  ("polycall5.hml",
+  ("polycall5.mz",
     simple_test ~stdlib:false ~pedantic:true Pass);
 
-  ("polycall6.hml",
+  ("polycall6.mz",
     simple_test ~stdlib:false ~pedantic:true Pass);
 
   (* Tests are expected to fail. *)
 
-  ("fail1.hml",
+  ("fail1.mz",
     simple_test ~stdlib:false ((Fail (function ExpectedType _ -> true | _ -> false))));
 
-  ("fail2.hml",
+  ("fail2.mz",
     simple_test ~stdlib:false ((Fail (function ExpectedType _ -> true | _ -> false))));
 
-  ("fail3.hml",
+  ("fail3.mz",
     simple_test ~stdlib:true ((Fail (function NoSuchField _ -> true | _ -> false))));
 
-  ("fail4.hml",
+  ("fail4.mz",
     simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
 
-  ("fail5.hml",
+  ("fail5.mz",
     simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
 
-  ("fail6.hml",
+  ("fail6.mz",
     simple_test ~stdlib:false ((Fail (function NoSuchPermission _ -> true | _ -> false))));
 
   (* Adoption. *)
 
-  ("adopts1.hml",
+  ("adopts1.mz",
     simple_test ~stdlib:false Pass);
 
-  ("adopts2.hml",
+  ("adopts2.mz",
     simple_test ~stdlib:false (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
 
-  ("adopts3.hml", fun do_it ->
+  ("adopts3.mz", fun do_it ->
     let open KindCheck in
     try
       ignore (do_it false);
@@ -457,39 +457,39 @@ let tests: (string * ((bool -> env) -> unit)) list = [
       | _ ->
           failwith "Test failed for a wrong reason");
 
-  ("adopts4.hml",
+  ("adopts4.mz",
     simple_test ~stdlib:false (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
 
-  ("adopts5.hml",
+  ("adopts5.mz",
     simple_test ~stdlib:false Pass);
 
-  ("adopts6.hml",
+  ("adopts6.mz",
     simple_test ~stdlib:false Pass);
 
-  ("adopts7.hml",
+  ("adopts7.mz",
     simple_test ~stdlib:false Pass);
 
-  ("adopts8.hml",
+  ("adopts8.mz",
     simple_test ~stdlib:false (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
 
-  ("adopts9.hml",
+  ("adopts9.mz",
     simple_test ~stdlib:false Pass);
 
-  ("adopts10.hml",
+  ("adopts10.mz",
     simple_test ~stdlib:false (Fail (function NotMergingClauses _ -> true | _ -> false)));
 
-  ("adopts12.hml",
+  ("adopts12.mz",
     simple_test ~stdlib:false Pass);
 
   (* Bigger examples. *)
 
-  ("list-length.hml", fun do_it ->
+  ("list-length.mz", fun do_it ->
     let env = do_it false in
     let int = find_type_by_name env "int" in
     let zero = point_by_name env "zero" in
     check env zero int);
 
-  ("list-concat.hml", fun do_it ->
+  ("list-concat.mz", fun do_it ->
     let env = do_it false in
     let x = point_by_name env "x" in
     let list = find_type_by_name env "list" in
@@ -498,80 +498,80 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     ) in
     check env x t);
 
-  ("list-concat-dup.hml",
+  ("list-concat-dup.mz",
     simple_test ~stdlib:false Pass
   );
 
-  ("list-length.hml",
+  ("list-length.mz",
     simple_test ~stdlib:false Pass
   );
 
-  ("list-map0.hml",
+  ("list-map0.mz",
     simple_test ~stdlib:false Pass
   );
 
-  ("list-map1.hml",
+  ("list-map1.mz",
     simple_test ~stdlib:false Pass
   );
 
-  ("list-map2.hml",
+  ("list-map2.mz",
     simple_test ~stdlib:false Pass
   );
 
-  (*("list-map3.hml",
+  (*("list-map3.mz",
     simple_test ~stdlib:false Pass
   );*)
 
-  ("list-map4.hml",
+  ("list-map4.mz",
     simple_test ~stdlib:false Pass
   );
 
-  ("list-rev.hml",
+  ("list-rev.mz",
     simple_test ~stdlib:false Pass
   );
 
-  ("list-find.hml",
+  ("list-find.mz",
     simple_test ~stdlib:false Pass
   );
 
-  ("list-id.hml",
+  ("list-id.mz",
     simple_test ~stdlib:false Pass
   );
 
-  ("xlist-copy.hml",
+  ("xlist-copy.mz",
     simple_test ~stdlib:false Pass
   );
-  ("xlist-concat.hml",
-    simple_test ~stdlib:false Pass
-  );
-
-  ("xlist-concat1.hml",
+  ("xlist-concat.mz",
     simple_test ~stdlib:false Pass
   );
 
-  ("xlist-concat2.hml",
+  ("xlist-concat1.mz",
     simple_test ~stdlib:false Pass
   );
 
-  ("tree_size.hml",
+  ("xlist-concat2.mz",
+    simple_test ~stdlib:false Pass
+  );
+
+  ("tree_size.mz",
     simple_test ~stdlib:true Pass
   );
 
-  ("in_place_traversal.hml",
+  ("in_place_traversal.mz",
     simple_test ~stdlib:true Pass
   );
 
-  ("counter.hml",
+  ("counter.mz",
     simple_test ~stdlib:true Pass
   );
 
-  ("xswap.hml",
+  ("xswap.mz",
     simple_test ~stdlib:false Pass
   );
 
-  ("bag_lifo.hml", simple_test Pass);
+  ("bag_lifo.mz", simple_test Pass);
 
-  ("bag_fifo.hml", simple_test ~stdlib:false Pass);
+  ("bag_fifo.mz", simple_test ~stdlib:false Pass);
 ]
 
 let _ =

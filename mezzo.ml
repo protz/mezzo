@@ -31,7 +31,7 @@ let _ =
     [
     "-explain", Arg.Set_string arg_trace, "provide explanations for [explain] statements, \
       using one of the following formats: html, x11";
-    "-nopervasives", Arg.Clear arg_pervasives, "don't try to prepend pervasives.hml to the file";
+    "-nopervasives", Arg.Clear arg_pervasives, "don't try to prepend pervasives.mz to the file";
     "-nofancypants", Arg.Clear arg_backtraces, "don't try to give nice error messages";
     "-debug", Arg.Set_int arg_debug, "output level: 0 (default) = no messages, 4 = super verbose";
     "-html-errors", Arg.Set arg_html_errors, "use a browser to display errors";

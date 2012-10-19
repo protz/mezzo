@@ -525,7 +525,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
               (* We need to use a potential type annotation here, so if we
                * already have some information in the destination environment,
                * use it! This is exercised by
-               * [test_constraints_in_patterns2.hml] *)
+               * [test_constraints_in_patterns2.mz] *)
               let annotation = has_datacon_type_annotation dest_env dest_point datacon_l in
               let fields_annot, clause_annot = match annotation with
                 | None ->
