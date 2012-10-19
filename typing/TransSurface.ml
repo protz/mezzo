@@ -142,7 +142,6 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
   t, bindings, perms
 ;;
 
-
 let rec translate_type (env: env) (t: typ): T.typ =
   match t with
   | TyLocated (t, p1, p2) ->
@@ -171,8 +170,9 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TySingleton t ->
       T.TySingleton (translate_type env t)
 
-  | TyApp (t1, t2) ->
-      T.TyApp (translate_type env t1, translate_type env t2)
+  | TyApp _ ->
+      let t, ts = flatten_tyapp t in
+      T.TyApp (translate_type env t, List.map (translate_type env) ts)
 
   | TyArrow (t1, t2) ->
       let universal_bindings, t1, t2 = translate_arrow_type env t1 t2 in

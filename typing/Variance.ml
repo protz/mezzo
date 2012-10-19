@@ -103,14 +103,14 @@ let variance env var_for_ith valuation b t =
     | TyExists (_, t) ->
         var t
 
-    | TyApp _ as t ->
-        let cons, args = flatten_tyapp t in
+    | TyApp (cons, args) ->
+        let cons = !!cons in
         let vs = List.mapi (fun i arg ->
           let valuation_a =
             try
-              valuation (var_for_ith !!cons i)
+              valuation (var_for_ith cons i)
             with Not_found ->
-              List.nth (get_variance env !!cons) i
+              List.nth (get_variance env cons) i
           in
           dot valuation_a (var arg)
         ) args in

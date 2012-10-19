@@ -88,38 +88,30 @@ let duplicables
         let env, t = bind_var_in_type env binding t in
         duplicables env t
 
-    | TyApp _ as t ->
-      begin
-        let cons, args = flatten_tyapp t in
-        match cons with
-        | TyPoint point ->
-          begin
-            match get_fact env point with
-            | Fuzzy _ ->
-                Log.error "I messed up my index computations. Oops!";
-            | Exclusive ->
-                raise (EExclusive t)
-            | Affine ->
-                raise (EAffine t)
-            | Duplicable cons_bitmap ->
-                (* For each argument of the type application... *)
-                List.iteri (fun i ti ->
-                  (* The type at [level] may request its [i]-th parameter to be
-                   * duplicable. *)
-                  if cons_bitmap.(i) then begin
-                    (* The answer is yes: the [i]-th parameter for the type
-                     * application is [ti] and it has to be duplicable for the
-                     * type at [level] to be duplicable too. *)
-                    duplicables env ti
-                  end else begin
-                    (* The answer is no: there are no constraints on [ti]. *)
-                    ()
-                  end
-                ) args
-          end
-        | _ ->
-            Log.error "The head of a type application should be a type variable"
-      end
+    | TyApp (cons, args) ->
+        begin match get_fact env !!cons with
+        | Fuzzy _ ->
+            Log.error "I messed up my index computations. Oops!";
+        | Exclusive ->
+            raise (EExclusive t)
+        | Affine ->
+            raise (EAffine t)
+        | Duplicable cons_bitmap ->
+            (* For each argument of the type application... *)
+            List.iteri (fun i ti ->
+              (* The type at [level] may request its [i]-th parameter to be
+               * duplicable. *)
+              if cons_bitmap.(i) then begin
+                (* The answer is yes: the [i]-th parameter for the type
+                 * application is [ti] and it has to be duplicable for the
+                 * type at [level] to be duplicable too. *)
+                duplicables env ti
+              end else begin
+                (* The answer is no: there are no constraints on [ti]. *)
+                ()
+              end
+            ) args
+        end
 
     | TyTuple ts ->
         List.iter (duplicables env) ts

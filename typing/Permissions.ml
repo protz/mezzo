@@ -726,12 +726,12 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       else
         None
 
-  | TyConcreteUnfolded (datacon1, _, _), TyApp _ ->
-      let cons2, args2 = flatten_tyapp t2 in
+  | TyConcreteUnfolded (datacon1, _, _), TyApp (cons2, args2) ->
       let point1 = DataconMap.find datacon1 env.type_for_datacon in
+      let cons2 = !!cons2 in
 
-      if same env point1 !!cons2 then begin
-        let datacon2, fields2, clause2 = find_and_instantiate_branch env !!cons2 datacon1 args2 in
+      if same env point1 cons2 then begin
+        let datacon2, fields2, clause2 = find_and_instantiate_branch env cons2 datacon1 args2 in
         sub_type env t1 (TyConcreteUnfolded (datacon2, fields2, clause2))
       end else begin
         None
@@ -749,16 +749,16 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         None
       end
 
-  | TyApp _, TyApp _ ->
-      let cons1, args1 = flatten_tyapp t1 in
-      let cons2, args2 = flatten_tyapp t2 in
+  | TyApp (cons1, args1), TyApp (cons2, args2) ->
+      let cons1 = !!cons1 in
+      let cons2 = !!cons2 in
 
-      if same env !!cons1 !!cons2 then
+      if same env cons1 cons2 then
         Hml_List.fold_left2i (fun i env arg1 arg2 ->
           env >>= fun env ->
           (* Variance comes into play here as well. The behavior is fairly
            * intuitive. *)
-          match variance env !!cons1 i with
+          match variance env cons1 i with
           | Covariant ->
               sub_type env arg1 arg2
           | Contravariant ->

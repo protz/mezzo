@@ -47,7 +47,7 @@ let build_flexible_type_application (left_env, left_perm) (dest_env, t_dest) =
     in
     env, point :: points) (left_env, []) arg_kinds letters
   in
-  let t_app_left = fold_tyapp (TyPoint t_dest) (List.map (fun x -> TyPoint x) arg_points_l) in
+  let t_app_left = ty_app (TyPoint t_dest) (List.map (fun x -> TyPoint x) arg_points_l) in
   (* Chances are this will perform a merge in [left_env]: this is why
    * we're returning [left_env]. *)
   let left_env = Permissions.sub_type left_env left_perm t_app_left in
@@ -372,9 +372,10 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
               begin match Hml_List.take works right_perms with
               | Some (right_perms, (right_perm, (left_env, right_env, dest_env, dest_perm))) ->
 
-                  Log.debug ~level:4 "  → this merge between %a and %a was succesful"
+                  Log.debug ~level:4 "  → this merge between %a and %a was succesful (got: %a)"
                     TypePrinter.pvar (get_name left_env left_point)
-                    TypePrinter.pvar (get_name right_env right_point);
+                    TypePrinter.pvar (get_name right_env right_point)
+                    TypePrinter.ptype (dest_env, dest_perm);
 
                   let left_is_duplicable = FactInference.is_duplicable left_env left_perm in
                   let right_is_duplicable = FactInference.is_duplicable right_env right_perm in
@@ -466,13 +467,10 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
     let has_nominal_type_annotation dest_env dest_point t_dest =
       List.exists (fun t ->
-        match t with
-        | TyApp _ ->
-            let cons, _args = flatten_tyapp t in
-            same dest_env t_dest !!cons
-        | TyPoint p ->
-            same dest_env t_dest p
-        | _ ->
+        match is_tyapp t with
+        | Some (cons, _args) ->
+            same dest_env t_dest cons
+        | None ->
             false
       ) (get_permissions dest_env dest_point)
     in
@@ -876,17 +874,15 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             merge_type (left_env, left_perm) (right_env, t_app_right) ?dest_point dest_env
 
 
-        | TyApp _, TyApp _ ->
-            (* Sigh, we still don't flatten automatically type applications... *)
-            let consl, argsl = flatten_tyapp left_perm in
-            let consr, argsr = flatten_tyapp right_perm in
-
+        | TyApp (consl, argsl), TyApp (consr, argsr) ->
             (* Merge the constructors. This should be a no-op, unless they're
              * distinct, in which case we stop here. *)
             let r = merge_type (left_env, consl) (right_env, consr) ?dest_point dest_env in
             r >>= fun (left_env, right_env, dest_env, cons) ->
 
-            if has_nominal_type_annotation dest_env (Option.extract dest_point) !!cons then
+            let cons = !!cons in
+
+            if has_nominal_type_annotation dest_env (Option.extract dest_point) cons then
               None
             else
               (* So the constructors match. Let's now merge pairwise the arguments. *)
@@ -904,7 +900,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                    * merge. I'm not going to write 1000 more lines just for that, so
                    * we're conservative, and move up the variance lattice, and
                    * consider the parameter to be invariant. *)
-                  match variance dest_env !!cons i with
+                  match variance dest_env cons i with
                   | Covariant ->
                       merge_type (left_env, argl) (right_env, argr) ?dest_point dest_env
                   | _ ->
@@ -920,7 +916,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
               let args = List.rev args in
 
               (* Re-fold the type application. *)
-              let t = fold_tyapp cons args in
+              let t = ty_app (TyPoint cons) args in
 
               (* And we're good to go. *)
               Some (left_env, right_env, dest_env, t)

@@ -216,7 +216,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let v4 = point_by_name env "v4" in
     let w = find_type_by_name env "w" in
     let int = find_type_by_name env "int" in
-    let t = TyApp (w, int) in
+    let t = TyApp (w, [int]) in
     check env v4 t);
 
   ("merge5.mz", fun do_it ->
@@ -224,7 +224,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let v5 = point_by_name env "v5" in
     let v = find_type_by_name env "v" in
     let int = find_type_by_name env "int" in
-    let t = TyApp (TyApp (v, int), int) in
+    let t = TyApp (v, [int; int]) in
     check env v5 t);
 
   ("merge6.mz", fun do_it ->
@@ -233,7 +233,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let v = find_type_by_name env "v" in
     let int = find_type_by_name env "int" in
     let t = TyForall (dummy_binding KType,
-      TyApp (TyApp (v, int), TyVar 0)
+      TyApp (v, [int; TyVar 0])
     )
     in
     check env v6 t);
@@ -244,7 +244,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let v = find_type_by_name env "v" in
     let t = TyForall (dummy_binding KType,
       TyForall (dummy_binding KType,
-        TyApp (TyApp (v, TyVar 1), TyVar 0)
+        TyApp (v, [TyVar 1; TyVar 0])
       ))
     in
     check env v7 t);
@@ -254,7 +254,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let v8 = point_by_name env "v8" in
     let v = find_type_by_name env "v" in
     let t = TyForall (dummy_binding KType,
-        TyApp (TyApp (v, TyVar 0), TyVar 0)
+        TyApp (v, [TyVar 0; TyVar 0])
       )
     in
     check env v8 t);
@@ -264,7 +264,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let v9 = point_by_name env "v9" in
     let ref = find_type_by_name env "ref" in
     let int = find_type_by_name env "int" in
-    let t = TyApp (ref, int) in
+    let t = TyApp (ref, [int]) in
     check env v9 t);
 
   ("merge10.mz", fun do_it ->
@@ -272,7 +272,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let v10 = point_by_name env "v10" in
     let foo = find_type_by_name env "foo" in
     let t = find_type_by_name env "t" in
-    let t = TyApp (foo, t) in
+    let t = TyApp (foo, [t]) in
     check env v10 t);
 
   ("merge11.mz", fun do_it ->
@@ -280,7 +280,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let v11 = point_by_name env "v11" in
     let ref = find_type_by_name env "ref" in
     let int = find_type_by_name env "int" in
-    let t = TyApp (ref, TyApp (ref, int)) in
+    let t = TyApp (ref, [TyApp (ref, [int])]) in
     check env v11 t);
 
   ("merge12.mz", fun do_it ->
@@ -304,7 +304,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let x = point_by_name env "x" in
     let int = find_type_by_name env "int" in
     let t = find_type_by_name env "t" in
-    let t = TyApp (t, ty_equals x) in
+    let t = TyApp (t, [ty_equals x]) in
     check env v13 t;
     check env x int);
 
@@ -314,7 +314,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let int = find_type_by_name env "int" in
     let t = find_type_by_name env "t" in
     let t = TyExists (edummy_binding KTerm, TyBar (
-      TyApp (t, TySingleton (TyVar 0)),
+      TyApp (t, [TySingleton (TyVar 0)]),
       TyAnchoredPermission (TyVar 0, int)
     )) in
     check env v14 t);
@@ -333,7 +333,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let y = point_by_name env "y" in
     let z = point_by_name env "z" in
     let u = find_type_by_name env "u" in
-    let t = TyForall (dummy_binding KType, TyApp (u, TyVar 0)) in
+    let t = TyForall (dummy_binding KType, TyApp (u, [TyVar 0])) in
     check env x t;
     check env y t;
     check env z t;
@@ -370,7 +370,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     if List.exists (FactInference.is_exclusive env) perms then
       failwith "The permission on [x] should've been consumed";
     let perms = get_permissions env s1 in
-    if not (List.exists ((=) (TyApp (t, datacon "A" []))) perms) then
+    if not (List.exists ((=) (TyApp (t, [datacon "A" []]))) perms) then
       failwith "The right permission was not extracted for [s1].";
   );
 
@@ -494,7 +494,7 @@ let tests: (string * ((bool -> env) -> unit)) list = [
     let x = point_by_name env "x" in
     let list = find_type_by_name env "list" in
     let t = TyForall (dummy_binding KType,
-      TyApp (list, TyVar 0)
+      TyApp (list, [TyVar 0])
     ) in
     check env x t);
 

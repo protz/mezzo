@@ -73,7 +73,7 @@ type typ =
     (* Quantification and type application. *)
   | TyForall of (type_binding * flavor) * typ
   | TyExists of type_binding * typ
-  | TyApp of typ * typ
+  | TyApp of typ * typ list
 
     (* Structural types. *)
   | TyTuple of typ list
@@ -390,7 +390,7 @@ let clean top sub t =
         TyExists (b, clean t)
 
     | TyApp (t1, t2) ->
-        TyApp (clean t1, clean t2)
+        TyApp (clean t1, List.map clean t2)
 
       (* Structural types. *)
     | TyTuple ts ->
@@ -458,9 +458,11 @@ let equal env (t1: typ) (t2: typ) =
         k1 = k2 && equal t1 t2
 
     | TyArrow (t1, t'1), TyArrow (t2, t'2)
-    | TyBar (t1, t'1), TyBar (t2, t'2)
-    | TyApp (t1, t'1), TyApp (t2, t'2)  ->
+    | TyBar (t1, t'1), TyBar (t2, t'2) ->
         equal t1 t2 && equal t'1 t'2
+
+    | TyApp (t1, t'1), TyApp (t2, t'2)  ->
+        equal t1 t2 && List.for_all2 equal t'1 t'2
 
     | TyTuple ts1, TyTuple ts2 ->
         List.length ts1 = List.length ts2 && List.for_all2 equal ts1 ts2
@@ -523,7 +525,7 @@ let lift (k: int) (t: typ) =
         TyExists (binder, lift (i+1) t)
 
     | TyApp (t1, t2) ->
-        TyApp (lift i t1, lift i t2)
+        TyApp (lift i t1, List.map (lift i) t2)
 
     | TyTuple ts ->
         TyTuple (List.map (lift i) ts)
@@ -603,7 +605,7 @@ let tsubst (t2: typ) (i: int) (t1: typ) =
         TyExists (binder, tsubst t2 (i+1) t)
 
     | TyApp (t, t') ->
-        TyApp (tsubst t2 i t, tsubst t2 i t')
+        TyApp (tsubst t2 i t, List.map (tsubst t2 i) t')
 
     | TyTuple ts ->
         TyTuple (List.map (tsubst t2 i) ts)
@@ -736,6 +738,13 @@ let ty_bar t p =
     t
   else
     TyBar (t, p)
+;;
+
+let ty_app t args =
+  if List.length args > 0 then
+    TyApp (t, args)
+  else
+    t
 ;;
 
 
@@ -1196,20 +1205,17 @@ let find_type_by_name env name =
   TyPoint (point_by_name env name)
 ;;
 
-
-(* TODO: we should flatten type applications as soon as we can... *)
-let flatten_tyapp t =
-  let rec flatten_tyapp acc = function
-    | TyApp (t1, t2) ->
-        flatten_tyapp (t2 :: acc) t1
-    | _ as x ->
-        x, acc
-  in
-  flatten_tyapp [] t
-;;
-
-let fold_tyapp cons args =
-  List.fold_left (fun t arg -> TyApp (t, arg)) cons args
+let is_tyapp = function
+  | TyPoint p ->
+      Some (p, [])
+  | TyApp (p, args) ->
+      Some ((match p with
+        | TyPoint p ->
+            p
+        | _ ->
+            assert false), args)
+  | _ ->
+      None
 ;;
 
 let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_branch list) (clause: adopts_clause):
@@ -1237,17 +1243,7 @@ let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_bra
 ;;
 
 let expand_if_one_branch (env: env) (t: typ) =
-  let cons_args =
-    match t with
-    | TyApp (_, _) ->
-        let cons, args = flatten_tyapp t in
-        Some (!!cons, args)
-    | TyPoint cons ->
-        Some (cons, [])
-    | _ ->
-        None
-  in
-  match cons_args with
+  match is_tyapp t with
   | Some (cons, args) ->
       begin match get_definition env cons with
       | Some (Some (_, [branch], clause), _) ->
@@ -1397,7 +1393,7 @@ module TypePrinter = struct
         print_quantified env "∃" name kind typ
 
     | TyApp (t1, t2) ->
-        print_type env t1 ^^ space ^^ print_type env t2
+        print_type env t1 ^^ space ^^ join space (List.map (print_type env) t2)
 
     | TyTuple components ->
         lparen ^^

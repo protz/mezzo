@@ -282,9 +282,11 @@ let rec mark_reachable env = function
 
   | TyBar (t1, t2)
   | TyAnchoredPermission (t1, t2)
-  | TyStar (t1, t2)
-  | TyApp (t1, t2) ->
+  | TyStar (t1, t2) ->
       List.fold_left mark_reachable env [t1; t2]
+
+  | TyApp (t1, t2) ->
+      List.fold_left mark_reachable env (t1 :: t2)
 
   | TyTuple ts ->
       List.fold_left mark_reachable env ts

@@ -46,9 +46,11 @@ let has_flexible env t =
         has_flexible t
 
     | TyBar (t1, t2)
-    | TyArrow (t1, t2)
-    | TyApp (t1, t2) ->
+    | TyArrow (t1, t2) ->
         has_flexible t1 || has_flexible t2
+
+    | TyApp (t1, t2) ->
+        has_flexible t1 || List.exists has_flexible t2
 
     | TyTuple components ->
         List.exists has_flexible components
@@ -107,12 +109,14 @@ let find_flexible env t =
         find_flexible t
 
     | TyBar (t1, t2)
-    | TyArrow (t1, t2)
-    | TyApp (t1, t2) ->
+    | TyArrow (t1, t2) ->
         find_flexible t1 @ find_flexible t2
 
+    | TyApp (t1, t2) ->
+        find_flexible t1 @ Hml_List.map_flatten find_flexible t2
+
     | TyTuple components ->
-        List.flatten (List.map find_flexible components)
+        Hml_List.map_flatten find_flexible components
 
     | TyConcreteUnfolded (_, fields, clause) ->
         let fields = List.map (function
@@ -175,7 +179,7 @@ let tpsubst env (t2: typ) (p: point) (t1: typ) =
         TyExists (binder, tsubst (lift1 t2) t)
 
     | TyApp (t, t') ->
-        TyApp (tsubst t2 t, tsubst t2 t')
+        TyApp (tsubst t2 t, List.map (tsubst t2) t')
 
     | TyTuple ts ->
         TyTuple (List.map (tsubst t2) ts)

@@ -47,9 +47,8 @@ let is_data_type_with_two_constructors env t =
   | TyPoint p ->
       (* e.g. bool *)
       has_two_branches p
-  | TyApp _ ->
+  | TyApp (cons, _) ->
       (* e.g. list a *)
-      let cons, _args = flatten_tyapp t in
       has_two_branches !!cons
   | TyConcreteUnfolded (datacon, _, _) ->
       (* e.g. False *)
@@ -63,8 +62,7 @@ let has_adopts_clause env t =
   match t with
   | TyPoint p ->
       get_adopts_clause env p
-  | TyApp _ ->
-      let cons, args = flatten_tyapp t in
+  | TyApp (cons, args) ->
       begin match get_adopts_clause env !!cons with
       | Some clause ->
           Some (instantiate_adopts_clause (Some clause) args)
@@ -712,8 +710,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             env, begin match t with
             | TyPoint p ->
                 split_apply p []
-            | TyApp _ ->
-                let cons, args = flatten_tyapp t in
+            | TyApp (cons, args) ->
                 split_apply !!cons args
             | TyConcreteUnfolded _ ->
                 t, t
@@ -750,8 +747,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             | TyPoint p ->
                 Log.check (is_type env p) "Invalid permission";
                 has_definition env p
-            | TyApp _ as t ->
-                let cons, _args = flatten_tyapp t in
+            | TyApp (cons, _) ->
                 let p = !!cons in
                 Log.check (is_type env p) "Invalid permission";
                 has_definition env p
@@ -767,8 +763,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           ptype (env, nominal_type)
       );
 
-      let nominal_cons, nominal_args = flatten_tyapp nominal_type in
-      let nominal_point = !!nominal_cons in
+      let nominal_point, nominal_args = Option.extract (is_tyapp nominal_type) in
 
       (* Now, check that all the patterns are valid ones. Our matches only allow
        * to match on data types only. Use a let-binding to destructure a
