@@ -256,6 +256,8 @@ let flatten_tyapp t =
   let rec flatten_tyapp acc = function
     | TyApp (t1, t2) ->
         flatten_tyapp (t2 :: acc) t1
+    | TyLocated (t, _, _) ->
+        flatten_tyapp acc t
     | _ as x ->
         x, acc
   in
