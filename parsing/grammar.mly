@@ -473,8 +473,8 @@ data_type_def:
     { Abstract ((name, params), k, f) }
 
 %inline data_type_group:
-  defs = data_type_def+
-    { ($startpos, $endpos), defs }
+  def = data_type_def
+    { DataTypeGroup (($startpos, $endpos), [def]) }
 
 (* A concrete data type is necessarily of kind KTYPE. We do not allow defining
    concrete data types of kind KPERM. In principle, we could allow it. I think
@@ -677,8 +677,8 @@ data_type_def:
 
 (* A declaration group is a sequence of mutually recursive definitions. *)
 declaration_group:
-| l = declaration+
-    { l }
+| l = declaration
+    { Declarations [l] }
 
 %inline declaration:
 | d = dlocated(decl_raw)
@@ -708,33 +708,20 @@ inner_declaration:
 
 (* Program units. *)
 
+(* Because we don't want to clobber the parser with complicated logic, we first
+ * parse each declaration as being in its own group, and the [ParserUtils.group]
+ * function will take care of grouping all of them together. This also makes it
+ * easier if we are to add more top-level declarations that we might want to
+ * group as well. *)
 block_data:
 | group = data_type_group
-    { DataTypeGroup group }
-
-block_decl:
+    { group }
 | declarations = declaration_group
-    { Declarations declarations }
-
-blocks:
-| 
-    { [] }
-| b1 = block_decl
-    { [b1] }
-| b1 = block_decl b2 = block_data bs = blocks
-    { [b1; b2] @ bs }
+    { declarations }
 
 unit:
-  | b1 = block_decl EOF
-    { [b1] }
-  | b1 = block_decl b2 = unit_starts_with_data
-    { b1 :: b2 }
-  | u = unit_starts_with_data
-    { u }
-
-unit_starts_with_data:
-  | b1 = block_data bs = blocks EOF
-    { b1 :: bs }
+  | bs = block_data+ EOF
+    { ParserUtils.group bs }
 
 (* ---------------------------------------------------------------------------- *)
 
