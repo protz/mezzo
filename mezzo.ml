@@ -24,33 +24,38 @@ let _ =
   let arg_backtraces = ref true in
   let arg_trace = ref "" in
   let arg_html_errors = ref false in
-  let usage = "HaMLet: a next-generation version of ML\n\
+  let usage = "Mezzo: a next-generation version of ML\n\
     Usage: " ^ Sys.argv.(0) ^ " [OPTIONS] FILE\n"
   in
-  Arg.parse
-    [
-    "-explain", Arg.Set_string arg_trace, "provide explanations for [explain] statements, \
-      using one of the following formats: html, x11";
-    "-nopervasives", Arg.Clear arg_pervasives, "don't try to prepend pervasives.mz to the file";
-    "-nofancypants", Arg.Clear arg_backtraces, "don't try to give nice error messages";
-    "-debug", Arg.Set_int arg_debug, "output level: 0 (default) = no messages, 4 = super verbose";
-    "-html-errors", Arg.Set arg_html_errors, "use a browser to display errors";
-    "-pedantic", Arg.Set Options.pedantic, "non-principal situations are errors";
-    "-I", Arg.String Driver.add_include_dir, "include this directory";
-    ]
-    (fun f ->
-      if !arg_filename = "" then
-        arg_filename := f
-      else
-        failwith "Only one filename should be specified.\n"
-    )
-    usage;
+  Arg.parse [
+    "-explain", Arg.Set_string arg_trace, "<format>  The explain keyword \
+      generates a graphical dump, where <format> is one of html, x11";
+    "-nopervasives", Arg.Clear arg_pervasives, " Don't try to prepend pervasives.mz to the file";
+    "-nofancypants", Arg.Clear arg_backtraces, " Don't catch type errors: \
+      backtraces point to the place where the error was thrown";
+    "-debug", Arg.Set_int arg_debug, " <level>  Output level: 0 (default) = no \
+      messages, 5 = super super verbose";
+    "-html-errors", Arg.Set arg_html_errors, " Use a browser to display errors";
+    "-pedantic", Arg.Set Options.pedantic, " Non-principal situations are errors";
+    "-I <dir>", Arg.String Driver.add_include_dir, "  Add <dir> to the list of \
+      include directories";
+  ] (fun f ->
+    if !arg_filename = "" then
+      arg_filename := f
+    else
+      failwith "Only one filename should be specified.\n"
+  ) usage;
+  if !arg_filename = "" then begin
+    print_string usage;
+    exit 1;
+  end;
   Log.enable_debug !arg_debug;
   Debug.enable_trace !arg_trace;
   let opts =
     let open Driver in
     { html_errors = !arg_html_errors }
   in
+  Driver.add_include_dir (Filename.dirname !arg_filename);
   let env =
     if !arg_backtraces then
       Driver.run opts (fun () -> Driver.process !arg_pervasives !arg_filename)
