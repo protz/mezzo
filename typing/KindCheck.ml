@@ -211,10 +211,10 @@ let find x env =
     unbound env x
 
 (* [bind env (x, kind)] binds the name [x] with kind [kind]. *)
-let bind ?strict env (x, kind) : env =
+let bind ?(strict=false) env (x, kind) : env =
   (* The current level becomes [x]'s level. The current level is
      then incremented. *)
-  let add = if Option.unit_bool strict then strict_add env else M.add in
+  let add = if strict then strict_add env else M.add in
   { env with
     level = env.level + 1;
     mapping = add x (kind, env.level) env.mapping }
@@ -689,6 +689,20 @@ let check_declaration_group (env: env) (declaration_group: declaration list) =
   ) env declaration_group
 ;;
 
+let destruct_perm_decl t =
+  let x, t =
+    match t with
+    | TyAnchoredPermission (x, t) -> x, t
+    | _ -> Log.error "The parser should forbid this"
+  in
+  let x =
+    match x with
+    | TyVar name -> name
+    | _ -> Log.error "The parser should forbid this"
+  in
+  x, t
+;;
+
 let check_implementation (program: implementation) =
   let env = List.fold_left (fun env -> function
     | DataTypeGroup ((p1, p2), data_type_group) ->
@@ -713,11 +727,16 @@ let check_implementation (program: implementation) =
          * the variables and checking the bodies. *)
         check_declaration_group env declaration_group;
 
-    | _ ->
-        Log.error "The parser should forbid this"
+    | PermDeclaration t ->
+        let x, t = destruct_perm_decl t in
+        let k = infer env t in
+        let env = bind ~strict:true env (x, k) in
+        env
   ) empty program in
   ignore (env);
 ;;
+
+let check_interface = check_implementation;;
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -42,6 +42,8 @@ let flatten_kind =
 (** Has this name been auto-generated or not? *)
 type name = User of Variable.name | Auto of Variable.name
 
+let is_user = function User _ -> true | Auto _ -> false;;
+
 type location = Lexing.position * Lexing.position
 
 type type_binding =

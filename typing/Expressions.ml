@@ -103,12 +103,19 @@ type declaration =
 type declaration_group =
   declaration list
 
+type sig_item =
+  Variable.name * kind * typ
+
+type block =
+  | DataTypeGroup of data_type_group
+  | ValueDeclarations of declaration_group
+  | PermDeclaration of sig_item
+
 type implementation =
   block list
 
-and block =
-  | DataTypeGroup of data_type_group
-  | ValueDeclarations of declaration_group
+type interface =
+  block list
 
 let e_unit =
   ETuple []
@@ -347,6 +354,10 @@ let rec tsubst_blocks t2 i blocks =
       let n = n_decls decls in
       let blocks = tsubst_blocks t2 (i + n) blocks in
       ValueDeclarations decls :: blocks
+  | PermDeclaration (x, k, t) :: blocks ->
+      let t = tsubst t2 i t in
+      let blocks = tsubst_blocks t2 (i + 1) blocks in
+      PermDeclaration (x, k, t) :: blocks
   | [] ->
       []
 ;;
@@ -495,6 +506,9 @@ let rec esubst_blocks e2 i blocks =
       let n = n_decls decls in
       let blocks = esubst_blocks e2 (i + n) blocks in
       ValueDeclarations decls :: blocks
+  | (PermDeclaration _ as block) :: blocks ->
+      let blocks = esubst_blocks e2 (i + 1) blocks in
+      block :: blocks
   | [] ->
       []
 ;;
@@ -1092,6 +1106,15 @@ module ExprPrinter = struct
     let declarations = (* hardline ^^ *) join (hardline ^^ hardline) declarations in
     (* colors.red ^^ string "DECLARATIONS:" ^^ colors.default ^^ *)
     nest 2 declarations ^^ hardline
+  ;;
+
+  let print_sig_item env (x, k, t) =
+    print_var (User x) ^^ space ^^ colon ^^ colon ^^ print_kind k ^^
+    space ^^ at ^^ space ^^ print_type env t
+  ;;
+
+  let psigitem buf (env, arg) =
+    pdoc buf ((fun () -> print_sig_item env arg), ())
   ;;
 
   let pdeclarations buf arg =

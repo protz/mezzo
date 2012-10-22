@@ -86,6 +86,8 @@ let check_implementation program =
         let env, blocks = TypeChecker.check_declaration_group env decls blocks in
         (* Move on to the rest of the blocks. *)
         type_check env blocks
+    | _ :: _ ->
+        Log.error "The parser should forbid this"
     | [] ->
         (* Print some extra debugging information. *)
         Log.debug ~level:2 "\n%s***%s Done type-checking:\n%a"
@@ -102,8 +104,30 @@ let check_implementation program =
   type_check Types.empty_env program
 ;;
 
-let check_interface env iface =
-  ignore (env, iface);
+
+let get_exports env =
+  let open Types in
+  let assoc =
+    fold env (fun acc point ({ names; _ }, _) ->
+      let canonical_names = List.filter is_user names in
+      List.map (fun x -> x, point) canonical_names :: acc
+    ) [] 
+  in
+  List.flatten assoc
+;;
+
+
+let check_interface env signature =
+  KindCheck.check_interface signature;
+
+  let signature = TransSurface.translate_interface signature in
+  let exports = get_exports env in
+
+  let check_blocks env blocks =
+    ignore (env, blocks, exports)
+  in
+
+  check_blocks env signature
 ;;
 
 let find_in_include_dirs (filename: string): string =

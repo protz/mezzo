@@ -376,6 +376,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
 *)
 let translate_data_type_group
     (env: env)
+    (strict: bool)
     (data_type_group: data_type_group): env * T.data_type_group
   =
 
@@ -387,7 +388,7 @@ let translate_data_type_group
   (* We're recycling the environments from [SurfaceSyntax] because we're lazy.
    * We don't really need the [Types.kind] information here, but all the other
    * functions such as [bind] and [find] are defined already. *)
-  let env = List.fold_left bind env bindings in 
+  let env = List.fold_left (bind ~strict) env bindings in 
 
   (* First do the translation pass. *)
   let translated_definitions: T.data_type_group =
@@ -681,12 +682,15 @@ let translate_declaration_group (env: env) (decls: declaration_group): env * E.d
 (* [translate_implementation implementation] returns an
  * [Expressions.implementation], i.e. a desugared version of the entire
  * program. *)
-let translate_implementation (program: implementation): E.implementation =
+let translate_blocks (program: block list) (is_interface: bool): E.block list =
   let rec translate_program env blocks =
     match blocks with
     | DataTypeGroup data_type_group :: blocks ->
         (* This just desugars the data type definitions, no binder is opened yet! *)
-        let env, defs = translate_data_type_group env data_type_group in
+        let env, defs =
+          (* Be strict if we're in an interface. *)
+          translate_data_type_group env is_interface data_type_group
+        in
         let blocks = translate_program env blocks in
         E.DataTypeGroup defs :: blocks
     | ValueDeclarations decls :: blocks ->
@@ -695,9 +699,23 @@ let translate_implementation (program: implementation): E.implementation =
         let env, decls = translate_declaration_group env decls in
         let blocks = translate_program env blocks in
         E.ValueDeclarations decls :: blocks
-    | _ :: _ ->
-        Log.error "The parser should forbid this"
+    | PermDeclaration t :: blocks ->
+        let x, t = destruct_perm_decl t in
+        let k = infer env t in
+        let t = translate_type env t in
+        let env = bind ~strict:true env (x, k) in
+        let blocks = translate_program env blocks in
+        E.PermDeclaration (x, k, t) :: blocks
     | [] ->
         []
   in
   translate_program empty program
+;;
+
+let translate_implementation p =
+  translate_blocks p false
+;;
+
+let translate_interface p =
+  translate_blocks p true
+;;

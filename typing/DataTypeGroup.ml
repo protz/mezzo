@@ -86,6 +86,9 @@ let debug_blocks env blocks =
     | ValueDeclarations decls ->
         Log.debug "%a\n"
           Expressions.ExprPrinter.pdeclarations (env, decls);
+    | PermDeclaration it ->
+        Log.debug "%a\n"
+          Expressions.ExprPrinter.psigitem (env, it)
   ) blocks;
   Log.debug "#### END DEBUGGING BLOCKS ####\n"
 ;;
