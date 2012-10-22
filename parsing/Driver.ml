@@ -27,10 +27,10 @@ let add_include_dir dir =
   include_dirs := dir :: !include_dirs
 ;;
 
-let lex_and_parse file_path =
+let lex_and_parse file_path entry_point =
   let file_desc = open_in file_path in
   let lexbuf = Ulexing.from_utf8_channel file_desc in
-  let parser = MenhirLib.Convert.Simplified.traditional2revised Grammar.unit in
+  let parser = MenhirLib.Convert.Simplified.traditional2revised entry_point in
   try
     Lexer.init file_path;
     parser (fun _ -> Lexer.token lexbuf)
@@ -53,15 +53,15 @@ let lex_and_parse file_path =
         exit 252
 ;;
 
-let type_check program = 
+let check_implementation program = 
   let open Expressions in
 
   (* First pass of kind-checking; it checks for unbound variables and variables
    * with the wrong kind. *)
-  KindCheck.check_program program;
+  KindCheck.check_implementation program;
 
   (* We need to translate the program down to the internal syntax. *)
-  let program = TransSurface.translate_program program in
+  let program = TransSurface.translate_implementation program in
 
   let rec type_check env program =
     match program with
@@ -76,7 +76,7 @@ let type_check program =
         let env, blocks = DataTypeGroup.bind_data_type_group env group blocks in
         (* Move on to the rest of the blocks. *)
         type_check env blocks
-    | Declarations decls :: blocks ->
+    | ValueDeclarations decls :: blocks ->
         Log.debug ~level:2 "\n%s***%s Processing declarations:\n%a"
           Bash.colors.Bash.yellow Bash.colors.Bash.default
           Expressions.ExprPrinter.pdeclarations (env, decls);
@@ -102,6 +102,10 @@ let type_check program =
   type_check Types.empty_env program
 ;;
 
+let check_interface env iface =
+  ignore (env, iface);
+;;
+
 let find_in_include_dirs (filename: string): string =
   let module M = struct exception Found of string end in
   try
@@ -122,18 +126,43 @@ let find_in_include_dirs (filename: string): string =
     s
 ;;
 
+(* [find_interface mz] returns the path to the interface for [mz], if any. It
+ * assumes [mz] is a valid filename ending with ".mz". *)
+let find_interface file_path =
+  let iface = file_path ^ "i" in
+  if Sys.file_exists iface then
+    Some iface
+  else
+    None
+;;
+
 let process use_pervasives file_path =
-  (* HACK HACK HACK *)
+  if not (Filename.check_suffix file_path ".mz") then
+    Log.error "Bad filename: Mezzo files end with .mz";
+  if not (Sys.file_exists file_path) then
+    Log.error "File %s does not exist" file_path;
+
   let program =
-    if use_pervasives then
-      let path_to_pervasives = find_in_include_dirs "pervasives.mz" in
-      let program = lex_and_parse path_to_pervasives in
-      let program' = lex_and_parse file_path in
-      program @ program'
-    else
-      lex_and_parse file_path
+    let prefix = 
+      (* HACK HACK HACK *)
+      if use_pervasives then
+        let path_to_pervasives = find_in_include_dirs "pervasives.mz" in
+        lex_and_parse path_to_pervasives Grammar.implementation
+      else
+        []
+    in
+    prefix @ lex_and_parse file_path Grammar.implementation
   in
-  type_check program
+
+  let env = check_implementation program in
+
+  match find_interface file_path with
+  | Some iface_path ->
+      let interface = lex_and_parse iface_path Grammar.interface in
+      check_interface env interface;
+      env
+  | None ->
+      env
 ;;
 
 type run_options = {

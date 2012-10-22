@@ -25,16 +25,18 @@ let group (declarations: block list): block list =
   let rev_g = function
     | DataTypeGroup (loc, gs) ->
         DataTypeGroup (loc, List.rev gs)
-    | Declarations gs ->
-        Declarations (List.rev gs)
+    | ValueDeclarations gs ->
+        ValueDeclarations (List.rev gs)
+    | _ as x ->
+        x
   in
   let rev = List.rev_map rev_g in
   let rec group prev next =
     match prev, next with
     | DataTypeGroup (loc, gs) :: prev, DataTypeGroup (loc', g) :: next ->
         group (DataTypeGroup ((fst loc, snd loc'), g @ gs) :: prev) next
-    | Declarations gs :: prev, Declarations g :: next ->
-        group (Declarations (g @ gs) :: prev) next
+    | ValueDeclarations gs :: prev, ValueDeclarations g :: next ->
+        group (ValueDeclarations (g @ gs) :: prev) next
     | _, n :: ns ->
         group (n :: prev) ns
     | _, [] ->

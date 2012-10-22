@@ -689,7 +689,7 @@ let check_declaration_group (env: env) (declaration_group: declaration list) =
   ) env declaration_group
 ;;
 
-let check_program (program: program) =
+let check_implementation (program: implementation) =
   let env = List.fold_left (fun env -> function
     | DataTypeGroup ((p1, p2), data_type_group) ->
         (* Collect the names from the data type definitions, since they
@@ -708,10 +708,13 @@ let check_program (program: program) =
 
         env
 
-    | Declarations declaration_group ->
+    | ValueDeclarations declaration_group ->
         (* This function does everything at once and takes care of both binding
          * the variables and checking the bodies. *)
         check_declaration_group env declaration_group;
+
+    | _ ->
+        Log.error "The parser should forbid this"
   ) empty program in
   ignore (env);
 ;;

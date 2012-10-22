@@ -678,9 +678,10 @@ let translate_declaration_group (env: env) (decls: declaration_group): env * E.d
 ;;
 
 
-(* [translate_program program] returns a [Program.program], i.e. a desugared
- * version of the entire program. *)
-let translate_program (program: program): E.program =
+(* [translate_implementation implementation] returns an
+ * [Expressions.implementation], i.e. a desugared version of the entire
+ * program. *)
+let translate_implementation (program: implementation): E.implementation =
   let rec translate_program env blocks =
     match blocks with
     | DataTypeGroup data_type_group :: blocks ->
@@ -688,12 +689,14 @@ let translate_program (program: program): E.program =
         let env, defs = translate_data_type_group env data_type_group in
         let blocks = translate_program env blocks in
         E.DataTypeGroup defs :: blocks
-    | Declarations decls :: blocks ->
+    | ValueDeclarations decls :: blocks ->
         (* Same here, we're only performing desugaring, we're not opening any
          * binders. *)
         let env, decls = translate_declaration_group env decls in
         let blocks = translate_program env blocks in
-        E.Declarations decls :: blocks
+        E.ValueDeclarations decls :: blocks
+    | _ :: _ ->
+        Log.error "The parser should forbid this"
     | [] ->
         []
   in

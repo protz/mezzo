@@ -24,14 +24,6 @@ type run_options = {
 }
 
 val add_include_dir: string -> unit
-val find_in_include_dirs: string -> string
-
-(** [lex_and_parse] is useful for tests that want to manipulate directly the
-    AST. Otherwise, you should probably use [process]. *)
-val lex_and_parse: string -> SurfaceSyntax.program
-
-(** [type_check] is the next step after [lex_and_parse]. *)
-val type_check: SurfaceSyntax.program -> Types.env
 
 (** [process] doesn't catch exceptions. This is useful for tests that want to
     assert that a test program failed in a certain way. *)

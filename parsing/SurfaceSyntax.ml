@@ -243,7 +243,13 @@ type declaration_group =
 
 type block =
   | DataTypeGroup of data_type_group
-  | Declarations of declaration_group
+  | ValueDeclarations of declaration_group
+  | PermDeclaration of typ
 
-type program =
+(* An implementation will only contain data type groups and value declarations. *)
+type implementation =
+  block list
+
+(* An interface will only contain data type groups and permission declarations. *)
+type interface =
   block list

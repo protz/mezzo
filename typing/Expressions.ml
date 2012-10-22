@@ -103,12 +103,12 @@ type declaration =
 type declaration_group =
   declaration list
 
-type program =
+type implementation =
   block list
 
 and block =
   | DataTypeGroup of data_type_group
-  | Declarations of declaration_group
+  | ValueDeclarations of declaration_group
 
 let e_unit =
   ETuple []
@@ -342,11 +342,11 @@ let rec tsubst_blocks t2 i blocks =
       let group = tsubst_data_type_group t2 (i + n) group in
       let blocks = tsubst_blocks t2 (i + n) blocks in
       DataTypeGroup group :: blocks
-  | Declarations decls :: blocks ->
+  | ValueDeclarations decls :: blocks ->
       let decls = tsubst_decl t2 i decls in
       let n = n_decls decls in
       let blocks = tsubst_blocks t2 (i + n) blocks in
-      Declarations decls :: blocks
+      ValueDeclarations decls :: blocks
   | [] ->
       []
 ;;
@@ -490,11 +490,11 @@ let rec esubst_blocks e2 i blocks =
       let n = List.length group in
       let blocks = esubst_blocks e2 (i + n) blocks in
       DataTypeGroup group :: blocks
-  | Declarations decls :: blocks ->
+  | ValueDeclarations decls :: blocks ->
       let decls = esubst_decl e2 i decls in
       let n = n_decls decls in
       let blocks = esubst_blocks e2 (i + n) blocks in
-      Declarations decls :: blocks
+      ValueDeclarations decls :: blocks
   | [] ->
       []
 ;;

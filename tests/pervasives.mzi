@@ -1,0 +1,59 @@
+(* Arithmetic *)
+
+abstract int
+fact duplicable int
+
+val ( * ) @ (int, int) -> int
+val ( - ) @ (int, int) -> int
+val ( / ) @ (int, int) -> int
+val ( + ) @ (int, int) -> int
+
+
+(* Booleans *)
+
+data bool = True | False
+
+val true @ bool
+val false @ bool
+
+
+(* Options *)
+
+data option a = Some { contents: a } | None
+
+val none @ [a] option a
+val some @ [a] (consumes a) -> option a
+
+
+(* References *)
+
+mutable data ref a = Ref {
+  contents: a;
+}
+
+val newref @ [a] (consumes a) -> ref a
+val (!) @ [a] (consumes x: ref a) -> (a | x @ ref unknown)
+val (:=) @ [a, b] (consumes x: ref a, consumes b) -> ( | x @ ref b)
+
+
+(* Physical equality test. *)
+
+data phys_equal (x :: TERM) (y :: TERM) =
+  | Equals { | x = y }
+  | NotEquals
+
+val ( == ) @ [a, b] (x: a, y: b) -> phys_equal x y
+
+
+(* Lists *)
+
+data list a =
+  | Cons { head: a; tail: list a }
+  | Nil
+
+val nil @ [a] list a
+val cons @ [a] (consumes a, consumes list a) -> list a
+
+mutable data xlist a =
+  | XCons { xhead: a; xtail: xlist a }
+  | XNil

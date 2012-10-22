@@ -83,7 +83,7 @@ let debug_blocks env blocks =
     | DataTypeGroup group ->
         Log.debug "%a\n"
           KindCheck.KindPrinter.pgroup (env, group);
-    | Declarations decls ->
+    | ValueDeclarations decls ->
         Log.debug "%a\n"
           Expressions.ExprPrinter.pdeclarations (env, decls);
   ) blocks;
@@ -94,7 +94,7 @@ let debug_blocks env blocks =
 let bind_data_type_group
     (env: env)
     (group: data_type_group)
-    (blocks: block list): env * program =
+    (blocks: block list): env * block list =
   (* First, allocate points for all the data types. *)
   let env, points = bind_group env group in
   (* Open references to these data types in the branches themselves, since the

@@ -70,7 +70,8 @@
 
 (* Miscellaneous directives. *)
 
-%start <SurfaceSyntax.program> unit
+%start <SurfaceSyntax.implementation> implementation
+%start <SurfaceSyntax.interface> interface
 %type <SurfaceSyntax.expression> expression
 %type <SurfaceSyntax.declaration> declaration
 
@@ -299,9 +300,7 @@ atomic_kind:
 | t = tlocated(raw_loose_type)
   { t }
 
-  raw_loose_type:
-  | ty = raw_normal_type
-      { ty }
+  raw_anchored_permission:
   (* In an anchored permission [x@t], the name [x] is free. This
      represents an assertion that we have permission to use [x] at
      type [t]. *)
@@ -310,6 +309,12 @@ atomic_kind:
   (* [x = y] is also an anchored permission; it is sugar for [x@=y]. *)
   | x = variable EQUAL y = variable
       { TyAnchoredPermission (TyVar x, TySingleton (TyVar y)) }
+
+  raw_loose_type:
+  | ty = raw_normal_type
+      { ty }
+  | ty = raw_anchored_permission
+      { ty }
   (* In a name introduction form [x:t], the name [x] is bound. The scope
      of [x] is defined by somewhat subtle rules that need not concern us
      here. These rules are spelled out later on when we desugar the surface-level
@@ -678,7 +683,7 @@ data_type_def:
 (* A declaration group is a sequence of mutually recursive definitions. *)
 declaration_group:
 | l = declaration
-    { Declarations [l] }
+    { ValueDeclarations [l] }
 
 %inline declaration:
 | d = dlocated(decl_raw)
@@ -706,21 +711,40 @@ inner_declaration:
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Program units. *)
+(* Program units, i.e. module implementations *)
 
 (* Because we don't want to clobber the parser with complicated logic, we first
  * parse each declaration as being in its own group, and the [ParserUtils.group]
  * function will take care of grouping all of them together. This also makes it
  * easier if we are to add more top-level declarations that we might want to
  * group as well. *)
-block_data:
+implementation_toplevel:
 | group = data_type_group
     { group }
 | declarations = declaration_group
     { declarations }
 
-unit:
-  | bs = block_data+ EOF
+implementation:
+  | bs = implementation_toplevel+ EOF
+    { ParserUtils.group bs }
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Module signatures, i.e. interfaces. *)
+
+(* A declaration group is a sequence of mutually recursive definitions. *)
+perm_declaration:
+| VAL t = raw_anchored_permission
+    { PermDeclaration t }
+
+interface_toplevel:
+| group = data_type_group
+    { group }
+| declarations = perm_declaration
+    { declarations }
+
+interface:
+  | bs = interface_toplevel+ EOF
     { ParserUtils.group bs }
 
 (* ---------------------------------------------------------------------------- *)
