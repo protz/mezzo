@@ -105,23 +105,11 @@ let check_implementation program =
 ;;
 
 
-let get_exports env =
-  let open Types in
-  let assoc =
-    fold env (fun acc point ({ names; _ }, _) ->
-      let canonical_names = List.filter is_user names in
-      List.map (fun x -> x, point) canonical_names :: acc
-    ) [] 
-  in
-  List.flatten assoc
-;;
-
-
 let check_interface env signature =
   KindCheck.check_interface signature;
 
+  let exports = Interfaces.get_exports env in
   let signature = TransSurface.translate_interface signature in
-  let exports = get_exports env in
 
   let check_blocks env blocks =
     ignore (env, blocks, exports)

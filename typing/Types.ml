@@ -23,6 +23,7 @@
 include TypeCore
 include DeBruijn
 
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Fact-related functions. *)
