@@ -57,6 +57,7 @@ let check (env: T.env) (signature: S.block list) =
         Log.debug "*** Checking sig item %a" Variable.p x;
         KindCheck.check tsenv t S.KType;
         let t = TransSurface.translate_type tsenv t in
+        let t, _ = TypeOps.cleanup_function_type env t None in
         let has_same_name (name, p) =
           if Variable.equal name x then
             Some p

@@ -240,14 +240,14 @@ let cleanup_function_type env t body =
 
   in
 
-  let t, e = find env t (Some body) in
-  t, Option.extract e
+  find env t body
 ;;
 
 let simplify_function_def env bindings arg return_type body =
   let t = TyArrow (arg, return_type) in
   let t = fold_forall bindings t in
-  let t, body = cleanup_function_type env t body in
+  let t, body = cleanup_function_type env t (Some body) in
+  let body = Option.extract body in
   let bindings, t = strip_forall t in
   let arg, return_type = match t with TyArrow (t1, t2) -> t1, t2 | _ -> assert false in
   bindings, arg, return_type, body
