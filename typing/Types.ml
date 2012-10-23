@@ -34,6 +34,20 @@ let fact_leq f1 f2 =
       true
   | _ when f1 = f2 ->
       true
+  | Duplicable b1, Duplicable b2 ->
+      let (<=) b1 b2 = match b1, b2 with
+        | true, false ->
+            false
+        | _ ->
+            true
+      in
+      let v = ref true in
+      v := !v && Array.length b1 = Array.length b2;
+      for i = 0 to Array.length b1 - 1 do
+        (* Covariant! *)
+        v := !v && b2.(i) <= b1.(i)
+      done;
+      !v
   | _ ->
       false
 ;;

@@ -245,7 +245,7 @@ let bind ?(strict=false) env (x, kind) : env =
     level = env.level + 1;
     mapping = add x (kind, Var env.level) env.mapping }
 
-let bind_external env (x, kind) p: env =
+let bind_external env (x, kind, p): env =
   { env with mapping = strict_add env x (kind, Point p) env.mapping }
 
 (* [locate env p1 p2] extends [env] with the provided location information. *)

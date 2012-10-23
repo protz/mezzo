@@ -56,6 +56,7 @@ and raw_error =
   | NotMergingClauses of env * typ * typ * env * typ * typ
   | MissingFieldInSignature of Variable.name
   | NoSuchTypeInSignature of Variable.name * typ
+  | DataTypeMismatchInSignature of Variable.name
 
 exception TypeCheckerError of error
 
@@ -323,4 +324,9 @@ let print_error buf (env, raw_error) =
         Lexer.p env.location
         Variable.p x
         TypePrinter.ptype (env, t)
+  | DataTypeMismatchInSignature x ->
+      Printf.bprintf buf "%a the definitions of type %a differ in the signature \
+          and the implementation"
+        Lexer.p env.location
+        Variable.p x
 ;;
