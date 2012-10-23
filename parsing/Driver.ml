@@ -108,14 +108,7 @@ let check_implementation program =
 let check_interface env signature =
   KindCheck.check_interface signature;
 
-  let exports = Interfaces.get_exports env in
-  let signature = TransSurface.translate_interface signature in
-
-  let check_blocks env blocks =
-    ignore (env, blocks, exports)
-  in
-
-  check_blocks env signature
+  Interfaces.check env signature
 ;;
 
 let find_in_include_dirs (filename: string): string =

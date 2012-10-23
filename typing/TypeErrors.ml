@@ -54,6 +54,8 @@ and raw_error =
   | NoSuitableTypeForAdopts of point * typ
   | AdoptsNoAnnotation
   | NotMergingClauses of env * typ * typ * env * typ * typ
+  | MissingFieldInSignature of Variable.name
+  | NoSuchTypeInSignature of Variable.name * typ
 
 exception TypeCheckerError of error
 
@@ -311,4 +313,14 @@ let print_error buf (env, raw_error) =
         TypePrinter.ptype (right_env, right_point)
         TypePrinter.ptype (left_env, left_t)
         TypePrinter.ptype (right_env, right_t)
+  | MissingFieldInSignature name ->
+      Printf.bprintf buf "%a this file does not export a variable named %a"
+        Lexer.p env.location
+        Variable.p name
+  | NoSuchTypeInSignature (x, t) ->
+      Printf.bprintf buf "%a this file export a variable named %a, but it does \
+        not have type %a"
+        Lexer.p env.location
+        Variable.p x
+        TypePrinter.ptype (env, t)
 ;;

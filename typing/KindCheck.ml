@@ -44,11 +44,18 @@ module M =
 type level = 
     int
 
+(* When a module is opened in scope, the names it exports point to points that
+ * are already valid in the environment (think of these as binders that have
+ * been opened already). Otherwise, it's a bound variable. *)
+type var = Var of level | Point of Types.point
+let tvar = function Var x -> T.TyVar x | Point x -> T.TyPoint x;;
+let evar = function Var x -> E.EVar x | Point x -> E.EPoint x;;
+
 type env = {
   (* The current de Bruijn level. *)
   level: level;
   (* A mapping of identifiers to pairs of a kind and a level. *)
-  mapping: (kind * level) M.t;
+  mapping: (kind * var) M.t;
   (* The current start and end positions *)
   location: Lexing.position * Lexing.position;
 }
@@ -141,10 +148,16 @@ let print_error buf (env, raw_error) =
   in
   let bindings = List.sort (fun (x, _) (y, _) -> compare x y) bindings in
   List.iter (fun (level, (x, kind)) ->
-    Printf.bprintf buf "  [debug] level=%d, variable=%a, kind=%a\n"
-      level
-      Variable.p x
-      p_kind kind
+    match level with
+    | Var level ->
+        Printf.bprintf buf "  [debug] level=%d, variable=%a, kind=%a\n"
+          level
+          Variable.p x
+          p_kind kind
+    | Point _ ->
+        Printf.bprintf buf "  [debug] external point, variable=%a, kind=%a\n"
+          Variable.p x
+          p_kind kind
   ) bindings;
 ;;
 
@@ -206,7 +219,14 @@ let strict_add env x kind mapping =
 let find x env =
   try
     let kind, level = M.find x env.mapping in
-    kind, env.level - level - 1
+    let level =
+      match level with
+      | Var level ->
+          Var (env.level - level - 1)
+      | Point _ ->
+          level
+    in
+    kind, level
   with Not_found ->
     unbound env x
 
@@ -217,7 +237,10 @@ let bind ?(strict=false) env (x, kind) : env =
   let add = if strict then strict_add env else M.add in
   { env with
     level = env.level + 1;
-    mapping = add x (kind, env.level) env.mapping }
+    mapping = add x (kind, Var env.level) env.mapping }
+
+let bind_external env (x, kind) p: env =
+  { env with mapping = strict_add env x (kind, Point p) env.mapping }
 
 (* [locate env p1 p2] extends [env] with the provided location information. *)
 let locate env p1 p2: env =

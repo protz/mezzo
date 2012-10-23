@@ -161,7 +161,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyVar x ->
       let _, index = find x env in
-      T.TyVar index
+      tvar index
 
   | TyConcreteUnfolded branch ->
       let datacon, branches = translate_data_type_def_branch env branch in
@@ -194,8 +194,8 @@ let rec translate_type (env: env) (t: typ): T.typ =
          us. *)
       let _, index = find x env in
       T.TyBar (
-        T.TySingleton (T.TyVar index),
-        T.TyAnchoredPermission (T.TyVar index, translate_type env t)
+        T.TySingleton (tvar index),
+        T.TyAnchoredPermission (tvar index, translate_type env t)
       )
 
   | TyConsumes _ ->
@@ -483,7 +483,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
 
   | EVar x ->
       let _, index = find x env in
-      E.EVar index
+      evar index
 
   | ELet (flag, patexprs, body) ->
       let env, patexprs = translate_patexprs env flag patexprs in
@@ -678,44 +678,43 @@ let translate_declaration_group (env: env) (decls: declaration_group): env * E.d
   env, List.rev decls
 ;;
 
+let translate_block env block strict = 
+  match block with
+  | DataTypeGroup data_type_group ->
+      (* This just desugars the data type definitions, no binder is opened yet! *)
+      let env, defs =
+        (* Be strict if we're in an interface. *)
+        translate_data_type_group env strict data_type_group
+      in
+      env, E.DataTypeGroup defs
+  | ValueDeclarations decls ->
+      (* Same here, we're only performing desugaring, we're not opening any
+       * binders. *)
+      let env, decls = translate_declaration_group env decls in
+      env, E.ValueDeclarations decls
+  | PermDeclaration t ->
+      let x, t = destruct_perm_decl t in
+      let k = infer env t in
+      let t = translate_type env t in
+      let env = bind ~strict:true env (x, k) in
+      env, E.PermDeclaration (x, k, t)
+;;
+
 
 (* [translate_implementation implementation] returns an
  * [Expressions.implementation], i.e. a desugared version of the entire
  * program. *)
-let translate_blocks (program: block list) (is_interface: bool): E.block list =
-  let rec translate_program env blocks =
-    match blocks with
-    | DataTypeGroup data_type_group :: blocks ->
-        (* This just desugars the data type definitions, no binder is opened yet! *)
-        let env, defs =
-          (* Be strict if we're in an interface. *)
-          translate_data_type_group env is_interface data_type_group
-        in
-        let blocks = translate_program env blocks in
-        E.DataTypeGroup defs :: blocks
-    | ValueDeclarations decls :: blocks ->
-        (* Same here, we're only performing desugaring, we're not opening any
-         * binders. *)
-        let env, decls = translate_declaration_group env decls in
-        let blocks = translate_program env blocks in
-        E.ValueDeclarations decls :: blocks
-    | PermDeclaration t :: blocks ->
-        let x, t = destruct_perm_decl t in
-        let k = infer env t in
-        let t = translate_type env t in
-        let env = bind ~strict:true env (x, k) in
-        let blocks = translate_program env blocks in
-        E.PermDeclaration (x, k, t) :: blocks
+let translate_implementation (program: block list): E.block list =
+  let rec translate_blocks env = function
+    | block :: blocks ->
+        let env, block = translate_block env block false in
+        let blocks = translate_blocks env blocks in
+        block :: blocks
     | [] ->
         []
   in
-  translate_program empty program
+  translate_blocks empty program
 ;;
 
-let translate_implementation p =
-  translate_blocks p false
-;;
-
-let translate_interface p =
-  translate_blocks p true
-;;
+(* [translate_interface] lives in [Interfaces] since it's a more complicated
+ * logic that plugs into [translate_block] at a lower level. *)
