@@ -1,1 +1,2 @@
-val f @ () -> ()
+val x @ ()
+val y @ (=x, =x)

@@ -1,1 +1,2 @@
-val f (x: ()): () = x
+val x = ()
+val y = (x, x)

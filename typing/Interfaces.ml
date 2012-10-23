@@ -54,7 +54,8 @@ let check (env: T.env) (signature: S.block list) =
     match blocks with
     | S.PermDeclaration t :: blocks ->
         let x, t = KindCheck.destruct_perm_decl t in
-        let k = KindCheck.infer tsenv t in
+        Log.debug "*** Checking sig item %a" Variable.p x;
+        KindCheck.check tsenv t S.KType;
         let t = TransSurface.translate_type tsenv t in
         let has_same_name (name, p) =
           if Variable.equal name x then
@@ -78,7 +79,9 @@ let check (env: T.env) (signature: S.block list) =
               let open TypeErrors in
               raise_error env (NoSuchTypeInSignature (x, t))
         in
-        let tsenv = KindCheck.bind_external tsenv (x, k) point in
+        let tsenv = KindCheck.bind_external tsenv (x, S.KTerm) point in
+        Log.debug "*** Successfully checked sig item, env is %a"
+          KindCheck.pkenv tsenv;
         check env tsenv blocks
 
     | [] ->

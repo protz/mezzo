@@ -89,6 +89,28 @@ let raise_error env e =
   raise (KindError (env, e))
 ;;
 
+let pkenv buf env =
+  let open T.TypePrinter in
+  (* Uncomment this part to get a really verbose error message. *)
+  Printf.bprintf buf "\n";
+  let bindings = M.fold (fun x (kind, level) acc ->
+    (level, (x, kind)) :: acc) env.mapping []
+  in
+  let bindings = List.sort (fun (x, _) (y, _) -> compare x y) bindings in
+  List.iter (fun (level, (x, kind)) ->
+    match level with
+    | Var level ->
+        Printf.bprintf buf "  [debug] level=%d, variable=%a, kind=%a\n"
+          level
+          Variable.p x
+          p_kind kind
+    | Point _ ->
+        Printf.bprintf buf "  [debug] external point, variable=%a, kind=%a\n"
+          Variable.p x
+          p_kind kind
+  ) bindings
+;;
+
 let print_error buf (env, raw_error) =
   let open T.TypePrinter in
   begin match raw_error with
@@ -141,24 +163,8 @@ let print_error buf (env, raw_error) =
         Lexer.p env.location
         Variable.p x
   end;
-  (* Uncomment this part to get a really verbose error message. *)
-  Printf.bprintf buf "\n";
-  let bindings = M.fold (fun x (kind, level) acc ->
-    (level, (x, kind)) :: acc) env.mapping []
-  in
-  let bindings = List.sort (fun (x, _) (y, _) -> compare x y) bindings in
-  List.iter (fun (level, (x, kind)) ->
-    match level with
-    | Var level ->
-        Printf.bprintf buf "  [debug] level=%d, variable=%a, kind=%a\n"
-          level
-          Variable.p x
-          p_kind kind
-    | Point _ ->
-        Printf.bprintf buf "  [debug] external point, variable=%a, kind=%a\n"
-          Variable.p x
-          p_kind kind
-  ) bindings;
+  if Log.debug_level () > 4 then
+    pkenv buf env;
 ;;
 
 let unbound env x =
@@ -752,8 +758,8 @@ let check_implementation (program: implementation) =
 
     | PermDeclaration t ->
         let x, t = destruct_perm_decl t in
-        let k = infer env t in
-        let env = bind ~strict:true env (x, k) in
+        check env t KType;
+        let env = bind ~strict:true env (x, KTerm) in
         env
   ) empty program in
   ignore (env);

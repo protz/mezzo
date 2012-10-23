@@ -107,7 +107,8 @@ let check_implementation program =
 
 let check_interface env signature =
   KindCheck.check_interface signature;
-
+  (* It may very well be that [Interfaces.check] subsumes what
+   * [KindCheck.check_interface] does. *)
   Interfaces.check env signature
 ;;
 
