@@ -417,14 +417,17 @@ let rec check_fact_conclusion (env: env) (x: Variable.name) (args: Variable.name
   | _ ->
       match flatten_tyapp t with
       | TyVar x', args' ->
+          Log.debug "%a %a" Variable.p x Variable.p x';
           if not (Variable.equal x x') then
             bad_conclusion_in_fact env x;
           if not (List.length args = List.length args') then
             bad_conclusion_in_fact env x;
           List.iter2 (fun x arg' ->
             match arg' with
-            | TyVar x' when Variable.equal x x' ->
-                ()
+            | TyVar x'
+            | TyLocated (TyVar x', _, _) ->
+                if not (Variable.equal x x') then
+                  bad_conclusion_in_fact env x;
             | _ ->
                 bad_conclusion_in_fact env x) args args';
       | _ ->

@@ -142,28 +142,41 @@ let check (env: T.env) (signature: S.block list) =
           (* Check facts. We check that the fact in the implementation is more
            * precise than the fact in the signature. *)
           let fact' = T.get_fact env point in
-          if not (T.fact_leq fact' fact) then
-            error_out "facts";
 
           (* Definitions. *)
           let def' = Option.extract (T.get_definition env point) in
           let def, variance = def in
           let def', variance' = def' in
           (* We are *not* checking variance, because we don't have abstract
-           * types yet. When we do, we'll have to make sure we implement
-           * something along the lines of [variance_leq] and check:
-           * [List.for_all2 variance_leq variance' variance]. *)
+           * types yet. So all the types in the signatures are concrete, and we
+           * can run the variance analysis on them. When we do, we'll have to
+           * make sure we implement something along the lines of [variance_leq]
+           * and check: [List.for_all2 variance_leq variance' variance]. *)
           if false && variance <> variance' then
             error_out "variance";
 
           match def, def' with
           | None, None ->
+              (* These are « abstract types » (declared abstract in both the
+               * implementation and the interface). For these, we write explicit
+               * facts, so we should make sure these are consistent. *)
+              if not (T.fact_leq fact' fact) then
+                error_out "facts";
               ()
           | None, Some _ ->
               Log.error "We don't support making a type abstract yet"
           | Some _, None ->
               error_out "type abstract in implem but not in sig";
           | Some (flag, branches, clause), Some (flag', branches', clause') ->
+              (* At this stage the fact information is meaningless because we
+               * haven't run [FactInference.analyze_types] yet. However, since we
+               * don't have abstract types, we'll be able to recover the correct
+               * fact from the flag and the definitions. So we're good. Of course,
+               * we'll have to perform a real check in the case of abstract types.
+               * *)
+              if false && not (T.fact_leq fact' fact) then
+                error_out "facts";
+
               if flag <> flag' then
                 error_out "flags";
 

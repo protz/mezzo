@@ -65,6 +65,12 @@ let dummy_binding k =
 ;;
 
 let tests: (string * ((bool -> env) -> unit)) list = [
+  (* Put the core definitions first, so that if it fails, we can see it
+   * immediately. *)
+
+  ("pervasives.mz",
+    simple_test ~stdlib:false Pass);
+
   (* Some very simple tests. *)
 
   ("basic.mz",
@@ -572,6 +578,12 @@ let tests: (string * ((bool -> env) -> unit)) list = [
   ("bag_lifo.mz", simple_test Pass);
 
   ("bag_fifo.mz", simple_test ~stdlib:false Pass);
+
+  ("modules/simple.mz", simple_test ~stdlib:false Pass);
+
+  ("modules/simple2.mz", simple_test ~stdlib:false (Fail (function
+    | DataTypeMismatchInSignature _ -> true | _ -> false
+  )));
 ]
 
 let _ =
