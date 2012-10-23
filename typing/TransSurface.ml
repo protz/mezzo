@@ -694,10 +694,10 @@ let translate_block env block strict =
       env, E.ValueDeclarations decls
   | PermDeclaration t ->
       let x, t = destruct_perm_decl t in
-      let k = infer env t in
+      check env t KType;
       let t = translate_type env t in
-      let env = bind ~strict:true env (x, k) in
-      env, E.PermDeclaration (x, k, t)
+      let env = bind ~strict:true env (x, KType) in
+      env, E.PermDeclaration (x, t)
 ;;
 
 

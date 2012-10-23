@@ -104,7 +104,7 @@ type declaration_group =
   declaration list
 
 type sig_item =
-  Variable.name * kind * typ
+  Variable.name * typ
 
 type block =
   | DataTypeGroup of data_type_group
@@ -354,10 +354,10 @@ let rec tsubst_blocks t2 i blocks =
       let n = n_decls decls in
       let blocks = tsubst_blocks t2 (i + n) blocks in
       ValueDeclarations decls :: blocks
-  | PermDeclaration (x, k, t) :: blocks ->
+  | PermDeclaration (x, t) :: blocks ->
       let t = tsubst t2 i t in
       let blocks = tsubst_blocks t2 (i + 1) blocks in
-      PermDeclaration (x, k, t) :: blocks
+      PermDeclaration (x, t) :: blocks
   | [] ->
       []
 ;;
@@ -1108,9 +1108,8 @@ module ExprPrinter = struct
     nest 2 declarations ^^ hardline
   ;;
 
-  let print_sig_item env (x, k, t) =
-    print_var (User x) ^^ space ^^ colon ^^ colon ^^ print_kind k ^^
-    space ^^ at ^^ space ^^ print_type env t
+  let print_sig_item env (x, t) =
+    print_var (User x) ^^ space ^^ at ^^ space ^^ print_type env t
   ;;
 
   let psigitem buf (env, arg) =
