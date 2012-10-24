@@ -670,7 +670,11 @@ let expand_if_one_branch (env: env) (t: typ) =
 
 module TypePrinter = struct
 
+  let tfold = fold;;
+
   open Hml_Pprint
+
+  let fold = tfold;;
 
   (* If [f arg] returns a [document], then write [Log.debug "%a" pdoc (f, arg)] *)
   let pdoc (buf: Buffer.t) (f, env: ('env -> document) * 'env): unit =
@@ -730,6 +734,29 @@ module TypePrinter = struct
 
   let pnames buf (env, names) =
     pdoc buf (print_names env, names)
+  ;;
+
+  let print_exports env =
+    let exports = 
+      fold env (fun acc point ({ names; kind; _ }, _) ->
+        ignore (kind, point);
+        let names = Hml_List.map_some (function
+          | User (m, x) ->
+              Some (m, x)
+          | _ ->
+              None
+        ) names in
+        let names = List.map (fun (m, x) ->
+          print_string (Module.print m) ^^ dot ^^ print_string (Variable.print x)
+        ) names in
+        (join (string " = ") names) :: acc
+      ) []
+    in
+    join (string ", ") exports
+  ;;
+
+  let pexports buf env =
+    pdoc buf (print_exports, env)
   ;;
 
   internal_pnames := pnames;;

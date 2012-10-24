@@ -256,6 +256,11 @@ let bind_external env (x, kind, p): env =
  * own [tsenv]. *)
 let open_module_in (mname: Module.name) (env: env): env =
   let names = T.get_exports env.env mname in
+  let _ =
+    let names = List.map (fun (x, _, _) -> Variable.print x) names in
+    let names = String.concat ", " names in
+    Log.debug "Importing module %a into scope, names = %s" Module.p mname names
+  in
   List.fold_left bind_external env names
 ;;
 

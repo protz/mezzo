@@ -120,11 +120,11 @@ let find_and_lex_interface (mname: Module.name): SurfaceSyntax.interface =
 (* [build_interface env mname] finds the right interface file for [mname], and
  * lexes it, parses it, and returns a desugared version of it, reading for
  * importing into some environment. *)
-let build_interface (env: Types.env) (mname: Module.name): Expressions.interface =
+let build_interface (env: Types.env) (mname: Module.name): Types.env * Expressions.interface =
   let iface = find_and_lex_interface mname in
   let env = { env with Types.module_name = mname } in
   KindCheck.check_interface env iface;
-  TransSurface.translate_interface env iface
+  env, TransSurface.translate_interface env iface
 ;;
 
 
@@ -161,9 +161,13 @@ let check_implementation
   in
   (* And import them all in scope. *)
   let env = List.fold_left (fun env mname ->
-    let iface = build_interface env mname in
+    Log.debug "Massive import, %a" Module.p mname;
+    let env, iface = build_interface env mname in
     (* [env] has the right module name at this stage *)
     let env = Modules.import_interface env iface in
+    Log.debug "Imported %a, now has names %a"
+      Module.p mname
+      Types.TypePrinter.pexports env;
     env
   ) env deps in
 
