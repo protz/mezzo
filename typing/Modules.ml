@@ -55,8 +55,131 @@ let import_interface (env: T.env) (items: E.interface): T.env =
 ;;
 
 (* For internal use only (yet). *)
-let collect_dependencies (_items: S.toplevel_item list): Module.name list =
-  assert false
+let collect_dependencies (items: S.toplevel_item list): Module.name list =
+  let open SurfaceSyntax in
+
+  (* Just so we're clear: among these functions, only collect_item actually does
+   * something in the [OpenDirective] case. But this will all change we have
+   * prefixed names and prefixed constructors... *)
+
+  let rec collect_items items =
+    Hml_List.map_flatten collect_item items
+
+  and collect_item = function
+    | PermDeclaration t ->
+        collect_type t
+    | DataTypeGroup (_, defs) ->
+        Hml_List.map_flatten (function
+          | Abstract _ ->
+              []
+          | Concrete (_flag, _lhs, rhs, adopts) ->
+              Option.map_none [] (Option.map collect_type adopts)
+              @ Hml_List.map_flatten collect_data_type_def_branch rhs
+        ) defs
+    | ValueDeclarations decls ->
+        Hml_List.map_flatten collect_decl decls
+    | OpenDirective m ->
+        [m]
+
+  and collect_decl = function
+    | DLocated (d, _, _) ->
+        collect_decl d
+    | DMultiple (_, patexprs) ->
+        collect_patexprs patexprs
+
+  and collect_patexprs patexprs =
+    let pats, exprs = List.split patexprs in
+    Hml_List.map_flatten collect_pattern pats
+    @ Hml_List.map_flatten collect_expr exprs
+
+  and collect_pattern = function
+    | PVar _ ->
+        []
+    | PLocated (p1, _, _) ->
+        collect_pattern p1
+    | PConstraint (p1, t1) ->
+        collect_pattern p1 @ collect_type t1
+    | PTuple ps ->
+        Hml_List.map_flatten collect_pattern ps
+    | PConstruct (_, namepats) ->
+        let _, ps = List.split namepats in
+        Hml_List.map_flatten collect_pattern ps
+    | PAs (p1, p2) ->
+        collect_pattern p1 @ collect_pattern p2
+
+  and collect_expr = function
+    | EConstraint (expr, t) ->
+        collect_expr expr @ collect_type t
+    | EVar _
+    | EInt _
+    | EFail ->
+        []
+    | EMatch (_, expr, patexprs)
+    | ELet (_, patexprs, expr) ->
+        collect_patexprs patexprs @ collect_expr expr
+    | EFun (_, t1, t2, expr) ->
+        collect_type t1 @ collect_type t2 @ collect_expr expr
+    | EAssign (e1, _, e2)
+    | EApply (e1, e2)
+    | EGive (e1, e2)
+    | ETake (e1, e2)
+    | ESequence (e1, e2) ->
+        collect_expr e1 @ collect_expr e2
+    | ELocated (expr, _, _)
+    | EAssignTag (expr, _)
+    | EAccess (expr, _)
+    | EExplained expr ->
+        collect_expr expr
+    | EAssert t ->
+        collect_type t
+    | ETApply (expr, ts) ->
+        collect_expr expr @ Hml_List.map_flatten collect_type ts
+    | ETuple exprs ->
+        Hml_List.map_flatten collect_expr exprs
+    | EConstruct (_, nameexprs) ->
+        let _, exprs = List.split nameexprs in
+        Hml_List.map_flatten collect_expr exprs
+    | EIfThenElse (_, e1, e2, e3) ->
+        collect_expr e1 @ collect_expr e2 @ collect_expr e3
+
+  and collect_type = function
+    | TyUnknown
+    | TyDynamic
+    | TyEmpty
+    | TyVar _ ->
+        []
+    | TySingleton t1
+    | TyNameIntro (_, t1)
+    | TyConsumes t1
+    | TyLocated (t1, _, _)
+    | TyForall (_, t1) ->
+        collect_type t1
+    | TyApp (t1, t2)
+    | TyArrow (t1, t2)
+    | TyAnchoredPermission (t1, t2)
+    | TyBar (t1, t2)
+    | TyStar (t1, t2) ->
+        collect_type t1 @ collect_type t2
+    | TyTuple ts ->
+        Hml_List.map_flatten collect_type ts
+    | TyConstraints (dcs, t) ->
+        let _, ts = List.split dcs in
+        collect_type t @ Hml_List.map_flatten collect_type ts
+    | TyConcreteUnfolded branch ->
+        collect_data_type_def_branch branch
+
+  and collect_data_type_def_branch (_, fields) =
+    let ts = List.map (function
+      | FieldValue (_, t) ->
+          t
+      | FieldPermission t ->
+          t
+    ) fields in
+    Hml_List.map_flatten collect_type ts
+
+  in
+
+  collect_items items
 ;;
 
 (* Called by [Driver], returns all the dependencies (transitive) of [items],
