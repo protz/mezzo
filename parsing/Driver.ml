@@ -108,6 +108,7 @@ let find_in_include_dirs (filename: string): string =
     s
 ;;
 
+(* TODO memoize *)
 let find_and_lex_interface (mname: Module.name): SurfaceSyntax.interface =
   let fname = file_name_for_module_name mname in
   let fpath = find_in_include_dirs fname in
@@ -148,13 +149,17 @@ let check_interface env mname signature =
 
 
 (* This performs the bulk of the work. *)
-let check_implementation mname program interface = 
+let check_implementation
+    (mname: Module.name)
+    (program: SurfaceSyntax.implementation)
+    (interface: SurfaceSyntax.interface option) = 
+
   let open Expressions in
 
   let env = Types.empty_env in
 
   (* Find all the dependencies... *)
-  let deps = Modules.all_dependencies program in
+  let deps = Modules.all_dependencies mname find_and_lex_interface in
   (* And import them all in scope. *)
   let env = List.fold_left (fun env mname ->
     let iface = build_interface env mname in

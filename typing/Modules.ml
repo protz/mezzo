@@ -184,6 +184,18 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
 
 (* Called by [Driver], returns all the dependencies (transitive) of [items],
  * sorted by topological order. *)
-let all_dependencies (_items: S.toplevel_item list): Module.name list =
-  assert false
+let all_dependencies (mname: Module.name) (find: Module.name -> S.toplevel_item list): Module.name list =
+  let h = Hashtbl.create 13 in
+  let l = ref [] in
+  let rec collect name = 
+    if Hashtbl.mem h name then
+      ()
+    else
+      Hashtbl.add h name ();
+      let deps = collect_dependencies (find name) in
+      List.iter collect deps;
+      l := name :: !l;
+  in
+  collect mname;
+  !l
 ;;
