@@ -28,24 +28,8 @@ module TS = TransSurface
 
 (* Interface-related functions. *)
 
-let get_exports env mname =
-  let open Types in
-  let assoc =
-    fold env (fun acc point ({ names; _ }, _) ->
-      let canonical_names = Hml_List.map_some (function
-        | User (m, x) when Module.equal m mname ->
-            Some x
-        | _ ->
-            None
-      ) names in
-      List.map (fun x -> x, point) canonical_names :: acc
-    ) [] 
-  in
-  List.flatten assoc
-;;
-
-let has_same_name x (name, p) =
-  if Variable.equal name x then
+let has_same_name x (x', _k, p) =
+  if Variable.equal x' x then
     Some p
   else
     None
@@ -57,7 +41,7 @@ let has_same_name x (name, p) =
 let check (env: T.env) (mname: Module.name) (signature: S.toplevel_item list): T.env =
   (* Get all the names (no longer prefixed) that [env] exports from module
    * [mname]. *)
-  let exports = get_exports env mname in
+  let exports = T.get_exports env mname in
 
   (* Find one specific name among these names. *)
   let point_by_name name =

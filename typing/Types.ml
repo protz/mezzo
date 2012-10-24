@@ -160,6 +160,7 @@ let fold_exists bindings t =
 ;;
 
 
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Various functions related to binding and finding. *)
@@ -395,6 +396,26 @@ let refresh_fact env p fact =
   replace_type env p (fun binder -> { binder with fact })
 ;;
 
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Interface-related functions. *)
+
+(* Get all the names from module [mname] found in [env]. *)
+let get_exports env mname =
+  let assoc =
+    fold env (fun acc point ({ names; kind; _ }, _) ->
+      let canonical_names = Hml_List.map_some (function
+        | User (m, x) when Module.equal m mname ->
+            Some (x, kind)
+        | _ ->
+            None
+      ) names in
+      List.map (fun (x, k) -> x, k, point) canonical_names :: acc
+    ) []
+  in
+  List.flatten assoc
+;;
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -716,7 +737,7 @@ module TypePrinter = struct
   let rec print_quantified
       (env: env)
       (q: string)
-      (name: name) 
+      (name: name)
       (kind: SurfaceSyntax.kind)
       (typ: typ) =
     print_string q ^^ lparen ^^ print_var env name ^^ space ^^ ccolon ^^ space ^^
@@ -932,7 +953,7 @@ module TypePrinter = struct
     in
     join hardline lines
   ;;
-  
+
   let print_permission_list (env, { permissions; _ }): document =
     (* let permissions = List.filter (function
       TySingleton (TyPoint _) -> false | _ -> true

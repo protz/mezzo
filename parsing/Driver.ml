@@ -70,16 +70,6 @@ let add_include_dir dir =
   include_dirs := dir :: !include_dirs
 ;;
 
-(* [find_interface mz] returns the path to the interface for [mz], if any. It
- * assumes [mz] is a valid filename ending with ".mz". *)
-let find_interface file_path =
-  let iface = file_path ^ "i" in
-  if Sys.file_exists iface then
-    Some iface
-  else
-    None
-;;
-
 let module_name_for_file_path (f: string): Module.name =
   let f = Filename.basename f in
   if not (Filename.check_suffix f ".mz") then
@@ -90,7 +80,7 @@ let module_name_for_file_path (f: string): Module.name =
   Module.register f
 ;;
 
-let find_in_include_dirs (filename: string): string =
+let find_in_include_dirs (filename: string): string option =
   let module M = struct exception Found of string end in
   try
     List.iter (fun dir ->
@@ -105,31 +95,26 @@ let find_in_include_dirs (filename: string): string =
       if Sys.file_exists path then
         raise (M.Found path)
     ) !include_dirs;
-    Log.error "File %s not found in any include directory." filename
+    None
   with M.Found s ->
-    s
+    Some s
 ;;
 
-let file_name_for_module_name (mname: Module.name): string =
+let iface_file_path_for_module_name (mname: Module.name): string option =
   let f = Module.print mname in
   let f = String.lowercase f in
-  let f = f ^ ".mz" in
+  let f = f ^ ".mzi" in
   find_in_include_dirs f
 ;;
 
 (* TODO memoize *)
 let find_and_lex_interface (mname: Module.name): SurfaceSyntax.interface =
-  let fname = file_name_for_module_name mname in
-  let fpath = find_in_include_dirs fname in
-  let ifpath =
-    match find_interface fpath with
-    | Some ifpath ->
-        ifpath
-    | None ->
-        Log.error "No interface for module %a" Module.p mname
-  in
-  let iface = lex_and_parse_interface ifpath in
-  iface
+  let ifpath = iface_file_path_for_module_name mname in
+  match ifpath with
+  | Some ifpath ->
+      lex_and_parse_interface ifpath
+  | None ->
+      Log.error "No interface for module %a" Module.p mname
 ;;
 
 (* [build_interface env mname] finds the right interface file for [mname], and
@@ -168,7 +153,12 @@ let check_implementation
   let env = Types.empty_env in
 
   (* Find all the dependencies... *)
-  let deps = Modules.all_dependencies mname find_and_lex_interface in
+  let deps = Modules.all_dependencies mname (fun mname' ->
+    if Module.equal mname mname' then
+      program
+    else
+      find_and_lex_interface mname')
+  in
   (* And import them all in scope. *)
   let env = List.fold_left (fun env mname ->
     let iface = build_interface env mname in
@@ -252,7 +242,7 @@ let process file_path =
   let program = lex_and_parse_implementation file_path in
   let mname = module_name_for_file_path file_path in
   let iface =
-    match find_interface file_path with
+    match iface_file_path_for_module_name mname with
     | Some iface_path ->
         Some (lex_and_parse_interface iface_path)
     | None ->

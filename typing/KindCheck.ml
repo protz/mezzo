@@ -69,12 +69,6 @@ let empty env : env =
   { level = 0; mapping = M.empty; location = Lexing.dummy_pos, Lexing.dummy_pos; env; }
 
 
-(* Find in [tsenv.env] all the names exported by module [mname], and add them to our
- * own [tsenv]. *)
-let open_module_in (_mname: Module.name) (_tsenv: env): env =
-  assert false
-;;
-
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -257,6 +251,13 @@ let bind ?(strict=false) env (x, kind) : env =
 
 let bind_external env (x, kind, p): env =
   { env with mapping = strict_add env x (kind, Point p) env.mapping }
+
+(* Find in [tsenv.env] all the names exported by module [mname], and add them to our
+ * own [tsenv]. *)
+let open_module_in (mname: Module.name) (env: env): env =
+  let names = T.get_exports env.env mname in
+  List.fold_left bind_external env names
+;;
 
 (* [locate env p1 p2] extends [env] with the provided location information. *)
 let locate env p1 p2: env =

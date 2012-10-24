@@ -732,6 +732,9 @@ implementation_toplevel:
     { group }
 | declarations = declaration_group
     { declarations }
+| open_mod = open_directive
+    { open_mod }
+
 
 implementation:
   | bs = implementation_toplevel+ EOF
@@ -751,6 +754,8 @@ interface_toplevel:
     { group }
 | declarations = perm_declaration
     { declarations }
+| open_mod = open_directive
+    { open_mod }
 
 interface:
   | bs = interface_toplevel+ EOF

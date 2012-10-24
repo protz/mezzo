@@ -1,0 +1,3 @@
+open A
+
+val f @ () -> foo_a

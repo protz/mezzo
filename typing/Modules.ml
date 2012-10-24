@@ -188,14 +188,20 @@ let all_dependencies (mname: Module.name) (find: Module.name -> S.toplevel_item 
   let h = Hashtbl.create 13 in
   let l = ref [] in
   let rec collect name = 
-    if Hashtbl.mem h name then
+    if Hashtbl.mem h name then begin
       ()
-    else
+    end else begin
       Hashtbl.add h name ();
       let deps = collect_dependencies (find name) in
       List.iter collect deps;
-      l := name :: !l;
+      l := name :: !l
+    end
   in
   collect mname;
-  !l
+  let l = List.tl !l in
+  let l = List.rev l in
+  (* The module does not depend on itself. *)
+  let names = String.concat ", " (List.map Module.print l) in
+  Log.debug "Found dependencies for %a (left-to-right) = %s" Module.p mname names;
+  l
 ;;
