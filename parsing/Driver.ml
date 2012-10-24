@@ -80,12 +80,14 @@ let find_interface file_path =
     None
 ;;
 
-let file_name_for_module_name (_mname: Module.name): string =
-  assert false
-;;
-
-let module_name_for_file_path (_fpath: string): Module.name =
-  assert false
+let module_name_for_file_path (f: string): Module.name =
+  let f = Filename.basename f in
+  if not (Filename.check_suffix f ".mz") then
+    Log.error "This is unexpected";
+  let f = Filename.chop_suffix f ".mz" in
+  let f = String.lowercase f in
+  f.[0] <- Char.uppercase f.[0];
+  Module.register f
 ;;
 
 let find_in_include_dirs (filename: string): string =
@@ -106,6 +108,13 @@ let find_in_include_dirs (filename: string): string =
     Log.error "File %s not found in any include directory." filename
   with M.Found s ->
     s
+;;
+
+let file_name_for_module_name (mname: Module.name): string =
+  let f = Module.print mname in
+  let f = String.lowercase f in
+  let f = f ^ ".mz" in
+  find_in_include_dirs f
 ;;
 
 (* TODO memoize *)
