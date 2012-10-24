@@ -199,9 +199,9 @@ let one_round (env: env) (points: point list): env =
             env
         | Duplicable bitmap ->
             Log.debug ~level:4 "Attacking %s%a%s %a" Bash.colors.Bash.red
-              TypePrinter.pvar (get_name env point)
+              TypePrinter.pvar (env, get_name env point)
               Bash.colors.Bash.default
-              TypePrinter.pvar tname;
+              TypePrinter.pvar (env, tname);
             (* [bitmap] is shared! *)
             let phase = Elaborating bitmap in
             let inner_env, _, branches, clause =

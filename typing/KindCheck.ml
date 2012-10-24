@@ -58,12 +58,15 @@ type env = {
   mapping: (kind * var) M.t;
   (* The current start and end positions *)
   location: Lexing.position * Lexing.position;
+  (* The [Types.env] that contains information about: the current module, and
+   * the points for all the things we depend on. *)
+  env: Types.env;
 }
 
 (* The empty environment. *)
 
-let empty : env =
-  { level = 0; mapping = M.empty; location = Lexing.dummy_pos, Lexing.dummy_pos }
+let empty env : env =
+  { level = 0; mapping = M.empty; location = Lexing.dummy_pos, Lexing.dummy_pos; env; }
 
 
 (* Find in [env] all the names exported by module [mname], and add them to our
@@ -743,6 +746,7 @@ let destruct_perm_decl t =
 ;;
 
 let check_implementation (tenv: T.env) (program: implementation) =
+  let env = empty tenv in
   let env = List.fold_left (fun env -> function
     | DataTypeGroup ((p1, p2), data_type_group) ->
         (* Collect the names from the data type definitions, since they
@@ -773,8 +777,8 @@ let check_implementation (tenv: T.env) (program: implementation) =
         env
 
     | OpenDirective mname ->
-        open_module_in tenv mname env
-  ) empty program in
+        open_module_in env.env mname env
+  ) env program in
   ignore (env);
 ;;
 
@@ -791,8 +795,8 @@ module KindPrinter = struct
   open TypePrinter
 
   (* Prints an abstract data type. Very straightforward. *)
-  let print_abstract_type_def _print_env name kind =
-    string "abstract" ^^ space ^^ print_var name ^^ space ^^ ccolon ^^ space ^^
+  let print_abstract_type_def print_env name kind =
+    string "abstract" ^^ space ^^ print_var print_env name ^^ space ^^ ccolon ^^ space ^^
     print_kind kind
   ;;
 
@@ -826,7 +830,7 @@ module KindPrinter = struct
     in
     (* The whole blurb *)
     flag ^^ string "data" ^^ space ^^ lparen ^^
-    print_var name ^^ space ^^ ccolon ^^ space ^^
+    print_var env name ^^ space ^^ ccolon ^^ space ^^
     print_kind kind ^^ rparen ^^ join_left space letters ^^
     space ^^ equals ^^
     jump
@@ -863,7 +867,7 @@ module KindPrinter = struct
 
   let print_group env (group: data_type_group) =
     let defs = List.map (fun (name, _, def, _, kind) ->
-      let name = User name in
+      let name = User (env.module_name, name) in
       print_def env name kind (Some def)
     ) group in
     nest 2 (join (break1 ^^ break1) defs) ^^ hardline

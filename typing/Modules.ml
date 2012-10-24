@@ -26,8 +26,32 @@ module E = Expressions
 
 (* Used by [Driver], to import the points from a desugared interface into
  * another one, prefixed by the module they belong to, namely [mname]. *)
-let import_interface (_env: T.env) (_iface: Module.name * E.interface): T.env =
-  assert false
+let import_interface (env: T.env) (items: E.interface): T.env =
+  let open Types in
+  let open Expressions in
+  (* We demand that [env] have the right module name. *)
+  let rec import_items env = function
+    | PermDeclaration (name, typ) :: items ->
+        (* XXX the location information is probably wildly inaccurate *)
+        let binding = User (env.module_name, name), KType, env.location in
+        let env, p = bind_var env binding in
+        let env = Permissions.add env p typ in
+        let items = tsubst_toplevel_items (TyPoint p) 0 items in
+        let items = esubst_toplevel_items (EPoint p) 0 items in
+        import_items env items
+
+    | DataTypeGroup group :: items ->
+        let env, items = DataTypeGroup.bind_data_type_group env group items in
+        import_items env items
+
+    | ValueDeclarations _ :: _ ->
+        assert false
+
+    | [] ->
+        env
+  in
+
+  import_items env items
 ;;
 
 (* For internal use only (yet). *)

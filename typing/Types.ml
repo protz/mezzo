@@ -218,6 +218,7 @@ let bind_type
   { env with state }, point
 ;;
 
+(* [fact] is unused if it's a [KTerm] variable... *)
 let bind_var (env: env) ?(flexible=false) ?(fact=Affine) (name, kind, location: type_binding): env * point =
   match kind with
     | KType ->
@@ -279,7 +280,7 @@ let find_type (env: env) (point: point): name * type_binder =
   | { names; _ }, BType binding ->
       List.hd names, binding
   | _ ->
-      Log.error "Binder %a is not a type" !internal_pnames (get_names env point)
+      Log.error "Binder %a is not a type" !internal_pnames (env, get_names env point)
 ;;
 
 let find_term (env: env) (point: point): name * term_binder =
@@ -287,7 +288,7 @@ let find_term (env: env) (point: point): name * term_binder =
   | { names; _ }, BTerm binding ->
       List.hd names, binding
   | _ ->
-      Log.error "Binder %a is not a term" !internal_pnames (get_names env point)
+      Log.error "Binder %a is not a term" !internal_pnames (env, get_names env point)
 ;;
 
 let is_type (env: env) (point: point): bool =
@@ -530,7 +531,7 @@ let has_definition (env: env) (point: point): bool =
 let instantiate_flexible env p t =
   Log.check (is_flexible env p) "Trying to instantiate a variable that's not flexible";
   Log.debug "Instantiating %a with %a"
-    !internal_pnames (get_names env p)
+    !internal_pnames (env, get_names env p)
     !internal_ptype (env, t);
   { env with state =
       PersistentUnionFind.update (function
@@ -574,7 +575,7 @@ let point_by_name (env: env) (name: string): point =
   let module T = struct exception Found of point end in
   try
     fold env (fun () point ({ names; _ }, _binding) ->
-      if List.exists (names_equal (User (Variable.register name))) names then
+      if List.exists (names_equal (User (env.module_name, Variable.register name))) names then
         raise (T.Found point)) ();
     raise Not_found
   with T.Found point ->
@@ -657,15 +658,17 @@ module TypePrinter = struct
 
   (* --------------------------------------------------------------------------- *)
 
-  let print_var = function
-    | User var ->
+  let print_var env = function
+    | User (m, var) when Module.equal env.module_name m ->
         print_string (Variable.print var)
+    | User (m, var) ->
+        print_string (Module.print m) ^^ dot ^^ print_string (Variable.print var)
     | Auto var ->
         colors.yellow ^^ print_string (Variable.print var) ^^ colors.default
   ;;
 
-  let pvar buf (var: name) =
-    pdoc buf (print_var, var)
+  let pvar buf (env, var) =
+    pdoc buf (print_var env, var)
   ;;
 
   let print_datacon datacon =
@@ -694,9 +697,9 @@ module TypePrinter = struct
     pdoc buf (print_kind, kind)
   ;;
 
-  let print_names names =
+  let print_names env names =
     if List.length names > 0 then
-      let names = List.map print_var names in
+      let names = List.map (print_var env) names in
       let names = List.map (fun x -> colors.blue ^^ x ^^ colors.default) names in
       let names = join (string ", ") names in
       names
@@ -704,8 +707,8 @@ module TypePrinter = struct
       colors.red ^^ string "[no name]" ^^ colors.default
   ;;
 
-  let pnames buf names =
-    pdoc buf (print_names, names)
+  let pnames buf (env, names) =
+    pdoc buf (print_names env, names)
   ;;
 
   internal_pnames := pnames;;
@@ -716,7 +719,7 @@ module TypePrinter = struct
       (name: name) 
       (kind: SurfaceSyntax.kind)
       (typ: typ) =
-    print_string q ^^ lparen ^^ print_var name ^^ space ^^ ccolon ^^ space ^^
+    print_string q ^^ lparen ^^ print_var env name ^^ space ^^ ccolon ^^ space ^^
     print_kind kind ^^ rparen ^^ dot ^^ jump (print_type env typ)
 
   and print_point env point =
@@ -725,9 +728,9 @@ module TypePrinter = struct
         lparen ^^ string "flex→" ^^ print_type env t ^^ rparen
     | _ ->
         if is_flexible env point then
-          print_var (get_name env point) ^^ star
+          print_var env (get_name env point) ^^ star
         else
-          print_var (get_name env point)
+          print_var env (get_name env point)
 
 
   (* TEMPORARY this does not respect precedence and won't insert parentheses at
@@ -750,8 +753,8 @@ module TypePrinter = struct
     | TyAnchoredPermission (TyPoint p, TySingleton (TyPoint p')) ->
         let star = if is_flexible env p then star else empty in
         let star' = if is_flexible env p' then star else empty in
-        print_names (get_names env p) ^^ star ^^ space ^^ equals ^^ space ^^
-        print_names (get_names env p') ^^ star'
+        print_names env (get_names env p) ^^ star ^^ space ^^ equals ^^ space ^^
+        print_names env (get_names env p') ^^ star'
 
     | (TyForall _) as t ->
         let rec strip_bind acc env = function
@@ -764,9 +767,9 @@ module TypePrinter = struct
         let vars, env, t = strip_bind [] env t in
         let vars = List.map (fun (x, k, _) ->
           if k = KType then
-            print_var x
+            print_var env x
           else
-            print_var x ^^ space ^^ colon ^^ colon ^^ space ^^ print_kind k
+            print_var env x ^^ space ^^ colon ^^ colon ^^ space ^^ print_kind k
         ) vars in
         let vars = join (comma ^^ space) vars in
         let vars = lbracket ^^ vars ^^ rbracket in
@@ -885,7 +888,7 @@ module TypePrinter = struct
         | Some params -> join_left space (List.map print_string params)
         | None -> empty
       in
-      colors.underline ^^ print_var name ^^ params ^^
+      colors.underline ^^ print_var env name ^^ params ^^
       colors.default ^^ string " is " ^^
       (if is_abstract then string "abstract and " else empty) ^^
       print_string w
@@ -955,7 +958,7 @@ module TypePrinter = struct
       (string str) ^^ hardline ^^ (string line)
     in
     let lines = map_terms env (fun { names; _ } binder ->
-      let names = print_names names in
+      let names = print_names env names in
       let perms = print_permission_list (env, binder) in
       names ^^ space ^^ at ^^ space ^^ (nest 2 perms)
     ) in
@@ -983,7 +986,7 @@ module TypePrinter = struct
     print_string "Γ (unordered) = " ^^
     join
       (semi ^^ space)
-      (map env (fun names _ -> join (string " = ") (List.map print_var names)))
+      (map env (fun names _ -> join (string " = ") (List.map (print_var env) names)))
   ;;
 
 

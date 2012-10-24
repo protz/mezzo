@@ -100,9 +100,9 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
     let open TypePrinter in
     List.iter (fun (left_point, right_point, dest_point) ->
       Log.debug ~level:3 "%a / %a / %a"
-        pnames (get_names left_env left_point)
-        pnames (get_names right_env right_point)
-        pnames (get_names dest_env dest_point)) !known_triples;
+        pnames (left_env, get_names left_env left_point)
+        pnames (right_env, get_names right_env right_point)
+        pnames (dest_env, get_names dest_env dest_point)) !known_triples;
       Log.debug "";
   in
 
@@ -153,8 +153,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
     | Some dest_point' ->
         (* We can share! *)
         Log.debug ~level:3 "[oracle] merge job %a → %a"
-          TypePrinter.pnames (get_names dest_env dest_point)
-          TypePrinter.pnames (get_names dest_env dest_point');
+          TypePrinter.pnames (dest_env, get_names dest_env dest_point)
+          TypePrinter.pnames (dest_env, get_names dest_env dest_point');
         MergeWith dest_point'
 
     | None ->
@@ -199,14 +199,14 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
           remember_triple (left_point, right_point, dest_point);
 
           Log.debug ~level:3 "[oracle] processing job %a / %a / %a."
-            TypePrinter.pnames (get_names left_env left_point)
-            TypePrinter.pnames (get_names right_env right_point)
-            TypePrinter.pnames (get_names dest_env dest_point);
+            TypePrinter.pnames (left_env, get_names left_env left_point)
+            TypePrinter.pnames (right_env, get_names right_env right_point)
+            TypePrinter.pnames (dest_env, get_names dest_env dest_point);
           Proceed
 
         end else begin
           Log.debug ~level:4 "[oracle] discarding job since %a has been visited already"
-            TypePrinter.pnames (get_names dest_env dest_point);
+            TypePrinter.pnames (dest_env, get_names dest_env dest_point);
 
           (* This piece of code is actually dead because we always allocate a
            * fresh (existentially-quantified) point in the destination
@@ -329,9 +329,9 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
     =
 
     Log.debug ~level:3 "[merge_points] %a / %a / %a."
-      TypePrinter.pnames (get_names left_env left_point)
-      TypePrinter.pnames (get_names right_env right_point)
-      TypePrinter.pnames (get_names dest_env dest_point);
+      TypePrinter.pnames (left_env, get_names left_env left_point)
+      TypePrinter.pnames (right_env, get_names right_env right_point)
+      TypePrinter.pnames (dest_env, get_names dest_env dest_point);
 
     let left_env = locate left_env (List.hd (get_locations left_env left_point)) in
     let right_env = locate right_env (List.hd (get_locations right_env right_point)) in
@@ -373,8 +373,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
               | Some (right_perms, (right_perm, (left_env, right_env, dest_env, dest_perm))) ->
 
                   Log.debug ~level:4 "  → this merge between %a and %a was succesful (got: %a)"
-                    TypePrinter.pvar (get_name left_env left_point)
-                    TypePrinter.pvar (get_name right_env right_point)
+                    TypePrinter.pvar (left_env, get_name left_env left_point)
+                    TypePrinter.pvar (right_env, get_name right_env right_point)
                     TypePrinter.ptype (dest_env, dest_perm);
 
                   let left_is_duplicable = FactInference.is_duplicable left_env left_perm in
@@ -459,9 +459,9 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
           push_job (left_p, right_p, dest_p);
           Log.debug ~level:4
             "  [push_job] %a / %a / %a"
-            TypePrinter.pnames (get_names left_env left_p)
-            TypePrinter.pnames (get_names right_env right_p)
-            TypePrinter.pnames (get_names dest_env dest_p);
+            TypePrinter.pnames (left_env, get_names left_env left_p)
+            TypePrinter.pnames (right_env, get_names right_env right_p)
+            TypePrinter.pnames (dest_env, get_names dest_env dest_p);
           dest_env, dest_p
     in
 

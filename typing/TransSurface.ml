@@ -41,7 +41,7 @@ module E = Expressions
 
 (* We need to tell the next AST which names are used provided and which are
  * auto-generated. *)
-let name_user = fun (x, k, l) -> (T.User x, k, l);;
+let name_user = fun env (x, k, l) -> (T.User (env.env.T.module_name, x), k, l);;
 let name_auto = fun (x, k, l) -> (T.Auto x, k, l);;
 
 (* [strip_consumes env t] removes all the consumes annotations from [t]. A
@@ -181,7 +181,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyForall ((x, k, loc), t) ->
       let env = bind env (x, k) in
-      T.TyForall (((T.User x, k, loc), CanInstantiate), translate_type env t)
+      T.TyForall (((name_user env (x, k, loc)), CanInstantiate), translate_type env t)
 
   | TyAnchoredPermission (t1, t2) ->
       T.TyAnchoredPermission (translate_type env t1, translate_type env t2)
@@ -309,11 +309,11 @@ and translate_arrow_type env t1 t2 =
 
   (* Build the resulting type. *)
   let t2 = translate_type env t2 in
-  let t2 = T.fold_exists (List.map name_user t2_bindings) t2 in
+  let t2 = T.fold_exists (List.map (name_user env) t2_bindings) t2 in
 
   (* Finally, translate the universal bindings as well. *)
   let universal_bindings =
-    List.map name_user t1_bindings @
+    List.map (name_user env) t1_bindings @
     List.map name_auto perm_bindings @
     List.map name_auto [root_binding]
   in
@@ -448,7 +448,7 @@ let clean_pattern pattern =
         let pattern, annotation = clean_pattern (locate env p1 p2) pattern in
         PLocated (pattern, p1, p2), annotation
   in
-  clean_pattern empty pattern
+  clean_pattern (empty Types.empty_env) pattern
 ;;
 
 
@@ -502,13 +502,13 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
 
       (* Introduce all other bindings in scope *)
       let env = List.fold_left (fun env -> function
-        | ((T.Auto x, k, _), _) | ((T.User x, k, _), _) -> bind env (x, k)
+        | ((T.Auto x, k, _), _) | ((T.User (_, x), k, _), _) -> bind env (x, k)
       ) env universal_bindings in
 
       (* Now translate the body (which will probably refer to these bound
        * names). *)
       let body = translate_expr env body in
-      let vars = List.map name_user vars in
+      let vars = List.map (name_user env) vars in
       let vars = List.map (fun x -> x, CanInstantiate) vars in
       E.EFun (vars @ universal_bindings, arg, return_type, body)
 
@@ -678,7 +678,7 @@ let translate_declaration_group (env: env) (decls: declaration_group): env * E.d
   env, List.rev decls
 ;;
 
-let translate_item tenv env item strict = 
+let translate_item env item strict = 
   match item with
   | DataTypeGroup data_type_group ->
       (* This just desugars the data type definitions, no binder is opened yet! *)
@@ -699,13 +699,13 @@ let translate_item tenv env item strict =
       let env = bind ~strict:true env (x, KType) in
       env, Some (E.PermDeclaration (x, t))
   | OpenDirective mname ->
-      open_module_in tenv mname env, None
+      open_module_in env.env mname env, None
 ;;
 
-let rec translate_items tenv env strict = function
+let rec translate_items env strict = function
   | item :: items ->
-      let env, item = translate_item tenv env item strict in
-      let items = translate_items tenv env strict items in
+      let env, item = translate_item env item strict in
+      let items = translate_items env strict items in
       Option.to_list item @ items
   | [] ->
       []
@@ -715,11 +715,13 @@ let rec translate_items tenv env strict = function
  * [Expressions.implementation], i.e. a desugared version of the entire
  * program. *)
 let translate_implementation (tenv: T.env) (program: toplevel_item list): E.implementation =
-  translate_items tenv empty false program
+  let env = empty tenv in
+  translate_items env false program
 ;;
 
 (* [translate_interface] is used by the Driver, before importing an interface
  * into scope. *)
 let translate_interface (tenv: T.env) (program: toplevel_item list): E.interface =
-  translate_items tenv empty true program
+  let env = empty tenv in
+  translate_items env true program
 ;;

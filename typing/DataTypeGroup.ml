@@ -50,7 +50,7 @@ let bind_group_definitions (env: env) (points: point list) (group: data_type_gro
 let bind_group (env: env) (group: data_type_group) =
   (* Allocate the points in the environment. We don't put a definition yet. *)
   let env, points = List.fold_left (fun (env, acc) (name, location, _, fact, kind) ->
-    let name = User name in
+    let name = User (env.module_name, name) in
     let env, point = bind_type env name location fact kind in
     env, point :: acc
   ) (env, []) group in

@@ -81,13 +81,13 @@ let print_error buf (env, raw_error) =
           Printf.bprintf buf
             "%a %a is not a function, it has type %a"
             Lexer.p env.location
-            pvar fname
+            pvar (env, fname)
             ptype (env, t)
       | None ->
           Printf.bprintf buf
             "%a %a is not a function, the only permissions available for it are %a"
             Lexer.p env.location
-            pvar fname
+            pvar (env, fname)
             pdoc (print_permission_list, (env, fbinder))
       end
   | NoSuchPermission t ->
@@ -115,7 +115,7 @@ let print_error buf (env, raw_error) =
           Printf.bprintf buf
             "%a expected an argument of type %a but the only permissions available for %a are %a"
             Lexer.p env.location
-            ptype (env, t) pvar xname
+            ptype (env, t) pvar (env, xname)
             pdoc (print_permission_list, (env, xbinder))
       end
   | RecursiveOnlyForFunctions ->
@@ -139,14 +139,14 @@ let print_error buf (env, raw_error) =
           Printf.bprintf buf
             "%a %a has type %a, we can't match on it"
             Lexer.p env.location
-            pvar name
+            pvar (env, name)
             ptype (env, t)
       | None ->
           Printf.bprintf buf
             "%a %a has no permission with a nominal type suitable for matching, \
               the only permissions available for it are %a"
             Lexer.p env.location
-            pvar name
+            pvar (env, name)
             pdoc (print_permission_list, (env, binder))
       end
   | NoTwoConstructors point ->
@@ -156,14 +156,14 @@ let print_error buf (env, raw_error) =
           Printf.bprintf buf
             "%a %a has type %a, is is not a type with two constructors"
             Lexer.p env.location
-            pvar name
+            pvar (env, name)
             ptype (env, t)
       | None ->
           Printf.bprintf buf
             "%a %a has no suitable permission for a type with two constructors, \
               the only permissions available for it are %a"
             Lexer.p env.location
-            pvar name
+            pvar (env, name)
             pdoc (print_permission_list, (env, binder))
       end
   | NoSuchField (point, f) ->
@@ -173,7 +173,7 @@ let print_error buf (env, raw_error) =
           Printf.bprintf buf
             "%a %a has type %a, which doesn't have a field named %a"
             Lexer.p env.location
-            pvar name
+            pvar (env, name)
             ptype (env, t)
             Field.p f
       | None ->
@@ -181,7 +181,7 @@ let print_error buf (env, raw_error) =
             "%a %a has no suitable permission with field %a, the only permissions \
               available for it are %a"
             Lexer.p env.location
-            pvar name
+            pvar (env, name)
             Field.p f
             pdoc (print_permission_list, (env, binder))
       end
@@ -192,14 +192,14 @@ let print_error buf (env, raw_error) =
           Printf.bprintf buf
             "%a %a has type %a, we can't assign a tag to it"
             Lexer.p env.location
-            pvar name
+            pvar (env, name)
             ptype (env, t)
       | None ->
           Printf.bprintf buf
             "%a %a has no suitable permission that would accept a tag update, \
               the only permissions available for it are %a"
             Lexer.p env.location
-            pvar name
+            pvar (env, name)
             pdoc (print_permission_list, (env, binder))
       end
   | SubPattern pat ->
@@ -246,13 +246,13 @@ let print_error buf (env, raw_error) =
   | ResourceAllocationConflict point ->
       Printf.bprintf buf "%a exclusive resource allocation conflict on %a"
         Lexer.p env.location
-        TypePrinter.pnames (get_names env point);
+        TypePrinter.pnames (env, get_names env point);
   | UncertainMerge point ->
       Printf.bprintf buf "%a merging distinct constructors into a nominal \
           type with type parameters, results are unpredictable, you should \
           consider providing annotations for %a"
         Lexer.p env.location
-        TypePrinter.pnames (get_names env point)
+        TypePrinter.pnames (env, get_names env point)
   | ConflictingTypeAnnotations (t1, t2) ->
       Printf.bprintf buf "%a the context provides a type annotation, namely %a \
         but here is a type annotation, namely %a, that is conflicting the \
@@ -265,7 +265,7 @@ let print_error buf (env, raw_error) =
       Printf.bprintf buf "%a point %a does not have a polymorphic type, the only \
           permissions available for it are %a"
         Lexer.p env.location
-        TypePrinter.pnames (get_names env point)
+        TypePrinter.pnames (env, get_names env point)
         TypePrinter.pdoc (TypePrinter.print_permission_list, (env, binder));
   | IllKindedTypeApplication (t, k, k') ->
       Printf.bprintf buf "%a while applying type %a: this type has kind %a but \
@@ -282,7 +282,7 @@ let print_error buf (env, raw_error) =
       Printf.bprintf buf "%a type %a cannot adopt type %a because it is not \
           marked as exclusive but %a"
         Lexer.p env.location
-        TypePrinter.pnames (get_names env p)
+        TypePrinter.pnames (env, get_names env p)
         TypePrinter.ptype (env, t)
         TypePrinter.pfact f
   | NoAdoptsClause p ->
@@ -290,16 +290,16 @@ let print_error buf (env, raw_error) =
       Printf.bprintf buf "%a trying to give/take to/from %a but this expression \
           cannot adopt; the only permissions available for it are %a"
         Lexer.p env.location
-        TypePrinter.pnames (get_names env p)
+        TypePrinter.pnames (env, get_names env p)
         TypePrinter.pdoc (TypePrinter.print_permission_list, (env, binder));
   | NoSuitableTypeForAdopts (p, t) ->
       let _, binder = find_term env p in
       Printf.bprintf buf "%a trying to give/take %a to/from some expression, but \
           the expression adopts %a and the only permissions available for %a are %a"
         Lexer.p env.location
-        TypePrinter.pnames (get_names env p)
+        TypePrinter.pnames (env, get_names env p)
         TypePrinter.ptype (env, t)
-        TypePrinter.pnames (get_names env p)
+        TypePrinter.pnames (env, get_names env p)
         TypePrinter.pdoc (TypePrinter.print_permission_list, (env, binder));
   | AdoptsNoAnnotation ->
       Printf.bprintf buf "%a in this “give e1 to e2” statement, please provide a \

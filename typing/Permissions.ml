@@ -41,7 +41,7 @@ let safety_check env =
     if List.length singletons <> 1 then
       Log.error
         "Inconsistency detected: not one singleton type for %a\n%a\n"
-        TypePrinter.pnames (get_names env point)
+        TypePrinter.pnames (env, get_names env point)
         TypePrinter.penv env;
 
     (* The inconsistencies below are suspicious, but it may just be that we
@@ -63,14 +63,14 @@ let safety_check env =
     if not (env.inconsistent) && List.length concrete > 1 then
       Log.error
         "Inconsistency detected: more than one concrete type for %a\n%a\n"
-        TypePrinter.pnames (get_names env point)
+        TypePrinter.pnames (env, get_names env point)
         TypePrinter.penv env;
 
     let exclusive = List.filter (FactInference.is_exclusive env) permissions in
     if not (env.inconsistent) && List.length exclusive > 1 then
       Log.error
         "Inconsistency detected: more than one exclusive type for %a\n%a\n"
-        TypePrinter.pnames (get_names env point)
+        TypePrinter.pnames (env, get_names env point)
         TypePrinter.penv env;
   ) ();
 ;;
@@ -81,7 +81,7 @@ let safety_check env =
 let add_hint hint str =
   match hint with
   | Some (Auto n)
-  | Some (User n) ->
+  | Some (User (_, n)) ->
       Some (Auto (Variable.register (Variable.print n ^ "_" ^ str)))
   | None ->
       None
@@ -280,7 +280,7 @@ and add (env: env) (point: point) (t: typ): env =
   Log.check (not (has_structure env point)) "I don't understand what's happening";
 
   TypePrinter.(Log.debug ~level:4 "[adding to %a] %a"
-    pnames (get_names env point)
+    pnames (env, get_names env point)
     ptype (env, t));
 
   let hint = get_name env point in
@@ -604,7 +604,7 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
               colors.yellow colors.default
               ptype (env, t)
               ptype (env, hd)
-              pvar (get_name env point)
+              pvar (env, get_name env point)
               (not duplicable);
 
             (* We're taking out [hd] from the list of permissions for [point].

@@ -34,7 +34,7 @@ module Graph = struct
   let draw_point buf env point permissions =
     let id = id_of_point env point in
     let names = Hml_List.map_some
-      (function User v -> Some (Variable.print v) | Auto _ -> None)
+      (function User (_, v) -> Some (Variable.print v) | Auto _ -> None)
       (get_names env point)
     in
     let names = String.concat " = " names in
@@ -193,7 +193,7 @@ module Html = struct
     fold_terms env (fun json point { names; locations; kind; _ } { permissions; _ } ->
       let open TypePrinter in
       let names = `List (List.map (function
-        | User v -> `List [`String "user"; `String (Variable.print v)]
+        | User (_, v) -> `List [`String "user"; `String (Variable.print v)]
         | Auto v -> `List [`String "auto"; `String (Variable.print v)]
       ) names) in
       let locations = `List (List.map json_of_loc locations) in
@@ -296,7 +296,7 @@ let explain ?(text="") ?x env =
     | Some x ->
       (* Print the current position. *)
       Hml_String.bprintf "Last checked expression: %a at %a\n"
-        pnames (get_names env x)
+        pnames (env, get_names env x)
         Lexer.p env.location;
     | None ->
         ()

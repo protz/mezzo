@@ -53,7 +53,7 @@ let dummy_loc =
 ;;
 
 let dummy_name =
-  User (Variable.register "foo")
+  User (Module.register "<none>", Variable.register "foo")
 ;;
 
 let edummy_binding k =

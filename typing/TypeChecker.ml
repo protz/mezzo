@@ -123,7 +123,7 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
         flex_deconstruct t
     | t :: _ ->
         Log.debug "More than one permission available for %a, strange"
-          TypePrinter.pvar fname;
+          TypePrinter.pvar (env, fname);
         flex_deconstruct t
   in
   (* Warn the user if relying on our inference of polymorphic function calls. *)
@@ -345,7 +345,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       List.iter (fun binding ->
         let open TypePrinter in
         let open ExprPrinter in
-        Log.debug "%a" pdoc (print_binder, binding)
+        Log.debug "%a" pdoc (print_ebinder env, binding)
       ) vars;
       (* TODO we should have a separate pass that performs optimizations on a
        * [Expressions.expression] tree with a [Types.env] environment. Right
@@ -377,7 +377,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       (* Bind all variables. *)
       let vars = List.map fst vars in
-      let sub_env, { subst_type; subst_expr; _ } = bind_vars sub_env vars in
+      let sub_env, { subst_type; subst_expr; _ } = bind_evars sub_env vars in
       let arg = subst_type arg in
       let return_type = subst_type return_type in
       let body = subst_expr body in

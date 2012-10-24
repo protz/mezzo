@@ -132,10 +132,10 @@ let p_unit =
 (* [collect_pattern] returns the list of bindings present in the pattern. The
  * binding with index [i] in the returned list has De Bruijn index [i] in the
  * bound term. *)
-let collect_pattern (p: pattern): ((Types.name * (Lexing.position * Lexing.position)) list) =
+let collect_pattern (p: pattern): ((Variable.name * (Lexing.position * Lexing.position)) list) =
   let rec collect_pattern acc = function
   | PVar (name, p) ->
-      (User name, p) :: acc
+      (name, p) :: acc
   | PTuple patterns ->
       List.fold_left collect_pattern acc patterns
   | PConstruct (_, fields) ->
@@ -554,7 +554,7 @@ let eloc = function
 (* [bind_vars env bindings] adds [bindings] in the environment, and returns the
  * new environment, and a [substitution_kit]. It takes a list of bindings in
  * reading order. *)
-let bind_vars (env: env) (bindings: type_binding list): env * substitution_kit =
+let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit =
   (* List kept in reverse, the usual trick *)
   let env, points =
     List.fold_left (fun (env, points) binding ->
@@ -587,6 +587,11 @@ let bind_vars (env: env) (bindings: type_binding list): env * substitution_kit =
     patterns
   in
   env, { subst_type; subst_expr; subst_decl; subst_pat; points = points }
+;;
+
+let bind_vars (env: env) (bindings: SurfaceSyntax.type_binding list): env * substitution_kit =
+  let bindings = List.map (fun (x, k, p) -> User (env.module_name, x), k, p) bindings in
+  bind_evars env bindings
 ;;
 
 
@@ -934,10 +939,10 @@ module ExprPrinter = struct
 
   and print_pat env = function
     | PVar (v, _) ->
-        print_var (User v)
+        print_var env (User (env.module_name, v))
 
     | PPoint point ->
-        print_var (get_name env point)
+        print_var env (get_name env point)
 
     | PTuple pats ->
         lparen ^^
@@ -969,7 +974,7 @@ module ExprPrinter = struct
         int i
 
     | EPoint point ->
-        print_var (get_name env point)
+        print_var env (get_name env point)
 
     | ELet (rec_flag, patexprs, body) ->
         let env, patexprs, { subst_expr; _ } = bind_patexprs env rec_flag patexprs in
@@ -980,13 +985,13 @@ module ExprPrinter = struct
 
     (* fun [a] (x: τ): τ -> e *)
     | EFun (vars, arg, return_type, body) ->
-        let env, { subst_type; subst_expr; _ } = bind_vars env (List.map fst vars) in
+        let env, { subst_type; subst_expr; _ } = bind_evars env (List.map fst vars) in
         (* Remember: this is all in desugared form, so the variables in [args]
          * are all bound. *)
         let arg = subst_type arg in
         let return_type = subst_type return_type in
         let body = subst_expr body in
-        string "fun " ^^ lbracket ^^ join (comma ^^ space) (List.map print_binder vars) ^^
+        string "fun " ^^ lbracket ^^ join (comma ^^ space) (List.map (print_ebinder env) vars) ^^
         rbracket ^^ jump (
           print_type env arg
         ) ^^ colon ^^ space ^^ print_type env return_type ^^ space ^^ equals ^^
@@ -1075,10 +1080,12 @@ module ExprPrinter = struct
         empty
 
 
-  and print_binder ((name, kind, _), f) =
+  and print_ebinder env ((name, kind, _), f) =
     let f = if f = CannotInstantiate then star else empty in
-    print_var name ^^ f ^^ space ^^ ccolon ^^ space ^^ print_kind kind
+    print_var env name ^^ f ^^ space ^^ ccolon ^^ space ^^ print_kind kind
 
+  and print_binder env (((name: Variable.name), kind, pos), f) =
+    print_ebinder env ((User (env.module_name, name), kind, pos), f)
   ;;
 
   let rec print_declaration env declaration: env * document * _  =
@@ -1109,7 +1116,7 @@ module ExprPrinter = struct
   ;;
 
   let print_sig_item env (x, t) =
-    print_var (User x) ^^ space ^^ at ^^ space ^^ print_type env t
+    print_var env (User (env.module_name, x)) ^^ space ^^ at ^^ space ^^ print_type env t
   ;;
 
   let psigitem buf (env, arg) =

@@ -143,7 +143,8 @@ let check_implementation mname program =
   (* And import them all in scope. *)
   let env = List.fold_left (fun env mname ->
     let iface = build_interface env mname in
-    let env = Modules.import_interface env (mname, iface) in
+    (* [env] has the right module name at this stage *)
+    let env = Modules.import_interface env iface in
     env
   ) env deps in
 
@@ -295,7 +296,7 @@ let print_signature (buf: Buffer.t) (env: Types.env): unit =
     let open Hml_Pprint in
     pdoc buf ((fun () ->
       let t = print_type env perm in
-      print_names (get_names env point) ^^ space ^^ at ^^ space ^^ (nest 2 t) ^^
+      print_names env (get_names env point) ^^ space ^^ at ^^ space ^^ (nest 2 t) ^^
       break1
     ), ())
   ) perms

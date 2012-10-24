@@ -32,10 +32,12 @@ let get_exports env =
   let open Types in
   let assoc =
     fold env (fun acc point ({ names; _ }, _) ->
-      let canonical_names = List.filter is_user names in
-      let canonical_names =
-        List.map (function User x -> x | _ -> assert false) canonical_names
-      in
+      let canonical_names = Hml_List.map_some (function
+        | User (m, x) when Module.equal m env.module_name ->
+            Some x
+        | _ ->
+            None
+      ) names in
       List.map (fun x -> x, point) canonical_names :: acc
     ) [] 
   in
@@ -226,5 +228,5 @@ let check (env: T.env) (signature: S.toplevel_item list) =
         ()
   in
 
-  check env KindCheck.empty signature
+  check env (KindCheck.empty env) signature
 ;;

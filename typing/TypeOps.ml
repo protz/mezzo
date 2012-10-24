@@ -112,13 +112,13 @@ let cleanup_function_type env t body =
       List.iter (fun binding ->
         let open TypePrinter in
         let open ExprPrinter in
-        Log.debug "%a" pdoc (print_binder, binding)
+        Log.debug "%a" pdoc (print_ebinder env, binding)
       ) vars;
 
     let vars, flavors = List.split vars in
 
     (* Open the binders before working on the type. *)
-    let env, { points; subst_type; subst_expr; _ } = bind_vars env vars in
+    let env, { points; subst_type; subst_expr; _ } = bind_evars env vars in
     let vars = List.combine vars points in
     let t = subst_type t in
     let e = Option.map subst_expr e in

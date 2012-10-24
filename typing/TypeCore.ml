@@ -40,7 +40,7 @@ let flatten_kind =
   SurfaceSyntax.flatten_kind
 
 (** Has this name been auto-generated or not? *)
-type name = User of Variable.name | Auto of Variable.name
+type name = User of Module.name * Variable.name | Auto of Variable.name
 
 let is_user = function User _ -> true | Auto _ -> false;;
 
@@ -236,7 +236,7 @@ and perm_binder = {
 let (^=>) x y = x && y || not x;;
 
 let internal_ptype: (Buffer.t -> (env * typ) -> unit) ref = ref (fun _ -> assert false);;
-let internal_pnames: (Buffer.t -> name list -> unit) ref = ref (fun _ -> assert false);;
+let internal_pnames: (Buffer.t -> (env * name list) -> unit) ref = ref (fun _ -> assert false);;
 let internal_ppermissions: (Buffer.t -> env -> unit) ref = ref (fun _ -> assert false);;
 
 (* The empty environment. *)
@@ -277,8 +277,9 @@ let get_names (env: env) (point: point): name list =
 
 let names_equal n1 n2 =
   match n1, n2 with
-  | User n1, User n2 | Auto n1, Auto n2
-    when Variable.equal n1 n2 ->
+  | Auto n1, Auto n2 when Variable.equal n1 n2 ->
+      true
+  | User (m1, n1), User (m2, n2) when Variable.equal n1 n2 && Module.equal m1 m2 ->
       true
   | _ ->
       false
@@ -296,8 +297,8 @@ let merge_left env p2 p1 =
   Log.check (get_kind env p1 = get_kind env p2) "Kind mismatch when merging";
   Log.debug "%sMerging%s %a into %a"
     colors.red colors.default
-    !internal_pnames (get_names env p1)
-    !internal_pnames (get_names env p2);
+    !internal_pnames (env, get_names env p1)
+    !internal_pnames (env, get_names env p2);
 
   (* All this work is just to make sure we keep the names, positions... from
    * both sides. *)
