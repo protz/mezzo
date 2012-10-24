@@ -106,16 +106,16 @@ type declaration_group =
 type sig_item =
   Variable.name * typ
 
-type block =
+type toplevel_item =
   | DataTypeGroup of data_type_group
   | ValueDeclarations of declaration_group
   | PermDeclaration of sig_item
 
 type implementation =
-  block list
+  toplevel_item list
 
 type interface =
-  block list
+  toplevel_item list
 
 let e_unit =
   ETuple []
@@ -340,24 +340,24 @@ and tsubst_decl t2 i decls =
   tsubst_decl [] i decls
 ;;
 
-let rec tsubst_blocks t2 i blocks =
-  match blocks with
-  | DataTypeGroup group :: blocks ->
+let rec tsubst_toplevel_items t2 i toplevel_items =
+  match toplevel_items with
+  | DataTypeGroup group :: toplevel_items ->
       let n = List.length group in
       (* Since the type bindings are all mutually recursive, they're considered
        * to be all bound in the data type groups. *)
       let group = tsubst_data_type_group t2 (i + n) group in
-      let blocks = tsubst_blocks t2 (i + n) blocks in
-      DataTypeGroup group :: blocks
-  | ValueDeclarations decls :: blocks ->
+      let toplevel_items = tsubst_toplevel_items t2 (i + n) toplevel_items in
+      DataTypeGroup group :: toplevel_items
+  | ValueDeclarations decls :: toplevel_items ->
       let decls = tsubst_decl t2 i decls in
       let n = n_decls decls in
-      let blocks = tsubst_blocks t2 (i + n) blocks in
-      ValueDeclarations decls :: blocks
-  | PermDeclaration (x, t) :: blocks ->
+      let toplevel_items = tsubst_toplevel_items t2 (i + n) toplevel_items in
+      ValueDeclarations decls :: toplevel_items
+  | PermDeclaration (x, t) :: toplevel_items ->
       let t = tsubst t2 i t in
-      let blocks = tsubst_blocks t2 (i + 1) blocks in
-      PermDeclaration (x, t) :: blocks
+      let toplevel_items = tsubst_toplevel_items t2 (i + 1) toplevel_items in
+      PermDeclaration (x, t) :: toplevel_items
   | [] ->
       []
 ;;
@@ -494,21 +494,21 @@ and esubst_decl e2 i decls =
   esubst_decl [] i decls
 ;;
 
-let rec esubst_blocks e2 i blocks =
-  match blocks with
-  | DataTypeGroup group :: blocks ->
+let rec esubst_toplevel_items e2 i toplevel_items =
+  match toplevel_items with
+  | DataTypeGroup group :: toplevel_items ->
       (* Nothing to substitute here, only binders to cross. *)
       let n = List.length group in
-      let blocks = esubst_blocks e2 (i + n) blocks in
-      DataTypeGroup group :: blocks
-  | ValueDeclarations decls :: blocks ->
+      let toplevel_items = esubst_toplevel_items e2 (i + n) toplevel_items in
+      DataTypeGroup group :: toplevel_items
+  | ValueDeclarations decls :: toplevel_items ->
       let decls = esubst_decl e2 i decls in
       let n = n_decls decls in
-      let blocks = esubst_blocks e2 (i + n) blocks in
-      ValueDeclarations decls :: blocks
-  | (PermDeclaration _ as block) :: blocks ->
-      let blocks = esubst_blocks e2 (i + 1) blocks in
-      block :: blocks
+      let toplevel_items = esubst_toplevel_items e2 (i + n) toplevel_items in
+      ValueDeclarations decls :: toplevel_items
+  | (PermDeclaration _ as toplevel_item) :: toplevel_items ->
+      let toplevel_items = esubst_toplevel_items e2 (i + 1) toplevel_items in
+      toplevel_item :: toplevel_items
   | [] ->
       []
 ;;

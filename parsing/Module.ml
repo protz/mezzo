@@ -17,30 +17,9 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-open SurfaceSyntax
+(* Data constructors form a space of identifiers. *)
+include Identifier.Make(struct end)
 
-(* Since each declaration is initially parsed as being in its own group, we need
- * to map over consecutive blocks and group them together. *)
-let group (declarations: toplevel_item list): toplevel_item list =
-  let rev_g = function
-    | DataTypeGroup (loc, gs) ->
-        DataTypeGroup (loc, List.rev gs)
-    | ValueDeclarations gs ->
-        ValueDeclarations (List.rev gs)
-    | _ as x ->
-        x
-  in
-  let rev = List.rev_map rev_g in
-  let rec group prev next =
-    match prev, next with
-    | DataTypeGroup (loc, gs) :: prev, DataTypeGroup (loc', g) :: next ->
-        group (DataTypeGroup ((fst loc, snd loc'), g @ gs) :: prev) next
-    | ValueDeclarations gs :: prev, ValueDeclarations g :: next ->
-        group (ValueDeclarations (g @ gs) :: prev) next
-    | _, n :: ns ->
-        group (n :: prev) ns
-    | _, [] ->
-        rev prev
-  in
-  group [List.hd declarations] (List.tl declarations)
-;;
+(* This is for debugging purposes. Use with [Log.debug] and [%a]. *)
+let p buf con =
+  Buffer.add_string buf (print con)

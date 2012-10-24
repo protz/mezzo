@@ -952,7 +952,7 @@ and check_bindings
 let check_declaration_group
     (env: env)
     (declarations: declaration_group)
-    (blocks: block list): env * block list =
+    (toplevel_items: toplevel_item list): env * toplevel_item list =
   let rec check_declaration_group env declarations acc =
     match declarations with
     | DLocated (declarations, p1, p2) :: tl ->
@@ -971,11 +971,11 @@ let check_declaration_group
   let points = List.flatten points in
   (* List kept in reverse, the usual trick. *)
   let points = List.rev points in
-  let subst_blocks b =
+  let subst_toplevel_items b =
     Hml_List.fold_lefti (fun i b point ->
-      let b = tsubst_blocks (TyPoint point) i b in
-      esubst_blocks (EPoint point) i b) b points
+      let b = tsubst_toplevel_items (TyPoint point) i b in
+      esubst_toplevel_items (EPoint point) i b) b points
   in
   (* ...but it works! *)
-  env, subst_blocks blocks
+  env, subst_toplevel_items toplevel_items
 ;;

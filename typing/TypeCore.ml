@@ -166,6 +166,9 @@ type env = {
    * "fail" at some point. This is by no means exhaustive: we only detect a few
    * inconsistencies when we're lucky. *)
   inconsistent: bool;
+
+  (* The name of the current unit. *)
+  module_name: Module.name;
 }
 
 and binding =
@@ -243,6 +246,7 @@ let empty_env = {
   mark = Mark.create ();
   location = Lexing.dummy_pos, Lexing.dummy_pos;
   inconsistent = false;
+  module_name = Module.register "<none>";
 }
 
 let locate env location =

@@ -66,6 +66,13 @@ let empty : env =
   { level = 0; mapping = M.empty; location = Lexing.dummy_pos, Lexing.dummy_pos }
 
 
+(* Find in [env] all the names exported by module [mname], and add them to our
+ * own [tsenv]. *)
+let open_module_in (_env: T.env) (_mname: Module.name) (_tsenv: env): env =
+  assert false
+;;
+
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Error messages. *)
@@ -735,7 +742,7 @@ let destruct_perm_decl t =
   x, t
 ;;
 
-let check_implementation (program: implementation) =
+let check_implementation (tenv: T.env) (program: implementation) =
   let env = List.fold_left (fun env -> function
     | DataTypeGroup ((p1, p2), data_type_group) ->
         (* Collect the names from the data type definitions, since they
@@ -764,6 +771,9 @@ let check_implementation (program: implementation) =
         check env t KType;
         let env = bind ~strict:true env (x, KTerm) in
         env
+
+    | OpenDirective mname ->
+        open_module_in tenv mname env
   ) empty program in
   ignore (env);
 ;;

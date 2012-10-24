@@ -17,30 +17,26 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-open SurfaceSyntax
+(* I'm defining module abbreviations because we're juggling with all these
+ * modules at the same time, and the names conflict (e.g. env, toplevel_item,
+ * etc.). *)
+module T = Types
+module S = SurfaceSyntax
+module E = Expressions
 
-(* Since each declaration is initially parsed as being in its own group, we need
- * to map over consecutive blocks and group them together. *)
-let group (declarations: toplevel_item list): toplevel_item list =
-  let rev_g = function
-    | DataTypeGroup (loc, gs) ->
-        DataTypeGroup (loc, List.rev gs)
-    | ValueDeclarations gs ->
-        ValueDeclarations (List.rev gs)
-    | _ as x ->
-        x
-  in
-  let rev = List.rev_map rev_g in
-  let rec group prev next =
-    match prev, next with
-    | DataTypeGroup (loc, gs) :: prev, DataTypeGroup (loc', g) :: next ->
-        group (DataTypeGroup ((fst loc, snd loc'), g @ gs) :: prev) next
-    | ValueDeclarations gs :: prev, ValueDeclarations g :: next ->
-        group (ValueDeclarations (g @ gs) :: prev) next
-    | _, n :: ns ->
-        group (n :: prev) ns
-    | _, [] ->
-        rev prev
-  in
-  group [List.hd declarations] (List.tl declarations)
+(* Used by [Driver], to import the points from a desugared interface into
+ * another one, prefixed by the module they belong to, namely [mname]. *)
+let import_interface (_env: T.env) (_iface: Module.name * E.interface): T.env =
+  assert false
+;;
+
+(* For internal use only (yet). *)
+let collect_dependencies (_items: S.toplevel_item list): Module.name list =
+  assert false
+;;
+
+(* Called by [Driver], returns all the dependencies (transitive) of [items],
+ * sorted by topological order. *)
+let all_dependencies (_items: S.toplevel_item list): Module.name list =
+  assert false
 ;;

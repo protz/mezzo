@@ -19,13 +19,9 @@
 
 open Lexer
 
-let include_dirs: string list ref =
-  ref []
-;;
+(* -------------------------------------------------------------------------- *)
 
-let add_include_dir dir =
-  include_dirs := dir :: !include_dirs
-;;
+(* Lexing and parsing, built on top of [grammar]. *)
 
 let lex_and_parse file_path entry_point =
   let file_desc = open_in file_path in
@@ -53,15 +49,112 @@ let lex_and_parse file_path entry_point =
         exit 252
 ;;
 
-let check_implementation program = 
+let lex_and_parse_implementation path =
+  lex_and_parse path Grammar.implementation
+;;
+
+let lex_and_parse_interface path =
+  lex_and_parse path Grammar.interface
+;;
+
+
+(* -------------------------------------------------------------------------- *)
+
+(* Filename handling, as well as include directories handling. *)
+
+let include_dirs: string list ref =
+  ref []
+;;
+
+let add_include_dir dir =
+  include_dirs := dir :: !include_dirs
+;;
+
+(* [find_interface mz] returns the path to the interface for [mz], if any. It
+ * assumes [mz] is a valid filename ending with ".mz". *)
+let find_interface file_path =
+  let iface = file_path ^ "i" in
+  if Sys.file_exists iface then
+    Some iface
+  else
+    None
+;;
+
+let file_name_for_module_name (_mname: Module.name): string =
+  assert false
+;;
+
+let module_name_for_file_path (_fpath: string): Module.name =
+  assert false
+;;
+
+let find_in_include_dirs (filename: string): string =
+  let module M = struct exception Found of string end in
+  try
+    List.iter (fun dir ->
+      let open Filename in
+      let dir =
+        if is_relative dir then
+          current_dir_name ^ dir_sep ^ dir
+        else
+          dir
+      in
+      let path = concat dir filename in
+      if Sys.file_exists path then
+        raise (M.Found path)
+    ) !include_dirs;
+    Log.error "File %s not found in any include directory." filename
+  with M.Found s ->
+    s
+;;
+
+(* [build_interface env mname] finds the right interface file for [mname], and
+ * lexes it, parses it, and returns a desugared version of it, reading for
+ * importing into some environment. *)
+let build_interface (env: Types.env) (mname: Module.name): Expressions.interface =
+  let fname = file_name_for_module_name mname in
+  let fpath = find_in_include_dirs fname in
+  let ifpath =
+    match find_interface fpath with
+    | Some ifpath ->
+        ifpath
+    | None ->
+        Log.error "No interface for module %a" Module.p mname
+  in
+  let env = { env with Types.module_name = mname } in
+  let iface = lex_and_parse_interface ifpath in
+  KindCheck.check_interface env iface;
+  TransSurface.translate_interface env iface
+;;
+
+
+(* -------------------------------------------------------------------------- *)
+
+(* Main routines. *)
+
+(* This performs the bulk of the work. *)
+let check_implementation mname program = 
   let open Expressions in
+
+  let env = Types.empty_env in
+
+  (* Find all the dependencies... *)
+  let deps = Modules.all_dependencies program in
+  (* And import them all in scope. *)
+  let env = List.fold_left (fun env mname ->
+    let iface = build_interface env mname in
+    let env = Modules.import_interface env (mname, iface) in
+    env
+  ) env deps in
+
+  let env = { env with Types.module_name = mname } in
 
   (* First pass of kind-checking; it checks for unbound variables and variables
    * with the wrong kind. *)
-  KindCheck.check_implementation program;
+  KindCheck.check_implementation env program;
 
   (* We need to translate the program down to the internal syntax. *)
-  let program = TransSurface.translate_implementation program in
+  let program = TransSurface.translate_implementation env program in
 
   let rec type_check env program =
     match program with
@@ -101,76 +194,42 @@ let check_implementation program =
   in
 
   (* Let's do it! *)
-  type_check Types.empty_env program
+  type_check env program
 ;;
 
 
+(* Check a module against its interface. Not related to importing an interface
+ * or anything. *)
 let check_interface env signature =
-  KindCheck.check_interface signature;
+  KindCheck.check_interface env signature;
   (* It may very well be that [Interfaces.check] subsumes what
    * [KindCheck.check_interface] does. *)
   Interfaces.check env signature
 ;;
 
-let find_in_include_dirs (filename: string): string =
-  let module M = struct exception Found of string end in
-  try
-    List.iter (fun dir ->
-      let open Filename in
-      let dir =
-        if is_relative dir then
-          current_dir_name ^ dir_sep ^ dir
-        else
-          dir
-      in
-      let path = concat dir filename in
-      if Sys.file_exists path then
-        raise (M.Found path)
-    ) !include_dirs;
-    Log.error "File %s not found in any include directory." filename
-  with M.Found s ->
-    s
-;;
 
-(* [find_interface mz] returns the path to the interface for [mz], if any. It
- * assumes [mz] is a valid filename ending with ".mz". *)
-let find_interface file_path =
-  let iface = file_path ^ "i" in
-  if Sys.file_exists iface then
-    Some iface
-  else
-    None
-;;
-
-let process use_pervasives file_path =
+(* Plug everything together and process a given file. *)
+let process file_path =
   if not (Filename.check_suffix file_path ".mz") then
     Log.error "Bad filename: Mezzo files end with .mz";
   if not (Sys.file_exists file_path) then
     Log.error "File %s does not exist" file_path;
 
-  let program =
-    let prefix = 
-      (* HACK HACK HACK *)
-      if use_pervasives then
-        let path_to_pervasives = find_in_include_dirs "pervasives.mz" in
-        lex_and_parse path_to_pervasives Grammar.implementation
-      else
-        []
-    in
-    prefix @ lex_and_parse file_path Grammar.implementation
-  in
-
-  let env = check_implementation program in
+  let program = lex_and_parse_implementation file_path in
+  let mname = module_name_for_file_path file_path in
+  let env = check_implementation mname program in
 
   match find_interface file_path with
   | Some iface_path ->
-      let interface = lex_and_parse iface_path Grammar.interface in
+      let interface = lex_and_parse_interface iface_path in
       check_interface env interface;
       env
   | None ->
       env
 ;;
 
+(* The [run] function servers as a wrapper that catches errors and prints them
+ * properly (at the cost of losing a useful backtrace, though). *)
 type run_options = {
   html_errors: bool;
 }
@@ -204,6 +263,10 @@ let run { html_errors } f =
       exit 250
 ;;
 
+
+(* A fancy version of [TypePrinter.penv]. It will *not* generate a valid .mzi
+ * file, but it will give a somehow readable version of all the names that have
+ * been defined in the environment as well as the type available for them. *)
 let print_signature (buf: Buffer.t) (env: Types.env): unit =
   flush stdout;
   flush stderr;

@@ -241,15 +241,18 @@ type declaration =
 type declaration_group =
   declaration list
 
-type block =
+type toplevel_item =
   | DataTypeGroup of data_type_group
   | ValueDeclarations of declaration_group
   | PermDeclaration of typ
+  | OpenDirective of Module.name
 
-(* An implementation will only contain data type groups and value declarations. *)
+(* An implementation will only contain data type groups, value declarations and
+ * open directives. *)
 type implementation =
-  block list
+  toplevel_item list
 
-(* An interface will only contain data type groups and permission declarations. *)
+(* An interface will only contain data type groups, permission declarations
+ * and open directives. *)
 type interface =
-  block list
+  toplevel_item list

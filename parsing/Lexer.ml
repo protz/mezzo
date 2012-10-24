@@ -125,6 +125,7 @@ let rec token = lexer
 | "(*" -> comment 0 lexbuf
 | "*)" -> raise_error UnexpectedEndOfComment
 
+| "open" -> locate lexbuf OPEN
 | "fun" | 955 (* λ *) -> locate lexbuf FUN
 | "match" -> locate lexbuf MATCH
 | "if" -> locate lexbuf IF

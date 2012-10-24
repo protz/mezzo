@@ -49,7 +49,7 @@ let has_same_name x (name, p) =
     None
 ;;
 
-let check (env: T.env) (signature: S.block list) =
+let check (env: T.env) (signature: S.toplevel_item list) =
   let exports = get_exports env in
   let point_by_name name =
     match Hml_List.find_opt (has_same_name name) exports with
@@ -65,9 +65,13 @@ let check (env: T.env) (signature: S.block list) =
    * [foo] is known to point to a point in [env] in [tsenv]). Second, in
    * order to check [val foo @ τ], it removes [τ] from the list of available
    * permissions for [foo] in [env], which depletes as we go. *)
-  let rec check (env: T.env) (tsenv: KindCheck.env) (blocks: S.block list) =
-    match blocks with
-    | S.PermDeclaration t :: blocks ->
+  let rec check (env: T.env) (tsenv: KindCheck.env) (toplevel_items: S.toplevel_item list) =
+    match toplevel_items with
+    | S.OpenDirective mname :: toplevel_items ->
+        let tsenv = KindCheck.open_module_in env mname tsenv in
+        check env tsenv toplevel_items
+
+    | S.PermDeclaration t :: toplevel_items ->
         (* val x @ t *)
         let x, t = KindCheck.destruct_perm_decl t in
         Log.debug "*** Checking sig item %a" Variable.p x;
@@ -101,10 +105,10 @@ let check (env: T.env) (signature: S.block list) =
         Log.debug "*** Successfully checked sig item, env is %a"
           KindCheck.pkenv tsenv;
 
-        (* Check the remainder of the blocks. *)
-        check env tsenv blocks
+        (* Check the remainder of the toplevel_items. *)
+        check env tsenv toplevel_items
 
-    | S.DataTypeGroup group :: blocks ->
+    | S.DataTypeGroup group :: toplevel_items ->
         (* We first collect the names of all the data types. *)
         let group = snd group in
         let bindings = KindCheck.bindings_data_type_group group in
@@ -211,8 +215,8 @@ let check (env: T.env) (signature: S.block list) =
 
         ) bindings translated_definitions;
 
-        (* Check the remainder of the blocks. *)
-        check env tsenv blocks
+        (* Check the remainder of the toplevel_items. *)
+        check env tsenv toplevel_items
 
 
     | S.ValueDeclarations _ :: _ ->

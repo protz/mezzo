@@ -20,7 +20,6 @@
 let _ =
   let arg_filename = ref "" in
   let arg_debug = ref 0 in
-  let arg_pervasives = ref true in
   let arg_backtraces = ref true in
   let arg_trace = ref "" in
   let arg_html_errors = ref false in
@@ -30,7 +29,6 @@ let _ =
   Arg.parse [
     "-explain", Arg.Set_string arg_trace, "<format>  The explain keyword \
       generates a graphical dump, where <format> is one of html, x11";
-    "-nopervasives", Arg.Clear arg_pervasives, " Don't try to prepend pervasives.mz to the file";
     "-nofancypants", Arg.Clear arg_backtraces, " Don't catch type errors: \
       backtraces point to the place where the error was thrown";
     "-debug", Arg.Set_int arg_debug, " <level>  Output level: 0 (default) = no \
@@ -58,9 +56,9 @@ let _ =
   Driver.add_include_dir (Filename.dirname !arg_filename);
   let env =
     if !arg_backtraces then
-      Driver.run opts (fun () -> Driver.process !arg_pervasives !arg_filename)
+      Driver.run opts (fun () -> Driver.process !arg_filename)
     else
-      Driver.process !arg_pervasives !arg_filename
+      Driver.process !arg_filename
   in
   if Log.debug_level () <= 0 then
     Hml_String.bprintf "%a" Driver.print_signature env

@@ -678,43 +678,48 @@ let translate_declaration_group (env: env) (decls: declaration_group): env * E.d
   env, List.rev decls
 ;;
 
-let translate_block env block strict = 
-  match block with
+let translate_item tenv env item strict = 
+  match item with
   | DataTypeGroup data_type_group ->
       (* This just desugars the data type definitions, no binder is opened yet! *)
       let env, defs =
         (* Be strict if we're in an interface. *)
         translate_data_type_group env strict data_type_group
       in
-      env, E.DataTypeGroup defs
+      env, Some (E.DataTypeGroup defs)
   | ValueDeclarations decls ->
       (* Same here, we're only performing desugaring, we're not opening any
        * binders. *)
       let env, decls = translate_declaration_group env decls in
-      env, E.ValueDeclarations decls
+      env, Some (E.ValueDeclarations decls)
   | PermDeclaration t ->
       let x, t = destruct_perm_decl t in
       check env t KType;
       let t = translate_type env t in
       let env = bind ~strict:true env (x, KType) in
-      env, E.PermDeclaration (x, t)
+      env, Some (E.PermDeclaration (x, t))
+  | OpenDirective mname ->
+      open_module_in tenv mname env, None
 ;;
 
+let rec translate_items tenv env strict = function
+  | item :: items ->
+      let env, item = translate_item tenv env item strict in
+      let items = translate_items tenv env strict items in
+      Option.to_list item @ items
+  | [] ->
+      []
+;;
 
 (* [translate_implementation implementation] returns an
  * [Expressions.implementation], i.e. a desugared version of the entire
  * program. *)
-let translate_implementation (program: block list): E.block list =
-  let rec translate_blocks env = function
-    | block :: blocks ->
-        let env, block = translate_block env block false in
-        let blocks = translate_blocks env blocks in
-        block :: blocks
-    | [] ->
-        []
-  in
-  translate_blocks empty program
+let translate_implementation (tenv: T.env) (program: toplevel_item list): E.implementation =
+  translate_items tenv empty false program
 ;;
 
-(* [translate_interface] lives in [Interfaces] since it's a more complicated
- * logic that plugs into [translate_block] at a lower level. *)
+(* [translate_interface] is used by the Driver, before importing an interface
+ * into scope. *)
+let translate_interface (tenv: T.env) (program: toplevel_item list): E.interface =
+  translate_items tenv empty true program
+;;

@@ -41,6 +41,7 @@
 
 (* Other tokens. *)
 
+%token          OPEN
 %token          KTERM KTYPE KPERM
 %token          UNKNOWN DYNAMIC EXCLUSIVE MUTABLE
 %token          DATA BAR
@@ -114,6 +115,10 @@ variable:
 %inline datacon:
   datacon = UIDENT
     { Datacon.register datacon }
+
+%inline module_name:
+  name = UIDENT
+    { Module.register name }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -710,6 +715,10 @@ inner_declaration:
     { PVar f_name, EFun (Option.map_none [] bs, arg, t, e) }
 
 (* ---------------------------------------------------------------------------- *)
+
+open_directive:
+| OPEN m = module_name
+    { OpenDirective m }
 
 (* Program units, i.e. module implementations *)
 

@@ -27,7 +27,7 @@ val add_include_dir: string -> unit
 
 (** [process] doesn't catch exceptions. This is useful for tests that want to
     assert that a test program failed in a certain way. *)
-val process: bool -> string -> Types.env
+val process: string -> Types.env
 
 (** [run] runs the specified function and prints any error that may pop up. *)
 val run: run_options -> (unit -> 'a) -> 'a

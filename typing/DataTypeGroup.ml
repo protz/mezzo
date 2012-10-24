@@ -72,13 +72,13 @@ let bind_group (env: env) (group: data_type_group) =
 ;;
 
 
-let bind_group_in_blocks (points: point list) (blocks: block list) =
-  bind_group_in points tsubst_blocks blocks
+let bind_group_in_toplevel_items (points: point list) (toplevel_items: toplevel_item list) =
+  bind_group_in points tsubst_toplevel_items toplevel_items
 ;;
 
 
-let debug_blocks env blocks =
-  Log.debug "#### DEBUGGING BLOCKS ####\n";
+let debug_toplevel_items env toplevel_items =
+  Log.debug "#### DEBUGGING TOPLEVEL_ITEMS ####\n";
   List.iter (function
     | DataTypeGroup group ->
         Log.debug "%a\n"
@@ -89,15 +89,15 @@ let debug_blocks env blocks =
     | PermDeclaration it ->
         Log.debug "%a\n"
           Expressions.ExprPrinter.psigitem (env, it)
-  ) blocks;
-  Log.debug "#### END DEBUGGING BLOCKS ####\n"
+  ) toplevel_items;
+  Log.debug "#### END DEBUGGING TOPLEVEL_ITEMS ####\n"
 ;;
 
 
 let bind_data_type_group
     (env: env)
     (group: data_type_group)
-    (blocks: block list): env * block list =
+    (toplevel_items: toplevel_item list): env * toplevel_item list =
   (* First, allocate points for all the data types. *)
   let env, points = bind_group env group in
   (* Open references to these data types in the branches themselves, since the
@@ -108,10 +108,10 @@ let bind_data_type_group
   (* Now we can perform some more advanced analyses. *)
   let env = FactInference.analyze_data_types env points in
   let env = Variance.analyze_data_types env points in
-  debug_blocks env blocks;
+  debug_toplevel_items env toplevel_items;
   (* Open references to these data types in the rest of the program. *)
-  let blocks = bind_group_in_blocks points blocks in
-  debug_blocks env blocks;
+  let toplevel_items = bind_group_in_toplevel_items points toplevel_items in
+  debug_toplevel_items env toplevel_items;
   (* We're done. *)
-  env, blocks
+  env, toplevel_items
 ;;
