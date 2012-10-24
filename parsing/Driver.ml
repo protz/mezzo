@@ -108,10 +108,7 @@ let find_in_include_dirs (filename: string): string =
     s
 ;;
 
-(* [build_interface env mname] finds the right interface file for [mname], and
- * lexes it, parses it, and returns a desugared version of it, reading for
- * importing into some environment. *)
-let build_interface (env: Types.env) (mname: Module.name): Expressions.interface =
+let find_and_lex_interface (mname: Module.name): SurfaceSyntax.interface =
   let fname = file_name_for_module_name mname in
   let fpath = find_in_include_dirs fname in
   let ifpath =
@@ -121,8 +118,16 @@ let build_interface (env: Types.env) (mname: Module.name): Expressions.interface
     | None ->
         Log.error "No interface for module %a" Module.p mname
   in
-  let env = { env with Types.module_name = mname } in
   let iface = lex_and_parse_interface ifpath in
+  iface
+;;
+
+(* [build_interface env mname] finds the right interface file for [mname], and
+ * lexes it, parses it, and returns a desugared version of it, reading for
+ * importing into some environment. *)
+let build_interface (env: Types.env) (mname: Module.name): Expressions.interface =
+  let iface = find_and_lex_interface mname in
+  let env = { env with Types.module_name = mname } in
   KindCheck.check_interface env iface;
   TransSurface.translate_interface env iface
 ;;
@@ -132,8 +137,18 @@ let build_interface (env: Types.env) (mname: Module.name): Expressions.interface
 
 (* Main routines. *)
 
+(* Check a module against its interface. Not related to importing an interface
+ * or anything. *)
+let check_interface env mname signature =
+  KindCheck.check_interface env signature;
+  (* It may very well be that [Interfaces.check] subsumes what
+   * [KindCheck.check_interface] does. *)
+  Interfaces.check env mname signature
+;;
+
+
 (* This performs the bulk of the work. *)
-let check_implementation mname program = 
+let check_implementation mname program interface = 
   let open Expressions in
 
   let env = Types.empty_env in
@@ -194,19 +209,23 @@ let check_implementation mname program =
         env
   in
 
-  (* Let's do it! *)
-  type_check env program
+  (* Type-check the implementation. *)
+  let env = type_check env program in
+
+  (* Check that the implementation leaves all other modules intact. *)
+  let env = List.fold_left (fun env mname ->
+    let iface = find_and_lex_interface mname in
+    check_interface env mname iface
+  ) env deps in
+  
+  (* And type-check the implementation against its own signature, if any. *)
+  match interface with
+  | Some interface ->
+      check_interface env env.Types.module_name interface
+  | None ->
+      env
 ;;
 
-
-(* Check a module against its interface. Not related to importing an interface
- * or anything. *)
-let check_interface env signature =
-  KindCheck.check_interface env signature;
-  (* It may very well be that [Interfaces.check] subsumes what
-   * [KindCheck.check_interface] does. *)
-  Interfaces.check env signature
-;;
 
 
 (* Plug everything together and process a given file. *)
@@ -218,15 +237,15 @@ let process file_path =
 
   let program = lex_and_parse_implementation file_path in
   let mname = module_name_for_file_path file_path in
-  let env = check_implementation mname program in
-
-  match find_interface file_path with
-  | Some iface_path ->
-      let interface = lex_and_parse_interface iface_path in
-      check_interface env interface;
-      env
-  | None ->
-      env
+  let iface =
+    match find_interface file_path with
+    | Some iface_path ->
+        Some (lex_and_parse_interface iface_path)
+    | None ->
+        None
+  in
+  let env = check_implementation mname program iface in
+  env
 ;;
 
 (* The [run] function servers as a wrapper that catches errors and prints them

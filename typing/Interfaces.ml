@@ -28,12 +28,12 @@ module TS = TransSurface
 
 (* Interface-related functions. *)
 
-let get_exports env =
+let get_exports env mname =
   let open Types in
   let assoc =
     fold env (fun acc point ({ names; _ }, _) ->
       let canonical_names = Hml_List.map_some (function
-        | User (m, x) when Module.equal m env.module_name ->
+        | User (m, x) when Module.equal m mname ->
             Some x
         | _ ->
             None
@@ -51,8 +51,15 @@ let has_same_name x (name, p) =
     None
 ;;
 
-let check (env: T.env) (signature: S.toplevel_item list) =
-  let exports = get_exports env in
+(* Check that [env] respect the [signature] which is that of module [mname]. We
+ * will want to check that [env] respects its own signatuer, but also that of
+ * the modules it exports, i.e. that it leaves them intact. *)
+let check (env: T.env) (mname: Module.name) (signature: S.toplevel_item list): T.env =
+  (* Get all the names (no longer prefixed) that [env] exports from module
+   * [mname]. *)
+  let exports = get_exports env mname in
+
+  (* Find one specific name among these names. *)
   let point_by_name name =
     match Hml_List.find_opt (has_same_name name) exports with
     | Some point ->
@@ -70,7 +77,7 @@ let check (env: T.env) (signature: S.toplevel_item list) =
   let rec check (env: T.env) (tsenv: KindCheck.env) (toplevel_items: S.toplevel_item list) =
     match toplevel_items with
     | S.OpenDirective mname :: toplevel_items ->
-        let tsenv = KindCheck.open_module_in env mname tsenv in
+        let tsenv = KindCheck.open_module_in mname tsenv in
         check env tsenv toplevel_items
 
     | S.PermDeclaration t :: toplevel_items ->
@@ -225,7 +232,7 @@ let check (env: T.env) (signature: S.toplevel_item list) =
         assert false
 
     | [] ->
-        ()
+        env
   in
 
   check env (KindCheck.empty env) signature

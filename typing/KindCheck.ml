@@ -69,9 +69,9 @@ let empty env : env =
   { level = 0; mapping = M.empty; location = Lexing.dummy_pos, Lexing.dummy_pos; env; }
 
 
-(* Find in [env] all the names exported by module [mname], and add them to our
+(* Find in [tsenv.env] all the names exported by module [mname], and add them to our
  * own [tsenv]. *)
-let open_module_in (_env: T.env) (_mname: Module.name) (_tsenv: env): env =
+let open_module_in (_mname: Module.name) (_tsenv: env): env =
   assert false
 ;;
 
@@ -777,7 +777,7 @@ let check_implementation (tenv: T.env) (program: implementation) =
         env
 
     | OpenDirective mname ->
-        open_module_in env.env mname env
+        open_module_in mname env
   ) env program in
   ignore (env);
 ;;

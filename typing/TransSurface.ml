@@ -699,7 +699,7 @@ let translate_item env item strict =
       let env = bind ~strict:true env (x, KType) in
       env, Some (E.PermDeclaration (x, t))
   | OpenDirective mname ->
-      open_module_in env.env mname env, None
+      open_module_in mname env, None
 ;;
 
 let rec translate_items env strict = function
