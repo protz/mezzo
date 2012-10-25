@@ -589,6 +589,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 let _ =
   let open Bash in
   Log.enable_debug (-1);
+  (* These two are probably a little bit too violent, expect conflicts... *)
   Driver.add_include_dir "tests";
   Driver.add_include_dir "tests/modules";
   let failed = ref 0 in
