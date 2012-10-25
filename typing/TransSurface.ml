@@ -696,6 +696,7 @@ let translate_item env item strict =
       let x, t = destruct_perm_decl t in
       check env t KType;
       let t = translate_type env t in
+      let t, _ = TypeOps.cleanup_function_type env.env t None in
       let env = bind ~strict:true env (x, KType) in
       env, Some (E.PermDeclaration (x, t))
   | OpenDirective mname ->

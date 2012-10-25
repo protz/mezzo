@@ -279,7 +279,8 @@ and add (env: env) (point: point) (t: typ): env =
    * faced with two [TyPoint]s. *)
   Log.check (not (has_structure env point)) "I don't understand what's happening";
 
-  TypePrinter.(Log.debug ~level:4 "[adding to %a] %a"
+  TypePrinter.(Log.debug ~level:4 "%s[%sadding to %a] %a"
+    Bash.colors.Bash.red Bash.colors.Bash.default
     pnames (env, get_names env point)
     ptype (env, t));
 
@@ -297,12 +298,15 @@ and add (env: env) (point: point) (t: typ): env =
 
   begin match t with
   | TyPoint p when has_structure env p ->
+      Log.debug "%s]%s (structure)" Bash.colors.Bash.red Bash.colors.Bash.default;
       add env point (Option.extract (structure env p))
 
   | TySingleton (TyPoint p) when not (same env point p) ->
+      Log.debug "%s]%s (singleton)" Bash.colors.Bash.red Bash.colors.Bash.default;
       unify env point p
 
   | TyExists (binding, t) ->
+      Log.debug "%s]%s (exists)" Bash.colors.Bash.red Bash.colors.Bash.default;
       begin match binding with
       | _, KTerm, _ ->
           let env, t = bind_var_in_type env binding t in
@@ -313,6 +317,7 @@ and add (env: env) (point: point) (t: typ): env =
       end
 
   | TyConstraints (constraints, t) ->
+      Log.debug "%s]%s (constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
       let env = add_constraints env constraints in
       add env point t
 
@@ -351,7 +356,7 @@ and add_type (env: env) (p: point) (t: typ): env =
        * particular, when adding a flexible type variable to a point, it
        * instantiates it into, say, [=x], which is usually *not* what we want to
        * do. *)
-      Log.debug "→ sub worked";
+      Log.debug "→ sub worked%s]%s" Bash.colors.Bash.red Bash.colors.Bash.default;
       let in_there_already =
         List.exists (fun x -> equal env x t) (get_permissions env p)
       in
@@ -372,7 +377,7 @@ and add_type (env: env) (p: point) (t: typ): env =
           { binding with permissions = t :: binding.permissions }
         )
   | None ->
-      Log.debug "→ sub didn't work";
+      Log.debug "→ sub did NOT work%s]%s" Bash.colors.Bash.red Bash.colors.Bash.default;
       let env =
         replace_term env p (fun binding ->
           { binding with permissions = t :: binding.permissions }

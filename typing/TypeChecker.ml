@@ -83,6 +83,11 @@ let has_adopts_clause env t =
  * call amounts to type-checking a point applied to another point. The default
  * behavior is: do not return a type that contains flexible variables. *)
 let check_function_call (env: env) (f: point) (x: point): env * typ =
+  Log.debug ~level:5 "[check_function_call], f = %a, x = %a, env below\n\n%a\n"
+    TypePrinter.pnames (env, get_names env f)
+    TypePrinter.pnames (env, get_names env x)
+    TypePrinter.penv env;
+
   let fname, fbinder = find_term env f in
   (* Find a suitable permission for [f] first *)
   let rec is_quantified_arrow = function
@@ -136,6 +141,9 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
   end;
   (* Examine [x]. [sub] will take care of running collect on [t1] so that the
    * expected permissions are subtracted as well from the environment. *)
+  Log.debug ~level:5 "[check_function_call] %a - %a"
+    TypePrinter.pnames (env, get_names env x)
+    TypePrinter.ptype (env, t1);
   match Permissions.sub env x t1 with
   | Some env ->
       (* Return the "good" type. *)

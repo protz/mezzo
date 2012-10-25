@@ -153,13 +153,20 @@ let check_implementation
   let env = Types.empty_env in
 
   (* Find all the dependencies... *)
+  Log.debug ~level:2 "\n%s***%s Computing dependencies for %a"
+    Bash.colors.Bash.yellow Bash.colors.Bash.default
+    Module.p mname;
   let deps = Modules.all_dependencies mname (fun mname' ->
     if Module.equal mname mname' then
       program
     else
       find_and_lex_interface mname')
   in
+
   (* And import them all in scope. *)
+  Log.debug ~level:2 "\n%s***%s Importing the dependencies of %a in scope"
+    Bash.colors.Bash.yellow Bash.colors.Bash.default
+    Module.p mname;
   let env = List.fold_left (fun env mname ->
     Log.debug "Massive import, %a" Module.p mname;
     let env, iface = build_interface env mname in
@@ -218,20 +225,37 @@ let check_implementation
   in
 
   (* Type-check the implementation. *)
+  Log.debug ~level:2 "\n%s***%s Type-checking the implementation of %a, \
+      environment so far:\n\n%a"
+    Bash.colors.Bash.yellow Bash.colors.Bash.default
+    Module.p mname
+    Types.TypePrinter.penv env;
   let env = type_check env program in
 
-  (* Check that the implementation leaves all other modules intact. *)
+  (* And type-check the implementation against its own signature, if any. *)
+  Log.debug ~level:2 "\n%s***%s Matching %a against its signature"
+    Bash.colors.Bash.yellow Bash.colors.Bash.default
+    Module.p mname;
+  let env =
+    match interface with
+    | Some interface ->
+        check_interface env env.Types.module_name interface
+    | None ->
+        env
+  in
+
+  (* Check that the implementation leaves all other modules intact (matching
+   * against the signature right above may have consumed permissions from other
+   * modules!) *)
+  Log.debug ~level:2 "\n%s***%s Checking %a does not alter other interfaces"
+    Bash.colors.Bash.yellow Bash.colors.Bash.default
+    Module.p mname;
   let env = List.fold_left (fun env mname ->
     let iface = find_and_lex_interface mname in
     check_interface env mname iface
   ) env deps in
-  
-  (* And type-check the implementation against its own signature, if any. *)
-  match interface with
-  | Some interface ->
-      check_interface env env.Types.module_name interface
-  | None ->
-      env
+
+  env
 ;;
 
 
