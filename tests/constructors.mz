@@ -1,3 +1,5 @@
+open Pervasives
+
 data t = A | B
 data u = C { foo: int }
 

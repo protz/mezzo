@@ -108,10 +108,10 @@ let bind_data_type_group
   (* Now we can perform some more advanced analyses. *)
   let env = FactInference.analyze_data_types env points in
   let env = Variance.analyze_data_types env points in
-  debug_toplevel_items env toplevel_items;
+  if false then debug_toplevel_items env toplevel_items;
   (* Open references to these data types in the rest of the program. *)
   let toplevel_items = bind_group_in_toplevel_items points toplevel_items in
-  debug_toplevel_items env toplevel_items;
+  if false then debug_toplevel_items env toplevel_items;
   (* We're done. *)
   env, toplevel_items
 ;;
