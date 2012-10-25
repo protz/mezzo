@@ -1,7 +1,0 @@
-data option a = Some { contents: a } | None
-
-val yada [a] (none: [b] option b): option a =
-  if None then
-    none
-  else
-    None
