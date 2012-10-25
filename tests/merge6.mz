@@ -1,8 +1,5 @@
 data bool = True | False
 
-abstract int
-fact duplicable int
-
 data v a b = A { a: a } | B { b: b } | C | D
 
 (* Là on aimerait avoir une valeur généralisée pour [v5], idéalement :

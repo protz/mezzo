@@ -1,6 +1,4 @@
 data bool = True | False
-abstract int
-fact duplicable int
 
 mutable data ref a = Nil | Ref { contents: a }
 

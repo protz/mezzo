@@ -1,14 +1,3 @@
-(* Arithmetic *)
-
-abstract int
-fact duplicable int
-
-val ( * ) @ (int, int) -> int
-val ( - ) @ (int, int) -> int
-val ( / ) @ (int, int) -> int
-val ( + ) @ (int, int) -> int
-
-
 (* Booleans *)
 
 data bool = True | False

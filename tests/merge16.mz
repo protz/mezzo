@@ -1,7 +1,5 @@
 data bool = True | False
 mutable data xlist a = Cons { head: a; tail: xlist a} | Nil
-abstract int
-fact duplicable int
 
 val id [a] (l: xlist int): () =
   match explain l with

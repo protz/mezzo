@@ -23,9 +23,6 @@ data list a =
   | Cons { head: a; tail: list a }
   | Nil
 
-abstract int
-fact duplicable (int)
-
 data bool = False | True 
 
 data listops =

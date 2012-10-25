@@ -2,6 +2,3 @@ val x = ()
 val y = (x, x)
 
 val f (x: ()): () = x
-
-abstract int
-fact duplicable int

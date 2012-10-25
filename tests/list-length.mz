@@ -1,8 +1,6 @@
 data list a =
   | Cons { head: a; tail: list a }
   | Nil
-abstract int
-fact duplicable int
 
 val (+) (x: int, y: int): int = fail
 

@@ -1,6 +1,4 @@
 data list a = Cons { head: a; tail: list a } | Nil
-abstract int
-fact duplicable int
 
 val mklist [a] (consumes x: a): list a =
   Cons { head = x; tail = Nil }

@@ -1,8 +1,5 @@
 data bool = True | False
 
-abstract int
-fact duplicable int
-
 data v a b = A { a: a } | B { b: b } | C | D
 
 (* Quelques exemples avec le type [v]. Celui-ci est très simple, et permet de

@@ -310,7 +310,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
    * define the "int" type. *)
   let make_lazy_getter t = lazy begin
     try
-      find_type_by_name env t
+      find_type_by_name env ~mname:"Core" t
     with Not_found ->
       Log.error "please define type %s" t
   end in

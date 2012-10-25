@@ -1,7 +1,5 @@
 mutable data ref a = Ref { contents: a }
 data list a = Cons { head: a; tail: list a } | Nil
-abstract int
-fact duplicable int
 
 val f (consumes x: list (=y), consumes y: ref int): list (ref int) =
   x

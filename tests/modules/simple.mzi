@@ -2,6 +2,3 @@ val x @ ()
 val y @ (=x, =x)
 
 val f @ () -> ()
-
-abstract int
-fact duplicable int

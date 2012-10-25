@@ -1,8 +1,5 @@
 (* Testing as-patterns. *)
 
-abstract int
-fact duplicable int
-
 val (v: (int, int, int, (int, int))) =
   let (x, (y, z) as t) = (1, (2, 3)) in
   (x, y, z, t)

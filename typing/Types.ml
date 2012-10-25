@@ -592,11 +592,13 @@ let find_and_instantiate_branch
 
 (* Misc. *)
 
-let point_by_name (env: env) (name: string): point =
+let point_by_name (env: env) ?(mname: string option) (name: string): point =
+  let mname = Option.map Module.register mname in
+  let mname = Option.map_none env.module_name mname in
   let module T = struct exception Found of point end in
   try
     fold env (fun () point ({ names; _ }, _binding) ->
-      if List.exists (names_equal (User (env.module_name, Variable.register name))) names then
+      if List.exists (names_equal (User (mname, Variable.register name))) names then
         raise (T.Found point)) ();
     raise Not_found
   with T.Found point ->
@@ -607,8 +609,8 @@ let point_by_name (env: env) (name: string): point =
     [TypeChecker] as well as the test files can refer to type constructors
     defined in the file (e.g. int), for type-checking arithmetic expressions, for
     instance... *)
-let find_type_by_name env name =
-  TyPoint (point_by_name env name)
+let find_type_by_name env ?mname name =
+  TyPoint (point_by_name env ?mname name)
 ;;
 
 let is_tyapp = function

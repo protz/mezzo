@@ -1,6 +1,4 @@
 data list a = Cons { head: a; tail: list a } | Nil
-abstract int
-fact duplicable int
 
 val f (x: list (=y), y: int): list int =
   x
