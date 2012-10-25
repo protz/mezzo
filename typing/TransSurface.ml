@@ -115,6 +115,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
     | TyUnknown
     | TyDynamic
     | TyVar _
+    | TyQualified _
     | TySingleton _
     (* These are opaque, no consumes annotations inside of these. *)
     | TyForall _
@@ -162,6 +163,9 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyVar x ->
       let _, index = find x env in
       tvar index
+
+  | TyQualified (mname, x) ->
+      T.TyPoint (T.point_by_name env.env ~mname x)
 
   | TyConcreteUnfolded branch ->
       let datacon, branches = translate_data_type_def_branch env branch in
@@ -484,6 +488,9 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   | EVar x ->
       let _, index = find x env in
       evar index
+
+  | EQualified (mname, x) ->
+      E.EPoint (T.point_by_name env.env ~mname x)
 
   | ELet (flag, patexprs, body) ->
       let env, patexprs = translate_patexprs env flag patexprs in

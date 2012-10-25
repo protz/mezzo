@@ -109,6 +109,8 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         collect_pattern p1 @ collect_pattern p2
 
   and collect_expr = function
+    | EQualified (m, _) ->
+        [m]
     | EConstraint (expr, t) ->
         collect_expr expr @ collect_type t
     | EVar _
@@ -144,6 +146,8 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         collect_expr e1 @ collect_expr e2 @ collect_expr e3
 
   and collect_type = function
+    | TyQualified (m, _) ->
+        [m]
     | TyUnknown
     | TyDynamic
     | TyEmpty

@@ -1,0 +1,6 @@
+open Pervasives
+
+(* Yay! After some painful debugging, I just figured out the exact annotation I
+ * must insert... *)
+val the_list = cons (3, cons (2, cons [int] (1, nil)))
+val the_length = List::length the_list

@@ -26,6 +26,10 @@ let check env point t =
   ignore (check_return_type env point t)
 ;;
 
+let point_by_name env ?mname name =
+  point_by_name env ?mname (Variable.register name)
+;;
+
 type outcome = Fail of (raw_error -> bool) | Pass
 
 let simple_test ?(pedantic=false) outcome = fun do_it ->
@@ -584,6 +588,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("modules/simple2.mz", simple_test (Fail (function
     | DataTypeMismatchInSignature _ -> true | _ -> false
   )));
+
+  ("modules/m.mz", simple_test Pass);
+
+  ("modules/qualified.mz", simple_test Pass);
 ]
 
 let _ =

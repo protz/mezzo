@@ -264,6 +264,12 @@ let open_module_in (mname: Module.name) (env: env): env =
   List.fold_left bind_external env names
 ;;
 
+let kind_external { env; _ } mname x =
+  let open Types in
+  let p = point_by_name env ~mname x in
+  get_kind env p
+;;
+
 (* [locate env p1 p2] extends [env] with the provided location information. *)
 let locate env p1 p2: env =
   { env with location = p1, p2 }
@@ -352,7 +358,8 @@ let names env ty : type_binding list =
     | TyAnchoredPermission (t1, t2)
     | TyBar (t1, t2) ->
         (names env t1) @ (names env t2)
-    | TyUnknown | TyDynamic | TyEmpty | TyVar _ | TyApp _ | TyArrow _ ->
+    | TyUnknown | TyDynamic | TyEmpty | TyVar _
+    | TyQualified _ | TyApp _ | TyArrow _ ->
         []
   in
   let names = names env ty in
@@ -471,6 +478,9 @@ and infer (env: env) (t: typ) =
 
   | TyEmpty ->
       KPerm
+
+  | TyQualified (mname, x) ->
+      kind_external env mname x
 
   | TyVar x ->
       let kind, _index = find x env in
@@ -639,6 +649,11 @@ and check_expression (env: env) (expr: expression) =
 
   | EVar x ->
       let k, _ = find x env in
+      if k <> KTerm then
+        mismatch env KTerm k
+
+  | EQualified (mname, x) ->
+      let k = kind_external env mname x in
       if k <> KTerm then
         mismatch env KTerm k
       
@@ -858,7 +873,9 @@ module KindPrinter = struct
     | Some (None, _) ->
         print_abstract_type_def env name kind
     | None ->
-        Log.error "This is strange"
+        (* This can happen if there's an uninstanciated type variable hanging
+         * around, see [tests/loose_variable.mz] *)
+        empty
   ;;
 
   (* This function prints the contents of a [Types.env]. *)

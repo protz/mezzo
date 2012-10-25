@@ -246,6 +246,9 @@ atomic_kind:
   (* Term variable, type variable, permission variable, abstract type, or concrete type. *)
   | x = variable
       { TyVar x }
+  (* A variable just like above, prefixed with a module name. *)
+  | m = module_name COLONCOLON x = variable
+      { TyQualified (m, x) }
   (* A structural type explicitly mentions a data constructor. *)
   (* TEMPORARY add support for optional adopts clause in structural permissions *)
   | b = data_type_def_branch
@@ -642,6 +645,8 @@ data_type_def:
   atomic_raw:
   | v = variable
       { EVar v }
+  | m = module_name COLONCOLON x = variable
+      { EQualified (m, x) }
   | i = INT
       { EInt i }
   | FAIL
