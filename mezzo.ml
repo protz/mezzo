@@ -35,7 +35,7 @@ let _ =
       messages, 5 = super super verbose";
     "-html-errors", Arg.Set arg_html_errors, " Use a browser to display errors";
     "-pedantic", Arg.Set Options.pedantic, " Non-principal situations are errors";
-    "-I <dir>", Arg.String Driver.add_include_dir, "  Add <dir> to the list of \
+    "-I", Arg.String Driver.add_include_dir, " <dir>  Add <dir> to the list of \
       include directories";
   ] (fun f ->
     if !arg_filename = "" then

@@ -1,3 +1,5 @@
+open Pervasives
+
 (* In-place traversal of a tree, after Sobel and Friedman (1998). *)
 
 (* If we wish to publish this example, we must cite Walker and Morrisett,

@@ -1,3 +1,5 @@
+open Pervasives
+
 val wrong =
   let r = Ref { contents = Nil } in
   fun [a] (x: a): () =

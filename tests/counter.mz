@@ -1,3 +1,5 @@
+open Pervasives
+
 (* Idéalement, on aimerait:
     val make_counter (): ∃(t::★). (r: t, get: (| r @ t) -> int) =
   pour avoir un minimum d'abstraction.

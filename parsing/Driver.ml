@@ -49,12 +49,19 @@ let lex_and_parse file_path entry_point =
         exit 252
 ;;
 
+let mkprefix path =
+  if Filename.basename path = "core.mzi" then
+    []
+  else
+    [SurfaceSyntax.OpenDirective (Module.register "Core")]
+;;
+
 let lex_and_parse_implementation path =
-  lex_and_parse path Grammar.implementation
+  mkprefix path @ lex_and_parse path Grammar.implementation
 ;;
 
 let lex_and_parse_interface path =
-  lex_and_parse path Grammar.interface
+  mkprefix path @ lex_and_parse path Grammar.interface
 ;;
 
 

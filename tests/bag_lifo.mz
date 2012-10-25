@@ -1,3 +1,5 @@
+open Pervasives
+
 mutable data bag a = Bag { contents: list a }
 
 val push [a] (consumes x: a, b: bag a): () =

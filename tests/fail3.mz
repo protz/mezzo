@@ -1,3 +1,5 @@
+open Pervasives
+
 val make_counter (): (() -> int) =
   let c = Ref { contents = 0 } in
   fun (): int =

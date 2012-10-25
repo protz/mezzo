@@ -1,3 +1,5 @@
+open Pervasives
+
 mutable data t = T
 abstract u
 fact exclusive u
