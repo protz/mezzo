@@ -2,3 +2,9 @@ open Pervasives
 
 val the_list = cons [int] (3, cons [int] (2, cons [int] (1, nil)))
 val the_length = List::length the_list
+
+val the_list2 =
+  let consi = cons [int] in
+  consi (3, consi (2, consi (1, nil)))
+
+val the_length2 = List::length the_list2
