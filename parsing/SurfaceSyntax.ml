@@ -202,13 +202,13 @@ and expression =
   | EFun of type_binding list * typ * typ * expression
   (* v.f <- e *)
   | EAssign of expression * Variable.name * expression
-  (* v <- Datacon *)
+  (* tag of v <- Datacon *)
   | EAssignTag of expression * Datacon.name
   (* v.f *)
   | EAccess of expression * Variable.name
   (* assert τ *)
   | EAssert of typ
-  (* e e₁ … eₙ *)
+  (* e₁ e₂ *)
   | EApply of expression * expression
   (* e [τ₁, …, τₙ] *)
   | ETApply of expression * typ list

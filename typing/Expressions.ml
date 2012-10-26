@@ -59,7 +59,7 @@ type expression =
   | EFun of (type_binding * flavor) list * typ * typ * expression
   (* v.f <- e *)
   | EAssign of expression * Field.name * expression
-  (* v <- Foo *)
+  (* tag of v <- Foo *)
   | EAssignTag of expression * Datacon.name
   (* v.f *)
   | EAccess of expression * Field.name
