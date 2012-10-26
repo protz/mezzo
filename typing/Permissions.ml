@@ -62,7 +62,9 @@ let safety_check env =
     ) permissions in
     if not (env.inconsistent) && List.length concrete > 1 then
       Log.error
-        "Inconsistency detected: more than one concrete type for %a\n%a\n"
+        "Inconsistency detected: more than one concrete type for %a\n\
+          (did you add a function type without calling \
+          [simplify_function_type]?)\n%a\n"
         TypePrinter.pnames (env, get_names env point)
         TypePrinter.penv env;
 
