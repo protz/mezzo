@@ -1,11 +1,10 @@
+open Absdefs
+
 (* Make sure folding and unfolding (including instantiating the initial
  * "adopts ⊥" clause) work for structural types in the presence of adopts
  * directives. *)
 
-abstract bar
-fact exclusive bar
-
-mutable data foo = Foo adopts bar
+mutable data foo = Foo adopts t_x
 
 val (v: foo) = Foo
 val f (consumes x: foo): foo = x

@@ -1,5 +1,5 @@
-abstract t
-abstract u
+open Absdefs
+
 data pair a b = Pair { left: a; right: b }
 data bool = True | False
 

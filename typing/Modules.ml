@@ -203,9 +203,9 @@ let all_dependencies (mname: Module.name) (find: Module.name -> S.toplevel_item 
     end
   in
   collect mname;
+  (* The module does not depend on itself. *)
   let l = List.tl !l in
   let l = List.rev l in
-  (* The module does not depend on itself. *)
   let names = String.concat ", " (List.map Module.print l) in
   Log.debug "Found dependencies for %a (left-to-right) = %s" Module.p mname names;
   l

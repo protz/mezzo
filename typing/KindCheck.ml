@@ -86,6 +86,7 @@ and raw_error =
   | BadConclusionInFact of Variable.name
   | DuplicateConstructor of Variable.name * Datacon.name
   | AdopterNotExclusive of Variable.name
+  | NoAbstractTypesInImplementation of Variable.name
 
 exception KindError of error
 
@@ -164,6 +165,11 @@ let print_error buf (env, raw_error) =
   | AdopterNotExclusive x ->
       Printf.bprintf buf
         "%a type %a is trying to adopt something but it is not marked as exclusive"
+        Lexer.p env.location
+        Variable.p x
+  | NoAbstractTypesInImplementation x ->
+      Printf.bprintf buf
+        "%a the definition of %a is abstract, this is allowed only in interfaces"
         Lexer.p env.location
         Variable.p x
   end;

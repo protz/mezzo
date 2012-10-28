@@ -1,9 +1,7 @@
 open Pervasives
+open Absdefs
 
-abstract t
-fact exclusive t
-
-val f (consumes x: t, y: unknown): t =
+val f (consumes x: t_x, y: unknown): t_x =
   if explain x == y then
     y
   else

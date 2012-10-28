@@ -1,3 +1,4 @@
-(* This is a syntax error. We should completely rework the syntax of facts. *)
+(* The fact in the interface is wrong so this test should fail. *)
+
 abstract foo a
-fact duplicable (foo a)
+fact exclusive (foo a)

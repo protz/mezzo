@@ -1,0 +1,9 @@
+(* For test that rely on abstract type definitions *)
+
+abstract t
+abstract u
+
+abstract t_x
+fact exclusive t_x
+abstract u_x
+fact exclusive u_x

@@ -1,10 +1,9 @@
 open Pervasives
+open Absdefs
 
 mutable data t = T
-abstract u
-fact exclusive u
 
-val f1 (x: u, y: u): ((), ()) =
+val f1 (x: u_x, y: u_x): ((), ()) =
   if x == y then
     ()
   else

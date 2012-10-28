@@ -718,11 +718,27 @@ let rec translate_items env strict = function
       []
 ;;
 
+let ensure_no_abstract_definitions env program =
+  List.iter (function
+    | DataTypeGroup ((p1, p2), defs) ->
+        let env = locate env p1 p2 in
+        List.iter (function
+          | Abstract ((name, _), _, _) ->
+              raise_error env (NoAbstractTypesInImplementation name)
+          | _ ->
+              ()
+        ) defs
+    | _ ->
+        ()
+  ) program;
+;;
+
 (* [translate_implementation implementation] returns an
  * [Expressions.implementation], i.e. a desugared version of the entire
  * program. *)
 let translate_implementation (tenv: T.env) (program: toplevel_item list): E.implementation =
   let env = empty tenv in
+  ensure_no_abstract_definitions env program;
   translate_items env false program
 ;;
 
