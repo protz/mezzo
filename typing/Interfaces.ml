@@ -127,8 +127,7 @@ let check (env: T.env) (mname: Module.name) (signature: S.toplevel_item list): T
           Log.check (Variable.equal name name') "Names not in order?!";
           Log.check (k = kind) "Inconsistency?!";
           let error_out reason =
-            Log.debug ~level:1 "Definitions not matching because of %s" reason;
-            raise_error env (DataTypeMismatchInSignature name)
+            raise_error env (DataTypeMismatchInSignature (name, reason))
           in
 
           (* Check kinds. *)
@@ -144,35 +143,48 @@ let check (env: T.env) (mname: Module.name) (signature: S.toplevel_item list): T
           let def' = Option.extract (T.get_definition env point) in
           let def, variance = def in
           let def', variance' = def' in
-          (* We are *not* checking variance, because we don't have abstract
-           * types yet. So all the types in the signatures are concrete, and we
-           * can run the variance analysis on them. When we do, we'll have to
-           * make sure we implement something along the lines of [variance_leq]
-           * and check: [List.for_all2 variance_leq variance' variance]. *)
-          if false && variance <> variance' then
-            error_out "variance";
 
           match def, def' with
           | None, None ->
-              (* These are « abstract types » (declared abstract in both the
-               * implementation and the interface). For these, we write explicit
-               * facts, so we should make sure these are consistent. *)
+              (* When re-matching a module against the interfaces it opened,
+               * we'll encounter the case where in [env] the type is defined as
+               * abstract, and in the signature it is still abstract. Because
+               * [TransSurface] forbids declaring a type as abstract in an
+               * implementation, we should just do nothing here. *)
+              ()
+
+          | None, Some _ ->
+              (* Type made abstract. We just check that the facts are
+               * consistent. The fact information in [fact'] (the
+               * implementation) is correct, since [Driver] took care of running
+               * [DataTypeGroup.bind_data_type_group]. The fact from the
+               * interface, i.e. [fact], is correct because the fact for an
+               * abstract is purely syntactical and does not depend on having
+               * run [FactInference.analyze_types] properly. *)
               if not (T.fact_leq fact' fact) then
                 error_out "facts";
-              ()
-          | None, Some _ ->
-              Log.error "We don't support making a type abstract yet"
+
+              (* We are *not* checking variance, because we don't have a syntax
+               * for it. When we do, we'll have to make sure we implement
+               * something along the lines of [variance_leq] and check:
+                 * [List.for_all2 variance_leq variance' variance]. *)
+              if false && variance <> variance' then
+                error_out "variance";
+
+              (* This does not check that we won't use one of the data
+               * constructors for the type afterwards. This is not implemented
+               * yet and should be part of [KindCheck]. *)
+
           | Some _, None ->
               error_out "type abstract in implem but not in sig";
+
           | Some (flag, branches, clause), Some (flag', branches', clause') ->
-              (* At this stage the fact information is meaningless because we
-               * haven't run [FactInference.analyze_types] yet. However, since we
-               * don't have abstract types, we'll be able to recover the correct
-               * fact from the flag and the definitions. So we're good. Of course,
-               * we'll have to perform a real check in the case of abstract types.
-               * *)
-              if false && not (T.fact_leq fact' fact) then
-                error_out "facts";
+              (* We're not checking facts: if the flag and the branches are
+               * equal, then it results that the facts are equal. Moreover, we
+               * haven't run [FactInference.analyze_types] on the *signature* so
+               * the information in [fact] is just meaningless. *)
+
+              (* We're not checking the variance either: same remark. *)
 
               if flag <> flag' then
                 error_out "flags";
