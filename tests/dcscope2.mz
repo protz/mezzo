@@ -1,0 +1,3 @@
+data foo = FOO
+
+val v = F00

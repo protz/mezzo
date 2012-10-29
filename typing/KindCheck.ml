@@ -36,12 +36,12 @@ module M =
 (* An environment maps an identifier to a pair of a kind and a de Bruijn level
    (not to be confused with a de Bruijn index!). An environment also keeps
    track of the current de Bruijn level.
-   
+
    This binding representation is specific to this first phase -- we use more
    sophisticated environments later on, and the level thing is just some sort of
    hack. *)
 
-type level = 
+type level =
     int
 
 (* When a module is opened in scope, the names it exports point to points that
@@ -54,19 +54,36 @@ let evar = function Var x -> E.EVar x | Point x -> E.EPoint x;;
 type env = {
   (* The current de Bruijn level. *)
   level: level;
+
   (* A mapping of identifiers to pairs of a kind and a level. *)
   mapping: (kind * var) M.t;
+
   (* The current start and end positions *)
   location: Lexing.position * Lexing.position;
-  (* The [Types.env] that contains information about: the current module, and
-   * the points for all the things we depend on. *)
+
+  (* [Driver] already discovered our dependencies for us, and processed them, so
+   * [env] contains all the information about our dependencies. However, it
+   * contains no information about the module that's being processed, except
+   * for the field [module_name] (that's not entirely true if we're matching an
+   * implementation against its interface but the bottom line is: only use this
+   * environment for you dependencies on other modules). *)
   env: Types.env;
+
+  (* Known data constructors. When we perform proper resolution of data
+   * constructors (module-wise), we should upgrade this to:
+   * "Module.name T.DataconMap.t". *)
+  datacon_map: unit T.DataconMap.t;
 }
 
 (* The empty environment. *)
 
-let empty env : env =
-  { level = 0; mapping = M.empty; location = Lexing.dummy_pos, Lexing.dummy_pos; env; }
+let empty (env: Types.env): env = {
+  level = 0;
+  mapping = M.empty;
+  location = Lexing.dummy_pos, Lexing.dummy_pos;
+  env;
+  datacon_map = T.DataconMap.empty;
+}
 
 
 
@@ -87,6 +104,7 @@ and raw_error =
   | DuplicateConstructor of Variable.name * Datacon.name
   | AdopterNotExclusive of Variable.name
   | NoAbstractTypesInImplementation of Variable.name
+  | UnboundDataConstructor of Datacon.name
 
 exception KindError of error
 
@@ -172,6 +190,11 @@ let print_error buf (env, raw_error) =
         "%a the definition of %a is abstract, this is allowed only in interfaces"
         Lexer.p env.location
         Variable.p x
+  | UnboundDataConstructor d ->
+      Printf.bprintf buf
+        "%a the data constructor %a is not bound to any type"
+        Lexer.p env.location
+        Datacon.p d
   end;
   if Log.debug_level () > 4 then
     pkenv buf env;
@@ -179,24 +202,31 @@ let print_error buf (env, raw_error) =
 
 let unbound env x =
   raise_error env (Unbound x)
+;;
 
 let mismatch env expected_kind inferred_kind =
   raise_error env (Mismatch (expected_kind, inferred_kind))
+;;
 
 let illegal_consumes env =
   raise_error env IllegalConsumes
+;;
 
 let bound_twice env x =
   raise_error env (BoundTwice x)
+;;
 
 let bad_condition_in_fact env x =
   raise_error env (BadConditionsInFact x)
+;;
 
 let bad_conclusion_in_fact env x =
   raise_error env (BadConclusionInFact x)
+;;
 
 let duplicate_constructor env x d =
   raise_error env (DuplicateConstructor (x, d))
+;;
 
 
 (* ---------------------------------------------------------------------------- *)
@@ -207,12 +237,14 @@ let karrow bindings kind =
   List.fold_right (fun (_, kind1) kind2 ->
     KArrow (kind1, kind2)
   ) bindings kind
+;;
 
 let deconstruct_arrow env = function
   | KArrow (k1, k2) ->
       k1, k2
   | kind ->
       raise_error env (NotAnArrow kind)
+;;
 
 
 (* ---------------------------------------------------------------------------- *)
@@ -229,6 +261,7 @@ let strict_add env x kind mapping =
     M.strict_add x kind mapping
   with M.Unchanged ->
     bound_twice env x
+;;
 
 (* [find x env] looks up the name [x] in the environment [env] and returns a
    pair of a kind and a de Bruijn index (not a de Bruijn level!). *)
@@ -245,6 +278,7 @@ let find x env =
     kind, level
   with Not_found ->
     unbound env x
+;;
 
 (* [bind env (x, kind)] binds the name [x] with kind [kind]. *)
 let bind ?(strict=false) env (x, kind) : env =
@@ -254,9 +288,15 @@ let bind ?(strict=false) env (x, kind) : env =
   { env with
     level = env.level + 1;
     mapping = add x (kind, Var env.level) env.mapping }
+;;
 
 let bind_external env (x, kind, p): env =
   { env with mapping = strict_add env x (kind, Point p) env.mapping }
+;;
+
+let bind_datacon env d =
+  { env with datacon_map = T.DataconMap.add d () env.datacon_map }
+;;
 
 (* Find in [tsenv.env] all the names exported by module [mname], and add them to our
  * own [tsenv]. *)
@@ -279,6 +319,7 @@ let kind_external { env; _ } mname x =
 (* [locate env p1 p2] extends [env] with the provided location information. *)
 let locate env p1 p2: env =
   { env with location = p1, p2 }
+;;
 
 (* [extend env xs] extends the current environment with new bindings; [xs] is
    a fragment, that is, a map of identifiers to kinds. Because an arbitrary
@@ -289,6 +330,7 @@ let locate env p1 p2: env =
 let extend (env : env) (xs : type_binding list) : env =
   List.fold_left (fun env (x, k, _) ->
     bind env (x, k)) env xs
+;;
 
 (* [forall bindings ty] builds a series of universal quantifiers.
    The innermost binding comes first in the list [bindings]. *)
@@ -296,6 +338,7 @@ let forall bindings ty =
   List.fold_left (fun ty binding ->
     T.TyForall (binding, ty)
   ) ty bindings
+;;
 
 (* [exist bindings ty] builds a series of existential quantifiers.
    The innermost binding comes first in the list [bindings]. *)
@@ -303,6 +346,7 @@ let exist bindings ty =
   List.fold_left (fun ty binding ->
     T.TyExists (binding, ty)
   ) ty bindings
+;;
 
 
 (* ---------------------------------------------------------------------------- *)
@@ -351,7 +395,7 @@ let names env ty : type_binding list =
         List.flatten (List.map (names env) ts)
     | TyConcreteUnfolded (_cons, fields) ->
         let ts = Hml_List.map_some
-          (function FieldValue (_, t) -> Some t | FieldPermission _ -> None) 
+          (function FieldValue (_, t) -> Some t | FieldPermission _ -> None)
           fields
         in
         List.flatten (List.map (names env) ts)
@@ -434,7 +478,7 @@ let rec check_fact_parameter (env: env) (x: Variable.name) (args: Variable.name 
 
 (* The conclusion of a fact, if any, must be the exact original type applied to
    the exact same arguments.
-   
+
    TEMPORARY: this function implements a purely syntactic check, which only
    allows for a very limited form of facts. We should recognize both in the
    parser and here a more general form of facts, with a conjunction of
@@ -662,7 +706,7 @@ and check_expression (env: env) (expr: expression) =
       let k = kind_external env mname x in
       if k <> KTerm then
         mismatch env KTerm k
-      
+
   | ELet (flag, pat_exprs, expr) ->
       let env = check_patexpr env flag pat_exprs in
       check_expression env expr
@@ -680,7 +724,7 @@ and check_expression (env: env) (expr: expression) =
 
   | EAssign (e1, _, e2) ->
       check_expression env e1;
-      check_expression env e2 
+      check_expression env e2
 
   | EAssignTag (e1, _) ->
       check_expression env e1
@@ -786,7 +830,7 @@ let check_implementation (tenv: T.env) (program: implementation) =
          * makes sure we don't bind the same name twice. Admittedly, we could do
          * something better for error reporting. *)
         let env = locate env p1 p2 in
-        let env = List.fold_left bind env bindings in 
+        let env = List.fold_left bind env bindings in
         (* Check the data type definitions in the environment. *)
         check_data_type_group env data_type_group;
 
@@ -917,4 +961,3 @@ module KindPrinter = struct
   ;;
 
 end
-

@@ -1,0 +1,3 @@
+data foo = Foo | Bar
+
+val v = Foo

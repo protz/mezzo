@@ -115,6 +115,9 @@ let check (env: T.env) (mname: Module.name) (signature: S.toplevel_item list): T
         (* Translate the data types definitions so that they refer to the
          * "original" points from [env]. *)
         let tsenv = List.fold_left KindCheck.bind_external tsenv bindings in
+        (* Don't forget to bind the data constructors. *)
+        let tsenv = TS.bind_datacons tsenv group in
+        (* Do the translation *)
         let translated_definitions =
           List.map (TS.translate_data_type_def tsenv) group
         in
