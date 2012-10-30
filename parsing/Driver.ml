@@ -30,13 +30,13 @@ let lex_and_parse file_path entry_point =
   try
     Lexer.init file_path;
     parser (fun _ -> Lexer.token lexbuf)
-  with 
-    | Ulexing.Error -> 
-	Printf.eprintf 
+  with
+    | Ulexing.Error ->
+	Printf.eprintf
           "Lexing error at offset %i\n" (Ulexing.lexeme_end lexbuf);
         exit 255
-    | Ulexing.InvalidCodepoint i -> 
-	Printf.eprintf 
+    | Ulexing.InvalidCodepoint i ->
+	Printf.eprintf
           "Invalid code point %i at offset %i\n" i (Ulexing.lexeme_end lexbuf);
         exit 254
     | Grammar.Error ->
@@ -79,9 +79,14 @@ let add_include_dir dir =
 
 let module_name_for_file_path (f: string): Module.name =
   let f = Filename.basename f in
-  if not (Filename.check_suffix f ".mz") then
-    Log.error "This is unexpected";
-  let f = Filename.chop_suffix f ".mz" in
+  let f =
+    if Filename.check_suffix f ".mz" then
+      Filename.chop_suffix f ".mz"
+    else if Filename.check_suffix f ".mzi" then
+      Filename.chop_suffix f ".mzi"
+    else
+      Log.error "This is unexpected"
+  in
   let f = String.lowercase f in
   f.[0] <- Char.uppercase f.[0];
   Module.register f
@@ -149,11 +154,26 @@ let check_interface env mname signature =
 ;;
 
 
+let import_dependencies_in_scope env deps =
+  List.fold_left (fun env mname ->
+    Log.debug "Massive import, %a" Module.p mname;
+    let env, iface = build_interface env mname in
+
+    (* [env] has the right module name at this stage *)
+    let env = Modules.import_interface env iface in
+    Log.debug "Imported %a, now has names %a"
+      Module.p mname
+      Types.TypePrinter.pexports env;
+    env
+  ) env deps
+;;
+
+
 (* This performs the bulk of the work. *)
 let check_implementation
     (mname: Module.name)
     (program: SurfaceSyntax.implementation)
-    (interface: SurfaceSyntax.interface option) = 
+    (interface: SurfaceSyntax.interface option) =
 
   let open Expressions in
 
@@ -174,16 +194,7 @@ let check_implementation
   Log.debug ~level:2 "\n%s***%s Importing the dependencies of %a in scope"
     Bash.colors.Bash.yellow Bash.colors.Bash.default
     Module.p mname;
-  let env = List.fold_left (fun env mname ->
-    Log.debug "Massive import, %a" Module.p mname;
-    let env, iface = build_interface env mname in
-    (* [env] has the right module name at this stage *)
-    let env = Modules.import_interface env iface in
-    Log.debug "Imported %a, now has names %a"
-      Module.p mname
-      Types.TypePrinter.pexports env;
-    env
-  ) env deps in
+  let env = import_dependencies_in_scope env deps in
 
   let env = { env with Types.module_name = mname } in
 
@@ -257,10 +268,32 @@ let check_implementation
   Log.debug ~level:2 "\n%s***%s Checking %a does not alter other interfaces"
     Bash.colors.Bash.yellow Bash.colors.Bash.default
     Module.p mname;
-  let env = List.fold_left (fun env mname ->
+  List.iter (fun mname ->
     let iface = find_and_lex_interface mname in
-    check_interface env mname iface
-  ) env deps in
+    (* Ignore the interface, since there's no risk of an interface consuming
+     * another interface's contents! Moreover, this can be a risk: since
+     * [check_interface] has the nasty consequence that the [env] it returns is
+     * polluted with internal names (the result of performing calls to
+     * [Permissions.sub]), these internal names will be imported whenever we
+     * encounter the next "open" directive... *)
+    ignore (check_interface env mname iface)
+  ) deps;
+
+  env
+;;
+
+
+let just_print_interface (mname: Module.name) =
+
+  let env = Types.empty_env in
+
+  (* Find all the dependencies... *)
+  let deps = Modules.all_dependencies mname find_and_lex_interface in
+  (* Add our interface at the end. *)
+  let deps = deps @ [mname] in
+
+  (* And import them all in scope. *)
+  let env = import_dependencies_in_scope env deps in
 
   env
 ;;
@@ -269,22 +302,26 @@ let check_implementation
 
 (* Plug everything together and process a given file. *)
 let process file_path =
-  if not (Filename.check_suffix file_path ".mz") then
-    Log.error "Bad filename: Mezzo files end with .mz";
   if not (Sys.file_exists file_path) then
     Log.error "File %s does not exist" file_path;
 
-  let program = lex_and_parse_implementation file_path in
-  let mname = module_name_for_file_path file_path in
-  let iface =
-    match iface_file_path_for_module_name mname with
-    | Some iface_path ->
-        Some (lex_and_parse_interface iface_path)
-    | None ->
-        None
-  in
-  let env = check_implementation mname program iface in
-  env
+  if Filename.check_suffix file_path ".mz" then
+    let program = lex_and_parse_implementation file_path in
+    let mname = module_name_for_file_path file_path in
+    let iface =
+      match iface_file_path_for_module_name mname with
+      | Some iface_path ->
+          Some (lex_and_parse_interface iface_path)
+      | None ->
+          None
+    in
+    let env = check_implementation mname program iface in
+    env
+  else if Filename.check_suffix file_path ".mzi" then
+    let mname = module_name_for_file_path file_path in
+    just_print_interface mname
+  else
+    Log.error "Unknown file extension"
 ;;
 
 (* The [run] function servers as a wrapper that catches errors and prints them

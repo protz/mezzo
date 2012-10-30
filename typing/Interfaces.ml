@@ -36,8 +36,14 @@ let has_same_name x (x', _k, p) =
 ;;
 
 (* Check that [env] respect the [signature] which is that of module [mname]. We
- * will want to check that [env] respects its own signatuer, but also that of
- * the modules it exports, i.e. that it leaves them intact. *)
+ * will want to check that [env] respects its own signature, but also that of
+ * the modules it exports, i.e. that it leaves them intact.
+ *
+ * Why does this function return an environment? Well, when we're type-checking
+ * a module against its own signature, we need to return the environment
+ * afterwards, because we may have consumed permissions from other modules, and
+ * [Driver] will want to check that for us (by eventually calling us again with
+ * another [mname]). *)
 let check (env: T.env) (mname: Module.name) (signature: S.toplevel_item list): T.env =
   (* Get all the names (no longer prefixed) that [env] exports from module
    * [mname]. *)
