@@ -863,6 +863,8 @@ let rec fold (env: env) (point: point): typ option =
     (function
       | TySingleton (TyPoint p) when same env p point ->
           false
+      | TyUnknown ->
+          false
       | _ ->
           true
     ) perms
@@ -911,9 +913,16 @@ and fold_type_raw (env: env) (t: typ): typ =
   | TyConstraints (cs, t) ->
       TyConstraints (cs, fold_type_raw env t)
 
-  (* TODO *)
-  | TyConcreteUnfolded _ ->
-      t
+  | TyConcreteUnfolded (dc, fields, clause) ->
+      let fields = List.map (function
+        | FieldPermission p ->
+            FieldPermission (fold_type_raw env p)
+        | FieldValue (n, t) ->
+            let t = fold_type_raw env t in
+            FieldValue (n, t)
+      ) fields in
+      let clause = fold_type_raw env clause in
+      TyConcreteUnfolded (dc, fields, clause)
 
   | TySingleton _ ->
       t

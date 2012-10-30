@@ -386,13 +386,31 @@ let print_signature (buf: Buffer.t) (env: Types.env): unit =
         true
   ) perms in
   let perms = List.sort (fun (_, loc1, _) (_, loc2, _) -> compare_locs loc1 loc2) perms in
-  List.iter (fun (point, _, perm) ->
+  List.iter (fun (point, _, t) ->
     let open TypePrinter in
     let open Hml_Pprint in
-    pdoc buf ((fun () ->
-      let t = print_type env perm in
-      print_names env (get_names env point) ^^ space ^^ at ^^ space ^^ (nest 2 t) ^^
-      break1
-    ), ())
+    try
+      let name = List.find (function
+        | User (m, _) ->
+            Module.equal m env.module_name
+        | Auto _ ->
+            false
+      ) (get_names env point) in
+      let t =
+        match Permissions.fold_type env t with
+        | Some t ->
+            t
+        | None ->
+            Log.warn "Badly printed type, sorry about that!";
+            t
+      in
+      pdoc buf ((fun () ->
+        let t = print_type env t in
+        print_var env name ^^ space ^^ at ^^ space ^^ (nest 2 t) ^^
+        break1
+      ), ())
+
+    with Not_found ->
+      ()
   ) perms
 ;;
