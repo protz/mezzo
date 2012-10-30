@@ -35,7 +35,6 @@ let import_interface (env: T.env) (items: E.interface): T.env =
         (* XXX the location information is probably wildly inaccurate *)
         let binding = User (env.module_name, name), KTerm, env.location in
         let env, p = bind_var env binding in
-        let typ, _ = TypeOps.cleanup_function_type env typ None in
         let env = Permissions.add env p typ in
         let items = tsubst_toplevel_items (TyPoint p) 0 items in
         let items = esubst_toplevel_items (EPoint p) 0 items in

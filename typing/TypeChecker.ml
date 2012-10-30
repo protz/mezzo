@@ -940,12 +940,8 @@ and check_bindings
           List.fold_left2 (fun env expr pat ->
             let expr = eunloc expr in
             match pat, expr with
-            | PPoint p, EFun (vars, arg, return_type, body) ->
-                (* We need to add the simplified type here. *)
-                let vars, arg, return_type, body =
-                  TypeOps.simplify_function_def env vars arg return_type body
-                in
-                let expr = EFun (vars, arg, return_type, body) in
+            | PPoint p, EFun _ ->
+                (* [add] will take care of simplifying the function type. *)
                 Permissions.add env p (type_for_function_def expr)
             | _ ->
                 raise_error env RecursiveOnlyForFunctions
