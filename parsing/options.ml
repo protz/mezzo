@@ -20,3 +20,7 @@
 let pedantic =
   ref false
 ;;
+
+let multiple_arguments =
+  ref true
+;;

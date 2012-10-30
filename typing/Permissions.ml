@@ -262,6 +262,8 @@ and add_perm (env: env) (t: typ): env =
 
   match t with
   | TyAnchoredPermission (p, t) ->
+      if is_flexible env !!p then
+        Log.error "Do NOT add a permission whose left-hand-side is flexible.";
       add env !!p t
   | TyStar (p, q) ->
       add_perm (add_perm env p) q
@@ -707,10 +709,73 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       sub_type env t1 t'1 >>= fun env ->
       sub_type env t'2 t2
 
+  (* "(t1 | p1)" - "(t2 | p2)" means doing [t1 - t2], adding all of [p1],
+   * removing all of [p2]. But the order in which we perform these operations
+   * matters, unfortunately... *)
   | TyBar (t1, p1), TyBar (t2, p2) ->
+      (* Alright, this is a fairly complicated logic (euphemism), but it is
+       * seriously needed for any sort of situation that involves
+       * higher-order... The grand scheme is: we should always fight to
+       * instanciate flexible TERM variables, because we always know how to
+       * instantiate these. Because of our desugaring, a bar type always looks
+       * like "(=root | root @ ...)". So let's start by subtracting [t2] from
+       * [t1]. *)
       sub_type env t1 t2 >>= fun env ->
-      let env = add_perm env p1 in
-      sub_perm env p2
+      let ps1 = flatten_star p1 in
+      let ps2 = flatten_star p2 in
+      (* [add_perm] will fail if we add "x @ t" when "x" is flexible. So we
+       * search among the permissions in [p1] one that is suitable for adding,
+       * i.e. a permission whose left-hand-side is not flexible *)
+      let not_flex env t =
+        match t with
+        | TyAnchoredPermission (x, _) when not (is_flexible env !!x) ->
+            let open Bash in
+            Log.debug "%s%a not flexible%s" colors.red
+              TypePrinter.ptype (env, t) colors.default;
+            true
+        | TyEmpty | TyStar _ ->
+            (* [flatten_star] prevents these *)
+            assert false
+        | _ ->
+            false
+      in
+      (* But we may be stuck because all permissions in [ps1] have their lhs
+       * flexible! However, maybe there's an element in [ps2] that, when
+       * subtracted, "unlocks" the situation by instantiating the lhs of one
+       * permission in [ps1]. *)
+      let good_for_sub env ps1 p2 =
+        sub_perm env p2 >>= fun env ->
+        if List.exists (not_flex env) ps1 then
+          Some env
+        else
+          None
+      in
+      (* So let's put it all together. *)
+      let rec add_sub env ps1 ps2 =
+        if ps1 = [] then
+          (* If we've solved all our problems in [ps1], that's really cool! *)
+          sub_perm env (fold_star ps2)
+        else
+          (* Otherwise, is there a permission that we can safely add in [ps1]? *)
+          match Hml_List.take_bool (not_flex env) ps1 with
+          | Some (ps1, p1) ->
+              (* Yes! Do it. *)
+              let env = add_perm env p1 in
+              add_sub env ps1 ps2
+          | None ->
+              (* No, all the lhs in [ps1] are flexible. Try to find a permission
+               * in [ps1] that, when subtracted, unties the situation. *)
+              match Hml_List.take (good_for_sub env ps1) ps2 with
+              | Some (ps2, (_p2, env)) ->
+                  (* We found one! [good_for_sub] already called sub for us and
+                   * returns the resulting environment -> we move on. *)
+                  add_sub env ps1 ps2
+              | None ->
+                  (* Nothing. We fail. *)
+                  Log.debug "[add_sub] FAILED";
+                  None
+      in
+      add_sub env ps1 ps2
 
   (* This is the singleton-subtyping rule. *)
   | TySingleton (TyPoint p), _ when FactInference.is_duplicable env t2 ->

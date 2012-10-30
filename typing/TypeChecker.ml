@@ -555,7 +555,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   | EApply (e1, e2) ->
       begin match eunloc e1 with
       | EApply _ ->
-          raise_error env NoMultipleArguments
+          if not (!Options.multiple_arguments) then
+            raise_error env NoMultipleArguments
       | _ ->
           ()
       end;
@@ -591,7 +592,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let name =
         match get_name env x with
         | User (_, x) ->
-            Auto x
+            Auto (Variable.register (Variable.print x ^ "_inst"))
         | _ as x ->
             x
       in

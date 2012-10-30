@@ -200,8 +200,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("multiple_data_type_groups.mz", simple_test Pass);
 
-  (* Doesn't work yet... *)
-  (*("impredicative.mz", simple_test Pass);*)
+  ("impredicative.mz", simple_test Pass);
 
   (* The merge operation and all its variations. *)
 
