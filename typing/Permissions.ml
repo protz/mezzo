@@ -872,7 +872,9 @@ let rec fold (env: env) (point: point): typ option =
   match perms with
   | [] ->
       Some TyUnknown
-  | t :: [] ->
+  | t :: []
+  | TyDynamic :: t :: []
+  | t :: TyDynamic :: [] ->
       begin try
         Some (fold_type_raw env t)
       with NotFoldable ->

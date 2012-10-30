@@ -254,9 +254,14 @@ let check_implementation
   Log.debug ~level:2 "\n%s***%s Matching %a against its signature"
     Bash.colors.Bash.yellow Bash.colors.Bash.default
     Module.p mname;
-  let env =
+  let output_env =
     match interface with
     | Some interface ->
+        (* If the function types are not syntactically equal, the decision
+         * procedure for comparing those two types introduces internal names
+         * that end polluting the resulting environment! So we only use that
+         * "polluted" environment to perform interface-checking, we don't
+         * actually return it to the driver, say, for printing. *)
         check_interface env env.Types.module_name interface
     | None ->
         env
@@ -274,9 +279,8 @@ let check_implementation
      * another interface's contents! Moreover, this can be a risk: since
      * [check_interface] has the nasty consequence that the [env] it returns is
      * polluted with internal names (the result of performing calls to
-     * [Permissions.sub]), these internal names will be imported whenever we
-     * encounter the next "open" directive... *)
-    ignore (check_interface env mname iface)
+     * [Permissions.sub]), opening the same module twice may cause conflicts... *)
+    ignore (check_interface output_env mname iface)
   ) deps;
 
   env
@@ -391,8 +395,9 @@ let print_signature (buf: Buffer.t) (env: Types.env): unit =
     let open Hml_Pprint in
     try
       let name = List.find (function
-        | User (m, _) ->
-            Module.equal m env.module_name
+        | User (m, x) ->
+            Module.equal m env.module_name &&
+            (Variable.print x).[0] <> '/'
         | Auto _ ->
             false
       ) (get_names env point) in
@@ -406,6 +411,7 @@ let print_signature (buf: Buffer.t) (env: Types.env): unit =
       in
       pdoc buf ((fun () ->
         let t = print_type env t in
+        string "val" ^^ space ^^
         print_var env name ^^ space ^^ at ^^ space ^^ (nest 2 t) ^^
         break1
       ), ())
