@@ -4,16 +4,14 @@
 
 data foo = Foo
 
-(* Urgh. I just found out we can remove y here but I'm pretty positive this will
- * cause bugs later on. *)
-val fst [α, β] (consumes x: α, y: β): α = x
+val fst [α, β] (consumes x: α, β): α = x
 
 (* Ok, I don't think we can expect a mere mortal to understand this type. We
  * should have a pre-processing phase that automatically inserts the consumes
  * annotations for the arguments that the function closes over, so that we can
  * write functions with multiple arguments in a fairly natural style. *)
-val id [α] (x: α): ([β] (t1: α, t2: β) -> α | consumes x @ α) -> α =
-  fun (f: [β] ((t1: α, t2: β) -> α) | consumes x @ α): α =
+val id [α] (x: α): ([β] (α, β) -> α | consumes x @ α) -> α =
+  fun (f: [β] ((α, β) -> α) | consumes x @ α): α =
     f [int] (x, 2)
 
 val (test: foo) = (id [foo]) Foo (fst [foo])

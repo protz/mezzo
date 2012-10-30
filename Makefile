@@ -58,6 +58,11 @@ tags:
 build-one:
 	$(OCAMLBUILD) $(INCLUDE) $(FILE).native
 
+# Hacky target to print the signature of a file; do:
+# FILE=typing/foo.ml make print-sig
+print-sig:
+	ocamlc -i $(BUILDDIRS) $(FILE)
+
 index:
 	$(shell cd viewer && ./gen_index.sh)
 

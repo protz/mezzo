@@ -202,6 +202,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("impredicative.mz", simple_test Pass);
 
+  ("anonargs.mz", simple_test Pass);
+
   (* The merge operation and all its variations. *)
 
   ("merge1.mz", fun do_it ->

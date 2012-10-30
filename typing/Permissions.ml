@@ -419,50 +419,47 @@ and sub (env: env) (point: point) (t: typ): env option =
   if env.inconsistent then
     Some env
   else
-    match t with
-    | _ ->
+    (* Get a "clean" type without nested permissions. *)
+    let t, perms = collect t in
+    let perms = List.flatten (List.map flatten_star perms) in
 
-        (* Get a "clean" type without nested permissions. *)
-        let t, perms = collect t in
-        let perms = List.flatten (List.map flatten_star perms) in
+    (* Start off by subtracting the type without associated permissions. *)
+    let env = sub_clean env point t in
 
-        (* Start off by subtracting the type without associated permissions. *)
-        let env = sub_clean env point t in
+    env >>= fun env ->
+    (* We use a worklist-based approch, where we try to find a permission that
+     * "works". A permission that works is one where the left-side is a point
+     * that is not flexible, i.e. a point that hopefully should have more to
+     * extract than (=itself). As we go, more flexible variables will be
+     * unified, which will make more candidates suitable for subtraction. *)
+    let works env = function
+      | TyAnchoredPermission (TyPoint x, _) when not (is_flexible env x) ->
+          Some ()
+      | _ ->
+          None
+    in
+    let state = ref (env, perms) in
+    while begin
+      let env, worklist = !state in
+      match Hml_List.take (works env) worklist with
+      | None ->
+          false
 
-        env >>= fun env ->
-        (* We use a worklist-based approch, where we try to find a permission that
-         * "works". A permission that works is one where the left-side is a point
-         * that is not flexible, i.e. a point that hopefully should have more to
-         * extract than (=itself). As we go, more flexible variables will be
-         * unified, which will make more candidates suitable for subtraction. *)
-        let works env = function
-          | TyAnchoredPermission (TyPoint x, _) when not (is_flexible env x) ->
-              Some ()
-          | _ ->
-              None
-        in
-        let state = ref (env, perms) in
-        while begin
-          let env, worklist = !state in
-          match Hml_List.take (works env) worklist with
+      | Some (worklist, (perm, ())) ->
+          match sub_perm env perm with
+          | Some env ->
+              state := (env, worklist);
+              true
           | None ->
               false
+    end do () done;
 
-          | Some (worklist, (perm, ())) ->
-              match sub_perm env perm with
-              | Some env ->
-                  state := (env, worklist);
-                  true
-              | None ->
-                  false
-        end do () done;
-
-        let env, worklist = !state in
-        if List.length worklist > 0 then
-          (* TODO Throw an exception. *)
-          None
-        else
-          Some env
+    let env, worklist = !state in
+    if List.length worklist > 0 then
+      (* TODO Throw an exception. *)
+      None
+    else
+      Some env
 
 
 (** [sub_clean env point t] takes a "clean" type [t] (without nested permissions)
@@ -711,7 +708,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
   (* "(t1 | p1)" - "(t2 | p2)" means doing [t1 - t2], adding all of [p1],
    * removing all of [p2]. But the order in which we perform these operations
-   * matters, unfortunately... *)
+   * matters, unfortunately... see commit message 432b4ee for more comments. *)
   | TyBar (t1, p1), TyBar (t2, p2) ->
       (* Alright, this is a fairly complicated logic (euphemism), but it is
        * seriously needed for any sort of situation that involves
