@@ -1,4 +1,3 @@
-open Pervasives
 open Absdefs
 
 mutable data t = T
