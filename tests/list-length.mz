@@ -2,8 +2,6 @@ data list a =
   | Cons { head: a; tail: list a }
   | Nil
 
-val (+) (x: int, y: int): int = fail
-
 val rec length [a] (l: list a): int =
   match l with
   | Nil ->
