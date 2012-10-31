@@ -786,6 +786,10 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             | false, true ->
                 let dest_p = PersistentUnionFind.repr left_p left_env.state in
 
+                (* This eliminates the case where [left_p] is a variable with a
+                 * structure that makes no sense in the destination environment.
+                 * Typically, a flexible variable that was instanciated with
+                 * [=x], [x] being local to the left environment. *)
                 if is_valid top left_env left_perm then begin
 
                   (* This must be a top-level type and [left_p] must be valid in the
@@ -950,21 +954,9 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
   (* end merge_types *)
 
-  (* I feel like this is the only place where we need to apply the singleton
-   * subtyping rule (for the merge operation).
-   *
-   * Let us imagine that [t] is a singleton type [=x].
-   * - If the try block succeeds,
-   *   * [x] makes sense in both environments,
-   *   * [p] is instantiated into [=x],
-   *   * the flexible-structure strategy will call [merge_type] again with [=x]
-   *     vs [=x]
-   *   * this will merge into [=x].
-   * - If the try block above does not succeed, [x] is local to this sub-environment.
-   *   * we get the duplicable permissions of [p],
-   *   * we try to merge [p] with one of them, preferably not the singleton one,
-   *     since that one, again, doesn't make sense in a top-level environment.
-   *)
+  (* This just says: if on one side there is a flexible variable, and the other
+   * side makes sense in the destination environment, instantiate the flexible
+   * variable. *)
   and try_merge_flexible (left_env, left_perm) (right_env, right_perm) dest_env =
     match left_perm, right_perm with
     (* We can instantiate a flexible variable, as long as the type on the other
