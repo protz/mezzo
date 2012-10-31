@@ -350,7 +350,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let x = point_by_name env "x" in
     let int = find_type_by_name env ~mname:"Core" "int" in
     let t = find_type_by_name env "t" in
-    let t = TyApp (t, [ty_equals x]) in
+    let t = TyApp (t, [int]) in
     check env v13 t;
     check env x int);
 
@@ -359,10 +359,12 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let v14 = point_by_name env "v14" in
     let int = find_type_by_name env ~mname:"Core" "int" in
     let t = find_type_by_name env "t" in
-    let t = TyExists (edummy_binding KTerm, TyBar (
+    (* Look at how fancy we used to be when we had singleton-subtyping! *)
+    (* let t = TyExists (edummy_binding KTerm, TyBar (
       TyApp (t, [TySingleton (TyVar 0)]),
       TyAnchoredPermission (TyVar 0, int)
-    )) in
+    )) in *)
+    let t = TyApp (t, [int]) in
     check env v14 t);
 
   ("merge15.mz",
@@ -419,9 +421,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
       failwith "The right permission was not extracted for [s1].";
   );
 
-  ("singleton2.mz",
-    simple_test Pass
-  );
+  (* Doesn't pass anymore since we removed singleton-subtyping! *)
+  (* ("singleton2.mz", simple_test Pass); *)
 
   (* Marking environments as inconsistent. *)
 

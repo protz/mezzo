@@ -136,18 +136,6 @@ let rec collect_constraints t =
       t, []
 ;;
 
-let dup_perms_no_singleton env p =
-  let perms =
-    List.filter (FactInference.is_duplicable env) (get_permissions env p)
-  in
-  let perms = List.filter (function
-    | TySingleton (TyPoint p') when same env p p' ->
-        false
-    | _ -> true
-  ) perms in
-  perms
-;;
-
 
 (* -------------------------------------------------------------------------- *)
 
@@ -472,28 +460,15 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
 
   let permissions = get_permissions env point in
 
-  (* For when everything's duplicable. *)
-  let sort_dup = function
-    | TySingleton _ -> 0
-    | TyUnknown -> 3
-    | _ -> 1
-  (* For when there's exclusive permissions. *)
-  and sort_non_dup = function
+  (* Priority-order potential merge candidates. *)
+  let sort = function
     | _ as t when not (FactInference.is_duplicable env t) -> 0
     | TySingleton _ -> 2
     | TyUnknown -> 3
     | _ -> 1
   in
-  let sort_non_dup x y = sort_non_dup x - sort_non_dup y
-  and sort_dup x y = sort_dup x - sort_dup y in
-  (* Our heuristic is: if everything's duplicable, [=x] is a suitable type
-   * because it's precise and the singleton-subtyping-rule will be able to kick
-   * in. Otherwise, because we don't have a linearity analysis on data types, we
-   * must be conservative and try to operate on the non-exclusive types. *)
-  let is_all_dup = List.for_all (FactInference.is_duplicable env) permissions in
-  let permissions =
-    List.sort (if is_all_dup then sort_dup else sort_non_dup) permissions
-  in
+  let sort x y = sort x - sort y in
+  let permissions = List.sort sort permissions in
 
   (* This is a very dumb strategy, that may want further improvements: we just
    * take the first permission that “works”. *)
@@ -503,19 +478,6 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
         (* Try to extract [t] from [hd]. *)
         begin match sub_type env hd t with
         | Some env ->
-            (* Is this piece of code correct when the singleton-subtyping rule
-             * kicks in? Yes, because if we chose to extract [t'] through [=x],
-             * [t'] is necessarily duplicable, as is [=x].
-             *
-             * Is this piece of code optimal? Clearly not, because if [sub_type]
-             * encounters [=x], it may go "through" it looking for [x]'s
-             * duplicable permissions! This is because [sub_type] doesn't know
-             * the context it is called in.
-             *
-             * [duplicable] has to refer to [hd] since we may do [Nil - list a].
-             * [list a] is affine, but that doesn't mean we should take [Nil]
-             * out of the list of permissions!
-             *)
             let duplicable = FactInference.is_duplicable env hd in
 
             let open TypePrinter in
@@ -527,11 +489,10 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
               "Fact inconsistency %a <= %a"
               pfact f1
               pfact f2;
-            Log.debug ~level:4 "%sTaking%s %a through %a out of the permissions for %a \
+            Log.debug ~level:4 "%sTaking%s %a out of the permissions for %a \
               (really? %b)"
               colors.yellow colors.default
               ptype (env, t)
-              ptype (env, hd)
               pvar (env, get_name env point)
               (not duplicable);
 
@@ -773,12 +734,6 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
                   None
       in
       add_sub env ps1 ps2
-
-  (* This is the singleton-subtyping rule. *)
-  | TySingleton (TyPoint p), _ when FactInference.is_duplicable env t2 ->
-      Hml_List.find_opt
-        (fun t1 -> sub_type env t1 t2)
-        (dup_perms_no_singleton env p)
 
   | _ ->
       compare_modulo_flex env sub_type t1 t2

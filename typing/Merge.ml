@@ -838,7 +838,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
        *
        * This must come *after* the point-to-point strategy. *)
       lazy begin
-        try_merge_flexible (left_env, left_perm) (right_env, right_perm) ?dest_point dest_env
+        try_merge_flexible (left_env, left_perm) (right_env, right_perm) dest_env
       end;
 
 
@@ -904,7 +904,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                   | Covariant ->
                       merge_type (left_env, argl) (right_env, argr) ?dest_point dest_env
                   | _ ->
-                      try_merge_flexible (left_env, argl) (right_env, argr) ?dest_point dest_env
+                      try_merge_flexible (left_env, argl) (right_env, argr) dest_env
                 in
                 v >>= fun (left_env, right_env, dest_env, arg) ->
                 (* The parameter was merged. Return a valid accumulator. *)
@@ -946,7 +946,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
    *   * we try to merge [p] with one of them, preferably not the singleton one,
    *     since that one, again, doesn't make sense in a top-level environment.
    *)
-  and try_merge_flexible (left_env, left_perm) (right_env, right_perm) ?dest_point dest_env =
+  and try_merge_flexible (left_env, left_perm) (right_env, right_perm) dest_env =
     match left_perm, right_perm with
     (* We can instantiate a flexible variable, as long as the type on the other
      * side makes sense in the original environment. *)
@@ -958,16 +958,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
           let left_env = instantiate_flexible left_env p t in
           Some (left_env, right_env, dest_env, t)
         with UnboundPoint ->
-          match t with
-          | TySingleton (TyPoint p') ->
-              Hml_List.find_opt
-                (fun right_perm -> merge_type (left_env, left_perm) (right_env, right_perm) ?dest_point dest_env)
-                (Permissions.dup_perms_no_singleton right_env p')
-          | TyPoint _ ->
-              Log.error "This should've been taken care of by the point-to-point \
-                strategy";
-          | _ ->
-              None
+          None
         end
 
     | t, TyPoint p when is_flexible right_env p ->
@@ -976,16 +967,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
           let right_env = instantiate_flexible right_env p t in
           Some (left_env, right_env, dest_env, t)
         with UnboundPoint ->
-          match t with
-          | TySingleton (TyPoint p') ->
-              Hml_List.find_opt
-                (fun left_perm -> merge_type (left_env, left_perm) (right_env, right_perm) ?dest_point dest_env)
-                (Permissions.dup_perms_no_singleton left_env p')
-          | TyPoint _ ->
-              Log.error "This should've been taken care of by the point-to-point \
-                strategy";
-          | _ ->
-              None
+          None
         end
 
     | _ ->

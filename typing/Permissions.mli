@@ -66,10 +66,6 @@ val fold_type: env -> typ -> typ option
 
 val add_hint: (name option) -> string -> (name option)
 
-(** Returns all the duplicable permissions for a given point [p], except [=p]
-   itself. *)
-val dup_perms_no_singleton: env -> point -> typ list
-
 (** This is for debugging, it runs a consistency check on a given environment. *)
 val safety_check: env -> unit
 
