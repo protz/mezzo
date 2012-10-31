@@ -367,13 +367,11 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let t = TyApp (t, [int]) in
     check env v14 t);
 
-  ("merge15.mz",
-    simple_test Pass
-  );
+  ("merge15.mz", simple_test Pass);
 
-  ("merge16.mz",
-    simple_test Pass
-  );
+  ("merge16.mz", simple_test Pass);
+
+  ("merge18.mz", simple_test Pass);
 
   ("merge_generalize_val.mz", fun do_it ->
     let env = do_it () in

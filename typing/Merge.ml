@@ -65,6 +65,15 @@ let merge_flexible_with_term_in_sub_env top right_env p p' =
   end
 ;;
 
+let is_valid top sub t =
+  try
+    ignore (clean top sub t);
+    true
+  with UnboundPoint ->
+    false
+;;
+
+
 
 module Lifo = struct
   type t = job list ref
@@ -777,32 +786,42 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             | false, true ->
                 let dest_p = PersistentUnionFind.repr left_p left_env.state in
 
-                (* This must be a top-level type and [left_p] must be valid in the
-                 * destination environment. *)
-                Log.check (is_type dest_env dest_p) "A flexible variable must refer \
-                  to a type defined in the top-level scope, we don't know how to treat \
-                  flexible variables with kind other than TYPE yet.";
+                if is_valid top left_env left_perm then begin
 
-                let right_env = merge_left right_env dest_p right_p in
-                Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
-                  "All top-level types should be in known_triples by default";
+                  (* This must be a top-level type and [left_p] must be valid in the
+                   * destination environment. *)
+                  Log.check (is_type dest_env dest_p) "A flexible variable must refer \
+                    to a type defined in the top-level scope, we don't know how to treat \
+                    flexible variables with kind other than TYPE yet.";
 
-                Some (left_env, right_env, dest_env, TyPoint dest_p)
+                  let right_env = merge_left right_env dest_p right_p in
+                  Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
+                    "All top-level types should be in known_triples by default";
+
+                  Some (left_env, right_env, dest_env, TyPoint dest_p)
+
+                end else
+                  None
 
             | true, false ->
                 let dest_p = PersistentUnionFind.repr right_p right_env.state in
 
-                (* This must be a top-level type and [right_p] must be valid in the
-                 * destination environment. *)
-                Log.check (is_type dest_env dest_p) "A flexible variable must refer \
-                  to a type defined in the top-level scope, we don't know how to treat \
-                  flexible variables with kind other than TYPE yet.";
+                if is_valid top right_env right_perm then begin
 
-                let left_env = merge_left left_env dest_p left_p in
-                Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
-                  "All top-level types should be in known_triples by default";
+                  (* This must be a top-level type and [right_p] must be valid in the
+                   * destination environment. *)
+                  Log.check (is_type dest_env dest_p) "A flexible variable must refer \
+                    to a type defined in the top-level scope, we don't know how to treat \
+                    flexible variables with kind other than TYPE yet.";
 
-                Some (left_env, right_env, dest_env, TyPoint dest_p)
+                  let left_env = merge_left left_env dest_p left_p in
+                  Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
+                    "All top-level types should be in known_triples by default";
+
+                  Some (left_env, right_env, dest_env, TyPoint dest_p)
+
+                end else
+                  None
 
             | true, true ->
                 let k = get_kind left_env left_p in
