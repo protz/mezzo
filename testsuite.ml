@@ -373,6 +373,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("merge18.mz", simple_test Pass);
 
+  ("merge19.mz", simple_test Pass);
+
   ("merge_generalize_val.mz", fun do_it ->
     let env = do_it () in
     let x = point_by_name env "x" in

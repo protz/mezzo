@@ -463,8 +463,12 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
   (* Priority-order potential merge candidates. *)
   let sort = function
     | _ as t when not (FactInference.is_duplicable env t) -> 0
-    | TySingleton _ -> 2
-    | TyUnknown -> 3
+    (* This basically makes sure we never instantiate a flexible variable with a
+     * singleton type. The rationale is that we're too afraid of instantiating
+     * with something local to a branch, which will then make the [Merge]
+     * operation fail (see [merge18.mz] and [merge19.mz]). *)
+    | TySingleton _ -> 3
+    | TyUnknown -> 2
     | _ -> 1
   in
   let sort x y = sort x - sort y in

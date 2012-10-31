@@ -1,16 +1,15 @@
 data bool = True | False
 data foo a = Foo { foo: a } | Bar
-mutable data x = X
 
-val destroy [a] (consumes x: a): () = ()
+val id [a] (consumes x: a): unknown = x
 
 val v =
-  let x = X in
+  let x = 2 in
   if True then begin
-    destroy x;
+    let x = id x in
     Foo { foo = x }
   end else begin
     Bar
   end
 
-val w = (v: foo dynamic)
+val w = (v: foo unknown)
