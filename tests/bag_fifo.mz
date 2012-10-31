@@ -1,19 +1,16 @@
+open Pervasives
+
 (* Data type definitions. *)
 
 mutable data cell a =
-  Cell { contents: a; next: dynamic }
+  Cell { value: a; next: dynamic }
 
 mutable data bag a =
   Empty { head: (); tail: () }
 | NonEmpty { head: dynamic; tail: dynamic }
 adopts cell a
 
-(* Some dummy definitions. We don't include pervasives because that would make
- * debugging harder (many more identifiers in scope). *)
-
-data bool = True | False
-data option a = Some { value: a } | None
-
+(* Urgh! If I remove this definition the test fails. *)
 val (==) [a, b] (x: a, y: b): bool = fail
 
 (* The real functions. *)
@@ -23,7 +20,7 @@ val create [a] (): bag a =
 
 val insert [a] (consumes x: a, b: bag a): () =
   let c = Cell {
-    contents = x; next = ()
+    value = x; next = ()
   } in
   c.next <- c;
   give c to b;
@@ -42,7 +39,7 @@ val insert [a] (consumes x: a, b: bag a): () =
 val retrieve [a] (b: bag a): option a =
   match b with
   | Empty ->
-      None
+      none
   | NonEmpty { head; tail } ->
       take head from b;
       if head == tail then begin
@@ -52,6 +49,6 @@ val retrieve [a] (b: bag a): option a =
       end else begin
         b.head <- head.next
       end;
-      let x = head.contents in
-      Some { value = x }
+      let x = head.value in
+      some x
   end

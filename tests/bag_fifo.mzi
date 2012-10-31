@@ -1,0 +1,6 @@
+open Pervasives
+
+abstract bag a
+val create @ [a] () -> bag a
+val insert @ [a] (consumes a, bag a) -> ()
+val retrieve @ [a] bag a -> option a
