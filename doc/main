@@ -1,16 +1,28 @@
-{1 HaMLet}
+{1 Mezzo}
 
-HaMLet is a dialect of ML with effects control and a fine-grained type system.
+Mezzo is a dialect of ML with effects control and a fine-grained type system.
 
-{2 Driver modules}
+{2 Main modules}
 
-{!modules: Hamlet Driver}
+{!modules: Mezzo Driver}
 
 {2 Core type-checker modules}
-{!modules: WellKindedness FactInference Permissions Types}
+{!modules: TypeCore TypeErrors DeBruijn Types Expressions Merge Permissions TypeChecker}
+
+{2 Parsing and lexing}
+{!modules: SurfaceSyntax Grammar Lexer ParserUtils}
+
+{2 Front-end modules}
+{!modules: SurfaceSyntax KindCheck TransSurface DataTypeGroup}
+
+{2 Various analyses}
+{!modules: FactInference Variance Flexible TypeOps ExtraChecks}
+
+{2 Modules and interfaces}
+{!modules: Modules Interfaces}
 
 {2 Type-checker data structures}
-{!modules: SurfaceSyntax Data Identifier}
+{!modules: SurfaceSyntax Data Identifier Mark}
 
 {2 Some data structures}
 {!modules: Hashcons GMap GSet Patricia InfiniteArray PersistentUnionFind
@@ -18,11 +30,14 @@ PersistentRef
 }
 
 {2 Some helper modules}
-{!modules: Bash Hml_List Hml_Map Hml_String Option Log
+{!modules: Bash Hml_List Hml_Map Hml_String Option Log Hml_Pprint
 }
+
+{2 Misc}
+{!modules: Debug TestUtils Utils}
 
 {2 Third-party modules}
 Some extra software is bundled.
-{!modules: Ulexing Pprint}
+{!modules: Ulexing Pprint Fix}
 
 {1 Dependency graph}
