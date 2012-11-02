@@ -27,9 +27,9 @@ data bool = False | True
 
 data listops =
   ListOps {
-    length: [a] (x: list a) -> int;
-    length: [a] (consumes xs: list a) -> (result: int | xs @ list a); (* more explicit form *)
-    length: [a] (consumes xs: unknown | consumes xs @ list a) ->
+    length0: [a] (x: list a) -> int;
+    length1: [a] (consumes xs: list a) -> (result: int | xs @ list a); (* more explicit form *)
+    length2: [a] (consumes xs: unknown | consumes xs @ list a) ->
                 (result: int | xs @ list a); (* even more explicit form *)
     find: [key, a] (* duplicable a => *) (list (key, a), (key, key) -> bool, key) -> a;
     concat: [a] (consumes l1: list a, consumes l2: list a) -> (l3: list a)
@@ -80,7 +80,7 @@ data list_refs a = L { list: list (ref a) }
 data should_be_dup a = D {
   foo: Nil;
   bar: a;
-  foo: Cons { head: a; tail: list a };
+  foo2: Cons { head: a; tail: list a };
 }
 
 data should_be_aff a = A {

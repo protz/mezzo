@@ -102,6 +102,7 @@ and raw_error =
   | BadConditionsInFact of Variable.name
   | BadConclusionInFact of Variable.name
   | DuplicateConstructor of Datacon.name
+  | DuplicateField of Variable.name
   | AdopterNotExclusive of Variable.name
   | NoAbstractTypesInImplementation of Variable.name
   | UnboundDataConstructor of Datacon.name
@@ -174,7 +175,12 @@ let print_error buf (env, raw_error) =
         Lexer.p env.location
         Variable.p x
         Variable.p x
-  | DuplicateConstructor d ->
+  | DuplicateField d ->
+      Printf.bprintf buf
+        "%a the field %a appears several times in this branch"
+        Lexer.p env.location
+        Variable.p d
+   | DuplicateConstructor d ->
       Printf.bprintf buf
         "%a the constructor %a appears several times in this data type group"
         Lexer.p env.location
@@ -225,6 +231,10 @@ let bad_conclusion_in_fact env x =
 
 let duplicate_constructor env d =
   raise_error env (DuplicateConstructor d)
+;;
+
+let duplicate_field env f =
+  raise_error env (DuplicateField f)
 ;;
 
 
@@ -600,6 +610,13 @@ and check_field (env: env) (field: data_field_def) =
 
 and check_data_type_def_branch (env: env) (branch: data_type_def_branch) =
   let _datacon, fields = branch in
+  let names = Hml_List.map_some (function
+    | FieldValue (name, _) ->
+        Some name
+    | FieldPermission _ ->
+        None
+  ) fields in
+  check_for_duplicates names (duplicate_field env);
   List.iter (check_field env) fields
 ;;
 
