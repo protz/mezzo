@@ -17,10 +17,7 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-let pedantic =
-  ref false
-;;
-
-let multiple_arguments =
-  ref true
-;;
+val dont_inline: 'a -> 'a
+val fresh_name: string -> string
+val read: in_channel -> string
+val ptag: Buffer.t -> 'a -> unit

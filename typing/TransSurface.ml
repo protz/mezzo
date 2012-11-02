@@ -44,6 +44,85 @@ module E = Expressions
 let name_user = fun env (x, k, l) -> (T.User (env.env.T.module_name, x), k, l);;
 let name_auto = fun (x, k, l) -> (T.Auto x, k, l);;
 
+let check_bound_datacon kenv datacon =
+  let env = kenv.env in
+  let open Types in
+  (* We first try to find the point associated to this data constructor, and
+   * check that the point is defined in another module. If the point is defined
+   * in our own module, this means we're checking a module against its
+   * interface and that doesn't count as a well-scoped data constructor (see
+   * tests/modules/dcscope.mz as to why we must not be naive here). *)
+  try
+    (* May throw! *)
+    let p = type_for_datacon env datacon in
+    let names = get_names env p in
+    let names = List.filter is_user names in
+    match names with
+    | User (m', _) :: _ ->
+        if Module.equal m' env.module_name then
+          raise Not_found
+    | _ ->
+        raise Not_found
+  (* If that doesn't work, it's ok if the data constructor has been defined in
+   * our own unit. *)
+  with Not_found ->
+    if not (T.DataconMap.mem datacon kenv.datacon_map) then
+      raise_error kenv (UnboundDataConstructor datacon)
+;;
+
+
+(* Our entire logic assumes that we always work in expanded form. If the user
+ * writes a function type such as "[a, b] (a, b) -> a", we should make sure
+ * the function types is in expanded form, so that the subtraction works well.
+ * *)
+let rec add_name_if t =
+  match t with
+  | TyLocated (t, p1, p2) ->
+      TyLocated (add_name_if t, p1, p2)
+  | TyNameIntro _ ->
+      t
+  | _ ->
+      let name = Variable.register (fresh_name "/d") in
+      TyNameIntro (name, t)
+;;
+
+
+let add_names_wherever_needed t =
+  let rec add t =
+    match t with
+    | TyLocated (t, p1, p2) ->
+        TyLocated (add t, p1, p2)
+
+    | TyTuple ts ->
+        let ts = List.map add_name_if ts in
+        let ts = List.map add ts in
+        TyTuple ts
+
+    | TyBar (t, p) ->
+        TyBar (add t, p)
+
+    | TyConcreteUnfolded (dc, fields) ->
+        let fields = List.map (function
+          | FieldPermission _ as p ->
+              p
+          | FieldValue (n, t) ->
+              let t = add_name_if t in
+              let t = add t in
+              FieldValue (n, t)
+        ) fields in
+        TyConcreteUnfolded (dc, fields)
+
+    | TyConstraints (cs, t) ->
+        TyConstraints (cs, add t)
+
+    | _ ->
+        t
+  in
+  add t
+;;
+
+
+
 (* [strip_consumes env t] removes all the consumes annotations from [t]. A
    [consumes t] annotation is replaced by [=c] with [c] fresh, as well as
    [c @ t] at top-level. The function returns:
@@ -169,6 +248,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyConcreteUnfolded branch ->
       let datacon, branches = translate_data_type_def_branch env branch in
+      check_bound_datacon env datacon;
       T.TyConcreteUnfolded (datacon, branches, T.ty_bottom)
 
   | TySingleton t ->
@@ -260,6 +340,8 @@ and translate_arrow_type env t1 t2 =
     | _ ->
         [], t
   in
+
+  let t1 = add_names_wherever_needed t1 in
 
   let constraints, t1 = collect_constraints t1 in
 
@@ -374,6 +456,20 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
 ;;
 
 
+(* Bind all the data constructors from a data type group *)
+let bind_datacons env data_type_group =
+  let datacons = List.fold_left (fun acc -> function
+    | Concrete (_, _, rhs, _) ->
+        List.map fst rhs :: acc
+    | Abstract _ ->
+        acc
+  ) [] data_type_group in
+  let datacons = List.flatten datacons in
+  let env = List.fold_left bind_datacon env datacons in
+  env
+;;
+
+
 (* [translate_data_type_group env tenv data_type_group] returns [env, group] where:
   - the type definitions have been added with the corresponding levels in [env]
   - type definitions have been desugared into [group],
@@ -393,6 +489,10 @@ let translate_data_type_group
    * We don't really need the [Types.kind] information here, but all the other
    * functions such as [bind] and [find] are defined already. *)
   let env = List.fold_left (bind ~strict) env bindings in 
+
+  (* Also bind the constructors, as we're performing a scope-check of data
+   * constructors in this module, while we're at it... *)
+  let env = bind_datacons env data_type_group in
 
   (* First do the translation pass. *)
   let translated_definitions: T.data_type_group =
@@ -461,10 +561,11 @@ let rec translate_pattern env = function
       E.PVar (x, env.location)
   | PTuple ps ->
       E.PTuple (List.map (translate_pattern env) ps)
-  | PConstruct (name, fieldpats) ->
+  | PConstruct (datacon, fieldpats) ->
+      check_bound_datacon env datacon;
       let fields, pats = List.split fieldpats in
       let pats = List.map (translate_pattern env) pats in
-      E.PConstruct (name, List.combine fields pats)
+      E.PConstruct (datacon, List.combine fields pats)
   | PLocated (p, p1, p2) ->
       translate_pattern (locate env p1 p2) p
   | PAs (p, x) ->
@@ -594,11 +695,12 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   | ETuple expressions ->
       E.ETuple (List.map (translate_expr env) expressions)
 
-  | EConstruct (name, fieldexprs) ->
+  | EConstruct (datacon, fieldexprs) ->
+      check_bound_datacon env datacon;
       let fieldexprs = List.map (fun (field, expr) ->
         field, translate_expr env expr) fieldexprs
       in
-      E.EConstruct (name, fieldexprs)
+      E.EConstruct (datacon, fieldexprs)
 
   | EIfThenElse (b, e1, e2, e3) ->
       let e1 = translate_expr env e1 in
@@ -718,11 +820,27 @@ let rec translate_items env strict = function
       []
 ;;
 
+let ensure_no_abstract_definitions env program =
+  List.iter (function
+    | DataTypeGroup ((p1, p2), defs) ->
+        let env = locate env p1 p2 in
+        List.iter (function
+          | Abstract ((name, _), _, _) ->
+              raise_error env (NoAbstractTypesInImplementation name)
+          | _ ->
+              ()
+        ) defs
+    | _ ->
+        ()
+  ) program;
+;;
+
 (* [translate_implementation implementation] returns an
  * [Expressions.implementation], i.e. a desugared version of the entire
  * program. *)
 let translate_implementation (tenv: T.env) (program: toplevel_item list): E.implementation =
   let env = empty tenv in
+  ensure_no_abstract_definitions env program;
   translate_items env false program
 ;;
 

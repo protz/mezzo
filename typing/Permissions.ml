@@ -104,93 +104,14 @@ let can_merge (env: env) (t1: typ) (p2: point): bool =
         (* TODO check for [ghost] here? *)
         true
       end else
-        true
+        Log.error "TODO: type variables with kind PERM"
   | _ ->
       let f2 = get_fact env p2 in
       let f1 = FactInference.analyze_type env t1 in
       fact_leq f1 f2
 ;;
 
-(** [collect t] recursively walks down a type with kind TYPE, extracts all
-    the permissions that appear into it (as tuple or record components), and
-    returns the type without permissions as well as a list of types with kind
-    PERM, which represents all the permissions that were just extracted. *)
-let collect (t: typ): typ * typ list =
-  let rec collect (t: typ): typ * typ list =
-    match t with
-    | TyUnknown
-    | TyDynamic
-
-    | TyVar _
-    | TyPoint _
-
-    | TyForall _
-    | TyExists _
-    | TyApp _
-
-    | TySingleton _
-
-    | TyArrow _ ->
-        t, []
-
-    (* Interesting stuff happens for structural types only *)
-    | TyBar (t, p) ->
-        let t, t_perms = collect t in
-        let p, p_perms = collect p in
-        t, p :: t_perms @ p_perms
-
-    | TyTuple ts ->
-        let ts, permissions = List.split (List.map collect ts) in
-        let permissions = List.flatten permissions in
-        TyTuple ts, permissions
-
-    | TyConcreteUnfolded (datacon, fields, clause) ->
-        let permissions, values = List.partition
-          (function FieldPermission _ -> true | FieldValue _ -> false)
-          fields
-        in
-        let permissions = List.map (function
-          | FieldPermission p -> p
-          | _ -> assert false) permissions
-        in
-        let sub_permissions, values =
-         List.fold_left (fun (collected_perms, reversed_values) ->
-            function
-              | FieldValue (name, value) ->
-                  let value, permissions = collect value in
-                  permissions :: collected_perms, (FieldValue (name, value)) :: reversed_values
-              | _ ->
-                  assert false)
-            ([],[])
-            values
-        in
-        TyConcreteUnfolded (datacon, List.rev values, clause), List.flatten (permissions :: sub_permissions)
-
-    | TyAnchoredPermission (x, t) ->
-        let t, t_perms = collect t in
-        TyAnchoredPermission (x, t), t_perms
-
-    | TyEmpty ->
-        TyEmpty, []
-
-    | TyStar (p, q) ->
-        let p, p_perms = collect p in
-        let q, q_perms = collect q in
-        TyStar (p, q), p_perms @ q_perms
-
-    | TyConstraints (constraints, t) ->
-        let perms, constraints = List.fold_left (fun (perms, ts) (f, t) ->
-          let t, perm = collect t in
-          (perm :: perms, (f, t) :: ts)
-        ) ([], []) constraints in
-        let constraints = List.rev constraints in
-        let t, perm = collect t in
-        let perms = List.flatten (perm :: perms) in
-        TyConstraints (constraints, t), perms
-  in
-  collect t
-;;
-
+let collect = TypeOps.collect;;
 
 (* Collect nested constraints and put them in an outermost position to
  * simplify as much as possible the function type. *)
@@ -217,18 +138,6 @@ let rec collect_constraints t =
       t, []
 ;;
 
-let dup_perms_no_singleton env p =
-  let perms =
-    List.filter (FactInference.is_duplicable env) (get_permissions env p)
-  in
-  let perms = List.filter (function
-    | TySingleton (TyPoint p') when same env p p' ->
-        false
-    | _ -> true
-  ) perms in
-  perms
-;;
-
 
 (* -------------------------------------------------------------------------- *)
 
@@ -251,6 +160,15 @@ let add_constraints env constraints =
   env
 ;;
 
+
+let perm_not_flex env t =
+  match t with
+  | TyAnchoredPermission (x, _) ->
+      not (is_flexible env !!x)
+  | _ ->
+      Log.error "You should call [flatten_star]"
+;;
+
 (** [unify env p1 p2] merges two points, and takes care of dealing with how the
     permissions should be merged. *)
 let rec unify (env: env) (p1: point) (p2: point): env =
@@ -264,7 +182,7 @@ let rec unify (env: env) (p1: point) (p2: point): env =
      * infinite loop when hitting the TySingletons... *)
     let perms = get_permissions env p2 in
     let env = merge_left env p1 p2 in
-    let () = Log.debug "%a" TypePrinter.penv env in
+    Log.debug "%a" TypePrinter.penv env;
     List.fold_left (fun env t -> add env p1 t) env perms
 
 
@@ -295,20 +213,23 @@ and add (env: env) (point: point) (t: typ): env =
   (* Break up this into a type + permissions. *)
   let t, perms = collect t in
 
+  (* Simplify the (potentially) function type. *)
+  let t, _ = TypeOps.cleanup_function_type env t None in
+
   (* Add the permissions. *)
   let env = List.fold_left add_perm env perms in
 
   begin match t with
   | TyPoint p when has_structure env p ->
-      Log.debug "%s]%s (structure)" Bash.colors.Bash.red Bash.colors.Bash.default;
+      Log.debug ~level:4 "%s]%s (structure)" Bash.colors.Bash.red Bash.colors.Bash.default;
       add env point (Option.extract (structure env p))
 
   | TySingleton (TyPoint p) when not (same env point p) ->
-      Log.debug "%s]%s (singleton)" Bash.colors.Bash.red Bash.colors.Bash.default;
+      Log.debug ~level:4 "%s]%s (singleton)" Bash.colors.Bash.red Bash.colors.Bash.default;
       unify env point p
 
   | TyExists (binding, t) ->
-      Log.debug "%s]%s (exists)" Bash.colors.Bash.red Bash.colors.Bash.default;
+      Log.debug ~level:4 "%s]%s (exists)" Bash.colors.Bash.red Bash.colors.Bash.default;
       begin match binding with
       | _, KTerm, _ ->
           let env, t = bind_var_in_type env binding t in
@@ -319,7 +240,7 @@ and add (env: env) (point: point) (t: typ): env =
       end
 
   | TyConstraints (constraints, t) ->
-      Log.debug "%s]%s (constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
+      Log.debug ~level:4 "%s]%s (constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
       let env = add_constraints env constraints in
       add env point t
 
@@ -340,6 +261,8 @@ and add_perm (env: env) (t: typ): env =
 
   match t with
   | TyAnchoredPermission (p, t) ->
+      Log.check (not (is_flexible env !!p))
+        "Do NOT add a permission whose left-hand-side is flexible.";
       add env !!p t
   | TyStar (p, q) ->
       add_perm (add_perm env p) q
@@ -357,14 +280,15 @@ and add_type (env: env) (p: point) (t: typ): env =
       (* We're not re-binding env because this has bad consequences: in
        * particular, when adding a flexible type variable to a point, it
        * instantiates it into, say, [=x], which is usually *not* what we want to
-       * do. *)
-      Log.debug "→ sub worked%s]%s" Bash.colors.Bash.red Bash.colors.Bash.default;
+       * do. Happens mostly when doing higher-order, see impredicative.mz or
+       * list-map2.mz for examples. *)
+      Log.debug ~level:4 "→ sub worked%s]%s" Bash.colors.Bash.red Bash.colors.Bash.default;
       let in_there_already =
         List.exists (fun x -> equal env x t) (get_permissions env p)
       in
       if FactInference.is_exclusive env t then begin
         (* If [t] is exclusive, then this makes the environment inconsistent. *)
-        Log.debug "%sInconsistency detected%s, adding %a as an exclusive \
+        Log.debug ~level:4 "%sInconsistency detected%s, adding %a as an exclusive \
             permission, but it's already available."
           Bash.colors.Bash.red Bash.colors.Bash.default
           TypePrinter.ptype (env, t);
@@ -379,7 +303,7 @@ and add_type (env: env) (p: point) (t: typ): env =
           { binding with permissions = t :: binding.permissions }
         )
   | None ->
-      Log.debug "→ sub did NOT work%s]%s" Bash.colors.Bash.red Bash.colors.Bash.default;
+      Log.debug ~level:4 "→ sub did NOT work%s]%s" Bash.colors.Bash.red Bash.colors.Bash.default;
       let env =
         replace_term env p (fun binding ->
           { binding with permissions = t :: binding.permissions }
@@ -434,7 +358,6 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
     | TyVar _ ->
         Log.error "No unbound variables allowed here"
 
-    (* TEMPORARY it's unclear what we should do w.r.t. quantifiers... *)
     | TyForall _
     | TyExists _ ->
         env, t
@@ -483,11 +406,12 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
   in
   unfold env ?hint t
 
+
 (** [sub env point t] tries to extract [t] from the available permissions for
     [point] and returns, if successful, the resulting environment. *)
 and sub (env: env) (point: point) (t: typ): env option =
   Log.check (is_term env point) "You can only subtract permissions from a point \
-  that represents a program identifier.";
+    that represents a program identifier.";
 
   (* See the explanation in [add]. *)
   Log.check (not (has_structure env point)) "I don't understand what's happening";
@@ -495,50 +419,41 @@ and sub (env: env) (point: point) (t: typ): env option =
   if env.inconsistent then
     Some env
   else
-    match t with
-    | _ ->
+    (* Get a "clean" type without nested permissions. *)
+    let t, perms = collect t in
+    let perms = List.flatten (List.map flatten_star perms) in
 
-        (* Get a "clean" type without nested permissions. *)
-        let t, perms = collect t in
-        let perms = List.flatten (List.map flatten_star perms) in
+    (* Start off by subtracting the type without associated permissions. *)
+    let env = sub_clean env point t in
 
-        (* Start off by subtracting the type without associated permissions. *)
-        let env = sub_clean env point t in
+    env >>= fun env ->
+    (* We use a worklist-based approch, where we try to find a permission that
+     * "works". A permission that works is one where the left-side is a point
+     * that is not flexible, i.e. a point that hopefully should have more to
+     * extract than (=itself). As we go, more flexible variables will be
+     * unified, which will make more candidates suitable for subtraction. *)
+    let state = ref (env, perms) in
+    while begin
+      let env, worklist = !state in
+      match Hml_List.take_bool (perm_not_flex env) worklist with
+      | None ->
+          false
 
-        env >>= fun env ->
-        (* We use a worklist-based approch, where we try to find a permission that
-         * "works". A permission that works is one where the left-side is a point
-         * that is not flexible, i.e. a point that hopefully should have more to
-         * extract than (=itself). As we go, more flexible variables will be
-         * unified, which will make more candidates suitable for subtraction. *)
-        let works env = function
-          | TyAnchoredPermission (TyPoint x, _) when not (is_flexible env x) ->
-              Some ()
-          | _ ->
-              None
-        in
-        let state = ref (env, perms) in
-        while begin
-          let env, worklist = !state in
-          match Hml_List.take (works env) worklist with
+      | Some (worklist, perm) ->
+          match sub_perm env perm with
+          | Some env ->
+              state := (env, worklist);
+              true
           | None ->
               false
+    end do () done;
 
-          | Some (worklist, (perm, ())) ->
-              match sub_perm env perm with
-              | Some env ->
-                  state := (env, worklist);
-                  true
-              | None ->
-                  false
-        end do () done;
-
-        let env, worklist = !state in
-        if List.length worklist > 0 then
-          (* TODO Throw an exception. *)
-          None
-        else
-          Some env
+    let env, worklist = !state in
+    if List.length worklist > 0 then
+      (* TODO Throw an exception. *)
+      None
+    else
+      Some env
 
 
 (** [sub_clean env point t] takes a "clean" type [t] (without nested permissions)
@@ -551,85 +466,50 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
 
   let permissions = get_permissions env point in
 
-  (* For when everything's duplicable. *)
-  let sort_dup = function
-    | TySingleton _ -> 0
-    | TyUnknown -> 3
-    | _ -> 1
-  (* For when there's exclusive permissions. *)
-  and sort_non_dup = function
+  (* Priority-order potential merge candidates. *)
+  let sort = function
     | _ as t when not (FactInference.is_duplicable env t) -> 0
-    | TySingleton _ -> 2
-    | TyUnknown -> 3
+    (* This basically makes sure we never instantiate a flexible variable with a
+     * singleton type. The rationale is that we're too afraid of instantiating
+     * with something local to a branch, which will then make the [Merge]
+     * operation fail (see [merge18.mz] and [merge19.mz]). *)
+    | TySingleton _ -> 3
+    | TyUnknown -> 2
     | _ -> 1
   in
-  let sort_non_dup x y = sort_non_dup x - sort_non_dup y
-  and sort_dup x y = sort_dup x - sort_dup y in
-  (* Our heuristic is: if everything's duplicable, [=x] is a suitable type
-   * because it's precise and the singleton-subtyping-rule will be able to kick
-   * in. Otherwise, because we don't have a linearity analysis on data types, we
-   * must be conservative and try to operate on the non-exclusive types. *)
-  let is_all_dup = List.for_all (FactInference.is_duplicable env) permissions in
-  let permissions =
-    List.sort (if is_all_dup then sort_dup else sort_non_dup) permissions
+  let sort x y = sort x - sort y in
+  let permissions = List.sort sort permissions in
+
+  let debug env hd t duplicable =
+    let open TypePrinter in
+    let open Bash in
+    let f1 = FactInference.analyze_type env hd in
+    let f2 = FactInference.analyze_type env t in
+    Log.check
+      (fact_leq f1 f2)
+      "Fact inconsistency %a <= %a"
+      pfact f1
+      pfact f2;
+    Log.debug ~level:4 "%sTaking%s %a out of the permissions for %a \
+      (really? %b)"
+      colors.yellow colors.default
+      ptype (env, t)
+      pvar (env, get_name env point)
+      (not duplicable);
   in
 
-  (* This is a very dumb strategy, that may want further improvements: we just
-   * take the first permission that “works”. *)
-  let rec traverse (env: env) (seen: typ list) (remaining: typ list): env option =
-    match remaining with
-    | hd :: remaining ->
-        (* Try to extract [t] from [hd]. *)
-        begin match sub_type env hd t with
-        | Some env ->
-            (* Is this piece of code correct when the singleton-subtyping rule
-             * kicks in? Yes, because if we chose to extract [t'] through [=x],
-             * [t'] is necessarily duplicable, as is [=x].
-             *
-             * Is this piece of code optimal? Clearly not, because if [sub_type]
-             * encounters [=x], it may go "through" it looking for [x]'s
-             * duplicable permissions! This is because [sub_type] doesn't know
-             * the context it is called in.
-             *
-             * [duplicable] has to refer to [hd] since we may do [Nil - list a].
-             * [list a] is affine, but that doesn't mean we should take [Nil]
-             * out of the list of permissions!
-             *)
-            let duplicable = FactInference.is_duplicable env hd in
-
-            let open TypePrinter in
-            let open Bash in
-            let f1 = FactInference.analyze_type env hd in
-            let f2 = FactInference.analyze_type env t in
-            Log.check
-              (fact_leq f1 f2)
-              "Fact inconsistency %a <= %a"
-              pfact f1
-              pfact f2;
-            Log.debug ~level:4 "%sTaking%s %a through %a out of the permissions for %a \
-              (really? %b)"
-              colors.yellow colors.default
-              ptype (env, t)
-              ptype (env, hd)
-              pvar (env, get_name env point)
-              (not duplicable);
-
-            (* We're taking out [hd] from the list of permissions for [point].
-             * Is it something duplicable? *)
-            if duplicable then
-              Some env
-            else
-              Some (replace_term env point (fun binder ->
-                { binder with permissions = seen @ remaining }))
-        | None ->
-            traverse env (hd :: seen) remaining
-        end
-
-    | [] ->
-        (* We haven't found any suitable permission. Fail. *)
-        None
-  in
-  traverse env [] permissions
+  (* [take] proceeds left-to-right *)
+  match Hml_List.take (fun x -> sub_type env x t) permissions with
+  | Some (remaining, (x, env)) ->
+      let duplicable = FactInference.is_duplicable env x in
+      debug env x t duplicable;
+      if duplicable then
+        Some env
+      else
+        Some (replace_term env point (fun binder ->
+          { binder with permissions = remaining }))
+  | None ->
+      None
 
 
 (** [sub_type env t1 t2] examines [t1] and, if [t1] "provides" [t2], returns
@@ -679,18 +559,15 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
   | TyExists (binding, t1), _ ->
       let env, t1 = bind_var_in_type env binding t1 in
-      (* TODO collect permissions inside [t1] and add them to the environment!
-       * We should probably do something similar for the two cases above
-       * although I'm not sure I understand what should happen... *)
+      let t1, perms = collect t1 in
+      let env = add_perm env (fold_star perms) in
       sub_type env t1 t2
 
   | _, TyExists (binding, t2) ->
       let env, t2 = bind_var_in_type ~flexible:true env binding t2 in
       let t2, perms = collect t2 in
-      List.fold_left
-        (fun env perm -> (env >>= fun env -> sub_perm env perm))
-        (sub_type env t1 t2)
-        perms
+      sub_type env t1 t2 >>= fun env ->
+      sub_perm env (fold_star perms)
 
   | TyTuple components1, TyTuple components2 ->
       (* We can only subtract a tuple from another one if they have the same
@@ -734,7 +611,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         None
 
   | TyConcreteUnfolded (datacon1, _, _), TyApp (cons2, args2) ->
-      let point1 = DataconMap.find datacon1 env.type_for_datacon in
+      let point1 = type_for_datacon env datacon1 in
       let cons2 = !!cons2 in
 
       if same env point1 cons2 then begin
@@ -747,7 +624,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   | TyConcreteUnfolded (datacon1, _, _), TyPoint point2 when not (is_flexible env point2) ->
       (* The case where [point2] is flexible is taken into account further down,
        * as we may need to perform a unification. *)
-      let point1 = DataconMap.find datacon1 env.type_for_datacon in
+      let point1 = type_for_datacon env datacon1 in
 
       if same env point1 point2 then begin
         let datacon2, fields2, clause2 = find_and_instantiate_branch env point2 datacon1 [] in
@@ -785,19 +662,63 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       sub_type env t1 t'1 >>= fun env ->
       sub_type env t'2 t2
 
+  (* "(t1 | p1)" - "(t2 | p2)" means doing [t1 - t2], adding all of [p1],
+   * removing all of [p2]. But the order in which we perform these operations
+   * matters, unfortunately... see commit message 432b4ee for more comments. *)
   | TyBar (t1, p1), TyBar (t2, p2) ->
+      (*   Alright, this is a fairly complicated logic (euphemism), but it is
+       * seriously needed for any sort of situation that involves
+       * higher-order... The grand scheme is: we should always fight to
+       * instantiate flexible TERM variables, because we always know how to
+       * instantiate these. Because of our desugaring, a bar type always looks
+       * like "(=root | root @ ...)". So let's start by subtracting [t2] from
+       * [t1]. *)
       sub_type env t1 t2 >>= fun env ->
-      let env = add_perm env p1 in
-      sub_perm env p2
-
-  (* This is the singleton-subtyping rule. *)
-  | TySingleton (TyPoint p), _ when FactInference.is_duplicable env t2 ->
-      Hml_List.find_opt
-        (fun t1 -> sub_type env t1 t2)
-        (dup_perms_no_singleton env p)
+      let ps1 = flatten_star p1 in
+      let ps2 = flatten_star p2 in
+      (*   [add_perm] will fail if we add "x @ t" when "x" is flexible. So we
+       * search among the permissions in [ps1] one that is suitable for adding,
+       * i.e. a permission whose left-hand-side is not flexible.
+       *   But we may be stuck because all permissions in [ps1] have their lhs
+       * flexible! However, maybe there's an element in [ps2] that, when
+       * subtracted, "unlocks" the situation by instantiating the lhs of one
+       * permission in [ps1]. *)
+      let good_for_sub env ps1 p2 =
+        sub_perm env p2 >>= fun env ->
+        if List.exists (perm_not_flex env) ps1 then
+          Some env
+        else
+          None
+      in
+      (* So let's put it all together. *)
+      let rec add_sub env ps1 ps2 =
+        if ps1 = [] then
+          (* If we've solved all our problems in [ps1], that's really cool! *)
+          sub_perm env (fold_star ps2)
+        else
+          (* Otherwise, is there a permission that we can safely add in [ps1]? *)
+          match Hml_List.take_bool (perm_not_flex env) ps1 with
+          | Some (ps1, p1) ->
+              (* Yes! Do it. *)
+              let env = add_perm env p1 in
+              add_sub env ps1 ps2
+          | None ->
+              (* No, all the lhs in [ps1] are flexible. Try to find a permission
+               * in [ps2] that, when subtracted, unlocks the situation. *)
+              match Hml_List.take (good_for_sub env ps1) ps2 with
+              | Some (ps2, (_p2, env)) ->
+                  (* We found one! [good_for_sub] already called sub for us and
+                   * returns the resulting environment -> we move on. *)
+                  add_sub env ps1 ps2
+              | None ->
+                  (* Nothing. We fail. *)
+                  Log.debug ~level:4 "[add_sub] FAILED";
+                  None
+      in
+      add_sub env ps1 ps2
 
   | _ ->
-      compare_modulo_flex env sub_type t1 t2
+      step_through_flex env sub_type t1 t2
 
 
 and try_merge_flex env p t =
@@ -813,8 +734,12 @@ and try_merge_point_to_point env p1 p2 =
   else
     None
 
-and compare_modulo_flex env k t1 t2 =
-  let c = compare_modulo_flex in
+
+(* This function allows you to step-through flexible variables, if there are
+ * some. If we did step through something, we recurse through [k]. Otherwise, we
+ * fail. *)
+and step_through_flex ?(stepped=false) env k t1 t2 =
+  let c = step_through_flex ~stepped:true in
   match t1, t2 with
   | TyPoint p1, TyPoint p2 ->
       if same env p1 p2 then
@@ -834,13 +759,17 @@ and compare_modulo_flex env k t1 t2 =
       (structure env p2 >>= fun t2 -> c env k t1 t2)
 
   | _ ->
-      if equal env t1 t2 then
-        Some env
+      if stepped then
+        k env t1 t2
       else
         None
 
+
+(* Determine whether two types are equal, modulo flexible variables. *)
 and equal_modulo_flex env t1 t2 =
-  compare_modulo_flex env equal_modulo_flex t1 t2
+  let equal env t1 t2 = if equal env t1 t2 then Some env else None in
+  equal env t1 t2 ||| step_through_flex env equal t1 t2
+
 
 (** [sub_perm env t] takes a type [t] with kind PERM, and tries to return the
     environment without the corresponding permission. *)
@@ -879,6 +808,8 @@ let rec fold (env: env) (point: point): typ option =
     (function
       | TySingleton (TyPoint p) when same env p point ->
           false
+      | TyUnknown ->
+          false
       | _ ->
           true
     ) perms
@@ -886,7 +817,9 @@ let rec fold (env: env) (point: point): typ option =
   match perms with
   | [] ->
       Some TyUnknown
-  | t :: [] ->
+  | t :: []
+  | TyDynamic :: t :: []
+  | t :: TyDynamic :: [] ->
       begin try
         Some (fold_type_raw env t)
       with NotFoldable ->
@@ -927,9 +860,16 @@ and fold_type_raw (env: env) (t: typ): typ =
   | TyConstraints (cs, t) ->
       TyConstraints (cs, fold_type_raw env t)
 
-  (* TODO *)
-  | TyConcreteUnfolded _ ->
-      t
+  | TyConcreteUnfolded (dc, fields, clause) ->
+      let fields = List.map (function
+        | FieldPermission p ->
+            FieldPermission (fold_type_raw env p)
+        | FieldValue (n, t) ->
+            let t = fold_type_raw env t in
+            FieldValue (n, t)
+      ) fields in
+      let clause = fold_type_raw env clause in
+      TyConcreteUnfolded (dc, fields, clause)
 
   | TySingleton _ ->
       t

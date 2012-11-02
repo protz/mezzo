@@ -20,8 +20,87 @@
 (** A module for performing various transformations on types. *)
 
 open Types
-open Permissions
 open Expressions
+
+(** [collect t] recursively walks down a type with kind TYPE, extracts all
+    the permissions that appear into it (as tuple or record components), and
+    returns the type without permissions as well as a list of types with kind
+    PERM, which represents all the permissions that were just extracted. *)
+let collect (t: typ): typ * typ list =
+  let rec collect (t: typ): typ * typ list =
+    match t with
+    | TyUnknown
+    | TyDynamic
+
+    | TyVar _
+    | TyPoint _
+
+    | TyForall _
+    | TyExists _
+    | TyApp _
+
+    | TySingleton _
+
+    | TyArrow _ ->
+        t, []
+
+    (* Interesting stuff happens for structural types only *)
+    | TyBar (t, p) ->
+        let t, t_perms = collect t in
+        let p, p_perms = collect p in
+        t, p :: t_perms @ p_perms
+
+    | TyTuple ts ->
+        let ts, permissions = List.split (List.map collect ts) in
+        let permissions = List.flatten permissions in
+        TyTuple ts, permissions
+
+    | TyConcreteUnfolded (datacon, fields, clause) ->
+        let permissions, values = List.partition
+          (function FieldPermission _ -> true | FieldValue _ -> false)
+          fields
+        in
+        let permissions = List.map (function
+          | FieldPermission p -> p
+          | _ -> assert false) permissions
+        in
+        let sub_permissions, values =
+         List.fold_left (fun (collected_perms, reversed_values) ->
+            function
+              | FieldValue (name, value) ->
+                  let value, permissions = collect value in
+                  permissions :: collected_perms, (FieldValue (name, value)) :: reversed_values
+              | _ ->
+                  assert false)
+            ([],[])
+            values
+        in
+        TyConcreteUnfolded (datacon, List.rev values, clause), List.flatten (permissions :: sub_permissions)
+
+    | TyAnchoredPermission (x, t) ->
+        let t, t_perms = collect t in
+        TyAnchoredPermission (x, t), t_perms
+
+    | TyEmpty ->
+        TyEmpty, []
+
+    | TyStar (p, q) ->
+        let p, p_perms = collect p in
+        let q, q_perms = collect q in
+        TyStar (p, q), p_perms @ q_perms
+
+    | TyConstraints (constraints, t) ->
+        let perms, constraints = List.fold_left (fun (perms, ts) (f, t) ->
+          let t, perm = collect t in
+          (perm :: perms, (f, t) :: ts)
+        ) ([], []) constraints in
+        let constraints = List.rev constraints in
+        let t, perm = collect t in
+        let perms = List.flatten (perm :: perms) in
+        TyConstraints (constraints, t), perms
+  in
+  collect t
+;;
  
 (* This function tries to find all function types of the form
 

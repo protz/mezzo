@@ -1,0 +1,10 @@
+val f [a, b] (a, b): int = 2
+
+val g [b] (x: b): ([a, c] (a, c) -> int) -> int =
+  (* Ok, so the name makes the whole thing fail... *)
+  fun (f: [a, c] (t: a, c) -> int): int =
+    (* If you want to instantiate manually, do it with [=x, =x]... *)
+    f (x, x)
+
+val h =
+  g () f

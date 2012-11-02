@@ -35,7 +35,6 @@ let import_interface (env: T.env) (items: E.interface): T.env =
         (* XXX the location information is probably wildly inaccurate *)
         let binding = User (env.module_name, name), KTerm, env.location in
         let env, p = bind_var env binding in
-        let typ, _ = TypeOps.cleanup_function_type env typ None in
         let env = Permissions.add env p typ in
         let items = tsubst_toplevel_items (TyPoint p) 0 items in
         let items = esubst_toplevel_items (EPoint p) 0 items in
@@ -203,9 +202,9 @@ let all_dependencies (mname: Module.name) (find: Module.name -> S.toplevel_item 
     end
   in
   collect mname;
+  (* The module does not depend on itself. *)
   let l = List.tl !l in
   let l = List.rev l in
-  (* The module does not depend on itself. *)
   let names = String.concat ", " (List.map Module.print l) in
   Log.debug "Found dependencies for %a (left-to-right) = %s" Module.p mname names;
   l

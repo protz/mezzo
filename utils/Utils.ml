@@ -17,6 +17,13 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+(* Trick from Jacques-Henri: if the backtraces become unusable, call this
+ * function. Because we develop in byte-code, it will prevent tail-calls,
+ * thus producing better backtraces; in native code, with cross-module
+ * optimizations, this will be a no-op. So if your function returns x, just make
+ * it return "Utils.dont_inline x". *)
+let dont_inline x = x;;
+
 let fresh_name =
   let counter = ref 0 in
   fun prefix ->

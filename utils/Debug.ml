@@ -156,8 +156,17 @@ module Graph = struct
 
   let write_graph buf env =
     write_intro buf;
-    fold_terms env (fun () point _head { permissions; _ } ->
-      draw_point buf env point permissions
+    fold_terms env (fun () point { names; _ } { permissions; _ } ->
+      let is_core = function
+        | User (m, _) when Module.equal m (Module.register "Core") ->
+            true
+        | _ ->
+            false
+      in
+      if List.exists is_core names then
+        ()
+      else
+        draw_point buf env point permissions
     ) ();
     write_outro buf;
   ;;

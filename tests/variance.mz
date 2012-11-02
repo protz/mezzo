@@ -9,9 +9,9 @@ mutable data contra a = C { c: (consumes a) -> int }
 
 data bi a = A
 
-data inv a = A { a: a -> a }
+data inv a = B { a: a -> a }
 
-data test a b c = A { a: a } | B { b: b }
+data test a b c = D { a: a } | E { b: b }
 
 (* foo should be invariant *)
 mutable data adopts_contra a = Foo adopts contra a

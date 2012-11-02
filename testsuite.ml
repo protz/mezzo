@@ -17,6 +17,8 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+module K = KindCheck
+
 open Types
 open TypeChecker
 open TestUtils
@@ -30,26 +32,50 @@ let point_by_name env ?mname name =
   point_by_name env ?mname (Variable.register name)
 ;;
 
-type outcome = Fail of (raw_error -> bool) | Pass
+type outcome =
+  (* Fail at kind-checking time. *)
+  | KFail of (KindCheck.raw_error -> bool)
+  (* Fail at type-checking time. *)
+  | Fail of (raw_error -> bool)
+  | Pass
 
 let simple_test ?(pedantic=false) outcome = fun do_it ->
   try
     Options.pedantic := pedantic;
     ignore (do_it ());
     match outcome with
+    | KFail _ ->
+        raise (Failure "Test passed, it was supposed to fail")
     | Fail _ ->
         raise (Failure "Test passed, it was supposed to fail")
     | Pass ->
         ();
-  with TypeCheckerError (_, e) ->
-    match outcome with
-    | Pass ->
-        raise (Failure "Test failed, it was supposed to pass")
-    | Fail f ->
-        if f e then
-          ()
-        else
+  with
+  | TypeCheckerError (_, e) ->
+      begin match outcome with
+      | Pass ->
+          raise (Failure "Test failed, it was supposed to pass")
+      | Fail f ->
+          if f e then
+            ()
+          else
+            raise (Failure "Test failed but not for the right reason")
+      | KFail _ ->
           raise (Failure "Test failed but not for the right reason")
+      end
+
+  | K.KindError (_, e) ->
+      begin match outcome with
+      | Pass ->
+          raise (Failure "Test failed, it was supposed to pass")
+      | KFail f ->
+          if f e then
+            ()
+          else
+            raise (Failure "Test failed but not for the right reason")
+      | Fail _ ->
+          raise (Failure "Test failed but not for the right reason")
+      end
 ;;
 
 let dummy_loc =
@@ -82,6 +108,12 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("constructors.mz",
     simple_test Pass);
+
+  ("dcscope2.mz",
+    simple_test (KFail (function K.UnboundDataConstructor _ -> true | _ -> false)));
+
+  ("modules/dcscope.mz",
+    simple_test (KFail (function K.UnboundDataConstructor _ -> true | _ -> false)));
 
   ("constructors_bad_1.mz",
     simple_test (Fail (function MissingField _ -> true | _ -> false)));
@@ -167,6 +199,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("pattern1.mz", simple_test Pass);
 
   ("multiple_data_type_groups.mz", simple_test Pass);
+
+  ("impredicative.mz", simple_test Pass);
+
+  ("anonargs.mz", simple_test Pass);
 
   (* The merge operation and all its variations. *)
 
@@ -314,7 +350,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let x = point_by_name env "x" in
     let int = find_type_by_name env ~mname:"Core" "int" in
     let t = find_type_by_name env "t" in
-    let t = TyApp (t, [ty_equals x]) in
+    let t = TyApp (t, [int]) in
     check env v13 t;
     check env x int);
 
@@ -323,19 +359,21 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let v14 = point_by_name env "v14" in
     let int = find_type_by_name env ~mname:"Core" "int" in
     let t = find_type_by_name env "t" in
-    let t = TyExists (edummy_binding KTerm, TyBar (
+    (* Look at how fancy we used to be when we had singleton-subtyping! *)
+    (* let t = TyExists (edummy_binding KTerm, TyBar (
       TyApp (t, [TySingleton (TyVar 0)]),
       TyAnchoredPermission (TyVar 0, int)
-    )) in
+    )) in *)
+    let t = TyApp (t, [int]) in
     check env v14 t);
 
-  ("merge15.mz",
-    simple_test Pass
-  );
+  ("merge15.mz", simple_test Pass);
 
-  ("merge16.mz",
-    simple_test Pass
-  );
+  ("merge16.mz", simple_test Pass);
+
+  ("merge18.mz", simple_test Pass);
+
+  ("merge19.mz", simple_test Pass);
 
   ("merge_generalize_val.mz", fun do_it ->
     let env = do_it () in
@@ -383,9 +421,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
       failwith "The right permission was not extracted for [s1].";
   );
 
-  ("singleton2.mz",
-    simple_test Pass
-  );
+  (* Doesn't pass anymore since we removed singleton-subtyping! *)
+  (* ("singleton2.mz", simple_test Pass); *)
 
   (* Marking environments as inconsistent. *)
 
@@ -455,16 +492,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("adopts2.mz",
     simple_test (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
 
-  ("adopts3.mz", fun do_it ->
-    let open KindCheck in
-    try
-      ignore (do_it ());
-      failwith "We shouldn't allow a non-exclusive type to adopt stuff."
-    with
-      | KindError (_, KindCheck.AdopterNotExclusive _) ->
-          ()
-      | _ ->
-          failwith "Test failed for a wrong reason");
+  ("adopts3.mz",
+    simple_test (KFail (function K.AdopterNotExclusive _ -> true | _ -> false)));
 
   ("adopts4.mz",
     simple_test (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));

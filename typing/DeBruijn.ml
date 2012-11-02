@@ -46,11 +46,16 @@ let clean top sub t =
         t
 
     | TyPoint p ->
-        let p = repr sub p in
-        if valid top p then
-          TyPoint p
-        else
-          raise UnboundPoint
+        begin match structure sub p with
+        | Some t ->
+            clean t
+        | None ->
+            let p = repr sub p in
+            if valid top p then
+              TyPoint p
+            else
+              raise UnboundPoint
+        end
 
     | TyForall (b, t) ->
         TyForall (b, clean t)

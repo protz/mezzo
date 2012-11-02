@@ -1,0 +1,16 @@
+data bool = True | False
+data foo a = Foo { foo: a } | Bar
+mutable data x = X
+
+val destroy [a] (consumes x: a): () = ()
+
+val v =
+  let x = X in
+  if True then begin
+    destroy x;
+    Foo { foo = x }
+  end else begin
+    Bar
+  end
+
+val w = (v: foo dynamic)

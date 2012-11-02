@@ -8,13 +8,6 @@ mutable data ref a = Ref {
   contents: a;
 }
 
-(* The physical equality check (==) defined below returns, in case of success, a
- * permission revealing that the two identifiers are equal. *)
-
-data phys_equal (x :: TERM) (y :: TERM) =
-  | Equals { | x = y }
-  | NotEquals
-
 (* Lists *)
 
 mutable data xlist a =
@@ -35,10 +28,6 @@ val some [a] (consumes x: a): option a =
 
 val true = True
 val false = False
-
-(* Physical equality test. *)
-
-val ( == ) [a, b] (x: a, y: b): phys_equal x y = fail
 
 (* References *)
 

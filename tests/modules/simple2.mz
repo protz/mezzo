@@ -1,1 +1,1 @@
-abstract foo a
+data foo a = Foo
