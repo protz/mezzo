@@ -4,50 +4,63 @@
 <link rel="stylesheet" href="style.css" type="text/css">
 <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
 <link rel="Start" href="index.html">
-<link rel="previous" href="Identifier.html">
-<link rel="next" href="Mode.html">
+<link rel="previous" href="PersistentUnionFind.html">
+<link rel="next" href="Utils.html">
 <link rel="Up" href="index.html">
 <link title="Index of types" rel=Appendix href="index_types.html">
 <link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
 <link title="Index of values" rel=Appendix href="index_values.html">
 <link title="Index of modules" rel=Appendix href="index_modules.html">
 <link title="Index of module types" rel=Appendix href="index_module_types.html">
-<link title="Utf8" rel="Chapter" href="Utf8.html">
-<link title="Ulexing" rel="Chapter" href="Ulexing.html">
-<link title="Ulex" rel="Chapter" href="Ulex.html">
-<link title="Pprint" rel="Chapter" href="Pprint.html">
-<link title="Option" rel="Chapter" href="Option.html">
-<link title="InfiniteArray" rel="Chapter" href="InfiniteArray.html">
-<link title="Hml_List" rel="Chapter" href="Hml_List.html">
-<link title="Bash" rel="Chapter" href="Bash.html">
-<link title="Hml_String" rel="Chapter" href="Hml_String.html">
-<link title="Log" rel="Chapter" href="Log.html">
-<link title="Hml_Map" rel="Chapter" href="Hml_Map.html">
 <link title="GSet" rel="Chapter" href="GSet.html">
 <link title="Patricia" rel="Chapter" href="Patricia.html">
 <link title="GMap" rel="Chapter" href="GMap.html">
+<link title="Fix" rel="Chapter" href="Fix.html">
+<link title="Log" rel="Chapter" href="Log.html">
+<link title="Hml_String" rel="Chapter" href="Hml_String.html">
+<link title="Hml_Map" rel="Chapter" href="Hml_Map.html">
+<link title="Hml_List" rel="Chapter" href="Hml_List.html">
+<link title="Option" rel="Chapter" href="Option.html">
+<link title="Bash" rel="Chapter" href="Bash.html">
+<link title="InfiniteArray" rel="Chapter" href="InfiniteArray.html">
+<link title="Pprint" rel="Chapter" href="Pprint.html">
 <link title="Driver" rel="Chapter" href="Driver.html">
 <link title="Hashcons" rel="Chapter" href="Hashcons.html">
-<link title="Lexer" rel="Chapter" href="Lexer.html">
 <link title="Grammar" rel="Chapter" href="Grammar.html">
 <link title="Identifier" rel="Chapter" href="Identifier.html">
-<link title="FactInference" rel="Chapter" href="FactInference.html">
-<link title="Mode" rel="Chapter" href="Mode.html">
+<link title="Lexer" rel="Chapter" href="Lexer.html">
+<link title="Ulex" rel="Chapter" href="Ulex.html">
+<link title="Utf8" rel="Chapter" href="Utf8.html">
+<link title="Ulexing" rel="Chapter" href="Ulexing.html">
 <link title="PersistentRef" rel="Chapter" href="PersistentRef.html">
-<link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
-<link title="PermissionDeduction" rel="Chapter" href="PermissionDeduction.html">
 <link title="Permissions" rel="Chapter" href="Permissions.html">
 <link title="Mark" rel="Chapter" href="Mark.html">
-<link title="ModeDeduction" rel="Chapter" href="ModeDeduction.html"><title>FactInference</title>
+<link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
+<link title="FactInference" rel="Chapter" href="FactInference.html">
+<link title="Utils" rel="Chapter" href="Utils.html"><title>FactInference</title>
 </head>
 <body>
-<div class="navbar"><a href="Identifier.html">Previous</a>
-&nbsp;<a href="index.html">Up</a>
-&nbsp;<a href="Mode.html">Next</a>
+<div class="navbar"><a class="pre" href="PersistentUnionFind.html" title="PersistentUnionFind">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Utils.html" title="Utils">Next</a>
 </div>
-<center><h1>Module <a href="type_FactInference.html">FactInference</a></h1></center>
-<br>
-<pre><span class="keyword">module</span> FactInference: <code class="code">sig</code> <a href="FactInference.html">..</a> <code class="code">end</code></pre>This module analyzes data type declaration to synthetize facts about the
+<h1>Module <a href="type_FactInference.html">FactInference</a></h1>
+<pre><span class="keyword">module</span> FactInference: <code class="code">sig</code> <a href="FactInference.html">..</a> <code class="code">end</code></pre><div class="info">
+This module analyzes data type declaration to synthetize facts about the
    data types.<br>
+</div>
 <hr width="100%">
-<pre><span id="VALanalyze_data_types"><span class="keyword">val</span> analyze_data_types</span> : <code class="type">Types.env -> Types.env</code></pre><pre><span id="VALanalyze_type"><span class="keyword">val</span> analyze_type</span> : <code class="type">Types.env -> Types.typ -> Types.fact</code></pre></body></html>
+<pre><span id="VALanalyze_data_types"><span class="keyword">val</span> analyze_data_types</span> : <code class="type">Types.env -> Types.point list -> Types.env</code></pre><div class="info">
+This function performs the elaboration phase where we build up more precise
+ * facts about the various data types defined in the environment.<br>
+</div>
+<pre><span id="VALanalyze_type"><span class="keyword">val</span> analyze_type</span> : <code class="type">Types.env -> Types.typ -> Types.fact</code></pre><div class="info">
+Get the fact for a type, which you can then pass to .<br>
+</div>
+<pre><span id="VALis_duplicable"><span class="keyword">val</span> is_duplicable</span> : <code class="type">Types.env -> Types.typ -> bool</code></pre><div class="info">
+Is this type duplicable?<br>
+</div>
+<pre><span id="VALis_exclusive"><span class="keyword">val</span> is_exclusive</span> : <code class="type">Types.env -> Types.typ -> bool</code></pre><div class="info">
+Is this type exclusive?<br>
+</div>
+</body></html>
