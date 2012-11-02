@@ -101,7 +101,7 @@ and raw_error =
   | IllegalConsumes
   | BadConditionsInFact of Variable.name
   | BadConclusionInFact of Variable.name
-  | DuplicateConstructor of Variable.name * Datacon.name
+  | DuplicateConstructor of Datacon.name
   | AdopterNotExclusive of Variable.name
   | NoAbstractTypesInImplementation of Variable.name
   | UnboundDataConstructor of Datacon.name
@@ -174,11 +174,10 @@ let print_error buf (env, raw_error) =
         Lexer.p env.location
         Variable.p x
         Variable.p x
-  | DuplicateConstructor (x, d) ->
+  | DuplicateConstructor d ->
       Printf.bprintf buf
-        "%a type %a defines constructor %a several times"
+        "%a the constructor %a appears several times in this data type group"
         Lexer.p env.location
-        Variable.p x
         Datacon.p d
   | AdopterNotExclusive x ->
       Printf.bprintf buf
@@ -224,8 +223,8 @@ let bad_conclusion_in_fact env x =
   raise_error env (BadConclusionInFact x)
 ;;
 
-let duplicate_constructor env x d =
-  raise_error env (DuplicateConstructor (x, d))
+let duplicate_constructor env d =
+  raise_error env (DuplicateConstructor d)
 ;;
 
 
@@ -626,9 +625,6 @@ let check_data_type_def (env: env) (def: data_type_def) =
   | Concrete (flag, (name, bindings), branches, clause) ->
       let bindings = List.map (fun (x, y, _) -> x, y) bindings in
       let env = List.fold_left bind env bindings in
-      (* Check that the constructors are unique. *)
-      let constructors = fst (List.split branches) in
-      check_for_duplicates constructors (fun x -> duplicate_constructor env name x);
       (* Check the branches. *)
       List.iter (check_data_type_def_branch env) branches;
       match clause with
@@ -643,6 +639,16 @@ let check_data_type_def (env: env) (def: data_type_def) =
 
 
 let check_data_type_group (env: env) (data_type_group: data_type_def list) =
+  (* Check that the constructors are unique to this data type group. *)
+  let all_constructors = Hml_List.map_flatten (function
+    | Abstract _ ->
+        []
+    | Concrete (_, _, branches, _) ->
+        fst (List.split branches)
+  ) data_type_group in
+  check_for_duplicates all_constructors (duplicate_constructor env);
+
+  (* Do the remainder of the checks. *)
   List.iter (check_data_type_def env) data_type_group
 ;;
 

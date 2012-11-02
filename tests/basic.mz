@@ -35,6 +35,8 @@ data listops =
     concat: [a] (consumes l1: list a, consumes l2: list a) -> (l3: list a)
   }
 
+val x = ()
+
 mutable data foo a b c =
   Foo {
     bar: a;
