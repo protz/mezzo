@@ -96,6 +96,11 @@ let add_hint hint str =
     facts are compatible. *)
 let can_merge (env: env) (t1: typ) (p2: point): bool =
   Log.check (is_flexible env p2) "[can_merge] takes a flexible variable as its second parameter";
+  (* The mode of an affine variable is understood to be an upper bound on the
+   * various modes it can take. Thus, affine means the flexible variable can
+   * instantiate with anything. Exclusive means the flexible variable can
+   * instantiate with anything that is exclusive or below exclusive (slim, fat,
+   * etc.). *)
   match t1 with
   | TyPoint p1 ->
       if (is_type env p2) then begin
@@ -554,6 +559,11 @@ and sub_type_real env t1 t2 =
 
 
   | TyForall ((binding, _), t1), _ ->
+      (* The type variable is bound as affine, which is the maximum mode
+       * allowed; we can see the mode of a flexible variable as an upper bound
+       * on what it can instantiate to. If we encounter a constraint, such as
+       * "duplicable a", we will refine the fact to "duplicable", thus lowering
+       * the bound. *)
       let env, t1 = bind_var_in_type ~flexible:true env binding t1 in
       let t1, perms = collect t1 in
       let env = add_perm env (fold_star perms) in
