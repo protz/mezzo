@@ -1,0 +1,7 @@
+data foo a = Foo { foo: () }
+
+val x =
+  let y = () in
+  let f (() | y @ foo int): () = () in
+  let g (h: (() | y @ foo ()) -> ()): () = () in
+  g f
