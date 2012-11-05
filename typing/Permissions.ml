@@ -60,7 +60,9 @@ let safety_check env =
       | _ ->
           false
     ) permissions in
-    if not (env.inconsistent) && List.length concrete > 1 then
+    (* This part of the safety check is disabled because it is too restrictive,
+     * see [twostructural.mz] for an example. *)
+    if false && not (env.inconsistent) && List.length concrete > 1 then
       Log.error
         "Inconsistency detected: more than one concrete type for %a\n\
           (did you add a function type without calling \

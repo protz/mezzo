@@ -216,6 +216,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     | _ -> false
   )));
 
+  ("twostructural.mz", simple_test Pass);
+
   ("anonargs.mz", simple_test Pass);
 
   (* The merge operation and all its variations. *)
@@ -625,6 +627,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("bag_lifo.mz", simple_test Pass);
 
   ("bag_fifo.mz", simple_test Pass);
+
+  ("landin.mz", simple_test Pass);
 
   ("modules/simple.mz", simple_test Pass);
 
