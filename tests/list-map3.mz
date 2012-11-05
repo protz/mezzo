@@ -2,12 +2,13 @@
 
 data list a = Cons { head: a; tail: list a } | Nil
 
-val rec map [a, b, p :: PERM, q :: PERM] (
-    f: (consumes (x: a | p)) -> (b | q),
-    consumes (xs: list a | p)): (list b | q) =
+val rec map [a1, a2, b, p :: PERM] (
+    f: (consumes x: a1 | p) -> (b | x @ a2),
+    consumes xs: list a1 | p): (list b | xs @ list a2) =
   match xs with
   | Nil ->
       Nil
   | Cons { head; tail } ->
-      Cons { head = f head; tail = map [a, b, p, q] (f, tail) }
+      let v = f head in
+      Cons { head = v; tail = map [a1, a2, b, p] (f, tail) }
   end
