@@ -666,7 +666,13 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       sub_type env t1 t2
 
   | TyArrow (t1, t2), TyArrow (t'1, t'2) ->
+      Log.debug "%sArrow / Arrow, left%s"
+        Bash.colors.Bash.red
+        Bash.colors.Bash.default;
       sub_type env t1 t'1 >>= fun env ->
+      Log.debug "%sArrow / Arrow, right%s"
+        Bash.colors.Bash.red
+        Bash.colors.Bash.default;
       sub_type env t'2 t2
 
   (* "(t1 | p1)" - "(t2 | p2)" means doing [t1 - t2], adding all of [p1],

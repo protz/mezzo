@@ -1,0 +1,14 @@
+(* See the discussion in [impredicative4.mz]. *)
+
+mutable data foo = Foo
+
+val fst [a, b] (y: a, b): a = y
+
+val id [α] (x: α): ((f: [β] (consumes α, β) -> α) | x @ α) -> α =
+  fun (f: [β] ((consumes α, β) -> α) | x @ α): α =
+    f [int] (x, 2)
+
+val test1 = id [foo] Foo
+val test2 = fst [foo]
+
+val test3 = test1 test2
