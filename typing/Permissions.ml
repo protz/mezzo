@@ -524,7 +524,14 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
   if equal env t1 t2 then
     Some env
+
   else match t1, t2 with
+  | _, TyPoint p2 when has_structure env p2 ->
+      sub_type env t1 (Option.extract (structure env p2))
+
+  | TyPoint p1, _ when has_structure env p1 ->
+      sub_type env (Option.extract (structure env p1)) t2
+
   | TyConstraints _, _ ->
       Log.error "Constraints should've been processed when this permission was added"
 
