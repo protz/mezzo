@@ -202,6 +202,18 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("impredicative.mz", simple_test Pass);
 
+  ("impredicative2.mz", simple_test Pass);
+
+  ("impredicative3.mz", simple_test (Fail (function
+    | ExpectedType _ -> true
+    | _ -> false
+  )));
+
+  ("impredicative4.mz", simple_test (Fail (function
+    | ExpectedType _ -> true
+    | _ -> false
+  )));
+
   ("anonargs.mz", simple_test Pass);
 
   (* The merge operation and all its variations. *)

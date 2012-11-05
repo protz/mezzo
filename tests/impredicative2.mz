@@ -1,0 +1,8 @@
+mutable data foo = Foo
+
+val fst [α, β] (consumes x: α, β): α = x
+
+val f [a] (g: [b] (a, b) -> a): () =
+  ()
+
+val test2 = f [foo] (fst [foo])

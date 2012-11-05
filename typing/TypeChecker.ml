@@ -572,22 +572,23 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
   | ETApply (e, t, k) ->
       let env, x = check_expression env e in
-      (* Create a new list of permissions. *)
-      let perms = get_permissions env x in
-      let found = ref false in
-      let perms = List.map (function
+      (* Find something that works. *)
+      let t = Hml_List.find_opt (function
         | TyForall (((_, k', _), CanInstantiate), t') ->
             if k <> k' then begin
               raise_error env (IllKindedTypeApplication (t, k, k'))
             end else begin
-              found := true;
-              tsubst t 0 t'
+              Some (tsubst t 0 t')
             end
-        | _ as t ->
+        | _ ->
+            None
+      ) (get_permissions env x) in
+      let t = match t with
+        | Some t ->
             t
-      ) perms in
-      if not !found then
-        raise_error env (BadTypeApplication x);
+        | None ->
+            raise_error env (BadTypeApplication x);
+      in
       (* And return a fresh point with that new list of permissions. *)
       let name =
         match get_name env x with
@@ -597,9 +598,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             x
       in
       let env, x = bind_term env name (get_location env x) false in
-      replace_term env x (fun binding ->
-        { binding with permissions = perms }
-      ), x
+      Permissions.add env x t, x
 
   | ETuple exprs ->
       (* Propagate type annotations inside the tuple. *)
