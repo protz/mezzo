@@ -101,6 +101,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("pervasives.mz",
     simple_test Pass);
 
+  ("absdefs.mz",
+    simple_test Pass);
+
   (* Some very simple tests. *)
 
   ("basic.mz",
@@ -196,9 +199,15 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test Pass
   );
 
+  ("anonargs.mz", simple_test Pass);
+
   ("pattern1.mz", simple_test Pass);
 
+  ("loose_variable.mz", simple_test Pass);
+
   ("multiple_data_type_groups.mz", simple_test Pass);
+
+  ("curry1.mz", simple_test Pass);
 
   ("impredicative.mz", simple_test Pass);
 
@@ -217,8 +226,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   )));
 
   ("twostructural.mz", simple_test Pass);
-
-  ("anonargs.mz", simple_test Pass);
 
   (* The merge operation and all its variations. *)
 
@@ -571,10 +578,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("list-map2.mz",
     simple_test Pass
   );
-
-  (*("list-map3.mz",
-    simple_test Pass
-  );*)
 
   ("list-map4.mz",
     simple_test Pass
