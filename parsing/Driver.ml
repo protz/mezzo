@@ -119,14 +119,22 @@ let iface_file_path_for_module_name (mname: Module.name): string option =
   find_in_include_dirs f
 ;;
 
-(* TODO memoize *)
+let cache =
+  Hashtbl.create 11
+;;
+
 let find_and_lex_interface (mname: Module.name): SurfaceSyntax.interface =
-  let ifpath = iface_file_path_for_module_name mname in
-  match ifpath with
-  | Some ifpath ->
-      lex_and_parse_interface ifpath
-  | None ->
-      Log.error "No interface for module %a" Module.p mname
+  try
+    Hashtbl.find cache mname
+  with Not_found ->
+    let ifpath = iface_file_path_for_module_name mname in
+    match ifpath with
+    | Some ifpath ->
+        let i = lex_and_parse_interface ifpath in
+        Hashtbl.add cache mname i;
+        i
+    | None ->
+        Log.error "No interface for module %a" Module.p mname
 ;;
 
 (* [build_interface env mname] finds the right interface file for [mname], and
