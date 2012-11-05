@@ -510,18 +510,14 @@ data_type_def:
       { p }
 
   raw_pat1:
-  | LPAREN p = pat1 COLON t = normal_type RPAREN
+  | p = atomic_pattern COLON t = normal_type
       { PConstraint (p, t) }
-  | x = variable
-      { PVar x }
-  | LPAREN ps = separated_list_of_at_least_two(COMMA, pat1) RPAREN
+  | ps = separated_list_of_at_least_two(COMMA, atomic_pattern)
       { PTuple ps }
-  | dc = datacon_application(data_field_pat)
-      { PConstruct dc }
   | p = pattern AS v = variable
       { PAs (p, PVar v) }
-  | LPAREN p = pat1 RPAREN
-      { p }
+  | a = atomic_pattern_raw
+      { a }
 
     data_field_pat:
     | f = variable EQUAL p = pattern
@@ -529,6 +525,18 @@ data_type_def:
     | f = variable
         (* Punning *)
         { f, PVar f }
+
+  %inline atomic_pattern:
+  | p = plocated(atomic_pattern_raw)
+      { p }
+
+  atomic_pattern_raw:
+  | LPAREN p = pattern RPAREN
+      { p }
+  | dc = datacon_application(data_field_pat)
+      { PConstruct dc }
+  | x = variable
+      { PVar x }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -578,6 +586,8 @@ data_type_def:
       { ETake (e1, e2) }
   | GIVE e1 = expression TO e2 = everything_except_let_and_semi
       { EGive (e1, e2) } 
+  | es = separated_list_of_at_least_two(COMMA, prefix_op)
+      { ETuple es }
   | e = explained_raw
       { e }
 
@@ -653,8 +663,6 @@ data_type_def:
       { EFail }
   | dc = datacon_application(data_field_assign)
       { EConstruct dc }
-  | LPAREN es = separated_list_of_at_least_two(COMMA, expression) RPAREN
-      { ETuple es }
   | LPAREN RPAREN
       { ETuple [] }
   | MATCH b = explain e = expression WITH bs = separated_or_preceded_list(BAR, match_branch) END
@@ -679,7 +687,7 @@ data_type_def:
         { f, EVar f }
 
     %inline match_branch:
-    | p = pattern ARROW e = expression
+    | p = atomic_pattern ARROW e = expression
         { p, e }
 
 (* ---------------------------------------------------------------------------- *)

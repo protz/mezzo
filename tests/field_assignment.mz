@@ -1,6 +1,6 @@
 mutable data foo = Foo { foo: int }
 
-val (main: foo) =
+val main: foo =
   let f = Foo { foo = (2, 2) } in
   f.foo <- 2;
   f

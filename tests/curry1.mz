@@ -8,7 +8,7 @@ val snd [t, u] (x: t): (consumes y: u) -> u =
   fun (consumes y: u): u =
     y
 
-val (test0: foo) = fst Foo (Foo, Foo)
+val test0: foo = fst Foo (Foo, Foo)
 
-val (test: (foo, (foo, foo))) =
-  (fst Foo (Foo, Foo), snd Foo (Foo, Foo))
+val test: (foo, (foo, foo)) =
+  fst Foo (Foo, Foo), snd Foo (Foo, Foo)

@@ -1,1 +1,1 @@
-val (baz: int -> int) = 3
+val baz: int -> int = 3

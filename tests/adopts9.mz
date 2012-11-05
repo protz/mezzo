@@ -2,7 +2,7 @@ mutable data bar = Bar
 mutable data foo = Foo adopts bar
 data baz = Baz
 
-val (v: bar) =
+val v: bar =
   let f = Foo in
   let b = Bar in
   give (b: bar) to f;

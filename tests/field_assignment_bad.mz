@@ -1,6 +1,6 @@
 data foo = Foo { foo: int }
 
-val (main: foo) =
+val main: foo =
   let f = 2 in
   f.foo <- 2;
   f

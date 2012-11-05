@@ -14,4 +14,4 @@ val id [α] (x: α): ([β] (α, β) -> α | consumes x @ α) -> α =
   fun (f: [β] ((α, β) -> α) | consumes x @ α): α =
     f [int] (x, 2)
 
-val (test: foo) = (id [foo]) Foo (fst [foo])
+val test: foo = (id [foo]) Foo (fst [foo])

@@ -6,5 +6,5 @@ open Absdefs
 
 mutable data foo = Foo adopts t_x
 
-val (v: foo) = Foo
+val v: foo = Foo
 val f (consumes x: foo): foo = x

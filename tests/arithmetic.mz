@@ -3,5 +3,5 @@ val foo =
   let y = 113 in
   x / y
 
-val (bar: int) =
+val bar: int =
   foo - 3141592

@@ -1,10 +1,10 @@
 mutable data t = T
 data bool = True | False
 
-val ((v: t), w) =
+val (v: t), w =
   if explain True then begin
     let x = T in
-    (x, x)
+    x, x
   end else begin
-    (T, T)
+    T, T
   end

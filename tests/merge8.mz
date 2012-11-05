@@ -18,7 +18,7 @@ data v a b = A { a: a } | B { b: b } | C | D
 
    v8 @ ∀ab. v a b ∗ v6 @ ∀a. v a a
 *)
-val (v8: [a] v a a) =
+val v8: [a] v a a =
   if explain True then
     D
   else
