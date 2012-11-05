@@ -518,6 +518,9 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
     [Some env] where [env] has been modified accordingly (for instance, by
     unifying some flexible variables); it returns [None] otherwise. *)
 and sub_type (env: env) (t1: typ) (t2: typ): env option =
+  step_through_flex env sub_type_real t1 t2 ||| sub_type_real env t1 t2
+
+and sub_type_real env t1 t2 =
   TypePrinter.(
     Log.debug ~level:4 "[sub_type] %a %s→%s %a"
       ptype (env, t1)
@@ -528,12 +531,6 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
     Some env
 
   else match t1, t2 with
-  | _, TyPoint p2 when has_structure env p2 ->
-      sub_type env t1 (Option.extract (structure env p2))
-
-  | TyPoint p1, _ when has_structure env p1 ->
-      sub_type env (Option.extract (structure env p1)) t2
-
   | TyConstraints _, _ ->
       Log.error "Constraints should've been processed when this permission was added"
 
@@ -733,7 +730,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       add_sub env ps1 ps2
 
   | _ ->
-      step_through_flex env sub_type t1 t2
+      None
 
 
 and try_merge_flex env p t =
