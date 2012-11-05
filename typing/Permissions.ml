@@ -555,12 +555,16 @@ and sub_type_real env t1 t2 =
 
   | TyForall ((binding, _), t1), _ ->
       let env, t1 = bind_var_in_type ~flexible:true env binding t1 in
+      let t1, perms = collect t1 in
+      let env = add_perm env (fold_star perms) in
       sub_type env t1 t2
 
   | _, TyForall ((binding, _), t2) ->
       (* Typical use-case: Nil vs [a] list a. We're binding this as a *rigid*
        * type variable. *)
       let env, t2 = bind_var_in_type env binding t2 in
+      let t2, perms = collect t2 in
+      sub_perm env (fold_star perms) >>= fun env ->
       sub_type env t1 t2
 
   | TyExists (binding, t1), _ ->

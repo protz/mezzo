@@ -165,7 +165,7 @@ let fold_exists bindings t =
 
 (* Various functions related to binding and finding. *)
 
-let head name location ~flexible kind =
+let head name location ?(flexible=false) kind =
   let structure = if flexible then Flexible None else Rigid in
   {
     names = [name];
@@ -184,11 +184,11 @@ let bind_term
     (env: env)
     (name: name)
     (location: location)
-    ?(flexible=false)
+    ?flexible
     (ghost: bool): env * point
   =
   let binding =
-    head name location ~flexible KTerm,
+    head name location ?flexible KTerm,
     BTerm { permissions = []; ghost }
   in
   let point, state = PersistentUnionFind.create binding env.state in
@@ -207,28 +207,28 @@ let bind_type
     (env: env)
     (name: name)
     (location: location)
-    ?(flexible=false)
+    ?flexible
     ?(definition: type_def option)
     (fact: fact)
     (kind: kind): env * point
   =
   let return_kind, _args = flatten_kind kind in
   Log.check (return_kind = KType) "[bind_type] is for variables with kind TYPE only";
-  let binding = head name location ~flexible kind, BType { fact; definition; } in
+  let binding = head name location ?flexible kind, BType { fact; definition; } in
   let point, state = PersistentUnionFind.create binding env.state in
   { env with state }, point
 ;;
 
 (* [fact] is unused if it's a [KTerm] variable... *)
-let bind_var (env: env) ?(flexible=false) ?(fact=Affine) (name, kind, location: type_binding): env * point =
+let bind_var (env: env) ?flexible ?(fact=Affine) (name, kind, location: type_binding): env * point =
   match kind with
     | KType ->
         (* Of course, such a type variable does not have a definition. *)
-        bind_type env name location ~flexible fact kind
+        bind_type env name location ?flexible fact kind
     | KTerm ->
         (* This is wrong because we're floating "real" parameters of a function
            as type variables with kind TERM, so it's not a ghost variable... *)
-        bind_term env name location ~flexible true
+        bind_term env name location ?flexible true
     | KPerm ->
         Log.error "TODO"
     | KArrow _ ->
@@ -240,10 +240,10 @@ let bind_var (env: env) ?(flexible=false) ?(fact=Affine) (name, kind, location: 
 let bind_var_in_type2
     (env: env)
     (binding: type_binding)
-    ?(flexible=false)
+    ?flexible
     (typ: typ): env * typ * point
   =
-  let env, point = bind_var env ~flexible binding in
+  let env, point = bind_var env ?flexible binding in
   let typ = tsubst (TyPoint point) 0 typ in
   env, typ, point
 ;;
@@ -251,10 +251,10 @@ let bind_var_in_type2
 let bind_var_in_type
     (env: env)
     (binding: type_binding)
-    ?(flexible=false)
+    ?flexible
     (typ: typ): env * typ
   =
-  let env, typ, _ = bind_var_in_type2 env binding ~flexible typ in
+  let env, typ, _ = bind_var_in_type2 env binding ?flexible typ in
   env, typ
 ;;
 

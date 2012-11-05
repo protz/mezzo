@@ -68,17 +68,16 @@ let duplicables
                   Log.error "Partial type applications are not allowed"
             | Fuzzy param_number ->
                 (* Only the current type's parameters are marked as fuzzy. *)
-                begin
-                  match phase with
-                  | Elaborating my_bitmap ->
-                      let my_arity = Array.length my_bitmap in
-                      Log.debug ~level:4 "↳ marking parameter %d" param_number;
-                      Log.check (param_number >= 0 && param_number < my_arity)
-                        "Marking as duplicable a variable that's not in the right\
-                        range! param_number = %d" param_number;
-                      my_bitmap.(param_number) <- true
-                  | Checking ->
-                      Log.error "No fuzzy variables should be present when checking."
+                begin match phase with
+                | Elaborating my_bitmap ->
+                    let my_arity = Array.length my_bitmap in
+                    Log.debug ~level:4 "↳ marking parameter %d" param_number;
+                    Log.check (param_number >= 0 && param_number < my_arity)
+                      "Marking as duplicable a variable that's not in the right\
+                      range! param_number = %d" param_number;
+                    my_bitmap.(param_number) <- true
+                | Checking ->
+                    Log.error "No fuzzy variables should be present when checking."
                 end
             end
         end
