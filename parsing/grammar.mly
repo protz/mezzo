@@ -67,7 +67,6 @@
 %left     OPINFIX2
 %left     OPINFIX3
 %left     STAR
-(*%nonassoc OPPREFIX*)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -588,27 +587,14 @@ data_type_def:
       { ETake (e1, e2) }
   | GIVE e1 = expression TO e2 = everything_except_let_and_semi
       { EGive (e1, e2) } 
-  | es = separated_list_of_at_least_two(COMMA, prefix_op)
+  | es = separated_list_of_at_least_two(COMMA, infix_op)
       { ETuple es }
   | e = explained_raw
       { e }
 
   explained_raw:
-  | e = prefix_op EXPLAIN
+  | e = infix_op EXPLAIN
       { EExplained e }
-  | e = prefix_op_raw
-      { e }
-
-  (* Arithmetic expressions... *)
-  %inline prefix_op:
-  | e = elocated(prefix_op_raw)
-      { e }
-
-  prefix_op_raw:
-  | MINUS e = atomic
-      { mkinfix (EInt 0) "-" e }
-  | o = OPPREFIX e = atomic
-      { EApply (EVar (Variable.register o), e) }
   | e = infix_op_raw
       { e }
 
@@ -642,7 +628,7 @@ data_type_def:
       { EApply (e1, e2) }
   | e1 = app LBRACKET ts = separated_nonempty_list(COMMA, app_component) RBRACKET
       { ETApply (e1, ts) }
-  | e = atomic_raw
+  | e = preatomic_raw
       { e }
 
       app_component:
@@ -651,10 +637,13 @@ data_type_def:
       | v = variable EQUAL t = normal_type
           { Named (v, t) }
 
-  (* Tightly-knit productions *)
-  %inline atomic:
-  | e = elocated(atomic_raw)
-      { e }
+  preatomic_raw:
+  | MINUS e = atomic
+      { mkinfix (EInt 0) "-" e }
+  | e = atomic DOT f = variable
+      { EAccess (e, f) }
+  | a = atomic_raw
+      { a }
 
   explain:
   |
@@ -662,7 +651,13 @@ data_type_def:
   | EXPLAIN
       { true }
 
+  %inline atomic:
+  | e = elocated(atomic_raw)
+      { e }
+
   atomic_raw:
+  | o = OPPREFIX e = atomic
+      { EApply (EVar (Variable.register o), e) }
   | v = variable
       { EVar v }
   | m = module_name COLONCOLON x = variable
@@ -677,8 +672,6 @@ data_type_def:
       { ETuple [] }
   | MATCH b = explain e = expression WITH bs = separated_or_preceded_list(BAR, match_branch) END
       { EMatch (b, e, bs) }
-  | e = atomic DOT f = variable
-      { EAccess (e, f) }
   | BEGIN e = expression END
       { e }
   | LPAREN e = expression COLON t = arbitrary_type RPAREN
