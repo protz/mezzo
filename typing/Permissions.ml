@@ -172,6 +172,8 @@ let perm_not_flex env t =
   match t with
   | TyAnchoredPermission (x, _) ->
       not (is_flexible env !!x)
+  | TyPoint p ->
+      not (is_flexible env p)
   | _ ->
       Log.error "You should call [flatten_star]"
 ;;
@@ -275,6 +277,9 @@ and add_perm (env: env) (t: typ): env =
       add_perm (add_perm env p) q
   | TyEmpty ->
       env
+  | TyPoint p->
+      Log.check (get_kind env p = KPerm) "Only kind PERM";
+      add_floating_permission env p
   | _ ->
       Log.error "This only works for types with kind PERM."
 
@@ -812,6 +817,9 @@ and sub_perm (env: env) (t: typ): env option =
       sub_perm env q
   | TyEmpty ->
       Some env
+  | TyPoint p->
+      Log.check (get_kind env p = KPerm) "Only kind PERM";
+      sub_floating_permission env p
   | _ ->
       Log.error "[sub_perm] the following type does not have kind PERM: %a (%a)"
         TypePrinter.ptype (env, t)

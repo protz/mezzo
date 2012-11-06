@@ -97,13 +97,14 @@ let ty_equals (v: Variable.name) =
   TySingleton (TyVar v)
 ;;
 
-let rec flatten_star = function
+let rec flatten_star p =
+  match p with
   | TyStar (t1, t2) ->
       flatten_star t1 @ flatten_star t2
   | TyEmpty ->
       []
-  | TyConsumes _ as p ->
-      [p]
+  | TyVar _
+  | TyConsumes _
   | TyAnchoredPermission _ as p ->
       [p]
   | TyLocated (p, _, _) ->

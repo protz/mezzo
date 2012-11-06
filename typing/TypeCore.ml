@@ -169,6 +169,10 @@ type env = {
 
   (* The name of the current unit. *)
   module_name: Module.name;
+
+  (* These permissions are abstract PERM variables, they're not attached to any
+   * point in particular, so we keep a list of them here. *)
+  floating_permissions: point list;
 }
 
 and binding =
@@ -192,7 +196,7 @@ and binding_head = {
 }
 
 and raw_binding =
-  BType of type_binder | BTerm of term_binder | BPerm of perm_binder
+  BType of type_binder | BTerm of term_binder
 
 and type_binder = {
   (* Definition: if it's a variable, there's no definition for it. If it's a
@@ -217,19 +221,6 @@ and term_binder = {
   ghost: bool;
 }
 
-and perm_binder = {
-  (* XXX this is temporary, we still need to think about how we should represent
-   * permissions that are not attached to a particular identifier. A simple
-   * strategy would be to attach to the environment a list of all points
-   * representing PERM binders.
-   *
-   * 2012/07/12: and make sure that as soon as some flexible variable happens to
-   * be unified, we run through the list of floating permissions to see if
-   * [x* @ t] turned into [x @ t], which means we should attach [t] to the
-   * list of available permissions for point [x]. *)
-  consumed: bool;
-}
-
 (* This is not pretty, but we need some of these functions for debugging, and
  * the printer is near the end. *)
 
@@ -247,6 +238,7 @@ let empty_env = {
   location = Lexing.dummy_pos, Lexing.dummy_pos;
   inconsistent = false;
   module_name = Module.register "<none>";
+  floating_permissions = [];
 }
 
 let locate env location =

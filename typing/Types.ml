@@ -119,11 +119,14 @@ let ty_app t args =
 ;;
 
 
-let rec flatten_star = function
+let rec flatten_star p =
+  match p with
   | TyStar (p, q) ->
       flatten_star p @ flatten_star q
   | TyEmpty ->
       []
+  | TyPoint _
+  | TyVar _
   | TyAnchoredPermission _ as p ->
       [p]
   | _ ->
@@ -160,8 +163,24 @@ let fold_exists bindings t =
 ;;
 
 
+(* -------------------------------------------------------------------------- *)
 
-(* ---------------------------------------------------------------------------- *)
+(* Dealing with floating permissions. *)
+
+let sub_floating_permission env p =
+  match Hml_List.take_bool (same env p) env.floating_permissions with
+  | Some (perms, _) ->
+      Some { env with floating_permissions = perms }
+  | None ->
+      None
+;;
+
+let add_floating_permission env p =
+  { env with floating_permissions = p :: env.floating_permissions }
+;;
+
+
+(* -------------------------------------------------------------------------- *)
 
 (* Various functions related to binding and finding. *)
 
@@ -213,7 +232,8 @@ let bind_type
     (kind: kind): env * point
   =
   let return_kind, _args = flatten_kind kind in
-  Log.check (return_kind = KType) "[bind_type] is for variables with kind TYPE only";
+  Log.check (return_kind = KType || return_kind = KPerm)
+    "[bind_type] is for variables with kind TYPE or PERM only";
   let binding = head name location ?flexible kind, BType { fact; definition; } in
   let point, state = PersistentUnionFind.create binding env.state in
   { env with state }, point
@@ -230,7 +250,7 @@ let bind_var (env: env) ?flexible ?(fact=Affine) (name, kind, location: type_bin
            as type variables with kind TERM, so it's not a ghost variable... *)
         bind_term env name location ?flexible true
     | KPerm ->
-        Log.error "TODO"
+        bind_type env name location ?flexible fact kind
     | KArrow _ ->
         Log.error "No arrows expected here"
 ;;
