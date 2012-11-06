@@ -46,7 +46,7 @@ and raw_error =
   | ResourceAllocationConflict of point
   | UncertainMerge of point
   | ConflictingTypeAnnotations of typ * typ
-  | IllKindedTypeApplication of typ * kind * kind
+  | IllKindedTypeApplication of tapp * kind * kind
   | BadTypeApplication of point
   | PolymorphicFunctionCall
   | BadFactForAdoptedType of point * typ * fact
@@ -271,7 +271,7 @@ let print_error buf (env, raw_error) =
       Printf.bprintf buf "%a while applying type %a: this type has kind %a but \
           the sub-expression has a polymorphic type with kind %a"
         Lexer.p env.location
-        TypePrinter.ptype (env, t)
+        TypePrinter.pdoc ((fun t -> ExprPrinter.print_tapp env t), t)
         TypePrinter.pdoc (TypePrinter.print_kind, k) 
         TypePrinter.pdoc (TypePrinter.print_kind, k');
   | PolymorphicFunctionCall ->

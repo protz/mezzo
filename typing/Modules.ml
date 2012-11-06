@@ -135,7 +135,10 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | EAssert t ->
         collect_type t
     | ETApply (expr, ts) ->
-        collect_expr expr @ Hml_List.map_flatten collect_type ts
+        collect_expr expr @
+        Hml_List.map_flatten (fun x ->
+          collect_type (TransSurface.strip_tapp x)
+        ) ts
     | ETuple exprs ->
         Hml_List.map_flatten collect_expr exprs
     | EConstruct (_, nameexprs) ->

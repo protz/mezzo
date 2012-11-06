@@ -636,10 +636,16 @@ data_type_def:
   app_raw:
   | e1 = app e2 = atomic
       { EApply (e1, e2) }
-  | e1 = app LBRACKET ts = separated_nonempty_list(COMMA, normal_type) RBRACKET
+  | e1 = app LBRACKET ts = separated_nonempty_list(COMMA, app_component) RBRACKET
       { ETApply (e1, ts) }
   | e = atomic_raw
       { e }
+
+      app_component:
+      | t = normal_type
+          { Ordered t }
+      | v = variable EQUAL t = normal_type
+          { Named (v, t) }
 
   (* Tightly-knit productions *)
   %inline atomic:

@@ -579,6 +579,20 @@ let rec translate_pattern env = function
 
 (* Expressions *)
 
+let strip_tapp = function
+  | Ordered t ->
+      t
+  | Named (_, t) ->
+      t
+;;
+
+let map_tapp f = function
+  | Ordered t ->
+      E.Ordered (f t)
+  | Named (x, t) ->
+      E.Named (x, f t)
+;;
+
 let rec translate_expr (env: env) (expr: expression): E.expression =
   match expr with
   | EConstraint (e, t) ->
@@ -644,7 +658,9 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
 
   | ETApply (e1, ts) ->
       let e1 = translate_expr env e1 in
-      let ts = List.map (fun t -> translate_type env t, infer env t) ts in
+      let ts = List.map (fun t ->
+        map_tapp (translate_type env) t, infer env (strip_tapp t)
+      ) ts in
       List.fold_left (fun e (t, k) -> E.ETApply (e, t, k)) e1 ts
 
   | EMatch (b, e, patexprs) ->

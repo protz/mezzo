@@ -212,7 +212,7 @@ and expression =
   (* e₁ e₂ *)
   | EApply of expression * expression
   (* e [τ₁, …, τₙ] *)
-  | ETApply of expression * typ list
+  | ETApply of expression * tapp list
   (* match e with pᵢ -> eᵢ *)
   | EMatch of bool * expression * (pattern * expression) list
   (* (e₁, …, eₙ) *)
@@ -232,6 +232,11 @@ and expression =
   | ETake of expression * expression
   (* fail *)
   | EFail
+
+
+and tapp =
+  | Ordered of typ
+  | Named of Variable.name * typ
 
 
 (* ---------------------------------------------------------------------------- *)

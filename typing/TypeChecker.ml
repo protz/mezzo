@@ -567,17 +567,43 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
   | ETApply (e, t, k) ->
       let env, x = check_expression env e in
-      (* Find something that works. *)
-      let t = Hml_List.find_opt (function
-        | TyForall (((_, k', _), CanInstantiate), t') ->
-            if k <> k' then begin
-              raise_error env (IllKindedTypeApplication (t, k, k'))
-            end else begin
-              Some (tsubst t 0 t')
+      let rec find_and_instantiate = function
+        | TyForall (((name, k', loc), CanInstantiate), t') as t0 ->
+            Log.debug "%a" TypePrinter.ptype (env, t0);
+            let check_kind () =
+              if k <> k' then
+                raise_error env (IllKindedTypeApplication (t, k, k'))
+            in
+            begin match t with
+            | Ordered t ->
+                check_kind ();
+                Some (tsubst t 0 t')
+            | Named (x, t) ->
+                let short_name =
+                  match name with
+                  | Auto _ ->
+                      assert false
+                  | User (_, x) ->
+                      x
+                in
+                if Variable.equal x short_name then begin
+                  check_kind ();
+                  let t = tsubst t 0 t' in
+                  let t = lift (-1) t in
+                  Some t
+                end else begin
+                  match find_and_instantiate t' with
+                  | Some t' ->
+                      Some (TyForall (((name, k', loc), CanInstantiate), t'))
+                  | None ->
+                      None
+                end
             end
         | _ ->
             None
-      ) (get_permissions env x) in
+      in
+      (* Find something that works. *)
+      let t = Hml_List.find_opt find_and_instantiate (get_permissions env x) in
       let t = match t with
         | Some t ->
             t

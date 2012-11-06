@@ -66,7 +66,7 @@ type expression =
   (* e₁ e₂ *)
   | EApply of expression * expression
   (* e [τ₁, …, τₙ] *)
-  | ETApply of expression * typ * kind
+  | ETApply of expression * tapp * kind
   (* match e with pᵢ -> eᵢ *)
   | EMatch of bool * expression * patexpr list
   (* (e₁, …, eₙ) *)
@@ -84,6 +84,10 @@ type expression =
   | ETake of expression * expression
   (* fail *)
   | EFail
+
+and tapp =
+  | Ordered of typ
+  | Named of Variable.name * typ
 
 and patexpr =
   (* A binding is made up of a pattern, an optional type annotation for the
@@ -128,6 +132,13 @@ let p_unit =
 (* ---------------------------------------------------------------------------- *)
 
 (* Moar fun with De Bruijn. *)
+
+let map_tapp f = function
+  | Ordered t ->
+      Ordered (f t)
+  | Named (x, t) ->
+      Named (x, f t)
+;;
 
 (* [collect_pattern] returns the list of bindings present in the pattern. The
  * binding with index [i] in the returned list has De Bruijn index [i] in the
@@ -271,7 +282,7 @@ and tsubst_expr t2 i e =
 
   | ETApply (f, arg, k) ->
       let f = tsubst_expr t2 i f in
-      let arg = tsubst t2 i arg in
+      let arg = map_tapp (tsubst t2 i) arg in
       ETApply (f, arg, k)
 
   | EMatch (b, e, patexprs) ->
@@ -668,7 +679,7 @@ let elift (k: int) (e: expression) =
       EApply (elift i e1, elift i e2)
 
   | ETApply (e1, arg, k) ->
-      ETApply (elift i e1, lift i arg, k)
+      ETApply (elift i e1, map_tapp (lift i) arg, k)
 
   | EMatch (b, e, patexprs) ->
       let e = elift i e in
@@ -867,7 +878,7 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
         EApply (tepsubst t2 e1, tepsubst t2 e'1)
 
     | ETApply (e1, arg, k) ->
-        ETApply (tepsubst t2 e1, tpsubst env t2 p arg, k)
+        ETApply (tepsubst t2 e1, map_tapp (tpsubst env t2 p) arg, k)
 
     | EMatch (b, e1, patexprs) ->
         let e1 = tepsubst t2 e1 in
@@ -966,6 +977,13 @@ module ExprPrinter = struct
     | PAs (p1, p2) ->
         print_pat env p1 ^^ space ^^ string "as" ^^ space ^^ print_pat env p2
 
+  and print_tapp env = function
+    | Named (x, t) ->
+        let x = User (env.module_name, x) in
+        print_var env x ^^ space ^^ equals ^^ space ^^ print_type env t
+    | Ordered t ->
+        print_type env t
+
   and print_expr env = function
     | EConstraint (e, t) ->
         print_expr env e ^^ colon ^^ space ^^ print_type env t
@@ -1013,7 +1031,7 @@ module ExprPrinter = struct
         f ^^ space ^^ arg
 
     | ETApply (f, arg, k) ->
-        let arg = print_type env arg in
+        let arg = print_tapp env arg in
         let f = print_expr env f in
         f ^^ space ^^ lbracket ^^ arg ^^ space ^^ colon ^^ colon ^^ space ^^
         print_kind k ^^ rbracket

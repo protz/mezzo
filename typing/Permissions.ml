@@ -277,7 +277,7 @@ and add_perm (env: env) (t: typ): env =
       add_perm (add_perm env p) q
   | TyEmpty ->
       env
-  | TyPoint p->
+  | TyPoint p ->
       Log.check (get_kind env p = KPerm) "Only kind PERM";
       add_floating_permission env p
   | _ ->

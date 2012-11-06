@@ -1,6 +1,6 @@
-(* Section 4.1.4 of the tutorial, "List map" *)
+open Pervasives
 
-data list a = Cons { head: a; tail: list a } | Nil
+(* Section 4.1.4 of the tutorial, "List map" *)
 
 val rec map [a1, a2, b, p :: PERM] (
     f: (consumes x: a1 | p) -> (b | x @ a2),
@@ -10,5 +10,15 @@ val rec map [a1, a2, b, p :: PERM] (
       Nil
   | Cons { head; tail } ->
       let v = f head in
-      Cons { head = v; tail = map [a1, a2, b, p] (f, tail) }
+      Cons { head = v; tail = map [p=p] (f, tail) }
   end
+
+val usage_test =
+  let l = cons [int] (1, cons [int] (2, cons [int] (3, nil))) in
+  let x = newref 0 in
+  let f = fun (y: int | x @ ref int): int =
+    x := (!x) + 1;
+    y + y
+  in
+  let l = map [p = (x @ ref int)] (f, l) in
+  l
