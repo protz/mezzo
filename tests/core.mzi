@@ -18,3 +18,7 @@ data phys_equal (x :: TERM) (y :: TERM) =
   | NotEquals
 
 val ( == ) @ [a, b] (x: a, y: b) -> phys_equal x y
+
+data bool = True | False
+
+val ( = ) @ [a, b] (a, b) -> bool

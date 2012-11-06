@@ -62,11 +62,12 @@
 %nonassoc THEN
 %nonassoc ELSE
 
-%left     OPINFIX0 MINUS
+%left     OPINFIX0 MINUS (* MINUS is also an OPINFIX0 *)
+%left     EQUAL (* EQUAL is also a OPINFIX0 *)
 %right    OPINFIX1
 %left     OPINFIX2
 %left     OPINFIX3
-%left     STAR
+%left     STAR (* STAR is also an OPINFIX3 *)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -107,6 +108,8 @@ let mkinfix e1 o e2 = EApply (EVar (Variable.register o), ETuple [e1; e2]);;
     { "*" }
   | MINUS
     { "-" }
+  | EQUAL
+    { "=" }
 
 variable:
   | x = LIDENT
@@ -605,6 +608,8 @@ data_type_def:
   infix_op_raw:
   | e1 = infix_op o = OPINFIX0 e2 = infix_op
       { mkinfix e1 o e2 }
+  | e1 = infix_op EQUAL e2 = infix_op
+      { mkinfix e1 "=" e2 }
   | e1 = infix_op o = OPINFIX1 e2 = infix_op
       { mkinfix e1 o e2 }
   | e1 = infix_op o = OPINFIX2 e2 = infix_op

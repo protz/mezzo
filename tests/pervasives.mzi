@@ -1,7 +1,5 @@
 (* Booleans *)
 
-data bool = True | False
-
 val true @ bool
 val false @ bool
 

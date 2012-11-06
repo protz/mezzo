@@ -13,8 +13,8 @@ val rec map [a1, a2, b, p :: PERM] (
       Cons { head = v; tail = map [p=p] (f, tail) }
   end
 
-val usage_test =
-  let l = cons [int] (1, cons [int] (2, cons [int] (3, nil))) in
+val usage_test: list int =
+  let l = cons (1, cons (2, cons (3, nil))) in
   let x = newref 0 in
   let f = fun (y: int | x @ ref int): int =
     x := !x + 1;
@@ -22,3 +22,22 @@ val usage_test =
   in
   let l = map [p = (x @ ref int)] (f, l) in
   l
+
+val usage_test2 =
+  (* [make(i, f)] creates a list of [i] elements by calling [f] on [i] *)
+  let rec make [a] (i: int, f: int -> a): list a =
+    if i = 0 then
+      nil
+    else
+      cons (f i, make (i - 1, f))
+  in
+  let l = make (10, (fun (x: int): ref int = newref x)) in
+  let count = newref 0 in
+  (* [f] does something super fancy *)
+  let f = fun (consumes y: ref int | count @ ref int):
+    (int | y @ ref (int, int)) =
+      let v = !y in
+      y := (v, v);
+      v
+  in
+  map [ref int, ref (int, int), int, (count @ ref int)] (f, l)

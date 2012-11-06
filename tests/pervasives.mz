@@ -1,7 +1,5 @@
 (* Standard types *)
 
-data bool = True | False
-
 data option a = Some { contents: a } | None
 
 mutable data ref a = Ref {
