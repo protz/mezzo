@@ -579,6 +579,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test Pass
   );
 
+  ("list-map3.mz",
+    simple_test Pass
+  );
+
   ("list-map4.mz",
     simple_test Pass
   );
