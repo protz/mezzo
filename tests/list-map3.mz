@@ -18,7 +18,7 @@ val usage_test =
   let x = newref 0 in
   let f = fun (y: int | x @ ref int): int =
     x := (!x) + 1;
-    y + y
+    y * y
   in
   let l = map [p = (x @ ref int)] (f, l) in
   l

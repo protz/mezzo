@@ -66,6 +66,8 @@
 %right    OPINFIX1
 %left     OPINFIX2
 %left     OPINFIX3
+%left     STAR
+(*%nonassoc OPPREFIX*)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -603,9 +605,9 @@ data_type_def:
       { e }
 
   prefix_op_raw:
-  | MINUS e = prefix_op
+  | MINUS e = atomic
       { mkinfix (EInt 0) "-" e }
-  | o = OPPREFIX e = prefix_op
+  | o = OPPREFIX e = atomic
       { EApply (EVar (Variable.register o), e) }
   | e = infix_op_raw
       { e }
@@ -623,6 +625,8 @@ data_type_def:
       { mkinfix e1 o e2 }
   | e1 = infix_op o = OPINFIX3 e2 = infix_op
       { mkinfix e1 o e2 }
+  | e1 = infix_op STAR e2 = infix_op
+      { mkinfix e1 "*" e2 }
   | e1 = infix_op MINUS e2 = infix_op
       { mkinfix e1 "-" e2 }
   | e = app_raw
