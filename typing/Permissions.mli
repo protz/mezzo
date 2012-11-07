@@ -27,11 +27,6 @@ open Types
     PERM, which represents all the permissions that were just extracted. *)
 val collect: typ -> typ * typ list
 
-(** [unfold env t] returns [env, t] where [t] has been unfolded, which
-    potentially led us into adding new points to [env]. The [hint] serves when
-    making up names for intermediary variables. *)
-val unfold: env -> ?hint:name -> typ -> env * typ
-
 (** [unify env p1 p2] merges two points, and takes care of dealing with how the
     permissions should be merged. *)
 val unify: env -> point -> point -> env
