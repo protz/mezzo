@@ -213,6 +213,12 @@ and add (env: env) (point: point) (t: typ): env =
     pnames (env, get_names env point)
     ptype (env, t));
 
+  let hint = get_name env point in
+
+  (* We first perform unfolding, so that constructors with one branch are
+   * simplified. [unfold] calls [add] recursively whenever it adds new points. *)
+  let env, t = unfold env ~hint t in
+
   Log.debug ~level:4 "%s→ unfolded type is%s %a"
     Bash.colors.Bash.red Bash.colors.Bash.default
     TypePrinter.ptype (env, t);
@@ -603,30 +609,11 @@ and sub_type_real env linear t1 t2 =
       else
         List.fold_left2 (fun env c1 c2 ->
           env >>= fun env ->
-          match c1, c2 with
-          | TySingleton (TyPoint p1), TySingleton (TyPoint p2) ->
-              if same env p1 p2 then
-                Some env
-              else
-                None
-          | TySingleton (TyPoint p1), _ ->
-              sub env linear p1 c2
-          | _, TySingleton (TyPoint p2) ->
-              if linear then
-                let perms = get_permissions env p2 in
-                let works = fun t2 ->
-                  Log.debug "Trying %a" TypePrinter.ptype (env, t2);
-                  sub_type env true c1 t2
-                in
-                match Hml_List.take works perms with
-                | Some (_perms, (_perm, env)) ->
-                    Some env
-                | None ->
-                    None
-              else
-                None
+          match c1 with
+          | TySingleton (TyPoint p) ->
+              sub_clean env linear p c2
           | _ ->
-              sub_type env linear c1 c2
+              Log.error "All permissions should be in expanded form."
         ) (Some env) components1 components2
 
   | TyConcreteUnfolded (datacon1, fields1, clause1), TyConcreteUnfolded (datacon2, fields2, clause2) ->
