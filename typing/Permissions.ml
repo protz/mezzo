@@ -219,6 +219,10 @@ and add (env: env) (point: point) (t: typ): env =
    * simplified. [unfold] calls [add] recursively whenever it adds new points. *)
   let env, t = unfold env ~hint t in
 
+  Log.debug ~level:4 "%s→ unfolded type is%s %a"
+    Bash.colors.Bash.red Bash.colors.Bash.default
+    TypePrinter.ptype (env, t);
+
   (* Break up this into a type + permissions. *)
   let t, perms = collect t in
 
@@ -497,17 +501,20 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
     let open Bash in
     let f1 = FactInference.analyze_type env hd in
     let f2 = FactInference.analyze_type env t in
-    Log.check
-      (fact_leq f1 f2)
-      "Fact inconsistency %a <= %a"
-      pfact f1
-      pfact f2;
     Log.debug ~level:4 "%sTaking%s %a out of the permissions for %a \
       (really? %b)"
       colors.yellow colors.default
       ptype (env, t)
       pvar (env, get_name env point)
       (not duplicable);
+    (* This check is too restrictive, if a type variable marked as affine is
+     * instanciated with something exclusive... *)
+    Log.check
+      (true || fact_leq f1 f2)
+      "Fact inconsistency %a <= %a"
+      pfact f1
+      pfact f2;
+ 
   in
 
   (* [take] proceeds left-to-right *)

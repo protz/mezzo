@@ -40,4 +40,4 @@ val usage_test2 =
       y := (v, v);
       v
   in
-  map [ref int, ref (int, int), int, (count @ ref int)] (f, l)
+  map [p = (count @ ref int)] (f, l)
