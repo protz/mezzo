@@ -144,7 +144,7 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
   Log.debug ~level:5 "[check_function_call] %a - %a"
     TypePrinter.pnames (env, get_names env x)
     TypePrinter.ptype (env, t1);
-  match Permissions.sub env x t1 with
+  match Permissions.sub env true x t1 with
   | Some env ->
       (* Return the "good" type. *)
       let t2, perms = Permissions.collect t2 in
@@ -166,7 +166,7 @@ let check_return_type (env: env) (point: point) (t: typ): unit =
     (* TestUtils.print_env env ;*)
   );
     
-  match Permissions.sub env point t with
+  match Permissions.sub env true point t with
   | Some _ ->
       ()
   | None ->
@@ -395,7 +395,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* Type-check the function body. *)
       let sub_env, p = check_expression sub_env ~annot:return_type body in
 
-      begin match Permissions.sub sub_env p return_type with
+      begin match Permissions.sub sub_env true p return_type with
       | Some _ ->
           (* Return the entire arrow type. *)
           let expected_type = type_for_function_def expr in
@@ -903,7 +903,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 (* The clause is now [t]. Extract it from the list of available
                  * permissions for [x]. We know it works because we type-checked
                  * the whole [EConstraint] already. *)
-                let env = Option.extract (Permissions.sub env x t) in
+                let env = Option.extract (Permissions.sub env true x t) in
                 (* Refresh the structural permission for [e], using the new
                  * clause. *)
                 let perm = replace_clause perm t in
@@ -915,7 +915,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
               "We erroneously allowed a non-exclusive adopts clause";
             (* The clause is known. Just take the required permission out of the
              * permissions for x. *)
-            match Permissions.sub env x clause with
+            match Permissions.sub env true x clause with
             | Some env ->
                 return env ty_unit
             | None ->

@@ -50,7 +50,7 @@ let build_flexible_type_application (left_env, left_perm) (dest_env, t_dest) =
   let t_app_left = ty_app (TyPoint t_dest) (List.map (fun x -> TyPoint x) arg_points_l) in
   (* Chances are this will perform a merge in [left_env]: this is why
    * we're returning [left_env]. *)
-  let left_env = Permissions.sub_type left_env left_perm t_app_left in
+  let left_env = Permissions.sub_type left_env true left_perm t_app_left in
   left_env, t_app_left
 ;;
 
@@ -294,7 +294,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
           Log.debug ~level:4 "[make_base] annot: %a" TypePrinter.ptype (top, annot);
 
           let sub_annot env root =
-            match Permissions.sub env root annot with
+            match Permissions.sub env false root annot with
             | None ->
                 let open TypeErrors in
                 raise_error env (ExpectedType (annot, root))

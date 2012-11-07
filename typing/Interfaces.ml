@@ -90,7 +90,7 @@ let check (env: T.env) (mname: Module.name) (signature: S.toplevel_item list): T
          * has the same type as the one in the interface. *)
         let point = point_by_name x in
         let env =
-          match Permissions.sub env point t with
+          match Permissions.sub env true point t with
           | Some env ->
               env
           | None ->

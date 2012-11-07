@@ -1,0 +1,3 @@
+val test (fst: ((int, int) -> int) -> int,
+          gfst: [a] a -> int): int =
+  fst (gfst [(int, int)])

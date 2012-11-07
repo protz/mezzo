@@ -291,7 +291,7 @@ and add_perm (env: env) (t: typ): env =
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
  * to the list of available permissions for [p] *)
 and add_type (env: env) (p: point) (t: typ): env =
-  match sub env p t with
+  match sub env true p t with
   | Some _ ->
       (* We're not re-binding env because this has bad consequences: in
        * particular, when adding a flexible type variable to a point, it
@@ -333,99 +333,95 @@ and add_type (env: env) (p: point) (t: typ): env =
         env
 
 
+(* This auxiliary function takes care of inserting an indirection if needed,
+ * that is, a [=foo] type with [foo] being a newly-allocated [point]. *)
+and insert_point (env: env) ?(hint: name option) (t: typ): env * typ =
+  let hint = Option.map_none (Auto (Variable.register (fresh_name "t_"))) hint in
+  match t with
+  | TySingleton _ ->
+      env, t
+  | _ ->
+      (* The [expr_binder] also serves as the binder for the corresponding
+       * TERM type variable. *)
+      let env, p = bind_term env hint env.location false in
+      (* This will take care of unfolding where necessary. *)
+      let env = add env p t in
+      env, ty_equals p
+
+
 (** [unfold env t] returns [env, t] where [t] has been unfolded, which
     potentially led us into adding new points to [env]. The [hint] serves when
     making up names for intermediary variables. *)
 and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
-  (* This auxiliary function takes care of inserting an indirection if needed,
-   * that is, a [=foo] type with [foo] being a newly-allocated [point]. *)
-  let insert_point (env: env) ?(hint: name option) (t: typ): env * typ =
-    let hint = Option.map_none (Auto (Variable.register (fresh_name "t_"))) hint in
-    match t with
-    | TySingleton _ ->
-        env, t
-    | _ ->
-        (* The [expr_binder] also serves as the binder for the corresponding
-         * TERM type variable. *)
-        let env, p = bind_term env hint env.location false in
-        (* This will take care of unfolding where necessary. *)
-        let env = add env p t in
-        env, ty_equals p
-  in
+  match t with
+  | TyUnknown
+  | TyDynamic
+  | TySingleton _
+  | TyArrow _
+  | TyEmpty ->
+      env, t
 
-  let rec unfold (env: env) ?(hint: name option) (t: typ): env * typ =
-    match t with
-    | TyUnknown
-    | TyDynamic
-    | TySingleton _
-    | TyArrow _
-    | TyEmpty ->
-        env, t
+  | TyPoint _
+  | TyApp _ ->
+      begin match expand_if_one_branch env t with
+      | TyConcreteUnfolded _ as t->
+          unfold env t
+      | _ ->
+          env, t
+      end
 
-    | TyPoint _
-    | TyApp _ ->
-        begin match expand_if_one_branch env t with
-        | TyConcreteUnfolded _ as t->
-            unfold env t
-        | _ ->
-            env, t
-        end
+  | TyVar _ ->
+      Log.error "No unbound variables allowed here"
 
-    | TyVar _ ->
-        Log.error "No unbound variables allowed here"
+  | TyForall _
+  | TyExists _ ->
+      env, t
 
-    | TyForall _
-    | TyExists _ ->
-        env, t
+  | TyStar (p, q) ->
+      let env, p = unfold env ?hint p in
+      let env, q = unfold env ?hint q in
+      env, TyStar (p, q)
 
-    | TyStar (p, q) ->
-        let env, p = unfold env ?hint p in
-        let env, q = unfold env ?hint q in
-        env, TyStar (p, q)
+  | TyBar (t, p) ->
+      let env, t = unfold env ?hint t in
+      let env, p = unfold env ?hint p in
+      env, TyBar (t, p)
 
-    | TyBar (t, p) ->
-        let env, t = unfold env ?hint t in
-        let env, p = unfold env ?hint p in
-        env, TyBar (t, p)
+  | TyAnchoredPermission (x, t) ->
+      let env, t = unfold env ?hint t in
+      env, TyAnchoredPermission (x, t)
 
-    | TyAnchoredPermission (x, t) ->
-        let env, t = unfold env ?hint t in
-        env, TyAnchoredPermission (x, t)
+  (* We're only interested in unfolding structural types. *)
+  | TyTuple components ->
+      let env, components = Hml_List.fold_lefti (fun i (env, components) component ->
+        let hint = add_hint hint (string_of_int i) in
+        let env, component = insert_point env ?hint component in
+        env, component :: components
+      ) (env, []) components in
+      env, TyTuple (List.rev components)
 
-    (* We're only interested in unfolding structural types. *)
-    | TyTuple components ->
-        let env, components = Hml_List.fold_lefti (fun i (env, components) component ->
-          let hint = add_hint hint (string_of_int i) in
-          let env, component = insert_point env ?hint component in
-          env, component :: components
-        ) (env, []) components in
-        env, TyTuple (List.rev components)
+  | TyConcreteUnfolded (datacon, fields, clause) ->
+      let env, fields = List.fold_left (fun (env, fields) -> function
+        | FieldPermission _ as field ->
+            env, field :: fields
+        | FieldValue (name, field) ->
+            let hint =
+              add_hint hint (Hml_String.bsprintf "%a_%a" Datacon.p datacon Field.p name)
+            in
+            let env, field = insert_point env ?hint field in
+            env, FieldValue (name, field) :: fields
+      ) (env, []) fields
+      in
+      env, TyConcreteUnfolded (datacon, List.rev fields, clause)
 
-    | TyConcreteUnfolded (datacon, fields, clause) ->
-        let env, fields = List.fold_left (fun (env, fields) -> function
-          | FieldPermission _ as field ->
-              env, field :: fields
-          | FieldValue (name, field) ->
-              let hint =
-                add_hint hint (Hml_String.bsprintf "%a_%a" Datacon.p datacon Field.p name)
-              in
-              let env, field = insert_point env ?hint field in
-              env, FieldValue (name, field) :: fields
-        ) (env, []) fields
-        in
-        env, TyConcreteUnfolded (datacon, List.rev fields, clause)
-
-    | TyConstraints (constraints, t) ->
-        let env, t = unfold env ?hint t in
-        env, TyConstraints (constraints, t)
-
-  in
-  unfold env ?hint t
+  | TyConstraints (constraints, t) ->
+      let env, t = unfold env ?hint t in
+      env, TyConstraints (constraints, t)
 
 
 (** [sub env point t] tries to extract [t] from the available permissions for
     [point] and returns, if successful, the resulting environment. *)
-and sub (env: env) (point: point) (t: typ): env option =
+and sub (env: env) linear (point: point) (t: typ): env option =
   Log.check (is_term env point) "You can only subtract permissions from a point \
     that represents a program identifier.";
 
@@ -440,7 +436,7 @@ and sub (env: env) (point: point) (t: typ): env option =
     let perms = List.flatten (List.map flatten_star perms) in
 
     (* Start off by subtracting the type without associated permissions. *)
-    let env = sub_clean env point t in
+    let env = sub_clean env linear point t in
 
     env >>= fun env ->
     (* We use a worklist-based approch, where we try to find a permission that
@@ -456,7 +452,7 @@ and sub (env: env) (point: point) (t: typ): env option =
           false
 
       | Some (worklist, perm) ->
-          match sub_perm env perm with
+          match sub_perm env linear perm with
           | Some env ->
               state := (env, worklist);
               true
@@ -475,7 +471,7 @@ and sub (env: env) (point: point) (t: typ): env option =
 (** [sub_clean env point t] takes a "clean" type [t] (without nested permissions)
     and performs the actual work of extracting [t] from the list of permissions
     for [point]. *)
-and sub_clean (env: env) (point: point) (t: typ): env option =
+and sub_clean (env: env) linear (point: point) (t: typ): env option =
   if (not (is_term env point)) then
     Log.error "[KindCheck] should've checked that for us";
   Log.check (not (has_structure env point)) "Strange";
@@ -518,7 +514,7 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
   in
 
   (* [take] proceeds left-to-right *)
-  match Hml_List.take (fun x -> sub_type env x t) permissions with
+  match Hml_List.take (fun x -> sub_type env linear x t) permissions with
   | Some (remaining, (x, env)) ->
       let duplicable = FactInference.is_duplicable env x in
       debug env x t duplicable;
@@ -534,10 +530,11 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
 (** [sub_type env t1 t2] examines [t1] and, if [t1] "provides" [t2], returns
     [Some env] where [env] has been modified accordingly (for instance, by
     unifying some flexible variables); it returns [None] otherwise. *)
-and sub_type (env: env) (t1: typ) (t2: typ): env option =
-  step_through_flex env sub_type_real t1 t2 ||| sub_type_real env t1 t2
+and sub_type (env: env) (linear: bool) (t1: typ) (t2: typ): env option =
+  step_through_flex env (fun env -> sub_type_real env linear) t1 t2 |||
+  sub_type_real env linear t1 t2
 
-and sub_type_real env t1 t2 =
+and sub_type_real env linear t1 t2 =
   TypePrinter.(
     Log.debug ~level:4 "[sub_type] %a %s→%s %a"
       ptype (env, t1)
@@ -567,7 +564,7 @@ and sub_type_real env t1 t2 =
             Log.error "The parser shouldn't allow this"
       ) (Some env) constraints in
       env >>= fun env ->
-      sub_type env t1 t2
+      sub_type env linear t1 t2
 
 
   | TyForall ((binding, _), t1), _ ->
@@ -579,27 +576,27 @@ and sub_type_real env t1 t2 =
       let env, t1 = bind_var_in_type ~flexible:true env binding t1 in
       let t1, perms = collect t1 in
       let env = add_perm env (fold_star perms) in
-      sub_type env t1 t2
+      sub_type env linear t1 t2
 
   | _, TyForall ((binding, _), t2) ->
       (* Typical use-case: Nil vs [a] list a. We're binding this as a *rigid*
        * type variable. *)
       let env, t2 = bind_var_in_type env binding t2 in
       let t2, perms = collect t2 in
-      sub_perm env (fold_star perms) >>= fun env ->
-      sub_type env t1 t2
+      sub_perm env linear (fold_star perms) >>= fun env ->
+      sub_type env linear t1 t2
 
   | TyExists (binding, t1), _ ->
       let env, t1 = bind_var_in_type env binding t1 in
       let t1, perms = collect t1 in
       let env = add_perm env (fold_star perms) in
-      sub_type env t1 t2
+      sub_type env linear t1 t2
 
   | _, TyExists (binding, t2) ->
       let env, t2 = bind_var_in_type ~flexible:true env binding t2 in
       let t2, perms = collect t2 in
-      sub_type env t1 t2 >>= fun env ->
-      sub_perm env (fold_star perms)
+      sub_type env linear t1 t2 >>= fun env ->
+      sub_perm env linear (fold_star perms)
 
   | TyTuple components1, TyTuple components2 ->
       (* We can only subtract a tuple from another one if they have the same
@@ -614,14 +611,14 @@ and sub_type_real env t1 t2 =
           env >>= fun env ->
           match c1 with
           | TySingleton (TyPoint p) ->
-              sub_clean env p c2
+              sub_clean env linear p c2
           | _ ->
               Log.error "All permissions should be in expanded form."
         ) (Some env) components1 components2
 
   | TyConcreteUnfolded (datacon1, fields1, clause1), TyConcreteUnfolded (datacon2, fields2, clause2) ->
       if Datacon.equal datacon1 datacon2 then
-        sub_type env clause1 clause2 >>=
+        sub_type env linear clause1 clause2 >>=
         fun env ->
         List.fold_left2 (fun env f1 f2 ->
           env >>= fun env ->
@@ -630,7 +627,7 @@ and sub_type_real env t1 t2 =
               begin match f2 with
               | FieldValue (name2, t) ->
                   Log.check (Field.equal name1 name2) "Not in order?";
-                  sub_clean env p t
+                  sub_clean env linear p t
               | _ ->
                   Log.error "The type we're trying to extract should've been \
                     cleaned first."
@@ -648,7 +645,7 @@ and sub_type_real env t1 t2 =
 
       if same env point1 cons2 then begin
         let datacon2, fields2, clause2 = find_and_instantiate_branch env cons2 datacon1 args2 in
-        sub_type env t1 (TyConcreteUnfolded (datacon2, fields2, clause2))
+        sub_type env linear t1 (TyConcreteUnfolded (datacon2, fields2, clause2))
       end else begin
         None
       end
@@ -660,7 +657,7 @@ and sub_type_real env t1 t2 =
 
       if same env point1 point2 then begin
         let datacon2, fields2, clause2 = find_and_instantiate_branch env point2 datacon1 [] in
-        sub_type env t1 (TyConcreteUnfolded (datacon2, fields2, clause2))
+        sub_type env linear t1 (TyConcreteUnfolded (datacon2, fields2, clause2))
       end else begin
         None
       end
@@ -676,9 +673,9 @@ and sub_type_real env t1 t2 =
            * intuitive. *)
           match variance env cons1 i with
           | Covariant ->
-              sub_type env arg1 arg2
+              sub_type env false arg1 arg2
           | Contravariant ->
-              sub_type env arg2 arg1
+              sub_type env false arg2 arg1
           | Bivariant ->
               Some env
           | Invariant ->
@@ -688,17 +685,17 @@ and sub_type_real env t1 t2 =
         None
 
   | TySingleton t1, TySingleton t2 ->
-      sub_type env t1 t2
+      sub_type env linear t1 t2
 
   | TyArrow (t1, t2), TyArrow (t'1, t'2) ->
       Log.debug "%sArrow / Arrow, left%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
-      sub_type env t1 t'1 >>= fun env ->
+      sub_type env linear t1 t'1 >>= fun env ->
       Log.debug "%sArrow / Arrow, right%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
-      sub_type env t'2 t2
+      sub_type env linear t'2 t2
 
   (* "(t1 | p1)" - "(t2 | p2)" means doing [t1 - t2], adding all of [p1],
    * removing all of [p2]. But the order in which we perform these operations
@@ -711,7 +708,7 @@ and sub_type_real env t1 t2 =
        * instantiate these. Because of our desugaring, a bar type always looks
        * like "(=root | root @ ...)". So let's start by subtracting [t2] from
        * [t1]. *)
-      sub_type env t1 t2 >>= fun env ->
+      sub_type env linear t1 t2 >>= fun env ->
       let ps1 = flatten_star p1 in
       let ps2 = flatten_star p2 in
       (*   [add_perm] will fail if we add "x @ t" when "x" is flexible. So we
@@ -722,7 +719,7 @@ and sub_type_real env t1 t2 =
        * subtracted, "unlocks" the situation by instantiating the lhs of one
        * permission in [ps1]. *)
       let good_for_sub env ps1 p2 =
-        sub_perm env p2 >>= fun env ->
+        sub_perm env linear p2 >>= fun env ->
         if List.exists (perm_not_flex env) ps1 then
           Some env
         else
@@ -732,7 +729,7 @@ and sub_type_real env t1 t2 =
       let rec add_sub env ps1 ps2 =
         if ps1 = [] then
           (* If we've solved all our problems in [ps1], that's really cool! *)
-          sub_perm env (fold_star ps2)
+          sub_perm env linear (fold_star ps2)
         else
           (* Otherwise, is there a permission that we can safely add in [ps1]? *)
           match Hml_List.take_bool (perm_not_flex env) ps1 with
@@ -811,17 +808,17 @@ and equal_modulo_flex env t1 t2 =
 
 (** [sub_perm env t] takes a type [t] with kind PERM, and tries to return the
     environment without the corresponding permission. *)
-and sub_perm (env: env) (t: typ): env option =
+and sub_perm (env: env) (linear: bool) (t: typ): env option =
   TypePrinter.(
     Log.debug ~level:4 "[sub_perm] %a"
       ptype (env, t));
 
   match t with
   | TyAnchoredPermission (TyPoint p, t) ->
-      sub env p t
+      sub env linear p t
   | TyStar (p, q) ->
-      sub_perm env p >>= fun env ->
-      sub_perm env q
+      sub_perm env linear p >>= fun env ->
+      sub_perm env linear q
   | TyEmpty ->
       Some env
   | TyPoint p->
