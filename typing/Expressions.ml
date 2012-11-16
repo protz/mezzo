@@ -58,11 +58,11 @@ type expression =
   (* fun [a] (x: τ): τ -> e *)
   | EFun of (type_binding * flavor) list * typ * typ * expression
   (* v.f <- e *)
-  | EAssign of expression * Field.name * expression
+  | EAssign of expression * field * expression
   (* tag of v <- Foo *)
-  | EAssignTag of expression * Datacon.name
+  | EAssignTag of expression * datacon
   (* v.f *)
-  | EAccess of expression * Field.name
+  | EAccess of expression * field
   (* e₁ e₂ *)
   | EApply of expression * expression
   (* e [τ₁, …, τₙ] *)
@@ -93,6 +93,16 @@ and patexpr =
   (* A binding is made up of a pattern, an optional type annotation for the
    * entire pattern (desugared), and an expression. *)
   pattern * expression
+
+and field = {
+  field_name: Field.name;
+  mutable field_datacon: Datacon.name;
+}
+
+and datacon = {
+  datacon_name: Datacon.name;
+  mutable datacon_previous_name: Datacon.name;
+}
 
 
 (* The grammar below doesn't enforce the “only variables are allowed on the
@@ -1016,14 +1026,14 @@ module ExprPrinter = struct
         jump (print_expr env body)
 
     | EAssign (e1, f, e2) ->
-        print_expr env e1 ^^ dot ^^ print_field f ^^ space ^^ larrow ^^ jump (print_expr env e2)
+        print_expr env e1 ^^ dot ^^ print_field f.field_name ^^ space ^^ larrow ^^ jump (print_expr env e2)
 
     | EAssignTag (e1, d) ->
-        print_expr env e1 ^^ dot ^^ print_datacon d ^^ space ^^ langle ^^ equals ^^
-        print_datacon d
+        print_expr env e1 ^^ dot ^^ print_datacon d.datacon_name ^^ space ^^ langle ^^ equals ^^
+        print_datacon d.datacon_name
 
     | EAccess (e, f) ->
-        print_expr env e ^^ dot ^^ print_field f
+        print_expr env e ^^ dot ^^ print_field f.field_name
 
     | EApply (f, arg) ->
         let arg = print_expr env arg in

@@ -202,11 +202,11 @@ and expression =
   (* fun [a] (x: τ): τ -> e *)
   | EFun of type_binding list * typ * typ * expression
   (* v.f <- e *)
-  | EAssign of expression * Variable.name * expression
+  | EAssign of expression * field * expression
   (* tag of v <- Datacon *)
-  | EAssignTag of expression * Datacon.name
+  | EAssignTag of expression * datacon
   (* v.f *)
-  | EAccess of expression * Variable.name
+  | EAccess of expression * field
   (* assert τ *)
   | EAssert of typ
   (* e₁ e₂ *)
@@ -233,10 +233,20 @@ and expression =
   (* fail *)
   | EFail
 
+and field = {
+  field_name: Variable.name;
+  mutable field_datacon: Datacon.name;
+}
+
+and datacon = {
+  datacon_name: Datacon.name;
+  mutable datacon_previous_name: Datacon.name;
+}
 
 and tapp =
   | Ordered of typ
   | Named of Variable.name * typ
+
 
 
 (* ---------------------------------------------------------------------------- *)

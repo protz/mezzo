@@ -593,6 +593,16 @@ let map_tapp f = function
       E.Named (x, f t)
 ;;
 
+let translate_field { field_name; field_datacon } =
+  let open Expressions in
+  { field_name; field_datacon }
+;;
+
+let translate_datacon { datacon_name; datacon_previous_name } =
+  let open Expressions in
+  { datacon_name; datacon_previous_name }
+;;
+
 let rec translate_expr (env: env) (expr: expression): E.expression =
   match expr with
   | EConstraint (e, t) ->
@@ -637,15 +647,15 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   | EAssign (e1, x, e2) ->
       let e1 = translate_expr env e1 in
       let e2 = translate_expr env e2 in
-      E.EAssign (e1, x, e2)
+      E.EAssign (e1, translate_field x, e2)
 
   | EAssignTag (e1, x) ->
       let e1 = translate_expr env e1 in
-      E.EAssignTag (e1, x)
+      E.EAssignTag (e1, translate_datacon x)
 
   | EAccess (e, x) ->
       let e = translate_expr env e in
-      E.EAccess (e, x)
+      E.EAccess (e, translate_field x)
 
   | EAssert t ->
       let t = translate_type env t in

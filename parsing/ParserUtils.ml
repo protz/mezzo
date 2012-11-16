@@ -44,3 +44,16 @@ let group (declarations: toplevel_item list): toplevel_item list =
   in
   group [List.hd declarations] (List.tl declarations)
 ;;
+
+let mkfield f = {
+  field_name = f;
+  field_datacon = Datacon.register "<invalid>"
+};;
+
+let mkinfix e1 o e2 =
+  EApply (EVar (Variable.register o), ETuple [e1; e2])
+;;
+
+let mkdatacon d = {
+  datacon_name = d; datacon_previous_name = Datacon.register "<invalid"
+};;

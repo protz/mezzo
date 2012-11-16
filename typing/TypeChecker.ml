@@ -405,7 +405,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       end
 
   | EAssign (e1, fname, e2) ->
-      let hint = add_hint hint (Field.print fname) in
+      let hint = add_hint hint (Field.print fname.field_name) in
       let env, p1 = check_expression env ?hint e1 in
       let env, p2 = check_expression env e2 in
       let env = replace_term env p1 (fun binder ->
@@ -424,12 +424,13 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 let fieldexprs = List.map (function
                   | FieldValue (field, expr) ->
                       let expr = 
-                        if Field.equal field fname then
+                        if Field.equal field fname.field_name then
                           begin match expr with
                           | TySingleton (TyPoint _) ->
                               if !found then
                                 Log.error "Two matching permissions? That's strange...";
                               found := true;
+                              fname.field_datacon <- datacon;
                               TySingleton (TyPoint p2)
                           | t ->
                               let open TypePrinter in
@@ -448,7 +449,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           ) permissions
         in
         if not !found then
-          raise_error env (NoSuchField (p1, fname));
+          raise_error env (NoSuchField (p1, fname.field_name));
         { binder with permissions })
       in
       return env ty_unit
@@ -458,9 +459,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let env, p1 = check_expression env e1 in
 
       (* Find the type [datacon] corresponds to. *)
-      let _, branches, _ = def_for_datacon env datacon in
+      let _, branches, _ = def_for_datacon env datacon.datacon_name in
       let _, fields =
-        List.find (fun (datacon', _) -> Datacon.equal datacon datacon') branches
+        List.find (fun (datacon', _) -> Datacon.equal datacon.datacon_name datacon') branches
       in
       let field_names = List.map (function
         | FieldValue (name, _) ->
@@ -482,7 +483,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
             (* Also, the number of fields should be the same. *)
             if List.length fieldexprs <> List.length field_names then
-              raise_error env (FieldCountMismatch (t, datacon));
+              raise_error env (FieldCountMismatch (t, datacon.datacon_name));
 
             (* Change the field names. *)
             let fieldexprs = List.map2 (fun field -> function
@@ -495,9 +496,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             if !found then
               Log.error "Two suitable permissions, strange...";
             found := true;
+            datacon.datacon_previous_name <- datacon';
 
             (* And don't forget to change the datacon as well. *)
-            TyConcreteUnfolded (datacon, fieldexprs, clause)
+            TyConcreteUnfolded (datacon.datacon_name, fieldexprs, clause)
 
         | _ as t ->
             t
@@ -519,18 +521,19 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
        * allow us to reuse the code. Of course, this raises the question of
        * “what do we do in case there's an ambiguity”, that is, multiple
        * datacons that feature this field name... We'll leave that for later. *)
-      let hint = add_hint hint (Field.print fname) in
+      let hint = add_hint hint (Field.print fname.field_name) in
       let env, p = check_expression env ?hint e in
       let module M = struct exception Found of point end in
       begin try
         List.iter (fun t ->
           match t with
-          | TyConcreteUnfolded (_, fieldexprs, _) ->
+          | TyConcreteUnfolded (datacon, fieldexprs, _) ->
               List.iter (function
                 | FieldValue (field, expr) ->
-                    if Field.equal field fname then
+                    if Field.equal field fname.field_name then
                       begin match expr with
                       | TySingleton (TyPoint p) ->
+                          fname.field_datacon <- datacon;
                           raise (M.Found p)
                       | t ->
                           let open TypePrinter in
@@ -542,7 +545,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           | _ ->
               ()
         ) (get_permissions env p);
-        raise_error env (NoSuchField (p, fname))
+        raise_error env (NoSuchField (p, fname.field_name))
       with M.Found p' ->
         env, p'
       end

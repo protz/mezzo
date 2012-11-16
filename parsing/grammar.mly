@@ -81,8 +81,7 @@
 %{
 
 open SurfaceSyntax
-
-let mkinfix e1 o e2 = EApply (EVar (Variable.register o), ETuple [e1; e2]);;
+open ParserUtils
 
 %}
 
@@ -583,9 +582,9 @@ data_type_def:
       { EIfThenElse (b, e1, e2, e3) }
   (* cannot allow let because right-hand side of let can contain a semi-colon *)
   | e1 = atomic DOT f = variable LARROW e2 = everything_except_let_and_semi
-      { EAssign (e1, f, e2) }
+      { EAssign (e1, mkfield f, e2) }
   | TAGOF e1 = atomic LARROW d = datacon
-      { EAssignTag (e1, d) }
+      { EAssignTag (e1, mkdatacon d) }
   | TAKE e1 = expression FROM e2 = everything_except_let_and_semi
       { ETake (e1, e2) }
   | GIVE e1 = expression TO e2 = everything_except_let_and_semi
@@ -646,7 +645,7 @@ data_type_def:
   | MINUS e = atomic
       { mkinfix (EInt 0) "-" e }
   | e = atomic DOT f = variable
-      { EAccess (e, f) }
+      { EAccess (e, mkfield f) }
   | a = atomic_raw
       { a }
 
