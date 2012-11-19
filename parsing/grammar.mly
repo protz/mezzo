@@ -521,6 +521,7 @@ data_type_def:
       { PAs (p, PVar v) }
   | a = atomic_pattern_raw
       { a }
+  (* TEMPORARY or-patterns are missing *)
 
     data_field_pat:
     | f = variable EQUAL p = pattern
@@ -581,9 +582,9 @@ data_type_def:
   | IF b = explain e1 = expression THEN e2 = everything_except_let_and_semi ELSE e3 = everything_except_let_and_semi
       { EIfThenElse (b, e1, e2, e3) }
   (* cannot allow let because right-hand side of let can contain a semi-colon *)
-  | e1 = atomic DOT f = variable LARROW e2 = everything_except_let_and_semi
+  | e1 = preatomic DOT f = variable LARROW e2 = everything_except_let_and_semi
       { EAssign (e1, mkfield f, e2) }
-  | TAGOF e1 = atomic LARROW d = datacon
+  | TAGOF e1 = preatomic LARROW d = datacon
       { EAssignTag (e1, mkdatacon d) }
   | TAKE e1 = expression FROM e2 = everything_except_let_and_semi
       { ETake (e1, e2) }
@@ -619,6 +620,12 @@ data_type_def:
       { mkinfix e1 "*" e2 }
   | e1 = infix_op MINUS e2 = infix_op
       { mkinfix e1 "-" e2 }
+  (* Whereas the regular prefix operators, represented by the token [OPPREFIX],
+     bind very tightly, the unary [MINUS] operator binds more loosely. Here, we
+     follow OCaml. The goal is to interpret [f !x] as [f (!x)] and [f -1] as
+     [f - 1]. Like OCaml, we allow [-f x], which is interpreted as [-(f x)]. *)
+  | MINUS e = app
+      { mkinfix (EInt 0) "-" e }
   | e = app_raw
       { e }
 
@@ -628,7 +635,7 @@ data_type_def:
       { e }
 
   app_raw:
-  | e1 = app e2 = atomic
+  | e1 = app e2 = preatomic
       { EApply (e1, e2) }
   | e1 = app LBRACKET ts = separated_nonempty_list(COMMA, app_component) RBRACKET
       { ETApply (e1, ts) }
@@ -641,10 +648,12 @@ data_type_def:
       | v = variable EQUAL t = normal_type
           { Named (v, t) }
 
+  %inline preatomic:
+    e = elocated(preatomic_raw)
+      { e }
+
   preatomic_raw:
-  | MINUS e = atomic
-      { mkinfix (EInt 0) "-" e }
-  | e = atomic DOT f = variable
+  | e = preatomic DOT f = variable
       { EAccess (e, mkfield f) }
   | a = atomic_raw
       { a }
@@ -660,6 +669,9 @@ data_type_def:
       { e }
 
   atomic_raw:
+  (* The regular prefix operators, represented by the token [OPPREFIX], bind
+     very tightly. Here, we follow OCaml. For instance, [!x.foo] is interpreted
+     as [(!x).foo]. Thus, the prefix operators bind more tightly than the dot. *)
   | o = OPPREFIX e = atomic
       { EApply (EVar (Variable.register o), e) }
   | v = variable
@@ -694,6 +706,8 @@ data_type_def:
         { f, EVar f }
 
     %inline match_branch:
+    (* TEMPORARY I would like to allow more than atomic_pattern here *)
+    (* but there is a conflict due to PConstraint *)
     | p = atomic_pattern ARROW e = expression
         { p, e }
 

@@ -22,3 +22,4 @@ val ( == ) @ [a, b] (x: a, y: b) -> phys_equal x y
 data bool = True | False
 
 val ( = ) @ [a, b] (a, b) -> bool
+val ( < ) @ (int, int) -> bool
