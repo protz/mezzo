@@ -1,0 +1,339 @@
+(* -------------------------------------------------------------------------- *)
+
+(* The standard definition of immutable lists. *)
+
+data list a =
+  | Cons { head: a; tail: list a }
+  | Nil
+
+(* -------------------------------------------------------------------------- *)
+
+(* A short-hand for constructing lists. *)
+
+val cons [a] (consumes x: a, consumes xs: list a) : list a =
+  Cons { head = x; tail = xs }
+
+(* -------------------------------------------------------------------------- *)
+
+(* List length. *)
+
+(* I am sure that not everybody will like this use of [if xs then ...]. I find
+   it cute. Note that the access to [xs.tail] is safe! *)
+
+val rec length_aux [a] (accu: int, xs: list a) : int =
+  if xs then length_aux (accu + 1, xs.tail) else accu
+
+val rec length [a] (xs: list a) : int =
+  length_aux (0, xs)
+
+(* -------------------------------------------------------------------------- *)
+
+(* List head and tail. *)
+
+(* These functions are likely to be of little use, but at least they are safe,
+   unlike their ocaml counterparts. *)
+
+val hd [a] (consumes xs: Cons { head: a; tail: list a }) : a =
+  xs.head
+
+val tl [a] (consumes xs: Cons { head: a; tail: list a }) : list a =
+  xs.tail
+
+(* -------------------------------------------------------------------------- *)
+
+(* The nth element of a list. *)
+
+val rec nth_aux [a] (consumes xs: list a, n: int) : a =
+  if xs then
+    if n = 0 then xs.head else nth_aux (xs.tail, n - 1)
+  else
+    fail
+
+val nth [a] (consumes xs: list a, n: int) : a =
+  if n < 0 then fail else nth_aux (xs, n)
+
+(* -------------------------------------------------------------------------- *)
+
+(* List concatenation and reversal. *)
+
+val rec append [a] (consumes xs: list a, consumes ys: list a) : list a =
+  if xs then
+    Cons { head = xs.head; tail = append (xs.tail, ys) }
+  else
+    ys
+
+val rec rev_append [a] (consumes xs: list a, consumes ys: list a) : list a =
+  if xs then
+    rev_append (xs.tail, Cons { head = xs.head; tail = ys })
+  else
+    ys
+
+val rev [a] (consumes xs: list a) : list a =
+  rev_append (xs, Nil)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Flattening a list of lists. *)
+
+val rec flatten [a] (consumes xss : list (list a)) : list a =
+  if xss then
+    append (xss.head, flatten xss.tail)
+  else
+    Nil
+
+(* -------------------------------------------------------------------------- *)
+
+(* Map. *)
+
+(* The following type is not the most general type of [map]. The type-checker
+   currently does not support type variables of kind PERM, so we cannot allow
+   the function [f] to have an arbitrary side effect. *)
+
+(* The following type does allow the function [f] to perform a strong update
+   on the argument list, whose type changes from [list a1] to [list a2]. A
+   new list of type [list b] is produced. *)
+
+val rec map [a1, a2, b] (
+  f: (consumes  x:      a1) -> (     b |  x @      a2),
+      consumes xs: list a1)  : (list b | xs @ list a2)
+=
+  if xs then
+    Cons { head = f xs.head; tail = map (f, xs.tail) }
+  else
+    Nil
+
+val rev_map [a1, a2, b] (
+  f: (consumes  x:      a1) -> (     b |  x @      a2),
+      consumes xs: list a1)  : (list b | xs @ list a2)
+=
+  let rec rev_map_aux (consumes accu: list b, consumes xs: list a1) : (list b | xs @ list a2) =
+    if xs then
+      rev_map_aux (Cons { head = f xs.head; tail = accu }, xs.tail)
+    else
+      accu
+  in
+  rev_map_aux (Nil, xs)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Iteration. *)
+
+(* The following type is not the most general type of [iter]. The type-checker
+   currently does not support type variables of kind PERM, so we cannot allow
+   the function [f] to have an arbitrary side effect. *)
+ 
+(* The following type does allow the function [f] to perform a strong update
+   on the argument list, whose type changes from [list a1] to [list a2]. *)
+ 
+val rec iter [a1, a2] (
+  f: (consumes  x:      a1) -> (|  x @      a2),
+      consumes xs: list a1)  : (| xs @ list a2)
+=
+  if xs then begin
+    f xs.head;
+    iter (f, xs.tail)
+  end
+
+(* The following function should not be useful to the client, who can just
+   use [iter], but it is a good test of the type-checker. *)
+
+val simpler_iter [a] (f: a -> (), xs: list a) : () =
+  iter (f, xs)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Fold. *)
+
+(* The following type is not the most general type of [fold_left]. The
+   type-checker currently does not support type variables of kind PERM, so we
+   cannot allow the function [f] to have an arbitrary side effect. *)
+ 
+(* The following type does allow the function [f] to perform a strong update
+   on the argument list, whose type changes from [list a1] to [list a2]. An
+   accumulator of type [b] is maintained. *)
+ 
+val rec fold_left [a1, a2, b] (
+  f: (consumes       b, consumes  x:      a1) -> (b |  x @      a2),
+      consumes accu: b, consumes xs: list a1)  : (b | xs @ list a2)
+=
+  if xs then
+    fold_left (f, f (accu, xs.head), xs.tail)
+  else
+    accu
+
+val rec fold_right [a1, a2, b] (
+  f: (consumes  x:      a1, consumes       b) -> (b |  x @      a2),
+      consumes xs: list a1, consumes accu: b)  : (b | xs @ list a2)
+=
+  if xs then
+    f (xs.head, fold_right (f, xs.tail, accu))
+  else
+    accu
+
+(* -------------------------------------------------------------------------- *)
+
+(* Various flavors of list search. *)
+
+(* Note that these are not instances of [fold], because we need to bail out
+   early when the search is successful. *)
+
+val rec for_all [a] (p: a -> bool, xs: list a) : bool =
+  if xs then
+    if p xs.head then for_all (p, xs.tail) else False
+  else
+    True
+
+val rec exists [a] (p: a -> bool, xs: list a) : bool =
+  if xs then
+    if p xs.head then True else exists (p, xs.tail)
+  else
+    False
+
+(* The function [find] cannot raise an exception, as it does in OCaml.
+   Instead, it returns a sub-list, which either is empty or begins with
+   the desired element. This is more general than returning an option,
+   since it allows repeated searches, and is more efficient, since it
+   does not require memory allocation! *)
+
+val rec find [a] (p: a -> bool, consumes xs: list a) : list a =
+  if xs then
+    if p xs.head then xs else find (p, xs.tail)
+  else
+    Nil
+
+(* The call [remove (p, xs)] produces the list [xs], deprived of the first
+   element that satisfies the predicate [p], if there is one. *)
+
+val rec remove [a] (p : a -> bool, consumes xs: list a) : list a =
+  if xs then
+    if p xs.head then xs.tail else Cons { head = xs.head; tail = remove (p, xs.tail) }
+  else
+    Nil
+
+(* The function [mem] is parameterized with a notion of equality. It is just a
+   variant of [find] that does not require the function [equal] to be
+   partially applied to [x] ahead of time. *)
+
+(* TEMPORARY in order to define [mem] in terms of [find], we need to define
+   a predicate [p] that has access to [x]; this requires equipping [find]
+   with a more general type that allows [p] to have a side effect. *)
+
+(* TEMPORARY even if I declare [a] as duplicable, the type-checker rejects
+   the following code, which I believe is correct:
+
+val mem [a] duplicable a => (equal: (a, a) -> bool, x: a, consumes xs: list a) : list a =
+  let p (y: a) : bool =
+    equal (x, y)
+  in
+  find (p, xs)
+
+*)
+
+(* Because the above attempt has failed, let us define [mem] directly,
+   without re-using [find]. *)
+
+(* TEMPORARY this code is rejected too! I don't know why.
+
+val rec mem [a] (equal: (a, a) -> bool, x: a, consumes xs: list a) : list a =
+  if xs then
+    if equal (x, xs.head) then xs else mem (equal, x, xs.tail)
+  else
+    Nil
+
+*)
+
+(* TEMPORARY commented out because this code needs [mem]
+
+val assoc [a, b] (equal: (a, a) -> bool, x: a, consumes xs: list (a, b)) : list (a, b) =
+  let equal_key ((key1: a, b), (key2: a, b)) : bool =
+    equal (key1, key2)
+  in
+  mem (equal_key, x, xs)
+
+*)
+
+(* TEMPORARY
+   mem   should be called find_equal
+   assoc should be called find_equal_key
+   remove could be specialized in the same ways as find *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Filtering. *) 
+
+(* TEMPORARY mentioning [x @ unknown] in the return type of [f] should ideally
+   be unnecessary, but is currently required: without it, the type-checker fails. *)
+
+val filter [a] (p: a -> bool, consumes xs: list a) : list a =
+  let f (consumes accu: list a, consumes x: a) : (list a | x @ unknown) =
+    if p x then Cons { head = x; tail = accu } else accu
+  in
+  rev (fold_left (f, Nil, xs))
+
+val partition [a] (p: a -> bool, consumes xs: list a) : (list a, list a) =
+  let f (consumes yesno: (list a, list a), consumes x: a) : ((list a, list a) | x @ unknown) =
+    let yes, no = yesno in
+    if p x then
+      Cons { head = x; tail = yes }, no
+    else
+      yes, Cons { head = x; tail = no }
+  in
+  let (yes, no) = fold_left [a, unknown, (list a, list a)] (f, (Nil, Nil), xs) in
+  rev yes, rev no
+
+(* TEMPORARY in the above code, I would like to write f as follows:
+
+  let f (consumes (yes: list a, no: list a), consumes x: a) : ((list a, list a) | x @ unknown) =
+    if p x then
+      ...
+
+  but if I do so, the code is rejected. *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Lists of pairs. *)
+
+(* TEMPORARY the following code causes an error:
+Fatal error: exception Failure("All permissions should be in expanded form.")
+
+val rec split [a, b] (consumes xys : list (a, b)) : (list a, list b) =
+  if xys then begin
+    let x, y = xys.head in
+    let xs, ys = split xys.tail in
+    Cons { head = x; tail = xs },
+    Cons { head = y; tail = ys }
+  end
+  else
+    Nil,
+    Nil
+
+*)
+
+(* TEMPORARY matching on tuples is not yet implemented?
+  match xs, ys with
+  | (Cons, Cons) ->
+      Cons { head = (xs.head, ys.head); tail = combine (xs.tail, ys.tail) }
+  | (Nil, Nil) ->
+      Nil
+  | (Nil, Cons) ->
+      Nil
+  | (Cons, Nil) ->
+      Nil
+  (* TEMPORARY an or-pattern would be nice *)
+  end
+*)
+
+val rec combine [a, b] (consumes xs: list a, consumes ys: list b) : list (a, b) =
+  if xs then
+    if ys then
+      Cons { head = (xs.head, ys.head); tail = combine (xs.tail, ys.tail) }
+    else
+      Nil
+  else
+    Nil
+
+(*
+Local Variables:
+compile-command: "../mezzo list.mz"
+End:
+*)
