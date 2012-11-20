@@ -8,11 +8,17 @@ data list a =
 
 (* -------------------------------------------------------------------------- *)
 
-(* A short-hand for constructing lists. *)
+(* Short-hands for constructing lists. *)
 
 val cons [a] (consumes x: a, consumes xs: list a) : list a =
   Cons { head = x; tail = xs }
 
+val two [a] (consumes x1: a, consumes x2: a) : list a =
+  Cons { head = x1; tail = Cons { head = x2; tail = Nil }}
+
+val three [a] (consumes x1: a, consumes x2: a, consumes x3: a) : list a =
+  Cons { head = x1; tail = Cons { head = x2; tail = Cons { head = x3; tail = Nil }}}
+ 
 (* -------------------------------------------------------------------------- *)
 
 (* List length. *)
@@ -41,7 +47,7 @@ val tl [a] (consumes xs: Cons { head: a; tail: list a }) : list a =
 
 (* -------------------------------------------------------------------------- *)
 
-(* The nth element of a list. *)
+(* Indexing operations. *)
 
 val rec nth_aux [a] (consumes xs: list a, n: int) : a =
   if xs then
@@ -51,6 +57,20 @@ val rec nth_aux [a] (consumes xs: list a, n: int) : a =
 
 val nth [a] (consumes xs: list a, n: int) : a =
   if n < 0 then fail else nth_aux (xs, n)
+
+val rec chop [a] (k: int, consumes xs: list a) : list a =
+  if k = 0 then xs
+  else if xs then chop (k - 1, xs.tail)
+  else fail
+
+val rec splitAt [a] (k: int, consumes xs: list a) : (list a, list a) =
+  if k = 0 then
+    Nil, xs
+  else if xs then begin
+    let prefix, suffix = splitAt (k - 1, xs.tail) in
+    Cons { head = xs.head; tail = prefix }, suffix
+  end
+  else fail
 
 (* -------------------------------------------------------------------------- *)
 
@@ -176,6 +196,9 @@ val rec fold_right [a1, a2, b] (
 
 (* Note that these are not instances of [fold], because we need to bail out
    early when the search is successful. *)
+
+(* TEMPORARY adding more primitive operators in [core.mzi] can cause a
+   type-checking error here in [for_all]! Something is seriously wrong. *)
 
 val rec for_all [a] (p: a -> bool, xs: list a) : bool =
   if xs then
@@ -331,6 +354,96 @@ val rec combine [a, b] (consumes xs: list a, consumes ys: list b) : list (a, b) 
       Nil
   else
     Nil
+
+(* -------------------------------------------------------------------------- *)
+
+(* Merging and sorting. *)
+
+(* TEMPORARY again, matching on a pair might be nice here *)
+
+val rec merge [a] (cmp: (a, a) -> int, consumes xs: list a, consumes ys: list a) : list a =
+  match xs with
+  | Nil ->
+      ys
+  | Cons { head = x } ->
+      match ys with
+      | Nil ->
+          xs
+      | Cons { head = y } ->
+	  if cmp (x, y) <= 0
+	  then Cons { head = x; tail = merge (cmp, xs.tail, ys) }
+	  else Cons { head = y; tail = merge (cmp, xs, ys.tail) }
+      end
+  end
+
+(* TEMPORARY
+
+The following code gives rise to this error:
+[38;5;203mMultiple candidates as a concrete type for this pattern[0m
+Fatal error: exception Assert_failure("lib/Log.ml", 59, 6)
+
+val stable_sort [a] (cmp: (a, a) -> int, consumes xs: list a) : list a =
+  (* Wrap the comparison function [cmp] so as to take an extra
+     argument, [sense], which takes the value -1 or 1 and allows
+     reversing the ordering if desired. *)
+  let cmp (sense: int, x: a, y: a) : int =
+    sense * cmp (x, y)
+  in
+  (* [rev_merge (sense, xs, ys, accu)] merges the lists [xs] and [ys]
+     and concatenates the reverse of the resulting list in front of
+     [accu]. The ordering is dictated by [sense]. *)
+  let rec rev_merge (sense: int, consumes xs: list a, consumes ys: list a, consumes accu: list a) : list a =
+    if xs then
+      if ys then begin
+        let x = xs.head
+        and y = ys.head in
+        if cmp (sense, x, y) <= 0
+        then rev_merge (sense, xs.tail, ys, Cons { head = x; tail = accu })
+        else rev_merge (sense, xs, ys.tail, Cons { head = y; tail = accu })
+      end
+      else
+        rev_append (xs, accu)
+    else
+      rev_append (ys, accu)
+  in
+  (* This is the main sorting function. The integer [n] is always at
+     least [2]. Again, the ordering is dictated by [sense]. *)
+  let rec sort (sense: bool, n: int, consumes xs: list a) : list a =
+    (* Leaf cases. *)
+    if n = 2 then
+      match xs with
+      | Cons { head = x1; tail = Cons { head = x2; tail = any }} ->
+          if cmp (sense, x1, x2) <= 0 then two (x1, x2) else two (x2, x1)
+      end
+    else if n = 3 then
+      match xs with
+      | Cons { head = x1; tail = Cons { head = x2; tail = Cons { head = x3; tail = any }}} ->
+          if cmp (sense, x1, x2) <= 0 then begin
+            if cmp (sense, x2, x3) <= 0 then three (x1, x2, x3)
+            else if cmp (sense, x1, x3) <= 0 then three (x1, x3, x2)
+            else three (x3, x1, x2)
+          end else begin
+            if cmp (sense, x1, x3) <= 0 then three (x2, x1, x3)
+	    else if cmp (sense, x2, x3) <= 0 then three (x2, x3, x1)
+	    else three (x3, x2, x1)
+          end
+      end
+    (* The general case. *)
+    else begin
+      let n1 = n / 2 in
+      let n2 = n - n1 in
+       (* TEMPORARY there is an ownership problem here: Damien uses a trick, which
+          is to *not* truncate the list in the first recursive call. This will
+          result in the permission for the list elements being lost. *)
+      let xs1 = sort (-sense, n1, xs) in
+      let xs2 = sort (-sense, n2, chop (n1, xs)) in
+      rev_merge (-sense, xs1, xs2, Nil)
+    end
+  in
+  let n = length xs in
+  if n < 2 then xs else sort (1, n, xs)
+
+*)
 
 (*
 Local Variables:

@@ -521,6 +521,7 @@ data_type_def:
       { PAs (p, PVar v) }
   | a = atomic_pattern_raw
       { a }
+  (* TEMPORARY wildcards are missing *)
   (* TEMPORARY or-patterns are missing *)
 
     data_field_pat:

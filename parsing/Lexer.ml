@@ -215,7 +215,7 @@ and comment level = lexer
     break_line lexbuf;
     comment level lexbuf
 | eof ->
-    raise_error UnterminatedComment
+    raise_error UnterminatedComment (* TEMPORARY indiquer où est le début de ce commentaire! *)
 | _ ->
     comment level lexbuf
 
