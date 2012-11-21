@@ -508,6 +508,14 @@ data_type_def:
 
 (* Patterns. *)
 
+(* The syntax of types is stratified into the following levels:
+
+     atomic_pattern
+     normal_pattern
+     loose_pattern
+
+*)
+
 %inline plocated (X):
 | x = X
     { PLocated (x, $startpos, $endpos) }
@@ -523,6 +531,7 @@ raw_atomic_pattern:
     { PConstruct dc }
 | x = variable
     { PVar x }
+(* TEMPORARY wildcards are missing *)
 
 data_field_pattern:
 | f = variable EQUAL p = pattern
@@ -535,20 +544,33 @@ data_field_pattern:
 | p = plocated(raw_normal_pattern)
     { p }
 
+(* Following OCaml, we interpret [x, y as z] as [(x, y) as z], and
+   we interpret [w as x, y as z] as [((w as x), y) as z]. This is
+   not great, but it seems wise to follow OCaml. A stricter option
+   would be to reject these dubious examples by requiring an
+   [atomic_pattern] before the keyword [AS]. *)
+
 raw_normal_pattern:
 | p = raw_atomic_pattern
     { p }
-| p = normal_pattern COLON t = normal_type
-    { PConstraint (p, t) }
 | ps = separated_list_of_at_least_two(COMMA, atomic_pattern)
     { PTuple ps }
 | p = normal_pattern AS v = variable
     { PAs (p, PVar v) }
-(* TEMPORARY wildcards are missing *)
 (* TEMPORARY or-patterns are missing *)
 
+%inline loose_pattern:
+| p = plocated(raw_loose_pattern)
+    { p }
+
+raw_loose_pattern:
+| p = raw_normal_pattern
+    { p }
+| p = loose_pattern COLON t = normal_type
+    { PConstraint (p, t) }
+
 %inline pattern:
-| p = normal_pattern
+| p = loose_pattern
     { p }
 
 (* ---------------------------------------------------------------------------- *)
@@ -715,9 +737,7 @@ rec_flag:
         { f, EVar f }
 
     %inline match_branch:
-    (* TEMPORARY I would like to allow more than atomic_pattern here *)
-    (* but there is a conflict due to PConstraint *)
-    | p = atomic_pattern ARROW e = expression
+    | p = normal_pattern ARROW e = expression
         { p, e }
 
 (* ---------------------------------------------------------------------------- *)
