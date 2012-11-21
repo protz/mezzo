@@ -219,8 +219,17 @@ atomic_kind:
    permissions, permission conjunction, etc.) appear as part of the syntax of
    types. *)
 
-(* The syntax of types is stratified into the following levels, so as to
-   eliminate all ambiguity. *)
+(* The syntax of types is stratified into the following levels:
+
+     atomic_type
+     tight_type
+     normal_type
+     loose_type
+     consumes_type
+     very_loose_type
+     fat_type
+
+*)
 
 %inline tlocated (X):
 | x = X
@@ -228,159 +237,157 @@ atomic_kind:
 
 %inline atomic_type:
 | t = tlocated(raw_atomic_type)
-  { t }
+    { t }
 
-  raw_atomic_type:
-  (* The empty tuple type. *)
-  | LPAREN RPAREN
-      { TyTuple [] }
-  (* Parentheses are used as a disambiguation device, as is standard. *)
-  | LPAREN t = arbitrary_type RPAREN
-      { t }
-  (* The top type. *)
-  | UNKNOWN
-      { TyUnknown }
-  (* The type [dynamic] represents a permission to test membership in a dynamic region. *)
-  | DYNAMIC
-      { TyDynamic }
-  (* The top permission. A neutral element for permission conjunction. *)
-  | EMPTY
-      { TyEmpty }
-  (* Term variable, type variable, permission variable, abstract type, or concrete type. *)
-  | x = variable
-      { TyVar x }
-  (* A variable just like above, prefixed with a module name. *)
-  | m = module_name COLONCOLON x = variable
-      { TyQualified (m, x) }
-  (* A structural type explicitly mentions a data constructor. *)
-  (* TEMPORARY add support for optional adopts clause in structural permissions *)
-  | b = data_type_def_branch
-      { TyConcreteUnfolded b }
+raw_atomic_type:
+(* The empty tuple type. *)
+| LPAREN RPAREN
+    { TyTuple [] }
+(* Parentheses are used as a disambiguation device, as is standard. *)
+| LPAREN t = arbitrary_type RPAREN
+    { t }
+(* The top type. *)
+| UNKNOWN
+    { TyUnknown }
+(* The type [dynamic] represents a permission to test membership in a dynamic region. *)
+| DYNAMIC
+    { TyDynamic }
+(* The top permission. A neutral element for permission conjunction. *)
+| EMPTY
+    { TyEmpty }
+(* Term variable, type variable, permission variable, abstract type, or concrete type. *)
+| x = variable
+    { TyVar x }
+(* A variable just like above, prefixed with a module name. *)
+| m = module_name COLONCOLON x = variable
+    { TyQualified (m, x) }
+(* A structural type explicitly mentions a data constructor. *)
+(* TEMPORARY add support for optional adopts clause in structural permissions *)
+| b = data_type_def_branch
+    { TyConcreteUnfolded b }
 
-%inline quasi_atomic_type:
-| t = tlocated(raw_quasi_atomic_type)
-  { t }
+%inline tight_type:
+| t = tlocated(raw_tight_type)
+    { t }
 
-  raw_quasi_atomic_type:
-  | ty = raw_atomic_type
-      { ty }
-  (* A singleton type. *)
-  | EQUAL x = variable
-      { TySingleton (TyVar x) }
-  (* A type application. *)
-  | ty = type_type_application(quasi_atomic_type, atomic_type)
-      { ty }
+raw_tight_type:
+| ty = raw_atomic_type
+    { ty }
+(* A singleton type. *)
+| EQUAL x = variable
+    { TySingleton (TyVar x) }
+(* A type application. *)
+| ty = type_type_application(tight_type, atomic_type)
+    { ty }
 
 %inline normal_type:
 | t = tlocated(raw_normal_type)
-  { t }
-
-  duplicity_constraint:
-  | EXCLUSIVE t = quasi_atomic_type
-      { Exclusive, t }
-  | DUPLICABLE t = quasi_atomic_type
-      { Duplicable, t }
-
-  %inline raw_constrained_type:
-  | dc = separated_nonempty_list (COMMA, duplicity_constraint) DBLARROW ty = normal_type
-      { TyConstraints (dc, ty) }
-
-  %inline constrained_type:
-  | t = tlocated(raw_constrained_type)
     { t }
 
-  constrained_or_atomic_type:
-  | ty = constrained_type
-      { ty }
-  | ty = atomic_type
-      { ty }
-
-  raw_normal_type:
-  | ty = raw_quasi_atomic_type
-      { ty }
-  (* The syntax of function types is [t -> t], as usual. *)
-  | ty1 = quasi_atomic_type ARROW ty2 = normal_type
-      { TyArrow (ty1, ty2) }
-  (* A polymorphic type. *)
-  | bs = type_parameters ty = normal_type
-      { List.fold_right (fun b ty -> TyForall (b, ty)) bs ty }
-  | ty = raw_constrained_type
-      { ty }
+raw_normal_type:
+| ty = raw_tight_type
+    { ty }
+(* The syntax of function types is [t -> t], as usual. *)
+| ty1 = tight_type ARROW ty2 = normal_type
+    { TyArrow (ty1, ty2) }
+(* A polymorphic type. *)
+| bs = type_parameters ty = normal_type
+    { List.fold_right (fun b ty -> TyForall (b, ty)) bs ty }
 
 %inline loose_type:
 | t = tlocated(raw_loose_type)
-  { t }
+    { t }
 
-  raw_anchored_permission:
-  (* In an anchored permission [x@t], the name [x] is free. This
-     represents an assertion that we have permission to use [x] at
-     type [t]. *)
-  | x = variable AT ty = normal_type
-      { TyAnchoredPermission (TyVar x, ty) }
-  (* [x = y] is also an anchored permission; it is sugar for [x@=y]. *)
-  | x = variable EQUAL y = variable
-      { TyAnchoredPermission (TyVar x, TySingleton (TyVar y)) }
+(* TEMPORARY raw_anchored_permission can be folded back into
+   raw_loose_type if we change the syntax of perm_declaration to use COLON *)
+raw_anchored_permission:
+(* In an anchored permission [x@t], the name [x] is free. This
+   represents an assertion that we have permission to use [x] at
+   type [t]. *)
+| x = variable AT ty = normal_type
+    { TyAnchoredPermission (TyVar x, ty) }
+(* [x = y] is also an anchored permission; it is sugar for [x@=y]. *)
+| x = variable EQUAL y = variable
+    { TyAnchoredPermission (TyVar x, TySingleton (TyVar y)) }
 
-  raw_loose_type:
-  | ty = raw_normal_type
-      { ty }
-  | ty = raw_anchored_permission
-      { ty }
-  (* In a name introduction form [x:t], the name [x] is bound. The scope
-     of [x] is defined by somewhat subtle rules that need not concern us
-     here. These rules are spelled out later on when we desugar the surface-level
-     types into a lower-level representation. *)
-  | x = variable COLON ty = normal_type
-      { TyNameIntro (x, ty) }
+raw_loose_type:
+| ty = raw_normal_type
+    { ty }
+| ty = raw_anchored_permission
+    { ty }
+(* In a name introduction form [x:t], the name [x] is bound. The scope
+   of [x] is defined by somewhat subtle rules that need not concern us
+   here. These rules are spelled out later on when we desugar the surface-level
+   types into a lower-level representation. *)
+| x = variable COLON ty = normal_type
+    { TyNameIntro (x, ty) }
 
 %inline consumes_type:
 | t = tlocated(raw_consumes_type)
-  { t }
+    { t }
 
-  raw_consumes_type:
-  | ty = raw_loose_type
-      { ty }
-  (* A type can be annotated with the [CONSUMES] keyword. This really
-     makes sense only in certain contexts, e.g. in the left-hand side of an
-     arrow, and possibly further down under tuples, stars, etc. The grammar
-     allows this everywhere. This notation is checked for consistency and
-     desugared in a separate pass. *)
-  | CONSUMES ty = loose_type
-      { TyConsumes ty }
+raw_consumes_type:
+| ty = raw_loose_type
+    { ty }
+(* A type can be annotated with the [CONSUMES] keyword. This really
+   makes sense only in certain contexts, e.g. in the left-hand side of an
+   arrow, and possibly further down under tuples, stars, etc. The grammar
+   allows this everywhere. This notation is checked for consistency and
+   desugared in a separate pass. *)
+| CONSUMES ty = loose_type
+    { TyConsumes ty }
 
 %inline very_loose_type:
 | t = tlocated(raw_very_loose_type)
-  { t }
+    { t }
 
-  raw_very_loose_type:
-  | ty = raw_consumes_type
-      { ty }
-  (* Permission conjunction is a binary operator. *)
-  | ty1 = consumes_type STAR ty2 = very_loose_type
-      { TyStar (ty1, ty2) }
-  (* A tuple type of length at least two is written [t1, ..., tn], without
-     parentheses. A tuple type of length one cannot be written -- there is
-     no syntax for it. *)
-  | tcs = separated_list_of_at_least_two(COMMA, consumes_type)
-      { TyTuple tcs }
+raw_very_loose_type:
+| ty = raw_consumes_type
+    { ty }
+(* Permission conjunction is a binary operator. *)
+| ty1 = consumes_type STAR ty2 = very_loose_type
+    { TyStar (ty1, ty2) }
+(* A tuple type of length at least two is written [t1, ..., tn], without
+   parentheses. A tuple type of length one cannot be written -- there is
+   no syntax for it. *)
+| tcs = separated_list_of_at_least_two(COMMA, consumes_type)
+    { TyTuple tcs }
 
 %inline fat_type:
 | t = tlocated(raw_fat_type)
   { t }
 
-  raw_fat_type:
-  | ty = raw_very_loose_type
-      { ty }
-  (* The conjunction of a type and a permission is written [t | p]. It is
-     typically used as the domain or codomain of a function type. *)
-  | ty1 = fat_type BAR ty2 = very_loose_type
-      { TyBar (ty1, ty2) }
-  | BAR ty2 = very_loose_type
-      { TyBar (TyTuple [], ty2) }
+raw_fat_type:
+| ty = raw_very_loose_type
+    { ty }
+(* The conjunction of a type and a permission is written [t | p]. It is
+   typically used as the domain or codomain of a function type. *)
+| ty1 = fat_type BAR ty2 = very_loose_type
+    { TyBar (ty1, ty2) }
+| BAR ty2 = very_loose_type
+    { TyBar (TyTuple [], ty2) }
 
 %inline arbitrary_type:
   t = fat_type
     { t }
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Mode constraints are used as part of toplevel function definitions. *)
+
+mode:
+| EXCLUSIVE
+    { Exclusive }
+| DUPLICABLE
+    { Duplicable }
+
+%inline atomic_mode_constraint:
+| m = mode t = atomic_type
+    { m, t }
+
+%inline mode_constraint:
+| cs = separated_nonempty_list (COMMA, atomic_mode_constraint) DBLARROW
+    { cs }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -472,12 +479,13 @@ data_type_def_branch_content:
     { [] }
 | DUPLICABLE t = atomic_type DBLARROW
     { [t] }
-(* TEMPORARY la syntaxe de fact_conditions/fact me semble trop restrictive? *)
+(* TEMPORARY la syntaxe de fact_conditions/fact me semble trop restrictive?
+   et pourquoi n'est-elle pas partagée avec mode_constraint? *)
 
 fact:
-| FACT tup = fact_conditions DUPLICABLE t = arbitrary_type
+| FACT tup = fact_conditions DUPLICABLE t = atomic_type
     { FDuplicableIf (tup, t) }
-| FACT EXCLUSIVE t = arbitrary_type
+| FACT EXCLUSIVE t = atomic_type
     { FExclusive t }
 
 data_type_def:
@@ -746,8 +754,14 @@ decl_raw:
 inner_declaration:
 | p = pattern EQUAL e = expression
     { p, e }
-| f_name = variable bs = type_parameters? arg = constrained_or_atomic_type COLON t = normal_type EQUAL e = expression
-    { PVar f_name, EFun (Option.map_none [] bs, arg, t, e) }
+| f_name = variable
+  bs = type_parameters?
+  constraints = loption(mode_constraint)
+  arg = atomic_type
+  COLON t = normal_type
+  EQUAL e = expression
+    { PVar f_name,
+      EFun (Option.map_none [] bs, TyConstraints (constraints, arg), t, e) }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -783,6 +797,10 @@ implementation:
 perm_declaration:
 | VAL t = raw_anchored_permission
     { PermDeclaration t }
+(* TEMPORARY question: why do we use "val x @ int" and not "val x : int"?
+   After all, @ is supposed to be used when we are referring to a pre-existing
+   name, while : is supposed to be used when we are introducing a new name.
+   So COLON would be more appropriate here, wouldn't it? *)
 
 interface_toplevel:
 | group = data_type_group
