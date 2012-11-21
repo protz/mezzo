@@ -512,50 +512,50 @@ data_type_def:
 | x = X
     { PLocated (x, $startpos, $endpos) }
 
-%inline pattern:
-| p = pat1
+%inline atomic_pattern:
+| p = plocated(raw_atomic_pattern)
     { p }
 
-  %inline pat1:
-  | p = plocated(raw_pat1)
-      { p }
+raw_atomic_pattern:
+| LPAREN p = pattern RPAREN
+    { p }
+| dc = datacon_application(data_field_pattern)
+    { PConstruct dc }
+| x = variable
+    { PVar x }
 
-  raw_pat1:
-  | p = atomic_pattern COLON t = normal_type
-      { PConstraint (p, t) }
-  | ps = separated_list_of_at_least_two(COMMA, atomic_pattern)
-      { PTuple ps }
-  | p = pattern AS v = variable
-      { PAs (p, PVar v) }
-  | a = atomic_pattern_raw
-      { a }
-  (* TEMPORARY wildcards are missing *)
-  (* TEMPORARY or-patterns are missing *)
+data_field_pattern:
+| f = variable EQUAL p = pattern
+    { f, p }
+| f = variable
+    (* Punning *)
+    { f, PVar f }
 
-    data_field_pat:
-    | f = variable EQUAL p = pattern
-        { f, p }
-    | f = variable
-        (* Punning *)
-        { f, PVar f }
+%inline normal_pattern:
+| p = plocated(raw_normal_pattern)
+    { p }
 
-  %inline atomic_pattern:
-  | p = plocated(atomic_pattern_raw)
-      { p }
+raw_normal_pattern:
+| p = raw_atomic_pattern
+    { p }
+| p = normal_pattern COLON t = normal_type
+    { PConstraint (p, t) }
+| ps = separated_list_of_at_least_two(COMMA, atomic_pattern)
+    { PTuple ps }
+| p = normal_pattern AS v = variable
+    { PAs (p, PVar v) }
+(* TEMPORARY wildcards are missing *)
+(* TEMPORARY or-patterns are missing *)
 
-  atomic_pattern_raw:
-  | LPAREN p = pattern RPAREN
-      { p }
-  | dc = datacon_application(data_field_pat)
-      { PConstruct dc }
-  | x = variable
-      { PVar x }
+%inline pattern:
+| p = normal_pattern
+    { p }
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Terms. *)
 
-%inline rec_flag:
+rec_flag:
 | REC
     { Recursive }
 |
