@@ -601,6 +601,8 @@ data_type_def:
       { EGive (e1, e2) } 
   | es = separated_list_of_at_least_two(COMMA, infix_op)
       { ETuple es }
+  | ASSERT t = very_loose_type
+      { EAssert t }
   | e = explained_raw
       { e }
 
@@ -699,10 +701,8 @@ data_type_def:
       { EMatch (b, e, bs) }
   | BEGIN e = expression END
       { e }
-  | LPAREN e = expression COLON t = arbitrary_type RPAREN
+  | LPAREN e = infix_op COLON t = arbitrary_type RPAREN
       { EConstraint (e, t) }
-  | ASSERT LPAREN t = arbitrary_type RPAREN
-      { EAssert t }
   | LPAREN e = expression RPAREN
       { e }
 

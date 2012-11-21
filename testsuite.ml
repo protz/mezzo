@@ -646,6 +646,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("modules/m.mz", simple_test Pass);
 
   ("modules/qualified.mz", simple_test Pass);
+
+  ("assert.mz", simple_test Pass);
 ]
 
 let _ =

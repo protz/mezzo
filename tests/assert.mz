@@ -1,0 +1,27 @@
+(* -------------------------------------------------------------------------- *)
+
+(* The standard definition of immutable lists. *)
+
+data list a =
+  | Cons { head: a; tail: list a }
+  | Nil
+
+(* -------------------------------------------------------------------------- *)
+
+(* List concatenation, with a lot of assertions. *)
+
+val rec append [a] (consumes xs: list a, consumes ys: list a) : list a =
+  assert xs @ list a * ys @ list a;
+  if xs then begin
+    let x = xs.head in
+    let xs = xs.tail in
+    assert x @ a * xs @ list a * ys @ list a;
+    let xys = append (xs, ys) in
+    assert x @ a * xys @ list a;
+    let xys = Cons { head = x; tail = xys } in
+    assert xys @ list a;
+    xys
+  end
+  else
+    ys
+
