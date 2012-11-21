@@ -62,12 +62,10 @@
 %nonassoc THEN
 %nonassoc ELSE
 
-%left     OPINFIX0 MINUS (* MINUS is also an OPINFIX0 *)
-%left     EQUAL (* EQUAL is also a OPINFIX0 *)
+%left     OPINFIX0 EQUAL (* EQUAL is also a OPINFIX0 *)
 %right    OPINFIX1
-%left     OPINFIX2
-%left     OPINFIX3
-%left     STAR (* STAR is also an OPINFIX3 *)
+%left     OPINFIX2 MINUS (* MINUS is also an OPINFIX2 *)
+%left     OPINFIX3 STAR  (* STAR is also an OPINFIX3 *)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -96,19 +94,24 @@ open ParserUtils
    should help us avoid confusions between namespaces: names for variables,
    data constructors, etc. have distinct types. *)
 
-%inline operator:
-  | o = OPPREFIX
+%inline infix_operator:
   | o = OPINFIX0
   | o = OPINFIX1
   | o = OPINFIX2
   | o = OPINFIX3
-    { o }
+      { o }
   | STAR
-    { "*" }
+      { "*" }
   | MINUS
-    { "-" }
+      { "-" }
   | EQUAL
-    { "=" }
+      { "=" }
+
+%inline operator:
+  | o = OPPREFIX
+      { o }
+  | o = infix_operator
+      { o }
 
 variable:
   | x = LIDENT
@@ -341,6 +344,9 @@ raw_consumes_type:
 | t = tlocated(raw_very_loose_type)
     { t }
 
+(* [COMMA] and [STAR] are at the same level, but cannot be mixed with
+   each other. *)
+
 raw_very_loose_type:
 | ty = raw_consumes_type
     { ty }
@@ -508,7 +514,7 @@ data_type_def:
 
 (* Patterns. *)
 
-(* The syntax of types is stratified into the following levels:
+(* The syntax of patterns is stratified into the following levels:
 
      atomic_pattern
      normal_pattern
@@ -575,7 +581,172 @@ raw_loose_pattern:
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Terms. *)
+(* Expressions. *)
+
+(* The syntax of expressions is stratified into the following levels:
+
+     atomic_expression        e.g. x
+     tight_expression         e.g. x.tail
+     application_expression   e.g. length x.tail
+     algebraic_expression     e.g. length x.tail + 1
+     reasonable_expression    e.g. x.size <- length x.tail + 1
+     fragile_expression       e.g. x.size <- length x.tail + 1; x.size
+
+*)
+
+%inline elocated (X):
+| x = X
+    { ELocated (x, $startpos, $endpos) }
+
+%inline atomic_expression:
+| e = elocated(raw_atomic_expression)
+    { e }
+
+raw_atomic_expression:
+(* The regular prefix operators, represented by the token [OPPREFIX], bind
+   very tightly. Here, we follow OCaml. For instance, [!x.foo] is interpreted
+   as [(!x).foo]. Thus, the prefix operators bind more tightly than the dot. *)
+| o = OPPREFIX e = atomic_expression
+    { EApply (EVar (Variable.register o), e) }
+| v = variable
+    { EVar v }
+| m = module_name COLONCOLON x = variable
+    { EQualified (m, x) }
+| i = INT
+    { EInt i }
+| FAIL
+    { EFail }
+| dc = datacon_application(data_field_expression)
+    { EConstruct dc }
+| LPAREN RPAREN
+    { ETuple [] }
+| MATCH
+  b = explain
+  e = expression
+  WITH
+  bs = separated_or_preceded_list(BAR, match_branch)
+  END
+    { EMatch (b, e, bs) }
+| BEGIN e = expression END
+    { e }
+| LPAREN e = algebraic_expression COLON t = arbitrary_type RPAREN
+    { EConstraint (e, t) }
+| LPAREN e = expression RPAREN
+    { e }
+
+data_field_expression:
+(* In a record construction expression, field definitions are separated by
+   semicolons. Thus, the expression in the right-hand side of a field
+   definition must not contain a bare semi-colon, as this would lead to
+   ambiguity. For this reason, we disallow [let] and sequence here. *)
+| f = variable EQUAL e = reasonable_expression
+    { f, e }
+| f = variable
+    (* Punning *)
+    { f, EVar f }
+
+explain:
+| (* nothing *)
+    { false }
+| EXPLAIN
+    { true }
+
+%inline match_branch:
+| p = normal_pattern ARROW e = expression
+    { p, e }
+
+%inline tight_expression:
+  e = elocated(raw_tight_expression)
+    { e }
+
+raw_tight_expression:
+| e = tight_expression DOT f = variable
+    { EAccess (e, mkfield f) }
+| a = raw_atomic_expression
+    { a }
+
+%inline application_expression:
+| e = elocated(raw_application_expression)
+    { e }
+
+raw_application_expression:
+| e1 = application_expression e2 = tight_expression
+    { EApply (e1, e2) }
+| e1 = application_expression
+  LBRACKET ts = separated_nonempty_list(COMMA, type_application_component) RBRACKET
+    { ETApply (e1, ts) }
+| e = raw_tight_expression
+    { e }
+
+type_application_component:
+| t = normal_type
+    { Ordered t }
+| v = variable EQUAL t = normal_type
+    { Named (v, t) }
+(* TEMPORARY syntaxe pas géniale car
+   "x [y = z]" et "x [(y = z)]"
+   signifient alors deux choses différentes.
+   En plus elle nous empêche d'autoriser un type plus haut que normal_type *)
+
+%inline algebraic_expression:
+| e = elocated(raw_algebraic_expression)
+    { e }
+
+raw_algebraic_expression:
+| e1 = algebraic_expression o = infix_operator e2 = algebraic_expression
+    { mkinfix e1 o e2 }
+(* Whereas the regular prefix operators, represented by the token [OPPREFIX],
+   bind very tightly, the unary [MINUS] operator binds more loosely. Here, we
+   follow OCaml. The goal is to interpret [f !x] as [f (!x)] and [f -1] as
+   [f - 1]. Like OCaml, we allow [-f x], which is interpreted as [-(f x)]. *)
+| MINUS e = application_expression
+    { mkinfix (EInt 0) "-" e }
+| e = raw_application_expression
+    { e }
+
+reasonable_expression:
+| e = elocated(raw_reasonable_expression)
+    { e }
+
+raw_reasonable_expression:
+  (* We disallow "let" inside of "then" or "else", because this is too fragile.
+     It is a common source of errors in OCaml. *)
+| IF b = explain e1 = expression THEN e2 = reasonable_expression
+    { EIfThenElse (b, e1, e2, ETuple []) }
+| IF b = explain e1 = expression THEN e2 = reasonable_expression ELSE e3 = reasonable_expression
+    { EIfThenElse (b, e1, e2, e3) }
+  (* We cannot allow "let" on the right-hand side of an assignment, because
+     the right-hand side of "let" can contain a semi-colon. *)
+| e1 = tight_expression DOT f = variable LARROW e2 = reasonable_expression
+    { EAssign (e1, mkfield f, e2) }
+| TAGOF e1 = tight_expression LARROW d = datacon
+    { EAssignTag (e1, mkdatacon d) }
+| TAKE e1 = expression FROM e2 = reasonable_expression
+    { ETake (e1, e2) }
+| GIVE e1 = expression TO e2 = reasonable_expression
+    { EGive (e1, e2) } 
+| es = separated_list_of_at_least_two(COMMA, algebraic_expression)
+    { ETuple es }
+| ASSERT t = very_loose_type
+    { EAssert t }
+| e = algebraic_expression EXPLAIN
+    { EExplained e }
+| e = raw_algebraic_expression
+    { e }
+
+%inline fragile_expression:
+| e = elocated(raw_fragile_expression)
+    { e }
+
+raw_fragile_expression:
+| e1 = reasonable_expression SEMI e2 = fragile_expression
+    { ESequence (e1, e2) }
+| LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = fragile_expression
+    { ELet (f, declarations, e) }
+| FUN bs = type_parameters? arg = atomic_type COLON t = normal_type EQUAL e = fragile_expression
+    { EFun (Option.map_none [] bs, arg, t, e) }
+| e = raw_reasonable_expression
+    { e }
 
 rec_flag:
 | REC
@@ -583,162 +754,9 @@ rec_flag:
 |
     { Nonrecursive }
 
-%inline elocated (X):
-| x = X
-    { ELocated (x, $startpos, $endpos) }
-
-(* Main expression rule *)
 %inline expression:
-| e = elocated(expression_raw)
+| e = fragile_expression
     { e }
-
-  expression_raw:
-  | e1 = everything_except_let_and_semi SEMI e2 = expression
-      { ESequence (e1, e2) }
-  | LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = expression
-      { ELet (f, declarations, e) }
-  | FUN bs = type_parameters? arg = atomic_type COLON t = normal_type EQUAL e = expression
-      { EFun (Option.map_none [] bs, arg, t, e) }
-  | e = everything_except_let_and_semi_raw
-      { e }
-
-  everything_except_let_and_semi:
-  | e = elocated(everything_except_let_and_semi_raw)
-      { e }
-
-  everything_except_let_and_semi_raw:
-  (* disallow let inside of "then", too fragile *)
-  | IF b = explain e1 = expression THEN e2 = everything_except_let_and_semi
-      { EIfThenElse (b, e1, e2, ETuple []) }
-  | IF b = explain e1 = expression THEN e2 = everything_except_let_and_semi ELSE e3 = everything_except_let_and_semi
-      { EIfThenElse (b, e1, e2, e3) }
-  (* cannot allow let because right-hand side of let can contain a semi-colon *)
-  | e1 = preatomic DOT f = variable LARROW e2 = everything_except_let_and_semi
-      { EAssign (e1, mkfield f, e2) }
-  | TAGOF e1 = preatomic LARROW d = datacon
-      { EAssignTag (e1, mkdatacon d) }
-  | TAKE e1 = expression FROM e2 = everything_except_let_and_semi
-      { ETake (e1, e2) }
-  | GIVE e1 = expression TO e2 = everything_except_let_and_semi
-      { EGive (e1, e2) } 
-  | es = separated_list_of_at_least_two(COMMA, infix_op)
-      { ETuple es }
-  | ASSERT t = very_loose_type
-      { EAssert t }
-  | e = explained_raw
-      { e }
-
-  explained_raw:
-  | e = infix_op EXPLAIN
-      { EExplained e }
-  | e = infix_op_raw
-      { e }
-
-  %inline infix_op:
-  | e = elocated(infix_op_raw)
-      { e }
-
-  infix_op_raw:
-  | e1 = infix_op o = OPINFIX0 e2 = infix_op
-      { mkinfix e1 o e2 }
-  | e1 = infix_op EQUAL e2 = infix_op
-      { mkinfix e1 "=" e2 }
-  | e1 = infix_op o = OPINFIX1 e2 = infix_op
-      { mkinfix e1 o e2 }
-  | e1 = infix_op o = OPINFIX2 e2 = infix_op
-      { mkinfix e1 o e2 }
-  | e1 = infix_op o = OPINFIX3 e2 = infix_op
-      { mkinfix e1 o e2 }
-  | e1 = infix_op STAR e2 = infix_op
-      { mkinfix e1 "*" e2 }
-  | e1 = infix_op MINUS e2 = infix_op
-      { mkinfix e1 "-" e2 }
-  (* Whereas the regular prefix operators, represented by the token [OPPREFIX],
-     bind very tightly, the unary [MINUS] operator binds more loosely. Here, we
-     follow OCaml. The goal is to interpret [f !x] as [f (!x)] and [f -1] as
-     [f - 1]. Like OCaml, we allow [-f x], which is interpreted as [-(f x)]. *)
-  | MINUS e = app
-      { mkinfix (EInt 0) "-" e }
-  | e = app_raw
-      { e }
-
-  (* Application *)
-  %inline app:
-  | e = elocated(app_raw)
-      { e }
-
-  app_raw:
-  | e1 = app e2 = preatomic
-      { EApply (e1, e2) }
-  | e1 = app LBRACKET ts = separated_nonempty_list(COMMA, app_component) RBRACKET
-      { ETApply (e1, ts) }
-  | e = preatomic_raw
-      { e }
-
-      app_component:
-      | t = normal_type
-          { Ordered t }
-      | v = variable EQUAL t = normal_type
-          { Named (v, t) }
-
-  %inline preatomic:
-    e = elocated(preatomic_raw)
-      { e }
-
-  preatomic_raw:
-  | e = preatomic DOT f = variable
-      { EAccess (e, mkfield f) }
-  | a = atomic_raw
-      { a }
-
-  explain:
-  |
-      { false }
-  | EXPLAIN
-      { true }
-
-  %inline atomic:
-  | e = elocated(atomic_raw)
-      { e }
-
-  atomic_raw:
-  (* The regular prefix operators, represented by the token [OPPREFIX], bind
-     very tightly. Here, we follow OCaml. For instance, [!x.foo] is interpreted
-     as [(!x).foo]. Thus, the prefix operators bind more tightly than the dot. *)
-  | o = OPPREFIX e = atomic
-      { EApply (EVar (Variable.register o), e) }
-  | v = variable
-      { EVar v }
-  | m = module_name COLONCOLON x = variable
-      { EQualified (m, x) }
-  | i = INT
-      { EInt i }
-  | FAIL
-      { EFail }
-  | dc = datacon_application(data_field_assign)
-      { EConstruct dc }
-  | LPAREN RPAREN
-      { ETuple [] }
-  | MATCH b = explain e = expression WITH bs = separated_or_preceded_list(BAR, match_branch) END
-      { EMatch (b, e, bs) }
-  | BEGIN e = expression END
-      { e }
-  | LPAREN e = infix_op COLON t = arbitrary_type RPAREN
-      { EConstraint (e, t) }
-  | LPAREN e = expression RPAREN
-      { e }
-
-    data_field_assign:
-    (* cannot allow let because right-hand side of let can contain a semi-colon *)
-    | f = variable EQUAL e = everything_except_let_and_semi
-        { f, e }
-    | f = variable
-        (* Punning *)
-        { f, EVar f }
-
-    %inline match_branch:
-    | p = normal_pattern ARROW e = expression
-        { p, e }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -857,14 +875,4 @@ interface:
    tuple types and multi-argument function types. So, I give up and use a
    dedicated symbol, STAR, for conjunction. Somewhat analogously, yet another
    symbol, BAR, is now used for the conjunction of a type and a permission. *)
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Below this line: things to do. *)
-
-(* TODO *)
-
-(*
-   syntax for anonymous sums?
-*)
 
