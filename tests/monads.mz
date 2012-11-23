@@ -1,0 +1,78 @@
+(* The identity monad. *)
+
+(* We don't have type abbreviations, so we have to wrap the type [a]
+   in a one-field record. *)
+
+data id a =
+  Id { value: a }
+
+val return [a] (consumes x: a) : id a =
+  Id { value = x }
+
+val bind [a, b] (m: id a, k: a -> id b) : id b =
+  k m.value
+
+(* The error monad. *)
+
+data option a =
+  Some { value: a }
+| None
+
+val return [a] (consumes x: a) : option a =
+  Some { value = x }
+
+val bind [a, b] (m: option a, k: a -> option b) : option b =
+  match m with
+  | Some ->
+      k m.value
+  | None ->
+      None
+  end
+
+(* The state-passing monad. *)
+
+data state s a =
+  State { computation: (consumes s) -> (s, a) }
+
+(* TEMPORARY the following two functions do not type-check: not sure why? 
+
+val return [s, a] duplicable a => (x: a) : state s a =
+  let c (consumes q: s) : (s, a) =
+    (q, x)
+  in
+  State { computation = c }
+
+val bind [s, a, b] (m: state s a, k: a -> state s b) : state s b =
+  let c (consumes q: s) : (s, b) =
+    let q, x = m.computation q in
+    (k x).computation q
+  in
+  State { computation = c }
+
+*)
+
+(* The permission-passing monad. *)
+
+data ppm (p :: PERM) a =
+  PPM { computation: (| p) -> a }
+
+val return [p :: PERM, a] duplicable a => (x: a) : ppm p a =
+  (* We are forced to declare [a] as duplicable because the following
+     computation captures [a] in its closure. Should we use one-shot
+     functions? Or should we not use functions at all? Or is it just
+     a natural consequence of the fact that we have a non-indexed
+     state monad? *)
+  let c (| p) : a = x in
+  PPM { computation = c }
+
+val bind [p :: PERM, a, b] (m: ppm p a, k: a -> ppm p b) : ppm p b =
+  let c (| p) : b =
+    let x : a = m.computation() in
+    (k x).computation()
+  in
+  PPM { computation = c }
+
+(* TEMPORARY think about an indexed permission-passing monad, i.e. one
+   where the permission changes with time *)
+(* TEMPORARY think also about a combined state/error monad *)
+
