@@ -445,6 +445,46 @@ val stable_sort [a] (cmp: (a, a) -> int, consumes xs: list a) : list a =
 
 *)
 
+(* -------------------------------------------------------------------------- *)
+
+(* Comparison. *)
+
+val rec equal [a, b] (eq: (a, b) -> bool, xs: list a, ys: list b) : bool =
+  if xs then
+    if ys then
+      if eq (xs.head, ys.head) then
+        equal (eq, xs.tail, ys.tail)
+      else
+        False
+    else
+      False
+  else
+    if ys then
+      False
+    else
+      True
+
+(* TEMPORARY why is the following rejected?
+
+val rec compare [a, b] (cmp: (a, b) -> int, xs: list a, ys: list b) : int =
+  if xs then
+    if ys then begin
+      let c = cmp (xs.head, ys.head) in
+      if c = 0 then
+        compare (cmp, xs.tail, ys.tail)
+      else
+        c
+    end
+    else
+      1
+  else
+    if ys then
+      -1
+    else
+      0
+
+*)
+
 (*
 Local Variables:
 compile-command: "../mezzo list.mz"

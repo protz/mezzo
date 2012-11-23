@@ -19,9 +19,22 @@ data phys_equal (x :: TERM) (y :: TERM) =
 
 val ( == ) @ [a, b] (x: a, y: b) -> phys_equal x y
 
+(* TEMPORARY the following rich_bool type seems more general than phys_equal;
+   we could use it instead. *)
+(* TEMPORARY going even further, could we use rich_bool everywhere, i.e. view
+   bool as a type abbreviation for rich_bool empty? If so, we would probably
+   wish to include also a permission q for the False case. And define the
+   Boolean operators to preserve permissions where possible. *)
+
+data rich_bool (p :: PERM) =
+  | RichTrue { | p }
+  | RichFalse
+
+val ( === ) @ (x: unknown, y: unknown) -> rich_bool (x = y)
+
 data bool = True | False
 
-val ( = ) @ [a, b] (a, b) -> bool
+val ( = ) @ (int, int) -> bool
 val ( < ) @ (int, int) -> bool
 val ( <= ) @ (int, int) -> bool
 val ( >= ) @ (int, int) -> bool

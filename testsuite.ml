@@ -651,6 +651,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("priority.mz", simple_test Pass);
 
+  ("monads.mz", simple_test Pass);
+
+  ("list.mz", simple_test Pass);
+
 ]
 
 let _ =
