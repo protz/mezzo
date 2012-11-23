@@ -32,6 +32,12 @@ data rich_bool (p :: PERM) =
 
 val ( === ) @ (x: unknown, y: unknown) -> rich_bool (x = y)
 
+(* TEMPORARY on pourrait vouloir restreindre le test d'égalité == aux types
+   exclusifs, ce qui permettrait de partager les blocs immutables sans
+   contredire la sémantique officielle. C'est un peu un point de détail.
+   D'un point de vue strictement pratique, ce ne serait pas une
+   super idée? *)
+
 data bool = True | False
 
 val ( = ) @ (int, int) -> bool
