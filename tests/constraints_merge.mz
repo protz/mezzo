@@ -9,4 +9,4 @@ val (v: u), w =
     U, U
   end
 
-val y = assert (w @ u)
+val y = assert w @ u

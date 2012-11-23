@@ -62,12 +62,10 @@
 %nonassoc THEN
 %nonassoc ELSE
 
-%left     OPINFIX0 MINUS (* MINUS is also an OPINFIX0 *)
-%left     EQUAL (* EQUAL is also a OPINFIX0 *)
+%left     OPINFIX0 EQUAL (* EQUAL is also a OPINFIX0 *)
 %right    OPINFIX1
-%left     OPINFIX2
-%left     OPINFIX3
-%left     STAR (* STAR is also an OPINFIX3 *)
+%left     OPINFIX2 MINUS (* MINUS is also an OPINFIX2 *)
+%left     OPINFIX3 STAR  (* STAR is also an OPINFIX3 *)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -96,19 +94,24 @@ open ParserUtils
    should help us avoid confusions between namespaces: names for variables,
    data constructors, etc. have distinct types. *)
 
-%inline operator:
-  | o = OPPREFIX
+%inline infix_operator:
   | o = OPINFIX0
   | o = OPINFIX1
   | o = OPINFIX2
   | o = OPINFIX3
-    { o }
+      { o }
   | STAR
-    { "*" }
+      { "*" }
   | MINUS
-    { "-" }
+      { "-" }
   | EQUAL
-    { "=" }
+      { "=" }
+
+%inline operator:
+  | o = OPPREFIX
+      { o }
+  | o = infix_operator
+      { o }
 
 variable:
   | x = LIDENT
@@ -219,8 +222,17 @@ atomic_kind:
    permissions, permission conjunction, etc.) appear as part of the syntax of
    types. *)
 
-(* The syntax of types is stratified into the following levels, so as to
-   eliminate all ambiguity. *)
+(* The syntax of types is stratified into the following levels:
+
+     atomic_type
+     tight_type
+     normal_type
+     loose_type
+     consumes_type
+     very_loose_type
+     fat_type
+
+*)
 
 %inline tlocated (X):
 | x = X
@@ -228,159 +240,160 @@ atomic_kind:
 
 %inline atomic_type:
 | t = tlocated(raw_atomic_type)
-  { t }
+    { t }
 
-  raw_atomic_type:
-  (* The empty tuple type. *)
-  | LPAREN RPAREN
-      { TyTuple [] }
-  (* Parentheses are used as a disambiguation device, as is standard. *)
-  | LPAREN t = arbitrary_type RPAREN
-      { t }
-  (* The top type. *)
-  | UNKNOWN
-      { TyUnknown }
-  (* The type [dynamic] represents a permission to test membership in a dynamic region. *)
-  | DYNAMIC
-      { TyDynamic }
-  (* The top permission. A neutral element for permission conjunction. *)
-  | EMPTY
-      { TyEmpty }
-  (* Term variable, type variable, permission variable, abstract type, or concrete type. *)
-  | x = variable
-      { TyVar x }
-  (* A variable just like above, prefixed with a module name. *)
-  | m = module_name COLONCOLON x = variable
-      { TyQualified (m, x) }
-  (* A structural type explicitly mentions a data constructor. *)
-  (* TEMPORARY add support for optional adopts clause in structural permissions *)
-  | b = data_type_def_branch
-      { TyConcreteUnfolded b }
+raw_atomic_type:
+(* The empty tuple type. *)
+| LPAREN RPAREN
+    { TyTuple [] }
+(* Parentheses are used as a disambiguation device, as is standard. *)
+| LPAREN t = arbitrary_type RPAREN
+    { t }
+(* The top type. *)
+| UNKNOWN
+    { TyUnknown }
+(* The type [dynamic] represents a permission to test membership in a dynamic region. *)
+| DYNAMIC
+    { TyDynamic }
+(* The top permission. A neutral element for permission conjunction. *)
+| EMPTY
+    { TyEmpty }
+(* Term variable, type variable, permission variable, abstract type, or concrete type. *)
+| x = variable
+    { TyVar x }
+(* A variable just like above, prefixed with a module name. *)
+| m = module_name COLONCOLON x = variable
+    { TyQualified (m, x) }
+(* A structural type explicitly mentions a data constructor. *)
+(* TEMPORARY add support for optional adopts clause in structural permissions *)
+| b = data_type_def_branch
+    { TyConcreteUnfolded b }
 
-%inline quasi_atomic_type:
-| t = tlocated(raw_quasi_atomic_type)
-  { t }
+%inline tight_type:
+| t = tlocated(raw_tight_type)
+    { t }
 
-  raw_quasi_atomic_type:
-  | ty = raw_atomic_type
-      { ty }
-  (* A singleton type. *)
-  | EQUAL x = variable
-      { TySingleton (TyVar x) }
-  (* A type application. *)
-  | ty = type_type_application(quasi_atomic_type, atomic_type)
-      { ty }
+raw_tight_type:
+| ty = raw_atomic_type
+    { ty }
+(* A singleton type. *)
+| EQUAL x = variable
+    { TySingleton (TyVar x) }
+(* A type application. *)
+| ty = type_type_application(tight_type, atomic_type)
+    { ty }
 
 %inline normal_type:
 | t = tlocated(raw_normal_type)
-  { t }
-
-  duplicity_constraint:
-  | EXCLUSIVE t = quasi_atomic_type
-      { Exclusive, t }
-  | DUPLICABLE t = quasi_atomic_type
-      { Duplicable, t }
-
-  %inline raw_constrained_type:
-  | dc = separated_nonempty_list (COMMA, duplicity_constraint) DBLARROW ty = normal_type
-      { TyConstraints (dc, ty) }
-
-  %inline constrained_type:
-  | t = tlocated(raw_constrained_type)
     { t }
 
-  constrained_or_atomic_type:
-  | ty = constrained_type
-      { ty }
-  | ty = atomic_type
-      { ty }
-
-  raw_normal_type:
-  | ty = raw_quasi_atomic_type
-      { ty }
-  (* The syntax of function types is [t -> t], as usual. *)
-  | ty1 = quasi_atomic_type ARROW ty2 = normal_type
-      { TyArrow (ty1, ty2) }
-  (* A polymorphic type. *)
-  | bs = type_parameters ty = normal_type
-      { List.fold_right (fun b ty -> TyForall (b, ty)) bs ty }
-  | ty = raw_constrained_type
-      { ty }
+raw_normal_type:
+| ty = raw_tight_type
+    { ty }
+(* The syntax of function types is [t -> t], as usual. *)
+| ty1 = tight_type ARROW ty2 = normal_type
+    { TyArrow (ty1, ty2) }
+(* A polymorphic type. *)
+| bs = type_parameters ty = normal_type
+    { List.fold_right (fun b ty -> TyForall (b, ty)) bs ty }
 
 %inline loose_type:
 | t = tlocated(raw_loose_type)
-  { t }
+    { t }
 
-  raw_anchored_permission:
-  (* In an anchored permission [x@t], the name [x] is free. This
-     represents an assertion that we have permission to use [x] at
-     type [t]. *)
-  | x = variable AT ty = normal_type
-      { TyAnchoredPermission (TyVar x, ty) }
-  (* [x = y] is also an anchored permission; it is sugar for [x@=y]. *)
-  | x = variable EQUAL y = variable
-      { TyAnchoredPermission (TyVar x, TySingleton (TyVar y)) }
+(* TEMPORARY raw_anchored_permission can be folded back into
+   raw_loose_type if we change the syntax of perm_declaration to use COLON *)
+raw_anchored_permission:
+(* In an anchored permission [x@t], the name [x] is free. This
+   represents an assertion that we have permission to use [x] at
+   type [t]. *)
+| x = variable AT ty = normal_type
+    { TyAnchoredPermission (TyVar x, ty) }
+(* [x = y] is also an anchored permission; it is sugar for [x@=y]. *)
+| x = variable EQUAL y = variable
+    { TyAnchoredPermission (TyVar x, TySingleton (TyVar y)) }
 
-  raw_loose_type:
-  | ty = raw_normal_type
-      { ty }
-  | ty = raw_anchored_permission
-      { ty }
-  (* In a name introduction form [x:t], the name [x] is bound. The scope
-     of [x] is defined by somewhat subtle rules that need not concern us
-     here. These rules are spelled out later on when we desugar the surface-level
-     types into a lower-level representation. *)
-  | x = variable COLON ty = normal_type
-      { TyNameIntro (x, ty) }
+raw_loose_type:
+| ty = raw_normal_type
+    { ty }
+| ty = raw_anchored_permission
+    { ty }
+(* In a name introduction form [x:t], the name [x] is bound. The scope
+   of [x] is defined by somewhat subtle rules that need not concern us
+   here. These rules are spelled out later on when we desugar the surface-level
+   types into a lower-level representation. *)
+| x = variable COLON ty = normal_type
+    { TyNameIntro (x, ty) }
 
 %inline consumes_type:
 | t = tlocated(raw_consumes_type)
-  { t }
+    { t }
 
-  raw_consumes_type:
-  | ty = raw_loose_type
-      { ty }
-  (* A type can be annotated with the [CONSUMES] keyword. This really
-     makes sense only in certain contexts, e.g. in the left-hand side of an
-     arrow, and possibly further down under tuples, stars, etc. The grammar
-     allows this everywhere. This notation is checked for consistency and
-     desugared in a separate pass. *)
-  | CONSUMES ty = loose_type
-      { TyConsumes ty }
+raw_consumes_type:
+| ty = raw_loose_type
+    { ty }
+(* A type can be annotated with the [CONSUMES] keyword. This really
+   makes sense only in certain contexts, e.g. in the left-hand side of an
+   arrow, and possibly further down under tuples, stars, etc. The grammar
+   allows this everywhere. This notation is checked for consistency and
+   desugared in a separate pass. *)
+| CONSUMES ty = loose_type
+    { TyConsumes ty }
 
 %inline very_loose_type:
 | t = tlocated(raw_very_loose_type)
-  { t }
+    { t }
 
-  raw_very_loose_type:
-  | ty = raw_consumes_type
-      { ty }
-  (* Permission conjunction is a binary operator. *)
-  | ty1 = consumes_type STAR ty2 = very_loose_type
-      { TyStar (ty1, ty2) }
-  (* A tuple type of length at least two is written [t1, ..., tn], without
-     parentheses. A tuple type of length one cannot be written -- there is
-     no syntax for it. *)
-  | tcs = separated_list_of_at_least_two(COMMA, consumes_type)
-      { TyTuple tcs }
+(* [COMMA] and [STAR] are at the same level, but cannot be mixed with
+   each other. *)
+
+raw_very_loose_type:
+| ty = raw_consumes_type
+    { ty }
+(* Permission conjunction is a binary operator. *)
+| ty1 = consumes_type STAR ty2 = very_loose_type
+    { TyStar (ty1, ty2) }
+(* A tuple type of length at least two is written [t1, ..., tn], without
+   parentheses. A tuple type of length one cannot be written -- there is
+   no syntax for it. *)
+| tcs = separated_list_of_at_least_two(COMMA, consumes_type)
+    { TyTuple tcs }
 
 %inline fat_type:
 | t = tlocated(raw_fat_type)
   { t }
 
-  raw_fat_type:
-  | ty = raw_very_loose_type
-      { ty }
-  (* The conjunction of a type and a permission is written [t | p]. It is
-     typically used as the domain or codomain of a function type. *)
-  | ty1 = fat_type BAR ty2 = very_loose_type
-      { TyBar (ty1, ty2) }
-  | BAR ty2 = very_loose_type
-      { TyBar (TyTuple [], ty2) }
+raw_fat_type:
+| ty = raw_very_loose_type
+    { ty }
+(* The conjunction of a type and a permission is written [t | p]. It is
+   typically used as the domain or codomain of a function type. *)
+| ty1 = fat_type BAR ty2 = very_loose_type
+    { TyBar (ty1, ty2) }
+| BAR ty2 = very_loose_type
+    { TyBar (TyTuple [], ty2) }
 
 %inline arbitrary_type:
   t = fat_type
     { t }
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Mode constraints are used as part of toplevel function definitions. *)
+
+mode:
+| EXCLUSIVE
+    { Exclusive }
+| DUPLICABLE
+    { Duplicable }
+
+%inline atomic_mode_constraint:
+| m = mode t = atomic_type
+    { m, t }
+
+%inline mode_constraint:
+| cs = separated_nonempty_list (COMMA, atomic_mode_constraint) DBLARROW
+    { cs }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -472,12 +485,13 @@ data_type_def_branch_content:
     { [] }
 | DUPLICABLE t = atomic_type DBLARROW
     { [t] }
-(* TEMPORARY la syntaxe de fact_conditions/fact me semble trop restrictive? *)
+(* TEMPORARY la syntaxe de fact_conditions/fact me semble trop restrictive?
+   et pourquoi n'est-elle pas partagée avec mode_constraint? *)
 
 fact:
-| FACT tup = fact_conditions DUPLICABLE t = arbitrary_type
+| FACT tup = fact_conditions DUPLICABLE t = atomic_type
     { FDuplicableIf (tup, t) }
-| FACT EXCLUSIVE t = arbitrary_type
+| FACT EXCLUSIVE t = atomic_type
     { FExclusive t }
 
 data_type_def:
@@ -500,217 +514,249 @@ data_type_def:
 
 (* Patterns. *)
 
+(* The syntax of patterns is stratified into the following levels:
+
+     atomic_pattern
+     normal_pattern
+     loose_pattern
+
+*)
+
 %inline plocated (X):
 | x = X
     { PLocated (x, $startpos, $endpos) }
 
-%inline pattern:
-| p = pat1
+%inline atomic_pattern:
+| p = plocated(raw_atomic_pattern)
     { p }
 
-  %inline pat1:
-  | p = plocated(raw_pat1)
-      { p }
+raw_atomic_pattern:
+| LPAREN p = pattern RPAREN
+    { p }
+| dc = datacon_application(data_field_pattern)
+    { PConstruct dc }
+| x = variable
+    { PVar x }
+(* TEMPORARY wildcards are missing *)
 
-  raw_pat1:
-  | p = atomic_pattern COLON t = normal_type
-      { PConstraint (p, t) }
-  | ps = separated_list_of_at_least_two(COMMA, atomic_pattern)
-      { PTuple ps }
-  | p = pattern AS v = variable
-      { PAs (p, PVar v) }
-  | a = atomic_pattern_raw
-      { a }
-  (* TEMPORARY wildcards are missing *)
-  (* TEMPORARY or-patterns are missing *)
+data_field_pattern:
+| f = variable EQUAL p = pattern
+    { f, p }
+| f = variable
+    (* Punning *)
+    { f, PVar f }
 
-    data_field_pat:
-    | f = variable EQUAL p = pattern
-        { f, p }
-    | f = variable
-        (* Punning *)
-        { f, PVar f }
+%inline normal_pattern:
+| p = plocated(raw_normal_pattern)
+    { p }
 
-  %inline atomic_pattern:
-  | p = plocated(atomic_pattern_raw)
-      { p }
+(* Following OCaml, we interpret [x, y as z] as [(x, y) as z], and
+   we interpret [w as x, y as z] as [((w as x), y) as z]. This is
+   not great, but it seems wise to follow OCaml. A stricter option
+   would be to reject these dubious examples by requiring an
+   [atomic_pattern] before the keyword [AS]. *)
 
-  atomic_pattern_raw:
-  | LPAREN p = pattern RPAREN
-      { p }
-  | dc = datacon_application(data_field_pat)
-      { PConstruct dc }
-  | x = variable
-      { PVar x }
+raw_normal_pattern:
+| p = raw_atomic_pattern
+    { p }
+| ps = separated_list_of_at_least_two(COMMA, atomic_pattern)
+    { PTuple ps }
+| p = normal_pattern AS v = variable
+    { PAs (p, PVar v) }
+(* TEMPORARY or-patterns are missing *)
+
+%inline loose_pattern:
+| p = plocated(raw_loose_pattern)
+    { p }
+
+raw_loose_pattern:
+| p = raw_normal_pattern
+    { p }
+| p = loose_pattern COLON t = normal_type
+    { PConstraint (p, t) }
+
+%inline pattern:
+| p = loose_pattern
+    { p }
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Terms. *)
+(* Expressions. *)
 
-%inline rec_flag:
-| REC
-    { Recursive }
-|
-    { Nonrecursive }
+(* The syntax of expressions is stratified into the following levels:
+
+     atomic_expression        e.g. x
+     tight_expression         e.g. x.tail
+     application_expression   e.g. length x.tail
+     algebraic_expression     e.g. length x.tail + 1
+     reasonable_expression    e.g. x.size <- length x.tail + 1
+     fragile_expression       e.g. x.size <- length x.tail + 1; x.size
+
+*)
 
 %inline elocated (X):
 | x = X
     { ELocated (x, $startpos, $endpos) }
 
-(* Main expression rule *)
-%inline expression:
-| e = elocated(expression_raw)
+%inline atomic_expression:
+| e = elocated(raw_atomic_expression)
     { e }
 
-  expression_raw:
-  | e1 = everything_except_let_and_semi SEMI e2 = expression
-      { ESequence (e1, e2) }
-  | LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = expression
-      { ELet (f, declarations, e) }
-  | FUN bs = type_parameters? arg = atomic_type COLON t = normal_type EQUAL e = expression
-      { EFun (Option.map_none [] bs, arg, t, e) }
-  | e = everything_except_let_and_semi_raw
-      { e }
+raw_atomic_expression:
+(* The regular prefix operators, represented by the token [OPPREFIX], bind
+   very tightly. Here, we follow OCaml. For instance, [!x.foo] is interpreted
+   as [(!x).foo]. Thus, the prefix operators bind more tightly than the dot. *)
+| o = OPPREFIX e = atomic_expression
+    { EApply (EVar (Variable.register o), e) }
+| v = variable
+    { EVar v }
+| m = module_name COLONCOLON x = variable
+    { EQualified (m, x) }
+| i = INT
+    { EInt i }
+| FAIL
+    { EFail }
+| dc = datacon_application(data_field_expression)
+    { EConstruct dc }
+| LPAREN RPAREN
+    { ETuple [] }
+| MATCH
+  b = explain
+  e = expression
+  WITH
+  bs = separated_or_preceded_list(BAR, match_branch)
+  END
+    { EMatch (b, e, bs) }
+| BEGIN e = expression END
+    { e }
+| LPAREN e = algebraic_expression COLON t = arbitrary_type RPAREN
+    { EConstraint (e, t) }
+| LPAREN e = expression RPAREN
+    { e }
 
-  everything_except_let_and_semi:
-  | e = elocated(everything_except_let_and_semi_raw)
-      { e }
+data_field_expression:
+(* In a record construction expression, field definitions are separated by
+   semicolons. Thus, the expression in the right-hand side of a field
+   definition must not contain a bare semi-colon, as this would lead to
+   ambiguity. For this reason, we disallow [let] and sequence here. *)
+| f = variable EQUAL e = reasonable_expression
+    { f, e }
+| f = variable
+    (* Punning *)
+    { f, EVar f }
 
-  everything_except_let_and_semi_raw:
-  (* disallow let inside of "then", too fragile *)
-  | IF b = explain e1 = expression THEN e2 = everything_except_let_and_semi
-      { EIfThenElse (b, e1, e2, ETuple []) }
-  | IF b = explain e1 = expression THEN e2 = everything_except_let_and_semi ELSE e3 = everything_except_let_and_semi
-      { EIfThenElse (b, e1, e2, e3) }
-  (* cannot allow let because right-hand side of let can contain a semi-colon *)
-  | e1 = preatomic DOT f = variable LARROW e2 = everything_except_let_and_semi
-      { EAssign (e1, mkfield f, e2) }
-  | TAGOF e1 = preatomic LARROW d = datacon
-      { EAssignTag (e1, mkdatacon d) }
-  | TAKE e1 = expression FROM e2 = everything_except_let_and_semi
-      { ETake (e1, e2) }
-  | GIVE e1 = expression TO e2 = everything_except_let_and_semi
-      { EGive (e1, e2) } 
-  | es = separated_list_of_at_least_two(COMMA, infix_op)
-      { ETuple es }
-  | e = explained_raw
-      { e }
+explain:
+| (* nothing *)
+    { false }
+| EXPLAIN
+    { true }
 
-  explained_raw:
-  | e = infix_op EXPLAIN
-      { EExplained e }
-  | e = infix_op_raw
-      { e }
+%inline match_branch:
+| p = normal_pattern ARROW e = expression
+    { p, e }
 
-  %inline infix_op:
-  | e = elocated(infix_op_raw)
-      { e }
+%inline tight_expression:
+  e = elocated(raw_tight_expression)
+    { e }
 
-  infix_op_raw:
-  | e1 = infix_op o = OPINFIX0 e2 = infix_op
-      { mkinfix e1 o e2 }
-  | e1 = infix_op EQUAL e2 = infix_op
-      { mkinfix e1 "=" e2 }
-  | e1 = infix_op o = OPINFIX1 e2 = infix_op
-      { mkinfix e1 o e2 }
-  | e1 = infix_op o = OPINFIX2 e2 = infix_op
-      { mkinfix e1 o e2 }
-  | e1 = infix_op o = OPINFIX3 e2 = infix_op
-      { mkinfix e1 o e2 }
-  | e1 = infix_op STAR e2 = infix_op
-      { mkinfix e1 "*" e2 }
-  | e1 = infix_op MINUS e2 = infix_op
-      { mkinfix e1 "-" e2 }
-  (* Whereas the regular prefix operators, represented by the token [OPPREFIX],
-     bind very tightly, the unary [MINUS] operator binds more loosely. Here, we
-     follow OCaml. The goal is to interpret [f !x] as [f (!x)] and [f -1] as
-     [f - 1]. Like OCaml, we allow [-f x], which is interpreted as [-(f x)]. *)
-  | MINUS e = app
-      { mkinfix (EInt 0) "-" e }
-  | e = app_raw
-      { e }
+raw_tight_expression:
+| e = tight_expression DOT f = variable
+    { EAccess (e, mkfield f) }
+| a = raw_atomic_expression
+    { a }
 
-  (* Application *)
-  %inline app:
-  | e = elocated(app_raw)
-      { e }
+%inline application_expression:
+| e = elocated(raw_application_expression)
+    { e }
 
-  app_raw:
-  | e1 = app e2 = preatomic
-      { EApply (e1, e2) }
-  | e1 = app LBRACKET ts = separated_nonempty_list(COMMA, app_component) RBRACKET
-      { ETApply (e1, ts) }
-  | e = preatomic_raw
-      { e }
+raw_application_expression:
+| e1 = application_expression e2 = tight_expression
+    { EApply (e1, e2) }
+| e1 = application_expression
+  LBRACKET ts = separated_nonempty_list(COMMA, type_application_component) RBRACKET
+    { ETApply (e1, ts) }
+| e = raw_tight_expression
+    { e }
 
-      app_component:
-      | t = normal_type
-          { Ordered t }
-      | v = variable EQUAL t = normal_type
-          { Named (v, t) }
+type_application_component:
+| t = normal_type
+    { Ordered t }
+| v = variable EQUAL t = normal_type
+    { Named (v, t) }
+(* TEMPORARY syntaxe pas géniale car
+   "x [y = z]" et "x [(y = z)]"
+   signifient alors deux choses différentes.
+   En plus elle nous empêche d'autoriser un type plus haut que normal_type *)
 
-  %inline preatomic:
-    e = elocated(preatomic_raw)
-      { e }
+%inline algebraic_expression:
+| e = elocated(raw_algebraic_expression)
+    { e }
 
-  preatomic_raw:
-  | e = preatomic DOT f = variable
-      { EAccess (e, mkfield f) }
-  | a = atomic_raw
-      { a }
+raw_algebraic_expression:
+| e1 = algebraic_expression o = infix_operator e2 = algebraic_expression
+    { mkinfix e1 o e2 }
+(* Whereas the regular prefix operators, represented by the token [OPPREFIX],
+   bind very tightly, the unary [MINUS] operator binds more loosely. Here, we
+   follow OCaml. The goal is to interpret [f !x] as [f (!x)] and [f -1] as
+   [f - 1]. Like OCaml, we allow [-f x], which is interpreted as [-(f x)]. *)
+| MINUS e = application_expression
+    { mkinfix (EInt 0) "-" e }
+| e = raw_application_expression
+    { e }
 
-  explain:
-  |
-      { false }
-  | EXPLAIN
-      { true }
+reasonable_expression:
+| e = elocated(raw_reasonable_expression)
+    { e }
 
-  %inline atomic:
-  | e = elocated(atomic_raw)
-      { e }
+raw_reasonable_expression:
+  (* We disallow "let" inside of "then" or "else", because this is too fragile.
+     It is a common source of errors in OCaml. *)
+| IF b = explain e1 = expression THEN e2 = reasonable_expression
+    { EIfThenElse (b, e1, e2, ETuple []) }
+| IF b = explain e1 = expression THEN e2 = reasonable_expression ELSE e3 = reasonable_expression
+    { EIfThenElse (b, e1, e2, e3) }
+  (* We cannot allow "let" on the right-hand side of an assignment, because
+     the right-hand side of "let" can contain a semi-colon. *)
+| e1 = tight_expression DOT f = variable LARROW e2 = reasonable_expression
+    { EAssign (e1, mkfield f, e2) }
+| TAGOF e1 = tight_expression LARROW d = datacon
+    { EAssignTag (e1, mkdatacon d) }
+| TAKE e1 = expression FROM e2 = reasonable_expression
+    { ETake (e1, e2) }
+| GIVE e1 = expression TO e2 = reasonable_expression
+    { EGive (e1, e2) } 
+| es = separated_list_of_at_least_two(COMMA, algebraic_expression)
+    { ETuple es }
+| ASSERT t = very_loose_type
+    { EAssert t }
+| e = algebraic_expression EXPLAIN
+    { EExplained e }
+| e = raw_algebraic_expression
+    { e }
 
-  atomic_raw:
-  (* The regular prefix operators, represented by the token [OPPREFIX], bind
-     very tightly. Here, we follow OCaml. For instance, [!x.foo] is interpreted
-     as [(!x).foo]. Thus, the prefix operators bind more tightly than the dot. *)
-  | o = OPPREFIX e = atomic
-      { EApply (EVar (Variable.register o), e) }
-  | v = variable
-      { EVar v }
-  | m = module_name COLONCOLON x = variable
-      { EQualified (m, x) }
-  | i = INT
-      { EInt i }
-  | FAIL
-      { EFail }
-  | dc = datacon_application(data_field_assign)
-      { EConstruct dc }
-  | LPAREN RPAREN
-      { ETuple [] }
-  | MATCH b = explain e = expression WITH bs = separated_or_preceded_list(BAR, match_branch) END
-      { EMatch (b, e, bs) }
-  | BEGIN e = expression END
-      { e }
-  | LPAREN e = expression COLON t = arbitrary_type RPAREN
-      { EConstraint (e, t) }
-  | ASSERT LPAREN t = arbitrary_type RPAREN
-      { EAssert t }
-  | LPAREN e = expression RPAREN
-      { e }
+%inline fragile_expression:
+| e = elocated(raw_fragile_expression)
+    { e }
 
-    data_field_assign:
-    (* cannot allow let because right-hand side of let can contain a semi-colon *)
-    | f = variable EQUAL e = everything_except_let_and_semi
-        { f, e }
-    | f = variable
-        (* Punning *)
-        { f, EVar f }
+raw_fragile_expression:
+| e1 = reasonable_expression SEMI e2 = fragile_expression
+    { ESequence (e1, e2) }
+| LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = fragile_expression
+    { ELet (f, declarations, e) }
+| FUN bs = type_parameters? arg = atomic_type COLON t = normal_type EQUAL e = fragile_expression
+    { EFun (Option.map_none [] bs, arg, t, e) }
+| e = raw_reasonable_expression
+    { e }
 
-    %inline match_branch:
-    (* TEMPORARY I would like to allow more than atomic_pattern here *)
-    (* but there is a conflict due to PConstraint *)
-    | p = atomic_pattern ARROW e = expression
-        { p, e }
+rec_flag:
+| REC
+    { Recursive }
+|
+    { Nonrecursive }
+
+%inline expression:
+| e = fragile_expression
+    { e }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -746,8 +792,14 @@ decl_raw:
 inner_declaration:
 | p = pattern EQUAL e = expression
     { p, e }
-| f_name = variable bs = type_parameters? arg = constrained_or_atomic_type COLON t = normal_type EQUAL e = expression
-    { PVar f_name, EFun (Option.map_none [] bs, arg, t, e) }
+| f_name = variable
+  bs = type_parameters?
+  constraints = loption(mode_constraint)
+  arg = atomic_type
+  COLON t = normal_type
+  EQUAL e = expression
+    { PVar f_name,
+      EFun (Option.map_none [] bs, TyConstraints (constraints, arg), t, e) }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -783,6 +835,10 @@ implementation:
 perm_declaration:
 | VAL t = raw_anchored_permission
     { PermDeclaration t }
+(* TEMPORARY question: why do we use "val x @ int" and not "val x : int"?
+   After all, @ is supposed to be used when we are referring to a pre-existing
+   name, while : is supposed to be used when we are introducing a new name.
+   So COLON would be more appropriate here, wouldn't it? *)
 
 interface_toplevel:
 | group = data_type_group
@@ -819,14 +875,4 @@ interface:
    tuple types and multi-argument function types. So, I give up and use a
    dedicated symbol, STAR, for conjunction. Somewhat analogously, yet another
    symbol, BAR, is now used for the conjunction of a type and a permission. *)
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Below this line: things to do. *)
-
-(* TODO *)
-
-(*
-   syntax for anonymous sums?
-*)
 

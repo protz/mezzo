@@ -14,4 +14,4 @@ val v =
 
 val w =
   (* This makes the type-checker loop! Hah hah! *)
-  assert (v @ t)
+  assert v @ t
