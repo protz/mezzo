@@ -28,55 +28,56 @@ open Utils
 
 let safety_check env =
   (* Be paranoid, perform an expensive safety check. *)
-  fold_terms env (fun () point _ ({ permissions; _ }) ->
-    (* Each term should have exactly one singleton permission. If we fail here,
-     * this is SEVERE: this means one of our internal invariants broken, so
-     * someone messed up the code somewhere. *)
-    let singletons = List.filter (function
-      | TySingleton (TyPoint _) ->
-          true
-      | _ ->
-          false
-    ) permissions in
-    if List.length singletons <> 1 then
-      Log.error
-        "Inconsistency detected: not one singleton type for %a\n%a\n"
-        TypePrinter.pnames (env, get_names env point)
-        TypePrinter.penv env;
+  if Log.debug_level () >= 5 then
+    fold_terms env (fun () point _ ({ permissions; _ }) ->
+      (* Each term should have exactly one singleton permission. If we fail here,
+       * this is SEVERE: this means one of our internal invariants broken, so
+       * someone messed up the code somewhere. *)
+      let singletons = List.filter (function
+        | TySingleton (TyPoint _) ->
+            true
+        | _ ->
+            false
+      ) permissions in
+      if List.length singletons <> 1 then
+        Log.error
+          "Inconsistency detected: not one singleton type for %a\n%a\n"
+          TypePrinter.pnames (env, get_names env point)
+          TypePrinter.penv env;
 
-    (* The inconsistencies below are suspicious, but it may just be that we
-     * failed to mark the environment as inconsistent. *)
+      (* The inconsistencies below are suspicious, but it may just be that we
+       * failed to mark the environment as inconsistent. *)
 
-    (* Unless the environment is inconsistent, a given type should have no
-     * more than one concrete type. It may happen that we fail to detect this
-     * situation and mark the environment as inconsistent, so this check will
-     * explode, and remind us that this is one more situation that will mark an
-     * environment as inconsistent. *)
-    let concrete = List.filter (function
-      | TyConcreteUnfolded _ ->
-          true
-      | TyTuple _ ->
-          true
-      | _ ->
-          false
-    ) permissions in
-    (* This part of the safety check is disabled because it is too restrictive,
-     * see [twostructural.mz] for an example. *)
-    if false && not (env.inconsistent) && List.length concrete > 1 then
-      Log.error
-        "Inconsistency detected: more than one concrete type for %a\n\
-          (did you add a function type without calling \
-          [simplify_function_type]?)\n%a\n"
-        TypePrinter.pnames (env, get_names env point)
-        TypePrinter.penv env;
+      (* Unless the environment is inconsistent, a given type should have no
+       * more than one concrete type. It may happen that we fail to detect this
+       * situation and mark the environment as inconsistent, so this check will
+       * explode, and remind us that this is one more situation that will mark an
+       * environment as inconsistent. *)
+      let concrete = List.filter (function
+        | TyConcreteUnfolded _ ->
+            true
+        | TyTuple _ ->
+            true
+        | _ ->
+            false
+      ) permissions in
+      (* This part of the safety check is disabled because it is too restrictive,
+       * see [twostructural.mz] for an example. *)
+      if false && not (env.inconsistent) && List.length concrete > 1 then
+        Log.error
+          "Inconsistency detected: more than one concrete type for %a\n\
+            (did you add a function type without calling \
+            [simplify_function_type]?)\n%a\n"
+          TypePrinter.pnames (env, get_names env point)
+          TypePrinter.penv env;
 
-    let exclusive = List.filter (FactInference.is_exclusive env) permissions in
-    if not (env.inconsistent) && List.length exclusive > 1 then
-      Log.error
-        "Inconsistency detected: more than one exclusive type for %a\n%a\n"
-        TypePrinter.pnames (env, get_names env point)
-        TypePrinter.penv env;
-  ) ();
+      let exclusive = List.filter (FactInference.is_exclusive env) permissions in
+      if not (env.inconsistent) && List.length exclusive > 1 then
+        Log.error
+          "Inconsistency detected: more than one exclusive type for %a\n%a\n"
+          TypePrinter.pnames (env, get_names env point)
+          TypePrinter.penv env;
+    ) ()
 ;;
 
 
