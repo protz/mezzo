@@ -241,7 +241,7 @@ val rec remove [a] (p : a -> bool, consumes xs: list a) : list a =
    a predicate [p] that has access to [x]; this requires equipping [find]
    with a more general type that allows [p] to have a side effect. *)
 
-val mem [a] duplicable a => (equal: (a, a) -> bool, x: a, consumes xs: list a) : list a =
+val mem2 [a] duplicable a => (equal: (a, a) -> bool, x: a, consumes xs: list a) : list a =
   let p (y: a) : bool =
     equal (x, y)
   in
@@ -261,28 +261,20 @@ val mem [a] duplicable a => (equal: (a, a) -> bool, x: a, consumes xs: list a) :
    * local inference and duplicity constraints. *)
   find [a] (p, xs)
 
-(* Because the above attempt has failed, let us define [mem] directly,
-   without re-using [find]. *)
-
-(* TEMPORARY this code is rejected too! I don't know why.
-
 val rec mem [a] (equal: (a, a) -> bool, x: a, consumes xs: list a) : list a =
   if xs then
     if equal (x, xs.head) then xs else mem (equal, x, xs.tail)
   else
     Nil
 
-*)
-
-(* TEMPORARY commented out because this code needs [mem]
+(* This function is commented out because of the current bug in function
+ * comparisons involving structural types.
 
 val assoc [a, b] (equal: (a, a) -> bool, x: a, consumes xs: list (a, b)) : list (a, b) =
   let equal_key ((key1: a, b), (key2: a, b)) : bool =
     equal (key1, key2)
   in
-  mem (equal_key, x, xs)
-
-*)
+  mem [(a,b)] (equal_key, x, xs) *)
 
 (* TEMPORARY
    mem   should be called find_equal
