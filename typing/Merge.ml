@@ -248,7 +248,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
   let make_base_envs ?annot () =
 
-    Log.debug ~level:3 "\n--------- START MERGE ----------\n\n%a\n\n"
+    Log.debug ~level:3 "\n--------- START MERGE @ %a ----------\n\n%a\n\n"
+      Lexer.p top.location
       TypePrinter.pdoc (TypePrinter.print_permissions, top);
 
     (* This is the destination environment; it will evolve over time. Initially,
@@ -352,7 +353,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
     | MergeWith dest_point' ->
         (* The oracle told us to merge. Do it. *)
-        let dest_env = merge_left dest_env dest_point' dest_point in
+        let dest_env = Permissions.unify dest_env dest_point' dest_point in
         left_env, right_env, dest_env
 
     | Proceed ->

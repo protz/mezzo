@@ -60,7 +60,7 @@ let disable_colors () =
 ;;
 
 let _ =
-  if Sys.getenv "TERM" <> "dumb" then
+  if Sys.getenv "TERM" <> "dumb" && Unix.isatty Unix.stdout then
     enable_colors ()
 
 let arrow =

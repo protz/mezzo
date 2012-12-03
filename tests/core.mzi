@@ -44,6 +44,4 @@ val ( = ) @ (int, int) -> bool
 val ( < ) @ (int, int) -> bool
 val ( <= ) @ (int, int) -> bool
 val ( >= ) @ (int, int) -> bool
-(* TEMPORARY adding this operator breaks List.for_all !?
 val ( > ) @ (int, int) -> bool
-*)
