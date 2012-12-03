@@ -285,17 +285,14 @@ val assoc [a, b] (equal: (a, a) -> bool, x: a, consumes xs: list (a, b)) : list 
 
 (* Filtering. *) 
 
-(* TEMPORARY mentioning [x @ unknown] in the return type of [f] should ideally
-   be unnecessary, but is currently required: without it, the type-checker fails. *)
-
 val filter [a] (p: a -> bool, consumes xs: list a) : list a =
-  let f (consumes accu: list a, consumes x: a) : (list a | x @ unknown) =
+  let f (consumes accu: list a, consumes x: a) : list a =
     if p x then Cons { head = x; tail = accu } else accu
   in
   rev (fold_left (f, Nil, xs))
 
 val partition [a] (p: a -> bool, consumes xs: list a) : (list a, list a) =
-  let f (consumes yesno: (list a, list a), consumes x: a) : ((list a, list a) | x @ unknown) =
+  let f (consumes yesno: (list a, list a), consumes x: a) : (list a, list a) =
     let yes, no = yesno in
     if p x then
       Cons { head = x; tail = yes }, no

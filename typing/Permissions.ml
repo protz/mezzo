@@ -749,6 +749,15 @@ and sub_type_real env t1 t2 =
       in
       add_sub env ps1 ps2
 
+  | TyBar (t1, p1), t2 ->
+      let env = add_perm env p1 in
+      sub_type env t1 t2
+
+  | t1, TyBar (t2, p2) ->
+      (* Is the order important here? *)
+      sub_type env t1 t2 >>= fun env ->
+      sub_perm env p2
+
   | _ ->
       None
 
