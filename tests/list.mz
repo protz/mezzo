@@ -241,16 +241,25 @@ val rec remove [a] (p : a -> bool, consumes xs: list a) : list a =
    a predicate [p] that has access to [x]; this requires equipping [find]
    with a more general type that allows [p] to have a side effect. *)
 
-(* TEMPORARY even if I declare [a] as duplicable, the type-checker rejects
-   the following code, which I believe is correct:
-
 val mem [a] duplicable a => (equal: (a, a) -> bool, x: a, consumes xs: list a) : list a =
   let p (y: a) : bool =
     equal (x, y)
   in
-  find (p, xs)
-
-*)
+  (* The type simplification phase yields, in the internal syntax,
+   * "p @ [a, y :: term] (=y | y @ a) -> bool" instead of :
+   * "p @ [a, y :: term] (=y | y @ a) -> (bool | y @ a)"; this is legal: "a" is
+   * duplicable.
+   *
+   * However, when comparing this type with the expected type in "find", unless
+   * we explicitly instanciate the type variable as below, we will introduce a
+   * flexible variable and compare:
+   * "p @ [a, y :: term] (=y | y @ a) -> bool" with:
+   * "p @ [α, υ :: term] (=υ | υ @ α) -> (bool | υ @ α)" where greek letters
+   * stand for flexible variables. Because we have no duplicity hypothesis on
+   * these flexible variables, the comparison fails. The solution here is to
+   * instanciate the type variable -- this is a bad interaction between our
+   * local inference and duplicity constraints. *)
+  find [a] (p, xs)
 
 (* Because the above attempt has failed, let us define [mem] directly,
    without re-using [find]. *)
