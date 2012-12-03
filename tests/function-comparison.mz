@@ -1,0 +1,10 @@
+val f [a] (a -> ()): () =
+  fail
+
+val g [a, b] (a, b): () =
+  fail
+
+val h [a, b] (): () =
+  f [(a, b)] g
+
+
