@@ -321,11 +321,11 @@ let process file_path =
     let program = lex_and_parse_implementation file_path in
     let mname = module_name_for_file_path file_path in
     let iface =
-      match iface_file_path_for_module_name mname with
-      | Some iface_path ->
-          Some (lex_and_parse_interface iface_path)
-      | None ->
-          None
+      let iface_path = file_path ^ "i" in
+      if Sys.file_exists iface_path then
+        Some (lex_and_parse_interface iface_path)
+      else
+        None
     in
     let env = check_implementation mname program iface in
     env
