@@ -197,9 +197,6 @@ val rec fold_right [a1, a2, b] (
 (* Note that these are not instances of [fold], because we need to bail out
    early when the search is successful. *)
 
-(* TEMPORARY adding more primitive operators in [core.mzi] can cause a
-   type-checking error here in [for_all]! Something is seriously wrong. *)
-
 val rec for_all [a] (p: a -> bool, xs: list a) : bool =
   if xs then
     if p xs.head then for_all (p, xs.tail) else False
@@ -269,7 +266,7 @@ val filter [a] (p: a -> bool, consumes xs: list a) : list a =
   let f (consumes accu: list a, consumes x: a) : list a =
     if p x then Cons { head = x; tail = accu } else accu
   in
-  rev (fold_left (f, Nil, xs))
+  rev (fold_left [a, unknown, list a] (f, Nil, xs))
 
 val partition [a] (p: a -> bool, consumes xs: list a) : (list a, list a) =
   let f (consumes yesno: (list a, list a), consumes x: a) : (list a, list a) =

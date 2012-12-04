@@ -1,14 +1,10 @@
-data list a = Cons { head: a; tail: list a } | Nil
+open List
 
-val rec find [a] (p: a -> bool, consumes xs: list a) : list a =
-  if xs then
-    if p xs.head then xs else find (p, xs.tail)
-  else
-    Nil
+(* This is a variant of [List::mem]. It is defined in terms of [find] instead of
+   being defined directly. *)
 
 val mem2 [a] duplicable a => (equal: (a, a) -> bool, x: a, consumes xs: list a) : list a =
   let p (y: a) : bool =
     equal (x, y)
   in
   find (p, xs)
-
