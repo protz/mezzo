@@ -142,6 +142,7 @@ let rec token = lexer
 | "rec" -> locate lexbuf REC
 | "and" -> locate lexbuf AND
 | "assert" -> locate lexbuf ASSERT
+| "empty" -> locate lexbuf EMPTY
 | "fail" -> locate lexbuf FAIL
 | "explain" -> locate lexbuf EXPLAIN
 | "tag" whitespace "of" -> locate lexbuf TAGOF

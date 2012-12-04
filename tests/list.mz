@@ -197,9 +197,6 @@ val rec fold_right [a1, a2, b] (
 (* Note that these are not instances of [fold], because we need to bail out
    early when the search is successful. *)
 
-(* TEMPORARY adding more primitive operators in [core.mzi] can cause a
-   type-checking error here in [for_all]! Something is seriously wrong. *)
-
 val rec for_all [a] (p: a -> bool, xs: list a) : bool =
   if xs then
     if p xs.head then for_all (p, xs.tail) else False
@@ -241,26 +238,6 @@ val rec remove [a] (p : a -> bool, consumes xs: list a) : list a =
    a predicate [p] that has access to [x]; this requires equipping [find]
    with a more general type that allows [p] to have a side effect. *)
 
-val mem2 [a] duplicable a => (equal: (a, a) -> bool, x: a, consumes xs: list a) : list a =
-  let p (y: a) : bool =
-    equal (x, y)
-  in
-  (* The type simplification phase yields, in the internal syntax,
-   * "p @ [a, y :: term] (=y | y @ a) -> bool" instead of :
-   * "p @ [a, y :: term] (=y | y @ a) -> (bool | y @ a)"; this is legal: "a" is
-   * duplicable.
-   *
-   * However, when comparing this type with the expected type in "find", unless
-   * we explicitly instanciate the type variable as below, we will introduce a
-   * flexible variable and compare:
-   * "p @ [a, y :: term] (=y | y @ a) -> bool" with:
-   * "p @ [α, υ :: term] (=υ | υ @ α) -> (bool | υ @ α)" where greek letters
-   * stand for flexible variables. Because we have no duplicity hypothesis on
-   * these flexible variables, the comparison fails. The solution here is to
-   * instanciate the type variable -- this is a bad interaction between our
-   * local inference and duplicity constraints. *)
-  find [a] (p, xs)
-
 val rec mem [a] (equal: (a, a) -> bool, x: a, consumes xs: list a) : list a =
   if xs then
     if equal (x, xs.head) then xs else mem (equal, x, xs.tail)
@@ -289,7 +266,7 @@ val filter [a] (p: a -> bool, consumes xs: list a) : list a =
   let f (consumes accu: list a, consumes x: a) : list a =
     if p x then Cons { head = x; tail = accu } else accu
   in
-  rev (fold_left (f, Nil, xs))
+  rev (fold_left [a, unknown, list a] (f, Nil, xs))
 
 val partition [a] (p: a -> bool, consumes xs: list a) : (list a, list a) =
   let f (consumes yesno: (list a, list a), consumes x: a) : (list a, list a) =
