@@ -595,6 +595,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test Pass
   );
 
+  ("list-mem2.mz",
+    simple_test Pass
+  );
+
   ("list-id.mz",
     simple_test Pass
   );
