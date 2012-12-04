@@ -11,13 +11,8 @@ data list a =
 (* Short-hands for constructing lists. *)
 
 val cons  @ [a] (consumes a, consumes list a) -> list a
-
-(* TEMPORARY I would like to be able to also write:
 val two   @ [a] (consumes (a, a)) -> list a
-but this fails. *)
-
-val two   @ [a] (consumes a, consumes a) -> list a
-val three @ [a] (consumes a, consumes a, consumes a) -> list a
+val three @ [a] (consumes (a, a, a)) -> list a
  
 (* -------------------------------------------------------------------------- *)
 
@@ -108,6 +103,7 @@ val partition @ [a] (p: a -> bool, consumes xs: list a) -> (list a, list a)
 
 (* Lists of pairs. *)
 
+val split @ [a, b] (consumes xys: list (a, b)) -> (list a, list b)
 val combine @ [a, b] (consumes list a, consumes list b) -> list (a, b)
 
 (* -------------------------------------------------------------------------- *)
