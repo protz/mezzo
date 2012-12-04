@@ -635,7 +635,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("bag_fifo.mz", simple_test Pass);
 
-  ("landin.mz", simple_test Pass);
+  (* ("landin.mz", simple_test Pass); *)
 
   ("modules/simple.mz", simple_test Pass);
 

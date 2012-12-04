@@ -209,11 +209,6 @@ and add (env: env) (point: point) (t: typ): env =
    * faced with two [TyPoint]s. *)
   Log.check (not (has_structure env point)) "I don't understand what's happening";
 
-  TypePrinter.(Log.debug ~level:4 "%s[%sadding to %a] %a"
-    Bash.colors.Bash.red Bash.colors.Bash.default
-    pnames (env, get_names env point)
-    ptype (env, t));
-
   let hint = get_name env point in
 
   (* We first perform unfolding, so that constructors with one branch are
@@ -225,6 +220,11 @@ and add (env: env) (point: point) (t: typ): env =
 
   (* Simplify the (potentially) function type. *)
   let t, _ = TypeOps.cleanup_function_type env t None in
+
+  TypePrinter.(Log.debug ~level:4 "%s[%sadding to %a] %a"
+    Bash.colors.Bash.red Bash.colors.Bash.default
+    pnames (env, get_names env point)
+    ptype (env, t));
 
   (* Add the permissions. *)
   let env = List.fold_left add_perm env perms in
@@ -608,7 +608,7 @@ and sub_type_real env t1 t2 =
           env >>= fun env ->
           match c1 with
           | TySingleton (TyPoint p) ->
-              sub_clean env p c2
+              instant_instantiation env c2 p ||| sub_clean env p c2
           | _ ->
               Log.error "All permissions should be in expanded form."
         ) (Some env) components1 components2
@@ -624,7 +624,11 @@ and sub_type_real env t1 t2 =
               begin match f2 with
               | FieldValue (name2, t) ->
                   Log.check (Field.equal name1 name2) "Not in order?";
-                  sub_clean env p t
+                  (* If [t] is "=α" with α flexible, then we should *not* try to
+                   * do something fancy, and we should just instantiate it.
+                   * Recursing through [sub_clean] makes us run into the risk of
+                   * having α instantiate with something wrong. *)
+                  instant_instantiation env t p ||| sub_clean env p t
               | _ ->
                   Log.error "The type we're trying to extract should've been \
                     cleaned first."
@@ -688,11 +692,11 @@ and sub_type_real env t1 t2 =
       Log.debug "%sArrow / Arrow, left%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
-      sub_type env t1 t'1 >>= fun env ->
+      sub_type env t'1 t1 >>= fun env ->
       Log.debug "%sArrow / Arrow, right%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
-      sub_type env t'2 t2
+      sub_type env t2 t'2
 
   (* "(t1 | p1)" - "(t2 | p2)" means doing [t1 - t2], adding all of [p1],
    * removing all of [p2]. But the order in which we perform these operations
@@ -774,6 +778,14 @@ and try_merge_point_to_point env p1 p2 =
     Some (merge_left env p1 p2)
   else
     None
+
+
+and instant_instantiation env t p =
+  match t with
+  | TySingleton (TyPoint p') when is_flexible env p' ->
+      Some (merge_left env p p')
+  | _ ->
+      None
 
 
 (* This function allows you to step-through flexible variables, if there are
