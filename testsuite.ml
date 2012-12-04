@@ -659,6 +659,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("list.mz", simple_test Pass);
 
+  ("mutableTreeMap.mz", simple_test Pass);
+
 ]
 
 let _ =

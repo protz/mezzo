@@ -275,7 +275,7 @@ let print_error buf (env, raw_error) =
         TypePrinter.pdoc (TypePrinter.print_kind, k) 
         TypePrinter.pdoc (TypePrinter.print_kind, k');
   | PolymorphicFunctionCall ->
-      Printf.bprintf buf "%a this is a polymorphic function all, results are \
+      Printf.bprintf buf "%a this is a polymorphic function call, results are \
           undefined; consider using a type application"
         Lexer.p env.location
   | BadFactForAdoptedType (p, t, f) ->
