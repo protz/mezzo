@@ -610,7 +610,11 @@ and sub_type_real env t1 t2 =
           | TySingleton (TyPoint p) ->
               instant_instantiation env c2 p ||| sub_clean env p c2
           | _ ->
-              Log.error "All permissions should be in expanded form."
+              match c2 with
+              | TyPoint p' when is_flexible env p' ->
+                  try_merge_flex env p' c1
+              | _ ->
+                  Log.error "All permissions should be in expanded form."
         ) (Some env) components1 components2
 
   | TyConcreteUnfolded (datacon1, fields1, clause1), TyConcreteUnfolded (datacon2, fields2, clause2) ->

@@ -574,11 +574,15 @@ let instantiate_flexible env p t =
   Log.debug "Instantiating %a with %a"
     !internal_pnames (env, get_names env p)
     !internal_ptype (env, t);
-  { env with state =
-      PersistentUnionFind.update (function
-        | head, binding ->
-            { head with structure = Flexible (Some t) }, binding
-      ) p env.state }
+  match t with
+  | TyPoint p' ->
+      merge_left env p' p
+  | _ ->
+      { env with state =
+          PersistentUnionFind.update (function
+            | head, binding ->
+                { head with structure = Flexible (Some t) }, binding
+          ) p env.state }
 ;;
 
 let instantiate_adopts_clause clause args =

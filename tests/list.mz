@@ -291,9 +291,6 @@ val partition [a] (p: a -> bool, consumes xs: list a) : (list a, list a) =
 
 (* Lists of pairs. *)
 
-(* TEMPORARY the following code causes an error:
-Fatal error: exception Failure("All permissions should be in expanded form.")
-
 val rec split [a, b] (consumes xys : list (a, b)) : (list a, list b) =
   if xys then begin
     let x, y = xys.head in
@@ -304,8 +301,6 @@ val rec split [a, b] (consumes xys : list (a, b)) : (list a, list b) =
   else
     Nil,
     Nil
-
-*)
 
 (* TEMPORARY matching on tuples is not yet implemented?
   match xs, ys with
