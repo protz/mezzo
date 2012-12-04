@@ -301,9 +301,9 @@ raw_normal_type:
 | t = tlocated(raw_loose_type)
     { t }
 
-(* TEMPORARY raw_anchored_permission can be folded back into
-   raw_loose_type if we change the syntax of perm_declaration to use COLON *)
-raw_anchored_permission:
+raw_loose_type:
+| ty = raw_normal_type
+    { ty }
 (* In an anchored permission [x@t], the name [x] is free. This
    represents an assertion that we have permission to use [x] at
    type [t]. *)
@@ -312,12 +312,6 @@ raw_anchored_permission:
 (* [x = y] is also an anchored permission; it is sugar for [x@=y]. *)
 | x = variable EQUAL y = variable
     { TyAnchoredPermission (TyVar x, TySingleton (TyVar y)) }
-
-raw_loose_type:
-| ty = raw_normal_type
-    { ty }
-| ty = raw_anchored_permission
-    { ty }
 (* In a name introduction form [x:t], the name [x] is bound. The scope
    of [x] is defined by somewhat subtle rules that need not concern us
    here. These rules are spelled out later on when we desugar the surface-level
@@ -832,13 +826,14 @@ implementation:
 (* Module signatures, i.e. interfaces. *)
 
 (* A declaration group is a sequence of mutually recursive definitions. *)
-perm_declaration:
-| VAL t = raw_anchored_permission
-    { PermDeclaration t }
-(* TEMPORARY question: why do we use "val x @ int" and not "val x : int"?
-   After all, @ is supposed to be used when we are referring to a pre-existing
-   name, while : is supposed to be used when we are introducing a new name.
-   So COLON would be more appropriate here, wouldn't it? *)
+%inline perm_declaration:
+| VAL x = variable COLON ty = arbitrary_type
+    { PermDeclaration (TyAnchoredPermission (TyVar x, ty)) }
+  (* TEMPORARY I have changed the surface syntax to use COLON; it seems
+     to me that the abstract syntax should change as well, i.e. it should be
+     PermDeclaration of Variable.name * typ
+     -fpottier
+  *)
 
 interface_toplevel:
 | group = data_type_group

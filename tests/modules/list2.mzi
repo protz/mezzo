@@ -1,1 +1,1 @@
-val length @ [a] (Pervasives::list a) -> int
+val length : [a] (Pervasives::list a) -> int

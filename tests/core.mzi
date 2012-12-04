@@ -3,10 +3,10 @@
 abstract int
 fact duplicable int
 
-val ( * ) @ (int, int) -> int
-val ( - ) @ (int, int) -> int
-val ( / ) @ (int, int) -> int
-val ( + ) @ (int, int) -> int
+val ( * ) : (int, int) -> int
+val ( - ) : (int, int) -> int
+val ( / ) : (int, int) -> int
+val ( + ) : (int, int) -> int
 
 (* The physical equality check (==) defined below returns, in case of success, a
  * permission revealing that the two identifiers are equal. The condition of an
@@ -17,7 +17,7 @@ data phys_equal (x :: TERM) (y :: TERM) =
   | Equals { | x = y }
   | NotEquals
 
-val ( == ) @ [a, b] (x: a, y: b) -> phys_equal x y
+val ( == ) : [a, b] (x: a, y: b) -> phys_equal x y
 
 (* TEMPORARY the following rich_bool type seems more general than phys_equal;
    we could use it instead. *)
@@ -30,7 +30,7 @@ data rich_bool (p :: PERM) =
   | RichTrue { | p }
   | RichFalse
 
-val ( === ) @ (x: unknown, y: unknown) -> rich_bool (x = y)
+val ( === ) : (x: unknown, y: unknown) -> rich_bool (x = y)
 
 (* TEMPORARY on pourrait vouloir restreindre le test d'égalité == aux types
    exclusifs, ce qui permettrait de partager les blocs immutables sans
@@ -40,8 +40,8 @@ val ( === ) @ (x: unknown, y: unknown) -> rich_bool (x = y)
 
 data bool = True | False
 
-val ( = ) @ (int, int) -> bool
-val ( < ) @ (int, int) -> bool
-val ( <= ) @ (int, int) -> bool
-val ( >= ) @ (int, int) -> bool
-val ( > ) @ (int, int) -> bool
+val ( = ) : (int, int) -> bool
+val ( < ) : (int, int) -> bool
+val ( <= ) : (int, int) -> bool
+val ( >= ) : (int, int) -> bool
+val ( > ) : (int, int) -> bool

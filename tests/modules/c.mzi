@@ -1,4 +1,4 @@
 open A
 open B
 
-val g @ ((), =f) -> foo_a
+val g : ((), =f) -> foo_a

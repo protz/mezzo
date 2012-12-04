@@ -1,6 +1,7 @@
 .PHONY: all clean graph doc index
 
 # The variables below should be determined by a configure script...
+# On my MacOS laptop, find does not understand -printf; gfind does. -fpottier
 FIND       := find
 -include Makefile.local
 
@@ -11,7 +12,7 @@ OCAMLBUILD := ocamlbuild $(USE_OCAMLFIND) -use-menhir \
 INCLUDE    := -Is sets,typing,parsing,ulex,lib,pprint,utils,fix
 MAIN	   := mezzo
 TESTSUITE  := testsuite
-BUILDDIRS  := $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
+BUILDDIRS   = $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
 MY_DIRS	   := lib parsing sets typing utils
 
 

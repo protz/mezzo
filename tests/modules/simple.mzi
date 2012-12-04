@@ -1,4 +1,4 @@
-val x @ ()
-val y @ (=x, =x)
+val x : ()
+val y : (=x, =x)
 
-val f @ () -> ()
+val f : () -> ()

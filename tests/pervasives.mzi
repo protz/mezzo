@@ -1,14 +1,14 @@
 (* Booleans *)
 
-val true @ bool
-val false @ bool
+val true : bool
+val false : bool
 
 
 (* Options *)
 
 data option a = Some { contents: a } | None
 
-(* Interesting. You cannot put “val none @ [a] option a”: although this
+(* Interesting. You cannot put “val none : [a] option a”: although this
  * signature will be accepted, consumers will no longer know that [none] is
  * duplicable. Therefore, the first consumer that uses [none] will consume the
  * permission for it, which is not what we want.
@@ -22,13 +22,13 @@ data option a = Some { contents: a } | None
  * duplicable.
  *
  * A third idea would be, assuming we want the type [option] to be abstract, to
- * write “val none @ [a] () -> [option a]”. The implementation would be
+ * write “val none : [a] () -> [option a]”. The implementation would be
  * “val none [a] (): option a = None” (the constant can even be shared).
  *
  * Since we won't make option abstract, we can afford to put the real
  * constructor here. *)
-val none @ None
-val some @ [a] (consumes a) -> option a
+val none : None
+val some : [a] (consumes a) -> option a
 
 
 (* References *)
@@ -37,9 +37,9 @@ mutable data ref a = Ref {
   contents: a;
 }
 
-val newref @ [a] (consumes a) -> ref a
-val (!) @ [a] (consumes x: ref a) -> (a | x @ ref unknown)
-val (:=) @ [a, b] (consumes x: ref a, consumes b) -> ( | x @ ref b)
+val newref : [a] (consumes a) -> ref a
+val (!) : [a] (consumes x: ref a) -> (a | x @ ref unknown)
+val (:=) : [a, b] (consumes x: ref a, consumes b) -> ( | x @ ref b)
 
 
 (* Lists *)
@@ -49,8 +49,8 @@ data list a =
   | Nil
 
 (* See the remark for [none]. *)
-val nil @ Nil
-val cons @ [a] (consumes a, consumes list a) -> list a
+val nil : Nil
+val cons : [a] (consumes a, consumes list a) -> list a
 
 mutable data xlist a =
   | XCons { xhead: a; xtail: xlist a }

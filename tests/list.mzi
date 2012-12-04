@@ -10,54 +10,54 @@ data list a =
 
 (* Short-hands for constructing lists. *)
 
-val cons  @ [a] (consumes a, consumes list a) -> list a
-val two   @ [a] (consumes (a, a)) -> list a
-val three @ [a] (consumes (a, a, a)) -> list a
+val cons  : [a] (consumes a, consumes list a) -> list a
+val two   : [a] (consumes (a, a)) -> list a
+val three : [a] (consumes (a, a, a)) -> list a
  
 (* -------------------------------------------------------------------------- *)
 
 (* List length. *)
 
-val length @ [a] list a -> int
+val length : [a] list a -> int
 
 (* -------------------------------------------------------------------------- *)
 
 (* List head and tail. *)
 
-val hd @ [a] (consumes Cons { head: a; tail: list a }) -> a
-val tl @ [a] (consumes Cons { head: a; tail: list a }) -> list a
+val hd : [a] (consumes Cons { head: a; tail: list a }) -> a
+val tl : [a] (consumes Cons { head: a; tail: list a }) -> list a
 
 (* -------------------------------------------------------------------------- *)
 
 (* Indexing operations. *)
 
-val nth     @ [a] (consumes list a, int) -> a
-val chop    @ [a] (int, consumes list a) -> list a
-val splitAt @ [a] (int, consumes list a) -> (list a, list a)
+val nth     : [a] (consumes list a, int) -> a
+val chop    : [a] (int, consumes list a) -> list a
+val splitAt : [a] (int, consumes list a) -> (list a, list a)
 
 (* -------------------------------------------------------------------------- *)
 
 (* List concatenation and reversal. *)
 
-val append     @ [a] (consumes list a, consumes list a) -> list a
-val rev_append @ [a] (consumes list a, consumes list a) -> list a
-val rev        @ [a] (consumes list a) -> list a
+val append     : [a] (consumes list a, consumes list a) -> list a
+val rev_append : [a] (consumes list a, consumes list a) -> list a
+val rev        : [a] (consumes list a) -> list a
 
 (* -------------------------------------------------------------------------- *)
 
 (* Flattening a list of lists. *)
 
-val flatten @ [a] (consumes list (list a)) -> list a
+val flatten : [a] (consumes list (list a)) -> list a
 
 (* -------------------------------------------------------------------------- *)
 
 (* Map. *)
 
-val map @ [a1, a2, b] (
+val map : [a1, a2, b] (
   f: (consumes  x:      a1) -> (     b |  x @      a2),
       consumes xs: list a1) -> (list b | xs @ list a2)
 
-val rev_map @ [a1, a2, b] (
+val rev_map : [a1, a2, b] (
   f: (consumes  x:      a1) -> (     b |  x @      a2),
       consumes xs: list a1) -> (list b | xs @ list a2)
 
@@ -65,7 +65,7 @@ val rev_map @ [a1, a2, b] (
 
 (* Iteration. *)
 
-val iter @ [a1, a2] (
+val iter : [a1, a2] (
   f: (consumes  x:      a1) -> (|  x @      a2),
       consumes xs: list a1) -> (| xs @ list a2)
 
@@ -73,11 +73,11 @@ val iter @ [a1, a2] (
 
 (* Fold. *)
 
-val fold_left @ [a1, a2, b] (
+val fold_left : [a1, a2, b] (
   f: (consumes       b, consumes  x:      a1) -> (b |  x @      a2),
       consumes accu: b, consumes xs: list a1) -> (b | xs @ list a2)
 
-val fold_right @ [a1, a2, b] (
+val fold_right : [a1, a2, b] (
   f: (consumes  x:      a1, consumes       b) -> (b |  x @      a2),
       consumes xs: list a1, consumes accu: b) -> (b | xs @ list a2)
 
@@ -85,36 +85,36 @@ val fold_right @ [a1, a2, b] (
 
 (* Various flavors of list search. *)
 
-val for_all @ [a] (a -> bool, list a) -> bool
-val exists  @ [a] (a -> bool, list a) -> bool
-val find    @ [a] (a -> bool, consumes list a) -> list a
-val remove  @ [a] (a -> bool, consumes list a) -> list a
+val for_all : [a] (a -> bool, list a) -> bool
+val exists  : [a] (a -> bool, list a) -> bool
+val find    : [a] (a -> bool, consumes list a) -> list a
+val remove  : [a] (a -> bool, consumes list a) -> list a
 
-val mem     @ [a] (equal: (a, a) -> bool, x: a, consumes xs: list a) -> list a
+val mem     : [a] (equal: (a, a) -> bool, x: a, consumes xs: list a) -> list a
 
 (* -------------------------------------------------------------------------- *)
 
 (* Filtering. *) 
 
-val filter    @ [a] (p: a -> bool, consumes xs: list a) -> list a
-val partition @ [a] (p: a -> bool, consumes xs: list a) -> (list a, list a)
+val filter    : [a] (p: a -> bool, consumes xs: list a) -> list a
+val partition : [a] (p: a -> bool, consumes xs: list a) -> (list a, list a)
 
 (* -------------------------------------------------------------------------- *)
 
 (* Lists of pairs. *)
 
-val split @ [a, b] (consumes xys: list (a, b)) -> (list a, list b)
-val combine @ [a, b] (consumes list a, consumes list b) -> list (a, b)
+val split   : [a, b] (consumes xys: list (a, b)) -> (list a, list b)
+val combine : [a, b] (consumes list a, consumes list b) -> list (a, b)
 
 (* -------------------------------------------------------------------------- *)
 
 (* Merging and sorting. *)
 
-val merge @ [a] (cmp: (a, a) -> int, consumes list a, consumes list a) -> list a
+val merge : [a] (cmp: (a, a) -> int, consumes list a, consumes list a) -> list a
 
 (* -------------------------------------------------------------------------- *)
 
 (* Comparison. *)
 
-val equal @ [a, b] (eq: (a, b) -> bool, xs: list a, ys: list b) -> bool
-val compare @ [a, b] (cmp: (a, b) -> int, xs: list a, ys: list b) -> int
+val equal   : [a, b] (eq: (a, b) -> bool, xs: list a, ys: list b) -> bool
+val compare : [a, b] (cmp: (a, b) -> int, xs: list a, ys: list b) -> int

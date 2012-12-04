@@ -1,3 +1,3 @@
 abstract foo
 
-val v @ Foo
+val v : Foo
