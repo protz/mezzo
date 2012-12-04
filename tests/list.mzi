@@ -117,4 +117,4 @@ val merge @ [a] (cmp: (a, a) -> int, consumes list a, consumes list a) -> list a
 (* Comparison. *)
 
 val equal @ [a, b] (eq: (a, b) -> bool, xs: list a, ys: list b) -> bool
-
+val compare @ [a, b] (cmp: (a, b) -> int, xs: list a, ys: list b) -> int
