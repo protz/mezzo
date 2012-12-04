@@ -607,6 +607,8 @@ and sub_type_real env t1 t2 =
         List.fold_left2 (fun env c1 c2 ->
           env >>= fun env ->
           match c1 with
+          | _ when equal env c1 c2 ->
+              Some env
           | TySingleton (TyPoint p) ->
               instant_instantiation env c2 p ||| sub_clean env p c2
           | _ ->
@@ -623,22 +625,30 @@ and sub_type_real env t1 t2 =
         fun env ->
         List.fold_left2 (fun env f1 f2 ->
           env >>= fun env ->
-          match f1 with
-          | FieldValue (name1, TySingleton (TyPoint p)) ->
-              begin match f2 with
-              | FieldValue (name2, t) ->
-                  Log.check (Field.equal name1 name2) "Not in order?";
-                  (* If [t] is "=α" with α flexible, then we should *not* try to
-                   * do something fancy, and we should just instantiate it.
-                   * Recursing through [sub_clean] makes us run into the risk of
-                   * having α instantiate with something wrong. *)
-                  instant_instantiation env t p ||| sub_clean env p t
-              | _ ->
-                  Log.error "The type we're trying to extract should've been \
-                    cleaned first."
-              end
+          let t1, t2 =
+            match f1, f2 with
+            | FieldValue (name1, t1), FieldValue (name2, t2) ->
+                Log.check (Field.equal name1 name2) "Not in order?";
+                t1, t2
+            | _ ->
+                Log.error "The type we're trying to extract should've been \
+                  cleaned first."
+          in
+          match t1, t2 with
+          | _ when equal env t1 t2 ->
+              Some env
+          | TySingleton (TyPoint p), t2 ->
+              (* If [t] is "=α" with α flexible, then we should *not* try to
+               * do something fancy, and we should just instantiate it.
+               * Recursing through [sub_clean] makes us run into the risk of
+               * having α instantiate with something wrong. *)
+              instant_instantiation env t2 p ||| sub_clean env p t2
           | _ ->
-              Log.error "All permissions should be in expanded form."
+              match t2 with
+              | TyPoint p' when is_flexible env p' ->
+                  try_merge_flex env p' t1
+              | _ ->
+                  Log.error "All permissions should be in expanded form."
         ) (Some env) fields1 fields2
 
       else
