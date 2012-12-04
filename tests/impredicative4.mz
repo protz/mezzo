@@ -1,18 +1,6 @@
-(* This example is actually meant to type-check: it's just a manifestation of
-   covariance / contravariance that isn't obvious, since it only makes sense
-   when looking at the internal representation. Here's the explanation:
-    - "id" has type (ML-style) "a -> ((a * b) -> a) -> a"
-    - the third occurrence of "a" (this one :   ^^^) is contravariant
-    - in Mezzo-style, a contains, amongst other stuff, a nifty set of
-    permissions called (look below) "/d1 @ α ∗ /d2 @ β"
-    - "/d1 @ α ∗ /d2 @ β" ≤ "/d1 @ α"
-    - since it's contravariant, this means we can pass a function to [id] that
-    returns less permissions than expected,
-    - this is precisely what the consumes keyword entails.
-
-   Let's move on to [impredicative5.mz] that shows the exact opposite case
-   failing!
-*)
+(* This example must fail, because the function we're passing is too
+ * restrictive: it consumes its argument! See [impredicative5.mz] for the
+ * symmetrical case. *)
 
 mutable data foo = Foo
 

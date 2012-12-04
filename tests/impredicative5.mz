@@ -1,14 +1,16 @@
-(* See the discussion in [impredicative4.mz]. *)
+(* This exercises consumes-subtyping (really, subtraction on arrow types). *)
 
 mutable data foo = Foo
 
-val fst [a, b] (y: a, b): a = y
+val fst [a, b] (y: a, b): a = fail
 
-val id [α] (x: α): ((f: [β] (consumes α, β) -> α) | x @ α) -> α =
-  fun (f: [β] ((consumes α, β) -> α) | x @ α): α =
+val id [α] (x: α): ((f: [β] (consumes α, β) -> α) | consumes x @ α) -> α =
+  fun (f: [β] ((consumes α, β) -> α) | consumes x @ α): α =
     f [int] (x, 2)
 
 val test1 = id [foo] Foo
 val test2 = fst [foo]
 
+(* This means we can pass to [id] a less restrictive function, that is, one that
+ * does not consume its argument. *)
 val test3 = test1 test2

@@ -218,12 +218,12 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     | _ -> false
   )));
 
-  ("impredicative4.mz", simple_test Pass);
-
-  ("impredicative5.mz", simple_test (Fail (function
-    | NoSuchPermission _ -> true
+  ("impredicative4.mz", simple_test (Fail (function
+    | ExpectedType _ -> true
     | _ -> false
   )));
+
+  ("impredicative5.mz", simple_test Pass);
 
   ("twostructural.mz", simple_test Pass);
 
