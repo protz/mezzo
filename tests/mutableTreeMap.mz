@@ -241,9 +241,6 @@ val rec extract_min_binding
   (consumes t : Node { left: tree k a; key: k; value: a; right: tree k a; height: int })
   : (Node { left: Empty; key: k; value: a; right: unknown; height: int },
     tree k a)
-  (* TEMPORARY BUG if I omit a field in one of the above types, I get
-     Fatal error: exception Invalid_argument("List.fold_left2")
-  *)
   =
   match t.left with
   | Empty ->
@@ -256,14 +253,6 @@ val rec extract_min_binding
       t.left <- left;
       (* Perform a rotation at the root if required, and return. *)
       node, bal t
-      (* TEMPORARY BUG? If I replace the above line with
-	 bal t; node, t
-	 (which is incorrect, because bal returns a tree and the semicolon should
-	  require something of type unit)
-	 I obtain the error message:
-[38;5;203mMultiple candidates as a tuple type for this pattern[0m
-Fatal error: exception Assert_failure("lib/Log.ml", 59, 6)
-*)
   end
 
 val merge [k, a] (consumes t1: tree k a, consumes t2: tree k a) : tree k a =
