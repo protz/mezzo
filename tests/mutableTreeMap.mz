@@ -32,10 +32,7 @@ val update_height [k, a] (t: Node { left: tree k a; key: k; value: a; right: tre
 val bal [k, a] (consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: int }) : tree k a =
 
   (* Extract the two sub-trees and their heights. *)
-  (* TEMPORARY one might wish to use a one-branch match construct
-     to obtain [l] and [r]; is this permitted by the type-checker? *)
-  let l = t.left
-  and r = t.right in
+  let Node { left = l; right = r } = t in
   let hl = height l
   and hr = height r in
 
