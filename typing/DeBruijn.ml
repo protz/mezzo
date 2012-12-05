@@ -144,6 +144,7 @@ let equal env (t1: typ) (t2: typ) =
     | TyConcreteUnfolded (name1, fields1, clause1), TyConcreteUnfolded (name2, fields2, clause2) ->
         Datacon.equal name1 name2 &&
         equal clause1 clause2 &&
+        List.length fields1 = List.length fields2 &&
         List.fold_left2 (fun acc f1 f2 ->
           match f1, f2 with
           | FieldValue (f1, t1), FieldValue (f2, t2) ->

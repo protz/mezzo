@@ -600,31 +600,27 @@ and sub_type_real env t1 t2 =
       sub_type env t1 t2 >>= fun env ->
       sub_perm env (fold_star perms)
 
-  | TyTuple components1, TyTuple components2 ->
-      (* We can only subtract a tuple from another one if they have the same
-       * length. *)
-      if List.length components1 <> List.length components2 then
-        None
-
+  | TyTuple components1, TyTuple components2
+    when List.length components1 = List.length components2 ->
       (* We assume here that the [t1] is in expanded form, that is, that [t1] is
        * only a tuple of singletons. *)
-      else
-        List.fold_left2 (fun env c1 c2 ->
-          env >>= fun env ->
-          match c1 with
-          | _ when equal env c1 c2 ->
-              Some env
-          | TySingleton (TyPoint p) ->
-              instant_instantiation env c2 p ||| sub_clean env p c2
-          | _ ->
-              match c2 with
-              | TyPoint p' when is_flexible env p' ->
-                  try_merge_flex env p' c1
-              | _ ->
-                  Log.error "All permissions should be in expanded form."
-        ) (Some env) components1 components2
+      List.fold_left2 (fun env c1 c2 ->
+        env >>= fun env ->
+        match c1 with
+        | _ when equal env c1 c2 ->
+            Some env
+        | TySingleton (TyPoint p) ->
+            instant_instantiation env c2 p ||| sub_clean env p c2
+        | _ ->
+            match c2 with
+            | TyPoint p' when is_flexible env p' ->
+                try_merge_flex env p' c1
+            | _ ->
+                Log.error "All permissions should be in expanded form."
+      ) (Some env) components1 components2
 
-  | TyConcreteUnfolded (datacon1, fields1, clause1), TyConcreteUnfolded (datacon2, fields2, clause2) ->
+  | TyConcreteUnfolded (datacon1, fields1, clause1), TyConcreteUnfolded (datacon2, fields2, clause2)
+    when List.length fields1 = List.length fields2 ->
       if Datacon.equal datacon1 datacon2 then
         sub_type env clause1 clause2 >>=
         fun env ->
