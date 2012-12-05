@@ -220,8 +220,8 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
   | PTuple patterns ->
       let permissions = get_permissions env point in
       let t = Hml_List.map_some (function TyTuple x -> Some x | _ -> None) permissions in
-      Log.check (List.length t = 1) "Multiple candidates as a tuple type for \
-        this pattern";
+      if List.length t = 0 then
+        raise_error env (BadPattern (pattern, point));
       let t = List.hd t in
       List.fold_left2 (fun env pattern component ->
         match component with
@@ -241,8 +241,8 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
               None)
         permissions
       in
-      Log.check (List.length field_defs = 1) "Multiple candidates as a concrete type for \
-        this pattern";
+      if List.length field_defs = 0 then
+        raise_error env (BadPattern (pattern, point));
       let field_defs = List.hd field_defs in
       List.fold_left (fun env (name, pat) ->
         (* The pattern fields may not all be there or in an arbitrary order. *)

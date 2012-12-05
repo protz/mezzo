@@ -516,6 +516,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("fail7.mz",
     simple_test ((Fail (function FieldMismatch _ -> true | _ -> false))));
 
+  ("fail8.mz",
+    simple_test ((Fail (function BadPattern _ -> true | _ -> false))));
+
   (* Adoption. *)
 
   ("adopts1.mz",

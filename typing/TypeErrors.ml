@@ -35,6 +35,7 @@ and raw_error =
   | FieldMismatch of typ * Datacon.name
   | CantAssignTag of point
   | NoSuchFieldInPattern of pattern * Field.name
+  | BadPattern of pattern * point
   | SubPattern of pattern
   | NoTwoConstructors of point
   | MatchBadDatacon of point * Datacon.name
@@ -326,6 +327,15 @@ let print_error buf (env, raw_error) =
         Lexer.p env.location
         ppat (env, pat)
         Field.p field
+  | BadPattern (pat, point) ->
+      let _, binder = find_term env point in
+      Printf.bprintf buf
+        "%a cannot match pattern %a against %a, the only permissions available for it are %a"
+        Lexer.p env.location
+        ppat (env, pat)
+        TypePrinter.pnames (env, get_names env point)
+        TypePrinter.pdoc (TypePrinter.print_permission_list, (env, binder));
+
   | AssignNotExclusive (t, datacon) ->
       Printf.bprintf buf
         "%a this value has type %a: constructor %a belongs to a data type that \

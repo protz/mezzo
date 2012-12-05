@@ -1,0 +1,28 @@
+data option a = Some { contents: a } | None
+
+mutable data tree k a =
+  | Empty
+  | Node { left: tree k a; key: k; value: a; right: tree k a; height: int }
+
+val bal [k, a] (consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: int }) : tree k a =
+  fail
+
+val rec extract_min_binding
+  [k, a]
+  (consumes t : Node { left: tree k a; key: k; value: a; right: tree k a; height: int })
+  : (Node { left: Empty; key: k; value: a; right: unknown; height: int },
+    tree k a)
+  =
+  match t.left with
+  | Empty ->
+      (* Extract the node [t]. The sub-tree [t.right] is what remains. *)
+      t, t.right
+  | Node ->
+      (* Extract a node out of the left sub-tree. *)
+      let node, left = extract_min_binding t.left in
+      (* Update in place the left sub-tree. *)
+      t.left <- left;
+      (* Perform a rotation at the root if required, and return. *)
+      bal t; node, t
+  end
+
