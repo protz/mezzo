@@ -32,6 +32,7 @@ and raw_error =
   | MissingField of Field.name
   | ExtraField of Field.name
   | NoSuchField of point * Field.name
+  | FieldMismatch of typ * Datacon.name
   | CantAssignTag of point
   | NoSuchFieldInPattern of pattern * Field.name
   | SubPattern of pattern
@@ -63,6 +64,115 @@ let raise_error env e =
   raise (TypeCheckerError (env, e))
 ;;
 
+(* -------------------------------------------------------------------------- *)
+
+(* For pretty-printing. *)
+
+exception NotFoldable
+
+(** [fold_point env point] tries to find (hopefully) one "main" type for [point], by
+    folding back its "main" type [t] into a form that's suitable for one
+    thing, and one thing only: printing. *)
+let rec fold_point (env: env) (point: point): typ option =
+  let perms = get_permissions env point in
+  let perms = List.filter
+    (function
+      | TySingleton (TyPoint p) when same env p point ->
+          false
+      | TyUnknown ->
+          false
+      | _ ->
+          true
+    ) perms
+  in
+  match perms with
+  | [] ->
+      Some TyUnknown
+  | t :: []
+  | TyDynamic :: t :: []
+  | t :: TyDynamic :: [] ->
+      begin try
+        Some (fold_type_raw env t)
+      with NotFoldable ->
+        None
+      end
+  | _ ->
+      None
+
+
+and fold_type_raw (env: env) (t: typ): typ =
+  match t with
+  | TyUnknown
+  | TyDynamic ->
+      t
+
+  | TyVar _ ->
+      Log.error "All types should've been opened at that stage"
+
+  | TyPoint _ ->
+      t
+
+  | TyForall _
+  | TyExists _
+  | TyApp _ ->
+      t
+
+  | TySingleton (TyPoint p) ->
+      begin match fold_point env p with
+      | Some t ->
+          t
+      | None ->
+          raise NotFoldable
+      end
+
+  | TyTuple components ->
+      TyTuple (List.map (fold_type_raw env) components)
+
+  | TyConstraints (cs, t) ->
+      TyConstraints (cs, fold_type_raw env t)
+
+  | TyConcreteUnfolded (dc, fields, clause) ->
+      let fields = List.map (function
+        | FieldPermission p ->
+            FieldPermission (fold_type_raw env p)
+        | FieldValue (n, t) ->
+            let t = fold_type_raw env t in
+            FieldValue (n, t)
+      ) fields in
+      let clause = fold_type_raw env clause in
+      TyConcreteUnfolded (dc, fields, clause)
+
+  | TySingleton _ ->
+      t
+
+  | TyArrow _ ->
+      t
+
+  | TyBar (t, p) ->
+      TyBar (fold_type_raw env t, p)
+
+  | TyAnchoredPermission (x, t) ->
+      TyAnchoredPermission (x, fold_type_raw env t)
+
+  | TyEmpty ->
+      t
+
+  | TyStar _ ->
+      Log.error "Huh I don't think we should have that here"
+
+;;
+
+let fold_type env t =
+  try
+    Some (fold_type_raw env t)
+  with NotFoldable ->
+    None
+;;
+
+(* -------------------------------------------------------------------------- *)
+
+(* The main error printing function. *)
+
 let print_error buf (env, raw_error) =
   let open TypePrinter in
   let open ExprPrinter in
@@ -75,7 +185,7 @@ let print_error buf (env, raw_error) =
   match raw_error with
   | NotAFunction p ->
       let fname, fbinder = find_term env p in
-      begin match Permissions.fold env p with
+      begin match fold_point env p with
       | Some t ->
           Printf.bprintf buf
             "%a %a is not a function, it has type %a"
@@ -101,8 +211,8 @@ let print_error buf (env, raw_error) =
         ptype (env, t);
   | ExpectedType (t, point) ->
       let xname, xbinder = find_term env point in
-      let t1 = Permissions.fold_type env t in
-      let t2 = Permissions.fold env point in
+      let t1 = fold_type env t in
+      let t2 = fold_point env point in
       begin match t1, t2 with
       | Some t1, Some t2 -> (* #winning *)
           Printf.bprintf buf
@@ -133,7 +243,7 @@ let print_error buf (env, raw_error) =
         Field.p f
   | NoTwoConstructors point ->
       let name, binder = find_term env point in
-      begin match Permissions.fold env point with
+      begin match fold_point env point with
       | Some t ->
           Printf.bprintf buf
             "%a %a has type %a, is is not a type with two constructors"
@@ -150,7 +260,7 @@ let print_error buf (env, raw_error) =
       end
   | NoSuchField (point, f) ->
       let name, binder = find_term env point in
-      begin match Permissions.fold env point with
+      begin match fold_point env point with
       | Some t ->
           Printf.bprintf buf
             "%a %a has type %a, which doesn't have a field named %a"
@@ -167,9 +277,15 @@ let print_error buf (env, raw_error) =
             Field.p f
             pdoc (print_permission_list, (env, binder))
       end
-   | CantAssignTag point ->
+  | FieldMismatch (t, datacon) ->
+      Printf.bprintf buf
+        "%a user-provided type %a does not match the fields of data constructor %a"
+        Lexer.p env.location
+        ptype (env, t)
+        Datacon.p datacon
+  | CantAssignTag point ->
       let name, binder = find_term env point in
-      begin match Permissions.fold env point with
+      begin match fold_point env point with
       | Some t ->
           Printf.bprintf buf
             "%a %a has type %a, we can't assign a tag to it"

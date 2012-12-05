@@ -410,7 +410,7 @@ let print_signature (buf: Buffer.t) (env: Types.env): unit =
             false
       ) (get_names env point) in
       let t =
-        match Permissions.fold_type env t with
+        match TypeErrors.fold_type env t with
         | Some t ->
             t
         | None ->

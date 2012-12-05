@@ -21,6 +21,7 @@
 
 open Types
 open Utils
+open TypeErrors
 
 (* -------------------------------------------------------------------------- *)
 
@@ -399,6 +400,26 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
         env, TyTuple (List.rev components)
 
     | TyConcreteUnfolded (datacon, fields, clause) ->
+        (* If this is a user-provided type (e.g. a function parameter's type) we
+         * should not blindly accept this type when adding it into our
+         * environment. *)
+        let all_fields_there =
+          let _, def, _ = def_for_datacon env datacon in
+          let _, branch = List.find (fun (datacon', _) -> Datacon.equal datacon datacon') def in
+          let field_name = function
+            | FieldValue (name, _) -> Some name
+            | FieldPermission _ -> None
+          in
+          let fields' = Hml_List.map_some field_name branch in
+          let fields = Hml_List.map_some field_name fields in
+          List.length fields = List.length fields' &&
+          List.for_all (fun field' ->
+            List.exists (Field.equal field') fields
+          ) fields'
+        in
+        if not (all_fields_there) then
+          raise_error env (FieldMismatch (t, datacon));
+        (* It's fine, add it! *)
         let env, fields = List.fold_left (fun (env, fields) -> function
           | FieldPermission _ as field ->
               env, field :: fields
@@ -917,108 +938,3 @@ and sub_perms env perms =
         Log.debug ~level:4 "[sub_perms] failed, remaining: %a"
           TypePrinter.ptype (env, fold_star perms);
         None
-
-(* -------------------------------------------------------------------------- *)
-
-(* For pretty-printing. *)
-
-exception NotFoldable
-
-(** [fold env point] tries to find (hopefully) one "main" type for [point], by
-    folding back its "main" type [t] into a form that's suitable for one
-    thing, and one thing only: printing. *)
-let rec fold (env: env) (point: point): typ option =
-  let perms = get_permissions env point in
-  let perms = List.filter
-    (function
-      | TySingleton (TyPoint p) when same env p point ->
-          false
-      | TyUnknown ->
-          false
-      | _ ->
-          true
-    ) perms
-  in
-  match perms with
-  | [] ->
-      Some TyUnknown
-  | t :: []
-  | TyDynamic :: t :: []
-  | t :: TyDynamic :: [] ->
-      begin try
-        Some (fold_type_raw env t)
-      with NotFoldable ->
-        None
-      end
-  | _ ->
-      None
-
-
-and fold_type_raw (env: env) (t: typ): typ =
-  match t with
-  | TyUnknown
-  | TyDynamic ->
-      t
-
-  | TyVar _ ->
-      Log.error "All types should've been opened at that stage"
-
-  | TyPoint _ ->
-      t
-
-  | TyForall _
-  | TyExists _
-  | TyApp _ ->
-      t
-
-  | TySingleton (TyPoint p) ->
-      begin match fold env p with
-      | Some t ->
-          t
-      | None ->
-          raise NotFoldable
-      end
-
-  | TyTuple components ->
-      TyTuple (List.map (fold_type_raw env) components)
-
-  | TyConstraints (cs, t) ->
-      TyConstraints (cs, fold_type_raw env t)
-
-  | TyConcreteUnfolded (dc, fields, clause) ->
-      let fields = List.map (function
-        | FieldPermission p ->
-            FieldPermission (fold_type_raw env p)
-        | FieldValue (n, t) ->
-            let t = fold_type_raw env t in
-            FieldValue (n, t)
-      ) fields in
-      let clause = fold_type_raw env clause in
-      TyConcreteUnfolded (dc, fields, clause)
-
-  | TySingleton _ ->
-      t
-
-  | TyArrow _ ->
-      t
-
-  | TyBar (t, p) ->
-      TyBar (fold_type_raw env t, p)
-
-  | TyAnchoredPermission (x, t) ->
-      TyAnchoredPermission (x, fold_type_raw env t)
-
-  | TyEmpty ->
-      t
-
-  | TyStar _ ->
-      Log.error "Huh I don't think we should have that here"
-
-;;
-
-let fold_type env t =
-  try
-    Some (fold_type_raw env t)
-  with NotFoldable ->
-    None
-;;

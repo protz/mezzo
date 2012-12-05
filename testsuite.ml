@@ -513,6 +513,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("fail6.mz",
     simple_test ((Fail (function NoSuchPermission _ -> true | _ -> false))));
 
+  ("fail7.mz",
+    simple_test ((Fail (function FieldMismatch _ -> true | _ -> false))));
+
   (* Adoption. *)
 
   ("adopts1.mz",

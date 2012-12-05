@@ -1,0 +1,39 @@
+data option a = Some { contents: a } | None
+
+mutable data tree k a =
+  | Empty
+  | Node { left: tree k a; key: k; value: a; right: tree k a; height: int }
+
+val bal [k, a] (consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: int }) : tree k a =
+  fail
+
+val rec extract_min_binding
+  [k, a]
+  (consumes t : Node { left: tree k a; key: k; value: a; right: tree k a; })
+  : (Node { left: Empty; key: k; value: a; right: unknown; height: int },
+    tree k a)
+  (* TEMPORARY BUG if I omit a field in one of the above types, I get
+     Fatal error: exception Invalid_argument("List.fold_left2")
+  *)
+  =
+  match t.left with
+  | Empty ->
+      (* Extract the node [t]. The sub-tree [t.right] is what remains. *)
+      t, t.right
+  | Node ->
+      (* Extract a node out of the left sub-tree. *)
+      let node, left = extract_min_binding t.left in
+      (* Update in place the left sub-tree. *)
+      t.left <- left;
+      (* Perform a rotation at the root if required, and return. *)
+      node, bal t
+      (* TEMPORARY BUG? If I replace the above line with
+	 bal t; node, t
+	 (which is incorrect, because bal returns a tree and the semicolon should
+	  require something of type unit)
+	 I obtain the error message:
+[38;5;203mMultiple candidates as a tuple type for this pattern[0m
+Fatal error: exception Assert_failure("lib/Log.ml", 59, 6)
+*)
+  end
+

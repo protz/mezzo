@@ -57,13 +57,6 @@ val sub_perm: env -> typ -> env option
     Unifications may be performed, hence the return environment. *)
 val sub_type: env -> typ -> typ -> env option
 
-(** [fold env point] tries to find (hopefully) one "main" type for [point], by
-    folding back its "main" type [t] into a form that's suitable for one
-    thing, and one thing only: printing. *)
-val fold: env -> point -> typ option
-
-val fold_type: env -> typ -> typ option
-
 val add_hint: (name option) -> string -> (name option)
 
 (** This is for debugging, it runs a consistency check on a given environment. *)
