@@ -305,16 +305,7 @@ let merge_type_annotations env t1 t2 =
 
 let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * point =
 
-  (* TEMPORARY this is just a quick and dirty way to talk about user-defined
-   * types. This is lazy because we want to write simple test cases that do not
-   * define the "int" type. *)
-  let make_lazy_getter t = lazy begin
-    try
-      find_type_by_name env ~mname:"Core" t
-    with Not_found ->
-      Log.error "please define type %s" t
-  end in
-  let int = make_lazy_getter "int" in
+  let t_int = find_type_by_name env ~mname:"Core" "int" in
 
   (* [return t] creates a new point with type [t] available for it, and returns
    * the environment as well as the point *)
@@ -721,7 +712,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
 
   | EInt _ ->
-      return env !*int
+      return env t_int
 
   | ELocated (e, p1, p2) ->
       let pos = env.location in
