@@ -776,16 +776,18 @@ and sub_type_real env t1 t2 =
       let vars2, ps2' = List.partition (function TyPoint _ -> true | _ -> false) ps2 in
       begin match vars1, vars2 with
       | [TyPoint var1], [TyPoint var2] ->
-          if is_flexible env var1 then
-            let env = merge_left env var2 var1 in
-            add_sub env ps1' ps2'
-          else if is_flexible env var2 then
-            let env = merge_left env var1 var2 in
-            add_sub env ps1' ps2'
-          else if same env var1 var2 then
-            add_sub env ps1' ps2'
-          else
-            add_sub env ps1 ps2
+          begin match is_flexible env var1, is_flexible env var2 with
+          | true, false ->
+              let env = merge_left env var2 var1 in
+              add_sub env ps1' ps2'
+          | false, true ->
+              let env = merge_left env var1 var2 in
+              add_sub env ps1' ps2'
+          | true, true ->
+              None
+          | false, false ->
+              add_sub env ps1 ps2
+          end
       | _ ->
           add_sub env ps1 ps2
       end
