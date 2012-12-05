@@ -1,4 +1,4 @@
-open Pervasives
+open Pervasives (* TEMPORARY *)
 
 mutable data tree k a =
   | Empty
@@ -193,25 +193,80 @@ val rec find_use_update
       else find_use_update (cmp, use, x, t.right)
   end
 
+val rec mem [k, a] (cmp: (k, k) -> int, x: k, t: tree k a) : bool =
+  match t with
+  | Empty ->
+      False
+  | Node ->
+    let c = cmp (x, t.key) in
+    if c = 0 then
+      True
+    else if c < 0 then
+      mem (cmp, x, t.left)
+    else
+      mem (cmp, x, t.right)
+  end
+
+(* Note that [min_binding] is defined first for non-empty trees, then
+   extended to empty trees. *)
+
+val rec min_binding
+  [k, a] duplicable k, duplicable a =>
+  (t : Node { left: tree k a; key: k; value: a; right: tree k a; height: int })
+  : (k, a) =
+  match t.left with
+  | Empty ->
+      t.key, t.value
+  | Node ->
+      min_binding t.left
+  end
+
+val min_binding
+  [k, a] duplicable k, duplicable a =>
+  (t : tree k a)
+  : option (k, a) =
+  match t with
+  | Empty ->
+      none
+  | Node ->
+      some (min_binding t)
+  end
+
+(* [extract_min_binding] extracts the node that contains the minimum key.
+   It returns both this node (which can be re-used) and the remaining,
+   re-organized tree. *)
+
+val rec extract_min_binding
+  [k, a]
+  (consumes t : Node { left: tree k a; key: k; value: a; right: tree k a; height: int })
+  : (Node { left: Empty; key: k; value: a; right: unknown; height: int },
+    tree k a)
+  (* TEMPORARY BUG if I omit a field in one of the above types, I get
+     Fatal error: exception Invalid_argument("List.fold_left2")
+  *)
+  =
+  match t.left with
+  | Empty ->
+      (* Extract the node [t]. The sub-tree [t.right] is what remains. *)
+      t, t.right
+  | Node ->
+      (* Extract a node out of the left sub-tree. *)
+      let node, left = extract_min_binding t.left in
+      (* Update in place the left sub-tree. *)
+      t.left <- left;
+      (* Perform a rotation at the root if required, and return. *)
+      node, bal t
+      (* TEMPORARY BUG? If I replace the above line with
+	 bal t; node, t
+	 (which is incorrect, because bal returns a tree and the semicolon should
+	  require something of type unit)
+	 I obtain the error message:
+[38;5;203mMultiple candidates as a tuple type for this pattern[0m
+Fatal error: exception Assert_failure("lib/Log.ml", 59, 6)
+*)
+  end
+
 (*
-
-    
-    let rec mem x = function
-        Empty ->
-          false
-      | Node(l, v, d, r, _) ->
-          let c = Ord.compare x v in
-          c = 0 || mem x (if c < 0 then l else r)
-
-    let rec min_binding = function
-        Empty -> raise Not_found
-      | Node(Empty, x, d, r, _) -> (x, d)
-      | Node(l, x, d, r, _) -> min_binding l
-
-    let rec max_binding = function
-        Empty -> raise Not_found
-      | Node(l, x, d, Empty, _) -> (x, d)
-      | Node(l, x, d, r, _) -> max_binding r
 
     let rec remove_min_binding = function
         Empty -> invalid_arg "Map.remove_min_elt"
