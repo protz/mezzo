@@ -1,0 +1,657 @@
+<html>
+  <head>
+    <title>Bisect report</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+  </head>
+  <body>
+    <div class="title">Bisect report</div>
+    <br/>
+    <hr class="indexSep"/>
+    <center>
+    <br/>
+    <div class="section">Overall statistics</div>
+    <table>
+      <tr>
+        <td valign="top">
+          <table class="simple">
+            <tr><th>kind</th><th width="16px">&nbsp;</th><th>coverage</th></tr>
+            <tr><td>binding</td><td width="16px">&nbsp;</td><td>1160 / 1416 (81%)</td></tr>
+            <tr><td>sequence</td><td width="16px">&nbsp;</td><td>496 / 743 (66%)</td></tr>
+            <tr><td>for</td><td width="16px">&nbsp;</td><td>0 / 3 (0%)</td></tr>
+            <tr><td>if/then</td><td width="16px">&nbsp;</td><td>195 / 508 (38%)</td></tr>
+            <tr><td>try</td><td width="16px">&nbsp;</td><td>33 / 49 (67%)</td></tr>
+            <tr><td>while</td><td width="16px">&nbsp;</td><td>3 / 4 (75%)</td></tr>
+            <tr><td>match/function</td><td width="16px">&nbsp;</td><td>1464 / 2487 (58%)</td></tr>
+          </table>
+        </td>
+        <td valign="top">
+          <table class="simple">
+            <tr><th>kind</th><th width="16px">&nbsp;</th><th>coverage</th></tr>
+            <tr><td>class expression</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>class initializer</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>class method</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>class value</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>toplevel expression</td><td width="16px">&nbsp;</td><td>5 / 5 (100%)</td></tr>
+            <tr><td>lazy operator</td><td width="16px">&nbsp;</td><td>60 / 136 (44%)</td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+    <br/>
+    </center>
+    <br/>
+    <hr class="indexSep"/>
+    <center>
+    <br/>
+    <div class="section">Per-file coverage</div>
+      <table class="simple">
+        <tr>
+          <th>coverage</th>
+          <th width="16px">&nbsp;</th>
+          <th>file</th>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="100px"/>
+                <td class="gaugeKO" width="0px"/>
+                <td>&nbsp;100%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0034.html">fix/Fix.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="30px"/>
+                <td class="gaugeKO" width="70px"/>
+                <td>&nbsp;30%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0025.html">lib/Bash.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="57px"/>
+                <td class="gaugeKO" width="43px"/>
+                <td>&nbsp;57%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0007.html">lib/Hml_List.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="11px"/>
+                <td class="gaugeKO" width="89px"/>
+                <td>&nbsp;11%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0013.html">lib/Hml_Map.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="36px"/>
+                <td class="gaugeKO" width="64px"/>
+                <td>&nbsp;36%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0044.html">lib/Hml_Pprint.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="25px"/>
+                <td class="gaugeKO" width="75px"/>
+                <td>&nbsp;25%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0012.html">lib/Hml_String.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="55px"/>
+                <td class="gaugeKO" width="45px"/>
+                <td>&nbsp;55%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0033.html">lib/InfiniteArray.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="40px"/>
+                <td class="gaugeKO" width="60px"/>
+                <td>&nbsp;40%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0015.html">lib/Log.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="61px"/>
+                <td class="gaugeKO" width="39px"/>
+                <td>&nbsp;61%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0002.html">lib/Option.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="100px"/>
+                <td class="gaugeKO" width="0px"/>
+                <td>&nbsp;100%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0038.html">parsing/Datacon.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="56px"/>
+                <td class="gaugeKO" width="44px"/>
+                <td>&nbsp;56%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0016.html">parsing/Driver.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="100px"/>
+                <td class="gaugeKO" width="0px"/>
+                <td>&nbsp;100%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0011.html">parsing/Hashcons.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="100px"/>
+                <td class="gaugeKO" width="0px"/>
+                <td>&nbsp;100%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0043.html">parsing/Identifier.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="0px"/>
+                <td class="gaugeKO" width="100px"/>
+                <td>&nbsp;0%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0040.html">parsing/Module.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="100px"/>
+                <td class="gaugeKO" width="0px"/>
+                <td>&nbsp;100%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0028.html">parsing/ParserUtils.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="68px"/>
+                <td class="gaugeKO" width="32px"/>
+                <td>&nbsp;68%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0006.html">parsing/SurfaceSyntax.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="100px"/>
+                <td class="gaugeKO" width="0px"/>
+                <td>&nbsp;100%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0021.html">parsing/Variable.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="100px"/>
+                <td class="gaugeKO" width="0px"/>
+                <td>&nbsp;100%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0037.html">parsing/options.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="30px"/>
+                <td class="gaugeKO" width="70px"/>
+                <td>&nbsp;30%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0042.html">pprint/pprint.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="8px"/>
+                <td class="gaugeKO" width="92px"/>
+                <td>&nbsp;8%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0024.html">sets/patricia.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="80px"/>
+                <td class="gaugeKO" width="20px"/>
+                <td>&nbsp;80%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0041.html">testsuite.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="78px"/>
+                <td class="gaugeKO" width="22px"/>
+                <td>&nbsp;78%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0027.html">typing/DataTypeGroup.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="74px"/>
+                <td class="gaugeKO" width="26px"/>
+                <td>&nbsp;74%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0023.html">typing/DeBruijn.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="68px"/>
+                <td class="gaugeKO" width="32px"/>
+                <td>&nbsp;68%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0039.html">typing/Expressions.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="100px"/>
+                <td class="gaugeKO" width="0px"/>
+                <td>&nbsp;100%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0018.html">typing/ExtraChecks.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="89px"/>
+                <td class="gaugeKO" width="11px"/>
+                <td>&nbsp;89%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0036.html">typing/FactInference.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="60px"/>
+                <td class="gaugeKO" width="40px"/>
+                <td>&nbsp;60%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0020.html">typing/Flexible.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="78px"/>
+                <td class="gaugeKO" width="22px"/>
+                <td>&nbsp;78%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0031.html">typing/Interfaces.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="72px"/>
+                <td class="gaugeKO" width="28px"/>
+                <td>&nbsp;72%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0008.html">typing/KindCheck.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="100px"/>
+                <td class="gaugeKO" width="0px"/>
+                <td>&nbsp;100%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0003.html">typing/Mark.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="88px"/>
+                <td class="gaugeKO" width="12px"/>
+                <td>&nbsp;88%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0017.html">typing/Merge.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="98px"/>
+                <td class="gaugeKO" width="2px"/>
+                <td>&nbsp;98%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0030.html">typing/Modules.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="71px"/>
+                <td class="gaugeKO" width="29px"/>
+                <td>&nbsp;71%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0005.html">typing/Permissions.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="81px"/>
+                <td class="gaugeKO" width="19px"/>
+                <td>&nbsp;81%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0010.html">typing/PersistentRef.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="66px"/>
+                <td class="gaugeKO" width="34px"/>
+                <td>&nbsp;66%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0014.html">typing/PersistentUnionFind.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="91px"/>
+                <td class="gaugeKO" width="9px"/>
+                <td>&nbsp;91%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0026.html">typing/TransSurface.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="85px"/>
+                <td class="gaugeKO" width="15px"/>
+                <td>&nbsp;85%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0001.html">typing/TypeChecker.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="88px"/>
+                <td class="gaugeKO" width="12px"/>
+                <td>&nbsp;88%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0009.html">typing/TypeCore.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="1px"/>
+                <td class="gaugeKO" width="99px"/>
+                <td>&nbsp;1%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0035.html">typing/TypeErrors.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="76px"/>
+                <td class="gaugeKO" width="24px"/>
+                <td>&nbsp;76%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0019.html">typing/TypeOps.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="49px"/>
+                <td class="gaugeKO" width="51px"/>
+                <td>&nbsp;49%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0004.html">typing/Types.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="89px"/>
+                <td class="gaugeKO" width="11px"/>
+                <td>&nbsp;89%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0032.html">typing/Variance.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="1px"/>
+                <td class="gaugeKO" width="99px"/>
+                <td>&nbsp;1%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0022.html">utils/Debug.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="38px"/>
+                <td class="gaugeKO" width="62px"/>
+                <td>&nbsp;38%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0000.html">utils/TestUtils.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="22px"/>
+                <td class="gaugeKO" width="78px"/>
+                <td>&nbsp;22%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><a href="file0029.html">utils/Utils.ml</a></td>
+        </tr>
+        <tr>
+          <td>
+            <table class="gauge">
+              <tr>
+                <td class="gaugeOK" width="63px"/>
+                <td class="gaugeKO" width="37px"/>
+                <td>&nbsp;63%</td>
+              </tr>
+            </table>
+          </td>
+          <td width="16px">&nbsp;</td>
+          <td><i>total</i></td>
+        </tr>
+      </table>
+    </center>
+    <br/>
+    <hr class="indexSep"/>
+    <p class="footer">Generated by <a href="http://bisect.x9c.fr">Bisect 1.3</a> on 2012-12-05 12:47:30</p>
+  </body>
+</html>

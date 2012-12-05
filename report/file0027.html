@@ -1,0 +1,319 @@
+<html>
+  <head>
+    <title>Bisect report</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <script type="text/javascript">
+      <!--
+        function jump(id) {
+          document.body.scrollTop = document.getElementById(id).offsetTop;
+        }
+      -->
+    </script>
+    <script language="javascript" src="file0027.js"></script>
+  </head>
+  <body>
+    <div class="section">File: typing/DataTypeGroup.ml (<a href="index.html">return to index</a>)</div>
+    <br/>
+    <hr class="codeSep"/>
+    <br/>
+    <table>
+      <tr>
+        <td valign="top" class="section">Statistics:&nbsp;&nbsp;</td>
+        <td valign="top">
+          <table class="simple">
+            <tr><th>kind</th><th width="16px">&nbsp;</th><th>coverage</th></tr>
+            <tr><td>binding</td><td width="16px">&nbsp;</td><td>13 / 13 (100%)</td></tr>
+            <tr><td>sequence</td><td width="16px">&nbsp;</td><td>4 / 7 (57%)</td></tr>
+            <tr><td>for</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>if/then</td><td width="16px">&nbsp;</td><td>0 / 2 (0%)</td></tr>
+            <tr><td>try</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>while</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>match/function</td><td width="16px">&nbsp;</td><td>13 / 16 (81%)</td></tr>
+          </table>
+        </td>
+        <td valign="top">
+          <table class="simple">
+            <tr><th>kind</th><th width="16px">&nbsp;</th><th>coverage</th></tr>
+            <tr><td>class expression</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>class initializer</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>class method</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>class value</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>toplevel expression</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>lazy operator</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+    <br/>
+    <hr class="codeSep"/>
+    <br/>
+    <div class="section">Source:</div>
+    <br/>
+<div style="font-size: smaller;"><a href="javascript:foldAll();">fold all</a> <a href="javascript:unfoldAll();">unfold all</a></div>
+    <code>
+      <div id="fold000001">
+      <div id="line000001" class="lineNone"><a href="javascript:fold('fold000001');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000001| (*****************************************************************************)</div>
+      <div id="line000002" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000002| (*&nbsp;&nbsp;Mezzo,&nbsp;a&nbsp;programming&nbsp;language&nbsp;based&nbsp;on&nbsp;permissions&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000003" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000003| (*&nbsp;&nbsp;Copyright&nbsp;(C)&nbsp;2011,&nbsp;2012&nbsp;Jonathan&nbsp;Protzenko&nbsp;and&nbsp;François&nbsp;Pottier&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000004" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000004| (*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000005" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000005| (*&nbsp;&nbsp;This&nbsp;program&nbsp;is&nbsp;free&nbsp;software:&nbsp;you&nbsp;can&nbsp;redistribute&nbsp;it&nbsp;and/or&nbsp;modify&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000006" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000006| (*&nbsp;&nbsp;it&nbsp;under&nbsp;the&nbsp;terms&nbsp;of&nbsp;the&nbsp;GNU&nbsp;General&nbsp;Public&nbsp;License&nbsp;as&nbsp;published&nbsp;by&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000007" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000007| (*&nbsp;&nbsp;the&nbsp;Free&nbsp;Software&nbsp;Foundation,&nbsp;either&nbsp;version&nbsp;3&nbsp;of&nbsp;the&nbsp;License,&nbsp;or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000008" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000008| (*&nbsp;&nbsp;(at&nbsp;your&nbsp;option)&nbsp;any&nbsp;later&nbsp;version.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000009" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000009| (*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000010" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000010| (*&nbsp;&nbsp;This&nbsp;program&nbsp;is&nbsp;distributed&nbsp;in&nbsp;the&nbsp;hope&nbsp;that&nbsp;it&nbsp;will&nbsp;be&nbsp;useful,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000011" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000011| (*&nbsp;&nbsp;but&nbsp;WITHOUT&nbsp;ANY&nbsp;WARRANTY;&nbsp;without&nbsp;even&nbsp;the&nbsp;implied&nbsp;warranty&nbsp;of&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000012" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000012| (*&nbsp;&nbsp;MERCHANTABILITY&nbsp;or&nbsp;FITNESS&nbsp;FOR&nbsp;A&nbsp;PARTICULAR&nbsp;PURPOSE.&nbsp;&nbsp;See&nbsp;the&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000013" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000013| (*&nbsp;&nbsp;GNU&nbsp;General&nbsp;Public&nbsp;License&nbsp;for&nbsp;more&nbsp;details.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000014" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000014| (*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000015" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000015| (*&nbsp;&nbsp;You&nbsp;should&nbsp;have&nbsp;received&nbsp;a&nbsp;copy&nbsp;of&nbsp;the&nbsp;GNU&nbsp;General&nbsp;Public&nbsp;License&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000016" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000016| (*&nbsp;&nbsp;along&nbsp;with&nbsp;this&nbsp;program.&nbsp;&nbsp;If&nbsp;not,&nbsp;see&nbsp;&lt;http://www.gnu.org/licenses/&gt;.&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000017" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000017| (*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000018" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000018| (*****************************************************************************)</div>
+      <div id="line000019" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000019| &nbsp;</div>
+      <div id="line000020" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000020| open&nbsp;Types</div>
+      <div id="line000021" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000021| open&nbsp;Expressions</div>
+      <div id="line000022" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000022| &nbsp;</div>
+      <div id="line000023" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000023| let&nbsp;bind_group_in&nbsp;(points:&nbsp;point&nbsp;list)&nbsp;subst_func_for_thing&nbsp;thing&nbsp;=</div>
+      <div id="line000024" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000024| &nbsp;&nbsp;(*[1264]*)let&nbsp;total_number_of_data_types&nbsp;=&nbsp;List.length&nbsp;points&nbsp;in</div>
+      <div id="line000025" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000025| &nbsp;&nbsp;(*[1264]*)let&nbsp;thing&nbsp;=</div>
+      <div id="line000026" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000026| &nbsp;&nbsp;&nbsp;&nbsp;Hml_List.fold_lefti&nbsp;(fun&nbsp;level&nbsp;thing&nbsp;point&nbsp;-&gt;</div>
+      <div id="line000027" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000027| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[1464]*)let&nbsp;index&nbsp;=&nbsp;total_number_of_data_types&nbsp;-&nbsp;level&nbsp;-&nbsp;1&nbsp;in</div>
+      <div id="line000028" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000028| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[1464]*)subst_func_for_thing&nbsp;(TyPoint&nbsp;point)&nbsp;index&nbsp;thing</div>
+      <div id="line000029" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000029| &nbsp;&nbsp;&nbsp;&nbsp;)&nbsp;thing&nbsp;points</div>
+      <div id="line000030" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000030| &nbsp;&nbsp;in</div>
+      <div id="line000031" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000031| &nbsp;&nbsp;(*[1264]*)thing</div>
+      <div id="line000032" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000032| ;;</div>
+      <div id="line000033" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000033| &nbsp;</div>
+      <div id="line000034" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000034| &nbsp;</div>
+      <div id="line000035" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000035| let&nbsp;bind_group_in_group&nbsp;(points:&nbsp;point&nbsp;list)&nbsp;(group:&nbsp;data_type_group)&nbsp;=</div>
+      <div id="line000036" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000036| &nbsp;&nbsp;(*[632]*)bind_group_in&nbsp;points&nbsp;tsubst_data_type_group&nbsp;group</div>
+      <div id="line000037" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000037| ;;</div>
+      <div id="line000038" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000038| &nbsp;</div>
+      <div id="line000039" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000039| &nbsp;</div>
+      <div id="line000040" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000040| let&nbsp;bind_group_definitions&nbsp;(env:&nbsp;env)&nbsp;(points:&nbsp;point&nbsp;list)&nbsp;(group:&nbsp;data_type_group)(*[632]*):&nbsp;env&nbsp;=</div>
+      <div id="line000041" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000041| &nbsp;&nbsp;List.fold_left2&nbsp;(fun&nbsp;env&nbsp;point&nbsp;(_,&nbsp;_,&nbsp;def,&nbsp;_,&nbsp;_)&nbsp;-&gt;</div>
+      <div id="line000042" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000042| &nbsp;&nbsp;&nbsp;&nbsp;(*&nbsp;Replace&nbsp;the&nbsp;corresponding&nbsp;definition&nbsp;in&nbsp;[env].&nbsp;*)</div>
+      <div id="line000043" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000043| &nbsp;&nbsp;&nbsp;&nbsp;(*[732]*)replace_type&nbsp;env&nbsp;point&nbsp;(fun&nbsp;binder&nbsp;-&gt;</div>
+      <div id="line000044" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000044| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[732]*){&nbsp;binder&nbsp;with&nbsp;definition&nbsp;=&nbsp;Some&nbsp;def&nbsp;}</div>
+      <div id="line000045" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000045| &nbsp;&nbsp;&nbsp;&nbsp;)</div>
+      <div id="line000046" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000046| &nbsp;&nbsp;)&nbsp;env&nbsp;points&nbsp;group</div>
+      <div id="line000047" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000047| ;;</div>
+      <div id="line000048" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000048| &nbsp;</div>
+      <div id="line000049" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000049| &nbsp;</div>
+      <div id="line000050" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000050| let&nbsp;bind_group&nbsp;(env:&nbsp;env)&nbsp;(group:&nbsp;data_type_group)&nbsp;=</div>
+      <div id="line000051" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000051| &nbsp;&nbsp;(*&nbsp;Allocate&nbsp;the&nbsp;points&nbsp;in&nbsp;the&nbsp;environment.&nbsp;We&nbsp;don't&nbsp;put&nbsp;a&nbsp;definition&nbsp;yet.&nbsp;*)</div>
+      <div id="line000052" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000052| &nbsp;&nbsp;(*[632]*)let&nbsp;env,&nbsp;points&nbsp;=&nbsp;List.fold_left&nbsp;(fun&nbsp;(env,&nbsp;acc)&nbsp;(name,&nbsp;location,&nbsp;_,&nbsp;fact,&nbsp;kind)&nbsp;-&gt;</div>
+      <div id="line000053" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000053| &nbsp;&nbsp;&nbsp;&nbsp;(*[732]*)let&nbsp;name&nbsp;=&nbsp;User&nbsp;(env.module_name,&nbsp;name)&nbsp;in</div>
+      <div id="line000054" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000054| &nbsp;&nbsp;&nbsp;&nbsp;(*[732]*)let&nbsp;env,&nbsp;point&nbsp;=&nbsp;bind_type&nbsp;env&nbsp;name&nbsp;location&nbsp;fact&nbsp;kind&nbsp;in</div>
+      <div id="line000055" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000055| &nbsp;&nbsp;&nbsp;&nbsp;(*[732]*)env,&nbsp;point&nbsp;::&nbsp;acc</div>
+      <div id="line000056" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000056| &nbsp;&nbsp;)&nbsp;(env,&nbsp;[])&nbsp;group&nbsp;in</div>
+      <div id="line000057" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000057| &nbsp;&nbsp;(*[632]*)let&nbsp;points&nbsp;=&nbsp;List.rev&nbsp;points&nbsp;in</div>
+      <div id="line000058" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000058| &nbsp;</div>
+      <div id="line000059" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000059| &nbsp;&nbsp;(*&nbsp;Construct&nbsp;the&nbsp;reverse-map&nbsp;from&nbsp;constructors&nbsp;to&nbsp;points.&nbsp;*)</div>
+      <div id="line000060" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000060| &nbsp;&nbsp;(*[632]*)let&nbsp;env&nbsp;=&nbsp;List.fold_left2&nbsp;(fun&nbsp;env&nbsp;(_,&nbsp;_,&nbsp;def,&nbsp;_,&nbsp;_)&nbsp;point&nbsp;-&gt;</div>
+      <div id="line000061" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000061| &nbsp;&nbsp;&nbsp;&nbsp;match&nbsp;def&nbsp;with</div>
+      <div id="line000062" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000062| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;None,&nbsp;_&nbsp;-&gt;</div>
+      <div id="line000063" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000063| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[136]*)env</div>
+      <div id="line000064" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000064| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Some&nbsp;(_,&nbsp;def,&nbsp;_),&nbsp;_&nbsp;-&gt;</div>
+      <div id="line000065" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000065| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[596]*)let&nbsp;type_for_datacon&nbsp;=&nbsp;List.fold_left&nbsp;(fun&nbsp;type_for_datacon&nbsp;(name,&nbsp;_)&nbsp;-&gt;</div>
+      <div id="line000066" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000066| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[1099]*)DataconMap.add&nbsp;name&nbsp;point&nbsp;type_for_datacon</div>
+      <div id="line000067" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000067| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)&nbsp;env.type_for_datacon&nbsp;def&nbsp;in&nbsp;&nbsp;</div>
+      <div id="line000068" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000068| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[596]*){&nbsp;env&nbsp;with&nbsp;type_for_datacon&nbsp;}</div>
+      <div id="line000069" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000069| &nbsp;&nbsp;)&nbsp;env&nbsp;group&nbsp;points&nbsp;in</div>
+      <div id="line000070" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000070| &nbsp;</div>
+      <div id="line000071" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000071| &nbsp;&nbsp;(*[632]*)env,&nbsp;points</div>
+      <div id="line000072" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000072| ;;</div>
+      <div id="line000073" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000073| &nbsp;</div>
+      <div id="line000074" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000074| &nbsp;</div>
+      <div id="line000075" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000075| let&nbsp;bind_group_in_toplevel_items&nbsp;(points:&nbsp;point&nbsp;list)&nbsp;(toplevel_items:&nbsp;toplevel_item&nbsp;list)&nbsp;=</div>
+      <div id="line000076" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000076| &nbsp;&nbsp;(*[632]*)bind_group_in&nbsp;points&nbsp;tsubst_toplevel_items&nbsp;toplevel_items</div>
+      <div id="line000077" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000077| ;;</div>
+      <div id="line000078" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000078| &nbsp;</div>
+      <div id="line000079" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000079| &nbsp;</div>
+      <div id="line000080" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000080| let&nbsp;debug_toplevel_items&nbsp;env&nbsp;toplevel_items&nbsp;=</div>
+      </div>
+      <div id="line000081" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000081| &nbsp;&nbsp;(*[0]*)Log.debug&nbsp;&quot;####&nbsp;DEBUGGING&nbsp;TOPLEVEL_ITEMS&nbsp;####\n&quot;;</div>
+      <div id="line000082" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000082| &nbsp;&nbsp;(*[0]*)List.iter&nbsp;(function</div>
+      <div id="fold000083">
+      <div id="line000083" class="lineNone"><a href="javascript:fold('fold000083');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000083| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;DataTypeGroup&nbsp;group&nbsp;-&gt;</div>
+      </div>
+      <div id="line000084" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000084| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[0]*)Log.debug&nbsp;&quot;%a\n&quot;</div>
+      <div id="fold000085">
+      <div id="line000085" class="lineNone"><a href="javascript:fold('fold000085');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000085| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;KindCheck.KindPrinter.pgroup&nbsp;(env,&nbsp;group);</div>
+      <div id="line000086" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000086| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;ValueDeclarations&nbsp;decls&nbsp;-&gt;</div>
+      </div>
+      <div id="line000087" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000087| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[0]*)Log.debug&nbsp;&quot;%a\n&quot;</div>
+      <div id="fold000088">
+      <div id="line000088" class="lineNone"><a href="javascript:fold('fold000088');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000088| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Expressions.ExprPrinter.pdeclarations&nbsp;(env,&nbsp;decls);</div>
+      <div id="line000089" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000089| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;PermDeclaration&nbsp;it&nbsp;-&gt;</div>
+      </div>
+      <div id="line000090" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000090| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[0]*)Log.debug&nbsp;&quot;%a\n&quot;</div>
+      <div id="fold000091">
+      <div id="line000091" class="lineNone"><a href="javascript:fold('fold000091');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000091| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Expressions.ExprPrinter.psigitem&nbsp;(env,&nbsp;it)</div>
+      <div id="line000092" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000092| &nbsp;&nbsp;)&nbsp;toplevel_items;</div>
+      </div>
+      <div id="line000093" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000093| &nbsp;&nbsp;(*[0]*)Log.debug&nbsp;&quot;####&nbsp;END&nbsp;DEBUGGING&nbsp;TOPLEVEL_ITEMS&nbsp;####\n&quot;</div>
+      <div id="fold000094">
+      <div id="line000094" class="lineNone"><a href="javascript:fold('fold000094');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000094| ;;</div>
+      <div id="line000095" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000095| &nbsp;</div>
+      <div id="line000096" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000096| &nbsp;</div>
+      <div id="line000097" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000097| let&nbsp;bind_data_type_group</div>
+      <div id="line000098" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000098| &nbsp;&nbsp;&nbsp;&nbsp;(env:&nbsp;env)</div>
+      <div id="line000099" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000099| &nbsp;&nbsp;&nbsp;&nbsp;(group:&nbsp;data_type_group)</div>
+      <div id="line000100" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000100| &nbsp;&nbsp;&nbsp;&nbsp;(toplevel_items:&nbsp;toplevel_item&nbsp;list)(*[632]*):&nbsp;env&nbsp;*&nbsp;toplevel_item&nbsp;list&nbsp;=</div>
+      <div id="line000101" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000101| &nbsp;&nbsp;(*&nbsp;First,&nbsp;allocate&nbsp;points&nbsp;for&nbsp;all&nbsp;the&nbsp;data&nbsp;types.&nbsp;*)</div>
+      <div id="line000102" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000102| &nbsp;&nbsp;let&nbsp;env,&nbsp;points&nbsp;=&nbsp;bind_group&nbsp;env&nbsp;group&nbsp;in</div>
+      <div id="line000103" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000103| &nbsp;&nbsp;(*&nbsp;Open&nbsp;references&nbsp;to&nbsp;these&nbsp;data&nbsp;types&nbsp;in&nbsp;the&nbsp;branches&nbsp;themselves,&nbsp;since&nbsp;the</div>
+      <div id="line000104" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000104| &nbsp;&nbsp;&nbsp;*&nbsp;definitions&nbsp;are&nbsp;all&nbsp;mutually&nbsp;recursive.&nbsp;*)</div>
+      <div id="line000105" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000105| &nbsp;&nbsp;(*[632]*)let&nbsp;group&nbsp;=&nbsp;bind_group_in_group&nbsp;points&nbsp;group&nbsp;in</div>
+      <div id="line000106" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000106| &nbsp;&nbsp;(*&nbsp;Attach&nbsp;the&nbsp;definitions!&nbsp;*)</div>
+      <div id="line000107" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000107| &nbsp;&nbsp;(*[632]*)let&nbsp;env&nbsp;=&nbsp;bind_group_definitions&nbsp;env&nbsp;points&nbsp;group&nbsp;in</div>
+      <div id="line000108" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000108| &nbsp;&nbsp;(*&nbsp;Now&nbsp;we&nbsp;can&nbsp;perform&nbsp;some&nbsp;more&nbsp;advanced&nbsp;analyses.&nbsp;*)</div>
+      <div id="line000109" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000109| &nbsp;&nbsp;(*[632]*)let&nbsp;env&nbsp;=&nbsp;FactInference.analyze_data_types&nbsp;env&nbsp;points&nbsp;in</div>
+      <div id="line000110" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000110| &nbsp;&nbsp;(*[632]*)let&nbsp;env&nbsp;=&nbsp;Variance.analyze_data_types&nbsp;env&nbsp;points&nbsp;in</div>
+      </div>
+      <div id="line000111" class="lineMixed"><img border="0" height="10" width="10"src="blank.png"/>000111| &nbsp;&nbsp;(*[632]*)if&nbsp;false&nbsp;then&nbsp;(*[0]*)debug_toplevel_items&nbsp;env&nbsp;toplevel_items;</div>
+      <div id="fold000112">
+      <div id="line000112" class="lineNone"><a href="javascript:fold('fold000112');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000112| &nbsp;&nbsp;(*&nbsp;Open&nbsp;references&nbsp;to&nbsp;these&nbsp;data&nbsp;types&nbsp;in&nbsp;the&nbsp;rest&nbsp;of&nbsp;the&nbsp;program.&nbsp;*)</div>
+      <div id="line000113" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000113| &nbsp;&nbsp;(*[632]*)let&nbsp;toplevel_items&nbsp;=&nbsp;bind_group_in_toplevel_items&nbsp;points&nbsp;toplevel_items&nbsp;in</div>
+      </div>
+      <div id="line000114" class="lineMixed"><img border="0" height="10" width="10"src="blank.png"/>000114| &nbsp;&nbsp;(*[632]*)if&nbsp;false&nbsp;then&nbsp;(*[0]*)debug_toplevel_items&nbsp;env&nbsp;toplevel_items;</div>
+      <div id="fold000115">
+      <div id="line000115" class="lineNone"><a href="javascript:fold('fold000115');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000115| &nbsp;&nbsp;(*&nbsp;We're&nbsp;done.&nbsp;*)</div>
+      <div id="line000116" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000116| &nbsp;&nbsp;(*[632]*)env,&nbsp;toplevel_items</div>
+      <div id="line000117" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000117| ;;</div>
+      </div>
+    </code>
+    <br/>
+    <div id="navigator" style="border: solid black 1px; position: fixed; z-index:100; right: 10px; top: 10px; bottom: 10px; width: 16px;">
+      <table width="100%" height="100%" border="0" cellspacing="0">
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000081');" title="jump to line 81"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000082');" title="jump to line 82"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000084');" title="jump to line 84"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000087');" title="jump to line 87"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000090');" title="jump to line 90"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000093');" title="jump to line 93"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="yellow" style="cursor: pointer;" onclick="javascript:jump('line000111');" title="jump to line 111"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="yellow" style="cursor: pointer;" onclick="javascript:jump('line000114');" title="jump to line 114"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+      </table>
+    </div>
+    <div class="section">Legend:</div>
+    &nbsp;&nbsp;&nbsp;<span class="lineNone">some code</span>&nbsp;-&nbsp;line containing no point<br/>
+    &nbsp;&nbsp;&nbsp;<span class="lineAllVisited">some code</span>&nbsp;-&nbsp;line containing only visited points<br/>
+    &nbsp;&nbsp;&nbsp;<span class="lineAllUnvisited">some code</span>&nbsp;-&nbsp;line containing only unvisited points<br/>
+    &nbsp;&nbsp;&nbsp;<span class="lineMixed">some code</span>&nbsp;-&nbsp;line containing both visited and unvisited points<br/>
+    <br/>
+    <hr class="codeSep"/>
+    <p class="footer">Generated by <a href="http://bisect.x9c.fr">Bisect 1.3</a> on 2012-12-05 12:47:30</p>
+  </body>
+</html>

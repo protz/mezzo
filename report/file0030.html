@@ -1,0 +1,505 @@
+<html>
+  <head>
+    <title>Bisect report</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <script type="text/javascript">
+      <!--
+        function jump(id) {
+          document.body.scrollTop = document.getElementById(id).offsetTop;
+        }
+      -->
+    </script>
+    <script language="javascript" src="file0030.js"></script>
+  </head>
+  <body>
+    <div class="section">File: typing/Modules.ml (<a href="index.html">return to index</a>)</div>
+    <br/>
+    <hr class="codeSep"/>
+    <br/>
+    <table>
+      <tr>
+        <td valign="top" class="section">Statistics:&nbsp;&nbsp;</td>
+        <td valign="top">
+          <table class="simple">
+            <tr><th>kind</th><th width="16px">&nbsp;</th><th>coverage</th></tr>
+            <tr><td>binding</td><td width="16px">&nbsp;</td><td>17 / 17 (100%)</td></tr>
+            <tr><td>sequence</td><td width="16px">&nbsp;</td><td>8 / 8 (100%)</td></tr>
+            <tr><td>for</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>if/then</td><td width="16px">&nbsp;</td><td>2 / 2 (100%)</td></tr>
+            <tr><td>try</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>while</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>match/function</td><td width="16px">&nbsp;</td><td>47 / 48 (97%)</td></tr>
+          </table>
+        </td>
+        <td valign="top">
+          <table class="simple">
+            <tr><th>kind</th><th width="16px">&nbsp;</th><th>coverage</th></tr>
+            <tr><td>class expression</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>class initializer</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>class method</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>class value</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>toplevel expression</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>lazy operator</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+    <br/>
+    <hr class="codeSep"/>
+    <br/>
+    <div class="section">Source:</div>
+    <br/>
+<div style="font-size: smaller;"><a href="javascript:foldAll();">fold all</a> <a href="javascript:unfoldAll();">unfold all</a></div>
+    <code>
+      <div id="fold000001">
+      <div id="line000001" class="lineNone"><a href="javascript:fold('fold000001');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000001| (*****************************************************************************)</div>
+      <div id="line000002" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000002| (*&nbsp;&nbsp;Mezzo,&nbsp;a&nbsp;programming&nbsp;language&nbsp;based&nbsp;on&nbsp;permissions&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000003" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000003| (*&nbsp;&nbsp;Copyright&nbsp;(C)&nbsp;2011,&nbsp;2012&nbsp;Jonathan&nbsp;Protzenko&nbsp;and&nbsp;François&nbsp;Pottier&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000004" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000004| (*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000005" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000005| (*&nbsp;&nbsp;This&nbsp;program&nbsp;is&nbsp;free&nbsp;software:&nbsp;you&nbsp;can&nbsp;redistribute&nbsp;it&nbsp;and/or&nbsp;modify&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000006" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000006| (*&nbsp;&nbsp;it&nbsp;under&nbsp;the&nbsp;terms&nbsp;of&nbsp;the&nbsp;GNU&nbsp;General&nbsp;Public&nbsp;License&nbsp;as&nbsp;published&nbsp;by&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000007" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000007| (*&nbsp;&nbsp;the&nbsp;Free&nbsp;Software&nbsp;Foundation,&nbsp;either&nbsp;version&nbsp;3&nbsp;of&nbsp;the&nbsp;License,&nbsp;or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000008" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000008| (*&nbsp;&nbsp;(at&nbsp;your&nbsp;option)&nbsp;any&nbsp;later&nbsp;version.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000009" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000009| (*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000010" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000010| (*&nbsp;&nbsp;This&nbsp;program&nbsp;is&nbsp;distributed&nbsp;in&nbsp;the&nbsp;hope&nbsp;that&nbsp;it&nbsp;will&nbsp;be&nbsp;useful,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000011" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000011| (*&nbsp;&nbsp;but&nbsp;WITHOUT&nbsp;ANY&nbsp;WARRANTY;&nbsp;without&nbsp;even&nbsp;the&nbsp;implied&nbsp;warranty&nbsp;of&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000012" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000012| (*&nbsp;&nbsp;MERCHANTABILITY&nbsp;or&nbsp;FITNESS&nbsp;FOR&nbsp;A&nbsp;PARTICULAR&nbsp;PURPOSE.&nbsp;&nbsp;See&nbsp;the&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000013" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000013| (*&nbsp;&nbsp;GNU&nbsp;General&nbsp;Public&nbsp;License&nbsp;for&nbsp;more&nbsp;details.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000014" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000014| (*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000015" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000015| (*&nbsp;&nbsp;You&nbsp;should&nbsp;have&nbsp;received&nbsp;a&nbsp;copy&nbsp;of&nbsp;the&nbsp;GNU&nbsp;General&nbsp;Public&nbsp;License&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000016" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000016| (*&nbsp;&nbsp;along&nbsp;with&nbsp;this&nbsp;program.&nbsp;&nbsp;If&nbsp;not,&nbsp;see&nbsp;&lt;http://www.gnu.org/licenses/&gt;.&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000017" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000017| (*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000018" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000018| (*****************************************************************************)</div>
+      <div id="line000019" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000019| &nbsp;</div>
+      <div id="line000020" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000020| (*&nbsp;I'm&nbsp;defining&nbsp;module&nbsp;abbreviations&nbsp;because&nbsp;we're&nbsp;juggling&nbsp;with&nbsp;all&nbsp;these</div>
+      <div id="line000021" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000021| &nbsp;*&nbsp;modules&nbsp;at&nbsp;the&nbsp;same&nbsp;time,&nbsp;and&nbsp;the&nbsp;names&nbsp;conflict&nbsp;(e.g.&nbsp;env,&nbsp;toplevel_item,</div>
+      <div id="line000022" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000022| &nbsp;*&nbsp;etc.).&nbsp;*)</div>
+      <div id="line000023" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000023| module&nbsp;T&nbsp;=&nbsp;Types</div>
+      <div id="line000024" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000024| module&nbsp;S&nbsp;=&nbsp;SurfaceSyntax</div>
+      <div id="line000025" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000025| module&nbsp;E&nbsp;=&nbsp;Expressions</div>
+      <div id="line000026" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000026| &nbsp;</div>
+      <div id="line000027" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000027| (*&nbsp;Used&nbsp;by&nbsp;[Driver],&nbsp;to&nbsp;import&nbsp;the&nbsp;points&nbsp;from&nbsp;a&nbsp;desugared&nbsp;interface&nbsp;into</div>
+      <div id="line000028" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000028| &nbsp;*&nbsp;another&nbsp;one,&nbsp;prefixed&nbsp;by&nbsp;the&nbsp;module&nbsp;they&nbsp;belong&nbsp;to,&nbsp;namely&nbsp;[mname].&nbsp;*)</div>
+      <div id="line000029" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000029| let&nbsp;import_interface&nbsp;(env:&nbsp;T.env)&nbsp;(items:&nbsp;E.interface)(*[141]*):&nbsp;T.env&nbsp;=</div>
+      <div id="line000030" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000030| &nbsp;&nbsp;let&nbsp;open&nbsp;Types&nbsp;in</div>
+      <div id="line000031" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000031| &nbsp;&nbsp;let&nbsp;open&nbsp;Expressions&nbsp;in</div>
+      <div id="line000032" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000032| &nbsp;&nbsp;(*&nbsp;We&nbsp;demand&nbsp;that&nbsp;[env]&nbsp;have&nbsp;the&nbsp;right&nbsp;module&nbsp;name.&nbsp;*)</div>
+      <div id="line000033" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000033| &nbsp;&nbsp;let&nbsp;rec&nbsp;import_items&nbsp;env&nbsp;=&nbsp;function</div>
+      <div id="line000034" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000034| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;PermDeclaration&nbsp;(name,&nbsp;typ)&nbsp;::&nbsp;items&nbsp;-&gt;</div>
+      <div id="line000035" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000035| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*&nbsp;XXX&nbsp;the&nbsp;location&nbsp;information&nbsp;is&nbsp;probably&nbsp;wildly&nbsp;inaccurate&nbsp;*)</div>
+      <div id="line000036" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000036| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[1461]*)let&nbsp;binding&nbsp;=&nbsp;User&nbsp;(env.module_name,&nbsp;name),&nbsp;KTerm,&nbsp;env.location&nbsp;in</div>
+      <div id="line000037" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000037| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[1461]*)let&nbsp;env,&nbsp;p&nbsp;=&nbsp;bind_var&nbsp;env&nbsp;binding&nbsp;in</div>
+      <div id="line000038" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000038| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[1461]*)let&nbsp;env&nbsp;=&nbsp;Permissions.add&nbsp;env&nbsp;p&nbsp;typ&nbsp;in</div>
+      <div id="line000039" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000039| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[1461]*)let&nbsp;items&nbsp;=&nbsp;tsubst_toplevel_items&nbsp;(TyPoint&nbsp;p)&nbsp;0&nbsp;items&nbsp;in</div>
+      <div id="line000040" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000040| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[1461]*)let&nbsp;items&nbsp;=&nbsp;esubst_toplevel_items&nbsp;(EPoint&nbsp;p)&nbsp;0&nbsp;items&nbsp;in</div>
+      <div id="line000041" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000041| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[1461]*)import_items&nbsp;env&nbsp;items</div>
+      <div id="line000042" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000042| &nbsp;</div>
+      <div id="line000043" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000043| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;DataTypeGroup&nbsp;group&nbsp;::&nbsp;items&nbsp;-&gt;</div>
+      <div id="line000044" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000044| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[534]*)let&nbsp;env,&nbsp;items&nbsp;=&nbsp;DataTypeGroup.bind_data_type_group&nbsp;env&nbsp;group&nbsp;items&nbsp;in</div>
+      <div id="line000045" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000045| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[534]*)import_items&nbsp;env&nbsp;items</div>
+      <div id="line000046" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000046| &nbsp;</div>
+      <div id="line000047" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000047| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;ValueDeclarations&nbsp;_&nbsp;::&nbsp;_&nbsp;-&gt;</div>
+      </div>
+      <div id="line000048" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000048| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[0]*)assert&nbsp;false</div>
+      <div id="fold000049">
+      <div id="line000049" class="lineNone"><a href="javascript:fold('fold000049');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000049| &nbsp;</div>
+      <div id="line000050" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000050| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;[]&nbsp;-&gt;</div>
+      <div id="line000051" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000051| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[141]*)env</div>
+      <div id="line000052" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000052| &nbsp;&nbsp;in</div>
+      <div id="line000053" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000053| &nbsp;</div>
+      <div id="line000054" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000054| &nbsp;&nbsp;(*[141]*)import_items&nbsp;env&nbsp;items</div>
+      <div id="line000055" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000055| ;;</div>
+      <div id="line000056" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000056| &nbsp;</div>
+      <div id="line000057" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000057| (*&nbsp;For&nbsp;internal&nbsp;use&nbsp;only&nbsp;(yet).&nbsp;*)</div>
+      <div id="line000058" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000058| let&nbsp;collect_dependencies&nbsp;(items:&nbsp;S.toplevel_item&nbsp;list)(*[261]*):&nbsp;Module.name&nbsp;list&nbsp;=</div>
+      <div id="line000059" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000059| &nbsp;&nbsp;let&nbsp;open&nbsp;SurfaceSyntax&nbsp;in</div>
+      <div id="line000060" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000060| &nbsp;</div>
+      <div id="line000061" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000061| &nbsp;&nbsp;(*&nbsp;Just&nbsp;so&nbsp;we're&nbsp;clear:&nbsp;among&nbsp;these&nbsp;functions,&nbsp;only&nbsp;collect_item&nbsp;actually&nbsp;does</div>
+      <div id="line000062" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000062| &nbsp;&nbsp;&nbsp;*&nbsp;something&nbsp;in&nbsp;the&nbsp;[OpenDirective]&nbsp;case.&nbsp;But&nbsp;this&nbsp;will&nbsp;all&nbsp;change&nbsp;we&nbsp;have</div>
+      <div id="line000063" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000063| &nbsp;&nbsp;&nbsp;*&nbsp;prefixed&nbsp;names&nbsp;and&nbsp;prefixed&nbsp;constructors...&nbsp;*)</div>
+      <div id="line000064" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000064| &nbsp;</div>
+      <div id="line000065" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000065| &nbsp;&nbsp;let&nbsp;rec&nbsp;collect_items&nbsp;items&nbsp;=</div>
+      <div id="line000066" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000066| &nbsp;&nbsp;&nbsp;&nbsp;(*[261]*)Hml_List.map_flatten&nbsp;collect_item&nbsp;items</div>
+      <div id="line000067" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000067| &nbsp;</div>
+      <div id="line000068" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000068| &nbsp;&nbsp;and&nbsp;collect_item&nbsp;=&nbsp;function</div>
+      <div id="line000069" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000069| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;PermDeclaration&nbsp;t&nbsp;-&gt;</div>
+      <div id="line000070" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000070| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[1461]*)collect_type&nbsp;t</div>
+      <div id="line000071" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000071| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;DataTypeGroup&nbsp;(_,&nbsp;defs)&nbsp;-&gt;</div>
+      <div id="line000072" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000072| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[634]*)Hml_List.map_flatten&nbsp;(function</div>
+      <div id="line000073" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000073| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Abstract&nbsp;_&nbsp;-&gt;</div>
+      <div id="line000074" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000074| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[136]*)[]</div>
+      <div id="line000075" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000075| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Concrete&nbsp;(_flag,&nbsp;_lhs,&nbsp;rhs,&nbsp;adopts)&nbsp;-&gt;</div>
+      <div id="line000076" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000076| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[598]*)Option.map_none&nbsp;[]&nbsp;(Option.map&nbsp;collect_type&nbsp;adopts)</div>
+      <div id="line000077" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000077| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@&nbsp;Hml_List.map_flatten&nbsp;collect_data_type_def_branch&nbsp;rhs</div>
+      <div id="line000078" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000078| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)&nbsp;defs</div>
+      <div id="line000079" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000079| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;ValueDeclarations&nbsp;decls&nbsp;-&gt;</div>
+      <div id="line000080" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000080| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[116]*)Hml_List.map_flatten&nbsp;collect_decl&nbsp;decls</div>
+      <div id="line000081" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000081| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;OpenDirective&nbsp;m&nbsp;-&gt;</div>
+      <div id="line000082" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000082| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[(*[163]*)m]</div>
+      <div id="line000083" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000083| &nbsp;</div>
+      <div id="line000084" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000084| &nbsp;&nbsp;and&nbsp;collect_decl&nbsp;=&nbsp;function</div>
+      <div id="line000085" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000085| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;DLocated&nbsp;(d,&nbsp;_,&nbsp;_)&nbsp;-&gt;</div>
+      <div id="line000086" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000086| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[235]*)collect_decl&nbsp;d</div>
+      <div id="line000087" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000087| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;DMultiple&nbsp;(_,&nbsp;patexprs)&nbsp;-&gt;</div>
+      <div id="line000088" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000088| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[235]*)collect_patexprs&nbsp;patexprs</div>
+      <div id="line000089" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000089| &nbsp;</div>
+      <div id="line000090" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000090| &nbsp;&nbsp;and&nbsp;collect_patexprs&nbsp;patexprs&nbsp;=</div>
+      <div id="line000091" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000091| &nbsp;&nbsp;&nbsp;&nbsp;(*[388]*)let&nbsp;pats,&nbsp;exprs&nbsp;=&nbsp;List.split&nbsp;patexprs&nbsp;in</div>
+      <div id="line000092" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000092| &nbsp;&nbsp;&nbsp;&nbsp;(*[388]*)Hml_List.map_flatten&nbsp;collect_pattern&nbsp;pats</div>
+      <div id="line000093" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000093| &nbsp;&nbsp;&nbsp;&nbsp;@&nbsp;Hml_List.map_flatten&nbsp;collect_expr&nbsp;exprs</div>
+      <div id="line000094" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000094| &nbsp;</div>
+      <div id="line000095" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000095| &nbsp;&nbsp;and&nbsp;collect_pattern&nbsp;=&nbsp;function</div>
+      <div id="line000096" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000096| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;PVar&nbsp;_&nbsp;-&gt;</div>
+      <div id="line000097" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000097| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[424]*)[]</div>
+      <div id="line000098" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000098| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;PLocated&nbsp;(p1,&nbsp;_,&nbsp;_)&nbsp;-&gt;</div>
+      <div id="line000099" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000099| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[371]*)collect_pattern&nbsp;p1</div>
+      <div id="line000100" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000100| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;PConstraint&nbsp;(p1,&nbsp;t1)&nbsp;-&gt;</div>
+      <div id="line000101" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000101| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[23]*)collect_pattern&nbsp;p1&nbsp;@&nbsp;collect_type&nbsp;t1</div>
+      <div id="line000102" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000102| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;PTuple&nbsp;ps&nbsp;-&gt;</div>
+      <div id="line000103" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000103| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[19]*)Hml_List.map_flatten&nbsp;collect_pattern&nbsp;ps</div>
+      <div id="line000104" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000104| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;PConstruct&nbsp;(_,&nbsp;namepats)&nbsp;-&gt;</div>
+      <div id="line000105" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000105| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[105]*)let&nbsp;_,&nbsp;ps&nbsp;=&nbsp;List.split&nbsp;namepats&nbsp;in</div>
+      <div id="line000106" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000106| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[105]*)Hml_List.map_flatten&nbsp;collect_pattern&nbsp;ps</div>
+      <div id="line000107" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000107| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;PAs&nbsp;(p1,&nbsp;p2)&nbsp;-&gt;</div>
+      <div id="line000108" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000108| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[1]*)collect_pattern&nbsp;p1&nbsp;@&nbsp;collect_pattern&nbsp;p2</div>
+      <div id="line000109" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000109| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;PAny&nbsp;-&gt;</div>
+      <div id="line000110" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000110| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[2]*)[]</div>
+      <div id="line000111" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000111| &nbsp;</div>
+      <div id="line000112" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000112| &nbsp;&nbsp;and&nbsp;collect_expr&nbsp;=&nbsp;function</div>
+      <div id="line000113" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000113| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EQualified&nbsp;(m,&nbsp;_)&nbsp;-&gt;</div>
+      <div id="line000114" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000114| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[(*[3]*)m]</div>
+      <div id="line000115" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000115| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EConstraint&nbsp;(expr,&nbsp;t)&nbsp;-&gt;</div>
+      <div id="line000116" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000116| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[10]*)collect_expr&nbsp;expr&nbsp;@&nbsp;collect_type&nbsp;t</div>
+      <div id="line000117" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000117| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EVar&nbsp;_</div>
+      <div id="line000118" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000118| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EInt&nbsp;_</div>
+      <div id="line000119" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000119| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EFail&nbsp;-&gt;</div>
+      <div id="line000120" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000120| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[1091]*)[]</div>
+      <div id="line000121" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000121| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EMatch&nbsp;(_,&nbsp;expr,&nbsp;patexprs)</div>
+      <div id="line000122" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000122| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;ELet&nbsp;(_,&nbsp;patexprs,&nbsp;expr)&nbsp;-&gt;</div>
+      <div id="line000123" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000123| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[153]*)collect_patexprs&nbsp;patexprs&nbsp;@&nbsp;collect_expr&nbsp;expr</div>
+      <div id="line000124" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000124| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EFun&nbsp;(_,&nbsp;t1,&nbsp;t2,&nbsp;expr)&nbsp;-&gt;</div>
+      <div id="line000125" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000125| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[173]*)collect_type&nbsp;t1&nbsp;@&nbsp;collect_type&nbsp;t2&nbsp;@&nbsp;collect_expr&nbsp;expr</div>
+      <div id="line000126" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000126| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EAssign&nbsp;(e1,&nbsp;_,&nbsp;e2)</div>
+      <div id="line000127" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000127| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EApply&nbsp;(e1,&nbsp;e2)</div>
+      <div id="line000128" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000128| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EGive&nbsp;(e1,&nbsp;e2)</div>
+      <div id="line000129" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000129| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;ETake&nbsp;(e1,&nbsp;e2)</div>
+      <div id="line000130" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000130| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;ESequence&nbsp;(e1,&nbsp;e2)&nbsp;-&gt;</div>
+      <div id="line000131" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000131| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[409]*)collect_expr&nbsp;e1&nbsp;@&nbsp;collect_expr&nbsp;e2</div>
+      <div id="line000132" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000132| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;ELocated&nbsp;(expr,&nbsp;_,&nbsp;_)</div>
+      <div id="line000133" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000133| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EAssignTag&nbsp;(expr,&nbsp;_)</div>
+      <div id="line000134" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000134| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EAccess&nbsp;(expr,&nbsp;_)</div>
+      <div id="line000135" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000135| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EExplained&nbsp;expr&nbsp;-&gt;</div>
+      <div id="line000136" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000136| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[2533]*)collect_expr&nbsp;expr</div>
+      <div id="line000137" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000137| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EAssert&nbsp;t&nbsp;-&gt;</div>
+      <div id="line000138" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000138| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[5]*)collect_type&nbsp;t</div>
+      <div id="line000139" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000139| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;ETApply&nbsp;(expr,&nbsp;ts)&nbsp;-&gt;</div>
+      <div id="line000140" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000140| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[25]*)collect_expr&nbsp;expr&nbsp;@</div>
+      <div id="line000141" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000141| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Hml_List.map_flatten&nbsp;(fun&nbsp;x&nbsp;-&gt;</div>
+      <div id="line000142" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000142| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[33]*)collect_type&nbsp;(TransSurface.strip_tapp&nbsp;x)</div>
+      <div id="line000143" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000143| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)&nbsp;ts</div>
+      <div id="line000144" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000144| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;ETuple&nbsp;exprs&nbsp;-&gt;</div>
+      <div id="line000145" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000145| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[226]*)Hml_List.map_flatten&nbsp;collect_expr&nbsp;exprs</div>
+      <div id="line000146" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000146| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EConstruct&nbsp;(_,&nbsp;nameexprs)&nbsp;-&gt;</div>
+      <div id="line000147" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000147| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[255]*)let&nbsp;_,&nbsp;exprs&nbsp;=&nbsp;List.split&nbsp;nameexprs&nbsp;in</div>
+      <div id="line000148" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000148| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[255]*)Hml_List.map_flatten&nbsp;collect_expr&nbsp;exprs</div>
+      <div id="line000149" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000149| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;EIfThenElse&nbsp;(_,&nbsp;e1,&nbsp;e2,&nbsp;e3)&nbsp;-&gt;</div>
+      <div id="line000150" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000150| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[94]*)collect_expr&nbsp;e1&nbsp;@&nbsp;collect_expr&nbsp;e2&nbsp;@&nbsp;collect_expr&nbsp;e3</div>
+      <div id="line000151" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000151| &nbsp;</div>
+      <div id="line000152" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000152| &nbsp;&nbsp;and&nbsp;collect_type&nbsp;=&nbsp;function</div>
+      <div id="line000153" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000153| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyQualified&nbsp;(m,&nbsp;_)&nbsp;-&gt;</div>
+      <div id="line000154" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000154| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[(*[2]*)m]</div>
+      <div id="line000155" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000155| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyUnknown</div>
+      <div id="line000156" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000156| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyDynamic</div>
+      <div id="line000157" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000157| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyEmpty</div>
+      <div id="line000158" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000158| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyVar&nbsp;_&nbsp;-&gt;</div>
+      <div id="line000159" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000159| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[8110]*)[]</div>
+      <div id="line000160" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000160| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TySingleton&nbsp;t1</div>
+      <div id="line000161" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000161| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyNameIntro&nbsp;(_,&nbsp;t1)</div>
+      <div id="line000162" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000162| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyConsumes&nbsp;t1</div>
+      <div id="line000163" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000163| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyLocated&nbsp;(t1,&nbsp;_,&nbsp;_)</div>
+      <div id="line000164" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000164| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyForall&nbsp;(_,&nbsp;t1)&nbsp;-&gt;</div>
+      <div id="line000165" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000165| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[15388]*)collect_type&nbsp;t1</div>
+      <div id="line000166" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000166| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyApp&nbsp;(t1,&nbsp;t2)</div>
+      <div id="line000167" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000167| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyArrow&nbsp;(t1,&nbsp;t2)</div>
+      <div id="line000168" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000168| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyAnchoredPermission&nbsp;(t1,&nbsp;t2)</div>
+      <div id="line000169" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000169| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyBar&nbsp;(t1,&nbsp;t2)</div>
+      <div id="line000170" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000170| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyStar&nbsp;(t1,&nbsp;t2)&nbsp;-&gt;</div>
+      <div id="line000171" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000171| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[4262]*)collect_type&nbsp;t1&nbsp;@&nbsp;collect_type&nbsp;t2</div>
+      <div id="line000172" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000172| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyTuple&nbsp;ts&nbsp;-&gt;</div>
+      <div id="line000173" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000173| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[1598]*)Hml_List.map_flatten&nbsp;collect_type&nbsp;ts</div>
+      <div id="line000174" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000174| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyConstraints&nbsp;(dcs,&nbsp;t)&nbsp;-&gt;</div>
+      <div id="line000175" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000175| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[159]*)let&nbsp;_,&nbsp;ts&nbsp;=&nbsp;List.split&nbsp;dcs&nbsp;in</div>
+      <div id="line000176" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000176| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[159]*)collect_type&nbsp;t&nbsp;@&nbsp;Hml_List.map_flatten&nbsp;collect_type&nbsp;ts</div>
+      <div id="line000177" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000177| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TyConcreteUnfolded&nbsp;branch&nbsp;-&gt;</div>
+      <div id="line000178" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000178| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[41]*)collect_data_type_def_branch&nbsp;branch</div>
+      <div id="line000179" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000179| &nbsp;</div>
+      <div id="line000180" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000180| &nbsp;&nbsp;and&nbsp;collect_data_type_def_branch&nbsp;(_,&nbsp;fields)&nbsp;=</div>
+      <div id="line000181" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000181| &nbsp;&nbsp;&nbsp;&nbsp;(*[1142]*)let&nbsp;ts&nbsp;=&nbsp;List.map&nbsp;(function</div>
+      <div id="line000182" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000182| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;FieldValue&nbsp;(_,&nbsp;t)&nbsp;-&gt;</div>
+      <div id="line000183" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000183| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[293]*)t</div>
+      <div id="line000184" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000184| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;FieldPermission&nbsp;t&nbsp;-&gt;</div>
+      <div id="line000185" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000185| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[241]*)t</div>
+      <div id="line000186" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000186| &nbsp;&nbsp;&nbsp;&nbsp;)&nbsp;fields&nbsp;in</div>
+      <div id="line000187" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000187| &nbsp;&nbsp;&nbsp;&nbsp;(*[1142]*)Hml_List.map_flatten&nbsp;collect_type&nbsp;ts</div>
+      <div id="line000188" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000188| &nbsp;</div>
+      <div id="line000189" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000189| &nbsp;&nbsp;in</div>
+      <div id="line000190" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000190| &nbsp;</div>
+      <div id="line000191" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000191| &nbsp;&nbsp;(*[261]*)collect_items&nbsp;items</div>
+      <div id="line000192" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000192| ;;</div>
+      <div id="line000193" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000193| &nbsp;</div>
+      <div id="line000194" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000194| (*&nbsp;Called&nbsp;by&nbsp;[Driver],&nbsp;returns&nbsp;all&nbsp;the&nbsp;dependencies&nbsp;(transitive)&nbsp;of&nbsp;[items],</div>
+      <div id="line000195" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000195| &nbsp;*&nbsp;sorted&nbsp;by&nbsp;topological&nbsp;order.&nbsp;*)</div>
+      <div id="line000196" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000196| let&nbsp;all_dependencies&nbsp;(mname:&nbsp;Module.name)&nbsp;(find:&nbsp;Module.name&nbsp;-&gt;&nbsp;S.toplevel_item&nbsp;list)(*[120]*):&nbsp;Module.name&nbsp;list&nbsp;=</div>
+      <div id="line000197" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000197| &nbsp;&nbsp;let&nbsp;h&nbsp;=&nbsp;Hashtbl.create&nbsp;13&nbsp;in</div>
+      <div id="line000198" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000198| &nbsp;&nbsp;(*[120]*)let&nbsp;l&nbsp;=&nbsp;ref&nbsp;[]&nbsp;in</div>
+      <div id="line000199" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000199| &nbsp;&nbsp;(*[120]*)let&nbsp;rec&nbsp;collect&nbsp;name&nbsp;=&nbsp;</div>
+      <div id="line000200" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000200| &nbsp;&nbsp;&nbsp;&nbsp;(*[288]*)if&nbsp;Hashtbl.mem&nbsp;h&nbsp;name&nbsp;then&nbsp;begin</div>
+      <div id="line000201" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000201| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[27]*)()</div>
+      <div id="line000202" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000202| &nbsp;&nbsp;&nbsp;&nbsp;end&nbsp;else&nbsp;(*[261]*)begin</div>
+      <div id="line000203" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000203| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[261]*)Hashtbl.add&nbsp;h&nbsp;name&nbsp;();</div>
+      <div id="line000204" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000204| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[261]*)let&nbsp;deps&nbsp;=&nbsp;collect_dependencies&nbsp;(find&nbsp;name)&nbsp;in</div>
+      <div id="line000205" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000205| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[261]*)List.iter&nbsp;collect&nbsp;deps;</div>
+      <div id="line000206" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000206| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[261]*)l&nbsp;:=&nbsp;name&nbsp;::&nbsp;!l</div>
+      <div id="line000207" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000207| &nbsp;&nbsp;&nbsp;&nbsp;end</div>
+      <div id="line000208" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000208| &nbsp;&nbsp;in</div>
+      <div id="line000209" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000209| &nbsp;&nbsp;(*[120]*)collect&nbsp;mname;</div>
+      <div id="line000210" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000210| &nbsp;&nbsp;(*&nbsp;The&nbsp;module&nbsp;does&nbsp;not&nbsp;depend&nbsp;on&nbsp;itself.&nbsp;*)</div>
+      <div id="line000211" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000211| &nbsp;&nbsp;(*[120]*)let&nbsp;l&nbsp;=&nbsp;List.tl&nbsp;!l&nbsp;in</div>
+      <div id="line000212" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000212| &nbsp;&nbsp;(*[120]*)let&nbsp;l&nbsp;=&nbsp;List.rev&nbsp;l&nbsp;in</div>
+      <div id="line000213" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000213| &nbsp;&nbsp;(*[120]*)let&nbsp;names&nbsp;=&nbsp;String.concat&nbsp;&quot;,&nbsp;&quot;&nbsp;(List.map&nbsp;Module.print&nbsp;l)&nbsp;in</div>
+      <div id="line000214" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000214| &nbsp;&nbsp;(*[120]*)Log.debug&nbsp;&quot;Found&nbsp;dependencies&nbsp;for&nbsp;%a&nbsp;(left-to-right)&nbsp;=&nbsp;%s&quot;&nbsp;Module.p&nbsp;mname&nbsp;names;</div>
+      <div id="line000215" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000215| &nbsp;&nbsp;(*[120]*)l</div>
+      <div id="line000216" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000216| ;;</div>
+      </div>
+    </code>
+    <br/>
+    <div id="navigator" style="border: solid black 1px; position: fixed; z-index:100; right: 10px; top: 10px; bottom: 10px; width: 16px;">
+      <table width="100%" height="100%" border="0" cellspacing="0">
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000048');" title="jump to line 48"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+      </table>
+    </div>
+    <div class="section">Legend:</div>
+    &nbsp;&nbsp;&nbsp;<span class="lineNone">some code</span>&nbsp;-&nbsp;line containing no point<br/>
+    &nbsp;&nbsp;&nbsp;<span class="lineAllVisited">some code</span>&nbsp;-&nbsp;line containing only visited points<br/>
+    &nbsp;&nbsp;&nbsp;<span class="lineAllUnvisited">some code</span>&nbsp;-&nbsp;line containing only unvisited points<br/>
+    &nbsp;&nbsp;&nbsp;<span class="lineMixed">some code</span>&nbsp;-&nbsp;line containing both visited and unvisited points<br/>
+    <br/>
+    <hr class="codeSep"/>
+    <p class="footer">Generated by <a href="http://bisect.x9c.fr">Bisect 1.3</a> on 2012-12-05 12:47:30</p>
+  </body>
+</html>

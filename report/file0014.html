@@ -1,0 +1,395 @@
+<html>
+  <head>
+    <title>Bisect report</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <script type="text/javascript">
+      <!--
+        function jump(id) {
+          document.body.scrollTop = document.getElementById(id).offsetTop;
+        }
+      -->
+    </script>
+    <script language="javascript" src="file0014.js"></script>
+  </head>
+  <body>
+    <div class="section">File: typing/PersistentUnionFind.ml (<a href="index.html">return to index</a>)</div>
+    <br/>
+    <hr class="codeSep"/>
+    <br/>
+    <table>
+      <tr>
+        <td valign="top" class="section">Statistics:&nbsp;&nbsp;</td>
+        <td valign="top">
+          <table class="simple">
+            <tr><th>kind</th><th width="16px">&nbsp;</th><th>coverage</th></tr>
+            <tr><td>binding</td><td width="16px">&nbsp;</td><td>6 / 11 (54%)</td></tr>
+            <tr><td>sequence</td><td width="16px">&nbsp;</td><td>2 / 2 (100%)</td></tr>
+            <tr><td>for</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>if/then</td><td width="16px">&nbsp;</td><td>2 / 5 (40%)</td></tr>
+            <tr><td>try</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>while</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>match/function</td><td width="16px">&nbsp;</td><td>16 / 21 (76%)</td></tr>
+          </table>
+        </td>
+        <td valign="top">
+          <table class="simple">
+            <tr><th>kind</th><th width="16px">&nbsp;</th><th>coverage</th></tr>
+            <tr><td>class expression</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>class initializer</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>class method</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>class value</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>toplevel expression</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+            <tr><td>lazy operator</td><td width="16px">&nbsp;</td><td>0 / 0 (-%)</td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+    <br/>
+    <hr class="codeSep"/>
+    <br/>
+    <div class="section">Source:</div>
+    <br/>
+<div style="font-size: smaller;"><a href="javascript:foldAll();">fold all</a> <a href="javascript:unfoldAll();">unfold all</a></div>
+    <code>
+      <div id="fold000001">
+      <div id="line000001" class="lineNone"><a href="javascript:fold('fold000001');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000001| (*****************************************************************************)</div>
+      <div id="line000002" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000002| (*&nbsp;&nbsp;Mezzo,&nbsp;a&nbsp;programming&nbsp;language&nbsp;based&nbsp;on&nbsp;permissions&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000003" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000003| (*&nbsp;&nbsp;Copyright&nbsp;(C)&nbsp;2011,&nbsp;2012&nbsp;Jonathan&nbsp;Protzenko&nbsp;and&nbsp;François&nbsp;Pottier&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000004" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000004| (*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000005" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000005| (*&nbsp;&nbsp;This&nbsp;program&nbsp;is&nbsp;free&nbsp;software:&nbsp;you&nbsp;can&nbsp;redistribute&nbsp;it&nbsp;and/or&nbsp;modify&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000006" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000006| (*&nbsp;&nbsp;it&nbsp;under&nbsp;the&nbsp;terms&nbsp;of&nbsp;the&nbsp;GNU&nbsp;General&nbsp;Public&nbsp;License&nbsp;as&nbsp;published&nbsp;by&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000007" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000007| (*&nbsp;&nbsp;the&nbsp;Free&nbsp;Software&nbsp;Foundation,&nbsp;either&nbsp;version&nbsp;3&nbsp;of&nbsp;the&nbsp;License,&nbsp;or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000008" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000008| (*&nbsp;&nbsp;(at&nbsp;your&nbsp;option)&nbsp;any&nbsp;later&nbsp;version.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000009" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000009| (*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000010" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000010| (*&nbsp;&nbsp;This&nbsp;program&nbsp;is&nbsp;distributed&nbsp;in&nbsp;the&nbsp;hope&nbsp;that&nbsp;it&nbsp;will&nbsp;be&nbsp;useful,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000011" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000011| (*&nbsp;&nbsp;but&nbsp;WITHOUT&nbsp;ANY&nbsp;WARRANTY;&nbsp;without&nbsp;even&nbsp;the&nbsp;implied&nbsp;warranty&nbsp;of&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000012" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000012| (*&nbsp;&nbsp;MERCHANTABILITY&nbsp;or&nbsp;FITNESS&nbsp;FOR&nbsp;A&nbsp;PARTICULAR&nbsp;PURPOSE.&nbsp;&nbsp;See&nbsp;the&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000013" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000013| (*&nbsp;&nbsp;GNU&nbsp;General&nbsp;Public&nbsp;License&nbsp;for&nbsp;more&nbsp;details.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000014" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000014| (*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000015" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000015| (*&nbsp;&nbsp;You&nbsp;should&nbsp;have&nbsp;received&nbsp;a&nbsp;copy&nbsp;of&nbsp;the&nbsp;GNU&nbsp;General&nbsp;Public&nbsp;License&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000016" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000016| (*&nbsp;&nbsp;along&nbsp;with&nbsp;this&nbsp;program.&nbsp;&nbsp;If&nbsp;not,&nbsp;see&nbsp;&lt;http://www.gnu.org/licenses/&gt;.&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000017" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000017| (*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*)</div>
+      <div id="line000018" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000018| (*****************************************************************************)</div>
+      <div id="line000019" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000019| &nbsp;</div>
+      <div id="line000020" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000020| (*&nbsp;A&nbsp;persistent&nbsp;version&nbsp;of&nbsp;the&nbsp;classic&nbsp;union-find&nbsp;algorithm.&nbsp;*)</div>
+      <div id="line000021" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000021| &nbsp;</div>
+      <div id="line000022" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000022| (*&nbsp;The&nbsp;internal&nbsp;representation&nbsp;of&nbsp;the&nbsp;state&nbsp;of&nbsp;the&nbsp;algorithm&nbsp;is</div>
+      <div id="line000023" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000023| &nbsp;&nbsp;&nbsp;not&nbsp;just&nbsp;a&nbsp;persistent&nbsp;store,&nbsp;but&nbsp;a&nbsp;reference&nbsp;to&nbsp;a&nbsp;persistent</div>
+      <div id="line000024" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000024| &nbsp;&nbsp;&nbsp;store.&nbsp;This&nbsp;allows&nbsp;path&nbsp;compression&nbsp;to&nbsp;update&nbsp;the&nbsp;store&nbsp;in</div>
+      <div id="line000025" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000025| &nbsp;&nbsp;&nbsp;place,&nbsp;and&nbsp;leads&nbsp;to&nbsp;slightly&nbsp;more&nbsp;efficient&nbsp;code&nbsp;(this&nbsp;saves</div>
+      <div id="line000026" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000026| &nbsp;&nbsp;&nbsp;the&nbsp;need&nbsp;for&nbsp;allocating&nbsp;pairs)&nbsp;and&nbsp;a&nbsp;slightly&nbsp;more&nbsp;pleasant</div>
+      <div id="line000027" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000027| &nbsp;&nbsp;&nbsp;user&nbsp;interface&nbsp;([find]&nbsp;does&nbsp;not&nbsp;need&nbsp;to&nbsp;return&nbsp;a&nbsp;new&nbsp;state).&nbsp;*)</div>
+      <div id="line000028" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000028| &nbsp;</div>
+      <div id="line000029" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000029| open&nbsp;PersistentRef</div>
+      <div id="line000030" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000030| &nbsp;</div>
+      <div id="line000031" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000031| (*&nbsp;A&nbsp;state&nbsp;of&nbsp;the&nbsp;union-find&nbsp;algorithm&nbsp;is&nbsp;a&nbsp;reference&nbsp;to&nbsp;a</div>
+      <div id="line000032" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000032| &nbsp;&nbsp;&nbsp;persistent&nbsp;store,&nbsp;where&nbsp;each&nbsp;memory&nbsp;location&nbsp;holds&nbsp;either</div>
+      <div id="line000033" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000033| &nbsp;&nbsp;&nbsp;[Link]&nbsp;--&nbsp;a&nbsp;pointer&nbsp;to&nbsp;another&nbsp;location&nbsp;--&nbsp;or&nbsp;[Root].&nbsp;*)</div>
+      <div id="line000034" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000034| &nbsp;</div>
+      <div id="line000035" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000035| type&nbsp;'a&nbsp;content&nbsp;=</div>
+      <div id="line000036" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000036| &nbsp;&nbsp;|&nbsp;Link&nbsp;of&nbsp;location</div>
+      <div id="line000037" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000037| &nbsp;&nbsp;|&nbsp;Root&nbsp;of&nbsp;'a</div>
+      <div id="line000038" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000038| &nbsp;</div>
+      <div id="line000039" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000039| type&nbsp;'a&nbsp;state&nbsp;=</div>
+      <div id="line000040" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000040| &nbsp;&nbsp;&nbsp;&nbsp;'a&nbsp;content&nbsp;store&nbsp;ref</div>
+      <div id="line000041" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000041| &nbsp;</div>
+      <div id="line000042" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000042| (*&nbsp;Points&nbsp;are&nbsp;memory&nbsp;locations.&nbsp;*)</div>
+      <div id="line000043" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000043| &nbsp;</div>
+      <div id="line000044" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000044| type&nbsp;point&nbsp;=</div>
+      <div id="line000045" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000045| &nbsp;&nbsp;&nbsp;&nbsp;location</div>
+      <div id="line000046" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000046| &nbsp;</div>
+      <div id="line000047" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000047| (*&nbsp;[repr&nbsp;x&nbsp;state]&nbsp;finds&nbsp;the&nbsp;root&nbsp;of&nbsp;the&nbsp;equivalence&nbsp;class&nbsp;of&nbsp;[x]</div>
+      <div id="line000048" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000048| &nbsp;&nbsp;&nbsp;in&nbsp;the&nbsp;state&nbsp;[state].&nbsp;Path&nbsp;compression&nbsp;is&nbsp;performed,&nbsp;and&nbsp;the</div>
+      <div id="line000049" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000049| &nbsp;&nbsp;&nbsp;state&nbsp;is&nbsp;updated&nbsp;in&nbsp;place;&nbsp;this&nbsp;update&nbsp;is&nbsp;not&nbsp;observable&nbsp;by</div>
+      <div id="line000050" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000050| &nbsp;&nbsp;&nbsp;the&nbsp;client.&nbsp;*)</div>
+      <div id="line000051" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000051| &nbsp;</div>
+      <div id="line000052" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000052| let&nbsp;rec&nbsp;repr&nbsp;x&nbsp;state&nbsp;=</div>
+      <div id="line000053" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000053| &nbsp;&nbsp;&nbsp;match&nbsp;get&nbsp;x&nbsp;!state&nbsp;with</div>
+      <div id="line000054" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000054| &nbsp;&nbsp;&nbsp;|&nbsp;Root&nbsp;_&nbsp;-&gt;</div>
+      <div id="line000055" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000055| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[1384713]*)x</div>
+      <div id="line000056" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000056| &nbsp;&nbsp;&nbsp;|&nbsp;Link&nbsp;y&nbsp;-&gt;</div>
+      <div id="line000057" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000057| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[14430]*)let&nbsp;z&nbsp;=&nbsp;repr&nbsp;y&nbsp;state&nbsp;in</div>
+      <div id="line000058" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000058| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[14430]*)if&nbsp;neq&nbsp;y&nbsp;z&nbsp;then</div>
+      <div id="line000059" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000059| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*&nbsp;updating&nbsp;the&nbsp;state&nbsp;in&nbsp;place&nbsp;is&nbsp;ok,&nbsp;because&nbsp;the&nbsp;meaning</div>
+      <div id="line000060" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000060| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;of&nbsp;this&nbsp;state&nbsp;is&nbsp;unchanged&nbsp;*)</div>
+      <div id="line000061" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000061| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[316]*)state&nbsp;:=&nbsp;set&nbsp;x&nbsp;(get&nbsp;y&nbsp;!state)&nbsp;!state;</div>
+      <div id="line000062" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000062| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[14430]*)z</div>
+      <div id="line000063" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000063| &nbsp;</div>
+      <div id="line000064" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000064| (*&nbsp;[init()]&nbsp;produces&nbsp;a&nbsp;fresh&nbsp;empty&nbsp;state.&nbsp;*)</div>
+      <div id="line000065" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000065| &nbsp;</div>
+      <div id="line000066" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000066| let&nbsp;init&nbsp;()&nbsp;=</div>
+      <div id="line000067" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000067| &nbsp;&nbsp;(*[1]*)ref&nbsp;empty</div>
+      <div id="line000068" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000068| &nbsp;</div>
+      <div id="line000069" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000069| (*&nbsp;[create&nbsp;desc&nbsp;state]&nbsp;creates&nbsp;a&nbsp;new&nbsp;isolated&nbsp;point&nbsp;with&nbsp;descriptor</div>
+      <div id="line000070" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000070| &nbsp;&nbsp;&nbsp;[desc],&nbsp;producing&nbsp;a&nbsp;new&nbsp;state.&nbsp;*)</div>
+      <div id="line000071" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000071| &nbsp;</div>
+      <div id="line000072" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000072| let&nbsp;create&nbsp;desc&nbsp;state&nbsp;=</div>
+      <div id="line000073" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000073| &nbsp;&nbsp;&nbsp;(*[140463]*)let&nbsp;l,&nbsp;store&nbsp;=&nbsp;make&nbsp;(Root&nbsp;desc)&nbsp;!state&nbsp;in</div>
+      <div id="line000074" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000074| &nbsp;&nbsp;&nbsp;(*[140463]*)l,&nbsp;ref&nbsp;store</div>
+      <div id="line000075" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000075| &nbsp;</div>
+      <div id="line000076" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000076| (*&nbsp;[same&nbsp;x&nbsp;y&nbsp;state]&nbsp;determines&nbsp;whether&nbsp;the&nbsp;points&nbsp;[x]&nbsp;and&nbsp;[y]&nbsp;are</div>
+      <div id="line000077" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000077| &nbsp;&nbsp;&nbsp;equivalent&nbsp;in&nbsp;the&nbsp;state&nbsp;[state].&nbsp;*)</div>
+      <div id="line000078" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000078| &nbsp;</div>
+      <div id="line000079" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000079| let&nbsp;same&nbsp;x&nbsp;y&nbsp;state&nbsp;=</div>
+      <div id="line000080" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000080| &nbsp;&nbsp;(*[607342]*)eq&nbsp;(repr&nbsp;x&nbsp;state)&nbsp;(repr&nbsp;y&nbsp;state)</div>
+      <div id="line000081" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000081| &nbsp;</div>
+      <div id="line000082" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000082| (*&nbsp;[union&nbsp;x&nbsp;y&nbsp;state]&nbsp;produces&nbsp;a&nbsp;new&nbsp;state,&nbsp;which&nbsp;represents&nbsp;the&nbsp;least</div>
+      <div id="line000083" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000083| &nbsp;&nbsp;&nbsp;equivalence&nbsp;relation&nbsp;that&nbsp;contains&nbsp;[state]&nbsp;and&nbsp;makes&nbsp;[x]&nbsp;and&nbsp;[y]</div>
+      <div id="line000084" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000084| &nbsp;&nbsp;&nbsp;equivalent.&nbsp;The&nbsp;descriptor&nbsp;associated&nbsp;with&nbsp;[x]&nbsp;and&nbsp;[y]&nbsp;in&nbsp;the&nbsp;new</div>
+      <div id="line000085" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000085| &nbsp;&nbsp;&nbsp;state&nbsp;is&nbsp;the&nbsp;one&nbsp;associated&nbsp;with&nbsp;[y]&nbsp;in&nbsp;[state].&nbsp;*)</div>
+      <div id="line000086" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000086| &nbsp;</div>
+      <div id="line000087" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000087| let&nbsp;union&nbsp;x&nbsp;y&nbsp;state&nbsp;=</div>
+      <div id="line000088" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000088| &nbsp;&nbsp;(*[2842]*)let&nbsp;rx&nbsp;=&nbsp;repr&nbsp;x&nbsp;state&nbsp;in</div>
+      <div id="line000089" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000089| &nbsp;&nbsp;(*[2842]*)let&nbsp;ry&nbsp;=&nbsp;repr&nbsp;y&nbsp;state&nbsp;in</div>
+      <div id="line000090" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000090| &nbsp;&nbsp;(*[2842]*)if&nbsp;eq&nbsp;rx&nbsp;ry&nbsp;then</div>
+      </div>
+      <div id="line000091" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000091| &nbsp;&nbsp;&nbsp;&nbsp;(*[0]*)state</div>
+      <div id="fold000092">
+      <div id="line000092" class="lineNone"><a href="javascript:fold('fold000092');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000092| &nbsp;&nbsp;else</div>
+      <div id="line000093" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000093| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*&nbsp;careful:&nbsp;an&nbsp;in-place&nbsp;update&nbsp;would&nbsp;not&nbsp;be&nbsp;ok&nbsp;here!&nbsp;*)</div>
+      <div id="line000094" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000094| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[2842]*)ref&nbsp;(set&nbsp;rx&nbsp;(Link&nbsp;ry)&nbsp;!state)</div>
+      <div id="line000095" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000095| &nbsp;</div>
+      <div id="line000096" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000096| (*&nbsp;[find&nbsp;x&nbsp;state]&nbsp;returns&nbsp;the&nbsp;descriptor&nbsp;associated&nbsp;with&nbsp;[x]'s</div>
+      <div id="line000097" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000097| &nbsp;&nbsp;&nbsp;equivalence&nbsp;class&nbsp;in&nbsp;the&nbsp;state&nbsp;[state].&nbsp;*)</div>
+      <div id="line000098" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000098| &nbsp;</div>
+      <div id="line000099" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000099| let&nbsp;find&nbsp;x&nbsp;state&nbsp;=</div>
+      <div id="line000100" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000100| &nbsp;&nbsp;(*[657141]*)let&nbsp;store&nbsp;=&nbsp;!state&nbsp;in</div>
+      <div id="line000101" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000101| &nbsp;&nbsp;match&nbsp;get&nbsp;x&nbsp;store&nbsp;with</div>
+      <div id="line000102" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000102| &nbsp;&nbsp;|&nbsp;Root&nbsp;desc&nbsp;-&gt;</div>
+      <div id="line000103" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000103| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[639487]*)desc</div>
+      <div id="line000104" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000104| &nbsp;&nbsp;|&nbsp;Link&nbsp;y&nbsp;-&gt;</div>
+      <div id="line000105" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000105| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;match&nbsp;get&nbsp;y&nbsp;store&nbsp;with</div>
+      <div id="line000106" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000106| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Root&nbsp;desc&nbsp;-&gt;</div>
+      <div id="line000107" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000107| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[17446]*)desc</div>
+      <div id="line000108" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000108| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Link&nbsp;_&nbsp;-&gt;</div>
+      <div id="line000109" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000109| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[208]*)let&nbsp;r&nbsp;=&nbsp;repr&nbsp;x&nbsp;state&nbsp;in</div>
+      <div id="line000110" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000110| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;match&nbsp;get&nbsp;r&nbsp;!state&nbsp;with</div>
+      <div id="line000111" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000111| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Root&nbsp;desc&nbsp;-&gt;</div>
+      <div id="line000112" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000112| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[208]*)desc</div>
+      <div id="line000113" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000113| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Link&nbsp;_&nbsp;-&gt;</div>
+      </div>
+      <div id="line000114" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000114| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[0]*)assert&nbsp;false</div>
+      <div id="fold000115">
+      <div id="line000115" class="lineNone"><a href="javascript:fold('fold000115');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000115| &nbsp;</div>
+      <div id="line000116" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000116| (*&nbsp;[update&nbsp;f&nbsp;x&nbsp;state]&nbsp;updates&nbsp;the&nbsp;descriptor&nbsp;associated&nbsp;with&nbsp;[x]'s&nbsp;equivalence</div>
+      <div id="line000117" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000117| &nbsp;&nbsp;&nbsp;class.&nbsp;The&nbsp;new&nbsp;descriptor&nbsp;is&nbsp;obtained&nbsp;by&nbsp;applying&nbsp;the&nbsp;function&nbsp;[f]&nbsp;to&nbsp;the</div>
+      <div id="line000118" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000118| &nbsp;&nbsp;&nbsp;previous&nbsp;descriptor.&nbsp;*)</div>
+      <div id="line000119" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000119| &nbsp;</div>
+      <div id="line000120" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000120| let&nbsp;update&nbsp;f&nbsp;x&nbsp;state&nbsp;=</div>
+      <div id="line000121" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000121| &nbsp;&nbsp;(*[163662]*)let&nbsp;rx&nbsp;=&nbsp;repr&nbsp;x&nbsp;state&nbsp;in</div>
+      <div id="line000122" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000122| &nbsp;&nbsp;(*[163662]*)let&nbsp;descx&nbsp;=&nbsp;find&nbsp;rx&nbsp;state&nbsp;in</div>
+      <div id="line000123" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000123| &nbsp;&nbsp;(*&nbsp;careful:&nbsp;an&nbsp;in-place&nbsp;update&nbsp;would&nbsp;not&nbsp;be&nbsp;ok&nbsp;here!&nbsp;*)</div>
+      <div id="line000124" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000124| &nbsp;&nbsp;(*[163662]*)ref&nbsp;(set&nbsp;rx&nbsp;(Root&nbsp;(f&nbsp;descx))&nbsp;!state)</div>
+      <div id="line000125" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000125| &nbsp;</div>
+      <div id="line000126" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000126| (*&nbsp;[union_computed&nbsp;f&nbsp;x&nbsp;y&nbsp;state]&nbsp;first&nbsp;makes&nbsp;[x]&nbsp;and&nbsp;[y]&nbsp;equivalent,&nbsp;just&nbsp;like</div>
+      <div id="line000127" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000127| &nbsp;&nbsp;&nbsp;[union];&nbsp;then,&nbsp;only&nbsp;if&nbsp;[x]&nbsp;and&nbsp;[y]&nbsp;were&nbsp;not&nbsp;already&nbsp;equivalent,&nbsp;it&nbsp;assigns</div>
+      <div id="line000128" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000128| &nbsp;&nbsp;&nbsp;a&nbsp;new&nbsp;descriptor&nbsp;to&nbsp;[x]&nbsp;and&nbsp;[y],&nbsp;which&nbsp;is&nbsp;computed&nbsp;by&nbsp;applying&nbsp;[f]&nbsp;to&nbsp;the</div>
+      <div id="line000129" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000129| &nbsp;&nbsp;&nbsp;descriptors&nbsp;previously&nbsp;associated&nbsp;with&nbsp;[x]&nbsp;and&nbsp;[y].&nbsp;*)</div>
+      <div id="line000130" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000130| &nbsp;</div>
+      <div id="line000131" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000131| let&nbsp;union_computed&nbsp;f&nbsp;x&nbsp;y&nbsp;state&nbsp;=</div>
+      </div>
+      <div id="line000132" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000132| &nbsp;&nbsp;(*[0]*)let&nbsp;rx&nbsp;=&nbsp;repr&nbsp;x&nbsp;state&nbsp;in</div>
+      <div id="line000133" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000133| &nbsp;&nbsp;(*[0]*)let&nbsp;ry&nbsp;=&nbsp;repr&nbsp;y&nbsp;state&nbsp;in</div>
+      <div id="line000134" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000134| &nbsp;&nbsp;(*[0]*)if&nbsp;eq&nbsp;rx&nbsp;ry&nbsp;then</div>
+      <div id="line000135" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000135| &nbsp;&nbsp;&nbsp;&nbsp;(*[0]*)state</div>
+      <div id="fold000136">
+      <div id="line000136" class="lineNone"><a href="javascript:fold('fold000136');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000136| &nbsp;&nbsp;else</div>
+      <div id="line000137" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000137| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*&nbsp;careful:&nbsp;an&nbsp;in-place&nbsp;update&nbsp;would&nbsp;not&nbsp;be&nbsp;ok&nbsp;here!&nbsp;*)</div>
+      </div>
+      <div id="line000138" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000138| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[0]*)let&nbsp;store&nbsp;=&nbsp;set&nbsp;rx&nbsp;(Link&nbsp;ry)&nbsp;!state&nbsp;in</div>
+      <div id="line000139" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000139| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[0]*)let&nbsp;descx&nbsp;=&nbsp;find&nbsp;rx&nbsp;state</div>
+      <div id="fold000140">
+      <div id="line000140" class="lineNone"><a href="javascript:fold('fold000140');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000140| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;and&nbsp;descy&nbsp;=&nbsp;find&nbsp;ry&nbsp;state&nbsp;in</div>
+      <div id="line000141" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000141| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*&nbsp;careful:&nbsp;an&nbsp;in-place&nbsp;update&nbsp;would&nbsp;not&nbsp;be&nbsp;ok&nbsp;here!&nbsp;*)</div>
+      </div>
+      <div id="line000142" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000142| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[0]*)let&nbsp;store&nbsp;=&nbsp;set&nbsp;ry&nbsp;(Root&nbsp;(f&nbsp;descx&nbsp;descy))&nbsp;store&nbsp;in</div>
+      <div id="line000143" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000143| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*[0]*)ref&nbsp;store</div>
+      <div id="fold000144">
+      <div id="line000144" class="lineNone"><a href="javascript:fold('fold000144');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000144| &nbsp;</div>
+      <div id="line000145" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000145| &nbsp;</div>
+      <div id="line000146" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000146| let&nbsp;iter&nbsp;f&nbsp;state&nbsp;=</div>
+      </div>
+      <div id="line000147" class="lineAllUnvisited"><img border="0" height="10" width="10"src="blank.png"/>000147| &nbsp;&nbsp;(*[0]*)iter&nbsp;(function&nbsp;Link&nbsp;_&nbsp;-&gt;&nbsp;(*[0]*)()&nbsp;|&nbsp;Root&nbsp;v&nbsp;-&gt;&nbsp;(*[0]*)f&nbsp;v)&nbsp;!state</div>
+      <div id="fold000148">
+      <div id="line000148" class="lineNone"><a href="javascript:fold('fold000148');"><img border="0" height="10" width="10" src="minus.png" title="fold code"/></a>000148| &nbsp;</div>
+      <div id="line000149" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000149| let&nbsp;fold&nbsp;f&nbsp;acc&nbsp;state&nbsp;=</div>
+      <div id="line000150" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000150| &nbsp;&nbsp;(*[6551]*)fold&nbsp;(fun&nbsp;acc&nbsp;k&nbsp;-&gt;&nbsp;function</div>
+      <div id="line000151" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000151| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Link&nbsp;_&nbsp;-&gt;&nbsp;(*[9502]*)acc</div>
+      <div id="line000152" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000152| &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Root&nbsp;v&nbsp;-&gt;&nbsp;(*[45566]*)f&nbsp;acc&nbsp;k&nbsp;v)&nbsp;acc&nbsp;!state</div>
+      <div id="line000153" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000153| &nbsp;</div>
+      <div id="line000154" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000154| let&nbsp;compare&nbsp;=&nbsp;(*[1]*)PersistentRef.compare</div>
+      <div id="line000155" class="lineNone"><img border="0" height="10" width="10"src="dash.png"/>000155| &nbsp;</div>
+      <div id="line000156" class="lineAllVisited"><img border="0" height="10" width="10"src="dash.png"/>000156| let&nbsp;valid&nbsp;p&nbsp;state&nbsp;=&nbsp;(*[115384]*)PersistentRef.valid&nbsp;p&nbsp;!state</div>
+      </div>
+    </code>
+    <br/>
+    <div id="navigator" style="border: solid black 1px; position: fixed; z-index:100; right: 10px; top: 10px; bottom: 10px; width: 16px;">
+      <table width="100%" height="100%" border="0" cellspacing="0">
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000091');" title="jump to line 91"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000114');" title="jump to line 114"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000132');" title="jump to line 132"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000133');" title="jump to line 133"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000134');" title="jump to line 134"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000135');" title="jump to line 135"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000138');" title="jump to line 138"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000139');" title="jump to line 139"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000142');" title="jump to line 142"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000143');" title="jump to line 143"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="red" style="cursor: pointer;" onclick="javascript:jump('line000147');" title="jump to line 147"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+        <tr><td bgcolor="gray"></td></tr>
+      </table>
+    </div>
+    <div class="section">Legend:</div>
+    &nbsp;&nbsp;&nbsp;<span class="lineNone">some code</span>&nbsp;-&nbsp;line containing no point<br/>
+    &nbsp;&nbsp;&nbsp;<span class="lineAllVisited">some code</span>&nbsp;-&nbsp;line containing only visited points<br/>
+    &nbsp;&nbsp;&nbsp;<span class="lineAllUnvisited">some code</span>&nbsp;-&nbsp;line containing only unvisited points<br/>
+    &nbsp;&nbsp;&nbsp;<span class="lineMixed">some code</span>&nbsp;-&nbsp;line containing both visited and unvisited points<br/>
+    <br/>
+    <hr class="codeSep"/>
+    <p class="footer">Generated by <a href="http://bisect.x9c.fr">Bisect 1.3</a> on 2012-12-05 12:47:30</p>
+  </body>
+</html>
