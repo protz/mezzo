@@ -1,0 +1,6 @@
+data t =
+  T { left: (); right: () }
+
+val test1 [p :: PERM] (preserve: (| p) -> (), eat: (| consumes p) -> () | consumes p) : t =
+  T { left = eat(); right = preserve() }
+

@@ -667,6 +667,12 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("priority.mz", simple_test Pass);
 
+  ("fieldEvaluationOrder.mz", simple_test Pass);
+
+  ("fieldEvaluationOrderReject1.mz", simple_test (Fail (function _ -> true)));
+
+  ("fieldEvaluationOrderReject2.mz", simple_test (Fail (function _ -> true)));
+
   ("monads.mz", simple_test Pass);
 
   ("list.mz", simple_test Pass);
