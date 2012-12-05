@@ -207,6 +207,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("pattern3.mz", simple_test Pass);
 
+  ("pattern4.mz", simple_test Pass);
+
   ("loose_variable.mz", simple_test Pass);
 
   ("multiple_data_type_groups.mz", simple_test Pass);

@@ -1,0 +1,7 @@
+(* Test pattern-matching on tuples. *)
+
+val f (x: (int, int)): int =
+  match x with
+  | y, z ->
+      y + z
+  end
