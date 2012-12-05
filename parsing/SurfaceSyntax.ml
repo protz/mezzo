@@ -184,6 +184,8 @@ type pattern =
   | PConstraint of pattern * typ
   (* p as x *)
   | PAs of pattern * pattern
+  (* _ *)
+  | PAny
 
 
 (* ---------------------------------------------------------------------------- *)

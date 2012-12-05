@@ -551,6 +551,9 @@ let clean_pattern pattern =
     | PLocated (pattern, p1, p2) ->
         let pattern, annotation = clean_pattern (locate env p1 p2) pattern in
         PLocated (pattern, p1, p2), annotation
+
+    | PAny ->
+        PAny, TyUnknown
   in
   clean_pattern (empty Types.empty_env) pattern
 ;;
@@ -572,6 +575,8 @@ let rec translate_pattern env = function
       E.PAs (translate_pattern env p, translate_pattern env x)
   | PConstraint _ ->
         Log.error "[clean_pattern] should've been called on that type before!"
+  | PAny ->
+      E.PAny
 ;;
 
 

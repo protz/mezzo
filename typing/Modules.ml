@@ -106,6 +106,8 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         Hml_List.map_flatten collect_pattern ps
     | PAs (p1, p2) ->
         collect_pattern p1 @ collect_pattern p2
+    | PAny ->
+        []
 
   and collect_expr = function
     | EQualified (m, _) ->

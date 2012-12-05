@@ -39,6 +39,7 @@ type pattern =
    * [PPoint]s so that we know how to speak about the bound variables. *)
   | PPoint of point
   | PAs of pattern * pattern
+  | PAny
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -166,6 +167,8 @@ let collect_pattern (p: pattern): ((Variable.name * (Lexing.position * Lexing.po
       assert false
   | PAs (p1, p2) ->
       List.fold_left collect_pattern acc [p1; p2]
+  | PAny ->
+      acc
   in
   (* Return the names in reading order, i.e. left-to-right. *)
   List.rev (collect_pattern [] p)
@@ -228,6 +231,9 @@ let rec psubst (pat: pattern) (points: point list) =
       let pats = List.rev pats in
       let p1, p2 = match pats with [p1; p2] -> p1, p2 | _ -> assert false in
       PAs (p1, p2), points
+
+  | PAny ->
+      PAny, points
 ;;
 
 
@@ -986,6 +992,9 @@ module ExprPrinter = struct
 
     | PAs (p1, p2) ->
         print_pat env p1 ^^ space ^^ string "as" ^^ space ^^ print_pat env p2
+
+    | PAny ->
+        underscore
 
   and print_tapp env = function
     | Named (x, t) ->

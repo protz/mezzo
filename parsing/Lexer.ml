@@ -160,6 +160,7 @@ let rec token = lexer
 | "exclusive" -> locate lexbuf EXCLUSIVE
 | "mutable" -> locate lexbuf MUTABLE
 | "|" -> locate lexbuf BAR
+| "_" -> locate lexbuf UNDERSCORE
 
 | "fact" -> locate lexbuf FACT
 | "duplicable" -> locate lexbuf DUPLICABLE

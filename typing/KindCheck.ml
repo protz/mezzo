@@ -462,6 +462,8 @@ let rec bindings_pattern (pattern: pattern): (Variable.name * kind) list =
       bindings_pattern p
   | PAs (p1, p2) ->
       bindings_pattern p1 @ bindings_pattern p2
+  | PAny ->
+      []
 ;;
 
 
@@ -687,6 +689,8 @@ let rec check_pattern (env: env) (pattern: pattern) =
   | PAs (p1, p2) ->
       check_pattern env p1;
       check_pattern env p2
+  | PAny ->
+      ()
 ;;
 
 

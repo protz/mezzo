@@ -44,7 +44,7 @@
 %token          OPEN
 %token          KTERM KTYPE KPERM
 %token          UNKNOWN DYNAMIC EXCLUSIVE MUTABLE
-%token          DATA BAR
+%token          DATA BAR UNDERSCORE
 %token          LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
 %token          COMMA COLON COLONCOLON SEMI STAR AT AS
 %token          ARROW LARROW DBLARROW TAGOF FUN
@@ -531,7 +531,8 @@ raw_atomic_pattern:
     { PConstruct dc }
 | x = variable
     { PVar x }
-(* TEMPORARY wildcards are missing *)
+| UNDERSCORE
+    { PAny }
 
 data_field_pattern:
 | f = variable EQUAL p = pattern

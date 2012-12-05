@@ -309,21 +309,16 @@ val rec combine [a, b] (consumes xs: list a, consumes ys: list b) : list (a, b) 
 
 (* Merging and sorting. *)
 
-(* TEMPORARY again, matching on a pair might be nice here *)
-
 val rec merge [a] (cmp: (a, a) -> int, consumes xs: list a, consumes ys: list a) : list a =
-  match xs with
-  | Nil ->
+  match xs, ys with
+  | Nil, _ ->
       ys
-  | Cons { head = x } ->
-      match ys with
-      | Nil ->
-          xs
-      | Cons { head = y } ->
-	  if cmp (x, y) <= 0
-	  then Cons { head = x; tail = merge (cmp, xs.tail, ys) }
-	  else Cons { head = y; tail = merge (cmp, xs, ys.tail) }
-      end
+  | _, Nil ->
+      xs
+  | Cons { head = x }, Cons { head = y } ->
+      if cmp (x, y) <= 0
+      then Cons { head = x; tail = merge (cmp, xs.tail, ys) }
+      else Cons { head = y; tail = merge (cmp, xs, ys.tail) }
   end
 
 (* Apparently this function doesn't work because of the ownership problem...?

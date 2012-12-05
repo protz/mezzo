@@ -261,6 +261,9 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
             Log.error "Expecting a type that went through [unfold] and [collect] here"
       ) env field_pats
 
+  | PAny ->
+      env
+
 ;;
 
 
