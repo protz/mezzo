@@ -192,8 +192,8 @@ val rec find_use_update
 	t.value <- new_value;
 	some output
       end
-      else if c < 0 then find_use_update [k, a, b, p] (cmp, use, x, t.left)
-      else find_use_update [k, a, b, p] (cmp, use, x, t.right)
+      else if c < 0 then find_use_update (cmp, use, x, t.left)
+      else find_use_update (cmp, use, x, t.right)
   end
 
 (*
