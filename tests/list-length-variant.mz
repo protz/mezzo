@@ -1,5 +1,5 @@
+open pervasives
 open list
-open Pervasives
 
 val length [a] (xs : list a) : int =
   let c = newref 0 in
