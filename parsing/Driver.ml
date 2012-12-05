@@ -26,10 +26,10 @@ open Lexer
 let lex_and_parse file_path entry_point =
   let file_desc = open_in file_path in
   let lexbuf = Ulexing.from_utf8_channel file_desc in
-  let parser = MenhirLib.Convert.Simplified.traditional2revised entry_point in
+  let the_parser = MenhirLib.Convert.Simplified.traditional2revised entry_point in
   try
     Lexer.init file_path;
-    parser (fun _ -> Lexer.token lexbuf)
+    the_parser (fun _ -> Lexer.token lexbuf)
   with
     | Ulexing.Error ->
 	Printf.eprintf

@@ -66,7 +66,7 @@ let fact_of_flag = function
 
 (* Saves us the trouble of matching all the time. *)
 let (!!) = function TyPoint x -> x | _ -> assert false;;
-let (!*) = Lazy.force;;
+let ( !* ) = Lazy.force;;
 let (>>=) = Option.bind;;
 let (|||) o1 o2 = if Option.is_some o1 then o1 else o2 ;;
 let fst3 (x, _, _) = x;;

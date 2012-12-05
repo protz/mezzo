@@ -1,4 +1,4 @@
-.PHONY: all clean graph doc index
+.PHONY: all clean graph doc index report
 
 # The variables below should be determined by a configure script...
 # On my MacOS laptop, find does not understand -printf; gfind does. -fpottier
@@ -70,3 +70,9 @@ index:
 # TAG=m1 make release
 release:
 	git archive --format tar --prefix mezzo-$(TAG)/ $(TAG) | bzip2 -9 > ../mezzo-$(TAG).tar.bz2
+
+report:
+	bisect-report -I _build -html report coverage*.out
+
+coverage:
+	BISECT_FILE=coverage ./testsuite

@@ -4,3 +4,5 @@ test
 testsuite
 *.native
 *.byte
+bisect*.out
+coverage*.out
