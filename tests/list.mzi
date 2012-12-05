@@ -10,6 +10,7 @@ data list a =
 
 (* Short-hands for constructing lists. *)
 
+val nil   : Nil
 val cons  : [a] (consumes a, consumes list a) -> list a
 val two   : [a] (consumes (a, a)) -> list a
 val three : [a] (consumes (a, a, a)) -> list a

@@ -1,4 +1,5 @@
 open Pervasives
+open list
 
 mutable data bag a = Bag { contents: list a }
 

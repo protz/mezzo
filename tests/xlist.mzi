@@ -1,0 +1,3 @@
+mutable data xlist a =
+  | XCons { xhead: a; xtail: xlist a }
+  | XNil

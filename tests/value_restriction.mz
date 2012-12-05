@@ -1,4 +1,5 @@
 open Pervasives
+open list
 
 val wrong =
   let r = Ref { contents = Nil } in

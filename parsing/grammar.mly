@@ -124,6 +124,7 @@ variable:
 
 %inline module_name:
   name = UIDENT
+| name = LIDENT
     { Module.register name }
 
 (* ---------------------------------------------------------------------------- *)

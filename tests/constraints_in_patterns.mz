@@ -1,4 +1,4 @@
-open Pervasives
+open xlist
 
 val (x: xlist int), (y: xlist int) =
   let z = XNil in

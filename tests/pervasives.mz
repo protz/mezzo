@@ -6,16 +6,6 @@ mutable data ref a = Ref {
   contents: a;
 }
 
-(* Lists *)
-
-mutable data xlist a =
-  | XCons { xhead: a; xtail: xlist a }
-  | XNil
-
-data list a =
-  | Cons { head: a; tail: list a }
-  | Nil
-
 (* Standard types *)
 
 val none =
@@ -37,14 +27,6 @@ val (!) [a] (consumes x: ref a): (a | x @ ref unknown) =
 
 val (:=) [a, b] (consumes x: ref a, consumes c: b): ( | x @ ref b) =
   x.contents <- c
-
-(* Lists *)
-
-val nil: [a] list a =
-  Nil
-
-val cons [a] (consumes hd: a, consumes tl: list a): list a =
-  Cons { head = hd; tail = tl }
 
 (* Booleans *)
 

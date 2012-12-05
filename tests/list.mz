@@ -10,6 +10,9 @@ data list a =
 
 (* Short-hands for constructing lists. *)
 
+val nil =
+  Nil
+
 val cons [a] (consumes x: a, consumes xs: list a) : list a =
   Cons { head = x; tail = xs }
 
