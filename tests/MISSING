@@ -5,9 +5,10 @@ Failures (should be fixed):
 ---------------------------
   in_place_traversal2.mz: missing implementation for the [this] keyword
   merge17.mz: type-checker loops
-  list-map3.mz: TODO implement permissions not yet attached to a point
-  pattern2.mz: can't match on a structural type...
   adopts11.mz: an assert failure (all types should be in expanded form)
+  landin.mz: type-checker loops (*may* be solved by implementing the rule that
+    says that we should strip out exclusive permissions from the environment
+    before comparing function types, I'm not sure of that though)
 
 Could be improved:
 ------------------
@@ -15,12 +16,6 @@ Could be improved:
     Initially, an assert failure (merging cons vs cons without a destination
     point). Solved by requiring that the adopts clauses agree when merging, but
     could conceivably be improved to work.
-  list-concat-dup.mz:
-    we could perform the subtraction on duplicable α ⇒ τ with α flexible by
-    first performing the subtraction on τ, and then checking whether α has been
-    instantiated, and whether it is now duplicable.
-  xlist-copy.mz:
-    idem
 
 Misc:
 -----

@@ -5,5 +5,5 @@ val rec copy [a] duplicable a => (xs: xlist a): xlist a =
   | XNil ->
       XNil
   | XCons { head; tail } ->
-      XCons { head; tail = copy [a] tail }
+      XCons { head; tail = copy tail }
   end
