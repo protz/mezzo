@@ -821,7 +821,6 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* Do the bulk of the work. *)
       let env, remaining, fieldvals = List.fold_left (fun (env, remaining, fieldvals) -> function
         | FieldValue (name, _t) ->
-            Log.debug "AAAAAAAAH %a" Field.p name;
             (* Actually we don't care about the expected type for the field. We
              * just want to make sure all fields are provided. *)
             let p, remaining = take env name remaining in
