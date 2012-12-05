@@ -330,14 +330,13 @@ val rec map [k, a1, a2, b, p :: PERM] duplicable k => (
       Empty
   | Node ->
       Node {
-	left = map [p=p] (f, t.left);
+	left = map (f, t.left);
 	key = t.key;
 	value = f (t.key, t.value);
-	right = map [p=p] (f, t.right);
+	right = map (f, t.right);
 	height = t.height
       }
   end
-  (* TEMPORARY it would be nice if the instantiation [p=p] was not required *)
 
 (*
 

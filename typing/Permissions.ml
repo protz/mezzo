@@ -717,6 +717,7 @@ and sub_type_real env t1 t2 =
    * removing all of [p2]. But the order in which we perform these operations
    * matters, unfortunately... see commit message 432b4ee for more comments. *)
   | TyBar (t1, p1), TyBar (t2, p2) ->
+      Log.debug "[add_sub] entering...";
       (*   Alright, this is a fairly complicated logic (euphemism), but it is
        * seriously needed for any sort of situation that involves
        * higher-order... The grand scheme is: we should always fight to
@@ -887,9 +888,8 @@ and sub_perm (env: env) (t: typ): env option =
   match t with
   | TyAnchoredPermission (TyPoint p, t) ->
       sub env p t
-  | TyStar (p, q) ->
-      sub_perm env p >>= fun env ->
-      sub_perm env q
+  | TyStar _ ->
+      sub_perms env (flatten_star t)
   | TyEmpty ->
       Some env
   | TyPoint p ->
@@ -903,8 +903,20 @@ and sub_perm (env: env) (t: typ): env option =
       Log.error "[sub_perm] the following type does not have kind PERM: %a (%a)"
         TypePrinter.ptype (env, t)
         Utils.ptag t
-;;
 
+
+and sub_perms env perms =
+  if List.length perms = 0 then
+    Some env
+  else
+    match Hml_List.take_bool (perm_not_flex env) perms with
+    | Some (perms, perm) ->
+        sub_perm env perm >>= fun env ->
+        sub_perms env perms
+    | None ->
+        Log.debug ~level:4 "[sub_perms] failed, remaining: %a"
+          TypePrinter.ptype (env, fold_star perms);
+        None
 
 (* -------------------------------------------------------------------------- *)
 
