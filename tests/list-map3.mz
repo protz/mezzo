@@ -10,7 +10,7 @@ val rec map [a1, a2, b, p :: PERM] (
       Nil
   | Cons { head; tail } ->
       let v = f head in
-      Cons { head = v; tail = map [p=p] (f, tail) }
+      Cons { head = v; tail = map (f, tail) }
   end
 
 val usage_test: list int =
