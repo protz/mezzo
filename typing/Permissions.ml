@@ -763,7 +763,9 @@ and sub_type_real env t1 t2 =
                   add_sub env ps1 ps2
               | None ->
                   (* Nothing. We fail. *)
-                  Log.debug ~level:4 "[add_sub] FAILED";
+                  Log.debug ~level:4 "[add_sub] FAILED with ps1=%a ps2=%a"
+                    TypePrinter.ptype (env, fold_star ps1)
+                    TypePrinter.ptype (env, fold_star ps2);
                   None
       in
       (* Hah! Last refinement! If we have exactly one PERM variable on each side
@@ -784,6 +786,17 @@ and sub_type_real env t1 t2 =
           | false, false ->
               add_sub env ps1 ps2
           end
+      | [], [TyPoint var2] when is_flexible env var2 ->
+          (* We could be more subtle here and say that since there's a flexible
+           * variable, add_sub is actually allowed to fail to subtract some
+           * elements, and should return the elements it hasn't been able to
+           * subtract from [ps1]. We would the instantiate the flexible variable
+           * to be those elements that couldn't be subtracted. *)
+          let env = instantiate_flexible env var2 TyEmpty in
+          add_sub env ps1 ps2'
+      | [TyPoint var1], [] when is_flexible env var1 ->
+          let env = instantiate_flexible env var1 TyEmpty in
+          add_sub env ps1' ps2
       | _ ->
           add_sub env ps1 ps2
       end
@@ -874,9 +887,13 @@ and sub_perm (env: env) (t: typ): env option =
       sub_perm env q
   | TyEmpty ->
       Some env
-  | TyPoint p->
-      Log.check (get_kind env p = KPerm) "Only kind PERM";
-      sub_floating_permission env p
+  | TyPoint p ->
+      begin match structure env p with
+      | Some t ->
+          sub_perm env t
+      | None ->
+          sub_floating_permission env p
+      end
   | _ ->
       Log.error "[sub_perm] the following type does not have kind PERM: %a (%a)"
         TypePrinter.ptype (env, t)

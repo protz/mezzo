@@ -155,8 +155,7 @@ val rec iter [a1, a2, p :: PERM] (
    use [iter], but it is a good test of the type-checker. *)
 
 val simpler_iter [a] (f: a -> (), xs: list a) : () =
-  iter [p=empty] (f, xs)
-  (* TEMPORARY it would be nice if the type-checker could guess p=empty *)
+  iter (f, xs)
 
 (* -------------------------------------------------------------------------- *)
 
