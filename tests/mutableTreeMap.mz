@@ -267,7 +267,7 @@ Fatal error: exception Assert_failure("lib/Log.ml", 59, 6)
   end
 
 val merge [k, a] (consumes t1: tree k a, consumes t2: tree k a) : tree k a =
-  match (t1, t2) with
+  match t1, t2 with
   | Empty, t -> t
   | t, Empty -> t
   | Node, Node ->
@@ -317,6 +317,27 @@ val rec iter [k, a1, a2, p :: PERM] (
       f (t.key, t.value);
       iter (f, t.right)
   end
+
+(* Our [map] is modeled after OCaml's [mapi]. One could in fact offer
+   even more generality by allowing keys to be copied/translated, as
+   long as the key ordering is preserved. *)
+
+val rec map [k, a1, a2, b, p :: PERM] duplicable k => (
+  f: (k, consumes d:        a1 | p) -> (b        | d @        a2),
+         consumes t: tree k a1 | p)  : (tree k b | t @ tree k a2) =
+  match t with
+  | Empty ->
+      Empty
+  | Node ->
+      Node {
+	left = map [p=p] (f, t.left);
+	key = t.key;
+	value = f (t.key, t.value);
+	right = map [p=p] (f, t.right);
+	height = t.height
+      }
+  end
+  (* TEMPORARY it would be nice if the instantiation [p=p] was not required *)
 
 (*
 
