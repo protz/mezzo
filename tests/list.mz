@@ -293,28 +293,17 @@ val rec split [a, b] (consumes xys : list (a, b)) : (list a, list b) =
     Nil,
     Nil
 
-(* TEMPORARY matching on tuples is not yet implemented?
-  match xs, ys with
-  | (Cons, Cons) ->
-      Cons { head = (xs.head, ys.head); tail = combine (xs.tail, ys.tail) }
-  | (Nil, Nil) ->
-      Nil
-  | (Nil, Cons) ->
-      Nil
-  | (Cons, Nil) ->
-      Nil
-  (* TEMPORARY an or-pattern would be nice *)
-  end
-*)
-
 val rec combine [a, b] (consumes xs: list a, consumes ys: list b) : list (a, b) =
-  if xs then
-    if ys then
+  match xs, ys with
+  | Cons, Cons ->
       Cons { head = (xs.head, ys.head); tail = combine (xs.tail, ys.tail) }
-    else
+  | Nil, Nil ->
       Nil
-  else
-    Nil
+  | Nil, Cons ->
+      Nil
+  | Cons, Nil ->
+      Nil
+  end
 
 (* -------------------------------------------------------------------------- *)
 
@@ -337,11 +326,7 @@ val rec merge [a] (cmp: (a, a) -> int, consumes xs: list a, consumes ys: list a)
       end
   end
 
-(* TEMPORARY
-
-The following code gives rise to this error:
-[38;5;203mMultiple candidates as a concrete type for this pattern[0m
-Fatal error: exception Assert_failure("lib/Log.ml", 59, 6)
+(* Apparently this function doesn't work because of the ownership problem...?
 
 val stable_sort [a] (cmp: (a, a) -> int, consumes xs: list a) : list a =
   (* Wrap the comparison function [cmp] so as to take an extra
@@ -369,7 +354,7 @@ val stable_sort [a] (cmp: (a, a) -> int, consumes xs: list a) : list a =
   in
   (* This is the main sorting function. The integer [n] is always at
      least [2]. Again, the ordering is dictated by [sense]. *)
-  let rec sort (sense: bool, n: int, consumes xs: list a) : list a =
+  let rec sort (sense: int, n: int, consumes xs: list a) : list a =
     (* Leaf cases. *)
     if n = 2 then
       match xs with
@@ -402,9 +387,7 @@ val stable_sort [a] (cmp: (a, a) -> int, consumes xs: list a) : list a =
     end
   in
   let n = length xs in
-  if n < 2 then xs else sort (1, n, xs)
-
-*)
+  if n < 2 then xs else sort (1, n, xs) *)
 
 (* -------------------------------------------------------------------------- *)
 
