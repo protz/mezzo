@@ -37,8 +37,8 @@ and raw_error =
   | SubPattern of pattern
   | NoTwoConstructors of point
   | NotNominal of point
-  | MatchBadDatacon of typ * Datacon.name
-  | MatchBadPattern of pattern
+  | MatchBadDatacon of point * Datacon.name
+  | MatchBadTuple of point
   | NoSuchPermission of typ
   | AssignNotExclusive of typ * Datacon.name
   | FieldCountMismatch of typ * Datacon.name
@@ -207,18 +207,21 @@ let print_error buf (env, raw_error) =
         "%a there's a sub-constraint in that pattern, not allowed: %a"
         Lexer.p env.location
         ppat (env, pat)
-  | MatchBadDatacon (t, datacon) ->
+  | MatchBadTuple p ->
+      let _, binder = find_term env p in
       Printf.bprintf buf
-        "%a matching on a value with type %a: it has no constructor named %a"
+        "%a trying to match a tuple against a point whose only \
+          permissions are %a"
         Lexer.p env.location
-        ptype (env, t)
+        TypePrinter.pdoc (TypePrinter.print_permission_list, (env, binder));
+  | MatchBadDatacon (p, datacon) ->
+      let _, binder = find_term env p in
+      Printf.bprintf buf
+        "%a trying to match data constructor %a against a point whose only \
+          permissions are %a"
+        Lexer.p env.location
         Datacon.p datacon
-  | MatchBadPattern pat ->
-      Printf.bprintf buf
-        "%a the pattern %a is not valid inside a match; only matches on data \
-          constructors are allowed"
-        Lexer.p env.location
-        ppat (env, pat)
+        TypePrinter.pdoc (TypePrinter.print_permission_list, (env, binder));
   | NoSuchFieldInPattern (pat, field) ->
       Printf.bprintf buf
         "%a the pattern %a mentions field %a which is unknown for that branch"

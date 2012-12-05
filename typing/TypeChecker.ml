@@ -264,6 +264,125 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
 ;;
 
 
+let refine_perms_in_place_for_pattern env point pat =
+  let rec refine env point pat =
+    match pat with
+    | PAs (pat, _) ->
+        refine env point pat
+
+    | PTuple pats ->
+        let points =
+          match Hml_List.find_opt (function
+            | TyTuple ts ->
+                Some (List.map (function
+                  | TySingleton (TyPoint p) ->
+                      p
+                  | _ ->
+                      Log.error "expanded form"
+                ) ts)
+            | _ ->
+                None
+          ) (get_permissions env point) with
+          | Some points ->
+              points
+          | None ->
+              raise_error env (MatchBadTuple point)
+        in
+        List.fold_left2 refine env points pats
+
+    | PConstruct (datacon, patfields) ->
+        (* An easy way out. *)
+        let fail () = raise_error env (MatchBadDatacon (point, datacon)) in
+        let fail_if b = if b then fail () in
+
+        (* Turn the return value of [find_and_instantiate_branch] into a type. *)
+        let mkconcrete (dc, fields, clause) =
+          TyConcreteUnfolded (dc, fields, clause)
+        in
+
+        (* Recursively refine the fields of a concrete type according to the
+         * sub-patterns. *)
+        let refine_fields env fields = List.fold_left (fun env (n2, pat2) ->
+          let open ExprPrinter in
+          let open TypePrinter in
+          Log.debug "Field = %a, pat = %a" Field.p n2 ppat (env, pat2);
+          List.iter (function
+            | FieldValue (n1, t1) ->
+                Log.debug "Field = %a, t = %a" Field.p n1 ptype (env, t1)
+            | _ ->
+                assert false
+          ) fields;
+          let point1 = Option.extract (Hml_List.find_opt (function
+            | FieldValue (n1, TySingleton (TyPoint p1)) when Field.equal n1 n2 ->
+                Some p1
+            | _ ->
+                None
+          ) fields) in
+          refine env point1 pat2
+        ) env patfields in
+
+        (* Find a permission that can be refined in there. *)
+        begin match Hml_List.take (function
+          | TyPoint p ->
+              fail_if (not (has_definition env p));
+              begin try
+                let branch = find_and_instantiate_branch env p datacon [] in
+                Some (env, mkconcrete branch)
+              with Not_found ->
+                (* Urgh [find_and_instantiate_branch] should probably throw
+                 * something better... *)
+                fail ()
+              end
+          | TyApp (cons, args) ->
+              begin try
+                let branch = find_and_instantiate_branch env !!cons datacon args in
+                Some (env, mkconcrete branch)
+              with Not_found ->
+                fail ()
+              end
+          | TyConcreteUnfolded (datacon', fields', _) as t ->
+              let is_ok =
+                Datacon.equal datacon datacon' &&
+                List.for_all (function
+                  | FieldValue (n1, _), (n2, _) ->
+                      Field.equal n1 n2
+                  | _ ->
+                      Log.error "not in order or not expanded"
+                ) (List.combine fields' patfields)
+              in
+              fail_if (not is_ok);
+              Some (env, t)
+          | _ ->
+              None
+        ) (get_permissions env point) with
+        | Some (remaining, (_, (env, t))) ->
+            (* Now strip the permission we consumed... *)
+            let env =
+              replace_term env point (fun binding -> { binding with permissions = remaining})
+            in
+            (* Add instead its refined version -- this also makes sure it's in expanded form. *)
+            let env = Permissions.add env point t in
+            (* Find the resulting structural permission. *)
+            let fields = Option.extract (Hml_List.find_opt (function
+              | TyConcreteUnfolded (_, fields, _) ->
+                  Some fields
+              | _ ->
+                  None
+            ) (get_permissions env point)) in
+            (* And recursively refine its fields now that they are in the
+             * expanded form. *)
+            refine_fields env fields
+        | None ->
+            fail ()
+        end
+
+    | _ ->
+        env
+  in
+  refine env point pat
+;;
+
+
 (** [merge_type_annotations] is useful when the context provides a type
  * annotation and we hit a [EConstraint] expression. We need to make sure the
  * type annotations are consistent: (unknown, τ) and (σ, unknown) are consistent
@@ -770,80 +889,19 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       dest
 
   | EMatch (explain, e, patexprs) ->
-      (* First of all, make sure there's a nominal type that corresponds to the
-       * expression being matched, and that we have its definition. *)
       let hint = add_hint hint "match" in 
       let env, x = check_expression env ?hint e in
-      let nominal_type =
-        try
-          List.find (function
-            | TyPoint p ->
-                Log.check (is_type env p) "Invalid permission";
-                has_definition env p
-            | TyApp (cons, _) ->
-                let p = !!cons in
-                Log.check (is_type env p) "Invalid permission";
-                has_definition env p
-            | _ ->
-                false
-          ) (get_permissions env x)
-        with Not_found ->
-          raise_error env (NotNominal x)
-      in
-
-      TypePrinter.(
-        Log.debug ~level:3 "The matched expression has type %a"
-          ptype (env, nominal_type)
-      );
-
-      let nominal_point, nominal_args = Option.extract (is_tyapp nominal_type) in
-
-      (* Now, check that all the patterns are valid ones. Our matches only allow
-       * to match on data types only. Use a let-binding to destructure a
-       * tuple... *)
-      let constructors = List.map (fun (pat, _) ->
-        match pat with
-        | PAs (PConstruct (datacon, _), _)
-        | PConstruct (datacon, _) ->
-            let p =
-              try
-                type_for_datacon env datacon
-              with Not_found ->
-                raise_error env (MatchBadDatacon (nominal_type, datacon))
-            in
-            if not (same env p nominal_point) then
-              raise_error env (MatchBadDatacon (nominal_type, datacon));
-            datacon
-        | _ ->
-            raise_error env (MatchBadPattern pat)
-      ) patexprs in
 
       (* Type-check each branch separately, returning an environment for that
        * branch as well as a point. *)
-      let sub_envs = List.map2 (fun (pat, expr) datacon ->
-        (* Refine the permissions. We *have* to remove the previous permission,
-         * otherwise this is unsound, even with duplicable permissions. *)
-        let env = replace_term env x (fun binding ->
-          let permissions' = binding.permissions in
-          (* Assert while we can *)
-          let permissions = List.filter (fun x -> x != nominal_type) permissions' in
-          Log.check (List.length permissions = List.length permissions' - 1)
-            "We didn't strip the right number of permissions";
-          { binding with permissions }
-        ) in
-        (* Trade the old permission for the new one. *)
-        let dc, fields, clause =
-          find_and_instantiate_branch env nominal_point datacon nominal_args
-        in
-        let env = Permissions.add env x (TyConcreteUnfolded (dc, fields, clause)) in
+      let sub_envs = List.map (fun (pat, expr) ->
+        let env = refine_perms_in_place_for_pattern env x pat in
         let env, { subst_expr; _ } =
           check_bindings env Nonrecursive [pat, EPoint x]
         in
         let expr = subst_expr expr in
-        let hint = add_hint hint (Datacon.print datacon) in
-
-        check_expression env ?hint ?annot expr
-      ) patexprs constructors in
+        check_expression env ?annot expr
+      ) patexprs in
 
       (* Combine all of these left-to-right to obtain a single return
        * environment *)

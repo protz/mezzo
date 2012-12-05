@@ -1,11 +1,11 @@
 data list a = Cons { head: a; tail: list a } | Nil
 
-val f [a] (xs: list a): int =
+val f (xs: list int): int =
   match xs with
   | Cons { head; tail } ->
-      1
+      head
   | Cons { head; tail = Cons { head = head1; tail = tail1 }} ->
-      2
+      head1
   | Nil ->
-      fail
+      0
   end
