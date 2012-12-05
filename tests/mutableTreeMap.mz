@@ -266,32 +266,48 @@ Fatal error: exception Assert_failure("lib/Log.ml", 59, 6)
 *)
   end
 
+val merge [k, a] (consumes t1: tree k a, consumes t2: tree k a) : tree k a =
+  match (t1, t2) with
+  | Empty, t -> t
+  | t, Empty -> t
+  | Node, Node ->
+      (* Extract the minimum node out of [t2]... *)
+      let root, t2 = extract_min_binding t2 in
+      (* And re-use this node to become the new root. *)
+      root.left <- t1;
+      root.right <- t2;
+      bal root
+  end
+
+(* Compared with OCaml's [remove], our [remove] function combines [find]
+   and [remove]. It returns a pair of the binding that was removed and
+   the new tree. *)
+
+val rec remove [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a)
+  : (option (k, a), tree k a)
+  =
+  match t with
+  | Empty ->
+      none, t
+  | Node ->
+      let c = cmp (x, t.key) in
+      if c = 0 then
+	some (t.key, t.value),
+	merge (t.left, t.right)
+      else if c < 0 then begin
+	let binding, left = remove (cmp, x, t.left) in
+	t.left <- left;
+	binding, bal t
+      end
+      else begin
+	let binding, right = remove (cmp, x, t.right) in
+	t.right <- right;
+	binding, bal t
+      end
+  end
+
 (*
 
-    let rec remove_min_binding = function
-        Empty -> invalid_arg "Map.remove_min_elt"
-      | Node(Empty, x, d, r, _) -> r
-      | Node(l, x, d, r, _) -> bal (remove_min_binding l) x d r
-
-    let merge t1 t2 =
-      match (t1, t2) with
-        (Empty, t) -> t
-      | (t, Empty) -> t
-      | (_, _) ->
-          let (x, d) = min_binding t2 in
-          bal t1 x d (remove_min_binding t2)
-
-    let rec remove x = function
-        Empty ->
-          Empty
-      | Node(l, v, d, r, h) ->
-          let c = Ord.compare x v in
-          if c = 0 then
-            merge l r
-          else if c < 0 then
-            bal (remove x l) v d r
-          else
-            bal l v d (remove x r)
 
     let rec iter f = function
         Empty -> ()
