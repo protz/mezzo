@@ -733,72 +733,77 @@ and sub_type_real env t1 t2 =
        *   But we may be stuck because all permissions in [ps1] have their lhs
        * flexible! However, maybe there's an element in [ps2] that, when
        * subtracted, "unlocks" the situation by instantiating the lhs of one
-       * permission in [ps1]. *)
-      let good_for_sub env ps1 p2 =
-        sub_perm env p2 >>= fun env ->
-        if List.exists (perm_not_flex env) ps1 then
-          Some env
-        else
-          None
+       * permission in [ps1]. So we alternate adding from [ps1] and subtracting
+       * from [ps2] until there's nothing left we can do, either because
+       * something's flexible, or because the permissions can't be subtracted. *)
+      let works_for_add = perm_not_flex in
+      let works_for_sub env p2 = perm_not_flex env p2 && Option.is_some (sub_perm env p2) in
+      (* The main function's here. *)
+      let rec add_sub env ps1 ps2: env * typ list * typ list =
+        match Hml_List.take_bool (works_for_add env) ps1 with
+        | Some (ps1, p1) ->
+            let env = add_perm env p1 in
+            add_sub env ps1 ps2
+        | None ->
+            match Hml_List.take_bool (works_for_sub env) ps2 with
+            | Some (ps2, p2) ->
+                let env = Option.extract (sub_perm env p2) in
+                add_sub env ps1 ps2
+            | None ->
+                Log.debug ~level:4 "[add_sub] finished with ps1=%a ps2=%a"
+                  TypePrinter.ptype (env, fold_star ps1)
+                  TypePrinter.ptype (env, fold_star ps2);
+                env, ps1, ps2
       in
-      (* So let's put it all together. *)
-      let rec add_sub env ps1 ps2 =
-        if ps1 = [] then
-          (* If we've solved all our problems in [ps1], that's really cool! *)
-          sub_perm env (fold_star ps2)
-        else
-          (* Otherwise, is there a permission that we can safely add in [ps1]? *)
-          match Hml_List.take_bool (perm_not_flex env) ps1 with
-          | Some (ps1, p1) ->
-              (* Yes! Do it. *)
-              let env = add_perm env p1 in
-              add_sub env ps1 ps2
-          | None ->
-              (* No, all the lhs in [ps1] are flexible. Try to find a permission
-               * in [ps2] that, when subtracted, unlocks the situation. *)
-              match Hml_List.take (good_for_sub env ps1) ps2 with
-              | Some (ps2, (_p2, env)) ->
-                  (* We found one! [good_for_sub] already called sub for us and
-                   * returns the resulting environment -> we move on. *)
-                  add_sub env ps1 ps2
-              | None ->
-                  (* Nothing. We fail. *)
-                  Log.debug ~level:4 "[add_sub] FAILED with ps1=%a ps2=%a"
-                    TypePrinter.ptype (env, fold_star ps1)
-                    TypePrinter.ptype (env, fold_star ps2);
-                  None
-      in
-      (* Hah! Last refinement! If we have exactly one PERM variable on each side
-       * and one of them is flexible, we solve this the "obvious" way. *)
+      (* But before we do all of that, we do something smarter: if we have
+       * exactly one PERM variable on each side and one of them is flexible, we
+       * solve this the "obvious" way. We can't feed everything into [add_sub],
+       * because if doing "p - p*" ("p*" being flexible), we will add "p"
+       * without a problem, and then instantiate "p*" to empty. *)
       let vars1, ps1' = List.partition (function TyPoint _ -> true | _ -> false) ps1 in
       let vars2, ps2' = List.partition (function TyPoint _ -> true | _ -> false) ps2 in
+      let must_succeed env ps1 ps2 =
+        match add_sub env ps1 ps2 with
+        | env, [], [] ->
+            Some env
+        | _ ->
+            None
+      in
       begin match vars1, vars2 with
       | [TyPoint var1], [TyPoint var2] ->
           begin match is_flexible env var1, is_flexible env var2 with
           | true, false ->
               let env = merge_left env var2 var1 in
-              add_sub env ps1' ps2'
+              must_succeed env ps1' ps2'
           | false, true ->
               let env = merge_left env var1 var2 in
-              add_sub env ps1' ps2'
+              must_succeed env ps1' ps2'
           | true, true ->
-              None
+              let env = merge_left env var1 var2 in
+              must_succeed env ps1' ps2'
           | false, false ->
-              add_sub env ps1 ps2
+              must_succeed env ps1 ps2
           end
       | [], [TyPoint var2] when is_flexible env var2 ->
-          (* We could be more subtle here and say that since there's a flexible
-           * variable, add_sub is actually allowed to fail to subtract some
-           * elements, and should return the elements it hasn't been able to
-           * subtract from [ps1]. We would the instantiate the flexible variable
-           * to be those elements that couldn't be subtracted. *)
-          let env = instantiate_flexible env var2 TyEmpty in
-          add_sub env ps1 ps2'
+          (* Extra: if there's a flexible PERM variable on one side only, and we
+           * are left with un-substractable stuff on the other side, we can
+           * solve this by instantiating the flexible variable with the stuff we
+           * were unable to extract. *)
+          begin match add_sub env ps1 ps2' with
+          | env, ps1, [] ->
+              Some (instantiate_flexible env var2 (fold_star ps1))
+          | _ ->
+              None
+          end
       | [TyPoint var1], [] when is_flexible env var1 ->
-          let env = instantiate_flexible env var1 TyEmpty in
-          add_sub env ps1' ps2
+          begin match add_sub env ps1' ps2 with
+          | env, [], ps2 ->
+              Some (instantiate_flexible env var1 (fold_star ps2))
+          | _ ->
+              None
+          end
       | _ ->
-          add_sub env ps1 ps2
+          must_succeed env ps1 ps2
       end
 
   | TyBar (t1, p1), t2 ->
