@@ -138,16 +138,13 @@ val rev_map [a1, a2, b] (
 
 (* Iteration. *)
 
-(* The following type is not the most general type of [iter]. The type-checker
-   currently does not support type variables of kind PERM, so we cannot allow
-   the function [f] to have an arbitrary side effect. *)
+(* The following type allows the function [f] to perform a strong update
+   on the argument list, whose type changes from [list a1] to [list a2].
+   It also allows [f] to have a side effect at [p]. *)
  
-(* The following type does allow the function [f] to perform a strong update
-   on the argument list, whose type changes from [list a1] to [list a2]. *)
- 
-val rec iter [a1, a2] (
-  f: (consumes  x:      a1) -> (|  x @      a2),
-      consumes xs: list a1)  : (| xs @ list a2)
+val rec iter [a1, a2, p :: PERM] (
+  f: (consumes  x:      a1 | p) -> (|  x @      a2),
+      consumes xs: list a1 | p)  : (| xs @ list a2)
 =
   if xs then begin
     f xs.head;
@@ -158,7 +155,8 @@ val rec iter [a1, a2] (
    use [iter], but it is a good test of the type-checker. *)
 
 val simpler_iter [a] (f: a -> (), xs: list a) : () =
-  iter (f, xs)
+  iter [p=empty] (f, xs)
+  (* TEMPORARY it would be nice if the type-checker could guess p=empty *)
 
 (* -------------------------------------------------------------------------- *)
 

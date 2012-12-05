@@ -65,9 +65,9 @@ val rev_map : [a1, a2, b] (
 
 (* Iteration. *)
 
-val iter : [a1, a2] (
-  f: (consumes  x:      a1) -> (|  x @      a2),
-      consumes xs: list a1) -> (| xs @ list a2)
+val iter : [a1, a2, p :: PERM] (
+  f: (consumes  x:      a1 | p) -> (|  x @      a2),
+      consumes xs: list a1 | p) -> (| xs @ list a2)
 
 (* -------------------------------------------------------------------------- *)
 

@@ -306,13 +306,20 @@ val rec remove [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a)
       end
   end
 
+val rec iter [k, a1, a2, p :: PERM] (
+  f: (k, consumes d:        a1 | p) -> (| d @        a2),
+         consumes t: tree k a1 | p)  : (| t @ tree k a2) =
+  match t with
+  | Empty ->
+      ()
+  | Node ->
+      iter (f, t.left);
+      f (t.key, t.value);
+      iter (f, t.right)
+  end
+
 (*
 
-
-    let rec iter f = function
-        Empty -> ()
-      | Node(l, v, d, r, _) ->
-          iter f l; f v d; iter f r
 
     let rec map f = function
         Empty ->
