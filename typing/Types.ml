@@ -717,7 +717,7 @@ module TypePrinter = struct
     | User (m, var) when Module.equal env.module_name m ->
         print_string (Variable.print var)
     | User (m, var) ->
-        print_string (Module.print m) ^^ dot ^^ print_string (Variable.print var)
+        print_string (Module.print m) ^^ ccolon ^^ print_string (Variable.print var)
     | Auto var ->
         colors.yellow ^^ print_string (Variable.print var) ^^ colors.default
   ;;
@@ -777,7 +777,7 @@ module TypePrinter = struct
               None
         ) names in
         let names = List.map (fun (m, x) ->
-          print_string (Module.print m) ^^ dot ^^ print_string (Variable.print x)
+          print_string (Module.print m) ^^ ccolon ^^ print_string (Variable.print x)
         ) names in
         (join (string " = ") names) :: acc
       ) []

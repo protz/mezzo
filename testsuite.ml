@@ -562,6 +562,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let zero = point_by_name env "zero" in
     check env zero int);
 
+  ("list-length-variant.mz", simple_test Pass);
+
   ("list-concat.mz", fun do_it ->
     let env = do_it () in
     let x = point_by_name env "x" in
