@@ -295,16 +295,37 @@ val rec remove [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a)
       end
   end
 
-val rec iter [k, a1, a2, p :: PERM] (
-  f: (k, consumes d:        a1 | p) -> (| d @        a2),
-         consumes t: tree k a1 | p)  : (| t @ tree k a2) =
+(* Compared with OCaml's [iter], our [iter] function is generalized
+   to allow early termination. The client function, [f], is allowed
+   to return a Boolean flag, which indicates whether iteration should
+   continue. The function [iter] itself returns a Boolean outcome
+   which indicates whether iteration was performed all the way to the
+   end. *)
+
+(* This feature implies that the type of the collection elements cannot
+   be modified. Our version of [fold] (below) makes the converse choices:
+   early termination is not possible, but the type of the elements can be
+   changed from [a1] to [a2]. *)
+
+(* In fact, our [iter] is exactly OCaml's [for_all]. (Except that the
+   evaluation order is not the same; OCaml's [iter] guarantees that
+   the keys are visited in increasing order, where OCaml's [for_all]
+   does not.) Funny -- I never explicitly thought of [for_all] as a
+   version of [iter] that has an early termination feature. *)
+
+val rec iter [k, a, p :: PERM] (
+  f: (k,           a | p) -> bool,
+         t: tree k a | p)  : bool =
   match t with
   | Empty ->
-      ()
+      True
   | Node ->
-      iter (f, t.left);
-      f (t.key, t.value);
-      iter (f, t.right)
+      (* TEMPORARY this could be very concisely written using && *)
+      if iter (f, t.left) then
+	if f (t.key, t.value) then
+	  iter (f, t.right)
+	else False
+      else False
   end
 
 (* Our [map] is modeled after OCaml's [mapi]. One could in fact offer
@@ -327,40 +348,33 @@ val rec map [k, a1, a2, b, p :: PERM] duplicable k => (
       }
   end
 
+val rec fold [k, a1, a2, b, p :: PERM] (
+  f: (k, consumes d:        a1, consumes accu: b | p) -> (b | d @        a2),
+         consumes t: tree k a1, consumes accu: b | p)  : (b| t @ tree k a2) =
+  match t with
+  | Empty ->
+      accu
+  | Node ->
+      let accu = fold (f, t.left, accu) in
+      let accu = f (t.key, t.value, accu) in
+      let accu = fold (f, t.right, accu) in
+      accu
+  end
+
+val for_all = iter
+
+(* [exists] could be implemented directly, but an implementation in
+   terms of [for_all] is preferred, as a test of the type-checker. *)
+
+val exists [k, a, p :: PERM] (
+  f: (k,           a | p) -> bool,
+         t: tree k a | p)  : bool =
+  let notf (key: k, value: a | p) : bool =
+    not (f (key, value))
+  in
+  not (for_all (notf, t))
+
 (*
-
-
-    let rec map f = function
-        Empty ->
-          Empty
-      | Node(l, v, d, r, h) ->
-          let l' = map f l in
-          let d' = f d in
-          let r' = map f r in
-          Node(l', v, d', r', h)
-
-    let rec mapi f = function
-        Empty ->
-          Empty
-      | Node(l, v, d, r, h) ->
-          let l' = mapi f l in
-          let d' = f v d in
-          let r' = mapi f r in
-          Node(l', v, d', r', h)
-
-    let rec fold f m accu =
-      match m with
-        Empty -> accu
-      | Node(l, v, d, r, _) ->
-          fold f r (f v d (fold f l accu))
-
-    let rec for_all p = function
-        Empty -> true
-      | Node(l, v, d, r, _) -> p v d && for_all p l && for_all p r
-
-    let rec exists p = function
-        Empty -> false
-      | Node(l, v, d, r, _) -> p v d || exists p l || exists p r
 
     (* Beware: those two functions assume that the added k is *strictly*
        smaller (or bigger) than all the present keys in the tree; it

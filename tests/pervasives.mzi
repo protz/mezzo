@@ -55,3 +55,8 @@ val cons : [a] (consumes a, consumes list a) -> list a
 mutable data xlist a =
   | XCons { xhead: a; xtail: xlist a }
   | XNil
+
+(* Booleans *)
+
+val not : bool -> bool
+

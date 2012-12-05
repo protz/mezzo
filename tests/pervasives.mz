@@ -45,3 +45,9 @@ val nil: [a] list a =
 
 val cons [a] (consumes hd: a, consumes tl: list a): list a =
   Cons { head = hd; tail = tl }
+
+(* Booleans *)
+
+val not (b : bool) : bool =
+  if b then False else True
+
