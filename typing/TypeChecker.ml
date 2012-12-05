@@ -810,14 +810,20 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
               None
         ) annotations
       in
+
+      (* Evaluate the fields in the order they come in the source file. *)
+      let env, fieldexprs = List.fold_left (fun (env, acc) (name, e) ->
+        let hint = add_hint hint (Field.print name) in
+        let env, p = check_expression env ?hint ?annot:(annot name) e in
+        env, (name, p) :: acc
+      ) (env, []) fieldexprs in
+
       (* Do the bulk of the work. *)
       let env, remaining, fieldvals = List.fold_left (fun (env, remaining, fieldvals) -> function
         | FieldValue (name, _t) ->
             (* Actually we don't care about the expected type for the field. We
              * just want to make sure all fields are provided. *)
-            let e, remaining = take env name remaining in
-            let hint = add_hint hint (Field.print name) in
-            let env, p = check_expression env ?hint ?annot:(annot name) e in
+            let p, remaining = take env name remaining in
             env, remaining, FieldValue (name, ty_equals p) :: fieldvals
         | FieldPermission _ ->
             env, remaining, fieldvals
