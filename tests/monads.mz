@@ -34,8 +34,6 @@ val bind [a, b] (m: option a, k: a -> option b) : option b =
 data state s a =
   State { computation: (consumes s) -> (s, a) }
 
-(* TEMPORARY the following two functions do not type-check: not sure why? 
-
 val return [s, a] duplicable a => (x: a) : state s a =
   let c (consumes q: s) : (s, a) =
     (q, x)
@@ -48,8 +46,6 @@ val bind [s, a, b] (m: state s a, k: a -> state s b) : state s b =
     (k x).computation q
   in
   State { computation = c }
-
-*)
 
 (* The permission-passing monad. *)
 
