@@ -73,13 +73,13 @@ val iter : [a1, a2, p :: PERM] (
 
 (* Fold. *)
 
-val fold_left : [a1, a2, b] (
-  f: (consumes       b, consumes  x:      a1) -> (b |  x @      a2),
-      consumes accu: b, consumes xs: list a1) -> (b | xs @ list a2)
+val fold_left : [a1, a2, b, p :: PERM] (
+  f: (consumes       b, consumes  x:      a1 | p) -> (b |  x @      a2),
+      consumes accu: b, consumes xs: list a1 | p) -> (b | xs @ list a2)
 
-val fold_right : [a1, a2, b] (
-  f: (consumes  x:      a1, consumes       b) -> (b |  x @      a2),
-      consumes xs: list a1, consumes accu: b) -> (b | xs @ list a2)
+val fold_right : [a1, a2, b, p :: PERM] (
+  f: (consumes  x:      a1, consumes       b | p) -> (b |  x @      a2),
+      consumes xs: list a1, consumes accu: b | p) -> (b | xs @ list a2)
 
 (* -------------------------------------------------------------------------- *)
 

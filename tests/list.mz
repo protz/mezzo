@@ -162,26 +162,22 @@ val simpler_iter [a] (f: a -> (), xs: list a) : () =
 
 (* Fold. *)
 
-(* The following type is not the most general type of [fold_left]. The
-   type-checker currently does not support type variables of kind PERM, so we
-   cannot allow the function [f] to have an arbitrary side effect. *)
- 
-(* The following type does allow the function [f] to perform a strong update
+(* The following type allows the function [f] to perform a strong update
    on the argument list, whose type changes from [list a1] to [list a2]. An
-   accumulator of type [b] is maintained. *)
+   accumulator of type [b] is maintained. A side effect at [p] is also permitted.*)
  
-val rec fold_left [a1, a2, b] (
-  f: (consumes       b, consumes  x:      a1) -> (b |  x @      a2),
-      consumes accu: b, consumes xs: list a1)  : (b | xs @ list a2)
+val rec fold_left [a1, a2, b, p :: PERM] (
+  f: (consumes       b, consumes  x:      a1 | p) -> (b |  x @      a2),
+      consumes accu: b, consumes xs: list a1 | p)  : (b | xs @ list a2)
 =
   if xs then
     fold_left (f, f (accu, xs.head), xs.tail)
   else
     accu
 
-val rec fold_right [a1, a2, b] (
-  f: (consumes  x:      a1, consumes       b) -> (b |  x @      a2),
-      consumes xs: list a1, consumes accu: b)  : (b | xs @ list a2)
+val rec fold_right [a1, a2, b, p :: PERM] (
+  f: (consumes  x:      a1, consumes       b | p) -> (b |  x @      a2),
+      consumes xs: list a1, consumes accu: b | p)  : (b | xs @ list a2)
 =
   if xs then
     f (xs.head, fold_right (f, xs.tail, accu))
@@ -264,7 +260,7 @@ val filter [a] (p: a -> bool, consumes xs: list a) : list a =
   let f (consumes accu: list a, consumes x: a) : list a =
     if p x then Cons { head = x; tail = accu } else accu
   in
-  rev (fold_left [a, unknown, list a] (f, Nil, xs))
+  rev (fold_left [a, unknown, list a, empty] (f, Nil, xs))
 
 val partition [a] (p: a -> bool, consumes xs: list a) : (list a, list a) =
   let f (consumes (yes: list a, no: list a), consumes x: a) : (list a, list a) =
@@ -273,7 +269,7 @@ val partition [a] (p: a -> bool, consumes xs: list a) : (list a, list a) =
     else
       yes, Cons { head = x; tail = no }
   in
-  let (yes, no) = fold_left [a, unknown, (list a, list a)] (f, (Nil, Nil), xs) in
+  let (yes, no) = fold_left [a, unknown, (list a, list a), empty] (f, (Nil, Nil), xs) in
   rev yes, rev no
 
 (* -------------------------------------------------------------------------- *)

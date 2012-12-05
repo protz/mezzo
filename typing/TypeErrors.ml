@@ -304,7 +304,7 @@ let print_error buf (env, raw_error) =
         Lexer.p env.location
         Variable.p name
   | NoSuchTypeInSignature (x, t) ->
-      Printf.bprintf buf "%a this file export a variable named %a, but it does \
+      Printf.bprintf buf "%a this file exports a variable named %a, but it does \
         not have type %a"
         Lexer.p env.location
         Variable.p x
