@@ -36,7 +36,6 @@ and raw_error =
   | NoSuchFieldInPattern of pattern * Field.name
   | SubPattern of pattern
   | NoTwoConstructors of point
-  | NotNominal of point
   | MatchBadDatacon of point * Datacon.name
   | MatchBadTuple of point
   | NoSuchPermission of typ
@@ -132,23 +131,6 @@ let print_error buf (env, raw_error) =
         "%a field %a is superfluous in that constructor"
         Lexer.p env.location
         Field.p f
-  | NotNominal point ->
-      let name, binder = find_term env point in
-      begin match Permissions.fold env point with
-      | Some t ->
-          Printf.bprintf buf
-            "%a %a has type %a, we can't match on it"
-            Lexer.p env.location
-            pvar (env, name)
-            ptype (env, t)
-      | None ->
-          Printf.bprintf buf
-            "%a %a has no permission with a nominal type suitable for matching, \
-              the only permissions available for it are %a"
-            Lexer.p env.location
-            pvar (env, name)
-            pdoc (print_permission_list, (env, binder))
-      end
   | NoTwoConstructors point ->
       let name, binder = find_term env point in
       begin match Permissions.fold env point with

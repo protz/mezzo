@@ -166,7 +166,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     check env foobar (tuple [int; int]));
 
   ("stupid_match.mz",
-    simple_test (Fail (function NotNominal _ -> true | _ -> false)));
+    simple_test (Fail (function MatchBadDatacon _ -> true | _ -> false)));
 
   ("value_restriction.mz",
     simple_test (Fail (function NoSuchField _ -> true | _ -> false)));
