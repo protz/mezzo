@@ -89,15 +89,8 @@ let collect (t: typ): typ * typ list =
         let q, q_perms = collect q in
         TyStar (p, q), p_perms @ q_perms
 
-    | TyConstraints (constraints, t) ->
-        let perms, constraints = List.fold_left (fun (perms, ts) (f, t) ->
-          let t, perm = collect t in
-          (perm :: perms, (f, t) :: ts)
-        ) ([], []) constraints in
-        let constraints = List.rev constraints in
-        let t, perm = collect t in
-        let perms = List.flatten (perm :: perms) in
-        TyConstraints (constraints, t), perms
+    | TyConstraints _ ->
+        t, []
   in
   collect t
 ;;

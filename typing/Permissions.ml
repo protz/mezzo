@@ -546,7 +546,14 @@ and sub_type_real env t1 t2 =
       Log.error "Constraints should've been processed when this permission was added"
 
   | _, TyConstraints (constraints, t2) ->
-      let env = List.fold_left (fun env (f, t) ->
+      (* First do the subtraction, because the constraint may be "duplicable α"
+       * with "α" being flexible. *)
+      let t2, perms = collect t2 in
+      sub_type env t1 t2 >>= fun env ->
+      sub_perm env (fold_star perms) >>= fun env ->
+      (* And then, hoping that α has been instantiated, check that it satisfies
+       * the constraint. *)
+      List.fold_left (fun env (f, t) ->
         env >>= fun env ->
         let f = fact_of_flag f in
         match t with
@@ -559,9 +566,7 @@ and sub_type_real env t1 t2 =
               None
         | _ ->
             Log.error "The parser shouldn't allow this"
-      ) (Some env) constraints in
-      env >>= fun env ->
-      sub_type env t1 t2
+      ) (Some env) constraints
 
 
   | TyForall ((binding, _), t1), _ ->

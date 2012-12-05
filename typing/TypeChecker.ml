@@ -387,8 +387,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       (* Collect all the permissions that the arguments bring into scope, add
        * them into the environment for checking the function body. *)
-      let _, perms = Permissions.collect arg in
-      let _, constraints = Permissions.collect_constraints arg in
+      let t_noconstraints, constraints = Permissions.collect_constraints arg in
+      let _, perms = Permissions.collect t_noconstraints in
       let sub_env = Permissions.add_constraints sub_env constraints in
       let sub_env = List.fold_left Permissions.add_perm sub_env perms in
 

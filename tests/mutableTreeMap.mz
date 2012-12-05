@@ -159,10 +159,8 @@ val rec find [k, a] duplicable a => (cmp: (k, k) -> int, x: k, t: tree k a) : op
 	 I believe that we would need a magic wand: this sub-expression
 	 produces a result [s] together with the permissions [s @ tree k a]
 	 and [s @ tree k a -* t @ tree k a]. *)
-      else if c < 0 then find [k, a] (cmp, x, t.left)
-      else find [k, a] (cmp, x, t.right)
-      (* TEMPORARY an explicit type application seems to be required here;
-	 the type-checker seems unable to guess it *)
+      else if c < 0 then find (cmp, x, t.left)
+      else find (cmp, x, t.right)
   end
 
 (* The above [find] function requires [a] to be duplicable. Another approach

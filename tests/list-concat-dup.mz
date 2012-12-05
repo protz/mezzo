@@ -19,7 +19,7 @@ val rec concat [a] duplicable a => (xs: list a, ys: list a): list a =
          * 20121011: the trick above doesn't work, because when type-checking a
          * function call, we first subtract "duplicable a => (=x, =y)" and then
          * we subtract "x @ a ∗ y @ list a", so that doesn't help. *)
-        tail = concat [a] (xs.tail, ys)
+        tail = concat (xs.tail, ys)
       }
   end
 
