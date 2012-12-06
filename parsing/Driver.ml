@@ -53,7 +53,7 @@ let mkprefix path =
   if Filename.basename path = "core.mzi" then
     []
   else
-    [SurfaceSyntax.OpenDirective (Module.register "Core")]
+    [SurfaceSyntax.OpenDirective (Module.register "core")]
 ;;
 
 let lex_and_parse_implementation path =
@@ -87,8 +87,6 @@ let module_name_for_file_path (f: string): Module.name =
     else
       Log.error "This is unexpected"
   in
-  let f = String.lowercase f in
-  f.[0] <- Char.uppercase f.[0];
   Module.register f
 ;;
 
@@ -114,7 +112,6 @@ let find_in_include_dirs (filename: string): string option =
 
 let iface_file_path_for_module_name (mname: Module.name): string option =
   let f = Module.print mname in
-  let f = String.lowercase f in (* TEMPORARY I believe we should omit this line -fpottier *)
   let f = f ^ ".mzi" in
   find_in_include_dirs f
 ;;

@@ -3,6 +3,4 @@
 val length [a] (list::list a): int =
   fail
 
-val the_length = length Pervasives::nil
-  (* BUG: this code causes the type-checker to raise Not_found
-     once the bug is fixed, change the above Pervasives to list *)
+val the_length = length list::nil

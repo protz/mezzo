@@ -158,7 +158,7 @@ module Graph = struct
     write_intro buf;
     fold_terms env (fun () point { names; _ } { permissions; _ } ->
       let is_core = function
-        | User (m, _) when Module.equal m (Module.register "Core") ->
+        | User (m, _) when Module.equal m (Module.register "core") ->
             true
         | _ ->
             false

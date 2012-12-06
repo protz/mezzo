@@ -1,4 +1,4 @@
-open Absdefs
+open absdefs
 
 val f (consumes x: t_x, y: unknown): t_x =
   if explain x == y then

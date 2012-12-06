@@ -1,4 +1,4 @@
-open Pervasives
+open pervasives
 open list
 
 (* Section 4.1.4 of the tutorial, "List map" *)

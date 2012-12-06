@@ -1,4 +1,4 @@
-open Absdefs
+open absdefs
 
 (* Make sure folding and unfolding (including instantiating the initial
  * "adopts ⊥" clause) work for structural types in the presence of adopts

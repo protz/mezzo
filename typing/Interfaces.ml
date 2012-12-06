@@ -84,7 +84,7 @@ let check (env: T.env) (mname: Module.name) (signature: S.toplevel_item list): T
 
         (* We must apply the same set of transformations to function types as we
          * do for function bodies, otherwise the types won't match. *)
-        let t, _ = TypeOps.cleanup_function_type env t None in
+        let t, _ = TypeOps.prepare_function_type env t None in
 
         (* Now check that the point in the implementation's environment actually
          * has the same type as the one in the interface. *)

@@ -427,7 +427,7 @@ let merge_type_annotations env t1 t2 =
 
 let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * point =
 
-  let t_int = find_type_by_name env ~mname:"Core" "int" in
+  let t_int = find_type_by_name env ~mname:"core" "int" in
 
   (* [return t] creates a new point with type [t] available for it, and returns
    * the environment as well as the point *)
@@ -472,7 +472,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
        * [check_bindings] needs to put in the environment the simplified version
        * of the type for recursive functions... *)
       let vars, arg, return_type, body =
-        TypeOps.simplify_function_def env vars arg return_type body
+        TypeOps.prepare_function_def env vars arg return_type body
       in
       let expr = EFun (vars, arg, return_type, body) in
       Log.debug ~level:4 "Type-checking function body, desugared type %a \
@@ -1025,8 +1025,9 @@ and check_bindings
             let expr = eunloc expr in
             match pat, expr with
             | PPoint p, EFun _ ->
-                (* [add] will take care of simplifying the function type. *)
-                Permissions.add env p (type_for_function_def expr)
+                let t = type_for_function_def expr in
+                (* [add] takes care of simplifying the function type *)
+                Permissions.add env p t
             | _ ->
                 raise_error env RecursiveOnlyForFunctions
           ) env expressions patterns

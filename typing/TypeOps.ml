@@ -103,7 +103,7 @@ let collect (t: typ): typ * typ list =
 
    ∀(x::TERM) τ -> τ'
 *)
-let cleanup_function_type env t body =
+let simplify_function_type env t body =
 
   (* It's a little bit tricky because in a function expression, we need to
    * update the body so that the references to the universally quantified
@@ -315,15 +315,30 @@ let cleanup_function_type env t body =
   find env t body
 ;;
 
-let simplify_function_def env bindings arg return_type body =
+
+let unfold_function_type env t body = 
+  ignore env;
+  t, body
+;;
+
+
+let prepare_function_type env t body =
+  let t, body = unfold_function_type env t body in
+  let t, body = simplify_function_type env t body in
+  t, body
+;;
+
+
+let prepare_function_def env bindings arg return_type body =
   let t = TyArrow (arg, return_type) in
   let t = fold_forall bindings t in
-  let t, body = cleanup_function_type env t (Some body) in
+  let t, body = prepare_function_type env t (Some body) in
   let body = Option.extract body in
   let bindings, t = strip_forall t in
   let arg, return_type = match t with TyArrow (t1, t2) -> t1, t2 | _ -> assert false in
   bindings, arg, return_type, body
 ;;
+
 
 let rec mark_reachable env = function
   | TyUnknown

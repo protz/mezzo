@@ -1,10 +1,22 @@
+(* Test function comparison after a type substitution: the function type should
+ * remain in the expanded form so as to allow us to correctly compare types. *)
+
 val f [a] (a -> ()): () =
   fail
 
-val g [a, b] (a, b): () =
+val g [a, b] (x: a, y: b): () =
   fail
 
 val h [a, b] (): () =
   f [(a, b)] g
 
+(* Symmetrical case. *)
 
+val f1 [a, b] ((a, b) -> ()): () =
+  fail
+
+val g1 [a] (a): () =
+  fail
+
+val h1 [a, b] (): () =
+  f1 [a, b] (g1 [(a, b)])

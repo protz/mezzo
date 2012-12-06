@@ -1,2 +1,2 @@
-au BufRead,BufNewFile *.mz set filetype=ocaml
-au BufRead,BufNewFile *.mzi set filetype=ocaml
+au BufRead,BufNewFile *.mz set filetype=mezzo
+au BufRead,BufNewFile *.mzi set filetype=mezzo

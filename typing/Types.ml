@@ -1036,10 +1036,19 @@ module TypePrinter = struct
       (string str) ^^ hardline ^^ (string line)
     in
     let lines = map_terms env (fun { names; _ } binder ->
-      let names = print_names env names in
-      let perms = print_permission_list (env, binder) in
-      names ^^ space ^^ at ^^ space ^^ (nest 2 perms)
+      if List.exists (function
+        | User (mname, _) when not (Module.equal env.module_name mname) ->
+            true
+        | _ ->
+            false
+      ) names then
+        empty
+      else
+        let names = print_names env names in
+        let perms = print_permission_list (env, binder) in
+        names ^^ space ^^ at ^^ space ^^ (nest 2 perms)
     ) in
+    let lines = List.filter ((<>) empty) lines in
     let lines = join break1 lines in
     header ^^ (nest 2 (break1 ^^ lines))
   ;;

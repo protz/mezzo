@@ -219,8 +219,16 @@ and add (env: env) (point: point) (t: typ): env =
   (* Break up this into a type + permissions. *)
   let t, perms = collect t in
 
-  (* Simplify the (potentially) function type. *)
-  let t, _ = TypeOps.cleanup_function_type env t None in
+  (* Simplify the (potentially) function type. Normally, we already did this
+   * everywhere it's needed, but if we learnt new information since (e.g.
+   * unified variables), this may still be able to do something useful.
+   * 20121206: the entire test suite still works if I remove this line, probably
+   * because everything [TypeOps] can figure out, the subtraction can figure out
+   * too later on. I'm still leaving it in because 1) someone may forget to call
+   * this function in some other context, 2) it will make types smaller, which
+   * is better for debugging, and 3) it's not that expensive because I believe
+   * types are relatively small. *)
+  let t, _ = TypeOps.prepare_function_type env t None in
 
   TypePrinter.(Log.debug ~level:4 "%s[%sadding to %a] %a"
     Bash.colors.Bash.red Bash.colors.Bash.default
@@ -280,8 +288,13 @@ and add_perm (env: env) (t: typ): env =
   | TyEmpty ->
       env
   | TyPoint p ->
-      Log.check (get_kind env p = KPerm) "Only kind PERM";
-      add_floating_permission env p
+      begin match structure env p with
+      | Some t ->
+          add_perm env t
+      | None ->
+          add_floating_permission env p
+      end
+ 
   | _ ->
       Log.error "This only works for types with kind PERM."
 
@@ -725,6 +738,17 @@ and sub_type_real env t1 t2 =
       sub_type env t1 t2
 
   | TyArrow (t1, t2), TyArrow (t'1, t'2) ->
+      (* Strip the non-duplicable parts out of the environment. *)
+      let env, non_dup = fold_terms env (fun (env, acc) point _ binding ->
+        let dup, non_dup =
+          List.partition (FactInference.is_duplicable env) binding.permissions
+        in
+        let env =
+          replace_term env point (function binding -> { binding with permissions = dup })
+        in
+        let non_dup = List.map (fun t -> TyAnchoredPermission (TyPoint point, t)) non_dup in
+        env, non_dup @ acc
+      ) (env, []) in
       Log.debug "%sArrow / Arrow, left%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
@@ -732,7 +756,10 @@ and sub_type_real env t1 t2 =
       Log.debug "%sArrow / Arrow, right%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
-      sub_type env t2 t'2
+      sub_type env t2 t'2 >>= fun env ->
+      Log.debug ~level:4 "Adding back %a"
+        TypePrinter.ptype (env, fold_star non_dup);
+      Some (List.fold_left add_perm env non_dup)
 
   (* "(t1 | p1)" - "(t2 | p2)" means doing [t1 - t2], adding all of [p1],
    * removing all of [p2]. But the order in which we perform these operations
