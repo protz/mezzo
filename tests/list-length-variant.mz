@@ -9,3 +9,9 @@ val length [a] (xs : list a) : int =
   iter (count, xs);
   !c
 
+val length [a] (xs : list a) : int =
+  let count (n: int, x : a) : int =
+    n + 1
+  in
+  fold_left (count, 0, xs)
+
