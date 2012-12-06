@@ -234,25 +234,27 @@ val min_binding
 
 (* [extract_min_binding] extracts the node that contains the minimum key.
    It returns both this node (which can be re-used) and the remaining,
-   re-organized tree. *)
+   re-organized tree. By convention, instead of returning a pair, we
+   return a single node, which contains the minimum key, and whose
+   right child is the remaining tree. *)
 
 val rec extract_min_binding
   [k, a]
   (consumes t : Node { left: tree k a; key: k; value: a; right: tree k a; height: int })
-  : (Node { left: Empty; key: k; value: a; right: unknown; height: int },
-    tree k a)
+  :             Node { left:    Empty; key: k; value: a; right: tree k a; height: int }
   =
   match t.left with
   | Empty ->
-      (* Extract the node [t]. The sub-tree [t.right] is what remains. *)
-      t, t.right
+      (* The desired node is [t], and the sub-tree [t.right] is what remains. *)
+      t
   | Node ->
-      (* Extract a node out of the left sub-tree. *)
-      let node, left = extract_min_binding t.left in
+      (* Extract the minimum node out of the left sub-tree. *)
+      let node = extract_min_binding t.left in
       (* Update in place the left sub-tree. *)
-      t.left <- left;
+      t.left <- node.right;
       (* Perform a rotation at the root if required, and return. *)
-      node, bal t
+      node.right <- bal t;
+      node
   end
 
 val merge [k, a] (consumes t1: tree k a, consumes t2: tree k a) : tree k a =
@@ -261,10 +263,9 @@ val merge [k, a] (consumes t1: tree k a, consumes t2: tree k a) : tree k a =
   | t, Empty -> t
   | Node, Node ->
       (* Extract the minimum node out of [t2]... *)
-      let root, t2 = extract_min_binding t2 in
+      let root = extract_min_binding t2 in
       (* And re-use this node to become the new root. *)
       root.left <- t1;
-      root.right <- t2;
       bal root
   end
 
@@ -435,25 +436,12 @@ val concat [k, a] (consumes t1: tree k a, consumes t2: tree k a) : tree k a =
   | Empty, t -> t
   | t, Empty -> t
   | Node, Node ->
-      let node, t2 = extract_min_binding t2 in
-      node.left <- t1;
-      node.right <- t2;
-      join node
+      let root = extract_min_binding t2 in
+      root.left <- t1;
+      join root
   end
 
 (*
-
-    (* Merge two trees l and r into one.
-       All elements of l must precede the elements of r.
-       No assumption on the heights of l and r. *)
-
-    let concat t1 t2 =
-      match (t1, t2) with
-        (Empty, t) -> t
-      | (t, Empty) -> t
-      | (_, _) ->
-          let (x, d) = min_binding t2 in
-          join t1 x d (remove_min_binding t2)
 
     let concat_or_join t1 v d t2 =
       match d with
