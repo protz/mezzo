@@ -952,7 +952,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       | Some (remaining_perms, (perm, clause)) ->
           if equal env clause ty_bottom then
             (* The clause is unspecified; we must rely on the user-provided type
-             * annotation to find out what is is. *)
+             * annotation to find out what it is. *)
             match t with
             | None ->
                 raise_error env AdoptsNoAnnotation
@@ -985,6 +985,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       end
 
   | ETake (x, e) ->
+      (* TEMPORARY possible bug: it seems to me that we should require the
+	 permission [x @ dynamic] *)
       let env, x = check_expression env ?hint x in
       let env, y = check_expression env ?hint e in
       begin match Hml_List.find_opt (has_adopts_clause env) (get_permissions env y) with
