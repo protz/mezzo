@@ -55,5 +55,5 @@ let mkinfix e1 o e2 =
 ;;
 
 let mkdatacon d = {
-  datacon_name = d; datacon_previous_name = Datacon.register "<invalid"
+  datacon_name = d; datacon_previous_name = Datacon.register "<invalid>"
 };;
