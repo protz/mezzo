@@ -3,4 +3,4 @@
 val length [a] (list::list a): int =
   fail
 
-val the_length = length Pervasives::nil
+val the_length = length list::nil

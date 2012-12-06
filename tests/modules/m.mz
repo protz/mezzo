@@ -1,5 +1,5 @@
-open A
-open B
-open C
+open a
+open b
+open c
 
 val v: foo_a = g ((), f)

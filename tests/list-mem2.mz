@@ -1,4 +1,4 @@
-open List
+open list
 
 (* This is a variant of [List::mem]. It is defined in terms of [find] instead of
    being defined directly. *)

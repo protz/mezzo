@@ -1,4 +1,4 @@
-open Pervasives (* TEMPORARY *)
+open pervasives (* TEMPORARY *)
 
 mutable data tree k a =
   | Empty

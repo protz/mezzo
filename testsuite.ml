@@ -138,7 +138,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("arithmetic.mz", fun do_it ->
     let env = do_it () in
-    let int = find_type_by_name env ~mname:"Core" "int" in
+    let int = find_type_by_name env ~mname:"core" "int" in
     let foo = point_by_name env "foo" in
     let bar = point_by_name env "bar" in
     check env foo int;
@@ -161,7 +161,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("function.mz", fun do_it ->
     let env = do_it () in
-    let int = find_type_by_name env ~mname:"Core" "int" in
+    let int = find_type_by_name env ~mname:"core" "int" in
     let foobar = point_by_name env "foobar" in
     check env foobar (tuple [int; int]));
 
@@ -290,7 +290,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let env = do_it () in
     let v4 = point_by_name env "v4" in
     let w = find_type_by_name env "w" in
-    let int = find_type_by_name env ~mname:"Core" "int" in
+    let int = find_type_by_name env ~mname:"core" "int" in
     let t = TyApp (w, [int]) in
     check env v4 t);
 
@@ -298,7 +298,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let env = do_it () in
     let v5 = point_by_name env "v5" in
     let v = find_type_by_name env "v" in
-    let int = find_type_by_name env ~mname:"Core" "int" in
+    let int = find_type_by_name env ~mname:"core" "int" in
     let t = TyApp (v, [int; int]) in
     check env v5 t);
 
@@ -306,7 +306,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let env = do_it () in
     let v6 = point_by_name env "v6" in
     let v = find_type_by_name env "v" in
-    let int = find_type_by_name env ~mname:"Core" "int" in
+    let int = find_type_by_name env ~mname:"core" "int" in
     let t = TyForall (dummy_binding KType,
       TyApp (v, [int; TyVar 0])
     )
@@ -338,7 +338,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let env = do_it () in
     let v9 = point_by_name env "v9" in
     let ref = find_type_by_name env "ref" in
-    let int = find_type_by_name env ~mname:"Core" "int" in
+    let int = find_type_by_name env ~mname:"core" "int" in
     let t = TyApp (ref, [int]) in
     check env v9 t);
 
@@ -354,14 +354,14 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let env = do_it () in
     let v11 = point_by_name env "v11" in
     let ref = find_type_by_name env "ref" in
-    let int = find_type_by_name env ~mname:"Core" "int" in
+    let int = find_type_by_name env ~mname:"core" "int" in
     let t = TyApp (ref, [TyApp (ref, [int])]) in
     check env v11 t);
 
   ("merge12.mz", fun do_it ->
     let env = do_it () in
     let v12 = point_by_name env "v12" in
-    let int = find_type_by_name env ~mname:"Core" "int" in
+    let int = find_type_by_name env ~mname:"core" "int" in
     (* Urgh, have to input internal syntax to check function types... maybe we
      * should write surface syntax here and have it simplified by the desugar
      * procedure? ... *)
@@ -377,7 +377,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let env = do_it () in
     let v13 = point_by_name env "v13" in
     let x = point_by_name env "x" in
-    let int = find_type_by_name env ~mname:"Core" "int" in
+    let int = find_type_by_name env ~mname:"core" "int" in
     let t = find_type_by_name env "t" in
     let t = TyApp (t, [int]) in
     check env v13 t;
@@ -386,7 +386,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge14.mz", fun do_it ->
     let env = do_it () in
     let v14 = point_by_name env "v14" in
-    let int = find_type_by_name env ~mname:"Core" "int" in
+    let int = find_type_by_name env ~mname:"core" "int" in
     let t = find_type_by_name env "t" in
     (* Look at how fancy we used to be when we had singleton-subtyping! *)
     (* let t = TyExists (edummy_binding KTerm, TyBar (
@@ -558,7 +558,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("list-length.mz", fun do_it ->
     let env = do_it () in
-    let int = find_type_by_name env ~mname:"Core" "int" in
+    let int = find_type_by_name env ~mname:"core" "int" in
     let zero = point_by_name env "zero" in
     check env zero int);
 

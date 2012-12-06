@@ -1,4 +1,4 @@
-open A
-open B
+open a
+open b
 
 val g : ((), =f) -> foo_a

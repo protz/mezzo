@@ -427,7 +427,7 @@ let merge_type_annotations env t1 t2 =
 
 let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * point =
 
-  let t_int = find_type_by_name env ~mname:"Core" "int" in
+  let t_int = find_type_by_name env ~mname:"core" "int" in
 
   (* [return t] creates a new point with type [t] available for it, and returns
    * the environment as well as the point *)
