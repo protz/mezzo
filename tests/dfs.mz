@@ -1,0 +1,48 @@
+open Pervasives
+open list
+
+(* It would be great if we could abstract this code so as to work
+   with an arbitrary graph structure. For the moment, let's work
+   with a fixed, dummy type of graphs. *)
+
+(* The [graph] object contains the list of the graph's roots, and
+   also serves as an adopter for the graph nodes. *)
+
+(* The type parameter [a] is the type of the information contained
+   in each graph node. *)
+
+mutable data graph a =
+  Graph { roots: list dynamic } adopts node a
+
+mutable data node a =
+  Node  { children: list dynamic; payload: a; marked: bool }
+
+(* Depth-first (prefix) numbering. *)
+
+val traverse (g : graph int) : () =
+  
+  (* This integer reference counts how many nodes we have discovered. *)
+  let c = newref 0 in
+
+  (* The recursive function. *)
+  let rec visit (n : dynamic | g @ graph int * c @ ref int) : () =
+    take n from g;
+    if n.marked then
+      give n to g
+    else begin
+      n.marked <- True;
+      n.payload <- !c;
+      c := !c + 1;
+      (* TEMPORARY BUG? I don't understand this type error, which seems to
+         speak of a mismatch between (int, int) and int *)
+      (* TEMPORARY SECOND BUG? if I replace !c + 1 with just !c, I get
+         a mysterious type error at the "give" instruction below. *)
+      let children = n.children in
+      give n to g;
+      iter (visit, children)
+    end
+  in
+
+  (* Visit each of the roots. *)
+  iter (visit, g.roots)
+

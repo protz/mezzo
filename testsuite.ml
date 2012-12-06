@@ -687,6 +687,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("ref-confusion.mz", simple_test (Fail (function _ -> true)));
 
+  ("dfs.mz", simple_test Pass);
+
 ]
 
 let _ =
