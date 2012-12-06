@@ -26,10 +26,12 @@ val create [k, a] (consumes (l: tree k a, x: k, d: a, r: tree k a)) : tree k a =
 val singleton [k, a] (consumes (x: k, d: a)) : tree k a =
   create (Empty, x, d, Empty)
 
-val update_height [k, a] (t: Node { left: tree k a; key: k; value: a; right: tree k a; height: int }) : () =
+val update_height [k, a] (
+  consumes t : Node { left: tree k a; key: k; value: a; right: tree k a; height: unknown }
+) : ( |    t @ Node { left: tree k a; key: k; value: a; right: tree k a; height: int     }) =
   t.height <- max (height t.left, height t.right) + 1
 
-val bal [k, a] (consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: int }) : tree k a =
+val bal [k, a] (consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: unknown }) : tree k a =
 
   (* Extract the two sub-trees and their heights. *)
   let Node { left = l; right = r } = t in
@@ -409,7 +411,7 @@ val rec add_max_binding [k, a]
       bal t
   end
 
-val rec join [k, a] (consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: int }) : tree k a =
+val rec join [k, a] (consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: unknown }) : tree k a =
   let left, right = t.left, t.right in
   match t.left, t.right with
   | Empty, _ ->
@@ -478,11 +480,41 @@ val rec split [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a)
       end
   end
 
+(* [concat_or_join] takes a tree whose root node may or may not contain a value. *)
+
+val concat_or_join [k, a] (consumes t: Node { left: tree k a; key: k; value: option a; right: tree k a; height: unknown }) : tree k a =
+  match t.value with
+  | Some { contents = d } -> (* BUG if I replace "contents" with "value", I get Assert_failure *)
+      t.value <- d;
+      join t
+  | None ->
+      concat (t.left, t.right)
+  end
+
+val rec merge [k, a] (
+  cmp: (k, k) -> int,
+  f: (k, consumes option a, consumes option a) -> option a,
+  consumes s1: tree k a,
+  consumes s2: tree k a
+) : tree k a =
+  match s1, s2 with
+  | Empty, Empty ->
+      s1
+  | Node, _ ->
+      if s1.height >= height s2 then begin
+        let root2 = split (cmp, s1.key, s2) in
+	root2.left <- merge (cmp, f, s1.left, root2.left);
+	root2.key <- s1.key;
+	root2.value <- f (s1.key, some s1.value, root2.value);
+	root2.right <- merge (cmp, f, s1.right, root2.right);
+	concat_or_join root2
+      end
+      else fail (* TEMPORARY *)
+  (* TEMPORARY missing cases *)
+  end
+
+
 (*
-val concat_or_join [k, a] t1 v d t2 =
-      match d with
-      | Some d -> join t1 v d t2
-      | None -> concat t1 t2
 *)
 (*
 
