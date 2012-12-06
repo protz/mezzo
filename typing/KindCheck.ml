@@ -187,7 +187,7 @@ let print_error buf (env, raw_error) =
         Datacon.p d
   | AdopterNotExclusive x ->
       Printf.bprintf buf
-        "%a type %a is trying to adopt something but it is not marked as exclusive"
+        "%a type %a carries an adopts clause, but is not marked as mutable"
         Lexer.p env.location
         Variable.p x
   | NoAbstractTypesInImplementation x ->
@@ -923,7 +923,7 @@ module KindPrinter = struct
     in
     let sep = break1 ^^ bar ^^ space in
     let flag = match flag with
-      | SurfaceSyntax.Exclusive -> string "exclusive" ^^ space
+      | SurfaceSyntax.Exclusive -> string "mutable" ^^ space
       | SurfaceSyntax.Duplicable -> empty
     in
     (* The whole blurb *)
