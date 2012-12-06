@@ -55,6 +55,7 @@ syn keyword  mezzoTodo contained TODO FIXME XXX NOTE
 
 
 " Blocks
+syn region   mezzoEnd matchgroup=mezzoKeyword start="\<match\>" matchgroup=mezzoKeyword end="\<end\>" contains=ALLBUT,@mezzoContained,mezzoEndErr
 syn region   mezzoEnd matchgroup=mezzoKeyword start="\<begin\>" matchgroup=mezzoKeyword end="\<end\>" contains=ALLBUT,@mezzoContained,mezzoEndErr
 
 " "if"
@@ -97,7 +98,7 @@ syn keyword  mezzoKeyword  constraint else
 syn keyword  mezzoKeyword  exception external fun
 
 syn keyword  mezzoKeyword  in inherit initializer
-syn keyword  mezzoKeyword  land lazy let match
+syn keyword  mezzoKeyword  land lazy let
 syn keyword  mezzoKeyword  method mutable new of
 syn keyword  mezzoKeyword  parser private raise rec
 syn keyword  mezzoKeyword  try type
