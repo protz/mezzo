@@ -441,23 +441,32 @@ val concat [k, a] (consumes t1: tree k a, consumes t2: tree k a) : tree k a =
       join root
   end
 
+val rec split [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a) : (tree k a, option a, tree k a) =
+  match t with
+  | Empty ->
+      Empty, none, t
+  | Node ->
+      let c = cmp (x, t.key) in
+      if c = 0 then
+	t.left, some t.value, t.right
+      else if c < 0 then begin
+        let ll, pres, rl = split (cmp, x, t.left) in
+	t.left <- rl;
+	ll, pres, join t
+      end
+      else begin
+        let lr, pres, rr = split (cmp, x, t.right) in
+	t.right <- lr;
+	join t, pres, rr
+      end
+  end
+
 (*
 
     let concat_or_join t1 v d t2 =
       match d with
       | Some d -> join t1 v d t2
       | None -> concat t1 t2
-
-    let rec split x = function
-        Empty ->
-          (Empty, None, Empty)
-      | Node(l, v, d, r, _) ->
-          let c = Ord.compare x v in
-          if c = 0 then (l, Some d, r)
-          else if c < 0 then
-            let (ll, pres, rl) = split x l in (ll, pres, join rl v d r)
-          else
-            let (lr, pres, rr) = split x r in (join l v d lr, pres, rr)
 
     let rec merge f s1 s2 =
       match (s1, s2) with
