@@ -1,0 +1,11 @@
+open list
+
+(* An example where we try to adopt a non-exclusive type. Needs a better
+   error message. *)
+
+mutable data graph a =
+  Graph { roots: list dynamic } adopts node a
+
+data node a =
+  Node  { children: list dynamic; payload: a }
+
