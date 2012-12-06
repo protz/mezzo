@@ -681,6 +681,12 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("mutableTreeMap.mz", simple_test Pass);
 
+  ("adopts-non-mutable-type.mz", simple_test (Fail (function _ -> true)));
+
+  ("adopts-type-variable.mz", simple_test (Fail (function _ -> true)));
+
+  ("ref-confusion.mz", simple_test (Fail (function _ -> true)));
+
 ]
 
 let _ =
