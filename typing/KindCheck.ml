@@ -319,10 +319,14 @@ let open_module_in (mname: Module.name) (env: env): env =
   List.fold_left bind_external env names
 ;;
 
-let kind_external { env; _ } mname x =
+let kind_external env mname x =
   let open Types in
-  let p = point_by_name env ~mname x in
-  get_kind env p
+  try
+    let { env; _ } = env in
+    let p = point_by_name env ~mname x in
+    get_kind env p
+  with Not_found ->
+    unbound env (Variable.register (Module.print mname ^ "::" ^ Variable.print x))
 ;;
 
 (* [locate env p1 p2] extends [env] with the provided location information. *)
