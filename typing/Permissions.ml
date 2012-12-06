@@ -219,8 +219,16 @@ and add (env: env) (point: point) (t: typ): env =
   (* Break up this into a type + permissions. *)
   let t, perms = collect t in
 
-  (* Simplify the (potentially) function type. *)
-  let t, _ = TypeOps.cleanup_function_type env t None in
+  (* Simplify the (potentially) function type. Normally, we already did this
+   * everywhere it's needed, but if we learnt new information since (e.g.
+   * unified variables), this may still be able to do something useful.
+   * 20121206: the entire test suite still works if I remove this line, probably
+   * because everything [TypeOps] can figure out, the subtraction can figure out
+   * too later on. I'm still leaving it in because 1) someone may forget to call
+   * this function in some other context, 2) it will make types smaller, which
+   * is better for debugging, and 3) it's not that expensive because I believe
+   * types are relatively small. *)
+  let t, _ = TypeOps.prepare_function_type env t None in
 
   TypePrinter.(Log.debug ~level:4 "%s[%sadding to %a] %a"
     Bash.colors.Bash.red Bash.colors.Bash.default
