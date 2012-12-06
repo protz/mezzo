@@ -374,37 +374,74 @@ val exists [k, a, p :: PERM] (
   in
   not (for_all (notf, t))
 
+val rec add_min_binding [k, a]
+  (consumes binding: Node { left: Empty; key: k; value: a; right: unknown; height: unknown },
+   consumes t: tree k a) : tree k a =
+  match t with
+  | Empty ->
+      (* Turn [binding] into a singleton tree. *)
+      binding.right <- t; (* re-use the memory block at [t], which is [Empty] *)
+      binding.height <- 1;
+      binding
+  | Node ->
+      t.left <- add_min_binding (binding, t.left);
+      bal t
+  end
+
+val rec add_max_binding [k, a]
+  (consumes binding: Node { left: unknown; key: k; value: a; right: Empty; height: unknown },
+   consumes t: tree k a) : tree k a =
+  match t with
+  | Empty ->
+      (* Turn [binding] into a singleton tree. *)
+      binding.left <- t; (* re-use the memory block at [t], which is [Empty] *)
+      binding.height <- 1;
+      binding
+  | Node ->
+      t.right <- add_max_binding (binding, t.right);
+      bal t
+  end
+
+val rec join [k, a] (consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: int }) : tree k a =
+  let left, right = t.left, t.right in
+  match t.left, t.right with
+  | Empty, _ ->
+      add_min_binding (t, right)
+  | _, Empty ->
+      add_max_binding (t, left)
+  | Node, Node ->
+      if left.height > right.height + 2 then begin
+	(* The left node becomes the root. *)
+	(* The root node becomes the right child. *)
+	t.left <- left.right;
+	left.right <- join t;
+	bal left
+      end
+      else if right.height > left.height + 2 then begin
+	t.right <- right.left;
+	right.left <- join t;
+	bal right
+      end
+      else begin
+	update_height t;
+	t
+      end
+  end
+
+(* Note: [concat] is just like [merge], except it uses [join] instead of [bal]. *)
+
+val concat [k, a] (consumes t1: tree k a, consumes t2: tree k a) : tree k a =
+  match t1, t2 with
+  | Empty, t -> t
+  | t, Empty -> t
+  | Node, Node ->
+      let node, t2 = extract_min_binding t2 in
+      node.left <- t1;
+      node.right <- t2;
+      join node
+  end
+
 (*
-
-    (* Beware: those two functions assume that the added k is *strictly*
-       smaller (or bigger) than all the present keys in the tree; it
-       does not test for equality with the current min (or max) key.
-
-       Indeed, they are only used during the "join" operation which
-       respects this precondition.
-    *)
-
-    let rec add_min_binding k v = function
-      | Empty -> singleton k v
-      | Node (l, x, d, r, h) ->
-        bal (add_min_binding k v l) x d r
-
-    let rec add_max_binding k v = function
-      | Empty -> singleton k v
-      | Node (l, x, d, r, h) ->
-        bal l x d (add_max_binding k v r)
-
-    (* Same as create and bal, but no assumptions are made on the
-       relative heights of l and r. *)
-
-    let rec join l v d r =
-      match (l, r) with
-        (Empty, _) -> add_min_binding v d r
-      | (_, Empty) -> add_max_binding v d l
-      | (Node(ll, lv, ld, lr, lh), Node(rl, rv, rd, rr, rh)) ->
-          if lh > rh + 2 then bal ll lv ld (join lr v d r) else
-          if rh > lh + 2 then bal (join l v d rl) rv rd rr else
-          create l v d r
 
     (* Merge two trees l and r into one.
        All elements of l must precede the elements of r.
