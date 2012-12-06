@@ -1,4 +1,4 @@
-open Pervasives
+open pervasives
 open list
 
 val the_list = cons [int] (3, cons [int] (2, cons [int] (1, nil)))
