@@ -349,6 +349,12 @@ val rec map [k, a1, a2, b, p :: PERM] duplicable k => (
       }
   end
 
+(* [copy] could be defined directly, but is here defined as a special case of [map]. *)
+
+val copy [k, a, b] duplicable k => (f: a -> b, t: tree k a) : tree k b =
+  let g (x: k, d: a) : b = f d in
+  map (g, t)
+
 val rec fold [k, a1, a2, b, p :: PERM] (
   f: (k, consumes d:        a1, consumes accu: b | p) -> (b | d @        a2),
          consumes t: tree k a1, consumes accu: b | p)  : (b| t @ tree k a2) =
@@ -441,32 +447,45 @@ val concat [k, a] (consumes t1: tree k a, consumes t2: tree k a) : tree k a =
       join root
   end
 
-val rec split [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a) : (tree k a, option a, tree k a) =
+(* Our implementation is [split] is unusual in that it returns a tree
+   whose root node may or may not contain a value. This allows us to
+   almost completely avoid memory allocation. *)
+
+val rec split [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a)
+  : Node { left: tree k a; key: unknown; value: option a; right: tree k a; height: unknown } =
   match t with
   | Empty ->
-      Empty, none, t
+      (* Allocate a new node, containing no value, and whose sub-trees are empty. *)
+      Node { left = Empty; key = (); value = none; right = t; height = () }
   | Node ->
       let c = cmp (x, t.key) in
-      if c = 0 then
-	t.left, some t.value, t.right
+      if c = 0 then begin
+	(* We found the desired key. *)
+	t.value <- some t.value; (* ah ha! look at this, feeble ML programmers *)
+	t
+      end
       else if c < 0 then begin
-        let ll, pres, rl = split (cmp, x, t.left) in
-	t.left <- rl;
-	ll, pres, join t
+        let root = split (cmp, x, t.left) in
+	t.left <- root.right;
+	root.right <- join t;
+	root
       end
       else begin
-        let lr, pres, rr = split (cmp, x, t.right) in
-	t.right <- lr;
-	join t, pres, rr
+        let root = split (cmp, x, t.right) in
+	t.right <- root.left;
+	root.left <- join t;
+	root
       end
   end
 
 (*
-
-    let concat_or_join t1 v d t2 =
+val concat_or_join [k, a] t1 v d t2 =
       match d with
       | Some d -> join t1 v d t2
       | None -> concat t1 t2
+*)
+(*
+
 
     let rec merge f s1 s2 =
       match (s1, s2) with
@@ -546,4 +565,10 @@ val rec split [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a) : (tree k 
     let choose = min_binding
 
 *)
+
+(* A version of [split] for the end user. *)
+
+val split [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a) : (tree k a, option a, tree k a) =
+  let t = split (cmp, x, t) in
+  t.left, t.value, t.right
 
