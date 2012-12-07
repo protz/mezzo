@@ -42,7 +42,7 @@ mutable data ref a = Ref {
 }
 
 val newref : [a] (consumes a) -> ref a
-val (!) : [a] (consumes x: ref a) -> (a | x @ ref unknown)
+val (!) : [y :: TERM] (consumes x: Ref { contents = y }) -> (=y | x @ Ref { contents = y })
 val (:=) : [a, b] (consumes x: ref a, consumes b) -> ( | x @ ref b)
 
 
