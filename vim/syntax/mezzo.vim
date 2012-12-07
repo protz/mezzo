@@ -99,7 +99,7 @@ syn keyword  mezzoKeyword  exception external from fun give
 
 syn keyword  mezzoKeyword  in inherit initializer
 syn keyword  mezzoKeyword  land lazy let
-syn keyword  mezzoKeyword  method mutable new of
+syn keyword  mezzoKeyword  method mutable new of owns
 syn keyword  mezzoKeyword  parser private raise rec
 syn keyword  mezzoKeyword  take to try type
 syn keyword  mezzoKeyword  virtual when while with

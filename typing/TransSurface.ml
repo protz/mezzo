@@ -761,6 +761,9 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   | ETake (x, e) ->
       E.ETake (translate_expr env x, translate_expr env e)
 
+  | EOwns (x, e) ->
+      E.EOwns (translate_expr env x, translate_expr env e)
+
   | EFail ->
       E.EFail
 

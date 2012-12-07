@@ -153,6 +153,7 @@ let rec token = lexer
 | "from" -> locate lexbuf FROM
 | "give" -> locate lexbuf GIVE
 | "to" -> locate lexbuf TO
+| "owns" -> locate lexbuf OWNS
 | "consumes" -> locate lexbuf CONSUMES
 | "unknown" -> locate lexbuf UNKNOWN
 | "dynamic" -> locate lexbuf DYNAMIC

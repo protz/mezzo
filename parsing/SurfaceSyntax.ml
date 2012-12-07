@@ -234,6 +234,7 @@ and expression =
   (* Adoption/abandon *)
   | EGive of expression * expression
   | ETake of expression * expression
+  | EOwns of expression * expression
   (* fail *)
   | EFail
 

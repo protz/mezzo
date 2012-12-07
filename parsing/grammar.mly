@@ -53,7 +53,7 @@
 %token          CONSUMES DUPLICABLE FACT ABSTRACT
 %token          VAL LET REC AND IN DOT WITH BEGIN END MATCH
 %token          IF THEN ELSE
-%token          TAKE FROM GIVE TO ADOPTS
+%token          TAKE FROM GIVE TO ADOPTS OWNS
 %token<int>     INT
 %token          MINUS
 %token<string>  OPPREFIX OPINFIX0 OPINFIX1 OPINFIX2 OPINFIX3
@@ -62,6 +62,7 @@
 %nonassoc THEN
 %nonassoc ELSE
 
+%nonassoc OWNS
 %left     OPINFIX0 EQUAL (* EQUAL is also a OPINFIX0 *)
 %right    OPINFIX1
 %left     OPINFIX2 MINUS (* MINUS is also an OPINFIX2 *)
@@ -697,6 +698,8 @@ raw_algebraic_expression:
    [f - 1]. Like OCaml, we allow [-f x], which is interpreted as [-(f x)]. *)
 | MINUS e = application_expression
     { mkinfix (EInt 0) "-" e }
+| e1 = algebraic_expression OWNS e2 = algebraic_expression
+    { EOwns (e1, e2) }
 | e = raw_application_expression
     { e }
 

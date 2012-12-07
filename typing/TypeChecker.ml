@@ -427,7 +427,9 @@ let merge_type_annotations env t1 t2 =
 
 let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * point =
 
-  let t_int = find_type_by_name env ~mname:"core" "int" in
+  (* TEMPORARY pas de risque que l'utilisateur masque ces définitions? *)
+  let t_int = find_type_by_name env ~mname:"core" "int"
+  and t_bool = find_type_by_name env ~mname:"core" "bool" in
 
   (* [return t] creates a new point with type [t] available for it, and returns
    * the environment as well as the point *)
@@ -995,6 +997,28 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       | Some clause ->
           let env = Permissions.add env x clause in
           return env ty_unit
+      end
+
+  | EOwns (y, x) ->
+      (* Careful: the order of the parameters is reversed compared to [EGive]
+	 and [ETake]. *)
+      let env, x = check_expression env ?hint x in
+      if not (List.exists (equal env TyDynamic) (get_permissions env x)) then
+        raise_error env (NotDynamic x);
+      let env, y = check_expression env ?hint y in
+      (* Check that the type of [y] has an adopts clause (which implies that
+	 it is exclusive). This is a stronger condition than strictly required
+	 for type soundness (no condition on [y] would be enough) and for
+	 stability (exclusive-ness would be enough), but it should allow us
+	 to detect a few more programmer errors. *)
+      (* TEMPORARY if we have an exclusive permission for [x], then we could
+	 emit a warning, because in this case [y owns x] is certain to return
+	 false. *)
+      begin match Hml_List.find_opt (has_adopts_clause env) (get_permissions env y) with
+      | None ->
+          raise_error env (NoAdoptsClause y)
+      | Some _ ->
+          return env t_bool
       end
 
   | EExplained e ->

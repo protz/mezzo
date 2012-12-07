@@ -128,6 +128,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | EApply (e1, e2)
     | EGive (e1, e2)
     | ETake (e1, e2)
+    | EOwns (e1, e2)
     | ESequence (e1, e2) ->
         collect_expr e1 @ collect_expr e2
     | ELocated (expr, _, _)

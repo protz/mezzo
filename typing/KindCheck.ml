@@ -730,6 +730,7 @@ and check_expression (env: env) (expr: expression) =
 
   | EVar x ->
       let k, _ = find x env in
+      (* TEMPORARY check that only lambda-bound variables can appear in code *)
       if k <> KTerm then
         mismatch env KTerm k
 
@@ -798,7 +799,10 @@ and check_expression (env: env) (expr: expression) =
       check_expression env e2;
       check_expression env e3
 
-  | ESequence (e1, e2) ->
+  | ESequence (e1, e2)
+  | EGive (e1, e2)
+  | ETake (e1, e2)
+  | EOwns (e1, e2) ->
       check_expression env e1;
       check_expression env e2
 
@@ -808,9 +812,7 @@ and check_expression (env: env) (expr: expression) =
   | EInt _ ->
       ()
 
-  | EExplained e
-  | EGive (_, e)
-  | ETake (_, e) ->
+  | EExplained e ->
       check_expression env e
 
 
