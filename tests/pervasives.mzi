@@ -8,6 +8,10 @@ val false : bool
 
 data option a = Some { contents: a } | None
 
+data choice a b =
+  | Left  { contents: a }
+  | Right { contents: b }
+ 
 (* Interesting. You cannot put “val none : [a] option a”: although this
  * signature will be accepted, consumers will no longer know that [none] is
  * duplicable. Therefore, the first consumer that uses [none] will consume the

@@ -500,56 +500,73 @@ val rec merge [k, a] (
   match s1, s2 with
   | Empty, Empty ->
       s1
-  | Node, _ ->
-      if s1.height >= height s2 then begin
-        let root2 = split (cmp, s1.key, s2) in
-	root2.left <- merge (cmp, f, s1.left, root2.left);
-	root2.key <- s1.key;
-	root2.value <- f (s1.key, some s1.value, root2.value);
-	root2.right <- merge (cmp, f, s1.right, root2.right);
-	concat_or_join root2
-      end
-      else fail (* TEMPORARY *)
-  (* TEMPORARY missing cases *)
+  | _, _ ->
+      if height s1 >= height s2 then
+	match s1 with
+	| Node ->
+	    let root2 = split (cmp, s1.key, s2) in
+	    root2.left <- merge (cmp, f, s1.left, root2.left);
+	    root2.key <- s1.key;
+	    root2.value <- f (s1.key, some s1.value, root2.value);
+	    root2.right <- merge (cmp, f, s1.right, root2.right);
+	    concat_or_join root2
+        | Empty ->
+	    fail (* impossible *)
+        end
+      else
+	match s2 with
+	| Node ->
+	    let root1 = split (cmp, s2.key, s1) in
+	    root1.left <- merge (cmp, f, root1.left, s2.left);
+	    root1.key <- s2.key;
+	    root1.value <- f (s2.key, root1.value, some s2.value);
+	    root1.right <- merge (cmp, f, root1.right, s2.right);
+	    concat_or_join root1
+        | Empty ->
+	    fail (* impossible *)
+        end
   end
 
+(* Compared to OCaml's [filter], our [filter] is more general. Instead of
+   returning a Boolean value, the function [p] returns an option. This
+   allows us not only to drop certain entries, but also to modify the
+   existing entries, and possibly to change their type. *)
+
+val rec filter [k, a, b] (p: (k, consumes a) -> option b, consumes t: tree k a) : tree k b =
+  match t with
+  | Empty ->
+      t
+  | Node ->
+      t.left <- filter (p, t.left);
+      t.value <- p (t.key, t.value);
+      t.right <- filter (p, t.right);
+      concat_or_join t
+  end
+
+val rec partition [k, a, b, c] (p: (k, consumes a) -> choice b c, consumes t: tree k a) : (tree k b, tree k c) =
+  match t with
+  | Empty ->
+      t, Empty
+  | Node ->
+      let ll, lr = partition (p, t.left) in
+      let choice = p (t.key, t.value) in
+      let rl, rr = partition (p, t.right) in
+      match choice with
+      | Left ->
+	  t.left <- ll;
+	  t.value <- choice.contents;
+	  t.right <- rl;
+	  join t, concat (lr, rr)
+      | Right ->
+	  t.left <- lr;
+	  t.value <- choice.contents;
+	  t.right <- rr;
+	  concat (ll, rl), join t
+      end
+  end
 
 (*
-*)
-(*
 
-
-    let rec merge f s1 s2 =
-      match (s1, s2) with
-        (Empty, Empty) -> Empty
-      | (Node (l1, v1, d1, r1, h1), _) when h1 >= height s2 ->
-          let (l2, d2, r2) = split v1 s2 in
-          concat_or_join (merge f l1 l2) v1 (f v1 (Some d1) d2) (merge f r1 r2)
-      | (_, Node (l2, v2, d2, r2, h2)) ->
-          let (l1, d1, r1) = split v2 s1 in
-          concat_or_join (merge f l1 l2) v2 (f v2 d1 (Some d2)) (merge f r1 r2)
-      | _ ->
-          assert false
-
-    let rec filter p = function
-        Empty -> Empty
-      | Node(l, v, d, r, _) ->
-          (* call [p] in the expected left-to-right order *)
-          let l' = filter p l in
-          let pvd = p v d in
-          let r' = filter p r in
-          if pvd then join l' v d r' else concat l' r'
-
-    let rec partition p = function
-        Empty -> (Empty, Empty)
-      | Node(l, v, d, r, _) ->
-          (* call [p] in the expected left-to-right order *)
-          let (lt, lf) = partition p l in
-          let pvd = p v d in
-          let (rt, rf) = partition p r in
-          if pvd
-          then (join lt v d rt, concat lf rf)
-          else (concat lt rt, join lf v d rf)
 
     type 'a enumeration = End | More of key * 'a * 'a t * 'a enumeration
 

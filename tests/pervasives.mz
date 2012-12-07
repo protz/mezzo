@@ -2,6 +2,10 @@
 
 data option a = Some { contents: a } | None
 
+data choice a b =
+  | Left  { contents: a }
+  | Right { contents: b }
+
 mutable data ref a = Ref {
   contents: a;
 }
