@@ -40,8 +40,9 @@ val update_height [k, a] (
   t.height <- max (height t.left, height t.right) + 1
 
 (* The following (private) function re-organizes a tree, if required, by
-   performing a rotation at the root. The address of the new tree root is
-   returned. *)
+   performing a rotation at the root. The left and right sub-trees are
+   expected to have almost equal heights. The address of the new tree root
+   is returned. *)
 
 val bal [k, a] (
   consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: unknown }
@@ -252,8 +253,13 @@ val rec mem [k, a] (cmp: (k, k) -> int, x: k, t: tree k a) : bool =
 
 (* -------------------------------------------------------------------------- *)
 
-(* Note that [min_binding] is defined first for non-empty trees, then
-   extended to empty trees. *)
+(* Minimum and maximum elements. *)
+
+(* Because [min_binding] returns a binding but does not remove it from the
+   tree, it is restricted to duplicable keys and values. *)
+
+(* [min_binding] is defined first for non-empty trees, then extended to empty
+   trees. *)
 
 val rec min_binding
   [k, a] duplicable k, duplicable a =>
@@ -277,8 +283,27 @@ val min_binding
       some (min_binding t)
   end
 
-val choose =
-  min_binding
+val rec max_binding
+  [k, a] duplicable k, duplicable a =>
+  (t : Node { left: tree k a; key: k; value: a; right: tree k a; height: int })
+  : (k, a) =
+  match t.right with
+  | Empty ->
+      t.key, t.value
+  | Node ->
+      max_binding t.right
+  end
+
+val max_binding
+  [k, a] duplicable k, duplicable a =>
+  (t : tree k a)
+  : option (k, a) =
+  match t with
+  | Empty ->
+      none
+  | Node ->
+      some (max_binding t)
+  end
 
 (* [extract_min_binding] extracts the node that contains the minimum key.
    It returns both this node (which can be re-used) and the remaining,
@@ -304,6 +329,62 @@ val rec extract_min_binding
       node.right <- bal t;
       node
   end
+
+val rec extract_max_binding
+  [k, a]
+  (consumes t : Node { left: tree k a; key: k; value: a; right: tree k a; height: int })
+  :             Node { left: tree k a; key: k; value: a; right:    Empty; height: int }
+  =
+  match t.right with
+  | Empty ->
+      t
+  | Node ->
+      let node = extract_max_binding t.right in
+      t.right <- node.left;
+      node.left <- bal t;
+      node
+  end
+
+(* The private function [add_min_binding] takes a tree node whose only
+   relevant fields are [key] and [value]. The [left] field is supposed
+   to contain [Empty]. The [right] and [height] fields are irrelevant.
+   This node is inserted into the tree [t], where it is expected to
+   become the new minimum node. *)
+
+val rec add_min_binding [k, a]
+  (consumes node: Node { left: Empty; key: k; value: a; right: unknown; height: unknown },
+   consumes t: tree k a) : tree k a =
+  match t with
+  | Empty ->
+      (* Turn [node] into a singleton tree. *)
+      node.right <- t; (* re-use the memory block at [t], which is [Empty] *)
+      node.height <- 1;
+      node
+  | Node ->
+      t.left <- add_min_binding (node, t.left);
+      bal t
+  end
+
+val rec add_max_binding [k, a]
+  (consumes node: Node { left: unknown; key: k; value: a; right: Empty; height: unknown },
+   consumes t: tree k a) : tree k a =
+  match t with
+  | Empty ->
+      (* Turn [node] into a singleton tree. *)
+      node.left <- t; (* re-use the memory block at [t], which is [Empty] *)
+      node.height <- 1;
+      node
+  | Node ->
+      t.right <- add_max_binding (node, t.right);
+      bal t
+  end
+
+(* -------------------------------------------------------------------------- *)
+
+(* Removal. *)
+
+(* The private function [merge] combines two trees that have almost equal
+   heights. *)
 
 val merge [k, a] (consumes t1: tree k a, consumes t2: tree k a) : tree k a =
   match t1, t2 with
@@ -344,6 +425,10 @@ val rec remove [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a)
       end
   end
 
+(* -------------------------------------------------------------------------- *)
+
+(* Iteration. *)
+
 (* Compared with OCaml's [iter], our [iter] function is generalized
    to allow early termination. The client function, [f], is allowed
    to return a Boolean flag, which indicates whether iteration should
@@ -377,6 +462,24 @@ val rec iter [k, a, p :: PERM] (
       else False
   end
 
+val for_all =
+  iter
+
+(* [exists] could be implemented directly, but an implementation in
+   terms of [for_all] is preferred, as a test of the type-checker. *)
+
+val exists [k, a, p :: PERM] (
+  f: (k,           a | p) -> bool,
+         t: tree k a | p)  : bool =
+  let notf (key: k, value: a | p) : bool =
+    not (f (key, value))
+  in
+  not (for_all (notf, t))
+
+(* -------------------------------------------------------------------------- *)
+
+(* Map. *)
+
 (* Our [map] is modeled after OCaml's [mapi]. One could in fact offer
    even more generality by allowing keys to be copied/translated, as
    long as the key ordering is preserved. *)
@@ -402,6 +505,13 @@ val rec map [k, a1, a2, b, p :: PERM] duplicable k => (
 val copy [k, a, b] duplicable k => (f: a -> b, t: tree k a) : tree k b =
   let g (x: k, d: a) : b = f d in
   map (g, t)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Fold. *)
+
+(* The two [fold] functions have the same type, but differ in the order
+   in which the tree is visited. *)
 
 val rec fold_ascending [k, a1, a2, b, p :: PERM] (
   f: (k, consumes d:        a1, consumes accu: b | p) -> (b | d @        a2),
@@ -429,50 +539,17 @@ val rec fold_descending [k, a1, a2, b, p :: PERM] (
       accu
   end
 
-val fold = fold_ascending
+val fold =
+  fold_ascending
 
-val for_all = iter
+(* -------------------------------------------------------------------------- *)
 
-(* [exists] could be implemented directly, but an implementation in
-   terms of [for_all] is preferred, as a test of the type-checker. *)
+(* The private function [join] has the same specification as [bal], except
+   the left and right sub-trees may have arbitrary heights. *)
 
-val exists [k, a, p :: PERM] (
-  f: (k,           a | p) -> bool,
-         t: tree k a | p)  : bool =
-  let notf (key: k, value: a | p) : bool =
-    not (f (key, value))
-  in
-  not (for_all (notf, t))
-
-val rec add_min_binding [k, a]
-  (consumes binding: Node { left: Empty; key: k; value: a; right: unknown; height: unknown },
-   consumes t: tree k a) : tree k a =
-  match t with
-  | Empty ->
-      (* Turn [binding] into a singleton tree. *)
-      binding.right <- t; (* re-use the memory block at [t], which is [Empty] *)
-      binding.height <- 1;
-      binding
-  | Node ->
-      t.left <- add_min_binding (binding, t.left);
-      bal t
-  end
-
-val rec add_max_binding [k, a]
-  (consumes binding: Node { left: unknown; key: k; value: a; right: Empty; height: unknown },
-   consumes t: tree k a) : tree k a =
-  match t with
-  | Empty ->
-      (* Turn [binding] into a singleton tree. *)
-      binding.left <- t; (* re-use the memory block at [t], which is [Empty] *)
-      binding.height <- 1;
-      binding
-  | Node ->
-      t.right <- add_max_binding (binding, t.right);
-      bal t
-  end
-
-val rec join [k, a] (consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: unknown }) : tree k a =
+val rec join [k, a] (
+  consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: unknown }
+) : tree k a =
   let left, right = t.left, t.right in
   match t.left, t.right with
   | Empty, _ ->
@@ -498,7 +575,10 @@ val rec join [k, a] (consumes t: Node { left: tree k a; key: k; value: a; right:
       end
   end
 
-(* Note: [concat] is just like [merge], except it uses [join] instead of [bal]. *)
+(* -------------------------------------------------------------------------- *)
+
+(* The private function [concat] concatenates two trees of arbitrary heights.
+   It is identical to [merge], except it calls [join] instead of [bal]. *)
 
 val concat [k, a] (consumes t1: tree k a, consumes t2: tree k a) : tree k a =
   match t1, t2 with
@@ -510,9 +590,12 @@ val concat [k, a] (consumes t1: tree k a, consumes t2: tree k a) : tree k a =
       join root
   end
 
-(* Our implementation is [split] is unusual in that it returns a tree
-   whose root node may or may not contain a value. This allows us to
-   almost completely avoid memory allocation. *)
+(* -------------------------------------------------------------------------- *)
+
+(* The private function [split] splits at a certain key. It returns a tree
+   whose root node may or may not contain a value: note that the field
+   [value] has type [option a] in the result type. This allows us to almost
+   completely avoid memory allocation (and it is a natural thing to do anyway). *)
 
 val rec split [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a)
   : Node { left: tree k a; key: unknown; value: option a; right: tree k a; height: unknown } =
@@ -541,7 +624,12 @@ val rec split [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a)
       end
   end
 
-(* [concat_or_join] takes a tree whose root node may or may not contain a value. *)
+(* -------------------------------------------------------------------------- *)
+
+(* The private function [concat_or_join] accepts a tree whose root node may or
+   may not contain a value, and turns it intro a tree, using either [join] or
+   [concat]. Thus, the left and right sub-trees are allowed to have arbitrary
+   heights. *)
 
 val concat_or_join [k, a] (consumes t: Node { left: tree k a; key: k; value: option a; right: tree k a; height: unknown }) : tree k a =
   match t.value with
@@ -552,12 +640,18 @@ val concat_or_join [k, a] (consumes t: Node { left: tree k a; key: k; value: opt
       concat (t.left, t.right)
   end
 
-val rec merge [k, a] (
+(* -------------------------------------------------------------------------- *)
+
+(* Merging. *)
+
+(* This function has the same specification as its OCaml counterpart. *)
+
+val rec merge [k, a, b, c] (
   cmp: (k, k) -> int,
-  f: (k, consumes option a, consumes option a) -> option a,
+  f: (k, consumes option a, consumes option b) -> option c,
   consumes s1: tree k a,
-  consumes s2: tree k a
-) : tree k a =
+  consumes s2: tree k b
+) : tree k c =
   match s1, s2 with
   | Empty, Empty ->
       s1
@@ -587,6 +681,8 @@ val rec merge [k, a] (
 	    fail (* impossible *)
         end
   end
+
+(* -------------------------------------------------------------------------- *)
 
 (* Compared to OCaml's [filter], our [filter] is more general. Instead of
    returning a Boolean value, the function [p] returns an option. This
