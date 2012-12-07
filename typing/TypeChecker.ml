@@ -443,7 +443,15 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
     let hint = Option.map_none (Auto (Variable.register (fresh_name "/x_"))) hint in
     let env, x = bind_term env hint env.location false in
     let env = Permissions.add env x t in
-    env, x
+    match annot with
+    | None ->
+        env, x
+    | Some t ->
+        match Permissions.sub env x t with
+        | Some _ ->
+            env, x
+        | None ->
+            raise_error env (ExpectedType (t, x))
   in
 
   match expr with

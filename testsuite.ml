@@ -511,7 +511,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test ((Fail (function NoSuchPermission _ -> true | _ -> false))));
 
   ("fail6.mz",
-    simple_test ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+    simple_test ((Fail (function ExpectedType _ -> true | _ -> false))));
 
   ("fail7.mz",
     simple_test ((Fail (function FieldMismatch _ -> true | _ -> false))));
