@@ -52,6 +52,7 @@ and raw_error =
   | PolymorphicFunctionCall
   | BadFactForAdoptedType of point * typ * fact
   | NoAdoptsClause of point
+  | NotDynamic of point
   | NoSuitableTypeForAdopts of point * typ
   | AdoptsNoAnnotation
   | NotMergingClauses of env * typ * typ * env * typ * typ
@@ -400,6 +401,13 @@ let print_error buf (env, raw_error) =
       let _, binder = find_term env p in
       Printf.bprintf buf "%a trying to give/take to/from %a but this expression \
           cannot adopt; the only permissions available for it are %a"
+        Lexer.p env.location
+        TypePrinter.pnames (env, get_names env p)
+        TypePrinter.pdoc (TypePrinter.print_permission_list, (env, binder));
+  | NotDynamic p ->
+      let _, binder = find_term env p in
+      Printf.bprintf buf "%a cannot take %a as it is not dynamic, the only \
+          permissions available for it are %a"
         Lexer.p env.location
         TypePrinter.pnames (env, get_names env p)
         TypePrinter.pdoc (TypePrinter.print_permission_list, (env, binder));

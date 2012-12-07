@@ -985,9 +985,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       end
 
   | ETake (x, e) ->
-      (* TEMPORARY possible bug: it seems to me that we should require the
-	 permission [x @ dynamic] *)
       let env, x = check_expression env ?hint x in
+      if not (List.exists (equal env TyDynamic) (get_permissions env x)) then
+        raise_error env (NotDynamic x);
       let env, y = check_expression env ?hint e in
       begin match Hml_List.find_opt (has_adopts_clause env) (get_permissions env y) with
       | None ->
