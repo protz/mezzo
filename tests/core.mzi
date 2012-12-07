@@ -41,6 +41,7 @@ val ( === ) : (x: unknown, y: unknown) -> rich_bool (x = y)
 data bool = True | False
 
 val ( = ) : (int, int) -> bool
+val ( <> ) : (int, int) -> bool
 val ( < ) : (int, int) -> bool
 val ( <= ) : (int, int) -> bool
 val ( >= ) : (int, int) -> bool

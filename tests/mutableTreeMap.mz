@@ -563,31 +563,199 @@ val rec partition [k, a, b, c] (p: (k, consumes a) -> choice b c, consumes t: tr
 	  t.right <- rr;
 	  concat (ll, rl), join t
       end
+      (* TEMPORARY why do I get a warning about this merge? isn't the expected type
+	 propagated all the way down? *)
   end
+
+(* Mutable zippers, for in-place tree traversal. *)
+
+(* OCaml's [Map] library uses iterators in order to implement the comparison
+   of two trees. Unfortunately, as of now, ordinary tree iterators are difficult to
+   express in Mezzo, because it is hard to explain how/why the ownership of
+   the tree cells (and keys, and values) is returned from the iterator to the
+   tree once iteration is complete. *)
+
+(* Mutable zippers allow building a form of tree iterators that have the key
+   feature that the memory footprint of the iterator is exactly the memory footprint
+   of the original tree. Hence, keeping track of ownership becomes simpler
+   in this approach. *)
+
+mutable data zipper k a =
+  | ZEmpty
+  | ZLeft  { father: zipper k a; key: k; value: a; right: tree k a;    height: int }
+  | ZRight { left: tree k a;     key: k; value: a; father: zipper k a; height: int }
+
+(* In this approach, an iterator is a pair of a zipper and a tree,
+   together with a tag that indicates whether we are arriving at
+   this node, currently paused at this node, or leaving this node. *)
+
+mutable data iterator k a =
+  | IArriving { context: zipper k a; focus: tree k a }
+  | IAt       { context: zipper k a; focus: Node { left: tree k a; key: k; value: a; right: tree k a; height: int }}
+  | ILeaving  { context: zipper k a; focus: tree k a }
+
+(* The function [advance] advances an iterator until either it reaches a new
+   element (in which the iterator is left in state [IAt]) or there are no more
+   elements (in which case the iterator is left in state [ILeaving/ZEmpty]).
+   Initially, the iterator can be in any state; if it is initially in state
+   [IAt], then it will advance to the next element. *)
+
+val rec advance [k, a] (i: iterator k a) : () =
+  match i with
+  | IArriving { context = z; focus = f } ->
+      match f with
+      | Empty ->
+	  (* Skip empty nodes. *)
+	  tag of i <- ILeaving;
+	  advance i
+      | Node { left } ->
+	  (* When arriving at a node, descend immediately into the left child. *)
+	  tag of f <- ZLeft;
+	  f.father <- z;
+	  (* [f] is now a zipper! *)
+	  i.context <- f;
+	  i.focus <- left;
+	  advance i
+        end
+  | IAt { context = z; focus = f } ->
+      let right = f.right in
+      (* After handling a node, descend into its right child. *)
+      tag of f <- ZRight;
+      f.father <- z;
+      (* [f] is now a zipper! *)
+      tag of i <- IArriving;
+      i.context <- f;
+      i.focus <- right;
+      advance i
+  | ILeaving { context = z; focus = f } ->
+      match z with
+      | ZEmpty ->
+	  (* We are finished. *)
+	  ()
+      | ZLeft { father } ->
+	  tag of z <- Node;
+	  z.left <- f;
+	  (* [z] is now a tree! *)
+	  (* After exiting a left child, pause at its father. *)
+	  tag of i <- IAt;
+	  i.context <- father;
+	  i.focus <- z
+      | ZRight { father } ->
+	  tag of z <- Node;
+	  z.right <- f;
+	  (* [z] is now a tree! *)
+	  (* After exiting a right child, continue in ascending mode. *)
+	  i.context <- father;
+	  i.focus <- z;
+	  advance i
+      end
+  end
+
+(* Our iterators are unsatisfactory in that [advance] returns an internal
+   representation of the iterator, instead of a nicely packaged pair of 
+   an element and a new iterator. For the time being, this is ok, because
+   we are using the iterators only internally. TEMPORARY *)
+
+(* [iterate] turns a tree into a fresh iterator. *)
+
+val iterate [k, a] (consumes t: tree k a) : iterator k a =
+  let i = IArriving { context = ZEmpty; focus = t } in
+  advance i;
+  i
+
+(* [stop] turns an iterator back into a complete tree. *)
+
+val rec stop [k, a] (consumes i: iterator k a) : tree k a =
+  match i with
+  | IAt { context = z; focus = f } ->
+      match z with
+      | ZEmpty ->
+	  f
+      | ZLeft { father } ->
+	  tag of z <- Node;
+	  z.left <- f;
+          (* [z] is now a tree! *)
+	  i.context <- father;
+	  i.focus <- z;
+	  stop i
+      | ZRight { father } ->
+	  tag of z <- Node;
+	  z.right <- f;
+          (* [z] is now a tree! *)
+	  i.context <- father;
+	  i.focus <- z;
+	  stop i
+      end
+  | ILeaving { context = ZEmpty; focus = f } ->
+      f
+  | _ ->
+      fail (* impossible, if iterator has been properly [advance]d *)
+  end
+
+(* [recover] stops the iterator [i] and dynamically checks that the
+   resulting tree is equal to the argument [t]. This dynamic check
+   is required for the moment. Assigning more precise types to our
+   iterators would allow us to avoid it. TEMPORARY *)
+
+val recover [k, a] (consumes i: iterator k a, t: unknown) : (| t @ tree k a) =
+  let u = stop i in
+  if t === u then
+    ()
+  else
+    fail
+
+(* We now use an iterator to implement the comparison of two trees. *)
+
+val compare [k, a] (
+  cmpk: (k, k) -> int,
+  cmpa: (a, a) -> int,
+  m1: tree k a,
+  m2: tree k a
+) : int =
+  
+  (* Create an iterator for each of the trees. *)
+  let i1 = iterate m1
+  and i2 = iterate m2 in
+
+  (* Loop. *)
+  let rec loop (| i1 @ iterator k a * i2 @ iterator k a) : int =
+    match i1, i2 with
+    | IAt { focus = m1 }, IAt { focus = m2 } ->
+	let c = cmpk (m1.key, m2.key) in
+	if c <> 0 then c else begin
+	  let c = cmpa (m1.value, m2.value) in
+	  if c <> 0 then c else begin
+	    advance i1;
+	    advance i2;
+	    loop()
+	  end
+	end
+    | IAt, _ ->
+	(* The sequence [i1] is longer. *)
+        1
+    | _, IAt ->
+	(* The sequence [i2] is longer. *)
+        -1
+    | _, _ ->
+	(* The comparison suceeded, all the way. *)
+	0
+    end
+
+  in
+  let c : int = loop() in
+  (* Stop the iterators and recover the permissions for the trees. *)
+  recover (i1, m1);
+  recover (i2, m2);
+  c
+  (* BUG well, not a bug, but a feature wish: if I omit the calls to
+     recover above, I get a good error message, but with a completely
+     useless location (the entire function body). Since we are
+     propagating expected types down, couldn't we signal the error
+     message at the sub-expression "c" (final line), instead of at
+     the level of the entire function? *)
 
 (*
 
-
-    type 'a enumeration = End | More of key * 'a * 'a t * 'a enumeration
-
-    let rec cons_enum m e =
-      match m with
-        Empty -> e
-      | Node(l, v, d, r, _) -> cons_enum l (More(v, d, r, e))
-
-    let compare cmp m1 m2 =
-      let rec compare_aux e1 e2 =
-          match (e1, e2) with
-          (End, End) -> 0
-        | (End, _)  -> -1
-        | (_, End) -> 1
-        | (More(v1, d1, r1, e1), More(v2, d2, r2, e2)) ->
-            let c = Ord.compare v1 v2 in
-            if c <> 0 then c else
-            let c = cmp d1 d2 in
-            if c <> 0 then c else
-            compare_aux (cons_enum r1 e1) (cons_enum r2 e2)
-      in compare_aux (cons_enum m1 End) (cons_enum m2 End)
 
     let equal cmp m1 m2 =
       let rec equal_aux e1 e2 =
