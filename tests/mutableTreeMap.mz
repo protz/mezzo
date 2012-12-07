@@ -1,11 +1,29 @@
 open pervasives (* TEMPORARY *)
 
+(* This module implements association maps using height-balanced trees.
+   The code is modeled after OCaml's [Map] library, but has been modified
+   to allow trees to be modified in place. *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Some stuff that should be moved to another file. *) (* TEMPORARY *)
+
+val max (x: int, y: int) : int =
+  if x >= y then x else y
+
+(* -------------------------------------------------------------------------- *)
+
+(* A tree is either empty or a binary node. Besides its children, a binary
+   node contains a key, a value, and its height. *)
+
 mutable data tree k a =
   | Empty
   | Node { left: tree k a; key: k; value: a; right: tree k a; height: int }
 
-val max (x: int, y: int) : int =
-  if x >= y then x else y
+(* -------------------------------------------------------------------------- *)
+
+(* The following (private) function reads the height information that is
+   stored in a node. It does not recompute anything. *)
 
 val height [k, a] (t: tree k a) : int =
   match t with
@@ -13,25 +31,21 @@ val height [k, a] (t: tree k a) : int =
   | Node  -> t.height
   end
 
-(* TEMPORARY [create] is possibly unused? *)
-val create [k, a] (consumes (l: tree k a, x: k, d: a, r: tree k a)) : tree k a =
-  Node {
-    left = l;
-    key = x;
-    value = d;
-    right = r;
-    height = max (height l, height r) + 1
-  }
-
-val singleton [k, a] (consumes (x: k, d: a)) : tree k a =
-  create (Empty, x, d, Empty)
+(* The following (private) function updates the height information that is
+   stored in a node, based on the height of its children. *)
 
 val update_height [k, a] (
   consumes t : Node { left: tree k a; key: k; value: a; right: tree k a; height: unknown }
 ) : ( |    t @ Node { left: tree k a; key: k; value: a; right: tree k a; height: int     }) =
   t.height <- max (height t.left, height t.right) + 1
 
-val bal [k, a] (consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: unknown }) : tree k a =
+(* The following (private) function re-organizes a tree, if required, by
+   performing a rotation at the root. The address of the new tree root is
+   returned. *)
+
+val bal [k, a] (
+  consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: unknown }
+) : tree k a =
 
   (* Extract the two sub-trees and their heights. *)
   let Node { left = l; right = r } = t in
@@ -107,8 +121,19 @@ val bal [k, a] (consumes t: Node { left: tree k a; key: k; value: a; right: tree
     t
   end
 
+(* -------------------------------------------------------------------------- *)
+
+(* Creating an empty tree. *)
+
 val make [k, a] () : tree k a =
   Empty
+
+(* Creating a singleton tree. *)
+
+val singleton [k, a] (consumes (x: k, d: a)) : tree k a =
+  Node { left = Empty; key = x; value = d; right = Empty; height = 1 }
+
+(* Testing whether a tree is empty. *)
 
 val is_empty [k, a] (t : tree k a) : bool =
   match t with
@@ -116,12 +141,20 @@ val is_empty [k, a] (t : tree k a) : bool =
   | Node  -> False
   end
 
-val rec add [k, a] (cmp: (k, k) -> int, consumes x: k, consumes d: a, consumes t: tree k a) : tree k a =
+(* -------------------------------------------------------------------------- *)
+
+(* Insertion. *)
+
+val rec add [k, a] (
+  cmp: (k, k) -> int,
+  consumes x: k,
+  consumes d: a,
+  consumes t: tree k a
+) : tree k a =
   match t with
   | Empty ->
-      (* Here, we could possibly re-use this [Empty] node instead of
-	 creating two new ones. *)
-      singleton (x, d)
+      (* Create a singleton tree. *)
+      Node { left = t; key = x; value = d; right = Empty; height = 1 }
   | Node ->
       let c = cmp (x, t.key) in
       if c = 0 then begin
@@ -139,11 +172,19 @@ val rec add [k, a] (cmp: (k, k) -> int, consumes x: k, consumes d: a, consumes t
       end
   end
 
+(* -------------------------------------------------------------------------- *)
+
+(* Lookup. *)
+
 (* It seems that the function [find] must require [duplicable a].
    Indeed, without this hypothesis, we would be forced to consume
    the argument tree [t], which does not seem reasonable. *)
 
-val rec find [k, a] duplicable a => (cmp: (k, k) -> int, x: k, t: tree k a) : option a =
+val rec find [k, a] duplicable a => (
+  cmp: (k, k) -> int,
+  x: k,
+  t: tree k a
+) : option a =
   match t with
   | Empty ->
       none
@@ -208,6 +249,8 @@ val rec mem [k, a] (cmp: (k, k) -> int, x: k, t: tree k a) : bool =
     else
       mem (cmp, x, t.right)
   end
+
+(* -------------------------------------------------------------------------- *)
 
 (* Note that [min_binding] is defined first for non-empty trees, then
    extended to empty trees. *)
