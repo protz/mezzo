@@ -754,6 +754,10 @@ module TypePrinter = struct
     pdoc buf (print_names env, names)
   ;;
 
+  let pname buf (env, point) =
+    pdoc buf ((fun () -> print_var env (get_name env point)), ())
+  ;;
+
   let print_exports env =
     let exports = 
       fold env (fun acc point ({ names; kind; _ }, _) ->
