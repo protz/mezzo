@@ -730,7 +730,7 @@ module TypePrinter = struct
     | KPerm ->
         string "perm"
     | KType ->
-        string "∗"
+        string "type"
     | KArrow (k1, k2) ->
         print_kind k1 ^^ space ^^ arrow ^^ space ^^ print_kind k2
   ;;

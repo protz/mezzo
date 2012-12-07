@@ -688,7 +688,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("adopts-type-variable.mz", simple_test (Fail (function BadFactForAdoptedType _  -> true | _ -> false)));
 
-  ("ref-confusion.mz", simple_test (Fail (function _ -> true)));
+  ("ref-confusion.mz", simple_test (KFail (function _ -> true)));
 
   ("dfs.mz", simple_test Pass);
 
