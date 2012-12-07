@@ -522,6 +522,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("fail9.mz",
     simple_test ((Fail (function NotDynamic _ -> true | _ -> false))));
 
+  ("fail10.mz",
+    simple_test ((Fail (function BadField _ -> true | _ -> false))));
+
   (* Adoption. *)
 
   ("adopts1.mz",
@@ -696,7 +699,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("owns2.mz", simple_test (Fail (function NotDynamic _ -> true | _ -> false)));
 
-  ("owns3.mz", simple_test (Fail (function NoAdoptsClause _ -> true | _ -> false)));
+  ("owns3.mz", simple_test Pass);
 
 ]
 

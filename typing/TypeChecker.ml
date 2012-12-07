@@ -315,12 +315,17 @@ let refine_perms_in_place_for_pattern env point pat =
             | _ ->
                 assert false
           ) fields;
-          let point1 = Option.extract (Hml_List.find_opt (function
+          let point1 = match Hml_List.find_opt (function
             | FieldValue (n1, TySingleton (TyPoint p1)) when Field.equal n1 n2 ->
                 Some p1
             | _ ->
                 None
-          ) fields) in
+          ) fields with
+          | Some p1 ->
+              p1
+          | None ->
+              raise_error env (BadField (datacon, n2))
+          in
           refine env point1 pat2
         ) env patfields in
 

@@ -36,6 +36,7 @@ and raw_error =
   | CantAssignTag of point
   | NoSuchFieldInPattern of pattern * Field.name
   | BadPattern of pattern * point
+  | BadField of Datacon.name * Field.name
   | SubPattern of pattern
   | NoTwoConstructors of point
   | MatchBadDatacon of point * Datacon.name
@@ -329,6 +330,12 @@ let print_error buf (env, raw_error) =
         ppat (env, pat)
         pname (env, point)
         ppermission_list (env, point)
+  | BadField (datacon, name) ->
+      Printf.bprintf buf "%a this pattern mentions field %a but data constructor \
+          %a has no such field"
+        Lexer.p env.location
+        Field.p name
+        Datacon.p datacon
 
   | AssignNotExclusive (t, datacon) ->
       Printf.bprintf buf
