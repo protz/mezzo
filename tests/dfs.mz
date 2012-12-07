@@ -1,4 +1,4 @@
-open Pervasives
+open pervasives
 open list
 
 (* It would be great if we could abstract this code so as to work
@@ -33,10 +33,6 @@ val traverse (g : graph int) : () =
       n.marked <- True;
       n.payload <- !c;
       c := !c + 1;
-      (* TEMPORARY BUG? I don't understand this type error, which seems to
-         speak of a mismatch between (int, int) and int *)
-      (* TEMPORARY SECOND BUG? if I replace !c + 1 with just !c, I get
-         a mysterious type error at the "give" instruction below. *)
       let children = n.children in
       give n to g;
       iter (visit, children)
