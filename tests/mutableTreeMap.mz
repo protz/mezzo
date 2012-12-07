@@ -234,6 +234,9 @@ val min_binding
       some (min_binding t)
   end
 
+val choose =
+  min_binding
+
 (* [extract_min_binding] extracts the node that contains the minimum key.
    It returns both this node (which can be re-used) and the remaining,
    re-organized tree. By convention, instead of returning a pair, we
@@ -357,18 +360,33 @@ val copy [k, a, b] duplicable k => (f: a -> b, t: tree k a) : tree k b =
   let g (x: k, d: a) : b = f d in
   map (g, t)
 
-val rec fold [k, a1, a2, b, p :: PERM] (
+val rec fold_ascending [k, a1, a2, b, p :: PERM] (
   f: (k, consumes d:        a1, consumes accu: b | p) -> (b | d @        a2),
          consumes t: tree k a1, consumes accu: b | p)  : (b| t @ tree k a2) =
   match t with
   | Empty ->
       accu
   | Node ->
-      let accu = fold (f, t.left, accu) in
+      let accu = fold_ascending (f, t.left, accu) in
       let accu = f (t.key, t.value, accu) in
-      let accu = fold (f, t.right, accu) in
+      let accu = fold_ascending (f, t.right, accu) in
       accu
   end
+
+val rec fold_descending [k, a1, a2, b, p :: PERM] (
+  f: (k, consumes d:        a1, consumes accu: b | p) -> (b | d @        a2),
+         consumes t: tree k a1, consumes accu: b | p)  : (b| t @ tree k a2) =
+  match t with
+  | Empty ->
+      accu
+  | Node ->
+      let accu = fold_descending (f, t.right, accu) in
+      let accu = f (t.key, t.value, accu) in
+      let accu = fold_descending (f, t.left, accu) in
+      accu
+  end
+
+val fold = fold_ascending
 
 val for_all = iter
 
@@ -484,7 +502,7 @@ val rec split [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a)
 
 val concat_or_join [k, a] (consumes t: Node { left: tree k a; key: k; value: option a; right: tree k a; height: unknown }) : tree k a =
   match t.value with
-  | Some { contents = d } -> (* BUG if I replace "contents" with "value", I get Assert_failure *)
+  | Some { contents = d } ->
       t.value <- d;
       join t
   | None ->
@@ -754,33 +772,30 @@ val compare [k, a] (
      message at the sub-expression "c" (final line), instead of at
      the level of the entire function? *)
 
-(*
+val equal [k, a] (
+  cmpk: (k, k) -> int,
+  cmpa: (a, a) -> int,
+  m1: tree k a,
+  m2: tree k a
+) : bool =
+  compare (cmpk, cmpa, m1, m2) = 0
+
+val rec cardinal [k, a] (t: tree k a) : int =
+  match t with
+  | Empty ->
+      0
+  | Node ->
+      cardinal t.left + 1 + cardinal t.right
+  end
 
 
-    let equal cmp m1 m2 =
-      let rec equal_aux e1 e2 =
-          match (e1, e2) with
-          (End, End) -> true
-        | (End, _)  -> false
-        | (_, End) -> false
-        | (More(v1, d1, r1, e1), More(v2, d2, r2, e2)) ->
-            Ord.compare v1 v2 = 0 && cmp d1 d2 &&
-            equal_aux (cons_enum r1 e1) (cons_enum r2 e2)
-      in equal_aux (cons_enum m1 End) (cons_enum m2 End)
-
-    let rec cardinal = function
-        Empty -> 0
-      | Node(l, _, _, r, _) -> cardinal l + 1 + cardinal r
-
-    let rec bindings_aux accu = function
-        Empty -> accu
-      | Node(l, v, d, r, _) -> bindings_aux ((v, d) :: bindings_aux accu r) l
-
-    let bindings s =
-      bindings_aux [] s
-
-    let choose = min_binding
-
+(* BUG All permissions should be in expanded form *)
+(* 
+val bindings [k, a] duplicable k, duplicable a => (t: tree k a) : list::list (k, a) =
+  let f (x: k, v: a, consumes accu: list::list (k, a)) : list::list (k, a) =
+    list::cons ((x, v), accu)
+  in
+  fold_descending (* [k, a, a, list::list (k, a), empty] *) (f, t, list::nil)
 *)
 
 (* A version of [split] for the end user. *)
