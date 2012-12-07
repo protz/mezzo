@@ -73,7 +73,7 @@ let check (env: T.env) (mname: Module.name) (signature: S.toplevel_item list): T
     | S.PermDeclaration t :: toplevel_items ->
         (* val x @ t *)
         let x, t = KindCheck.destruct_perm_decl t in
-        Log.debug "*** Checking sig item %a" Variable.p x;
+        Log.debug ~level:3 "*** Checking sig item %a" Variable.p x;
 
         (* Make sure [t] has kind ∗ *)
         KindCheck.check tsenv t S.KType;
@@ -101,8 +101,6 @@ let check (env: T.env) (mname: Module.name) (signature: S.toplevel_item list): T
         (* Alright, [x] is now bound, and when it appears afterwards, it will
          * refer to the original [x] from [env]. *)
         let tsenv = KindCheck.bind_external tsenv (x, S.KTerm, point) in
-        Log.debug "*** Successfully checked sig item, env is %a"
-          KindCheck.pkenv tsenv;
 
         (* Check the remainder of the toplevel_items. *)
         check env tsenv toplevel_items

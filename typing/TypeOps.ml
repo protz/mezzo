@@ -181,11 +181,6 @@ let simplify_function_type env t body =
   (* [vars] have been opened in [t] and [e]. *)
   and cleanup (env: env) (vars: (type_binding * flavor) list) (t: typ) (e: expression option)
       : typ * expression option =
-      List.iter (fun binding ->
-        let open TypePrinter in
-        let open ExprPrinter in
-        Log.debug "%a" pdoc (print_ebinder env, binding)
-      ) vars;
 
     let vars, flavors = List.split vars in
 
