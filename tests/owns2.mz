@@ -1,0 +1,10 @@
+mutable data t = T adopts u
+
+mutable data u = U
+
+data foo = Foo
+
+val f (x: t, y: foo) : bool =
+  x owns y
+
+

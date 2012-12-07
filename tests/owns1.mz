@@ -1,0 +1,12 @@
+mutable data t = T adopts u
+
+mutable data u = U
+
+val f (x: t, y: dynamic) : u =
+  if x owns y then begin
+    take y from x;
+    y
+  end
+  else
+    fail
+

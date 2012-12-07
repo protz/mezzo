@@ -1,0 +1,9 @@
+mutable data t = T
+
+mutable data u = U
+
+data foo = Foo
+
+val f (x: t, y: dynamic) : bool =
+  x owns y
+
