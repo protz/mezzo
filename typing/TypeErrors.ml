@@ -59,6 +59,7 @@ and raw_error =
   | MissingFieldInSignature of Variable.name
   | NoSuchTypeInSignature of Variable.name * typ
   | DataTypeMismatchInSignature of Variable.name * string
+  | NotExclusiveOwns of point
 
 exception TypeCheckerError of error
 
@@ -437,4 +438,10 @@ let print_error buf (env, raw_error) =
         Lexer.p env.location
         Variable.p x
         reason
+  | NotExclusiveOwns p ->
+      Printf.bprintf buf "%a %a is not exclusive so it canno hold anything; \
+          the only permissions available for it are %a"
+        Lexer.p env.location
+        pname (env, p)
+        ppermission_list (env, p)
 ;;

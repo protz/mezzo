@@ -1014,12 +1014,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* TEMPORARY if we have an exclusive permission for [x], then we could
 	 emit a warning, because in this case [y owns x] is certain to return
 	 false. *)
-      begin match Hml_List.find_opt (has_adopts_clause env) (get_permissions env y) with
-      | None ->
-          raise_error env (NoAdoptsClause y)
-      | Some _ ->
-          return env t_bool
-      end
+      if not (List.exists (FactInference.is_exclusive env) (get_permissions env y)) then
+        raise_error env (NoAdoptsClause y);
+      return env t_bool
 
   | EExplained e ->
       let env, x = check_expression env ?hint e in
