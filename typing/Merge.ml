@@ -35,18 +35,7 @@ let add_location dest_env dest_point right_location =
 let build_flexible_type_application (left_env, left_perm) (dest_env, t_dest) =
   (* First, find the definition of the type so that we know how to
    * instanciate parameters. *)
-  let return_kind, arg_kinds = flatten_kind (get_kind dest_env t_dest) in
-  Log.check (return_kind = KType) "Not implemented";
-
-  let letters = Hml_Pprint.name_gen (List.length arg_kinds) in
-
-  let left_env, arg_points_l = List.fold_left2 (fun (env, points) kind letter ->
-    let env, point =
-      let letter = Auto (Variable.register letter) in
-      bind_type env letter env.location ~flexible:true Affine kind
-    in
-    env, point :: points) (left_env, []) arg_kinds letters
-  in
+  let left_env, arg_points_l = make_datacon_letters left_env (get_kind dest_env t_dest) true (fun _ -> Affine) in
   let t_app_left = ty_app (TyPoint t_dest) (List.map (fun x -> TyPoint x) arg_points_l) in
   (* Chances are this will perform a merge in [left_env]: this is why
    * we're returning [left_env]. *)

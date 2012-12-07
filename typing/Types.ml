@@ -281,22 +281,6 @@ let bind_var_in_type
   env, typ
 ;;
 
-let bind_param_at_index_in_data_type_def_branches
-    (env: env)
-    (name: name)
-    (fact: fact)
-    (kind: kind)
-    (index: index)
-    (branches: data_type_def_branch list): env * point * data_type_def_branch list =
-  (* This needs a special treatment because the type parameters are not binders
-   * per se (unlike TyForall, for instance...). *)
-  let env, point = bind_var env ~fact (name, kind, env.location) in
-  let branches =
-    List.map (tsubst_data_type_def_branch (TyPoint point) index) branches
-  in
-  env, point, branches
-;;
-
 (* ---------------------------------------------------------------------------- *)
 
 let find_type (env: env) (point: point): name * type_binder =
@@ -654,28 +638,32 @@ let is_tyapp = function
       None
 ;;
 
+let make_datacon_letters env kind flexible f =
+  let _return_kind, arg_kinds = flatten_kind kind in
+  (* Turn the list of parameters into letters *)
+  let letters: string list = Hml_Pprint.name_gen (List.length arg_kinds) in
+  let env, points = Hml_List.fold_left2i (fun i (env, points) kind letter ->
+    let env, point =
+      let letter = Auto (Variable.register letter) in
+      bind_var env ~flexible ~fact:(f i) (letter, kind, env.location)
+    in
+    env, point :: points) (env, []) arg_kinds letters
+  in
+  let points = List.rev points in
+  env, points
+;;
+
 let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_branch list) (clause: adopts_clause):
     env * point list * data_type_def_branch list * adopts_clause =
-  let _return_kind, params = flatten_kind kind in
-  let arity = List.length params in
-  (* Turn the list of parameters into letters *)
-  let letters: string list = Hml_Pprint.name_gen (List.length params) in
-  let env, points, branches, clause =
-    Hml_List.fold_left2i (fun i (env, points, branches, clause) letter kind ->
-      let letter = Auto (Variable.register letter) in
-      let env, point, branches, clause =
-        let index = arity - i - 1 in
-        let env, point, branches =
-          bind_param_at_index_in_data_type_def_branches
-            env letter (Fuzzy i) kind index branches
-        in
-        let clause = Option.map (tsubst (TyPoint point) index) clause in
-        env, point, branches, clause
-      in
-      env, point :: points, branches, clause
-    ) (env, [], branches, clause) letters params
-  in
-  env, List.rev points, branches, clause
+  let env, points = make_datacon_letters env kind false (fun i -> Fuzzy i) in
+  let arity = get_arity_for_kind kind in
+  let branches, clause = Hml_List.fold_lefti (fun i (branches, clause) point ->
+    let index = arity - i - 1 in
+    let branches = List.map (tsubst_data_type_def_branch (TyPoint point) index) branches in
+    let clause = Option.map (tsubst (TyPoint point) index) clause in
+    branches, clause
+  ) (branches, clause) points in
+  env, points, branches, clause
 ;;
 
 let expand_if_one_branch (env: env) (t: typ) =
@@ -742,7 +730,7 @@ module TypePrinter = struct
     | KPerm ->
         string "perm"
     | KType ->
-        string "∗"
+        string "type"
     | KArrow (k1, k2) ->
         print_kind k1 ^^ space ^^ arrow ^^ space ^^ print_kind k2
   ;;

@@ -144,11 +144,20 @@ let print_error buf (env, raw_error) =
         Lexer.p env.location
         Variable.p x
   | Mismatch (expected_kind, inferred_kind) ->
-      Printf.bprintf buf
-        "%a this type has kind %a but we were expecting kind %a"
-        Lexer.p env.location
-        p_kind inferred_kind
-        p_kind expected_kind
+      let inferred, _ = flatten_kind inferred_kind in
+      let expected, _ = flatten_kind expected_kind in
+      if inferred <> expected then
+        Printf.bprintf buf
+          "%a this is a %a but we were expecting a %a"
+          Lexer.p env.location
+          p_kind inferred
+          p_kind expected
+      else
+        Printf.bprintf buf
+          "%a this type has kind %a but we were expecting kind %a"
+          Lexer.p env.location
+          p_kind inferred_kind
+          p_kind expected_kind
   | NotAnArrow (kind) ->
       Printf.bprintf buf
         "%a cannot apply arguments to this type since it has kind %a"
