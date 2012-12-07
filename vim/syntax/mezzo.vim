@@ -95,13 +95,13 @@ syn region   mezzoWithRest start="[^)]" end=")"me=e-1 contained contains=ALLBUT,
 
 syn keyword  mezzoKeyword  and as assert class
 syn keyword  mezzoKeyword  constraint else
-syn keyword  mezzoKeyword  exception external fun
+syn keyword  mezzoKeyword  exception external from fun give
 
 syn keyword  mezzoKeyword  in inherit initializer
 syn keyword  mezzoKeyword  land lazy let
 syn keyword  mezzoKeyword  method mutable new of
 syn keyword  mezzoKeyword  parser private raise rec
-syn keyword  mezzoKeyword  try type
+syn keyword  mezzoKeyword  take to try type
 syn keyword  mezzoKeyword  virtual when while with
 
 syn keyword  mezzoKeyword  function
