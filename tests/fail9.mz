@@ -1,0 +1,5 @@
+mutable data u = Bar
+mutable data t = Foo adopts u
+
+val f (y: t, x: unknown): () =
+  take x from y
