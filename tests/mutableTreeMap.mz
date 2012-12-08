@@ -411,29 +411,39 @@ val merge [k, a] (consumes t1: tree k a, consumes t2: tree k a) : tree k a =
   end
 
 (* Compared with OCaml's [remove], our [remove] function combines [find]
-   and [remove]. It returns a pair of the binding that was removed and
-   the new tree. *)
+   and [remove]. The binding that was removed is returned via a reference,
+   whereas the new tree is returned as a function result. *)
 
-val rec remove [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a)
-  : (option (k, a), tree k a)
+(* [dst] is an out-parameter, just like in C, except here, we get a type
+   error if we forget to write it! *)
+
+(* TEMPORARY we could avoid writes and calls to [bal] when nothing is
+   removed *)
+
+val rec remove [k, a] (
+  cmp: (k, k) -> int,
+  x: k,
+  consumes t: tree k a,
+  consumes dst: ref unknown
+) : (tree k a | dst @ ref (option (k, a)))
   =
   match t with
   | Empty ->
-      none, t
+      dst := none;
+      t
   | Node ->
       let c = cmp (x, t.key) in
-      if c = 0 then
-	some (t.key, t.value),
+      if c = 0 then begin
+	dst := some (t.key, t.value);
 	merge (t.left, t.right)
+      end
       else if c < 0 then begin
-	let binding, left = remove (cmp, x, t.left) in
-	t.left <- left;
-	binding, bal t
+	t.left <- remove (cmp, x, t.left, dst);
+	bal t
       end
       else begin
-	let binding, right = remove (cmp, x, t.right) in
-	t.right <- right;
-	binding, bal t
+	t.right <- remove (cmp, x, t.right, dst);
+	bal t
       end
   end
 
@@ -474,20 +484,6 @@ val rec iter [k, a, p :: PERM] (
       else False
   end
 
-val for_all =
-  iter
-
-(* [exists] could be implemented directly, but an implementation in
-   terms of [for_all] is preferred, as a test of the type-checker. *)
-
-val exists [k, a, p :: PERM] (
-  f: (k,           a | p) -> bool,
-         t: tree k a | p)  : bool =
-  let notf (key: k, value: a | p) : bool =
-    not (f (key, value))
-  in
-  not (for_all (notf, t))
-
 (* -------------------------------------------------------------------------- *)
 
 (* Map. *)
@@ -512,12 +508,6 @@ val rec map [k, a1, a2, b, p :: PERM] duplicable k => (
       }
   end
 
-(* [copy] could be defined directly, but is here defined as a special case of [map]. *)
-
-val copy [k, a, b] duplicable k => (f: a -> b, t: tree k a) : tree k b =
-  let g (x: k, d: a) : b = f d in
-  map (g, t)
-
 (* -------------------------------------------------------------------------- *)
 
 (* Fold. *)
@@ -527,7 +517,7 @@ val copy [k, a, b] duplicable k => (f: a -> b, t: tree k a) : tree k b =
 
 val rec fold_ascending [k, a1, a2, b, p :: PERM] (
   f: (k, consumes d:        a1, consumes accu: b | p) -> (b | d @        a2),
-         consumes t: tree k a1, consumes accu: b | p)  : (b| t @ tree k a2) =
+         consumes t: tree k a1, consumes accu: b | p)  : (b | t @ tree k a2) =
   match t with
   | Empty ->
       accu
@@ -540,7 +530,7 @@ val rec fold_ascending [k, a1, a2, b, p :: PERM] (
 
 val rec fold_descending [k, a1, a2, b, p :: PERM] (
   f: (k, consumes d:        a1, consumes accu: b | p) -> (b | d @        a2),
-         consumes t: tree k a1, consumes accu: b | p)  : (b| t @ tree k a2) =
+         consumes t: tree k a1, consumes accu: b | p)  : (b | t @ tree k a2) =
   match t with
   | Empty ->
       accu
@@ -550,9 +540,6 @@ val rec fold_descending [k, a1, a2, b, p :: PERM] (
       let accu = fold_descending (f, t.left, accu) in
       accu
   end
-
-val fold =
-  fold_ascending
 
 (* -------------------------------------------------------------------------- *)
 
@@ -997,7 +984,7 @@ val bindings [k, a] duplicable k, duplicable a => (t: tree k a) : list::list (k,
 (* -------------------------------------------------------------------------- *)
 (* -------------------------------------------------------------------------- *)
 
-(* We now wrap the type [tree] in another type, [map], which the client will
+(* We now wrap the type [tree] in another type, [treeMap], which the client will
    work with. There are two reasons for doing so. One is that this allows
    some functions, such as [add], to return unit instead of returning a new
    data structure. The other is that this allows us to store the comparison
@@ -1006,8 +993,8 @@ val bindings [k, a] duplicable k, duplicable a => (t: tree k a) : list::list (k,
 (* TEMPORARY could also cache cardinal at this level *)
 (* TEMPORARY introduce a phantom parameter [cmp] *)
 
-mutable data map k a =
-  Map { tree: tree k a; cmp: (k, k) -> int }
+mutable data treeMap k a =
+  TreeMap { tree: tree k a; cmp: (k, k) -> int }
 
 (* -------------------------------------------------------------------------- *)
 
@@ -1015,28 +1002,113 @@ mutable data map k a =
    which is stored within the new data structure. *)
 
 (* BUG this code causes an error: Fact inconsistency affine <= exclusive
-val make [k, a] (cmp: (k, k) -> int) : map k a =
-  Map { tree = make(); cmp = cmp }
+val make [k, a] (cmp: (k, k) -> int) : treeMap k a =
+  TreeMap { tree = make(); cmp = cmp }
 
 (* singleton *)
 *)
 
-val cardinal [k, a] (m: map k a) : int =
+val cardinal [k, a] (m: treeMap k a) : int =
   cardinal m.tree
 
-val is_empty [k, a] (m : map k a) : bool =
+val is_empty [k, a] (m : treeMap k a) : bool =
   is_empty m.tree
 
 val add [k, a] (
   consumes x: k,
   consumes d: a,
-  m: map k a
+  m: treeMap k a
 ) : () =
   m.tree <- add (m.cmp, x, d, m.tree)
 
 val find [k, a] duplicable a => (
   x: k,
-  m: map k a
+  m: treeMap k a
 ) : option a =
   find (m.cmp, x, m.tree)
+
+val find_use_update [k, a, b, p :: PERM] (
+  use: (consumes a | p) -> (a, b),
+  x: k,
+  m: treeMap k a
+| p
+) : option b =
+  find_use_update (m.cmp, use, x, m.tree)
+
+val mem [k, a] (x: k, m: treeMap k a) : bool =
+  mem (m.cmp, x, m.tree)
+
+val min_binding [k, a] duplicable k, duplicable a => (m : treeMap k a) : option (k, a) =
+  min_binding m.tree
+
+val max_binding [k, a] duplicable k, duplicable a => (m : treeMap k a) : option (k, a) =
+  max_binding m.tree
+
+val extract_min_binding [k, a] (m: treeMap k a) : option (k, a) =
+  match m.tree with
+  | Empty ->
+      none
+  | Node ->
+      let node = extract_min_binding m.tree in
+      m.tree <- node.right;
+      some (node.key, node.value)
+  end
+
+val extract_max_binding [k, a] (m: treeMap k a) : option (k, a) =
+  match m.tree with
+  | Empty ->
+      none
+  | Node ->
+      let node = extract_max_binding m.tree in
+      m.tree <- node.left;
+      some (node.key, node.value)
+  end
+
+val remove [k, a] (x: k, m: treeMap k a) : option (k, a) =
+  let dst = newref () in
+  m.tree <- remove (m.cmp, x, m.tree, dst);
+  !dst
+
+val iter [k, a, p :: PERM] (
+  f: (k,              a | p) -> bool,
+         m: treeMap k a | p)  : bool =
+  iter (f, m.tree)
+
+val for_all =
+  iter
+
+(* [exists] could be implemented directly, but an implementation in
+   terms of [for_all] is preferred, as a test of the type-checker. *)
+
+val exists [k, a, p :: PERM] (
+  f: (k,              a | p) -> bool,
+         m: treeMap k a | p)  : bool =
+  let notf (key: k, value: a | p) : bool =
+    not (f (key, value))
+  in
+  not (for_all (notf, m))
+
+val map [k, a1, a2, b, p :: PERM] duplicable k => (
+  f: (k, consumes d:           a1 | p) -> (b           | d @           a2),
+         consumes m: treeMap k a1 | p)  : (treeMap k b | m @ treeMap k a2) =
+  TreeMap { tree = map (f, m.tree); cmp = m.cmp }
+
+(* [copy] could be defined directly, but is here defined as a special case of [map]. *)
+
+val copy [k, a, b] duplicable k => (f: a -> b, m: treeMap k a) : treeMap k b =
+  let g (x: k, d: a) : b = f d in
+  map (g, m)
+
+val fold_ascending [k, a1, a2, b, p :: PERM] (
+  f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
+         consumes m: treeMap k a1, consumes accu: b | p)  : (b | m @ treeMap k a2) =
+  fold_ascending (f, m.tree, accu)
+
+val fold_descending [k, a1, a2, b, p :: PERM] (
+  f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
+         consumes m: treeMap k a1, consumes accu: b | p)  : (b | m @ treeMap k a2) =
+  fold_descending (f, m.tree, accu)
+
+val fold =
+  fold_ascending
 
