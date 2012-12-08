@@ -681,16 +681,6 @@ val rec merge [k, a, b, c] (
         end
   end
 
-(* A version of [split] for the end user. This version returns a triple
-   instead of a re-used tree node. *)
-
-val split [k, a] (
-  cmp: (k, k) -> int, x: k,
-  consumes t: tree k a
-) : (tree k a, option a, tree k a) =
-  let t = split (cmp, x, t) in
-  t.left, t.value, t.right
-
 (* -------------------------------------------------------------------------- *)
 
 (* Compared to OCaml's [filter], our [filter] is more general. Instead of
@@ -935,14 +925,6 @@ val compare [k, a] (
      message at the sub-expression "c" (final line), instead of at
      the level of the entire function? *)
 
-val equal [k, a] (
-  cmpk: (k, k) -> int,
-  cmpa: (a, a) -> int,
-  m1: tree k a,
-  m2: tree k a
-) : bool =
-  compare (cmpk, cmpa, m1, m2) = 0
-
 (* -------------------------------------------------------------------------- *)
 
 (* As a test of the type-checker, we re-implement [iter] using iterators. *)
@@ -984,13 +966,12 @@ val bindings [k, a] duplicable k, duplicable a => (t: tree k a) : list::list (k,
 (* -------------------------------------------------------------------------- *)
 (* -------------------------------------------------------------------------- *)
 
-(* We now wrap the type [tree] in another type, [treeMap], which the client will
-   work with. There are two reasons for doing so. One is that this allows
+(* We now wrap the type [tree] in another type, [treeMap], which the client
+   will work with. There are two reasons for doing so. One is that this allows
    some functions, such as [add], to return unit instead of returning a new
    data structure. The other is that this allows us to store the comparison
    function. *)
 
-(* TEMPORARY could also cache cardinal at this level *)
 (* TEMPORARY introduce a phantom parameter [cmp] *)
 
 mutable data treeMap k a =
@@ -998,15 +979,15 @@ mutable data treeMap k a =
 
 (* -------------------------------------------------------------------------- *)
 
-(* Creating an empty requires supplying a comparison function [cmp],
+(* Creating an empty map requires supplying a comparison function [cmp],
    which is stored within the new data structure. *)
 
 (* BUG this code causes an error: Fact inconsistency affine <= exclusive
 val make [k, a] (cmp: (k, k) -> int) : treeMap k a =
   TreeMap { tree = make(); cmp = cmp }
-
-(* singleton *)
 *)
+
+(* TEMPORARY singleton *)
 
 val cardinal [k, a] (m: treeMap k a) : int =
   cardinal m.tree
@@ -1111,4 +1092,54 @@ val fold_descending [k, a1, a2, b, p :: PERM] (
 
 val fold =
   fold_ascending
+
+val merge [k, a, b, c] (
+  f: (k, consumes option a, consumes option b) -> option c,
+  consumes m1: treeMap k a,
+  consumes m2: treeMap k b
+) : treeMap k c =
+  m1.tree <- merge (m1.cmp, f, m1.tree, m2.tree);
+  m1
+
+val split [k, a] (
+  x: k,
+  consumes m: treeMap k a
+) : (treeMap k a, option a, treeMap k a) =
+  let root = split (m.cmp, x, m.tree) in
+  m.tree <- root.left;
+  m, root.value, TreeMap { tree = root.right; cmp = m.cmp }
+
+val filter [k, a, b] (
+  p: (k, consumes a) -> option b,
+  consumes m: treeMap k a
+) : treeMap k b =
+  m.tree <- filter (p, m.tree);
+  m
+
+val partition [k, a, b, c] (
+  p: (k, consumes a) -> choice b c,
+  consumes m: treeMap k a
+) : (treeMap k b, treeMap k c) =
+  let left, right = partition (p, m.tree) in
+  m.tree <- left;
+  m, TreeMap { tree = right; cmp = m.cmp }
+
+val compare [k, a] (
+  cmpk: (k, k) -> int,
+  cmpa: (a, a) -> int,
+  m1: treeMap k a,
+  m2: treeMap k a
+) : int =
+  compare (cmpk, cmpa, m1.tree, m2.tree)
+
+val equal [k, a] (
+  cmpk: (k, k) -> int,
+  cmpa: (a, a) -> int,
+  m1: treeMap k a,
+  m2: treeMap k a
+) : bool =
+  compare (cmpk, cmpa, m1, m2) = 0
+
+(* TEMPORARY bindings *)
+(* TEMPORARY write .mzi file and compare with map.mli *)
 
