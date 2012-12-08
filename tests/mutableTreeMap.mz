@@ -22,6 +22,18 @@ mutable data tree k a =
 
 (* -------------------------------------------------------------------------- *)
 
+(* Cardinal. *)
+
+val rec cardinal [k, a] (t: tree k a) : int =
+  match t with
+  | Empty ->
+      0
+  | Node ->
+      cardinal t.left + 1 + cardinal t.right
+  end
+
+(* -------------------------------------------------------------------------- *)
+
 (* The following (private) function reads the height information that is
    stored in a node. It does not recompute anything. *)
 
@@ -682,6 +694,16 @@ val rec merge [k, a, b, c] (
         end
   end
 
+(* A version of [split] for the end user. This version returns a triple
+   instead of a re-used tree node. *)
+
+val split [k, a] (
+  cmp: (k, k) -> int, x: k,
+  consumes t: tree k a
+) : (tree k a, option a, tree k a) =
+  let t = split (cmp, x, t) in
+  t.left, t.value, t.right
+
 (* -------------------------------------------------------------------------- *)
 
 (* Compared to OCaml's [filter], our [filter] is more general. Instead of
@@ -689,7 +711,10 @@ val rec merge [k, a, b, c] (
    allows us not only to drop certain entries, but also to modify the
    existing entries, and possibly to change their type. *)
 
-val rec filter [k, a, b] (p: (k, consumes a) -> option b, consumes t: tree k a) : tree k b =
+val rec filter [k, a, b] (
+  p: (k, consumes a) -> option b,
+  consumes t: tree k a
+) : tree k b =
   match t with
   | Empty ->
       t
@@ -700,7 +725,13 @@ val rec filter [k, a, b] (p: (k, consumes a) -> option b, consumes t: tree k a) 
       concat_or_join t
   end
 
-val rec partition [k, a, b, c] (p: (k, consumes a) -> choice b c, consumes t: tree k a) : (tree k b, tree k c) =
+(* The function [partition] is generalized in a similar manner. Instead
+   of returning a Boolean value, it returns a choice. *)
+
+val rec partition [k, a, b, c] (
+  p: (k, consumes a) -> choice b c,
+  consumes t: tree k a
+) : (tree k b, tree k c) =
   match t with
   | Empty ->
       t, Empty
@@ -724,17 +755,20 @@ val rec partition [k, a, b, c] (p: (k, consumes a) -> choice b c, consumes t: tr
 	 propagated all the way down? *)
   end
 
-(* Mutable zippers, for in-place tree traversal. *)
+(* -------------------------------------------------------------------------- *)
+
+(* Iterators. *)
 
 (* OCaml's [Map] library uses iterators in order to implement the comparison
-   of two trees. Unfortunately, as of now, ordinary tree iterators are difficult to
-   express in Mezzo, because it is hard to explain how/why the ownership of
-   the tree cells (and keys, and values) is returned from the iterator to the
-   tree once iteration is complete. *)
+   of two trees. It implements an iterator as a list of trees. Unfortunately,
+   as of now, ordinary tree iterators are difficult to express in Mezzo,
+   because it is hard to explain how/why the ownership of the tree cells (and
+   keys, and values) is returned from the iterator to the tree once iteration
+   is complete. *)
 
 (* Mutable zippers allow building a form of tree iterators that have the key
-   feature that the memory footprint of the iterator is exactly the memory footprint
-   of the original tree. Hence, keeping track of ownership becomes simpler
+   feature that the memory footprint of the iterator is exactly the memory
+   footprint of the original tree. Hence, keeping track of ownership is simpler
    in this approach. *)
 
 mutable data zipper k a =
@@ -742,9 +776,10 @@ mutable data zipper k a =
   | ZLeft  { father: zipper k a; key: k; value: a; right: tree k a;    height: int }
   | ZRight { left: tree k a;     key: k; value: a; father: zipper k a; height: int }
 
-(* In this approach, an iterator is a pair of a zipper and a tree,
-   together with a tag that indicates whether we are arriving at
-   this node, currently paused at this node, or leaving this node. *)
+(* In this approach, an iterator is a pair of a zipper and a tree, together
+   with a tag that indicates whether we are arriving at this node, currently
+   paused at this node, or leaving this node. Furthermore, an iterator can
+   be paused only at a binary node -- never at an empty node. *)
 
 mutable data iterator k a =
   | IArriving { context: zipper k a; focus: tree k a }
@@ -752,10 +787,10 @@ mutable data iterator k a =
   | ILeaving  { context: zipper k a; focus: tree k a }
 
 (* The function [advance] advances an iterator until either it reaches a new
-   element (in which the iterator is left in state [IAt]) or there are no more
-   elements (in which case the iterator is left in state [ILeaving/ZEmpty]).
-   Initially, the iterator can be in any state; if it is initially in state
-   [IAt], then it will advance to the next element. *)
+   element (in which case the iterator is left in state [IAt]) or there are no
+   more elements (in which case the iterator is left in state [ILeaving], with
+   an [Empty] tree). Initially, the iterator can be in any state; if it is
+   initially in state [IAt], then it will advance to the next element. *)
 
 val rec advance [k, a] (i: iterator k a) : () =
   match i with
@@ -809,9 +844,9 @@ val rec advance [k, a] (i: iterator k a) : () =
   end
 
 (* Our iterators are unsatisfactory in that [advance] returns an internal
-   representation of the iterator, instead of a nicely packaged pair of 
-   an element and a new iterator. For the time being, this is ok, because
-   we are using the iterators only internally. TEMPORARY *)
+   representation of the iterator, instead of a nicely packaged pair of an
+   element and a new iterator. For the time being, this is ok, because we are
+   using the iterators only internally. TEMPORARY *)
 
 (* [iterate] turns a tree into a fresh iterator. *)
 
@@ -849,10 +884,10 @@ val rec stop [k, a] (consumes i: iterator k a) : tree k a =
       fail (* impossible, if iterator has been properly [advance]d *)
   end
 
-(* [recover] stops the iterator [i] and dynamically checks that the
-   resulting tree is equal to the argument [t]. This dynamic check
-   is required for the moment. Assigning more precise types to our
-   iterators would allow us to avoid it. TEMPORARY *)
+(* [recover] stops the iterator [i] and dynamically checks that the resulting
+   tree is equal to the argument [t]. This dynamic check is required for the
+   moment. Assigning more precise types to our iterators might allow us to
+   avoid it. TEMPORARY *)
 
 val recover [k, a] (consumes i: iterator k a, t: unknown) : (| t @ tree k a) =
   let u = stop i in
@@ -861,7 +896,9 @@ val recover [k, a] (consumes i: iterator k a, t: unknown) : (| t @ tree k a) =
   else
     fail
 
-(* We now use an iterator to implement the comparison of two trees. *)
+(* -------------------------------------------------------------------------- *)
+
+(* We use an iterator to implement the comparison of two trees. *)
 
 val compare [k, a] (
   cmpk: (k, k) -> int,
@@ -919,27 +956,87 @@ val equal [k, a] (
 ) : bool =
   compare (cmpk, cmpa, m1, m2) = 0
 
-val rec cardinal [k, a] (t: tree k a) : int =
-  match t with
-  | Empty ->
-      0
-  | Node ->
-      cardinal t.left + 1 + cardinal t.right
-  end
+(* -------------------------------------------------------------------------- *)
 
+(* As a test of the type-checker, we re-implement [iter] using iterators. *)
+
+val iter_variant [k, a, p :: PERM] (
+  f: (k,           a | p) -> bool,
+         t: tree k a | p)  : bool =
+
+  (* Create an iterator. *)
+  let i = iterate t in
+  (* Loop. *)
+  let rec loop (| i @ iterator k a * p) : bool =
+    match i with
+    | IAt { focus = m } ->
+        (* TEMPORARY this could be very concisely written using && *)
+        if f (m.key, m.value) then loop() else False
+    | _ ->
+        True
+    end
+  in
+  (* Stop the iterator and recover the permission for the tree. *)
+  let outcome : bool = loop() in
+  recover (i, t);
+  outcome
+
+(* -------------------------------------------------------------------------- *)
+
+(* Conversion of a tree to a list. *)
 
 (* BUG All permissions should be in expanded form *)
 (* 
 val bindings [k, a] duplicable k, duplicable a => (t: tree k a) : list::list (k, a) =
-  let f (x: k, v: a, consumes accu: list::list (k, a)) : list::list (k, a) =
+  let f (x: k, v: a, accu: list::list (k, a)) : list::list (k, a) =
     list::cons ((x, v), accu)
   in
   fold_descending (* [k, a, a, list::list (k, a), empty] *) (f, t, list::nil)
 *)
 
-(* A version of [split] for the end user. *)
+(* -------------------------------------------------------------------------- *)
+(* -------------------------------------------------------------------------- *)
 
-val split [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a) : (tree k a, option a, tree k a) =
-  let t = split (cmp, x, t) in
-  t.left, t.value, t.right
+(* We now wrap the type [tree] in another type, [map], which the client will
+   work with. There are two reasons for doing so. One is that this allows
+   some functions, such as [add], to return unit instead of returning a new
+   data structure. The other is that this allows us to store the comparison
+   function. *)
+
+(* TEMPORARY could also cache cardinal at this level *)
+(* TEMPORARY introduce a phantom parameter [cmp] *)
+
+mutable data map k a =
+  Map { tree: tree k a; cmp: (k, k) -> int }
+
+(* -------------------------------------------------------------------------- *)
+
+(* Creating an empty requires supplying a comparison function [cmp],
+   which is stored within the new data structure. *)
+
+(* BUG this code causes an error: Fact inconsistency affine <= exclusive
+val make [k, a] (cmp: (k, k) -> int) : map k a =
+  Map { tree = make(); cmp = cmp }
+
+(* singleton *)
+*)
+
+val cardinal [k, a] (m: map k a) : int =
+  cardinal m.tree
+
+val is_empty [k, a] (m : map k a) : bool =
+  is_empty m.tree
+
+val add [k, a] (
+  consumes x: k,
+  consumes d: a,
+  m: map k a
+) : () =
+  m.tree <- add (m.cmp, x, d, m.tree)
+
+val find [k, a] duplicable a => (
+  x: k,
+  m: map k a
+) : option a =
+  find (m.cmp, x, m.tree)
 
