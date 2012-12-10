@@ -495,6 +495,8 @@ data_type_def:
   a = adopts_clause?
     { Concrete (flag, lhs, rhs, a) }
 | ABSTRACT name = variable params = atomic_type_binding*
+  (* TEMPORARY why not re-use data_type_def_lhs on the line above? *)
+  (* furthermore, I think I would prefer ABSTRACT DATA to just ABSTRACT *)
   k = optional_kind_annotation f = fact?
     { Abstract ((name, params), k, f) }
 
