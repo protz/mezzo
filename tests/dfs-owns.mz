@@ -1,0 +1,67 @@
+open pervasives
+open list
+
+(* It would be great if we could abstract this code so as to work
+   with an arbitrary graph structure. For the moment, let's work
+   with a fixed, dummy type of graphs. *)
+
+(* The [graph] object contains the list of the graph's roots, and
+   also serves as an adopter for the graph nodes. *)
+
+(* The type parameter [a] is the type of the information contained
+   in each graph node. *)
+
+mutable data graph a =
+  Graph { roots: list dynamic } adopts node a
+
+mutable data node a =
+  Node  { children: list dynamic; payload: a }
+
+(* Depth-first (prefix) numbering. *)
+
+(* [traverse] performs a strong update on a composite structure: the
+   type of the graph changes from [graph unknown] to [graph int], or
+   in other words, the type of every node changes from [node unknown]
+   to [node int]. *)
+
+(* In this variant, we do not need each node to carry a Boolean mark.
+   Instead, we use the hidden [adopter] field for this purpose. If a
+   node is currently adopted by the old graph, then it has not been
+   visited yet. If it is adopted by the new graph, then it has been
+   visited. This technique presents several advantages with respect to
+   a more naïve approach based on Boolean marks: 1- it saves space; 2-
+   it does not require the marks to be re-initialized after (or before)
+   each traversal; 3- it allows a strong update, i.e. the nodes that
+   have been visited do not have the same type as the nodes that have
+   not yet been visited. *)
+
+val traverse (consumes g : graph unknown) : graph int =
+  
+  (* This integer reference counts how many nodes we have discovered. *)
+  let c = newref 0 in
+
+  (* This is the new graph. *)
+  let newGraph = Graph { roots = g.roots } in
+
+  (* The recursive function. *)
+  let rec visit (n : dynamic | g @ graph unknown * c @ ref int * newGraph @ graph int) : () =
+    (* Perform a dynamic ownership test. *)
+    if g owns n then begin
+      (* This node has not been visited yet. *)
+      take n from g;
+      (* Number this node. *)
+      n.payload <- !c;
+      c := !c + 1;
+      let children = n.children in
+      (* Mark this node as visited by giving it to the new graph. *)
+      give n to newGraph;
+      iter (visit, children)
+    end
+  in
+
+  (* Visit each of the roots. *)
+  iter (visit, g.roots);
+
+  (* Return the new graph. *)
+  newGraph
+

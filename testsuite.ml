@@ -695,6 +695,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("dfs.mz", simple_test Pass);
 
+  ("dfs-owns.mz", simple_test Pass);
+
   ("owns1.mz", simple_test Pass);
 
   ("owns2.mz", simple_test (Fail (function NotDynamic _ -> true | _ -> false)));
