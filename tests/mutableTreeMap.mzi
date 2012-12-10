@@ -1,0 +1,128 @@
+open pervasives (* TEMPORARY *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* [treeMap k a] is an abstract type for association maps with keys of type [k]
+   and values of type [a]. *)
+
+abstract treeMap k a
+
+(* [treeMap k a] is an exclusive type. That is, a map has a unique owner. *)
+
+fact exclusive (treeMap k a)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Operations on maps. *)
+
+(* TEMPORARY make, singleton *)
+
+(* BUG? the type-checker claims that mutableTreeMap.mz exports a value named
+   "cardinal" but it does not have the following type. Maybe there is a confusion
+   due to the fact that there are *two* successive definitions of "cardinal" at
+   the top level?
+   -- Also, note that the location of this error message is rather bogus; it is
+   the last function definition of the file mutableTreeMap.mz. *)
+
+val cardinal : [k, a] treeMap k a -> int
+
+val is_empty : [k, a] treeMap k a -> bool
+
+val add : [k, a] (k, a, treeMap k a) -> ()
+
+(* BUG the grammar does not allow constraints as part of VAL declarations!
+   perhaps we should think about making TyConstraint a more "ordinary"
+   construct in the grammar of types.
+val find : [k, a] duplicable a => (k, treeMap k a) -> option a
+*)
+
+val find_use_update : [k, a, b, p :: PERM] (
+  (consumes a | p) -> (a, b),
+  k, treeMap k a | p
+) -> option b
+
+val mem : [k, a] (k, treeMap k a) -> bool
+
+(* TEMPORARY
+val min_binding : [k, a] duplicable k, duplicable a => treeMap k a -> option (k, a)
+val max_binding : [k, a] duplicable k, duplicable a => treeMap k a -> option (k, a)
+*)
+
+val extract_min_binding : [k, a] treeMap k a -> option (k, a)
+val extract_max_binding : [k, a] treeMap k a -> option (k, a)
+
+val remove : [k, a] (k, treeMap k a) -> option (k, a)
+
+val iter : [k, a, p :: PERM] (
+  f: (k,              a | p) -> bool,
+         m: treeMap k a | p) -> bool
+
+(* BUG? the following declaration gives rise to this error:
+   this is a type but we were expecting a term
+
+val for_all :
+  =iter
+*)
+(* TEMPORARY add sugar for this declaration? *)
+
+val exists : [k, a, p :: PERM] (
+  f: (k,              a | p) -> bool,
+         m: treeMap k a | p) -> bool
+
+(* TEMPORARY
+val map [k, a1, a2, b, p :: PERM] duplicable k => (
+  f: (k, consumes d:           a1 | p) -> (b           | d @           a2),
+         consumes m: treeMap k a1 | p) -> (treeMap k b | m @ treeMap k a2)
+
+val copy : [k, a, b] duplicable k => (a -> b, treeMap k a) -> treeMap k b
+*)
+
+val fold_ascending : [k, a1, a2, b, p :: PERM] (
+  f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
+         consumes m: treeMap k a1, consumes accu: b | p) -> (b | m @ treeMap k a2)
+
+val fold_descending : [k, a1, a2, b, p :: PERM] (
+  f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
+         consumes m: treeMap k a1, consumes accu: b | p) -> (b | m @ treeMap k a2)
+
+(* TEMPORARY
+val fold :
+  =fold_ascending
+*)
+
+val merge : [k, a, b, c] (
+  f: (k, consumes option a, consumes option b) -> option c,
+  consumes treeMap k a,
+  consumes treeMap k b
+) -> treeMap k c
+
+val split : [k, a] (
+  k,
+  consumes treeMap k a
+) -> (treeMap k a, option a, treeMap k a)
+
+val filter : [k, a, b] (
+  p: (k, consumes a) -> option b,
+  consumes treeMap k a
+) -> treeMap k b
+
+val partition : [k, a, b, c] (
+  p: (k, consumes a) -> choice b c,
+  consumes treeMap k a
+) -> (treeMap k b, treeMap k c)
+
+val compare : [k, a] (
+  (k, k) -> int,
+  (a, a) -> int,
+  treeMap k a,
+  treeMap k a
+) -> int
+
+val equal : [k, a] (
+  (k, k) -> int,
+  (a, a) -> int,
+  treeMap k a,
+  treeMap k a
+) -> bool
+
+(* TEMPORARY bindings *)
