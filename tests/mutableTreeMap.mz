@@ -977,6 +977,21 @@ val bindings [k, a] duplicable k, duplicable a => (t: tree k a) : list::list (k,
 mutable data treeMap k a =
   TreeMap { tree: tree k a; cmp: (k, k) -> int }
 
+(* BUG? I tried the following type definition and code:
+
+mutable data treeMap k (c :: TERM) a =
+  TreeMap { tree: tree k a; cmp: =c | c @ (k, k) -> int }
+
+val cardinal [k, c :: TERM, a] (m: treeMap k c a) : int =
+  cardinal m.tree
+
+but I got this error:
+
+File "mutableTreeMap.mz", line 992, character 57 - line 993, character 17:
+expected a subexpression of type (core::int | m @ treeMap k c a) but it has type core::int
+
+*)
+
 (* -------------------------------------------------------------------------- *)
 
 (* Creating an empty map requires supplying a comparison function [cmp],
