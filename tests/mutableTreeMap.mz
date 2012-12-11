@@ -952,6 +952,147 @@ val iter_variant [k, a, p :: PERM] (
 
 (* -------------------------------------------------------------------------- *)
 
+(* Iterators in another style. *)
+
+(* A bandit is a binary tree node that has no left child. *)
+
+(* The following type describes a list of bandits. *)
+
+(* TEMPORARY because we don't have type abbreviations, we redefine this type
+   instead of using an abbreviation for a list of bandits. *)
+
+data bandits k a =
+  | End
+  | More {
+      head: Node { left: dynamic; key: k; value: a; right: tree k a; height: int };
+      tail: bandits k a
+  }
+
+(* An enumeration is basically a reference to a list of bandits. Furthermore,
+   an enumeration object is able to adopt the tree nodes that have already
+   been visited. The nodes that are adopted are isolated, i.e. they do not
+   own their children; this forces us (unfortunately) to redefine a new type
+   of tree nodes that do not own their children. *)
+
+(* TEMPORARY perhaps we could plan ahead and parameterize the type of tree
+   nodes with the type of their children before tying the recursive knot?
+   but that would require a recursive type abbreviation, I am afraid *)
+
+mutable data enumeration k a =
+  Enum { bandits: bandits k a } adopts visited k a
+
+mutable data visited k a =
+  | VisitedEmpty
+  | VisitedNode { left: dynamic; key: k; value: a; right: dynamic; height: int }
+
+(* This smart constructor [cons]es a tree in front of a list of bandits. The
+   left spine of the tree is walked down all the way, so that the nodes that
+   are effectively insert into the list are bandits. *)
+
+val rec cons_bandits [k, a] (consumes t: tree k a, e: enumeration k a) : () =
+  match t with
+  | Empty ->
+      tag of t <- VisitedEmpty; (* this is a no-op *)
+      give t to e
+  | Node ->
+      e.bandits <- More { head = t; tail = e.bandits };
+      cons_bandits (t.left, e)
+  end
+
+val new_enum [k, a] (consumes t: tree k a) : enumeration k a =
+  let e = Enum { bandits = End } in
+  cons_bandits (t, e);
+  e
+
+val consume_enum [k, a] (e: enumeration k a) : () =
+  match e.bandits with
+  | More { head; tail } ->
+      e.bandits <- tail;
+      cons_bandits (head.right, e);
+      tag of head <- VisitedNode; (* this is a no-op *)
+      give head to e
+  | End ->
+      fail
+      (* TEMPORARY we could eliminate this case if we declared that initially
+	 [e] has type Enum { bandits: More { ... } }
+	 but this will require an explicit adopts clause in a structural type *)
+  end
+
+(* The following function reconstructs the ownership of the original tree after
+   the enumeration has stopped. We are in a situation where the tree nodes that
+   have already been visited have been adopted by the enumeration object, whereas
+   the tree nodes that have not yet been visited are listed, *in order*, as part
+   of the list [e.bandits]. A dynamic ownership test is used to distinguish these
+   two situations. Yes, this is quite crazy, and I am not even sure that it works. *)
+
+val rec reconstruct [k, a] (t: dynamic, e: enumeration k a) : (| t @ tree k a) =
+  if e owns t then begin
+    take t from e;
+    match t with
+    | VisitedEmpty ->
+        tag of t <- Empty (* this is a no-op *)
+    | VisitedNode ->
+        tag of t <- Node; (* this is a no-op *)
+        reconstruct (t.left, e);
+	reconstruct (t.right, e)
+    end
+  end
+  else
+    match e.bandits with
+    | End ->
+        fail (* impossible *)
+    | More { head; tail } ->
+        assert head @ tree k a; (* TEMPORARY unfinished; reconstruct left-hand side *)
+        if head === t then begin
+	  assert t @ tree k a;
+	  e.bandits <- tail
+	end
+	else
+	  fail (* impossible *)
+    end
+
+(* We use an enumeration to implement the comparison of two trees. *)
+
+val compare_variant [k, a] (
+  cmpk: (k, k) -> int,
+  cmpa: (a, a) -> int,
+  consumes m1: tree k a,
+  consumes m2: tree k a
+) : int =
+  
+  (* Create an enumeration for each of the trees. *)
+  let e1 = new_enum m1
+  and e2 = new_enum m2 in
+
+  (* Loop. *)
+  let rec loop (| e1 @ enumeration k a * e2 @ enumeration k a) : int =
+    match e1.bandits, e2.bandits with
+    | More { head = m1 }, More { head = m2 } ->
+	let c = cmpk (m1.key, m2.key) in
+	if c <> 0 then c else begin
+	  let c = cmpa (m1.value, m2.value) in
+	  if c <> 0 then c else begin
+	    consume_enum e1;
+	    consume_enum e2;
+	    loop()
+	  end
+	end
+    | More, End ->
+	(* The sequence [i1] is longer. *)
+        1
+    | End, More ->
+	(* The sequence [i2] is longer. *)
+        -1
+    | End, End ->
+	(* The comparison suceeded, all the way. *)
+	0
+    end
+
+  in
+  loop()
+
+(* -------------------------------------------------------------------------- *)
+
 (* Conversion of a tree to a list. *)
 
 (* BUG All permissions should be in expanded form *)

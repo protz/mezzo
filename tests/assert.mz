@@ -25,3 +25,11 @@ val rec append [a] (consumes xs: list a, consumes ys: list a) : list a =
   else
     ys
 
+(* -------------------------------------------------------------------------- *)
+
+(* Testing that it's OK to assert fewer permissions than we actually have. *)
+
+val f [a] (consumes xs: list a, consumes ys: list a) : list a =
+  assert xs @ list a;
+  ys
+
