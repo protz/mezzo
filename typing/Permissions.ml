@@ -20,7 +20,6 @@
 (* There are useful comments in the corresponding .mli *)
 
 open Types
-open Utils
 open TypeErrors
 
 (* -------------------------------------------------------------------------- *)
@@ -351,7 +350,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
   (* This auxiliary function takes care of inserting an indirection if needed,
    * that is, a [=foo] type with [foo] being a newly-allocated [point]. *)
   let insert_point (env: env) ?(hint: name option) (t: typ): env * typ =
-    let hint = Option.map_none (Auto (Variable.register (fresh_name "t_"))) hint in
+    let hint = Option.map_none (fresh_auto_var "t_") hint in
     match t with
     | TySingleton _ ->
         env, t

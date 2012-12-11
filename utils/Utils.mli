@@ -19,5 +19,6 @@
 
 val dont_inline: 'a -> 'a
 val fresh_name: string -> string
+val fresh_var: string -> Variable.name
 val read: in_channel -> string
 val ptag: Buffer.t -> 'a -> unit

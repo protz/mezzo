@@ -165,6 +165,8 @@ let fold_exists bindings t =
   ) bindings t
 ;;
 
+let fresh_auto_var prefix = Auto (Utils.fresh_var prefix);;
+
 
 (* -------------------------------------------------------------------------- *)
 

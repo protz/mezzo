@@ -18,7 +18,6 @@
 (*****************************************************************************)
 
 open Types
-open Utils
 
 type job = point * point * point
 
@@ -264,7 +263,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
      * merging, at the front of the list (this implements our first heuristic). *)
     let left_env, left_root = left in
     let right_env, right_root = right in
-    let root_name = Auto (Variable.register (fresh_name "merge_root")) in
+    let root_name = fresh_auto_var "merge_root" in
     let dest_env, dest_root = bind_term dest_env root_name dest_env.location false in
     push_job (left_root, right_root, dest_root);
 
@@ -452,7 +451,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
       | Some dest_p ->
           dest_env, dest_p
       | None ->
-          let name = Auto (Variable.register (fresh_name "merge_point")) in
+          let name = fresh_auto_var "merge_point" in
           let dest_env, dest_p = bind_term dest_env name left_env.location false in
           let dest_env = add_location dest_env dest_p right_env.location in
           push_job (left_p, right_p, dest_p);

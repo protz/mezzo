@@ -32,6 +32,8 @@ let fresh_name =
     prefix ^ n
 ;;
 
+let fresh_var prefix = Variable.register (fresh_name prefix);;
+
 let read ic =
   let buf = Buffer.create 4096 in
   let s = String.create 2048 in

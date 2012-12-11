@@ -20,7 +20,6 @@
 open Types
 open TypeErrors
 open Expressions
-open Utils
 
 
 (* -------------------------------------------------------------------------- *)
@@ -440,7 +439,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
    * the environment as well as the point *)
   let return env t =
     (* Not the most clever function, but will do for now on *)
-    let hint = Option.map_none (Auto (Variable.register (fresh_name "/x_"))) hint in
+    let hint = Option.map_none (fresh_auto_var "/x_") hint in
     let env, x = bind_term env hint env.location false in
     let env = Permissions.add env x t in
     match annot with

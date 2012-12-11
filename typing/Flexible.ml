@@ -220,8 +220,8 @@ let tpsubst env (t2: typ) (p: point) (t1: typ) =
 let generalize env t =
   let flexible = find_flexible env t in
   List.fold_right (fun p t ->
-    let x = Variable.register (Utils.fresh_name "g") in
+    let x = fresh_auto_var "/g" in
     let k = get_kind env p in
-    TyForall (((Auto x, k, env.location), CanInstantiate), tpsubst env (TyVar 0) p t)
+    TyForall (((x, k, env.location), CanInstantiate), tpsubst env (TyVar 0) p t)
   ) flexible t
 ;;

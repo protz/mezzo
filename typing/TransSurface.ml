@@ -82,7 +82,7 @@ let rec add_name_if t =
   | TyNameIntro _ ->
       t
   | _ ->
-      let name = Variable.register (fresh_name "/d") in
+      let name = fresh_var "/d" in
       TyNameIntro (name, t)
 ;;
 
@@ -187,7 +187,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
         acc @ consumed
 
     | TyConsumes t ->
-        let name = Variable.register (fresh_name "/c") in
+        let name = fresh_var "/c" in
         let perm = TyAnchoredPermission (TyVar name, t) in
         ty_equals name, [Some name, perm, env.location]
 
@@ -357,7 +357,7 @@ and translate_arrow_type env t1 t2 =
   (* Now we give a name to [t1] so that we can speak about the argument in
    * the returned type. Note: this variable name is not lexable, so no risk
    * of conflict. *)
-  let root = Variable.register (fresh_name "/root") in
+  let root = fresh_var "/root" in
   let root_binding = root, KTerm, (tloc t1) in
 
   (* We now turn the argument into (=root | root @ t1 ∗ c @ … ∗ …) with [t1]
@@ -693,7 +693,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
             | PLocated (PAs (_, PVar x), _, _) ->
                 pat, Some x
             | _ ->
-                let name = Variable.register (fresh_name "/a") in
+                let name = fresh_var "/a" in
                 PAs (pat, PVar name), Some name
         in
         (* Collect the names. *)
