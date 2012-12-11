@@ -835,12 +835,7 @@ implementation:
 (* A declaration group is a sequence of mutually recursive definitions. *)
 %inline perm_declaration:
 | VAL x = variable COLON ty = arbitrary_type
-    { PermDeclaration (TyAnchoredPermission (TyVar x, ty)) }
-  (* TEMPORARY I have changed the surface syntax to use COLON; it seems
-     to me that the abstract syntax should change as well, i.e. it should be
-     PermDeclaration of Variable.name * typ
-     -fpottier
-  *)
+    { PermDeclaration (x, ty) }
 
 interface_toplevel:
 | group = data_type_group

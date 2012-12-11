@@ -67,7 +67,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     Hml_List.map_flatten collect_item items
 
   and collect_item = function
-    | PermDeclaration t ->
+    | PermDeclaration (_, t) ->
         collect_type t
     | DataTypeGroup (_, defs) ->
         Hml_List.map_flatten (function

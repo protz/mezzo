@@ -70,9 +70,8 @@ let check (env: T.env) (mname: Module.name) (signature: S.toplevel_item list): T
         let tsenv = KindCheck.open_module_in mname tsenv in
         check env tsenv toplevel_items
 
-    | S.PermDeclaration t :: toplevel_items ->
-        (* val x @ t *)
-        let x, t = KindCheck.destruct_perm_decl t in
+    | S.PermDeclaration (x, t) :: toplevel_items ->
+        (* val x: t *)
         Log.debug ~level:3 "*** Checking sig item %a" Variable.p x;
 
         (* Make sure [t] has kind ∗ *)

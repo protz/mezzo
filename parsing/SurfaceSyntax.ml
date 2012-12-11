@@ -268,7 +268,7 @@ type declaration_group =
 type toplevel_item =
   | DataTypeGroup of data_type_group
   | ValueDeclarations of declaration_group
-  | PermDeclaration of typ
+  | PermDeclaration of Variable.name * typ
   | OpenDirective of Module.name
 
 (* An implementation will only contain data type groups, value declarations and

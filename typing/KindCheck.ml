@@ -844,20 +844,6 @@ let check_declaration_group (env: env) (declaration_group: declaration list) =
   ) env declaration_group
 ;;
 
-let destruct_perm_decl t =
-  let x, t =
-    match t with
-    | TyAnchoredPermission (x, t) -> x, t
-    | _ -> Log.error "The parser should forbid this"
-  in
-  let x =
-    match x with
-    | TyVar name -> name
-    | _ -> Log.error "The parser should forbid this"
-  in
-  x, t
-;;
-
 let check_implementation (tenv: T.env) (program: implementation) =
   let env = empty tenv in
   let env = List.fold_left (fun env -> function
@@ -883,8 +869,7 @@ let check_implementation (tenv: T.env) (program: implementation) =
          * the variables and checking the bodies. *)
         check_declaration_group env declaration_group;
 
-    | PermDeclaration t ->
-        let x, t = destruct_perm_decl t in
+    | PermDeclaration (x, t) ->
         check env t KType;
         let env = bind ~strict:true env (x, KTerm) in
         env

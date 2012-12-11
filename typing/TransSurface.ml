@@ -835,8 +835,7 @@ let translate_item env item strict =
        * binders. *)
       let env, decls = translate_declaration_group env decls in
       env, Some (E.ValueDeclarations decls)
-  | PermDeclaration t ->
-      let x, t = destruct_perm_decl t in
+  | PermDeclaration (x, t) ->
       check env t KType;
       let t = translate_type env t in
       let env = bind ~strict:true env (x, KType) in
