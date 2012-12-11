@@ -887,12 +887,12 @@ module TypePrinter = struct
         lparen ^^ print_type env p ^^ space ^^ bar ^^ space ^^
         print_type env q ^^ rparen
 
-    | TyConstraints (constraints, t) ->
+    | TyAnd (constraints, t) ->
         let constraints = List.map (fun (f, t) ->
           print_data_type_flag f ^^ space ^^ print_type env t
         ) constraints in
         let constraints = join comma constraints in
-        lparen ^^ constraints ^^ rparen ^^ space ^^ equals ^^ rangle ^^ space ^^
+        lparen ^^ constraints ^^ rparen ^^ space ^^ string "∧" ^^ space ^^
         print_type env t
 
   and print_data_field_def env = function

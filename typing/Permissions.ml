@@ -139,7 +139,7 @@ let rec collect_constraints t =
   | TyTuple ts ->
       let ts, cs = List.split (List.map collect_constraints ts) in
       TyTuple ts, List.flatten cs
-  | TyConstraints (cs, t) ->
+  | TyAnd (cs, t) ->
       let t, cs' = collect_constraints t in
       t, cs @ cs'
   | _ ->
@@ -257,7 +257,7 @@ and add (env: env) (point: point) (t: typ): env =
             type or permission";
       end
 
-  | TyConstraints (constraints, t) ->
+  | TyAnd (constraints, t) ->
       Log.debug ~level:4 "%s]%s (constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
       let env = add_constraints env constraints in
       add env point t
@@ -445,9 +445,9 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
         in
         env, TyConcreteUnfolded (datacon, List.rev fields, clause)
 
-    | TyConstraints (constraints, t) ->
+    | TyAnd (constraints, t) ->
         let env, t = unfold env ?hint t in
-        env, TyConstraints (constraints, t)
+        env, TyAnd (constraints, t)
 
   in
   unfold env ?hint t
@@ -575,10 +575,10 @@ and sub_type_real env t1 t2 =
     Some env
 
   else match t1, t2 with
-  | TyConstraints _, _ ->
+  | TyAnd _, _ ->
       Log.error "Constraints should've been processed when this permission was added"
 
-  | _, TyConstraints (constraints, t2) ->
+  | _, TyAnd (constraints, t2) ->
       (* First do the subtraction, because the constraint may be "duplicable α"
        * with "α" being flexible. *)
       let t2, perms = collect t2 in

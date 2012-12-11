@@ -89,7 +89,7 @@ let collect (t: typ): typ * typ list =
         let q, q_perms = collect q in
         TyStar (p, q), p_perms @ q_perms
 
-    | TyConstraints _ ->
+    | TyAnd _ ->
         t, []
   in
   collect t
@@ -172,11 +172,11 @@ let simplify_function_type env t body =
     | TyStar (p, q) ->
         TyStar (fst (find env p e), fst (find env q e)), None
 
-    | TyConstraints (constraints, t) ->
+    | TyAnd (constraints, t) ->
         let constraints = List.map (fun (c, t) ->
           c, fst (find env t e)
         ) constraints in
-        TyConstraints (constraints, fst (find env t e)), None
+        TyAnd (constraints, fst (find env t e)), None
 
   (* [vars] have been opened in [t] and [e]. *)
   and cleanup (env: env) (vars: (type_binding * flavor) list) (t: typ) (e: expression option)
@@ -196,7 +196,7 @@ let simplify_function_type env t body =
          * if we try to, they end up being copied in the return type, which
          * doesn't make much sense. *)
         let constraints, t1 =
-          match t1 with TyConstraints (cs, t1) -> cs, t1 | _ -> [], t1
+          match t1 with TyAnd (cs, t1) -> cs, t1 | _ -> [], t1
         in
 
         (* Get all permissions in [t1]. *)
@@ -239,7 +239,7 @@ let simplify_function_type env t body =
          * are opened at this stage, when we close them, we will just refer to
          * the merged variable... *)
         let t1 =
-          if List.length constraints > 0 then TyConstraints (constraints, t1) else t1
+          if List.length constraints > 0 then TyAnd (constraints, t1) else t1
         in
 
         (* Perform some light cleanup on [t2] too. *)
@@ -389,7 +389,7 @@ let rec mark_reachable env = function
   | TyArrow _ ->
       env
 
-  | TyConstraints (constraints, t) ->
+  | TyAnd (constraints, t) ->
       let env = List.fold_left (fun env (_, t) ->
         mark_reachable env t
       ) env constraints in

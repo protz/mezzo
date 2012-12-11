@@ -421,7 +421,7 @@ let names env ty : type_binding list =
           fields
         in
         List.flatten (List.map (names env) ts)
-    | TyConstraints (_, t)
+    | TyAnd (_, t)
     | TySingleton t
     | TyConsumes t
     | TyForall (_, t) ->
@@ -608,7 +608,7 @@ and infer (env: env) (t: typ) =
       check env t2 KPerm;
       KType
 
-  | TyConstraints (cs, t) ->
+  | TyAnd (cs, t) ->
       List.iter (fun (_, t) -> check env t KType) cs;
       infer env t
 

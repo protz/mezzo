@@ -132,8 +132,8 @@ and fold_type_raw (env: env) (t: typ): typ =
   | TyTuple components ->
       TyTuple (List.map (fold_type_raw env) components)
 
-  | TyConstraints (cs, t) ->
-      TyConstraints (cs, fold_type_raw env t)
+  | TyAnd (cs, t) ->
+      TyAnd (cs, fold_type_raw env t)
 
   | TyConcreteUnfolded (dc, fields, clause) ->
       let fields = List.map (function

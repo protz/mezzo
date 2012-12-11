@@ -112,8 +112,8 @@ let add_names_wherever_needed t =
         ) fields in
         TyConcreteUnfolded (dc, fields)
 
-    | TyConstraints (cs, t) ->
-        TyConstraints (cs, add t)
+    | TyAnd (cs, t) ->
+        TyAnd (cs, add t)
 
     | _ ->
         t
@@ -164,9 +164,9 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
         let t, acc = strip_consumes env t in
         TyNameIntro (x, t), acc
 
-    | TyConstraints (constraints, t) ->
+    | TyAnd (constraints, t) ->
         let t, acc = strip_consumes env t in
-        TyConstraints (constraints, t), acc
+        TyAnd (constraints, t), acc
 
     | TyBar (t, p) ->
         (* Strip all consumes annotations from [t]. *)
@@ -289,7 +289,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyBar (t1, t2) ->
       T.TyBar (translate_type env t1, translate_type env t2)
 
-  | TyConstraints (constraints, t) ->
+  | TyAnd (constraints, t) ->
       let constraints = List.map (fun (f, t) -> f, translate_type env t) constraints in
       List.iter (fun (_, t) ->
         match t with
@@ -298,7 +298,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
         | _ ->
             Log.error "We support mode constraints only on type variables"
       ) constraints;
-      T.TyConstraints (constraints, translate_type env t)
+      T.TyAnd (constraints, translate_type env t)
 
 
 and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.data_type_def_branch =
@@ -331,7 +331,7 @@ and translate_arrow_type env t1 t2 =
     | TyTuple ts ->
         let cs, ts = List.split (List.map collect_constraints ts) in
         List.flatten cs, TyTuple ts
-    | TyConstraints (cs, t) ->
+    | TyAnd (cs, t) ->
         let cs', t = collect_constraints t in
         cs @ cs', t
     | TyLocated (t, p1, p2) ->
@@ -373,7 +373,7 @@ and translate_arrow_type env t1 t2 =
   let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env universal_bindings in
   let fat_t1 =
     if List.length constraints > 0 then
-      TyConstraints (constraints, fat_t1)
+      TyAnd (constraints, fat_t1)
     else
       fat_t1
   in

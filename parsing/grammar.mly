@@ -800,7 +800,7 @@ inner_declaration:
   COLON t = normal_type
   EQUAL e = expression
     { PVar f_name,
-      EFun (Option.map_none [] bs, TyConstraints (constraints, arg), t, e) }
+      EFun (Option.map_none [] bs, TyAnd (constraints, arg), t, e) }
 
 (* ---------------------------------------------------------------------------- *)
 

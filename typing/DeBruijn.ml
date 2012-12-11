@@ -94,9 +94,9 @@ let clean top sub t =
     | TyStar (t1, t2) ->
         TyStar (clean t1, clean t2)
 
-    | TyConstraints (constraints, t) ->
+    | TyAnd (constraints, t) ->
         let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
-        TyConstraints (constraints, clean t)
+        TyAnd (constraints, clean t)
   in
   clean t
 ;;
@@ -165,7 +165,7 @@ let equal env (t1: typ) (t2: typ) =
     | TyEmpty, TyEmpty ->
         true
 
-    | TyConstraints (c1, t1), TyConstraints (c2, t2) ->
+    | TyAnd (c1, t1), TyAnd (c2, t2) ->
         List.for_all2 (fun (f1, t1) (f2, t2) ->
           f1 = f2 && equal t1 t2) c1 c2
         && equal t1 t2
@@ -232,9 +232,9 @@ let lift (k: int) (t: typ) =
     | TyBar (t, p) ->
         TyBar (lift i t, lift i p)
 
-    | TyConstraints (constraints, t) ->
+    | TyAnd (constraints, t) ->
         let constraints = List.map (fun (f, t) -> f, lift i t) constraints in
-        TyConstraints (constraints, lift i t)
+        TyAnd (constraints, lift i t)
 
   in
   lift 0 t
@@ -309,11 +309,11 @@ let tsubst (t2: typ) (i: int) (t1: typ) =
     | TyBar (t, p) ->
         TyBar (tsubst t2 i t, tsubst t2 i p)
 
-    | TyConstraints (constraints, t) ->
+    | TyAnd (constraints, t) ->
         let constraints = List.map (fun (f, t) ->
           f, tsubst t2 i t
         ) constraints in
-        TyConstraints (constraints, tsubst t2 i t)
+        TyAnd (constraints, tsubst t2 i t)
   in
   tsubst t2 i t1
 ;;

@@ -98,7 +98,7 @@ type typ =
   | TyStar of typ * typ
 
     (* Constraint *)
-  | TyConstraints of duplicity_constraint list * typ
+  | TyAnd of duplicity_constraint list * typ
 
 and duplicity_constraint = SurfaceSyntax.data_type_flag * typ
 
