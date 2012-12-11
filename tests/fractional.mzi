@@ -1,0 +1,75 @@
+open pervasives (* TEMPORARY *)
+
+(* An object of type [permission x a] is a runtime representation
+   of a nonzero fractional permission for the reference cell [x],
+   whose ``real'' type is [ref a]. *)
+
+abstract permission (x :: TERM) a
+
+(* [permission x a] is a non-duplicable type. It could be implemented
+   as a fixed-precision or arbitrary-precision dyadic number. *)
+
+(* If [x] has type [ref a], then the call [share x] produces a fresh
+   fractional permission, whose value is 1, for [x]. The static
+   permission [x @ ref a] is consumed, so [x] can no longer be
+   directly read or written. *)
+
+val share: [a] (consumes x: ref a) -> permission x a
+
+(* [fork p] splits the fractional permission [p] into two halves of equal
+   value. *)
+
+(* We could have [fork] return a pair of fractional permissions, but it
+   seems more interesting/efficient to have it return a single value [p],
+   together with two static permissions to use [p]! Mind-boggling. *)
+
+val fork: [x :: TERM, a] (consumes permission x a) -> (p: permission x a | p @ permission x a)
+
+(* [join] is roughly the converse of [fork], although the two fractions
+   need to be equal. [join] can be thought of as addition of fractions. *)
+
+val join: [x :: TERM, a] (consumes permission x a, consumes permission x a) -> permission x a
+
+(* [claim] is the converse of [share]. The call [claim p] checks, at runtime,
+   that the value of [p] is 1. If so, the call succeeds and a static
+   permission [x @ ref a] is produced. Otherwise, the call fails at
+   runtime. *)
+
+(* One could also provide an operation that allows testing dynamically whether
+   the value of a fractional permission [p] is 1. *)
+
+val claim: [x :: TERM, a] (consumes permission x a) -> (| x @ ref a) (* failure is fatal *)
+
+(* The call [read x] allows reading the reference [x], provided a fractional
+   permission for [x] is available. It is interesting to note that the call
+   does not actually require [p] to be passed at runtime; it only requires a
+   static proof [p @ permission x a], so as long as we are able to statically
+   prove that we own some fraction of [x], the read operation is permitted.
+   In other words, fractional permissions need not be physically available
+   everywhere; they must be physically available only where [fork], [join],
+   and [claim] are used. *)
+
+(* The operation [read] is the reason why we have hard-coded the type [ref a]
+   in this API. In principle, we could create permissions for objects of an
+   arbitrary type, not just [ref a], but it is difficult to imagine what kind
+   of read operation we would then provide. For soundness, [read] requires the
+   type [a] to be duplicable. *)
+
+val read: [a, p :: TERM] (* TEMPORARY duplicable a => *) (x: unknown | p @ permission x a) -> a
+
+(* If [read] is the only operation that allows using an object [x] for which
+   only a fractional permission is available, then Mezzo programs remain
+   data-race-free. *)
+
+(* If we are feeling adventurous, perhaps we can also provide a [write] or
+   [swap] operation. This would cause programs to become racy. The system
+   would remain type-safe, I suppose (this is a weak update). [swap] seems
+   more powerful, because it allows reading/writing the cell even when [a] is
+   not duplicable, whereas the combination of [read] and [write] is useless
+   unless [a] is duplicable. Of course, [swap] is costly, because it must be
+   atomic, whereas [write] is probably cheaper, because it requires only a
+   memory fence. (Or perhaps no fence at all, but in that case, we must be
+   prepared to prove type soundness with respect to a relaxed memory model!) *)
+
+val swap: [a, p :: TERM] (x: unknown, consumes v: a | p @ permission x a) -> a
+
