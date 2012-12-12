@@ -1,9 +1,9 @@
 data t =
   T { left: (); right: () }
 
-val test1 [p :: PERM] (preserve: (| p) -> (), eat: (| consumes p) -> () | consumes p) : t =
+val test1 [p : PERM] (preserve: (| p) -> (), eat: (| consumes p) -> () | consumes p) : t =
   T { left = preserve(); right = eat() }
 
-val test2 [p :: PERM] (preserve: (| p) -> (), eat: (| consumes p) -> () | consumes p) : t =
+val test2 [p : PERM] (preserve: (| p) -> (), eat: (| consumes p) -> () | consumes p) : t =
   T { right = preserve(); left = eat() }
 

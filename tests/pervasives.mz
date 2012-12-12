@@ -26,7 +26,7 @@ val false = False
 val newref [a] (consumes x: a): ref a =
   Ref { contents = x }
 
-val (!) [y :: TERM] (x: ref (=y)): =y =
+val (!) [y : TERM] (x: ref (=y)): =y =
   x.contents
 
 val (:=) [a, b] (consumes x: ref a, consumes c: b): ( | x @ ref b) =

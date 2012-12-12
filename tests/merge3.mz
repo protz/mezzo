@@ -8,7 +8,7 @@ data u = U { left: t; right: t }
    pour le résultat de ce if, car le type [t] est duplicable ce qui permet
    d'utiliser (à gauche) [x @ T] deux fois. On obtient
 
-   ∃(? :: TERM). v3 @ U { left = x; right = ? } ∗ ? @ T ∗ x @ T
+   ∃(? : TERM). v3 @ U { left = x; right = ? } ∗ ? @ T ∗ x @ T
 
    À noter qu'on ne peut plus obtenir [v3 @ u] si jamais l'on déclare [t] comme
    étant exclusif.

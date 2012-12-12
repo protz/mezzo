@@ -791,7 +791,7 @@ module TypePrinter = struct
       (name: name)
       (kind: SurfaceSyntax.kind)
       (typ: typ) =
-    print_string q ^^ lparen ^^ print_var env name ^^ space ^^ ccolon ^^ space ^^
+    print_string q ^^ lparen ^^ print_var env name ^^ space ^^ colon ^^ space ^^
     print_kind kind ^^ rparen ^^ dot ^^ jump (print_type env typ)
 
   and print_point env point =

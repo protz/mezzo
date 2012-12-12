@@ -15,7 +15,7 @@ mutable data ref a =
    function [f] that requires a copy of itself to be stored in [r]. Note
    that this is a duplicable permission. *)
 
-data narcissic_cell (r :: TERM) a b =
+data narcissic_cell (r : TERM) a b =
   Narcissic { content : (a | r @ narcissic_cell r a b) -> b }
 
 (* Let us now define a fixed point combinator. *)

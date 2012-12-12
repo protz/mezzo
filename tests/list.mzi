@@ -66,7 +66,7 @@ val rev_map : [a1, a2, b] (
 
 (* Iteration. *)
 
-val iter : [a1, a2, p :: PERM] (
+val iter : [a1, a2, p : PERM] (
   f: (consumes  x:      a1 | p) -> (|  x @      a2),
       consumes xs: list a1 | p) -> (| xs @ list a2)
 
@@ -74,11 +74,11 @@ val iter : [a1, a2, p :: PERM] (
 
 (* Fold. *)
 
-val fold_left : [a1, a2, b, p :: PERM] (
+val fold_left : [a1, a2, b, p : PERM] (
   f: (consumes       b, consumes  x:      a1 | p) -> (b |  x @      a2),
       consumes accu: b, consumes xs: list a1 | p) -> (b | xs @ list a2)
 
-val fold_right : [a1, a2, b, p :: PERM] (
+val fold_right : [a1, a2, b, p : PERM] (
   f: (consumes  x:      a1, consumes       b | p) -> (b |  x @      a2),
       consumes xs: list a1, consumes accu: b | p) -> (b | xs @ list a2)
 

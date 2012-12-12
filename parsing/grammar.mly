@@ -193,7 +193,7 @@ atomic_type_binding:
 type_binding:
 | b = atomic_type_binding
     { b }
-| x = variable COLONCOLON kind = kind
+| x = variable COLON kind = kind
     { x, kind, ($startpos, $endpos) }
 
 (* ---------------------------------------------------------------------------- *)
@@ -473,7 +473,7 @@ data_type_def_branch_content:
 %inline optional_kind_annotation:
 | (* nothing *)
     { KType }
-| COLONCOLON k = kind
+| COLON k = kind
     { k }
 
 %inline fact_conditions:

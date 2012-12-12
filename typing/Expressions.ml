@@ -1148,7 +1148,7 @@ module ExprPrinter = struct
 
   and print_ebinder env ((name, kind, _), f) =
     let f = if f = CannotInstantiate then star else empty in
-    print_var env name ^^ f ^^ space ^^ ccolon ^^ space ^^ print_kind kind
+    print_var env name ^^ f ^^ space ^^ colon ^^ space ^^ print_kind kind
 
   and print_binder env (((name: Variable.name), kind, pos), f) =
     print_ebinder env ((User (env.module_name, name), kind, pos), f)

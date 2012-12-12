@@ -894,7 +894,7 @@ module KindPrinter = struct
 
   (* Prints an abstract data type. Very straightforward. *)
   let print_abstract_type_def print_env name kind =
-    string "abstract" ^^ space ^^ print_var print_env name ^^ space ^^ ccolon ^^ space ^^
+    string "abstract" ^^ space ^^ print_var print_env name ^^ space ^^ colon ^^ space ^^
     print_kind kind
   ;;
 
@@ -928,7 +928,7 @@ module KindPrinter = struct
     in
     (* The whole blurb *)
     flag ^^ string "data" ^^ space ^^ lparen ^^
-    print_var env name ^^ space ^^ ccolon ^^ space ^^
+    print_var env name ^^ space ^^ colon ^^ space ^^
     print_kind kind ^^ rparen ^^ join_left space letters ^^
     space ^^ equals ^^
     jump

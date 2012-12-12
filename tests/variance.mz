@@ -3,7 +3,7 @@ data list a = Cons { head: a; tail: list a } | Nil
 mutable data ref a = Ref { contents: a }
 
 (* If we remove the consumes annotation, this is not contravariant anymore,
- * because this desugars as [x::term] (=x | x@a) -> (int | x@a) an a now appears
+ * because this desugars as [x:term] (=x | x@a) -> (int | x@a) an a now appears
  * on both sides of the arrow. *)
 mutable data contra a = C { c: (consumes a) -> int }
 

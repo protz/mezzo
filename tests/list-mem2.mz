@@ -1,6 +1,6 @@
 open list
 
-(* This is a variant of [List::mem]. It is defined in terms of [find] instead of
+(* This is a variant of [list::mem]. It is defined in terms of [find] instead of
    being defined directly. *)
 
 val mem2 [a] duplicable a => (equal: (a, a) -> bool, x: a, consumes xs: list a) : list a =

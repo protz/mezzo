@@ -1,7 +1,7 @@
 open pervasives
 
 (* Idéalement, on aimerait:
-    val make_counter (): ∃(t::★). (r: t, get: (| r @ t) -> int) =
+    val make_counter (): ∃(t:★). (r: t, get: (| r @ t) -> int) =
   pour avoir un minimum d'abstraction.
 *)
 val make_counter (): (r: ref int, get: (| r @ ref int) -> int) =
