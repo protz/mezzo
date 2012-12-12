@@ -1046,16 +1046,8 @@ val rec reconstruct [k, a] (t: dynamic, e: enumeration k a) : (| t @ tree k a) =
 	  (* At this point, [t] is a bandit, a tree node that does not own
 	     its left child. We need to reconstruct this left child in order
 	     to obtain [t @ tree k a]. *)
-	  assert t @ Node { left: dynamic; key: k; value: a; right: tree k a; height: int }
-            * tail @ bandits k a;
 	  e.bandits <- tail;
-	  reconstruct (t.left, e);
-	  assert t @ tree k a
-(* HELP? I don't understand this error message:
-File "mutableTreeMap.mz", line 1052, character 27 - line 1053, character 22:
-the context provides a type annotation, namely (() | core::x @ tree k a) but
-here is a type annotation, namely (() | core::x @ tree k a ∗ e @ enumeration k a),
-that is conflicting the context-provided type annotation *)
+	  reconstruct (t.left, e)
 	end
 	else
 	  fail (* impossible *)

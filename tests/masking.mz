@@ -5,6 +5,8 @@ data list a =
 val rec length [a] (xs: list a) : int =
   if xs then 1 + length xs.tail else 0
 
+val c : Cons { head: int; tail: list int } = cons(1,nil)
+
 data foo =
   | Cons { head: (); tail: () }
   | Nil

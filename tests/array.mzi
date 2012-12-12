@@ -10,16 +10,10 @@ abstract ro
 fact duplicable ro
 
 abstract rw
-fact exclusive rw
 
 (* TEMPORARY I would like to write something like this:
 abstract array m a
 fact duplicable m => duplicable (array m a)
-fact exclusive m => exclusive (array m a)
-or perhaps even something like this:
-fact duplicable (array ro a)
-fact exclusive (array rw a)
-Can we support multiple facts per type?
 *)
 
 (* TEMPORARY for the time being, arrays are mutable. *)
