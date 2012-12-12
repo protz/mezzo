@@ -1,3 +1,4 @@
 open a
 
 val f : () -> foo_a
+val conflict: (int, int)

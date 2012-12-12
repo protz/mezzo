@@ -45,18 +45,13 @@ let has_same_name x (x', _k, p) =
  * [Driver] will want to check that for us (by eventually calling us again with
  * another [mname]). *)
 let check (env: T.env) (mname: Module.name) (signature: S.toplevel_item list): T.env =
-  (* Get all the names (no longer prefixed) that [env] exports from module
-   * [mname]. *)
-  let exports = T.get_exports env mname in
-
   (* Find one specific name among these names. *)
   let point_by_name name =
-    match Hml_List.find_opt (has_same_name name) exports with
-    | Some point ->
-        point
-    | None ->
-        let open TypeErrors in
-        raise_error env (MissingFieldInSignature name)
+    try
+      T.point_by_name env ~mname name
+    with Not_found ->
+      let open TypeErrors in
+      raise_error env (MissingFieldInSignature name)
   in
 
   (* As [check] processes one toplevel declaration after another, it first add

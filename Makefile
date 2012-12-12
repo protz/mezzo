@@ -76,3 +76,6 @@ report:
 
 coverage:
 	BISECT_FILE=coverage ./testsuite
+
+verbose-test: all
+	./mezzo -I tests -nofancypants tests/$(FILE)
