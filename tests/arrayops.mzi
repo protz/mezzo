@@ -1,0 +1,20 @@
+open array
+
+(* A generic loop over a segment of an array. *)
+
+val iter_segment : [a, p :: PERM] (
+  f: (i: int   | x @ array a * p) -> (),
+  x: array a, i: int, j: int | p) -> ()
+
+(* A generic loop over an entire array. *)
+
+val iter_array : [a, p :: PERM] (
+  f: (i: int | x @ array a * p) -> (),
+  x: array a               | p) -> ()
+
+(* Creating and initializing an array. *)
+
+(* TEMPORARY 
+val init : [a] duplicable a => (n: int, f: int -> a) -> array a
+*)
+

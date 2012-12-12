@@ -1,0 +1,38 @@
+(* The primitive operations on arrays. *)
+
+(* We wish to distinguish mutable and immutable arrays, so the type
+   of arrays takes the form [array m a], where the phantom parameter
+   [m] is intended to be either [ro] or [rw]. The type parameter [a]
+   represents the type of the elements of the array. It is always a
+   duplicable type. *)
+
+abstract ro
+fact duplicable ro
+
+abstract rw
+fact exclusive rw
+
+(* TEMPORARY I would like to write something like this:
+abstract array m a
+fact duplicable m => duplicable (array m a)
+fact exclusive m => exclusive (array m a)
+or perhaps even something like this:
+fact duplicable (array ro a)
+fact exclusive (array rw a)
+Can we support multiple facts per type?
+*)
+
+(* TEMPORARY for the time being, arrays are mutable. *)
+abstract array a
+fact exclusive (array a)
+
+val create : [a] (* TEMPORARY duplicable a => *) (int, a) -> array a
+val zero : [a] (* TEMPORARY duplicable a => *) () -> array a
+(* creates an array of length zero *)
+
+val get : [a] (array a, int) -> a
+
+val set : [a] (array a, int, a) -> ()
+
+val length : [a] array a -> int
+
