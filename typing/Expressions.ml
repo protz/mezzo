@@ -552,8 +552,8 @@ let rec esubst_toplevel_items e2 i toplevel_items =
 ;;
 
 
-(* The idea is that when you bind, say, a list of variables, either PERM, TYPE
- * or TERM, (through type bindings, or a pattern in a let-binding), you want to
+(* The idea is that when you bind, say, a list of variables of arbitrary kind
+ * (through type bindings, or a pattern in a let-binding), you want to
  * perform the substitutions on whatever's under the bound variables. The
  * functions that perform the binding are [bind_vars] and [bind_patexprs], and
  * they're self-contained, so that they can be reused. In order to be as generic

@@ -112,7 +112,7 @@ let can_merge (env: env) (t1: typ) (p2: point): bool =
         (* TODO check for [ghost] here? *)
         true
       end else
-        Log.error "TODO: type variables with kind PERM"
+        Log.error "TODO: type variables with kind KPerm"
   | _ ->
       let f2 = get_fact env p2 in
       let f1 = FactInference.analyze_type env t1 in
@@ -183,7 +183,7 @@ let perm_not_flex env t =
     permissions should be merged. *)
 let rec unify (env: env) (p1: point) (p2: point): env =
   Log.check (is_term env p1 && is_term env p2) "[unify p1 p2] expects [p1] and \
-    [p2] to be variables with kind TERM, not TYPE";
+    [p2] to be variables with kind term, not type";
 
   if same env p1 p2 then
     env
@@ -203,7 +203,7 @@ and add (env: env) (point: point) (t: typ): env =
     represents a program identifier.";
 
   (* The point is supposed to represent a term, not a type. If it has a
-   * structure, this means that it's a type variable with kind TERM that has
+   * structure, this means that it's a type variable with kind term that has
    * been flex'd, then instanciated onto something. We make sure in
    * {Permissions.sub} that we're actually merging, not instanciating, when
    * faced with two [TyPoint]s. *)
@@ -271,7 +271,7 @@ and add (env: env) (point: point) (t: typ): env =
   end
 
 
-(** [add_perm env t] adds a type [t] with kind PERM to [env], returning the new
+(** [add_perm env t] adds a type [t] with kind KPerm to [env], returning the new
     environment. *)
 and add_perm (env: env) (t: typ): env =
   TypePrinter.(Log.debug ~level:4 "[add_perm] %a"
@@ -295,7 +295,7 @@ and add_perm (env: env) (t: typ): env =
       end
  
   | _ ->
-      Log.error "This only works for types with kind PERM."
+      Log.error "This only works for types with kind perm."
 
 
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
@@ -356,7 +356,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
         env, t
     | _ ->
         (* The [expr_binder] also serves as the binder for the corresponding
-         * TERM type variable. *)
+         * term type variable. *)
         let env, p = bind_term env hint env.location false in
         (* This will take care of unfolding where necessary. *)
         let env = add env p t in
@@ -768,7 +768,7 @@ and sub_type_real env t1 t2 =
       (*   Alright, this is a fairly complicated logic (euphemism), but it is
        * seriously needed for any sort of situation that involves
        * higher-order... The grand scheme is: we should always fight to
-       * instantiate flexible TERM variables, because we always know how to
+       * instantiate flexible KTerm variables, because we always know how to
        * instantiate these. Because of our desugaring, a bar type always looks
        * like "(=root | root @ ...)". So let's start by subtracting [t2] from
        * [t1]. *)
@@ -804,7 +804,7 @@ and sub_type_real env t1 t2 =
                 env, ps1, ps2
       in
       (* But before we do all of that, we do something smarter: if we have
-       * exactly one PERM variable on each side and one of them is flexible, we
+       * exactly one KPerm variable on each side and one of them is flexible, we
        * solve this the "obvious" way. We can't feed everything into [add_sub],
        * because if doing "p - p*" ("p*" being flexible), we will add "p"
        * without a problem, and then instantiate "p*" to empty. *)
@@ -833,7 +833,7 @@ and sub_type_real env t1 t2 =
               must_succeed env ps1 ps2
           end
       | [], [TyPoint var2] when is_flexible env var2 ->
-          (* Extra: if there's a flexible PERM variable on one side only, and we
+          (* Extra: if there's a flexible KPerm variable on one side only, and we
            * are left with un-substractable stuff on the other side, we can
            * solve this by instantiating the flexible variable with the stuff we
            * were unable to extract. *)
@@ -925,7 +925,7 @@ and equal_modulo_flex env t1 t2 =
   equal env t1 t2 ||| step_through_flex env equal t1 t2
 
 
-(** [sub_perm env t] takes a type [t] with kind PERM, and tries to return the
+(** [sub_perm env t] takes a type [t] with kind KPerm, and tries to return the
     environment without the corresponding permission. *)
 and sub_perm (env: env) (t: typ): env option =
   TypePrinter.(
@@ -947,7 +947,7 @@ and sub_perm (env: env) (t: typ): env option =
           sub_floating_permission env p
       end
   | _ ->
-      Log.error "[sub_perm] the following type does not have kind PERM: %a (%a)"
+      Log.error "[sub_perm] the following type does not have kind perm: %a (%a)"
         TypePrinter.ptype (env, t)
         Utils.ptag t
 

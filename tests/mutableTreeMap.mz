@@ -231,7 +231,7 @@ val rec find [k, a] duplicable a => (
    [find_use_update], a generalization of [find]. *)
 
 val rec find_use_update
-  [k, a, b, p : PERM]
+  [k, a, b, p : perm]
   (cmp: (k, k) -> int, 
    use: (consumes a | p) -> (a, b),
    x: k, t: tree k a | p) : option b =
@@ -469,7 +469,7 @@ val rec remove [k, a] (
    does not.) Funny -- I never explicitly thought of [for_all] as a
    version of [iter] that has an early termination feature. *)
 
-val rec iter [k, a, p : PERM] (
+val rec iter [k, a, p : perm] (
   f: (k,           a | p) -> bool,
          t: tree k a | p)  : bool =
   match t with
@@ -492,7 +492,7 @@ val rec iter [k, a, p : PERM] (
    even more generality by allowing keys to be copied/translated, as
    long as the key ordering is preserved. *)
 
-val rec map [k, a1, a2, b, p : PERM] duplicable k => (
+val rec map [k, a1, a2, b, p : perm] duplicable k => (
   f: (k, consumes d:        a1 | p) -> (b        | d @        a2),
          consumes t: tree k a1 | p)  : (tree k b | t @ tree k a2) =
   match t with
@@ -515,7 +515,7 @@ val rec map [k, a1, a2, b, p : PERM] duplicable k => (
 (* The two [fold] functions have the same type, but differ in the order
    in which the tree is visited. *)
 
-val rec fold_ascending [k, a1, a2, b, p : PERM] (
+val rec fold_ascending [k, a1, a2, b, p : perm] (
   f: (k, consumes d:        a1, consumes accu: b | p) -> (b | d @        a2),
          consumes t: tree k a1, consumes accu: b | p)  : (b | t @ tree k a2) =
   match t with
@@ -528,7 +528,7 @@ val rec fold_ascending [k, a1, a2, b, p : PERM] (
       accu
   end
 
-val rec fold_descending [k, a1, a2, b, p : PERM] (
+val rec fold_descending [k, a1, a2, b, p : perm] (
   f: (k, consumes d:        a1, consumes accu: b | p) -> (b | d @        a2),
          consumes t: tree k a1, consumes accu: b | p)  : (b | t @ tree k a2) =
   match t with
@@ -929,7 +929,7 @@ val compare [k, a] (
 
 (* As a test of the type-checker, we re-implement [iter] using iterators. *)
 
-val iter_variant [k, a, p : PERM] (
+val iter_variant [k, a, p : perm] (
   f: (k,           a | p) -> bool,
          t: tree k a | p)  : bool =
 
@@ -1125,10 +1125,10 @@ mutable data treeMap k a =
 
 (* BUG? I tried the following type definition and code:
 
-mutable data treeMap k (c : TERM) a =
+mutable data treeMap k (c : term) a =
   TreeMap { tree: tree k a; cmp: =c | c @ (k, k) -> int }
 
-val cardinal [k, c : TERM, a] (m: treeMap k c a) : int =
+val cardinal [k, c : term, a] (m: treeMap k c a) : int =
   cardinal m.tree
 
 but I got this error:
@@ -1169,7 +1169,7 @@ val find [k, a] duplicable a => (
 ) : option a =
   find (m.cmp, x, m.tree)
 
-val find_use_update [k, a, b, p : PERM] (
+val find_use_update [k, a, b, p : perm] (
   use: (consumes a | p) -> (a, b),
   x: k,
   m: treeMap k a
@@ -1211,7 +1211,7 @@ val remove [k, a] (x: k, m: treeMap k a) : option (k, a) =
   m.tree <- remove (m.cmp, x, m.tree, dst);
   !dst
 
-val iter [k, a, p : PERM] (
+val iter [k, a, p : perm] (
   f: (k,              a | p) -> bool,
          m: treeMap k a | p)  : bool =
   iter (f, m.tree)
@@ -1222,7 +1222,7 @@ val for_all =
 (* [exists] could be implemented directly, but an implementation in
    terms of [for_all] is preferred, as a test of the type-checker. *)
 
-val exists [k, a, p : PERM] (
+val exists [k, a, p : perm] (
   f: (k,              a | p) -> bool,
          m: treeMap k a | p)  : bool =
   let notf (key: k, value: a | p) : bool =
@@ -1230,7 +1230,7 @@ val exists [k, a, p : PERM] (
   in
   not (for_all (notf, m))
 
-val map [k, a1, a2, b, p : PERM] duplicable k => (
+val map [k, a1, a2, b, p : perm] duplicable k => (
   f: (k, consumes d:           a1 | p) -> (b           | d @           a2),
          consumes m: treeMap k a1 | p)  : (treeMap k b | m @ treeMap k a2) =
   TreeMap { tree = map (f, m.tree); cmp = m.cmp }
@@ -1241,12 +1241,12 @@ val copy [k, a, b] duplicable k => (f: a -> b, m: treeMap k a) : treeMap k b =
   let g (x: k, d: a) : b = f d in
   map (g, m)
 
-val fold_ascending [k, a1, a2, b, p : PERM] (
+val fold_ascending [k, a1, a2, b, p : perm] (
   f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
          consumes m: treeMap k a1, consumes accu: b | p)  : (b | m @ treeMap k a2) =
   fold_ascending (f, m.tree, accu)
 
-val fold_descending [k, a1, a2, b, p : PERM] (
+val fold_descending [k, a1, a2, b, p : perm] (
   f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
          consumes m: treeMap k a1, consumes accu: b | p)  : (b | m @ treeMap k a2) =
   fold_descending (f, m.tree, accu)

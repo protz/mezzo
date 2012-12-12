@@ -170,7 +170,7 @@ type env = {
   (* The name of the current unit. *)
   module_name: Module.name;
 
-  (* These permissions are abstract PERM variables, they're not attached to any
+  (* These permissions are abstract KPerm variables, they're not attached to any
    * point in particular, so we keep a list of them here. *)
   floating_permissions: point list;
 }
@@ -186,7 +186,7 @@ and binding_head = {
   (* Is this a flexible variable, and has it been unified with something? *)
   structure: structure;
 
-  (* The kind of this variable. If kind is TERM, then the [raw_binding] is a
+  (* The kind of this variable. If kind is KTerm, then the [raw_binding] is a
    * [term_binder]. *)
   kind: kind;
 
@@ -213,7 +213,7 @@ and term_binder = {
   (* A list of available permissions for that identifier. *)
   permissions: permissions;
 
-  (* A ghost variable has been introduced, say, through [x :: TERM], and does
+  (* A ghost variable has been introduced, say, through [x : term], and does
    * not represent something we can compile.
    *
    * TEMPORARY: as of 2012/07/12 this information is not accurate and one should

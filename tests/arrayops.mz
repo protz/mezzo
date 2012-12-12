@@ -2,7 +2,7 @@ open array
 
 (* A generic loop over a segment of an array. *)
 
-val rec iter_segment [a, p : PERM] (f: (i: int | x @ array a * p) -> (), x: array a, i: int, j: int | p) : () =
+val rec iter_segment [a, p : perm] (f: (i: int | x @ array a * p) -> (), x: array a, i: int, j: int | p) : () =
   if i < j then begin
     f(i);
     iter_segment (f, x, i+1, j)
@@ -10,7 +10,7 @@ val rec iter_segment [a, p : PERM] (f: (i: int | x @ array a * p) -> (), x: arra
 
 (* A generic loop over an entire array. *)
 
-val rec iter_array [a, p : PERM] (f: (i: int | x @ array a * p) -> (), x: array a | p) : () =
+val rec iter_array [a, p : perm] (f: (i: int | x @ array a * p) -> (), x: array a | p) : () =
   iter_segment (f, x, 0, length x)
 
 (* Creating and initializing an array. *)

@@ -7,6 +7,6 @@ mutable data bag a =
 (* Parsing: fields with sugar for a singleton type;
             fields followed with a permission. *)
 
-data meaningless (x : TERM) (y : TERM) =
+data meaningless (x : term) (y : term) =
   | M { foo = x; bar = y | x = y }
 

@@ -3,7 +3,7 @@ open list
 
 (* Section 4.1.4 of the tutorial, "List map" *)
 
-val rec map [a1, a2, b, p : PERM] (
+val rec map [a1, a2, b, p : perm] (
     f: (consumes x: a1 | p) -> (b | x @ a2),
     consumes xs: list a1 | p): (list b | xs @ list a2) =
   match xs with

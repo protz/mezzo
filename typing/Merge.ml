@@ -785,7 +785,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                    * destination environment. *)
                   Log.check (is_type dest_env dest_p) "A flexible variable must refer \
                     to a type defined in the top-level scope, we don't know how to treat \
-                    flexible variables with kind other than TYPE yet.";
+                    flexible variables with kind other than type yet.";
 
                   let right_env = merge_left right_env dest_p right_p in
                   Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
@@ -805,7 +805,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                    * destination environment. *)
                   Log.check (is_type dest_env dest_p) "A flexible variable must refer \
                     to a type defined in the top-level scope, we don't know how to treat \
-                    flexible variables with kind other than TYPE yet.";
+                    flexible variables with kind other than type yet.";
 
                   let left_env = merge_left left_env dest_p left_p in
                   Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))

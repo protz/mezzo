@@ -36,7 +36,7 @@ val add : [k, a] (k, a, treeMap k a) -> ()
 val find : [k, a] duplicable a => (k, treeMap k a) -> option a
 *)
 
-val find_use_update : [k, a, b, p : PERM] (
+val find_use_update : [k, a, b, p : perm] (
   (consumes a | p) -> (a, b),
   k, treeMap k a | p
 ) -> option b
@@ -53,7 +53,7 @@ val extract_max_binding : [k, a] treeMap k a -> option (k, a)
 
 val remove : [k, a] (k, treeMap k a) -> option (k, a)
 
-val iter : [k, a, p : PERM] (
+val iter : [k, a, p : perm] (
   f: (k,              a | p) -> bool,
          m: treeMap k a | p) -> bool
 
@@ -65,23 +65,23 @@ val for_all :
 *)
 (* TEMPORARY add sugar for this declaration? *)
 
-val exists : [k, a, p : PERM] (
+val exists : [k, a, p : perm] (
   f: (k,              a | p) -> bool,
          m: treeMap k a | p) -> bool
 
 (* TEMPORARY
-val map [k, a1, a2, b, p : PERM] duplicable k => (
+val map [k, a1, a2, b, p : perm] duplicable k => (
   f: (k, consumes d:           a1 | p) -> (b           | d @           a2),
          consumes m: treeMap k a1 | p) -> (treeMap k b | m @ treeMap k a2)
 
 val copy : [k, a, b] duplicable k => (a -> b, treeMap k a) -> treeMap k b
 *)
 
-val fold_ascending : [k, a1, a2, b, p : PERM] (
+val fold_ascending : [k, a1, a2, b, p : perm] (
   f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
          consumes m: treeMap k a1, consumes accu: b | p) -> (b | m @ treeMap k a2)
 
-val fold_descending : [k, a1, a2, b, p : PERM] (
+val fold_descending : [k, a1, a2, b, p : perm] (
   f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
          consumes m: treeMap k a1, consumes accu: b | p) -> (b | m @ treeMap k a2)
 

@@ -109,7 +109,7 @@ val rec flatten [a] (consumes xss : list (list a)) : list a =
 (* Map. *)
 
 (* The following type is not the most general type of [map]. The type-checker
-   currently does not support type variables of kind PERM, so we cannot allow
+   currently does not support type variables of kind perm, so we cannot allow
    the function [f] to have an arbitrary side effect. *)
 
 (* The following type does allow the function [f] to perform a strong update
@@ -145,7 +145,7 @@ val rev_map [a1, a2, b] (
    on the argument list, whose type changes from [list a1] to [list a2].
    It also allows [f] to have a side effect at [p]. *)
  
-val rec iter [a1, a2, p : PERM] (
+val rec iter [a1, a2, p : perm] (
   f: (consumes  x:      a1 | p) -> (|  x @      a2),
       consumes xs: list a1 | p)  : (| xs @ list a2)
 =
@@ -168,7 +168,7 @@ val simpler_iter [a] (f: a -> (), xs: list a) : () =
    on the argument list, whose type changes from [list a1] to [list a2]. An
    accumulator of type [b] is maintained. A side effect at [p] is also permitted.*)
  
-val rec fold_left [a1, a2, b, p : PERM] (
+val rec fold_left [a1, a2, b, p : perm] (
   f: (consumes       b, consumes  x:      a1 | p) -> (b |  x @      a2),
       consumes accu: b, consumes xs: list a1 | p)  : (b | xs @ list a2)
 =
@@ -177,7 +177,7 @@ val rec fold_left [a1, a2, b, p : PERM] (
   else
     accu
 
-val rec fold_right [a1, a2, b, p : PERM] (
+val rec fold_right [a1, a2, b, p : perm] (
   f: (consumes  x:      a1, consumes       b | p) -> (b |  x @      a2),
       consumes xs: list a1, consumes accu: b | p)  : (b | xs @ list a2)
 =

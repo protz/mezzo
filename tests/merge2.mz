@@ -6,7 +6,7 @@ data u = U { left: t; right: t }
 (* Un exemple plus sophistiqué où l'on cherche à conserver le partage dans
    l'environnement de retour. On obtient
 
-   ∃(? : TERM). v2 @ U { left = ?; right = ? } ∗ ? @ T
+   ∃(? : term). v2 @ U { left = ?; right = ? } ∗ ? @ T
 *)
 val v2 =
   if explain True then begin

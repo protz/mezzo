@@ -3,7 +3,7 @@
 mutable data xpair a b =
   XPair { left: a; right: b }
 
-val xswap [v : TERM] (x: XPair { left = v; right = v }) : () =
+val xswap [v : term] (x: XPair { left = v; right = v }) : () =
   let t = x.left in
   x.left <- x.right;
   x.right <- t

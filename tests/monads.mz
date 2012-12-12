@@ -49,10 +49,10 @@ val bind [s, a, b] (m: state s a, k: a -> state s b) : state s b =
 
 (* The permission-passing monad. *)
 
-data ppm (p : PERM) a =
+data ppm (p : perm) a =
   PPM { computation: (| p) -> a }
 
-val return [p : PERM, a] duplicable a => (x: a) : ppm p a =
+val return [p : perm, a] duplicable a => (x: a) : ppm p a =
   (* We are forced to declare [a] as duplicable because the following
      computation captures [a] in its closure. Should we use one-shot
      functions? Or should we not use functions at all? Or is it just
@@ -61,7 +61,7 @@ val return [p : PERM, a] duplicable a => (x: a) : ppm p a =
   let c (| p) : a = x in
   PPM { computation = c }
 
-val bind [p : PERM, a, b] (m: ppm p a, k: a -> ppm p b) : ppm p b =
+val bind [p : perm, a, b] (m: ppm p a, k: a -> ppm p b) : ppm p b =
   let c (| p) : b =
     let x : a = m.computation() in
     (k x).computation()

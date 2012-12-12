@@ -22,10 +22,10 @@
 open Types
 open Expressions
 
-(** [collect t] recursively walks down a type with kind TYPE, extracts all
+(** [collect t] recursively walks down a type with kind KType, extracts all
     the permissions that appear into it (as tuple or record components), and
     returns the type without permissions as well as a list of types with kind
-    PERM, which represents all the permissions that were just extracted. *)
+    KPerm, which represents all the permissions that were just extracted. *)
 let collect (t: typ): typ * typ list =
   let rec collect (t: typ): typ * typ list =
     match t with
@@ -97,11 +97,11 @@ let collect (t: typ): typ * typ list =
  
 (* This function tries to find all function types of the form
 
-   ∀(x::TERM, y::TERM). (τ | x = y) -> τ'
+   ∀(x:term, y:term). (τ | x = y) -> τ'
 
    and transform them into
 
-   ∀(x::TERM) τ -> τ'
+   ∀(x:term) τ -> τ'
 *)
 let simplify_function_type env t body =
 

@@ -133,7 +133,7 @@ let rec flatten_star p =
   | TyAnchoredPermission _ as p ->
       [p]
   | _ ->
-      Log.error "[flatten_star] only works for types with kind PERM"
+      Log.error "[flatten_star] only works for types with kind perm"
 ;;
 
 let fold_star perms =
@@ -238,7 +238,7 @@ let bind_type
   =
   let return_kind, _args = flatten_kind kind in
   Log.check (return_kind = KType || return_kind = KPerm)
-    "[bind_type] is for variables with kind TYPE or PERM only";
+    "[bind_type] is for variables with kind type or perm only";
   let binding = head name location ?flexible kind, BType { fact; definition; } in
   let point, state = PersistentUnionFind.create binding env.state in
   { env with state }, point
@@ -252,7 +252,7 @@ let bind_var (env: env) ?flexible ?(fact=Affine) (name, kind, location: type_bin
         bind_type env name location ?flexible fact kind
     | KTerm ->
         (* This is wrong because we're floating "real" parameters of a function
-           as type variables with kind TERM, so it's not a ghost variable... *)
+           as type variables with kind KTerm, so it's not a ghost variable... *)
         bind_term env name location ?flexible true
     | KPerm ->
         bind_type env name location ?flexible fact kind
@@ -260,7 +260,7 @@ let bind_var (env: env) ?flexible ?(fact=Affine) (name, kind, location: type_bin
         Log.error "No arrows expected here"
 ;;
 
-(* When crossing a binder, say, [a :: TYPE], use this function to properly add
+(* When crossing a binder, say, [a : type], use this function to properly add
  * [a] in scope. *)
 let bind_var_in_type2
     (env: env)

@@ -13,7 +13,7 @@ val ( + ) : (int, int) -> int
  * if-then-else expression just has to be a data type with two branches. The
  * first branch means true, and the second branch means false. *)
 
-data phys_equal (x : TERM) (y : TERM) =
+data phys_equal (x : term) (y : term) =
   | Equals { | x = y }
   | NotEquals
 
@@ -26,7 +26,7 @@ val ( == ) : [a, b] (x: a, y: b) -> phys_equal x y
    wish to include also a permission q for the False case. And define the
    Boolean operators to preserve permissions where possible. *)
 
-data rich_bool (p : PERM) =
+data rich_bool (p : perm) =
   | RichTrue { | p }
   | RichFalse
 
