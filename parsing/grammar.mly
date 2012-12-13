@@ -147,7 +147,7 @@ separated_or_preceded_list(sep, X):
     { xs }
 
 %inline separated_list_of_at_least_two(sep, X):
-| x1 = X sep x2 = separated_list(sep, X)
+| x1 = X sep x2 = separated_nonempty_list(sep, X)
     { x1 :: x2 }
 
 (* ---------------------------------------------------------------------------- *)
