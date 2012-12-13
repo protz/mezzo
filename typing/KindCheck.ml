@@ -309,7 +309,7 @@ let bind ?(strict=false) env (x, kind) : env =
 ;;
 
 let bind_external env (x, kind, p): env =
-  { env with mapping = strict_add env x (kind, Point p) env.mapping }
+  { env with mapping = M.add x (kind, Point p) env.mapping }
 ;;
 
 let bind_datacon env d =
@@ -871,7 +871,7 @@ let check_implementation (tenv: T.env) (program: implementation) =
 
     | PermDeclaration (x, t) ->
         check env t KType;
-        let env = bind ~strict:true env (x, KTerm) in
+        let env = bind env (x, KTerm) in
         env
 
     | OpenDirective mname ->
