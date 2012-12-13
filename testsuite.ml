@@ -603,7 +603,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test Pass
   );
 
-  ("list-map4.mz",
+  ("list-map-tail-rec.mz",
     simple_test Pass
   );
 

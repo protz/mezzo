@@ -8,6 +8,33 @@ data list a =
 
 (* -------------------------------------------------------------------------- *)
 
+(* A definition for a list cell whose [tail] field has not yet been
+   initialized. Such a cell is mutable, and can be frozen (turned
+   into an immutable list cell) via a tag update instruction (which
+   does nothing at runtime). *)
+
+mutable data cell a =
+  | Cell { head: a; tail: () }
+
+(* The following function writes [xs] into [c.tail] and declares
+   that [c] is now immutable. *)
+
+(* The tag update instruction actually does nothing at runtime,
+   so [freeze] is really just one write instruction. *)
+
+val freeze [a] (consumes c: cell a, xs: unknown) : (| c @ Cons { head: a; tail: =xs }) =
+  c.tail <- xs;
+  tag of c <- Cons
+
+(* The type assigned to [freeze] faithfully reflects its behavior.
+   We could think of a more readable type:
+   val freeze [a] (consumes c: cell a, xs: list a) : (| c @ list a)
+   This type is also valid, but is strictly less general, and it turns
+   out that the extra generality is needed: when [xs] is written into
+   [c.tail], [xs] is usually not yet a list. *)
+
+(* -------------------------------------------------------------------------- *)
+
 (* Short-hands for constructing lists. *)
 
 val nil =
@@ -32,7 +59,7 @@ val three [a] (consumes x1: a, consumes x2: a, consumes x3: a) : list a =
 val rec length_aux [a] (accu: int, xs: list a) : int =
   if xs then length_aux (accu + 1, xs.tail) else accu
 
-val rec length [a] (xs: list a) : int =
+val length [a] (xs: list a) : int =
   length_aux (0, xs)
 
 (* -------------------------------------------------------------------------- *)
@@ -66,6 +93,9 @@ val rec chop [a] (k: int, consumes xs: list a) : list a =
   else if xs then chop (k - 1, xs.tail)
   else fail
 
+(* This conventional, non-tail-recursive version of splitAt is here as a
+   test of the type-checker. *)
+
 val rec splitAt [a] (k: int, consumes xs: list a) : (list a, list a) =
   if k = 0 then
     Nil, xs
@@ -74,6 +104,32 @@ val rec splitAt [a] (k: int, consumes xs: list a) : (list a, list a) =
     Cons { head = xs.head; tail = prefix }, suffix
   end
   else fail
+
+(* This is a tail-recursive, destination-passing-style version of splitAt. *)
+
+val rec splitAtAux [a] (k: int, consumes xs: list a, consumes c: cell a) : (list a | c @ list a) =
+  if k = 0 then begin
+    freeze (c, Nil);
+    xs
+  end
+  else if xs then begin
+    let d = Cell { head = xs.head; tail = () } in
+    freeze (c, d);
+    splitAtAux (k - 1, xs.tail, d)
+  end
+  else fail
+
+val splitAt [a] (k: int, consumes xs: list a) : (list a, list a) =
+  if k = 0 then
+    Nil, xs
+  else if xs then begin
+    let ys = Cell { head = xs.head; tail = () } in
+    let zs = splitAtAux (k - 1, xs.tail, ys) in
+    ys, zs
+  end
+  else fail
+  (* TEMPORARY maybe it would be nice to also offer a version of splitAt
+     that does not fail when [length xs] is smaller than [k] *)
 
 (* -------------------------------------------------------------------------- *)
 
