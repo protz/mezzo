@@ -135,11 +135,15 @@ val splitAt [a] (k: int, consumes xs: list a) : (list a, list a) =
 
 (* List concatenation and reversal. *)
 
+(* A non-tail-recursive version of [append]. *)
+
 val rec append [a] (consumes xs: list a, consumes ys: list a) : list a =
   if xs then
     Cons { head = xs.head; tail = append (xs.tail, ys) }
   else
     ys
+
+(* A tail-recursive version of [append], which uses auxiliary storage. *)
 
 val rec rev_append [a] (consumes xs: list a, consumes ys: list a) : list a =
   if xs then
@@ -149,6 +153,35 @@ val rec rev_append [a] (consumes xs: list a, consumes ys: list a) : list a =
 
 val rev [a] (consumes xs: list a) : list a =
   rev_append (xs, Nil)
+
+val append [a] (consumes xs: list a, consumes ys: list a) : list a =
+  rev_append (rev xs, ys)
+
+(* A tail-recursive version of [append], using no auxiliary storage, in
+   destination-passing-style. *)
+
+val rec appendAux [a] (
+   consumes dst: cell a,
+   consumes xs: list a,
+   consumes ys: list a)
+: (| dst @ list a)
+  =
+  if xs then begin
+      let dst' = Cell { head = xs.head; tail = () } in
+      freeze (dst, dst');
+      appendAux (dst', xs.tail, ys)
+  end
+  else
+    freeze (dst, ys)
+
+val append [a] (consumes xs: list a, consumes ys: list a) : list a =
+  if xs then begin
+    let dst = Cell { head = xs.head; tail = () } in
+    appendAux (dst, xs.tail, ys);
+    dst
+  end
+  else
+    ys
 
 (* -------------------------------------------------------------------------- *)
 

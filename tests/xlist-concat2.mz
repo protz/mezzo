@@ -2,12 +2,11 @@ data list a =
   | Cons { head: a; tail: list a }
   | Nil
 
-mutable data xlist a =
-  | XCons { head: a; tail: xlist a }
-  | XNil
+mutable data cell a =
+  | Cell { head: a; tail: () }
 
 val rec concat1 [a] (
-   consumes dst: XCons { head: a; tail: () },
+   consumes dst: cell a,
    consumes xs: list a,
    consumes ys: list a): (| dst @ list a)
   =
@@ -16,12 +15,12 @@ val rec concat1 [a] (
       dst.tail <- ys;
       tag of dst <- Cons
   | Cons { head; tail } ->
-      let dst' = XCons {
+      let dst' = Cell {
         head = head; tail = ()
       } in
       dst.tail <- dst';
-      concat1 (dst', tail, ys);
-      tag of dst <- Cons
+      tag of dst <- Cons;
+      concat1 (dst', tail, ys)
   end
 
 val concat [a] (
@@ -32,7 +31,7 @@ val concat [a] (
   | Nil ->
       ys
   | Cons { head; tail } ->
-      let dst = XCons {
+      let dst = Cell {
         head = head; tail = ()
       } in
       concat1 (dst, tail, ys);
