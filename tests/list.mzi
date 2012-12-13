@@ -86,10 +86,10 @@ val fold_right : [a1, a2, b, p : perm] (
 
 (* Various flavors of list search. *)
 
-val for_all : [a] (a -> bool, list a) -> bool
-val exists  : [a] (a -> bool, list a) -> bool
-val find    : [a, p : perm] (ok: (a | p) -> bool, consumes xs: list a | p) -> list a
-val remove  : [a] (a -> bool, consumes list a) -> list a
+val for_all : [a, p : perm] ((a | p) -> bool, list a | p) -> bool
+val exists  : [a, p : perm] ((a | p) -> bool, list a | p) -> bool
+val find    : [a, p : perm] ((a | p) -> bool, consumes list a | p) -> list a
+val remove  : [a, p : perm] ((a | p) -> bool, consumes list a | p) -> list a
 
 val mem     : [a, p : perm] (equal: (a, a | p) -> bool, x: a, consumes xs: list a | p) -> list a
 

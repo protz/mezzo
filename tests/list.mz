@@ -282,15 +282,15 @@ val rec fold_right [a1, a2, b, p : perm] (
 (* Note that these are not instances of [fold], because we need to bail out
    early when the search is successful. *)
 
-val rec for_all [a] (p: a -> bool, xs: list a) : bool =
+val rec for_all [a, p : perm] (ok: (a | p) -> bool, xs: list a | p) : bool =
   if xs then
-    if p xs.head then for_all (p, xs.tail) else False
+    if ok xs.head then for_all (ok, xs.tail) else False
   else
     True
 
-val rec exists [a] (p: a -> bool, xs: list a) : bool =
+val rec exists [a, p : perm] (ok: (a | p) -> bool, xs: list a | p) : bool =
   if xs then
-    if p xs.head then True else exists (p, xs.tail)
+    if ok xs.head then True else exists (ok, xs.tail)
   else
     False
 
@@ -304,7 +304,7 @@ val rec find [a, p : perm] (ok: (a | p) -> bool, consumes xs: list a | p) : list
   if xs then
     if ok xs.head then xs else find (ok, xs.tail)
   else
-    Nil
+    xs
 
 (* The call [remove (p, xs)] produces the list [xs], deprived of the first
    element that satisfies the predicate [p], if there is one. *)
@@ -313,7 +313,7 @@ val rec remove [a] (p : a -> bool, consumes xs: list a) : list a =
   if xs then
     if p xs.head then xs.tail else Cons { head = xs.head; tail = remove (p, xs.tail) }
   else
-    Nil
+    xs
 
 (* The function [mem] is parameterized with a notion of equality. It is just a
    variant of [find] that does not require the function [equal] to be
