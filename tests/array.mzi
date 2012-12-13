@@ -30,3 +30,5 @@ val set : [a] (array a, int, a) -> ()
 
 val length : [a] array a -> int
 
+val max_length : int
+
