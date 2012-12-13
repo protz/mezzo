@@ -167,9 +167,9 @@ val rec appendAux [a] (
 : (| dst @ list a)
   =
   if xs then begin
-      let dst' = Cell { head = xs.head; tail = () } in
-      freeze (dst, dst');
-      appendAux (dst', xs.tail, ys)
+    let dst' = Cell { head = xs.head; tail = () } in
+    freeze (dst, dst');
+    appendAux (dst', xs.tail, ys)
   end
   else
     freeze (dst, ys)
@@ -300,9 +300,9 @@ val rec exists [a] (p: a -> bool, xs: list a) : bool =
    since it allows repeated searches, and is more efficient, since it
    does not require memory allocation! *)
 
-val rec find [a] (p: a -> bool, consumes xs: list a) : list a =
+val rec find [a, p : perm] (ok: (a | p) -> bool, consumes xs: list a | p) : list a =
   if xs then
-    if p xs.head then xs else find (p, xs.tail)
+    if ok xs.head then xs else find (ok, xs.tail)
   else
     Nil
 
@@ -319,17 +319,19 @@ val rec remove [a] (p : a -> bool, consumes xs: list a) : list a =
    variant of [find] that does not require the function [equal] to be
    partially applied to [x] ahead of time. *)
 
-(* TEMPORARY in order to define [mem] in terms of [find], we need to define
-   a predicate [p] that has access to [x]; this requires equipping [find]
-   with a more general type that allows [p] to have a side effect. *)
+val mem [a, p : perm] (equal: (a, a | p) -> bool, x: a, consumes xs: list a | p) : list a =
+  let ok (y : a | x @ a * p) : bool =
+    equal (x, y)
+  in
+  find [a, (x @ a * p)] (ok, xs)
 
-val rec mem [a] (equal: (a, a) -> bool, x: a, consumes xs: list a) : list a =
+val rec mem [a, p : perm] (equal: (a, a | p) -> bool, x: a, consumes xs: list a | p) : list a =
   if xs then
     if equal (x, xs.head) then xs else mem (equal, x, xs.tail)
   else
     Nil
 
-(* This function is commented out because of the current bug in function
+(* TEMPORARY This function is commented out because of the current bug in function
  * comparisons involving structural types.
 
 val assoc [a, b] (equal: (a, a) -> bool, x: a, consumes xs: list (a, b)) : list (a, b) =

@@ -88,10 +88,17 @@ val fold_right : [a1, a2, b, p : perm] (
 
 val for_all : [a] (a -> bool, list a) -> bool
 val exists  : [a] (a -> bool, list a) -> bool
-val find    : [a] (a -> bool, consumes list a) -> list a
+val find    : [a, p : perm] (ok: (a | p) -> bool, consumes xs: list a | p) -> list a
 val remove  : [a] (a -> bool, consumes list a) -> list a
 
+val mem     : [a, p : perm] (equal: (a, a | p) -> bool, x: a, consumes xs: list a | p) -> list a
+
+(* BUG if I change the declaration of [mem] to the following:
 val mem     : [a] (equal: (a, a) -> bool, x: a, consumes xs: list a) -> list a
+then I get an internal error:
+Trying to instantiate a variable that's not flexible
+Fatal error: exception Assert_failure("lib/Log.ml", 59, 6)
+*)
 
 (* -------------------------------------------------------------------------- *)
 
