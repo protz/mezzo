@@ -25,8 +25,8 @@ val length : [a] list a -> int
 
 (* List head and tail. *)
 
-val hd : [a] (consumes Cons { head: a; tail: list a }) -> a
-val tl : [a] (consumes Cons { head: a; tail: list a }) -> list a
+val hd : [a] (consumes Cons { head: a; tail: unknown }) -> a
+val tl : [a] (consumes Cons { head: unknown; tail: list a }) -> list a
 
 (* -------------------------------------------------------------------------- *)
 

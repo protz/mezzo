@@ -1,0 +1,21 @@
+mutable data xlist a =
+  | XCons { head: a; tail: xlist a }
+  | XNil
+
+val rec cps_mappend [a, b, p : perm] (
+  consumes x: xlist a,
+  consumes y: xlist a,
+  k: (consumes xlist a | consumes p) -> b
+  | consumes p
+) : b =
+  match x with
+  | XNil ->
+      k y
+  | XCons ->
+      let f (consumes z : xlist a | consumes (x @ XCons { head: a; tail: unknown } * p)) : b =
+        x.tail <- z;
+	k x
+      in 
+      cps_mappend [p = (x @ XCons { head: a; tail: unknown } * p)] (x.tail, y, f)
+  end
+

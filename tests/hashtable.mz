@@ -40,3 +40,14 @@ val clear [k, a] (t: table k a) : () =
     array::set (buckets, i, Nil)
   in
   arrayops::iter_array (clear, buckets)
+
+val key_index [k, a] (t: table k a, x: k) : int =
+  fail (* TEMPORARY *)
+
+val add [k, a] (t: table k a, consumes x: k, consumes v: a) : () =
+  let i = key_index [k, a] (t, x) in
+    (* BUG? the line above fails if I omit the type application *)
+  let bucket = Cons { key = x; value = v; tail = array::get (t.buckets, i) } in
+  array::set (t.buckets, i, bucket);
+  t.size <- t.size + 1 (* TEMPORARY ;
+  if h.size > Array.length h.data lsl 1 then resize key_index h *)

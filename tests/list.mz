@@ -42,10 +42,10 @@ val rec length [a] (xs: list a) : int =
 (* These functions are likely to be of little use, but at least they are safe,
    unlike their ocaml counterparts. *)
 
-val hd [a] (consumes xs: Cons { head: a; tail: list a }) : a =
+val hd [a] (consumes xs: Cons { head: a; tail: unknown }) : a =
   xs.head
 
-val tl [a] (consumes xs: Cons { head: a; tail: list a }) : list a =
+val tl [a] (consumes xs: Cons { head: unknown; tail: list a }) : list a =
   xs.tail
 
 (* -------------------------------------------------------------------------- *)
