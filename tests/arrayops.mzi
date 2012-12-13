@@ -3,14 +3,16 @@ open array
 (* A generic loop over a segment of an array. *)
 
 val iter_segment : [a, p : perm] (
-  f: (i: int   | x @ array a * p) -> (),
-  x: array a, i: int, j: int | p) -> ()
+  x: array a, i: int, j: int,
+  f: (i: int | x @ array a * p) -> ()
+  | p) -> ()
 
 (* A generic loop over an entire array. *)
 
 val iter_array : [a, p : perm] (
-  f: (i: int | x @ array a * p) -> (),
-  x: array a               | p) -> ()
+  x: array a,
+  f: (i: int | x @ array a * p) -> ()
+  | p) -> ()
 
 (* Creating and initializing an array. *)
 

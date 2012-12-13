@@ -2,7 +2,11 @@ open array
 
 (* A generic loop over a segment of an array. *)
 
-val rec iter_segment [a, p : perm] (x: array a, i: int, j: int, f: (i: int | x @ array a * p) -> () | p) : () =
+val rec iter_segment [a, p : perm] (
+  x: array a, i: int, j: int,
+  f: (i: int | x @ array a * p) -> () 
+  | p
+) : () =
   if i < j then begin
     f(i);
     iter_segment (x, i+1, j, f)
@@ -10,19 +14,24 @@ val rec iter_segment [a, p : perm] (x: array a, i: int, j: int, f: (i: int | x @
 
 (* A generic loop over an entire array. *)
 
-val rec iter_array [a, p : perm] (x: array a, f: (i: int | x @ array a * p) -> () | p) : () =
+val rec iter_array [a, p : perm] (
+  x: array a,
+  f: (i: int | x @ array a * p) -> ()
+  | p
+) : () =
   iter_segment (x, 0, length x, f)
 
 (* Creating and initializing an array. *)
+(* TEMPORARY this function should not require duplicable a! *)
 
 val init [a] duplicable a => (n: int, f: int -> a) : array a =
   if n = 0 then
     zero [a] () (* TEMPORARY get rid of this type application *)
   else begin
     let x = create (n, f 0) in
-    iter_segment (x, 1, n, (fun (i: int | x @ array a) : () =
+    iter_segment (x, 1, n, fun (i: int | x @ array a) : () =
       set (x, i, f i)
-    ));
+    );
     x
   end
 

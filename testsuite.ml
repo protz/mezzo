@@ -706,6 +706,12 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("masking.mz", simple_test Pass);
   (* TEMPORARY this test should fail, but I don't know with which error *)
 
+  ("arrayops.mz", simple_test Pass);
+
+  ("hashtable.mz", simple_test Pass);
+
+  ("tuple-syntax.mz", simple_test Pass);
+
 ]
 
 let _ =

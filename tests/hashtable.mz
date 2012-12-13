@@ -36,10 +36,9 @@ val create [k, a] (initial_size: int) : table k a =
 val clear [k, a] (t: table k a) : () =
   t.size <- 0;
   let buckets = t.buckets in
-  let clear (i: int | buckets @ array::array (bucket k a)) : () =
+  arrayops::iter_array (buckets, fun (i: int | buckets @ array::array (bucket k a)) : () =
     array::set (buckets, i, Nil)
-  in
-  arrayops::iter_array (clear, buckets)
+  )
 
 val key_index [k, a] (t: table k a, x: k) : int =
   fail (* TEMPORARY *)

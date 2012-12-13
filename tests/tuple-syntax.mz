@@ -1,0 +1,9 @@
+val u = ()
+val one = (1)
+val x = (1,2)
+val foo = (1,fun (x:int):int=x)
+val f(b:bool):(bool,(int,int))=
+  (b,if b then 0,0 else 1,1)
+val g():(int,int)=
+  let y, z = x in
+  y, z+1

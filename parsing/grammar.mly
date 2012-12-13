@@ -591,7 +591,12 @@ raw_loose_pattern:
      reasonable_expression    e.g. x.size <- length x.tail + 1
      fragile_expression       e.g. x.size <- length x.tail + 1; x.size
 
-*)
+   Furthermore, tuples receive special treatment. Tuples are normally made
+   of algebraic expressions and need not be explicitly parenthesized. Yet,
+   in the special case where a tuple is parenthesized, we are able to be a
+   bit more flexible and allow the *last* component of the tuple to be an
+   arbitrary (fragile) expression. This may sound ridiculous, but it covers
+   the important use case of encoding loops using higher-order functions. *)
 
 %inline elocated (X):
 | x = X
@@ -617,8 +622,6 @@ raw_atomic_expression:
     { EFail }
 | dc = datacon_application(data_field_expression)
     { EConstruct dc }
-| LPAREN RPAREN
-    { ETuple [] }
 | MATCH
   b = explain
   e = expression
@@ -626,18 +629,40 @@ raw_atomic_expression:
   bs = separated_or_preceded_list(BAR, match_branch)
   END
     { EMatch (b, e, bs) }
-| BEGIN e = expression END
-    { e }
+(* The unit value. *)
+| LPAREN RPAREN
+    { ETuple [] }
+(* An expression that carries a type constraint. *)
 | LPAREN e = algebraic_expression COLON t = arbitrary_type RPAREN
     { EConstraint (e, t) }
-| LPAREN e = expression RPAREN
-    { e }
+(* A parenthesized tuple. Thanks to the presence of the parentheses,
+   we can be somewhat flexible and allow the *last* component to be
+   a fragile expression. The other components cannot be fragile.
+   If it turns out that there is only one component, then this is
+   not a tuple, but a normal use of the parentheses. *)
+| LPAREN es = parenthesized_tuple_components RPAREN
+    { match es with [ e ] -> e | _ -> ETuple es }
+(* Same as above. *)
+| BEGIN es = parenthesized_tuple_components END
+    { match es with [ e ] -> e | _ -> ETuple es }
+
+(* A non-empty, comma-separated list of tuple components. The last
+   component is a fragile expression, whereas the other components
+   must be algebraic expressions. *)
+parenthesized_tuple_components:
+| e = fragile_expression
+    { [ e ] }
+| e1 = algebraic_expression COMMA e2 = parenthesized_tuple_components
+    { e1 :: e2 }
 
 data_field_expression:
 (* In a record construction expression, field definitions are separated by
    semicolons. Thus, the expression in the right-hand side of a field
    definition must not contain a bare semi-colon, as this would lead to
    ambiguity. For this reason, we disallow [let] and sequence here. *)
+(* We could allow a [tuple_or_reasonable_expression] here, but it seems
+   better do disallow it; the presence of a comma suggests that the user
+   has used a comma instead of a semicolon to separate fields. *)
 | f = variable EQUAL e = reasonable_expression
     { f, e }
 | f = variable
@@ -705,19 +730,42 @@ raw_algebraic_expression:
 | e = raw_application_expression
     { e }
 
+(* Unparenthesized tuples are made of algebraic expressions. They are not
+   part of a fixed priority level, but can be explicitly allowed to appear
+   in certain places where a reasonable expression or a fragile expression
+   is expected. *)
+
+raw_tuple_or(E):
+| es = separated_list_of_at_least_two(COMMA, algebraic_expression)
+    { ETuple es }
+| e = E
+    { e }
+
+%inline tuple_or_reasonable_expression:
+| e = elocated(raw_tuple_or(raw_reasonable_expression))
+    { e }
+
 reasonable_expression:
 | e = elocated(raw_reasonable_expression)
     { e }
 
+(* A reasonable expression is one that can be followed with a semicolon
+   and will not swallow it. *)
 raw_reasonable_expression:
   (* We disallow "let" inside of "then" or "else", because this is too fragile.
-     It is a common source of errors in OCaml. *)
-| IF b = explain e1 = expression THEN e2 = reasonable_expression
+     It is a common source of errors in OCaml. We do allow unparenthesized
+     tuples in the branches of an "if" construct. *)
+| IF b = explain e1 = expression THEN e2 = tuple_or_reasonable_expression
     { EIfThenElse (b, e1, e2, ETuple []) }
-| IF b = explain e1 = expression THEN e2 = reasonable_expression ELSE e3 = reasonable_expression
+| IF b = explain e1 = expression THEN e2 = tuple_or_reasonable_expression
+                                 ELSE e3 = tuple_or_reasonable_expression
     { EIfThenElse (b, e1, e2, e3) }
   (* We cannot allow "let" on the right-hand side of an assignment, because
-     the right-hand side of "let" can contain a semi-colon. *)
+     the right-hand side of "let" can contain a semi-colon. We disallow
+     unparenthesized tuples, even though we could allow them, for two
+     reasons: 1- the presence of a comma might suggest a confusion between
+     comma and semicolon; and 2- we might reserve the syntax x.f, y.f <- e1, e2
+     for multiple assignments. *)
 | e1 = tight_expression DOT f = variable LARROW e2 = reasonable_expression
     { EAssign (e1, mkfield f, e2) }
 | TAGOF e1 = tight_expression LARROW d = datacon
@@ -726,8 +774,6 @@ raw_reasonable_expression:
     { ETake (e1, e2) }
 | GIVE e1 = expression TO e2 = reasonable_expression
     { EGive (e1, e2) } 
-| es = separated_list_of_at_least_two(COMMA, algebraic_expression)
-    { ETuple es }
 | ASSERT t = very_loose_type
     { EAssert t }
 | e = algebraic_expression EXPLAIN
@@ -735,16 +781,20 @@ raw_reasonable_expression:
 | e = raw_algebraic_expression
     { e }
 
+%inline tuple_or_fragile_expression:
+| e = elocated(raw_tuple_or(raw_fragile_expression))
+    { e }
+
 %inline fragile_expression:
 | e = elocated(raw_fragile_expression)
     { e }
 
 raw_fragile_expression:
-| e1 = reasonable_expression SEMI e2 = fragile_expression
+| e1 = reasonable_expression SEMI e2 = tuple_or_fragile_expression
     { ESequence (e1, e2) }
-| LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = fragile_expression
+| LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = tuple_or_fragile_expression
     { ELet (f, declarations, e) }
-| FUN bs = type_parameters? arg = atomic_type COLON t = normal_type EQUAL e = fragile_expression
+| FUN bs = type_parameters? arg = atomic_type COLON t = normal_type EQUAL e = tuple_or_fragile_expression
     { EFun (Option.map_none [] bs, arg, t, e) }
 | e = raw_reasonable_expression
     { e }
@@ -756,7 +806,7 @@ rec_flag:
     { Nonrecursive }
 
 %inline expression:
-| e = fragile_expression
+| e = tuple_or_fragile_expression
     { e }
 
 (* ---------------------------------------------------------------------------- *)
@@ -784,6 +834,9 @@ decl_raw:
 (* ---------------------------------------------------------------------------- *)
 
 (* Inner declarations, also used by let-bindings. *)
+
+(* TEMPORARY anonymous functions and named functions should share a single
+   production for function headers *)
 
 (* We make a distinction between a single pattern and a function definition. The
  * former encompasses idioms such as [val x,y = ...]. The latter allows one to
