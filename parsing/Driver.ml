@@ -50,10 +50,44 @@ let lex_and_parse file_path entry_point =
 ;;
 
 let mkprefix path =
-  if Filename.basename path = "core.mzi" then
+  if !Options.no_auto_include && path = !Options.filename then
     []
   else
-    [SurfaceSyntax.OpenDirective (Module.register "core")]
+    let autoload_modules = [
+      "core.mzi";
+      "pervasives.mzi";
+    ] in
+    let me = Filename.basename path in
+    let my_dir = Filename.dirname path in
+    let chop l =
+      let rec chop acc = function
+        | hd :: tl ->
+            if hd = me then
+              List.rev acc
+            else
+              chop (hd :: acc) tl
+        | [] ->
+            List.rev acc
+      in
+      chop [] l
+    in
+    let corelib_dir =
+      Filename.concat Configure.root_dir "corelib"
+    in
+    let me_in_core_directory =
+      Utils.absolute_path corelib_dir = Utils.absolute_path my_dir
+    in
+    Log.debug "In core directory? %b" me_in_core_directory;
+    let modules =
+      if me_in_core_directory then
+        chop autoload_modules
+      else
+        autoload_modules
+    in
+    List.map (fun x ->
+      let name = Filename.chop_suffix x ".mzi" in
+      SurfaceSyntax.OpenDirective (Module.register name)
+    ) modules 
 ;;
 
 let lex_and_parse_implementation path =
@@ -151,11 +185,11 @@ let build_interface (env: Types.env) (mname: Module.name): Types.env * Expressio
 
 (* Check a module against its interface. Not related to importing an interface
  * or anything. *)
-let check_interface env mname signature =
+let check_interface env signature exports =
   KindCheck.check_interface env signature;
   (* It may very well be that [Interfaces.check] subsumes what
    * [KindCheck.check_interface] does. *)
-  Interfaces.check env mname signature
+  Interfaces.check env signature exports
 ;;
 
 
@@ -210,41 +244,47 @@ let check_implementation
   (* We need to translate the program down to the internal syntax. *)
   let program = TransSurface.translate_implementation env program in
 
-  let rec type_check env program =
-    match program with
-    | DataTypeGroup group :: blocks ->
-        Log.debug ~level:2 "\n%s***%s Processing data type group:\n%a"
-          Bash.colors.Bash.yellow Bash.colors.Bash.default
-          KindCheck.KindPrinter.pgroup (env, group);
+  (* [type_check] also returns a list of points, with the property that if x
+   * comes later than y in the file, then the point associated to x will come
+   * before that of y in the list of points. *)
+  let type_check env program =
+    let rec type_check env program pointss =
+      match program with
+      | DataTypeGroup group :: blocks ->
+          Log.debug ~level:2 "\n%s***%s Processing data type group:\n%a"
+            Bash.colors.Bash.yellow Bash.colors.Bash.default
+            KindCheck.KindPrinter.pgroup (env, group);
 
-        (* The binders in the data type group will be opened in the rest of the
-         * blocks. Also performs the actual binding in the data type group, as
-         * well as the variance and fact inference. *)
-        let env, blocks = DataTypeGroup.bind_data_type_group env group blocks in
-        (* Move on to the rest of the blocks. *)
-        type_check env blocks
-    | ValueDeclarations decls :: blocks ->
-        Log.debug ~level:2 "\n%s***%s Processing declarations:\n%a"
-          Bash.colors.Bash.yellow Bash.colors.Bash.default
-          Expressions.ExprPrinter.pdeclarations (env, decls);
+          (* The binders in the data type group will be opened in the rest of the
+           * blocks. Also performs the actual binding in the data type group, as
+           * well as the variance and fact inference. *)
+          let env, blocks, points = DataTypeGroup.bind_data_type_group env group blocks in
+          (* Move on to the rest of the blocks. *)
+          type_check env blocks (points :: pointss)
+      | ValueDeclarations decls :: blocks ->
+          Log.debug ~level:2 "\n%s***%s Processing declarations:\n%a"
+            Bash.colors.Bash.yellow Bash.colors.Bash.default
+            Expressions.ExprPrinter.pdeclarations (env, decls);
 
-        (* Perform the actual checking. The binders in the declaration group
-         * will be opened in [blocks] as well. *)
-        let env, blocks = TypeChecker.check_declaration_group env decls blocks in
-        (* Move on to the rest of the blocks. *)
-        type_check env blocks
-    | _ :: _ ->
-        Log.error "The parser should forbid this"
-    | [] ->
-        (* Print some extra debugging information. *)
-        Log.debug ~level:2 "\n%s***%s Done type-checking:\n%a"
-          Bash.colors.Bash.yellow Bash.colors.Bash.default
-          Types.TypePrinter.pdoc
-          (KindCheck.KindPrinter.print_kinds_and_facts, env);
+          (* Perform the actual checking. The binders in the declaration group
+           * will be opened in [blocks] as well. *)
+          let env, blocks, points = TypeChecker.check_declaration_group env decls blocks in
+          (* Move on to the rest of the blocks. *)
+          type_check env blocks (points :: pointss)
+      | _ :: _ ->
+          Log.error "The parser should forbid this"
+      | [] ->
+          (* Print some extra debugging information. *)
+          Log.debug ~level:2 "\n%s***%s Done type-checking:\n%a"
+            Bash.colors.Bash.yellow Bash.colors.Bash.default
+            Types.TypePrinter.pdoc
+            (KindCheck.KindPrinter.print_kinds_and_facts, env);
 
-        (* Do the final checks (is this the right time?) *)
-        ExtraChecks.check_env env;
-        env
+          (* Do the final checks (is this the right time?) *)
+          ExtraChecks.check_env env;
+          env, List.flatten pointss
+    in
+    type_check env program []
   in
 
   (* Type-check the implementation. *)
@@ -253,7 +293,7 @@ let check_implementation
     Bash.colors.Bash.yellow Bash.colors.Bash.default
     Module.p mname
     Types.TypePrinter.penv env;
-  let env = type_check env program in
+  let env, points = type_check env program in
 
   (* And type-check the implementation against its own signature, if any. *)
   Log.debug ~level:2 "\n%s***%s Matching %a against its signature"
@@ -262,12 +302,24 @@ let check_implementation
   let output_env =
     match interface with
     | Some interface ->
+        let exports = List.map (fun p ->
+          let k = Types.get_kind env p in
+          let name =
+            Option.extract (Hml_List.find_opt (function
+              | Types.User (mname, x) when Module.equal mname env.Types.module_name ->
+                 Some x
+              | _ ->
+                 assert false
+            ) (Types.get_names env p))
+          in
+          name, k, p
+        ) points in
         (* If the function types are not syntactically equal, the decision
          * procedure for comparing those two types introduces internal names
          * that end polluting the resulting environment! So we only use that
          * "polluted" environment to perform interface-checking, we don't
          * actually return it to the driver, say, for printing. *)
-        check_interface env env.Types.module_name interface
+        check_interface env interface exports
     | None ->
         env
   in
@@ -285,7 +337,8 @@ let check_implementation
      * [check_interface] has the nasty consequence that the [env] it returns is
      * polluted with internal names (the result of performing calls to
      * [Permissions.sub]), opening the same module twice may cause conflicts... *)
-    ignore (check_interface output_env mname iface)
+    let exports = Types.get_exports env mname in
+    ignore (check_interface output_env iface exports)
   ) deps;
 
   env

@@ -1,3 +1,4 @@
+open core
 mutable data xpair a b =
   XPair { left: a; right: b }
 

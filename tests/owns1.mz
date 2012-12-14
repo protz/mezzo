@@ -1,3 +1,4 @@
+open core
 mutable data t = T adopts u
 
 mutable data u = U

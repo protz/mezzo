@@ -1,3 +1,4 @@
+open core
 (* The idea is that we want to write the following impredicative type:
   * "∀α. α -> (∀β. (α, β) -> α) -> α". The problem is that we don't have native closures,
   * so this is tedious to write, especially because of consumes annotations. *)

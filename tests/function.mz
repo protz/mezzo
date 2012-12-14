@@ -1,3 +1,4 @@
+open core
 open pervasives
 
 val inc (x: int): int = x + 1

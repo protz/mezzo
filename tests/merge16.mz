@@ -1,3 +1,4 @@
+open core
 data bool = True | False
 mutable data xlist a = Cons { head: a; tail: xlist a} | Nil
 

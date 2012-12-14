@@ -1,3 +1,4 @@
+open core
 mutable data foo = Foo { foo: int }
 
 val main: foo =

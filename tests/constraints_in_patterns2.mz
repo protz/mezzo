@@ -1,3 +1,4 @@
+open core
 data foo = Foo { foo: (); bar: () }
 data bool = True | False
 

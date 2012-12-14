@@ -1,2 +1,3 @@
+open core
 val f (consumes x: ()): () = x
 val v = f [(f @ ())] ()

@@ -1,3 +1,4 @@
+open core
 (* Test function comparison after a type substitution: the function type should
  * remain in the expanded form so as to allow us to correctly compare types. *)
 

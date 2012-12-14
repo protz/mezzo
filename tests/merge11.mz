@@ -1,3 +1,4 @@
+open core
 data bool = True | False
 
 mutable data ref a = Nil | Ref { contents: a }

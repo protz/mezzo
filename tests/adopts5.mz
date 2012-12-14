@@ -1,3 +1,4 @@
+open core
 (* We make sure the merge operation is capable of merging “A adopts ⊥” with
  * “B adopts adoptee”, which implies recursively merging the adopts clauses. *)
 mutable data adoptee = Adoptee

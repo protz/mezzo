@@ -97,7 +97,7 @@ let debug_toplevel_items env toplevel_items =
 let bind_data_type_group
     (env: env)
     (group: data_type_group)
-    (toplevel_items: toplevel_item list): env * toplevel_item list =
+    (toplevel_items: toplevel_item list): env * toplevel_item list * point list =
   (* First, allocate points for all the data types. *)
   let env, points = bind_group env group in
   (* Open references to these data types in the branches themselves, since the
@@ -113,5 +113,5 @@ let bind_data_type_group
   let toplevel_items = bind_group_in_toplevel_items points toplevel_items in
   if false then debug_toplevel_items env toplevel_items;
   (* We're done. *)
-  env, toplevel_items
+  env, toplevel_items, points
 ;;

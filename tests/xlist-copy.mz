@@ -1,3 +1,4 @@
+open core
 mutable data xlist a = XCons { head: a; tail: xlist a } | XNil
 
 val rec copy [a] duplicable a => (xs: xlist a): xlist a =

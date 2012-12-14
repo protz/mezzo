@@ -1,3 +1,4 @@
+open core
 open list
 
 (* An example where we try to adopt a non-exclusive type. Needs a better

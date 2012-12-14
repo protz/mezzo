@@ -1,3 +1,4 @@
+open core
 mutable data t = T
 data pair a b = Pair { left: a; right: b }
 data bool = True | False

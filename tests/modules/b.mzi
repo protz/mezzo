@@ -1,3 +1,4 @@
+open core
 open a
 
 val f : () -> foo_a

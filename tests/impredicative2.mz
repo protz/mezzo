@@ -1,3 +1,4 @@
+open core
 mutable data foo = Foo
 
 val fst [α, β] (α, β): α = fail

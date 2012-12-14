@@ -1,3 +1,4 @@
+open core
 (* The fact in the interface is wrong so this test should fail. *)
 
 abstract foo a
