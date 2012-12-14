@@ -1,4 +1,4 @@
-.PHONY: all clean graph doc index report
+.PHONY: all clean graph doc index report count
 
 # The variables below should be determined by a configure script...
 # On my MacOS laptop, find does not understand -printf; gfind does. -fpottier
@@ -82,3 +82,5 @@ doc: graph
 	sed -i 's/<\/body>/<p align="center"><object type="image\/svg+xml" data="..\/misc\/graph.svg"><\/object><\/p><\/body>/' doc/index.html
 	cp -f misc/ocamlstyle.css doc/style.css
 
+count:
+	sloccount parsing typing utils viewer lib mezzo.ml
