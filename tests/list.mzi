@@ -119,6 +119,7 @@ val combine : [a, b] (consumes list a, consumes list b) -> list (a, b)
 (* Merging and sorting. *)
 
 val merge : [a] (cmp: (a, a) -> int, consumes list a, consumes list a) -> list a
+val sort  : [a] (cmp: (a, a) -> int, consumes list a) -> list a
 
 (* -------------------------------------------------------------------------- *)
 

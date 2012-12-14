@@ -10,9 +10,6 @@ mutable data bag a =
 | NonEmpty { head: dynamic; tail: dynamic }
 adopts cell a
 
-(* Urgh! If I remove this definition the test fails. *)
-val (==) [a, b] (x: a, y: b): bool = fail
-
 (* The real functions. *)
 
 val create [a] (): bag a =
