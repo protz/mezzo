@@ -33,12 +33,14 @@ let _ =
       backtraces point to the place where the error was thrown";
     "-debug", Arg.Set_int arg_debug, " <level>  Output level: 0 (default) = no \
       messages, 5 = super super verbose";
-    "-html-errors", Arg.Set arg_html_errors, " Use a browser to display errors";
-    "-pedantic", Arg.Unit (fun () ->
-        Options.pedantic := true;
-        arg_trace := "html"), " Non-principal situations are errors";
+    "-html-errors", Arg.Unit (fun () ->
+        arg_html_errors := true;
+        arg_trace := "html"), " Use a browser to display errors";
+    "-pedantic", Arg.Set Options.pedantic, " Non-principal situations are errors";
     "-I", Arg.String Driver.add_include_dir, " <dir>  Add <dir> to the list of \
       include directories";
+    "-noautoinclude", Arg.Clear Options.auto_include, "  Don't automatically \
+      open the corelib modules";
   ] (fun f ->
     if !arg_filename = "" then
       arg_filename := f

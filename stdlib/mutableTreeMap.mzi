@@ -1,5 +1,3 @@
-open pervasives (* TEMPORARY *)
-
 (* -------------------------------------------------------------------------- *)
 
 (* [treeMap k a] is an abstract type for association maps with keys of type [k]

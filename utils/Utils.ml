@@ -56,3 +56,11 @@ let ptag buf p =
   else
     Printf.bprintf buf "%d-th constant constructor" ((magic p) + 1);
 ;;
+
+let absolute_path p =
+  let c = Sys.getcwd () in
+  Sys.chdir p;
+  let r = Sys.getcwd () in
+  Sys.chdir c;
+  r
+;;

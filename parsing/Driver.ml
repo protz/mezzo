@@ -50,10 +50,44 @@ let lex_and_parse file_path entry_point =
 ;;
 
 let mkprefix path =
-  if Filename.basename path = "core.mzi" then
+  if not !Options.auto_include then
     []
   else
-    [SurfaceSyntax.OpenDirective (Module.register "core")]
+    let autoload_modules = [
+      "core.mzi";
+      "pervasives.mzi";
+    ] in
+    let me = Filename.basename path in
+    let my_dir = Filename.dirname path in
+    let chop l =
+      let rec chop acc = function
+        | hd :: tl ->
+            if hd = me then
+              List.rev acc
+            else
+              chop (hd :: acc) tl
+        | [] ->
+            List.rev acc
+      in
+      chop [] l
+    in
+    let corelib_dir =
+      Filename.concat Configure.root_dir "corelib"
+    in
+    let me_in_core_directory =
+      Utils.absolute_path corelib_dir = Utils.absolute_path my_dir
+    in
+    Log.debug "In core directory? %b" me_in_core_directory;
+    let modules =
+      if me_in_core_directory then
+        chop autoload_modules
+      else
+        autoload_modules
+    in
+    List.map (fun x ->
+      let name = Filename.chop_suffix x ".mzi" in
+      SurfaceSyntax.OpenDirective (Module.register name)
+    ) modules 
 ;;
 
 let lex_and_parse_implementation path =

@@ -1,5 +1,3 @@
-open pervasives (* TEMPORARY *)
-
 (* This module implements association maps using height-balanced trees.
    The code is modeled after OCaml's [Map] library, but has been modified
    to allow trees to be modified in place. *)

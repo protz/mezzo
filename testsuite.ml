@@ -723,7 +723,6 @@ let _ =
   Log.enable_debug (-1);
   Driver.add_include_dir (Filename.concat Configure.root_dir "corelib");
   Driver.add_include_dir (Filename.concat Configure.root_dir "stdlib");
-  Options.auto_include := false;
   let failed = ref 0 in
   let run prefix tests = 
     List.iter (fun (file, test) ->
@@ -771,6 +770,7 @@ let _ =
   Printf.printf "\n";
 
   (* Thrash the include path, and then do the unit tests. *)
+  Options.auto_include := false;
   Driver.add_include_dir "tests";
   Driver.add_include_dir "tests/modules";
   center "~[ Unit Tests ]~";
