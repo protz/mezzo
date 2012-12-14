@@ -1,0 +1,240 @@
+open pervasives
+
+(* FIFO structure, adapted from queue.ml *)
+
+mutable data cell a =
+  Cell { value: a; next: dynamic }
+
+mutable data fifo a =
+  Empty    { length: int;  tail: ()      }
+| NonEmpty { length: int;  tail: dynamic }
+adopts cell a
+
+val create [a] (): fifo a =
+  Empty { length = 0;  tail = () }
+
+(* The function clear doesn't type without the match *)
+
+val clear [a] (q: fifo a): () =
+  match q with
+  | Empty -> ()
+  | NonEmpty ->
+    tag of q <- Empty;
+    q.length <- 0;
+    q.tail   <- ()
+  end
+
+(* Giving c to q doesn't change the type *)
+
+val insert [a] (consumes x: a, q: fifo a): () =
+  let c = Cell {
+    value = x; next = ()
+  } in
+  match q with
+  | Empty ->
+      c.next <- c;
+      give c to q;
+      tag of q <- NonEmpty;
+      q.length <- 1;
+      q.tail <- c
+  | NonEmpty { tail } ->
+      take tail from q;
+        c.next <- tail.next ;
+        tail.next <- c;
+      give tail to q;
+      give c to q;
+      q.tail <- c;
+      q.length <- q.length +1
+  end
+  
+val push [a] (consumes x: a, q: fifo a): () =
+  insert (x, q)
+
+(* Peek: the element has to be duplicable *)
+
+val peek [a] duplicable a => (q: fifo a): option a =
+  match q with
+  | Empty -> 
+      none
+  | NonEmpty { tail } ->
+      take tail from q;
+      let head = tail.next in
+      take head from q;
+      let x = head.value in
+      give head to q;
+      give tail to q;
+      some x
+  end
+
+val top [a] duplicable a => (q: fifo a): option a =
+  peek q
+
+val retrieve [a] (q: fifo a): option a =
+  match q with
+  | Empty ->
+      None
+  | NonEmpty { tail } ->
+      q.length <- q.length - 1;
+      take tail from q;
+      let head = tail.next in
+      take head from q;
+      if head == tail then begin
+	tag of q <- Empty;
+	q.length <- 0;
+	q.tail <- ()
+      end else begin
+	tail.next <- head.next
+      end;
+      give tail to q;
+      let x = head.value in
+(* Head cell should not be given back to the queue! *)
+(*      give head to q;*)
+      some x
+  end
+
+val pop = retrieve
+
+(*
+val pop [a] (q: fifo a): option a =
+  retrieve q
+*)
+
+val copy [a] duplicable a => (q: fifo a): fifo a =
+  match q with
+  | Empty ->
+(* Type variable [a] has to be explicitly given in the empty case *)
+      create [a] ()
+
+  | NonEmpty { length; tail } ->
+      take tail from q;
+
+      let tail' = Cell { 
+	value = tail.value ; next = ()
+      } in
+
+(* Doesn't type if no permission for q is explicited *)
+      let rec ccopy (c: dynamic | q @ fifo a): dynamic =
+	if c == tail
+	then tail'
+	else begin
+	  take c from q;
+          let c' = Cell {
+	    value = c.value;
+	    next = ccopy (c.next)
+	  } in
+	  give c to q;
+	  c'
+	end
+      in
+      tail'.next <- ccopy (tail.next);
+
+      give tail to q;
+ 
+      let q' = NonEmpty {
+	length = length;
+	tail = tail'
+      } in
+
+      q'
+      
+  end 
+
+val map [a, b, p:perm] (f: (a | p) -> b, q: fifo a | p): fifo b =
+  match q with
+  | Empty ->
+(* Type variable [a] has to be explicitly given in the empty case *)
+      create [b] ()
+
+  | NonEmpty { length; tail } ->
+      take tail from q;
+
+      let tail' = Cell { 
+	value = f tail.value ; next = ()
+      } in
+
+(* Doesn't type if no permission for q is explicited *)
+      let rec ccopy (c: dynamic | q @ fifo a * p): dynamic =
+	if c == tail
+	then tail'
+	else begin
+	  take c from q;
+          let c' = Cell {
+	    value = f c.value;
+	    next = ccopy (c.next)
+	  } in
+	  give c to q;
+	  c'
+	end
+      in
+      tail'.next <- ccopy (tail.next);
+
+      give tail to q;
+ 
+      let q' = NonEmpty {
+	length = length;
+	tail = tail'
+      } in
+
+      q'
+      
+  end 
+
+val iter [a, p:perm] (f: (a | p) -> (), q: fifo a | p) : () =
+
+  match q with
+
+  | Empty ->
+      ()
+
+  | NonEmpty { tail } ->
+    take tail from q;
+
+    let rec citer (c: dynamic | q @ fifo a | p): () =
+      take c from q;
+      f c.value;
+      if c == tail
+      then ()
+      else citer c.next;
+      give c to q
+    in
+
+    citer tail.next;
+    give tail to q
+	
+  end    
+
+
+(* I don't know why it doesn't type *)
+(*
+val fold [a, b, p:perm] (f: (a, b | p) -> a, accu: a, q: fifo b | p): a =
+  
+  match q with
+
+  | Empty ->
+      accu
+
+  | NonEmpty { tail } ->
+      take tail from q;
+
+      let rec cfold (caccu: a, c: dynamic | q @ fifo b * p): a =
+	take c from q;
+	let ccaccu = f (caccu, c.value) in
+	let res = 
+	if c == tail then
+	  ccaccu
+	else
+	  cfold (ccaccu, c.next)
+	in
+	give c to q;
+	res
+      in
+
+      let cres =
+	cfold (accu, tail.next)
+      in
+
+      give tail to q;
+      cres
+
+  end
+*)

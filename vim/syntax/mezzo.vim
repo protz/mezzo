@@ -93,16 +93,16 @@ syn region   mezzoModTRWith start=":\s*("hs=s+1 end=")" contained contains=@mezz
 syn match    mezzoWith "\<\(\u\(\w\|'\)*\.\)*\w\(\w\|'\)*\>" contained skipwhite skipempty nextgroup=mezzoWithRest
 syn region   mezzoWithRest start="[^)]" end=")"me=e-1 contained contains=ALLBUT,@mezzoContained
 
-syn keyword  mezzoKeyword  and as assert class
-syn keyword  mezzoKeyword  constraint else
-syn keyword  mezzoKeyword  exception external from fun give
+syn keyword  mezzoKeyword  abstract adopts and as assert
+syn keyword  mezzoKeyword  consumes data duplicable dynamic else empty exclusive
+syn keyword  mezzoKeyword  fact fail from fun give
 
-syn keyword  mezzoKeyword  in inherit initializer
-syn keyword  mezzoKeyword  land lazy let
-syn keyword  mezzoKeyword  method mutable new of owns
-syn keyword  mezzoKeyword  parser private raise rec
-syn keyword  mezzoKeyword  take to try type
-syn keyword  mezzoKeyword  virtual when while with
+syn keyword  mezzoKeyword  in
+syn keyword  mezzoKeyword  let
+syn keyword  mezzoKeyword  mutable owns perm
+syn keyword  mezzoKeyword  rec
+syn keyword  mezzoKeyword  tag of take term to type
+syn keyword  mezzoKeyword  unknown val with
 
 syn keyword  mezzoKeyword  function
 

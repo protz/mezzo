@@ -1,3 +1,4 @@
+open core
 data foo_a = FooA
 
 val conflict: int

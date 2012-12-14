@@ -1,3 +1,4 @@
+open core
 data foo a = Foo { foo: () }
 
 val x =

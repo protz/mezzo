@@ -1,3 +1,4 @@
+open core
 (* For test that rely on abstract type definitions *)
 
 abstract t

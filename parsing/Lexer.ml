@@ -125,50 +125,49 @@ let rec token = lexer
 | "(*" -> comment 0 lexbuf
 | "*)" -> raise_error UnexpectedEndOfComment
 
-| "open" -> locate lexbuf OPEN
-| "fun" | 955 (* λ *) -> locate lexbuf FUN
-| "match" -> locate lexbuf MATCH
-| "if" -> locate lexbuf IF
-| "then" -> locate lexbuf THEN
-| "else" -> locate lexbuf ELSE
+| "abstract" -> locate lexbuf ABSTRACT
+| "adopts" -> locate lexbuf ADOPTS
+| "and" -> locate lexbuf AND
+| "as" -> locate lexbuf AS
+| "assert" -> locate lexbuf ASSERT
 | "begin" -> locate lexbuf BEGIN
+| "consumes" -> locate lexbuf CONSUMES
+| "data" -> locate lexbuf DATA
+| "duplicable" -> locate lexbuf DUPLICABLE
+| "dynamic" -> locate lexbuf DYNAMIC
+| "else" -> locate lexbuf ELSE
+| "empty" -> locate lexbuf EMPTY
 | "end" -> locate lexbuf END
+| "exclusive" -> locate lexbuf EXCLUSIVE
+| "explain" -> locate lexbuf EXPLAIN
+| "fact" -> locate lexbuf FACT
+| "fail" -> locate lexbuf FAIL
+| "from" -> locate lexbuf FROM
+| "fun" | 955 (* λ *) -> locate lexbuf FUN
+| "give" -> locate lexbuf GIVE
+| "if" -> locate lexbuf IF
+| "in" -> locate lexbuf IN
+| "let" -> locate lexbuf LET
+| "match" -> locate lexbuf MATCH
+| "mutable" -> locate lexbuf MUTABLE
+| "open" -> locate lexbuf OPEN
+| "owns" -> locate lexbuf OWNS
+| "perm" -> locate lexbuf KPERM
+| "rec" -> locate lexbuf REC
+| "tag" whitespace "of" -> locate lexbuf TAGOF
+| "take" -> locate lexbuf TAKE
+| "term" -> locate lexbuf KTERM
+| "then" -> locate lexbuf THEN
+| "to" -> locate lexbuf TO
+| "type" | 8727 (* ∗ *) -> locate lexbuf KTYPE
+| "unknown" -> locate lexbuf UNKNOWN
+| "val" -> locate lexbuf VAL
 | "with" -> locate lexbuf WITH
+
 | "<-" -> locate lexbuf LARROW
 | "." -> locate lexbuf DOT
-| "in" -> locate lexbuf IN
-| "val" -> locate lexbuf VAL
-| "let" -> locate lexbuf LET
-| "rec" -> locate lexbuf REC
-| "and" -> locate lexbuf AND
-| "assert" -> locate lexbuf ASSERT
-| "empty" -> locate lexbuf EMPTY
-| "fail" -> locate lexbuf FAIL
-| "explain" -> locate lexbuf EXPLAIN
-| "tag" whitespace "of" -> locate lexbuf TAGOF
-| "as" -> locate lexbuf AS
-
-| "adopts" -> locate lexbuf ADOPTS
-| "take" -> locate lexbuf TAKE
-| "from" -> locate lexbuf FROM
-| "give" -> locate lexbuf GIVE
-| "to" -> locate lexbuf TO
-| "owns" -> locate lexbuf OWNS
-| "consumes" -> locate lexbuf CONSUMES
-| "unknown" -> locate lexbuf UNKNOWN
-| "dynamic" -> locate lexbuf DYNAMIC
-| "data" -> locate lexbuf DATA
-| "exclusive" -> locate lexbuf EXCLUSIVE
-| "mutable" -> locate lexbuf MUTABLE
 | "|" -> locate lexbuf BAR
 | "_" -> locate lexbuf UNDERSCORE
-
-| "fact" -> locate lexbuf FACT
-| "duplicable" -> locate lexbuf DUPLICABLE
-| "abstract" -> locate lexbuf ABSTRACT
-| "type" | 8727 (* ∗ *) -> locate lexbuf KTYPE
-| "term" -> locate lexbuf KTERM
-| "perm" -> locate lexbuf KPERM
 
 | "[" -> locate lexbuf LBRACKET
 | "]" -> locate lexbuf RBRACKET

@@ -1,0 +1,3 @@
+#!/bin/sh
+PWD=$(pwd)
+echo "let root_dir = \"$PWD\";;" > configure.ml

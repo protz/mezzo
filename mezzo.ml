@@ -18,7 +18,6 @@
 (*****************************************************************************)
 
 let _ =
-  let arg_filename = ref "" in
   let arg_debug = ref 0 in
   let arg_backtraces = ref true in
   let arg_trace = ref "" in
@@ -33,19 +32,21 @@ let _ =
       backtraces point to the place where the error was thrown";
     "-debug", Arg.Set_int arg_debug, " <level>  Output level: 0 (default) = no \
       messages, 5 = super super verbose";
-    "-html-errors", Arg.Set arg_html_errors, " Use a browser to display errors";
-    "-pedantic", Arg.Unit (fun () ->
-        Options.pedantic := true;
-        arg_trace := "html"), " Non-principal situations are errors";
+    "-html-errors", Arg.Unit (fun () ->
+        arg_html_errors := true;
+        arg_trace := "html"), " Use a browser to display errors";
+    "-pedantic", Arg.Set Options.pedantic, " Non-principal situations are errors";
     "-I", Arg.String Driver.add_include_dir, " <dir>  Add <dir> to the list of \
       include directories";
+    "-noautoinclude", Arg.Set Options.no_auto_include, "  Don't automatically \
+      open the corelib modules";
   ] (fun f ->
-    if !arg_filename = "" then
-      arg_filename := f
+    if !Options.filename = "" then
+      Options.filename := f
     else
       failwith "Only one filename should be specified.\n"
   ) usage;
-  if !arg_filename = "" then begin
+  if !Options.filename = "" then begin
     print_string usage;
     exit 1;
   end;
@@ -55,12 +56,14 @@ let _ =
     let open Driver in
     { html_errors = !arg_html_errors }
   in
-  Driver.add_include_dir (Filename.dirname !arg_filename);
+  Driver.add_include_dir (Filename.concat Configure.root_dir "corelib");
+  Driver.add_include_dir (Filename.concat Configure.root_dir "stdlib");
+  Driver.add_include_dir (Filename.dirname !Options.filename);
   let env =
     if !arg_backtraces then
-      Driver.run opts (fun () -> Driver.process !arg_filename)
+      Driver.run opts (fun () -> Driver.process !Options.filename)
     else
-      Driver.process !arg_filename
+      Driver.process !Options.filename
   in
   if Log.debug_level () <= 0 then
     Hml_String.bprintf "%a" Driver.print_signature env

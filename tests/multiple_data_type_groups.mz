@@ -1,3 +1,4 @@
+open core
 data foo a = Foo (* | Foo2 { foo: a; bar: foo a } *)
 
 val x = Foo

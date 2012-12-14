@@ -1,3 +1,4 @@
+open core
 open array
 
 (* A generic loop over a segment of an array. *)

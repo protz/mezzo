@@ -1,3 +1,4 @@
+open core
 data bool = True | False
 
 mutable data t a = A | B { b: a }

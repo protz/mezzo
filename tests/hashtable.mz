@@ -1,3 +1,4 @@
+open core
 (* TEMPORARY the array should have duplicable elements! this will lead us
    to requesting that the hash table have duplicable elements as well!
    (and to immutable buckets)

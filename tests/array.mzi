@@ -1,3 +1,4 @@
+open core
 (* The primitive operations on arrays. *)
 
 (* We wish to distinguish mutable and immutable arrays, so the type

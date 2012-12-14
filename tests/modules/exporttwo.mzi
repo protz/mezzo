@@ -1,0 +1,2 @@
+open core
+val x: int

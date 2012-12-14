@@ -24,3 +24,11 @@ let pedantic =
 let multiple_arguments =
   ref true
 ;;
+
+let no_auto_include =
+  ref false
+;;
+
+let filename =
+  ref ""
+;;

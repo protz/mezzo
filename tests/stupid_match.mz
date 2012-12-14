@@ -1,3 +1,4 @@
+open core
 data foo = Foo
 
 val x = match 1 with Foo -> () end

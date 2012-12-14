@@ -1,3 +1,4 @@
+open core
 mutable data ref a = Ref { contents: a }
 data list a = Cons { head: a; tail: list a } | Nil
 

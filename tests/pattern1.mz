@@ -1,3 +1,4 @@
+open core
 (* Testing as-patterns. *)
 
 val v: (int, int, int, (int, int)) =
