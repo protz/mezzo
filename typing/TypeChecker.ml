@@ -1084,7 +1084,7 @@ and check_bindings
 let check_declaration_group
     (env: env)
     (declarations: declaration_group)
-    (toplevel_items: toplevel_item list): env * toplevel_item list =
+    (toplevel_items: toplevel_item list): env * toplevel_item list * point list =
   let rec check_declaration_group env declarations acc =
     match declarations with
     | DLocated (declarations, p1, p2) :: tl ->
@@ -1109,5 +1109,8 @@ let check_declaration_group
       esubst_toplevel_items (EPoint point) i b) b points
   in
   (* ...but it works! *)
-  env, subst_toplevel_items toplevel_items
+
+  (* NB: don't forget to return the list of points in the same
+   * order as the [DMultiple] came in. *)
+  env, subst_toplevel_items toplevel_items, (List.rev points)
 ;;

@@ -44,14 +44,24 @@ let has_same_name x (x', _k, p) =
  * afterwards, because we may have consumed permissions from other modules, and
  * [Driver] will want to check that for us (by eventually calling us again with
  * another [mname]). *)
-let check (env: T.env) (mname: Module.name) (signature: S.toplevel_item list): T.env =
+let check
+  (env: T.env)
+  (signature: S.toplevel_item list)
+  (exports: (Variable.name * T.kind * T.point) list)
+: T.env =
   (* Find one specific name among these names. *)
   let point_by_name name =
-    try
-      T.point_by_name env ~mname name
-    with Not_found ->
-      let open TypeErrors in
-      raise_error env (MissingFieldInSignature name)
+    match Hml_List.find_opt (fun (name', _, p') ->
+      if Variable.equal name name' then
+        Some p'
+      else
+        None
+    ) exports with
+    | Some p ->
+        p
+    | None ->
+        let open TypeErrors in
+        raise_error env (MissingFieldInSignature name)
   in
 
   (* As [check] processes one toplevel declaration after another, it first add
@@ -89,7 +99,7 @@ let check (env: T.env) (mname: Module.name) (signature: S.toplevel_item list): T
               env
           | None ->
               let open TypeErrors in
-              raise_error env (NoSuchTypeInSignature (x, t))
+              raise_error env (NoSuchTypeInSignature (point, t))
         in
 
         (* Alright, [x] is now bound, and when it appears afterwards, it will

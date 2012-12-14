@@ -58,7 +58,7 @@ and raw_error =
   | AdoptsNoAnnotation
   | NotMergingClauses of env * typ * typ * env * typ * typ
   | MissingFieldInSignature of Variable.name
-  | NoSuchTypeInSignature of Variable.name * typ
+  | NoSuchTypeInSignature of point * typ
   | DataTypeMismatchInSignature of Variable.name * string
   | NotExclusiveOwns of point
 
@@ -433,12 +433,13 @@ let print_error buf (env, raw_error) =
       Printf.bprintf buf "%a this file does not export a variable named %a"
         Lexer.p env.location
         Variable.p name
-  | NoSuchTypeInSignature (x, t) ->
+  | NoSuchTypeInSignature (p, t) ->
       Printf.bprintf buf "%a this file exports a variable named %a, but it does \
-        not have type %a"
+        not have type %a, the only permissions available for it are: %a"
         Lexer.p env.location
-        Variable.p x
+        pname (env, p)
         ptype (env, t)
+        ppermission_list (env, p)
   | DataTypeMismatchInSignature (x, reason) ->
       Printf.bprintf buf "%a cannot match the definition of %a against the \
           signature because of: %s"

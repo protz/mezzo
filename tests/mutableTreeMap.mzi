@@ -28,7 +28,7 @@ val cardinal : [k, a] treeMap k a -> int
 
 val is_empty : [k, a] treeMap k a -> bool
 
-val add : [k, a] (k, a, treeMap k a) -> ()
+val add : [k, a] (consumes k, consumes a, treeMap k a) -> ()
 
 (* BUG the grammar does not allow constraints as part of VAL declarations!
    perhaps we should think about making TyConstraint a more "ordinary"

@@ -213,6 +213,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("multiple_data_type_groups.mz", simple_test Pass);
 
+  ("hole.mz", simple_test Pass);
+
   ("curry1.mz", simple_test Pass);
 
   ("impredicative.mz", simple_test Pass);
@@ -668,6 +670,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   )));
 
   ("modules/m.mz", simple_test Pass);
+
+  ("modules/exporttwo.mz", simple_test Pass);
 
   ("modules/qualified.mz", simple_test Pass);
 

@@ -42,7 +42,7 @@ let import_interface (env: T.env) (items: E.interface): T.env =
         import_items env items
 
     | DataTypeGroup group :: items ->
-        let env, items = DataTypeGroup.bind_data_type_group env group items in
+        let env, items, _ = DataTypeGroup.bind_data_type_group env group items in
         import_items env items
 
     | ValueDeclarations _ :: _ ->

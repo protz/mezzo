@@ -1,0 +1,13 @@
+mutable data pair a b = Pair { left: a; right: b }
+
+val right [a, b] (consumes a, consumes Pair { left: unknown; right: b }): () =
+  fail
+
+val left [a, b] (consumes Pair { left: a; right: unknown }, consumes b): () =
+  fail
+
+val g [a, b] (consumes x: pair a b): () =
+  right (x.left, x)
+
+val f [a, b] (consumes x: pair a b): () =
+  left (x, x.right)
