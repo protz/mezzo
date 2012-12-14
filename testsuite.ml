@@ -712,6 +712,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("tuple-syntax.mz", simple_test Pass);
 
+  ("queue.mz", simple_test Pass);
+
 ]
 
 let _ =
