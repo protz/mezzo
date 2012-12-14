@@ -1,3 +1,4 @@
+open core
 (* Section 4.1.4 of the tutorial, "List map" *)
 
 data list a = Cons { head: a; tail: list a } | Nil

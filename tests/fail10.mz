@@ -1,3 +1,4 @@
+open core
 open pervasives
 
 mutable data tree k a =

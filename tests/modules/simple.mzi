@@ -1,3 +1,4 @@
+open core
 val x : ()
 val y : (=x, =x)
 

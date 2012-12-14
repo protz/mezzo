@@ -1,1 +1,2 @@
+open core
 val baz: int -> int = 3

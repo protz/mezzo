@@ -1,3 +1,4 @@
+open core
 (* This is just a sample file. Try changing menhir to menhir --trace in the
  * Makefile to see the tokens being accepted and/or rejected. *)
 data t a =

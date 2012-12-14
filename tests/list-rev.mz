@@ -1,3 +1,4 @@
+open core
 data list a = Cons { head: a; tail: list a } | Nil
 
 val rev [a] (consumes l: list a): list a =

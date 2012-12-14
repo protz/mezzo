@@ -1,3 +1,4 @@
+open core
 (* This file implements a destination-passing style, almost tail-recursive
  * version of [List.map] for immutable lists. It uses a temporary mutable cell
  * that is later on "frozen" when it's ready. *)

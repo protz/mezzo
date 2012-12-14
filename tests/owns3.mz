@@ -1,3 +1,4 @@
+open core
 mutable data t = T
 
 mutable data u = U

@@ -1,3 +1,4 @@
+open core
 data bool = True | False
 
 data w a = W { w: a } | X

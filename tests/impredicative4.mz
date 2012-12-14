@@ -1,3 +1,4 @@
+open core
 (* This example must fail, because the function we're passing is too
  * restrictive: it consumes its argument! See [impredicative5.mz] for the
  * symmetrical case. *)

@@ -770,7 +770,7 @@ let _ =
   Printf.printf "\n";
 
   (* Thrash the include path, and then do the unit tests. *)
-  Options.auto_include := false;
+  Options.no_auto_include := true;
   Driver.add_include_dir "tests";
   Driver.add_include_dir "tests/modules";
   center "~[ Unit Tests ]~";

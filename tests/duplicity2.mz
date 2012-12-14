@@ -1,3 +1,4 @@
+open core
 data option a = Some { contents: a } | None
 data bool = True | False
 data list a = Cons { head: a; tail: list a} | Nil

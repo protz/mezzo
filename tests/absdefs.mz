@@ -1,3 +1,4 @@
+open core
 data t = T
 data u = U
 

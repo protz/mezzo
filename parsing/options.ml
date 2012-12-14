@@ -25,6 +25,10 @@ let multiple_arguments =
   ref true
 ;;
 
-let auto_include =
-  ref true
+let no_auto_include =
+  ref false
+;;
+
+let filename =
+  ref ""
 ;;

@@ -50,7 +50,7 @@ let lex_and_parse file_path entry_point =
 ;;
 
 let mkprefix path =
-  if not !Options.auto_include then
+  if !Options.no_auto_include && path = !Options.filename then
     []
   else
     let autoload_modules = [

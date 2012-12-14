@@ -1,3 +1,4 @@
+open core
 (* Test pattern-matching on tuples. *)
 
 val f (x: (int, int)): int =
