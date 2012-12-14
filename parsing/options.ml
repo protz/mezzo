@@ -24,3 +24,7 @@ let pedantic =
 let multiple_arguments =
   ref true
 ;;
+
+let auto_include =
+  ref true
+;;

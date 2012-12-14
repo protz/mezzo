@@ -55,6 +55,8 @@ let _ =
     let open Driver in
     { html_errors = !arg_html_errors }
   in
+  Driver.add_include_dir (Filename.concat Configure.root_dir "corelib");
+  Driver.add_include_dir (Filename.concat Configure.root_dir "stdlib");
   Driver.add_include_dir (Filename.dirname !arg_filename);
   let env =
     if !arg_backtraces then

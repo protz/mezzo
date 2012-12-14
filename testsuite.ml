@@ -95,12 +95,6 @@ let dummy_binding k =
 ;;
 
 let tests: (string * ((unit -> env) -> unit)) list = [
-  (* Put the core definitions first, so that if it fails, we can see it
-   * immediately. *)
-
-  ("pervasives.mz",
-    simple_test Pass);
-
   ("absdefs.mz",
     simple_test Pass);
 
@@ -687,10 +681,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("monads.mz", simple_test Pass);
 
-  ("list.mz", simple_test Pass);
-
-  ("mutableTreeMap.mz", simple_test Pass);
-
   ("adopts-non-mutable-type.mz", simple_test (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
 
   ("adopts-type-variable.mz", simple_test (Fail (function BadFactForAdoptedType _  -> true | _ -> false)));
@@ -716,41 +706,77 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("tuple-syntax.mz", simple_test Pass);
 
-]
+];;
+
+let corelib_tests: (string * ((unit -> env) -> unit)) list = [
+  ("pervasives.mz", simple_test Pass);
+];;
+
+let stdlib_tests: (string * ((unit -> env) -> unit)) list = [
+  ("list.mz", simple_test Pass);
+
+  ("mutableTreeMap.mz", simple_test Pass);
+];;
 
 let _ =
   let open Bash in
   Log.enable_debug (-1);
-  (* These two are probably a little bit too violent, expect conflicts... *)
+  Driver.add_include_dir (Filename.concat Configure.root_dir "corelib");
+  Driver.add_include_dir (Filename.concat Configure.root_dir "stdlib");
+  Options.auto_include := false;
+  let failed = ref 0 in
+  let run prefix tests = 
+    List.iter (fun (file, test) ->
+      Log.warn_count := 0;
+      let do_it = fun () ->
+        let env = Driver.process (Filename.concat prefix file) in
+        env
+      in
+      begin try
+        test do_it;
+        if !Log.warn_count > 0 then
+          Printf.printf "%s✓ %s%s, %s%d%s warning%s\n"
+            colors.green colors.default file
+            colors.red !Log.warn_count colors.default
+            (if !Log.warn_count > 1 then "s" else "")
+        else
+          Printf.printf "%s✓ %s%s\n" colors.green colors.default file;
+      with e ->
+        failed := !failed + 1;
+        Printf.printf "%s✗ %s%s\n" colors.red colors.default file;
+        print_endline (Printexc.to_string e);
+        Printexc.print_backtrace stdout;
+        if e = Exit then
+          raise e
+      end;
+      flush stdout;
+      flush stderr;
+    ) tests;
+  in
+
+  let center s =
+    let l = String.length s in
+    let padding = String.make ((Bash.twidth - l) / 2) ' ' in
+    Printf.printf "%s%s\n" padding s;
+  in
+
+  (* Check the core modules. *)
+  center "~[ Core Modules ]~";
+  run "corelib/" corelib_tests;
+  Printf.printf "\n";
+
+  (* Check the standard library modules. *)
+  center "~[ Standard Library Modules ]~";
+  run "stdlib/" stdlib_tests;
+  Printf.printf "\n";
+
+  (* Thrash the include path, and then do the unit tests. *)
   Driver.add_include_dir "tests";
   Driver.add_include_dir "tests/modules";
-  let failed = ref 0 in
-  List.iter (fun (file, test) ->
-    Log.warn_count := 0;
-    let do_it = fun () ->
-      let env = Driver.process (Filename.concat "tests" file) in
-      env
-    in
-    begin try
-      test do_it;
-      if !Log.warn_count > 0 then
-        Printf.printf "%s✓ %s%s, %s%d%s warning%s\n"
-          colors.green colors.default file
-          colors.red !Log.warn_count colors.default
-          (if !Log.warn_count > 1 then "s" else "")
-      else
-        Printf.printf "%s✓ %s%s\n" colors.green colors.default file;
-    with e ->
-      failed := !failed + 1;
-      Printf.printf "%s✗ %s%s\n" colors.red colors.default file;
-      print_endline (Printexc.to_string e);
-      Printexc.print_backtrace stdout;
-      if e = Exit then
-        raise e
-    end;
-    flush stdout;
-    flush stderr;
-  ) tests;
+  center "~[ Unit Tests ]~";
+  run "tests/" tests;
+  Printf.printf "\n";
+
   Printf.printf "%s%d%s tests run, " colors.blue (List.length tests) colors.default;
   if !failed > 0 then
     Printf.printf "%s%d failed, this is BAD!%s\n" colors.red !failed colors.default
