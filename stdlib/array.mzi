@@ -1,0 +1,67 @@
+open core
+
+(* The primitive operations on arrays. *)
+
+(* TEMPORARY ocaml distinguishes append_prim and append; also, it distinguishes
+   between unsafe_foo and foo. Clarify. *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* TEMPORARY I would like to write something like this:
+
+(* We wish to distinguish mutable and immutable arrays, so the type
+   of arrays takes the form [array m a], where the phantom parameter
+   [m] is intended to be either [ro] or [rw]. The type parameter [a]
+   represents the type of the elements of the array. It is always a
+   duplicable type. *)
+
+abstract ro
+fact duplicable ro
+
+abstract rw
+
+abstract array m a
+fact duplicable m => duplicable (array m a)
+
+*)
+
+(* TEMPORARY for the time being, arrays are mutable. *)
+
+abstract array a
+fact exclusive (array a)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Initialization. *)
+
+(* [create] creates an array of arbitrary length and fills it with an initial
+   value. [zero] creates an array of length zero and does not require an
+   initial value. TEMPORARY? *)
+
+val create : [a] (* TEMPORARY duplicable a => *) (int, a) -> array a
+val zero   : [a] (* TEMPORARY duplicable a => *)       () -> array a
+
+(* -------------------------------------------------------------------------- *)
+
+(* Access. *)
+
+val get : [a] (array a, int)    -> a
+val set : [a] (array a, int, a) -> ()
+
+(* -------------------------------------------------------------------------- *)
+
+(* Length. *)
+
+val max_length : int
+
+val length : [a] array a -> int
+
+(* -------------------------------------------------------------------------- *)
+
+(* Blitting. *)
+
+val sub    : [a] (array a, int, int)  -> array a
+val append : [a] (array a, array a)   -> array a
+val concat : [a] list::list (array a) -> array a
+val blit   : [a] (a1: array a, ofs1: int, a2: array a, ofs2: int, len: int) -> ()
+

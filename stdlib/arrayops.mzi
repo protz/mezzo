@@ -1,6 +1,10 @@
 open core
 open array
 
+(* Operations on arrays. *)
+
+(* -------------------------------------------------------------------------- *)
+
 (* A generic loop over a segment of an array. *)
 
 val iter_segment : [a, p : perm] (
@@ -15,9 +19,15 @@ val iter_array : [a, p : perm] (
   f: (i: int | x @ array a * p) -> ()
   | p) -> ()
 
+(* -------------------------------------------------------------------------- *)
+
 (* Creating and initializing an array. *)
 
 (* TEMPORARY 
 val init : [a] duplicable a => (n: int, f: int -> a) -> array a
 *)
+
+(* Copy. *)
+
+val copy : [a] array a -> array a
 

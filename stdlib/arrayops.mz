@@ -1,6 +1,10 @@
 open core
 open array
 
+(* Operations on arrays. *)
+
+(* -------------------------------------------------------------------------- *)
+
 (* A generic loop over a segment of an array. *)
 
 val rec iter_segment [a, p : perm] (
@@ -22,8 +26,9 @@ val rec iter_array [a, p : perm] (
 ) : () =
   iter_segment (x, 0, length x, f)
 
+(* -------------------------------------------------------------------------- *)
+
 (* Creating and initializing an array. *)
-(* TEMPORARY this function should not require duplicable a! *)
 
 val init [a] duplicable a => (n: int, f: int -> a) : array a =
   if n = 0 then
@@ -36,3 +41,13 @@ val init [a] duplicable a => (n: int, f: int -> a) : array a =
     x
   end
 
+(* Copy. *)
+
+val copy [a] (x: array a) : array a =
+  sub (x, 0, length x)
+
+(*
+Local Variables:
+compile-command: "../mezzo arrayops.mz"
+End:
+*)

@@ -700,8 +700,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("masking.mz", simple_test Pass);
   (* TEMPORARY this test should fail, but I don't know with which error *)
 
-  ("arrayops.mz", simple_test Pass);
-
   ("hashtable.mz", simple_test Pass);
 
   ("tuple-syntax.mz", simple_test Pass);
@@ -715,8 +713,8 @@ let corelib_tests: (string * ((unit -> env) -> unit)) list = [
 ];;
 
 let stdlib_tests: (string * ((unit -> env) -> unit)) list = [
+  ("arrayops.mz", simple_test Pass);
   ("list.mz", simple_test Pass);
-
   ("mutableTreeMap.mz", simple_test Pass);
 ];;
 
