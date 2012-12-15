@@ -5,46 +5,224 @@ open array
 
 (* -------------------------------------------------------------------------- *)
 
-(* A generic loop over a segment of an array. *)
+(* Generic loops over a segment of an array. *)
 
-val rec iter_segment [a, p : perm] (
+val rec iter_segment_left [a, p : perm] (
   x: array a, i: int, j: int,
-  f: (i: int | x @ array a * p) -> () 
+  f: (int | x @ array a * p) -> () 
   | p
 ) : () =
   if i < j then begin
     f(i);
-    iter_segment (x, i+1, j, f)
+    iter_segment_left (x, i + 1, j, f)
   end
 
-(* A generic loop over an entire array. *)
-
-val rec iter_array [a, p : perm] (
-  x: array a,
-  f: (i: int | x @ array a * p) -> ()
+val rec iter_segment_right [a, p : perm] (
+  x: array a, i: int, j: int,
+  f: (int | x @ array a * p) -> () 
   | p
 ) : () =
-  iter_segment (x, 0, length x, f)
+  if i < j then begin
+    f(j - 1);
+    iter_segment_right (x, i, j - 1, f)
+  end
+
+(* Generic loops over an entire array. *)
+
+val rec iter_array_left [a, p : perm] (
+  x: array a,
+  f: (int | x @ array a * p) -> ()
+  | p
+) : () =
+  iter_segment_left (x, 0, length x, f)
+
+val rec iter_array_right [a, p : perm] (
+  x: array a,
+  f: (int | x @ array a * p) -> ()
+  | p
+) : () =
+  iter_segment_right (x, 0, length x, f)
+
+(* A variant of the above loops, where [f] receives not only an index [i],
+   but also the corresponding array element. *)
+
+val rec iteri_left [a, p : perm] (
+  x: array a,
+  f: (int, a | x @ array a * p) -> ()
+  | p
+) : () =
+  iter_array_left (x, fun (i: int | x @ array a * p) : () =
+    f (i, get (x, i))
+  )
+
+val rec iteri_right [a, p : perm] (
+  x: array a,
+  f: (int, a | x @ array a * p) -> ()
+  | p
+) : () =
+  iter_array_right (x, fun (i: int | x @ array a * p) : () =
+    f (i, get (x, i))
+  )
+
+(* A degenerate variant of the above loops, where the function [f] has
+   access to the element, but not the index [i] or to the array [x]. *)
+
+val iter_left [a, p : perm] (
+  x: array a,
+  f: (a | p) -> ()
+  | p
+) : () =
+  iter_array_left (x, fun (i : int | x @ array a * p) : () =
+    f(get(x, i))
+  )
+
+val iter_right [a, p : perm] (
+  x: array a,
+  f: (a | p) -> ()
+  | p
+) : () =
+  iter_array_right (x, fun (i : int | x @ array a * p) : () =
+    f(get(x, i))
+  )
+
+(* A variant of the above loops, where the function [f] has access to
+   an explicit loop-carried accumulator, in addition to the element. *)
+
+val fold_left [a, b, p : perm] (
+  x: array a,
+  consumes seed: b,
+  f: (a, consumes accu: b | p) -> b
+  | p) : b =
+  let accu = newref seed in
+  iter_array_left (x, fun (i: int | x @ array a * accu @ ref b) : () =
+    accu := f (get (x, i), !accu )
+  );
+  !accu
+
+val fold_right [a, b, p : perm] (
+  x: array a,
+  consumes seed: b,
+  f: (a, consumes accu: b | p) -> b
+  | p) : b =
+  let accu = newref seed in
+  iter_array_right (x, fun (i: int | x @ array a * accu @ ref b) : () =
+    accu := f (get (x, i), !accu )
+  );
+  !accu
 
 (* -------------------------------------------------------------------------- *)
 
 (* Creating and initializing an array. *)
 
-val init [a] duplicable a => (n: int, f: int -> a) : array a =
+val init [a, p : perm] duplicable a => (
+  n: int,
+  f: (int | p) -> a
+  | p
+) : array a =
   if n = 0 then
     zero [a] () (* TEMPORARY get rid of this type application *)
   else begin
     let x = create (n, f 0) in
-    iter_segment (x, 1, n, fun (i: int | x @ array a) : () =
+    iter_segment_left (x, 1, n, fun (i: int | x @ array a * p) : () =
+      (* BUG if I remove "* p" on the line above, the code still type-checks,
+	 even though I believe it should not: [p] is not known to be duplicable *)
       set (x, i, f i)
     );
     x
   end
 
-(* Copy. *)
+(* Copying an entire array. *)
 
 val copy [a] (x: array a) : array a =
   sub (x, 0, length x)
+
+val map [a, b, p : perm] duplicable b => (
+  x: array a,
+  f: (a | p) -> b
+  | p
+) : array b =
+  (* TEMPORARY it would be nice if the type-checker could guess this type application *)
+  (* It seems to work when [p] is not there and [x @ array a] must be guessed, but not
+     in the more complex situation where [x @ array a * p] must be guessed. *)
+  init [ p = (x @ array a * p) ] (length x, fun (i: int | x @ array a * p) : b =
+    f (get (x, i))
+  )
+
+val mapi [a, b, p : perm] duplicable b => (
+  x: array a,
+  f: (int, a | p) -> b
+  | p
+) : array b =
+  (* TEMPORARY as above, it would be nice if the type-checker could guess this type application *)
+  init [ p = (x @ array a * p) ] (length x, fun (i: int | x @ array a * p) : b =
+    f (i, get (x, i))
+  )
+
+(* Filling a segment with a value. *)
+
+val rec fill_segment [a] (x: array a, i: int, j: int, v: a) : () =
+  if i < j then begin
+    set (x, i, v);
+    fill_segment (x, i + 1, j, v)
+  end
+
+val fill [a] (x: array a, i: int, len: int, v: a) : () =
+  fill_segment (x, i, i + len, v)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Conversions between arrays and lists. *)
+
+(* Converting an array (segment) to a list. *)
+
+(* BUG (known, I suppose): the names Cons and Nil should not be understood
+   since I have not opened the list module. *)
+
+val rec segment2list [a] duplicable a => (x: array a, i: int, j: int, consumes accu: list::list a) : list::list a =
+  if i < j then
+    segment2list (x, i, j - 1, Cons { head = get (x, j - 1); tail = accu })
+  else
+    accu
+
+val array2list [a] duplicable a => (x: array a) : list::list a =
+  segment2list (x, 0, length x, Nil)
+
+(* Converting a list to an array. *)
+
+(* This compact version is defined in terms of [init]. *)
+
+val list2array [a] duplicable a => (xs: list::list a) : array a =
+  let r = newref xs in
+  init (list::length xs, fun (i: int | r @ ref (list::list a)) : a =
+    match !r with
+    | Cons { head; tail } ->
+        r := tail;
+        head
+    | Nil ->
+        fail (* impossible *)
+    end
+  )
+
+(* This somewhat less elegant version is defined directly, and might lead
+   to more efficient code, because no reference is used. *)
+
+val list2array [a] duplicable a => (xs: list::list a) : array a =
+  match xs with
+  | Nil ->
+      zero [a] () (* TEMPORARY get rid of this type application *)
+  | Cons { head; tail } ->
+      let x = create (1 + list::length tail, head) in
+      let rec fill (i: int, xs: list::list a | x @ array a) : =x =
+	match xs with
+	| Nil ->
+	    x
+	| Cons ->
+	    set (x, i, xs.head);
+	    fill (i + 1, xs.tail)
+        end
+      in
+      fill (1, tail)
+  end
 
 (*
 Local Variables:
