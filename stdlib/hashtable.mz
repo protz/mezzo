@@ -23,7 +23,11 @@ data bucket k a =
 
 (* Iteration over a bucket. *)
 
-val rec iter_bucket_down [k, a, p : perm] (b: bucket k a, f: (k, a | p) -> () | p) : () =
+val rec iter_bucket_down [k, a, p : perm] (
+  b: bucket k a,
+  f: (k, a | p) -> ()
+  | p
+) : () =
   match b with
   | Nil ->
       ()
@@ -91,6 +95,8 @@ val key_index [k, a] (t: table k a, x: k) : int =
 val push [k, a] (buckets: array::array (bucket k a), i: int, consumes x: k, consumes v: a) : () =
   array::set (buckets, i, Cons { key = x; value = v; tail = array::get (buckets, i) })
 
+(* TEMPORARY if push/key_index always used together, push could be modified *)
+
 val resize [k, a] duplicable k, duplicable a => (t: table k a) : () =
   let old_buckets = t.buckets in
   let new_size = array::length old_buckets * 2 in
@@ -120,6 +126,8 @@ val resize [k, a] duplicable k, duplicable a => (t: table k a) : () =
 val add [k, a] duplicable k, duplicable a => (t: table k a, x: k, v: a) : () =
   let i = key_index [k, a] (t, x) in
   (* BUG? the line above fails if I omit the type application *)
+  (* BUG? the type-checker fails mysteriously if I inline the definition
+     of [i] into the next line. *)
   push [k, a] (t.buckets, i, x, v);
   (* BUG? the line above fails if I omit the type application *)
   t.cardinal <- t.cardinal + 1;
