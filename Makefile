@@ -9,10 +9,11 @@ OCAMLBUILD := ocamlbuild -use-ocamlfind -use-menhir \
   -menhir "menhir --explain --infer -la 1" \
   -cflags "-g" -lflags "-g" -classic-display
 INCLUDE    := -Is sets,typing,parsing,ulex,lib,pprint,utils,fix
-MAIN	   := mezzo
+MAIN       := mezzo
 TESTSUITE  := testsuite
-BUILDDIRS   = $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
-MY_DIRS	   := lib parsing sets typing utils
+BUILDDIRS   = -I _build $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
+MY_DIRS    := lib parsing sets typing utils
+PACKAGES   := -package menhirLib,ocamlbuild,yojson,stdlib,ulex
 
 all: configure.ml
 	$(OCAMLBUILD) $(INCLUDE) $(MAIN).native $(TESTSUITE).native
@@ -45,7 +46,7 @@ tests/%.mz: mezzo.byte
 
 # For printing the signature of an .ml file
 %.mli: all
-	ocamlc -i $(BUILDDIRS) $*.ml
+	ocamlfind ocamlc $(PACKAGES) -i $(BUILDDIRS) $*.ml
 
 # The index of all the nifty visualizations we've built so far
 index:
@@ -63,7 +64,7 @@ coverage:
 
 graph: all
 	-ocamlfind ocamldoc -dot $(BUILDDIRS)\
-	  -package menhirLib,ocamlbuild,yojson,stdlib\
+	  $(PACKAGES)\
 	  -o graph.dot\
 	  $(shell $(FIND) $(MY_DIRS) -iname '*.ml' -or -iname '*.mli')\
 	  configure.ml mezzo.ml
@@ -75,7 +76,7 @@ graph: all
 
 doc: graph
 	-ocamlfind ocamldoc -html $(BUILDDIRS) \
-	  -package stdlib -d ../misc/doc \
+	  -package stdlib,ulex -d ../misc/doc \
 	  -intro ../misc/doc/main \
 	  -charset utf8 -css-style ../../src/misc/ocamlstyle.css\
 	  configure.ml mezzo.ml\
