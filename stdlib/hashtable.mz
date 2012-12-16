@@ -1,7 +1,5 @@
 open core
 
-(* -------------------------------------------------------------------------- *)
-
 (* Because a primitive array must have duplicable elements, we choose to
    reflect this restriction and require the hash table to have duplicable
    elements. *)
@@ -12,12 +10,32 @@ open core
    here. I see no argument in favor of doing it here, and it can always be
    done later. *)
 
-(* A bucket contains a list of key-value pairs. We do not use the library
-   list, because we wish to unbox the key-value pairs. *)
+(* -------------------------------------------------------------------------- *)
+
+(* The definition of a bucket. *)
+
+(* A bucket contains a list of key-value pairs. We do not use the list library,
+   because we wish to unbox the key-value pairs. *)
 
 data bucket k a =
   | Nil
   | Cons { key: k; value: a; tail: bucket k a }
+
+(* Iteration over a bucket. *)
+
+val rec iter_bucket_down [k, a, p : perm] (b: bucket k a, f: (k, a | p) -> () | p) : () =
+  match b with
+  | Nil ->
+      ()
+  | Cons ->
+      (* Iteration from the end down to the beginning of the list. *)
+      iter_bucket_down (b.tail, f);
+      f (b.key, b.value)
+  end
+
+(* -------------------------------------------------------------------------- *)
+
+(* The definition of a hash table. *)
 
 mutable data table k a =
   Table {
@@ -80,24 +98,19 @@ val resize [k, a] duplicable k, duplicable a => (t: table k a) : () =
     (* Update [t.buckets] immediately, so that [key_index] sees the new
        bucket count. *)
     t.buckets <- array::create [bucket k a] (new_size, Nil);
-    let rec insert_bucket (b : bucket k a | t @ table k a) : () =
-      match b with
-      | Nil ->
-	  ()
-      | Cons { key; value; tail } ->
-          insert_bucket tail; (* preserve original order of elements *)
-          let nidx = key_index [k, a] (t, key) in
-	  (* BUG? the type-checker fails mysteriously if I inline the definition
-	     of [nidx] into the next line. *)
-	  push [k, a] (t.buckets, nidx, key, value)
-          (* BUG? the line above fails if I omit the type application *)
-      end
-    in
     (* The type of [iter_up] requires that the array [old_buckets] be preserved,
        and this forces us to require that [k] and [a] be duplicable. Not a
        problem here, but I did not expect this at first. It would be somewhat
        more elegant if we could use a loop combinator that consumes the array. *)
-    arrayops::iter_up (old_buckets, insert_bucket)
+    arrayops::iter_up (old_buckets, fun (b : bucket k a | t @ table k a) : () =
+      iter_bucket_down (b, fun (x: k, v: a | t @ table k a) : () =
+	let nidx = key_index [k, a] (t, x) in
+	(* BUG? the type-checker fails mysteriously if I inline the definition
+	   of [nidx] into the next line. *)
+	push [k, a] (t.buckets, nidx, x, v)
+	(* BUG? the line above fails if I omit the type application *)	
+      )
+    )
   end
 
 (* -------------------------------------------------------------------------- *)
