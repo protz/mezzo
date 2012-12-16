@@ -5,8 +5,7 @@
 FIND       := find
 -include Makefile.local
 
-USE_OCAMLFIND := $(shell if `which ocamlfind > /dev/null`; then echo "-use-ocamlfind"; fi)
-OCAMLBUILD := ocamlbuild $(USE_OCAMLFIND) -use-menhir \
+OCAMLBUILD := ocamlbuild -use-ocamlfind -use-menhir \
   -menhir "menhir --explain --infer -la 1" \
   -cflags "-g" -lflags "-g" -classic-display
 INCLUDE    := -Is sets,typing,parsing,ulex,lib,pprint,utils,fix
@@ -30,19 +29,25 @@ clean:
 test: all
 	OCAMLRUNPARAM=b ./testsuite
 
-tags:
+# Re-generate the TAGS file
+tags: all
 	otags $(shell $(FIND) $(MY_DIRS) -iname '*.ml' -or -iname '*.mli')
 
-# Hacky target to build a specific file with all the right ocamlbuild flags. Say
-# you want to compile foo.ml, do: FILE=foo.ml make build-one
-build-one:
-	$(OCAMLBUILD) $(INCLUDE) $(FILE).native
+# When you need to build a small program linking with all the libraries (to
+# write a test for a very specific function, for instance).
+%.native:
+	$(OCAMLBUILD) $(INCLUDE) $*.native
 
-# Hacky target to print the signature of a file; do:
-# FILE=typing/foo.ml make print-sig
-print-sig:
-	ocamlc -i $(BUILDDIRS) $(FILE)
+# For easily debugging inside an editor. When editing tests/foo.mz, just do (in
+# vim): ":make %".
+tests/%.mz: all
+	OCAMLRUNPARAM=b ./mezzo -I tests -nofancypants $@
 
+# For printing the signature of an .ml file
+%.mli: all
+	ocamlc -i $(BUILDDIRS) $*.ml
+
+# The index of all the nifty visualizations we've built so far
 index:
 	$(shell cd viewer && ./gen_index.sh)
 
@@ -56,31 +61,27 @@ report:
 coverage:
 	BISECT_FILE=coverage ./testsuite
 
-verbose-test: all
-	OCAMLRUNPARAM=b ./mezzo -I tests -nofancypants tests/$(FILE)
-
 graph: all
 	-ocamlfind ocamldoc -dot $(BUILDDIRS)\
-	   -I $(shell ocamlbuild -where)\
-	   -I $(shell ocamlc -where)\
-	   $(shell menhir --suggest-comp-flags --table)\
-	   $(shell $(FIND) $(MY_DIRS) -iname '*.ml' -or -iname '*.mli')\
-	   mezzo.ml\
-	   -o graph.dot
+	  -package menhirLib,ocamlbuild,yojson,stdlib\
+	  -o graph.dot\
+	  $(shell $(FIND) $(MY_DIRS) -iname '*.ml' -or -iname '*.mli')\
+	  configure.ml mezzo.ml
 	sed -i 's/rotate=90;//g' graph.dot
 	dot -Tsvg graph.dot > misc/graph.svg
-	sed -i 's/^<text\([^>]\+\)>\([^<]\+\)/<text\1><a xlink:href="..\/doc\/\2.html" target="_parent">\2<\/a>/' misc/graph.svg
+	sed -i 's/^<text\([^>]\+\)>\([^<]\+\)/<text\1><a xlink:href="\2.html" target="_parent">\2<\/a>/' misc/graph.svg
 	sed -i 's/Times Roman,serif/DejaVu Sans, Helvetica, sans/g' misc/graph.svg
 	rm -f graph.dot
 
 doc: graph
-	ocamldoc -html $(BUILDDIRS) \
-	  -I `ocamlc -where` -d doc \
-	  -intro doc/main \
+	-ocamlfind ocamldoc -html $(BUILDDIRS) \
+	  -package stdlib -d ../misc/doc \
+	  -intro ../misc/doc/main \
+	  -charset utf8 -css-style ../../src/misc/ocamlstyle.css\
+	  configure.ml mezzo.ml\
 	  $(shell $(FIND) _build -maxdepth 2 -iname '*.mli')
-	sed -i 's/iso-8859-1/utf-8/g' doc/*.html
-	sed -i 's/<\/body>/<p align="center"><object type="image\/svg+xml" data="..\/misc\/graph.svg"><\/object><\/p><\/body>/' doc/index.html
-	cp -f misc/ocamlstyle.css doc/style.css
+	sed -i 's/<\/body>/<p align="center"><object type="image\/svg+xml" data="graph.svg"><\/object><\/p><\/body>/' ../misc/doc/index.html
+	cp -f misc/graph.svg ../misc/doc/graph.svg
 
 count:
 	sloccount parsing typing utils viewer lib mezzo.ml

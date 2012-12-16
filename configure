@@ -1,3 +1,16 @@
-#!/bin/sh
+#!/bin/bash
+
+# Check that ocamlfind is present as the Makefile assumes this
+which ocamlfind > /dev/null
+if [ $? != 0 ]; then
+  echo "Please install OCamlFind.";
+  exit 255
+fi
+
+# Record the current working directory so that we know where the standard
+# library for Mezzo lives.
 PWD=$(pwd)
 echo "let root_dir = \"$PWD\";;" > configure.ml
+
+# Done!
+echo "Configure done!"
