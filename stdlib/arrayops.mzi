@@ -7,14 +7,18 @@ open array
 
 (* Generic loops over a segment of an array. *)
 
-val iter_segment_up   : [a, p : perm] (
-  x: array a, i: int, j: int,
-  f: (int | x @ array a * p) -> ()
+(* We use semi-open intervals of the form [i, j). That is, the index [i] is
+   part of the interval, and the index [j] is not part of it. The interval
+   is non-empty if and only if [i < j] holds. *)
+
+val iter_segment_up   : [p : perm] (
+  i: int, j: int,
+  f: (int | p) -> ()
   | p) -> ()
 
-val iter_segment_down : [a, p : perm] (
-  x: array a, i: int, j: int,
-  f: (int | x @ array a * p) -> ()
+val iter_segment_down : [p : perm] (
+  i: int, j: int,
+  f: (int | p) -> ()
   | p) -> ()
 
 (* Generic loops over an entire array. *)
