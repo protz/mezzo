@@ -1,4 +1,4 @@
-.PHONY: all clean graph doc index report count
+.PHONY: all %.byte tests/%.mz clean graph doc index report count
 
 # The variables below should be determined by a configure script...
 # On my MacOS laptop, find does not understand -printf; gfind does. -fpottier
@@ -15,15 +15,15 @@ BUILDDIRS   = $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f "
 MY_DIRS	   := lib parsing sets typing utils
 
 all: configure.ml
-	$(OCAMLBUILD) $(INCLUDE) $(MAIN).byte $(TESTSUITE).byte
-	ln -sf $(MAIN).byte $(MAIN)
-	ln -sf $(TESTSUITE).byte $(TESTSUITE)
+	$(OCAMLBUILD) $(INCLUDE) $(MAIN).native $(TESTSUITE).native
+	ln -sf $(MAIN).native $(MAIN)
+	ln -sf $(TESTSUITE).native $(TESTSUITE)
 
 configure.ml: configure
 	./configure
 
 clean:
-	rm -f *~ $(MAIN) $(MAIN).native $(TEST) $(TEST).native $(TESTSUITE) $(TESTSUITE).native
+	rm -f *~ $(MAIN) $(MAIN).native $(TESTSUITE) $(TESTSUITE).native
 	$(OCAMLBUILD) -clean
 
 test: all
@@ -35,13 +35,13 @@ tags: all
 
 # When you need to build a small program linking with all the libraries (to
 # write a test for a very specific function, for instance).
-%.native:
-	$(OCAMLBUILD) $(INCLUDE) $*.native
+%.byte:
+	$(OCAMLBUILD) $(INCLUDE) $*.byte
 
 # For easily debugging inside an editor. When editing tests/foo.mz, just do (in
 # vim): ":make %".
-tests/%.mz: all
-	OCAMLRUNPARAM=b ./mezzo -I tests -nofancypants $@
+tests/%.mz: mezzo.byte
+	OCAMLRUNPARAM=b ./mezzo.byte -I tests -nofancypants $@
 
 # For printing the signature of an .ml file
 %.mli: all
