@@ -7,107 +7,106 @@ open array
 
 (* Generic loops over a segment of an array. *)
 (* TEMPORARY can be simplified! parameter [x] is actually unused! *)
-(* TEMPORARY replace left/right with up/down *)
 
-val rec iter_segment_left [a, p : perm] (
+val rec iter_segment_up [a, p : perm] (
   x: array a, i: int, j: int,
   f: (int | x @ array a * p) -> () 
   | p
 ) : () =
   if i < j then begin
     f(i);
-    iter_segment_left (x, i + 1, j, f)
+    iter_segment_up (x, i + 1, j, f)
   end
 
-val rec iter_segment_right [a, p : perm] (
+val rec iter_segment_down [a, p : perm] (
   x: array a, i: int, j: int,
   f: (int | x @ array a * p) -> () 
   | p
 ) : () =
   if i < j then begin
     f(j - 1);
-    iter_segment_right (x, i, j - 1, f)
+    iter_segment_down (x, i, j - 1, f)
   end
 
 (* Generic loops over an entire array. *)
 
-val rec iter_array_left [a, p : perm] (
+val rec iter_array_up [a, p : perm] (
   x: array a,
   f: (int | x @ array a * p) -> ()
   | p
 ) : () =
-  iter_segment_left (x, 0, length x, f)
+  iter_segment_up (x, 0, length x, f)
 
-val rec iter_array_right [a, p : perm] (
+val rec iter_array_down [a, p : perm] (
   x: array a,
   f: (int | x @ array a * p) -> ()
   | p
 ) : () =
-  iter_segment_right (x, 0, length x, f)
+  iter_segment_down (x, 0, length x, f)
 
 (* A variant of the above loops, where [f] receives not only an index [i],
    but also the corresponding array element. *)
 
-val rec iteri_left [a, p : perm] (
+val rec iteri_up [a, p : perm] (
   x: array a,
   f: (int, a | x @ array a * p) -> ()
   | p
 ) : () =
-  iter_array_left (x, fun (i: int | x @ array a * p) : () =
+  iter_array_up (x, fun (i: int | x @ array a * p) : () =
     f (i, get (x, i))
   )
 
-val rec iteri_right [a, p : perm] (
+val rec iteri_down [a, p : perm] (
   x: array a,
   f: (int, a | x @ array a * p) -> ()
   | p
 ) : () =
-  iter_array_right (x, fun (i: int | x @ array a * p) : () =
+  iter_array_down (x, fun (i: int | x @ array a * p) : () =
     f (i, get (x, i))
   )
 
 (* A degenerate variant of the above loops, where the function [f] has
    access to the element, but not the index [i] or to the array [x]. *)
 
-val iter_left [a, p : perm] (
+val iter_up [a, p : perm] (
   x: array a,
   f: (a | p) -> ()
   | p
 ) : () =
-  iter_array_left (x, fun (i : int | x @ array a * p) : () =
+  iter_array_up (x, fun (i : int | x @ array a * p) : () =
     f(get(x, i))
   )
 
-val iter_right [a, p : perm] (
+val iter_down [a, p : perm] (
   x: array a,
   f: (a | p) -> ()
   | p
 ) : () =
-  iter_array_right (x, fun (i : int | x @ array a * p) : () =
+  iter_array_down (x, fun (i : int | x @ array a * p) : () =
     f(get(x, i))
   )
 
 (* A variant of the above loops, where the function [f] has access to
    an explicit loop-carried accumulator, in addition to the element. *)
 
-val fold_left [a, b, p : perm] (
+val fold_up [a, b, p : perm] (
   x: array a,
   consumes seed: b,
   f: (a, consumes accu: b | p) -> b
   | p) : b =
   let accu = newref seed in
-  iter_array_left (x, fun (i: int | x @ array a * accu @ ref b) : () =
+  iter_array_up (x, fun (i: int | x @ array a * accu @ ref b) : () =
     accu := f (get (x, i), !accu )
   );
   !accu
 
-val fold_right [a, b, p : perm] (
+val fold_down [a, b, p : perm] (
   x: array a,
   consumes seed: b,
   f: (a, consumes accu: b | p) -> b
   | p) : b =
   let accu = newref seed in
-  iter_array_right (x, fun (i: int | x @ array a * accu @ ref b) : () =
+  iter_array_down (x, fun (i: int | x @ array a * accu @ ref b) : () =
     accu := f (get (x, i), !accu )
   );
   !accu
@@ -125,7 +124,7 @@ val init [a, p : perm] duplicable a => (
     zero [a] () (* TEMPORARY get rid of this type application *)
   else begin
     let x = create (n, f 0) in
-    iter_segment_left (x, 1, n, fun (i: int | x @ array a * p) : () =
+    iter_segment_up (x, 1, n, fun (i: int | x @ array a * p) : () =
       (* BUG if I remove "* p" on the line above, the code still type-checks,
 	 even though I believe it should not: [p] is not known to be duplicable *)
       set (x, i, f i)
@@ -342,10 +341,10 @@ val sort [a, p : perm] duplicable a => (
   (* The main algorithm. *)
 
   let l = length x in
-  iter_segment_right (x, 0, (l + 1) / 3, fun (i: int | x @ array a) : () =
+  iter_segment_down (x, 0, (l + 1) / 3, fun (i: int | x @ array a) : () =
     trickle (l, i, get (x, i))
   );
-  iter_segment_right (x, 2, l, fun (i: int | x @ array a) : () =
+  iter_segment_down (x, 2, l, fun (i: int | x @ array a) : () =
     let e = get (x, i) in
     set (x, i, get (x, 0));
     trickleup (bubbledown (i, 0), e)

@@ -7,24 +7,24 @@ open array
 
 (* Generic loops over a segment of an array. *)
 
-val iter_segment_left  : [a, p : perm] (
+val iter_segment_up   : [a, p : perm] (
   x: array a, i: int, j: int,
   f: (int | x @ array a * p) -> ()
   | p) -> ()
 
-val iter_segment_right : [a, p : perm] (
+val iter_segment_down : [a, p : perm] (
   x: array a, i: int, j: int,
   f: (int | x @ array a * p) -> ()
   | p) -> ()
 
 (* Generic loops over an entire array. *)
 
-val iter_array_left  : [a, p : perm] (
+val iter_array_up   : [a, p : perm] (
   x: array a,
   f: (int | x @ array a * p) -> ()
   | p) -> ()
 
-val iter_array_right : [a, p : perm] (
+val iter_array_down : [a, p : perm] (
   x: array a,
   f: (int | x @ array a * p) -> ()
   | p) -> ()
@@ -32,12 +32,12 @@ val iter_array_right : [a, p : perm] (
 (* A variant of the above loops, where [f] receives not only an index [i],
    but also the corresponding array element. *)
 
-val iteri_left  : [a, p : perm] (
+val iteri_up   : [a, p : perm] (
   x: array a,
   f: (int, a | x @ array a * p) -> ()
   | p) -> ()
 
-val iteri_right : [a, p : perm] (
+val iteri_down : [a, p : perm] (
   x: array a,
   f: (int, a | x @ array a * p) -> ()
   | p) -> ()
@@ -45,12 +45,12 @@ val iteri_right : [a, p : perm] (
 (* A degenerate variant of the above loops, where the function [f] has
    access to the element, but not the index [i] or the array [x]. *)
 
-val iter_left  : [a, p : perm] (
+val iter_up   : [a, p : perm] (
   x: array a,
   f: (a | p) -> ()
   | p) -> ()
 
-val iter_right : [a, p : perm] (
+val iter_down : [a, p : perm] (
   x: array a,
   f: (a | p) -> ()
   | p) -> ()
@@ -58,13 +58,13 @@ val iter_right : [a, p : perm] (
 (* A variant of the above loops, where the function [f] has access to
    an explicit loop-carried accumulator, in addition to the element. *)
 
-val fold_left  : [a, b, p : perm] (
+val fold_up   : [a, b, p : perm] (
   x: array a,
   consumes seed: b,
   f: (a, consumes accu: b | p) -> b
   | p) -> b
 
-val fold_right : [a, b, p : perm] (
+val fold_down : [a, b, p : perm] (
   x: array a,
   consumes seed: b,
   f: (a, consumes accu: b | p) -> b
