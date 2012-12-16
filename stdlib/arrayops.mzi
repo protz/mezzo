@@ -113,3 +113,13 @@ val array2list : [a] duplicable a => array a -> list::list a
 val list2array : [a] duplicable a => list::list a -> array a
 *)
 
+(* -------------------------------------------------------------------------- *)
+
+(* Sorting. *)
+
+(* TEMPORARY
+val sort : [a, p : perm] duplicable a => (
+  cmp: (a, a | p) -> int,
+  x: array a
+  | p) -> ()
+*)
