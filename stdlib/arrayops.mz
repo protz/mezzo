@@ -174,6 +174,9 @@ val rec fill_segment [a] (x: array a, i: int, j: int, v: a) : () =
 val fill [a] (x: array a, i: int, len: int, v: a) : () =
   fill_segment (x, i, i + len, v)
 
+val fill_array [a] (x: array a, v: a) : () =
+  fill_segment (x, 0, length x, v)
+
 (* -------------------------------------------------------------------------- *)
 
 (* Conversions between arrays and lists. *)

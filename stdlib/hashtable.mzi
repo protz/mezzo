@@ -1,0 +1,26 @@
+open core
+
+abstract table k a
+fact exclusive (table k a)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Creation. *)
+
+val create : (* TEMPORARY duplicable k, duplicable a => *)
+  [k, a] (capacity: int, hash: k -> int) -> table k a
+
+(* -------------------------------------------------------------------------- *)
+
+(* Clearing. *)
+
+val clear : [k, a] table k a -> ()
+val reset : [k, a] (table k a, capacity: int) -> ()
+
+(* -------------------------------------------------------------------------- *)
+
+(* Insertion. *)
+
+(* TEMPORARY
+val add : [k, a] duplicable k, duplicable a => (table k a, k, a) -> ()
+*)

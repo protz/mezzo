@@ -74,6 +74,9 @@ val fold_down : [a, b, p : perm] (
   f: (a, consumes accu: b | p) -> b
   | p) -> b
 
+(* TEMPORARY it would be interesting to offer a loop form where [f] consumes
+   the element, and the loop consumes the entire array. *)
+
 (* -------------------------------------------------------------------------- *)
 
 (* Creating and initializing an array. *)
@@ -107,6 +110,7 @@ val mapi : [a, b, p : perm] duplicable b => (
 
 val fill_segment : [a] (x: array a, i: int,   j: int, v: a) -> ()
 val fill         : [a] (x: array a, i: int, len: int, v: a) -> ()
+val fill_array   : [a] (x: array a, v: a) -> ()
 
 (* -------------------------------------------------------------------------- *)
 

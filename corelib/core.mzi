@@ -46,3 +46,7 @@ val ( < ) : (int, int) -> bool
 val ( <= ) : (int, int) -> bool
 val ( >= ) : (int, int) -> bool
 val ( > ) : (int, int) -> bool
+
+(* Bitwise AND *)
+val ( & ) : (int, int) -> int
+

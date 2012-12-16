@@ -1,0 +1,121 @@
+open core
+
+(* -------------------------------------------------------------------------- *)
+
+(* Because a primitive array must have duplicable elements, we choose to
+   reflect this restriction and require the hash table to have duplicable
+   elements. *)
+
+(* Of course, we could instead decide to use adoption/abandon so as to
+   allow working with non-duplicable elements. So, it seems to be a matter
+   of deferring the use of adoption/abandon to our client versus doing it
+   here. I see no argument in favor of doing it here, and it can always be
+   done later. *)
+
+(* A bucket contains a list of key-value pairs. We do not use the library
+   list, because we wish to unbox the key-value pairs. *)
+
+data bucket k a =
+  | Nil
+  | Cons { key: k; value: a; tail: bucket k a }
+
+mutable data table k a =
+  Table {
+    (* The table's current number of elements. *)
+    cardinal: int;
+    (* The bucket array, whose length is always a power of 2. *)
+    buckets: array::array (bucket k a);
+    (* The hash function. *)
+    hash: k -> int
+  }
+
+(* TEMPORARY ideally, I would like to record [duplicable k] and [duplicable a]
+   as part of the definition of the type [table k a], so we don't need to
+   repeat this constraint every time a table is accessed. *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Creation. *)
+
+val rec power_2_above (x: int, n: int) : int =
+  if x >= n then x
+  else if x * 2 > array::max_length then x
+  else power_2_above (x * 2, n)
+
+val create [k, a] (capacity: int, hash: k -> int) : table k a =
+  Table {
+    cardinal = 0;
+    buckets = array::create [bucket k a] (power_2_above (16, capacity), Nil);
+      (* The type application is required because the type-checker does
+	 not know (for the moment, at least) that array is covariant. *)
+    hash = hash
+  }
+
+(* -------------------------------------------------------------------------- *)
+
+(* Clearing. *)
+
+val clear [k, a] (t: table k a) : () =
+  t.cardinal <- 0;
+  arrayops::fill_array (t.buckets, Nil)
+
+val reset [k, a] (t: table k a, capacity: int) : () =
+  t.cardinal <- 0;
+  t.buckets <- array::create [bucket k a] (power_2_above (16, capacity), Nil)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Internal functions. *)
+
+val key_index [k, a] (t: table k a, x: k) : int =
+  t.hash x & (array::length t.buckets - 1)
+
+val push [k, a] (buckets: array::array (bucket k a), i: int, consumes x: k, consumes v: a) : () =
+  array::set (buckets, i, Cons { key = x; value = v; tail = array::get (buckets, i) })
+
+val resize [k, a] duplicable k, duplicable a => (t: table k a) : () =
+  let old_buckets = t.buckets in
+  let new_size = array::length old_buckets * 2 in
+  if new_size < array::max_length then begin
+    (* Update [t.buckets] immediately, so that [key_index] sees the new
+       bucket count. *)
+    t.buckets <- array::create [bucket k a] (new_size, Nil);
+    let rec insert_bucket (b : bucket k a | t @ table k a) : () =
+      match b with
+      | Nil ->
+	  ()
+      | Cons { key; value; tail } ->
+          insert_bucket tail; (* preserve original order of elements *)
+          let nidx = key_index [k, a] (t, key) in
+	  (* BUG? the type-checker fails mysteriously if I inline the definition
+	     of [nidx] into the next line. *)
+	  push [k, a] (t.buckets, nidx, key, value)
+          (* BUG? the line above fails if I omit the type application *)
+      end
+    in
+    (* The type of [iter_up] requires that the array [old_buckets] be preserved,
+       and this forces us to require that [k] and [a] be duplicable. Not a
+       problem here, but I did not expect this at first. It would be somewhat
+       more elegant if we could use a loop combinator that consumes the array. *)
+    arrayops::iter_up (old_buckets, insert_bucket)
+  end
+
+(* -------------------------------------------------------------------------- *)
+
+(* Insertion. *)
+
+val add [k, a] duplicable k, duplicable a => (t: table k a, x: k, v: a) : () =
+  let i = key_index [k, a] (t, x) in
+  (* BUG? the line above fails if I omit the type application *)
+  push [k, a] (t.buckets, i, x, v);
+  (* BUG? the line above fails if I omit the type application *)
+  t.cardinal <- t.cardinal + 1;
+  if t.cardinal > 2 * array::length t.buckets then
+    resize [k, a] t
+    (* BUG? the line above fails if I omit the type application *)
+
+(*
+Local Variables:
+compile-command: "../mezzo hashtable.mz"
+End:
+*)
