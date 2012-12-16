@@ -254,11 +254,18 @@ val sort [a, p : perm] duplicable a => (
      double-barreled CPS encoding of the original OCaml code, which uses an
      exception to signal that we have hit the bottom. *)
 
+  (* The [consumes] annotation on the three occurrences of [x @ array a] below
+     seems to be optional. I believe that it should in principle be present.
+     By omitting this annotation, we would be committing to preserving this
+     permission, so we would be fixing a more specific type for [maxson]. In
+     essence, we would be specializing the answer type [b] to a type of the
+     form [b | x @ array a]. *)
+
   let maxson [b] (
     l: int, i: int,
-    bottom: (int | x @ array a) -> b,
-    normal: (int | x @ array a) -> b
-                 | x @ array a) : b =
+    bottom: (int | consumes x @ array a) -> b,
+    normal: (int | consumes x @ array a) -> b
+                 | consumes x @ array a) : b =
     let i31 = i+i+i+1 in
     if i31+2 < l then begin
       (* If there are three children, find which one has the maximum value. *)
