@@ -231,6 +231,17 @@ val list2array [a] duplicable a => (xs: list::list a) : array a =
 
 (* -------------------------------------------------------------------------- *)
 
+(* A swap function. *)
+
+val swap [a] (x: array a, i: int, j: int) : () =
+  if i <> j then begin
+    let e = get (x, i) in
+    set (x, i, get (x, j));
+    set (x, j, e)
+  end
+
+(* -------------------------------------------------------------------------- *)
+
 (* Sorting. *)
 
 (* This is a port of OCaml's ternary heap sort. *)
@@ -360,12 +371,8 @@ val sort [a, p : perm] duplicable a => (
     set (x, i, get (x, 0));
     trickleup (bubbledown (i, 0), e)
   );
-  if l > 1 then begin
-    let e = get (x, 1) in
-    set (x, 1, get (x, 0));
-    set (x, 0, e)
-  end
-  (* TEMPORARY define/use an auxiliary swap function *)
+  if l > 1 then
+    swap (x, 0, 1)
 
 (*
 Local Variables:
