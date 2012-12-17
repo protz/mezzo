@@ -1,9 +1,14 @@
-open pervasives
-
 (* FIFO structure, adapted from queue.ml *)
 
 mutable data cell a =
   Cell { value: a; next: dynamic }
+
+(* The fifo structure is implemented with a cyclic list,
+   with a pointer on the last element. An integer gives the
+   length of the structure. The integer is extensively used
+   in the ML version to test whether the structure is empty.
+   Here a tag will do the trick in most cases.
+*)
 
 mutable data fifo a =
   Empty    { length: int;  tail: ()      }
@@ -23,8 +28,6 @@ val clear [a] (q: fifo a): () =
     q.length <- 0;
     q.tail   <- ()
   end
-
-(* Giving c to q doesn't change the type *)
 
 val insert [a] (consumes x: a, q: fifo a): () =
   let c = Cell {
@@ -50,7 +53,7 @@ val insert [a] (consumes x: a, q: fifo a): () =
 val push [a] (consumes x: a, q: fifo a): () =
   insert (x, q)
 
-(* Peek: the element has to be duplicable *)
+(* Peek: the element has to be duplicable. *)
 
 val peek [a] duplicable a => (q: fifo a): option a =
   match q with
@@ -58,16 +61,28 @@ val peek [a] duplicable a => (q: fifo a): option a =
       none
   | NonEmpty { tail } ->
       take tail from q;
-      let head = tail.next in
-      take head from q;
-      let x = head.value in
-      give head to q;
+        let head = tail.next in
+        (* Head and tail have to be compared for the same cell 
+	   not to be taken twice. *)
+	let x = 
+	  if tail == head 
+	  then tail.value
+	  else begin 
+	    take head from q;
+	      (* Returning a value and giving the cell back 
+		 requires storing the value.
+		 WISH: a command that takes a cell and gives it
+		 back at the end of the code block, so that this
+		 let y = ... is not needed anymore.
+	      *)
+	      let y = head.value in
+	    give head to q;
+	    y
+	  end
+	in
       give tail to q;
       some x
   end
-
-val top [a] duplicable a => (q: fifo a): option a =
-  peek q
 
 val retrieve [a] (q: fifo a): option a =
   match q with
@@ -77,27 +92,23 @@ val retrieve [a] (q: fifo a): option a =
       q.length <- q.length - 1;
       take tail from q;
       let head = tail.next in
-      take head from q;
-      if head == tail then begin
-	tag of q <- Empty;
-	q.length <- 0;
-	q.tail <- ()
-      end else begin
-	tail.next <- head.next
-      end;
-      give tail to q;
-      let x = head.value in
-(* Head cell should not be given back to the queue! *)
-(*      give head to q;*)
+      let x = 
+        if head == tail then begin
+	  tag of q <- Empty;
+	  q.length <- 0;
+	  q.tail <- ();
+	  tail.value
+          (* Tail cell should not be given back to the queue! *)
+	end else begin
+	  take head from q;
+	  tail.next <- head.next;
+	  give tail to q;
+	  head.value
+	  (* Head cell should not be given back to the queue! *)
+	end
+      in
       some x
   end
-
-val pop = retrieve
-
-(*
-val pop [a] (q: fifo a): option a =
-  retrieve q
-*)
 
 val copy [a] duplicable a => (q: fifo a): fifo a =
   match q with
@@ -189,13 +200,19 @@ val iter [a, p:perm] (f: (a | p) -> (), q: fifo a | p) : () =
   | NonEmpty { tail } ->
     take tail from q;
 
-    let rec citer (c: dynamic | q @ fifo a | p): () =
-      take c from q;
-      f c.value;
+    (* The tail cell has already been taken: it shouldn't be taken 
+       twice and its permission has to be explicitely given in the
+       auxiliary function.
+    *)
+    let rec citer (c: dynamic | tail @ cell a | q @ fifo a | p): () =
       if c == tail
-      then ()
-      else citer c.next;
-      give c to q
+      then f tail.value
+      else begin
+	take c from q;
+	f c.value;
+	citer c.next;
+	give c to q
+      end
     in
 
     citer tail.next;
@@ -203,8 +220,9 @@ val iter [a, p:perm] (f: (a | p) -> (), q: fifo a | p) : () =
 	
   end    
 
-
-(* I don't know why it doesn't type *)
+(* I don't know why this doesn't typecheck. *)
+(* According to the error message, the permissions p, accu @ a and 
+   q @ fifo b are lost somewhere in the match. *)
 (*
 val fold [a, b, p:perm] (f: (a, b | p) -> a, accu: a, q: fifo b | p): a =
   
@@ -216,21 +234,21 @@ val fold [a, b, p:perm] (f: (a, b | p) -> a, accu: a, q: fifo b | p): a =
   | NonEmpty { tail } ->
       take tail from q;
 
-      let rec cfold (caccu: a, c: dynamic | q @ fifo b * p): a =
+      let rec cfold [p: perm] (caccu: a, c: dynamic | q @ fifo b * p): a =
 	take c from q;
 	let ccaccu = f (caccu, c.value) in
 	let res = 
 	if c == tail then
 	  ccaccu
 	else
-	  cfold (ccaccu, c.next)
+	  cfold [p] (ccaccu, c.next)
 	in
 	give c to q;
 	res
       in
 
       let cres =
-	cfold (accu, tail.next)
+	cfold [p] (accu, tail.next)
       in
 
       give tail to q;
