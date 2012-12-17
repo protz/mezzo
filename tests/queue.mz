@@ -18,6 +18,12 @@ adopts cell a
 val create [a] (): fifo a =
   Empty { length = 0;  tail = () }
 
+val length [a] (q: fifo a): int =
+  match q with
+  | Empty -> 0
+  | NonEmpty -> q.length
+  end
+
 (* The function clear doesn't type without the match *)
 
 val clear [a] (q: fifo a): () =
@@ -89,7 +95,6 @@ val retrieve [a] (q: fifo a): option a =
   | Empty ->
       None
   | NonEmpty { tail } ->
-      q.length <- q.length - 1;
       take tail from q;
       let head = tail.next in
       let x = 
@@ -100,6 +105,7 @@ val retrieve [a] (q: fifo a): option a =
 	  tail.value
           (* Tail cell should not be given back to the queue! *)
 	end else begin
+	  q.length <- q.length - 1;
 	  take head from q;
 	  tail.next <- head.next;
 	  give tail to q;
@@ -110,50 +116,10 @@ val retrieve [a] (q: fifo a): option a =
       some x
   end
 
-val copy [a] duplicable a => (q: fifo a): fifo a =
-  match q with
-  | Empty ->
-(* Type variable [a] has to be explicitly given in the empty case *)
-      create [a] ()
-
-  | NonEmpty { length; tail } ->
-      take tail from q;
-
-      let tail' = Cell { 
-	value = tail.value ; next = ()
-      } in
-
-(* Doesn't type if no permission for q is explicited *)
-      let rec ccopy (c: dynamic | q @ fifo a): dynamic =
-	if c == tail
-	then tail'
-	else begin
-	  take c from q;
-          let c' = Cell {
-	    value = c.value;
-	    next = ccopy (c.next)
-	  } in
-	  give c to q;
-	  c'
-	end
-      in
-      tail'.next <- ccopy (tail.next);
-
-      give tail to q;
- 
-      let q' = NonEmpty {
-	length = length;
-	tail = tail'
-      } in
-
-      q'
-      
-  end 
-
 val map [a, b, p:perm] (f: (a | p) -> b, q: fifo a | p): fifo b =
   match q with
   | Empty ->
-(* Type variable [a] has to be explicitly given in the empty case *)
+(* Type variable [b] has to be explicitly given in the empty case *)
       create [b] ()
 
   | NonEmpty { length; tail } ->
@@ -163,8 +129,13 @@ val map [a, b, p:perm] (f: (a | p) -> b, q: fifo a | p): fifo b =
 	value = f tail.value ; next = ()
       } in
 
+      let q' = NonEmpty {
+	length = length;
+	tail = tail'
+      } in
+
 (* Doesn't type if no permission for q is explicited *)
-      let rec ccopy (c: dynamic | q @ fifo a * p): dynamic =
+      let rec ccopy (c: dynamic | q' @ fifo b * q @ fifo a * p): dynamic =
 	if c == tail
 	then tail'
 	else begin
@@ -174,21 +145,21 @@ val map [a, b, p:perm] (f: (a | p) -> b, q: fifo a | p): fifo b =
 	    next = ccopy (c.next)
 	  } in
 	  give c to q;
+	  give c' to q';
 	  c'
 	end
       in
       tail'.next <- ccopy (tail.next);
 
       give tail to q;
+      give tail' to q';
  
-      let q' = NonEmpty {
-	length = length;
-	tail = tail'
-      } in
-
       q'
       
   end 
+
+val copy [a] duplicable a => (q: fifo a): fifo a =
+  map ((fun (x:a): a = x), q)
 
 val iter [a, p:perm] (f: (a | p) -> (), q: fifo a | p) : () =
 
