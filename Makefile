@@ -1,4 +1,4 @@
-.PHONY: all %.byte tests/%.mz clean graph doc index report count
+.PHONY: all clean graph doc index report count
 
 # The variables below should be determined by a configure script...
 # On my MacOS laptop, find does not understand -printf; gfind does. -fpottier
@@ -36,13 +36,15 @@ tags: all
 
 # When you need to build a small program linking with all the libraries (to
 # write a test for a very specific function, for instance).
-%.byte:
+%.byte: FORCE
 	$(OCAMLBUILD) $(INCLUDE) $*.byte
 
 # For easily debugging inside an editor. When editing tests/foo.mz, just do (in
 # vim): ":make %".
-tests/%.mz: mezzo.byte
+tests/%.mz: mezzo.byte FORCE
 	OCAMLRUNPARAM=b ./mezzo.byte -I tests -nofancypants $@
+
+FORCE:
 
 # For printing the signature of an .ml file
 %.mli: all

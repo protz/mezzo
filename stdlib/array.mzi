@@ -1,5 +1,3 @@
-open core
-
 (* The primitive operations on arrays. *)
 
 (* TEMPORARY ocaml distinguishes append_prim and append; also, it distinguishes

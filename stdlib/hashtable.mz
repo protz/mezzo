@@ -1,5 +1,3 @@
-open core
-
 (* Because a primitive array must have duplicable elements, we choose to
    reflect this restriction and require the hash table to have duplicable
    elements. *)

@@ -1,5 +1,3 @@
-open core
-
 abstract table k a
 fact exclusive (table k a)
 

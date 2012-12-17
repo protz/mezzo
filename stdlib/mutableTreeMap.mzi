@@ -15,13 +15,6 @@ fact exclusive (treeMap k a)
 
 (* TEMPORARY make, singleton *)
 
-(* BUG? the type-checker claims that mutableTreeMap.mz exports a value named
-   "cardinal" but it does not have the following type. Maybe there is a confusion
-   due to the fact that there are *two* successive definitions of "cardinal" at
-   the top level?
-   -- Also, note that the location of this error message is rather bogus; it is
-   the last function definition of the file mutableTreeMap.mz. *)
-
 val cardinal : [k, a] treeMap k a -> int
 
 val is_empty : [k, a] treeMap k a -> bool
