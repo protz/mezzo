@@ -526,15 +526,22 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
   let sort x y = sort x - sort y in
   let permissions = List.sort sort permissions in
 
-  let debug env hd t duplicable =
+  (* I'm commenting out this function because in the absence of a bottom element
+   * in our fact lattice, this check is overly restrictive. When introducing a
+   * universally quantified variable, we should introduce it with fact "any",
+   * instead of affine, but that would complicate things much more... see
+   * [tests/fact-inconsistency.mz]. *) 
+  (* let debug env hd t duplicable =
     let open TypePrinter in
     let open Bash in
     let f1 = FactInference.analyze_type env hd in
     let f2 = FactInference.analyze_type env t in
     Log.check
       (fact_leq f1 f2)
-      "Fact inconsistency %a <= %a"
+      "Fact inconsistency %a is %a <= %a is %a"
+      ptype (env, hd)
       pfact f1
+      ptype (env, t)
       pfact f2;
     Log.debug ~level:4 "%sTaking%s %a out of the permissions for %a \
       (really? %b)"
@@ -542,14 +549,15 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
       ptype (env, t)
       pvar (env, get_name env point)
       (not duplicable);
-  in
+  in *)
 
   (* [take] proceeds left-to-right *)
   match Hml_List.take (fun x -> sub_type env x t) permissions with
-  | Some (remaining, (x, env)) ->
-      let duplicable = FactInference.is_duplicable env x in
-      debug env x t duplicable;
-      if duplicable then
+  | Some (remaining, (t_x, env)) ->
+      (* [t_x] is the "original" type found in the list of permissions for [x].
+       * -- see [tests/fact-inconsistency.mz] as to why I believe it's correct
+       * to check [t_x] for duplicity and not just [t]. *)
+      if FactInference.is_duplicable env t_x then
         Some env
       else
         Some (replace_term env point (fun binder ->
