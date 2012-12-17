@@ -220,39 +220,53 @@ val iter [a, p:perm] (f: (a | p) -> (), q: fifo a | p) : () =
 	
   end    
 
-(* I don't know why this doesn't typecheck. *)
-(* According to the error message, the permissions p, accu @ a and 
-   q @ fifo b are lost somewhere in the match. *)
-(*
-val fold [a, b, p:perm] (f: (a, b | p) -> a, accu: a, q: fifo b | p): a =
+(* Again, there's a design question here. We can either:
+   i. require that the type of the elements in the fifo be duplicable, or
+   ii. demand that [f] leaves its second argument unchanged.
+   The core issue is that [f] must leave the elements in [q] intact, otherwise
+   we'll never be able to give back "q @ fifo b" to the caller. So either [f]
+   gives back the permission on its second argument (option ii.), or [fold] must
+   be able to save a copy for itself (option i.)
+*)
+val fold [a, b, p:perm] (
+  f: (consumes a, b | p) -> a,
+  consumes acc: a,
+  q: fifo b | p
+): a =
   
   match q with
-
   | Empty ->
-      accu
+      acc
 
   | NonEmpty { tail } ->
       take tail from q;
 
-      let rec cfold [p: perm] (caccu: a, c: dynamic | q @ fifo b * p): a =
-	take c from q;
-	let ccaccu = f (caccu, c.value) in
-	let res = 
-	if c == tail then
-	  ccaccu
-	else
-	  cfold [p] (ccaccu, c.next)
-	in
-	give c to q;
-	res
+      (* This intermediary function takes the "next" element as [dynamic]. It
+       * checks *before* taking it from [q] that it is distinct from [tail], so
+       * as not to cause a runtime error. *)
+      let rec fold (consumes acc: a, c: dynamic | q @ fifo b): a =
+        if tail == c then
+          acc
+        else begin
+          take c from q;
+          let Cell { next; value } = c in
+          let acc = f (acc, value) in
+          let r = fold (acc, next) in
+          give c to q;
+          r
+        end
       in
 
-      let cres =
-	cfold [p] (accu, tail.next)
-      in
+      (* Bootstrap the fold *)
+      let Cell { next; value } = tail in
+      let acc = f (acc, value) in
 
+      (* Now that we've taken the first cell, we're ready to launch the
+       * recursion. *)
+      let r = fold (acc, next) in
+
+      (* We're done. *)
       give tail to q;
-      cres
 
+      r
   end
-*)
