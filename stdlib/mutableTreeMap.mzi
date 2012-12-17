@@ -13,7 +13,9 @@ fact exclusive (treeMap k cmp a)
 
 (* Operations on maps. *)
 
-(* TEMPORARY make, singleton *)
+val make : [k, a] (cmp: (k, k) -> int) -> treeMap k cmp a
+
+val singleton : [k, a] (cmp: (k, k) -> int, consumes k, consumes a) -> treeMap k cmp a
 
 val cardinal : [k, cmp: term, a] treeMap k cmp a -> int
 

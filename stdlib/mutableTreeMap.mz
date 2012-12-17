@@ -1127,10 +1127,11 @@ val cardinal [k, c : term, a] (m: treeMap k c a) : int =
 (* Creating an empty map requires supplying a comparison function [cmp],
    which is stored within the new data structure. *)
 
-(* BUG this code causes an error: Fact inconsistency affine <= exclusive
-val make [k, a] (cmp: (k, k) -> int) : treeMap k a =
-  TreeMap { tree = make(); cmp = cmp }
-*)
+val make [k, a] (cmp: (k, k) -> int) : treeMap k cmp a =
+  TreeMap { tree = make(); cmp }
+
+val singleton [k, a] (cmp: (k, k) -> int, consumes x: k, consumes d: a): treeMap k cmp a =
+  TreeMap { tree = singleton (x, d); cmp }
 
 val is_empty [k, c: term, a] (m : treeMap k c a) : bool =
   is_empty m.tree
