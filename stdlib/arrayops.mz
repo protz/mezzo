@@ -116,16 +116,19 @@ val fold_down [a, b, p : perm] (
 
 (* -------------------------------------------------------------------------- *)
 
-(* Creating and initializing an array. *)
+(* Creating an empty array. *)
 
-val init [a, p : perm] duplicable a => (
+val zero [a] () : array a =
+  init [a] (0, fun (i: int) : a = fail (* impossible *))
+
+(* TEMPORARY I am keeping this code around until we confirm that the BUG is fixed,
+   and I will remove it; [init] is now a primitive function. *)
+val foobar [a, p : perm] duplicable a => (
   n: int,
   f: (int | p) -> a
   | p
 ) : array a =
-  if n = 0 then
-    zero [a] () (* TEMPORARY get rid of this type application *)
-  else begin
+  begin
     let x = create (n, f 0) in
     iter_segment_up [ (x @ array a * p) ] (1, n, fun (i: int | x @ array a * p) : () =
       (* BUG if I remove the second "* p" on the line above, the code still type-checks,
@@ -135,12 +138,23 @@ val init [a, p : perm] duplicable a => (
     x
   end
 
-(* Copying an entire array. *)
+(* Resetting an entire array. *)
+(* TEMPORARY could define [reset_segment] and view [reset] as a special case? *)
 
+val reset [a, p : perm] (
+  x: array a,
+  f: (int | p) -> a
+  | p) : () =
+  iter_array_up (x, fun (i: int | x @ array a * p) : () =
+    set (x, i, f i)
+  )
+
+(* Copying an entire array. *)
+(* TEMPORARY will require duplicable a *)
 val copy [a] (x: array a) : array a =
   sub (x, 0, length x)
 
-val map [a, b, p : perm] duplicable b => (
+val map [a, b, p : perm] (
   x: array a,
   f: (a | p) -> b
   | p
@@ -152,7 +166,7 @@ val map [a, b, p : perm] duplicable b => (
     f (get (x, i))
   )
 
-val mapi [a, b, p : perm] duplicable b => (
+val mapi [a, b, p : perm] (
   x: array a,
   f: (int, a | p) -> b
   | p
@@ -164,16 +178,16 @@ val mapi [a, b, p : perm] duplicable b => (
 
 (* Filling a segment with a value. *)
 
-val rec fill_segment [a] (x: array a, i: int, j: int, v: a) : () =
+val rec fill_segment [a] duplicable a => (x: array a, i: int, j: int, v: a) : () =
   if i < j then begin
     set (x, i, v);
     fill_segment (x, i + 1, j, v)
   end
 
-val fill [a] (x: array a, i: int, len: int, v: a) : () =
+val fill [a] duplicable a => (x: array a, i: int, len: int, v: a) : () =
   fill_segment (x, i, i + len, v)
 
-val fill_array [a] (x: array a, v: a) : () =
+val fill_array [a] duplicable a => (x: array a, v: a) : () =
   fill_segment (x, 0, length x, v)
 
 (* -------------------------------------------------------------------------- *)
@@ -196,27 +210,14 @@ val array2list [a] duplicable a => (x: array a) : list::list a =
 
 (* Converting a list to an array. *)
 
-(* This compact version is defined in terms of [init]. *)
-
-val list2array [a] duplicable a => (xs: list::list a) : array a =
-  let r = newref xs in
-  init (list::length xs, fun (i: int | r @ ref (list::list a)) : a =
-    match !r with
-    | Cons { head; tail } ->
-        r := tail;
-        head
-    | Nil ->
-        fail (* impossible *)
-    end
-  )
-
-(* This somewhat less elegant version is defined directly, and might lead
-   to more efficient code, because no reference is used. *)
+(* This less elegant and less compact version is defined directly. Due to its
+   use of [create], it is restricted to a duplicable element type. I keep only
+   as a test of the type-checker. *)
 
 val list2array [a] duplicable a => (xs: list::list a) : array a =
   match xs with
   | Nil ->
-      zero [a] () (* TEMPORARY get rid of this type application *)
+    zero [a] () (* TEMPORARY get rid of this type application *)
   | Cons { head; tail } ->
       let x = create (1 + list::length tail, head) in
       let rec fill (i: int, xs: list::list a | x @ array a) : =x =
@@ -231,16 +232,24 @@ val list2array [a] duplicable a => (xs: list::list a) : array a =
       fill (1, tail)
   end
 
-(* -------------------------------------------------------------------------- *)
+(* This elegant and compact version is defined in terms of [init]. *)
 
-(* A swap function. *)
-
-val swap [a] (x: array a, i: int, j: int) : () =
-  if i <> j then begin
-    let e = get (x, i) in
-    set (x, i, get (x, j));
-    set (x, j, e)
-  end
+val list2array [a] (consumes xs: list::list a) : array a =
+  let n = list::length xs in
+  let r = newref xs in
+  init (n, fun (i: int | r @ ref (list::list a)) : a =
+    match !r with
+    | Cons { head; tail } ->
+        r := tail;
+        head
+    | Nil ->
+        fail (* impossible *)
+    end
+  )
+(* BUG -- well, not quite but almost: if I omit the "consumes" annotation
+   above, I get an error whose location is the line "let r = newref xs"
+   whereas the error is really at the very end of the function, where a
+   permission [xs @ list a] is missing. *)
 
 (* -------------------------------------------------------------------------- *)
 
