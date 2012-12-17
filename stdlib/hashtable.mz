@@ -46,7 +46,9 @@ mutable data table k a =
     (* The bucket array, whose length is always a power of 2. *)
     buckets: array::array (bucket k a);
     (* The hash function. *)
-    hash: k -> int
+    hash: k -> int;
+    (* The equality function. *)
+    equal: (k, k) -> bool
   }
 
 (* TEMPORARY ideally, I would like to record [duplicable k] and [duplicable a]
@@ -62,13 +64,14 @@ val rec power_2_above (x: int, n: int) : int =
   else if x * 2 > array::max_length then x
   else power_2_above (x * 2, n)
 
-val create [k, a] (capacity: int, hash: k -> int) : table k a =
+val create [k, a] (capacity: int, hash: k -> int, equal: (k, k) -> bool) : table k a =
   Table {
     cardinal = 0;
     buckets = array::create [bucket k a] (power_2_above (16, capacity), Nil);
       (* The type application is required because the type-checker does
 	 not know (for the moment, at least) that array is covariant. *)
-    hash = hash
+    hash = hash;
+    equal = equal;
   }
 
 (* -------------------------------------------------------------------------- *)
@@ -132,6 +135,29 @@ val add [k, a] duplicable k, duplicable a => (t: table k a, x: k, v: a) : () =
   if t.cardinal > 2 * array::length t.buckets then
     resize [k, a] t
     (* BUG? the line above fails if I omit the type application *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Removal. *)
+
+val remove [k, a] (t: table k a, x: k) : () =
+  let rec remove (consumes b: bucket k a | t @ table k a * x @ k) : bucket k a =
+    match b with
+    | Nil ->
+        Nil
+    | Cons { key; value; tail } ->
+        if t.equal (key, x) then begin
+          t.cardinal <- t.cardinal - 1;
+	  tail
+	end
+        else
+	  Cons { key = key; value = value; tail = remove tail }
+    end
+  in
+  let i = key_index [k, a] (t, x) in
+  let b = remove (array::get (t.buckets, i)) in
+  (* BUG the type-checker fails if I inline the line above into the line below *)
+  array::set (t.buckets, i, b)
 
 (*
 Local Variables:
