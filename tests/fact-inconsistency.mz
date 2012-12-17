@@ -1,0 +1,12 @@
+mutable data tree k a =
+  | Empty
+  | Node { left: tree k a; key: k; value: a; right: tree k a; height: int }
+
+val make [k, a] () : tree k a =
+  Empty
+
+mutable data treeMap k (c : term) a =
+  TreeMap { tree: tree k a; cmp: =c | c @ (k, k) -> int }
+
+val make [k, a] (cmp: (k, k) -> int) : treeMap k cmp a =
+  TreeMap { tree = make(); cmp = cmp }

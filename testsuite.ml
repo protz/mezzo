@@ -687,6 +687,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("ref-confusion.mz", simple_test (KFail (function _ -> true)));
 
+  ("fact-inconsistency.mz", simple_test Pass);
+
   ("dfs.mz", simple_test Pass);
 
   ("dfs-owns.mz", simple_test Pass);
