@@ -103,12 +103,14 @@ val partition : [k, cmp: term, a, b, c] (
 ) -> (treeMap k cmp b, treeMap k cmp c)
 
 val compare : [k, cmp: term, a] (
+  (k, k) -> int,
   (a, a) -> int,
   treeMap k cmp a,
   treeMap k cmp a
 ) -> int
 
 val equal : [k, cmp: term, a] (
+  (k, k) -> int,
   (a, a) -> int,
   treeMap k cmp a,
   treeMap k cmp a

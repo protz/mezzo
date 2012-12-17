@@ -1265,18 +1265,20 @@ val partition [k, cmp: term, a, b, c] (
   m, TreeMap { tree = right; cmp = m.cmp }
 
 val compare [k, c: term, a] (
+  cmpk: (k, k) -> int,
   cmpa: (a, a) -> int,
   m1: treeMap k c a,
   m2: treeMap k c a
 ) : int =
-  compare (m1.cmp, cmpa, m1.tree, m2.tree)
+  compare (cmpk, cmpa, m1.tree, m2.tree)
 
 val equal [k, c: term, a] (
+  cmpk: (k, k) -> int,
   cmpa: (a, a) -> int,
   m1: treeMap k c a,
   m2: treeMap k c a
 ) : bool =
-  compare (cmpa, m1, m2) = 0
+  compare (cmpk, cmpa, m1, m2) = 0
 
 (* TEMPORARY bindings *)
 (* TEMPORARY write .mzi file and compare with map.mli *)
