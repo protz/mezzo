@@ -116,6 +116,7 @@ val retrieve [a] (q: fifo a): option a =
       some x
   end
 
+(* TODO: deduce map from retrieve/insert *)
 val map [a, b, p:perm] (f: (a | p) -> b, q: fifo a | p): fifo b =
   match q with
   | Empty ->
@@ -161,6 +162,7 @@ val map [a, b, p:perm] (f: (a | p) -> b, q: fifo a | p): fifo b =
 val copy [a] duplicable a => (q: fifo a): fifo a =
   map ((fun (x:a): a = x), q)
 
+(*
 val iter [a, p:perm] (f: (a | p) -> (), q: fifo a | p) : () =
 
   match q with
@@ -190,6 +192,7 @@ val iter [a, p:perm] (f: (a | p) -> (), q: fifo a | p) : () =
     give tail to q
 	
   end    
+*)
 
 (* Again, there's a design question here. We can either:
    i. require that the type of the elements in the fifo be duplicable, or
@@ -200,10 +203,11 @@ val iter [a, p:perm] (f: (a | p) -> (), q: fifo a | p) : () =
    be able to save a copy for itself (option i.)
 *)
 val fold [a, b, p:perm] (
-  f: (consumes a, b | p) -> a,
-  consumes acc: a,
-  q: fifo b | p
-): a =
+  q: fifo a,
+  consumes acc: b,
+  f: (a, consumes b | p) -> b
+| p
+): b =
   
   match q with
   | Empty ->
@@ -214,10 +218,10 @@ val fold [a, b, p:perm] (
       (* This intermediary function takes the "next" element as [dynamic]. It
        * checks *before* taking it from [q] that it is distinct from [tail], so
        * as not to cause a runtime error. *)
-      let rec fold (consumes acc: a, c: dynamic | q @ fifo b): a =
+      let rec fold (consumes acc: b, c: dynamic | q @ fifo a): b =
 	take c from q;
         let Cell { next; value } = c in
-        let acc = f (acc, value) in
+        let acc = f (value, acc) in
 	give c to q;
         if tail == c then
           acc
@@ -234,3 +238,12 @@ val fold [a, b, p:perm] (
       fold (acc, first)
 
   end
+
+val iter [a, p:perm] (q: fifo a, f: (a | p) -> () | p) : () =
+  fold (q, (), fun (x:a, () | p): () = f x) 
+
+(*
+Local Variables:
+compile-command: "../mezzo queue.mz"
+End:
+*)
