@@ -866,7 +866,7 @@ val rec stop [k, a] (consumes i: iterator k a) : tree k a =
 
 val recover [k, a] (consumes i: iterator k a, t: unknown) : (| t @ tree k a) =
   let u = stop i in
-  if t === u then
+  if t == u then
     ()
   else
     fail
@@ -1040,7 +1040,7 @@ val rec reconstruct [k, a] (t: dynamic, e: enumeration k a) : (| t @ tree k a) =
     | End ->
         fail (* impossible *)
     | More { head; tail } ->
-        if head === t then begin
+        if head == t then begin
 	  (* At this point, [t] is a bandit, a tree node that does not own
 	     its left child. We need to reconstruct this left child in order
 	     to obtain [t @ tree k a]. *)
@@ -1051,7 +1051,7 @@ val rec reconstruct [k, a] (t: dynamic, e: enumeration k a) : (| t @ tree k a) =
 	  fail (* impossible *)
 	  (* TEMPORARY I need to think more about the order of the non-visited
 	     trees in e.bandits; I am afraid they will *not* appear in the
-	     desired order, so the test [head === t] *will* fail! *)
+	     desired order, so the test [head == t] *will* fail! *)
     end
 
 (* We use an enumeration to implement the comparison of two trees. *)
