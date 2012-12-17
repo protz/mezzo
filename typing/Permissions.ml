@@ -694,7 +694,11 @@ and sub_type_real env t1 t2 =
 
       if same env point1 cons2 then begin
         let datacon2, fields2, clause2 = find_and_instantiate_branch env cons2 datacon1 args2 in
-        sub_type env t1 (TyConcreteUnfolded (datacon2, fields2, clause2))
+        (* There may be permissions attached to this branch. *)
+        let t2 = TyConcreteUnfolded (datacon2, fields2, clause2) in
+        let t2, p2 = collect t2 in
+        sub_type env t1 t2 >>= fun env ->
+        sub_perms env p2
       end else begin
         None
       end

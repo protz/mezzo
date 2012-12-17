@@ -1,13 +1,13 @@
 (* -------------------------------------------------------------------------- *)
 
-(* [treeMap k a] is an abstract type for association maps with keys of type [k]
-   and values of type [a]. *)
+(* [treeMap k c a] is an abstract type for association maps with keys of type [k]
+   and values of type [a], using comparison function [cmp] *)
 
-abstract treeMap k a
+abstract treeMap k (cmp: term) a
 
-(* [treeMap k a] is an exclusive type. That is, a map has a unique owner. *)
+(* [treeMap k c a] is an exclusive type. That is, a map has a unique owner. *)
 
-fact exclusive (treeMap k a)
+fact exclusive (treeMap k cmp a)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -15,38 +15,38 @@ fact exclusive (treeMap k a)
 
 (* TEMPORARY make, singleton *)
 
-val cardinal : [k, a] treeMap k a -> int
+val cardinal : [k, cmp: term, a] treeMap k cmp a -> int
 
-val is_empty : [k, a] treeMap k a -> bool
+val is_empty : [k, cmp: term, a] treeMap k cmp a -> bool
 
-val add : [k, a] (consumes k, consumes a, treeMap k a) -> ()
+val add : [k, cmp: term, a] (consumes k, consumes a, treeMap k cmp a) -> ()
 
 (* BUG the grammar does not allow constraints as part of VAL declarations!
    perhaps we should think about making TyConstraint a more "ordinary"
    construct in the grammar of types.
-val find : [k, a] duplicable a => (k, treeMap k a) -> option a
+val find : [k, cmp: term, a] duplicable a => (k, treeMap k cmp a) -> option a
 *)
 
-val find_use_update : [k, a, b, p : perm] (
+val find_use_update : [k, cmp: term, a, b, p : perm] (
   (consumes a | p) -> (a, b),
-  k, treeMap k a | p
+  k, treeMap k cmp a | p
 ) -> option b
 
-val mem : [k, a] (k, treeMap k a) -> bool
+val mem : [k, cmp: term, a] (k, treeMap k cmp a) -> bool
 
 (* TEMPORARY
-val min_binding : [k, a] duplicable k, duplicable a => treeMap k a -> option (k, a)
-val max_binding : [k, a] duplicable k, duplicable a => treeMap k a -> option (k, a)
+val min_binding : [k, cmp: term, a] duplicable k, duplicable a => treeMap k cmp a -> option (k, cmp: term, a)
+val max_binding : [k, cmp: term, a] duplicable k, duplicable a => treeMap k cmp a -> option (k, cmp: term, a)
 *)
 
-val extract_min_binding : [k, a] treeMap k a -> option (k, a)
-val extract_max_binding : [k, a] treeMap k a -> option (k, a)
+val extract_min_binding : [k, cmp: term, a] treeMap k cmp a -> option (k, a)
+val extract_max_binding : [k, cmp: term, a] treeMap k cmp a -> option (k, a)
 
-val remove : [k, a] (k, treeMap k a) -> option (k, a)
+val remove : [k, cmp: term, a] (k, treeMap k cmp a) -> option (k, a)
 
-val iter : [k, a, p : perm] (
+val iter : [k, cmp: term, a, p : perm] (
   f: (k,              a | p) -> bool,
-         m: treeMap k a | p) -> bool
+         m: treeMap k cmp a | p) -> bool
 
 (* BUG? the following declaration gives rise to this error:
    this is a type but we were expecting a term
@@ -56,64 +56,62 @@ val for_all :
 *)
 (* TEMPORARY add sugar for this declaration? *)
 
-val exists : [k, a, p : perm] (
+val exists : [k, cmp: term, a, p : perm] (
   f: (k,              a | p) -> bool,
-         m: treeMap k a | p) -> bool
+         m: treeMap k cmp a | p) -> bool
 
 (* TEMPORARY
-val map [k, a1, a2, b, p : perm] duplicable k => (
+val map [k, cmp: term, a1, a2, b, p : perm] duplicable k => (
   f: (k, consumes d:           a1 | p) -> (b           | d @           a2),
-         consumes m: treeMap k a1 | p) -> (treeMap k b | m @ treeMap k a2)
+         consumes m: treeMap k cmp a1 | p) -> (treeMap k cmp b | m @ treeMap k cmp a2)
 
-val copy : [k, a, b] duplicable k => (a -> b, treeMap k a) -> treeMap k b
+val copy : [k, cmp: term, a, b] duplicable k => (a -> b, treeMap k cmp a) -> treeMap k cmp b
 *)
 
-val fold_ascending : [k, a1, a2, b, p : perm] (
+val fold_ascending : [k, cmp: term, a1, a2, b, p : perm] (
   f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
-         consumes m: treeMap k a1, consumes accu: b | p) -> (b | m @ treeMap k a2)
+         consumes m: treeMap k cmp a1, consumes accu: b | p) -> (b | m @ treeMap k cmp a2)
 
-val fold_descending : [k, a1, a2, b, p : perm] (
+val fold_descending : [k, cmp: term, a1, a2, b, p : perm] (
   f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
-         consumes m: treeMap k a1, consumes accu: b | p) -> (b | m @ treeMap k a2)
+         consumes m: treeMap k cmp a1, consumes accu: b | p) -> (b | m @ treeMap k cmp a2)
 
 (* TEMPORARY
 val fold :
   =fold_ascending
 *)
 
-val merge : [k, a, b, c] (
+val merge : [k, cmp: term, a, b, c] (
   f: (k, consumes option a, consumes option b) -> option c,
-  consumes treeMap k a,
-  consumes treeMap k b
-) -> treeMap k c
+  consumes treeMap k cmp a,
+  consumes treeMap k cmp b
+) -> treeMap k cmp c
 
-val split : [k, a] (
+val split : [k, cmp: term, a] (
   k,
-  consumes treeMap k a
-) -> (treeMap k a, option a, treeMap k a)
+  consumes treeMap k cmp a
+) -> (treeMap k cmp a, option a, treeMap k cmp a)
 
-val filter : [k, a, b] (
+val filter : [k, cmp: term, a, b] (
   p: (k, consumes a) -> option b,
-  consumes treeMap k a
-) -> treeMap k b
+  consumes treeMap k cmp a
+) -> treeMap k cmp b
 
-val partition : [k, a, b, c] (
+val partition : [k, cmp: term, a, b, c] (
   p: (k, consumes a) -> choice b c,
-  consumes treeMap k a
-) -> (treeMap k b, treeMap k c)
+  consumes treeMap k cmp a
+) -> (treeMap k cmp b, treeMap k cmp c)
 
-val compare : [k, a] (
-  (k, k) -> int,
+val compare : [k, cmp: term, a] (
   (a, a) -> int,
-  treeMap k a,
-  treeMap k a
+  treeMap k cmp a,
+  treeMap k cmp a
 ) -> int
 
-val equal : [k, a] (
-  (k, k) -> int,
+val equal : [k, cmp: term, a] (
   (a, a) -> int,
-  treeMap k a,
-  treeMap k a
+  treeMap k cmp a,
+  treeMap k cmp a
 ) -> bool
 
 (* TEMPORARY bindings *)

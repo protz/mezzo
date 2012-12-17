@@ -780,11 +780,14 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       in
       let annotations = match annot with
         | Some (TyConcreteUnfolded (_, fields, _)) ->
-            let annots = List.map (function
+            let annots = Hml_List.map_some (function
                 | FieldValue (name, t) ->
-                    name, t
-                | _ ->
-                    assert false
+                    Some (name, t)
+                | FieldPermission _ ->
+                    (* There may be some permissions bundled in the type
+                     * annotation (beneath, say, a constructor). We're not doing
+                     * anything useful with these yet. *)
+                    None
               ) fields
             in
             (* Every field in the type annotation corresponds to a field in the

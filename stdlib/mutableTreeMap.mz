@@ -1116,25 +1116,11 @@ val bindings [k, a] duplicable k, duplicable a => (t: tree k a) : list::list (k,
    data structure. The other is that this allows us to store the comparison
    function. *)
 
-(* TEMPORARY introduce a phantom parameter [cmp] *)
-
-mutable data treeMap k a =
-  TreeMap { tree: tree k a; cmp: (k, k) -> int }
-
-(* BUG? I tried the following type definition and code:
-
 mutable data treeMap k (c : term) a =
   TreeMap { tree: tree k a; cmp: =c | c @ (k, k) -> int }
 
 val cardinal [k, c : term, a] (m: treeMap k c a) : int =
   cardinal m.tree
-
-but I got this error:
-
-File "mutableTreeMap.mz", line 992, character 57 - line 993, character 17:
-expected a subexpression of type (core::int | m @ treeMap k c a) but it has type core::int
-
-*)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -1146,45 +1132,40 @@ val make [k, a] (cmp: (k, k) -> int) : treeMap k a =
   TreeMap { tree = make(); cmp = cmp }
 *)
 
-(* TEMPORARY singleton *)
-
-val cardinal [k, a] (m: treeMap k a) : int =
-  cardinal m.tree
-
-val is_empty [k, a] (m : treeMap k a) : bool =
+val is_empty [k, c: term, a] (m : treeMap k c a) : bool =
   is_empty m.tree
 
-val add [k, a] (
+val add [k, c: term, a] (
   consumes x: k,
   consumes d: a,
-  m: treeMap k a
+  m: treeMap k c a
 ) : () =
   m.tree <- add (m.cmp, x, d, m.tree)
 
-val find [k, a] duplicable a => (
+val find [k, c: term, a] duplicable a => (
   x: k,
-  m: treeMap k a
+  m: treeMap k c a
 ) : option a =
   find (m.cmp, x, m.tree)
 
-val find_use_update [k, a, b, p : perm] (
+val find_use_update [k, c: term, a, b, p : perm] (
   use: (consumes a | p) -> (a, b),
   x: k,
-  m: treeMap k a
+  m: treeMap k c a
 | p
 ) : option b =
   find_use_update (m.cmp, use, x, m.tree)
 
-val mem [k, a] (x: k, m: treeMap k a) : bool =
+val mem [k, c: term, a] (x: k, m: treeMap k c a) : bool =
   mem (m.cmp, x, m.tree)
 
-val min_binding [k, a] duplicable k, duplicable a => (m : treeMap k a) : option (k, a) =
+val min_binding [k, c: term, a] duplicable k, duplicable a => (m : treeMap k c a) : option (k, a) =
   min_binding m.tree
 
-val max_binding [k, a] duplicable k, duplicable a => (m : treeMap k a) : option (k, a) =
+val max_binding [k, c: term, a] duplicable k, duplicable a => (m : treeMap k c a) : option (k, a) =
   max_binding m.tree
 
-val extract_min_binding [k, a] (m: treeMap k a) : option (k, a) =
+val extract_min_binding [k, c: term, a] (m: treeMap k c a) : option (k, a) =
   match m.tree with
   | Empty ->
       none
@@ -1194,7 +1175,7 @@ val extract_min_binding [k, a] (m: treeMap k a) : option (k, a) =
       some (node.key, node.value)
   end
 
-val extract_max_binding [k, a] (m: treeMap k a) : option (k, a) =
+val extract_max_binding [k, c: term, a] (m: treeMap k c a) : option (k, a) =
   match m.tree with
   | Empty ->
       none
@@ -1204,14 +1185,14 @@ val extract_max_binding [k, a] (m: treeMap k a) : option (k, a) =
       some (node.key, node.value)
   end
 
-val remove [k, a] (x: k, m: treeMap k a) : option (k, a) =
+val remove [k, c: term, a] (x: k, m: treeMap k c a) : option (k, a) =
   let dst = newref () in
   m.tree <- remove (m.cmp, x, m.tree, dst);
   !dst
 
-val iter [k, a, p : perm] (
+val iter [k, c: term, a, p : perm] (
   f: (k,              a | p) -> bool,
-         m: treeMap k a | p)  : bool =
+         m: treeMap k c a | p)  : bool =
   iter (f, m.tree)
 
 val for_all =
@@ -1220,84 +1201,82 @@ val for_all =
 (* [exists] could be implemented directly, but an implementation in
    terms of [for_all] is preferred, as a test of the type-checker. *)
 
-val exists [k, a, p : perm] (
+val exists [k, c: term, a, p : perm] (
   f: (k,              a | p) -> bool,
-         m: treeMap k a | p)  : bool =
+         m: treeMap k c a | p)  : bool =
   let notf (key: k, value: a | p) : bool =
     not (f (key, value))
   in
   not (for_all (notf, m))
 
-val map [k, a1, a2, b, p : perm] duplicable k => (
+val map [k, c: term, a1, a2, b, p : perm] duplicable k => (
   f: (k, consumes d:           a1 | p) -> (b           | d @           a2),
-         consumes m: treeMap k a1 | p)  : (treeMap k b | m @ treeMap k a2) =
+         consumes m: treeMap k c a1 | p)  : (treeMap k c b | m @ treeMap k c a2) =
   TreeMap { tree = map (f, m.tree); cmp = m.cmp }
 
 (* [copy] could be defined directly, but is here defined as a special case of [map]. *)
 
-val copy [k, a, b] duplicable k => (f: a -> b, m: treeMap k a) : treeMap k b =
+val copy [k, c: term, a, b] duplicable k => (f: a -> b, m: treeMap k c a) : treeMap k c b =
   let g (x: k, d: a) : b = f d in
   map (g, m)
 
-val fold_ascending [k, a1, a2, b, p : perm] (
+val fold_ascending [k, c: term, a1, a2, b, p : perm] (
   f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
-         consumes m: treeMap k a1, consumes accu: b | p)  : (b | m @ treeMap k a2) =
+         consumes m: treeMap k c a1, consumes accu: b | p)  : (b | m @ treeMap k c a2) =
   fold_ascending (f, m.tree, accu)
 
-val fold_descending [k, a1, a2, b, p : perm] (
+val fold_descending [k, c: term, a1, a2, b, p : perm] (
   f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
-         consumes m: treeMap k a1, consumes accu: b | p)  : (b | m @ treeMap k a2) =
+         consumes m: treeMap k c a1, consumes accu: b | p)  : (b | m @ treeMap k c a2) =
   fold_descending (f, m.tree, accu)
 
 val fold =
   fold_ascending
 
-val merge [k, a, b, c] (
+val merge [k, cmp: term, a, b, c] (
   f: (k, consumes option a, consumes option b) -> option c,
-  consumes m1: treeMap k a,
-  consumes m2: treeMap k b
-) : treeMap k c =
+  consumes m1: treeMap k cmp a,
+  consumes m2: treeMap k cmp b
+) : treeMap k cmp c =
   m1.tree <- merge (m1.cmp, f, m1.tree, m2.tree);
   m1
 
-val split [k, a] (
+val split [k, c: term, a] (
   x: k,
-  consumes m: treeMap k a
-) : (treeMap k a, option a, treeMap k a) =
+  consumes m: treeMap k c a
+) : (treeMap k c a, option a, treeMap k c a) =
   let root = split (m.cmp, x, m.tree) in
   m.tree <- root.left;
   m, root.value, TreeMap { tree = root.right; cmp = m.cmp }
 
-val filter [k, a, b] (
+val filter [k, c: term, a, b] (
   p: (k, consumes a) -> option b,
-  consumes m: treeMap k a
-) : treeMap k b =
+  consumes m: treeMap k c a
+) : treeMap k c b =
   m.tree <- filter (p, m.tree);
   m
 
-val partition [k, a, b, c] (
+val partition [k, cmp: term, a, b, c] (
   p: (k, consumes a) -> choice b c,
-  consumes m: treeMap k a
-) : (treeMap k b, treeMap k c) =
+  consumes m: treeMap k cmp a
+) : (treeMap k cmp b, treeMap k cmp c) =
   let left, right = partition (p, m.tree) in
   m.tree <- left;
   m, TreeMap { tree = right; cmp = m.cmp }
 
-val compare [k, a] (
-  cmpk: (k, k) -> int,
+val compare [k, c: term, a] (
   cmpa: (a, a) -> int,
-  m1: treeMap k a,
-  m2: treeMap k a
+  m1: treeMap k c a,
+  m2: treeMap k c a
 ) : int =
-  compare (cmpk, cmpa, m1.tree, m2.tree)
+  compare (m1.cmp, cmpa, m1.tree, m2.tree)
 
-val equal [k, a] (
-  cmpk: (k, k) -> int,
+val equal [k, c: term, a] (
   cmpa: (a, a) -> int,
-  m1: treeMap k a,
-  m2: treeMap k a
+  m1: treeMap k c a,
+  m2: treeMap k c a
 ) : bool =
-  compare (cmpk, cmpa, m1, m2) = 0
+  compare (cmpa, m1, m2) = 0
 
 (* TEMPORARY bindings *)
 (* TEMPORARY write .mzi file and compare with map.mli *)
