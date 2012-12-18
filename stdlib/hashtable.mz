@@ -46,7 +46,21 @@ mutable data table k a =
 
 (* [key_index] computes the array index that corresponds to the key [x]. *)
 
-val key_index [k, a] (t: table k a, x: k) : int =
+(* The type assigned to [key_index] is much more complex than I would like:
+   we have been forced to expand the permission [t @ table k a] and assign
+   the name [buckets] to the value contained in the [buckets] field of [t].
+   This allows us to express the fact that [t.buckets] is *not* modified by
+   [key_index]. This fact, in turn, is required in order to type-check some
+   clients. If we wrote just [t @ table k a], we would know that [t] remains
+   a table, but we would not know that [t.buckets] is unmodified, so a client
+   that reads [t.buckets] *before* invoking [key_index] and uses this value
+   *after* invoking [key_index] would be ill-typed. *)
+
+val key_index [k, a, buckets : term] (
+  t: Table { cardinal: int; buckets = buckets; hash: k -> int; equal: (k, k) -> bool },
+  x: k
+  | buckets @ array::array (bucket k a)
+) : int =
   t.hash x & (array::length t.buckets - 1)
 
 (* [push] inserts a detached entry, which contains a valid key-value pair,
@@ -93,11 +107,8 @@ val resize [k, a] (t: table k a) : () =
        to the new array [t.buckets]. *)
     consume_up (old_buckets, fun (old_index: int, consumes b : bucket k a | t @ table k a) : () =
       iter_bucket_down (b, fun (consumes b: Cons { key: k; value: a; tail: unknown } | t @ table k a) : () =
-	let nidx = key_index [k, a] (t, b.key) in
-	(* BUG? the type-checker fails mysteriously if I inline the definition
-	   of [nidx] into the next line. *)
-	push [k, a] (t.buckets, nidx, b)
-	(* BUG? the line above fails if I omit the type application *)
+	push [k, a] (t.buckets, key_index [k, a] (t, b.key), b)
+	(* BUG? the line above fails if I omit any of the type applications *)
       )
     )
   end
@@ -147,13 +158,8 @@ val reset [k, a] (t: table k a, capacity: int) : () =
 
 (* Insertion. *)
 
-val add [k, a] (t: table k a, consumes x: k, consumes v: a) : () =
-  let i = key_index [k, a] (t, x) in
-  (* BUG? the line above fails if I omit the type application *)
-  (* BUG? the type-checker fails mysteriously if I inline the definition
-     of [i] into the next line. *)
-  push [k, a] (t.buckets, i, Cons { key = x; value = v; tail = () });
-  (* BUG? the line above fails if I omit the type application *)
+val add [k, a] (consumes x: k, consumes v: a, t: table k a) : () =
+  push [k, a] (t.buckets, key_index [k, a] (t, x), Cons { key = x; value = v; tail = () });
   t.cardinal <- t.cardinal + 1;
   if t.cardinal > 2 * array::length t.buckets then
     resize [k, a] t
@@ -163,34 +169,8 @@ val add [k, a] (t: table k a, consumes x: k, consumes v: a) : () =
 
 (* Removal. *)
 
-(* TEMPORARY this version does not take advantage of the fact that buckets
-   are mutable, and needs to be updated to use array::update instead of
-   array::get and array::set. *)
-val remove [k, a] (t: table k a, x: k) : () =
+val remove [k, a] (x: k, t: table k a) : () =
   let rec remove (consumes b: bucket k a | t @ table k a * x @ k) : bucket k a =
-    match b with
-    | Nil ->
-        Nil
-    | Cons { key; value; tail } ->
-        if t.equal (key, x) then begin
-          t.cardinal <- t.cardinal - 1;
-	  tail
-	end
-        else
-	  Cons { key = key; value = value; tail = remove tail }
-    end
-  in
-  let i = key_index [k, a] (t, x) in
-  let b = remove (array::get (t.buckets, i)) in
-  (* BUG the type-checker fails if I inline the line above into the line below *)
-  array::set (t.buckets, i, b)
-
-val remove [k, a] (t: table k a, x: k) : () =
-  (* SEVERE BUG: the function fails to type-check if I swap the two lines
-   * below... *)
-  let i = key_index [k, a] (t, x) in
-  let buckets = t.buckets in
-  let rec remove (consumes b: bucket k a | t @ Table { cardinal: int; buckets = buckets; hash: k -> int; equal: (k, k) -> bool } * x @ k) : bucket k a =
     match b with
     | Nil ->
         b
@@ -205,8 +185,35 @@ val remove [k, a] (t: table k a, x: k) : () =
 	end
     end
   in
-  array::update (buckets, i, remove)
+  array::update
+    (* [bucket k a, (t @ table k a * x @ k), (t @ table k a * x @ k)] *)
+    (t.buckets, key_index [k, a] (t, x), remove)
 
+  (* BUG? this version of [remove] is accepted, even though I think it should be
+     rejected: the call to [array::update] requires [t.buckets @ array (...)] AND
+     [t @ table k a], which cannot be simultaneously satisfied. Strangely enough,
+     if I uncomment the type application, then the type-checker rejects the code
+     (which seems to be the desired behavior). *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Lookup. *)
+(*
+val find [k, a] duplicable a => (x: k, t: table k a) : option a =
+  let equal = t.equal in
+  let rec find (b: bucket k a | x @ k) : option a =
+    match b with
+    | Nil ->
+        none
+    | Cons ->
+        if equal (x, b.key) then
+	  some b.value
+	else
+	  find b.tail
+    end
+  in
+  find (array::get(t.buckets, key_index (t, x)))
+*)
 (*
 Local Variables:
 compile-command: "../mezzo hashtable.mz"
