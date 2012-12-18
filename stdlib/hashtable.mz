@@ -205,7 +205,11 @@ val remove [k, a] (t: table k a, x: k) : () =
 	end
     end
   in
-  array::update (buckets, i, remove)
+  array::update
+    [bucket k a,
+     (t @ Table { cardinal: int; buckets = buckets; hash: k -> int; equal: (k, k) -> bool } * x @ k),
+     (t @ Table { cardinal: int; buckets = buckets; hash: k -> int; equal: (k, k) -> bool } * x @ k)]
+    (buckets, i, remove)
 
 (*
 Local Variables:
