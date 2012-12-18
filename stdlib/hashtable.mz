@@ -217,6 +217,7 @@ val find [k, a] duplicable a => (x: k, t: table k a) : option a =
   array::consult
     [bucket k a, (x @ k), (option a | x @ k)]
     (t.buckets, key_index [k, a] (t, x), find)
+
   (* BUG? The above code is accepted, which sounds good (in fact, it is
      accepted even without the explicit type application). HOWEVER, it
      is accepted ALSO if I change (option a | x @ k) to (option a), and
