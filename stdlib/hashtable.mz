@@ -186,7 +186,8 @@ val remove [k, a] (t: table k a, x: k) : () =
   array::set (t.buckets, i, b)
 
 val remove [k, a] (t: table k a, x: k) : () =
-  let rec remove (consumes b: bucket k a | t @ table k a * x @ k) : bucket k a =
+  let buckets = t.buckets in
+  let rec remove (consumes b: bucket k a | t @ Table { cardinal: int; buckets = buckets; hash: k -> int; equal: (k, k) -> bool } * x @ k) : bucket k a =
     match b with
     | Nil ->
         b
@@ -203,8 +204,10 @@ val remove [k, a] (t: table k a, x: k) : () =
   in
   let i = key_index [k, a] (t, x) in
   array::update
-    [bucket k a, (t @ table k a * x @ k), (t @ table k a * x @ k)]
-    (t.buckets, i, remove)
+    [bucket k a,
+     (t @ Table { cardinal: int; buckets = buckets; hash: k -> int; equal: (k, k) -> bool } * x @ k),
+     (t @ Table { cardinal: int; buckets = buckets; hash: k -> int; equal: (k, k) -> bool } * x @ k)]
+    (buckets, i, remove)
     (* BUG? I am not sure why the type-checker fails here *)
 
 (*

@@ -136,7 +136,7 @@ val bal [k, a] (
 
 (* Creating an empty tree. *)
 
-val make [k, a] () : tree k a =
+val create [k, a] () : tree k a =
   Empty
 
 (* Creating a singleton tree. *)
@@ -1051,7 +1051,7 @@ val rec reconstruct [k, a] (t: dynamic, e: enumeration k a) : (| t @ tree k a) =
 	  fail (* impossible *)
 	  (* TEMPORARY I need to think more about the order of the non-visited
 	     trees in e.bandits; I am afraid they will *not* appear in the
-	     desired order, so the test [head == t] *will* fail! *)
+	     desired order, so the test [head == t] *WILL* FAIL! *)
     end
 
 (* We use an enumeration to implement the comparison of two trees. *)
@@ -1127,8 +1127,8 @@ val cardinal [k, c : term, a] (m: treeMap k c a) : int =
 (* Creating an empty map requires supplying a comparison function [cmp],
    which is stored within the new data structure. *)
 
-val make [k, a] (cmp: (k, k) -> int) : treeMap k cmp a =
-  TreeMap { tree = make(); cmp }
+val create [k, a] (cmp: (k, k) -> int) : treeMap k cmp a =
+  TreeMap { tree = create(); cmp }
 
 val singleton [k, a] (cmp: (k, k) -> int, consumes x: k, consumes d: a): treeMap k cmp a =
   TreeMap { tree = singleton (x, d); cmp }
@@ -1282,5 +1282,10 @@ val equal [k, c: term, a] (
   compare (cmpk, cmpa, m1, m2) = 0
 
 (* TEMPORARY bindings *)
-(* TEMPORARY write .mzi file and compare with map.mli *)
+(* TEMPORARY compare .mzi file with map.mli *)
 
+(*
+Local Variables:
+compile-command: "../mezzo mutableTreeMap.mz"
+End:
+*)

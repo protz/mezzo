@@ -1,7 +1,8 @@
 (* -------------------------------------------------------------------------- *)
 
-(* [treeMap k c a] is an abstract type for association maps with keys of type [k]
-   and values of type [a], using comparison function [cmp] *)
+(* [treeMap k c a] is an abstract type for association maps with keys of type
+   [k] and values of type [a]. Entries are internally ordered using the key
+   ordering [cmp]. *)
 
 abstract treeMap k (cmp: term) a
 
@@ -13,7 +14,7 @@ fact exclusive (treeMap k cmp a)
 
 (* Operations on maps. *)
 
-val make : [k, a] (cmp: (k, k) -> int) -> treeMap k cmp a
+val create : [k, a] (cmp: (k, k) -> int) -> treeMap k cmp a
 
 val singleton : [k, a] (cmp: (k, k) -> int, consumes k, consumes a) -> treeMap k cmp a
 
