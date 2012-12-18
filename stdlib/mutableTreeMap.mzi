@@ -30,7 +30,7 @@ val add : [k, cmp: term, a] (consumes k, consumes a, treeMap k cmp a) -> ()
 val find : [k, cmp: term, a] duplicable a => (k, treeMap k cmp a) -> option a
 *)
 
-val find_use_update : [k, cmp: term, a, b, p : perm] (
+val update : [k, cmp: term, a, b, p : perm] (
   (consumes a | p) -> (a, b),
   k, treeMap k cmp a | p
 ) -> option b

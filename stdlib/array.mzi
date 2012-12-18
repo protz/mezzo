@@ -58,8 +58,25 @@ val get    : [a] (* TEMPORARY duplicable a => *) (array a, int) -> a
 val set    : [a] (array a, int, consumes a) -> ()
 val swap   : [a] (array a, int, int) -> ()
 
+(* [consult] is a particular use of [get], with delimited scope, that does
+   not require the element type to be duplicable. The function [f] does not
+   have access to the array, so using [consult] instead of [get] is a way
+   of ensuring that we only read one element at a time (and give it back). *)
+
+(* A drawback of this approach is that the user has to work in what resembles
+   CPS style. Could we somehow impose the same discipline and obtain the same
+   effect in direct style? *)
+
+val consult : [a, p : perm, b] (
+  array a, int,
+  f: (a | consumes p) -> b
+  | consumes p
+) -> b
+
 (* [update] is a particular combination of [get] and [set] that does not
    require the element type to be duplicable. *)
+
+(* TEMPORARY [f] could return a pair (a, b) and [update] would return [b]; [p2] disappears *)
 
 val update : [a, p1 : perm, p2 : perm] (
   array a, int,
