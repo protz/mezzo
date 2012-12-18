@@ -5,8 +5,11 @@ fact exclusive (table k a)
 
 (* Creation. *)
 
-val create : (* TEMPORARY duplicable k, duplicable a => *)
-  [k, a] (capacity: int, hash: k -> int) -> table k a
+val create : [k, a] (
+  capacity: int,
+  hash: k -> int,
+  equal: (k, k) -> bool
+) -> table k a
 
 (* -------------------------------------------------------------------------- *)
 
@@ -19,6 +22,11 @@ val reset : [k, a] (table k a, capacity: int) -> ()
 
 (* Insertion. *)
 
-(* TEMPORARY
-val add : [k, a] duplicable k, duplicable a => (table k a, k, a) -> ()
-*)
+val add : [k, a] (table k a, consumes k, consumes a) -> ()
+
+(* -------------------------------------------------------------------------- *)
+
+(* Removal. *)
+
+val remove : [k, a] (t: table k a, x: k) -> ()
+

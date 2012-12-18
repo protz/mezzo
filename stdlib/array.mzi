@@ -28,35 +28,63 @@ fact duplicable m => duplicable (array m a)
 abstract array a
 fact exclusive (array a)
 
+(* The type [a] of the array elements need not be duplicable. However, some
+   operations, such as [get], require [a] to be duplicable. When [a] is not
+   duplicable, one must work without [get]. A few other functions, such as
+   [swap] and [update], do not require [a] to be duplicable. *)
+
 (* -------------------------------------------------------------------------- *)
 
 (* Initialization. *)
 
-(* [create] creates an array of arbitrary length and fills it with an initial
-   value. [zero] creates an array of length zero and does not require an
-   initial value. TEMPORARY? *)
+(* [create] creates a new array and fills it with an initial value. It requires
+   the element type [a] to be duplicable. *)
 
 val create : [a] (* TEMPORARY duplicable a => *) (int, a) -> array a
-val zero   : [a] (* TEMPORARY duplicable a => *)       () -> array a
+
+(* [init] creates a new array and uses a user-supplied function [f] to fill it.
+   It does not require the element type [a] to be duplicable. *)
+
+val init : [a, p : perm] (
+  n: int,
+  f: (int | p) -> a
+  | p) -> array a
 
 (* -------------------------------------------------------------------------- *)
 
 (* Access. *)
 
-val get : [a] (array a, int)    -> a
-val set : [a] (array a, int, a) -> ()
+val get    : [a] (* TEMPORARY duplicable a => *) (array a, int) -> a
+val set    : [a] (array a, int, consumes a) -> ()
+val swap   : [a] (array a, int, int) -> ()
+
+(* [update] is a particular combination of [get] and [set] that does not
+   require the element type to be duplicable. *)
+
+val update : [a, p1 : perm, p2 : perm] (
+  array a, int,
+  f: (consumes a | consumes p1) -> (a | p2)
+  | consumes p1
+) -> (| p2)
 
 (* -------------------------------------------------------------------------- *)
 
 (* Length. *)
 
 val max_length : int
-
 val length : [a] array a -> int
 
 (* -------------------------------------------------------------------------- *)
 
 (* Blitting. *)
+
+(* TEMPORARY we would like two version of [sub]: one that requires [duplicable a]
+   and does not consume the original array; and one that does not require
+   [duplicable a] and consumes the original array. Because arrays are mutable,
+   neither of these two version is better than hthe other. Same problem with the
+   other blitting functions below. *)
+
+(* TEMPORARY add [duplicable a =>] to each function below *)
 
 val sub    : [a] (array a, int, int)  -> array a
 val append : [a] (array a, array a)   -> array a

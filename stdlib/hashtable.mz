@@ -1,29 +1,18 @@
-(* Because a primitive array must have duplicable elements, we choose to
-   reflect this restriction and require the hash table to have duplicable
-   elements. *)
-
-(* Of course, we could instead decide to use adoption/abandon so as to
-   allow working with non-duplicable elements. So, it seems to be a matter
-   of deferring the use of adoption/abandon to our client versus doing it
-   here. I see no argument in favor of doing it here, and it can always be
-   done later. *)
-
 (* -------------------------------------------------------------------------- *)
 
-(* The definition of a bucket. *)
+(* A bucket is a mutable list of entries. Each entry holds a key and a value. *)
 
-(* A bucket contains a list of key-value pairs. We do not use the list library,
-   because we wish to unbox the key-value pairs. *)
-
-data bucket k a =
+mutable data bucket k a =
   | Nil
   | Cons { key: k; value: a; tail: bucket k a }
 
-(* Iteration over a bucket. *)
+(* Iteration over a bucket. Each entry is presented in turn to the function
+   [f]. Note that the entries that are presented to [f] are detached, i.e.,
+   their [tail] field is garbage. *)
 
 val rec iter_bucket_down [k, a, p : perm] (
-  b: bucket k a,
-  f: (k, a | p) -> ()
+  consumes b: bucket k a,
+  f: (consumes b: Cons { key: k; value: a; tail: unknown } | p) -> ()
   | p
 ) : () =
   match b with
@@ -32,7 +21,7 @@ val rec iter_bucket_down [k, a, p : perm] (
   | Cons ->
       (* Iteration from the end down to the beginning of the list. *)
       iter_bucket_down (b.tail, f);
-      f (b.key, b.value)
+      f b
   end
 
 (* -------------------------------------------------------------------------- *)
@@ -46,29 +35,100 @@ mutable data table k a =
     (* The bucket array, whose length is always a power of 2. *)
     buckets: array::array (bucket k a);
     (* The hash function. *)
-    hash: k -> int
+    hash: k -> int;
+    (* The equality function. *)
+    equal: (k, k) -> bool
   }
-
-(* TEMPORARY ideally, I would like to record [duplicable k] and [duplicable a]
-   as part of the definition of the type [table k a], so we don't need to
-   repeat this constraint every time a table is accessed. *)
 
 (* -------------------------------------------------------------------------- *)
 
-(* Creation. *)
+(* Internal functions. *)
+
+(* [key_index] computes the array index that corresponds to the key [x]. *)
+
+val key_index [k, a] (t: table k a, x: k) : int =
+  t.hash x & (array::length t.buckets - 1)
+
+(* [push] inserts a detached entry, which contains a valid key-value pair,
+   into the bucket at index [i] in the [buckets] array. *)
+(* TEMPORARY if push/key_index always used together, push could be modified *)
+
+val push [k, a] (
+  buckets: array::array (bucket k a),
+  i: int,
+  consumes entry: Cons { key: k; value: a; tail: unknown }
+) : () =
+  array::update
+    (* A horrid explicit type application. *)
+    [bucket k a, (entry @ Cons { key: k; value: a; tail: unknown }), empty]
+    (* A horrid explicit function header. *)
+    (buckets, i, fun (consumes b: bucket k a | consumes entry @ Cons { key: k; value: a; tail: unknown }) : bucket k a =
+      entry.tail <- b;
+      entry
+    )
+
+(* TEMPORARY we need the following loop over arrays, which I am afraid
+   must be primitive, because the loop invariant involves a partially
+   consumed array. *)
+
+val consume_up [a, p : perm] (
+  consumes x: array::array a,
+  f: (int, consumes a | p) -> ()
+  | p
+) : () =
+  fail (* TEMPORARY move to array.mzi *)
+
+(* [resize] doubles the size of the hash table. A new buckets array is allocated.
+   The existing entries are re-used: they are not re-allocated. *)
+
+val resize [k, a] (t: table k a) : () =
+  let old_buckets = t.buckets in
+  let new_size = array::length old_buckets * 2 in
+  if new_size < array::max_length then begin
+    (* Update [t.buckets] immediately, so that [key_index] sees the new
+       bucket count. *)
+    t.buckets <- array::init (new_size, fun (i: int) : bucket k a = Nil);
+    (* The array [old_buckets] is consumed by the following loop. This allows
+       us to grab the entries that we find in it and move them (without copy)
+       to the new array [t.buckets]. *)
+    consume_up (old_buckets, fun (old_index: int, consumes b : bucket k a | t @ table k a) : () =
+      iter_bucket_down (b, fun (consumes b: Cons { key: k; value: a; tail: unknown } | t @ table k a) : () =
+	let nidx = key_index [k, a] (t, b.key) in
+	(* BUG? the type-checker fails mysteriously if I inline the definition
+	   of [nidx] into the next line. *)
+	push [k, a] (t.buckets, nidx, b)
+	(* BUG? the line above fails if I omit the type application *)
+      )
+    )
+  end
+
+(* [power_2_above] computes the first power of 2 that lies above [x] and [n],
+   where [x] is itself a power of 2. It stops when the maximum array length
+   is exceeded. *)
 
 val rec power_2_above (x: int, n: int) : int =
   if x >= n then x
   else if x * 2 > array::max_length then x
   else power_2_above (x * 2, n)
 
-val create [k, a] (capacity: int, hash: k -> int) : table k a =
+(* [create_buckets] rounds up its [capacity] argument to the nearest power of
+   2 above [n], then allocates a new bucket array. *)
+
+val create_buckets [k, a] (capacity: int) : array::array (bucket k a) =
+  array::init (power_2_above (16, capacity), fun (i: int) : bucket k a = Nil)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Creation. *)
+
+val create [k, a] (capacity: int, hash: k -> int, equal: (k, k) -> bool) : table k a =
   Table {
     cardinal = 0;
-    buckets = array::create [bucket k a] (power_2_above (16, capacity), Nil);
-      (* The type application is required because the type-checker does
-	 not know (for the moment, at least) that array is covariant. *)
-    hash = hash
+    buckets = create_buckets [k, a] capacity;
+      (* BUG? if I omit the above type application, the type-checker fails to
+	 instantiate the universal type *)
+    hash = hash;
+    equal = equal
   }
 
 (* -------------------------------------------------------------------------- *)
@@ -77,61 +137,75 @@ val create [k, a] (capacity: int, hash: k -> int) : table k a =
 
 val clear [k, a] (t: table k a) : () =
   t.cardinal <- 0;
-  arrayops::fill_array (t.buckets, Nil)
+  arrayops::reset (t.buckets, fun (i: int) : bucket k a = Nil)
 
 val reset [k, a] (t: table k a, capacity: int) : () =
   t.cardinal <- 0;
-  t.buckets <- array::create [bucket k a] (power_2_above (16, capacity), Nil)
-
-(* -------------------------------------------------------------------------- *)
-
-(* Internal functions. *)
-
-val key_index [k, a] (t: table k a, x: k) : int =
-  t.hash x & (array::length t.buckets - 1)
-
-val push [k, a] (buckets: array::array (bucket k a), i: int, consumes x: k, consumes v: a) : () =
-  array::set (buckets, i, Cons { key = x; value = v; tail = array::get (buckets, i) })
-
-(* TEMPORARY if push/key_index always used together, push could be modified *)
-
-val resize [k, a] duplicable k, duplicable a => (t: table k a) : () =
-  let old_buckets = t.buckets in
-  let new_size = array::length old_buckets * 2 in
-  if new_size < array::max_length then begin
-    (* Update [t.buckets] immediately, so that [key_index] sees the new
-       bucket count. *)
-    t.buckets <- array::create [bucket k a] (new_size, Nil);
-    (* The type of [iter_up] requires that the array [old_buckets] be preserved,
-       and this forces us to require that [k] and [a] be duplicable. Not a
-       problem here, but I did not expect this at first. It would be somewhat
-       more elegant if we could use a loop combinator that consumes the array. *)
-    arrayops::iter_up (old_buckets, fun (b : bucket k a | t @ table k a) : () =
-      iter_bucket_down (b, fun (x: k, v: a | t @ table k a) : () =
-	let nidx = key_index [k, a] (t, x) in
-	(* BUG? the type-checker fails mysteriously if I inline the definition
-	   of [nidx] into the next line. *)
-	push [k, a] (t.buckets, nidx, x, v)
-	(* BUG? the line above fails if I omit the type application *)	
-      )
-    )
-  end
+  t.buckets <- create_buckets [k, a] capacity
 
 (* -------------------------------------------------------------------------- *)
 
 (* Insertion. *)
 
-val add [k, a] duplicable k, duplicable a => (t: table k a, x: k, v: a) : () =
+val add [k, a] (t: table k a, consumes x: k, consumes v: a) : () =
   let i = key_index [k, a] (t, x) in
   (* BUG? the line above fails if I omit the type application *)
   (* BUG? the type-checker fails mysteriously if I inline the definition
      of [i] into the next line. *)
-  push [k, a] (t.buckets, i, x, v);
+  push [k, a] (t.buckets, i, Cons { key = x; value = v; tail = () });
   (* BUG? the line above fails if I omit the type application *)
   t.cardinal <- t.cardinal + 1;
   if t.cardinal > 2 * array::length t.buckets then
     resize [k, a] t
     (* BUG? the line above fails if I omit the type application *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Removal. *)
+
+(* TEMPORARY this version does not take advantage of the fact that buckets
+   are mutable, and needs to be updated to use array::update instead of
+   array::get and array::set. *)
+val remove [k, a] (t: table k a, x: k) : () =
+  let rec remove (consumes b: bucket k a | t @ table k a * x @ k) : bucket k a =
+    match b with
+    | Nil ->
+        Nil
+    | Cons { key; value; tail } ->
+        if t.equal (key, x) then begin
+          t.cardinal <- t.cardinal - 1;
+	  tail
+	end
+        else
+	  Cons { key = key; value = value; tail = remove tail }
+    end
+  in
+  let i = key_index [k, a] (t, x) in
+  let b = remove (array::get (t.buckets, i)) in
+  (* BUG the type-checker fails if I inline the line above into the line below *)
+  array::set (t.buckets, i, b)
+
+val remove [k, a] (t: table k a, x: k) : () =
+  let rec remove (consumes b: bucket k a | t @ table k a * x @ k) : bucket k a =
+    match b with
+    | Nil ->
+        b
+    | Cons { key; value; tail } ->
+        if t.equal (key, x) then begin
+          t.cardinal <- t.cardinal - 1;
+	  tail
+	end
+        else begin
+	  b.tail <- remove tail;
+	  b
+	end
+    end
+  in
+  let i = key_index [k, a] (t, x) in
+  array::update
+    [bucket k a, (t @ table k a * x @ k), (t @ table k a * x @ k)]
+    (t.buckets, i, remove)
+    (* BUG? I am not sure why the type-checker fails here *)
 
 (*
 Local Variables:
