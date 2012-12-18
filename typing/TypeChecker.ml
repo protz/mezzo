@@ -98,11 +98,9 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
         false
   in
   let permissions = List.filter is_quantified_arrow fbinder.permissions in
-  let is_polymorphic = ref false in
   (* Instantiate all universally quantified variables with flexible variables. *)
   let rec flex = fun env -> function
-    | TyForall ((binding, flavor), t) ->
-        is_polymorphic := !is_polymorphic || flavor = CanInstantiate;
+    | TyForall ((binding, _), t) ->
         let env, t = bind_var_in_type env ~flexible:true binding t in
         let env, t = flex env t in
         env, t
@@ -130,21 +128,14 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
           TypePrinter.pvar (env, fname);
         flex_deconstruct t
   in
-  (* Warn the user if relying on our inference of polymorphic function calls. *)
-  if !is_polymorphic then begin
-    let error = TypeErrors.PolymorphicFunctionCall in
-    if !Options.pedantic then
-      TypeErrors.raise_error env error
-    else
-      Log.warn "%a" TypeErrors.print_error (env, error);
-  end;
-  (* Examine [x]. [sub] will take care of running collect on [t1] so that the
+ (* Examine [x]. [sub] will take care of running collect on [t1] so that the
    * expected permissions are subtracted as well from the environment. *)
   Log.debug ~level:5 "[check_function_call] %a - %a"
     TypePrinter.pnames (env, get_names env x)
     TypePrinter.ptype (env, t1);
   match Permissions.sub env x t1 with
   | Some env ->
+      Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
       (* Return the "good" type. *)
       let t2, perms = Permissions.collect t2 in
       let env = List.fold_left Permissions.add_perm env perms in

@@ -642,21 +642,28 @@ and sub_type_real env t1 t2 =
 
   | TyTuple components1, TyTuple components2
     when List.length components1 = List.length components2 ->
-      (* We assume here that the [t1] is in expanded form, that is, that [t1] is
-       * only a tuple of singletons. *)
-      List.fold_left2 (fun env c1 c2 ->
+      (* We try to match as many cases as possible before doing the recursive
+       * call. Recursively subtracting will do a lot of work and runs into the
+       * risk of not doing "the right thing". *)
+      List.fold_left2 (fun env t1 t2 ->
         env >>= fun env ->
-        match c1 with
-        | _ when equal env c1 c2 ->
+        match t1, t2 with
+        | _ when equal env t1 t2 ->
             Some env
-        | TySingleton (TyPoint p) ->
-            instant_instantiation env c2 p ||| sub_clean env p c2
+        | TySingleton (TyPoint p1), TySingleton (TyPoint _) when is_flexible env p1 ->
+            assert false
+        | TySingleton (TyPoint p1), TySingleton (TyPoint p2) when is_flexible env p2 ->
+            Some (merge_left env p1 p2)
+        | TySingleton (TyPoint p1), _ ->
+            instant_instantiation env t2 p1 ||| sub_clean env p1 t2
+        | _, TySingleton (TyPoint p2) ->
+            instant_instantiation env t1 p2 ||| sub_clean env p2 t1
+        | TyPoint p1, _ when is_flexible env p1 ->
+            try_merge_flex env p1 t1
+        | _, TyPoint p2 when is_flexible env p2 ->
+            try_merge_flex env p2 t1
         | _ ->
-            match c2 with
-            | TyPoint p' when is_flexible env p' ->
-                try_merge_flex env p' c1
-            | _ ->
-                Log.error "All permissions should be in expanded form."
+            None
       ) (Some env) components1 components2
 
   | TyConcreteUnfolded (datacon1, fields1, clause1), TyConcreteUnfolded (datacon2, fields2, clause2)
@@ -678,18 +685,20 @@ and sub_type_real env t1 t2 =
           match t1, t2 with
           | _ when equal env t1 t2 ->
               Some env
-          | TySingleton (TyPoint p), t2 ->
-              (* If [t] is "=α" with α flexible, then we should *not* try to
-               * do something fancy, and we should just instantiate it.
-               * Recursing through [sub_clean] makes us run into the risk of
-               * having α instantiate with something wrong. *)
-              instant_instantiation env t2 p ||| sub_clean env p t2
+          | TySingleton (TyPoint p1), TySingleton (TyPoint _) when is_flexible env p1 ->
+              assert false
+          | TySingleton (TyPoint p1), TySingleton (TyPoint p2) when is_flexible env p2 ->
+              Some (merge_left env p1 p2)
+          | TySingleton (TyPoint p1), _ ->
+              instant_instantiation env t2 p1 ||| sub_clean env p1 t2
+          | _, TySingleton (TyPoint p2) ->
+              instant_instantiation env t1 p2 ||| sub_clean env p2 t1
+          | TyPoint p1, _ when is_flexible env p1 ->
+              try_merge_flex env p1 t1
+          | _, TyPoint p2 when is_flexible env p2 ->
+              try_merge_flex env p2 t1
           | _ ->
-              match t2 with
-              | TyPoint p' when is_flexible env p' ->
-                  try_merge_flex env p' t1
-              | _ ->
-                  Log.error "All permissions should be in expanded form."
+              None
         ) (Some env) fields1 fields2
 
       else
@@ -759,17 +768,23 @@ and sub_type_real env t1 t2 =
         let non_dup = List.map (fun t -> TyAnchoredPermission (TyPoint point, t)) non_dup in
         env, non_dup @ acc
       ) (env, []) in
-      Log.debug "%sArrow / Arrow, left%s"
+      Log.debug ~level:4 "%sArrow / Arrow, left%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
       sub_type env t'1 t1 >>= fun env ->
-      Log.debug "%sArrow / Arrow, right%s"
+      Log.debug ~level:4 "%sArrow / Arrow, right%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
       sub_type env t2 t'2 >>= fun env ->
-      Log.debug ~level:4 "Adding back %a"
+      Log.debug ~level:4 "%sArrow / Adding back %s%a"
+        Bash.colors.Bash.red
+        Bash.colors.Bash.default
         TypePrinter.ptype (env, fold_star non_dup);
-      Some (List.fold_left add_perm env non_dup)
+      let env = List.fold_left add_perm env non_dup in
+      Log.debug ~level:4 "%sArrow / End%s"
+        Bash.colors.Bash.red
+        Bash.colors.Bash.default;
+      Some env
 
   (* "(t1 | p1)" - "(t2 | p2)" means doing [t1 - t2], adding all of [p1],
    * removing all of [p2]. But the order in which we perform these operations
