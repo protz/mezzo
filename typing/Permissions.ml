@@ -192,7 +192,6 @@ let rec unify (env: env) (p1: point) (p2: point): env =
      * infinite loop when hitting the TySingletons... *)
     let perms = get_permissions env p2 in
     let env = merge_left env p1 p2 in
-    Log.debug "%a" TypePrinter.penv env;
     List.fold_left (fun env t -> add env p1 t) env perms
 
 

@@ -841,7 +841,7 @@ module TypePrinter = struct
           if k = KType then
             print_var env x
           else
-            print_var env x ^^ space ^^ colon ^^ colon ^^ space ^^ print_kind k
+            print_var env x ^^ space ^^ colon ^^ space ^^ print_kind k
         ) vars in
         let vars = join (comma ^^ space) vars in
         let vars = lbracket ^^ vars ^^ rbracket in
