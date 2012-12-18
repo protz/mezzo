@@ -30,3 +30,11 @@ val add : [k, a] (consumes k, consumes a, table k a) -> ()
 
 val remove : [k, a] (x: k, t: table k a) -> ()
 
+(* -------------------------------------------------------------------------- *)
+
+(* Lookup. *)
+
+(* TEMPORARY
+val find : [k, a] duplicable a => (x: k, t: table k a) -> option a
+*)
+

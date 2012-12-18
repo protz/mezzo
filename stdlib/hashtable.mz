@@ -198,7 +198,7 @@ val remove [k, a] (x: k, t: table k a) : () =
 (* -------------------------------------------------------------------------- *)
 
 (* Lookup. *)
-(*
+
 val find [k, a] duplicable a => (x: k, t: table k a) : option a =
   let equal = t.equal in
   let rec find (b: bucket k a | x @ k) : option a =
@@ -212,8 +212,8 @@ val find [k, a] duplicable a => (x: k, t: table k a) : option a =
 	  find b.tail
     end
   in
-  find (array::get(t.buckets, key_index (t, x)))
-*)
+  find (array::get(t.buckets, key_index [k, a] (t, x)))
+
 (*
 Local Variables:
 compile-command: "../mezzo hashtable.mz"
