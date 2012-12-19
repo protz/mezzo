@@ -67,22 +67,20 @@ val swap   : [a] (array a, int, int) -> ()
    CPS style. Could we somehow impose the same discipline and obtain the same
    effect in direct style? *)
 
-val consult : [a, p : perm, b] (
+val consult : [a, preserved : perm, consumed : perm, b] (
   array a, int,
-  f: (a | consumes p) -> b
-  | consumes p
+  f: (a | preserved * consumes consumed) -> b
+  | preserved * consumes consumed
 ) -> b
 
 (* [update] is a particular combination of [get] and [set] that does not
    require the element type to be duplicable. *)
 
-(* TEMPORARY [f] could return a pair (a, b) and [update] would return [b]; [p2] disappears *)
-
-val update : [a, p1 : perm, p2 : perm] (
+val update : [a, preserved : perm, consumed : perm] (
   array a, int,
-  f: (consumes a | consumes p1) -> (a | p2)
-  | consumes p1
-) -> (| p2)
+  f: (consumes a | preserved * consumes consumed) -> a
+  | preserved * consumes consumed
+) -> ()
 
 (* -------------------------------------------------------------------------- *)
 

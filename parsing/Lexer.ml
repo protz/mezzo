@@ -156,6 +156,7 @@ let rec token = lexer
 | "rec" -> locate lexbuf REC
 | "tag" whitespace "of" -> locate lexbuf TAGOF
 | "take" -> locate lexbuf TAKE
+| "taking" -> locate lexbuf TAKING
 | "term" -> locate lexbuf KTERM
 | "then" -> locate lexbuf THEN
 | "to" -> locate lexbuf TO

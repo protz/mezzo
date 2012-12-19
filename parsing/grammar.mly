@@ -53,7 +53,7 @@
 %token          CONSUMES DUPLICABLE FACT ABSTRACT
 %token          VAL LET REC AND IN DOT WITH BEGIN END MATCH
 %token          IF THEN ELSE
-%token          TAKE FROM GIVE TO ADOPTS OWNS
+%token          TAKE FROM GIVE TO ADOPTS OWNS TAKING
 %token<int>     INT
 %token          MINUS
 %token<string>  OPPREFIX OPINFIX0 OPINFIX1 OPINFIX2 OPINFIX3
@@ -774,6 +774,22 @@ raw_reasonable_expression:
     { ETake (e1, e2) }
 | GIVE e1 = expression TO e2 = reasonable_expression
     { EGive (e1, e2) } 
+| taking = TAKING e1 = expression FROM e2 = tight_expression BEGIN e = expression fin = END
+    {
+      taking; fin; (* avoid ocaml warnings about unused variables *)
+      let eval_e1, v1 = name "adoptee" e1
+      and eval_e2, v2 = name "adopter" e2
+      and eval_e , v  = name "result"  e in
+      eval_e1 (
+      eval_e2 (
+      ESequence (
+      ELocated (ETake (v1, v2), $startpos(taking), $endpos(e2)),
+      eval_e (
+      ESequence (
+      ELocated (EGive (v1, v2), $startpos(fin), $endpos(fin)),
+      v
+      )))))
+    }
 | ASSERT t = very_loose_type
     { EAssert t }
 | e = algebraic_expression EXPLAIN
@@ -790,8 +806,13 @@ raw_reasonable_expression:
     { e }
 
 raw_fragile_expression:
+(* The semi-colon can be used as a separator. *)
 | e1 = reasonable_expression SEMI e2 = tuple_or_fragile_expression
     { ESequence (e1, e2) }
+(* The semi-colon can also be used as a terminator. This should facilitate
+   swapping instructions in sequences. *)
+| e1 = reasonable_expression SEMI
+    { e1 }
 | LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = tuple_or_fragile_expression
     { ELet (f, declarations, e) }
 | FUN bs = type_parameters? arg = atomic_type COLON t = normal_type EQUAL e = tuple_or_fragile_expression

@@ -57,3 +57,37 @@ let mkinfix e1 o e2 =
 let mkdatacon d = {
   datacon_name = d; datacon_previous_name = Datacon.register "<invalid>"
 };;
+
+(* A fresh name generator, to be used (with moderation) when desugaring
+   certain constructs. *)
+
+let fresh : string -> Variable.name =
+  let c = ref 0 in
+  fun (hint : string) ->
+    let i = !c in
+    c := i + 1;
+    Variable.register (Printf.sprintf "<%s%d>" hint i)
+
+(* This auxiliary function identifies expressions that can be copied
+   without affecting their semantics (basically, just variables). *)
+
+let rec is_var = function
+  | EVar _
+  | EQualified _ ->
+      true
+  | ELocated (e, _, _) ->
+      is_var e
+  | _ ->
+      false
+
+(* This auxiliary function generates a fresh variable to stand for an
+   expression [e], unless [e] is a variable. It returns a pair of a
+   context (which inserts zero or one [let]-binding) and an expression. *)
+
+let name (hint : string) e : (expression -> expression) * expression =
+  if is_var e then
+    (fun hole -> hole), e
+  else
+    let x = fresh hint in
+    (fun hole -> ELet (Nonrecursive, [ PVar x, e ], hole)), EVar x
+
