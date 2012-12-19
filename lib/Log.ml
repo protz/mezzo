@@ -34,6 +34,13 @@ let debug ?level fmt =
 let warn_count = ref 0
 let warn x = incr warn_count; debug ~level:0 x
 
+let silent f =
+  let l = !the_debug_level in
+  the_debug_level := 0;
+  let r = f () in
+  the_debug_level := l;
+  r
+
 let error fmt =
   Printf.kbprintf (fun buf ->
     Buffer.add_char buf '\n';

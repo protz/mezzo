@@ -40,6 +40,9 @@ val error: ('a, Buffer.t, unit, 'b) format4 -> 'a
 (** Assert something, otherwise display an error message and fail *)
 val check: bool -> ('a, Buffer.t, unit, unit) format4 -> 'a
 
+(** Perform an operation with the debug output disabled. *)
+val silent: (unit -> 'a) -> 'a
+
 (** / **)
 
 val warn_count: int ref

@@ -300,7 +300,7 @@ and add_perm (env: env) (t: typ): env =
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
  * to the list of available permissions for [p] *)
 and add_type (env: env) (p: point) (t: typ): env =
-  match sub env p t with
+  match Log.silent (fun () -> sub env p t) with
   | Some _ ->
       (* We're not re-binding env because this has bad consequences: in
        * particular, when adding a flexible type variable to a point, it
@@ -777,18 +777,16 @@ and sub_type_real env t1 t2 =
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
       sub_type env t2 t'2 >>= fun env ->
-      Log.debug ~level:4 "%sArrow / Adding back %s%a"
+      Log.debug ~level:4 "%sArrow / Adding back permissions%s"
         Bash.colors.Bash.red
-        Bash.colors.Bash.default
-        TypePrinter.ptype (env, fold_star all_perms);
+        Bash.colors.Bash.default;
       let env = fold_terms env (fun env point _ _ ->
         replace_term env point (function binding -> {
           binding with permissions = initial_permissions_for_point point
       })) env in
-      let l = Log.debug_level () in
-      Log.enable_debug 0;
-      let env = List.fold_left add_perm env all_perms in
-      Log.enable_debug l;
+      let env = Log.silent (fun () ->
+        List.fold_left add_perm env all_perms
+      ) in
       Log.debug ~level:4 "%sArrow / End%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
