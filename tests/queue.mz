@@ -45,7 +45,21 @@ val clear [a] (q: fifo a): () =
       q.tail   <- ()
   end
 
-val insert [a] (consumes x: a, q: fifo a): () =
+(* Rotate a queue [q] by moving its head element to the tail. *)
+
+val rotate [a] (q: fifo a): () =
+  match q with
+  | Empty ->
+      ()
+  | NonEmpty { tail } ->
+      taking tail from q begin
+	q.tail <- tail.next
+      end
+  end
+
+(* Insert an element [x] at the beginning of a queue [q]. *)
+
+val insert_head [a] (consumes x: a, q: fifo a): () =
   let c = Cell {
     value = x; next = ()
   } in
@@ -62,10 +76,15 @@ val insert [a] (consumes x: a, q: fifo a): () =
         tail.next <- c;
       end;
       give c to q;
-      q.tail <- c;
       q.length <- q.length +1
   end
   
+(* Insert an element [x] at the end of a queue [q]. *)
+
+val insert [a] (consumes x: a, q: fifo a): () =
+  insert_head (x, q);
+  rotate q
+
 (* Peek: the element has to be duplicable. *)
 
 val peek [a] duplicable a => (q: fifo a): option a =
@@ -82,6 +101,8 @@ val peek [a] duplicable a => (q: fifo a): option a =
 	some head.value
       end
   end
+
+(* Retrieve the head element of a queue [q]. *)
 
 val retrieve [a] (q: fifo a): option a =
   match q with
@@ -109,48 +130,41 @@ val retrieve [a] (q: fifo a): option a =
       some head.value
  end
 
-(* TODO: deduce map from retrieve/insert *)
+(* In contrast with [list::map], the function [queue::map] cannot perform
+   a strong update on the queue elements. The queue [q] adopts elements of
+   type [cell a], and this cannot be changed. Thus, [queue::map] must require
+   its argument [f] to preserve the type [a] of the list element. *)
+(* Possible variant: with a loop on the length of the queue [q], rebuilding
+   [q] can be done using [queue::insert] instead of [queue::insert_head]. *)
+
+
 val map [a, b, p:perm] (f: (a | p) -> b, q: fifo a | p): fifo b =
-  match q with
-  | Empty ->
-(* Type variable [b] has to be explicitly given in the empty case *)
-      create [b] ()
 
-  | NonEmpty { length; tail } ->
-      take tail from q;
+  let rec map (q: fifo a, consumes accu: fifo b | p): fifo b =
+    (* The call to retrieve takes the head value from the queue [q], and
+       removes the head cell of [q]. *)
+    let a = retrieve q in
+    match a with
 
-      let tail' = Cell { 
-	value = f tail.value ; next = ()
-      } in
+    | None ->
+        accu
 
-      let q' = NonEmpty {
-	length = length;
-	tail = tail'
-      } in
+    | Some { contents = a } ->
+        let b = f a in
+	insert (b, accu);
+	(* Since the head cell of the queue [q] has been removed, the
+	   auxiliary [map] can be called again on [q]. *)
+	let q' = map (q, accu) in
+	(* To rebuild the original [q] we have to insert the retrieved value
+	   at the beginning of [q] rather than its end. *)
+	insert_head (a, q);
+	q'
 
-(* Doesn't type if no permission for q is explicited *)
-      let rec ccopy (c: dynamic | q' @ fifo b * q @ fifo a * p): dynamic =
-	if c == tail
-	then tail'
-	else begin
-	  take c from q;
-          let c' = Cell {
-	    value = f c.value;
-	    next = ccopy (c.next)
-	  } in
-	  give c to q;
-	  give c' to q';
-	  c'
-	end
-      in
-      tail'.next <- ccopy (tail.next);
-
-      give tail to q;
-      give tail' to q';
- 
-      q'
-      
-  end 
+    end
+  in
+  
+  let accu = create [b] () in
+  map (q, accu)
 
 val copy [a] duplicable a => (q: fifo a): fifo a =
   map ((fun (x:a): a = x), q)
