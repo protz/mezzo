@@ -213,7 +213,7 @@ val find [k, a] duplicable a => (x: k, t: table k a) : option a =
   (* We use [array::consult] instead of [array::get] because [k] is not
      duplicable. *)
   array::consult
-    [bucket k a, (x @ k), (option a | x @ k)]
+    [preserved = (x @ k)]
     (t.buckets, key_index [k, a] (t, x), find)
 
 (*
