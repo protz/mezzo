@@ -758,15 +758,16 @@ and sub_type_real env t1 t2 =
 
   | TyArrow (t1, t2), TyArrow (t'1, t'2) ->
       (* Strip the non-duplicable parts out of the environment. *)
-      let env, non_dup = fold_terms env (fun (env, acc) point _ binding ->
-        let dup, non_dup =
-          List.partition (FactInference.is_duplicable env) binding.permissions
-        in
+      let env, all_perms = fold_terms env (fun (env, acc) point _ { permissions; _ } ->
+        let dup = List.filter (FactInference.is_duplicable env) permissions in
         let env =
           replace_term env point (function binding -> { binding with permissions = dup })
         in
-        let non_dup = List.map (fun t -> TyAnchoredPermission (TyPoint point, t)) non_dup in
-        env, non_dup @ acc
+        let permissions =
+          List.filter (function TySingleton _ | TyUnknown -> false | _ -> true) permissions
+        in
+        let permissions = List.map (fun t -> TyAnchoredPermission (TyPoint point, t)) permissions in
+        env, permissions @ acc
       ) (env, []) in
       Log.debug ~level:4 "%sArrow / Arrow, left%s"
         Bash.colors.Bash.red
@@ -779,8 +780,15 @@ and sub_type_real env t1 t2 =
       Log.debug ~level:4 "%sArrow / Adding back %s%a"
         Bash.colors.Bash.red
         Bash.colors.Bash.default
-        TypePrinter.ptype (env, fold_star non_dup);
-      let env = List.fold_left add_perm env non_dup in
+        TypePrinter.ptype (env, fold_star all_perms);
+      let env = fold_terms env (fun env point _ _ ->
+        replace_term env point (function binding -> {
+          binding with permissions = initial_permissions_for_point point
+      })) env in
+      let l = Log.debug_level () in
+      Log.enable_debug 0;
+      let env = List.fold_left add_perm env all_perms in
+      Log.enable_debug l;
       Log.debug ~level:4 "%sArrow / End%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;

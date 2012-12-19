@@ -1027,6 +1027,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   | EExplained e ->
       let env, x = check_expression env ?hint e in
       Debug.explain env ~x;
+      (* Log.debug "%a" TypePrinter.penv env;
+      if true then failwith "Explanation above"; *)
       env, x
 
   | EFail ->
