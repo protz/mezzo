@@ -73,9 +73,7 @@ val push [k, a] (
   consumes entry: Cons { key: k; value: a; tail: unknown }
 ) : () =
   array::update
-    (* A horrid explicit type application. *)
-    [bucket k a, (entry @ Cons { key: k; value: a; tail: unknown }), empty]
-    (* A horrid explicit function header. *)
+    [consumed = (entry @ Cons { key: k; value: a; tail: unknown })]
     (buckets, i, fun (consumes b: bucket k a | consumes entry @ Cons { key: k; value: a; tail: unknown }) : bucket k a =
       entry.tail <- b;
       entry
@@ -170,7 +168,12 @@ val add [k, a] (consumes x: k, consumes v: a, t: table k a) : () =
 (* Removal. *)
 
 val remove [k, a] (x: k, t: table k a) : () =
-  let rec remove (consumes b: bucket k a | t @ table k a * x @ k) : bucket k a =
+  let buckets = t.buckets in
+  let rec remove (
+      consumes b: bucket k a
+    | t @ Table { cardinal: int; buckets = buckets; hash: k -> int; equal: (k, k) -> bool }
+    * x @ k
+    ) : bucket k a =
     match b with
     | Nil ->
         b
@@ -186,14 +189,9 @@ val remove [k, a] (x: k, t: table k a) : () =
     end
   in
   array::update
-    (* [bucket k a, (t @ table k a * x @ k), (t @ table k a * x @ k)] *)
-    (t.buckets, key_index [k, a] (t, x), remove)
-
-  (* BUG? this version of [remove] is accepted, even though I think it should be
-     rejected: the call to [array::update] requires [t.buckets @ array (...)] AND
-     [t @ table k a], which cannot be simultaneously satisfied. Strangely enough,
-     if I uncomment the type application, then the type-checker rejects the code
-     (which seems to be the desired behavior). *)
+    [preserved = (t @ Table { cardinal: int; buckets = buckets; hash: k -> int; equal: (k, k) -> bool } * x @ k),
+     consumed  = empty]
+    (buckets, key_index [k, a] (t, x), remove)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -217,11 +215,6 @@ val find [k, a] duplicable a => (x: k, t: table k a) : option a =
   array::consult
     [bucket k a, (x @ k), (option a | x @ k)]
     (t.buckets, key_index [k, a] (t, x), find)
-
-  (* BUG? The above code is accepted, which sounds good (in fact, it is
-     accepted even without the explicit type application). HOWEVER, it
-     is accepted ALSO if I change (option a | x @ k) to (option a), and
-     this does NOT sound good. *)
 
 (*
 Local Variables:
