@@ -101,7 +101,7 @@ syn keyword  mezzoKeyword  in
 syn keyword  mezzoKeyword  let
 syn keyword  mezzoKeyword  mutable owns perm
 syn keyword  mezzoKeyword  rec
-syn keyword  mezzoKeyword  tag of take term to type
+syn keyword  mezzoKeyword  tag of take taking term to type
 syn keyword  mezzoKeyword  unknown val with
 
 syn keyword  mezzoKeyword  function

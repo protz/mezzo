@@ -15,6 +15,16 @@ mutable data fifo a =
 | NonEmpty { length: int;  tail: dynamic }
 adopts cell a
 
+(* TEMPORARY this code is rejected because "adopts" clauses in
+   structural types are not yet supported by the parser.
+(* This internal function finds the head of a nonempty queue. *)
+
+val head [a, tail : term] (q: NonEmpty { length: int; tail = tail } adopts cell a | tail @ dynamic) : dynamic =
+  taking tail from q begin
+    tail.next
+  end
+*)
+
 val create [a] (): fifo a =
   Empty { length = 0;  tail = () }
 
@@ -30,9 +40,9 @@ val clear [a] (q: fifo a): () =
   match q with
   | Empty -> ()
   | NonEmpty ->
-    tag of q <- Empty;
-    q.length <- 0;
-    q.tail   <- ()
+      tag of q <- Empty;
+      q.length <- 0;
+      q.tail   <- ()
   end
 
 val insert [a] (consumes x: a, q: fifo a): () =
@@ -47,18 +57,15 @@ val insert [a] (consumes x: a, q: fifo a): () =
       q.length <- 1;
       q.tail <- c
   | NonEmpty { tail } ->
-      take tail from q;
-        c.next <- tail.next ;
+      taking tail from q begin
+        c.next <- tail.next;
         tail.next <- c;
-      give tail to q;
+      end;
       give c to q;
       q.tail <- c;
       q.length <- q.length +1
   end
   
-val push [a] (consumes x: a, q: fifo a): () =
-  insert (x, q)
-
 (* Peek: the element has to be duplicable. *)
 
 val peek [a] duplicable a => (q: fifo a): option a =
@@ -66,28 +73,14 @@ val peek [a] duplicable a => (q: fifo a): option a =
   | Empty -> 
       none
   | NonEmpty { tail } ->
-      take tail from q;
-        let head = tail.next in
-        (* Head and tail have to be compared for the same cell 
-	   not to be taken twice. *)
-	let x = 
-	  if tail == head 
-	  then tail.value
-	  else begin 
-	    take head from q;
-	      (* Returning a value and giving the cell back 
-		 requires storing the value.
-		 WISH: a command that takes a cell and gives it
-		 back at the end of the code block, so that this
-		 let y = ... is not needed anymore.
-	      *)
-	      let y = head.value in
-	    give head to q;
-	    y
-	  end
-	in
-      give tail to q;
-      some x
+      let head =
+	taking tail from q begin
+	  tail.next
+	end
+      in
+      taking head from q begin
+	some head.value
+      end
   end
 
 val retrieve [a] (q: fifo a): option a =
@@ -95,26 +88,26 @@ val retrieve [a] (q: fifo a): option a =
   | Empty ->
       None
   | NonEmpty { tail } ->
-      take tail from q;
+      take tail from q; (* TEMPORARY why is there an "exclusive resource allocation conflict" here? *)
       let head = tail.next in
-      let x = 
-        if head == tail then begin
-	  tag of q <- Empty;
-	  q.length <- 0;
-	  q.tail <- ();
-	  tail.value
-          (* Tail cell should not be given back to the queue! *)
-	end else begin
-	  q.length <- q.length - 1;
-	  take head from q;
-	  tail.next <- head.next;
-	  give tail to q;
-	  head.value
-	  (* Head cell should not be given back to the queue! *)
-	end
-      in
-      some x
-  end
+      if head == tail then begin
+	tag of q <- Empty;
+	q.length <- 0;
+	q.tail <- ()
+      end
+      else begin
+	q.length <- q.length - 1;
+	take head from q;
+	tail.next <- head.next;
+	give tail to q
+      end;
+      (* At this point, we own the [head] cell. Note that this annotation
+	 is not required. *)
+      assert head @ cell a;
+      (* The head cell must not be given back to the queue. We need to assert
+	 the ownership of [head.value], whose type is not duplicable. *)
+      some head.value
+ end
 
 (* TODO: deduce map from retrieve/insert *)
 val map [a, b, p:perm] (f: (a | p) -> b, q: fifo a | p): fifo b =
@@ -162,46 +155,11 @@ val map [a, b, p:perm] (f: (a | p) -> b, q: fifo a | p): fifo b =
 val copy [a] duplicable a => (q: fifo a): fifo a =
   map ((fun (x:a): a = x), q)
 
-(*
-val iter [a, p:perm] (f: (a | p) -> (), q: fifo a | p) : () =
+(* In contrast with [list::fold], the function [queue::fold] cannot perform
+   a strong update on the queue elements. The queue [q] adopts elements of
+   type [cell a], and this cannot be changed. Thus, [queue::fold] must require
+   its argument [f] to preserve the type [a] of the list element. *)
 
-  match q with
-
-  | Empty ->
-      ()
-
-  | NonEmpty { tail } ->
-    take tail from q;
-
-    (* The tail cell has already been taken: it shouldn't be taken 
-       twice and its permission has to be explicitely given in the
-       auxiliary function.
-    *)
-    let rec citer (c: dynamic | tail @ cell a | q @ fifo a | p): () =
-      if c == tail
-      then f tail.value
-      else begin
-	take c from q;
-	f c.value;
-	citer c.next;
-	give c to q
-      end
-    in
-
-    citer tail.next;
-    give tail to q
-	
-  end    
-*)
-
-(* Again, there's a design question here. We can either:
-   i. require that the type of the elements in the fifo be duplicable, or
-   ii. demand that [f] leaves its second argument unchanged.
-   The core issue is that [f] must leave the elements in [q] intact, otherwise
-   we'll never be able to give back "q @ fifo b" to the caller. So either [f]
-   gives back the permission on its second argument (option ii.), or [fold] must
-   be able to save a copy for itself (option i.)
-*)
 val fold [a, b, p:perm] (
   q: fifo a,
   consumes acc: b,
@@ -215,9 +173,6 @@ val fold [a, b, p:perm] (
 
   | NonEmpty { tail } ->
 
-      (* This intermediary function takes the "next" element as [dynamic]. It
-       * checks *before* taking it from [q] that it is distinct from [tail], so
-       * as not to cause a runtime error. *)
       let rec fold (consumes acc: b, c: dynamic | q @ fifo a): b =
 	take c from q;
         let Cell { next; value } = c in
@@ -230,12 +185,9 @@ val fold [a, b, p:perm] (
       in
 
       (* Obtain the address of the first cell. *)
-      take tail from q;
-      let first = tail.next in
-      give tail to q;
-
+      let head = taking tail from q begin tail.next end in
       (* We're ready to launch the recursion. *)
-      fold (acc, first)
+      fold (acc, head)
 
   end
 
