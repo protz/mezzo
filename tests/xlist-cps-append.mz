@@ -17,6 +17,6 @@ val rec cps_mappend [a, b, p : perm] (
         x.tail <- z;
 	k x
       in 
-      cps_mappend [p = (x @ XCons { head: a; tail: unknown } * p)] (x.tail, y, f)
+      cps_mappend (x.tail, y, f)
   end
 

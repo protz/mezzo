@@ -37,8 +37,7 @@ val rec iter_array_up [a, p : perm] (
   f: (int | x @ array a * p) -> ()
   | p
 ) : () =
-  iter_segment_up [ (x @ array a * p) ] (0, length x, f)
-  (* TEMPORARY could we guess this type application? *)
+  iter_segment_up (0, length x, f)
 
 val rec iter_array_down [a, p : perm] (
   x: array a,
@@ -159,10 +158,9 @@ val map [a, b, p : perm] (
   f: (a | p) -> b
   | p
 ) : array b =
-  (* TEMPORARY it would be nice if the type-checker could guess this type application *)
   (* It seems to work when [p] is not there and [x @ array a] must be guessed, but not
      in the more complex situation where [x @ array a * p] must be guessed. *)
-  init [ p = (x @ array a * p) ] (length x, fun (i: int | x @ array a * p) : b =
+  init (length x, fun (i: int | x @ array a * p) : b =
     f (get (x, i))
   )
 
@@ -171,8 +169,7 @@ val mapi [a, b, p : perm] (
   f: (int, a | p) -> b
   | p
 ) : array b =
-  (* TEMPORARY as above, it would be nice if the type-checker could guess this type application *)
-  init [ p = (x @ array a * p) ] (length x, fun (i: int | x @ array a * p) : b =
+  init (length x, fun (i: int | x @ array a * p) : b =
     f (i, get (x, i))
   )
 
