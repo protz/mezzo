@@ -8,7 +8,7 @@ FIND       := find
 OCAMLBUILD := ocamlbuild -use-ocamlfind -use-menhir \
   -menhir "menhir --explain --infer -la 1" \
   -cflags "-g" -lflags "-g" -classic-display
-INCLUDE    := -Is sets,typing,parsing,ulex,lib,pprint,utils,fix
+INCLUDE    := -Is sets,typing,parsing,lib,pprint,utils,fix
 MAIN       := mezzo
 TESTSUITE  := testsuite
 BUILDDIRS   = -I _build $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")

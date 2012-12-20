@@ -309,9 +309,9 @@ val rec find [a, p : perm] (ok: (a | p) -> bool, consumes xs: list a | p) : list
 (* The call [remove (p, xs)] produces the list [xs], deprived of the first
    element that satisfies the predicate [p], if there is one. *)
 
-val rec remove [a] (p : a -> bool, consumes xs: list a) : list a =
+val rec remove [a, p : perm] (pred : (a | p) -> bool, consumes xs: list a | p) : list a =
   if xs then
-    if p xs.head then xs.tail else Cons { head = xs.head; tail = remove (p, xs.tail) }
+    if pred xs.head then xs.tail else Cons { head = xs.head; tail = remove (pred, xs.tail) }
   else
     xs
 

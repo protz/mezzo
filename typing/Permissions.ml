@@ -176,7 +176,8 @@ let perm_not_flex env t =
   | TyPoint p ->
       not (is_flexible env p)
   | _ ->
-      Log.error "You should call [flatten_star]"
+      Log.error "You should call [flatten_star] on %a"
+        TypePrinter.ptype (env, t)
 ;;
 
 (** [unify env p1 p2] merges two points, and takes care of dealing with how the
@@ -805,8 +806,31 @@ and sub_type_real env t1 t2 =
        * like "(=root | root @ ...)". So let's start by subtracting [t2] from
        * [t1]. *)
       sub_type env t1 t2 >>= fun env ->
-      let ps1 = flatten_star p1 in
-      let ps2 = flatten_star p2 in
+
+      let rec strip_flatten env t =
+        match t with
+        | TyPoint p ->
+            begin match structure env p with
+            | Some t ->
+                let t = flatten_star t in
+                Hml_List.map_flatten (strip_flatten env) t
+            | None ->
+                [t]
+            end
+        | TyStar _ ->
+            Hml_List.map_flatten (strip_flatten env) (flatten_star t)
+        | TyAnchoredPermission (x, t) ->
+            let t, ps = collect t in
+            if List.length ps > 0 then
+              let ps = Hml_List.map_flatten (strip_flatten env) ps in
+              TyAnchoredPermission (x, t) :: ps
+            else
+              [TyAnchoredPermission (x, t)]
+        | _ ->
+            [t]
+      in
+      let ps1 = strip_flatten env p1 in
+      let ps2 = strip_flatten env p2 in
       (*   [add_perm] will fail if we add "x @ t" when "x" is flexible. So we
        * search among the permissions in [ps1] one that is suitable for adding,
        * i.e. a permission whose left-hand-side is not flexible.
@@ -835,55 +859,44 @@ and sub_type_real env t1 t2 =
                   TypePrinter.ptype (env, fold_star ps2);
                 env, ps1, ps2
       in
-      (* But before we do all of that, we do something smarter: if we have
-       * exactly one KPerm variable on each side and one of them is flexible, we
-       * solve this the "obvious" way. We can't feed everything into [add_sub],
-       * because if doing "p - p*" ("p*" being flexible), we will add "p"
-       * without a problem, and then instantiate "p*" to empty. *)
-      let vars1, ps1' = List.partition (function TyPoint _ -> true | _ -> false) ps1 in
-      let vars2, ps2' = List.partition (function TyPoint _ -> true | _ -> false) ps2 in
-      let must_succeed env ps1 ps2 =
-        match add_sub env ps1 ps2 with
-        | env, [], [] ->
-            Some env
-        | _ ->
-            None
-      in
-      begin match vars1, vars2 with
+      (* Our new strategy for inferring PERM variables is as follows. We
+       * optimize for the case where we have only one flexible variable on one
+       * side. We first put the PERM variables aside, perform the add/sub dance,
+       * and see what's left. If either side is made up of just one flexible
+       * PERM variable, then bingo, we win. *)
+      let vars1, ps1 = List.partition (function TyPoint _ -> true | _ -> false) ps1 in
+      let vars2, ps2 = List.partition (function TyPoint _ -> true | _ -> false) ps2 in
+      (* Try to eliminate as much as we can... *)
+      Log.debug "ps1=%a, ps2=%a, vars1=%a, vars2=%a"
+        TypePrinter.ptype (env, fold_star ps1)
+        TypePrinter.ptype (env, fold_star ps2)
+        TypePrinter.ptype (env, fold_star vars1)
+        TypePrinter.ptype (env, fold_star vars2);
+      let env, ps1, ps2 = add_sub env ps1 ps2 in
+      (* And then try to be smart with whatever remains. *)
+      begin match vars1 @ ps1, vars2 @ ps2 with
       | [TyPoint var1], [TyPoint var2] ->
           begin match is_flexible env var1, is_flexible env var2 with
           | true, false ->
-              let env = merge_left env var2 var1 in
-              must_succeed env ps1' ps2'
+              Some (merge_left env var2 var1)
           | false, true ->
-              let env = merge_left env var1 var2 in
-              must_succeed env ps1' ps2'
+              Some (merge_left env var1 var2)
           | true, true ->
-              let env = merge_left env var1 var2 in
-              must_succeed env ps1' ps2'
+              Some (merge_left env var1 var2)
           | false, false ->
-              must_succeed env ps1 ps2
+              if same env var1 var2 then
+                Some env
+              else
+                None
           end
-      | [], [TyPoint var2] when is_flexible env var2 ->
-          (* Extra: if there's a flexible KPerm variable on one side only, and we
-           * are left with un-substractable stuff on the other side, we can
-           * solve this by instantiating the flexible variable with the stuff we
-           * were unable to extract. *)
-          begin match add_sub env ps1 ps2' with
-          | env, ps1, [] ->
-              Some (instantiate_flexible env var2 (fold_star ps1))
-          | _ ->
-              None
-          end
-      | [TyPoint var1], [] when is_flexible env var1 ->
-          begin match add_sub env ps1' ps2 with
-          | env, [], ps2 ->
-              Some (instantiate_flexible env var1 (fold_star ps2))
-          | _ ->
-              None
-          end
+      | ps1, [TyPoint var2] when is_flexible env var2 ->
+          Some (instantiate_flexible env var2 (fold_star ps1))
+      | [TyPoint var1], ps2 when is_flexible env var1 ->
+          Some (instantiate_flexible env var1 (fold_star ps2))
+      | [], [] ->
+          Some env
       | _ ->
-          must_succeed env ps1 ps2
+          None
       end
 
   | TyBar (t1, p1), t2 ->
