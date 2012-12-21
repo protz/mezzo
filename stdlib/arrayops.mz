@@ -120,23 +120,6 @@ val fold_down [a, b, p : perm] (
 val zero [a] () : array a =
   init [a] (0, fun (i: int) : a = fail (* impossible *))
 
-(* TEMPORARY I am keeping this code around until we confirm that the BUG is fixed,
-   and I will remove it; [init] is now a primitive function. *)
-val foobar [a, p : perm] duplicable a => (
-  n: int,
-  f: (int | p) -> a
-  | p
-) : array a =
-  begin
-    let x = create (n, f 0) in
-    iter_segment_up [ (x @ array a * p) ] (1, n, fun (i: int | x @ array a * p) : () =
-      (* BUG if I remove the second "* p" on the line above, the code still type-checks,
-	 even though I believe it should not: [p] is not known to be duplicable *)
-      set (x, i, f i)
-    );
-    x
-  end
-
 (* Resetting an entire array. *)
 (* TEMPORARY could define [reset_segment] and view [reset] as a special case? *)
 
@@ -214,7 +197,7 @@ val array2list [a] duplicable a => (x: array a) : list::list a =
 val list2array [a] duplicable a => (xs: list::list a) : array a =
   match xs with
   | Nil ->
-    zero [a] () (* TEMPORARY get rid of this type application *)
+      zero ()
   | Cons { head; tail } ->
       let x = create (1 + list::length tail, head) in
       let rec fill (i: int, xs: list::list a | x @ array a) : =x =
