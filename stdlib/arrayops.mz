@@ -118,7 +118,7 @@ val fold_down [a, b, p : perm] (
 (* Creating an empty array. *)
 
 val zero [a] () : array a =
-  init [a] (0, fun (i: int) : a = fail (* impossible *))
+  init (0, fun (i: int) : a = fail (* impossible *))
 
 (* Resetting an entire array. *)
 (* TEMPORARY could define [reset_segment] and view [reset] as a special case? *)
