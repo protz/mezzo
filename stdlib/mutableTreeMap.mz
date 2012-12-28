@@ -1213,8 +1213,8 @@ val remove [k, c: term, a] (x: k, m: treeMap k c a) : option (k, a) =
   !dst
 
 val iter [k, c: term, a, p : perm] (
-  f: (k,              a | p) -> bool,
-         m: treeMap k c a | p)  : bool =
+  f: (k,         a | p) -> bool,
+  m: treeMap k c a | p)  : bool =
   iter (f, m.tree)
 
 val for_all =
@@ -1224,8 +1224,8 @@ val for_all =
    terms of [for_all] is preferred, as a test of the type-checker. *)
 
 val exists [k, c: term, a, p : perm] (
-  f: (k,              a | p) -> bool,
-         m: treeMap k c a | p)  : bool =
+  f: (k,         a | p) -> bool,
+  m: treeMap k c a | p)  : bool =
   let notf (key: k, value: a | p) : bool =
     not (f (key, value))
   in
@@ -1287,20 +1287,18 @@ val partition [k, cmp: term, a, b, c] (
   m, TreeMap { tree = right; cmp = m.cmp }
 
 val compare [k, c: term, a] (
-  cmpk: (k, k) -> int,
-  cmpa: (a, a) -> int,
+  cmp: (a, a) -> int,
   m1: treeMap k c a,
   m2: treeMap k c a
 ) : int =
-  compare (cmpk, cmpa, m1.tree, m2.tree)
+  compare (m1.cmp, cmp, m1.tree, m2.tree)
 
 val equal [k, c: term, a] (
-  cmpk: (k, k) -> int,
-  cmpa: (a, a) -> int,
+  cmp: (a, a) -> int,
   m1: treeMap k c a,
   m2: treeMap k c a
 ) : bool =
-  compare (cmpk, cmpa, m1, m2) = 0
+  compare (cmp, m1, m2) = 0
 
 val bindings [k, c: term, a] duplicable k, duplicable a => (
   m: treeMap k c a
