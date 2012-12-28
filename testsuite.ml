@@ -721,6 +721,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("masking3.mz", simple_test Pass);
 
+  ("cps-dereliction.mz", simple_test Pass);
+
 ];;
 
 let corelib_tests: (string * ((unit -> env) -> unit)) list = [

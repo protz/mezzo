@@ -1,0 +1,25 @@
+val dereliction [a, b] (
+  f:
+    [answer, p : perm] (
+      x: a,
+      k: (b | consumes p) -> answer
+      | consumes p
+    ) -> answer
+) :
+    [answer, p : perm] (
+      x: a,
+      k: (b |          p) -> answer
+      |          p
+    ) -> answer
+=
+  (* Here, we are forced to eta-expand the function [f] and to use an
+     explicit type application. It would be nice if we could omit the
+     type application, and extra nice if we could omit the eta expansion...
+     "Ask and it will be given to you", Matthew 7:7 *)
+  fun [answer, p : perm] (
+      x: a,
+      k: (b |          p) -> answer
+      |          p
+    ) : answer =
+    f [(answer | p), p] (x, k)
+
