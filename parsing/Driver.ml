@@ -302,17 +302,19 @@ let check_implementation
   let output_env =
     match interface with
     | Some interface ->
-        let exports = List.map (fun p ->
+        (* We cannot use [Types.get_exports] here because we may have the same
+         * name at top-level twice, and [Types.get_exports] doesn't know which
+         * one ends up being exported. Instead, we can rely on [type_check] to
+         * returns for us the list of names along with the corresponding points
+         * that are exported. *)
+        let exports = Hml_List.map_flatten (fun p ->
           let k = Types.get_kind env p in
-          let name =
-            Option.extract (Hml_List.find_opt (function
-              | Types.User (mname, x) when Module.equal mname env.Types.module_name ->
-                 Some x
-              | _ ->
+          List.map (function
+            | Types.User (mname, x) when Module.equal mname env.Types.module_name ->
+               x, k, p
+            | _ ->
                  assert false
-            ) (Types.get_names env p))
-          in
-          name, k, p
+          ) (Types.get_names env p)
         ) points in
         (* If the function types are not syntactically equal, the decision
          * procedure for comparing those two types introduces internal names

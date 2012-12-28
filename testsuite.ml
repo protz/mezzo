@@ -669,6 +669,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("modules/qualified.mz", simple_test Pass);
 
+  ("modules/equations_in_mzi.mz", simple_test Pass);
+
   ("assert.mz", simple_test Pass);
 
   ("priority.mz", simple_test Pass);

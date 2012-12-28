@@ -60,6 +60,9 @@ let check
     | Some p ->
         p
     | None ->
+        List.iter (fun (name, _, _) ->
+          Log.debug "%a" Variable.p name
+        ) exports;
         let open TypeErrors in
         raise_error env (MissingFieldInSignature name)
   in
