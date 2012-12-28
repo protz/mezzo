@@ -216,50 +216,74 @@ val rec find [k, a] duplicable a => (
 
 (* The above [find] function requires [a] to be duplicable. Another approach
    is to parameterize [find] with a [copy] function that is able to copy an
-   element of type [a]. In fact, the [copy] function need not have type [a -> a].
-   Several generalizations are possible. First, we can allow [copy] to have type
-   [a -> b], which means that the function is not constrained to just copy the
-   data, but can use it in an arbitrary manner to produce data of type [b]. For
-   this reason, the client-provided function will be called [use], rather than
-   [copy]. Second, the function [use] can have type [(consumes a) -> (a, b)],
-   which means that in addition to producing some output of type [b], the client
-   can also request that the map be updated with a new value of type [a]
-   at this key. Last, the function [use] can be allowed to have an arbitrary
-   side effect at some permission [p]. This leads us to the following function,
-   [update], a generalization of [find]. *)
+   element of type [a]. In fact, an even more general idea is to offer an
+   [update] function that allows the caller to access the value found at the
+   key [x] within a lexically-delimited scope, and then to surrender it (or
+   a new version of it). *)
+
+(* Because the key [x] may be absent, the function [f] is called either never
+   or just once. Our use of a [preserved/consumed] permission pair allows
+   reflecting this. A [pre/post] permission pair would be more precise, but
+   can be used only when it is known that [f] will be called exactly once. *)
 
 val rec update
-  [k, a, b, p : perm]
-  (cmp: (k, k) -> int, 
-   use: (consumes a | p) -> (a, b),
-   x: k, t: tree k a | p) : option b =
+  [k, a, preserved : perm, consumed : perm]
+  (cmp: (k, k) -> int,
+    x: k, t: tree k a,
+    f: (consumes a | preserved * consumes consumed) -> a
+      | preserved * consumes consumed
+  ) : () =
   match t with
   | Empty ->
-      none
+      ()
   | Node ->
       let c = cmp (x, t.key) in
-      if c = 0 then begin
-	let (new_value, output) = use t.value in
-	t.value <- new_value;
-	some output
-      end
-      else if c < 0 then update (cmp, use, x, t.left)
-      else update (cmp, use, x, t.right)
+      if c = 0 then
+	t.value <- f t.value
+      else if c < 0 then
+	update [k, a, preserved, consumed] (cmp, x, t.left, f)
+	(* WISH: get rid of the above type application *)
+      else
+	update [k, a, preserved, consumed] (cmp, x, t.right, f)
   end
+
+(* The following two functions (currently not exported) show that versions
+   of [find] can be implemented in terms of [update]. *)
+
+val find_and_copy [k, a] (
+  copy: a -> a,
+  cmp: (k, k) -> int,
+  x: k,
+  t: tree k a
+) : option a =
+  let r = newref none in
+  update [k, a, (r @ ref (option a)), empty] (cmp, x, t, fun (consumes x: a | r @ ref (option a)) : a =
+    r := some (copy x);
+    x
+  );
+  !r
+
+val find_variant [k, a] duplicable a => (
+  cmp: (k, k) -> int,
+  x: k,
+  t: tree k a
+) : option a =
+  let id (x: a) : a = x in
+  find_and_copy (id, cmp, x, t)
 
 val rec mem [k, a] (cmp: (k, k) -> int, x: k, t: tree k a) : bool =
   match t with
   | Empty ->
       False
   | Node ->
-    let c = cmp (x, t.key) in
-    if c = 0 then
-      True
-    else if c < 0 then
-      mem (cmp, x, t.left)
-    else
-      mem (cmp, x, t.right)
-  end
+      let c = cmp (x, t.key) in
+      if c = 0 then
+	True
+      else if c < 0 then
+	mem (cmp, x, t.left)
+      else
+	mem (cmp, x, t.right)
+ end
 
 (* -------------------------------------------------------------------------- *)
 
@@ -1149,13 +1173,13 @@ val find [k, c: term, a] duplicable a => (
 ) : option a =
   find (m.cmp, x, m.tree)
 
-val update [k, c: term, a, b, p : perm] (
-  use: (consumes a | p) -> (a, b),
+val update [k, c: term, a, preserved : perm, consumed : perm] (
   x: k,
-  m: treeMap k c a
-| p
-) : option b =
-  update (m.cmp, use, x, m.tree)
+  m: treeMap k c a,
+  f: (consumes a | preserved * consumes consumed) -> a
+| preserved * consumes consumed
+) : () =
+  update [k, a, preserved, consumed] (m.cmp, x, m.tree, f)
 
 val mem [k, c: term, a] (x: k, m: treeMap k c a) : bool =
   mem (m.cmp, x, m.tree)

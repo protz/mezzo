@@ -30,10 +30,12 @@ val add : [k, cmp: term, a] (consumes k, consumes a, treeMap k cmp a) -> ()
 val find : [k, cmp: term, a] duplicable a => (k, treeMap k cmp a) -> option a
 *)
 
-val update : [k, cmp: term, a, b, p : perm] (
-  (consumes a | p) -> (a, b),
-  k, treeMap k cmp a | p
-) -> option b
+val update : [k, c: term, a, preserved : perm, consumed : perm] (
+  x: k,
+  m: treeMap k c a,
+  f: (consumes a | preserved * consumes consumed) -> a
+| preserved * consumes consumed
+) -> ()
 
 val mem : [k, cmp: term, a] (k, treeMap k cmp a) -> bool
 
