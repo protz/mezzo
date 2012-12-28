@@ -707,6 +707,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("queue.mz", simple_test Pass);
 
+  ("assert-bug.mz", simple_test Pass);
+
   ("function-comparison.mz", simple_test Pass);
 
   ("function-comparison2.mz", simple_test (Fail (function _ -> true)));
