@@ -966,6 +966,10 @@ and step_through_flex ?(stepped=false) env k t1 t2 =
 
 (* Determine whether two types are equal, modulo flexible variables. *)
 and equal_modulo_flex env t1 t2 =
+  (* TODO: This function should recursively descend say, on type applications,
+   * to instantiate flexible variables in depth, so that "t (u ω)" where "ω" is
+   * flexible can be considered equal to "t (u v)". Once this is done, this
+   * should fix the BUG in hashtable::create.  *)
   let equal env t1 t2 = if equal env t1 t2 then Some env else None in
   equal env t1 t2 ||| step_through_flex env equal t1 t2
 
