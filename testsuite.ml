@@ -703,12 +703,19 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("owns3.mz", simple_test Pass);
 
-  ("masking.mz", simple_test Pass);
-  (* TEMPORARY this test should fail, but I don't know with which error *)
-
   ("tuple-syntax.mz", simple_test Pass);
 
   ("queue.mz", simple_test Pass);
+
+  ("function-comparison.mz", simple_test Pass);
+
+  ("function-comparison2.mz", simple_test (Fail (function _ -> true)));
+
+  ("masking.mz", simple_test (Fail (function BadPattern _ -> true | _ -> false)));
+
+  ("masking2.mz", simple_test (Fail (function _ -> true)));
+
+  ("masking3.mz", simple_test Pass);
 
 ];;
 

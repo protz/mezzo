@@ -1,0 +1,22 @@
+open core
+
+data list a =
+  | Cons { head: a; tail: list a }
+  | Nil
+
+val rec length [a] (xs: list a) : int =
+  if xs then 1 + length xs.tail else 0
+
+data foo =
+  | Cons { head: (); tail: () }
+  | Nil
+
+mutable data ref a =
+  Ref { contents: a }
+
+val ref_length [a] (r: ref (list a)) : int =
+  (* This should fail because "Cons" and "Nil" now belong to type "foo" *)
+  match r.contents with
+  | Cons -> fail
+  | Nil  -> fail
+  end

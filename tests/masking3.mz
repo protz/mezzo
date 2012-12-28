@@ -1,0 +1,7 @@
+open core
+
+data list a =
+  | Cons { head: a; tail: list a }
+  | Nil
+
+val c = list::cons(1,list::nil)
