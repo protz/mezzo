@@ -49,42 +49,49 @@ val extract_max_binding : [k, cmp: term, a] treeMap k cmp a -> option (k, a)
 
 val remove : [k, cmp: term, a] (k, treeMap k cmp a) -> option (k, a)
 
-val iter : [k, cmp: term, a, p : perm] (
-  f: (k,           a | p) -> bool,
-  m: treeMap k cmp a | p) -> bool
+val iter : [k, c: term, a, p : perm] (
+  m: treeMap k c a,
+  f: (k, a | p) -> bool
+  | p
+) -> bool
 
 val for_all :
   =iter
 
 (* TEMPORARY add sugar for this declaration? *)
 
-val exists : [k, cmp: term, a, p : perm] (
-  f: (k,           a | p) -> bool,
-  m: treeMap k cmp a | p) -> bool
+val exists : [k, c: term, a, p : perm] (
+  m: treeMap k c a,
+  f: (k, a | p) -> bool
+  | p
+) -> bool
 
 (* TEMPORARY
-val map [k, cmp: term, a1, a2, b, p : perm] duplicable k => (
-  f: (k, consumes d:           a1 | p) -> (b           | d @           a2),
-         consumes m: treeMap k cmp a1 | p) -> (treeMap k cmp b | m @ treeMap k cmp a2)
-
-val copy : [k, cmp: term, a, b] duplicable k => (a -> b, treeMap k cmp a) -> treeMap k cmp b
+val map
+val copy
 *)
 
-val fold_ascending : [k, cmp: term, a1, a2, b, p : perm] (
-  f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
-         consumes m: treeMap k cmp a1, consumes accu: b | p) -> (b | m @ treeMap k cmp a2)
+val fold_ascending : [k, c: term, a1, a2, b, p : perm] (
+  consumes m: treeMap k c a1,
+  consumes accu: b,
+  f: (k, consumes d: a1, consumes accu: b | p) -> (b | d @ a2)
+  | p
+) -> (b | m @ treeMap k c a2)
 
-val fold_descending : [k, cmp: term, a1, a2, b, p : perm] (
-  f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
-         consumes m: treeMap k cmp a1, consumes accu: b | p) -> (b | m @ treeMap k cmp a2)
+val fold_descending : [k, c: term, a1, a2, b, p : perm] (
+  consumes m: treeMap k c a1,
+  consumes accu: b,
+  f: (k, consumes d: a1, consumes accu: b | p) -> (b | d @ a2)
+  | p
+) -> (b | m @ treeMap k c a2)
 
 val fold :
   =fold_ascending
 
 val merge : [k, cmp: term, a, b, c] (
-  f: (k, consumes option a, consumes option b) -> option c,
   consumes treeMap k cmp a,
-  consumes treeMap k cmp b
+  consumes treeMap k cmp b,
+  f: (k, consumes option a, consumes option b) -> option c
 ) -> treeMap k cmp c
 
 val split : [k, cmp: term, a] (
@@ -93,13 +100,13 @@ val split : [k, cmp: term, a] (
 ) -> (treeMap k cmp a, option a, treeMap k cmp a)
 
 val filter : [k, cmp: term, a, b] (
-  p: (k, consumes a) -> option b,
-  consumes treeMap k cmp a
+  consumes treeMap k cmp a,
+  p: (k, consumes a) -> option b
 ) -> treeMap k cmp b
 
 val partition : [k, cmp: term, a, b, c] (
-  p: (k, consumes a) -> choice b c,
-  consumes treeMap k cmp a
+  consumes treeMap k cmp a,
+  p: (k, consumes a) -> choice b c
 ) -> (treeMap k cmp b, treeMap k cmp c)
 
 val compare : [k, cmp: term, a] (

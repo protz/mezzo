@@ -492,8 +492,8 @@ val rec remove [k, a] (
    version of [iter] that has an early termination feature. *)
 
 val rec iter [k, a, p : perm] (
-  f: (k,           a | p) -> bool,
-         t: tree k a | p)  : bool =
+  f: (k,    a | p) -> bool,
+  t: tree k a | p)  : bool =
   match t with
   | Empty ->
       True
@@ -515,8 +515,8 @@ val rec iter [k, a, p : perm] (
    long as the key ordering is preserved. *)
 
 val rec map [k, a1, a2, b, p : perm] duplicable k => (
-  f: (k, consumes d:        a1 | p) -> (b        | d @        a2),
-         consumes t: tree k a1 | p)  : (tree k b | t @ tree k a2) =
+  f: (k, consumes d: a1 | p) -> (       b | d @        a2),
+  consumes t: tree k a1 | p)  : (tree k b | t @ tree k a2) =
   match t with
   | Empty ->
       Empty
@@ -1213,8 +1213,10 @@ val remove [k, c: term, a] (x: k, m: treeMap k c a) : option (k, a) =
   !dst
 
 val iter [k, c: term, a, p : perm] (
-  f: (k,         a | p) -> bool,
-  m: treeMap k c a | p)  : bool =
+  m: treeMap k c a,
+  f: (k, a | p) -> bool
+  | p
+) : bool =
   iter (f, m.tree)
 
 val for_all =
@@ -1224,41 +1226,49 @@ val for_all =
    terms of [for_all] is preferred, as a test of the type-checker. *)
 
 val exists [k, c: term, a, p : perm] (
-  f: (k,         a | p) -> bool,
-  m: treeMap k c a | p)  : bool =
-  let notf (key: k, value: a | p) : bool =
+  m: treeMap k c a,
+  f: (k, a | p) -> bool
+ | p
+) : bool =
+  not (for_all (m, fun (key: k, value: a | p) : bool =
     not (f (key, value))
-  in
-  not (for_all (notf, m))
+  ))
 
 val map [k, c: term, a1, a2, b, p : perm] duplicable k => (
-  f: (k, consumes d:           a1 | p) -> (b           | d @           a2),
-         consumes m: treeMap k c a1 | p)  : (treeMap k c b | m @ treeMap k c a2) =
+  consumes m: treeMap k c a1,
+  f: (k, consumes d: a1 | p) -> (b | d @ a2)
+  | p
+) : (treeMap k c b | m @ treeMap k c a2) =
   TreeMap { tree = map (f, m.tree); cmp = m.cmp }
 
 (* [copy] could be defined directly, but is here defined as a special case of [map]. *)
 
-val copy [k, c: term, a, b] duplicable k => (f: a -> b, m: treeMap k c a) : treeMap k c b =
-  let g (x: k, d: a) : b = f d in
-  map (g, m)
+val copy [k, c: term, a, b] duplicable k => (m: treeMap k c a, f: a -> b) : treeMap k c b =
+  map (m, fun (x: k, d: a) : b = f d)
 
 val fold_ascending [k, c: term, a1, a2, b, p : perm] (
-  f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
-         consumes m: treeMap k c a1, consumes accu: b | p)  : (b | m @ treeMap k c a2) =
+  consumes m: treeMap k c a1,
+  consumes accu: b,
+  f: (k, consumes d: a1, consumes accu: b | p) -> (b | d @ a2)
+  | p
+) : (b | m @ treeMap k c a2) =
   fold_ascending (f, m.tree, accu)
 
 val fold_descending [k, c: term, a1, a2, b, p : perm] (
-  f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
-         consumes m: treeMap k c a1, consumes accu: b | p)  : (b | m @ treeMap k c a2) =
+  consumes m: treeMap k c a1,
+  consumes accu: b,
+  f: (k, consumes d: a1, consumes accu: b | p) -> (b | d @ a2)
+  | p
+) : (b | m @ treeMap k c a2) =
   fold_descending (f, m.tree, accu)
 
 val fold =
   fold_ascending
 
 val merge [k, cmp: term, a, b, c] (
-  f: (k, consumes option a, consumes option b) -> option c,
   consumes m1: treeMap k cmp a,
-  consumes m2: treeMap k cmp b
+  consumes m2: treeMap k cmp b,
+  f: (k, consumes option a, consumes option b) -> option c
 ) : treeMap k cmp c =
   m1.tree <- merge (m1.cmp, f, m1.tree, m2.tree);
   m1
@@ -1272,19 +1282,22 @@ val split [k, c: term, a] (
   m, root.value, TreeMap { tree = root.right; cmp = m.cmp }
 
 val filter [k, c: term, a, b] (
-  p: (k, consumes a) -> option b,
-  consumes m: treeMap k c a
+  consumes m: treeMap k c a,
+  p: (k, consumes a) -> option b
 ) : treeMap k c b =
   m.tree <- filter (p, m.tree);
   m
 
 val partition [k, cmp: term, a, b, c] (
-  p: (k, consumes a) -> choice b c,
-  consumes m: treeMap k cmp a
+  consumes m: treeMap k cmp a,
+  p: (k, consumes a) -> choice b c
 ) : (treeMap k cmp b, treeMap k cmp c) =
   let left, right = partition (p, m.tree) in
   m.tree <- left;
   m, TreeMap { tree = right; cmp = m.cmp }
+
+(* We might wish to make [compare] a unary function
+   of [cmp] to a binary function of [(m1, m2)]. *)
 
 val compare [k, c: term, a] (
   cmp: (a, a) -> int,
