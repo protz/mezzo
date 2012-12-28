@@ -97,7 +97,7 @@ val fold_up [a, b, p : perm] (
   f: (a, consumes accu: b | p) -> b
   | p) : b =
   let accu = newref seed in
-  iter_array_up (x, fun (i: int | x @ array a * accu @ ref b) : () =
+  iter_array_up (x, fun (i: int | x @ array a * accu @ ref b * p) : () =
     accu := f (get (x, i), !accu )
   );
   !accu
@@ -108,7 +108,7 @@ val fold_down [a, b, p : perm] (
   f: (a, consumes accu: b | p) -> b
   | p) : b =
   let accu = newref seed in
-  iter_array_down (x, fun (i: int | x @ array a * accu @ ref b) : () =
+  iter_array_down (x, fun (i: int | x @ array a * accu @ ref b * p) : () =
     accu := f (get (x, i), !accu )
   );
   !accu
@@ -261,13 +261,32 @@ val sort [a, p : perm] duplicable a => (
      By omitting this annotation, we would be committing to preserving this
      permission, so we would be fixing a more specific type for [maxson]. In
      essence, we would be specializing the answer type [b] to a type of the
-     form [b | x @ array a]. *)
+     form [b | x @ array a].
+     
+     jonathan: I had to remove the [consumes] annotations: although the code was
+     accepted, it was (I believe) a bug in the type-checker that I just fixed.
+     Indeed, if [maxson] requires that [bottom] and [normal] consume "x @ array
+     a", then:
+     - [maxson], because it calls [normal] and [bottom], must consume "x @ array a";
+     - [trickledown], because it just calls [maxson], must consume "x @ array a"
+       as well;
+     - [trickle], because it just calls [trickledown], must consume "x @ array a"
+       as well;
+     - [iter_segment_down] expects a function that preserves its permission;
+       this is not the case when [trickle] is being passed to [iter_segment_down],
+       so that function call fails.
+     Rather than making [iter_segment_down] have "preserved" and "consumed"
+     parts, I chose to remove the various "consumes" annotations to keep the
+     code relatively readable.
+     As to why that code was ever accepted in the first place, I must say I'm
+     rather puzzled.
+     *)
 
   let maxson [b] (
     l: int, i: int,
-    bottom: (int | consumes x @ array a) -> b,
-    normal: (int | consumes x @ array a) -> b
-                 | consumes x @ array a) : b =
+    bottom: (int | p * x @ array a) -> b,
+    normal: (int | p * x @ array a) -> b
+                 | p * x @ array a) : b =
     let i31 = i+i+i+1 in
     if i31+2 < l then begin
       (* If there are three children, find which one has the maximum value. *)
@@ -295,10 +314,10 @@ val sort [a, p : perm] duplicable a => (
 
   let rec trickledown (
     l: int, i: int, e: a,
-    bottom: (int | x @ array a) -> ()
-    | x @ array a
+    bottom: (int | p * x @ array a) -> ()
+    | p * x @ array a
   ) : () =
-    maxson (l, i, bottom, fun (j: int | x @ array a) : () =
+    maxson (l, i, bottom, fun (j: int | p * x @ array a) : () =
       (* [j] is the maximum son of [i]. If the element [e] is ? than the
 	 element found at [j], then send it down, otherwise write [e] into
 	 node [i]. *)
@@ -314,8 +333,8 @@ val sort [a, p : perm] duplicable a => (
   (* The function [trickle] provides [trickledown] with a bottom continuation
      that writes [e] into the childless node.  *)
 
-  let trickle (l: int, i: int, e: a | x @ array a) : () =
-    trickledown (l, i, e, fun (i: int | x @ array a) : () =
+  let trickle (l: int, i: int, e: a | p * x @ array a) : () =
+    trickledown (l, i, e, fun (i: int | p * x @ array a) : () =
       set (x, i, e)
     )
   in
@@ -325,15 +344,15 @@ val sort [a, p : perm] duplicable a => (
      always reaches a point where [maxson] invokes its bottom continuation.
      For this reason, we can supply an identity continuation to [maxson]. *)
 
-  let identity (i: int | x @ array a) : int =
+  let identity (i: int | p * x @ array a) : int =
     i
   in
 
   let rec bubbledown (
     l: int, i: int
-    | x @ array a
+    | p * x @ array a
   ) : int =
-    maxson (l, i, identity, fun (j: int | x @ array a) : int =
+    maxson (l, i, identity, fun (j: int | p * x @ array a) : int =
       set (x, i, get (x, j));
       bubbledown (l, j)
     )
@@ -341,7 +360,7 @@ val sort [a, p : perm] duplicable a => (
 
   (* Trickle up... *)
 
-  let rec trickleup (i: int, e: a | x @ array a) : () =
+  let rec trickleup (i: int, e: a | p * x @ array a) : () =
     let father = (i - 1) / 3 in
     if cmp (get (x, father), e) < 0 then begin
       set (x, i, get (x, father));
@@ -354,10 +373,10 @@ val sort [a, p : perm] duplicable a => (
   (* The main algorithm. *)
 
   let l = length x in
-  iter_segment_down (0, (l + 1) / 3, fun (i: int | x @ array a) : () =
+  iter_segment_down (0, (l + 1) / 3, fun (i: int | p * x @ array a) : () =
     trickle (l, i, get (x, i))
   );
-  iter_segment_down (2, l, fun (i: int | x @ array a) : () =
+  iter_segment_down (2, l, fun (i: int | p * x @ array a) : () =
     let e = get (x, i) in
     set (x, i, get (x, 0));
     trickleup (bubbledown (i, 0), e)

@@ -487,14 +487,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       (* We can't create a closure over exclusive variables. Create a stripped
        * environment with only the duplicable parts. *)
-      let sub_env = fold_terms env (fun sub_env point _ _ ->
-        replace_term sub_env point (fun raw ->
-          let permissions =
-            List.filter (FactInference.is_duplicable env) raw.permissions
-          in
-          { raw with permissions }
-        )) env
-      in
+      let sub_env, _restore = Permissions.keep_only_duplicable env in
 
       (* Bind all variables. *)
       let vars = List.map fst vars in

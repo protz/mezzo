@@ -32,3 +32,7 @@ let no_auto_include =
 let filename =
   ref ""
 ;;
+
+let no_sig_check =
+  ref false
+;;

@@ -40,6 +40,7 @@ let _ =
       include directories";
     "-noautoinclude", Arg.Set Options.no_auto_include, "  Don't automatically \
       open the corelib modules";
+    "-nosigcheck", Arg.Set Options.no_sig_check, "  [for debugging only, unsound]";
   ] (fun f ->
     if !Options.filename = "" then
       Options.filename := f

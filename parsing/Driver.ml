@@ -329,21 +329,25 @@ let check_implementation
   (* Check that the implementation leaves all other modules intact (matching
    * against the signature right above may have consumed permissions from other
    * modules!) *)
-  Log.debug ~level:2 "\n%s***%s Checking %a does not alter other interfaces"
-    Bash.colors.Bash.yellow Bash.colors.Bash.default
-    Module.p mname;
-  List.iter (fun mname ->
-    let iface = find_and_lex_interface mname in
-    (* Ignore the interface, since there's no risk of an interface consuming
-     * another interface's contents! Moreover, this can be a risk: since
-     * [check_interface] has the nasty consequence that the [env] it returns is
-     * polluted with internal names (the result of performing calls to
-     * [Permissions.sub]), opening the same module twice may cause conflicts... *)
-    let exports = Types.get_exports env mname in
-    ignore (check_interface output_env iface exports)
-  ) deps;
+  if not !Options.no_sig_check then begin
+    Log.debug ~level:2 "\n%s***%s Checking %a does not alter other interfaces"
+      Bash.colors.Bash.yellow Bash.colors.Bash.default
+      Module.p mname;
+    List.iter (fun mname ->
+      let iface = find_and_lex_interface mname in
+      (* Ignore the interface, since there's no risk of an interface consuming
+       * another interface's contents! Moreover, this can be a risk: since
+       * [check_interface] has the nasty consequence that the [env] it returns is
+       * polluted with internal names (the result of performing calls to
+       * [Permissions.sub]), opening the same module twice may cause conflicts... *)
+      let exports = Types.get_exports env mname in
+      ignore (check_interface output_env iface exports)
+    ) deps;
 
-  env
+    env
+  end else begin
+    env
+  end
 ;;
 
 

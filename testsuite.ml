@@ -689,6 +689,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("ref-confusion.mz", simple_test (KFail (function _ -> true)));
 
+  ("strip_floating_perms.mz", simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
+
   ("fact-inconsistency.mz", simple_test Pass);
 
   ("dfs.mz", simple_test Pass);

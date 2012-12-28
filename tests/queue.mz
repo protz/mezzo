@@ -187,7 +187,7 @@ val fold [a, b, p:perm] (
 
   | NonEmpty { tail } ->
 
-      let rec fold (consumes acc: b, c: dynamic | q @ fifo a): b =
+      let rec fold (consumes acc: b, c: dynamic | q @ fifo a * p): b =
 	take c from q;
         let Cell { next; value } = c in
         let acc = f (value, acc) in

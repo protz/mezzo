@@ -196,6 +196,57 @@ let rec unify (env: env) (p1: point) (p2: point): env =
     List.fold_left (fun env t -> add env p1 t) env perms
 
 
+(** [keep_only_duplicable env] strips out from [env] all the non-duplicable
+   parts, and returns a function that can undo this operation while still
+   retaining all the unifications and instanciations that were performed.
+*)
+and keep_only_duplicable (env: env): env * (env -> env) =
+  (* Let [env] be the environment stripped out of all its non-duplicable
+   * permissions, and let [all_perms] be the set of all permissions we
+   * stripped. *)
+  let env, all_perms = fold_terms env (fun (env, acc) point _ { permissions; _ } ->
+    let dup = List.filter (FactInference.is_duplicable env) permissions in
+    let env =
+      replace_term env point (function binding -> { binding with permissions = dup })
+    in
+    let permissions =
+      List.filter (function TySingleton _ | TyUnknown -> false | _ -> true) permissions
+    in
+    let permissions = List.map (fun t -> TyAnchoredPermission (TyPoint point, t)) permissions in
+    env, permissions @ acc
+  ) (env, []) in
+
+  (* Don't forget the abstract perm variables. *)
+  let all_floating = env.floating_permissions in
+  let dup_floating =
+    List.filter (fun x -> FactInference.is_duplicable env (TyPoint x)) all_floating
+  in
+  let env = { env with floating_permissions = dup_floating } in
+
+  (* Micro sanity check. *)
+  Log.check (List.length dup_floating = 0)
+    "As far as I can tell, there's no point in having an abstract duplicable permission...";
+
+  (* Here's what we need to do to restore the environment to its initial state,
+   * while still retaining all the unifications that took place. *)
+  let restore env =
+    let env = fold_terms env (fun env point _ _ ->
+      replace_term env point (function binding -> {
+        binding with permissions = initial_permissions_for_point point
+    })) env in
+
+    let env = Log.silent (fun () ->
+      List.fold_left add_perm env all_perms
+    ) in
+    let env = { env with floating_permissions = all_floating } in
+
+    env
+  in
+
+  env, restore
+
+
+
 (** [add env point t] adds [t] to the list of permissions for [p], performing all
     the necessary legwork. *)
 and add (env: env) (point: point) (t: typ): env =
@@ -526,15 +577,16 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
   let sort x y = sort x - sort y in
   let permissions = List.sort sort permissions in
 
-  (* I'm commenting out this function because in the absence of a bottom element
-   * in our fact lattice, this check is overly restrictive. When introducing a
-   * universally quantified variable, we should introduce it with fact "any",
-   * instead of affine, but that would complicate things much more... see
-   * [tests/fact-inconsistency.mz]. *) 
-  (* let debug env hd t duplicable =
+  (* I'm commenting out part of this function because in the absence of a bottom
+   * element in our fact lattice, this check is overly restrictive. When
+   * introducing a universally quantified variable, we should introduce it with
+   * fact "any", instead of affine, but that would complicate things much
+   * more... see [tests/fact-inconsistency.mz]. *) 
+  let debug env hd t duplicable =
     let open TypePrinter in
     let open Bash in
-    let f1 = FactInference.analyze_type env hd in
+    ignore hd;
+    (* let f1 = FactInference.analyze_type env hd in
     let f2 = FactInference.analyze_type env t in
     Log.check
       (fact_leq f1 f2)
@@ -542,14 +594,14 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
       ptype (env, hd)
       pfact f1
       ptype (env, t)
-      pfact f2;
+      pfact f2; *)
     Log.debug ~level:4 "%sTaking%s %a out of the permissions for %a \
       (really? %b)"
       colors.yellow colors.default
       ptype (env, t)
       pvar (env, get_name env point)
       (not duplicable);
-  in *)
+  in
 
   (* [take] proceeds left-to-right *)
   match Hml_List.take (fun x -> sub_type env x t) permissions with
@@ -557,7 +609,9 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
       (* [t_x] is the "original" type found in the list of permissions for [x].
        * -- see [tests/fact-inconsistency.mz] as to why I believe it's correct
        * to check [t_x] for duplicity and not just [t]. *)
-      if FactInference.is_duplicable env t_x then
+      let duplicable = FactInference.is_duplicable env t_x in
+      debug env t_x t duplicable;
+      if duplicable then
         Some env
       else
         Some (replace_term env point (fun binder ->
@@ -758,40 +812,41 @@ and sub_type_real env t1 t2 =
       sub_type env t1 t2
 
   | TyArrow (t1, t2), TyArrow (t'1, t'2) ->
-      (* Strip the non-duplicable parts out of the environment. *)
-      let env, all_perms = fold_terms env (fun (env, acc) point _ { permissions; _ } ->
-        let dup = List.filter (FactInference.is_duplicable env) permissions in
-        let env =
-          replace_term env point (function binding -> { binding with permissions = dup })
-        in
-        let permissions =
-          List.filter (function TySingleton _ | TyUnknown -> false | _ -> true) permissions
-        in
-        let permissions = List.map (fun t -> TyAnchoredPermission (TyPoint point, t)) permissions in
-        env, permissions @ acc
-      ) (env, []) in
+      (*   The logic here is only roughly correct. What we do is compare the
+       * function types in an environment where all non-duplicable permissions
+       * have been removed. (We keep a copy of *all* the permissions.). Then,
+       * because function comparison may have added/removed permissions as part
+       * of its work, we zero-out the environment, that is, we remove all
+       * permissions from it; finally, we add back into the environment the
+       * entire, initial set of permissions.
+       *   This is a bit brutal, but then this amounts to retaining from the
+       * function comparison only the unifications that were performed. *)
+
+      (* 1) Get an environment stripped out of all its non-duplicable
+       * permissions. *)
+      let env, restore = keep_only_duplicable env in
+
+      (* 2) Let us compare the domains... *)
       Log.debug ~level:4 "%sArrow / Arrow, left%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
       sub_type env t'1 t1 >>= fun env ->
+
+      (* 3) And let us compare the codomains... *)
       Log.debug ~level:4 "%sArrow / Arrow, right%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
       sub_type env t2 t'2 >>= fun env ->
+
+      (* 4) We have successfully compared these function types. Just return the
+       * "restored" environment, that is, the environment with the exact same
+       * set of original permissions, except that the unifications that took
+       * place are now retained. *)
       Log.debug ~level:4 "%sArrow / Adding back permissions%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
-      let env = fold_terms env (fun env point _ _ ->
-        replace_term env point (function binding -> {
-          binding with permissions = initial_permissions_for_point point
-      })) env in
-      let env = Log.silent (fun () ->
-        List.fold_left add_perm env all_perms
-      ) in
-      Log.debug ~level:4 "%sArrow / End%s"
-        Bash.colors.Bash.red
-        Bash.colors.Bash.default;
-      Some env
+
+      Some (restore env)
 
   (* "(t1 | p1)" - "(t2 | p2)" means doing [t1 - t2], adding all of [p1],
    * removing all of [p2]. But the order in which we perform these operations

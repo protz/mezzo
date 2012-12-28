@@ -62,7 +62,10 @@ val add_hint: (name option) -> string -> (name option)
 (** This is for debugging, it runs a consistency check on a given environment. *)
 val safety_check: env -> unit
 
-(* Strip out all the constraints from a type. *)
+(** Strip out all the constraints from a type. *)
 val collect_constraints: typ -> typ * duplicity_constraint list
+
+(** Strip the non-duplicable parts. *)
+val keep_only_duplicable: env -> env * (env -> env)
 
 val add_constraints: env -> duplicity_constraint list -> env
