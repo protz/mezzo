@@ -838,7 +838,7 @@ let translate_item env item strict =
   | PermDeclaration (x, t) ->
       check env t KType;
       let t = translate_type env t in
-      let env = bind env (x, KType) in
+      let env = bind env (x, KTerm) in
       env, Some (E.PermDeclaration (x, t))
   | OpenDirective mname ->
       open_module_in mname env, None

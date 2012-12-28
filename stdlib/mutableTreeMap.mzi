@@ -51,12 +51,9 @@ val iter : [k, cmp: term, a, p : perm] (
   f: (k,              a | p) -> bool,
          m: treeMap k cmp a | p) -> bool
 
-(* BUG? the following declaration gives rise to this error:
-   this is a type but we were expecting a term
-
 val for_all :
   =iter
-*)
+
 (* TEMPORARY add sugar for this declaration? *)
 
 val exists : [k, cmp: term, a, p : perm] (
@@ -79,10 +76,8 @@ val fold_descending : [k, cmp: term, a1, a2, b, p : perm] (
   f: (k, consumes d:           a1, consumes accu: b | p) -> (b | d @           a2),
          consumes m: treeMap k cmp a1, consumes accu: b | p) -> (b | m @ treeMap k cmp a2)
 
-(* TEMPORARY
 val fold :
   =fold_ascending
-*)
 
 val merge : [k, cmp: term, a, b, c] (
   f: (k, consumes option a, consumes option b) -> option c,
