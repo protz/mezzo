@@ -1122,14 +1122,11 @@ val compare_variant [k, a] (
 
 (* Conversion of a tree to a list. *)
 
-(* BUG All permissions should be in expanded form *)
-(* 
 val bindings [k, a] duplicable k, duplicable a => (t: tree k a) : list::list (k, a) =
   let f (x: k, v: a, accu: list::list (k, a)) : list::list (k, a) =
     list::cons ((x, v), accu)
   in
-  fold_descending (* [k, a, a, list::list (k, a), empty] *) (f, t, list::nil)
-*)
+  fold_descending (f, t, list::nil)
 
 (* -------------------------------------------------------------------------- *)
 (* -------------------------------------------------------------------------- *)
@@ -1305,7 +1302,11 @@ val equal [k, c: term, a] (
 ) : bool =
   compare (cmpk, cmpa, m1, m2) = 0
 
-(* TEMPORARY bindings *)
+val bindings [k, c: term, a] duplicable k, duplicable a => (
+  m: treeMap k c a
+) : list::list (k, a) =
+  bindings m.tree
+
 (* TEMPORARY compare .mzi file with map.mli *)
 
 (*
