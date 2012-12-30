@@ -1,0 +1,6 @@
+val f [p : perm] (g: (int|p) -> int | p): int =
+  let h (): int =
+    (* [p] should no longer be available, so this should fail! *)
+    g 2
+  in
+  h ()
