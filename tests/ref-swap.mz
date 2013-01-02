@@ -1,6 +1,6 @@
 mutable data ref a = Ref { contents: a }
 
-val swap [a, b]
+val sswap [a, b]
   (consumes r: ref a, consumes s: ref b)
 : (| r @ ref b * s @ ref a)
 =
@@ -11,7 +11,7 @@ val swap [a, b]
 mutable data pool a = Pool {}
   adopts ref a
 
-val swap [a] (p: pool a, r: dynamic, s: dynamic) : () =
+val wswap [a] (p: pool a, r: dynamic, s: dynamic) : () =
   if r != s then begin
     take r from p;
     take s from p;
