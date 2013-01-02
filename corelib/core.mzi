@@ -12,21 +12,23 @@ val ( + ) : (int, int) -> int
  * permission revealing that the two identifiers are equal. *)
 
 (* TEMPORARY going even further, could we use rich_bool everywhere, i.e. view
-   bool as a type abbreviation for rich_bool empty? If so, we would probably
-   wish to include also a permission q for the False case. And define the
-   Boolean operators to preserve permissions where possible. *)
+   bool as a type abbreviation for rich_bool empty empty? We would need to
+   assign precise types to the Boolean operators. *)
 
-data rich_bool (p : perm) =
+data rich_bool (p : perm) (q: perm) =
   | RichTrue { | p }
-  | RichFalse
+  | RichFalse { | q }
 
-val ( == ) : (x: unknown, y: unknown) -> rich_bool (x = y)
+val ( == ) : (x: unknown, y: unknown) -> rich_bool (x = y) empty
+val ( != ) : (x: unknown, y: unknown) -> rich_bool empty (x = y)
 
 (* TEMPORARY on pourrait vouloir restreindre le test d'égalité == aux types
    exclusifs, ce qui permettrait de partager les blocs immutables sans
    contredire la sémantique officielle. C'est un peu un point de détail.
    D'un point de vue strictement pratique, ce ne serait pas une
    super idée? *)
+
+(* TEMPORARY reverse convention: False | True *)
 
 data bool = True | False
 

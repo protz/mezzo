@@ -723,6 +723,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("cps-dereliction.mz", simple_test Pass);
 
+  ("ref-swap.mz", simple_test Pass);
+
 ];;
 
 let corelib_tests: (string * ((unit -> env) -> unit)) list = [

@@ -189,6 +189,7 @@ let rec token = lexer
 | "@" -> locate lexbuf AT
 
 | "-" -> locate lexbuf MINUS
+| "!=" -> locate lexbuf (OPINFIX0 (utf8_lexeme lexbuf))
 | op_prefix symbolchar* -> locate lexbuf (OPPREFIX (utf8_lexeme lexbuf))
 | op_infix0 symbolchar* -> locate lexbuf (OPINFIX0 (utf8_lexeme lexbuf))
 | op_infix1 symbolchar* -> locate lexbuf (OPINFIX1 (utf8_lexeme lexbuf))
