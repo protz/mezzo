@@ -15,7 +15,7 @@ val wswap [a] (p: pool a, r: dynamic, s: dynamic) : () =
   if r != s then begin
     take r from p;
     take s from p;
-    swap (r, s);
+    sswap (r, s);
     give s to p;
     give r to p
   end
