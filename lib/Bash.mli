@@ -25,6 +25,7 @@ type colors = {
   red: string;
   blue: string;
   yellow: string;
+  orange: string;
   default: string;
   underline: string;
 }

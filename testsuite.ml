@@ -39,42 +39,55 @@ type outcome =
   | Fail of (raw_error -> bool)
   | Pass
 
-let simple_test ?(pedantic=false) outcome = fun do_it ->
+exception KnownFailure
+
+let simple_test ?(pedantic=false) ?known_failure outcome = fun do_it ->
+  let known_failure = Option.unit_bool known_failure in
+  let raise_if (e: exn): unit =
+    if not known_failure then
+      raise e
+    else
+      raise KnownFailure
+  in
+  let success_if (): unit =
+    if known_failure then
+      raise (Failure "Test started working, remove ~known_failure!")
+  in
   try
     Options.pedantic := pedantic;
     ignore (do_it ());
     match outcome with
     | KFail _ ->
-        raise (Failure "Test passed, it was supposed to fail")
+        raise_if (Failure "Test passed, it was supposed to fail")
     | Fail _ ->
-        raise (Failure "Test passed, it was supposed to fail")
+        raise_if (Failure "Test passed, it was supposed to fail")
     | Pass ->
-        ();
+        success_if ()
   with
   | TypeCheckerError (_, e) ->
       begin match outcome with
       | Pass ->
-          raise (Failure "Test failed, it was supposed to pass")
+          raise_if (Failure "Test failed, it was supposed to pass")
       | Fail f ->
           if f e then
-            ()
+            success_if ()
           else
-            raise (Failure "Test failed but not for the right reason")
+            raise_if (Failure "Test failed but not for the right reason")
       | KFail _ ->
-          raise (Failure "Test failed but not for the right reason")
+          raise_if (Failure "Test failed but not for the right reason")
       end
 
   | K.KindError (_, e) ->
       begin match outcome with
       | Pass ->
-          raise (Failure "Test failed, it was supposed to pass")
+          raise_if (Failure "Test failed, it was supposed to pass")
       | KFail f ->
           if f e then
-            ()
+            success_if ()
           else
-            raise (Failure "Test failed but not for the right reason")
+            raise_if (Failure "Test failed but not for the right reason")
       | Fail _ ->
-          raise (Failure "Test failed but not for the right reason")
+          raise_if (Failure "Test failed but not for the right reason")
       end
 ;;
 
@@ -707,19 +720,19 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("queue.mz", simple_test Pass);
 
-  ("same-type-var-bug.mz", simple_test (Fail (function _ -> true)));
+  ("same-type-var-bug.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
 
-  ("assert-bug.mz", simple_test Pass);
+  ("assert-bug.mz", simple_test ~known_failure:() Pass);
 
-  ("function-comparison.mz", simple_test Pass);
+  ("function-comparison.mz", simple_test ~known_failure:() Pass);
 
-  ("function-comparison2.mz", simple_test (Fail (function _ -> true)));
+  ("function-comparison2.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
 
-  ("masking.mz", simple_test (Fail (function BadPattern _ -> true | _ -> false)));
+  ("masking.mz", simple_test ~known_failure:() (Fail (function BadPattern _ -> true | _ -> false)));
 
-  ("masking2.mz", simple_test (Fail (function _ -> true)));
+  ("masking2.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
 
-  ("masking3.mz", simple_test Pass);
+  ("masking3.mz", simple_test ~known_failure:() Pass);
 
   ("cps-dereliction.mz", simple_test Pass);
 
@@ -744,7 +757,7 @@ let _ =
   Driver.add_include_dir (Filename.concat Configure.root_dir "corelib");
   Driver.add_include_dir (Filename.concat Configure.root_dir "stdlib");
   let failed = ref 0 in
-  let run prefix tests = 
+  let run prefix tests =
     List.iter (fun (file, test) ->
       Log.warn_count := 0;
       let do_it = fun () ->
@@ -760,13 +773,17 @@ let _ =
             (if !Log.warn_count > 1 then "s" else "")
         else
           Printf.printf "%s✓ %s%s\n" colors.green colors.default file;
-      with e ->
-        failed := !failed + 1;
-        Printf.printf "%s✗ %s%s\n" colors.red colors.default file;
-        print_endline (Printexc.to_string e);
-        Printexc.print_backtrace stdout;
-        if e = Exit then
-          raise e
+      with
+      | KnownFailure ->
+          failed := !failed + 1;
+          Printf.printf "%s! %s%s\n" colors.orange colors.default file;
+      | Exit ->
+          exit 255
+      | _ as e ->
+          failed := !failed + 1;
+          Printf.printf "%s✗ %s%s\n" colors.red colors.default file;
+          print_endline (Printexc.to_string e);
+          Printexc.print_backtrace stdout;
       end;
       flush stdout;
       flush stderr;

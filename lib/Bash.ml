@@ -22,6 +22,7 @@ type colors = {
   red: string;
   blue: string;
   yellow: string;
+  orange: string;
   default: string;
   underline: string;
 }
@@ -32,6 +33,7 @@ let colors = {
   red = mkcolor 203;
   blue = mkcolor 81;
   yellow = mkcolor 227;
+  orange = mkcolor 202;
   underline = "\x1b[4m";
   default = "\x1b[0m";
 }
