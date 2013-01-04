@@ -852,7 +852,7 @@ and sub_type_real env t1 t2 =
    * removing all of [p2]. But the order in which we perform these operations
    * matters, unfortunately... see commit message 432b4ee for more comments. *)
   | TyBar (t1, p1), TyBar (t2, p2) ->
-      Log.debug "[add_sub] entering...";
+      Log.debug ~level:4 "[add_sub] entering...";
       (*   Alright, this is a fairly complicated logic (euphemism), but it is
        * seriously needed for any sort of situation that involves
        * higher-order... The grand scheme is: we should always fight to
@@ -922,7 +922,7 @@ and sub_type_real env t1 t2 =
       let vars1, ps1 = List.partition (function TyPoint _ -> true | _ -> false) ps1 in
       let vars2, ps2 = List.partition (function TyPoint _ -> true | _ -> false) ps2 in
       (* Try to eliminate as much as we can... *)
-      Log.debug "ps1=%a, ps2=%a, vars1=%a, vars2=%a"
+      Log.debug ~level:4 "ps1=%a, ps2=%a, vars1=%a, vars2=%a"
         TypePrinter.ptype (env, fold_star ps1)
         TypePrinter.ptype (env, fold_star ps2)
         TypePrinter.ptype (env, fold_star vars1)

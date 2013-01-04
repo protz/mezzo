@@ -34,6 +34,13 @@ let debug ?level fmt =
 let warn_count = ref 0
 let warn x = incr warn_count; debug ~level:0 x
 
+let raise_level d f =
+  let l = !the_debug_level in
+  the_debug_level := !the_debug_level - d;
+  let r = f () in
+  the_debug_level := l;
+  r
+
 let silent f =
   let l = !the_debug_level in
   the_debug_level := 0;

@@ -689,7 +689,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
       lazy begin
         try
           if equal top left_perm right_perm then begin
-            Log.debug "→ fast_path, the types are equal in the original environment, \
+            Log.debug ~level:5 "→ fast_path, the types are equal in the original environment, \
               don't touch them";
             Some (left_env, right_env, dest_env, left_perm)
           end else begin
@@ -746,7 +746,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             and flex_right = is_flexible right_env right_p in
             let left_p = PersistentUnionFind.repr left_p left_env.state in
             let right_p = PersistentUnionFind.repr right_p right_env.state in
-            Log.debug "  [p2p] %b, %b" flex_left flex_right;
+            Log.debug ~level:5 "  [p2p] %b, %b" flex_left flex_right;
 
             begin match flex_left, flex_right with
             | false, false ->

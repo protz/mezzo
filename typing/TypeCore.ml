@@ -287,7 +287,7 @@ let get_kind (env: env) (point: point): kind =
 let merge_left env p2 p1 =
   let open Bash in
   Log.check (get_kind env p1 = get_kind env p2) "Kind mismatch when merging";
-  Log.debug "%sMerging%s %a into %a"
+  Log.debug ~level:5 "%sMerging%s %a into %a"
     colors.red colors.default
     !internal_pnames (env, get_names env p1)
     !internal_pnames (env, get_names env p2);
