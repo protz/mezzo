@@ -175,8 +175,10 @@ let perm_not_flex env t =
       not (is_flexible env !!x)
   | TyPoint p ->
       not (is_flexible env p)
+  | TyEmpty ->
+      false
   | _ ->
-      Log.error "You should call [flatten_star] on %a"
+      Log.error "You should not call [perm_not_flex] on %a"
         TypePrinter.ptype (env, t)
 ;;
 
@@ -881,6 +883,8 @@ and sub_type_real env t1 t2 =
               TyAnchoredPermission (x, t) :: ps
             else
               [TyAnchoredPermission (x, t)]
+        | TyEmpty ->
+            []
         | _ ->
             [t]
       in
@@ -909,9 +913,6 @@ and sub_type_real env t1 t2 =
                 let env = Option.extract (sub_perm env p2) in
                 add_sub env ps1 ps2
             | None ->
-                Log.debug ~level:4 "[add_sub] finished with ps1=%a ps2=%a"
-                  TypePrinter.ptype (env, fold_star ps1)
-                  TypePrinter.ptype (env, fold_star ps2);
                 env, ps1, ps2
       in
       (* Our new strategy for inferring PERM variables is as follows. We
@@ -922,12 +923,17 @@ and sub_type_real env t1 t2 =
       let vars1, ps1 = List.partition (function TyPoint _ -> true | _ -> false) ps1 in
       let vars2, ps2 = List.partition (function TyPoint _ -> true | _ -> false) ps2 in
       (* Try to eliminate as much as we can... *)
-      Log.debug ~level:4 "ps1=%a, ps2=%a, vars1=%a, vars2=%a"
+      Log.debug ~level:4 "[add_sub] starting with ps1=%a, ps2=%a, vars1=%a, vars2=%a"
         TypePrinter.ptype (env, fold_star ps1)
         TypePrinter.ptype (env, fold_star ps2)
         TypePrinter.ptype (env, fold_star vars1)
         TypePrinter.ptype (env, fold_star vars2);
       let env, ps1, ps2 = add_sub env ps1 ps2 in
+      Log.debug ~level:4 "[add_sub] ended up with ps1=%a, ps2=%a, vars1=%a, vars2=%a"
+        TypePrinter.ptype (env, fold_star ps1)
+        TypePrinter.ptype (env, fold_star ps2)
+        TypePrinter.ptype (env, fold_star vars1)
+        TypePrinter.ptype (env, fold_star vars2);
       (* And then try to be smart with whatever remains. *)
       begin match vars1 @ ps1, vars2 @ ps2 with
       | [TyPoint var1], [TyPoint var2] ->
@@ -954,14 +960,11 @@ and sub_type_real env t1 t2 =
           None
       end
 
-  | TyBar (t1, p1), t2 ->
-      let env = add_perm env p1 in
-      sub_type env t1 t2
+  | TyBar _, t2 ->
+      sub_type env t1 (TyBar (t2, TyEmpty))
 
-  | t1, TyBar (t2, p2) ->
-      (* Is the order important here? *)
-      sub_type env t1 t2 >>= fun env ->
-      sub_perm env p2
+  | t1, TyBar _ ->
+      sub_type env (TyBar (t1, TyEmpty)) t2
 
   | _ ->
       None
