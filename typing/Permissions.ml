@@ -915,25 +915,34 @@ and sub_type_real env t1 t2 =
             | None ->
                 env, ps1, ps2
       in
-      (* Our new strategy for inferring PERM variables is as follows. We
-       * optimize for the case where we have only one flexible variable on one
-       * side. We first put the PERM variables aside, perform the add/sub dance,
-       * and see what's left. If either side is made up of just one flexible
-       * PERM variable, then bingo, we win. *)
+      (* Our new strategy for inferring PERM variables is as follows. We first
+       * put the PERM variables aside, perform the add/sub dance, and see what's
+       * left. If either side is made up of just one flexible PERM variable,
+       * then bingo, we win.
+       *
+       * FIXME: this works very well when the flexible variable is in [vars1]; when
+       * it is in [vars2], chances are, we've added everything from [ps1] into
+       * the environment, so we don't know what's left for us to instanciate
+       * [ps2] with... first try a syntactic criterion? Only add permissions in
+       * [ps1] if they “unlock” something in [ps2]? I don't know... *)
       let vars1, ps1 = List.partition (function TyPoint _ -> true | _ -> false) ps1 in
       let vars2, ps2 = List.partition (function TyPoint _ -> true | _ -> false) ps2 in
-      (* Try to eliminate as much as we can... *)
+
       Log.debug ~level:4 "[add_sub] starting with ps1=%a, ps2=%a, vars1=%a, vars2=%a"
         TypePrinter.ptype (env, fold_star ps1)
         TypePrinter.ptype (env, fold_star ps2)
         TypePrinter.ptype (env, fold_star vars1)
         TypePrinter.ptype (env, fold_star vars2);
+
+      (* Try to eliminate as much as we can... *)
       let env, ps1, ps2 = add_sub env ps1 ps2 in
+
       Log.debug ~level:4 "[add_sub] ended up with ps1=%a, ps2=%a, vars1=%a, vars2=%a"
         TypePrinter.ptype (env, fold_star ps1)
         TypePrinter.ptype (env, fold_star ps2)
         TypePrinter.ptype (env, fold_star vars1)
         TypePrinter.ptype (env, fold_star vars2);
+
       (* And then try to be smart with whatever remains. *)
       begin match vars1 @ ps1, vars2 @ ps2 with
       | [TyPoint var1], [TyPoint var2] ->

@@ -78,7 +78,11 @@ val consult : [a, preserved : perm, consumed : perm, b] (
 
 (* TEMPORARY since [f] is called exactly once, a [pre/post] pair would be
    more precise/expressive than a [preserved/consumed] pair; but less
-   convenient? *)
+   convenient?
+   
+   jonathan: switching to a [pre/post] pair saves one explicit type application
+   in [hashtable.mz]... not sure it's worth changing it to something more
+   sophisticated *)
 
 val update : [a, preserved : perm, consumed : perm] (
   array a, int,
