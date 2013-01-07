@@ -1,0 +1,4 @@
+open absdefs2
+
+val v1: [a] t a = f1 ()
+val v2: [a] t a = f2 ()

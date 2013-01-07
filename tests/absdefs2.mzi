@@ -1,0 +1,4 @@
+abstract t a
+
+val f1: [a] () -> t a
+val f2: () -> [a] t a

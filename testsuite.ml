@@ -734,6 +734,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("masking3.mz", simple_test ~known_failure:() Pass);
 
+  ("bad-linearity.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
+
+  ("bad-generalization.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
+
   ("cps-dereliction.mz", simple_test Pass);
 
   ("ref-swap.mz", simple_test Pass);
