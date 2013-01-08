@@ -83,6 +83,27 @@ let safety_check env =
 
 (* -------------------------------------------------------------------------- *)
 
+(* Dealing with floating permissions. *)
+
+let sub_floating_permission env p =
+  match Hml_List.take_bool (same env p) env.floating_permissions with
+  | Some (remaining_perms, _) ->
+      if FactInference.is_duplicable env (TyPoint p) then
+        Some env
+      else
+        Some { env with floating_permissions = remaining_perms }
+  | None ->
+      None
+;;
+
+
+let add_floating_permission env p =
+  { env with floating_permissions = p :: env.floating_permissions }
+;;
+
+
+(* -------------------------------------------------------------------------- *)
+
 let add_hint hint str =
   match hint with
   | Some (Auto n)
@@ -191,7 +212,7 @@ let rec unify (env: env) (p1: point) (p2: point): env =
   if same env p1 p2 then
     env
   else
-    (* We need to first merge the environment, otherwise this will go into an
+   (* We need to first merge the environment, otherwise this will go into an
      * infinite loop when hitting the TySingletons... *)
     let perms = get_permissions env p2 in
     let env = merge_left env p1 p2 in
@@ -346,7 +367,7 @@ and add_perm (env: env) (t: typ): env =
       | None ->
           add_floating_permission env p
       end
- 
+
   | _ ->
       Log.error "This only works for types with kind perm."
 
@@ -583,12 +604,11 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
    * element in our fact lattice, this check is overly restrictive. When
    * introducing a universally quantified variable, we should introduce it with
    * fact "any", instead of affine, but that would complicate things much
-   * more... see [tests/fact-inconsistency.mz]. *) 
+   * more... see [tests/fact-inconsistency.mz]. *)
   let debug env hd t duplicable =
     let open TypePrinter in
     let open Bash in
-    ignore hd;
-    (* let f1 = FactInference.analyze_type env hd in
+    let f1 = FactInference.analyze_type env hd in
     let f2 = FactInference.analyze_type env t in
     Log.check
       (fact_leq f1 f2)
@@ -596,7 +616,7 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
       ptype (env, hd)
       pfact f1
       ptype (env, t)
-      pfact f2; *)
+      pfact f2;
     Log.debug ~level:4 "%sTaking%s %a out of the permissions for %a \
       (really? %b)"
       colors.yellow colors.default
@@ -666,36 +686,51 @@ and sub_type_real env t1 t2 =
       ) (Some env) constraints
 
 
-  | TyForall ((binding, _), t1), _ ->
-      (* The type variable is bound as affine, which is the maximum mode
-       * allowed; we can see the mode of a flexible variable as an upper bound
-       * on what it can instantiate to. If we encounter a constraint, such as
-       * "duplicable a", we will refine the fact to "duplicable", thus lowering
-       * the bound. *)
-      let env, t1 = bind_var_in_type ~flexible:true env binding t1 in
-      let t1, perms = collect t1 in
-      let env = add_perm env (fold_star perms) in
-      sub_type env t1 t2
+  (** Higher priority for binding rigid = universal quantifiers.
+   *
+   * We could have a lower element called [any] in             aff
+   * the fact lattice, and because these variables           /    \
+   * are universal, they would have that fact.             dup   excl
+   * However, we don't have it, so we can pick an            \    /
+   * element as low as we want. We choose                     any
+   * duplicable, because we know it's the optimal
+   * choice given our limited set of facts.            fig 1: a better
+   *                                                  lattice for facts
+   * *)
 
   | _, TyForall ((binding, _), t2) ->
-      (* Typical use-case: Nil vs [a] list a. We're binding this as a *rigid*
-       * type variable. *)
-      let env, t2 = bind_var_in_type env binding t2 in
+      let env, t2 = bind_var_in_type env ~fact:(Duplicable [||]) binding t2 in
       let t2, perms = collect t2 in
       sub_perm env (fold_star perms) >>= fun env ->
       sub_type env t1 t2
 
   | TyExists (binding, t1), _ ->
-      let env, t1 = bind_var_in_type env binding t1 in
+      let env, t1 = bind_var_in_type env ~fact:(Duplicable [||]) binding t1 in
+      let t1, perms = collect t1 in
+      let env = add_perm env (fold_star perms) in
+      sub_type env t1 t2
+
+
+  (** Lower priority for binding flexible = existential quantifiers.
+   *
+   * Conversely, since these are existentially quantified, we have to be
+   * conservative, and pick the highest element in the fact lattice. It's the
+   * default value. *)
+
+  | TyForall ((binding, _), t1), _ ->
+      let env, t1 = bind_var_in_type ~flexible:true ~fact:Affine env binding t1 in
       let t1, perms = collect t1 in
       let env = add_perm env (fold_star perms) in
       sub_type env t1 t2
 
   | _, TyExists (binding, t2) ->
-      let env, t2 = bind_var_in_type ~flexible:true env binding t2 in
+      let env, t2 = bind_var_in_type ~flexible:true ~fact:Affine env binding t2 in
       let t2, perms = collect t2 in
       sub_type env t1 t2 >>= fun env ->
       sub_perm env (fold_star perms)
+
+
+  (** Structural rules *)
 
   | TyTuple components1, TyTuple components2
     when List.length components1 = List.length components2 ->
@@ -844,7 +879,7 @@ and sub_type_real env t1 t2 =
        * "restored" environment, that is, the environment with the exact same
        * set of original permissions, except that the unifications that took
        * place are now retained. *)
-      Log.debug ~level:4 "%sArrow / Adding back permissions%s"
+      Log.debug ~level:4 "%sArrow / End -- adding back permissions%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
 
@@ -965,7 +1000,10 @@ and sub_type_real env t1 t2 =
           Some (instantiate_flexible env var1 (fold_star ps2))
       | [], [] ->
           Some env
-      | _ ->
+      | [], ps2 ->
+          sub_perms env ps2
+      | _, _ ->
+          Log.debug ~level:4 "[add_sub] FAILED";
           None
       end
 

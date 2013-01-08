@@ -168,22 +168,6 @@ let fold_exists bindings t =
 let fresh_auto_var prefix = Auto (Utils.fresh_var prefix);;
 
 
-(* -------------------------------------------------------------------------- *)
-
-(* Dealing with floating permissions. *)
-
-let sub_floating_permission env p =
-  match Hml_List.take_bool (same env p) env.floating_permissions with
-  | Some (perms, _) ->
-      Some { env with floating_permissions = perms }
-  | None ->
-      None
-;;
-
-let add_floating_permission env p =
-  { env with floating_permissions = p :: env.floating_permissions }
-;;
-
 
 (* -------------------------------------------------------------------------- *)
 
@@ -265,10 +249,10 @@ let bind_var (env: env) ?flexible ?(fact=Affine) (name, kind, location: type_bin
 let bind_var_in_type2
     (env: env)
     (binding: type_binding)
-    ?flexible
+    ?flexible ?fact
     (typ: typ): env * typ * point
   =
-  let env, point = bind_var env ?flexible binding in
+  let env, point = bind_var env ?flexible ?fact binding in
   let typ = tsubst (TyPoint point) 0 typ in
   env, typ, point
 ;;
@@ -276,10 +260,10 @@ let bind_var_in_type2
 let bind_var_in_type
     (env: env)
     (binding: type_binding)
-    ?flexible
+    ?flexible ?fact
     (typ: typ): env * typ
   =
-  let env, typ, _ = bind_var_in_type2 env binding ?flexible typ in
+  let env, typ, _ = bind_var_in_type2 env binding ?flexible ?fact typ in
   env, typ
 ;;
 

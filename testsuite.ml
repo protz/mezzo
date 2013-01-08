@@ -781,7 +781,6 @@ let _ =
           Printf.printf "%s✓ %s%s\n" colors.green colors.default file;
       with
       | KnownFailure ->
-          failed := !failed + 1;
           Printf.printf "%s! %s%s\n" colors.orange colors.default file;
       | Exit ->
           exit 255
@@ -822,7 +821,7 @@ let _ =
 
   Printf.printf "%s%d%s tests run, " colors.blue (List.length tests) colors.default;
   if !failed > 0 then
-    Printf.printf "%s%d failed, this is BAD!%s\n" colors.red !failed colors.default
+    Printf.printf "%s%d unexpected failures, this is BAD!%s\n" colors.red !failed colors.default
   else
     Printf.printf "%sall passed%s, congratulations.\n" colors.green colors.default;
 ;;

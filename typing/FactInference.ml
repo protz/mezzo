@@ -36,6 +36,7 @@ exception EExclusive of typ
  * *)
 type phase = Elaborating of bitmap | Checking
 
+
 (* This function performs a reverse-analysis of a type. As it goes, it marks
  * those variables that needs to be duplicable by updating the bitmap contained
  * in [phase]. It may throw [EAffine] if it turns out the type it's
@@ -44,7 +45,17 @@ let duplicables
     (env: env) 
     (phase: phase)
     (t: typ): unit =
-  let rec duplicables (env: env) (t: typ): unit =
+
+  (* Ok this algorithm needs to be completely rewritten in a functional style,
+   * this is the oldest piece of code in the type-checker ana it's really
+   * terrible. *)
+  let rec follows_exclusive env t t_parent =
+    try
+      duplicables env t
+    with EExclusive t' when t == t' ->
+      raise (EExclusive t_parent)
+
+  and duplicables (env: env) (t: typ): unit =
     match t with
     | TyUnknown
     | TyDynamic ->
@@ -55,8 +66,8 @@ let duplicables
 
     | TyPoint point ->
         begin match structure env point with
-        | Some t ->
-            duplicables env t
+        | Some t' ->
+            follows_exclusive env t' t
         | None ->
             begin match get_fact env point with
             | Exclusive ->
@@ -82,10 +93,16 @@ let duplicables
             end
         end
 
-    | TyForall ((binding, _), t)
-    | TyExists (binding, t) ->
-        let env, t = bind_var_in_type env binding t in
-        duplicables env t
+    | TyForall ((binding, _), t') ->
+        (* This variable is universal, so pick the best possible fact for it:
+         * duplicable (see my notebook on Jan, 9th 2013) *)
+        let env, t' = bind_var_in_type env ~fact:(Duplicable [||]) binding t' in
+        follows_exclusive env t' t
+
+    | TyExists (binding, t') ->
+        (* Be conservative, bind as affine. *)
+        let env, t' = bind_var_in_type env ~fact:Affine binding t' in
+        follows_exclusive env t' t
 
     | TyApp (cons, args) ->
         begin match get_fact env !!cons with
