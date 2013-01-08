@@ -734,7 +734,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("masking3.mz", simple_test ~known_failure:() Pass);
 
-  ("bad-linearity.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
+  ("bad-linearity.mz", simple_test (Fail (function _ -> true)));
 
   ("bad-generalization.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
 
@@ -821,7 +821,8 @@ let _ =
 
   Printf.printf "%s%d%s tests run, " colors.blue (List.length tests) colors.default;
   if !failed > 0 then
-    Printf.printf "%s%d unexpected failures, this is BAD!%s\n" colors.red !failed colors.default
+    Printf.printf "%s%d unexpected failure%s, this is BAD!%s\n"
+      colors.red !failed (if !failed > 1 then "s" else "") colors.default
   else
     Printf.printf "%sall passed%s, congratulations.\n" colors.green colors.default;
 ;;

@@ -828,6 +828,7 @@ and sub_type_real env t1 t2 =
       let cons2 = !!cons2 in
 
       if same env cons1 cons2 then
+        let env, restore = keep_only_duplicable env in
         Hml_List.fold_left2i (fun i env arg1 arg2 ->
           env >>= fun env ->
           (* Variance comes into play here as well. The behavior is fairly
@@ -841,7 +842,8 @@ and sub_type_real env t1 t2 =
               Some env
           | Invariant ->
               equal_modulo_flex env arg1 arg2
-        ) (Some env) args1 args2
+        ) (Some env) args1 args2 >>= fun env ->
+        Some (restore env)
       else
         None
 
