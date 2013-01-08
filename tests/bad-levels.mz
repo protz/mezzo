@@ -1,5 +1,5 @@
-val g (arg: () -> ([c] c -> c)): () =
+val g (arg: [c] () -> (c -> c)): () =
   fail
 
-val test (arg: [b] () -> (b -> b)): () =
+val test (arg: () -> ([b] b -> b)): () =
   g arg
