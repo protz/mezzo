@@ -229,6 +229,7 @@ let (^=>) x y = x && y || not x;;
 let internal_ptype: (Buffer.t -> (env * typ) -> unit) ref = ref (fun _ -> assert false);;
 let internal_pnames: (Buffer.t -> (env * name list) -> unit) ref = ref (fun _ -> assert false);;
 let internal_ppermissions: (Buffer.t -> env -> unit) ref = ref (fun _ -> assert false);;
+let internal_pfact: (Buffer.t -> fact -> unit) ref = ref (fun _ -> assert false);;
 
 (* The empty environment. *)
 let empty_env = {
@@ -285,6 +286,7 @@ let get_kind (env: env) (point: point): kind =
 
 (* Merge while keeping the descriptor of the leftmost argument. *)
 let merge_left env p2 p1 =
+  (* Debug *)
   let open Bash in
   Log.check (get_kind env p1 = get_kind env p2) "Kind mismatch when merging";
   Log.debug ~level:5 "%sMerging%s %a into %a"
@@ -295,16 +297,25 @@ let merge_left env p2 p1 =
   (* All this work is just to make sure we keep the names, positions... from
    * both sides. *)
   let state = env.state in
-  let { names = names; locations = locations; _ }, _ =
+  let { names = names; locations = locations; _ }, _b1 =
     PersistentUnionFind.find p1 state
   in
-  let { names = names'; locations = locations'; _ }, _ =
+  let { names = names'; locations = locations'; _ }, _b2 =
     PersistentUnionFind.find p2 state
   in
   let names = names @ names' in
   let names = Hml_List.remove_duplicates names in
   let locations = locations @ locations' in
   let locations = Hml_List.remove_duplicates locations in
+
+  (* More debug *)
+  begin match _b1, _b2 with
+  | BType { fact = f1; _ }, BType { fact = f2; _ } ->
+      Log.debug ~level:6 "→ facts: merging %a into %a"
+        !internal_pfact f1 !internal_pfact f2;
+  | _ ->
+      ()
+  end;
 
   (* It is up to the caller to move the permissions if needed... *)
   let state = PersistentUnionFind.update (fun (head, raw) ->

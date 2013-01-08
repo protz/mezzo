@@ -937,6 +937,8 @@ module TypePrinter = struct
     pdoc buf (print_fact, fact)
   ;;
 
+  internal_pfact := pfact;;
+
   let print_facts (env: env): document =
     let is name is_abstract ?params w =
       let params =

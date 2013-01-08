@@ -85,7 +85,7 @@ let safety_check env =
 
 (* Dealing with floating permissions. *)
 
-let sub_floating_permission env p =
+let sub_floating_perm env p =
   match Hml_List.take_bool (same env p) env.floating_permissions with
   | Some (remaining_perms, _) ->
       if FactInference.is_duplicable env (TyPoint p) then
@@ -97,7 +97,7 @@ let sub_floating_permission env p =
 ;;
 
 
-let add_floating_permission env p =
+let add_floating_perm env p =
   { env with floating_permissions = p :: env.floating_permissions }
 ;;
 
@@ -365,7 +365,7 @@ and add_perm (env: env) (t: typ): env =
       | Some t ->
           add_perm env t
       | None ->
-          add_floating_permission env p
+          add_floating_perm env p
       end
 
   | _ ->
@@ -981,6 +981,11 @@ and sub_type_real env t1 t2 =
       (* And then try to be smart with whatever remains. *)
       begin match vars1 @ ps1, vars2 @ ps2 with
       | [TyPoint var1], [TyPoint var2] ->
+          (* Beware! We're doing our own one-on-one matching of permission
+           * variables, but still, we need to keep [var1] if it happens to be a
+           * duplicable one! So we add it here, and [sub_floating_perm] will
+           * remove it or not, depending on the associated fact. *)
+          let env = add_floating_perm env var1 in
           begin match is_flexible env var1, is_flexible env var2 with
           | true, false ->
               Some (merge_left env var2 var1)
@@ -993,7 +998,8 @@ and sub_type_real env t1 t2 =
                 Some env
               else
                 None
-          end
+          end >>= fun env ->
+          sub_floating_perm env var2
       | ps1, [TyPoint var2] when is_flexible env var2 ->
           Some (instantiate_flexible env var2 (fold_star ps1))
       | [TyPoint var1], ps2 when is_flexible env var1 ->
@@ -1001,6 +1007,8 @@ and sub_type_real env t1 t2 =
       | [], [] ->
           Some env
       | [], ps2 ->
+          (* This is useful if [ps2] is a rigid floating permission, alone, that
+           * also happens to be present in our environment. *)
           sub_perms env ps2
       | _, _ ->
           Log.debug ~level:4 "[add_sub] FAILED";
@@ -1098,7 +1106,7 @@ and sub_perm (env: env) (t: typ): env option =
       | Some t ->
           sub_perm env t
       | None ->
-          sub_floating_permission env p
+          sub_floating_perm env p
       end
   | _ ->
       Log.error "[sub_perm] the following type does not have kind perm: %a (%a)"
