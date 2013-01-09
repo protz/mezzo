@@ -733,13 +733,6 @@ and sub_type_real env t1 t2 =
              * available permissions for x” by replacing “τ” with
              * “∃x'.(=x'|x' @ τ)” and instantiating “x'” with “x”. *)
             sub_clean env p1 t2
-        | _, TySingleton (TyPoint p2) ->
-            (* “τ - =x” is the converse operation: we need to extract “x @ τ”
-             * from the environment to replace “=x” with “(=x|x @ τ)”. It is the
-             * responsibility of the caller to make sure they remove
-             * non-duplicable permissions from the environment whenever we enter
-             * a non-linear context. *)
-            sub_clean env p2 t1
 
         | TyPoint p1, _ when is_flexible env p1 ->
             (* XXX this should be removed too, the reason we have this is to
@@ -783,8 +776,6 @@ and sub_type_real env t1 t2 =
               Some (merge_left env p1 p2)
           | TySingleton (TyPoint p1), _ ->
               sub_clean env p1 t2
-          | _, TySingleton (TyPoint p2) ->
-              sub_clean env p2 t1
 
           | TyPoint p1, _ when is_flexible env p1 ->
               try_merge_flex env p1 t1

@@ -1124,7 +1124,7 @@ val compare_variant [k, a] (
 
 val bindings [k, a] duplicable k, duplicable a => (t: tree k a) : list::list (k, a) =
   let f (x: k, v: a, accu: list::list (k, a)) : list::list (k, a) =
-    list::cons ((x, v), accu)
+    list::cons [(k, a)] ((x, v), accu)
   in
   fold_descending (f, t, list::nil)
 
