@@ -17,7 +17,9 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(* There are useful comments in the corresponding .mli *)
+(** This is the core of the type-checker, where we handle the set of available
+ * permissions, subtracting a permission from the environment, adding
+ * permissions to the environment. *)
 
 open Types
 open TypeErrors
@@ -83,7 +85,13 @@ let safety_check env =
 
 (* -------------------------------------------------------------------------- *)
 
-(* Dealing with floating permissions. *)
+(* Dealing with floating permissions.
+ *
+ * Floating permissions are permission variables that are available in the
+ * environment. They may be abstract or flexible, but in any case, we can't
+ * attach them to an identifier, since they're variables. Therefore, they are
+ * treated differently. The various [add_perm] and [sub_perm] function will case
+ * these two helpers. *)
 
 let sub_floating_perm env p =
   match Hml_List.take_bool (same env p) env.floating_permissions with
@@ -140,19 +148,17 @@ let can_merge (env: env) (t1: typ) (p2: point): bool =
       fact_leq f1 f2
 ;;
 
+(** [collect t] returns all the permissions contained in [t] along with the
+ * "cleaned up" version of [t]. *)
 let collect = TypeOps.collect;;
 
-(* Collect nested constraints and put them in an outermost position to
- * simplify as much as possible the function type. *)
+(** A type may hold in-depth constraints, such as "duplicable a", for instance. *)
 let rec collect_constraints t =
   match t with
   | TyBar (t, p) ->
       let t, ct = collect_constraints t in
       let p, cp = collect_constraints p in
       TyBar (t, p), ct @ cp
-  | TyArrow (t, t') ->
-      let t, ct = collect_constraints t in
-      TyArrow (t, t'), ct
   | TyStar (p, q) ->
       let p, cp = collect_constraints p in
       let q, cq = collect_constraints q in
@@ -160,6 +166,7 @@ let rec collect_constraints t =
   | TyTuple ts ->
       let ts, cs = List.split (List.map collect_constraints ts) in
       TyTuple ts, List.flatten cs
+  (* FIXME probably TyConcreteUnfolded as well *)
   | TyAnd (cs, t) ->
       let t, cs' = collect_constraints t in
       t, cs @ cs'
@@ -170,8 +177,7 @@ let rec collect_constraints t =
 
 (* -------------------------------------------------------------------------- *)
 
-(* For adding new permissions into the environment. *)
-
+(* For adding new constraints into the environment. *)
 let add_constraints env constraints =
   let env = List.fold_left (fun env (f, t) ->
     let f = fact_of_flag f in
@@ -191,6 +197,7 @@ let add_constraints env constraints =
 
 
 let perm_not_flex env t =
+  (* FIXME there should probably be a call to [structure] here. *)
   match t with
   | TyAnchoredPermission (x, _) ->
       not (is_flexible env !!x)
@@ -202,6 +209,7 @@ let perm_not_flex env t =
       Log.error "You should not call [perm_not_flex] on %a"
         TypePrinter.ptype (env, t)
 ;;
+
 
 (** [unify env p1 p2] merges two points, and takes care of dealing with how the
     permissions should be merged. *)
@@ -279,7 +287,7 @@ and add (env: env) (point: point) (t: typ): env =
   (* The point is supposed to represent a term, not a type. If it has a
    * structure, this means that it's a type variable with kind term that has
    * been flex'd, then instanciated onto something. We make sure in
-   * {Permissions.sub} that we're actually merging, not instanciating, when
+   * [Permissions.sub] that we're actually merging, not instanciating, when
    * faced with two [TyPoint]s. *)
   Log.check (not (has_structure env point)) "I don't understand what's happening";
 
@@ -547,33 +555,7 @@ and sub (env: env) (point: point) (t: typ): env option =
     let env = sub_clean env point t in
 
     env >>= fun env ->
-    (* We use a worklist-based approch, where we try to find a permission that
-     * "works". A permission that works is one where the left-side is a point
-     * that is not flexible, i.e. a point that hopefully should have more to
-     * extract than (=itself). As we go, more flexible variables will be
-     * unified, which will make more candidates suitable for subtraction. *)
-    let state = ref (env, perms) in
-    while begin
-      let env, worklist = !state in
-      match Hml_List.take_bool (perm_not_flex env) worklist with
-      | None ->
-          false
-
-      | Some (worklist, perm) ->
-          match sub_perm env perm with
-          | Some env ->
-              state := (env, worklist);
-              true
-          | None ->
-              false
-    end do () done;
-
-    let env, worklist = !state in
-    if List.length worklist > 0 then
-      (* TODO Throw an exception. *)
-      None
-    else
-      Some env
+    sub_perms env perms
 
 
 (** [sub_clean env point t] takes a "clean" type [t] (without nested permissions)
@@ -600,11 +582,6 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
   let sort x y = sort x - sort y in
   let permissions = List.sort sort permissions in
 
-  (* I'm commenting out part of this function because in the absence of a bottom
-   * element in our fact lattice, this check is overly restrictive. When
-   * introducing a universally quantified variable, we should introduce it with
-   * fact "any", instead of affine, but that would complicate things much
-   * more... see [tests/fact-inconsistency.mz]. *)
   let debug env hd t duplicable =
     let open TypePrinter in
     let open Bash in
@@ -734,26 +711,46 @@ and sub_type_real env t1 t2 =
 
   | TyTuple components1, TyTuple components2
     when List.length components1 = List.length components2 ->
-      (* We try to match as many cases as possible before doing the recursive
-       * call. Recursively subtracting will do a lot of work and runs into the
-       * risk of not doing "the right thing". *)
       List.fold_left2 (fun env t1 t2 ->
         env >>= fun env ->
         match t1, t2 with
         | _ when equal env t1 t2 ->
+            (* XXX this should be removed; the reason we have this is we're not
+             * always performing proper unfolding on the left-hand-side, and
+             * sometimes we're running “(int, int) - (int, int)” -- this is what
+             * makes it work *)
             Some env
-        | TySingleton (TyPoint p1), TySingleton (TyPoint _) when is_flexible env p1 ->
+
+        | TySingleton (TyPoint p1), _ when is_flexible env p1 ->
+            (* The unfolding never, ever introduces flexible variables. *)
             assert false
         | TySingleton (TyPoint p1), TySingleton (TyPoint p2) when is_flexible env p2 ->
+            (* This is a fast-path that creates less debug output and makes
+             * things easier to understand when reading traces. *)
             Some (merge_left env p1 p2)
         | TySingleton (TyPoint p1), _ ->
-            instant_instantiation env t2 p1 ||| sub_clean env p1 t2
+            (* “=x - τ” can always be rephrased as “take τ from the list of
+             * available permissions for x” by replacing “τ” with
+             * “∃x'.(=x'|x' @ τ)” and instantiating “x'” with “x”. *)
+            sub_clean env p1 t2
         | _, TySingleton (TyPoint p2) ->
-            instant_instantiation env t1 p2 ||| sub_clean env p2 t1
+            (* “τ - =x” is the converse operation: we need to extract “x @ τ”
+             * from the environment to replace “=x” with “(=x|x @ τ)”. It is the
+             * responsibility of the caller to make sure they remove
+             * non-duplicable permissions from the environment whenever we enter
+             * a non-linear context. *)
+            sub_clean env p2 t1
+
         | TyPoint p1, _ when is_flexible env p1 ->
+            (* XXX this should be removed too, the reason we have this is to
+             * make “(α, int) - (int, int)” work with “α” flexible. *)
             try_merge_flex env p1 t1
         | _, TyPoint p2 when is_flexible env p2 ->
+            (* XXX should be removed too. The reason these two rules come last
+             * is that the present match case is good when we know [t1] is not
+             * [TySingleton]. *)
             try_merge_flex env p2 t1
+
         | _ ->
             None
       ) (Some env) components1 components2
@@ -761,8 +758,7 @@ and sub_type_real env t1 t2 =
   | TyConcreteUnfolded (datacon1, fields1, clause1), TyConcreteUnfolded (datacon2, fields2, clause2)
     when List.length fields1 = List.length fields2 ->
       if Datacon.equal datacon1 datacon2 then
-        sub_type env clause1 clause2 >>=
-        fun env ->
+        sub_type env clause1 clause2 >>= fun env ->
         List.fold_left2 (fun env f1 f2 ->
           env >>= fun env ->
           let t1, t2 =
@@ -774,21 +770,27 @@ and sub_type_real env t1 t2 =
                 Log.error "The type we're trying to extract should've been \
                   cleaned first."
           in
+          (* This is the same logic as the [TyTuple] case above, scroll up for
+           * comments and detailed explanations as to why these rules are
+           * correct. *)
           match t1, t2 with
           | _ when equal env t1 t2 ->
               Some env
-          | TySingleton (TyPoint p1), TySingleton (TyPoint _) when is_flexible env p1 ->
+
+          | TySingleton (TyPoint p1), _ when is_flexible env p1 ->
               assert false
           | TySingleton (TyPoint p1), TySingleton (TyPoint p2) when is_flexible env p2 ->
               Some (merge_left env p1 p2)
           | TySingleton (TyPoint p1), _ ->
-              instant_instantiation env t2 p1 ||| sub_clean env p1 t2
+              sub_clean env p1 t2
           | _, TySingleton (TyPoint p2) ->
-              instant_instantiation env t1 p2 ||| sub_clean env p2 t1
+              sub_clean env p2 t1
+
           | TyPoint p1, _ when is_flexible env p1 ->
               try_merge_flex env p1 t1
           | _, TyPoint p2 when is_flexible env p2 ->
               try_merge_flex env p2 t1
+
           | _ ->
               None
         ) (Some env) fields1 fields2
@@ -811,12 +813,13 @@ and sub_type_real env t1 t2 =
         None
       end
 
-  | TyConcreteUnfolded (datacon1, _, _), TyPoint point2 when not (is_flexible env point2) ->
-      (* The case where [point2] is flexible is taken into account further down,
-       * as we may need to perform a unification. *)
+  | TyConcreteUnfolded (datacon1, _, _), TyPoint point2 ->
+      (* This is basically the same as above, except that type applications
+       * without parameters are not [TyApp]s, they are [TyPoint]s. *)
       let point1 = type_for_datacon env datacon1 in
 
       if same env point1 point2 then begin
+        (* XXX why are we not collecting permissions here? *)
         let datacon2, fields2, clause2 = find_and_instantiate_branch env point2 datacon1 [] in
         sub_type env t1 (TyConcreteUnfolded (datacon2, fields2, clause2))
       end else begin
@@ -851,15 +854,9 @@ and sub_type_real env t1 t2 =
       sub_type env t1 t2
 
   | TyArrow (t1, t2), TyArrow (t'1, t'2) ->
-      (*   The logic here is only roughly correct. What we do is compare the
-       * function types in an environment where all non-duplicable permissions
-       * have been removed. (We keep a copy of *all* the permissions.). Then,
-       * because function comparison may have added/removed permissions as part
-       * of its work, we zero-out the environment, that is, we remove all
-       * permissions from it; finally, we add back into the environment the
-       * entire, initial set of permissions.
-       *   This is a bit brutal, but then this amounts to retaining from the
-       * function comparison only the unifications that were performed. *)
+      (* This rule basically amounts to performing an η-expansion on function
+       * types. Therefore, we strip the environment of its duplicable parts and
+       * keep only the instanciations when returning the final result. *)
 
       (* 1) Get an environment stripped out of all its non-duplicable
        * permissions. *)
@@ -887,20 +884,27 @@ and sub_type_real env t1 t2 =
 
       Some (restore env)
 
-  (* "(t1 | p1)" - "(t2 | p2)" means doing [t1 - t2], adding all of [p1],
-   * removing all of [p2]. But the order in which we perform these operations
-   * matters, unfortunately... see commit message 432b4ee for more comments. *)
   | TyBar (t1, p1), TyBar (t2, p2) ->
+      (* "(t1 | p1) - (t2 | p2)" means doing "t1 - t2", adding all of [p1],
+       * removing all of [p2]. However, the order in which we perform these
+       * operations matters, unfortunately. *)
       Log.debug ~level:4 "[add_sub] entering...";
-      (*   Alright, this is a fairly complicated logic (euphemism), but it is
-       * seriously needed for any sort of situation that involves
-       * higher-order... The grand scheme is: we should always fight to
-       * instantiate flexible KTerm variables, because we always know how to
-       * instantiate these. Because of our desugaring, a bar type always looks
-       * like "(=root | root @ ...)". So let's start by subtracting [t2] from
-       * [t1]. *)
+
+      (*  All these manipulations are required when doing higher-order, because
+       * we need to compare function types, and function types have complicated
+       * [TyBar]s for their arguments and return values.
+       *  [p1] and [p2] contain permissions such as “x @ τ” where “x” is
+       * flexible. Therefore, we need to pick permissions that we know how to
+       * add or subtract, that is, permissions for which “x” is rigid.
+       *  The algorithm below becomes even more complicated because we need to
+       * be smart when [p1] or [p2] contain flexible permission variables: we
+       * need to instantiate these in a smart way.
+       *  The first step consists in subtracting [t2] from [t1], as most of the
+       * time, we're dealing with “(=x|...) - (=x'|...)”. *)
       sub_type env t1 t2 >>= fun env ->
 
+      (* Another subtlety: there may be flexible variables instantiated with
+       * something lying around in [p1] or [p2]: we need to get rid of these. *)
       let rec strip_flatten env t =
         match t with
         | TyPoint p ->
@@ -927,6 +931,7 @@ and sub_type_real env t1 t2 =
       in
       let ps1 = strip_flatten env p1 in
       let ps2 = strip_flatten env p2 in
+
       (*   [add_perm] will fail if we add "x @ t" when "x" is flexible. So we
        * search among the permissions in [ps1] one that is suitable for adding,
        * i.e. a permission whose left-hand-side is not flexible.
@@ -938,7 +943,8 @@ and sub_type_real env t1 t2 =
        * something's flexible, or because the permissions can't be subtracted. *)
       let works_for_add = perm_not_flex in
       let works_for_sub env p2 = perm_not_flex env p2 && Option.is_some (sub_perm env p2) in
-      (* The main function's here. *)
+
+      (* This is the main function. *)
       let rec add_sub env ps1 ps2: env * typ list * typ list =
         match Hml_List.take_bool (works_for_add env) ps1 with
         | Some (ps1, p1) ->
@@ -952,6 +958,7 @@ and sub_type_real env t1 t2 =
             | None ->
                 env, ps1, ps2
       in
+
       (* Our new strategy for inferring PERM variables is as follows. We first
        * put the PERM variables aside, perform the add/sub dance, and see what's
        * left. If either side is made up of just one flexible PERM variable,
@@ -1041,13 +1048,6 @@ and try_merge_point_to_point env p1 p2 =
     None
 
 
-and instant_instantiation env t p =
-  match t with
-  | TySingleton (TyPoint p') when is_flexible env p' ->
-      Some (merge_left env p p')
-  | _ ->
-      None
-
 
 (* This function allows you to step-through flexible variables, if there are
  * some. If we did step through something, we recurse through [k]. Otherwise, we
@@ -1117,6 +1117,10 @@ and sub_perm (env: env) (t: typ): env option =
 
 
 and sub_perms env perms =
+  (* The order in which we subtract a bunch of permission is important because,
+   * again, some of them may have their lhs flexible. Therefore, there is a
+   * small search procedure here that picks a suitable permission for
+   * subtracting. *)
   if List.length perms = 0 then
     Some env
   else
