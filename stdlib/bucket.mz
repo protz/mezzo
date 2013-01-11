@@ -76,6 +76,34 @@ val rec remove [k, a, p : perm] (
       end
   end
 
+(* -------------------------------------------------------------------------- *)
+
+(* Search. *)
+
+val rec find [k, a, p : perm] duplicable a => (
+  b: bucket k a,
+  ok: (k | p) -> bool
+  | p
+) : option a =
+  match b with
+  | BNil ->
+      none
+  | BCons { key; value; tail } ->
+      if ok key then some value else find (tail, ok)
+  end
+
+val rec find_all [k, a, p : perm] duplicable a => (
+  b: bucket k a,
+  ok: (k | p) -> bool
+  | p
+) : list::list a =
+  match b with
+  | BNil ->
+      list::nil
+  | BCons { key; value; tail } ->
+      if ok key then list::cons (value, find_all (tail, ok)) else find_all (tail, ok)
+  end
+
 (*
 Local Variables:
 compile-command: "../mezzo bucket.mz"

@@ -226,6 +226,9 @@ val find_all [k, a] duplicable a => (x: k, t: table k a) : list::list a =
   in
   internal_find (f, x, t)
 
+(* TEMPORARY use [bucket::find] and [bucket::find_all] (must wait until
+   duplicable constraints can appear in .mzi) *)
+
 (*
 Local Variables:
 compile-command: "../mezzo hashtable.mz"

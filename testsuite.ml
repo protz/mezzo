@@ -754,6 +754,7 @@ let stdlib_tests: (string * ((unit -> env) -> unit)) list = [
   ("arrayops.mz", simple_test Pass);
   ("list.mz", simple_test Pass);
   ("mutableTreeMap.mz", simple_test Pass);
+  ("bucket.mz", simple_test Pass);
   ("hashtable.mz", simple_test Pass);
 ];;
 
