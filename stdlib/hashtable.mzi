@@ -35,6 +35,7 @@ val remove : [k, a] (x: k, t: table k a) -> ()
 (* Lookup. *)
 
 (* TEMPORARY
-val find : [k, a] duplicable a => (x: k, t: table k a) -> option a
+val find     : [k, a] duplicable a => (x: k, t: table k a) -> option a
+val find_all : [k, a] duplicable a => (x: k, t: table k a) -> list::list a
 *)
 

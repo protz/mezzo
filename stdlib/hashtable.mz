@@ -3,8 +3,8 @@
 (* A bucket is a mutable list of entries. Each entry holds a key and a value. *)
 
 mutable data bucket k a =
-  | Nil
-  | Cons { key: k; value: a; tail: bucket k a }
+  | BNil
+  | BCons { key: k; value: a; tail: bucket k a }
 
 (* Iteration over a bucket. Each entry is presented in turn to the function
    [f]. Note that the entries that are presented to [f] are detached, i.e.,
@@ -12,13 +12,13 @@ mutable data bucket k a =
 
 val rec iter_bucket_down [k, a, p : perm] (
   consumes b: bucket k a,
-  f: (consumes b: Cons { key: k; value: a; tail: unknown } | p) -> ()
+  f: (consumes b: BCons { key: k; value: a; tail: unknown } | p) -> ()
   | p
 ) : () =
   match b with
-  | Nil ->
+  | BNil ->
       ()
-  | Cons ->
+  | BCons ->
       (* Iteration from the end down to the beginning of the list. *)
       iter_bucket_down (b.tail, f);
       f b
@@ -70,11 +70,11 @@ val key_index [k, a, buckets : term] (
 val push [k, a] (
   buckets: array::array (bucket k a),
   i: int,
-  consumes entry: Cons { key: k; value: a; tail: unknown }
+  consumes entry: BCons { key: k; value: a; tail: unknown }
 ) : () =
   array::update
-    [consumed = (entry @ Cons { key: k; value: a; tail: unknown })]
-    (buckets, i, fun (consumes b: bucket k a | consumes entry @ Cons { key: k; value: a; tail: unknown }) : bucket k a =
+    [consumed = (entry @ BCons { key: k; value: a; tail: unknown })]
+    (buckets, i, fun (consumes b: bucket k a | consumes entry @ BCons { key: k; value: a; tail: unknown }) : bucket k a =
       entry.tail <- b;
       entry
     )
@@ -99,12 +99,12 @@ val resize [k, a] (t: table k a) : () =
   if new_size < array::max_length then begin
     (* Update [t.buckets] immediately, so that [key_index] sees the new
        bucket count. *)
-    t.buckets <- array::init (new_size, fun (i: int) : bucket k a = Nil);
+    t.buckets <- array::init (new_size, fun (i: int) : bucket k a = BNil);
     (* The array [old_buckets] is consumed by the following loop. This allows
        us to grab the entries that we find in it and move them (without copy)
        to the new array [t.buckets]. *)
     consume_up (old_buckets, fun (old_index: int, consumes b : bucket k a | t @ table k a) : () =
-      iter_bucket_down (b, fun (consumes b: Cons { key: k; value: a; tail: unknown } | t @ table k a) : () =
+      iter_bucket_down (b, fun (consumes b: BCons { key: k; value: a; tail: unknown } | t @ table k a) : () =
 	push [k, a] (t.buckets, key_index [k, a] (t, b.key), b)
 	(* BUG? the line above fails if I omit any of the type applications *)
       )
@@ -124,7 +124,7 @@ val rec power_2_above (x: int, n: int) : int =
    2 above [n], then allocates a new bucket array. *)
 
 val create_buckets [k, a] (capacity: int) : array::array (bucket k a) =
-  array::init (power_2_above (16, capacity), fun (i: int) : bucket k a = Nil)
+  array::init (power_2_above (16, capacity), fun (i: int) : bucket k a = BNil)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -146,7 +146,7 @@ val create [k, a] (capacity: int, hash: k -> int, equal: (k, k) -> bool) : table
 
 val clear [k, a] (t: table k a) : () =
   t.cardinal <- 0;
-  arrayops::reset (t.buckets, fun (i: int) : bucket k a = Nil)
+  arrayops::reset (t.buckets, fun (i: int) : bucket k a = BNil)
 
 val reset [k, a] (t: table k a, capacity: int) : () =
   t.cardinal <- 0;
@@ -157,7 +157,7 @@ val reset [k, a] (t: table k a, capacity: int) : () =
 (* Insertion. *)
 
 val add [k, a] (consumes x: k, consumes v: a, t: table k a) : () =
-  push [k, a] (t.buckets, key_index [k, a] (t, x), Cons { key = x; value = v; tail = () });
+  push [k, a] (t.buckets, key_index [k, a] (t, x), BCons { key = x; value = v; tail = () });
   t.cardinal <- t.cardinal + 1;
   if t.cardinal > 2 * array::length t.buckets then
     resize [k, a] t
@@ -175,9 +175,9 @@ val remove [k, a] (x: k, t: table k a) : () =
     * x @ k
     ) : bucket k a =
     match b with
-    | Nil ->
+    | BNil ->
         b
-    | Cons { key; value; tail } ->
+    | BCons { key; value; tail } ->
         if t.equal (key, x) then begin
           t.cardinal <- t.cardinal - 1;
 	  tail
@@ -197,24 +197,49 @@ val remove [k, a] (x: k, t: table k a) : () =
 
 (* Lookup. *)
 
-val find [k, a] duplicable a => (x: k, t: table k a) : option a =
-  let equal = t.equal in
-  let rec find (b: bucket k a | x @ k) : option a =
-    match b with
-    | Nil ->
-        none
-    | Cons ->
-        if equal (x, b.key) then
-	  some b.value
-	else
-	  find b.tail
-    end
-  in
+(* We first define an internal version of [find] which locates the appropriate
+   bucket and passes it to a function [f]. *)
+
+val internal_find [k, a, answer] duplicable a => (
+  f: (bucket k a | x @ k) -> answer,
+  x: k,
+  t: table k a
+) : answer =
   (* We use [array::consult] instead of [array::get] because [k] is not
      duplicable. *)
   array::consult
     [preserved = (x @ k)]
-    (t.buckets, key_index [k, a] (t, x), find)
+    (t.buckets, key_index [k, a] (t, x), f)
+
+(* By instantiating [f] with a function that stops at the first match,
+   we obtain [find]. *)
+
+val find [k, a] duplicable a => (x: k, t: table k a) : option a =
+  let equal = t.equal in
+  let rec f (b: bucket k a | x @ k) : option a =
+    match b with
+    | BNil ->
+        none
+    | BCons ->
+        if equal (x, b.key) then some b.value else f b.tail
+    end
+  in
+  internal_find (f, x, t)
+
+(* By instantiating [f] with a function that searches for all matches,
+   we obtain [find_all]. *)
+
+val find_all [k, a] duplicable a => (x: k, t: table k a) : list::list a =
+  let equal = t.equal in
+  let rec f (b: bucket k a | x @ k) : list::list a =
+    match b with
+    | BNil ->
+        list::nil
+    | BCons ->
+        if equal (x, b.key) then list::cons (b.value, f b.tail) else f b.tail
+    end
+  in
+  internal_find (f, x, t)
 
 (*
 Local Variables:
