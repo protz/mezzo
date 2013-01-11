@@ -1,0 +1,34 @@
+(* This module is used by the [hashtable] module, but could also be useful
+   per se. It offers mutable lists of key-value pairs. *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* A bucket is a mutable list of entries. Each entry holds a key and a value. *)
+
+mutable data bucket k a =
+  | BNil
+  | BCons { key: k; value: a; tail: bucket k a }
+
+(* -------------------------------------------------------------------------- *)
+
+(* Iteration over a bucket. Each entry is presented in turn to the function
+   [f]. Note that the entries that are presented to [f] are detached, i.e.,
+   their [tail] field is garbage. *)
+
+val iter_bucket_down : [k, a, p : perm] (
+  consumes b: bucket k a,
+  f: (consumes b: BCons { key: k; value: a; tail: unknown } | p) -> ()
+  | p
+) -> ()
+
+(* -------------------------------------------------------------------------- *)
+
+(* [remove (b, ok)] looks for the first cell whose key satisfies the predicate
+   [ok] and (if it finds one) removes it. It returns a new list head. *)
+
+val remove : [k, a, p : perm] (
+  consumes b: bucket k a,
+  ok: (k | p) -> bool
+  | p
+) -> bucket k a
+

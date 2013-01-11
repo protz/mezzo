@@ -1,0 +1,83 @@
+(* This module is used by the [hashtable] module, but could also be useful
+   per se. It offers mutable lists of key-value pairs. *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* A bucket is a mutable list of entries. Each entry holds a key and a value. *)
+
+mutable data bucket k a =
+  | BNil
+  | BCons { key: k; value: a; tail: bucket k a }
+
+(* -------------------------------------------------------------------------- *)
+
+(* Iteration over a bucket. Each entry is presented in turn to the function
+   [f]. Note that the entries that are presented to [f] are detached, i.e.,
+   their [tail] field is garbage. *)
+
+val rec iter_bucket_down [k, a, p : perm] (
+  consumes b: bucket k a,
+  f: (consumes b: BCons { key: k; value: a; tail: unknown } | p) -> ()
+  | p
+) : () =
+  match b with
+  | BNil ->
+      ()
+  | BCons ->
+      (* Iteration from the end down to the beginning of the list. *)
+      iter_bucket_down (b.tail, f);
+      f b
+  end
+
+(* -------------------------------------------------------------------------- *)
+
+(* Removal of a cell. *)
+
+(* [remove (b, ok)] looks for the first cell whose key satisfies the predicate
+   [ok] and (if it finds one) removes it. It returns a new list head. *)
+
+val rec remove [k, a, p : perm] (
+  consumes b: bucket k a,
+  ok: (k | p) -> bool
+  | p
+) : bucket k a =
+
+  (* Write a loop that works over two consecutive cells. We work under the
+     assumption that [prev] does not satisfy [ok], so it remains the list
+     head after the removal. For this reason, the loop does not return a
+     value. *)
+  let rec loop (
+    consumes prev: BCons { key: k; value: a; tail = next },
+    consumes next: bucket k a
+  | p) : (| prev @ bucket k a) =
+    match next with
+    | BNil ->
+        ()
+    | BCons { key } ->
+        if ok key then
+	  prev.tail <- next.tail
+	else
+	  loop (next, next.tail)
+    end
+  in
+
+  match b with
+  | BNil ->
+      (* If the list is empty, return it. *)
+      b
+  | BCons { key; tail } ->
+      if ok key then
+	(* If the first cell matches, return the list tail. *)
+	tail
+      else begin
+	(* Otherwise, enter the above loop, and return the list head. *)
+	loop (b, tail);
+	b
+      end
+  end
+
+(*
+Local Variables:
+compile-command: "../mezzo bucket.mz"
+End:
+*)
