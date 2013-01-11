@@ -34,28 +34,31 @@ val rec iter_bucket_down [k, a, p : perm] (
 (* Removal of a cell. *)
 
 (* [remove (b, ok)] looks for the first cell whose key satisfies the predicate
-   [ok] and (if it finds one) removes it. It returns a new list head. *)
+   [ok] and (if it finds one) removes it. It returns a pair of the new list
+   head and the value that was found, if one was found. *)
 
 val rec remove [k, a, p : perm] (
   consumes b: bucket k a,
   ok: (k | p) -> bool
   | p
-) : bucket k a =
+) : (bucket k a, option a) =
 
   (* Write a loop that works over two consecutive cells. We work under the
      assumption that [prev] does not satisfy [ok], so it remains the list
-     head after the removal. For this reason, the loop does not return a
-     value. *)
+     head after the removal. The loop returns the value that was found, if
+     one was found. *)
   let rec loop (
     consumes prev: BCons { key: k; value: a; tail = next },
     consumes next: bucket k a
-  | p) : (| prev @ bucket k a) =
+  | p) : (option a | prev @ bucket k a) =
     match next with
     | BNil ->
-        ()
-    | BCons { key } ->
-        if ok key then
-	  prev.tail <- next.tail
+        none
+    | BCons { key; value } ->
+        if ok key then begin
+	  prev.tail <- next.tail;
+	  some value
+	end
 	else
 	  loop (next, next.tail)
     end
@@ -64,15 +67,14 @@ val rec remove [k, a, p : perm] (
   match b with
   | BNil ->
       (* If the list is empty, return it. *)
-      b
-  | BCons { key; tail } ->
+      b, none
+  | BCons { key; value } ->
       if ok key then
 	(* If the first cell matches, return the list tail. *)
-	tail
+	b.tail, some value
       else begin
 	(* Otherwise, enter the above loop, and return the list head. *)
-	loop (b, tail);
-	b
+	b, loop (b, b.tail)
       end
   end
 

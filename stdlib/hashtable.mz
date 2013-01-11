@@ -150,22 +150,27 @@ val add [k, a] (consumes x: k, consumes v: a, t: table k a) : () =
    needed read/write access to [t.cardinal] at a moment when the ownership of
    [t.buckets] had been taken away from [t] by [array::update]. This forced
    [ok] to request (and preserve) a precise description of [t], so that the
-   type system could tell that [ok] did not modify the field [t.buckets]. It
-   worked, but was a bit verbose. This lower-tech approach is simpler. *)
+   type system could tell that [ok] did not modify the field [t.buckets]. *)
 
-val remove [k, a] (x: k, t: table k a) : () =
+val remove [k, a] (x: k, t: table k a) : option a =
 
   let equal = t.equal in
-  let found = newref false in
 
   (* Define an [ok] predicate that can be passed to [bucket::remove]. *)
-  let ok (key: k | x @ k * found @ ref bool) : bool =
-    if equal (key, x) then begin found := true; true end else false
+  let ok (key: k | x @ k) : bool =
+    equal (key, x)
   in
 
-  (* Partially apply [bucket::remove] to [ok]. Notationally a bit heavy! *)
-  let remove (consumes b: bucket k a | x @ k * found @ ref bool) : bucket k a =
-    bucket::remove (b, ok)
+  (* Allocate a reference to store the second result of [bucket::remove]. *)
+  let r = newref none in
+
+  (* Partially apply [bucket::remove] to [ok]. Arrange for the second
+     result of [bucket::remove] to be stored in [r], so [remove] returns
+     just one result and is a suitable argument for [array::update]. *)
+  let remove (consumes b: bucket k a | x @ k * r @ ref (option a)) : bucket k a =
+    let b, v = bucket::remove (b, ok) in
+    r := v;
+    b
   in
 
   (* Apply [remove] at the desired array index. *)
@@ -174,9 +179,19 @@ val remove [k, a] (x: k, t: table k a) : () =
     (t.buckets, key_index [k, a] (t, x), remove);
 
   (* If the desired entry has been found and removed, update the table's
-     cardinal. *)
-  if !found then
-    t.cardinal <- t.cardinal - 1
+     cardinal. Then, return the value that was removed. *)
+  if !r then begin
+    t.cardinal <- t.cardinal - 1;
+    !r
+  end
+  else
+    !r
+  (* BUG? if I write just
+     if !r then t.cardinal <- t.cardinal - 1; !r
+     (thus factorizing the expression !r)
+     then the merge seems to fail and the code does not type-check *)
+
+(* TEMPORARY we need also [remove_all]? does ocaml offer it? *)
 
 (* -------------------------------------------------------------------------- *)
 

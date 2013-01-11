@@ -24,13 +24,14 @@ val iter_bucket_down : [k, a, p : perm] (
 (* -------------------------------------------------------------------------- *)
 
 (* [remove (b, ok)] looks for the first cell whose key satisfies the predicate
-   [ok] and (if it finds one) removes it. It returns a new list head. *)
+   [ok] and (if it finds one) removes it. It returns a pair of the new list
+   head and the value that was found, if one was found. *)
 
 val remove : [k, a, p : perm] (
   consumes b: bucket k a,
   ok: (k | p) -> bool
   | p
-) -> bucket k a
+) -> (bucket k a, option a)
 
 (* TEMPORARY
 
