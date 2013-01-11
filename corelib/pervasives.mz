@@ -1,6 +1,6 @@
 (* Standard types *)
 
-data option a = Some { contents: a } | None
+data option a = None | Some { contents: a }
 
 data choice a b =
   | Left  { contents: a }
