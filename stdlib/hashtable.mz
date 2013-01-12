@@ -244,8 +244,60 @@ val find_all [k, a] duplicable a => (x: k, t: table k a) : list::list a =
 (* TEMPORARY use [bucket::find] and [bucket::find_all] (must wait until
    duplicable constraints can appear in .mzi) *)
 
+(* -------------------------------------------------------------------------- *)
+
+(* Update. *)
+
+(* [update (t, x, f)] looks for the key [x] in the table [t]. It calls the
+   user-supplied function [f] exactly once, and passes it either the value [v]
+   that is associated with the key [x], or nothing, if the key [x] does not
+   appear in the table. The function [f] returns either a new value, or
+   nothing. In the former case, the new value replaces the value [v]. In the
+   latter case, the key [x] is removed (if it was there at all). *)
+
+val option_cardinal [a] (o: option a) : int =
+  match o with
+  | None -> 0
+  | Some -> 1
+  end
+
+val update [k, a, pre : perm, post : perm] (
+  t: table k a,
+  consumes x: k,
+  f: (consumes (option a | pre)) -> (option a | post)
+  | consumes pre
+) : (| post) =
+
+  (* Wrap [f] so as to record the increase or decrease in the table's cardinal. *)
+  let delta = newref () in
+  let f (consumes ov: option a | consumes (pre * delta @ ref ())) :
+        (option a | post * delta @ ref int) =
+    let decrease = option_cardinal ov in
+    let ov = f ov in
+    let increase = option_cardinal ov in
+    delta := increase - decrease;
+    ov
+  in
+
+  (* Adapt [bucket::update]. *)
+  let equal = t.equal in
+  let update (consumes b: bucket k a | consumes (x @ k * pre * delta @ ref ())) : (bucket k a | post * delta @ ref int) =
+    bucket::update [post = (post * delta @ ref int)] (equal, b, x, f)
+    (* WISH could we get rid of this type application? without it, I get an error *)
+  in
+
+  (* Call [array::update_variant]. *)
+  array::update_variant [post = (post * delta @ ref int)]
+    (t.buckets, key_index [k, a] (t, x), update);
+    (* WISH could we get rid of this type application?
+       without it, the call to array::update_variant succeeds
+       but we lose the permission for [delta] and the cardinal update (below) fails *)
+
+  (* Update the table's cardinal. *)
+  t.cardinal <- t.cardinal + !delta
+
 (*
-Local Variables:
-compile-command: "../mezzo hashtable.mz"
-End:
+  Local Variables:
+  compile-command: "../mezzo hashtable.mz"
+  End:
 *)

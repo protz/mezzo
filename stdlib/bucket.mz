@@ -37,7 +37,7 @@ val rec iter_bucket_down [k, a, p : perm] (
    [ok] and (if it finds one) removes it. It returns a pair of the new list
    head and the value that was found, if one was found. *)
 
-val rec remove [k, a, p : perm] (
+val remove [k, a, p : perm] (
   consumes b: bucket k a,
   ok: (k | p) -> bool
   | p
@@ -48,19 +48,19 @@ val rec remove [k, a, p : perm] (
      head after the removal. The loop returns the value that was found, if
      one was found. *)
   let rec loop (
-    consumes prev: BCons { key: k; value: a; tail = next },
-    consumes next: bucket k a
+    consumes prev: BCons { key: k; value: a; tail = this },
+    consumes this: bucket k a
   | p) : (option a | prev @ bucket k a) =
-    match next with
+    match this with
     | BNil ->
         none
     | BCons { key; value } ->
         if ok key then begin
-	  prev.tail <- next.tail;
+	  prev.tail <- this.tail;
 	  some value
 	end
 	else
-	  loop (next, next.tail)
+	  loop (this, this.tail)
     end
   in
 
@@ -72,10 +72,9 @@ val rec remove [k, a, p : perm] (
       if ok key then
 	(* If the first cell matches, return the list tail. *)
 	b.tail, some value
-      else begin
+      else
 	(* Otherwise, enter the above loop, and return the list head. *)
 	b, loop (b, b.tail)
-      end
   end
 
 (* -------------------------------------------------------------------------- *)
@@ -104,6 +103,96 @@ val rec find_all [k, a, p : perm] duplicable a => (
       list::nil
   | BCons { key; value; tail } ->
       if ok key then list::cons (value, find_all (tail, ok)) else find_all (tail, ok)
+  end
+
+(* -------------------------------------------------------------------------- *)
+
+(* The following two functions serve in the definition of [update] below. *)
+
+(* Optional insertion. *)
+
+val insert [k, a] (
+  consumes x: k,
+  consumes ov: option a,
+  consumes b: bucket k a
+) : bucket k a =
+  match ov with
+  | None ->
+      b
+  | Some { contents = v } ->
+      BCons { key = x; value = v; tail = b }
+  end
+  (* BUG? I get a merge warning here, but the merge function should not be called
+     at all, since there is a type annotation. *)
+
+(* Update or removal of the list head. *)
+
+val update_or_remove [k, a] (
+  consumes b: BCons { key: k; value: unknown; tail: bucket k a },
+  consumes ov: option a
+) : bucket k a =
+  match ov with
+  | None ->
+      b.tail
+  | Some { contents = v } ->
+      b.value <- v;
+      b
+  end
+
+(* -------------------------------------------------------------------------- *)
+
+(* Update. *)
+
+(* [update (equal, b, x, f)] looks for an entry whose key is [equal] to [x]
+   in the bucket [b]. It calls the user-supplied function [f] exactly once,
+   and passes it either the value [v] that is associated with the key [x],
+   or nothing, if the key [x] does not appear in the bucket. The function
+   [f] returns either a new value, or nothing. In the former case, the new
+   value replaces the value [v]. In the latter case, the key [x] is removed
+   (if it was there at all). An updated bucket is returned. *)
+
+val update [k, a, pre : perm, post : perm] (
+  equal: (k, k) -> bool,
+  consumes b: bucket k a,
+  consumes x: k,
+  f: (consumes (option a | pre)) -> (option a | post)
+  | consumes pre
+) : (bucket k a | post) =
+
+  (* Write a loop that works over two consecutive cells. We work under the
+     assumption that [prev] does not satisfy [ok], so it remains the list
+     head after the loop. *)
+  let rec loop (
+    consumes prev: BCons { key: k; value: a; tail = this },
+    consumes this: bucket k a
+  | consumes x @ k * consumes pre
+  ) : (| prev @ bucket k a | post) =
+    match this with
+    | BNil ->
+        (* The desired key was not found. Invoke [f] with argument [none]. *)
+        prev.tail <- insert (x, f none, this)
+    | BCons { key; value } ->
+        if equal (x, key) then
+	  (* The desired key was found. Invoke [f] with argument [some value]. *)
+	  prev.tail <- update_or_remove (this, f (some value))
+	else
+	  loop (this, this.tail)
+    end
+  in
+
+  match b with
+  | BNil ->
+      (* The desired key was not found. Invoke [f] with argument [none]. *)
+      insert (x, f none, b)
+  | BCons { key; value } ->
+      if equal (x, key) then
+	(* The desired key was found. Invoke [f] with argument [some value]. *)
+	update_or_remove (b, f (some value))
+      else begin
+	(* Otherwise, enter the above loop. The list head does not change. *)
+	loop (b, b.tail);
+	b
+      end
   end
 
 (*

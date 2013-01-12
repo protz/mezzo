@@ -90,6 +90,12 @@ val update : [a, preserved : perm, consumed : perm] (
   | preserved * consumes consumed
 ) -> ()
 
+val update_variant : [a, pre : perm, post : perm] (
+  array a, int,
+  f: (consumes a | consumes pre) -> (a | post)
+  | consumes pre
+) -> (| post)
+
 (* -------------------------------------------------------------------------- *)
 
 (* Length. *)
