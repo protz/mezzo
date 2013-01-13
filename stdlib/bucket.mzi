@@ -11,18 +11,6 @@ mutable data bucket k a =
 
 (* -------------------------------------------------------------------------- *)
 
-(* Iteration over a bucket. Each entry is presented in turn to the function
-   [f]. Note that the entries that are presented to [f] are detached, i.e.,
-   their [tail] field is garbage. *)
-
-val iter_bucket_down : [k, a, p : perm] (
-  consumes b: bucket k a,
-  f: (consumes b: BCons { key: k; value: a; tail: unknown } | p) -> ()
-  | p
-) -> ()
-
-(* -------------------------------------------------------------------------- *)
-
 (* Search. *)
 
 val mem : [k, a] (
@@ -76,4 +64,26 @@ val update : [k, a, pre : perm, post : perm] (
   f: (consumes (option a | pre)) -> (option a | post)
   | consumes pre
 ) -> (bucket k a | post)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Iteration. *)
+
+(* Non-destructive iteration over the elements of a bucket. *)
+
+val fold : [k, a, b] (
+  bucket k a,
+  consumes b,
+  f: (k, a, consumes b) -> b
+) -> b
+
+(* Destructive iteration over the cells of a bucket. Each cell is presented in
+   turn to the function [f]. Note that the cells that are presented to [f] are
+   detached, i.e., their [tail] field is garbage. *)
+
+val iter_bucket_down : [k, a, p : perm] (
+  consumes b: bucket k a,
+  f: (consumes b: BCons { key: k; value: a; tail: unknown } | p) -> ()
+  | p
+) -> ()
 

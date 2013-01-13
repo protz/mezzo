@@ -11,26 +11,6 @@ mutable data bucket k a =
 
 (* -------------------------------------------------------------------------- *)
 
-(* Iteration over a bucket. Each entry is presented in turn to the function
-   [f]. Note that the entries that are presented to [f] are detached, i.e.,
-   their [tail] field is garbage. *)
-
-val rec iter_bucket_down [k, a, p : perm] (
-  consumes b: bucket k a,
-  f: (consumes b: BCons { key: k; value: a; tail: unknown } | p) -> ()
-  | p
-) : () =
-  match b with
-  | BNil ->
-      ()
-  | BCons ->
-      (* Iteration from the end down to the beginning of the list. *)
-      iter_bucket_down (b.tail, f);
-      f b
-  end
-
-(* -------------------------------------------------------------------------- *)
-
 (* Search. *)
 
 val rec mem [k, a] (
@@ -206,6 +186,47 @@ val update [k, a, pre : perm, post : perm] (
 	loop (b, b.tail);
 	b
       end
+  end
+
+(* -------------------------------------------------------------------------- *)
+
+(* Iteration. *)
+
+(* Non-destructive iteration over the elements of a bucket. *)
+
+(* For simplicity, we assign [fold] a type that does not allow performing
+   a strong update on the keys or values. A more general type exists. *)
+
+val rec fold [k, a, b] (
+  this: bucket k a,
+  consumes accu: b,
+  f: (k, a, consumes b) -> b
+) : b =
+  match this with
+  | BNil ->
+      accu
+  | BCons { key; value; tail } ->
+      fold (tail, f (key, value, accu), f)
+  end
+
+(* -------------------------------------------------------------------------- *)
+
+(* Destructive iteration over the cells of a bucket. Each cell is presented in
+   turn to the function [f]. Note that the cells that are presented to [f] are
+   detached, i.e., their [tail] field is garbage. *)
+
+val rec iter_bucket_down [k, a, p : perm] (
+  consumes b: bucket k a,
+  f: (consumes b: BCons { key: k; value: a; tail: unknown } | p) -> ()
+  | p
+) : () =
+  match b with
+  | BNil ->
+      ()
+  | BCons ->
+      (* Iteration from the end down to the beginning of the list. *)
+      iter_bucket_down (b.tail, f);
+      f b
   end
 
 (*
