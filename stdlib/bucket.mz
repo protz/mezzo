@@ -229,6 +229,21 @@ val rec iter_bucket_down [k, a, p : perm] (
       f b
   end
 
+(* -------------------------------------------------------------------------- *)
+
+(* Length. *)
+
+val length [k, a] (b: bucket k a) : int =
+  let rec loop (b: bucket k a, accu: int) : int =
+    match b with
+    | BNil ->
+	accu
+    | BCons ->
+	loop (b.tail, accu + 1)
+    end
+  in
+  loop (b, 0)
+
 (*
 Local Variables:
 compile-command: "../mezzo bucket.mz"

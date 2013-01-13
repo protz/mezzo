@@ -337,6 +337,41 @@ val iter [k, a, p : perm] (
   (* WISH could we get rid of this type application?
      strangely, all three parameters seem required *)
 
+(* -------------------------------------------------------------------------- *)
+
+(* Statistics. *)
+
+val cardinal [k, a] (t: table k a) : int =
+  t.cardinal
+
+data statistics = Statistics {
+  num_bindings: int;
+  num_buckets: int;
+  max_bucket_length: int;
+  bucket_histogram: array::array int
+}
+
+val stats [k, a] (t: table k a) : statistics =
+  (* Compute the maximum bucket length. *)
+  let mbl =
+    arrayops::fold_up_variant (t.buckets, 0, fun (b: bucket k a, accu: int) : int =
+      max (bucket::length b, accu)
+    )
+  in
+  (* Build a histogram, which maps bucket lengths to bucket counts. *)
+  let histo = array::create (mbl + 1, 0) in
+  arrayops::iter_up (t.buckets, fun (b: bucket k a | histo @ array::array int) : () =
+    let l = bucket::length b in
+    array::set (histo, l, array::get (histo, l) + 1)
+  );
+  (* Return a statistics record. *)
+  Statistics {
+    num_bindings = t.cardinal;
+    num_buckets  = array::length t.buckets;
+    max_bucket_length = mbl;
+    bucket_histogram = histo
+  }
+
 (*
   Local Variables:
   compile-command: "../mezzo hashtable.mz"

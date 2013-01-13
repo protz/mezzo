@@ -37,3 +37,11 @@ val (:=) [a, b] (consumes x: ref a, consumes c: b): ( | x @ ref b) =
 val not (b : bool) : bool =
   if b then False else True
 
+(* Arithmetic *)
+
+val max (x: int, y: int) : int =
+  if x <= y then y else x
+
+val min (x: int, y: int) : int =
+  if x <= y then x else y
+

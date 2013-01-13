@@ -50,3 +50,7 @@ val (:=) : [a, b] (consumes x: ref a, consumes b) -> ( | x @ ref b)
 
 val not : bool -> bool
 
+(* Arithmetic *)
+
+val max : (int, int) -> int
+val min : (int, int) -> int
