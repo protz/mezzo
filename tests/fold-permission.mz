@@ -1,0 +1,27 @@
+open list
+
+(* The point of this example is to check that a simple type of fold
+   (parameterized over a and b, but not p)
+   is in fact just as general as a seemingly more powerful type
+   (parameterized over a and b and a permission p).
+*)
+
+val coerce (
+  fold: [a, b]           (list a, consumes b, (a, consumes b)     -> b    ) -> b
+) : (
+(*x:*)  [a, b, p : perm] (list a, consumes b, (a, consumes b | p) -> b | p) -> b
+(* BUG: if I uncomment x: on the line above, I get an error:
+        As far as I can tell, there's no point in having an abstract duplicable permission...
+        Fatal error: exception Assert_failure("lib/Log.ml", 73, 6)
+   BUG: if I uncomment x: on the line above and rename it to fold:
+        I get a different error (a type error) *)
+) =
+
+  let fold [a, b, p : perm] (xs: list a, consumes accu: b, f: (a, consumes b | p) -> b | p) : b =
+    fold [b = (b | p)] (xs, accu, f)
+    (* WISH I would like to 1. get rid of the above type application
+                            2. get rid of the eta-expansion *)
+  in
+
+  fold
+

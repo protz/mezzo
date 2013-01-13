@@ -742,6 +742,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("cps-dereliction.mz", simple_test Pass);
 
+  ("fold-permission.mz", simple_test Pass);
+
   ("ref-swap.mz", simple_test Pass);
 
 ];;
