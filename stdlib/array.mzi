@@ -63,6 +63,12 @@ val swap   : [a] (array a, int, int) -> ()
    have access to the array, so using [consult] instead of [get] is a way
    of ensuring that we only read one element at a time (and give it back). *)
 
+(* The type of [consult] advertises the fact that [consult] invokes [f]
+   exactly once. Indeed, [f] is invoked at least once, otherwise [consult]
+   would not be able to produce an element of type [b]. And [f] is invoked
+   at most once, because [f] requires and consumes the permission [pre],
+   which is not duplicable. *)
+
 (* A drawback of this approach is that the user has to work in what resembles
    CPS style. Could we somehow impose the same discipline and obtain the same
    effect in direct style? *)
@@ -76,21 +82,10 @@ val consult : [a, pre : perm, b] (
 (* [update] is a particular combination of [get] and [set] that does not
    require the element type to be duplicable. *)
 
-(* TEMPORARY since [f] is called exactly once, a [pre/post] pair would be
-   more precise/expressive than a [preserved/consumed] pair; but less
-   convenient?
-   
-   jonathan: switching to a [pre/post] pair saves one explicit type application
-   in [hashtable.mz]... not sure it's worth changing it to something more
-   sophisticated *)
+(* The type of [update] advertises the fact that [update] invokes [f]
+   exactly once. *)
 
-val update : [a, preserved : perm, consumed : perm] (
-  array a, int,
-  f: (consumes a | preserved * consumes consumed) -> a
-  | preserved * consumes consumed
-) -> ()
-
-val update_variant : [a, pre : perm, post : perm] (
+val update : [a, pre : perm, post : perm] (
   array a, int,
   f: (consumes a | consumes pre) -> (a | post)
   | consumes pre

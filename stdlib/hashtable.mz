@@ -50,7 +50,6 @@ val push [k, a] (
   consumes entry: BCons { key: k; value: a; tail: unknown }
 ) : () =
   array::update
-    [consumed = (entry @ BCons { key: k; value: a; tail: unknown })]
     (buckets, i, fun (consumes b: bucket k a | consumes entry @ BCons { key: k; value: a; tail: unknown }) : bucket k a =
       entry.tail <- b;
       entry
@@ -178,7 +177,7 @@ val remove [k, a] (x: k, t: table k a) : option a =
 
   (* Apply [remove] at the desired array index. *)
   array::update
-    [consumed = empty]
+    [post = (x @ k * r @ ref (option a))] (* WISH get rid of this *)
     (t.buckets, key_index [k, a] (t, x), remove);
 
   (* If the desired entry has been found and removed, update the table's
@@ -298,11 +297,11 @@ val update [k, a, pre : perm, post : perm] (
     (* WISH could we get rid of this type application? without it, I get an error *)
   in
 
-  (* Call [array::update_variant]. *)
-  array::update_variant [post = (post * delta @ ref int)]
+  (* Call [array::update]. *)
+  array::update [post = (post * delta @ ref int)]
     (t.buckets, key_index [k, a] (t, x), update);
     (* WISH could we get rid of this type application?
-       without it, the call to array::update_variant succeeds
+       without it, the call to array::update succeeds
        but we lose the permission for [delta] and the cardinal update (below) fails *)
 
   (* Update the table's cardinal. *)
