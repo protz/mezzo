@@ -88,6 +88,9 @@ val resize [k, a] (t: table k a) : () =
     )
   end
 
+(* TEMPORARY add an operation that fuses two hash tables (i.e. destructively
+   merges one into the other). It would look at lot like resize (twice). *)
+
 (* [power_2_above] computes the first power of 2 that lies above [x] and [n],
    where [x] is itself a power of 2. It stops when the maximum array length
    is exceeded. *)
@@ -304,6 +307,35 @@ val update [k, a, pre : perm, post : perm] (
 
   (* Update the table's cardinal. *)
   t.cardinal <- t.cardinal + !delta
+
+(* -------------------------------------------------------------------------- *)
+
+(* Iteration. *)
+
+(* For simplicity, we assign [fold] a type that does not allow performing a
+   strong update on the keys or values. If we used a primitive operation on
+   arrays that allows performing a strong update on an array, then we could
+   do better. TEMPORARY *)
+
+val fold [k, a, b] (
+  t: table k a,
+  consumes seed: b,
+  f: (k, a, consumes b) -> b
+) : b =
+  arrayops::fold_up_variant (t.buckets, seed, fun (bck: bucket k a, consumes accu: b) : b =
+    bucket::fold (bck, accu, f)
+  )
+
+val iter [k, a, p : perm] (
+  t: table k a,
+  f: (k, a | p) -> ()
+  | p
+) : () =
+  fold [k, a, (| p)] (t, (), fun (x: k, v: a, (| p)) : () =
+    f (x, v)
+  )
+  (* WISH could we get rid of this type application?
+     strangely, all three parameters seem required *)
 
 (*
   Local Variables:

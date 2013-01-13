@@ -126,3 +126,6 @@ val append : [a] (array a, array a)   -> array a
 val concat : [a] list::list (array a) -> array a
 val blit   : [a] (a1: array a, ofs1: int, a2: array a, ofs2: int, len: int) -> ()
 
+(* TEMPORARY add an operation that allows performing a strong
+   update over an array *)
+

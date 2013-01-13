@@ -67,6 +67,13 @@ val fold_up   : [a, b, p : perm] (
   f: (a, consumes accu: b | p) -> b
   | p) -> b
 
+(* TEMPORARY *)
+val fold_up_variant   : [a, b] (
+  x: array a,
+  consumes seed: b,
+  f: (a, consumes accu: b) -> b
+) -> b
+
 val fold_down : [a, b, p : perm] (
   x: array a,
   consumes seed: b,
