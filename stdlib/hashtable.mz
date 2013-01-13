@@ -322,7 +322,7 @@ val fold [k, a, b] (
   consumes seed: b,
   f: (k, a, consumes b) -> b
 ) : b =
-  arrayops::fold_up_variant (t.buckets, seed, fun (bck: bucket k a, consumes accu: b) : b =
+  arrayops::fold_up (t.buckets, seed, fun (bck: bucket k a, consumes accu: b) : b =
     bucket::fold (bck, accu, f)
   )
 
@@ -354,7 +354,7 @@ data statistics = Statistics {
 val stats [k, a] (t: table k a) : statistics =
   (* Compute the maximum bucket length. *)
   let mbl =
-    arrayops::fold_up_variant (t.buckets, 0, fun (b: bucket k a, accu: int) : int =
+    arrayops::fold_up (t.buckets, 0, fun (b: bucket k a, accu: int) : int =
       max (bucket::length b, accu)
     )
   in

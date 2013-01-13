@@ -61,24 +61,17 @@ val iter_down : [a, p : perm] (
 (* A variant of the above loops, where the function [f] has access to
    an explicit loop-carried accumulator, in addition to the element. *)
 
-val fold_up   : [a, b, p : perm] (
-  x: array a,
-  consumes seed: b,
-  f: (a, consumes accu: b | p) -> b
-  | p) -> b
-
-(* TEMPORARY *)
-val fold_up_variant   : [a, b] (
+val fold_up   : [a, b] (
   x: array a,
   consumes seed: b,
   f: (a, consumes accu: b) -> b
 ) -> b
 
-val fold_down : [a, b, p : perm] (
+val fold_down : [a, b] (
   x: array a,
   consumes seed: b,
-  f: (a, consumes accu: b | p) -> b
-  | p) -> b
+  f: (a, consumes accu: b) -> b
+) -> b
 
 (* TEMPORARY it would be interesting to offer a loop form where [f] consumes
    the element, and the loop consumes the entire array. *)
