@@ -202,7 +202,7 @@ val remove [k, a] (x: k, t: table k a) : option a =
 
 val mem [k, a] (x: k, t: table k a) : bool =
   let equal = t.equal in
-  array::consult_variant
+  array::consult
     [b = (bool | x @ k)]
     (* WISH could we get rid of this type application? *)
     (t.buckets, key_index [k, a] (t, x), fun (b: bucket k a | x @ k) : bool =
@@ -220,7 +220,7 @@ val internal_find [k, a, answer] duplicable a => (
   (* We use [array::consult] instead of [array::get] because [k] is not
      duplicable. *)
   array::consult
-    [preserved = (x @ k)]
+    [pre = (x @ k), b = (answer | x @ k)] (* WISH get rid of this *)
     (t.buckets, key_index [k, a] (t, x), f)
 
 (* By instantiating [f] with a function that stops at the first match,

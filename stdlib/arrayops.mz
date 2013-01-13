@@ -86,7 +86,7 @@ val foldi_up [a, b] (
   f: (int, a, consumes accu: b) -> b
 ) : b =
   fold_array_up (x, seed, fun (i: int, consumes accu: b | x @ array a) : b =
-    consult_variant (x, i, fun (v: a | consumes accu @ b) : b =
+    consult (x, i, fun (v: a | consumes accu @ b) : b =
       f (i, v, accu)
     )
   )
@@ -96,7 +96,7 @@ val foldi_down [a, b] (
   f: (int, a, consumes accu: b) -> b
 ) : b =
   fold_array_down (x, seed, fun (i: int, consumes accu: b | x @ array a) : b =
-    consult_variant (x, i, fun (v: a | consumes accu @ b) : b =
+    consult (x, i, fun (v: a | consumes accu @ b) : b =
       f (i, v, accu)
     )
   )
@@ -107,7 +107,7 @@ val iteri_up [a, p : perm] (
   | p
 ) : () =
   iter_array_up (x, fun (i: int | x @ array a * p) : () =
-    consult_variant [pre = p, b = (| p)] (x, i, fun (v: a | p) : () =
+    consult [pre = p, b = (| p)] (x, i, fun (v: a | p) : () =
       (* WISH could we get rid of this type application? *)
       f (i, v)
     )
@@ -119,7 +119,7 @@ val iteri_down [a, p : perm] (
   | p
 ) : () =
   iter_array_down (x, fun (i: int | x @ array a * p) : () =
-    consult_variant [pre = p, b = (| p)] (x, i, fun (v: a | p) : () =
+    consult [pre = p, b = (| p)] (x, i, fun (v: a | p) : () =
       (* WISH could we get rid of this type application? *)
       f (i, v)
     )
@@ -152,7 +152,7 @@ val iter_up [a, p : perm] (
   | p
 ) : () =
   iter_array_up (x, fun (i: int | x @ array a * p) : () =
-    consult_variant [pre = p, b = (| p)] (x, i, fun (v: a | p) : () =
+    consult [pre = p, b = (| p)] (x, i, fun (v: a | p) : () =
       (* WISH could we get rid of this type application? *)
       f v
     )
@@ -164,7 +164,7 @@ val iter_down [a, p : perm] (
   | p
 ) : () =
   iter_array_down (x, fun (i: int | x @ array a * p) : () =
-    consult_variant [pre = p, b = (| p)] (x, i, fun (v: a | p) : () =
+    consult [pre = p, b = (| p)] (x, i, fun (v: a | p) : () =
       (* WISH could we get rid of this type application? *)
       f v
     )

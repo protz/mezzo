@@ -67,13 +67,7 @@ val swap   : [a] (array a, int, int) -> ()
    CPS style. Could we somehow impose the same discipline and obtain the same
    effect in direct style? *)
 
-val consult : [a, preserved : perm, consumed : perm, b] (
-  array a, int,
-  f: (a | preserved * consumes consumed) -> b
-  | preserved * consumes consumed
-) -> b
-
-val consult_variant : [a, pre : perm, b] (
+val consult : [a, pre : perm, b] (
   array a, int,
   f: (a | consumes pre) -> b
   | consumes pre
