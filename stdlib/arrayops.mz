@@ -10,6 +10,24 @@ open array
    part of the interval, and the index [j] is not part of it. The interval
    is non-empty if and only if [i < j] holds. *)
 
+val rec fold_segment_up [a] (
+  i: int, j: int, consumes accu: a,
+  f: (int, consumes a) -> a
+) : a =
+  if i < j then
+    fold_segment_up (i + 1, j, f (i, accu), f)
+  else
+    accu
+
+val rec fold_segment_down [a] (
+  i: int, j: int, consumes accu: a,
+  f: (int, consumes a) -> a
+) : a =
+  if i < j then
+    fold_segment_down (i, j - 1, f (j - 1, accu), f)
+  else
+    accu
+
 val rec iter_segment_up [p : perm] (
   i: int, j: int,
   f: (int | p) -> () 
@@ -32,14 +50,28 @@ val rec iter_segment_down [p : perm] (
 
 (* Generic loops over an entire array. *)
 
-val rec iter_array_up [a, p : perm] (
+val fold_array_up [a, b] (
+  x: array a, consumes seed: b,
+  f: (int, consumes b | x @ array a) -> b
+) : b =
+  fold_segment_up [a = (b | x @ array a)] (0, length x, seed, f)
+  (* WISH could we get rid of this type application? *)
+
+val fold_array_down [a, b] (
+  x: array a, consumes seed: b,
+  f: (int, consumes b | x @ array a) -> b
+) : b =
+  fold_segment_down [a = (b | x @ array a)] (0, length x, seed, f)
+  (* WISH could we get rid of this type application? *)
+
+val iter_array_up [a, p : perm] (
   x: array a,
   f: (int | x @ array a * p) -> ()
   | p
 ) : () =
   iter_segment_up (0, length x, f)
 
-val rec iter_array_down [a, p : perm] (
+val iter_array_down [a, p : perm] (
   x: array a,
   f: (int | x @ array a * p) -> ()
   | p
@@ -49,34 +81,81 @@ val rec iter_array_down [a, p : perm] (
 (* A variant of the above loops, where [f] receives not only an index [i],
    but also the corresponding array element. *)
 
-val rec iteri_up [a, p : perm] (
+val foldi_up [a, b] (
+  x: array a, consumes seed: b,
+  f: (int, a, consumes accu: b) -> b
+) : b =
+  fold_array_up (x, seed, fun (i: int, consumes accu: b | x @ array a) : b =
+    consult_variant (x, i, fun (v: a | consumes accu @ b) : b =
+      f (i, v, accu)
+    )
+  )
+
+val foldi_down [a, b] (
+  x: array a, consumes seed: b,
+  f: (int, a, consumes accu: b) -> b
+) : b =
+  fold_array_down (x, seed, fun (i: int, consumes accu: b | x @ array a) : b =
+    consult_variant (x, i, fun (v: a | consumes accu @ b) : b =
+      f (i, v, accu)
+    )
+  )
+
+val iteri_up [a, p : perm] (
   x: array a,
-  f: (int, a | x @ array a * p) -> ()
+  f: (int, a | p) -> ()
   | p
 ) : () =
   iter_array_up (x, fun (i: int | x @ array a * p) : () =
-    f (i, get (x, i))
+    consult_variant [pre = p, b = (| p)] (x, i, fun (v: a | p) : () =
+      (* WISH could we get rid of this type application? *)
+      f (i, v)
+    )
   )
 
-val rec iteri_down [a, p : perm] (
+val iteri_down [a, p : perm] (
   x: array a,
-  f: (int, a | x @ array a * p) -> ()
+  f: (int, a | p) -> ()
   | p
 ) : () =
   iter_array_down (x, fun (i: int | x @ array a * p) : () =
-    f (i, get (x, i))
+    consult_variant [pre = p, b = (| p)] (x, i, fun (v: a | p) : () =
+      (* WISH could we get rid of this type application? *)
+      f (i, v)
+    )
   )
 
 (* A degenerate variant of the above loops, where the function [f] has
    access to the element, but not the index [i] or to the array [x]. *)
+
+val fold_up [a, b] (
+  x: array a,
+  consumes seed: b,
+  f: (a, consumes accu: b) -> b
+) : b =
+  fold_array_up (x, seed, fun (i: int, consumes accu: b | x @ array a) : b =
+    f (get (x, i), accu)
+  )
+
+val fold_down [a, b] (
+  x: array a,
+  consumes seed: b,
+  f: (a, consumes accu: b) -> b
+) : b =
+  fold_array_down (x, seed, fun (i: int, consumes accu: b | x @ array a) : b =
+    f (get (x, i), accu)
+  )
 
 val iter_up [a, p : perm] (
   x: array a,
   f: (a | p) -> ()
   | p
 ) : () =
-  iter_array_up (x, fun (i : int | x @ array a * p) : () =
-    f(get(x, i))
+  iter_array_up (x, fun (i: int | x @ array a * p) : () =
+    consult_variant [pre = p, b = (| p)] (x, i, fun (v: a | p) : () =
+      (* WISH could we get rid of this type application? *)
+      f v
+    )
   )
 
 val iter_down [a, p : perm] (
@@ -84,34 +163,12 @@ val iter_down [a, p : perm] (
   f: (a | p) -> ()
   | p
 ) : () =
-  iter_array_down (x, fun (i : int | x @ array a * p) : () =
-    f(get(x, i))
+  iter_array_down (x, fun (i: int | x @ array a * p) : () =
+    consult_variant [pre = p, b = (| p)] (x, i, fun (v: a | p) : () =
+      (* WISH could we get rid of this type application? *)
+      f v
+    )
   )
-
-(* A variant of the above loops, where the function [f] has access to
-   an explicit loop-carried accumulator, in addition to the element. *)
-
-val fold_up [a, b] (
-  x: array a,
-  consumes seed: b,
-  f: (a, consumes accu: b) -> b
-) : b =
-  let accu = newref seed in
-  iter_array_up (x, fun (i: int | x @ array a * accu @ ref b) : () =
-    accu := f (get (x, i), !accu )
-  );
-  !accu
-
-val fold_down [a, b] (
-  x: array a,
-  consumes seed: b,
-  f: (a, consumes accu: b) -> b
-) : b =
-  let accu = newref seed in
-  iter_array_down (x, fun (i: int | x @ array a * accu @ ref b) : () =
-    accu := f (get (x, i), !accu )
-  );
-  !accu
 
 (* -------------------------------------------------------------------------- *)
 
