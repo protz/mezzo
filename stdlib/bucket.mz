@@ -31,6 +31,47 @@ val rec iter_bucket_down [k, a, p : perm] (
 
 (* -------------------------------------------------------------------------- *)
 
+(* Search. *)
+
+val rec mem [k, a] (
+  equal: (k, k) -> bool,
+  x: k,
+  b: bucket k a
+) : bool =
+  match b with
+  | BNil ->
+      false
+  | BCons { key; tail } ->
+      (* TEMPORARY could use || *)
+      if equal (x, key) then true else mem (equal, x, tail)
+  end
+
+val rec find [k, a, p : perm] duplicable a => (
+  b: bucket k a,
+  ok: (k | p) -> bool
+  | p
+) : option a =
+  match b with
+  | BNil ->
+      none
+  | BCons { key; value; tail } ->
+      if ok key then some value else find (tail, ok)
+  end
+
+val rec find_all [k, a, p : perm] duplicable a => (
+  b: bucket k a,
+  ok: (k | p) -> bool
+  | p
+) : list::list a =
+  match b with
+  | BNil ->
+      list::nil
+  | BCons { key; value; tail } ->
+      if ok key then list::cons (value, find_all (tail, ok)) else find_all (tail, ok)
+  end
+
+(* -------------------------------------------------------------------------- *)
+
 (* Removal of a cell. *)
 
 (* [remove (b, ok)] looks for the first cell whose key satisfies the predicate
@@ -75,34 +116,6 @@ val remove [k, a, p : perm] (
       else
 	(* Otherwise, enter the above loop, and return the list head. *)
 	b, loop (b, b.tail)
-  end
-
-(* -------------------------------------------------------------------------- *)
-
-(* Search. *)
-
-val rec find [k, a, p : perm] duplicable a => (
-  b: bucket k a,
-  ok: (k | p) -> bool
-  | p
-) : option a =
-  match b with
-  | BNil ->
-      none
-  | BCons { key; value; tail } ->
-      if ok key then some value else find (tail, ok)
-  end
-
-val rec find_all [k, a, p : perm] duplicable a => (
-  b: bucket k a,
-  ok: (k | p) -> bool
-  | p
-) : list::list a =
-  match b with
-  | BNil ->
-      list::nil
-  | BCons { key; value; tail } ->
-      if ok key then list::cons (value, find_all (tail, ok)) else find_all (tail, ok)
   end
 
 (* -------------------------------------------------------------------------- *)

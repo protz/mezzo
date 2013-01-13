@@ -73,6 +73,12 @@ val consult : [a, preserved : perm, consumed : perm, b] (
   | preserved * consumes consumed
 ) -> b
 
+val consult_variant : [a, pre : perm, b] (
+  array a, int,
+  f: (a | consumes pre) -> b
+  | consumes pre
+) -> b
+
 (* [update] is a particular combination of [get] and [set] that does not
    require the element type to be duplicable. *)
 

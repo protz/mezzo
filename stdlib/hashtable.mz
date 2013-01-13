@@ -197,6 +197,15 @@ val remove [k, a] (x: k, t: table k a) : option a =
 
 (* Lookup. *)
 
+val mem [k, a] (x: k, t: table k a) : bool =
+  let equal = t.equal in
+  array::consult_variant
+    [b = (bool | x @ k)]
+    (* WISH could we get rid of this type application? *)
+    (t.buckets, key_index [k, a] (t, x), fun (b: bucket k a | x @ k) : bool =
+      bucket::mem (equal, x, b)
+    )
+
 (* We first define an internal version of [find] which locates the appropriate
    bucket and passes it to a function [f]. *)
 

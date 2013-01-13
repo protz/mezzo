@@ -23,15 +23,13 @@ val iter_bucket_down : [k, a, p : perm] (
 
 (* -------------------------------------------------------------------------- *)
 
-(* [remove (b, ok)] looks for the first cell whose key satisfies the predicate
-   [ok] and (if it finds one) removes it. It returns a pair of the new list
-   head and the value that was found, if one was found. *)
+(* Search. *)
 
-val remove : [k, a, p : perm] (
-  consumes b: bucket k a,
-  ok: (k | p) -> bool
-  | p
-) -> (bucket k a, option a)
+val mem : [k, a] (
+  equal: (k, k) -> bool,
+  x: k,
+  b: bucket k a
+) -> bool
 
 (* TEMPORARY
 
@@ -50,6 +48,18 @@ val find : [k, a, p : perm] duplicable a => (
 *)
 
 (* -------------------------------------------------------------------------- *)
+
+(* Removal and update. *)
+
+(* [remove (b, ok)] looks for the first cell whose key satisfies the predicate
+   [ok] and (if it finds one) removes it. It returns a pair of the new list
+   head and the value that was found, if one was found. *)
+
+val remove : [k, a, p : perm] (
+  consumes b: bucket k a,
+  ok: (k | p) -> bool
+  | p
+) -> (bucket k a, option a)
 
 (* [update (equal, b, x, f)] looks for an entry whose key is [equal] to [x]
    in the bucket [b]. It calls the user-supplied function [f] exactly once,
