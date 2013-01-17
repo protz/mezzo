@@ -43,6 +43,13 @@ module Make (U : sig end) = struct
   let equal (n1 : name) (n2 : name) =
     n1 = n2
 
+  (* Name comparison. *)
+
+  let compare (n1 : name) (n2 : name) =
+    if n1 > n2 then 1
+    else if n2 > n1 then -1
+    else 0
+
   (* Maps over names. *)
 
   module Map = Patricia.Little

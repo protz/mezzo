@@ -219,7 +219,7 @@ and expression =
   | EMatch of bool * expression * (pattern * expression) list
   (* (e₁, …, eₙ) *)
   | ETuple of expression list
-  (* Foo { bar = bar; baz = baz; … *)
+  (* Foo { bar = bar; baz = baz; … } *)
   | EConstruct of (Datacon.name * (Variable.name * expression) list)
   (* if e₁ then e₂ else e₃ *)
   | EIfThenElse of bool * expression * expression * expression

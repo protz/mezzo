@@ -17,6 +17,8 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+type value = InterpreterDefs.value (* TEMPORARY dummy dependency *)
+
 let _ =
   let arg_debug = ref 0 in
   let arg_backtraces = ref true in

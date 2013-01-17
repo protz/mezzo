@@ -34,6 +34,7 @@ module Make (U : sig end) : sig
   (* Names can be efficiently compared. *)
 
   val equal: name -> name -> bool
+  val compare: name -> name -> int
 
   (* We have efficient maps over names. *)
 
