@@ -81,8 +81,6 @@ type typ =
   | TyConsumes of typ
   | TyBar of typ * typ
   | TyAnd of duplicity_constraint list * typ
-    (* TEMPORARY clarify whether TyAnd is an implication (used above the arrow)
-       or a conjunction (used under the left-hand side of the arrow) *)
 
 and duplicity_constraint = data_type_flag * typ
 
