@@ -1,0 +1,12 @@
+Think about the treatment of compilation units.
+  Careful: not all toplevel names are exported.
+  Careful: some toplevel names can be re-defined before they are exported. (Bad?)
+
+It would be nice if toplevel names could be distinguished from local names
+(even when not qualified, and even when referring to a toplevel definition in
+the current module). Provided toplevel names cannot be re-defined, this would
+allow us to construct lightweight closures, i.e., not include toplevel names
+as part of closures. Actually, perhaps we should distinguish the global
+environment and the local environment? (Closures would include only the
+latter.)
+
