@@ -65,7 +65,7 @@ and value =
     (* The address of a memory block. *)
   | VAddress of block
     (* A tuple. *)
-  | VTuple of value (* immutable *) array
+  | VTuple of value list
     (* A closure. *)
   | VClosure of closure
 
@@ -88,5 +88,7 @@ and closure = {
   (* The function's body, an expression. *)
   body: expression;
   (* The environment. *)
-  env: env;
+  (* This field is mutable only in order to allow initializing
+     a recursive closure (this is Landin's knot). *)
+  mutable env: env;
 }

@@ -1,4 +1,5 @@
 Think about the treatment of compilation units.
+  Careful: must deal with "open" (a variable may be a non-local reference).
   Careful: not all toplevel names are exported.
   Careful: some toplevel names can be re-defined before they are exported. (Bad?)
 
