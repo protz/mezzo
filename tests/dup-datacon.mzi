@@ -1,0 +1,8 @@
+(* A data constructor should not be declared twice in an [.mzi] file. *)
+data t =
+| T
+
+val x : int
+
+data u =
+| T

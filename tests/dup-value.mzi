@@ -1,0 +1,3 @@
+(* A variable should not be declared twice in an [.mzi] file. *)
+val x: int
+val x: int
