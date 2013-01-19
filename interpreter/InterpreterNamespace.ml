@@ -1,42 +1,4 @@
-(* Within each namespace, we handle the distinction between unqualified and
-   qualified names as follows. A local environment maps unqualified names to
-   information. A global environment maps module names to local environments,
-   and also contains a local environment for the current module. *)
-
-(* ---------------------------------------------------------------------------- *)
-
-(* A signature for a namespace. *)
-
-module type Namespace = sig
-
-  (* A type of names. *)
-  type name
-
-  (* A global environment maps qualified and unqualified names to information. *)
-  type 'a global_env
-
-  (* An empty global environment. *)
-  val empty: 'a global_env
-
-  (* Looking up an unqualified name. *)
-  val lookup_unqualified: name -> 'a global_env -> 'a
-
-  (* Extending the environment with a single unqualified name. *)
-  val extend_unqualified: name -> 'a -> 'a global_env -> 'a global_env
-
-  (* Looking up a qualified name. *)
-  val lookup_qualified: Module.name -> name -> 'a global_env -> 'a
-
-  (* Transforming all of the unqualified names bound so far into names
-     qualified with the module name [m]. *)
-  val qualify: Module.name -> 'a global_env -> 'a global_env
-
-  (* Create unqualified versions of the names that are qualified with [m]. *)
-  val unqualify: Module.name -> 'a global_env -> 'a global_env
-
-end
-
-(* ---------------------------------------------------------------------------- *)
+open InterpreterNamespaceSignature
 
 (* This functor creates a new namespace. *)
 
@@ -66,23 +28,23 @@ end) : Namespace with type name = I.name = struct
     current = I.Map.empty;
   }
 
-  let lookup_local (x : I.name) (env : 'a local_env) : 'a =
+  let lookup_local (x : name) (env : 'a local_env) : 'a =
     try
       I.Map.find x env
     with Not_found ->
       (* This name is undefined. *)
       assert false
 
-  let extend_local (x : I.name) (a : 'a) (env : 'a local_env) : 'a local_env =
+  let extend_local (x : name) (a : 'a) (env : 'a local_env) : 'a local_env =
     I.Map.add x a env
 
-  let lookup_unqualified (x : I.name) (env : 'a global_env) : 'a =
+  let lookup_unqualified (x : name) (env : 'a global_env) : 'a =
     lookup_local x env.current
 
-  let extend_unqualified (x : I.name) (a : 'a) (env : 'a global_env) : 'a global_env =
+  let extend_unqualified (x : name) (a : 'a) (env : 'a global_env) : 'a global_env =
     { env with current = extend_local x a env.current }
 
-  let lookup_qualified (m : Module.name) (x : I.name) (env : 'a global_env) : 'a =
+  let lookup_qualified (m : Module.name) (x : name) (env : 'a global_env) : 'a =
     lookup_local x (
       try
 	Module.Map.find m env.modules
@@ -91,15 +53,21 @@ end) : Namespace with type name = I.name = struct
 	assert false
     )
 
-  let qualify (m : Module.name) (env : 'a global_env) : 'a global_env =
-    (* Check that this module is not already defined. *)
-    assert (not (Module.Map.mem m env.modules));
-    (* Define this module by adding a mapping of [m] to [env.current] to
-       [env.modules]. Then, empty [env.current]. *)
-    {
-      modules = Module.Map.add m env.current env.modules;
-      current = I.Map.empty;
-    }
+  let qualify (m : Module.name) (x : name) (env : 'a global_env) : 'a global_env =
+    (* Look up the unqualified name [x]. *)
+    let a = lookup_unqualified x env in
+    (* Look up the bindings for the module [m]. *)
+    let menv =
+      try
+	Module.Map.find m env.modules
+      with Not_found ->
+	(* If necessary, create an empty set of bindings for this module. *)
+	I.Map.empty
+    in
+    (* Check that [m::x] is not defined already. *)
+    assert (not (I.Map.mem x menv));
+    (* Add a binding for [m::x]. *)
+    { env with modules = Module.Map.add m (I.Map.add x a menv) env.modules }
 
   let unqualify (m : Module.name) (env : 'a global_env) : 'a global_env =
     (* Check that this module is already defined. *)
@@ -113,6 +81,9 @@ end) : Namespace with type name = I.name = struct
     (* For every name of the form [m::x], create a new local name of the
        form [x]. The name [m::x] remains defined, of course. *)
     { env with current = I.Map.union env.current menv }
+
+  let zap (env : 'a global_env) : 'a global_env =
+    { env with current = I.Map.empty }
 
 end
 

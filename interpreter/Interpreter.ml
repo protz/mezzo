@@ -1,13 +1,116 @@
+(*****************************************************************************)
+(*  Mezzo, a programming language based on permissions                       *)
+(*  Copyright (C) 2011, 2012 Jonathan Protzenko and François Pottier         *)
+(*                                                                           *)
+(*  This program is free software: you can redistribute it and/or modify     *)
+(*  it under the terms of the GNU General Public License as published by     *)
+(*  the Free Software Foundation, either version 3 of the License, or        *)
+(*  (at your option) any later version.                                      *)
+(*                                                                           *)
+(*  This program is distributed in the hope that it will be useful,          *)
+(*  but WITHOUT ANY WARRANTY; without even the implied warranty of           *)
+(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            *)
+(*  GNU General Public License for more details.                             *)
+(*                                                                           *)
+(*  You should have received a copy of the GNU General Public License        *)
+(*  along with this program.  If not, see <http://www.gnu.org/licenses/>.    *)
+(*                                                                           *)
+(*****************************************************************************)
+
 open SurfaceSyntax
-open InterpreterDefs
 
 (* This is the Mezzo interpreter. *)
 
 (* ---------------------------------------------------------------------------- *)
+(* ---------------------------------------------------------------------------- *)
+
+(* The interpreter treats data constructor definitions as generative. That is,
+   the evaluation of a data constructor definition causes the generation of a
+   fresh information record, to which the data constructor becomes bound. (This
+   information record could in principle contain a unique identifier; it
+   doesn't, because we don't need it.) Data constructors are treated just like
+   variables: i.e., they are bound in the environment. This implies, for
+   instance, that if a function refers to a data constructor, then this data
+   constructor is interpreted in the closure's environment. We adopt this
+   approach because it seems simple, efficient, and deals correctly with
+   masking. *)
+
+(* We maintain the following information about every data constructor. *)
+
+type datacon_info = {
+  (* Its arity (i.e., number of fields). *)
+  datacon_arity: int;
+  (* Its integer index within its data type definition. *)
+  datacon_index: int;
+  (* A map of field names to field indices. *)
+  datacon_fields: int Variable.Map.t;
+}
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Thus, we have two namespaces: variables and data constructors. *)
+
+module V =
+  InterpreterNamespace.MakeNamespace(Variable)
+
+module D =
+  InterpreterNamespace.MakeNamespace(Datacon)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* An environment contains the following information: *)
+
+type env = {
+    (* A map of (unqualified or qualified) variables to values. *)
+    variables: value V.global_env;
+    (* A map of (unqualified) data constructors to data constructor information. *)
+    datacons: datacon_info D.global_env;
+}
+
+(* ---------------------------------------------------------------------------- *)
+
+(* A value is one of the following: *)
+
+and value =
+    (* A primitive integer value. *)
+  | VInt of int
+    (* The address of a memory block. *)
+  | VAddress of block
+    (* A tuple. *)
+  | VTuple of value list
+    (* A closure. *)
+  | VClosure of closure
+
+(* A memory block contains the following information: *)
+
+and block = {
+  (* An integer tag, i.e., a [datacon_index]. *)
+  mutable tag: int;
+  (* An adopter pointer, which is either null or the address of some other block. *)
+  mutable adopter: block option;
+  (* A set of fields. *)
+  fields: value (* mutable *) array;
+}
+
+(* A closure contains the following information: *)
+
+and closure = {
+  (* The function's formal argument, a pattern. *)
+  arg: pattern;
+  (* The function's body, an expression. *)
+  body: expression;
+  (* The environment. *)
+  (* This field is mutable only in order to allow initializing
+     a recursive closure (this is Landin's knot). *)
+  mutable env: env;
+}
+
+(* ---------------------------------------------------------------------------- *)
+(* ---------------------------------------------------------------------------- *)
 
 (* An empty interpreter environment. *)
 
-let empty_env : env = {
+let empty : env = {
   variables = V.empty;
   datacons = D.empty;
 }
@@ -17,12 +120,25 @@ let empty_env : env = {
 let extend_unqualified_variable x v env =
   { env with variables = V.extend_unqualified x v env.variables }
 
+(* Extending the environment with a new unqualified data constructor. *)
+
+let extend_unqualified_datacon x info env =
+  { env with datacons = D.extend_unqualified x info env.datacons }
+
 (* Opening a module. *)
 
 let unqualify m env =
   {
     variables = V.unqualify m env.variables;
     datacons = D.unqualify m env.datacons;
+  }
+
+(* Removing all unqualified bindings. *)
+
+let zap env =
+  {
+    variables = V.zap env.variables;
+    datacons = D.zap env.datacons;
   }
 
 (* ---------------------------------------------------------------------------- *)
@@ -230,56 +346,9 @@ let rec eval (env : env) (e : expression) : value =
   | EQualified (m, x) ->
       V.lookup_qualified m x env.variables
 
-  | ELet (Nonrecursive, equations, body) ->
-      (* Evaluate the equations, in left-to-right order. *)
-      let new_env : env =
-	List.fold_left (fun new_env (p, e) ->
-	  (* For each equation [p = e], evaluate the expression [e] in the old
-	     environment [env], and match the resulting value against the
-	     pattern [p]. Accumulate the resulting bindings in the new
-	     environment [new_env]. The type-checker guarantees that no
-	     variable is bound twice. *)
-	  match_irrefutable_pattern new_env p (eval env e)
-	) env equations
-      in
-      (* Evaluate the body. *)
-      eval new_env body
-
-  | ELet (Recursive, equations, body) ->
-      (* We must construct an environment and a number of closures
-	 that point to each other; this is Landin's knot. We begin
-         by constructing a list of partly initialized closures, as
-         well as the new environment, which contains these closures. *)
-      let (new_env : env), (closures : closure list) =
-	List.fold_left (fun (new_env, closures) (p, e) ->
-	  match p, e with
-	  | PVar f, EFun (_type_parameters, argument_type, _result_type, body) ->
-	      (* Build a closure with an uninitialized environment field. *)
-	      let c = {
-		(* The argument pattern is implicit in the argument type. *)
-		arg = type_to_pattern argument_type;
-		(* The function body. *)
-		body = body;
-		(* An uninitialized environment. *)
-		env = empty_env;
-	      } in
-	      (* Bind [f] to this closure. *)
-	      extend_unqualified_variable f (VClosure c) new_env,
-	      c :: closures
-	  | _, _ ->
-	      (* The left-hand side of a recursive definition must be a variable,
-		 and the right-hand side must be a lambda-abstraction. *)
-	      (* TEMPORARY should deal with PLocated too *)
-	      assert false
-	) (env, []) equations
-      in
-      (* There remains to patch the closures with the new environment. *)
-      List.iter (fun c ->
-	(* TEMPORARY environment could/should be filtered *)
-        c.env <- new_env
-      ) closures;
-      (* Evaluate the body. *)
-      eval new_env body
+  | ELet (rec_flag, equations, body) ->
+      let env = eval_value_definition env (DMultiple (rec_flag, equations)) in
+      eval env body
 
   | EFun (_type_parameters, argument_type, _result_type, body) ->
       VClosure {
@@ -357,7 +426,7 @@ let rec eval (env : env) (e : expression) : value =
       let _unit = eval env e1 in
       eval env e2
 
-  | ELocated (e, pos1, pos2) ->
+  | ELocated (e, _, _) ->
       (* TEMPORARY keep track of locations for runtime error messages *)
       eval env e
 
@@ -424,19 +493,94 @@ and switch (env : env) (v : value) (branches : (pattern * expression) list) : va
 
 (* Evaluating a value definition. *)
 
-let eval_value_definition (env : env) (def : declaration) : env =
-  failwith "UNIMPLEMENTED"
+and eval_value_definition (env : env) (def : declaration) : env =
+  match def with
+  | DLocated (def, _, _) ->
+      eval_value_definition env def
 
-(* Evaluating a concrete data type definition. *)
+  | DMultiple (Nonrecursive, equations) ->
+      (* Evaluate the equations, in left-to-right order. *)
+      List.fold_left (fun new_env (p, e) ->
+	(* For each equation [p = e], evaluate the expression [e] in the old
+	   environment [env], and match the resulting value against the
+	   pattern [p]. Accumulate the resulting bindings in the new
+	   environment [new_env]. The type-checker guarantees that no
+	   variable is bound twice. *)
+	match_irrefutable_pattern new_env p (eval env e)
+      ) env equations
 
-let evaluate_data_type_def (env : env) (rhs : data_type_def_rhs) : env =
-  failwith "UNIMPLEMENTED"
+  | DMultiple (Recursive, equations) ->
+      (* We must construct an environment and a number of closures
+	 that point to each other; this is Landin's knot. We begin
+         by constructing a list of partly initialized closures, as
+         well as the new environment, which contains these closures. *)
+      let (new_env : env), (closures : closure list) =
+	List.fold_left (fun (new_env, closures) (p, e) ->
+	  match p, e with
+	  | PVar f, EFun (_type_parameters, argument_type, _result_type, body) ->
+	      (* Build a closure with an uninitialized environment field. *)
+	      let c = {
+		(* The argument pattern is implicit in the argument type. *)
+		arg = type_to_pattern argument_type;
+		(* The function body. *)
+		body = body;
+		(* An uninitialized environment. *)
+		env = empty;
+	      } in
+	      (* Bind [f] to this closure. *)
+	      extend_unqualified_variable f (VClosure c) new_env,
+	      c :: closures
+	  | _, _ ->
+	      (* The left-hand side of a recursive definition must be a variable,
+		 and the right-hand side must be a lambda-abstraction. *)
+	      (* TEMPORARY should deal with PLocated too *)
+	      assert false
+	) (env, []) equations
+      in
+      (* There remains to patch the closures with the new environment. *)
+      List.iter (fun c ->
+	(* TEMPORARY environment could/should be filtered *)
+        c.env <- new_env
+      ) closures;
+      (* Done. *)
+      new_env
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Evaluating a toplevel item. *)
+(* Evaluating a concrete data type definition. *)
 
-let eval_item (env: env) (item: toplevel_item) : env =
+let evaluate_data_type_def (env : env) (branches : data_type_def_rhs) : env =
+  snd (
+    (* For each data constructor, *)
+    List.fold_left (fun (index, env) (datacon, defs) ->
+      (* Compute the number of fields, and create a mapping of field names
+	 to field indices. *)
+      let arity, fields =
+	List.fold_left (fun (arity, fields) def ->
+	  match def with
+	  | FieldValue (f, _) ->
+	      arity + 1, Variable.Map.add f arity fields
+	  | FieldPermission _ ->
+	      arity, fields
+	) (0, Variable.Map.empty) defs
+      in
+      (* Generate a new data constructor information record. *)
+      let info = {
+	datacon_arity = arity;
+	datacon_index = index;
+	datacon_fields = fields;
+      } in
+      (* Extend the environment with it. *)
+      index + 1,
+      extend_unqualified_datacon datacon info env
+    ) (0, env) branches
+  )
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Evaluating a toplevel implementation item. *)
+
+let eval_implementation_item (env : env) (item : toplevel_item) : env =
   match item with
   | ValueDeclarations defs ->
       List.fold_left eval_value_definition env defs
@@ -446,6 +590,8 @@ let eval_item (env: env) (item: toplevel_item) : env =
 	 For each name of the form [m::x], we create a new local name [x]. *)
       unqualify m env
   | DataTypeGroup (_, defs) ->
+      (* The effect of evaluating a data type definition is to generate new
+	 data constructors. *)
       List.fold_left (fun env def ->
         match def with
         | Concrete (_, _, rhs, _) ->
@@ -454,5 +600,84 @@ let eval_item (env: env) (item: toplevel_item) : env =
             env
       ) env defs
   | PermDeclaration _ ->
-      (* We evaluate only implementations, not interfaces. *)
+      (* We are evaluating an implementation, not an interface. *)
       assert false
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Evaluating an implementation. *)
+
+let eval_implementation (env : env) (impl : implementation) : env =
+  List.fold_left eval_implementation_item env impl
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Evaluating (exporting) an interface. *)
+
+(* An interface is evaluated as if it were a record construction expression, in
+   the environment obtained by evaluating the corresponding implementation. Thus,
+   evaluating the interface has the effect of picking, in the environment produced
+   by evaluating the implementation, the (variable and data constructor) bindings
+   that are meant to be exported. *)
+
+(* [m] is the name of the module that we are constructing. The environment [env]
+   contains the unqualified bindings produced by evaluating the implementation of [m],
+   and also serves as an accumulator, where we produce qualified bindings for [m]. *)
+
+let export_interface_item (m : Module.name) (env : env) (item : toplevel_item) : env =
+  match item with
+  | ValueDeclarations _ ->
+      (* We are evaluating an interface, not an implementation. *)
+      assert false
+  | OpenDirective _ ->
+      (* An [open] directive does not affect the set of names that are exported.
+         Thus, it is ignored. *)
+      env
+  | DataTypeGroup (_, defs) ->
+      (* The effect of a data type declaration is to export data constructors. *)
+      List.fold_left (fun env def ->
+        match def with
+        | Concrete (_, _, branches, _) ->
+	    (* For each data constructor, *)
+	    List.fold_left (fun env (datacon, _) ->
+	      (* Export this data constructor. *)
+		{ env with datacons = D.qualify m datacon env.datacons }
+	    ) env branches
+        | Abstract _ ->
+            env
+      ) env defs
+  | PermDeclaration (x, _) ->
+      (* The effect of a variable declaration is to export this variable. *)
+      { env with variables = V.qualify m x env.variables }
+
+let export_interface (m : Module.name) (env : env) (intf : interface) : env =
+  (* Create qualified names for the things mentioned in the interface. *)
+  let env = List.fold_left (export_interface_item m) env intf in
+  (* Remove all unqualified bindings. *)
+  zap env
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Evaluating an interface/implementation pair. *)
+
+(* When this function is invoked, the environment [env] contains no unqualified
+   bindings. The new environment returned by this function satisfies the same
+   property. *)
+
+let eval_unit (env : env) (m : Module.name) (intf : interface) (impl : implementation) : env =
+  (* Evaluate the implementation. *)
+  let env = eval_implementation env impl in
+  (* Export the interface. *)
+  export_interface m env intf
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Evaluating a lone implementation is permitted for convenience, but does not
+   return an updated environment. *)
+
+let eval_lone_implementation (env : env) (impl : implementation) : unit =
+  (* Evaluate the implementation. *)
+  let _ = eval_implementation env impl in
+  (* Drop the resulting environment. *)
+  ()
+
