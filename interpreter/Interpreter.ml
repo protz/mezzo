@@ -1,15 +1,7 @@
 open SurfaceSyntax
 open InterpreterDefs
 
-(* This module contains the interpreter. *)
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Extending the environment with a binding of an unqualified name [x]
-   to a value [v]. *)
-
-let extend_unqualified (x : Variable.name) (v : value) (env : env) : env =
-  QualifiedVariableMap.add (local, x) v env
+(* This is the Mezzo interpreter. *)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -18,18 +10,29 @@ let extend_unqualified (x : Variable.name) (v : value) (env : env) : env =
 let unit_value =
   VTuple []
 
-(* The [core] module. *)
+(* The module [core]. *)
 
 let core : Module.name =
   Module.register "core"
 
-(* The Boolean values are [core::True] and [core::False]. *)
+(* The unqualified data constructors [True] and [False]. *)
 
-let true_value =
-  VAddress { tag = (core, Datacon.register "True"); adopter = None; fields = [||] }
+let t : Datacon.name =
+  Datacon.register "True"
 
-let false_value =
-  VAddress { tag = (core, Datacon.register "False"); adopter = None; fields = [||] }
+let f : Datacon.name =
+  Datacon.register "False"
+
+(* The Boolean values are [core::True] and [core::False]. Unfortunately, they
+   are not constants; the data constructor identifiers are dynamically
+   generated when the module [core] is loaded, and must be looked up in the
+   environment. *)
+
+let true_value (env : env) : value =
+  VAddress { tag = D.lookup_qualified core t env.datacons; adopter = None; fields = [||] }
+
+let false_value (env : env) : value =
+  VAddress { tag = D.lookup_qualified core f env.datacons; adopter = None; fields = [||] }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -64,17 +67,17 @@ let asClosure (v : value) : closure =
 (* Translating a field to an integer offset. *)
 
 let field_to_offset (field : field) : int =
-  assert false
+  failwith "UNIMPLEMENTED"
 
 (* Finding how many fields a data constructor carries. *)
 
 let tag_to_length (tag : Datacon.name) : int =
-  assert false
+  failwith "UNIMPLEMENTED"
 
 (* Converting a tag to a Boolean value. *)
 
 let tag_to_boolean (tag : QualifiedDatacon.name) : bool =
-  assert false
+  failwith "UNIMPLEMENTED"
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -128,6 +131,7 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TyEmpty
   | TyStar _
   | TyAnchoredPermission _ ->
+      (* Type of kind PERM, where a type of kind TERM was expected. *)
       assert false
 
 (* ---------------------------------------------------------------------------- *)
@@ -210,7 +214,7 @@ let rec eval (env : env) (e : expression) : value =
   | EVar x ->
       (* Map the unqualified name [x] to a (possibly-)qualified name. *)
       (* TEMPORARY this probably requires a static resolution environment? *)
-      let x : QualifiedVariable.name = assert false in
+      let x : QualifiedVariable.name = failwith "UNIMPLEMENTED" in
       (* Evaluate this qualified name. *)
       eval_EQualified env x
 
@@ -414,3 +418,21 @@ and switch (env : env) (v : value) (branches : (pattern * expression) list) : va
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Interpreting toplevel items. *)
+
+let rec eval_item (env: env) (item: toplevel_item) : env =
+  match item with
+  | ValueDeclarations defs ->
+      eval_value_definitions env defs
+  | OpenDirective mname ->
+      failwith "UNIMPLEMENTED"
+  | DataTypeGroup (_, dlist) ->
+      List.fold_left (fun env typedef ->
+                          match typedef with
+                          | Concrete (_, _, branch, _) ->
+                              add_def env (fst (List.split branch))
+                          | Abstract _ ->
+                              env) env dlist
+  | _ ->
+      (* We're only interpreting implementations, so no PermDeclaration here. *)
+      assert false

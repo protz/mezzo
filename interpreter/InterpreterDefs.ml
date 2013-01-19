@@ -17,43 +17,60 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(* This module provides the definitions of values and environments. *)
+(* These are the definitions of values and environments for the Mezzo
+   interpreter. *)
 
 open SurfaceSyntax
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Toplevel variables and data constructors are qualified with a module name.
-   Local variables are not qualified. We encode them as variables qualified
-   with a dummy module name. *)
+(* The interpreter treats data constructor definitions as generative. That is,
+   the evaluation of a data constructor definition causes the generation of a
+   fresh (integer) identifier, to which the data constructor becomes bound.
+   Data constructors are treated just like variables (i.e., they are bound in
+   the environment. (This implies, for instance, that if a function refers to a
+   data constructor, then this data constructor is interpreted in the closure's
+   environment.) We adopt this approach because it seems simple, efficient, and
+   deals correctly with masking. *)
 
-let local : Module.name =
-  Module.register "<local>"
+type datacon_id =
+    int
 
-module Qualify (X : sig
-  type name
-  val compare : name -> name -> int
-end) = struct
-  type name = Module.name * X.name
-  type t = name
-  let compare (m1, x1) (m2, x2) =
-    let c = X.compare x1 x2 in
-    if c <> 0 then c
-    else Module.compare m1 m2
-end
+(* We maintain the following information about every data constructor. *)
 
-module QualifiedVariable = Qualify(Variable)
-module QualifiedVariableMap = Hml_Map.Make(QualifiedVariable)
-
-module QualifiedDatacon = Qualify(Datacon)
-module QualifiedDataconMap = Hml_Map.Make(QualifiedDatacon)
+type datacon_info = {
+  (* Its unique identifier. *)
+  datacon_id: datacon_id;
+  (* Its arity (i.e., number of fields). *)
+  datacon_arity: int;
+  (* Its integer index within its data type definition. *)
+  datacon_index: int;
+  (* A map of field names to field indices. *)
+  datacon_fields: int Variable.Map.t;
+}
 
 (* ---------------------------------------------------------------------------- *)
 
-(* An environment maps qualified variables to values. *)
+(* Thus, we have two namespaces: variables and data constructors. *)
 
-type env =
-    value QualifiedVariableMap.t
+module V =
+  InterpreterNamespace.MakeNamespace(Variable)
+
+module D =
+  InterpreterNamespace.MakeNamespace(Datacon)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* An environment contains the following information: *)
+
+type env = {
+    (* A map of (unqualified or qualified) variables to values. *)
+    variables: value V.global_env;
+    (* A map of (unqualified) data constructors to identifiers. *)
+    datacons: datacon_id D.global_env;
+    (* The number of the next available unique data constructor identifier. *)
+    next_datacon_id: datacon_id;
+}
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -73,7 +90,7 @@ and value =
 
 and block = {
   (* A tag. *)
-  mutable tag: QualifiedDatacon.name;
+  mutable tag: datacon_id;
   (* An adopter pointer, which is either null or the address of some other block. *)
   mutable adopter: block option;
   (* A set of fields. *)
