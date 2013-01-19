@@ -15,6 +15,9 @@ module type Namespace = sig
   (* A global environment maps qualified and unqualified names to information. *)
   type 'a global_env
 
+  (* An empty global environment. *)
+  val empty: 'a global_env
+
   (* Looking up an unqualified name. *)
   val lookup_unqualified: name -> 'a global_env -> 'a
 
@@ -27,6 +30,9 @@ module type Namespace = sig
   (* Transforming all of the unqualified names bound so far into names
      qualified with the module name [m]. *)
   val qualify: Module.name -> 'a global_env -> 'a global_env
+
+  (* Create unqualified versions of the names that are qualified with [m]. *)
+  val unqualify: Module.name -> 'a global_env -> 'a global_env
 
 end
 
@@ -53,6 +59,11 @@ end) : Namespace with type name = I.name = struct
     modules: 'a local_env Module.Map.t;
     (* A local environment for the current module. *)
     current: 'a local_env;
+  }
+
+  let empty : 'a global_env = {
+    modules = Module.Map.empty;
+    current = I.Map.empty;
   }
 
   let lookup_local (x : I.name) (env : 'a local_env) : 'a =
@@ -89,6 +100,19 @@ end) : Namespace with type name = I.name = struct
       modules = Module.Map.add m env.current env.modules;
       current = I.Map.empty;
     }
+
+  let unqualify (m : Module.name) (env : 'a global_env) : 'a global_env =
+    (* Check that this module is already defined. *)
+    let menv : 'a local_env =
+      try
+	Module.Map.find m env.modules
+      with Not_found ->
+	(* Undefined module. *)
+	assert false
+    in
+    (* For every name of the form [m::x], create a new local name of the
+       form [x]. The name [m::x] remains defined, of course. *)
+    { env with current = I.Map.union env.current menv }
 
 end
 

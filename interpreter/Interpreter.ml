@@ -5,34 +5,42 @@ open InterpreterDefs
 
 (* ---------------------------------------------------------------------------- *)
 
+(* An empty interpreter environment. *)
+
+let empty_env : env = {
+  variables = V.empty;
+  datacons = D.empty;
+}
+
+(* Extending the environment with a new unqualified variable. *)
+
+let extend_unqualified_variable x v env =
+  { env with variables = V.extend_unqualified x v env.variables }
+
+(* Opening a module. *)
+
+let unqualify m env =
+  {
+    variables = V.unqualify m env.variables;
+    datacons = D.unqualify m env.datacons;
+  }
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Constant value definitions. *)
+
 (* The unit value is the empty tuple. *)
 
 let unit_value =
   VTuple []
 
-(* The module [core]. *)
+(* The Boolean values are [core::True] and [core::False]. *)
 
-let core : Module.name =
-  Module.register "core"
+let false_value =
+  VAddress { tag = 0; adopter = None; fields = [||] }
 
-(* The unqualified data constructors [True] and [False]. *)
-
-let t : Datacon.name =
-  Datacon.register "True"
-
-let f : Datacon.name =
-  Datacon.register "False"
-
-(* The Boolean values are [core::True] and [core::False]. Unfortunately, they
-   are not constants; the data constructor identifiers are dynamically
-   generated when the module [core] is loaded, and must be looked up in the
-   environment. *)
-
-let true_value (env : env) : value =
-  VAddress { tag = D.lookup_qualified core t env.datacons; adopter = None; fields = [||] }
-
-let false_value (env : env) : value =
-  VAddress { tag = D.lookup_qualified core f env.datacons; adopter = None; fields = [||] }
+let true_value =
+  VAddress { tag = 1; adopter = None; fields = [||] }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -64,20 +72,30 @@ let asClosure (v : value) : closure =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Translating a field to an integer offset. *)
+(* Exploiting information about data constructors. *)
 
-let field_to_offset (field : field) : int =
-  failwith "UNIMPLEMENTED"
+(* Finding a field in a table. *)
 
-(* Finding how many fields a data constructor carries. *)
+let find_field (f : Variable.name) (fields : 'a Variable.Map.t) : 'a =
+  try
+    Variable.Map.find f fields
+  with Not_found ->
+    (* Unknown field. *)
+    assert false
 
-let tag_to_length (tag : Datacon.name) : int =
-  failwith "UNIMPLEMENTED"
+(* Translating a data-constructor-and-field pair to an integer offset. *)
 
-(* Converting a tag to a Boolean value. *)
+let field_offset (env : env) (field : field) : int =
+  (* Look up this data constructor. *)
+  let info = D.lookup_unqualified field.field_datacon env.datacons in
+  (* Find this field's offset. *)
+  find_field field.field_name info.datacon_fields
 
-let tag_to_boolean (tag : QualifiedDatacon.name) : bool =
-  failwith "UNIMPLEMENTED"
+(* Translating a data constructor to an index. *)
+
+let datacon_index (env : env) (datacon : Datacon.name) : int =
+  let info = D.lookup_unqualified datacon env.datacons in
+  info.datacon_index
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -137,16 +155,24 @@ let rec type_to_pattern (ty : typ) : pattern =
 (* ---------------------------------------------------------------------------- *)
 
 (* Matching a value [v] against a pattern [p]. The resulting bindings are
-   accumulated in the environment [env]. The function [match_pattern] raises
-   [MatchFailure] if [p] does not match [v]. The following two functions
-   catch this exception. *)
+   accumulated in the environment [env]. *)
+
+(* The data constructors that appear in the pattern [p] are interpreted
+   using the same environment [env] that serves as an accumulator. This
+   may seem slightly dirty, but is ok: [env] serves an accumulator for
+   variable bindings, so as far as data constructor bindings are concerned,
+   it remains unchanged as we progress through the matching process. *)
+
+(* The main function, [match_pattern], raises [MatchFailure] if [p] does not
+   match [v]. The following two functions, [match_irrefutable_pattern] and
+   [match_refutable_pattern], catch this exception. *)
 
 exception MatchFailure
 
 let rec match_pattern (env : env) (p : pattern) (v : value) : env =
   match p with
   | PVar x ->
-      extend_unqualified x v env
+      extend_unqualified_variable x v env
   | PTuple ps ->
       begin try
 	List.fold_left2 match_pattern env ps (asTuple v)
@@ -156,12 +182,12 @@ let rec match_pattern (env : env) (p : pattern) (v : value) : env =
       end
   | PConstruct (datacon, fps) ->
       let b = asBlock v in
-      (* TEMPORARY problems with name resolution for datacons *)
-      if QualifiedDatacon.compare (local, datacon) b.tag = 0 then
+      let info = D.lookup_unqualified datacon env.datacons in
+      if info.datacon_index = b.tag then
+	let fields = b.fields in
         List.fold_left (fun env (f, p) ->
-	  let field = { field_datacon = datacon; field_name = f } in
-	  let offset = field_to_offset field in
-	  match_pattern env p b.fields.(offset)
+	  let offset = find_field f info.datacon_fields in
+	  match_pattern env p fields.(offset)
 	) env fps
       else
         raise MatchFailure
@@ -190,19 +216,6 @@ let match_refutable_pattern (env : env) (p : pattern) (v : value) : env option =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Evaluating a qualified variable name. *)
-
-let eval_EQualified (env : env) (x : QualifiedVariable.name) : value =
-  (* Look up this qualified name in the environment. *)
-  (* TEMPORARY should we have two environments for global/local names? *)
-  try
-    QualifiedVariableMap.find x env
-  with Not_found ->
-    (* This variable is undefined. *)
-    assert false
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Evaluating an expression. *)
 
 let rec eval (env : env) (e : expression) : value =
@@ -212,14 +225,10 @@ let rec eval (env : env) (e : expression) : value =
       eval env e
 
   | EVar x ->
-      (* Map the unqualified name [x] to a (possibly-)qualified name. *)
-      (* TEMPORARY this probably requires a static resolution environment? *)
-      let x : QualifiedVariable.name = failwith "UNIMPLEMENTED" in
-      (* Evaluate this qualified name. *)
-      eval_EQualified env x
+      V.lookup_unqualified x env.variables
 
   | EQualified (m, x) ->
-      eval_EQualified env (m, x)
+      V.lookup_qualified m x env.variables
 
   | ELet (Nonrecursive, equations, body) ->
       (* Evaluate the equations, in left-to-right order. *)
@@ -252,10 +261,10 @@ let rec eval (env : env) (e : expression) : value =
 		(* The function body. *)
 		body = body;
 		(* An uninitialized environment. *)
-		env = QualifiedVariableMap.empty;
+		env = empty_env;
 	      } in
 	      (* Bind [f] to this closure. *)
-	      extend_unqualified f (VClosure c) new_env,
+	      extend_unqualified_variable f (VClosure c) new_env,
 	      c :: closures
 	  | _, _ ->
 	      (* The left-hand side of a recursive definition must be a variable,
@@ -286,19 +295,18 @@ let rec eval (env : env) (e : expression) : value =
   | EAssign (e1, field, e2) ->
       let b1 = asBlock (eval env e1) in
       let v2 = eval env e2 in
-      b1.fields.(field_to_offset field) <- v2;
+      b1.fields.(field_offset env field) <- v2;
       unit_value
 
-  | EAssignTag (e, { datacon_name = tag; _ }) ->
+  | EAssignTag (e, { new_datacon; previous_datacon }) ->
       let b = asBlock (eval env e) in
-      (* TEMPORARY problem: tags are not qualified *)
-      (* for now, cheat *)
-      b.tag <- (local, tag);
+      assert (b.tag = datacon_index env previous_datacon);
+      b.tag <- datacon_index env new_datacon;
       unit_value
 
   | EAccess (e, field) ->
       let b = asBlock (eval env e) in
-      b.fields.(field_to_offset field)
+      b.fields.(field_offset env field)
 
   | EAssert _ ->
       unit_value
@@ -321,33 +329,29 @@ let rec eval (env : env) (e : expression) : value =
       (* [List.map] implements left-to-right evaluation. *)
       VTuple (List.map (eval env) es)
 
-  | EConstruct (tag, fes) ->
+  | EConstruct (datacon, fes) ->
       (* Evaluate the fields in the order specified by the programmer. *)
       let fvs =
 	List.map (fun (f, e) -> (f, eval env e)) fes
       in
       (* Allocate a field array. *)
-      let fields = Array.create (tag_to_length tag) unit_value in
+      let info = D.lookup_unqualified datacon env.datacons in
+      let fields = Array.create info.datacon_arity unit_value in
       (* Populate the field array. *)
       List.iter (fun (f, v) ->
-	let field = { field_name = f; field_datacon = tag } in
-	let offset = field_to_offset field in
+	let offset = find_field f info.datacon_fields in
 	fields.(offset) <- v
       ) fvs;
       (* Allocate a memory block. *)
       VAddress {
-	(* TEMPORARY problem with qualified tags *)
-	tag = (local, tag);
+	tag = info.datacon_index;
 	adopter = None;
 	fields = fields;
       }
 
   | EIfThenElse (_, e, e1, e2) ->
       let b = asBlock (eval env e) in
-      if tag_to_boolean b.tag then
-	eval env e1
-      else
-	eval env e2
+      eval env (if b.tag > 0 then e1 else e2)
 
   | ESequence (e1, e2) ->
       let _unit = eval env e1 in
@@ -418,21 +422,37 @@ and switch (env : env) (v : value) (branches : (pattern * expression) list) : va
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Interpreting toplevel items. *)
+(* Evaluating a value definition. *)
 
-let rec eval_item (env: env) (item: toplevel_item) : env =
+let eval_value_definition (env : env) (def : declaration) : env =
+  failwith "UNIMPLEMENTED"
+
+(* Evaluating a concrete data type definition. *)
+
+let evaluate_data_type_def (env : env) (rhs : data_type_def_rhs) : env =
+  failwith "UNIMPLEMENTED"
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Evaluating a toplevel item. *)
+
+let eval_item (env: env) (item: toplevel_item) : env =
   match item with
   | ValueDeclarations defs ->
-      eval_value_definitions env defs
-  | OpenDirective mname ->
-      failwith "UNIMPLEMENTED"
-  | DataTypeGroup (_, dlist) ->
-      List.fold_left (fun env typedef ->
-                          match typedef with
-                          | Concrete (_, _, branch, _) ->
-                              add_def env (fst (List.split branch))
-                          | Abstract _ ->
-                              env) env dlist
-  | _ ->
-      (* We're only interpreting implementations, so no PermDeclaration here. *)
+      List.fold_left eval_value_definition env defs
+  | OpenDirective m ->
+      (* Assuming that the module [m] has been evaluated before, the (public)
+	 qualified names that it has declared are available in the environment.
+	 For each name of the form [m::x], we create a new local name [x]. *)
+      unqualify m env
+  | DataTypeGroup (_, defs) ->
+      List.fold_left (fun env def ->
+        match def with
+        | Concrete (_, _, rhs, _) ->
+            evaluate_data_type_def env rhs
+        | Abstract _ ->
+            env
+      ) env defs
+  | PermDeclaration _ ->
+      (* We evaluate only implementations, not interfaces. *)
       assert false

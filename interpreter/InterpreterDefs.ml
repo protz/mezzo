@@ -26,21 +26,18 @@ open SurfaceSyntax
 
 (* The interpreter treats data constructor definitions as generative. That is,
    the evaluation of a data constructor definition causes the generation of a
-   fresh (integer) identifier, to which the data constructor becomes bound.
-   Data constructors are treated just like variables (i.e., they are bound in
-   the environment. (This implies, for instance, that if a function refers to a
-   data constructor, then this data constructor is interpreted in the closure's
-   environment.) We adopt this approach because it seems simple, efficient, and
-   deals correctly with masking. *)
-
-type datacon_id =
-    int
+   fresh information record, to which the data constructor becomes bound. (This
+   information record could in principle contain a unique identifier; it
+   doesn't, because we don't need it.) Data constructors are treated just like
+   variables: i.e., they are bound in the environment. This implies, for
+   instance, that if a function refers to a data constructor, then this data
+   constructor is interpreted in the closure's environment. We adopt this
+   approach because it seems simple, efficient, and deals correctly with
+   masking. *)
 
 (* We maintain the following information about every data constructor. *)
 
 type datacon_info = {
-  (* Its unique identifier. *)
-  datacon_id: datacon_id;
   (* Its arity (i.e., number of fields). *)
   datacon_arity: int;
   (* Its integer index within its data type definition. *)
@@ -66,10 +63,8 @@ module D =
 type env = {
     (* A map of (unqualified or qualified) variables to values. *)
     variables: value V.global_env;
-    (* A map of (unqualified) data constructors to identifiers. *)
-    datacons: datacon_id D.global_env;
-    (* The number of the next available unique data constructor identifier. *)
-    next_datacon_id: datacon_id;
+    (* A map of (unqualified) data constructors to data constructor information. *)
+    datacons: datacon_info D.global_env;
 }
 
 (* ---------------------------------------------------------------------------- *)
@@ -89,8 +84,8 @@ and value =
 (* A memory block contains the following information: *)
 
 and block = {
-  (* A tag. *)
-  mutable tag: datacon_id;
+  (* An integer tag, i.e., a [datacon_index]. *)
+  mutable tag: int;
   (* An adopter pointer, which is either null or the address of some other block. *)
   mutable adopter: block option;
   (* A set of fields. *)
