@@ -3,32 +3,33 @@ open InterpreterDefs
 
 (* This module contains the interpreter. *)
 
-(* TEMPORARY *)
+(* ---------------------------------------------------------------------------- *)
+
+(* Extending the environment with a binding of an unqualified name [x]
+   to a value [v]. *)
+
+let extend_unqualified (x : Variable.name) (v : value) (env : env) : env =
+  QualifiedVariableMap.add (local, x) v env
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Runtime errors. *)
-
-let error msg =
-  Printf.fprintf stderr msg;
-  exit 1
-
-(* ---------------------------------------------------------------------------- *)
-
-(* The unit value. *)
+(* The unit value is the empty tuple. *)
 
 let unit_value =
   VTuple []
 
-(* The Boolean values. *)
+(* The [core] module. *)
+
+let core : Module.name =
+  Module.register "core"
+
+(* The Boolean values are [core::True] and [core::False]. *)
 
 let true_value =
-  (* TEMPORARY need to look up core::True *)
-  VAddress { tag = (assert false); adopter = None; fields = [||] }
+  VAddress { tag = (core, Datacon.register "True"); adopter = None; fields = [||] }
 
 let false_value =
-  (* TEMPORARY *)
-  VAddress { tag = (assert false); adopter = None; fields = [||] }
+  VAddress { tag = (core, Datacon.register "False"); adopter = None; fields = [||] }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -38,6 +39,14 @@ let asBlock (v : value) : block =
   match v with
   | VAddress block ->
       block
+  | _ ->
+      (* Runtime tag error. *)
+      assert false
+
+let asTuple (v : value) : value list =
+  match v with
+  | VTuple vs ->
+      vs
   | _ ->
       (* Runtime tag error. *)
       assert false
@@ -71,18 +80,96 @@ let tag_to_boolean (tag : QualifiedDatacon.name) : bool =
 
 (* Translating a type to a pattern. *)
 
-let type_to_pattern (ty : typ) : pattern =
-  assert false
+let rec type_to_pattern (ty : typ) : pattern =
+  match ty with
+
+  (* A structural type constructor is translated to the corresponding
+     structural pattern. *)
+
+  | TyTuple tys ->
+      PTuple (List.map type_to_pattern tys)
+
+  | TyConcreteUnfolded (datacon, fields) ->
+      let fps =
+	List.fold_left (fun fps field ->
+	  match field with
+          | FieldValue (f, ty) -> (f, type_to_pattern ty) :: fps
+          | FieldPermission _  -> fps
+	) [] fields in
+      PConstruct (datacon, fps)
+
+   (* A name introduction gives rise to a variable pattern. *)
+
+  | TyNameIntro (x, ty) ->
+      PAs (type_to_pattern ty, PVar x)
+
+  (* Pass (go down into) the following constructs. *)
+
+  | TyLocated (ty, _, _)
+  | TyAnd (_, ty)
+  | TyConsumes ty
+  | TyBar (ty, _) ->
+      type_to_pattern ty
+
+  (* Stop at (do not go down into) the following constructs. *)
+
+  | TyForall _
+  | TyUnknown
+  | TyArrow _ 
+  | TySingleton _
+  | TyQualified _
+  | TyDynamic
+  | TyApp _
+  | TyVar _ ->
+      PAny
+
+  (* The following cases should not arise. *)
+
+  | TyEmpty
+  | TyStar _
+  | TyAnchoredPermission _ ->
+      assert false
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Matching a value [v] against a pattern [p]. The resulting bindings are
-   accumulated in the environment [env]. *)
+   accumulated in the environment [env]. The function [match_pattern] raises
+   [MatchFailure] if [p] does not match [v]. The following two functions
+   catch this exception. *)
 
 exception MatchFailure
 
-let match_pattern (env : env) (p : pattern) (v : value) : env =
-  assert false
+let rec match_pattern (env : env) (p : pattern) (v : value) : env =
+  match p with
+  | PVar x ->
+      extend_unqualified x v env
+  | PTuple ps ->
+      begin try
+	List.fold_left2 match_pattern env ps (asTuple v)
+      with Invalid_argument _ ->
+	(* Tuples of non-matching lengths. *)
+	assert false
+      end
+  | PConstruct (datacon, fps) ->
+      let b = asBlock v in
+      (* TEMPORARY problems with name resolution for datacons *)
+      if QualifiedDatacon.compare (local, datacon) b.tag = 0 then
+        List.fold_left (fun env (f, p) ->
+	  let field = { field_datacon = datacon; field_name = f } in
+	  let offset = field_to_offset field in
+	  match_pattern env p b.fields.(offset)
+	) env fps
+      else
+        raise MatchFailure
+  | PLocated (p, _, _)
+  | PConstraint (p, _) ->
+      match_pattern env p v
+  | PAs (p1, p2) ->
+      let env = match_pattern env p1 v in
+      let env = match_pattern env p2 v in
+      env
+  | PAny ->
+      env
 
 let match_irrefutable_pattern (env : env) (p : pattern) (v : value) : env =
   try
@@ -110,13 +197,9 @@ let eval_EQualified (env : env) (x : QualifiedVariable.name) : value =
     (* This variable is undefined. *)
     assert false
 
-(* Extending the environment with a binding of an unqualified name [x]
-   to a value [v]. *)
-
-let extend_unqualified (x : Variable.name) (v : value) (env : env) : env =
-  QualifiedVariableMap.add (local, x) v env
-
 (* ---------------------------------------------------------------------------- *)
+
+(* Evaluating an expression. *)
 
 let rec eval (env : env) (e : expression) : value =
   match e with
@@ -291,7 +374,7 @@ let rec eval (env : env) (e : expression) : value =
           b1.adopter <- None;
           unit_value
       | _ ->
-          error "Take failure.\n"
+          Log.error "Take failure.\n"
       end
 
   | EOwns (e1, e2) ->
@@ -305,7 +388,7 @@ let rec eval (env : env) (e : expression) : value =
       end
 
   | EFail ->
-      error "Failure.\n"
+      Log.error "Failure.\n"
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -327,4 +410,7 @@ and switch (env : env) (v : value) (branches : (pattern * expression) list) : va
          checked for exhaustiveness. At the moment, this is not done,
          though. *)
       (* TEMPORARY should print a location and the value [v] *)
-      error "Match failure.\n"
+      Log.error "Match failure.\n"
+
+(* ---------------------------------------------------------------------------- *)
+
