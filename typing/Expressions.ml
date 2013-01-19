@@ -61,7 +61,7 @@ type expression =
   (* v.f <- e *)
   | EAssign of expression * field * expression
   (* tag of v <- Foo *)
-  | EAssignTag of expression * datacon
+  | EAssignTag of expression * previous_and_new_datacon
   (* v.f *)
   | EAccess of expression * field
   (* e₁ e₂ *)
@@ -96,16 +96,17 @@ and patexpr =
    * entire pattern (desugared), and an expression. *)
   pattern * expression
 
-and field = {
+and field = SurfaceSyntax.field = {
   field_name: Field.name;
   mutable field_datacon: Datacon.name;
 }
 
-and datacon = {
-  datacon_name: Datacon.name;
-  mutable datacon_previous_name: Datacon.name;
+and previous_and_new_datacon = SurfaceSyntax.previous_and_new_datacon = {
+  (* Initialized by the parser. *)
+  new_datacon: Datacon.name;
+  (* Uninitialized by the parser. Information later filled in by the type-checker. *)
+  mutable previous_datacon: Datacon.name;
 }
-
 
 (* The grammar below doesn't enforce the “only variables are allowed on the
  * left-hand side of a let rec” rule. We'll see to that later. Here too, the
@@ -1062,8 +1063,8 @@ module ExprPrinter = struct
         print_expr env e1 ^^ dot ^^ print_field f.field_name ^^ space ^^ larrow ^^ jump (print_expr env e2)
 
     | EAssignTag (e1, d) ->
-        print_expr env e1 ^^ dot ^^ print_datacon d.datacon_name ^^ space ^^ langle ^^ equals ^^
-        print_datacon d.datacon_name
+        tagof ^^ print_expr env e1 ^^ larrow ^^ print_datacon d.new_datacon
+	  (* d.previous_datacon is not printed *)
 
     | EAccess (e, f) ->
         print_expr env e ^^ dot ^^ print_field f.field_name

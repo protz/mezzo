@@ -565,20 +565,20 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       in
       return env ty_unit
 
-  | EAssignTag (e1, datacon) ->
+  | EAssignTag (e1, d) ->
       (* Type-check [e1]. *)
       let env, p1 = check_expression env e1 in
 
       (* Find the type [datacon] corresponds to. *)
-      let _, branches, _ = def_for_datacon env datacon.datacon_name in
+      let _, branches, _ = def_for_datacon env d.new_datacon in
       let _, fields =
-        List.find (fun (datacon', _) -> Datacon.equal datacon.datacon_name datacon') branches
+        List.find (fun (datacon', _) -> Datacon.equal d.new_datacon datacon') branches
       in
       let field_names = List.map (function
         | FieldValue (name, _) ->
             name
         | FieldPermission _ ->
-            (* We should just subtract the requireed permissions from the
+            (* We should just subtract the required permissions from the
              * environment. *)
             Log.error "Not implemented yet"
       ) fields in
@@ -594,7 +594,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
             (* Also, the number of fields should be the same. *)
             if List.length fieldexprs <> List.length field_names then
-              raise_error env (FieldCountMismatch (t, datacon.datacon_name));
+              raise_error env (FieldCountMismatch (t, d.new_datacon));
 
             (* Change the field names. *)
             let fieldexprs = List.map2 (fun field -> function
@@ -607,10 +607,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             if !found then
               Log.error "Two suitable permissions, strange...";
             found := true;
-            datacon.datacon_previous_name <- datacon';
+            d.previous_datacon <- datacon';
 
             (* And don't forget to change the datacon as well. *)
-            TyConcreteUnfolded (datacon.datacon_name, fieldexprs, clause)
+            TyConcreteUnfolded (d.new_datacon, fieldexprs, clause)
 
         | _ as t ->
             t

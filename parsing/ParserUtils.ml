@@ -55,7 +55,7 @@ let mkinfix e1 o e2 =
 ;;
 
 let mkdatacon d = {
-  datacon_name = d; datacon_previous_name = Datacon.register "<invalid>"
+  new_datacon = d; previous_datacon = Datacon.register "<invalid>"
 };;
 
 (* A fresh name generator, to be used (with moderation) when desugaring

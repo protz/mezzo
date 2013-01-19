@@ -206,7 +206,7 @@ and expression =
   (* v.f <- e *)
   | EAssign of expression * field * expression
   (* tag of v <- Datacon *)
-  | EAssignTag of expression * datacon
+  | EAssignTag of expression * previous_and_new_datacon
   (* v.f *)
   | EAccess of expression * field
   (* assert τ *)
@@ -241,9 +241,11 @@ and field = {
   mutable field_datacon: Datacon.name;
 }
 
-and datacon = {
-  datacon_name: Datacon.name;
-  mutable datacon_previous_name: Datacon.name;
+and previous_and_new_datacon = {
+  (* Initialized by the parser. *)
+  new_datacon: Datacon.name;
+  (* Uninitialized by the parser. Information later filled in by the type-checker. *)
+  mutable previous_datacon: Datacon.name;
 }
 
 and tapp =

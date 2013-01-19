@@ -87,6 +87,10 @@ let slash =
   string "/"
 ;;
 
+let tagof =
+  string "tag of "
+;;
+
 let utf8_length s =
   (* Stolen from Batteries *)
   let rec length_aux s c i =
