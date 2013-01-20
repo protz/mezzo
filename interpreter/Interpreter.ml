@@ -84,8 +84,11 @@ and value =
 (* A memory block contains the following information: *)
 
 and block = {
-  (* An integer tag, i.e., a [datacon_index]. *)
-  mutable tag: int;
+  (* A data constructor, represented by its [datacon_info] record.
+     We cannot work with just the [datacon_index], because we must
+     be able to disambiguate field accesses, i.e., translate a field
+     name to an offset. *)
+  mutable tag: datacon_info;
   (* An adopter pointer, which is either null or the address of some other block. *)
   mutable adopter: block option;
   (* A set of fields. *)
@@ -150,13 +153,29 @@ let zap env =
 let unit_value =
   VTuple []
 
-(* The Boolean values are [core::True] and [core::False]. *)
+(* The Boolean values are [core::True] and [core::False]. Unfortunately, these
+   are not constants, because we need to find the [datacon_info] records
+   associated with these data constructors. (If required, we could fake them,
+   but let's not bother. This is not performance-critical anyway: these Boolean
+   values are produced only by the evaluation of [EOwn].) *)
 
-let false_value =
-  VAddress { tag = 0; adopter = None; fields = [||] }
+let core =
+  Module.register "core"
 
-let true_value =
-  VAddress { tag = 1; adopter = None; fields = [||] }
+let f =
+  Datacon.register "False"
+
+let t =
+  Datacon.register "True"
+
+let false_value (env : env) =
+  (* We assume that the module [core] has been loaded at this point. *)
+  let info = D.lookup_qualified core f env.datacons in
+  VAddress { tag = info; adopter = None; fields = [||] }
+
+let true_value (env : env) =
+  let info = D.lookup_qualified core t env.datacons in
+  VAddress { tag = info; adopter = None; fields = [||] }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -201,17 +220,8 @@ let find_field (f : Variable.name) (fields : 'a Variable.Map.t) : 'a =
 
 (* Translating a data-constructor-and-field pair to an integer offset. *)
 
-let field_offset (env : env) (field : field) : int =
-  (* Look up this data constructor. *)
-  let info = D.lookup_unqualified field.field_datacon env.datacons in
-  (* Find this field's offset. *)
-  find_field field.field_name info.datacon_fields
-
-(* Translating a data constructor to an index. *)
-
-let datacon_index (env : env) (datacon : Datacon.name) : int =
-  let info = D.lookup_unqualified datacon env.datacons in
-  info.datacon_index
+let field_offset (f : Variable.name) (info : datacon_info) : int =
+  find_field f info.datacon_fields
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -299,14 +309,18 @@ let rec match_pattern (env : env) (p : pattern) (v : value) : env =
   | PConstruct (datacon, fps) ->
       let b = asBlock v in
       let info = D.lookup_unqualified datacon env.datacons in
-      if info.datacon_index = b.tag then
+      if info == b.tag then
 	let fields = b.fields in
         List.fold_left (fun env (f, p) ->
 	  let offset = find_field f info.datacon_fields in
 	  match_pattern env p fields.(offset)
 	) env fps
-      else
+      else begin
+	(* A sanity check: physical equality of [datacon_info] records
+	   should be equivalent to equality of the [datacon_index] fields. *)
+	assert (info.datacon_index <> b.tag.datacon_index);
         raise MatchFailure
+      end
   | PLocated (p, _, _)
   | PConstraint (p, _) ->
       match_pattern env p v
@@ -357,25 +371,34 @@ let rec eval (env : env) (e : expression) : value =
 	(* The function body. *)
 	body = body;
 	(* The environment. *)
-	(* TEMPORARY environment could/should be filtered *)
+	(* TEMPORARY environment could/should be filtered? *)
 	env = env;
       }
 
-  | EAssign (e1, field, e2) ->
+  | EAssign (e1, { field_name = f; _ }, e2) ->
+      (* We do not assume that the type-checker has annotated the abstract
+	 syntax tree, so we cannot use the field [field_datacon]. Instead,
+         we rely on the fact that [b1.tag] is a [datacon_info] record and
+         contains a mapping of field names to field offsets. *)
       let b1 = asBlock (eval env e1) in
       let v2 = eval env e2 in
-      b1.fields.(field_offset env field) <- v2;
+      b1.fields.(field_offset f b1.tag) <- v2;
       unit_value
 
-  | EAssignTag (e, { new_datacon; previous_datacon }) ->
+  | EAssignTag (e, { new_datacon; _ }) ->
+      (* We do not assume that the type-checker has annotated the abstract
+	 syntax tree, so we cannot use the field [previous_datacon]. *)
       let b = asBlock (eval env e) in
-      assert (b.tag = datacon_index env previous_datacon);
-      b.tag <- datacon_index env new_datacon;
+      b.tag <- D.lookup_unqualified new_datacon env.datacons;
       unit_value
 
-  | EAccess (e, field) ->
+  | EAccess (e, { field_name = f; _ }) ->
+      (* We do not assume that the type-checker has annotated the abstract
+	 syntax tree, so we cannot use the field [field_datacon]. Instead,
+         we rely on the fact that [b.tag] is a [datacon_info] record and
+         contains a mapping of field names to field offsets. *)
       let b = asBlock (eval env e) in
-      b.fields.(field_offset env field)
+      b.fields.(field_offset f b.tag)
 
   | EAssert _ ->
       unit_value
@@ -413,14 +436,14 @@ let rec eval (env : env) (e : expression) : value =
       ) fvs;
       (* Allocate a memory block. *)
       VAddress {
-	tag = info.datacon_index;
+	tag = info;
 	adopter = None;
 	fields = fields;
       }
 
   | EIfThenElse (_, e, e1, e2) ->
       let b = asBlock (eval env e) in
-      eval env (if b.tag > 0 then e1 else e2)
+      eval env (if b.tag.datacon_index > 0 then e1 else e2)
 
   | ESequence (e1, e2) ->
       let _unit = eval env e1 in
@@ -459,9 +482,9 @@ let rec eval (env : env) (e : expression) : value =
       let b2 = asBlock (eval env e2) in
       begin match b1.adopter with
       | Some b when (b == b2) ->
-	  true_value
+	  true_value env
       | _ ->
-          false_value
+          false_value env
       end
 
   | EFail ->
@@ -539,7 +562,7 @@ and eval_value_definition (env : env) (def : declaration) : env =
       in
       (* There remains to patch the closures with the new environment. *)
       List.iter (fun c ->
-	(* TEMPORARY environment could/should be filtered *)
+	(* TEMPORARY environment could/should be filtered? *)
         c.env <- new_env
       ) closures;
       (* Done. *)

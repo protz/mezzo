@@ -1,5 +1,10 @@
 open SurfaceSyntax
 
+(* The interpreter works with a program expressed in the surface syntax.
+   The program may be composed of multiple units (a.k.a. modules). The
+   interpreter expects the program to be well-typed, but does not assume
+   that the abstract syntax tree has been annotated by the type-checker. *)
+
 (* The type of interpreter environments. *)
 
 type env
