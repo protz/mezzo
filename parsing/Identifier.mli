@@ -25,20 +25,26 @@ module Make (U : sig end) : sig
   (* An abstract type of names. *)
 
   type name
+  type t = name
 
   (* Names stand for strings: names and string are inter-convertible. *)
 
   val register: string -> name
   val print: name -> string
 
-  (* Names can be efficiently compared. *)
+  (* Names can be efficiently compared and hashed. *)
 
   val equal: name -> name -> bool
   val compare: name -> name -> int
+  val hash: name -> int
 
   (* We have efficient maps over names. *)
 
   module Map : GMap.S with type key = name
+
+  (* A facility for memoizing a function over names. *)
+
+  val memoize: (name -> 'a) -> name -> 'a
 
 end
 

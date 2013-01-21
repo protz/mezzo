@@ -90,11 +90,11 @@ let mkprefix path =
     ) modules 
 ;;
 
-let lex_and_parse_implementation path =
+let lex_and_parse_implementation path : SurfaceSyntax.implementation =
   mkprefix path @ lex_and_parse path Grammar.implementation
 ;;
 
-let lex_and_parse_interface path =
+let lex_and_parse_interface path : SurfaceSyntax.interface =
   mkprefix path @ lex_and_parse path Grammar.interface
 ;;
 
@@ -124,7 +124,7 @@ let module_name_for_file_path (f: string): Module.name =
   Module.register f
 ;;
 
-let find_in_include_dirs (filename: string): string option =
+let find_in_include_dirs (filename: string): string =
   let module M = struct exception Found of string end in
   try
     List.iter (fun dir ->
@@ -139,37 +139,27 @@ let find_in_include_dirs (filename: string): string option =
       if Sys.file_exists path then
         raise (M.Found path)
     ) !include_dirs;
-    None
+    Log.error "Unable to find a file named %s" filename
   with M.Found s ->
-    Some s
+    s
 ;;
 
-let iface_file_path_for_module_name (mname: Module.name): string option =
-  let f = Module.print mname in
-  let f = f ^ ".mzi" in
-  find_in_include_dirs f
+let find_and_lex_interface : Module.name -> SurfaceSyntax.interface =
+  Module.memoize (fun mname ->
+    let filename = Module.print mname ^ ".mzi" in
+    lex_and_parse_interface (find_in_include_dirs filename)
+  )
 ;;
 
-let cache =
-  Hashtbl.create 11
-;;
-
-let find_and_lex_interface (mname: Module.name): SurfaceSyntax.interface =
-  try
-    Hashtbl.find cache mname
-  with Not_found ->
-    let ifpath = iface_file_path_for_module_name mname in
-    match ifpath with
-    | Some ifpath ->
-        let i = lex_and_parse_interface ifpath in
-        Hashtbl.add cache mname i;
-        i
-    | None ->
-        Log.error "No interface for module %a" Module.p mname
+let find_and_lex_implementation : Module.name -> SurfaceSyntax.implementation =
+  Module.memoize (fun mname ->
+    let filename = Module.print mname ^ ".mz" in
+    lex_and_parse_implementation (find_in_include_dirs filename)
+  )
 ;;
 
 (* [build_interface env mname] finds the right interface file for [mname], and
- * lexes it, parses it, and returns a desugared version of it, reading for
+ * lexes it, parses it, and returns a desugared version of it, ready for
  * importing into some environment. *)
 let build_interface (env: Types.env) (mname: Module.name): Types.env * Expressions.interface =
   let iface = find_and_lex_interface mname in
@@ -485,3 +475,59 @@ let print_signature (buf: Buffer.t) (env: Types.env): unit =
       ()
   ) perms
 ;;
+
+(* -------------------------------------------------------------------------- *)
+
+(* A driver for the interpreter. *)
+
+let interpret (file_path : string) : unit =
+
+  (* Check that this file exists and ends in [.mz]. *)
+
+  if not (Sys.file_exists file_path) then
+    Log.error "File %s does not exist" file_path;
+  if not (Filename.check_suffix file_path ".mz") then
+    Log.error "Unknown file extension";
+
+  (* Determine the module name [m]. *)
+
+  let m = module_name_for_file_path file_path in
+  
+  (* Find the modules that [m] depends upon. *)
+
+  (* There is a fine point here. We are interested in the dependencies
+     of an [.mz] file on another [.mz] file, because a module cannot be
+     evaluated unless the modules that it refers to have been evaluated
+     as well. This is in contrast with the type-checker and compiler,
+     which look for dependencies of an [.mz] file on an [.mzi] file;
+     we have separate type-checking and compilation. *)
+
+  let ms : Module.name list =
+    Modules.all_dependencies m find_and_lex_implementation in
+
+  (* Evaluate each of these modules in turn. *)
+
+  let env : Interpreter.env =
+    List.fold_left (fun env m ->
+    
+      (* We assume that each module consists of an interface file
+	 and an implementation file. The interface file serves a
+         role as a filter (not all definitions are exported), so
+         it cannot be disregarded. *)
+      Interpreter.eval_unit
+	env
+	m
+	(find_and_lex_interface m)
+	(find_and_lex_implementation m)
+
+    ) Interpreter.empty ms
+  in
+
+  (* Evaluate [m] itself. Here, we do not care whether there is
+     or isn't an [.mzi] file. We evaluate the implementation, and
+     we are done. *)
+
+  Interpreter.eval_lone_implementation
+    env
+    (find_and_lex_implementation m)
+

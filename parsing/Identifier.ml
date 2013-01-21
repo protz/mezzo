@@ -29,6 +29,7 @@ module Make (U : sig end) = struct
 
   type name =
       int
+  type t = name
 
   (* Converting strings to names and back. *)
 
@@ -50,9 +51,27 @@ module Make (U : sig end) = struct
     else if n2 > n1 then -1
     else 0
 
+  (* Hashing. *)
+
+  let hash =
+    (* Could we use the identity function? *)
+    Hashtbl.hash
+
   (* Maps over names. *)
 
   module Map = Patricia.Little
+
+  (* Memoization. *)
+
+  let memoize (f : name -> 'a) : name -> 'a =
+    let cache = ref Map.empty in
+    function (m : name) ->
+      try
+	Map.find m !cache
+      with Not_found ->
+	let v = f m in
+	cache := Map.add m v !cache;
+	v
 
 end
 

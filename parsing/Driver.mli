@@ -35,3 +35,9 @@ val run: run_options -> (unit -> 'a) -> 'a
 (** [print_signature] prints out (in order, and in a fancy manner) the types that have been
    found in the file. *)
 val print_signature: Buffer.t -> Types.env -> unit
+
+(** [interpret] is a driver for the interpreter. It evaluates the
+    specified file, as well as the files that it depends upon, in
+    an appropriate order. *)
+
+val interpret: string -> unit
