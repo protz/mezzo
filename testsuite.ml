@@ -744,6 +744,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("dup-datacon.mzi", simple_test ~known_failure:() (Fail (function _ -> true)));
 
+  ("cycle1.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
+
   ("cps-dereliction.mz", simple_test Pass);
 
   ("fold-permission.mz", simple_test Pass);
