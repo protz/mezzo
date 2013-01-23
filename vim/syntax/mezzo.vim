@@ -93,7 +93,7 @@ syn region   mezzoModTRWith start=":\s*("hs=s+1 end=")" contained contains=@mezz
 syn match    mezzoWith "\<\(\u\(\w\|'\)*\.\)*\w\(\w\|'\)*\>" contained skipwhite skipempty nextgroup=mezzoWithRest
 syn region   mezzoWithRest start="[^)]" end=")"me=e-1 contained contains=ALLBUT,@mezzoContained
 
-syn keyword  mezzoKeyword  abstract adopts and as assert
+syn keyword  mezzoKeyword  abstract adopts and as assert builtin
 syn keyword  mezzoKeyword  consumes data duplicable dynamic else empty exclusive
 syn keyword  mezzoKeyword  fact fail from fun give
 
