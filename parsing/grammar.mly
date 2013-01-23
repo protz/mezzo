@@ -453,7 +453,7 @@ data_type_def_branch_content:
     { dfs }
 
 %inline data_type_def_lhs:
-  DATA tbs = iterated_type_type_application(variable, atomic_type_binding)
+  tbs = iterated_type_type_application(variable, atomic_type_binding)
     { tbs }
 
 %inline data_type_def_rhs:
@@ -491,14 +491,17 @@ fact:
     { FExclusive t }
 
 data_type_def:
-| flag = data_type_flag lhs = data_type_def_lhs EQUAL rhs = data_type_def_rhs
+| flag = data_type_flag
+  DATA lhs = data_type_def_lhs
+  EQUAL
+  rhs = data_type_def_rhs
   a = adopts_clause?
     { Concrete (flag, lhs, rhs, a) }
-| ABSTRACT name = variable params = atomic_type_binding*
-  (* TEMPORARY why not re-use data_type_def_lhs on the line above? *)
-  (* furthermore, I think I would prefer ABSTRACT DATA to just ABSTRACT *)
-  k = optional_kind_annotation f = fact?
-    { Abstract ((name, params), k, f) }
+| ABSTRACT
+  lhs = data_type_def_lhs
+  k = optional_kind_annotation
+  f = fact?
+    { Abstract (lhs, k, f) }
 
 %inline data_type_group:
   def = data_type_def

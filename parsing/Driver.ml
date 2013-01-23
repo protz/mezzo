@@ -508,6 +508,7 @@ let interpret (file_path : string) : unit =
 
   let ms : Module.name list =
     Modules.all_dependencies m find_and_lex_implementation in
+  (* TEMPORARY detect cyclic dependencies *)
 
   (* Evaluate each of these modules in turn. *)
 
