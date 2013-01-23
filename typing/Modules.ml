@@ -96,7 +96,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
   and collect_pattern = function
     | PVar _ ->
         []
-    | PLocated (p1, _, _) ->
+    | PLocated (p1, _) ->
         collect_pattern p1
     | PConstraint (p1, t1) ->
         collect_pattern p1 @ collect_type t1
@@ -132,7 +132,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | EOwns (e1, e2)
     | ESequence (e1, e2) ->
         collect_expr e1 @ collect_expr e2
-    | ELocated (expr, _, _)
+    | ELocated (expr, _)
     | EAssignTag (expr, _)
     | EAccess (expr, _)
     | EExplained expr ->
@@ -163,7 +163,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | TySingleton t1
     | TyNameIntro (_, t1)
     | TyConsumes t1
-    | TyLocated (t1, _, _)
+    | TyLocated (t1, _)
     | TyForall (_, t1) ->
         collect_type t1
     | TyApp (t1, t2)

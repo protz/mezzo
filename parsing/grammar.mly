@@ -238,7 +238,7 @@ atomic_kind:
 
 %inline tlocated (X):
 | x = X
-    { TyLocated (x, $startpos, $endpos) }
+    { TyLocated (x, ($startpos, $endpos)) }
 
 %inline atomic_type:
 | t = tlocated(raw_atomic_type)
@@ -525,7 +525,7 @@ data_type_def:
 
 %inline plocated (X):
 | x = X
-    { PLocated (x, $startpos, $endpos) }
+    { PLocated (x, ($startpos, $endpos)) }
 
 %inline atomic_pattern:
 | p = plocated(raw_atomic_pattern)
@@ -606,7 +606,7 @@ raw_loose_pattern:
 
 %inline elocated (X):
 | x = X
-    { ELocated (x, $startpos, $endpos) }
+    { ELocated (x, ($startpos, $endpos)) }
 
 %inline atomic_expression:
 | e = elocated(raw_atomic_expression)
@@ -791,10 +791,10 @@ raw_reasonable_expression:
       eval_e1 (
       eval_e2 (
       ESequence (
-      ELocated (ETake (v1, v2), $startpos(taking), $endpos(e2)),
+      ELocated (ETake (v1, v2), ($startpos(taking), $endpos(e2))),
       eval_e (
       ESequence (
-      ELocated (EGive (v1, v2), $startpos(fin), $endpos(fin)),
+      ELocated (EGive (v1, v2), ($startpos(fin), $endpos(fin))),
       v
       )))))
     }

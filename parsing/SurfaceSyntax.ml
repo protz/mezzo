@@ -55,6 +55,8 @@ let flatten_kind kind =
 
 (* Types and permissions. *)
 
+type location = Lexing.position * Lexing.position
+
 (* Some quantifiers can be instantiated by a user, some cannot, especially those
  * introduced in the desugaring phase. *)
 type binding_flavor = CanInstantiate | CannotInstantiate
@@ -63,7 +65,7 @@ type type_binding =
     Variable.name * kind * (Lexing.position * Lexing.position)
 
 type typ =
-  | TyLocated of typ * Lexing.position * Lexing.position
+  | TyLocated of typ * location
   | TyTuple of typ list
   | TyUnknown
   | TyDynamic
@@ -107,7 +109,7 @@ let rec flatten_star p =
   | TyConsumes _
   | TyAnchoredPermission _ as p ->
       [p]
-  | TyLocated (p, _, _) ->
+  | TyLocated (p, _) ->
       flatten_star p
   | _ as p ->
       Log.error "[flatten_star] only works for types with kind PERM (%a)"
@@ -122,15 +124,15 @@ let fold_star perms =
 ;;
 
 let rec tunloc = function
-  | TyLocated (t, _, _) ->
+  | TyLocated (t, _) ->
       tunloc t
   | _ as t ->
       t
 ;;
 
 let tloc = function
-  | TyLocated (_, p1, p2) ->
-      (p1, p2)
+  | TyLocated (_, p) ->
+      p
   | _ ->
       Log.error "[tloc] only works when you know for sure the type is located"
 ;;
@@ -159,8 +161,6 @@ type data_type_def =
 
 (* A data type group is a group of mutually recursive data type definitions. *)
 
-type location = Lexing.position * Lexing.position
-
 type data_type_group =
     location * data_type_def list
 
@@ -177,7 +177,7 @@ type pattern =
   (* Foo { bar = bar; baz = baz; … } *)
   | PConstruct of (Datacon.name * (Variable.name * pattern) list)
   (* Location information. *)
-  | PLocated of pattern * Lexing.position * Lexing.position
+  | PLocated of pattern * location
   (* x: τ *)
   | PConstraint of pattern * typ
   (* p as x *)
@@ -227,7 +227,7 @@ and expression =
   | EIfThenElse of bool * expression * expression * expression
   (* e₁; e₂ → desugared as let () = e₁ in e₂ *)
   | ESequence of expression * expression
-  | ELocated of expression * Lexing.position * Lexing.position
+  | ELocated of expression * location
   | EInt of int
   (* Explanations *)
   | EExplained of expression

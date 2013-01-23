@@ -77,8 +77,8 @@ let check_bound_datacon kenv datacon =
  * *)
 let rec add_name_if t =
   match t with
-  | TyLocated (t, p1, p2) ->
-      TyLocated (add_name_if t, p1, p2)
+  | TyLocated (t, p) ->
+      TyLocated (add_name_if t, p)
   | TyNameIntro _ ->
       t
   | _ ->
@@ -90,8 +90,8 @@ let rec add_name_if t =
 let add_names_wherever_needed t =
   let rec add t =
     match t with
-    | TyLocated (t, p1, p2) ->
-        TyLocated (add t, p1, p2)
+    | TyLocated (t, p) ->
+        TyLocated (add t, p)
 
     | TyTuple ts ->
         let ts = List.map add_name_if ts in
@@ -137,11 +137,11 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
    * associated name, hence the [Variable.name option]. *)
   let rec strip_consumes (env: env) (t: typ): typ * (Variable.name option * typ * T.location) list  =
     match t with
-    | TyLocated (t, p1, p2) ->
+    | TyLocated (t, p) ->
         (* Keep the location information, may be useful later on. *)
-        let env = locate env p1 p2 in
+        let env = locate env p in
         let t, acc = strip_consumes env t in
-        TyLocated (t, p1, p2), acc
+        TyLocated (t, p), acc
 
     | TyTuple ts ->
         let ts, accs = List.split (List.map (strip_consumes env) ts) in
@@ -224,8 +224,8 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
 
 let rec translate_type (env: env) (t: typ): T.typ =
   match t with
-  | TyLocated (t, p1, p2) ->
-      translate_type (locate env p1 p2) t
+  | TyLocated (t, p) ->
+      translate_type (locate env p) t
 
   | TyTuple ts ->
       T.TyTuple (List.map (translate_type env) ts)
@@ -334,9 +334,9 @@ and translate_arrow_type env t1 t2 =
     | TyAnd (cs, t) ->
         let cs', t = collect_constraints t in
         cs @ cs', t
-    | TyLocated (t, p1, p2) ->
+    | TyLocated (t, p) ->
         let cs, t = collect_constraints t in
-        cs, TyLocated (t, p1, p2)
+        cs, TyLocated (t, p)
     | _ ->
         [], t
   in
@@ -548,9 +548,9 @@ let clean_pattern pattern =
         let pattern, annotation = clean_pattern env pattern in
         PAs (pattern, var), annotation
 
-    | PLocated (pattern, p1, p2) ->
-        let pattern, annotation = clean_pattern (locate env p1 p2) pattern in
-        PLocated (pattern, p1, p2), annotation
+    | PLocated (pattern, pos) ->
+        let pattern, annotation = clean_pattern (locate env pos) pattern in
+        PLocated (pattern, pos), annotation
 
     | PAny ->
         PAny, TyUnknown
@@ -569,8 +569,8 @@ let rec translate_pattern env = function
       let fields, pats = List.split fieldpats in
       let pats = List.map (translate_pattern env) pats in
       E.PConstruct (datacon, List.combine fields pats)
-  | PLocated (p, p1, p2) ->
-      translate_pattern (locate env p1 p2) p
+  | PLocated (p, pos) ->
+      translate_pattern (locate env pos) p
   | PAs (p, x) ->
       E.PAs (translate_pattern env p, translate_pattern env x)
   | PConstraint _ ->
@@ -686,7 +686,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
             pat, None
           else
             match pat with
-            | PLocated (PAs (_, PVar x), _, _) ->
+            | PLocated (PAs (_, PVar x), _) ->
                 pat, Some x
             | _ ->
                 let name = fresh_var "/a" in
@@ -740,9 +740,9 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let e2 = translate_expr env e2 in
       E.(ELet (Nonrecursive, [p_unit, e1], e2))
 
-  | ELocated (e, p1, p2) ->
+  | ELocated (e, p) ->
       let e = translate_expr env e in
-      E.ELocated (e, p1, p2)
+      E.ELocated (e, p)
 
   | EInt i ->
       E.EInt i
@@ -807,7 +807,7 @@ let translate_declaration_group (env: env) (decls: declaration_group): env * E.d
   let env, decls = List.fold_left (fun (env, acc) decl ->
     match decl with
     | DLocated (DMultiple (flag, pat_exprs), p1, p2) ->
-        let env = locate env p1 p2 in
+        let env = locate env (p1, p2) in
         let env, pat_exprs = translate_patexprs env flag pat_exprs in
         let decl = E.DLocated (E.DMultiple (flag, pat_exprs), p1, p2) in
         env, decl :: acc

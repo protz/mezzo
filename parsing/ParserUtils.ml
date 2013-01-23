@@ -75,7 +75,7 @@ let rec is_var = function
   | EVar _
   | EQualified _ ->
       true
-  | ELocated (e, _, _) ->
+  | ELocated (e, _) ->
       is_var e
   | _ ->
       false

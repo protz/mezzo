@@ -390,7 +390,7 @@ let rec type_to_pattern (ty : typ) : pattern =
 
   (* Pass (go down into) the following constructs. *)
 
-  | TyLocated (ty, _, _)
+  | TyLocated (ty, _)
   | TyAnd (_, ty)
   | TyConsumes ty
   | TyBar (ty, _) ->
@@ -459,7 +459,7 @@ let rec match_pattern (env : env) (p : pattern) (v : value) : env =
 	assert (info.datacon_index <> b.tag.datacon_index);
         raise MatchFailure
       end
-  | PLocated (p, _, _)
+  | PLocated (p, _)
   | PConstraint (p, _) ->
       match_pattern env p v
   | PAs (p1, p2) ->
@@ -598,7 +598,7 @@ let rec eval (env : env) (e : expression) : value =
       let _unit = eval env e1 in
       eval env e2
 
-  | ELocated (e, _, _) ->
+  | ELocated (e, _) ->
       (* TEMPORARY keep track of locations for runtime error messages *)
       eval env e
 

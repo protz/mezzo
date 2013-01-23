@@ -332,9 +332,9 @@ let kind_external env mname x =
     unbound env (Variable.register (Module.print mname ^ "::" ^ Variable.print x))
 ;;
 
-(* [locate env p1 p2] extends [env] with the provided location information. *)
-let locate env p1 p2: env =
-  { env with location = p1, p2 }
+(* [locate env p] extends [env] with the provided location information. *)
+let locate env p : env =
+  { env with location = p }
 ;;
 
 (* [extend env xs] extends the current environment with new bindings; [xs] is
@@ -373,7 +373,7 @@ let flatten_tyapp t =
   let rec flatten_tyapp acc = function
     | TyApp (t1, t2) ->
         flatten_tyapp (t2 :: acc) t1
-    | TyLocated (t, _, _) ->
+    | TyLocated (t, _) ->
         flatten_tyapp acc t
     | _ as x ->
         x, acc
@@ -402,8 +402,8 @@ let check_for_duplicates (elements: 'a list) (exit: 'a -> 'b): unit =
 let names env ty : type_binding list =
   let rec names env ty =
     match ty with
-    | TyLocated (t, p1, p2) ->
-        names (locate env p1 p2) t
+    | TyLocated (t, p) ->
+        names (locate env p) t
     | TyNameIntro (x, t) ->
         let bindings = names env t in
         (x, KTerm, env.location) :: bindings
@@ -465,7 +465,7 @@ let rec bindings_pattern (pattern: pattern): (Variable.name * kind) list =
   | PConstruct (_, name_pats) ->
       let _, patterns = List.split name_pats in
       List.flatten (List.map bindings_pattern patterns)
-  | PLocated (p, _, _) ->
+  | PLocated (p, _) ->
       bindings_pattern p
   | PAs (p1, p2) ->
       bindings_pattern p1 @ bindings_pattern p2
@@ -484,8 +484,8 @@ let rec bindings_pattern (pattern: pattern): (Variable.name * kind) list =
    the list of the original type parameters. *)
 let rec check_fact_parameter (env: env) (x: Variable.name) (args: Variable.name list) (t: typ) =
   match t with
-  | TyLocated (t, p1, p2) ->
-      check_fact_parameter (locate env p1 p2) x args t
+  | TyLocated (t, p) ->
+      check_fact_parameter (locate env p) x args t
   | TyVar x' ->
       if not (List.exists (Variable.equal x') args) then
         bad_condition_in_fact env x
@@ -503,8 +503,8 @@ let rec check_fact_parameter (env: env) (x: Variable.name) (args: Variable.name 
    hypotheses that entail an arbitrary predicate. *)
 let rec check_fact_conclusion (env: env) (x: Variable.name) (args: Variable.name list) (t: typ) =
   match t with
-  | TyLocated (t, p1, p2) ->
-      check_fact_conclusion (locate env p1 p2) x args t
+  | TyLocated (t, p) ->
+      check_fact_conclusion (locate env p) x args t
   | _ ->
       match flatten_tyapp t with
       | TyVar x', args' ->
@@ -516,7 +516,7 @@ let rec check_fact_conclusion (env: env) (x: Variable.name) (args: Variable.name
           List.iter2 (fun x arg' ->
             match arg' with
             | TyVar x'
-            | TyLocated (TyVar x', _, _) ->
+            | TyLocated (TyVar x', _) ->
                 if not (Variable.equal x x') then
                   bad_conclusion_in_fact env x;
             | _ ->
@@ -533,8 +533,8 @@ let rec check (env: env) (t: typ) (expected_kind: kind) =
 
 and infer (env: env) (t: typ) =
   match t with
-  | TyLocated (t, p1, p2) ->
-      infer (locate env p1 p2) t
+  | TyLocated (t, p) ->
+      infer (locate env p) t
 
   | TyTuple ts ->
       List.iter (fun t -> check env t KType) ts;
@@ -691,7 +691,7 @@ let rec check_pattern (env: env) (pattern: pattern) =
   | PConstruct (_, name_pats) ->
       let _, patterns = List.split name_pats in
       List.iter (check_pattern env) patterns
-  | PLocated (p, _, _) ->
+  | PLocated (p, _) ->
       check_pattern env p
   | PAs (p1, p2) ->
       check_pattern env p1;
@@ -812,8 +812,8 @@ and check_expression (env: env) (expr: expression) =
       check_expression env e1;
       check_expression env e2
 
-  | ELocated (e, p1, p2) ->
-      check_expression (locate env p1 p2) e
+  | ELocated (e, p) ->
+      check_expression (locate env p) e
 
   | EInt _ ->
       ()
@@ -834,7 +834,7 @@ and check_expression (env: env) (expr: expression) =
 let check_declaration_group (env: env) (declaration_group: declaration list) =
   List.fold_left (fun env -> function
     | DLocated (DMultiple (rec_flag, pat_exprs), p1, p2) ->
-      let env = locate env p1 p2 in
+      let env = locate env (p1, p2) in
       check_patexpr env rec_flag pat_exprs
     | _ ->
         Log.error "Unexpected shape for a [declaration_group]."
@@ -844,7 +844,7 @@ let check_declaration_group (env: env) (declaration_group: declaration list) =
 let check_implementation (tenv: T.env) (program: implementation) =
   let env = empty tenv in
   let env = List.fold_left (fun env -> function
-    | DataTypeGroup ((p1, p2), data_type_group) ->
+    | DataTypeGroup (p, data_type_group) ->
         (* Collect the names from the data type definitions, since they
          * will be made available in both the data type definitions themselves,
          * and the value definitions. All definitions in a data type groupe are
@@ -854,7 +854,7 @@ let check_implementation (tenv: T.env) (program: implementation) =
         (* Create an environment that includes those names. The strict parameter
          * makes sure we don't bind the same name twice. Admittedly, we could do
          * something better for error reporting. *)
-        let env = locate env p1 p2 in
+        let env = locate env p in
         let env = List.fold_left bind env bindings in
         (* Check the data type definitions in the environment. *)
         check_data_type_group env data_type_group;

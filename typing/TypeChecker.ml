@@ -843,11 +843,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   | EInt _ ->
       return env !*t_int
 
-  | ELocated (e, p1, p2) ->
-      let pos = env.location in
-      let env = locate env (p1, p2) in
+  | ELocated (e, new_pos) ->
+      let old_pos = env.location in
+      let env = locate env new_pos in
       let env, p = check_expression env ?hint ?annot e in
-      locate env pos, p
+      locate env old_pos, p
 
   | EIfThenElse (explain, e1, e2, e3) ->
       let hint_1 = add_hint hint "if" in

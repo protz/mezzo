@@ -78,7 +78,7 @@ type expression =
   | EConstruct of Datacon.name * (Field.name * expression) list
   (* if e₁ then e₂ else e₃ *)
   | EIfThenElse of bool * expression * expression * expression
-  | ELocated of expression * Lexing.position * Lexing.position
+  | ELocated of expression * location
   | EInt of int
   (* Explanations *)
   | EExplained of expression
@@ -332,9 +332,9 @@ and tsubst_expr t2 i e =
       let e3 = tsubst_expr t2 i e3 in
       EIfThenElse (b, e1, e2, e3)
 
-  | ELocated (e, p1, p2) ->
+  | ELocated (e, p) ->
       let e = tsubst_expr t2 i e in
-      ELocated (e, p1, p2)
+      ELocated (e, p)
 
   | EInt _ ->
       e
@@ -493,9 +493,9 @@ and esubst e2 i e1 =
       EIfThenElse (b, e, e', e'')
 
 
-  | ELocated (e, p1, p2) ->
+  | ELocated (e, p) ->
       let e = esubst e2 i e in
-      ELocated (e, p1, p2)
+      ELocated (e, p)
 
   | EInt _ ->
       e1
@@ -579,7 +579,7 @@ type substitution_kit = {
 
 (* [eunloc e] removes any [ELocated] located in front of [e]. *)
 let rec eunloc = function
-  | ELocated (e, _, _) ->
+  | ELocated (e, _) ->
       eunloc e
   | _ as e ->
       e
@@ -587,8 +587,8 @@ let rec eunloc = function
 
 
 let eloc = function
-  | ELocated (_, p1, p2) ->
-      p1, p2
+  | ELocated (_, p) ->
+      p
   | _ ->
       Log.error "Only call this function when you're sure there's a ELocated node."
 ;;
@@ -734,8 +734,8 @@ let elift (k: int) (e: expression) =
   | EIfThenElse (b, e1, e2, e3) ->
       EIfThenElse (b, elift i e1, elift i e2, elift i e3)
 
-  | ELocated (e, p1, p2) ->
-      ELocated (elift i e, p1, p2)
+  | ELocated (e, p) ->
+      ELocated (elift i e, p)
 
   | EInt _ ->
       e
@@ -839,8 +839,8 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
     | EIfThenElse (b, e1, e1', e1'') ->
         EIfThenElse (b, epsubst e2 e1, epsubst e2 e1', epsubst e2 e1'')
 
-    | ELocated (e, p1, p2) ->
-        ELocated (epsubst e2 e, p1, p2)
+    | ELocated (e, p) ->
+        ELocated (epsubst e2 e, p)
 
     | EInt _ ->
         e1
@@ -949,8 +949,8 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
     | EIfThenElse (b, e1, e1', e1'') ->
         EIfThenElse (b, tepsubst t2 e1, tepsubst t2 e1', tepsubst t2 e1'')
 
-    | ELocated (e, p1, p2) ->
-        ELocated (tepsubst t2 e, p1, p2)
+    | ELocated (e, p) ->
+        ELocated (tepsubst t2 e, p)
 
     | EInt _ ->
         e1
@@ -1129,7 +1129,7 @@ module ExprPrinter = struct
         jump (print_expr env e2) ^^ break1 ^^ string "else" ^^
         jump (print_expr env e3)
 
-    | ELocated (e, _, _) ->
+    | ELocated (e, _) ->
         print_expr env e
 
     | EInt i ->
