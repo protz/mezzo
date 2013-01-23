@@ -162,10 +162,13 @@ let check
           | None, None ->
               (* When re-matching a module against the interfaces it opened,
                * we'll encounter the case where in [env] the type is defined as
-               * abstract, and in the signature it is still abstract. Because
-               * [TransSurface] forbids declaring a type as abstract in an
-               * implementation, we should just do nothing here. *)
-              ()
+               * abstract, and in the signature it is still abstract.
+               *
+               * [TransSurface] authorizes declaring a type as abstract
+               * in an implementation: we just re-check the fact, since the
+               * kinds have been checked earlier already. *)
+              if not (T.fact_leq fact' fact) then
+                error_out "facts";
 
           | None, Some _ ->
               (* Type made abstract. We just check that the facts are

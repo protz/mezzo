@@ -752,6 +752,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("abstract.mz", simple_test Pass);
 
+  ("abstract2.mz", simple_test (Fail (function
+    | DataTypeMismatchInSignature _ -> true | _ -> false
+  )));
+
   ("ref-swap.mz", simple_test Pass);
 
 ];;
