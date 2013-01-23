@@ -24,6 +24,10 @@ open SurfaceSyntax
 (* The interpreter is written with simplicity, as opposed to efficiency, in
    mind. *)
 
+(* TEMPORARY replace all occurrences of "assert false" with an appropriate
+   error message: 1- suggest that the code is ill-typed; 2- print a location;
+   3- only then, raise an exception. *)
+
 (* ---------------------------------------------------------------------------- *)
 (* ---------------------------------------------------------------------------- *)
 

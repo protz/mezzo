@@ -186,7 +186,7 @@ type_parameters:
 
 atomic_type_binding:
 | x = variable (* KTYPE is the default kind *)
-    { x, KType, ($startpos, $endpos) }
+    { x, KType, ($startpos(x), $endpos) }
 | LPAREN b = type_binding RPAREN
     { b }
 
@@ -194,7 +194,7 @@ type_binding:
 | b = atomic_type_binding
     { b }
 | x = variable COLON kind = kind
-    { x, kind, ($startpos, $endpos) }
+    { x, kind, ($startpos(x), $endpos) }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -238,7 +238,7 @@ atomic_kind:
 
 %inline tlocated (X):
 | x = X
-    { TyLocated (x, ($startpos, $endpos)) }
+    { TyLocated (x, ($startpos(x), $endpos)) }
 
 %inline atomic_type:
 | t = tlocated(raw_atomic_type)
@@ -505,7 +505,7 @@ data_type_def:
 
 %inline data_type_group:
   def = data_type_def
-    { DataTypeGroup (($startpos, $endpos), [def]) }
+    { DataTypeGroup (($startpos(def), $endpos), [def]) }
 
 (* A concrete data type is necessarily of kind KTYPE. We do not allow defining
    concrete data types of kind KPERM. In principle, we could allow it. I think
@@ -525,7 +525,7 @@ data_type_def:
 
 %inline plocated (X):
 | x = X
-    { PLocated (x, ($startpos, $endpos)) }
+    { PLocated (x, ($startpos(x), $endpos)) }
 
 %inline atomic_pattern:
 | p = plocated(raw_atomic_pattern)
@@ -606,7 +606,7 @@ raw_loose_pattern:
 
 %inline elocated (X):
 | x = X
-    { ELocated (x, ($startpos, $endpos)) }
+    { ELocated (x, ($startpos(x), $endpos(x))) }
 
 %inline atomic_expression:
 | e = elocated(raw_atomic_expression)
@@ -844,7 +844,7 @@ rec_flag:
 
 %inline dlocated (X):
 | x = X
-    { DLocated (x, ($startpos, $endpos)) }
+    { DLocated (x, ($startpos(x), $endpos)) }
 
 (* A declaration group is a sequence of mutually recursive definitions. *)
 declaration_group:
