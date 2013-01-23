@@ -19,7 +19,7 @@ data rich_bool (p : perm) (q: perm) =
   | RichTrue { | p }
   | RichFalse { | q }
 
-val rich_not [p : perm, q : perm] (b : rich_bool p q) : rich_bool q p =
+val rich_not [p : perm, q : perm] (consumes b : rich_bool p q) : rich_bool q p =
   match b with
   | RichTrue -> RichFalse
   | RichFalse -> RichTrue
