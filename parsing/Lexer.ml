@@ -103,9 +103,9 @@ let regexp alpha_greek = alpha | greek
 let regexp digit = ['0'-'9']
 let regexp int = digit+
 let regexp lid =
-  (low_alpha | low_greek) alpha_greek* (['_' '\''] | alpha_greek | digit)*
+  (low_alpha | low_greek | '_') alpha_greek* (['_' '\''] | alpha_greek | digit)*
 let regexp uid =
-  (up_alpha | up_greek) alpha_greek* (['_' '\''] | alpha_greek | digit)*
+  (up_alpha | up_greek | '_') alpha_greek* (['_' '\''] | alpha_greek | digit)*
 
 (* Simplified OCaml-like table for operators, from
  * http://stackoverflow.com/questions/6150551/ocaml-why-i-cant-use-this-operator-infix
@@ -131,6 +131,7 @@ let rec token = lexer
 | "as" -> locate lexbuf AS
 | "assert" -> locate lexbuf ASSERT
 | "begin" -> locate lexbuf BEGIN
+| "builtin" -> locate lexbuf BUILTIN
 | "consumes" -> locate lexbuf CONSUMES
 | "data" -> locate lexbuf DATA
 | "duplicable" -> locate lexbuf DUPLICABLE

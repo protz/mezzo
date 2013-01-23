@@ -54,6 +54,8 @@ type expression =
   | EVar of index
   (* v, free *)
   | EPoint of point
+  (* builtin foo *)
+  | EBuiltin of string
   (* let rec pat = expr and pat' = expr' in expr *)
   | ELet of rec_flag * patexpr list * expression
   (* fun [a] (x: τ): τ -> e *)
@@ -265,7 +267,8 @@ and tsubst_expr t2 i e =
       EConstraint (tsubst_expr t2 i e, tsubst t2 i t)
 
   | EVar _
-  | EPoint _ ->
+  | EPoint _ 
+  | EBuiltin _ ->
       e
 
   | ELet (rec_flag, patexprs, body) ->
@@ -427,7 +430,8 @@ and esubst e2 i e1 =
       else
         e1
 
-  | EPoint _ ->
+  | EPoint _
+  | EBuiltin _ ->
       e1
 
   | ELet (rec_flag, patexprs, body) ->
@@ -668,7 +672,8 @@ let elift (k: int) (e: expression) =
       else
         EVar (j + k)
 
-  | EPoint _ ->
+  | EPoint _
+  | EBuiltin _ ->
       e
 
   | ELet (flag, patexprs, body) ->
@@ -770,6 +775,9 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
           e2
         else
           e1
+
+    | EBuiltin _ ->
+        e1
 
     | ELet (flag, patexprs, body) ->
         let patterns, expressions = List.split patexprs in
@@ -874,6 +882,9 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
         e1
 
     | EPoint _ ->
+        e1
+
+    | EBuiltin _ ->
         e1
 
     | ELet (flag, patexprs, body) ->
@@ -1037,6 +1048,9 @@ module ExprPrinter = struct
 
     | EPoint point ->
         print_var env (get_name env point)
+
+    | EBuiltin b ->
+        string "builtin" ^^ space ^^ string b
 
     | ELet (rec_flag, patexprs, body) ->
         let env, patexprs, { subst_expr; _ } = bind_patexprs env rec_flag patexprs in

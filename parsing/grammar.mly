@@ -41,7 +41,7 @@
 
 (* Other tokens. *)
 
-%token          OPEN
+%token          OPEN BUILTIN
 %token          KTERM KTYPE KPERM
 %token          UNKNOWN DYNAMIC EXCLUSIVE MUTABLE
 %token          DATA BAR UNDERSCORE
@@ -616,6 +616,8 @@ raw_atomic_expression:
     { EVar v }
 | m = module_name COLONCOLON x = variable
     { EQualified (m, x) }
+| BUILTIN b = LIDENT
+    { EBuiltin b }
 | i = INT
     { EInt i }
 | FAIL

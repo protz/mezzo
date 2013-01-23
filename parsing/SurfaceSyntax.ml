@@ -199,6 +199,8 @@ and expression =
   | EVar of Variable.name
   (* M :: v *)
   | EQualified of Module.name * Variable.name
+  (* builtin foo *)
+  | EBuiltin of string
   (* let rec f p₁ … pₙ: τ = e₁ and … and v = e₂ in e *)
   | ELet of rec_flag * (pattern * expression) list * expression
   (* fun [a] (x: τ): τ -> e *)

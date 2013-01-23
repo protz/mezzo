@@ -1,0 +1,53 @@
+(* Arithmetic *)
+
+abstract int
+fact duplicable int
+
+val ( + ) : (int, int) -> int = builtin _mz_iadd
+val ( - ) : (int, int) -> int = builtin _mz_isub
+val ( * ) : (int, int) -> int = builtin _mz_imul
+val ( / ) : (int, int) -> int = builtin _mz_idiv
+
+(* The physical equality check (==) defined below returns, in case of success, a
+ * permission revealing that the two identifiers are equal. *)
+
+(* TEMPORARY going even further, could we use rich_bool everywhere, i.e. view
+   bool as a type abbreviation for rich_bool empty empty? We would need to
+   assign precise types to the Boolean operators. *)
+
+data rich_bool (p : perm) (q: perm) =
+  | RichTrue { | p }
+  | RichFalse { | q }
+
+val rich_not [p : perm, q : perm] (b : rich_bool p q) : rich_bool q p =
+  match b with
+  | RichTrue -> RichFalse
+  | RichFalse -> RichTrue
+  end
+
+val ( == ) : (x: unknown, y: unknown) -> rich_bool (x = y) empty =
+  builtin _mz_address_eq
+
+val ( != ) (x: unknown, y: unknown) : rich_bool empty (x = y) =
+  rich_not (x == y)
+
+(* TEMPORARY on pourrait vouloir restreindre le test d'égalité == aux types
+   exclusifs, ce qui permettrait de partager les blocs immutables sans
+   contredire la sémantique officielle. C'est un peu un point de détail.
+   D'un point de vue strictement pratique, ce ne serait pas une
+   super idée? *)
+
+(* TEMPORARY reverse convention: False | True *)
+
+data bool = True | False
+
+val ( = )  : (int, int) -> bool = builtin _mz_ieq
+val ( <> ) : (int, int) -> bool = builtin _mz_ine
+val ( < )  : (int, int) -> bool = builtin _mz_ilt
+val ( <= ) : (int, int) -> bool = builtin _mz_ile
+val ( >= ) : (int, int) -> bool = builtin _mz_ige
+val ( > )  : (int, int) -> bool = builtin _mz_igt
+
+(* Bitwise AND *)
+val ( & )  : (int, int) -> int  = builtin _mz_iand
+

@@ -742,6 +742,9 @@ and check_expression (env: env) (expr: expression) =
       if k <> KTerm then
         mismatch env KTerm k
 
+  | EBuiltin _ ->
+      ()
+
   | ELet (flag, pat_exprs, expr) ->
       let env = check_patexpr env flag pat_exprs in
       check_expression env expr

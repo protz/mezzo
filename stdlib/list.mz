@@ -199,7 +199,7 @@ val rec flatten [a] (consumes xss : list (list a)) : list a =
 
 (* The following type is not the most general type of [map]. The type-checker
    currently does not support type variables of kind perm, so we cannot allow
-   the function [f] to have an arbitrary side effect. *)
+   the function [f] to have an arbitrary side effect. *) (* TEMPORARY fix *)
 
 (* The following type does allow the function [f] to perform a strong update
    on the argument list, whose type changes from [list a1] to [list a2]. A

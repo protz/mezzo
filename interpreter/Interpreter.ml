@@ -360,6 +360,9 @@ let rec eval (env : env) (e : expression) : value =
   | EQualified (m, x) ->
       V.lookup_qualified m x env.variables
 
+  | EBuiltin _ ->
+      assert false (* TEMPORARY *)
+
   | ELet (rec_flag, equations, body) ->
       let env = eval_value_definition env (DMultiple (rec_flag, equations)) in
       eval env body

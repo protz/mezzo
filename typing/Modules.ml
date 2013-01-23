@@ -116,6 +116,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | EConstraint (expr, t) ->
         collect_expr expr @ collect_type t
     | EVar _
+    | EBuiltin _
     | EInt _
     | EFail ->
         []

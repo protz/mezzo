@@ -1029,7 +1029,14 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let env, x = bind_term env name env.location false in
       { env with inconsistent = true }, x
 
-
+  | EBuiltin _ ->
+      (* A builtin value is type-checked like [fail], i.e., it has type
+	 bottom. This is unsafe! The user must know what they are doing.
+	 Unlike [fail], this does not imply that the code that follows
+	 is dead, so we do not set [env.inconsistent]. *)
+      let name = Auto (Variable.register "/builtin") in
+      let env, x = bind_term env name env.location false in
+      env, x
 
 and check_bindings
   (env: env)
