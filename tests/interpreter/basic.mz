@@ -1,0 +1,20 @@
+val x = 0
+val y = x + 1
+val () =
+  print x;
+  print y
+
+data pair a b =
+  Pair { left: a; right: b }
+
+val t = Pair { left = 0; right = True }
+val u = Pair { left = t; right = t }
+val v = (u, u)
+val w = (v, v)
+val x = (w, w)
+val () =
+  print t;
+  print u;
+  print v;
+  print w;
+  print x

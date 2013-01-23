@@ -42,3 +42,5 @@ val ( > ) : (int, int) -> bool
 (* Bitwise AND *)
 val ( & ) : (int, int) -> int
 
+(* Magic polymorphic print *)
+val print  : [a] a -> ()

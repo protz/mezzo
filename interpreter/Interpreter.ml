@@ -38,6 +38,8 @@ open SurfaceSyntax
 (* We maintain the following information about every data constructor. *)
 
 type datacon_info = {
+  (* Its unqualified name (used only by [print_value]). *)
+  datacon_name: string;
   (* Its arity (i.e., number of fields). *)
   datacon_arity: int;
   (* Its integer index within its data type definition. *)
@@ -80,6 +82,8 @@ and value =
   | VTuple of value list
     (* A closure. *)
   | VClosure of closure
+    (* A built-in function. *)
+  | VBuiltin of string
 
 (* A memory block contains the following information: *)
 
@@ -177,9 +181,88 @@ let true_value (env : env) =
   let info = D.lookup_qualified core t env.datacons in
   VAddress { tag = info; adopter = None; fields = [||] }
 
+let bool (env : env) (b : bool) =
+  if b then true_value env else false_value env
+
+(* ---------------------------------------------------------------------------- *)
+
+(* A pretty-printer for values. *)
+
+module ValuePrinter = struct
+
+  open Hml_Pprint
+
+  let parens content =
+    group (lparen ^^ nest 2 (break0 ^^ content) ^^ break0 ^^ rparen)
+
+  let braces content =
+    group (lbrace ^^ nest 2 (break1 ^^ content) ^^ break1 ^^ rbrace)
+
+  (* The [depth] parameter is incremented at every memory block, and
+     we stop when it reaches a hard-coded limit. This prevents entering
+     an infinite loop when the heap is cyclic. It also helps visualize
+     huge values. *)
+
+  let rec print_value (env : env) (depth : int) (v : value) : document =
+    if depth >= 5 then
+      text "..."
+    else
+      match v with
+      | VInt i ->
+	  text (string_of_int i)
+      | VAddress b ->
+	  let info = b.tag in
+	  let fields : (int * string * value) list =
+	    Variable.Map.fold (fun field index accu ->
+	      (index, Variable.print field, b.fields.(index)) :: accu
+	    ) info.datacon_fields []
+	  in
+	  let fields =
+	    List.sort (fun (i1, _, _) (i2, _, _) ->
+	      Pervasives.compare i1 i2
+	    ) fields
+	  in
+	  begin match fields with
+	  | [] ->
+	      text info.datacon_name
+	  | _ :: _ ->
+	      group (
+		text info.datacon_name ^^ space ^^ braces (
+		  join (semi ^^ break1) (List.map (fun (_, field, v) ->
+		    group (
+		      text field ^^
+		      space ^^ equals ^^ nest 2 (break1 ^^
+			print_value env (depth + 1) v
+		      )
+		    )
+		  ) fields)
+		)
+	      )
+	  end
+      | VTuple vs ->
+	  parens (
+	    join (comma ^^ break1) (List.map (print_value env depth) vs)
+	  )
+      | VClosure _
+      | VBuiltin _ ->
+	  text "<fun>"
+
+  let render env v : string =
+    render (print_value env 0 v)
+
+end
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Un-tagging values. *)
+
+let asInt (v : value) : int =
+  match v with
+  | VInt i ->
+      i
+  | _ ->
+      (* Runtime tag error. *)
+      assert false
 
 let asBlock (v : value) : block =
   match v with
@@ -197,13 +280,68 @@ let asTuple (v : value) : value list =
       (* Runtime tag error. *)
       assert false
 
-let asClosure (v : value) : closure =
-  match v with
-  | VClosure c ->
-      c
+let asPair (v : value) : value * value =
+  match asTuple v with
+  | [ v1; v2 ] ->
+      v1, v2
   | _ ->
-      (* Runtime tag error. *)
+      (* Runtime arity error. *)
       assert false
+
+let asIntPair (v : value) : int * int =
+  let v1, v2 = asPair v in
+  asInt v1, asInt v2
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Evaluating an application of a built-in function. *)
+
+let eval_builtin (env : env) (b : string) (v : value) : value =
+  match b with
+  | "_mz_iadd" ->
+      let i1, i2 = asIntPair v in
+      VInt (i1 + i2)
+  | "_mz_isub" ->
+      let i1, i2 = asIntPair v in
+      VInt (i1 - i2)
+  | "_mz_imul" ->
+      let i1, i2 = asIntPair v in
+      VInt (i1 * i2)
+  | "_mz_idiv" ->
+      let i1, i2 = asIntPair v in
+      VInt (i1 / i2)
+  | "_mz_ieq" ->
+      let i1, i2 = asIntPair v in
+      bool env (i1 = i2)
+  | "_mz_ine" ->
+      let i1, i2 = asIntPair v in
+      bool env (i1 <> i2)
+  | "_mz_ilt" ->
+      let i1, i2 = asIntPair v in
+      bool env (i1 < i2)
+  | "_mz_ile" ->
+      let i1, i2 = asIntPair v in
+      bool env (i1 <= i2)
+  | "_mz_igt" ->
+      let i1, i2 = asIntPair v in
+      bool env (i1 > i2)
+  | "_mz_ige" ->
+      let i1, i2 = asIntPair v in
+      bool env (i1 >= i2)
+  | "_mz_iand" ->
+      let i1, i2 = asIntPair v in
+      VInt (i1 land i2)
+  | "_mz_address_eq" ->
+      let v1, v2 = asPair v in
+      let b1 = asBlock v1
+      and b2 = asBlock v2 in
+      bool env (b1 == b2)
+      (* TEMPORARY should be a rich_bool, not a bool *)
+  | "_mz_print_value" ->
+      print_endline (ValuePrinter.render env v);
+      unit_value
+  | _ ->
+      Log.error "Unknown builtin function: %s\n" b
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -360,8 +498,8 @@ let rec eval (env : env) (e : expression) : value =
   | EQualified (m, x) ->
       V.lookup_qualified m x env.variables
 
-  | EBuiltin _ ->
-      assert false (* TEMPORARY *)
+  | EBuiltin b ->
+      VBuiltin b
 
   | ELet (rec_flag, equations, body) ->
       let env = eval_value_definition env (DMultiple (rec_flag, equations)) in
@@ -407,12 +545,20 @@ let rec eval (env : env) (e : expression) : value =
       unit_value
 
   | EApply (e1, e2) ->
-      let c1 = asClosure (eval env e1) in
+      let v1 = eval env e1 in
       let v2 = eval env e2 in
-      (* Extend the closure's environment with a binding of the
-	 formal argument to the actual argument. Evaluate the
-	 closure body. *)
-      eval (match_irrefutable_pattern c1.env c1.arg v2) c1.body
+      begin match v1 with
+      | VClosure c1 ->
+	  (* Extend the closure's environment with a binding of the
+	     formal argument to the actual argument. Evaluate the
+	     closure body. *)
+	  eval (match_irrefutable_pattern c1.env c1.arg v2) c1.body
+      | VBuiltin b ->
+	  eval_builtin env b v2
+      | _ ->
+	  (* Runtime tag error. *)
+	  assert false
+      end
 
   | ETApply (e, _) ->
       eval env e
@@ -592,6 +738,7 @@ let evaluate_data_type_def (env : env) (branches : data_type_def_rhs) : env =
       in
       (* Generate a new data constructor information record. *)
       let info = {
+	datacon_name = Datacon.print datacon;
 	datacon_arity = arity;
 	datacon_index = index;
 	datacon_fields = fields;

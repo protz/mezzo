@@ -45,9 +45,11 @@ val ( = )  : (int, int) -> bool = builtin _mz_ieq
 val ( <> ) : (int, int) -> bool = builtin _mz_ine
 val ( < )  : (int, int) -> bool = builtin _mz_ilt
 val ( <= ) : (int, int) -> bool = builtin _mz_ile
-val ( >= ) : (int, int) -> bool = builtin _mz_ige
 val ( > )  : (int, int) -> bool = builtin _mz_igt
+val ( >= ) : (int, int) -> bool = builtin _mz_ige
 
 (* Bitwise AND *)
 val ( & )  : (int, int) -> int  = builtin _mz_iand
 
+(* Magic polymorphic print *)
+val print  : [a] a -> () = builtin _mz_print_value
