@@ -54,15 +54,15 @@ let mkprefix path =
     []
   else
     let autoload_modules = [
-      "core.mzi";
-      "pervasives.mzi";
+      "core";
+      "pervasives";
     ] in
     let me = Filename.basename path in
     let my_dir = Filename.dirname path in
     let chop l =
       let rec chop acc = function
         | hd :: tl ->
-            if hd = me then
+            if hd ^ ".mz" = me || hd ^ ".mzi" = me then
               List.rev acc
             else
               chop (hd :: acc) tl
@@ -85,8 +85,7 @@ let mkprefix path =
         autoload_modules
     in
     List.map (fun x ->
-      let name = Filename.chop_suffix x ".mzi" in
-      SurfaceSyntax.OpenDirective (Module.register name)
+      SurfaceSyntax.OpenDirective (Module.register x)
     ) modules 
 ;;
 

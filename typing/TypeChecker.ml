@@ -422,9 +422,9 @@ let merge_type_annotations env t1 t2 =
 
 let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * point =
 
-  (* TEMPORARY pas de risque que l'utilisateur masque ces définitions? *)
-  let t_int = find_type_by_name env ~mname:"core" "int"
-  and t_bool = find_type_by_name env ~mname:"core" "bool" in
+  (* lazy because we want to run ./mezzo corelib/core.mz *)
+  let t_int = lazy (find_type_by_name env ~mname:"core" "int")
+  and t_bool = lazy (find_type_by_name env ~mname:"core" "bool") in
 
   (* [return t] creates a new point with type [t] available for it, and returns
    * the environment as well as the point *)
@@ -841,7 +841,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
 
   | EInt _ ->
-      return env t_int
+      return env !*t_int
 
   | ELocated (e, p1, p2) ->
       let pos = env.location in
@@ -1015,7 +1015,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 	 false. *)
       if not (List.exists (FactInference.is_exclusive env) (get_permissions env y)) then
         raise_error env (NoAdoptsClause y);
-      return env t_bool
+      return env !*t_bool
 
   | EExplained e ->
       let env, x = check_expression env ?hint e in
@@ -1034,9 +1034,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 	 bottom. This is unsafe! The user must know what they are doing.
 	 Unlike [fail], this does not imply that the code that follows
 	 is dead, so we do not set [env.inconsistent]. *)
-      let name = Auto (Variable.register "/builtin") in
-      let env, x = bind_term env name env.location false in
-      env, x
+      begin match annot with
+      | Some t ->
+          return env t
+      | None ->
+          Log.error "Please annotate your builtins"
+      end
 
 and check_bindings
   (env: env)
