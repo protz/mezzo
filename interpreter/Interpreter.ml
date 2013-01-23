@@ -21,6 +21,9 @@ open SurfaceSyntax
 
 (* This is the Mezzo interpreter. *)
 
+(* The interpreter is written with simplicity, as opposed to efficiency, in
+   mind. *)
+
 (* ---------------------------------------------------------------------------- *)
 (* ---------------------------------------------------------------------------- *)
 
@@ -296,7 +299,7 @@ let asIntPair (v : value) : int * int =
 
 (* Evaluating an application of a built-in function. *)
 
-let eval_builtin (env : env) (b : string) (v : value) : value =
+let eval_builtin (env : env) (loc : location) (b : string) (v : value) : value =
   match b with
   | "_mz_iadd" ->
       let i1, i2 = asIntPair v in
@@ -341,7 +344,7 @@ let eval_builtin (env : env) (b : string) (v : value) : value =
       print_endline (ValuePrinter.render env v);
       unit_value
   | _ ->
-      Log.error "Unknown builtin function: %s\n" b
+      Log.error "%a\nUnknown builtin function: %s\n" Lexer.p loc b
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -486,11 +489,11 @@ let match_refutable_pattern (env : env) (p : pattern) (v : value) : env option =
 
 (* Evaluating an expression. *)
 
-let rec eval (env : env) (e : expression) : value =
+let rec eval (env : env) (loc : location) (e : expression) : value =
   match e with
 
   | EConstraint (e, _) ->
-      eval env e
+      eval env loc e
 
   | EVar x ->
       V.lookup_unqualified x env.variables
@@ -502,8 +505,8 @@ let rec eval (env : env) (e : expression) : value =
       VBuiltin b
 
   | ELet (rec_flag, equations, body) ->
-      let env = eval_value_definition env (DMultiple (rec_flag, equations)) in
-      eval env body
+      let env = eval_value_definition loc env (DMultiple (rec_flag, equations)) in
+      eval env loc body
 
   | EFun (_type_parameters, argument_type, _result_type, body) ->
       VClosure {
@@ -521,15 +524,15 @@ let rec eval (env : env) (e : expression) : value =
 	 syntax tree, so we cannot use the field [field_datacon]. Instead,
          we rely on the fact that [b1.tag] is a [datacon_info] record and
          contains a mapping of field names to field offsets. *)
-      let b1 = asBlock (eval env e1) in
-      let v2 = eval env e2 in
+      let b1 = asBlock (eval env loc e1) in
+      let v2 = eval env loc e2 in
       b1.fields.(field_offset f b1.tag) <- v2;
       unit_value
 
   | EAssignTag (e, { new_datacon; _ }) ->
       (* We do not assume that the type-checker has annotated the abstract
 	 syntax tree, so we cannot use the field [previous_datacon]. *)
-      let b = asBlock (eval env e) in
+      let b = asBlock (eval env loc e) in
       b.tag <- D.lookup_unqualified new_datacon env.datacons;
       unit_value
 
@@ -538,42 +541,42 @@ let rec eval (env : env) (e : expression) : value =
 	 syntax tree, so we cannot use the field [field_datacon]. Instead,
          we rely on the fact that [b.tag] is a [datacon_info] record and
          contains a mapping of field names to field offsets. *)
-      let b = asBlock (eval env e) in
+      let b = asBlock (eval env loc e) in
       b.fields.(field_offset f b.tag)
 
   | EAssert _ ->
       unit_value
 
   | EApply (e1, e2) ->
-      let v1 = eval env e1 in
-      let v2 = eval env e2 in
+      let v1 = eval env loc e1 in
+      let v2 = eval env loc e2 in
       begin match v1 with
       | VClosure c1 ->
 	  (* Extend the closure's environment with a binding of the
 	     formal argument to the actual argument. Evaluate the
 	     closure body. *)
-	  eval (match_irrefutable_pattern c1.env c1.arg v2) c1.body
+	  eval (match_irrefutable_pattern c1.env c1.arg v2) loc c1.body
       | VBuiltin b ->
-	  eval_builtin env b v2
+	  eval_builtin env loc b v2
       | _ ->
 	  (* Runtime tag error. *)
 	  assert false
       end
 
   | ETApply (e, _) ->
-      eval env e
+      eval env loc e
 
   | EMatch (_, e, branches) ->
-      switch env (eval env e) branches
+      switch env loc (eval env loc e) branches
 
   | ETuple es ->
       (* [List.map] implements left-to-right evaluation. *)
-      VTuple (List.map (eval env) es)
+      VTuple (List.map (eval env loc) es)
 
   | EConstruct (datacon, fes) ->
       (* Evaluate the fields in the order specified by the programmer. *)
       let fvs =
-	List.map (fun (f, e) -> (f, eval env e)) fes
+	List.map (fun (f, e) -> (f, eval env loc e)) fes
       in
       (* Allocate a field array. *)
       let info = D.lookup_unqualified datacon env.datacons in
@@ -591,44 +594,44 @@ let rec eval (env : env) (e : expression) : value =
       }
 
   | EIfThenElse (_, e, e1, e2) ->
-      let b = asBlock (eval env e) in
-      eval env (if b.tag.datacon_index > 0 then e1 else e2)
+      let b = asBlock (eval env loc e) in
+      eval env loc (if b.tag.datacon_index > 0 then e1 else e2)
 
   | ESequence (e1, e2) ->
-      let _unit = eval env e1 in
-      eval env e2
+      let _unit = eval env loc e1 in
+      eval env loc e2
 
-  | ELocated (e, _) ->
-      (* TEMPORARY keep track of locations for runtime error messages *)
-      eval env e
+  | ELocated (e, loc) ->
+      (* This is where we update the parameter [loc]. *)
+      eval env loc e
 
   | EInt i ->
       VInt i
 
   | EExplained e ->
-      eval env e
+      eval env loc e
 
   | EGive (e1, e2) ->
-      let b1 = asBlock (eval env e1) in
-      let b2 = asBlock (eval env e2) in
+      let b1 = asBlock (eval env loc e1) in
+      let b2 = asBlock (eval env loc e2) in
       assert (b1.adopter = None);
       b1.adopter <- Some b2;
       unit_value
 
   | ETake (e1, e2) ->
-      let b1 = asBlock (eval env e1) in
-      let b2 = asBlock (eval env e2) in
+      let b1 = asBlock (eval env loc e1) in
+      let b2 = asBlock (eval env loc e2) in
       begin match b1.adopter with
       | Some b when (b == b2) ->
           b1.adopter <- None;
           unit_value
       | _ ->
-          Log.error "Take failure.\n"
+          Log.error "%a\nA take instruction failed.\n" Lexer.p loc
       end
 
   | EOwns (e1, e2) ->
-      let b1 = asBlock (eval env e1) in
-      let b2 = asBlock (eval env e2) in
+      let b1 = asBlock (eval env loc e1) in
+      let b2 = asBlock (eval env loc e2) in
       begin match b1.adopter with
       | Some b when (b == b2) ->
 	  true_value env
@@ -637,38 +640,38 @@ let rec eval (env : env) (e : expression) : value =
       end
 
   | EFail ->
-      Log.error "Failure.\n"
+      Log.error "%a\nA fail instruction was encountered.\n" Lexer.p loc
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Evaluating a switch construct. *)
 
-and switch (env : env) (v : value) (branches : (pattern * expression) list) : value =
+and switch (env : env) (loc : location) (v : value) (branches : (pattern * expression) list) : value =
   match branches with
   | (p, e) :: branches ->
       begin match match_refutable_pattern env p v with
       | Some env ->
 	  (* [p] matches [v]. Evaluate the branch [e]. *)
-	  eval env e
+	  eval env loc e
       | None ->
 	  (* [p] does not match [v]. Try the next branch. *)
-	  switch env v branches
+	  switch env loc v branches
       end
   | [] ->
       (* No more branches. This should not happen if the type-checker has
          checked for exhaustiveness. At the moment, this is not done,
          though. *)
-      (* TEMPORARY should print a location and the value [v] *)
-      Log.error "Match failure.\n"
+      Log.error "%a\nMatch failure. No pattern matches this value:\n%s" Lexer.p loc (ValuePrinter.render env v)
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Evaluating a value definition. *)
 
-and eval_value_definition (env : env) (def : declaration) : env =
+and eval_value_definition (loc : location) (env : env) (def : declaration) : env =
   match def with
-  | DLocated (def, _, _) ->
-      eval_value_definition env def
+  | DLocated (def, loc) ->
+      (* Another place where [loc] is updated. *)
+      eval_value_definition loc env def
 
   | DMultiple (Nonrecursive, equations) ->
       (* Evaluate the equations, in left-to-right order. *)
@@ -678,7 +681,7 @@ and eval_value_definition (env : env) (def : declaration) : env =
 	   pattern [p]. Accumulate the resulting bindings in the new
 	   environment [new_env]. The type-checker guarantees that no
 	   variable is bound twice. *)
-	match_irrefutable_pattern new_env p (eval env e)
+	match_irrefutable_pattern new_env p (eval env loc e)
       ) env equations
 
   | DMultiple (Recursive, equations) ->
@@ -756,7 +759,7 @@ let evaluate_data_type_def (env : env) (branches : data_type_def_rhs) : env =
 let eval_implementation_item (env : env) (item : toplevel_item) : env =
   match item with
   | ValueDeclarations defs ->
-      List.fold_left eval_value_definition env defs
+      List.fold_left (eval_value_definition dummy_loc) env defs
   | OpenDirective m ->
       (* Assuming that the module [m] has been evaluated before, the (public)
 	 qualified names that it has declared are available in the environment.

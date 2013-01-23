@@ -806,10 +806,10 @@ and translate_patexprs
 let translate_declaration_group (env: env) (decls: declaration_group): env * E.declaration_group =
   let env, decls = List.fold_left (fun (env, acc) decl ->
     match decl with
-    | DLocated (DMultiple (flag, pat_exprs), p1, p2) ->
-        let env = locate env (p1, p2) in
+    | DLocated (DMultiple (flag, pat_exprs), p) ->
+        let env = locate env p in
         let env, pat_exprs = translate_patexprs env flag pat_exprs in
-        let decl = E.DLocated (E.DMultiple (flag, pat_exprs), p1, p2) in
+        let decl = E.DLocated (E.DMultiple (flag, pat_exprs), p) in
         env, decl :: acc
     | _ ->
         Log.error "The structure of declarations is supposed to be very simple"

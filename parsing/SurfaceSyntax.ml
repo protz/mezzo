@@ -57,6 +57,8 @@ let flatten_kind kind =
 
 type location = Lexing.position * Lexing.position
 
+let dummy_loc = (Lexing.dummy_pos, Lexing.dummy_pos)
+
 (* Some quantifiers can be instantiated by a user, some cannot, especially those
  * introduced in the desugaring phase. *)
 type binding_flavor = CanInstantiate | CannotInstantiate
@@ -262,7 +264,7 @@ and tapp =
 
 type declaration =
   | DMultiple of rec_flag * (pattern * expression) list
-  | DLocated of declaration * Lexing.position * Lexing.position
+  | DLocated of declaration * location
 
 type declaration_group =
   declaration list

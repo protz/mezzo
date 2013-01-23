@@ -1086,8 +1086,8 @@ let check_declaration_group
     (toplevel_items: toplevel_item list): env * toplevel_item list * point list =
   let rec check_declaration_group env declarations acc =
     match declarations with
-    | DLocated (declarations, p1, p2) :: tl ->
-        let env = locate env (p1, p2) in
+    | DLocated (declarations, p) :: tl ->
+        let env = locate env p in
         check_declaration_group env (declarations :: tl) acc
     | DMultiple (rec_flag, patexprs) :: tl ->
         let env, { subst_decl; points; _ } = check_bindings env rec_flag patexprs in

@@ -83,7 +83,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         [m]
 
   and collect_decl = function
-    | DLocated (d, _, _) ->
+    | DLocated (d, _) ->
         collect_decl d
     | DMultiple (_, patexprs) ->
         collect_patexprs patexprs

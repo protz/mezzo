@@ -119,9 +119,13 @@ let regexp symbolchar = op_prefix | op_infix0 | op_infix1 | op_infix2 | op_infix
 
 (* The lexer *)
 
+(* TEMPORARY I have added 3 calls to [Ulexing.start] which are supposed
+   to provide more a accurate start position after we have skipped some
+   material; but, for the moment, this has no effect. *)
+
 let rec token = lexer
-| linebreak -> break_line lexbuf; token lexbuf
-| whitespace -> token lexbuf
+| linebreak -> break_line lexbuf; start lexbuf; token lexbuf
+| whitespace -> start lexbuf; token lexbuf
 | "(*" -> comment 0 lexbuf
 | "*)" -> raise_error UnexpectedEndOfComment
 
@@ -214,8 +218,9 @@ and comment level = lexer
     assert (level >= 0);
     if level >=1 then
       comment (level-1) lexbuf
-    else
-      token lexbuf
+    else begin
+      start lexbuf; token lexbuf
+    end
 | linebreak ->
     break_line lexbuf;
     comment level lexbuf

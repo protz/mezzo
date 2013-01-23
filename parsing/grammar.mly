@@ -844,7 +844,7 @@ rec_flag:
 
 %inline dlocated (X):
 | x = X
-    { DLocated (x, $startpos, $endpos) }
+    { DLocated (x, ($startpos, $endpos)) }
 
 (* A declaration group is a sequence of mutually recursive definitions. *)
 declaration_group:

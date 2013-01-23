@@ -117,7 +117,7 @@ and previous_and_new_datacon = SurfaceSyntax.previous_and_new_datacon = {
  * expressions. *)
 type declaration =
   | DMultiple of rec_flag * patexpr list
-  | DLocated of declaration * Lexing.position * Lexing.position
+  | DLocated of declaration * location
 
 type declaration_group =
   declaration list
@@ -181,7 +181,7 @@ let collect_pattern (p: pattern): ((Variable.name * (Lexing.position * Lexing.po
 (* How many binders in this declaration group? *)
 let n_decls decls =
   let counts = List.map (function
-    | DLocated (DMultiple (_, patexprs), _, _) ->
+    | DLocated (DMultiple (_, patexprs), _) ->
         let names = List.flatten
           (List.map collect_pattern (fst (List.split patexprs)))
         in
@@ -366,9 +366,9 @@ and tsubst_expr t2 i e =
  * declarations [decls]. *)
 and tsubst_decl t2 i decls =
   let rec tsubst_decl acc i = function
-    | DLocated (DMultiple (rec_flag, patexprs), p1, p2) :: decls ->
+    | DLocated (DMultiple (rec_flag, patexprs), p) :: decls ->
         let n, patexprs = tsubst_patexprs t2 i rec_flag patexprs in
-        tsubst_decl (DLocated (DMultiple (rec_flag, patexprs), p1, p2) :: acc) (i + n) decls
+        tsubst_decl (DLocated (DMultiple (rec_flag, patexprs), p) :: acc) (i + n) decls
     | [] ->
         List.rev acc
     | _ ->
@@ -526,9 +526,9 @@ and esubst e2 i e1 =
  * declarations [decls]. *)
 and esubst_decl e2 i decls =
   let rec esubst_decl acc i = function
-    | DLocated (DMultiple (rec_flag, patexprs), p1, p2) :: decls ->
+    | DLocated (DMultiple (rec_flag, patexprs), p) :: decls ->
         let n, patexprs = esubst_patexprs e2 i rec_flag patexprs in
-        esubst_decl (DLocated (DMultiple (rec_flag, patexprs), p1, p2) :: acc) (i + n) decls
+        esubst_decl (DLocated (DMultiple (rec_flag, patexprs), p) :: acc) (i + n) decls
     | [] ->
         List.rev acc
     | _ ->
@@ -1171,7 +1171,7 @@ module ExprPrinter = struct
 
   let rec print_declaration env declaration: env * document * _  =
     match declaration with
-    | DLocated (declaration, _, _) ->
+    | DLocated (declaration, _) ->
         print_declaration env declaration
     | DMultiple (rec_flag, patexprs) ->
         let env, patexprs, { subst_decl; _ } = bind_patexprs env rec_flag patexprs in
