@@ -104,7 +104,6 @@ and raw_error =
   | DuplicateConstructor of Datacon.name
   | DuplicateField of Variable.name
   | AdopterNotExclusive of Variable.name
-  | NoAbstractTypesInImplementation of Variable.name
   | UnboundDataConstructor of Datacon.name
 
 exception KindError of error
@@ -197,11 +196,6 @@ let print_error buf (env, raw_error) =
   | AdopterNotExclusive x ->
       Printf.bprintf buf
         "%a type %a carries an adopts clause, but is not marked as mutable"
-        Lexer.p env.location
-        Variable.p x
-  | NoAbstractTypesInImplementation x ->
-      Printf.bprintf buf
-        "%a the definition of %a is abstract, this is allowed only in interfaces"
         Lexer.p env.location
         Variable.p x
   | UnboundDataConstructor d ->

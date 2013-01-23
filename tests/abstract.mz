@@ -1,0 +1,2 @@
+abstract held (x: term): perm
+fact duplicable (held x)

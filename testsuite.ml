@@ -750,6 +750,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("fold-permission.mz", simple_test Pass);
 
+  ("abstract.mz", simple_test Pass);
+
   ("ref-swap.mz", simple_test Pass);
 
 ];;
