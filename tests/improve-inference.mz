@@ -1,0 +1,6 @@
+data option a = None | Some { contents: a }
+
+val some [a] (consumes x: a): option a = Some { contents = x }
+
+val f [a, b] (consumes x: a, consumes y: b): option (a, b) =
+  some (x, y)
