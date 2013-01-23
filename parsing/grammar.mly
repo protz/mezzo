@@ -532,6 +532,9 @@ data_type_def:
     { p }
 
 raw_atomic_pattern:
+(* The unit pattern. *)
+| LPAREN RPAREN
+    { PTuple [] }
 | LPAREN p = pattern RPAREN
     { p }
 | dc = datacon_application(data_field_pattern)
