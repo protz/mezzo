@@ -299,11 +299,15 @@ let check_implementation
          * that are exported. *)
         let exports = Hml_List.map_flatten (fun p ->
           let k = Types.get_kind env p in
-          List.map (function
+          Hml_List.map_some (function
             | Types.User (mname, x) when Module.equal mname env.Types.module_name ->
-               x, k, p
+               Some (x, k, p)
             | _ ->
-                 assert false
+               (* Either an auto-generated name, or a name coming from another
+                * module. Think about a top-level definition such as:
+                *   let x = m::y
+                * we just drop the name "y" here. *)
+               None
           ) (Types.get_names env p)
         ) points in
         (* If the function types are not syntactically equal, the decision
