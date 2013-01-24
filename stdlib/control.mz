@@ -1,0 +1,44 @@
+(* A VERY EXPERIMENTAL pseudo-library for playing with delimited
+   continuations. This library relies on two primitive operations
+   which for the moment are NOT IMPLEMENTED. Furthermore, it is
+   probably not type-safe -- at the very least, I believe that we
+   should forbid storing the permission [answer t] in the heap. *)
+
+(* A pseudo-permission which represents the current answer type. *)
+
+abstract answer (t : type) : perm
+
+(* The primitive operation [reify] turns a suspended computation [f],
+   whose result type [a] and whose control effect is to change the
+   answer type from [b] to [c], into an ordinary function, in CPS
+   style, which expects a continuation of type [a -> b] and produces
+   a final result of type [c]. *)
+
+val reify:
+  [a, b, c]
+  (f: (| consumes answer b) -> (a | answer c)) ->
+  (a -> b) -> c
+=
+  builtin _mz_reify
+
+(* [reset] is implemented in terms of [reify], simply by passing an
+   identity continuation to the reified CPS computation. *)
+
+val reset
+  [a, c]
+  (f: (| consumes answer a) -> (a | answer c)) :
+  c
+=
+  reify [a, a, c] f (fun (x: a) : a = x)
+
+(* The primitive operation [shift] captures the current continuation,
+   up to the nearest enclosing [reify], and makes it accessible to
+   the function [f]. It is the exact opposite of [reify]. *)
+
+val shift:
+  [a, b, c]
+  (f: (a -> b) -> c |
+  consumes answer b) -> (a | answer c)
+=
+  builtin _mz_shift
+
