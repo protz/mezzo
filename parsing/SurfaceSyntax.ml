@@ -109,7 +109,8 @@ let rec flatten_star p =
       []
   | TyVar _
   | TyConsumes _
-  | TyAnchoredPermission _ as p ->
+  | TyAnchoredPermission _
+  | TyApp _ ->
       [p]
   | TyLocated (p, _) ->
       flatten_star p

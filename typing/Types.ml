@@ -130,7 +130,8 @@ let rec flatten_star p =
       []
   | TyPoint _
   | TyVar _
-  | TyAnchoredPermission _ as p ->
+  | TyAnchoredPermission _
+  | TyApp _ ->
       [p]
   | _ ->
       Log.error "[flatten_star] only works for types with kind perm"
