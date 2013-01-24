@@ -4,8 +4,8 @@ open core
 (* The standard definition of immutable lists. *)
 
 data list a =
-  | Cons { head: a; tail: list a }
   | Nil
+  | Cons { head: a; tail: list a }
 
 (* -------------------------------------------------------------------------- *)
 

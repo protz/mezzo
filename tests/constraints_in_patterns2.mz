@@ -1,6 +1,5 @@
 open core
 data foo = Foo { foo: (); bar: () }
-data bool = True | False
 
 (* Side-note: this test becomes much more interesting when [foo] is defined as
  * exclusive. Because we extract the permission from the start, with only

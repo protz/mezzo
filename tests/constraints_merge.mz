@@ -1,6 +1,5 @@
 open core
 data u = U
-data bool = True | False
 
 val (v: u), w =
   if explain True then begin

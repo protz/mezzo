@@ -1,5 +1,4 @@
 open core
-data bool = True | False
 
 data t = T
 data u = U { left: t; right: t }

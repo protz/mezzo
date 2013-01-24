@@ -3,7 +3,6 @@ open core
  * “B adopts adoptee”, which implies recursively merging the adopts clauses. *)
 mutable data adoptee = Adoptee
 mutable data adopter = A | B adopts adoptee
-data bool = True | False
 
 val f (consumes x: adopter): adopter =
   (* Don't use a top-level match, otherwise it's too easy (since we propagate

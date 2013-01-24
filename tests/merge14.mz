@@ -1,5 +1,4 @@
 open core
-data bool = True | False
 
 data t a = A | B { b: a }
 

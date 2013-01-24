@@ -24,8 +24,6 @@ data list a =
   | Cons { head: a; tail: list a }
   | Nil
 
-data bool = False | True 
-
 data listops =
   ListOps {
     length0: [a] (x: list a) -> int;

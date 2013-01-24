@@ -2,7 +2,6 @@ open core
 open absdefs
 
 data pair a b = Pair { left: a; right: b }
-data bool = True | False
 
 val f3 (x: t, y: u): pair unknown unknown =
   if True then

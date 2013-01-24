@@ -1,5 +1,4 @@
 open core
-data bool = True | False
 data foo a = Foo { foo: a } | Bar
 
 val id [a] (consumes x: a): unknown = x

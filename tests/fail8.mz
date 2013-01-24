@@ -1,5 +1,4 @@
 open core
-data option a = Some { contents: a } | None
 
 mutable data tree k a =
   | Empty

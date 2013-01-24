@@ -1,15 +1,15 @@
 open core
 
 data list a =
-  | Cons { head: a; tail: list a }
   | Nil
+  | Cons { head: a; tail: list a }
 
 val rec length [a] (xs: list a) : int =
   if xs then 1 + length xs.tail else 0
 
 data foo =
-  | Cons { head: (); tail: () }
   | Nil
+  | Cons { head: (); tail: () }
 
 mutable data ref a =
   Ref { contents: a }
@@ -17,6 +17,6 @@ mutable data ref a =
 val ref_length [a] (r: ref (list a)) : int =
   (* This should fail because "Cons" and "Nil" now belong to type "foo" *)
   match r.contents with
-  | Cons -> fail
   | Nil  -> fail
+  | Cons -> fail
   end

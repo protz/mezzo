@@ -1,5 +1,4 @@
 open core
-data bool = True | False
 
 data v a b = A { a: a } | B { b: b } | C | D
 (* Idem.

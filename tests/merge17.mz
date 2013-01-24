@@ -1,6 +1,5 @@
 open core
 mutable data t = T { t: t }
-data bool = True | False
 
 val v =
   if True then begin

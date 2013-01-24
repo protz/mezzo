@@ -16,8 +16,8 @@ val ( + ) : (int, int) -> int
    assign precise types to the Boolean operators. *)
 
 data rich_bool (p : perm) (q: perm) =
-  | RichTrue { | p }
   | RichFalse { | q }
+  | RichTrue { | p }
 
 val ( == ) : (x: unknown, y: unknown) -> rich_bool (x = y) empty
 val ( != ) : (x: unknown, y: unknown) -> rich_bool empty (x = y)
@@ -28,9 +28,7 @@ val ( != ) : (x: unknown, y: unknown) -> rich_bool empty (x = y)
    D'un point de vue strictement pratique, ce ne serait pas une
    super idée? *)
 
-(* TEMPORARY reverse convention: False | True *)
-
-data bool = True | False
+data bool = False | True
 
 val ( = ) : (int, int) -> bool
 val ( <> ) : (int, int) -> bool

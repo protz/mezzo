@@ -16,8 +16,8 @@ val ( / ) : (int, int) -> int = builtin _mz_idiv
    assign precise types to the Boolean operators. *)
 
 data rich_bool (p : perm) (q: perm) =
-  | RichTrue { | p }
   | RichFalse { | q }
+  | RichTrue { | p }
 
 val rich_not [p : perm, q : perm] (consumes b : rich_bool p q) : rich_bool q p =
   match b with
@@ -37,9 +37,7 @@ val ( != ) (x: unknown, y: unknown) : rich_bool empty (x = y) =
    D'un point de vue strictement pratique, ce ne serait pas une
    super idée? *)
 
-(* TEMPORARY reverse convention: False | True *)
-
-data bool = True | False
+data bool = False | True
 
 val ( = )  : (int, int) -> bool = builtin _mz_ieq
 val ( <> ) : (int, int) -> bool = builtin _mz_ine

@@ -16,8 +16,8 @@ val bind [a, b] (m: id a, k: a -> id b) : id b =
 (* The error monad. *)
 
 data option a =
-  Some { value: a }
 | None
+| Some { value: a }
 
 val return [a] (consumes x: a) : option a =
   Some { value = x }

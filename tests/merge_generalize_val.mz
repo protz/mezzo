@@ -1,5 +1,4 @@
 open core
-data bool = True | False
 data u a = A | B | C { a: a }
 
 val f [a] (): u a =

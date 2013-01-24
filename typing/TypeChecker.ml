@@ -853,7 +853,14 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let hint_1 = add_hint hint "if" in
       let env, x1 = check_expression env ?hint:hint_1 e1 in
 
-      let env, (left_t, right_t) =
+      (* The current convention is that if a data type has two
+	 constructors, say False | True, then the first one
+	 means false and the second one means true; i.e., the
+	 first one will cause the [else] branch to be executed,
+	 whereas the second one will cause the [then] branch to
+	 be executed. *)
+
+      let env, (false_t, true_t) =
         match Hml_List.take_bool (is_data_type_with_two_constructors env) (get_permissions env x1) with
         | Some (permissions, t) ->
             let env = replace_term env x1 (fun binding -> { binding with permissions }) in
@@ -882,19 +889,19 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         | None ->
             raise_error env (NoTwoConstructors x1);
       in
-      let left_env = Permissions.add env x1 left_t in
-      let right_env = Permissions.add env x1 right_t in
+      let false_env = Permissions.add env x1 false_t in
+      let true_env = Permissions.add env x1 true_t in
 
       (* The control-flow diverges. *)
-      let hint_l = add_hint hint "then" in
-      let left = check_expression left_env ?hint:hint_l ?annot e2 in
-      let hint_r = add_hint hint "else" in
-      let right = check_expression right_env ?hint:hint_r ?annot e3 in
+      let hint_then = add_hint hint "then" in
+      let result_then = check_expression true_env ?hint:hint_then ?annot e2 in
+      let hint_else = add_hint hint "else" in
+      let result_else = check_expression false_env ?hint:hint_else ?annot e3 in
 
-      let dest = Merge.merge_envs env ?annot left right in
+      let dest = Merge.merge_envs env ?annot result_then result_else in
 
       if explain then
-        Debug.explain_merge dest [left; right];
+        Debug.explain_merge dest [result_then; result_else];
 
       dest
 

@@ -1,5 +1,4 @@
 open core
-data bool = True | False
 
 mutable data t = T
 data foo a = Foo { foo: a }

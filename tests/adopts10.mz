@@ -2,8 +2,6 @@ open core
 mutable data xlist a = XCons { head: a; tail: xlist a } | XNil
 mutable data listmaster a = Listmaster adopts xlist a
 
-data bool = True | False
-
 val f [a] (elt: a): listmaster a =
   let x = Listmaster in
   let y =

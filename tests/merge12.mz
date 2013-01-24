@@ -1,5 +1,4 @@
 open core
-data bool = True | False
 
 (* Avec des fonctions.
 *)
