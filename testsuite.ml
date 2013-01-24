@@ -718,8 +718,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("tuple-syntax.mz", simple_test Pass);
 
-  ("queue.mz", simple_test Pass);
-
   ("same-type-var-bug.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
 
   ("assert-bug.mz", simple_test ~known_failure:() Pass);
@@ -770,6 +768,7 @@ let stdlib_tests: (string * ((unit -> env) -> unit)) list = [
   ("mutableTreeMap.mz", simple_test Pass);
   ("bucket.mz", simple_test Pass);
   ("hashtable.mz", simple_test Pass);
+  ("queue.mz", simple_test Pass);
 ];;
 
 let _ =

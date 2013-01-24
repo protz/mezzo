@@ -1,0 +1,33 @@
+(* FIFO queues. *)
+
+abstract fifo (a : type) : type
+fact exclusive (fifo a)
+
+val create : [a] () -> fifo a
+val length : [a] fifo a -> int
+val clear  : [a] fifo a -> ()
+val rotate : [a] fifo a -> ()
+val insert_head : [a] (consumes a, fifo a) -> ()
+val insert : [a] (consumes a, fifo a) -> ()
+(* val peek   : [a] duplicable a => fifo a -> option a *)
+val retrieve : [a] fifo a -> option a
+val map      : [a, b, p : perm] (f: (a | p) -> b, q: fifo a | p) -> fifo b
+(* val copy  : [a] duplicable a => fifo a -> fifo a *)
+val fold : [a, b, p : perm] (
+  q: fifo a,
+  consumes acc: b,
+  f: (a, consumes b | p) -> b
+  | p
+) -> b
+
+val iter : [a, p : perm] (
+  q: fifo a,
+  f: (a | p) -> ()
+  | p
+) -> ()
+
+(*
+Local Variables:
+compile-command: "../mezzo queue.mzi"
+End:
+*)
