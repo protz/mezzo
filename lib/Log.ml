@@ -48,6 +48,12 @@ let silent f =
   the_debug_level := l;
   r
 
+let msg fmt =
+  Printf.kbprintf (fun buf ->
+    Buffer.add_char buf '\n';
+    Buffer.contents buf
+  ) (Buffer.create 16) fmt
+
 let error fmt =
   Printf.kbprintf (fun buf ->
     Buffer.add_char buf '\n';

@@ -8,11 +8,11 @@ FIND       := find
 OCAMLBUILD := ocamlbuild -use-ocamlfind -use-menhir \
   -menhir "menhir --explain --infer -la 1" \
   -cflags "-g" -lflags "-g" -classic-display
-INCLUDE    := -Is sets,typing,parsing,lib,pprint,utils,fix,interpreter
+INCLUDE    := -Is sets,typing,parsing,lib,pprint,utils,fix,interpreter,compiler
 MAIN       := mezzo
 TESTSUITE  := testsuite
 BUILDDIRS   = -I _build $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
-MY_DIRS    := lib parsing sets typing utils interpreter
+MY_DIRS    := lib parsing sets typing utils interpreter compiler
 PACKAGES   := -package menhirLib,ocamlbuild,yojson,stdlib,ulex
 
 all: configure.ml

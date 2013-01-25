@@ -1,6 +1,8 @@
 open SurfaceSyntax
 module U = UntypedMezzo
 
+(* This is the translation of Mezzo to Untyped Mezzo. *)
+
 (* ---------------------------------------------------------------------------- *)
 
 (* The adopter field. *)
@@ -28,8 +30,8 @@ let init_adopter_field fields =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* A cosmetic optimization: eliminate sequences whose left-hand side is a unit
-   value. *)
+(* A cosmetic optimization: we eliminate sequences whose left-hand side is a
+   unit value. *)
 
 let rec is_unit = function
   | ETuple []
@@ -45,15 +47,15 @@ let rec is_unit = function
 
 (* Code generation for the dynamic test at abandon. *)
 
-let abandon x1 x2 success failure =
+let abandon v1 v2 success failure =
   let open U in
-  (* if x1.adopter == x2 *)
+  (* if v1.adopter == v2 *)
   EIfThenElse (
     EApply (
       EBuiltin "_mz_address_eq",
       ETuple [
-	EAccess (EVar x1, adopter_field);
-	EVar x2
+	EAccess (v1, adopter_field);
+	v2
       ]
     ),
     success,
@@ -64,8 +66,10 @@ let abandon x1 x2 success failure =
 
 (* The Boolean values are [core::True] and [core::False]. *)
 
-(* TEMPORARY The syntax of (Untyped) Mezzo currently does not support qualified
+(* The syntax of (Untyped) Mezzo currently does not support qualified
    data constructors, so we cheat by masquerading them as variables. *)
+
+(* TEMPORARY *)
 
 let core =
   Module.register "core"
@@ -78,108 +82,209 @@ let t =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Expressions. *)
+(* Conversion to administrative normal form. *)
 
-let rec translate_expression (loc : location) (e : expression) : U.expression =
+(* A fresh name generator. *)
+
+let fresh : string -> Variable.name =
+  let c = ref 0 in
+  fun (hint : string) ->
+    let i = !c in
+    c := i + 1;
+    Variable.register (Printf.sprintf "__mz_%s%d>" hint i)
+
+(* This auxiliary function is applied to an expression that has just been
+   produced by [transl], and decides if this expression is in normal form
+   or needs to receive a name. *)
+
+let is_normal (e : U.expression) : bool =
+  match e with
+  | U.EVar _
+  | U.EQualified _
+  | U.EInt _
+  | U.ENull
+  | U.EBuiltin _
+  | U.ETuple _
+  | U.EConstruct _ ->
+      (* We do not need to go deep, because this expression has been
+	 produced by [transl] and cannot be a tuple or construct
+	 that contains non-trivial computations. *)
+      true
+  | _ ->
+      false
+
+(* This auxiliary function creates a fresh name for an expression, if
+   necessary. The translation of expressions is performed in CPS
+   style, so as to facilitate the insertion of binders above the
+   current sub-expression. *)
+
+type continuation =
+    U.expression -> U.expression
+
+let name (hint : string) (e : U.expression) (k : continuation) : U.expression =
+  if is_normal e then
+    (* If [e] is normal, just return it. *)
+    k e
+  else
+    (* Otherwise, create a name [x] for it. *)
+    let x = fresh hint in
+    (* Provide [x] to the continuation, and bind [x] above the continuation. *)
+    U.ELet (Nonrecursive, [ PVar x, e ], k (U.EVar x))
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Translating expressions. *)
+
+(* [reset_transl] is used in places where we must not (or need not) hoist
+   variables definitions towards the outside. It is defined by applying
+   [transl] to an identity continuation. *)
+
+let rec reset_transl (loc : location) (e : expression) : U.expression =
+  transl loc e (fun e -> e)
+
+(* [eval] is used when we need to translate and name a sub-expression.
+   [eval hint] has the same type as [transl]. We use one or the other,
+   depending on whether the sub-expression should be named. *)
+
+and eval (hint : string) (loc : location) (e : expression) (k : continuation) : U.expression =
+  transl loc e (fun e ->
+    name hint e k
+  )
+
+(* [transl] is the main translation function for expressions, in CPS style. *)
+
+and transl (loc : location) (e : expression) (k : continuation) : U.expression =
   match e with
   | EConstraint (e, _) ->
-      translate_expression loc e
+      transl loc e k
   | EVar x ->
-      U.EVar x
+      k (U.EVar x)
   | EQualified (m, x) ->
-      U.EQualified (m, x)
+      k (U.EQualified (m, x))
   | EBuiltin b ->
-      U.EBuiltin b
+      k (U.EBuiltin b)
   | ELet (flag, equations, body) ->
-      U.ELet (flag, translate_equations loc equations, translate_expression loc body)
+      (* We do not hoist definitions out of a [let] binding. TEMPORARY? *)
+      k (U.ELet (
+	flag,
+	reset_transl_equations loc equations,
+	reset_transl loc body
+      ))
   | EFun (_type_parameters, argument_type, _result_type, body) ->
       (* The argument pattern is implicit in the argument type. *)
       let p = type_to_pattern argument_type in
-      U.EFun (p, translate_expression loc body)
+      k (U.EFun (p, reset_transl loc body))
   | EAssign (e1, f, e2) ->
-      U.EAssign (translate_expression loc e1, f, translate_expression loc e2)
+      (* Naming [e1] is sufficient to impose left-to-right evaluation.
+	 There is no need to also name [e2]. *)
+      eval "obj" loc e1 (fun v1 ->
+      transl     loc e2 (fun v2 ->
+      k (U.EAssign (v1, f, v2))
+      ))
   | EAssignTag (e, tags) ->
-      U.EAssignTag (translate_expression loc e, tags)
+      transl loc e (fun v ->
+      k (U.EAssignTag (v, tags))
+      )
   | EAccess (e, f) ->
-      U.EAccess (translate_expression loc e, f)
+      transl loc e (fun v ->
+      k (U.EAccess (v, f))
+      )
   | EAssert _ ->
-      U.ETuple []
+      k (U.ETuple [])
   | EApply (e1, e2) ->
-      U.EApply (translate_expression loc e1, translate_expression loc e2)
+      (* Naming [e1] is sufficient to impose left-to-right evaluation.
+	 There is no need to also name [e2]. *)
+      eval "fun" loc e1 (fun v1 ->
+      transl loc e2 (fun v2 ->
+      k (U.EApply (v1, v2))
+      ))
   | ETApply (e, _) ->
-      translate_expression loc e
+      transl loc e k
   | EMatch (_, e, branches) ->
-      U.EMatch (translate_expression loc e, translate_equations loc branches)
+      transl loc e (fun v ->
+      k (U.EMatch (v, reset_transl_equations loc branches))
+      )
   | ETuple es ->
-      U.ETuple (List.map (translate_expression loc) es)
+      eval_expressions loc es (fun vs ->
+      k (U.ETuple vs)
+      )
   | EConstruct (datacon, fes) ->
+      eval_fields loc fes (fun fvs ->
       (* Introduce the adopter field. *)
-      U.EConstruct (
-	datacon,
-	init_adopter_field (translate_fields loc fes)
+      k (U.EConstruct (datacon,	init_adopter_field fvs))
       )
   | EIfThenElse (_, e, e1, e2) ->
-      U.EIfThenElse (translate_expression loc e, translate_expression loc e1, translate_expression loc e2)
+      transl loc e (fun v ->
+      k (U.EIfThenElse (v, reset_transl loc e1, reset_transl loc e2))
+      )
   | ESequence (e1, e2) ->
       if is_unit e1 then
-	translate_expression loc e2
+	transl loc e2 k
       else
-	U.ESequence (translate_expression loc e1, translate_expression loc e2)
+	(* We do not hoist definitions out of a sequence. TEMPORARY? *)
+	k (U.ESequence (reset_transl loc e1, reset_transl loc e2))
   | ELocated (e, loc) ->
-      translate_expression loc e
+      transl loc e k
   | EInt i ->
-      U.EInt i
+      k (U.EInt i)
   | EExplained e ->
-      translate_expression loc e
+      transl loc e k
 
   (* Compilation of adoption and abandon: [give], [take], and [owns]. *)
 
-  (* In each case, we must first convert to A-normal form, i.e. introduce
-     auxiliary variables if necessary. *)
-
   | EGive (e1, e2) ->
-      U.EAssign (translate_expression loc e1, adopter_field, translate_expression loc e2)
-
-  | ETake (EVar x1, EVar x2) ->
-      let open U in
-      (* if x1.adopter == x2 *)
-      abandon x1 x2
-	(* then x1.adopter <- null *)
-	(EAssign (EVar x1, adopter_field, ENull))
-	(* else fail *)
-	(EFail (Log.msg "%a\nA take instruction failed.\n" Lexer.p loc))
-
-  | ETake (EVar x1, e2) ->
-      let eval_e2, v2 = ParserUtils.name "adopter" e2 in
-      translate_expression loc (eval_e2 (ETake (EVar x1, v2)))
+      eval "adoptee" loc e1 (fun v1 ->
+      eval "adopter" loc e2 (fun v2 ->
+      k (U.EAssign (v1, adopter_field, v2))
+      ))
 
   | ETake (e1, e2) ->
-      let eval_e1, v1 = ParserUtils.name "adoptee" e1 in
-      translate_expression loc (eval_e1 (ETake (v1, e2)))
+      eval "adoptee" loc e1 (fun v1 ->
+      eval "adopter" loc e2 (fun v2 ->
+      (* if v1.adopter == v2 *)
+      k (
+	abandon v1 v2
+	  (* then v1.adopter <- null *)
+	  (U.EAssign (v1, adopter_field, U.ENull))
+	  (* else fail *)
+	  (U.EFail (Log.msg "%a\nA take instruction failed.\n" Lexer.p loc))
+      )))
 
-  | EOwns (EVar x2, EVar x1) ->
-      (* if x1.adopter == x2 *)
-      abandon x1 x2
-	(* then True *)
-	t
-	(* else False *)
-	f
+  | EOwns (e2, e1) ->
+      eval "adopter" loc e2 (fun v2 ->
+      eval "adoptee" loc e1 (fun v1 ->
+      (* if v1.adopter == v2 then True else False *)
+      k (abandon v1 v2 t f)
+      ))
 
   | EFail ->
-      U.EFail (Log.msg "%a\nA fail instruction was encountered.\n" Lexer.p loc)
+      k (U.EFail (Log.msg "%a\nA fail instruction was encountered.\n" Lexer.p loc))
 
-and translate_equations loc equations =
+and reset_transl_equations loc equations =
   List.map (fun (p, e) ->
-    p, translate_expression loc e
+    (* The translation of patterns is the identity. *)
+    p, reset_transl loc e
   ) equations
 
-and translate_fields loc fields =
-  List.map (fun (f, e) ->
-    f, translate_expression loc e
-  ) fields
+and eval_expressions loc es k =
+  match es with
+  | [] ->
+      k []
+  | e :: es ->
+      eval "component" loc e (fun v ->
+      eval_expressions loc es (fun vs ->
+      k (v :: vs)
+      ))
 
-(* TEMPORARY when translating to ocaml, make sure to impose left-to-right
-   evaluation order *)
+and eval_fields loc fields k =
+  match fields with
+  | [] ->
+      k []
+  | (f, e) :: fields ->
+      eval (Variable.print f) loc e (fun v ->
+      eval_fields loc fields (fun fvs ->
+      k ((f, v) :: fvs)
+      ))
 
 (* TEMPORARY experiments show that Obj.field and Obj.set_field are less
    efficient than ordinary field accesses, because they contain a test
@@ -193,4 +298,67 @@ and translate_fields loc fields =
 
 (* TEMPORARY when translating a variable to ocaml, should make sure it
    is not an ocaml keyword *)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Translating data type definitions. *)
+
+let transl_data_type_def_lhs (t, _parameters) =
+  t
+
+let transl_data_field_def = function
+  | FieldValue (f, _type) ->
+      [ f ]
+  | FieldPermission _ ->
+      []
+
+let transl_data_type_def_branch (d, fields) =
+  d, List.flatten (List.map transl_data_field_def fields)
+
+let transl_data_type_def_rhs rhs =
+  List.map transl_data_type_def_branch rhs
+
+let transl_data_type_def = function
+  | Concrete (_flag, lhs, rhs, _adopts_clause) ->
+      [ U.Concrete (transl_data_type_def_lhs lhs, transl_data_type_def_rhs rhs) ]
+  | Abstract _ ->
+      []
+
+let transl_data_type_group (_location, defs) =
+  List.flatten (List.map transl_data_type_def defs)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Translating value definitions. *)
+
+let rec transl_declaration loc = function
+  | DMultiple (flag, equations) ->
+      U.DMultiple (flag, reset_transl_equations loc equations)
+  | DLocated (def, loc) ->
+      transl_declaration loc def
+
+let transl_declaration_group defs =
+  List.map (transl_declaration dummy_loc) defs
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Translating top-level items. *)
+
+let transl_item = function
+  | DataTypeGroup group ->
+      U.DataTypeGroup (transl_data_type_group group)
+  | ValueDeclarations group ->
+      U.ValueDeclarations (transl_declaration_group group)
+  | PermDeclaration _ ->
+      (* TEMPORARY *)
+      assert false
+  | OpenDirective m ->
+      U.OpenDirective m
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Translating implementations. *)
+
+let translate_implementation items =
+  List.map transl_item items
 

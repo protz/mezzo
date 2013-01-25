@@ -37,6 +37,10 @@ val warn: ('a, Buffer.t, unit, unit) format4 -> 'a
     better in the future. Use it like [Printf.printf]. *)
 val error: ('a, Buffer.t, unit, 'b) format4 -> 'a
 
+(** Analogous to [error], but does not raise any exception; instead, just
+    produces and returns the error message as a string. *)
+val msg: ('a, Buffer.t, unit, string) format4 -> 'a
+
 (** Assert something, otherwise display an error message and fail *)
 val check: bool -> ('a, Buffer.t, unit, unit) format4 -> 'a
 

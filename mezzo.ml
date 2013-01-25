@@ -17,6 +17,8 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+let e = Mezzo2UntypedMezzo.translate_implementation (* TEMPORARY *)
+
 type mode =
   | TypecheckAndCompile
   | Interpret

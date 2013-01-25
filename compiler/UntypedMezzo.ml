@@ -20,11 +20,20 @@
 (* This is the definition of Untyped Mezzo. *)
 
 (* This intermediate language differs from Surface Mezzo in a few (minor)
-   ways. First, it is untyped. Second, the adopter fields have been made
-   explicit, and the adoption and abandon operations have been translated to
-   ordinary read and write operations. Third, the overloading of field names
-   has been resolved; fields are now unambiguously identified by a pair of a
-   data constructor and a field name. *)
+   ways, as follows. *)
+
+(* Untyped Mezzo is untyped. *)
+
+(* In Untyped Mezzo, the adopter fields are explicit, and the adoption and
+   abandon operations are replaced with ordinary read and write operations. *)
+
+(* In Untyped Mezzo, the overloading of field names is resolved: fields are
+   unambiguously identified by a pair of a data constructor and a field
+   name. *)
+
+(* In Untyped Mezzo, the evaluation order is not guaranteed to be left-to-right.
+   Where necessary, the translation of Mezzo to Untyped Mezzo introduces explicit
+   sequencing constructs. *)
 
 (* ---------------------------------------------------------------------------- *)
 
