@@ -296,3 +296,65 @@ type implementation =
  * and open directives. *)
 type interface =
   toplevel_item list
+
+(* ---------------------------------------------------------------------------- *)
+
+(* The following function translates a type to a pattern. *)
+
+(* Note in [EFun] above, the argument is described by a type. This function
+   allows viewing the argument as a pattern. In fact, this provides a definition
+   of which names can be referred to by the function body. *)
+
+(* TEMPORARY check that the type-checker agrees with this *)
+
+let rec type_to_pattern (ty : typ) : pattern =
+  match ty with
+
+  (* A structural type constructor is translated to the corresponding
+     structural pattern. *)
+
+  | TyTuple tys ->
+      PTuple (List.map type_to_pattern tys)
+
+  | TyConcreteUnfolded (datacon, fields) ->
+      let fps =
+	List.fold_left (fun fps field ->
+	  match field with
+          | FieldValue (f, ty) -> (f, type_to_pattern ty) :: fps
+          | FieldPermission _  -> fps
+	) [] fields in
+      PConstruct (datacon, fps)
+
+   (* A name introduction gives rise to a variable pattern. *)
+
+  | TyNameIntro (x, ty) ->
+      PAs (type_to_pattern ty, PVar x)
+
+  (* Pass (go down into) the following constructs. *)
+
+  | TyLocated (ty, _)
+  | TyAnd (_, ty)
+  | TyConsumes ty
+  | TyBar (ty, _) ->
+      type_to_pattern ty
+
+  (* Stop at (do not go down into) the following constructs. *)
+
+  | TyForall _
+  | TyUnknown
+  | TyArrow _ 
+  | TySingleton _
+  | TyQualified _
+  | TyDynamic
+  | TyApp _
+  | TyVar _ ->
+      PAny
+
+  (* The following cases should not arise. *)
+
+  | TyEmpty
+  | TyStar _
+  | TyAnchoredPermission _ ->
+      (* Type of kind PERM, where a type of kind TERM was expected. *)
+      assert false
+

@@ -370,61 +370,6 @@ let field_offset (f : Variable.name) (info : datacon_info) : int =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Translating a type to a pattern. *)
-
-let rec type_to_pattern (ty : typ) : pattern =
-  match ty with
-
-  (* A structural type constructor is translated to the corresponding
-     structural pattern. *)
-
-  | TyTuple tys ->
-      PTuple (List.map type_to_pattern tys)
-
-  | TyConcreteUnfolded (datacon, fields) ->
-      let fps =
-	List.fold_left (fun fps field ->
-	  match field with
-          | FieldValue (f, ty) -> (f, type_to_pattern ty) :: fps
-          | FieldPermission _  -> fps
-	) [] fields in
-      PConstruct (datacon, fps)
-
-   (* A name introduction gives rise to a variable pattern. *)
-
-  | TyNameIntro (x, ty) ->
-      PAs (type_to_pattern ty, PVar x)
-
-  (* Pass (go down into) the following constructs. *)
-
-  | TyLocated (ty, _)
-  | TyAnd (_, ty)
-  | TyConsumes ty
-  | TyBar (ty, _) ->
-      type_to_pattern ty
-
-  (* Stop at (do not go down into) the following constructs. *)
-
-  | TyForall _
-  | TyUnknown
-  | TyArrow _ 
-  | TySingleton _
-  | TyQualified _
-  | TyDynamic
-  | TyApp _
-  | TyVar _ ->
-      PAny
-
-  (* The following cases should not arise. *)
-
-  | TyEmpty
-  | TyStar _
-  | TyAnchoredPermission _ ->
-      (* Type of kind PERM, where a type of kind TERM was expected. *)
-      assert false
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Matching a value [v] against a pattern [p]. The resulting bindings are
    accumulated in the environment [env]. *)
 
