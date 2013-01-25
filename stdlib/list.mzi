@@ -14,6 +14,7 @@ val nil   : Nil
 val cons  : [a] (consumes a, consumes list a) -> list a
 val two   : [a] (consumes (a, a)) -> list a
 val three : [a] (consumes (a, a, a)) -> list a
+val init  : [a, p : perm] (n : int, f : (int | p) -> a | p) -> list a
  
 (* -------------------------------------------------------------------------- *)
 

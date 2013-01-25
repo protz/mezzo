@@ -48,6 +48,15 @@ val two [a] (consumes x1: a, consumes x2: a) : list a =
 
 val three [a] (consumes x1: a, consumes x2: a, consumes x3: a) : list a =
   Cons { head = x1; tail = Cons { head = x2; tail = Cons { head = x3; tail = Nil }}}
+
+val init [a, p : perm] (n : int, f : (int | p) -> a | p) : list a =
+  let rec loop (i : int | p) : list a =
+    if i = n then
+      Nil
+    else
+      Cons { head = f i; tail = loop (i + 1) }
+  in
+  loop 0
  
 (* -------------------------------------------------------------------------- *)
 
