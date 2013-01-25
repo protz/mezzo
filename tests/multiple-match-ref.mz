@@ -1,0 +1,8 @@
+val f [a] (consumes r : ref a) : (a, a) =
+  match r, r with
+    Ref { contents = x }, Ref { contents = y } ->
+      x, y
+  end
+(* BUG the type error message is weird:
+   expected a subexpression of type (a, a) but it has type (a, a)
+*)
