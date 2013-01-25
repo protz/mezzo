@@ -68,7 +68,55 @@ type expression =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Top-level declarations *)
+(* Types. *)
 
-(* TEMPORARY *)
+type ty =
+  | TyVar of string (* quote included *)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Algebraic data type definitions. *)
+
+type data_type_def_branch =
+    (* data constructor name, argument types *)
+    string * ty list
+      
+type data_type_def_lhs =
+    (* type name, type parameters *)
+    string * string list
+
+type mutability =
+  | Immutable
+  | Mutable
+
+type record_def =
+    (* field names and types *)
+    (mutability * string * ty) list
+
+type data_type_def_rhs =
+  | Sum of data_type_def_branch list
+  | Record of record_def
+
+type data_type_def =
+    data_type_def_lhs * data_type_def_rhs
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Value definitions. *)
+
+type definition =
+    rec_flag * (pattern * expression) list
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Top-level items. *)
+
+type toplevel_item =
+  | DataTypeGroup of data_type_def
+  | ValueDefinition of definition
+  | ValueDeclaration of string * ty
+  | OpenDirective of string
+
+type implementation =
+  toplevel_item list
 

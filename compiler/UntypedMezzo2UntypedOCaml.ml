@@ -184,8 +184,9 @@ let rec transl (e : expression) : O.expression =
 and transl_equations eqs =
   List.map (fun (p, e) ->
     (* We must insert a [magic] because [e] is matched against [p]. *)
-    (* TEMPORARY must cast [e] if [p] is type-specific *)
-    translate_pattern p, transl e
+    (* And, if this is a toplevel equation, the bound names of [p]
+       will be published at type [Obj.t]. *)
+    translate_pattern p, O.EMagic (transl e)
   ) eqs
 
 and transl_branches branches =
@@ -199,4 +200,114 @@ and transl_branches branches =
    function to an argument of the appropriate shape should be simplified
    to an application of the corresponding OCaml primitive operation.
    Check this. If that is not the case, perform this simplification here. *)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Type variables. *)
+
+let tyvar (i : int) =
+  Printf.sprintf "'a%d" i
+
+let ty (i : int) =
+  O.TyVar (tyvar i)
+
+let init (n : int) (f : int -> 'a) : 'a list =
+  let rec loop (i : int) =
+    if i = n then
+      []
+    else
+      let x = f i in
+      x :: loop (i + 1)
+  in
+  loop 0
+
+let tyvars (base : int) (n : int) : string list =
+  init n (fun i -> tyvar (base + i))
+
+let tys (base : int) (n : int) : O.ty list =
+  init n (fun i -> ty (base + i))
+
+(* ---------------------------------------------------------------------------- *)
+
+(* For each data constructor, we create a record type. *)
+
+let datacon_record_name (datacon : Datacon.name) : string =
+  Printf.sprintf "__mz_record_%s" (Datacon.print datacon)
+
+let datacon_record (branch : data_type_def_branch) =
+  let datacon, fields = branch in
+  (* We need as many type parameters as there are fields. *)
+  let n = List.length fields in
+  let lhs = 
+    datacon_record_name datacon,
+    tyvars 0 n
+  in
+  let rhs =
+    O.Record (List.map2 (fun f ty ->
+      O.Mutable, Variable.print f, ty
+    ) fields (tys 0 n))
+  in
+  O.DataTypeGroup (lhs, rhs)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* For each algebraic data type, we create a sum type. *)
+
+let data_sum_name (typecon : Variable.name) : string =
+  Variable.print typecon
+
+let data_branch ((base : int), (branch : data_type_def_branch)) : O.data_type_def_branch =
+  let datacon, fields = branch in
+  (* [base] is the base number for numbering our type variables. *)
+  let n = List.length fields in
+  Datacon.print datacon, tys base n
+
+let data_sum (def : data_type_def) =
+  let typecon, branches = def in
+  (* We need as many type parameters as there are fields, in total,
+     in all branches. *)
+  let n = ref 0 in
+  let branches =
+    List.map (fun ((_, fields) as branch) ->
+      let base = !n in
+      n := base + List.length fields;
+      base, branch
+    ) branches
+  in
+  let n = !n in
+  let lhs =
+    data_sum_name typecon,
+    tyvars 0 n
+  in
+  let rhs =
+    O.Sum (List.map data_branch branches)
+  in
+  O.DataTypeGroup (lhs, rhs)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Translating top-level items. *)
+
+let translate_item = function
+  | DataType ((_, branches) as def) ->
+      data_sum def :: List.map datacon_record branches
+  | ValueDefinition (flag, eqs) ->
+      [ O.ValueDefinition (flag, transl_equations eqs) ]
+  | ValueDeclaration x ->
+      [ O.ValueDeclaration (Variable.print x, O.TyVar "Obj.t") ]
+  | OpenDirective m ->
+      [ O.OpenDirective (Module.print m) ]
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Translating implementations. *)
+
+let translate_implementation items =
+  List.flatten (List.map translate_item items)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Make sure that [MezzoBuiltin] is well-typed and stand-alone. *)
+
+let _ = MezzoBuiltin._mz_print_value
 

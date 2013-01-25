@@ -87,29 +87,29 @@ type expression =
 (* Algebraic data type definitions. *)
 
 type data_type_def_branch =
+    (* data constructor, field names *)
     Datacon.name * Variable.name list
       
 type data_type_def =
-  | Concrete of Variable.name * data_type_def_branch list
-
-type data_type_group =
-    data_type_def list
+    (* type constructor, branches *)
+    Variable.name * data_type_def_branch list
 
 (* Value definitions. *)
 
-type declaration =
-  | DMultiple of rec_flag * (pattern * expression) list
-
-type declaration_group =
-  declaration list
+type definition =
+    rec_flag * (pattern * expression) list
 
 (* Top-level items. *)
 
 type toplevel_item =
-  | DataTypeGroup of data_type_group
-  | ValueDeclarations of declaration_group
-  | OpenDirective of Module.name
+  | DataType of data_type_def         (* in interfaces and implementations *)
+  | ValueDefinition of definition     (* in implementations only *)
+  | ValueDeclaration of Variable.name (* in interfaces only *)
+  | OpenDirective of Module.name      (* in implementations only *)
 
 type implementation =
+  toplevel_item list
+
+type interface =
   toplevel_item list
 

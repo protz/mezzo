@@ -321,7 +321,7 @@ let transl_data_type_def_rhs rhs =
 
 let transl_data_type_def = function
   | Concrete (_flag, lhs, rhs, _adopts_clause) ->
-      [ U.Concrete (transl_data_type_def_lhs lhs, transl_data_type_def_rhs rhs) ]
+      [ U.DataType (transl_data_type_def_lhs lhs, transl_data_type_def_rhs rhs) ]
   | Abstract _ ->
       []
 
@@ -334,7 +334,7 @@ let transl_data_type_group (_location, defs) =
 
 let rec transl_declaration loc = function
   | DMultiple (flag, equations) ->
-      U.DMultiple (flag, reset_transl_equations loc equations)
+      U.ValueDefinition (flag, reset_transl_equations loc equations)
   | DLocated (def, loc) ->
       transl_declaration loc def
 
@@ -345,21 +345,30 @@ let transl_declaration_group defs =
 
 (* Translating top-level items. *)
 
-let transl_item = function
+let transl_item (implementation : bool) = function
   | DataTypeGroup group ->
-      U.DataTypeGroup (transl_data_type_group group)
+      transl_data_type_group group
   | ValueDeclarations group ->
-      U.ValueDeclarations (transl_declaration_group group)
-  | PermDeclaration _ ->
-      (* TEMPORARY *)
-      assert false
+      transl_declaration_group group
+  | PermDeclaration (x, _) ->
+      [ U.ValueDeclaration x ]
   | OpenDirective m ->
-      U.OpenDirective m
+      if implementation then
+	[ U.OpenDirective m ]
+      else
+	[]
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Translating implementations. *)
 
 let translate_implementation items =
-  List.map transl_item items
+  List.flatten (List.map (transl_item true) items)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Translating interfaces. *)
+
+let translate_interface items =
+  List.flatten (List.map (transl_item false) items)
 
