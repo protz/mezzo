@@ -578,9 +578,9 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
           Log.error "%a\nA take instruction failed.\n" Lexer.p loc
       end
 
-  | EOwns (e1, e2) ->
-      let b1 = asBlock (eval env loc e1) in
+  | EOwns (e2, e1) ->
       let b2 = asBlock (eval env loc e2) in
+      let b1 = asBlock (eval env loc e1) in
       begin match b1.adopter with
       | Some b when (b == b2) ->
 	  true_value env
