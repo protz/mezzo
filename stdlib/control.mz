@@ -42,3 +42,13 @@ val shift:
 =
   builtin _mz_shift
 
+(* [abort] can be defined in terms of [shift], but could also be implemented
+   as a primitive operation. It is potentially more efficient than [shift],
+   as the continuation is not captured: it is thrown away. *)
+
+val abort:
+  [a, b, c]
+  (v : c | consumes answer b) -> (a | answer c)
+=
+  shift [a, b, c] (fun (_ : a -> b) : c = v)
+
