@@ -184,7 +184,7 @@ type pattern =
   (* x: τ *)
   | PConstraint of pattern * typ
   (* p as x *)
-  | PAs of pattern * pattern
+  | PAs of pattern * Variable.name
   (* _ *)
   | PAny
 
@@ -328,7 +328,7 @@ let rec type_to_pattern (ty : typ) : pattern =
    (* A name introduction gives rise to a variable pattern. *)
 
   | TyNameIntro (x, ty) ->
-      PAs (type_to_pattern ty, PVar x)
+      PAs (type_to_pattern ty, x)
 
   (* Pass (go down into) the following constructs. *)
 

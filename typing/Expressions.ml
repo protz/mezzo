@@ -30,7 +30,7 @@ open Flexible
  * the pattern: the first variable encountered will have index 0, and so on. *)
 type pattern =
   (* x *)
-  | PVar of Variable.name * (Lexing.position * Lexing.position)
+  | PVar of Variable.name * location
   (* (x₁, …, xₙ) *)
   | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)

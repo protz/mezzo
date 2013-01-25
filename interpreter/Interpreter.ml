@@ -414,9 +414,9 @@ let rec match_pattern (env : env) (p : pattern) (v : value) : env =
   | PLocated (p, _)
   | PConstraint (p, _) ->
       match_pattern env p v
-  | PAs (p1, p2) ->
+  | PAs (p1, x2) ->
       let env = match_pattern env p1 v in
-      let env = match_pattern env p2 v in
+      let env = match_pattern env (PVar x2) v in
       env
   | PAny ->
       env

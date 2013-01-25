@@ -105,8 +105,8 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | PConstruct (_, namepats) ->
         let _, ps = List.split namepats in
         Hml_List.map_flatten collect_pattern ps
-    | PAs (p1, p2) ->
-        collect_pattern p1 @ collect_pattern p2
+    | PAs (p1, _) ->
+        collect_pattern p1
     | PAny ->
         []
 

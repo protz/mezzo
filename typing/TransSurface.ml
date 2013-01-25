@@ -572,7 +572,10 @@ let rec translate_pattern env = function
   | PLocated (p, pos) ->
       translate_pattern (locate env pos) p
   | PAs (p, x) ->
-      E.PAs (translate_pattern env p, translate_pattern env x)
+      (* The internal syntax allows a pattern on the right-hand side,
+	 because this is more regular, even the surface syntax does
+	 not allow it. *)
+      E.PAs (translate_pattern env p, translate_pattern env (PVar x))
   | PConstraint _ ->
         Log.error "[clean_pattern] should've been called on that type before!"
   | PAny ->
@@ -686,11 +689,11 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
             pat, None
           else
             match pat with
-            | PLocated (PAs (_, PVar x), _) ->
+            | PLocated (PAs (_, x), _) ->
                 pat, Some x
             | _ ->
                 let name = fresh_var "/a" in
-                PAs (pat, PVar name), Some name
+                PAs (pat, name), Some name
         in
         (* Collect the names. *)
         let names = bindings_pattern pat in

@@ -567,7 +567,7 @@ raw_normal_pattern:
 | ps = separated_list_of_at_least_two(COMMA, atomic_pattern)
     { PTuple ps }
 | p = normal_pattern AS v = variable
-    { PAs (p, PVar v) }
+    { PAs (p, v) }
 (* TEMPORARY or-patterns are missing *)
 
 %inline loose_pattern:
