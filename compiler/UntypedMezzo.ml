@@ -67,6 +67,7 @@ type expression =
   | ELet of rec_flag * (pattern * expression) list * expression
   | EFun of pattern * expression
   | EAssign of expression * field * expression
+    (* The expression carried by [EAssignTag] must be a value. *)
   | EAssignTag of expression * previous_and_new_datacon
   | EAccess of expression * field
   | EApply of expression * expression

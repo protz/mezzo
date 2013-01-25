@@ -7,12 +7,24 @@ module O = UntypedOCaml
 (* ---------------------------------------------------------------------------- *)
 
 let datacon_arity (_d : Datacon.name) : int =
-  (* not accounting for the hidden adopter field *)
+  (* including the hidden adopter field *)
+  assert false
+
+let datacon_tag (_d : Datacon.name) : int =
   assert false
 
 let field_index (_d : Datacon.name) (_f : Variable.name) : int =
-  (* not accounting for the hidden adopter field *)
+  (* accounting for the hidden adopter field *)
   assert false
+
+let make_field_name (_f : field) : string =
+  (* combine datacon name and field name *)
+  assert false
+
+let sort_by_index ixs =
+  List.sort (fun (i1, _) (i2, _) ->
+    Pervasives.compare i1 i2
+  ) ixs
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -47,20 +59,15 @@ let rec translate_pattern (p : pattern) : O.pattern =
       (* Build a list of (field index, pattern) pairs. *)
       let fields =
 	List.map (fun (f, p) ->
-	  (* Add 1 in order to account for the [adopter] field. *)
-	  1 + field_index datacon f,
+	  field_index datacon f,
 	  translate_pattern p
 	) fields
       in
       (* Sort this list by index. *)
-      let fields =
-	List.sort (fun (i1, _) (i2, _) ->
-	  Pervasives.compare i1 i2
-	) fields
-      in
+      let fields = sort_by_index fields in
       (* Complete any missing entries, up to this data constructor's arity,
 	 with wildcard patterns. At the same time, forget the indices. *)
-      let arity = 1 + datacon_arity datacon in
+      let arity = datacon_arity datacon in
       let ps = complete 0 arity fields in
       (* Create a data constructor pattern. *)
       O.PConstruct (Datacon.print datacon, ps)
@@ -83,3 +90,113 @@ and complete i arity ips =
     | _ ->
         (* We do not have an entry. Insert a wildcard pattern for this field. *)
         O.PAny :: complete (i + 1) arity ips
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Integer comparison in OCaml. *)
+
+let apply2 f x y =
+  O.EApply (O.EApply (f, x), y)
+
+let gt x y =
+  apply2 (O.EVar "(>)") x y
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Expressions. *)
+
+(* We avoid using [Obj.field] and [Obj.set_field], when possible, because they
+   are less efficient in terms of speed and code size. In particular, they seem
+   to incorporate a check against the special tag 254, which represents an array
+   of values of type double. We prefer to cast the receiver to a record type and
+   use an OCaml record access expression. This forces us to translate very Mezzo
+   data constructor definition to an OCaml record type definition. *)
+
+let rec transl (e : expression) : O.expression =
+  match e with
+  | EVar x ->
+      O.EVar (Variable.print x)
+  | EQualified (m, x) ->
+      O.EVar (
+	Printf.sprintf "%s.%s"
+	  (String.capitalize (Module.print m))
+	  (Variable.print x)
+      )
+  | EBuiltin b ->
+      (* The builtin operations are defined in the OCaml library module
+	 [MezzoBuiltin]. *)
+      O.EVar (Printf.sprintf "MezzoBuiltin.%s" b)
+  | ELet (flag, eqs, body) ->
+      O.ELet (flag, transl_equations eqs, transl body)
+  | EFun (p, e) ->
+      O.EFun (translate_pattern p, transl e)
+  | EAssign (e1, f, e2) ->
+      O.EAssign (O.EMagic (transl e1), make_field_name f, transl e2)
+  | EAssignTag (e, { previous_datacon; new_datacon }) ->
+      (* We must use [Obj.set_tag]; there is no other way. *)
+      (* As an optimization, if the old and new integer tags are equal,
+	 there is nothing to do. It is OK, in this case, not to translate
+         [e] at all, because the definition of Untyped Mezzo guarantees
+	 that [e] is a value. *)
+      let previous_tag = datacon_tag previous_datacon
+      and new_tag = datacon_tag new_datacon in
+      if previous_tag = new_tag then
+	O.ETuple []
+      else
+	O.ESetTag (transl e, new_tag)
+  | EAccess (e, f) ->
+      O.EAccess (O.EMagic (transl e), make_field_name f)
+  | EApply (e1, e2) ->
+      O.EApply (O.EMagic (transl e1), transl e2)
+  | EMatch (e, branches) ->
+      O.EMatch (O.EMagic (transl e), transl_branches branches)
+  | ETuple es ->
+      O.ETuple (List.map transl es)
+  | EConstruct (datacon, fields) ->
+      (* Build a list of (field index, expression) pairs. *)
+      let fields =
+	List.map (fun (f, e) ->
+	  field_index datacon f,
+	  transl e
+	) fields
+      in
+      (* Sort this list by index. *)
+      let fields = sort_by_index fields in
+      (* In principle, every field is there. Drop the field names,
+	 and create a data constructor expression. *)
+      O.EConstruct (Datacon.print datacon, List.map snd fields)
+  | EIfThenElse (e, e1, e2) ->
+      O.EIfThenElse (
+	gt (O.EGetTag (O.ERepr (transl e))) (O.EInt 0),
+	transl e1,
+	transl e2
+      )
+  | ESequence (e1, e2) ->
+      O.ESequence (transl e1, transl e2)
+  | EInt i ->
+      O.EInt i
+  | EFail s ->
+      O.EApply (O.EVar "Pervasives.failwith", O.EStringLiteral s)
+  | ENull ->
+      (* Using the unit value as a representation of [null]. *)
+      O.ETuple []
+
+and transl_equations eqs =
+  List.map (fun (p, e) ->
+    (* We must insert a [magic] because [e] is matched against [p]. *)
+    (* TEMPORARY must cast [e] if [p] is type-specific *)
+    translate_pattern p, transl e
+  ) eqs
+
+and transl_branches branches =
+  List.map (fun (p, e) ->
+    (* We insert a [magic] on every branch, because all branches
+       must ultimately have the same type. *)
+    translate_pattern p, O.EMagic (transl e)
+  ) branches
+
+(* TEMPORARY if the OCaml inliner is good, an application of a builtin
+   function to an argument of the appropriate shape should be simplified
+   to an application of the corresponding OCaml primitive operation.
+   Check this. If that is not the case, perform this simplification here. *)
+

@@ -182,7 +182,8 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       k (U.EAssign (v1, f, v2))
       ))
   | EAssignTag (e, tags) ->
-      transl loc e (fun v ->
+      (* Here, make sure [EAssignTag] carries a value. *)
+      eval "obj" loc e (fun v ->
       k (U.EAssignTag (v, tags))
       )
   | EAccess (e, f) ->

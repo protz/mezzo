@@ -56,6 +56,7 @@ type expression =
   | EIfThenElse of expression * expression * expression
   | ESequence of expression * expression
   | EInt of int
+  | EStringLiteral of string
     (* Generic field and tag manipulation operations. *)
   | ESetField of expression * int * expression
   | ESetTag of expression * int
