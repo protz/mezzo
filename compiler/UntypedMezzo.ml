@@ -64,7 +64,7 @@ type expression =
   | EVar of Variable.name
   | EQualified of Module.name * Variable.name
   | EBuiltin of string
-  | ELet of SurfaceSyntax.rec_flag * (pattern * expression) list * expression
+  | ELet of rec_flag * (pattern * expression) list * expression
   | EFun of pattern * expression
   | EAssign of expression * field * expression
   | EAssignTag of expression * previous_and_new_datacon

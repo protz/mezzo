@@ -18,6 +18,7 @@
 (*****************************************************************************)
 
 let e = Mezzo2UntypedMezzo.translate_implementation (* TEMPORARY *)
+let f = UntypedMezzo2UntypedOCaml.translate_pattern (* TEMPORARY *)
 
 type mode =
   | TypecheckAndCompile
