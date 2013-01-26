@@ -199,12 +199,6 @@ module ValuePrinter = struct
 
   open Hml_Pprint
 
-  let parens content =
-    group (lparen ^^ nest 2 (break0 ^^ content) ^^ break0 ^^ rparen)
-
-  let braces content =
-    group (lbrace ^^ nest 2 (break1 ^^ content) ^^ break1 ^^ rbrace)
-
   (* The [depth] parameter is incremented at every memory block, and
      we stop when it reaches a hard-coded limit. This prevents entering
      an infinite loop when the heap is cyclic. It also helps visualize
@@ -234,7 +228,7 @@ module ValuePrinter = struct
 	      text info.datacon_name
 	  | _ :: _ ->
 	      group (
-		text info.datacon_name ^^ space ^^ braces (
+		text info.datacon_name ^^ space ^^ braces_with_nesting (
 		  join (semi ^^ break1) (List.map (fun (_, field, v) ->
 		    group (
 		      text field ^^
@@ -247,7 +241,7 @@ module ValuePrinter = struct
 	      )
 	  end
       | VTuple vs ->
-	  parens (
+	  parens_with_nesting (
 	    join (comma ^^ break1) (List.map (print_value env depth) vs)
 	  )
       | VClosure _

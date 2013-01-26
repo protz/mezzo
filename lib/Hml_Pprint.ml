@@ -179,3 +179,26 @@ let render doc =
   let buf = Buffer.create 16 in
   Pprint.PpBuffer.pretty 1.0 Bash.twidth buf doc;
   Buffer.contents buf
+
+(* Parentheses with nesting. Yields either:
+   (this)
+   or:
+   (
+     that
+   )
+*)
+
+let parens_with_nesting content =
+  group (lparen ^^ nest 2 (break0 ^^ content) ^^ break0 ^^ rparen)
+
+(* Braces with nesting. Yields either:
+   { this }
+   or:
+   {
+     that
+   }
+*)
+
+let braces_with_nesting content =
+  group (lbrace ^^ nest 2 (break1 ^^ content) ^^ break1 ^^ rbrace)
+
