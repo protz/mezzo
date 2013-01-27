@@ -998,7 +998,7 @@ module ExprPrinter = struct
     )
 
   and print_patexprs env patexprs =
-    join (break1 ^^ string "and" ^^ space) (List.map (print_patexpr env) patexprs)
+    separate_map (break 1 ^^ string "and" ^^ space) (print_patexpr env) patexprs
 
   and print_pat env = function
     | PVar (v, _) ->
@@ -1009,7 +1009,7 @@ module ExprPrinter = struct
 
     | PTuple pats ->
         lparen ^^
-          join (comma ^^ space) (List.map (print_pat env) pats) ^^
+          separate (comma ^^ space) (List.map (print_pat env) pats) ^^
         rparen
 
     (* Foo { bar = bar; baz = baz; … } *)
@@ -1018,10 +1018,10 @@ module ExprPrinter = struct
           if List.length fieldnames > 0 then
             space ^^ lbrace ^^
             jump ~indent:4
-              (join
-                (semi ^^ break1)
-                (List.map (fun (field, name) -> print_field field ^^ space ^^
-                  equals ^^ space ^^ print_pat env name) fieldnames)) ^^
+              (separate_map
+                (semi ^^ break 1)
+                (fun (field, name) -> print_field field ^^ space ^^
+                  equals ^^ space ^^ print_pat env name) fieldnames) ^^
             jump rbrace
           else
             empty
@@ -1056,7 +1056,7 @@ module ExprPrinter = struct
         let env, patexprs, { subst_expr; _ } = bind_patexprs env rec_flag patexprs in
         let body = subst_expr body in
         string "let" ^^ print_rec_flag rec_flag ^^ space ^^
-        print_patexprs env patexprs ^^ break1 ^^ string "in" ^^ break1 ^^
+        print_patexprs env patexprs ^^ break 1 ^^ string "in" ^^ break 1 ^^
         print_expr env body
 
     (* fun [a] (x: τ): τ -> e *)
@@ -1067,7 +1067,7 @@ module ExprPrinter = struct
         let arg = subst_type arg in
         let return_type = subst_type return_type in
         let body = subst_expr body in
-        string "fun " ^^ lbracket ^^ join (comma ^^ space) (List.map (print_ebinder env) vars) ^^
+        string "fun " ^^ lbracket ^^ separate_map (comma ^^ space) (print_ebinder env) vars ^^
         rbracket ^^ jump (
           print_type env arg
         ) ^^ colon ^^ space ^^ print_type env return_type ^^ space ^^ equals ^^
@@ -1096,7 +1096,7 @@ module ExprPrinter = struct
 
     | ETuple exprs ->
         let exprs = List.map (print_expr env) exprs in
-        lparen ^^ join (comma ^^ space) exprs ^^ rparen
+        lparen ^^ separate (comma ^^ space) exprs ^^ rparen
 
     | EMatch (b, e, patexprs) ->
         let patexprs = List.map (fun (pat, expr) ->
@@ -1108,7 +1108,7 @@ module ExprPrinter = struct
         ) patexprs in
         let explain = if b then string "explain" ^^ space else empty in
         string "match" ^^ space ^^ explain ^^ print_expr env e ^^ space ^^ string "with" ^^
-        jump ~indent:0 (ifflat empty (bar ^^ space) ^^ join (break1 ^^ bar ^^ space) patexprs)
+        jump ~indent:0 (ifflat empty (bar ^^ space) ^^ separate (break 1 ^^ bar ^^ space) patexprs)
 
 
     | EConstruct (datacon, fieldexprs) ->
@@ -1117,7 +1117,7 @@ module ExprPrinter = struct
         ) fieldexprs in
         let fieldexprs =
           if List.length fieldexprs > 0 then
-            space ^^ lbrace ^^ jump (join (semi ^^ break1) fieldexprs) ^^ break1 ^^ rbrace
+            space ^^ lbrace ^^ jump (separate (semi ^^ break 1) fieldexprs) ^^ break 1 ^^ rbrace
           else
             empty
         in
@@ -1126,7 +1126,7 @@ module ExprPrinter = struct
     | EIfThenElse (b, e1, e2, e3) ->
         let explain = if b then string "explain" ^^ space else empty in
         string "if" ^^ space ^^ explain ^^ print_expr env e1 ^^ space ^^ string "then" ^^
-        jump (print_expr env e2) ^^ break1 ^^ string "else" ^^
+        jump (print_expr env e2) ^^ break 1 ^^ string "else" ^^
         jump (print_expr env e3)
 
     | ELocated (e, _) ->
@@ -1191,7 +1191,7 @@ module ExprPrinter = struct
           List.rev acc
     in
     let declarations = print_declarations env [] declarations in
-    let declarations = (* hardline ^^ *) join (hardline ^^ hardline) declarations in
+    let declarations = (* hardline ^^ *) separate (twice hardline) declarations in
     (* colors.red ^^ string "DECLARATIONS:" ^^ colors.default ^^ *)
     nest 2 declarations ^^ hardline
   ;;

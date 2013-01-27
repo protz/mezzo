@@ -683,18 +683,18 @@ module TypePrinter = struct
 
   (* If [f arg] returns a [document], then write [Log.debug "%a" pdoc (f, arg)] *)
   let pdoc (buf: Buffer.t) (f, env: ('env -> document) * 'env): unit =
-    PpBuffer.pretty 1.0 Bash.twidth buf (f env)
+    ToBuffer.pretty 1.0 Bash.twidth buf (f env)
   ;;
 
   (* --------------------------------------------------------------------------- *)
 
   let print_var env = function
     | User (m, var) when Module.equal env.module_name m ->
-        print_string (Variable.print var)
+        utf8string (Variable.print var)
     | User (m, var) ->
-        print_string (Module.print m) ^^ ccolon ^^ print_string (Variable.print var)
+        utf8string (Module.print m) ^^ ccolon ^^ utf8string (Variable.print var)
     | Auto var ->
-        colors.yellow ^^ print_string (Variable.print var) ^^ colors.default
+        colors.yellow ^^ utf8string (Variable.print var) ^^ colors.default
   ;;
 
   let pvar buf (env, var) =
@@ -702,11 +702,11 @@ module TypePrinter = struct
   ;;
 
   let print_datacon datacon =
-    print_string (Datacon.print datacon)
+    utf8string (Datacon.print datacon)
   ;;
 
   let print_field field =
-    print_string (Field.print field)
+    utf8string (Field.print field)
   ;;
 
   let rec print_kind =
@@ -731,7 +731,7 @@ module TypePrinter = struct
     if List.length names > 0 then
       let names = List.map (print_var env) names in
       let names = List.map (fun x -> colors.blue ^^ x ^^ colors.default) names in
-      let names = join (string ", ") names in
+      let names = separate (string ", ") names in
       names
     else
       colors.red ^^ string "[no name]" ^^ colors.default
@@ -756,12 +756,12 @@ module TypePrinter = struct
               None
         ) names in
         let names = List.map (fun (m, x) ->
-          print_string (Module.print m) ^^ ccolon ^^ print_string (Variable.print x)
+          utf8string (Module.print m) ^^ ccolon ^^ utf8string (Variable.print x)
         ) names in
-        (join (string " = ") names) :: acc
+        (separate (string " = ") names) :: acc
       ) []
     in
-    join (string ", ") exports
+    separate (string ", ") exports
   ;;
 
   let pexports buf env =
@@ -776,7 +776,7 @@ module TypePrinter = struct
       (name: name)
       (kind: SurfaceSyntax.kind)
       (typ: typ) =
-    print_string q ^^ lparen ^^ print_var env name ^^ space ^^ colon ^^ space ^^
+    utf8string q ^^ lparen ^^ print_var env name ^^ space ^^ colon ^^ space ^^
     print_kind kind ^^ rparen ^^ dot ^^ jump (print_type env typ)
 
   and print_point env point =
@@ -828,7 +828,7 @@ module TypePrinter = struct
           else
             print_var env x ^^ space ^^ colon ^^ space ^^ print_kind k
         ) vars in
-        let vars = join (comma ^^ space) vars in
+        let vars = separate (comma ^^ space) vars in
         let vars = lbracket ^^ vars ^^ rbracket in
         vars ^^ space ^^ print_type env t
 
@@ -837,13 +837,13 @@ module TypePrinter = struct
         print_quantified env "∃" name kind typ
 
     | TyApp (t1, t2) ->
-        print_type env t1 ^^ space ^^ join space (List.map (print_type env) t2)
+        print_type env t1 ^^ space ^^ separate_map space (print_type env) t2
 
     | TyTuple components ->
         lparen ^^
-        join
+        separate_map
           (comma ^^ space)
-          (List.map (print_type env) components) ^^
+          (print_type env) components ^^
         rparen
 
     | TyConcreteUnfolded (name, fields, clause) ->
@@ -856,7 +856,7 @@ module TypePrinter = struct
       (* Function types. *)
     | TyArrow (t1, t2) ->
         print_type env t1 ^^ space ^^ arrow ^^
-        group (break1 ^^ print_type env t2)
+        group (break 1 ^^ print_type env t2)
 
       (* Permissions. *)
     | TyAnchoredPermission (t1, t2) ->
@@ -876,7 +876,7 @@ module TypePrinter = struct
         let constraints = List.map (fun (f, t) ->
           print_data_type_flag f ^^ space ^^ print_type env t
         ) constraints in
-        let constraints = join comma constraints in
+        let constraints = separate comma constraints in
         lparen ^^ constraints ^^ rparen ^^ space ^^ string "∧" ^^ space ^^
         print_type env t
 
@@ -892,10 +892,10 @@ module TypePrinter = struct
       if List.length fields > 0 then
         space ^^ lbrace ^^
         nest 4
-          (break1 ^^ join
-            (semi ^^ break1)
-            (List.map (print_data_field_def env) fields)) ^^
-        nest 2 (break1 ^^ rbrace)
+          (break 1 ^^ separate_map
+            (semi ^^ break 1)
+            (print_data_field_def env) fields) ^^
+        nest 2 (break 1 ^^ rbrace)
       else
         empty
     in
@@ -920,9 +920,9 @@ module TypePrinter = struct
     match fact with
     | Duplicable bitmap ->
         lbracket ^^
-        join
+        separate_map
           empty
-          ((List.map (fun b -> if b then string "x" else string "-")) (Array.to_list bitmap)) ^^
+          (fun b -> if b then string "x" else string "-") (Array.to_list bitmap) ^^
         rbracket
     | Exclusive ->
         string "exclusive"
@@ -944,13 +944,13 @@ module TypePrinter = struct
     let is name is_abstract ?params w =
       let params =
         match params with
-        | Some params -> join_left space (List.map print_string params)
+        | Some params -> concat_map (fun param -> space ^^ utf8string param) params
         | None -> empty
       in
       colors.underline ^^ print_var env name ^^ params ^^
       colors.default ^^ string " is " ^^
       (if is_abstract then string "abstract and " else empty) ^^
-      print_string w
+      utf8string w
     in
     let print_fact name is_abstract arity fact =
       let params = Hml_Pprint.name_gen arity in
@@ -971,7 +971,7 @@ module TypePrinter = struct
           let dup_params = Hml_List.filter_some dup_params in
           if List.length dup_params > 0 then begin
             let verb = string (if List.length dup_params > 1 then " are " else " is ") in
-            let dup_params = List.map print_string dup_params in
+            let dup_params = List.map utf8string dup_params in
             is "duplicable if " ^^ english_join dup_params ^^ verb ^^
             string "duplicable"
           end else begin
@@ -989,7 +989,7 @@ module TypePrinter = struct
             print_fact name true arity fact
       )
     in
-    join hardline lines
+    separate hardline lines
   ;;
 
   let print_permission_list (env, { permissions; _ }): document =
@@ -998,7 +998,7 @@ module TypePrinter = struct
     ) permissions in *)
     if List.length permissions > 0 then
       let permissions = List.map (print_type env) permissions in
-      join (comma ^^ space) permissions
+      separate (comma ^^ space) permissions
     else
       string "unknown"
   ;;
@@ -1030,8 +1030,8 @@ module TypePrinter = struct
         names ^^ space ^^ at ^^ space ^^ (nest 2 perms)
     ) in
     let lines = List.filter ((<>) empty) lines in
-    let lines = join break1 lines in
-    header ^^ (nest 2 (break1 ^^ lines))
+    let lines = separate (break 1) lines in
+    header ^^ (nest 2 (break 1 ^^ lines))
   ;;
 
   let ppermissions buf permissions =
@@ -1051,10 +1051,10 @@ module TypePrinter = struct
   internal_ptype := ptype;;
 
   let print_binders (env: env): document =
-    print_string "Γ (unordered) = " ^^
-    join
+    utf8string "Γ (unordered) = " ^^
+    separate
       (semi ^^ space)
-      (map env (fun names _ -> join (string " = ") (List.map (print_var env) names)))
+      (map env (fun names _ -> separate_map (string " = ") (print_var env) names))
   ;;
 
 

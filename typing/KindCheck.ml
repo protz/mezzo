@@ -913,12 +913,12 @@ module KindPrinter = struct
     (* Turn the list of parameters into letters *)
     let letters: string list = name_gen (List.length params) in
     let letters = List.map2 (fun variance letter ->
-      print_variance variance ^^ print_string letter
+      print_variance variance ^^ utf8string letter
     ) variance letters in
     let env, _, branches, clause =
       bind_datacon_parameters env kind branches clause
     in
-    let sep = break1 ^^ bar ^^ space in
+    let sep = break 1 ^^ bar ^^ space in
     let flag = match flag with
       | SurfaceSyntax.Exclusive -> string "mutable" ^^ space
       | SurfaceSyntax.Duplicable -> empty
@@ -926,16 +926,16 @@ module KindPrinter = struct
     (* The whole blurb *)
     flag ^^ string "data" ^^ space ^^ lparen ^^
     print_var env name ^^ space ^^ colon ^^ space ^^
-    print_kind kind ^^ rparen ^^ join_left space letters ^^
+    print_kind kind ^^ rparen ^^ concat_map (precede space) letters ^^
     space ^^ equals ^^
     jump
       (ifflat empty (bar ^^ space) ^^
-      join sep (
-        List.map (fun (x, y) -> print_data_type_def_branch env x y ty_bottom) branches)
+      separate_map sep
+        (fun (x, y) -> print_data_type_def_branch env x y ty_bottom) branches
       ) ^^
     match clause with
     | Some t ->
-        break1 ^^ string "adopts" ^^ space ^^ print_type env t
+        break 1 ^^ string "adopts" ^^ space ^^ print_type env t
     | None ->
         empty
   ;;
@@ -959,7 +959,7 @@ module KindPrinter = struct
       let name = List.hd names in
       print_def env name kind definition
     ) in
-    join (break1 ^^ break1) defs
+    separate (break 2) defs
   ;;
 
   let print_group env (group: data_type_group) =
@@ -967,7 +967,7 @@ module KindPrinter = struct
       let name = User (env.module_name, name) in
       print_def env name kind (Some def)
     ) group in
-    nest 2 (join (break1 ^^ break1) defs) ^^ hardline
+    nest 2 (separate (break 2) defs) ^^ hardline
   ;;
 
 

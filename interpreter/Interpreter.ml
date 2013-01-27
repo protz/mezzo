@@ -206,11 +206,11 @@ module ValuePrinter = struct
 
   let rec print_value (env : env) (depth : int) (v : value) : document =
     if depth >= 5 then
-      text "..."
+      string "..."
     else
       match v with
       | VInt i ->
-	  text (string_of_int i)
+	  string (string_of_int i)
       | VAddress b ->
 	  let info = b.tag in
 	  let fields : (int * string * value) list =
@@ -225,28 +225,28 @@ module ValuePrinter = struct
 	  in
 	  begin match fields with
 	  | [] ->
-	      text info.datacon_name
+	      string info.datacon_name
 	  | _ :: _ ->
 	      group (
-		text info.datacon_name ^^ space ^^ braces_with_nesting (
-		  join (semi ^^ break1) (List.map (fun (_, field, v) ->
+		string info.datacon_name ^^ space ^^ braces_with_nesting (
+		  separate_map (semi ^^ break 1) (fun (_, field, v) ->
 		    group (
-		      text field ^^
-		      space ^^ equals ^^ nest 2 (break1 ^^
+		      string field ^^
+		      space ^^ equals ^^ nest 2 (break 1 ^^
 			print_value env (depth + 1) v
 		      )
 		    )
-		  ) fields)
+		  ) fields
 		)
 	      )
 	  end
       | VTuple vs ->
 	  parens_with_nesting (
-	    join (comma ^^ break1) (List.map (print_value env depth) vs)
+	    separate_map (comma ^^ break 1) (print_value env depth) vs
 	  )
       | VClosure _
       | VBuiltin _ ->
-	  text "<fun>"
+	  string "<fun>"
 
   let render env v : string =
     render (print_value env 0 v)

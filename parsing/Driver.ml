@@ -471,7 +471,7 @@ let print_signature (buf: Buffer.t) (env: Types.env): unit =
         let t = print_type env t in
         string "val" ^^ space ^^
         print_var env name ^^ space ^^ at ^^ space ^^ (nest 2 t) ^^
-        break1
+        break 1
       ), ())
 
     with Not_found ->

@@ -17,9 +17,9 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** This modules exports a modified version of {!Pprint} with extra printers. *)
+(** This modules exports a modified version of {!PPrint} with extra printers. *)
 
-include Pprint
+include PPrint
 
 (* Some Bash-isms *)
 
@@ -68,46 +68,21 @@ let arrow =
 ;;
 
 let semisemi =
-  semi ^^ semi
-;;
+  twice semi
 
 let ccolon =
-  colon ^^ colon
-;;
+  twice colon
 
 let int i =
   string (string_of_int i)
-;;
+;; (* TEMPORARY already in PPrintOCaml *)
 
 let larrow =
   string "<-"
 ;;
 
-let slash =
-  string "/"
-;;
-
 let tagof =
   string "tag of "
-;;
-
-let utf8_length s =
-  (* Stolen from Batteries *)
-  let rec length_aux s c i =
-    if i >= String.length s then c else
-    let n = Char.code (String.unsafe_get s i) in
-    let k =
-      if n < 0x80 then 1 else
-      if n < 0xe0 then 2 else
-      if n < 0xf0 then 3 else 4
-    in
-    length_aux s (c + 1) (i + k)
-  in
-  length_aux s 0 0
-;;
-
-let print_string s =
-  fancystring s (utf8_length s)
 ;;
 
 let name_gen count =
@@ -120,64 +95,19 @@ let name_gen count =
   )
 ;;
 
-(* [heading head body] prints [head]; breaks a line and indents by 2,
- if necessary; then prints [body]. *)
-let heading head body =
-  group (
-    nest 2 (
-      group head ^^ linebreak ^^
-      body
-    )
-  )
-;;
-
 (* [jump body] either displays a space, followed with [body], followed
    with a space, all on a single line; or breaks a line, prints [body]
-   at indentation 2. *)
+   at a greater indentation. *)
 let jump ?(indent=2) body =
-  group (nest indent (line ^^ body))
+  jump indent 1 body
 ;;
 
-(* [definition head body cont] prints [head]; prints [body], surrounded
-   with spaces and, if necessary, indented by 2; prints the keyword [in];
-   breaks a line, if necessary; and prints [cont]. *)
-let definition head body cont =
-  group (
-    group head ^^ jump body ^^ text "in"
-  ) ^^ line ^^
-  cont
-;;
-
-(* [join sep (s1 :: s2 :: ... :: sn)] returns
- * [s1 ^^ sep ^^ s2 ^^ ... ^^ sep ^^ sn] *)
-let join sep strings =
-  match strings with
-  | hd :: tl ->
-      List.fold_left (fun sofar s -> sofar ^^ sep ^^ s) hd tl
-  | [] ->
-      empty
-;;
-
-(* [join_left sep (s1 :: s2 :: ... :: sn)] returns
- * [sep ^^ s1 ^^ sep ^^ s2 ^^ ... ^^ sep ^^ sn] *)
-let join_left sep strings =
-  List.fold_left (fun sofar s -> sofar ^^ sep ^^ s) empty strings
-;;
-
-let rec english_join = function
-  | [] ->
-      empty
-  | e :: [] ->
-      e
-  | e1 :: e2 :: [] ->
-      e1 ^^ string " and " ^^ e2
-  | hd :: tl ->
-      hd ^^ string ", " ^^ english_join tl
-;;
+let english_join =
+  separate2 (string ", ") (string ", and ")
 
 let render doc =
   let buf = Buffer.create 16 in
-  Pprint.PpBuffer.pretty 1.0 Bash.twidth buf doc;
+  PPrint.ToBuffer.pretty 1.0 Bash.twidth buf doc;
   Buffer.contents buf
 
 (* Parentheses with nesting. Yields either:
@@ -188,8 +118,8 @@ let render doc =
    )
 *)
 
-let parens_with_nesting content =
-  group (lparen ^^ nest 2 (break0 ^^ content) ^^ break0 ^^ rparen)
+let parens_with_nesting contents =
+  surround 2 0 lparen contents rparen
 
 (* Braces with nesting. Yields either:
    { this }
@@ -199,6 +129,5 @@ let parens_with_nesting content =
    }
 *)
 
-let braces_with_nesting content =
-  group (lbrace ^^ nest 2 (break1 ^^ content) ^^ break1 ^^ rbrace)
-
+let braces_with_nesting contents =
+  surround 2 1 lbrace contents rbrace
