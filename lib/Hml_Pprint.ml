@@ -73,9 +73,8 @@ let semisemi =
 let ccolon =
   twice colon
 
-let int i =
-  string (string_of_int i)
-;; (* TEMPORARY already in PPrintOCaml *)
+let int =
+  OCaml.int
 
 let larrow =
   string "<-"

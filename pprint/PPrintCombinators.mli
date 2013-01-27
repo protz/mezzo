@@ -1,3 +1,16 @@
+(**************************************************************************)
+(*                                                                        *)
+(*  PPrint                                                                *)
+(*                                                                        *)
+(*  Francois Pottier, INRIA Paris-Rocquencourt                            *)
+(*  Nicolas Pouillard, IT University of Copenhagen                        *)
+(*                                                                        *)
+(*  Copyright 2007-2013 INRIA. All rights reserved. This file is          *)
+(*  distributed under the terms of the CeCILL-C license, as described     *)
+(*  in the file LICENSE.                                                  *)
+(*                                                                        *)
+(**************************************************************************)
+
 open PPrintEngine
 
 (** A set of high-level combinators for building documents. *)
@@ -100,8 +113,8 @@ val optional: ('a -> document) -> 'a option -> document
 (** {1 Text} *)
 
 (** [lines s] is the list of documents obtained by splitting [s] at newline
-    characters. The code that looks for newline characters is not UTF-8
-    aware. *)
+    characters, and turning each line into a document via [substring]. This
+    code is not UTF-8 aware. *)
 val lines: string -> document list
 
 (** [arbitrary_string s] is equivalent to [separate (break 1) (lines s)].
@@ -110,15 +123,29 @@ val lines: string -> document list
 val arbitrary_string: string -> document
 
 (** [words s] is the list of documents obtained by splitting [s] at whitespace
-    characters. The code that looks for whitespace characters is not UTF-8
-    aware. *)
+    characters, and turning each word into a document via [substring]. All
+    whitespace is discarded. This code is not UTF-8 aware. *)
 val words: string -> document list
 
-(** [flow docs] separates the documents in the list [docs] with brekable
+(** [split ok s] splits the string [s] at every occurrence of a character that
+    satisfies the predicate [ok]. The substrings thus obtained are turned into
+    documents, and a list of documents is returned. No information is lost: the
+    concatenation of the documents yields the original string.  This code is
+    not UTF-8 aware. *)
+val split: (char -> bool) -> string -> document list
+
+(** [flow b docs] separates the documents in the list [docs] with breakable
     spaces in such a way that a new line begins whenever a document does not
     fit on the current line. This is useful for typesetting free-flowing,
-    ragged-right text. *)
-val flow: document list -> document
+    ragged-right text. The parameter [b] is the number of spaces that must
+    be inserted between two consecutive words (when displayed on the same
+    line). *)
+val flow: int -> document list -> document
+
+(** [url s] is a possible way of displaying the URL [s]. A potential line
+    break is inserted immediately before and immediately after every slash
+    and dot character. *)
+val url: string -> document
 
 (** {1 Alignment and indentation} *)
 
@@ -189,7 +216,11 @@ val soft_surround: int -> int -> document -> document -> document -> document
 (** [surround_separate n b void opening sep closing docs] is equivalent to
     [surround n b opening (separate sep docs) closing], except when the
     list [docs] is empty, in which case it reduces to [void]. *)
-val surround_separate: int -> int -> document -> document -> document -> document -> document list -> document 
+val surround_separate: int -> int -> document -> document -> document -> document -> document list -> document
+
+(** [surround_separate_map n b void opening sep closing f xs] is equivalent to
+    [surround_separate n b void opening sep closing (List.map f xs)]. *)
+val surround_separate_map: int -> int -> document -> document -> document -> document -> ('a -> document) -> 'a list -> document
 
 (** {1 Short-hands} *)
 

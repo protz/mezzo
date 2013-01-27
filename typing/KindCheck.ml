@@ -959,7 +959,7 @@ module KindPrinter = struct
       let name = List.hd names in
       print_def env name kind definition
     ) in
-    separate (break 2) defs
+    separate (twice (break 1)) defs
   ;;
 
   let print_group env (group: data_type_group) =
@@ -967,7 +967,7 @@ module KindPrinter = struct
       let name = User (env.module_name, name) in
       print_def env name kind (Some def)
     ) group in
-    nest 2 (separate (break 2) defs) ^^ hardline
+    nest 2 (separate (twice (break 1)) defs) ^^ hardline
   ;;
 
 

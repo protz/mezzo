@@ -1,23 +1,57 @@
+(**************************************************************************)
+(*                                                                        *)
+(*  PPrint                                                                *)
+(*                                                                        *)
+(*  Francois Pottier, INRIA Paris-Rocquencourt                            *)
+(*  Nicolas Pouillard, IT University of Copenhagen                        *)
+(*                                                                        *)
+(*  Copyright 2007-2013 INRIA. All rights reserved. This file is          *)
+(*  distributed under the terms of the CeCILL-C license, as described     *)
+(*  in the file LICENSE.                                                  *)
+(*                                                                        *)
+(**************************************************************************)
+
 open PPrint
 
-let d : document =
-  string "Article: " ^^
-  hang 2 (
-  flow (words "Lors d'une réunion d'urgence
-à Abidjan, les chefs d'état-major
-de la Communauté économique
-des Etats d'Afrique de l'Ouest (Cédéao)
-ont par ailleurs décidé de relever le volume
-de leurs effectifs promis au Mali, pour qu'ils
-atteignent 5700 hommes, a déclaré à
-la clôture le général Bakayoko,
-dont le pays préside
-actuellement la Cédéao. Jusque-là,
-l'Afrique de l'Ouest visait
-le déploiement d'environ 4 000 militaires.
-Le Tchad s'est engagé à fournir 2 000 soldats, qui
-ne font pas partie de la Misma mais agissent en coordination avec elle."))
+(* This is a test file. It is not, strictly speaking, part of the library. *)
+
+let document =
+  prefix 2 1
+    (string "TITLE:")
+    (string "PPrint")
+  ^^
+  hardline
+  ^^
+  prefix 2 1
+    (string "AUTHORS:")
+    (utf8string "François Pottier and Nicolas Pouillard")
+  ^^
+  hardline
+  ^^
+  prefix 2 1
+    (string "ABSTRACT:")
+    (
+      flow 1 (words "This is an adaptation of Daan Leijen's \"PPrint\" library,
+        which itself is based on the ideas developed by Philip Wadler in
+        \"A Prettier Printer\". For more information about Wadler's and Leijen's work,
+        please consult the following references:")
+      ^^
+      nest 2 (
+	twice (break 1)
+	^^
+	separate_map (break 1) (fun s -> nest 2 (url s)) [
+	  "http://www.cs.uu.nl/~daan/pprint.html";
+	  "http://homepages.inf.ed.ac.uk/wadler/papers/prettier/prettier.pdf";
+	]
+      )
+      ^^
+      twice (break 1)
+      ^^
+      flow 1 (words "The documentation for PPrint is built by \"make doc\" and is found in the file doc/index.html.")
+    )
+  ^^
+  hardline
 
 let () =
-  ToChannel.pretty 0.95 80 stdout d;
+  ToChannel.pretty 0.5 80 stdout document;
   flush stdout

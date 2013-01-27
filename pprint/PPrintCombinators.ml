@@ -1,3 +1,16 @@
+(**************************************************************************)
+(*                                                                        *)
+(*  PPrint                                                                *)
+(*                                                                        *)
+(*  Francois Pottier, INRIA Paris-Rocquencourt                            *)
+(*  Nicolas Pouillard, IT University of Copenhagen                        *)
+(*                                                                        *)
+(*  Copyright 2007-2013 INRIA. All rights reserved. This file is          *)
+(*  distributed under the terms of the CeCILL-C license, as described     *)
+(*  in the file LICENSE.                                                  *)
+(*                                                                        *)
+(**************************************************************************)
+
 open PPrintEngine
 
 (* ------------------------------------------------------------------------- *)
@@ -163,6 +176,33 @@ let lines s =
 let arbitrary_string s =
   separate (break 1) (lines s)
 
+(* [split ok s] splits the string [s] at every occurrence of a character
+   that satisfies the predicate [ok]. The substrings thus obtained are
+   turned into documents, and a list of documents is returned. No information
+   is lost: the concatenation of the documents yields the original string.
+   This code is not UTF-8 aware. *)
+
+let split ok s =
+  let n = String.length s in
+  let rec index_from i =
+    if i = n then
+      None
+    else if ok s.[i] then
+      Some i
+    else
+      index_from (i + 1)
+  in
+  let rec chop accu i =
+    match index_from i with
+    | Some j ->
+        let accu = substring s i (j - i) :: accu in
+	let accu = char s.[j] :: accu in
+	chop accu (j + 1)
+    | None ->
+        substring s i (String.length s - i) :: accu
+  in
+  List.rev (chop [] 0)
+
 (* [words s] chops the string [s] into a list of words, which are turned
    into documents. *)
 
@@ -203,7 +243,7 @@ let words s =
   in
   List.rev (skipping [] 0)
 
-let flow docs =
+let flow b docs =
   foldli (fun i accu doc ->
     if i = 0 then
       doc
@@ -211,8 +251,11 @@ let flow docs =
       accu ^^
       (* This idiom allows beginning a new line if [doc] does not
 	 fit on the current line. *)
-      group (break 1 ^^ doc)
+      group (break b ^^ doc)
   ) empty docs
+
+let url s =
+  flow 0 (split (function '/' | '.' -> true | _ -> false) s)
 
 (* ------------------------------------------------------------------------- *)
 
@@ -262,4 +305,11 @@ let surround_separate n b void opening sep closing docs =
       void
   | _ :: _ ->
       surround n b opening (separate sep docs) closing
+
+let surround_separate_map n b void opening sep closing f xs =
+  match xs with
+  | [] ->
+      void
+  | _ :: _ ->
+      surround n b opening (separate_map sep f xs) closing
 
