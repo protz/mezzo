@@ -1,0 +1,3 @@
+(* Success: 1 *)
+val () =
+  print (list::length (list::cons (3, list::nil)))

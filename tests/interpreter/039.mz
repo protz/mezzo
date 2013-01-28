@@ -1,0 +1,6 @@
+(* Success: 89 *)
+val rec fib (n : int) : int =
+  if n <= 1 then 1
+  else fib (n-2) + fib (n-1)
+val () =
+  print (fib 10)

@@ -1,6 +1,7 @@
 .PHONY: test clean
 
 SHELL    := /bin/bash
+SED      := $(shell if which gsed >/dev/null ; then echo gsed ; else echo sed ; fi)
 
 MEZZODIR := ../..
 MEZZO    := $(MEZZODIR)/mezzo
@@ -41,7 +42,7 @@ test:
 	  else \
 	    echo The interpreter terminated abnormally >/dev/null ; \
 	    if grep -q Failure $$f ; then \
-	      reason=`sed --quiet "s/(\* Failure: \\(.*\\) \*)/\1/p" $$f` ; \
+	      reason=`$(SED) --quiet "s/(\* Failure: \\(.*\\) \*)/\1/p" $$f` ; \
 	      if grep -q "$$reason" $${f%.mz}.err ; then \
 		echo "[OK] $$f" ; \
 	      else \

@@ -1,0 +1,7 @@
+(* Success: 1 *)
+val x =
+  1
+val y =
+  x + 1
+val () =
+  print (y - x)

@@ -2,7 +2,9 @@ data bool =
   | False
   | True
 
-val not: bool -> bool
+val false : bool
+val true : bool
+val not : bool -> bool
 
 data rich_bool (p : perm) (q: perm) =
   | RichFalse { | q }

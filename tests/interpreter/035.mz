@@ -1,0 +1,3 @@
+(* Success: 0 *)
+val () =
+  print (list::length list::nil)

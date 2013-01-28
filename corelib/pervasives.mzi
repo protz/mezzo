@@ -1,9 +1,3 @@
-(* Booleans *)
-
-val true : bool
-val false : bool
-
-
 (* Options *)
 
 data option a = None | Some { contents: a }

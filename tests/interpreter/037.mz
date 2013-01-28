@@ -1,0 +1,4 @@
+(* Success: 4 *)
+val () =
+  let x = (let y = 1 in y + y) in
+  print (x * x)

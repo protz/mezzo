@@ -1,0 +1,11 @@
+(* Success: 7 *)
+val add (x : int) : int -> int =
+  fun (y : int) : int = x + y
+val xs =
+  list::cons (1, list::cons (2, list::nil))
+val ys =
+  list::map (add 2, xs)
+val sum =
+  fun (x : int, y : int) : int = x + y
+val () =
+  print (list::fold_left (sum, 0, ys))

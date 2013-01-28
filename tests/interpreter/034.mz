@@ -1,0 +1,3 @@
+(* Success: 0 *)
+val () =
+  print (match not bool::true with True -> 1 | False -> 0 end)

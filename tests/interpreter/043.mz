@@ -1,0 +1,6 @@
+(* Success: 4 *)
+val () =
+  let r = newref 0 in
+  r := 2;
+  r := !r + 2;
+  print !r

@@ -1,0 +1,4 @@
+(* Success: 24 *)
+val () =
+  match ((12, 23) : (int, int)) with _ -> print (24 : int) end
+

@@ -1,0 +1,6 @@
+(* Success: 25 *)
+val add (x : int) : int -> int =
+  fun (y : int) : int = x + y
+
+val () =
+  print (add 12 13)

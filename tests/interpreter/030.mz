@@ -1,0 +1,5 @@
+(* Success: 1 *)
+val () =
+  let x = 1 in
+  let y = x + 1 in
+  print (y - x)

@@ -1,0 +1,3 @@
+(* Success: 1 *)
+val () =
+  if true then print 1 else print 0

@@ -23,6 +23,9 @@ val not (b : bool) : bool =
   | True -> False
   end
 
+val false = False
+val true = True
+
 data rich_bool (p : perm) (q: perm) =
   | RichFalse { | q }
   | RichTrue { | p }

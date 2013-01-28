@@ -1,0 +1,9 @@
+(* Success: 1 *)
+val rec odd (n : int) : bool =
+  if n = 0 then false else even (n-1)
+and even (n : int) : bool =
+  if n = 0 then true else odd (n-1)
+val print_bool (b : bool) : () =
+  if b then print 1 else print 0
+val () =
+  print_bool (even 1000)
