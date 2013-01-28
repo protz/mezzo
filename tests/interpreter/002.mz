@@ -1,3 +1,5 @@
 (* Failure: Match failure *)
+val f () : bool =
+  True
 val () =
-  match True with False -> print 1 end
+  match f() with False -> print 1 end

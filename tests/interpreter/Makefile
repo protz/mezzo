@@ -20,32 +20,36 @@ test:
 # source file contains a comment of the form "Failure: reason", and
 # we look for "reason" in the error output.
 	@for f in *.mz ; do \
-	  if grep -q -e "\(Success\|Failure\)" $$f ; then \
-	    $(MEZZO) -i $$f >$${f%.mz}.out 2>$${f%.mz}.err ; \
-	    echo $$? >$${f%.mz}.xit ; \
-	    if [[ `cat $${f%.mz}.xit` == 0 ]] ; then \
-	      echo The interpreter terminated normally >/dev/null ; \
-	      actual=`tail -1 $${f%.mz}.out` ; \
-	      if grep -q "Success: $$actual" $$f ; then \
-		echo "[OK] $$f" ; \
-	      else \
-		echo "[FAILED] $$f (got $$actual, expected a different result or a failure)" ; \
-	      fi \
+	  if ! $(MEZZO) $$f >/dev/null 2>$${f%.mz}.err ; then \
+	    echo [PROBLEM] $$f was rejected by the Mezzo type-checker ; \
+	    continue ; \
+	  fi ; \
+	  if ! grep -q -e "\(Success\|Failure\)" $$f ; then \
+	    echo "[PROBLEM] $$f does not contain a Success or Failure comment" ; \
+	    continue ; \
+	  fi ; \
+	  $(MEZZO) -i $$f >$${f%.mz}.out 2>$${f%.mz}.err ; \
+	  echo $$? >$${f%.mz}.xit ; \
+	  if [[ `cat $${f%.mz}.xit` == 0 ]] ; then \
+	    echo The interpreter terminated normally >/dev/null ; \
+	    actual=`tail -1 $${f%.mz}.out` ; \
+	    if grep -q "Success: $$actual" $$f ; then \
+	      echo "[OK] $$f" ; \
 	    else \
-	      echo The interpreter terminated abnormally >/dev/null ; \
-	      if grep -q Failure $$f ; then \
-		reason=`sed --quiet "s/(\* Failure: \\(.*\\) \*)/\1/p" $$f` ; \
-		if grep -q "$$reason" $${f%.mz}.err ; then \
-		  echo "[OK] $$f" ; \
-		else \
-		  echo "[FAILED] $$f (expected $$reason, got a different failure)" ; \
-		fi \
-	      else \
-		echo "[FAILED] $$f (did not expect a failure)" ; \
-	      fi \
+	      echo "[FAILED] $$f (got $$actual, expected a different result or a failure)" ; \
 	    fi \
 	  else \
-	    echo "[PROBLEM] $$f does not contain a Success or Failure comment" ; \
+	    echo The interpreter terminated abnormally >/dev/null ; \
+	    if grep -q Failure $$f ; then \
+	      reason=`sed --quiet "s/(\* Failure: \\(.*\\) \*)/\1/p" $$f` ; \
+	      if grep -q "$$reason" $${f%.mz}.err ; then \
+		echo "[OK] $$f" ; \
+	      else \
+		echo "[FAILED] $$f (expected $$reason, got a different failure)" ; \
+	      fi \
+	    else \
+	      echo "[FAILED] $$f (did not expect a failure)" ; \
+	    fi \
 	  fi \
 	done
 
