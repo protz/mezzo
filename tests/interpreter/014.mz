@@ -1,0 +1,12 @@
+(* Success: 1 *)
+(* Checking that the print primitive does not crash; of course,
+   we do not check that its output is correct. *)
+val () =
+  print 1;
+  print True;
+  print (newref 1);
+  print (newref (newref 1));
+  print (newref 1, newref 2);
+  print (fun (x : int) : int = x);
+  print print;
+  print 1

@@ -1,0 +1,4 @@
+val () =
+  let r = newref () in
+  r.contents <- r
+(* BUG: the type-checker dies with stack overflow *)

@@ -1,0 +1,3 @@
+(* Success: 3 *)
+val () =
+  match newref (1+2) with Ref { contents = x } -> print x end

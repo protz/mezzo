@@ -1,0 +1,4 @@
+(* Success: 6 *)
+val () =
+  match 1 + 2 with x as y -> print (x + y) end
+

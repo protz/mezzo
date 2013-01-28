@@ -13,7 +13,7 @@ test:
 # the exit status is logged to f.xit.
 # We expect every source file to contain a Success or Failure comment,
 # which indicates the expected result.
-# If the interpreter terminates normally and produces one line of
+# If the interpreter terminates normally and produces one last line of
 # output, say 13, then we check that the source file contains the
 # comment "Success: 13".
 # If the interpreter terminates abnormally, then we check that the

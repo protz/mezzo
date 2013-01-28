@@ -1,0 +1,6 @@
+(* Success: 5 *)
+data pair a b = Pair { left: a; right: b }
+val make () : pair int int =
+  Pair { left = 10; right = 5 }
+val () =
+  match make() with Pair { right; left } -> print (left - right) end

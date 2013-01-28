@@ -1,0 +1,3 @@
+(* Success: 1 *)
+val () =
+  match (2,1) with (x,y) -> print (x-y) end

@@ -1,0 +1,4 @@
+(* Success: 1 *)
+
+val () =
+  match 1 with x -> print x end
