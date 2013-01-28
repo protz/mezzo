@@ -294,19 +294,18 @@ let asIntPair (v : value) : int * int =
 (* Evaluating an application of a built-in function. *)
 
 let eval_builtin (env : env) (loc : location) (b : string) (v : value) : value =
+  (* The primitive operations that operate on integers are already
+     implemented in [MezzoBuiltin], and can be re-used. *)
+  let open MezzoBuiltin in
   match b with
   | "_mz_iadd" ->
-      let i1, i2 = asIntPair v in
-      VInt (i1 + i2)
+      VInt (_mz_iadd (asIntPair v))
   | "_mz_isub" ->
-      let i1, i2 = asIntPair v in
-      VInt (i1 - i2)
+      VInt (_mz_isub (asIntPair v))
   | "_mz_imul" ->
-      let i1, i2 = asIntPair v in
-      VInt (i1 * i2)
+      VInt (_mz_imul (asIntPair v))
   | "_mz_idiv" ->
-      let i1, i2 = asIntPair v in
-      VInt (i1 / i2)
+      VInt (_mz_idiv (asIntPair v))
   | "_mz_ieq" ->
       let i1, i2 = asIntPair v in
       bool env (i1 = i2)
@@ -326,8 +325,7 @@ let eval_builtin (env : env) (loc : location) (b : string) (v : value) : value =
       let i1, i2 = asIntPair v in
       bool env (i1 >= i2)
   | "_mz_iand" ->
-      let i1, i2 = asIntPair v in
-      VInt (i1 land i2)
+      VInt (_mz_iand (asIntPair v))
   | "_mz_address_eq" ->
       let v1, v2 = asPair v in
       let b1 = asBlock v1
@@ -780,6 +778,7 @@ let export_interface (m : Module.name) (env : env) (intf : interface) : env =
    property. *)
 
 let eval_unit (env : env) (m : Module.name) (intf : interface) (impl : implementation) : env =
+  Log.debug "Interpreter: evaluating module: %s." (Module.print m);
   (* Evaluate the implementation. *)
   let env = eval_implementation env impl in
   (* Export the interface. *)
@@ -791,6 +790,7 @@ let eval_unit (env : env) (m : Module.name) (intf : interface) (impl : implement
    return an updated environment. *)
 
 let eval_lone_implementation (env : env) (impl : implementation) : unit =
+  Log.debug "Interpreter: evaluating a lone module.";
   (* Evaluate the implementation. *)
   let _ = eval_implementation env impl in
   (* Drop the resulting environment. *)

@@ -5,6 +5,7 @@ open InterpreterNamespaceSignature
 module MakeNamespace (I : sig
   (* See [parsing/Identifier]. *)
   type name
+  val print: name -> string
   module Map : GMap.S with type key = name
 end) : Namespace with type name = I.name
 

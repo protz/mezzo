@@ -16,7 +16,7 @@ let __mz_False =
 let __mz_True =
   MzTrue__ (Obj.repr ())
 
-let bool (b : bool) : __mz_fake_bool =
+let __mz_fake_bool (b : bool) : __mz_fake_bool =
   if b then __mz_True else __mz_False
 
 (* ---------------------------------------------------------------------------- *)
@@ -33,28 +33,32 @@ let _mz_imul (i1, i2) =
   i1 * i2
 
 let _mz_idiv (i1, i2) =
-  i1 / i2
+  if i2 = 0 then
+    (* Mezzo does not have exceptions! *)
+    0
+  else
+    i1 / i2
 
 let _mz_ieq ((i1, i2) : (int * int)) =
-  bool (i1 = i2)
+  __mz_fake_bool (i1 = i2)
 
 let _mz_ine ((i1, i2) : (int * int)) =
-  bool (i1 <> i2)
+  __mz_fake_bool (i1 <> i2)
 
 let _mz_ilt ((i1, i2) : (int * int)) =
-  bool (i1 < i2)
+  __mz_fake_bool (i1 < i2)
 
 let _mz_ile ((i1, i2) : (int * int)) =
-  bool (i1 <= i2)
+  __mz_fake_bool (i1 <= i2)
 
 let _mz_igt ((i1, i2) : (int * int)) =
-  bool (i1 > i2)
+  __mz_fake_bool (i1 > i2)
 
 let _mz_ige ((i1, i2) : (int * int)) =
-  bool (i1 >= i2)
+  __mz_fake_bool (i1 >= i2)
 
 let _mz_ige ((i1, i2) : (int * int)) =
-  bool (i1 >= i2)
+  __mz_fake_bool (i1 >= i2)
 
 let _mz_iand (i1, i2) =
   i1 land i2
@@ -64,7 +68,7 @@ let _mz_iand (i1, i2) =
 (* Address comparison. *)
 
 let _mz_address_eq (x, y) =
-  bool (x == y)
+  __mz_fake_bool (x == y)
 
 (* ---------------------------------------------------------------------------- *)
 

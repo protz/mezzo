@@ -5,6 +5,7 @@ open InterpreterNamespaceSignature
 module MakeNamespace (I : sig
   (* See [parsing/Identifier]. *)
   type name
+  val print: name -> string
   module Map : GMap.S with type key = name
 end) : Namespace with type name = I.name = struct
 
@@ -33,7 +34,7 @@ end) : Namespace with type name = I.name = struct
       I.Map.find x env
     with Not_found ->
       (* This name is undefined. *)
-      assert false
+      Log.error "Internal failure: undefined variable or data constructor: %s" (I.print x)
 
   let extend_local (x : name) (a : 'a) (env : 'a local_env) : 'a local_env =
     I.Map.add x a env
@@ -50,7 +51,7 @@ end) : Namespace with type name = I.name = struct
 	Module.Map.find m env.modules
       with Not_found ->
 	(* Unknown module. *)
-	assert false
+	Log.error "Internal failure: unknown module: %s" (Module.print m)
     )
 
   let qualify (m : Module.name) (x : name) (env : 'a global_env) : 'a global_env =
@@ -76,7 +77,7 @@ end) : Namespace with type name = I.name = struct
 	Module.Map.find m env.modules
       with Not_found ->
 	(* Undefined module. *)
-	assert false
+	Log.error "Internal failure: unknown module: %s" (Module.print m)
     in
     (* For every name of the form [m::x], create a new local name of the
        form [x]. The name [m::x] remains defined, of course. *)
