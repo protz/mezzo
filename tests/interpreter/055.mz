@@ -1,0 +1,5 @@
+(* Success: 0 *)
+val make () : option int =
+  none
+val _ =
+  print (if make() then 1 else 0)

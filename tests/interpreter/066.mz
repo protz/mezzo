@@ -1,0 +1,5 @@
+(* Success: 1 *)
+val x = 0
+val x = 1
+val () =
+  print x

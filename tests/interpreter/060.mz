@@ -1,0 +1,11 @@
+(* Success: 2 *)
+val () =
+  let q = queue::create () in
+  queue::insert (1, q);
+  queue::insert (2, q);
+  let _ = queue::retrieve q in
+  let o = queue::retrieve q in
+  if o then
+    print o.contents
+  else
+    print 0

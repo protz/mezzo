@@ -1,0 +1,8 @@
+(* Success: 2 *)
+open list
+val xs =
+  cons (1, cons (2, list::cons (3, cons (4, nil))))
+val ys, zs =
+  list::splitAt (2, xs)
+val () =
+  print (length ys)

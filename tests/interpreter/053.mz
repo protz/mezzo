@@ -1,0 +1,6 @@
+(* Success: 0 *)
+data pair a b = Pair { left: a; right: b }
+val make [a, b] (consumes x : a, consumes y : b) : pair a b =
+  Pair { left = x; right = y }
+val _ =
+  make (print 1, print 0)

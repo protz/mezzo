@@ -742,6 +742,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("dup-datacon.mzi", simple_test ~known_failure:() (Fail (function _ -> true)));
 
+  ("unqualified-datacon.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
+
   ("improve-inference.mz", simple_test ~known_failure:() Pass);
 
   ("cycle1.mz", simple_test ~known_failure:() (Fail (function _ -> true)));

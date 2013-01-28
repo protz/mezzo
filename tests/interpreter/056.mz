@@ -1,0 +1,5 @@
+(* Success: 1 *)
+val conj (b1 : bool, b2 : bool) : bool =
+  match b1 with True -> b2 | False -> False end
+val _ =
+  print (if conj(True,True) then 1 else 0)

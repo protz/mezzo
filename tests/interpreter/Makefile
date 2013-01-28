@@ -34,6 +34,10 @@ test:
 	  if [[ `cat $${f%.mz}.xit` == 0 ]] ; then \
 	    echo The interpreter terminated normally >/dev/null ; \
 	    actual=`tail -1 $${f%.mz}.out` ; \
+	    if [[ -z "$$actual" ]] ; then \
+	      echo "[FAILED] $$f (no output was produced)"; \
+	      continue ; \
+	    fi ; \
 	    if grep -q "Success: $$actual" $$f ; then \
 	      echo "[OK] $$f" ; \
 	    else \

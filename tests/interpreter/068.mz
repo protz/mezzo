@@ -1,0 +1,9 @@
+(* Success: 1 *)
+data foo = Foo | Bar
+val f (x : foo) : int =
+  match x with Foo -> 0 | Bar -> 1 end
+val x : foo =
+  if true then Bar else Foo
+data hop = Foo | Bar (* intentional masking *)
+val () =
+  print (f x)

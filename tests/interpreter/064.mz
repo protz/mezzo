@@ -1,0 +1,6 @@
+(* Success: 4 *)
+val x = 0
+val (y, w) = (x + 1, x + 1)
+and z = x + 2
+val () =
+  print (y + w + z)

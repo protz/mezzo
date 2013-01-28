@@ -1,0 +1,9 @@
+(* Success: 7 *)
+val rec sum (xs : list::list int) : int =
+  if xs then xs.head + sum xs.tail else 0
+val xs =
+  list::cons (1, list::cons (2, list::cons (3, list::cons (4, list::nil))))
+val ys, zs =
+  list::splitAt (2, xs)
+val () =
+  print (sum zs)

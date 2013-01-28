@@ -1,0 +1,7 @@
+(* Success: 2 *)
+val xs =
+  list::cons (1, list::cons (2, list::cons (3, list::cons (4, list::nil))))
+val ys, zs =
+  list::splitAt (2, xs)
+val () =
+  print (list::length zs)

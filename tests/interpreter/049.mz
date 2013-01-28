@@ -1,0 +1,11 @@
+(* Success: 3 *)
+val rec sum (xs : list::list int) : int =
+  assert (xs @ list::list int);
+  if xs then xs.head + sum xs.tail else 0
+val xs =
+  list::cons (1, list::cons (2, list::cons (3, list::cons (4, list::nil))))
+val ys, zs =
+  list::splitAt (2, xs)
+val () =
+  assert (ys @ list::list int);
+  print (sum ys)

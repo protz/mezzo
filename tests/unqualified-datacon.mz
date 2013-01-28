@@ -1,0 +1,7 @@
+val rec sum (xs : list::list int) : int =
+  match xs with
+  | Nil -> 0
+  | Cons { head; tail } -> head + sum tail
+  end
+(* This definition should fail because Nil and Cons are not qualified
+   and we have not opened the list module. *)

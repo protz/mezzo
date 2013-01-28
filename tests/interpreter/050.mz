@@ -1,0 +1,3 @@
+(* Success: 0 *)
+val (), () =
+  (print 1, print 0)

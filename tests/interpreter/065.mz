@@ -1,0 +1,10 @@
+(* Success: 33 *)
+val f (increment : int) : int =
+  let rec odd (n : int) : int =
+    if n < increment then 0 else 1 + even (n-increment)
+  and even (n : int) : int =
+    if n < increment then 0 else 1 + odd (n-increment)
+  in
+  even 100
+val () =
+  print (f 3)

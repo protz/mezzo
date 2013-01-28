@@ -1,0 +1,9 @@
+(* Failure: take instruction *)
+mutable data pool a = P adopts cell a
+mutable data cell a = Cell { contents: a }
+val () =
+  let c = Cell { contents = 3 } in
+  let p1 = P in
+  let p2 = P in
+  give (c : cell int) to p1;
+  take c from p2
