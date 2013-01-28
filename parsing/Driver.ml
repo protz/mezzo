@@ -54,6 +54,7 @@ let mkprefix path =
     []
   else
     let autoload_modules = [
+      "bool";
       "core";
       "pervasives";
     ] in

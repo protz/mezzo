@@ -1,0 +1,39 @@
+(* This module comes first. Although the type of Booleans is defined in
+   a library, it is essential, because some of the primitive operations
+   produce a Boolean result. The evaluation of these operations by the
+   interpreter will fail unless the data constructors [True] and [False]
+   appear in the environment; so, this module must have been evaluated
+   first. *)
+
+(* This module is currently in a preliminary state. We have two types of
+   Boolean, without or with permission indices, which is unsatisfactory.
+   Furthermore, the treatment of the lazy Boolean connectives (conjunction,
+   etc.) is yet to be invented. TEMPORARY *)
+
+(* Ideally, immutable types should be slim, which will allow a Mezzo
+   boolean to coincide with an ocaml Boolean. TEMPORARY *)
+
+data bool =
+  | False
+  | True
+
+val not (b : bool) : bool =
+  match b with
+  | False -> True
+  | True -> False
+  end
+
+data rich_bool (p : perm) (q: perm) =
+  | RichFalse { | q }
+  | RichTrue { | p }
+
+val rich_not [p : perm, q : perm] (consumes b : rich_bool p q) : rich_bool q p =
+  match b with
+  | RichFalse -> RichTrue
+  | RichTrue -> RichFalse
+  end
+
+(* TEMPORARY going even further, could we use rich_bool everywhere, i.e. view
+   bool as a type abbreviation for rich_bool empty empty? We would need to
+   assign precise types to the Boolean operators. *)
+
