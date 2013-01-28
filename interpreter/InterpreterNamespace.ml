@@ -51,8 +51,18 @@ end) : Namespace with type name = I.name = struct
 	Module.Map.find m env.modules
       with Not_found ->
 	(* Unknown module. *)
-	Log.error "Internal failure: unknown module: %s" (Module.print m)
+	Log.error "Internal failure: unknown module: %s (while looking up %s::%s)" (Module.print m) (Module.print m) (I.print x)
     )
+
+  let freeze (m : Module.name) (env : 'a global_env) : 'a global_env =
+    (* If necessary, create an empty set of bindings for this module.
+       We do this so that if a module happens to export no values, or
+       no data constructors, there will still be an entry for it. This
+       helps when debugging. *)
+    if Module.Map.mem m env.modules then
+      env
+    else
+      { env with modules = Module.Map.add m I.Map.empty env.modules }
 
   let qualify (m : Module.name) (x : name) (env : 'a global_env) : 'a global_env =
     (* Look up the unqualified name [x]. *)
@@ -76,8 +86,9 @@ end) : Namespace with type name = I.name = struct
       try
 	Module.Map.find m env.modules
       with Not_found ->
-	(* Undefined module. *)
-	Log.error "Internal failure: unknown module: %s" (Module.print m)
+	(* Undefined module. Thanks to our use of [freeze] above, this is
+	   an error. *)
+	Log.error "Internal failure: unknown module: %s (while evaluating \"open %s\")" (Module.print m) (Module.print m)
     in
     (* For every name of the form [m::x], create a new local name of the
        form [x]. The name [m::x] remains defined, of course. *)
@@ -85,6 +96,30 @@ end) : Namespace with type name = I.name = struct
 
   let zap (env : 'a global_env) : 'a global_env =
     { env with current = I.Map.empty }
+
+  (* Pretty-printers; for debugging. *)
+
+  open Hml_Pprint
+
+  let print_local_env (f : 'a -> document) (env : 'a local_env) : document =
+    I.Map.fold (fun x a accu ->
+      accu ^^ (
+	((string (I.print x) ^^ colon) ^//^ f a) ^^ hardline
+      )
+    ) env empty
+
+  let print_module_env (f : 'a -> document) (env : 'a Module.Map.t) : document =
+    Module.Map.fold (fun x a accu ->
+      accu ^^ (
+	((string (Module.print x) ^^ colon) ^//^ f a) ^^ hardline
+      )
+    ) env empty
+
+  let print_global_env (f : 'a -> document) (env : 'a global_env) : document =
+    print_module_env (print_local_env f) (
+      (* Add the current environment as a pseudo-module. *)
+      Module.Map.add (Module.register "<current>") env.current env.modules
+    )
 
 end
 

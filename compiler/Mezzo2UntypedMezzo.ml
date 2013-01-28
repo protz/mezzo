@@ -64,21 +64,21 @@ let abandon v1 v2 success failure =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* The Boolean values are [core::True] and [core::False]. *)
+(* The Boolean values are [bool::True] and [bool::False]. *)
 
 (* The syntax of (Untyped) Mezzo currently does not support qualified
    data constructors, so we cheat by masquerading them as variables. *)
 
 (* TEMPORARY *)
 
-let core =
-  Module.register "core"
+let bool =
+  Module.register "bool"
 
 let f =
-  U.EQualified (core, Variable.register "False")
+  U.EQualified (bool, Variable.register "False")
 
 let t =
-  U.EQualified (core, Variable.register "True")
+  U.EQualified (bool, Variable.register "True")
 
 (* ---------------------------------------------------------------------------- *)
 

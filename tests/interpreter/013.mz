@@ -1,0 +1,5 @@
+(* Success: 4 *)
+val () =
+  let x = newref 2
+  and y = newref 2 in
+  print (!x + !y)

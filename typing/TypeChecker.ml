@@ -424,7 +424,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
   (* lazy because we want to run ./mezzo corelib/core.mz *)
   let t_int = lazy (find_type_by_name env ~mname:"core" "int")
-  and t_bool = lazy (find_type_by_name env ~mname:"core" "bool") in
+  and t_bool = lazy (find_type_by_name env ~mname:"bool" "bool") in
 
   (* [return t] creates a new point with type [t] available for it, and returns
    * the environment as well as the point *)

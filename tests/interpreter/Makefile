@@ -28,7 +28,7 @@ test:
 	    echo "[PROBLEM] $$f does not contain a Success or Failure comment" ; \
 	    continue ; \
 	  fi ; \
-	  $(MEZZO) -i $$f >$${f%.mz}.out 2>$${f%.mz}.err ; \
+	  OCAMLRUNPARAM=b $(MEZZO) -i $$f >$${f%.mz}.out 2>$${f%.mz}.err ; \
 	  echo $$? >$${f%.mz}.xit ; \
 	  if [[ `cat $${f%.mz}.xit` == 0 ]] ; then \
 	    echo The interpreter terminated normally >/dev/null ; \

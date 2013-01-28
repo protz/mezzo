@@ -122,77 +122,6 @@ and closure = {
 (* ---------------------------------------------------------------------------- *)
 (* ---------------------------------------------------------------------------- *)
 
-(* An empty interpreter environment. *)
-
-let empty : env = {
-  variables = V.empty;
-  datacons = D.empty;
-}
-
-(* Extending the environment with a new unqualified variable. *)
-
-let extend_unqualified_variable x v env =
-  { env with variables = V.extend_unqualified x v env.variables }
-
-(* Extending the environment with a new unqualified data constructor. *)
-
-let extend_unqualified_datacon x info env =
-  { env with datacons = D.extend_unqualified x info env.datacons }
-
-(* Opening a module. *)
-
-let unqualify m env =
-  {
-    variables = V.unqualify m env.variables;
-    datacons = D.unqualify m env.datacons;
-  }
-
-(* Removing all unqualified bindings. *)
-
-let zap env =
-  {
-    variables = V.zap env.variables;
-    datacons = D.zap env.datacons;
-  }
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Constant value definitions. *)
-
-(* The unit value is the empty tuple. *)
-
-let unit_value =
-  VTuple []
-
-(* The Boolean values are [core::True] and [core::False]. Unfortunately, these
-   are not constants, because we need to find the [datacon_info] records
-   associated with these data constructors. (If required, we could fake them,
-   but let's not bother. This is not performance-critical anyway: these Boolean
-   values are produced only by the evaluation of [EOwn].) *)
-
-let core =
-  Module.register "core"
-
-let f =
-  Datacon.register "False"
-
-let t =
-  Datacon.register "True"
-
-let false_value (env : env) =
-  (* We assume that the module [core] has been loaded at this point. *)
-  let info = D.lookup_qualified core f env.datacons in
-  VAddress { tag = info; adopter = None; fields = [||] }
-
-let true_value (env : env) =
-  let info = D.lookup_qualified core t env.datacons in
-  VAddress { tag = info; adopter = None; fields = [||] }
-
-let bool (env : env) (b : bool) =
-  if b then true_value env else false_value env
-
-(* ---------------------------------------------------------------------------- *)
-
 (* A pretty-printer for values. *)
 
 module ValuePrinter = struct
@@ -204,7 +133,7 @@ module ValuePrinter = struct
      an infinite loop when the heap is cyclic. It also helps visualize
      huge values. *)
 
-  let rec print_value (env : env) (depth : int) (v : value) : document =
+  let rec print_value (depth : int) (v : value) : document =
     if depth >= 5 then
       string "..."
     else
@@ -231,23 +160,134 @@ module ValuePrinter = struct
 		string info.datacon_name ^^ space ^^ braces_with_nesting (
 		  separate_map semibreak (fun (_, field, v) ->
 		    (string field ^^ space ^^ equals) ^//^
-		      print_value env (depth + 1) v
+		      print_value (depth + 1) v
 		  ) fields
 		)
 	      )
 	  end
       | VTuple vs ->
 	  parens_with_nesting (
-	    separate_map commabreak (print_value env depth) vs
+	    separate_map commabreak (print_value depth) vs
 	  )
       | VClosure _
       | VBuiltin _ ->
 	  string "<fun>"
 
-  let render env v : string =
-    render (print_value env 0 v)
+  let print_value v =
+    print_value 0 v
+
+  let render v : string =
+    render (print_value v)
 
 end
+
+(* ---------------------------------------------------------------------------- *)
+
+(* An empty interpreter environment. *)
+
+let empty : env = {
+  variables = V.empty;
+  datacons = D.empty;
+}
+
+(* Extending the environment with a new unqualified variable. *)
+
+let extend_unqualified_variable x v env =
+  { env with variables = V.extend_unqualified x v env.variables }
+
+(* Extending the environment with a new unqualified data constructor. *)
+
+let extend_unqualified_datacon x info env =
+  { env with datacons = D.extend_unqualified x info env.datacons }
+
+(* Freezing a module. *)
+
+let freeze m env =
+  {
+    variables = V.freeze m env.variables;
+    datacons = D.freeze m env.datacons;
+  }
+
+(* Opening a module. *)
+
+let unqualify m env =
+  {
+    variables = V.unqualify m env.variables;
+    datacons = D.unqualify m env.datacons;
+  }
+
+(* Removing all unqualified bindings. *)
+
+let zap env =
+  {
+    variables = V.zap env.variables;
+    datacons = D.zap env.datacons;
+  }
+
+(* Displaying an environment. *)
+
+module EnvPrinter = struct
+
+  open PPrint
+
+  let print_datacon_info (_ : datacon_info) : document =
+    string "<info>" (* TEMPORARY to be completed *)
+
+  let print_env env : document =
+    concat [
+      string "Variables:"         ^//^ V.print_global_env ValuePrinter.print_value env.variables;
+      string "Data constructors:" ^//^ D.print_global_env print_datacon_info env.datacons;
+    ]
+
+  let p (buf : Buffer.t) (env : env) =
+    ToBuffer.pretty 0.95 Bash.twidth buf (print_env env)
+
+  (* Avoid a warning if this printer is unused. *)
+  let _ =
+    p
+
+end
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Constant value definitions. *)
+
+(* The unit value is the empty tuple. *)
+
+let unit_value =
+  VTuple []
+
+(* The Boolean values are [bool::True] and [bool::False]. Unfortunately, these
+   are not constants, because we need to find the [datacon_info] records
+   associated with these data constructors. (If required, we could fake them,
+   but let's not bother. This is not performance-critical anyway: these Boolean
+   values are produced only by the evaluation of [EOwn] and [==].) TEMPORARY *)
+
+let bool =
+  Module.register "bool"
+
+let boolean_value datacon env =
+  (* We assume that the module [bool] has been loaded at this point. *)
+  let info = D.lookup_qualified bool datacon env.datacons in
+  VAddress { tag = info; adopter = None; fields = [||] }
+
+let false_value =
+  boolean_value (Datacon.register "False")
+
+let true_value =
+  boolean_value (Datacon.register "True")
+
+let bool (env : env) (b : bool) =
+  if b then true_value env else false_value env
+
+let rich_false_value =
+  boolean_value (Datacon.register "RichFalse")
+
+let rich_true_value =
+  boolean_value (Datacon.register "RichTrue")
+
+let rich_bool (env : env) (b : bool) =
+  if b then rich_true_value env else rich_false_value env
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -330,10 +370,9 @@ let eval_builtin (env : env) (loc : location) (b : string) (v : value) : value =
       let v1, v2 = asPair v in
       let b1 = asBlock v1
       and b2 = asBlock v2 in
-      bool env (b1 == b2)
-      (* TEMPORARY should be a rich_bool, not a bool *)
+      rich_bool env (b1 == b2)
   | "_mz_print_value" ->
-      print_endline (ValuePrinter.render env v);
+      print_endline (ValuePrinter.render v);
       unit_value
   | _ ->
       Log.error "%a\nUnknown builtin function: %s\n" Lexer.p loc b
@@ -598,7 +637,7 @@ and switch (env : env) (loc : location) (v : value) (branches : (pattern * expre
       (* No more branches. This should not happen if the type-checker has
          checked for exhaustiveness. At the moment, this is not done,
          though. *)
-      Log.error "%a\nMatch failure. No pattern matches this value:\n%s" Lexer.p loc (ValuePrinter.render env v)
+      Log.error "%a\nMatch failure. No pattern matches this value:\n%s" Lexer.p loc (ValuePrinter.render v)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -766,6 +805,9 @@ let export_interface_item (m : Module.name) (env : env) (item : toplevel_item) :
 let export_interface (m : Module.name) (env : env) (intf : interface) : env =
   (* Create qualified names for the things mentioned in the interface. *)
   let env = List.fold_left (export_interface_item m) env intf in
+  (* Freeze this module, i.e. mark that it exists, and promise that we will not
+     modify it any more. (Not really necessary; may be useful for debugging.) *)
+  let env = freeze m env in
   (* Remove all unqualified bindings. *)
   zap env
 

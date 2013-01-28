@@ -26,11 +26,18 @@ module type Namespace = sig
   (* Create a qualified version of an unqualified name. *)
   val qualify: Module.name -> name -> 'a global_env -> 'a global_env
 
+  (* Mark that the module [m] exists and will no longer be modified. *)
+  val freeze: Module.name -> 'a global_env -> 'a global_env
+
   (* Create unqualified versions of the names that are qualified with [m]. *)
   val unqualify: Module.name -> 'a global_env -> 'a global_env
 
   (* Remove all unqualified names. *)
   val zap: 'a global_env -> 'a global_env
+
+  open PPrint
+  (* Pretty-printing an environment. *)
+  val print_global_env: ('a -> document) -> 'a global_env -> document
 
 end
 

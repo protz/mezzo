@@ -1,0 +1,5 @@
+(* Success: 0 *)
+val () =
+  let x = newref 0
+  and y = newref 0 in
+  if x == y then print 1 else print 0
