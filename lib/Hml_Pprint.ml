@@ -73,6 +73,12 @@ let semisemi =
 let ccolon =
   twice colon
 
+let commabreak =
+  comma ^^ break 1
+
+let semibreak =
+  semi ^^ break 1
+
 let int =
   OCaml.int
 

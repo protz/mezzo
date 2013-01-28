@@ -229,20 +229,16 @@ module ValuePrinter = struct
 	  | _ :: _ ->
 	      group (
 		string info.datacon_name ^^ space ^^ braces_with_nesting (
-		  separate_map (semi ^^ break 1) (fun (_, field, v) ->
-		    group (
-		      string field ^^
-		      space ^^ equals ^^ nest 2 (break 1 ^^
-			print_value env (depth + 1) v
-		      )
-		    )
+		  separate_map semibreak (fun (_, field, v) ->
+		    (string field ^^ space ^^ equals) ^//^
+		      print_value env (depth + 1) v
 		  ) fields
 		)
 	      )
 	  end
       | VTuple vs ->
 	  parens_with_nesting (
-	    separate_map (comma ^^ break 1) (print_value env depth) vs
+	    separate_map commabreak (print_value env depth) vs
 	  )
       | VClosure _
       | VBuiltin _ ->
