@@ -1,0 +1,5 @@
+data package a =
+    Package { content: (x: a, f: (| consumes x @ a) -> ()) }
+(* BUG: I believe that this definition is valid, but I get:
+File "named-tuple-components.mz", line 2, characters 24-28: unbound identifier x
+*)
