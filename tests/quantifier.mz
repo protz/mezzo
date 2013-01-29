@@ -1,0 +1,21 @@
+val id [a] (consumes x: a) : a =
+  x
+
+val id_bis : [b] (consumes x: b) -> b =
+  id
+
+val zero : int =
+  id [b = int] 0
+
+(* BUG I get an error message telling me that "id does not have a
+   polymorphic type"; the message should instead be something like "id
+   does not have a quantifier labelled b" *)
+
+val zero_bis : int =
+  id_bis [b = int] 0
+
+(* BUG this is rejected; one might expect it to be accepted *)
+
+(* It is not clear to me that it is possible to fix these bugs; I
+   believe we lack a clear spec of what we are trying to do here. *)
+
