@@ -124,6 +124,58 @@ val bind
 val reset [a, b] (c: ((consumes a) -> a) -> b) : b =
   c (fun (consumes x : a) : a = x)
 
+(* ------------------------------------------------------------------------------ *)
+
+(* Shift. *)
+
+(* Here, [shift] is the identity. When one wishes to capture the current
+   continuation, one simply writes [fun (k: a -> b) : c = ...], and
+   presto, this is a computation that has access to its continuation. *)
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Experiments. *)
+
+open list
+
+val rec cps_iter [a, b, p : perm] (
+  consumes xs: list a,
+  f: [q : perm] (consumes x: a, (bool | consumes (x @ a * q)) -> b | consumes q) -> b,
+  k: (bool | consumes p) -> b
+| consumes p
+) : b =
+  match xs with
+  | Cons { head = x; tail } ->
+      f
+	[ q = (xs @ Cons { head = x; tail: list a } * p) ]
+	(x,
+	fun (continue : bool | consumes (x @ a * xs @ Cons { head = x; tail: list a } * p)) : b =
+	  if continue then
+	    cps_iter (xs.tail, f, k)
+	  else
+	    k false
+	)
+  | Nil ->
+      k true
+  end
+
+val rec normal_iter [a] (
+  xs: list a,
+  f : a -> bool
+) : bool =
+  let cps_f [q : perm] (consumes x: a, k: (bool | consumes (x @ a * q)) -> (bool | xs @ list a) | consumes q) : (bool | xs @ list a) =
+    k (f x)
+  in
+  let id (b : bool | xs @ list a) : bool =
+    b
+  in
+
+  cps_iter [ a = a, b = (bool | xs @ list a), p = empty ] (
+    xs,
+    cps_f,
+    id
+  )
+
 (*
 Local Variables:
 compile-command: "../mezzo cps.mz"

@@ -1,7 +1,10 @@
-open core
 mutable data xlist a =
   | XCons { head: a; tail: xlist a }
   | XNil
+
+(* The universal quantification on [p] builds in a frame rule. It also
+   guarantees that [cps_mappend] will invoke its continuation at most
+   once. *)
 
 val rec cps_mappend [a, b, p : perm] (
   consumes x: xlist a,
@@ -13,10 +16,17 @@ val rec cps_mappend [a, b, p : perm] (
   | XNil ->
       k y
   | XCons ->
+      (* Naïve: every [XCons] cell of the list [x] will be assigned. *)
       let f (consumes z : xlist a | consumes (x @ XCons { head: a; tail: unknown } * p)) : b =
         x.tail <- z;
 	k x
       in 
       cps_mappend (x.tail, y, f)
   end
+
+val mappend [a] (
+  consumes xs: xlist a,
+  consumes ys: xlist a
+) : xlist a =
+  cps_mappend (xs, ys, fun (consumes zs: xlist a) : xlist a = zs)
 
