@@ -134,48 +134,159 @@ val reset [a, b] (c: ((consumes a) -> a) -> b) : b =
 
 (* ------------------------------------------------------------------------------ *)
 
-(* Experiments. *)
+(* Higher-order list iteration in CPS style. *)
+
+(* TEMPORARY this code needs to be generalized in order to allow [f]
+   to perform a side effect on some state [s]. *)
 
 open list
 
+data request =
+  | Stop
+  | Continue
+
+data outcome =
+  | Stopped
+  | Done
+
 val rec cps_iter [a, b, p : perm] (
+  (* The permission [xs @ list a] is taken away; it will be passed on to
+     the continuation [k]. *)
   consumes xs: list a,
-  f: [q : perm] (consumes x: a, (bool | consumes (x @ a * q)) -> b | consumes q) -> b,
-  k: (bool | consumes p) -> b
+  (* The user-supplied iteratee [f] has access to one list element, [x], at
+     type [a], and must return the permission [x @ a] to its own
+     continuation. Furthermore, it must be parametric in a permission [q]
+     which is passed to [f] and which [f] must pass on to its own
+     continuation. (This implies that [f] invokes its continuation at most
+     once.) The answer type of [f] is [b], the same as the answer type of
+     [cps_iter], because [cps_iter] may or may not call [f]. The function [f]
+     passes a request to its continuation, which indicates whether the
+     iteration should continue. *)
+  f: [q : perm] (
+    consumes x: a,
+    (request | consumes (x @ a * q)) -> b
+  | consumes q
+  ) -> b,
+  (* The continuation [k] receives the final outcome of [cps_iter]. It
+     indicates whether the iteration went all the way to the end of the list,
+     or was prematurely stopped. Furthermore, [k] recovers the ownership of
+     the list [xs]. Finally, [cps_iter] is parametric in a permission [p],
+     which [cps_iter] consumes and passes on to its continuation [k]. *)
+  k: (outcome | consumes (p * xs @ list a)) -> b
 | consumes p
 ) : b =
   match xs with
-  | Cons { head = x; tail } ->
-      f
-	[ q = (xs @ Cons { head = x; tail: list a } * p) ]
-	(x,
-	fun (continue : bool | consumes (x @ a * xs @ Cons { head = x; tail: list a } * p)) : b =
-	  if continue then
-	    cps_iter (xs.tail, f, k)
-	  else
-	    k false
-	)
   | Nil ->
-      k true
+      (* The list is empty. We are done. Easy! *)
+      k Done
+  | Cons { head } ->
+      (* The list is non-empty. The first thing to do is to call [f].
+	 All of our permissions are transmitted to [f]. Indeed, the
+	 permission [head @ a] is explicitly requested by [f], and
+	 our other permissions collectively become the parameter [q]
+	 that [f] passes on to its continuation. *)
+      f
+	[ q = (xs @ Cons { head; tail: list a } * p) ] (* optional annotation! *)
+	(head,
+	fun (r : request | consumes (head @ a * xs @ Cons { head; tail: list a } * p)) : b =
+	  (* We are now in the continuation of [f]. Our permissions
+	     have been passed back to us, so we are still in good
+	     shape. *)
+	  match r with
+	  | Stop ->
+	      (* The request produced by [f] is [Stop]. Easy. We are
+		 able to reconstruct [xs @ list a], which [k] requires. *)
+	      k Stopped
+	  | Continue ->
+	      (* The request produced by [f] is [Continue]. This is
+		 the trickier case. The code is simple: it is just
+		 a recursive call. The trick is in understanding the
+		 permissions that will be passed to [k]. Officially,
+		 [k] requires [p] and [xs @ list a]. It will receive
+		 [p * xs @ Cons { head: a; tail }] and [tail @ list a].
+		 Up to a recombination, these are the same, so the call
+		 is well-typed. *)
+	      let tail = xs.tail in
+  	      cps_iter [ p = (p * xs @ Cons { head: a; tail }) ] (tail, f, k)
+	  end
+	)
   end
+
+(* Now, suppose [f] does not need to capture its continuation. We wrap the
+   call to [f] within a monadic [return], and we recover a normal [iter]
+   function. *)
 
 val rec normal_iter [a] (
   xs: list a,
-  f : a -> bool
-) : bool =
-  let cps_f [q : perm] (consumes x: a, k: (bool | consumes (x @ a * q)) -> (bool | xs @ list a) | consumes q) : (bool | xs @ list a) =
+  f : a -> request
+) : outcome =
+
+  (* Wrap [f], which is a normal function, to obtain a function in CPS
+     style, which invokes its continuation [k] just once at the end.
+     This function is in fact polymorphic in its answer type; this is
+     a more general type than required by [cps_iter], and reflects the
+     fact that [wrapped_f] does not have a control effect. *)
+  let wrapped_f [b, q : perm] (
+    consumes x: a,
+    k: (request | consumes (x @ a * q)) -> b
+  | consumes q
+  ) : b =
     k (f x)
   in
-  let id (b : bool | xs @ list a) : bool =
+
+  (* Define an identity continuation. This amounts to enclosing the
+     call to [cps_iter] within a [reset]. This continuation will be
+     invoked at the very end of the iteration, and will have access
+     (again) to the entire list [xs @ list a]. *)
+  let id (b : outcome | xs @ list a) : outcome =
     b
   in
 
-  cps_iter [ a = a, b = (bool | xs @ list a), p = empty ] (
-    xs,
-    cps_f,
-    id
-  )
+  (* Invoke [cps_iter]. The type [b] is instantiated with [outcome | xs @ list a].
+     The permission [p] is instantiated with [empty]. *)
+  cps_iter (xs, wrapped_f, id)
 
+(* Now, let's try to invert [cps_iter] and obtain an iterator. *)
+
+(* A iterator is either finished, or a pair of an element and a
+   captured continuation that expects precisely this element,
+   and which (when invoked) produces another iterator. (Thus,
+   the type iterator is recursive. It is a type of streams.) *)
+
+(* A difficulty is that the captured continuation expects a
+   certain permission, which corresponds to [q] in the type
+   of [cps_iter]. We must store a pair of the continuation
+   and the permission [q] that it requires -- this is
+   exactly the encoding of one-shot functions. It requires
+   an existential quantification over [q]. (An attempt to
+   parameterize the type [iterator] over [q] would fail,
+   as we would not know which parameter to supply in the
+   recursive occurrence of [iterator].) *)
+
+(* In a sense, the existential quantification over [q] serves
+   exactly to hide the type ``segment of a data structure'',
+   which we do not wish to explicitly express. *)
+
+(* TEMPORARY
+data iterator a =
+    IFinished
+  | IAvailable { content:
+		   [some pre: perm] (
+		     head: a,
+		     k: (request | consumes (head @ a * pre)) -> iterator a
+		     | pre
+		   )
+	       }
+
+val yield [a, q : perm] (
+  consumes x : a,
+  k: (request | consumes (x @ a * q)) -> iterator a
+  | consumes q
+) : iterator a =
+  (* We capture the continuation [k] and store it.
+     There is an implicit [shift]. *)
+  Succ { content = (x, k) }
+*)
 (*
 Local Variables:
 compile-command: "../mezzo cps.mz"
