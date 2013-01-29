@@ -768,6 +768,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("vicious-cycle.mz", simple_test Pass);
 
+  ("named-tuple-components.mz", simple_test ~known_failure:() Pass);
+
 ];;
 
 let corelib_tests: (string * ((unit -> env) -> unit)) list = [
