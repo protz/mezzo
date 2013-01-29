@@ -428,6 +428,11 @@ data_field_def:
    of structural permissions. *)
 | f = variable EQUAL y = variable
     { [ FieldValue (f, TySingleton (TyVar y)) ] }
+(* Going one step further, we allow a field definition to consist of just
+   a field name [f]. This is a pun: it means [f = f], or in other words,
+   [f: =f]. *)
+| f = variable
+    { [ FieldValue (f, TySingleton (TyVar f)) ] }
 
 (* Field definitions are semicolon-separated or -terminated. *)
 
