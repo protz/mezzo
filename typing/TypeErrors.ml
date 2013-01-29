@@ -191,25 +191,25 @@ let print_error buf (env, raw_error) =
       begin match fold_point env p with
       | Some t ->
           Printf.bprintf buf
-            "%a %a is not a function, it has type %a"
+            "%a %a is not a function, it has type:\n%a"
             Lexer.p env.location
             pname (env, p)
             ptype (env, t)
       | None ->
           Printf.bprintf buf
-            "%a %a is not a function, the only permissions available for it are %a"
+            "%a %a is not a function, the only permissions available for it are:\n%a"
             Lexer.p env.location
             pname (env, p)
             ppermission_list (env, p)
       end
   | NoSuchPermission t ->
       Printf.bprintf buf
-        "%a unable to extract the following permission: %a"
+        "%a unable to extract the following permission:\n%a"
         Lexer.p env.location
         ptype (env, t);
   | HasFlexible t ->
       Printf.bprintf buf
-        "%a the following type still contains flexible variables: %a"
+        "%a the following type still contains flexible variables:\n%a"
         Lexer.p env.location
         ptype (env, t);
   | ExpectedType (t, point) ->
@@ -218,13 +218,13 @@ let print_error buf (env, raw_error) =
       begin match t1, t2 with
       | Some t1, Some t2 -> (* #winning *)
           Printf.bprintf buf
-            "%a expected a subexpression of type %a but it has type %a"
+            "%a expected an expression of type:\n%a\nbut this expression has type:\n%a\n"
             Lexer.p env.location
             ptype (env, t1)
             ptype (env, t2)
       | _ ->
           Printf.bprintf buf
-            "%a expected an argument of type %a but the only permissions available for %a are %a"
+            "%a expected an argument of type:\n%a but the only permissions available for %a are:\n%a"
             Lexer.p env.location
             ptype (env, t) pname (env, point)
             ppermission_list (env, point)
@@ -247,14 +247,14 @@ let print_error buf (env, raw_error) =
       begin match fold_point env point with
       | Some t ->
           Printf.bprintf buf
-            "%a %a has type %a, is is not a type with two constructors"
+            "%a %a has type:\n%a\nIt is not a type with two constructors"
             Lexer.p env.location
             pname (env, point)
             ptype (env, t)
       | None ->
           Printf.bprintf buf
-            "%a %a has no suitable permission for a type with two constructors, \
-              the only permissions available for it are %a"
+            "%a %a has no suitable permission for a type with two constructors;\n\
+              the only permissions available for it are:\n%a"
             Lexer.p env.location
             pname (env, point)
             ppermission_list (env, point)
@@ -263,15 +263,15 @@ let print_error buf (env, raw_error) =
       begin match fold_point env point with
       | Some t ->
           Printf.bprintf buf
-            "%a %a has type %a, which doesn't have a field named %a"
+            "%a %a has type:\n%aThere is no field named %a"
             Lexer.p env.location
             pname (env, point)
             ptype (env, t)
             Field.p f
       | None ->
           Printf.bprintf buf
-            "%a %a has no suitable permission with field %a, the only permissions \
-              available for it are %a"
+            "%a %a has no suitable permission with field %a;\n\
+             the only permissions available for it are:\n%a"
             Lexer.p env.location
             pname (env, point)
             Field.p f
@@ -279,7 +279,7 @@ let print_error buf (env, raw_error) =
       end
   | FieldMismatch (t, datacon) ->
       Printf.bprintf buf
-        "%a user-provided type %a does not match the fields of data constructor %a"
+        "%a user-provided type:\n%a\ndoes not match the fields of data constructor %a"
         Lexer.p env.location
         ptype (env, t)
         Datacon.p datacon
@@ -287,14 +287,14 @@ let print_error buf (env, raw_error) =
       begin match fold_point env point with
       | Some t ->
           Printf.bprintf buf
-            "%a %a has type %a, we can't assign a tag to it"
+            "%a %a has type:\n%a\nWe can't assign a tag to it"
             Lexer.p env.location
             pname (env, point)
             ptype (env, t)
       | None ->
           Printf.bprintf buf
             "%a %a has no suitable permission that would accept a tag update, \
-              the only permissions available for it are %a"
+              the only permissions available for it are:\n%a"
             Lexer.p env.location
             pname (env, point)
             ppermission_list (env, point)
@@ -307,13 +307,13 @@ let print_error buf (env, raw_error) =
   | MatchBadTuple p ->
       Printf.bprintf buf
         "%a trying to match a tuple against a point whose only \
-          permissions are %a"
+          permissions are:\n%a"
         Lexer.p env.location
         ppermission_list (env, p)
   | MatchBadDatacon (p, datacon) ->
       Printf.bprintf buf
         "%a trying to match data constructor %a against a point whose only \
-          permissions are %a"
+          permissions are:\n%a"
         Lexer.p env.location
         Datacon.p datacon
         ppermission_list (env, p)
@@ -325,7 +325,7 @@ let print_error buf (env, raw_error) =
         Field.p field
   | BadPattern (pat, point) ->
       Printf.bprintf buf
-        "%a cannot match pattern %a against %a, the only permissions available for it are %a"
+        "%a cannot match pattern %a against %a, the only permissions available for it are:\n%a"
         Lexer.p env.location
         ppat (env, pat)
         pname (env, point)

@@ -830,7 +830,7 @@ module TypePrinter = struct
         ) vars in
         let vars = separate (comma ^^ space) vars in
         let vars = lbracket ^^ vars ^^ rbracket in
-        vars ^^ space ^^ print_type env t
+        vars ^//^ print_type env t
 
     | TyExists ((name, kind, _) as binding, typ) ->
         let env, typ = bind_var_in_type env binding typ in
@@ -855,8 +855,9 @@ module TypePrinter = struct
 
       (* Function types. *)
     | TyArrow (t1, t2) ->
-        print_type env t1 ^^ space ^^ arrow ^^
-        group (break 1 ^^ print_type env t2)
+        prefix 0 1
+          (print_type env t1 ^^ space ^^ arrow)
+          (print_type env t2)
 
       (* Permissions. *)
     | TyAnchoredPermission (t1, t2) ->
@@ -866,7 +867,9 @@ module TypePrinter = struct
         string "empty"
 
     | TyStar (t1, t2) ->
-        print_type env t1 ^^ space ^^ string "∗" ^^ space ^^ print_type env t2
+        prefix 0 1
+          (print_type env t1 ^^ space ^^ string "∗")
+          (print_type env t2)
 
     | TyBar (p, q) ->
         lparen ^^ print_type env p ^^ space ^^ bar ^^ space ^^
