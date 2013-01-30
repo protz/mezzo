@@ -40,3 +40,10 @@ val biprintf : ('a, Buffer.t, unit) format -> 'a
 
 (** [replace s1 s2 s] replaces all occurrences of [s1] with [s2] in [s]. *)
 val replace: string -> string -> string -> string
+
+(** [split s c] will split string [s] on character [c] *)
+val split: string -> char -> string list
+
+(** [substring s i j] will return all characters from string [s] comprised
+ * between indices [i] (included) and [j] (excluded). *)
+val substring: string -> int -> int -> string
