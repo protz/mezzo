@@ -51,11 +51,11 @@ type pattern =
 
 (* Expressions. *)
 
+module Field =
+  Variable
+
 type rec_flag =
     SurfaceSyntax.rec_flag
-
-type field =
-    SurfaceSyntax.field
 
 type previous_and_new_datacon =
     SurfaceSyntax.previous_and_new_datacon
@@ -66,10 +66,10 @@ type expression =
   | EBuiltin of string
   | ELet of rec_flag * (pattern * expression) list * expression
   | EFun of pattern * expression
-  | EAssign of expression * field * expression
+  | EAssign of expression * Field.name * expression
     (* The expression carried by [EAssignTag] must be a value. *)
   | EAssignTag of expression * previous_and_new_datacon
-  | EAccess of expression * field
+  | EAccess of expression * Field.name
   | EApply of expression * expression
   | EMatch of expression * (pattern * expression) list
   | ETuple of expression list

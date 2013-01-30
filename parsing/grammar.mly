@@ -92,8 +92,10 @@ open ParserUtils
 
 (* We work with several namespaces, each of which is obtained by applying
    the functor [Identifier.Make] and defines an abstract type [name]. This
-   should help us avoid confusions between namespaces: names for variables,
-   data constructors, etc. have distinct types. *)
+   should help us avoid confusions between namespaces. *)
+
+(* At the moment, there are three namespaces: variables, data constructors,
+   and modules. *)
 
 %inline infix_operator:
   | o = OPINFIX0
@@ -124,9 +126,23 @@ variable:
     { Datacon.register datacon }
 
 %inline module_name:
-  name = UIDENT
-| name = LIDENT
+  (* A module name must begin with a lowercase letter. *)
+  name = LIDENT
     { Module.register name }
+
+(* ---------------------------------------------------------------------------- *)
+
+(* A variable or data constructor can be qualified with a module name. *)
+
+maybe_qualified(X):
+  x = X
+    { Unqualified x }
+| m = module_name COLONCOLON x = X
+    { Qualified (m, x) }
+
+%inline datacon_reference:
+  d = maybe_qualified(datacon)
+    { mk_datacon_reference d }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -399,9 +415,9 @@ mode:
    special case, a pair of empty braces can be omitted. *)
 
 generic_datacon_application(Y):
-| dc = datacon (* a pair of empty braces can be omitted *)
+| dc = datacon_reference (* a pair of empty braces can be omitted *)
     { dc, [] }
-| dc = datacon LBRACE ys = Y RBRACE
+| dc = datacon_reference LBRACE ys = Y RBRACE
     { dc, ys }
 
 (* It is often the case that the contents of the curly braces is a semicolon-
@@ -698,7 +714,7 @@ explain:
 
 raw_tight_expression:
 | e = tight_expression DOT f = variable
-    { EAccess (e, mkfield f) }
+    { EAccess (e, f) }
 | a = raw_atomic_expression
     { a }
 
@@ -780,9 +796,9 @@ raw_reasonable_expression:
      comma and semicolon; and 2- we might reserve the syntax x.f, y.f <- e1, e2
      for multiple assignments. *)
 | e1 = tight_expression DOT f = variable LARROW e2 = reasonable_expression
-    { EAssign (e1, mkfield f, e2) }
-| TAGOF e1 = tight_expression LARROW d = datacon
-    { EAssignTag (e1, mkdatacon d) }
+    { EAssign (e1, f, e2) }
+| TAGOF e1 = tight_expression LARROW d = datacon_reference
+    { EAssignTag (e1, mk_previous_and_new_datacon d) }
 | TAKE e1 = expression FROM e2 = reasonable_expression
     { ETake (e1, e2) }
 | GIVE e1 = expression TO e2 = reasonable_expression

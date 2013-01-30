@@ -33,27 +33,13 @@ open SurfaceSyntax
 
 (* The interpreter treats data constructor definitions as generative. That is,
    the evaluation of a data constructor definition causes the generation of a
-   fresh information record, to which the data constructor becomes bound. (This
-   information record could in principle contain a unique identifier; it
-   doesn't, because we don't need it.) Data constructors are treated just like
-   variables: i.e., they are bound in the environment. This implies, for
-   instance, that if a function refers to a data constructor, then this data
-   constructor is interpreted in the closure's environment. We adopt this
-   approach because it seems simple, efficient, and deals correctly with
-   masking. *)
-
-(* We maintain the following information about every data constructor. *)
-
-type datacon_info = {
-  (* Its unqualified name (used only by [print_value]). *)
-  datacon_name: string;
-  (* Its arity (i.e., number of fields). *)
-  datacon_arity: int;
-  (* Its integer index within its data type definition. *)
-  datacon_index: int;
-  (* A map of field names to field indices. *)
-  datacon_fields: int Variable.Map.t;
-}
+   fresh information record, to which the data constructor becomes bound. The
+   type [datacon_info] is defined in [SurfaceSyntax]. Data constructors are
+   treated just like variables: i.e., they are bound in the environment. This
+   implies, for instance, that if a function refers to a data constructor,
+   then this data constructor is interpreted in the closure's environment. We
+   adopt this approach because it seems simple, efficient, and deals correctly
+   with masking. *)
 
 (* ---------------------------------------------------------------------------- *)
 

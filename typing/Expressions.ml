@@ -24,6 +24,16 @@ open Flexible
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Definitions borrowed from SurfaceSyntax. *)
+
+type datacon_reference =
+    SurfaceSyntax.datacon_reference
+
+type previous_and_new_datacon =
+    SurfaceSyntax.previous_and_new_datacon
+
+(* ---------------------------------------------------------------------------- *)
+
 (* Patterns *)
 
 (* The De Bruijn numbering is defined according to a depth-first traversal of
@@ -34,7 +44,7 @@ type pattern =
   (* (x₁, …, xₙ) *)
   | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)
-  | PConstruct of Datacon.name * (Field.name * pattern) list
+  | PConstruct of datacon_reference * (Field.name * pattern) list
   (* Once the variables in a pattern have been bound, they may replaced by
    * [PPoint]s so that we know how to speak about the bound variables. *)
   | PPoint of point
@@ -61,11 +71,11 @@ type expression =
   (* fun [a] (x: τ): τ -> e *)
   | EFun of (type_binding * flavor) list * typ * typ * expression
   (* v.f <- e *)
-  | EAssign of expression * field * expression
+  | EAssign of expression * Field.name * expression
   (* tag of v <- Foo *)
   | EAssignTag of expression * previous_and_new_datacon
   (* v.f *)
-  | EAccess of expression * field
+  | EAccess of expression * Field.name
   (* e₁ e₂ *)
   | EApply of expression * expression
   (* e [τ₁, …, τₙ] *)
@@ -97,18 +107,6 @@ and patexpr =
   (* A binding is made up of a pattern, an optional type annotation for the
    * entire pattern (desugared), and an expression. *)
   pattern * expression
-
-and field = SurfaceSyntax.field = {
-  field_name: Field.name;
-  mutable field_datacon: Datacon.name;
-}
-
-and previous_and_new_datacon = SurfaceSyntax.previous_and_new_datacon = {
-  (* Initialized by the parser. *)
-  new_datacon: Datacon.name;
-  (* Uninitialized by the parser. Information later filled in by the type-checker. *)
-  mutable previous_datacon: Datacon.name;
-}
 
 (* The grammar below doesn't enforce the “only variables are allowed on the
  * left-hand side of a let rec” rule. We'll see to that later. Here too, the
@@ -986,6 +984,18 @@ module ExprPrinter = struct
   open Hml_Pprint
   open TypePrinter
 
+  let print_maybe_qualified p = function
+    | SurfaceSyntax.Unqualified x ->
+        p x
+    | SurfaceSyntax.Qualified (m, x) ->
+        string (Module.print m) ^^ ccolon ^^ p x
+
+  let print_maybe_qualified_datacon =
+    print_maybe_qualified print_datacon
+
+  let print_datacon_reference dref =
+    print_maybe_qualified_datacon dref.SurfaceSyntax.datacon_unresolved
+
   let rec print_patexpr env (pat, expr) =
     let type_annot, expr = match expr with
       | EConstraint (expr, t) ->
@@ -1013,8 +1023,8 @@ module ExprPrinter = struct
         rparen
 
     (* Foo { bar = bar; baz = baz; … } *)
-    | PConstruct (name, fieldnames) ->
-        print_datacon name ^^
+    | PConstruct (dref, fieldnames) ->
+        print_datacon_reference dref ^^
           if List.length fieldnames > 0 then
             space ^^ lbrace ^^
             jump ~indent:4
@@ -1074,14 +1084,14 @@ module ExprPrinter = struct
         jump (print_expr env body)
 
     | EAssign (e1, f, e2) ->
-        print_expr env e1 ^^ dot ^^ print_field f.field_name ^^ space ^^ larrow ^^ jump (print_expr env e2)
+        print_expr env e1 ^^ dot ^^ print_field f ^^ space ^^ larrow ^^ jump (print_expr env e2)
 
     | EAssignTag (e1, d) ->
-        tagof ^^ print_expr env e1 ^^ larrow ^^ print_datacon d.new_datacon
+        tagof ^^ print_expr env e1 ^^ larrow ^^ print_datacon_reference d.SurfaceSyntax.new_datacon
 	  (* d.previous_datacon is not printed *)
 
     | EAccess (e, f) ->
-        print_expr env e ^^ dot ^^ print_field f.field_name
+        print_expr env e ^^ dot ^^ print_field f
 
     | EApply (f, arg) ->
         let arg = print_expr env arg in

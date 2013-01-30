@@ -45,17 +45,18 @@ let group (declarations: toplevel_item list): toplevel_item list =
   group [List.hd declarations] (List.tl declarations)
 ;;
 
-let mkfield f = {
-  field_name = f;
-  field_datacon = Datacon.register "<invalid>"
-};;
-
 let mkinfix e1 o e2 =
   EApply (EVar (Variable.register o), ETuple [e1; e2])
 ;;
 
-let mkdatacon d = {
-  new_datacon = d; previous_datacon = Datacon.register "<invalid>"
+let mk_datacon_reference (d : Datacon.name maybe_qualified) : datacon_reference = {
+  datacon_unresolved = d;
+  datacon_info = None
+};;
+
+let mk_previous_and_new_datacon d = {
+  new_datacon = d;
+  previous_datacon = None
 };;
 
 (* A fresh name generator, to be used (with moderation) when desugaring
