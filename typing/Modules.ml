@@ -197,17 +197,28 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
 (* Called by [Driver], returns all the dependencies (transitive) of [items],
  * sorted by topological order. *)
 let all_dependencies (mname: Module.name) (find: Module.name -> S.toplevel_item list): Module.name list =
+  (* Not in the hash-table = not visited, Gray = visiting, Black = visited *)
+  let module T = struct type t = White | Gray | Black end in
+  let open T in
   let h = Hashtbl.create 13 in
   let l = ref [] in
   let rec collect name = 
-    if Hashtbl.mem h name then begin
-      ()
-    end else begin
-      Hashtbl.add h name ();
-      let deps = collect_dependencies (find name) in
-      List.iter collect deps;
-      l := name :: !l
-    end
+    let color =
+      try Hashtbl.find h name
+      with Not_found -> White
+    in
+    match color with
+    | Black ->
+        ()
+    | Gray ->
+        let open TypeErrors in
+        raise_error Types.empty_env (CyclicDependency name)
+    | White ->
+        Hashtbl.add h name Gray;
+        let deps = collect_dependencies (find name) in
+        List.iter collect deps;
+        l := name :: !l;
+        Hashtbl.add h name Black
   in
   collect mname;
   (* The module does not depend on itself. *)

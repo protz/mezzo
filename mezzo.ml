@@ -84,5 +84,5 @@ let _ =
 	Log.debug ~level:0 "\n%a"
 	  Types.TypePrinter.pdoc (Types.TypePrinter.print_permissions, env)
   | Interpret ->
-      Driver.interpret !Options.filename
+      Driver.run opts (fun () -> Driver.interpret !Options.filename)
 ;;
