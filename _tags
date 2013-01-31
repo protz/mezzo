@@ -1,5 +1,5 @@
 true: explain, use_menhir, use_ocamlbuild, use_unix, use_str, annot, \
-  package(yojson), package(menhirLib), package(ulex), package(PPrint)
+  package(yojson), package(menhirLib), package(ulex), package(pprint)
 not <parsing/grammar.*>: bin_annot
 not <test.*> and not <parsing/Lexer.*> and not <sets/**/*>: my_warnings
 "parsing/Lexer.ml": syntax(camlp4o), syntax(pa_ulex)

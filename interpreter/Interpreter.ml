@@ -156,13 +156,11 @@ module ValuePrinter = struct
 	  | [] ->
 	      string info.datacon_name
 	  | _ :: _ ->
-	      group (
-		string info.datacon_name ^^ space ^^ braces_with_nesting (
-		  separate_map semibreak (fun (_, field, v) ->
-		    (string field ^^ space ^^ equals) ^//^
-		      print_value (depth + 1) v
-		  ) fields
-		)
+	      string info.datacon_name ^^ space ^^ braces_with_nesting (
+		separate_map semibreak (fun (_, field, v) ->
+		  (string field ^^ space ^^ equals) ^//^
+		    print_value (depth + 1) v
+		) fields
 	      )
 	  end
       | VTuple vs ->

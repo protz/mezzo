@@ -19,6 +19,7 @@
 
 let e = Mezzo2UntypedMezzo.translate_implementation (* TEMPORARY *)
 let f = UntypedMezzo2UntypedOCaml.translate_implementation (* TEMPORARY *)
+let p = UntypedOCamlPrinter.pattern (* TEMPORARY *)
 
 type mode =
   | TypecheckAndCompile
