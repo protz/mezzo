@@ -7,26 +7,39 @@ open UntypedOCaml
 
 (* Patterns. *)
 
-let rec pattern (p : pattern) : document =
+let rec simple_pattern (p : pattern) : document =
   match p with
   | PVar x ->
-      string x
+      utf8string x
+  | PAny ->
+      underscore
   | PTuple ps ->
       parens_with_nesting (
         separate_map commabreak pattern ps
       )
-  | PConstruct (datacon, ps) ->
-      string datacon ^^ space ^^ pattern (PTuple ps)
   | PRecord fps ->
       braces_with_nesting (
 	separate_map semibreak (fun (field, p) ->
-	  (string field ^^ space ^^ equals) ^//^ pattern p
+	  (utf8string field ^^ space ^^ equals) ^//^ pattern p
 	) fps
       )
+  | PConstruct _
+  | PAs _ ->
+      parens_with_nesting (pattern p)
+
+and pattern p =
+  match p with
+  | PConstruct (datacon, ps) ->
+      utf8string datacon ^^ space ^^ simple_pattern (PTuple ps)
   | PAs (p, x) ->
-      pattern p ^/^ string "as " ^^ string x
-  | PAny ->
-      underscore
+      pattern p ^/^ string "as " ^^ utf8string x
+  | _ ->
+      simple_pattern p
+
+(* ---------------------------------------------------------------------------- *)
+
+
+
 
 (*
 (* [definition head body cont] prints [head]; prints [body], surrounded
