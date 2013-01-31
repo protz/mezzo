@@ -490,6 +490,41 @@ let get_arity (env: env) (point: point): int =
   get_arity_for_kind (get_kind env point)
 ;;
 
+let rec get_kind_for_type env t =
+  match t with
+  | TyVar _ ->
+      Log.error "No free variables"
+  | TyPoint p ->
+      get_kind env p
+
+  | TyForall ((binding, _), t)
+  | TyExists (binding, t) ->
+      let env, t = bind_var_in_type env binding t in
+      get_kind_for_type env t
+
+  | TyApp (p, _) ->
+      let return_kind, _ = flatten_kind (get_kind env !!p) in
+      return_kind
+
+  | TyUnknown
+  | TyDynamic
+  | TySingleton _
+  | TyArrow _
+  | TyBar _
+  | TyTuple _
+  | TyConcreteUnfolded _ ->
+      KType
+
+  | TyAnchoredPermission _
+  | TyEmpty
+  | TyStar _ ->
+      KPerm
+
+  | TyAnd (_, t) ->
+      get_kind_for_type env t
+;;
+
+
 let get_variance (env: env) (point: point): variance list =
   match get_definition env point with
   | Some (_, v) ->

@@ -768,6 +768,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("named-tuple-components.mz", simple_test ~known_failure:() Pass);
 
+  ("abstract-perm.mz", simple_test Pass);
+
 ];;
 
 let corelib_tests: (string * ((unit -> env) -> unit)) list = [
