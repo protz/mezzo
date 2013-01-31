@@ -35,12 +35,15 @@ type pattern =
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Expressions. *)
+
 type rec_flag =
     SurfaceSyntax.rec_flag
 
 type expression =
     (* Unqualified and qualified references are conflated. *)
   | EVar of string
+  | EInfixVar of string (* e.g., ">" *)
   | ELet of rec_flag * (pattern * expression) list * expression
   | EFun of pattern * expression
     (* Record field access. *)

@@ -139,7 +139,7 @@ module ValuePrinter = struct
     else
       match v with
       | VInt i ->
-	  string (string_of_int i)
+	  OCaml.int i
       | VAddress b ->
 	  let info = b.tag in
 	  let fields : (int * string * value) list =
@@ -154,11 +154,11 @@ module ValuePrinter = struct
 	  in
 	  begin match fields with
 	  | [] ->
-	      string info.datacon_name
+	      utf8string info.datacon_name
 	  | _ :: _ ->
-	      string info.datacon_name ^^ space ^^ braces_with_nesting (
+	      utf8string info.datacon_name ^^ space ^^ braces_with_nesting (
 		separate_map semibreak (fun (_, field, v) ->
-		  (string field ^^ space ^^ equals) ^//^
+		  (utf8string field ^^ space ^^ equals) ^//^
 		    print_value (depth + 1) v
 		) fields
 	      )

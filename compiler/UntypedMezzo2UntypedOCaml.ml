@@ -4,6 +4,10 @@ module O = UntypedOCaml
 
 (* This is the translation of Untyped Mezzo to Untyped OCaml. *)
 
+(* TEMPORARY think about [open]: when we mention a data constructor
+   or field name in OCaml, is it always in scope? or must we qualify
+   it? can we qualified names everywhere? *)
+
 (* ---------------------------------------------------------------------------- *)
 
 let datacon_arity (_d : Datacon.name) : int =
@@ -99,7 +103,7 @@ let apply2 f x y =
   O.EApply (O.EApply (f, x), y)
 
 let gt x y =
-  apply2 (O.EVar "(>)") x y
+  apply2 (O.EInfixVar ">") x y
 
 (* ---------------------------------------------------------------------------- *)
 
