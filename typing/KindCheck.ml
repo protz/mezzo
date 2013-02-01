@@ -375,6 +375,10 @@ let bind_datacon env dc level info =
   { env with known_datacons = (Unqualified dc, InCurrentModule (level, info)) :: env.known_datacons }
 ;;
 
+let bind_external_datacon env dc point info =
+  { env with known_datacons = (Unqualified dc, InAnotherModule (point, info)) :: env.known_datacons }
+;;
+
 (* Find in [tsenv.env] all the names exported by module [mname], and add them to our
  * own [tsenv]. *)
 let open_module_in (mname: Module.name) (env: env): env =

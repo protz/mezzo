@@ -477,11 +477,12 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
 let bind_datacons env data_type_group =
   List.fold_left (fun env -> function
     | Concrete (_, (name, _), rhs, _) ->
-        let level = match M.find name env.mapping with
+        let bind =
+          match M.find name env.mapping with
           | _, Var level ->
-              level
-          | _ ->
-              assert false
+              fun env dc fields -> bind_datacon env dc level fields
+          | _, Point point ->
+              fun env dc fields -> bind_external_datacon env dc point fields
         in
         Hml_List.fold_lefti (fun i env (dc, fields) ->
           (* We're building information for the interpreter: drop the
@@ -490,7 +491,7 @@ let bind_datacons env data_type_group =
             | FieldValue (name, _) -> Some name
             | FieldPermission _ -> None
           ) fields in
-          bind_datacon env dc level (mkdatacon_info dc i fields)
+          bind env dc (mkdatacon_info dc i fields)
         ) env rhs
     | Abstract _ ->
         env
