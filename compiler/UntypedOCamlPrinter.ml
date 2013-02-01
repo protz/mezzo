@@ -92,7 +92,7 @@ let rec atomic_expression (e : expression) : document =
 	  (string "with")
 	^^
 	concat_map (fun (p, e) ->
-	  break 1 ^^ string "| " ^^ branch p e
+	  break 1 ^^ string "| " ^^ branch 4 p e
 	) branches ^^
 	break 1 ^^ string "end"
       )
@@ -176,7 +176,7 @@ and dangling_expression = function
       ^^ hardline ^^
       dangling_expression body
   | EFun (p, body) ->
-      string "function " ^^ branch p body
+      string "function " ^^ branch 2 p body
   | EIfThenElse (c, e1, e2) ->
       group (
 	surround 2 1
@@ -197,9 +197,9 @@ and flag = function
   | SurfaceSyntax.Recursive ->
       string "rec "
 
-and branch p e =
+and branch (n : int) p e =
   group (
-    pattern p ^^ string " ->" ^^ nest 2 (break 1 ^^ 
+    pattern p ^^ string " ->" ^^ nest n (break 1 ^^ 
       dangling_expression e
     )
   )
