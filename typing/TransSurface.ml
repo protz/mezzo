@@ -680,10 +680,11 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       (* Careful not to copy [f], so as to preserve sharing! *)
       E.EAssign (e1, f, e2)
 
-  | EAssignTag (e1, x) ->
+  | EAssignTag (e1, datacon, info) ->
+      let resolved_datacon = resolve_datacon env datacon in
       let e1 = translate_expr env e1 in
       (* Careful not to copy [x], so as to preserve sharing! *)
-      E.EAssignTag (e1, x)
+      E.EAssignTag (e1, resolved_datacon, info)
 
   | EAccess (e, f) ->
       let e = translate_expr env e in

@@ -568,14 +568,14 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       in
       return env ty_unit
 
-  | EAssignTag (e1, d) ->
+  | EAssignTag (e1, new_datacon, info) ->
       (* Type-check [e1]. *)
       let env, p1 = check_expression env e1 in
 
       (* Find the type [datacon] corresponds to. *)
-      let _, branches, _ = def_for_datacon env d.new_datacon in
+      let _, branches, _ = def_for_datacon env new_datacon in
       let _, fields =
-        List.find (fun (datacon', _) -> Datacon.equal d.new_datacon datacon') branches
+        List.find (fun (datacon, _) -> Datacon.equal (snd new_datacon) datacon) branches
       in
       let field_names = List.map (function
         | FieldValue (name, _) ->
@@ -589,15 +589,15 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let permissions = get_permissions env p1 in
       let found = ref false in
       let permissions = List.map (function
-        | TyConcreteUnfolded (datacon', fieldexprs, clause) as t ->
+        | TyConcreteUnfolded (old_datacon, fieldexprs, clause) as t ->
             (* The current type should be mutable. *)
-            let flag, _, _ = def_for_datacon env datacon' in
+            let flag, _, _ = def_for_datacon env old_datacon in
             if flag <> SurfaceSyntax.Exclusive then
-              raise_error env (AssignNotExclusive (t, datacon'));
+              raise_error env (AssignNotExclusive (t, snd old_datacon));
 
             (* Also, the number of fields should be the same. *)
             if List.length fieldexprs <> List.length field_names then
-              raise_error env (FieldCountMismatch (t, d.new_datacon));
+              raise_error env (FieldCountMismatch (t, snd new_datacon));
 
             (* Change the field names. *)
             let fieldexprs = List.map2 (fun field -> function
@@ -610,10 +610,13 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             if !found then
               Log.error "Two suitable permissions, strange...";
             found := true;
-            d.previous_datacon <- datacon';
+            if resolved_datacons_equal env old_datacon new_datacon then
+              info.SurfaceSyntax.is_phantom_update <- Some true
+            else
+              info.SurfaceSyntax.is_phantom_update <- Some false;
 
             (* And don't forget to change the datacon as well. *)
-            TyConcreteUnfolded (d.new_datacon, fieldexprs, clause)
+            TyConcreteUnfolded (new_datacon, fieldexprs, clause)
 
         | _ as t ->
             t
@@ -635,19 +638,18 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
        * allow us to reuse the code. Of course, this raises the question of
        * “what do we do in case there's an ambiguity”, that is, multiple
        * datacons that feature this field name... We'll leave that for later. *)
-      let hint = add_hint hint (Field.print fname.field_name) in
+      let hint = add_hint hint (Field.print fname) in
       let env, p = check_expression env ?hint e in
       let module M = struct exception Found of point end in
       begin try
         List.iter (fun t ->
           match t with
-          | TyConcreteUnfolded (datacon, fieldexprs, _) ->
+          | TyConcreteUnfolded (_, fieldexprs, _) ->
               List.iter (function
                 | FieldValue (field, expr) ->
-                    if Field.equal field fname.field_name then
+                    if Field.equal field fname then
                       begin match expr with
                       | TySingleton (TyPoint p) ->
-                          fname.field_datacon <- datacon;
                           raise (M.Found p)
                       | t ->
                           let open TypePrinter in
@@ -659,7 +661,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           | _ ->
               ()
         ) (get_permissions env p);
-        raise_error env (NoSuchField (p, fname.field_name))
+        raise_error env (NoSuchField (p, fname))
       with M.Found p' ->
         env, p'
       end
@@ -795,7 +797,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let _flag, branches, _ = def_for_datacon env datacon in
       (* And the corresponding branch, so that we obtain the field names in order. *)
       let branch =
-        List.find (fun (datacon', _) -> Datacon.equal datacon datacon') branches
+        List.find (fun (datacon', _) -> Datacon.equal (snd datacon) datacon') branches
       in
       (* Take out of the provided fields one of them. *)
       let take env name' l =
@@ -873,8 +875,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                   let dc1, branch1 = instantiate_branch b1 args in
                   let dc2, branch2 = instantiate_branch b2 args in
                   let clause = instantiate_adopts_clause clause args in
-                  let t1 = TyConcreteUnfolded (dc1, branch1, clause) in
-                  let t2 = TyConcreteUnfolded (dc2, branch2, clause) in
+                  let t1 = TyConcreteUnfolded ((TyPoint cons, dc1), branch1, clause) in
+                  let t2 = TyConcreteUnfolded ((TyPoint cons, dc2), branch2, clause) in
                   t1, t2
               | _ ->
                   assert false

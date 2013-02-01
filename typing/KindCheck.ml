@@ -842,7 +842,7 @@ and check_expression (env: env) (expr: expression) =
       check_expression env e1;
       check_expression env e2
 
-  | EAssignTag (e1, _) ->
+  | EAssignTag (e1, _, _) ->
       check_expression env e1
 
   | EAccess (e, _) ->
