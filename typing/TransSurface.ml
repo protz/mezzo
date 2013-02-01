@@ -44,30 +44,36 @@ module E = Expressions
 let name_user = fun env (x, k, l) -> (T.User (env.env.T.module_name, x), k, l);;
 let name_auto = fun (x, k, l) -> (T.Auto x, k, l);;
 
-let check_bound_datacon kenv datacon =
-  let env = kenv.env in
-  let open Types in
-  (* We first try to find the point associated to this data constructor, and
-   * check that the point is defined in another module. If the point is defined
-   * in our own module, this means we're checking a module against its
-   * interface and that doesn't count as a well-scoped data constructor (see
-   * tests/modules/dcscope.mz as to why we must not be naive here). *)
+let qualified_equals q1 q2 =
+  match q1, q2 with
+  | Qualified (m1, d1), Qualified (m2, d2) ->
+      Module.equal m1 m2 && Datacon.equal d1 d2
+  | Unqualified d1, Unqualified d2 ->
+      Datacon.equal d1 d2
+  | _ ->
+      false
+;;
+
+let unqualify = function
+  | Qualified (_, d)
+  | Unqualified d ->
+      d
+;;
+
+let resolve_datacon
+    (kenv: KindCheck.env)
+    (datacon: Datacon.name maybe_qualified): SurfaceSyntax.datacon_info * T.resolved_datacon
+    =
   try
-    (* May throw! *)
-    let p = type_for_datacon env datacon in
-    let names = get_names env p in
-    let names = List.filter is_user names in
-    match names with
-    | User (m', _) :: _ ->
-        if Module.equal m' env.module_name then
-          raise Not_found
-    | _ ->
-        raise Not_found
-  (* If that doesn't work, it's ok if the data constructor has been defined in
-   * our own unit. *)
+    let _, origin = List.find (fun (dc, _) -> qualified_equals datacon dc) kenv.known_datacons in
+    begin match origin with
+    | InAnotherModule (p, info) ->
+        info, (T.TyPoint p, unqualify datacon)
+    | InCurrentModule (level, info) ->
+        info, (T.TyVar (kenv.level - level - 1), unqualify datacon)
+    end
   with Not_found ->
-    if not (T.DataconMap.mem datacon kenv.datacon_map) then
-      raise_error kenv (UnboundDataConstructor datacon)
+    raise_error kenv (UnboundDataConstructor (unqualify datacon))
 ;;
 
 
@@ -246,10 +252,11 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyQualified (mname, x) ->
       T.TyPoint (T.point_by_name env.env ~mname x)
 
-  | TyConcreteUnfolded branch ->
-      let datacon, branches = translate_and_resolve_branch env branch in
-      check_bound_datacon env datacon;
-      T.TyConcreteUnfolded (datacon, branches, T.ty_bottom)
+  | TyConcreteUnfolded (dref, fields) ->
+      let info, resolved_datacon = resolve_datacon env dref.datacon_unresolved in
+      dref.datacon_info <- Some info;
+      let fields = translate_fields env fields in
+      T.TyConcreteUnfolded (resolved_datacon, fields, T.ty_bottom)
 
   | TySingleton t ->
       T.TySingleton (translate_type env t)
@@ -301,12 +308,9 @@ let rec translate_type (env: env) (t: typ): T.typ =
       T.TyAnd (constraints, translate_type env t)
 
 
-and translate_and_resolve_branch (env: env) (branch: data_type_branch): T.resolved_datacon * T.data_field_def list =
-  if true then assert false
-
 and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.data_type_def_branch =
   let datacon, fields = branch in
-  let fields = List.map (translate_fields env) fields in
+  let fields = translate_fields env fields in
   datacon, fields
 
 and translate_fields: env -> data_field_def list -> T.data_field_def list = fun env fields ->

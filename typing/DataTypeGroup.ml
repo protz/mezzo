@@ -63,7 +63,7 @@ let bind_group (env: env) (group: data_type_group) =
         env
     | Some (_, def, _), _ ->
         let type_for_datacon = List.fold_left (fun type_for_datacon (name, _) ->
-          DataconMap.add name point type_for_datacon
+          DataconMap.add (env.module_name, name) point type_for_datacon
         ) env.type_for_datacon def in  
         { env with type_for_datacon }
   ) env group points in

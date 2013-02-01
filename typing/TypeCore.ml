@@ -52,7 +52,7 @@ type type_binding =
 type flavor = SurfaceSyntax.binding_flavor = CanInstantiate | CannotInstantiate
 
 module DataconMap = Hml_Map.Make(struct
-  type t = Datacon.name
+  type t = Module.name * Datacon.name
   let compare = Pervasives.compare
 end)
 

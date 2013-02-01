@@ -51,6 +51,10 @@ type var = Var of level | Point of Types.point
 let tvar = function Var x -> T.TyVar x | Point x -> T.TyPoint x;;
 let evar = function Var x -> E.EVar x | Point x -> E.EPoint x;;
 
+type datacon_origin =
+  | InCurrentModule of level * SurfaceSyntax.datacon_info
+  | InAnotherModule of T.point * SurfaceSyntax.datacon_info
+
 type env = {
   (* The current de Bruijn level. *)
   level: level;
@@ -69,21 +73,77 @@ type env = {
    * environment for you dependencies on other modules). *)
   env: Types.env;
 
-  (* Known data constructors. When we perform proper resolution of data
-   * constructors (module-wise), we should upgrade this to:
-   * "Module.name T.DataconMap.t". *)
-  datacon_map: unit T.DataconMap.t;
+  (* If the data constructor belongs to another module, that module's signature
+   * has been imported in [env] and the definition which the data constructors
+   * belongs to will be found there (using the point).
+   *
+   * If the data constructor belongs to a data type defined in the current
+   * module, then it belongs to a type definition that has a De Bruijn level.
+   *
+   * Because we must maintain the physical identity of the [datacon_info]s,
+   * they're all stored here and this helps us maintain the invariant that they
+   * are only created once.
+   *
+   * This order counts (at least for unqualified items). *)
+  known_datacons: (Datacon.name maybe_qualified * datacon_origin) list;
 }
 
 (* The empty environment. *)
 
-let empty (env: Types.env): env = {
-  level = 0;
-  mapping = M.empty;
-  location = Lexing.dummy_pos, Lexing.dummy_pos;
-  env;
-  datacon_map = T.DataconMap.empty;
-}
+let empty (env: Types.env): env =
+  (* We build the list of initially available data constructors: these are
+   * available through a [Qualified] prefix, and they are defined
+   * [InAnotherModule]. *)
+  let initial_datacons =
+    let open Types in
+    fold_types env (fun acc point { names; _ } { definition; _ } ->
+      (* We're only interested in things that signatures exported with their
+       * corresponding definitions. *)
+      match definition with
+      | Some (Some (_, def, _), _) ->
+          (* Find the module name which this definition comes from. Yes, there's
+           * no better way to do that. *)
+          let mname = Hml_List.find_opt
+            (function User (mname, _) -> Some mname | _ -> None)
+            names
+          in
+          let mname = Option.extract mname in
+          (* Build the entries for [known_datacons]. *)
+          let datacons = List.mapi (fun i (dc, fields) ->
+            (* This data constructor will be initially accessible only in a
+             * qualified manner. *)
+            let qualif = Qualified (mname, dc) in
+            (* We're building information for the interpreter: drop the
+             * permission fields. *)
+            let fields = Hml_List.map_some (function
+              | FieldValue (name, _) -> Some name
+              | FieldPermission _ -> None
+            ) fields in
+            (* Create the map. *)
+            let fmap = Hml_List.fold_lefti (fun i fmap f ->
+              Field.Map.add f i fmap
+            ) Field.Map.empty fields in
+            (* Now the info structure is ready. *)
+            let info = InAnotherModule (point, {
+              datacon_name = Datacon.print dc;
+              datacon_arity = List.length fields;
+              datacon_index = i;
+              datacon_fields = fmap;
+            }) in
+            qualif, info
+          ) def in
+          datacons @ acc
+      | _ ->
+          acc
+  ) []
+  in {
+    level = 0;
+    mapping = M.empty;
+    location = Lexing.dummy_pos, Lexing.dummy_pos;
+    env;
+    known_datacons = initial_datacons;
+  }
+;;
 
 
 
@@ -306,20 +366,29 @@ let bind_external env (x, kind, p): env =
   { env with mapping = M.add x (kind, Point p) env.mapping }
 ;;
 
-let bind_datacon env d =
-  { env with datacon_map = T.DataconMap.add d () env.datacon_map }
-;;
-
 (* Find in [tsenv.env] all the names exported by module [mname], and add them to our
  * own [tsenv]. *)
 let open_module_in (mname: Module.name) (env: env): env =
+  (* Import all the names. *)
   let names = T.get_exports env.env mname in
   let _ =
     let names = List.map (fun (x, _, _) -> Variable.print x) names in
     let names = String.concat ", " names in
     Log.debug "Importing module %a into scope, names = %s" Module.p mname names
   in
-  List.fold_left bind_external env names
+  let env = List.fold_left bind_external env names in
+
+  (* Now also open the data constructors. *)
+  let mname_datacons = Hml_List.map_some (function
+    | Qualified (mname', dc), origin when Module.equal mname mname' ->
+        Some (Unqualified dc, origin)
+    | _ ->
+        None
+  ) env.known_datacons in
+  (* This is a trick: because we know the data constructors are already present
+   * in [known_datacons], but prefixed with their module name, we just re-add
+   * them, but with the current module name. *)
+  { env with known_datacons = mname_datacons @ env.known_datacons }
 ;;
 
 let kind_external env mname x =

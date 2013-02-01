@@ -507,10 +507,6 @@ let def_for_datacon (env: env) (datacon: resolved_datacon): SurfaceSyntax.data_t
       Log.error "Datacon not properly resolved: %a" !internal_ptype (env, t)
 ;;
 
-let type_for_datacon (env: env) (datacon: Datacon.name): point =
-  DataconMap.find datacon env.type_for_datacon
-;;
-
 let variance env point i =
   let _, { definition; _ } = find_type env point in
   let variance = snd (Option.extract definition) in
