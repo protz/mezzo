@@ -26,16 +26,6 @@ let print_env (env: env) =
 
 (* Some OCaml functions that create HaMLeT types. *)
 
-let cons (head, tail) =
-  TyConcreteUnfolded (Datacon.register "Cons",
-    [FieldValue (Field.register "head", head);
-     FieldValue (Field.register "tail", tail)], ty_bottom)
-;;
-
-let nil =
-  TyConcreteUnfolded (Datacon.register "Nil", [], ty_bottom)
-;;
-
 let tuple l =
   TyTuple l
 ;;
@@ -60,6 +50,10 @@ let var x =
   TyVar x
 ;;
 
+let dc env x y =
+  TyPoint (point_by_name env (Variable.register x)), Datacon.register y
+;;
+
 (* This is right-associative, so you can write [list int @-> int @-> tuple []] *)
 let (@->) x y =
   TyArrow (x, y)
@@ -73,6 +67,6 @@ let unit =
   tuple []
 ;;
 
-let datacon d f =
-  TyConcreteUnfolded (Datacon.register d, f, ty_bottom)
+let datacon env t d f =
+  TyConcreteUnfolded (dc env t d, f, ty_bottom)
 ;;
