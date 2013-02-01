@@ -469,15 +469,26 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
 
 (* Bind all the data constructors from a data type group *)
 let bind_datacons env data_type_group =
-  let datacons = List.fold_left (fun acc -> function
-    | Concrete (_, _, rhs, _) ->
-        List.map fst rhs :: acc
+  List.fold_left (fun env -> function
+    | Concrete (_, (name, _), rhs, _) ->
+        let level = match M.find name env.mapping with
+          | _, Var level ->
+              level
+          | _ ->
+              assert false
+        in
+        Hml_List.fold_lefti (fun i env (dc, fields) ->
+          (* We're building information for the interpreter: drop the
+           * permission fields. *)
+          let fields = Hml_List.map_some (function
+            | FieldValue (name, _) -> Some name
+            | FieldPermission _ -> None
+          ) fields in
+          bind_datacon env dc level (mkdatacon_info dc i fields)
+        ) env rhs
     | Abstract _ ->
-        acc
-  ) [] data_type_group in
-  let datacons = List.flatten datacons in
-  let env = List.fold_left bind_datacon env datacons in
-  env
+        env
+  ) env data_type_group
 ;;
 
 

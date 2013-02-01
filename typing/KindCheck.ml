@@ -88,6 +88,20 @@ type env = {
   known_datacons: (Datacon.name maybe_qualified * datacon_origin) list;
 }
 
+let mkdatacon_info dc i fields =
+  (* Create the map. *)
+  let fmap = Hml_List.fold_lefti
+    (fun i fmap f -> Field.Map.add f i fmap)
+    Field.Map.empty fields
+  in {
+    datacon_name = Datacon.print dc;
+    datacon_arity = List.length fields;
+    datacon_index = i;
+    datacon_fields = fmap;
+  }
+;;
+
+
 (* The empty environment. *)
 
 let empty (env: Types.env): env =
@@ -119,17 +133,8 @@ let empty (env: Types.env): env =
               | FieldValue (name, _) -> Some name
               | FieldPermission _ -> None
             ) fields in
-            (* Create the map. *)
-            let fmap = Hml_List.fold_lefti (fun i fmap f ->
-              Field.Map.add f i fmap
-            ) Field.Map.empty fields in
             (* Now the info structure is ready. *)
-            let info = InAnotherModule (point, {
-              datacon_name = Datacon.print dc;
-              datacon_arity = List.length fields;
-              datacon_index = i;
-              datacon_fields = fmap;
-            }) in
+            let info = InAnotherModule (point, mkdatacon_info dc i fields) in
             qualif, info
           ) def in
           datacons @ acc
@@ -364,6 +369,10 @@ let bind ?(strict=false) env (x, kind) : env =
 
 let bind_external env (x, kind, p): env =
   { env with mapping = M.add x (kind, Point p) env.mapping }
+;;
+
+let bind_datacon env dc level info =
+  { env with known_datacons = (Unqualified dc, InCurrentModule (level, info)) :: env.known_datacons }
 ;;
 
 (* Find in [tsenv.env] all the names exported by module [mname], and add them to our
