@@ -476,7 +476,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
     let has_datacon_type_annotation dest_env dest_point datacon =
       Hml_List.find_opt (fun t ->
         match t with
-        | TyConcreteUnfolded (datacon', fields, annot) when Datacon.equal datacon datacon' ->
+        | TyConcreteUnfolded (datacon', fields, annot) when resolved_datacons_equal dest_env datacon datacon' ->
             Some (fields, annot)
         | _ ->
             None
@@ -513,11 +513,11 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
       lazy begin
         match left_perm, right_perm with
         | TyConcreteUnfolded (datacon_l, fields_l, clause_l), TyConcreteUnfolded (datacon_r, fields_r, clause_r) ->
-            let t_left: point = type_for_datacon left_env datacon_l in
-            let t_right: point = type_for_datacon right_env datacon_r in
+            let t_left: point = !!(fst datacon_l) in
+            let t_right: point = !!(fst datacon_r) in
             let dest_point = Option.extract dest_point in
 
-            if Datacon.equal datacon_l datacon_r then
+            if resolved_datacons_equal dest_env datacon_l datacon_r then
               (* We need to use a potential type annotation here, so if we
                * already have some information in the destination environment,
                * use it! This is exercised by
@@ -863,7 +863,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             Some (left_env, right_env, dest_env, TySingleton dest_t)
 
         | TyConcreteUnfolded (datacon_l, _, _), _ ->
-            let t_left = type_for_datacon left_env datacon_l in
+            let t_left = !!(fst datacon_l) in
             let t_dest = t_left in
 
             let left_env, t_app_left =
@@ -875,7 +875,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
 
         | _, TyConcreteUnfolded (datacon_r, _, _) ->
-            let t_right = type_for_datacon right_env datacon_r in
+            let t_right = !!(fst datacon_r) in
             let t_dest = t_right in
 
             let right_env, t_app_right =
