@@ -20,11 +20,6 @@ let adopter_field_name =
 let adopter_datacon =
   Datacon.register "MezzoAdopter__"
 
-let adopter_field = {
-  field_name = adopter_field_name;
-  field_datacon = adopter_datacon;
-}
-
 let init_adopter_field fields =
   (adopter_field_name, U.ENull) :: fields
 
