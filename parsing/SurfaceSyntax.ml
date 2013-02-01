@@ -417,3 +417,13 @@ let rec type_to_pattern (ty : typ) : pattern =
       (* Type of kind PERM, where a type of kind TERM was expected. *)
       assert false
 
+(* ---------------------------------------------------------------------------- *)
+
+(* Auxiliary functions for the type [maybe_qualified]. *)
+
+let print_maybe_qualified print = function
+  | Unqualified x ->
+      print x
+  | Qualified (m, x) ->
+      Module.print m ^ "::" ^ print x
+

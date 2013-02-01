@@ -8,20 +8,14 @@ module U = UntypedMezzo
 (* The adopter field. *)
 
 (* This field is special in that it is present in every data constructor
-   declaration, and is always at offset 0. Furthermore, we must be able
-   to access this field without knowing with which data constructor it is
-   associated. Thus, we produce a dummy data constructor definition, which
-   carries just this field, and use it when compiling accesses to the
-   adopter field. *)
+   declaration, and is always at offset 0. This allows us to access this
+   field without knowing with which data constructor it is associated. *)
 
-let adopter_field_name =
+let adopter_field =
   Variable.register "__mz_adopter"
 
-let adopter_datacon =
-  Datacon.register "MezzoAdopter__"
-
 let init_adopter_field fields =
-  (adopter_field_name, U.ENull) :: fields
+  (adopter_field, U.ENull) :: fields
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -176,10 +170,10 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       transl     loc e2 (fun v2 ->
       k (U.EAssign (v1, f, v2))
       ))
-  | EAssignTag (e, tags) ->
+  | EAssignTag (e, dref, info) ->
       (* Here, make sure [EAssignTag] carries a value. *)
       eval "obj" loc e (fun v ->
-      k (U.EAssignTag (v, tags))
+      k (U.EAssignTag (v, dref, info))
       )
   | EAccess (e, f) ->
       transl loc e (fun v ->
