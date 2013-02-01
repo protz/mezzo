@@ -335,6 +335,9 @@ let refine_perms_in_place_for_pattern env point pat =
               end
           | TyApp (cons, args) ->
               let p', datacon = datacon in
+              Log.debug "cons=%a, p'=%a"
+                TypePrinter.ptype (env, cons)
+                TypePrinter.ptype (env, p');
               fail_if (not (same env !!cons !!p'));
               begin try
                 let branch = find_and_instantiate_branch env !!cons datacon args in

@@ -325,6 +325,7 @@ and tsubst_expr t2 i e =
   | EMatch (b, e, patexprs) ->
       let e = tsubst_expr t2 i e in
       let patexprs = List.map (fun (pat, expr) ->
+          let pat = tsubst_pat t2 i pat in
           let names = collect_pattern pat in
           let n = List.length names in
           pat, tsubst_expr t2 (i + n) expr

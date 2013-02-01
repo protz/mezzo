@@ -728,9 +728,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("masking.mz", simple_test ~known_failure:() (Fail (function BadPattern _ -> true | _ -> false)));
 
-  ("masking2.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
+  ("masking2.mz", simple_test (Fail (function _ -> true)));
 
-  ("masking3.mz", simple_test ~known_failure:() Pass);
+  ("masking3.mz", simple_test Pass);
 
   ("bad-linearity.mz", simple_test (Fail (function _ -> true)));
 
