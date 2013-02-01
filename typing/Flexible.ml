@@ -154,67 +154,6 @@ let find_flexible env t =
   strip_duplicates [] points
 ;;
 
-
-(* Substitute [t2] for [p] in [t1]. We allow [t2] to have free variables. *)
-let tpsubst env (t2: typ) (p: point) (t1: typ) =
-  let lift1 = lift 1 in
-  let rec tsubst t2 t1 =
-    match t1 with
-      (* Special type constants. *)
-    | TyUnknown
-    | TyDynamic
-    | TyVar _ ->
-        t1
-
-    | TyPoint p' ->
-        if same env p p' then
-          t2
-        else
-          t1
-
-    | TyForall (binder, t) ->
-        TyForall (binder, tsubst (lift1 t2) t)
-
-    | TyExists (binder, t) ->
-        TyExists (binder, tsubst (lift1 t2) t)
-
-    | TyApp (t, t') ->
-        TyApp (tsubst t2 t, List.map (tsubst t2) t')
-
-    | TyTuple ts ->
-        TyTuple (List.map (tsubst t2) ts)
-
-    | TyConcreteUnfolded (name, fields, clause) ->
-       TyConcreteUnfolded (name, List.map (function
-         | FieldValue (field_name, t) -> FieldValue (field_name, tsubst t2 t)
-         | FieldPermission t -> FieldPermission (tsubst t2 t)) fields, tsubst t2 clause)
-
-    | TySingleton t ->
-        TySingleton (tsubst t2 t)
-
-    | TyArrow (t, t') ->
-        TyArrow (tsubst t2 t, tsubst t2 t')
-
-    | TyAnchoredPermission (p, q) ->
-        TyAnchoredPermission (tsubst t2 p, tsubst t2 q)
-
-    | TyEmpty ->
-        t1
-
-    | TyStar (p, q) ->
-        TyStar (tsubst t2 p, tsubst t2 q)
-
-    | TyBar (t, p) ->
-        TyBar (tsubst t2 t, tsubst t2 p)
-
-    | TyAnd (constraints, t) ->
-        let constraints = List.map (fun (f, t) -> f, tsubst t2 t) constraints in
-        TyAnd (constraints, tsubst t2 t)
-  in
-  tsubst t2 t1
-;;
-
-
 (* [generalize_flexible env t] takes all flexible variables in [t] and
  * generalizes them. *)
 let generalize env t =

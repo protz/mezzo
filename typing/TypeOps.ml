@@ -291,7 +291,7 @@ let simplify_function_type env t body =
         ) (env, []) vars flavors in
         let vars = List.rev vars in
         let _env, t, e, _i = List.fold_right (fun (name, k, pos, flavor, p) (env, t, e, i) ->
-          let t = Flexible.tpsubst env (TyVar 0) p t in
+          let t = tpsubst env (TyVar 0) p t in
           (* The substitution functions won't traverse the binder we just
            * added, because there no [EBigLambda], so we need to take into
            * account the fact that we've traversed so many binders. *)

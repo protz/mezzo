@@ -20,14 +20,10 @@
 (* This file contains our internal syntax for expressions. *)
 
 open Types
-open Flexible
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Definitions borrowed from SurfaceSyntax. *)
-
-type datacon_reference =
-    SurfaceSyntax.datacon_reference
 
 type previous_and_new_datacon =
     SurfaceSyntax.previous_and_new_datacon
@@ -44,7 +40,7 @@ type pattern =
   (* (x₁, …, xₙ) *)
   | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)
-  | PConstruct of datacon_reference * (Field.name * pattern) list
+  | PConstruct of resolved_datacon * (Field.name * pattern) list
   (* Once the variables in a pattern have been bound, they may replaced by
    * [PPoint]s so that we know how to speak about the bound variables. *)
   | PPoint of point
@@ -85,7 +81,7 @@ type expression =
   (* (e₁, …, eₙ) *)
   | ETuple of expression list
   (* Foo { bar = bar; baz = baz; … *)
-  | EConstruct of Datacon.name * (Field.name * expression) list
+  | EConstruct of resolved_datacon * (Field.name * expression) list
   (* if e₁ then e₂ else e₃ *)
   | EIfThenElse of bool * expression * expression * expression
   | ELocated of expression * location
@@ -318,11 +314,11 @@ and tsubst_expr t2 i e =
       let exprs = List.map (tsubst_expr t2 i) exprs in
       ETuple exprs
 
-  | EConstruct (name, fieldexprs) ->
+  | EConstruct ((t, dc), fieldexprs) ->
       let fieldexprs = List.map (fun (field, expr) ->
         field, tsubst_expr t2 i expr) fieldexprs
       in
-      EConstruct (name, fieldexprs)
+      EConstruct ((tsubst t2 i t, dc), fieldexprs)
 
   | EIfThenElse (b, e1, e2, e3) ->
       let e1 = tsubst_expr t2 i e1 in
@@ -723,11 +719,11 @@ let elift (k: int) (e: expression) =
   | ETuple es ->
       ETuple (List.map (elift i) es)
 
-  | EConstruct (datacon, fieldexprs) ->
+  | EConstruct ((t, dc), fieldexprs) ->
       let fieldexprs = List.map (fun (field, expr) ->
         field, elift i expr
       ) fieldexprs in
-      EConstruct (datacon, fieldexprs)
+      EConstruct ((lift i t, dc), fieldexprs)
 
   | EIfThenElse (b, e1, e2, e3) ->
       EIfThenElse (b, elift i e1, elift i e2, elift i e3)
@@ -938,11 +934,11 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
     | ETuple es ->
         ETuple (List.map (tepsubst t2) es)
 
-    | EConstruct (datacon, fieldexprs) ->
+    | EConstruct ((t, dc), fieldexprs) ->
         let fieldexprs = List.map (fun (field, expr) ->
           field, tepsubst t2 expr
         ) fieldexprs in
-        EConstruct (datacon, fieldexprs)
+        EConstruct ((tpsubst env t2 p t, dc), fieldexprs)
 
     | EIfThenElse (b, e1, e1', e1'') ->
         EIfThenElse (b, tepsubst t2 e1, tepsubst t2 e1', tepsubst t2 e1'')
@@ -1031,7 +1027,7 @@ module ExprPrinter = struct
 
     (* Foo { bar = bar; baz = baz; … } *)
     | PConstruct (dref, fieldnames) ->
-        print_datacon_reference dref ^^
+        print_datacon (snd dref) ^^
           if List.length fieldnames > 0 then
             space ^^ lbrace ^^
             jump ~indent:4
@@ -1138,7 +1134,7 @@ module ExprPrinter = struct
           else
             empty
         in
-        print_datacon datacon ^^ fieldexprs
+        print_datacon (snd datacon) ^^ fieldexprs
 
     | EIfThenElse (b, e1, e2, e3) ->
         let explain = if b then string "explain" ^^ space else empty in
