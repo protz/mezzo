@@ -225,7 +225,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
       let permissions = get_permissions env point in
       let field_defs = Hml_List.map_some
         (function
-          | TyConcreteUnfolded (datacon', x, _) when Datacon.equal datacon datacon' ->
+          | TyConcreteUnfolded (datacon', x, _) when resolved_datacons_equal env datacon datacon' ->
               Some x
           | _ ->
               None)
@@ -285,7 +285,7 @@ let refine_perms_in_place_for_pattern env point pat =
 
     | PConstruct (datacon, patfields) ->
         (* An easy way out. *)
-        let fail () = raise_error env (MatchBadDatacon (point, datacon)) in
+        let fail () = raise_error env (MatchBadDatacon (point, snd datacon)) in
         let fail_if b = if b then fail () in
 
         (* Turn the return value of [find_and_instantiate_branch] into a type. *)
@@ -314,7 +314,7 @@ let refine_perms_in_place_for_pattern env point pat =
           | Some p1 ->
               p1
           | None ->
-              raise_error env (BadField (datacon, n2))
+              raise_error env (BadField (snd datacon, n2))
           in
           refine env point1 pat2
         ) env patfields in
@@ -322,6 +322,8 @@ let refine_perms_in_place_for_pattern env point pat =
         (* Find a permission that can be refined in there. *)
         begin match Hml_List.take (function
           | TyPoint p ->
+              let p', datacon = datacon in
+              fail_if (not (same env p !!p'));
               fail_if (not (has_definition env p));
               begin try
                 let branch = find_and_instantiate_branch env p datacon [] in
@@ -332,6 +334,8 @@ let refine_perms_in_place_for_pattern env point pat =
                 fail ()
               end
           | TyApp (cons, args) ->
+              let p', datacon = datacon in
+              fail_if (not (same env !!cons !!p'));
               begin try
                 let branch = find_and_instantiate_branch env !!cons datacon args in
                 Some (env, mkconcrete branch)
@@ -340,7 +344,7 @@ let refine_perms_in_place_for_pattern env point pat =
               end
           | TyConcreteUnfolded (datacon', fields', _) as t ->
               let is_ok =
-                Datacon.equal datacon datacon' &&
+                resolved_datacons_equal env datacon datacon' &&
                 List.for_all (function
                   | FieldValue (n1, _), (n2, _) ->
                       Field.equal n1 n2
@@ -403,7 +407,7 @@ let merge_type_annotations env t1 t2 =
         TyTuple (List.map2 merge_type_annotations ts1 ts2)
     | TyConcreteUnfolded (datacon1, fields1, clause1),
       TyConcreteUnfolded (datacon2, fields2, clause2)
-      when Datacon.equal datacon1 datacon2 && List.length fields1 = List.length fields2 ->
+      when resolved_datacons_equal env datacon1 datacon2 && List.length fields1 = List.length fields2 ->
         TyConcreteUnfolded (datacon1, List.map2 (fun f1 f2 ->
           match f1, f2 with
           | FieldValue (f1, t1), FieldValue (f2, t2) when Field.equal f1 f2 ->
@@ -516,7 +520,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       end
 
   | EAssign (e1, fname, e2) ->
-      let hint = add_hint hint (Field.print fname.field_name) in
+      let hint = add_hint hint (Field.print fname) in
       let env, p1 = check_expression env ?hint e1 in
       let env, p2 = check_expression env e2 in
       let env = replace_term env p1 (fun binder ->
@@ -529,19 +533,18 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                  * exclusive. *)
                 let flag, _, _ = def_for_datacon env datacon in
                 if flag <> SurfaceSyntax.Exclusive then
-                  raise_error env (AssignNotExclusive (t, datacon));
+                  raise_error env (AssignNotExclusive (t, snd datacon));
 
                 (* Perform the assignment. *)
                 let fieldexprs = List.map (function
                   | FieldValue (field, expr) ->
                       let expr = 
-                        if Field.equal field fname.field_name then
+                        if Field.equal field fname then
                           begin match expr with
                           | TySingleton (TyPoint _) ->
                               if !found then
                                 Log.error "Two matching permissions? That's strange...";
                               found := true;
-                              fname.field_datacon <- datacon;
                               TySingleton (TyPoint p2)
                           | t ->
                               let open TypePrinter in
@@ -560,7 +563,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           ) permissions
         in
         if not !found then
-          raise_error env (NoSuchField (p1, fname.field_name));
+          raise_error env (NoSuchField (p1, fname));
         { binder with permissions })
       in
       return env ty_unit

@@ -25,8 +25,8 @@ open Types
 
 (* Definitions borrowed from SurfaceSyntax. *)
 
-type previous_and_new_datacon =
-    SurfaceSyntax.previous_and_new_datacon
+type tag_update_info =
+    SurfaceSyntax.tag_update_info
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -69,7 +69,7 @@ type expression =
   (* v.f <- e *)
   | EAssign of expression * Field.name * expression
   (* tag of v <- Foo *)
-  | EAssignTag of expression * previous_and_new_datacon
+  | EAssignTag of expression * resolved_datacon * tag_update_info
   (* v.f *)
   | EAccess of expression * Field.name
   (* e₁ e₂ *)
@@ -304,9 +304,9 @@ and tsubst_expr t2 i e =
       let e2 = tsubst_expr t2 i e2 in
       EAssign (e1, field, e2)
 
-  | EAssignTag (e1, datacon) ->
+  | EAssignTag (e1, (t, dc), info) ->
       let e1 = tsubst_expr t2 i e1 in
-      EAssignTag (e1, datacon)
+      EAssignTag (e1, (tsubst t2 i t, dc), info)
 
   | EAccess (e1, field) ->
       let e1 = tsubst_expr t2 i e1 in
@@ -465,9 +465,9 @@ and esubst e2 i e1 =
       let e' = esubst e2 i e' in
       EAssign (e, f, e')
 
-  | EAssignTag (e, d) ->
+  | EAssignTag (e, d, info) ->
       let e = esubst e2 i e in
-      EAssignTag (e, d)
+      EAssignTag (e, d, info)
 
   | EAccess (e, f) ->
       let e = esubst e2 i e in
@@ -718,8 +718,8 @@ let elift (k: int) (e: expression) =
   | EAssign (e1, f, e2) ->
       EAssign (elift i e1, f, elift i e2)
 
-  | EAssignTag (e1, d) ->
-      EAssignTag (elift i e1, d)
+  | EAssignTag (e1, (t, dc), info) ->
+      EAssignTag (elift i e1, (lift i t, dc), info)
 
   | EAccess (e, f) ->
       EAccess (elift i e, f)
@@ -821,8 +821,8 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
     | EAssign (e1, f, e'1) ->
         EAssign (epsubst e2 e1, f, epsubst e2 e'1)
 
-    | EAssignTag (e1, d) ->
-        EAssignTag (epsubst e2 e1, d)
+    | EAssignTag (e1, d, info) ->
+        EAssignTag (epsubst e2 e1, d, info)
 
     | EAccess (e1, f) ->
         EAccess (epsubst e2 e1, f)
@@ -954,8 +954,8 @@ let tpsubst_expr (env: env) (t2: typ) (p: point) (e1: expression): expression =
     | EAssign (e1, f, e'1) ->
         EAssign (tpsubst_expr t2 e1, f, tpsubst_expr t2 e'1)
 
-    | EAssignTag (e1, d) ->
-        EAssignTag (tpsubst_expr t2 e1, d)
+    | EAssignTag (e1, (t, dc), info) ->
+        EAssignTag (tpsubst_expr t2 e1, (tpsubst env t2 p t, dc), info)
 
     | EAccess (e1, f) ->
         EAccess (tpsubst_expr t2 e1, f)
@@ -1135,8 +1135,8 @@ module ExprPrinter = struct
     | EAssign (e1, f, e2) ->
         print_expr env e1 ^^ dot ^^ print_field f ^^ space ^^ larrow ^^ jump (print_expr env e2)
 
-    | EAssignTag (e1, d) ->
-        tagof ^^ print_expr env e1 ^^ larrow ^^ print_datacon_reference d.SurfaceSyntax.new_datacon
+    | EAssignTag (e1, d, _) ->
+        tagof ^^ print_expr env e1 ^^ larrow ^^ print_datacon (snd d)
 	  (* d.previous_datacon is not printed *)
 
     | EAccess (e, f) ->

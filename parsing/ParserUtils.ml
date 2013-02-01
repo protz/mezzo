@@ -54,9 +54,8 @@ let mk_datacon_reference (d : Datacon.name maybe_qualified) : datacon_reference 
   datacon_info = None
 };;
 
-let mk_previous_and_new_datacon d = {
-  new_datacon = d;
-  previous_datacon = None
+let mk_tag_update_info () = {
+  is_phantom_update = None
 };;
 
 (* A fresh name generator, to be used (with moderation) when desugaring

@@ -277,7 +277,7 @@ and expression =
   (* v.f <- e *)
   | EAssign of expression * Field.name * expression
   (* tag of v <- Datacon *)
-  | EAssignTag of expression * previous_and_new_datacon
+  | EAssignTag of expression * datacon_reference * tag_update_info
   (* v.f *)
   | EAccess of expression * Field.name
   (* assert τ *)
@@ -307,11 +307,9 @@ and expression =
   (* fail *)
   | EFail
 
-and previous_and_new_datacon = {
-  (* Initialized by the parser. *)
-  new_datacon: datacon_reference;
+and tag_update_info = {
   (* Uninitialized by the parser. Information later filled in by the type-checker. *)
-  mutable previous_datacon: datacon_info option;
+  mutable is_phantom_update: bool option;
 }
 
 and tapp =

@@ -810,7 +810,7 @@ raw_reasonable_expression:
 | e1 = tight_expression DOT f = variable LARROW e2 = reasonable_expression
     { EAssign (e1, f, e2) }
 | TAGOF e1 = tight_expression LARROW d = datacon_reference
-    { EAssignTag (e1, mk_previous_and_new_datacon d) }
+    { EAssignTag (e1, d, mk_tag_update_info ()) }
 | TAKE e1 = expression FROM e2 = reasonable_expression
     { ETake (e1, e2) }
 | GIVE e1 = expression TO e2 = reasonable_expression
