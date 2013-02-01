@@ -76,6 +76,12 @@ let resolve_datacon
     raise_error kenv (UnboundDataConstructor (unqualify datacon))
 ;;
 
+let resolve_datacon env dref =
+  let info, resolved_datacon = resolve_datacon env dref.datacon_unresolved in
+  dref.datacon_info <- Some info;
+  resolved_datacon
+;;
+
 
 (* Our entire logic assumes that we always work in expanded form. If the user
  * writes a function type such as "[a, b] (a, b) -> a", we should make sure
@@ -253,8 +259,8 @@ let rec translate_type (env: env) (t: typ): T.typ =
       T.TyPoint (T.point_by_name env.env ~mname x)
 
   | TyConcreteUnfolded (dref, fields) ->
-      let info, resolved_datacon = resolve_datacon env dref.datacon_unresolved in
-      dref.datacon_info <- Some info;
+      (* Performs a side-effect! *)
+      let resolved_datacon = resolve_datacon env dref in
       let fields = translate_fields env fields in
       T.TyConcreteUnfolded (resolved_datacon, fields, T.ty_bottom)
 
@@ -587,10 +593,11 @@ let rec translate_pattern env = function
   | PTuple ps ->
       E.PTuple (List.map (translate_pattern env) ps)
   | PConstruct (datacon, fieldpats) ->
-      check_bound_datacon env datacon;
+      (* Performs a side-effect! *)
+      let resolved_datacon = resolve_datacon env datacon in
       let fields, pats = List.split fieldpats in
       let pats = List.map (translate_pattern env) pats in
-      E.PConstruct (datacon, List.combine fields pats)
+      E.PConstruct (resolved_datacon, List.combine fields pats)
   | PLocated (p, pos) ->
       translate_pattern (locate env pos) p
   | PAs (p, x) ->
@@ -748,11 +755,12 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       E.ETuple (List.map (translate_expr env) expressions)
 
   | EConstruct (datacon, fieldexprs) ->
-      check_bound_datacon env datacon;
+      (* Performs a side-effect! *)
+      let resolved_datacon = resolve_datacon env datacon in
       let fieldexprs = List.map (fun (field, expr) ->
         field, translate_expr env expr) fieldexprs
       in
-      E.EConstruct (datacon, fieldexprs)
+      E.EConstruct (resolved_datacon, fieldexprs)
 
   | EIfThenElse (b, e1, e2, e3) ->
       let e1 = translate_expr env e1 in
