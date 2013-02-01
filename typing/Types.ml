@@ -581,7 +581,7 @@ let find_and_instantiate_branch
   in
   let dc, fields = instantiate_branch branch args in
   let clause = instantiate_adopts_clause (get_adopts_clause env point) args in
-  dc, fields, clause
+  (TyPoint point, dc), fields, clause
 ;;
 
 (* Misc. *)
