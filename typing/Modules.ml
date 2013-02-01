@@ -180,7 +180,8 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | TyConcreteUnfolded branch ->
         collect_data_type_def_branch branch
 
-  and collect_data_type_def_branch (_, fields) =
+  and collect_data_type_def_branch: 'a. 'a * data_field_def list -> Module.name list =
+  fun (_, fields)  ->
     let ts = List.map (function
       | FieldValue (_, t) ->
           t
