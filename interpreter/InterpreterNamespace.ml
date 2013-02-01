@@ -54,6 +54,13 @@ end) : Namespace with type name = I.name = struct
 	Log.error "Internal failure: unknown module: %s (while looking up %s::%s)" (Module.print m) (Module.print m) (I.print x)
     )
 
+  let lookup_maybe_qualified (x : name SurfaceSyntax.maybe_qualified) (env : 'a global_env) : 'a =
+    match x with
+    | SurfaceSyntax.Unqualified x ->
+        lookup_unqualified x env
+    | SurfaceSyntax.Qualified (m, x) ->
+        lookup_qualified m x env
+
   let freeze (m : Module.name) (env : 'a global_env) : 'a global_env =
     (* If necessary, create an empty set of bindings for this module.
        We do this so that if a module happens to export no values, or

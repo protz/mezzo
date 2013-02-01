@@ -23,6 +23,9 @@ module type Namespace = sig
   (* Looking up a qualified name. *)
   val lookup_qualified: Module.name -> name -> 'a global_env -> 'a
 
+  (* Looking up a possibly qualified name. *)
+  val lookup_maybe_qualified: name SurfaceSyntax.maybe_qualified -> 'a global_env -> 'a
+
   (* Create a qualified version of an unqualified name. *)
   val qualify: Module.name -> name -> 'a global_env -> 'a global_env
 

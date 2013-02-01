@@ -176,6 +176,14 @@ let empty : env = {
   datacons = D.empty;
 }
 
+(* Resolving a reference to a data constructor. Remember that the type-checker
+   has not been run, so we cannot use the [datacon_info] field of the data
+   constructor reference object; instead, we use the [datacon_unresolved]
+   field, and look up the environment that the interpreter has constructed. *)
+
+let resolve_datacon_reference (dref : datacon_reference) (env : env) : datacon_info =
+  D.lookup_maybe_qualified dref.datacon_unresolved env.datacons
+
 (* Extending the environment with a new unqualified variable. *)
 
 let extend_unqualified_variable x v env =
@@ -409,9 +417,9 @@ let rec match_pattern (env : env) (p : pattern) (v : value) : env =
 	(* Tuples of non-matching lengths. *)
 	assert false
       end
-  | PConstruct (datacon, fps) ->
+  | PConstruct (dref, fps) ->
       let b = asBlock v in
-      let info = D.lookup_unqualified datacon env.datacons in
+      let info = resolve_datacon_reference dref env in
       if info == b.tag then
 	let fields = b.fields in
         List.fold_left (fun env (f, p) ->
@@ -481,27 +489,23 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
 	env = env;
       }
 
-  | EAssign (e1, { field_name = f; _ }, e2) ->
-      (* We do not assume that the type-checker has annotated the abstract
-	 syntax tree, so we cannot use the field [field_datacon]. Instead,
-         we rely on the fact that [b1.tag] is a [datacon_info] record and
+  | EAssign (e1, f, e2) ->
+      (* We rely on the fact that [b1.tag] is a [datacon_info] record and
          contains a mapping of field names to field offsets. *)
       let b1 = asBlock (eval env loc e1) in
       let v2 = eval env loc e2 in
       b1.fields.(field_offset f b1.tag) <- v2;
       unit_value
 
-  | EAssignTag (e, { new_datacon; _ }) ->
+  | EAssignTag (e, dref, _) ->
       (* We do not assume that the type-checker has annotated the abstract
-	 syntax tree, so we cannot use the field [previous_datacon]. *)
+	 syntax tree, so we cannot use the [tag_update_info] component. *)
       let b = asBlock (eval env loc e) in
-      b.tag <- D.lookup_unqualified new_datacon env.datacons;
+      b.tag <- resolve_datacon_reference dref env;
       unit_value
 
-  | EAccess (e, { field_name = f; _ }) ->
-      (* We do not assume that the type-checker has annotated the abstract
-	 syntax tree, so we cannot use the field [field_datacon]. Instead,
-         we rely on the fact that [b.tag] is a [datacon_info] record and
+  | EAccess (e, f) ->
+      (* We rely on the fact that [b.tag] is a [datacon_info] record and
          contains a mapping of field names to field offsets. *)
       let b = asBlock (eval env loc e) in
       b.fields.(field_offset f b.tag)
@@ -535,13 +539,13 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
       (* [List.map] implements left-to-right evaluation. *)
       VTuple (List.map (eval env loc) es)
 
-  | EConstruct (datacon, fes) ->
+  | EConstruct (dref, fes) ->
       (* Evaluate the fields in the order specified by the programmer. *)
       let fvs =
 	List.map (fun (f, e) -> (f, eval env loc e)) fes
       in
       (* Allocate a field array. *)
-      let info = D.lookup_unqualified datacon env.datacons in
+      let info = resolve_datacon_reference dref env in
       let fields = Array.create info.datacon_arity unit_value in
       (* Populate the field array. *)
       List.iter (fun (f, v) ->
