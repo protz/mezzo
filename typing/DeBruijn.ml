@@ -101,9 +101,12 @@ let clean top sub t =
   clean t
 ;;
 
+let rec resolved_datacons_equal env (t1, dc1) (t2, dc2) =
+  equal env t1 t2 && Datacon.equal dc1 dc2
+
 (* [equal env t1 t2] provides an equality relation between [t1] and [t2] modulo
  * equivalence in the [PersistentUnionFind]. *)
-let equal env (t1: typ) (t2: typ) =
+and equal env (t1: typ) (t2: typ) =
   let rec equal (t1: typ) (t2: typ) =
     match t1, t2 with
       (* Special type constants. *)
@@ -142,7 +145,7 @@ let equal env (t1: typ) (t2: typ) =
         List.length ts1 = List.length ts2 && List.for_all2 equal ts1 ts2
 
     | TyConcreteUnfolded (name1, fields1, clause1), TyConcreteUnfolded (name2, fields2, clause2) ->
-        Datacon.equal name1 name2 &&
+        resolved_datacons_equal env name1 name2 &&
         equal clause1 clause2 &&
         List.length fields1 = List.length fields2 &&
         List.fold_left2 (fun acc f1 f2 ->

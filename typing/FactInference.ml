@@ -133,20 +133,17 @@ let duplicables
         List.iter (duplicables env) ts
 
     | TyConcreteUnfolded (datacon, fields, _) as t ->
-      begin
         let flag, _, _ = def_for_datacon env datacon in
-        begin
-          match flag with
-          | SurfaceSyntax.Duplicable ->
-              List.iter (function
-                | FieldValue (_, typ)
-                | FieldPermission typ ->
-                    duplicables env typ
-              ) fields
-          | SurfaceSyntax.Exclusive ->
-              raise (EExclusive t)
+        begin match flag with
+        | SurfaceSyntax.Duplicable ->
+            List.iter (function
+              | FieldValue (_, typ)
+              | FieldPermission typ ->
+                  duplicables env typ
+            ) fields
+        | SurfaceSyntax.Exclusive ->
+            raise (EExclusive t)
         end
-      end
 
     | TySingleton _ ->
         (* Singleton types are always duplicable. *)

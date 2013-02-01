@@ -79,7 +79,7 @@ type typ =
 
     (* Structural types. *)
   | TyTuple of typ list
-  | TyConcreteUnfolded of Datacon.name * data_field_def list * typ
+  | TyConcreteUnfolded of resolved_datacon * data_field_def list * typ
       (* [typ] is for the type of the adoptees; initially it's bottom and then
        * it gets instantiated to something more precise. *)
 
@@ -99,6 +99,13 @@ type typ =
 
     (* Constraint *)
   | TyAnd of duplicity_constraint list * typ
+
+(* Since data constructors are now properly scoped, they are resolved, that is,
+ * they are either attached to a point, or a De Bruijn index, which will later
+ * resolve to a point when we open the corresponding type definition. That way,
+ * we can easily jump from a data constructor to the corresponding type
+ * definition. *)
+and resolved_datacon = typ * Datacon.name
 
 and duplicity_constraint = SurfaceSyntax.data_type_flag * typ
 

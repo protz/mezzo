@@ -140,7 +140,7 @@ type typ =
   | TyEmpty
   | TyVar of Variable.name
   | TyQualified of Module.name * Variable.name
-  | TyConcreteUnfolded of data_type_def_branch
+  | TyConcreteUnfolded of (datacon_reference * data_field_def list)
   | TySingleton of typ
   | TyApp of typ * typ
   | TyArrow of typ * typ
@@ -155,7 +155,7 @@ type typ =
 and duplicity_constraint = data_type_flag * typ
 
 and data_type_def_branch =
-    datacon_reference * data_field_def list
+    Datacon.name * data_field_def list
 
 and data_field_def =
   | FieldValue of Field.name * typ

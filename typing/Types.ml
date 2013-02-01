@@ -498,13 +498,13 @@ let get_variance (env: env) (point: point): variance list =
       assert false
 ;;
 
-let def_for_datacon (env: env) (datacon: Datacon.name): SurfaceSyntax.data_type_flag * data_type_def * adopts_clause=
-  match DataconMap.find_opt datacon env.type_for_datacon with
-  | Some point ->
+let def_for_datacon (env: env) (datacon: resolved_datacon): SurfaceSyntax.data_type_flag * data_type_def * adopts_clause=
+  match datacon with
+  | TyPoint point, _ ->
       let def, _ = Option.extract (get_definition env point) in
       Option.extract def
-  | None ->
-      Log.error "There is no type for constructor %a" Datacon.p datacon
+  | t, _ ->
+      Log.error "Datacon not properly resolved: %a" !internal_ptype (env, t)
 ;;
 
 let type_for_datacon (env: env) (datacon: Datacon.name): point =
@@ -660,7 +660,7 @@ let expand_if_one_branch (env: env) (t: typ) =
       | Some (Some (_, [branch], clause), _) ->
           let dc, fields = instantiate_branch branch args in
           let clause = instantiate_adopts_clause clause args in
-          TyConcreteUnfolded (dc, fields, clause)
+          TyConcreteUnfolded ((TyPoint cons, dc), fields, clause)
       | _ ->
         t
       end
@@ -847,7 +847,7 @@ module TypePrinter = struct
         rparen
 
     | TyConcreteUnfolded (name, fields, clause) ->
-        print_data_type_def_branch env name fields clause
+        print_data_type_def_branch env (snd name) fields clause
 
       (* Singleton types. *)
     | TySingleton typ ->
@@ -890,7 +890,7 @@ module TypePrinter = struct
     | FieldPermission typ ->
         string "permission" ^^ space ^^ print_type env typ
 
-  and print_data_type_def_branch env name fields clause =
+  and print_data_type_def_branch env (name: Datacon.name) fields clause =
     let record =
       if List.length fields > 0 then
         space ^^ lbrace ^^

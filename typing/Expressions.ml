@@ -992,9 +992,16 @@ module ExprPrinter = struct
 
   let print_maybe_qualified_datacon =
     print_maybe_qualified print_datacon
+  ;;
+
+  let pmaybe_qualified_datacon buf arg =
+    pdoc buf ((fun () -> print_maybe_qualified_datacon arg), ())
+  ;;
+
 
   let print_datacon_reference dref =
     print_maybe_qualified_datacon dref.SurfaceSyntax.datacon_unresolved
+  ;;
 
   let rec print_patexpr env (pat, expr) =
     let type_annot, expr = match expr with

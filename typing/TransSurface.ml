@@ -247,7 +247,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
       T.TyPoint (T.point_by_name env.env ~mname x)
 
   | TyConcreteUnfolded branch ->
-      let datacon, branches = translate_data_type_def_branch env branch in
+      let datacon, branches = translate_and_resolve_branch env branch in
       check_bound_datacon env datacon;
       T.TyConcreteUnfolded (datacon, branches, T.ty_bottom)
 
@@ -301,15 +301,22 @@ let rec translate_type (env: env) (t: typ): T.typ =
       T.TyAnd (constraints, translate_type env t)
 
 
+and translate_and_resolve_branch (env: env) (branch: data_type_branch): T.resolved_datacon * T.data_field_def list =
+  if true then assert false
+
 and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.data_type_def_branch =
   let datacon, fields = branch in
+  let fields = List.map (translate_fields env) fields in
+  datacon, fields
+
+and translate_fields: env -> data_field_def list -> T.data_field_def list = fun env fields ->
   let fields = List.map (function
     | FieldValue (name, t) ->
         T.FieldValue (name, translate_type env t)
     | FieldPermission t ->
         T.FieldPermission (translate_type env t)
   ) fields in
-  datacon, fields
+  fields
 
 and translate_arrow_type env t1 t2 =
 

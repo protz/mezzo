@@ -284,7 +284,7 @@ raw_atomic_type:
     { TyQualified (m, x) }
 (* A structural type explicitly mentions a data constructor. *)
 (* TEMPORARY add support for optional adopts clause in structural permissions *)
-| b = data_type_def_branch
+| b = data_type_branch
     { TyConcreteUnfolded b }
 
 %inline tight_type:
@@ -414,11 +414,19 @@ mode:
 (* A data constructor application takes the generic form [D { ... }]. As a
    special case, a pair of empty braces can be omitted. *)
 
+%inline curly_application(X, Y):
+| x = X
+    { x, [] }
+| x = X LBRACE y = Y RBRACE
+    { x, y }
+
 generic_datacon_application(Y):
-| dc = datacon_reference (* a pair of empty braces can be omitted *)
-    { dc, [] }
-| dc = datacon_reference LBRACE ys = Y RBRACE
-    { dc, ys }
+| x = curly_application (datacon_reference, Y)
+    { x }
+
+generic_bare_datacon_application(Y):
+| x = curly_application (datacon, Y)
+    { x }
 
 (* It is often the case that the contents of the curly braces is a semicolon-
    separated (or -terminated) list of things. *)
@@ -469,8 +477,12 @@ data_type_def_branch_content:
    where, within the braces, we have the above content. This is also
    the syntax of structural permissions. *)
 
-%inline data_type_def_branch:
+%inline data_type_branch:
   dfs = generic_datacon_application(data_type_def_branch_content)
+    { dfs }
+
+%inline data_type_def_branch:
+  dfs = generic_bare_datacon_application(data_type_def_branch_content)
     { dfs }
 
 %inline data_type_def_lhs:

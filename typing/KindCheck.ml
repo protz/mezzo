@@ -555,7 +555,7 @@ and infer (env: env) (t: typ) =
       kind
 
   | TyConcreteUnfolded branch ->
-      check_data_type_def_branch env branch;
+      check_branch env branch;
       KType
 
   | TySingleton t ->
@@ -617,8 +617,8 @@ and check_field (env: env) (field: data_field_def) =
       let env = extend env fragment in
       check env t KPerm
 
-and check_data_type_def_branch (env: env) (branch: data_type_def_branch) =
-  let _datacon, fields = branch in
+and check_branch: 'a. env -> ('a * data_field_def list) -> unit = fun env branch ->
+  let _, fields = branch in
   let names = Hml_List.map_some (function
     | FieldValue (name, _) ->
         Some name
@@ -652,7 +652,7 @@ let check_data_type_def (env: env) (def: data_type_def) =
       let bindings = List.map (fun (x, y, _) -> x, y) bindings in
       let env = List.fold_left bind env bindings in
       (* Check the branches. *)
-      List.iter (check_data_type_def_branch env) branches;
+      List.iter (check_branch env) branches;
       match clause with
       | None ->
           ()
