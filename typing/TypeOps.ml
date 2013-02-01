@@ -296,7 +296,7 @@ let simplify_function_type env t body =
            * added, because there no [EBigLambda], so we need to take into
            * account the fact that we've traversed so many binders. *)
           let e = Option.map (epsubst env (EVar i) p) e in
-          let e = Option.map (tepsubst env (TyVar i) p) e in
+          let e = Option.map (tpsubst_expr env (TyVar i) p) e in
           env, TyForall (((name, k, pos), flavor), t), e, i + 1
         ) vars (env, t, e, 0) in
 

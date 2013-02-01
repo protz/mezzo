@@ -235,24 +235,24 @@ let rec psubst (pat: pattern) (points: point list) =
 ;;
 
 
-(* [ptsubst t2 i p1] substitutes type [t2] for index [i] in pattern [p1]. *)
-let ptsubst (t2: typ) (i: index) (p1: pattern): pattern =
-  let rec ptsubst t2 p1 =
+(* [tsubst_pat t2 i p1] substitutes type [t2] for index [i] in pattern [p1]. *)
+let tsubst_pat (t2: typ) (i: index) (p1: pattern): pattern =
+  let rec tsubst_pat t2 p1 =
     match p1 with
     | PVar _
     | PPoint _
     | PAny ->
         p1
     | PTuple ps ->
-        PTuple (List.map (ptsubst t2) ps)
+        PTuple (List.map (tsubst_pat t2) ps)
     | PAs (p1, p2) ->
-        PAs (ptsubst t2 p1, ptsubst t2 p2)
+        PAs (tsubst_pat t2 p1, tsubst_pat t2 p2)
     | PConstruct ((t, dc), fieldpats) ->
         let t = tsubst t2 i t in
-        let fieldpats = List.map (fun (f, p) -> f, ptsubst t2 p) fieldpats in
+        let fieldpats = List.map (fun (f, p) -> f, tsubst_pat t2 p) fieldpats in
         PConstruct ((t, dc), fieldpats)
   in
-  ptsubst t2 p1
+  tsubst_pat t2 p1
 ;;
 
 
@@ -261,7 +261,7 @@ let ptsubst (t2: typ) (i: index) (p1: pattern): pattern =
  * depending on [rec_flag]. *)
 let rec tsubst_patexprs t2 i rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
-  let patterns = List.map (ptsubst t2 i) patterns in
+  let patterns = List.map (tsubst_pat t2 i) patterns in
   let names = List.fold_left (fun acc p ->
     collect_pattern p :: acc) [] patterns
   in
@@ -887,34 +887,34 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
 ;;
 
 
-(* [tppsubst env t2 p p1] substitutes type [t2] for point [p] in expression
+(* [tpsubst_pat env t2 p p1] substitutes type [t2] for point [p] in expression
  * [e1]. *)
-let tppsubst (env: env) (t2: typ) (p: point) (p1: pattern): pattern =
-  let rec tppsubst t2 p1 =
+let tpsubst_pat (env: env) (t2: typ) (p: point) (p1: pattern): pattern =
+  let rec tpsubst_pat t2 p1 =
     match p1 with
     | PVar _
     | PPoint _
     | PAny ->
         p1
     | PTuple ps ->
-        PTuple (List.map (tppsubst t2) ps)
+        PTuple (List.map (tpsubst_pat t2) ps)
     | PAs (p1, p2) ->
-        PAs (tppsubst t2 p1, tppsubst t2 p2)
+        PAs (tpsubst_pat t2 p1, tpsubst_pat t2 p2)
     | PConstruct ((t, dc), fieldpats) ->
         let t = tpsubst env t2 p t in
-        let fieldpats = List.map (fun (f, p) -> f, tppsubst t2 p) fieldpats in
+        let fieldpats = List.map (fun (f, p) -> f, tpsubst_pat t2 p) fieldpats in
         PConstruct ((t, dc), fieldpats)
   in
-  tppsubst t2 p1
+  tpsubst_pat t2 p1
 ;;
 
 
-(* [tepsubst env e2 p e1] substitutes type [t2] for point [p] in expression [e1] *)
-let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
-  let rec tepsubst t2 e1 =
+(* [tpsubst_expr env e2 p e1] substitutes type [t2] for point [p] in expression [e1] *)
+let tpsubst_expr (env: env) (t2: typ) (p: point) (e1: expression): expression =
+  let rec tpsubst_expr t2 e1 =
     match e1 with
     | EConstraint (e1, t) ->
-        EConstraint (tepsubst t2 e1, tpsubst env t2 p t)
+        EConstraint (tpsubst_expr t2 e1, tpsubst env t2 p t)
 
     | EVar _ ->
         e1
@@ -927,97 +927,97 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
 
     | ELet (flag, patexprs, body) ->
         let patterns, expressions = List.split patexprs in
-        let patterns = List.map (tppsubst env t2 p) patterns in
+        let patterns = List.map (tpsubst_pat env t2 p) patterns in
         let names = List.map collect_pattern patterns in
         let n = List.length (List.flatten names) in
         let expressions = match flag with
           | Recursive ->
               let t2 = lift n t2 in
-              List.map (tepsubst t2) expressions
+              List.map (tpsubst_expr t2) expressions
           | Nonrecursive ->
-              List.map (tepsubst t2) expressions
+              List.map (tpsubst_expr t2) expressions
         in
         let patexprs = List.combine patterns expressions in
         let t2 = lift n t2 in
-        let body = tepsubst t2 body in
+        let body = tpsubst_expr t2 body in
         ELet (flag, patexprs, body)
 
 
     | EFun (vars, arg, return_type, body) ->
         let n = List.length vars in
         let t2 = lift n t2 in
-        let body = tepsubst t2 body in
+        let body = tpsubst_expr t2 body in
         let arg = tpsubst env t2 p arg in
         let return_type = tpsubst env t2 p return_type in
         EFun (vars, arg, return_type, body)
 
     | EAssign (e1, f, e'1) ->
-        EAssign (tepsubst t2 e1, f, tepsubst t2 e'1)
+        EAssign (tpsubst_expr t2 e1, f, tpsubst_expr t2 e'1)
 
     | EAssignTag (e1, d) ->
-        EAssignTag (tepsubst t2 e1, d)
+        EAssignTag (tpsubst_expr t2 e1, d)
 
     | EAccess (e1, f) ->
-        EAccess (tepsubst t2 e1, f)
+        EAccess (tpsubst_expr t2 e1, f)
 
     | EApply (e1, e'1) ->
-        EApply (tepsubst t2 e1, tepsubst t2 e'1)
+        EApply (tpsubst_expr t2 e1, tpsubst_expr t2 e'1)
 
     | ETApply (e1, arg, k) ->
-        ETApply (tepsubst t2 e1, map_tapp (tpsubst env t2 p) arg, k)
+        ETApply (tpsubst_expr t2 e1, map_tapp (tpsubst env t2 p) arg, k)
 
     | EMatch (b, e1, patexprs) ->
-        let e1 = tepsubst t2 e1 in
+        let e1 = tpsubst_expr t2 e1 in
         let patexprs = List.map (fun (pat, expr) ->
           let n = List.length (collect_pattern pat) in
           let t2 = lift n t2 in
-          let pat = tppsubst env t2 p pat in
-          pat, tepsubst t2 expr
+          let pat = tpsubst_pat env t2 p pat in
+          pat, tpsubst_expr t2 expr
         ) patexprs in
         EMatch (b, e1, patexprs)
 
 
     | ETuple es ->
-        ETuple (List.map (tepsubst t2) es)
+        ETuple (List.map (tpsubst_expr t2) es)
 
     | EConstruct ((t, dc), fieldexprs) ->
         let fieldexprs = List.map (fun (field, expr) ->
-          field, tepsubst t2 expr
+          field, tpsubst_expr t2 expr
         ) fieldexprs in
         EConstruct ((tpsubst env t2 p t, dc), fieldexprs)
 
     | EIfThenElse (b, e1, e1', e1'') ->
-        EIfThenElse (b, tepsubst t2 e1, tepsubst t2 e1', tepsubst t2 e1'')
+        EIfThenElse (b, tpsubst_expr t2 e1, tpsubst_expr t2 e1', tpsubst_expr t2 e1'')
 
     | ELocated (e, p) ->
-        ELocated (tepsubst t2 e, p)
+        ELocated (tpsubst_expr t2 e, p)
 
     | EInt _ ->
         e1
 
     | EExplained e ->
-        EExplained (tepsubst t2 e)
+        EExplained (tpsubst_expr t2 e)
 
     | ETake (e, e') ->
-        let e = tepsubst t2 e in
-        let e' = tepsubst t2 e' in
+        let e = tpsubst_expr t2 e in
+        let e' = tpsubst_expr t2 e' in
         ETake (e, e')
 
     | EGive (e, e') ->
-        let e = tepsubst t2 e in
-        let e' = tepsubst t2 e' in
+        let e = tpsubst_expr t2 e in
+        let e' = tpsubst_expr t2 e' in
         EGive (e, e')
 
     | EOwns (e, e') ->
-        let e = tepsubst t2 e in
-        let e' = tepsubst t2 e' in
+        let e = tpsubst_expr t2 e in
+        let e' = tpsubst_expr t2 e' in
         EOwns (e, e')
 
     | EFail ->
         EFail
   in
 
-  tepsubst t2 e1
+  tpsubst_expr t2 e1
 ;;
 
 
