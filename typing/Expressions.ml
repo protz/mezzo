@@ -235,11 +235,33 @@ let rec psubst (pat: pattern) (points: point list) =
 ;;
 
 
+(* [ptsubst t2 i p1] substitutes type [t2] for index [i] in pattern [p1]. *)
+let ptsubst (t2: typ) (i: index) (p1: pattern): pattern =
+  let rec ptsubst t2 p1 =
+    match p1 with
+    | PVar _
+    | PPoint _
+    | PAny ->
+        p1
+    | PTuple ps ->
+        PTuple (List.map (ptsubst t2) ps)
+    | PAs (p1, p2) ->
+        PAs (ptsubst t2 p1, ptsubst t2 p2)
+    | PConstruct ((t, dc), fieldpats) ->
+        let t = tsubst t2 i t in
+        let fieldpats = List.map (fun (f, p) -> f, ptsubst t2 p) fieldpats in
+        PConstruct ((t, dc), fieldpats)
+  in
+  ptsubst t2 p1
+;;
+
+
 (* [tsubst_patexprs t2 i rec_flag pat_exprs] substitutes type [t2] for index [i]
  * in the list of pattern-expressions [pat_exprs], defined recursively or not,
  * depending on [rec_flag]. *)
 let rec tsubst_patexprs t2 i rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
+  let patterns = List.map (ptsubst t2 i) patterns in
   let names = List.fold_left (fun acc p ->
     collect_pattern p :: acc) [] patterns
   in
@@ -865,6 +887,28 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
 ;;
 
 
+(* [tppsubst env t2 p p1] substitutes type [t2] for point [p] in expression
+ * [e1]. *)
+let tppsubst (env: env) (t2: typ) (p: point) (p1: pattern): pattern =
+  let rec tppsubst t2 p1 =
+    match p1 with
+    | PVar _
+    | PPoint _
+    | PAny ->
+        p1
+    | PTuple ps ->
+        PTuple (List.map (tppsubst t2) ps)
+    | PAs (p1, p2) ->
+        PAs (tppsubst t2 p1, tppsubst t2 p2)
+    | PConstruct ((t, dc), fieldpats) ->
+        let t = tpsubst env t2 p t in
+        let fieldpats = List.map (fun (f, p) -> f, tppsubst t2 p) fieldpats in
+        PConstruct ((t, dc), fieldpats)
+  in
+  tppsubst t2 p1
+;;
+
+
 (* [tepsubst env e2 p e1] substitutes type [t2] for point [p] in expression [e1] *)
 let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
   let rec tepsubst t2 e1 =
@@ -883,6 +927,7 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
 
     | ELet (flag, patexprs, body) ->
         let patterns, expressions = List.split patexprs in
+        let patterns = List.map (tppsubst env t2 p) patterns in
         let names = List.map collect_pattern patterns in
         let n = List.length (List.flatten names) in
         let expressions = match flag with
@@ -926,6 +971,7 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
         let patexprs = List.map (fun (pat, expr) ->
           let n = List.length (collect_pattern pat) in
           let t2 = lift n t2 in
+          let pat = tppsubst env t2 p pat in
           pat, tepsubst t2 expr
         ) patexprs in
         EMatch (b, e1, patexprs)
