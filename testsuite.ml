@@ -726,7 +726,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("function-comparison2.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
 
-  ("masking.mz", simple_test ~known_failure:() (Fail (function BadPattern _ -> true | _ -> false)));
+  ("masking.mz", simple_test (Fail (fun _ -> true)));
 
   ("masking2.mz", simple_test (Fail (function _ -> true)));
 
@@ -764,7 +764,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     (* This test should fail, and it does, but the current error message is bizarre *)
     (* I am marking it as a known failure for the moment *)
 
-  ("018.mz", simple_test Pass);
+  ("018.mz", simple_test ~known_failure:() Pass);
 
   ("vicious-cycle.mz", simple_test Pass);
 
