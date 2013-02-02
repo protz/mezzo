@@ -387,7 +387,7 @@ let process file_path =
     Log.error "Unknown file extension"
 ;;
 
-(* The [run] function servers as a wrapper that catches errors and prints them
+(* The [run] function serves as a wrapper that catches errors and prints them
  * properly (at the cost of losing a useful backtrace, though). *)
 type run_options = {
   html_errors: bool;
