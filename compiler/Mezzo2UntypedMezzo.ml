@@ -53,21 +53,12 @@ let abandon v1 v2 success failure =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* The Boolean values are [bool::True] and [bool::False]. *)
+(* The Boolean values are [bool::true] and [bool::false]. *)
 
-(* The syntax of (Untyped) Mezzo currently does not support qualified
-   data constructors, so we cheat by masquerading them as variables. *)
-
-(* TEMPORARY *)
-
-let bool =
-  Module.register "bool"
-
-let f =
-  U.EQualified (bool, Variable.register "False")
-
-let t =
-  U.EQualified (bool, Variable.register "True")
+let f, t =
+  let bool = Module.register "bool" in
+  U.EQualified (bool, Variable.register "false"),
+  U.EQualified (bool, Variable.register "true")
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -80,7 +71,7 @@ let fresh : string -> Variable.name =
   fun (hint : string) ->
     let i = !c in
     c := i + 1;
-    Variable.register (Printf.sprintf "__mz_%s%d>" hint i)
+    Variable.register (Printf.sprintf "__mz_%s%d" hint i)
 
 (* This auxiliary function is applied to an expression that has just been
    produced by [transl], and decides if this expression is in normal form
@@ -286,9 +277,6 @@ and eval_fields loc fields k =
 (* TEMPORARY could optimize [take] when preceded with an [owns] test *)
 (* TEMPORARY could also optimize [if x1 owns x2 then ...] *)
 
-(* TEMPORARY when translating a variable to ocaml, should make sure it
-   is not an ocaml keyword *)
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Translating data type definitions. *)
@@ -303,7 +291,7 @@ let transl_data_field_def = function
       []
 
 let transl_data_type_def_branch (d, fields) =
-  d, List.flatten (List.map transl_data_field_def fields)
+  d, adopter_field :: List.flatten (List.map transl_data_field_def fields)
 
 let transl_data_type_def_rhs rhs =
   List.map transl_data_type_def_branch rhs

@@ -10,6 +10,17 @@ module O = UntypedOCaml
 
 (* ---------------------------------------------------------------------------- *)
 
+(* When printing a (variable, type, field) name, we must make sure that it is
+   not an OCaml keyword. If it is one, we rename it. *)
+
+let identifier (x : string) =
+  if Hashtbl.mem OCamlKeywords.keyword_table x then
+    "__ok_" ^ x
+  else
+    x
+
+(* ---------------------------------------------------------------------------- *)
+
 (* This function maps a field name to a field index. It accounts for the hidden
    adopter field. *)
 
@@ -65,7 +76,7 @@ let print_datacon_reference dref =
 let rec translate_pattern (p : pattern) : O.pattern =
   match p with
   | PVar x ->
-      O.PVar (Variable.print x)
+      O.PVar (identifier (Variable.print x))
   | PTuple ps ->
       O.PTuple (List.map translate_pattern ps)
   | PConstruct (dref, fields) ->
@@ -89,7 +100,7 @@ let rec translate_pattern (p : pattern) : O.pattern =
   | PConstraint (p, _) ->
       translate_pattern p
   | PAs (p, x) ->
-      O.PAs (translate_pattern p, Variable.print x)
+      O.PAs (translate_pattern p, identifier (Variable.print x))
   | PAny ->
       O.PAny
 
@@ -129,12 +140,12 @@ let gt x y =
 let rec transl (e : expression) : O.expression =
   match e with
   | EVar x ->
-      O.EVar (Variable.print x)
+      O.EVar (identifier (Variable.print x))
   | EQualified (m, x) ->
       O.EVar (
 	Printf.sprintf "%s.%s"
 	  (String.capitalize (Module.print m))
-	  (Variable.print x)
+	  (identifier (Variable.print x))
       )
   | EBuiltin b ->
       (* The builtin operations are defined in the OCaml library module
@@ -248,6 +259,8 @@ let tys (base : int) (n : int) : O.ty list =
 
 (* For each data constructor, we create a record type. *)
 
+(* TEMPORARY at the moment, this is unused! *)
+
 let datacon_record_name (datacon : Datacon.name) : string =
   Printf.sprintf "__mz_record_%s" (Datacon.print datacon)
 
@@ -271,7 +284,7 @@ let datacon_record (branch : data_type_def_branch) =
 (* For each algebraic data type, we create a sum type. *)
 
 let data_sum_name (typecon : Variable.name) : string =
-  Variable.print typecon
+  identifier (Variable.print typecon)
 
 let data_branch ((base : int), (branch : data_type_def_branch)) : O.data_type_def_branch =
   let datacon, fields = branch in
@@ -321,10 +334,4 @@ let translate_item = function
 
 let translate_implementation items =
   List.flatten (List.map translate_item items)
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Make sure that [MezzoBuiltin] is well-typed and stand-alone. *)
-
-let _ = MezzoBuiltin._mz_print_value
 
