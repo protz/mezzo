@@ -227,6 +227,8 @@ let ty = function
       utf8string x
 
 let data_type_def_branch (datacon, components) =
+  hardline ^^
+  string "| " ^^
   utf8string datacon ^^
   match components with
   | [] ->
@@ -260,15 +262,13 @@ let record_def (fields : record_def) =
 
 let data_type_def_rhs = function
   | Sum branches ->
-      concat_map (fun branch ->
-	string "| " ^^ data_type_def_branch branch ^^ hardline
-      ) branches
+      concat_map data_type_def_branch branches
   | Record def ->
-      record_def def
+      break 1 ^^ record_def def
 
 let data_type_def (lhs, rhs) =
   group (
-    (data_type_def_lhs lhs ^^ space ^^ equals) ^//^ data_type_def_rhs rhs
+    string "type " ^^ data_type_def_lhs lhs ^^ space ^^ equals ^^ nest 2 (data_type_def_rhs rhs)
   )
 
 (* ---------------------------------------------------------------------------- *)

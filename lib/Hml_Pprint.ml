@@ -111,9 +111,16 @@ let english_join =
   separate2 (string ", ") (string ", and ")
 
 let render doc =
-  let buf = Buffer.create 16 in
-  PPrint.ToBuffer.pretty 1.0 Bash.twidth buf doc;
+  let buf = Buffer.create 1024 in
+  PPrint.ToBuffer.pretty 0.95 Bash.twidth buf doc;
   Buffer.contents buf
+
+let dump (filename : string) (doc : document) =
+  let buf = Buffer.create 32768 in
+  PPrint.ToBuffer.pretty 0.95 Bash.twidth buf doc;
+  let c = open_out filename in
+  Buffer.output_buffer c buf;
+  close_out c
 
 (* Parentheses with nesting. Yields either:
    (this)

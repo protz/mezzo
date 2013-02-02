@@ -36,3 +36,7 @@ let filename =
 let no_sig_check =
   ref false
 ;;
+
+(* [false] : just type-check. [true] : type-check and compile down to OCaml. *)
+let please_compile =
+  ref false

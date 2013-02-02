@@ -17,11 +17,8 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-let e = Mezzo2UntypedMezzo.translate_implementation (* TEMPORARY *)
-let f = UntypedMezzo2UntypedOCaml.translate_implementation (* TEMPORARY *)
-let p = UntypedOCamlPrinter.implementation (* TEMPORARY *)
-
 type mode =
+  | Typecheck
   | TypecheckAndCompile
   | Interpret
 
@@ -30,7 +27,7 @@ let _ =
   let arg_backtraces = ref true in
   let arg_trace = ref "" in
   let arg_html_errors = ref false in
-  let arg_mode = ref TypecheckAndCompile in
+  let arg_mode = ref Typecheck in
   let usage = "Mezzo: a next-generation version of ML\n\
     Usage: " ^ Sys.argv.(0) ^ " [OPTIONS] FILE\n"
   in
@@ -50,8 +47,9 @@ let _ =
     "-noautoinclude", Arg.Set Options.no_auto_include, "  Don't automatically \
       open the corelib modules";
     "-nosigcheck", Arg.Set Options.no_sig_check, "  [for debugging only, unsound]";
-    "-c", Arg.Unit (fun () -> arg_mode := TypecheckAndCompile), "type-check and compile (default)";
+    "-c", Arg.Unit (fun () -> arg_mode := TypecheckAndCompile), "type-check and compile";
     "-i", Arg.Unit (fun () -> arg_mode := Interpret), "do not type-check; interpret";
+    "-t", Arg.Unit (fun () -> arg_mode := Typecheck), "just type-check (default)";
   ] (fun f ->
     if !Options.filename = "" then
       Options.filename := f
@@ -72,7 +70,9 @@ let _ =
   Driver.add_include_dir (Filename.concat Configure.root_dir "stdlib");
   Driver.add_include_dir (Filename.dirname !Options.filename);
   match !arg_mode with
+  | Typecheck
   | TypecheckAndCompile ->
+      Options.please_compile := (!arg_mode = TypecheckAndCompile);
       let env =
 	if !arg_backtraces then
 	  Driver.run opts (fun () -> Driver.process !Options.filename)

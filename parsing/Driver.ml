@@ -377,6 +377,8 @@ let process file_path =
         None
     in
     let env = check_implementation mname program iface in
+    if !Options.please_compile then
+      Compile.implementation file_path program;
     env
   else if Filename.check_suffix file_path ".mzi" then
     let mname = module_name_for_file_path file_path in
