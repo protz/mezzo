@@ -37,3 +37,18 @@ let replace s1 s2 s =
   let s1 = Str.regexp_string s1 in
   let s = Str.global_replace s1 s2 s in
   s
+
+let substring s i j =
+  String.sub s i (j - i)
+
+let split s c =
+  let rec break s acc =
+    try begin
+      let i = String.index s c in 
+      let l = String.length s in 
+      let s1, s2 = substring s 0 i, substring s (i+1) l in 
+      break s2 (s1 :: acc) 
+    end with Not_found ->
+      s :: acc
+  in
+  List.rev (break s [])

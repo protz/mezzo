@@ -1,0 +1,6 @@
+# This is the name of the various modules that should be auto-loaded when
+# type-checking any given Mezzo file. Warning: this file should be Unix-style
+# (i.e. only \n separators).
+bool
+core
+pervasives

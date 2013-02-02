@@ -24,3 +24,5 @@ val read: in_channel -> string
 val ptag: Buffer.t -> 'a -> unit
 
 val absolute_path: string -> string
+
+val file_get_contents: string -> string

@@ -4,6 +4,10 @@ module O = UntypedOCaml
 
 (* This is the translation of Untyped Mezzo to Untyped OCaml. *)
 
+(* TEMPORARY think about [open]: when we mention a data constructor
+   or field name in OCaml, is it always in scope? or must we qualify
+   it? can we use qualified names everywhere? *)
+
 (* ---------------------------------------------------------------------------- *)
 
 (* This function maps a field name to a field index. It accounts for the hidden
@@ -109,7 +113,7 @@ let apply2 f x y =
   O.EApply (O.EApply (f, x), y)
 
 let gt x y =
-  apply2 (O.EVar "(>)") x y
+  apply2 (O.EInfixVar ">") x y
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -1,0 +1,9 @@
+abstract t (x: term): perm
+
+val f (x: int | t x): int =
+  1
+
+val y = 2
+
+val g (| consumes t y): int =
+  f y

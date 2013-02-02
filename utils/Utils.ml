@@ -49,6 +49,13 @@ let read ic =
   Buffer.contents buf
 ;;
 
+let file_get_contents f =
+  let ic = open_in f in
+  let r = read ic in
+  close_in ic;
+  r
+;;
+
 let ptag buf p =
   let open Obj in
   if is_block (repr p) then

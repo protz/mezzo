@@ -746,8 +746,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("improve-inference.mz", simple_test ~known_failure:() Pass);
 
-  ("cycle1.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
-
   ("cps-dereliction.mz", simple_test Pass);
 
   ("fold-permission.mz", simple_test Pass);
@@ -769,6 +767,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("vicious-cycle.mz", simple_test Pass);
 
   ("named-tuple-components.mz", simple_test ~known_failure:() Pass);
+
+  ("abstract-perm.mz", simple_test Pass);
 
 ];;
 

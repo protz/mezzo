@@ -93,10 +93,10 @@ let safety_check env =
  * treated differently. The various [add_perm] and [sub_perm] function will case
  * these two helpers. *)
 
-let sub_floating_perm env p =
-  match Hml_List.take_bool (same env p) env.floating_permissions with
-  | Some (remaining_perms, _) ->
-      if FactInference.is_duplicable env (TyPoint p) then
+let sub_floating_perm env t =
+  match Hml_List.take_bool (equal env t) env.floating_permissions with
+  | Some (remaining_perms, t') ->
+      if FactInference.is_duplicable env t' then
         Some env
       else
         Some { env with floating_permissions = remaining_perms }
@@ -105,8 +105,8 @@ let sub_floating_perm env p =
 ;;
 
 
-let add_floating_perm env p =
-  { env with floating_permissions = p :: env.floating_permissions }
+let add_floating_perm env t =
+  { env with floating_permissions = t :: env.floating_permissions }
 ;;
 
 
@@ -196,15 +196,20 @@ let add_constraints env constraints =
 ;;
 
 
-let perm_not_flex env t =
-  (* FIXME there should probably be a call to [structure] here. *)
+let rec perm_not_flex env t =
   match t with
+  | TyPoint p when has_structure env p ->
+      perm_not_flex env (Option.extract (structure env p))
   | TyAnchoredPermission (x, _) ->
       not (is_flexible env !!x)
   | TyPoint p ->
       not (is_flexible env p)
+  | TyStar _ ->
+      true
   | TyEmpty ->
-      false
+      true
+  | TyApp _ ->
+      true
   | _ ->
       Log.error "You should not call [perm_not_flex] on %a"
         TypePrinter.ptype (env, t)
@@ -250,7 +255,7 @@ and keep_only_duplicable (env: env): env * (env -> env) =
   (* Don't forget the abstract perm variables. *)
   let all_floating = env.floating_permissions in
   let dup_floating =
-    List.filter (fun x -> FactInference.is_duplicable env (TyPoint x)) all_floating
+    List.filter (FactInference.is_duplicable env) all_floating
   in
   let env = { env with floating_permissions = dup_floating } in
 
@@ -358,6 +363,7 @@ and add (env: env) (point: point) (t: typ): env =
 and add_perm (env: env) (t: typ): env =
   TypePrinter.(Log.debug ~level:4 "[add_perm] %a"
     ptype (env, t));
+  Log.check (get_kind_for_type env t = KPerm) "This function only works with types of kind perm.";
 
   match t with
   | TyAnchoredPermission (p, t) ->
@@ -368,16 +374,10 @@ and add_perm (env: env) (t: typ): env =
       add_perm (add_perm env p) q
   | TyEmpty ->
       env
-  | TyPoint p ->
-      begin match structure env p with
-      | Some t ->
-          add_perm env t
-      | None ->
-          add_floating_perm env p
-      end
-
+  | TyPoint p when has_structure env p ->
+      add_perm env (Option.extract (structure env p))
   | _ ->
-      Log.error "This only works for types with kind perm."
+      add_floating_perm env t
 
 
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
@@ -980,12 +980,12 @@ and sub_type_real env t1 t2 =
 
       (* And then try to be smart with whatever remains. *)
       begin match vars1 @ ps1, vars2 @ ps2 with
-      | [TyPoint var1], [TyPoint var2] ->
+      | [TyPoint var1 as t1], [TyPoint var2 as t2] ->
           (* Beware! We're doing our own one-on-one matching of permission
            * variables, but still, we need to keep [var1] if it happens to be a
            * duplicable one! So we add it here, and [sub_floating_perm] will
            * remove it or not, depending on the associated fact. *)
-          let env = add_floating_perm env var1 in
+          let env = add_floating_perm env t1 in
           begin match is_flexible env var1, is_flexible env var2 with
           | true, false ->
               Some (merge_left env var2 var1)
@@ -999,7 +999,7 @@ and sub_type_real env t1 t2 =
               else
                 None
           end >>= fun env ->
-          sub_floating_perm env var2
+          sub_floating_perm env t2
       | ps1, [TyPoint var2] when is_flexible env var2 ->
           Some (instantiate_flexible env var2 (fold_star ps1))
       | [TyPoint var1], ps2 when is_flexible env var1 ->
@@ -1083,6 +1083,7 @@ and equal_modulo_flex env t1 t2 =
 (** [sub_perm env t] takes a type [t] with kind KPerm, and tries to return the
     environment without the corresponding permission. *)
 and sub_perm (env: env) (t: typ): env option =
+  Log.check (get_kind_for_type env t = KPerm) "This type does not have kind perm";
   TypePrinter.(
     Log.debug ~level:4 "[sub_perm] %a"
       ptype (env, t));
@@ -1094,18 +1095,10 @@ and sub_perm (env: env) (t: typ): env option =
       sub_perms env (flatten_star t)
   | TyEmpty ->
       Some env
-  | TyPoint p ->
-      begin match structure env p with
-      | Some t ->
-          sub_perm env t
-      | None ->
-          sub_floating_perm env p
-      end
+  | TyPoint p when has_structure env p ->
+      sub_perm env (Option.extract (structure env p))
   | _ ->
-      Log.error "[sub_perm] the following type does not have kind perm: %a (%a)"
-        TypePrinter.ptype (env, t)
-        Utils.ptag t
-
+      sub_floating_perm env t
 
 and sub_perms env perms =
   (* The order in which we subtract a bunch of permission is important because,

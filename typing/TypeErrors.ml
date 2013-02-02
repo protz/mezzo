@@ -25,6 +25,7 @@ open Expressions
 type error = env * raw_error
 
 and raw_error =
+  | CyclicDependency of Module.name
   | NotAFunction of point
   | HasFlexible of typ
   | ExpectedType of typ * point
@@ -452,4 +453,6 @@ let print_error buf (env, raw_error) =
         Lexer.p env.location
         pname (env, p)
         ppermission_list (env, p)
+  | CyclicDependency m ->
+      Printf.bprintf buf "There is a cyclic dependency on module %a" Module.p m
 ;;

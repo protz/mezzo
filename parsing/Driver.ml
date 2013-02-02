@@ -53,11 +53,12 @@ let mkprefix path =
   if !Options.no_auto_include && path = !Options.filename then
     []
   else
-    let autoload_modules = [
-      "bool";
-      "core";
-      "pervasives";
-    ] in
+    let corelib_dir =
+      Filename.concat Configure.root_dir "corelib"
+    in
+    let autoload_path = Filename.concat corelib_dir "autoload" in
+    let autoload_modules = Hml_String.split (Utils.file_get_contents autoload_path) '\n' in
+    let autoload_modules = List.filter (fun s -> String.length s > 0 && s.[0] <> '#') autoload_modules in
     let me = Filename.basename path in
     let my_dir = Filename.dirname path in
     let chop l =
@@ -71,9 +72,6 @@ let mkprefix path =
             List.rev acc
       in
       chop [] l
-    in
-    let corelib_dir =
-      Filename.concat Configure.root_dir "corelib"
     in
     let me_in_core_directory =
       Utils.absolute_path corelib_dir = Utils.absolute_path my_dir
@@ -379,6 +377,8 @@ let process file_path =
         None
     in
     let env = check_implementation mname program iface in
+    if !Options.please_compile then
+      Compile.implementation file_path program;
     env
   else if Filename.check_suffix file_path ".mzi" then
     let mname = module_name_for_file_path file_path in
@@ -387,7 +387,7 @@ let process file_path =
     Log.error "Unknown file extension"
 ;;
 
-(* The [run] function servers as a wrapper that catches errors and prints them
+(* The [run] function serves as a wrapper that catches errors and prints them
  * properly (at the cost of losing a useful backtrace, though). *)
 type run_options = {
   html_errors: bool;

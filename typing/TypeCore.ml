@@ -177,9 +177,11 @@ type env = {
   (* The name of the current unit. *)
   module_name: Module.name;
 
-  (* These permissions are abstract KPerm variables, they're not attached to any
-   * point in particular, so we keep a list of them here. *)
-  floating_permissions: point list;
+  (* This is a list of abstract permissions available in the environment. It can
+   * either be a type application, i.e. "p x", where "p" is abstract, or a type
+   * variable. They're not attached to any point in particular, so we keep a
+   * list of them here. *)
+  floating_permissions: typ list;
 }
 
 and binding =
