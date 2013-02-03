@@ -909,9 +909,6 @@ anonymous_function:
   EQUAL body = expression
     { EFun (type_parameters, TyAnd (constraints, formal), result, body) }
 
-(* TEMPORARY There are additional rules that ought to be verified at
-   some point (e.g. only function definitions are allowed to be recursive) *)
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Top-level value definitions. *)
