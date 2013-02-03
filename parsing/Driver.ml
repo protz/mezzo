@@ -377,6 +377,8 @@ let process file_path =
         None
     in
     let env = check_implementation mname program iface in
+    if !Options.please_compile then
+      Compile.implementation file_path program;
     env
   else if Filename.check_suffix file_path ".mzi" then
     let mname = module_name_for_file_path file_path in
@@ -385,7 +387,7 @@ let process file_path =
     Log.error "Unknown file extension"
 ;;
 
-(* The [run] function servers as a wrapper that catches errors and prints them
+(* The [run] function serves as a wrapper that catches errors and prints them
  * properly (at the cost of losing a useful backtrace, though). *)
 type run_options = {
   html_errors: bool;

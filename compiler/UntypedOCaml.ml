@@ -121,5 +121,8 @@ type toplevel_item =
   | OpenDirective of string
 
 type implementation =
-  toplevel_item list
+    toplevel_item list
+
+type interface =
+    toplevel_item list
 

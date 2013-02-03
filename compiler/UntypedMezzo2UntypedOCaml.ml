@@ -6,7 +6,7 @@ module O = UntypedOCaml
 
 (* TEMPORARY think about [open]: when we mention a data constructor
    or field name in OCaml, is it always in scope? or must we qualify
-   it? can we qualified names everywhere? *)
+   it? can we use qualified names everywhere? *)
 
 (* ---------------------------------------------------------------------------- *)
 

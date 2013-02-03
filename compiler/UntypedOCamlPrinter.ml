@@ -218,3 +218,91 @@ and equation (p, e) =
 and expression e =
   dangling_expression e
 
+(* ---------------------------------------------------------------------------- *)
+
+(* Types. *)
+
+let ty = function
+  | TyVar x ->
+      utf8string x
+
+let data_type_def_branch (datacon, components) =
+  hardline ^^
+  string "| " ^^
+  utf8string datacon ^^
+  match components with
+  | [] ->
+      empty
+  | _ :: _ ->
+      string " of " ^^ separate_map (string " * ") ty components
+
+let data_type_def_lhs (typecon, parameters) =
+  begin match parameters with
+  | [] ->
+      empty
+  | [ x ] ->
+      utf8string x ^^ space
+  | _ :: _ :: _ ->
+      tuple utf8string parameters ^^ space
+  end ^^
+  utf8string typecon
+
+let mutability = function
+  | Immutable ->
+      empty
+  | Mutable ->
+      string "mutable "
+
+let record_def (fields : record_def) =
+  braces_with_nesting (
+    separate_map semibreak (fun (m, f, t) ->
+      (mutability m ^^ utf8string f ^^ colon) ^//^ ty t
+    ) fields
+  )
+
+let data_type_def_rhs = function
+  | Sum branches ->
+      concat_map data_type_def_branch branches
+  | Record def ->
+      break 1 ^^ record_def def
+
+let data_type_def (lhs, rhs) =
+  group (
+    string "type " ^^ data_type_def_lhs lhs ^^ space ^^ equals ^^ nest 2 (data_type_def_rhs rhs)
+  )
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Value definitions. *)
+
+let definition (f, eqs) =
+  group (
+    nest 2 (
+      string "let " ^^
+      flag f ^^
+      equations eqs
+    )
+  )
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Top-level items. *)
+
+let toplevel_item = function
+  | DataTypeGroup def ->
+      data_type_def def
+  | ValueDefinition def ->
+      definition def
+  | ValueDeclaration (x, t) ->
+      string "val " ^^ utf8string x ^^ colon ^^ space ^^ ty t
+  | OpenDirective m ->
+      string "open " ^^ string m
+
+let implementation items =
+  concat_map (fun item ->
+    toplevel_item item ^^ twice hardline
+  ) items
+
+let interface =
+  implementation
+
