@@ -1,18 +1,10 @@
 (* Standard types *)
 
-data option a = None | Some { contents: a }
-
 data choice a b =
   | Left  { contents: a }
   | Right { contents: b }
 
 (* Standard types *)
-
-val none =
-  None
-
-val some [a] (consumes x: a): option a =
-  Some { contents = x }
 
 (* Arithmetic *)
 

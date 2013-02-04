@@ -1,32 +1,7 @@
-(* Options *)
-
-data option a = None | Some { contents: a }
-
 data choice a b =
   | Left  { contents: a }
   | Right { contents: b }
  
-(* Interesting. You cannot put “val none : [a] option a”: although this
- * signature will be accepted, consumers will no longer know that [none] is
- * duplicable. Therefore, the first consumer that uses [none] will consume the
- * permission for it, which is not what we want.
- *
- * A first idea would be to use an argument in the style of the value
- * restriction: since [a] only appears in positive position in “[a] option a”,
- * it means [none] does not use its parameter. Type [option] is not declared as
- * exclusive, so [none] *must be* duplicable.
- *
- * A second idea would be to add a mechanism to mark a value in a signature as
- * duplicable.
- *
- * A third idea would be, assuming we want the type [option] to be abstract, to
- * write “val none : [a] () -> [option a]”. The implementation would be
- * “val none [a] (): option a = None” (the constant can even be shared).
- *
- * Since we won't make option abstract, we can afford to put the real
- * constructor here. *)
-val none : None
-val some : [a] (consumes a) -> option a
 
 
 (* Arithmetic *)
