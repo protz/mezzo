@@ -118,9 +118,9 @@ let render doc =
 let dump (filename : string) (doc : document) =
   let buf = Buffer.create 32768 in
   PPrint.ToBuffer.pretty 0.95 Bash.twidth buf doc;
-  let c = open_out filename in
-  Buffer.output_buffer c buf;
-  close_out c
+  Utils.with_open_out filename (fun c ->
+    Buffer.output_buffer c buf
+  )
 
 (* Parentheses with nesting. Yields either:
    (this)

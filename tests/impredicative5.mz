@@ -1,4 +1,3 @@
-open core
 (* This exercises consumes-subtyping (really, subtraction on arrow types). *)
 
 mutable data foo = Foo

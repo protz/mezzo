@@ -1,4 +1,3 @@
-open core
 open list
 
 (* This is a variant of [list::mem]. It is defined in terms of [find] instead of

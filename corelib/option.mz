@@ -1,0 +1,10 @@
+data option a =
+  | None
+  | Some { contents: a }
+
+val none : [a] option a =
+  None
+
+val some [a] (consumes x: a): option a =
+  Some { contents = x }
+

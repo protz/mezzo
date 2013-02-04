@@ -1,4 +1,3 @@
-open core
 val foo =
   let x = 355 in
   let y = 113 in

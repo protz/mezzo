@@ -772,18 +772,19 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
 ];;
 
-let corelib_tests: (string * ((unit -> env) -> unit)) list = [
-  ("pervasives.mz", simple_test Pass);
-];;
+let mz_files_in_directory (dir : string) : string list =
+  let filenames = Array.to_list (Sys.readdir dir) in
+  List.filter (fun filename ->
+    Filename.check_suffix filename ".mz"
+  ) filenames
 
-let stdlib_tests: (string * ((unit -> env) -> unit)) list = [
-  ("arrayops.mz", simple_test Pass);
-  ("list.mz", simple_test Pass);
-  ("mutableTreeMap.mz", simple_test Pass);
-  ("bucket.mz", simple_test Pass);
-  ("hashtable.mz", simple_test Pass);
-  ("queue.mz", simple_test Pass);
-];;
+let corelib_tests: (string * ((unit -> env) -> unit)) list =
+  List.map (fun filename -> filename, simple_test Pass) (mz_files_in_directory (Configure.root_dir ^ "/corelib"))
+;;
+
+let stdlib_tests: (string * ((unit -> env) -> unit)) list =
+  List.map (fun filename -> filename, simple_test Pass) (mz_files_in_directory (Configure.root_dir ^ "/stdlib"))
+;;
 
 let _ =
   let open Bash in

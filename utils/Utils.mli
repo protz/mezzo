@@ -17,6 +17,10 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+val try_finally : (unit -> 'a) -> (unit -> unit) -> 'a
+val with_open_in : string -> (in_channel -> 'a) -> 'a
+val with_open_out : string -> (out_channel -> 'a) -> 'a
+
 val dont_inline: 'a -> 'a
 val fresh_name: string -> string
 val fresh_var: string -> Variable.name

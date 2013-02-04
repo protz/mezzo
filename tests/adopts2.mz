@@ -1,2 +1,1 @@
-open core
 mutable data bar = Bar adopts (bar -> bar)

@@ -1,0 +1,16 @@
+(* The type [option]. *)
+
+data option a =
+  | None
+  | Some { contents: a }
+
+(* Constructors. *)
+
+(* We could assign precise types to the constructors: [none] has type [None],
+   and [some x] has type [Some { contents: a }] if [x] has type [a]. For the
+   moment, let's try and see if we can work with the following more abstract
+   types. *)
+
+val none : [a] option a
+val some : [a] (consumes a) -> option a
+

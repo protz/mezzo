@@ -21,6 +21,9 @@ val ( <= ) : (int, int) -> bool
 val ( >= ) : (int, int) -> bool
 val ( > ) : (int, int) -> bool
 
+val max : (int, int) -> int
+val min : (int, int) -> int
+
 (* Bitwise AND *)
 val ( & ) : (int, int) -> int
 

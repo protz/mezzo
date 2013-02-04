@@ -1,4 +1,3 @@
-open core
 mutable data xlist a = Cons { head: a; tail: xlist a} | Nil
 
 val id [a] (l: xlist int): () =

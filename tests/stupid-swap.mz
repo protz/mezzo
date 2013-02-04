@@ -1,4 +1,3 @@
-open core
 (* Parsing: a structural permission with sugar for singleton types. *)
 
 mutable data xpair a b =

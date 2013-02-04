@@ -1,5 +1,3 @@
-open core
-open pervasives
 open list
 
 (* It would be great if we could abstract this code so as to work

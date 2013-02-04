@@ -1,4 +1,3 @@
-open core
 mutable data foo = Foo { foo: (); bar: () } | Bar
 
 val f (consumes x: foo): () =

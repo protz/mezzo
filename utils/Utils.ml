@@ -17,6 +17,41 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+(* -------------------------------------------------------------------------- *)
+
+(* try/finally *)
+
+let try_finally f h =
+  let result =
+    try
+      f()
+    with e ->
+      h();
+      raise e
+  in
+  h();
+  result
+
+(* Opening a file, while guaranteeing that the file descriptor will be freed. *)
+
+let with_open_in file_path f =
+  let c = open_in file_path in
+  try_finally (fun () ->
+    f c
+  ) (fun () ->
+    close_in c
+  )
+
+let with_open_out file_path f =
+  let c = open_out file_path in
+  try_finally (fun () ->
+    f c
+  ) (fun () ->
+    close_out c
+  )
+
+(* -------------------------------------------------------------------------- *)
+
 (* Trick from Jacques-Henri: if the backtraces become unusable, call this
  * function. Because we develop in byte-code, it will prevent tail-calls,
  * thus producing better backtraces; in native code, with cross-module
@@ -50,10 +85,7 @@ let read ic =
 ;;
 
 let file_get_contents f =
-  let ic = open_in f in
-  let r = read ic in
-  close_in ic;
-  r
+  with_open_in f read
 ;;
 
 let ptag buf p =

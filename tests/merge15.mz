@@ -1,4 +1,3 @@
-open core
 open absdefs
 
 data pair a b = Pair { left: a; right: b }

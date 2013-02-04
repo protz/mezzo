@@ -1,4 +1,3 @@
-open core
 mutable data pair a b = Pair { left: a; right: b }
 
 val right [a, b] (consumes a, consumes Pair { left: unknown; right: b }): () =

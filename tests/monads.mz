@@ -1,4 +1,3 @@
-open core
 (* The identity monad. *)
 
 (* We don't have type abbreviations, so we have to wrap the type [a]

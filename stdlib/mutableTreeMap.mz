@@ -727,6 +727,8 @@ val rec filter [k, a, b] (
 (* The function [partition] is generalized in a similar manner. Instead
    of returning a Boolean value, it returns a choice. *)
 
+open choice (* TEMPORARY *)
+
 val rec partition [k, a, b, c] (
   p: (k, consumes a) -> choice b c,
   consumes t: tree k a

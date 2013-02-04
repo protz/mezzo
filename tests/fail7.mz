@@ -1,4 +1,3 @@
-open core
 
 mutable data tree k a =
   | Empty

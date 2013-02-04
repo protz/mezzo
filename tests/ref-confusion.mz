@@ -1,5 +1,3 @@
-open core
-open pervasives
 
 (* This example needs a better error message, e.g. "ref is a type, not a term", or something like that *)
 val c = ref 0

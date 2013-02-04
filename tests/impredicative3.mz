@@ -1,4 +1,3 @@
-open core
 mutable data foo = Foo
 
 val fst [α, β] (consumes x: α, β): α = x

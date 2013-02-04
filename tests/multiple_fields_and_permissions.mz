@@ -1,4 +1,3 @@
-open core
 (* Parsing: multiple fields with a common type. *)
 
 mutable data bag a =

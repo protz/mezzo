@@ -1,4 +1,3 @@
-open core
 open absdefs
 
 (* Make sure folding and unfolding (including instantiating the initial

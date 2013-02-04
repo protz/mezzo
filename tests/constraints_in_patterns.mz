@@ -1,4 +1,3 @@
-open core
 open xlist
 
 val (x: xlist int), (y: xlist int) =
