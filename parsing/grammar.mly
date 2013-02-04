@@ -903,7 +903,7 @@ definition:
    expression. *)
 
 (* We could allow the formal arguments to be an [atomic_type], but I prefer
-   to require the formal arguments to be surroundered with parentheses; this
+   to require the formal arguments to be surrounded with parentheses; this
    is why I define and use the category [parenthetic_type]. *)
 
 anonymous_function:
