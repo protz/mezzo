@@ -29,21 +29,6 @@ val none : None
 val some : [a] (consumes a) -> option a
 
 
-(* References *)
-
-mutable data ref a = Ref {
-  contents: a;
-}
-
-val newref : [a] (consumes a) -> ref a
-val (!) : [y : term] (consumes x: Ref { contents = y }) -> (=y | x @ Ref { contents = y })
-val (:=) : [a, b] (consumes x: ref a, consumes b) -> ( | x @ ref b)
-
-
-(* Booleans *)
-
-val not : bool -> bool
-
 (* Arithmetic *)
 
 val max : (int, int) -> int

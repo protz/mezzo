@@ -1,0 +1,7 @@
+mutable data ref a =
+    Ref { contents: a }
+
+val newref : [a] (consumes a) -> ref a
+val (!)    : [y : term] (ref (=y)) -> =y
+val (:=)   : [a, b] (consumes x: ref a, consumes b) -> (| x @ ref b)
+
