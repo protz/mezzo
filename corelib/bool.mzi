@@ -1,14 +1,32 @@
+(* The type [bool] of Booleans. *)
+
 data bool =
   | False
   | True
 
+(* Constants. *)
+
 val false : bool
 val true : bool
+
+(* Negation. *)
+
 val not : bool -> bool
+
+(* The type [rich_bool] of Booleans indexed with permissions. *)
 
 data rich_bool (p : perm) (q: perm) =
   | RichFalse { | q }
   | RichTrue { | p }
 
+(* Negation. *)
+
 val rich_not : [p : perm, q : perm] (consumes rich_bool p q) -> rich_bool q p
+
+(* Physical equality, a primitive operation, returns a rich Boolean value.
+   Deconstructing [x == y] yields, in the [RichTrue] branch, an equality
+   between [x] and [y]. *)
+
+val ( == ) : (x: unknown, y: unknown) -> rich_bool (x = y) empty
+val ( != ) : (x: unknown, y: unknown) -> rich_bool empty (x = y)
 

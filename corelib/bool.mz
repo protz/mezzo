@@ -40,3 +40,18 @@ val rich_not [p : perm, q : perm] (consumes b : rich_bool p q) : rich_bool q p =
    bool as a type abbreviation for rich_bool empty empty? We would need to
    assign precise types to the Boolean operators. *)
 
+(* The physical equality check (==) defined below returns, in case of success, a
+ * permission revealing that the two identifiers are equal. *)
+
+val ( == ) : (x: unknown, y: unknown) -> rich_bool (x = y) empty =
+  builtin _mz_address_eq
+
+val ( != ) (x: unknown, y: unknown) : rich_bool empty (x = y) =
+  rich_not (x == y)
+
+(* TEMPORARY on pourrait vouloir restreindre le test d'égalité == aux types
+   exclusifs, ce qui permettrait de partager les blocs immutables sans
+   contredire la sémantique officielle. C'est un peu un point de détail.
+   D'un point de vue strictement pratique, ce ne serait pas une
+   super idée? *)
+

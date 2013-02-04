@@ -1,2 +1,1 @@
-open core
 val length : [a] (list::list a) -> int

@@ -1,4 +1,3 @@
-open core
 open pervasives (* TEMPORARY *)
 
 (* An object of type [permission x a] is a runtime representation

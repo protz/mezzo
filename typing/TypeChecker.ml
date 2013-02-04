@@ -422,8 +422,8 @@ let merge_type_annotations env t1 t2 =
 
 let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * point =
 
-  (* lazy because we want to run ./mezzo corelib/core.mz *)
-  let t_int = lazy (find_type_by_name env ~mname:"core" "int")
+  (* lazy because we need to typecheck the core modules too! *)
+  let t_int = lazy (find_type_by_name env ~mname:"int" "int")
   and t_bool = lazy (find_type_by_name env ~mname:"bool" "bool") in
 
   (* [return t] creates a new point with type [t] available for it, and returns

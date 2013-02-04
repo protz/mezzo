@@ -1,0 +1,33 @@
+(* The primitive type [int] of integers. *)
+
+abstract int
+fact duplicable int
+
+(* Primitive arithmetic operations on integers. *)
+
+val ( + ) : (int, int) -> int = builtin _mz_iadd
+val ( - ) : (int, int) -> int = builtin _mz_isub
+val ( * ) : (int, int) -> int = builtin _mz_imul
+val ( / ) : (int, int) -> int = builtin _mz_idiv
+
+(* Primitive bitwise operations on integers. *)
+
+val ( & )  : (int, int) -> int  = builtin _mz_iand
+
+(* Primitive comparison operators on integers. *)
+
+val ( = )  : (int, int) -> bool = builtin _mz_ieq
+val ( <> ) : (int, int) -> bool = builtin _mz_ine
+val ( < )  : (int, int) -> bool = builtin _mz_ilt
+val ( <= ) : (int, int) -> bool = builtin _mz_ile
+val ( > )  : (int, int) -> bool = builtin _mz_igt
+val ( >= ) : (int, int) -> bool = builtin _mz_ige
+
+(* Defined operations on integers. *)
+
+val min (x: int, y: int) : int =
+  if x <= y then x else y
+
+val max (x: int, y: int) : int =
+  if x <= y then y else x
+
