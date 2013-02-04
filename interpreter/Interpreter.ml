@@ -492,7 +492,7 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
          contains a mapping of field names to field offsets. *)
       let b1 = asBlock (eval env loc e1) in
       let v2 = eval env loc e2 in
-      b1.fields.(field_offset f b1.tag) <- v2;
+      b1.fields.(field_offset f.field_name b1.tag) <- v2;
       unit_value
 
   | EAssignTag (e, dref, _) ->
@@ -506,7 +506,7 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
       (* We rely on the fact that [b.tag] is a [datacon_info] record and
          contains a mapping of field names to field offsets. *)
       let b = asBlock (eval env loc e) in
-      b.fields.(field_offset f b.tag)
+      b.fields.(field_offset f.field_name b.tag)
 
   | EAssert _ ->
       unit_value

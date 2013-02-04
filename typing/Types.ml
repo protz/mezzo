@@ -736,8 +736,12 @@ module TypePrinter = struct
     utf8string (Datacon.print datacon)
   ;;
 
-  let print_field field =
+  let print_field_name field =
     utf8string (Field.print field)
+  ;;
+
+  let print_field field =
+    print_field_name (field.SurfaceSyntax.field_name)
   ;;
 
   let rec print_kind =
@@ -916,7 +920,7 @@ module TypePrinter = struct
 
   and print_data_field_def env = function
     | FieldValue (name, typ) ->
-        print_field name ^^ colon ^^ jump (print_type env typ)
+        print_field_name name ^^ colon ^^ jump (print_type env typ)
 
     | FieldPermission typ ->
         string "permission" ^^ space ^^ print_type env typ

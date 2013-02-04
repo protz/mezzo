@@ -58,15 +58,10 @@ let mk_tag_update_info () = {
   is_phantom_update = None
 };;
 
-(* A fresh name generator, to be used (with moderation) when desugaring
-   certain constructs. *)
-
-let fresh : string -> Variable.name =
-  let c = ref 0 in
-  fun (hint : string) ->
-    let i = !c in
-    c := i + 1;
-    Variable.register (Printf.sprintf "<%s%d>" hint i)
+let mk_field field_name = {
+  field_name;
+  field_offset = None;
+};;
 
 (* This auxiliary function identifies expressions that can be copied
    without affecting their semantics (basically, just variables). *)
@@ -88,6 +83,6 @@ let name (hint : string) e : (expression -> expression) * expression =
   if is_var e then
     (fun hole -> hole), e
   else
-    let x = fresh hint in
+    let x = Utils.fresh_var hint in
     (fun hole -> ELet (Nonrecursive, [ PVar x, e ], hole)), EVar x
 

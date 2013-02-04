@@ -28,6 +28,9 @@ open Types
 type tag_update_info =
     SurfaceSyntax.tag_update_info
 
+type field =
+    SurfaceSyntax.field
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Patterns *)
@@ -67,11 +70,11 @@ type expression =
   (* fun [a] (x: τ): τ -> e *)
   | EFun of (type_binding * flavor) list * typ * typ * expression
   (* v.f <- e *)
-  | EAssign of expression * Field.name * expression
+  | EAssign of expression * field * expression
   (* tag of v <- Foo *)
   | EAssignTag of expression * resolved_datacon * tag_update_info
   (* v.f *)
-  | EAccess of expression * Field.name
+  | EAccess of expression * field
   (* e₁ e₂ *)
   | EApply of expression * expression
   (* e [τ₁, …, τₙ] *)
@@ -1080,7 +1083,7 @@ module ExprPrinter = struct
             jump ~indent:4
               (separate_map
                 (semi ^^ break 1)
-                (fun (field, name) -> print_field field ^^ space ^^
+                (fun (field, name) -> print_field_name field ^^ space ^^
                   equals ^^ space ^^ print_pat env name) fieldnames) ^^
             jump rbrace
           else
@@ -1173,7 +1176,7 @@ module ExprPrinter = struct
 
     | EConstruct (datacon, fieldexprs) ->
         let fieldexprs = List.map (fun (field, expr) ->
-          print_field field ^^ space ^^ equals ^^ space ^^ print_expr env expr
+          print_field_name field ^^ space ^^ equals ^^ space ^^ print_expr env expr
         ) fieldexprs in
         let fieldexprs =
           if List.length fieldexprs > 0 then

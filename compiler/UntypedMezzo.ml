@@ -63,16 +63,19 @@ type datacon_reference =
 type tag_update_info =
     SurfaceSyntax.tag_update_info
 
+type field =
+    SurfaceSyntax.field
+
 type expression =
   | EVar of Variable.name
   | EQualified of Module.name * Variable.name
   | EBuiltin of string
   | ELet of rec_flag * (pattern * expression) list * expression
   | EFun of pattern * expression
-  | EAssign of expression * Field.name * expression
+  | EAssign of expression * field * expression
     (* The expression carried by [EAssignTag] must be a value. *)
   | EAssignTag of expression * datacon_reference * tag_update_info
-  | EAccess of expression * Field.name
+  | EAccess of expression * field
   | EApply of expression * expression
   | EMatch of expression * (pattern * expression) list
   | ETuple of expression list

@@ -522,7 +522,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           raise_error sub_env (NoSuchPermission return_type)
       end
 
-  | EAssign (e1, fname, e2) ->
+  | EAssign (e1, field, e2) ->
+      let fname = field.SurfaceSyntax.field_name in
       let hint = add_hint hint (Field.print fname) in
       let env, p1 = check_expression env ?hint e1 in
       let env, p2 = check_expression env e2 in
@@ -632,7 +633,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       return env ty_unit
 
 
-  | EAccess (e, fname) ->
+  | EAccess (e, field) ->
       (* We could be a little bit smarter, and generic here. Instead of iterating
        * on the permissions, we could use a reverse map from field names to
        * types. We could then subtract the type (instanciated using flexible
@@ -641,6 +642,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
        * allow us to reuse the code. Of course, this raises the question of
        * “what do we do in case there's an ambiguity”, that is, multiple
        * datacons that feature this field name... We'll leave that for later. *)
+      let fname = field.SurfaceSyntax.field_name in
       let hint = add_hint hint (Field.print fname) in
       let env, p = check_expression env ?hint e in
       let module M = struct exception Found of point end in

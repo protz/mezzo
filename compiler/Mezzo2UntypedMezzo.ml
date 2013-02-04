@@ -43,7 +43,7 @@ let abandon v1 v2 success failure =
     EApply (
       EBuiltin "_mz_address_eq",
       ETuple [
-	EAccess (v1, adopter_field);
+	EAccess (v1, ParserUtils.mk_field adopter_field);
 	v2
       ]
     ),
@@ -216,7 +216,7 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
   | EGive (e1, e2) ->
       eval "adoptee" loc e1 (fun v1 ->
       eval "adopter" loc e2 (fun v2 ->
-      k (U.EAssign (v1, adopter_field, v2))
+      k (U.EAssign (v1, ParserUtils.mk_field adopter_field, v2))
       ))
 
   | ETake (e1, e2) ->
@@ -226,7 +226,7 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       k (
 	abandon v1 v2
 	  (* then v1.adopter <- null *)
-	  (U.EAssign (v1, adopter_field, U.ENull))
+	  (U.EAssign (v1, ParserUtils.mk_field adopter_field, U.ENull))
 	  (* else fail *)
 	  (U.EFail (Log.msg "%a\nA take instruction failed.\n" Lexer.p loc))
       )))

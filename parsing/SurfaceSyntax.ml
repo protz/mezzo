@@ -275,11 +275,11 @@ and expression =
   (* fun [a] (x: τ): τ -> e *)
   | EFun of type_binding list * typ * typ * expression
   (* v.f <- e *)
-  | EAssign of expression * Field.name * expression
+  | EAssign of expression * field * expression
   (* tag of v <- Datacon *)
   | EAssignTag of expression * datacon_reference * tag_update_info
   (* v.f *)
-  | EAccess of expression * Field.name
+  | EAccess of expression * field
   (* assert τ *)
   | EAssert of typ
   (* e₁ e₂ *)
@@ -311,6 +311,15 @@ and tag_update_info = {
   (* Uninitialized by the parser. Information later filled in by the type-checker. *)
   mutable is_phantom_update: bool option;
 }
+
+and field = {
+  field_name: Field.name;
+  (* Uninitialized by the parser. Information later filled in by the type-checker. *)
+  mutable field_offset: offset option;
+}
+
+and offset =
+  int
 
 and tapp =
   | Ordered of typ

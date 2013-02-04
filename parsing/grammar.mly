@@ -726,7 +726,7 @@ explain:
 
 raw_tight_expression:
 | e = tight_expression DOT f = variable
-    { EAccess (e, f) }
+    { EAccess (e, mk_field f) }
 | a = raw_atomic_expression
     { a }
 
@@ -808,7 +808,7 @@ raw_reasonable_expression:
      comma and semicolon; and 2- we might reserve the syntax x.f, y.f <- e1, e2
      for multiple assignments. *)
 | e1 = tight_expression DOT f = variable LARROW e2 = reasonable_expression
-    { EAssign (e1, f, e2) }
+    { EAssign (e1, mk_field f, e2) }
 | TAGOF e1 = tight_expression LARROW d = datacon_reference
     { EAssignTag (e1, d, mk_tag_update_info ()) }
 | TAKE e1 = expression FROM e2 = reasonable_expression
