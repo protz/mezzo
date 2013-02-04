@@ -1,0 +1,4 @@
+data choice a b =
+  | Left  { contents: a }
+  | Right { contents: b }
+

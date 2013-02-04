@@ -1,9 +1,3 @@
-data choice a b =
-  | Left  { contents: a }
-  | Right { contents: b }
- 
-
-
 (* Arithmetic *)
 
 val max : (int, int) -> int

@@ -1,9 +1,5 @@
 (* Standard types *)
 
-data choice a b =
-  | Left  { contents: a }
-  | Right { contents: b }
-
 (* Standard types *)
 
 (* Arithmetic *)
