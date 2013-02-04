@@ -298,30 +298,25 @@ val rec for_all [a, p : perm] (ok: (a | p) -> bool, xs: list a | p) : bool =
     True
 
 val rec rich_for_all
-  [a, p : perm] (ok: (a | p) -> rich_bool empty empty, xs: list a | p) : rich_bool empty empty =
+  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool empty q, xs: list a | p) : rich_bool empty q =
   match xs with
   | Nil ->
       RichTrue
   | Cons { head; tail } ->
-      conjunction [empty, empty, empty] (
+      conjunction [empty, empty, q] (
 	ok head,
-	fun (| p * tail @ list a) : rich_bool empty empty =
+	fun (| p * tail @ list a) : rich_bool empty q =
 	  rich_for_all (ok, tail)
       )
   end
 
 val rec rich_for_all_with_inlined_conjunction
-  [a, p : perm] (ok: (a | p) -> rich_bool empty empty, xs: list a | p) : rich_bool empty empty =
+  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool empty q, xs: list a | p) : rich_bool empty q =
   match xs with
   | Nil ->
       RichTrue
   | Cons { head; tail } ->
-      match ok head with
-      | RichFalse ->
-	  RichFalse
-      | RichTrue ->
-	  rich_for_all_with_inlined_conjunction (ok, tail)
-      end
+      ok head && rich_for_all_with_inlined_conjunction (ok, tail)
   end
 
 val rec exists [a, p : perm] (ok: (a | p) -> bool, xs: list a | p) : bool =
@@ -331,17 +326,12 @@ val rec exists [a, p : perm] (ok: (a | p) -> bool, xs: list a | p) : bool =
     False
 
 val rec rich_exists_with_inlined_disjunction
-  [a, p : perm] (ok: (a | p) -> rich_bool empty empty, xs: list a | p) : rich_bool empty empty =
+  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool q empty, xs: list a | p) : rich_bool q empty =
   match xs with
   | Nil ->
       RichFalse
   | Cons { head; tail } ->
-      match ok head with
-      | RichTrue ->
-	  RichTrue
-      | RichFalse ->
-	  rich_exists_with_inlined_disjunction (ok, tail)
-      end
+      ok head || rich_exists_with_inlined_disjunction (ok, tail)
   end
 
 (* The function [find] cannot raise an exception, as it does in OCaml.

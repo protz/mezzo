@@ -54,8 +54,41 @@ let mkfield f = {
   field_datacon = Datacon.register "<invalid>"
 };;
 
-let mkinfix e1 o e2 =
-  EApply (EVar (Variable.register o), ETuple [e1; e2])
+(* TEMPORARY should use a qualified name *)
+let rich_false =
+  Datacon.register "RichFalse"
+
+let rich_true =
+  Datacon.register "RichTrue"
+
+let mkinfix e1 (o : string) e2 =
+  match o with
+  | "&&" ->
+      (* Boolean conjunction is macro-expanded to a match construct. *)
+      (* e1 && e2 is sugar for:
+	 match e1 with RichFalse -> RichFalse | RichTrue -> e2 end *)
+      EMatch (
+	false,
+	e1,
+	[
+	  PConstruct (rich_false, []), EConstruct (rich_false, []);
+	  PConstruct (rich_true, []), e2
+	]
+      )
+  | "||" ->
+      (* Boolean disjunction is macro-expanded to a match construct. *)
+      (* e1 || e2 is sugar for:
+	 match e1 with RichTrue -> RichTrue | RichFalse -> e2 end *)
+      EMatch (
+	false,
+	e1,
+	[
+	  PConstruct (rich_true, []), EConstruct (rich_true, []);
+	  PConstruct (rich_false, []), e2
+	]
+      )
+  | _ ->
+      EApply (EVar (Variable.register o), ETuple [e1; e2])
 ;;
 
 let mkdatacon d = {
