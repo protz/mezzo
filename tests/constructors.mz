@@ -1,5 +1,3 @@
-open core
-open pervasives
 
 data t = A | B
 data u = C { foo: int }

@@ -1,4 +1,3 @@
-open core
 (* Landin's knot, or recursion via a hidden reference cell, in Mezzo. *)
 
 (* Remarkably, we are able to pull this trick without using weak references

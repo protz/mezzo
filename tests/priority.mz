@@ -1,3 +1,2 @@
-open core
 val f (x: int, y: int) : bool =
   x = y - 1

@@ -1,4 +1,3 @@
-open core
 mutable data option a = Some { contents: a } | None
 data t a = A | B { b: a }
 

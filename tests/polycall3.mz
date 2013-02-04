@@ -1,3 +1,2 @@
-open core
 val f [a] (consumes x: a): a = x
 val v = f [int] 2

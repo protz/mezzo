@@ -1,2 +1,1 @@
-open core
 data foo = Foo adopts foo

@@ -1,4 +1,3 @@
-open core
 open absdefs
 
 val f (consumes x: t_x, y: unknown): t_x =

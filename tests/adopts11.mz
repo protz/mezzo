@@ -1,4 +1,3 @@
-open core
 mutable data xlist a = XCons { head: a; tail: xlist a } | XNil
 mutable data listmaster a = Listmaster adopts xlist a
 

@@ -1,4 +1,3 @@
-open core
 mutable data tree a = 
   | Node { left: tree a; right: tree a; size: a }
   | Leaf

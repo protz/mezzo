@@ -1,3 +1,2 @@
-open core
 mutable data bar = Bar
 mutable data foo = Foo adopts Bar

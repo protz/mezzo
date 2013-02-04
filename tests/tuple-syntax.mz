@@ -1,4 +1,3 @@
-open core
 val u = ()
 val one = (1)
 val x = (1,2)

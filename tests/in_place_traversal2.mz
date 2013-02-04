@@ -1,4 +1,3 @@
-open core
 (* In-place traversal of a tree, after Sobel and Friedman (1998), continued. *)
 
 (* Now, let's fix the above limitation. In order to overcome this

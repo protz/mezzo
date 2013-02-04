@@ -1,4 +1,3 @@
-open core
 open absdefs
 
 mutable data t = T

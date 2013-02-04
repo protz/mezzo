@@ -1,3 +1,2 @@
-open core
 val f [a] (*(duplicable a) =>*) (x: a): (a, a) =
   (x, x)

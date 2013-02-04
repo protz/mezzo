@@ -1,5 +1,3 @@
-open core
-open pervasives
 open list
 
 val wrong =

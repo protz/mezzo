@@ -1,5 +1,3 @@
-open core
-open pervasives
 
 (* Data type definitions. *)
 

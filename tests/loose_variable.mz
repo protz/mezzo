@@ -1,4 +1,3 @@
-open core
 (* There's an uninstanciated type variable hanging around, it's innocuous, but I
  * wanted to write down that specific case. *)
 val length [a] (list::list a): int =

@@ -1,4 +1,3 @@
-open core
 (* -------------------------------------------------------------------------- *)
 
 (* The standard definition of immutable lists. *)

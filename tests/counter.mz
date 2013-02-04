@@ -1,5 +1,3 @@
-open core
-open pervasives
 
 (* Idéalement, on aimerait:
     val make_counter (): ∃(t:★). (r: t, get: (| r @ t) -> int) =
