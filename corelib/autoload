@@ -3,6 +3,5 @@
 # (i.e. only \n separators).
 bool
 core
-pervasives
 option
 ref

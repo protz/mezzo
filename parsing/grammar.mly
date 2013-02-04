@@ -318,6 +318,9 @@ raw_loose_type:
    types into a lower-level representation. *)
 | x = variable COLON ty = normal_type
     { TyNameIntro (x, ty) }
+(* We also allow a name introduction form where the name is [_]. *)
+| UNDERSCORE COLON ty = normal_type
+    { ty }
 
 %inline consumes_type:
 | t = tlocated(raw_consumes_type)
