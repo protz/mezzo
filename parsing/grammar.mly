@@ -313,8 +313,8 @@ raw_normal_type:
 | bs = type_parameters ty = normal_type
     { List.fold_right (fun b ty -> TyForall (b, ty)) bs ty }
 (* A type that carries a mode constraint. *)
-| c = mode_constraints ty = normal_type
-    { TyImply (c, ty) }
+| c = mode_constraint ty = normal_type
+    { TyImply ([ c ], ty) }
 
 %inline loose_type:
 | ty = tlocated(raw_loose_type)
@@ -404,9 +404,13 @@ mode:
 | DUPLICABLE
     { Duplicable }
 
-%inline mode_constraints:
+%inline mode_constraint:
 | m = mode t = atomic_type DBLARROW
-    { [ m, t ] }
+    { m, t }
+
+mode_constraints:
+  cs = mode_constraint*
+    { cs }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -903,7 +907,7 @@ anonymous_function:
   (* Optional type parameters: [a] *)
   type_parameters = loption(type_parameters)
   (* Optional constraint: duplicable a => *)
-  constraints = loption(mode_constraints)
+  constraints = mode_constraints
   (* Formal arguments: (x: a) *)
   formal = parenthetic_type
   (* Result type: : (a, a) *)
