@@ -247,7 +247,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge1.mz", fun do_it ->
     let env = do_it () in
     let v1 = point_by_name env "v1" in
-    check env v1 (TyConcreteUnfolded (Datacon.register "T", [], ty_bottom)));
+    check env v1 (TyConcreteUnfolded (dc env "t" "T", [], ty_bottom)));
 
   ("merge2.mz", fun do_it ->
     let env = do_it () in
@@ -257,12 +257,12 @@ let tests: (string * ((unit -> env) -> unit)) list = [
         ty_equals v2,
         TyStar (
           TyAnchoredPermission (TyPoint v2,
-            TyConcreteUnfolded (Datacon.register "U",
+            TyConcreteUnfolded (dc env "u" "U",
               [FieldValue (Field.register "left", TySingleton (TyVar 0));
                FieldValue (Field.register "right", TySingleton (TyVar 0))], ty_bottom)),
           TyAnchoredPermission (
             TyVar 0,
-            TyConcreteUnfolded (Datacon.register "T", [], ty_bottom)
+            TyConcreteUnfolded (dc env "t" "T", [], ty_bottom)
           )
         )
       ))
@@ -278,17 +278,17 @@ let tests: (string * ((unit -> env) -> unit)) list = [
           ty_equals v3,
           fold_star [
             TyAnchoredPermission (TyPoint v3,
-              TyConcreteUnfolded (Datacon.register "U",
+              TyConcreteUnfolded (dc env "u" "U",
                 [FieldValue (Field.register "left", TySingleton (TyVar 0));
                  FieldValue (Field.register "right", TySingleton (TyVar 1))],
                  ty_bottom));
             TyAnchoredPermission (
               TyVar 0,
-              TyConcreteUnfolded (Datacon.register "T", [], ty_bottom)
+              TyConcreteUnfolded (dc env "t" "T", [], ty_bottom)
             );
             TyAnchoredPermission (
               TyVar 1,
-              TyConcreteUnfolded (Datacon.register "T", [], ty_bottom)
+              TyConcreteUnfolded (dc env "t" "T", [], ty_bottom)
             );
           ]
         )))
@@ -455,7 +455,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     if List.exists (FactInference.is_exclusive env) perms then
       failwith "The permission on [x] should've been consumed";
     let perms = get_permissions env s1 in
-    if not (List.exists ((=) (TyApp (t, [datacon "A" []]))) perms) then
+    if not (List.exists ((=) (TyApp (t, [datacon env "t" "A" []]))) perms) then
       failwith "The right permission was not extracted for [s1].";
   );
 
@@ -726,11 +726,11 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("function-comparison2.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
 
-  ("masking.mz", simple_test ~known_failure:() (Fail (function BadPattern _ -> true | _ -> false)));
+  ("masking.mz", simple_test (Fail (fun _ -> true)));
 
-  ("masking2.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
+  ("masking2.mz", simple_test (Fail (function _ -> true)));
 
-  ("masking3.mz", simple_test ~known_failure:() Pass);
+  ("masking3.mz", simple_test Pass);
 
   ("bad-linearity.mz", simple_test (Fail (function _ -> true)));
 

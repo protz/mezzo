@@ -212,13 +212,13 @@ let analyze_data_types env points =
       List.exists (same env var) vars
     ) store in
     (* The equations for a given variable depend on the valuation. (At this
-     * stagae, you should really, really read the doc for [Fix].) *)
+     * stage, you should really, really read the doc for [Fix].) *)
     (fun valuation ->
       (* The [z] parameter is actually the adopts clause that has been
        * distributed in all the branches so as to give the correct behavior. *)
       let vs = List.map
         (variance env var_for_ith valuation var)
-        (List.map (fun (x, y, z) -> TyConcreteUnfolded (x, y, z)) branches)
+        (List.map (fun (x, y, z) -> TyConcreteUnfolded ((TyUnknown, x), y, z)) branches)
       in
       List.fold_left lub Bivariant vs
     )

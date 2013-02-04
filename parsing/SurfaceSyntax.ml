@@ -22,6 +22,72 @@
 (* In principle, very little desugaring is performed on the fly by the
    parser. *)
 
+module Field =
+  Variable
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Information about data constructors. *)
+
+(* Data constructor definitions should be viewed as generative. That is, when
+   a type definition [data t = T { ... }] is processed, a ``fresh'' data
+   constructor information record is internally created, to which the name [T]
+   becomes bound. If we later process the type definition [data u = T { ... }],
+   then a second information record is internally created, to which the name
+   [T] now becomes bound. Thus, at this point, we have two logically distinct
+   data constructors, only one of which can be referred to by name. *)
+
+(* A data constructor information record could in principle contain a unique
+   identifier; it doesn't, because we don't need it. Physical equality of
+   data constructor information records gives us a meaningful notion of
+   equality. *)
+
+(* We maintain the following information about every data constructor. *)
+
+type datacon_info = {
+  (* Its unqualified name (used e.g. by [Interpreter.print_value]). *)
+  datacon_name: string;
+  (* Its arity (i.e., number of fields). *)
+  datacon_arity: int;
+  (* Its integer index within its data type definition. *)
+  datacon_index: int;
+  (* A map of field names to field indices. *)
+  datacon_fields: int Field.Map.t;
+}
+
+(* ---------------------------------------------------------------------------- *)
+
+(* A name can be either unqualified, [x], or qualified with a module name,
+   [m::x]. This holds for variables (of arbitrary kind: term, type, etc.)
+   and for data constructors. *)
+
+(* TEMPORARY replace TyVar/TyQualified and EVar/EQualified to use this
+   instead? do the same in the grammar; see how it is done for data
+   constructors *)
+
+type 'a maybe_qualified =
+  | Unqualified of 'a
+  | Qualified of Module.name * 'a
+
+(* ---------------------------------------------------------------------------- *)
+
+(* References to data constructors. *)
+
+(* In the surface syntax, a reference to a data constructor is just a
+   (possibly qualified) name. This is what the parser produces. When the
+   type-checker runs, it augments this information with a pointer to the
+   [datacon_info] record that this reference denotes. This later allows the
+   compiler to work with an unambiguous syntax. *)
+
+type datacon_reference = {
+  (* The (unqualified or qualified) name, as found in the program. *)
+  datacon_unresolved: Datacon.name maybe_qualified;
+  (* The information record that this name was found to denote. This
+     field is not initialized by the parser; it is later filled in
+     by the type-checker, which explains why it is a mutable option. *)
+  mutable datacon_info: datacon_info option;
+}
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Kinds. *)
@@ -74,7 +140,7 @@ type typ =
   | TyEmpty
   | TyVar of Variable.name
   | TyQualified of Module.name * Variable.name
-  | TyConcreteUnfolded of data_type_def_branch
+  | TyConcreteUnfolded of (datacon_reference * data_field_def list)
   | TySingleton of typ
   | TyApp of typ * typ
   | TyArrow of typ * typ
@@ -92,7 +158,7 @@ and data_type_def_branch =
     Datacon.name * data_field_def list
 
 and data_field_def =
-  | FieldValue of Variable.name * typ
+  | FieldValue of Field.name * typ
   | FieldPermission of typ
 
 and data_type_flag = Exclusive | Duplicable
@@ -178,7 +244,7 @@ type pattern =
   (* (x: τ, …) *)
   | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)
-  | PConstruct of (Datacon.name * (Variable.name * pattern) list)
+  | PConstruct of (datacon_reference * (Field.name * pattern) list)
   (* Location information. *)
   | PLocated of pattern * location
   (* x: τ *)
@@ -211,7 +277,7 @@ and expression =
   (* v.f <- e *)
   | EAssign of expression * field * expression
   (* tag of v <- Datacon *)
-  | EAssignTag of expression * previous_and_new_datacon
+  | EAssignTag of expression * datacon_reference * tag_update_info
   (* v.f *)
   | EAccess of expression * field
   (* assert τ *)
@@ -225,7 +291,7 @@ and expression =
   (* (e₁, …, eₙ) *)
   | ETuple of expression list
   (* Foo { bar = bar; baz = baz; … } *)
-  | EConstruct of (Datacon.name * (Variable.name * expression) list)
+  | EConstruct of (datacon_reference * (Field.name * expression) list)
   (* if e₁ then e₂ else e₃ *)
   | EIfThenElse of bool * expression * expression * expression
   (* e₁; e₂ → desugared as let () = e₁ in e₂ *)
@@ -241,17 +307,19 @@ and expression =
   (* fail *)
   | EFail
 
-and field = {
-  field_name: Variable.name;
-  mutable field_datacon: Datacon.name;
+and tag_update_info = {
+  (* Uninitialized by the parser. Information later filled in by the type-checker. *)
+  mutable is_phantom_update: bool option;
 }
 
-and previous_and_new_datacon = {
-  (* Initialized by the parser. *)
-  new_datacon: Datacon.name;
+and field = {
+  field_name: Field.name;
   (* Uninitialized by the parser. Information later filled in by the type-checker. *)
-  mutable previous_datacon: Datacon.name;
+  mutable field_offset: offset option;
 }
+
+and offset =
+  int
 
 and tapp =
   | Ordered of typ
@@ -357,4 +425,14 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TyAnchoredPermission _ ->
       (* Type of kind PERM, where a type of kind TERM was expected. *)
       assert false
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Auxiliary functions for the type [maybe_qualified]. *)
+
+let print_maybe_qualified print = function
+  | Unqualified x ->
+      print x
+  | Qualified (m, x) ->
+      Module.print m ^ "::" ^ print x
 

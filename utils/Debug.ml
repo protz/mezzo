@@ -76,7 +76,7 @@ module Graph = struct
             else
               ""
           in
-          Datacon.print datacon ^ blocks, edges
+          Datacon.print (snd datacon) ^ blocks, edges
 
       | TyTuple ts ->
           let blocks, edges = List.split (List.mapi (fun i t ->

@@ -499,7 +499,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
          * environment. *)
         let all_fields_there =
           let _, def, _ = def_for_datacon env datacon in
-          let _, branch = List.find (fun (datacon', _) -> Datacon.equal datacon datacon') def in
+          let _, branch = List.find (fun (datacon', _) -> Datacon.equal (snd datacon) datacon') def in
           let field_name = function
             | FieldValue (name, _) -> Some name
             | FieldPermission _ -> None
@@ -512,14 +512,14 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
           ) fields'
         in
         if not (all_fields_there) then
-          raise_error env (FieldMismatch (t, datacon));
+          raise_error env (FieldMismatch (t, (snd datacon)));
         (* It's fine, add it! *)
         let env, fields = List.fold_left (fun (env, fields) -> function
           | FieldPermission _ as field ->
               env, field :: fields
           | FieldValue (name, field) ->
               let hint =
-                add_hint hint (Hml_String.bsprintf "%a_%a" Datacon.p datacon Field.p name)
+                add_hint hint (Hml_String.bsprintf "%a_%a" Datacon.p (snd datacon) Field.p name)
               in
               let env, field = insert_point env ?hint field in
               env, FieldValue (name, field) :: fields
@@ -750,7 +750,7 @@ and sub_type_real env t1 t2 =
 
   | TyConcreteUnfolded (datacon1, fields1, clause1), TyConcreteUnfolded (datacon2, fields2, clause2)
     when List.length fields1 = List.length fields2 ->
-      if Datacon.equal datacon1 datacon2 then
+      if resolved_datacons_equal env datacon1 datacon2 then
         sub_type env clause1 clause2 >>= fun env ->
         List.fold_left2 (fun env f1 f2 ->
           env >>= fun env ->
@@ -789,8 +789,8 @@ and sub_type_real env t1 t2 =
       else
         None
 
-  | TyConcreteUnfolded (datacon1, _, _), TyApp (cons2, args2) ->
-      let point1 = type_for_datacon env datacon1 in
+  | TyConcreteUnfolded ((cons1, datacon1), _, _), TyApp (cons2, args2) ->
+      let point1 = !!cons1 in
       let cons2 = !!cons2 in
 
       if same env point1 cons2 then begin
@@ -804,10 +804,10 @@ and sub_type_real env t1 t2 =
         None
       end
 
-  | TyConcreteUnfolded (datacon1, _, _), TyPoint point2 ->
+  | TyConcreteUnfolded ((cons1, datacon1), _, _), TyPoint point2 ->
       (* This is basically the same as above, except that type applications
        * without parameters are not [TyApp]s, they are [TyPoint]s. *)
-      let point1 = type_for_datacon env datacon1 in
+      let point1 = !!cons1 in
 
       if same env point1 point2 then begin
         (* XXX why are we not collecting permissions here? *)
