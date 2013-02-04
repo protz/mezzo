@@ -30,6 +30,12 @@ val ( <= ) : (int, int) -> bool = builtin _mz_ile
 val ( > )  : (int, int) -> bool = builtin _mz_igt
 val ( >= ) : (int, int) -> bool = builtin _mz_ige
 
+val max (x: int, y: int) : int =
+  if x <= y then y else x
+
+val min (x: int, y: int) : int =
+  if x <= y then x else y
+
 (* Bitwise AND *)
 val ( & )  : (int, int) -> int  = builtin _mz_iand
 

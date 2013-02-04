@@ -1,4 +1,2 @@
 (* Arithmetic *)
 
-val max : (int, int) -> int
-val min : (int, int) -> int

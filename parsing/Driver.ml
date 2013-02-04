@@ -24,7 +24,7 @@ open Lexer
 (* Lexing and parsing, built on top of [grammar]. *)
 
 let lex_and_parse file_path entry_point =
-  let file_desc = open_in file_path in
+  Utils.with_open_in file_path (fun file_desc ->
   let lexbuf = Ulexing.from_utf8_channel file_desc in
   let the_parser = MenhirLib.Convert.Simplified.traditional2revised entry_point in
   try
@@ -47,6 +47,7 @@ let lex_and_parse file_path entry_point =
         Hml_String.beprintf "%a\n"
           Lexer.print_error (lexbuf, e);
         exit 252
+  )
 ;;
 
 let mkprefix path =

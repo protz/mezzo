@@ -42,7 +42,11 @@ let group (declarations: toplevel_item list): toplevel_item list =
     | _, [] ->
         rev prev
   in
-  group [List.hd declarations] (List.tl declarations)
+  match declarations with
+  | [] ->
+      []
+  | head :: tail ->
+      group [head] tail
 ;;
 
 let mkfield f = {

@@ -4,9 +4,3 @@
 
 (* Arithmetic *)
 
-val max (x: int, y: int) : int =
-  if x <= y then y else x
-
-val min (x: int, y: int) : int =
-  if x <= y then x else y
-
