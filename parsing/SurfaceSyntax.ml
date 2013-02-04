@@ -85,6 +85,7 @@ type typ =
   | TyConsumes of typ
   | TyBar of typ * typ
   | TyAnd of duplicity_constraint list * typ
+  | TyImply of duplicity_constraint list * typ
 
 and duplicity_constraint = data_type_flag * typ
 
@@ -305,8 +306,6 @@ type interface =
    allows viewing the argument as a pattern. In fact, this provides a definition
    of which names can be referred to by the function body. *)
 
-(* TEMPORARY check that the type-checker agrees with this *)
-
 let rec type_to_pattern (ty : typ) : pattern =
   match ty with
 
@@ -330,9 +329,13 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TyNameIntro (x, ty) ->
       PAs (type_to_pattern ty, x)
 
+  (* Keep locations. *)
+
+  | TyLocated (ty, loc) ->
+      PLocated (type_to_pattern ty, loc)
+
   (* Pass (go down into) the following constructs. *)
 
-  | TyLocated (ty, _)
   | TyAnd (_, ty)
   | TyConsumes ty
   | TyBar (ty, _) ->
@@ -341,6 +344,7 @@ let rec type_to_pattern (ty : typ) : pattern =
   (* Stop at (do not go down into) the following constructs. *)
 
   | TyForall _
+  | TyImply _
   | TyUnknown
   | TyArrow _ 
   | TySingleton _
