@@ -74,8 +74,6 @@
 
 %start <SurfaceSyntax.implementation> implementation
 %start <SurfaceSyntax.interface> interface
-%type <SurfaceSyntax.expression> expression
-%type <SurfaceSyntax.declaration> declaration
 
 %{
 
@@ -512,8 +510,8 @@ data_type_def:
   def = data_type_def
     { DataTypeGroup (($startpos(def), $endpos), [def]) }
 
-(* A concrete data type is necessarily of kind KTYPE. We do not allow defining
-   concrete data types of kind KPERM. In principle, we could allow it. I think
+(* A concrete data type is necessarily of kind type. We do not allow defining
+   concrete data types of kind perm. In principle, we could allow it. I think
    we can live without it (experience will tell). *)
 
 (* ---------------------------------------------------------------------------- *)
@@ -845,25 +843,32 @@ rec_flag:
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Top-level declarations. *)
+(* Top-level value definitions. *)
 
-%inline dlocated (X):
-| x = X
-    { DLocated (x, ($startpos(x), $endpos)) }
+(* This is a toplevel item; it appears in implementations only. *)
 
-(* A declaration group is a sequence of mutually recursive definitions. *)
-declaration_group:
-| l = declaration
-    { ValueDeclarations [l] }
+value_definition:
+| VAL flag = rec_flag defs = separated_list(AND, inner_declaration)
+    { let d = DMultiple (flag, defs) in
+      DLocated (d, ($startpos($1), $endpos)) }
 
-%inline declaration:
-| d = dlocated(decl_raw)
-    { d }
+%inline value_definition_group:
+| def = value_definition
+    { ValueDeclarations [ def ] }
 
-(* We use the keyword [val] for top-level declarations. *)
-decl_raw:
-| VAL flag = rec_flag declarations = separated_list(AND, inner_declaration)
-    { DMultiple (flag, declarations) }
+(* ---------------------------------------------------------------------------- *)
+
+(* Top-level value declarations. *)
+
+(* This is a toplevel item; it appears in interfaces only. *)
+
+(* We currently do not allow mutually recursive value declarations, e.g.
+   two variables [x] and [y], where the type of [x] mentions [y], and
+   vice-versa. *)
+
+value_declaration:
+| VAL x = variable COLON ty = arbitrary_type
+    { PermDeclaration (x, ty) }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -891,50 +896,46 @@ inner_declaration:
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Open directives. *)
+
+(* This is a toplevel item; it appears in interfaces and implementations. *)
+
 open_directive:
 | OPEN m = module_name
     { OpenDirective m }
 
+(* ---------------------------------------------------------------------------- *)
+
 (* Program units, i.e. module implementations *)
 
-(* Because we don't want to clobber the parser with complicated logic, we first
- * parse each declaration as being in its own group, and the [ParserUtils.group]
- * function will take care of grouping all of them together. This also makes it
- * easier if we are to add more top-level declarations that we might want to
- * group as well. *)
-implementation_toplevel:
-| group = data_type_group
-    { group }
-| declarations = declaration_group
-    { declarations }
-| open_mod = open_directive
-    { open_mod }
+(* Because we don't want to clobber the parser with complicated logic, we
+   first parse each value or type definition as being in its own group, and
+   later call [ParserUtils.group] so as to group adjacent definitions
+   together. This is done in implementation and interface files. *)
 
+implementation_item:
+| item = data_type_group
+| item = value_definition_group
+| item = open_directive
+    { item }
 
 implementation:
-  | bs = implementation_toplevel+ EOF
-    { ParserUtils.group bs }
+| items = implementation_item* EOF
+    { ParserUtils.group items }
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Module signatures, i.e. interfaces. *)
 
-(* A declaration group is a sequence of mutually recursive definitions. *)
-%inline perm_declaration:
-| VAL x = variable COLON ty = arbitrary_type
-    { PermDeclaration (x, ty) }
-
-interface_toplevel:
-| group = data_type_group
-    { group }
-| declarations = perm_declaration
-    { declarations }
-| open_mod = open_directive
-    { open_mod }
+interface_item:
+| item = data_type_group
+| item = value_declaration
+| item = open_directive
+    { item }
 
 interface:
-  | bs = interface_toplevel+ EOF
-    { ParserUtils.group bs }
+  | items = interface_item* EOF
+    { ParserUtils.group items }
 
 (* ---------------------------------------------------------------------------- *)
 
