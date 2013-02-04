@@ -296,7 +296,7 @@ val rec mem [k, a] (cmp: (k, k) -> int, x: k, t: tree k a) : bool =
    trees. *)
 
 val rec min_binding
-  [k, a] duplicable k, duplicable a =>
+  [k, a] duplicable k => duplicable a =>
   (t : Node { left: tree k a; key: k; value: a; right: tree k a; height: int })
   : (k, a) =
   match t.left with
@@ -307,7 +307,7 @@ val rec min_binding
   end
 
 val min_binding
-  [k, a] duplicable k, duplicable a =>
+  [k, a] duplicable k => duplicable a =>
   (t : tree k a)
   : option (k, a) =
   match t with
@@ -318,7 +318,7 @@ val min_binding
   end
 
 val rec max_binding
-  [k, a] duplicable k, duplicable a =>
+  [k, a] duplicable k => duplicable a =>
   (t : Node { left: tree k a; key: k; value: a; right: tree k a; height: int })
   : (k, a) =
   match t.right with
@@ -329,7 +329,7 @@ val rec max_binding
   end
 
 val max_binding
-  [k, a] duplicable k, duplicable a =>
+  [k, a] duplicable k => duplicable a =>
   (t : tree k a)
   : option (k, a) =
   match t with
@@ -1122,7 +1122,7 @@ val compare_variant [k, a] (
 
 (* Conversion of a tree to a list. *)
 
-val bindings [k, a] duplicable k, duplicable a => (t: tree k a) : list::list (k, a) =
+val bindings [k, a] duplicable k => duplicable a => (t: tree k a) : list::list (k, a) =
   let f (x: k, v: a, accu: list::list (k, a)) : list::list (k, a) =
     list::cons [(k, a)] ((x, v), accu)
   in
@@ -1181,10 +1181,10 @@ val update [k, c: term, a, preserved : perm, consumed : perm] (
 val mem [k, c: term, a] (x: k, m: treeMap k c a) : bool =
   mem (m.cmp, x, m.tree)
 
-val min_binding [k, c: term, a] duplicable k, duplicable a => (m : treeMap k c a) : option (k, a) =
+val min_binding [k, c: term, a] duplicable k => duplicable a => (m : treeMap k c a) : option (k, a) =
   min_binding m.tree
 
-val max_binding [k, c: term, a] duplicable k, duplicable a => (m : treeMap k c a) : option (k, a) =
+val max_binding [k, c: term, a] duplicable k => duplicable a => (m : treeMap k c a) : option (k, a) =
   max_binding m.tree
 
 val extract_min_binding [k, c: term, a] (m: treeMap k c a) : option (k, a) =
@@ -1313,7 +1313,7 @@ val equal [k, c: term, a] (
 ) : bool =
   compare (cmp, m1, m2) = 0
 
-val bindings [k, c: term, a] duplicable k, duplicable a => (
+val bindings [k, c: term, a] duplicable k => duplicable a => (
   m: treeMap k c a
 ) : list::list (k, a) =
   bindings m.tree

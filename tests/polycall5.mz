@@ -1,4 +1,4 @@
 open core
 
-val f [a,b] duplicable a, duplicable b => (x: a, y: b): (a, b) =
+val f [a,b] duplicable a => duplicable b => (x: a, y: b): (a, b) =
   (x, y)

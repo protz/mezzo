@@ -198,6 +198,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
     | TySingleton _
     (* These are opaque, no consumes annotations inside of these. *)
     | TyForall _
+    | TyImply _
     | TyApp _
     | TyArrow _ ->
         t, []
@@ -299,6 +300,9 @@ let rec translate_type (env: env) (t: typ): T.typ =
             Log.error "We support mode constraints only on type variables"
       ) constraints;
       T.TyAnd (constraints, translate_type env t)
+
+  | TyImply (_, _) ->
+      assert false (* TEMPORARY *)
 
 
 and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.data_type_def_branch =
@@ -696,7 +700,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
                 PAs (pat, name), Some name
         in
         (* Collect the names. *)
-        let names = bindings_pattern pat in
+        let names = bindings_pattern None pat in
         (* Translate the pattern. *)
         let pat = translate_pattern env pat in
         (* Bind the names for further translating, and don't forget to include
@@ -779,7 +783,7 @@ and translate_patexprs
    * constraint.*)
   let patterns, annotations = List.split (List.map clean_pattern patterns) in
   (* Find names in patterns. *)
-  let names = Hml_List.map_flatten bindings_pattern patterns in
+  let names = bindings_patterns None patterns in
   (* Translate the patterns. *)
   let patterns = List.map (translate_pattern env) patterns in
   (* Bind all the names in the sub-environment. *)

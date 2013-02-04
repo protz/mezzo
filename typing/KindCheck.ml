@@ -292,6 +292,9 @@ let find x env =
     unbound env x
 ;;
 
+(* TEMPORARY the strict mode of [bind] is never used, it seems; duplicate names
+   are detected using another means. *)
+
 (* [bind env (x, kind)] binds the name [x] with kind [kind]. *)
 let bind ?(strict=false) env (x, kind) : env =
   (* The current level becomes [x]'s level. The current level is
@@ -425,7 +428,7 @@ let check_for_duplicate_datacons
    pattern [p]. For each name, we add a triple of the name, its kind (which is
    always [KTerm]), and a location. *)
 
-let rec bv loc accu (p : pattern) =
+let rec bv loc (accu : type_binding list) (p : pattern) : type_binding list =
   match p with
   | PVar x ->
       (x, KTerm, loc) :: accu
@@ -491,13 +494,32 @@ let bindings_data_type_group (data_type_group: data_type_def list): (Variable.na
 
 (* [bindings_pattern] returns in prefix order the list of names bound in a
    pattern. *)
-let bindings_pattern (p: pattern): (Variable.name * kind) list =
+let bindings_pattern
+    (check_for_duplicates: env option) (p: pattern)
+    : (Variable.name * kind) list
+=
   let loc = (Lexing.dummy_pos, Lexing.dummy_pos) in
   let bindings = bv loc [] p in
   (* Discard the dummy location information, and reverse the list, so it
      appears in left-to-right order (not sure if it's important). *)
-  List.rev_map (fun (x, kind, _) -> x, kind) bindings
+  let bindings = List.rev_map (fun (x, kind, _) -> x, kind) bindings in
+  (* If requested by the caller, check for duplicates. *)
+  match check_for_duplicates with
+  | None ->
+      bindings
+  | Some env ->
+      check_for_duplicate_variables (fun (x, _) -> x) bindings (bound_twice env);
+    bindings
 ;;
+
+(* [bindings_patterns] is the same, but applies to a list of patterns.
+   The check for duplicates (if performed) applies to all patterns at
+   once. *)
+let bindings_patterns
+    (check_for_duplicates: env option) (ps: pattern list)
+    : (Variable.name * kind) list
+=
+  bindings_pattern check_for_duplicates (PTuple ps)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -638,8 +660,8 @@ and check_field (env: env) (field: data_field_def) =
       let env = extend env fragment in
       check env t KType
   | FieldPermission t ->
-      let fragment = names env t in
-      let env = extend env fragment in
+      (* I have removed the calls to [names] and [extend], because
+	 a permission component does not bind any names. -fpottier *)
       check env t KPerm
 
 and check_data_type_def_branch (env: env) (branch: data_type_def_branch) =
@@ -735,11 +757,7 @@ let rec check_pattern (env: env) (pattern: pattern) =
 let rec check_patexpr (env: env) (flag: rec_flag) (pat_exprs: (pattern * expression) list): env =
   let patterns, expressions = List.split pat_exprs in
   (* Introduce all bindings from the patterns *)
-  let bindings = bindings_pattern (PTuple patterns) in
-  check_for_duplicate_variables
-    (fun (x, _) -> x)
-    bindings
-    (fun x -> bound_twice env x);
+  let bindings = bindings_patterns (Some env) patterns in
   let sub_env = List.fold_left bind env bindings in
   (* Type annotation in patterns may reference names introduced in the entire
    * pattern (same behavior as tuple types). *)
@@ -818,11 +836,7 @@ and check_expression (env: env) (expr: expression) =
   | EMatch (_, e, pat_exprs) ->
       check_expression env e;
       List.iter (fun (pat, expr) ->
-        let bindings = bindings_pattern pat in
-        check_for_duplicate_variables
-	  (fun (x, _) -> x)
-	  bindings
-	  (fun x -> bound_twice env x);
+        let bindings = bindings_pattern (Some env) pat in
         let sub_env = List.fold_left bind env bindings in
         check_pattern sub_env pat;
         check_expression sub_env expr
