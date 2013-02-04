@@ -522,8 +522,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           raise_error sub_env (NoSuchPermission return_type)
       end
 
-  | EAssign (e1, field, e2) ->
-      let fname = field.SurfaceSyntax.field_name in
+  | EAssign (e1, field_struct, e2) ->
+      let fname = field_struct.SurfaceSyntax.field_name in
       let hint = add_hint hint (Field.print fname) in
       let env, p1 = check_expression env ?hint e1 in
       let env, p2 = check_expression env e2 in
@@ -532,7 +532,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         let found = ref false in
         let permissions = List.map (fun t ->
             match t with
-            | TyConcreteUnfolded (datacon, fieldexprs, clause) ->
+            | TyConcreteUnfolded (datacon, fieldtypes, clause) ->
                 (* Check that datacon points to a type that is defined as
                  * exclusive. *)
                 let flag, _, _ = def_for_datacon env datacon in
@@ -540,7 +540,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                   raise_error env (AssignNotExclusive (t, snd datacon));
 
                 (* Perform the assignment. *)
-                let fieldexprs = List.map (function
+                let fieldtypes = List.mapi (fun i -> function
                   | FieldValue (field, expr) ->
                       let expr = 
                         if Field.equal field fname then
@@ -548,6 +548,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                           | TySingleton (TyPoint _) ->
                               if !found then
                                 Log.error "Two matching permissions? That's strange...";
+                              field_struct.SurfaceSyntax.field_offset <- Some i;
                               found := true;
                               TySingleton (TyPoint p2)
                           | t ->
@@ -560,8 +561,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                       FieldValue (field, expr)
                   | FieldPermission _ ->
                       Log.error "These should've been inserted in the environment"
-                ) fieldexprs in
-                TyConcreteUnfolded (datacon, fieldexprs, clause)
+                ) fieldtypes in
+                TyConcreteUnfolded (datacon, fieldtypes, clause)
             | _ ->
                 t
           ) permissions
@@ -633,7 +634,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       return env ty_unit
 
 
-  | EAccess (e, field) ->
+  | EAccess (e, field_struct) ->
       (* We could be a little bit smarter, and generic here. Instead of iterating
        * on the permissions, we could use a reverse map from field names to
        * types. We could then subtract the type (instanciated using flexible
@@ -642,7 +643,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
        * allow us to reuse the code. Of course, this raises the question of
        * “what do we do in case there's an ambiguity”, that is, multiple
        * datacons that feature this field name... We'll leave that for later. *)
-      let fname = field.SurfaceSyntax.field_name in
+      let fname = field_struct.SurfaceSyntax.field_name in
       let hint = add_hint hint (Field.print fname) in
       let env, p = check_expression env ?hint e in
       let module M = struct exception Found of point end in
@@ -650,11 +651,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         List.iter (fun t ->
           match t with
           | TyConcreteUnfolded (_, fieldexprs, _) ->
-              List.iter (function
+              List.iteri (fun i -> function
                 | FieldValue (field, expr) ->
                     if Field.equal field fname then
                       begin match expr with
                       | TySingleton (TyPoint p) ->
+                          field_struct.SurfaceSyntax.field_offset <- Some i;
                           raise (M.Found p)
                       | t ->
                           let open TypePrinter in
