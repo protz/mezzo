@@ -331,15 +331,6 @@ let deconstruct_arrow env = function
 type fragment =
     kind M.t
 
-(* [strict_add x kind env] adds the name [x] in the environment [env] with kind
-   [kind], and ensures that is hasn't been bound already. *)
-let strict_add env x kind mapping =
-  try
-    M.strict_add x kind mapping
-  with M.Unchanged ->
-    bound_twice env x
-;;
-
 (* [find x env] looks up the name [x] in the environment [env] and returns a
    pair of a kind and a de Bruijn index (not a de Bruijn level!). *)
 let find x env =
@@ -357,17 +348,16 @@ let find x env =
     unbound env x
 ;;
 
-(* TEMPORARY the strict mode of [bind] is never used, it seems; duplicate names
+(* The strict mode of [bind] is never used, it seems; duplicate names
    are detected using another means. *)
 
 (* [bind env (x, kind)] binds the name [x] with kind [kind]. *)
-let bind ?(strict=false) env (x, kind) : env =
+let bind env (x, kind) : env =
   (* The current level becomes [x]'s level. The current level is
      then incremented. *)
-  let add = if strict then strict_add env else M.add in
   { env with
     level = env.level + 1;
-    mapping = add x (kind, Var env.level) env.mapping }
+    mapping = M.add x (kind, Var env.level) env.mapping }
 ;;
 
 let bind_external env (x, kind, p): env =

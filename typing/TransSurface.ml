@@ -220,7 +220,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
     | TyEmpty
     | TyStar _ ->
         Log.error "[KindCheck] made sure there are no unwanted permissions here, and \
-          the right-hand side of a [TyBar] gets a special treatment in [TyBar]." 
+          the right-hand side of a [TyBar] gets a special treatment in [TyBar]."
 
   in
   let t, name_perms = strip_consumes env t in
@@ -518,7 +518,6 @@ let bind_datacons env data_type_group =
 *)
 let translate_data_type_group
     (env: env)
-    (strict: bool)
     (data_type_group: data_type_group): env * T.data_type_group
   =
 
@@ -530,7 +529,7 @@ let translate_data_type_group
   (* We're recycling the environments from [SurfaceSyntax] because we're lazy.
    * We don't really need the [Types.kind] information here, but all the other
    * functions such as [bind] and [find] are defined already. *)
-  let env = List.fold_left (bind ~strict) env bindings in 
+  let env = List.fold_left bind env bindings in
 
   (* Also bind the constructors, as we're performing a scope-check of data
    * constructors in this module, while we're at it... *)
@@ -865,13 +864,13 @@ let translate_declaration_group (env: env) (decls: declaration_group): env * E.d
   env, List.rev decls
 ;;
 
-let translate_item env item strict = 
+let translate_item env item =
   match item with
   | DataTypeGroup data_type_group ->
       (* This just desugars the data type definitions, no binder is opened yet! *)
       let env, defs =
         (* Be strict if we're in an interface. *)
-        translate_data_type_group env strict data_type_group
+        translate_data_type_group env data_type_group
       in
       env, Some (E.DataTypeGroup defs)
   | ValueDeclarations decls ->
@@ -888,10 +887,10 @@ let translate_item env item strict =
       open_module_in mname env, None
 ;;
 
-let rec translate_items env strict = function
+let rec translate_items env = function
   | item :: items ->
-      let env, item = translate_item env item strict in
-      let items = translate_items env strict items in
+      let env, item = translate_item env item in
+      let items = translate_items env items in
       Option.to_list item @ items
   | [] ->
       []
@@ -902,12 +901,12 @@ let rec translate_items env strict = function
  * program. *)
 let translate_implementation (tenv: T.env) (program: toplevel_item list): E.implementation =
   let env = empty tenv in
-  translate_items env false program
+  translate_items env program
 ;;
 
 (* [translate_interface] is used by the Driver, before importing an interface
  * into scope. *)
 let translate_interface (tenv: T.env) (program: toplevel_item list): E.interface =
   let env = empty tenv in
-  translate_items env true program
+  translate_items env program
 ;;
