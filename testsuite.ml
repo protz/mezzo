@@ -770,6 +770,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("abstract-perm.mz", simple_test Pass);
 
+  ("dup_sign.mz", simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
+  ("dup_sign1.mz", simple_test Pass);
 ];;
 
 let mz_files_in_directory (dir : string) : string list =

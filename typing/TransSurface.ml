@@ -314,8 +314,17 @@ let rec translate_type (env: env) (t: typ): T.typ =
       ) constraints;
       T.TyAnd (constraints, translate_type env t)
 
-  | TyImply (_, _) ->
-      assert false (* TEMPORARY *)
+  | TyImply (constraints, t) ->
+      let constraints = List.map (fun (f, t) -> f, translate_type env t) constraints in
+      List.iter (fun (_, t) ->
+        match t with
+        | T.TyVar _ ->
+            ()
+        | _ ->
+            Log.error "We support mode constraints only on type variables"
+      ) constraints;
+      T.TyImply (constraints, translate_type env t)
+
 
 
 and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.data_type_def_branch =

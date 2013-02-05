@@ -93,6 +93,17 @@ let duplicables
             end
         end
 
+    (*
+     *
+     * We could have a lower element called [any] in             aff
+     * the fact lattice, and because these variables           /    \
+     * are universal, they would have that fact.             dup   excl
+     * However, we don't have it, so we can pick an            \    /
+     * element as low as we want. We choose                     any
+     * duplicable, because we know it's the optimal
+     * choice given our limited set of facts.            fig 1: a better
+     *                                                  lattice for facts
+     * *)
     | TyForall ((binding, _), t') ->
         (* This variable is universal, so pick the best possible fact for it:
          * duplicable (see my notebook on Jan, 9th 2013) *)
