@@ -5,12 +5,12 @@ open queue
    and a permission for [q] guarded by a lock. *)
 
 data channel a =
-  Channel { queue: unknown; lock: lock (queue @ fifo a) }
+  Channel { queue: (queue: unknown); lock: lock (queue @ fifo a) }
 
 val newchannel [a] (): channel a =
   let q = queue::create [a] () in
-  let l = locks::newlock [q @ fifo a] () in
-  Channel { queue: q; lock: l }
+  let l = locks::newlock [(q @ fifo a)] () in
+  Channel { queue = q; lock = l }
 
 val send [a] (c: channel a, consumes x: a): () =
   match c with
@@ -26,9 +26,9 @@ val rec receive [a] (c: channel a): a =
   | Channel { queue; lock } ->
       acquire l;
       match retrieve [a] c with
-      | none ->
+      | None ->
 	  release l; receive [a] c
-      | some x ->
+      | Some { contents = x } ->
 	  release l; x
       end
   end

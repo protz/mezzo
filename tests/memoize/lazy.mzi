@@ -1,0 +1,10 @@
+abstract lazy a
+fact duplicable (lazy a)
+
+val makelazy:
+  [a, p: perm] duplicable a
+  => (( | consumes p) -> a | consumes p)
+  -> a
+      
+val force:
+  [a] (lazy a) -> a

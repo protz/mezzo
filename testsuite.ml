@@ -218,6 +218,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("loose_variable.mz", simple_test Pass);
 
+  ("double-open.mz", simple_test Pass);
+
+  ("double-open2.mz", simple_test Pass);
+
   ("multiple_data_type_groups.mz", simple_test Pass);
 
   ("hole.mz", simple_test Pass);

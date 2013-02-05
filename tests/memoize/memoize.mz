@@ -1,0 +1,30 @@
+open hashtable
+(* This module cannot be opened: ref would be defined twice. *)
+(* open atomic*)
+
+val memoize
+   [a,b] duplicable a, duplicable b =>
+   (hash: a -> int, f: a -> b): (a -> b) =
+
+  let eq_a (x: a, y: a): bool = x=y in
+  let t = create [a, b] (11, hash, eq_a) in
+(*  let l = atomic::newlock [(t @ table a b)] () in*)
+
+  let memo_f (x: a): b =
+(*    acquire l;*) 
+    if mem [a, b] (x, t)
+    then match hashtable::find [a, b] (x, t) with
+         | Some { contents = r } ->
+(*	     release l;*)
+	     r
+         end 
+    else begin
+         let r = f x in
+	 add [a, b] (x, r, t);
+(*	 release l;*)
+	 r
+	 end
+  in
+
+  memo_f
+
