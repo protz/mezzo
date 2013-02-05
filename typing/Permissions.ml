@@ -866,6 +866,11 @@ and sub_type_real env t1 t2 =
       Some (restore env)
 
   | TyBar (t1, p1), TyBar (t2, p2) ->
+      let t1, p'1 = collect t1 in
+      let p1 = fold_star (p1 :: p'1) in
+      let t2, p'2 = collect t2 in
+      let p2 = fold_star (p2 :: p'2) in
+
       (* "(t1 | p1) - (t2 | p2)" means doing "t1 - t2", adding all of [p1],
        * removing all of [p2]. However, the order in which we perform these
        * operations matters, unfortunately. *)

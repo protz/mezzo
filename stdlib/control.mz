@@ -26,6 +26,7 @@ val reify:
 
 val reset
   [a, c]
+  duplicable a => (* because [x] appears under a lambda *)
   (f: (| consumes answer a) -> (a | answer c)) :
   c
 =
