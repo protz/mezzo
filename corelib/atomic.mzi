@@ -17,6 +17,11 @@ val swap : [a] (ref a, consumes a) -> a
 
 (* Sequential locks. *)
 
+(* A sequential lock is a lock whose acquisition *fails* when the lock
+   is already taken. Hence, the programmer should convince herself that
+   the lock will never be taken twice at the same time (either by
+   different threads, or by a single thread). *)
+
 (* Sequential locks are meant to be used in a sequential setting. They
    provide protection against re-entrancy, and offer access to a hidden
    invariant state. *)

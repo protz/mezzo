@@ -54,3 +54,6 @@ val abort
 =
   shift [a, b, c] (fun (_ : a -> b) : c = v)
 
+(* TEMPORARY need to understand the duplicable constraints
+   in reset and abort *)
+

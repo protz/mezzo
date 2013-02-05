@@ -11,9 +11,6 @@ val newref [a] (consumes x: a) : ref a =
 
 (* An atomic swap operation. *)
 
-(* The effect of [swap (r, x)] is to atomically write [x] to [r] and
-   return the previous value of [r]. *)
-
 (* Only a weak update is sound, because the reference is duplicable. *)
 
 (* In a sequential setting, this can be implemented using a read and
@@ -33,47 +30,36 @@ val swap [a] (r: ref a, consumes x: a) : a =
 
 (* Sequential locks. *)
 
-(* Sequential locks are meant to be used in a sequential setting. They
-   provide protection against re-entrancy, and offer access to a hidden
-   invariant state. *)
-
 (* TEMPORARY a type abbreviation would be useful here *)
 
+(* A lock is implemented as an atomic reference to a Boolean. The
+   value [true] means that the lock is free, hence the permission
+   [p] is stored within the lock. The value [false] means that the
+   lock is already taken, hence no permission is stored within the
+   lock. *)
+
 data lock (p : perm) =
-  Lock { contents: ref (option (| p)) }
+  Lock { contents: ref (rich_bool p empty) }
 
 (* Creation. *)
 
 val newlock [p : perm] (| consumes p) : lock p =
-  Lock { contents = newref (some [(| p)] ()) }
+  Lock { contents = newref [rich_bool p empty] RichTrue }
 
 (* Acquisition. *)
 
-val acquire [p : perm] (l: lock p) : (| p) =
-  match swap (l.contents, none) with
-  | None ->
-      (* Runtime failure: the lock is already taken! *)
-      fail
-  | Some ->
-      ()
-  end
-
 val try_acquire [p : perm] (l: lock p) : rich_bool p empty =
-  match swap (l.contents, none) with
-  | None ->
-      RichFalse
-  | Some ->
-      RichTrue
-  end
+  swap (l.contents, RichFalse)
 
-val acquire_variant [p : perm] (l: lock p) : (| p) =
+val acquire [p : perm] (l: lock p) : (| p) =
   if rich_not (try_acquire l) then
+    (* Runtime failure: the lock is already taken! *)
     fail
 
 (* Release. *)
 
 val release [p : perm] (l: lock p | consumes p) : () =
-  let _ = swap (l.contents, some [(| p)] ()) in
+  let _ = swap (l.contents, RichTrue) in
   (* We could use a [match] construct to check dynamically
      against multiple releases, but these are unlikely to
      occur, since multiple copies of [p] would be needed. *)
