@@ -1,0 +1,17 @@
+(* We wish to distinguish mutable and immutable arrays, so the type
+   of arrays takes the form [array m a], where the phantom parameter
+   [m] is intended to be either [ro] or [rw]. The type parameter [a]
+   represents the type of the elements of the array. It is always a
+   duplicable type. *)
+
+abstract ro
+fact duplicable ro
+
+abstract rw
+fact exclusive rw
+
+abstract array m a
+fact duplicable m => duplicable (array m a)
+(* WISH I would like to also write:
+fact exclusive m => exclusive (array m a)
+*)
