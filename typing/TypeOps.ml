@@ -89,7 +89,8 @@ let collect (t: typ): typ * typ list =
         let q, q_perms = collect q in
         TyStar (p, q), p_perms @ q_perms
 
-    | TyAnd _ ->
+    | TyAnd _
+    | TyImply _ ->
         t, []
   in
   collect t
@@ -173,10 +174,17 @@ let simplify_function_type env t body =
         TyStar (fst (find env p e), fst (find env q e)), None
 
     | TyAnd (constraints, t) ->
-        let constraints = List.map (fun (c, t) ->
-          c, fst (find env t e)
-        ) constraints in
+        let constraints = find_constraints env constraints e in
         TyAnd (constraints, fst (find env t e)), None
+
+    | TyImply (constraints, t) ->
+        let constraints = find_constraints env constraints e in
+        TyImply (constraints, fst (find env t e)), None
+
+  and find_constraints env constraints e =
+    List.map (fun (c, t) ->
+      c, fst (find env t e)
+    ) constraints
 
   (* [vars] have been opened in [t] and [e]. *)
   and cleanup (env: env) (vars: (type_binding * flavor) list) (t: typ) (e: expression option)
@@ -389,7 +397,8 @@ let rec mark_reachable env = function
   | TyArrow _ ->
       env
 
-  | TyAnd (constraints, t) ->
+  | TyAnd (constraints, t)
+  | TyImply (constraints, t) ->
       let env = List.fold_left (fun env (_, t) ->
         mark_reachable env t
       ) env constraints in

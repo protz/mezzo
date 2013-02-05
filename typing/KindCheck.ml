@@ -357,6 +357,9 @@ let find x env =
     unbound env x
 ;;
 
+(* TEMPORARY the strict mode of [bind] is never used, it seems; duplicate names
+   are detected using another means. *)
+
 (* [bind env (x, kind)] binds the name [x] with kind [kind]. *)
 let bind ?(strict=false) env (x, kind) : env =
   (* The current level becomes [x]'s level. The current level is
@@ -463,58 +466,95 @@ let flatten_tyapp t =
   flatten_tyapp [] t
 ;;
 
-let check_for_duplicates (elements: 'a list) (exit: 'a -> 'b): unit =
-  let tbl = Hashtbl.create 11 in
-  List.iter (fun x ->
-    if Hashtbl.mem tbl x then
-      exit x
-    else
-      Hashtbl.add tbl x ()) elements
-;;
+(* Yes, this is a bit too abstract and contrived, sorry. I want to
+   avoid using generic hashing & equality over an abstract type of
+   names. *)
 
+let check_for_duplicate_things
+    (compare : 'thing -> 'thing -> int)
+    (project : 'a -> 'thing)
+    (elements: 'a list)
+    (exit: 'thing -> 'b)
+    : unit
+=
+  let compare (x : 'a) (y : 'a) : int =
+    compare (project x) (project y)
+  in
+  match Hml_List.check_for_duplicates compare elements with
+  | None ->
+      ()
+  | Some (x, _) ->
+      exit (project x)
+
+let check_for_duplicate_variables 
+    (project : 'a -> Variable.name)
+    (elements: 'a list)
+    (exit: Variable.name -> 'b)
+    : unit
+=
+  check_for_duplicate_things Variable.compare project elements exit
+
+let check_for_duplicate_datacons
+    (project : 'a -> Datacon.name)
+    (elements: 'a list)
+    (exit: Datacon.name -> 'b)
+    : unit
+=
+  check_for_duplicate_things Datacon.compare project elements exit
 
 (* ---------------------------------------------------------------------------- *)
 
 (* The ↑ relation, which we implement as [names]. *)
+
+(* [bv loc accu p] adds to the accumulator [accu] the names bound by the
+   pattern [p]. For each name, we add a triple of the name, its kind (which is
+   always [KTerm]), and a location. *)
+
+let rec bv loc (accu : type_binding list) (p : pattern) : type_binding list =
+  match p with
+  | PVar x ->
+      (x, KTerm, loc) :: accu
+  | PTuple ps ->
+      List.fold_left (bv loc) accu ps
+  | PConstruct (_, fps) ->
+      List.fold_left (fun accu (_, p) ->
+	bv loc accu p
+      ) accu fps
+  | PLocated (p, loc) ->
+      bv loc accu p
+  | PConstraint (p, _) ->
+      bv loc accu p
+  | PAs (p, x) ->
+      (x, KTerm, loc) :: bv loc accu p
+  | PAny ->
+      accu
 
 (* [names ty] returns a [fragment] containing all the names that [ty] binds. It
    is up to the [check] function to introduce the binders in scope in the right
    places. The order is not important here, since this will be passed on to the
    [extend] function which will then pick a give order. *)
 let names env ty : type_binding list =
-  let rec names env ty =
-    match ty with
-    | TyLocated (t, p) ->
-        names (locate env p) t
-    | TyNameIntro (x, t) ->
-        let bindings = names env t in
-        (x, KTerm, env.location) :: bindings
-    | TyTuple ts ->
-        List.flatten (List.map (names env) ts)
-    | TyConcreteUnfolded (_cons, fields) ->
-        let ts = Hml_List.map_some
-          (function FieldValue (_, t) -> Some t | FieldPermission _ -> None)
-          fields
-        in
-        List.flatten (List.map (names env) ts)
-    | TyAnd (_, t)
-    | TySingleton t
-    | TyConsumes t
-    | TyForall (_, t) ->
-        names env t
-    | TyStar (t1, t2)
-    | TyAnchoredPermission (t1, t2)
-    | TyBar (t1, t2) ->
-        (names env t1) @ (names env t2)
-    | TyUnknown | TyDynamic | TyEmpty | TyVar _
-    | TyQualified _ | TyApp _ | TyArrow _ ->
-        []
-  in
-  let names = names env ty in
-  check_for_duplicates
-    (List.map (fun (x, _, _) -> x) names)
+  
+  (* First, convert the type [ty] to a pattern, using the function
+     [type_to_pattern]. This function is also used by the interpreter
+     and compiler, so we should have a unified notion of which names
+     are ghost and which names are actually available at runtime. *)
+
+  let p = type_to_pattern ty in
+
+  (* Now, collect the names bound by [p]. *)
+
+  let bindings = bv env.location [] p in
+
+  (* Check that no name is bound twice. *)
+
+  check_for_duplicate_variables
+    (fun (x, _, _) -> x)
+    bindings
     (fun x -> bound_twice env x);
-  names
+
+  (* Return the bindings. *)
+  bindings
 ;;
 
 (* [bindings_data_type_group] returns a list of names that the whole data type
@@ -536,26 +576,32 @@ let bindings_data_type_group (data_type_group: data_type_def list): (Variable.na
 
 (* [bindings_pattern] returns in prefix order the list of names bound in a
    pattern. *)
-let rec bindings_pattern (pattern: pattern): (Variable.name * kind) list =
-  match pattern with
-  | PConstraint (p, _) ->
-      bindings_pattern p
-  | PVar x ->
-      [x, KTerm]
-  | PTuple patterns ->
-      List.flatten (List.map bindings_pattern patterns)
-  | PConstruct (_, name_pats) ->
-      let _, patterns = List.split name_pats in
-      List.flatten (List.map bindings_pattern patterns)
-  | PLocated (p, _) ->
-      bindings_pattern p
-  | PAs (p1, x2) ->
-      bindings_pattern p1 @ bindings_pattern (PVar x2)
-  | PAny ->
-      []
+let bindings_pattern
+    (check_for_duplicates: env option) (p: pattern)
+    : (Variable.name * kind) list
+=
+  let loc = (Lexing.dummy_pos, Lexing.dummy_pos) in
+  let bindings = bv loc [] p in
+  (* Discard the dummy location information, and reverse the list, so it
+     appears in left-to-right order (not sure if it's important). *)
+  let bindings = List.rev_map (fun (x, kind, _) -> x, kind) bindings in
+  (* If requested by the caller, check for duplicates. *)
+  match check_for_duplicates with
+  | None ->
+      bindings
+  | Some env ->
+      check_for_duplicate_variables (fun (x, _) -> x) bindings (bound_twice env);
+    bindings
 ;;
 
-
+(* [bindings_patterns] is the same, but applies to a list of patterns.
+   The check for duplicates (if performed) applies to all patterns at
+   once. *)
+let bindings_patterns
+    (check_for_duplicates: env option) (ps: pattern list)
+    : (Variable.name * kind) list
+=
+  bindings_pattern check_for_duplicates (PTuple ps)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -684,7 +730,8 @@ and infer (env: env) (t: typ) =
       check env t2 KPerm;
       KType
 
-  | TyAnd (cs, t) ->
+  | TyAnd (cs, t)
+  | TyImply (cs, t) ->
       List.iter (fun (_, t) -> check env t KType) cs;
       infer env t
 
@@ -695,8 +742,8 @@ and check_field (env: env) (field: data_field_def) =
       let env = extend env fragment in
       check env t KType
   | FieldPermission t ->
-      let fragment = names env t in
-      let env = extend env fragment in
+      (* I have removed the calls to [names] and [extend], because
+	 a permission component does not bind any names. -fpottier *)
       check env t KPerm
 
 and check_branch: 'a. env -> ('a * data_field_def list) -> unit = fun env branch ->
@@ -707,7 +754,10 @@ and check_branch: 'a. env -> ('a * data_field_def list) -> unit = fun env branch
     | FieldPermission _ ->
         None
   ) fields in
-  check_for_duplicates names (duplicate_field env);
+  check_for_duplicate_variables
+    (fun x -> x)
+    names
+    (duplicate_field env);
   List.iter (check_field env) fields
 ;;
 
@@ -748,13 +798,16 @@ let check_data_type_def (env: env) (def: data_type_def) =
 
 let check_data_type_group (env: env) (data_type_group: data_type_def list) =
   (* Check that the constructors are unique to this data type group. *)
-  let all_constructors = Hml_List.map_flatten (function
+  let all_branches = Hml_List.map_flatten (function
     | Abstract _ ->
         []
     | Concrete (_, _, branches, _) ->
-        fst (List.split branches)
+        branches
   ) data_type_group in
-  check_for_duplicates all_constructors (duplicate_constructor env);
+  check_for_duplicate_datacons
+    (fun (datacon, _fields) -> datacon)
+    all_branches
+    (duplicate_constructor env);
 
   (* Do the remainder of the checks. *)
   List.iter (check_data_type_def env) data_type_group
@@ -786,10 +839,7 @@ let rec check_pattern (env: env) (pattern: pattern) =
 let rec check_patexpr (env: env) (flag: rec_flag) (pat_exprs: (pattern * expression) list): env =
   let patterns, expressions = List.split pat_exprs in
   (* Introduce all bindings from the patterns *)
-  let bindings = List.flatten (List.map bindings_pattern patterns) in
-  check_for_duplicates
-    (fst (List.split bindings))
-    (fun x -> bound_twice env x);
+  let bindings = bindings_patterns (Some env) patterns in
   let sub_env = List.fold_left bind env bindings in
   (* Type annotation in patterns may reference names introduced in the entire
    * pattern (same behavior as tuple types). *)
@@ -868,8 +918,7 @@ and check_expression (env: env) (expr: expression) =
   | EMatch (_, e, pat_exprs) ->
       check_expression env e;
       List.iter (fun (pat, expr) ->
-        let bindings = bindings_pattern pat in
-        check_for_duplicates bindings (fun (x, _) -> bound_twice env x);
+        let bindings = bindings_pattern (Some env) pat in
         let sub_env = List.fold_left bind env bindings in
         check_pattern sub_env pat;
         check_expression sub_env expr
@@ -932,7 +981,10 @@ let check_implementation (tenv: T.env) (program: implementation) =
          * and the value definitions. All definitions in a data type groupe are
          * mutually recursive. *)
         let bindings = bindings_data_type_group data_type_group in
-        check_for_duplicates (List.map fst bindings) (fun x -> bound_twice env x);
+        check_for_duplicate_variables
+	  (fun (x, _) -> x)
+	  bindings
+	  (fun x -> bound_twice env x);
         (* Create an environment that includes those names. The strict parameter
          * makes sure we don't bind the same name twice. Admittedly, we could do
          * something better for error reporting. *)

@@ -144,28 +144,22 @@ val mapi : [a, b, p : perm] (
 
 (* Filling a segment with a value. *)
 
-(* TEMPORARY duplicable a =>
-val fill_segment : [a] (x: array a, i: int,   j: int, v: a) -> ()
-val fill         : [a] (x: array a, i: int, len: int, v: a) -> ()
-val fill_array   : [a] (x: array a, v: a) -> ()
-*)
+val fill_segment : [a] duplicable a => (x: array a, i: int,   j: int, v: a) -> ()
+val fill         : [a] duplicable a => (x: array a, i: int, len: int, v: a) -> ()
+val fill_array   : [a] duplicable a => (x: array a, v: a) -> ()
 
 (* -------------------------------------------------------------------------- *)
 
 (* Conversions between arrays and lists. *)
 
-(* TEMPORARY
 val array2list : [a] duplicable a => array a -> list::list a
 val list2array : [a] duplicable a => list::list a -> array a
-*)
 
 (* -------------------------------------------------------------------------- *)
 
 (* Sorting. *)
 
-(* TEMPORARY
 val sort : [a, p : perm] duplicable a => (
   cmp: (a, a | p) -> int,
   x: array a
   | p) -> ()
-*)

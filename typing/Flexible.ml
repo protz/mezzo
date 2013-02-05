@@ -74,7 +74,8 @@ let has_flexible env t =
     | TyEmpty ->
         false
 
-    | TyAnd (constraints, t) ->
+    | TyAnd (constraints, t)
+    | TyImply (constraints, t) ->
         List.exists (fun (_, t) -> has_flexible t) constraints ||
         has_flexible t
 
@@ -137,7 +138,8 @@ let find_flexible env t =
     | TyEmpty ->
         []
 
-    | TyAnd (constraints, t) ->
+    | TyAnd (constraints, t)
+    | TyImply (constraints, t) ->
         find_flexible t @
         Hml_List.map_flatten (fun (_, t) -> find_flexible t) constraints
   in

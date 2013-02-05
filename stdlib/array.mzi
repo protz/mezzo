@@ -40,7 +40,7 @@ fact exclusive (array a)
 (* [create] creates a new array and fills it with an initial value. It requires
    the element type [a] to be duplicable. *)
 
-val create : [a] (* TEMPORARY duplicable a => *) (int, a) -> array a
+val create : [a] duplicable a => (int, a) -> array a
 
 (* [init] creates a new array and uses a user-supplied function [f] to fill it.
    It does not require the element type [a] to be duplicable. *)
@@ -54,7 +54,7 @@ val init : [a, p : perm] (
 
 (* Access. *)
 
-val get    : [a] (* TEMPORARY duplicable a => *) (array a, int) -> a
+val get    : [a] duplicable a => (array a, int) -> a
 val set    : [a] (array a, int, consumes a) -> ()
 val swap   : [a] (array a, int, int) -> ()
 
@@ -108,12 +108,10 @@ val length : [a] array a -> int
    neither of these two version is better than hthe other. Same problem with the
    other blitting functions below. *)
 
-(* TEMPORARY add [duplicable a =>] to each function below *)
-
-val sub    : [a] (array a, int, int)  -> array a
-val append : [a] (array a, array a)   -> array a
-val concat : [a] list::list (array a) -> array a
-val blit   : [a] (a1: array a, ofs1: int, a2: array a, ofs2: int, len: int) -> ()
+val sub    : [a] duplicable a => (array a, int, int)  -> array a
+val append : [a] duplicable a => (array a, array a)   -> array a
+val concat : [a] duplicable a => list::list (array a) -> array a
+val blit   : [a] duplicable a => (a1: array a, ofs1: int, a2: array a, ofs2: int, len: int) -> ()
 
 (* TEMPORARY add an operation that allows performing a strong
    update over an array *)
