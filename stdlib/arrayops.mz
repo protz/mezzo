@@ -134,7 +134,9 @@ val fold_up [a, b] (
   f: (a, consumes accu: b) -> b
 ) : b =
   fold_array_up (x, seed, fun (i: int, consumes accu: b | x @ array a) : b =
-    f (get (x, i), accu)
+    consult (x, i, fun (v: a | consumes accu @ b) : b =
+      f (v, accu)
+    )
   )
 
 val fold_down [a, b] (
@@ -143,7 +145,9 @@ val fold_down [a, b] (
   f: (a, consumes accu: b) -> b
 ) : b =
   fold_array_down (x, seed, fun (i: int, consumes accu: b | x @ array a) : b =
-    f (get (x, i), accu)
+    consult (x, i, fun (v: a | consumes accu @ b) : b =
+      f (v, accu)
+    )
   )
 
 val iter_up [a, p : perm] (
@@ -189,8 +193,8 @@ val reset [a, p : perm] (
   )
 
 (* Copying an entire array. *)
-(* TEMPORARY will require duplicable a *)
-val copy [a] (x: array a) : array a =
+
+val copy [a] duplicable a => (x: array a) : array a =
   sub (x, 0, length x)
 
 val map [a, b, p : perm] (
@@ -198,10 +202,8 @@ val map [a, b, p : perm] (
   f: (a | p) -> b
   | p
 ) : array b =
-  (* It seems to work when [p] is not there and [x @ array a] must be guessed, but not
-     in the more complex situation where [x @ array a * p] must be guessed. *)
   init (length x, fun (i: int | x @ array a * p) : b =
-    f (get (x, i))
+    consult [a, p, (b | p)] (x, i, f)
   )
 
 val mapi [a, b, p : perm] (
@@ -210,7 +212,9 @@ val mapi [a, b, p : perm] (
   | p
 ) : array b =
   init (length x, fun (i: int | x @ array a * p) : b =
-    f (i, get (x, i))
+    consult [a, p, (b | p)] (x, i, fun (v: a | p) : b =
+      f (i, v)
+    )
   )
 
 (* Filling a segment with a value. *)

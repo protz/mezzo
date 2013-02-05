@@ -128,7 +128,7 @@ val reset : [a, p : perm] (
 
 (* Copying an entire array. *)
 
-val copy : [a] array a -> array a
+val copy : [a] duplicable a => array a -> array a
 
 val map : [a, b, p : perm] (
   x: array a,
