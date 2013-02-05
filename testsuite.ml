@@ -764,7 +764,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("multiple-match-ref.mz", simple_test (Fail (fun _ -> true)));
 
-  ("018.mz", simple_test ~known_failure:() Pass);
+  ("018.mz", simple_test Pass);
 
   ("vicious-cycle.mz", simple_test Pass);
 

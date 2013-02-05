@@ -360,14 +360,15 @@ let refine_perms_in_place_for_pattern env point pat =
                 fail ()
               end
           | TyConcreteUnfolded (datacon', fields', _) as t ->
+              let fields, _ = List.split patfields in
               let is_ok =
                 resolved_datacons_equal env datacon datacon' &&
                 List.for_all (function
-                  | FieldValue (n1, _), (n2, _) ->
-                      Field.equal n1 n2
+                  | FieldValue (n1, _) ->
+                      List.exists (Field.equal n1) fields
                   | _ ->
                       Log.error "not in order or not expanded"
-                ) (List.combine fields' patfields)
+                ) fields'
               in
               fail_if (not is_ok);
               Some (env, t)
