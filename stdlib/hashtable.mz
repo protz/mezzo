@@ -112,9 +112,7 @@ val create_buckets [k, a] (capacity: int) : array::array (bucket k a) =
 val create [k, a] (capacity: int, hash: k -> int, equal: (k, k) -> bool) : table k a =
   Table {
     cardinal = 0;
-    buckets = create_buckets [k, a] capacity;
-      (* BUG? if I omit the above type application, the type-checker fails to
-	 instantiate the universal type *)
+    buckets = create_buckets capacity;
     hash = hash;
     equal = equal
   }
@@ -129,7 +127,7 @@ val clear [k, a] (t: table k a) : () =
 
 val reset [k, a] (t: table k a, capacity: int) : () =
   t.cardinal <- 0;
-  t.buckets <- create_buckets [k, a] capacity
+  t.buckets <- create_buckets capacity
 
 (* -------------------------------------------------------------------------- *)
 

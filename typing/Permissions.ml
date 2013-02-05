@@ -866,6 +866,7 @@ and sub_type_real env t1 t2 =
       Some (restore env)
 
   | TyBar (t1, p1), TyBar (t2, p2) ->
+      (* Unless we do this, we can't handle (t|p) - (t|p|p') properly. *)
       let t1, p'1 = collect t1 in
       let p1 = fold_star (p1 :: p'1) in
       let t2, p'2 = collect t2 in

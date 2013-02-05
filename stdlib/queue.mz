@@ -165,7 +165,7 @@ val map [a, b, p:perm] (f: (a | p) -> b, q: fifo a | p): fifo b =
     end
   in
   
-  let accu = create [b] () in
+  let accu = create () in
   map (q, accu)
 
 val copy [a] duplicable a => (q: fifo a): fifo a =
