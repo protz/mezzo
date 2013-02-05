@@ -55,7 +55,7 @@ val claim: [x : term, a] (consumes permission x a) -> (| x @ ref a) (* failure i
    of read operation we would then provide. For soundness, [read] requires the
    type [a] to be duplicable. *)
 
-val read: [a, p : term] (* TEMPORARY duplicable a => *) (x: unknown | p @ permission x a) -> a
+val read: [a, p : term] duplicable a => (x: unknown | p @ permission x a) -> a
 
 (* If [read] is the only operation that allows using an object [x] for which
    only a fractional permission is available, then Mezzo programs remain

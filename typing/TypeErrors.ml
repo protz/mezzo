@@ -62,6 +62,7 @@ and raw_error =
   | NoSuchTypeInSignature of point * typ
   | DataTypeMismatchInSignature of Variable.name * string
   | NotExclusiveOwns of point
+  | UnsatisfiableConstraint of duplicity_constraint list
 
 exception TypeCheckerError of error
 
@@ -458,4 +459,8 @@ let print_error buf (env, raw_error) =
         ppermission_list (env, p)
   | CyclicDependency m ->
       Printf.bprintf buf "There is a cyclic dependency on module %a" Module.p m
+  | UnsatisfiableConstraint cs ->
+      Printf.bprintf buf "%a one of the following constraints cannot be satisfied: %a"
+        Lexer.p env.location
+        pconstraints (env, cs)
 ;;

@@ -1,0 +1,4 @@
+val f: [a] duplicable a => a -> a = builtin __mz_id
+
+val g (x: int): int =
+  f x

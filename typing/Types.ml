@@ -1098,6 +1098,10 @@ module TypePrinter = struct
 
   internal_ptype := ptype;;
 
+  let pconstraints buf (env, constraints) =
+    pdoc buf ((fun () -> print_constraints env constraints), ())
+  ;;
+
   let print_binders (env: env): document =
     utf8string "Γ (unordered) = " ^^
     separate

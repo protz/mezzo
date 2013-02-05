@@ -9,10 +9,10 @@ val clear  : [a] fifo a -> ()
 val rotate : [a] fifo a -> ()
 val insert_head : [a] (consumes a, fifo a) -> ()
 val insert : [a] (consumes a, fifo a) -> ()
-(* val peek   : [a] duplicable a => fifo a -> option a *)
+val peek   : [a] duplicable a => fifo a -> option a
 val retrieve : [a] fifo a -> option a
 val map      : [a, b, p : perm] (f: (a | p) -> b, q: fifo a | p) -> fifo b
-(* val copy  : [a] duplicable a => fifo a -> fifo a *)
+val copy  : [a] duplicable a => fifo a -> fifo a
 val fold : [a, b, p : perm] (
   q: fifo a,
   consumes acc: b,
