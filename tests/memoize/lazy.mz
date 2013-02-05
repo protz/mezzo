@@ -1,0 +1,7 @@
+open atomic
+
+(* The type I wish: a pointer to the contents of the thunk, and a lock
+   that protects the exclusive permission to this contents. *)
+
+data thunk a =
+  Thunk { contents: unknown; lock: lock (contents @ a) }
