@@ -71,6 +71,29 @@ let remove_duplicates (type t') ?(hash_func=Hashtbl.hash) ?(equal_func=(=)) (l: 
     l;
   !l'
 
+(* Checking for duplicates in a list. [check_for_duplicates compare xs] returns either
+   [Some (x1, x2)] where [x1] and [x2] are distinct elements of the list [xs] such
+   that [compare x1 x2] is zero, or [None], if no such two elements exist. *)
+
+let check_for_duplicates (compare : 'a -> 'a -> int) (xs : 'a list) : ('a * 'a) option =
+  (* Sort the list. *)
+  let xs = List.sort compare xs in
+  (* Duplicates are now adjacent. *)
+  let rec loop x1 = function
+    | [] ->
+        None
+    | x2 :: xs ->
+        if compare x1 x2 = 0 then
+	  Some (x1, x2)
+	else
+	  loop x2 xs
+  in
+  match xs with
+  | [] ->
+      None
+  | x1 :: xs ->
+      loop x1 xs
+
 let max l = List.fold_left max min_int l
 
 let filter_some l =

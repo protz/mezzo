@@ -174,7 +174,8 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         collect_type t1 @ collect_type t2
     | TyTuple ts ->
         Hml_List.map_flatten collect_type ts
-    | TyAnd (dcs, t) ->
+    | TyAnd (dcs, t)
+    | TyImply (dcs, t) ->
         let _, ts = List.split dcs in
         collect_type t @ Hml_List.map_flatten collect_type ts
     | TyConcreteUnfolded branch ->

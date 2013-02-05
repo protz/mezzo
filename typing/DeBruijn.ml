@@ -98,6 +98,10 @@ let clean top sub t =
     | TyAnd (constraints, t) ->
         let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
         TyAnd (constraints, clean t)
+
+    | TyImply (constraints, t) ->
+        let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
+        TyImply (constraints, clean t)
   in
   clean t
 ;;
@@ -174,6 +178,11 @@ and equal env (t1: typ) (t2: typ) =
           f1 = f2 && equal t1 t2) c1 c2
         && equal t1 t2
 
+    | TyImply (c1, t1), TyImply (c2, t2) ->
+        List.for_all2 (fun (f1, t1) (f2, t2) ->
+          f1 = f2 && equal t1 t2) c1 c2
+        && equal t1 t2
+
     | _ ->
         false
   in
@@ -239,6 +248,10 @@ let lift (k: int) (t: typ) =
     | TyAnd (constraints, t) ->
         let constraints = List.map (fun (f, t) -> f, lift i t) constraints in
         TyAnd (constraints, lift i t)
+
+    | TyImply (constraints, t) ->
+        let constraints = List.map (fun (f, t) -> f, lift i t) constraints in
+        TyImply (constraints, lift i t)
 
   in
   lift 0 t
@@ -318,6 +331,12 @@ let tsubst (t2: typ) (i: int) (t1: typ) =
           f, tsubst t2 i t
         ) constraints in
         TyAnd (constraints, tsubst t2 i t)
+
+    | TyImply (constraints, t) ->
+        let constraints = List.map (fun (f, t) ->
+          f, tsubst t2 i t
+        ) constraints in
+        TyImply (constraints, tsubst t2 i t)
   in
   tsubst t2 i t1
 ;;
@@ -421,6 +440,10 @@ let tpsubst env (t2: typ) (p: point) (t1: typ) =
     | TyAnd (constraints, t) ->
         let constraints = List.map (fun (f, t) -> f, tsubst t2 t) constraints in
         TyAnd (constraints, tsubst t2 t)
+
+    | TyImply (constraints, t) ->
+        let constraints = List.map (fun (f, t) -> f, tsubst t2 t) constraints in
+        TyImply (constraints, tsubst t2 t)
   in
   tsubst t2 t1
 ;;

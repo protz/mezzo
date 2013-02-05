@@ -99,6 +99,7 @@ type typ =
 
     (* Constraint *)
   | TyAnd of duplicity_constraint list * typ
+  | TyImply of duplicity_constraint list * typ
 
 (* Since data constructors are now properly scoped, they are resolved, that is,
  * they are either attached to a point, or a De Bruijn index, which will later

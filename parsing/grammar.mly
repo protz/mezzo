@@ -240,6 +240,7 @@ atomic_kind:
 
 (* The syntax of types is stratified into the following levels:
 
+     parenthetic_type
      atomic_type
      tight_type
      normal_type
@@ -254,17 +255,32 @@ atomic_kind:
 | x = X
     { TyLocated (x, ($startpos(x), $endpos)) }
 
-%inline atomic_type:
-| t = tlocated(raw_atomic_type)
-    { t }
+(* A parenthetic type is a type that is delimited by parentheses. This
+   syntactic category is used as the formal parameter in a function
+   definition. *)
 
-raw_atomic_type:
+%inline parenthetic_type:
+| ty = tlocated(raw_parenthetic_type)
+    { ty }
+
+raw_parenthetic_type:
 (* The empty tuple type. *)
 | LPAREN RPAREN
     { TyTuple [] }
 (* Parentheses are used as a disambiguation device, as is standard. *)
-| LPAREN t = arbitrary_type RPAREN
-    { t }
+| LPAREN ty = arbitrary_type RPAREN
+    { ty }
+
+(* An atomic type is one that is clearly delimited. This includes the
+   parenthetic types, plus various kinds of atoms (type variables, etc.) *)
+
+%inline atomic_type:
+| ty = tlocated(raw_atomic_type)
+    { ty }
+
+raw_atomic_type:
+| ty = raw_parenthetic_type
+    { ty }
 (* The top type. *)
 | UNKNOWN
     { TyUnknown }
@@ -286,8 +302,8 @@ raw_atomic_type:
     { TyConcreteUnfolded b }
 
 %inline tight_type:
-| t = tlocated(raw_tight_type)
-    { t }
+| ty = tlocated(raw_tight_type)
+    { ty }
 
 raw_tight_type:
 | ty = raw_atomic_type
@@ -300,8 +316,8 @@ raw_tight_type:
     { ty }
 
 %inline normal_type:
-| t = tlocated(raw_normal_type)
-    { t }
+| ty = tlocated(raw_normal_type)
+    { ty }
 
 raw_normal_type:
 | ty = raw_tight_type
@@ -312,10 +328,13 @@ raw_normal_type:
 (* A polymorphic type. *)
 | bs = type_parameters ty = normal_type
     { List.fold_right (fun b ty -> TyForall (b, ty)) bs ty }
+(* A type that carries a mode constraint. *)
+| c = mode_constraint ty = normal_type
+    { TyImply ([ c ], ty) }
 
 %inline loose_type:
-| t = tlocated(raw_loose_type)
-    { t }
+| ty = tlocated(raw_loose_type)
+    { ty }
 
 raw_loose_type:
 | ty = raw_normal_type
@@ -339,8 +358,8 @@ raw_loose_type:
     { ty }
 
 %inline consumes_type:
-| t = tlocated(raw_consumes_type)
-    { t }
+| ty = tlocated(raw_consumes_type)
+    { ty }
 
 raw_consumes_type:
 | ty = raw_loose_type
@@ -354,8 +373,8 @@ raw_consumes_type:
     { TyConsumes ty }
 
 %inline very_loose_type:
-| t = tlocated(raw_very_loose_type)
-    { t }
+| ty = tlocated(raw_very_loose_type)
+    { ty }
 
 (* [COMMA] and [STAR] are at the same level, but cannot be mixed with
    each other. *)
@@ -373,8 +392,8 @@ raw_very_loose_type:
     { TyTuple tcs }
 
 %inline fat_type:
-| t = tlocated(raw_fat_type)
-  { t }
+| ty = tlocated(raw_fat_type)
+  { ty }
 
 raw_fat_type:
 | ty = raw_very_loose_type
@@ -387,12 +406,16 @@ raw_fat_type:
     { TyBar (TyTuple [], ty2) }
 
 %inline arbitrary_type:
-  t = fat_type
-    { t }
+  ty = fat_type
+    { ty }
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Mode constraints are used as part of toplevel function definitions. *)
+
+(* We allow just one constraint at a time. Multiple constraints, separated
+   with commas, could perhaps be allowed, but I am afraid that this looks
+   too much like a tuple. *)
 
 mode:
 | EXCLUSIVE
@@ -400,12 +423,12 @@ mode:
 | DUPLICABLE
     { Duplicable }
 
-%inline atomic_mode_constraint:
-| m = mode t = atomic_type
+%inline mode_constraint:
+| m = mode t = atomic_type DBLARROW
     { m, t }
 
-%inline mode_constraint:
-| cs = separated_nonempty_list (COMMA, atomic_mode_constraint) DBLARROW
+mode_constraints:
+  cs = mode_constraint*
     { cs }
 
 (* ---------------------------------------------------------------------------- *)
@@ -852,13 +875,17 @@ raw_fragile_expression:
 | e1 = reasonable_expression SEMI e2 = tuple_or_fragile_expression
     { ESequence (e1, e2) }
 (* The semi-colon can also be used as a terminator. This should facilitate
-   swapping instructions in sequences. *)
-| e1 = reasonable_expression SEMI
+   swapping instructions in sequences. This flexibility is possible thanks
+   to the fact that local and toplevel definitions are distinguished by a
+   different leading keyword. *)
+ | e1 = reasonable_expression SEMI
     { e1 }
-| LET f = rec_flag declarations = separated_list(AND, inner_declaration) IN e = tuple_or_fragile_expression
-    { ELet (f, declarations, e) }
-| FUN bs = type_parameters? arg = atomic_type COLON t = normal_type EQUAL e = tuple_or_fragile_expression
-    { EFun (Option.map_none [] bs, arg, t, e) }
+(* Local value definitions are introduced by [let], whereas toplevel definitions
+   are introduced by [val]. Their syntax is otherwise identical. *)
+| LET flag_defs = definitions IN e = tuple_or_fragile_expression
+    { let flag, defs = flag_defs in ELet (flag, defs, e) }
+| FUN e = anonymous_function
+    { e }
 | e = raw_reasonable_expression
     { e }
 
@@ -874,18 +901,64 @@ rec_flag:
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Value and function definitions. *)
+
+(* Top-level definitions and local definitions have the same syntax, except
+   for the leading keyword, which is [let] or [val]. We factor out this
+   keyword and define the common part here. *)
+
+(* Following the leading [let] or [val] keyword, we have an optional [rec]
+   keyword, followed with a list of definitions, separated by [and]. *)
+
+%inline definitions:
+  flag = rec_flag
+  defs = separated_list(AND, definition)
+    { flag, defs }
+
+(* A definition is of one the following forms. We define several alternative
+   forms, but we could also define a single form with optional components. *)
+
+definition:
+| p = normal_pattern EQUAL e = expression
+    { p, e }
+| p = normal_pattern COLON t = normal_type EQUAL e = expression
+    { PConstraint (p, t), e }
+| p = normal_pattern e = anonymous_function
+    { p, e }
+
+(* The syntax of anonymous function appears as part of definitions (above)
+   and also, when preceded with the keyword [fun], as a stand-alone
+   expression. *)
+
+(* We could allow the formal arguments to be an [atomic_type], but I prefer
+   to require the formal arguments to be surrounded with parentheses; this
+   is why I define and use the category [parenthetic_type]. *)
+
+anonymous_function:
+  (* Optional type parameters: [a] *)
+  type_parameters = loption(type_parameters)
+  (* Optional constraint: duplicable a => *)
+  constraints = mode_constraints
+  (* Formal arguments: (x: a) *)
+  formal = parenthetic_type
+  (* Result type: : (a, a) *)
+  COLON result = normal_type
+  (* Function body: = (x, x) *)
+  EQUAL body = expression
+    { EFun (type_parameters, TyAnd (constraints, formal), result, body) }
+
+(* ---------------------------------------------------------------------------- *)
+
 (* Top-level value definitions. *)
 
 (* This is a toplevel item; it appears in implementations only. *)
 
-value_definition:
-| VAL flag = rec_flag defs = separated_list(AND, inner_declaration)
-    { let d = DMultiple (flag, defs) in
-      DLocated (d, ($startpos($1), $endpos)) }
-
-%inline value_definition_group:
-| def = value_definition
-    { ValueDeclarations [ def ] }
+definition_group:
+| VAL flag_defs = definitions
+    { let flag, defs = flag_defs in
+      let d = DMultiple (flag, defs) in
+      let d = DLocated (d, ($startpos($1), $endpos)) in
+      ValueDeclarations [ d ] }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -900,30 +973,6 @@ value_definition:
 value_declaration:
 | VAL x = variable COLON ty = arbitrary_type
     { PermDeclaration (x, ty) }
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Inner declarations, also used by let-bindings. *)
-
-(* TEMPORARY anonymous functions and named functions should share a single
-   production for function headers *)
-
-(* We make a distinction between a single pattern and a function definition. The
- * former encompasses idioms such as [val x,y = ...]. The latter allows one to
- * define a function. There are additional rules that ought to be verified at
- * some point (e.g. only variables are allowed on the left-hand side of a
- * let-rec *)
-inner_declaration:
-| p = pattern EQUAL e = expression
-    { p, e }
-| f_name = variable
-  bs = type_parameters?
-  constraints = loption(mode_constraint)
-  arg = atomic_type
-  COLON t = normal_type
-  EQUAL e = expression
-    { PVar f_name,
-      EFun (Option.map_none [] bs, TyAnd (constraints, arg), t, e) }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -946,7 +995,7 @@ open_directive:
 
 implementation_item:
 | item = data_type_group
-| item = value_definition_group
+| item = definition_group
 | item = open_directive
     { item }
 

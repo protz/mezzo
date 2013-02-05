@@ -73,6 +73,11 @@ val remove_duplicates :
   ?hash_func:('a -> int) ->
   ?equal_func:('a -> 'a -> bool) -> 'a list -> 'a list
 
+(** Checking for duplicates in a list. [check_for_duplicates compare xs] returns either
+    [Some (x1, x2)] where [x1] and [x2] are distinct elements of the list [xs] such
+    that [compare x1 x2] is zero, or [None], if no such two elements exist. *)
+val check_for_duplicates : ('a -> 'a -> int) -> 'a list -> ('a * 'a) option
+
 (** Find the biggest element in a list *)
 val max: int list -> int
 

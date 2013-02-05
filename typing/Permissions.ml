@@ -334,7 +334,7 @@ and add (env: env) (point: point) (t: typ): env =
       end
 
   | TyAnd (constraints, t) ->
-      Log.debug ~level:4 "%s]%s (constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
+      Log.debug ~level:4 "%s]%s (and-constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
       let env = add_constraints env constraints in
       add env point t
 
@@ -459,19 +459,15 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
     | TyExists _ ->
         env, t
 
-    | TyStar (p, q) ->
-        let env, p = unfold env ?hint p in
-        let env, q = unfold env ?hint q in
-        env, TyStar (p, q)
+    | TyStar _ ->
+        env, t
 
     | TyBar (t, p) ->
         let env, t = unfold env ?hint t in
-        let env, p = unfold env ?hint p in
         env, TyBar (t, p)
 
-    | TyAnchoredPermission (x, t) ->
-        let env, t = unfold env ?hint t in
-        env, TyAnchoredPermission (x, t)
+    | TyAnchoredPermission _ ->
+        env, t
 
     (* We're only interested in unfolding structural types. *)
     | TyTuple components ->
@@ -516,9 +512,9 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
         in
         env, TyConcreteUnfolded (datacon, List.rev fields, clause)
 
-    | TyAnd (constraints, t) ->
-        let env, t = unfold env ?hint t in
-        env, TyAnd (constraints, t)
+    | TyAnd _
+    | TyImply _ ->
+        env, t
 
   in
   unfold env ?hint t
@@ -614,6 +610,23 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
 and sub_type (env: env) (t1: typ) (t2: typ): env option =
   step_through_flex env sub_type_real t1 t2 ||| sub_type_real env t1 t2
 
+and sub_constraints env constraints =
+  List.fold_left (fun env (f, t) ->
+    env >>= fun env ->
+    let f = fact_of_flag f in
+    match t with
+    | TyPoint p ->
+        let f' = get_fact env p in
+        Log.debug "fact for %a: %a" TypePrinter.pnames (env, get_names env p) TypePrinter.pfact f';
+        (* [f] demands, for instance, that [p] be exclusive *)
+        if fact_leq f' f then
+          Some env
+        else
+          None
+    | _ ->
+        Log.error "The parser shouldn't allow this"
+  ) (Some env) constraints
+
 and sub_type_real env t1 t2 =
   TypePrinter.(
     Log.debug ~level:4 "[sub_type] %a %s→%s %a"
@@ -625,53 +638,42 @@ and sub_type_real env t1 t2 =
     Some env
 
   else match t1, t2 with
+
+  (** Duplicity constraints. *)
+
   | TyAnd _, _ ->
       Log.error "Constraints should've been processed when this permission was added"
+
+  | TyImply (constraints, t1), t2 ->
+      sub_type env t1 (TyAnd (constraints, t2))
 
   | _, TyAnd (constraints, t2) ->
       (* First do the subtraction, because the constraint may be "duplicable α"
        * with "α" being flexible. *)
       let t2, perms = collect t2 in
       sub_type env t1 t2 >>= fun env ->
-      sub_perm env (fold_star perms) >>= fun env ->
+      sub_perms env perms >>= fun env ->
       (* And then, hoping that α has been instantiated, check that it satisfies
        * the constraint. *)
-      List.fold_left (fun env (f, t) ->
-        env >>= fun env ->
-        let f = fact_of_flag f in
-        match t with
-        | TyPoint p ->
-            let f' = get_fact env p in
-            (* [f] demands, for instance, that [p] be exclusive *)
-            if fact_leq f' f then
-              Some env
-            else
-              None
-        | _ ->
-            Log.error "The parser shouldn't allow this"
-      ) (Some env) constraints
+      sub_constraints env constraints
+
+  | t1, TyImply (constraints, t2) ->
+      let env = add_constraints env constraints in
+      sub_type env t1 t2
 
 
-  (** Higher priority for binding rigid = universal quantifiers.
-   *
-   * We could have a lower element called [any] in             aff
-   * the fact lattice, and because these variables           /    \
-   * are universal, they would have that fact.             dup   excl
-   * However, we don't have it, so we can pick an            \    /
-   * element as low as we want. We choose                     any
-   * duplicable, because we know it's the optimal
-   * choice given our limited set of facts.            fig 1: a better
-   *                                                  lattice for facts
-   * *)
+  (** Higher priority for binding rigid = universal quantifiers. We have to be
+   * conservative: we need to show that this subtraction is valid for all
+   * possible instantiations of the variable, so we assume Affine. *)
 
   | _, TyForall ((binding, _), t2) ->
-      let env, t2 = bind_var_in_type env ~fact:(Duplicable [||]) binding t2 in
+      let env, t2 = bind_var_in_type env ~fact:Affine binding t2 in
       let t2, perms = collect t2 in
       sub_perm env (fold_star perms) >>= fun env ->
       sub_type env t1 t2
 
   | TyExists (binding, t1), _ ->
-      let env, t1 = bind_var_in_type env ~fact:(Duplicable [||]) binding t1 in
+      let env, t1 = bind_var_in_type env ~fact:Affine binding t1 in
       let t1, perms = collect t1 in
       let env = add_perm env (fold_star perms) in
       sub_type env t1 t2
@@ -679,7 +681,7 @@ and sub_type_real env t1 t2 =
 
   (** Lower priority for binding flexible = existential quantifiers.
    *
-   * Conversely, since these are existentially quantified, we have to be
+   * Since these are existentially quantified, we have to be
    * conservative, and pick the highest element in the fact lattice. It's the
    * default value. *)
 

@@ -94,6 +94,9 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
         is_quantified_arrow t
     | TyArrow _ ->
         true
+    | TyImply (_, t) ->
+        (* BEWARE: there may be quantifiers ABOVE and UNDER the [TyImply]. *)
+        is_quantified_arrow t
     | _ ->
         false
   in
@@ -108,25 +111,28 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
         env, t
   in
   (* Instantiate flexible variables and deconstruct the resulting arrow. *)
-  let flex_deconstruct t =
+  let rec flex_deconstruct env acc t =
     match flex env t with
     | env, TyArrow (t1,t2) ->
-        env, (t1, t2)
+        env, (t1, t2), acc
+    | env, TyImply (constraints, t) ->
+        flex_deconstruct env (acc @ constraints) t
     | _ ->
         assert false
   in
+  let flex_deconstruct env t = flex_deconstruct env [] t in
   (* Try to give some useful error messages in case we have found not enough or
    * too many suitable types for [f]. *)
-  let env, (t1, t2) =
+  let env, (t1, t2), constraints =
     match permissions with
     | [] ->
         raise_error env (NotAFunction f)
     | t :: [] ->
-        flex_deconstruct t
+        flex_deconstruct env t
     | t :: _ ->
         Log.debug "More than one permission available for %a, strange"
           TypePrinter.pvar (env, fname);
-        flex_deconstruct t
+        flex_deconstruct env t
   in
  (* Examine [x]. [sub] will take care of running collect on [t1] so that the
    * expected permissions are subtracted as well from the environment. *)
@@ -136,6 +142,14 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
   match Permissions.sub env x t1 with
   | Some env ->
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
+      (* Now we need to check the constraints (after the flexible variables have
+       * been instantiated! *)
+      let env = match Permissions.sub_constraints env constraints with
+        | Some env ->
+            env
+        | None ->
+            raise_error env (UnsatisfiableConstraint constraints)
+      in
       (* Return the "good" type. *)
       let t2, perms = Permissions.collect t2 in
       let env = List.fold_left Permissions.add_perm env perms in
