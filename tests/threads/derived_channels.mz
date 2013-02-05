@@ -5,4 +5,30 @@ open queue
    and a permission for [q] guarded by a lock. *)
 
 data channel a =
-  Channel { queue: unknown; lock: lock (queue @ queue a) }
+  Channel { queue: unknown; lock: lock (queue @ fifo a) }
+
+val newchannel [a] (): channel a =
+  let q = queue::create [a] () in
+  let l = locks::newlock [q @ fifo a] () in
+  Channel { queue: q; lock: l }
+
+val send [a] (c: channel a, consumes x: a): () =
+  match c with
+  | Channel { queue; lock } ->
+    acquire l;
+    insert [a] (x, q);
+    release l
+  end
+
+(* Naive version with busy waiting. *)
+val rec receive [a] (c: channel a): a =
+  match c with
+  | Channel { queue; lock } ->
+      acquire l;
+      match retrieve [a] c with
+      | none ->
+	  release l; receive [a] c
+      | some x ->
+	  release l; x
+      end
+  end
