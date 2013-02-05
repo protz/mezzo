@@ -35,7 +35,5 @@ val try_acquire : [p : perm] lock p -> rich_bool p empty
 
 (* Release. *)
 
-val release     : [p : perm] (l: lock p | consumes p) -> ()
-(* BUG removing "l:" in the above line
-   causes the mz/mzi comparison to fail *)
+val release     : [p : perm] (lock p | consumes p) -> ()
 

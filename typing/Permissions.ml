@@ -93,17 +93,6 @@ let safety_check env =
  * treated differently. The various [add_perm] and [sub_perm] function will case
  * these two helpers. *)
 
-let sub_floating_perm env t =
-  match Hml_List.take_bool (equal env t) env.floating_permissions with
-  | Some (remaining_perms, t') ->
-      if FactInference.is_duplicable env t' then
-        Some env
-      else
-        Some { env with floating_permissions = remaining_perms }
-  | None ->
-      None
-;;
-
 
 let add_floating_perm env t =
   { env with floating_permissions = t :: env.floating_permissions }
@@ -835,7 +824,8 @@ and sub_type_real env t1 t2 =
           | Bivariant ->
               Some env
           | Invariant ->
-              equal_modulo_flex env arg1 arg2
+              sub_type env arg1 arg2 >>= fun env ->
+              sub_type env arg2 arg1
         ) (Some env) args1 args2 >>= fun env ->
         Some (restore env)
       else
@@ -1070,16 +1060,6 @@ and step_through_flex ?(stepped=false) env k t1 t2 =
         None
 
 
-(* Determine whether two types are equal, modulo flexible variables. *)
-and equal_modulo_flex env t1 t2 =
-  (* TODO: This function should recursively descend say, on type applications,
-   * to instantiate flexible variables in depth, so that "t (u ω)" where "ω" is
-   * flexible can be considered equal to "t (u v)". Once this is done, this
-   * should fix the BUG in hashtable::create.  *)
-  let equal env t1 t2 = if equal env t1 t2 then Some env else None in
-  equal env t1 t2 ||| step_through_flex env equal t1 t2
-
-
 (** [sub_perm env t] takes a type [t] with kind KPerm, and tries to return the
     environment without the corresponding permission. *)
 and sub_perm (env: env) (t: typ): env option =
@@ -1116,3 +1096,15 @@ and sub_perms env perms =
         Log.debug ~level:4 "[sub_perms] failed, remaining: %a"
           TypePrinter.ptype (env, fold_star perms);
         None
+
+and sub_floating_perm env t =
+  match Hml_List.take (sub_type env t) env.floating_permissions with
+  | Some (remaining_perms, (t', env)) ->
+      if FactInference.is_duplicable env t' then
+        Some env
+      else
+        Some { env with floating_permissions = remaining_perms }
+  | None ->
+      None
+;;
+

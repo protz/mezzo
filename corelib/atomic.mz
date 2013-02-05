@@ -66,12 +66,9 @@ val try_acquire [p : perm] (l: lock p) : rich_bool p empty =
       RichTrue
   end
 
-(* BUG uncommenting this definition causes a type error ABOVE
-   in try_acquire!
 val acquire_variant [p : perm] (l: lock p) : (| p) =
   if rich_not (try_acquire l) then
     fail
-*)
 
 (* Release. *)
 
