@@ -722,7 +722,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("tuple-syntax.mz", simple_test Pass);
 
-  ("same-type-var-bug.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
+  ("same-type-var-bug.mz", simple_test (KFail (function K.BoundTwice _ -> true | _ -> false)));
 
   ("assert-bug.mz", simple_test ~known_failure:() Pass);
 
