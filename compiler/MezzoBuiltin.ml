@@ -80,3 +80,10 @@ let _mz_address_eq (x, y) =
 let _mz_print_value _ =
   print_endline "_mz_print_value is not implemented."
 
+(* ---------------------------------------------------------------------------- *)
+
+(* Unsafe cast. *)
+
+let _mz_magic v =
+  v
+

@@ -366,6 +366,8 @@ let eval_builtin (env : env) (loc : location) (b : string) (v : value) : value =
   | "_mz_print_value" ->
       print_endline (ValuePrinter.render v);
       unit_value
+  | "_mz_magic" ->
+      v
   | _ ->
       Log.error "%a\nUnknown builtin function: %s\n" Lexer.p loc b
 
