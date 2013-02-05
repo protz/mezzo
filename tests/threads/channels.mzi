@@ -1,0 +1,8 @@
+abstract channel (a: type)
+fact duplicable (channel a)
+
+val new_channel: [a] () -> channel a
+
+val send: [a] (channel a, consumes a) -> ()
+
+val receive: [a] (channel a) -> a
