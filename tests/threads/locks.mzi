@@ -1,11 +1,11 @@
-abstract lock p
+abstract lock (p: perm)
 fact duplicable (lock p)
 
-abstract held
-fact exclusive (l @ held)
+abstract held (l: term): perm
+fact exclusive (held l)
 
-val new_lock: [p: perm] ( | consumes p) -> lock p
+val newlock: [p: perm] ( | consumes p) -> lock p
 
-val acquire: [p: perm] (l: lock p) -> ( | p * l @ held)
+val acquire: [p: perm] (l: lock p) -> ( | p * held l)
 
-val release: [p: perm] (l: lock p | consumes p * consumes (l @ held))
+val release: [p: perm] (l: lock p | consumes (p * held l)) -> ()
