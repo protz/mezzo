@@ -1,5 +1,39 @@
 open channels
 
+data lock (p: perm) =
+  Lock { channel: channel ( | p) }
+
+abstract held (l: term): perm
+fact exclusive (held l)
+
+val takeheld [p: perm] (l: lock p): ( | held l) =
+  magic::magic [(), ( |held l)] ()
+
+(* Nothing to do here.
+val giveheld [p: perm] (l: lock p | consumes (held l)): () = ()
+*)
+
+(* Possible variant: include the permission held in the channel. This way the permission is created only once, and then passed within the channel. *)
+
+val newlock [p: perm] ( | consumes p): lock p =
+  let c = newchannel [(|p)] () in
+  Lock { channel = c }
+
+val acquire [p: perm] (l: lock p): ( | p * held l) =
+  match l with
+  | Lock { channel } ->
+    let _ = receive [(|p)] channel in
+    takeheld [p] l
+  end
+
+val release [p: perm] (l: lock p | consumes (p * held l)): () =
+  match l with
+  | Lock { channel } ->
+    send [(|p)] (channel,())
+  end
+
+(*
+(* Implementation of held through a dummy reference whose permission is sent on the channel. *)
 (*
 data lock (p: perm) =
   | Lock { dummy: unknown; chan: channel ( =dummy | p ) | dummy @ ref () }
@@ -35,6 +69,7 @@ val release [p: perm] (l: Lock { dummy: (dummy: unknown); chan: channel (ref () 
 (*    let r = Ref {contents = ()} in*)
     send [ ( ref () | p ) ] (chan, dummy)
   end
+*)
 
 (*
 (* Adoption/Abandon version, fails because the adopts clause is restricted to 
