@@ -5,6 +5,6 @@
    the permissions that are consumed and produced would not be
    clearly controlled. *)
 
-let magic [a, b] (consumes x: a) : b =
-  builtin "_mz_magic"
+val magic [a, b] (consumes x: a) : b =
+  builtin _mz_magic
 
