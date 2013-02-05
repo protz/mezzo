@@ -469,19 +469,15 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
     | TyExists _ ->
         env, t
 
-    | TyStar (p, q) ->
-        let env, p = unfold env ?hint p in
-        let env, q = unfold env ?hint q in
-        env, TyStar (p, q)
+    | TyStar _ ->
+        env, t
 
     | TyBar (t, p) ->
         let env, t = unfold env ?hint t in
-        let env, p = unfold env ?hint p in
         env, TyBar (t, p)
 
-    | TyAnchoredPermission (x, t) ->
-        let env, t = unfold env ?hint t in
-        env, TyAnchoredPermission (x, t)
+    | TyAnchoredPermission _ ->
+        env, t
 
     (* We're only interested in unfolding structural types. *)
     | TyTuple components ->
