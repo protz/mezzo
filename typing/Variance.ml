@@ -141,7 +141,8 @@ let variance env var_for_ith valuation b t =
     | TyStar (t1, t2) ->
         lub (var t1) (var t2)
 
-    | TyAnd (constraints, t) ->
+    | TyAnd (constraints, t)
+    | TyImply (constraints, t) ->
         let ts = List.map snd constraints in
         let vs = List.map var (t :: ts) in
         List.fold_left lub Bivariant vs

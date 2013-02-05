@@ -176,7 +176,8 @@ let duplicables
         duplicables env t;
         duplicables env p
 
-    | TyAnd (constraints, t) ->
+    | TyAnd (constraints, t)
+    | TyImply (constraints, t) ->
         let ts = List.map snd constraints in
         List.iter (duplicables env) (t :: ts)
   in

@@ -334,9 +334,19 @@ and add (env: env) (point: point) (t: typ): env =
       end
 
   | TyAnd (constraints, t) ->
-      Log.debug ~level:4 "%s]%s (constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
+      Log.debug ~level:4 "%s]%s (and-constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
       let env = add_constraints env constraints in
       add env point t
+
+  | TyImply (constraints, t) ->
+      Log.debug ~level:4 "%s]%s (imply-constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
+      begin match sub_constraints env constraints with
+      | Some env ->
+          add env point t
+      | None ->
+          Log.debug ~level:4 "[add_TyImply] failed, constraints not satisfied";
+          env
+      end
 
   | _ ->
       (* Add the "bare" type. Recursive calls took care of calling [add]. *)
@@ -516,9 +526,9 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
         in
         env, TyConcreteUnfolded (datacon, List.rev fields, clause)
 
-    | TyAnd (constraints, t) ->
-        let env, t = unfold env ?hint t in
-        env, TyAnd (constraints, t)
+    | TyAnd _
+    | TyImply _ ->
+        env, t
 
   in
   unfold env ?hint t
@@ -614,6 +624,22 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
 and sub_type (env: env) (t1: typ) (t2: typ): env option =
   step_through_flex env sub_type_real t1 t2 ||| sub_type_real env t1 t2
 
+and sub_constraints env constraints =
+  List.fold_left (fun env (f, t) ->
+    env >>= fun env ->
+    let f = fact_of_flag f in
+    match t with
+    | TyPoint p ->
+        let f' = get_fact env p in
+        (* [f] demands, for instance, that [p] be exclusive *)
+        if fact_leq f' f then
+          Some env
+        else
+          None
+    | _ ->
+        Log.error "The parser shouldn't allow this"
+  ) (Some env) constraints
+
 and sub_type_real env t1 t2 =
   TypePrinter.(
     Log.debug ~level:4 "[sub_type] %a %s→%s %a"
@@ -636,20 +662,7 @@ and sub_type_real env t1 t2 =
       sub_perm env (fold_star perms) >>= fun env ->
       (* And then, hoping that α has been instantiated, check that it satisfies
        * the constraint. *)
-      List.fold_left (fun env (f, t) ->
-        env >>= fun env ->
-        let f = fact_of_flag f in
-        match t with
-        | TyPoint p ->
-            let f' = get_fact env p in
-            (* [f] demands, for instance, that [p] be exclusive *)
-            if fact_leq f' f then
-              Some env
-            else
-              None
-        | _ ->
-            Log.error "The parser shouldn't allow this"
-      ) (Some env) constraints
+      sub_constraints env constraints
 
 
   (** Higher priority for binding rigid = universal quantifiers.

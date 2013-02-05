@@ -133,6 +133,9 @@ and fold_type_raw (env: env) (t: typ): typ =
   | TyTuple components ->
       TyTuple (List.map (fold_type_raw env) components)
 
+  | TyImply (cs, t) ->
+      TyImply (cs, fold_type_raw env t)
+
   | TyAnd (cs, t) ->
       TyAnd (cs, fold_type_raw env t)
 
