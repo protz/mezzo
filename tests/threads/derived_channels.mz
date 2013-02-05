@@ -1,0 +1,8 @@
+open locks
+open queue
+
+(* Wish: a channel is an unknown pointer to a queue [q],
+   and a permission for [q] guarded by a lock. *)
+
+data channel a =
+  Channel { queue: unknown; lock: lock (queue @ queue a) }
