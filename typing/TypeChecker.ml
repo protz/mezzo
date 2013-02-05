@@ -225,7 +225,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
       let permissions = get_permissions env point in
       let field_defs = Hml_List.map_some
         (function
-          | TyConcreteUnfolded (datacon', x, _) when Datacon.equal datacon datacon' ->
+          | TyConcreteUnfolded (datacon', x, _) when resolved_datacons_equal env datacon datacon' ->
               Some x
           | _ ->
               None)
@@ -285,7 +285,7 @@ let refine_perms_in_place_for_pattern env point pat =
 
     | PConstruct (datacon, patfields) ->
         (* An easy way out. *)
-        let fail () = raise_error env (MatchBadDatacon (point, datacon)) in
+        let fail () = raise_error env (MatchBadDatacon (point, snd datacon)) in
         let fail_if b = if b then fail () in
 
         (* Turn the return value of [find_and_instantiate_branch] into a type. *)
@@ -314,7 +314,7 @@ let refine_perms_in_place_for_pattern env point pat =
           | Some p1 ->
               p1
           | None ->
-              raise_error env (BadField (datacon, n2))
+              raise_error env (BadField (snd datacon, n2))
           in
           refine env point1 pat2
         ) env patfields in
@@ -322,6 +322,8 @@ let refine_perms_in_place_for_pattern env point pat =
         (* Find a permission that can be refined in there. *)
         begin match Hml_List.take (function
           | TyPoint p ->
+              let p', datacon = datacon in
+              fail_if (not (same env p !!p'));
               fail_if (not (has_definition env p));
               begin try
                 let branch = find_and_instantiate_branch env p datacon [] in
@@ -332,6 +334,11 @@ let refine_perms_in_place_for_pattern env point pat =
                 fail ()
               end
           | TyApp (cons, args) ->
+              let p', datacon = datacon in
+              Log.debug "cons=%a, p'=%a"
+                TypePrinter.ptype (env, cons)
+                TypePrinter.ptype (env, p');
+              fail_if (not (same env !!cons !!p'));
               begin try
                 let branch = find_and_instantiate_branch env !!cons datacon args in
                 Some (env, mkconcrete branch)
@@ -340,7 +347,7 @@ let refine_perms_in_place_for_pattern env point pat =
               end
           | TyConcreteUnfolded (datacon', fields', _) as t ->
               let is_ok =
-                Datacon.equal datacon datacon' &&
+                resolved_datacons_equal env datacon datacon' &&
                 List.for_all (function
                   | FieldValue (n1, _), (n2, _) ->
                       Field.equal n1 n2
@@ -403,7 +410,7 @@ let merge_type_annotations env t1 t2 =
         TyTuple (List.map2 merge_type_annotations ts1 ts2)
     | TyConcreteUnfolded (datacon1, fields1, clause1),
       TyConcreteUnfolded (datacon2, fields2, clause2)
-      when Datacon.equal datacon1 datacon2 && List.length fields1 = List.length fields2 ->
+      when resolved_datacons_equal env datacon1 datacon2 && List.length fields1 = List.length fields2 ->
         TyConcreteUnfolded (datacon1, List.map2 (fun f1 f2 ->
           match f1, f2 with
           | FieldValue (f1, t1), FieldValue (f2, t2) when Field.equal f1 f2 ->
@@ -422,8 +429,8 @@ let merge_type_annotations env t1 t2 =
 
 let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * point =
 
-  (* lazy because we want to run ./mezzo corelib/core.mz *)
-  let t_int = lazy (find_type_by_name env ~mname:"core" "int")
+  (* lazy because we need to typecheck the core modules too! *)
+  let t_int = lazy (find_type_by_name env ~mname:"int" "int")
   and t_bool = lazy (find_type_by_name env ~mname:"bool" "bool") in
 
   (* [return t] creates a new point with type [t] available for it, and returns
@@ -515,8 +522,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           raise_error sub_env (NoSuchPermission return_type)
       end
 
-  | EAssign (e1, fname, e2) ->
-      let hint = add_hint hint (Field.print fname.field_name) in
+  | EAssign (e1, field_struct, e2) ->
+      let fname = field_struct.SurfaceSyntax.field_name in
+      let hint = add_hint hint (Field.print fname) in
       let env, p1 = check_expression env ?hint e1 in
       let env, p2 = check_expression env e2 in
       let env = replace_term env p1 (fun binder ->
@@ -524,24 +532,24 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         let found = ref false in
         let permissions = List.map (fun t ->
             match t with
-            | TyConcreteUnfolded (datacon, fieldexprs, clause) ->
+            | TyConcreteUnfolded (datacon, fieldtypes, clause) ->
                 (* Check that datacon points to a type that is defined as
                  * exclusive. *)
                 let flag, _, _ = def_for_datacon env datacon in
                 if flag <> SurfaceSyntax.Exclusive then
-                  raise_error env (AssignNotExclusive (t, datacon));
+                  raise_error env (AssignNotExclusive (t, snd datacon));
 
                 (* Perform the assignment. *)
-                let fieldexprs = List.map (function
+                let fieldtypes = List.mapi (fun i -> function
                   | FieldValue (field, expr) ->
                       let expr = 
-                        if Field.equal field fname.field_name then
+                        if Field.equal field fname then
                           begin match expr with
                           | TySingleton (TyPoint _) ->
                               if !found then
                                 Log.error "Two matching permissions? That's strange...";
+                              field_struct.SurfaceSyntax.field_offset <- Some i;
                               found := true;
-                              fname.field_datacon <- datacon;
                               TySingleton (TyPoint p2)
                           | t ->
                               let open TypePrinter in
@@ -553,26 +561,26 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                       FieldValue (field, expr)
                   | FieldPermission _ ->
                       Log.error "These should've been inserted in the environment"
-                ) fieldexprs in
-                TyConcreteUnfolded (datacon, fieldexprs, clause)
+                ) fieldtypes in
+                TyConcreteUnfolded (datacon, fieldtypes, clause)
             | _ ->
                 t
           ) permissions
         in
         if not !found then
-          raise_error env (NoSuchField (p1, fname.field_name));
+          raise_error env (NoSuchField (p1, fname));
         { binder with permissions })
       in
       return env ty_unit
 
-  | EAssignTag (e1, d) ->
+  | EAssignTag (e1, new_datacon, info) ->
       (* Type-check [e1]. *)
       let env, p1 = check_expression env e1 in
 
       (* Find the type [datacon] corresponds to. *)
-      let _, branches, _ = def_for_datacon env d.new_datacon in
+      let _, branches, _ = def_for_datacon env new_datacon in
       let _, fields =
-        List.find (fun (datacon', _) -> Datacon.equal d.new_datacon datacon') branches
+        List.find (fun (datacon, _) -> Datacon.equal (snd new_datacon) datacon) branches
       in
       let field_names = List.map (function
         | FieldValue (name, _) ->
@@ -586,15 +594,15 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let permissions = get_permissions env p1 in
       let found = ref false in
       let permissions = List.map (function
-        | TyConcreteUnfolded (datacon', fieldexprs, clause) as t ->
+        | TyConcreteUnfolded (old_datacon, fieldexprs, clause) as t ->
             (* The current type should be mutable. *)
-            let flag, _, _ = def_for_datacon env datacon' in
+            let flag, _, _ = def_for_datacon env old_datacon in
             if flag <> SurfaceSyntax.Exclusive then
-              raise_error env (AssignNotExclusive (t, datacon'));
+              raise_error env (AssignNotExclusive (t, snd old_datacon));
 
             (* Also, the number of fields should be the same. *)
             if List.length fieldexprs <> List.length field_names then
-              raise_error env (FieldCountMismatch (t, d.new_datacon));
+              raise_error env (FieldCountMismatch (t, snd new_datacon));
 
             (* Change the field names. *)
             let fieldexprs = List.map2 (fun field -> function
@@ -607,10 +615,13 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             if !found then
               Log.error "Two suitable permissions, strange...";
             found := true;
-            d.previous_datacon <- datacon';
+            if resolved_datacons_equal env old_datacon new_datacon then
+              info.SurfaceSyntax.is_phantom_update <- Some true
+            else
+              info.SurfaceSyntax.is_phantom_update <- Some false;
 
             (* And don't forget to change the datacon as well. *)
-            TyConcreteUnfolded (d.new_datacon, fieldexprs, clause)
+            TyConcreteUnfolded (new_datacon, fieldexprs, clause)
 
         | _ as t ->
             t
@@ -623,7 +634,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       return env ty_unit
 
 
-  | EAccess (e, fname) ->
+  | EAccess (e, field_struct) ->
       (* We could be a little bit smarter, and generic here. Instead of iterating
        * on the permissions, we could use a reverse map from field names to
        * types. We could then subtract the type (instanciated using flexible
@@ -632,19 +643,20 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
        * allow us to reuse the code. Of course, this raises the question of
        * “what do we do in case there's an ambiguity”, that is, multiple
        * datacons that feature this field name... We'll leave that for later. *)
-      let hint = add_hint hint (Field.print fname.field_name) in
+      let fname = field_struct.SurfaceSyntax.field_name in
+      let hint = add_hint hint (Field.print fname) in
       let env, p = check_expression env ?hint e in
       let module M = struct exception Found of point end in
       begin try
         List.iter (fun t ->
           match t with
-          | TyConcreteUnfolded (datacon, fieldexprs, _) ->
-              List.iter (function
+          | TyConcreteUnfolded (_, fieldexprs, _) ->
+              List.iteri (fun i -> function
                 | FieldValue (field, expr) ->
-                    if Field.equal field fname.field_name then
+                    if Field.equal field fname then
                       begin match expr with
                       | TySingleton (TyPoint p) ->
-                          fname.field_datacon <- datacon;
+                          field_struct.SurfaceSyntax.field_offset <- Some i;
                           raise (M.Found p)
                       | t ->
                           let open TypePrinter in
@@ -656,7 +668,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           | _ ->
               ()
         ) (get_permissions env p);
-        raise_error env (NoSuchField (p, fname.field_name))
+        raise_error env (NoSuchField (p, fname))
       with M.Found p' ->
         env, p'
       end
@@ -792,7 +804,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let _flag, branches, _ = def_for_datacon env datacon in
       (* And the corresponding branch, so that we obtain the field names in order. *)
       let branch =
-        List.find (fun (datacon', _) -> Datacon.equal datacon datacon') branches
+        List.find (fun (datacon', _) -> Datacon.equal (snd datacon) datacon') branches
       in
       (* Take out of the provided fields one of them. *)
       let take env name' l =
@@ -870,8 +882,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                   let dc1, branch1 = instantiate_branch b1 args in
                   let dc2, branch2 = instantiate_branch b2 args in
                   let clause = instantiate_adopts_clause clause args in
-                  let t1 = TyConcreteUnfolded (dc1, branch1, clause) in
-                  let t2 = TyConcreteUnfolded (dc2, branch2, clause) in
+                  let t1 = TyConcreteUnfolded ((TyPoint cons, dc1), branch1, clause) in
+                  let t2 = TyConcreteUnfolded ((TyPoint cons, dc2), branch2, clause) in
                   t1, t2
               | _ ->
                   assert false

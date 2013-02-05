@@ -59,10 +59,6 @@ let import_interface (env: T.env) (items: E.interface): T.env =
 let collect_dependencies (items: S.toplevel_item list): Module.name list =
   let open SurfaceSyntax in
 
-  (* Just so we're clear: among these functions, only collect_item actually does
-   * something in the [OpenDirective] case. But this will all change we have
-   * prefixed names and prefixed constructors... *)
-
   let rec collect_items items =
     Hml_List.map_flatten collect_item items
 
@@ -102,9 +98,10 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         collect_pattern p1 @ collect_type t1
     | PTuple ps ->
         Hml_List.map_flatten collect_pattern ps
-    | PConstruct (_, namepats) ->
+    | PConstruct (dref, namepats) ->
         let _, ps = List.split namepats in
-        Hml_List.map_flatten collect_pattern ps
+        Hml_List.map_flatten collect_pattern ps @
+        collect_maybe_qualified dref.datacon_unresolved
     | PAs (p1, _) ->
         collect_pattern p1
     | PAny ->
@@ -133,10 +130,12 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | ESequence (e1, e2) ->
         collect_expr e1 @ collect_expr e2
     | ELocated (expr, _)
-    | EAssignTag (expr, _)
     | EAccess (expr, _)
     | EExplained expr ->
         collect_expr expr
+    | EAssignTag (expr, dref, _) ->
+        collect_expr expr @
+        collect_maybe_qualified dref.datacon_unresolved
     | EAssert t ->
         collect_type t
     | ETApply (expr, ts) ->
@@ -146,9 +145,10 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         ) ts
     | ETuple exprs ->
         Hml_List.map_flatten collect_expr exprs
-    | EConstruct (_, nameexprs) ->
+    | EConstruct (dref, nameexprs) ->
         let _, exprs = List.split nameexprs in
-        Hml_List.map_flatten collect_expr exprs
+        Hml_List.map_flatten collect_expr exprs @
+        collect_maybe_qualified dref.datacon_unresolved
     | EIfThenElse (_, e1, e2, e3) ->
         collect_expr e1 @ collect_expr e2 @ collect_expr e3
 
@@ -179,9 +179,11 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         let _, ts = List.split dcs in
         collect_type t @ Hml_List.map_flatten collect_type ts
     | TyConcreteUnfolded branch ->
-        collect_data_type_def_branch branch
+        collect_data_type_def_branch branch @
+        collect_maybe_qualified (fst branch).datacon_unresolved
 
-  and collect_data_type_def_branch (_, fields) =
+  and collect_data_type_def_branch: 'a. 'a * data_field_def list -> Module.name list =
+  fun (_, fields)  ->
     let ts = List.map (function
       | FieldValue (_, t) ->
           t
@@ -189,6 +191,11 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
           t
     ) fields in
     Hml_List.map_flatten collect_type ts
+
+  and collect_maybe_qualified: 'a. 'a maybe_qualified -> Module.name list =
+  function
+    | Unqualified _ -> []
+    | Qualified (m, _) -> [m]
 
   in
 

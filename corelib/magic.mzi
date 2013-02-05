@@ -1,0 +1,9 @@
+(* An unsafe cast. *)
+
+(* It is recommended to always explicitly instantiate the type
+   parameters [a] and [b] when using this cast, as otherwise,
+   the permissions that are consumed and produced would not be
+   clearly controlled. *)
+
+val magic : [a, b] (consumes a) -> b
+

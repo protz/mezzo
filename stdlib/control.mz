@@ -26,6 +26,7 @@ val reify:
 
 val reset
   [a, c]
+  duplicable a => (* because [x] appears under a lambda *)
   (f: (| consumes answer a) -> (a | answer c)) :
   c
 =
@@ -46,9 +47,13 @@ val shift:
    as a primitive operation. It is potentially more efficient than [shift],
    as the continuation is not captured: it is thrown away. *)
 
-val abort:
+val abort
   [a, b, c]
-  (v : c | consumes answer b) -> (a | answer c)
+  duplicable c => (* because [v] appears under a lambda *)
+  (v : c | consumes answer b) : (a | answer c)
 =
   shift [a, b, c] (fun (_ : a -> b) : c = v)
+
+(* TEMPORARY need to understand the duplicable constraints
+   in reset and abort *)
 

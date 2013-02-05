@@ -31,6 +31,8 @@ let rec atomic_pattern (p : pattern) : document =
       utf8string x
   | PAny ->
       underscore
+  | PTuple [ p ] ->
+      atomic_pattern p
   | PTuple ps ->
       tuple normal_pattern ps
   | PRecord fps ->
@@ -53,7 +55,7 @@ and normal_pattern p =
 
 and dangerous_pattern = function
   | PAs (p, x) ->
-      dangerous_pattern p ^/^ string "as " ^^ utf8string x
+      group (dangerous_pattern p ^/^ string "as " ^^ utf8string x)
   | p ->
       normal_pattern p
 
@@ -74,6 +76,8 @@ let rec atomic_expression (e : expression) : document =
       utf8string x
   | EInfixVar x ->
       parens (utf8string x)
+  | ETuple [ e ] ->
+      atomic_expression e
   | ETuple es ->
       tuple normal_expression es
   | ERecord fes ->
@@ -97,7 +101,7 @@ let rec atomic_expression (e : expression) : document =
 	break 1 ^^ string "end"
       )
   | _ ->
-      parens_with_nesting (expression e)
+      group (parens (expression e))
 
 (* Prefix applications. *)
 
@@ -167,11 +171,10 @@ and sequence_expression = function
 and dangling_expression = function
   | ELet (f, eqs, body) ->
       group (
-        nest 2 (
-	  string "let " ^^
-	  flag f ^^
-	  equations eqs
-	) ^/^ string "in"
+	string "let " ^^
+	flag f ^^
+	equations eqs ^/^
+	string "in"
       )
       ^^ hardline ^^
       dangling_expression body
@@ -277,11 +280,9 @@ let data_type_def (lhs, rhs) =
 
 let definition (f, eqs) =
   group (
-    nest 2 (
-      string "let " ^^
-      flag f ^^
-      equations eqs
-    )
+    string "let " ^^
+    flag f ^^
+    equations eqs
   )
 
 (* ---------------------------------------------------------------------------- *)

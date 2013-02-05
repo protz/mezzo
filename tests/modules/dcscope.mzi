@@ -1,4 +1,3 @@
-open core
 abstract foo
 
 val v : Foo

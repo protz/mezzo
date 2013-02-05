@@ -44,30 +44,42 @@ module E = Expressions
 let name_user = fun env (x, k, l) -> (T.User (env.env.T.module_name, x), k, l);;
 let name_auto = fun (x, k, l) -> (T.Auto x, k, l);;
 
-let check_bound_datacon kenv datacon =
-  let env = kenv.env in
-  let open Types in
-  (* We first try to find the point associated to this data constructor, and
-   * check that the point is defined in another module. If the point is defined
-   * in our own module, this means we're checking a module against its
-   * interface and that doesn't count as a well-scoped data constructor (see
-   * tests/modules/dcscope.mz as to why we must not be naive here). *)
+let qualified_equals q1 q2 =
+  match q1, q2 with
+  | Qualified (m1, d1), Qualified (m2, d2) ->
+      Module.equal m1 m2 && Datacon.equal d1 d2
+  | Unqualified d1, Unqualified d2 ->
+      Datacon.equal d1 d2
+  | _ ->
+      false
+;;
+
+let unqualify = function
+  | Qualified (_, d)
+  | Unqualified d ->
+      d
+;;
+
+let resolve_datacon
+    (kenv: KindCheck.env)
+    (datacon: Datacon.name maybe_qualified): SurfaceSyntax.datacon_info * T.resolved_datacon
+    =
   try
-    (* May throw! *)
-    let p = type_for_datacon env datacon in
-    let names = get_names env p in
-    let names = List.filter is_user names in
-    match names with
-    | User (m', _) :: _ ->
-        if Module.equal m' env.module_name then
-          raise Not_found
-    | _ ->
-        raise Not_found
-  (* If that doesn't work, it's ok if the data constructor has been defined in
-   * our own unit. *)
+    let _, origin = List.find (fun (dc, _) -> qualified_equals datacon dc) kenv.known_datacons in
+    begin match origin with
+    | InAnotherModule (p, info) ->
+        info, (T.TyPoint p, unqualify datacon)
+    | InCurrentModule (level, info) ->
+        info, (T.TyVar (kenv.level - level - 1), unqualify datacon)
+    end
   with Not_found ->
-    if not (T.DataconMap.mem datacon kenv.datacon_map) then
-      raise_error kenv (UnboundDataConstructor datacon)
+    raise_error kenv (UnboundDataConstructor (unqualify datacon))
+;;
+
+let resolve_datacon env dref =
+  let info, resolved_datacon = resolve_datacon env dref.datacon_unresolved in
+  dref.datacon_info <- Some info;
+  resolved_datacon
 ;;
 
 
@@ -247,10 +259,11 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyQualified (mname, x) ->
       T.TyPoint (T.point_by_name env.env ~mname x)
 
-  | TyConcreteUnfolded branch ->
-      let datacon, branches = translate_data_type_def_branch env branch in
-      check_bound_datacon env datacon;
-      T.TyConcreteUnfolded (datacon, branches, T.ty_bottom)
+  | TyConcreteUnfolded (dref, fields) ->
+      (* Performs a side-effect! *)
+      let resolved_datacon = resolve_datacon env dref in
+      let fields = translate_fields env fields in
+      T.TyConcreteUnfolded (resolved_datacon, fields, T.ty_bottom)
 
   | TySingleton t ->
       T.TySingleton (translate_type env t)
@@ -307,13 +320,17 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
 and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.data_type_def_branch =
   let datacon, fields = branch in
+  let fields = translate_fields env fields in
+  datacon, fields
+
+and translate_fields: env -> data_field_def list -> T.data_field_def list = fun env fields ->
   let fields = List.map (function
     | FieldValue (name, t) ->
         T.FieldValue (name, translate_type env t)
     | FieldPermission t ->
         T.FieldPermission (translate_type env t)
   ) fields in
-  datacon, fields
+  fields
 
 and translate_arrow_type env t1 t2 =
 
@@ -462,15 +479,27 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
 
 (* Bind all the data constructors from a data type group *)
 let bind_datacons env data_type_group =
-  let datacons = List.fold_left (fun acc -> function
-    | Concrete (_, _, rhs, _) ->
-        List.map fst rhs :: acc
+  List.fold_left (fun env -> function
+    | Concrete (_, (name, _), rhs, _) ->
+        let bind =
+          match M.find name env.mapping with
+          | _, Var level ->
+              fun env dc fields -> bind_datacon env dc level fields
+          | _, Point point ->
+              fun env dc fields -> bind_external_datacon env dc point fields
+        in
+        Hml_List.fold_lefti (fun i env (dc, fields) ->
+          (* We're building information for the interpreter: drop the
+           * permission fields. *)
+          let fields = Hml_List.map_some (function
+            | FieldValue (name, _) -> Some name
+            | FieldPermission _ -> None
+          ) fields in
+          bind env dc (mkdatacon_info dc i fields)
+        ) env rhs
     | Abstract _ ->
-        acc
-  ) [] data_type_group in
-  let datacons = List.flatten datacons in
-  let env = List.fold_left bind_datacon env datacons in
-  env
+        env
+  ) env data_type_group
 ;;
 
 
@@ -569,10 +598,11 @@ let rec translate_pattern env = function
   | PTuple ps ->
       E.PTuple (List.map (translate_pattern env) ps)
   | PConstruct (datacon, fieldpats) ->
-      check_bound_datacon env datacon;
+      (* Performs a side-effect! *)
+      let resolved_datacon = resolve_datacon env datacon in
       let fields, pats = List.split fieldpats in
       let pats = List.map (translate_pattern env) pats in
-      E.PConstruct (datacon, List.combine fields pats)
+      E.PConstruct (resolved_datacon, List.combine fields pats)
   | PLocated (p, pos) ->
       translate_pattern (locate env pos) p
   | PAs (p, x) ->
@@ -655,10 +685,11 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       (* Careful not to copy [f], so as to preserve sharing! *)
       E.EAssign (e1, f, e2)
 
-  | EAssignTag (e1, x) ->
+  | EAssignTag (e1, datacon, info) ->
+      let resolved_datacon = resolve_datacon env datacon in
       let e1 = translate_expr env e1 in
       (* Careful not to copy [x], so as to preserve sharing! *)
-      E.EAssignTag (e1, x)
+      E.EAssignTag (e1, resolved_datacon, info)
 
   | EAccess (e, f) ->
       let e = translate_expr env e in
@@ -730,11 +761,12 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       E.ETuple (List.map (translate_expr env) expressions)
 
   | EConstruct (datacon, fieldexprs) ->
-      check_bound_datacon env datacon;
+      (* Performs a side-effect! *)
+      let resolved_datacon = resolve_datacon env datacon in
       let fieldexprs = List.map (fun (field, expr) ->
         field, translate_expr env expr) fieldexprs
       in
-      E.EConstruct (datacon, fieldexprs)
+      E.EConstruct (resolved_datacon, fieldexprs)
 
   | EIfThenElse (b, e1, e2, e3) ->
       let e1 = translate_expr env e1 in

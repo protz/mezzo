@@ -233,17 +233,14 @@ val fill_array [a] duplicable a => (x: array a, v: a) : () =
 
 (* Converting an array (segment) to a list. *)
 
-(* BUG (known, I suppose): the names Cons and Nil should not be understood
-   since I have not opened the list module. *)
-
 val rec segment2list [a] duplicable a => (x: array a, i: int, j: int, consumes accu: list::list a) : list::list a =
   if i < j then
-    segment2list (x, i, j - 1, Cons { head = get (x, j - 1); tail = accu })
+    segment2list (x, i, j - 1, list::Cons { head = get (x, j - 1); tail = accu })
   else
     accu
 
 val array2list [a] duplicable a => (x: array a) : list::list a =
-  segment2list (x, 0, length x, Nil)
+  segment2list (x, 0, length x, list::Nil)
 
 (* Converting a list to an array. *)
 
@@ -253,15 +250,15 @@ val array2list [a] duplicable a => (x: array a) : list::list a =
 
 val list2array [a] duplicable a => (xs: list::list a) : array a =
   match xs with
-  | Nil ->
+  | list::Nil ->
       zero ()
-  | Cons { head; tail } ->
+  | list::Cons { head; tail } ->
       let x = create (1 + list::length tail, head) in
       let rec fill (i: int, xs: list::list a | x @ array a) : =x =
 	match xs with
-	| Nil ->
+	| list::Nil ->
 	    x
-	| Cons ->
+	| list::Cons ->
 	    set (x, i, xs.head);
 	    fill (i + 1, xs.tail)
         end
@@ -276,10 +273,10 @@ val list2array [a] (consumes xs: list::list a) : array a =
   let r = newref xs in
   init (n, fun (i: int | r @ ref (list::list a)) : a =
     match !r with
-    | Cons { head; tail } ->
+    | list::Cons { head; tail } ->
         r := tail;
         head
-    | Nil ->
+    | list::Nil ->
         fail (* impossible *)
     end
   )

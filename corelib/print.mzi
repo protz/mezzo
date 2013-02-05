@@ -1,0 +1,7 @@
+(* This magic polymorphic [print] function is provided mainly for
+   testing purposes. The Mezzo interpreter and the Mezzo compiler
+   may implement it in different ways. Furthermore, this function
+   is not guaranteed to be protected against cyclic values. Use
+   with caution. *)
+
+val print : [a] a -> ()

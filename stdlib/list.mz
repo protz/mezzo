@@ -297,11 +297,42 @@ val rec for_all [a, p : perm] (ok: (a | p) -> bool, xs: list a | p) : bool =
   else
     True
 
+val rec rich_for_all
+  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool empty q, xs: list a | p) : rich_bool empty q =
+  match xs with
+  | Nil ->
+      RichTrue
+  | Cons { head; tail } ->
+      conjunction [empty, empty, q] (
+	ok head,
+	fun (| p * tail @ list a) : rich_bool empty q =
+	  rich_for_all (ok, tail)
+      )
+  end
+
+val rec rich_for_all_with_inlined_conjunction
+  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool empty q, xs: list a | p) : rich_bool empty q =
+  match xs with
+  | Nil ->
+      RichTrue
+  | Cons { head; tail } ->
+      ok head && rich_for_all_with_inlined_conjunction (ok, tail)
+  end
+
 val rec exists [a, p : perm] (ok: (a | p) -> bool, xs: list a | p) : bool =
   if xs then
     if ok xs.head then True else exists (ok, xs.tail)
   else
     False
+
+val rec rich_exists_with_inlined_disjunction
+  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool q empty, xs: list a | p) : rich_bool q empty =
+  match xs with
+  | Nil ->
+      RichFalse
+  | Cons { head; tail } ->
+      ok head || rich_exists_with_inlined_disjunction (ok, tail)
+  end
 
 (* The function [find] cannot raise an exception, as it does in OCaml.
    Instead, it returns a sub-list, which either is empty or begins with

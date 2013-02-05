@@ -20,7 +20,16 @@
 (* This file contains our internal syntax for expressions. *)
 
 open Types
-open Flexible
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Definitions borrowed from SurfaceSyntax. *)
+
+type tag_update_info =
+    SurfaceSyntax.tag_update_info
+
+type field =
+    SurfaceSyntax.field
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -34,7 +43,7 @@ type pattern =
   (* (x₁, …, xₙ) *)
   | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)
-  | PConstruct of Datacon.name * (Field.name * pattern) list
+  | PConstruct of resolved_datacon * (Field.name * pattern) list
   (* Once the variables in a pattern have been bound, they may replaced by
    * [PPoint]s so that we know how to speak about the bound variables. *)
   | PPoint of point
@@ -63,7 +72,7 @@ type expression =
   (* v.f <- e *)
   | EAssign of expression * field * expression
   (* tag of v <- Foo *)
-  | EAssignTag of expression * previous_and_new_datacon
+  | EAssignTag of expression * resolved_datacon * tag_update_info
   (* v.f *)
   | EAccess of expression * field
   (* e₁ e₂ *)
@@ -75,7 +84,7 @@ type expression =
   (* (e₁, …, eₙ) *)
   | ETuple of expression list
   (* Foo { bar = bar; baz = baz; … *)
-  | EConstruct of Datacon.name * (Field.name * expression) list
+  | EConstruct of resolved_datacon * (Field.name * expression) list
   (* if e₁ then e₂ else e₃ *)
   | EIfThenElse of bool * expression * expression * expression
   | ELocated of expression * location
@@ -97,18 +106,6 @@ and patexpr =
   (* A binding is made up of a pattern, an optional type annotation for the
    * entire pattern (desugared), and an expression. *)
   pattern * expression
-
-and field = SurfaceSyntax.field = {
-  field_name: Field.name;
-  mutable field_datacon: Datacon.name;
-}
-
-and previous_and_new_datacon = SurfaceSyntax.previous_and_new_datacon = {
-  (* Initialized by the parser. *)
-  new_datacon: Datacon.name;
-  (* Uninitialized by the parser. Information later filled in by the type-checker. *)
-  mutable previous_datacon: Datacon.name;
-}
 
 (* The grammar below doesn't enforce the “only variables are allowed on the
  * left-hand side of a let rec” rule. We'll see to that later. Here too, the
@@ -241,11 +238,33 @@ let rec psubst (pat: pattern) (points: point list) =
 ;;
 
 
+(* [tsubst_pat t2 i p1] substitutes type [t2] for index [i] in pattern [p1]. *)
+let tsubst_pat (t2: typ) (i: index) (p1: pattern): pattern =
+  let rec tsubst_pat t2 p1 =
+    match p1 with
+    | PVar _
+    | PPoint _
+    | PAny ->
+        p1
+    | PTuple ps ->
+        PTuple (List.map (tsubst_pat t2) ps)
+    | PAs (p1, p2) ->
+        PAs (tsubst_pat t2 p1, tsubst_pat t2 p2)
+    | PConstruct ((t, dc), fieldpats) ->
+        let t = tsubst t2 i t in
+        let fieldpats = List.map (fun (f, p) -> f, tsubst_pat t2 p) fieldpats in
+        PConstruct ((t, dc), fieldpats)
+  in
+  tsubst_pat t2 p1
+;;
+
+
 (* [tsubst_patexprs t2 i rec_flag pat_exprs] substitutes type [t2] for index [i]
  * in the list of pattern-expressions [pat_exprs], defined recursively or not,
  * depending on [rec_flag]. *)
 let rec tsubst_patexprs t2 i rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
+  let patterns = List.map (tsubst_pat t2 i) patterns in
   let names = List.fold_left (fun acc p ->
     collect_pattern p :: acc) [] patterns
   in
@@ -288,9 +307,9 @@ and tsubst_expr t2 i e =
       let e2 = tsubst_expr t2 i e2 in
       EAssign (e1, field, e2)
 
-  | EAssignTag (e1, datacon) ->
+  | EAssignTag (e1, (t, dc), info) ->
       let e1 = tsubst_expr t2 i e1 in
-      EAssignTag (e1, datacon)
+      EAssignTag (e1, (tsubst t2 i t, dc), info)
 
   | EAccess (e1, field) ->
       let e1 = tsubst_expr t2 i e1 in
@@ -309,6 +328,7 @@ and tsubst_expr t2 i e =
   | EMatch (b, e, patexprs) ->
       let e = tsubst_expr t2 i e in
       let patexprs = List.map (fun (pat, expr) ->
+          let pat = tsubst_pat t2 i pat in
           let names = collect_pattern pat in
           let n = List.length names in
           pat, tsubst_expr t2 (i + n) expr
@@ -320,11 +340,11 @@ and tsubst_expr t2 i e =
       let exprs = List.map (tsubst_expr t2 i) exprs in
       ETuple exprs
 
-  | EConstruct (name, fieldexprs) ->
+  | EConstruct ((t, dc), fieldexprs) ->
       let fieldexprs = List.map (fun (field, expr) ->
         field, tsubst_expr t2 i expr) fieldexprs
       in
-      EConstruct (name, fieldexprs)
+      EConstruct ((tsubst t2 i t, dc), fieldexprs)
 
   | EIfThenElse (b, e1, e2, e3) ->
       let e1 = tsubst_expr t2 i e1 in
@@ -449,9 +469,9 @@ and esubst e2 i e1 =
       let e' = esubst e2 i e' in
       EAssign (e, f, e')
 
-  | EAssignTag (e, d) ->
+  | EAssignTag (e, d, info) ->
       let e = esubst e2 i e in
-      EAssignTag (e, d)
+      EAssignTag (e, d, info)
 
   | EAccess (e, f) ->
       let e = esubst e2 i e in
@@ -702,8 +722,8 @@ let elift (k: int) (e: expression) =
   | EAssign (e1, f, e2) ->
       EAssign (elift i e1, f, elift i e2)
 
-  | EAssignTag (e1, d) ->
-      EAssignTag (elift i e1, d)
+  | EAssignTag (e1, (t, dc), info) ->
+      EAssignTag (elift i e1, (lift i t, dc), info)
 
   | EAccess (e, f) ->
       EAccess (elift i e, f)
@@ -725,11 +745,11 @@ let elift (k: int) (e: expression) =
   | ETuple es ->
       ETuple (List.map (elift i) es)
 
-  | EConstruct (datacon, fieldexprs) ->
+  | EConstruct ((t, dc), fieldexprs) ->
       let fieldexprs = List.map (fun (field, expr) ->
         field, elift i expr
       ) fieldexprs in
-      EConstruct (datacon, fieldexprs)
+      EConstruct ((lift i t, dc), fieldexprs)
 
   | EIfThenElse (b, e1, e2, e3) ->
       EIfThenElse (b, elift i e1, elift i e2, elift i e3)
@@ -805,8 +825,8 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
     | EAssign (e1, f, e'1) ->
         EAssign (epsubst e2 e1, f, epsubst e2 e'1)
 
-    | EAssignTag (e1, d) ->
-        EAssignTag (epsubst e2 e1, d)
+    | EAssignTag (e1, d, info) ->
+        EAssignTag (epsubst e2 e1, d, info)
 
     | EAccess (e1, f) ->
         EAccess (epsubst e2 e1, f)
@@ -871,12 +891,34 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
 ;;
 
 
-(* [tepsubst env e2 p e1] substitutes type [t2] for point [p] in expression [e1] *)
-let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
-  let rec tepsubst t2 e1 =
+(* [tpsubst_pat env t2 p p1] substitutes type [t2] for point [p] in expression
+ * [e1]. *)
+let tpsubst_pat (env: env) (t2: typ) (p: point) (p1: pattern): pattern =
+  let rec tpsubst_pat t2 p1 =
+    match p1 with
+    | PVar _
+    | PPoint _
+    | PAny ->
+        p1
+    | PTuple ps ->
+        PTuple (List.map (tpsubst_pat t2) ps)
+    | PAs (p1, p2) ->
+        PAs (tpsubst_pat t2 p1, tpsubst_pat t2 p2)
+    | PConstruct ((t, dc), fieldpats) ->
+        let t = tpsubst env t2 p t in
+        let fieldpats = List.map (fun (f, p) -> f, tpsubst_pat t2 p) fieldpats in
+        PConstruct ((t, dc), fieldpats)
+  in
+  tpsubst_pat t2 p1
+;;
+
+
+(* [tpsubst_expr env e2 p e1] substitutes type [t2] for point [p] in expression [e1] *)
+let tpsubst_expr (env: env) (t2: typ) (p: point) (e1: expression): expression =
+  let rec tpsubst_expr t2 e1 =
     match e1 with
     | EConstraint (e1, t) ->
-        EConstraint (tepsubst t2 e1, tpsubst env t2 p t)
+        EConstraint (tpsubst_expr t2 e1, tpsubst env t2 p t)
 
     | EVar _ ->
         e1
@@ -889,95 +931,97 @@ let tepsubst (env: env) (t2: typ) (p: point) (e1: expression): expression =
 
     | ELet (flag, patexprs, body) ->
         let patterns, expressions = List.split patexprs in
+        let patterns = List.map (tpsubst_pat env t2 p) patterns in
         let names = List.map collect_pattern patterns in
         let n = List.length (List.flatten names) in
         let expressions = match flag with
           | Recursive ->
               let t2 = lift n t2 in
-              List.map (tepsubst t2) expressions
+              List.map (tpsubst_expr t2) expressions
           | Nonrecursive ->
-              List.map (tepsubst t2) expressions
+              List.map (tpsubst_expr t2) expressions
         in
         let patexprs = List.combine patterns expressions in
         let t2 = lift n t2 in
-        let body = tepsubst t2 body in
+        let body = tpsubst_expr t2 body in
         ELet (flag, patexprs, body)
 
 
     | EFun (vars, arg, return_type, body) ->
         let n = List.length vars in
         let t2 = lift n t2 in
-        let body = tepsubst t2 body in
+        let body = tpsubst_expr t2 body in
         let arg = tpsubst env t2 p arg in
         let return_type = tpsubst env t2 p return_type in
         EFun (vars, arg, return_type, body)
 
     | EAssign (e1, f, e'1) ->
-        EAssign (tepsubst t2 e1, f, tepsubst t2 e'1)
+        EAssign (tpsubst_expr t2 e1, f, tpsubst_expr t2 e'1)
 
-    | EAssignTag (e1, d) ->
-        EAssignTag (tepsubst t2 e1, d)
+    | EAssignTag (e1, (t, dc), info) ->
+        EAssignTag (tpsubst_expr t2 e1, (tpsubst env t2 p t, dc), info)
 
     | EAccess (e1, f) ->
-        EAccess (tepsubst t2 e1, f)
+        EAccess (tpsubst_expr t2 e1, f)
 
     | EApply (e1, e'1) ->
-        EApply (tepsubst t2 e1, tepsubst t2 e'1)
+        EApply (tpsubst_expr t2 e1, tpsubst_expr t2 e'1)
 
     | ETApply (e1, arg, k) ->
-        ETApply (tepsubst t2 e1, map_tapp (tpsubst env t2 p) arg, k)
+        ETApply (tpsubst_expr t2 e1, map_tapp (tpsubst env t2 p) arg, k)
 
     | EMatch (b, e1, patexprs) ->
-        let e1 = tepsubst t2 e1 in
+        let e1 = tpsubst_expr t2 e1 in
         let patexprs = List.map (fun (pat, expr) ->
           let n = List.length (collect_pattern pat) in
           let t2 = lift n t2 in
-          pat, tepsubst t2 expr
+          let pat = tpsubst_pat env t2 p pat in
+          pat, tpsubst_expr t2 expr
         ) patexprs in
         EMatch (b, e1, patexprs)
 
 
     | ETuple es ->
-        ETuple (List.map (tepsubst t2) es)
+        ETuple (List.map (tpsubst_expr t2) es)
 
-    | EConstruct (datacon, fieldexprs) ->
+    | EConstruct ((t, dc), fieldexprs) ->
         let fieldexprs = List.map (fun (field, expr) ->
-          field, tepsubst t2 expr
+          field, tpsubst_expr t2 expr
         ) fieldexprs in
-        EConstruct (datacon, fieldexprs)
+        EConstruct ((tpsubst env t2 p t, dc), fieldexprs)
 
     | EIfThenElse (b, e1, e1', e1'') ->
-        EIfThenElse (b, tepsubst t2 e1, tepsubst t2 e1', tepsubst t2 e1'')
+        EIfThenElse (b, tpsubst_expr t2 e1, tpsubst_expr t2 e1', tpsubst_expr t2 e1'')
 
     | ELocated (e, p) ->
-        ELocated (tepsubst t2 e, p)
+        ELocated (tpsubst_expr t2 e, p)
 
     | EInt _ ->
         e1
 
     | EExplained e ->
-        EExplained (tepsubst t2 e)
+        EExplained (tpsubst_expr t2 e)
 
     | ETake (e, e') ->
-        let e = tepsubst t2 e in
-        let e' = tepsubst t2 e' in
+        let e = tpsubst_expr t2 e in
+        let e' = tpsubst_expr t2 e' in
         ETake (e, e')
 
     | EGive (e, e') ->
-        let e = tepsubst t2 e in
-        let e' = tepsubst t2 e' in
+        let e = tpsubst_expr t2 e in
+        let e' = tpsubst_expr t2 e' in
         EGive (e, e')
 
     | EOwns (e, e') ->
-        let e = tepsubst t2 e in
-        let e' = tepsubst t2 e' in
+        let e = tpsubst_expr t2 e in
+        let e' = tpsubst_expr t2 e' in
         EOwns (e, e')
 
     | EFail ->
         EFail
   in
 
-  tepsubst t2 e1
+  tpsubst_expr t2 e1
 ;;
 
 
@@ -985,6 +1029,25 @@ module ExprPrinter = struct
 
   open Hml_Pprint
   open TypePrinter
+
+  let print_maybe_qualified p = function
+    | SurfaceSyntax.Unqualified x ->
+        p x
+    | SurfaceSyntax.Qualified (m, x) ->
+        string (Module.print m) ^^ ccolon ^^ p x
+
+  let print_maybe_qualified_datacon =
+    print_maybe_qualified print_datacon
+  ;;
+
+  let pmaybe_qualified_datacon buf arg =
+    pdoc buf ((fun () -> print_maybe_qualified_datacon arg), ())
+  ;;
+
+
+  let print_datacon_reference dref =
+    print_maybe_qualified_datacon dref.SurfaceSyntax.datacon_unresolved
+  ;;
 
   let rec print_patexpr env (pat, expr) =
     let type_annot, expr = match expr with
@@ -1013,14 +1076,14 @@ module ExprPrinter = struct
         rparen
 
     (* Foo { bar = bar; baz = baz; … } *)
-    | PConstruct (name, fieldnames) ->
-        print_datacon name ^^
+    | PConstruct (dref, fieldnames) ->
+        print_datacon (snd dref) ^^
           if List.length fieldnames > 0 then
             space ^^ lbrace ^^
             jump ~indent:4
               (separate_map
                 (semi ^^ break 1)
-                (fun (field, name) -> print_field field ^^ space ^^
+                (fun (field, name) -> print_field_name field ^^ space ^^
                   equals ^^ space ^^ print_pat env name) fieldnames) ^^
             jump rbrace
           else
@@ -1074,14 +1137,14 @@ module ExprPrinter = struct
         jump (print_expr env body)
 
     | EAssign (e1, f, e2) ->
-        print_expr env e1 ^^ dot ^^ print_field f.field_name ^^ space ^^ larrow ^^ jump (print_expr env e2)
+        print_expr env e1 ^^ dot ^^ print_field f ^^ space ^^ larrow ^^ jump (print_expr env e2)
 
-    | EAssignTag (e1, d) ->
-        tagof ^^ print_expr env e1 ^^ larrow ^^ print_datacon d.new_datacon
+    | EAssignTag (e1, d, _) ->
+        tagof ^^ print_expr env e1 ^^ larrow ^^ print_datacon (snd d)
 	  (* d.previous_datacon is not printed *)
 
     | EAccess (e, f) ->
-        print_expr env e ^^ dot ^^ print_field f.field_name
+        print_expr env e ^^ dot ^^ print_field f
 
     | EApply (f, arg) ->
         let arg = print_expr env arg in
@@ -1113,7 +1176,7 @@ module ExprPrinter = struct
 
     | EConstruct (datacon, fieldexprs) ->
         let fieldexprs = List.map (fun (field, expr) ->
-          print_field field ^^ space ^^ equals ^^ space ^^ print_expr env expr
+          print_field_name field ^^ space ^^ equals ^^ space ^^ print_expr env expr
         ) fieldexprs in
         let fieldexprs =
           if List.length fieldexprs > 0 then
@@ -1121,7 +1184,7 @@ module ExprPrinter = struct
           else
             empty
         in
-        print_datacon datacon ^^ fieldexprs
+        print_datacon (snd datacon) ^^ fieldexprs
 
     | EIfThenElse (b, e1, e2, e3) ->
         let explain = if b then string "explain" ^^ space else empty in

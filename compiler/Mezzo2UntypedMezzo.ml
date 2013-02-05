@@ -8,25 +8,14 @@ module U = UntypedMezzo
 (* The adopter field. *)
 
 (* This field is special in that it is present in every data constructor
-   declaration, and is always at offset 0. Furthermore, we must be able
-   to access this field without knowing with which data constructor it is
-   associated. Thus, we produce a dummy data constructor definition, which
-   carries just this field, and use it when compiling accesses to the
-   adopter field. *)
+   declaration, and is always at offset 0. This allows us to access this
+   field without knowing with which data constructor it is associated. *)
 
-let adopter_field_name =
+let adopter_field =
   Variable.register "__mz_adopter"
 
-let adopter_datacon =
-  Datacon.register "MezzoAdopter__"
-
-let adopter_field = {
-  field_name = adopter_field_name;
-  field_datacon = adopter_datacon;
-}
-
 let init_adopter_field fields =
-  (adopter_field_name, U.ENull) :: fields
+  (adopter_field, U.ENull) :: fields
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -54,7 +43,7 @@ let abandon v1 v2 success failure =
     EApply (
       EBuiltin "_mz_address_eq",
       ETuple [
-	EAccess (v1, adopter_field);
+	EAccess (v1, ParserUtils.mk_field adopter_field);
 	v2
       ]
     ),
@@ -64,21 +53,12 @@ let abandon v1 v2 success failure =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* The Boolean values are [bool::True] and [bool::False]. *)
+(* The Boolean values are [bool::true] and [bool::false]. *)
 
-(* The syntax of (Untyped) Mezzo currently does not support qualified
-   data constructors, so we cheat by masquerading them as variables. *)
-
-(* TEMPORARY *)
-
-let bool =
-  Module.register "bool"
-
-let f =
-  U.EQualified (bool, Variable.register "False")
-
-let t =
-  U.EQualified (bool, Variable.register "True")
+let f, t =
+  let bool = Module.register "bool" in
+  U.EQualified (bool, Variable.register "false"),
+  U.EQualified (bool, Variable.register "true")
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -91,7 +71,7 @@ let fresh : string -> Variable.name =
   fun (hint : string) ->
     let i = !c in
     c := i + 1;
-    Variable.register (Printf.sprintf "__mz_%s%d>" hint i)
+    Variable.register (Printf.sprintf "__mz_%s%d" hint i)
 
 (* This auxiliary function is applied to an expression that has just been
    produced by [transl], and decides if this expression is in normal form
@@ -181,10 +161,10 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       transl     loc e2 (fun v2 ->
       k (U.EAssign (v1, f, v2))
       ))
-  | EAssignTag (e, tags) ->
+  | EAssignTag (e, dref, info) ->
       (* Here, make sure [EAssignTag] carries a value. *)
       eval "obj" loc e (fun v ->
-      k (U.EAssignTag (v, tags))
+      k (U.EAssignTag (v, dref, info))
       )
   | EAccess (e, f) ->
       transl loc e (fun v ->
@@ -236,7 +216,7 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
   | EGive (e1, e2) ->
       eval "adoptee" loc e1 (fun v1 ->
       eval "adopter" loc e2 (fun v2 ->
-      k (U.EAssign (v1, adopter_field, v2))
+      k (U.EAssign (v1, ParserUtils.mk_field adopter_field, v2))
       ))
 
   | ETake (e1, e2) ->
@@ -246,7 +226,7 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       k (
 	abandon v1 v2
 	  (* then v1.adopter <- null *)
-	  (U.EAssign (v1, adopter_field, U.ENull))
+	  (U.EAssign (v1, ParserUtils.mk_field adopter_field, U.ENull))
 	  (* else fail *)
 	  (U.EFail (Log.msg "%a\nA take instruction failed.\n" Lexer.p loc))
       )))
@@ -297,9 +277,6 @@ and eval_fields loc fields k =
 (* TEMPORARY could optimize [take] when preceded with an [owns] test *)
 (* TEMPORARY could also optimize [if x1 owns x2 then ...] *)
 
-(* TEMPORARY when translating a variable to ocaml, should make sure it
-   is not an ocaml keyword *)
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Translating data type definitions. *)
@@ -314,7 +291,7 @@ let transl_data_field_def = function
       []
 
 let transl_data_type_def_branch (d, fields) =
-  d, List.flatten (List.map transl_data_field_def fields)
+  d, adopter_field :: List.flatten (List.map transl_data_field_def fields)
 
 let transl_data_type_def_rhs rhs =
   List.map transl_data_type_def_branch rhs

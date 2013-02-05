@@ -13,9 +13,18 @@
 (* Ideally, immutable types should be slim, which will allow a Mezzo
    boolean to coincide with an ocaml Boolean. TEMPORARY *)
 
+(* The type [bool] of Booleans. *)
+
 data bool =
   | False
   | True
+
+(* Constants. *)
+
+val false = False
+val true = True
+
+(* Negation. *)
 
 val not (b : bool) : bool =
   match b with
@@ -23,12 +32,13 @@ val not (b : bool) : bool =
   | True -> False
   end
 
-val false = False
-val true = True
+(* The type [rich_bool] of Booleans indexed with permissions. *)
 
 data rich_bool (p : perm) (q: perm) =
   | RichFalse { | q }
   | RichTrue { | p }
+
+(* Negation. *)
 
 val rich_not [p : perm, q : perm] (consumes b : rich_bool p q) : rich_bool q p =
   match b with
@@ -36,7 +46,54 @@ val rich_not [p : perm, q : perm] (consumes b : rich_bool p q) : rich_bool q p =
   | RichTrue -> RichFalse
   end
 
-(* TEMPORARY going even further, could we use rich_bool everywhere, i.e. view
-   bool as a type abbreviation for rich_bool empty empty? We would need to
-   assign precise types to the Boolean operators. *)
+(* Conjunction and disjunction. *)
 
+val conjunction
+  [p1 : perm, p2 : perm, q : perm, s : perm]
+  (
+    consumes b1 : rich_bool p1 q,
+    b2: (| s * consumes p1) -> rich_bool p2 q
+  | s
+  ) : rich_bool p2 q =
+  match b1 with
+  | RichFalse ->
+      RichFalse
+  | RichTrue ->
+      b2()
+  end
+
+val disjunction
+  [p : perm, q1 : perm, q2 : perm, s : perm]
+  (
+    consumes b1 : rich_bool p q1,
+    b2: (| s * consumes q1) -> rich_bool p q2
+  | s
+  ) : rich_bool p q2 =
+  match b1 with
+  | RichFalse ->
+      b2()
+  | RichTrue ->
+      RichTrue
+  end
+
+(* Physical equality. *)
+
+(* Physical equality could be restricted to exclusive types. On the one
+   hand, this may sound like a good idea, because it means that equality
+   or disequality of immutable structures would be unobservable, and the
+   compiler would be free to share (or not share) them. On the other hand,
+   it would be a bad idea, because it would prevent the programmer from
+   explicitly implementing sharing optimizations (such as hash-consing)
+   over immutable structures. *)
+
+val ( == ) : (x: unknown, y: unknown) -> rich_bool (x = y) empty =
+  builtin _mz_address_eq
+
+val ( != ) (x: unknown, y: unknown) : rich_bool empty (x = y) =
+  rich_not (x == y)
+
+(*
+Local Variables:
+compile-command: "../mezzo bool.mz"
+End:
+*)

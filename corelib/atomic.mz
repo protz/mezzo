@@ -1,0 +1,67 @@
+(* A type of duplicable references with arbitrary (hence, possibly
+   non-duplicable) content. *)
+
+abstract ref a : type
+fact duplicable (ref a)
+
+(* Allocation. *)
+
+val newref [a] (consumes x: a) : ref a =
+  magic::magic [ref::ref a, ref a] (ref::newref x)
+
+(* An atomic swap operation. *)
+
+(* Only a weak update is sound, because the reference is duplicable. *)
+
+(* In a sequential setting, this can be implemented using a read and
+   a write. In a concurrent setting, this would require an atomic
+   instruction. *)
+
+val swap [a] (r: ref a, consumes x: a) : a =
+  let r = magic::magic [ref a, ref::ref a] r in
+  let y = r.contents in
+  r.contents <- x;
+  y
+
+(* I would like to also offer a CAS instruction on atomic references,
+   but CAS is useful only if we also have read. And we can't offer a
+   read operation on these references (unless we restrict the content
+   type to be duplicable). So I am not sure what to do. *)
+
+(* Sequential locks. *)
+
+(* TEMPORARY a type abbreviation would be useful here *)
+
+(* A lock is implemented as an atomic reference to a Boolean. The
+   value [true] means that the lock is free, hence the permission
+   [p] is stored within the lock. The value [false] means that the
+   lock is already taken, hence no permission is stored within the
+   lock. *)
+
+data lock (p : perm) =
+  Lock { contents: ref (rich_bool p empty) }
+
+(* Creation. *)
+
+val newlock [p : perm] (| consumes p) : lock p =
+  Lock { contents = newref [rich_bool p empty] RichTrue }
+
+(* Acquisition. *)
+
+val try_acquire [p : perm] (l: lock p) : rich_bool p empty =
+  swap (l.contents, RichFalse)
+
+val acquire [p : perm] (l: lock p) : (| p) =
+  if rich_not (try_acquire l) then
+    (* Runtime failure: the lock is already taken! *)
+    fail
+
+(* Release. *)
+
+val release [p : perm] (l: lock p | consumes p) : () =
+  let _ = swap (l.contents, RichTrue) in
+  (* We could use a [match] construct to check dynamically
+     against multiple releases, but these are unlikely to
+     occur, since multiple copies of [p] would be needed. *)
+  ()
+

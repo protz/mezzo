@@ -10,25 +10,45 @@ module O = UntypedOCaml
 
 (* ---------------------------------------------------------------------------- *)
 
-let datacon_arity (_d : Datacon.name) : int =
-  (* including the hidden adopter field *)
-  assert false
+(* When printing a (variable, type, field) name, we must make sure that it is
+   not an OCaml keyword. If it is one, we rename it. *)
 
-let datacon_tag (_d : Datacon.name) : int =
-  assert false
+let identifier (x : string) =
+  if Hashtbl.mem OCamlKeywords.keyword_table x then
+    "__ok_" ^ x
+  else
+    x
 
-let field_index (_d : Datacon.name) (_f : Variable.name) : int =
-  (* accounting for the hidden adopter field *)
-  assert false
+(* ---------------------------------------------------------------------------- *)
 
-let make_field_name (_f : field) : string =
-  (* combine datacon name and field name *)
-  assert false
+(* This function maps a field name to a field index. It accounts for the hidden
+   adopter field. *)
+
+let field_index (info : datacon_info) (f : Field.name) : int =
+  (* TEMPORARY not pretty *)
+  (* should we eliminate field names in the earlier pass? *)
+  if Field.equal f Mezzo2UntypedMezzo.adopter_field then
+    0
+  else
+    1 + Field.Map.find f info.datacon_fields
+
+(* Sorting a list of pairs of an integer and a datum. *)
 
 let sort_by_index ixs =
   List.sort (fun (i1, _) (i2, _) ->
     Pervasives.compare i1 i2
   ) ixs
+
+(* ---------------------------------------------------------------------------- *)
+
+(* References to data constructors. *)
+
+(* In principle, this reference to a data constructor should be resolved in the
+   same way at the OCaml level and at the Mezzo level, so we can print it exactly
+   as it appeared in the Mezzo program. *) (* TEMPORARY think about this *)
+
+let print_datacon_reference dref =
+  print_maybe_qualified Datacon.print dref.datacon_unresolved
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -56,14 +76,15 @@ let sort_by_index ixs =
 let rec translate_pattern (p : pattern) : O.pattern =
   match p with
   | PVar x ->
-      O.PVar (Variable.print x)
+      O.PVar (identifier (Variable.print x))
   | PTuple ps ->
       O.PTuple (List.map translate_pattern ps)
-  | PConstruct (datacon, fields) ->
+  | PConstruct (dref, fields) ->
+      let info : datacon_info = Option.extract dref.datacon_info in
       (* Build a list of (field index, pattern) pairs. *)
       let fields =
 	List.map (fun (f, p) ->
-	  field_index datacon f,
+	  field_index info f,
 	  translate_pattern p
 	) fields
       in
@@ -71,15 +92,15 @@ let rec translate_pattern (p : pattern) : O.pattern =
       let fields = sort_by_index fields in
       (* Complete any missing entries, up to this data constructor's arity,
 	 with wildcard patterns. At the same time, forget the indices. *)
-      let arity = datacon_arity datacon in
+      let arity = 1 + info.datacon_arity in
       let ps = complete 0 arity fields in
       (* Create a data constructor pattern. *)
-      O.PConstruct (Datacon.print datacon, ps)
+      O.PConstruct (print_datacon_reference dref, ps)
   | PLocated (p, _)
   | PConstraint (p, _) ->
       translate_pattern p
   | PAs (p, x) ->
-      O.PAs (translate_pattern p, Variable.print x)
+      O.PAs (translate_pattern p, identifier (Variable.print x))
   | PAny ->
       O.PAny
 
@@ -119,12 +140,12 @@ let gt x y =
 let rec transl (e : expression) : O.expression =
   match e with
   | EVar x ->
-      O.EVar (Variable.print x)
+      O.EVar (identifier (Variable.print x))
   | EQualified (m, x) ->
       O.EVar (
 	Printf.sprintf "%s.%s"
 	  (String.capitalize (Module.print m))
-	  (Variable.print x)
+	  (identifier (Variable.print x))
       )
   | EBuiltin b ->
       (* The builtin operations are defined in the OCaml library module
@@ -134,33 +155,36 @@ let rec transl (e : expression) : O.expression =
       O.ELet (flag, transl_equations eqs, transl body)
   | EFun (p, e) ->
       O.EFun (translate_pattern p, transl e)
-  | EAssign (e1, f, e2) ->
-      O.EAssign (O.EMagic (transl e1), make_field_name f, transl e2)
-  | EAssignTag (e, { previous_datacon; new_datacon }) ->
+  | EAssign (e1, _f, e2) ->
+      (* TEMPORARY missing information about the field index *)
+      O.EAssign (O.EMagic (transl e1), assert false, transl e2)
+  | EAssignTag (e, dref, info) ->
       (* We must use [Obj.set_tag]; there is no other way. *)
       (* As an optimization, if the old and new integer tags are equal,
 	 there is nothing to do. It is OK, in this case, not to translate
          [e] at all, because the definition of Untyped Mezzo guarantees
 	 that [e] is a value. *)
-      let previous_tag = datacon_tag previous_datacon
-      and new_tag = datacon_tag new_datacon in
-      if previous_tag = new_tag then
+      let phantom = Option.extract info.is_phantom_update in
+      if phantom then
 	O.ETuple []
       else
-	O.ESetTag (transl e, new_tag)
-  | EAccess (e, f) ->
-      O.EAccess (O.EMagic (transl e), make_field_name f)
+	let info = Option.extract dref.datacon_info in
+	O.ESetTag (transl e, info.datacon_index)
+  | EAccess (e, _f) ->
+      (* TEMPORARY missing information about the field index *)
+      O.EAccess (O.EMagic (transl e), assert false)
   | EApply (e1, e2) ->
       O.EApply (O.EMagic (transl e1), transl e2)
   | EMatch (e, branches) ->
       O.EMatch (O.EMagic (transl e), transl_branches branches)
   | ETuple es ->
       O.ETuple (List.map transl es)
-  | EConstruct (datacon, fields) ->
+  | EConstruct (dref, fields) ->
+      let info : datacon_info = Option.extract dref.datacon_info in
       (* Build a list of (field index, expression) pairs. *)
       let fields =
 	List.map (fun (f, e) ->
-	  field_index datacon f,
+	  field_index info f,
 	  transl e
 	) fields
       in
@@ -168,7 +192,7 @@ let rec transl (e : expression) : O.expression =
       let fields = sort_by_index fields in
       (* In principle, every field is there. Drop the field names,
 	 and create a data constructor expression. *)
-      O.EConstruct (Datacon.print datacon, List.map snd fields)
+      O.EConstruct (print_datacon_reference dref, List.map snd fields)
   | EIfThenElse (e, e1, e2) ->
       O.EIfThenElse (
 	gt (O.EGetTag (O.ERepr (transl e))) (O.EInt 0),
@@ -235,6 +259,8 @@ let tys (base : int) (n : int) : O.ty list =
 
 (* For each data constructor, we create a record type. *)
 
+(* TEMPORARY at the moment, this is unused! *)
+
 let datacon_record_name (datacon : Datacon.name) : string =
   Printf.sprintf "__mz_record_%s" (Datacon.print datacon)
 
@@ -258,7 +284,7 @@ let datacon_record (branch : data_type_def_branch) =
 (* For each algebraic data type, we create a sum type. *)
 
 let data_sum_name (typecon : Variable.name) : string =
-  Variable.print typecon
+  identifier (Variable.print typecon)
 
 let data_branch ((base : int), (branch : data_type_def_branch)) : O.data_type_def_branch =
   let datacon, fields = branch in
@@ -308,10 +334,4 @@ let translate_item = function
 
 let translate_implementation items =
   List.flatten (List.map translate_item items)
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Make sure that [MezzoBuiltin] is well-typed and stand-alone. *)
-
-let _ = MezzoBuiltin._mz_print_value
 

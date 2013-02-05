@@ -49,28 +49,59 @@ let group (declarations: toplevel_item list): toplevel_item list =
       group [head] tail
 ;;
 
-let mkfield f = {
-  field_name = f;
-  field_datacon = Datacon.register "<invalid>"
+let mk_datacon_reference (d : Datacon.name maybe_qualified) : datacon_reference = {
+  datacon_unresolved = d;
+  datacon_info = None
 };;
 
-let mkinfix e1 o e2 =
-  EApply (EVar (Variable.register o), ETuple [e1; e2])
+let rich_false =
+  Qualified (Module.register "bool", Datacon.register "RichFalse")
+
+let rich_true =
+  Qualified (Module.register "bool", Datacon.register "RichTrue")
+
+let mkinfix e1 (o : string) e2 =
+  match o with
+  | "&&" ->
+      (* Boolean conjunction is macro-expanded to a match construct. *)
+      (* e1 && e2 is sugar for:
+	 match e1 with RichFalse -> RichFalse | RichTrue -> e2 end *)
+      EMatch (
+	false,
+	e1,
+	[
+	  PConstruct (mk_datacon_reference rich_false, []),
+	    EConstruct (mk_datacon_reference rich_false, []);
+	  PConstruct (mk_datacon_reference rich_true, []),
+	    e2
+	]
+      )
+  | "||" ->
+      (* Boolean disjunction is macro-expanded to a match construct. *)
+      (* e1 || e2 is sugar for:
+	 match e1 with RichTrue -> RichTrue | RichFalse -> e2 end *)
+      EMatch (
+	false,
+	e1,
+	[
+	  PConstruct (mk_datacon_reference rich_true, []),
+	    EConstruct (mk_datacon_reference rich_true, []);
+	  PConstruct (mk_datacon_reference rich_false, []),
+	    e2
+	]
+      )
+  | _ ->
+      EApply (EVar (Variable.register o), ETuple [e1; e2])
 ;;
 
-let mkdatacon d = {
-  new_datacon = d; previous_datacon = Datacon.register "<invalid>"
+let mk_tag_update_info () = {
+  is_phantom_update = None
 };;
 
-(* A fresh name generator, to be used (with moderation) when desugaring
-   certain constructs. *)
-
-let fresh : string -> Variable.name =
-  let c = ref 0 in
-  fun (hint : string) ->
-    let i = !c in
-    c := i + 1;
-    Variable.register (Printf.sprintf "<%s%d>" hint i)
+let mk_field field_name = {
+  field_name;
+  field_offset = None;
+};;
 
 (* This auxiliary function identifies expressions that can be copied
    without affecting their semantics (basically, just variables). *)
@@ -92,6 +123,6 @@ let name (hint : string) e : (expression -> expression) * expression =
   if is_var e then
     (fun hole -> hole), e
   else
-    let x = fresh hint in
+    let x = Utils.fresh_var hint in
     (fun hole -> ELet (Nonrecursive, [ PVar x, e ], hole)), EVar x
 

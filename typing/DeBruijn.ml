@@ -70,14 +70,15 @@ let clean top sub t =
     | TyTuple ts ->
         TyTuple (List.map clean ts)
 
-    | TyConcreteUnfolded (datacon, fields, clause) ->
+    | TyConcreteUnfolded ((t, dc), fields, clause) ->
+        let t = clean t in
         let fields = List.map (function
           | FieldValue (f, t) ->
               FieldValue (f, clean t)
           | FieldPermission p ->
               FieldPermission (clean p)
         ) fields in
-        TyConcreteUnfolded (datacon, fields, clean clause)
+        TyConcreteUnfolded ((t, dc), fields, clean clause)
 
     | TySingleton t ->
         TySingleton (clean t)
@@ -101,9 +102,12 @@ let clean top sub t =
   clean t
 ;;
 
+let rec resolved_datacons_equal env (t1, dc1) (t2, dc2) =
+  equal env t1 t2 && Datacon.equal dc1 dc2
+
 (* [equal env t1 t2] provides an equality relation between [t1] and [t2] modulo
  * equivalence in the [PersistentUnionFind]. *)
-let equal env (t1: typ) (t2: typ) =
+and equal env (t1: typ) (t2: typ) =
   let rec equal (t1: typ) (t2: typ) =
     match t1, t2 with
       (* Special type constants. *)
@@ -142,7 +146,7 @@ let equal env (t1: typ) (t2: typ) =
         List.length ts1 = List.length ts2 && List.for_all2 equal ts1 ts2
 
     | TyConcreteUnfolded (name1, fields1, clause1), TyConcreteUnfolded (name2, fields2, clause2) ->
-        Datacon.equal name1 name2 &&
+        resolved_datacons_equal env name1 name2 &&
         equal clause1 clause2 &&
         List.length fields1 = List.length fields2 &&
         List.fold_left2 (fun acc f1 f2 ->
@@ -205,9 +209,9 @@ let lift (k: int) (t: typ) =
     | TyTuple ts ->
         TyTuple (List.map (lift i) ts)
 
-    | TyConcreteUnfolded (name, fields, clause) ->
+    | TyConcreteUnfolded ((t, dc), fields, clause) ->
         TyConcreteUnfolded (
-          name,
+          (lift i t, dc),
           List.map (function
             | FieldValue (field_name, t) -> FieldValue (field_name, lift i t)
             | FieldPermission t -> FieldPermission (lift i t)) fields,
@@ -285,8 +289,8 @@ let tsubst (t2: typ) (i: int) (t1: typ) =
     | TyTuple ts ->
         TyTuple (List.map (tsubst t2 i) ts)
 
-    | TyConcreteUnfolded (name, fields, clause) ->
-       TyConcreteUnfolded (name, List.map (function
+    | TyConcreteUnfolded ((t, dc), fields, clause) ->
+       TyConcreteUnfolded ((tsubst t2 i t, dc), List.map (function
          | FieldValue (field_name, t) -> FieldValue (field_name, tsubst t2 i t)
          | FieldPermission t -> FieldPermission (tsubst t2 i t)) fields,
        tsubst t2 i clause)
@@ -361,3 +365,63 @@ let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_typ
   ) group in
   group
 ;;
+
+(* Substitute [t2] for [p] in [t1]. We allow [t2] to have free variables. *)
+let tpsubst env (t2: typ) (p: point) (t1: typ) =
+  let lift1 = lift 1 in
+  let rec tsubst t2 t1 =
+    match t1 with
+      (* Special type constants. *)
+    | TyUnknown
+    | TyDynamic
+    | TyVar _ ->
+        t1
+
+    | TyPoint p' ->
+        if same env p p' then
+          t2
+        else
+          t1
+
+    | TyForall (binder, t) ->
+        TyForall (binder, tsubst (lift1 t2) t)
+
+    | TyExists (binder, t) ->
+        TyExists (binder, tsubst (lift1 t2) t)
+
+    | TyApp (t, t') ->
+        TyApp (tsubst t2 t, List.map (tsubst t2) t')
+
+    | TyTuple ts ->
+        TyTuple (List.map (tsubst t2) ts)
+
+    | TyConcreteUnfolded ((t, dc), fields, clause) ->
+       TyConcreteUnfolded ((tsubst t2 t, dc), List.map (function
+         | FieldValue (field_name, t) -> FieldValue (field_name, tsubst t2 t)
+         | FieldPermission t -> FieldPermission (tsubst t2 t)) fields, tsubst t2 clause)
+
+    | TySingleton t ->
+        TySingleton (tsubst t2 t)
+
+    | TyArrow (t, t') ->
+        TyArrow (tsubst t2 t, tsubst t2 t')
+
+    | TyAnchoredPermission (p, q) ->
+        TyAnchoredPermission (tsubst t2 p, tsubst t2 q)
+
+    | TyEmpty ->
+        t1
+
+    | TyStar (p, q) ->
+        TyStar (tsubst t2 p, tsubst t2 q)
+
+    | TyBar (t, p) ->
+        TyBar (tsubst t2 t, tsubst t2 p)
+
+    | TyAnd (constraints, t) ->
+        let constraints = List.map (fun (f, t) -> f, tsubst t2 t) constraints in
+        TyAnd (constraints, tsubst t2 t)
+  in
+  tsubst t2 t1
+;;
+

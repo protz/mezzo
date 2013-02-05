@@ -93,17 +93,6 @@ let safety_check env =
  * treated differently. The various [add_perm] and [sub_perm] function will case
  * these two helpers. *)
 
-let sub_floating_perm env t =
-  match Hml_List.take_bool (equal env t) env.floating_permissions with
-  | Some (remaining_perms, t') ->
-      if FactInference.is_duplicable env t' then
-        Some env
-      else
-        Some { env with floating_permissions = remaining_perms }
-  | None ->
-      None
-;;
-
 
 let add_floating_perm env t =
   { env with floating_permissions = t :: env.floating_permissions }
@@ -499,7 +488,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
          * environment. *)
         let all_fields_there =
           let _, def, _ = def_for_datacon env datacon in
-          let _, branch = List.find (fun (datacon', _) -> Datacon.equal datacon datacon') def in
+          let _, branch = List.find (fun (datacon', _) -> Datacon.equal (snd datacon) datacon') def in
           let field_name = function
             | FieldValue (name, _) -> Some name
             | FieldPermission _ -> None
@@ -512,14 +501,14 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
           ) fields'
         in
         if not (all_fields_there) then
-          raise_error env (FieldMismatch (t, datacon));
+          raise_error env (FieldMismatch (t, (snd datacon)));
         (* It's fine, add it! *)
         let env, fields = List.fold_left (fun (env, fields) -> function
           | FieldPermission _ as field ->
               env, field :: fields
           | FieldValue (name, field) ->
               let hint =
-                add_hint hint (Hml_String.bsprintf "%a_%a" Datacon.p datacon Field.p name)
+                add_hint hint (Hml_String.bsprintf "%a_%a" Datacon.p (snd datacon) Field.p name)
               in
               let env, field = insert_point env ?hint field in
               env, FieldValue (name, field) :: fields
@@ -750,7 +739,7 @@ and sub_type_real env t1 t2 =
 
   | TyConcreteUnfolded (datacon1, fields1, clause1), TyConcreteUnfolded (datacon2, fields2, clause2)
     when List.length fields1 = List.length fields2 ->
-      if Datacon.equal datacon1 datacon2 then
+      if resolved_datacons_equal env datacon1 datacon2 then
         sub_type env clause1 clause2 >>= fun env ->
         List.fold_left2 (fun env f1 f2 ->
           env >>= fun env ->
@@ -789,8 +778,8 @@ and sub_type_real env t1 t2 =
       else
         None
 
-  | TyConcreteUnfolded (datacon1, _, _), TyApp (cons2, args2) ->
-      let point1 = type_for_datacon env datacon1 in
+  | TyConcreteUnfolded ((cons1, datacon1), _, _), TyApp (cons2, args2) ->
+      let point1 = !!cons1 in
       let cons2 = !!cons2 in
 
       if same env point1 cons2 then begin
@@ -804,10 +793,10 @@ and sub_type_real env t1 t2 =
         None
       end
 
-  | TyConcreteUnfolded (datacon1, _, _), TyPoint point2 ->
+  | TyConcreteUnfolded ((cons1, datacon1), _, _), TyPoint point2 ->
       (* This is basically the same as above, except that type applications
        * without parameters are not [TyApp]s, they are [TyPoint]s. *)
-      let point1 = type_for_datacon env datacon1 in
+      let point1 = !!cons1 in
 
       if same env point1 point2 then begin
         (* XXX why are we not collecting permissions here? *)
@@ -835,7 +824,8 @@ and sub_type_real env t1 t2 =
           | Bivariant ->
               Some env
           | Invariant ->
-              equal_modulo_flex env arg1 arg2
+              sub_type env arg1 arg2 >>= fun env ->
+              sub_type env arg2 arg1
         ) (Some env) args1 args2 >>= fun env ->
         Some (restore env)
       else
@@ -876,6 +866,12 @@ and sub_type_real env t1 t2 =
       Some (restore env)
 
   | TyBar (t1, p1), TyBar (t2, p2) ->
+      (* Unless we do this, we can't handle (t|p) - (t|p|p') properly. *)
+      let t1, p'1 = collect t1 in
+      let p1 = fold_star (p1 :: p'1) in
+      let t2, p'2 = collect t2 in
+      let p2 = fold_star (p2 :: p'2) in
+
       (* "(t1 | p1) - (t2 | p2)" means doing "t1 - t2", adding all of [p1],
        * removing all of [p2]. However, the order in which we perform these
        * operations matters, unfortunately. *)
@@ -1070,16 +1066,6 @@ and step_through_flex ?(stepped=false) env k t1 t2 =
         None
 
 
-(* Determine whether two types are equal, modulo flexible variables. *)
-and equal_modulo_flex env t1 t2 =
-  (* TODO: This function should recursively descend say, on type applications,
-   * to instantiate flexible variables in depth, so that "t (u ω)" where "ω" is
-   * flexible can be considered equal to "t (u v)". Once this is done, this
-   * should fix the BUG in hashtable::create.  *)
-  let equal env t1 t2 = if equal env t1 t2 then Some env else None in
-  equal env t1 t2 ||| step_through_flex env equal t1 t2
-
-
 (** [sub_perm env t] takes a type [t] with kind KPerm, and tries to return the
     environment without the corresponding permission. *)
 and sub_perm (env: env) (t: typ): env option =
@@ -1116,3 +1102,15 @@ and sub_perms env perms =
         Log.debug ~level:4 "[sub_perms] failed, remaining: %a"
           TypePrinter.ptype (env, fold_star perms);
         None
+
+and sub_floating_perm env t =
+  match Hml_List.take (sub_type env t) env.floating_permissions with
+  | Some (remaining_perms, (t', env)) ->
+      if FactInference.is_duplicable env t' then
+        Some env
+      else
+        Some { env with floating_permissions = remaining_perms }
+  | None ->
+      None
+;;
+
