@@ -1,0 +1,41 @@
+(* A type of duplicable references with arbitrary (hence, possibly
+   non-duplicable) content. *)
+
+abstract ref a : type
+fact duplicable (ref a)
+
+(* Allocation. *)
+
+val newref : [a] (consumes a) -> ref a
+
+(* An atomic swap operation. *)
+
+(* The effect of [swap (r, x)] is to atomically write [x] to [r] and
+   return the previous value of [r]. *)
+
+val swap : [a] (ref a, consumes a) -> a
+
+(* Sequential locks. *)
+
+(* Sequential locks are meant to be used in a sequential setting. They
+   provide protection against re-entrancy, and offer access to a hidden
+   invariant state. *)
+
+abstract lock (p : perm) : type
+fact duplicable (lock p)
+
+(* Creation. *)
+
+val newlock     : [p : perm] (| consumes p) -> lock p
+
+(* Acquisition. *)
+
+val acquire     : [p : perm] lock p -> (| p)
+val try_acquire : [p : perm] lock p -> rich_bool p empty
+
+(* Release. *)
+
+val release     : [p : perm] (l: lock p | consumes p) -> ()
+(* BUG removing "l:" in the above line
+   causes the mz/mzi comparison to fail *)
+

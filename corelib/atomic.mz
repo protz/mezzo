@@ -1,0 +1,84 @@
+(* A type of duplicable references with arbitrary (hence, possibly
+   non-duplicable) content. *)
+
+abstract ref a : type
+fact duplicable (ref a)
+
+(* Allocation. *)
+
+val newref [a] (consumes x: a) : ref a =
+  magic::magic [ref::ref a, ref a] (ref::newref x)
+
+(* An atomic swap operation. *)
+
+(* The effect of [swap (r, x)] is to atomically write [x] to [r] and
+   return the previous value of [r]. *)
+
+(* Only a weak update is sound, because the reference is duplicable. *)
+
+(* In a sequential setting, this can be implemented using a read and
+   a write. In a concurrent setting, this would require an atomic
+   instruction. *)
+
+val swap [a] (r: ref a, consumes x: a) : a =
+  let r = magic::magic [ref a, ref::ref a] r in
+  let y = r.contents in
+  r.contents <- x;
+  y
+
+(* I would like to also offer a CAS instruction on atomic references,
+   but CAS is useful only if we also have read. And we can't offer a
+   read operation on these references (unless we restrict the content
+   type to be duplicable). So I am not sure what to do. *)
+
+(* Sequential locks. *)
+
+(* Sequential locks are meant to be used in a sequential setting. They
+   provide protection against re-entrancy, and offer access to a hidden
+   invariant state. *)
+
+(* TEMPORARY a type abbreviation would be useful here *)
+
+data lock (p : perm) =
+  Lock { contents: ref (option (| p)) }
+
+(* Creation. *)
+
+val newlock [p : perm] (| consumes p) : lock p =
+  Lock { contents = newref (some [(| p)] ()) }
+
+(* Acquisition. *)
+
+val acquire [p : perm] (l: lock p) : (| p) =
+  match swap (l.contents, none) with
+  | None ->
+      (* Runtime failure: the lock is already taken! *)
+      fail
+  | Some ->
+      ()
+  end
+
+val try_acquire [p : perm] (l: lock p) : rich_bool p empty =
+  match swap (l.contents, none) with
+  | None ->
+      RichFalse
+  | Some ->
+      RichTrue
+  end
+
+(* BUG uncommenting this definition causes a type error ABOVE
+   in try_acquire!
+val acquire_variant [p : perm] (l: lock p) : (| p) =
+  if rich_not (try_acquire l) then
+    fail
+*)
+
+(* Release. *)
+
+val release [p : perm] (l: lock p | consumes p) : () =
+  let _ = swap (l.contents, some [(| p)] ()) in
+  (* We could use a [match] construct to check dynamically
+     against multiple releases, but these are unlikely to
+     occur, since multiple copies of [p] would be needed. *)
+  ()
+
