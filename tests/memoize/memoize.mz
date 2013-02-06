@@ -5,6 +5,10 @@ open hashtable (* table, create, find, add *)
    using an internal hash table based on the provided hash and equality
    functions. *)
 
+(* If [f] has type [a -> b], the types [a] and [b] must be duplicable,
+   because arguments and results will be stored in the internal hash
+   table. *)
+
 (* A lock is used to protect the hash table and to allow its use in a
    duplicable object (the memoized function). Here, a sequential lock
    (provided by the module [atomic]) is used, but in a multi-threaded
@@ -13,7 +17,8 @@ open hashtable (* table, create, find, add *)
 val memoize
   [a, b]
   duplicable a => duplicable b =>
-  (hash: a -> int, eq: (a, a) -> bool, f: a -> b) : (a -> b) =
+  (hash: a -> int, eq: (a, a) -> bool, f: a -> b)
+  : a -> b =
 
   (* Create the internal hash table. *)
   let t = create [a, b] (11, hash, eq) in
@@ -44,3 +49,58 @@ val memoize
     (* Return [y]. *)
     y
 
+(* Now, a memoizing fixpoint combinator. Here, the argument [f] is not a
+   closed function, but an open recursive function, i.e., it is parameterized
+   over [self]. So, [f] should have type [(self: a -> b, x: a) -> y: b]. *)
+
+(* Actually, we require [f] to have a slightly more general type, which is
+   parametric in an unknown permission [p]. In other words, we allow [self]
+   to have an unknown side effect, and expect the application of [f] to
+   [self] to have the same side effect. (A technician would say that we
+   are manually building in an application of the second-order frame rule.)
+   This allows us to pass the permission [t @ table a b], disguised as an
+   abstract permission [p], to the function [f], which itself passes it on
+   to [self]. This allows us not to release and re-acquire the lock at
+   every recursive invocation. *)
+
+val fix
+  [a, b]
+  duplicable a => duplicable b =>
+  (
+    hash: a -> int,
+    eq: (a, a) -> bool,
+    f: [p : perm] ((a | p) -> b, a | p) -> b
+  ) 
+  : a -> b =
+
+  (* Create the internal hash table and lock. *)
+  let t = create [a, b] (11, hash, eq) in
+  let l = newlock [(t @ table a b)] () in
+
+  (* For the sake of efficiency, we prefer not to release and re-acquire
+     the lock at every recursive invocation. Thus, the recursive function
+     that we define below assumes that the lock is held -- hence, the
+     table is available. *)
+
+  (* Construct the recursive function. *)
+  let rec memoized (x: a | t @ table a b) : b =
+    match find (x, t) with
+    | Some { contents = y } ->
+        y
+    | None ->
+	let y = f (memoized, x) in
+	add (x, y, t);
+	y
+    end
+  in
+
+  (* Now, construct the final memoized function. *)
+  fun (x: a) : b =
+    (* Acquire the lock. This yields the permission [t @ table a b]. *)
+    acquire l;
+    (* Invoke the recursive computation. *)
+    let y = memoized (x) in
+    (* Release the lock. This consumes [t @ table a b]. *)
+    release l;
+    (* Return [y]. *)
+    y
