@@ -1,0 +1,1 @@
+val spawn: [p: perm] (f: ( | consumes p) -> () | consumes p) -> ()

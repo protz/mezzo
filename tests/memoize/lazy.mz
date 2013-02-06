@@ -5,3 +5,6 @@ open atomic
 
 data thunk a =
   Thunk { contents: unknown; lock: lock (contents @ a) }
+
+(* Variant: a thunk is mutable structure that may be or not be evaluated,
+   and the caller is responsible for adding the required locks. *)
