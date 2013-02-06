@@ -779,6 +779,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("dup_sign4.mz", simple_test Pass);
 
   ("tableau.mz", simple_test Pass);
+  ("smemoize.mz", simple_test Pass);
 
 ];;
 
