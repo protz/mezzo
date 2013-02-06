@@ -1,36 +1,45 @@
-open hashtable
-open atomic
+open atomic (* newlock, acquire, release *)
+open hashtable (* table, create, find, add *)
 
-(* [memoize (hash, eq_a, f)] builds a memoizing variant of
-   the function f, using a hashtable built with the provided hash
-   and equality functions. *)
+(* [memoize (hash, eq, f)] builds a memoizing version of the function [f],
+   using an internal hash table based on the provided hash and equality
+   functions. *)
 
-(* A lock is used to protect the hash table and to allow its use
-   in a duplicable object (the memoized function). *)
+(* A lock is used to protect the hash table and to allow its use in a
+   duplicable object (the memoized function). Here, a sequential lock
+   (provided by the module [atomic]) is used, but in a multi-threaded
+   setting, a "real" concurrent lock should be used. *)
 
 val memoize
-   [a, b] duplicable a => duplicable b =>
-   (hash: a -> int, eq_a: (a, a) -> bool, f: a -> b): (a -> b) =
+  [a, b]
+  duplicable a => duplicable b =>
+  (hash: a -> int, eq: (a, a) -> bool, f: a -> b) : (a -> b) =
 
-  (* let eq_a (x: a, y: a): bool = x=y in *)
-  let t = create [a, b] (11, hash, eq_a) in
-  let l = atomic::newlock [(t @ table a b)] () in
+  (* Create the internal hash table. *)
+  let t = create [a, b] (11, hash, eq) in
+  (* Create a lock which (at runtime) prevents re-entrant calls
+     into the memoized function and (at type-checking time) allows
+     us to hide the existence of the hash table. *)
+  let l = newlock [(t @ table a b)] () in
 
-  let memo_f (x: a): b =
+  (* Now, construct the memoized function. *)
+  fun (x: a) : b =
+    (* Acquire the lock. This yields the permission [t @ table a b]. *)
     acquire l;
-    if mem [a, b] (x, t)
-    then match hashtable::find [a, b] (x, t) with
-         | Some { contents = r } ->
-	     release l;
-	     r
-         end 
-    else begin
-         let r = f x in
-	 add [a, b] (x, r, t);
-	 release l;
-	 r
-	 end
-  in
-
-  memo_f
+    (* Find [y] in the table, if it is there already, or compute [y]
+       and store it in the table for potential later re-use. *)
+    let y : (b | t @ table a b) =
+      match find (x, t) with
+      | Some { contents = y } ->
+	  y
+      | None ->
+          let y = f x in
+	  add (x, y, t);
+	  y
+      end
+    in
+    (* Release the lock. This consumes [t @ table a b]. *)
+    release l;
+    (* Return [y]. *)
+    y
 
