@@ -78,6 +78,23 @@ val init [a, p : perm] (
   );
   r
 
+(* ------------------------------------------------------------------------ *)
+
+(* The function [swap] can be programmed using [get] and [set], but if we
+   do so, we end up with a constraint [duplicable a], which is in fact
+   superfluous, because no value is duplicated in the process. We erase
+   this constraint by cheating. *)
+
+val swap [a] duplicable a => (r: array a, i: int, j: int) : () =
+  if i <> j then begin
+    let ri = get (r, i) in
+    set (r, i, get (r, j));
+    set (r, j, ri)
+  end
+
+val swap : [a] (r: array a, i: int, j: int) -> () =
+  magic::magic swap
+
 (* BUG
 val bug (n : int) : () =
   let r : array () = create [()] (n, ()) in
