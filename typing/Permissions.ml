@@ -617,9 +617,12 @@ and sub_constraints env constraints =
     match t with
     | TyPoint p ->
         let f' = get_fact env p in
-        Log.debug "fact for %a: %a" TypePrinter.pnames (env, get_names env p) TypePrinter.pfact f';
+        let is_ok = fact_leq f' f in
+        Log.debug "fact [is_ok=%b] for %a: %a"
+          is_ok
+          TypePrinter.pnames (env, get_names env p) TypePrinter.pfact f';
         (* [f] demands, for instance, that [p] be exclusive *)
-        if fact_leq f' f then
+        if is_ok then
           Some env
         else
           None
@@ -853,6 +856,15 @@ and sub_type_real env t1 t2 =
        * permissions. *)
       let env, restore = keep_only_duplicable env in
 
+      (* 1b) Check facts as late as possible (the instantiation of a flexible
+       * variables may happen only in "t2 - t'2"). *)
+      let env, t1, constraints = match t1 with
+        | TyAnd (constraints, t1) ->
+            env, t1, constraints
+        | _ ->
+            env, t1, []
+      in
+
       (* 2) Let us compare the domains... *)
       Log.debug ~level:4 "%sArrow / Arrow, left%s"
         Bash.colors.Bash.red
@@ -864,6 +876,12 @@ and sub_type_real env t1 t2 =
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
       sub_type env t2 t'2 >>= fun env ->
+
+      (* 3b) Now check facts! *)
+      Log.debug ~level:4 "%sArrow / Arrow, facts%s"
+        Bash.colors.Bash.red
+        Bash.colors.Bash.default;
+      sub_constraints env constraints >>= fun env ->
 
       (* 4) We have successfully compared these function types. Just return the
        * "restored" environment, that is, the environment with the exact same
