@@ -17,9 +17,12 @@ val memoize:
    over [self]. So, [f] should have type [(self: a -> b, x: a) -> y: b]. *)
 
 (* Actually, we require [f] to have a slightly more general type, which is
-   parametric in an unknown permission [p]. In other words, we allow [self]
-   to have an unknown side effect, and expect the application of [f] to
-   [self] to have the same side effect. *)
+   parametric in an unknown permission [p]. Thus, we tell our client that
+   [self] may have a side effect, and that (of course) we expect the
+   application of [f] to [self] to have the same side effect. Incidentally,
+   note that this type prevents [f] from storing [self] and re-using after
+   [f] has returned! So, we are telling [f], ``you can use [self] now if
+   you wish, but you are not allowed to use it later''. *)
 
 val fix:
   [a, b]

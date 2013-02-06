@@ -1,13 +1,7 @@
 open atomic (* newlock, acquire, release *)
 open hashtable (* table, create, find, add *)
 
-(* [memoize (hash, eq, f)] builds a memoizing version of the function [f],
-   using an internal hash table based on the provided hash and equality
-   functions. *)
-
-(* If [f] has type [a -> b], the types [a] and [b] must be duplicable,
-   because arguments and results will be stored in the internal hash
-   table. *)
+(* The simple memoizing combinator. *)
 
 (* A lock is used to protect the hash table and to allow its use in a
    duplicable object (the memoized function). Here, a sequential lock
@@ -49,19 +43,15 @@ val memoize
     (* Return [y]. *)
     y
 
-(* Now, a memoizing fixpoint combinator. Here, the argument [f] is not a
-   closed function, but an open recursive function, i.e., it is parameterized
-   over [self]. So, [f] should have type [(self: a -> b, x: a) -> y: b]. *)
+(* The recursive memoizing combinator. *)
 
-(* Actually, we require [f] to have a slightly more general type, which is
-   parametric in an unknown permission [p]. In other words, we allow [self]
-   to have an unknown side effect, and expect the application of [f] to
-   [self] to have the same side effect. (A technician would say that we
-   are manually building in an application of the second-order frame rule.)
+(* A technician would say that, by requiring [f] to be polymorphic in [p], we
+   are manually building in an application of the second-order frame rule.
    This allows us to pass the permission [t @ table a b], disguised as an
-   abstract permission [p], to the function [f], which itself passes it on
-   to [self]. This allows us not to release and re-acquire the lock at
-   every recursive invocation. *)
+   abstract permission [p], to the function [f], which itself passes it on to
+   [self]. This allows us not to release and re-acquire the lock at every
+   recursive invocation. Incidentally, it guarantees that [f] cannot store
+   [self] and invoke it at a later time. *)
 
 val fix
   [a, b]
