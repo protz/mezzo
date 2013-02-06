@@ -722,7 +722,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("tuple-syntax.mz", simple_test Pass);
 
-  ("same-type-var-bug.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
+  ("same-type-var-bug.mz", simple_test (KFail (function K.BoundTwice _ -> true | _ -> false)));
 
   ("assert-bug.mz", simple_test ~known_failure:() Pass);
 
@@ -746,7 +746,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("dup-datacon.mzi", simple_test ~known_failure:() (Fail (function _ -> true)));
 
-  ("unqualified-datacon.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
+  ("unqualified-datacon.mz", simple_test (KFail (function K.UnboundDataConstructor _ -> true | _ -> false)));
 
   ("improve-inference.mz", simple_test ~known_failure:() Pass);
 
@@ -762,11 +762,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("ref-swap.mz", simple_test Pass);
 
-  ("multiple-match-ref.mz", simple_test ~known_failure:() Pass);
-    (* This test should fail, and it does, but the current error message is bizarre *)
-    (* I am marking it as a known failure for the moment *)
+  ("multiple-match-ref.mz", simple_test (Fail (fun _ -> true)));
 
-  ("018.mz", simple_test ~known_failure:() Pass);
+  ("018.mz", simple_test Pass);
 
   ("vicious-cycle.mz", simple_test Pass);
 
@@ -778,6 +776,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("dup_sign1.mz", simple_test Pass);
   ("dup_sign2.mz", simple_test (Fail (function UnsatisfiableConstraint _ -> true | _ -> false)));
   ("dup_sign3.mz", simple_test Pass);
+  ("dup_sign4.mz", simple_test Pass);
+
+  ("tableau.mz", simple_test Pass);
+
 ];;
 
 let mz_files_in_directory (dir : string) : string list =

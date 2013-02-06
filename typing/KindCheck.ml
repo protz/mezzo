@@ -872,6 +872,7 @@ and check_expression (env: env) (expr: expression) =
       check_expression env expr
 
   | EFun (bindings, arg, return_type, body) ->
+      check_for_duplicate_variables T.fst3 bindings (bound_twice env);
       let bindings = List.map (fun (x, y, _) -> x, y) bindings in
       let env = List.fold_left bind env bindings in
       let arg_bindings = names env arg in

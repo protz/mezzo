@@ -1,27 +1,33 @@
 open hashtable
-(* This module cannot be opened: ref would be defined twice. *)
-(* open atomic*)
+open atomic
+
+(* [memoize (hash, eq_a, f)] builds a memoizing variant of
+   the function f, using a hashtable built with the provided hash
+   and equality functions. *)
+
+(* A lock is used to protect the hash table and to allow its use
+   in a duplicable object (the memoized function). *)
 
 val memoize
-   [a,b] duplicable a, duplicable b =>
-   (hash: a -> int, f: a -> b): (a -> b) =
+   [a, b] duplicable a => duplicable b =>
+   (hash: a -> int, eq_a: (a, a) -> bool, f: a -> b): (a -> b) =
 
-  let eq_a (x: a, y: a): bool = x=y in
+  (* let eq_a (x: a, y: a): bool = x=y in *)
   let t = create [a, b] (11, hash, eq_a) in
-(*  let l = atomic::newlock [(t @ table a b)] () in*)
+  let l = atomic::newlock [(t @ table a b)] () in
 
   let memo_f (x: a): b =
-(*    acquire l;*) 
+    acquire l;
     if mem [a, b] (x, t)
     then match hashtable::find [a, b] (x, t) with
          | Some { contents = r } ->
-(*	     release l;*)
+	     release l;
 	     r
          end 
     else begin
          let r = f x in
 	 add [a, b] (x, r, t);
-(*	 release l;*)
+	 release l;
 	 r
 	 end
   in
