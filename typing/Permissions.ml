@@ -350,9 +350,9 @@ and add (env: env) (point: point) (t: typ): env =
 (** [add_perm env t] adds a type [t] with kind KPerm to [env], returning the new
     environment. *)
 and add_perm (env: env) (t: typ): env =
-  TypePrinter.(Log.debug ~level:4 "[add_perm] %a"
-    ptype (env, t));
   Log.check (get_kind_for_type env t = KPerm) "This function only works with types of kind perm.";
+  if t <> TyEmpty then
+    TypePrinter.(Log.debug ~level:4 "[add_perm] %a" ptype (env, t));
 
   match t with
   | TyAnchoredPermission (p, t) ->
@@ -638,6 +638,14 @@ and sub_type_real env t1 t2 =
     Some env
 
   else match t1, t2 with
+
+  (** Fail early to tame debug output. *)
+  | TyUnknown, _
+  | _, TyUnknown
+  | TyDynamic, _
+  | _, TyDynamic ->
+      (* If the call to [equal] didn't succeed, we won't succeed either here. *)
+      None
 
   (** Duplicity constraints. *)
 
@@ -1002,8 +1010,9 @@ and sub_type_real env t1 t2 =
           Some (instantiate_flexible env var2 (fold_star ps1))
       | [TyPoint var1], ps2 when is_flexible env var1 ->
           Some (instantiate_flexible env var1 (fold_star ps2))
-      | [], [] ->
-          Some env
+      | ps1, [] ->
+          (* We may have a remaining, rigid, floating permission. Good for us! *)
+          Some (add_perm env (fold_star ps1))
       | [], ps2 ->
           (* This is useful if [ps2] is a rigid floating permission, alone, that
            * also happens to be present in our environment. *)
@@ -1072,9 +1081,8 @@ and step_through_flex ?(stepped=false) env k t1 t2 =
     environment without the corresponding permission. *)
 and sub_perm (env: env) (t: typ): env option =
   Log.check (get_kind_for_type env t = KPerm) "This type does not have kind perm";
-  TypePrinter.(
-    Log.debug ~level:4 "[sub_perm] %a"
-      ptype (env, t));
+  if t <> TyEmpty then
+    TypePrinter.(Log.debug ~level:4 "[sub_perm] %a" ptype (env, t));
 
   match t with
   | TyAnchoredPermission (TyPoint p, t) ->

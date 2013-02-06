@@ -1,0 +1,33 @@
+(* [memoize (hash, eq, f)] builds a memoizing version of the function [f],
+   using an internal hash table based on the provided hash and equality
+   functions. *)
+
+(* If [f] has type [a -> b], the types [a] and [b] must be duplicable,
+   because arguments and results will be stored in the internal hash
+   table. *)
+
+val memoize:
+  [a, b]
+  duplicable a => duplicable b =>
+  (hash: a -> int, eq: (a, a) -> bool, f: a -> b) ->
+  a -> b
+
+(* Now, a memoizing fixpoint combinator. Here, the argument [f] is not a
+   closed function, but an open recursive function, i.e., it is parameterized
+   over [self]. So, [f] should have type [(self: a -> b, x: a) -> y: b]. *)
+
+(* Actually, we require [f] to have a slightly more general type, which is
+   parametric in an unknown permission [p]. In other words, we allow [self]
+   to have an unknown side effect, and expect the application of [f] to
+   [self] to have the same side effect. *)
+
+val fix:
+  [a, b]
+  duplicable a => duplicable b =>
+  (
+    hash: a -> int,
+    eq: (a, a) -> bool,
+    f: [p : perm] ((a | p) -> b, a | p) -> b
+  ) ->
+  a -> b
+

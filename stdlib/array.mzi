@@ -71,7 +71,10 @@ val swap   : [a] (array a, int, int) -> ()
 
 (* A drawback of this approach is that the user has to work in what resembles
    CPS style. Could we somehow impose the same discipline and obtain the same
-   effect in direct style? *)
+   effect in direct style? We would need an abstract permission that represents
+   an array with a hole at a particular index and a particular value, and we
+   would need a coercion to fill the hole. It would be almost as cumbersome
+   as using [consult]! TEMPORARY *)
 
 val consult : [a, pre : perm, b] (
   array a, int,
@@ -105,7 +108,7 @@ val length : [a] array a -> int
 (* TEMPORARY we would like two version of [sub]: one that requires [duplicable a]
    and does not consume the original array; and one that does not require
    [duplicable a] and consumes the original array. Because arrays are mutable,
-   neither of these two version is better than hthe other. Same problem with the
+   neither of these two versions is better than hthe other. Same problem with the
    other blitting functions below. *)
 
 val sub    : [a] duplicable a => (array a, int, int)  -> array a

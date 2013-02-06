@@ -1,0 +1,4 @@
+abstract array a
+
+val sort : [a, p : perm] duplicable a => (
+  cmp: (a, a | p) -> int | p) -> ()
