@@ -28,6 +28,7 @@ val memoize
     acquire l;
     (* Find [y] in the table, if it is there already, or compute [y]
        and store it in the table for potential later re-use. *)
+    (* WISH the type annotation on y should be unnecessary? *)
     let y : (b | t @ table a b) =
       match find (x, t) with
       | Some { contents = y } ->
