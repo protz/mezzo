@@ -1002,8 +1002,9 @@ and sub_type_real env t1 t2 =
           Some (instantiate_flexible env var2 (fold_star ps1))
       | [TyPoint var1], ps2 when is_flexible env var1 ->
           Some (instantiate_flexible env var1 (fold_star ps2))
-      | [], [] ->
-          Some env
+      | ps1, [] ->
+          (* We may have a remaining, rigid, floating permission. Good for us! *)
+          Some (add_perm env (fold_star ps1))
       | [], ps2 ->
           (* This is useful if [ps2] is a rigid floating permission, alone, that
            * also happens to be present in our environment. *)
