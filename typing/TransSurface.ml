@@ -446,7 +446,11 @@ let translate_abstract_fact (params: Variable.name list) (fact: abstract_fact op
       T.Exclusive
   | Some (FDuplicableIf (ts, _)) ->
       (* [KindCheck] already made sure these are just names _and_ they're valid. *)
-      let names = List.map (function TyVar name -> name | _ -> assert false) ts in
+      let names = List.map (fun t ->
+        match tunloc t with
+        | TyVar name -> name
+        | _ -> assert false
+      ) ts in
       let arity = List.length params in
       let bitmap = Array.make arity false in
       List.iter (fun name ->
