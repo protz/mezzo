@@ -1,0 +1,96 @@
+(* ------------------------------------------------------------------------ *)
+
+(* The type of arrays is axiomatized. *)
+
+abstract array a
+fact exclusive (array a)
+
+(* A Mezzo array is implemented as an OCaml array. Because Mezzo arrays
+   are exclusive, they include an adopter field. We use the first slot
+   of the array for this purpose, so a Mezzo array of length [n] is
+   represented as an OCaml array of length [n+1]. *)
+
+(* ------------------------------------------------------------------------ *)
+
+(* The primitive operations on arrays. *)
+
+val length : [a] array a -> int =
+  builtin _mz_array_length
+
+val get : [a] duplicable a => (array a, int) -> a =
+  builtin _mz_array_get
+
+val set : [a] (array a, int, a) -> () =
+  builtin _mz_array_set
+
+val unsafe_get : [a] duplicable a => (array a, int) -> a =
+  builtin _mz_array_unsafe_get
+
+val unsafe_set : [a] (array a, int, a) -> () =
+  builtin _mz_array_unsafe_set
+
+val create : [a] duplicable a => (int, a) -> array a =
+  builtin _mz_array_create
+
+val unsafe_sub : [a] duplicable a => (array a, int, int) -> array a =
+  builtin _mz_array_unsafe_sub
+
+val append_prim : [a] duplicable a => (array a, array a) -> array a =
+  builtin _mz_array_append_prim
+
+(* TEMPORARY OCaml's primitive operation [Array.concat] uses an OCaml
+   list. We cannot expose it in Mezzo unless a Mezzo list is an OCaml
+   list. This will be possible once we implement [slim]. *)
+
+val unsafe_blit : [a] duplicable a => (array a, int, array a, int, int) -> () =
+  builtin _mz_array_unsafe_blit
+
+(* ------------------------------------------------------------------------ *)
+
+(* [transform] is an in-place version of [mapi]: if applies the function [f],
+   in place, to every element of the array. It can be used to perform a strong
+   update over the entire array. It cannot be type-checked in Mezzo today, so
+   it is a primitive operation. *)
+
+val transform [a, b, p : perm] (
+  consumes r: array a,
+  f: (int, consumes a | p) -> b
+  | p
+) : (| r @ array b) =
+  builtin _mz_array_transform  
+
+(* ------------------------------------------------------------------------ *)
+
+(* [init] is the composition of [create] and [transform]. *)
+
+val init [a, p : perm] (
+  n: int,
+  f: (int | p) -> a
+  | p)
+  : array a
+=
+  (* Allocate an array and fill it with an arbitrary value, say 0.
+     Because the type [int] is duplicable, this is well-typed! *)
+  let r : array int = create (n, 0) in
+  (* Transform the array. *)
+  transform (r, fun (i: int, int | p) : a =
+    f i
+  );
+  r
+
+(* BUG
+val bug (n : int) : () =
+  let r : array () = create [()] (n, ()) in
+  ()
+
+I get:
+  Fatal error: exception Failure("The parser shouldn't allow this")
+*)
+
+(* ------------------------------------------------------------------------ *)
+
+(*
+Local Variables:
+compile-command: "../mezzo array.mz"
+End:
+*)
