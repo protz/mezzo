@@ -656,27 +656,7 @@ and eval_value_definition (loc : location) (env : env) (def : declaration) : env
          by constructing a list of partly initialized closures, as
          well as the new environment, which contains these closures. *)
       let (new_env : env), (closures : closure list) =
-	List.fold_left (fun (new_env, closures) (p, e) ->
-	  match p, e with
-	  | PVar f, EFun (_type_parameters, argument_type, _result_type, body) ->
-	      (* Build a closure with an uninitialized environment field. *)
-	      let c = {
-		(* The argument pattern is implicit in the argument type. *)
-		arg = type_to_pattern argument_type;
-		(* The function body. *)
-		body = body;
-		(* An uninitialized environment. *)
-		env = empty;
-	      } in
-	      (* Bind [f] to this closure. *)
-	      extend_unqualified_variable f (VClosure c) new_env,
-	      c :: closures
-	  | _, _ ->
-	      (* The left-hand side of a recursive definition must be a variable,
-		 and the right-hand side must be a lambda-abstraction. *)
-	      (* TEMPORARY should deal with PLocated too *)
-	      assert false
-	) (env, []) equations
+	List.fold_left eval_recursive_equation (env, []) equations
       in
       (* There remains to patch the closures with the new environment. *)
       List.iter (fun c ->
@@ -685,6 +665,30 @@ and eval_value_definition (loc : location) (env : env) (def : declaration) : env
       ) closures;
       (* Done. *)
       new_env
+
+and eval_recursive_equation ((new_env, closures) as accu) (p, e) =
+  match p, e with
+  | PVar f, EFun (_type_parameters, argument_type, _result_type, body) ->
+      (* Build a closure with an uninitialized environment field. *)
+      let c = {
+	(* The argument pattern is implicit in the argument type. *)
+	arg = type_to_pattern argument_type;
+	(* The function body. *)
+	body = body;
+	(* An uninitialized environment. *)
+	env = empty;
+      } in
+      (* Bind [f] to this closure. *)
+      extend_unqualified_variable f (VClosure c) new_env,
+      c :: closures
+  | PLocated (p, _), _ ->
+      eval_recursive_equation accu (p, e)
+  | _, ELocated (e, _) ->
+      eval_recursive_equation accu (p, e)
+  | _, _ ->
+      (* The left-hand side of a recursive definition must be a variable,
+	 and the right-hand side must be a lambda-abstraction. *)
+      assert false
 
 (* ---------------------------------------------------------------------------- *)
 
