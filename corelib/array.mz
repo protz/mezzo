@@ -125,6 +125,26 @@ val update [a, pre : perm, post : perm] (
 ) : (| post) =
   set(r, i, f (magic_get (r, i)))
 
+(* [consult] is a particular use of [get], with delimited scope, that does
+   not require the element type to be duplicable. The function [f] does not
+   have access to the array, so using [consult] instead of [get] is a way
+   of ensuring that we only read one element at a time (and give it back). *)
+
+(* The type of [consult] advertises the fact that [consult] invokes [f]
+   exactly once. Indeed, [f] is invoked at least once, otherwise [consult]
+   would not be able to produce an element of type [b]. And [f] is invoked
+   at most once, because [f] requires and consumes the permission [pre],
+   which is not duplicable. *)
+
+(* Analogous comments hold about [update]. *)
+
+(* A drawback of this approach is that the user has to work in CPS style.
+   Could we somehow impose the same discipline and obtain the same effect
+   in direct style? We would need an abstract permission that represents
+   an array with a hole at a particular index and a particular value, and
+   we would need a coercion that fills the hole. I am afraid that it might
+   be just as cumbersome as using [consult] or [update]! *)
+
 (* ------------------------------------------------------------------------ *)
 
 (* The following are safe wrappers for the unsafe primitive operations.
