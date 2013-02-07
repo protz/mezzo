@@ -2,6 +2,7 @@
 # type-checking any given Mezzo file. Warning: this file should be Unix-style
 # (i.e. only \n separators).
 bool
+physical
 int
 option
 ref
