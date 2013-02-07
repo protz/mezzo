@@ -641,7 +641,7 @@ and sub_type_real env t1 t2 =
       ptype (env, t2));
 
   if equal env t1 t2 then
-    Some env
+    (Log.debug ~level:5 "↳ fast-path"; Some env)
 
   else match t1, t2 with
 
