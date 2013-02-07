@@ -64,7 +64,7 @@ let _ =
   Debug.enable_trace !arg_trace;
   let opts =
     let open Driver in
-    { html_errors = !arg_html_errors }
+    { html_errors = !arg_html_errors; backtraces = not !arg_backtraces }
   in
   Driver.add_include_dir (Filename.concat Configure.root_dir "corelib");
   Driver.add_include_dir (Filename.concat Configure.root_dir "stdlib");
@@ -74,10 +74,7 @@ let _ =
   | TypecheckAndCompile ->
       Options.please_compile := (!arg_mode = TypecheckAndCompile);
       let env =
-	if !arg_backtraces then
-	  Driver.run opts (fun () -> Driver.process !Options.filename)
-	else
-	  Driver.process !Options.filename
+        Driver.run opts (fun () -> Driver.process !Options.filename)
       in
       if Log.debug_level () <= 0 then
 	Hml_String.bprintf "%a" Driver.print_signature env

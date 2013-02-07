@@ -21,6 +21,7 @@
 
 type run_options = {
   html_errors: bool;
+  backtraces: bool;
 }
 
 val add_include_dir: string -> unit

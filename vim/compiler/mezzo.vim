@@ -1,6 +1,7 @@
 setlocal efm=
       \%AMezzo\ internal\ error:\ %m,
       \%EFatal\ error:\ %m,
+      \%EError:\ %m,
       \%ERaised\ at\ file\ \"%f\"\\,\ line\ %l\\,\ characters\ %c-%*\\d,
       \%ECalled\ from\ file\ \"%f\"\\,\ line\ %l\\,\ characters\ %c-%*\\d,
       \%EFile\ \"%f\"\\,\ line\ %l\\,\ characters\ %c-%*\\d:,

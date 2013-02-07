@@ -19,7 +19,7 @@ val memoize
   (* Create a lock which (at runtime) prevents re-entrant calls
      into the memoized function and (at type-checking time) allows
      us to hide the existence of the hash table. *)
-  let l = newlock [(t @ table a b)] () in
+  let l: lock (t @ table a b) = newlock () in
 
   (* Now, construct the memoized function. *)
   fun (x: a) : b =
