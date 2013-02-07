@@ -112,15 +112,6 @@ val consult [a, pre : perm, b] (
 ) : b =
   f(magic_get(r, i))
 
-(* BUG
-val bug (n : int) : () =
-  let r : array () = create [()] (n, ()) in
-  ()
-
-I get:
-  Fatal error: exception Failure("The parser shouldn't allow this")
-*)
-
 (* ------------------------------------------------------------------------ *)
 
 (*

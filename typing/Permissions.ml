@@ -182,7 +182,7 @@ let add_constraints env constraints =
         else
           env
     | _ ->
-        Log.error "The parser shouldn't allow this"
+        Log.error "FIXME"
   ) env constraints in
   env
 ;;
@@ -617,20 +617,20 @@ and sub_constraints env constraints =
   List.fold_left (fun env (f, t) ->
     env >>= fun env ->
     let f = fact_of_flag f in
-    match t with
-    | TyPoint p ->
-        let f' = get_fact env p in
-        let is_ok = fact_leq f' f in
-        Log.debug "fact [is_ok=%b] for %a: %a"
-          is_ok
-          TypePrinter.pnames (env, get_names env p) TypePrinter.pfact f';
-        (* [f] demands, for instance, that [p] be exclusive *)
-        if is_ok then
-          Some env
-        else
-          None
-    | _ ->
-        Log.error "The parser shouldn't allow this"
+    (* [t] can be any type; for instance, if we have
+     *  f @ [a] (duplicable a) ⇒ ...
+     * then, when "f" is instantiated, "a" will be replaced by anything...
+     *)
+    let f' = FactInference.analyze_type env t in
+    let is_ok = fact_leq f' f in
+    Log.debug "fact [is_ok=%b] for %a: %a"
+      is_ok
+      TypePrinter.ptype (env, t) TypePrinter.pfact f';
+    (* [f] demands, for instance, that [p] be exclusive *)
+    if is_ok then
+      Some env
+    else
+      None
   ) (Some env) constraints
 
 and sub_type_real env t1 t2 =

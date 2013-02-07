@@ -780,6 +780,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("tableau.mz", simple_test Pass);
   ("smemoize.mz", simple_test Pass);
+  ("sub_constraints_nonpoint_type.mz", simple_test Pass);
 
 ];;
 
