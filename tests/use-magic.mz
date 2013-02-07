@@ -1,0 +1,19 @@
+val f : int -> int =
+  magic::magic (fun (x : int) : int = x)
+
+val x : int =
+  f 0
+
+(* BUG I get the message:
+
+ f is not a function, it has type:
+[/g70]
+  /g70
+
+this seems to show that the type of f in the environment is
+[a] a, even though we have specifically asked for a weaker
+type. *)
+
+(* Furthermore, technically, a value of type [a] a should be
+   accepted as a valid function... *)
+
