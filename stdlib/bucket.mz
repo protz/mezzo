@@ -109,14 +109,17 @@ val insert [k, a] (
   consumes ov: option a,
   consumes b: bucket k a
 ) : bucket k a =
+  (* There is a merge warning here; this is because we're actually merging [ov]
+   * into [option unknown]. Indeed, we first perform a subtraction (when the
+   * context provides a type annotation), and then we try to merge the remaining
+   * pieces. This allows the user to provide partial hints for merge situations.
+   * *)
   match ov with
   | None ->
       b
   | Some { contents = v } ->
       BCons { key = x; value = v; tail = b }
   end
-  (* BUG? I get a merge warning here, but the merge function should not be called
-     at all, since there is a type annotation. *)
 
 (* Update or removal of the list head. *)
 

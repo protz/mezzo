@@ -81,8 +81,7 @@ val resize [k, a] (t: table k a) : () =
        to the new array [t.buckets]. *)
     consume_up (old_buckets, fun (old_index: int, consumes b : bucket k a | t @ table k a) : () =
       iter_bucket_down (b, fun (consumes b: BCons { key: k; value: a; tail: unknown } | t @ table k a) : () =
-	push [k, a] (t.buckets, key_index [k, a] (t, b.key), b)
-	(* BUG? the line above fails if I omit any of the type applications *)
+	push (t.buckets, key_index [k, a] (t, b.key), b)
       )
     )
   end
@@ -134,11 +133,10 @@ val reset [k, a] (t: table k a, capacity: int) : () =
 (* Insertion. *)
 
 val add [k, a] (consumes x: k, consumes v: a, t: table k a) : () =
-  push [k, a] (t.buckets, key_index [k, a] (t, x), BCons { key = x; value = v; tail = () });
+  push (t.buckets, key_index [k, a] (t, x), BCons { key = x; value = v; tail = () });
   t.cardinal <- t.cardinal + 1;
   if t.cardinal > 2 * array::length t.buckets then
-    resize [k, a] t
-    (* BUG? the line above fails if I omit the type application *)
+    resize t
 
 (* -------------------------------------------------------------------------- *)
 
@@ -180,16 +178,9 @@ val remove [k, a] (x: k, t: table k a) : option a =
 
   (* If the desired entry has been found and removed, update the table's
      cardinal. Then, return the value that was removed. *)
-  if !r then begin
+  if !r then
     t.cardinal <- t.cardinal - 1;
-    !r
-  end
-  else
-    !r
-  (* BUG? if I write just
-     if !r then t.cardinal <- t.cardinal - 1; !r
-     (thus factorizing the expression !r)
-     then the merge seems to fail and the code does not type-check *)
+  !r
 
 (* TEMPORARY we need also [remove_all]? does ocaml offer it? *)
 
@@ -328,11 +319,10 @@ val iter [k, a, p : perm] (
   f: (k, a | p) -> ()
   | p
 ) : () =
-  fold [k, a, (| p)] (t, (), fun (x: k, v: a, (| p)) : () =
+  fold [b=(| p)] (t, (), fun (x: k, v: a, (| p)) : () =
     f (x, v)
   )
-  (* WISH could we get rid of this type application?
-     strangely, all three parameters seem required *)
+  (* WISH could we get rid of this type application? *)
 
 (* -------------------------------------------------------------------------- *)
 
