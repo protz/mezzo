@@ -55,17 +55,6 @@ val push [k, a] (
       entry
     )
 
-(* TEMPORARY we need the following loop over arrays, which I am afraid
-   must be primitive, because the loop invariant involves a partially
-   consumed array. *)
-
-val consume_up [a, p : perm] (
-  consumes x: array a,
-  f: (int, consumes a | p) -> ()
-  | p
-) : () =
-  fail (* TEMPORARY move to array.mzi *)
-
 (* [resize] doubles the size of the hash table. A new buckets array is allocated.
    The existing entries are re-used: they are not re-allocated. *)
 
@@ -79,7 +68,7 @@ val resize [k, a] (t: table k a) : () =
     (* The array [old_buckets] is consumed by the following loop. This allows
        us to grab the entries that we find in it and move them (without copy)
        to the new array [t.buckets]. *)
-    consume_up (old_buckets, fun (old_index: int, consumes b : bucket k a | t @ table k a) : () =
+    array::transform (old_buckets, fun (old_index: int, consumes b : bucket k a | t @ table k a) : () =
       iter_bucket_down (b, fun (consumes b: BCons { key: k; value: a; tail: unknown } | t @ table k a) : () =
 	push (t.buckets, key_index [k, a] (t, b.key), b)
       )
