@@ -17,6 +17,42 @@ val concurrent_sort [a] (cmp: (a, a) -> int, consumes l: list a): list a =
     then list::sort (cmp, l)
     else begin
       let n1 = n / 2  in
+      (* The permission on [l] is consumed, and replaced by permissions
+	 on the two sublists [l1] and [l2]. *)
+      let (l1,l2) = splitAt (n1, l) in
+      (* The new thread will send its result on the following channel. *)
+      let c1 = newchannel [list a] () in
+      (* Spawn a thread that will sort the list [l1] and send the result
+	 on the channel [c1]. *)
+      spawn (
+	fun ( | consumes (l1 @ list a)): () =
+	  let sl1 = c_sort_aux (n1, l1) in
+	  (* I made a silly typo when I first wrote this code:
+	     I was sending l1 instead of sl1 on the channel.
+	     Saved by the type-checker. True story. *)
+	  send (c1, sl1)
+      );
+      (* The second half [l2] is sorted locally. *)
+      let sl2 = c_sort_aux (n-n1, l2) in
+      (* Receive the result sent by the other thread. *)
+      let sl1 = receive c1 in
+      merge (cmp, sl1, sl2)
+    end
+  in
+
+  c_sort_aux (n, l)
+
+(*
+val concurrent_sort [a] (cmp: (a, a) -> int, consumes l: list a): list a =
+
+  let n = length l in
+  
+  (* [c_sort_aux] takes an integer [n] and a list of length [n]. *)
+  let rec c_sort_aux (n: int, consumes l: list a): list a =
+    if n < concurrent_threshold
+    then list::sort (cmp, l)
+    else begin
+      let n1 = n / 2  in
       let n2 = n - n1 in
       (* The permission on [l] is consumed, and replaced by permissions
 	 on the two sublists [l1] and [l2]. *)
@@ -49,3 +85,4 @@ val concurrent_sort [a] (cmp: (a, a) -> int, consumes l: list a): list a =
   in
 
   c_sort_aux (n, l)
+*)
