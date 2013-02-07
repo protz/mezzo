@@ -19,7 +19,7 @@ val memoize
   (* Create a lock which (at runtime) prevents re-entrant calls
      into the memoized function and (at type-checking time) allows
      us to hide the existence of the hash table. *)
-  let l: lock (t @ table a b) = newlock () in
+  let l = newlock [(t @ table a b)] () in
 
   (* Now, construct the memoized function. *)
   fun (x: a) : b =
@@ -28,7 +28,7 @@ val memoize
     (* Find [y] in the table, if it is there already, or compute [y]
        and store it in the table for potential later re-use. *)
     (* WISH the type annotation on y should be unnecessary? *)
-    let y : (b | t @ table a b) =
+    let y =
       match find (x, t) with
       | Some { contents = y } ->
 	  y
