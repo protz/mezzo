@@ -1,0 +1,10 @@
+abstract array a
+fact exclusive (array a)
+
+val create [a] duplicable a => (int, a): array a =
+  fail
+
+val bug (n : int) : () =
+  let r : array () = create [()] (n, ()) in
+  ()
+

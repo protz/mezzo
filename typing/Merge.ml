@@ -916,7 +916,15 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                   | Covariant ->
                       merge_type (left_env, argl) (right_env, argr) ?dest_point dest_env
                   | _ ->
-                      try_merge_flexible (left_env, argl) (right_env, argr) dest_env
+                      begin try
+                        let argl = clean top left_env argl in
+                        let argr = clean top right_env argr in
+                        Permissions.sub_type dest_env argl argr >>= fun dest_env ->
+                        Permissions.sub_type dest_env argr argl >>= fun dest_env ->
+                        Some (left_env, right_env, dest_env, argl)
+                      with UnboundPoint ->
+                        None
+                      end
                 in
                 v >>= fun (left_env, right_env, dest_env, arg) ->
                 (* The parameter was merged. Return a valid accumulator. *)

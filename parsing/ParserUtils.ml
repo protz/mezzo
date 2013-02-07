@@ -19,6 +19,29 @@
 
 open SurfaceSyntax
 
+(* This auxiliary function identifies expressions that can be copied
+   without affecting their semantics (basically, just variables). *)
+
+let rec is_var = function
+  | EVar _
+  | EQualified _ ->
+      true
+  | ELocated (e, _) ->
+      is_var e
+  | _ ->
+      false
+
+(* This auxiliary function generates a fresh variable to stand for an
+   expression [e], unless [e] is a variable. It returns a pair of a
+   context (which inserts zero or one [let]-binding) and an expression. *)
+
+let name (hint : string) e : (expression -> expression) * expression =
+  if is_var e then
+    (fun hole -> hole), e
+  else
+    let x = Utils.fresh_var hint in
+    (fun hole -> ELet (Nonrecursive, [ PVar x, e ], hole)), EVar x
+
 (* Since each declaration is initially parsed as being in its own group, we need
  * to map over consecutive blocks and group them together. *)
 let group (declarations: toplevel_item list): toplevel_item list =
@@ -54,42 +77,23 @@ let mk_datacon_reference (d : Datacon.name maybe_qualified) : datacon_reference 
   datacon_info = None
 };;
 
-let rich_false =
-  Qualified (Module.register "bool", Datacon.register "RichFalse")
-
-let rich_true =
-  Qualified (Module.register "bool", Datacon.register "RichTrue")
-
 let mkinfix e1 (o : string) e2 =
   match o with
+
   | "&&" ->
-      (* Boolean conjunction is macro-expanded to a match construct. *)
-      (* e1 && e2 is sugar for:
-	 match e1 with RichFalse -> RichFalse | RichTrue -> e2 end *)
-      EMatch (
-	false,
-	e1,
-	[
-	  PConstruct (mk_datacon_reference rich_false, []),
-	    EConstruct (mk_datacon_reference rich_false, []);
-	  PConstruct (mk_datacon_reference rich_true, []),
-	    e2
-	]
-      )
+      (* Boolean conjunction is macro-expanded. *)
+      (* e1 && e2 is sugar for: *)
+      (* let x1 = e1 in if x1 then e2 else x1 *)
+      let context1, x1 = name "conjunct" e1 in
+      context1 (EIfThenElse (false, x1, e2, x1))
+
   | "||" ->
-      (* Boolean disjunction is macro-expanded to a match construct. *)
-      (* e1 || e2 is sugar for:
-	 match e1 with RichTrue -> RichTrue | RichFalse -> e2 end *)
-      EMatch (
-	false,
-	e1,
-	[
-	  PConstruct (mk_datacon_reference rich_true, []),
-	    EConstruct (mk_datacon_reference rich_true, []);
-	  PConstruct (mk_datacon_reference rich_false, []),
-	    e2
-	]
-      )
+      (* Boolean disjunction is macro-expanded. *)
+      (* e1 || e2 is sugar for: *)
+      (* let x1 = e1 in if x1 then x1 else e2 *)
+      let context1, x1 = name "conjunct" e1 in
+      context1 (EIfThenElse (false, x1, x1, e2))
+
   | _ ->
       EApply (EVar (Variable.register o), ETuple [e1; e2])
 ;;
@@ -102,27 +106,4 @@ let mk_field field_name = {
   field_name;
   field_offset = None;
 };;
-
-(* This auxiliary function identifies expressions that can be copied
-   without affecting their semantics (basically, just variables). *)
-
-let rec is_var = function
-  | EVar _
-  | EQualified _ ->
-      true
-  | ELocated (e, _) ->
-      is_var e
-  | _ ->
-      false
-
-(* This auxiliary function generates a fresh variable to stand for an
-   expression [e], unless [e] is a variable. It returns a pair of a
-   context (which inserts zero or one [let]-binding) and an expression. *)
-
-let name (hint : string) e : (expression -> expression) * expression =
-  if is_var e then
-    (fun hole -> hole), e
-  else
-    let x = Utils.fresh_var hint in
-    (fun hole -> ELet (Nonrecursive, [ PVar x, e ], hole)), EVar x
 

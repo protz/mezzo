@@ -46,27 +46,31 @@
 %token          UNKNOWN DYNAMIC EXCLUSIVE MUTABLE
 %token          DATA BAR UNDERSCORE
 %token          LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
-%token          COMMA COLON COLONCOLON SEMI STAR AT AS
+%token          COMMA COLON COLONCOLON SEMI AT AS
 %token          ARROW LARROW DBLARROW TAGOF FUN
-%token          EQUAL
 %token          EMPTY ASSERT EXPLAIN FAIL
 %token          CONSUMES DUPLICABLE FACT ABSTRACT
 %token          VAL LET REC AND IN DOT WITH BEGIN END MATCH
 %token          IF THEN ELSE
 %token          TAKE FROM GIVE TO ADOPTS OWNS TAKING
 %token<int>     INT
-%token          MINUS
-%token<string>  OPPREFIX OPINFIX0 OPINFIX1 OPINFIX2 OPINFIX3
+%token<string>  OPPREFIX OPINFIX0a OPINFIX0b OPINFIX0c OPINFIX0d OPINFIX1 OPINFIX2 OPINFIX3 OPINFIX4
+%token<string>  EQUAL STAR MINUS COLONEQUAL (* special cases of operators *)
 %token          EOF
 
 %nonassoc THEN
 %nonassoc ELSE
 
 %nonassoc OWNS
-%left     OPINFIX0 EQUAL (* EQUAL is also a OPINFIX0 *)
+%nonassoc COLONEQUAL
+%left     OPINFIX0a
+%left     OPINFIX0b
+%nonassoc OPINFIX0c EQUAL (* EQUAL is also a OPINFIX0c *)
+%left     OPINFIX0d
 %right    OPINFIX1
 %left     OPINFIX2 MINUS (* MINUS is also an OPINFIX2 *)
 %left     OPINFIX3 STAR  (* STAR is also an OPINFIX3 *)
+%right    OPINFIX4
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -96,17 +100,19 @@ open ParserUtils
    and modules. *)
 
 %inline infix_operator:
-  | o = OPINFIX0
+  | o = OPINFIX0a
+  | o = OPINFIX0b
+  | o = OPINFIX0c
+  | o = OPINFIX0d
   | o = OPINFIX1
   | o = OPINFIX2
   | o = OPINFIX3
+  | o = OPINFIX4
+  | o = EQUAL
+  | o = STAR
+  | o = MINUS
+  | o = COLONEQUAL
       { o }
-  | STAR
-      { "*" }
-  | MINUS
-      { "-" }
-  | EQUAL
-      { "=" }
 
 %inline operator:
   | o = OPPREFIX

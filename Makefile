@@ -41,7 +41,7 @@ tags: all
 
 # For easily debugging inside an editor. When editing tests/foo.mz, just do (in
 # vim): ":make %".
-tests/%.mz: mezzo.byte FORCE
+tests/%.mz stdlib/%.mz corelib/%.mz: mezzo.byte FORCE
 	OCAMLRUNPARAM=b ./mezzo.byte -I tests -nofancypants $@
 
 FORCE:

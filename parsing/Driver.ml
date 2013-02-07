@@ -392,13 +392,14 @@ let process file_path =
  * properly (at the cost of losing a useful backtrace, though). *)
 type run_options = {
   html_errors: bool;
+  backtraces: bool;
 }
 
-let run { html_errors } f =
+let run { html_errors; backtraces } f =
   try
     f ()
   with
-  | TypeErrors.TypeCheckerError ((env, _) as e) ->
+  | TypeErrors.TypeCheckerError ((env, _) as e) as the_exn ->
       if html_errors then begin
         (* Get a plain-text version of the error *)
         Hml_Pprint.disable_colors ();
@@ -417,9 +418,13 @@ let run { html_errors } f =
       end else begin
         Hml_String.beprintf "%a\n" TypeErrors.print_error e;
       end;
+      if backtraces then
+        raise the_exn;
       exit 251
-  | KindCheck.KindError e ->
+  | KindCheck.KindError e as the_exn ->
       Hml_String.beprintf "%a\n" KindCheck.print_error e;
+      if backtraces then
+        raise the_exn;
       exit 250
 ;;
 

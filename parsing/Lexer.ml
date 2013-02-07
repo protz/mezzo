@@ -54,7 +54,7 @@ let p buf (start_pos, end_pos: Lexing.position * Lexing.position) =
   let start_line = start_pos.pos_lnum in
   let start_col = start_pos.pos_cnum - start_pos.pos_bol in
   let end_col = end_pos.pos_cnum - start_pos.pos_bol in (* intentionally [start_pos.pos_bol] *)
-  Printf.bprintf buf "File \"%s\", line %i, characters %i-%i:"
+  Printf.bprintf buf "File \"%s\", line %i, characters %i-%i:\n"
     filename start_line start_col end_col
 
 let print_position buf lexbuf =
@@ -102,15 +102,25 @@ let regexp lid =
 let regexp uid =
   (up_alpha | up_greek | '_') alpha_greek* (['_' '\''] | alpha_greek | digit)*
 
-(* Simplified OCaml-like table for operators, from
- * http://stackoverflow.com/questions/6150551/ocaml-why-i-cant-use-this-operator-infix
- * *)
-let regexp op_prefix = ['!' '~' '?']
-let regexp op_infix0 = ['=' '<' '>' '|' '&' '$'] (* left *)
-let regexp op_infix1 = ['@' '^'] (* right *)
-let regexp op_infix2 = ['+' '-'] (* left *)
-let regexp op_infix3 = ['*' '/'] (* left *)
-let regexp symbolchar = op_prefix | op_infix0 | op_infix1 | op_infix2 | op_infix3 | ['%' '.' ':']
+(* The classification of operators is a refinement of OCaml's. *)
+
+(* In OCaml, all operators whose name begins with '=', '<', '>', '|',
+   '&', '$' are at level 0, which I believe is quite strange. This
+   forces OCaml to make special cases for the operators '||', '&&',
+   and '&'. I take the liberty to divide OCaml's level 0 into four
+   further sub-levels. *)
+
+let regexp op_prefix  = ['!' '~' '?']
+let regexp op_infix0a = ['|'] (* left *)
+let regexp op_infix0b = ['&'] (* left *)
+let regexp op_infix0c = ['=' '<' '>'] (* nonassoc *)
+let regexp op_infix0d = ['$'] (* left *)
+
+let regexp op_infix0  = op_infix0a | op_infix0b | op_infix0c | op_infix0d
+let regexp op_infix1  = ['@' '^'] (* right *)
+let regexp op_infix2  = ['+' '-'] (* left *)
+let regexp op_infix3  = ['*' '/' '%'] (* left *)
+let regexp symbolchar = op_prefix | op_infix0 | op_infix1 | op_infix2 | op_infix3 | ['.' ':']
 
 (* The lexer *)
 
@@ -174,22 +184,26 @@ let rec token = lexer
 | ")" -> locate lexbuf RPAREN
 
 | "," -> locate lexbuf COMMA
-| ":=" -> locate lexbuf (OPINFIX0 (utf8_lexeme lexbuf))
+| ":=" -> locate lexbuf (COLONEQUAL (utf8_lexeme lexbuf))
 | "::" -> locate lexbuf COLONCOLON
 | ":" -> locate lexbuf COLON
 | ";" -> locate lexbuf SEMI
 | "->" | 8594 (* → *) -> locate lexbuf ARROW
 | "=>" | 8658 (* ⇒ *) -> locate lexbuf DBLARROW
-| "*" -> locate lexbuf STAR
-| "=" -> locate lexbuf EQUAL
+| "*" -> locate lexbuf (STAR (utf8_lexeme lexbuf))
+| "=" -> locate lexbuf (EQUAL (utf8_lexeme lexbuf))
 | "@" -> locate lexbuf AT
 
-| "-" -> locate lexbuf MINUS
-| "!=" -> locate lexbuf (OPINFIX0 (utf8_lexeme lexbuf))
+| "-" -> locate lexbuf (MINUS (utf8_lexeme lexbuf))
+| "!=" -> locate lexbuf (OPINFIX0c (utf8_lexeme lexbuf))
 | op_prefix symbolchar* -> locate lexbuf (OPPREFIX (utf8_lexeme lexbuf))
-| op_infix0 symbolchar* -> locate lexbuf (OPINFIX0 (utf8_lexeme lexbuf))
+| op_infix0a symbolchar* -> locate lexbuf (OPINFIX0a (utf8_lexeme lexbuf))
+| op_infix0b symbolchar* -> locate lexbuf (OPINFIX0b (utf8_lexeme lexbuf))
+| op_infix0c symbolchar* -> locate lexbuf (OPINFIX0c (utf8_lexeme lexbuf))
+| op_infix0d symbolchar* -> locate lexbuf (OPINFIX0d (utf8_lexeme lexbuf))
 | op_infix1 symbolchar* -> locate lexbuf (OPINFIX1 (utf8_lexeme lexbuf))
 | op_infix2 symbolchar* -> locate lexbuf (OPINFIX2 (utf8_lexeme lexbuf))
+| "**" symbolchar *     -> locate lexbuf (OPINFIX4 (utf8_lexeme lexbuf))
 | op_infix3 symbolchar* -> locate lexbuf (OPINFIX3 (utf8_lexeme lexbuf))
 
 | int ->

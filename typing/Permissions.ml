@@ -43,7 +43,8 @@ let safety_check env =
       ) permissions in
       if List.length singletons <> 1 then
         Log.error
-          "Inconsistency detected: not one singleton type for %a\n%a\n"
+          "%a inconsistency detected: not one singleton type for %a\n%a\n"
+          Lexer.p env.location
           TypePrinter.pnames (env, get_names env point)
           TypePrinter.penv env;
 
@@ -67,16 +68,18 @@ let safety_check env =
        * see [twostructural.mz] for an example. *)
       if false && not (env.inconsistent) && List.length concrete > 1 then
         Log.error
-          "Inconsistency detected: more than one concrete type for %a\n\
+          "%a inconsistency detected: more than one concrete type for %a\n\
             (did you add a function type without calling \
             [simplify_function_type]?)\n%a\n"
+          Lexer.p env.location
           TypePrinter.pnames (env, get_names env point)
           TypePrinter.penv env;
 
       let exclusive = List.filter (FactInference.is_exclusive env) permissions in
       if not (env.inconsistent) && List.length exclusive > 1 then
         Log.error
-          "Inconsistency detected: more than one exclusive type for %a\n%a\n"
+          "%a inconsistency detected: more than one exclusive type for %a\n%a\n"
+          Lexer.p env.location
           TypePrinter.pnames (env, get_names env point)
           TypePrinter.penv env;
     ) ()
@@ -179,7 +182,7 @@ let add_constraints env constraints =
         else
           env
     | _ ->
-        Log.error "The parser shouldn't allow this"
+        Log.error "FIXME"
   ) env constraints in
   env
 ;;
@@ -614,20 +617,20 @@ and sub_constraints env constraints =
   List.fold_left (fun env (f, t) ->
     env >>= fun env ->
     let f = fact_of_flag f in
-    match t with
-    | TyPoint p ->
-        let f' = get_fact env p in
-        let is_ok = fact_leq f' f in
-        Log.debug "fact [is_ok=%b] for %a: %a"
-          is_ok
-          TypePrinter.pnames (env, get_names env p) TypePrinter.pfact f';
-        (* [f] demands, for instance, that [p] be exclusive *)
-        if is_ok then
-          Some env
-        else
-          None
-    | _ ->
-        Log.error "The parser shouldn't allow this"
+    (* [t] can be any type; for instance, if we have
+     *  f @ [a] (duplicable a) ⇒ ...
+     * then, when "f" is instantiated, "a" will be replaced by anything...
+     *)
+    let f' = FactInference.analyze_type env t in
+    let is_ok = fact_leq f' f in
+    Log.debug "fact [is_ok=%b] for %a: %a"
+      is_ok
+      TypePrinter.ptype (env, t) TypePrinter.pfact f';
+    (* [f] demands, for instance, that [p] be exclusive *)
+    if is_ok then
+      Some env
+    else
+      None
   ) (Some env) constraints
 
 and sub_type_real env t1 t2 =
@@ -638,7 +641,7 @@ and sub_type_real env t1 t2 =
       ptype (env, t2));
 
   if equal env t1 t2 then
-    Some env
+    (Log.debug ~level:5 "↳ fast-path"; Some env)
 
   else match t1, t2 with
 
