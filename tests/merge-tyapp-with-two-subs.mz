@@ -1,0 +1,69 @@
+open int
+
+data bool =
+  | False
+  | True
+
+data option a =
+  | None
+  | Some { contents: a }
+
+abstract lock (p : perm)
+fact duplicable (lock p)
+val acquire     [p : perm] (lock p): (| p) =
+  fail
+val newlock     [p : perm] (| consumes p): lock p =
+  fail
+val release     [p : perm] (lock p | consumes p): () =
+  fail
+
+abstract table k a
+fact exclusive (table k a)
+val create [k, a] (
+  capacity: int,
+  hash: k -> int,
+  equal: (k, k) -> bool
+): table k a =
+  fail
+val find [k, a] duplicable a => (x: k, t: table k a): option a =
+  fail
+val add  [k, a] (consumes k, consumes a, table k a): () =
+  fail
+
+val memoize
+  [a, b]
+  duplicable a => duplicable b =>
+  (hash: a -> int, eq: (a, a) -> bool, f: a -> b)
+  : a -> b =
+
+  (* Create the internal hash table. *)
+  let t = create (11, hash, eq) in
+  (* Create a lock which (at runtime) prevents re-entrant calls
+     into the memoized function and (at type-checking time) allows
+     us to hide the existence of the hash table. *)
+  let l = newlock [(t @ table a b)] () in
+
+  (* Now, construct the memoized function. *)
+  fun (x: a) : b =
+    (* Acquire the lock. This yields the permission [t @ table a b]. *)
+    acquire l;
+    (* Find [y] in the table, if it is there already, or compute [y]
+       and store it in the table for potential later re-use. *)
+    (* WISH the type annotation on y should be unnecessary? *)
+    let y =
+      match find (x, t) with
+      | Some { contents = y } ->
+          assert t @ table a b;
+	  y
+      | None ->
+          let y = f x in
+	  add (x, y, t);
+          assert t @ table a b;
+	  y
+      end
+    in
+    (* Release the lock. This consumes [t @ table a b]. *)
+    release l;
+    (* Return [y]. *)
+    y
+
