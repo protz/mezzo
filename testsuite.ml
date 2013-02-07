@@ -776,6 +776,11 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("dup_sign1.mz", simple_test Pass);
   ("dup_sign2.mz", simple_test (Fail (function UnsatisfiableConstraint _ -> true | _ -> false)));
   ("dup_sign3.mz", simple_test Pass);
+  ("dup_sign4.mz", simple_test Pass);
+
+  ("tableau.mz", simple_test Pass);
+  ("smemoize.mz", simple_test Pass);
+
 ];;
 
 let mz_files_in_directory (dir : string) : string list =

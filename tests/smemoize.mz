@@ -1,0 +1,8 @@
+val fix
+  [a]
+  duplicable a =>
+  (): a -> a =
+    fail
+(* BUG the comparison between .mz and .mzi fails, even though the types
+   look syntactically identical *)
+

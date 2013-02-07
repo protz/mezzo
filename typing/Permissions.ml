@@ -350,9 +350,9 @@ and add (env: env) (point: point) (t: typ): env =
 (** [add_perm env t] adds a type [t] with kind KPerm to [env], returning the new
     environment. *)
 and add_perm (env: env) (t: typ): env =
-  TypePrinter.(Log.debug ~level:4 "[add_perm] %a"
-    ptype (env, t));
   Log.check (get_kind_for_type env t = KPerm) "This function only works with types of kind perm.";
+  if t <> TyEmpty then
+    TypePrinter.(Log.debug ~level:4 "[add_perm] %a" ptype (env, t));
 
   match t with
   | TyAnchoredPermission (p, t) ->
@@ -617,9 +617,12 @@ and sub_constraints env constraints =
     match t with
     | TyPoint p ->
         let f' = get_fact env p in
-        Log.debug "fact for %a: %a" TypePrinter.pnames (env, get_names env p) TypePrinter.pfact f';
+        let is_ok = fact_leq f' f in
+        Log.debug "fact [is_ok=%b] for %a: %a"
+          is_ok
+          TypePrinter.pnames (env, get_names env p) TypePrinter.pfact f';
         (* [f] demands, for instance, that [p] be exclusive *)
-        if fact_leq f' f then
+        if is_ok then
           Some env
         else
           None
@@ -638,6 +641,14 @@ and sub_type_real env t1 t2 =
     Some env
 
   else match t1, t2 with
+
+  (** Fail early to tame debug output. *)
+  | TyUnknown, _
+  | _, TyUnknown
+  | TyDynamic, _
+  | _, TyDynamic ->
+      (* If the call to [equal] didn't succeed, we won't succeed either here. *)
+      None
 
   (** Duplicity constraints. *)
 
@@ -845,6 +856,15 @@ and sub_type_real env t1 t2 =
        * permissions. *)
       let env, restore = keep_only_duplicable env in
 
+      (* 1b) Check facts as late as possible (the instantiation of a flexible
+       * variables may happen only in "t2 - t'2"). *)
+      let env, t1, constraints = match t1 with
+        | TyAnd (constraints, t1) ->
+            env, t1, constraints
+        | _ ->
+            env, t1, []
+      in
+
       (* 2) Let us compare the domains... *)
       Log.debug ~level:4 "%sArrow / Arrow, left%s"
         Bash.colors.Bash.red
@@ -856,6 +876,12 @@ and sub_type_real env t1 t2 =
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
       sub_type env t2 t'2 >>= fun env ->
+
+      (* 3b) Now check facts! *)
+      Log.debug ~level:4 "%sArrow / Arrow, facts%s"
+        Bash.colors.Bash.red
+        Bash.colors.Bash.default;
+      sub_constraints env constraints >>= fun env ->
 
       (* 4) We have successfully compared these function types. Just return the
        * "restored" environment, that is, the environment with the exact same
@@ -1002,8 +1028,9 @@ and sub_type_real env t1 t2 =
           Some (instantiate_flexible env var2 (fold_star ps1))
       | [TyPoint var1], ps2 when is_flexible env var1 ->
           Some (instantiate_flexible env var1 (fold_star ps2))
-      | [], [] ->
-          Some env
+      | ps1, [] ->
+          (* We may have a remaining, rigid, floating permission. Good for us! *)
+          Some (add_perm env (fold_star ps1))
       | [], ps2 ->
           (* This is useful if [ps2] is a rigid floating permission, alone, that
            * also happens to be present in our environment. *)
@@ -1072,9 +1099,8 @@ and step_through_flex ?(stepped=false) env k t1 t2 =
     environment without the corresponding permission. *)
 and sub_perm (env: env) (t: typ): env option =
   Log.check (get_kind_for_type env t = KPerm) "This type does not have kind perm";
-  TypePrinter.(
-    Log.debug ~level:4 "[sub_perm] %a"
-      ptype (env, t));
+  if t <> TyEmpty then
+    TypePrinter.(Log.debug ~level:4 "[sub_perm] %a" ptype (env, t));
 
   match t with
   | TyAnchoredPermission (TyPoint p, t) ->
