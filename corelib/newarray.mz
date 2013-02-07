@@ -124,15 +124,11 @@ val update [a, pre : perm, post : perm] (
 (* The following are safe wrappers for the unsafe primitive operations.
    They are implemented in the same manner as in OCaml. *)
 
-(*
 val sub [a] duplicable a => (r: array a, ofs: int, len: int) : array a =
   if len < 0 || ofs > length r - len then
     fail
-  else begin
-    assert r @ array a; (* BUG? this fails *)
+  else
     unsafe_sub (r, ofs, len)
-  end
-*)
 
 (*
 val append : [a] duplicable a => (array a, array a)   -> array a
