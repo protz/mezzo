@@ -19,21 +19,11 @@ val mem : [k, a] (
   b: bucket k a
 ) -> bool
 
-(* TEMPORARY
-
 val find : [k, a, p : perm] duplicable a => (
   b: bucket k a,
   ok: (k | p) -> bool
   | p
 ) -> option a
-
-val find : [k, a, p : perm] duplicable a => (
-  b: bucket k a,
-  ok: (k | p) -> bool
-  | p
-) -> list::list a
-
-*)
 
 (* -------------------------------------------------------------------------- *)
 

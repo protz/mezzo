@@ -118,10 +118,6 @@ val equal : [k, cmp: term, a] (
   treeMap k cmp a
 ) -> bool
 
-(* TEMPORARY
-
-val bindings : [k, c: term, a] duplicable k, duplicable a => (
+val bindings : [k, c: term, a] duplicable k => duplicable a => (
   m: treeMap k c a
 ) -> list::list (k, a)
-
-*)
