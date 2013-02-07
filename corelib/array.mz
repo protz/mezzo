@@ -1,17 +1,5 @@
 (* ------------------------------------------------------------------------ *)
 
-(* The type of arrays is axiomatized. *)
-
-abstract array a
-fact exclusive (array a)
-
-(* A Mezzo array is implemented as an OCaml array. Because Mezzo arrays
-   are exclusive, they include an adopter field. We use the first slot
-   of the array for this purpose, so a Mezzo array of length [n] is
-   represented as an OCaml array of length [n+1]. *)
-
-(* ------------------------------------------------------------------------ *)
-
 (* The primitive operations on arrays. *)
 
 (* WHEN IMPLEMENTING THESE OPERATIONS, DO NOT FORGET ABOUT THE ADOPTER
@@ -226,8 +214,6 @@ val bijective_blit [a] duplicable a => (r1: array a, r2: array a) : () =
 
 val transfer : [a, b] (consumes r1: array a, consumes r2: array b) -> (| r1 @ array unknown * r2 @ array a) =
   magic::magic bijective_blit
-
-(**)
 
 (*
 Local Variables:

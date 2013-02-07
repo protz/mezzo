@@ -1,14 +1,5 @@
 (* ------------------------------------------------------------------------ *)
 
-(* The type of arrays. *)
-
-(* For the moment, arrays are mutable. *)
-
-abstract array a
-fact exclusive (array a)
-
-(* ------------------------------------------------------------------------ *)
-
 (* Basic operations over arrays. *)
 
 (* [create (n, v)] creates a new array of [n] elements, which are

@@ -1,0 +1,9 @@
+(* ------------------------------------------------------------------------ *)
+
+(* The type of arrays. *)
+
+(* For the moment, arrays are mutable. *)
+
+abstract array a
+fact exclusive (array a)
+
