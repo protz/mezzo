@@ -55,6 +55,8 @@ let msg fmt =
   ) (Buffer.create 16) fmt
 
 let error fmt =
+  let buf = Buffer.create 16 in
+  Buffer.add_string buf "Mezzo internal error: ";
   Printf.kbprintf (fun buf ->
     Buffer.add_char buf '\n';
     Buffer.output_buffer stderr buf;
@@ -64,7 +66,7 @@ let error fmt =
       if i >= 0 then String.sub c 0 i else c
     in
     raise (Failure summary)
-  ) (Buffer.create 16) fmt
+  ) buf fmt
 
 let check b fmt =
   let open Printf in
