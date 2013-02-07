@@ -259,7 +259,10 @@ let bool =
   Module.register "bool"
 
 let boolean_value datacon env =
-  (* We assume that the module [bool] has been loaded at this point. *)
+  (* We assume that the module [bool] has been loaded at this point.
+     This implies that the primitive operations which manufacture a
+     Boolean result cannot be defined in the module [bool], but only
+     in a later module. *)
   let info = D.lookup_qualified bool datacon env.datacons in
   VAddress { tag = info; adopter = None; fields = [||] }
 

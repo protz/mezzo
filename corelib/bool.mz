@@ -76,22 +76,6 @@ val disjunction
       RichTrue
   end
 
-(* Physical equality. *)
-
-(* Physical equality could be restricted to exclusive types. On the one
-   hand, this may sound like a good idea, because it means that equality
-   or disequality of immutable structures would be unobservable, and the
-   compiler would be free to share (or not share) them. On the other hand,
-   it would be a bad idea, because it would prevent the programmer from
-   explicitly implementing sharing optimizations (such as hash-consing)
-   over immutable structures. *)
-
-val ( == ) : (x: unknown, y: unknown) -> rich_bool (x = y) empty =
-  builtin _mz_address_eq
-
-val ( != ) (x: unknown, y: unknown) : rich_bool empty (x = y) =
-  rich_not (x == y)
-
 (*
 Local Variables:
 compile-command: "../mezzo bool.mz"
