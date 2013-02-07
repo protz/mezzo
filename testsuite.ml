@@ -781,6 +781,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("tableau.mz", simple_test Pass);
   ("smemoize.mz", simple_test Pass);
   ("use-magic.mz", simple_test Pass);
+  ("list2array.mz", simple_test Pass);
   ("sub_constraints_nonpoint_type.mz", simple_test Pass);
   ("merge-tyapp-with-two-subs.mz", simple_test Pass);
 

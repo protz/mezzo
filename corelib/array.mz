@@ -41,45 +41,6 @@ val unsafe_blit : [a] duplicable a => (array a, int, array a, int, int) -> () =
 
 (* ------------------------------------------------------------------------ *)
 
-(* [transform] is an in-place version of [mapi]: if applies the function [f],
-   in place, to every element of the array. It can be used to perform a strong
-   update over the entire array. It cannot be type-checked in Mezzo today, so
-   it is a primitive operation. *)
-
-val transform:  [a, b, p : perm] (
-  consumes r: array a,
-  f: (int, consumes a | p) -> b
-  | p
-) -> (| r @ array b) =
-  builtin _mz_array_transform
-
-(* One could imagine variants of this operation, e.g., an operation that
-   performs a strong update simultaneously over TWO arrays, etc., etc.
-   We cannot possibly think of all combinations. A truly general solution
-   involves permissions for array segments, which allow [transform] and
-   its variants to be programmed and type-checked. *)
-
-(* ------------------------------------------------------------------------ *)
-
-(* [init] is the composition of [create] and [transform]. *)
-
-val init [a, p : perm] (
-  n: int,
-  f: (int | p) -> a
-  | p)
-  : array a
-=
-  (* Allocate an array and fill it with an arbitrary value, say 0.
-     Because the type [int] is duplicable, this is well-typed! *)
-  let r : array int = create (n, 0) in
-  (* Transform the array. *)
-  transform (r, fun (i: int, int | p) : a =
-    f i
-  );
-  r
-
-(* ------------------------------------------------------------------------ *)
-
 (* [magic_get] is a version of [get] that does not carry the constraint
    [duplicable a]. It is unsound, so it must be used with care. We use it,
    below, to define a few operations which (we believe) are sound. *)
@@ -215,9 +176,410 @@ val bijective_blit [a] duplicable a => (r1: array a, r2: array a) : () =
 val transfer : [a, b] (consumes r1: array a, consumes r2: array b) -> (| r1 @ array unknown * r2 @ array a) =
   magic::magic bijective_blit
 
+(* -------------------------------------------------------------------------- *)
+
+(* Generic loops over a semi-open interval. *)
+
+(* These loops in fact have nothing to do with arrays! *)
+
+val rec fold_segment_up [a] (
+  i: int, j: int, consumes accu: a,
+  f: (int, consumes a) -> a
+) : a =
+  if i < j then
+    fold_segment_up (i + 1, j, f (i, accu), f)
+  else
+    accu
+
+val rec fold_segment_down [a] (
+  i: int, j: int, consumes accu: a,
+  f: (int, consumes a) -> a
+) : a =
+  if i < j then
+    fold_segment_down (i, j - 1, f (j - 1, accu), f)
+  else
+    accu
+
+val rec iter_segment_up [p : perm] (
+  i: int, j: int,
+  f: (int | p) -> () 
+  | p
+) : () =
+  if i < j then begin
+    f(i);
+    iter_segment_up (i + 1, j, f)
+  end
+
+val rec iter_segment_down [p : perm] (
+  i: int, j: int,
+  f: (int | p) -> () 
+  | p
+) : () =
+  if i < j then begin
+    f(j - 1);
+    iter_segment_down (i, j - 1, f)
+  end
+
+(* -------------------------------------------------------------------------- *)
+
+(* Generic loops over an entire array. *)
+
+val fold_array_up [a, b] (
+  r: array a, consumes seed: b,
+  f: (int, consumes b | r @ array a) -> b
+) : b =
+  fold_segment_up [(b | r @ array a)] (0, length r, seed, f)
+  (* WISH could we get rid of this type application? *)
+
+val fold_array_down [a, b] (
+  r: array a, consumes seed: b,
+  f: (int, consumes b | r @ array a) -> b
+) : b =
+  fold_segment_down [(b | r @ array a)] (0, length r, seed, f)
+
+val iter_array_up [a, p : perm] (
+  r: array a,
+  f: (int | r @ array a * p) -> ()
+  | p
+) : () =
+  iter_segment_up (0, length r, f)
+
+val iter_array_down [a, p : perm] (
+  r: array a,
+  f: (int | r @ array a * p) -> ()
+  | p
+) : () =
+  iter_segment_down (0, length r, f)
+
+(* A variant of the above loops, where [f] receives not only an index [i],
+   but also the corresponding array element. *)
+
+(* Because the type [a] is not assumed duplicable, getting hold of the
+   element temporarily invalidates the array, which implies that [f]
+   cannot receive the permission [r @ array a]. This is unfortunate.
+   We could offer a variant of this function where [a] is assumed
+   duplicable and [f] receives this permission. (This also suggests
+   that conditional permissions, of the form (duplicable a => p),
+   might be useful! TEMPORARY *)
+
+val foldi_up [a, b] (
+  r: array a, consumes seed: b,
+  f: (int, a, consumes accu: b) -> b
+) : b =
+  fold_array_up (r, seed, fun (i: int, consumes accu: b | r @ array a) : b =
+    consult (r, i, fun (v: a | consumes accu @ b) : b =
+      f (i, v, accu)
+    )
+  )
+
+val foldi_down [a, b] (
+  r: array a, consumes seed: b,
+  f: (int, a, consumes accu: b) -> b
+) : b =
+  fold_array_down (r, seed, fun (i: int, consumes accu: b | r @ array a) : b =
+    consult (r, i, fun (v: a | consumes accu @ b) : b =
+      f (i, v, accu)
+    )
+  )
+
+val iteri_up [a, p : perm] (
+  r: array a,
+  f: (int, a | p) -> ()
+  | p
+) : () =
+  iter_array_up (r, fun (i: int | r @ array a * p) : () =
+    consult [a, p, (| p)] (r, i, fun (v: a | p) : () =
+      (* WISH could we get rid of this type application? *)
+      f (i, v)
+    )
+  )
+
+val iteri_down [a, p : perm] (
+  r: array a,
+  f: (int, a | p) -> ()
+  | p
+) : () =
+  iter_array_down (r, fun (i: int | r @ array a * p) : () =
+    consult [a, p, (| p)] (r, i, fun (v: a | p) : () =
+      f (i, v)
+    )
+  )
+
+(* A degenerate variant of the above loops, where the function [f] has
+   access to the element, but not the index [i] or to the array [x]. *)
+
+val fold_up [a, b] (
+  r: array a,
+  consumes seed: b,
+  f: (a, consumes accu: b) -> b
+) : b =
+  fold_array_up (r, seed, fun (i: int, consumes accu: b | r @ array a) : b =
+    consult (r, i, fun (v: a | consumes accu @ b) : b =
+      f (v, accu)
+    )
+  )
+
+val fold_down [a, b] (
+  r: array a,
+  consumes seed: b,
+  f: (a, consumes accu: b) -> b
+) : b =
+  fold_array_down (r, seed, fun (i: int, consumes accu: b | r @ array a) : b =
+    consult (r, i, fun (v: a | consumes accu @ b) : b =
+      f (v, accu)
+    )
+  )
+
+val iter_up [a, p : perm] (
+  r: array a,
+  f: (a | p) -> ()
+  | p
+) : () =
+  iter_array_up (r, fun (i: int | r @ array a * p) : () =
+    consult [a, p, (| p)] (r, i, fun (v: a | p) : () =
+      f v
+    )
+  )
+
+val iter_down [a, p : perm] (
+  r: array a,
+  f: (a | p) -> ()
+  | p
+) : () =
+  iter_array_down (r, fun (i: int | r @ array a * p) : () =
+    consult [a, p, (| p)] (r, i, fun (v: a | p) : () =
+      f v
+    )
+  )
+
+(* ------------------------------------------------------------------------ *)
+
+(* [transform] is an in-place version of [mapi]: if applies the function [f],
+   in place, to every element of the array. It can be used to perform a strong
+   update over the entire array. This strong update cannot be type-checked in
+   Mezzo today, so we cheat. *)
+
+val weak_transform [a, p : perm] (
+  r: array a,
+  f: (int, consumes a | p) -> a
+  | p
+) : () =
+  iter_array_up (r, fun (i: int | r @ array a * p) : () =
+    update [a, p, p] (r, i, fun (consumes x: a | p) : a = f(i, x))
+  )
+
+val transform : [a, b, p : perm] (
+  consumes r: array a,
+  f: (int, consumes a | p) -> b
+  | p
+) -> (| r @ array b) =
+  builtin _mz_transform (* TEMPORARY should be:
+  magic::magic weak_transform
+  but this causes a BUG *)
+
+(* One could imagine variants of this operation, e.g., an operation that
+   performs a strong update simultaneously over TWO arrays, etc., etc.
+   We cannot possibly think of all combinations. A truly general solution
+   involves permissions for array segments, which allow [transform] and
+   its variants to be programmed and type-checked. *)
+
+(* ------------------------------------------------------------------------ *)
+
+(* [init] is the composition of [create] and [transform]. *)
+
+val init [a, p : perm] (
+  n: int,
+  f: (int | p) -> a
+  | p)
+  : array a
+=
+  (* Allocate an array and fill it with an arbitrary value, say 0.
+     Because the type [int] is duplicable, this is well-typed! *)
+  let r : array int = create (n, 0) in
+  (* Transform the array. *)
+  transform (r, fun (i: int, int | p) : a =
+    f i
+  );
+  r
+
+(* Map. *)
+
+val map [a, b, p : perm] (
+  x: array a,
+  f: (a | p) -> b
+  | p
+) : array b =
+  init (length x, fun (i: int | x @ array a * p) : b =
+    consult [a, p, (b | p)] (x, i, f)
+  )
+
+val mapi [a, b, p : perm] (
+  x: array a,
+  f: (int, a | p) -> b
+  | p
+) : array b =
+  init (length x, fun (i: int | x @ array a * p) : b =
+    consult [a, p, (b | p)] (x, i, fun (v: a | p) : b =
+      f (i, v)
+    )
+  )
+
+(* By cheating, one could also offer versions of [map] and [mapi] that perform
+   a strong update on the original array. *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Filling a segment with a value. *)
+
+val rec fill_segment [a] duplicable a => (r: array a, i: int, j: int, v: a) : () =
+  if i < j then begin
+    set (r, i, v);
+    fill_segment (r, i + 1, j, v)
+  end
+
+val fill [a] duplicable a => (r: array a, i: int, len: int, v: a) : () =
+  fill_segment (r, i, i + len, v)
+
+val fill_array [a] duplicable a => (r: array a, v: a) : () =
+  fill_segment (r, 0, length r, v)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Sorting. *)
+
+(* This is a port of OCaml's ternary heap sort. *)
+
+(* The three children of the node [i] are [i31], [i31+1], and [i31+2], where
+   [i31] stands for [i*3+1]. *)
+
+val sort [a, p : perm] duplicable a => (
+  cmp: (a, a | p) -> int,
+  x: array a
+  | p) : () =
+
+  (* In all of the auxiliary functions that follow, [l] is the length of the
+     array [x]. *)
+
+  (* The function [maxson] tells which of the children of the node [i] has
+     the greatest value. This node may have zero, one, two, or three children.
+     If there is at least one child, then the call returns the index of the
+     maximum child to the [normal] continuation. If there is zero child, then
+     the call returns the index [i] to the [bottom] continuation. This is a
+     double-barreled CPS encoding of the original OCaml code, which uses an
+     exception to signal that we have hit the bottom. *)
+
+  (* The [consumes] annotation on the three occurrences of [x @ array a] below
+     seems to be optional. I believe that it should in principle be present.
+     By omitting this annotation, we would be committing to preserving this
+     permission, so we would be fixing a more specific type for [maxson]. In
+     essence, we would be specializing the answer type [b] to a type of the
+     form [b | x @ array a]. *)
+
+  let maxson [b] (
+    l: int, i: int,
+    bottom: (int | consumes (p * x @ array a)) -> b,
+    normal: (int | consumes (p * x @ array a)) -> b
+                 | consumes (p * x @ array a))  : b =
+    let i31 = i+i+i+1 in
+    if i31+2 < l then begin
+      (* If there are three children, find which one has the maximum value. *)
+      let max = newref i31 in
+      if cmp (get (x, i31),  get (x, i31+1)) < 0 then max := i31+1;
+      if cmp (get (x, !max), get (x, i31+2)) < 0 then max := i31+2;
+      normal !max
+    end
+    else if i31+1 < l then begin
+      (* If there are just two children, find which one has the maximum value. *)
+      let max = if cmp (get (x, i31), get (x, i31+1)) < 0 then i31+1 else i31 in
+      normal max
+    end
+    else if i31 < l then
+      (* If there is just one child, return it. *)
+      normal i31
+    else
+      (* If there are no children, we have hit the bottom. Return [i]
+	 via the exceptional continuation. *)
+      bottom i
+  in
+
+  (* The function [trickledown] trickles the element [e] down node [i].
+     The normal continuation is specialized to an empty continuation. *)
+
+  let rec trickledown (
+    l: int, i: int, e: a,
+    bottom: (int | p * x @ array a) -> ()
+    | p * x @ array a
+  ) : () =
+    maxson (* [b = (| p * x @ array a)] *) (l, i, bottom, fun (j: int | p * x @ array a) : () =
+      (* [j] is the maximum son of [i]. If the element [e] is ? than the
+	 element found at [j], then send it down, otherwise write [e] into
+	 node [i]. *)
+      if cmp (get (x, j), e) > 0 then begin
+	set (x, i, get (x, j));
+	trickledown (l, j, e, bottom)
+      end
+      else
+	set (x, i, e)
+    )
+  in
+
+  (* The function [trickle] provides [trickledown] with a bottom continuation
+     that writes [e] into the childless node.  *)
+
+  let trickle (l: int, i: int, e: a | p * x @ array a) : () =
+    trickledown (l, i, e, fun (i: int | p * x @ array a) : () =
+      set (x, i, e)
+    )
+  in
+
+  (* The function [bubbledown] is analogous to [trickledown], but inserts a
+     a hole, rather than an element. It never terminates normally, i.e. it
+     always reaches a point where [maxson] invokes its bottom continuation.
+     For this reason, we can supply an identity continuation to [maxson]. *)
+
+  let identity (i: int | p * x @ array a) : int =
+    i
+  in
+
+  let rec bubbledown (
+    l: int, i: int
+    | p * x @ array a
+  ) : int =
+    maxson (* [b = (int | p * x @ array a)] *) (l, i, identity, fun (j: int | p * x @ array a) : int =
+      set (x, i, get (x, j));
+      bubbledown (l, j)
+    )
+  in
+
+  (* Trickle up... *)
+
+  let rec trickleup (i: int, e: a | p * x @ array a) : () =
+    let father = (i - 1) / 3 in
+    if cmp (get (x, father), e) < 0 then begin
+      set (x, i, get (x, father));
+      if father > 0 then trickleup (father, e) else set (x, 0, e)
+    end
+    else
+      set (x, i, e)
+  in
+
+  (* The main algorithm. *)
+
+  let l = length x in
+  iter_segment_down (0, (l + 1) / 3, fun (i: int | p * x @ array a) : () =
+    trickle (l, i, get (x, i))
+  );
+  iter_segment_down (2, l, fun (i: int | p * x @ array a) : () =
+    let e = get (x, i) in
+    set (x, i, get (x, 0));
+    trickleup (bubbledown (i, 0), e)
+  );
+  if l > 1 then
+    swap (x, 0, 1)
+
 (*
 Local Variables:
-compile-command: "../mezzo newarray.mz"
+compile-command: "../mezzo array.mz"
 End:
 *)
 

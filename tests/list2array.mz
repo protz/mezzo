@@ -1,0 +1,22 @@
+(* This less elegant and less compact version is defined directly. Due to its
+   use of [create], it is restricted to a duplicable element type. I keep only
+   as a test of the type-checker. *)
+
+val list2array [a] duplicable a => (xs: list::list a) : array a =
+  match xs with
+  | list::Nil ->
+      array::init (0, fun (i: int) : a = fail)
+  | list::Cons { head; tail } ->
+      let x = array::create (1 + list::length tail, head) in
+      let rec fill (i: int, xs: list::list a | x @ array a) : =x =
+	match xs with
+	| list::Nil ->
+	    x
+	| list::Cons ->
+	    array::set (x, i, xs.head);
+	    fill (i + 1, xs.tail)
+        end
+      in
+      fill (1, tail)
+  end
+
