@@ -52,11 +52,11 @@ val unsafe_blit : [a] duplicable a => (array a, int, array a, int, int) -> () =
    update over the entire array. It cannot be type-checked in Mezzo today, so
    it is a primitive operation. *)
 
-val transform [a, b, p : perm] (
+val transform:  [a, b, p : perm] (
   consumes r: array a,
   f: (int, consumes a | p) -> b
   | p
-) : (| r @ array b) =
+) -> (| r @ array b) =
   builtin _mz_array_transform  
 
 (* ------------------------------------------------------------------------ *)
