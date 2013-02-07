@@ -1,0 +1,6 @@
+
+val fix:
+  [a]
+  duplicable a =>
+  () -> a -> a
+

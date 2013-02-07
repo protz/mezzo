@@ -157,9 +157,6 @@ type permissions = typ list
 
 (** This is the environment that we use throughout HaMLeT. *)
 type env = {
-  (* For any [datacon], get the point of the corresponding type. *)
-  type_for_datacon: point DataconMap.t;
-
   (* This maps global names (i.e. [TyPoint]s) to their corresponding binding. *)
   state: binding PersistentUnionFind.state;
 
@@ -243,7 +240,6 @@ let internal_pfact: (Buffer.t -> fact -> unit) ref = ref (fun _ -> assert false)
 
 (* The empty environment. *)
 let empty_env = {
-  type_for_datacon = DataconMap.empty;
   state = PersistentUnionFind.init ();
   mark = Mark.create ();
   location = Lexing.dummy_pos, Lexing.dummy_pos;

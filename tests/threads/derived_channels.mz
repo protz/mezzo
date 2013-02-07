@@ -5,25 +5,67 @@ open queue
    and a permission for [q] guarded by a lock. *)
 
 data channel a =
+  Channel { channel: (q: unknown, lock (q @ fifo a)) }
+
+(*
+data channel a =
   Channel { queue: (queue: unknown); lock: lock (queue @ fifo a) }
+*)
 
 val newchannel [a] (): channel a =
   let q = queue::create [a] () in
   let l = locks::newlock [(q @ fifo a)] () in
+  Channel { channel = (q, l) }
+
+(*
+val newchannel [a] (): channel a =
+  let q = queue::create [a] () in
+  let l = locks::newlock [(q @ fifo a)] () in
   Channel { queue = q; lock = l }
+*)
 
 val send [a] (c: channel a, consumes x: a): () =
   match c with
-  | Channel { queue; lock } ->
+  | Channel { channel } ->
+    match channel with
+    | (q, l) ->
+      acquire l;
+      insert [a] (x, q);
+      release l
+    end
+  end
+
+(*
+val send [a] (c: channel a, consumes x: a): () =
+  match c with
+  | Channel { q; l } ->
     acquire l;
     insert [a] (x, q);
     release l
   end
+*)
 
 (* Naive version with busy waiting. *)
 val rec receive [a] (c: channel a): a =
   match c with
-  | Channel { queue; lock } ->
+  | Channel { channel } ->
+    match channel with
+    | (q, l) ->
+      acquire l;
+      match retrieve [a] c with
+      | None ->
+	  release l; receive [a] c
+      | Some { contents = x } ->
+	  release l; x
+      end 
+    end
+  end
+
+(*
+(* Naive version with busy waiting. *)
+val rec receive [a] (c: channel a): a =
+  match c with
+  | Channel { q; l } ->
       acquire l;
       match retrieve [a] c with
       | None ->
@@ -32,3 +74,4 @@ val rec receive [a] (c: channel a): a =
 	  release l; x
       end
   end
+*)
