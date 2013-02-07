@@ -262,6 +262,10 @@ val iter_array_down [a, p : perm] (
    that conditional permissions, of the form (duplicable a => p),
    might be useful! TEMPORARY *)
 
+(* Furthermore, we could define variants of these operations where
+   [f] changes the type of its argument, and the loop changes the
+   type of the array. TEMPORARY *)
+
 val foldi_up [a, b] (
   r: array a, consumes seed: b,
   f: (int, a, consumes accu: b) -> b
@@ -425,7 +429,7 @@ val mapi [a, b, p : perm] (
   )
 
 (* By cheating, one could also offer versions of [map] and [mapi] that perform
-   a strong update on the original array. *)
+   a strong update on the original array. TEMPORARY *)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -576,6 +580,36 @@ val sort [a, p : perm] duplicable a => (
   );
   if l > 1 then
     swap (x, 0, 1)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Sorting an array of non-duplicable elements. *)
+
+(* TEMPORARY this is just a demonstration; this code is currently limited to
+   a fixed adopter type and a fixed adoptee type, namely [pool a] and [ref a].
+   Ideally, it should be polymorphic in [t] and [u], where [t adopts u]. One
+   could simulate this by abstracting over [taking], or over [take] and [give],
+   but that would be a bit heavy. *)
+
+mutable data pool a = Pool adopts ref a
+
+val nonduplicable_sort [a, s : perm] (
+  cmp: (ref a, ref a | s) -> int,
+  r: array dynamic,
+  p : pool a
+  | s
+) : () =
+  (* Define a function that compares two elements at type [dynamic]. *)
+  let cmp (x: dynamic, y: dynamic | s * p @ pool a) : int =
+    if x == y then 0
+    else
+      taking x from p begin
+	taking y from p begin
+	  cmp (x, y)
+	end
+      end
+  in
+  sort (cmp, r)
 
 (*
 Local Variables:

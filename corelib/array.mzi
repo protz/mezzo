@@ -260,5 +260,5 @@ val iter_down : [a, p : perm] (
 
 val sort : [a, p : perm] duplicable a => (
   cmp: (a, a | p) -> int,
-  x: array a
+  r: array a
   | p) -> ()
