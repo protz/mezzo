@@ -44,9 +44,9 @@ val unsafe_sub : [a] duplicable a => (array a, int, int) -> array a =
 val append_prim : [a] duplicable a => (array a, array a) -> array a =
   builtin _mz_array_append_prim
 
-(* TEMPORARY OCaml's primitive operation [Array.concat] uses an OCaml
-   list. We cannot expose it in Mezzo unless a Mezzo list is an OCaml
-   list. This will be possible once we implement [slim]. *)
+(* OCaml's primitive operation [Array.concat] uses an OCaml list. We cannot
+   expose it in Mezzo unless a Mezzo list is an OCaml list. This will be
+   possible once we implement the keyword [slim]. *)
 
 val unsafe_blit : [a] duplicable a => (array a, int, array a, int, int) -> () =
   builtin _mz_array_unsafe_blit
@@ -63,7 +63,13 @@ val transform:  [a, b, p : perm] (
   f: (int, consumes a | p) -> b
   | p
 ) -> (| r @ array b) =
-  builtin _mz_array_transform  
+  builtin _mz_array_transform
+
+(* One could imagine variants of this operation, e.g., an operation that
+   performs a strong update simultaneously over TWO arrays, etc., etc.
+   We cannot possibly think of all combinations. A truly general solution
+   involves permissions for array segments, which allow [transform] and
+   its variants to be programmed and type-checked. *)
 
 (* ------------------------------------------------------------------------ *)
 
@@ -125,19 +131,87 @@ val update [a, pre : perm, post : perm] (
    They are implemented in the same manner as in OCaml. *)
 
 val sub [a] duplicable a => (r: array a, ofs: int, len: int) : array a =
-  if len < 0 || ofs > length r - len then
-    fail
-  else
-    unsafe_sub (r, ofs, len)
+  if len < 0 || ofs > length r - len
+  then fail
+  else unsafe_sub (r, ofs, len)
 
-(*
-val append : [a] duplicable a => (array a, array a)   -> array a
-val concat : [a] duplicable a => list::list (array a) -> array a
-val blit   : [a] duplicable a => (a1: array a, ofs1: int, a2: array a, ofs2: int, len: int) -> ()
-*)
+val copy [a] duplicable a => (r: array a) : array a =
+  (* OCaml's implementation contains a special case for an array
+     of length 0. We cannot keep this special case, due to the
+     fact that our arrays are exclusive and have an adopter field. *)
+  unsafe_sub (r, 0, length r)
+
+val append [a] duplicable a => (r1: array a, r2: array a) : array a =
+  let l1 = length r1 in
+  if l1 = 0 then copy r2
+  else if length r2 = 0 then unsafe_sub (r1, 0, l1)
+  else append_prim (r1, r2)
+
+val blit [a] duplicable a => (r1: array a, ofs1: int, r2: array a, ofs2: int, len: int) : () =
+  if len < 0 || ofs1 < 0 || ofs1 > length r1 - len
+             || ofs2 < 0 || ofs2 > length r2 - len
+  then fail
+  else unsafe_blit (r1, ofs1, r2, ofs2, len)
+
+(* ------------------------------------------------------------------------ *)
+
+(* The above copying functions are restricted to arrays of duplicable
+   elements. However, it also makes sense to copy an array (or an array
+   segment) of non-duplicable elements, provided the original array is
+   subsequently deprived of the ownership of its elements.  We provide an
+   experimental function, [steal], for this purpose.  *)
+
+(* Because we do not have permissions for an array segment, all of the
+   original array elements are lost, even if only a segment of the array is
+   copied. For simplicity, we force the entire array to be copied; we do not
+   allow copying a segment and losing the ownership of the rest (although we
+   could). *)
+
+(* The original array itself is not lost; it becomes an array of unknown data,
+   which can be re-used to store new data, if desired. *)
+
+val total_blit [a] duplicable a => (r1: array a, r2: array a, ofs2: int) : () =
+  blit (r1, 0, r2, ofs2, length r1)
+
+val steal : [a] (consumes r1: array a, r2: array a, ofs2: int) -> (| r1 @ array unknown) =
+  magic::magic blit
+
+(* [steal] is a variant of [blit]. One could also define variants of [sub],
+   [copy], [append], based on the same principle. *)
+
+(* ------------------------------------------------------------------------ *)
+
+(* Here is another variant of [blit], this time for the case where the
+   entire destination array is written. In this case, a strong update
+   is possible. *)
+
+val surjective_blit [a] duplicable a => (r1: array a, ofs1: int, r2: array a) : () =
+  blit (r1, ofs1, r2, 0, length r2)
+
+val overwrite : [a, b] duplicable a => (r1: array a, ofs1: int, consumes r2: array b) -> (| r2 @ array a) =
+  magic::magic surjective_blit
+
+(* If [array] was known to be covariant, then we could require [array unknown]
+   instead of [array b]. *)
+
+(* ------------------------------------------------------------------------ *)
+
+(* The above two variants of [blit] can be combined! *)
+
+val bijective_blit [a] duplicable a => (r1: array a, r2: array a) : () =
+  let l2 = length r2 in
+  if length r1 <> l2
+  then fail
+  else blit (r1, 0, r2, 0, l2)
+
+val transfer : [a, b] (consumes r1: array a, consumes r2: array b) -> (| r1 @ array unknown * r2 @ array a) =
+  magic::magic bijective_blit
+
+(**)
 
 (*
 Local Variables:
 compile-command: "../mezzo newarray.mz"
 End:
 *)
+
