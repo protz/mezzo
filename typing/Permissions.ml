@@ -43,7 +43,8 @@ let safety_check env =
       ) permissions in
       if List.length singletons <> 1 then
         Log.error
-          "Inconsistency detected: not one singleton type for %a\n%a\n"
+          "%a inconsistency detected: not one singleton type for %a\n%a\n"
+          Lexer.p env.location
           TypePrinter.pnames (env, get_names env point)
           TypePrinter.penv env;
 
@@ -67,16 +68,18 @@ let safety_check env =
        * see [twostructural.mz] for an example. *)
       if false && not (env.inconsistent) && List.length concrete > 1 then
         Log.error
-          "Inconsistency detected: more than one concrete type for %a\n\
+          "%a inconsistency detected: more than one concrete type for %a\n\
             (did you add a function type without calling \
             [simplify_function_type]?)\n%a\n"
+          Lexer.p env.location
           TypePrinter.pnames (env, get_names env point)
           TypePrinter.penv env;
 
       let exclusive = List.filter (FactInference.is_exclusive env) permissions in
       if not (env.inconsistent) && List.length exclusive > 1 then
         Log.error
-          "Inconsistency detected: more than one exclusive type for %a\n%a\n"
+          "%a inconsistency detected: more than one exclusive type for %a\n%a\n"
+          Lexer.p env.location
           TypePrinter.pnames (env, get_names env point)
           TypePrinter.penv env;
     ) ()
