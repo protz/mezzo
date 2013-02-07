@@ -14,6 +14,12 @@ fact exclusive (array a)
 
 (* The primitive operations on arrays. *)
 
+(* WHEN IMPLEMENTING THESE OPERATIONS, DO NOT FORGET ABOUT THE ADOPTER
+   FIELD. *)
+
+val max_length : int =
+  builtin _mz_array_max_length
+
 val length : [a] array a -> int =
   builtin _mz_array_length
 
@@ -80,18 +86,17 @@ val init [a, p : perm] (
 
 (* ------------------------------------------------------------------------ *)
 
-(* The function [magic_get] is a version of [get] that does not carry the
-   constraint [duplicable a]. It is unsound, so it must be used with care.
-   We use it, below, to define a few operations which (we believe) are
-   sound. *)
+(* [magic_get] is a version of [get] that does not carry the constraint
+   [duplicable a]. It is unsound, so it must be used with care. We use it,
+   below, to define a few operations which (we believe) are sound. *)
 
 val magic_get : [a] (array a, int) -> a =
   builtin _mz_array_get
 
-(* The function [swap] can be programmed using [get] and [set], but if we
+(* The following functions can be programmed using [get] and [set], but if we
    do so, we end up with a constraint [duplicable a], which is in fact
-   superfluous, because no value is duplicated in the process. Thus, we
-   use [magic_get] instead of [get]. *)
+   unnecessary, because no value is duplicated in the process. Thus, we use
+   [magic_get] instead of [get]. *)
 
 val swap [a] (r: array a, i: int, j: int) : () =
   if i <> j then begin
@@ -100,17 +105,19 @@ val swap [a] (r: array a, i: int, j: int) : () =
     set (r, j, ri)
   end
 
-(* The function [consult] can be programmed using [get], but if we do so, we
-   end up with a constraint [duplicable a], which is in fact superfluous,
-   because [f] must surrender the permission for its argument. Thus, we use
-   [magic_get] instead of [get]. *)
-
 val consult [a, pre : perm, b] (
   r: array a, i: int,
   f: (a | consumes pre) -> b
   | consumes pre
 ) : b =
-  f(magic_get(r, i))
+  f (magic_get (r, i))
+
+val update [a, pre : perm, post : perm] (
+  r: array a, i: int,
+  f: (consumes a | consumes pre) -> (a | post)
+  | consumes pre
+) : (| post) =
+  set(r, i, f (magic_get (r, i)))
 
 (* BUG
 val bug (n : int) : () =
@@ -123,8 +130,27 @@ I get:
 
 (* ------------------------------------------------------------------------ *)
 
+(* The following are safe wrappers for the unsafe primitive operations.
+   They are implemented in the same manner as in OCaml. *)
+
+(*
+val sub [a] duplicable a => (r: array a, ofs: int, len: int) : array a =
+  if len < 0 || ofs > length r - len then
+    fail
+  else begin
+    assert r @ array a; (* BUG? this fails *)
+    unsafe_sub (r, ofs, len)
+  end
+*)
+
+(*
+val append : [a] duplicable a => (array a, array a)   -> array a
+val concat : [a] duplicable a => list::list (array a) -> array a
+val blit   : [a] duplicable a => (a1: array a, ofs1: int, a2: array a, ofs2: int, len: int) -> ()
+*)
+
 (*
 Local Variables:
-compile-command: "../mezzo array.mz"
+compile-command: "../mezzo newarray.mz"
 End:
 *)
