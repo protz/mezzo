@@ -24,11 +24,7 @@ val is_empty : [k, cmp: term, a] treeMap k cmp a -> bool
 
 val add : [k, cmp: term, a] (consumes k, consumes a, treeMap k cmp a) -> ()
 
-(* BUG the grammar does not allow constraints as part of VAL declarations!
-   perhaps we should think about making TyConstraint a more "ordinary"
-   construct in the grammar of types.
 val find : [k, cmp: term, a] duplicable a => (k, treeMap k cmp a) -> option a
-*)
 
 val update : [k, c: term, a, preserved : perm, consumed : perm] (
   x: k,
@@ -39,10 +35,8 @@ val update : [k, c: term, a, preserved : perm, consumed : perm] (
 
 val mem : [k, cmp: term, a] (k, treeMap k cmp a) -> bool
 
-(* TEMPORARY
-val min_binding : [k, cmp: term, a] duplicable k, duplicable a => treeMap k cmp a -> option (k, cmp: term, a)
-val max_binding : [k, cmp: term, a] duplicable k, duplicable a => treeMap k cmp a -> option (k, cmp: term, a)
-*)
+val min_binding : [k, cmp: term, a] duplicable k => duplicable a => treeMap k cmp a -> option (k, a)
+val max_binding : [k, cmp: term, a] duplicable k => duplicable a => treeMap k cmp a -> option (k, a)
 
 val extract_min_binding : [k, cmp: term, a] treeMap k cmp a -> option (k, a)
 val extract_max_binding : [k, cmp: term, a] treeMap k cmp a -> option (k, a)
@@ -66,10 +60,13 @@ val exists : [k, c: term, a, p : perm] (
   | p
 ) -> bool
 
-(* TEMPORARY
-val map
-val copy
-*)
+val map: [k, c: term, a1, a2, b, p : perm] duplicable k => (
+  consumes m: treeMap k c a1,
+  f: (k, consumes d: a1 | p) -> (b | d @ a2)
+  | p
+) -> (treeMap k c b | m @ treeMap k c a2)
+
+val copy: [k, c: term, a, b] duplicable k => (m: treeMap k c a, f: a -> b) -> treeMap k c b
 
 val fold_ascending : [k, c: term, a1, a2, b, p : perm] (
   consumes m: treeMap k c a1,
