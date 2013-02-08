@@ -35,7 +35,7 @@ let build_flexible_type_application (left_env, left_perm) (dest_env, t_dest) =
   (* First, find the definition of the type so that we know how to
    * instanciate parameters. *)
   let left_env, arg_points_l = make_datacon_letters left_env (get_kind dest_env t_dest) true (fun _ -> Affine) in
-  let t_app_left = ty_app (TyPoint t_dest) (List.map (fun x -> TyPoint x) arg_points_l) in
+  let t_app_left = ty_app (TyRigid t_dest) (List.map (fun x -> TyRigid x) arg_points_l) in
   (* Chances are this will perform a merge in [left_env]: this is why
    * we're returning [left_env]. *)
   let left_env = Permissions.sub_type left_env left_perm t_app_left in
@@ -544,13 +544,13 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
               let dest_env, dest_fields =
                 Hml_List.fold_left3 (fun (dest_env, dest_fields) field_l field_r field_annot ->
                   match field_l, field_r, field_annot with
-                  | FieldValue (name_l, TySingleton (TyPoint left_p)),
-                    FieldValue (name_r, TySingleton (TyPoint right_p)),
+                  | FieldValue (name_l, TySingleton (TyRigid left_p)),
+                    FieldValue (name_r, TySingleton (TyRigid right_p)),
                     (name_annot, annot) ->
                       Log.check (Field.equal name_l name_r) "Not in order?";
                       Log.check (Field.equal name_l name_annot) "Not in order?";
                       let dest_env, dest_p = match annot with
-                        | Some (TySingleton (TyPoint dest_p)) ->
+                        | Some (TySingleton (TyRigid dest_p)) ->
                             push_job (left_p, right_p, dest_p);
                             dest_env, dest_p
                         | Some _ ->
@@ -662,7 +662,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                 let left_p = !!=t_l in
                 let right_p = !!=t_r in
                 match t_d with
-                | Some (TySingleton (TyPoint dest_p)) ->
+                | Some (TySingleton (TyRigid dest_p)) ->
                     (* We still need to schedule this job, because we may have a
                      * partial type annotation for one of the tuple components.
                      * Think of it as a job whose destination point has been
@@ -705,7 +705,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
        * This just steps through a flexible variable that has a structure. *)
       lazy begin
         match left_perm, right_perm with
-        | TyPoint left_p, _ ->
+        | TyRigid left_p, _ ->
             structure left_env left_p >>= fun left_perm ->
             merge_type (left_env, left_perm) (right_env, right_perm) ?dest_point dest_env
         | _ ->
@@ -719,7 +719,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
        *)
       lazy begin
         match left_perm, right_perm with
-        | _, TyPoint right_p ->
+        | _, TyRigid right_p ->
             structure right_env right_p >>= fun right_perm ->
             merge_type (left_env, left_perm) (right_env, right_perm) ?dest_point dest_env
         | _ ->
@@ -737,7 +737,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
        * - α vs β *)
       lazy begin
         match left_perm, right_perm with
-        | TyPoint left_p, TyPoint right_p ->
+        | TyRigid left_p, TyRigid right_p ->
             Log.check (is_type left_env left_p && is_type right_env right_p
               || is_term left_env left_p && is_term right_env right_p)
               "Sanity check failed";
@@ -765,11 +765,11 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                     None
                   else
                     (* e.g. [int] vs [int] *)
-                    Some (left_env, right_env, dest_env, TyPoint left_p)
+                    Some (left_env, right_env, dest_env, TyRigid left_p)
                 end else begin
                   (* Term vs term *)
                   let dest_env, dest_p = bind_merge dest_env left_p right_p in
-                  Some (left_env, right_env, dest_env, TyPoint dest_p)
+                  Some (left_env, right_env, dest_env, TyRigid dest_p)
                 end
 
             | false, true ->
@@ -791,7 +791,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                   Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
                     "All top-level types should be in known_triples by default";
 
-                  Some (left_env, right_env, dest_env, TyPoint dest_p)
+                  Some (left_env, right_env, dest_env, TyRigid dest_p)
 
                 end else
                   None
@@ -811,7 +811,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                   Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
                     "All top-level types should be in known_triples by default";
 
-                  Some (left_env, right_env, dest_env, TyPoint dest_p)
+                  Some (left_env, right_env, dest_env, TyRigid dest_p)
 
                 end else
                   None
@@ -822,7 +822,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
                 begin match merge_candidate (left_env, left_p) (right_env, right_p) with
                 | Some dest_p ->
-                    Some (left_env, right_env, dest_env, TyPoint dest_p)
+                    Some (left_env, right_env, dest_env, TyRigid dest_p)
                 | None ->
                     Log.check (k <> KTerm) "Remove this when we have a testcase, \
                       and try to understand what's happening, and whether it's \
@@ -833,7 +833,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                     in
                     remember_triple (left_p, right_p, dest_p);
 
-                    Some (left_env, right_env, dest_env, TyPoint dest_p)
+                    Some (left_env, right_env, dest_env, TyRigid dest_p)
                 end
 
             end
@@ -936,7 +936,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
               let args = List.rev args in
 
               (* Re-fold the type application. *)
-              let t = ty_app (TyPoint cons) args in
+              let t = ty_app (TyRigid cons) args in
 
               (* And we're good to go. *)
               Some (left_env, right_env, dest_env, t)
@@ -958,7 +958,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
     match left_perm, right_perm with
     (* We can instantiate a flexible variable, as long as the type on the other
      * side makes sense in the original environment. *)
-    | TyPoint p, t when is_flexible left_env p ->
+    | TyRigid p, t when is_flexible left_env p ->
         begin try
           (* Will raise [UnboundPoint] if we can't get [t] to make sense in
              the toplevel environment. *)
@@ -969,7 +969,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
           None
         end
 
-    | t, TyPoint p when is_flexible right_env p ->
+    | t, TyRigid p when is_flexible right_env p ->
         begin try
           let t = clean top left_env t in
           let right_env = instantiate_flexible right_env p t in

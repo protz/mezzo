@@ -237,7 +237,7 @@ let tyvar (i : int) =
   Printf.sprintf "'a%d" i
 
 let ty (i : int) =
-  O.TyVar (tyvar i)
+  O.TyBound (tyvar i)
 
 let init (n : int) (f : int -> 'a) : 'a list =
   let rec loop (i : int) =
@@ -324,7 +324,7 @@ let translate_item = function
   | ValueDefinition (flag, eqs) ->
       [ O.ValueDefinition (flag, transl_equations eqs) ]
   | ValueDeclaration x ->
-      [ O.ValueDeclaration (Variable.print x, O.TyVar "Obj.t") ]
+      [ O.ValueDeclaration (Variable.print x, O.TyBound "Obj.t") ]
   | OpenDirective m ->
       [ O.OpenDirective (Module.print m) ]
 

@@ -43,7 +43,7 @@ let is_data_type_with_two_constructors env t =
       false
   in
   match t with
-  | TyPoint p ->
+  | TyRigid p ->
       (* e.g. bool *)
       has_two_branches p
   | TyApp (cons, _) ->
@@ -59,7 +59,7 @@ let is_data_type_with_two_constructors env t =
 
 let has_adopts_clause env t =
   match t with
-  | TyPoint p ->
+  | TyRigid p ->
       get_adopts_clause env p
   | TyApp (cons, args) ->
       begin match get_adopts_clause env !!cons with
@@ -229,7 +229,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
       let t = List.hd t in
       List.fold_left2 (fun env pattern component ->
         match component with
-        | TySingleton (TyPoint p') ->
+        | TySingleton (TyRigid p') ->
             unify_pattern env pattern p'
         | _ ->
             Log.error "Expecting a type that went through [unfold] and [collect] here"
@@ -259,7 +259,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
             raise_error env (NoSuchFieldInPattern (pattern, name))
         in
         match field with
-        | FieldValue (_, TySingleton (TyPoint p')) ->
+        | FieldValue (_, TySingleton (TyRigid p')) ->
             unify_pattern env pat p'
         | _ ->
             Log.error "Expecting a type that went through [unfold] and [collect] here"
@@ -282,7 +282,7 @@ let refine_perms_in_place_for_pattern env point pat =
           match Hml_List.find_opt (function
             | TyTuple ts ->
                 Some (List.map (function
-                  | TySingleton (TyPoint p) ->
+                  | TySingleton (TyRigid p) ->
                       p
                   | _ ->
                       Log.error "expanded form"
@@ -320,7 +320,7 @@ let refine_perms_in_place_for_pattern env point pat =
                 assert false
           ) fields;
           let point1 = match Hml_List.find_opt (function
-            | FieldValue (n1, TySingleton (TyPoint p1)) when Field.equal n1 n2 ->
+            | FieldValue (n1, TySingleton (TyRigid p1)) when Field.equal n1 n2 ->
                 Some p1
             | _ ->
                 None
@@ -335,7 +335,7 @@ let refine_perms_in_place_for_pattern env point pat =
 
         (* Find a permission that can be refined in there. *)
         begin match Hml_List.take (function
-          | TyPoint p ->
+          | TyRigid p ->
               let p', datacon = datacon in
               fail_if (not (same env p !!p'));
               fail_if (not (has_definition env p));
@@ -560,12 +560,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                       let expr = 
                         if Field.equal field fname then
                           begin match expr with
-                          | TySingleton (TyPoint _) ->
+                          | TySingleton (TyRigid _) ->
                               if !found then
                                 Log.error "Two matching permissions? That's strange...";
                               field_struct.SurfaceSyntax.field_offset <- Some i;
                               found := true;
-                              TySingleton (TyPoint p2)
+                              TySingleton (TyRigid p2)
                           | t ->
                               let open TypePrinter in
                               Log.error "Not a point %a" ptype (env, t)
@@ -670,7 +670,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 | FieldValue (field, expr) ->
                     if Field.equal field fname then
                       begin match expr with
-                      | TySingleton (TyPoint p) ->
+                      | TySingleton (TyRigid p) ->
                           field_struct.SurfaceSyntax.field_offset <- Some i;
                           raise (M.Found p)
                       | t ->
@@ -897,14 +897,14 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                   let dc1, branch1 = instantiate_branch b1 args in
                   let dc2, branch2 = instantiate_branch b2 args in
                   let clause = instantiate_adopts_clause clause args in
-                  let t1 = TyConcreteUnfolded ((TyPoint cons, dc1), branch1, clause) in
-                  let t2 = TyConcreteUnfolded ((TyPoint cons, dc2), branch2, clause) in
+                  let t1 = TyConcreteUnfolded ((TyRigid cons, dc1), branch1, clause) in
+                  let t2 = TyConcreteUnfolded ((TyRigid cons, dc2), branch2, clause) in
                   t1, t2
               | _ ->
                   assert false
             in
             env, begin match t with
-            | TyPoint p ->
+            | TyRigid p ->
                 split_apply p []
             | TyApp (cons, args) ->
                 split_apply !!cons args
@@ -1138,7 +1138,7 @@ let check_declaration_group
   let points = List.rev points in
   let subst_toplevel_items b =
     Hml_List.fold_lefti (fun i b point ->
-      let b = tsubst_toplevel_items (TyPoint point) i b in
+      let b = tsubst_toplevel_items (TyRigid point) i b in
       esubst_toplevel_items (EPoint point) i b) b points
   in
   (* ...but it works! *)

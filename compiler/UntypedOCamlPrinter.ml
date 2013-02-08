@@ -226,7 +226,7 @@ and expression e =
 (* Types. *)
 
 let ty = function
-  | TyVar x ->
+  | TyBound x ->
       utf8string x
 
 let data_type_def_branch (datacon, components) =

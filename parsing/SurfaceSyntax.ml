@@ -61,7 +61,7 @@ type datacon_info = {
    [m::x]. This holds for variables (of arbitrary kind: term, type, etc.)
    and for data constructors. *)
 
-(* TEMPORARY replace TyVar/TyQualified and EVar/EQualified to use this
+(* TEMPORARY replace TyBound/TyQualified and EVar/EQualified to use this
    instead? do the same in the grammar; see how it is done for data
    constructors *)
 
@@ -138,7 +138,7 @@ type typ =
   | TyUnknown
   | TyDynamic
   | TyEmpty
-  | TyVar of Variable.name
+  | TyBound of Variable.name
   | TyQualified of Module.name * Variable.name
   | TyConcreteUnfolded of (datacon_reference * data_field_def list)
   | TySingleton of typ
@@ -165,7 +165,7 @@ and data_field_def =
 and data_type_flag = Exclusive | Duplicable
 
 let ty_equals (v: Variable.name) =
-  TySingleton (TyVar v)
+  TySingleton (TyBound v)
 ;;
 
 let rec flatten_star p =
@@ -174,7 +174,7 @@ let rec flatten_star p =
       flatten_star t1 @ flatten_star t2
   | TyEmpty ->
       []
-  | TyVar _
+  | TyBound _
   | TyConsumes _
   | TyAnchoredPermission _
   | TyApp _ ->
@@ -419,7 +419,7 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TyQualified _
   | TyDynamic
   | TyApp _
-  | TyVar _ ->
+  | TyBound _ ->
       PAny
 
   (* The following cases should not arise. *)

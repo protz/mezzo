@@ -36,7 +36,7 @@ let safety_check env =
        * this is SEVERE: this means one of our internal invariants broken, so
        * someone messed up the code somewhere. *)
       let singletons = List.filter (function
-        | TySingleton (TyPoint _) ->
+        | TySingleton (TyRigid _) ->
             true
         | _ ->
             false
@@ -124,7 +124,7 @@ let can_merge (env: env) (t1: typ) (p2: point): bool =
    * instantiate with anything that is exclusive or below exclusive (slim, fat,
    * etc.). *)
   match t1 with
-  | TyPoint p1 ->
+  | TyRigid p1 ->
       if (is_type env p2) then begin
         Log.check (get_kind env p1 = get_kind env p2) "Wait, what?";
         let f1, f2 = get_fact env p1, get_fact env p2 in
@@ -174,7 +174,7 @@ let add_constraints env constraints =
   let env = List.fold_left (fun env (f, t) ->
     let f = fact_of_flag f in
     match t with
-    | TyPoint p ->
+    | TyRigid p ->
         let f' = get_fact env p in
         if fact_leq f f' then
         (* [f] tells, for instance, that [p] be exclusive *)
@@ -190,11 +190,11 @@ let add_constraints env constraints =
 
 let rec perm_not_flex env t =
   match t with
-  | TyPoint p when has_structure env p ->
+  | TyRigid p when has_structure env p ->
       perm_not_flex env (Option.extract (structure env p))
   | TyAnchoredPermission (x, _) ->
       not (is_flexible env !!x)
-  | TyPoint p ->
+  | TyRigid p ->
       not (is_flexible env p)
   | TyStar _ ->
       true
@@ -240,7 +240,7 @@ and keep_only_duplicable (env: env): env * (env -> env) =
     let permissions =
       List.filter (function TySingleton _ | TyUnknown -> false | _ -> true) permissions
     in
-    let permissions = List.map (fun t -> TyAnchoredPermission (TyPoint point, t)) permissions in
+    let permissions = List.map (fun t -> TyAnchoredPermission (TyRigid point, t)) permissions in
     env, permissions @ acc
   ) (env, []) in
 
@@ -285,7 +285,7 @@ and add (env: env) (point: point) (t: typ): env =
    * structure, this means that it's a type variable with kind term that has
    * been flex'd, then instanciated onto something. We make sure in
    * [Permissions.sub] that we're actually merging, not instanciating, when
-   * faced with two [TyPoint]s. *)
+   * faced with two [TyRigid]s. *)
   Log.check (not (has_structure env point)) "I don't understand what's happening";
 
   let hint = get_name env point in
@@ -317,11 +317,11 @@ and add (env: env) (point: point) (t: typ): env =
   let env = List.fold_left add_perm env perms in
 
   begin match t with
-  | TyPoint p when has_structure env p ->
+  | TyRigid p when has_structure env p ->
       Log.debug ~level:4 "%s]%s (structure)" Bash.colors.Bash.red Bash.colors.Bash.default;
       add env point (Option.extract (structure env p))
 
-  | TySingleton (TyPoint p) when not (same env point p) ->
+  | TySingleton (TyRigid p) when not (same env point p) ->
       Log.debug ~level:4 "%s]%s (singleton)" Bash.colors.Bash.red Bash.colors.Bash.default;
       unify env point p
 
@@ -366,7 +366,7 @@ and add_perm (env: env) (t: typ): env =
       add_perm (add_perm env p) q
   | TyEmpty ->
       env
-  | TyPoint p when has_structure env p ->
+  | TyRigid p when has_structure env p ->
       add_perm env (Option.extract (structure env p))
   | _ ->
       add_floating_perm env t
@@ -446,7 +446,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
     | TyEmpty ->
         env, t
 
-    | TyPoint _
+    | TyRigid _
     | TyApp _ ->
         begin match expand_if_one_branch env t with
         | TyConcreteUnfolded _ as t->
@@ -455,7 +455,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
             env, t
         end
 
-    | TyVar _ ->
+    | TyBound _ ->
         Log.error "No unbound variables allowed here"
 
     | TyForall _
@@ -726,24 +726,24 @@ and sub_type_real env t1 t2 =
              * makes it work *)
             Some env
 
-        | TySingleton (TyPoint p1), _ when is_flexible env p1 ->
+        | TySingleton (TyRigid p1), _ when is_flexible env p1 ->
             (* The unfolding never, ever introduces flexible variables. *)
             assert false
-        | TySingleton (TyPoint p1), TySingleton (TyPoint p2) when is_flexible env p2 ->
+        | TySingleton (TyRigid p1), TySingleton (TyRigid p2) when is_flexible env p2 ->
             (* This is a fast-path that creates less debug output and makes
              * things easier to understand when reading traces. *)
             Some (merge_left env p1 p2)
-        | TySingleton (TyPoint p1), _ ->
+        | TySingleton (TyRigid p1), _ ->
             (* “=x - τ” can always be rephrased as “take τ from the list of
              * available permissions for x” by replacing “τ” with
              * “∃x'.(=x'|x' @ τ)” and instantiating “x'” with “x”. *)
             sub_clean env p1 t2
 
-        | TyPoint p1, _ when is_flexible env p1 ->
+        | TyRigid p1, _ when is_flexible env p1 ->
             (* XXX this should be removed too, the reason we have this is to
              * make “(α, int) - (int, int)” work with “α” flexible. *)
             try_merge_flex env p1 t1
-        | _, TyPoint p2 when is_flexible env p2 ->
+        | _, TyRigid p2 when is_flexible env p2 ->
             (* XXX should be removed too. The reason these two rules come last
              * is that the present match case is good when we know [t1] is not
              * [TySingleton]. *)
@@ -775,16 +775,16 @@ and sub_type_real env t1 t2 =
           | _ when equal env t1 t2 ->
               Some env
 
-          | TySingleton (TyPoint p1), _ when is_flexible env p1 ->
+          | TySingleton (TyRigid p1), _ when is_flexible env p1 ->
               assert false
-          | TySingleton (TyPoint p1), TySingleton (TyPoint p2) when is_flexible env p2 ->
+          | TySingleton (TyRigid p1), TySingleton (TyRigid p2) when is_flexible env p2 ->
               Some (merge_left env p1 p2)
-          | TySingleton (TyPoint p1), _ ->
+          | TySingleton (TyRigid p1), _ ->
               sub_clean env p1 t2
 
-          | TyPoint p1, _ when is_flexible env p1 ->
+          | TyRigid p1, _ when is_flexible env p1 ->
               try_merge_flex env p1 t1
-          | _, TyPoint p2 when is_flexible env p2 ->
+          | _, TyRigid p2 when is_flexible env p2 ->
               try_merge_flex env p2 t1
 
           | _ ->
@@ -809,9 +809,9 @@ and sub_type_real env t1 t2 =
         None
       end
 
-  | TyConcreteUnfolded ((cons1, datacon1), _, _), TyPoint point2 ->
+  | TyConcreteUnfolded ((cons1, datacon1), _, _), TyRigid point2 ->
       (* This is basically the same as above, except that type applications
-       * without parameters are not [TyApp]s, they are [TyPoint]s. *)
+       * without parameters are not [TyApp]s, they are [TyRigid]s. *)
       let point1 = !!cons1 in
 
       if same env point1 point2 then begin
@@ -962,8 +962,8 @@ and sub_type_real env t1 t2 =
        * the environment, so we don't know what's left for us to instanciate
        * [ps2] with... first try a syntactic criterion? Only add permissions in
        * [ps1] if they “unlock” something in [ps2]? I don't know... *)
-      let vars1, ps1 = List.partition (function TyPoint _ -> true | _ -> false) ps1 in
-      let vars2, ps2 = List.partition (function TyPoint _ -> true | _ -> false) ps2 in
+      let vars1, ps1 = List.partition (function TyRigid _ -> true | _ -> false) ps1 in
+      let vars2, ps2 = List.partition (function TyRigid _ -> true | _ -> false) ps2 in
 
       Log.debug ~level:4 "[add_sub] starting with ps1=%a, ps2=%a, vars1=%a, vars2=%a"
         TypePrinter.ptype (env, fold_star ps1)
@@ -982,7 +982,7 @@ and sub_type_real env t1 t2 =
 
       (* And then try to be smart with whatever remains. *)
       begin match vars1 @ ps1, vars2 @ ps2 with
-      | [TyPoint var1 as t1], [TyPoint var2 as t2] ->
+      | [TyRigid var1 as t1], [TyRigid var2 as t2] ->
           (* Beware! We're doing our own one-on-one matching of permission
            * variables, but still, we need to keep [var1] if it happens to be a
            * duplicable one! So we add it here, and [sub_floating_perm] will
@@ -1002,9 +1002,9 @@ and sub_type_real env t1 t2 =
                 None
           end >>= fun env ->
           sub_floating_perm env t2
-      | ps1, [TyPoint var2] when is_flexible env var2 ->
+      | ps1, [TyRigid var2] when is_flexible env var2 ->
           Some (instantiate_flexible env var2 (fold_star ps1))
-      | [TyPoint var1], ps2 when is_flexible env var1 ->
+      | [TyRigid var1], ps2 when is_flexible env var1 ->
           Some (instantiate_flexible env var1 (fold_star ps2))
       | ps1, [] ->
           (* We may have a remaining, rigid, floating permission. Good for us! *)
@@ -1049,7 +1049,7 @@ and try_merge_point_to_point env p1 p2 =
 and step_through_flex ?(stepped=false) env k t1 t2 =
   let c = step_through_flex ~stepped:true in
   match t1, t2 with
-  | TyPoint p1, TyPoint p2 ->
+  | TyRigid p1, TyRigid p2 ->
       if same env p1 p2 then
         Some env
       else
@@ -1058,11 +1058,11 @@ and step_through_flex ?(stepped=false) env k t1 t2 =
         (structure env p1 >>= fun t1 -> c env k t1 t2) |||
         (structure env p2 >>= fun t2 -> c env k t1 t2)
 
-  | TyPoint p1, _ ->
+  | TyRigid p1, _ ->
       try_merge_flex env p1 t2 |||
       (structure env p1 >>= fun t1 -> c env k t1 t2)
 
-  | _, TyPoint p2 ->
+  | _, TyRigid p2 ->
       try_merge_flex env p2 t1 |||
       (structure env p2 >>= fun t2 -> c env k t1 t2)
 
@@ -1081,13 +1081,13 @@ and sub_perm (env: env) (t: typ): env option =
     TypePrinter.(Log.debug ~level:4 "[sub_perm] %a" ptype (env, t));
 
   match t with
-  | TyAnchoredPermission (TyPoint p, t) ->
+  | TyAnchoredPermission (TyRigid p, t) ->
       sub env p t
   | TyStar _ ->
       sub_perms env (flatten_star env t)
   | TyEmpty ->
       Some env
-  | TyPoint p when has_structure env p ->
+  | TyRigid p when has_structure env p ->
       sub_perm env (Option.extract (structure env p))
   | _ ->
       sub_floating_perm env t

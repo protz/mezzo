@@ -65,7 +65,7 @@ let fact_of_flag = function
 (* Various helpers for creating and destructuring [typ]s easily. *)
 
 (* Saves us the trouble of matching all the time. *)
-let (!!) = function TyPoint x -> x | _ -> assert false;;
+let (!!) = function TyRigid x -> x | _ -> assert false;;
 let ( !* ) = Lazy.force;;
 let (>>=) = Option.bind;;
 let (|||) o1 o2 = if Option.is_some o1 then o1 else o2 ;;
@@ -75,14 +75,14 @@ let thd3 (_, _, x) = x;;
 
 
 let (!!=) = function
-  | TySingleton (TyPoint x) ->
+  | TySingleton (TyRigid x) ->
       x
   | _ ->
       assert false
 ;;
 
 let ty_equals x =
-  TySingleton (TyPoint x)
+  TySingleton (TyRigid x)
 ;;
 
 let ty_unit =
@@ -99,7 +99,7 @@ let ty_bottom =
       (Auto (Variable.register "⊥"), KType, (Lexing.dummy_pos, Lexing.dummy_pos)),
       CannotInstantiate
     ),
-    TyVar 0
+    TyBound 0
   )
 
 (* This is right-associative, so you can write [list int @-> int @-> tuple []] *)
@@ -128,14 +128,14 @@ let rec flatten_star env t =
       flatten_star env p @ flatten_star env q
   | TyEmpty ->
       []
-  | TyPoint p ->
+  | TyRigid p ->
       begin match structure env p with
       | Some t ->
           flatten_star env t
       | None ->
           [t]
       end
-  | TyVar _
+  | TyBound _
   | TyAnchoredPermission _
   | TyApp _ ->
       [t]
@@ -260,7 +260,7 @@ let bind_var_in_type2
     (typ: typ): env * typ * point
   =
   let env, point = bind_var env ?flexible ?fact binding in
-  let typ = tsubst (TyPoint point) 0 typ in
+  let typ = tsubst (TyRigid point) 0 typ in
   env, typ, point
 ;;
 
@@ -498,9 +498,9 @@ let get_arity (env: env) (point: point): int =
 
 let rec get_kind_for_type env t =
   match t with
-  | TyVar _ ->
+  | TyBound _ ->
       Log.error "No free variables"
-  | TyPoint p ->
+  | TyRigid p ->
       get_kind env p
 
   | TyForall ((binding, _), t)
@@ -542,7 +542,7 @@ let get_variance (env: env) (point: point): variance list =
 
 let def_for_datacon (env: env) (datacon: resolved_datacon): SurfaceSyntax.data_type_flag * data_type_def * adopts_clause=
   match datacon with
-  | TyPoint point, _ ->
+  | TyRigid point, _ ->
       let def, _ = Option.extract (get_definition env point) in
       Option.extract def
   | t, _ ->
@@ -587,7 +587,7 @@ let instantiate_flexible env p t =
     !internal_pnames (env, get_names env p)
     !internal_ptype (env, t);
   match t with
-  | TyPoint p' ->
+  | TyRigid p' ->
       merge_left env p' p
   | _ ->
       { env with state =
@@ -623,7 +623,7 @@ let find_and_instantiate_branch
   in
   let dc, fields = instantiate_branch branch args in
   let clause = instantiate_adopts_clause (get_adopts_clause env point) args in
-  (TyPoint point, dc), fields, clause
+  (TyRigid point, dc), fields, clause
 ;;
 
 (* Misc. *)
@@ -647,15 +647,15 @@ let point_by_name (env: env) ?(mname: Module.name option) (name: Variable.name):
 let find_type_by_name env ?mname name =
   let name = Variable.register name in
   let mname = Option.map Module.register mname in
-  TyPoint (point_by_name env ?mname name)
+  TyRigid (point_by_name env ?mname name)
 ;;
 
 let is_tyapp = function
-  | TyPoint p ->
+  | TyRigid p ->
       Some (p, [])
   | TyApp (p, args) ->
       Some ((match p with
-        | TyPoint p ->
+        | TyRigid p ->
             p
         | _ ->
             assert false), args)
@@ -684,8 +684,8 @@ let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_bra
   let arity = get_arity_for_kind kind in
   let branches, clause = Hml_List.fold_lefti (fun i (branches, clause) point ->
     let index = arity - i - 1 in
-    let branches = List.map (tsubst_data_type_def_branch (TyPoint point) index) branches in
-    let clause = Option.map (tsubst (TyPoint point) index) clause in
+    let branches = List.map (tsubst_data_type_def_branch (TyRigid point) index) branches in
+    let clause = Option.map (tsubst (TyRigid point) index) clause in
     branches, clause
   ) (branches, clause) points in
   env, points, branches, clause
@@ -698,7 +698,7 @@ let expand_if_one_branch (env: env) (t: typ) =
       | Some (Some (_, [branch], clause), _) ->
           let dc, fields = instantiate_branch branch args in
           let clause = instantiate_adopts_clause clause args in
-          TyConcreteUnfolded ((TyPoint cons, dc), fields, clause)
+          TyConcreteUnfolded ((TyRigid cons, dc), fields, clause)
       | _ ->
         t
       end
@@ -841,15 +841,15 @@ module TypePrinter = struct
     | TyDynamic ->
         string "dynamic"
 
-    | TyPoint point ->
+    | TyRigid point ->
         print_point env point
 
-    | TyVar i ->
+    | TyBound i ->
         int i
         (* Log.error "All variables should've been bound at this stage" *)
 
       (* Special-casing *)
-    | TyAnchoredPermission (TyPoint p, TySingleton (TyPoint p')) ->
+    | TyAnchoredPermission (TyRigid p, TySingleton (TyRigid p')) ->
         let star = if is_flexible env p then star else empty in
         let star' = if is_flexible env p' then star else empty in
         print_names env (get_names env p) ^^ star ^^ space ^^ equals ^^ space ^^
@@ -1048,7 +1048,7 @@ module TypePrinter = struct
 
   let print_permission_list (env, { permissions; _ }): document =
     (* let permissions = List.filter (function
-      TySingleton (TyPoint _) -> false | _ -> true
+      TySingleton (TyRigid _) -> false | _ -> true
     ) permissions in *)
     if List.length permissions > 0 then
       let permissions = List.map (print_type env) permissions in

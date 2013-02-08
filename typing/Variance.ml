@@ -89,11 +89,11 @@ let variance env var_for_ith valuation b t =
   let rec var = function
     | TyUnknown
     | TyDynamic
-    | TyVar _
+    | TyBound _
     | TyEmpty ->
         Bivariant
 
-    | TyPoint a ->
+    | TyRigid a ->
         if same env a b then
           Covariant
         else

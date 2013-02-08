@@ -27,10 +27,10 @@ let has_flexible env t =
     match t with
     | TyUnknown
     | TyDynamic
-    | TyVar _ ->
+    | TyBound _ ->
         false
 
-    | TyPoint p ->
+    | TyRigid p ->
         if is_flexible env p then
           true
         else
@@ -91,10 +91,10 @@ let find_flexible env t =
     match t with
     | TyUnknown
     | TyDynamic
-    | TyVar _ ->
+    | TyBound _ ->
         []
 
-    | TyPoint p ->
+    | TyRigid p ->
         if is_flexible env p then
           [p]
         else
@@ -163,6 +163,6 @@ let generalize env t =
   List.fold_right (fun p t ->
     let x = fresh_auto_var "/g" in
     let k = get_kind env p in
-    TyForall (((x, k, env.location), CanInstantiate), tpsubst env (TyVar 0) p t)
+    TyForall (((x, k, env.location), CanInstantiate), tpsubst env (TyBound 0) p t)
   ) flexible t
 ;;

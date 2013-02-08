@@ -68,9 +68,9 @@ let resolve_datacon
     let _, origin = List.find (fun (dc, _) -> qualified_equals datacon dc) kenv.known_datacons in
     begin match origin with
     | InAnotherModule (p, info) ->
-        info, (T.TyPoint p, unqualify datacon)
+        info, (T.TyRigid p, unqualify datacon)
     | InCurrentModule (level, info) ->
-        info, (T.TyVar (kenv.level - level - 1), unqualify datacon)
+        info, (T.TyBound (kenv.level - level - 1), unqualify datacon)
     end
   with Not_found ->
     raise_error kenv (UnboundDataConstructor (unqualify datacon))
@@ -200,12 +200,12 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
 
     | TyConsumes t ->
         let name = fresh_var "/c" in
-        let perm = TyAnchoredPermission (TyVar name, t) in
+        let perm = TyAnchoredPermission (TyBound name, t) in
         ty_equals name, [Some name, perm, env.location]
 
     | TyUnknown
     | TyDynamic
-    | TyVar _
+    | TyBound _
     | TyQualified _
     | TySingleton _
     (* These are opaque, no consumes annotations inside of these. *)
@@ -252,12 +252,12 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyEmpty ->
       T.TyEmpty
 
-  | TyVar x ->
+  | TyBound x ->
       let _, index = find x env in
       tvar index
 
   | TyQualified (mname, x) ->
-      T.TyPoint (T.point_by_name env.env ~mname x)
+      T.TyRigid (T.point_by_name env.env ~mname x)
 
   | TyConcreteUnfolded (dref, fields) ->
       (* Performs a side-effect! *)
@@ -307,7 +307,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
       let constraints = List.map (fun (f, t) -> f, translate_type env t) constraints in
       List.iter (fun (_, t) ->
         match t with
-        | T.TyVar _ ->
+        | T.TyBound _ ->
             ()
         | _ ->
             Log.error "We support mode constraints only on type variables"
@@ -318,7 +318,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
       let constraints = List.map (fun (f, t) -> f, translate_type env t) constraints in
       List.iter (fun (_, t) ->
         match t with
-        | T.TyVar _ ->
+        | T.TyBound _ ->
             ()
         | _ ->
             Log.error "We support mode constraints only on type variables"
@@ -394,7 +394,7 @@ and translate_arrow_type env t1 t2 =
    * now devoid of any consumes annotations. *)
   let fat_t1 = TyBar (
     ty_equals root,
-    fold_star (TyAnchoredPermission (TyVar root, t1) :: perms)
+    fold_star (TyAnchoredPermission (TyBound root, t1) :: perms)
   ) in
 
   (* So that we don't mess up, we use unique names in the surface syntax and
@@ -419,7 +419,7 @@ and translate_arrow_type env t1 t2 =
    * [strip_consumes]. *)
   let t2 = TyBar (
     t2,
-    TyAnchoredPermission (TyVar root, t1)
+    TyAnchoredPermission (TyBound root, t1)
   ) in
   let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env t2_bindings in
 
@@ -448,7 +448,7 @@ let translate_abstract_fact (params: Variable.name list) (fact: abstract_fact op
       (* [KindCheck] already made sure these are just names _and_ they're valid. *)
       let names = List.map (fun t ->
         match tunloc t with
-        | TyVar name -> name
+        | TyBound name -> name
         | _ -> assert false
       ) ts in
       let arity = List.length params in
@@ -755,7 +755,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
               ESequence (
                 EAssert (
                   TyAnchoredPermission (
-                    TyVar (Option.extract name),
+                    TyBound (Option.extract name),
                     annotation
                   )
                 ),

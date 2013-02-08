@@ -67,10 +67,10 @@ type typ =
   | TyUnknown
   | TyDynamic
 
-    (* We adopt a locally nameless style. Local names are [TyVar]s, global
-     * names are [TyPoint]s *)
-  | TyVar of index
-  | TyPoint of point
+    (* We adopt a locally nameless style. Local names are [TyBound]s, global
+     * names are [TyRigid]s and [TyFlexible] *)
+  | TyBound of index
+  | TyRigid of point
 
     (* Quantification and type application. *)
   | TyForall of (type_binding * flavor) * typ
@@ -157,7 +157,7 @@ type permissions = typ list
 
 (** This is the environment that we use throughout HaMLeT. *)
 type env = {
-  (* This maps global names (i.e. [TyPoint]s) to their corresponding binding. *)
+  (* This maps global names (i.e. [TyRigid]s) to their corresponding binding. *)
   state: binding PersistentUnionFind.state;
 
   (* A mark that is used during various traversals of the [state]. *)

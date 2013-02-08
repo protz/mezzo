@@ -25,7 +25,7 @@ let bind_group_in (points: point list) subst_func_for_thing thing =
   let thing =
     Hml_List.fold_lefti (fun level thing point ->
       let index = total_number_of_data_types - level - 1 in
-      subst_func_for_thing (TyPoint point) index thing
+      subst_func_for_thing (TyRigid point) index thing
     ) thing points
   in
   thing

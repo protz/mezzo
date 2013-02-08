@@ -298,7 +298,7 @@ raw_atomic_type:
     { TyEmpty }
 (* Term variable, type variable, permission variable, abstract type, or concrete type. *)
 | x = variable
-    { TyVar x }
+    { TyBound x }
 (* A variable just like above, prefixed with a module name. *)
 | m = module_name COLONCOLON x = variable
     { TyQualified (m, x) }
@@ -316,7 +316,7 @@ raw_tight_type:
     { ty }
 (* A singleton type. *)
 | EQUAL x = variable
-    { TySingleton (TyVar x) }
+    { TySingleton (TyBound x) }
 (* A type application. *)
 | ty = type_type_application(tight_type, atomic_type)
     { ty }
@@ -349,10 +349,10 @@ raw_loose_type:
    represents an assertion that we have permission to use [x] at
    type [t]. *)
 | x = variable AT ty = normal_type
-    { TyAnchoredPermission (TyVar x, ty) }
+    { TyAnchoredPermission (TyBound x, ty) }
 (* [x = y] is also an anchored permission; it is sugar for [x@=y]. *)
 | x = variable EQUAL y = variable
-    { TyAnchoredPermission (TyVar x, TySingleton (TyVar y)) }
+    { TyAnchoredPermission (TyBound x, TySingleton (TyBound y)) }
 (* In a name introduction form [x:t], the name [x] is bound. The scope
    of [x] is defined by somewhat subtle rules that need not concern us
    here. These rules are spelled out later on when we desugar the surface-level
@@ -481,12 +481,12 @@ data_field_def:
    only one field name is allowed. This short-hand is useful in the syntax
    of structural permissions. *)
 | f = variable EQUAL y = variable
-    { [ FieldValue (f, TySingleton (TyVar y)) ] }
+    { [ FieldValue (f, TySingleton (TyBound y)) ] }
 (* Going one step further, we allow a field definition to consist of just
    a field name [f]. This is a pun: it means [f = f], or in other words,
    [f: =f]. *)
 | f = variable
-    { [ FieldValue (f, TySingleton (TyVar f)) ] }
+    { [ FieldValue (f, TySingleton (TyBound f)) ] }
 
 (* Field definitions are semicolon-separated or -terminated. *)
 

@@ -260,12 +260,12 @@ let tests: (string * ((unit -> env) -> unit)) list = [
       TyBar (
         ty_equals v2,
         TyStar (
-          TyAnchoredPermission (TyPoint v2,
+          TyAnchoredPermission (TyRigid v2,
             TyConcreteUnfolded (dc env "u" "U",
-              [FieldValue (Field.register "left", TySingleton (TyVar 0));
-               FieldValue (Field.register "right", TySingleton (TyVar 0))], ty_bottom)),
+              [FieldValue (Field.register "left", TySingleton (TyBound 0));
+               FieldValue (Field.register "right", TySingleton (TyBound 0))], ty_bottom)),
           TyAnchoredPermission (
-            TyVar 0,
+            TyBound 0,
             TyConcreteUnfolded (dc env "t" "T", [], ty_bottom)
           )
         )
@@ -281,17 +281,17 @@ let tests: (string * ((unit -> env) -> unit)) list = [
         TyBar (
           ty_equals v3,
           fold_star [
-            TyAnchoredPermission (TyPoint v3,
+            TyAnchoredPermission (TyRigid v3,
               TyConcreteUnfolded (dc env "u" "U",
-                [FieldValue (Field.register "left", TySingleton (TyVar 0));
-                 FieldValue (Field.register "right", TySingleton (TyVar 1))],
+                [FieldValue (Field.register "left", TySingleton (TyBound 0));
+                 FieldValue (Field.register "right", TySingleton (TyBound 1))],
                  ty_bottom));
             TyAnchoredPermission (
-              TyVar 0,
+              TyBound 0,
               TyConcreteUnfolded (dc env "t" "T", [], ty_bottom)
             );
             TyAnchoredPermission (
-              TyVar 1,
+              TyBound 1,
               TyConcreteUnfolded (dc env "t" "T", [], ty_bottom)
             );
           ]
@@ -321,7 +321,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let v = find_type_by_name env "v" in
     let int = find_type_by_name env ~mname:"int" "int" in
     let t = TyForall (dummy_binding KType,
-      TyApp (v, [int; TyVar 0])
+      TyApp (v, [int; TyBound 0])
     )
     in
     check env v6 t);
@@ -332,7 +332,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let v = find_type_by_name env "v" in
     let t = TyForall (dummy_binding KType,
       TyForall (dummy_binding KType,
-        TyApp (v, [TyVar 1; TyVar 0])
+        TyApp (v, [TyBound 1; TyBound 0])
       ))
     in
     check env v7 t);
@@ -342,7 +342,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let v8 = point_by_name env "v8" in
     let v = find_type_by_name env "v" in
     let t = TyForall (dummy_binding KType,
-        TyApp (v, [TyVar 0; TyVar 0])
+        TyApp (v, [TyBound 0; TyBound 0])
       )
     in
     check env v8 t);
@@ -380,8 +380,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
      * procedure? ... *)
     let t = TyForall (dummy_binding KTerm, TyArrow (
       TyBar (
-        TySingleton (TyVar 0),
-        TyAnchoredPermission (TyVar 0, int)
+        TySingleton (TyBound 0),
+        TyAnchoredPermission (TyBound 0, int)
       ), int))
     in
     check env v12 t);
@@ -403,8 +403,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let t = find_type_by_name env "t" in
     (* Look at how fancy we used to be when we had singleton-subtyping! *)
     (* let t = TyExists (edummy_binding KTerm, TyBar (
-      TyApp (t, [TySingleton (TyVar 0)]),
-      TyAnchoredPermission (TyVar 0, int)
+      TyApp (t, [TySingleton (TyBound 0)]),
+      TyAnchoredPermission (TyBound 0, int)
     )) in *)
     let t = TyApp (t, [int]) in
     check env v14 t);
@@ -423,7 +423,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let y = point_by_name env "y" in
     let z = point_by_name env "z" in
     let u = find_type_by_name env "u" in
-    let t = TyForall (dummy_binding KType, TyApp (u, [TyVar 0])) in
+    let t = TyForall (dummy_binding KType, TyApp (u, [TyBound 0])) in
     check env x t;
     check env y t;
     check env z t;
@@ -588,7 +588,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let x = point_by_name env "x" in
     let list = find_type_by_name env "list" in
     let t = TyForall (dummy_binding KType,
-      TyApp (list, [TyVar 0])
+      TyApp (list, [TyBound 0])
     ) in
     check env x t);
 

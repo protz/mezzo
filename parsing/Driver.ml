@@ -449,7 +449,7 @@ let print_signature (buf: Buffer.t) (env: Types.env): unit =
     match perm with
     | TyUnknown ->
         false
-    | TySingleton (TyPoint point') when same env point point' ->
+    | TySingleton (TyRigid point') when same env point point' ->
         false
     | _ ->
         true

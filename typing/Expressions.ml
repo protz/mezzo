@@ -585,11 +585,11 @@ let rec esubst_toplevel_items e2 i toplevel_items =
  * as possible, they return a [substitution_kit], that is, a set of functions
  * that will substitute all bounds variables with the corresponding points. *)
 type substitution_kit = {
-  (* substitute [TyVar]s for [TyPoint]s in a [typ]. *)
+  (* substitute [TyBound]s for [TyRigid]s in a [typ]. *)
   subst_type: typ -> typ;
-  (* substitute [TyVar]s for [TyPoint]s, [EVar]s for [EPoint]s in an [expression]. *)
+  (* substitute [TyBound]s for [TyRigid]s, [EVar]s for [EPoint]s in an [expression]. *)
   subst_expr: expression -> expression;
-  (* substitute [TyVar]s for [TyPoint]s, [EVar]s for [EPoint]s in an [expression]. *)
+  (* substitute [TyBound]s for [TyRigid]s, [EVar]s for [EPoint]s in an [expression]. *)
   subst_decl: declaration list -> declaration list;
   (* substitute [PVar]s for [PPoint]s in a pattern *)
   subst_pat: pattern list -> pattern list;
@@ -626,16 +626,16 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
     ) (env, []) bindings
   in
   let subst_type t =
-    Hml_List.fold_lefti (fun i t point -> tsubst (TyPoint point) i t) t points
+    Hml_List.fold_lefti (fun i t point -> tsubst (TyRigid point) i t) t points
   in
   let subst_expr t =
     Hml_List.fold_lefti (fun i t point ->
-      let t = tsubst_expr (TyPoint point) i t in
+      let t = tsubst_expr (TyRigid point) i t in
       esubst (EPoint point) i t) t points
   in
   let subst_decl t =
     Hml_List.fold_lefti (fun i t point ->
-      let t = tsubst_decl (TyPoint point) i t in
+      let t = tsubst_decl (TyRigid point) i t in
       esubst_decl (EPoint point) i t) t points
   in
   (* Now keep the list in order. *)

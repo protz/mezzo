@@ -42,17 +42,17 @@ let clean top sub t =
     | TyUnknown
     | TyDynamic
     | TyEmpty
-    | TyVar _ ->
+    | TyBound _ ->
         t
 
-    | TyPoint p ->
+    | TyRigid p ->
         begin match structure sub p with
         | Some t ->
             clean t
         | None ->
             let p = repr sub p in
             if valid top p then
-              TyPoint p
+              TyRigid p
             else
               raise UnboundPoint
         end
@@ -119,10 +119,10 @@ and equal env (t1: typ) (t2: typ) =
     | TyDynamic, TyDynamic ->
         true
 
-    | TyVar i, TyVar i' ->
+    | TyBound i, TyBound i' ->
         i = i'
 
-    | TyPoint p1, TyPoint p2 ->
+    | TyRigid p1, TyRigid p2 ->
         if not (valid env p1) || not (valid env p2) then
           raise UnboundPoint;
 
@@ -197,13 +197,13 @@ let lift (k: int) (t: typ) =
     | TyDynamic ->
         t
 
-    | TyVar j ->
+    | TyBound j ->
         if j < i then
-          TyVar j
+          TyBound j
         else
-          TyVar (j + k)
+          TyBound (j + k)
 
-    | TyPoint _ ->
+    | TyRigid _ ->
         t
 
     | TyForall (binder, t) ->
@@ -270,8 +270,8 @@ let lift_data_type_def_branch k branch =
 ;;
 
 (* Substitute [t2] for [i] in [t1]. This function is easy because [t2] is
- * expected not to have any free [TyVar]s: they've all been converted to
- * [TyPoint]s. Therefore, [t2] will *not* be lifted when substituted for [i] in
+ * expected not to have any free [TyBound]s: they've all been converted to
+ * [TyRigid]s. Therefore, [t2] will *not* be lifted when substituted for [i] in
  * [t1]. *)
 let tsubst (t2: typ) (i: int) (t1: typ) =
   let rec tsubst t2 i t1 =
@@ -281,13 +281,13 @@ let tsubst (t2: typ) (i: int) (t1: typ) =
     | TyDynamic ->
         t1
 
-    | TyVar j ->
+    | TyBound j ->
         if j = i then
           t2
         else
-          TyVar j
+          TyBound j
 
-    | TyPoint _ ->
+    | TyRigid _ ->
         t1
 
     | TyForall (binder, t) ->
@@ -373,7 +373,7 @@ let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_typ
          * parameters to reach the typed defined at [i]. *)
         let index = i + arity in
 
-        (* Replace each TyVar with the corresponding TyPoint, for all branches. *)
+        (* Replace each TyBound with the corresponding TyRigid, for all branches. *)
         let branches = List.map (tsubst_data_type_def_branch t2 index) branches in
 
         (* Do the same for the clause *)
@@ -393,10 +393,10 @@ let tpsubst env (t2: typ) (p: point) (t1: typ) =
       (* Special type constants. *)
     | TyUnknown
     | TyDynamic
-    | TyVar _ ->
+    | TyBound _ ->
         t1
 
-    | TyPoint p' ->
+    | TyRigid p' ->
         if same env p p' then
           t2
         else

@@ -31,7 +31,7 @@ let tuple l =
 ;;
 
 let point x =
-  TyPoint x
+  TyRigid x
 ;;
 
 let points_to x =
@@ -47,11 +47,11 @@ let forall (x, k) t =
 ;;
 
 let var x =
-  TyVar x
+  TyBound x
 ;;
 
 let dc env x y =
-  TyPoint (point_by_name env (Variable.register x)), Datacon.register y
+  TyRigid (point_by_name env (Variable.register x)), Datacon.register y
 ;;
 
 (* This is right-associative, so you can write [list int @-> int @-> tuple []] *)
