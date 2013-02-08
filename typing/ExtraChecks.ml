@@ -31,7 +31,7 @@ let check_adopts_clauses (env: env): unit =
         let env, points = make_datacon_letters env kind false (fun _ -> Affine) in
         let clause = Hml_List.fold_lefti (fun i clause point ->
           let index = arity - i - 1 in
-          tsubst (TyRigid point) index clause
+          tsubst (TyOpen point) index clause
         ) clause points in
         if not (FactInference.is_exclusive env clause) then
           raise_error env (

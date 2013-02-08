@@ -83,7 +83,7 @@ let rec fold_point (env: env) (point: point): (env * typ) option =
   let perms = get_permissions env point in
   let perms = List.filter
     (function
-      | TySingleton (TyRigid p) when same env p point ->
+      | TySingleton (TyOpen p) when same env p point ->
           false
       | TyUnknown ->
           false
@@ -119,7 +119,7 @@ and fold_type_raw (env: env) (t: typ): env * typ =
   | TyBound _ ->
       Log.error "All types should've been opened at that stage"
 
-  | TyRigid _ ->
+  | TyOpen _ ->
       env, t
 
   | TyForall _
@@ -127,7 +127,7 @@ and fold_type_raw (env: env) (t: typ): env * typ =
   | TyApp _ ->
       env, t
 
-  | TySingleton (TyRigid p) ->
+  | TySingleton (TyOpen p) ->
       begin match fold_point env p with
       | Some t ->
           t

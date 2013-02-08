@@ -68,7 +68,7 @@ let resolve_datacon
     let _, origin = List.find (fun (dc, _) -> qualified_equals datacon dc) kenv.known_datacons in
     begin match origin with
     | InAnotherModule (p, info) ->
-        info, (T.TyRigid p, unqualify datacon)
+        info, (T.TyOpen p, unqualify datacon)
     | InCurrentModule (level, info) ->
         info, (T.TyBound (kenv.level - level - 1), unqualify datacon)
     end
@@ -257,7 +257,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
       tvar index
 
   | TyQualified (mname, x) ->
-      T.TyRigid (T.point_by_name env.env ~mname x)
+      T.TyOpen (T.point_by_name env.env ~mname x)
 
   | TyConcreteUnfolded (dref, fields) ->
       (* Performs a side-effect! *)

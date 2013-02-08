@@ -48,7 +48,7 @@ type level =
  * are already valid in the environment (think of these as binders that have
  * been opened already). Otherwise, it's a bound variable. *)
 type var = Var of level | Point of Types.point
-let tvar = function Var x -> T.TyBound x | Point x -> T.TyRigid x;;
+let tvar = function Var x -> T.TyBound x | Point x -> T.TyOpen x;;
 let evar = function Var x -> E.EVar x | Point x -> E.EPoint x;;
 
 type datacon_origin =

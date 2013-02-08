@@ -30,7 +30,7 @@ let has_flexible env t =
     | TyBound _ ->
         false
 
-    | TyRigid p ->
+    | TyOpen p ->
         if is_flexible env p then
           true
         else
@@ -94,7 +94,7 @@ let find_flexible env t =
     | TyBound _ ->
         []
 
-    | TyRigid p ->
+    | TyOpen p ->
         if is_flexible env p then
           [p]
         else

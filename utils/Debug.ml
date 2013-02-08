@@ -41,14 +41,14 @@ module Graph = struct
 
     (* Get a meaningful type. *)
     let t =
-      try List.find (function TySingleton (TyRigid _) -> false | _ -> true) permissions
+      try List.find (function TySingleton (TyOpen _) -> false | _ -> true) permissions
       with _ -> TyUnknown
     in
 
     let gen env name t =
       let p' =
         match t with
-        | TySingleton (TyRigid p') -> p'
+        | TySingleton (TyOpen p') -> p'
         | _ -> Log.error "Need [unfold]"
       in
       let block = Printf.sprintf "<%s>%s" name name in
@@ -146,7 +146,7 @@ module Graph = struct
   let write_simple_graph buf (env, root) =
     write_intro buf;
     let env = refresh_mark env in
-    let env = TypeOps.mark_reachable env (TyRigid root) in
+    let env = TypeOps.mark_reachable env (TyOpen root) in
     fold_terms env (fun () point _head { permissions; _ } ->
       if is_marked env point then
         draw_point buf env point permissions

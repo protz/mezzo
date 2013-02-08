@@ -37,7 +37,7 @@ let import_interface (env: T.env) (items: E.interface): T.env =
         let env, p = bind_var env binding in
         (* [add] takes care of simplifying any function type. *)
         let env = Permissions.add env p typ in
-        let items = tsubst_toplevel_items (TyRigid p) 0 items in
+        let items = tsubst_toplevel_items (TyOpen p) 0 items in
         let items = esubst_toplevel_items (EPoint p) 0 items in
         import_items env items
 

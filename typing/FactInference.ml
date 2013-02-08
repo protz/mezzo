@@ -64,7 +64,7 @@ let duplicables
     | TyBound _ ->
         Log.error "There should be no free variables here."
 
-    | TyRigid point ->
+    | TyOpen point ->
         begin match structure env point with
         | Some t' ->
             follows_exclusive env t' t
@@ -166,7 +166,7 @@ let duplicables
 
     | TyAnchoredPermission (x, t') ->
         begin match x with
-        | TyRigid p ->
+        | TyOpen p ->
             Log.check (is_term env p) "Malformed term %a"
               TypePrinter.ptype (env, t)
         | _ ->

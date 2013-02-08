@@ -33,7 +33,7 @@ let collect (t: typ): typ * typ list =
     | TyDynamic
 
     | TyBound _
-    | TyRigid _
+    | TyOpen _
 
     | TyForall _
     | TyExists _
@@ -132,7 +132,7 @@ let simplify_function_type env t body =
         t, None
 
     | TyBound _
-    | TyRigid _ ->
+    | TyOpen _ ->
         t, None
 
     | TyExists _ ->
@@ -224,7 +224,7 @@ let simplify_function_type env t body =
          * operation; other permissions are kept. *)
         let env, perms = List.fold_left (fun (env, perms) perm ->
           match perm with
-          | TyAnchoredPermission (TyRigid p, TySingleton (TyRigid p')) ->
+          | TyAnchoredPermission (TyOpen p, TySingleton (TyOpen p')) ->
               if suitable p && suitable p' then
                 let env = merge_left env p p' in
                 (env, perms)
@@ -261,7 +261,7 @@ let simplify_function_type env t body =
           let perms = List.map (fun t -> fst (find env t None)) perms in
           (* If there are equalities, only keep the meaningful ones. *)
           let perms = List.filter (function
-            | TyAnchoredPermission (TyRigid p, TySingleton (TyRigid p')) ->
+            | TyAnchoredPermission (TyOpen p, TySingleton (TyOpen p')) ->
                 not (same env p p')
             | _ ->
                 true
@@ -350,7 +350,7 @@ let rec mark_reachable env = function
   | TyBound _ ->
       env
 
-  | TyRigid p ->
+  | TyOpen p ->
       if is_marked env p then
         env
       else

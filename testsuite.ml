@@ -260,7 +260,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
       TyBar (
         ty_equals v2,
         TyStar (
-          TyAnchoredPermission (TyRigid v2,
+          TyAnchoredPermission (TyOpen v2,
             TyConcreteUnfolded (dc env "u" "U",
               [FieldValue (Field.register "left", TySingleton (TyBound 0));
                FieldValue (Field.register "right", TySingleton (TyBound 0))], ty_bottom)),
@@ -281,7 +281,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
         TyBar (
           ty_equals v3,
           fold_star [
-            TyAnchoredPermission (TyRigid v3,
+            TyAnchoredPermission (TyOpen v3,
               TyConcreteUnfolded (dc env "u" "U",
                 [FieldValue (Field.register "left", TySingleton (TyBound 0));
                  FieldValue (Field.register "right", TySingleton (TyBound 1))],

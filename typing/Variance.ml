@@ -93,7 +93,7 @@ let variance env var_for_ith valuation b t =
     | TyEmpty ->
         Bivariant
 
-    | TyRigid a ->
+    | TyOpen a ->
         if same env a b then
           Covariant
         else

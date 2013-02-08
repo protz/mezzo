@@ -30,6 +30,9 @@ type index =
 type point =
   PersistentUnionFind.point
 
+type list_index =
+  int
+
 type kind = SurfaceSyntax.kind = 
   | KTerm
   | KType
@@ -68,9 +71,9 @@ type typ =
   | TyDynamic
 
     (* We adopt a locally nameless style. Local names are [TyBound]s, global
-     * names are [TyRigid]s and [TyFlexible] *)
+     * names are [TyOpen]. *)
   | TyBound of index
-  | TyRigid of point
+  | TyOpen of var
 
     (* Quantification and type application. *)
   | TyForall of (type_binding * flavor) * typ
@@ -100,6 +103,10 @@ type typ =
     (* Constraint *)
   | TyAnd of duplicity_constraint list * typ
   | TyImply of duplicity_constraint list * typ
+
+and var =
+  | VRigid of point
+  | VFlexible of list_index
 
 (* Since data constructors are now properly scoped, they are resolved, that is,
  * they are either attached to a point, or a De Bruijn index, which will later
@@ -151,13 +158,15 @@ and fact = Exclusive | Duplicable of bitmap | Affine | Fuzzy of int
   * it has to be duplicable for the type to be duplicable. *)
 and bitmap = bool array
 
-type structure = Rigid | Flexible of typ option
+type binding_type = Rigid | Flexible
 
 type permissions = typ list
 
+type level = int
+
 (** This is the environment that we use throughout HaMLeT. *)
 type env = {
-  (* This maps global names (i.e. [TyRigid]s) to their corresponding binding. *)
+  (* This maps global names (i.e. [TyOpen]s) to their corresponding binding. *)
   state: binding PersistentUnionFind.state;
 
   (* A mark that is used during various traversals of the [state]. *)
@@ -180,18 +189,36 @@ type env = {
    * variable. They're not attached to any point in particular, so we keep a
    * list of them here. *)
   floating_permissions: typ list;
+
+  (* We need to bump the level when introducing a rigid binding after a flexible
+   * one. *)
+  last_binding: binding_type;
+
+  (* We also need to store the current level. *)
+  current_level: level;
+
+  (* The list of flexible bindings. *)
+  flexible: flex_descr list;
 }
 
-and binding =
-  binding_head * raw_binding
+and flex_descr = {
+  (* If a flexible variable is not instanciated, it has a descriptor. When it
+   * becomes instantiated, it loses its descriptor and gains the information
+   * from another type. We have the invariant that importants properties about
+   * the variable (fact, level, kind) are "better" after it lost its descriptor
+   * (more precise fact, lower level, equal kind). *)
+  structure: structure;
+}
 
-and binding_head = {
+and structure = NotInstantiated of var_descr | Instantiated of typ
+
+and binding = var_descr * extra_descr
+
+(** This contains all sorts of useful information about a type variable. *)
+and var_descr = {
   (* This information is only for printing and debugging. *)
   names: name list;
   locations: location list;
-
-  (* Is this a flexible variable, and has it been unified with something? *)
-  structure: structure;
 
   (* The kind of this variable. If kind is KTerm, then the [raw_binding] is a
    * [term_binder]. *)
@@ -200,23 +227,22 @@ and binding_head = {
   (* For some passes, we need to mark points as visited. This module provides a
    * set of functions to deal with marks. *)
   binding_mark: Mark.t;
+
+  (* Associated fact. Variables with kind type have an associated fact; others
+   * don't. *)
+  fact: fact option;
+
+  (* Associated level. *)
+  level: level;
 }
 
-and raw_binding =
-  BType of type_binder | BTerm of term_binder
+and extra_descr = TypeDef of type_descr | Term of term_descr
 
-and type_binder = {
-  (* Definition: if it's a variable, there's no definition for it. If it's a
-   * data type definition, we at least know the variance of its parameters. If
-   * the type is concrete (e.g. [list]) there's a flag and branches, otherwise
-   * it's abstract and we don't have any more information. *)
-  definition: type_def option;
-
-  (* Associated fact. *)
-  fact: fact;
+and type_descr = {
+  definition: type_def;
 }
 
-and term_binder = {
+and term_descr = {
   (* A list of available permissions for that identifier. *)
   permissions: permissions;
 
@@ -246,6 +272,9 @@ let empty_env = {
   inconsistent = false;
   module_name = Module.register "<none>";
   floating_permissions = [];
+  last_binding = Rigid;
+  current_level = 0;
+  flexible = [];
 }
 
 let locate env location =
