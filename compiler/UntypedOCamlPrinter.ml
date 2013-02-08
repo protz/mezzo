@@ -5,6 +5,42 @@ open UntypedOCaml
 
 (* ---------------------------------------------------------------------------- *)
 
+(* The distinction between ordinary variables and (prefix or infix) operators is
+   discarded by the Mezzo parser. We reconstruct it here, so as to print operators
+   in a way that OCaml understands. *)
+
+let is_operator (x : string) : bool =
+  match x with
+  | ":="
+    -> true
+  | _ ->
+    assert (String.length x > 0);
+    match x.[0] with
+    | '!'
+    | '~'
+    | '?'
+    | '|'
+    | '&'
+    | '='
+    | '<'
+    | '>'
+    | '$'
+    | '@'
+    | '^'
+    | '+'
+    | '-'
+    | '*'
+    | '/'
+    | '%'
+      -> true
+    | _
+      -> false
+
+let var x =
+  if is_operator x then parens (utf8string x) else utf8string x
+
+(* ---------------------------------------------------------------------------- *)
+
 (* Tuples and records. *)
 
 let tuple print components =
@@ -28,7 +64,7 @@ let record print fields =
 let rec atomic_pattern (p : pattern) : document =
   match p with
   | PVar x ->
-      utf8string x
+      var x
   | PAny ->
       underscore
   | PTuple [ p ] ->
@@ -55,7 +91,7 @@ and normal_pattern p =
 
 and dangerous_pattern = function
   | PAs (p, x) ->
-      group (dangerous_pattern p ^/^ string "as " ^^ utf8string x)
+      group (dangerous_pattern p ^/^ string "as " ^^ var x)
   | p ->
       normal_pattern p
 
@@ -73,9 +109,7 @@ and pattern p =
 let rec atomic_expression (e : expression) : document =
   match e with
   | EVar x ->
-      utf8string x
-  | EInfixVar x ->
-      parens (utf8string x)
+      var x
   | ETuple [ e ] ->
       atomic_expression e
   | ETuple es ->
@@ -123,8 +157,6 @@ and prefix_application arguments = function
       prefix_application (e :: arguments) (EVar "Obj.tag")
   | EMagic e ->
       prefix_application (e :: arguments) (EVar "Obj.magic")
-  | ERepr e ->
-      prefix_application (e :: arguments) (EVar "Obj.repr")
   | head ->
       group (
 	atomic_expression head ^^ nest 2 (
@@ -132,22 +164,12 @@ and prefix_application arguments = function
 	)
       )
 
-(* Infix applications. *)
-
-and infix_application = function
-  | EApply (EApply (EInfixVar op, e1), e2) ->
-      group (
-        prefix_application [] e1 ^/^ string op ^/^ prefix_application [] e2
-      )
-  | e ->
-      prefix_application [] e
-
 (* A normal expression can be a tuple or record component, i.e., it binds
    tighter than a comma or semicolon. At this level, we find function
    applications. *)
 
 and normal_expression e =
-  infix_application e
+  prefix_application [] e
 
 (* A sequence expression can appear as a component in a sequence, and can
    itself be a sequence, since the semicolon is associative. *)
@@ -188,8 +210,14 @@ and dangling_expression = function
 	  (string "then")
 	^^
 	nest 2 (break 1 ^^ normal_expression e1)
-	^/^ string "else" ^^
-	nest 2 (break 1 ^^ normal_expression e2)
+	^^
+	begin match e2 with
+	| ETuple [] ->
+	    empty
+	| _ ->
+	  break 1 ^^ string "else" ^^
+	  nest 2 (break 1 ^^ normal_expression e2)
+	end
       )
   | e ->
       sequence_expression e

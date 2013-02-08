@@ -228,7 +228,7 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
 	  (* then v1.adopter <- null *)
 	  (U.EAssign (v1, ParserUtils.mk_field adopter_field, U.ENull))
 	  (* else fail *)
-	  (U.EFail (Log.msg "%a\nA take instruction failed.\n" Lexer.p loc))
+	  (U.EFail (Log.msg "%aA take instruction failed.\n" Lexer.p loc))
       )))
 
   | EOwns (e2, e1) ->
@@ -239,7 +239,7 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       ))
 
   | EFail ->
-      k (U.EFail (Log.msg "%a\nA fail instruction was encountered.\n" Lexer.p loc))
+      k (U.EFail (Log.msg "%aA fail instruction was encountered.\n" Lexer.p loc))
 
 and reset_transl_equations loc equations =
   List.map (fun (p, e) ->

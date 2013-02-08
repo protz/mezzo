@@ -1,4 +1,4 @@
-.PHONY: all clean graph doc index report count
+.PHONY: all clean test graph doc index release report coverage count doc
 
 # The variables below should be determined by a configure script...
 # On my MacOS laptop, find does not understand -printf; gfind does. -fpottier
@@ -88,3 +88,4 @@ doc: graph
 
 count:
 	sloccount parsing typing utils viewer lib mezzo.ml
+

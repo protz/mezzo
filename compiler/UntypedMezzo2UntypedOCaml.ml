@@ -40,15 +40,19 @@ let sort_by_index ixs =
   ) ixs
 
 (* This function extracts the field index that was provided by the type-checker
-   at field access expressions (read and write). *)
+   at field access expressions (read and write). This index does not account
+   for the hidden adopter field, so we must add 1. *)
 
 let extract_field_index (f : field) : int =
-  match f.field_offset with
-  | Some index ->
-      index
-  | None ->
-      (* The field index has not been filled in by the type-checker!? *)
-      assert false
+  if Field.equal f.field_name Mezzo2UntypedMezzo.adopter_field then
+    0
+  else
+    match f.field_offset with
+    | Some index ->
+        1 + index
+    | None ->
+        (* The field index has not been filled in by the type-checker!? *)
+        assert false
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -60,6 +64,42 @@ let extract_field_index (f : field) : int =
 
 let print_datacon_reference dref =
   print_maybe_qualified Datacon.print dref.datacon_unresolved
+
+(* ---------------------------------------------------------------------------- *)
+
+(* A few smart constructors. *)
+
+(* As patterns. *)
+
+let pas p x =
+  match p with
+  | O.PAny ->
+      O.PVar x
+  | _ ->
+      O.PAs (p, x)
+
+(* Integer comparison in OCaml. *)
+
+let apply2 f x y =
+  O.EApply (O.EApply (f, x), y)
+
+let gt x y =
+  apply2 (O.EVar "Pervasives.(>)") x y
+
+(* Magic. *)
+
+let rec magic e =
+  match e with
+  | O.EMagic _ ->
+      (* Avoid two consecutive magics. *)
+      e
+  | O.EApply (e1, e2) ->
+      (* Push magic into the left-hand side of applications, where it is
+	 just as powerful. This will allow more redundancy elimination. *)
+      O.EApply (magic e1, e2)
+  | e ->
+      (* The default case. *)
+      O.EMagic e
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -111,7 +151,7 @@ let rec translate_pattern (p : pattern) : O.pattern =
   | PConstraint (p, _) ->
       translate_pattern p
   | PAs (p, x) ->
-      O.PAs (translate_pattern p, identifier (Variable.print x))
+      pas (translate_pattern p) (identifier (Variable.print x))
   | PAny ->
       O.PAny
 
@@ -129,24 +169,12 @@ and complete i arity ips =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Integer comparison in OCaml. *)
-
-let apply2 f x y =
-  O.EApply (O.EApply (f, x), y)
-
-let gt x y =
-  apply2 (O.EInfixVar ">") x y
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Expressions. *)
 
 (* We avoid using [Obj.field] and [Obj.set_field], when possible, because they
    are less efficient in terms of speed and code size. In particular, they seem
    to incorporate a check against the special tag 254, which represents an array
-   of values of type double. We prefer to cast the receiver to a record type and
-   use an OCaml record access expression. This forces us to translate very Mezzo
-   data constructor definition to an OCaml record type definition. *)
+   of values of type double. TEMPORARY not done yet *)
 
 let rec transl (e : expression) : O.expression =
   match e with
@@ -167,7 +195,7 @@ let rec transl (e : expression) : O.expression =
   | EFun (p, e) ->
       O.EFun (translate_pattern p, transl e)
   | EAssign (e1, f, e2) ->
-      O.ESetField (O.EMagic (transl e1), extract_field_index f, O.EMagic (transl e2))
+      O.ESetField (magic (transl e1), extract_field_index f, magic (transl e2))
   | EAssignTag (e, dref, info) ->
       (* We must use [Obj.set_tag]; there is no other way. *)
       (* As an optimization, if the old and new integer tags are equal,
@@ -181,11 +209,11 @@ let rec transl (e : expression) : O.expression =
 	let info = Option.extract dref.datacon_info in
 	O.ESetTag (transl e, info.datacon_index)
   | EAccess (e, f) ->
-      O.EGetField (O.EMagic (transl e), extract_field_index f)
+      O.EGetField (magic (transl e), extract_field_index f)
   | EApply (e1, e2) ->
-      O.EApply (O.EMagic (transl e1), transl e2)
+      O.EApply (magic (transl e1), transl e2)
   | EMatch (e, branches) ->
-      O.EMatch (O.EMagic (transl e), transl_branches branches)
+      O.EMatch (magic (transl e), transl_branches branches)
   | ETuple es ->
       O.ETuple (List.map transl es)
   | EConstruct (dref, fields) ->
@@ -204,7 +232,7 @@ let rec transl (e : expression) : O.expression =
       O.EConstruct (print_datacon_reference dref, List.map snd fields)
   | EIfThenElse (e, e1, e2) ->
       O.EIfThenElse (
-	gt (O.EGetTag (O.ERepr (transl e))) (O.EInt 0),
+	gt (O.EGetTag (magic (transl e))) (O.EInt 0),
 	transl e1,
 	transl e2
       )
@@ -223,14 +251,14 @@ and transl_equations eqs =
     (* We must insert a [magic] because [e] is matched against [p]. *)
     (* And, if this is a toplevel equation, the bound names of [p]
        will be published at type [Obj.t]. *)
-    translate_pattern p, O.EMagic (transl e)
+    translate_pattern p, magic (transl e)
   ) eqs
 
 and transl_branches branches =
   List.map (fun (p, e) ->
     (* We insert a [magic] on every branch, because all branches
        must ultimately have the same type. *)
-    translate_pattern p, O.EMagic (transl e)
+    translate_pattern p, magic (transl e)
   ) branches
 
 (* TEMPORARY if the OCaml inliner is good, an application of a builtin
