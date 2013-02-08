@@ -39,6 +39,17 @@ let sort_by_index ixs =
     Pervasives.compare i1 i2
   ) ixs
 
+(* This function extracts the field index that was provided by the type-checker
+   at field access expressions (read and write). *)
+
+let extract_field_index (f : field) : int =
+  match f.field_offset with
+  | Some index ->
+      index
+  | None ->
+      (* The field index has not been filled in by the type-checker!? *)
+      assert false
+
 (* ---------------------------------------------------------------------------- *)
 
 (* References to data constructors. *)
@@ -155,9 +166,8 @@ let rec transl (e : expression) : O.expression =
       O.ELet (flag, transl_equations eqs, transl body)
   | EFun (p, e) ->
       O.EFun (translate_pattern p, transl e)
-  | EAssign (e1, _f, e2) ->
-      (* TEMPORARY missing information about the field index *)
-      O.EAssign (O.EMagic (transl e1), assert false, transl e2)
+  | EAssign (e1, f, e2) ->
+      O.ESetField (O.EMagic (transl e1), extract_field_index f, O.EMagic (transl e2))
   | EAssignTag (e, dref, info) ->
       (* We must use [Obj.set_tag]; there is no other way. *)
       (* As an optimization, if the old and new integer tags are equal,
@@ -170,9 +180,8 @@ let rec transl (e : expression) : O.expression =
       else
 	let info = Option.extract dref.datacon_info in
 	O.ESetTag (transl e, info.datacon_index)
-  | EAccess (e, _f) ->
-      (* TEMPORARY missing information about the field index *)
-      O.EAccess (O.EMagic (transl e), assert false)
+  | EAccess (e, f) ->
+      O.EGetField (O.EMagic (transl e), extract_field_index f)
   | EApply (e1, e2) ->
       O.EApply (O.EMagic (transl e1), transl e2)
   | EMatch (e, branches) ->
@@ -257,30 +266,6 @@ let tys (base : int) (n : int) : O.ty list =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* For each data constructor, we create a record type. *)
-
-(* TEMPORARY at the moment, this is unused! *)
-
-let datacon_record_name (datacon : Datacon.name) : string =
-  Printf.sprintf "__mz_record_%s" (Datacon.print datacon)
-
-let datacon_record (branch : data_type_def_branch) =
-  let datacon, fields = branch in
-  (* We need as many type parameters as there are fields. *)
-  let n = List.length fields in
-  let lhs = 
-    datacon_record_name datacon,
-    tyvars 0 n
-  in
-  let rhs =
-    O.Record (List.map2 (fun f ty ->
-      O.Mutable, Variable.print f, ty
-    ) fields (tys 0 n))
-  in
-  O.DataTypeGroup (lhs, rhs)
-
-(* ---------------------------------------------------------------------------- *)
-
 (* For each algebraic data type, we create a sum type. *)
 
 let data_sum_name (typecon : Variable.name) : string =
@@ -319,14 +304,14 @@ let data_sum (def : data_type_def) =
 (* Translating top-level items. *)
 
 let translate_item = function
-  | DataType ((_, branches) as def) ->
-      data_sum def :: List.map datacon_record branches
+  | DataType def ->
+      [ data_sum def ]
   | ValueDefinition (flag, eqs) ->
       [ O.ValueDefinition (flag, transl_equations eqs) ]
   | ValueDeclaration x ->
       [ O.ValueDeclaration (Variable.print x, O.TyVar "Obj.t") ]
   | OpenDirective m ->
-      [ O.OpenDirective (Module.print m) ]
+      [ O.OpenDirective (String.capitalize (Module.print m)) ]
 
 (* ---------------------------------------------------------------------------- *)
 
