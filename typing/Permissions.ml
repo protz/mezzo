@@ -607,11 +607,6 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
       None
 
 
-(** [sub_type env t1 t2] examines [t1] and, if [t1] "provides" [t2], returns
-    [Some env] where [env] has been modified accordingly (for instance, by
-    unifying some flexible variables); it returns [None] otherwise. *)
-and sub_type (env: env) (t1: typ) (t2: typ): env option =
-  step_through_flex env sub_type_real t1 t2 ||| sub_type_real env t1 t2
 
 and sub_constraints env constraints =
   List.fold_left (fun env (f, t) ->
@@ -633,17 +628,32 @@ and sub_constraints env constraints =
       None
   ) (Some env) constraints
 
-and sub_type_real env t1 t2 =
+
+(** [sub_type env t1 t2] examines [t1] and, if [t1] "provides" [t2], returns
+    [Some env] where [env] has been modified accordingly (for instance, by
+    unifying some flexible variables); it returns [None] otherwise. *)
+and sub_type (env: env) (t1: typ) (t2: typ): env option =
   TypePrinter.(
     Log.debug ~level:4 "[sub_type] %a %s→%s %a"
       ptype (env, t1)
       Bash.colors.Bash.red Bash.colors.Bash.default
       ptype (env, t2));
 
-  if equal env t1 t2 then
-    (Log.debug ~level:5 "↳ fast-path"; Some env)
+  match t1, t2 with
 
-  else match t1, t2 with
+  (** Easy cases involving flexible variables *)
+  | TyPoint p1, _ when has_structure env p1 ->
+      sub_type env (Option.extract (structure env p1)) t2
+  | _, TyPoint p2 when has_structure env p2 ->
+      sub_type env t1 (Option.extract (structure env p2))
+  | TyPoint p1, _ when is_flexible env p1 && can_merge env t2 p1 ->
+      Some (instantiate_flexible env p1 t2)
+  | _, TyPoint p2 when is_flexible env p2 && can_merge env t1 p2 ->
+      Some (instantiate_flexible env p2 t1)
+
+  | _, _ when equal env t1 t2 ->
+    Log.debug ~level:5 "↳ fast-path";
+    Some env
 
   (** Fail early to tame debug output. *)
   | TyUnknown, _
@@ -1033,45 +1043,6 @@ and try_merge_flex env p t =
     Some (instantiate_flexible env p t)
   else
     None
-
-
-and try_merge_point_to_point env p1 p2 =
-  if is_flexible env p2 then
-    Some (merge_left env p1 p2)
-  else
-    None
-
-
-
-(* This function allows you to step-through flexible variables, if there are
- * some. If we did step through something, we recurse through [k]. Otherwise, we
- * fail. *)
-and step_through_flex ?(stepped=false) env k t1 t2 =
-  let c = step_through_flex ~stepped:true in
-  match t1, t2 with
-  | TyRigid p1, TyRigid p2 ->
-      if same env p1 p2 then
-        Some env
-      else
-        try_merge_point_to_point env p1 p2 |||
-        try_merge_point_to_point env p2 p1 |||
-        (structure env p1 >>= fun t1 -> c env k t1 t2) |||
-        (structure env p2 >>= fun t2 -> c env k t1 t2)
-
-  | TyRigid p1, _ ->
-      try_merge_flex env p1 t2 |||
-      (structure env p1 >>= fun t1 -> c env k t1 t2)
-
-  | _, TyRigid p2 ->
-      try_merge_flex env p2 t1 |||
-      (structure env p2 >>= fun t2 -> c env k t1 t2)
-
-  | _ ->
-      if stepped then
-        k env t1 t2
-      else
-        None
-
 
 (** [sub_perm env t] takes a type [t] with kind KPerm, and tries to return the
     environment without the corresponding permission. *)
