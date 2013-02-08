@@ -188,8 +188,8 @@ let rec transl (e : expression) : O.expression =
       )
   | EBuiltin b ->
       (* The builtin operations are defined in the OCaml library module
-	 [MezzoBuiltin]. *)
-      O.EVar (Printf.sprintf "MezzoBuiltin.%s" b)
+	 [MezzoLib]. *)
+      O.EVar (Printf.sprintf "MezzoLib.%s" b)
   | ELet (flag, eqs, body) ->
       O.ELet (flag, transl_equations eqs, transl body)
   | EFun (p, e) ->

@@ -2,19 +2,12 @@
 
 .PHONY: all clean
 
-OCAMLBUILD := ocamlbuild -classic-display -use-ocamlfind
+OCAMLBUILD := ocamlbuild -classic-display -use-ocamlfind -package mezzolib
 
 all:
+	cd ../mezzolib && make uninstall && make install
 	$(OCAMLBUILD) $(patsubst %.mz,%.cmo,$(wildcard *.mz))
 
 clean:
 	$(OCAMLBUILD) -clean
 
-# %.ml: %.mz
-# 	../mezzo -c $< >/dev/null
-
-# %.d: %.ml
-# 	ocamldep $< > $@
-
-# %.cmo: %.ml
-# 	ocamlc -c $<

@@ -387,8 +387,8 @@ let asIntPair =
 
 let eval_builtin (env : env) (loc : location) (b : string) (v : value) : value =
   (* The primitive operations that operate on integers are already
-     implemented in [MezzoBuiltin], and can be re-used. *)
-  let open MezzoBuiltin in
+     implemented in [MezzoLib], and can be re-used. *)
+  let open MezzoLib in
   match b with
   | "_mz_iadd" ->
       VInt (_mz_iadd (asIntPair v))
