@@ -122,17 +122,23 @@ let ty_app t args =
 ;;
 
 
-let rec flatten_star p =
-  match p with
+let rec flatten_star env t =
+  match t with
   | TyStar (p, q) ->
-      flatten_star p @ flatten_star q
+      flatten_star env p @ flatten_star env q
   | TyEmpty ->
       []
-  | TyPoint _
+  | TyPoint p ->
+      begin match structure env p with
+      | Some t ->
+          flatten_star env t
+      | None ->
+          [t]
+      end
   | TyVar _
   | TyAnchoredPermission _
   | TyApp _ ->
-      [p]
+      [t]
   | _ ->
       Log.error "[flatten_star] only works for types with kind perm"
 ;;

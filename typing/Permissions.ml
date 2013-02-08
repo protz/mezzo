@@ -537,7 +537,7 @@ and sub (env: env) (point: point) (t: typ): env option =
   else
     (* Get a "clean" type without nested permissions. *)
     let t, perms = collect t in
-    let perms = List.flatten (List.map flatten_star perms) in
+    let perms = List.flatten (List.map (flatten_star env) perms) in
 
     (* Start off by subtracting the type without associated permissions. *)
     let env = sub_clean env point t in
@@ -896,12 +896,16 @@ and sub_type_real env t1 t2 =
 
       Some (restore env)
 
-  | TyBar (t1, p1), TyBar (t2, p2) ->
+  | TyBar _, TyBar _ ->
       (* Unless we do this, we can't handle (t|p) - (t|p|p') properly. *)
-      let t1, p'1 = collect t1 in
-      let p1 = fold_star (p1 :: p'1) in
-      let t2, p'2 = collect t2 in
-      let p2 = fold_star (p2 :: p'2) in
+      let t1, ps1 = collect t1 in
+      let t2, ps2 = collect t2 in
+
+      (* This has the nice guarantee that we don't need to worry about flexible
+       * PERM variables anymore (hence the call to List.partition a few lines
+       * below). *)
+      let ps1 = Hml_List.map_flatten (flatten_star env) ps1 in
+      let ps2 = Hml_List.map_flatten (flatten_star env) ps2 in
 
       (* "(t1 | p1) - (t2 | p2)" means doing "t1 - t2", adding all of [p1],
        * removing all of [p2]. However, the order in which we perform these
@@ -920,35 +924,6 @@ and sub_type_real env t1 t2 =
        *  The first step consists in subtracting [t2] from [t1], as most of the
        * time, we're dealing with “(=x|...) - (=x'|...)”. *)
       sub_type env t1 t2 >>= fun env ->
-
-      (* Another subtlety: there may be flexible variables instantiated with
-       * something lying around in [p1] or [p2]: we need to get rid of these. *)
-      let rec strip_flatten env t =
-        match t with
-        | TyPoint p ->
-            begin match structure env p with
-            | Some t ->
-                let t = flatten_star t in
-                Hml_List.map_flatten (strip_flatten env) t
-            | None ->
-                [t]
-            end
-        | TyStar _ ->
-            Hml_List.map_flatten (strip_flatten env) (flatten_star t)
-        | TyAnchoredPermission (x, t) ->
-            let t, ps = collect t in
-            if List.length ps > 0 then
-              let ps = Hml_List.map_flatten (strip_flatten env) ps in
-              TyAnchoredPermission (x, t) :: ps
-            else
-              [TyAnchoredPermission (x, t)]
-        | TyEmpty ->
-            []
-        | _ ->
-            [t]
-      in
-      let ps1 = strip_flatten env p1 in
-      let ps2 = strip_flatten env p2 in
 
       (*   [add_perm] will fail if we add "x @ t" when "x" is flexible. So we
        * search among the permissions in [ps1] one that is suitable for adding,
@@ -1109,7 +1084,7 @@ and sub_perm (env: env) (t: typ): env option =
   | TyAnchoredPermission (TyPoint p, t) ->
       sub env p t
   | TyStar _ ->
-      sub_perms env (flatten_star t)
+      sub_perms env (flatten_star env t)
   | TyEmpty ->
       Some env
   | TyPoint p when has_structure env p ->
