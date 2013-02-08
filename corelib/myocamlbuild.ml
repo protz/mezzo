@@ -21,8 +21,10 @@ let () =
 let () =
   dispatch (function
     | After_rules ->
-        (* -w -21 : disable the warning about statements that never return. *)
+        (* Disable the warning about statements that never return. *)
         flag ["ocaml"; "compile"] (S[A "-w"; A "-21"]);
+        (* Do not load the ocaml core library and standard library *)
+        flag ["ocaml"; "compile"] (S[A "-nopervasives"; A "-nostdlib"]);
     | _ ->
         ()
   )

@@ -5,6 +5,15 @@ open UntypedOCaml
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Because we wish to compile our OCaml code with -nostdlib, we must not
+   explicitly depend on the module [Obj]. We copy the required primitive
+   types and operations into [MezzoLib]. *)
+
+let obj x =
+  EVar ("MezzoLib." ^ x)
+
+(* ---------------------------------------------------------------------------- *)
+
 (* The distinction between ordinary variables and (prefix or infix) operators is
    discarded by the Mezzo parser. We reconstruct it here, so as to print operators
    in a way that OCaml understands. *)
@@ -143,15 +152,15 @@ and prefix_application arguments = function
   | EConstruct (datacon, es) ->
       prefix_application (ETuple es :: arguments) (EVar datacon)
   | ESetField (e1, f, e2) ->
-      prefix_application (e1 :: (EInt f) :: e2 :: arguments) (EVar "Obj.set_field")
+      prefix_application (e1 :: (EInt f) :: e2 :: arguments) (obj "set_field")
   | ESetTag (e, i) ->
-      prefix_application (e :: (EInt i) :: arguments) (EVar "Obj.set_tag")
+      prefix_application (e :: (EInt i) :: arguments) (obj "set_tag")
   | EGetField (e, f) ->
-      prefix_application (e :: (EInt f) :: arguments) (EVar "Obj.field")
+      prefix_application (e :: (EInt f) :: arguments) (obj "field")
   | EGetTag e ->
-      prefix_application (e :: arguments) (EVar "Obj.tag")
+      prefix_application (e :: arguments) (obj "tag")
   | EMagic e ->
-      prefix_application (e :: arguments) (EVar "Obj.magic")
+      prefix_application (e :: arguments) (obj "magic")
   | head ->
       group (
 	atomic_expression head ^^ nest 2 (

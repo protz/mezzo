@@ -3,6 +3,31 @@
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Because we wish to compile our OCaml code with -nostdlib, we must not
+   explicitly depend on the module [Obj]. We copy the required primitive
+   types and operations here. *)
+
+type t
+external magic : 'a -> 'b = "%identity"
+external tag : t -> int = "caml_obj_tag"
+external set_tag : t -> int -> unit = "caml_obj_set_tag"
+external field : t -> int -> t = "%obj_field"
+external set_field : t -> int -> t -> unit = "%obj_set_field"
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Because we wish to compile our OCaml code with -nopervasives, we must not
+   explicitly depend on the module [Pervasives]. We copy the required types
+   and operations here. *)
+
+let gtz x =
+  x > 0
+
+let failwith s =
+  Pervasives.failwith s
+
+(* ---------------------------------------------------------------------------- *)
+
 (* For the moment, a Mezzo Boolean value is not the same thing as an OCaml
    Boolean value. Hence, the following conversion is required. TEMPORARY *)
 

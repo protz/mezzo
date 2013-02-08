@@ -78,13 +78,20 @@ let pas p x =
   | _ ->
       O.PAs (p, x)
 
+(* Sequence. *)
+
+let seq e1 e2 =
+  match e1, e2 with
+  | O.ETuple [], e
+  | e, O.ETuple [] ->
+      e
+  | _, _ ->
+      O.ESequence (e1, e2)
+
 (* Integer comparison in OCaml. *)
 
-let apply2 f x y =
-  O.EApply (O.EApply (f, x), y)
-
-let gt x y =
-  apply2 (O.EVar "Pervasives.(>)") x y
+let gtz x =
+  O.EApply (O.EVar "MezzoLib.gtz", x)
 
 (* Magic. *)
 
@@ -232,26 +239,30 @@ let rec transl (e : expression) : O.expression =
       O.EConstruct (print_datacon_reference dref, List.map snd fields)
   | EIfThenElse (e, e1, e2) ->
       O.EIfThenElse (
-	gt (O.EGetTag (magic (transl e))) (O.EInt 0),
+	gtz (O.EGetTag (magic (transl e))),
 	transl e1,
-	transl e2
+	magic (transl e2)
       )
   | ESequence (e1, e2) ->
-      O.ESequence (transl e1, transl e2)
+      seq (transl e1) (transl e2)
   | EInt i ->
       O.EInt i
   | EFail s ->
-      O.EApply (O.EVar "Pervasives.failwith", O.EStringLiteral s)
+      O.EApply (O.EVar "MezzoLib.failwith", O.EStringLiteral s)
   | ENull ->
       (* Using the unit value as a representation of [null]. *)
       O.ETuple []
 
 and transl_equations eqs =
   List.map (fun (p, e) ->
-    (* We must insert a [magic] because [e] is matched against [p]. *)
-    (* And, if this is a toplevel equation, the bound names of [p]
-       will be published at type [Obj.t]. *)
-    translate_pattern p, magic (transl e)
+    let p = translate_pattern p in
+    let e = transl e in
+    (* If [p] is non-trivial, then we must insert a [magic],
+       because [e] is matched against [p]. We must be careful
+       not to insert an unnecessary [magic] here, as [magic]
+       is not allowed on the right-hand side of [let rec]. *)
+    p,
+    if is_non_trivial_pattern p then magic e else e
   ) eqs
 
 and transl_branches branches =
@@ -260,6 +271,17 @@ and transl_branches branches =
        must ultimately have the same type. *)
     translate_pattern p, magic (transl e)
   ) branches
+
+and is_non_trivial_pattern = function
+  | O.PTuple _
+  | O.PConstruct _ 
+  | O.PRecord _ ->
+      true
+  | O.PAs (p, _) ->
+      is_non_trivial_pattern p
+  | O.PVar _
+  | O.PAny ->
+      false
 
 (* TEMPORARY if the OCaml inliner is good, an application of a builtin
    function to an argument of the appropriate shape should be simplified
@@ -348,3 +370,5 @@ let translate_item = function
 let translate_implementation items =
   List.flatten (List.map translate_item items)
 
+(* And, if this is a toplevel equation, the bound names of [p]
+   will be published at type [Obj.t]. TEMPORARY *)
