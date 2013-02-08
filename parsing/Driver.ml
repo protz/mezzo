@@ -189,9 +189,9 @@ let import_dependencies_in_scope env deps =
 
     (* [env] has the right module name at this stage *)
     let env = Modules.import_interface env iface in
-    Log.debug "Imported %a, now has names %a"
+    Log.debug "Imported %a, got names %a"
       Module.p mname
-      Types.TypePrinter.pexports env;
+      Types.TypePrinter.pexports (env, mname);
     env
   ) env deps
 ;;

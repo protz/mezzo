@@ -25,170 +25,6 @@ open TypeCore
 
 (* Fun with de Bruijn indices. *)
 
-exception UnboundPoint
-
-let valid env p =
-  PersistentUnionFind.valid p env.state
-;;
-
-let repr env p =
-  PersistentUnionFind.repr p env.state
-;;
-
-let clean top sub t =
-  let rec clean t =
-    match t with
-    (* Special type constants. *)
-    | TyUnknown
-    | TyDynamic
-    | TyEmpty
-    | TyBound _ ->
-        t
-
-    | TyOpen p ->
-        begin match structure sub p with
-        | Some t ->
-            clean t
-        | None ->
-            let p = repr sub p in
-            if valid top p then
-              TyOpen p
-            else
-              raise UnboundPoint
-        end
-
-    | TyForall (b, t) ->
-        TyForall (b, clean t)
-
-    | TyExists (b, t) ->
-        TyExists (b, clean t)
-
-    | TyApp (t1, t2) ->
-        TyApp (clean t1, List.map clean t2)
-
-      (* Structural types. *)
-    | TyTuple ts ->
-        TyTuple (List.map clean ts)
-
-    | TyConcreteUnfolded ((t, dc), fields, clause) ->
-        let t = clean t in
-        let fields = List.map (function
-          | FieldValue (f, t) ->
-              FieldValue (f, clean t)
-          | FieldPermission p ->
-              FieldPermission (clean p)
-        ) fields in
-        TyConcreteUnfolded ((t, dc), fields, clean clause)
-
-    | TySingleton t ->
-        TySingleton (clean t)
-
-    | TyArrow (t1, t2) ->
-        TyArrow (clean t1, clean t2)
-
-    | TyBar (t1, t2) ->
-        TyBar (clean t1, clean t2)
-
-    | TyAnchoredPermission (t1, t2) ->
-        TyAnchoredPermission (clean t1, clean t2)
-
-    | TyStar (t1, t2) ->
-        TyStar (clean t1, clean t2)
-
-    | TyAnd (constraints, t) ->
-        let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
-        TyAnd (constraints, clean t)
-
-    | TyImply (constraints, t) ->
-        let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
-        TyImply (constraints, clean t)
-  in
-  clean t
-;;
-
-let rec resolved_datacons_equal env (t1, dc1) (t2, dc2) =
-  equal env t1 t2 && Datacon.equal dc1 dc2
-
-(* [equal env t1 t2] provides an equality relation between [t1] and [t2] modulo
- * equivalence in the [PersistentUnionFind]. *)
-and equal env (t1: typ) (t2: typ) =
-  let rec equal (t1: typ) (t2: typ) =
-    match t1, t2 with
-      (* Special type constants. *)
-    | TyUnknown, TyUnknown
-    | TyDynamic, TyDynamic ->
-        true
-
-    | TyBound i, TyBound i' ->
-        i = i'
-
-    | TyOpen p1, TyOpen p2 ->
-        if not (valid env p1) || not (valid env p2) then
-          raise UnboundPoint;
-
-        begin match structure env p1, structure env p2 with
-        | Some t1, _ ->
-            equal t1 t2
-        | _, Some t2 ->
-            equal t1 t2
-        | None, None ->
-            same env p1 p2
-        end
-
-    | TyExists ((_, k1, _), t1), TyExists ((_, k2, _), t2)
-    | TyForall (((_, k1, _), _), t1), TyForall (((_, k2, _), _), t2) ->
-        k1 = k2 && equal t1 t2
-
-    | TyArrow (t1, t'1), TyArrow (t2, t'2)
-    | TyBar (t1, t'1), TyBar (t2, t'2) ->
-        equal t1 t2 && equal t'1 t'2
-
-    | TyApp (t1, t'1), TyApp (t2, t'2)  ->
-        equal t1 t2 && List.for_all2 equal t'1 t'2
-
-    | TyTuple ts1, TyTuple ts2 ->
-        List.length ts1 = List.length ts2 && List.for_all2 equal ts1 ts2
-
-    | TyConcreteUnfolded (name1, fields1, clause1), TyConcreteUnfolded (name2, fields2, clause2) ->
-        resolved_datacons_equal env name1 name2 &&
-        equal clause1 clause2 &&
-        List.length fields1 = List.length fields2 &&
-        List.fold_left2 (fun acc f1 f2 ->
-          match f1, f2 with
-          | FieldValue (f1, t1), FieldValue (f2, t2) ->
-              acc && Field.equal f1 f2 && equal t1 t2
-          | FieldPermission t1, FieldPermission t2 ->
-              acc && equal t1 t2
-          | _ ->
-              false) true fields1 fields2
-
-    | TySingleton t1, TySingleton t2 ->
-        equal t1 t2
-
-
-    | TyStar (p1, q1), TyStar (p2, q2)
-    | TyAnchoredPermission (p1, q1), TyAnchoredPermission (p2, q2) ->
-        equal p1 p2 && equal q1 q2
-
-    | TyEmpty, TyEmpty ->
-        true
-
-    | TyAnd (c1, t1), TyAnd (c2, t2) ->
-        List.for_all2 (fun (f1, t1) (f2, t2) ->
-          f1 = f2 && equal t1 t2) c1 c2
-        && equal t1 t2
-
-    | TyImply (c1, t1), TyImply (c2, t2) ->
-        List.for_all2 (fun (f1, t1) (f2, t2) ->
-          f1 = f2 && equal t1 t2) c1 c2
-        && equal t1 t2
-
-    | _ ->
-        false
-  in
-  equal t1 t2
-;;
-
 let lift (k: int) (t: typ) =
   let rec lift (i: int) (t: typ) =
     match t with
@@ -352,6 +188,7 @@ let tsubst_data_type_def_branch t2 i branch =
   let name, fields = branch in
   name, List.map (tsubst_field t2 i) fields
 ;;
+let flatten_kind = SurfaceSyntax.flatten_kind;;
 
 let get_arity_for_kind kind =
   let _, tl = flatten_kind kind in
@@ -386,7 +223,7 @@ let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_typ
 ;;
 
 (* Substitute [t2] for [p] in [t1]. We allow [t2] to have free variables. *)
-let tpsubst env (t2: typ) (p: point) (t1: typ) =
+let tpsubst env (t2: typ) (p: var) (t1: typ) =
   let lift1 = lift 1 in
   let rec tsubst t2 t1 =
     match t1 with
