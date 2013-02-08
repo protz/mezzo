@@ -1,3 +1,11 @@
+(* For the moment, we use the sequential locks provided by the module
+   [atomic], and we hold the lock while the client function [f] is busy. In a
+   concurrent implementation, we would want to use real locks, and we might
+   wish to hold the lock only during a short period. We could release the lock
+   before invoking [f], and acquire it again when [f] is done (suggestion by
+   Guillaume Melquiond). Some thought would be required if we wish to
+   guarantee that [f] is invoked at most once for every input. *)
+
 open atomic (* newlock, acquire, release *)
 open hashtable (* table, create, find, add *)
 
