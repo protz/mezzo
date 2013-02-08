@@ -9,35 +9,30 @@ open UntypedOCaml
    discarded by the Mezzo parser. We reconstruct it here, so as to print operators
    in a way that OCaml understands. *)
 
-let is_operator (x : string) : bool =
-  match x with
-  | ":="
-    -> true
-  | _ ->
-    assert (String.length x > 0);
-    match x.[0] with
-    | '!'
-    | '~'
-    | '?'
-    | '|'
-    | '&'
-    | '='
-    | '<'
-    | '>'
-    | '$'
-    | '@'
-    | '^'
-    | '+'
-    | '-'
-    | '*'
-    | '/'
-    | '%'
-      -> true
-    | _
-      -> false
-
-let var x =
-  if is_operator x then parens (utf8string x) else utf8string x
+let var (x : string) : document =
+  assert (String.length x > 0);
+  match x.[0] with
+  | '*'
+    -> string "( " ^^ utf8string x ^^ string " )"
+  | '!'
+  | '~'
+  | '?'
+  | '|'
+  | '&'
+  | '='
+  | '<'
+  | '>'
+  | '$'
+  | '@'
+  | '^'
+  | '+'
+  | '-'
+  | '/'
+  | '%'
+  | ':' (* for ":=" *)
+    -> parens (utf8string x)
+  | _
+    -> utf8string x
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -1,19 +1,20 @@
-.PHONY: all clean
-
-all: $(patsubst %.mz,%.cmo,$(wildcard *.mz))
-
--include $(patsubst %.mz,%.d,$(wildcard *.mz))
-
 # Compile the Mezzo core library using the Mezzo compiler.
 
+.PHONY: all clean
+
+OCAMLBUILD := ocamlbuild -classic-display -use-ocamlfind
+
+all:
+	$(OCAMLBUILD) $(patsubst %.mz,%.cmo,$(wildcard *.mz))
+
 clean:
-	rm -f *.ml *.mli
+	$(OCAMLBUILD) -clean
 
-%.ml: %.mz
-	../mezzo -c $< >/dev/null
+# %.ml: %.mz
+# 	../mezzo -c $< >/dev/null
 
-%.d: %.ml
-	ocamldep $< > $@
+# %.d: %.ml
+# 	ocamldep $< > $@
 
-%.cmo: %.ml
-	ocamlc -c $<
+# %.cmo: %.ml
+# 	ocamlc -c $<
