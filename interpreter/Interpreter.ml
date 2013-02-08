@@ -106,6 +106,32 @@ and closure = {
 }
 
 (* ---------------------------------------------------------------------------- *)
+
+(* A special [datacon_info] record is created to represent arrays. The
+   information held in this record is irrelevant; only its address is
+   used to recognize an array. *)
+
+let array_datacon_info : datacon_info = {
+  datacon_name = "";
+  datacon_arity = -1;
+  datacon_index = 0;
+  datacon_fields = Field.Map.empty;
+}
+
+let is_array info =
+  array_datacon_info == info
+
+(* In the interpreter, an array is represented as a block of memory.
+   This implies that it has an adopter field. *)
+
+let makeArray (r : value array) : value =
+  VAddress {
+    tag = array_datacon_info;
+    adopter = None;
+    fields = r
+  }
+
+(* ---------------------------------------------------------------------------- *)
 (* ---------------------------------------------------------------------------- *)
 
 (* A pretty-printer for values. *)
@@ -128,26 +154,35 @@ module ValuePrinter = struct
 	  OCaml.int i
       | VAddress b ->
 	  let info = b.tag in
-	  let fields : (int * string * value) list =
-	    Variable.Map.fold (fun field index accu ->
-	      (index, Variable.print field, b.fields.(index)) :: accu
-	    ) info.datacon_fields []
-	  in
-	  let fields =
-	    List.sort (fun (i1, _, _) (i2, _, _) ->
-	      Pervasives.compare i1 i2
-	    ) fields
-	  in
-	  begin match fields with
-	  | [] ->
-	      utf8string info.datacon_name
-	  | _ :: _ ->
-	      utf8string info.datacon_name ^^ space ^^ braces_with_nesting (
-		separate_map semibreak (fun (_, field, v) ->
-		  (utf8string field ^^ space ^^ equals) ^//^
-		    print_value (depth + 1) v
-		) fields
-	      )
+	  if is_array info then
+	    (* An array. *)
+	    let vs = Array.to_list b.fields in
+	    array_with_nesting (
+	      separate_map semibreak (print_value depth) vs
+	    )
+	  else begin
+	    (* A memory block. *)
+	    let fields : (int * string * value) list =
+	      Variable.Map.fold (fun field index accu ->
+		(index, Variable.print field, b.fields.(index)) :: accu
+	      ) info.datacon_fields []
+	    in
+	    let fields =
+	      List.sort (fun (i1, _, _) (i2, _, _) ->
+		Pervasives.compare i1 i2
+	      ) fields
+	    in
+	    begin match fields with
+	    | [] ->
+		utf8string info.datacon_name
+	    | _ :: _ ->
+		utf8string info.datacon_name ^^ space ^^ braces_with_nesting (
+		  separate_map semibreak (fun (_, field, v) ->
+		    (utf8string field ^^ space ^^ equals) ^//^
+		      print_value (depth + 1) v
+		  ) fields
+		)
+	    end
 	  end
       | VTuple vs ->
 	  parens_with_nesting (
@@ -312,17 +347,39 @@ let asTuple (v : value) : value list =
       (* Runtime tag error. *)
       assert false
 
-let asPair (v : value) : value * value =
+let asPair view1 view2 (v : value) =
   match asTuple v with
   | [ v1; v2 ] ->
-      v1, v2
+      view1 v1, view2 v2
   | _ ->
       (* Runtime arity error. *)
       assert false
 
-let asIntPair (v : value) : int * int =
-  let v1, v2 = asPair v in
-  asInt v1, asInt v2
+let asTriple view1 view2 view3 (v : value) =
+  match asTuple v with
+  | [ v1; v2; v3 ] ->
+      view1 v1, view2 v2, view3 v3
+  | _ ->
+      (* Runtime arity error. *)
+      assert false
+
+let asQuintuple view1 view2 view3 view4 view5 (v : value) =
+  match asTuple v with
+  | [ v1; v2; v3; v4; v5 ] ->
+      view1 v1, view2 v2, view3 v3, view4 v4, view5 v5
+  | _ ->
+      (* Runtime arity error. *)
+      assert false
+
+let asArray (v : value) : value array =
+  let b = asBlock v in
+  b.fields
+
+let asValue (v : value) : value =
+  v
+
+let asIntPair =
+  asPair asInt asInt
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -362,17 +419,52 @@ let eval_builtin (env : env) (loc : location) (b : string) (v : value) : value =
   | "_mz_iand" ->
       VInt (_mz_iand (asIntPair v))
   | "_mz_address_eq" ->
-      let v1, v2 = asPair v in
-      let b1 = asBlock v1
-      and b2 = asBlock v2 in
+      let b1, b2 = asPair asBlock asBlock v in
       rich_bool env (b1 == b2)
   | "_mz_print_value" ->
       print_endline (ValuePrinter.render v);
       unit_value
   | "_mz_magic" ->
       v
+  | "_mz_array_create" ->
+      let n, v = asPair asInt asValue v in
+      begin try
+	makeArray (Array.create n v)
+      with Invalid_argument _ ->
+	Log.error "%aInvalid length at array creation: %d.\n" Lexer.p loc n
+      end
+  | "_mz_array_unsafe_get"
+  | "_mz_array_get" ->
+      let r, i = asPair asArray asInt v in
+      begin try
+	r.(i)
+      with Invalid_argument _ ->
+	Log.error "%aInvalid index at array access: %d (%d).\n" Lexer.p loc i (Array.length r)
+      end
+  | "_mz_array_unsafe_set"
+  | "_mz_array_set" ->
+      let r, i, v = asTriple asArray asInt asValue v in
+      begin try
+	r.(i) <- v;
+	unit_value
+      with Invalid_argument _ ->
+	Log.error "%aInvalid index at array update: %d (%d).\n" Lexer.p loc i (Array.length r)
+      end
+  | "_mz_array_length" ->
+      let r = asArray v in
+      VInt (Array.length r)
+  | "_mz_array_unsafe_sub" ->
+      let r, ofs, len = asTriple asArray asInt asInt v in
+      makeArray (Array.sub r ofs len)
+  | "_mz_array_append_prim" ->
+      let r1, r2 = asPair asArray asArray v in
+      makeArray (Array.append r1 r2)
+  | "_mz_array_unsafe_blit" ->
+      let r1, ofs1, r2, ofs2, len = asQuintuple asArray asInt asArray asInt asInt v in
+      Array.blit r1 ofs1 r2 ofs2 len;
+      unit_value
   | _ ->
-      Log.error "%a\nUnknown builtin function: %s\n" Lexer.p loc b
+      Log.error "%aUnknown builtin function: %s\n" Lexer.p loc b
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -473,6 +565,12 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
 
   | EQualified (m, x) ->
       V.lookup_qualified m x env.variables
+
+  (* Most builtin expressions produce a builtin value (a function), but some
+     builtin expressions produce a value of some other nature. *)
+
+  | EBuiltin "_mz_array_max_length" ->
+      VInt Sys.max_array_length (* TEMPORARY possibly minus one *)
 
   | EBuiltin b ->
       VBuiltin b
@@ -595,7 +693,7 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
           b1.adopter <- None;
           unit_value
       | _ ->
-          Log.error "%a\nA take instruction failed.\n" Lexer.p loc
+          Log.error "%aA take instruction failed.\n" Lexer.p loc
       end
 
   | EOwns (e2, e1) ->
@@ -609,7 +707,7 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
       end
 
   | EFail ->
-      Log.error "%a\nA fail instruction was encountered.\n" Lexer.p loc
+      Log.error "%aA fail instruction was encountered.\n" Lexer.p loc
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -630,7 +728,7 @@ and switch (env : env) (loc : location) (v : value) (branches : (pattern * expre
       (* No more branches. This should not happen if the type-checker has
          checked for exhaustiveness. At the moment, this is not done,
          though. *)
-      Log.error "%a\nMatch failure. No pattern matches this value:\n%s" Lexer.p loc (ValuePrinter.render v)
+      Log.error "%aMatch failure. No pattern matches this value:\n%s" Lexer.p loc (ValuePrinter.render v)
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -1,0 +1,4 @@
+(* Failure: array creation *)
+val () =
+  let x = array::create (-10, 0) in
+  print x

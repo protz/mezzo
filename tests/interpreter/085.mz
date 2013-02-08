@@ -1,0 +1,5 @@
+(* Failure: fail instruction *)
+val () =
+  let x = array::create (22, 1) in
+  let y = array::sub (x, 32, 0) in
+  print 1

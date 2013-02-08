@@ -1,0 +1,6 @@
+(* Success: 1 *)
+val () =
+  let x = array::create (22, 1) in
+  let y = array::create (32, 0) in
+  array::blit (x, 0, y, 0, 22);
+  print (array::get (y, 0) + array::get (y, 31))

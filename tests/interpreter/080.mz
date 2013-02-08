@@ -1,0 +1,4 @@
+(* Success: 22 *)
+val () =
+  let x = array::create (22, 1) in
+  print (array::length x)

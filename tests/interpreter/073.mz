@@ -1,0 +1,4 @@
+(* Success: 1 *)
+val () =
+  print array::max_length;
+  print (if array::max_length > 32 then 1 else 0)

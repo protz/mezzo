@@ -1,0 +1,5 @@
+(* Success: 2 *)
+val () =
+  let x = array::create (10, 1) in
+  array::set (x, 0, 2 * array::get (x, 0));
+  print (array::get (x, 0))

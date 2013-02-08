@@ -1,0 +1,4 @@
+(* Failure: array access *)
+val () =
+  let x = array::create (10, 1) in
+  print (array::get (x, 0) + array::get (x, 10))

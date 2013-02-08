@@ -143,3 +143,7 @@ let parens_with_nesting contents =
 
 let braces_with_nesting contents =
   surround 2 1 lbrace contents rbrace
+
+let array_with_nesting contents =
+  surround 2 1 (string "[|") contents (string "|]")
+

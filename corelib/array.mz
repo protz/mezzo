@@ -413,6 +413,9 @@ val mapi [a, b, p : perm] (
 
 (* Filling a segment with a value. *)
 
+(* TEMPORARY could also offer a version that steals the elements from the array
+   when they are not duplicable *)
+
 val rec fill_segment [a] duplicable a => (r: array a, i: int, j: int, v: a) : () =
   if i < j then begin
     set (r, i, v);

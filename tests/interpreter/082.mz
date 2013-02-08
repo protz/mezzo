@@ -1,0 +1,6 @@
+(* Success: 34 *)
+val () =
+  let x = array::create (22, 1) in
+  let y = array::sub (x, 0, 12) in
+  let z = array::append (x, y) in
+  print (array::length z)
