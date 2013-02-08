@@ -10,7 +10,10 @@ open UntypedOCaml
    types and operations into [MezzoLib]. *)
 
 let obj x =
-  EVar ("MezzoLib." ^ x)
+  "MezzoLib." ^ x
+
+let vobj x =
+  EVar (obj x)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -152,15 +155,15 @@ and prefix_application arguments = function
   | EConstruct (datacon, es) ->
       prefix_application (ETuple es :: arguments) (EVar datacon)
   | ESetField (e1, f, e2) ->
-      prefix_application (e1 :: (EInt f) :: e2 :: arguments) (obj "set_field")
+      prefix_application (e1 :: (EInt f) :: e2 :: arguments) (vobj "set_field")
   | ESetTag (e, i) ->
-      prefix_application (e :: (EInt i) :: arguments) (obj "set_tag")
+      prefix_application (e :: (EInt i) :: arguments) (vobj "set_tag")
   | EGetField (e, f) ->
-      prefix_application (e :: (EInt f) :: arguments) (obj "field")
+      prefix_application (e :: (EInt f) :: arguments) (vobj "field")
   | EGetTag e ->
-      prefix_application (e :: arguments) (obj "tag")
+      prefix_application (e :: arguments) (vobj "tag")
   | EMagic e ->
-      prefix_application (e :: arguments) (obj "magic")
+      prefix_application (e :: arguments) (vobj "magic")
   | head ->
       group (
 	atomic_expression head ^^ nest 2 (
@@ -260,6 +263,8 @@ and expression e =
 let ty = function
   | TyVar x ->
       utf8string x
+  | TyObj ->
+      utf8string (obj "t")
 
 let data_type_def_branch (datacon, components) =
   hardline ^^
@@ -327,7 +332,7 @@ let toplevel_item = function
   | ValueDefinition def ->
       definition def
   | ValueDeclaration (x, t) ->
-      string "val " ^^ utf8string x ^^ colon ^^ space ^^ ty t
+      string "val " ^^ var x ^^ colon ^^ space ^^ ty t
   | OpenDirective m ->
       string "open " ^^ string m
 

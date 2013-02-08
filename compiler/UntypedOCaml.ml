@@ -73,6 +73,7 @@ type expression =
 
 type ty =
   | TyVar of string (* quote included *)
+  | TyObj
 
 (* ---------------------------------------------------------------------------- *)
 

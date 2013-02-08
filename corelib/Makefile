@@ -6,7 +6,8 @@ OCAMLBUILD := ocamlbuild -classic-display -use-ocamlfind -package mezzolib
 
 all:
 	cd ../mezzolib && make uninstall && make install
-	$(OCAMLBUILD) $(patsubst %.mz,%.cmo,$(wildcard *.mz))
+	$(OCAMLBUILD) MezzoCoreLib.cma
+# $(patsubst %.mz,%.cmo,$(wildcard *.mz))
 
 clean:
 	$(OCAMLBUILD) -clean

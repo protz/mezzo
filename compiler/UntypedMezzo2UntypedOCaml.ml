@@ -359,7 +359,7 @@ let translate_item = function
   | ValueDefinition (flag, eqs) ->
       [ O.ValueDefinition (flag, transl_equations eqs) ]
   | ValueDeclaration x ->
-      [ O.ValueDeclaration (Variable.print x, O.TyVar "Obj.t") ]
+      [ O.ValueDeclaration (Variable.print x, O.TyObj) ]
   | OpenDirective m ->
       [ O.OpenDirective (String.capitalize (Module.print m)) ]
 
@@ -370,5 +370,27 @@ let translate_item = function
 let translate_implementation items =
   List.flatten (List.map translate_item items)
 
-(* And, if this is a toplevel equation, the bound names of [p]
-   will be published at type [Obj.t]. TEMPORARY *)
+(* ---------------------------------------------------------------------------- *)
+
+(* Translating interfaces. *)
+
+let translate_interface items =
+  List.flatten (List.map translate_item items)
+
+(* The values that appear in the interface are published at type [Obj.t], so
+   they must be re-bound in the implementation; for each such value [x], we
+   construct the implementation item [let x = Obj.magic x]. *)
+
+let translate_interface_as_implementation_filter = function
+  | None ->
+      []
+  | Some items ->
+      List.flatten (List.map (function
+      | DataType _
+      | ValueDefinition _
+      | OpenDirective _ ->
+	  []
+      | ValueDeclaration x ->
+	  [ O.ValueDefinition (Nonrecursive, [ translate_pattern (PVar x), magic (transl (EVar x))]) ]
+      ) items)
+
