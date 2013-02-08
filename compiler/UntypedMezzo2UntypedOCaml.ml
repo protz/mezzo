@@ -359,7 +359,7 @@ let translate_item = function
   | ValueDefinition (flag, eqs) ->
       [ O.ValueDefinition (flag, transl_equations eqs) ]
   | ValueDeclaration x ->
-      [ O.ValueDeclaration (Variable.print x, O.TyObj) ]
+      [ O.ValueDeclaration (identifier (Variable.print x), O.TyObj) ]
   | OpenDirective m ->
       [ O.OpenDirective (String.capitalize (Module.print m)) ]
 
