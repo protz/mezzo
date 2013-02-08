@@ -584,7 +584,7 @@ val array2list [a] duplicable a => (x: array a) : list a =
 val list2array [a] (consumes xs: list a) : array a =
   let n = length xs in
   let r = newref xs in
-  array::init (n, fun (i: int | r @ ref (list a)) : a =
+  array::init (Up, n, fun (i: int | r @ ref (list a)) : a =
     match !r with
     | Cons { head; tail } ->
         r := tail;

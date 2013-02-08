@@ -29,6 +29,7 @@ val max_length : int
    at index [i] is initialized with the value [f i]. *)
 
 val init : [a, p : perm] (
+  s: sense,
   n: int,
   f: (int | p) -> a
   | p
@@ -62,11 +63,12 @@ val update : [a, pre : perm, post : perm] (
 
 (* Transformations of arrays. *)
 
-(* [transform (r, f)] applies the function [f], in place, to every element of
-   the array [r]. It can perform a strong update over the entire array: the
+(* [transform (s, r, f)] applies the function [f], in place, to every element
+   of the array [r]. It can perform a strong update over the entire array: the
    types [a] and [b] need not coincide. *)
 
 val transform : [a, b, p : perm] (
+  s: sense,
   consumes r: array a,
   f: (int, consumes a | p) -> b
   | p
@@ -76,6 +78,7 @@ val transform : [a, b, p : perm] (
    [f], pointwise, to the array [r]. *)
 
 val map : [a, b, p : perm] (
+  s: sense,
   r: array a,
   f: (a | p) -> b
   | p
@@ -84,6 +87,7 @@ val map : [a, b, p : perm] (
 (* [mapi] is analogous to [map], but applies [f] to the index and element. *)
 
 val mapi : [a, b, p : perm] (
+  s: sense,
   r: array a,
   f: (int, a | p) -> b
   | p
@@ -160,96 +164,67 @@ val fill_array   : [a] duplicable a => (r: array a, v: a) -> ()
    part of the interval, and the index [j] is not part of it. The interval
    is non-empty if and only if [i < j] holds. *)
 
-val fold_segment_up   : [a] (
+(* The following four functions actually do not read (or write) any array
+   elements. They deal only with the management of the current index. *)
+
+val fold_segment : [a] (
+  s: sense,
   i: int, j: int, consumes accu: a,
   f: (int, consumes a) -> a
 ) -> a
 
-val fold_segment_down : [a] (
-  i: int, j: int, consumes accu: a,
-  f: (int, consumes a) -> a
-) -> a
-
-val iter_segment_up   : [p : perm] (
+val iter_segment : [p : perm] (
+  s: sense,
   i: int, j: int,
   f: (int | p) -> ()
   | p) -> ()
 
-val iter_segment_down : [p : perm] (
-  i: int, j: int,
-  f: (int | p) -> ()
+(* Generic loops over an entire array. *)
+
+val fold_array : [a, b] (
+  s: sense,
+  r: array a, consumes seed: b,
+  f: (int, consumes b | r @ array a) -> b
+) -> b
+
+val iter_array : [a, p : perm] (
+  s: sense,
+  r: array a,
+  f: (int | r @ array a * p) -> ()
   | p) -> ()
 
 (* ------------------------------------------------------------------------ *)
 
-(* Generic loops over an entire array. *)
+(* A variant of the above loops, where [f] receives not only an index [i],
+   but also the corresponding array element. Note that [f] does not have
+   permission to access the array [r]. *)
 
-val fold_array_up   : [a, b] (
-  r: array a, consumes seed: b,
-  f: (int, consumes b | r @ array a) -> b
-) -> b
-
-val fold_array_down : [a, b] (
-  r: array a, consumes seed: b,
-  f: (int, consumes b | r @ array a) -> b
-) -> b
-
-val iter_array_up   : [a, p : perm] (
-  r: array a,
-  f: (int | r @ array a * p) -> ()
-  | p) -> ()
-
-val iter_array_down : [a, p : perm] (
-  r: array a,
-  f: (int | r @ array a * p) -> ()
-  | p) -> ()
-
-(* A variant of the above loops, where [f] receives not only an inder [i],
-   but also the corresponding array element. *)
-
-val foldi_up   : [a, b] (
+val foldi : [a, b] (
+  s: sense,
   r: array a,
   consumes seed: b,
   f: (int, a, consumes accu: b) -> b
 ) -> b
 
-val foldi_down : [a, b] (
-  r: array a,
-  consumes seed: b,
-  f: (int, a, consumes accu: b) -> b
-) -> b
-
-val iteri_up   : [a, p : perm] (
+val iteri : [a, p : perm] (
+  s: sense,
   r: array a,
   f: (int, a | p) -> ()
   | p) -> ()
 
-val iteri_down : [a, p : perm] (
-  r: array a,
-  f: (int, a | p) -> ()
-  | p) -> ()
+(* A degenerate variant of the above loops, where [f] has access to the
+   element, but not the index [i]. Note that [f] does not have permission
+   to access the array [r]. *)
 
-(* A degenerate variant of the above loops, where the function [f] has
-   access to the element, but not the inder [i] or the array [r]. *)
-
-val fold_up   : [a, b] (
+val fold : [a, b] (
+  s: sense,
   r: array a,
   consumes seed: b,
   f: (a, consumes accu: b) -> b
 ) -> b
 
-val fold_down : [a, b] (
-  r: array a,
-  consumes seed: b,
-  f: (a, consumes accu: b) -> b
-) -> b
-
-val iter_up   : [a, p : perm] (
-  r: array a,
-  f: (a | p) -> ()
-  | p) -> ()
-
-val iter_down : [a, p : perm] (
+val iter : [a, p : perm] (
+  s: sense,
   r: array a,
   f: (a | p) -> ()
   | p) -> ()

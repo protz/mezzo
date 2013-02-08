@@ -5,7 +5,7 @@
 val list2array [a] duplicable a => (xs: list::list a) : array a =
   match xs with
   | list::Nil ->
-      array::init (0, fun (i: int) : a = fail)
+      array::init (Up, 0, fun (i: int) : a = fail)
   | list::Cons { head; tail } ->
       let x = array::create (1 + list::length tail, head) in
       let rec fill (i: int, xs: list::list a | x @ array a) : =x =

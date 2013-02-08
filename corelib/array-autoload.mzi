@@ -7,3 +7,12 @@
 abstract array a
 fact exclusive (array a)
 
+(* ------------------------------------------------------------------------ *)
+
+(* This type (which is isomorphic to [bool]) is used to indicate the
+   direction of iterations over arrays. *)
+
+data sense =
+  | Down
+  | Up
+

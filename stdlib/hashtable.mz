@@ -64,11 +64,11 @@ val resize [k, a] (t: table k a) : () =
   if new_size < array::max_length then begin
     (* Update [t.buckets] immediately, so that [key_index] sees the new
        bucket count. *)
-    t.buckets <- array::init (new_size, fun (i: int) : bucket k a = BNil);
+    t.buckets <- array::init (Up, new_size, fun (i: int) : bucket k a = BNil);
     (* The array [old_buckets] is consumed by the following loop. This allows
        us to grab the entries that we find in it and move them (without copy)
        to the new array [t.buckets]. *)
-    array::transform (old_buckets, fun (old_index: int, consumes b : bucket k a | t @ table k a) : () =
+    array::transform (Up, old_buckets, fun (old_index: int, consumes b : bucket k a | t @ table k a) : () =
       iter_bucket_down (b, fun (consumes b: BCons { key: k; value: a; tail: unknown } | t @ table k a) : () =
 	push (t.buckets, key_index [k, a] (t, b.key), b)
       )
@@ -91,7 +91,7 @@ val rec power_2_above (x: int, n: int) : int =
    2 above [n], then allocates a new bucket array. *)
 
 val create_buckets [k, a] (capacity: int) : array (bucket k a) =
-  array::init (power_2_above (16, capacity), fun (i: int) : bucket k a = BNil)
+  array::init (Up, power_2_above (16, capacity), fun (i: int) : bucket k a = BNil)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -111,7 +111,7 @@ val create [k, a] (capacity: int, hash: k -> int, equal: (k, k) -> bool) : table
 
 val clear [k, a] (t: table k a) : () =
   t.cardinal <- 0;
-  array::transform (t.buckets, fun (i: int, _: bucket k a) : bucket k a = BNil)
+  array::transform (Up, t.buckets, fun (i: int, _: bucket k a) : bucket k a = BNil)
 
 val reset [k, a] (t: table k a, capacity: int) : () =
   t.cardinal <- 0;
@@ -299,7 +299,7 @@ val fold [k, a, b] (
   consumes seed: b,
   f: (k, a, consumes b) -> b
 ) : b =
-  array::fold_up (t.buckets, seed, fun (bck: bucket k a, consumes accu: b) : b =
+  array::fold (Up, t.buckets, seed, fun (bck: bucket k a, consumes accu: b) : b =
     bucket::fold (bck, accu, f)
   )
 
@@ -330,13 +330,13 @@ data statistics = Statistics {
 val stats [k, a] (t: table k a) : statistics =
   (* Compute the maximum bucket length. *)
   let mbl =
-    array::fold_up (t.buckets, 0, fun (b: bucket k a, accu: int) : int =
+    array::fold (Up, t.buckets, 0, fun (b: bucket k a, accu: int) : int =
       max (bucket::length b, accu)
     )
   in
   (* Build a histogram, which maps bucket lengths to bucket counts. *)
   let histo = array::create (mbl + 1, 0) in
-  array::iter_up (t.buckets, fun (b: bucket k a | histo @ array int) : () =
+  array::iter (Up, t.buckets, fun (b: bucket k a | histo @ array int) : () =
     let l = bucket::length b in
     array::set (histo, l, array::get (histo, l) + 1)
   );
