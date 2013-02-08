@@ -443,7 +443,12 @@ let make_datacon_letters env kind flexible f =
   let env, points = Hml_List.fold_left2i (fun i (env, points) kind letter ->
     let env, point =
       let letter = Auto (Variable.register letter) in
-      let env, var = bind_flexible env (letter, kind, env_location env) in
+      let env, var =
+        if flexible then
+          bind_flexible env (letter, kind, location env)
+        else
+          bind_rigid env (letter, kind, location env)
+      in
       set_fact env var (f i), var
     in
     env, point :: points) (env, []) arg_kinds letters
@@ -497,7 +502,7 @@ module TypePrinter = struct
   (* --------------------------------------------------------------------------- *)
 
   let print_var env = function
-    | User (m, var) when Module.equal (env_module_name env) m ->
+    | User (m, var) when Module.equal (module_name env) m ->
         utf8string (Variable.print var)
     | User (m, var) ->
         utf8string (Module.print m) ^^ ccolon ^^ utf8string (Variable.print var)
@@ -789,23 +794,19 @@ module TypePrinter = struct
           end
     in
     let lines =
-      map_types env (fun { names; kind; _ } { definition; fact; _ } ->
-        let name = List.hd names in
+      fold_definitions env (fun acc var definition ->
+        let fact = get_fact env var in
+        let kind = get_kind env var in
+        let name = get_name env var in
         let arity = get_arity_for_kind kind in
-        match definition with
-        | Some _ ->
-            print_fact name false arity fact
-        | None ->
-            print_fact name true arity fact
-      )
+        let is_abstract = (fst definition = None) in
+        print_fact name is_abstract arity fact :: acc
+      ) []
     in
     separate hardline lines
   ;;
 
-  let print_permission_list (env, { permissions; _ }): document =
-    (* let permissions = List.filter (function
-      TySingleton (TyOpen _) -> false | _ -> true
-    ) permissions in *)
+  let print_permission_list (env, permissions): document =
     if List.length permissions > 0 then
       let permissions = List.map (print_type env) permissions in
       separate (comma ^^ space) permissions
@@ -814,31 +815,33 @@ module TypePrinter = struct
   ;;
 
   let ppermission_list buf (env, point) =
-    let _, binder = find_term env point in
-    pdoc buf (print_permission_list, (env, binder))
+    let permissions = get_permissions env point in
+    pdoc buf (print_permission_list, (env, permissions))
   ;;
 
   let print_permissions (env: env): document =
     let header =
       let str = "PERMISSIONS:" ^
-        (if env.inconsistent then " ⚠ inconsistent ⚠" else "")
+        (if is_inconsistent env then " ⚠ inconsistent ⚠" else "")
       in
       let line = String.make (String.length str) '-' in
       (string str) ^^ hardline ^^ (string line)
     in
-    let lines = map_terms env (fun { names; _ } binder ->
+    let lines = fold_terms env (fun acc var permissions ->
+      let names = get_names env var in
       if List.exists (function
-        | User (mname, _) when not (Module.equal env.module_name mname) ->
+        | User (mname, _) when not (Module.equal (module_name env) mname) ->
             true
         | _ ->
             false
       ) names then
-        empty
+        empty :: acc
       else
         let names = print_names env names in
-        let perms = print_permission_list (env, binder) in
-        names ^^ space ^^ at ^^ space ^^ (nest 2 perms)
-    ) in
+        let perms = print_permission_list (env, permissions) in
+        (names ^^ space ^^ at ^^ space ^^ (nest 2 perms)) :: acc
+    ) [] in
+    let lines = List.rev lines in
     let lines = List.filter ((<>) empty) lines in
     let lines = separate (break 1) lines in
     header ^^ (nest 2 (break 1 ^^ lines))
@@ -868,7 +871,7 @@ module TypePrinter = struct
     utf8string "Γ (unordered) = " ^^
     separate
       (semi ^^ space)
-      (map env (fun names _ -> separate_map (string " = ") (print_var env) names))
+      (map_all env (fun var -> separate_map (string " = ") (print_var env) (get_names env var)))
   ;;
 
 
