@@ -100,6 +100,10 @@ let rec magic e =
   | O.EMagic _ ->
       (* Avoid two consecutive magics. *)
       e
+  | O.EGetField _ ->
+      (* We have changed the return type of [get_field] to ['b], so a
+	 magic on top of it is unnecessary. *)
+      e
   | O.EApply (e1, e2) ->
       (* Push magic into the left-hand side of applications, where it is
 	 just as powerful. This will allow more redundancy elimination. *)
@@ -202,7 +206,7 @@ let rec transl (e : expression) : O.expression =
   | EFun (p, e) ->
       O.EFun (translate_pattern p, transl e)
   | EAssign (e1, f, e2) ->
-      O.ESetField (magic (transl e1), extract_field_index f, magic (transl e2))
+      O.ESetField (transl e1, extract_field_index f, transl e2)
   | EAssignTag (e, dref, info) ->
       (* We must use [Obj.set_tag]; there is no other way. *)
       (* As an optimization, if the old and new integer tags are equal,
@@ -216,7 +220,7 @@ let rec transl (e : expression) : O.expression =
 	let info = Option.extract dref.datacon_info in
 	O.ESetTag (transl e, info.datacon_index)
   | EAccess (e, f) ->
-      O.EGetField (magic (transl e), extract_field_index f)
+      O.EGetField (transl e, extract_field_index f)
   | EApply (e1, e2) ->
       O.EApply (magic (transl e1), transl e2)
   | EMatch (e, branches) ->
@@ -239,7 +243,7 @@ let rec transl (e : expression) : O.expression =
       O.EConstruct (print_datacon_reference dref, List.map snd fields)
   | EIfThenElse (e, e1, e2) ->
       O.EIfThenElse (
-	gtz (O.EGetTag (magic (transl e))),
+	gtz (O.EGetTag (transl e)),
 	transl e1,
 	magic (transl e2)
       )

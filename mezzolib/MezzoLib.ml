@@ -7,12 +7,17 @@
    explicitly depend on the module [Obj]. We copy the required primitive
    types and operations here. *)
 
+(* We rename the type [Obj.t] to our own [MezzoLib.t]. Furthermore, we
+   replace [Obj.t] with a type variable in the types of [tag], [set_tag],
+   etc. because this allows us to produce code with fewer explicit uses
+   of [magic]. *)
+
 type t
 external magic : 'a -> 'b = "%identity"
-external tag : t -> int = "caml_obj_tag"
-external set_tag : t -> int -> unit = "caml_obj_set_tag"
-external field : t -> int -> t = "%obj_field"
-external set_field : t -> int -> t -> unit = "%obj_set_field"
+external tag : 'a -> int = "caml_obj_tag"
+external set_tag : 'a -> int -> unit = "caml_obj_set_tag"
+external field : 'a -> int -> 'b = "%obj_field"
+external set_field : 'a -> int -> 'b -> unit = "%obj_set_field"
 
 (* ---------------------------------------------------------------------------- *)
 
