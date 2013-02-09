@@ -21,6 +21,19 @@ let identifier (x : string) =
 
 (* ---------------------------------------------------------------------------- *)
 
+(* We translate Mezzo module names in such a way that they are unlikely to be
+   confused with a native OCaml module name. This seems to be required (I have
+   not found how to persuade OCaml to ignore its standard library; -nostdlib
+   does not suffice) and it will possibly allow us to link OCaml and Mezzo
+   code together in the future. *)
+
+(* The Mezzo module name [array] becomes the OCaml module name [Mzarray]. *)
+
+let translate_module_name m =
+  "Mz" ^ Module.print m
+
+(* ---------------------------------------------------------------------------- *)
+
 (* This function maps a field name to a field index. It accounts for the hidden
    adopter field. *)
 
@@ -194,7 +207,7 @@ let rec transl (e : expression) : O.expression =
   | EQualified (m, x) ->
       O.EVar (
 	Printf.sprintf "%s.%s"
-	  (String.capitalize (Module.print m))
+	  (translate_module_name m)
 	  (identifier (Variable.print x))
       )
   | EBuiltin b ->
@@ -365,7 +378,7 @@ let translate_item = function
   | ValueDeclaration x ->
       [ O.ValueDeclaration (identifier (Variable.print x), O.TyObj) ]
   | OpenDirective m ->
-      [ O.OpenDirective (String.capitalize (Module.print m)) ]
+      [ O.OpenDirective (translate_module_name m) ]
 
 (* ---------------------------------------------------------------------------- *)
 

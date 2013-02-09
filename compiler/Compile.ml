@@ -3,11 +3,16 @@
 let ($) x f =
   f x
 
-let ml_file_name (path : string) =
-  Filename.chop_suffix path ".mz" ^ ".ml"
+(* The file names used here correspond to the translation of module
+   names defined by [UntypedMezzo2UntypedOCaml.translate_module_name]. *)
 
-let mli_file_name (path : string) =
-  Filename.chop_suffix path ".mz" ^ ".mli"
+(* The Mezzo file name [array.mz] becomes the OCaml file name [mzarray.ml]. *)
+
+let translate_file_name (path : string) (extension : string) =
+  Filename.dirname path ^
+  "/mz" ^
+  Filename.chop_suffix path ".mz" ^
+  extension
 
 let implementation
     (path : string)
@@ -30,7 +35,7 @@ let implementation
    )
   (* Pretty-print. *)
   $ UntypedOCamlPrinter.implementation
-  $ Hml_Pprint.dump (ml_file_name path);
+  $ Hml_Pprint.dump (translate_file_name path ".ml");
 
   (* Define and print the interface, if present. *)
   Option.iter (fun intf ->
@@ -40,6 +45,6 @@ let implementation
       $ UntypedMezzo2UntypedOCaml.translate_interface
       (* Pretty-print. *)
       $ UntypedOCamlPrinter.interface
-      $ Hml_Pprint.dump (mli_file_name path)
+      $ Hml_Pprint.dump (translate_file_name path ".mli")
   ) intf
 
