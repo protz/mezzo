@@ -26,7 +26,6 @@
 module DataconMap: Hml_Map.S with type key = Module.name * Datacon.name
 module Field: module type of Variable with type name = SurfaceSyntax.Field.name
 
-
 (* -------------------------------------------------------------------------- *)
 
 
@@ -195,7 +194,6 @@ val is_inconsistent: env -> bool
 (** Mark the environment as being inconsistent. *)
 val mark_inconsistent: env -> env
 
-
 (* ---------------------------------------------------------------------------- *)
 
 
@@ -232,7 +230,6 @@ val same: env -> var -> var -> bool
  * probably want to use [Permissions.unify] instead. *)
 val merge : env -> var -> var -> env
 
-
 (* ---------------------------------------------------------------------------- *)
 
 
@@ -259,7 +256,6 @@ val get_locations: env -> var -> location list
 (** Get the definition, if any. *)
 val get_definition: env -> var -> type_def option
 
-
 (* ---------------------------------------------------------------------------- *)
 
 
@@ -279,7 +275,6 @@ val equal: env -> typ -> typ -> bool
 (** Equality function on resolved data constructors. *)
 val resolved_datacons_equal: env -> resolved_datacon -> resolved_datacon -> bool
 
-
 (* ---------------------------------------------------------------------------- *)
 
 
@@ -289,19 +284,23 @@ val bind_rigid: env -> type_binding -> env * var
 val bind_flexible: env -> type_binding -> env * var
 val bind_type_def: env -> type_binding -> type_def -> env * var
 
+(* ---------------------------------------------------------------------------- *)
+
+
+(** {1 Exports and stuff} *)
+
+val get_exports: env -> Module.name -> (Variable.name * kind * var) list
+val point_by_name: env -> ?mname:Module.name -> Variable.name -> var
 
 (* ---------------------------------------------------------------------------- *)
 
 
 (** {1 Iterating on the bindings} *)
 
-val get_exports: env -> Module.name -> (Variable.name * kind * var) list
-val point_by_name: env -> ?mname:Module.name -> Variable.name -> var
 val fold_definitions: env -> ('acc -> var -> type_def -> 'acc) -> 'acc -> 'acc
 val fold_terms: env -> ('acc -> var -> typ list -> 'acc) -> 'acc -> 'acc
 val fold_all: env -> ('acc -> var -> 'acc) -> 'acc -> 'acc
 val map_all: env -> (var -> 'a) -> 'a list
-
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -319,3 +318,4 @@ val internal_ptype : (Buffer.t -> env * typ -> unit) ref
 val internal_pnames : (Buffer.t -> env * name list -> unit) ref
 val internal_ppermissions : (Buffer.t -> env -> unit) ref
 val internal_pfact : (Buffer.t -> fact -> unit) ref
+val internal_uniqvarid: env -> var -> int

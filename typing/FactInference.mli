@@ -22,7 +22,7 @@
 
 (** This function performs the elaboration phase where we build up more precise
  * facts about the various data types defined in the environment. *)
-val analyze_data_types: Types.env -> Types.point list -> Types.env
+val analyze_data_types: Types.env -> Types.var list -> Types.env
 
 (** Get the fact for a type, which you can then pass to {Types.fact_leq}. *)
 val analyze_type: Types.env -> Types.typ -> Types.fact

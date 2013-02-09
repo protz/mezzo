@@ -26,9 +26,8 @@ let enable_trace v = enabled := v;;
 
 module Graph = struct
 
-  let id_of_point env point: int =
-    let p = PersistentUnionFind.repr point env.state in
-    Obj.magic p
+  let id_of_point env var: int =
+    internal_uniqvarid env var
   ;;
 
   let draw_point buf env point permissions =
@@ -147,16 +146,17 @@ module Graph = struct
     write_intro buf;
     let env = refresh_mark env in
     let env = TypeOps.mark_reachable env (TyOpen root) in
-    fold_terms env (fun () point _head { permissions; _ } ->
-      if is_marked env point then
-        draw_point buf env point permissions
+    fold_terms env (fun () var permissions ->
+      if is_marked env var then
+        draw_point buf env var permissions
     ) ();
     write_outro buf;
   ;;
 
   let write_graph buf env =
     write_intro buf;
-    fold_terms env (fun () point { names; _ } { permissions; _ } ->
+    fold_terms env (fun () var permissions ->
+      let names = get_names env var in
       let is_core = function
 (* TEMPORARY this code needs to be updated to recognize the modules in corelib?
         | User (m, _) when Module.equal m (Module.register "core") ->
@@ -168,7 +168,7 @@ module Graph = struct
       if List.exists is_core names then
         ()
       else
-        draw_point buf env point permissions
+        draw_point buf env var permissions
     ) ();
     write_outro buf;
   ;;
@@ -201,7 +201,10 @@ module Html = struct
   ;;
 
   let json_of_points env =
-    fold_terms env (fun json point { names; locations; kind; _ } { permissions; _ } ->
+    fold_terms env (fun json var permissions ->
+      let names = get_names env var in
+      let locations = get_locations env var in
+      let kind = get_kind env var in
       let open TypePrinter in
       let names = `List (List.map (function
         | User (_, v) -> `List [`String "user"; `String (Variable.print v)]
@@ -212,7 +215,7 @@ module Html = struct
       let permissions = `List (List.map (fun perm ->
         `String (Hml_String.bsprintf "%a" ptype (env, perm))
       ) permissions) in
-      (string_of_int (Graph.id_of_point env point), `Assoc [
+      (string_of_int (Graph.id_of_point env var), `Assoc [
         ("names", names);
         ("locations", locations);
         ("kind", kind);
@@ -233,13 +236,13 @@ module Html = struct
 
   let render_base env extra =
     (* Create the syntax-highlighted HTML. *)
-    let f = (fst env.location).Lexing.pos_fname in
+    let f = (fst (location env)).Lexing.pos_fname in
     let syntax = pygmentize f in
 
     (* Create the JSON data. *)
     let json = `Assoc ([
       ("syntax", `String syntax);
-      ("current_location", json_of_loc env.location);
+      ("current_location", json_of_loc (location env));
       ("file_name", `String f);
     ] @ extra) in
 
@@ -308,7 +311,7 @@ let explain ?(text="") ?x env =
       (* Print the current position. *)
       Hml_String.bprintf "Last checked expression: %a at %a\n"
         pnames (env, get_names env x)
-        Lexer.p env.location;
+        Lexer.p (location env);
     | None ->
         ()
     end;

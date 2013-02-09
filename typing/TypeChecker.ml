@@ -205,7 +205,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
       Log.error "[unify_pattern] takes a pattern that has been run through \
         [subst_pat] first"
 
-  | PPoint p ->
+  | POpen p ->
       (* [point] is the descriptor that has all the information; [p] just has
        * [=p] as a permission, and maybe an extra one if it's a [val rec f]
        * where [f] is a recursive function *)
@@ -213,7 +213,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
 
   | PAs (p1, p2) ->
       let p2 = match p2 with
-        | PPoint p2 ->
+        | POpen p2 ->
             p2
         | _ ->
             Log.error "Bad desugaring?!!"
@@ -480,7 +480,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       Log.error "[check_expression] expects an expression where all variables \
         has been opened";
 
-  | EPoint p ->
+  | EOpen p ->
       env, p
 
   | ELet (rec_flag, patexprs, body) ->
@@ -941,7 +941,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let sub_envs = List.map (fun (pat, expr) ->
         let env = refine_perms_in_place_for_pattern env x pat in
         let env, { subst_expr; _ } =
-          check_bindings env Nonrecursive [pat, EPoint x]
+          check_bindings env Nonrecursive [pat, EOpen x]
         in
         let expr = subst_expr expr in
         check_expression env ?annot expr
@@ -1090,7 +1090,7 @@ and check_bindings
           List.fold_left2 (fun env expr pat ->
             let expr = eunloc expr in
             match pat, expr with
-            | PPoint p, EFun _ ->
+            | POpen p, EFun _ ->
                 let t = type_for_function_def expr in
                 (* [add] takes care of simplifying the function type *)
                 Permissions.add env p t
@@ -1102,7 +1102,7 @@ and check_bindings
     in
     let env = List.fold_left2 (fun env pat expr ->
       let hint = match pat with
-        | PPoint p ->
+        | POpen p ->
             Some (get_name env p)
         | _ ->
             None
@@ -1139,7 +1139,7 @@ let check_declaration_group
   let subst_toplevel_items b =
     Hml_List.fold_lefti (fun i b point ->
       let b = tsubst_toplevel_items (TyOpen point) i b in
-      esubst_toplevel_items (EPoint point) i b) b points
+      esubst_toplevel_items (EOpen point) i b) b points
   in
   (* ...but it works! *)
 

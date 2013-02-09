@@ -45,8 +45,8 @@ type pattern =
   (* Foo { bar = bar; baz = baz; … } *)
   | PConstruct of resolved_datacon * (Field.name * pattern) list
   (* Once the variables in a pattern have been bound, they may replaced by
-   * [PPoint]s so that we know how to speak about the bound variables. *)
-  | PPoint of point
+   * [POpen]s so that we know how to speak about the bound variables. *)
+  | POpen of var
   | PAs of pattern * pattern
   | PAny
 
@@ -60,9 +60,9 @@ type expression =
   (* e: τ *)
   | EConstraint of expression * typ
   (* v, bound *)
-  | EVar of index
+  | EVar of db_index
   (* v, free *)
-  | EPoint of point
+  | EOpen of var
   (* builtin foo *)
   | EBuiltin of string
   (* let rec pat = expr and pat' = expr' in expr *)
@@ -164,7 +164,7 @@ let collect_pattern (p: pattern): ((Variable.name * (Lexing.position * Lexing.po
   | PConstruct (_, fields) ->
       let patterns = snd (List.split fields) in
       List.fold_left collect_pattern acc patterns
-  | PPoint _ ->
+  | POpen _ ->
       assert false
   | PAs (p1, p2) ->
       List.fold_left collect_pattern acc [p1; p2]
@@ -192,17 +192,17 @@ let n_decls decls =
 
 (* [psubst pat points] replaces names in [pat] as it goes, by popping points off
  * the front of [points]. *)
-let rec psubst (pat: pattern) (points: point list) =
+let rec psubst (pat: pattern) (points: var list) =
   match pat with
   | PVar _ ->
       begin match points with
       | hd :: tl ->
-          PPoint hd, tl
+          POpen hd, tl
       | _ ->
           Log.error "Wrong variable count for [psubst]"
       end
 
-  | PPoint _ ->
+  | POpen _ ->
       Log.error "You ran a pattern through [psubst] twice"
 
   | PTuple pats ->
@@ -239,11 +239,11 @@ let rec psubst (pat: pattern) (points: point list) =
 
 
 (* [tsubst_pat t2 i p1] substitutes type [t2] for index [i] in pattern [p1]. *)
-let tsubst_pat (t2: typ) (i: index) (p1: pattern): pattern =
+let tsubst_pat (t2: typ) (i: db_index) (p1: pattern): pattern =
   let rec tsubst_pat t2 p1 =
     match p1 with
     | PVar _
-    | PPoint _
+    | POpen _
     | PAny ->
         p1
     | PTuple ps ->
@@ -286,7 +286,7 @@ and tsubst_expr t2 i e =
       EConstraint (tsubst_expr t2 i e, tsubst t2 i t)
 
   | EVar _
-  | EPoint _ 
+  | EOpen _ 
   | EBuiltin _ ->
       e
 
@@ -450,7 +450,7 @@ and esubst e2 i e1 =
       else
         e1
 
-  | EPoint _
+  | EOpen _
   | EBuiltin _ ->
       e1
 
@@ -587,14 +587,14 @@ let rec esubst_toplevel_items e2 i toplevel_items =
 type substitution_kit = {
   (* substitute [TyBound]s for [TyOpen]s in a [typ]. *)
   subst_type: typ -> typ;
-  (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EPoint]s in an [expression]. *)
+  (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EOpen]s in an [expression]. *)
   subst_expr: expression -> expression;
-  (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EPoint]s in an [expression]. *)
+  (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EOpen]s in an [expression]. *)
   subst_decl: declaration list -> declaration list;
-  (* substitute [PVar]s for [PPoint]s in a pattern *)
+  (* substitute [PVar]s for [POpen]s in a pattern *)
   subst_pat: pattern list -> pattern list;
   (* the points, in left-to-right order *)
-  points: point list;
+  points: var list;
 }
 
 (* [eunloc e] removes any [ELocated] located in front of [e]. *)
@@ -621,7 +621,7 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
   (* List kept in reverse, the usual trick *)
   let env, points =
     List.fold_left (fun (env, points) binding ->
-      let env, point = bind_var env binding in
+      let env, point = bind_rigid env binding in
       env, point :: points
     ) (env, []) bindings
   in
@@ -631,12 +631,12 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
   let subst_expr t =
     Hml_List.fold_lefti (fun i t point ->
       let t = tsubst_expr (TyOpen point) i t in
-      esubst (EPoint point) i t) t points
+      esubst (EOpen point) i t) t points
   in
   let subst_decl t =
     Hml_List.fold_lefti (fun i t point ->
       let t = tsubst_decl (TyOpen point) i t in
-      esubst_decl (EPoint point) i t) t points
+      esubst_decl (EOpen point) i t) t points
   in
   (* Now keep the list in order. *)
   let points = List.rev points in
@@ -653,7 +653,7 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
 ;;
 
 let bind_vars (env: env) (bindings: SurfaceSyntax.type_binding list): env * substitution_kit =
-  let bindings = List.map (fun (x, k, p) -> User (env.module_name, x), k, p) bindings in
+  let bindings = List.map (fun (x, k, p) -> User (module_name env, x), k, p) bindings in
   bind_evars env bindings
 ;;
 
@@ -692,7 +692,7 @@ let elift (k: int) (e: expression) =
       else
         EVar (j + k)
 
-  | EPoint _
+  | EOpen _
   | EBuiltin _ ->
       e
 
@@ -781,7 +781,7 @@ let elift (k: int) (e: expression) =
 
 
 (* [epsubst env e2 p e1] substitutes expression [e2] for point [p] in expression [e1] *)
-let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression =
+let epsubst (env: env) (e2: expression) (p: var) (e1: expression): expression =
   let rec epsubst e2 e1 =
     match e1 with
     | EConstraint (e1, t) ->
@@ -790,7 +790,7 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
     | EVar _ ->
         e1
 
-    | EPoint p' ->
+    | EOpen p' ->
         if same env p p' then
           e2
         else
@@ -893,11 +893,11 @@ let epsubst (env: env) (e2: expression) (p: point) (e1: expression): expression 
 
 (* [tpsubst_pat env t2 p p1] substitutes type [t2] for point [p] in expression
  * [e1]. *)
-let tpsubst_pat (env: env) (t2: typ) (p: point) (p1: pattern): pattern =
+let tpsubst_pat (env: env) (t2: typ) (p: var) (p1: pattern): pattern =
   let rec tpsubst_pat t2 p1 =
     match p1 with
     | PVar _
-    | PPoint _
+    | POpen _
     | PAny ->
         p1
     | PTuple ps ->
@@ -914,7 +914,7 @@ let tpsubst_pat (env: env) (t2: typ) (p: point) (p1: pattern): pattern =
 
 
 (* [tpsubst_expr env e2 p e1] substitutes type [t2] for point [p] in expression [e1] *)
-let tpsubst_expr (env: env) (t2: typ) (p: point) (e1: expression): expression =
+let tpsubst_expr (env: env) (t2: typ) (p: var) (e1: expression): expression =
   let rec tpsubst_expr t2 e1 =
     match e1 with
     | EConstraint (e1, t) ->
@@ -923,7 +923,7 @@ let tpsubst_expr (env: env) (t2: typ) (p: point) (e1: expression): expression =
     | EVar _ ->
         e1
 
-    | EPoint _ ->
+    | EOpen _ ->
         e1
 
     | EBuiltin _ ->
@@ -1065,9 +1065,9 @@ module ExprPrinter = struct
 
   and print_pat env = function
     | PVar (v, _) ->
-        print_var env (User (env.module_name, v))
+        print_var env (User (module_name env, v))
 
-    | PPoint point ->
+    | POpen point ->
         print_var env (get_name env point)
 
     | PTuple pats ->
@@ -1097,7 +1097,7 @@ module ExprPrinter = struct
 
   and print_tapp env = function
     | Named (x, t) ->
-        let x = User (env.module_name, x) in
+        let x = User (module_name env, x) in
         print_var env x ^^ space ^^ equals ^^ space ^^ print_type env t
     | Ordered t ->
         print_type env t
@@ -1109,7 +1109,7 @@ module ExprPrinter = struct
     | EVar i ->
         int i
 
-    | EPoint point ->
+    | EOpen point ->
         print_var env (get_name env point)
 
     | EBuiltin b ->
@@ -1229,7 +1229,7 @@ module ExprPrinter = struct
     print_var env name ^^ f ^^ space ^^ colon ^^ space ^^ print_kind kind
 
   and print_binder env (((name: Variable.name), kind, pos), f) =
-    print_ebinder env ((User (env.module_name, name), kind, pos), f)
+    print_ebinder env ((User (module_name env, name), kind, pos), f)
   ;;
 
   let rec print_declaration env declaration: env * document * _  =
@@ -1260,7 +1260,7 @@ module ExprPrinter = struct
   ;;
 
   let print_sig_item env (x, t) =
-    print_var env (User (env.module_name, x)) ^^ space ^^ at ^^ space ^^ print_type env t
+    print_var env (User (module_name env, x)) ^^ space ^^ at ^^ space ^^ print_type env t
   ;;
 
   let psigitem buf (env, arg) =

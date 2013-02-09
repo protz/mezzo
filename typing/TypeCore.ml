@@ -276,6 +276,18 @@ let locate env location =
   { env with location }
 ;;
 
+let valid env p =
+  PersistentUnionFind.valid p env.state
+;;
+
+let repr env p =
+  PersistentUnionFind.repr p env.state
+;;
+
+let find env p =
+  PersistentUnionFind.find p env.state
+;;
+
 (* ---------------------------------------------------------------------------- *)
 
 (** Dealing with flexible variables. Flexible variables are not stored in the
@@ -283,8 +295,7 @@ let locate env location =
 
 (* Given the index of a flexible variable, find its corresponding descriptor. *)
 let find_flex (env: env) (f: flex_index): flex_descr =
-  let f = List.nth env.flexible in
-  f
+  List.nth env.flexible f 
 ;;
 
 (* Replace the descriptor of a flexible variable with another one. *)
@@ -294,31 +305,31 @@ let replace_flex (env: env) (f: flex_index) (d: flex_descr): env =
 ;;
 
 (* Goes through any flexible variables before finding "the real type". *)
-let modulo_flex_v (env: env) (v: var): typ =
+let rec modulo_flex_v (env: env) (v: var): typ =
   match v with
   | VRigid _ ->
-      TyVar v
+      TyOpen v
   | VFlexible f ->
       match (find_flex env f).structure with
-      | Instantiated (TyVar v) ->
-          modulo_flex env v
+      | Instantiated (TyOpen v) ->
+          modulo_flex_v env v
       | Instantiated t ->
           t
       | NotInstantiated _ ->
-          TyVar v
+          TyOpen v
 ;;
 
 (* Same thing with a type. *)
 let modulo_flex (env: env) (t: typ): typ =
   match t with
-  | TyVar v -> modulo_flex_v env v
+  | TyOpen v -> modulo_flex_v env v
   | _ -> t
 ;;
 
 (* Is this variable flexible? (i.e. can I call "instantiate_flexible" on it? *)
 let is_flexible (env: env) (v: var): bool =
-  match modulo_flex env v with
-  | TyVar (VFlexible _) ->
+  match modulo_flex_v env v with
+  | TyOpen (VFlexible _) ->
       true
   | _ ->
       false
@@ -331,45 +342,51 @@ let can_instantiate (env: env) (v: var) (t: typ): bool =
   true
 ;;
 
-(* Instantiate a flexible variable with a given type. *)
-let instantiate_flexible (env: env) (v: var) (t: typ): env =
-  Log.check (is_flexible env v) "[instantiate_flex] wants flexible";
-  Log.debug "Instantiating %a with %a"
-    !internal_pnames (env, get_names env v)
-    !internal_ptype (env, t);
-
-  match modulo_flex env v with
-  | TyVar (VFlexible f) ->
-      replace_flex env f { structure = Instantiated t }
-  | _ ->
-      assert false
-;;
-
 
 (* ---------------------------------------------------------------------------- *)
 
 (** Some functions that operate on variables. *)
 
-let get_var_descr (env: env) (v: var): var_descr =
+let assert_var env v =
   match modulo_flex_v env v with
-  | VFlexible (NotInstantiated f) ->
-      find_flex env f
-  | VFlexible (Instantiated _) ->
-      assert false
-  | VPoint p ->
+  | TyOpen v ->
+      v
+  | _ ->
+      Log.error "This is a flexible variable with a structure!"
+;;
+
+let get_var_descr (env: env) (v: var): var_descr =
+  match assert_var env v with
+  | VFlexible f ->
+      begin match (find_flex env f).structure with
+      | NotInstantiated descr ->
+          descr
+      | Instantiated _ ->
+          assert false
+      end
+  | VRigid p ->
       let var_descr, _extra_descr = PersistentUnionFind.find p env.state in
       var_descr
 ;;
 
 let set_var_descr (env: env) (v: var) (f: var_descr -> var_descr): env =
-  match modulo_flex_v env v with
-  | VFlexible (NotInstantiated i) ->
-      replace_flex env i (f (find_flex env i))
-  | VFlexible (Instantiated _) ->
-      assert false
-  | VPoint p ->
-      let var_descr, _extra_descr = PersistentUnionFind.find p env.state in
-      { env with state = PersistentUnionFind.update (f var_descr) p env.state }
+  match assert_var env v with
+  | VFlexible i ->
+      replace_flex env i (
+        match find_flex env i with
+        | { structure = NotInstantiated descr } ->
+            { structure = NotInstantiated (f descr) }
+        | { structure = Instantiated _ } ->
+            assert false
+      )
+  | VRigid p ->
+      let var_descr, extra_descr = PersistentUnionFind.find p env.state in {
+        env with state =
+          PersistentUnionFind.update (fun (var_descr, extra_descr) ->
+            (f var_descr), extra_descr)
+          p
+          env.state
+      }
 ;;
 
 let get_permissions (env: env) (var: var): permissions =
@@ -377,7 +394,7 @@ let get_permissions (env: env) (var: var): permissions =
   | VFlexible _ ->
       assert false
   | VRigid point ->
-      begin match find env point with
+      match find env point with
       | _, DTerm { permissions; _ } ->
           permissions
       | _ ->
@@ -388,12 +405,12 @@ let get_fact (env: env) (var: var): fact =
   Option.extract (get_var_descr env var).fact
 ;;
 
-let get_locations (env: env) (point: point): location list =
+let get_locations (env: env) (var: var): location list =
   (get_var_descr env var).locations
 ;;
 
-let get_names (env: env) (var: v): name list =
-  (get_var_descr env v).names
+let get_names (env: env) (var: var): name list =
+  (get_var_descr env var).names
 ;;
 
 let get_definition (env: env) (var: var): type_def option =
@@ -410,11 +427,28 @@ let get_definition (env: env) (var: var): type_def option =
 ;;
 
 let get_kind (env: env) (var: var): kind =
-  (get_var_descr env v).kind
+  (get_var_descr env var).kind
 ;;
 
-let set_fact (env: env) (var: var) (f: fact): env =
+let set_fact (env: env) (var: var) (fact: fact): env =
+  let fact = Some fact in
   set_var_descr env var (fun d -> { d with fact })
+;;
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Instantiate a flexible variable with a given type. *)
+let instantiate_flexible (env: env) (v: var) (t: typ): env =
+  Log.check (is_flexible env v) "[instantiate_flex] wants flexible";
+  Log.debug "Instantiating %a with %a"
+    !internal_pnames (env, get_names env v)
+    !internal_ptype (env, t);
+
+  match modulo_flex_v env v with
+  | TyOpen (VFlexible f) ->
+      replace_flex env f { structure = Instantiated t }
+  | _ ->
+      assert false
 ;;
 
 (* ---------------------------------------------------------------------------- *)
@@ -429,8 +463,8 @@ end)
 
 (* Dealing with the union-find nature of the environment. *)
 let same env v1 v2 =
-  match modulo_flex_v v1, modulo_flex_v v2 with
-  | VPoint p1, VPoint p2 ->
+  match assert_var env v1, assert_var env v2 with
+  | VRigid p1, VRigid p2 ->
       PersistentUnionFind.same p1 p2 env.state
   | VFlexible f1, VFlexible f2 ->
       f1 == f2
@@ -440,14 +474,7 @@ let same env v1 v2 =
 
 (* Merge while keeping the descriptor of the leftmost argument. *)
 let merge_p2p env p2 p1 =
-  (* Debug *)
-  let open Bash in
-  Log.debug ~level:5 "%sMerging%s %a into %a"
-    colors.red colors.default
-    !internal_pnames (env, get_names env p1)
-    !internal_pnames (env, get_names env p2);
-
-  (* All this work is just to make sure we keep the names, positions... from
+ (* All this work is just to make sure we keep the names, positions... from
    * both sides. *)
   let state = env.state in
   let { names = names; locations = locations; _ }, _b1 =
@@ -460,15 +487,6 @@ let merge_p2p env p2 p1 =
   let names = Hml_List.remove_duplicates names in
   let locations = locations @ locations' in
   let locations = Hml_List.remove_duplicates locations in
-
-  (* More debug *)
-  begin match _b1, _b2 with
-  | BType { fact = f1; _ }, BType { fact = f2; _ } ->
-      Log.debug ~level:6 "→ facts: merging %a into %a"
-        !internal_pfact f1 !internal_pfact f2;
-  | _ ->
-      ()
-  end;
 
   (* It is up to the caller to move the permissions if needed... *)
   let state = PersistentUnionFind.update (fun (head, raw) ->
@@ -483,35 +501,37 @@ let merge env v1 v2 =
   (* Sanity check. *)
   Log.check (get_kind env v1 = get_kind env v2) "Kind mismatch when merging";
 
+  (* Debug *)
+  let open Bash in
+  Log.debug ~level:5 "%sMerging%s %a into %a"
+    colors.red colors.default
+    !internal_pnames (env, get_names env v1)
+    !internal_pnames (env, get_names env v2);
+  if get_kind env v1 = KType then
+    Log.debug ~level:6 "→ facts: merging %a into %a"
+      !internal_pfact (get_fact env v1)
+      !internal_pfact (get_fact env v2);
+
+ 
   match v1, v2 with
-  | VPoint p1, VPoint p2 ->
+  | VRigid p1, VRigid p2 ->
       merge_p2p env p1 p2
-  | (VPoint _ as v), (VFlexible _ as vf) ->
-  | (VFlexible _ as vf), (VPoint _ as v) ->
-      if can_instantiate env vf (TyVar v) then
-        instantiate_flexible env vf (TyVar v)
+  | (VRigid _ as v), (VFlexible _ as vf)
+  | (VFlexible _ as vf), (VRigid _ as v) ->
+      if can_instantiate env vf (TyOpen v) then
+        instantiate_flexible env vf (TyOpen v)
+      else
+        env
   | VFlexible i, VFlexible j ->
       if i < j then
-        instantiate_flexible env v2 (TyVar v1)
+        instantiate_flexible env v2 (TyOpen v1)
       else
-        instantiate_flexible env v1 (TyVar v2)
+        instantiate_flexible env v1 (TyOpen v2)
 ;;
 
 
 (* ---------------------------------------------------------------------------- *)
 
-
-let valid env p =
-  PersistentUnionFind.valid p env.state
-;;
-
-let repr env p =
-  PersistentUnionFind.repr p env.state
-;;
-
-let find env p =
-  PersistentUnionFind.find p env.state
-;;
 
 exception UnboundPoint
 
@@ -525,17 +545,22 @@ let clean top sub t =
     | TyBound _ ->
         t
 
-    | TyOpen p ->
-        begin match structure sub p with
-        | Some t ->
-            clean t
-        | None ->
-            let p = repr sub p in
-            if valid top p then
-              TyOpen p
-            else
-              raise UnboundPoint
-        end
+    | TyOpen (VRigid p as v) ->
+        let p = repr sub p in
+        if valid top p then
+          TyOpen (VRigid p)
+        else
+          raise UnboundPoint
+
+    | TyOpen (VFlexible f) ->
+        if f <= top.current_level then
+          match (find_flex sub f).structure with
+          | Instantiated t ->
+              clean t
+          | NotInstantiated _ ->
+              t
+        else
+          raise UnboundPoint
 
     | TyForall (b, t) ->
         TyForall (b, clean t)
@@ -586,75 +611,11 @@ let clean top sub t =
   clean t
 ;;
 
-let clean top sub t =
-  let rec clean t =
-    match t with
-    (* Special type constants. *)
-    | TyUnknown
-    | TyDynamic
-    | TyEmpty
-    | TyBound _ ->
-        t
-
-    | TyOpen p ->
-        begin match structure sub p with
-        | Some t ->
-            clean t
-        | None ->
-            let p = repr sub p in
-            if valid top p then
-              TyOpen p
-            else
-              raise UnboundPoint
-        end
-
-    | TyForall (b, t) ->
-        TyForall (b, clean t)
-
-    | TyExists (b, t) ->
-        TyExists (b, clean t)
-
-    | TyApp (t1, t2) ->
-        TyApp (clean t1, List.map clean t2)
-
-      (* Structural types. *)
-    | TyTuple ts ->
-        TyTuple (List.map clean ts)
-
-    | TyConcreteUnfolded ((t, dc), fields, clause) ->
-        let t = clean t in
-        let fields = List.map (function
-          | FieldValue (f, t) ->
-              FieldValue (f, clean t)
-          | FieldPermission p ->
-              FieldPermission (clean p)
-        ) fields in
-        TyConcreteUnfolded ((t, dc), fields, clean clause)
-
-    | TySingleton t ->
-        TySingleton (clean t)
-
-    | TyArrow (t1, t2) ->
-        TyArrow (clean t1, clean t2)
-
-    | TyBar (t1, t2) ->
-        TyBar (clean t1, clean t2)
-
-    | TyAnchoredPermission (t1, t2) ->
-        TyAnchoredPermission (clean t1, clean t2)
-
-    | TyStar (t1, t2) ->
-        TyStar (clean t1, clean t2)
-
-    | TyAnd (constraints, t) ->
-        let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
-        TyAnd (constraints, clean t)
-
-    | TyImply (constraints, t) ->
-        let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
-        TyImply (constraints, clean t)
-  in
-  clean t
+let valid env = function
+  | VFlexible i ->
+      i <= env.current_level
+  | VRigid p ->
+      valid env p
 ;;
 
 let rec resolved_datacons_equal env (t1, dc1) (t2, dc2) =
@@ -798,7 +759,7 @@ let bind_rigid env (name, kind, location) =
   in
   let state = PersistentUnionFind.update (fun _ -> var_descr, extra_descr) point state in
 
-  env, VRigid point
+  { env with state }, VRigid point
 ;;
 
 
@@ -814,14 +775,20 @@ let bind_flexible env (name, kind, location) =
 
   (* Create the flexible descriptor, add it to our list of flexible variables. *)
   let flex_descr = { structure = NotInstantiated var_descr } in
+  (* FIXME reverse the list *)
   let env = { env with flexible = flexible @ [flex_descr] } in
 
   env, VFlexible f
 ;;
 
 
-let bind_type_def 
-val bind_type_def: env -> type_binding -> type_def -> env * var
+let bind_type_def env binding definition =
+  let env, var = bind_rigid env binding in
+  let point = match var with VRigid point -> point | _ -> assert false in
+  let extra_descr = DType { definition } in
+  let state = PersistentUnionFind.update (fun _ -> var_descr, extra_descr) point env.state in
+  { env with state }, var
+;;
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -885,5 +852,15 @@ let mark (env: env) (point: point): env =
 
 let refresh_mark (env: env): env =
   { env with mark = Mark.create () }
+;;
+
+(* ---------------------------------------------------------------------------- *)
+
+let internal_uniqvarid env = function
+  | VFlexible i ->
+      i asl 16
+  | VRigid point ->
+      let p = PersistentUnionFind.repr point env.state in
+      Obj.magic p
 ;;
 

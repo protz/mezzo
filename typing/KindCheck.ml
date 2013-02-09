@@ -49,7 +49,7 @@ type level =
  * been opened already). Otherwise, it's a bound variable. *)
 type var = Var of level | Point of Types.point
 let tvar = function Var x -> T.TyBound x | Point x -> T.TyOpen x;;
-let evar = function Var x -> E.EVar x | Point x -> E.EPoint x;;
+let evar = function Var x -> E.EVar x | Point x -> E.EOpen x;;
 
 type datacon_origin =
   | InCurrentModule of level * SurfaceSyntax.datacon_info

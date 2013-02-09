@@ -226,7 +226,7 @@ let simplify_function_type env t body =
           match perm with
           | TyAnchoredPermission (TyOpen p, TySingleton (TyOpen p')) ->
               if suitable p && suitable p' then
-                let env = merge_left env p p' in
+                let env = merge env p p' in
                 (env, perms)
               else
                 env, perm :: perms
@@ -343,7 +343,9 @@ let prepare_function_def env bindings arg return_type body =
 ;;
 
 
-let rec mark_reachable env = function
+let rec mark_reachable env t =
+  let t = modulo_flex env t in
+  match t with
   | TyUnknown
   | TyDynamic
   | TyEmpty
@@ -355,16 +357,11 @@ let rec mark_reachable env = function
         env
       else
         let env = mark env p in
-        begin match structure env p with
-        | Some t ->
-            mark_reachable env t
-        | None ->
-            if is_term env p then
-              let permissions = get_permissions env p in
-              List.fold_left mark_reachable env permissions
-            else
-              env
-        end
+        if is_term env p then
+          let permissions = get_permissions env p in
+          List.fold_left mark_reachable env permissions
+        else
+          env
 
   | TyForall (_, t)
   | TyExists (_, t) ->

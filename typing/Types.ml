@@ -436,6 +436,8 @@ let is_tyapp = function
       None
 ;;
 
+let is_term env v = (get_kind env v = KTerm);;
+
 let make_datacon_letters env kind flexible f =
   let _return_kind, arg_kinds = flatten_kind kind in
   (* Turn the list of parameters into letters *)

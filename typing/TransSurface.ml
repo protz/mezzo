@@ -659,7 +659,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       evar index
 
   | EQualified (mname, x) ->
-      E.EPoint (T.point_by_name env.env ~mname x)
+      E.EOpen (T.point_by_name env.env ~mname x)
 
   | EBuiltin b ->
       E.EBuiltin b
