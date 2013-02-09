@@ -67,7 +67,7 @@ val copy  : [a] duplicable a => fifo a -> fifo a
    executes [f x]. The function [f] has access to the queue, and may
    insert new elements into it. This process is repeated until the
    queue becomes empty. *)
-val work : [a] (q: fifo a, f: (a | q @ fifo a) -> ()) -> ()
+val work : [a, p : perm] (q: fifo a, f: (a | q @ fifo a * p) -> () | p) -> ()
 
 (*
   Local Variables:

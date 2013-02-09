@@ -174,7 +174,7 @@ val map [a, b, p : perm] (
 val copy [a] duplicable a => (q: fifo a): fifo a =
   map (q, fun (x: a) : a = x)
 
-val rec work [a] (q: fifo a, f: (a | q @ fifo a) -> ()) : () =
+val rec work [a, p : perm] (q: fifo a, f: (a | q @ fifo a * p) -> () | p) : () =
   match retrieve q with
   | None ->
       ()
