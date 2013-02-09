@@ -81,16 +81,6 @@ let fst3 (x, _, _) = x;;
 let snd3 (_, x, _) = x;;
 let thd3 (_, _, x) = x;;
 
-let names_equal n1 n2 =
-  match n1, n2 with
-  | Auto n1, Auto n2 when Variable.equal n1 n2 ->
-      true
-  | User (m1, n1), User (m2, n2) when Variable.equal n1 n2 && Module.equal m1 m2 ->
-      true
-  | _ ->
-      false
-;;
-
 let is_user = function User _ -> true | Auto _ -> false;;
 
 let ty_equals x =
@@ -873,7 +863,7 @@ module TypePrinter = struct
     utf8string "Γ (unordered) = " ^^
     separate
       (semi ^^ space)
-      (map_all env (fun var -> separate_map (string " = ") (print_var env) (get_names env var)))
+      (map env (fun var -> separate_map (string " = ") (print_var env) (get_names env var)))
   ;;
 
 

@@ -299,8 +299,8 @@ val point_by_name: env -> ?mname:Module.name -> Variable.name -> var
 
 val fold_definitions: env -> ('acc -> var -> type_def -> 'acc) -> 'acc -> 'acc
 val fold_terms: env -> ('acc -> var -> typ list -> 'acc) -> 'acc -> 'acc
-val fold_all: env -> ('acc -> var -> 'acc) -> 'acc -> 'acc
-val map_all: env -> (var -> 'a) -> 'a list
+val fold: env -> ('acc -> var -> 'acc) -> 'acc -> 'acc
+val map: env -> (var -> 'a) -> 'a list
 
 (* ---------------------------------------------------------------------------- *)
 

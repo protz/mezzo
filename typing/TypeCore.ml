@@ -276,6 +276,14 @@ let locate env location =
   { env with location }
 ;;
 
+let location { location; _ } = location;;
+
+let is_inconsistent { inconsistent; _ } = inconsistent;;
+
+let mark_inconsistent env = { env with inconsistent = true };;
+
+let module_name { module_name; _ } = module_name;;
+
 let valid env p =
   PersistentUnionFind.valid p env.state
 ;;
@@ -337,6 +345,7 @@ let is_flexible (env: env) (v: var): bool =
 
 (* This is where all the safety checks will happen. *)
 let can_instantiate (env: env) (v: var) (t: typ): bool =
+  ignore t;
   is_flexible env v &&
   (* FIXME check facts, assert kinds, levels *)
   true
@@ -352,8 +361,16 @@ let assert_var env v =
   | TyOpen v ->
       v
   | _ ->
-      Log.error "This is a flexible variable with a structure!"
+      Log.error "[assert_var] failed"
 ;;
+
+(* let assert_point env v =
+  match modulo_flex_v env v with
+  | TyOpen (VRigid p) ->
+      p
+  | _ ->
+      Log.error "[assert_point] failed"
+;; *)
 
 let get_var_descr (env: env) (v: var): var_descr =
   match assert_var env v with
@@ -369,7 +386,7 @@ let get_var_descr (env: env) (v: var): var_descr =
       var_descr
 ;;
 
-let set_var_descr (env: env) (v: var) (f: var_descr -> var_descr): env =
+let update_var_descr (env: env) (v: var) (f: var_descr -> var_descr): env =
   match assert_var env v with
   | VFlexible i ->
       replace_flex env i (
@@ -380,7 +397,7 @@ let set_var_descr (env: env) (v: var) (f: var_descr -> var_descr): env =
             assert false
       )
   | VRigid p ->
-      let var_descr, extra_descr = PersistentUnionFind.find p env.state in {
+      {
         env with state =
           PersistentUnionFind.update (fun (var_descr, extra_descr) ->
             (f var_descr), extra_descr)
@@ -414,7 +431,6 @@ let get_names (env: env) (var: var): name list =
 ;;
 
 let get_definition (env: env) (var: var): type_def option =
-  (* FIXME make this function infaillible? *)
   match var with
   | VFlexible _ ->
       None
@@ -432,7 +448,7 @@ let get_kind (env: env) (var: var): kind =
 
 let set_fact (env: env) (var: var) (fact: fact): env =
   let fact = Some fact in
-  set_var_descr env var (fun d -> { d with fact })
+  update_var_descr env var (fun d -> { d with fact })
 ;;
 
 (* ---------------------------------------------------------------------------- *)
@@ -467,7 +483,7 @@ let same env v1 v2 =
   | VRigid p1, VRigid p2 ->
       PersistentUnionFind.same p1 p2 env.state
   | VFlexible f1, VFlexible f2 ->
-      f1 == f2
+      f1 = f2
   | _ ->
       false
 ;;
@@ -545,7 +561,7 @@ let clean top sub t =
     | TyBound _ ->
         t
 
-    | TyOpen (VRigid p as v) ->
+    | TyOpen (VRigid p) ->
         let p = repr sub p in
         if valid top p then
           TyOpen (VRigid p)
@@ -625,7 +641,7 @@ let rec resolved_datacons_equal env (t1, dc1) (t2, dc2) =
  * equivalence in the [PersistentUnionFind]. *)
 and equal env (t1: typ) (t2: typ) =
   let rec equal (t1: typ) (t2: typ) =
-    match t1, t2 with
+    match modulo_flex env t1, modulo_flex env t2 with
       (* Special type constants. *)
     | TyUnknown, TyUnknown
     | TyDynamic, TyDynamic ->
@@ -638,14 +654,7 @@ and equal env (t1: typ) (t2: typ) =
         if not (valid env p1) || not (valid env p2) then
           raise UnboundPoint;
 
-        begin match structure env p1, structure env p2 with
-        | Some t1, _ ->
-            equal t1 t2
-        | _, Some t2 ->
-            equal t1 t2
-        | None, None ->
-            same env p1 p2
-        end
+        same env p1 p2
 
     | TyExists ((_, k1, _), t1), TyExists ((_, k2, _), t2)
     | TyForall (((_, k1, _), _), t1), TyForall (((_, k2, _), _), t2) ->
@@ -710,7 +719,7 @@ and equal env (t1: typ) (t2: typ) =
 let mkdescr env name kind location fact =
   let var_descr = {
     names = [name];
-    locations = [loc];
+    locations = [location];
     kind;
     fact;
     binding_mark = Mark.create ();
@@ -776,7 +785,7 @@ let bind_flexible env (name, kind, location) =
   (* Create the flexible descriptor, add it to our list of flexible variables. *)
   let flex_descr = { structure = NotInstantiated var_descr } in
   (* FIXME reverse the list *)
-  let env = { env with flexible = flexible @ [flex_descr] } in
+  let env = { env with flexible = env.flexible @ [flex_descr] } in
 
   env, VFlexible f
 ;;
@@ -786,7 +795,7 @@ let bind_type_def env binding definition =
   let env, var = bind_rigid env binding in
   let point = match var with VRigid point -> point | _ -> assert false in
   let extra_descr = DType { definition } in
-  let state = PersistentUnionFind.update (fun _ -> var_descr, extra_descr) point env.state in
+  let state = PersistentUnionFind.update (fun (var_descr, _) -> var_descr, extra_descr) point env.state in
   { env with state }, var
 ;;
 
@@ -794,12 +803,34 @@ let bind_type_def env binding definition =
 
 (* Iterating on rigid variables. *)
 
-let fold env f acc =
+let internal_fold env f acc =
   PersistentUnionFind.fold (fun acc k v ->
     f acc k v)
   acc env.state
 ;;
 
+let fold env f acc =
+  PersistentUnionFind.fold
+    (fun acc point _ -> f acc (VRigid point))
+    acc
+    env.state
+;;
+
+let fold_terms env f acc =
+  PersistentUnionFind.fold (fun acc point (_, extra_descr) ->
+    match extra_descr with DTerm { permissions; _ } -> f acc (VRigid point) permissions | _ -> acc)
+  acc env.state
+;;
+
+let fold_definitions env f acc =
+  PersistentUnionFind.fold (fun acc point (_, extra_descr) ->
+    match extra_descr with DType { definition } -> f acc (VRigid point) definition | _ -> acc)
+  acc env.state
+;;
+
+let map env f =
+  fold env (fun acc var -> f var :: acc) []
+;;
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -808,46 +839,52 @@ let fold env f acc =
 (* Get all the names from module [mname] found in [env]. *)
 let get_exports env mname =
   let assoc =
-    fold env (fun acc point ({ names; kind; _ }, _) ->
+    internal_fold env (fun acc point ({ names; kind; _ }, _) ->
       let canonical_names = Hml_List.map_some (function
         | User (m, x) when Module.equal m mname ->
             Some (x, kind)
         | _ ->
             None
       ) names in
-      List.map (fun (x, k) -> x, k, point) canonical_names :: acc
+      List.map (fun (x, k) -> x, k, VRigid point) canonical_names :: acc
     ) []
   in
   List.flatten assoc
+;;
+
+let names_equal n1 n2 =
+  match n1, n2 with
+  | Auto n1, Auto n2 when Variable.equal n1 n2 ->
+      true
+  | User (m1, n1), User (m2, n2) when Variable.equal n1 n2 && Module.equal m1 m2 ->
+      true
+  | _ ->
+      false
 ;;
 
 let point_by_name (env: env) ?(mname: Module.name option) (name: Variable.name): var =
   let mname = Option.map_none env.module_name mname in
   let module T = struct exception Found of point end in
   try
-    fold env (fun () point ({ names; _ }, _binding) ->
+    internal_fold env (fun () point ({ names; _ }, _binding) ->
       if List.exists (names_equal (User (mname, name))) names then
         raise (T.Found point)) ();
     raise Not_found
   with T.Found point ->
-    point
+    VRigid point
 ;;
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Dealing with marks. *)
 
-let is_marked (env: env) (point: point): bool =
-  let { binding_mark; _ }, _ = PersistentUnionFind.find point env.state in
+let is_marked (env: env) (var: var): bool =
+  let { binding_mark; _ } = get_var_descr env var in
   Mark.equals binding_mark env.mark
 ;;
 
-let mark (env: env) (point: point): env =
-  { env with state =
-      PersistentUnionFind.update (fun (head, binding) ->
-        { head with binding_mark = env.mark }, binding
-      ) point env.state
-  }
+let mark (env: env) (var: var): env =
+  update_var_descr env var (fun descr -> { descr with binding_mark = env.mark })
 ;;
 
 let refresh_mark (env: env): env =
@@ -858,9 +895,9 @@ let refresh_mark (env: env): env =
 
 let internal_uniqvarid env = function
   | VFlexible i ->
-      i asl 16
+      i lsl 16
   | VRigid point ->
       let p = PersistentUnionFind.repr point env.state in
-      Obj.magic p
+      (Obj.magic p: int)
 ;;
 
