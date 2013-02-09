@@ -1,65 +1,25 @@
-(* FIFO structure, adapted from queue.ml *)
+(* A FIFO queue implementation, adapted from OCaml's queue.ml. *)
 
 mutable data cell a =
   Cell { value: a; next: dynamic }
 
-(* The fifo structure is implemented with a cyclic list,
-   with a pointer on the last element. An integer gives the
-   length of the structure. The integer is extensively used
-   in the ML version to test whether the structure is empty.
-   Here a tag will do the trick in most cases.
-*)
+(* The FIFO structure is implemented as a cyclic list. The
+   [fifo] object contains a pointer to the last element of
+   the queue, as well as the length of the queue. The length
+   information is used in the OCaml version to test whether
+   the queue is empty. Here, the tag, [Empty] or [NonEmpty],
+   provides this information. The [tail] pointer is present
+   only when the queue is nonempty. *)
 
 mutable data fifo a =
-  Empty    { length: int;  tail: ()      }
-| NonEmpty { length: int;  tail: dynamic }
+  Empty    { length: int; tail: ()      }
+| NonEmpty { length: int; tail: dynamic }
 adopts cell a
 
-(* TEMPORARY this code is rejected because "adopts" clauses in
-   structural types are not yet supported by the parser.
-(* This internal function finds the head of a nonempty queue. *)
+val create [a] () : fifo a =
+  Empty { length = 0; tail = () }
 
-val head [a, tail : term] (q: NonEmpty { length: int; tail = tail } adopts cell a | tail @ dynamic) : dynamic =
-  taking tail from q begin
-    tail.next
-  end
-*)
-
-val create [a] (): fifo a =
-  Empty { length = 0;  tail = () }
-
-val length [a] (q: fifo a): int =
-  match q with
-  | Empty -> 0
-  | NonEmpty -> q.length
-  end
-
-(* The function clear doesn't type without the match *)
-
-val clear [a] (q: fifo a): () =
-  match q with
-  | Empty -> ()
-  | NonEmpty ->
-      tag of q <- Empty;
-      q.length <- 0;
-      q.tail   <- ()
-  end
-
-(* Rotate a queue [q] by moving its head element to the tail. *)
-
-val rotate [a] (q: fifo a): () =
-  match q with
-  | Empty ->
-      ()
-  | NonEmpty { tail } ->
-      taking tail from q begin
-	q.tail <- tail.next
-      end
-  end
-
-(* Insert an element [x] at the beginning of a queue [q]. *)
-
-val insert_head [a] (consumes x: a, q: fifo a): () =
+val internal_insert [a] (consumes x: a, q: fifo a, insertAtEnd: bool): () =
   let c = Cell {
     value = x; next = ()
   } in
@@ -76,35 +36,21 @@ val insert_head [a] (consumes x: a, q: fifo a): () =
         tail.next <- c;
       end;
       give c to q;
-      q.length <- q.length +1
+      q.length <- q.length + 1;
+      (* We have just inserted the cell [c] at the beginning of the
+	 queue. If the caller would like [c] to be inserted at the
+	 end of the queue, advance the [tail] pointer. *)
+      if insertAtEnd then
+	q.tail <- c
   end
+
+val insert [a] (consumes x: a, q: fifo a) : () =
+  internal_insert (x, q, true)
   
-(* Insert an element [x] at the end of a queue [q]. *)
+val insert_at_head [a] (consumes x: a, q: fifo a) : () =
+  internal_insert (x, q, false)
 
-val insert [a] (consumes x: a, q: fifo a): () =
-  insert_head (x, q);
-  rotate q
-
-(* Peek: the element has to be duplicable. *)
-
-val peek [a] duplicable a => (q: fifo a): option a =
-  match q with
-  | Empty -> 
-      none
-  | NonEmpty { tail } ->
-      let head =
-	taking tail from q begin
-	  tail.next
-	end
-      in
-      taking head from q begin
-	some head.value
-      end
-  end
-
-(* Retrieve the head element of a queue [q]. *)
-
-val retrieve [a] (q: fifo a): option a =
+val retrieve [a] (q: fifo a) : option a =
   match q with
   | Empty ->
       None
@@ -132,83 +78,110 @@ val retrieve [a] (q: fifo a): option a =
       some head.value
  end
 
-(* In contrast with [list::map], the function [queue::map] cannot perform
-   a strong update on the queue elements. The queue [q] adopts elements of
-   type [cell a], and this cannot be changed. Thus, [queue::map] must require
-   its argument [f] to preserve the type [a] of the list element. *)
-(* Possible variant: with a loop on the length of the queue [q], rebuilding
-   [q] can be done using [queue::insert] instead of [queue::insert_head]. *)
+val peek [a] duplicable a => (q: fifo a) : option a =
+  match q with
+  | Empty -> 
+      none
+  | NonEmpty { tail } ->
+      let head =
+	taking tail from q begin
+	  tail.next
+	end
+      in
+      taking head from q begin
+	some head.value
+      end
+  end
 
+val length [a] (q: fifo a) : int =
+  match q with
+  | Empty -> 0
+  | NonEmpty -> q.length
+  end
 
-val map [a, b, p:perm] (f: (a | p) -> b, q: fifo a | p): fifo b =
+(* The function [clear] doesn't type-check without the [match]
+   construct. Mezzo does not allow setting an object's tag
+   unless its current tag is known. *)
 
-  let rec map (q: fifo a, consumes accu: fifo b | p): fifo b =
-    (* The call to retrieve takes the head value from the queue [q], and
-       removes the head cell of [q]. *)
-    let a = retrieve q in
-    match a with
+val clear [a] (q: fifo a) : () =
+  match q with
+  | Empty -> ()
+  | NonEmpty ->
+      tag of q <- Empty;
+      q.length <- 0;
+      q.tail   <- ()
+  end
 
-    | None ->
-        accu
-
-    | Some { contents = a } ->
-        let b = f a in
-	insert (b, accu);
-	(* Since the head cell of the queue [q] has been removed, the
-	   auxiliary [map] can be called again on [q]. *)
-	let q' = map (q, accu) in
-	(* To rebuild the original [q] we have to insert the retrieved value
-	   at the beginning of [q] rather than its end. *)
-	insert_head (a, q);
-	q'
-
-    end
-  in
-  
-  let accu = create () in
-  map (q, accu)
-
-val copy [a] duplicable a => (q: fifo a): fifo a =
-  map ((fun (x:a): a = x), q)
+val rotate [a] (q: fifo a) : () =
+  match q with
+  | Empty ->
+      ()
+  | NonEmpty { tail } ->
+      (* Advance the tail pointer. *)
+      taking tail from q begin
+	q.tail <- tail.next
+      end
+  end
 
 (* In contrast with [list::fold], the function [queue::fold] cannot perform
    a strong update on the queue elements. The queue [q] adopts elements of
    type [cell a], and this cannot be changed. Thus, [queue::fold] must require
    its argument [f] to preserve the type [a] of the list element. *)
 
-val fold [a, b, p:perm] (
+val fold [a, b] (
   q: fifo a,
-  consumes acc: b,
-  f: (a, consumes b | p) -> b
-| p
-): b =
-  
+  consumes accu: b,
+  f: (a, consumes b) -> b
+) : b =
   match q with
   | Empty ->
-      acc
-
+      accu
   | NonEmpty { tail } ->
-
-      let rec fold (consumes acc: b, c: dynamic | q @ fifo a * p): b =
+      let rec fold (consumes accu: b, c: dynamic | q @ fifo a) : b =
 	take c from q;
         let Cell { next; value } = c in
-        let acc = f (value, acc) in
+        let accu = f (value, accu) in
 	give c to q;
         if tail == c then
-          acc
+          accu
         else
-          fold (acc, next)
+          fold (accu, next)
       in
-
       (* Obtain the address of the first cell. *)
       let head = taking tail from q begin tail.next end in
       (* We're ready to launch the recursion. *)
-      fold (acc, head)
-
+      fold (accu, head)
   end
 
-val iter [a, p:perm] (q: fifo a, f: (a | p) -> () | p) : () =
-  fold (q, (), fun (x:a, () | p): () = f x) 
+val iter [a, p : perm] (
+  q: fifo a,
+  f: (a | p) -> ()
+| p
+) : () =
+  fold [a, (| p)] (q, (), fun (x:a, (| p)) : () = f x) 
+
+val map [a, b, p : perm] (
+  q: fifo a,
+  f: (a | p) -> b
+| p
+) : fifo b =
+  let q' : fifo b = create () in
+  iter (q, fun (x: a | q' @ fifo b * p) : () =
+    insert (f x, q')
+  );
+  q'
+
+val copy [a] duplicable a => (q: fifo a): fifo a =
+  map (q, fun (x: a) : a = x)
+
+val rec work [a] (q: fifo a, f: (a | q @ fifo a) -> ()) : () =
+  match retrieve q with
+  | None ->
+      ()
+  | Some { contents = x } ->
+      f x;
+      work (q, f)
+  end
 
 (*
 Local Variables:
