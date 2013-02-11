@@ -27,6 +27,6 @@ val fresh_var: string -> Variable.name
 val read: in_channel -> string
 val ptag: Buffer.t -> 'a -> unit
 
-val absolute_path: string -> string
+val same_absolute_path: string -> string -> bool
 
 val file_get_contents: string -> string

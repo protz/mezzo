@@ -97,9 +97,20 @@ let ptag buf p =
 ;;
 
 let absolute_path p =
-  let c = Sys.getcwd () in
-  Sys.chdir p;
-  let r = Sys.getcwd () in
-  Sys.chdir c;
-  r
+  try
+    let c = Sys.getcwd () in
+    Sys.chdir p;
+    let r = Sys.getcwd () in
+    Sys.chdir c;
+    Some r
+  with Sys_error _ ->
+    None
 ;;
+
+let same_absolute_path p1 p2 =
+  match absolute_path p1, absolute_path p2 with
+  | Some p1, Some p2 ->
+      p1 = p2
+  | _, _ ->
+      false
+
