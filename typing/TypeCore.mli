@@ -262,6 +262,10 @@ val get_locations: env -> var -> location list
 (** Get the definition, if any. *)
 val get_definition: env -> var -> type_def option
 
+(** {2 Low-level variable manipulation functions.} *)
+
+val add_location: env -> var -> location -> env
+
 (** {2 Low-level permissions manipulation functions.} *)
 
 (** If you're considering playing with the list of permissions available for a
@@ -274,6 +278,9 @@ val get_permissions : env -> var -> typ list
 
 (** Set the permissions of a term variable. *)
 val set_permissions : env -> var -> typ list -> env
+
+(** Reset the permissions of a term variable. *)
+val reset_permissions : env -> var -> env
 
 (** {2 Low-level setters} *)
 

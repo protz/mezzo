@@ -19,39 +19,23 @@
 
 open Types
 
-type job = point * point * point
+type job = var * var * var
 
-type outcome = MergeWith of point | Proceed | Abort
-
-let add_location dest_env dest_point right_location =
-  replace dest_env dest_point (fun (head, binding) ->
-    { head with locations = right_location :: head.locations }, binding
-  )
-;;
+type outcome = MergeWith of var | Proceed | Abort
 
 (* The logic is the same on both sides, but I'm writing this with
  * the left-side in mind. *)
 let build_flexible_type_application (left_env, left_perm) (dest_env, t_dest) =
   (* First, find the definition of the type so that we know how to
    * instanciate parameters. *)
-  let left_env, arg_points_l = make_datacon_letters left_env (get_kind dest_env t_dest) true (fun _ -> Affine) in
-  let t_app_left = ty_app (TyOpen t_dest) (List.map (fun x -> TyOpen x) arg_points_l) in
+  let left_env, arg_vars_l = make_datacon_letters left_env (get_kind dest_env t_dest) true (fun _ -> Affine) in
+  let t_app_left = ty_app (TyOpen t_dest) (List.map (fun x -> TyOpen x) arg_vars_l) in
   (* Chances are this will perform a merge in [left_env]: this is why
    * we're returning [left_env]. *)
   let left_env = Permissions.sub_type left_env left_perm t_app_left in
   left_env, t_app_left
 ;;
 
-
-let merge_flexible_with_term_in_sub_env top right_env p p' =
-  let works = valid top p' in
-  if works then begin
-    Log.check (is_term top p') "Malformed singleton type";
-    Some (merge_left right_env p' p)
-  end else begin
-    None
-  end
-;;
 
 let is_valid top sub t =
   try
@@ -77,45 +61,45 @@ module Lifo = struct
   ;;
 end
 
-let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (right: env * point): env * point =
-  (* We use a work list (a LIFO) to schedule points for merging. This implements
+let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * var): env * var =
+  (* We use a work list (a LIFO) to schedule vars for merging. This implements
    * a depth-first traversal of the graph, which is indeed what we want (for the
    * moment). *)
   let pending_jobs = Lifo.create () in
 
-  (* One invariant is that if you push a job, the job's destination point has
+  (* One invariant is that if you push a job, the job's destination var has
    * been allocated in the destination environment already. *)
   let push_job = Lifo.push pending_jobs in
   let pop_job () = Lifo.pop pending_jobs in
 
-  (* We also keep a list of [left_point, right_point, dest_point] triples that
+  (* We also keep a list of [left_var, right_var, dest_var] triples that
    * have been processed already. *)
   let known_triples = Lifo.create () in
   let remember_triple = Lifo.push known_triples in
   let _forget_triple = Lifo.remove known_triples in
   let dump_known_triples left_env right_env dest_env =
     let open TypePrinter in
-    List.iter (fun (left_point, right_point, dest_point) ->
+    List.iter (fun (left_var, right_var, dest_var) ->
       Log.debug ~level:3 "%a / %a / %a"
-        pnames (left_env, get_names left_env left_point)
-        pnames (right_env, get_names right_env right_point)
-        pnames (dest_env, get_names dest_env dest_point)) !known_triples;
+        pnames (left_env, get_names left_env left_var)
+        pnames (right_env, get_names right_env right_var)
+        pnames (dest_env, get_names dest_env dest_var)) !known_triples;
       Log.debug "";
   in
 
-  (* If one of our jobs is based on [left_point] and [right_point], we may have
-   * mapped these two to a point in the destination environment already. *)
-  let merge_candidate (left_env, left_point) (right_env, right_point): point option =
+  (* If one of our jobs is based on [left_var] and [right_var], we may have
+   * mapped these two to a var in the destination environment already. *)
+  let merge_candidate (left_env, left_var) (right_env, right_var): var option =
     let merge_candidates = List.filter
-      (fun (left_point', right_point', _) ->
-        same left_env left_point left_point' &&
-        same right_env right_point right_point')
+      (fun (left_var', right_var', _) ->
+        same left_env left_var left_var' &&
+        same right_env right_var right_var')
       !known_triples
     in
     Log.check (List.length merge_candidates <= 1)
       "The list of known triples is not consistent";
     match merge_candidates with
-    | [_, _, dest_point'] -> Some dest_point'
+    | [_, _, dest_var'] -> Some dest_var'
     | _ -> None
   in
 
@@ -129,61 +113,61 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
 
   (* This oracle decides what to do with a given job. There are three outcomes:
-    - we've already mapped the left and right points to a certain point in the
-      destination environment: just merge the desired point with the one that's
+    - we've already mapped the left and right vars to a certain var in the
+      destination environment: just merge the desired var with the one that's
       been mapped already → this strategy tries to preserve sharing;
-    - the destination point appears in [known_triples] already: we've already
-      merged this point, don't touch it anymore;
+    - the destination var appears in [known_triples] already: we've already
+      merged this var, don't touch it anymore;
     - there's no such thing: perform the merge operation with the triple.
 
-    We can map a point from [left_env] or [right_env] to several points in
-    [dest_env] but for a given point in [dest_env], only ONE point from
-    [left_env] (resp. [right_point]) points to it.
+    We can map a var from [left_env] or [right_env] to several vars in
+    [dest_env] but for a given var in [dest_env], only ONE var from
+    [left_env] (resp. [right_var]) vars to it.
   *)
   let what_should_i_do
-      (left_env, left_point)
-      (right_env, right_point)
-      (dest_env, dest_point): outcome
+      (left_env, left_var)
+      (right_env, right_var)
+      (dest_env, dest_var): outcome
     =
 
-    match merge_candidate (left_env, left_point) (right_env, right_point) with
-    | Some dest_point' ->
+    match merge_candidate (left_env, left_var) (right_env, right_var) with
+    | Some dest_var' ->
         (* We can share! *)
         Log.debug ~level:3 "[oracle] merge job %a → %a"
-          TypePrinter.pnames (dest_env, get_names dest_env dest_point)
-          TypePrinter.pnames (dest_env, get_names dest_env dest_point');
-        MergeWith dest_point'
+          TypePrinter.pnames (dest_env, get_names dest_env dest_var)
+          TypePrinter.pnames (dest_env, get_names dest_env dest_var');
+        MergeWith dest_var'
 
     | None ->
-        (* Try to see if we've processed this point already. *)
-        let same_dest = List.filter (fun (_, _, dest_point') ->
-          same dest_env dest_point dest_point') !known_triples
+        (* Try to see if we've processed this var already. *)
+        let same_dest = List.filter (fun (_, _, dest_var') ->
+          same dest_env dest_var dest_var') !known_triples
         in
         Log.check (List.length same_dest <= 1) "The list of known triples is not consistent";
 
         (* Because [merge_candidates] returned [None], we know that we're not in
          * a case of sharing. So if one of the two checks below succeeds, this
-         * means that we've visited either the left point with a different path
-         * on the right side, or the converse. If the point is marked (and
-         * [make_base_envs] marked those points that originally contained a
+         * means that we've visited either the left var with a different path
+         * on the right side, or the converse. If the var is marked (and
+         * [make_base_envs] marked those vars that originally contained a
          * non-duplicable permission), then we're in a case of exclusive
          * resource allocation conflict: we're trying to use, say, the same
-         * left_point for a different right_point. *)
+         * left_var for a different right_var. *)
         if List.exists (fun (l, _, _) ->
-          same left_env left_point l && is_marked left_env l
+          same left_env left_var l && is_marked left_env l
         ) !known_triples then begin
           let open TypeErrors in
-          let error = ResourceAllocationConflict left_point in
+          let error = ResourceAllocationConflict left_var in
           if !Options.pedantic then
             raise_error left_env error
           else
             Log.warn "%a" print_error (left_env, error)
         end;
         if List.exists (fun (_, r, _) ->
-          same right_env right_point r && is_marked right_env r
+          same right_env right_var r && is_marked right_env r
         ) !known_triples then begin
           let open TypeErrors in
-          let error = ResourceAllocationConflict right_point in
+          let error = ResourceAllocationConflict right_var in
           if !Options.pedantic then
             TypeErrors.raise_error right_env error
           else
@@ -193,21 +177,21 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
         if List.length same_dest = 0 then begin
           (* Remember the triple. *)
-          remember_triple (left_point, right_point, dest_point);
+          remember_triple (left_var, right_var, dest_var);
 
           Log.debug ~level:3 "[oracle] processing job %a / %a / %a."
-            TypePrinter.pnames (left_env, get_names left_env left_point)
-            TypePrinter.pnames (right_env, get_names right_env right_point)
-            TypePrinter.pnames (dest_env, get_names dest_env dest_point);
+            TypePrinter.pnames (left_env, get_names left_env left_var)
+            TypePrinter.pnames (right_env, get_names right_env right_var)
+            TypePrinter.pnames (dest_env, get_names dest_env dest_var);
           Proceed
 
         end else begin
           Log.debug ~level:4 "[oracle] discarding job since %a has been visited already"
-            TypePrinter.pnames (dest_env, get_names dest_env dest_point);
+            TypePrinter.pnames (dest_env, get_names dest_env dest_var);
 
           (* This piece of code is actually dead because we always allocate a
-           * fresh (existentially-quantified) point in the destination
-           * environment. This means always call this function with [dest_point]
+           * fresh (existentially-quantified) var in the destination
+           * environment. This means always call this function with [dest_var]
            * fresh, which means there's no way we processed it already. *)
           if true then assert false;
 
@@ -237,17 +221,15 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
   let make_base_envs ?annot () =
 
     Log.debug ~level:3 "\n--------- START MERGE @ %a ----------\n\n%a\n\n"
-      Lexer.p top.location
+      Lexer.p (location top)
       TypePrinter.pdoc (TypePrinter.print_permissions, top);
 
     (* This is the destination environment; it will evolve over time. Initially,
-     * it is empty. As an optimization, we keep the points that were previously
-     * defined so that the mapping is the identity for all the points from [top]. *)
-    let dest_env = fold_terms top (fun dest_env point _head _binder ->
-      replace_term dest_env point (fun binder ->
-        { binder with permissions = initial_permissions_for_point point }
-      )) top
-    in
+     * it is empty. As an optimization, we keep the vars that were previously
+     * defined so that the mapping is the identity for all the vars from [top]. *)
+    let dest_env = fold_terms top (fun dest_env var _ ->
+      reset_permissions dest_env var
+    ) top in
 
     (* TODO we should iterate over all pairs of roots here, and see if they've
      * been merged in both sub-environments. In that case, they should be merged
@@ -256,7 +238,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
      * permissions. *)
 
     (* All the roots should be merged. *)
-    let roots = fold_terms top (fun acc k _ _ -> k :: acc) [] in
+    let roots = fold_terms top (fun acc k _ -> k :: acc) [] in
     List.iter (fun p -> push_job (p, p, p)) roots;
 
     (* Create an additional root for the result of the match. Schedule it for
@@ -264,11 +246,16 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
     let left_env, left_root = left in
     let right_env, right_root = right in
     let root_name = fresh_auto_var "merge_root" in
-    let dest_env, dest_root = bind_term dest_env root_name dest_env.location false in
+    let dest_env, dest_root = bind_rigid dest_env (root_name, KTerm, location dest_env) in
     push_job (left_root, right_root, dest_root);
 
     (* All bound types are kept, so remember that we know how these are mapped. *)
-    let type_triples = fold_types top (fun ps p _ _ -> (p, p, p) :: ps) [] in
+    let type_triples = fold top (fun ps p ->
+      if is_type top p then
+        (p, p, p) :: ps
+      else
+        ps
+    ) [] in
     List.iter remember_triple type_triples;
 
     (* If the user requested that part of the merge be solved in a certain way,
@@ -299,49 +286,49 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
     dump_envs left_env right_env dest_env;
 
     (* In order to properly detect exclusive resource allocation conflicts, we
-     * mark those points that have non-duplicable permissions. *)
-    let mark_duplicable_points env =
-      fold_terms env (fun env point _head { permissions; _ } ->
+     * mark those vars that have non-duplicable permissions. *)
+    let mark_duplicable_vars env =
+      fold_terms env (fun env var permissions ->
         if List.exists (fun x -> not (FactInference.is_duplicable env x)) permissions then
-          mark env point
+          mark env var
         else
           env
       ) env
     in
 
-    let left_env = mark_duplicable_points left_env in
-    let right_env = mark_duplicable_points right_env in
+    let left_env = mark_duplicable_vars left_env in
+    let right_env = mark_duplicable_vars right_env in
     dest_env, dest_root, left_env, right_env
 
   in
 
   let dest_env, dest_root, left_env, right_env = make_base_envs ?annot () in
 
-  (* This function, assuming the [left_point, right_point, dest_point] triple is
+  (* This function, assuming the [left_var, right_var, dest_var] triple is
    * legal, will do a cross-product of [merge_type], trying as it goes to match
    * permissions together and subtract them from their environments. *)
-  let rec merge_points
-      ((left_env, left_point): env * point)
-      ((right_env, right_point): env * point)
-      ((dest_env, dest_point): env * point): env * env * env
+  let rec merge_vars
+      ((left_env, left_var): env * var)
+      ((right_env, right_var): env * var)
+      ((dest_env, dest_var): env * var): env * env * env
     =
 
-    Log.debug ~level:3 "[merge_points] %a / %a / %a."
-      TypePrinter.pnames (left_env, get_names left_env left_point)
-      TypePrinter.pnames (right_env, get_names right_env right_point)
-      TypePrinter.pnames (dest_env, get_names dest_env dest_point);
+    Log.debug ~level:3 "[merge_vars] %a / %a / %a."
+      TypePrinter.pnames (left_env, get_names left_env left_var)
+      TypePrinter.pnames (right_env, get_names right_env right_var)
+      TypePrinter.pnames (dest_env, get_names dest_env dest_var);
 
-    let left_env = locate left_env (List.hd (get_locations left_env left_point)) in
-    let right_env = locate right_env (List.hd (get_locations right_env right_point)) in
+    let left_env = locate left_env (List.hd (get_locations left_env left_var)) in
+    let right_env = locate right_env (List.hd (get_locations right_env right_var)) in
 
-    match what_should_i_do (left_env, left_point) (right_env, right_point) (dest_env, dest_point) with
+    match what_should_i_do (left_env, left_var) (right_env, right_var) (dest_env, dest_var) with
     | Abort ->
         (* Can't process the job, do nothing. *)
         left_env, right_env, dest_env
 
-    | MergeWith dest_point' ->
+    | MergeWith dest_var' ->
         (* The oracle told us to merge. Do it. *)
-        let dest_env = Permissions.unify dest_env dest_point' dest_point in
+        let dest_env = Permissions.unify dest_env dest_var' dest_var in
         left_env, right_env, dest_env
 
     | Proceed ->
@@ -364,15 +351,15 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
           | left_perm :: left_perms, right_perms ->
 
               let works right_perm =
-                merge_type (left_env, left_perm) (right_env, right_perm) ~dest_point dest_env
+                merge_type (left_env, left_perm) (right_env, right_perm) ~dest_var dest_env
               in
 
               begin match Hml_List.take works right_perms with
               | Some (right_perms, (right_perm, (left_env, right_env, dest_env, dest_perm))) ->
 
                   Log.debug ~level:4 "  → this merge between %a and %a was succesful (got: %a)"
-                    TypePrinter.pvar (left_env, get_name left_env left_point)
-                    TypePrinter.pvar (right_env, get_name right_env right_point)
+                    TypePrinter.pvar (left_env, get_name left_env left_var)
+                    TypePrinter.pvar (right_env, get_name right_env right_var)
                     TypePrinter.ptype (dest_env, dest_perm);
 
                   let left_is_duplicable = FactInference.is_duplicable left_env left_perm in
@@ -402,58 +389,58 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
               end
         in
 
-        let left_perms = get_permissions left_env left_point in
-        let right_perms = get_permissions right_env right_point in
+        let left_perms = get_permissions left_env left_var in
+        let right_perms = get_permissions right_env right_var in
         let left_env, left_perms, right_env, right_perms, dest_env, dest_perms =
           merge_lists (left_env, left_perms, []) (right_env, right_perms) (dest_env, [])
         in
 
         let left_env =
-          replace_term left_env left_point (fun b -> { b with permissions = left_perms })
+          set_permissions left_env left_var left_perms
         in
         let right_env =
-          replace_term right_env right_point (fun b -> { b with permissions = right_perms })
+          set_permissions right_env right_var right_perms
         in
 
         (* We can't just brutally replace the list of permissions using
          * [replace_term], because there are some permissions already for
-         * [dest_point] in [dest_env]: at least [=dest_point], but maybe more,
+         * [dest_var] in [dest_env]: at least [=dest_var], but maybe more,
          * depending on user-provided type annotations. *)
         let dest_env = List.fold_left
-          (fun dest_env t -> Permissions.add dest_env dest_point t)
+          (fun dest_env t -> Permissions.add dest_env dest_var t)
           dest_env
           dest_perms
         in
         left_env, right_env, dest_env
 
-  (* end merge_points *)
+  (* end merge_vars *)
 
   (* This is the core of the merge algorithm: this is where we compare a type
    * from the left with a type from the right and decide how to merge the two
-   * together. The destination point may not be always present (e.g. in the
-   * point-to-point strategy) but is useful for figuring out whether we should
+   * together. The destination var may not be always present (e.g. in the
+   * var-to-var strategy) but is useful for figuring out whether we should
    * just forget about whatever we're doing in case the user provided type
    * annotations. *)
   and merge_type
       ((left_env, left_perm): env * typ)
       ((right_env, right_perm): env * typ)
-      ?(dest_point: point option)
+      ?(dest_var: var option)
       (dest_env: env): (env * env * env * typ) option
     =
 
-    (* Allocate a new point [dest_p] in [dest_env] and schedule [left_p] and [right_p]
+    (* Allocate a new var [dest_p] in [dest_env] and schedule [left_p] and [right_p]
      * for merging with [dest_p]. Return [dest_env, dest_p]. *)
     let bind_merge dest_env left_p right_p =
-      (* As a small optimization, if the point we're allocating is about to be
-       * merged immediately by [merge_points], we don't allocate it at all
+      (* As a small optimization, if the var we're allocating is about to be
+       * merged immediately by [merge_vars], we don't allocate it at all
        * (which means less output, less fresh names, etc.). *)
       match merge_candidate (left_env, left_p) (right_env, right_p) with
       | Some dest_p ->
           dest_env, dest_p
       | None ->
-          let name = fresh_auto_var "merge_point" in
-          let dest_env, dest_p = bind_term dest_env name left_env.location false in
-          let dest_env = add_location dest_env dest_p right_env.location in
+          let name = fresh_auto_var "merge_var" in
+          let dest_env, dest_p = bind_rigid dest_env (name, KTerm, location left_env) in
+          let dest_env = add_location dest_env dest_p (location right_env) in
           push_job (left_p, right_p, dest_p);
           Log.debug ~level:4
             "  [push_job] %a / %a / %a"
@@ -463,34 +450,34 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
           dest_env, dest_p
     in
 
-    let has_nominal_type_annotation dest_env dest_point t_dest =
+    let has_nominal_type_annotation dest_env dest_var t_dest =
       List.exists (fun t ->
         match is_tyapp t with
         | Some (cons, _args) ->
             same dest_env t_dest cons
         | None ->
             false
-      ) (get_permissions dest_env dest_point)
+      ) (get_permissions dest_env dest_var)
     in
 
-    let has_datacon_type_annotation dest_env dest_point datacon =
+    let has_datacon_type_annotation dest_env dest_var datacon =
       Hml_List.find_opt (fun t ->
         match t with
         | TyConcreteUnfolded (datacon', fields, annot) when resolved_datacons_equal dest_env datacon datacon' ->
             Some (fields, annot)
         | _ ->
             None
-      ) (get_permissions dest_env dest_point)
+      ) (get_permissions dest_env dest_var)
     in
 
-    let has_tuple_type_annotation dest_env dest_point =
+    let has_tuple_type_annotation dest_env dest_var =
       Hml_List.find_opt (fun t ->
         match t with
         | TyTuple ts ->
             Some ts
         | _ ->
             None
-      ) (get_permissions dest_env dest_point)
+      ) (get_permissions dest_env dest_var)
     in
 
 
@@ -500,29 +487,32 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
       ptype (left_env, left_perm)
       ptype (right_env, right_perm);
 
+    let left_perm = modulo_flex left_env left_perm in 
+    let right_perm = modulo_flex right_env right_perm in 
+
     (* Because the order is important, we try various "strategies" that attempt
      * to solve this merge problem. A strategy just returns an option: if it
      * didn't work, we just try the next strategy. If all strategies fail, this
-     * means we can't merge these two types together! Thankfully, [merge_points]
+     * means we can't merge these two types together! Thankfully, [merge_vars]
      * knows how to deal with that. *)
     let strategies = [
 
       (* Structural strategy. This must come first, as we need to learn about
-       * pre-allocated destination points in structural types, because of type
+       * pre-allocated destination vars in structural types, because of type
        * annotations. *)
       lazy begin
         match left_perm, right_perm with
         | TyConcreteUnfolded (datacon_l, fields_l, clause_l), TyConcreteUnfolded (datacon_r, fields_r, clause_r) ->
-            let t_left: point = !!(fst datacon_l) in
-            let t_right: point = !!(fst datacon_r) in
-            let dest_point = Option.extract dest_point in
+            let t_left: var = !!(fst datacon_l) in
+            let t_right: var = !!(fst datacon_r) in
+            let dest_var = Option.extract dest_var in
 
             if resolved_datacons_equal dest_env datacon_l datacon_r then
               (* We need to use a potential type annotation here, so if we
                * already have some information in the destination environment,
                * use it! This is exercised by
                * [test_constraints_in_patterns2.mz] *)
-              let annotation = has_datacon_type_annotation dest_env dest_point datacon_l in
+              let annotation = has_datacon_type_annotation dest_env dest_var datacon_l in
               let fields_annot, clause_annot = match annotation with
                 | None ->
                     List.map (function
@@ -540,7 +530,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                     ) fields, if equal top clause ty_bottom then None else Some clause
               in
               (* Same constructors: both are in expanded form so just schedule the
-               * points in their fields for merging. *)
+               * vars in their fields for merging. *)
               let dest_env, dest_fields =
                 Hml_List.fold_left3 (fun (dest_env, dest_fields) field_l field_r field_annot ->
                   match field_l, field_r, field_annot with
@@ -609,12 +599,12 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
               (* Ok, if the user already told us how to fold this type, then
                * don't bother doing the work at all. Otherwise, complain. *)
-              if has_nominal_type_annotation dest_env dest_point t_dest then begin
+              if has_nominal_type_annotation dest_env dest_var t_dest then begin
                 None
               end else begin
                 if get_arity dest_env t_dest > 0 then begin
                   let open TypeErrors in
-                  let error = UncertainMerge dest_point in
+                  let error = UncertainMerge dest_var in
                   if !Options.pedantic then
                     raise_error dest_env error
                   else
@@ -638,7 +628,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                   TypePrinter.ptype (left_env, t_app_left)
                   TypePrinter.ptype (right_env, t_app_right);
 
-                let r = merge_type (left_env, t_app_left) (right_env, t_app_right) ~dest_point dest_env in
+                let r = merge_type (left_env, t_app_left) (right_env, t_app_right) ~dest_var dest_env in
                 r >>= fun (left_env, right_env, dest_env, dest_perm) ->
                 let dest_perm = Flexible.generalize dest_env dest_perm in
                 Some (left_env, right_env, dest_env, dest_perm)
@@ -649,35 +639,35 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
         | TyTuple ts_l, TyTuple ts_r when List.length ts_l = List.length ts_r ->
 
-            let dest_point = Option.extract dest_point in
-            let ts_d = match has_tuple_type_annotation dest_env dest_point with
+            let dest_var = Option.extract dest_var in
+            let ts_d = match has_tuple_type_annotation dest_env dest_var with
               | Some ts ->
                   List.map (fun ts -> Some ts) ts
               | None ->
                   Hml_List.make (List.length ts_l) (fun _ -> None)
             in
 
-            let dest_env, dest_points =
-              Hml_List.fold_left3 (fun (dest_env, dest_points) t_l t_r t_d ->
+            let dest_env, dest_vars =
+              Hml_List.fold_left3 (fun (dest_env, dest_vars) t_l t_r t_d ->
                 let left_p = !!=t_l in
                 let right_p = !!=t_r in
                 match t_d with
                 | Some (TySingleton (TyOpen dest_p)) ->
                     (* We still need to schedule this job, because we may have a
                      * partial type annotation for one of the tuple components.
-                     * Think of it as a job whose destination point has been
+                     * Think of it as a job whose destination var has been
                      * pre-allocated!. *)
                     push_job (left_p, right_p, dest_p);
-                    (dest_env, dest_p :: dest_points)
+                    (dest_env, dest_p :: dest_vars)
                 | Some _ ->
                     assert false
                 | None ->
-                    let dest_env, dest_point = bind_merge dest_env left_p right_p in
-                    (dest_env, dest_point :: dest_points)
+                    let dest_env, dest_var = bind_merge dest_env left_p right_p in
+                    (dest_env, dest_var :: dest_vars)
               ) (dest_env, []) ts_l ts_r ts_d
             in
-            let dest_points = List.rev dest_points in
-            let ts = List.map ty_equals dest_points in
+            let dest_vars = List.rev dest_vars in
+            let ts = List.map ty_equals dest_vars in
             Some (left_env, right_env, dest_env, TyTuple ts)
 
         | _ ->
@@ -700,34 +690,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
       end;
 
 
-      (* The flex-with-structure strategy, lefty version.
-       *
-       * This just steps through a flexible variable that has a structure. *)
-      lazy begin
-        match left_perm, right_perm with
-        | TyOpen left_p, _ ->
-            structure left_env left_p >>= fun left_perm ->
-            merge_type (left_env, left_perm) (right_env, right_perm) ?dest_point dest_env
-        | _ ->
-            None
-      end;
-
-      (* The flex-with-structure strategy, righty version.
-       *
-       * And just for the record, this is *not* the same as putting both in the
-       * same match statement!
-       *)
-      lazy begin
-        match left_perm, right_perm with
-        | _, TyOpen right_p ->
-            structure right_env right_p >>= fun right_perm ->
-            merge_type (left_env, left_perm) (right_env, right_perm) ?dest_point dest_env
-        | _ ->
-            None
-      end;
-
-
-      (* Point-to-point strategy.
+      (* var-to-var strategy.
        *
        * This covers the following cases. Greek letters are flexible variables.
        * - int vs int
@@ -744,8 +707,6 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 
             let flex_left = is_flexible left_env left_p
             and flex_right = is_flexible right_env right_p in
-            let left_p = PersistentUnionFind.repr left_p left_env.state in
-            let right_p = PersistentUnionFind.repr right_p right_env.state in
             Log.debug ~level:5 "  [p2p] %b, %b" flex_left flex_right;
 
             begin match flex_left, flex_right with
@@ -757,8 +718,12 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                    *   ∃(t::★). ...
                    * and after calling that function in one of the
                    * sub-environments, we opened [t] in the local environment. *)
-                  if not (valid dest_env left_p) || not (valid dest_env right_p) then
+                  begin try
+                    ignore (clean dest_env left_env (TyOpen left_p));
+                    ignore (clean dest_env right_env (TyOpen right_p));
+                  with UnboundPoint ->
                     Log.error "Local types are not supported yet";
+                  end;
 
                   if not (same dest_env left_p right_p) then
                     (* e.g. [int] vs [float] *)
@@ -773,7 +738,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                 end
 
             | false, true ->
-                let dest_p = PersistentUnionFind.repr left_p left_env.state in
+                let dest_p = left_p in
 
                 (* This eliminates the case where [left_p] is a variable with a
                  * structure that makes no sense in the destination environment.
@@ -797,7 +762,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                   None
 
             | true, false ->
-                let dest_p = PersistentUnionFind.repr right_p right_env.state in
+                let dest_p = right_p in
 
                 if is_valid top right_env right_perm then begin
 
@@ -829,7 +794,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                       correct!";
 
                     let dest_env, dest_p =
-                      bind_var dest_env ~flexible:true (get_name left_env left_p, k, dest_env.location)
+                      bind_flexible dest_env (get_name left_env left_p, k, location dest_env)
                     in
                     remember_triple (left_p, right_p, dest_p);
 
@@ -848,7 +813,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
        * and we're done (as long as the other type makes sense in the
        * destination environment).
        *
-       * This must come *after* the point-to-point strategy. *)
+       * This must come *after* the var-to-var strategy. *)
       lazy begin
         try_merge_flexible (left_env, left_perm) (right_env, right_perm) dest_env
       end;
@@ -871,7 +836,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             in
 
             left_env >>= fun left_env ->
-            merge_type (left_env, t_app_left) (right_env, right_perm) ?dest_point dest_env
+            merge_type (left_env, t_app_left) (right_env, right_perm) ?dest_var dest_env
 
 
         | _, TyConcreteUnfolded (datacon_r, _, _) ->
@@ -883,18 +848,18 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
             in
 
             right_env >>= fun right_env ->
-            merge_type (left_env, left_perm) (right_env, t_app_right) ?dest_point dest_env
+            merge_type (left_env, left_perm) (right_env, t_app_right) ?dest_var dest_env
 
 
         | TyApp (consl, argsl), TyApp (consr, argsr) ->
             (* Merge the constructors. This should be a no-op, unless they're
              * distinct, in which case we stop here. *)
-            let r = merge_type (left_env, consl) (right_env, consr) ?dest_point dest_env in
+            let r = merge_type (left_env, consl) (right_env, consr) ?dest_var dest_env in
             r >>= fun (left_env, right_env, dest_env, cons) ->
 
             let cons = !!cons in
 
-            if has_nominal_type_annotation dest_env (Option.extract dest_point) cons then
+            if has_nominal_type_annotation dest_env (Option.extract dest_var) cons then
               None
             else
               (* So the constructors match. Let's now merge pairwise the arguments. *)
@@ -914,7 +879,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
                    * consider the parameter to be invariant. *)
                   match variance dest_env cons i with
                   | Covariant ->
-                      merge_type (left_env, argl) (right_env, argr) ?dest_point dest_env
+                      merge_type (left_env, argl) (right_env, argr) ?dest_var dest_env
                   | _ ->
                       begin try
                         let argl = clean top left_env argl in
@@ -988,14 +953,14 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
   while List.length !pending_jobs > 0 do
     (* Get the current merge state. *)
     let left_env, right_env, dest_env = !state in
-    (* Next task: merge [left_point] and [right_point] into [dest_point]. *)
-    let left_point, right_point, dest_point = pop_job () in
+    (* Next task: merge [left_var] and [right_var] into [dest_var]. *)
+    let left_var, right_var, dest_var = pop_job () in
     (* Well, let's do it. *)
     let left_env, right_env, dest_env =
-      merge_points
-        (left_env, left_point)
-        (right_env, right_point)
-        (dest_env, dest_point)
+      merge_vars
+        (left_env, left_var)
+        (right_env, right_var)
+        (dest_env, dest_var)
     in
     (* And save it. *)
     state := (left_env, right_env, dest_env);
@@ -1016,10 +981,10 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * point) (rig
 ;;
 
 
-let merge_envs (top: env) ?(annot: typ option) (left: env * point) (right: env * point): env * point =
-  if (fst left).inconsistent then
+let merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * var): env * var =
+  if is_inconsistent (fst left) then
     right
-  else if (fst right).inconsistent then
+  else if is_inconsistent (fst right) then
     left
   else
     actually_merge_envs top ?annot left right

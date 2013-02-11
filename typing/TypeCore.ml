@@ -330,6 +330,7 @@ let rec modulo_flex_v (env: env) (v: var): typ =
 (* Same thing with a type. *)
 let modulo_flex (env: env) (t: typ): typ =
   match t with
+  | TyOpen (VRigid p) -> TyOpen (VRigid (repr env p))
   | TyOpen v -> modulo_flex_v env v
   | _ -> t
 ;;
@@ -419,6 +420,10 @@ let update_var_descr (env: env) (v: var) (f: var_descr -> var_descr): env =
           env.state
       }
 ;;
+ 
+let initial_permissions_for_point point =
+  [ TySingleton (TyOpen (VRigid point)); TyUnknown ]
+;;
 
 let get_permissions (env: env) (var: var): permissions =
   let point = assert_point env var in
@@ -438,12 +443,28 @@ let set_permissions (env: env) (var: var) (permissions: typ list): env =
   )
 ;;
 
+let reset_permissions (env: env) (var: var): env =
+  let point = assert_point env var in
+  update_extra_descr env var (function
+    | DTerm term ->
+        DTerm { term with permissions = initial_permissions_for_point point }
+    | _ ->
+        Log.error "Not a term"
+  )
+;;
+
 let get_fact (env: env) (var: var): fact =
   Option.extract (get_var_descr env var).fact
 ;;
 
 let get_locations (env: env) (var: var): location list =
   (get_var_descr env var).locations
+;;
+
+let add_location (env: env) (var: var) (loc: location): env =
+  update_var_descr env var (fun var_descr ->
+    { var_descr with locations = loc :: var_descr.locations }
+  )
 ;;
 
 let get_names (env: env) (var: var): name list =
@@ -565,6 +586,9 @@ let merge_left_p2p env p2 p1 =
 ;;
 
 let merge_left env v1 v2 =
+  let v1 = assert_var env v1 in
+  let v2 = assert_var env v2 in
+
   (* Sanity check. *)
   Log.check (get_kind env v1 = get_kind env v2) "Kind mismatch when merging";
 
@@ -777,10 +801,6 @@ let mkdescr env name kind location fact =
     level = env.current_level;
   } in
   var_descr
-;;
- 
-let initial_permissions_for_point point =
-  [ TySingleton (TyOpen (VRigid point)); TyUnknown ]
 ;;
 
 let mkfact k =
