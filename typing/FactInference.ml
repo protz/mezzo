@@ -56,7 +56,7 @@ let duplicables
       raise (EExclusive t_parent)
 
   and duplicables (env: env) (t: typ): unit =
-    match t with
+    match modulo_flex env t with
     | TyUnknown
     | TyDynamic ->
         ()
@@ -65,31 +65,26 @@ let duplicables
         Log.error "There should be no free variables here."
 
     | TyOpen point ->
-        begin match structure env point with
-        | Some t' ->
-            follows_exclusive env t' t
-        | None ->
-            begin match get_fact env point with
-            | Exclusive ->
-                raise (EExclusive t)
-            | Affine ->
-                raise (EAffine t)
-            | Duplicable bitmap ->
-                if Array.length bitmap != 0 then
-                  Log.error "Partial type applications are not allowed"
-            | Fuzzy param_number ->
-                (* Only the current type's parameters are marked as fuzzy. *)
-                begin match phase with
-                | Elaborating my_bitmap ->
-                    let my_arity = Array.length my_bitmap in
-                    Log.debug ~level:4 "↳ marking parameter %d" param_number;
-                    Log.check (param_number >= 0 && param_number < my_arity)
-                      "Marking as duplicable a variable that's not in the right\
-                      range! param_number = %d" param_number;
-                    my_bitmap.(param_number) <- true
-                | Checking ->
-                    Log.error "No fuzzy variables should be present when checking."
-                end
+        begin match get_fact env point with
+        | Exclusive ->
+            raise (EExclusive t)
+        | Affine ->
+            raise (EAffine t)
+        | Duplicable bitmap ->
+            if Array.length bitmap != 0 then
+              Log.error "Partial type applications are not allowed"
+        | Fuzzy param_number ->
+            (* Only the current type's parameters are marked as fuzzy. *)
+            begin match phase with
+            | Elaborating my_bitmap ->
+                let my_arity = Array.length my_bitmap in
+                Log.debug ~level:4 "↳ marking parameter %d" param_number;
+                Log.check (param_number >= 0 && param_number < my_arity)
+                  "Marking as duplicable a variable that's not in the right\
+                  range! param_number = %d" param_number;
+                my_bitmap.(param_number) <- true
+            | Checking ->
+                Log.error "No fuzzy variables should be present when checking."
             end
         end
 
@@ -107,12 +102,14 @@ let duplicables
     | TyForall ((binding, _), t') ->
         (* This variable is universal, so pick the best possible fact for it:
          * duplicable (see my notebook on Jan, 9th 2013) *)
-        let env, t' = bind_var_in_type env ~fact:(Duplicable [||]) binding t' in
+        let env, t', var = bind_rigid_in_type env binding t' in
+        let env = set_fact env var (Duplicable [||]) in
         follows_exclusive env t' t
 
     | TyExists (binding, t') ->
         (* Be conservative, bind as affine. *)
-        let env, t' = bind_var_in_type env ~fact:Affine binding t' in
+        let env, t', var = bind_rigid_in_type env binding t' in
+        let env = set_fact env var Affine in
         follows_exclusive env t' t
 
     | TyApp (cons, args) ->
@@ -200,14 +197,14 @@ let duplicables
    - If the type is marked as Duplicable, we recursively determine which ones of
    its type variables should be marked as duplicable for the whole type to be
    duplicable. *)
-let one_round (env: env) (points: point list): env =
+let one_round (env: env) (vars: var list): env =
   TypePrinter.(Log.debug ~level:4 "env:\n  %a" pdoc (print_binders, env));
   (* Folding on all the data types. *)
-  List.fold_left (fun env point ->
-    let names = get_names env point in
-    let kind = get_kind env point in
-    let fact = get_fact env point in
-    let definition = get_definition env point in
+  List.fold_left (fun env var ->
+    let names = get_names env var in
+    let kind = get_kind env var in
+    let fact = get_fact env var in
+    let definition = get_definition env var in
     let tname = List.hd names in
     (* What knowledge do we have from the previous round? *)
     match definition with
@@ -224,7 +221,7 @@ let one_round (env: env) (points: point list): env =
             env
         | Duplicable bitmap ->
             Log.debug ~level:4 "Attacking %s%a%s %a" Bash.colors.Bash.red
-              TypePrinter.pvar (env, get_name env point)
+              TypePrinter.pvar (env, get_name env var)
               Bash.colors.Bash.default
               TypePrinter.pvar (env, tname);
             (* [bitmap] is shared! *)
@@ -251,8 +248,8 @@ let one_round (env: env) (points: point list): env =
               (* Some exception was raised: the type, although initially
                * duplicable, contains a sub-part whose type is [Exclusive] or
                * [Affine], so the whole type need to be affine. *)
-              replace_type env point (fun entry -> { entry with fact = Affine })
-  ) env points
+              set_fact env var Affine
+  ) env vars
 ;;
 
 
@@ -287,13 +284,13 @@ let is_exclusive env t =
   analyze_type env t = Exclusive
 ;;
 
-let analyze_data_types (env: env) (points: point list): env =
+let analyze_data_types (env: env) (vars: var list): env =
   (* We could be even smarter and make the function return both a new env and a
    * boolean telling whether we udpated the maps or not, but that would require
    * threading some [was_modified] variable throughout all the code. Because
    * premature optimization is the root of all evil, let's leave it as is for
    * now. *)
-  let rec run_to_fixpoint env =
+  let rec run_to_fixvar env =
     Bash.(Log.debug ~level:2 "%sOne round of fact analysis...%s" colors.blue colors.default);
     let copy_fact = function
       | Duplicable bitmap ->
@@ -303,9 +300,9 @@ let analyze_data_types (env: env) (points: point list): env =
     in
     (* This works because [map_types] guarantees an unspecified, but fixed,
      * order, and because [replace_type] doesn't change that order. *)
-    let old_facts = List.map (fun point -> copy_fact (get_fact env point)) points in
-    let new_env = one_round env points in
-    let new_facts = List.map (fun point -> copy_fact (get_fact new_env point)) points in
+    let old_facts = List.map (fun var -> copy_fact (get_fact env var)) vars in
+    let new_env = one_round env vars in
+    let new_facts = List.map (fun var -> copy_fact (get_fact new_env var)) vars in
     (* Hml_List.iter2i (fun level old_fact new_fact ->
       let index = ByIndex.cardinal env.bindings - level - 1 in
       Log.debug ~level:3
@@ -316,9 +313,9 @@ let analyze_data_types (env: env) (points: point list): env =
         TypePrinter.pdoc (TypePrinter.do_print_fact, new_fact);
     ) old_facts new_facts; *)
     if new_facts <> old_facts then
-      run_to_fixpoint new_env
+      run_to_fixvar new_env
     else
       new_env
   in
-  run_to_fixpoint env
+  run_to_fixvar env
 ;;
