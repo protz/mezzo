@@ -309,7 +309,7 @@ let get_arity (env: env) (var: var): int =
 ;;
 
 let rec get_kind_for_type env t =
-  match t with
+  match modulo_flex env t with
   | TyBound _ ->
       Log.error "No free variables"
   | TyOpen p ->
