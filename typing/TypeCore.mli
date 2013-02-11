@@ -241,11 +241,11 @@ val get_names : env -> var -> name list
 (** Get the kind of any given variable. *)
 val get_kind : env -> var -> kind
 
-(** Set the permissions of a term variable. *)
-val set_permissions : env -> var -> typ list -> env
-
 (** Get the permissions of a term variable. *)
 val get_permissions : env -> var -> typ list
+
+(** Set the permissions of a term variable. *)
+val set_permissions : env -> var -> typ list -> env
 
 (** Get a fact *)
 val get_fact: env -> var -> fact
@@ -291,7 +291,6 @@ val resolved_datacons_equal: env -> resolved_datacon -> resolved_datacon -> bool
 
 val bind_rigid: env -> type_binding -> env * var
 val bind_flexible: env -> type_binding -> env * var
-val bind_type_def: env -> type_binding -> type_def -> env * var
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -31,7 +31,7 @@ open TypeErrors
 let safety_check env =
   (* Be paranoid, perform an expensive safety check. *)
   if Log.debug_level () >= 5 then
-    fold_terms env (fun () point _ ({ permissions; _ }) ->
+    fold_terms env (fun () var permissions ->
       (* Each term should have exactly one singleton permission. If we fail here,
        * this is SEVERE: this means one of our internal invariants broken, so
        * someone messed up the code somewhere. *)
@@ -44,8 +44,8 @@ let safety_check env =
       if List.length singletons <> 1 then
         Log.error
           "%a inconsistency detected: not one singleton type for %a\n%a\n"
-          Lexer.p env.location
-          TypePrinter.pnames (env, get_names env point)
+          Lexer.p (location env)
+          TypePrinter.pnames (env, get_names env var)
           TypePrinter.penv env;
 
       (* The inconsistencies below are suspicious, but it may just be that we
@@ -66,21 +66,21 @@ let safety_check env =
       ) permissions in
       (* This part of the safety check is disabled because it is too restrictive,
        * see [twostructural.mz] for an example. *)
-      if false && not (env.inconsistent) && List.length concrete > 1 then
+      if false && not (is_inconsistent env) && List.length concrete > 1 then
         Log.error
           "%a inconsistency detected: more than one concrete type for %a\n\
             (did you add a function type without calling \
             [simplify_function_type]?)\n%a\n"
-          Lexer.p env.location
-          TypePrinter.pnames (env, get_names env point)
+          Lexer.p (location env)
+          TypePrinter.pnames (env, get_names env var)
           TypePrinter.penv env;
 
       let exclusive = List.filter (FactInference.is_exclusive env) permissions in
-      if not (env.inconsistent) && List.length exclusive > 1 then
+      if not (is_inconsistent env) && List.length exclusive > 1 then
         Log.error
           "%a inconsistency detected: more than one exclusive type for %a\n%a\n"
-          Lexer.p env.location
-          TypePrinter.pnames (env, get_names env point)
+          Lexer.p (location env)
+          TypePrinter.pnames (env, get_names env var)
           TypePrinter.penv env;
     ) ()
 ;;
@@ -116,7 +116,7 @@ let add_hint hint str =
 (** [can_merge env t1 p2] tells whether, assuming that [t2] is a flexible
     variable, it can be safely merged with [t1]. This function checks that the
     facts are compatible. *)
-let can_merge (env: env) (t1: typ) (p2: point): bool =
+let can_merge (env: env) (t1: typ) (p2: var): bool =
   Log.check (is_flexible env p2) "[can_merge] takes a flexible variable as its second parameter";
   (* The mode of an affine variable is understood to be an upper bound on the
    * various modes it can take. Thus, affine means the flexible variable can
@@ -208,9 +208,9 @@ let rec perm_not_flex env t =
 ;;
 
 
-(** [unify env p1 p2] merges two points, and takes care of dealing with how the
+(** [unify env p1 p2] merges two vars, and takes care of dealing with how the
     permissions should be merged. *)
-let rec unify (env: env) (p1: point) (p2: point): env =
+let rec unify (env: env) (p1: var) (p2: var): env =
   Log.check (is_term env p1 && is_term env p2) "[unify p1 p2] expects [p1] and \
     [p2] to be variables with kind term, not type";
 
@@ -232,15 +232,15 @@ and keep_only_duplicable (env: env): env * (env -> env) =
   (* Let [env] be the environment stripped out of all its non-duplicable
    * permissions, and let [all_perms] be the set of all permissions we
    * stripped. *)
-  let env, all_perms = fold_terms env (fun (env, acc) point _ { permissions; _ } ->
+  let env, all_perms = fold_terms env (fun (env, acc) var _ { permissions; _ } ->
     let dup = List.filter (FactInference.is_duplicable env) permissions in
     let env =
-      replace_term env point (function binding -> { binding with permissions = dup })
+      replace_term env var (function binding -> { binding with permissions = dup })
     in
     let permissions =
       List.filter (function TySingleton _ | TyUnknown -> false | _ -> true) permissions
     in
-    let permissions = List.map (fun t -> TyAnchoredPermission (TyOpen point, t)) permissions in
+    let permissions = List.map (fun t -> TyAnchoredPermission (TyOpen var, t)) permissions in
     env, permissions @ acc
   ) (env, []) in
 
@@ -253,14 +253,14 @@ and keep_only_duplicable (env: env): env * (env -> env) =
 
   (* Micro sanity check. *)
   Log.check (List.length dup_floating = 0)
-    "As far as I can tell, there's no point in having an abstract duplicable permission...";
+    "As far as I can tell, there's no var in having an abstract duplicable permission...";
 
   (* Here's what we need to do to restore the environment to its initial state,
    * while still retaining all the unifications that took place. *)
   let restore env =
-    let env = fold_terms env (fun env point _ _ ->
-      replace_term env point (function binding -> {
-        binding with permissions = initial_permissions_for_point point
+    let env = fold_terms env (fun env var _ _ ->
+      replace_term env var (function binding -> {
+        binding with permissions = initial_permissions_for_var var
     })) env in
 
     let env = Log.silent (fun () ->
@@ -275,23 +275,23 @@ and keep_only_duplicable (env: env): env * (env -> env) =
 
 
 
-(** [add env point t] adds [t] to the list of permissions for [p], performing all
+(** [add env var t] adds [t] to the list of permissions for [p], performing all
     the necessary legwork. *)
-and add (env: env) (point: point) (t: typ): env =
-  Log.check (is_term env point) "You can only add permissions to a point that \
+and add (env: env) (var: var) (t: typ): env =
+  Log.check (is_term env var) "You can only add permissions to a var that \
     represents a program identifier.";
 
-  (* The point is supposed to represent a term, not a type. If it has a
+  (* The var is supposed to represent a term, not a type. If it has a
    * structure, this means that it's a type variable with kind term that has
    * been flex'd, then instanciated onto something. We make sure in
    * [Permissions.sub] that we're actually merging, not instanciating, when
    * faced with two [TyOpen]s. *)
-  Log.check (not (has_structure env point)) "I don't understand what's happening";
+  Log.check (not (has_structure env var)) "I don't understand what's happening";
 
-  let hint = get_name env point in
+  let hint = get_name env var in
 
   (* We first perform unfolding, so that constructors with one branch are
-   * simplified. [unfold] calls [add] recursively whenever it adds new points. *)
+   * simplified. [unfold] calls [add] recursively whenever it adds new vars. *)
   let env, t = unfold env ~hint t in
 
   (* Break up this into a type + permissions. *)
@@ -310,7 +310,7 @@ and add (env: env) (point: point) (t: typ): env =
 
   TypePrinter.(Log.debug ~level:4 "%s[%sadding to %a] %a"
     Bash.colors.Bash.red Bash.colors.Bash.default
-    pnames (env, get_names env point)
+    pnames (env, get_names env var)
     ptype (env, t));
 
   (* Add the permissions. *)
@@ -319,18 +319,18 @@ and add (env: env) (point: point) (t: typ): env =
   begin match t with
   | TyOpen p when has_structure env p ->
       Log.debug ~level:4 "%s]%s (structure)" Bash.colors.Bash.red Bash.colors.Bash.default;
-      add env point (Option.extract (structure env p))
+      add env var (Option.extract (structure env p))
 
-  | TySingleton (TyOpen p) when not (same env point p) ->
+  | TySingleton (TyOpen p) when not (same env var p) ->
       Log.debug ~level:4 "%s]%s (singleton)" Bash.colors.Bash.red Bash.colors.Bash.default;
-      unify env point p
+      unify env var p
 
   | TyExists (binding, t) ->
       Log.debug ~level:4 "%s]%s (exists)" Bash.colors.Bash.red Bash.colors.Bash.default;
       begin match binding with
       | _, KTerm, _ ->
           let env, t = bind_var_in_type env binding t in
-          add env point t
+          add env var t
       | _ ->
           Log.error "I don't know how to deal with an existentially-quantified \
             type or permission";
@@ -339,11 +339,11 @@ and add (env: env) (point: point) (t: typ): env =
   | TyAnd (constraints, t) ->
       Log.debug ~level:4 "%s]%s (and-constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
       let env = add_constraints env constraints in
-      add env point t
+      add env var t
 
   | _ ->
       (* Add the "bare" type. Recursive calls took care of calling [add]. *)
-      let env = add_type env point t in
+      let env = add_type env var t in
       safety_check env;
 
       env
@@ -374,11 +374,11 @@ and add_perm (env: env) (t: typ): env =
 
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
  * to the list of available permissions for [p] *)
-and add_type (env: env) (p: point) (t: typ): env =
+and add_type (env: env) (p: var) (t: typ): env =
   match Log.silent (fun () -> sub env p t) with
   | Some _ ->
       (* We're not re-binding env because this has bad consequences: in
-       * particular, when adding a flexible type variable to a point, it
+       * particular, when adding a flexible type variable to a var, it
        * instantiates it into, say, [=x], which is usually *not* what we want to
        * do. Happens mostly when doing higher-order, see impredicative.mz or
        * list-map2.mz for examples. *)
@@ -409,7 +409,7 @@ and add_type (env: env) (p: point) (t: typ): env =
           { binding with permissions = t :: binding.permissions }
         )
       in
-      (* If we just added an exclusive type to the point, then it automatically
+      (* If we just added an exclusive type to the var, then it automatically
        * gains the [dynamic] type. *)
       if FactInference.is_exclusive env t then
         add_type env p TyDynamic
@@ -418,12 +418,12 @@ and add_type (env: env) (p: point) (t: typ): env =
 
 
 (** [unfold env t] returns [env, t] where [t] has been unfolded, which
-    potentially led us into adding new points to [env]. The [hint] serves when
+    potentially led us into adding new vars to [env]. The [hint] serves when
     making up names for intermediary variables. *)
 and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
   (* This auxiliary function takes care of inserting an indirection if needed,
-   * that is, a [=foo] type with [foo] being a newly-allocated [point]. *)
-  let insert_point (env: env) ?(hint: name option) (t: typ): env * typ =
+   * that is, a [=foo] type with [foo] being a newly-allocated [var]. *)
+  let insert_var (env: env) ?(hint: name option) (t: typ): env * typ =
     let hint = Option.map_none (fresh_auto_var "t_") hint in
     match t with
     | TySingleton _ ->
@@ -431,7 +431,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
     | _ ->
         (* The [expr_binder] also serves as the binder for the corresponding
          * term type variable. *)
-        let env, p = bind_term env hint env.location false in
+        let env, p = bind_term env hint (location env) false in
         (* This will take care of unfolding where necessary. *)
         let env = add env p t in
         env, ty_equals p
@@ -476,7 +476,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
     | TyTuple components ->
         let env, components = Hml_List.fold_lefti (fun i (env, components) component ->
           let hint = add_hint hint (string_of_int i) in
-          let env, component = insert_point env ?hint component in
+          let env, component = insert_var env ?hint component in
           env, component :: components
         ) (env, []) components in
         env, TyTuple (List.rev components)
@@ -509,7 +509,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
               let hint =
                 add_hint hint (Hml_String.bsprintf "%a_%a" Datacon.p (snd datacon) Field.p name)
               in
-              let env, field = insert_point env ?hint field in
+              let env, field = insert_var env ?hint field in
               env, FieldValue (name, field) :: fields
         ) (env, []) fields
         in
@@ -523,14 +523,14 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
   unfold env ?hint t
 
 
-(** [sub env point t] tries to extract [t] from the available permissions for
-    [point] and returns, if successful, the resulting environment. *)
-and sub (env: env) (point: point) (t: typ): env option =
-  Log.check (is_term env point) "You can only subtract permissions from a point \
+(** [sub env var t] tries to extract [t] from the available permissions for
+    [var] and returns, if successful, the resulting environment. *)
+and sub (env: env) (var: var) (t: typ): env option =
+  Log.check (is_term env var) "You can only subtract permissions from a var \
     that represents a program identifier.";
 
   (* See the explanation in [add]. *)
-  Log.check (not (has_structure env point)) "I don't understand what's happening";
+  Log.check (not (has_structure env var)) "I don't understand what's happening";
 
   if env.inconsistent then
     Some env
@@ -540,21 +540,21 @@ and sub (env: env) (point: point) (t: typ): env option =
     let perms = List.flatten (List.map (flatten_star env) perms) in
 
     (* Start off by subtracting the type without associated permissions. *)
-    let env = sub_clean env point t in
+    let env = sub_clean env var t in
 
     env >>= fun env ->
     sub_perms env perms
 
 
-(** [sub_clean env point t] takes a "clean" type [t] (without nested permissions)
+(** [sub_clean env var t] takes a "clean" type [t] (without nested permissions)
     and performs the actual work of extracting [t] from the list of permissions
-    for [point]. *)
-and sub_clean (env: env) (point: point) (t: typ): env option =
-  if (not (is_term env point)) then
+    for [var]. *)
+and sub_clean (env: env) (var: var) (t: typ): env option =
+  if (not (is_term env var)) then
     Log.error "[KindCheck] should've checked that for us";
-  Log.check (not (has_structure env point)) "Strange";
+  Log.check (not (has_structure env var)) "Strange";
 
-  let permissions = get_permissions env point in
+  let permissions = get_permissions env var in
 
   (* Priority-order potential merge candidates. *)
   let sort = function
@@ -586,7 +586,7 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
       (really? %b)"
       colors.yellow colors.default
       ptype (env, t)
-      pvar (env, get_name env point)
+      pvar (env, get_name env var)
       (not duplicable);
   in
 
@@ -601,7 +601,7 @@ and sub_clean (env: env) (point: point) (t: typ): env option =
       if duplicable then
         Some env
       else
-        Some (replace_term env point (fun binder ->
+        Some (replace_term env var (fun binder ->
           { binder with permissions = remaining }))
   | None ->
       None
@@ -642,13 +642,13 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   match t1, t2 with
 
   (** Easy cases involving flexible variables *)
-  | TyPoint p1, _ when has_structure env p1 ->
+  | Tyvar p1, _ when has_structure env p1 ->
       sub_type env (Option.extract (structure env p1)) t2
-  | _, TyPoint p2 when has_structure env p2 ->
+  | _, Tyvar p2 when has_structure env p2 ->
       sub_type env t1 (Option.extract (structure env p2))
-  | TyPoint p1, _ when is_flexible env p1 && can_merge env t2 p1 ->
+  | Tyvar p1, _ when is_flexible env p1 && can_merge env t2 p1 ->
       Some (instantiate_flexible env p1 t2)
-  | _, TyPoint p2 when is_flexible env p2 && can_merge env t1 p2 ->
+  | _, Tyvar p2 when is_flexible env p2 && can_merge env t1 p2 ->
       Some (instantiate_flexible env p2 t1)
 
   | _, _ when equal env t1 t2 ->
@@ -805,10 +805,10 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         None
 
   | TyConcreteUnfolded ((cons1, datacon1), _, _), TyApp (cons2, args2) ->
-      let point1 = !!cons1 in
+      let var1 = !!cons1 in
       let cons2 = !!cons2 in
 
-      if same env point1 cons2 then begin
+      if same env var1 cons2 then begin
         let datacon2, fields2, clause2 = find_and_instantiate_branch env cons2 datacon1 args2 in
         (* There may be permissions attached to this branch. *)
         let t2 = TyConcreteUnfolded (datacon2, fields2, clause2) in
@@ -819,14 +819,14 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         None
       end
 
-  | TyConcreteUnfolded ((cons1, datacon1), _, _), TyOpen point2 ->
+  | TyConcreteUnfolded ((cons1, datacon1), _, _), TyOpen var2 ->
       (* This is basically the same as above, except that type applications
        * without parameters are not [TyApp]s, they are [TyOpen]s. *)
-      let point1 = !!cons1 in
+      let var1 = !!cons1 in
 
-      if same env point1 point2 then begin
+      if same env var1 var2 then begin
         (* XXX why are we not collecting permissions here? *)
-        let datacon2, fields2, clause2 = find_and_instantiate_branch env point2 datacon1 [] in
+        let datacon2, fields2, clause2 = find_and_instantiate_branch env var2 datacon1 [] in
         sub_type env t1 (TyConcreteUnfolded (datacon2, fields2, clause2))
       end else begin
         None

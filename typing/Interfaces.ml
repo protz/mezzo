@@ -47,7 +47,7 @@ let has_same_name x (x', _k, p) =
 let check
   (env: T.env)
   (signature: S.toplevel_item list)
-  (exports: (Variable.name * T.kind * T.point) list)
+  (exports: (Variable.name * T.kind * T.var) list)
 : T.env =
   (* Find one specific name among these names. *)
   let point_by_name name =

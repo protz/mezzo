@@ -829,14 +829,6 @@ let bind_flexible env (name, kind, location) =
 ;;
 
 
-let bind_type_def env binding definition =
-  let env, var = bind_rigid env binding in
-  let point = match var with VRigid point -> point | _ -> assert false in
-  let extra_descr = DType { definition } in
-  let state = PersistentUnionFind.update (fun (var_descr, _) -> var_descr, extra_descr) point env.state in
-  { env with state }, var
-;;
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Iterating on rigid variables. *)
