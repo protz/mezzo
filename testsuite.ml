@@ -728,7 +728,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("function-comparison.mz", simple_test ~known_failure:() Pass);
 
-  ("function-comparison2.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
+  ("function-comparison2.mz", simple_test (Fail (function _ -> true)));
 
   ("masking.mz", simple_test (Fail (fun _ -> true)));
 
