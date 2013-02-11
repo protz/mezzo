@@ -329,10 +329,16 @@ let rec modulo_flex_v (env: env) (v: var): typ =
           TyOpen v
 ;;
 
+exception UnboundPoint
+
 (* Same thing with a type. *)
 let modulo_flex (env: env) (t: typ): typ =
   match t with
-  | TyOpen (VRigid p) -> TyOpen (VRigid (repr env p))
+  | TyOpen (VRigid p) ->
+      if valid env p then
+        TyOpen (VRigid (repr env p))
+      else
+        raise UnboundPoint
   | TyOpen v -> modulo_flex_v env v
   | _ -> t
 ;;
@@ -626,8 +632,6 @@ let merge_left env v1 v2 =
 (* ---------------------------------------------------------------------------- *)
 
 
-exception UnboundPoint
-
 let clean top sub t =
   let rec clean t =
     match t with
@@ -705,8 +709,8 @@ let clean top sub t =
 ;;
 
 let valid env = function
-  | VFlexible i ->
-      i <= env.current_level
+  | VFlexible _ as v ->
+      (get_var_descr env v).level <= env.current_level
   | VRigid p ->
       valid env p
 ;;
