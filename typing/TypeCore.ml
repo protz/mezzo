@@ -807,12 +807,10 @@ let mkdescr env name kind location fact =
 
 let mkfact k =
   match k with
-  | KType | KPerm ->
-      Some Affine
-  | KArrow _ ->
-      Log.error "No arrows here"
   | KTerm ->
       None
+  | _ ->
+      Some Affine
 ;;
 
 let bind_rigid env (name, kind, location) =
