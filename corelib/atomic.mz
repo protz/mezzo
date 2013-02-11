@@ -67,6 +67,13 @@ val release [p : perm] (l: lock p | consumes p) : () =
 
 (* A function's internal state can be hidden using a lock. *)
 
+(* This function is not as generic as I would like: it is parametric
+   in the types [a] and [b], but it cannot be applied in the situation
+   where [f] is a polymorphic function and we would like [hide f] to
+   be polymorphic as well (assuming the quantified variable does not
+   occur in [s]). In that situation, the user will have to copy/paste
+   the code below. *)
+
 val hide [a, b, s : perm] (
   f : (a | s) -> b
 | consumes s
