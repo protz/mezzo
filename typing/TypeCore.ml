@@ -314,31 +314,32 @@ let replace_flex (env: env) (f: flex_index) (d: flex_descr): env =
   { env with flexible }
 ;;
 
+exception UnboundPoint
+
 (* Goes through any flexible variables before finding "the real type". *)
 let rec modulo_flex_v (env: env) (v: var): typ =
   match v with
-  | VRigid _ ->
-      TyOpen v
-  | VFlexible f ->
-      match (find_flex env f).structure with
-      | Instantiated (TyOpen v) ->
-          modulo_flex_v env v
-      | Instantiated t ->
-          t
-      | NotInstantiated _ ->
-          TyOpen v
-;;
-
-exception UnboundPoint
-
-(* Same thing with a type. *)
-let modulo_flex (env: env) (t: typ): typ =
-  match t with
-  | TyOpen (VRigid p) ->
+  | VRigid p ->
       if valid env p then
         TyOpen (VRigid (repr env p))
       else
         raise UnboundPoint
+  | VFlexible f ->
+      if f < List.length env.flexible then
+        match (find_flex env f).structure with
+        | Instantiated (TyOpen v) ->
+            modulo_flex_v env v
+        | Instantiated t ->
+            t
+        | NotInstantiated _ ->
+            TyOpen v
+      else
+        raise UnboundPoint
+;;
+
+(* Same thing with a type. *)
+let modulo_flex (env: env) (t: typ): typ =
+  match t with
   | TyOpen v -> modulo_flex_v env v
   | _ -> t
 ;;
