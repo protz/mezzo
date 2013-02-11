@@ -28,25 +28,25 @@ open Types
 val collect: typ -> typ * typ list
 
 (** [unfold env t] returns [env, t] where [t] has been unfolded, which
-    potentially led us into adding new points to [env]. The [hint] serves when
+    potentially led us into adding new vars to [env]. The [hint] serves when
     making up names for intermediary variables. *)
 val unfold: env -> ?hint:name -> typ -> env * typ
 
-(** [unify env p1 p2] merges two points, and takes care of dealing with how the
+(** [unify env p1 p2] merges two vars, and takes care of dealing with how the
     permissions should be merged. *)
-val unify: env -> point -> point -> env
+val unify: env -> var -> var -> env
 
-(** [add env point t] adds [t] to the list of permissions for [p], performing all
+(** [add env var t] adds [t] to the list of permissions for [p], performing all
     the necessary legwork. *)
-val add: env -> point -> typ -> env
+val add: env -> var -> typ -> env
 
 (** [add_perm env t] adds a type [t] with kind PERM to [env], returning the new
     environment. *)
 val add_perm: env -> typ -> env
 
-(** [sub env point t] tries to extract [t] from the available permissions for
-    [point] and returns, if successful, the resulting environment. *)
-val sub: env -> point -> typ -> env option
+(** [sub env var t] tries to extract [t] from the available permissions for
+    [var] and returns, if successful, the resulting environment. *)
+val sub: env -> var -> typ -> env option
 
 (** [sub_perm env t] takes a type [t] with kind PERM, and tries to return the
     environment without the corresponding permission. *)

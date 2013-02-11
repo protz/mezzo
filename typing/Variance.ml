@@ -159,13 +159,13 @@ module P = struct
 end
 
 module M = struct
-  type key = point
-  type 'data t = 'data PointMap.t ref
-  let create () = ref PointMap.empty
-  let clear m = m := PointMap.empty
-  let add k v m = m := (PointMap.add k v !m)
-  let find k m = PointMap.find k !m
-  let iter f m = PointMap.iter f !m
+  type key = var
+  type 'data t = 'data VarMap.t ref
+  let create () = ref VarMap.empty
+  let clear m = m := VarMap.empty
+  let add k v m = m := (VarMap.add k v !m)
+  let find k m = VarMap.find k !m
+  let iter f m = VarMap.iter f !m
 end
 
 module Solver = Fix.Make(M)(P)
@@ -231,16 +231,7 @@ let analyze_data_types env points =
   (* Update the data type definitions. *)
   let original_env = List.fold_left (fun env (cons, (vars, _)) ->
     let variance = List.map valuation vars in
-    replace_type env cons (fun binding ->
-      let definition =
-        match binding.definition with
-        | Some ((Some _) as branches, _) ->
-            Some (branches, variance)
-        | _ ->
-            Log.error "Only data type definitions here"
-      in
-      { binding with definition }
-    )
+    update_definition env cons (fun (branches, _) -> branches, variance)
   ) original_env store in
   original_env
 ;;

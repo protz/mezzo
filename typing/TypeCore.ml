@@ -364,13 +364,22 @@ let assert_var env v =
       Log.error "[assert_var] failed"
 ;;
 
-(* let assert_point env v =
+let assert_point env v =
   match modulo_flex_v env v with
   | TyOpen (VRigid p) ->
       p
   | _ ->
       Log.error "[assert_point] failed"
-;; *)
+;;
+
+let update_extra_descr (env: env) (var: var) (f: extra_descr -> extra_descr): env =
+  let point = assert_point env var in
+  { env with state =
+    PersistentUnionFind.update (fun (var_descr, extra_descr) ->
+      var_descr, f extra_descr
+    ) point env.state
+  }
+;;
 
 let get_var_descr (env: env) (v: var): var_descr =
   match assert_var env v with
@@ -407,15 +416,21 @@ let update_var_descr (env: env) (v: var) (f: var_descr -> var_descr): env =
 ;;
 
 let get_permissions (env: env) (var: var): permissions =
-  match var with
-  | VFlexible _ ->
+  let point = assert_point env var in
+  match find env point with
+  | _, DTerm { permissions; _ } ->
+      permissions
+  | _ ->
       assert false
-  | VRigid point ->
-      match find env point with
-      | _, DTerm { permissions; _ } ->
-          permissions
-      | _ ->
-          assert false
+;;
+
+let set_permissions (env: env) (var: var) (permissions: typ list): env =
+  update_extra_descr env var (function
+    | DTerm term ->
+        DTerm { term with permissions }
+    | _ ->
+        Log.error "Not a term"
+  )
 ;;
 
 let get_fact (env: env) (var: var): fact =
@@ -440,6 +455,24 @@ let get_definition (env: env) (var: var): type_def option =
           Some definition
       | _ ->
           None
+;;
+
+let update_definition (env: env) (var: var) (f: type_def -> type_def): env =
+  update_extra_descr env var (function
+    | DType { definition } ->
+        DType { definition = f definition }
+    | _ ->
+        Log.error "Refining the definition of a type that didn't have one in the first place"
+  )
+;;
+
+let set_definition (env: env) (var: var) (definition: type_def): env =
+  update_extra_descr env var (function
+    | DNone ->
+        DType { definition }
+    | _ ->
+        Log.error "Setting the definition of a type that had one in the first place"
+  )
 ;;
 
 let get_kind (env: env) (var: var): kind =
@@ -472,9 +505,14 @@ let instantiate_flexible (env: env) (v: var) (t: typ): env =
 (** Some functions related to the manipulation of the union-find structure of
  * the environment. *)
 
-module PointMap = Hml_Map.Make(struct
-  type t = PersistentUnionFind.point
-  let compare = PersistentUnionFind.compare
+module VarMap = Hml_Map.Make(struct
+  type t = var
+  let compare x y =
+    match x, y with
+    | VRigid x, VRigid y ->
+        PersistentUnionFind.compare x y
+    | _ ->
+        Log.error "[VarMap] used in the presence of flexible variables"
 end)
 
 (* Dealing with the union-find nature of the environment. *)

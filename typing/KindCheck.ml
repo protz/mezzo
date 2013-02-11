@@ -47,13 +47,13 @@ type level =
 (* When a module is opened in scope, the names it exports point to points that
  * are already valid in the environment (think of these as binders that have
  * been opened already). Otherwise, it's a bound variable. *)
-type var = Var of level | Point of Types.point
+type var = Var of level | Point of Types.var
 let tvar = function Var x -> T.TyBound x | Point x -> T.TyOpen x;;
 let evar = function Var x -> E.EVar x | Point x -> E.EOpen x;;
 
 type datacon_origin =
   | InCurrentModule of level * SurfaceSyntax.datacon_info
-  | InAnotherModule of T.point * SurfaceSyntax.datacon_info
+  | InAnotherModule of T.var * SurfaceSyntax.datacon_info
 
 type env = {
   (* The current de Bruijn level. *)
@@ -110,11 +110,12 @@ let empty (env: Types.env): env =
    * [InAnotherModule]. *)
   let initial_datacons =
     let open Types in
-    fold_types env (fun acc point { names; _ } { definition; _ } ->
+    fold_definitions env (fun acc var definition ->
+      let names = get_names env var in
       (* We're only interested in things that signatures exported with their
        * corresponding definitions. *)
       match definition with
-      | Some (Some (_, def, _), _) ->
+      | Some (_, def, _), _ ->
           (* Find the module name which this definition comes from. Yes, there's
            * no better way to do that. *)
           let mname = Hml_List.find_opt
@@ -134,7 +135,7 @@ let empty (env: Types.env): env =
               | FieldPermission _ -> None
             ) fields in
             (* Now the info structure is ready. *)
-            let info = InAnotherModule (point, mkdatacon_info dc i fields) in
+            let info = InAnotherModule (var, mkdatacon_info dc i fields) in
             qualif, info
           ) def in
           datacons @ acc
@@ -1067,30 +1068,27 @@ module KindPrinter = struct
 
   let print_def env name kind def =
     match def with
-    | Some (Some (flag, branches, clause), variance) ->
+    | Some (flag, branches, clause), variance ->
         print_data_type_def env flag name kind variance branches clause
-    | Some (None, _) ->
+    | None, _ ->
         print_abstract_type_def env name kind
-    | None ->
-        (* This can happen if there's an uninstanciated type variable hanging
-         * around, see [tests/loose_variable.mz] *)
-        empty
   ;;
 
   (* This function prints the contents of a [Types.env]. *)
   let print_kinds env =
     (* Now we have a pretty-printing environment that's ready, proceed. *)
-    let defs = map_types env (fun { names; kind; _ } { definition; _ } ->
-      let name = List.hd names in
-      print_def env name kind definition
-    ) in
+    let defs = fold_definitions env (fun acc var definition ->
+      let name = get_name env var in
+      let kind = get_kind env var in
+      print_def env name kind definition :: acc
+    ) [] in
     separate (twice (break 1)) defs
   ;;
 
   let print_group env (group: data_type_group) =
     let defs = List.map (fun (name, _, def, _, kind) ->
-      let name = User (env.module_name, name) in
-      print_def env name kind (Some def)
+      let name = User (module_name env, name) in
+      print_def env name kind def
     ) group in
     nest 2 (separate (twice (break 1)) defs) ^^ hardline
   ;;

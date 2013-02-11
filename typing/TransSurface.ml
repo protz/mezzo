@@ -41,7 +41,7 @@ module E = Expressions
 
 (* We need to tell the next AST which names are used provided and which are
  * auto-generated. *)
-let name_user = fun env (x, k, l) -> (T.User (env.env.T.module_name, x), k, l);;
+let name_user = fun env (x, k, l) -> (T.User (T.module_name env.env, x), k, l);;
 let name_auto = fun (x, k, l) -> (T.Auto x, k, l);;
 
 let qualified_equals q1 q2 =

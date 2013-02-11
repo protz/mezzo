@@ -23,19 +23,20 @@ open Types
 open TypeErrors
 
 let check_adopts_clauses (env: env): unit =
-  fold_types env (fun () point { kind; _ } { definition; _ } ->
+  fold_definitions env (fun () var definition ->
+    let kind = get_kind env var in
     match definition with
-    | Some (Some (_, _, Some clause), _) ->
+    | Some (_, _, Some clause), _ ->
         let _return_kind, arg_kinds = flatten_kind kind in
         let arity = List.length arg_kinds in
-        let env, points = make_datacon_letters env kind false (fun _ -> Affine) in
-        let clause = Hml_List.fold_lefti (fun i clause point ->
+        let env, vars = make_datacon_letters env kind false (fun _ -> Affine) in
+        let clause = Hml_List.fold_lefti (fun i clause var ->
           let index = arity - i - 1 in
-          tsubst (TyOpen point) index clause
-        ) clause points in
+          tsubst (TyOpen var) index clause
+        ) clause vars in
         if not (FactInference.is_exclusive env clause) then
           raise_error env (
-            BadFactForAdoptedType (point, clause, FactInference.analyze_type env clause)
+            BadFactForAdoptedType (var, clause, FactInference.analyze_type env clause)
           )
     | _ ->
         ()

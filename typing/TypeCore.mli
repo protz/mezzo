@@ -241,7 +241,10 @@ val get_names : env -> var -> name list
 (** Get the kind of any given variable. *)
 val get_kind : env -> var -> kind
 
-(** Get the kind of any given variable. *)
+(** Set the permissions of a term variable. *)
+val set_permissions : env -> var -> typ list -> env
+
+(** Get the permissions of a term variable. *)
 val get_permissions : env -> var -> typ list
 
 (** Get a fact *)
@@ -255,6 +258,12 @@ val get_locations: env -> var -> location list
 
 (** Get the definition, if any. *)
 val get_definition: env -> var -> type_def option
+
+(** Update a definition. This asserts that there used to be a definition before. *)
+val update_definition: env -> var -> (type_def -> type_def) -> env
+
+(** Set a definition. This asserts that there was no definition before. *)
+val set_definition: env -> var -> type_def -> env
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -310,6 +319,8 @@ val map: env -> (var -> 'a) -> 'a list
 val is_marked: env -> var -> bool
 val mark: env -> var -> env
 val refresh_mark: env -> env
+
+module VarMap: Hml_Map.S with type key = var
 
 
 (**/**)
