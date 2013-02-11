@@ -341,6 +341,62 @@ and add (env: env) (point: point) (t: typ): env =
       let env = add_constraints env constraints in
       add env point t
 
+  (* This implement the rule "x @ (=y, =z) * x @ (=y', =z') implies y = y' and z * = z'" *)
+  | TyConcreteUnfolded (dc, ts, clause) ->
+      let original_perms = get_permissions env point in
+      begin match Hml_List.find_opt (function
+        | TyConcreteUnfolded (dc', ts', clause') when resolved_datacons_equal env dc dc' ->
+            Some (ts', clause')
+        | _ -> None)
+        original_perms
+      with
+      | Some (ts', clause') ->
+          begin match
+            sub_type env clause clause' >>= fun env ->
+            sub_type env clause' clause
+          with
+          | _ when FactInference.is_exclusive env t ->
+              { env with inconsistent = true }
+          | None ->
+              (* Incompatible "adopts" clauses. *)
+              { env with inconsistent = true }
+          | Some env ->
+              List.fold_left2 (fun env f1 f2 ->
+                match f1, f2 with
+                | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
+                    begin match t with
+                    | TySingleton (TyPoint p) ->
+                        add env p t'
+                    | _ ->
+                        Log.error "Type not unfolded"
+                    end
+                | _ ->
+                    Log.error "Datacon order invariant not respected"
+              ) env ts ts'
+          end
+      | None ->
+          add_type env point t
+      end
+
+  | TyTuple ts ->
+      let original_perms = get_permissions env point in
+      begin match Hml_List.find_opt (function TyTuple ts' -> Some ts' | _ -> None) original_perms with
+      | Some ts' ->
+          if List.length ts <> List.length ts' then
+            { env with inconsistent = true }
+          else
+            List.fold_left2 (fun env t t' ->
+              match t with
+              | TySingleton (TyPoint p) ->
+                  add env p t'
+              | _ ->
+                  Log.error "Type not unfolded"
+            ) env ts ts'
+      | None ->
+          add_type env point t
+      end
+
+
   | _ ->
       (* Add the "bare" type. Recursive calls took care of calling [add]. *)
       let env = add_type env point t in
