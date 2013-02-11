@@ -33,8 +33,8 @@ let import_interface (env: T.env) (items: E.interface): T.env =
   let rec import_items env = function
     | PermDeclaration (name, typ) :: items ->
         (* XXX the location information is probably wildly inaccurate *)
-        let binding = User (env.module_name, name), KTerm, env.location in
-        let env, p = bind_var env binding in
+        let binding = User (module_name env, name), KTerm, location env in
+        let env, p = bind_rigid env binding in
         (* [add] takes care of simplifying any function type. *)
         let env = Permissions.add env p typ in
         let items = tsubst_toplevel_items (TyOpen p) 0 items in

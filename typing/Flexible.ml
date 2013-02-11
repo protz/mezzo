@@ -24,22 +24,14 @@ open Types
 (* [has_flexible env t] checks [t] for flexible variables. *)
 let has_flexible env t =
   let rec has_flexible t =
-    match t with
+    match modulo_flex env t with
     | TyUnknown
     | TyDynamic
     | TyBound _ ->
         false
 
     | TyOpen p ->
-        if is_flexible env p then
-          true
-        else
-          begin match structure env p with
-          | Some t ->
-              has_flexible t
-          | None ->
-              false
-          end
+        is_flexible env p
 
     | TyForall (_, t)
     | TyExists (_, t) ->
@@ -88,7 +80,7 @@ let has_flexible env t =
  * flexible variables. *)
 let find_flexible env t =
   let rec find_flexible t =
-    match t with
+    match modulo_flex env t with
     | TyUnknown
     | TyDynamic
     | TyBound _ ->
@@ -98,12 +90,7 @@ let find_flexible env t =
         if is_flexible env p then
           [p]
         else
-          begin match structure env p with
-          | Some t ->
-              find_flexible t
-          | None ->
-              []
-          end
+          []
 
     | TyForall (_, t)
     | TyExists (_, t) ->
@@ -163,6 +150,6 @@ let generalize env t =
   List.fold_right (fun p t ->
     let x = fresh_auto_var "/g" in
     let k = get_kind env p in
-    TyForall (((x, k, env.location), CanInstantiate), tpsubst env (TyBound 0) p t)
+    TyForall (((x, k, location env), CanInstantiate), tpsubst env (TyBound 0) p t)
   ) flexible t
 ;;
