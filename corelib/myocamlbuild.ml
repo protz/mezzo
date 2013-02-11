@@ -1,11 +1,15 @@
 open Ocamlbuild_plugin
 
-(* We assume that [mezzo] is in the PATH. *)
-(* TEMPORARY how to be more flexible? *)
-(* TEMPORARY what is the meaning of ocamlbuild's V? *)
+(* As a special case, we check whether there is a [mezzo] executable
+   in the directory above us [..]. This is useful when building the
+   core library and standard library. Otherwise, we assume/hope that
+   [mezzo] is in the PATH. *)
 
 let mezzo =
-  A "mezzo"
+  if Sys.file_exists "../mezzo" then
+    A (Sys.getcwd() ^ "/../mezzo")
+  else
+    A "mezzo"
 
 (* This command invokes the Mezzo compiler. *)
 

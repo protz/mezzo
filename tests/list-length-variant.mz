@@ -5,7 +5,7 @@ val length [a] (xs : list a) : int =
   let count (x: a | c @ ref int) : () =
     c := !c + 1
   in
-  iter (count, xs);
+  iter (xs, count);
   !c
 
 val length [a] (xs : list a) : int =

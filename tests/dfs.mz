@@ -34,10 +34,10 @@ val traverse (g : graph int) : () =
       c := !c + 1;
       let children = n.children in
       give n to g;
-      iter (visit, children)
+      iter (children, visit)
     end
   in
 
   (* Visit each of the roots. *)
-  iter (visit, g.roots)
+  iter (g.roots, visit)
 

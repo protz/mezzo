@@ -290,7 +290,7 @@ let print_error buf (env, raw_error) =
       begin match fold_point env point with
       | Some t ->
           Printf.bprintf buf
-            "%a %a has type:\n%aThere is no field named %a"
+            "%a %a has type:\n%a\nThis type has no field named \"%a\"."
             Lexer.p env.location
             pname (env, point)
             ptype (env, t)
