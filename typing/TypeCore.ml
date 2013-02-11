@@ -284,6 +284,8 @@ let mark_inconsistent env = { env with inconsistent = true };;
 
 let module_name { module_name; _ } = module_name;;
 
+let set_module_name env module_name = { env with module_name };;
+
 let valid env p =
   PersistentUnionFind.valid p env.state
 ;;

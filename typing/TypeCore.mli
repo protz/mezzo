@@ -188,6 +188,9 @@ val location: env -> location
 (** Get the current module name. *)
 val module_name: env -> Module.name
 
+(** Set the current module name. *)
+val set_module_name: env -> Module.name -> env
+
 (** Is the current environment inconsistent? *)
 val is_inconsistent: env -> bool
 

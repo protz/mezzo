@@ -182,8 +182,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let env = do_it () in
     let check_variance n vs =
       let t = find_type_by_name env n in
-      match find_type env !!t with
-      | _, { definition = Some (_, vs'); _ } when vs = vs' ->
+      match get_definition env !!t with
+      | Some (_, vs') when vs = vs' ->
           ()
       | _ ->
           failwith "Variances don't match"

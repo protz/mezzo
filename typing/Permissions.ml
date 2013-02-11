@@ -222,6 +222,19 @@ let rec unify (env: env) (p1: var) (p2: var): env =
     let env = merge_left env p1 p2 in
     List.fold_left (fun env t -> add env p1 t) env perms
 
+and keep_only_duplicable env =
+  let env = fold_terms env (fun env var permissions ->
+    let permissions = List.filter (FactInference.is_duplicable env) permissions in
+    let env = set_permissions env var permissions in
+    env
+  ) env in
+
+  (* Don't forget the abstract perm variables. *)
+  let floating = get_floating_permissions env in
+  let floating = List.filter (FactInference.is_duplicable env) floating in
+  let env = set_floating_permissions env floating in
+
+  env
 
 
 (** [add env var t] adds [t] to the list of permissions for [p], performing all
@@ -762,8 +775,9 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       let cons2 = !!cons2 in
 
       if same env cons1 cons2 then
-        let sub_env = env in
-        (* Let's work with a sub-environment here. *)
+        (* We enter a potentially non-linear context here. Only keep duplicable
+         * parts. *)
+        let sub_env = keep_only_duplicable env in
         Hml_List.fold_left2i (fun i sub_env arg1 arg2 ->
           sub_env >>= fun sub_env ->
           (* Variance comes into play here as well. The behavior is fairly
@@ -800,8 +814,9 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
             env, t1, []
       in
 
-      (* We work in a sub-environment. *)
-      let sub_env = env in
+      (* We perform implicit eta-expansion, so again, non-linear context (we're
+       * under an arrow). *)
+      let sub_env = keep_only_duplicable env in
 
       (* 2) Let us compare the domains... *)
       Log.debug ~level:4 "%sArrow / Arrow, left%s"

@@ -79,15 +79,15 @@ let has_adopts_clause env t =
 
 
 (* Since everything is, or will be, in A-normal form, type-checking a function
- * call amounts to type-checking a point applied to another point. The default
+ * call amounts to type-checking a var applied to another var. The default
  * behavior is: do not return a type that contains flexible variables. *)
-let check_function_call (env: env) (f: point) (x: point): env * typ =
+let check_function_call (env: env) (f: var) (x: var): env * typ =
   Log.debug ~level:5 "[check_function_call], f = %a, x = %a, env below\n\n%a\n"
     TypePrinter.pnames (env, get_names env f)
     TypePrinter.pnames (env, get_names env x)
     TypePrinter.penv env;
 
-  let fname, fbinder = find_term env f in
+  let fname = get_name env f in
   (* Find a suitable permission for [f] first *)
   let rec is_quantified_arrow = function
     | TyForall (_, t) ->
@@ -100,11 +100,11 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
     | _ ->
         false
   in
-  let permissions = List.filter is_quantified_arrow fbinder.permissions in
+  let permissions = List.filter is_quantified_arrow (get_permissions env f) in
   (* Instantiate all universally quantified variables with flexible variables. *)
   let rec flex = fun env -> function
     | TyForall ((binding, _), t) ->
-        let env, t = bind_var_in_type env ~flexible:true binding t in
+        let env, t, _ = bind_flexible_in_type env binding t in
         let env, t = flex env t in
         env, t
     | _ as t ->
@@ -161,22 +161,21 @@ let check_function_call (env: env) (f: point) (x: point): env * typ =
 ;;
 
 
-let check_return_type (env: env) (point: point) (t: typ): unit =
+let check_return_type (env: env) (var: var) (t: typ): unit =
   TypePrinter.(
-    let _, binder = find_term env point in
-    Log.debug ~level:4 "Expecting return type %a; permissions for the point: %a"
+    Log.debug ~level:4 "Expecting return type %a; permissions for the var: %a"
       ptype (env, t)
-      pdoc (print_permission_list, (env, binder));
+      pdoc (print_permission_list, (env, get_permissions env var));
     (* TestUtils.print_env env ;*)
   );
     
-  match Permissions.sub env point t with
+  match Permissions.sub env var t with
   | Some _ ->
       ()
   | None ->
       let open TypePrinter in
       Log.debug ~level:4 "%a\n------------\n" penv env;
-      raise_error env (ExpectedType (t, point))
+      raise_error env (ExpectedType (t, var))
 ;;
 
 
@@ -194,11 +193,11 @@ let type_for_function_def (expression: expression): typ =
 
 (** [unify_pattern] is useful when type-checking [let pat = e] where [pat] is
  * a pattern and [e] is an expression. Type-checking [e] will add a new
- * permission to a point named [p]. We then need to glue the points in the
- * pattern to the intermediate points in the permission for [p]. If, for
+ * permission to a var named [p]. We then need to glue the vars in the
+ * pattern to the intermediate vars in the permission for [p]. If, for
  * instance, [pat] is [(p1, p2)] and [p @ (=p'1, =p'2)] holds, this function
  * will merge [p1] and [p'1], as well as [p2] and [p'2]. *)
-let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
+let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
 
   match pattern with
   | PVar _ ->
@@ -206,10 +205,10 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
         [subst_pat] first"
 
   | POpen p ->
-      (* [point] is the descriptor that has all the information; [p] just has
+      (* [var] is the descriptor that has all the information; [p] just has
        * [=p] as a permission, and maybe an extra one if it's a [val rec f]
        * where [f] is a recursive function *)
-      merge_left env point p
+      merge_left env var p
 
   | PAs (p1, p2) ->
       let p2 = match p2 with
@@ -218,14 +217,14 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
         | _ ->
             Log.error "Bad desugaring?!!"
       in
-      let env = merge_left env point p2 in
-      unify_pattern env p1 point
+      let env = merge_left env var p2 in
+      unify_pattern env p1 var
 
   | PTuple patterns ->
-      let permissions = get_permissions env point in
+      let permissions = get_permissions env var in
       let t = Hml_List.map_some (function TyTuple x -> Some x | _ -> None) permissions in
       if List.length t = 0 then
-        raise_error env (BadPattern (pattern, point));
+        raise_error env (BadPattern (pattern, var));
       let t = List.hd t in
       List.fold_left2 (fun env pattern component ->
         match component with
@@ -236,7 +235,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
       ) env patterns t
 
   | PConstruct (datacon, field_pats) ->
-      let permissions = get_permissions env point in
+      let permissions = get_permissions env var in
       let field_defs = Hml_List.map_some
         (function
           | TyConcreteUnfolded (datacon', x, _) when resolved_datacons_equal env datacon datacon' ->
@@ -246,7 +245,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
         permissions
       in
       if List.length field_defs = 0 then
-        raise_error env (BadPattern (pattern, point));
+        raise_error env (BadPattern (pattern, var));
       let field_defs = List.hd field_defs in
       List.fold_left (fun env (name, pat) ->
         (* The pattern fields may not all be there or in an arbitrary order. *)
@@ -271,14 +270,14 @@ let rec unify_pattern (env: env) (pattern: pattern) (point: point): env =
 ;;
 
 
-let refine_perms_in_place_for_pattern env point pat =
-  let rec refine env point pat =
+let refine_perms_in_place_for_pattern env var pat =
+  let rec refine env var pat =
     match pat with
     | PAs (pat, _) ->
-        refine env point pat
+        refine env var pat
 
     | PTuple pats ->
-        let points =
+        let vars =
           match Hml_List.find_opt (function
             | TyTuple ts ->
                 Some (List.map (function
@@ -289,17 +288,17 @@ let refine_perms_in_place_for_pattern env point pat =
                 ) ts)
             | _ ->
                 None
-          ) (get_permissions env point) with
-          | Some points ->
-              points
+          ) (get_permissions env var) with
+          | Some vars ->
+              vars
           | None ->
-              raise_error env (MatchBadTuple point)
+              raise_error env (MatchBadTuple var)
         in
-        List.fold_left2 refine env points pats
+        List.fold_left2 refine env vars pats
 
     | PConstruct (datacon, patfields) ->
         (* An easy way out. *)
-        let fail () = raise_error env (MatchBadDatacon (point, snd datacon)) in
+        let fail () = raise_error env (MatchBadDatacon (var, snd datacon)) in
         let fail_if b = if b then fail () in
 
         (* Turn the return value of [find_and_instantiate_branch] into a type. *)
@@ -319,7 +318,7 @@ let refine_perms_in_place_for_pattern env point pat =
             | _ ->
                 assert false
           ) fields;
-          let point1 = match Hml_List.find_opt (function
+          let var1 = match Hml_List.find_opt (function
             | FieldValue (n1, TySingleton (TyOpen p1)) when Field.equal n1 n2 ->
                 Some p1
             | _ ->
@@ -330,7 +329,7 @@ let refine_perms_in_place_for_pattern env point pat =
           | None ->
               raise_error env (BadField (snd datacon, n2))
           in
-          refine env point1 pat2
+          refine env var1 pat2
         ) env patfields in
 
         (* Find a permission that can be refined in there. *)
@@ -338,7 +337,7 @@ let refine_perms_in_place_for_pattern env point pat =
           | TyOpen p ->
               let p', datacon = datacon in
               fail_if (not (same env p !!p'));
-              fail_if (not (has_definition env p));
+              fail_if (not (get_definition env p = None));
               begin try
                 let branch = find_and_instantiate_branch env p datacon [] in
                 Some (env, mkconcrete branch)
@@ -374,21 +373,21 @@ let refine_perms_in_place_for_pattern env point pat =
               Some (env, t)
           | _ ->
               None
-        ) (get_permissions env point) with
+        ) (get_permissions env var) with
         | Some (remaining, (_, (env, t))) ->
             (* Now strip the permission we consumed... *)
             let env =
-              replace_term env point (fun binding -> { binding with permissions = remaining})
+              set_permissions env var remaining
             in
             (* Add instead its refined version -- this also makes sure it's in expanded form. *)
-            let env = Permissions.add env point t in
+            let env = Permissions.add env var t in
             (* Find the resulting structural permission. *)
             let fields = Option.extract (Hml_List.find_opt (function
               | TyConcreteUnfolded (_, fields, _) ->
                   Some fields
               | _ ->
                   None
-            ) (get_permissions env point)) in
+            ) (get_permissions env var)) in
             (* And recursively refine its fields now that they are in the
              * expanded form. *)
             refine_fields env fields
@@ -399,7 +398,7 @@ let refine_perms_in_place_for_pattern env point pat =
     | _ ->
         env
   in
-  refine env point pat
+  refine env var pat
 ;;
 
 
@@ -442,18 +441,18 @@ let merge_type_annotations env t1 t2 =
 
 
 
-let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * point =
+let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * var =
 
   (* lazy because we need to typecheck the core modules too! *)
   let t_int = lazy (find_type_by_name env ~mname:"int" "int")
   and t_bool = lazy (find_type_by_name env ~mname:"bool" "bool") in
 
-  (* [return t] creates a new point with type [t] available for it, and returns
-   * the environment as well as the point *)
+  (* [return t] creates a new var with type [t] available for it, and returns
+   * the environment as well as the var *)
   let return env t =
     (* Not the most clever function, but will do for now on *)
     let hint = Option.map_none (fresh_auto_var "/x_") hint in
-    let env, x = bind_term env hint env.location false in
+    let env, x = bind_rigid env (hint, KTerm, location env) in
     let env = Permissions.add env x t in
     match annot with
     | None ->
@@ -509,7 +508,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       (* We can't create a closure over exclusive variables. Create a stripped
        * environment with only the duplicable parts. *)
-      let sub_env, _restore = Permissions.keep_only_duplicable env in
+      let sub_env = Permissions.keep_only_duplicable env in
 
       (* Bind all variables. *)
       let vars = List.map fst vars in
@@ -542,50 +541,48 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let hint = add_hint hint (Field.print fname) in
       let env, p1 = check_expression env ?hint e1 in
       let env, p2 = check_expression env e2 in
-      let env = replace_term env p1 (fun binder ->
-        let permissions = binder.permissions in
-        let found = ref false in
-        let permissions = List.map (fun t ->
-            match t with
-            | TyConcreteUnfolded (datacon, fieldtypes, clause) ->
-                (* Check that datacon points to a type that is defined as
-                 * exclusive. *)
-                let flag, _, _ = def_for_datacon env datacon in
-                if flag <> SurfaceSyntax.Exclusive then
-                  raise_error env (AssignNotExclusive (t, snd datacon));
+      let permissions = get_permissions env p1 in
+      let found = ref false in
+      let permissions = List.map (fun t ->
+          match t with
+          | TyConcreteUnfolded (datacon, fieldtypes, clause) ->
+              (* Check that datacon vars to a type that is defined as
+               * exclusive. *)
+              let flag, _, _ = def_for_datacon env datacon in
+              if flag <> SurfaceSyntax.Exclusive then
+                raise_error env (AssignNotExclusive (t, snd datacon));
 
-                (* Perform the assignment. *)
-                let fieldtypes = List.mapi (fun i -> function
-                  | FieldValue (field, expr) ->
-                      let expr = 
-                        if Field.equal field fname then
-                          begin match expr with
-                          | TySingleton (TyOpen _) ->
-                              if !found then
-                                Log.error "Two matching permissions? That's strange...";
-                              field_struct.SurfaceSyntax.field_offset <- Some i;
-                              found := true;
-                              TySingleton (TyOpen p2)
-                          | t ->
-                              let open TypePrinter in
-                              Log.error "Not a point %a" ptype (env, t)
-                          end
-                        else
-                          expr
-                      in
-                      FieldValue (field, expr)
-                  | FieldPermission _ ->
-                      Log.error "These should've been inserted in the environment"
-                ) fieldtypes in
-                TyConcreteUnfolded (datacon, fieldtypes, clause)
-            | _ ->
-                t
-          ) permissions
-        in
-        if not !found then
-          raise_error env (NoSuchField (p1, fname));
-        { binder with permissions })
+              (* Perform the assignment. *)
+              let fieldtypes = List.mapi (fun i -> function
+                | FieldValue (field, expr) ->
+                    let expr = 
+                      if Field.equal field fname then
+                        begin match expr with
+                        | TySingleton (TyOpen _) ->
+                            if !found then
+                              Log.error "Two matching permissions? That's strange...";
+                            field_struct.SurfaceSyntax.field_offset <- Some i;
+                            found := true;
+                            TySingleton (TyOpen p2)
+                        | t ->
+                            let open TypePrinter in
+                            Log.error "Not a var %a" ptype (env, t)
+                        end
+                      else
+                        expr
+                    in
+                    FieldValue (field, expr)
+                | FieldPermission _ ->
+                    Log.error "These should've been inserted in the environment"
+              ) fieldtypes in
+              TyConcreteUnfolded (datacon, fieldtypes, clause)
+          | _ ->
+              t
+        ) permissions
       in
+      if not !found then
+        raise_error env (NoSuchField (p1, fname));
+      let env = set_permissions env p1 permissions in
       return env ty_unit
 
   | EAssignTag (e1, new_datacon, info) ->
@@ -645,7 +642,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       if not !found then
         raise_error env (CantAssignTag p1);
 
-      let env = replace_term env p1 (fun binder -> { binder with permissions }) in
+      let env = set_permissions env p1 permissions in
       return env ty_unit
 
 
@@ -661,7 +658,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let fname = field_struct.SurfaceSyntax.field_name in
       let hint = add_hint hint (Field.print fname) in
       let env, p = check_expression env ?hint e in
-      let module M = struct exception Found of point end in
+      let module M = struct exception Found of var end in
       begin try
         List.iter (fun t ->
           match t with
@@ -675,7 +672,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                           raise (M.Found p)
                       | t ->
                           let open TypePrinter in
-                          Log.error "Not a point %a" ptype (env, t)
+                          Log.error "Not a var %a" ptype (env, t)
                       end;
                 | FieldPermission _ ->
                     ()
@@ -751,7 +748,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         | None ->
             raise_error env (BadTypeApplication x);
       in
-      (* And return a fresh point with that new list of permissions. *)
+      (* And return a fresh var with that new list of permissions. *)
       let name =
         match get_name env x with
         | User (_, x) ->
@@ -759,7 +756,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         | _ as x ->
             x
       in
-      let env, x = bind_term env name (get_location env x) false in
+      let env, x = bind_rigid env (name, KTerm, get_location env x) in
       Permissions.add env x t, x
 
   | ETuple exprs ->
@@ -871,7 +868,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       return env !*t_int
 
   | ELocated (e, new_pos) ->
-      let old_pos = env.location in
+      let old_pos = location env in
       let env = locate env new_pos in
       let env, p = check_expression env ?hint ?annot e in
       locate env old_pos, p
@@ -890,7 +887,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let env, (false_t, true_t) =
         match Hml_List.take_bool (is_data_type_with_two_constructors env) (get_permissions env x1) with
         | Some (permissions, t) ->
-            let env = replace_term env x1 (fun binding -> { binding with permissions }) in
+            let env = set_permissions env x1 permissions in
             let split_apply cons args =
               match get_definition env cons with
               | Some (Some (_, [b1; b2], clause), _) ->
@@ -937,7 +934,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let env, x = check_expression env ?hint e in
 
       (* Type-check each branch separately, returning an environment for that
-       * branch as well as a point. *)
+       * branch as well as a var. *)
       let sub_envs = List.map (fun (pat, expr) ->
         let env = refine_perms_in_place_for_pattern env x pat in
         let env, { subst_expr; _ } =
@@ -1003,7 +1000,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 (* Refresh the structural permission for [e], using the new
                  * clause. *)
                 let perm = replace_clause perm t in
-                let env = replace_term env y (fun raw -> { raw with permissions = perm :: remaining_perms }) in
+                let env = set_permissions env y (perm :: remaining_perms) in
                 (* We're done. *)
                 return env ty_unit
           else begin
@@ -1060,8 +1057,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
   | EFail ->
       let name = Auto (Variable.register "/inconsistent") in
-      let env, x = bind_term env name env.location false in
-      { env with inconsistent = true }, x
+      let env, x = bind_rigid env (name, KTerm, location env) in
+      let env = mark_inconsistent env in
+      env, x
 
   | EBuiltin _ ->
       (* A builtin value is type-checked like [fail], i.e., it has type
@@ -1107,8 +1105,8 @@ and check_bindings
         | _ ->
             None
       in
-      let env, point = check_expression env ?hint expr in
-      let env = unify_pattern env pat point in
+      let env, var = check_expression env ?hint expr in
+      let env = unify_pattern env pat var in
       env) env patterns expressions
     in
     env, subst_kit
@@ -1117,33 +1115,33 @@ and check_bindings
 let check_declaration_group
     (env: env)
     (declarations: declaration_group)
-    (toplevel_items: toplevel_item list): env * toplevel_item list * point list =
+    (toplevel_items: toplevel_item list): env * toplevel_item list * var list =
   let rec check_declaration_group env declarations acc =
     match declarations with
     | DLocated (declarations, p) :: tl ->
         let env = locate env p in
         check_declaration_group env (declarations :: tl) acc
     | DMultiple (rec_flag, patexprs) :: tl ->
-        let env, { subst_decl; points; _ } = check_bindings env rec_flag patexprs in
+        let env, { subst_decl; vars; _ } = check_bindings env rec_flag patexprs in
         let tl = subst_decl tl in
-        check_declaration_group env tl (points :: acc)
+        check_declaration_group env tl (vars :: acc)
     | [] ->
         env, acc
   in
   let env, acc = check_declaration_group env declarations [] in
   (* Alright, this is an UGLY manipulation of De Bruijn indices... *)
-  let points = List.rev acc in
-  let points = List.flatten points in
+  let vars = List.rev acc in
+  let vars = List.flatten vars in
   (* List kept in reverse, the usual trick. *)
-  let points = List.rev points in
+  let vars = List.rev vars in
   let subst_toplevel_items b =
-    Hml_List.fold_lefti (fun i b point ->
-      let b = tsubst_toplevel_items (TyOpen point) i b in
-      esubst_toplevel_items (EOpen point) i b) b points
+    Hml_List.fold_lefti (fun i b var ->
+      let b = tsubst_toplevel_items (TyOpen var) i b in
+      esubst_toplevel_items (EOpen var) i b) b vars
   in
   (* ...but it works! *)
 
-  (* NB: don't forget to return the list of points in the same
+  (* NB: don't forget to return the list of vars in the same
    * order as the [DMultiple] came in. *)
-  env, subst_toplevel_items toplevel_items, (List.rev points)
+  env, subst_toplevel_items toplevel_items, (List.rev vars)
 ;;

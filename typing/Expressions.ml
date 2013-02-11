@@ -190,12 +190,12 @@ let n_decls decls =
 ;;
 
 
-(* [psubst pat points] replaces names in [pat] as it goes, by popping points off
- * the front of [points]. *)
-let rec psubst (pat: pattern) (points: var list) =
+(* [psubst pat vars] replaces names in [pat] as it goes, by popping vars off
+ * the front of [vars]. *)
+let rec psubst (pat: pattern) (vars: var list) =
   match pat with
   | PVar _ ->
-      begin match points with
+      begin match vars with
       | hd :: tl ->
           POpen hd, tl
       | _ ->
@@ -206,35 +206,35 @@ let rec psubst (pat: pattern) (points: var list) =
       Log.error "You ran a pattern through [psubst] twice"
 
   | PTuple pats ->
-      let pats, points = List.fold_left (fun (pats, points) pat ->
-          let pat, points = psubst pat points in
-          pat :: pats, points
-        ) ([], points) pats
+      let pats, vars = List.fold_left (fun (pats, vars) pat ->
+          let pat, vars = psubst pat vars in
+          pat :: pats, vars
+        ) ([], vars) pats
       in
       let pats = List.rev pats in
-      PTuple pats, points
+      PTuple pats, vars
 
   | PConstruct (datacon, fieldpats) ->
-      let fieldpats, points = List.fold_left (fun (fieldpats, points) (field, pat) ->
-          let pat, points = psubst pat points in
-          (field, pat) :: fieldpats, points
-        ) ([], points) fieldpats
+      let fieldpats, vars = List.fold_left (fun (fieldpats, vars) (field, pat) ->
+          let pat, vars = psubst pat vars in
+          (field, pat) :: fieldpats, vars
+        ) ([], vars) fieldpats
       in
       let fieldpats = List.rev fieldpats in
-      PConstruct (datacon, fieldpats), points
+      PConstruct (datacon, fieldpats), vars
 
   | PAs (p1, p2) ->
-      let pats, points = List.fold_left (fun (pats, points) pat ->
-          let pat, points = psubst pat points in
-          pat :: pats, points
-        ) ([], points) [p1; p2]
+      let pats, vars = List.fold_left (fun (pats, vars) pat ->
+          let pat, vars = psubst pat vars in
+          pat :: pats, vars
+        ) ([], vars) [p1; p2]
       in
       let pats = List.rev pats in
       let p1, p2 = match pats with [p1; p2] -> p1, p2 | _ -> assert false in
-      PAs (p1, p2), points
+      PAs (p1, p2), vars
 
   | PAny ->
-      PAny, points
+      PAny, vars
 ;;
 
 
@@ -583,7 +583,7 @@ let rec esubst_toplevel_items e2 i toplevel_items =
  * functions that perform the binding are [bind_vars] and [bind_patexprs], and
  * they're self-contained, so that they can be reused. In order to be as generic
  * as possible, they return a [substitution_kit], that is, a set of functions
- * that will substitute all bounds variables with the corresponding points. *)
+ * that will substitute all bounds variables with the corresponding vars. *)
 type substitution_kit = {
   (* substitute [TyBound]s for [TyOpen]s in a [typ]. *)
   subst_type: typ -> typ;
@@ -593,8 +593,8 @@ type substitution_kit = {
   subst_decl: declaration list -> declaration list;
   (* substitute [PVar]s for [POpen]s in a pattern *)
   subst_pat: pattern list -> pattern list;
-  (* the points, in left-to-right order *)
-  points: var list;
+  (* the vars, in left-to-right order *)
+  vars: var list;
 }
 
 (* [eunloc e] removes any [ELocated] located in front of [e]. *)
@@ -619,37 +619,37 @@ let eloc = function
  * reading order. *)
 let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit =
   (* List kept in reverse, the usual trick *)
-  let env, points =
-    List.fold_left (fun (env, points) binding ->
-      let env, point = bind_rigid env binding in
-      env, point :: points
+  let env, vars =
+    List.fold_left (fun (env, vars) binding ->
+      let env, var = bind_rigid env binding in
+      env, var :: vars
     ) (env, []) bindings
   in
   let subst_type t =
-    Hml_List.fold_lefti (fun i t point -> tsubst (TyOpen point) i t) t points
+    Hml_List.fold_lefti (fun i t var -> tsubst (TyOpen var) i t) t vars
   in
   let subst_expr t =
-    Hml_List.fold_lefti (fun i t point ->
-      let t = tsubst_expr (TyOpen point) i t in
-      esubst (EOpen point) i t) t points
+    Hml_List.fold_lefti (fun i t var ->
+      let t = tsubst_expr (TyOpen var) i t in
+      esubst (EOpen var) i t) t vars
   in
   let subst_decl t =
-    Hml_List.fold_lefti (fun i t point ->
-      let t = tsubst_decl (TyOpen point) i t in
-      esubst_decl (EOpen point) i t) t points
+    Hml_List.fold_lefti (fun i t var ->
+      let t = tsubst_decl (TyOpen var) i t in
+      esubst_decl (EOpen var) i t) t vars
   in
   (* Now keep the list in order. *)
-  let points = List.rev points in
+  let vars = List.rev vars in
   let subst_pat patterns =
-    let points, patterns = List.fold_left (fun (points, pats) pat ->
-      let pat, points = psubst pat points in
-      points, pat :: pats
-    ) (points, []) patterns in
-    assert (points = []);
+    let vars, patterns = List.fold_left (fun (vars, pats) pat ->
+      let pat, vars = psubst pat vars in
+      vars, pat :: pats
+    ) (vars, []) patterns in
+    assert (vars = []);
     let patterns = List.rev patterns in
     patterns
   in
-  env, { subst_type; subst_expr; subst_decl; subst_pat; points = points }
+  env, { subst_type; subst_expr; subst_decl; subst_pat; vars = vars }
 ;;
 
 let bind_vars (env: env) (bindings: SurfaceSyntax.type_binding list): env * substitution_kit =
@@ -660,7 +660,7 @@ let bind_vars (env: env) (bindings: SurfaceSyntax.type_binding list): env * subs
 
 (* [bind_patexprs env rec_flag patexprs] takes a list of patterns and
  * expressions, whose recursivity depends on [rec_flag], collects the variables
- * in the patterns, binds them to new points, and performs the correct
+ * in the patterns, binds them to new vars, and performs the correct
  * substitutions according to the recursivity flag. *)
 let bind_patexprs env rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
@@ -780,7 +780,7 @@ let elift (k: int) (e: expression) =
 ;;
 
 
-(* [epsubst env e2 p e1] substitutes expression [e2] for point [p] in expression [e1] *)
+(* [epsubst env e2 p e1] substitutes expression [e2] for var [p] in expression [e1] *)
 let epsubst (env: env) (e2: expression) (p: var) (e1: expression): expression =
   let rec epsubst e2 e1 =
     match e1 with
@@ -891,7 +891,7 @@ let epsubst (env: env) (e2: expression) (p: var) (e1: expression): expression =
 ;;
 
 
-(* [tpsubst_pat env t2 p p1] substitutes type [t2] for point [p] in expression
+(* [tpsubst_pat env t2 p p1] substitutes type [t2] for var [p] in expression
  * [e1]. *)
 let tpsubst_pat (env: env) (t2: typ) (p: var) (p1: pattern): pattern =
   let rec tpsubst_pat t2 p1 =
@@ -913,7 +913,7 @@ let tpsubst_pat (env: env) (t2: typ) (p: var) (p1: pattern): pattern =
 ;;
 
 
-(* [tpsubst_expr env e2 p e1] substitutes type [t2] for point [p] in expression [e1] *)
+(* [tpsubst_expr env e2 p e1] substitutes type [t2] for var [p] in expression [e1] *)
 let tpsubst_expr (env: env) (t2: typ) (p: var) (e1: expression): expression =
   let rec tpsubst_expr t2 e1 =
     match e1 with
@@ -1067,8 +1067,8 @@ module ExprPrinter = struct
     | PVar (v, _) ->
         print_var env (User (module_name env, v))
 
-    | POpen point ->
-        print_var env (get_name env point)
+    | POpen var ->
+        print_var env (get_name env var)
 
     | PTuple pats ->
         lparen ^^
@@ -1109,8 +1109,8 @@ module ExprPrinter = struct
     | EVar i ->
         int i
 
-    | EOpen point ->
-        print_var env (get_name env point)
+    | EOpen var ->
+        print_var env (get_name env var)
 
     | EBuiltin b ->
         string "builtin" ^^ space ^^ string b

@@ -67,3 +67,5 @@ val collect_constraints: typ -> typ * duplicity_constraint list
 
 val add_constraints: env -> duplicity_constraint list -> env
 val sub_constraints: env -> duplicity_constraint list -> env option
+
+val keep_only_duplicable: env -> env

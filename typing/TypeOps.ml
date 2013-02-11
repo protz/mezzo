@@ -187,14 +187,14 @@ let simplify_function_type env t body =
     ) constraints
 
   (* [vars] have been opened in [t] and [e]. *)
-  and cleanup (env: env) (vars: (type_binding * flavor) list) (t: typ) (e: expression option)
+  and cleanup (env: env) (the_vars: (type_binding * flavor) list) (t: typ) (e: expression option)
       : typ * expression option =
 
-    let vars, flavors = List.split vars in
+    let the_vars, flavors = List.split the_vars in
 
     (* Open the binders before working on the type. *)
-    let env, { points; subst_type; subst_expr; _ } = bind_evars env vars in
-    let vars = List.combine vars points in
+    let env, { vars; subst_type; subst_expr; _ } = bind_evars env the_vars in
+    let vars = List.combine the_vars vars in
     let t = subst_type t in
     let e = Option.map subst_expr e in
 

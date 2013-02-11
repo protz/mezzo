@@ -23,10 +23,10 @@ open Lexer
 
 (* Lexing and parsing, built on top of [grammar]. *)
 
-let lex_and_parse file_path entry_point =
+let lex_and_parse file_path entry_var =
   Utils.with_open_in file_path (fun file_desc ->
   let lexbuf = Ulexing.from_utf8_channel file_desc in
-  let the_parser = MenhirLib.Convert.Simplified.traditional2revised entry_point in
+  let the_parser = MenhirLib.Convert.Simplified.traditional2revised entry_var in
   try
     Lexer.init file_path;
     the_parser (fun _ -> Lexer.token lexbuf)
@@ -37,7 +37,7 @@ let lex_and_parse file_path entry_point =
         exit 255
     | Ulexing.InvalidCodepoint i ->
 	Printf.eprintf
-          "Invalid code point %i at offset %i\n" i (Ulexing.lexeme_end lexbuf);
+          "Invalid code var %i at offset %i\n" i (Ulexing.lexeme_end lexbuf);
         exit 254
     | Grammar.Error ->
         Hml_String.beprintf "%a\nError: Syntax error\n"
@@ -162,7 +162,7 @@ let find_and_lex_implementation : Module.name -> SurfaceSyntax.implementation =
  * importing into some environment. *)
 let build_interface (env: Types.env) (mname: Module.name): Types.env * Expressions.interface =
   let iface = find_and_lex_interface mname in
-  let env = { env with Types.module_name = mname } in
+  let env = Types.set_module_name env mname in
   KindCheck.check_interface env iface;
   env, TransSurface.translate_interface env iface
 ;;
@@ -224,7 +224,7 @@ let check_implementation
     Module.p mname;
   let env = import_dependencies_in_scope env deps in
 
-  let env = { env with Types.module_name = mname } in
+  let env = Types.set_module_name env mname in
 
   (* First pass of kind-checking; it checks for unbound variables and variables
    * with the wrong kind. *)
@@ -233,11 +233,11 @@ let check_implementation
   (* We need to translate the program down to the internal syntax. *)
   let program = TransSurface.translate_implementation env program in
 
-  (* [type_check] also returns a list of points, with the property that if x
-   * comes later than y in the file, then the point associated to x will come
-   * before that of y in the list of points. *)
+  (* [type_check] also returns a list of vars, with the property that if x
+   * comes later than y in the file, then the var associated to x will come
+   * before that of y in the list of vars. *)
   let type_check env program =
-    let rec type_check env program pointss =
+    let rec type_check env program varss =
       match program with
       | DataTypeGroup group :: blocks ->
           Log.debug ~level:2 "\n%s***%s Processing data type group:\n%a"
@@ -247,9 +247,9 @@ let check_implementation
           (* The binders in the data type group will be opened in the rest of the
            * blocks. Also performs the actual binding in the data type group, as
            * well as the variance and fact inference. *)
-          let env, blocks, points = DataTypeGroup.bind_data_type_group env group blocks in
+          let env, blocks, vars = DataTypeGroup.bind_data_type_group env group blocks in
           (* Move on to the rest of the blocks. *)
-          type_check env blocks (points :: pointss)
+          type_check env blocks (vars :: varss)
       | ValueDeclarations decls :: blocks ->
           Log.debug ~level:2 "\n%s***%s Processing declarations:\n%a"
             Bash.colors.Bash.yellow Bash.colors.Bash.default
@@ -257,9 +257,9 @@ let check_implementation
 
           (* Perform the actual checking. The binders in the declaration group
            * will be opened in [blocks] as well. *)
-          let env, blocks, points = TypeChecker.check_declaration_group env decls blocks in
+          let env, blocks, vars = TypeChecker.check_declaration_group env decls blocks in
           (* Move on to the rest of the blocks. *)
-          type_check env blocks (points :: pointss)
+          type_check env blocks (vars :: varss)
       | _ :: _ ->
           Log.error "The parser should forbid this"
       | [] ->
@@ -271,7 +271,7 @@ let check_implementation
 
           (* Do the final checks (is this the right time?) *)
           ExtraChecks.check_env env;
-          env, List.flatten pointss
+          env, List.flatten varss
     in
     type_check env program []
   in
@@ -282,7 +282,7 @@ let check_implementation
     Bash.colors.Bash.yellow Bash.colors.Bash.default
     Module.p mname
     Types.TypePrinter.penv env;
-  let env, points = type_check env program in
+  let env, vars = type_check env program in
 
   (* And type-check the implementation against its own signature, if any. *)
   Log.debug ~level:2 "\n%s***%s Matching %a against its signature"
@@ -294,12 +294,12 @@ let check_implementation
         (* We cannot use [Types.get_exports] here because we may have the same
          * name at top-level twice, and [Types.get_exports] doesn't know which
          * one ends up being exported. Instead, we can rely on [type_check] to
-         * returns for us the list of names along with the corresponding points
+         * returns for us the list of names along with the corresponding vars
          * that are exported. *)
         let exports = Hml_List.map_flatten (fun p ->
           let k = Types.get_kind env p in
           Hml_List.map_some (function
-            | Types.User (mname, x) when Module.equal mname env.Types.module_name ->
+            | Types.User (mname, x) when Module.equal mname (Types.module_name env) ->
                Some (x, k, p)
             | _ ->
                (* Either an auto-generated name, or a name coming from another
@@ -308,7 +308,7 @@ let check_implementation
                 * we just drop the name "y" here. *)
                None
           ) (Types.get_names env p)
-        ) points in
+        ) vars in
         (* If the function types are not syntactically equal, the decision
          * procedure for comparing those two types introduces internal names
          * that end polluting the resulting environment! So we only use that
@@ -407,7 +407,7 @@ let run { html_errors; backtraces } f =
         (* Generate the HTML explanation. *)
         Debug.explain ~text env;
         (* Find out about the command to run. *)
-        let f = (fst env.Types.location).Lexing.pos_fname in
+        let f = (fst (Types.location env)).Lexing.pos_fname in
         let f = Hml_String.replace "/" "_" f in
         let cmd = Printf.sprintf
           "firefox -new-window \"viewer/viewer.html?json_file=data/%s.json\" &"
@@ -439,33 +439,34 @@ let print_signature (buf: Buffer.t) (env: Types.env): unit =
   let compare_locs loc1 loc2 =
     Lexing.(compare loc1.pos_cnum loc2.pos_cnum)
   in
-  let perms = fold_terms env (fun acc point { locations; _ } { permissions; _ } ->
+  let perms = fold_terms env (fun acc var permissions ->
+    let locations = get_locations env var in
     let locations = List.sort (fun (loc1, _) (loc2, _) -> compare_locs loc1 loc2) locations in
     let location = fst (List.hd locations) in
-    List.map (fun x -> point, location, x) permissions :: acc
+    List.map (fun x -> var, location, x) permissions :: acc
   ) [] in
   let perms = List.flatten perms in
-  let perms = List.filter (fun (point, _, perm) ->
+  let perms = List.filter (fun (var, _, perm) ->
     match perm with
     | TyUnknown ->
         false
-    | TySingleton (TyOpen point') when same env point point' ->
+    | TySingleton (TyOpen var') when same env var var' ->
         false
     | _ ->
         true
   ) perms in
   let perms = List.sort (fun (_, loc1, _) (_, loc2, _) -> compare_locs loc1 loc2) perms in
-  List.iter (fun (point, _, t) ->
+  List.iter (fun (var, _, t) ->
     let open TypePrinter in
     let open Hml_Pprint in
     try
       let name = List.find (function
         | User (m, x) ->
-            Module.equal m env.module_name &&
+            Module.equal m (module_name env) &&
             (Variable.print x).[0] <> '/'
         | Auto _ ->
             false
-      ) (get_names env point) in
+      ) (get_names env var) in
       let t =
         match TypeErrors.fold_type env t with
         | Some t ->
@@ -505,7 +506,7 @@ let interpret (file_path : string) : unit =
   
   (* Find the modules that [m] depends upon. *)
 
-  (* There is a fine point here. We are interested in the dependencies
+  (* There is a fine var here. We are interested in the dependencies
      of an [.mz] file on another [.mz] file, because a module cannot be
      evaluated unless the modules that it refers to have been evaluated
      as well. This is in contrast with the type-checker and compiler,
