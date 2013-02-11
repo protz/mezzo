@@ -226,7 +226,7 @@ let simplify_function_type env t body =
           match perm with
           | TyAnchoredPermission (TyOpen p, TySingleton (TyOpen p')) ->
               if suitable p && suitable p' then
-                let env = merge env p p' in
+                let env = merge_left env p p' in
                 (env, perms)
               else
                 env, perm :: perms

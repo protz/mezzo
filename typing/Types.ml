@@ -427,6 +427,7 @@ let is_tyapp = function
 ;;
 
 let is_term env v = (get_kind env v = KTerm);;
+let is_type env v = (fst (flatten_kind (get_kind env v)) = KType);;
 
 let make_datacon_letters env kind flexible f =
   let _return_kind, arg_kinds = flatten_kind kind in

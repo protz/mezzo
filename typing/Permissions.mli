@@ -65,8 +65,5 @@ val safety_check: env -> unit
 (** Strip out all the constraints from a type. *)
 val collect_constraints: typ -> typ * duplicity_constraint list
 
-(** Strip the non-duplicable parts. *)
-val keep_only_duplicable: env -> env * (env -> env)
-
 val add_constraints: env -> duplicity_constraint list -> env
 val sub_constraints: env -> duplicity_constraint list -> env option

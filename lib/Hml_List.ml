@@ -238,3 +238,16 @@ let take_bool f l =
 
 let map_flatten f l =
   List.flatten (List.map f l)
+
+let cut i l =
+  let rec cut acc i l =
+    if i = 0 then
+      List.rev acc
+    else
+      match l with
+      | hd :: tl ->
+          cut (hd :: acc) (i - 1) tl
+      | _ ->
+          raise (Invalid_argument "cut")
+  in
+  cut [] i l

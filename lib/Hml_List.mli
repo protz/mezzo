@@ -102,3 +102,5 @@ val take_bool: ('a -> bool) -> 'a list -> ('a list * 'a) option
 val find_opt: ('a -> 'b option) -> 'a list -> 'b option
 
 val map_flatten: ('a -> 'b list) -> 'a list -> 'b list
+
+val cut: int -> 'a list -> 'a list

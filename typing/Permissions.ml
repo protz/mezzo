@@ -98,7 +98,8 @@ let safety_check env =
 
 
 let add_floating_perm env t =
-  { env with floating_permissions = t :: env.floating_permissions }
+  let floating_permissions = get_floating_permissions env in
+  set_floating_permissions env (t :: floating_permissions)
 ;;
 
 
@@ -178,7 +179,7 @@ let add_constraints env constraints =
         let f' = get_fact env p in
         if fact_leq f f' then
         (* [f] tells, for instance, that [p] be exclusive *)
-          refresh_fact env p f
+          set_fact env p f
         else
           env
     | _ ->
@@ -188,10 +189,8 @@ let add_constraints env constraints =
 ;;
 
 
-let rec perm_not_flex env t =
-  match t with
-  | TyOpen p when has_structure env p ->
-      perm_not_flex env (Option.extract (structure env p))
+let perm_not_flex env t =
+  match modulo_flex env t with
   | TyAnchoredPermission (x, _) ->
       not (is_flexible env !!x)
   | TyOpen p ->
@@ -224,69 +223,12 @@ let rec unify (env: env) (p1: var) (p2: var): env =
     List.fold_left (fun env t -> add env p1 t) env perms
 
 
-(** [keep_only_duplicable env] strips out from [env] all the non-duplicable
-   parts, and returns a function that can undo this operation while still
-   retaining all the unifications and instanciations that were performed.
-*)
-and keep_only_duplicable (env: env): env * (env -> env) =
-  (* Let [env] be the environment stripped out of all its non-duplicable
-   * permissions, and let [all_perms] be the set of all permissions we
-   * stripped. *)
-  let env, all_perms = fold_terms env (fun (env, acc) var _ { permissions; _ } ->
-    let dup = List.filter (FactInference.is_duplicable env) permissions in
-    let env =
-      replace_term env var (function binding -> { binding with permissions = dup })
-    in
-    let permissions =
-      List.filter (function TySingleton _ | TyUnknown -> false | _ -> true) permissions
-    in
-    let permissions = List.map (fun t -> TyAnchoredPermission (TyOpen var, t)) permissions in
-    env, permissions @ acc
-  ) (env, []) in
-
-  (* Don't forget the abstract perm variables. *)
-  let all_floating = env.floating_permissions in
-  let dup_floating =
-    List.filter (FactInference.is_duplicable env) all_floating
-  in
-  let env = { env with floating_permissions = dup_floating } in
-
-  (* Micro sanity check. *)
-  Log.check (List.length dup_floating = 0)
-    "As far as I can tell, there's no var in having an abstract duplicable permission...";
-
-  (* Here's what we need to do to restore the environment to its initial state,
-   * while still retaining all the unifications that took place. *)
-  let restore env =
-    let env = fold_terms env (fun env var _ _ ->
-      replace_term env var (function binding -> {
-        binding with permissions = initial_permissions_for_var var
-    })) env in
-
-    let env = Log.silent (fun () ->
-      List.fold_left add_perm env all_perms
-    ) in
-    let env = { env with floating_permissions = all_floating } in
-
-    env
-  in
-
-  env, restore
-
-
 
 (** [add env var t] adds [t] to the list of permissions for [p], performing all
     the necessary legwork. *)
 and add (env: env) (var: var) (t: typ): env =
   Log.check (is_term env var) "You can only add permissions to a var that \
     represents a program identifier.";
-
-  (* The var is supposed to represent a term, not a type. If it has a
-   * structure, this means that it's a type variable with kind term that has
-   * been flex'd, then instanciated onto something. We make sure in
-   * [Permissions.sub] that we're actually merging, not instanciating, when
-   * faced with two [TyOpen]s. *)
-  Log.check (not (has_structure env var)) "I don't understand what's happening";
 
   let hint = get_name env var in
 
@@ -316,11 +258,7 @@ and add (env: env) (var: var) (t: typ): env =
   (* Add the permissions. *)
   let env = List.fold_left add_perm env perms in
 
-  begin match t with
-  | TyOpen p when has_structure env p ->
-      Log.debug ~level:4 "%s]%s (structure)" Bash.colors.Bash.red Bash.colors.Bash.default;
-      add env var (Option.extract (structure env p))
-
+  begin match modulo_flex env t with
   | TySingleton (TyOpen p) when not (same env var p) ->
       Log.debug ~level:4 "%s]%s (singleton)" Bash.colors.Bash.red Bash.colors.Bash.default;
       unify env var p
@@ -329,7 +267,7 @@ and add (env: env) (var: var) (t: typ): env =
       Log.debug ~level:4 "%s]%s (exists)" Bash.colors.Bash.red Bash.colors.Bash.default;
       begin match binding with
       | _, KTerm, _ ->
-          let env, t = bind_var_in_type env binding t in
+          let env, t, _ = bind_rigid_in_type env binding t in
           add env var t
       | _ ->
           Log.error "I don't know how to deal with an existentially-quantified \
@@ -357,7 +295,7 @@ and add_perm (env: env) (t: typ): env =
   if t <> TyEmpty then
     TypePrinter.(Log.debug ~level:4 "[add_perm] %a" ptype (env, t));
 
-  match t with
+  match modulo_flex env t with
   | TyAnchoredPermission (p, t) ->
       Log.check (not (is_flexible env !!p))
         "Do NOT add a permission whose left-hand-side is flexible.";
@@ -366,11 +304,13 @@ and add_perm (env: env) (t: typ): env =
       add_perm (add_perm env p) q
   | TyEmpty ->
       env
-  | TyOpen p when has_structure env p ->
-      add_perm env (Option.extract (structure env p))
   | _ ->
       add_floating_perm env t
 
+
+and add_perm_raw env p t =
+  let permissions = get_permissions env p in
+  set_permissions env p (t :: permissions)
 
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
  * to the list of available permissions for [p] *)
@@ -392,23 +332,17 @@ and add_type (env: env) (p: var) (t: typ): env =
             permission, but it's already available."
           Bash.colors.Bash.red Bash.colors.Bash.default
           TypePrinter.ptype (env, t);
-        { env with inconsistent = true }
+        mark_inconsistent env
       end else if FactInference.is_duplicable env t && in_there_already then
         env
       else
         (* Either the type is not duplicable (so we need to add it!), or it is
          * duplicable, but doesn't exist per se (e.g. α flexible with
          * [duplicable α]) in the permission list. Add it. *)
-        replace_term env p (fun binding ->
-          { binding with permissions = t :: binding.permissions }
-        )
+        add_perm_raw env p t
   | None ->
       Log.debug ~level:4 "→ sub did NOT work%s]%s" Bash.colors.Bash.red Bash.colors.Bash.default;
-      let env =
-        replace_term env p (fun binding ->
-          { binding with permissions = t :: binding.permissions }
-        )
-      in
+      let env = add_perm_raw env p t in
       (* If we just added an exclusive type to the var, then it automatically
        * gains the [dynamic] type. *)
       if FactInference.is_exclusive env t then
@@ -431,7 +365,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
     | _ ->
         (* The [expr_binder] also serves as the binder for the corresponding
          * term type variable. *)
-        let env, p = bind_term env hint (location env) false in
+        let env, p = bind_rigid env (hint, KTerm, location env) in
         (* This will take care of unfolding where necessary. *)
         let env = add env p t in
         env, ty_equals p
@@ -529,10 +463,7 @@ and sub (env: env) (var: var) (t: typ): env option =
   Log.check (is_term env var) "You can only subtract permissions from a var \
     that represents a program identifier.";
 
-  (* See the explanation in [add]. *)
-  Log.check (not (has_structure env var)) "I don't understand what's happening";
-
-  if env.inconsistent then
+  if is_inconsistent env then
     Some env
   else
     (* Get a "clean" type without nested permissions. *)
@@ -552,7 +483,6 @@ and sub (env: env) (var: var) (t: typ): env option =
 and sub_clean (env: env) (var: var) (t: typ): env option =
   if (not (is_term env var)) then
     Log.error "[KindCheck] should've checked that for us";
-  Log.check (not (has_structure env var)) "Strange";
 
   let permissions = get_permissions env var in
 
@@ -601,8 +531,7 @@ and sub_clean (env: env) (var: var) (t: typ): env option =
       if duplicable then
         Some env
       else
-        Some (replace_term env var (fun binder ->
-          { binder with permissions = remaining }))
+        Some (set_permissions env var remaining)
   | None ->
       None
 
@@ -639,17 +568,13 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       Bash.colors.Bash.red Bash.colors.Bash.default
       ptype (env, t2));
 
-  match t1, t2 with
+  match modulo_flex env t1, modulo_flex env t2 with
 
   (** Easy cases involving flexible variables *)
-  | Tyvar p1, _ when has_structure env p1 ->
-      sub_type env (Option.extract (structure env p1)) t2
-  | _, Tyvar p2 when has_structure env p2 ->
-      sub_type env t1 (Option.extract (structure env p2))
-  | Tyvar p1, _ when is_flexible env p1 && can_merge env t2 p1 ->
-      Some (instantiate_flexible env p1 t2)
-  | _, Tyvar p2 when is_flexible env p2 && can_merge env t1 p2 ->
-      Some (instantiate_flexible env p2 t1)
+  | TyOpen v1, _ when is_flexible env v1 && can_instantiate env v1 t2 ->
+      Some (instantiate_flexible env v1 t2)
+  | _, TyOpen v2 when is_flexible env v2 && can_instantiate env v2 t1 ->
+      Some (instantiate_flexible env v2 t1)
 
   | _, _ when equal env t1 t2 ->
     Log.debug ~level:5 "↳ fast-path";
@@ -691,13 +616,13 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
    * possible instantiations of the variable, so we assume Affine. *)
 
   | _, TyForall ((binding, _), t2) ->
-      let env, t2 = bind_var_in_type env ~fact:Affine binding t2 in
+      let env, t2, _ = bind_rigid_in_type env binding t2 in
       let t2, perms = collect t2 in
       sub_perm env (fold_star perms) >>= fun env ->
       sub_type env t1 t2
 
   | TyExists (binding, t1), _ ->
-      let env, t1 = bind_var_in_type env ~fact:Affine binding t1 in
+      let env, t1, _ = bind_rigid_in_type env binding t1 in
       let t1, perms = collect t1 in
       let env = add_perm env (fold_star perms) in
       sub_type env t1 t2
@@ -710,13 +635,13 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
    * default value. *)
 
   | TyForall ((binding, _), t1), _ ->
-      let env, t1 = bind_var_in_type ~flexible:true ~fact:Affine env binding t1 in
+      let env, t1, _ = bind_flexible_in_type env binding t1 in
       let t1, perms = collect t1 in
       let env = add_perm env (fold_star perms) in
       sub_type env t1 t2
 
   | _, TyExists (binding, t2) ->
-      let env, t2 = bind_var_in_type ~flexible:true ~fact:Affine env binding t2 in
+      let env, t2, _ = bind_flexible_in_type env binding t2 in
       let t2, perms = collect t2 in
       sub_type env t1 t2 >>= fun env ->
       sub_perm env (fold_star perms)
@@ -837,23 +762,24 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       let cons2 = !!cons2 in
 
       if same env cons1 cons2 then
-        let env, restore = keep_only_duplicable env in
-        Hml_List.fold_left2i (fun i env arg1 arg2 ->
-          env >>= fun env ->
+        let sub_env = env in
+        (* Let's work with a sub-environment here. *)
+        Hml_List.fold_left2i (fun i sub_env arg1 arg2 ->
+          sub_env >>= fun sub_env ->
           (* Variance comes into play here as well. The behavior is fairly
            * intuitive. *)
-          match variance env cons1 i with
+          match variance sub_env cons1 i with
           | Covariant ->
-              sub_type env arg1 arg2
+              sub_type sub_env arg1 arg2
           | Contravariant ->
-              sub_type env arg2 arg1
+              sub_type sub_env arg2 arg1
           | Bivariant ->
-              Some env
+              Some sub_env
           | Invariant ->
-              sub_type env arg1 arg2 >>= fun env ->
-              sub_type env arg2 arg1
-        ) (Some env) args1 args2 >>= fun env ->
-        Some (restore env)
+              sub_type sub_env arg1 arg2 >>= fun sub_env ->
+              sub_type sub_env arg2 arg1
+        ) (Some sub_env) args1 args2 >>= fun sub_env ->
+        Some (import_flex_instanciations env sub_env)
       else
         None
 
@@ -865,11 +791,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
        * types. Therefore, we strip the environment of its duplicable parts and
        * keep only the instanciations when returning the final result. *)
 
-      (* 1) Get an environment stripped out of all its non-duplicable
-       * permissions. *)
-      let env, restore = keep_only_duplicable env in
-
-      (* 1b) Check facts as late as possible (the instantiation of a flexible
+      (* 1) Check facts as late as possible (the instantiation of a flexible
        * variables may happen only in "t2 - t'2"). *)
       let env, t1, constraints = match t1 with
         | TyAnd (constraints, t1) ->
@@ -878,33 +800,36 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
             env, t1, []
       in
 
+      (* We work in a sub-environment. *)
+      let sub_env = env in
+
       (* 2) Let us compare the domains... *)
       Log.debug ~level:4 "%sArrow / Arrow, left%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
-      sub_type env t'1 t1 >>= fun env ->
+      sub_type sub_env t'1 t1 >>= fun sub_env ->
 
       (* 3) And let us compare the codomains... *)
       Log.debug ~level:4 "%sArrow / Arrow, right%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
-      sub_type env t2 t'2 >>= fun env ->
+      sub_type sub_env t2 t'2 >>= fun sub_env ->
 
       (* 3b) Now check facts! *)
       Log.debug ~level:4 "%sArrow / Arrow, facts%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
-      sub_constraints env constraints >>= fun env ->
+      sub_constraints sub_env constraints >>= fun sub_env ->
 
       (* 4) We have successfully compared these function types. Just return the
-       * "restored" environment, that is, the environment with the exact same
+       * "restored" sub_environment, that is, the sub_environment with the exact same
        * set of original permissions, except that the unifications that took
        * place are now retained. *)
       Log.debug ~level:4 "%sArrow / End -- adding back permissions%s"
         Bash.colors.Bash.red
         Bash.colors.Bash.default;
 
-      Some (restore env)
+      Some (import_flex_instanciations env sub_env)
 
   | TyBar _, TyBar _ ->
       (* Unless we do this, we can't handle (t|p) - (t|p|p') properly. *)
@@ -1051,15 +976,13 @@ and sub_perm (env: env) (t: typ): env option =
   if t <> TyEmpty then
     TypePrinter.(Log.debug ~level:4 "[sub_perm] %a" ptype (env, t));
 
-  match t with
+  match modulo_flex env t with
   | TyAnchoredPermission (TyOpen p, t) ->
       sub env p t
   | TyStar _ ->
       sub_perms env (flatten_star env t)
   | TyEmpty ->
       Some env
-  | TyOpen p when has_structure env p ->
-      sub_perm env (Option.extract (structure env p))
   | _ ->
       sub_floating_perm env t
 
@@ -1081,12 +1004,12 @@ and sub_perms env perms =
         None
 
 and sub_floating_perm env t =
-  match Hml_List.take (sub_type env t) env.floating_permissions with
+  match Hml_List.take (sub_type env t) (get_floating_permissions env) with
   | Some (remaining_perms, (t', env)) ->
       if FactInference.is_duplicable env t' then
         Some env
       else
-        Some { env with floating_permissions = remaining_perms }
+        Some (set_floating_permissions env remaining_perms)
   | None ->
       None
 ;;

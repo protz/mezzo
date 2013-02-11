@@ -218,6 +218,11 @@ val instantiate_flexible: env -> var -> typ -> env
 val modulo_flex_v: env -> var -> typ
 val modulo_flex: env -> typ -> typ
 
+(** [import_flex_instanciations env sub_env] brings into [env] all the flexible
+ * variable instanciations that happened in [sub_env] without modifying the rest
+ * of [env]. *)
+val import_flex_instanciations: env -> env -> env
+
 
 (** {2 Low-level operations} *)
 
@@ -225,10 +230,17 @@ val modulo_flex: env -> typ -> typ
  * probably want to use [equal] instead. *)
 val same: env -> var -> var -> bool
 
-(** Merge two variables. You must make sure that both variables have been run
- * through [modulo_flex_v] first.  This is a low-level operation and you
- * probably want to use [Permissions.unify] instead. *)
-val merge : env -> var -> var -> env
+(** Merge two variables while keeping the information about the left one. You
+ * must make sure that both variables have been run through [modulo_flex_v]
+ * first. This is a low-level operation and you probably want to use
+ * {Permissions.unify} instead. *)
+val merge_left: env -> var -> var -> env
+
+(** Get the list of permissions that are floating in this environment. *)
+val get_floating_permissions: env -> typ list
+
+(** Set the list of permissions that are floating in this environment. *)
+val set_floating_permissions: env -> typ list -> env
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -241,23 +253,35 @@ val get_names : env -> var -> name list
 (** Get the kind of any given variable. *)
 val get_kind : env -> var -> kind
 
-(** Get the permissions of a term variable. *)
-val get_permissions : env -> var -> typ list
-
-(** Set the permissions of a term variable. *)
-val set_permissions : env -> var -> typ list -> env
-
 (** Get a fact *)
 val get_fact: env -> var -> fact
-
-(** Set a fact *)
-val set_fact: env -> var -> fact -> env
 
 (** Get the locations *)
 val get_locations: env -> var -> location list
 
 (** Get the definition, if any. *)
 val get_definition: env -> var -> type_def option
+
+(** {2 Low-level permissions manipulation functions.} *)
+
+(** If you're considering playing with the list of permissions available for a
+ * given variable, you should consider using {Permissions.add} and
+ * {Permissions.sub} instead of these low-level, potentially dangerous
+ * functions. *)
+
+(** Get the permissions of a term variable. *)
+val get_permissions : env -> var -> typ list
+
+(** Set the permissions of a term variable. *)
+val set_permissions : env -> var -> typ list -> env
+
+(** {2 Low-level setters} *)
+
+(** These functions should only be used during the very first few stages of
+ * type-checking. *)
+
+(** Set a fact *)
+val set_fact: env -> var -> fact -> env
 
 (** Update a definition. This asserts that there used to be a definition before. *)
 val update_definition: env -> var -> (type_def -> type_def) -> env

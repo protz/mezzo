@@ -351,6 +351,11 @@ let can_instantiate (env: env) (v: var) (t: typ): bool =
   true
 ;;
 
+let import_flex_instanciations env sub_env =
+  { env with flexible = Hml_List.cut (List.length env.flexible) sub_env.flexible }
+;;
+
+
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -484,6 +489,14 @@ let set_fact (env: env) (var: var) (fact: fact): env =
   update_var_descr env var (fun d -> { d with fact })
 ;;
 
+let get_floating_permissions { floating_permissions; _ } =
+  floating_permissions
+;;
+
+let set_floating_permissions env floating_permissions =
+  { env with floating_permissions }
+;;
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Instantiate a flexible variable with a given type. *)
@@ -527,7 +540,7 @@ let same env v1 v2 =
 ;;
 
 (* Merge while keeping the descriptor of the leftmost argument. *)
-let merge_p2p env p2 p1 =
+let merge_left_p2p env p2 p1 =
  (* All this work is just to make sure we keep the names, positions... from
    * both sides. *)
   let state = env.state in
@@ -551,7 +564,7 @@ let merge_p2p env p2 p1 =
   env
 ;;
 
-let merge env v1 v2 =
+let merge_left env v1 v2 =
   (* Sanity check. *)
   Log.check (get_kind env v1 = get_kind env v2) "Kind mismatch when merging";
 
@@ -569,7 +582,7 @@ let merge env v1 v2 =
  
   match v1, v2 with
   | VRigid p1, VRigid p2 ->
-      merge_p2p env p1 p2
+      merge_left_p2p env p1 p2
   | (VRigid _ as v), (VFlexible _ as vf)
   | (VFlexible _ as vf), (VRigid _ as v) ->
       if can_instantiate env vf (TyOpen v) then
