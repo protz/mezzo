@@ -80,6 +80,8 @@ exception NotFoldable
     folding back its "main" type [t] into a form that's suitable for one
     thing, and one thing only: printing. *)
 let rec fold_var (env: env) (var: var): (env * typ) option =
+  if is_flexible env var then raise NotFoldable;
+
   let perms = get_permissions env var in
   let perms = List.filter
     (function

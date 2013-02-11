@@ -375,16 +375,18 @@ let assert_var env v =
   match modulo_flex_v env v with
   | TyOpen v ->
       v
-  | _ ->
-      Log.error "[assert_var] failed"
+  | v ->
+      Log.error "[assert_var] failed (%a is not a var)"
+        !internal_ptype (env, v)
 ;;
 
 let assert_point env v =
   match modulo_flex_v env v with
   | TyOpen (VRigid p) ->
       p
-  | _ ->
-      Log.error "[assert_point] failed"
+  | v ->
+      Log.error "[assert_point] failed (%a is not a point)"
+        !internal_ptype (env, v)
 ;;
 
 let update_extra_descr (env: env) (var: var) (f: extra_descr -> extra_descr): env =
