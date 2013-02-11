@@ -337,7 +337,7 @@ let refine_perms_in_place_for_pattern env var pat =
           | TyOpen p ->
               let p', datacon = datacon in
               fail_if (not (same env p !!p'));
-              fail_if (not (get_definition env p = None));
+              fail_if (get_definition env p = None);
               begin try
                 let branch = find_and_instantiate_branch env p datacon [] in
                 Some (env, mkconcrete branch)
