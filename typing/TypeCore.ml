@@ -652,15 +652,16 @@ let clean top sub t =
         else
           raise UnboundPoint
 
-    | TyOpen (VFlexible f) ->
-        if f <= top.current_level then
-          match (find_flex sub f).structure with
-          | Instantiated t ->
-              clean t
-          | NotInstantiated _ ->
+    | TyOpen ((VFlexible _) as v) ->
+        begin match modulo_flex_v sub v with
+        | TyOpen (VFlexible f) as t ->
+            if f < List.length top.flexible then
               t
-        else
-          raise UnboundPoint
+            else
+              raise UnboundPoint
+        | _ as t ->
+            clean t
+        end
 
     | TyForall (b, t) ->
         TyForall (b, clean t)

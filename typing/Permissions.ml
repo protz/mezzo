@@ -581,7 +581,9 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       Bash.colors.Bash.red Bash.colors.Bash.default
       ptype (env, t2));
 
-  match modulo_flex env t1, modulo_flex env t2 with
+  let t1 = modulo_flex env t1 and t2 = modulo_flex env t2 in
+
+  match t1, t2 with
 
   (** Easy cases involving flexible variables *)
   | TyOpen v1, _ when is_flexible env v1 && can_instantiate env v1 t2 ->
