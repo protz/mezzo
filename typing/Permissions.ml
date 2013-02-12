@@ -273,7 +273,7 @@ and add (env: env) (var: var) (t: typ): env =
   (* Add the permissions. *)
   let env = List.fold_left add_perm env perms in
 
-  begin match modulo_flex env t with
+  begin match t with
   | TySingleton (TyOpen p) when not (same env var p) ->
       Log.debug ~level:4 "%s]%s (singleton)" Bash.colors.Bash.red Bash.colors.Bash.default;
       unify env var p
@@ -646,15 +646,16 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
   match t1, t2 with
 
-  (** Easy cases involving flexible variables *)
-  | TyOpen v1, _ when is_flexible env v1 && can_instantiate env v1 t2 ->
-      Some (instantiate_flexible env v1 t2)
-  | _, TyOpen v2 when is_flexible env v2 && can_instantiate env v2 t1 ->
-      Some (instantiate_flexible env v2 t1)
-
+  (** Trivial case. *)
   | _, _ when equal env t1 t2 ->
     Log.debug ~level:5 "↳ fast-path";
     Some env
+
+  (** Easy cases involving flexible variables *)
+  | TyOpen v1, _ when can_instantiate env v1 t2 ->
+      Some (instantiate_flexible env v1 t2)
+  | _, TyOpen v2 when can_instantiate env v2 t1 ->
+      Some (instantiate_flexible env v2 t1)
 
   (** Fail early to tame debug output. *)
   | TyUnknown, _
