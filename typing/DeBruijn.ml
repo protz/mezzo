@@ -226,6 +226,7 @@ let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_typ
 let tpsubst env (t2: typ) (p: var) (t1: typ) =
   let lift1 = lift 1 in
   let rec tsubst t2 t1 =
+    let t1 = modulo_flex env t1 in
     match t1 with
       (* Special type constants. *)
     | TyUnknown

@@ -80,7 +80,8 @@ let has_flexible env t =
  * flexible variables. *)
 let find_flexible env t =
   let rec find_flexible t =
-    match modulo_flex env t with
+    let t = modulo_flex env t in
+    match t with
     | TyUnknown
     | TyDynamic
     | TyBound _ ->
