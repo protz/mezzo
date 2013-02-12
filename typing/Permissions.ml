@@ -512,53 +512,36 @@ and sub (env: env) (var: var) (t: typ): env option =
 
   if is_inconsistent env then
     Some env
+
   else
-    (* Get a "clean" type without nested permissions. *)
-    let t, perms = collect t in
-    let perms = List.flatten (List.map (flatten_star env) perms) in
+    let permissions = get_permissions env var in
 
-    (* Start off by subtracting the type without associated permissions. *)
-    let env = sub_clean env var t in
+    (* Priority-order potential merge candidates. *)
+    let sort = function
+      | _ as t when not (FactInference.is_duplicable env t) -> 0
+      (* This basically makes sure we never instantiate a flexible variable with a
+       * singleton type. The rationale is that we're too afraid of instantiating
+       * with something local to a branch, which will then make the [Merge]
+       * operation fail (see [merge18.mz] and [merge19.mz]). *)
+      | TySingleton _ -> 3
+      | TyUnknown -> 2
+      | _ -> 1
+    in
+    let sort x y = sort x - sort y in
+    let permissions = List.sort sort permissions in
 
-    env >>= fun env ->
-    sub_perms env perms
-
-
-(** [sub_clean env var t] takes a "clean" type [t] (without nested permissions)
-    and performs the actual work of extracting [t] from the list of permissions
-    for [var]. *)
-and sub_clean (env: env) (var: var) (t: typ): env option =
-  if (not (is_term env var)) then
-    Log.error "[KindCheck] should've checked that for us";
-
-  let permissions = get_permissions env var in
-
-  (* Priority-order potential merge candidates. *)
-  let sort = function
-    | _ as t when not (FactInference.is_duplicable env t) -> 0
-    (* This basically makes sure we never instantiate a flexible variable with a
-     * singleton type. The rationale is that we're too afraid of instantiating
-     * with something local to a branch, which will then make the [Merge]
-     * operation fail (see [merge18.mz] and [merge19.mz]). *)
-    | TySingleton _ -> 3
-    | TyUnknown -> 2
-    | _ -> 1
-  in
-  let sort x y = sort x - sort y in
-  let permissions = List.sort sort permissions in
-
-  (* [take] proceeds left-to-right *)
-  match Hml_List.take (fun x -> sub_type env x t) permissions with
-  | Some (remaining, (t_x, env)) ->
-      (* [t_x] is the "original" type found in the list of permissions for [x].
-       * -- see [tests/fact-inconsistency.mz] as to why I believe it's correct
-       * to check [t_x] for duplicity and not just [t]. *)
-      if FactInference.is_duplicable env t_x then
-        Some env
-      else
-        Some (set_permissions env var remaining)
-  | None ->
-      None
+    (* [take] proceeds left-to-right *)
+    match Hml_List.take (fun x -> sub_type env x t) permissions with
+    | Some (remaining, (t_x, env)) ->
+        (* [t_x] is the "original" type found in the list of permissions for [x].
+         * -- see [tests/fact-inconsistency.mz] as to why I believe it's correct
+         * to check [t_x] for duplicity and not just [t]. *)
+        if FactInference.is_duplicable env t_x then
+          Some env
+        else
+          Some (set_permissions env var remaining)
+    | None ->
+        None
 
 
 
@@ -645,9 +628,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   | _, TyAnd (constraints, t2) ->
       (* First do the subtraction, because the constraint may be "duplicable α"
        * with "α" being flexible. *)
-      let t2, perms = collect t2 in
       sub_type env t1 t2 >>= fun env ->
-      sub_perms env perms >>= fun env ->
       (* And then, hoping that α has been instantiated, check that it satisfies
        * the constraint. *)
       sub_constraints env constraints
@@ -663,14 +644,10 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
   | _, TyForall ((binding, _), t2) ->
       let env, t2, _ = bind_rigid_in_type env binding t2 in
-      let t2, perms = collect t2 in
-      sub_perm env (fold_star perms) >>= fun env ->
       sub_type env t1 t2
 
   | TyExists (binding, t1), _ ->
       let env, t1, _ = bind_rigid_in_type env binding t1 in
-      let t1, perms = collect t1 in
-      let env = add_perm env (fold_star perms) in
       sub_type env t1 t2
 
 
@@ -682,15 +659,11 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
   | TyForall ((binding, _), t1), _ ->
       let env, t1, _ = bind_flexible_in_type env binding t1 in
-      let t1, perms = collect t1 in
-      let env = add_perm env (fold_star perms) in
       sub_type env t1 t2
 
   | _, TyExists (binding, t2) ->
       let env, t2, _ = bind_flexible_in_type env binding t2 in
-      let t2, perms = collect t2 in
-      sub_type env t1 t2 >>= fun env ->
-      sub_perm env (fold_star perms)
+      sub_type env t1 t2
 
 
   (** Structural rules *)
@@ -711,7 +684,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
             (* “=x - τ” can always be rephrased as “take τ from the list of
              * available permissions for x” by replacing “τ” with
              * “∃x'.(=x'|x' @ τ)” and instantiating “x'” with “x”. *)
-            sub_clean env p1 t2
+            sub env p1 t2
         | _ ->
             None
       ) (Some env) components1 components2
@@ -740,7 +713,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
           | TySingleton (TyOpen p1), TySingleton (TyOpen p2) when is_flexible env p2 ->
               Some (merge_left env p1 p2)
           | TySingleton (TyOpen p1), _ ->
-              sub_clean env p1 t2
+              sub env p1 t2
           | _ ->
               None
         ) (Some env) fields1 fields2
