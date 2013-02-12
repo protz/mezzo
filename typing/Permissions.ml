@@ -547,35 +547,13 @@ and sub_clean (env: env) (var: var) (t: typ): env option =
   let sort x y = sort x - sort y in
   let permissions = List.sort sort permissions in
 
-  let debug env hd t duplicable =
-    let open TypePrinter in
-    let open Bash in
-    let f1 = FactInference.analyze_type env hd in
-    let f2 = FactInference.analyze_type env t in
-    Log.check
-      (fact_leq f1 f2)
-      "Fact inconsistency %a is %a <= %a is %a"
-      ptype (env, hd)
-      pfact f1
-      ptype (env, t)
-      pfact f2;
-    Log.debug ~level:4 "%sTaking%s %a out of the permissions for %a \
-      (really? %b)"
-      colors.yellow colors.default
-      ptype (env, t)
-      pvar (env, get_name env var)
-      (not duplicable);
-  in
-
   (* [take] proceeds left-to-right *)
   match Hml_List.take (fun x -> sub_type env x t) permissions with
   | Some (remaining, (t_x, env)) ->
       (* [t_x] is the "original" type found in the list of permissions for [x].
        * -- see [tests/fact-inconsistency.mz] as to why I believe it's correct
        * to check [t_x] for duplicity and not just [t]. *)
-      let duplicable = FactInference.is_duplicable env t_x in
-      debug env t_x t duplicable;
-      if duplicable then
+      if FactInference.is_duplicable env t_x then
         Some env
       else
         Some (set_permissions env var remaining)
