@@ -114,33 +114,6 @@ let add_hint hint str =
       None
 ;;
 
-(** [can_merge env t1 p2] tells whether, assuming that [t2] is a flexible
-    variable, it can be safely merged with [t1]. This function checks that the
-    facts are compatible. *)
-let can_merge (env: env) (t1: typ) (p2: var): bool =
-  Log.check (is_flexible env p2) "[can_merge] takes a flexible variable as its second parameter";
-  (* The mode of an affine variable is understood to be an upper bound on the
-   * various modes it can take. Thus, affine means the flexible variable can
-   * instantiate with anything. Exclusive means the flexible variable can
-   * instantiate with anything that is exclusive or below exclusive (slim, fat,
-   * etc.). *)
-  match t1 with
-  | TyOpen p1 ->
-      if (is_type env p2) then begin
-        Log.check (get_kind env p1 = get_kind env p2) "Wait, what?";
-        let f1, f2 = get_fact env p1, get_fact env p2 in
-        fact_leq f1 f2
-      end else if (is_term env p2) then begin
-        (* TODO check for [ghost] here? *)
-        true
-      end else
-        Log.error "TODO: type variables with kind KPerm"
-  | _ ->
-      let f2 = get_fact env p2 in
-      let f1 = FactInference.analyze_type env t1 in
-      fact_leq f1 f2
-;;
-
 (** [collect t] returns all the permissions contained in [t] along with the
  * "cleaned up" version of [t]. *)
 let collect = TypeOps.collect;;
@@ -632,6 +605,24 @@ and sub_constraints env constraints =
   ) (Some env) constraints
 
 
+(** When comparing "list (a, b)" with "list (a*, b* )" you need to compare the
+ * parameters, but for that, unfolding first is a good idea. *)
+and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): env option =
+  (* We basically turn both [t1] and [t2] into "∃x.(=x | x @ t1)" which will
+   * perform the right dance, including unfolding, thanks to our excellent
+   * [add_sub] algorithm (self-pat on the back). *)
+  let wrap_bar t1 =
+    let binding = Auto (Utils.fresh_var "stwu"), KTerm, location env in
+    TyExists (binding,
+      TyBar (
+        TySingleton (TyBound 0),
+        TyAnchoredPermission (TyBound 0, t1)
+      )
+    )
+  in
+  sub_type env (wrap_bar t1) (wrap_bar t2)
+
+
 (** [sub_type env t1 t2] examines [t1] and, if [t1] "provides" [t2], returns
     [Some env] where [env] has been modified accordingly (for instance, by
     unifying some flexible variables); it returns [None] otherwise. *)
@@ -731,13 +722,6 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       List.fold_left2 (fun env t1 t2 ->
         env >>= fun env ->
         match t1, t2 with
-        | _ when equal env t1 t2 ->
-            (* XXX this should be removed; the reason we have this is we're not
-             * always performing proper unfolding on the left-hand-side, and
-             * sometimes we're running “(int, int) - (int, int)” -- this is what
-             * makes it work *)
-            Some env
-
         | TySingleton (TyOpen p1), _ when is_flexible env p1 ->
             (* The unfolding never, ever introduces flexible variables. *)
             assert false
@@ -750,17 +734,6 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
              * available permissions for x” by replacing “τ” with
              * “∃x'.(=x'|x' @ τ)” and instantiating “x'” with “x”. *)
             sub_clean env p1 t2
-
-        | TyOpen p1, _ when is_flexible env p1 ->
-            (* XXX this should be removed too, the reason we have this is to
-             * make “(α, int) - (int, int)” work with “α” flexible. *)
-            try_merge_flex env p1 t1
-        | _, TyOpen p2 when is_flexible env p2 ->
-            (* XXX should be removed too. The reason these two rules come last
-             * is that the present match case is good when we know [t1] is not
-             * [TySingleton]. *)
-            try_merge_flex env p2 t1
-
         | _ ->
             None
       ) (Some env) components1 components2
@@ -784,21 +757,12 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
            * comments and detailed explanations as to why these rules are
            * correct. *)
           match t1, t2 with
-          | _ when equal env t1 t2 ->
-              Some env
-
           | TySingleton (TyOpen p1), _ when is_flexible env p1 ->
               assert false
           | TySingleton (TyOpen p1), TySingleton (TyOpen p2) when is_flexible env p2 ->
               Some (merge_left env p1 p2)
           | TySingleton (TyOpen p1), _ ->
               sub_clean env p1 t2
-
-          | TyOpen p1, _ when is_flexible env p1 ->
-              try_merge_flex env p1 t1
-          | _, TyOpen p2 when is_flexible env p2 ->
-              try_merge_flex env p2 t1
-
           | _ ->
               None
         ) (Some env) fields1 fields2
@@ -848,14 +812,14 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
            * intuitive. *)
           match variance sub_env cons1 i with
           | Covariant ->
-              sub_type sub_env arg1 arg2
+              sub_type_with_unfolding sub_env arg1 arg2
           | Contravariant ->
-              sub_type sub_env arg2 arg1
+              sub_type_with_unfolding sub_env arg2 arg1
           | Bivariant ->
               Some sub_env
           | Invariant ->
-              sub_type sub_env arg1 arg2 >>= fun sub_env ->
-              sub_type sub_env arg2 arg1
+              sub_type_with_unfolding sub_env arg1 arg2 >>= fun sub_env ->
+              sub_type_with_unfolding sub_env arg2 arg1
         ) (Some sub_env) args1 args2 >>= fun sub_env ->
         Some (import_flex_instanciations env sub_env)
       else
@@ -1041,12 +1005,6 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   | _ ->
       None
 
-
-and try_merge_flex env p t =
-  if is_flexible env p && can_merge env t p then
-    Some (instantiate_flexible env p t)
-  else
-    None
 
 (** [sub_perm env t] takes a type [t] with kind KPerm, and tries to return the
     environment without the corresponding permission. *)

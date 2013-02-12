@@ -56,6 +56,7 @@ val sub_perm: env -> typ -> env option
     "do the right thing" by not discarding [t1] if it was not duplicable.
     Unifications may be performed, hence the return environment. *)
 val sub_type: env -> typ -> typ -> env option
+val sub_type_with_unfolding: env -> typ -> typ -> env option
 
 val add_hint: (name option) -> string -> (name option)
 
