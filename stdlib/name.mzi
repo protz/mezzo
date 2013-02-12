@@ -1,0 +1,26 @@
+(* A name generator is a function of type [a -> int]. Whenever it is invoked,
+   this function returns a fresh name (represented by a nonnegative
+   integer). This function ignores its argument. *)
+
+(* [new_generator()] produces a new name generator. *)
+
+val new_generator: [a] () -> a -> int
+
+(* A clerk is a function of type [a -> int]. When it is passed an argument
+   [x], it returns either the name already assigned to [x], if it has been
+   applied to [x] already, or a fresh name, if it has not been applied to [x]
+   already. *)
+
+(* [new_clerk()] produces a new clerk. *)
+
+val new_clerk:
+  [a] duplicable a => (
+    hash: a -> int,
+    eq: (a, a) -> bool
+  ) -> a -> int
+
+(*
+Local Variables:
+compile-command: "../mezzo name.mz"
+End:
+*)

@@ -1,0 +1,4 @@
+(* Failure: array update *)
+val () =
+  let x = array::create (10, 1) in
+  array::set (x, -1, -1)

@@ -352,9 +352,12 @@ val transform : [a, b, p : perm] (
   f: (int, consumes a | p) -> b
   | p
 ) -> (| r @ array b) =
-  builtin _mz_transform (* TEMPORARY should be:
-  magic::magic weak_transform
-  but this causes a BUG *)
+  magic::magic [
+    ([a, p : perm] (s: sense, r: array a, f: (int, consumes a | p) -> a | p) -> ()),
+    ([a, b, p : perm] (s: sense, consumes r: array a, f: (int, consumes a | p) -> b | p) -> (| r @ array b))
+  ]
+  (* TEMPORARY the above type application is used to work around a BUG *)
+  weak_transform
 
 (* One could imagine variants of this operation, e.g., an operation that
    performs a strong update simultaneously over TWO arrays, etc., etc.
@@ -412,6 +415,9 @@ val mapi [a, b, p : perm] (
 (* -------------------------------------------------------------------------- *)
 
 (* Filling a segment with a value. *)
+
+(* TEMPORARY could also offer a version that steals the elements from the array
+   when they are not duplicable *)
 
 val rec fill_segment [a] duplicable a => (r: array a, i: int, j: int, v: a) : () =
   if i < j then begin

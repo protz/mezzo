@@ -7,4 +7,4 @@ int
 option
 ref
 print
-array-autoload
+autoarray

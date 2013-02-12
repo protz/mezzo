@@ -1,3 +1,11 @@
+(* For the moment, we use the sequential locks provided by the module
+   [atomic], and we hold the lock while the client function [f] is busy. In a
+   concurrent implementation, we would want to use real locks, and we might
+   wish to hold the lock only during a short period. We could release the lock
+   before invoking [f], and acquire it again when [f] is done (suggestion by
+   Guillaume Melquiond). Some thought would be required if we wish to
+   guarantee that [f] is invoked at most once for every input. *)
+
 open atomic (* newlock, acquire, release *)
 open hashtable (* table, create, find, add *)
 
@@ -9,10 +17,10 @@ open hashtable (* table, create, find, add *)
    setting, a "real" concurrent lock should be used. *)
 
 val memoize
-  [a, b]
+  [a, b, s : perm]
   duplicable a => duplicable b =>
-  (hash: a -> int, eq: (a, a) -> bool, f: a -> b)
-  : a -> b =
+  (hash: a -> int, eq: (a, a) -> bool, f: (a | s) -> b)
+  : (a | s) -> b =
 
   (* Create the internal hash table. *)
   let t = create (11, hash, eq) in
@@ -22,7 +30,7 @@ val memoize
   let l = newlock [(t @ table a b)] () in
 
   (* Now, construct the memoized function. *)
-  fun (x: a) : b =
+  fun (x: a | s) : b =
     (* Acquire the lock. This yields the permission [t @ table a b]. *)
     acquire l;
     (* Find [y] in the table, if it is there already, or compute [y]
@@ -77,7 +85,7 @@ val fix
     | Some { contents = y } ->
         y
     | None ->
-	let y = f (memoized, x) in
+	let y = f [(t @ table a b)] (memoized, x) in
 	add (x, y, t);
 	y
     end
@@ -93,3 +101,24 @@ val fix
     release l;
     (* Return [y]. *)
     y
+
+(* TEMPORARY once the bug is fixed, we might wish [fix] to have type
+
+val fix
+  [a, b, s : perm]
+  duplicable a => duplicable b =>
+  (
+    hash: a -> int,
+    eq: (a, a) -> bool,
+    f: [p : perm] ((a | p * s) -> b, a | p * s) -> b
+  ) 
+  : (a | s) -> b =
+
+This requires adding *s to memoized,
+adding |s to the final anonymous function. *)
+
+(*
+Local Variables:
+compile-command: "../mezzo memoize.mz"
+End:
+*)

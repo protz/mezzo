@@ -1,0 +1,5 @@
+(* Success: 1 *)
+val () =
+  let x = array::create (10, 0) in
+  print x;
+  print 1

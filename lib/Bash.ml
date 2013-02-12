@@ -38,14 +38,14 @@ let colors = {
   default = "\x1b[0m";
 }
 
-let twidth, theight =
+let theight, twidth =
   let height, width = ref 0, ref 0 in
   try
     Scanf.sscanf
-      (Ocamlbuild_plugin.run_and_read "stty size")
+      (Ocamlbuild_plugin.run_and_read "stty size 2>/dev/null")
       "%d %d"
-      (fun h w -> width := w; height := h);
-    !width, !height
+      (fun h w -> height := h; width := w);
+    !height, !width
   with
   | Failure _ ->
       24, 80

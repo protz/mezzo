@@ -5,6 +5,49 @@ open UntypedOCaml
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Because we wish to compile our OCaml code with -nostdlib, we must not
+   explicitly depend on the module [Obj]. We copy the required primitive
+   types and operations into [MezzoLib]. *)
+
+let obj x =
+  "MezzoLib." ^ x
+
+let vobj x =
+  EVar (obj x)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* The distinction between ordinary variables and (prefix or infix) operators is
+   discarded by the Mezzo parser. We reconstruct it here, so as to print operators
+   in a way that OCaml understands. *)
+
+let var (x : string) : document =
+  assert (String.length x > 0);
+  match x.[0] with
+  | '*'
+    -> string "( " ^^ utf8string x ^^ string " )"
+  | '!'
+  | '~'
+  | '?'
+  | '|'
+  | '&'
+  | '='
+  | '<'
+  | '>'
+  | '$'
+  | '@'
+  | '^'
+  | '+'
+  | '-'
+  | '/'
+  | '%'
+  | ':' (* for ":=" *)
+    -> parens (utf8string x)
+  | _
+    -> utf8string x
+
+(* ---------------------------------------------------------------------------- *)
+
 (* Tuples and records. *)
 
 let tuple print components =
@@ -28,7 +71,7 @@ let record print fields =
 let rec atomic_pattern (p : pattern) : document =
   match p with
   | PVar x ->
-      utf8string x
+      var x
   | PAny ->
       underscore
   | PTuple [ p ] ->
@@ -55,7 +98,7 @@ and normal_pattern p =
 
 and dangerous_pattern = function
   | PAs (p, x) ->
-      group (dangerous_pattern p ^/^ string "as " ^^ utf8string x)
+      group (dangerous_pattern p ^/^ string "as " ^^ var x)
   | p ->
       normal_pattern p
 
@@ -73,9 +116,7 @@ and pattern p =
 let rec atomic_expression (e : expression) : document =
   match e with
   | EVar x ->
-      utf8string x
-  | EInfixVar x ->
-      parens (utf8string x)
+      var x
   | ETuple [ e ] ->
       atomic_expression e
   | ETuple es ->
@@ -114,17 +155,15 @@ and prefix_application arguments = function
   | EConstruct (datacon, es) ->
       prefix_application (ETuple es :: arguments) (EVar datacon)
   | ESetField (e1, f, e2) ->
-      prefix_application (e1 :: (EInt f) :: e2 :: arguments) (EVar "Obj.set_field")
+      prefix_application (e1 :: (EInt f) :: e2 :: arguments) (vobj "set_field")
   | ESetTag (e, i) ->
-      prefix_application (e :: (EInt i) :: arguments) (EVar "Obj.set_tag")
+      prefix_application (e :: (EInt i) :: arguments) (vobj "set_tag")
   | EGetField (e, f) ->
-      prefix_application (e :: (EInt f) :: arguments) (EVar "Obj.field")
+      prefix_application (e :: (EInt f) :: arguments) (vobj "field")
   | EGetTag e ->
-      prefix_application (e :: arguments) (EVar "Obj.tag")
+      prefix_application (e :: arguments) (vobj "tag")
   | EMagic e ->
-      prefix_application (e :: arguments) (EVar "Obj.magic")
-  | ERepr e ->
-      prefix_application (e :: arguments) (EVar "Obj.repr")
+      prefix_application (e :: arguments) (vobj "magic")
   | head ->
       group (
 	atomic_expression head ^^ nest 2 (
@@ -132,22 +171,12 @@ and prefix_application arguments = function
 	)
       )
 
-(* Infix applications. *)
-
-and infix_application = function
-  | EApply (EApply (EInfixVar op, e1), e2) ->
-      group (
-        prefix_application [] e1 ^/^ string op ^/^ prefix_application [] e2
-      )
-  | e ->
-      prefix_application [] e
-
 (* A normal expression can be a tuple or record component, i.e., it binds
    tighter than a comma or semicolon. At this level, we find function
    applications. *)
 
 and normal_expression e =
-  infix_application e
+  prefix_application [] e
 
 (* A sequence expression can appear as a component in a sequence, and can
    itself be a sequence, since the semicolon is associative. *)
@@ -188,8 +217,14 @@ and dangling_expression = function
 	  (string "then")
 	^^
 	nest 2 (break 1 ^^ normal_expression e1)
-	^/^ string "else" ^^
-	nest 2 (break 1 ^^ normal_expression e2)
+	^^
+	begin match e2 with
+	| ETuple [] ->
+	    empty
+	| _ ->
+	  break 1 ^^ string "else" ^^
+	  nest 2 (break 1 ^^ normal_expression e2)
+	end
       )
   | e ->
       sequence_expression e
@@ -228,6 +263,8 @@ and expression e =
 let ty = function
   | TyBound x ->
       utf8string x
+  | TyObj ->
+      utf8string (obj "t")
 
 let data_type_def_branch (datacon, components) =
   hardline ^^
@@ -295,7 +332,7 @@ let toplevel_item = function
   | ValueDefinition def ->
       definition def
   | ValueDeclaration (x, t) ->
-      string "val " ^^ utf8string x ^^ colon ^^ space ^^ ty t
+      string "val " ^^ var x ^^ colon ^^ space ^^ ty t
   | OpenDirective m ->
       string "open " ^^ string m
 

@@ -1,0 +1,5 @@
+(* Failure: fail instruction *)
+val () =
+  let x = array::create (22, 1) in
+  let y = array::create (32, 0) in
+  array::blit (x, 0, y, 0, 50)

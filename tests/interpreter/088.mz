@@ -1,0 +1,8 @@
+(* Success: 0 *)
+val hash (x : int) : int =
+  x
+val eq (x : int, y : int) : bool =
+  x = y
+val () =
+  let t = hashtable::create (11, hash, eq) in
+  print (hashtable::cardinal t)

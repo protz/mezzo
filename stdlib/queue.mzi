@@ -1,33 +1,76 @@
-(* FIFO queues. *)
+(* The type of FIFO queues. *)
 
 abstract fifo (a : type) : type
 fact exclusive (fifo a)
 
-val create : [a] () -> fifo a
-val length : [a] fifo a -> int
-val clear  : [a] fifo a -> ()
-val rotate : [a] fifo a -> ()
-val insert_head : [a] (consumes a, fifo a) -> ()
-val insert : [a] (consumes a, fifo a) -> ()
-val peek   : [a] duplicable a => fifo a -> option a
-val retrieve : [a] fifo a -> option a
-val map      : [a, b, p : perm] (f: (a | p) -> b, q: fifo a | p) -> fifo b
-val copy  : [a] duplicable a => fifo a -> fifo a
-val fold : [a, b, p : perm] (
+(* Elements are normally inserted at the end of the queue, and retrieved
+   at the beginning. However, insertion at the beginning of the queue is
+   also supported. *)
+
+(* [create()] creates a new, empty queue. *)
+val create: [a] () -> fifo a
+
+(* [insert (x, q)] inserts the element [x] at the end of the queue [q]. The
+   queue claims the ownership of the element. *)
+val insert: [a] (consumes a, fifo a) -> ()
+
+(* [retrieve q] extracts the element found at the beginning of the queue [q],
+   if there is one. The caller recovers the ownership of the element. *)
+val retrieve: [a] fifo a -> option a
+
+(* [peek q] returns the element found at the beginning of the queue [q],
+   if there is one. The element remains in the queue. This function is
+   available only if the elements are duplicable. *)
+val peek: [a] duplicable a => fifo a -> option a
+
+(* [length q] returns the number of elements in the queue [q]. *)
+val length: [a] fifo a -> int
+
+(* [clear q] empties the queue [q]. *)
+val clear: [a] fifo a -> ()
+
+(* [insert_at_head (x, q)] inserts the element [x] at the beginning of the
+   queue [q]. *)
+val insert_at_head: [a] (consumes a, fifo a) -> ()
+
+(* [rotate q] moves the first element of [q] to the end of the queue. If [q]
+   is empty, [rotate] has no effect. *)
+val rotate: [a] fifo a -> ()
+
+(* [fold] applies the function [f], in turn, to every element of [q].
+   An accumulator is threaded through the iteration. *)
+val fold : [a, b] (
   q: fifo a,
-  consumes acc: b,
-  f: (a, consumes b | p) -> b
-  | p
+  consumes accu: b,
+  f: (a, consumes b) -> b
 ) -> b
 
+(* [iter] applies the function [f], in turn, to every element of [q]. *)
 val iter : [a, p : perm] (
   q: fifo a,
   f: (a | p) -> ()
-  | p
+| p
 ) -> ()
 
+(* [map (q, f)] is a new queue obtained by applying [f] to every element of
+   the queue [q]. *)
+val map: [a, b, p : perm] (
+  q: fifo a,
+  f: (a | p) -> b
+| p
+) -> fifo b
+
+(* [copy q] is a new queue whose elements are the elements of [q]. *)
+val copy  : [a] duplicable a => fifo a -> fifo a
+
+(* [work (q, f)] extracts an element [x] out of the queue [q] and
+   executes [f x]. The function [f] has access to the queue, and may
+   insert new elements into it. This process is repeated until the
+   queue becomes empty. *)
+val work : [a, p : perm] (q: fifo a, f: (a | q @ fifo a * p) -> () | p) -> ()
+
 (*
-Local Variables:
-compile-command: "../mezzo queue.mzi"
-End:
+  Local Variables:
+  compile-command: "../mezzo queue.mzi"
+  End:
 *)

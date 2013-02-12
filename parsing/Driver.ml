@@ -75,7 +75,8 @@ let mkprefix path =
       chop [] l
     in
     let me_in_core_directory =
-      Utils.absolute_path corelib_dir = Utils.absolute_path my_dir
+         Utils.same_absolute_path  corelib_dir              my_dir
+      || Utils.same_absolute_path (corelib_dir ^ "/_build") my_dir
     in
     Log.debug "In core directory? %b" me_in_core_directory;
     let modules =
@@ -379,7 +380,7 @@ let process file_path =
     in
     let env = check_implementation mname program iface in
     if !Options.please_compile then
-      Compile.implementation file_path program;
+      Compile.implementation file_path program iface;
     env
   else if Filename.check_suffix file_path ".mzi" then
     let mname = module_name_for_file_path file_path in

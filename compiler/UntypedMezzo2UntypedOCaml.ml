@@ -21,6 +21,19 @@ let identifier (x : string) =
 
 (* ---------------------------------------------------------------------------- *)
 
+(* We translate Mezzo module names in such a way that they are unlikely to be
+   confused with a native OCaml module name. This seems to be required (I have
+   not found how to persuade OCaml to ignore its standard library; -nostdlib
+   does not suffice) and it will possibly allow us to link OCaml and Mezzo
+   code together in the future. *)
+
+(* The Mezzo module name [array] becomes the OCaml module name [Mzarray]. *)
+
+let translate_module_name m =
+  "Mz" ^ Module.print m
+
+(* ---------------------------------------------------------------------------- *)
+
 (* This function maps a field name to a field index. It accounts for the hidden
    adopter field. *)
 
@@ -39,6 +52,21 @@ let sort_by_index ixs =
     Pervasives.compare i1 i2
   ) ixs
 
+(* This function extracts the field index that was provided by the type-checker
+   at field access expressions (read and write). This index does not account
+   for the hidden adopter field, so we must add 1. *)
+
+let extract_field_index (f : field) : int =
+  if Field.equal f.field_name Mezzo2UntypedMezzo.adopter_field then
+    0
+  else
+    match f.field_offset with
+    | Some index ->
+        1 + index
+    | None ->
+        (* The field index has not been filled in by the type-checker!? *)
+        assert false
+
 (* ---------------------------------------------------------------------------- *)
 
 (* References to data constructors. *)
@@ -49,6 +77,53 @@ let sort_by_index ixs =
 
 let print_datacon_reference dref =
   print_maybe_qualified Datacon.print dref.datacon_unresolved
+
+(* ---------------------------------------------------------------------------- *)
+
+(* A few smart constructors. *)
+
+(* As patterns. *)
+
+let pas p x =
+  match p with
+  | O.PAny ->
+      O.PVar x
+  | _ ->
+      O.PAs (p, x)
+
+(* Sequence. *)
+
+let seq e1 e2 =
+  match e1, e2 with
+  | O.ETuple [], e
+  | e, O.ETuple [] ->
+      e
+  | _, _ ->
+      O.ESequence (e1, e2)
+
+(* Integer comparison in OCaml. *)
+
+let gtz x =
+  O.EApply (O.EVar "MezzoLib.gtz", x)
+
+(* Magic. *)
+
+let rec magic e =
+  match e with
+  | O.EMagic _ ->
+      (* Avoid two consecutive magics. *)
+      e
+  | O.EGetField _ ->
+      (* We have changed the return type of [get_field] to ['b], so a
+	 magic on top of it is unnecessary. *)
+      e
+  | O.EApply (e1, e2) ->
+      (* Push magic into the left-hand side of applications, where it is
+	 just as powerful. This will allow more redundancy elimination. *)
+      O.EApply (magic e1, e2)
+  | e ->
+      (* The default case. *)
+      O.EMagic e
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -100,7 +175,7 @@ let rec translate_pattern (p : pattern) : O.pattern =
   | PConstraint (p, _) ->
       translate_pattern p
   | PAs (p, x) ->
-      O.PAs (translate_pattern p, identifier (Variable.print x))
+      pas (translate_pattern p) (identifier (Variable.print x))
   | PAny ->
       O.PAny
 
@@ -118,24 +193,12 @@ and complete i arity ips =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Integer comparison in OCaml. *)
-
-let apply2 f x y =
-  O.EApply (O.EApply (f, x), y)
-
-let gt x y =
-  apply2 (O.EInfixVar ">") x y
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Expressions. *)
 
 (* We avoid using [Obj.field] and [Obj.set_field], when possible, because they
    are less efficient in terms of speed and code size. In particular, they seem
    to incorporate a check against the special tag 254, which represents an array
-   of values of type double. We prefer to cast the receiver to a record type and
-   use an OCaml record access expression. This forces us to translate very Mezzo
-   data constructor definition to an OCaml record type definition. *)
+   of values of type double. TEMPORARY not done yet *)
 
 let rec transl (e : expression) : O.expression =
   match e with
@@ -144,20 +207,19 @@ let rec transl (e : expression) : O.expression =
   | EQualified (m, x) ->
       O.EVar (
 	Printf.sprintf "%s.%s"
-	  (String.capitalize (Module.print m))
+	  (translate_module_name m)
 	  (identifier (Variable.print x))
       )
   | EBuiltin b ->
       (* The builtin operations are defined in the OCaml library module
-	 [MezzoBuiltin]. *)
-      O.EVar (Printf.sprintf "MezzoBuiltin.%s" b)
+	 [MezzoLib]. *)
+      O.EVar (Printf.sprintf "MezzoLib.%s" b)
   | ELet (flag, eqs, body) ->
       O.ELet (flag, transl_equations eqs, transl body)
   | EFun (p, e) ->
       O.EFun (translate_pattern p, transl e)
-  | EAssign (e1, _f, e2) ->
-      (* TEMPORARY missing information about the field index *)
-      O.EAssign (O.EMagic (transl e1), assert false, transl e2)
+  | EAssign (e1, f, e2) ->
+      O.ESetField (transl e1, extract_field_index f, transl e2)
   | EAssignTag (e, dref, info) ->
       (* We must use [Obj.set_tag]; there is no other way. *)
       (* As an optimization, if the old and new integer tags are equal,
@@ -170,13 +232,12 @@ let rec transl (e : expression) : O.expression =
       else
 	let info = Option.extract dref.datacon_info in
 	O.ESetTag (transl e, info.datacon_index)
-  | EAccess (e, _f) ->
-      (* TEMPORARY missing information about the field index *)
-      O.EAccess (O.EMagic (transl e), assert false)
+  | EAccess (e, f) ->
+      O.EGetField (transl e, extract_field_index f)
   | EApply (e1, e2) ->
-      O.EApply (O.EMagic (transl e1), transl e2)
+      O.EApply (magic (transl e1), transl e2)
   | EMatch (e, branches) ->
-      O.EMatch (O.EMagic (transl e), transl_branches branches)
+      O.EMatch (magic (transl e), transl_branches branches)
   | ETuple es ->
       O.ETuple (List.map transl es)
   | EConstruct (dref, fields) ->
@@ -195,34 +256,49 @@ let rec transl (e : expression) : O.expression =
       O.EConstruct (print_datacon_reference dref, List.map snd fields)
   | EIfThenElse (e, e1, e2) ->
       O.EIfThenElse (
-	gt (O.EGetTag (O.ERepr (transl e))) (O.EInt 0),
+	gtz (O.EGetTag (transl e)),
 	transl e1,
-	transl e2
+	magic (transl e2)
       )
   | ESequence (e1, e2) ->
-      O.ESequence (transl e1, transl e2)
+      seq (transl e1) (transl e2)
   | EInt i ->
       O.EInt i
   | EFail s ->
-      O.EApply (O.EVar "Pervasives.failwith", O.EStringLiteral s)
+      O.EApply (O.EVar "MezzoLib.failwith", O.EStringLiteral s)
   | ENull ->
       (* Using the unit value as a representation of [null]. *)
       O.ETuple []
 
 and transl_equations eqs =
   List.map (fun (p, e) ->
-    (* We must insert a [magic] because [e] is matched against [p]. *)
-    (* And, if this is a toplevel equation, the bound names of [p]
-       will be published at type [Obj.t]. *)
-    translate_pattern p, O.EMagic (transl e)
+    let p = translate_pattern p in
+    let e = transl e in
+    (* If [p] is non-trivial, then we must insert a [magic],
+       because [e] is matched against [p]. We must be careful
+       not to insert an unnecessary [magic] here, as [magic]
+       is not allowed on the right-hand side of [let rec]. *)
+    p,
+    if is_non_trivial_pattern p then magic e else e
   ) eqs
 
 and transl_branches branches =
   List.map (fun (p, e) ->
     (* We insert a [magic] on every branch, because all branches
        must ultimately have the same type. *)
-    translate_pattern p, O.EMagic (transl e)
+    translate_pattern p, magic (transl e)
   ) branches
+
+and is_non_trivial_pattern = function
+  | O.PTuple _
+  | O.PConstruct _ 
+  | O.PRecord _ ->
+      true
+  | O.PAs (p, _) ->
+      is_non_trivial_pattern p
+  | O.PVar _
+  | O.PAny ->
+      false
 
 (* TEMPORARY if the OCaml inliner is good, an application of a builtin
    function to an argument of the appropriate shape should be simplified
@@ -254,30 +330,6 @@ let tyvars (base : int) (n : int) : string list =
 
 let tys (base : int) (n : int) : O.ty list =
   init n (fun i -> ty (base + i))
-
-(* ---------------------------------------------------------------------------- *)
-
-(* For each data constructor, we create a record type. *)
-
-(* TEMPORARY at the moment, this is unused! *)
-
-let datacon_record_name (datacon : Datacon.name) : string =
-  Printf.sprintf "__mz_record_%s" (Datacon.print datacon)
-
-let datacon_record (branch : data_type_def_branch) =
-  let datacon, fields = branch in
-  (* We need as many type parameters as there are fields. *)
-  let n = List.length fields in
-  let lhs = 
-    datacon_record_name datacon,
-    tyvars 0 n
-  in
-  let rhs =
-    O.Record (List.map2 (fun f ty ->
-      O.Mutable, Variable.print f, ty
-    ) fields (tys 0 n))
-  in
-  O.DataTypeGroup (lhs, rhs)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -319,14 +371,14 @@ let data_sum (def : data_type_def) =
 (* Translating top-level items. *)
 
 let translate_item = function
-  | DataType ((_, branches) as def) ->
-      data_sum def :: List.map datacon_record branches
+  | DataType def ->
+      [ data_sum def ]
   | ValueDefinition (flag, eqs) ->
       [ O.ValueDefinition (flag, transl_equations eqs) ]
   | ValueDeclaration x ->
-      [ O.ValueDeclaration (Variable.print x, O.TyBound "Obj.t") ]
+      [ O.ValueDeclaration (identifier (Variable.print x), O.TyObj) ]
   | OpenDirective m ->
-      [ O.OpenDirective (Module.print m) ]
+      [ O.OpenDirective (translate_module_name m) ]
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -334,4 +386,28 @@ let translate_item = function
 
 let translate_implementation items =
   List.flatten (List.map translate_item items)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Translating interfaces. *)
+
+let translate_interface items =
+  List.flatten (List.map translate_item items)
+
+(* The values that appear in the interface are published at type [Obj.t], so
+   they must be re-bound in the implementation; for each such value [x], we
+   construct the implementation item [let x = Obj.magic x]. *)
+
+let translate_interface_as_implementation_filter = function
+  | None ->
+      []
+  | Some items ->
+      List.flatten (List.map (function
+      | DataType _
+      | ValueDefinition _
+      | OpenDirective _ ->
+	  []
+      | ValueDeclaration x ->
+	  [ O.ValueDefinition (Nonrecursive, [ translate_pattern (PVar x), magic (transl (EVar x))]) ]
+      ) items)
 

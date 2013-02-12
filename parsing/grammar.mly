@@ -685,8 +685,6 @@ raw_atomic_expression:
     { EVar v }
 | m = module_name COLONCOLON x = variable
     { EQualified (m, x) }
-| BUILTIN b = LIDENT
-    { EBuiltin b }
 | i = INT
     { EInt i }
 | FAIL
@@ -931,6 +929,8 @@ definition:
     { PConstraint (p, t), e }
 | p = normal_pattern e = anonymous_function
     { p, e }
+| p = normal_pattern COLON t = normal_type EQUAL BUILTIN b = LIDENT
+    { PConstraint (p, t), ELocated (EBuiltin b, ($startpos($5), $endpos($5))) }
 
 (* The syntax of anonymous function appears as part of definitions (above)
    and also, when preceded with the keyword [fun], as a stand-alone

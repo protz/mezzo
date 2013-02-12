@@ -1,0 +1,33 @@
+(* Name generators. *)
+
+val new_generator [a] () : a -> int =
+
+  (* The internal state of the generator is an integer counter, which
+     is used to allocate fresh IDs. *)
+  let c = newref [int] 0 in
+
+  (* The function [fresh] ignores its argument and returns a new ID. *)
+  let fresh (_: a | c @ ref int) : int =
+    let id = !c in
+    c := id + 1;
+    !c
+  in
+
+  (* We hide its internal state. *)
+  atomic::hide fresh
+
+(* Clerks. *)
+
+val new_clerk [a] duplicable a => (
+  hash: a -> int,
+  eq: (a, a) -> bool
+) : a -> int =
+
+  (* Memoizing a generator yields a clerk. *)
+  memoize::memoize (hash, eq, new_generator ())
+
+(*
+Local Variables:
+compile-command: "../mezzo name.mz"
+End:
+*)

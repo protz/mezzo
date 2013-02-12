@@ -43,7 +43,6 @@ type rec_flag =
 type expression =
     (* Unqualified and qualified references are conflated. *)
   | EVar of string
-  | EInfixVar of string (* e.g., ">" *)
   | ELet of rec_flag * (pattern * expression) list * expression
   | EFun of pattern * expression
     (* Record field access. *)
@@ -65,9 +64,8 @@ type expression =
   | ESetTag of expression * int
   | EGetField of expression * int
   | EGetTag of expression
-    (* Type casts. *)
+    (* Type cast. *)
   | EMagic of expression
-  | ERepr of expression
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -75,6 +73,7 @@ type expression =
 
 type ty =
   | TyBound of string (* quote included *)
+  | TyObj
 
 (* ---------------------------------------------------------------------------- *)
 

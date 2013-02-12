@@ -1,0 +1,74 @@
+open list
+
+(* -------------------------------------------------------------------------- *)
+
+(* Properties. *)
+
+(* The following record type can be understood as a parameterized module
+   signature. The parameter [property] is the type of properties, and the
+   fields are the operations on properties that we need. *)
+
+data properties property =
+  Properties {
+    bottom: property;
+    equal: (property, property) -> bool;
+    is_maximal: property -> bool;
+  }
+
+(* -------------------------------------------------------------------------- *)
+
+(* The dynamic dependency graph. *)
+
+(* The types of nodes and edges. *)
+
+mutable data node info =
+  Node {
+    (* The client data associated with this node. *)
+    info: info;
+    (* The node's incoming and outgoing edges. *)
+    outgoing: list dynamic; (* edge *)
+    incoming: list dynamic; (* edge *)
+    (* A transient mark, always set to [false], except when checking for
+       duplicate elements in a list of nodes. Here, using an adopter to
+       encode does not appear possible. *)
+    marked: bool;
+  }
+
+mutable data edge info =
+  Edge {
+    (* This edge's nodes. *)
+    node1, node2: dynamic; (* node *)
+    (* In the OCaml version, each edge carries a boolean field [destroyed].
+       Here, we encode this information in the implicit adopter field. *)
+  }
+
+(* Adopters for nodes and edges. *)
+
+mutable data nodes info =
+  Nodes adopts node info
+
+mutable data edges info =
+  Edges adopts edge info
+
+data graph info =
+  Graph {
+    nodes: nodes info;
+    edges: edges info;
+  }
+(* Setting a node's successors. *)
+
+val set_successors [info] (g: graph info, src: dynamic (* node *), dsts: list dynamic (* node *)) : () =
+  let rec loop (dsts : list dynamic (* node *) | g @ graph info) : () =
+    match dsts with
+    | Nil ->
+        ()
+    | Cons { head = dst; tail = dsts } ->
+        if true then
+	  (* Skip this duplicate node. *)
+	  loop dsts
+	else begin
+          fail
+	end
+    end
+  in
+  loop dsts

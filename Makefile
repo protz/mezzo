@@ -1,4 +1,4 @@
-.PHONY: all clean graph doc index report count
+.PHONY: all clean test graph doc index release report coverage count doc
 
 # The variables below should be determined by a configure script...
 # On my MacOS laptop, find does not understand -printf; gfind does. -fpottier
@@ -8,7 +8,7 @@ FIND       := find
 OCAMLBUILD := ocamlbuild -use-ocamlfind -use-menhir \
   -menhir "menhir --explain --infer -la 1" \
   -cflags "-g" -lflags "-g" -classic-display
-INCLUDE    := -Is sets,typing,parsing,lib,utils,fix,interpreter,compiler
+INCLUDE    := -Is sets,typing,parsing,lib,utils,fix,interpreter,compiler,mezzolib
 MAIN       := mezzo
 TESTSUITE  := testsuite
 BUILDDIRS   = -I _build $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
@@ -88,3 +88,4 @@ doc: graph
 
 count:
 	sloccount parsing typing utils viewer lib mezzo.ml
+

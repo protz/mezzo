@@ -54,12 +54,12 @@ val traverse (consumes g : graph unknown) : graph int =
       let children = n.children in
       (* Mark this node as visited by giving it to the new graph. *)
       give n to newGraph;
-      iter (visit, children)
+      iter (children, visit)
     end
   in
 
   (* Visit each of the roots. *)
-  iter (visit, g.roots);
+  iter (g.roots, visit);
 
   (* Return the new graph. *)
   newGraph

@@ -206,28 +206,26 @@ val rec flatten [a] (consumes xss : list (list a)) : list a =
 
 (* Map. *)
 
-(* The following type is not the most general type of [map]. The type-checker
-   currently does not support type variables of kind perm, so we cannot allow
-   the function [f] to have an arbitrary side effect. *) (* TEMPORARY fix *)
-
 (* The following type does allow the function [f] to perform a strong update
    on the argument list, whose type changes from [list a1] to [list a2]. A
    new list of type [list b] is produced. *)
 
-val rec map [a1, a2, b] (
-  f: (consumes  x:      a1) -> (     b |  x @      a2),
-      consumes xs: list a1)  : (list b | xs @ list a2)
+val rec map [a1, a2, b, p : perm] (
+      consumes xs: list a1,
+  f: (consumes  x:      a1 | p) -> (     b |  x @      a2)
+			   | p)  : (list b | xs @ list a2)
 =
   if xs then
-    Cons { head = f xs.head; tail = map (f, xs.tail) }
+    Cons { head = f xs.head; tail = map (xs.tail, f) }
   else
     Nil
 
-val rev_map [a1, a2, b] (
-  f: (consumes  x:      a1) -> (     b |  x @      a2),
-      consumes xs: list a1)  : (list b | xs @ list a2)
+val rev_map [a1, a2, b, p : perm] (
+      consumes xs: list a1,
+  f: (consumes  x:      a1 | p) -> (     b |  x @      a2)
+			   | p)  : (list b | xs @ list a2)
 =
-  let rec rev_map_aux (consumes accu: list b, consumes xs: list a1) : (list b | xs @ list a2) =
+  let rec rev_map_aux (consumes accu: list b, consumes xs: list a1 | p) : (list b | xs @ list a2) =
     if xs then
       rev_map_aux (Cons { head = f xs.head; tail = accu }, xs.tail)
     else
@@ -244,19 +242,22 @@ val rev_map [a1, a2, b] (
    It also allows [f] to have a side effect at [p]. *)
  
 val rec iter [a1, a2, p : perm] (
-  f: (consumes  x:      a1 | p) -> (|  x @      a2),
-      consumes xs: list a1 | p)  : (| xs @ list a2)
+  consumes xs: list a1,
+  f: (consumes x:  a1 | p)
+         -> (| x @ a2)
+| p
+)    : (| xs @ list a2)
 =
   if xs then begin
     f xs.head;
-    iter (f, xs.tail)
+    iter (xs.tail, f)
   end
 
 (* The following function should not be useful to the client, who can just
    use [iter], but it is a good test of the type-checker. *)
 
-val simpler_iter [a] (f: a -> (), xs: list a) : () =
-  iter (f, xs)
+val simpler_iter [a] (xs: list a, f: a -> ()) : () =
+  iter (xs, f)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -264,20 +265,23 @@ val simpler_iter [a] (f: a -> (), xs: list a) : () =
 
 (* The following type allows the function [f] to perform a strong update
    on the argument list, whose type changes from [list a1] to [list a2]. An
-   accumulator of type [b] is maintained. A side effect at [p] is also permitted.*)
+   accumulator of type [b] is maintained. *)
+
+(* It is not necessary to explicitly thread a permission [p], because the
+   type [b] already serves this purpose. *)
  
-val rec fold_left [a1, a2, b, p : perm] (
-  f: (consumes       b, consumes  x:      a1 | p) -> (b |  x @      a2),
-      consumes accu: b, consumes xs: list a1 | p)  : (b | xs @ list a2)
+val rec fold_left [a1, a2, b] (
+  f: (consumes       b, consumes  x:      a1) -> (b |  x @      a2),
+      consumes accu: b, consumes xs: list a1)  : (b | xs @ list a2)
 =
   if xs then
     fold_left (f, f (accu, xs.head), xs.tail)
   else
     accu
 
-val rec fold_right [a1, a2, b, p : perm] (
-  f: (consumes  x:      a1, consumes       b | p) -> (b |  x @      a2),
-      consumes xs: list a1, consumes accu: b | p)  : (b | xs @ list a2)
+val rec fold_right [a1, a2, b] (
+  f: (consumes  x:      a1, consumes       b) -> (b |  x @      a2),
+      consumes xs: list a1, consumes accu: b)  : (b | xs @ list a2)
 =
   if xs then
     f (xs.head, fold_right (f, xs.tail, accu))
@@ -389,11 +393,11 @@ val assoc [a, b] (equal: (a, a) -> bool, x: a, consumes xs: list (a, b)) : list 
 
 (* Filtering. *) 
 
-val filter [a] (p: a -> bool, consumes xs: list a) : list a =
-  let f (consumes accu: list a, consumes x: a) : list a =
-    if p x then Cons { head = x; tail = accu } else accu
+val filter [a, p : perm] (consumes xs: list a, ok: (a | p) -> bool | p) : list a =
+  let f (consumes accu: list a, consumes x: a | p) : list a =
+    if ok x then Cons { head = x; tail = accu } else accu
   in
-  rev (fold_left [a, unknown, list a, empty] (f, Nil, xs))
+  rev (fold_left [a, unknown, (list a | p)] (f, Nil, xs))
 
 val partition [a] (p: a -> bool, consumes xs: list a) : (list a, list a) =
   let f (consumes (yes: list a, no: list a), consumes x: a) : (list a, list a) =
@@ -402,7 +406,7 @@ val partition [a] (p: a -> bool, consumes xs: list a) : (list a, list a) =
     else
       yes, Cons { head = x; tail = no }
   in
-  let (yes, no) = fold_left [a, unknown, (list a, list a), empty] (f, (Nil, Nil), xs) in
+  let (yes, no) = fold_left [a, unknown, (list a, list a)] (f, (Nil, Nil), xs) in
   rev yes, rev no
 
 (* -------------------------------------------------------------------------- *)
