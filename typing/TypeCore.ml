@@ -305,12 +305,14 @@ let find env p =
 
 (* Given the index of a flexible variable, find its corresponding descriptor. *)
 let find_flex (env: env) (f: flex_index): flex_descr =
-  List.nth env.flexible f 
+  let l = List.length env.flexible in
+  List.nth env.flexible (l - f - 1) 
 ;;
 
 (* Replace the descriptor of a flexible variable with another one. *)
 let replace_flex (env: env) (f: flex_index) (d: flex_descr): env =
-  let flexible = List.mapi (fun i d' -> if i = f then d else d') env.flexible in
+  let l = List.length env.flexible in
+  let flexible = List.mapi (fun i d' -> if i = l - f - 1 then d else d') env.flexible in
   { env with flexible }
 ;;
 
@@ -362,7 +364,14 @@ let can_instantiate (env: env) (v: var) (t: typ): bool =
 ;;
 
 let import_flex_instanciations env sub_env =
-  { env with flexible = Hml_List.cut (List.length env.flexible) sub_env.flexible }
+  let rec chop_n_first n l =
+    if n = 0 then
+      l
+    else
+      chop_n_first (n - 1) (List.tl l)
+  in
+  let diff = List.length sub_env.flexible - List.length env.flexible in 
+  { env with flexible = chop_n_first diff sub_env.flexible }
 ;;
 
 
@@ -863,8 +872,7 @@ let bind_flexible env (name, kind, location) =
 
   (* Create the flexible descriptor, add it to our list of flexible variables. *)
   let flex_descr = { structure = NotInstantiated var_descr } in
-  (* FIXME reverse the list *)
-  let env = { env with flexible = env.flexible @ [flex_descr] } in
+  let env = { env with flexible = flex_descr :: env.flexible } in
 
   env, VFlexible f
 ;;
