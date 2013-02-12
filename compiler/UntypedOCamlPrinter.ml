@@ -261,7 +261,7 @@ and expression e =
 (* Types. *)
 
 let ty = function
-  | TyBound x ->
+  | TyVar x ->
       utf8string x
   | TyObj ->
       utf8string (obj "t")

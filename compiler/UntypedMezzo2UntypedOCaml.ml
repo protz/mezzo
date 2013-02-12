@@ -313,7 +313,7 @@ let tyvar (i : int) =
   Printf.sprintf "'a%d" i
 
 let ty (i : int) =
-  O.TyBound (tyvar i)
+  O.TyVar (tyvar i)
 
 let init (n : int) (f : int -> 'a) : 'a list =
   let rec loop (i : int) =

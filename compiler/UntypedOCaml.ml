@@ -72,7 +72,7 @@ type expression =
 (* Types. *)
 
 type ty =
-  | TyBound of string (* quote included *)
+  | TyVar of string (* quote included *)
   | TyObj
 
 (* ---------------------------------------------------------------------------- *)
