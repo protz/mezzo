@@ -243,6 +243,8 @@ and add (env: env) (var: var) (t: typ): env =
   Log.check (is_term env var) "You can only add permissions to a var that \
     represents a program identifier.";
 
+  let t = modulo_flex env t in
+
   let hint = get_name env var in
 
   (* We first perform unfolding, so that constructors with one branch are
@@ -385,6 +387,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
   in
 
   let rec unfold (env: env) ?(hint: name option) (t: typ): env * typ =
+    let t = modulo_flex env t in
     match t with
     | TyUnknown
     | TyDynamic
@@ -475,6 +478,8 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
 and sub (env: env) (var: var) (t: typ): env option =
   Log.check (is_term env var) "You can only subtract permissions from a var \
     that represents a program identifier.";
+
+  let t = modulo_flex env t in
 
   if is_inconsistent env then
     Some env
