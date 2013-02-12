@@ -161,9 +161,9 @@ let find_and_lex_implementation : Module.name -> SurfaceSyntax.implementation =
 (* [build_interface env mname] finds the right interface file for [mname], and
  * lexes it, parses it, and returns a desugared version of it, ready for
  * importing into some environment. *)
-let build_interface (env: Types.env) (mname: Module.name): Types.env * Expressions.interface =
+let build_interface (env: TypeCore.env) (mname: Module.name): TypeCore.env * Expressions.interface =
   let iface = find_and_lex_interface mname in
-  let env = Types.set_module_name env mname in
+  let env = TypeCore.set_module_name env mname in
   KindCheck.check_interface env iface;
   env, TransSurface.translate_interface env iface
 ;;
@@ -206,7 +206,7 @@ let check_implementation
 
   let open Expressions in
 
-  let env = Types.empty_env in
+  let env = TypeCore.empty_env in
 
   (* Find all the dependencies... *)
   Log.debug ~level:2 "\n%s***%s Computing dependencies for %a"
@@ -225,7 +225,7 @@ let check_implementation
     Module.p mname;
   let env = import_dependencies_in_scope env deps in
 
-  let env = Types.set_module_name env mname in
+  let env = TypeCore.set_module_name env mname in
 
   (* First pass of kind-checking; it checks for unbound variables and variables
    * with the wrong kind. *)
@@ -298,9 +298,9 @@ let check_implementation
          * returns for us the list of names along with the corresponding vars
          * that are exported. *)
         let exports = Hml_List.map_flatten (fun p ->
-          let k = Types.get_kind env p in
+          let k = TypeCore.get_kind env p in
           Hml_List.map_some (function
-            | Types.User (mname, x) when Module.equal mname (Types.module_name env) ->
+            | TypeCore.User (mname, x) when Module.equal mname (TypeCore.module_name env) ->
                Some (x, k, p)
             | _ ->
                (* Either an auto-generated name, or a name coming from another
@@ -308,7 +308,7 @@ let check_implementation
                 *   let x = m::y
                 * we just drop the name "y" here. *)
                None
-          ) (Types.get_names env p)
+          ) (TypeCore.get_names env p)
         ) vars in
         (* If the function types are not syntactically equal, the decision
          * procedure for comparing those two types introduces internal names
@@ -334,7 +334,7 @@ let check_implementation
        * [check_interface] has the nasty consequence that the [env] it returns is
        * polluted with internal names (the result of performing calls to
        * [Permissions.sub]), opening the same module twice may cause conflicts... *)
-      let exports = Types.get_exports env mname in
+      let exports = TypeCore.get_exports env mname in
       Log.raise_level 5 (fun () ->
         ignore (check_interface output_env iface exports));
     ) deps;
@@ -348,7 +348,7 @@ let check_implementation
 
 let just_print_interface (mname: Module.name) =
 
-  let env = Types.empty_env in
+  let env = TypeCore.empty_env in
 
   (* Find all the dependencies... *)
   let deps = Modules.all_dependencies mname find_and_lex_interface in
@@ -408,7 +408,7 @@ let run { html_errors; backtraces } f =
         (* Generate the HTML explanation. *)
         Debug.explain ~text env;
         (* Find out about the command to run. *)
-        let f = (fst (Types.location env)).Lexing.pos_fname in
+        let f = (fst (TypeCore.location env)).Lexing.pos_fname in
         let f = Hml_String.replace "/" "_" f in
         let cmd = Printf.sprintf
           "firefox -new-window \"viewer/viewer.html?json_file=data/%s.json\" &"
@@ -433,10 +433,10 @@ let run { html_errors; backtraces } f =
 (* A fancy version of [TypePrinter.penv]. It will *not* generate a valid .mzi
  * file, but it will give a somehow readable version of all the names that have
  * been defined in the environment as well as the type available for them. *)
-let print_signature (buf: Buffer.t) (env: Types.env): unit =
+let print_signature (buf: Buffer.t) (env: TypeCore.env): unit =
   flush stdout;
   flush stderr;
-  let open Types in
+  let open TypeCore in
   let compare_locs loc1 loc2 =
     Lexing.(compare loc1.pos_cnum loc2.pos_cnum)
   in
@@ -458,7 +458,7 @@ let print_signature (buf: Buffer.t) (env: Types.env): unit =
   ) perms in
   let perms = List.sort (fun (_, loc1, _) (_, loc2, _) -> compare_locs loc1 loc2) perms in
   List.iter (fun (var, _, t) ->
-    let open TypePrinter in
+    let open Types.TypePrinter in
     let open Hml_Pprint in
     try
       let name = List.find (function

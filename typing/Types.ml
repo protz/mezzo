@@ -20,9 +20,8 @@
 (** This module provides various helpers that help dealing with types. It also
  * re-exports most type-related functions. *)
 
-include TypeCore
-include DeBruijn
-
+open TypeCore
+open DeBruijn
 
 (* ---------------------------------------------------------------------------- *)
 

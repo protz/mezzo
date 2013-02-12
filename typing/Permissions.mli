@@ -19,12 +19,14 @@
 
 (** This module provides permission manipulation functions. *)
 
-open Types
+open TypeCore
 
 (** [collect t] recursively walks down a type with kind TYPE, extracts all
     the permissions that appear into it (as tuple or record components), and
     returns the type without permissions as well as a list of types with kind
-    PERM, which represents all the permissions that were just extracted. *)
+    PERM, which represents all the permissions that were just extracted.
+    
+    FIXME: this function should not be exposed. *)
 val collect: typ -> typ * typ list
 
 (** [unfold env t] returns [env, t] where [t] has been unfolded, which

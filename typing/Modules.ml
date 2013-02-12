@@ -20,14 +20,14 @@
 (* I'm defining module abbreviations because we're juggling with all these
  * modules at the same time, and the names conflict (e.g. env, toplevel_item,
  * etc.). *)
-module T = Types
+module T = TypeCore
 module S = SurfaceSyntax
 module E = Expressions
 
 (* Used by [Driver], to import the points from a desugared interface into
  * another one, prefixed by the module they belong to, namely [mname]. *)
 let import_interface (env: T.env) (items: E.interface): T.env =
-  let open Types in
+  let open TypeCore in
   let open Expressions in
   (* We demand that [env] have the right module name. *)
   let rec import_items env = function
@@ -220,7 +220,7 @@ let all_dependencies (mname: Module.name) (find: Module.name -> S.toplevel_item 
         ()
     | Gray ->
         let open TypeErrors in
-        raise_error Types.empty_env (CyclicDependency name)
+        raise_error TypeCore.empty_env (CyclicDependency name)
     | White ->
         Hashtbl.add h name Gray;
         let deps = collect_dependencies (find name) in

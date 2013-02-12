@@ -28,14 +28,14 @@ val add_include_dir: string -> unit
 
 (** [process] doesn't catch exceptions. This is useful for tests that want to
     assert that a test program failed in a certain way. *)
-val process: string -> Types.env
+val process: string -> TypeCore.env
 
 (** [run] runs the specified function and prints any error that may pop up. *)
 val run: run_options -> (unit -> 'a) -> 'a
 
 (** [print_signature] prints out (in order, and in a fancy manner) the types that have been
    found in the file. *)
-val print_signature: Buffer.t -> Types.env -> unit
+val print_signature: Buffer.t -> TypeCore.env -> unit
 
 (** [interpret] is a driver for the interpreter. It evaluates the
     specified file, as well as the files that it depends upon, in

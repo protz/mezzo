@@ -33,7 +33,7 @@ open SurfaceSyntax
 open KindCheck
 open Utils
 
-module T = Types
+module T = TypeCore
 module E = Expressions
 
 
@@ -263,7 +263,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
       (* Performs a side-effect! *)
       let resolved_datacon = resolve_datacon env dref in
       let fields = translate_fields env fields in
-      T.TyConcreteUnfolded (resolved_datacon, fields, T.ty_bottom)
+      T.TyConcreteUnfolded (resolved_datacon, fields, Types.ty_bottom)
 
   | TySingleton t ->
       T.TySingleton (translate_type env t)
@@ -275,7 +275,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyArrow (t1, t2) ->
       let universal_bindings, t1, t2 = translate_arrow_type env t1 t2 in
       let arrow = T.TyArrow (t1, t2) in
-      T.fold_forall universal_bindings arrow
+      Types.fold_forall universal_bindings arrow
 
   | TyForall ((x, k, loc), t) ->
       let env = bind env (x, k) in
@@ -425,7 +425,7 @@ and translate_arrow_type env t1 t2 =
 
   (* Build the resulting type. *)
   let t2 = translate_type env t2 in
-  let t2 = T.fold_exists (List.map (name_user env) t2_bindings) t2 in
+  let t2 = Types.fold_exists (List.map (name_user env) t2_bindings) t2 in
 
   (* Finally, translate the universal bindings as well. *)
   let universal_bindings =
@@ -600,7 +600,7 @@ let clean_pattern pattern =
     | PAny ->
         PAny, TyUnknown
   in
-  clean_pattern (empty Types.empty_env) pattern
+  clean_pattern (empty T.empty_env) pattern
 ;;
 
 
@@ -710,7 +710,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
 
   | EAssert t ->
       let t = translate_type env t in
-      E.EConstraint (E.e_unit, T.TyBar (T.ty_unit, t))
+      E.EConstraint (E.e_unit, T.TyBar (Types.ty_unit, t))
 
   | EApply (e1, e2) ->
       let e1 = translate_expr env e1 in

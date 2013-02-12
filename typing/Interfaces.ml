@@ -21,7 +21,7 @@
 
 module S = SurfaceSyntax
 module E = Expressions
-module T = Types
+module T = TypeCore
 module TS = TransSurface
 
 (* ---------------------------------------------------------------------------- *)
@@ -167,7 +167,7 @@ let check
                * [TransSurface] authorizes declaring a type as abstract
                * in an implementation: we just re-check the fact, since the
                * kinds have been checked earlier already. *)
-              if not (T.fact_leq fact' fact) then
+              if not (Types.fact_leq fact' fact) then
                 error_out "facts";
 
           | None, Some _ ->
@@ -178,7 +178,7 @@ let check
                * interface, i.e. [fact], is correct because the fact for an
                * abstract is purely syntactical and does not depend on having
                * run [FactInference.analyze_types] properly. *)
-              if not (T.fact_leq fact' fact) then
+              if not (Types.fact_leq fact' fact) then
                 error_out "facts";
 
               (* We are *not* checking variance, because we don't have a syntax

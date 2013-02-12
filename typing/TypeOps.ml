@@ -19,6 +19,8 @@
 
 (** A module for performing various transformations on types. *)
 
+open TypeCore
+open DeBruijn
 open Types
 open Expressions
 

@@ -22,7 +22,7 @@
    found in my thesis noteboook, date June, 16th 2012]. *)
 
 open SurfaceSyntax
-module T = Types
+module T = TypeCore
 module E = Expressions
 
 
@@ -47,7 +47,7 @@ type level =
 (* When a module is opened in scope, the names it exports point to points that
  * are already valid in the environment (think of these as binders that have
  * been opened already). Otherwise, it's a bound variable. *)
-type var = Var of level | Point of Types.var
+type var = Var of level | Point of T.var
 let tvar = function Var x -> T.TyBound x | Point x -> T.TyOpen x;;
 let evar = function Var x -> E.EVar x | Point x -> E.EOpen x;;
 
@@ -71,7 +71,7 @@ type env = {
    * for the field [module_name] (that's not entirely true if we're matching an
    * implementation against its interface but the bottom line is: only use this
    * environment for you dependencies on other modules). *)
-  env: Types.env;
+  env: T.env;
 
   (* If the data constructor belongs to another module, that module's signature
    * has been imported in [env] and the definition which the data constructors
@@ -104,12 +104,12 @@ let mkdatacon_info dc i fields =
 
 (* The empty environment. *)
 
-let empty (env: Types.env): env =
+let empty (env: T.env): env =
   (* We build the list of initially available data constructors: these are
    * available through a [Qualified] prefix, and they are defined
    * [InAnotherModule]. *)
   let initial_datacons =
-    let open Types in
+    let open T in
     fold_definitions env (fun acc var definition ->
       let names = get_names env var in
       (* We're only interested in things that signatures exported with their
@@ -179,7 +179,7 @@ let raise_error env e =
 ;;
 
 let pkenv buf env =
-  let open T.TypePrinter in
+  let open Types.TypePrinter in
   (* Uncomment this part to get a really verbose error message. *)
   Printf.bprintf buf "\n";
   let bindings = M.fold (fun x (kind, level) acc ->
@@ -201,7 +201,7 @@ let pkenv buf env =
 ;;
 
 let print_error buf (env, raw_error) =
-  let open T.TypePrinter in
+  let open Types.TypePrinter in
   begin match raw_error with
   | Unbound x ->
       Printf.bprintf buf
@@ -399,7 +399,7 @@ let open_module_in (mname: Module.name) (env: env): env =
 ;;
 
 let kind_external env mname x =
-  let open Types in
+  let open T in
   try
     let { env; _ } = env in
     let p = point_by_name env ~mname x in
@@ -873,7 +873,7 @@ and check_expression (env: env) (expr: expression) =
       check_expression env expr
 
   | EFun (bindings, arg, return_type, body) ->
-      check_for_duplicate_variables T.fst3 bindings (bound_twice env);
+      check_for_duplicate_variables Types.fst3 bindings (bound_twice env);
       let bindings = List.map (fun (x, y, _) -> x, y) bindings in
       let env = List.fold_left bind env bindings in
       let arg_bindings = names env arg in
@@ -1012,6 +1012,7 @@ let check_interface = check_implementation;;
 module KindPrinter = struct
 
   open Hml_Pprint
+  open TypeCore
   open Types
   open TypePrinter
 

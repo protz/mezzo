@@ -17,7 +17,8 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-open Types
+open TypeCore
+open DeBruijn
 open Expressions
 
 let bind_group_in (vars: var list) subst_func_for_thing thing =

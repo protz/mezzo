@@ -19,6 +19,8 @@
 
 (** Various checks that we can't perform until a full environment is ready. *)
 
+open TypeCore
+open DeBruijn
 open Types
 open TypeErrors
 

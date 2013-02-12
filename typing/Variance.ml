@@ -24,6 +24,7 @@
  * http://gallium.inria.fr/~fpottier/fix/fix.html.en
  *)
 
+open TypeCore
 open Types
 
 type t = variance

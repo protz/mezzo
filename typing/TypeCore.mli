@@ -236,7 +236,7 @@ val same: env -> var -> var -> bool
 (** Merge two variables while keeping the information about the left one. You
  * must make sure that both variables have been run through [modulo_flex_v]
  * first. This is a low-level operation and you probably want to use
- * {Permissions.unify} instead. *)
+ * [Permissions.unify] instead. *)
 val merge_left: env -> var -> var -> env
 
 (** Get the list of permissions that are floating in this environment. *)
@@ -353,6 +353,10 @@ val is_marked: env -> var -> bool
 val mark: env -> var -> env
 val refresh_mark: env -> env
 
+(** This module provides a clean way to map a variable to any given piece of
+ * data. Beware, however, that this module only works with rigid variables (it's
+ * unclear what it should do for flexible variables), so it's up to the client
+ * to properly run {is_flexible} beforehand. *)
 module VarMap: Hml_Map.S with type key = var
 
 

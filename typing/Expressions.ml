@@ -19,6 +19,8 @@
 
 (* This file contains our internal syntax for expressions. *)
 
+open TypeCore
+open DeBruijn
 open Types
 
 (* ---------------------------------------------------------------------------- *)

@@ -21,6 +21,7 @@
  * permissions, subtracting a permission from the environment, adding
  * permissions to the environment. *)
 
+open TypeCore
 open Types
 open TypeErrors
 

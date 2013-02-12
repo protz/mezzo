@@ -19,6 +19,8 @@
 
 (** This module is dedicated to the handling of flexible variables. *)
 
+open TypeCore
+open DeBruijn
 open Types
 
 (* [has_flexible env t] checks [t] for flexible variables. *)

@@ -17,6 +17,8 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+open TypeCore
+open DeBruijn
 open Types
 open TypeErrors
 open Expressions

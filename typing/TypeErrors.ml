@@ -19,6 +19,7 @@
 
 (** Unified error handling *)
 
+open TypeCore
 open Types
 open Expressions
 

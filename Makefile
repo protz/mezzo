@@ -77,7 +77,7 @@ graph: all
 	rm -f graph.dot
 
 doc: graph
-	-ocamlfind ocamldoc -html $(BUILDDIRS) \
+	-ocamlfind ocamldoc -stars -html $(BUILDDIRS) \
 	  -package stdlib,ulex -d ../misc/doc \
 	  -intro ../misc/doc/main \
 	  -charset utf8 -css-style ../../src/misc/ocamlstyle.css\
