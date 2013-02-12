@@ -93,18 +93,6 @@ let lift (k: int) (t: typ) =
   lift 0 t
 ;;
 
-let lift_field k = function
-  | FieldValue (name, typ) ->
-      FieldValue (name, lift k typ)
-  | FieldPermission typ ->
-      FieldPermission (lift k typ)
-;;
-
-let lift_data_type_def_branch k branch =
-  let name, fields = branch in
-  name, List.map (lift_field k) fields
-;;
-
 (* Substitute [t2] for [i] in [t1]. This function is easy because [t2] is
  * expected not to have any free [TyBound]s: they've all been converted to
  * [TyOpen]s. Therefore, [t2] will *not* be lifted when substituted for [i] in
