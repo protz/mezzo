@@ -608,13 +608,6 @@ let rec eunloc = function
 ;;
 
 
-let eloc = function
-  | ELocated (_, p) ->
-      p
-  | _ ->
-      Log.error "Only call this function when you're sure there's a ELocated node."
-;;
-
 
 (* [bind_vars env bindings] adds [bindings] in the environment, and returns the
  * new environment, and a [substitution_kit]. It takes a list of bindings in

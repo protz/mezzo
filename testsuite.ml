@@ -21,12 +21,15 @@ module K = KindCheck
 
 open TypeCore
 open Types
-open TypeChecker
 open TestUtils
 open TypeErrors
 
 let check env point t =
-  ignore (check_return_type env point t)
+  match Permissions.sub env point t with
+  | Some _ ->
+      ()
+  | None ->
+      raise_error env (ExpectedType (t, point))
 ;;
 
 let point_by_name env ?mname name =
@@ -65,7 +68,8 @@ let simple_test ?(pedantic=false) ?known_failure outcome = fun do_it ->
     | Pass ->
         success_if ()
   with
-  | TypeCheckerError (_, e) ->
+  | TypeCheckerError e ->
+      let e = internal_extracterror e in
       begin match outcome with
       | Pass ->
           raise_if (Failure "Test failed, it was supposed to pass")

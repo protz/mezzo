@@ -20,8 +20,6 @@
 open TypeCore
 open Types
 
-type job = var * var * var
-
 type outcome = MergeWith of var | Proceed | Abort
 
 (* The logic is the same on both sides, but I'm writing this with
@@ -49,7 +47,6 @@ let is_valid top sub t =
 
 
 module Lifo = struct
-  type t = job list ref
   let create () = ref [];;
   let pop r = let v = List.hd !r in r := List.tl !r; v;;
   let push r v = r := v :: !r;;

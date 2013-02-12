@@ -78,7 +78,8 @@ graph: all
 
 doc: graph
 	-ocamlfind ocamldoc -stars -html $(BUILDDIRS) \
-	  -package stdlib,ulex -d ../misc/doc \
+	  $(PACKAGES)\
+	  -package stdlib -d ../misc/doc \
 	  -intro ../misc/doc/main \
 	  -charset utf8 -css-style ../../src/misc/ocamlstyle.css\
 	  configure.ml mezzo.ml\
