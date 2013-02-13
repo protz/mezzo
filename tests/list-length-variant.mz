@@ -3,7 +3,7 @@ open list
 val length [a] (xs : list a) : int =
   let c = newref 0 in
   let count (x: a | c @ ref int) : () =
-    c := !c + 1
+    incr c
   in
   iter (xs, count);
   !c

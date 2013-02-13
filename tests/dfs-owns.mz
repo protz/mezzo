@@ -49,8 +49,7 @@ val traverse (consumes g : graph unknown) : graph int =
       (* This node has not been visited yet. *)
       take n from g;
       (* Number this node. *)
-      n.payload <- !c;
-      c := !c + 1;
+      n.payload <- postincr c;
       let children = n.children in
       (* Mark this node as visited by giving it to the new graph. *)
       give n to newGraph;

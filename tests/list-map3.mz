@@ -17,7 +17,7 @@ val usage_test: list int =
   let l = cons (1, cons (2, cons (3, nil))) in
   let x = newref 0 in
   let f = fun (y: int | x @ ref int): int =
-    x := !x + 1;
+    incr x;
     y * y
   in
   let l = map [p = (x @ ref int)] (f, l) in
