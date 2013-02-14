@@ -355,14 +355,6 @@ let is_flexible (env: env) (v: var): bool =
       false
 ;;
 
-(* This is where all the safety checks will happen. *)
-let can_instantiate (env: env) (v: var) (t: typ): bool =
-  ignore t;
-  is_flexible env v &&
-  (* FIXME check facts, assert kinds, levels *)
-  true
-;;
-
 let import_flex_instanciations env sub_env =
   let rec chop_n_first n l =
     if n = 0 then
@@ -537,6 +529,69 @@ let get_floating_permissions { floating_permissions; _ } =
 let set_floating_permissions env floating_permissions =
   { env with floating_permissions }
 ;;
+
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Dealing with levels... *)
+
+let level (env: env) (t: typ): level =
+  let default_level = 0 in
+  let rec level t =
+    match modulo_flex env t with
+    | TyOpen v ->
+        (get_var_descr env v).level
+
+    | TyUnknown
+    | TyDynamic
+    | TyEmpty
+    | TyBound _ ->
+        default_level
+
+    | TySingleton t
+    | TyForall (_, t)
+    | TyExists (_, t) ->
+        level t
+
+    | TyArrow (t1, t2)
+    | TyBar (t1, t2)
+    | TyAnchoredPermission (t1, t2)
+    | TyStar (t1, t2) ->
+        max (level t1) (level t2)
+
+    | TyApp (t, ts) ->
+        Hml_List.max (List.map level (t :: ts))
+
+    | TyTuple ts ->
+        let ls = List.map level ts in
+        Hml_List.max ls
+
+    | TyConcreteUnfolded (ds, fields, t) ->
+        let ls =
+          level (fst ds) :: level t ::
+          List.map (function
+            | FieldValue (_, t)
+            | FieldPermission t ->
+                level t
+          ) fields
+        in
+        Hml_List.max ls
+
+    | TyImply (ds, t)
+    | TyAnd (ds, t) ->
+        let ls = level t :: List.map (fun (_, x) -> level x) ds in
+        Hml_List.max ls
+  in
+  level t
+;;
+
+(* This is where all the safety checks will happen. *)
+let can_instantiate (env: env) (v: var) (t: typ): bool =
+  is_flexible env v &&
+  level env t <= (get_var_descr env v).level
+;;
+
+
 
 (* ---------------------------------------------------------------------------- *)
 

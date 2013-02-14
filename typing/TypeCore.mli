@@ -217,7 +217,10 @@ val can_instantiate: env -> var -> typ -> bool
  * indeed possible. *)
 val instantiate_flexible: env -> var -> typ -> env
 
-(** Make sure we're dealing with the real representation of a variable. *)
+(** Make sure we're dealing with the real representation of a variable. Any
+ * function wishing to examine either a type or a variable should call these two
+ * functions; then, whenever they encounter a [TyOpen], they need not worry
+ * about it having a structure (because it won't). *)
 val modulo_flex_v: env -> var -> typ
 val modulo_flex: env -> typ -> typ
 
@@ -323,15 +326,23 @@ val resolved_datacons_equal: env -> resolved_datacon -> resolved_datacon -> bool
 
 (** {1 Binding} *)
 
+(** Bind a rigid type variable. *)
 val bind_rigid: env -> type_binding -> env * var
+
+(** Bind a flexible type variable. *)
 val bind_flexible: env -> type_binding -> env * var
 
 (* ---------------------------------------------------------------------------- *)
 
 
-(** {1 Exports and stuff} *)
+(** {1 Exports} *)
 
+(** [get_exports env mname] lists the names exported by module [mname] in [env].
+ * [mname] can be either the current module name, or some other module name. *)
 val get_exports: env -> Module.name -> (Variable.name * kind * var) list
+
+(* [point_by_name env ?mname x] finds name [x] as exported by module [mname]
+ * (default: [module_name env]) in [env]. *)
 val point_by_name: env -> ?mname:Module.name -> Variable.name -> var
 
 (* ---------------------------------------------------------------------------- *)
@@ -339,9 +350,25 @@ val point_by_name: env -> ?mname:Module.name -> Variable.name -> var
 
 (** {1 Iterating on the bindings} *)
 
+(** We provide a set of fold/map operations on variables defined in the
+ * environment. Existential variables are not folded over, as they only serve as
+ * placeholders; only rigid variables are consider when performing the various
+ * [fold] operations.
+ *
+ * Of course, we only fold over variables that have been opened in the current
+ * environment. *)
+
+(** Fold over all opened types definitions. *)
 val fold_definitions: env -> ('acc -> var -> type_def -> 'acc) -> 'acc -> 'acc
+
+(** Fold over all opened terms, providing the corresponding [var] and
+ * permissions. *)
 val fold_terms: env -> ('acc -> var -> typ list -> 'acc) -> 'acc -> 'acc
+
+(** General fold operation. *)
 val fold: env -> ('acc -> var -> 'acc) -> 'acc -> 'acc
+
+(** General map operation. *)
 val map: env -> (var -> 'a) -> 'a list
 
 (* ---------------------------------------------------------------------------- *)
@@ -356,7 +383,7 @@ val refresh_mark: env -> env
 (** This module provides a clean way to map a variable to any given piece of
  * data. Beware, however, that this module only works with rigid variables (it's
  * unclear what it should do for flexible variables), so it's up to the client
- * to properly run {is_flexible} beforehand. *)
+ * to properly run {!is_flexible} beforehand. *)
 module VarMap: Hml_Map.S with type key = var
 
 
