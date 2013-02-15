@@ -739,7 +739,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("bad-generalization.mz", simple_test (Fail (function _ -> true)));
 
-  ("bad-levels.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
+  ("bad-levels.mz", simple_test (Fail (function _ -> true)));
 
   ("dup-value.mzi", simple_test ~known_failure:() (Fail (function _ -> true)));
 
