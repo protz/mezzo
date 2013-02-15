@@ -119,28 +119,6 @@ let add_hint hint str =
  * "cleaned up" version of [t]. *)
 let collect = TypeOps.collect;;
 
-(** A type may hold in-depth constraints, such as "duplicable a", for instance. *)
-let rec collect_constraints t =
-  match t with
-  | TyBar (t, p) ->
-      let t, ct = collect_constraints t in
-      let p, cp = collect_constraints p in
-      TyBar (t, p), ct @ cp
-  | TyStar (p, q) ->
-      let p, cp = collect_constraints p in
-      let q, cq = collect_constraints q in
-      TyStar (p, q), cp @ cq
-  | TyTuple ts ->
-      let ts, cs = List.split (List.map collect_constraints ts) in
-      TyTuple ts, List.flatten cs
-  (* FIXME probably TyConcreteUnfolded as well *)
-  | TyAnd (cs, t) ->
-      let t, cs' = collect_constraints t in
-      t, cs @ cs'
-  | _ ->
-      t, []
-;;
-
 
 (* -------------------------------------------------------------------------- *)
 

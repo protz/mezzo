@@ -163,8 +163,8 @@ let simplify_function_type env t body =
     | TyArrow (t1, t2) ->
         TyArrow (fst (find env t1 e), fst (find env t2 e)), None
 
-    | TyBar _ ->
-        Log.error "[find] expects a type that has been run through [collect] before"
+    | TyBar (t1, t2) ->
+        TyBar (fst (find env t1 e), fst (find env t2 e)), None
 
     | TyAnchoredPermission (x, t) ->
         TyAnchoredPermission (x, fst (find env t e)), None

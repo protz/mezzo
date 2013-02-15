@@ -21,14 +21,6 @@
 
 open TypeCore
 
-(** [collect t] recursively walks down a type with kind TYPE, extracts all
-    the permissions that appear into it (as tuple or record components), and
-    returns the type without permissions as well as a list of types with kind
-    PERM, which represents all the permissions that were just extracted.
-    
-    FIXME: this function should not be exposed. *)
-val collect: typ -> typ * typ list
-
 (** [unify env p1 p2] merges two vars, and takes care of dealing with how the
     permissions should be merged. *)
 val unify: env -> var -> var -> env
@@ -52,12 +44,9 @@ val sub_type: env -> typ -> typ -> env option
 
 val add_hint: (name option) -> string -> (name option)
 
-(** Strip out all the constraints from a type. *)
-val collect_constraints: typ -> typ * duplicity_constraint list
-
-val add_constraints: env -> duplicity_constraint list -> env
 val sub_constraints: env -> duplicity_constraint list -> env option
 
+(** Only keep the duplicable portions of the environment. *)
 val keep_only_duplicable: env -> env
 
 (**/**)
