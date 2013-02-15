@@ -208,13 +208,12 @@ val mark_inconsistent: env -> env
 (** Is this variable a flexible type variable or not? *)
 val is_flexible: env -> var -> bool
 
-(** Can I instantiate a flexible with this type? This includes a call to
- * [is_flexible]. *)
-val can_instantiate: env -> var -> typ -> bool
-
-(** Instantiate a flexible type variable. You ought to make sure it *is*
- * actually flexible before calling that function, and that instantiation *is*
- * indeed possible. *)
+(** [instantiate env var t] tries to instantiate the flexible variable [var]
+ * with [t]. However, because of various reasons (e.g. levels) this
+ * instantiation may or may not be possible directly; what we do is that we try
+ * to work on [t] to fold it back into something that [var] can instantiate
+ * to. This operation always succeeds because we can always subtype [t] into
+ * [TyUnknown]. *)
 val instantiate_flexible: env -> var -> typ -> env
 
 (** Make sure we're dealing with the real representation of a variable. Any

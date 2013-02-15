@@ -585,28 +585,175 @@ let level (env: env) (t: typ): level =
   level t
 ;;
 
-(* This is where all the safety checks will happen. *)
-let can_instantiate (env: env) (v: var) (t: typ): bool =
-  is_flexible env v &&
-  level env t <= (get_var_descr env v).level
-;;
-
-
 
 (* ---------------------------------------------------------------------------- *)
+
+exception JustDontInstantiate
+
+(** [fold env t level] tries to fold [t] so that its level does not exceed
+ * [level]. This is a covariant operation whose only job is to apply the rule
+ * "(=x | x @ t) ≤ t" whenever possible. *)
+let fold (env: env) (t: typ) (l: level): env * typ =
+  (* In case we can't make anything out of this type, we return a default value,
+   * that is, "unknown". *)
+  let default env = env, TyUnknown in
+
+  let is_acceptable env t =
+    level env t <= l
+  in
+
+  (* This is the function that does most of the work. Remember that if we arrive
+   * inside the match, we *are* above the acceptable level. *)
+  let rec fold env t =
+    let t = modulo_flex env t in
+    if is_acceptable env t then
+      env, t
+    else
+      match t with
+      | TyUnknown
+      | TyBound _
+      | TyDynamic ->
+          (* These are always acceptable. *)
+          assert false
+
+      | TyOpen v ->
+          let k = get_kind env v in
+          if k = KTerm || k = KPerm then
+            (* Returning "unknown" here is not a good idea, because "unknown"
+             * has kind type... *)
+            raise JustDontInstantiate
+          else
+            default env
+
+      | TyForall _
+      | TyExists _ ->
+          default env
+
+      | TyApp (t1, ts) ->
+          Log.check (is_acceptable env t1) "Local type?";
+          let env, ts = List.fold_left (fun (env, acc) t ->
+              let env, t = fold env t in
+              env, t :: acc
+            ) (env, []) ts
+          in
+          let ts = List.rev ts in
+          env, TyApp (t1, ts)
+
+      | TyTuple ts ->
+          let env, ts = List.fold_left (fun (env, acc) t ->
+              let env, t = fold env t in
+              env, t :: acc
+            ) (env, []) ts
+          in
+          let ts = List.rev ts in
+          env, TyTuple ts
+
+
+      | TyConcreteUnfolded ((t, dc), fields, clause) ->
+          Log.check (is_acceptable env t) "Local type?";
+          let env, fields = List.fold_left (fun (env, acc) t ->
+              match t with
+              | FieldValue (f, t) ->
+                  let env, t = fold env t in
+                  env, FieldValue (f, t) :: acc
+              | FieldPermission t ->
+                  let env, t = fold env t in
+                  env, FieldPermission t :: acc
+            ) (env, []) fields
+          in
+          let fields = List.rev fields in
+          let env, clause = fold env clause in
+          env, TyConcreteUnfolded ((t, dc), fields, clause)
+ 
+      | TySingleton t ->
+          (* Ha! Finally something truly interesting! *)
+          let var =
+            match t with
+            | TyOpen v -> assert_var env v
+            | _ -> assert false
+          in
+          if is_acceptable env t then
+            env, t
+          else
+            if is_flexible env var then
+              default env
+            else
+              let permissions = get_permissions env var in
+              (* This is duplicating the logic that's found in [Permissions.sub]
+               * but dependency-wise it not really possible to factor out the
+               * code. *)
+              let t =
+                try
+                  List.find (function
+                    | TyUnknown | TyDynamic | TySingleton _ -> false
+                    | _ -> true
+                  ) permissions
+                with Not_found ->
+                  TyUnknown
+              in
+              let env, t = fold env t in
+              env, t
+
+      | TyArrow _ ->
+          default env
+
+      | TyBar (t1, t2) ->
+          let env, t1 = fold env t1 in
+          let env, t2 = fold env t2 in
+          env, TyBar (t1, t2)
+
+      | TyAnchoredPermission (t1, t2) ->
+          let env, t1 = fold env t1 in
+          let env, t2 = fold env t2 in
+          env, TyAnchoredPermission (t1, t2)
+
+      | TyEmpty ->
+          assert false
+
+      | TyStar (t1, t2) ->
+          let env, t1 = fold env t1 in
+          let env, t2 = fold env t2 in
+          env, TyStar (t1, t2)
+
+      | TyAnd (dc, t) ->
+          if not (List.for_all (fun (_, t) -> is_acceptable env t) dc) then
+            default env
+          else
+            let env, t = fold env t in
+            env, TyAnd (dc, t)
+
+      | TyImply (dc, t) ->
+          if not (List.for_all (fun (_, t) -> is_acceptable env t) dc) then
+            default env
+          else
+            let env, t = fold env t in
+            env, TyImply (dc, t)
+  in
+  fold env t
+;;
 
 (* Instantiate a flexible variable with a given type. *)
 let instantiate_flexible (env: env) (v: var) (t: typ): env =
   Log.check (is_flexible env v) "[instantiate_flex] wants flexible";
-  Log.debug "Instantiating %a with %a"
-    !internal_pnames (env, get_names env v)
-    !internal_ptype (env, t);
+  
+  (* Rework [t] so that this instantiation is legal. *)
+  let l = (get_var_descr env v).level in
+  try
+    let env, t = fold env t l in
 
-  match modulo_flex_v env v with
-  | TyOpen (VFlexible f) ->
-      replace_flex env f { structure = Instantiated t }
-  | _ ->
-      assert false
+    Log.debug "Instantiating %a with %a"
+      !internal_pnames (env, get_names env v)
+      !internal_ptype (env, t);
+
+    begin match modulo_flex_v env v with
+    | TyOpen (VFlexible f) ->
+        replace_flex env f { structure = Instantiated t }
+    | _ ->
+        assert false
+    end
+
+  with JustDontInstantiate ->
+    env
 ;;
 
 (* ---------------------------------------------------------------------------- *)
@@ -684,10 +831,7 @@ let merge_left env v1 v2 =
       merge_left_p2p env p1 p2
   | (VRigid _ as v), (VFlexible _ as vf)
   | (VFlexible _ as vf), (VRigid _ as v) ->
-      if can_instantiate env vf (TyOpen v) then
-        instantiate_flexible env vf (TyOpen v)
-      else
-        env
+      instantiate_flexible env vf (TyOpen v)
   | VFlexible i, VFlexible j ->
       if i < j then
         instantiate_flexible env v2 (TyOpen v1)

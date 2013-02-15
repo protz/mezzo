@@ -531,6 +531,7 @@ and sub (env: env) (var: var) (t: typ): env option =
     let sort x y = sort x - sort y in
     let permissions = List.sort sort permissions in
 
+
     (* [take] proceeds left-to-right *)
     match Hml_List.take (fun x -> sub_type env x t) permissions with
     | Some (remaining, (t_x, env)) ->
@@ -605,9 +606,9 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
     Some env
 
   (** Easy cases involving flexible variables *)
-  | TyOpen v1, _ when can_instantiate env v1 t2 ->
+  | TyOpen v1, _ when is_flexible env v1 ->
       Some (instantiate_flexible env v1 t2)
-  | _, TyOpen v2 when can_instantiate env v2 t1 ->
+  | _, TyOpen v2 when is_flexible env v2 ->
       Some (instantiate_flexible env v2 t1)
 
   (** Fail early to tame debug output. *)
