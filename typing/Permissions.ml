@@ -180,14 +180,37 @@ let perm_not_flex env t =
         TypePrinter.ptype (env, t)
 ;;
 
+(** Wraps "t1" into "∃x.(=x|x@t1)". This is really useful because if this is
+ * meant to be added afterwards, then [t1] will be added in expanded form with a
+ * free call to [unfold]! *)
+let wrap_bar t1 =
+  let binding = Auto (Utils.fresh_var "sp"), KTerm, location empty_env in
+  TyExists (binding,
+    TyBar (
+      TySingleton (TyBound 0),
+      TyAnchoredPermission (TyBound 0, DeBruijn.lift 1 t1)
+    )
+  )
+;;
 
 type side = Left | Right
+
+let is_singleton env t =
+  match modulo_flex env t with
+  | TySingleton _ -> true
+  | TyBar (TySingleton _, _) -> true
+  | _ -> false
+;;
 
 (** This function opens all rigid quantifications inside a type to make sure we
  * don't open up a binding too late. When [side] is [Left], existential bindings
  * are opened as rigid variables; when [side] is [Right], universal bindings are
  * opened as rigid variables. This operation is useful in [sub_type], before
- * we're about to change levels. *)
+ * we're about to change levels.
+ *
+ * This function actually does quite a bit of work, in the sense that it
+ * performs unfolding on demand: if there is a missing structure point that
+ * could potentially be a rigid variable, it creates it... *)
 let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
   match t with
   | TyUnknown
@@ -217,6 +240,10 @@ let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
 
   | TyTuple ts ->
       let env, ts = List.fold_left (fun (env, acc) t ->
+        let t =
+          if not (is_singleton env t) then wrap_bar t
+          else t
+        in
         let env, t = open_all_rigid_in env t side in
         env, t :: acc
       ) (env, []) ts in
@@ -227,6 +254,10 @@ let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
       let env, fields = List.fold_left (fun (env, acc) field ->
         match field with
         | FieldValue (f, t) ->
+            let t =
+              if not (is_singleton env t) then wrap_bar t
+              else t
+            in
             let env, t = open_all_rigid_in env t side in
             env, FieldValue (f, t) :: acc
         | FieldPermission t ->
@@ -236,9 +267,18 @@ let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
       let fields = List.rev fields in
       env, TyConcreteUnfolded (d, fields, clause)
 
-  | TySingleton _
-  | TyArrow _ ->
+  | TySingleton _ ->
       env, t
+
+  | TyArrow (t1, t2) ->
+      (* This is subtle! Existentials in the codomain are universal! *)
+      begin match side with
+      | Right ->
+          let env, t1 = open_all_rigid_in env t1 Left in
+          env, TyArrow (t1, t2)
+      | Left ->
+          env, t
+      end
 
   | TyBar (t1, t2) ->
       let env, t1 = open_all_rigid_in env t1 side in
@@ -663,15 +703,6 @@ and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): env option =
   (* We basically turn both [t1] and [t2] into "∃x.(=x | x @ t1)" which will
    * perform the right dance, including unfolding, thanks to our excellent
    * [add_sub] algorithm (self-pat on the back). *)
-  let wrap_bar t1 =
-    let binding = Auto (Utils.fresh_var "stwu"), KTerm, location env in
-    TyExists (binding,
-      TyBar (
-        TySingleton (TyBound 0),
-        TyAnchoredPermission (TyBound 0, t1)
-      )
-    )
-  in
   sub_type env (wrap_bar t1) (wrap_bar t2)
 
 
