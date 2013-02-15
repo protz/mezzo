@@ -316,6 +316,8 @@ let rec unify (env: env) (p1: var) (p2: var): env =
 
   if same env p1 p2 then
     env
+  else if is_flexible env p2 then
+    instantiate_flexible env p2 (TyOpen p1)
   else
    (* We need to first merge the environment, otherwise this will go into an
      * infinite loop when hitting the TySingletons... *)
@@ -354,17 +356,6 @@ and add (env: env) (var: var) (t: typ): env =
 
   (* Break up this into a type + permissions. *)
   let t, perms = collect t in
-
-  (* Simplify the (potentially) function type. Normally, we already did this
-   * everywhere it's needed, but if we learnt new information since (e.g.
-   * unified variables), this may still be able to do something useful.
-   * 20121206: the entire test suite still works if I remove this line, probably
-   * because everything [TypeOps] can figure out, the subtraction can figure out
-   * too later on. I'm still leaving it in because 1) someone may forget to call
-   * this function in some other context, 2) it will make types smaller, which
-   * is better for debugging, and 3) it's not that expensive because I believe
-   * types are relatively small. *)
-  let t, _ = TypeOps.prepare_function_type env t None in
 
   TypePrinter.(Log.debug ~level:4 "%s[%sadding to %a] %a"
     Bash.colors.Bash.red Bash.colors.Bash.default
