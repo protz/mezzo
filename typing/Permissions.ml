@@ -504,7 +504,8 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
 
 
 (** [sub env var t] tries to extract [t] from the available permissions for
-    [var] and returns, if successful, the resulting environment. *)
+    [var] and returns, if successful, the resulting environment. This is one of
+    the two "sub" entry points that this module exports.*)
 and sub (env: env) (var: var) (t: typ): env option =
   Log.check (is_term env var) "You can only subtract permissions from a var \
     that represents a program identifier.";
@@ -569,7 +570,8 @@ and sub_constraints env constraints =
 
 
 (** When comparing "list (a, b)" with "list (a*, b* )" you need to compare the
- * parameters, but for that, unfolding first is a good idea. *)
+ * parameters, but for that, unfolding first is a good idea. This is one of the
+ * two "sub" entry points that this module exports. *)
 and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): env option =
   (* We basically turn both [t1] and [t2] into "∃x.(=x | x @ t1)" which will
    * perform the right dance, including unfolding, thanks to our excellent
@@ -644,10 +646,6 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
 
   (** Higher priority for binding rigid = universal quantifiers. *)
-
-  | _, TyBar (TyForall ((binding, _), t2), p2) ->
-      let env, t2, _ = bind_rigid_in_type env binding t2 in
-      sub_type env t1 (TyBar (t2, p2))
 
   | _, TyForall ((binding, _), t2) ->
       let env, t2, _ = bind_rigid_in_type env binding t2 in
