@@ -4,7 +4,7 @@ val new_generator [a] () : a -> int =
 
   (* The internal state of the generator is an integer counter, which
      is used to allocate fresh IDs. *)
-  let c = newref [int] 0 in
+  let c = newref 0 in
 
   (* The function [fresh] ignores its argument and returns a new ID. *)
   let fresh (_: a | c @ ref int) : int =

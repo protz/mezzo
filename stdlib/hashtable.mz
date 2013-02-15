@@ -277,7 +277,7 @@ val update [k, a, pre : perm, post : perm] (
 
   (* Call [array::update]. *)
   array::update [post = (post * delta @ ref int)]
-    (t.buckets, key_index [k, a] (t, x), update);
+    (t.buckets, key_index (t, x), update);
     (* WISH could we get rid of this type application?
        without it, the call to array::update succeeds
        but we lose the permission for [delta] and the cardinal update (below) fails *)

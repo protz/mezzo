@@ -498,12 +498,10 @@ val rec iter [k, a, p : perm] (
   | Empty ->
       True
   | Node ->
-      (* TEMPORARY this could be very concisely written using && *)
-      if iter (f, t.left) then
-	if f (t.key, t.value) then
-	  iter (f, t.right)
-	else False
-      else False
+      if iter (f, t.left) && f (t.key, t.value) then
+        iter (f, t.right)
+      else
+        False
   end
 
 (* -------------------------------------------------------------------------- *)
