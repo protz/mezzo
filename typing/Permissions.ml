@@ -181,6 +181,93 @@ let perm_not_flex env t =
 ;;
 
 
+type side = Left | Right
+
+(** This function opens all rigid quantifications inside a type to make sure we
+ * don't open up a binding too late. When [side] is [Left], existential bindings
+ * are opened as rigid variables; when [side] is [Right], universal bindings are
+ * opened as rigid variables. This operation is useful in [sub_type], before
+ * we're about to change levels. *)
+let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
+  match t with
+  | TyUnknown
+  | TyDynamic
+  | TyBound _
+  | TyOpen _ ->
+      env, t
+
+  | TyForall ((binding, _), t) ->
+      if side = Right then
+        let env, t, _ = bind_rigid_in_type env binding t in
+        let env, t = open_all_rigid_in env t side in
+        env, t
+      else
+        env, t
+
+  | TyExists (binding, t) ->
+      if side = Left then
+        let env, t, _ = bind_rigid_in_type env binding t in
+        let env, t = open_all_rigid_in env t side in
+        env, t
+      else
+        env, t
+
+  | TyApp _ ->
+      env, t
+
+  | TyTuple ts ->
+      let env, ts = List.fold_left (fun (env, acc) t ->
+        let env, t = open_all_rigid_in env t side in
+        env, t :: acc
+      ) (env, []) ts in
+      let ts = List.rev ts in
+      env, TyTuple ts
+
+  | TyConcreteUnfolded (d, fields, clause) ->
+      let env, fields = List.fold_left (fun (env, acc) field ->
+        match field with
+        | FieldValue (f, t) ->
+            let env, t = open_all_rigid_in env t side in
+            env, FieldValue (f, t) :: acc
+        | FieldPermission t ->
+            let env, t = open_all_rigid_in env t side in
+            env, FieldPermission t :: acc
+      ) (env, []) fields in
+      let fields = List.rev fields in
+      env, TyConcreteUnfolded (d, fields, clause)
+
+  | TySingleton _
+  | TyArrow _ ->
+      env, t
+
+  | TyBar (t1, t2) ->
+      let env, t1 = open_all_rigid_in env t1 side in
+      let env, t2 = open_all_rigid_in env t2 side in
+      env, TyBar (t1, t2)
+
+  | TyAnchoredPermission (t1, t2) ->
+      let env, t1 = open_all_rigid_in env t1 side in
+      let env, t2 = open_all_rigid_in env t2 side in
+      env, TyAnchoredPermission (t1, t2)
+
+  | TyEmpty ->
+      env, t
+
+  | TyStar (t1, t2) ->
+      let env, t1 = open_all_rigid_in env t1 side in
+      let env, t2 = open_all_rigid_in env t2 side in
+      env, TyStar (t1, t2)
+
+  | TyAnd (ds, t) ->
+      let env, t = open_all_rigid_in env t side in
+      env, TyAnd (ds, t)
+
+  | TyImply (ds, t) ->
+      let env, t = open_all_rigid_in env t side in
+      env, TyImply (ds, t)
+;;
+
+
 (** [unify env p1 p2] merges two vars, and takes care of dealing with how the
     permissions should be merged. *)
 let rec unify (env: env) (p1: var) (p2: var): env =
@@ -659,10 +746,12 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   (** Lower priority for binding flexible = existential quantifiers. *)
 
   | TyForall ((binding, _), t1), _ ->
+      let env, t2 = open_all_rigid_in env t2 Right in
       let env, t1, _ = bind_flexible_in_type env binding t1 in
       sub_type env t1 t2
 
   | _, TyExists (binding, t2) ->
+      let env, t1 = open_all_rigid_in env t1 Left in
       let env, t2, _ = bind_flexible_in_type env binding t2 in
       sub_type env t1 t2
 

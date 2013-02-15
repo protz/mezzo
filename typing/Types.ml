@@ -64,7 +64,9 @@ let fact_of_flag = function
 (* Various helpers for creating and destructuring [typ]s easily. *)
 
 (* Saves us the trouble of matching all the time. *)
-let (!!)        = function TyOpen x -> x | _ -> assert false;;
+let (!!)        = function
+  | TyOpen x -> x
+  | _ as t -> Log.error "Not a TyOpen %a" !internal_ptype (empty_env, t);;
 let (!*)        = Lazy.force;;
 let (>>=)       = Option.bind;;
 let (|||) o1 o2 = if Option.is_some o1 then o1 else o2 ;;
