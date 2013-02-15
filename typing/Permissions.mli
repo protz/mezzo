@@ -45,10 +45,10 @@ val add_perm: env -> typ -> env
     [var] and returns, if successful, the resulting environment. *)
 val sub: env -> var -> typ -> env option
 
-(** [sub_type_with_unfolding env t1 t2] tries to perform [t1 - t2]. It is up to
+(** [sub_type env t1 t2] tries to perform [t1 - t2]. It is up to
  * the caller to "do the right thing" by not discarding [t1] if it was not
  * duplicable. Unifications may be performed, hence the return environment. *)
-val sub_type_with_unfolding: env -> typ -> typ -> env option
+val sub_type: env -> typ -> typ -> env option
 
 val add_hint: (name option) -> string -> (name option)
 

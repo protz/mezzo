@@ -588,7 +588,10 @@ and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): env option =
 
 (** [sub_type env t1 t2] examines [t1] and, if [t1] "provides" [t2], returns
     [Some env] where [env] has been modified accordingly (for instance, by
-    unifying some flexible variables); it returns [None] otherwise. *)
+    unifying some flexible variables); it returns [None] otherwise.
+    
+    BEWARE: this is *not* the function that is exported as "sub_type". We export
+    "sub_type_with_unfolding" as "sub_type". *)
 and sub_type (env: env) (t1: typ) (t2: typ): env option =
   TypePrinter.(
     Log.debug ~level:4 "[sub_type]\n  %a\n  %s—%s\n  %a"
@@ -1002,3 +1005,7 @@ and sub_floating_perm env t =
       None
 ;;
 
+(** The version we export is actually the one with unfolding baked in. This is
+ * the only one the client should use because it makes sure our invariants are
+ * respected. *)
+let sub_type = sub_type_with_unfolding;;
