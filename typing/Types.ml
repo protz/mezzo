@@ -64,7 +64,9 @@ let fact_of_flag = function
 (* Various helpers for creating and destructuring [typ]s easily. *)
 
 (* Saves us the trouble of matching all the time. *)
-let (!!)        = function TyOpen x -> x | _ -> assert false;;
+let (!!)        = function
+  | TyOpen x -> x
+  | _ as t -> Log.error "Not a TyOpen %a" !internal_ptype (empty_env, t);;
 let (!*)        = Lazy.force;;
 let (>>=)       = Option.bind;;
 let (|||) o1 o2 = if Option.is_some o1 then o1 else o2 ;;
@@ -141,7 +143,10 @@ let rec flatten_star env t =
 ;;
 
 let fold_star perms =
-  List.fold_left (fun acc x -> TyStar (acc, x)) TyEmpty perms
+  if List.length perms > 0 then
+    Hml_List.reduce (fun acc x -> TyStar (acc, x)) perms
+  else
+    TyEmpty
 ;;
 
 let strip_forall t =

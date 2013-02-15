@@ -873,8 +873,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                       begin try
                         let argl = clean top left_env argl in
                         let argr = clean top right_env argr in
-                        Permissions.sub_type_with_unfolding dest_env argl argr >>= fun dest_env ->
-                        Permissions.sub_type_with_unfolding dest_env argr argl >>= fun dest_env ->
+                        Permissions.sub_type dest_env argl argr >>= fun dest_env ->
+                        Permissions.sub_type dest_env argr argl >>= fun dest_env ->
                         Some (left_env, right_env, dest_env, argl)
                       with UnboundPoint ->
                         None

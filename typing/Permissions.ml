@@ -180,6 +180,133 @@ let perm_not_flex env t =
         TypePrinter.ptype (env, t)
 ;;
 
+(** Wraps "t1" into "∃x.(=x|x@t1)". This is really useful because if this is
+ * meant to be added afterwards, then [t1] will be added in expanded form with a
+ * free call to [unfold]! *)
+let wrap_bar t1 =
+  let binding = Auto (Utils.fresh_var "sp"), KTerm, location empty_env in
+  TyExists (binding,
+    TyBar (
+      TySingleton (TyBound 0),
+      TyAnchoredPermission (TyBound 0, DeBruijn.lift 1 t1)
+    )
+  )
+;;
+
+type side = Left | Right
+
+let is_singleton env t =
+  match modulo_flex env t with
+  | TySingleton _ -> true
+  | TyBar (TySingleton _, _) -> true
+  | _ -> false
+;;
+
+(** This function opens all rigid quantifications inside a type to make sure we
+ * don't open up a binding too late. When [side] is [Left], existential bindings
+ * are opened as rigid variables; when [side] is [Right], universal bindings are
+ * opened as rigid variables. This operation is useful in [sub_type], before
+ * we're about to change levels.
+ *
+ * This function actually does quite a bit of work, in the sense that it
+ * performs unfolding on demand: if there is a missing structure point that
+ * could potentially be a rigid variable, it creates it... *)
+let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
+  match t with
+  | TyUnknown
+  | TyDynamic
+  | TyBound _
+  | TyOpen _ ->
+      env, t
+
+  | TyForall ((binding, _), t1) ->
+      if side = Right then
+        let env, t1, _ = bind_rigid_in_type env binding t1 in
+        let env, t1 = open_all_rigid_in env t1 side in
+        env, t1
+      else
+        env, t
+
+  | TyExists (binding, t1) ->
+      if side = Left then
+        let env, t1, _ = bind_rigid_in_type env binding t1 in
+        let env, t1 = open_all_rigid_in env t1 side in
+        env, t1
+      else
+        env, t
+
+  | TyApp _ ->
+      env, t
+
+  | TyTuple ts ->
+      let env, ts = List.fold_left (fun (env, acc) t ->
+        let t =
+          if not (is_singleton env t) then wrap_bar t
+          else t
+        in
+        let env, t = open_all_rigid_in env t side in
+        env, t :: acc
+      ) (env, []) ts in
+      let ts = List.rev ts in
+      env, TyTuple ts
+
+  | TyConcreteUnfolded (d, fields, clause) ->
+      let env, fields = List.fold_left (fun (env, acc) field ->
+        match field with
+        | FieldValue (f, t) ->
+            let t =
+              if not (is_singleton env t) then wrap_bar t
+              else t
+            in
+            let env, t = open_all_rigid_in env t side in
+            env, FieldValue (f, t) :: acc
+        | FieldPermission t ->
+            let env, t = open_all_rigid_in env t side in
+            env, FieldPermission t :: acc
+      ) (env, []) fields in
+      let fields = List.rev fields in
+      env, TyConcreteUnfolded (d, fields, clause)
+
+  | TySingleton _ ->
+      env, t
+
+  | TyArrow (t1, t2) ->
+      (* This is subtle! Existentials in the codomain are universal! *)
+      begin match side with
+      | Right ->
+          let env, t1 = open_all_rigid_in env t1 Left in
+          env, TyArrow (t1, t2)
+      | Left ->
+          env, t
+      end
+
+  | TyBar (t1, t2) ->
+      let env, t1 = open_all_rigid_in env t1 side in
+      let env, t2 = open_all_rigid_in env t2 side in
+      env, TyBar (t1, t2)
+
+  | TyAnchoredPermission (t1, t2) ->
+      let env, t1 = open_all_rigid_in env t1 side in
+      let env, t2 = open_all_rigid_in env t2 side in
+      env, TyAnchoredPermission (t1, t2)
+
+  | TyEmpty ->
+      env, t
+
+  | TyStar (t1, t2) ->
+      let env, t1 = open_all_rigid_in env t1 side in
+      let env, t2 = open_all_rigid_in env t2 side in
+      env, TyStar (t1, t2)
+
+  | TyAnd (ds, t) ->
+      let env, t = open_all_rigid_in env t side in
+      env, TyAnd (ds, t)
+
+  | TyImply (ds, t) ->
+      let env, t = open_all_rigid_in env t side in
+      env, TyImply (ds, t)
+;;
+
 
 (** [unify env p1 p2] merges two vars, and takes care of dealing with how the
     permissions should be merged. *)
@@ -504,7 +631,8 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
 
 
 (** [sub env var t] tries to extract [t] from the available permissions for
-    [var] and returns, if successful, the resulting environment. *)
+    [var] and returns, if successful, the resulting environment. This is one of
+    the two "sub" entry points that this module exports.*)
 and sub (env: env) (var: var) (t: typ): env option =
   Log.check (is_term env var) "You can only subtract permissions from a var \
     that represents a program identifier.";
@@ -530,6 +658,7 @@ and sub (env: env) (var: var) (t: typ): env option =
     in
     let sort x y = sort x - sort y in
     let permissions = List.sort sort permissions in
+
 
     (* [take] proceeds left-to-right *)
     match Hml_List.take (fun x -> sub_type env x t) permissions with
@@ -568,29 +697,24 @@ and sub_constraints env constraints =
 
 
 (** When comparing "list (a, b)" with "list (a*, b* )" you need to compare the
- * parameters, but for that, unfolding first is a good idea. *)
+ * parameters, but for that, unfolding first is a good idea. This is one of the
+ * two "sub" entry points that this module exports. *)
 and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): env option =
   (* We basically turn both [t1] and [t2] into "∃x.(=x | x @ t1)" which will
    * perform the right dance, including unfolding, thanks to our excellent
    * [add_sub] algorithm (self-pat on the back). *)
-  let wrap_bar t1 =
-    let binding = Auto (Utils.fresh_var "stwu"), KTerm, location env in
-    TyExists (binding,
-      TyBar (
-        TySingleton (TyBound 0),
-        TyAnchoredPermission (TyBound 0, t1)
-      )
-    )
-  in
   sub_type env (wrap_bar t1) (wrap_bar t2)
 
 
 (** [sub_type env t1 t2] examines [t1] and, if [t1] "provides" [t2], returns
     [Some env] where [env] has been modified accordingly (for instance, by
-    unifying some flexible variables); it returns [None] otherwise. *)
+    unifying some flexible variables); it returns [None] otherwise.
+    
+    BEWARE: this is *not* the function that is exported as "sub_type". We export
+    "sub_type_with_unfolding" as "sub_type". *)
 and sub_type (env: env) (t1: typ) (t2: typ): env option =
   TypePrinter.(
-    Log.debug ~level:4 "[sub_type] %a %s→%s %a"
+    Log.debug ~level:4 "[sub_type]\n  %a\n  %s—%s\n  %a"
       ptype (env, t1)
       Bash.colors.Bash.red Bash.colors.Bash.default
       ptype (env, t2));
@@ -605,9 +729,9 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
     Some env
 
   (** Easy cases involving flexible variables *)
-  | TyOpen v1, _ when can_instantiate env v1 t2 ->
+  | TyOpen v1, _ when is_flexible env v1 ->
       Some (instantiate_flexible env v1 t2)
-  | _, TyOpen v2 when can_instantiate env v2 t1 ->
+  | _, TyOpen v2 when is_flexible env v2 ->
       Some (instantiate_flexible env v2 t1)
 
   (** Fail early to tame debug output. *)
@@ -639,9 +763,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       sub_type env t1 t2
 
 
-  (** Higher priority for binding rigid = universal quantifiers. We have to be
-   * conservative: we need to show that this subtraction is valid for all
-   * possible instantiations of the variable, so we assume Affine. *)
+  (** Higher priority for binding rigid = universal quantifiers. *)
 
   | _, TyForall ((binding, _), t2) ->
       let env, t2, _ = bind_rigid_in_type env binding t2 in
@@ -652,17 +774,15 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       sub_type env t1 t2
 
 
-  (** Lower priority for binding flexible = existential quantifiers.
-   *
-   * Since these are existentially quantified, we have to be
-   * conservative, and pick the highest element in the fact lattice. It's the
-   * default value. *)
+  (** Lower priority for binding flexible = existential quantifiers. *)
 
   | TyForall ((binding, _), t1), _ ->
+      let env, t2 = open_all_rigid_in env t2 Right in
       let env, t1, _ = bind_flexible_in_type env binding t1 in
       sub_type env t1 t2
 
   | _, TyExists (binding, t2) ->
+      let env, t1 = open_all_rigid_in env t1 Left in
       let env, t2, _ = bind_flexible_in_type env binding t2 in
       sub_type env t1 t2
 
@@ -1003,3 +1123,7 @@ and sub_floating_perm env t =
       None
 ;;
 
+(** The version we export is actually the one with unfolding baked in. This is
+ * the only one the client should use because it makes sure our invariants are
+ * respected. *)
+let sub_type = sub_type_with_unfolding;;
