@@ -219,19 +219,19 @@ let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
   | TyOpen _ ->
       env, t
 
-  | TyForall ((binding, _), t) ->
+  | TyForall ((binding, _), t1) ->
       if side = Right then
-        let env, t, _ = bind_rigid_in_type env binding t in
-        let env, t = open_all_rigid_in env t side in
-        env, t
+        let env, t1, _ = bind_rigid_in_type env binding t1 in
+        let env, t1 = open_all_rigid_in env t1 side in
+        env, t1
       else
         env, t
 
-  | TyExists (binding, t) ->
+  | TyExists (binding, t1) ->
       if side = Left then
-        let env, t, _ = bind_rigid_in_type env binding t in
-        let env, t = open_all_rigid_in env t side in
-        env, t
+        let env, t1, _ = bind_rigid_in_type env binding t1 in
+        let env, t1 = open_all_rigid_in env t1 side in
+        env, t1
       else
         env, t
 
