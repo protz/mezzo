@@ -83,57 +83,6 @@ let resolve_datacon env dref =
 ;;
 
 
-(* Our entire logic assumes that we always work in expanded form. If the user
- * writes a function type such as "[a, b] (a, b) -> a", we should make sure
- * the function types is in expanded form, so that the subtraction works well.
- * *)
-let rec add_name_if t =
-  match t with
-  | TyLocated (t, p) ->
-      TyLocated (add_name_if t, p)
-  | TyNameIntro _ ->
-      t
-  | _ ->
-      let name = fresh_var "/d" in
-      TyNameIntro (name, t)
-;;
-
-
-let add_names_wherever_needed t =
-  let rec add t =
-    match t with
-    | TyLocated (t, p) ->
-        TyLocated (add t, p)
-
-    | TyTuple ts ->
-        let ts = List.map add_name_if ts in
-        let ts = List.map add ts in
-        TyTuple ts
-
-    | TyBar (t, p) ->
-        TyBar (add t, p)
-
-    | TyConcreteUnfolded (dc, fields) ->
-        let fields = List.map (function
-          | FieldPermission _ as p ->
-              p
-          | FieldValue (n, t) ->
-              let t = add_name_if t in
-              let t = add t in
-              FieldValue (n, t)
-        ) fields in
-        TyConcreteUnfolded (dc, fields)
-
-    | TyAnd (cs, t) ->
-        TyAnd (cs, add t)
-
-    | _ ->
-        t
-  in
-  add t
-;;
-
-
 
 (* [strip_consumes env t] removes all the consumes annotations from [t]. A
    [consumes t] annotation is replaced by [=c] with [c] fresh, as well as
@@ -370,8 +319,6 @@ and translate_arrow_type env t1 t2 =
     | _ ->
         [], t
   in
-
-  let t1 = add_names_wherever_needed t1 in
 
   let constraints, t1 = collect_constraints t1 in
 
