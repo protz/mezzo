@@ -591,7 +591,7 @@ and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): env option =
     unifying some flexible variables); it returns [None] otherwise. *)
 and sub_type (env: env) (t1: typ) (t2: typ): env option =
   TypePrinter.(
-    Log.debug ~level:4 "[sub_type] %a %s→%s %a"
+    Log.debug ~level:4 "[sub_type]\n  %a\n  %s—%s\n  %a"
       ptype (env, t1)
       Bash.colors.Bash.red Bash.colors.Bash.default
       ptype (env, t2));
@@ -640,9 +640,11 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       sub_type env t1 t2
 
 
-  (** Higher priority for binding rigid = universal quantifiers. We have to be
-   * conservative: we need to show that this subtraction is valid for all
-   * possible instantiations of the variable, so we assume Affine. *)
+  (** Higher priority for binding rigid = universal quantifiers. *)
+
+  | _, TyBar (TyForall ((binding, _), t2), p2) ->
+      let env, t2, _ = bind_rigid_in_type env binding t2 in
+      sub_type env t1 (TyBar (t2, p2))
 
   | _, TyForall ((binding, _), t2) ->
       let env, t2, _ = bind_rigid_in_type env binding t2 in
@@ -653,11 +655,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       sub_type env t1 t2
 
 
-  (** Lower priority for binding flexible = existential quantifiers.
-   *
-   * Since these are existentially quantified, we have to be
-   * conservative, and pick the highest element in the fact lattice. It's the
-   * default value. *)
+  (** Lower priority for binding flexible = existential quantifiers. *)
 
   | TyForall ((binding, _), t1), _ ->
       let env, t1, _ = bind_flexible_in_type env binding t1 in

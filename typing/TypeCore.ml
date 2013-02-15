@@ -753,6 +753,15 @@ let instantiate_flexible (env: env) (v: var) (t: typ): env =
     end
 
   with JustDontInstantiate ->
+    Log.debug "%s!! NOT instantiating !!%s\n  \
+        level(%a) = %d\n  \
+        level(%a) = %d"
+      Bash.colors.Bash.red
+      Bash.colors.Bash.default
+      !internal_ptype (env, TyOpen v)
+      l
+      !internal_ptype (env, t)
+      (level env t);
     env
 ;;
 
