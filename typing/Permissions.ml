@@ -705,7 +705,7 @@ and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): env option =
     "sub_type_with_unfolding" as "sub_type". *)
 and sub_type (env: env) (t1: typ) (t2: typ): env option =
   TypePrinter.(
-    Log.debug ~level:4 "[sub_type]\n  %a\n  %s—%s\n  %a"
+    Log.debug ~level:4 "[sub_type] %a %s—%s %a"
       ptype (env, t1)
       Bash.colors.Bash.red Bash.colors.Bash.default
       ptype (env, t2));
@@ -1013,7 +1013,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         TypePrinter.ptype (env, fold_star vars2);
 
       (* Try to eliminate as much as we can... *)
-      let env, ps1, ps2 = add_sub env ps1 ps2 in
+      let env, ps1, ps2 = Log.silent (fun () -> add_sub env ps1 ps2) in
 
       Log.debug ~level:4 "[add_sub] ended up with ps1=%a, ps2=%a, vars1=%a, vars2=%a"
         TypePrinter.ptype (env, fold_star ps1)
@@ -1064,6 +1064,13 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
   | t1, TyBar _ ->
       sub_type env (TyBar (t1, TyEmpty)) t2
+
+  | TySingleton t1, t2 ->
+      let var = !!t1 in
+      let perms = List.filter (fun x ->
+        match modulo_flex env x with TySingleton _ -> false | _ -> true
+      ) (get_permissions env var) in
+      Hml_List.find_opt (fun t1 -> sub_type env t1 t2) perms
 
   | _ ->
       None
