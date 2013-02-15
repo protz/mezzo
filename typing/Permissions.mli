@@ -29,11 +29,6 @@ open TypeCore
     FIXME: this function should not be exposed. *)
 val collect: typ -> typ * typ list
 
-(** [unfold env t] returns [env, t] where [t] has been unfolded, which
-    potentially led us into adding new vars to [env]. The [hint] serves when
-    making up names for intermediary variables. *)
-val unfold: env -> ?hint:name -> typ -> env * typ
-
 (** [unify env p1 p2] merges two vars, and takes care of dealing with how the
     permissions should be merged. *)
 val unify: env -> var -> var -> env
@@ -50,20 +45,12 @@ val add_perm: env -> typ -> env
     [var] and returns, if successful, the resulting environment. *)
 val sub: env -> var -> typ -> env option
 
-(** [sub_perm env t] takes a type [t] with kind PERM, and tries to return the
-    environment without the corresponding permission. *)
-val sub_perm: env -> typ -> env option
-
-(** [sub_type env t1 t2] tries to perform [t1 - t2]. It is up to the caller to
-    "do the right thing" by not discarding [t1] if it was not duplicable.
-    Unifications may be performed, hence the return environment. *)
-val sub_type: env -> typ -> typ -> env option
+(** [sub_type_with_unfolding env t1 t2] tries to perform [t1 - t2]. It is up to
+ * the caller to "do the right thing" by not discarding [t1] if it was not
+ * duplicable. Unifications may be performed, hence the return environment. *)
 val sub_type_with_unfolding: env -> typ -> typ -> env option
 
 val add_hint: (name option) -> string -> (name option)
-
-(** This is for debugging, it runs a consistency check on a given environment. *)
-val safety_check: env -> unit
 
 (** Strip out all the constraints from a type. *)
 val collect_constraints: typ -> typ * duplicity_constraint list
@@ -72,3 +59,8 @@ val add_constraints: env -> duplicity_constraint list -> env
 val sub_constraints: env -> duplicity_constraint list -> env option
 
 val keep_only_duplicable: env -> env
+
+(**/**)
+
+(** This is for debugging, it runs a consistency check on a given environment. *)
+val safety_check: env -> unit
