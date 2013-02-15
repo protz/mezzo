@@ -509,9 +509,9 @@ let html_error error =
 let warn_or_error env error =
   (* FIXME switch to a better error system *)
   if !Options.pedantic then
-    raise_error env error
-  else
     Log.warn "%a" print_error (env, error)
+  else if false then
+    raise_error env error
 ;;
 
 let internal_extracterror = snd;;

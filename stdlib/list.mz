@@ -307,11 +307,16 @@ val rec rich_for_all
   | Nil ->
       RichTrue
   | Cons { head; tail } ->
-      conjunction [empty, empty, q] (
-	ok head,
-	fun (| p * tail @ list a) : rich_bool empty q =
-	  rich_for_all (ok, tail)
-      )
+      (* HACK: the intermediate value is just so that the type-checker doesn't
+       * use the return type annotation (bad instantiation choice). *)
+      let r =
+        conjunction (
+          ok head,
+          fun (| p * tail @ list a) : rich_bool empty q =
+            rich_for_all (ok, tail)
+        )
+      in
+      r
   end
 
 val rec rich_for_all_with_inlined_conjunction
@@ -367,7 +372,7 @@ val mem [a, p : perm] (equal: (a, a | p) -> bool, x: a, consumes xs: list a | p)
   let ok (y : a | x @ a * p) : bool =
     equal (x, y)
   in
-  find [a, (x @ a * p)] (ok, xs)
+  find (ok, xs)
 
 val rec mem [a, p : perm] (equal: (a, a | p) -> bool, x: a, consumes xs: list a | p) : list a =
   if xs then
@@ -375,8 +380,9 @@ val rec mem [a, p : perm] (equal: (a, a | p) -> bool, x: a, consumes xs: list a 
   else
     Nil
 
-(* TEMPORARY This function is commented out because of the current bug in function
- * comparisons involving structural types.
+(* BUG This function is commented out because of the current bug in function
+ * comparisons involving structural types. Also, it is ill-typed, because [x]
+ * has type [a], not [(a, b)], so that can't possibly work.
 
 val assoc [a, b] (equal: (a, a) -> bool, x: a, consumes xs: list (a, b)) : list (a, b) =
   let equal_key ((key1: a, b), (key2: a, b)) : bool =
@@ -588,15 +594,20 @@ val array2list [a] duplicable a => (x: array a) : list a =
 val list2array [a] (consumes xs: list a) : array a =
   let n = length xs in
   let r = newref xs in
-  array::init (Up, n, fun (i: int | r @ ref (list a)) : a =
-    match !r with
-    | Cons { head; tail } ->
-        r := tail;
-        head
-    | Nil ->
-        fail (* impossible *)
-    end
-  )
+  (* HACK: the intermediate value is just so that the type-checker doesn't use
+   * the return type annotation (bad instantiation choice). *)
+  let arr =
+    array::init (Up, n, fun (i: int | r @ ref (list a)) : a =
+      match !r with
+      | Cons { head; tail } ->
+          r := tail;
+          head
+      | Nil ->
+          fail (* impossible *)
+      end
+    )
+  in
+  arr
 
 (*
 Local Variables:
