@@ -143,7 +143,10 @@ let rec flatten_star env t =
 ;;
 
 let fold_star perms =
-  List.fold_left (fun acc x -> TyStar (acc, x)) TyEmpty perms
+  if List.length perms > 0 then
+    Hml_List.reduce (fun acc x -> TyStar (acc, x)) perms
+  else
+    TyEmpty
 ;;
 
 let strip_forall t =
