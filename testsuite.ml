@@ -439,12 +439,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   (* Resource allocation conflicts. *)
 
-  ("conflict1.mz",
-    simple_test
-      ~pedantic:true
-      ((Fail (function ResourceAllocationConflict _ -> true | _ -> false)))
-  );
-
   ("conflict2.mz",
     simple_test ~pedantic:true Pass);
 
@@ -743,7 +737,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("bad-linearity.mz", simple_test (Fail (function _ -> true)));
 
-  ("bad-generalization.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
+  ("bad-generalization.mz", simple_test (Fail (function _ -> true)));
 
   ("bad-levels.mz", simple_test ~known_failure:() (Fail (function _ -> true)));
 
@@ -753,7 +747,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("unqualified-datacon.mz", simple_test (KFail (function K.UnboundDataConstructor _ -> true | _ -> false)));
 
-  ("improve-inference.mz", simple_test ~known_failure:() Pass);
+  ("improve-inference.mz", simple_test Pass);
 
   ("cps-dereliction.mz", simple_test Pass);
 
@@ -785,7 +779,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("tableau.mz", simple_test Pass);
   ("smemoize.mz", simple_test Pass);
-  ("use-magic.mz", simple_test ~known_failure:() Pass);
+  ("use-magic.mz", simple_test Pass);
   ("list2array.mz", simple_test Pass);
   ("sub_constraints_nonpoint_type.mz", simple_test Pass);
   ("merge-tyapp-with-two-subs.mz", simple_test Pass);
