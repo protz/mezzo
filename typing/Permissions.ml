@@ -316,6 +316,8 @@ let rec unify (env: env) (p1: var) (p2: var): env =
 
   if same env p1 p2 then
     env
+  else if is_flexible env p2 then
+    instantiate_flexible env p2 (TyOpen p1)
   else
    (* We need to first merge the environment, otherwise this will go into an
      * infinite loop when hitting the TySingletons... *)
@@ -469,8 +471,8 @@ and add_perm (env: env) (t: typ): env =
 
   match modulo_flex env t with
   | TyAnchoredPermission (p, t) ->
-      Log.check (not (is_flexible env !!p))
-        "Do NOT add a permission whose left-hand-side is flexible.";
+      if is_flexible env !!p then
+        raise UnboundPoint;
       add env !!p t
   | TyStar (p, q) ->
       add_perm (add_perm env p) q
@@ -714,7 +716,7 @@ and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): env option =
     "sub_type_with_unfolding" as "sub_type". *)
 and sub_type (env: env) (t1: typ) (t2: typ): env option =
   TypePrinter.(
-    Log.debug ~level:4 "[sub_type]\n  %a\n  %s—%s\n  %a"
+    Log.debug ~level:4 "[sub_type] %a %s—%s %a"
       ptype (env, t1)
       Bash.colors.Bash.red Bash.colors.Bash.default
       ptype (env, t2));
@@ -1022,7 +1024,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         TypePrinter.ptype (env, fold_star vars2);
 
       (* Try to eliminate as much as we can... *)
-      let env, ps1, ps2 = add_sub env ps1 ps2 in
+      let env, ps1, ps2 = Log.silent (fun () -> add_sub env ps1 ps2) in
 
       Log.debug ~level:4 "[add_sub] ended up with ps1=%a, ps2=%a, vars1=%a, vars2=%a"
         TypePrinter.ptype (env, fold_star ps1)

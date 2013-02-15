@@ -44,7 +44,12 @@ let raise_level d f =
 let silent f =
   let l = !the_debug_level in
   the_debug_level := 0;
-  let r = f () in
+  let r =
+    try f ()
+    with e ->
+      the_debug_level := l;
+      raise e
+  in
   the_debug_level := l;
   r
 

@@ -83,7 +83,7 @@ let has_adopts_clause env t =
 (* Since everything is, or will be, in A-normal form, type-checking a function
  * call amounts to type-checking a var applied to another var. The default
  * behavior is: do not return a type that contains flexible variables. *)
-let check_function_call (env: env) (f: var) (x: var): env * typ =
+let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env * typ =
   Log.debug ~level:5 "[check_function_call], f = %a, x = %a, env below\n\n%a\n"
     TypePrinter.pnames (env, get_names env f)
     TypePrinter.pnames (env, get_names env x)
@@ -103,6 +103,7 @@ let check_function_call (env: env) (f: var) (x: var): env * typ =
         false
   in
   let permissions = List.filter is_quantified_arrow (get_permissions env f) in
+
   (* Instantiate all universally quantified variables with flexible variables. *)
   let rec flex = fun env -> function
     | TyForall ((binding, _), t) ->
@@ -112,6 +113,7 @@ let check_function_call (env: env) (f: var) (x: var): env * typ =
     | _ as t ->
         env, t
   in
+
   (* Instantiate flexible variables and deconstruct the resulting arrow. *)
   let rec flex_deconstruct env acc t =
     match flex env t with
@@ -123,6 +125,7 @@ let check_function_call (env: env) (f: var) (x: var): env * typ =
         assert false
   in
   let flex_deconstruct env t = flex_deconstruct env [] t in
+
   (* Try to give some useful error messages in case we have found not enough or
    * too many suitable types for [f]. *)
   let env, (t1, t2), constraints =
@@ -136,7 +139,28 @@ let check_function_call (env: env) (f: var) (x: var): env * typ =
           TypePrinter.pvar (env, fname);
         flex_deconstruct env t
   in
- (* Examine [x]. [sub] will take care of running collect on [t1] so that the
+
+  (* Try to instanciate flexibles in [t2] better by using the context-provided
+   * type annotation. *)
+  let env =
+    match annot with
+    | Some annot ->
+        Log.debug ~level:5 "[sub-annot]";
+        begin try
+          let sub_env = Permissions.keep_only_duplicable env in
+          match Permissions.sub_type sub_env t2 annot with
+          | Some sub_env ->
+              Log.debug ~level:5 "[sub-annot SUCCEEDED]";
+              import_flex_instanciations env sub_env
+          | None -> env
+        with UnboundPoint ->
+          env
+        end
+    | None ->
+        env
+  in
+
+  (* Examine [x]. [sub] will take care of running collect on [t1] so that the
    * expected permissions are subtracted as well from the environment. *)
   Log.debug ~level:5 "[check_function_call] %a - %a"
     TypePrinter.pnames (env, get_names env x)
@@ -144,6 +168,8 @@ let check_function_call (env: env) (f: var) (x: var): env * typ =
   match Permissions.sub env x t1 with
   | Some env ->
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
+      if Flexible.has_flexible env t2 then
+        raise_error env (HasFlexible t2);
       (* Now we need to check the constraints (after the flexible variables have
        * been instantiated! *)
       let env = match Permissions.sub_constraints env constraints with
@@ -155,7 +181,6 @@ let check_function_call (env: env) (f: var) (x: var): env * typ =
       (* Return the "good" type. *)
       let t2, perms = Permissions.collect t2 in
       let env = List.fold_left Permissions.add_perm env perms in
-      let t2 = Flexible.generalize env t2 in
       env, t2
   | None ->
       raise_error env (ExpectedType (t1, x))
@@ -702,7 +727,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* Give an error message that mentions the entire function call. We should
        * probably have a function called nearest_loc that returns the location
        * of [e2] so that we can be even more precise in the error message. *)
-      let env, return_type = check_function_call env x1 x2 in
+      let env, return_type = check_function_call env ?annot x1 x2 in
       return env return_type
 
   | ETApply (e, t, k) ->
