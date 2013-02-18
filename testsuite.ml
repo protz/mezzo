@@ -712,9 +712,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("bad-levels.mz", simple_test (Fail (function _ -> true)));
 
-  ("dup-value.mzi", simple_test ~known_failure:() (Fail (function _ -> true)));
+  ("dup-value.mzi", simple_test (KFail (function _ -> true)));
 
-  ("dup-datacon.mzi", simple_test ~known_failure:() (Fail (function _ -> true)));
+  ("dup-datacon.mzi", simple_test (KFail (function _ -> true)));
 
   ("unqualified-datacon.mz", simple_test (KFail (function K.UnboundDataConstructor _ -> true | _ -> false)));
 

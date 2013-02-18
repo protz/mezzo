@@ -477,7 +477,7 @@ let check_for_duplicate_things
   | Some (x, _) ->
       exit (project x)
 
-let check_for_duplicate_variables 
+let check_for_duplicate_variables
     (project : 'a -> Variable.name)
     (elements: 'a list)
     (exit: Variable.name -> 'b)
@@ -525,7 +525,7 @@ let rec bv loc (accu : type_binding list) (p : pattern) : type_binding list =
    places. The order is not important here, since this will be passed on to the
    [extend] function which will then pick a give order. *)
 let names env ty : type_binding list =
-  
+
   (* First, convert the type [ty] to a pattern, using the function
      [type_to_pattern]. This function is also used by the interpreter
      and compiler, so we should have a unified notion of which names
@@ -1003,7 +1003,37 @@ let check_implementation (tenv: T.env) (program: implementation) =
   ignore (env);
 ;;
 
-let check_interface = check_implementation;;
+let check_interface (tenv: T.env) (interface: interface) =
+  (* Check for duplicate variables. *)
+  let all_bindings = Hml_List.map_flatten (function
+    | DataTypeGroup (_, data_type_group) ->
+        bindings_data_type_group data_type_group
+    | PermDeclaration (x, _) ->
+        [x, KTerm]
+    | OpenDirective _ ->
+        []
+    | ValueDeclarations _ ->
+        assert false
+  ) interface in
+  check_for_duplicate_variables fst all_bindings (bound_twice (empty tenv));
+
+  (* Check for duplicate data constructors. *)
+  let all_datacons = Hml_List.map_flatten (function
+    | DataTypeGroup (_, data_type_group) ->
+        Hml_List.map_flatten (function
+          | Abstract _ ->
+              []
+          | Concrete (_, _, branches, _) ->
+              branches
+        ) data_type_group
+    | _ ->
+        []
+  ) interface in
+  check_for_duplicate_datacons fst all_datacons (duplicate_constructor (empty tenv));
+
+  (* Do all the regular checks. *)
+  check_implementation tenv interface
+;;
 
 (* ---------------------------------------------------------------------------- *)
 
