@@ -153,8 +153,7 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
               Log.debug ~level:5 "[sub-annot SUCCEEDED]";
               import_flex_instanciations env sub_env
           | None -> env
-        with _ ->
-          (* FIXME don't use a wildcard *)
+        with UnboundPoint ->
           Log.debug ~level:5 "[sub-annot FAILED]";
           env
         end
@@ -497,8 +496,6 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         | None -> t
       in
       let env, p = check_expression env ?hint ~annot e in
-      Log.debug ~level:5 "About to check the return type:\n%a"
-        TypePrinter.penv env;
       check_return_type env p t;
       env, p
 

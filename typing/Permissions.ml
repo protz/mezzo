@@ -299,8 +299,13 @@ let rec unify (env: env) (p1: var) (p2: var): env =
    (* We need to first merge the environment, otherwise this will go into an
      * infinite loop when hitting the TySingletons... *)
     let perms = if is_flexible env p2 then [] else get_permissions env p2 in
-    let env = Option.extract (merge_left env p1 p2) in
-    List.fold_left (fun env t -> add env p1 t) env perms
+    match merge_left env p1 p2 with
+    | Some env ->
+        List.fold_left (fun env t -> add env p1 t) env perms
+    | None ->
+        (* So far, only happens when subtracting the context-provided type from
+         * the return type of a function. *)
+        raise UnboundPoint
 
 and keep_only_duplicable env =
   let env = fold_terms env (fun env var permissions ->
