@@ -1,6 +1,10 @@
+open list
+
 (* There's an uninstanciated type variable hanging around, it's innocuous, but I
  * wanted to write down that specific case. *)
-val length [a] (list::list a): int =
+val length [a] (list a): int =
   fail
 
-val the_length = length list::nil
+val the_length : int =
+  let x : [a] list a = nil in
+  length x
