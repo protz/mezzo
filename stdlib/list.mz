@@ -307,16 +307,11 @@ val rec rich_for_all
   | Nil ->
       RichTrue
   | Cons { head; tail } ->
-      (* HACK: the intermediate value is just so that the type-checker doesn't
-       * use the return type annotation (bad instantiation choice). *)
-      let r =
-        conjunction (
-          ok head,
-          fun (| p * tail @ list a) : rich_bool empty q =
-            rich_for_all (ok, tail)
-        )
-      in
-      r
+      conjunction (
+        ok head,
+        fun (| p * tail @ list a) : rich_bool empty q =
+          rich_for_all (ok, tail)
+      )
   end
 
 val rec rich_for_all_with_inlined_conjunction
@@ -594,20 +589,15 @@ val array2list [a] duplicable a => (x: array a) : list a =
 val list2array [a] (consumes xs: list a) : array a =
   let n = length xs in
   let r = newref xs in
-  (* HACK: the intermediate value is just so that the type-checker doesn't use
-   * the return type annotation (bad instantiation choice). *)
-  let arr =
-    array::init (Up, n, fun (i: int | r @ ref (list a)) : a =
-      match !r with
-      | Cons { head; tail } ->
-          r := tail;
-          head
-      | Nil ->
-          fail (* impossible *)
-      end
-    )
-  in
-  arr
+  array::init (Up, n, fun (i: int | r @ ref (list a)) : a =
+    match !r with
+    | Cons { head; tail } ->
+        r := tail;
+        head
+    | Nil ->
+        fail (* impossible *)
+    end
+  )
 
 (*
 Local Variables:

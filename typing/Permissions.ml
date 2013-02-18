@@ -190,6 +190,7 @@ let is_singleton env t =
  * performs unfolding on demand: if there is a missing structure point that
  * could potentially be a rigid variable, it creates it... *)
 let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
+  let t = modulo_flex env t in
   match t with
   | TyUnknown
   | TyDynamic
@@ -441,6 +442,9 @@ and add_perm (env: env) (t: typ): env =
   match modulo_flex env t with
   | TyAnchoredPermission (p, t) ->
       if is_flexible env !!p then
+        (* We should be able to handle adding [x* = y*] into the environment
+         * when both are flexible. However, adding [x* @ τ] into the environment
+         * is in general not possible. *)
         if is_singleton env t then
           add env !!p t
         else
@@ -1024,6 +1028,10 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
           sub_floating_perm env t2
       | ps1, [TyOpen var2] when is_flexible env var2 ->
           Some (instantiate_flexible env var2 (fold_star ps1))
+      | [TyOpen var1], [TyEmpty] when is_flexible env var1 ->
+          (* Any instantiation of [var1] would be fine, actually, so don't
+           * commit to [TyEmpty]! *)
+          Some env
       | [TyOpen var1], ps2 when is_flexible env var1 ->
           Some (instantiate_flexible env var1 (fold_star ps2))
       | ps1, [] ->
