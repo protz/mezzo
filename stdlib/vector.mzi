@@ -1,0 +1,41 @@
+(* This module implements resizable arrays, also known as vectors,
+   for short. *)
+
+abstract vector a
+fact exclusive (vector a)
+
+(* An array has a logical size -- the number of its elements -- and a
+   physical length -- the length of the underlying array. The length
+   is always greater than or equal to the size. The vector's size can
+   be increased or decreased by the user. The vector's length is under
+   the control of the implementation. *)
+
+(* [make f] creates a new vector of size zero. The function [f] will be
+   invoked when the vector is enlarged in order to initialize the newly
+   created slots. *)
+
+val make: [a] (f: int -> a) -> vector a
+
+(* [size v] returns the current size of the vector [v]. *)
+
+val size: [a] vector a -> int
+
+(* [resize (v, new_size)] increases or decreases the size of the vector [v]
+   to [new_size]. If [new_size] is greater than the vector's current size,
+   the function [f] that was supplied at vector creation time is invoked to
+   initialize the new slots. *)
+
+val resize: [a] (vector a, new_size: int) -> ()
+
+(* [get (v, i)] reads the element at index [i] in the vector [v].  Because the
+   value is copied, the type [a] must be duplicable.  The index [i] must be
+   comprised between 0, inclusive, and [size v], exclusive. *)
+
+val get : [a] duplicable a => (vector a, int) -> a
+
+(* [set (r, i, x)] sets the element at index [i] in the vector [v] to the
+   value [x]. The index [i] must be comprised between 0, inclusive, and [size
+   v], exclusive. *)
+
+val set : [a] (vector a, int, consumes a) -> ()
+

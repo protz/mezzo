@@ -1,0 +1,109 @@
+(* This module implements resizable arrays, also known as vectors,
+   for short. *)
+
+mutable data vector a =
+  Vector {
+    (* A default function, used to initialize new locations when the
+       vector is enlarged. *)
+    default: int -> a;
+    (* The array's logical size. It is always less than or equal
+       to the length of the array [table]. *)
+    size: int;
+    (* The underlying array. *)
+    (* For the moment, I am using an array of options, with the
+       invariant property that every slot below [size] is [Some].
+       If we had permissions for array segments, then we would be
+       able to encode this invariant and get rid of the option,
+       I suppose. TEMPORARY *)
+    table: array (option a)
+  } 
+
+val default_size =
+  16 (* must be non-zero *)
+
+val make [a] (f: int -> a) : vector a =
+  Vector {
+    default = f;
+    size = 0;
+    table = array::init (Up, default_size, fun (i: int) : option a = None)
+      (* TEMPORARY if array was known to be covariant, we could initialize
+	 using array::create(Up, default_size, None), which has type
+	 array None; (this works because None is a duplicable type;)
+	 and then use subtyping to go up to array (option a). *)
+  }
+
+val size [a] (v: vector a) : int =
+  v.size
+
+val rec new_length (length: int, size: int) : int =
+  if size <= length then
+    length
+  else
+    new_length (2 * length, size)
+
+val resize [a] (v: vector a, new_size: int) : () =
+  if new_size < 0 then
+    fail;
+  let old_size = v.size in
+  if new_size <> old_size then begin
+    (* Update the logical size of the vector. *)
+    v.size <- new_size;
+    let table = v.table in
+    if new_size < old_size then
+      (* The logical size of the vector decreases. *)
+      (* Avoid a memory leak. *)
+      (* TEMPORARY we would like to use:
+	 array::fill_segment (table, new_size, n, None);
+	 but this is not currently possible, see comment in [array.mz];
+	 so, instead, we must use an explicit loop: *)
+      array::iter_segment (Up, new_size, old_size, fun (k: int | table @ array (option a)) : () =
+	  array::set (table, k, None)
+      )
+    else begin
+      (* The logical size of the vector increases. *)
+      v.size <- new_size;
+      let old_length = array::length table in
+      if new_size > old_length then begin
+	let new_length = new_length (2 * old_length, new_size) in
+	(* The physical size of the array must increase. *)
+	(* TEMPORARY we would like to use [array::create],
+	   but are forced to use [array::init] instead,
+	   because [option a] is not duplicable. *)
+	let table' = array::init (Up, new_length, fun (_: int) : option a = None) in
+	array::steal (table, table', 0);
+	v.table <- table'
+      end;
+      (* Initialize the new elements. *)
+      array::iter_segment (Up, old_size, new_size, fun (k: int | v @ vector a) : () =
+	array::set (v.table, k, some (v.default k))
+      )
+    end
+  end
+
+val get [a] duplicable a => (v: vector a, i: int) : a =
+  if i >= 0 && i < v.size then
+    option::force (array::get (v.table, i))
+  else
+    fail
+
+val set [a] (v: vector a, i: int, consumes x: a) : () =
+  if i >= 0 && i < v.size then
+    array::set (v.table, i, some x)
+  else
+    fail
+
+(* TEMPORARY ideally, we should provide more operations over vectors,
+   taking inspiration from the array library. Can we avoid duplication?
+   One option would be for the vector to expose the underlying array;
+   this would be somewhat inelegant, but less dangerous than in a normal
+   programming language, because the type-checker would check that the
+   ownership of the array is returned before the vector can be used again.
+   Another option would be to to define a library of operations that work
+   uniformly on arrays, vectors, and other random access containers. *)
+
+(*
+Local Variables:
+compile-command: "../mezzo vector.mz"
+End:
+*)
+

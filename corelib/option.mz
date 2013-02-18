@@ -8,3 +8,17 @@ val none : [a] option a =
 val some [a] (consumes x: a): option a =
   Some { contents = x }
 
+val force [a] (consumes o: option a) : a =
+  match o with
+  | Some ->
+      o.contents
+  | None ->
+      fail
+  end
+
+(*
+Local Variables:
+compile-command: "../mezzo option.mz"
+End:
+*)
+

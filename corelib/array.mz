@@ -14,7 +14,7 @@ val length : [a] array a -> int =
 val get : [a] duplicable a => (array a, int) -> a =
   builtin _mz_array_get
 
-val set : [a] (array a, int, a) -> () =
+val set : [a] (array a, int, consumes a) -> () =
   builtin _mz_array_set
 
 val unsafe_get : [a] duplicable a => (array a, int) -> a =
@@ -25,6 +25,11 @@ val unsafe_set : [a] (array a, int, a) -> () =
 
 val create : [a] duplicable a => (int, a) -> array a =
   builtin _mz_array_create
+
+(* TEMPORARY the type of create is not quite general enough; the
+   discussion about [fill_segment] applies here too. For this reason,
+   in some cases, we will be forced to use [array::init] instead of
+   [array::create]. *)
 
 val unsafe_sub : [a] duplicable a => (array a, int, int) -> array a =
   builtin _mz_array_unsafe_sub
@@ -418,6 +423,15 @@ val mapi [a, b, p : perm] (
 
 (* TEMPORARY could also offer a version that steals the elements from the array
    when they are not duplicable *)
+
+(* TEMPORARY there are situations where the type [a] is not duplicable, but the
+   value [v] is duplicable. This happens, for instance, when the type is [option a]
+   and the value is [None]. At the moment, we cannot express this scenario. Perhaps
+   we could distinguish two types, [a] and [b], require [r: array a] and [v: b],
+   where [b] is a duplicable subtype of [a]. But we do not have subtype constraints
+   (yet!). We could replace the subtype constraint with a function of type [b -> a],
+   but that would be less efficient (and cumbersome, in the common case where [a]
+   and [b] coincide). *)
 
 val rec fill_segment [a] duplicable a => (r: array a, i: int, j: int, v: a) : () =
   if i < j then begin

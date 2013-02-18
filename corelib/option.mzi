@@ -14,3 +14,6 @@ data option a =
 val none : [a] option a
 val some : [a] (consumes a) -> option a
 
+(* A destructor, which can fail at runtime. *)
+
+val force: [a] (consumes option a) -> a

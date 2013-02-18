@@ -1,3 +1,5 @@
+(* TEMPORARY should declare that array is covariant *)
+
 (* ------------------------------------------------------------------------ *)
 
 (* Basic operations over arrays. *)
@@ -13,7 +15,7 @@ val get : [a] duplicable a => (array a, int) -> a
 
 (* [set (r, i, v)] sets the element at index [i] in the array [r]
    to the value [v]. *)
-val set : [a] (array a, int, a) -> ()
+val set : [a] (array a, int, consumes a) -> ()
 
 (* [length r] is the length of the array [r]. *)
 val length : [a] array a -> int
