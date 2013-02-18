@@ -636,9 +636,7 @@ and sub (env: env) (var: var) (t: typ): env option =
     Some env
 
   else if is_singleton env t then
-    let t, perms = collect t in
-    sub_type env (ty_equals var) t >>= fun env ->
-    sub_perms env perms
+    sub_type env (ty_equals var) t
 
   else
     let permissions = get_permissions env var in
