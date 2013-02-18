@@ -721,22 +721,14 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
   (** Trivial case. *)
   | _, _ when equal env t1 t2 ->
-    Log.debug ~level:5 "↳ fast-path";
-    Some env
+      Log.debug ~level:5 "↳ fast-path";
+      Some env
 
   (** Easy cases involving flexible variables *)
   | TyOpen v1, _ when is_flexible env v1 ->
       Some (instantiate_flexible env v1 t2)
   | _, TyOpen v2 when is_flexible env v2 ->
       Some (instantiate_flexible env v2 t1)
-
-  (** Fail early to tame debug output. *)
-  | TyUnknown, _
-  | _, TyUnknown
-  | TyDynamic, _
-  | _, TyDynamic ->
-      (* If the call to [equal] didn't succeed, we won't succeed either here. *)
-      None
 
   (** Duplicity constraints. *)
 
