@@ -30,8 +30,7 @@ val traverse (g : graph int) : () =
       give n to g
     else begin
       n.marked <- True;
-      n.payload <- !c;
-      c := !c + 1;
+      n.payload <- postincr c;
       let children = n.children in
       give n to g;
       iter (children, visit)

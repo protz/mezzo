@@ -1,7 +1,14 @@
 mutable data ref a =
     Ref { contents: a }
 
-val newref : [a] (consumes a) -> ref a
-val (!)    : [y : term] (ref (=y)) -> =y
-val (:=)   : [a, b] (consumes x: ref a, consumes b) -> (| x @ ref b)
+val newref  : [a] (consumes a) -> ref a
+val (!)     : [y : term] (ref (=y)) -> =y
+val (:=)    : [a, b] (consumes x: ref a, consumes b) -> (| x @ ref b)
 
+val incr    : ref int -> ()
+val decr    : ref int -> ()
+
+val preincr : ref int -> int
+val predecr : ref int -> int
+val postincr: ref int -> int
+val postdecr: ref int -> int

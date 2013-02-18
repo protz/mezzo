@@ -1,0 +1,7 @@
+open list
+
+val () =
+  let r : [a] ref (list a) = Ref { contents = nil } in
+  let l : [a] atomic::lock (r @ ref (list a)) = atomic::newlock () in (* should be rejected *)
+  ()
+

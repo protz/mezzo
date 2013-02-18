@@ -10,3 +10,37 @@ val (!) [y : term] (x: ref (=y)): =y =
 val (:=) [a, b] (consumes x: ref a, consumes y: b): (| x @ ref b) =
   x.contents <- y
 
+val incr (r : ref int) : () =
+  r := !r + 1
+
+val decr (r : ref int) : () =
+  r := !r - 1
+
+val preincr (r : ref int) : int =
+  let x = !r in
+  let x = x + 1 in
+  r := x;
+  x
+
+val predecr (r : ref int) : int =
+  let x = !r in
+  let x = x - 1 in
+  r := x;
+  x
+
+val postincr (r : ref int) : int =
+  let x = !r in
+  r := x + 1;
+  x
+
+val postdecr (r : ref int) : int =
+  let x = !r in
+  r := x - 1;
+  x
+
+(*
+Local Variables:
+compile-command: "../mezzo ref.mz"
+End:
+*)
+

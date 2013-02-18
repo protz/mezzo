@@ -1,5 +1,9 @@
 open list
 
+(* francois: IMHO, this test has nothing to do with the
+   value restriction; it only checks that there is no
+   permission for [r] inside the anonymous function. *)
+
 val wrong =
   let r = Ref { contents = Nil } in
   fun [a] (x: a): () =

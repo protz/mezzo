@@ -85,7 +85,7 @@ val fix
     | Some { contents = y } ->
         y
     | None ->
-	let y = f [(t @ table a b)] (memoized, x) in
+	let y = f (memoized, x) in
 	add (x, y, t);
 	y
     end
@@ -96,7 +96,7 @@ val fix
     (* Acquire the lock. This yields the permission [t @ table a b]. *)
     acquire l;
     (* Invoke the recursive computation. *)
-    let y = memoized (x) in
+    let y = memoized x in
     (* Release the lock. This consumes [t @ table a b]. *)
     release l;
     (* Return [y]. *)

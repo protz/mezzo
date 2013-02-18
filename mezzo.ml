@@ -17,6 +17,9 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+(** This is the entry point of the program. It parses command-line arguments,
+ * sets up the {!Options} and calls in to {!Driver}. *)
+
 type mode =
   | Typecheck
   | TypecheckAndCompile

@@ -119,28 +119,6 @@ let add_hint hint str =
  * "cleaned up" version of [t]. *)
 let collect = TypeOps.collect;;
 
-(** A type may hold in-depth constraints, such as "duplicable a", for instance. *)
-let rec collect_constraints t =
-  match t with
-  | TyBar (t, p) ->
-      let t, ct = collect_constraints t in
-      let p, cp = collect_constraints p in
-      TyBar (t, p), ct @ cp
-  | TyStar (p, q) ->
-      let p, cp = collect_constraints p in
-      let q, cq = collect_constraints q in
-      TyStar (p, q), cp @ cq
-  | TyTuple ts ->
-      let ts, cs = List.split (List.map collect_constraints ts) in
-      TyTuple ts, List.flatten cs
-  (* FIXME probably TyConcreteUnfolded as well *)
-  | TyAnd (cs, t) ->
-      let t, cs' = collect_constraints t in
-      t, cs @ cs'
-  | _ ->
-      t, []
-;;
-
 
 (* -------------------------------------------------------------------------- *)
 
@@ -318,6 +296,8 @@ let rec unify (env: env) (p1: var) (p2: var): env =
     env
   else if is_flexible env p2 then
     instantiate_flexible env p2 (TyOpen p1)
+  else if is_flexible env p1 then
+    instantiate_flexible env p1 (TyOpen p2)
   else
    (* We need to first merge the environment, otherwise this will go into an
      * infinite loop when hitting the TySingletons... *)
@@ -356,17 +336,6 @@ and add (env: env) (var: var) (t: typ): env =
 
   (* Break up this into a type + permissions. *)
   let t, perms = collect t in
-
-  (* Simplify the (potentially) function type. Normally, we already did this
-   * everywhere it's needed, but if we learnt new information since (e.g.
-   * unified variables), this may still be able to do something useful.
-   * 20121206: the entire test suite still works if I remove this line, probably
-   * because everything [TypeOps] can figure out, the subtraction can figure out
-   * too later on. I'm still leaving it in because 1) someone may forget to call
-   * this function in some other context, 2) it will make types smaller, which
-   * is better for debugging, and 3) it's not that expensive because I believe
-   * types are relatively small. *)
-  let t, _ = TypeOps.prepare_function_type env t None in
 
   TypePrinter.(Log.debug ~level:4 "%s[%sadding to %a] %a"
     Bash.colors.Bash.red Bash.colors.Bash.default
@@ -472,8 +441,12 @@ and add_perm (env: env) (t: typ): env =
   match modulo_flex env t with
   | TyAnchoredPermission (p, t) ->
       if is_flexible env !!p then
-        raise UnboundPoint;
-      add env !!p t
+        if is_singleton env t then
+          add env !!p t
+        else
+          raise UnboundPoint
+      else
+        add env !!p t
   | TyStar (p, q) ->
       add_perm (add_perm env p) q
   | TyEmpty ->
@@ -644,6 +617,9 @@ and sub (env: env) (var: var) (t: typ): env option =
   if is_inconsistent env then
     Some env
 
+  else if is_singleton env t then
+    sub_type env (ty_equals var) t
+
   else
     let permissions = get_permissions env var in
 
@@ -727,22 +703,14 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
   (** Trivial case. *)
   | _, _ when equal env t1 t2 ->
-    Log.debug ~level:5 "↳ fast-path";
-    Some env
+      Log.debug ~level:5 "↳ fast-path";
+      Some env
 
   (** Easy cases involving flexible variables *)
   | TyOpen v1, _ when is_flexible env v1 ->
       Some (instantiate_flexible env v1 t2)
   | _, TyOpen v2 when is_flexible env v2 ->
       Some (instantiate_flexible env v2 t1)
-
-  (** Fail early to tame debug output. *)
-  | TyUnknown, _
-  | _, TyUnknown
-  | TyDynamic, _
-  | _, TyDynamic ->
-      (* If the call to [equal] didn't succeed, we won't succeed either here. *)
-      None
 
   (** Duplicity constraints. *)
 
@@ -1024,7 +992,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         TypePrinter.ptype (env, fold_star vars2);
 
       (* Try to eliminate as much as we can... *)
-      let env, ps1, ps2 = Log.silent (fun () -> add_sub env ps1 ps2) in
+      let env, ps1, ps2 = add_sub env ps1 ps2 in
 
       Log.debug ~level:4 "[add_sub] ended up with ps1=%a, ps2=%a, vars1=%a, vars2=%a"
         TypePrinter.ptype (env, fold_star ps1)
@@ -1075,6 +1043,13 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
   | t1, TyBar _ ->
       sub_type env (TyBar (t1, TyEmpty)) t2
+
+  | TySingleton t1, t2 ->
+      let var = !!t1 in
+      let perms = List.filter (fun x ->
+        match modulo_flex env x with TySingleton _ -> false | _ -> true
+      ) (get_permissions env var) in
+      Hml_List.find_opt (fun t1 -> sub_type env t1 t2) perms
 
   | _ ->
       None
