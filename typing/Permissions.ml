@@ -295,15 +295,11 @@ let rec unify (env: env) (p1: var) (p2: var): env =
 
   if same env p1 p2 then
     env
-  else if is_flexible env p2 then
-    instantiate_flexible env p2 (TyOpen p1)
-  else if is_flexible env p1 then
-    instantiate_flexible env p1 (TyOpen p2)
   else
    (* We need to first merge the environment, otherwise this will go into an
      * infinite loop when hitting the TySingletons... *)
-    let perms = get_permissions env p2 in
-    let env = merge_left env p1 p2 in
+    let perms = if is_flexible env p2 then [] else get_permissions env p2 in
+    let env = Option.extract (merge_left env p1 p2) in
     List.fold_left (fun env t -> add env p1 t) env perms
 
 and keep_only_duplicable env =
@@ -712,9 +708,9 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
   (** Easy cases involving flexible variables *)
   | TyOpen v1, _ when is_flexible env v1 ->
-      Some (instantiate_flexible env v1 t2)
+      instantiate_flexible env v1 t2
   | _, TyOpen v2 when is_flexible env v2 ->
-      Some (instantiate_flexible env v2 t1)
+      instantiate_flexible env v2 t1
 
   (** Duplicity constraints. *)
 
@@ -774,7 +770,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         | TySingleton (TyOpen p1), TySingleton (TyOpen p2) when is_flexible env p2 ->
             (* This is a fast-path that creates less debug output and makes
              * things easier to understand when reading traces. *)
-            Some (merge_left env p1 p2)
+            merge_left env p1 p2
         | TySingleton (TyOpen p1), _ ->
             (* “=x - τ” can always be rephrased as “take τ from the list of
              * available permissions for x” by replacing “τ” with
@@ -806,7 +802,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
           | TySingleton (TyOpen p1), _ when is_flexible env p1 ->
               assert false
           | TySingleton (TyOpen p1), TySingleton (TyOpen p2) when is_flexible env p2 ->
-              Some (merge_left env p1 p2)
+              merge_left env p1 p2
           | TySingleton (TyOpen p1), _ ->
               sub env p1 t2
           | _ ->
@@ -1014,11 +1010,11 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
           let env = add_floating_perm env t1 in
           begin match is_flexible env var1, is_flexible env var2 with
           | true, false ->
-              Some (merge_left env var2 var1)
+              merge_left env var2 var1
           | false, true ->
-              Some (merge_left env var1 var2)
+              merge_left env var1 var2
           | true, true ->
-              Some (merge_left env var1 var2)
+              merge_left env var1 var2
           | false, false ->
               if same env var1 var2 then
                 Some env
@@ -1027,13 +1023,17 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
           end >>= fun env ->
           sub_floating_perm env t2
       | ps1, [TyOpen var2] when is_flexible env var2 ->
-          Some (instantiate_flexible env var2 (fold_star ps1))
+          instantiate_flexible env var2 (fold_star ps1)
       | [TyOpen var1], [TyEmpty] when is_flexible env var1 ->
           (* Any instantiation of [var1] would be fine, actually, so don't
            * commit to [TyEmpty]! *)
           Some env
       | [TyOpen var1], ps2 when is_flexible env var1 ->
-          Some (instantiate_flexible env var1 (fold_star ps2))
+          (* We could actually instantiate [var1] to something bigger, e.g. the
+           * whole universe + [ps2]. Not sure that's a good idea computationally
+           * speaking but that would certainly make some more examples work (I
+           * guess?)... *)
+          instantiate_flexible env var1 (fold_star ps2)
       | ps1, [] ->
           (* We may have a remaining, rigid, floating permission. Good for us! *)
           Some (add_perm env (fold_star ps1))

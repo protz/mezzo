@@ -619,7 +619,6 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
                 let r = merge_type (left_env, t_app_left) (right_env, t_app_right) ~dest_var dest_env in
                 r >>= fun (left_env, right_env, dest_env, dest_perm) ->
-                let dest_perm = Flexible.generalize dest_env dest_perm in
                 Some (left_env, right_env, dest_env, dest_perm)
               end
 
@@ -741,7 +740,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                     to a type defined in the top-level scope, we don't know how to treat \
                     flexible variables with kind other than type yet.";
 
-                  let right_env = merge_left right_env dest_p right_p in
+                  merge_left right_env dest_p right_p >>= fun right_env ->
                   Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
                     "All top-level types should be in known_triples by default";
 
@@ -761,7 +760,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                     to a type defined in the top-level scope, we don't know how to treat \
                     flexible variables with kind other than type yet.";
 
-                  let left_env = merge_left left_env dest_p left_p in
+                  merge_left left_env dest_p left_p >>= fun left_env ->
                   Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
                     "All top-level types should be in known_triples by default";
 
@@ -917,7 +916,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
           (* Will raise [UnboundPoint] if we can't get [t] to make sense in
              the toplevel environment. *)
           let t = clean top right_env t in
-          let left_env = instantiate_flexible left_env p t in
+          instantiate_flexible left_env p t >>= fun left_env ->
           Some (left_env, right_env, dest_env, t)
         with UnboundPoint ->
           None
@@ -926,7 +925,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
     | t, TyOpen p when is_flexible right_env p ->
         begin try
           let t = clean top left_env t in
-          let right_env = instantiate_flexible right_env p t in
+          instantiate_flexible right_env p t >>= fun right_env ->
           Some (left_env, right_env, dest_env, t)
         with UnboundPoint ->
           None

@@ -185,7 +185,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("value_restriction2.mz",
     simple_test Pass);
   ("value_restriction3.mz",
-    simple_test (Fail (function _ -> true)));
+    simple_test Pass);
   ("value_restriction4.mz",
     simple_test (Fail (function _ -> true)));
 
@@ -326,27 +326,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let t = TyApp (v, [int; int]) in
     check env v5 t);
 
-  ("merge6.mz", fun do_it ->
-    let env = do_it () in
-    let v6 = point_by_name env "v6" in
-    let v = find_type_by_name env "v" in
-    let int = find_type_by_name env ~mname:"int" "int" in
-    let t = TyForall (dummy_binding KType,
-      TyApp (v, [int; TyBound 0])
-    )
-    in
-    check env v6 t);
+  ("merge6.mz", simple_test Pass);
 
-  ("merge7.mz", fun do_it ->
-    let env = do_it () in
-    let v7 = point_by_name env "v7" in
-    let v = find_type_by_name env "v" in
-    let t = TyForall (dummy_binding KType,
-      TyForall (dummy_binding KType,
-        TyApp (v, [TyBound 1; TyBound 0])
-      ))
-    in
-    check env v7 t);
+  ("merge7.mz", simple_test Pass);
 
   ("merge8.mz", fun do_it ->
     let env = do_it () in
@@ -428,17 +410,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("merge19.mz", simple_test Pass);
 
-  ("merge_generalize_val.mz", fun do_it ->
-    let env = do_it () in
-    let x = point_by_name env "x" in
-    let y = point_by_name env "y" in
-    let z = point_by_name env "z" in
-    let u = find_type_by_name env "u" in
-    let t = TyForall (dummy_binding KType, TyApp (u, [TyBound 0])) in
-    check env x t;
-    check env y t;
-    check env z t;
-  );
+  ("merge_generalize_val.mz", simple_test Pass);
 
   ("constraints_merge.mz",
     simple_test ~pedantic:true Pass);
@@ -588,14 +560,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("list-length-variant.mz", simple_test Pass);
 
-  ("list-concat.mz", fun do_it ->
-    let env = do_it () in
-    let x = point_by_name env "x" in
-    let list = find_type_by_name env "list" in
-    let t = TyForall (dummy_binding KType,
-      TyApp (list, [TyBound 0])
-    ) in
-    check env x t);
+  ("list-concat.mz", simple_test Pass);
 
   ("list-concat-dup.mz",
     simple_test Pass
@@ -812,6 +777,7 @@ let _ =
   Driver.add_include_dir (Filename.concat Configure.root_dir "corelib");
   Driver.add_include_dir (Filename.concat Configure.root_dir "stdlib");
   let failed = ref 0 in
+  let names_failed = ref [] in
   let run prefix tests =
     List.iter (fun (file, test) ->
       Log.warn_count := 0;
@@ -835,6 +801,7 @@ let _ =
           exit 255
       | _ as e ->
           failed := !failed + 1;
+          names_failed := file :: !names_failed;
           Printf.printf "%s✗ %s%s\n" colors.red colors.default file;
           print_endline (Printexc.to_string e);
           Printexc.print_backtrace stdout;
@@ -870,8 +837,20 @@ let _ =
 
   Printf.printf "%s%d%s tests run, " colors.blue (List.length tests) colors.default;
   if !failed > 0 then
-    Printf.printf "%s%d unexpected failure%s, this is BAD!%s\n"
-      colors.red !failed (if !failed > 1 then "s" else "") colors.default
+    let names_failed =
+      match !names_failed with
+      | [] ->
+          assert false
+      | hd :: [] ->
+          hd
+      | hd :: tl ->
+          String.concat ", " (List.rev tl) ^ " and " ^ hd
+    in
+    Printf.printf "%s%d unexpected failure%s (namely: %s), this is BAD!%s\n"
+      colors.red
+      !failed (if !failed > 1 then "s" else "")
+      names_failed
+      colors.default
   else
     Printf.printf "%sall passed%s, congratulations.\n" colors.green colors.default;
 ;;

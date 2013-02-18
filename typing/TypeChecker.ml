@@ -153,7 +153,8 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
               Log.debug ~level:5 "[sub-annot SUCCEEDED]";
               import_flex_instanciations env sub_env
           | None -> env
-        with UnboundPoint ->
+        with _ ->
+          (* FIXME don't use a wildcard *)
           Log.debug ~level:5 "[sub-annot FAILED]";
           env
         end
@@ -169,8 +170,6 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
   match Permissions.sub env x t1 with
   | Some env ->
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
-      if Flexible.has_flexible env t2 then
-        raise_error env (HasFlexible t2);
       (* Now we need to check the constraints (after the flexible variables have
        * been instantiated! *)
       let env = match Permissions.sub_constraints env constraints with
@@ -234,7 +233,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
       (* [var] is the descriptor that has all the information; [p] just has
        * [=p] as a permission, and maybe an extra one if it's a [val rec f]
        * where [f] is a recursive function *)
-      merge_left env var p
+      Option.extract (merge_left env var p)
 
   | PAs (p1, p2) ->
       let p2 = match p2 with
@@ -243,7 +242,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
         | _ ->
             Log.error "Bad desugaring?!!"
       in
-      let env = merge_left env var p2 in
+      let env = Option.extract (merge_left env var p2) in
       unify_pattern env p1 var
 
   | PTuple patterns ->
@@ -498,6 +497,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         | None -> t
       in
       let env, p = check_expression env ?hint ~annot e in
+      Log.debug ~level:5 "About to check the return type:\n%a"
+        TypePrinter.penv env;
       check_return_type env p t;
       env, p
 

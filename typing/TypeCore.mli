@@ -210,11 +210,8 @@ val is_flexible: env -> var -> bool
 
 (** [instantiate env var t] tries to instantiate the flexible variable [var]
  * with [t]. However, because of various reasons (e.g. levels) this
- * instantiation may or may not be possible directly; what we do is that we try
- * to work on [t] to fold it back into something that [var] can instantiate
- * to. This operation always succeeds because we can always subtype [t] into
- * [TyUnknown]. *)
-val instantiate_flexible: env -> var -> typ -> env
+ * instantiation may or may not be possible directly. *)
+val instantiate_flexible: env -> var -> typ -> env option
 
 (** Make sure we're dealing with the real representation of a variable. Any
  * function wishing to examine either a type or a variable should call these two
@@ -239,7 +236,7 @@ val same: env -> var -> var -> bool
  * must make sure that both variables have been run through [modulo_flex_v]
  * first. This is a low-level operation and you probably want to use
  * [Permissions.unify] instead. *)
-val merge_left: env -> var -> var -> env
+val merge_left: env -> var -> var -> env option
 
 (** Get the list of permissions that are floating in this environment. *)
 val get_floating_permissions: env -> typ list

@@ -2,8 +2,5 @@ open list
 
 val ok =
   let r : [a] ref (list a) = Ref { contents = Nil } in
-  fun [a] (x: a | r @ ref (list a)): () =
+  fun [a] (consumes x: a | r @ ref (list a)): () =
     r.contents <- Cons { head = x; tail = r.contents }
-
-(* BUG? I don't understand why this code is rejected. *)
-
