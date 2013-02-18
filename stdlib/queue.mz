@@ -58,8 +58,6 @@ val retrieve [a] (q: fifo a) : option a =
       take tail from q; (* TEMPORARY why is there an "exclusive resource allocation conflict" here? *)
       let head = tail.next in
       if head == tail then begin
-	(* Interesting BUG: if we change == to != above, we obtain an error:
-	   exception Failure("Two matching permissions? That's strange...") *)
 	tag of q <- Empty;
 	q.length <- 0;
 	q.tail <- ()

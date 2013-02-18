@@ -307,7 +307,7 @@ val rec rich_for_all
   | Nil ->
       RichTrue
   | Cons { head; tail } ->
-      conjunction [empty, empty, q] (
+      conjunction (
 	ok head,
 	fun (| p * tail @ list a) : rich_bool empty q =
 	  rich_for_all (ok, tail)
@@ -367,7 +367,7 @@ val mem [a, p : perm] (equal: (a, a | p) -> bool, x: a, consumes xs: list a | p)
   let ok (y : a | x @ a * p) : bool =
     equal (x, y)
   in
-  find [a, (x @ a * p)] (ok, xs)
+  find (ok, xs)
 
 val rec mem [a, p : perm] (equal: (a, a | p) -> bool, x: a, consumes xs: list a | p) : list a =
   if xs then

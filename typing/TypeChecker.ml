@@ -153,8 +153,6 @@ let check_function_call (env: env) (f: var) (x: var): env * typ =
             raise_error env (UnsatisfiableConstraint constraints)
       in
       (* Return the "good" type. *)
-      let t2, perms = Permissions.collect t2 in
-      let env = List.fold_left Permissions.add_perm env perms in
       let t2 = Flexible.generalize env t2 in
       env, t2
   | None ->
@@ -519,12 +517,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let return_type = subst_type return_type in
       let body = subst_expr body in
 
-      (* Collect all the permissions that the arguments bring into scope, add
-       * them into the environment for checking the function body. *)
-      let t_noconstraints, constraints = Permissions.collect_constraints arg in
-      let _, perms = Permissions.collect t_noconstraints in
-      let sub_env = Permissions.add_constraints sub_env constraints in
-      let sub_env = List.fold_left Permissions.add_perm sub_env perms in
+      (* This is actually pretty simple! We just bind an anonymous name for the
+       * argument, give it the right type, and everything happens automatically.
+       * *)
+      let sub_env, x_arg = bind_rigid sub_env (fresh_auto_var "arg", KTerm, location sub_env) in
+      let sub_env = Permissions.add sub_env x_arg arg in
 
       (* Type-check the function body. *)
       let sub_env, p = check_expression sub_env ~annot:return_type body in
