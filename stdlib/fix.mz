@@ -138,6 +138,65 @@ val clear_successors [info] (g: graph info, n: node info) : () =
   );
   n.outgoing <- nil
 
+(* -------------------------------------------------------------------------- *)
+
+(* We now specialize the above types of nodes and edges with a fixed
+   type [info]. Everything is parameterized over the types [variable]
+   and [property]. *)
+
+(* Each record of type [info] stands for one particular variable [v]
+   in the equation system. *)
+
+mutable data info variable property =
+  Info {
+    (* The right-hand side of the equation associated with the variable [v]. *)
+    rhs: (variable -> property) -> property;
+    (* The current property at [v]. It evolves in a monotonic manner. *)
+    property: property;
+  }
+
+(* -------------------------------------------------------------------------- *)
+
+(* The main function. *)
+
+val lfp
+  [variable, property]
+  (* TEMPORARY probably duplicable variable => duplicable property => *)
+  (
+    (* We need notions of hashing and equality over variables. *)
+    hash: variable -> int,
+    equal: (variable, variable) -> bool,
+    (* We need the following operations over properties. *)
+    p: properties property,
+    (* We need a system of equations. *)
+    eqs: variable -> (variable -> property) -> property
+  )
+  : variable -> property =
+
+  (* We will work with nodes of type [node (info variable property)].
+     A type abbreviation would be very handy! *)
+
+  (* Create an empty graph. *)
+  
+  let g : graph (info variable property) =
+    Graph {
+      nodes = Nodes;
+      edges = Edges;
+    } in
+
+  (* Create a workset, whose elements are nodes. *)
+
+  let workset : queue::fifo dynamic (* node *) =
+    queue::create ()
+  in
+
+  (* A signal is broadcast by a variable to its predecessors. *)
+
+fail
+
+(* TEMPORARY if I wish to encode modules as records, then we will probably
+   wish to have local algebraic data type definitions. *)
+
 (*
 Local Variables:
 compile-command: "../mezzo fix.mz"
