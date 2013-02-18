@@ -375,15 +375,14 @@ val rec mem [a, p : perm] (equal: (a, a | p) -> bool, x: a, consumes xs: list a 
   else
     Nil
 
-(* BUG This function is commented out because of the current bug in function
- * comparisons involving structural types. Also, it is ill-typed, because [x]
- * has type [a], not [(a, b)], so that can't possibly work.
+(* [assoc] is a version of [find]. It is specialized with a notion of equality
+   of key-value pairs as equality of keys. *)
 
-val assoc [a, b] (equal: (a, a) -> bool, x: a, consumes xs: list (a, b)) : list (a, b) =
-  let equal_key ((key1: a, b), (key2: a, b)) : bool =
-    equal (key1, key2)
+val assoc [a, b, p : perm] (equal: (a, a | p) -> bool, x: a, consumes xs: list (a, b) | p) : list (a, b) =
+  let ok (y: a, _: b | x @ a * p) : bool =
+    equal (x, y)
   in
-  mem [(a,b)] (equal_key, x, xs) *)
+  find [(a, b), (x @ a * p)] (ok, xs)
 
 (* TEMPORARY
    mem   should be called find_equal

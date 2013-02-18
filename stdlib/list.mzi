@@ -99,6 +99,12 @@ val remove  : [a, p : perm] ((a | p) -> bool, consumes list a | p) -> list a
 
 val mem     : [a, p : perm] (equal: (a, a | p) -> bool, x: a, consumes xs: list a | p) -> list a
 
+val assoc   : [a, b, p : perm] (
+  equal: (a, a | p) -> bool,
+  x: a,
+  consumes xs: list (a, b)
+| p) -> list (a, b)
+
 (* -------------------------------------------------------------------------- *)
 
 (* Filtering. *) 
