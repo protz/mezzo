@@ -55,6 +55,56 @@ data graph info =
     nodes: nodes info;
     edges: edges info;
   }
+
+(* Node creation. *)
+
+val create [info] (consumes i: info) : node info =
+  Node {
+    info = i;
+    outgoing = nil;
+    incoming = nil;
+    marked = false;
+  }
+
+(* Following an edge. *)
+
+val follow [info] (src: dynamic (* node *), e: edge info) : dynamic (* node *) =
+  if e.node1 == src then
+    e.node2
+  else
+    e.node1
+
+(* Finding a node's predecessors. *)
+
+val predecessors [info] (g: graph info, n: node info) : list dynamic (* node *) =
+  (* Clean up the list of predecessor edges by removing the edges that have been
+     previously destroyed by [clear_successors]. They are identified by the fact
+     that they are no longer adopted by [es]. *)
+  let predecessors : list dynamic (* edge *) =
+    list::filter (n.incoming, fun (e: dynamic (* edge *) | g @ graph info) : bool =
+      g.edges owns e
+    )
+  in
+  n.incoming <- predecessors;
+  (* For each remaining (valid) predecessor edge, find its endpoint other than [n]. *)
+  list::rev_map (predecessors, fun (e: dynamic (* edge *) | n @ node info * g @ graph info) : dynamic (* node *) =
+    taking e from g.edges begin
+      follow (n, e)
+    end
+  )
+
+(* Edge creation. *)
+
+val link [info] (g: graph info, src: dynamic (* node *), dst: dynamic (* node *)) : () =
+  let e = Edge {
+    node1 = src;
+    node2 = dst;
+  } in
+  give e to g.edges;
+  taking src from g.nodes begin src.outgoing <- cons [dynamic] (e, src.outgoing) end;
+  taking dst from g.nodes begin dst.incoming <- cons [dynamic] (e, dst.incoming) end
+    (* WISH get rid of the type application *)
+
 (* Setting a node's successors. *)
 
 val set_successors [info] (g: graph info, src: dynamic (* node *), dsts: list dynamic (* node *)) : () =
@@ -63,12 +113,33 @@ val set_successors [info] (g: graph info, src: dynamic (* node *), dsts: list dy
     | Nil ->
         ()
     | Cons { head = dst; tail = dsts } ->
-        if true then
+        if taking dst from g.nodes begin dst.marked end then
 	  (* Skip this duplicate node. *)
 	  loop dsts
 	else begin
-          fail
+	  taking dst from g.nodes begin dst.marked <- True end;
+	  (* Create a link. *)
+	  link (g, src, dst);
+	  (* Continue. *)
+	  loop dsts;
+	  (* Clear the mark. *)
+	  taking dst from g.nodes begin dst.marked <- False end;
 	end
     end
   in
   loop dsts
+
+(* Removing a node's outgoing edges. *)
+
+val clear_successors [info] (g: graph info, n: node info) : () =
+  list::iter (n.outgoing, fun (e: dynamic | g @ graph info) : () =
+    (* The edges are marked as destroyed by taking them away from their adopter. *)
+    take e from g.edges
+  );
+  n.outgoing <- nil
+
+(*
+Local Variables:
+compile-command: "../mezzo fix.mz"
+End:
+*)
