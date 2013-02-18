@@ -154,6 +154,7 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
               import_flex_instanciations env sub_env
           | None -> env
         with UnboundPoint ->
+          Log.debug ~level:5 "[sub-annot FAILED]";
           env
         end
     | None ->

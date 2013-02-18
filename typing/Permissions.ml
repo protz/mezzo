@@ -441,8 +441,12 @@ and add_perm (env: env) (t: typ): env =
   match modulo_flex env t with
   | TyAnchoredPermission (p, t) ->
       if is_flexible env !!p then
-        raise UnboundPoint;
-      add env !!p t
+        if is_singleton env t then
+          add env !!p t
+        else
+          raise UnboundPoint
+      else
+        add env !!p t
   | TyStar (p, q) ->
       add_perm (add_perm env p) q
   | TyEmpty ->
@@ -988,7 +992,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         TypePrinter.ptype (env, fold_star vars2);
 
       (* Try to eliminate as much as we can... *)
-      let env, ps1, ps2 = Log.silent (fun () -> add_sub env ps1 ps2) in
+      let env, ps1, ps2 = add_sub env ps1 ps2 in
 
       Log.debug ~level:4 "[add_sub] ended up with ps1=%a, ps2=%a, vars1=%a, vars2=%a"
         TypePrinter.ptype (env, fold_star ps1)
