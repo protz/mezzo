@@ -719,6 +719,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("unqualified-datacon.mz", simple_test (KFail (function K.UnboundDataConstructor _ -> true | _ -> false)));
 
   ("improve-inference.mz", simple_test Pass);
+  ("improve-inference2.mz", simple_test Pass);
 
   ("cps-dereliction.mz", simple_test Pass);
 

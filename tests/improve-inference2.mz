@@ -1,0 +1,20 @@
+open atomic (* newlock, acquire, release *)
+open hashtable (* table, create, find, add *)
+
+(* The simple memoizing combinator. *)
+
+(* A lock is used to protect the hash table and to allow its use in a
+   duplicable object (the memoized function). Here, a sequential lock
+   (provided by the module [atomic]) is used, but in a multi-threaded
+   setting, a "real" concurrent lock should be used. *)
+
+val memoize
+  [a, b, s : perm]
+  duplicable a => duplicable b =>
+  (hash: a -> int, eq: (a, a) -> bool, f: (a | s) -> b)
+  : (a | s) -> b =
+
+  let t = create (11, hash, eq) in
+  let l: lock (t @ table a b) = newlock () in
+
+  fail

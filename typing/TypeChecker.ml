@@ -147,7 +147,7 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
     | Some annot ->
         Log.debug ~level:5 "[sub-annot]";
         begin try
-          let sub_env = Permissions.keep_only_duplicable env in
+          let sub_env = env in
           match Permissions.sub_type sub_env t2 annot with
           | Some sub_env ->
               Log.debug ~level:5 "[sub-annot SUCCEEDED]";

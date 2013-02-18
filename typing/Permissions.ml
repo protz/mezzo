@@ -441,15 +441,19 @@ and add_perm (env: env) (t: typ): env =
     TypePrinter.(Log.debug ~level:4 "[add_perm] %a" ptype (env, t));
 
   match modulo_flex env t with
-  | TyAnchoredPermission (p, t) ->
+  | TyAnchoredPermission (p, t) as perm ->
       if is_flexible env !!p then
         (* We should be able to handle adding [x* = y*] into the environment
          * when both are flexible. However, adding [x* @ τ] into the environment
          * is in general not possible. *)
         if is_singleton env t then
           add env !!p t
-        else
-          raise UnboundPoint
+        else begin
+          Log.debug ~level:1 "Notice: not adding permission %a because its \
+            left-hand side is flexible"
+            TypePrinter.ptype (env, perm);
+          env
+        end
       else
         add env !!p t
   | TyStar (p, q) ->
@@ -769,9 +773,6 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       List.fold_left2 (fun env t1 t2 ->
         env >>= fun env ->
         match t1, t2 with
-        | TySingleton (TyOpen p1), _ when is_flexible env p1 ->
-            (* The unfolding never, ever introduces flexible variables. *)
-            assert false
         | TySingleton (TyOpen p1), TySingleton (TyOpen p2) when is_flexible env p2 ->
             (* This is a fast-path that creates less debug output and makes
              * things easier to understand when reading traces. *)
@@ -804,8 +805,6 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
            * comments and detailed explanations as to why these rules are
            * correct. *)
           match t1, t2 with
-          | TySingleton (TyOpen p1), _ when is_flexible env p1 ->
-              assert false
           | TySingleton (TyOpen p1), TySingleton (TyOpen p2) when is_flexible env p2 ->
               merge_left env p1 p2
           | TySingleton (TyOpen p1), _ ->
