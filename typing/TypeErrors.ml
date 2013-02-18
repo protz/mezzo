@@ -291,7 +291,7 @@ let print_error buf (env, raw_error) =
       begin match fold_var env var with
       | Some t ->
           Printf.bprintf buf
-            "%a %a has type:\n%aThere is no field named %a"
+            "%a %a has type:\n%a\nThere is no field named %a"
             Lexer.p (location env)
             pname (env, var)
             ptype (env, t)

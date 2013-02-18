@@ -498,7 +498,7 @@ val sort [a, p : perm] duplicable a => (
     bottom: (int | p * r @ array a) -> ()
     | p * r @ array a
   ) : () =
-    maxson (* [b = (| p * r @ array a)] *) (l, i, bottom, fun (j: int | p * r @ array a) : () =
+    maxson [b = (| p * r @ array a)] (l, i, bottom, fun (j: int | p * r @ array a) : () =
       (* [j] is the maximum son of [i]. If the element [e] is ? than the
 	 element found at [j], then send it down, otherwise write [e] into
 	 node [i]. *)
@@ -533,7 +533,7 @@ val sort [a, p : perm] duplicable a => (
     l: int, i: int
     | p * r @ array a
   ) : int =
-    maxson (* [b = (int | p * r @ array a)] *) (l, i, identity, fun (j: int | p * r @ array a) : int =
+    maxson [b = (int | p * r @ array a)] (l, i, identity, fun (j: int | p * r @ array a) : int =
       set (r, i, get (r, j));
       bubbledown (l, j)
     )

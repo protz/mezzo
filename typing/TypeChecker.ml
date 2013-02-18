@@ -179,8 +179,6 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
             raise_error env (UnsatisfiableConstraint constraints)
       in
       (* Return the "good" type. *)
-      let t2, perms = Permissions.collect t2 in
-      let env = List.fold_left Permissions.add_perm env perms in
       env, t2
   | None ->
       raise_error env (ExpectedType (t1, x))
@@ -516,23 +514,6 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
 
   | EFun (vars, arg, return_type, body) ->
-      (* TODO we should have a separate pass that performs optimizations on a
-       * [Expressions.expression] tree with a [Types.env] environment. Right
-       * now, there's no such thing, so I'm putting this optimization here as
-       * a temporary measure.
-       *
-       * Actually it would be hard to un-entangle the two phases, because
-       * [check_bindings] needs to put in the environment the simplified version
-       * of the type for recursive functions... *)
-      let vars, arg, return_type, body =
-        TypeOps.prepare_function_def env vars arg return_type body
-      in
-      let expr = EFun (vars, arg, return_type, body) in
-      Log.debug ~level:4 "Type-checking function body, desugared type %a \
-        desugared body %a"
-        TypePrinter.ptype (env, type_for_function_def expr) 
-        ExprPrinter.pexpr (env, body);
-
       (* We can't create a closure over exclusive variables. Create a stripped
        * environment with only the duplicable parts. *)
       let sub_env = Permissions.keep_only_duplicable env in
@@ -544,12 +525,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let return_type = subst_type return_type in
       let body = subst_expr body in
 
-      (* Collect all the permissions that the arguments bring into scope, add
-       * them into the environment for checking the function body. *)
-      let t_noconstraints, constraints = Permissions.collect_constraints arg in
-      let _, perms = Permissions.collect t_noconstraints in
-      let sub_env = Permissions.add_constraints sub_env constraints in
-      let sub_env = List.fold_left Permissions.add_perm sub_env perms in
+      (* This is actually pretty simple! We just bind an anonymous name for the
+       * argument, give it the right type, and everything happens automatically.
+       * *)
+      let sub_env, x_arg = bind_rigid sub_env (fresh_auto_var "arg", KTerm, location sub_env) in
+      let sub_env = Permissions.add sub_env x_arg arg in
 
       (* Type-check the function body. *)
       let sub_env, p = check_expression sub_env ~annot:return_type body in

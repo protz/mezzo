@@ -182,6 +182,12 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("value_restriction.mz",
     simple_test (Fail (function NoSuchField _ -> true | _ -> false)));
+  ("value_restriction2.mz",
+    simple_test Pass);
+  ("value_restriction3.mz",
+    simple_test (Fail (function _ -> true)));
+  ("value_restriction4.mz",
+    simple_test (Fail (function _ -> true)));
 
   ("variance.mz", fun do_it ->
     let env = do_it () in

@@ -6,6 +6,7 @@ setlocal efm=
       \%ECalled\ from\ file\ \"%f\"\\,\ line\ %l\\,\ characters\ %c-%*\\d,
       \%EFile\ \"%f\"\\,\ line\ %l\\,\ characters\ %c-%*\\d:,
       \%EFile\ \"%f\"\\,\ line\ %l\\,\ character\ %c:%m,
+      \%EFile\ \"%f\"\\,\ line\ %l\\,\ char\ %c\ to\ line\ %*\\d\\,\ char\ %*\\d:,
       \%+EReference\ to\ unbound\ regexp\ name\ %m,
       \%Eocamlyacc:\ e\ -\ line\ %l\ of\ \"%f\"\\,\ %m,
       \%Wocamlyacc:\ w\ -\ %m,

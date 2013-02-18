@@ -1,0 +1,8 @@
+open list
+
+val r : [a] ref (list a) = newref nil
+
+(* BUG? it seems to me that this code should be rejected,
+   but perhaps I am wrong. (Actually, it could be accepted
+   if we use the relaxed value restriction!?) *)
+

@@ -89,10 +89,6 @@ let check
          * [t]. *)
         let t = TransSurface.translate_type tsenv t in
 
-        (* We must apply the same set of transformations to function types as we
-         * do for function bodies, otherwise the types won't match. *)
-        let t, _ = TypeOps.prepare_function_type env t None in
-
         (* Now check that the point in the implementation's environment actually
          * has the same type as the one in the interface. *)
         let point = point_by_name x in
