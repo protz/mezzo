@@ -318,6 +318,8 @@ let rec unify (env: env) (p1: var) (p2: var): env =
     env
   else if is_flexible env p2 then
     instantiate_flexible env p2 (TyOpen p1)
+  else if is_flexible env p1 then
+    instantiate_flexible env p1 (TyOpen p2)
   else
    (* We need to first merge the environment, otherwise this will go into an
      * infinite loop when hitting the TySingletons... *)
