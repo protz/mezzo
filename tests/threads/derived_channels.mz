@@ -4,7 +4,7 @@ open queue
 (* Deriving channels using locks and queues. *)
 
 (* A channel is a pair of a queue [q] and a lock that protects the
-   exlucive permission on [q]. *)
+   exclusive permission on [q]. *)
 
 data channel a =
   Channel { channel: (q: unknown, lock (q @ fifo a)) }
@@ -13,7 +13,7 @@ data channel a =
 
 val newchannel [a] (): channel a =
   let q = queue::create () in
-  let l : lock (q @ fifo a) = newlock () in
+  let l : lock (q @ fifo a) = new () in
   Channel { channel = (q, l) }
 
 (* Send. *)
@@ -47,7 +47,7 @@ data channel a =
 (*
 val newchannel [a] (): channel a =
   let q = queue::create [a] () in
-  let l = locks::newlock [(q @ fifo a)] () in
+  let l = locks::new [(q @ fifo a)] () in
   Channel { queue = q; lock = l }
 *)
 

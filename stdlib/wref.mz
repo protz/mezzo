@@ -12,7 +12,7 @@ data wref a =
 
 val new [a] (consumes x: a) : wref a =
   let r = newref x in
-  let l : lock (r @ ref a) = newlock () in
+  let l : lock (r @ ref a) = new () in
   WRef { contents = (r, l) }
 
 (* Atomic swap. *)

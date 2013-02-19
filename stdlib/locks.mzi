@@ -1,11 +1,34 @@
+(* A lock protects a permission [p], which usually is not duplicable.
+   The lock itself is duplicable, so multiple threads may simultaneously
+   attempt to acquire it. *)
+
 abstract lock (p: perm)
 fact duplicable (lock p)
 
+(* The permission [held l], where [l] is a lock, is a witness that the
+   lock [l] is held. This permission is not duplicable. This allows
+   the type system to prevent calling [release l] unless the lock [l]
+   is held. *)
+
 abstract held (l: term): perm
-fact exclusive (held l)
 
-val newlock: [p: perm] ( | consumes p) -> lock p
+(* Creation. *)
 
-val acquire: [p: perm] (l: lock p) -> ( | p * held l)
+(* The invariant [p] is fixed at creation time. *)
+
+(* When the lock is created, it is available; for this reason, [new]
+   consumes the permission [p]. One could offer a variant of [new]
+   where the lock is initially held; this variant would not require
+   [p], and would produce [held l]. *)
+
+val new: [p: perm] (| consumes p) -> lock p
+
+(* Acquisition. *)
+
+val acquire:     [p: perm] (l: lock p) -> (| p * held l)
+val try_acquire: [p: perm] (l: lock p) -> rich_bool (p * held l) empty
+
+(* Release. *)
 
 val release: [p: perm] (l: lock p | consumes (p * held l)) -> ()
+
