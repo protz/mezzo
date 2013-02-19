@@ -1,0 +1,1 @@
+val x : (i: int, j: int) = (2, 3)

@@ -1,0 +1,3 @@
+val x () : (r: ref (=x), x: int) =
+  let k = 3 in
+  newref [=k] k, k

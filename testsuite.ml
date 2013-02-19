@@ -756,6 +756,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("sub_constraints_nonpoint_type.mz", simple_test Pass);
   ("merge-tyapp-with-two-subs.mz", simple_test Pass);
 
+  ("exist00.mz", simple_test Pass);
+  ("exist01.mz", simple_test Pass);
+  ("exist03.mz", simple_test Pass);
+  ("exist04.mz", simple_test Pass);
+  ("exist05.mz", simple_test Pass);
+  ("exist06.mz", simple_test Pass);
+
 ];;
 
 let mz_files_in_directory (dir : string) : string list =

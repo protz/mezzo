@@ -1,0 +1,11 @@
+(* val x () : (i: int, j: =i) = (2, 2) *)
+(* This example shows that, by assigning type "int" to the constant
+   2, we lose information. I am not sure what to do about it,
+   though. In an extension of Mezzo with arithmetic formulae,
+   perhaps 2 could/should have type (x: int | x = 2). Below is a
+   workaround where the programmer suggests
+   that he wishes to keep track of the equality. *)
+
+val x () : (i: int, j: =i) =
+  let k = 2 in
+  (k, k)

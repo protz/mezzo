@@ -1,0 +1,11 @@
+val foo () : (f: =x -> int, x: int) =
+  let k = 3 in
+  let f (y: =k) : int =
+    y + 1
+  in
+  f, k
+
+val g : int =
+  let f, x = foo() in
+  f x
+
