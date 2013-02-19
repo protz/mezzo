@@ -3,6 +3,6 @@ fact duplicable (channel a)
 
 val newchannel: [a] () -> channel a
 
-val send: [a] (channel a, consume a) -> ()
+val send: [a] (channel a, consumes a) -> ()
 
 val receive: [a] (channel a) -> a

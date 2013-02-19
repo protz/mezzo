@@ -10,12 +10,9 @@ val newwref: [a] (consumes x: a) -> wref a
 val swap: [a] (r: wref a, consumes x: a) -> a
 
 (* Get. *)
-(* BUG? The comparison between .mz and .mzi fails for [get]. *)
-(*
 val get: [a] duplicable a => wref a -> a
-*)
-(* Set. *)
 
+(* Set. *)
 val set: [a] (r: wref a, consumes newx: a) -> ()
 
 (* Update can be viewed as a version of [swap] where the
