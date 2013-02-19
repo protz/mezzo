@@ -3,7 +3,7 @@ fact duplicable (wref a)
 
 (* Allocation. *)
 
-val newref: [a] (consumes x: a) -> wref a 
+val newwref: [a] (consumes x: a) -> wref a 
 
 (* Atomic swap. *)
 
@@ -17,4 +17,11 @@ val get: [a] duplicable a => wref a -> a
 (* Set. *)
 
 val set: [a] (r: wref a, consumes newx: a) -> ()
+
+(* Update can be viewed as a version of [swap] where the
+   new value can be computed in terms of the previous value.
+   The lock remains taken while the computation is in progress,
+   so this must be used with care. *)
+
+val update: [a, b, p : perm] (r: wref a, f: (consumes a | p) -> (a, b) | p) -> b
 

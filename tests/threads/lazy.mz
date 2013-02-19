@@ -1,0 +1,32 @@
+open wref
+
+data state a =
+  | Evaluated { result: a }
+  | Suspended { computation: {p: perm} ((|consumes p) -> a | p) }
+
+data thunk a =
+  | Thunk { thunk: wref (state a) }
+(* TEMPORARY we need a type abbreviation here! *)
+
+(* Creation. *)
+
+val create [a, p : perm] (
+  f: (|consumes p) -> a
+| consumes p
+) : thunk a =
+  let s : state a = Suspended { computation = f } in
+  Thunk { thunk = newwref [state a] s }
+
+(* Evaluation. *)
+
+val force [a] duplicable a => (t: thunk a) : a =
+  update (t.thunk, fun (consumes s: state a) : (state a, a) =
+    match s with
+    | Evaluated ->
+        s, s.result
+    | Suspended ->
+        let result : a = s.computation() in
+	Evaluated { result = result }, result
+    end
+  )
+

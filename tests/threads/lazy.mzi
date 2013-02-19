@@ -1,0 +1,12 @@
+
+abstract thunk a
+fact duplicable (thunk a)
+
+val create: [a, p: perm] (
+  f: (| consumes p) -> a
+| consumes p
+) -> thunk a
+      
+val force: [a] duplicable a => thunk a -> a
+
+

@@ -8,7 +8,7 @@ data wref a =
 
 (* Allocation. *)
 
-val newref [a] (consumes x: a) : wref a =
+val newwref [a] (consumes x: a) : wref a =
   let r = newref x in
   let l : lock (r @ ref a) = newlock () in
   WRef { contents = (r, l) }
@@ -39,4 +39,14 @@ val set [a] (r: wref a, consumes newx: a) : () =
   acquire l;
   r.contents <- newx;
   release l
+
+(* Update. *)
+
+val update [a, b, p : perm] (r: wref a, f: (consumes a | p) -> (a, b) | p) : b =
+  let r, l = r.contents in
+  acquire l;
+  let new_content, result = f r.contents in
+  r.contents <- new_content;
+  release l;
+  result
 
