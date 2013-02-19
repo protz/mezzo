@@ -763,7 +763,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("exist05.mz", simple_test Pass);
   ("exist06.mz", simple_test Pass);
   ("exist07.mz", simple_test Pass);
-  ("exist08.mz", simple_test ~known_failure:() Pass);
+  ("exist08.mz", simple_test Pass);
   ("exist09.mz", simple_test Pass);
 
 ];;

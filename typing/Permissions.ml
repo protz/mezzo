@@ -354,14 +354,8 @@ and add (env: env) (var: var) (t: typ): env =
 
   | TyExists (binding, t) ->
       Log.debug ~level:4 "%s]%s (exists)" Bash.colors.Bash.red Bash.colors.Bash.default;
-      begin match binding with
-      | _, KTerm, _ ->
-          let env, t, _ = bind_rigid_in_type env binding t in
-          add env var t
-      | _ ->
-          Log.error "I don't know how to deal with an existentially-quantified \
-            type or permission";
-      end
+      let env, t, _ = bind_rigid_in_type env binding t in
+      add env var t
 
   | TyAnd (constraints, t) ->
       Log.debug ~level:4 "%s]%s (and-constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
