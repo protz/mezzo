@@ -156,6 +156,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     check env foo int;
     check env bar int);
 
+  ("atomic.mz",
+    simple_test Pass);
+
   ("wrong_type_annotation.mz",
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
 
