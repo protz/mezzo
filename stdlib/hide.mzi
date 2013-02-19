@@ -1,0 +1,9 @@
+(* If [f] has type [(a | s) -> b], which means that [f] modifies
+   the state [s], then [hide f] has type [a -> b], which advertises
+   no side effect. The internal state is protected by an internal
+   lock, and becomes (forever) hidden. *)
+
+val hide : [a, b, s : perm] (
+  f : (a | s) -> b
+| consumes s
+) -> (a -> b)

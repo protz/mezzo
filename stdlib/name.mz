@@ -12,7 +12,7 @@ val new_generator [a] () : a -> int =
   in
 
   (* We hide its internal state. *)
-  atomic::hide fresh
+  hide::hide fresh
 
 (* Clerks. *)
 
