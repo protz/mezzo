@@ -32,7 +32,7 @@ val rec receive [a] (c: channel a): a =
   acquire l;
   match retrieve q with
   | None ->
-    release l; receive [a] c
+    release l; receive c
   | Some { contents = x } ->
     release l; x
   end 
