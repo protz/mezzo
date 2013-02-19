@@ -85,6 +85,20 @@ val push [k, a] (
       entry
   )
 
+(* [push_bucket t (_, b)] inserts the whole bucket [b] (that is, a list of
+   entries), which contain valid key-value pairs, into the table [t]. For
+   convenience, this function is curried. *)
+
+(* TEMPORARY a more lightweight/intuitive syntax for currying would be welcome! *)
+
+val push_bucket [k, a]
+  (t: unknown) :
+  (int, consumes bucket k a | t @ table k a) -> () =
+  fun (_: int, consumes b: bucket k a | t @ table k a) : () =
+    iter_bucket_down (b, fun (consumes entry: BCons { key: k; value: a; tail: unknown } | t @ table k a) : () =
+      push (t, entry)
+    )
+
 (* [resize] doubles the size of the hash table. A new buckets array is allocated.
    The existing entries are re-used: they are not re-allocated. *)
 
@@ -98,15 +112,31 @@ val resize [k, a] (t: table k a) : () =
     (* The array [old_buckets] is consumed by the following loop. This allows
        us to grab the entries that we find in it and move them (without copy)
        to the new array [t.buckets]. *)
-    array::transform (Up, old_buckets, fun (old_index: int, consumes b : bucket k a | t @ table k a) : () =
-      iter_bucket_down (b, fun (consumes b: BCons { key: k; value: a; tail: unknown } | t @ table k a) : () =
-	push (t, b)
-      )
-    )
+    array::transform (Up, old_buckets, push_bucket t)
   end
 
-(* TEMPORARY add an operation that fuses two hash tables (i.e. destructively
-   merges one into the other). It would look a lot like resize (twice). *)
+(* -------------------------------------------------------------------------- *)
+
+(* Merging one table into another. *)
+
+val merge [k, a] (consumes t1: table k a, t2: table k a) : () =
+  (* Update the cardinal of [t2]. *)
+  t2.cardinal <- t2.cardinal + t1.cardinal;
+  (* Add the entries of [t1] are added into [t2], without any memory
+     allocation. *)
+  array::transform (Up, t1.buckets, push_bucket t2);
+  (* Now, [t2] may need to be resized, possibly multiple times. It
+     would be preferable to resize [t2] just once, and to do it up
+     front, before transferring [t1] into [t2]. TEMPORARY *)
+  let rec loop (| t2 @ table k a) : () =
+    if t2.cardinal > 2 * array::length t2.buckets then begin
+      resize t2;
+      loop()
+    end
+  in
+  loop()
+
+(* TEMPORARY we could return a permission for t1 as an empty table. *)
 
 (* -------------------------------------------------------------------------- *)
 

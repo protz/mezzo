@@ -26,6 +26,16 @@ val add : [k, a] (consumes k, consumes a, table k a) -> ()
 
 (* -------------------------------------------------------------------------- *)
 
+(* Merging. *)
+
+(* [merge (t1, t2)] does not require the two tables to use the same notions
+   of equality of hashing. It is equivalent to successively inserting each
+   element of [t1] into [t2]. *)
+
+val merge: [k, a] (consumes table k a, table k a) -> ()
+
+(* -------------------------------------------------------------------------- *)
+
 (* Removal. *)
 
 val remove : [k, a] (x: k, t: table k a) -> option a
