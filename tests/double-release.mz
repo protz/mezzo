@@ -1,0 +1,6 @@
+open locks
+
+val f (l: lock empty | held l) : () =
+  release l;
+  release l
+
