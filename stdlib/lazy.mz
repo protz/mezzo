@@ -1,12 +1,31 @@
 open wref
 
+(* A suspension is either evaluated already or still suspended.
+   In the former case, it contains just a result, of type [a].
+   In the latter case, it contains the function [f] that was
+   passed to [create], together with the permission [p] that
+   [f] needs. This permission is existentially quantified. In
+   other words, [f] is a one-shot function. *)
+
 data state a =
   | Evaluated { result: a }
   | Suspended { computation: {p: perm} ((|consumes p) -> a | p) }
 
+(* The state of a suspension is stored in a weak reference. The
+   lock (which is part of the weak reference) ensures that the
+   state of the suspension remains consistent even in the face
+   of concurrent accesses. It also allows us to implement waiting
+   until a result becomes available. *)
+
 data thunk a =
   | Thunk { thunk: wref (state a) }
+
 (* TEMPORARY we need a type abbreviation here! *)
+
+(* TEMPORARY if we had surface syntax for TyAnd, we could build the
+   constraint "duplicable a" into the definition of [thunk a], so
+   that the requirement "duplicable a =>" would appear in the type
+   of [create], instead of appearing in the type of [force]. *)
 
 (* Creation. *)
 
@@ -18,6 +37,11 @@ val create [a, p : perm] (
   Thunk { thunk = new [state a] s }
 
 (* Evaluation. *)
+
+(* Using [wref::update] means that we hold the lock while the call to
+   [s.computation] is in progress. As a result, if two calls to [force]
+   occur concurrently, the second call will block until the first call
+   is finished and has produced a result. This is the desired behavior. *)
 
 val force [a] duplicable a => (t: thunk a) : a =
   update (t.thunk, fun (consumes s: state a) : (state a, a) =

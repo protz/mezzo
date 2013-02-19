@@ -1,12 +1,27 @@
+(* A suspension, or thunk, is a delayed computation. A thunk is duplicable:
+   multiple threads may request its result. The type system guarantees that
+   the delayed computation is performed at most once. *)
 
 abstract thunk a
 fact duplicable (thunk a)
+
+(* Creation. *)
+
+(* The delayed computation, represented by the function [f], may need a
+   permission [p] in order to run. This permission must be passed to
+   [create] when the thunk is created. Because [f] consumes [p] and
+   [create] is given only one copy of [p], we know that [f] will be
+   invoked at most once. In other words, [f] is a one-shot function. *)
 
 val create: [a, p: perm] (
   f: (| consumes p) -> a
 | consumes p
 ) -> thunk a
-      
-val force: [a] duplicable a => thunk a -> a
 
+(* Demand. *)
+
+(* Because a thunk can be forced several times, the type [a] must be
+   duplicable. *)
+
+val force: [a] duplicable a => thunk a -> a
 
