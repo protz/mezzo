@@ -1,6 +1,6 @@
 (* This module could be useful in a sequential setting. In a
    concurrent setting, though, it is superseded by the modules
-   [locks] and [wref] in the standard library. *)
+   [lock] and [wref] in the standard library. *)
 
 (* A type of duplicable references with arbitrary (hence, possibly
    non-duplicable) content. *)

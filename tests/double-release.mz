@@ -1,4 +1,4 @@
-open locks
+open lock
 
 val f (l: lock empty | held l) : () =
   release l;

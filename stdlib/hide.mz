@@ -1,4 +1,4 @@
-open locks
+open lock
 
 (* A function's internal state can be hidden using a lock. *)
 

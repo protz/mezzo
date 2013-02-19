@@ -1,4 +1,4 @@
-open locks
+open lock
 
 (* A weak reference is a pair of a strong reference [r] and a lock
    that protects the permission [r @ ref a]. *)

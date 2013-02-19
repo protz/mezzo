@@ -1,4 +1,4 @@
-open locks
+open lock
 open queue
 
 (* Deriving channels using locks and queues. *)
@@ -47,7 +47,7 @@ data channel a =
 (*
 val newchannel [a] (): channel a =
   let q = queue::create [a] () in
-  let l = locks::new [(q @ fifo a)] () in
+  let l = lock::new [(q @ fifo a)] () in
   Channel { queue = q; lock = l }
 *)
 

@@ -1,4 +1,4 @@
-open locks
+open lock
 
 (* A condition variable is associated with a lock [l]. It is
    duplicable: multiple threads may simultaneously attempt to
