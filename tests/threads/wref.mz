@@ -1,0 +1,42 @@
+open locks
+
+(* The type I wish: a pointer to the contents of the thunk, and a lock
+   that protects the exclusive permission to this contents. *)
+
+data wref a =
+  WRef { contents: (r: unknown, lock (r @ ref a)) }
+
+(* Allocation. *)
+
+val newref [a] (consumes x: a) : wref a =
+  let r = newref x in
+  let l : lock (r @ ref a) = newlock () in
+  WRef { contents = (r, l) }
+
+(* Atomic swap. *)
+
+val swap [a] (r: wref a, consumes x: a) : a =
+  let r, l = r.contents in
+  acquire l;
+  let oldx = r.contents in
+  r.contents <- x;
+  release l;
+  oldx
+
+(* Get. *)
+
+val get [a] duplicable a => (r: wref a) : a =
+  let r, l = r.contents in
+  acquire l;
+  let oldx = r.contents in
+  release l;
+  oldx
+
+(* Set. *)
+
+val set [a] (r: wref a, consumes newx: a) : () =
+  let r, l = r.contents in
+  acquire l;
+  r.contents <- newx;
+  release l
+
