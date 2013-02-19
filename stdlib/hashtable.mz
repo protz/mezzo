@@ -33,6 +33,8 @@ mutable data table k a =
    that reads [t.buckets] *before* invoking [key_index] and uses this value
    *after* invoking [key_index] would be ill-typed. *)
 
+(* TEMPORARY a "const" permission would be useful here *)
+
 val key_index [k, a, buckets : term] (
   t: Table { cardinal: int; buckets = buckets; hash: k -> int; equal: (k, k) -> bool },
   x: k
@@ -70,7 +72,7 @@ val resize [k, a] (t: table k a) : () =
        to the new array [t.buckets]. *)
     array::transform (Up, old_buckets, fun (old_index: int, consumes b : bucket k a | t @ table k a) : () =
       iter_bucket_down (b, fun (consumes b: BCons { key: k; value: a; tail: unknown } | t @ table k a) : () =
-	push (t.buckets, key_index [k, a] (t, b.key), b)
+	push (t.buckets, key_index (t, b.key), b)
       )
     )
   end
@@ -122,7 +124,7 @@ val reset [k, a] (t: table k a, capacity: int) : () =
 (* Insertion. *)
 
 val add [k, a] (consumes x: k, consumes v: a, t: table k a) : () =
-  push (t.buckets, key_index [k, a] (t, x), BCons { key = x; value = v; tail = () });
+  push (t.buckets, key_index (t, x), BCons { key = x; value = v; tail = () });
   t.cardinal <- t.cardinal + 1;
   if t.cardinal > 2 * array::length t.buckets then
     resize t
@@ -163,7 +165,7 @@ val remove [k, a] (x: k, t: table k a) : option a =
   (* Apply [remove] at the desired array index. *)
   array::update
     [post = (x @ k * r @ ref (option a))] (* WISH get rid of this *)
-    (t.buckets, key_index [k, a] (t, x), remove);
+    (t.buckets, key_index (t, x), remove);
 
   (* If the desired entry has been found and removed, update the table's
      cardinal. Then, return the value that was removed. *)
@@ -182,7 +184,7 @@ val mem [k, a] (x: k, t: table k a) : bool =
   array::consult
     [b = (bool | x @ k)]
     (* WISH could we get rid of this type application? *)
-    (t.buckets, key_index [k, a] (t, x), fun (b: bucket k a | x @ k) : bool =
+    (t.buckets, key_index (t, x), fun (b: bucket k a | x @ k) : bool =
       bucket::mem (equal, x, b)
     )
 
@@ -198,7 +200,7 @@ val internal_find [k, a, answer] duplicable a => (
      duplicable. *)
   array::consult
     [pre = (x @ k), b = (answer | x @ k)] (* WISH get rid of this *)
-    (t.buckets, key_index [k, a] (t, x), f)
+    (t.buckets, key_index (t, x), f)
 
 (* By instantiating [f] with a function that stops at the first match,
    we obtain [find]. *)
