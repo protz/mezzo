@@ -158,6 +158,12 @@ let perm_not_flex env t =
         TypePrinter.ptype (env, t)
 ;;
 
+(** Wraps [p] in a bar so that we send this operation into the awesome
+ * [add_sub] pipeline. *)
+let wrap_bar_perm p =
+  TyBar (TyUnknown, p)
+;;
+
 (** Wraps "t1" into "∃x.(=x|x@t1)". This is really useful because if this is
  * meant to be added afterwards, then [t1] will be added in expanded form with a
  * free call to [unfold]! *)
@@ -681,10 +687,15 @@ and sub_constraints env constraints =
  * parameters, but for that, unfolding first is a good idea. This is one of the
  * two "sub" entry points that this module exports. *)
 and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): env option =
-  (* We basically turn both [t1] and [t2] into "∃x.(=x | x @ t1)" which will
-   * perform the right dance, including unfolding, thanks to our excellent
-   * [add_sub] algorithm (self-pat on the back). *)
-  sub_type env (wrap_bar t1) (wrap_bar t2)
+  let k, _ = flatten_kind (get_kind_for_type env t1) in
+  match k with
+  | KPerm ->
+      sub_type env (wrap_bar_perm t1) (wrap_bar_perm t2)
+  | _ ->
+      (* We basically turn both [t1] and [t2] into "∃x.(=x | x @ t1)" which will
+       * perform the right dance, including unfolding, thanks to our excellent
+       * [add_sub] algorithm (self-pat on the back). *)
+      sub_type env (wrap_bar t1) (wrap_bar t2)
 
 
 (** [sub_type env t1 t2] examines [t1] and, if [t1] "provides" [t2], returns
@@ -970,78 +981,89 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
                 env, ps1, ps2
       in
 
-      (* Our new strategy for inferring PERM variables is as follows. We first
-       * put the PERM variables aside, perform the add/sub dance, and see what's
-       * left. If either side is made up of just one flexible PERM variable,
-       * then bingo, we win.
-       *
-       * FIXME: this works very well when the flexible variable is in [vars1]; when
-       * it is in [vars2], chances are, we've added everything from [ps1] into
-       * the environment, so we don't know what's left for us to instanciate
-       * [ps2] with... first try a syntactic criterion? Only add permissions in
-       * [ps1] if they “unlock” something in [ps2]? I don't know... *)
-      let vars1, ps1 = List.partition (function TyOpen _ -> true | _ -> false) ps1 in
-      let vars2, ps2 = List.partition (function TyOpen _ -> true | _ -> false) ps2 in
-
-      Log.debug ~level:4 "[add_sub] starting with ps1=%a, ps2=%a, vars1=%a, vars2=%a"
-        TypePrinter.ptype (env, fold_star ps1)
-        TypePrinter.ptype (env, fold_star ps2)
-        TypePrinter.ptype (env, fold_star vars1)
-        TypePrinter.ptype (env, fold_star vars2);
-
-      (* Try to eliminate as much as we can... *)
-      let env, ps1, ps2 = add_sub env ps1 ps2 in
-
-      Log.debug ~level:4 "[add_sub] ended up with ps1=%a, ps2=%a, vars1=%a, vars2=%a"
-        TypePrinter.ptype (env, fold_star ps1)
-        TypePrinter.ptype (env, fold_star ps2)
-        TypePrinter.ptype (env, fold_star vars1)
-        TypePrinter.ptype (env, fold_star vars2);
-
-      (* And then try to be smart with whatever remains. *)
-      begin match vars1 @ ps1, vars2 @ ps2 with
-      | [TyOpen var1 as t1], [TyOpen var2 as t2] ->
-          (* Beware! We're doing our own one-on-one matching of permission
-           * variables, but still, we need to keep [var1] if it happens to be a
-           * duplicable one! So we add it here, and [sub_floating_perm] will
-           * remove it or not, depending on the associated fact. *)
-          let env = add_floating_perm env t1 in
-          begin match is_flexible env var1, is_flexible env var2 with
-          | true, false ->
-              merge_left env var2 var1
-          | false, true ->
-              merge_left env var1 var2
-          | true, true ->
-              merge_left env var1 var2
-          | false, false ->
-              if same env var1 var2 then
-                Some env
-              else
-                None
-          end >>= fun env ->
-          sub_floating_perm env t2
+      (* If the rhs is made up of only a single variable, it's a good idea to
+       * instantiate it to [ps1] right now. *)
+      begin match ps1, ps2 with
       | ps1, [TyOpen var2] when is_flexible env var2 ->
           instantiate_flexible env var2 (fold_star ps1)
-      | [TyOpen var1], [TyEmpty] when is_flexible env var1 ->
-          (* Any instantiation of [var1] would be fine, actually, so don't
-           * commit to [TyEmpty]! *)
-          Some env
-      | [TyOpen var1], ps2 when is_flexible env var1 ->
-          (* We could actually instantiate [var1] to something bigger, e.g. the
-           * whole universe + [ps2]. Not sure that's a good idea computationally
-           * speaking but that would certainly make some more examples work (I
-           * guess?)... *)
-          instantiate_flexible env var1 (fold_star ps2)
-      | ps1, [] ->
-          (* We may have a remaining, rigid, floating permission. Good for us! *)
-          Some (add_perm env (fold_star ps1))
-      | [], ps2 ->
-          (* This is useful if [ps2] is a rigid floating permission, alone, that
-           * also happens to be present in our environment. *)
-          sub_perms env ps2
-      | _, _ ->
-          Log.debug ~level:4 "[add_sub] FAILED";
-          None
+      | _ ->
+
+        (* Our new strategy for inferring PERM variables is as follows. We first
+         * put the PERM variables aside, perform the add/sub dance, and see what's
+         * left. If either side is made up of just one flexible PERM variable,
+         * then bingo, we win.
+         *
+         * FIXME: this works very well when the flexible variable is in [vars1]; when
+         * it is in [vars2], chances are, we've added everything from [ps1] into
+         * the environment, so we don't know what's left for us to instanciate
+         * [ps2] with... first try a syntactic criterion? Only add permissions in
+         * [ps1] if they “unlock” something in [ps2]? I don't know...
+         *
+         * 20130219: the extra match right above us somehow mitigates this
+         * problem, but the paragraph above remains relevant. *)
+        let vars1, ps1 = List.partition (function TyOpen _ -> true | _ -> false) ps1 in
+        let vars2, ps2 = List.partition (function TyOpen _ -> true | _ -> false) ps2 in
+
+        Log.debug ~level:4 "[add_sub] starting with ps1=%a, ps2=%a, vars1=%a, vars2=%a"
+          TypePrinter.ptype (env, fold_star ps1)
+          TypePrinter.ptype (env, fold_star ps2)
+          TypePrinter.ptype (env, fold_star vars1)
+          TypePrinter.ptype (env, fold_star vars2);
+
+        (* Try to eliminate as much as we can... *)
+        let env, ps1, ps2 = add_sub env ps1 ps2 in
+
+        Log.debug ~level:4 "[add_sub] ended up with ps1=%a, ps2=%a, vars1=%a, vars2=%a"
+          TypePrinter.ptype (env, fold_star ps1)
+          TypePrinter.ptype (env, fold_star ps2)
+          TypePrinter.ptype (env, fold_star vars1)
+          TypePrinter.ptype (env, fold_star vars2);
+
+        (* And then try to be smart with whatever remains. *)
+        begin match vars1 @ ps1, vars2 @ ps2 with
+        | [TyOpen var1 as t1], [TyOpen var2 as t2] ->
+            (* Beware! We're doing our own one-on-one matching of permission
+             * variables, but still, we need to keep [var1] if it happens to be a
+             * duplicable one! So we add it here, and [sub_floating_perm] will
+             * remove it or not, depending on the associated fact. *)
+            let env = add_floating_perm env t1 in
+            begin match is_flexible env var1, is_flexible env var2 with
+            | true, false ->
+                merge_left env var2 var1
+            | false, true ->
+                merge_left env var1 var2
+            | true, true ->
+                merge_left env var1 var2
+            | false, false ->
+                if same env var1 var2 then
+                  Some env
+                else
+                  None
+            end >>= fun env ->
+            sub_floating_perm env t2
+        | ps1, [TyOpen var2] when is_flexible env var2 ->
+            instantiate_flexible env var2 (fold_star ps1)
+        | [TyOpen var1], [TyEmpty] when is_flexible env var1 ->
+            (* Any instantiation of [var1] would be fine, actually, so don't
+             * commit to [TyEmpty]! *)
+            Some env
+        | [TyOpen var1], ps2 when is_flexible env var1 ->
+            (* We could actually instantiate [var1] to something bigger, e.g. the
+             * whole universe + [ps2]. Not sure that's a good idea computationally
+             * speaking but that would certainly make some more examples work (I
+             * guess?)... *)
+            instantiate_flexible env var1 (fold_star ps2)
+        | ps1, [] ->
+            (* We may have a remaining, rigid, floating permission. Good for us! *)
+            Some (add_perm env (fold_star ps1))
+        | [], ps2 ->
+            (* This is useful if [ps2] is a rigid floating permission, alone, that
+             * also happens to be present in our environment. *)
+            sub_perms env ps2
+        | _, _ ->
+            Log.debug ~level:4 "[add_sub] FAILED";
+            None
+        end
       end
 
   | TyBar _, t2 ->
