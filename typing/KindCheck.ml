@@ -730,9 +730,7 @@ and infer (env: env) (t: typ) =
 and check_field (env: env) (field: data_field_def) =
   match field with
   | FieldValue (_name, t) ->
-      let fragment = names env t in
-      let env = extend env fragment in
-      check env t KType
+      check_type_with_names env t KType
   | FieldPermission t ->
       (* I have removed the calls to [names] and [extend], because
 	 a permission component does not bind any names. -fpottier *)
@@ -787,7 +785,7 @@ let check_data_type_def (env: env) (def: data_type_def) =
       | None ->
           ()
       | Some t ->
-          check env t KType;
+          check_type_with_names env t KType;
           (* We can do that early. *)
           if flag <> Exclusive then
             raise_error env (AdopterNotExclusive name);
@@ -1001,7 +999,7 @@ let check_implementation (tenv: T.env) (program: implementation) =
         check_declaration_group env declaration_group;
 
     | PermDeclaration (x, t) ->
-        check env t KType;
+        check_type_with_names env t KType;
         let env = bind env (x, KTerm) in
         env
 

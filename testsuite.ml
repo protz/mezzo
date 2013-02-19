@@ -739,7 +739,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("vicious-cycle.mz", simple_test Pass);
 
-  ("named-tuple-components.mz", simple_test ~known_failure:() Pass);
+  ("named-tuple-components.mz", simple_test Pass);
 
   ("abstract-perm.mz", simple_test Pass);
 
@@ -762,8 +762,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("exist04.mz", simple_test Pass);
   ("exist05.mz", simple_test Pass);
   ("exist06.mz", simple_test Pass);
-  ("exist07.mz", simple_test ~known_failure:() Pass);
+  ("exist07.mz", simple_test Pass);
   ("exist08.mz", simple_test ~known_failure:() Pass);
+  ("exist09.mz", simple_test Pass);
 
 ];;
 

@@ -289,7 +289,7 @@ and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.
 and translate_fields: env -> data_field_def list -> T.data_field_def list = fun env fields ->
   let fields = List.map (function
     | FieldValue (name, t) ->
-        T.FieldValue (name, translate_type env t)
+        T.FieldValue (name, translate_type_with_names env t)
     | FieldPermission t ->
         T.FieldPermission (translate_type env t)
   ) fields in
@@ -430,7 +430,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
         | Duplicable -> T.Duplicable (Array.make arity false)
       in
       (* Translate the clause as well *)
-      let adopts_clause = Option.map (translate_type env) adopts_clause in
+      let adopts_clause = Option.map (translate_type_with_names env) adopts_clause in
       (* This is conservative but the variance inference will take care of
        * setting the right values for the variance of the parameters. *)
       let variance = Hml_List.make arity (fun _ -> T.Invariant) in
@@ -839,7 +839,7 @@ let translate_item env item =
       env, Some (E.ValueDeclarations decls)
   | PermDeclaration (x, t) ->
       check env t KType;
-      let t = translate_type env t in
+      let t = translate_type_with_names env t in
       let env = bind env (x, KTerm) in
       env, Some (E.PermDeclaration (x, t))
   | OpenDirective mname ->
