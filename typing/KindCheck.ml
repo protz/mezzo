@@ -695,7 +695,8 @@ and infer (env: env) (t: typ) =
       check env t2 KType;
       KType
 
-  | TyForall ((x, k, _), t) ->
+  | TyForall ((x, k, _), t)
+  | TyExists ((x, k, _), t) ->
       let env = bind env (x, k) in
       infer env t
 

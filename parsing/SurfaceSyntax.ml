@@ -145,6 +145,7 @@ type typ =
   | TyApp of typ * typ
   | TyArrow of typ * typ
   | TyForall of type_binding * typ
+  | TyExists of type_binding * typ
   | TyAnchoredPermission of typ * typ
   | TyStar of typ * typ
   | TyNameIntro of Variable.name * typ
@@ -392,7 +393,7 @@ let rec type_to_pattern (ty : typ) : pattern =
 	) [] fields in
       PConstruct (datacon, fps)
 
-   (* A name introduction gives rise to a variable pattern. *)
+  (* A name introduction gives rise to a variable pattern. *)
 
   | TyNameIntro (x, ty) ->
       PAs (type_to_pattern ty, x)
@@ -411,7 +412,19 @@ let rec type_to_pattern (ty : typ) : pattern =
 
   (* Stop at (do not go down into) the following constructs. *)
 
+  (* We could perhaps allow going down into [TyExists]. This would
+     make it possible to name the components of an existential
+     package. However, our convention that, in the absence of
+     [consumes], a permission that is requested is also returned,
+     raises a problem. If I request the permission [x @ t], inside
+     an existential package that quantifies [t], what am I promising
+     to return? I can't promise to return [x @ t] because [t] is not
+     bound in the return type. For this reason, it seems preferable,
+     at least for the moment, to adopt the convention that we do not
+     look for name introductions inside an existential quantifier. *)
+
   | TyForall _
+  | TyExists _
   | TyImply _
   | TyUnknown
   | TyArrow _ 

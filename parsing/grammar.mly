@@ -197,6 +197,12 @@ type_parameters:
 | LBRACKET bs = separated_or_terminated_list(COMMA, type_binding) RBRACKET
     { bs }
 
+(* Syntax for existential quantification. *)
+
+existential_quantifiers:
+| LBRACE bs = separated_or_terminated_list(COMMA, type_binding) RBRACE
+    { bs }
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Syntax for binding type variables. *)
@@ -334,6 +340,9 @@ raw_normal_type:
 (* A polymorphic type. *)
 | bs = type_parameters ty = normal_type
     { List.fold_right (fun b ty -> TyForall (b, ty)) bs ty }
+(* An existential type. *)
+| bs = existential_quantifiers ty = normal_type
+    { List.fold_right (fun b ty -> TyExists (b, ty)) bs ty }
 (* A type that carries a mode constraint. *)
 | c = mode_constraint ty = normal_type
     { TyImply ([ c ], ty) }

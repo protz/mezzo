@@ -1,0 +1,6 @@
+val p : { t } t =
+  3
+
+(* Amusing: this program is accepted, but the type-checker
+   prints "val p @ int", which is strange. *)
+

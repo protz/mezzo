@@ -159,6 +159,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
     | TySingleton _
     (* These are opaque, no consumes annotations inside of these. *)
     | TyForall _
+    | TyExists _
     | TyImply _
     | TyApp _
     | TyArrow _ ->
@@ -228,7 +229,11 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyForall ((x, k, loc), t) ->
       let env = bind env (x, k) in
-      T.TyForall (((name_user env (x, k, loc)), CanInstantiate), translate_type env t)
+      T.TyForall ((name_user env (x, k, loc), CanInstantiate), translate_type env t)
+
+  | TyExists ((x, k, loc), t) ->
+      let env = bind env (x, k) in
+      T.TyExists (name_user env (x, k, loc), translate_type env t)
 
   | TyAnchoredPermission (t1, t2) ->
       T.TyAnchoredPermission (translate_type env t1, translate_type env t2)

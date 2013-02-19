@@ -164,7 +164,8 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | TyNameIntro (_, t1)
     | TyConsumes t1
     | TyLocated (t1, _)
-    | TyForall (_, t1) ->
+    | TyForall (_, t1)
+    | TyExists (_, t1) ->
         collect_type t1
     | TyApp (t1, t2)
     | TyArrow (t1, t2)
