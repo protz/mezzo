@@ -19,11 +19,19 @@ val mem : [k, a] (
   b: bucket k a
 ) -> bool
 
-val find : [k, a, p : perm] duplicable a => (
-  b: bucket k a,
-  ok: (k | p) -> bool
+val assoc: [k, a, p : perm] duplicable a => (
+  equal: (k, k | p) -> bool,
+  x: k,
+  b: bucket k a
   | p
 ) -> option a
+
+val assoc_all: [k, a, p : perm] duplicable a => (
+  equal: (k, k | p) -> bool,
+  x: k,
+  b: bucket k a
+  | p
+) -> list::list a
 
 (* -------------------------------------------------------------------------- *)
 

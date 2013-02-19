@@ -26,28 +26,30 @@ val rec mem [k, a] (
       if equal (x, key) then true else mem (equal, x, tail)
   end
 
-val rec find [k, a, p : perm] duplicable a => (
-  b: bucket k a,
-  ok: (k | p) -> bool
+val rec assoc [k, a, p : perm] duplicable a => (
+  equal: (k, k | p) -> bool,
+  x: k,
+  b: bucket k a
   | p
 ) : option a =
   match b with
   | BNil ->
       none
   | BCons { key; value; tail } ->
-      if ok key then some value else find (tail, ok)
+      if equal (x, key) then some value else assoc (equal, x, tail)
   end
 
-val rec find_all [k, a, p : perm] duplicable a => (
-  b: bucket k a,
-  ok: (k | p) -> bool
+val rec assoc_all [k, a, p : perm] duplicable a => (
+  equal: (k, k | p) -> bool,
+  x: k,
+  b: bucket k a
   | p
 ) : list::list a =
   match b with
   | BNil ->
       list::nil
   | BCons { key; value; tail } ->
-      if ok key then list::cons (value, find_all (tail, ok)) else find_all (tail, ok)
+      if equal (x, key) then list::cons (value, assoc_all (equal, x, tail)) else assoc_all (equal, x, tail)
   end
 
 (* -------------------------------------------------------------------------- *)

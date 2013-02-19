@@ -19,6 +19,35 @@ mutable data table k a =
 
 (* -------------------------------------------------------------------------- *)
 
+(* Creation. *)
+
+(* [power_2_above] computes the first power of 2 that lies above [x] and [n],
+   where [x] is itself a power of 2. It stops when the maximum array length
+   is exceeded. *)
+
+val rec power_2_above (x: int, n: int) : int =
+  if x >= n then x
+  else if x * 2 > array::max_length then x
+  else power_2_above (x * 2, n)
+
+(* [create_buckets] rounds up its [capacity] argument to the nearest power of
+   2 above [n], then allocates a new bucket array. *)
+
+val create_buckets [k, a] (capacity: int) : array (bucket k a) =
+  array::init (Up, power_2_above (16, capacity), fun (i: int) : bucket k a = BNil)
+
+(* Creation. *)
+
+val create [k, a] (capacity: int, hash: k -> int, equal: (k, k) -> bool) : table k a =
+  Table {
+    cardinal = 0;
+    buckets = create_buckets capacity;
+    hash = hash;
+    equal = equal
+  }
+
+(* -------------------------------------------------------------------------- *)
+
 (* Internal functions. *)
 
 (* [key_index] computes the array index that corresponds to the key [x]. *)
@@ -43,19 +72,18 @@ val key_index [k, a, buckets : term] (
   t.hash x & (array::length t.buckets - 1)
 
 (* [push] inserts a detached entry, which contains a valid key-value pair,
-   into the bucket at index [i] in the [buckets] array. *)
-(* TEMPORARY if push/key_index always used together, push could be modified *)
+   into the table [t]. *)
 
 val push [k, a] (
-  buckets: array (bucket k a),
-  i: int,
+  t: table k a,
   consumes entry: BCons { key: k; value: a; tail: unknown }
 ) : () =
-  array::update
-    (buckets, i, fun (consumes b: bucket k a | consumes entry @ BCons { key: k; value: a; tail: unknown }) : bucket k a =
+  let i = key_index (t, entry.key) in
+  array::update (t.buckets, i,
+    fun (consumes b: bucket k a | consumes entry @ BCons { key: k; value: a; tail: unknown }) : bucket k a =
       entry.tail <- b;
       entry
-    )
+  )
 
 (* [resize] doubles the size of the hash table. A new buckets array is allocated.
    The existing entries are re-used: they are not re-allocated. *)
@@ -72,40 +100,13 @@ val resize [k, a] (t: table k a) : () =
        to the new array [t.buckets]. *)
     array::transform (Up, old_buckets, fun (old_index: int, consumes b : bucket k a | t @ table k a) : () =
       iter_bucket_down (b, fun (consumes b: BCons { key: k; value: a; tail: unknown } | t @ table k a) : () =
-	push (t.buckets, key_index (t, b.key), b)
+	push (t, b)
       )
     )
   end
 
 (* TEMPORARY add an operation that fuses two hash tables (i.e. destructively
-   merges one into the other). It would look at lot like resize (twice). *)
-
-(* [power_2_above] computes the first power of 2 that lies above [x] and [n],
-   where [x] is itself a power of 2. It stops when the maximum array length
-   is exceeded. *)
-
-val rec power_2_above (x: int, n: int) : int =
-  if x >= n then x
-  else if x * 2 > array::max_length then x
-  else power_2_above (x * 2, n)
-
-(* [create_buckets] rounds up its [capacity] argument to the nearest power of
-   2 above [n], then allocates a new bucket array. *)
-
-val create_buckets [k, a] (capacity: int) : array (bucket k a) =
-  array::init (Up, power_2_above (16, capacity), fun (i: int) : bucket k a = BNil)
-
-(* -------------------------------------------------------------------------- *)
-
-(* Creation. *)
-
-val create [k, a] (capacity: int, hash: k -> int, equal: (k, k) -> bool) : table k a =
-  Table {
-    cardinal = 0;
-    buckets = create_buckets capacity;
-    hash = hash;
-    equal = equal
-  }
+   merges one into the other). It would look a lot like resize (twice). *)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -124,7 +125,7 @@ val reset [k, a] (t: table k a, capacity: int) : () =
 (* Insertion. *)
 
 val add [k, a] (consumes x: k, consumes v: a, t: table k a) : () =
-  push (t.buckets, key_index (t, x), BCons { key = x; value = v; tail = () });
+  push (t, BCons { key = x; value = v; tail = () });
   t.cardinal <- t.cardinal + 1;
   if t.cardinal > 2 * array::length t.buckets then
     resize t
@@ -134,7 +135,7 @@ val add [k, a] (consumes x: k, consumes v: a, t: table k a) : () =
 (* Removal. *)
 
 (* In an earlier version of this code, instead of using an auxiliary reference
-   cell [found], we updated [t.cardinal] directly inside the function
+   cell [r], we updated [t.cardinal] directly inside the function
    [ok]. Type-checking this version of the code was more tricky, because [ok]
    needed read/write access to [t.cardinal] at a moment when the ownership of
    [t.buckets] had been taken away from [t] by [array::update]. This forced
@@ -207,13 +208,8 @@ val internal_find [k, a, answer] duplicable a => (
 
 val find [k, a] duplicable a => (x: k, t: table k a) : option a =
   let equal = t.equal in
-  let rec f (b: bucket k a | x @ k) : option a =
-    match b with
-    | BNil ->
-        none
-    | BCons ->
-        if equal (x, b.key) then some b.value else f b.tail
-    end
+  let f (b: bucket k a | x @ k) : option a =
+    bucket::assoc (equal, x, b)
   in
   internal_find (f, x, t)
 
@@ -222,18 +218,10 @@ val find [k, a] duplicable a => (x: k, t: table k a) : option a =
 
 val find_all [k, a] duplicable a => (x: k, t: table k a) : list::list a =
   let equal = t.equal in
-  let rec f (b: bucket k a | x @ k) : list::list a =
-    match b with
-    | BNil ->
-        list::nil
-    | BCons ->
-        if equal (x, b.key) then list::cons (b.value, f b.tail) else f b.tail
-    end
+  let f (b: bucket k a | x @ k) : list::list a =
+    bucket::assoc_all (equal, x, b)
   in
   internal_find (f, x, t)
-
-(* TEMPORARY use [bucket::find] and [bucket::find_all] (must wait until
-   duplicable constraints can appear in .mzi) *)
 
 (* -------------------------------------------------------------------------- *)
 
