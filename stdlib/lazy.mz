@@ -15,7 +15,7 @@ val create [a, p : perm] (
 | consumes p
 ) : thunk a =
   let s : state a = Suspended { computation = f } in
-  Thunk { thunk = newwref [state a] s }
+  Thunk { thunk = new [state a] s }
 
 (* Evaluation. *)
 
@@ -30,3 +30,8 @@ val force [a] duplicable a => (t: thunk a) : a =
     end
   )
 
+(*
+Local Variables:
+compile-command: "../mezzo lazy.mz"
+End:
+*)

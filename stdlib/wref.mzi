@@ -1,24 +1,38 @@
+(* A weak reference is a duplicable mutable container, whose content
+   type is fixed at creation time (i.e., it does not allow strong
+   updates). In other words, it is an ML reference. *)
+
+(* Because a weak reference is duplicable, multiple threads may
+   simultaneously attempt to access (read or write) the reference.
+   Technically, this does not constitute a race condition, because
+   a lock is used internally to protect the reference. *)
+
 abstract wref a
 fact duplicable (wref a)
 
 (* Allocation. *)
 
-val newwref: [a] (consumes x: a) -> wref a 
+val new: [a] (consumes a) -> wref a 
 
 (* Atomic swap. *)
 
-val swap: [a] (r: wref a, consumes x: a) -> a
+val swap: [a] (wref a, consumes a) -> a
 
 (* Get. *)
+
 val get: [a] duplicable a => wref a -> a
 
 (* Set. *)
-val set: [a] (r: wref a, consumes newx: a) -> ()
 
-(* Update can be viewed as a version of [swap] where the
-   new value can be computed in terms of the previous value.
-   The lock remains taken while the computation is in progress,
-   so this must be used with care. *)
+val set: [a] (wref a, consumes a) -> ()
 
-val update: [a, b, p : perm] (r: wref a, f: (consumes a | p) -> (a, b) | p) -> b
+(* [update] can be viewed as a version of [swap] where the new value
+   is computed in terms of the previous value. The lock remains taken
+   while the computation is in progress, so [update] must be used with
+   care. *)
+
+val update: [a, b, p : perm] (
+  r: wref a,
+  f: (consumes (a | p)) -> (a, b)
+| consumes p) -> b
 

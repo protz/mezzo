@@ -1,52 +1,68 @@
 open locks
 
-(* The type I wish: a pointer to the contents of the thunk, and a lock
-   that protects the exclusive permission to this contents. *)
+(* A weak reference is a pair of a strong reference [r] and a lock
+   that protects the permission [r @ ref a]. *)
+
+(* TEMPORARY a type abbreviation would be more convenient here *)
 
 data wref a =
   WRef { contents: (r: unknown, lock (r @ ref a)) }
 
 (* Allocation. *)
 
-val newwref [a] (consumes x: a) : wref a =
+val new [a] (consumes x: a) : wref a =
   let r = newref x in
   let l : lock (r @ ref a) = newlock () in
   WRef { contents = (r, l) }
 
 (* Atomic swap. *)
 
-val swap [a] (r: wref a, consumes x: a) : a =
+val swap [a] (r: wref a, consumes y: a) : a =
   let r, l = r.contents in
   acquire l;
-  let oldx = r.contents in
-  r.contents <- x;
+  let x = r.contents in
+  r.contents <- y;
   release l;
-  oldx
+  x
 
 (* Get. *)
+
+(* One might be tempted to believe that a critical section is not
+   needed here, since a single read (or write) instruction is atomic
+   anyway. However, removing the acquire/release instructions here
+   would be unsound (and ill-typed, of course). For instance, an
+   attempt to [get] while an [update] is in progress would be
+   dangerous. Thanks to the lock, such an attempt will block until
+   [update] is finished. *)
 
 val get [a] duplicable a => (r: wref a) : a =
   let r, l = r.contents in
   acquire l;
-  let oldx = r.contents in
+  let x = r.contents in
   release l;
-  oldx
+  x
 
 (* Set. *)
 
-val set [a] (r: wref a, consumes newx: a) : () =
+val set [a] (r: wref a, consumes y: a) : () =
   let r, l = r.contents in
   acquire l;
-  r.contents <- newx;
+  r.contents <- y;
   release l
 
 (* Update. *)
 
-val update [a, b, p : perm] (r: wref a, f: (consumes a | p) -> (a, b) | p) : b =
+val update [a, b, p : perm] (r: wref a, f: (consumes (a | p)) -> (a, b) | consumes p) : b =
   let r, l = r.contents in
   acquire l;
-  let new_content, result = f r.contents in
-  r.contents <- new_content;
+  let x = r.contents in
+  let y, result = f x in
+  r.contents <- y;
   release l;
   result
 
+(*
+Local Variables:
+compile-command: "../mezzo wref.mz"
+End:
+*)
