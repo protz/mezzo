@@ -362,10 +362,6 @@ and translate_arrow_type env t1 t2 =
   let fat_t1 = translate_type env fat_t1 in
 
 
-  (* The return type can also bind variables with [x: t]. These are
-   * existentially quantified. *)
-  let t2_bindings = names env t2 in
-
   (* We need to return the original permission on [t1], minus the components
    * that were consumed: these have been carved out of [t1] by
    * [strip_consumes]. *)
@@ -373,11 +369,10 @@ and translate_arrow_type env t1 t2 =
     t2,
     TyAnchoredPermission (TyBound root, t1)
   ) in
-  let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env t2_bindings in
 
-  (* Build the resulting type. *)
-  let t2 = translate_type env t2 in
-  let t2 = Types.fold_exists (List.map (name_user env) t2_bindings) t2 in
+  (* The return type can also bind variables with [x: t]. These are
+   * existentially quantified. *)
+  let t2 = translate_type_with_names env t2 in
 
   (* Finally, translate the universal bindings as well. *)
   let universal_bindings =
@@ -387,6 +382,14 @@ and translate_arrow_type env t1 t2 =
   in
   let universal_bindings = List.map (fun x -> x, CannotInstantiate) universal_bindings in
   universal_bindings, fat_t1, t2
+
+and translate_type_with_names (env: env) (t: typ): T.typ =
+  let bindings = names env t in
+  let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env bindings in
+  let t = translate_type env t in
+  let t = Types.fold_exists (List.map (name_user env) bindings) t in
+  t
+
 ;;
 
 
@@ -603,7 +606,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   match expr with
   | EConstraint (e, t) ->
       let e = translate_expr env e in
-      let t = translate_type env t in
+      let t = translate_type_with_names env t in
       E.EConstraint (e, t)
 
   | EVar x ->
@@ -788,10 +791,10 @@ and translate_patexprs
   let expressions, annotations = match flag with
     | Recursive ->
         List.map (translate_expr sub_env) expressions,
-        List.map (translate_type sub_env) annotations
+        List.map (translate_type_with_names sub_env) annotations
     | Nonrecursive ->
         List.map (translate_expr env) expressions,
-        List.map (translate_type env) annotations
+        List.map (translate_type_with_names env) annotations
   in
   (* Turn them into constrainted expressions if need be. *)
   let expressions = List.map2 (fun expr annot ->

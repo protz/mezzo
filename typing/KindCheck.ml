@@ -751,6 +751,12 @@ and check_branch: 'a. env -> ('a * data_field_def list) -> unit = fun env branch
     names
     (duplicate_field env);
   List.iter (check_field env) fields
+
+and check_type_with_names (env: env) (t: typ) (k: kind) =
+  let bindings = names env t in
+  let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env bindings in
+  check env t k
+
 ;;
 
 
@@ -810,7 +816,8 @@ let rec check_pattern (env: env) (pattern: pattern) =
   match pattern with
   | PConstraint (p, t) ->
       check_pattern env p;
-      check env t KType
+      Log.debug "check_type_with_names";
+      check_type_with_names env t KType
   | PVar x ->
       ignore (find x env)
   | PTuple patterns ->
@@ -853,7 +860,7 @@ and check_expression (env: env) (expr: expression) =
   match expr with
   | EConstraint (e, t) ->
       check_expression env e;
-      check env t KType
+      check_type_with_names env t KType
 
   | EVar x ->
       let k, _ = find x env in
