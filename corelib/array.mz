@@ -454,13 +454,15 @@ val fill_array [a] duplicable a => (r: array a, v: a) : () =
 (* The three children of the node [i] are [i31], [i31+1], and [i31+2], where
    [i31] stands for [i*3+1]. *)
 
-val sort [a, p : perm] duplicable a => (
-  cmp: (a, a | p) -> int,
-  r: array a
-  | p) : () =
+(* The parameter [l] can be thought of as the length of the array [r].
+   Actually, [l] may be less than the length of the array [r]; in that
+   case, only an initial segment of the array will be sorted. *)
 
-  (* In all of the auxiliary functions that follow, [l] is the length of the
-     array [r]. *)
+val sort_initial_segment [a, p : perm] duplicable a => (
+  cmp: (a, a | p) -> int,
+  r: array a,
+  l: int
+  | p) : () =
 
   (* The function [maxson] tells which of the children of the node [i] has
      the greatest value. This node may have zero, one, two, or three children.
@@ -567,7 +569,8 @@ val sort [a, p : perm] duplicable a => (
 
   (* The main algorithm. *)
 
-  let l = length r in
+  if l < 0 || l > length r then
+    fail;
   iter_segment_down (0, (l + 1) / 3, fun (i: int | p * r @ array a) : () =
     trickle (l, i, get (r, i))
   );
@@ -578,6 +581,12 @@ val sort [a, p : perm] duplicable a => (
   );
   if l > 1 then
     swap (r, 0, 1)
+
+val sort [a, p : perm] duplicable a => (
+  cmp: (a, a | p) -> int,
+  r: array a
+  | p) : () =
+  sort_initial_segment (cmp, r, length r)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -611,14 +620,12 @@ val nonduplicable_sort [a, s : perm] (
 
 (* -------------------------------------------------------------------------- *)
 
-(* [power_2_above] computes the first power of 2 that lies above [x] and [n],
-   where [x] is itself a power of 2. It stops when the maximum array length
-   is exceeded. *)
+(* Miscellaneous. *)
 
-val rec power_2_above (x: int, n: int) : int =
+val rec above (x: int, n: int) : int =
   if x >= n then x
-  else if x * 2 > array::max_length then x
-  else power_2_above (x * 2, n)
+  else if x * 2 > max_length then x
+  else above (x * 2, n)
 
 (*
 Local Variables:

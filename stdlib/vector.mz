@@ -9,20 +9,38 @@ mutable data vector a =
     (* The array's logical size. It is always less than or equal
        to the length of the array [table]. *)
     size: int;
-    (* The underlying array. *)
+    (* The underlying array. The length of this array is arbitrary,
+       but is of course at least [size]. *)
     (* For the moment, I am using an array of options, with the
        invariant property that every slot below [size] is [Some].
        If we had permissions for array segments, then we would be
        able to encode this invariant and get rid of the option,
-       I suppose. TEMPORARY *)
+       I suppose. TEMPORARY that would be nice! *)
     table: array (option a)
   } 
 
-val default_length =
-  16 (* must be a power of two (hence, non-zero) *)
+val minimum_length =
+  16 (* must be non-zero *)
+
+val new_length (length: int, size: int) : int =
+  (* By default, we double the vector's length until it reaches the
+     requested size or exceeds [array::max_length]. *)
+  let length =
+    max (
+      minimum_length,
+      (array::above (length, size))
+    )
+  in
+  if size <= length then
+    length
+  else if size <= array::max_length then
+    size
+  else
+    (* The requested size is too large. *)
+    fail
 
 val init [a] (size: int, default: int -> a, f: int -> a) : vector a =
-  let length = array::power_2_above (default_length, size) in
+  let length = new_length (0, size) in
   Vector {
     default = default;
     size = size;
@@ -31,17 +49,24 @@ val init [a] (size: int, default: int -> a, f: int -> a) : vector a =
     )
   }
 
+val grab [a] (consumes r: array a, default: int -> a) : vector a =
+  (* We take the ownership of [r]. We replace every element [x]
+     with [some x], so as to make it an array of type [option a]. *)
+  array::transform (Up, r, fun (_: int, consumes x: a) : option a = some x);
+  Vector {
+    default = default;
+    size = array::length r;
+    table = r
+  }
+
+val list2vector [a] (consumes xs: list::list a, default: int -> a) : vector a =
+  grab (list::list2array xs, default)
+
 val create [a] (default: int -> a) : vector a =
   init (0, default, fun (i : int) : a = fail)
 
 val size [a] (v: vector a) : int =
   v.size
-
-val rec new_length (length: int, size: int) : int =
-  if size <= length then
-    length
-  else
-    new_length (2 * length, size)
 
 val resize [a] (v: vector a, new_size: int) : () =
   if new_size < 0 then
@@ -66,7 +91,7 @@ val resize [a] (v: vector a, new_size: int) : () =
       v.size <- new_size;
       let old_length = array::length table in
       if new_size > old_length then begin
-	let new_length = new_length (2 * old_length, new_size) in
+	let new_length = new_length (old_length, new_size) in
 	(* The physical size of the array must increase. *)
 	(* TEMPORARY we would like to use [array::create],
 	   but are forced to use [array::init] instead,
@@ -82,6 +107,14 @@ val resize [a] (v: vector a, new_size: int) : () =
     end
   end
 
+val shrink [a] (v: vector a, delta: int) : () =
+  if delta < 0 then
+    fail;
+  resize (v, size v - delta)
+
+val pop [a] (v: vector a) : () =
+  resize (v, size v - 1)
+
 val get [a] duplicable a => (v: vector a, i: int) : a =
   if i >= 0 && i < v.size then
     option::force (array::get (v.table, i))
@@ -94,6 +127,23 @@ val set [a] (v: vector a, i: int, consumes x: a) : () =
   else
     fail
 
+val push [a] (v: vector a, consumes x: a) : () =
+  let i = size v in
+  resize (v, i + 1);
+  array::set (v.table, i, some x)
+
+val last [a] duplicable a => (v: vector a) : a =
+  get (v, size v - 1)
+
+val sort [a, p : perm] duplicable a => (v: vector a, cmp: (a, a | p) -> int | p) : () =
+  (* We must define a comparison function over options. *)
+  let cmp (x: option a, y: option a | p) : int =
+    cmp (option::force x, option::force y)
+  in
+  (* The cool thing is, we do not need to copy the array in order to
+     sort an initial segment of it. *)
+  array::sort_initial_segment (cmp, v.table, v.size)
+
 (* TEMPORARY ideally, we should provide more operations over vectors,
    taking inspiration from the array library. Can we avoid duplication?
    One option would be for the vector to expose the underlying array;
@@ -103,9 +153,22 @@ val set [a] (v: vector a, i: int, consumes x: a) : () =
    Another option would be to to define a library of operations that work
    uniformly on arrays, vectors, and other random access containers. *)
 
-(*
-Local Variables:
-compile-command: "../mezzo vector.mz"
-End:
-*)
+(* API differences with Cubicle's common/vec.ml:
 
+   Vec.get raises Not_found if the element is equal to the default element
+   (this seems strange, and I don't think this feature is exploited).
+
+   Vec.set automatically increases the array's logical size if required but
+   does not increase its physical length (this seems strange). Our function
+   vector::set does not do this; vector::resize must be called first.
+
+   Vec.grow_to_by_double is a bit strange, because it increases the vector's
+   physical length, but does not change its logical size. I guess this is
+   consistent with the fact that Vec.set automatically increases the vector's
+   logical size. Vec.grow_to_by_double is replaced by vector::resize here. *)
+
+(*
+  Local Variables:
+  compile-command: "../mezzo vector.mz"
+  End:
+*)

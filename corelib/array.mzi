@@ -240,13 +240,18 @@ val sort : [a, p : perm] duplicable a => (
   r: array a
   | p) -> ()
 
+val sort_initial_segment : [a, p : perm] duplicable a => (
+  cmp: (a, a | p) -> int,
+  r: array a,
+  l: int
+  | p) -> ()
+
 (* -------------------------------------------------------------------------- *)
 
 (* Miscellaneous. *)
 
-(* [power_2_above] computes the first power of 2 that lies above [x] and [n],
-   where [x] is itself a power of 2. It stops when the maximum array length
-   is exceeded. *)
+(* [above] repeatedly multiplies [x] by 2 until either [x >= n] holds
+   or [2 * x] exceeds the maximum array length. *)
 
-val power_2_above: (x: int, n: int) -> int
+val above: (x: int, n: int) -> int
 

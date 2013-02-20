@@ -22,6 +22,16 @@ val create: [a] (default: int -> a) -> vector a
 
 val init: [a] (size: int, default: int -> a, f: int -> a) -> vector a
 
+(* [grab (r, default)] turns the array [r] into a vector of the same size.
+   [default] serves the same purpose as in [create] above. *)
+
+val grab: [a] (consumes r: array a, default: int -> a) -> vector a
+
+(* [list2vector (xs, default)] turns the list [xs] into a vector of the
+   same size. [default] serves the same purpose as in [create] above. *)
+
+val list2vector: [a] (consumes xs: list::list a, default: int -> a) -> vector a
+
 (* [size v] returns the current size of the vector [v]. *)
 
 val size: [a] vector a -> int
@@ -33,15 +43,38 @@ val size: [a] vector a -> int
 
 val resize: [a] (vector a, new_size: int) -> ()
 
+(* [shrink (v, delta)] is a short-hand for [resize (v, size v - delta)].
+   [delta] must be comprised between 0 and [size v], inclusive. *)
+
+val shrink: [a] (vector a, int) -> ()
+
+(* [pop v] is a short-hand for [shrink (v, 1)]. *)
+
+val pop: [a] vector a -> ()
+
 (* [get (v, i)] reads the element at index [i] in the vector [v].  Because the
    value is copied, the type [a] must be duplicable.  The index [i] must be
    comprised between 0, inclusive, and [size v], exclusive. *)
 
-val get : [a] duplicable a => (vector a, int) -> a
+val get: [a] duplicable a => (vector a, int) -> a
 
 (* [set (r, i, x)] sets the element at index [i] in the vector [v] to the
    value [x]. The index [i] must be comprised between 0, inclusive, and [size
    v], exclusive. *)
 
-val set : [a] (vector a, int, consumes a) -> ()
+val set: [a] (vector a, int, consumes a) -> ()
+
+(* [push (v, x)] appends the element [x] at the end of the vector [v]. *)
+
+val push: [a] (vector a, consumes a) -> ()
+
+(* [last v] returns the last element in the vector [v], that is, the element
+   at index [size v - 1]. *)
+
+val last: [a] duplicable a => vector a -> a
+
+(* [sort (v, cmp)] sorts the elements of the vector [v] according to the
+   ordering [cmp]. *)
+
+val sort: [a, p : perm] duplicable a => (v: vector a, cmp: (a, a | p) -> int | p) -> ()
 

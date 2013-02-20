@@ -583,6 +583,9 @@ val rec segment2list [a] duplicable a => (x: array a, i: int, j: int, consumes a
 val array2list [a] duplicable a => (x: array a) : list a =
   segment2list (x, 0, array::length x, Nil)
 
+(* TEMPORARY using [array::transform], we could offer a variant of [array2list]
+   where the ownership of the elements is transferred from the array to the list *)
+
 (* Converting a list to an array. *)
 
 val list2array [a] (consumes xs: list a) : array a =
