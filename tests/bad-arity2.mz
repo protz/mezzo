@@ -1,0 +1,5 @@
+data triple =
+  Triple { triple: (int, int, int) }
+
+val bad_arity (t: triple): () =
+  let x, y = t.triple in ()
