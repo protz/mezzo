@@ -1,0 +1,2 @@
+val f: [a] (consumes a) -> a =
+  fail

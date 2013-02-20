@@ -169,6 +169,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test (Fail (function _ -> true)));
   ("commutations.mz",
     simple_test Pass);
+  ("consumes-duplicable.mz",
+    simple_test Pass);
+  ("consumes-forgotten.mz",
+    simple_test (Fail (function _ -> true)));
 
   ("wrong_type_annotation.mz",
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
