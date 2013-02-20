@@ -1,0 +1,6 @@
+val f : (x: unknown, y: unknown) -> (=y, =x) =
+  builtin foobar
+(* This is very cool. *)
+
+val g: [a, b] (consumes x: a, consumes y: b) -> (b, a) =
+  builtin foobar

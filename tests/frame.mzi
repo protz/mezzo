@@ -1,0 +1,1 @@
+val f: [p : perm] (int | p) -> int

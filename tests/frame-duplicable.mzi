@@ -1,0 +1,2 @@
+val f: [a] duplicable a => (x: unknown | x @ a) -> (unknown | x @ a)
+(* checks the frame rule + duplicability of x @ a *)

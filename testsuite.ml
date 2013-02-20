@@ -181,6 +181,12 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test Pass);
   ("identity.mz",
     simple_test Pass);
+  ("frame.mz",
+    simple_test Pass);
+  ("frame-duplicable.mz",
+    simple_test Pass);
+  ("singleton-swap.mz",
+    simple_test Pass);
 
   ("wrong_type_annotation.mz",
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));

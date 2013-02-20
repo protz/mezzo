@@ -1,0 +1,6 @@
+val f: [a, b] (consumes x: a, consumes y: b) -> (b, a)
+
+(*
+WISH it would be cool if this one worked too. At the moment, it doesn't.
+val g: (x: unknown, y: unknown) -> (=y, =x)
+*)
