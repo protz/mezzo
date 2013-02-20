@@ -1,0 +1,11 @@
+val f: [a] () -> (() -> a, a -> ()) =
+  fail
+
+(* This test should fail because the type declared in the
+   .mzi file is strictly more powerful than this one --
+   the universal quantifier appears on the right-hand side
+   of the arrow. Pushing a universal quantifier into an
+   arrow, like this, violates the value restriction. The
+   relaxed value restriction does not help us, here, because
+   the variable a appears co- and contra-variantly. *)
+

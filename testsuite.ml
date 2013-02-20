@@ -163,6 +163,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("unwarranted-release.mz",
     simple_test (Fail (function _ -> true)));
 
+  ("value-restriction-violation.mz",
+    simple_test (Fail (function _ -> true)));
+
   ("wrong_type_annotation.mz",
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
 
