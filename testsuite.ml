@@ -773,6 +773,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("exist08.mz", simple_test Pass);
   ("exist09.mz", simple_test Pass);
 
+  ("bad-arity.mz", simple_test (Fail (function BadPattern _ -> true | _ -> false)));
+  ("bad-arity2.mz", simple_test (Fail (function BadPattern _ -> true | _ -> false)));
+  ("dependent-type.mz", simple_test Pass);
+
 ];;
 
 let mz_files_in_directory (dir : string) : string list =
