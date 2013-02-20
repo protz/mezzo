@@ -1,0 +1,15 @@
+val x: ([a] a -> a, int) =
+  fail
+
+val y: [a] (a -> a, int) =
+  fail
+
+val exchange: [a, b] (consumes (a, b)) -> (b, a) =
+  fail
+
+val z: [a] ref a =
+  fail
+
+val w: ref ([a]a) =
+  fail
+

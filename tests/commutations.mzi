@@ -1,0 +1,17 @@
+(* forall commutes with a pair, both ways *)
+
+val x: [a] (a -> a, int)
+
+val y: ([a] a -> a, int)
+
+(* two forall's commute *)
+
+val exchange: [b, a] (consumes (a, b)) -> (b, a)
+
+(* forall commutes with ref -- this one is sound because ref
+   is known to be covariant *)
+
+val z: ref ([a] a)
+
+val w: [a] ref a
+

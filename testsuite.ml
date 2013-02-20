@@ -165,6 +165,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("value-restriction-violation.mz",
     simple_test (Fail (function _ -> true)));
+  ("comparison-bug.mz",
+    simple_test (Fail (function _ -> true)));
+  ("commutations.mz",
+    simple_test Pass);
 
   ("wrong_type_annotation.mz",
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));

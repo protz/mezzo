@@ -1,0 +1,2 @@
+val f: [a] wref::wref a -> a =
+  fail
