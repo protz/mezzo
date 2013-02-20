@@ -1,7 +1,7 @@
 abstract channel a
 fact duplicable (channel a)
 
-val newchannel: [a] () -> channel a
+val new: [a] () -> channel a
 
 val send: [a] (channel a, consumes a) -> ()
 

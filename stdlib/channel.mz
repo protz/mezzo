@@ -7,7 +7,10 @@ open condition
 (* A channel is a triple formed by a queue [q], a lock [l] that protects
    the exclusive permission on [q], and a condition variable on [l].
    A channel is duplicable: multiple threads may simultaneously try to
-   send or receive or be waiting on the condition variable. *)
+   send or receive by waiting on the condition variable. *)
+
+(* TEMPORARY a type abbreviation would be nice! or a data type whose
+   fields can be referred to *)
 
 data channel a =
   Channel { channel: (q: unknown, l: lock (q @ fifo a), condition l) }
@@ -17,7 +20,7 @@ data channel a =
 (* A queue [q] is created and its exclusive permission is straight away
    hidden by a lock. *)
 
-val newchannel [a] (): channel a =
+val new [a] (): channel a =
   let q = queue::create () in
   let l: lock (q @ fifo a) = lock::new () in
   let c = condition::new l in
@@ -25,20 +28,19 @@ val newchannel [a] (): channel a =
 
 (* Send. *)
 
-(* Sending on the channel requires acquiring the lock. The lock is
-   released before sending a signal on the conditon variable for
-   potential waiting threads, so that a signalled thread can immediatly
-   try to wake up and hold the lock again. *)
+(* Sending on the channel requires acquiring the lock. *)
+
+(* francois: I think it is preferable to send the signal
+   before releasing the lock, but maybe we should ask an
+   expert (Luc?). TEMPORARY *)
 
 val send [a] (c: channel a, consumes x: a): () =
   let q, l, cond = c.channel in
   acquire l;
   insert (x, q);
   if length q = 1 then
-    begin release l; signal (cond, SignalMany) end
-  else
-    release l
-
+    signal (cond, SignalMany);
+  release l
 
 (* Receive. *)
 
@@ -57,9 +59,9 @@ val receive [a] (c: channel a): a =
   let rec receive_aux (| consumes (q @ fifo a * held l) ): a =
     match retrieve q with
     | None ->
-      wait [l] cond; receive_aux ()
+        wait [l] cond; receive_aux ()
     | Some { contents = x } ->
-      release l; x
+        release l; x
     end 
   in
 
@@ -68,6 +70,6 @@ val receive [a] (c: channel a): a =
 
 (*
 Local Variables:
-compile-command: "../mezzo derived_channels.mz"
+compile-command: "../mezzo channel.mz"
 End:
 *)
