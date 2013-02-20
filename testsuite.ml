@@ -187,6 +187,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test Pass);
   ("singleton-swap.mz",
     simple_test Pass);
+  ("ref-covariant.mz",
+    simple_test Pass);
 
   ("wrong_type_annotation.mz",
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
