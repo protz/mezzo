@@ -250,6 +250,8 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
       if List.length t = 0 then
         raise_error env (BadPattern (pattern, var));
       let t = List.hd t in
+      if List.length t <> List.length patterns then
+        raise_error env (BadPattern (pattern, var));
       List.fold_left2 (fun env pattern component ->
         match component with
         | TySingleton (TyOpen p') ->
@@ -318,6 +320,8 @@ let refine_perms_in_place_for_pattern env var pat =
           | None ->
               raise_error env (MatchBadTuple var)
         in
+        if List.length vars <> List.length pats then
+          raise_error env (MatchBadTuple var);
         List.fold_left2 refine env vars pats
 
     | PConstruct (datacon, patfields) ->
