@@ -34,19 +34,11 @@ val send [a] (c: channel a, consumes x: a): () =
   let q, l, cond = c.channel in
   acquire l;
   insert (x, q);
-  release l;
-  signal [l] (cond, SignalOne)
-
-(* Using the following code for signalling all threads when the length
-   of the queue switch from 0 to 1 raises an exception. It seems that
-   the problem comes from the mere presence of the if, and not from the 
-   content of the test or of the branches. *)
-(*
   if length q = 1 then
-    begin release l; signal [l] (cond, SignalMany) end
+    begin release l; signal (cond, SignalMany) end
   else
     release l
-*)
+
 
 (* Receive. *)
 
