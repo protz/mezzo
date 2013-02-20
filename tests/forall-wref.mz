@@ -1,0 +1,6 @@
+val w2: wref::wref ([a]a) =
+  builtin foobar
+
+(* This test must fail: a (weak) reference with polymorphic content
+   is not a polymorphic reference. *)
+

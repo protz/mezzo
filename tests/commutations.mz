@@ -1,15 +1,18 @@
 val x: ([a] a -> a, int) =
-  fail
+  builtin foobar
 
 val y: [a] (a -> a, int) =
-  fail
+  builtin foobar
 
 val exchange: [a, b] (consumes (a, b)) -> (b, a) =
-  fail
+  builtin foobar
 
 val z: [a] ref a =
-  fail
+  builtin foobar
 
 val w: ref ([a]a) =
-  fail
+  builtin foobar
+
+val z2: [a] wref::wref a =
+  builtin foobar
 

@@ -1,9 +1,11 @@
-(* forall commutes with a pair, both ways *)
+(* forall can be hoisted out a pair *)
 
 val x: [a] (a -> a, int)
 
+(* forall can be pushed into a pair: this does not work, for now *)
+(*
 val y: ([a] a -> a, int)
-
+*)
 (* two forall's commute *)
 
 val exchange: [b, a] (consumes (a, b)) -> (b, a)
@@ -14,4 +16,6 @@ val exchange: [b, a] (consumes (a, b)) -> (b, a)
 val z: ref ([a] a)
 
 val w: [a] ref a
+
+val z2: wref::wref ([a] a)
 

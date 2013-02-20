@@ -1,0 +1,2 @@
+val f: (r: ref int) -> (| r @ ref int) -> () =
+  builtin foobar

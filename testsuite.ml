@@ -169,10 +169,16 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test (Fail (function _ -> true)));
   ("commutations.mz",
     simple_test Pass);
+  ("forall-wref.mz",
+    simple_test (Fail (function _ -> true)));
   ("consumes-duplicable.mz",
     simple_test Pass);
   ("consumes-forgotten.mz",
     simple_test (Fail (function _ -> true)));
+  ("permission-shift.mz",
+    simple_test (Fail (function _ -> true)));
+  ("permission-shift-duplicable.mz",
+    simple_test Pass);
   ("identity.mz",
     simple_test Pass);
 
