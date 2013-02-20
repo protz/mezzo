@@ -1,5 +1,5 @@
 val f: [a] () -> (() -> a, a -> ()) =
-  fail
+  builtin foobar
 
 (* This test should fail because the type declared in the
    .mzi file is strictly more powerful than this one --
