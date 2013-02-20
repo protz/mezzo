@@ -1,0 +1,9 @@
+(* val (:=) [a, b] (consumes x: ref a, consumes y: b): (| x @ ref b) *)
+
+val assign1 [c: term] (consumes x: ref (=c), y: unknown) : (| x @ ref (=y)) =
+  (:=) [=c, =y] (x, y)
+  (* Here, we can't get rid of the type application *)
+
+val assign2: (consumes x: ref unknown, y: unknown) -> (| x @ ref (=y)) =
+  (:=)
+  (* Here, it doesn't work at all. *)
