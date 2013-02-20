@@ -18,19 +18,21 @@ mutable data vector a =
     table: array (option a)
   } 
 
-val default_size =
-  16 (* must be non-zero *)
+val default_length =
+  16 (* must be a power of two (hence, non-zero) *)
 
-val make [a] (f: int -> a) : vector a =
+val init [a] (size: int, default: int -> a, f: int -> a) : vector a =
+  let length = array::power_2_above (default_length, size) in
   Vector {
-    default = f;
-    size = 0;
-    table = array::init (Up, default_size, fun (i: int) : option a = None)
-      (* TEMPORARY if array was known to be covariant, we could initialize
-	 using array::create(Up, default_size, None), which has type
-	 array None; (this works because None is a duplicable type;)
-	 and then use subtyping to go up to array (option a). *)
+    default = default;
+    size = size;
+    table = array::init (Up, length, fun (i: int) : option a =
+      if i < size then some (f i) else None
+    )
   }
+
+val create [a] (default: int -> a) : vector a =
+  init (0, default, fun (i : int) : a = fail)
 
 val size [a] (v: vector a) : int =
   v.size

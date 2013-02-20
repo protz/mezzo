@@ -21,20 +21,11 @@ mutable data table k a =
 
 (* Creation. *)
 
-(* [power_2_above] computes the first power of 2 that lies above [x] and [n],
-   where [x] is itself a power of 2. It stops when the maximum array length
-   is exceeded. *)
-
-val rec power_2_above (x: int, n: int) : int =
-  if x >= n then x
-  else if x * 2 > array::max_length then x
-  else power_2_above (x * 2, n)
-
 (* [create_buckets] rounds up its [capacity] argument to the nearest power of
    2 above [n], then allocates a new bucket array. *)
 
 val create_buckets [k, a] (capacity: int) : array (bucket k a) =
-  array::init (Up, power_2_above (16, capacity), fun (i: int) : bucket k a = BNil)
+  array::init (Up, array::power_2_above (16, capacity), fun (i: int) : bucket k a = BNil)
 
 (* Creation. *)
 

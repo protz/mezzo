@@ -10,11 +10,17 @@ fact exclusive (vector a)
    be increased or decreased by the user. The vector's length is under
    the control of the implementation. *)
 
-(* [make f] creates a new vector of size zero. The function [f] will be
-   invoked when the vector is enlarged in order to initialize the newly
-   created slots. *)
+(* [create default] creates a new vector of size zero. The function [default]
+   is stored, and will be later invoked by [resize] when the vector is
+   enlarged in order to initialize the newly created slots. *)
 
-val make: [a] (f: int -> a) -> vector a
+val create: [a] (default: int -> a) -> vector a
+
+(* [init (size, default, f)] creates a new vector of size [size]. The function
+   [default] serves the same purpose as in [create] above. The function [f] is
+   invoked immediately in order to initialize the [size] initial elements. *)
+
+val init: [a] (size: int, default: int -> a, f: int -> a) -> vector a
 
 (* [size v] returns the current size of the vector [v]. *)
 

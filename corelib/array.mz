@@ -609,6 +609,17 @@ val nonduplicable_sort [a, s : perm] (
   in
   sort (cmp, r)
 
+(* -------------------------------------------------------------------------- *)
+
+(* [power_2_above] computes the first power of 2 that lies above [x] and [n],
+   where [x] is itself a power of 2. It stops when the maximum array length
+   is exceeded. *)
+
+val rec power_2_above (x: int, n: int) : int =
+  if x >= n then x
+  else if x * 2 > array::max_length then x
+  else power_2_above (x * 2, n)
+
 (*
 Local Variables:
 compile-command: "../mezzo array.mz"
