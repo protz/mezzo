@@ -1,0 +1,11 @@
+(* Fatal error: exception Assert_failure("lib/Option.ml", 34, 12) *)
+(* The example type-checks if the last line is replaced with the following:
+   d_fun [t] x
+*)
+
+abstract d_type (t: term)
+
+val d_fun [t: term] (x: d_type t): () = ()
+
+val apply_d_fun [t: term] (x: d_type t): () =
+  d_fun x

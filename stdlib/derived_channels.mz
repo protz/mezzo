@@ -1,0 +1,70 @@
+open lock
+open queue
+open condition
+
+(* Deriving channels using locks and queues. *)
+
+(* A channel is a triple formed by a queue [q], a lock [l] that protects
+   the exclusive permission on [q], and a condition variable on [l].
+   A channel is duplicable: multiple threads may simultaneously try to
+   send or receive or be waiting on the condition variable. *)
+
+data channel a =
+  Channel { channel: (q: unknown, l: lock (q @ fifo a), condition l) }
+
+(* Channel creation. *)
+
+(* A queue [q] is created and its exclusive permission is straight away
+   hidden by a lock. *)
+
+val newchannel [a] (): channel a =
+  let q = queue::create () in
+  let l: lock (q @ fifo a) = lock::new () in
+  let c = condition::new l in
+  Channel { channel = (q, l, c) }
+
+(* Send. *)
+
+(* Sending on the channel requires acquiring the lock. The lock is
+   released before sending a signal on the conditon variable for
+   potential waiting threads, so that a signalled thread can immediatly
+   try to wake up and hold the lock again. *)
+
+val send [a] (c: channel a, consumes x: a): () =
+  let q, l, cond = c.channel in
+  acquire l;
+  insert (x, q);
+  release l;
+  signal [l] (cond, SignalOne)
+
+
+(* Receive. *)
+
+(* This call does not require anything. If there is no message available,
+   it will suspend the thread and wait on the condition variable. *)
+
+val receive [a] (c: channel a): a =
+  let q, l, cond = c.channel in
+  acquire l;
+
+  (* A call to [receive_aux] requires the lock [l] to be held. The
+     lock is released when the reception finally succeeds. According to
+     the semantics of wait it is also temporarily released while the
+     thread is suspended. *)
+
+  let rec receive_aux (| consumes (q @ fifo a * held l) ): a =
+    match retrieve q with
+    | None ->
+      wait [l] cond; receive_aux ()
+    | Some { contents = x } ->
+      release l; x
+    end 
+  in
+
+  receive_aux ()
+
+(*
+Local Variables:
+compile-command: "../mezzo derived_channels.mz"
+End:
+*)

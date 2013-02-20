@@ -1,0 +1,9 @@
+(* Fatal error: exception Invalid_argument("List.fold_left2") *)
+(* I would have expected some kind of type error. *)
+(* Another possibility could be to add a comparison of the lengths of the tuples before the call to fold_left2 and then just complain about arity without any mention to the types. *)
+
+data pair =
+  Pair { pair: (int, int) }
+
+val bad_arity (p: pair): () =
+  let x, y, z = p.pair in ()
