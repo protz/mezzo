@@ -4,3 +4,8 @@ val f : (x: unknown, y: unknown) -> (=y, =x) =
 
 val g: [a, b] (consumes x: a, consumes y: b) -> (b, a) =
   builtin foobar
+
+val duplicate: (x: unknown) -> (=x, =x) =
+  builtin foobar
+(* Quite cool, too. *)
+

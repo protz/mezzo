@@ -1,0 +1,3 @@
+val deref: [a] (consumes ref a) -> a =
+  (!)
+  (* (!) is declared with this type: [y : term] (x: ref (=y)) -> =y *)

@@ -1,0 +1,9 @@
+(* (!) is declared with this type: [y : term] (x: ref (=y)) -> =y *)
+
+(* With an eta-expansion, this works: *)
+val deref2 [a] duplicable a => (x: ref a) : a =
+  !x
+
+(* But without an eta-expansion, it doesn't: *)
+val deref3: [a] duplicable a => ref a -> a =
+  (!)
