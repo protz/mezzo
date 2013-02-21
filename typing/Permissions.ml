@@ -200,9 +200,18 @@ let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
   match t with
   | TyUnknown
   | TyDynamic
-  | TyBound _
-  | TyOpen _ ->
+  | TyBound _ ->
       env, t
+
+  | TyOpen _
+  | TyApp _ ->
+      begin match expand_if_one_branch env t with
+      | TyConcreteUnfolded _ as t->
+          open_all_rigid_in env t side
+      | _ ->
+          env, t
+      end
+
 
   | TyForall ((binding, _), t1) ->
       if side = Right then
@@ -219,9 +228,6 @@ let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
         env, t1
       else
         env, t
-
-  | TyApp _ ->
-      env, t
 
   | TyTuple ts ->
       let env, ts = List.fold_left (fun (env, acc) t ->
@@ -716,6 +722,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       ptype (env, t2));
 
   let t1 = modulo_flex env t1 and t2 = modulo_flex env t2 in
+  let t1 = expand_if_one_branch env t1 in
 
   match t1, t2 with
 
