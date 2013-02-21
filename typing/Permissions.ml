@@ -792,7 +792,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
              * “∃x'.(=x'|x' @ τ)” and instantiating “x'” with “x”. *)
             sub env p1 t2
         | _ ->
-            None
+            sub_type_with_unfolding env t1 t2
       ) (Some env) components1 components2
 
   | TyConcreteUnfolded (datacon1, fields1, clause1), TyConcreteUnfolded (datacon2, fields2, clause2)
@@ -819,7 +819,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
           | TySingleton (TyOpen p1), _ ->
               sub env p1 t2
           | _ ->
-              None
+              sub_type_with_unfolding env t1 t2
         ) (Some env) fields1 fields2
 
       else
