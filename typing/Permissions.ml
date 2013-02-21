@@ -197,21 +197,14 @@ let is_singleton env t =
  * could potentially be a rigid variable, it creates it... *)
 let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
   let t = modulo_flex env t in
+  let t = expand_if_one_branch env t in
   match t with
   | TyUnknown
   | TyDynamic
-  | TyBound _ ->
-      env, t
-
+  | TyBound _
   | TyOpen _
   | TyApp _ ->
-      begin match expand_if_one_branch env t with
-      | TyConcreteUnfolded _ as t->
-          open_all_rigid_in env t side
-      | _ ->
-          env, t
-      end
-
+      env, t
 
   | TyForall ((binding, _), t1) ->
       if side = Right then
@@ -535,22 +528,16 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
 
   let rec unfold (env: env) ?(hint: name option) (t: typ): env * typ =
     let t = modulo_flex env t in
+    let t = expand_if_one_branch env t in
     match t with
     | TyUnknown
     | TyDynamic
     | TySingleton _
     | TyArrow _
-    | TyEmpty ->
-        env, t
-
+    | TyEmpty
     | TyOpen _
     | TyApp _ ->
-        begin match expand_if_one_branch env t with
-        | TyConcreteUnfolded _ as t->
-            unfold env t
-        | _ ->
-            env, t
-        end
+        env, t
 
     | TyBound _ ->
         Log.error "No unbound variables allowed here"
