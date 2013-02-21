@@ -1,0 +1,2 @@
+val deref [a] (consumes x: ref a): a =
+  !x

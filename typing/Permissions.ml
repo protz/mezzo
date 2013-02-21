@@ -639,8 +639,8 @@ and sub (env: env) (var: var) (t: typ): env option =
        * singleton type. The rationale is that we're too afraid of instantiating
        * with something local to a branch, which will then make the [Merge]
        * operation fail (see [merge18.mz] and [merge19.mz]). *)
-      | TySingleton _ -> 3
-      | TyUnknown -> 2
+      | TyUnknown -> 3
+      | TySingleton _ -> 2
       | _ -> 1
     in
     let sort x y = sort x - sort y in

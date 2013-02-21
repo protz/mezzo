@@ -1,1 +1,1 @@
-val f: [a] ref a -> ()
+val f: [a] (consumes ref a) -> ()

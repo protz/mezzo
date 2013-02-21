@@ -10,5 +10,3 @@ val v =
   end else begin
     Bar
   end
-
-val w = (v: foo unknown)

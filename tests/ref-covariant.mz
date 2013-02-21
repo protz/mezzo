@@ -1,2 +1,2 @@
-val f: ref unknown -> () =
+val f: (consumes ref unknown) -> () =
   builtin foobar

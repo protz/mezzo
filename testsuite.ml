@@ -193,6 +193,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test Pass);
   ("deref2.mz",
     simple_test Pass);
+  ("deref3.mz",
+    simple_test Pass);
   ("assign.mz",
     simple_test Pass);
 
