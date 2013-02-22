@@ -1,0 +1,24 @@
+(* Persistent arrays. *)
+
+(* A persistent array presents itself as an immutable (hence, duplicable)
+   array of duplicable elements. It can be read and updated; an update
+   produces a new persistent array without altering the original one. *)
+
+(* The implementation is based on a single mutable array, difference lists,
+   and a single lock, but these details do not appear in the interface. *)
+
+abstract parray a
+fact duplicable (parray a)
+
+(* Creation. *)
+
+val create: [a] duplicable a => (int, a) -> parray a
+
+(* Reading. *)
+
+val get: [a] duplicable a => (parray a, int) -> a
+
+(* Writing. *)
+
+val set: [a] duplicable a => (parray a, int, a) -> parray a
+

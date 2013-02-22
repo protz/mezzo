@@ -36,3 +36,11 @@ val update: [a, b, p : perm] (
   f: (consumes (a | p)) -> (a, b)
 | consumes p) -> b
 
+(* [borrow] can be viewed as a degenerate version of [update] where
+   the function [f] temporarily has access to the content of the
+   reference [r], but cannot modify it. *)
+
+val borrow: [a, b, p : perm] (
+  r: wref a,
+  f: (a | consumes p) -> b
+| consumes p) -> b

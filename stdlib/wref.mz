@@ -66,6 +66,14 @@ val update [a, b, p : perm] (r: wref a, f: (consumes (a | p)) -> (a, b) | consum
   release l;
   result
 
+val borrow [a, b, p : perm] (r: wref a, f: (a | consumes p) -> b | consumes p) : b =
+  let r, l = r.contents in
+  acquire l;
+  let x = r.contents in
+  let result = f x in
+  release l;
+  result
+
 (*
 Local Variables:
 compile-command: "../mezzo wref.mz"

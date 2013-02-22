@@ -1,0 +1,214 @@
+(* Persistent arrays in the style of Filliâtre. *)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* A persistent array is duplicable, but has mutable internal state.
+   Furthermore, this state is shared: whenever a new version of the
+   array is created, the new version shares much of its state with
+   the previous version. Thus, internally, there exist a region of
+   points, which together form the representation of several persistent
+   arrays. *)
+
+data parray a =
+  PArray {
+    (* The region which this persistent array is part of. *)
+    region: wref::wref (region a);
+    (* The point in the region which represents this persistent array. *)
+    point: dynamic (* point a, owned by region *)
+  }
+
+(* A region serves as an adopter for a set of points. *)
+
+mutable data region a =
+  Region adopts point a
+
+(* A point is either flat -- a primitive array -- or a pair of a pointer to
+   another point (in the same region) and an undo instruction. We use three
+   fields in either case, so as to allow tag updates in either direction. *)
+
+mutable data point a =
+| PFlat { contents: array a; unused1: (); unused2: () }
+| PUndo { previous: dynamic; offset: int; element:  a }
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Creation of a new persistent array. *)
+
+val create [a] duplicable a => (n: int, x: a) : parray a =
+  let t = array::create (n, x) in
+  let p = PFlat { contents = t; unused1 = (); unused2 = () } in
+  let r : region a = Region in
+  give p to r;
+  PArray { region = wref::new r; point = p }
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Bringing a point to a flat form. This is where the trickery lies. *)
+
+(* TEMPORARY the call from [revert_link] to [revert] is not a tail call:
+   we effectively use the stack to reverse the list. In principle, we
+   should be able to work in constant space. I guess we would need to
+   use a ref cell to hold the head of the reversed list. Do this after
+   we have set up a test suite for this module. *)
+
+(* [revert (r, p)] requires a region [r] and a point [p], which is a member of
+   [r]. It takes [p] away from [r] and returns the underlying array in a state
+   that corresponds to [p]. The point [p] itself is left in a temporary state
+   where its tag is [PUndo] and its fields are uninitialized. *)
+
+(* This convention about the final state of [p] is adopted so as to avoid
+   excessive writing. If the convention was that [p] should be left in a
+   [PFlat] state, with correctly initialized fields, then every point along
+   the chain would be overwritten twice: once from [PUndo] to [PFlat], and
+   once from [PFlat] to [PUndo] in the other direction. We save a factor of
+   two (rough estimate!) in memory traffic. *)
+
+val rec revert [a] duplicable a =>
+  (r: region a, p: dynamic)
+: (array a | p @ PUndo { previous: unknown; offset: unknown; element: unknown })
+=
+  (* Take [p] out of the region [r]. *)
+  take p from r;
+  match p with
+  | PFlat ->
+      (* This is the end of the line. Steal the underlying array,
+	 and change the tag of [p] to [PUndo]. *)
+      let t = p.contents in
+      tag of p <- PUndo;
+      t
+  | PUndo ->
+      (* Continue below. *)
+      revert_link (r, p)
+  end
+
+(* The auxiliary function [revert_link (r, p)] performs the same task
+   as [revert (r, p)], but assumes that [p] has already been taken
+   away from [r] and is a valid [PUndo] point. We isolate this function
+   so as to avoid code duplication: it has two call sites. *)
+
+and revert_link [a] duplicable a =>
+  (r: region a, consumes p: PUndo { previous: dynamic; offset: int; element: a })
+: (array a | p @ PUndo { previous: unknown; offset: unknown; element: unknown })
+=
+  let previous = p.previous in
+  (* Make a recursive call on [previous]. Because the [previous]
+     pointers cannot form a cycle, there is no need to give [p]
+     back to the region before making this recursive call. *)
+  let t = revert (r, previous) in
+  (* Read the field [p.offset] now, after the recursive call, because
+     if we read it as part of the pattern matching construct above,
+     then the compiler might not be smart enough to figure out that
+     the read can be delayed. Same concern about [p.element]. *)
+  let i = p.offset in
+  (* Update the representation of [previous] so that it becomes
+     a valid point again. Its tag remains [PUndo], but its
+     [previous] field now points in the other direction. *)
+  previous.previous <- p;
+  previous.offset <- i;
+  previous.element <- array::get (t, i);
+  (* We are now done with [previous]. *)
+  give previous to r;
+  (* Update the underlying array. *)
+  array::set (t, i, p.element);
+  (* The point [p] is now in the desired state: its tag is [PUndo]
+     and its fields contain bogus values. *)
+  t
+
+(* This non-recursive wrapper function also requires a region [r] and
+   a point [p]. It also takes [p] away from [r]. It returns the point
+   [p] in a valid [PFlat] state. *)
+
+(* By convention, the value [t] returned by [reroot] is [p.contents].
+   This is not essential, but is convenient, and allows us to write
+   a cool return type that involves explicit sharing. *)
+
+val reroot [a] duplicable a => (r: region a, p: dynamic)
+  : (t: array a | p @ PFlat { contents = t; unused1: (); unused2: () })
+=
+
+  take p from r;
+  match p with
+  | PFlat ->
+      (* If [p] is already flat, there is nothing to do. *)
+      p.contents
+  | PUndo ->
+      let t = revert_link (r, p) in
+      (* [p] is now in an uninitialized state. Re-initialize it. *)
+      tag of p <- PFlat;
+      p.contents <- t;
+      p.unused1 <- ();
+      p.unused2 <- ();
+      t
+  end
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Read access. *)
+
+val get [a] duplicable a => (pa: parray a, i: int) : a =
+  (* Acquire the lock, so as to get access to the region [r]. *)
+  wref::borrow (pa.region, fun (r : region a) : a =
+    (* Re-root the persistent array at [p]. *)
+    let p = pa.point in
+    let t = reroot (r, p) in
+    (* [p] is now flat. Read the underlying array [t]. *)
+    let v = array::get (t, i) in
+    (* Do not forget to give [p] back to [r]. *)
+    give p to r;
+    (* Done. *)
+    v
+  )
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Write access. *)
+
+val set [a] duplicable a => (pa: parray a, i: int, v: a) : parray a =
+  let q =
+    (* Acquire the lock, so as to get access to the region [r]. *)
+    wref::borrow (pa.region, fun (r : region a) : dynamic =
+      (* Re-root the persistent array at [p]. *)
+      let p = pa.point in
+      let t = reroot (r, p) in
+      (* [p] is now flat. Access the underlying array [t], and update [p]. *)
+      tag of p <- PUndo;
+      p.offset <- i;
+      p.element <- array::get (t, i);
+      (* Update the underlying array. *)
+      array::set (t, i, v);
+      (* Create a new point [q]. *)
+      let q = PFlat { contents = t; unused1 = (); unused2 = () } in
+      give q to r;
+      (* Finish updating [p], and give it back. *)
+      p.previous <- q;
+      give p to r;
+      (* Done. *)
+      q
+    )
+  in
+  (* Wrap the resulting point as a new persistent array. *)
+  PArray { region = pa.region; point = q }
+
+(* This organization might seem somewhat inefficient, because a persistent
+   array involves both a lock (which is implicit in the weak reference) and
+   an adopter (the region, which is protected by the lock). Hence, there are
+   two barriers at runtime: we must first acquire the lock, then take the
+   desired points from the region. That said, we acquire the lock just once,
+   and then can take as many points as we like, while paying just one dynamic
+   check per point. One might wonder whether we could work with just one lock
+   and no region at all. Each point would contain a pointer to a lock, so
+   whenever we wish to follow a link from a point to another point, we would
+   check at runtime that the lock associated with the new point is the lock
+   that we already hold, and deduce that we can safely access this point.
+   This variant might be correct, but it is unclear at present how it would
+   be type-checked. The use of adoption and abandon may seem costly, but it
+   also serves to protect us from ``taking'' a single point twice. It is
+   unclear how a purely lock-based idiom would achieve this: when we reach
+   a new point, we have no way of testing whether we have already claimed
+   the ownership of this point. Anyway, this deserves further research! *)
+
+(*
+Local Variables:
+compile-command: "../mezzo persistentarray.mz"
+End:
+*)
