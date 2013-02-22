@@ -1,0 +1,12 @@
+mutable data pair a b =
+  Pair { left: a; right: b }
+
+(* This works: *)
+val f (consumes p: Pair { left: int; right: int }) : int =
+  let left = p.left in
+  left
+
+(* But this does not work: *)
+val g (consumes p: Pair { left: (left: int); right: int }) : int =
+  left
+
