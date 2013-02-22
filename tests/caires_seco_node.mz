@@ -1,0 +1,56 @@
+open lock
+
+(* A node contains a value of type [a] and a successor, which
+   is not viewed as a node, but as an object of type [object a]. *)
+
+mutable data node a = Node {
+  (* TEMPORARY this option is required in order to preserve the
+     lock invariant after we have extracted the content *)
+  content: option a;
+  next: option (object a)
+}
+
+(* A node can also be viewed as an object that offers two
+   methods: [link] and [unlink]. The [link] method is used
+   to set a node's [next] field. The [unlink] method is
+   used to extract the node out of the queue and recover
+   its content. *)
+
+data object a = Object {
+  link:
+    object a -> ();
+  unlink:
+    () -> a
+}
+
+(* Node & object creation. *)
+
+val new [a] (consumes x: a) : object a =
+  
+  (* Allocate a fresh node. *)
+  let n = Node { content = some x; next = None } in
+  (* Hide its existence from the outside world by using a lock. *)
+  let l : lock (n @ node a) = lock::new () in
+
+  (* Define the methods that have access to this node. *)
+  let link (o: object a) : () =
+    acquire l;
+    n.next <- some o;
+    release l
+  and unlink () : a =
+    acquire l;
+    (* TEMPORARY can we get rid of this dynamic check? and of the write operation that follows *)
+    let x = option::force n.content in
+    n.content <- None;
+    release l;
+    x
+  in
+
+  Object { link = link; unlink = unlink }
+
+(* TEMPORARY can we encode the fact that [link] and [unlink] are
+   called at most once per node? can we separate the [link] and
+   [unlink] permissions? we could build two distinct object views
+   of the node, and we could make link and unlink one-shot functions.
+   Would that help? *)
+   
