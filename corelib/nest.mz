@@ -1,0 +1,20 @@
+(* Nesting requires no runtime support; its implementation is trivial. *)
+
+abstract nests (x : term) (p : perm) : perm
+fact duplicable (nests x p)
+
+val nest [p : perm, a] exclusive a => (x: a | consumes p) : (| nests x p) =
+  magic::magic ()
+
+abstract punched (a : type) (p : perm) : type
+
+val focus [p : perm, a] exclusive a => (consumes x: a | nests x p) : (| x @ punched a p * p) =
+  magic::magic ()
+
+val defocus [p : perm, a] (consumes (x: punched a p | p)) : (| x @ a) =
+  magic::magic ()
+
+(* TEMPORARY we really need a type abbreviation for the type:
+   y: unknown | nests x (y @ a)
+   which represents a region inhabitant *)
+

@@ -1,0 +1,35 @@
+(* Boyland's nesting is available in Mezzo, thanks to the following primitive
+   types and operations. *)
+
+(* A nesting witness, [nests x p], is a duplicable permission, which guarantees
+   that an exclusive permission for [x] implies the permission [p]. Because
+   nesting is monotonic (it cannot be undone), a nesting witness is duplicable. *)
+
+abstract nests (x : term) (p : perm) : perm
+fact duplicable (nests x p)
+
+(* Nesting consumes the permission [p] and produces a nesting witness [nests x p].
+   The instruction [nest [p] x] is somewhat analogous to an adoption instruction,
+   [give p to x]. The permission [p] becomes implicitly associated with the address
+   [x]. *)
+
+val nest: [p : perm, a] exclusive a => (x: a | consumes p) -> (| nests x p)
+
+(* A punched type [punched a p] is used to keep track of the fact that a nested
+   permission [p] has been temporarily recovered by focusing on [x]. This type
+   is not duplicable. It cannot be considered exclusive either; this prevents
+   double focusing. *)
+
+abstract punched (a : type) (p : perm) : type
+
+(* Focusing allows temporarily recovering a permission [p] that was nested in [x].
+   It requires an exclusive permission for [x], as well a nesting witness. It
+   produces a punched permission for [x]. The syntax is [focus [p] x], or
+   perhaps just [focus x]. *)
+
+val focus: [p : perm, a] exclusive a => (consumes x: a | nests x p) -> (| x @ punched a p * p)
+
+(* Defocusing is the reverse operation. The syntax is [defocus x]. *)
+
+val defocus: [p : perm, a] (consumes (x: punched a p | p)) -> (| x @ a)
+

@@ -814,6 +814,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("bad-arity2.mz", simple_test (Fail (function BadPattern _ -> true | _ -> false)));
   ("dependent-type.mz", simple_test Pass);
   ("caires_seco_node.mz", simple_test Pass);
+  ("persistentarray_nesting.mz", simple_test Pass);
 
 ];;
 
