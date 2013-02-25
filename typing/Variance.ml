@@ -18,7 +18,7 @@
 (*****************************************************************************)
 
 (* This module is entirely devoted to computing the variance of type parameters
- * in data type.
+ * in data types.
  *
  * This module uses [Fix], which we bundle as part of Mezzo. See
  * http://gallium.inria.fr/~fpottier/fix/fix.html.en

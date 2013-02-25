@@ -431,8 +431,9 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
       in
       (* Translate the clause as well *)
       let adopts_clause = Option.map (translate_type_with_names env) adopts_clause in
-      (* This is conservative but the variance inference will take care of
-       * setting the right values for the variance of the parameters. *)
+      (* We store the annotated variance here, and then
+       * [Variance.analyze_data_types] will take of checking these against the
+       * actual variance. *)
       let variance = List.map (fun (v, _) -> v) the_params in
       name, env.location, (Some (flag, branches, adopts_clause), variance), fact, karrow params KType
   | Abstract ((name, the_params), kind, fact) ->
