@@ -138,7 +138,7 @@ let makeArray (r : value array) : value =
 
 module ValuePrinter = struct
 
-  open Hml_Pprint
+  open MzPprint
 
   (* The [depth] parameter is incremented at every memory block, and
      we stop when it reaches a hard-coded limit. This prevents entering

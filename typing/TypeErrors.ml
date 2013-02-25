@@ -495,13 +495,13 @@ let print_error buf (env, raw_error) =
 let html_error error =
   let env = fst error in
   (* Get a plain-text version of the error *)
-  Hml_Pprint.disable_colors ();
-  let text = Hml_String.bsprintf "%a\n" print_error error in
+  MzPprint.disable_colors ();
+  let text = MzString.bsprintf "%a\n" print_error error in
   (* Generate the HTML explanation. *)
   Debug.explain ~text env;
   (* Find out about the command to run. *)
   let f = (fst (TypeCore.location env)).Lexing.pos_fname in
-  let f = Hml_String.replace "/" "_" f in
+  let f = MzString.replace "/" "_" f in
   let cmd = Printf.sprintf
     "firefox -new-window \"viewer/viewer.html?json_file=data/%s.json\" &"
     f

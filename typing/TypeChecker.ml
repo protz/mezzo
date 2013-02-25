@@ -246,7 +246,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
 
   | PTuple patterns ->
       let permissions = get_permissions env var in
-      let t = Hml_List.map_some (function TyTuple x -> Some x | _ -> None) permissions in
+      let t = MzList.map_some (function TyTuple x -> Some x | _ -> None) permissions in
       if List.length t = 0 then
         raise_error env (BadPattern (pattern, var));
       let t = List.hd t in
@@ -262,7 +262,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
 
   | PConstruct (datacon, field_pats) ->
       let permissions = get_permissions env var in
-      let field_defs = Hml_List.map_some
+      let field_defs = MzList.map_some
         (function
           | TyConcreteUnfolded (datacon', x, _) when resolved_datacons_equal env datacon datacon' ->
               Some x
@@ -304,7 +304,7 @@ let refine_perms_in_place_for_pattern env var pat =
 
     | PTuple pats ->
         let vars =
-          match Hml_List.find_opt (function
+          match MzList.find_opt (function
             | TyTuple ts ->
                 Some (List.map (function
                   | TySingleton (TyOpen p) ->
@@ -346,7 +346,7 @@ let refine_perms_in_place_for_pattern env var pat =
             | _ ->
                 assert false
           ) fields;
-          let var1 = match Hml_List.find_opt (function
+          let var1 = match MzList.find_opt (function
             | FieldValue (n1, TySingleton (TyOpen p1)) when Field.equal n1 n2 ->
                 Some p1
             | _ ->
@@ -361,7 +361,7 @@ let refine_perms_in_place_for_pattern env var pat =
         ) env patfields in
 
         (* Find a permission that can be refined in there. *)
-        begin match Hml_List.take (function
+        begin match MzList.take (function
           | TyOpen p ->
               let p', datacon = datacon in
               fail_if (not (same env p !!p'));
@@ -410,7 +410,7 @@ let refine_perms_in_place_for_pattern env var pat =
             (* Add instead its refined version -- this also makes sure it's in expanded form. *)
             let env = Permissions.add env var t in
             (* Find the resulting structural permission. *)
-            let fields = Option.extract (Hml_List.find_opt (function
+            let fields = Option.extract (MzList.find_opt (function
               | TyConcreteUnfolded (_, fields, _) ->
                   Some fields
               | _ ->
@@ -751,7 +751,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             None
       in
       (* Find something that works. *)
-      let t = Hml_List.find_opt find_and_instantiate (get_permissions env x) in
+      let t = MzList.find_opt find_and_instantiate (get_permissions env x) in
       let t = match t with
         | Some t ->
             t
@@ -775,9 +775,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         | Some (TyTuple annotations) when List.length annotations = List.length exprs ->
             List.map (fun x -> Some x) annotations
         | _ ->
-            Hml_List.make (List.length exprs) (fun _ -> None)
+            MzList.make (List.length exprs) (fun _ -> None)
       in
-      let env, components = Hml_List.fold_left2i
+      let env, components = MzList.fold_left2i
         (fun i (env, components) expr annot ->
           let hint = add_hint hint (string_of_int i) in
           let env, p = check_expression env ?hint ?annot expr in
@@ -798,7 +798,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       in
       let annotations = match annot with
         | Some (TyConcreteUnfolded (_, fields, _)) ->
-            let annots = Hml_List.map_some (function
+            let annots = MzList.map_some (function
                 | FieldValue (name, t) ->
                     Some (name, t)
                 | FieldPermission _ ->
@@ -838,7 +838,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       in
       (* Find the annotation for one of the fields. *)
       let annot name =
-        Hml_List.find_opt (function
+        MzList.find_opt (function
           | name', t when Field.equal name name' ->
               Some t
           | _ ->
@@ -895,7 +895,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 	 be executed. *)
 
       let env, (false_t, true_t) =
-        match Hml_List.take_bool (is_data_type_with_two_constructors env) (get_permissions env x1) with
+        match MzList.take_bool (is_data_type_with_two_constructors env) (get_permissions env x1) with
         | Some (permissions, t) ->
             let env = set_permissions env x1 permissions in
             let split_apply cons args =
@@ -956,7 +956,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       (* Combine all of these left-to-right to obtain a single return
        * environment *)
-      let dest = Hml_List.reduce (Merge.merge_envs env ?annot) sub_envs in
+      let dest = MzList.reduce (Merge.merge_envs env ?annot) sub_envs in
 
       if explain then
         Debug.explain_merge dest sub_envs;
@@ -988,7 +988,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       in
       let env, y = check_expression env ?hint e in
       (* Find the adopts clause for this structural permission. *)
-      begin match Hml_List.take (has_adopts_clause env) (get_permissions env y) with
+      begin match MzList.take (has_adopts_clause env) (get_permissions env y) with
       | None ->
           raise_error env (NoAdoptsClause y)
       | Some (remaining_perms, (perm, clause)) ->
@@ -1031,7 +1031,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       if not (List.exists (equal env TyDynamic) (get_permissions env x)) then
         raise_error env (NotDynamic x);
       let env, y = check_expression env ?hint e in
-      begin match Hml_List.find_opt (has_adopts_clause env) (get_permissions env y) with
+      begin match MzList.find_opt (has_adopts_clause env) (get_permissions env y) with
       | None ->
           raise_error env (NoAdoptsClause y)
       | Some clause ->
@@ -1145,7 +1145,7 @@ let check_declaration_group
   (* List kept in reverse, the usual trick. *)
   let vars = List.rev vars in
   let subst_toplevel_items b =
-    Hml_List.fold_lefti (fun i b var ->
+    MzList.fold_lefti (fun i b var ->
       let b = tsubst_toplevel_items (TyOpen var) i b in
       esubst_toplevel_items (EOpen var) i b) b vars
   in

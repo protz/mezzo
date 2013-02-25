@@ -17,34 +17,38 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** Various checks that we can't perform until a full environment is ready. *)
+let bsprintf fmt =
+  Printf.kbprintf Buffer.contents (Buffer.create 16) fmt
 
-open TypeCore
-open DeBruijn
-open Types
-open TypeErrors
+let bfprintf ?new_line oc fmt =
+  Printf.kbprintf (fun buf -> Buffer.output_buffer oc buf; if Option.unit_bool new_line then
+    output_string oc "\n";) (Buffer.create 16) fmt
 
-let check_adopts_clauses (env: env): unit =
-  fold_definitions env (fun () var definition ->
-    let kind = get_kind env var in
-    match definition with
-    | Some (_, _, Some clause), _ ->
-        let _return_kind, arg_kinds = flatten_kind kind in
-        let arity = List.length arg_kinds in
-        let env, vars = make_datacon_letters env kind false (fun _ -> Affine) in
-        let clause = MzList.fold_lefti (fun i clause var ->
-          let index = arity - i - 1 in
-          tsubst (TyOpen var) index clause
-        ) clause vars in
-        if not (FactInference.is_exclusive env clause) then
-          raise_error env (
-            BadFactForAdoptedType (var, clause, FactInference.analyze_type env clause)
-          )
-    | _ ->
-        ()
-  ) ()
-;;
+let bprintf fmt =
+  bfprintf stdout fmt
 
-let check_env (env: env): unit =
-  check_adopts_clauses env
-;;
+let beprintf fmt =
+  bfprintf stderr fmt
+
+let buf = Buffer.create 0
+let biprintf fmt = Printf.ifprintf buf fmt
+
+let replace s1 s2 s =
+  let s1 = Str.regexp_string s1 in
+  let s = Str.global_replace s1 s2 s in
+  s
+
+let substring s i j =
+  String.sub s i (j - i)
+
+let split s c =
+  let rec break s acc =
+    try begin
+      let i = String.index s c in 
+      let l = String.length s in 
+      let s1, s2 = substring s 0 i, substring s (i+1) l in 
+      break s2 (s1 :: acc) 
+    end with Not_found ->
+      s :: acc
+  in
+  List.rev (break s [])

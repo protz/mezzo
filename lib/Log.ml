@@ -26,9 +26,9 @@ let debug ?level fmt =
   (* If no level is provided, the message is always displayed. *)
   let level = Option.map_none 1 level in
   if level <= !the_debug_level then begin
-    Hml_String.bfprintf ~new_line:() stderr fmt
+    MzString.bfprintf ~new_line:() stderr fmt
   end else begin
-    Hml_String.biprintf fmt
+    MzString.biprintf fmt
   end
 
 let warn_count = ref 0
@@ -76,7 +76,7 @@ let error fmt =
 let check b fmt =
   let open Printf in
   if b then
-    Hml_String.biprintf fmt
+    MzString.biprintf fmt
   else begin
     let buf = Buffer.create 16 in
     Buffer.add_string buf Bash.colors.Bash.red;

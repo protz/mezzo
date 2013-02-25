@@ -374,7 +374,7 @@ and add (env: env) (var: var) (t: typ): env =
   (* This implement the rule "x @ (=y, =z) * x @ (=y', =z') implies y = y' and z * = z'" *)
   | TyConcreteUnfolded (dc, ts, clause) ->
       let original_perms = get_permissions env var in
-      begin match Hml_List.find_opt (function
+      begin match MzList.find_opt (function
         | TyConcreteUnfolded (dc', ts', clause') when resolved_datacons_equal env dc dc' ->
             Some (ts', clause')
         | _ -> None)
@@ -410,7 +410,7 @@ and add (env: env) (var: var) (t: typ): env =
 
   | TyTuple ts ->
       let original_perms = get_permissions env var in
-      begin match Hml_List.find_opt (function TyTuple ts' -> Some ts' | _ -> None) original_perms with
+      begin match MzList.find_opt (function TyTuple ts' -> Some ts' | _ -> None) original_perms with
       | Some ts' ->
           if List.length ts <> List.length ts' then
             mark_inconsistent env
@@ -562,7 +562,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
 
     (* We're only interested in unfolding structural types. *)
     | TyTuple components ->
-        let env, components = Hml_List.fold_lefti (fun i (env, components) component ->
+        let env, components = MzList.fold_lefti (fun i (env, components) component ->
           let hint = add_hint hint (string_of_int i) in
           let env, component = insert_var env ?hint component in
           env, component :: components
@@ -580,8 +580,8 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
             | FieldValue (name, _) -> Some name
             | FieldPermission _ -> None
           in
-          let fields' = Hml_List.map_some field_name branch in
-          let fields = Hml_List.map_some field_name fields in
+          let fields' = MzList.map_some field_name branch in
+          let fields = MzList.map_some field_name fields in
           List.length fields = List.length fields' &&
           List.for_all (fun field' ->
             List.exists (Field.equal field') fields
@@ -595,7 +595,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
               env, field :: fields
           | FieldValue (name, field) ->
               let hint =
-                add_hint hint (Hml_String.bsprintf "%a_%a" Datacon.p (snd datacon) Field.p name)
+                add_hint hint (MzString.bsprintf "%a_%a" Datacon.p (snd datacon) Field.p name)
               in
               let env, field = insert_var env ?hint field in
               env, FieldValue (name, field) :: fields
@@ -645,7 +645,7 @@ and sub (env: env) (var: var) (t: typ): env option =
 
 
     (* [take] proceeds left-to-right *)
-    match Hml_List.take (fun x -> sub_type env x t) permissions with
+    match MzList.take (fun x -> sub_type env x t) permissions with
     | Some (remaining, (t_x, env)) ->
         (* [t_x] is the "original" type found in the list of permissions for [x].
          * -- see [tests/fact-inconsistency.mz] as to why I believe it's correct
@@ -859,7 +859,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
         (* We enter a potentially non-linear context here. Only keep duplicable
          * parts. *)
         let sub_env = keep_only_duplicable env in
-        Hml_List.fold_left2i (fun i sub_env arg1 arg2 ->
+        MzList.fold_left2i (fun i sub_env arg1 arg2 ->
           sub_env >>= fun sub_env ->
           (* Variance comes into play here as well. The behavior is fairly
            * intuitive. *)
@@ -935,8 +935,8 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       (* This has the nice guarantee that we don't need to worry about flexible
        * PERM variables anymore (hence the call to List.partition a few lines
        * below). *)
-      let ps1 = Hml_List.map_flatten (flatten_star env) ps1 in
-      let ps2 = Hml_List.map_flatten (flatten_star env) ps2 in
+      let ps1 = MzList.map_flatten (flatten_star env) ps1 in
+      let ps2 = MzList.map_flatten (flatten_star env) ps2 in
 
       (* "(t1 | p1) - (t2 | p2)" means doing "t1 - t2", adding all of [p1],
        * removing all of [p2]. However, the order in which we perform these
@@ -970,12 +970,12 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
       (* This is the main function. *)
       let rec add_sub env ps1 ps2: env * typ list * typ list =
-        match Hml_List.take_bool (works_for_add env) ps1 with
+        match MzList.take_bool (works_for_add env) ps1 with
         | Some (ps1, p1) ->
             let env = add_perm env p1 in
             add_sub env ps1 ps2
         | None ->
-            match Hml_List.take_bool (works_for_sub env) ps2 with
+            match MzList.take_bool (works_for_sub env) ps2 with
             | Some (ps2, p2) ->
                 let env = Option.extract (sub_perm env p2) in
                 add_sub env ps1 ps2
@@ -1079,7 +1079,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       let perms = List.filter (fun x ->
         match modulo_flex env x with TySingleton _ -> false | _ -> true
       ) (get_permissions env var) in
-      Hml_List.find_opt (fun t1 -> sub_type env t1 t2) perms
+      MzList.find_opt (fun t1 -> sub_type env t1 t2) perms
 
   | _ ->
       None
@@ -1110,7 +1110,7 @@ and sub_perms env perms =
   if List.length perms = 0 then
     Some env
   else
-    match Hml_List.take_bool (perm_not_flex env) perms with
+    match MzList.take_bool (perm_not_flex env) perms with
     | Some (perms, perm) ->
         sub_perm env perm >>= fun env ->
         sub_perms env perms
@@ -1120,7 +1120,7 @@ and sub_perms env perms =
         None
 
 and sub_floating_perm env t =
-  match Hml_List.take (sub_type env t) (get_floating_permissions env) with
+  match MzList.take (sub_type env t) (get_floating_permissions env) with
   | Some (remaining_perms, (t', env)) ->
       if FactInference.is_duplicable env t' then
         Some env

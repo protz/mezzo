@@ -90,7 +90,7 @@ type env = {
 
 let mkdatacon_info dc i fields =
   (* Create the map. *)
-  let fmap = Hml_List.fold_lefti
+  let fmap = MzList.fold_lefti
     (fun i fmap f -> Field.Map.add f i fmap)
     Field.Map.empty fields
   in {
@@ -118,7 +118,7 @@ let empty (env: T.env): env =
       | Some (_, def, _), _ ->
           (* Find the module name which this definition comes from. Yes, there's
            * no better way to do that. *)
-          let mname = Hml_List.find_opt
+          let mname = MzList.find_opt
             (function User (mname, _) -> Some mname | _ -> None)
             names
           in
@@ -130,7 +130,7 @@ let empty (env: T.env): env =
             let qualif = Qualified (mname, dc) in
             (* We're building information for the interpreter: drop the
              * permission fields. *)
-            let fields = Hml_List.map_some (function
+            let fields = MzList.map_some (function
               | FieldValue (name, _) -> Some name
               | FieldPermission _ -> None
             ) fields in
@@ -386,7 +386,7 @@ let open_module_in (mname: Module.name) (env: env): env =
   let env = List.fold_left bind_external env names in
 
   (* Now also open the data constructors. *)
-  let mname_datacons = Hml_List.map_some (function
+  let mname_datacons = MzList.map_some (function
     | Qualified (mname', dc), origin when Module.equal mname mname' ->
         Some (Unqualified dc, origin)
     | _ ->
@@ -471,7 +471,7 @@ let check_for_duplicate_things
   let compare (x : 'a) (y : 'a) : int =
     compare (project x) (project y)
   in
-  match Hml_List.check_for_duplicates compare elements with
+  match MzList.check_for_duplicates compare elements with
   | None ->
       ()
   | Some (x, _) ->
@@ -738,7 +738,7 @@ and check_field (env: env) (field: data_field_def) =
 
 and check_branch: 'a. env -> ('a * data_field_def list) -> unit = fun env branch ->
   let _, fields = branch in
-  let names = Hml_List.map_some (function
+  let names = MzList.map_some (function
     | FieldValue (name, _) ->
         Some name
     | FieldPermission _ ->
@@ -794,7 +794,7 @@ let check_data_type_def (env: env) (def: data_type_def) =
 
 let check_data_type_group (env: env) (data_type_group: data_type_def list) =
   (* Check that the constructors are unique to this data type group. *)
-  let all_branches = Hml_List.map_flatten (function
+  let all_branches = MzList.map_flatten (function
     | Abstract _ ->
         []
     | Concrete (_, _, branches, _) ->
@@ -1011,7 +1011,7 @@ let check_implementation (tenv: T.env) (program: implementation) =
 
 let check_interface (tenv: T.env) (interface: interface) =
   (* Check for duplicate variables. *)
-  let all_bindings = Hml_List.map_flatten (function
+  let all_bindings = MzList.map_flatten (function
     | DataTypeGroup (_, data_type_group) ->
         bindings_data_type_group data_type_group
     | PermDeclaration (x, _) ->
@@ -1024,9 +1024,9 @@ let check_interface (tenv: T.env) (interface: interface) =
   check_for_duplicate_variables fst all_bindings (bound_twice (empty tenv));
 
   (* Check for duplicate data constructors. *)
-  let all_datacons = Hml_List.map_flatten (function
+  let all_datacons = MzList.map_flatten (function
     | DataTypeGroup (_, data_type_group) ->
-        Hml_List.map_flatten (function
+        MzList.map_flatten (function
           | Abstract _ ->
               []
           | Concrete (_, _, branches, _) ->
@@ -1047,7 +1047,7 @@ let check_interface (tenv: T.env) (interface: interface) =
 
 module KindPrinter = struct
 
-  open Hml_Pprint
+  open MzPprint
   open TypeCore
   open Types
   open TypePrinter

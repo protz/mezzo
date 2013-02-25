@@ -144,7 +144,7 @@ let rec flatten_star env t =
 
 let fold_star perms =
   if List.length perms > 0 then
-    Hml_List.reduce (fun acc x -> TyStar (acc, x)) perms
+    MzList.reduce (fun acc x -> TyStar (acc, x)) perms
   else
     TyEmpty
 ;;
@@ -210,7 +210,7 @@ let bind_flexible_in_type = bind_in_type bind_flexible;;
 *)
 
 (* let map_types env f =
-  Hml_List.filter_some
+  MzList.filter_some
     (List.rev
       (PersistentUnionFind.fold
         (fun acc _k -> function
@@ -220,7 +220,7 @@ let bind_flexible_in_type = bind_in_type bind_flexible;;
 ;;
 
 let map_terms env f =
-  Hml_List.filter_some
+  MzList.filter_some
     (List.rev
       (PersistentUnionFind.fold
         (fun acc _k -> function
@@ -379,12 +379,12 @@ let variance env var i =
 let instantiate_adopts_clause clause args =
   let clause = Option.map_none ty_bottom clause in
   let args = List.rev args in
-  Hml_List.fold_lefti (fun i clause arg -> tsubst arg i clause) clause args
+  MzList.fold_lefti (fun i clause arg -> tsubst arg i clause) clause args
 ;;
 
 let instantiate_branch branch args =
   let args = List.rev args in
-  let branch = Hml_List.fold_lefti (fun i branch arg ->
+  let branch = MzList.fold_lefti (fun i branch arg ->
     tsubst_data_type_def_branch arg i branch) branch args
   in
   branch
@@ -436,8 +436,8 @@ let is_type env v = (fst (flatten_kind (get_kind env v)) = KType);;
 let make_datacon_letters env kind flexible f =
   let _return_kind, arg_kinds = flatten_kind kind in
   (* Turn the list of parameters into letters *)
-  let letters: string list = Hml_Pprint.name_gen (List.length arg_kinds) in
-  let env, points = Hml_List.fold_left2i (fun i (env, points) kind letter ->
+  let letters: string list = MzPprint.name_gen (List.length arg_kinds) in
+  let env, points = MzList.fold_left2i (fun i (env, points) kind letter ->
     let env, point =
       let letter = Auto (Variable.register letter) in
       let env, var =
@@ -458,7 +458,7 @@ let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_bra
     env * var list * data_type_def_branch list * adopts_clause =
   let env, points = make_datacon_letters env kind false (fun i -> Fuzzy i) in
   let arity = get_arity_for_kind kind in
-  let branches, clause = Hml_List.fold_lefti (fun i (branches, clause) point ->
+  let branches, clause = MzList.fold_lefti (fun i (branches, clause) point ->
     let index = arity - i - 1 in
     let branches = List.map (tsubst_data_type_def_branch (TyOpen point) index) branches in
     let clause = Option.map (tsubst (TyOpen point) index) clause in
@@ -489,7 +489,7 @@ let expand_if_one_branch (env: env) (t: typ) =
 
 module TypePrinter = struct
 
-  open Hml_Pprint
+  open MzPprint
 
   (* If [f arg] returns a [document], then write [Log.debug "%a" pdoc (f, arg)] *)
   let pdoc (buf: Buffer.t) (f, env: ('env -> document) * 'env): unit =
@@ -765,7 +765,7 @@ module TypePrinter = struct
       utf8string w
     in
     let print_fact name is_abstract arity fact =
-      let params = Hml_Pprint.name_gen arity in
+      let params = MzPprint.name_gen arity in
       let is w = is name is_abstract ~params w in
       match fact with
       | Fuzzy _ ->
@@ -780,7 +780,7 @@ module TypePrinter = struct
             (Array.to_list bitmap)
             params
           in
-          let dup_params = Hml_List.filter_some dup_params in
+          let dup_params = MzList.filter_some dup_params in
           if List.length dup_params > 0 then begin
             let verb = string (if List.length dup_params > 1 then " are " else " is ") in
             let dup_params = List.map utf8string dup_params in

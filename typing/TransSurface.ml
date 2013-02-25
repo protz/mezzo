@@ -174,8 +174,8 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
 
   in
   let t, name_perms = strip_consumes env t in
-  let names, perms, locations = Hml_List.split3 name_perms in
-  let bindings = Hml_List.map_some (function
+  let names, perms, locations = MzList.split3 name_perms in
+  let bindings = MzList.map_some (function
     | Some x, loc ->
         Some (x, KTerm, loc)
     | None, _ ->
@@ -409,7 +409,7 @@ let translate_abstract_fact (params: Variable.name list) (fact: abstract_fact op
       let arity = List.length params in
       let bitmap = Array.make arity false in
       List.iter (fun name ->
-        let i = Hml_List.index name params in
+        let i = MzList.index name params in
         bitmap.(i) <- true
       ) names;
       T.Duplicable bitmap
@@ -455,10 +455,10 @@ let bind_datacons env data_type_group =
           | _, Point point ->
               fun env dc fields -> bind_external_datacon env dc point fields
         in
-        Hml_List.fold_lefti (fun i env (dc, fields) ->
+        MzList.fold_lefti (fun i env (dc, fields) ->
           (* We're building information for the interpreter: drop the
            * permission fields. *)
-          let fields = Hml_List.map_some (function
+          let fields = MzList.map_some (function
             | FieldValue (name, _) -> Some name
             | FieldPermission _ -> None
           ) fields in
@@ -524,7 +524,7 @@ let clean_pattern pattern =
           TyUnknown
 
     | PConstruct (name, fieldpats) ->
-        let fields, pats, annotations = Hml_List.split3 (List.map
+        let fields, pats, annotations = MzList.split3 (List.map
           (fun (field, pat) ->
             let pat, annotation = clean_pattern env pat in
             field, pat, annotation

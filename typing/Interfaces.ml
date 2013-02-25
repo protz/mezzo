@@ -85,7 +85,7 @@ let check
 : T.env =
   (* Find one specific name among these names. *)
   let point_by_name name =
-    match Hml_List.find_opt (fun (name', _, p') ->
+    match MzList.find_opt (fun (name', _, p') ->
       if Variable.equal name name' then
         Some p'
       else

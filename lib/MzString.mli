@@ -17,34 +17,33 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** Various checks that we can't perform until a full environment is ready. *)
+(** Various string utilities. *)
 
-open TypeCore
-open DeBruijn
-open Types
-open TypeErrors
+(** Make all your pretty-printers work with buffers and use this to get a
+    [Printf.sprintf] *)
+val bsprintf: ('a, Buffer.t, unit, string) format4 -> 'a
 
-let check_adopts_clauses (env: env): unit =
-  fold_definitions env (fun () var definition ->
-    let kind = get_kind env var in
-    match definition with
-    | Some (_, _, Some clause), _ ->
-        let _return_kind, arg_kinds = flatten_kind kind in
-        let arity = List.length arg_kinds in
-        let env, vars = make_datacon_letters env kind false (fun _ -> Affine) in
-        let clause = MzList.fold_lefti (fun i clause var ->
-          let index = arity - i - 1 in
-          tsubst (TyOpen var) index clause
-        ) clause vars in
-        if not (FactInference.is_exclusive env clause) then
-          raise_error env (
-            BadFactForAdoptedType (var, clause, FactInference.analyze_type env clause)
-          )
-    | _ ->
-        ()
-  ) ()
-;;
+(** Make all your pretty-printers work with buffers, use them with [%a] and use
+    this to get a [Printf.fprintf] *)
+val bfprintf : ?new_line:unit -> out_channel -> ('a, Buffer.t, unit, unit) format4 -> 'a
 
-let check_env (env: env): unit =
-  check_adopts_clauses env
-;;
+(** Make all your pretty-printers work with buffers, use them with [%a] and use
+    this to get a [Printf.printf] *)
+val bprintf : ('a, Buffer.t, unit, unit) format4 -> 'a
+
+(** Make all your pretty-printers work with buffers, use them with [%a] and use
+    this to get a [Printf.eprintf] *)
+val beprintf : ('a, Buffer.t, unit, unit) format4 -> 'a
+
+(** In case you need to ignore some stuff. *)
+val biprintf : ('a, Buffer.t, unit) format -> 'a
+
+(** [replace s1 s2 s] replaces all occurrences of [s1] with [s2] in [s]. *)
+val replace: string -> string -> string -> string
+
+(** [split s c] will split string [s] on character [c] *)
+val split: string -> char -> string list
+
+(** [substring s i j] will return all characters from string [s] comprised
+ * between indices [i] (included) and [j] (excluded). *)
+val substring: string -> int -> int -> string

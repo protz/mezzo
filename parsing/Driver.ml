@@ -40,11 +40,11 @@ let lex_and_parse file_path entry_var =
           "Invalid code var %i at offset %i\n" i (Ulexing.lexeme_end lexbuf);
         exit 254
     | Grammar.Error ->
-        Hml_String.beprintf "%a\nError: Syntax error\n"
+        MzString.beprintf "%a\nError: Syntax error\n"
           print_position lexbuf;
         exit 253
     | Lexer.LexingError e ->
-        Hml_String.beprintf "%a\n"
+        MzString.beprintf "%a\n"
           Lexer.print_error (lexbuf, e);
         exit 252
   )
@@ -58,7 +58,7 @@ let mkprefix path =
       Filename.concat Configure.root_dir "corelib"
     in
     let autoload_path = Filename.concat corelib_dir "autoload" in
-    let autoload_modules = Hml_String.split (Utils.file_get_contents autoload_path) '\n' in
+    let autoload_modules = MzString.split (Utils.file_get_contents autoload_path) '\n' in
     let autoload_modules = List.filter (fun s -> String.length s > 0 && s.[0] <> '#') autoload_modules in
     let me = Filename.basename path in
     let my_dir = Filename.dirname path in
@@ -284,9 +284,9 @@ let check_implementation
          * one ends up being exported. Instead, we can rely on [type_check] to
          * returns for us the list of names along with the corresponding vars
          * that are exported. *)
-        let exports = Hml_List.map_flatten (fun p ->
+        let exports = MzList.map_flatten (fun p ->
           let k = TypeCore.get_kind env p in
-          Hml_List.map_some (function
+          MzList.map_some (function
             | TypeCore.User (mname, x) when Module.equal mname (TypeCore.module_name env) ->
                Some (x, k, p)
             | _ ->
@@ -394,13 +394,13 @@ let run { html_errors; backtraces } f =
       if html_errors then begin
         TypeErrors.html_error e
       end else begin
-        Hml_String.beprintf "%a\n" TypeErrors.print_error e;
+        MzString.beprintf "%a\n" TypeErrors.print_error e;
       end;
       if backtraces then
         raise the_exn;
       exit 251
   | KindCheck.KindError e as the_exn ->
-      Hml_String.beprintf "%a\n" KindCheck.print_error e;
+      MzString.beprintf "%a\n" KindCheck.print_error e;
       if backtraces then
         raise the_exn;
       exit 250
@@ -436,7 +436,7 @@ let print_signature (buf: Buffer.t) (env: TypeCore.env): unit =
   let perms = List.sort (fun (_, loc1, _) (_, loc2, _) -> compare_locs loc1 loc2) perms in
   List.iter (fun (var, _, t) ->
     let open Types.TypePrinter in
-    let open Hml_Pprint in
+    let open MzPprint in
     try
       let name = List.find (function
         | User (m, x) ->

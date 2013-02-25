@@ -35,7 +35,7 @@ let implementation
    )
   (* Pretty-print. *)
   $ UntypedOCamlPrinter.implementation
-  $ Hml_Pprint.dump (translate_file_name path ".ml");
+  $ MzPprint.dump (translate_file_name path ".ml");
 
   (* Define and print the interface, if present. *)
   Option.iter (fun intf ->
@@ -45,6 +45,6 @@ let implementation
       $ UntypedMezzo2UntypedOCaml.translate_interface
       (* Pretty-print. *)
       $ UntypedOCamlPrinter.interface
-      $ Hml_Pprint.dump (translate_file_name path ".mli")
+      $ MzPprint.dump (translate_file_name path ".mli")
   ) intf
 

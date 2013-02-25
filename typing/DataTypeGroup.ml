@@ -24,7 +24,7 @@ open Expressions
 let bind_group_in (vars: var list) subst_func_for_thing thing =
   let total_number_of_data_types = List.length vars in
   let thing =
-    Hml_List.fold_lefti (fun level thing var ->
+    MzList.fold_lefti (fun level thing var ->
       let index = total_number_of_data_types - level - 1 in
       subst_func_for_thing (TyOpen var) index thing
     ) thing vars

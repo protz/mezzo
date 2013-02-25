@@ -51,7 +51,7 @@ module Lifo = struct
   let pop r = let v = List.hd !r in r := List.tl !r; v;;
   let push r v = r := v :: !r;;
   let remove r v =
-    match Hml_List.take (fun v' -> if v = v' then Some () else None) !r with
+    match MzList.take (fun v' -> if v = v' then Some () else None) !r with
     | Some (remaining, _) ->
         r := remaining
     | None ->
@@ -346,7 +346,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                 merge_type (left_env, left_perm) (right_env, right_perm) ~dest_var dest_env
               in
 
-              begin match Hml_List.take works right_perms with
+              begin match MzList.take works right_perms with
               | Some (right_perms, (right_perm, (left_env, right_env, dest_env, dest_perm))) ->
 
                   Log.debug ~level:4 "  → this merge between %a and %a was succesful (got: %a)"
@@ -453,7 +453,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
     in
 
     let has_datacon_type_annotation dest_env dest_var datacon =
-      Hml_List.find_opt (fun t ->
+      MzList.find_opt (fun t ->
         match t with
         | TyConcreteUnfolded (datacon', fields, annot) when resolved_datacons_equal dest_env datacon datacon' ->
             Some (fields, annot)
@@ -463,7 +463,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
     in
 
     let has_tuple_type_annotation dest_env dest_var =
-      Hml_List.find_opt (fun t ->
+      MzList.find_opt (fun t ->
         match t with
         | TyTuple ts ->
             Some ts
@@ -524,7 +524,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
               (* Same constructors: both are in expanded form so just schedule the
                * vars in their fields for merging. *)
               let dest_env, dest_fields =
-                Hml_List.fold_left3 (fun (dest_env, dest_fields) field_l field_r field_annot ->
+                MzList.fold_left3 (fun (dest_env, dest_fields) field_l field_r field_annot ->
                   match field_l, field_r, field_annot with
                   | FieldValue (name_l, TySingleton (TyOpen left_p)),
                     FieldValue (name_r, TySingleton (TyOpen right_p)),
@@ -632,11 +632,11 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
               | Some ts ->
                   List.map (fun ts -> Some ts) ts
               | None ->
-                  Hml_List.make (List.length ts_l) (fun _ -> None)
+                  MzList.make (List.length ts_l) (fun _ -> None)
             in
 
             let dest_env, dest_vars =
-              Hml_List.fold_left3 (fun (dest_env, dest_vars) t_l t_r t_d ->
+              MzList.fold_left3 (fun (dest_env, dest_vars) t_l t_r t_d ->
                 let left_p = !!=t_l in
                 let right_p = !!=t_r in
                 match t_d with
@@ -851,7 +851,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
               None
             else
               (* So the constructors match. Let's now merge pairwise the arguments. *)
-              let r = Hml_List.fold_left2i (fun i acc argl argr ->
+              let r = MzList.fold_left2i (fun i acc argl argr ->
                 (* We keep the current triple of environments and the merge
                  * arguments in the accumulator. *)
                 acc >>= fun (left_env, right_env, dest_env, args) ->
@@ -900,7 +900,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
     ] in
 
-    Hml_List.find_opt Lazy.force strategies
+    MzList.find_opt Lazy.force strategies
 
   (* end merge_types *)
 

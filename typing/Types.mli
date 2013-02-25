@@ -172,16 +172,16 @@ val make_datacon_letters :
 (** Our not-so-pretty printer for types. *)
 module TypePrinter :
   sig
-    val pdoc : Buffer.t -> ('env -> Hml_Pprint.document) * 'env -> unit
-    val print_var : env -> name -> Hml_Pprint.document
+    val pdoc : Buffer.t -> ('env -> MzPprint.document) * 'env -> unit
+    val print_var : env -> name -> MzPprint.document
     val pvar : Buffer.t -> env * name -> unit
-    val print_datacon : Datacon.name -> Hml_Pprint.document
-    val print_field_name : Field.name -> Hml_Pprint.document
-    val print_field : SurfaceSyntax.field -> Hml_Pprint.document
-    val print_kind : SurfaceSyntax.kind -> Hml_Pprint.document
+    val print_datacon : Datacon.name -> MzPprint.document
+    val print_field_name : Field.name -> MzPprint.document
+    val print_field : SurfaceSyntax.field -> MzPprint.document
+    val print_kind : SurfaceSyntax.kind -> MzPprint.document
     val p_kind : Buffer.t -> SurfaceSyntax.kind -> unit
     val print_names :
-      env -> name list -> Hml_Pprint.document
+      env -> name list -> MzPprint.document
     val pnames : Buffer.t -> env * name list -> unit
     val pname : Buffer.t -> env * var -> unit
     val print_exports : env * Module.name -> PPrintEngine.document
@@ -189,31 +189,31 @@ module TypePrinter :
     val print_quantified :
       env ->
       string ->
-      name -> kind -> typ -> Hml_Pprint.document
-    val print_point : env -> var -> Hml_Pprint.document
-    val print_type : env -> typ -> Hml_Pprint.document
+      name -> kind -> typ -> MzPprint.document
+    val print_point : env -> var -> MzPprint.document
+    val print_type : env -> typ -> MzPprint.document
     val print_constraints :
       env ->
-      duplicity_constraint list -> Hml_Pprint.document
+      duplicity_constraint list -> MzPprint.document
     val print_data_field_def :
-      env -> data_field_def -> Hml_Pprint.document
+      env -> data_field_def -> MzPprint.document
     val print_data_type_def_branch :
       env ->
       Datacon.name ->
-      data_field_def list -> typ -> Hml_Pprint.document
+      data_field_def list -> typ -> MzPprint.document
     val print_data_type_flag :
-      SurfaceSyntax.data_type_flag -> Hml_Pprint.document
-    val print_fact : fact -> Hml_Pprint.document
+      SurfaceSyntax.data_type_flag -> MzPprint.document
+    val print_fact : fact -> MzPprint.document
     val pfact : Buffer.t -> fact -> unit
-    val print_facts : env -> Hml_Pprint.document
+    val print_facts : env -> MzPprint.document
     val print_permission_list :
-      env * typ list -> Hml_Pprint.document
+      env * typ list -> MzPprint.document
     val ppermission_list : Buffer.t -> env * var -> unit
-    val print_permissions : env -> Hml_Pprint.document
+    val print_permissions : env -> MzPprint.document
     val ppermissions : Buffer.t -> env -> unit
     val ptype : Buffer.t -> env * typ -> unit
     val penv : Buffer.t -> env -> unit
     val pconstraints :
       Buffer.t -> env * duplicity_constraint list -> unit
-    val print_binders : env -> Hml_Pprint.document
+    val print_binders : env -> MzPprint.document
   end

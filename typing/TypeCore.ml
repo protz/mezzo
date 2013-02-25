@@ -49,7 +49,7 @@ type type_binding =
 
 type flavor = SurfaceSyntax.binding_flavor = CanInstantiate | CannotInstantiate
 
-module DataconMap = Hml_Map.Make(struct
+module DataconMap = MzMap.Make(struct
   type t = Module.name * Datacon.name
   let compare = Pervasives.compare
 end)
@@ -560,11 +560,11 @@ let level (env: env) (t: typ): level =
         max (level t1) (level t2)
 
     | TyApp (t, ts) ->
-        Hml_List.max (List.map level (t :: ts))
+        MzList.max (List.map level (t :: ts))
 
     | TyTuple ts ->
         let ls = List.map level ts in
-        Hml_List.max ls
+        MzList.max ls
 
     | TyConcreteUnfolded (ds, fields, t) ->
         let ls =
@@ -575,12 +575,12 @@ let level (env: env) (t: typ): level =
                 level t
           ) fields
         in
-        Hml_List.max ls
+        MzList.max ls
 
     | TyImply (ds, t)
     | TyAnd (ds, t) ->
         let ls = level t :: List.map (fun (_, x) -> level x) ds in
-        Hml_List.max ls
+        MzList.max ls
   in
   level t
 ;;
@@ -625,7 +625,7 @@ let instantiate_flexible (env: env) (v: var) (t: typ): env option =
 (** Some functions related to the manipulation of the union-find structure of
  * the environment. *)
 
-module VarMap = Hml_Map.Make(struct
+module VarMap = MzMap.Make(struct
   type t = var
   let compare x y =
     match x, y with
@@ -658,9 +658,9 @@ let merge_left_p2p env p2 p1 =
     PersistentUnionFind.find p2 state
   in
   let names = names @ names' in
-  let names = Hml_List.remove_duplicates names in
+  let names = MzList.remove_duplicates names in
   let locations = locations @ locations' in
-  let locations = Hml_List.remove_duplicates locations in
+  let locations = MzList.remove_duplicates locations in
 
   (* It is up to the caller to move the permissions if needed... *)
   let state = PersistentUnionFind.update (fun (head, raw) ->
@@ -982,7 +982,7 @@ let map env f =
 let get_exports env mname =
   let assoc =
     internal_fold env (fun acc point ({ names; kind; _ }, _) ->
-      let canonical_names = Hml_List.map_some (function
+      let canonical_names = MzList.map_some (function
         | User (m, x) when Module.equal m mname ->
             Some (x, kind)
         | _ ->

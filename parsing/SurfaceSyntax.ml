@@ -193,7 +193,7 @@ let rec flatten_star p =
 
 let fold_star perms =
   if List.length perms > 0 then
-    Hml_List.reduce (fun acc x -> TyStar (acc, x)) perms
+    MzList.reduce (fun acc x -> TyStar (acc, x)) perms
   else
     TyEmpty
 ;;

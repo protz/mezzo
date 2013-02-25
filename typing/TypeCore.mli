@@ -23,7 +23,7 @@
 
 (** {1 Various useful modules} *)
 
-module DataconMap: Hml_Map.S with type key = Module.name * Datacon.name
+module DataconMap: MzMap.S with type key = Module.name * Datacon.name
 module Field: module type of Variable with type name = SurfaceSyntax.Field.name
 
 (* -------------------------------------------------------------------------- *)
@@ -380,7 +380,7 @@ val refresh_mark: env -> env
  * data. Beware, however, that this module only works with rigid variables (it's
  * unclear what it should do for flexible variables), so it's up to the client
  * to properly run {!is_flexible} beforehand. *)
-module VarMap: Hml_Map.S with type key = var
+module VarMap: MzMap.S with type key = var
 
 
 (**/**)

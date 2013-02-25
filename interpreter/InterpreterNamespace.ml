@@ -106,7 +106,7 @@ end) : Namespace with type name = I.name = struct
 
   (* Pretty-printers; for debugging. *)
 
-  open Hml_Pprint
+  open MzPprint
 
   let print_local_env (f : 'a -> document) (env : 'a local_env) : document =
     I.Map.fold (fun x a accu ->
