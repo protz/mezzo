@@ -834,6 +834,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("array-covariance.mz", pass);
   ("array-contravariance.mz", fail);
   ("array-focus.mz", fail);
+  ("queue_nesting.mz", pass);
 
 ];;
 
