@@ -705,6 +705,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("modules/altersig.mz",
     simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
 
+  ("modules/altersig2.mz",
+    simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
+
   ("assert.mz", simple_test Pass);
 
   ("priority.mz", simple_test Pass);

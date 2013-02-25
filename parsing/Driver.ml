@@ -315,7 +315,7 @@ let check_implementation
          * that end polluting the resulting environment! So we only use that
          * "polluted" environment to perform interface-checking, we don't
          * actually return it to the driver, say, for printing. *)
-        Log.raise_level 5 (fun () -> check_interface env interface exports);
+        Log.raise_level 5 (fun () -> check_interface env interface exports)
     | None ->
         env
   in
@@ -328,6 +328,9 @@ let check_implementation
       Bash.colors.Bash.yellow Bash.colors.Bash.default
       Module.p mname;
     List.iter (fun mname ->
+      Log.debug ~level:2 "\n%s***%s Checking against %a"
+        Bash.colors.Bash.yellow Bash.colors.Bash.default
+        Module.p mname;
       let iface = find_and_lex_interface mname in
       (* Ignore the interface, since there's no risk of an interface consuming
        * another interface's contents! Moreover, this can be a risk: since
