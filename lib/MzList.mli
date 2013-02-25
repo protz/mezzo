@@ -90,8 +90,8 @@ val nth_opt: 'a list -> int -> 'a option
 (** Map and discard some elements at the same time. *)
 val map_some: ('a -> 'b option) -> 'a list -> 'b list
 
-(** Find the index of an element in a list. Structural comparison by default. *)
-val index: ?equal_func:('a -> 'a -> bool) -> 'a -> 'a list -> int
+(** Find the index of the first element in a list that satisfies a predicate. *)
+val index: ('a -> bool) -> 'a list -> int
 
 (** If [f] may convert an 'a into a 'b, then [take f l] returns the first
    convertible element in the list, along with the remaining elements in the

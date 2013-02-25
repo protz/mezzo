@@ -182,10 +182,10 @@ let nth_opt list index =
 let map_some f l =
   filter_some (List.map f l)
 
-let index ?(equal_func=(=)) e l =
+let index f l =
   let module M = struct exception Found of int end in
   try
-    List.iteri (fun i e' -> if equal_func e e' then raise (M.Found i)) l;
+    List.iteri (fun i e' -> if f e' then raise (M.Found i)) l;
     raise Not_found
   with M.Found i ->
     i

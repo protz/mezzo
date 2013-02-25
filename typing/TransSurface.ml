@@ -409,7 +409,7 @@ let translate_abstract_fact (params: Variable.name list) (fact: abstract_fact op
       let arity = List.length params in
       let bitmap = Array.make arity false in
       List.iter (fun name ->
-        let i = MzList.index name params in
+        let i = MzList.index (Variable.equal name) params in
         bitmap.(i) <- true
       ) names;
       T.Duplicable bitmap
