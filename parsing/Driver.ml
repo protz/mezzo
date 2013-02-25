@@ -158,16 +158,6 @@ let find_and_lex_implementation : Module.name -> SurfaceSyntax.implementation =
   )
 ;;
 
-(* [build_interface env mname] finds the right interface file for [mname], and
- * lexes it, parses it, and returns a desugared version of it, ready for
- * importing into some environment. *)
-let build_interface (env: TypeCore.env) (mname: Module.name): TypeCore.env * Expressions.interface =
-  let iface = find_and_lex_interface mname in
-  let env = TypeCore.set_module_name env mname in
-  KindCheck.check_interface env iface;
-  env, TransSurface.translate_interface env iface
-;;
-
 
 (* -------------------------------------------------------------------------- *)
 
@@ -185,11 +175,8 @@ let check_interface env signature exports =
 
 let import_dependencies_in_scope env deps =
   List.fold_left (fun env mname ->
-    Log.debug "Massive import, %a" Module.p mname;
-    let env, iface = build_interface env mname in
-
-    (* [env] has the right module name at this stage *)
-    let env = Modules.import_interface env iface in
+    let iface = find_and_lex_interface mname in
+    let env = Interfaces.import_interface env mname iface in
     Log.debug "Imported %a, got names %a"
       Module.p mname
       Types.TypePrinter.pexports (env, mname);

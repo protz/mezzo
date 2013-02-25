@@ -17,23 +17,6 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** Check a module against an interface / import an interface into scope. *)
+(** Find the dependencies of a module. *)
 
-(** Because this is a tricky operation, the [check] function needs access to
- * both the internal representation of the type-checked file (this is a
- * {!TypeCore.env}), the external representation of the interface (this is a
- * {!SurfaceSyntax.interface}), and the list of exported variables from the
- * implementation, along with their canonical names and kinds ({!Driver} knows
- * how to figure that out).
- *
- * This is not only about checking that a module satisfies its interface, but
- * also about checking that a module does not alter other interfaces. The
- * implementation has more comments along with the code. *)
-val check:
-  TypeCore.env ->
-  SurfaceSyntax.interface ->
-  (Variable.name * TypeCore.kind * TypeCore.var) list ->
-    TypeCore.env
-
-(** Import a given module into scope. *)
-val import_interface : TypeCore.env -> Module.name -> SurfaceSyntax.interface -> TypeCore.env
+val all_dependencies : Module.name -> (Module.name -> SurfaceSyntax.toplevel_item list) -> Module.name list

@@ -26,6 +26,49 @@ module TS = TransSurface
 
 (* ---------------------------------------------------------------------------- *)
 
+(* [build_interface env mname] finds the right interface file for [mname], and
+ * lexes it, parses it, and returns a desugared version of it, ready for
+ * importing into some environment. *)
+let build_interface (env: TypeCore.env) (mname: Module.name) (iface: S.interface): T.env * E.interface =
+  let env = TypeCore.set_module_name env mname in
+  KindCheck.check_interface env iface;
+  env, TransSurface.translate_interface env iface
+;;
+
+(* Used by [Driver], to import the points from a desugared interface into
+ * another one, prefixed by the module they belong to, namely [mname]. *)
+let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.env =
+  Log.debug "Massive import, %a" Module.p mname;
+  let env, iface = build_interface env mname iface in
+
+  let open TypeCore in
+  let open Expressions in
+  (* We demand that [env] have the right module name. *)
+  let rec import_items env = function
+    | PermDeclaration (name, typ) :: items ->
+        (* XXX the location information is probably wildly inaccurate *)
+        let binding = User (module_name env, name), KTerm, location env in
+        let env, p = bind_rigid env binding in
+        (* [add] takes care of simplifying any function type. *)
+        let env = Permissions.add env p typ in
+        let items = tsubst_toplevel_items (TyOpen p) 0 items in
+        let items = esubst_toplevel_items (EOpen p) 0 items in
+        import_items env items
+
+    | DataTypeGroup group :: items ->
+        let env, items, _ = DataTypeGroup.bind_data_type_group env group items in
+        import_items env items
+
+    | ValueDeclarations _ :: _ ->
+        assert false
+
+    | [] ->
+        env
+  in
+
+  import_items env iface
+;;
+
 (* Check that [env] respect the [signature] which is that of module [mname]. We
  * will want to check that [env] respects its own signature, but also that of
  * the modules it exports, i.e. that it leaves them intact.

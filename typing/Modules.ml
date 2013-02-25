@@ -24,37 +24,6 @@ module T = TypeCore
 module S = SurfaceSyntax
 module E = Expressions
 
-(* Used by [Driver], to import the points from a desugared interface into
- * another one, prefixed by the module they belong to, namely [mname]. *)
-let import_interface (env: T.env) (items: E.interface): T.env =
-  let open TypeCore in
-  let open Expressions in
-  (* We demand that [env] have the right module name. *)
-  let rec import_items env = function
-    | PermDeclaration (name, typ) :: items ->
-        (* XXX the location information is probably wildly inaccurate *)
-        let binding = User (module_name env, name), KTerm, location env in
-        let env, p = bind_rigid env binding in
-        (* [add] takes care of simplifying any function type. *)
-        let env = Permissions.add env p typ in
-        let items = tsubst_toplevel_items (TyOpen p) 0 items in
-        let items = esubst_toplevel_items (EOpen p) 0 items in
-        import_items env items
-
-    | DataTypeGroup group :: items ->
-        let env, items, _ = DataTypeGroup.bind_data_type_group env group items in
-        import_items env items
-
-    | ValueDeclarations _ :: _ ->
-        assert false
-
-    | [] ->
-        env
-  in
-
-  import_items env items
-;;
-
 (* For internal use only (yet). *)
 let collect_dependencies (items: S.toplevel_item list): Module.name list =
   let open SurfaceSyntax in
