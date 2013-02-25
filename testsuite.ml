@@ -198,7 +198,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("assign.mz",
     simple_test Pass);
   ("desugaring00.mz",
-    simple_test Pass);
+    simple_test ~known_failure:() Pass);
 
   ("wrong_type_annotation.mz",
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));

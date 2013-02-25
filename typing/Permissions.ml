@@ -126,6 +126,7 @@ let collect = TypeOps.collect;;
 let add_constraints env constraints =
   let env = List.fold_left (fun env (f, t) ->
     let f = fact_of_flag f in
+    let t = modulo_flex env t in
     match t with
     | TyOpen p ->
         let f' = get_fact env p in
@@ -135,7 +136,10 @@ let add_constraints env constraints =
         else
           env
     | _ ->
-        Log.error "FIXME"
+        (* We don't know how to extract meaningful information here, so we're
+         * just not doing anything about the constraint we just learned about.
+         * This could (maybe) be improved. *)
+        env
   ) env constraints in
   env
 ;;

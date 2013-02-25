@@ -24,18 +24,26 @@ open Types
 
 (* The core of the algorithm. *)
 
-(* The [duplicables] function may throw either one of these two to indicate the
- * reason why the type it's currently analyzing is not duplicable. I'm not sure
- * the code always gives the most precise reason. *)
-exception EAffine of typ
-exception EExclusive of typ
-
 (* The algorithm below can be used in two distinct phases. The first one
  * analyses a given data type definition, so the algorithm is allowed to request
  * that a parameter be duplicable for the whole type to be duplicable. The
  * second one tries to tell whether a given type is duplicable or not later on.
  * *)
 type phase = Elaborating of bitmap | Checking
+
+
+(* The code of this module is written in an imperative style. Therefore, the
+ * code may throw an exception to indicate that the type that it is currently
+ * analyzing is not duplicable. The type may not be duplicable because:
+ * - some sub-part of it is affine,
+ * - some sub-part of it is exclusive; if the sub-part is a strict sub-part of
+ *   the type (e.g. a tuple component), then the whole type is said to be
+ *   affine; if the entire type is exclusive, then we can safely state the whole
+ *   type is exclusive.
+ * This relies on [duplicables] throwing the right [EExclusive] exception
+ * containing the entire type. *)
+exception EAffine
+exception EExclusive of typ
 
 
 (* This function performs a reverse-analysis of a type. As it goes, it marks
@@ -53,11 +61,12 @@ let duplicables
   let rec follows_exclusive env t t_parent =
     try
       duplicables env t
-    with EExclusive t' when t == t' ->
+    with EExclusive t' when equal env t t' ->
       raise (EExclusive t_parent)
 
   and duplicables (env: env) (t: typ): unit =
-    match modulo_flex env t with
+    let t = modulo_flex env t in
+    match t with
     | TyUnknown
     | TyDynamic ->
         ()
@@ -70,7 +79,7 @@ let duplicables
         | Exclusive ->
             raise (EExclusive t)
         | Affine ->
-            raise (EAffine t)
+            raise EAffine
         | Duplicable bitmap ->
             if Array.length bitmap != 0 then
               Log.error "Partial type applications are not allowed"
@@ -120,7 +129,7 @@ let duplicables
         | Exclusive ->
             raise (EExclusive t)
         | Affine ->
-            raise (EAffine t)
+            raise EAffine
         | Duplicable cons_bitmap ->
             (* For each argument of the type application... *)
             List.iteri (fun i ti ->
@@ -162,14 +171,7 @@ let duplicables
         (* Arrows are always duplicable *)
         ()
 
-    | TyAnchoredPermission (x, t') ->
-        begin match x with
-        | TyOpen p ->
-            Log.check (is_term env p) "Malformed term %a"
-              TypePrinter.ptype (env, t)
-        | _ ->
-            Log.error "Malformed type %a" TypePrinter.ptype (env, t)
-        end;
+    | TyAnchoredPermission (_, t') ->
         (* For x: τ to be duplicable, τ has to be duplicable as well *)
         duplicables env t'
 
@@ -187,6 +189,8 @@ let duplicables
 
     | TyAnd (constraints, t)
     | TyImply (constraints, t) ->
+        (* XXX this is probably at best very much conservative, at worse
+         * unsound. *)
         let ts = List.map snd constraints in
         List.iter (duplicables env) (t :: ts)
   in
@@ -245,7 +249,7 @@ let one_round (env: env) (vars: var list): env =
                 ) fields
               ) branches;
               env
-            with EAffine _t | EExclusive _t ->
+            with EAffine | EExclusive _ ->
               (* Some exception was raised: the type, although initially
                * duplicable, contains a sub-part whose type is [Exclusive] or
                * [Affine], so the whole type need to be affine. *)
@@ -254,18 +258,15 @@ let one_round (env: env) (vars: var list): env =
 ;;
 
 
-(* If this function is correct (and I'm not even sure of that), it only is for
- * types that have been expanded (it would return Exclusive for
- * [(xpair int int, int)], for instance, instead of affine. *)
 let analyze_type (env: env) (t: typ): fact =
   try
     duplicables env Checking t;
     Duplicable [||]
   with
-  | EExclusive t' when t == t' ->
+  | EExclusive t' when equal env t t' ->
       Exclusive
   | EExclusive _
-  | EAffine _ ->
+  | EAffine ->
       Affine
 ;;
 
@@ -277,7 +278,7 @@ let is_duplicable env t =
   | Fuzzy _ ->
       Log.error "[is_duplicable] works only on types, not definitions, and must \
         be run after the fact elaboration phase is done"
-  | _ ->
+  | Exclusive | Affine ->
       false
 ;;
 
@@ -293,26 +294,18 @@ let analyze_data_types (env: env) (vars: var list): env =
    * now. *)
   let rec run_to_fixvar env =
     Bash.(Log.debug ~level:2 "%sOne round of fact analysis...%s" colors.blue colors.default);
+    (* We need to deep-copy, because the whole thing relies on the bitmap being
+     * shared, mutable arrays. *)
     let copy_fact = function
       | Duplicable bitmap ->
           Duplicable (Array.copy bitmap)
       | _ as x ->
           x
     in
-    (* This works because [map_types] guarantees an unspecified, but fixed,
-     * order, and because [replace_type] doesn't change that order. *)
     let old_facts = List.map (fun var -> copy_fact (get_fact env var)) vars in
+    (* We do a round of constraint propagation... *)
     let new_env = one_round env vars in
-    let new_facts = List.map (fun var -> copy_fact (get_fact new_env var)) vars in
-    (* Hml_List.iter2i (fun level old_fact new_fact ->
-      let index = ByIndex.cardinal env.bindings - level - 1 in
-      Log.debug ~level:3
-        "name %s\t index %d bitmap %a\t | bitmap %a"
-        (name_for_type env index)
-        index
-        TypePrinter.pdoc (TypePrinter.do_print_fact, old_fact)
-        TypePrinter.pdoc (TypePrinter.do_print_fact, new_fact);
-    ) old_facts new_facts; *)
+    let new_facts = List.map (get_fact new_env) vars in
     if new_facts <> old_facts then
       run_to_fixvar new_env
     else

@@ -49,15 +49,7 @@ val create [a] duplicable a => (n: int, x: a) : parray a =
   let p = PFlat { contents = t; unused1 = (); unused2 = () } in
   (* Create the region [r] and make [p] an element of it. *)
   let r = Region in
-  nest [(p @ point r a), region] r;
-  (* BUG 1: if I replace the above line by
-  nest [(p @ point r a), Region] r;
-  then I get:
-  Mezzo internal error: FIXME *)
-  (* BUG 2: if I replace the above line by
   nest [(p @ point r a)] r;
-  then I get:
-  one of the following constraints cannot be satisfied: exclusive (flex→Region) *)
   (* Create a lock that protects [r]. *)
   let l : lock (r @ region) = lock::new () in
   (* Done. *)
