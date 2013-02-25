@@ -30,6 +30,9 @@ mutable data point a =
 | PFlat { contents: array a; unused1: (); unused2: () }
 | PUndo { previous: dynamic; offset: int; element:  a }
 
+(* One shortcoming of this encoding of persistent arrays is that we are
+   not able to prove that [parray a] is covariant with respect to [a]. *)
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Creation of a new persistent array. *)

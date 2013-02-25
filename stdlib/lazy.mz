@@ -27,6 +27,12 @@ data thunk a =
    that the requirement "duplicable a =>" would appear in the type
    of [create], instead of appearing in the type of [force]. *)
 
+(* TEMPORARY One shortcoming of this encoding of suspensions is
+   that we are not able to prove that [thunk a] is covariant with
+   respect to [a]. Perhaps we should replace [wref (state a)] with
+   [[b] a <= b => wref (state b)]. My gut feeling is that it might
+   work! But we don't have explicit subtyping constraints (yet). *)
+
 (* Creation. *)
 
 val create [a, p : perm] (
