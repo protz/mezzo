@@ -135,37 +135,22 @@ val reroot [a] duplicable a => (
       t
   end
 
-(*
 (* ---------------------------------------------------------------------------- *)
 
-(* Temporary access to the underlying array. *)
-
-(* TEMPORARY [borrow] is dangerous, because [f] is given read/write
-   access to the underlying array, which it must promise not to modify.
-   Thus, we do not publish it. If we had a [const] modifier, we would
-   be able to publish it. *)
-
-val borrow [a, b, p : perm] duplicable a => (
+val borrow [a, b, q : perm] duplicable a => (
   pa: parray a, 
-  f: (array a | consumes p) -> b
-| consumes p
+  f: (array a | consumes q) -> b
+| consumes q
 ) : b =
-  (* Acquire the lock, so as to get access to the region [r]. *)
-  wref::borrow (pa.region, fun (r : region a | consumes p) : b =
-    (* Re-root the persistent array at [p]. *)
-    let p = pa.point in
+  let PArray { contents = (r, l, p) } = pa in
+  lock::borrow (l, fun (| r @ region * consumes q) : b =
     let t = reroot (r, p) in
-    (* [p] is now flat. Pass the underlying array to [f]. *)
     let result = f t in
-    (* Give [p] back to [r]. *)
-    give p to r;
-    (* Done. *)
+    defocus r;
     result
   )
 
 (* ---------------------------------------------------------------------------- *)
-
-(* Read access. *)
 
 val get [a] duplicable a => (pa: parray a, i: int) : a =
   borrow (pa, fun (t: array a) : a =
@@ -176,34 +161,24 @@ val get [a] duplicable a => (pa: parray a, i: int) : a =
 
 (* Write access. *)
 
-(* [set] cannot be defined in terms of [borrow], because it needs access not
-   only to the underlying array [t], but also to the point [p]. We could
-   define a slightly more general version of [borrow] that provides us with
-   [t] and [p]. We will see. *)
-
 val set [a] duplicable a => (pa: parray a, i: int, v: a) : parray a =
-  (* Acquire the lock, so as to get access to the region [r]. *)
-  wref::borrow (pa.region, fun (r : region a) : parray a =
-    (* Re-root the persistent array at [p]. *)
-    let p = pa.point in
+  let PArray { contents = (r, l, p) } = pa in
+  lock::borrow (l, fun (| r @ region) : parray a =
     let t = reroot (r, p) in
-    (* [p] is now flat. Access the underlying array [t], and update [p]. *)
     tag of p <- PUndo;
     p.offset <- i;
     p.element <- array::get (t, i);
-    (* Update the underlying array. *)
     array::set (t, i, v);
-    (* Create a new point [q]. *)
     let q = PFlat { contents = t; unused1 = (); unused2 = () } in
-    give q to r;
-    (* Finish updating [p], and give it back. *)
+    (* We need to nest [q] in [r] before we can defocus [p], because defocusing
+       [p] requires [p.previous] to be a valid inhabitant of [r]. Thus, we must
+       be able to nest a permission into a punched region. *)
+    nest_punched [(q @ point r a), region] r;
     p.previous <- q;
-    give p to r;
-    (* Wrap the resulting point as a new persistent array. *)
-    PArray { region = pa.region; point = q }
+    defocus r;
+    PArray { contents = (r, l, q) }
   )
 
-*)
 (*
 Local Variables:
 compile-command: "../mezzo persistentarray_nesting.mz"

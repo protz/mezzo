@@ -32,3 +32,11 @@ val try_acquire: [p: perm] (l: lock p) -> rich_bool (p * held l) empty
 
 val release: [p: perm] (l: lock p | consumes (p * held l)) -> ()
 
+(* A well-balanced acquire/release pair. *)
+
+val borrow: [p: perm, q: perm, b] (
+  l: lock p,
+  f: (| p * consumes q) -> b
+| consumes q
+) -> b
+

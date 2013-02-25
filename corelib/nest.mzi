@@ -33,3 +33,7 @@ val focus: [p : perm, a] exclusive a => (consumes x: a | nests x p) -> (| x @ pu
 
 val defocus: [p : perm, a] (consumes (x: punched a p | p)) -> (| x @ a)
 
+(* Nesting is permitted also while a region is punched. *)
+
+val nest_punched: [p : perm, a, q : perm] (x: punched a q | consumes p) -> (| nests x p)
+
