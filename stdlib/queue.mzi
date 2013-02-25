@@ -1,6 +1,6 @@
 (* The type of FIFO queues. *)
 
-abstract fifo (a : type) : type
+abstract fifo +(a : type) : type
 fact exclusive (fifo a)
 
 (* Elements are normally inserted at the end of the queue, and retrieved
