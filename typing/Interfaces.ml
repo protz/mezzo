@@ -26,15 +26,6 @@ module TS = TransSurface
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Interface-related functions. *)
-
-let has_same_name x (x', _k, p) =
-  if Variable.equal x' x then
-    Some p
-  else
-    None
-;;
-
 (* Check that [env] respect the [signature] which is that of module [mname]. We
  * will want to check that [env] respects its own signature, but also that of
  * the modules it exports, i.e. that it leaves them intact.

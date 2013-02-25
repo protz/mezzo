@@ -17,14 +17,16 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** Various operations for manipulating types. *)
+(** Everything you need to properly deal with data type groups.
+ *
+ * This module takes care of opening a group of definitions in a file, and
+ * running the various analyses required ({!Variance}, {!FactInference}). *)
 
 open TypeCore
+open Expressions
 
-(** [collect t] syntactically separates [t] into a structural part and a
- * permission part, i.e. it extracts all the permissions hidden inside [t] and
- * returns them as a separate list. *)
-val collect : typ -> typ * typ list
-
-(** Mark all type variables reachable from a type. *)
-val mark_reachable : env -> typ -> env
+(** This function processes a {!data_type_group}, and opens the corresponding
+ * binders in the {!toplevel_item}s that follow. The resulting {!toplevel_item}s
+ * are returned, as well as the list of {!var}s that have been bound. *)
+val bind_data_type_group: env -> data_type_group -> toplevel_item list ->
+      env * toplevel_item list * var list

@@ -26,7 +26,7 @@ open TypeCore
  * facts about the various data types defined in the environment. *)
 val analyze_data_types: env -> var list -> env
 
-(** Get the fact for a type, which you can then pass to {fact_leq}. *)
+(** Get the fact for a type, which you can then pass to {!fact_leq}. *)
 val analyze_type: env -> typ -> fact
 
 (** Is this type duplicable? *)

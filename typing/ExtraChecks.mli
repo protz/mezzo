@@ -17,14 +17,6 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** Various operations for manipulating types. *)
+(** Various checks that we can't perform until a full environment is ready. *)
 
-open TypeCore
-
-(** [collect t] syntactically separates [t] into a structural part and a
- * permission part, i.e. it extracts all the permissions hidden inside [t] and
- * returns them as a separate list. *)
-val collect : typ -> typ * typ list
-
-(** Mark all type variables reachable from a type. *)
-val mark_reachable : env -> typ -> env
+val check_env: TypeCore.env -> unit

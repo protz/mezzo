@@ -235,7 +235,7 @@ val same: env -> var -> var -> bool
 (** Merge two variables while keeping the information about the left one. You
  * must make sure that both variables have been run through [modulo_flex_v]
  * first. This is a low-level operation and you probably want to use
- * [Permissions.unify] instead. *)
+ * {!Permissions.unify} instead. *)
 val merge_left: env -> var -> var -> env option
 
 (** Get the list of permissions that are floating in this environment. *)
@@ -271,8 +271,8 @@ val add_location: env -> var -> location -> env
 (** {2 Low-level permissions manipulation functions.} *)
 
 (** If you're considering playing with the list of permissions available for a
- * given variable, you should consider using {Permissions.add} and
- * {Permissions.sub} instead of these low-level, potentially dangerous
+ * given variable, you should consider using {!Permissions.add} and
+ * {!Permissions.sub} instead of these low-level, potentially dangerous
  * functions. *)
 
 (** Get the permissions of a term variable. *)
