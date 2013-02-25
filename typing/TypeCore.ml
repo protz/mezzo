@@ -58,7 +58,7 @@ end)
 
 module Field = Variable
 
-type variance = Invariant | Covariant | Contravariant | Bivariant
+type variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | Bivariant
 
 type typ =
     (* Special type constants. *)

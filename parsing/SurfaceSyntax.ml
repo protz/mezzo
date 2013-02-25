@@ -103,6 +103,8 @@ type kind =
   | KPerm
   | KArrow of kind * kind
 
+type variance = Invariant | Covariant | Contravariant | Bivariant
+
 (* A small helper function that transforms
  * [κ₁ → ... → κₙ → κ₀] into [[κ₁; ...; κₙ], κ₀] *)
 let flatten_kind kind =
@@ -131,6 +133,8 @@ type binding_flavor = CanInstantiate | CannotInstantiate
 
 type type_binding =
     Variable.name * kind * (Lexing.position * Lexing.position)
+
+type type_binding_with_variance = variance * type_binding
 
 type typ =
   | TyLocated of typ * location
@@ -213,7 +217,7 @@ let tloc = function
 (* Algebraic data type definitions. *)
 
 type data_type_def_lhs =
-    Variable.name * type_binding list
+    Variable.name * type_binding_with_variance list
 
 type data_type_def_rhs =
     data_type_def_branch list

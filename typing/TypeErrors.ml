@@ -64,6 +64,7 @@ and raw_error =
   | DataTypeMismatchInSignature of Variable.name * string
   | NotExclusiveOwns of var
   | UnsatisfiableConstraint of duplicity_constraint list
+  | VarianceAnnotationMismatch
 
 exception TypeCheckerError of error
 
@@ -486,6 +487,9 @@ let print_error buf (env, raw_error) =
       Printf.bprintf buf "%a one of the following constraints cannot be satisfied: %a"
         Lexer.p (location env)
         pconstraints (env, cs)
+  | VarianceAnnotationMismatch ->
+      Printf.bprintf buf "%a the variance annotations do not match the inferred ones"
+        Lexer.p (location env)
 ;;
 
 let html_error error =

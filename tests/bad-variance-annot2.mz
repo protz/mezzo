@@ -1,0 +1,1 @@
+data list a = Nil | Cons { head: a; tail: list a }

@@ -26,6 +26,7 @@
 
 open TypeCore
 open Types
+open TypeErrors
 
 type t = variance
 
@@ -54,6 +55,8 @@ let lub a b =
       else
         Invariant
 ;;
+
+let leq a b = (lub a b) = b;;
 
 (* Variance inversion (e.g. left of an arrow). *)
 let (~~) = function
@@ -232,7 +235,11 @@ let analyze_data_types env points =
   (* Update the data type definitions. *)
   let original_env = List.fold_left (fun env (cons, (vars, _)) ->
     let variance = List.map valuation vars in
-    update_definition env cons (fun (branches, _) -> branches, variance)
+    update_definition env cons (fun (branches, annotated_variance) ->
+      if not (List.for_all2 leq variance annotated_variance) then
+        raise_error env VarianceAnnotationMismatch;
+      branches, variance
+    )
   ) original_env store in
   original_env
 ;;

@@ -417,8 +417,8 @@ let translate_abstract_fact (params: Variable.name list) (fact: abstract_fact op
 
 let translate_data_type_def (env: env) (data_type_def: data_type_def) =
   match data_type_def with
-  | Concrete (flag, (name, params), branches, adopts_clause) ->
-      let params = List.map (fun (x, k, _) -> x, k) params in
+  | Concrete (flag, (name, the_params), branches, adopts_clause) ->
+      let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
       (* Add the type parameters in the environment. *)
       let env = List.fold_left bind env params in
       (* Translate! *)
@@ -433,14 +433,12 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
       let adopts_clause = Option.map (translate_type_with_names env) adopts_clause in
       (* This is conservative but the variance inference will take care of
        * setting the right values for the variance of the parameters. *)
-      let variance = Hml_List.make arity (fun _ -> T.Invariant) in
+      let variance = List.map (fun (v, _) -> v) the_params in
       name, env.location, (Some (flag, branches, adopts_clause), variance), fact, karrow params KType
-  | Abstract ((name, params), kind, fact) ->
-      let params = List.map (fun (x, k, _) -> x, k) params in
+  | Abstract ((name, the_params), kind, fact) ->
+      let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
       let fact = translate_abstract_fact (fst (List.split params)) fact in
-      (* TODO: add +, -, and = syntax in the parser to annotate in abstract type
-       * definitions some parameters as being co, contra, or bi-variant. *)
-      let variance = Hml_List.make (List.length params) (fun _ -> T.Invariant) in
+      let variance = List.map (fun (v, _) -> v) the_params in
       name, env.location, (None, variance), fact, karrow params kind
 ;;
 

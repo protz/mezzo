@@ -132,6 +132,7 @@ let check
         (* Check that the translated definitions from the interface in the known
          * definitions from the implementations are consistent. *)
         List.iter2 (fun (name, k, point) (name', _loc, def, fact, kind) ->
+          (* Variables marked with ' belong to the implementation. *)
           let open TypeErrors in
 
           Log.check (Variable.equal name name') "Names not in order?!";
@@ -153,6 +154,9 @@ let check
           let def' = Option.extract (T.get_definition env point) in
           let def, variance = def in
           let def', variance' = def' in
+
+          if not (List.for_all2 Variance.leq variance' variance) then
+            error_out "variance";
 
           match def, def' with
           | None, None ->
@@ -177,17 +181,6 @@ let check
               if not (Types.fact_leq fact' fact) then
                 error_out "facts";
 
-              (* We are *not* checking variance, because we don't have a syntax
-               * for it. When we do, we'll have to make sure we implement
-               * something along the lines of [variance_leq] and check:
-                 * [List.for_all2 variance_leq variance' variance]. *)
-              if false && variance <> variance' then
-                error_out "variance";
-
-              (* This does not check that we won't use one of the data
-               * constructors for the type afterwards. This is not implemented
-               * yet and should be part of [KindCheck]. *)
-
           | Some _, None ->
               error_out "type abstract in implem but not in sig";
 
@@ -196,8 +189,6 @@ let check
                * equal, then it results that the facts are equal. Moreover, we
                * haven't run [FactInference.analyze_types] on the *signature* so
                * the information in [fact] is just meaningless. *)
-
-              (* We're not checking the variance either: same remark. *)
 
               if flag <> flag' then
                 error_out "flags";

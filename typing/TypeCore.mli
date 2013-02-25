@@ -129,7 +129,7 @@ and duplicity_constraint = SurfaceSyntax.data_type_flag * typ
 (** {2 Type definitions} *)
 
 (** Our data constructors have the standard variance. *)
-type variance = Invariant | Covariant | Contravariant | Bivariant
+type variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | Bivariant
 
 type data_type_def_branch =
     Datacon.name * data_field_def list

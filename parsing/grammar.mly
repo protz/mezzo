@@ -55,7 +55,7 @@
 %token          TAKE FROM GIVE TO ADOPTS OWNS TAKING
 %token<int>     INT
 %token<string>  OPPREFIX OPINFIX0a OPINFIX0b OPINFIX0c OPINFIX0d OPINFIX1 OPINFIX2 OPINFIX3 OPINFIX4
-%token<string>  EQUAL STAR MINUS COLONEQUAL (* special cases of operators *)
+%token<string>  EQUAL STAR PLUS MINUS COLONEQUAL (* special cases of operators *)
 %token          EOF
 
 %nonassoc THEN
@@ -68,7 +68,7 @@
 %nonassoc OPINFIX0c EQUAL (* EQUAL is also a OPINFIX0c *)
 %left     OPINFIX0d
 %right    OPINFIX1
-%left     OPINFIX2 MINUS (* MINUS is also an OPINFIX2 *)
+%left     OPINFIX2 PLUS MINUS (* MINUS is also an OPINFIX2 *)
 %left     OPINFIX3 STAR  (* STAR is also an OPINFIX3 *)
 %right    OPINFIX4
 
@@ -111,6 +111,7 @@ open ParserUtils
   | o = EQUAL
   | o = STAR
   | o = MINUS
+  | o = PLUS
   | o = COLONEQUAL
       { o }
 
@@ -215,6 +216,18 @@ atomic_type_binding:
     { x, KType, ($startpos(x), $endpos) }
 | LPAREN b = type_binding RPAREN
     { b }
+
+variance:
+| PLUS
+    { Covariant }
+| MINUS
+    { Contravariant }
+|
+    { Invariant }
+
+atomic_type_binding_with_variance:
+| v = variance b = atomic_type_binding
+    { v, b }
 
 type_binding:
 | b = atomic_type_binding
@@ -525,7 +538,7 @@ data_type_def_branch_content:
     { dfs }
 
 %inline data_type_def_lhs:
-  tbs = iterated_type_type_application(variable, atomic_type_binding)
+  tbs = iterated_type_type_application(variable, atomic_type_binding_with_variance)
     { tbs }
 
 %inline data_type_def_rhs:

@@ -815,6 +815,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("dependent-type.mz", simple_test Pass);
   ("caires_seco_node.mz", simple_test Pass);
   ("persistentarray_nesting.mz", simple_test Pass);
+  ("bad-variance-annot.mz", simple_test (Fail (function VarianceAnnotationMismatch -> true | _ -> false)));
+  ("bad-variance-annot2.mz", simple_test (Fail (function DataTypeMismatchInSignature _ -> true | _ -> false)));
 
 ];;
 

@@ -61,6 +61,7 @@ type raw_error =
   | DataTypeMismatchInSignature of Variable.name * string
   | NotExclusiveOwns of var
   | UnsatisfiableConstraint of duplicity_constraint list
+  | VarianceAnnotationMismatch
 
 (** This function raises an exception that will be later on catched in
  * {!Driver}. *)

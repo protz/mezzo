@@ -554,11 +554,11 @@ let names env ty : type_binding list =
 let bindings_data_type_group (data_type_group: data_type_def list): (Variable.name * kind) list =
   List.map (function
       | Concrete (_flag, (name, params), _, _) ->
-          let params = List.map (fun (x, y, _) -> x, y) params in
+          let params = List.map (fun (_, (x, y, _)) -> x, y) params in
           let k = karrow params KType in
           (name, k)
       | Abstract ((name, params), return_kind, _fact) ->
-          let params = List.map (fun (x, y, _) -> x, y) params in
+          let params = List.map (fun (_, (x, y, _)) -> x, y) params in
           let k = karrow params return_kind in
           (name, k))
     data_type_group
@@ -765,7 +765,7 @@ let check_data_type_def (env: env) (def: data_type_def) =
   match def with
   | Abstract ((name, bindings), _return_kind, fact) ->
       (* Get the names of the parameters. *)
-      let args = List.map (fun (x, _, _) -> x) bindings in
+      let args = List.map (fun (_, (x, _, _)) -> x) bindings in
       (* Perform a tedious check. *)
       begin match fact with
       | Some (FDuplicableIf (clauses, conclusion)) ->
@@ -777,7 +777,7 @@ let check_data_type_def (env: env) (def: data_type_def) =
           ()
       end
   | Concrete (flag, (name, bindings), branches, clause) ->
-      let bindings = List.map (fun (x, y, _) -> x, y) bindings in
+      let bindings = List.map (fun (_, (x, y, _)) -> x, y) bindings in
       let env = List.fold_left bind env bindings in
       (* Check the branches. *)
       List.iter (check_branch env) branches;
