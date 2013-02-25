@@ -4,7 +4,7 @@
    [k] and values of type [a]. Entries are internally ordered using the key
    ordering [cmp]. *)
 
-abstract treeMap k (cmp: term) a
+abstract treeMap k (cmp: term) +a
 
 (* [treeMap k c a] is an exclusive type. That is, a map has a unique owner. *)
 
