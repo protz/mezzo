@@ -57,7 +57,8 @@ let duplicables
       raise (EExclusive t_parent)
 
   and duplicables (env: env) (t: typ): unit =
-    match modulo_flex env t with
+    let t = modulo_flex env t in
+    match t with
     | TyUnknown
     | TyDynamic ->
         ()
@@ -262,7 +263,7 @@ let analyze_type (env: env) (t: typ): fact =
     duplicables env Checking t;
     Duplicable [||]
   with
-  | EExclusive t' when t == t' ->
+  | EExclusive t' when equal env t t' ->
       Exclusive
   | EExclusive _
   | EAffine _ ->
