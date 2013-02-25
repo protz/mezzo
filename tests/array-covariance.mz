@@ -1,0 +1,13 @@
+val f (consumes x: array bool) : array unknown =
+  (* This relies on [array bool <= array unknown]. *)
+  x
+
+val () =
+  let x : array int =
+    array::create (10, 0)
+  and y : array bool =
+    array:: create (10, true)
+  in
+  (* This relies on [array bool <= array unknown]. *)
+  array::overwrite (x, 0, y)
+
