@@ -15,7 +15,7 @@ val not : bool -> bool
 
 (* The type [rich_bool] of Booleans indexed with permissions. *)
 
-data rich_bool (p : perm) (q: perm) =
+data rich_bool +(p : perm) +(q: perm) =
   | RichFalse { | q }
   | RichTrue { | p }
 
