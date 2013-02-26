@@ -431,6 +431,7 @@ let is_tyapp = function
 ;;
 
 let is_term env v = (get_kind env v = KTerm);;
+let is_perm env v = (get_kind env v = KPerm);;
 let is_type env v = (fst (flatten_kind (get_kind env v)) = KType);;
 
 let make_datacon_letters env kind flexible f =
@@ -817,12 +818,15 @@ module TypePrinter = struct
   ;;
 
   let print_permissions (env: env): document =
+    let mkheader str =
+      let line = String.make (String.length str) '-' in
+      (string str) ^^ hardline ^^ (string line)
+    in
     let header =
       let str = "PERMISSIONS:" ^
         (if is_inconsistent env then " ⚠ inconsistent ⚠" else "")
       in
-      let line = String.make (String.length str) '-' in
-      (string str) ^^ hardline ^^ (string line)
+      mkheader str
     in
     let lines = fold_terms env (fun acc var permissions ->
       let names = get_names env var in
@@ -841,7 +845,14 @@ module TypePrinter = struct
     let lines = List.rev lines in
     let lines = List.filter ((<>) empty) lines in
     let lines = separate (break 1) lines in
-    header ^^ (nest 2 (break 1 ^^ lines))
+    (* Now print floating permissions. *)
+    let fp_header = mkheader "FLOATING:" in
+    let fp_lines =
+      List.map (print_type env) (get_floating_permissions env)
+    in
+    let fp_lines = separate (break 1) fp_lines in
+    header ^^ (nest 2 (break 1 ^^ lines)) ^^ hardline ^^
+    fp_header ^^ (nest 2 (break 1 ^^ fp_lines))
   ;;
 
   let ppermissions buf permissions =

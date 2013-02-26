@@ -145,6 +145,7 @@ val variance : env -> var -> int -> variance
 (** {2 Inspecting} *)
 val is_tyapp : typ -> (var * typ list) option
 val is_term : env -> var -> bool
+val is_perm : env -> var -> bool
 val is_type : env -> var -> bool
 val is_user : name -> bool
 
