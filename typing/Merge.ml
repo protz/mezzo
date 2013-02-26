@@ -222,6 +222,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
     let dest_env = fold_terms top (fun dest_env var _ ->
       reset_permissions dest_env var
     ) top in
+    let dest_env = set_floating_permissions dest_env [] in
 
     (* TODO we should iterate over all pairs of roots here, and see if they've
      * been merged in both sub-environments. In that case, they should be merged
@@ -325,66 +326,13 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
     | Proceed ->
 
-        (* This function will just take an initially empty [dest_perms] and try
-          all combinations pairwise from [left_perms] and [right_perms] to build
-          [dest_perms]. It will return the unused permissions. *)
-        let rec merge_lists
-            (left_env, remaining_left_perms, didnt_work_left_perms)
-            (right_env, right_perms)
-            (dest_env, dest_perms): env * (typ list) * env * (typ list) * env * (typ list) =
-          (* [left_perms] and [right_perms] are the remaining permissions that
-           * we need to match together. *)
-          match remaining_left_perms, right_perms with
-          | [], _
-          | _, [] ->
-              (* Return the permissions left for both the left and the right
-               * environment. *)
-              left_env, didnt_work_left_perms, right_env, right_perms, dest_env, dest_perms
-          | left_perm :: left_perms, right_perms ->
-
-              let works right_perm =
-                merge_type (left_env, left_perm) (right_env, right_perm) ~dest_var dest_env
-              in
-
-              begin match MzList.take works right_perms with
-              | Some (right_perms, (right_perm, (left_env, right_env, dest_env, dest_perm))) ->
-
-                  Log.debug ~level:4 "  → this merge between %a and %a was succesful (got: %a)"
-                    TypePrinter.pvar (left_env, get_name left_env left_var)
-                    TypePrinter.pvar (right_env, get_name right_env right_var)
-                    TypePrinter.ptype (dest_env, dest_perm);
-
-                  let left_is_duplicable = FactInference.is_duplicable left_env left_perm in
-                  let right_is_duplicable = FactInference.is_duplicable right_env right_perm in
-                  let duplicable =
-                    match left_is_duplicable, right_is_duplicable with
-                    | true, true ->
-                        true
-                    | _ ->
-                        false
-                  in
-                  if duplicable then
-                    merge_lists
-                      (left_env, left_perms, left_perm :: didnt_work_left_perms)
-                      (right_env, right_perm :: right_perms)
-                      (dest_env, dest_perm :: dest_perms)
-                  else
-                    merge_lists
-                      (left_env, left_perms, didnt_work_left_perms)
-                      (right_env, right_perms)
-                      (dest_env, dest_perm :: dest_perms)
-              | None ->
-                  merge_lists
-                    (left_env, left_perms, left_perm :: didnt_work_left_perms)
-                    (right_env, right_perms)
-                    (dest_env, dest_perms)
-              end
-        in
-
         let left_perms = get_permissions left_env left_var in
         let right_perms = get_permissions right_env right_var in
         let left_env, left_perms, right_env, right_perms, dest_env, dest_perms =
-          merge_lists (left_env, left_perms, []) (right_env, right_perms) (dest_env, [])
+          merge_lists
+            (left_env, left_perms, [])
+            (right_env, right_perms)
+            ~dest_var (dest_env, [])
         in
 
         let left_env =
@@ -406,6 +354,67 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
         left_env, right_env, dest_env
 
   (* end merge_vars *)
+
+  (* This function will just take an initially empty [dest_perms] and try
+    all combinations pairwise from [left_perms] and [right_perms] to build
+    [dest_perms]. It will return the unused permissions. *)
+  and merge_lists
+      (left_env, remaining_left_perms, didnt_work_left_perms)
+      (right_env, right_perms)
+      ?dest_var
+      (dest_env, dest_perms): env * (typ list) * env * (typ list) * env * (typ list) =
+    (* [left_perms] and [right_perms] are the remaining permissions that
+     * we need to match together. *)
+    match remaining_left_perms, right_perms with
+    | [], _
+    | _, [] ->
+        (* Return the permissions left for both the left and the right
+         * environment. *)
+        left_env, didnt_work_left_perms, right_env, right_perms, dest_env, dest_perms
+    | left_perm :: left_perms, right_perms ->
+
+        let works right_perm =
+          merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
+        in
+
+        begin match MzList.take works right_perms with
+        | Some (right_perms, (right_perm, (left_env, right_env, dest_env, dest_perm))) ->
+
+            Log.debug ~level:4 "  → this merge between %a and %a was succesful (got: %a)"
+              TypePrinter.ptype (left_env, left_perm)
+              TypePrinter.ptype (right_env, right_perm)
+              TypePrinter.ptype (dest_env, dest_perm);
+
+            let left_is_duplicable = FactInference.is_duplicable left_env left_perm in
+            let right_is_duplicable = FactInference.is_duplicable right_env right_perm in
+            let duplicable =
+              match left_is_duplicable, right_is_duplicable with
+              | true, true ->
+                  true
+              | _ ->
+                  false
+            in
+            if duplicable then
+              merge_lists
+                (left_env, left_perms, left_perm :: didnt_work_left_perms)
+                (right_env, right_perm :: right_perms)
+                ?dest_var
+                (dest_env, dest_perm :: dest_perms)
+            else
+              merge_lists
+                (left_env, left_perms, didnt_work_left_perms)
+                (right_env, right_perms)
+                ?dest_var
+                (dest_env, dest_perm :: dest_perms)
+        | None ->
+            merge_lists
+              (left_env, left_perms, left_perm :: didnt_work_left_perms)
+              (right_env, right_perms)
+              ?dest_var
+              (dest_env, dest_perms)
+        end
+
+  (* end merge_lists *)
 
   (* This is the core of the merge algorithm: this is where we compare a type
    * from the left with a type from the right and decide how to merge the two
@@ -689,8 +698,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
       lazy begin
         match left_perm, right_perm with
         | TyOpen left_p, TyOpen right_p ->
-            Log.check (is_type left_env left_p && is_type right_env right_p
-              || is_term left_env left_p && is_term right_env right_p)
+            Log.check (get_kind left_env left_p = get_kind right_env right_p)
               "Sanity check failed";
 
             let flex_left = is_flexible left_env left_p
@@ -699,7 +707,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
             begin match flex_left, flex_right with
             | false, false ->
-                if is_type left_env left_p then begin
+                if is_type left_env left_p || is_perm left_env left_p then begin
                   (* Type vs type. *)
 
                   (* This could happen because a function has return type:
@@ -847,7 +855,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
             let cons = !!cons in
 
-            if has_nominal_type_annotation dest_env (Option.extract dest_var) cons then
+            if Option.is_some dest_var && has_nominal_type_annotation dest_env (Option.extract dest_var) cons then
               None
             else
               (* So the constructors match. Let's now merge pairwise the arguments. *)
@@ -935,6 +943,25 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
         None
 
   in
+
+  (* First, start by merging the floating permissions. *)
+  let fp_left = get_floating_permissions left_env in
+  let fp_right = get_floating_permissions right_env in
+  let left_env, unused_fp_left, right_env, unused_fp_right, dest_env, fp_dest =
+    merge_lists (left_env, fp_left, []) (right_env, fp_right) (dest_env, [])
+  in
+  let fp_dest_annot = get_floating_permissions dest_env in
+  let dest_env = set_floating_permissions dest_env (fp_dest @ fp_dest_annot) in
+
+  Log.debug ~level:3 "\nInitial floating permissions: %a (extracted with annot: %a)"
+    TypePrinter.ptype (top, fold_star (get_floating_permissions top))
+    TypePrinter.ptype (dest_env, fold_star fp_dest_annot);
+  Log.debug ~level:3 "\nRemaining floating permissions (left): %a"
+    TypePrinter.ptype (left_env, fold_star unused_fp_left);
+  Log.debug ~level:3 "\nRemaining floating permissions (right): %a"
+    TypePrinter.ptype (right_env, fold_star unused_fp_right);
+  Log.debug ~level:3 "\nMerged floating permissions: %a\n"
+    TypePrinter.ptype (dest_env, fold_star fp_dest);
 
   (* The main loop. *)
   let state = ref (left_env, right_env, dest_env) in
