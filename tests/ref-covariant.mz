@@ -1,2 +1,8 @@
 val f: (consumes ref unknown) -> () =
   builtin foobar
+
+val x = newref 0
+val y = newref 1
+
+val g : rich_bool empty (x = y) =
+  (x == y)

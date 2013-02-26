@@ -1,1 +1,4 @@
 val f: [a] (consumes ref a) -> ()
+
+val g: rich_bool empty empty
+
