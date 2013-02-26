@@ -2,7 +2,7 @@
    multiple threads may request its result. The type system guarantees that
    the delayed computation is performed at most once. *)
 
-abstract thunk a
+abstract thunk +a
 fact duplicable (thunk a)
 
 (* Creation. *)
@@ -13,7 +13,7 @@ fact duplicable (thunk a)
    [create] is given only one copy of [p], we know that [f] will be
    invoked at most once. In other words, [f] is a one-shot function. *)
 
-val create: [a, p: perm] (
+val create: [a, p: perm] duplicable a => (
   f: (| consumes p) -> a
 | consumes p
 ) -> thunk a

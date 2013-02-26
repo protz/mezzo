@@ -75,6 +75,8 @@ let (~~) = function
  * In our case, covariant. *)
 let dot a b =
   match a, b with
+  | Invariant, Bivariant ->
+      Bivariant
   | Invariant, _ ->
       Invariant
   | Covariant, b ->
@@ -134,22 +136,30 @@ let variance env var_for_ith valuation b t =
         let vs = var clause :: vs in
         List.fold_left lub Bivariant vs
 
-    | TySingleton t ->
-        var t
+    | TySingleton _ ->
+        Bivariant
 
     | TyArrow (t1, t2) ->
         lub ~~(var t1) (var t2)
 
     | TyBar (t1, t2)
-    | TyAnchoredPermission (t1, t2)
     | TyStar (t1, t2) ->
         lub (var t1) (var t2)
+
+    | TyAnchoredPermission (_, t2) ->
+        var t2
 
     | TyAnd (constraints, t)
     | TyImply (constraints, t) ->
         let ts = List.map snd constraints in
-        let vs = List.map var (t :: ts) in
-        List.fold_left lub Bivariant vs
+	(* Treat this as: [t] is in covariant position, the [ts]
+	   are in invariant position. *)
+	lub
+	  (var t)
+	  (
+            let vs = List.map (fun t -> dot Invariant (var t)) ts in
+            List.fold_left lub Bivariant vs
+	  )
   in
   var t
 ;;

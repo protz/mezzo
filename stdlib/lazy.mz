@@ -1,5 +1,16 @@
 open wref
 
+(* The identity function. We use a permission of the form [id @ b -> a]
+   to encode the fact that [b] is a subtype of [a], and we use the
+   function application [id x] when we wish to exploit this fact.
+   This is a clumsy encoding, but it provides a proof-of-concept. *)
+
+(* No consumes keyword is required here, because we are dealing with
+   duplicable types. *)
+
+val id [a] (consumes x: a) : a =
+  x
+
 (* A suspension is either evaluated already or still suspended.
    In the former case, it contains just a result, of type [a].
    In the latter case, it contains the function [f] that was
@@ -17,30 +28,36 @@ data state a =
    of concurrent accesses. It also allows us to implement waiting
    until a result becomes available. *)
 
-data thunk a =
-  | Thunk { thunk: wref (state a) }
+(* The existential quantification over [b], which is a subtype of
+   [a], is used to make [thunk] covariant in its parameter [a]. *)
+
+data thunk +a =
+  | Thunk { thunk: {b} (wref (state b) | id @ b -> a) }
 
 (* TEMPORARY we need a type abbreviation here! *)
 
-(* TEMPORARY if we had surface syntax for TyAnd, we could build the
-   constraint "duplicable a" into the definition of [thunk a], so
-   that the requirement "duplicable a =>" would appear in the type
-   of [create], instead of appearing in the type of [force]. *)
-
-(* TEMPORARY One shortcoming of this encoding of suspensions is
-   that we are not able to prove that [thunk a] is covariant with
-   respect to [a]. Perhaps we should replace [wref (state a)] with
-   [[b] a <= b => wref (state b)]. My gut feeling is that it might
-   work! But we don't have explicit subtyping constraints (yet). *)
-
 (* Creation. *)
 
-val create [a, p : perm] (
+(* The constraint [duplicable a] is required at construction time
+   in order to construct a witness of [id @ a -> a]. *)
+
+val create [a, p : perm] duplicable a => (
   f: (|consumes p) -> a
 | consumes p
 ) : thunk a =
   let s : state a = Suspended { computation = f } in
   Thunk { thunk = new [state a] s }
+
+(* A custom unpacking function. This is another shortcoming of the
+   system; if we had a generic mechanism for naming the variable
+   that is introduced when an existential is unpacked, we would
+   not need this. *)
+
+val unpack [a, c] (
+  x: {b} (wref (state b) | id @ b -> a),
+  f: [b] (wref (state b) | id @ b -> a) -> c
+) : c =
+  f x
 
 (* Evaluation. *)
 
@@ -50,14 +67,23 @@ val create [a, p : perm] (
    is finished and has produced a result. This is the desired behavior. *)
 
 val force [a] duplicable a => (t: thunk a) : a =
-  update (t.thunk, fun (consumes s: state a) : (state a, a) =
-    match s with
-    | Evaluated ->
-        s, s.result
-    | Suspended ->
-        let result : a = s.computation() in
-	Evaluated { result = result }, result
-    end
+  (* Unpack the existential, and let [b] stand for the witness. *)
+  unpack (t.thunk, fun [b] (x: wref (state b) | id @ b -> a) : a =
+    (* We get access to [t.thunk], under the name [x], at type
+       [wref (state b)], where [b] is an unknown subtype of [a],
+       as witnessed by the permission [id @ b -> a]. *)
+    update (x, fun (consumes s: state b) : (state b, a) =
+      (* We will now possibly update [x], by writing a new value
+	 of type [state b] into it, and return a result of type
+	 [b], which, by applying [id], we coerce to type [a]. *)
+      match s with
+      | Evaluated ->
+	  s, (id s.result)
+      | Suspended ->
+	  let result : b = s.computation() in
+	  Evaluated { result = result }, id result
+      end
+    )
   )
 
 (*
