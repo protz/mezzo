@@ -79,6 +79,7 @@ let check b fmt =
     MzString.biprintf fmt
   else begin
     let buf = Buffer.create 16 in
+  Buffer.add_string buf "Mezzo internal assert failure: ";
     Buffer.add_string buf Bash.colors.Bash.red;
     kbprintf (fun buf ->
       Buffer.add_string buf (Bash.colors.Bash.default ^ "\n");

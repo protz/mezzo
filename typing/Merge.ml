@@ -326,90 +326,106 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
     | Proceed ->
 
-        let left_perms = get_permissions left_env left_var in
-        let right_perms = get_permissions right_env right_var in
-        let left_env, left_perms, right_env, right_perms, dest_env, dest_perms =
-          merge_lists
-            (left_env, left_perms, [])
-            (right_env, right_perms)
-            ~dest_var (dest_env, [])
-        in
+        if is_flexible left_env left_var || is_flexible right_env right_var then
+          match merge_type (left_env, TyOpen left_var) (right_env, TyOpen right_var) dest_env with
+          | Some (left_env, right_env, dest_env, _dest_type) ->
+              left_env, right_env, dest_env
+          | None ->
+              Log.error "FIXME wicked wicked case"
 
-        let left_env =
-          set_permissions left_env left_var left_perms
-        in
-        let right_env =
-          set_permissions right_env right_var right_perms
-        in
+        else
+          let left_perms = get_permissions left_env left_var in
+          let right_perms = get_permissions right_env right_var in
+          let left_env, left_perms, right_env, right_perms, dest_env, dest_perms =
+            merge_lists
+              (left_env, left_perms, [])
+              (right_env, right_perms)
+              ~dest_var (dest_env, [])
+          in
 
-        (* We can't just brutally replace the list of permissions using
-         * [replace_term], because there are some permissions already for
-         * [dest_var] in [dest_env]: at least [=dest_var], but maybe more,
-         * depending on user-provided type annotations. *)
-        let dest_env = List.fold_left
-          (fun dest_env t -> Permissions.add dest_env dest_var t)
-          dest_env
-          dest_perms
-        in
-        left_env, right_env, dest_env
+          let left_env =
+            set_permissions left_env left_var left_perms
+          in
+          let right_env =
+            set_permissions right_env right_var right_perms
+          in
+
+          (* We can't just brutally replace the list of permissions using
+           * [replace_term], because there are some permissions already for
+           * [dest_var] in [dest_env]: at least [=dest_var], but maybe more,
+           * depending on user-provided type annotations. *)
+          let dest_env = List.fold_left
+            (fun dest_env t -> Permissions.add dest_env dest_var t)
+            dest_env
+            dest_perms
+          in
+          left_env, right_env, dest_env
 
   (* end merge_vars *)
 
-  (* This function will just take an initially empty [dest_perms] and try
-    all combinations pairwise from [left_perms] and [right_perms] to build
-    [dest_perms]. It will return the unused permissions. *)
+  (* This function will take an initially empty [dest_perms] and try
+    combinations pairwise from [left_perms] and [right_perms] to build
+    [dest_perms]. It only visits each permission in [left_perms] once, and it
+    may consume elements from [remaining_right_perms] as it goes.
+
+    After a permission from [left_perms] has been tried, if the merge didn't
+    succeed or if the permission was duplicable, it goes into
+    [processed_left_perms] so that it remains available afterwards. Otherwise,
+    if the merge suceeded and the permission wasn't duplicable, it is discarded.
+    
+    This function returns the remaining permissions for both [left] and [right]. *)
   and merge_lists
-      (left_env, remaining_left_perms, didnt_work_left_perms)
-      (right_env, right_perms)
+      (left_env, left_perms, processed_left_perms)
+      (right_env, remaining_right_perms)
       ?dest_var
       (dest_env, dest_perms): env * (typ list) * env * (typ list) * env * (typ list) =
-    (* [left_perms] and [right_perms] are the remaining permissions that
+    (* [left_perms] and [remaining_right_perms] are the remaining permissions that
      * we need to match together. *)
-    match remaining_left_perms, right_perms with
+    match left_perms, remaining_right_perms with
     | [], _
     | _, [] ->
         (* Return the permissions left for both the left and the right
          * environment. *)
-        left_env, didnt_work_left_perms, right_env, right_perms, dest_env, dest_perms
-    | left_perm :: left_perms, right_perms ->
+        left_env, left_perms @ processed_left_perms, right_env, remaining_right_perms, dest_env, dest_perms
+
+    | left_perm :: left_perms, remaining_right_perms ->
 
         let works right_perm =
           merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
         in
 
-        begin match MzList.take works right_perms with
-        | Some (right_perms, (right_perm, (left_env, right_env, dest_env, dest_perm))) ->
+        begin match MzList.take works remaining_right_perms with
+        | Some (remaining_right_perms, (right_perm, (left_env, right_env, dest_env, dest_perm))) ->
 
             Log.debug ~level:4 "  → this merge between %a and %a was succesful (got: %a)"
               TypePrinter.ptype (left_env, left_perm)
               TypePrinter.ptype (right_env, right_perm)
               TypePrinter.ptype (dest_env, dest_perm);
 
+            (* We've found a matching pair. Whether [left_perm] and [right_perm]
+             * are available afterwards depends on their duplicities. *)
             let left_is_duplicable = FactInference.is_duplicable left_env left_perm in
             let right_is_duplicable = FactInference.is_duplicable right_env right_perm in
-            let duplicable =
-              match left_is_duplicable, right_is_duplicable with
-              | true, true ->
-                  true
-              | _ ->
-                  false
+            let processed_left_perms =
+              if left_is_duplicable then left_perm :: processed_left_perms else processed_left_perms
             in
-            if duplicable then
-              merge_lists
-                (left_env, left_perms, left_perm :: didnt_work_left_perms)
-                (right_env, right_perm :: right_perms)
-                ?dest_var
-                (dest_env, dest_perm :: dest_perms)
-            else
-              merge_lists
-                (left_env, left_perms, didnt_work_left_perms)
-                (right_env, right_perms)
-                ?dest_var
-                (dest_env, dest_perm :: dest_perms)
-        | None ->
+            let remaining_right_perms =
+              if right_is_duplicable then right_perm :: remaining_right_perms else remaining_right_perms
+            in
+
             merge_lists
-              (left_env, left_perms, left_perm :: didnt_work_left_perms)
-              (right_env, right_perms)
+              (left_env, left_perms, left_perm :: processed_left_perms)
+              (right_env, right_perm :: remaining_right_perms)
+              ?dest_var
+              (dest_env, dest_perm :: dest_perms)
+
+        | None ->
+            (* The pair doesn't match. Discard [left_perm] from the list of
+             * permissions to try out, but keep it available for later since we
+             * didn't consume it. *)
+            merge_lists
+              (left_env, left_perms, left_perm :: processed_left_perms)
+              (right_env, remaining_right_perms)
               ?dest_var
               (dest_env, dest_perms)
         end
@@ -453,6 +469,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
     let has_nominal_type_annotation dest_env dest_var t_dest =
       List.exists (fun t ->
+        let t = modulo_flex dest_env t in
+        let t = expand_if_one_branch dest_env t in
         match is_tyapp t with
         | Some (cons, _args) ->
             same dest_env t_dest cons
@@ -460,27 +478,6 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             false
       ) (get_permissions dest_env dest_var)
     in
-
-    let has_datacon_type_annotation dest_env dest_var datacon =
-      MzList.find_opt (fun t ->
-        match t with
-        | TyConcreteUnfolded (datacon', fields, annot) when resolved_datacons_equal dest_env datacon datacon' ->
-            Some (fields, annot)
-        | _ ->
-            None
-      ) (get_permissions dest_env dest_var)
-    in
-
-    let has_tuple_type_annotation dest_env dest_var =
-      MzList.find_opt (fun t ->
-        match t with
-        | TyTuple ts ->
-            Some ts
-        | _ ->
-            None
-      ) (get_permissions dest_env dest_var)
-    in
-
 
     let open TypePrinter in
     Log.debug ~level:4
@@ -497,180 +494,6 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
      * means we can't merge these two types together! Thankfully, [merge_vars]
      * knows how to deal with that. *)
     let strategies = [
-
-      (* Structural strategy. This must come first, as we need to learn about
-       * pre-allocated destination vars in structural types, because of type
-       * annotations. *)
-      lazy begin
-        match left_perm, right_perm with
-        | TyConcreteUnfolded (datacon_l, fields_l, clause_l), TyConcreteUnfolded (datacon_r, fields_r, clause_r) ->
-            let t_left: var = !!(fst datacon_l) in
-            let t_right: var = !!(fst datacon_r) in
-            let dest_var = Option.extract dest_var in
-
-            if resolved_datacons_equal dest_env datacon_l datacon_r then
-              (* We need to use a potential type annotation here, so if we
-               * already have some information in the destination environment,
-               * use it! This is exercised by
-               * [test_constraints_in_patterns2.mz] *)
-              let annotation = has_datacon_type_annotation dest_env dest_var datacon_l in
-              let fields_annot, clause_annot = match annotation with
-                | None ->
-                    List.map (function
-                      | FieldValue (name, _) ->
-                          name, None
-                      | _ ->
-                          assert false
-                    ) fields_l, None
-                | Some (fields, clause) ->
-                    List.map (function
-                      | FieldValue (name, t) ->
-                          name, Some t
-                      | _ ->
-                          assert false
-                    ) fields, if equal top clause ty_bottom then None else Some clause
-              in
-              (* Same constructors: both are in expanded form so just schedule the
-               * vars in their fields for merging. *)
-              let dest_env, dest_fields =
-                MzList.fold_left3 (fun (dest_env, dest_fields) field_l field_r field_annot ->
-                  match field_l, field_r, field_annot with
-                  | FieldValue (name_l, TySingleton (TyOpen left_p)),
-                    FieldValue (name_r, TySingleton (TyOpen right_p)),
-                    (name_annot, annot) ->
-                      Log.check (Field.equal name_l name_r) "Not in order?";
-                      Log.check (Field.equal name_l name_annot) "Not in order?";
-                      let dest_env, dest_p = match annot with
-                        | Some (TySingleton (TyOpen dest_p)) ->
-                            push_job (left_p, right_p, dest_p);
-                            dest_env, dest_p
-                        | Some _ ->
-                            assert false
-                        | None ->
-                            bind_merge dest_env left_p right_p
-                      in
-                      (dest_env, FieldValue (name_l, ty_equals dest_p) :: dest_fields)
-                  | _ ->
-                      Log.error "All permissions should be in expanded form."
-                ) (dest_env, []) fields_l fields_r fields_annot
-              in
-              let r = match clause_annot with
-                | Some clause ->
-                    Log.check (equal top clause ty_bottom)
-                      "If the clause is other than bottom, this means the type \
-                      is exclusive, and we provided a type annotation for it. \
-                      Since we subtract type annotations early on, left_perm and \
-                      right_perm should be gone already!";
-                    (* Don't be smart. If we're here, the initial set of expected
-                     * permissions was successfully extracted, so keep what the
-                     * user specified. *)
-                    Some (left_env, right_env, dest_env, clause)
-                | None ->
-                    let open TypeErrors in
-                    try
-                      let clause_l = clean top left_env clause_l in
-                      let clause_r = clean top right_env clause_r in
-                      (* We don't want to be smart here, because
-                       * i) the type is not in expanded form and I'm not sure
-                       * what it means for it be merged in closed form and
-                       * ii) the user had to annotate, so they could at least
-                       * annotate properly! *)
-                      if not (equal top clause_l clause_r) then
-                        raise_error top (NotMergingClauses (left_env, left_perm, clause_l, right_env, right_perm, clause_r))
-                      else
-                        (* Recursively merge the clause (covariant). *)
-                        merge_type (left_env, clause_l) (right_env, clause_r) dest_env
-                    with UnboundPoint ->
-                      raise_error top (NotMergingClauses (left_env, left_perm, clause_l, right_env, right_perm, clause_r))
-              in
-              r >>= fun (left_env, right_env, dest_env, clause) ->
-              Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields, clause))
-
-
-            else if same dest_env t_left t_right then begin
-              (* Same nominal type (e.g. [Nil] vs [Cons]). The procedure here is a
-               * little bit more complicated. We need to take the nominal type (e.g.
-               * [list]), and apply it to [a] flexible on both sides, allocate [a]
-               * in [dest_env] and add the relevant triples in [known_triples].
-               * Then, perform [Nil - list a] and [Cons - list a]. Then recursively
-               * merge the variables pairwise, and if it's still flexible,
-               * generalize (or maybe not?).
-               *)
-              let t_dest = t_left in
-
-              (* Ok, if the user already told us how to fold this type, then
-               * don't bother doing the work at all. Otherwise, complain. *)
-              if has_nominal_type_annotation dest_env dest_var t_dest then begin
-                None
-              end else begin
-                if get_arity dest_env t_dest > 0 then begin
-                  let open TypeErrors in
-                  let error = UncertainMerge dest_var in
-                  warn_or_error dest_env error
-                end;
-
-                Log.debug ~level:4 "[cons_vs_cons] left";
-                let left_env, t_app_left =
-                  build_flexible_type_application (left_env, left_perm) (dest_env, t_dest)
-                in
-                Log.debug ~level:4 "[cons_vs_cons] right";
-                let right_env, t_app_right =
-                  build_flexible_type_application (right_env, right_perm) (dest_env, t_dest)
-                in
-
-                (* Did the subtractions succeed? *)
-                left_env >>= fun left_env ->
-                right_env >>= fun right_env ->
-
-                Log.debug ~level:3 "[cons_vs_cons] subtractions performed, got: %a vs %a"
-                  TypePrinter.ptype (left_env, t_app_left)
-                  TypePrinter.ptype (right_env, t_app_right);
-
-                let r = merge_type (left_env, t_app_left) (right_env, t_app_right) ~dest_var dest_env in
-                r >>= fun (left_env, right_env, dest_env, dest_perm) ->
-                Some (left_env, right_env, dest_env, dest_perm)
-              end
-
-            end else
-              None
-
-        | TyTuple ts_l, TyTuple ts_r when List.length ts_l = List.length ts_r ->
-
-            let dest_var = Option.extract dest_var in
-            let ts_d = match has_tuple_type_annotation dest_env dest_var with
-              | Some ts ->
-                  List.map (fun ts -> Some ts) ts
-              | None ->
-                  MzList.make (List.length ts_l) (fun _ -> None)
-            in
-
-            let dest_env, dest_vars =
-              MzList.fold_left3 (fun (dest_env, dest_vars) t_l t_r t_d ->
-                let left_p = !!=t_l in
-                let right_p = !!=t_r in
-                match t_d with
-                | Some (TySingleton (TyOpen dest_p)) ->
-                    (* We still need to schedule this job, because we may have a
-                     * partial type annotation for one of the tuple components.
-                     * Think of it as a job whose destination var has been
-                     * pre-allocated!. *)
-                    push_job (left_p, right_p, dest_p);
-                    (dest_env, dest_p :: dest_vars)
-                | Some _ ->
-                    assert false
-                | None ->
-                    let dest_env, dest_var = bind_merge dest_env left_p right_p in
-                    (dest_env, dest_var :: dest_vars)
-              ) (dest_env, []) ts_l ts_r ts_d
-            in
-            let dest_vars = List.rev dest_vars in
-            let ts = List.map ty_equals dest_vars in
-            Some (left_env, right_env, dest_env, TyTuple ts)
-
-        | _ ->
-            None
-      end;
-
 
       (* Simple equals strategy. *)
       lazy begin
@@ -708,7 +531,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             begin match flex_left, flex_right with
             | false, false ->
                 if is_type left_env left_p || is_perm left_env left_p then begin
-                  (* Type vs type. *)
+                  (* Type vs type, perm vs perm *)
 
                   (* This could happen because a function has return type:
                    *   ∃(t::★). ...
@@ -718,6 +541,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                     ignore (clean dest_env left_env (TyOpen left_p));
                     ignore (clean dest_env right_env (TyOpen right_p));
                   with UnboundPoint ->
+                    (* Repack as an existential? Urgh... *)
                     Log.error "Local types are not supported yet";
                   end;
 
@@ -818,6 +642,116 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
       (* General strategy. *)
       lazy begin
         match left_perm, right_perm with
+
+        (* In the case where we have annotations already, we're going great
+         * lengths to perform a merge again, even if we have extracted the
+         * annotations first. Because we have a rule that says
+         *      "x @ (=y, =z) ∗ x @ (=y', =z') => y = y' ∗ z = z'"
+         * we can safely return a structural permissions with different points
+         * for the sub-fields, the core {!Permissions} module will know how to
+         * deal with that. *)
+        | TyConcreteUnfolded (datacon_l, fields_l, clause_l), TyConcreteUnfolded (datacon_r, fields_r, clause_r) ->
+            let t_left: var = !!(fst datacon_l) in
+            let t_right: var = !!(fst datacon_r) in
+            let dest_var = Option.extract dest_var in
+
+            if resolved_datacons_equal dest_env datacon_l datacon_r then
+              (* Same constructors: both are in expanded form so just schedule the
+               * vars in their fields for merging. *)
+              let dest_env, dest_fields =
+                List.fold_left2 (fun (dest_env, dest_fields) field_l field_r ->
+                  match field_l, field_r with
+                  | FieldValue (name_l, TySingleton (TyOpen left_p)),
+                    FieldValue (name_r, TySingleton (TyOpen right_p)) ->
+                      Log.check (Field.equal name_l name_r) "Not in order?";
+                      let dest_env, dest_p = bind_merge dest_env left_p right_p in
+                      (dest_env, FieldValue (name_l, ty_equals dest_p) :: dest_fields)
+                  | _ ->
+                      Log.error "All permissions should be in expanded form."
+                ) (dest_env, []) fields_l fields_r
+              in
+              let r = 
+                let open TypeErrors in
+                try
+                  let clause_l = clean top left_env clause_l in
+                  let clause_r = clean top right_env clause_r in
+                  (* We don't want to be smart here, because
+                   * i) the type is not in expanded form and I'm not sure
+                   * what it means for it be merged in closed form and
+                   * ii) the user had to annotate, so they could at least
+                   * annotate properly! *)
+                  if not (equal top clause_l clause_r) then
+                    raise_error top (NotMergingClauses (left_env, left_perm, clause_l, right_env, right_perm, clause_r))
+                  else
+                    (* Recursively merge the clause (covariant). *)
+                    merge_type (left_env, clause_l) (right_env, clause_r) dest_env
+                with UnboundPoint ->
+                  raise_error top (NotMergingClauses (left_env, left_perm, clause_l, right_env, right_perm, clause_r))
+              in
+              r >>= fun (left_env, right_env, dest_env, clause) ->
+              Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields, clause))
+
+
+            else if same dest_env t_left t_right then begin
+              (* Same nominal type (e.g. [Nil] vs [Cons]). The procedure here is a
+               * little bit more complicated. We need to take the nominal type (e.g.
+               * [list]), and apply it to [a] flexible on both sides, allocate [a]
+               * in [dest_env] and add the relevant triples in [known_triples].
+               * Then, perform [Nil - list a] and [Cons - list a]. Then recursively
+               * merge the variables pairwise, and if it's still flexible,
+               * generalize (or maybe not?).
+               *)
+              let t_dest = t_left in
+
+              (* Ok, if the user already told us how to fold this type, then
+               * don't bother doing the work at all. Otherwise, complain. *)
+              if has_nominal_type_annotation dest_env dest_var t_dest then begin
+                None
+              end else begin
+                if get_arity dest_env t_dest > 0 then begin
+                  let open TypeErrors in
+                  let error = UncertainMerge dest_var in
+                  warn_or_error dest_env error
+                end;
+
+                Log.debug ~level:4 "[cons_vs_cons] left";
+                let left_env, t_app_left =
+                  build_flexible_type_application (left_env, left_perm) (dest_env, t_dest)
+                in
+                Log.debug ~level:4 "[cons_vs_cons] right";
+                let right_env, t_app_right =
+                  build_flexible_type_application (right_env, right_perm) (dest_env, t_dest)
+                in
+
+                (* Did the subtractions succeed? *)
+                left_env >>= fun left_env ->
+                right_env >>= fun right_env ->
+
+                Log.debug ~level:3 "[cons_vs_cons] subtractions performed, got: %a vs %a"
+                  TypePrinter.ptype (left_env, t_app_left)
+                  TypePrinter.ptype (right_env, t_app_right);
+
+                let r = merge_type (left_env, t_app_left) (right_env, t_app_right) ~dest_var dest_env in
+                r >>= fun (left_env, right_env, dest_env, dest_perm) ->
+                Some (left_env, right_env, dest_env, dest_perm)
+              end
+
+            end else
+              None
+
+        | TyTuple ts_l, TyTuple ts_r when List.length ts_l = List.length ts_r ->
+            let dest_env, dest_vars =
+              List.fold_left2 (fun (dest_env, dest_vars) t_l t_r ->
+                let left_p = !!=t_l in
+                let right_p = !!=t_r in
+                let dest_env, dest_var = bind_merge dest_env left_p right_p in
+                (dest_env, dest_var :: dest_vars)
+              ) (dest_env, []) ts_l ts_r
+            in
+            let dest_vars = List.rev dest_vars in
+            let ts = List.map ty_equals dest_vars in
+            Some (left_env, right_env, dest_env, TyTuple ts)
+
         | TySingleton left_t, TySingleton right_t ->
             let r = merge_type (left_env, left_t) (right_env, right_t) dest_env in
             r >>= fun (left_env, right_env, dest_env, dest_t) ->
