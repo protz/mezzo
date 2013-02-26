@@ -8,9 +8,9 @@
    explicitly implementing sharing optimizations (such as hash-consing)
    over immutable structures. *)
 
-val ( == ) : (x: unknown, y: unknown) -> rich_bool (x = y) empty =
+val ( == ) : (x: unknown, y: unknown) -> rich_bool empty (x = y) =
   builtin _mz_address_eq
 
-val ( != ) (x: unknown, y: unknown) : rich_bool empty (x = y) =
+val ( != ) (x: unknown, y: unknown) : rich_bool (x = y) empty =
   rich_not (x == y)
 

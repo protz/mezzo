@@ -302,20 +302,20 @@ val rec for_all [a, p : perm] (ok: (a | p) -> bool, xs: list a | p) : bool =
     True
 
 val rec rich_for_all
-  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool empty q, xs: list a | p) : rich_bool empty q =
+  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool q empty, xs: list a | p) : rich_bool q empty =
   match xs with
   | Nil ->
       RichTrue
   | Cons { head; tail } ->
       conjunction (
         ok head,
-        fun (| p * tail @ list a) : rich_bool empty q =
+        fun (| p * tail @ list a) : rich_bool q empty =
           rich_for_all (ok, tail)
       )
   end
 
 val rec rich_for_all_with_inlined_conjunction
-  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool empty q, xs: list a | p) : rich_bool empty q =
+  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool q empty, xs: list a | p) : rich_bool q empty =
   match xs with
   | Nil ->
       RichTrue
@@ -330,7 +330,7 @@ val rec exists [a, p : perm] (ok: (a | p) -> bool, xs: list a | p) : bool =
     False
 
 val rec rich_exists_with_inlined_disjunction
-  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool q empty, xs: list a | p) : rich_bool q empty =
+  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool empty q, xs: list a | p) : rich_bool empty q =
   match xs with
   | Nil ->
       RichFalse

@@ -35,8 +35,8 @@ val not (b : bool) : bool =
 (* The type [rich_bool] of Booleans indexed with permissions. *)
 
 data rich_bool +(p : perm) +(q: perm) =
-  | RichFalse { | q }
-  | RichTrue { | p }
+  | RichFalse { | p }
+  | RichTrue { | q }
 
 (* Negation. *)
 
@@ -49,12 +49,12 @@ val rich_not [p : perm, q : perm] (consumes b : rich_bool p q) : rich_bool q p =
 (* Conjunction and disjunction. *)
 
 val conjunction
-  [p1 : perm, p2 : perm, q : perm, s : perm]
+  [q : perm, p1 : perm, p2 : perm, s : perm]
   (
-    consumes b1 : rich_bool p1 q,
-    b2: (| s * consumes p1) -> rich_bool p2 q
+    consumes b1 : rich_bool q p1,
+    b2: (| s * consumes p1) -> rich_bool q p2
   | s
-  ) : rich_bool p2 q =
+  ) : rich_bool q p2 =
   match b1 with
   | RichFalse ->
       RichFalse
@@ -63,12 +63,12 @@ val conjunction
   end
 
 val disjunction
-  [p : perm, q1 : perm, q2 : perm, s : perm]
+  [q1 : perm, q2 : perm, p : perm, s : perm]
   (
-    consumes b1 : rich_bool p q1,
-    b2: (| s * consumes q1) -> rich_bool p q2
+    consumes b1 : rich_bool q1 p,
+    b2: (| s * consumes q1) -> rich_bool q2 p
   | s
-  ) : rich_bool p q2 =
+  ) : rich_bool q2 p =
   match b1 with
   | RichFalse ->
       b2()

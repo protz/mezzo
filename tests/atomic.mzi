@@ -40,7 +40,7 @@ val newlock     : [p : perm] (| consumes p) -> lock p
 (* Acquisition. *)
 
 val acquire     : [p : perm] lock p -> (| p)
-val try_acquire : [p : perm] lock p -> rich_bool p empty
+val try_acquire : [p : perm] lock p -> rich_bool empty p
 
 (* Release. *)
 

@@ -43,16 +43,16 @@ val swap [a] (r: ref a, consumes x: a) : a =
    lock. *)
 
 data lock (p : perm) =
-  Lock { contents: ref (rich_bool p empty) }
+  Lock { contents: ref (rich_bool empty p) }
 
 (* Creation. *)
 
 val newlock [p : perm] (| consumes p) : lock p =
-  Lock { contents = newref [rich_bool p empty] RichTrue }
+  Lock { contents = newref [rich_bool empty p] RichTrue }
 
 (* Acquisition. *)
 
-val try_acquire [p : perm] (l: lock p) : rich_bool p empty =
+val try_acquire [p : perm] (l: lock p) : rich_bool empty p =
   swap (l.contents, RichFalse)
 
 val acquire [p : perm] (l: lock p) : (| p) =
