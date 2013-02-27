@@ -1115,9 +1115,14 @@ and sub_perms env perms =
         sub_perm env perm >>= fun env ->
         sub_perms env perms
     | None ->
-        Log.debug ~level:4 "[sub_perms] failed, remaining: %a"
-          TypePrinter.ptype (env, fold_star perms);
-        None
+        List.fold_left (fun env perm ->
+          env >>= fun env ->
+          match modulo_flex env perm with
+          | TyOpen p when is_flexible env p ->
+              instantiate_flexible env p TyEmpty
+          | _ ->
+              None
+        ) (Some env) perms
 
 and sub_floating_perm env t =
   match MzList.take (sub_type env t) (get_floating_permissions env) with
