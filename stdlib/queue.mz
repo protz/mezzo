@@ -55,7 +55,7 @@ val retrieve [a] (q: fifo a) : option a =
   | Empty ->
       None
   | NonEmpty { tail } ->
-      take tail from q; (* TEMPORARY why is there an "exclusive resource allocation conflict" here? *)
+      take tail from q;
       let head = tail.next in
       if head == tail then begin
 	tag of q <- Empty;

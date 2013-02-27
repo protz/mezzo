@@ -1,0 +1,156 @@
+(* ---------------------------------------------------------------------------- *)
+
+(* A cell has [prev] and [next] pointers, as well as a payload of type [a].
+   We maintain the invariant that, when a cell is not part of a region, its
+   [prev] and [next] fields point to itself. *)
+
+mutable data cell a =
+| Cell { prev: dynamic; next: dynamic; payload: a }
+
+val new_cell [a] (consumes x: a) : cell a =
+  let c = Cell { prev = (); next = (); payload = x } in
+  c.prev <- c;
+  c.next <- c;
+  c
+
+(* ---------------------------------------------------------------------------- *)
+
+(* A region adopts a group of cells. We maintain the invariant that the [prev]
+   function is a permutation of the cells in the region (i.e., it is bijective)
+   and that the [next] function is its inverse (hence, also a permutation). *)
+
+mutable data region a =
+  Region
+  adopts cell a
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Creating a region. *)
+
+val new_region [a] () : region a =
+  Region
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Turning a stand-alone cell into an element of the region. The cell becomes
+   a 1-cycle. *)
+
+val singleton [a] (r: region a, consumes c: cell a) : dynamic =
+  give c to r;
+  c
+
+(* ---------------------------------------------------------------------------- *)
+
+(* The transposition [transpose_next (r, w, y)] exchanges the [next] pointers of
+   the cells [w] and [y]. We assume that [w] and [y] are distinct. This function
+   clearly preserves the fact that the [next] function forms a permutation. It
+   returns a pair of [x] and [z], where [x] and [z] are the successors of [w]
+   and [x] before the transposition took place (hence, [x] and [z] are distinct). *)
+
+val transpose_next [a] (r: region a, w: dynamic, y: dynamic) : (x: dynamic, z: dynamic) =
+  taking w from r begin
+    taking y from r begin
+      let x = w.next
+      and z = y.next in
+      w.next <- z;
+      y.next <- x;
+      x, z
+    end
+  end
+
+(* The transposition [transpose_prev] is symmetric. *)
+
+val transpose_prev [a] (r: region a, x: dynamic, z: dynamic) : (w: dynamic, y: dynamic) =
+  taking x from r begin
+    taking z from r begin
+      let w = x.prev
+      and y = z.prev in
+      x.prev <- y;
+      z.prev <- w;
+      w, y
+    end
+  end
+
+(* By combining [transpose_next] and [transpose_prev], we preserve the fact
+   that [prev] and [next] are inverses of each other. This formulation is
+   elegant (in my opinion) and uses four [take] instructions, which in the
+   general case is optimal. *)
+
+val transpose [a] (r: region a, w: dynamic, y: dynamic) : () =
+  let x, z = transpose_next (r, w, y) in
+  let _ = transpose_prev (r, x, z) in
+  ()
+
+(* ---------------------------------------------------------------------------- *)
+
+(* In the special case where [w] and/or [y] is its own successor, the above
+   definition of [transpose] performs a redundant [take]. Let's fix this by
+   inlining [transpose_prev] inside [transpose_next] and explicitly checking
+   for equality -- this is a form of valid double take, in a sense. This
+   formulation of the code uses an optimal number of [take] instructions. *)
+
+val transpose [a] (r: region a, w: dynamic, y: dynamic) : () =
+  (* Begin as in [transpose_next]. *)
+  taking w from r begin
+    taking y from r begin
+      let x = w.next
+      and z = y.next in
+      w.next <- z;
+      y.next <- x;
+      (* Continue as in [transpose_prev], but without giving up
+	 [w] and [y]. Thus, the [take] instructions for [x] and
+	 [z] are required (and permitted!) only if the equality
+	 check fails. *)
+      (* We take advantage of the fact that [w] and [y] belong
+	 to distinct cycles, which implies [w != z] and [y != x].
+	 Without these hypotheses, more equality checks would
+	 have to be performed. *)
+      (* We take advantage of the fact that [x.prev] and [z.prev]
+	 are known already -- they are [w] and [y] -- so we only
+	 have two write instructions to perform, and each of them
+	 needs its own [take] -- that is, the two [take] instructions
+	 need not be nested. This reduces the code duplication. *)
+      if x == w then
+        x.prev <- y
+      else taking x from r begin
+        x.prev <- y
+      end;
+      if z == y then
+        z.prev <- w
+      else taking z from r begin
+        z.prev <- w
+      end
+    end
+  end
+
+(* ---------------------------------------------------------------------------- *)
+
+(* [meld (r, w, y)] requires [w] and [y] to be part of two distinct cycles,
+   and melds these cycles. The successors of [w] and [y] are exchanged. *)
+
+val meld =
+  transpose
+
+(* ---------------------------------------------------------------------------- *)
+
+(* If [w] and [y] are distinct cells and are part of a single cycle, then the
+   effect of [transpose (r, w, y)] is to split this cycle into two smaller
+   cycles. (This requires a few extra equality checks in [transpose], as noted
+   above.) This is more technical, and the result is dependent on the order of
+   the elements in the original cycle. For these reasons, we do not publish
+   this function; but it could be interesting. *)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* [insert (r, w, y)] requires the cell [y] to be stand-alone, and inserts it
+   into the cycle represented by [w]. *)
+
+val insert [a] (r: region a, w: dynamic, consumes y: cell a) : () =
+  (* This could be optimized. *)
+  meld (r, w, singleton (r, y))
+
+(*
+Local Variables:
+compile-command: "../mezzo doublylinked.mz"
+End:
+*)
