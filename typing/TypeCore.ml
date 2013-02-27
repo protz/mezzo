@@ -355,18 +355,6 @@ let is_flexible (env: env) (v: var): bool =
       false
 ;;
 
-let import_flex_instanciations env sub_env =
-  let rec chop_n_first n l =
-    if n = 0 then
-      l
-    else
-      chop_n_first (n - 1) (List.tl l)
-  in
-  let diff = List.length sub_env.flexible - List.length env.flexible in 
-  { env with flexible = chop_n_first diff sub_env.flexible }
-;;
-
-
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -799,6 +787,27 @@ let valid env = function
       (get_var_descr env v).level <= env.current_level
   | VRigid p ->
       valid env p
+;;
+
+let import_flex_instanciations env sub_env =
+  let get_level = function
+    | { structure = Instantiated t } ->
+        level sub_env t
+    | { structure = NotInstantiated { level; _ }} ->
+        level
+  in
+  let rec keep_up_to level flex_list =
+    match flex_list with
+    | hd :: tl ->
+        let level' = get_level hd in
+        if level' > level then
+          keep_up_to level tl
+        else
+          flex_list
+    | [] ->
+        []
+  in
+  { env with flexible = keep_up_to env.current_level sub_env.flexible }
 ;;
 
 let rec resolved_datacons_equal env (t1, dc1) (t2, dc2) =
