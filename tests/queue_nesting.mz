@@ -3,14 +3,16 @@ open nest
 (* A variant of the FIFO queue implementation, using nesting instead
    of adoption & abandon. *)
 
-(* Cells now have two tags. A cell that is currently in the queue
-   has tag [Cell]. A cell that is used to be in the queue, but has
-   been extracted, has type [Garbage]. This is used to compensate
-   for the fact that [f] cannot abandon a cell. *)
+(* A cell contains an element of type [option a], as opposed to [a].
+   Indeed, extracting an element of type [a] out of a cell, when the
+   type [a] is not duplicable, requires writing something in its place.
+   An alternative approach would be to tag the cell itself as active
+   or garbage (effectively fusing the cell with the option); this
+   would save memory but would make access to the [next] field less
+   convenient. *)
 
 mutable data cell (f : term) a =
-| Cell    { value: a; next: (n: unknown | nests f (n @ cell f a)) }
-| Garbage { value: unknown; next: unknown }
+| Cell { value: option a; next: (n: unknown | nests f (n @ cell f a)) }
 
 (* TEMPORARY I would like the fifo object itself to adopt the cells,
    but this doesn't work, because an algebraic data type definition
@@ -30,7 +32,7 @@ val create [a] () : fifo a =
 
 val internal_insert [a] (consumes x: a, q: fifo a, insertAtEnd: bool): () =
   let c = Cell {
-    value = x; next = ()
+    value = some x; next = ()
   } in
   match q with
   | Empty { contents = (r, length, ()) } ->
@@ -39,21 +41,19 @@ val internal_insert [a] (consumes x: a, q: fifo a, insertAtEnd: bool): () =
       tag of q <- NonEmpty;
       q.contents <- (r, 1, c)
   | NonEmpty { contents = (r, length, tail) } ->
-      focus r (* BUG exception TypeCore.UnboundPoint *) (*
-      taking tail from q begin
-        c.next <- tail.next;
-        tail.next <- c;
-      end;
-      give c to q;
-      q.length <- q.length + 1;
-      (* We have just inserted the cell [c] at the beginning of the
-	 queue. If the caller would like [c] to be inserted at the
-	 end of the queue, advance the [tail] pointer. *)
-      if insertAtEnd then
-	q.tail <- c*)
+      focus r;
+      c.next <- tail.next;
+      (* [c] is now a cell, so it can be nested in [r]. *)
+      nest_punched r; (* crazy inference! *)
+      tail.next <- c;
+      (* Because [tail.next] is [c], which is now a valid
+	 inhabitant of [r], we can argue that [tail] has
+	 type [cell r a], and give it back to [r]. *)
+      defocus r;
+      let length = length + 1 in
+      q.contents <- (r, length, if insertAtEnd then c else tail)
   end
 
-(*
 val insert [a] (consumes x: a, q: fifo a) : () =
   internal_insert (x, q, true)
   
@@ -64,28 +64,33 @@ val retrieve [a] (q: fifo a) : option a =
   match q with
   | Empty ->
       None
-  | NonEmpty { tail } ->
-      take tail from q; (* TEMPORARY why is there an "exclusive resource allocation conflict" here? *)
+  | NonEmpty { contents = (r, length, tail) } ->
+      focus (* tail *) r;
       let head = tail.next in
+      defocus r;
+      focus [(head @ cell r a)] r;
+      let x = option::force head.value in
+      (* Write [None] in [head.value], so we can give [head] back to [r]. *)
+      head.value <- None;
       if head == tail then begin
+        defocus r;
 	tag of q <- Empty;
-	q.length <- 0;
-	q.tail <- ()
+        q.contents <- (r, 0, ())
       end
       else begin
-	q.length <- q.length - 1;
-	take head from q;
-	tail.next <- head.next;
-	give tail to q
-      end;
-      (* At this point, we own the [head] cell. Note that this annotation
-	 is not required. *)
-      assert head @ cell a;
-      (* The head cell must not be given back to the queue. We need to assert
-	 the ownership of [head.value], whose type is not duplicable. *)
-      some head.value
+        let length = length - 1 in
+        let new_head = head.next in
+        defocus r;
+        (* This fine-grained focusing and defocusing is really painful. *)
+        focus [(tail @ cell r a)] r;
+	tail.next <- new_head;
+        defocus r;
+        q.contents <- (r, length, tail)
+      end; (* BUG at the merge? Fatal error: exception TypeCore.UnboundPoint *)
+      some x
  end
 
+(*
 val peek [a] duplicable a => (q: fifo a) : option a =
   match q with
   | Empty -> 
