@@ -414,8 +414,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             in
 
             merge_lists
-              (left_env, left_perms, left_perm :: processed_left_perms)
-              (right_env, right_perm :: remaining_right_perms)
+              (left_env, left_perms, processed_left_perms)
+              (right_env, remaining_right_perms)
               ?dest_var
               (dest_env, dest_perm :: dest_perms)
 
