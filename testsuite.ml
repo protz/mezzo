@@ -836,7 +836,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("array-covariance.mz", pass);
   ("array-contravariance.mz", fail);
   ("array-focus.mz", fail);
-  ("queue_nesting.mz", pass);
+  ("queue_nesting.mz", simple_test ~known_failure:() Pass);
 
   ("local-type.mz", simple_test ~known_failure:() Pass);
   ("local-type2.mz", simple_test ~known_failure:() Pass);
