@@ -41,3 +41,7 @@ val disjunction :
   | s
   ) -> rich_bool q2 p
 
+(* Conversion to a bare Boolean. *)
+
+val strip: [p : perm, q : perm] (b: rich_bool p q) -> bool
+

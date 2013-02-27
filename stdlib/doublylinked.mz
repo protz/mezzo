@@ -7,11 +7,21 @@
 mutable data cell a =
 | Cell { prev: dynamic; next: dynamic; payload: a }
 
-val new_cell [a] (consumes x: a) : cell a =
+val create [a] (consumes x: a) : cell a =
   let c = Cell { prev = (); next = (); payload = x } in
   c.prev <- c;
   c.next <- c;
   c
+
+val consult [a, b, pre : perm] (
+  c: cell a,
+  f: (a | consumes pre) -> b
+| consumes pre
+) : b =
+  f c.payload
+
+val destroy [a] (consumes c: cell a) : a =
+  c.payload
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -27,19 +37,28 @@ mutable data region a =
 
 (* Creating a region. *)
 
-val new_region [a] () : region a =
+val new [a] () : region a =
   Region
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Turning a stand-alone cell into an element of the region. The cell becomes
-   a 1-cycle. *)
+(* Giving and taking cells. *)
 
-val singleton [a] (r: region a, consumes c: cell a) : dynamic =
+val put [a] (r: region a, consumes c: cell a) : dynamic =
   give c to r;
   c
 
+val get [a] (r: region a, c: dynamic) : cell a =
+  take c from r;
+  if c.next == c then
+    c
+  else
+    fail
+
 (* ---------------------------------------------------------------------------- *)
+
+(* The following three functions are unused, but are kept for the sake of
+   clarity of exposition. *)
 
 (* The transposition [transpose_next (r, w, y)] exchanges the [next] pointers of
    the cells [w] and [y]. We assume that [w] and [y] are distinct. This function
@@ -89,37 +108,47 @@ val transpose [a] (r: region a, w: dynamic, y: dynamic) : () =
    for equality -- this is a form of valid double take, in a sense. This
    formulation of the code uses an optimal number of [take] instructions. *)
 
+(* We assume that [w] and [y] are distinct, but do not assume that [w] and
+   [y] belong to distinct cycles. Thus, we cannot assume [w != z] or [y != x].
+   This costs us a couple of extra equality checks, but makes [transpose] more
+   versatile: it can be used not only to meld two cycles, but also to split
+   a cycle. *)
+
+val transpose_internal [a] (r: region a, w: cell a, y: cell a) : () =
+  (* Begin as in [transpose_next]. *)
+  let x = w.next
+  and z = y.next in
+  w.next <- z;
+  y.next <- x;
+  (* Continue as in [transpose_prev], but without giving up
+     [w] and [y]. Thus, the [take] instruction for [x] and
+     is required (and permitted!) only if the equality checks
+     [x == w] and [x == y] have failed. *)
+  (* We take advantage of the fact that [x.prev] and [z.prev]
+     are known already -- they are [w] and [y] -- so we only
+     have two write instructions to perform, and each of them
+     needs its own [take] -- that is, the two [take] instructions
+     need not be nested. This reduces the code duplication. *)
+  if x == w then
+    x.prev <- y
+  else if x == y then
+    x.prev <- y
+  else taking x from r begin
+    x.prev <- y
+  end;
+  if z == w then
+    z.prev <- w
+  else if z == y then
+    z.prev <- w
+  else taking z from r begin
+    z.prev <- w
+  end
+
 val transpose [a] (r: region a, w: dynamic, y: dynamic) : () =
   (* Begin as in [transpose_next]. *)
   taking w from r begin
     taking y from r begin
-      let x = w.next
-      and z = y.next in
-      w.next <- z;
-      y.next <- x;
-      (* Continue as in [transpose_prev], but without giving up
-	 [w] and [y]. Thus, the [take] instructions for [x] and
-	 [z] are required (and permitted!) only if the equality
-	 check fails. *)
-      (* We take advantage of the fact that [w] and [y] belong
-	 to distinct cycles, which implies [w != z] and [y != x].
-	 Without these hypotheses, more equality checks would
-	 have to be performed. *)
-      (* We take advantage of the fact that [x.prev] and [z.prev]
-	 are known already -- they are [w] and [y] -- so we only
-	 have two write instructions to perform, and each of them
-	 needs its own [take] -- that is, the two [take] instructions
-	 need not be nested. This reduces the code duplication. *)
-      if x == w then
-        x.prev <- y
-      else taking x from r begin
-        x.prev <- y
-      end;
-      if z == y then
-        z.prev <- w
-      else taking z from r begin
-        z.prev <- w
-      end
+      transpose_internal (r, w, y)
     end
   end
 
@@ -133,21 +162,81 @@ val meld =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* If [w] and [y] are distinct cells and are part of a single cycle, then the
-   effect of [transpose (r, w, y)] is to split this cycle into two smaller
-   cycles. (This requires a few extra equality checks in [transpose], as noted
-   above.) This is more technical, and the result is dependent on the order of
-   the elements in the original cycle. For these reasons, we do not publish
-   this function; but it could be interesting. *)
+(* Convenience functions. *)
 
-(* ---------------------------------------------------------------------------- *)
+(* [insert (r, w, y)] inserts the cell [y] into the cycle represented by [w].
+   It is equivalent to a composition of [put] and [meld]. *)
 
-(* [insert (r, w, y)] requires the cell [y] to be stand-alone, and inserts it
-   into the cycle represented by [w]. *)
+(* val insert: [a] (region a, dynamic, consumes cell a) -> () 
+   TEMPORARY currently unpublished *)
 
 val insert [a] (r: region a, w: dynamic, consumes y: cell a) : () =
   (* This could be optimized. *)
-  meld (r, w, singleton (r, y))
+  meld (r, w, put (r, y))
+
+(* TEMPORARY we could also provide retrieve, a combination of [isolate] and
+   [get]; and we could also offer the combinations create/insert and
+   retrieve/destroy. Maybe better to wait until we know what we need. *)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* If [w] and [y] are distinct cells and are part of a single cycle, then the
+   effect of [transpose (r, w, y)] is to split this cycle into two smaller
+   cycles. This is more technical, and the result is dependent on the order of
+   the elements in the original cycle. For these reasons, we do not publish
+   this function; but it could be interesting. We do use it to isolate an
+   element, as follows. *)
+
+val isolate [a] (r: region a, y: dynamic) : () =
+  taking y from r begin
+    let w = y.prev in
+    if w != y then
+      taking w from r begin
+	transpose_internal (r, w, y)
+	(* The successors of [w] and [y] are swapped, so the successor
+	   of [w] is the former successor of [y], and the successor of
+	   [y] is [y] itself. Thus, [y] is isolated, as desired. *)
+      end
+  end
+
+val is_isolated [a] (r: region a, y: dynamic) : bool =
+  taking y from r begin
+    bool::strip (y == y.next)
+  end
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Iteration. *)
+
+val iter [a, p : perm] (r: region a, x: dynamic, f: (a | p) -> () | p) : () =
+  let rec loop (y: dynamic | p * r @ region a) : () =
+    take y from r;
+    (* We wish to pass the payload to [f], so we must borrow it
+       from the cell, so we must take the cell from [r] while
+       the call to [f] takes place. Or we could require [a] to
+       be duplicable, and we would not be forced to do this. *)
+    f y.payload;
+    (* Stop if [y.next] is the starting point [x]. *)
+    let z = y.next in
+    give y to r;
+    if y != z then
+      loop z
+  in
+  loop x
+
+(* TEMPORARY we can still pass [r @ region a] to [f], but we must document
+   the fact that [r] is punched when it is passed to [f]. Or maybe we should
+   just pass the cell itself (at type [dynamic]) to [f], not the payload? *)
+
+(* TEMPORARY define [elements] in terms of [iter] *)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* As noted by Knuth, when a cell is taken out of a doubly-linked list,
+   if the cell's [prev] and [next] pointers are preserved, then the
+   cell's former location in the list is recorded, and the cell can
+   later be re-inserted. Our current implementation does not allow this.
+   Should it? *)
 
 (*
 Local Variables:

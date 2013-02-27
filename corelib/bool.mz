@@ -76,6 +76,11 @@ val disjunction
       RichTrue
   end
 
+(* Conversion to a bare Boolean. *)
+
+val strip [p : perm, q : perm] (b: rich_bool p q) : bool =
+  if b then true else false
+
 (*
 Local Variables:
 compile-command: "../mezzo bool.mz"

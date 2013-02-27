@@ -1,0 +1,58 @@
+(* ---------------------------------------------------------------------------- *)
+
+(* A cell contains a payload of type [a]. *)
+
+abstract cell a
+
+(* Cells can be created, consulted, destroyed. *)
+
+val create:  [a] (consumes a) -> cell a
+
+val consult: [a, b, pre : perm] (
+  c: cell a,
+  f: (a | consumes pre) -> b
+| consumes pre
+) -> b
+
+val destroy: [a] (consumes cell a) -> a
+
+(* ---------------------------------------------------------------------------- *)
+
+(* A region contains many cells, organized in disjoint, non-empty cycles. *)
+
+abstract region a
+fact exclusive (region a)
+
+(* [new()] creates a new region. *)
+
+val new: [a] () -> region a
+
+(* [put (r, c)] places the cell [c] in the region [r]. The cell is
+   isolated: that is, it forms a one-element cycle. *)
+
+val put: [a] (region a, consumes cell a) -> dynamic
+
+(* [get (r, c)] takes the cell [c] out of the region [r]. The cell
+   must be isolated: that is, it must form a one-element cycle. *)
+
+val get: [a] (region a, dynamic) -> cell a
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Transforming cycles. *)
+
+(* [meld (r, w, y)] requires [w] and [y] to be part of two distinct cycles,
+   and melds these cycles. *)
+
+val meld: [a] (region a, dynamic, dynamic) -> ()
+
+(* [isolate (r, y)] ensures that [y] is isolated. If [y] is part of a cycle
+   of length greater than one, then [y] is taken out of this cycle, and is
+   made to form a cycle of length one. *)
+
+val isolate: [a] (region a, dynamic) -> ()
+
+(* [is_isolated (r, y)] tells whether [y] is isolated. *)
+
+val is_isolated: [a] (region a, dynamic) -> bool
+
