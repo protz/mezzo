@@ -1,23 +1,7 @@
 (* TEMPORARY expose the type of cells not as [dynamic], but as an
    abstract [point], or [point r]. *)
 
-(* ---------------------------------------------------------------------------- *)
-
 (* A cell contains a payload of type [a]. *)
-
-abstract cell +a
-
-(* Cells can be created, consulted, destroyed. *)
-
-val create:  [a] (consumes a) -> cell a
-
-val consult: [a, b, pre : perm] (
-  c: cell a,
-  f: (a | consumes pre) -> b
-| consumes pre
-) -> b
-
-val destroy: [a] (consumes cell a) -> a
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -30,15 +14,25 @@ fact exclusive (region a)
 
 val new: [a] () -> region a
 
-(* [put (r, c)] places the cell [c] in the region [r]. The cell is
-   isolated: that is, it forms a one-element cycle. *)
+(* [create (r, x)] creates a new cell and places it in the region [r].
+   The cell is isolated: that is, it forms a one-element cycle. *)
 
-val put: [a] (region a, consumes c: cell a) -> (| c @ dynamic)
+val create: [a] (r: region a, consumes x: a) -> dynamic
 
-(* [get (r, c)] takes the cell [c] out of the region [r]. The cell
-   must be isolated: that is, it must form a one-element cycle. *)
+(* [consult (r, c, f)] applies the function [f] to the payload carried
+   by the cell [c]. *)
 
-val get: [a] (region a, c: dynamic) -> (| c @ cell a)
+val consult: [a, b, pre : perm] (
+  r: region a,
+  c: dynamic,
+  f: (a | consumes pre) -> b
+| consumes pre
+) -> b
+
+(* [destroy (r, c)] destroys the cell [c]. The cell must be isolated:
+   that is, it must form a one-element cycle. *)
+
+val destroy: [a] (r: region a, c: dynamic) -> a
 
 (* ---------------------------------------------------------------------------- *)
 

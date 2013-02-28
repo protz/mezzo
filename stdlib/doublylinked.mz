@@ -7,22 +7,6 @@
 mutable data cell a =
 | Cell { prev: dynamic; next: dynamic; payload: a }
 
-val create [a] (consumes x: a) : cell a =
-  let c = Cell { prev = (); next = (); payload = x } in
-  c.prev <- c;
-  c.next <- c;
-  c
-
-val consult [a, b, pre : perm] (
-  c: cell a,
-  f: (a | consumes pre) -> b
-| consumes pre
-) : b =
-  f c.payload
-
-val destroy [a] (consumes c: cell a) : a =
-  c.payload
-
 (* ---------------------------------------------------------------------------- *)
 
 (* A region adopts a group of cells. We maintain the invariant that the [prev]
@@ -42,17 +26,35 @@ val new [a] () : region a =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Giving and taking cells. *)
+(* Creating and destroying cells. *)
 
-val put [a] (r: region a, consumes c: cell a) : () =
-  give c to r
+(* When a new cell is created, it is given to the region [r]. When a cell is
+   taken from [r], it is destroyed. We could offer lower-level, finer-grained
+   operations, but this is simpler. *)
 
-val get [a] (r: region a, c: dynamic) : (| c @ cell a) =
+val create [a] (r: region a, consumes x: a) : dynamic =
+  let c = Cell { prev = (); next = (); payload = x } in
+  c.prev <- c;
+  c.next <- c;
+  give c to r;
+  c
+
+val consult [a, b, pre : perm] (
+  r: region a,
+  c: dynamic,
+  f: (a | consumes pre) -> b
+| consumes pre
+) : b =
+  taking c from r begin
+    f c.payload
+  end
+
+val destroy [a] (r: region a, c: dynamic) : a =
   take c from r;
   if c.next != c then
     fail
-
-(* TEMPORARY I think we are missing a way of consulting a non-isolated cell *)
+  else
+    c.payload
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -168,25 +170,6 @@ val transpose [a] (r: region a, w: dynamic, y: dynamic) : () =
 
 val meld =
   transpose
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Convenience functions. *)
-
-(* [insert (r, w, y)] inserts the cell [y] into the cycle represented by [w].
-   It is equivalent to a composition of [put] and [meld]. *)
-
-(* val insert: [a] (region a, dynamic, consumes cell a) -> () 
-   TEMPORARY currently unpublished *)
-
-val insert [a] (r: region a, w: dynamic, consumes y: cell a) : () =
-  (* This could be optimized. *)
-  put (r, y);
-  meld (r, w, y)
-
-(* TEMPORARY we could also provide retrieve, a combination of [isolate] and
-   [get]; and we could also offer the combinations create/insert and
-   retrieve/destroy. Maybe better to wait until we know what we need. *)
 
 (* ---------------------------------------------------------------------------- *)
 
