@@ -44,16 +44,15 @@ val new [a] () : region a =
 
 (* Giving and taking cells. *)
 
-val put [a] (r: region a, consumes c: cell a) : dynamic =
-  give c to r;
-  c
+val put [a] (r: region a, consumes c: cell a) : () =
+  give c to r
 
-val get [a] (r: region a, c: dynamic) : cell a =
+val get [a] (r: region a, c: dynamic) : (| c @ cell a) =
   take c from r;
-  if c.next == c then
-    c
-  else
+  if c.next != c then
     fail
+
+(* TEMPORARY I think we are missing a way of consulting a non-isolated cell *)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -172,7 +171,8 @@ val meld =
 
 val insert [a] (r: region a, w: dynamic, consumes y: cell a) : () =
   (* This could be optimized. *)
-  meld (r, w, put (r, y))
+  put (r, y);
+  meld (r, w, y)
 
 (* TEMPORARY we could also provide retrieve, a combination of [isolate] and
    [get]; and we could also offer the combinations create/insert and

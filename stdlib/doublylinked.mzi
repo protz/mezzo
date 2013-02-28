@@ -33,12 +33,12 @@ val new: [a] () -> region a
 (* [put (r, c)] places the cell [c] in the region [r]. The cell is
    isolated: that is, it forms a one-element cycle. *)
 
-val put: [a] (region a, consumes cell a) -> dynamic
+val put: [a] (region a, consumes c: cell a) -> (| c @ dynamic)
 
 (* [get (r, c)] takes the cell [c] out of the region [r]. The cell
    must be isolated: that is, it must form a one-element cycle. *)
 
-val get: [a] (region a, dynamic) -> cell a
+val get: [a] (region a, c: dynamic) -> (| c @ cell a)
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -1,0 +1,63 @@
+(* By convention, the [block] field points to the item itself
+   when the item is detached (i.e., not part of a block). *)
+mutable data item a =
+  Item { block: dynamic (* block *); payload: a }
+
+mutable data block =
+  |    Empty { cardinal: int; cell: ()                 }
+  | NonEmpty { cardinal: int; cell: dynamic (* cell *) }
+
+mutable data region a =
+  Region { cells: doublylinked::region (item a) }
+  adopts block
+
+val new_region [a] () : region a =
+  Region { cells = doublylinked::new() }
+
+val new_block [a] (r: region a) : dynamic (* block *) =
+  let b = Empty { cardinal = 0; cell = () } in
+  give b to r;
+  b
+
+val new_item [a] (r: region a, consumes x: a) : dynamic (* cell *) =
+  let i = Item { block = (); payload = x } in
+  i.block <- i;
+  let c = doublylinked::create [item a] i in
+  doublylinked::put [item a] (r.cells, c);
+    (* WISH I don't understand why this type application is required *)
+  c
+
+val attach [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : () =
+  (* Update the cell [c], which is now a member of [b]. *)
+  (* TEMPORARY get/consult/put should be combined *)
+  doublylinked::get [item a] (r.cells, c);
+    (* WISH I don't understand why this type application is required *)
+  assert c @ doublylinked::cell (item a);
+  doublylinked::consult [a = item a] (c, fun (i : item a) : () =
+    (* WISH I don't understand why this type application is required *)
+    i.block <- b
+  );
+  doublylinked::put [item a] (r.cells, c);
+    (* WISH I don't understand why this type application is required *)
+  (* Update the block. *)
+  taking b from r begin
+    match b with
+    | Empty ->
+        tag of b <- NonEmpty;
+        b.cardinal <- 1;
+	b.cell <- c
+	(* The cell [c] was isolated, and there is no pre-existing cycle.
+	   No insertion is required. *)
+    | NonEmpty ->
+        b.cardinal <- b.cardinal + 1;
+        (* Insert the cell [c] into the cycle of the elements of [b]. *)
+        doublylinked::meld [item a] (r.cells, c, b.cell)
+          (* WISH I don't understand why this type application is required *)
+    end
+  end
+
+(*
+Local Variables:
+compile-command: "../mezzo partition.mz"
+End:
+*)
