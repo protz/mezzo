@@ -1,0 +1,12 @@
+val id [a] (x: a): a = x
+
+abstract t
+fact exclusive t
+
+abstract list a
+
+val test (| consumes id @ ({x: term} list (=x)) ->
+                 (list ({y: term} =y))): () =
+  ()
+
+val t = test ()
