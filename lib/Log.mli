@@ -17,8 +17,10 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** This module provides error reporting functions for ChaML. Any module can use
+(** This module provides error reporting functions for Mezzo. Any module can use
     it. *)
+
+exception MzInternalFailure of string
 
 (** Enable debugging information. You should provide a debugging level. The
     higher the level, the more verbose the information. Currently, verbosity

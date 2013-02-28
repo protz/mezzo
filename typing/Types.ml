@@ -297,7 +297,8 @@ let get_adopts_clause env point: adopts_clause =
   | Some (Some (_, _, clause), _) ->
       clause
   | _ ->
-      Log.error "This is not a concrete data type."
+      (* An abstract exclusive type has no adopts clause (as of now). *)
+      None
 ;;
 
 let get_branches env point: data_type_def_branch list =
@@ -581,14 +582,15 @@ module TypePrinter = struct
     print_kind kind ^^ rparen ^^ dot ^^ jump (print_type env typ)
 
   and print_point env point =
-    (* FIXME *)
-    if modulo_flex_v env point <> TyOpen point then
-        lparen ^^ string "flex→" ^^ print_type env (modulo_flex_v env point) ^^ rparen
-    else
+    try
       if is_flexible env point then
         print_var env (get_name env point) ^^ star
+      else if internal_wasflexible point then
+          lparen ^^ string "inst→" ^^ print_type env (modulo_flex_v env point) ^^ rparen
       else
         print_var env (get_name env point)
+    with UnboundPoint ->
+      colors.red ^^ string "!! ☠ !!" ^^ colors.default
 
 
   (* TEMPORARY this does not respect precedence and won't insert parentheses at

@@ -286,12 +286,11 @@ let module_name { module_name; _ } = module_name;;
 
 let set_module_name env module_name = { env with module_name };;
 
-let valid env p =
-  PersistentUnionFind.valid p env.state
-;;
-
-let repr env p =
-  PersistentUnionFind.repr p env.state
+let valid env = function
+  | VFlexible v ->
+      v < List.length env.flexible
+  | VRigid p ->
+      PersistentUnionFind.valid p env.state
 ;;
 
 let find env p =
@@ -321,13 +320,13 @@ exception UnboundPoint
 (* Goes through any flexible variables before finding "the real type". *)
 let rec modulo_flex_v (env: env) (v: var): typ =
   match v with
-  | VRigid p ->
-      if valid env p then
-        TyOpen (VRigid (repr env p))
+  | VRigid _ ->
+      if valid env v then
+        TyOpen v
       else
         raise UnboundPoint
   | VFlexible f ->
-      if f < List.length env.flexible then
+      if valid env v then
         match (find_flex env f).structure with
         | Instantiated (TyOpen v) ->
             modulo_flex_v env v
@@ -574,6 +573,76 @@ let level (env: env) (t: typ): level =
 ;;
 
 
+let clean top sub t =
+  let rec clean t =
+    match t with
+    (* Special type constants. *)
+    | TyUnknown
+    | TyDynamic
+    | TyEmpty
+    | TyBound _ ->
+        t
+
+    | TyOpen v ->
+        begin match modulo_flex_v sub v with
+        | TyOpen p as t ->
+            if valid top p then
+              t
+            else
+              raise UnboundPoint
+        | _ as t ->
+            clean t
+        end
+
+    | TyForall (b, t) ->
+        TyForall (b, clean t)
+
+    | TyExists (b, t) ->
+        TyExists (b, clean t)
+
+    | TyApp (t1, t2) ->
+        TyApp (clean t1, List.map clean t2)
+
+      (* Structural types. *)
+    | TyTuple ts ->
+        TyTuple (List.map clean ts)
+
+    | TyConcreteUnfolded ((t, dc), fields, clause) ->
+        let t = clean t in
+        let fields = List.map (function
+          | FieldValue (f, t) ->
+              FieldValue (f, clean t)
+          | FieldPermission p ->
+              FieldPermission (clean p)
+        ) fields in
+        TyConcreteUnfolded ((t, dc), fields, clean clause)
+
+    | TySingleton t ->
+        TySingleton (clean t)
+
+    | TyArrow (t1, t2) ->
+        TyArrow (clean t1, clean t2)
+
+    | TyBar (t1, t2) ->
+        TyBar (clean t1, clean t2)
+
+    | TyAnchoredPermission (t1, t2) ->
+        TyAnchoredPermission (clean t1, clean t2)
+
+    | TyStar (t1, t2) ->
+        TyStar (clean t1, clean t2)
+
+    | TyAnd (constraints, t) ->
+        let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
+        TyAnd (constraints, clean t)
+
+    | TyImply (constraints, t) ->
+        let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
+        TyImply (constraints, clean t)
+  in
+  clean t
+;;
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Instantiate a flexible variable with a given type. *)
@@ -582,10 +651,15 @@ let instantiate_flexible (env: env) (v: var) (t: typ): env option =
   
   (* Rework [t] so that this instantiation is legal. *)
   let l = (get_var_descr env v).level in
-  if level env t <= l then begin
-    Log.debug "Instantiating %a with %a"
+  let l_t = level env t in
+  if l_t <= l then begin
+    Log.debug "%sInstantiating%s flexible #%d a.k.a. %a (level=%d) with %a (level=%d)"
+      Bash.colors.Bash.red Bash.colors.Bash.default
+      (match v with VFlexible i -> i | _ -> assert false)
       !internal_pnames (env, get_names env v)
-      !internal_ptype (env, t);
+      l
+      !internal_ptype (env, t)
+      l_t;
 
     begin match modulo_flex_v env v with
     | TyOpen (VFlexible f) ->
@@ -678,10 +752,12 @@ let merge_left env v1 v2 =
 
   (* Debug *)
   let open Bash in
-  Log.debug ~level:5 "%sMerging%s %a into %a"
+  let l1 = (get_var_descr env v1).level in
+  let l2 = (get_var_descr env v2).level in
+  Log.debug ~level:5 "%sMerging%s %a (level=%d) with %a (level=%d)"
     colors.red colors.default
-    !internal_pnames (env, get_names env v1)
-    !internal_pnames (env, get_names env v2);
+    !internal_pnames (env, get_names env v1) l1
+    !internal_pnames (env, get_names env v2) l2;
   if get_kind env v1 = KType then
     Log.debug ~level:6 "→ facts: merging %a into %a"
       !internal_pfact (get_fact env v1)
@@ -704,111 +780,48 @@ let merge_left env v1 v2 =
 
 (* ---------------------------------------------------------------------------- *)
 
-
-let clean top sub t =
-  let rec clean t =
-    match t with
-    (* Special type constants. *)
-    | TyUnknown
-    | TyDynamic
-    | TyEmpty
-    | TyBound _ ->
-        t
-
-    | TyOpen (VRigid p) ->
-        let p = repr sub p in
-        if valid top p then
-          TyOpen (VRigid p)
-        else
-          raise UnboundPoint
-
-    | TyOpen ((VFlexible _) as v) ->
-        begin match modulo_flex_v sub v with
-        | TyOpen (VFlexible f) as t ->
-            if f < List.length top.flexible then
-              t
-            else
-              raise UnboundPoint
-        | _ as t ->
-            clean t
-        end
-
-    | TyForall (b, t) ->
-        TyForall (b, clean t)
-
-    | TyExists (b, t) ->
-        TyExists (b, clean t)
-
-    | TyApp (t1, t2) ->
-        TyApp (clean t1, List.map clean t2)
-
-      (* Structural types. *)
-    | TyTuple ts ->
-        TyTuple (List.map clean ts)
-
-    | TyConcreteUnfolded ((t, dc), fields, clause) ->
-        let t = clean t in
-        let fields = List.map (function
-          | FieldValue (f, t) ->
-              FieldValue (f, clean t)
-          | FieldPermission p ->
-              FieldPermission (clean p)
-        ) fields in
-        TyConcreteUnfolded ((t, dc), fields, clean clause)
-
-    | TySingleton t ->
-        TySingleton (clean t)
-
-    | TyArrow (t1, t2) ->
-        TyArrow (clean t1, clean t2)
-
-    | TyBar (t1, t2) ->
-        TyBar (clean t1, clean t2)
-
-    | TyAnchoredPermission (t1, t2) ->
-        TyAnchoredPermission (clean t1, clean t2)
-
-    | TyStar (t1, t2) ->
-        TyStar (clean t1, clean t2)
-
-    | TyAnd (constraints, t) ->
-        let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
-        TyAnd (constraints, clean t)
-
-    | TyImply (constraints, t) ->
-        let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
-        TyImply (constraints, clean t)
-  in
-  clean t
+let internal_pflex buf (env, i, f) =
+  Printf.bprintf buf "Flexible #%d is " i;
+  match f.structure with
+  | Instantiated t ->
+      Printf.bprintf buf "instantiated with %a\n"
+        !internal_ptype (env, t);
+  | NotInstantiated { level; _ } ->
+      Printf.bprintf buf "not instantiated, level=%d\n" level;
 ;;
 
-let valid env = function
-  | VFlexible _ as v ->
-      (get_var_descr env v).level <= env.current_level
-  | VRigid p ->
-      valid env p
+let internal_pflexlist buf env =
+  Printf.bprintf buf "env.current_level = %d\n" env.current_level;
+  let l = List.length env.flexible in
+  List.iteri (fun i flex ->
+    internal_pflex buf (env, l - i - 1, flex)
+  ) env.flexible
 ;;
+
 
 let import_flex_instanciations env sub_env =
-  let get_level = function
+  Log.debug ~level:6 "%a" internal_pflexlist sub_env;
+  let rec chop_n_first n l =
+    if n = 0 then
+      l
+    else
+      chop_n_first (n - 1) (List.tl l)
+  in
+  let diff = List.length sub_env.flexible - List.length env.flexible in 
+  let flexible = chop_n_first diff sub_env.flexible in
+  let flexible = List.map (function
     | { structure = Instantiated t } ->
-        level sub_env t
-    | { structure = NotInstantiated { level; _ }} ->
-        level
-  in
-  let rec keep_up_to level flex_list =
-    match flex_list with
-    | hd :: tl ->
-        let level' = get_level hd in
-        if level' > level then
-          keep_up_to level tl
-        else
-          flex_list
-    | [] ->
-        []
-  in
-  { env with flexible = keep_up_to env.current_level sub_env.flexible }
+        let t = clean env sub_env t in
+        { structure = Instantiated t }
+    | _ as flex_descr ->
+        flex_descr
+  ) flexible in
+  let floating_permissions = List.map (clean env sub_env) env.floating_permissions in
+  let env = { env with flexible; floating_permissions } in
+  Log.debug ~level:6 "%a" internal_pflexlist env;
+  env
 ;;
+
 
 let rec resolved_datacons_equal env (t1, dc1) (t2, dc2) =
   equal env t1 t2 && Datacon.equal dc1 dc2
@@ -943,6 +956,11 @@ let bind_rigid env (name, kind, location) =
 
 
 let bind_flexible env (name, kind, location) =
+  Log.debug ~level:6 "Binding flexible #%d (%a) @ level %d"
+    (List.length env.flexible)
+    !internal_pnames (env, [name])
+    env.current_level;
+
   (* Deal with levels. No need to bump the level here. *)
   let env = { env with last_binding = Flexible } in
 
@@ -1052,3 +1070,17 @@ let internal_uniqvarid env = function
       (Obj.magic p: int)
 ;;
 
+let internal_checklevel env t =
+  let l = level env t in
+  Log.check (l <= env.current_level)
+    "%a inconsistency detected: type %a has level %d, but env has level %d\n"
+    Lexer.p (location env)
+    !internal_ptype (env, t)
+    l
+    env.current_level;
+;;
+
+let internal_wasflexible = function
+  | VFlexible _  -> true
+  | VRigid _ -> false
+;;

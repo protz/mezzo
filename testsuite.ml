@@ -94,8 +94,9 @@ let simple_test ?(pedantic=false) ?known_failure outcome = fun do_it ->
       | Fail _ ->
           raise_if (Failure "Test failed but not for the right reason")
       end
-  | _ as e ->
-      raise_if e
+
+  | Log.MzInternalFailure msg ->
+      raise_if (Failure msg)
 ;;
 
 let pass =
@@ -826,6 +827,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("exist08.mz", pass);
   ("exist09.mz", pass);
 
+  ("exists-tyapp.mz", pass);
+  ("exists-tyapp2.mz", fail);
+
   ("bad-arity.mz", simple_test (Fail (function BadPattern _ -> true | _ -> false)));
   ("bad-arity2.mz", simple_test (Fail (function BadPattern _ -> true | _ -> false)));
   ("dependent-type.mz", pass);
@@ -836,8 +840,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("array-covariance.mz", pass);
   ("array-contravariance.mz", fail);
   ("array-focus.mz", fail);
-  ("queue_nesting.mz", simple_test ~known_failure:() Pass);
-  ("take-abstract.mz", simple_test ~known_failure:() (Fail (function _ -> false)));
+  ("queue_nesting.mz", fail);
+  ("queue_nesting2.mz", fail);
+  ("take-abstract.mz", fail);
   ("overflow.mz", simple_test (Fail (function _ -> false)));
     (* TEMPORARY this test raises Stack_overflow, whereas it should reject the code.
        I don't know what I should write here? *)
@@ -845,7 +850,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("local-type.mz", simple_test ~known_failure:() Pass);
   ("local-type2.mz", simple_test ~known_failure:() Pass);
   ("local-type3.mz", simple_test ~known_failure:() Pass);
-  ("local-type4.mz", simple_test ~known_failure:() Pass);
+  ("local-type4.mz", pass);
 
 ];;
 

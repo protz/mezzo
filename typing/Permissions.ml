@@ -31,7 +31,7 @@ open TypeErrors
 
 let safety_check env =
   (* Be paranoid, perform an expensive safety check. *)
-  if Log.debug_level () >= 5 then
+  if Log.debug_level () >= 5 then begin
     fold_terms env (fun () var permissions ->
       (* Each term should have exactly one singleton permission. If we fail here,
        * this is SEVERE: this means one of our internal invariants broken, so
@@ -83,7 +83,11 @@ let safety_check env =
           Lexer.p (location env)
           TypePrinter.pnames (env, get_names env var)
           TypePrinter.penv env;
-    ) ()
+
+      List.iter (internal_checklevel env) permissions;
+    ) ();
+    List.iter (internal_checklevel env) (get_floating_permissions env);
+  end
 ;;
 
 

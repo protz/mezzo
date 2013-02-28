@@ -385,8 +385,14 @@ module VarMap: MzMap.S with type key = var
 
 (**/**)
 
+(** References are assigned to by other modules after the type printers have
+ * been set up. Other [internal_] functions are for debugging, as they break the
+ * abstraction barriers in quite amazing ways. *)
 val internal_ptype : (Buffer.t -> env * typ -> unit) ref
 val internal_pnames : (Buffer.t -> env * name list -> unit) ref
 val internal_ppermissions : (Buffer.t -> env -> unit) ref
 val internal_pfact : (Buffer.t -> fact -> unit) ref
+val internal_pflexlist: (Buffer.t -> env -> unit)
 val internal_uniqvarid: env -> var -> int
+val internal_checklevel: env -> typ -> unit
+val internal_wasflexible: var -> bool
