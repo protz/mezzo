@@ -94,6 +94,9 @@ let simple_test ?(pedantic=false) ?known_failure outcome = fun do_it ->
       | Fail _ ->
           raise_if (Failure "Test failed but not for the right reason")
       end
+
+  | Log.MzInternalFailure msg ->
+      raise_if (Failure msg)
 ;;
 
 let pass =

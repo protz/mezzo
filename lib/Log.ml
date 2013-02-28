@@ -17,6 +17,7 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+exception MzInternalFailure of string
 
 let the_debug_level = ref 0
 let debug_level () = !the_debug_level
@@ -59,18 +60,21 @@ let msg fmt =
     Buffer.contents buf
   ) (Buffer.create 16) fmt
 
+let fail_with_summary buf =
+  Buffer.output_buffer stderr buf;
+  let c = Buffer.contents buf in
+  let summary =
+    let i = String.index c '\n' in
+    if i >= 0 then String.sub c 0 i else c
+  in
+  raise (MzInternalFailure summary)
+
 let error fmt =
   let buf = Buffer.create 16 in
   Buffer.add_string buf "Mezzo internal error: ";
   Printf.kbprintf (fun buf ->
     Buffer.add_char buf '\n';
-    Buffer.output_buffer stderr buf;
-    let c = Buffer.contents buf in
-    let summary =
-      let i = String.index c '\n' in
-      if i >= 0 then String.sub c 0 i else c
-    in
-    raise (Failure summary)
+    fail_with_summary buf
   ) buf fmt
 
 let check b fmt =
@@ -79,11 +83,10 @@ let check b fmt =
     MzString.biprintf fmt
   else begin
     let buf = Buffer.create 16 in
-  Buffer.add_string buf "Mezzo internal assert failure: ";
+    Buffer.add_string buf "Mezzo internal assert failure: ";
     Buffer.add_string buf Bash.colors.Bash.red;
     kbprintf (fun buf ->
       Buffer.add_string buf (Bash.colors.Bash.default ^ "\n");
-      Buffer.output_buffer stderr buf;
-      assert false
+      fail_with_summary buf
     ) buf fmt
   end
