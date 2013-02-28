@@ -31,26 +31,18 @@ val new_block [a] (r: region a) : dynamic (* block *) =
 val new_item [a] (r: region a, consumes x: a) : dynamic (* cell *) =
   let i = Item { block = (); payload = x } in
   i.block <- i;
-  let c = doublylinked::create [item a] i in
-  doublylinked::put [item a] (r.cells, c);
+  doublylinked::create [item a] (r.cells, i)
     (* WISH I don't understand why this type application is required *)
-  c
 
 val attach [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : () =
   (* Update the cell [c], which is now a member of [b]. *)
-  (* TEMPORARY get/consult/put should be combined *)
-  doublylinked::get [item a] (r.cells, c);
-    (* WISH I don't understand why this type application is required *)
-  assert c @ doublylinked::cell (item a);
-  doublylinked::consult [a = item a] (c, fun (i : item a) : () =
+  doublylinked::consult [item a] (r.cells, c, fun (i : item a) : () =
     (* WISH I don't understand why this type application is required *)
     (* Check that this item was detached. *)
     if (i.block != i) then
       fail;
     i.block <- b
   );
-  doublylinked::put [item a] (r.cells, c);
-    (* WISH I don't understand why this type application is required *)
   (* Update the block. *)
   taking b from r begin
     b.cardinal <- b.cardinal + 1;
@@ -68,9 +60,8 @@ val attach [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : ()
 
 val detach [a] (r: region a, c: dynamic (* cell *)) : () =
   (* Update the cell [c], which is no longer a member of [b]. *)
-  doublylinked::get [item a] (r.cells, c);
   let b : dynamic =
-    doublylinked::consult [a = item a] (c, fun (i : item a) : dynamic =
+    doublylinked::consult [a = item a] (r.cells, c, fun (i : item a) : dynamic =
       if (i.block == i) then
 	fail;
       let b = i.block in
@@ -78,7 +69,6 @@ val detach [a] (r: region a, c: dynamic (* cell *)) : () =
       b
     )
   in
-  doublylinked::put [item a] (r.cells, c);
   (* Update the block. *)
   taking b from r begin
     b.cardinal <- b.cardinal - 1;
@@ -96,18 +86,11 @@ val move [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : () =
   attach (r, b, c)
 
 val block [a] (r: region a, c: dynamic (* cell *)) : dynamic (* block *) =
-  doublylinked::get [item a] (r.cells, c);
-  let b : dynamic =
-    doublylinked::consult [a = item a] (c, fun (i : item a) : dynamic =
-      if (i.block == i) then
-	fail;
-      let b = i.block in
-      i.block <- i;
-      b
-    )
-  in
-  doublylinked::put [item a] (r.cells, c);
-  b
+  doublylinked::consult [item a] (r.cells, c, fun (i : item a) : dynamic =
+    if (i.block == i) then
+      fail;
+    i.block
+  )
 
 val cardinal [a] (r: region a, b: dynamic (* block *)) : int =
   taking b from r begin b.cardinal end
