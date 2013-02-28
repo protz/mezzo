@@ -1,12 +1,5 @@
-val id [a] (x: a): a = x
+abstract list +a
 
-abstract t
-fact exclusive t
-
-abstract list a
-
-val test (| consumes id @ ({x: term} list (=x)) ->
-                 (list ({y: term} =y))): () =
+val test (consumes (arg: ({x: term} list (=x)))):
+                 (| arg @ list ({y: term} =y)) =
   ()
-
-val t = test ()

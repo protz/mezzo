@@ -826,7 +826,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("exist08.mz", pass);
   ("exist09.mz", pass);
 
-  ("exists-tyapp.mz", simple_test ~known_failure:() Pass);
+  ("exists-tyapp.mz", pass);
   ("exists-tyapp2.mz", fail);
 
   ("bad-arity.mz", simple_test (Fail (function BadPattern _ -> true | _ -> false)));
