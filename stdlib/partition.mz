@@ -1,12 +1,20 @@
-(* By convention, the [block] field points to the item itself
-   when the item is detached (i.e., not part of a block). *)
-(* TEMPORARY or we could use two distinct tags? (safer) *)
+(* An item contains a pointer to its block, plus further (client) information. *)
+
+(* By convention, the [block] field points to the item itself when the item is
+   detached (i.e., not part of a block). We could also use an option (that
+   would be safer, but more expensive) or define two distinct tags for items
+   (also safer, but less convenient). *)
+
+(* An item serves as an extension of the [cell] ... TEMPORARY *)
+
 mutable data item a =
-  Item { block: dynamic (* block *); payload: a }
+  Item {
+    block: dynamic (* self or block *);
+    payload: a
+  }
 
 mutable data block =
-  |    Empty { cardinal: int; cell: ()                 }
-  | NonEmpty { cardinal: int; cell: dynamic (* cell *) }
+  | Block { cardinal: int; cell: option dynamic (* cell *) }
 
 mutable data region a =
   Region { cells: doublylinked::region (item a) }
@@ -16,7 +24,7 @@ val new_region [a] () : region a =
   Region { cells = doublylinked::new() }
 
 val new_block [a] (r: region a) : dynamic (* block *) =
-  let b = Empty { cardinal = 0; cell = () } in
+  let b = Block { cardinal = 0; cell = None } in
   give b to r;
   b
 
@@ -45,20 +53,69 @@ val attach [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : ()
     (* WISH I don't understand why this type application is required *)
   (* Update the block. *)
   taking b from r begin
-    match b with
-    | Empty ->
-        tag of b <- NonEmpty;
-        b.cardinal <- 1;
-	b.cell <- c
+    b.cardinal <- b.cardinal + 1;
+    match b.cell with
+    | None ->
+        b.cell <- some c
 	(* The cell [c] was isolated, and there is no pre-existing cycle.
 	   No insertion is required. *)
-    | NonEmpty ->
-        b.cardinal <- b.cardinal + 1;
+    | Some ->
         (* Insert the cell [c] into the cycle of the elements of [b]. *)
-        doublylinked::meld [item a] (r.cells, c, b.cell)
+        doublylinked::meld [item a] (r.cells, c, b.cell.contents)
           (* WISH I don't understand why this type application is required *)
     end
   end
+
+val detach [a] (r: region a, c: dynamic (* cell *)) : () =
+  (* Update the cell [c], which is no longer a member of [b]. *)
+  doublylinked::get [item a] (r.cells, c);
+  let b : dynamic =
+    doublylinked::consult [a = item a] (c, fun (i : item a) : dynamic =
+      if (i.block == i) then
+	fail;
+      let b = i.block in
+      i.block <- i;
+      b
+    )
+  in
+  doublylinked::put [item a] (r.cells, c);
+  (* Update the block. *)
+  taking b from r begin
+    b.cardinal <- b.cardinal - 1;
+    if b.cardinal = 0 then
+      b.cell <- none [dynamic] (* WISH get rid of this type application? *)
+    else if b.cell == c then
+      (* If the representative element of [b] is [c], find another. *)
+      b.cell <- some (doublylinked::next [item a] (r.cells, c));
+    (* Take the cell [c] out of the cycle of the elements of [b]. *)
+    doublylinked::isolate [item a] (r.cells, c)
+  end
+
+val move [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : () =
+  detach (r, c);
+  attach (r, b, c)
+
+val block [a] (r: region a, c: dynamic (* cell *)) : dynamic (* block *) =
+  doublylinked::get [item a] (r.cells, c);
+  let b : dynamic =
+    doublylinked::consult [a = item a] (c, fun (i : item a) : dynamic =
+      if (i.block == i) then
+	fail;
+      let b = i.block in
+      i.block <- i;
+      b
+    )
+  in
+  doublylinked::put [item a] (r.cells, c);
+  b
+
+val cardinal [a] (r: region a, b: dynamic (* block *)) : int =
+  taking b from r begin b.cardinal end
+
+val choose [a] (r: region a, b: dynamic (* block *)) : option dynamic (* cell *) =
+  taking b from r begin b.cell end
+
+(* TEMPORARY add iteration functions, etc. *)
 
 (*
 Local Variables:
