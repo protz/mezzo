@@ -94,8 +94,6 @@ let simple_test ?(pedantic=false) ?known_failure outcome = fun do_it ->
       | Fail _ ->
           raise_if (Failure "Test failed but not for the right reason")
       end
-  | _ as e ->
-      raise_if e
 ;;
 
 let pass =
@@ -846,7 +844,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("local-type.mz", simple_test ~known_failure:() Pass);
   ("local-type2.mz", simple_test ~known_failure:() Pass);
   ("local-type3.mz", simple_test ~known_failure:() Pass);
-  ("local-type4.mz", simple_test ~known_failure:() Pass);
+  ("local-type4.mz", pass);
 
 ];;
 
