@@ -1,0 +1,5 @@
+abstract region
+fact exclusive region
+
+val f (r: region, c: dynamic) : () =
+  take c from r
