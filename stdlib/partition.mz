@@ -1,5 +1,6 @@
 (* By convention, the [block] field points to the item itself
    when the item is detached (i.e., not part of a block). *)
+(* TEMPORARY or we could use two distinct tags? (safer) *)
 mutable data item a =
   Item { block: dynamic (* block *); payload: a }
 
@@ -35,6 +36,9 @@ val attach [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : ()
   assert c @ doublylinked::cell (item a);
   doublylinked::consult [a = item a] (c, fun (i : item a) : () =
     (* WISH I don't understand why this type application is required *)
+    (* Check that this item was detached. *)
+    if (i.block != i) then
+      fail;
     i.block <- b
   );
   doublylinked::put [item a] (r.cells, c);
