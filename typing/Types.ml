@@ -583,13 +583,12 @@ module TypePrinter = struct
 
   and print_point env point =
     try
-      if modulo_flex_v env point <> TyOpen point then
-          lparen ^^ string "flex→" ^^ print_type env (modulo_flex_v env point) ^^ rparen
+      if is_flexible env point then
+        print_var env (get_name env point) ^^ star
+      else if internal_wasflexible point then
+          lparen ^^ string "inst→" ^^ print_type env (modulo_flex_v env point) ^^ rparen
       else
-        if is_flexible env point then
-          print_var env (get_name env point) ^^ star
-        else
-          print_var env (get_name env point)
+        print_var env (get_name env point)
     with UnboundPoint ->
       colors.red ^^ string "!! ☠ !!" ^^ colors.default
 

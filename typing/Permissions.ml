@@ -878,12 +878,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
               sub_type_with_unfolding sub_env arg1 arg2 >>= fun sub_env ->
               sub_type_with_unfolding sub_env arg2 arg1
         ) (Some sub_env) args1 args2 >>= fun sub_env ->
-        Log.debug ~level:6 "%a" internal_pflexlist sub_env;
-        safety_check sub_env;
-        let env = import_flex_instanciations env sub_env in
-        Log.debug ~level:6 "%a" internal_pflexlist env;
-        safety_check env;
-        Some env
+        Some (import_flex_instanciations env sub_env)
       else
         None
 

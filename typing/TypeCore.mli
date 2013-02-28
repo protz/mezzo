@@ -395,3 +395,4 @@ val internal_pfact : (Buffer.t -> fact -> unit) ref
 val internal_pflexlist: (Buffer.t -> env -> unit)
 val internal_uniqvarid: env -> var -> int
 val internal_checklevel: env -> typ -> unit
+val internal_wasflexible: var -> bool

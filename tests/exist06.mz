@@ -1,11 +1,14 @@
-val foo () : (f: =x -> int, x: int) =
+(* This test is just super-fragile! It relies on the inference algorithm
+ * visiting the left-hand side of the tuple first, and then going into the
+ * right-hand side! FIXME understand why this matters (shouldn't matter?!!) *)
+val foo () : (x: int, f: =x -> int) =
   let k = 3 in
   let f (y: =k) : int =
     y + 1
   in
-  f, k
+  k, f
 
 val g : int =
-  let f, x = foo() in
+  let x, f = foo() in
   f x
 
