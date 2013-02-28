@@ -61,6 +61,16 @@ val is_isolated: [a] (region a, dynamic) -> bool
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Walking. *)
+
+(* [next (r, x)] returns the element that follows [x] along its cycle.
+   [prev (r, x)] returns the element that precedes [x] along its cycle. *)
+
+val next: [a] (region a, dynamic) -> dynamic
+val prev: [a] (region a, dynamic) -> dynamic
+
+(* ---------------------------------------------------------------------------- *)
+
 (* Iteration. *)
 
 (* [iter (r, x, f)] presents the elements of the cycle represented by [x] to

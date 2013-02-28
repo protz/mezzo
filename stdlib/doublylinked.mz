@@ -56,6 +56,16 @@ val get [a] (r: region a, c: dynamic) : (| c @ cell a) =
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Walking. *)
+
+val next [a] (r: region a, x: dynamic) : dynamic =
+  taking x from r begin x.next end
+
+val prev [a] (r: region a, x: dynamic) : dynamic =
+  taking x from r begin x.prev end
+
+(* ---------------------------------------------------------------------------- *)
+
 (* The following three functions are unused, but are kept for the sake of
    clarity of exposition. *)
 
@@ -215,7 +225,7 @@ val iter_next [p : perm, a] (r: region a, x: dynamic, f: (dynamic | p * r @ regi
     (* Process [y]. *)
     f y;
     (* Stop if [y.next] is the starting point [x]. *)
-    let z = taking y from r begin y.next end in
+    let z = next (r, y) in
     if y != z then
       loop z
   in
@@ -227,7 +237,7 @@ val iter_prev [p : perm, a] (r: region a, x: dynamic, f: (dynamic | p * r @ regi
   let rec loop (y: dynamic | p * r @ region a) : () =
     f y;
     (* Stop if [y.prev] is the starting point [x]. *)
-    let z = taking y from r begin y.prev end in
+    let z = prev (r, y) in
     if y != z then
       loop z
   in
@@ -242,8 +252,7 @@ val iter =
 
 val elements [a] (r: region a, x: dynamic) : list::list dynamic =
   let xs = newref list::nil in
-  let xprev = taking x from r begin x.prev end in
-  iter_prev (r, xprev, fun (x: dynamic | xs @ ref (list::list dynamic)) : () =
+  iter_prev (r, prev (r, x), fun (x: dynamic | xs @ ref (list::list dynamic)) : () =
     (* Note that this anonymous function has access to [r @ region a], but
        does not need it, so we frame it out by not taking it as an argument.
        This works! *)
