@@ -790,25 +790,16 @@ let valid env = function
 ;;
 
 let import_flex_instanciations env sub_env =
-  let get_level = function
-    | { structure = Instantiated t } ->
-        level sub_env t
-    | { structure = NotInstantiated { level; _ }} ->
-        level
+  let rec chop_n_first n l =
+    if n = 0 then
+      l
+    else
+      chop_n_first (n - 1) (List.tl l)
   in
-  let rec keep_up_to level flex_list =
-    match flex_list with
-    | hd :: tl ->
-        let level' = get_level hd in
-        if level' > level then
-          keep_up_to level tl
-        else
-          flex_list
-    | [] ->
-        []
-  in
-  { env with flexible = keep_up_to env.current_level sub_env.flexible }
+  let diff = List.length sub_env.flexible - List.length env.flexible in 
+  { env with flexible = chop_n_first diff sub_env.flexible }
 ;;
+
 
 let rec resolved_datacons_equal env (t1, dc1) (t2, dc2) =
   equal env t1 t2 && Datacon.equal dc1 dc2
@@ -943,6 +934,11 @@ let bind_rigid env (name, kind, location) =
 
 
 let bind_flexible env (name, kind, location) =
+  Log.debug ~level:6 "Binding flexible #%d (%a) @ level %d"
+    (List.length env.flexible)
+    !internal_pnames (env, [name])
+    env.current_level;
+
   (* Deal with levels. No need to bump the level here. *)
   let env = { env with last_binding = Flexible } in
 
@@ -1050,5 +1046,33 @@ let internal_uniqvarid env = function
   | VRigid point ->
       let p = PersistentUnionFind.repr point env.state in
       (Obj.magic p: int)
+;;
+
+let internal_checklevel env t =
+  let l = level env t in
+  Log.check (l <= env.current_level)
+    "%a inconsistency detected: type %a has level %d, but env has level %d\n"
+    Lexer.p (location env)
+    !internal_ptype (env, t)
+    l
+    env.current_level;
+;;
+
+let internal_pflex buf (env, i, f) =
+  Printf.bprintf buf "Flexible #%d is " i;
+  match f.structure with
+  | Instantiated t ->
+      Printf.bprintf buf "instantiated with %a\n"
+        !internal_ptype (env, t);
+  | NotInstantiated { level; _ } ->
+      Printf.bprintf buf "not instantiated, level=%d\n" level;
+;;
+
+let internal_pflexlist buf env =
+  Printf.bprintf buf "env.current_level = %d\n" env.current_level;
+  let l = List.length env.flexible in
+  List.iteri (fun i flex ->
+    internal_pflex buf (env, l - i - 1, flex)
+  ) env.flexible
 ;;
 

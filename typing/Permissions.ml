@@ -31,7 +31,7 @@ open TypeErrors
 
 let safety_check env =
   (* Be paranoid, perform an expensive safety check. *)
-  if Log.debug_level () >= 5 then
+  if Log.debug_level () >= 5 then begin
     fold_terms env (fun () var permissions ->
       (* Each term should have exactly one singleton permission. If we fail here,
        * this is SEVERE: this means one of our internal invariants broken, so
@@ -83,7 +83,11 @@ let safety_check env =
           Lexer.p (location env)
           TypePrinter.pnames (env, get_names env var)
           TypePrinter.penv env;
-    ) ()
+
+      List.iter (internal_checklevel env) permissions;
+    ) ();
+    List.iter (internal_checklevel env) (get_floating_permissions env);
+  end
 ;;
 
 
@@ -874,7 +878,12 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
               sub_type_with_unfolding sub_env arg1 arg2 >>= fun sub_env ->
               sub_type_with_unfolding sub_env arg2 arg1
         ) (Some sub_env) args1 args2 >>= fun sub_env ->
-        Some (import_flex_instanciations env sub_env)
+        Log.debug ~level:6 "%a" internal_pflexlist sub_env;
+        safety_check sub_env;
+        let env = import_flex_instanciations env sub_env in
+        Log.debug ~level:6 "%a" internal_pflexlist env;
+        safety_check env;
+        Some env
       else
         None
 

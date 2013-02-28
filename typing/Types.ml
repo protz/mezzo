@@ -582,14 +582,16 @@ module TypePrinter = struct
     print_kind kind ^^ rparen ^^ dot ^^ jump (print_type env typ)
 
   and print_point env point =
-    (* FIXME *)
-    if modulo_flex_v env point <> TyOpen point then
-        lparen ^^ string "flex→" ^^ print_type env (modulo_flex_v env point) ^^ rparen
-    else
-      if is_flexible env point then
-        print_var env (get_name env point) ^^ star
+    try
+      if modulo_flex_v env point <> TyOpen point then
+          lparen ^^ string "flex→" ^^ print_type env (modulo_flex_v env point) ^^ rparen
       else
-        print_var env (get_name env point)
+        if is_flexible env point then
+          print_var env (get_name env point) ^^ star
+        else
+          print_var env (get_name env point)
+    with UnboundPoint ->
+      colors.red ^^ string "!! ☠ !!" ^^ colors.default
 
 
   (* TEMPORARY this does not respect precedence and won't insert parentheses at
