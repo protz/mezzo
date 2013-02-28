@@ -1,0 +1,9 @@
+mutable data item =
+  Item { block: dynamic }
+
+val new_item () : dynamic =
+  let i = Item { block = () } in
+  i.block <- i;
+  doublylinked::create i (* ill-typed *)
+  (* This causes a Stack_overflow *)
+

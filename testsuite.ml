@@ -838,6 +838,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("array-focus.mz", fail);
   ("queue_nesting.mz", simple_test ~known_failure:() Pass);
   ("take-abstract.mz", simple_test ~known_failure:() (Fail (function _ -> false)));
+  ("overflow.mz", simple_test (Fail (function _ -> false)));
+    (* TEMPORARY this test raises Stack_overflow, whereas it should reject the code.
+       I don't know what I should write here? *)
 
   ("local-type.mz", simple_test ~known_failure:() Pass);
   ("local-type2.mz", simple_test ~known_failure:() Pass);
