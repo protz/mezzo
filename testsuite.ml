@@ -840,7 +840,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("array-contravariance.mz", fail);
   ("array-focus.mz", fail);
   ("queue_nesting.mz", simple_test ~known_failure:() Pass);
-  ("take-abstract.mz", simple_test ~known_failure:() (Fail (function _ -> false)));
+  ("take-abstract.mz", fail);
 
   ("local-type.mz", simple_test ~known_failure:() Pass);
   ("local-type2.mz", simple_test ~known_failure:() Pass);

@@ -297,7 +297,8 @@ let get_adopts_clause env point: adopts_clause =
   | Some (Some (_, _, clause), _) ->
       clause
   | _ ->
-      Log.error "This is not a concrete data type."
+      (* An abstract exclusive type has no adopts clause (as of now). *)
+      None
 ;;
 
 let get_branches env point: data_type_def_branch list =
