@@ -81,8 +81,8 @@ exception NotFoldable
 (** [fold_var env var] tries to find (hopefully) one "main" type for [var], by
     folding back its "main" type [t] into a form that's suitable for one
     thing, and one thing only: printing. *)
-let rec fold_var (env: env) (var: var): (env * typ) option =
-  if is_flexible env var then raise NotFoldable;
+let rec fold_var (env: env) (depth: int) (var: var): (env * typ) option =
+  if is_flexible env var || depth > 5 then raise NotFoldable;
 
   let perms = get_permissions env var in
   let perms = List.filter
@@ -102,7 +102,7 @@ let rec fold_var (env: env) (var: var): (env * typ) option =
   | TyDynamic :: t :: []
   | t :: TyDynamic :: [] ->
       begin try
-        let env, t = fold_type_raw env t in
+        let env, t = fold_type env (depth + 1) t in
         let env = set_permissions env var [TyDynamic] in
         Some (env, t)
       with NotFoldable ->
@@ -112,7 +112,10 @@ let rec fold_var (env: env) (var: var): (env * typ) option =
       None
 
 
-and fold_type_raw (env: env) (t: typ): env * typ =
+and fold_type (env: env) (depth: int) (t: typ): env * typ =
+  if depth > 5 then
+    raise NotFoldable;
+
   match t with
   | TyUnknown
   | TyDynamic ->
@@ -130,7 +133,7 @@ and fold_type_raw (env: env) (t: typ): env * typ =
       env, t
 
   | TySingleton (TyOpen p) ->
-      begin match fold_var env p with
+      begin match fold_var env (depth + 1) p with
       | Some t ->
           t
       | None ->
@@ -140,7 +143,7 @@ and fold_type_raw (env: env) (t: typ): env * typ =
   | TyTuple components ->
       let env, components =
         List.fold_left (fun (env, cs) t ->
-          let env, t = fold_type_raw env t in
+          let env, t = fold_type env (depth + 1) t in
           env, t :: cs
         ) (env, []) components
       in
@@ -148,24 +151,24 @@ and fold_type_raw (env: env) (t: typ): env * typ =
       env, TyTuple components
 
   | TyImply (cs, t) ->
-      let env, t = fold_type_raw env t in
+      let env, t = fold_type env (depth + 1) t in
       env, TyImply (cs, t)
 
   | TyAnd (cs, t) ->
-      let env, t = fold_type_raw env t in
+      let env, t = fold_type env (depth + 1) t in
       env, TyAnd (cs, t)
 
   | TyConcreteUnfolded (dc, fields, clause) ->
       let env, fields = List.fold_left (fun (env, fields) -> function
         | FieldPermission p ->
-            let env, p = fold_type_raw env p in
+            let env, p = fold_type env (depth + 1) p in
             env, FieldPermission p :: fields
         | FieldValue (n, t) ->
-            let env, t = fold_type_raw env t in
+            let env, t = fold_type env (depth + 1) t in
             env, FieldValue (n, t) :: fields
       ) (env, []) fields in
       let fields = List.rev fields in
-      let env, clause = fold_type_raw env clause in
+      let env, clause = fold_type env (depth + 1) clause in
       env, TyConcreteUnfolded (dc, fields, clause)
 
   | TySingleton _ ->
@@ -175,11 +178,11 @@ and fold_type_raw (env: env) (t: typ): env * typ =
       env, t
 
   | TyBar (t, p) ->
-      let env, t = fold_type_raw env t in
+      let env, t = fold_type env (depth + 1) t in
       env, TyBar (t, p)
 
   | TyAnchoredPermission (x, t) ->
-      let env, t = fold_type_raw env t in
+      let env, t = fold_type env (depth + 1) t in
       env, TyAnchoredPermission (x, t)
 
   | TyEmpty ->
@@ -192,14 +195,14 @@ and fold_type_raw (env: env) (t: typ): env * typ =
 
 let fold_type env t =
   try
-    let _, t = fold_type_raw env t in
+    let _, t = fold_type env 0 t in
     Some t
   with NotFoldable ->
     None
 ;;
 
 let fold_var env t =
-  Option.map snd (fold_var env t)
+  Option.map snd (fold_var env 0 t)
 ;;
 
 (* -------------------------------------------------------------------------- *)
