@@ -6,7 +6,7 @@ FIND       := find
 -include Makefile.local
 
 OCAMLBUILD := ocamlbuild -use-ocamlfind -use-menhir \
-  -menhir "menhir --explain --infer -la 1" \
+  -menhir "menhir --explain --infer -la 1 --table" \
   -cflags "-g" -lflags "-g" -classic-display
 INCLUDE    := -Is sets,typing,parsing,lib,utils,fix,interpreter,compiler,mezzolib
 MAIN       := mezzo
