@@ -110,6 +110,21 @@ let tsubst (t2: typ) (i: int) (t1: typ) =
           t2
         else
           TyBound j
+	  (* fpottier: this definition is surprising. The standard notion
+	     of substitution on de Bruijn indices would be [TyBound j] if
+	     [j < i] and [TyBound (j - 1)] if [j > i], because the index
+	     [i] disappears in the substitution and the indices above it
+	     are decremented. I tried adding the assertion [assert (j < i)],
+	     which would explain why this code works, but it fails. This is
+	     due apparently to the auxiliary function [subst_type], nested
+	     within [Expressions.bind_evars], which opens a sequence of
+	     bindings by opening the *innermost* binding first. This is
+	     counter-intuitive. Maybe we could:
+	     1. fix [Expressions.bind_evars] so that it opens the outermost
+	        binding first; (just open the bindings one by one;)
+	     2. add [assert (j < i)] and makes sure that it succeeds;
+	     3. potentially allow [TyBound (if j < i then j else j-1)],
+	        which is more general. *)
 
     | TyOpen _ ->
         t1
