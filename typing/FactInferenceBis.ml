@@ -17,9 +17,6 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-open TypeCore
-open Types
-
 (* ---------------------------------------------------------------------------- *)
 
 (* The lattice of modes. *)
@@ -37,8 +34,8 @@ module Mode = struct
      the exclusive ownership of the object at address [x]. *)
 
   (* I don't know if we could define what it means for a permission [p] to
-     be exclusive. I will assume that when we write [exclusive t], [t] has
-     kind [type]. *)
+     be exclusive. I will adopt the convention that [exclusive t] is true
+     only when [t] has kind [type]. *)
 
   (* Every type and every permission is affine. *)  
 
@@ -79,6 +76,17 @@ module Mode = struct
 	true
     | _, _ ->
 	false
+
+  let meet m1 m2 =
+    match m1, m2 with
+    | ModeBottom, _
+    | _, ModeBottom ->
+        ModeBottom
+    | ModeAffine, m
+    | m, ModeAffine ->
+        m
+    | _, _ ->
+        if m1 = m2 then m1 else ModeBottom
 
   let modes =
     [ ModeBottom; ModeDuplicable; ModeExclusive; ModeAffine ]
@@ -190,30 +198,98 @@ module Fact = struct
   and hypotheses =
       mode ParameterMap.t
 
-  (* Operations. *)
+  (* The true hypothesis. *)
+
+  let trivial : hypothesis =
+    HConjunction ParameterMap.empty
+
+  (* Conjunction of hypotheses. *)
+
+  let conjunction (h1 : hypothesis) (h2 : hypothesis) : hypothesis =
+    match h1, h2 with
+    | HFalse, _
+    | _, HFalse ->
+        HFalse
+    | HConjunction hs1, HConjunction hs2 ->
+        (* Pointwise union of the maps, with mode *intersection* on the
+	   common elements. *)
+        HConjunction (ParameterMap.merge (fun _ om1 om2 ->
+	  match om1, om2 with
+	  | Some m1, Some m2 ->
+	      Some (Mode.meet m1 m2)
+	  | Some m, None
+	  | None, Some m ->
+	      Some m
+	  | None, None ->
+	      assert false
+	) hs1 hs2)
 
   (* The constant mode [m] is can be viewed as a fact: every mode [m']
      that is equal to or above [m] is mapped to [true], the empty conjunction,
      and every mode [m'] that does not satisfy this is mapped to [false]. *)
 
-  let constant m =
+  let constant (m : mode) : fact =
     ModeMap.total (fun m' ->
-      if Mode.leq m m' then
-        HConjunction ParameterMap.empty
-      else
-	HFalse
+      if Mode.leq m m' then trivial else HFalse
     )
+
+  (* The bottom fact. *)
 
   let bottom =
     constant Mode.bottom
 
-  (* The fact that we construct for a parameter [p] is a conjunction of
-     implications of the form [m p => m]. *)
+  (* A utility function for constructing a fact whose conclusion is
+     [duplicable]. *)
+
+  let duplicable (h : hypothesis) : fact =
+    ModeMap.total (function
+      | ModeDuplicable ->
+	  h
+      | ModeAffine ->
+	  trivial
+      | ModeBottom
+      | ModeExclusive ->
+	  HFalse
+    )
+
+  (* A utility function for extending a fact with the statement
+     ``without any hypotheses, this type is exclusive''. *)
+
+  let allow_exclusive (f : fact) : fact =
+    ModeMap.add ModeExclusive trivial f
+
+  (* A utility function for removing the possibility that ``this
+     type is exclusive''. *)
+
+  let disallow_exclusive (f : fact) : fact =
+    ModeMap.add ModeExclusive HFalse f
+
+  (* Join in the lattice of facts. *)
+
+  let join fact1 fact2 =
+    ModeMap.merge (fun _ oh1 oh2 ->
+      match oh1, oh2 with
+      | Some h1, Some h2 ->
+	  Some (conjunction h1 h2)
+      | _, _ ->
+	  (* These ModeMaps should be total. *)
+	  assert false
+    ) fact1 fact2
+
+  let join_many f xs =
+    List.fold_left (fun accu x ->
+      join accu (f x)
+    ) bottom xs
+
+  (* A fact for a parameter [p] is a conjunction of implications of
+     the form [m p => m], where [m] ranges over every mode. *)
 
   let parameter p =
     ModeMap.total (fun m ->
       HConjunction (ParameterMap.singleton p m)
     )
+
+  (* Fact equality. *)
 
   let canonicalize (hs : hypotheses) : hypotheses =
     (* Filter out trivial hypotheses of the form [affine a]. *)
@@ -236,20 +312,54 @@ module Fact = struct
 	  false
     ) fact1 fact2
 
+  let is_trivial (hs : hypotheses) =
+    let hs = canonicalize hs in
+    ParameterMap.is_empty hs
+
+  (* Recognition of maximal facts -- not performed. *)
+
   let is_maximal _ =
     (* Conservative approximation, permitted by [Fix]. *)
     false
+
+  (* [compose fact facts] composes a fact of arity [n] -- i.e. a fact
+     that makes sense in the presence of [n] parameters -- with [n]
+     facts about the actual parameters. If these facts have arity [k],
+     then the final fact has arity [k] as well. *)
+
+  let compose fact facts =
+    ModeMap.map (function
+    | HFalse ->
+        HFalse
+    | HConjunction hs ->
+        (* We are looking at a conjunction of requirements of the
+	   form [m i], where [i] is one of the [n] parameters.
+	   For each such requirement, we look up the [i]-th element
+	   of the list [facts], and specialize it on [m], so as obtain
+	   the conditions that bear on our parameters. Then, we
+	   combine all of these requirements via a conjunction. *)
+        ParameterMap.fold (fun i m accu ->
+	  conjunction
+	    (ModeMap.find m (List.nth facts i))
+	    accu
+        ) hs trivial
+    ) fact
 
 end
 
 (* ---------------------------------------------------------------------------- *)
 
+open TypeCore
+open Types
+
+(* ---------------------------------------------------------------------------- *)
+
 (* This glue code adapts the type [TypeCore.fact], used in the environment, to
-   our internal representation of modes, which is different. *)
+   our internal representation of modes and facts, which is different. *)
 
 (* TEMPORARY ultimately, the environment itself should be adapted *)
 
-let adapt (f : TypeCore.fact) : mode =
+let adapt_mode (f : TypeCore.fact) : mode =
   match f with
   | Exclusive ->
       ModeExclusive
@@ -262,258 +372,399 @@ let adapt (f : TypeCore.fact) : mode =
       (* no longer used *)
       assert false
 
+let adapt_fact (f : TypeCore.fact) : Fact.fact =
+  match f with
+  | Exclusive ->
+      Fact.constant ModeExclusive
+  | Affine ->
+      Fact.constant ModeAffine
+  | Duplicable bitmap ->
+      (* This is a bit laborious... *)
+      let hs = ref ParameterMap.empty in
+      Array.iteri (fun i bit ->
+	if bit then
+	  hs := ParameterMap.add i ModeDuplicable !hs
+      ) bitmap;
+      Fact.duplicable (Fact.HConjunction !hs)
+  | Fuzzy _ ->
+      (* no longer used *)
+      assert false
+
+let adapt_flag (flag : SurfaceSyntax.data_type_flag) : mode =
+  match flag with
+  | SurfaceSyntax.Exclusive ->
+      ModeExclusive
+  | SurfaceSyntax.Duplicable ->
+      ModeDuplicable
+
+let unadapt_fact (arity : int) (parameters : int VarMap.t) (f : Fact.fact) : TypeCore.fact =
+  (* Every type should be unconditionally affine. *)
+  assert (match ModeMap.find ModeAffine f with
+  | Fact.HFalse ->
+      false
+  | Fact.HConjunction hs ->
+      Fact.is_trivial hs
+  );
+  (* Now, check whether this type can be duplicable/exclusive. *)
+  match ModeMap.find ModeDuplicable f, ModeMap.find ModeExclusive f with
+  | Fact.HFalse, Fact.HFalse ->
+      (* Neither. *)
+      Affine
+  | Fact.HFalse, Fact.HConjunction hs ->
+      (* It can be exclusive. Check that this is unconditional. *)
+      assert (Fact.is_trivial hs);
+      Exclusive
+  | Fact.HConjunction hs, Fact.HFalse ->
+      (* It can be duplicable. Translate the conditions back to a
+	 parameter bitmap. *)
+      let bitmap = Array.make arity false in
+      VarMap.iter (fun _ i ->
+	let m = try ParameterMap.find i hs with Not_found -> ModeAffine in
+	match m with
+	| ModeAffine ->
+	    ()
+	| ModeDuplicable ->
+	    bitmap.(i) <- true
+	| ModeExclusive ->
+	    Log.error "Unexpected fact format! exclusive a => duplicable (...)"
+	| ModeBottom ->
+	    Log.error "Unexpected fact format! bottom a => duplicable (...)"
+      ) parameters;
+      Duplicable bitmap
+  | Fact.HConjunction _, Fact.HConjunction _ ->
+      Log.error "Unexpected fact format! this type is duplicable and exclusive"
+
+(* ---------------------------------------------------------------------------- *)
+
+let hoist_mode_assumptions (_v : var) (_ty : typ) : mode =
+  ModeAffine (* TEMPORARY *)
+
+let assume env ((flag, ty) : duplicity_constraint) (assumptions : mode VarMap.t) =
+  let m = adapt_flag flag in
+  let ty = modulo_flex env ty in
+  match ty with
+
+  | TyOpen v when is_rigid env v && VarMap.mem v assumptions ->
+
+      (* [v] is present in [assumptions], so [v] is local. Install
+         a new assumption about it. We take the meet of the old
+         and new assumptions. *)
+      VarMap.add v (Mode.meet m (VarMap.find v assumptions)) assumptions
+
+  | _ ->
+      (* TEMPORARY! treat the other cases *)
+      assumptions
+
+let assume env cs assumptions =
+  List.fold_right (assume env) cs assumptions
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Inferring a fact about a type. *)
 
+(* TEMPORARY document *)
 (* [VarMap] supports rigid variables only. *)
 
-let infer (env : env) (parameters: Parameter.t VarMap.t) (assumptions: mode VarMap.t) (ty : typ) : Fact.fact =
-  let ty = modulo_flex env ty in
-  match ty with
+let infer_concrete
+    (variables : unit VarMap.t)
+    (valuation : var -> Fact.fact)
+    (parameters : Parameter.t VarMap.t)
+    (env : env)
+    : SurfaceSyntax.data_type_flag -> data_field_def list -> Fact.fact
+=
 
-  (* A type variable, represented by [TyOpen _], could be a local variable
-     (e.g. introduced by a universal quantifier which we have just entered)
-     or a parameter or a pre-existing variable. In the first two cases, it
-     must be rigid, I think; in the last case, it could be rigid or flexible. *)
+  let rec infer (env : env) (assumptions : mode VarMap.t) (ty : typ) : Fact.fact =
+    let ty = modulo_flex env ty in
+    match ty with
 
-  | TyOpen v when is_rigid env v && VarMap.mem v assumptions ->
+    (* TEMPORARY if the environment adopts our format for facts, then we can
+       merge [env] and [assumptions], and cases 1 and 3 below become a single
+       case. *)
 
-      (* [v] is present in [assumptions], so we are in the first case:
-	 [v] is local. Our assumptions tell us that [v] has mode [m]. We
-	 produce the fact [m], without any hypotheses on the parameters. *)
-      let m : mode = VarMap.find v assumptions in
-      Fact.constant m
+    (* A type variable, represented by [TyOpen _], could be a local variable
+       (e.g. introduced by a universal quantifier which we have just entered)
+       or a parameter or a pre-existing variable. In the first two cases, it
+       must be rigid, I think; in the last case, it could be rigid or flexible. *)
 
-  | TyOpen v when is_rigid env v && VarMap.mem v parameters ->
+    | TyOpen v when is_rigid env v && VarMap.mem v assumptions ->
 
-      (* [v] is present in [parameters], so we are in the second case:
-	 [v] is a parameter [p]. We produce a fact of the form [m p => m],
-	 for every mode [m]. This means ``for every mode [m], if the
-	 parameter [p] has mode [m], then this type has mode [m].'' *)
-      let p : Parameter.t = VarMap.find v parameters in
-      Fact.parameter p
+	(* [v] is present in [assumptions], so we are in the first case:
+	   [v] is local. Our assumptions tell us that [v] has mode [m]. We
+	   produce the fact [m], without any hypotheses on the parameters. *)
+	let m : mode = VarMap.find v assumptions in
+	Fact.constant m
 
-  | TyOpen v ->
+    | TyOpen v when is_rigid env v && VarMap.mem v parameters ->
 
-      (* [v] is not present in [assumptions] or [parameters], so it is
-	 external. We look up the environment in order to obtain a mode [m]
-	 for [v], and turn it into a constant fact [m]. *)
-      Fact.constant (adapt (get_fact env v))
+	(* [v] is present in [parameters], so we are in the second case:
+	   [v] is a parameter [p]. We produce a fact of the form [m p => m],
+	   for every mode [m]. This means ``for every mode [m], if the
+	   parameter [p] has mode [m], then this type has mode [m].'' *)
+	let p : Parameter.t = VarMap.find v parameters in
+	Fact.parameter p
 
+    | TyOpen v ->
 
-let is_exclusive_fact = function
-  | Exclusive ->
-      true
-  | Affine
-  | Duplicable _ ->
-      false
-  | Fuzzy _ ->
-      (* TEMPORARY get rid of this case? *)
-      assert false
+	(* [v] is not present in [assumptions] or [parameters], so it is
+	   external. We look up the environment in order to obtain a mode [m]
+	   for [v], and turn it into a constant fact [m]. *)
+	Fact.constant (adapt_mode (get_fact env v))
 
-let rec is_exclusive (env : env) (ty : typ) : bool =
-  let ty = modulo_flex env ty in
-  match ty with
+    (* In a type application, the type constructor [v] cannot be local and
+       cannot be a parameter (due to restrictions at the kind level). It
+       also cannot be flexible. There are two cases to consider: either it
+       is part of the set [variables], i.e. it is involved in the current
+       fixed point computation; or it is older, and is defined in [env]. *)
 
-  | TyOpen point ->
-      (* When we find a free type variable, we look it up in the environment.
-	 We may have a hypothesis about it. *)
-      is_exclusive_fact (get_fact env point)
+    | TyApp (v, args) ->
+	let v = !!v in
+	(* Get a fact for [v]. *)
+	let fact =
+	  if VarMap.mem v variables then
+	    (* [v] is a variable. Obtain a fact for it through the current
+	       valuation. *)
+	    valuation v
+	  else
+	    (* [v] is older. Obtain a fact for it through the environment. *)
+	    adapt_fact (get_fact env v)
+	in
+	(* Infer facts for the arguments. *)
+	let facts = List.map (infer env assumptions) args in
+	(* Compose these facts in order to obtain a fact for the type
+	   application. *)
+	Fact.compose fact facts
 
-  (* Comments on universal types. *)
+    (* When we find a universal or existential quantifier, we enter it. The
+       quantified variable becomes local, and is added to [assumptions]. *)
 
-  (* A weird type such as ([a] duplicable a => ref int) is logically equivalent
-   * to (ref int), hence is exclusive. Similarly, ([a] exclusive a => ref int) is
-   * exclusive. And ([a] duplicable a => exclusive a => ref int) is logically
-   * equivalent to (ref int), because the type bottom is both exclusive and
-   * duplicable. *)
+    (* In the universal case, I believe that we are free to associate this
+       variable with the most precise mode, [Mode.bottom]. This is logically
+       equivalent to replacing this variable with the type [TyBottom]. *)
 
-  (* When trying to prove that [a]u is exclusive, we might wish to assume that
-     a has fact bottom in the lattice of facts, or equivalently (?), we might
-     wish to instantiate a with the type bottom. This is not implemented yet. *)
+    (* In the existential case, it appears, at first sight, that we must
+       associate this variable with the least precise mode, [Mode.top].
+       However, that would be a bit over-conservative. We would like to
+       be able to establish the following facts:
 
-  (* For the moment, we assume that a is exclusive; this is sound and only very
-     marginally incomplete. *)
+	 exclusive  ({a} (exclusive  a /\ a))
+	 duplicable ({a} (duplicable a /\ a))
 
-  | TyForall ((binding, _), t') ->
-      let env, t', var = bind_rigid_in_type env binding t' in
-      let env = set_fact env var Exclusive in
-      is_exclusive env t'
+       and, slightly more difficult,
 
-  | TyExists (binding, t') ->
-      (* Be conservative: assume that the quantified variable is affine. *)
-      let env, t', var = bind_rigid_in_type env binding t' in
-      let env = set_fact env var Affine in
-      is_exclusive env t'
+	 duplicable ({a} (a, (duplicable a /\ a)))
 
-  | TyApp (cons, _) ->
-      is_exclusive_fact (get_fact env !!cons)
+       This suggests that, when we enter an existential quantifier, we must
+       descend in the structure and look for assumption about the quantified
+       variable that can be hoisted out. *)
 
-  | TyConcreteUnfolded (datacon, _, _) ->
-      let flag, _, _ = def_for_datacon env datacon in
-      begin match flag with
-      | SurfaceSyntax.Exclusive ->
-	  true
-      | SurfaceSyntax.Duplicable ->
-	  false
-      end
+    | TyForall ((binding, _), ty) ->
+	let env, ty, v = bind_rigid_in_type env binding ty in
+	let assumptions = VarMap.add v Mode.bottom assumptions in
+	infer env assumptions ty
 
-  (* Comments about constraints. *)
+    | TyExists (binding, ty) ->
+	let env, ty, v = bind_rigid_in_type env binding ty in
+	let m = hoist_mode_assumptions v ty in
+	let assumptions = VarMap.add v m assumptions in
+	infer env assumptions ty
 
-  (* The existential type {a} (exclusive a /\ a) is exclusive.
-     Similarly, {a} (duplicable a /\ a) is duplicable. When we
-     find a [TyAnd] node, we should be able to assume that the
-     constraint holds before continuing. Technically, the type
-     {a} (a, (duplicable a /\ a)) is duplicable too; in order
-     to be able to prove this, we might need to defer our answer
-     at variables. *)
+    (* A type of the form [c /\ t], where [c] is a mode constraint and [t]
+       is a type, can be thought of as a pair of a proof of [c] and a value
+       of type [t]. Certainly, if [t] is duplicable, then [c /\ t] is too,
+       because proofs don't exist at runtime and are duplicable. Similarly,
+       for every mode [m], it [t] has mode [m], then [c /\ t] has mode [m]. *)
 
-  | TyAnd (_, ty) ->
-      (* TEMPORARY too conservative: the constraints are ignored. *)
-      is_exclusive env ty
+    (* In the common case where the constraint [c] bears upon a variable [a]
+       that was existentially quantified above, we have already taken this
+       constraint into account via [hoist_mode_assumptions]. *)
 
-  (* The type c => t is equivalent to t if the constraint holds,
-     and is equivalent to unknown otherwise. Thus, this type is
-     exclusive only if c holds and t is exclusive. However, we
-     do not know if c holds, and the question does not really
-     make sense, as it makes the system non-monotonic. Consider
-     the following recursive abbreviation:
+    (* In the uncommon case where the constraint [c] bears upon a non-variable
+       type, we could in principle try to destructure this constraint. For the
+       moment, this is not done. TEMPORARY? *)
 
-     alias t = (duplicable t => ref int)
+    (* We might also find a constraint that bears on a parameter; we should it
+       take it into account. TEMPORARY *)
 
-     If t is duplicable, then t is logically equivalent to ref
-     int, so t is exclusive. If t is exclusive, then t is not
-     duplicable (? presumably t is not bottom), so t is logically
-     equivalent to unknown, so t is duplicable. This is completely
-     inconsistent!
+    | TyAnd (_, ty) ->
+	infer env assumptions ty
 
-     In order to avoid these problems, it seems reasonable to say
-     that a type of the form c => t is never exclusive, period. *)
+    (* The type [c => t], where [c] is a mode constraint and [t] is a type,
+       represents [t] if [c] holds and [unknown] otherwise. Thus, in order
+       to prove that [c => t] has mode [m], we must prove that [t] has mode
+       [m] under the assumption [c] and that [unknown] has mode [m]. (We
+       do not assume the negation of [c], as that would make the system
+       non-monotonic.) *)
 
-  | TyImply _ ->
-      false
+    (* TEMPORARY think about constraints on parameters or on structured types,
+       etc. *)
 
-  | TyBar (ty, _) ->
-      is_exclusive env ty
+    | TyImply (cs, ty) ->
+        Fact.join
+          (infer env (assume env cs assumptions) ty)
+	  (infer env assumptions TyUnknown)
 
-  | TyUnknown
-  | TyDynamic
-  | TyTuple _
-  | TySingleton _
-  | TyArrow _
-      -> false
+    (* We could prove that a tuple or record is [bottom] as soon as one of
+       its components is bottom, but there is no motivation to do so. *)
 
-  | TyBound _ ->
-      Log.error "There should be no bound variables here."
+    | TyConcreteUnfolded (datacon, fields, _) ->
+        (* The [adopts] clause has no impact. *)
+        let flag, _, _ = def_for_datacon env datacon in
+	infer_concrete env assumptions flag fields
 
-  | TyAnchoredPermission _
-  | TyEmpty
-  | TyStar _ ->
-      Log.error "is_exclusive is defined only at kind type."
-      (* TEMPORARY make sure that the kind checking algorithm agrees with this *)
+    | TyTuple tys ->
+        Fact.duplicable (
+	  List.fold_left (fun hs ty ->
+	    Fact.conjunction
+	      hs
+	      (ModeMap.find ModeDuplicable (infer env assumptions ty))
+	  ) Fact.trivial tys
+	)
 
+    (* [TyBar] is duplicable if both of its components are duplicable,
+       and is exclusive if its left-hand component is exclusive. *)
 
-let rec is_duplicable (env : env) (ty : typ) : bool (* TODO lattice point instead of bool *) =
-  let ty = modulo_flex env ty in
-  match ty with
+    | TyBar (ty1, ty2) ->
+        Fact.join
+	  (infer env assumptions ty1)
+	  (Fact.allow_exclusive (infer env assumptions ty2))
 
-  | TyOpen _ ->
-      (* TODO *)
-      (* if free variable: look up fact in environment *)
-      (* if parameter of current def: return lattice point for this parameter *)
-      (* must be able to identify its number *)
-      assert false
+    (* [TyStar] is duplicable if both of its components are duplicable. *)
 
-  | TyApp (cons, args) ->
-      (* TODO should not use [get_fact env], but should use a valuation
-	 received as an argument *)
-      begin match get_fact env !!cons with
-      | Fuzzy _ ->
-	  assert false (* cannot happen *)
-      | Exclusive
-      | Affine ->
-	  false
-      | Duplicable cons_bitmap ->
-	  (* For each argument of the type application... *)
-	  List.iteri (fun i ti ->
-	    (* The type at [level] may request its [i]-th parameter to be
-	     * duplicable. *)
-	    if cons_bitmap.(i) then begin
-	      (* The answer is yes: the [i]-th parameter for the type
-	       * application is [ti] and it has to be duplicable for the
-	       * type at [level] to be duplicable too. *)
-	      let (_ : bool) = is_duplicable env ti in
-	      ()
-	    end else begin
-	      (* The answer is no: there are no constraints on [ti]. *)
-	      ()
-	    end
-	  ) args;
-	  false (* TODO *)
-      end
+    | TyStar (ty1, ty2) ->
+        Fact.join
+	  (infer env assumptions ty1)
+	  (infer env assumptions ty2)
 
-  | TyForall ((binding, _), t') ->
-      let env, t', var = bind_rigid_in_type env binding t' in
-      let env = set_fact env var (Duplicable [||]) in
-      is_duplicable env t'
+    (* [x @ t] is duplicable if [t] is duplicable. It is not considered
+       exclusive. The use of [disallow_exclusive] is probably not essential
+       here, but seems clean/prudent. *)
 
-  | TyExists (binding, t') ->
-      (* Be conservative: assume that the quantified variable is affine. *)
-      let env, t', var = bind_rigid_in_type env binding t' in
-      let env = set_fact env var Affine in
-      is_duplicable env t'
+    | TyAnchoredPermission (_, ty) ->
+        Fact.disallow_exclusive (infer env assumptions ty)
 
-  | TyTuple tys ->
-      List.fold_left (fun accu ty -> accu && is_duplicable env ty) true tys
+    (* [unknown], [dynamic], [empty], [=x], [t -> u] are duplicable. *)
 
-  | TyConcreteUnfolded (datacon, fields, _) ->
-      let flag, _, _ = def_for_datacon env datacon in
-      begin match flag with
-      | SurfaceSyntax.Duplicable ->
-	  List.fold_left (fun accu field -> accu && is_duplicable_field env field) true fields
-      | SurfaceSyntax.Exclusive ->
-	  true
-      end
+    | TyUnknown
+    | TyDynamic
+    | TyEmpty
+    | TySingleton _ 
+    | TyArrow _ ->
+        Fact.constant ModeDuplicable
 
-  | TyAnd (_, ty) ->
-      (* TEMPORARY too conservative: the constraints are ignored. *)
-      is_duplicable env ty
+    | TyBound _ ->
+	Log.error "There should be no bound variables here."
 
-  (* The type c => t is logically equivalent to the type t if c holds
-     and is logically equivalent to the type unknown otherwise. Because
-     unknown is duplicable, the type c => t is duplicable if and only if
-     c implies that t is duplicable. Thus, we may assume that c holds,
-     just as in the case of TyAnd! Yet, TyAnd and TyImply are still
-     different, as the former can be hoisted out, whereas the latter
-     cannot. *)
+  and infer_concrete env assumptions flag fields =
+    match flag with
+    | SurfaceSyntax.Duplicable ->
+	(* When a data type is defined as immutable, it is duplicable
+	   if and only if its fields are duplicable. It is definitely
+	   not exclusive. *)
+	Fact.duplicable (
+	  List.fold_left (fun hs field ->
+	    Fact.conjunction
+	      hs
+	      (ModeMap.find ModeDuplicable (infer_field env assumptions field))
+	  ) Fact.trivial fields
+	)
+    | SurfaceSyntax.Exclusive ->
+	(* When a data type is defined as exclusive, it is exclusive
+	   regardless of its fields. *)
+	Fact.constant ModeExclusive
 
-  | TyImply _ ->
-      (* TEMPORARY too conservative: the constraints are ignored. *)
-      is_duplicable env ty
+  and infer_field env assumptions field =
+    match field with
+    | FieldValue (_, ty)
+    | FieldPermission ty ->
+        infer env assumptions ty
 
-  | TyBar (ty1, ty2)
-  | TyStar (ty1, ty2) ->
-      is_duplicable env ty1 && is_duplicable env ty2
+  in
+  (* Start off with an empty set of local assumptions. *)
+  infer_concrete env VarMap.empty
 
-  | TyUnknown
-  | TyDynamic
-  | TyEmpty
-  | TySingleton _
-  | TyArrow _
-      -> true
+(* ---------------------------------------------------------------------------- *)
 
-  | TyAnchoredPermission (_, ty) ->
-      is_duplicable env ty
+(* The main fixed point computation. *)
 
-  | TyBound _ ->
-      Log.error "There should be no bound variables here."
+let analyze_data_types (env : env) (variables : var list) : env =
 
-and is_duplicable_field env = function
-  | FieldValue (_, ty)
-  | FieldPermission ty ->
-      is_duplicable env ty
+  (* Make it a set of variables. *)
 
-and conjunction cs =
-  List.fold_left (fun accu c -> accu && c) true cs
+  let variables =
+    List.fold_left (fun accu v ->
+      VarMap.add v () accu
+    ) VarMap.empty variables
+  in
+
+  (* Tie the knot. *)
+
+  let module F =
+    Fix.Make(IVarMap)(Fact)
+  in
+  let fixpoint : var -> Fact.fact =
+    F.lfp (fun (v : var) ->
+      (* Here, [v] is an algebraic data type, for which we would like
+	 to infer a fact. *)
+      match get_definition env v with
+      | None ->
+	  Log.error "A data type should have a definition."
+      | Some (None, _) ->
+	  (* This is an abstract type. Its fact is declared by the user.
+	     In that case, the code in the [DataTypeGroup] has already
+	     taken care of entering an appropriate fact in the environment.
+	     We just look it up. *)
+	  let f = adapt_fact (get_fact env v) in
+	  fun (_ : F.valuation) -> f
+      | Some (Some (flag, branches, clause), _) ->
+	  fun valuation ->
+	    (* Bind the parameters. Drop the [adopts] clause. *)
+	    let env, parameters, branches, _ =
+	      bind_datacon_parameters env (get_kind env v) branches clause
+	    in
+	    (* Construct a map of the parameters to their indices. The ordering
+	       matters, of course; it is used in [compose] when matching formal
+	       and actual parameters. *)
+	    let parameters =
+	      MzList.fold_lefti (fun i accu v ->
+		VarMap.add v i accu
+	      ) VarMap.empty parameters
+	    in
+	    (* The right-hand side of the algebraic data type definition can be
+	       viewed as a sum of records. *)
+	    Fact.join_many (fun branch ->
+	      let _, fields = branch in
+	      infer_concrete variables valuation parameters env flag fields
+	        (* This is violent! *)
+	    ) branches
+    )
+  in
+
+  (* For each algebraic data type [v], compute a fact, and update the
+     environment with this fact. *)
+
+  VarMap.fold (fun v () env ->
+    (* Repeating the [match] construct is inelegant; I am doing this
+       only to obtain [arity] and [parameters], which I need in order
+       to call [unadapt_fact]. TEMPORARY *)
+    match get_definition env v with
+    | None
+    | Some (None, _) ->
+        env
+    | Some (Some (_, branches, clause), _) ->
+	let _, parameters, _, _ =
+	  bind_datacon_parameters env (get_kind env v) branches clause
+	in
+	let arity = List.length parameters in
+	let parameters =
+	  MzList.fold_lefti (fun i accu v ->
+	    VarMap.add v i accu
+	  ) VarMap.empty parameters
+	in
+	let f =
+	  unadapt_fact arity parameters (fixpoint v)
+	in
+	set_fact env v f
+  ) variables env
+
+(* ---------------------------------------------------------------------------- *)
 
