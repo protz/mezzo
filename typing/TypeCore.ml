@@ -699,6 +699,16 @@ module VarMap = MzMap.Make(struct
         Log.error "[VarMap] used in the presence of flexible variables"
 end)
 
+module IVarMap = struct
+  type key = var
+  type 'data t = 'data VarMap.t ref
+  let create () = ref VarMap.empty
+  let clear m = m := VarMap.empty
+  let add k v m = m := (VarMap.add k v !m)
+  let find k m = VarMap.find k !m
+  let iter f m = VarMap.iter f !m
+end
+
 (* Dealing with the union-find nature of the environment. *)
 let same env v1 v2 =
   match assert_var env v1, assert_var env v2 with

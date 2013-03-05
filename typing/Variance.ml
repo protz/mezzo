@@ -172,17 +172,7 @@ module P = struct
   let is_maximal = (=) Invariant
 end
 
-module M = struct
-  type key = var
-  type 'data t = 'data VarMap.t ref
-  let create () = ref VarMap.empty
-  let clear m = m := VarMap.empty
-  let add k v m = m := (VarMap.add k v !m)
-  let find k m = VarMap.find k !m
-  let iter f m = VarMap.iter f !m
-end
-
-module Solver = Fix.Make(M)(P)
+module Solver = Fix.Make(IVarMap)(P)
 
 let analyze_data_types env points =
   (* Keep the original env fresh, since we're going to throw away most of the

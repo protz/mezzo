@@ -383,6 +383,8 @@ val refresh_mark: env -> env
  * to properly run {!is_flexible} beforehand. *)
 module VarMap: MzMap.S with type key = var
 
+(** This is an imperative version of [VarMap], in the form expected by [Fix]. *)
+module IVarMap: Fix.IMPERATIVE_MAPS with type key = var
 
 (**/**)
 
