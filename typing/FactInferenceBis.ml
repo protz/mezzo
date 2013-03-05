@@ -20,8 +20,287 @@
 open TypeCore
 open Types
 
-(* TODO rethink the whole thing while sharing code between exclusive and
-   duplicable; define lattice *)
+(* ---------------------------------------------------------------------------- *)
+
+(* The lattice of modes. *)
+
+module Mode = struct
+
+  (* Only an empty type (i.e. a type that is semantically equivalent to
+     [TyBottom]) has mode [ModeBottom]. *)
+
+  (* A type [t] is duplicable if and only if the permission [x @ t] is
+     duplicable. A permission [p] is duplicable if and only if [p] is
+     logically equivalent to the conjunction [p * p]. *)
+
+  (* A type [t] is exclusive if and only if the permission [x @ t] implies
+     the exclusive ownership of the object at address [x]. *)
+
+  (* I don't know if we could define what it means for a permission [p] to
+     be exclusive. I will assume that when we write [exclusive t], [t] has
+     kind [type]. *)
+
+  (* Every type and every permission is affine. *)  
+
+  type mode =
+    | ModeBottom
+    | ModeDuplicable
+    | ModeExclusive
+    | ModeAffine
+
+  type t = mode
+
+  (* Basic operations. *)
+
+  let equal : mode -> mode -> bool =
+    (=)
+
+  let compare : mode -> mode -> int =
+    Pervasives.compare
+
+  let bottom =
+    ModeBottom
+
+  let top =
+    ModeAffine
+
+  let is_maximal = function
+    | ModeAffine ->
+	true
+    | _ ->
+	false
+
+  let leq m1 m2 =
+    match m1, m2 with
+    | ModeBottom, _
+    | _, ModeAffine
+    | ModeDuplicable, ModeDuplicable
+    | ModeExclusive, ModeExclusive ->
+	true
+    | _, _ ->
+	false
+
+  let modes =
+    [ ModeBottom; ModeDuplicable; ModeExclusive; ModeAffine ]
+
+  let fold f accu =
+    List.fold_left f accu modes
+
+end
+
+module ModeMap = struct
+  
+  include Map.Make(Mode)
+
+  (* Building a total map over modes. *)
+
+  let total (f : Mode.mode -> 'a) : 'a t =
+    Mode.fold (fun accu m ->
+      add m (f m) accu
+    ) empty
+
+end
+
+open Mode
+
+(* ---------------------------------------------------------------------------- *)
+
+(* A type variable is encoded as an integer. We refer to these variables as
+   ``parameters'' in order to avoid confusion with the use of the word
+   ``variable'' by the module [Fix]. *)
+
+module Parameter = struct
+
+  type parameter = int
+
+  type t = parameter
+
+  let compare : parameter -> parameter -> int =
+    Pervasives.compare
+
+end
+
+module ParameterMap =
+  Map.Make(Parameter)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* The lattice of facts. *)
+
+(* A fact is a logical statement about the mode of a type [t] that has free
+   variables, or in other words, about the mode of a parameterized type [t]. *)
+
+(* Example facts are:
+   
+    duplicable int
+    exclusive (ref a)
+    duplicable a => duplicable (list a)
+    duplicable a => duplicable b => duplicable (map a b)
+
+  We may wish to allow several implications to concern the same type
+  constructor. This could be useful, in particular, to deal with
+  arrays. The type array could be exclusive or duplicable, depending
+  on one of its parameters. Thus, the following conjunction of two
+  implications would form a fact about the type array:
+
+    duplicable m => duplicable a => duplicable (array m a)
+    exclusive m => exclusive (array m a)
+
+  Multiple implications are useful also for a more technical reason.
+  In the base case of parameters, it seems convenient to write:
+
+    duplicable a => duplicable a
+    exclusive a => exclusive a
+
+  and so on, for every mode. For these two reasons, I define a fact to
+  be a conjunction of implications. The conclusion of each implication
+  is a mode assertion of the form [m t], where the type [t] has free
+  parameters. The hypotheses are mode assertions about these parameters.
+  Distinct implications have distinct modes [m] in their conclusions,
+  and we maintain a monotonicity property: if one implication is
+  [h1 => m1 t] and another is [h2 => m2 t], where [m1 <= m2], then
+  [h1] implies [h2]. This ensures that [h2] is indeed a necessary
+  condition for [m2 t] to hold. *)
+
+module Fact = struct
+
+  type property = fact
+
+  (* A fact about a type [t] is represented as a total function from
+     a mode [m] -- the mode in the conclusion -- to a hypothesis [h].
+     The type [t] is not explicitly represented. *)
+
+  and fact =
+    hypothesis ModeMap.t
+
+  (* A hypothesis is either [false] or a conjunction of mode constraints
+     bearing on the parameters. This conjunction is represented as a
+     total function from parameters to modes. The domain of the parameters
+     is finite and depends on the type [t]. It is not explicitly specified
+     here. If a parameter is not explicitly mentioned in the conjunction,
+     we assume that there is a trivial hypothesis about it, i.e., it is
+     assumed to be affine. This convention allows the empty conjunction
+     to be represetented by an empty map, independently of the number of
+     parameters in existence. *)
+
+  and hypothesis =
+    | HFalse
+    | HConjunction of hypotheses
+
+  and hypotheses =
+      mode ParameterMap.t
+
+  (* Operations. *)
+
+  (* The constant mode [m] is can be viewed as a fact: every mode [m']
+     that is equal to or above [m] is mapped to [true], the empty conjunction,
+     and every mode [m'] that does not satisfy this is mapped to [false]. *)
+
+  let constant m =
+    ModeMap.total (fun m' ->
+      if Mode.leq m m' then
+        HConjunction ParameterMap.empty
+      else
+	HFalse
+    )
+
+  let bottom =
+    constant Mode.bottom
+
+  (* The fact that we construct for a parameter [p] is a conjunction of
+     implications of the form [m p => m]. *)
+
+  let parameter p =
+    ModeMap.total (fun m ->
+      HConjunction (ParameterMap.singleton p m)
+    )
+
+  let canonicalize (hs : hypotheses) : hypotheses =
+    (* Filter out trivial hypotheses of the form [affine a]. *)
+    ParameterMap.filter (fun _ m ->
+      not (Mode.is_maximal m)
+    ) hs
+
+  let equal fact1 fact2 =
+    ModeMap.equal (fun hyp1 hyp2 ->
+      match hyp1, hyp2 with
+      | HFalse, HFalse ->
+	  true
+      | HConjunction hs1, HConjunction hs2 ->
+	  (* Account for the fact that the maps [hs1] and [hs2] may have
+	     different domains (though they logically have the same domain)
+	     because trivial hypotheses may be omitted. *)
+	  ParameterMap.equal Mode.equal (canonicalize hs1) (canonicalize hs2)
+      | HFalse, HConjunction _
+      | HConjunction _, HFalse ->
+	  false
+    ) fact1 fact2
+
+  let is_maximal _ =
+    (* Conservative approximation, permitted by [Fix]. *)
+    false
+
+end
+
+(* ---------------------------------------------------------------------------- *)
+
+(* This glue code adapts the type [TypeCore.fact], used in the environment, to
+   our internal representation of modes, which is different. *)
+
+(* TEMPORARY ultimately, the environment itself should be adapted *)
+
+let adapt (f : TypeCore.fact) : mode =
+  match f with
+  | Exclusive ->
+      ModeExclusive
+  | Duplicable bitmap ->
+      assert (Array.length bitmap = 0);
+      ModeDuplicable
+  | Affine ->
+      ModeAffine
+  | Fuzzy _ ->
+      (* no longer used *)
+      assert false
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Inferring a fact about a type. *)
+
+(* [VarMap] supports rigid variables only. *)
+
+let infer (env : env) (parameters: Parameter.t VarMap.t) (assumptions: mode VarMap.t) (ty : typ) : Fact.fact =
+  let ty = modulo_flex env ty in
+  match ty with
+
+  (* A type variable, represented by [TyOpen _], could be a local variable
+     (e.g. introduced by a universal quantifier which we have just entered)
+     or a parameter or a pre-existing variable. In the first two cases, it
+     must be rigid, I think; in the last case, it could be rigid or flexible. *)
+
+  | TyOpen v when is_rigid env v && VarMap.mem v assumptions ->
+
+      (* [v] is present in [assumptions], so we are in the first case:
+	 [v] is local. Our assumptions tell us that [v] has mode [m]. We
+	 produce the fact [m], without any hypotheses on the parameters. *)
+      let m : mode = VarMap.find v assumptions in
+      Fact.constant m
+
+  | TyOpen v when is_rigid env v && VarMap.mem v parameters ->
+
+      (* [v] is present in [parameters], so we are in the second case:
+	 [v] is a parameter [p]. We produce a fact of the form [m p => m],
+	 for every mode [m]. This means ``for every mode [m], if the
+	 parameter [p] has mode [m], then this type has mode [m].'' *)
+      let p : Parameter.t = VarMap.find v parameters in
+      Fact.parameter p
+
+  | TyOpen v ->
+
+      (* [v] is not present in [assumptions] or [parameters], so it is
+	 external. We look up the environment in order to obtain a mode [m]
+	 for [v], and turn it into a constant fact [m]. *)
+      Fact.constant (adapt (get_fact env v))
+
 
 let is_exclusive_fact = function
   | Exclusive ->
@@ -32,13 +311,6 @@ let is_exclusive_fact = function
   | Fuzzy _ ->
       (* TEMPORARY get rid of this case? *)
       assert false
-
-(* A type [t] is exclusive if and only if the permission [x @ t] implies
-   the exclusive ownership of the object at address [x]. *)
-
-(* I don't know if we could define what it means for a permission [p] to
-   be exclusive. I will assume that when we write [exclusive t], [t] has
-   kind [type]. *)
 
 let rec is_exclusive (env : env) (ty : typ) : bool =
   let ty = modulo_flex env ty in
