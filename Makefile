@@ -7,7 +7,7 @@ FIND       := find
 
 OCAMLBUILD := ocamlbuild -j 0 -use-ocamlfind -use-menhir \
   -menhir "menhir --explain --infer -la 1 --table" \
-  -cflags "-g" -lflags "-g" -classic-display
+  -classic-display
 INCLUDE    := -Is sets,typing,parsing,lib,utils,fix,interpreter,compiler,mezzolib
 MAIN       := mezzo
 TESTSUITE  := testsuite
