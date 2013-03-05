@@ -488,7 +488,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
      * singleton-subtyping-rule -- this would defeat the whole purpose of the
      * test. *)
     let perms = get_permissions env x in
-    if List.exists (FactInference.is_exclusive env) perms then
+    if List.exists (FactInferenceBis.is_exclusive env) perms then
       failwith "The permission on [x] should've been consumed";
     let perms = get_permissions env s1 in
     if not (List.exists ((=) (TyApp (t, [datacon env "t" "A" []]))) perms) then

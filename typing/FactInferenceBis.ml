@@ -473,6 +473,17 @@ let assume w cs =
 
 (* ---------------------------------------------------------------------------- *)
 
+(* A debugging wrapper. TEMPORARY *)
+
+let get_fact env v =
+  try
+    get_fact env v
+  with Assert_failure _ ->
+    Log.error "Can't find a fact for %a%!"
+      TypePrinter.pvar (env, get_name env v)
+
+(* ---------------------------------------------------------------------------- *)
+
 (* Inferring a fact about a type. *)
 
 (* TEMPORARY document *)
@@ -534,6 +545,8 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
 	  adapt_fact (get_fact w.env v)
       in
       (* Infer facts for the arguments. *)
+      (* TEMPORARY should restrict to arguments of kind [type] or [perm],
+	 as the call will fail at kind [term]. *)
       let facts = List.map (infer w) args in
       (* Compose these facts in order to obtain a fact for the type
 	 application. *)
