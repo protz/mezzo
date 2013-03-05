@@ -1,3 +1,5 @@
+module F = FactInferenceBis (* TEMPORARY *)
+
 (*****************************************************************************)
 (*  Mezzo, a programming language based on permissions                       *)
 (*  Copyright (C) 2011, 2012 Jonathan Protzenko and François Pottier         *)
