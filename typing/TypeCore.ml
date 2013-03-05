@@ -354,6 +354,8 @@ let is_flexible (env: env) (v: var): bool =
       false
 ;;
 
+let is_rigid env v =
+  not (is_flexible env v)
 
 (* ---------------------------------------------------------------------------- *)
 

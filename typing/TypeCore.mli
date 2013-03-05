@@ -207,6 +207,7 @@ val mark_inconsistent: env -> env
 
 (** Is this variable a flexible type variable or not? *)
 val is_flexible: env -> var -> bool
+val is_rigid: env -> var -> bool
 
 (** [instantiate env var t] tries to instantiate the flexible variable [var]
  * with [t]. However, because of various reasons (e.g. levels) this
