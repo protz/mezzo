@@ -282,7 +282,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
      * mark those vars that have non-duplicable permissions. *)
     let mark_duplicable_vars env =
       fold_terms env (fun env var permissions ->
-        if List.exists (fun x -> not (FactInferenceTer.is_duplicable env x)) permissions then
+        if List.exists (fun x -> not (FactInference.is_duplicable env x)) permissions then
           mark env var
         else
           env
@@ -404,8 +404,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
             (* We've found a matching pair. Whether [left_perm] and [right_perm]
              * are available afterwards depends on their duplicities. *)
-            let left_is_duplicable = FactInferenceTer.is_duplicable left_env left_perm in
-            let right_is_duplicable = FactInferenceTer.is_duplicable right_env right_perm in
+            let left_is_duplicable = FactInference.is_duplicable left_env left_perm in
+            let right_is_duplicable = FactInference.is_duplicable right_env right_perm in
             let processed_left_perms =
               if left_is_duplicable then left_perm :: processed_left_perms else processed_left_perms
             in

@@ -71,7 +71,7 @@ let has_adopts_clause env t =
           None
       end
   | TyConcreteUnfolded (_, _, clause) ->
-      if FactInferenceTer.is_exclusive env t then
+      if FactInference.is_exclusive env t then
         Some clause
       else
         None
@@ -1001,8 +1001,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             | Some t ->
                 (* First of all, check that the user wants to adopt something
                  * legit. *)
-                if not (FactInferenceTer.is_exclusive env t) then
-                  raise_error env (BadFactForAdoptedType (y, t, FactInferenceTer.analyze_type env t));
+                if not (FactInference.is_exclusive env t) then
+                  raise_error env (BadFactForAdoptedType (y, t, FactInference.analyze_type env t));
                 (* The clause is now [t]. Extract it from the list of available
                  * permissions for [x]. We know it works because we type-checked
                  * the whole [EConstraint] already. *)
@@ -1014,7 +1014,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 (* We're done. *)
                 return env ty_unit
           else begin
-            Log.check (FactInferenceTer.is_exclusive env clause)
+            Log.check (FactInference.is_exclusive env clause)
               "We erroneously allowed a non-exclusive adopts clause";
             (* The clause is known. Just take the required permission out of the
              * permissions for x. *)
@@ -1054,7 +1054,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* TEMPORARY if we have an exclusive permission for [x], then we could
 	 emit a warning, because in this case [y owns x] is certain to return
 	 false. *)
-      if not (List.exists (FactInferenceTer.is_exclusive env) (get_permissions env y)) then
+      if not (List.exists (FactInference.is_exclusive env) (get_permissions env y)) then
         raise_error env (NoAdoptsClause y);
       return env !*t_bool
 

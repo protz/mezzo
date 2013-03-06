@@ -76,7 +76,7 @@ let safety_check env =
           TypePrinter.pnames (env, get_names env var)
           TypePrinter.penv env;
 
-      let exclusive = List.filter (FactInferenceTer.is_exclusive env) permissions in
+      let exclusive = List.filter (FactInference.is_exclusive env) permissions in
       if not (is_inconsistent env) && List.length exclusive > 1 then
         Log.error
           "%a inconsistency detected: more than one exclusive type for %a\n%a\n"
@@ -322,14 +322,14 @@ let rec unify (env: env) (p1: var) (p2: var): env =
 
 and keep_only_duplicable env =
   let env = fold_terms env (fun env var permissions ->
-    let permissions = List.filter (FactInferenceTer.is_duplicable env) permissions in
+    let permissions = List.filter (FactInference.is_duplicable env) permissions in
     let env = set_permissions env var permissions in
     env
   ) env in
 
   (* Don't forget the abstract perm variables. *)
   let floating = get_floating_permissions env in
-  let floating = List.filter (FactInferenceTer.is_duplicable env) floating in
+  let floating = List.filter (FactInference.is_duplicable env) floating in
   let env = set_floating_permissions env floating in
 
   env
@@ -389,7 +389,7 @@ and add (env: env) (var: var) (t: typ): env =
             sub_type env clause clause' >>= fun env ->
             sub_type env clause' clause
           with
-          | _ when FactInferenceTer.is_exclusive env t ->
+          | _ when FactInference.is_exclusive env t ->
               mark_inconsistent env
           | None ->
               (* Incompatible "adopts" clauses. *)
@@ -489,14 +489,14 @@ and add_type (env: env) (p: var) (t: typ): env =
       let in_there_already =
         List.exists (fun x -> equal env x t) (get_permissions env p)
       in
-      if FactInferenceTer.is_exclusive env t then begin
+      if FactInference.is_exclusive env t then begin
         (* If [t] is exclusive, then this makes the environment inconsistent. *)
         Log.debug ~level:4 "%sInconsistency detected%s, adding %a as an exclusive \
             permission, but it's already available."
           Bash.colors.Bash.red Bash.colors.Bash.default
           TypePrinter.ptype (env, t);
         mark_inconsistent env
-      end else if FactInferenceTer.is_duplicable env t && in_there_already then
+      end else if FactInference.is_duplicable env t && in_there_already then
         env
       else
         (* Either the type is not duplicable (so we need to add it!), or it is
@@ -508,7 +508,7 @@ and add_type (env: env) (p: var) (t: typ): env =
       let env = add_perm_raw env p t in
       (* If we just added an exclusive type to the var, then it automatically
        * gains the [dynamic] type. *)
-      if FactInferenceTer.is_exclusive env t then
+      if FactInference.is_exclusive env t then
         add_type env p TyDynamic
       else
         env
@@ -635,7 +635,7 @@ and sub (env: env) (var: var) (t: typ): env option =
 
     (* Priority-order potential merge candidates. *)
     let sort = function
-      | _ as t when not (FactInferenceTer.is_duplicable env t) -> 0
+      | _ as t when not (FactInference.is_duplicable env t) -> 0
       (* This basically makes sure we never instantiate a flexible variable with a
        * singleton type. The rationale is that we're too afraid of instantiating
        * with something local to a branch, which will then make the [Merge]
@@ -654,7 +654,7 @@ and sub (env: env) (var: var) (t: typ): env option =
         (* [t_x] is the "original" type found in the list of permissions for [x].
          * -- see [tests/fact-inconsistency.mz] as to why I believe it's correct
          * to check [t_x] for duplicity and not just [t]. *)
-        if FactInferenceTer.is_duplicable env t_x then
+        if FactInference.is_duplicable env t_x then
           Some env
         else
           Some (set_permissions env var remaining)
@@ -671,7 +671,7 @@ and sub_constraints env constraints =
      *  f @ [a] (duplicable a) ⇒ ...
      * then, when "f" is instantiated, "a" will be replaced by anything...
      *)
-    let f' = FactInferenceTer.analyze_type env t in
+    let f' = FactInference.analyze_type env t in
     let is_ok = fact_leq f' f in
     Log.debug "fact [is_ok=%b] for %a: %a"
       is_ok
@@ -1131,7 +1131,7 @@ and sub_perms env perms =
 and sub_floating_perm env t =
   match MzList.take (sub_type env t) (get_floating_permissions env) with
   | Some (remaining_perms, (t', env)) ->
-      if FactInferenceTer.is_duplicable env t' then
+      if FactInference.is_duplicable env t' then
         Some env
       else
         Some (set_floating_permissions env remaining_perms)

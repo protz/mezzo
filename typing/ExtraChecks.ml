@@ -36,9 +36,9 @@ let check_adopts_clauses (env: env): unit =
           let index = arity - i - 1 in
           tsubst (TyOpen var) index clause
         ) clause vars in
-        if not (FactInferenceTer.is_exclusive env clause) then
+        if not (FactInference.is_exclusive env clause) then
           raise_error env (
-            BadFactForAdoptedType (var, clause, FactInferenceTer.analyze_type env clause)
+            BadFactForAdoptedType (var, clause, FactInference.analyze_type env clause)
           )
     | _ ->
         ()
