@@ -17,95 +17,6 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(* ---------------------------------------------------------------------------- *)
-
-(* The lattice of modes. *)
-
-module Mode = struct
-
-  (* Only an empty type (i.e. a type that is semantically equivalent to
-     [TyBottom]) has mode [ModeBottom]. *)
-
-  (* A type [t] is duplicable if and only if the permission [x @ t] is
-     duplicable. A permission [p] is duplicable if and only if [p] is
-     logically equivalent to the conjunction [p * p]. *)
-
-  (* A type [t] is exclusive if and only if the permission [x @ t] implies
-     the exclusive ownership of the object at address [x]. *)
-
-  (* I don't know if we could define what it means for a permission [p] to
-     be exclusive. I will adopt the convention that [exclusive t] is true
-     only when [t] has kind [type]. *)
-
-  (* Every type and every permission is affine. *)  
-
-  type mode =
-    | ModeBottom
-    | ModeDuplicable
-    | ModeExclusive
-    | ModeAffine
-
-  type t = mode
-
-  (* Basic operations. *)
-
-  let equal : mode -> mode -> bool =
-    (=)
-
-  let compare : mode -> mode -> int =
-    Pervasives.compare
-
-  let bottom =
-    ModeBottom
-
-  let is_maximal = function
-    | ModeAffine ->
-	true
-    | _ ->
-	false
-
-  let leq m1 m2 =
-    match m1, m2 with
-    | ModeBottom, _
-    | _, ModeAffine
-    | ModeDuplicable, ModeDuplicable
-    | ModeExclusive, ModeExclusive ->
-	true
-    | _, _ ->
-	false
-
-  let meet m1 m2 =
-    match m1, m2 with
-    | ModeBottom, _
-    | _, ModeBottom ->
-        ModeBottom
-    | ModeAffine, m
-    | m, ModeAffine ->
-        m
-    | _, _ ->
-        if m1 = m2 then m1 else ModeBottom
-
-  let modes =
-    [ ModeBottom; ModeDuplicable; ModeExclusive; ModeAffine ]
-
-  let fold f accu =
-    List.fold_left f accu modes
-
-end
-
-module ModeMap = struct
-  
-  include Map.Make(Mode)
-
-  (* Building a total map over modes. *)
-
-  let total (f : Mode.mode -> 'a) : 'a t =
-    Mode.fold (fun accu m ->
-      add m (f m) accu
-    ) empty
-
-end
-
 open Mode
 
 (* ---------------------------------------------------------------------------- *)
@@ -241,18 +152,20 @@ module Fact = struct
     constant Mode.bottom
 
   (* A utility function for constructing a fact whose conclusion is
-     [duplicable]. *)
+     a mode [m]. *)
 
-  let duplicable (h : hypothesis) : fact =
-    ModeMap.total (function
-      | ModeDuplicable ->
-	  h
-      | ModeAffine ->
-	  trivial
-      | ModeBottom
-      | ModeExclusive ->
-	  HFalse
+  let specific (m : mode) (h : hypothesis) : fact =
+    ModeMap.total (function m' ->
+      if Mode.is_maximal m' then
+	trivial
+      else if Mode.leq m m' then
+	h
+      else
+	HFalse
     )
+
+  let duplicable =
+    specific ModeDuplicable
 
   (* A utility function for extending a fact with the statement
      ``without any hypotheses, this type is exclusive''. *)
