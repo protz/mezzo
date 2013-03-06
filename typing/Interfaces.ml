@@ -211,7 +211,7 @@ let check
                * [DataTypeGroup.bind_data_type_group]. The fact from the
                * interface, i.e. [fact], is correct because the fact for an
                * abstract is purely syntactical and does not depend on having
-               * run [FactInferenceBis.analyze_types] properly. *)
+               * run [FactInferenceTer.analyze_types] properly. *)
               if not (Types.fact_leq fact' fact) then
                 error_out "facts";
 
@@ -221,7 +221,7 @@ let check
           | Some (flag, branches, clause), Some (flag', branches', clause') ->
               (* We're not checking facts: if the flag and the branches are
                * equal, then it results that the facts are equal. Moreover, we
-               * haven't run [FactInferenceBis.analyze_types] on the *signature* so
+               * haven't run [FactInferenceTer.analyze_types] on the *signature* so
                * the information in [fact] is just meaningless. *)
 
               if flag <> flag' then

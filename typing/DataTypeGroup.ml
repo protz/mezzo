@@ -94,7 +94,7 @@ let bind_data_type_group
   (* Attach the definitions! *)
   let env = bind_group_definitions env vars group in
   (* Now we can perform some more advanced analyses. *)
-  let env = FactInferenceBis.analyze_data_types env vars in
+  let env = FactInferenceTer.analyze_data_types env vars in
   let env = Variance.analyze_data_types env vars in
   if false then debug_toplevel_items env toplevel_items;
   (* Open references to these data types in the rest of the program. *)
