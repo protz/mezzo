@@ -10,19 +10,19 @@ open lock
 
 val () =
   d [int] ();
-  (* d [[a]a] (); *) (* new module will allow this *)
-  (* x [[a]a] (); *) (* new module will allow this *)
+  (* d [[a]a] (); *) (* TEMPORARY new module will allow this once new fact format is everywhere *)
+  (* x [[a]a] (); *) (* idem *)
   d [[a,b] a -> b] ();
   d [[a] duplicable a => (a, a)] ();
   d [{a} duplicable a => a] ();
-  (* d [{a} (a, (duplicable a /\ a))] () *) (* missing syntax for TyAnd *)
+  (* d [{a} (a, (duplicable a /\ a))] () *) (* TEMPORARY missing syntax for TyAnd *)
   d [[a] (a, a)] ();
   d [list int] ();
   d [list (int, int)] ();
   d [{a} list (int, wref a)] ();
   x [array int] ();
   x [{a} ref a] ();
-  (* d [duplicable (ref int) => ref int] (); *) (* not supported yet *)
+  (* d [duplicable (ref int) => ref int] (); *) (* TEMPORARY not supported yet *)
   x [ref int] ();
   d [( | empty)] ();
   x [(ref int | empty)] ();
