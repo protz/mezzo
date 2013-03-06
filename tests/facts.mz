@@ -1,0 +1,33 @@
+val d [a] duplicable a => () : () =
+  ()
+
+val x [a] exclusive a => () : () =
+  ()
+
+open list
+open wref
+open lock
+
+val () =
+  d [int] ();
+  (* d [[a]a] (); *) (* new module will allow this *)
+  (* x [[a]a] (); *) (* new module will allow this *)
+  d [[a,b] a -> b] ();
+  d [[a] duplicable a => (a, a)] ();
+  d [{a} duplicable a => a] ();
+  (* d [{a} (a, (duplicable a /\ a))] () *) (* missing syntax for TyAnd *)
+  d [[a] (a, a)] ();
+  d [list int] ();
+  d [list (int, int)] ();
+  d [{a} list (int, wref a)] ();
+  x [array int] ();
+  x [{a} ref a] ();
+  (* d [duplicable (ref int) => ref int] (); *) (* not supported yet *)
+  x [ref int] ();
+  d [( | empty)] ();
+  x [(ref int | empty)] ();
+  x [{y:term} (ref int | y @ (int, int))] ();
+  d [lock ({x:term} (x @ ref int))] ();
+  (* d [(x: unknown, y: unknown | x @ int * y @ (int, int))] (); BUG *)
+  d [{x:term,y:term} (=x, =y | x @ int * y @ (int, int))] ();
+  d [{y:term} (int | y @ (int, int))] ();

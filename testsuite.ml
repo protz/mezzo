@@ -844,6 +844,12 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("queue_nesting2.mz", fail);
   ("take-abstract.mz", fail);
   ("overflow.mz", simple_test (Fail (function _ -> true)));
+  ("facts.mz", pass);
+  ("facts00.mz", fail);
+  ("facts01.mz", fail);
+  ("facts02.mz", fail);
+  ("facts03.mz", fail);
+  ("facts04.mz", fail);
 
   ("local-type.mz", simple_test ~known_failure:() Pass);
   ("local-type2.mz", simple_test ~known_failure:() Pass);

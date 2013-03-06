@@ -1,0 +1,8 @@
+val d [a] duplicable a => () : () =
+  ()
+
+val x [a] exclusive a => () : () =
+  ()
+
+val () =
+  d [list::list (ref int)] ()
