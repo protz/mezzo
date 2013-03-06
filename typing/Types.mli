@@ -53,6 +53,9 @@ val ( ||| ) : 'a option -> 'a option -> 'a option
 (** The standard implication connector, with the right associativity. *)
 val ( ^=> ) : bool -> bool -> bool
 
+(** The pipe operator. *)
+val ( |> ) : 'a -> ('a -> 'b) -> 'b
+
 
 (* -------------------------------------------------------------------------- *)
 

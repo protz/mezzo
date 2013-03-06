@@ -24,6 +24,13 @@
 open TypeCore
 open Types
 open TypeErrors
+open Derivations
+
+type result = env option * derivation
+
+let ( >>= ) x f =
+  Option.bind (fst x) f
+;;
 
 (* -------------------------------------------------------------------------- *)
 
@@ -88,6 +95,16 @@ let safety_check env =
     ) ();
     List.iter (internal_checklevel env) (get_floating_permissions env);
   end
+;;
+
+(** Re-wrap instantiate_flexible so that it fits in our framework. *)
+
+let instantiate_flexible (env: env) (v: var) (t: typ) =
+  match instantiate_flexible env v t with
+  | Some env ->
+      axiom env
+  | None ->
+      failed_proof
 ;;
 
 
@@ -387,7 +404,7 @@ and add (env: env) (var: var) (t: typ): env =
       | Some (ts', clause') ->
           begin match
             sub_type env clause clause' >>= fun env ->
-            sub_type env clause' clause
+            sub_type env clause' clause |> fst
           with
           | _ when FactInference.is_exclusive env t ->
               mark_inconsistent env
@@ -478,7 +495,7 @@ and add_perm_raw env p t =
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
  * to the list of available permissions for [p] *)
 and add_type (env: env) (p: var) (t: typ): env =
-  match Log.silent (fun () -> sub env p t) with
+  match Log.silent (fun () -> sub env p t |> fst) with
   | Some _ ->
       (* We're not re-binding env because this has bad consequences: in
        * particular, when adding a flexible type variable to a var, it
@@ -618,19 +635,25 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
 (** [sub env var t] tries to extract [t] from the available permissions for
     [var] and returns, if successful, the resulting environment. This is one of
     the two "sub" entry points that this module exports.*)
-and sub (env: env) (var: var) (t: typ): env option =
+and sub (env: env) (var: var) (t: typ): result =
   Log.check (is_term env var) "You can only subtract permissions from a var \
     that represents a program identifier.";
 
   let t = modulo_flex env t in
 
+  let prove_judgement = prove_judgement env (JSubVar (var, t)) in
+
   if is_inconsistent env then
-    Some env
+    prove_judgement "R-Inconsistent" +>>
+    axiom env
 
   else if is_singleton env t then
+    prove_judgement "R-Must-Be-Singleton" +>>
+    begin_proof env *>> fun env ->
     sub_type env (ty_equals var) t
 
   else
+    prove_judgement "R-Find-Perm" +>>
     let permissions = get_permissions env var in
 
     (* Priority-order potential merge candidates. *)
@@ -648,24 +671,23 @@ and sub (env: env) (var: var) (t: typ): env option =
     let permissions = List.sort sort permissions in
 
 
-    (* [take] proceeds left-to-right *)
-    match MzList.take (fun x -> sub_type env x t) permissions with
-    | Some (remaining, (t_x, env)) ->
+    try_several permissions (fun x -> sub_type env x t) (fun env remaining t_x ->
         (* [t_x] is the "original" type found in the list of permissions for [x].
          * -- see [tests/fact-inconsistency.mz] as to why I believe it's correct
          * to check [t_x] for duplicity and not just [t]. *)
         if FactInference.is_duplicable env t_x then
-          Some env
+          env
         else
-          Some (set_permissions env var remaining)
-    | None ->
-        None
+          set_permissions env var remaining
+    )
 
 
 
 and sub_constraints env constraints =
-  List.fold_left (fun env (f, t) ->
-    env >>= fun env ->
+  prove_judgement env (JSubConstraints constraints) "R-Constraints" +>>
+  List.fold_left (fun state (f, t) ->
+    state *>> fun env ->
+    prove_judgement env (JSubConstraint (f, t)) "R-Constraint" +>>
     let f = fact_of_flag f in
     (* [t] can be any type; for instance, if we have
      *  f @ [a] (duplicable a) ⇒ ...
@@ -678,16 +700,16 @@ and sub_constraints env constraints =
       TypePrinter.ptype (env, t) TypePrinter.pfact f';
     (* [f] demands, for instance, that [p] be exclusive *)
     if is_ok then
-      Some env
+      axiom env
     else
-      None
-  ) (Some env) constraints
+      failed_proof
+  ) (begin_proof env) constraints
 
 
 (** When comparing "list (a, b)" with "list (a*, b* )" you need to compare the
  * parameters, but for that, unfolding first is a good idea. This is one of the
  * two "sub" entry points that this module exports. *)
-and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): env option =
+and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): result =
   let k, _ = flatten_kind (get_kind_for_type env t1) in
   match k with
   | KPerm ->
@@ -709,7 +731,7 @@ and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): env option =
     
     BEWARE: this is *not* the function that is exported as "sub_type". We export
     "sub_type_with_unfolding" as "sub_type". *)
-and sub_type (env: env) (t1: typ) (t2: typ): env option =
+and sub_type (env: env) (t1: typ) (t2: typ): result =
   TypePrinter.(
     Log.debug ~level:4 "[sub_type] %a %s—%s %a"
       ptype (env, t1)
@@ -717,6 +739,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       ptype (env, t2));
 
   let t1 = modulo_flex env t1 and t2 = modulo_flex env t2 in
+  let prove_judgement = prove_judgement env (JSubType (t1, t2)) in
   let t1 = expand_if_one_branch env t1 in
 
   match t1, t2 with
@@ -724,12 +747,16 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   (** Trivial case. *)
   | _, _ when equal env t1 t2 ->
       Log.debug ~level:5 "↳ fast-path";
-      Some env
+      prove_judgement "R-Equal" +>>
+      axiom env
 
   (** Easy cases involving flexible variables *)
   | TyOpen v1, _ when is_flexible env v1 ->
+      prove_judgement "R-Flex-L" +>>
       instantiate_flexible env v1 t2
+
   | _, TyOpen v2 when is_flexible env v2 ->
+      prove_judgement "R-Flex-R" +>>
       instantiate_flexible env v2 t1
 
   (** Duplicity constraints. *)
@@ -738,6 +765,8 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       Log.error "Constraints should've been processed when this permission was added"
 
   | TyImply (constraints, t1), t2 ->
+      prove_judgement "R-Imply-Is-Constraints" +>>
+      begin_proof env *>> fun env ->
       sub_type env t1 (TyAnd (constraints, t2))
 
   | _, TyAnd (constraints, t2) ->
@@ -1091,7 +1120,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
 (** [sub_perm env t] takes a type [t] with kind KPerm, and tries to return the
     environment without the corresponding permission. *)
-and sub_perm (env: env) (t: typ): env option =
+and sub_perm (env: env) (t: typ): result =
   Log.check (get_kind_for_type env t = KPerm) "This type does not have kind perm";
   if t <> TyEmpty then
     TypePrinter.(Log.debug ~level:4 "[sub_perm] %a" ptype (env, t));
