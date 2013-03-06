@@ -17,20 +17,27 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** This module analyzes data type declaration to synthetize facts about the
-   data types. *)
+(** This module analyzes data type declarations to synthesize facts about
+    data types. *)
 
 open TypeCore
 
-(** This function performs the elaboration phase where we build up more precise
- * facts about the various data types defined in the environment. *)
+(** [analyze_data_types env vars] assumes that [vars] forms a group of
+    mutually recursive algebraic data type definitions. It assumes that
+    the members of [vars] which are *abstract* data types have already
+    received a fact in [env]. It synthesizes a fact for the members of
+    [vars] which are *concrete* data types, and adds these facts to the
+    environment, producing a new environment. *)
 val analyze_data_types: env -> var list -> env
 
-(** Get the fact for a type, which you can then pass to {!fact_leq}. *)
+(** [analyze_type env ty] produces a fact for the type [ty], using the
+    information stored in [env] about the ambient type definitions. In
+    short, this fact indicates whether [ty] is duplicable, exclusive,
+    or affine. *)
 val analyze_type: env -> typ -> fact
 
-(** Is this type duplicable? *)
+(** A specialized version of [analyze_type]. *)
 val is_duplicable: env -> typ -> bool
 
-(** Is this type exclusive? *)
+(** A specialized version of [analyze_type]. *)
 val is_exclusive: env -> typ -> bool
