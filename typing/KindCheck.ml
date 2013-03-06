@@ -614,12 +614,7 @@ let rec check_fact_parameter (env: env) (x: Variable.name) (args: Variable.name 
 
 
 (* The conclusion of a fact, if any, must be the exact original type applied to
-   the exact same arguments.
-
-   TEMPORARY: this function implements a purely syntactic check, which only
-   allows for a very limited form of facts. We should recognize both in the
-   parser and here a more general form of facts, with a conjunction of
-   hypotheses that entail an arbitrary predicate. *)
+   the exact same arguments. *)
 let rec check_fact_conclusion (env: env) (x: Variable.name) (args: Variable.name list) (t: typ) =
   match t with
   | TyLocated (t, p) ->
@@ -763,19 +758,14 @@ and check_type_with_names (env: env) (t: typ) (k: kind) =
    well-formed. *)
 let check_data_type_def (env: env) (def: data_type_def) =
   match def with
-  | Abstract ((name, bindings), _return_kind, fact) ->
+  | Abstract ((name, bindings), _return_kind, facts) ->
       (* Get the names of the parameters. *)
       let args = List.map (fun (_, (x, _, _)) -> x) bindings in
       (* Perform a tedious check. *)
-      begin match fact with
-      | Some (FDuplicableIf (clauses, conclusion)) ->
-          List.iter (check_fact_parameter env name args) clauses;
-          check_fact_conclusion env name args conclusion
-      | Some (FExclusive conclusion) ->
-          check_fact_conclusion env name args conclusion
-      | None ->
-          ()
-      end
+      List.iter (function Fact (clauses, conclusion) ->
+        List.iter (fun (_, t) -> check_fact_parameter env name args t) clauses;
+        let (_, t) = conclusion in check_fact_conclusion env name args t
+      ) facts
   | Concrete (flag, (name, bindings), branches, clause) ->
       let bindings = List.map (fun (_, (x, y, _)) -> x, y) bindings in
       let env = List.fold_left bind env bindings in

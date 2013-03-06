@@ -96,8 +96,8 @@ type typ =
   | TyStar of typ * typ
 
     (* Constraint *)
-  | TyAnd of duplicity_constraint list * typ
-  | TyImply of duplicity_constraint list * typ
+  | TyAnd of mode_constraint list * typ
+  | TyImply of mode_constraint list * typ
 
 and var =
   | VRigid of point
@@ -110,7 +110,7 @@ and var =
  * definition. *)
 and resolved_datacon = typ * Datacon.name
 
-and duplicity_constraint = SurfaceSyntax.data_type_flag * typ
+and mode_constraint = SurfaceSyntax.data_type_flag * typ
 
 and data_type_def_branch =
     Datacon.name * data_field_def list

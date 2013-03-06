@@ -195,7 +195,7 @@ module TypePrinter :
     val print_type : env -> typ -> MzPprint.document
     val print_constraints :
       env ->
-      duplicity_constraint list -> MzPprint.document
+      mode_constraint list -> MzPprint.document
     val print_data_field_def :
       env -> data_field_def -> MzPprint.document
     val print_data_type_def_branch :
@@ -215,6 +215,6 @@ module TypePrinter :
     val ptype : Buffer.t -> env * typ -> unit
     val penv : Buffer.t -> env -> unit
     val pconstraints :
-      Buffer.t -> env * duplicity_constraint list -> unit
+      Buffer.t -> env * mode_constraint list -> unit
     val print_binders : env -> MzPprint.document
   end

@@ -360,7 +360,7 @@ raw_normal_type:
 | bs = existential_quantifiers ty = normal_type
     { List.fold_right (fun b ty -> TyExists (b, ty)) bs ty }
 (* A type that carries a mode constraint. *)
-| c = mode_constraint ty = normal_type
+| c = mode_constraint DBLARROW ty = normal_type
     { TyImply ([ c ], ty) }
 
 %inline loose_type:
@@ -455,12 +455,8 @@ mode:
     { Duplicable }
 
 %inline mode_constraint:
-| m = mode t = atomic_type DBLARROW
+| m = mode t = atomic_type
     { m, t }
-
-mode_constraints:
-  cs = mode_constraint*
-    { cs }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -564,19 +560,9 @@ data_type_def_branch_content:
 | COLON k = kind
     { k }
 
-%inline fact_conditions:
-| (* nothing *)
-    { [] }
-| DUPLICABLE t = atomic_type DBLARROW
-    { [t] }
-(* TEMPORARY la syntaxe de fact_conditions/fact me semble trop restrictive?
-   et pourquoi n'est-elle pas partagée avec mode_constraint? *)
-
 fact:
-| FACT tup = fact_conditions DUPLICABLE t = atomic_type
-    { FDuplicableIf (tup, t) }
-| FACT EXCLUSIVE t = atomic_type
-    { FExclusive t }
+| FACT cs = separated_nonempty_list(DBLARROW, mode_constraint)
+    { match List.rev cs with goal :: hypotheses -> Fact (List.rev hypotheses, goal) | [] -> assert false }
 
 data_type_def:
 | flag = data_type_flag
@@ -588,8 +574,8 @@ data_type_def:
 | ABSTRACT
   lhs = data_type_def_lhs
   k = optional_kind_annotation
-  f = fact?
-    { Abstract (lhs, k, f) }
+  fs = fact*
+    { Abstract (lhs, k, fs) }
 
 %inline data_type_group:
   def = data_type_def
@@ -968,8 +954,8 @@ definition:
 anonymous_function:
   (* Optional type parameters: [a] *)
   type_parameters = loption(type_parameters)
-  (* Optional constraint: duplicable a => *)
-  constraints = mode_constraints
+  (* Optional constraint(s): duplicable a => *)
+  constraints = terminated(mode_constraint, DBLARROW)*
   (* Formal arguments: (x: a) *)
   formal = parenthetic_type
   (* Result type: : (a, a) *)

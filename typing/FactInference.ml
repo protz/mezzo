@@ -449,7 +449,8 @@ type world = {
 let hoist_mode_assumptions (_v : var) (_ty : typ) : mode =
   ModeAffine (* TEMPORARY *)
 
-let assume w ((flag, ty) : duplicity_constraint) : world =
+(* TEMPORARY connection with [Permission.add_constraints] *)
+let assume w ((flag, ty) : mode_constraint) : world =
   let m = adapt_flag flag in
   let ty = modulo_flex w.env ty in
   match ty with

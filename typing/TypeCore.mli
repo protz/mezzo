@@ -113,8 +113,8 @@ and typ =
   | TyStar of typ * typ
 
     (** Constraint *)
-  | TyAnd of duplicity_constraint list * typ
-  | TyImply of duplicity_constraint list * typ
+  | TyAnd of mode_constraint list * typ
+  | TyImply of mode_constraint list * typ
 
 (** Since data constructors are now properly scoped, they are resolved, that is,
  * they are either attached to a point, or a De Bruijn index, which will later
@@ -123,7 +123,7 @@ and typ =
  * definition. *)
 and resolved_datacon = typ * Datacon.name
 
-and duplicity_constraint = SurfaceSyntax.data_type_flag * typ
+and mode_constraint = SurfaceSyntax.data_type_flag * typ
 
 
 (** {2 Type definitions} *)

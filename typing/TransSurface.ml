@@ -392,14 +392,19 @@ and translate_type_with_names (env: env) (t: typ): T.typ =
 
 ;;
 
-
-let translate_abstract_fact (params: Variable.name list) (fact: abstract_fact option): T.fact =
-  match fact with
-  | None ->
-      T.Affine
-  | Some (FExclusive _) ->
+let translate_single_fact (params: Variable.name list) (fact: single_fact): T.fact =
+  let Fact (hypotheses, goal) = fact in
+  match goal with
+  | (Exclusive, _) ->
+      assert (hypotheses = []);
       T.Exclusive
-  | Some (FDuplicableIf (ts, _)) ->
+  | (Duplicable, _) ->
+      let ts =
+	List.map (fun (m, t) ->
+	  assert (m = Duplicable);
+	  t
+	) hypotheses
+      in
       (* [KindCheck] already made sure these are just names _and_ they're valid. *)
       let names = List.map (fun t ->
         match tunloc t with
@@ -413,6 +418,15 @@ let translate_abstract_fact (params: Variable.name list) (fact: abstract_fact op
         bitmap.(i) <- true
       ) names;
       T.Duplicable bitmap
+
+let translate_fact (params: Variable.name list) (fact: fact): T.fact =
+  match fact with
+  | [] ->
+      T.Affine
+  | [ fact ] ->
+      translate_single_fact params fact
+  | _ ->
+      assert false
 ;;
 
 let translate_data_type_def (env: env) (data_type_def: data_type_def) =
@@ -438,7 +452,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
       name, env.location, (Some (flag, branches, adopts_clause), variance), fact, karrow params KType
   | Abstract ((name, the_params), kind, fact) ->
       let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
-      let fact = translate_abstract_fact (fst (List.split params)) fact in
+      let fact = translate_fact (fst (List.split params)) fact in
       let variance = List.map (fun (v, _) -> v) the_params in
       name, env.location, (None, variance), fact, karrow params kind
 ;;
