@@ -32,9 +32,6 @@ type world = {
   env: env;
 }
 
-let hoist_mode_assumptions (_v : var) (_ty : typ) : mode =
-  ModeAffine (* TEMPORARY *)
-
 let assume1 (env : env) ((m, ty) : mode_constraint) : env =
   (* We assume that [ty] has kind [type] or [perm]. *)
   (* Turn the mode [m] into a fact of arity 0. *)
@@ -141,10 +138,10 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      variable that can be hoisted out. *)
 
   | TyForall ((binding, _), ty) ->
-      bind_assume_infer w binding ty (fun _ _ -> Mode.bottom)
+      bind_assume_infer w binding ty Mode.bottom
 
   | TyExists (binding, ty) ->
-      bind_assume_infer w binding ty hoist_mode_assumptions
+      bind_assume_infer w binding ty Mode.top
 
   (* A type of the form [c /\ t], where [c] is a mode constraint and [t]
      is a type, can be thought of as a pair of a proof of [c] and a value
@@ -156,13 +153,6 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      that was existentially quantified above, we have already taken this
      constraint into account via [hoist_mode_assumptions]. *)
 
-  (* In the uncommon case where the constraint [c] bears upon a non-variable
-     type, we could in principle try to destructure this constraint. For the
-     moment, this is not done. TEMPORARY? *)
-
-  (* We might also find a constraint that bears on a parameter; we should it
-     take it into account. TEMPORARY *)
-
   | TyAnd (_, ty) ->
       infer w ty
 
@@ -172,9 +162,6 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      [m] under the assumption [c] and that [unknown] has mode [m]. (We
      do not assume the negation of [c], as that would make the system
      non-monotonic.) *)
-
-  (* TEMPORARY think about constraints on parameters or on structured types,
-     etc. *)
 
   | TyImply (cs, ty) ->
       Fact.join
@@ -272,7 +259,7 @@ and infer_many w kind args =
   | _, _ ->
       assert false (* kind mismatch *)
 
-and bind_assume_infer w binding ty (m : var -> typ -> mode) : fact =
+and bind_assume_infer w binding ty (m : mode) : fact =
   (* Introduce a new rigid variable. *)
   let env, ty, v = bind_rigid_in_type w.env binding ty in
   (* If this variable has kind [type] or [perm], assume that
@@ -284,12 +271,16 @@ and bind_assume_infer w binding ty (m : var -> typ -> mode) : fact =
     match kind with
     | KType
     | KPerm ->
-	assume1 env (m v ty, TyOpen v)
+	assume1 env (m, TyOpen v)
     | KTerm ->
         env
     | KArrow _ ->
         assert false
   in
+  (* Hoist the mode constraints that might be buried down inside [ty]
+     to the root. This may allow us to assume these constraints right
+     away, instead of finding them (too late) when we reach them. *)
+  let ty = Hoist.hoist env ty in
   (* Continue. *)
   infer { w with env } ty
 
