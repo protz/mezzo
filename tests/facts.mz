@@ -19,13 +19,15 @@ val () =
   d [[a,b] a -> b] ();
   d [[a] duplicable a => (a, a)] ();
   d [{a} duplicable a => a] ();
-  (* d [{a} (a, (duplicable a /\ a))] () *) (* TEMPORARY missing syntax for TyAnd *)
+  (* d [{a} duplicable a | a] (); TEMPORARY *)
+  (* d [{a} (a, (duplicable a | a))] (); *) (* TEMPORARY does not work yet *)
   d [[a] (a, a)] ();
   d [list int] ();
   d [list (int, int)] ();
   d [{a} list (int, wref a)] ();
   x [array int] ();
   x [{a} ref a] ();
+  d [{x:term} (=x)] ();
   (* d [duplicable (ref int) => ref int] (); *) (* TEMPORARY not supported yet *)
   x [ref int] ();
   d [( | empty)] ();

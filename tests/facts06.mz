@@ -1,0 +1,3 @@
+(* should be accepted because a is duplicable *)
+val copy [a] (duplicable a | (x: a)) : a =
+  x

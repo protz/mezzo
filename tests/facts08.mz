@@ -1,0 +1,4 @@
+(* should be rejected because x is not marked consumes and
+   a is not duplicable *)
+val copy [a] exclusive a => (x: a) : a =
+  x
