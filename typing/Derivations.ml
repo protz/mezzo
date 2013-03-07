@@ -136,8 +136,9 @@ let try_proof
         "Inconsistency in [prove_judgement].";
       Some final_env, Good (original_env, j, (r, derivations))
   | None, derivations ->
-      Log.check (is_bad_derivation (MzList.last derivations))
-        "Inconsistency in [prove_judgement]";
+      if List.length derivations > 0 then
+        Log.check (is_bad_derivation (MzList.last derivations))
+          "Inconsistency in [prove_judgement]";
       None, Bad (original_env, j, [r, derivations])
 
 (** Composing the premises of a rule. End with [qed]. *)

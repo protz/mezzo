@@ -728,19 +728,24 @@ and sub_constraints (env: env) (constraints: duplicity_constraint list): result 
  * parameters, but for that, unfolding first is a good idea. This is one of the
  * two "sub" entry points that this module exports. *)
 and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): result =
-  let k, _ = flatten_kind (get_kind_for_type env t1) in
-  match k with
-  | KPerm ->
-      sub_type env (wrap_bar_perm t1) (wrap_bar_perm t2)
-  | KTerm ->
-      sub_type env t1 t2
-  | KType ->
-      (* We basically turn both [t1] and [t2] into "∃x.(=x | x @ t1)" which will
-       * perform the right dance, including unfolding, thanks to our excellent
-       * [add_sub] algorithm (self-pat on the back). *)
-      sub_type env (wrap_bar t1) (wrap_bar t2)
-  | _ ->
-      assert false
+  try_proof env (JSubType (t1, t2)) "With-Unfolding" begin
+    let k, _ = flatten_kind (get_kind_for_type env t1) in
+    match k with
+    | KPerm ->
+        sub_type env (wrap_bar_perm t1) (wrap_bar_perm t2) >>=
+        qed
+    | KTerm ->
+        sub_type env t1 t2 >>=
+        qed
+    | KType ->
+        (* We basically turn both [t1] and [t2] into "∃x.(=x | x @ t1)" which will
+         * perform the right dance, including unfolding, thanks to our excellent
+         * [add_sub] algorithm (self-pat on the back). *)
+        sub_type env (wrap_bar t1) (wrap_bar t2) >>=
+        qed
+    | _ ->
+        assert false
+  end
 
 
 (** [sub_type env t1 t2] examines [t1] and, if [t1] "provides" [t2], returns
