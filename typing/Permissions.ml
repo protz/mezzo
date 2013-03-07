@@ -28,10 +28,6 @@ open Derivations
 
 type result = env option * derivation
 
-let ( >>= ) x f =
-  Option.bind (fst x) f
-;;
-
 (* -------------------------------------------------------------------------- *)
 
 (* This should help debuggnig. *)
@@ -99,13 +95,24 @@ let safety_check env =
 
 (** Re-wrap instantiate_flexible so that it fits in our framework. *)
 
-let instantiate_flexible (env: env) (v: var) (t: typ) =
+let j_flex_inst (env: env) (v: var) (t: typ): result =
+  let judgement = JEqual (TyOpen v, t) in
   match instantiate_flexible env v t with
-  | Some env ->
-      axiom env
+  | Some sub_env ->
+      apply_axiom env judgement "Instantiate" env
   | None ->
-      failed_proof
+      no_proof env judgement
 ;;
+
+let j_merge_left (env: env) (v1: var) (v2: var): result =
+  let judgement = JEqual (TyOpen v1, TyOpen v2) in
+  match merge_left env v1 v2 with
+  | Some sub_env ->
+      apply_axiom env judgement "Merge-Left" env
+  | None ->
+      no_proof env judgement
+;;
+
 
 
 (* -------------------------------------------------------------------------- *)
@@ -403,8 +410,8 @@ and add (env: env) (var: var) (t: typ): env =
       with
       | Some (ts', clause') ->
           begin match
-            sub_type env clause clause' >>= fun env ->
-            sub_type env clause' clause |> drop_derivation
+            sub_type env clause clause' >>| fun env ->
+            sub_type env clause' clause >>| drop
           with
           | _ when FactInference.is_exclusive env t ->
               mark_inconsistent env
@@ -641,19 +648,21 @@ and sub (env: env) (var: var) (t: typ): result =
 
   let t = modulo_flex env t in
 
-  let prove_judgement = prove_judgement env (JSubVar (var, t)) in
+  let judgement = JSubVar (var, t) in
+  let try_proof = try_proof env judgement in
 
   if is_inconsistent env then
-    prove_judgement "Inconsistent" +>>
-    axiom env
+    try_proof "Inconsistent" begin
+      qed env
+    end
 
   else if is_singleton env t then
-    prove_judgement "Must-Be-Singleton" +>>
-    begin_proof env *>> fun env ->
-    sub_type env (ty_equals var) t
+    try_proof "Must-Be-Singleton" begin
+      sub_type env (ty_equals var) t >>=
+      qed
+    end
 
   else
-    prove_judgement "Find-Perm" +>>
     let permissions = get_permissions env var in
 
     (* Priority-order potential merge candidates. *)
@@ -671,7 +680,13 @@ and sub (env: env) (var: var) (t: typ): result =
     let permissions = List.sort sort permissions in
 
 
-    try_several permissions (fun x -> sub_type env x t) (fun env remaining t_x ->
+    try_several
+      env
+      judgement
+      "Try-Perms"
+      permissions
+      (fun x -> sub_type env x t)
+      (fun env remaining t_x ->
         (* [t_x] is the "original" type found in the list of permissions for [x].
          * -- see [tests/fact-inconsistency.mz] as to why I believe it's correct
          * to check [t_x] for duplicity and not just [t]. *)
@@ -679,31 +694,33 @@ and sub (env: env) (var: var) (t: typ): result =
           env
         else
           set_permissions env var remaining
-    )
+      )
 
 
 
 and sub_constraints (env: env) (constraints: duplicity_constraint list): result =
-  prove_judgement env (JSubConstraints constraints) "Constraints" +>>
-  List.fold_left (fun state (f, t) ->
-    state *>> fun env ->
-    prove_judgement env (JSubConstraint (f, t)) "Constraint" +>>
-    let f = fact_of_flag f in
-    (* [t] can be any type; for instance, if we have
-     *  f @ [a] (duplicable a) ⇒ ...
-     * then, when "f" is instantiated, "a" will be replaced by anything...
-     *)
-    let f' = FactInference.analyze_type env t in
-    let is_ok = fact_leq f' f in
-    Log.debug "fact [is_ok=%b] for %a: %a"
-      is_ok
-      TypePrinter.ptype (env, t) TypePrinter.pfact f';
-    (* [f] demands, for instance, that [p] be exclusive *)
-    if is_ok then
-      axiom env
-    else
-      failed_proof
-  ) (begin_proof env) constraints
+  try_proof env (JSubConstraints constraints) "Constraints" begin
+    premises env (List.map (fun (f, t) ->
+      fun env ->
+        try_proof env (JSubConstraint (f, t)) "Constraint" begin
+          let f = fact_of_flag f in
+          (* [t] can be any type; for instance, if we have
+           *  f @ [a] (duplicable a) ⇒ ...
+           * then, when "f" is instantiated, "a" will be replaced by anything...
+           *)
+          let f' = FactInference.analyze_type env t in
+          let is_ok = fact_leq f' f in
+          Log.debug "fact [is_ok=%b] for %a: %a"
+            is_ok
+            TypePrinter.ptype (env, t) TypePrinter.pfact f';
+          (* [f] demands, for instance, that [p] be exclusive *)
+          if is_ok then
+            qed env
+          else
+            fail
+        end
+    ) constraints)
+  end
 
 
 (** When comparing "list (a, b)" with "list (a*, b* )" you need to compare the
@@ -739,25 +756,31 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
       ptype (env, t2));
 
   let t1 = modulo_flex env t1 and t2 = modulo_flex env t2 in
-  let prove_judgement = prove_judgement env (JSubType (t1, t2)) in
+
+  let judgement = JSubType (t1, t2) in
+  let try_proof_root = try_proof env judgement in
+  let no_proof = no_proof env judgement in
+
   let t1 = expand_if_one_branch env t1 in
 
   match t1, t2 with
 
   (** Trivial case. *)
   | _, _ when equal env t1 t2 ->
-      Log.debug ~level:5 "↳ fast-path";
-      prove_judgement "Equal" +>>
-      axiom env
+      try_proof_root "Equal" (qed env)
 
   (** Easy cases involving flexible variables *)
   | TyOpen v1, _ when is_flexible env v1 ->
-      prove_judgement "Flex-L" +>>
-      instantiate_flexible env v1 t2
+      try_proof_root "Flex-L" begin
+        j_flex_inst env v1 t2 >>=
+        qed
+      end
 
   | _, TyOpen v2 when is_flexible env v2 ->
-      prove_judgement "Flex-R" +>>
-      instantiate_flexible env v2 t1
+      try_proof_root "Flex-R" begin
+        j_flex_inst env v2 t1 >>=
+        qed
+      end
 
   (** Duplicity constraints. *)
 
@@ -765,112 +788,133 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
       Log.error "Constraints should've been processed when this permission was added"
 
   | TyImply (constraints, t1), t2 ->
-      prove_judgement "Imply-L-Is-Constraints-R" +>>
-      begin_proof env *>> fun env ->
-      sub_type env t1 (TyAnd (constraints, t2))
+      try_proof_root "Imply-L-Is-Constraints-R" begin
+        sub_type env t1 (TyAnd (constraints, t2)) >>=
+        qed
+      end
 
   | _, TyAnd (constraints, t2) ->
-      prove_judgement "And-R" +>>
-      (begin_proof env *>> fun env ->
-      (* First do the subtraction, because the constraint may be "duplicable α"
-       * with "α" being flexible. *)
-      sub_type env t1 t2) *>> fun env ->
-      (* And then, hoping that α has been instantiated, check that it satisfies
-       * the constraint. *)
-      sub_constraints env constraints
+      try_proof_root "And-R" begin
+        (* First do the subtraction, because the constraint may be "duplicable α"
+         * with "α" being flexible. *)
+        sub_type env t1 t2 >>= fun env ->
+        (* And then, hoping that α has been instantiated, check that it satisfies
+         * the constraint. *)
+        sub_constraints env constraints >>=
+        qed
+      end
 
   | t1, TyImply (constraints, t2) ->
-      let env = add_constraints env constraints in
-      sub_type env t1 t2
+      try_proof_root "Imply-R" begin
+        let env = add_constraints env constraints in
+        sub_type env t1 t2 >>=
+        qed
+      end
 
 
   (** Higher priority for binding rigid = universal quantifiers. *)
 
   | _, TyForall ((binding, _), t2) ->
-      let env, t2, _ = bind_rigid_in_type env binding t2 in
-      sub_type env t1 t2
+      try_proof_root "Forall-R" begin
+        let env, t2, _ = bind_rigid_in_type env binding t2 in
+        sub_type env t1 t2 >>=
+        qed
+      end
 
   | TyExists (binding, t1), _ ->
-      let env, t1, _ = bind_rigid_in_type env binding t1 in
-      sub_type env t1 t2
+      try_proof_root "Exists-L" begin
+        let env, t1, _ = bind_rigid_in_type env binding t1 in
+        sub_type env t1 t2 >>=
+        qed
+      end
 
 
   (** Lower priority for binding flexible = existential quantifiers. *)
 
   | TyForall ((binding, _), t1), _ ->
-      let env, t2 = open_all_rigid_in env t2 Right in
-      let env, t1, _ = bind_flexible_in_type env binding t1 in
-      sub_type env t1 t2
+      try_proof_root "Forall-L" begin
+        let env, t2 = open_all_rigid_in env t2 Right in
+        let env, t1, _ = bind_flexible_in_type env binding t1 in
+        sub_type env t1 t2 >>=
+        qed
+      end
 
   | _, TyExists (binding, t2) ->
-      let env, t1 = open_all_rigid_in env t1 Left in
-      let env, t2, _ = bind_flexible_in_type env binding t2 in
-      sub_type env t1 t2
+      try_proof_root "Exists-R" begin
+        let env, t1 = open_all_rigid_in env t1 Left in
+        let env, t2, _ = bind_flexible_in_type env binding t2 in
+        sub_type env t1 t2 >>=
+        qed
+      end
 
 
   (** Structural rules *)
 
   | TyTuple components1, TyTuple components2
     when List.length components1 = List.length components2 ->
-      List.fold_left2 (fun env t1 t2 ->
-        env >>= fun env ->
-        match t1, t2 with
-        | TySingleton (TyOpen p1), TySingleton (TyOpen p2) when is_flexible env p2 ->
-            (* This is a fast-path that creates less debug output and makes
-             * things easier to understand when reading traces. *)
-            merge_left env p1 p2
-        | TySingleton (TyOpen p1), _ ->
-            (* “=x - τ” can always be rephrased as “take τ from the list of
-             * available permissions for x” by replacing “τ” with
-             * “∃x'.(=x'|x' @ τ)” and instantiating “x'” with “x”. *)
-            sub env p1 t2
-        | _ ->
-            sub_type_with_unfolding env t1 t2
-      ) (Some env) components1 components2
+      try_proof_root "Tuple" begin
+        premises env (List.map2 (fun t1 t2 -> fun env ->
+          match t1, t2 with
+          | TySingleton (TyOpen p1), TySingleton (TyOpen p2) when is_flexible env p2 ->
+              (* This is a fast-path that creates less debug output and makes
+               * things easier to understand when reading traces. *)
+              j_merge_left env p1 p2
+          | TySingleton (TyOpen p1), _ ->
+              (* “=x - τ” can always be rephrased as “take τ from the list of
+               * available permissions for x” by replacing “τ” with
+               * “∃x'.(=x'|x' @ τ)” and instantiating “x'” with “x”. *)
+              sub env p1 t2
+          | _ ->
+              sub_type_with_unfolding env t1 t2
+        ) components1 components2)
+      end
 
   | TyConcreteUnfolded (datacon1, fields1, clause1), TyConcreteUnfolded (datacon2, fields2, clause2)
     when List.length fields1 = List.length fields2 ->
       if resolved_datacons_equal env datacon1 datacon2 then
-        sub_type env clause1 clause2 >>= fun env ->
-        List.fold_left2 (fun env f1 f2 ->
-          env >>= fun env ->
-          let t1, t2 =
-            match f1, f2 with
-            | FieldValue (name1, t1), FieldValue (name2, t2) ->
-                Log.check (Field.equal name1 name2) "Not in order?";
-                t1, t2
+        try_proof_root "Concrete" begin
+          sub_type env clause1 clause2 >>= fun env ->
+          premises env (List.map2 (fun f1 f2 -> fun env ->
+            let t1, t2 =
+              match f1, f2 with
+              | FieldValue (name1, t1), FieldValue (name2, t2) ->
+                  Log.check (Field.equal name1 name2) "Not in order?";
+                  t1, t2
+              | _ ->
+                  Log.error "The type we're trying to extract should've been \
+                    cleaned first."
+            in
+            (* This is the same logic as the [TyTuple] case above, scroll up for
+             * comments and detailed explanations as to why these rules are
+             * correct. *)
+            match t1, t2 with
+            | TySingleton (TyOpen p1), TySingleton (TyOpen p2) when is_flexible env p2 ->
+                j_merge_left env p1 p2
+            | TySingleton (TyOpen p1), _ ->
+                sub env p1 t2
             | _ ->
-                Log.error "The type we're trying to extract should've been \
-                  cleaned first."
-          in
-          (* This is the same logic as the [TyTuple] case above, scroll up for
-           * comments and detailed explanations as to why these rules are
-           * correct. *)
-          match t1, t2 with
-          | TySingleton (TyOpen p1), TySingleton (TyOpen p2) when is_flexible env p2 ->
-              merge_left env p1 p2
-          | TySingleton (TyOpen p1), _ ->
-              sub env p1 t2
-          | _ ->
-              sub_type_with_unfolding env t1 t2
-        ) (Some env) fields1 fields2
-
+                sub_type_with_unfolding env t1 t2
+          ) fields1 fields2)
+        end
       else
-        None
+        no_proof
 
   | TyConcreteUnfolded ((cons1, datacon1), _, _), TyApp (cons2, args2) ->
       let var1 = !!cons1 in
       let cons2 = !!cons2 in
 
       if same env var1 cons2 then begin
-        let datacon2, fields2, clause2 = find_and_instantiate_branch env cons2 datacon1 args2 in
-        (* There may be permissions attached to this branch. *)
-        let t2 = TyConcreteUnfolded (datacon2, fields2, clause2) in
-        let t2, p2 = collect t2 in
-        sub_type env t1 t2 >>= fun env ->
-        sub_perms env p2
+        try_proof_root "Fold-L" begin
+          let datacon2, fields2, clause2 = find_and_instantiate_branch env cons2 datacon1 args2 in
+          (* There may be permissions attached to this branch. *)
+          let t2 = TyConcreteUnfolded (datacon2, fields2, clause2) in
+          let t2, p2 = collect t2 in
+          sub_type env t1 t2 >>= fun env ->
+          sub_perms env p2 >>=
+          qed
+        end
       end else begin
-        None
+        no_proof
       end
 
   | TyConcreteUnfolded ((cons1, datacon1), _, _), TyOpen var2 ->
@@ -879,11 +923,14 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
       let var1 = !!cons1 in
 
       if same env var1 var2 then begin
-        (* XXX why are we not collecting permissions here? *)
-        let datacon2, fields2, clause2 = find_and_instantiate_branch env var2 datacon1 [] in
-        sub_type env t1 (TyConcreteUnfolded (datacon2, fields2, clause2))
+        try_proof_root "Fold-L-2" begin
+          (* XXX why are we not collecting permissions here? *)
+          let datacon2, fields2, clause2 = find_and_instantiate_branch env var2 datacon1 [] in
+          sub_type env t1 (TyConcreteUnfolded (datacon2, fields2, clause2)) >>=
+          qed
+        end
       end else begin
-        None
+        no_proof
       end
 
   | TyApp (cons1, args1), TyApp (cons2, args2) ->
@@ -891,76 +938,91 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
       let cons2 = !!cons2 in
 
       if same env cons1 cons2 then
-        (* We enter a potentially non-linear context here. Only keep duplicable
-         * parts. *)
-        let sub_env = keep_only_duplicable env in
-        MzList.fold_left2i (fun i sub_env arg1 arg2 ->
-          sub_env >>= fun sub_env ->
-          (* Variance comes into play here as well. The behavior is fairly
-           * intuitive. *)
-          match variance sub_env cons1 i with
-          | Covariant ->
-              sub_type_with_unfolding sub_env arg1 arg2
-          | Contravariant ->
-              sub_type_with_unfolding sub_env arg2 arg1
-          | Bivariant ->
-              Some sub_env
-          | Invariant ->
-              sub_type_with_unfolding sub_env arg1 arg2 >>= fun sub_env ->
-              sub_type_with_unfolding sub_env arg2 arg1
-        ) (Some sub_env) args1 args2 >>= fun sub_env ->
-        Some (import_flex_instanciations env sub_env)
+        try_proof_root "Application" begin
+          (* We enter a potentially non-linear context here. Only keep duplicable
+           * parts. *)
+          let sub_env = keep_only_duplicable env in
+          premises sub_env (MzList.map2i (fun i arg1 arg2 -> fun sub_env ->
+            (* Variance comes into play here as well. The behavior is fairly
+             * intuitive. *)
+            match variance sub_env cons1 i with
+            | Covariant ->
+                try_proof sub_env (JLt (arg1, arg2)) "Covariance" begin
+                  sub_type_with_unfolding sub_env arg1 arg2 >>=
+                  qed
+                end
+            | Contravariant ->
+                try_proof sub_env (JGt (arg1, arg2)) "Contravariance" begin
+                  sub_type_with_unfolding sub_env arg2 arg1 >>=
+                  qed
+                end
+            | Bivariant ->
+                nothing env "Bivariance"
+            | Invariant ->
+                try_proof sub_env (JEqual (arg1, arg2)) "Invariance" begin
+                  sub_type_with_unfolding sub_env arg1 arg2 >>= fun sub_env ->
+                  sub_type_with_unfolding sub_env arg2 arg1 >>=
+                  qed
+                end
+          ) args1 args2) >>~ fun sub_env ->
+          import_flex_instanciations env sub_env
+        end
       else
-        None
+        no_proof
 
   | TySingleton t1, TySingleton t2 ->
-      sub_type env t1 t2
+      try_proof_root "Singleton" begin
+        sub_type env t1 t2 >>=
+        qed
+      end
 
   | TyArrow (t1, t2), TyArrow (t'1, t'2) ->
-      (* This rule basically amounts to performing an η-expansion on function
-       * types. Therefore, we strip the environment of its duplicable parts and
-       * keep only the instanciations when returning the final result. *)
+      try_proof_root "Arrow" begin
+        (* This rule basically amounts to performing an η-expansion on function
+         * types. Therefore, we strip the environment of its duplicable parts and
+         * keep only the instanciations when returning the final result. *)
 
-      (* 1) Check facts as late as possible (the instantiation of a flexible
-       * variables may happen only in "t2 - t'2"). *)
-      let env, t1, constraints = match t1 with
-        | TyAnd (constraints, t1) ->
-            env, t1, constraints
-        | _ ->
-            env, t1, []
-      in
+        (* 1) Check facts as late as possible (the instantiation of a flexible
+         * variables may happen only in "t2 - t'2"). *)
+        let env, t1, constraints = match t1 with
+          | TyAnd (constraints, t1) ->
+              env, t1, constraints
+          | _ ->
+              env, t1, []
+        in
 
-      (* We perform implicit eta-expansion, so again, non-linear context (we're
-       * under an arrow). *)
-      let sub_env = keep_only_duplicable env in
+        (* We perform implicit eta-expansion, so again, non-linear context (we're
+         * under an arrow). *)
+        let sub_env = keep_only_duplicable env in
 
-      (* 2) Let us compare the domains... *)
-      Log.debug ~level:4 "%sArrow / Arrow, left%s"
-        Bash.colors.Bash.red
-        Bash.colors.Bash.default;
-      sub_type sub_env t'1 t1 >>= fun sub_env ->
+        (* 2) Let us compare the domains... *)
+        Log.debug ~level:4 "%sArrow / Arrow, left%s"
+          Bash.colors.Bash.red
+          Bash.colors.Bash.default;
+        sub_type sub_env t'1 t1 >>= fun sub_env ->
 
-      (* 3) And let us compare the codomains... *)
-      Log.debug ~level:4 "%sArrow / Arrow, right%s"
-        Bash.colors.Bash.red
-        Bash.colors.Bash.default;
-      sub_type sub_env t2 t'2 >>= fun sub_env ->
+        (* 3) And let us compare the codomains... *)
+        Log.debug ~level:4 "%sArrow / Arrow, right%s"
+          Bash.colors.Bash.red
+          Bash.colors.Bash.default;
+        sub_type sub_env t2 t'2 >>= fun sub_env ->
 
-      (* 3b) Now check facts! *)
-      Log.debug ~level:4 "%sArrow / Arrow, facts%s"
-        Bash.colors.Bash.red
-        Bash.colors.Bash.default;
-      sub_constraints sub_env constraints >>= fun sub_env ->
+        (* 3b) Now check facts! *)
+        Log.debug ~level:4 "%sArrow / Arrow, facts%s"
+          Bash.colors.Bash.red
+          Bash.colors.Bash.default;
+        sub_constraints sub_env constraints >>= fun sub_env ->
 
-      (* 4) We have successfully compared these function types. Just return the
-       * "restored" sub_environment, that is, the sub_environment with the exact same
-       * set of original permissions, except that the unifications that took
-       * place are now retained. *)
-      Log.debug ~level:4 "%sArrow / End -- adding back permissions%s"
-        Bash.colors.Bash.red
-        Bash.colors.Bash.default;
+        (* 4) We have successfully compared these function types. Just return the
+         * "restored" sub_environment, that is, the sub_environment with the exact same
+         * set of original permissions, except that the unifications that took
+         * place are now retained. *)
+        Log.debug ~level:4 "%sArrow / End -- adding back permissions%s"
+          Bash.colors.Bash.red
+          Bash.colors.Bash.default;
 
-      Some (import_flex_instanciations env sub_env)
+        qed (import_flex_instanciations env sub_env)
+      end
 
   | TyBar _, TyBar _ ->
       (* Unless we do this, we can't handle (t|p) - (t|p|p') properly. *)

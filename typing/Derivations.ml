@@ -42,6 +42,10 @@ and judgement =
   | JSubPerm of typ
   | JSubConstraint of duplicity_constraint
   | JSubConstraints of duplicity_constraint list
+  | JEqual of typ * typ
+  | JLt of typ * typ
+  | JGt of typ * typ
+  | JNothing
 
 
 (** We then provide various combinators to write this in a fairly natural
@@ -57,14 +61,18 @@ and judgement =
  * a good derivation, or [None] with a bad derivation. *)
 type result = env option * derivation
 
-(** Simple composition that discards derivations. Terminate a sequence with
- * [drop]. *)
-let ( >>| ) (result: result) (f: result -> env option): env option =
-  f result
+(** Nothing to prove! *)
+let nothing (env: env) (r: rule_instance): result =
+  Some env, Good (env, JNothing, (r, []))
 
 (** Tie the knot. *)
-let drop (r: result) =
-  fst r
+let drop (env: env): env option =
+  Some env
+
+(** Simple composition that discards derivations. Terminate a sequence with
+ * [drop]. *)
+let ( >>| ) (result: result) (f: env -> env option): env option =
+  Option.bind (fst result) f
 
 (** Some simple helpers. *)
 let is_good_derivation = function Good _ -> true | Bad _ -> false
@@ -78,9 +86,23 @@ let is_bad_derivation = function Good _ -> false | Bad _ -> true
  * derivations. Terminate with [qed]. *)
 type state = env option * derivation list
 
+(** Perform an operation on the [env] part of a state without giving any
+ * justification for it. *)
+let ( >>~ ) (state: state) (f: env -> env): state =
+  let env, derivations = state in
+  Option.map f env, derivations
+
 (** If you have no rule to apply in order to prove this judgement... *)
 let no_proof (env: env) (j: judgement): result =
   None, Bad (env, j, [])
+
+(** If you want to apply an axiom. *)
+let apply_axiom
+    (original_env: env)
+    (j: judgement)
+    (r: rule_instance)
+    (resulting_env: env): result =
+  Some resulting_env, Good (original_env, j, (r, []))
 
 (** If you know how you should prove this, i.e. if you know which rule to
  * apply, call this. *)
@@ -111,29 +133,64 @@ let ( >>= ) (result: result) (f: env -> state): state =
        * the operations. *)
       None, [derivation]
 
+(** Sometimes it is more convenient to have the premises of a rule as a list. *)
+let premises (env: env) (fs: (env -> result) list): state =
+  let rec fold env acc fs =
+    match fs with
+    | [] ->
+        (* Everything worked, yay! *)
+        Some env, List.rev acc
+    | hd :: tl ->
+        let env, derivation = hd env in
+        match env with
+        | Some env ->
+            fold env (derivation :: acc) tl
+        | None ->
+            None, List.rev (derivation :: acc)
+  in
+  fold env [] fs
+
+
 (** Tying the knot. *)
 let qed (env: env): state =
   Some env, []
 
+(** If you need to fail *)
+let fail: state =
+  None, []
+
 (** Our other combinator, that allows to explore multiple choices, and either
  * pick the first one that works, or fail by listing all the cases that failed.
+ * This one tries multiple instances of the same rule!
  * *)
 let try_several
+    (original_env: env)
+    (j: judgement)
+    (r: rule_instance)
     (l: 'a list)
-    (f: 'a -> env option * derivation)
-    (success: env -> 'a list -> 'a -> env): env option * derivation list =
+    (f: 'a -> result)
+    (success: env -> 'a list -> 'a -> env): result =
+  let good derivation =
+    Good (original_env, j, (r, [derivation]))
+  in
+  let bad derivations =
+    (* Remember, this is not *several failed premises*, it is several failed
+     * derivations of the same rule! *)
+    let rules = List.map (fun x -> r, [x]) derivations in
+    Bad (original_env, j, rules)
+  in
   let rec try_several
       (failed_derivations: derivation list)
       (failed_items: 'a list)
       (remaining: 'a list) =
     match remaining with
     | [] ->
-        None, failed_derivations
+        None, bad failed_derivations
     | hd :: tl ->
         match f hd with
         | (Some env, derivation) ->
             let env = success env (List.rev_append failed_items remaining) hd in
-            Some env, [derivation]
+            Some env, good derivation
         | None, derivation ->
             try_several (derivation :: failed_derivations) (hd :: failed_items) tl
   in
