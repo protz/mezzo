@@ -438,6 +438,44 @@ val rec combine [a, b] (consumes xs: list a, consumes ys: list b) : list (a, b) 
 
 (* -------------------------------------------------------------------------- *)
 
+(* This auxiliary function is used by [sort]. It peforms a dynamic test
+   of duplicability in order to choose between two ways of splitting a
+   list, one of which causes the list elements to apparently become
+   shared. *)
+
+(* While porting [sort] from OCaml's standard library, we encountered an
+   ownership problem. OCaml's code uses a trick, which is to *not* truncate
+   the list in the first recursive call. In other words, the first recursive
+   instance of [sort] is passed the entire list, but has permission to use
+   only the [n1] first elements of it. Mezzo's type system cannot express this
+   subtlety. As a result, it seems that we have to either restrict the code to
+   the case where the type [a] is duplicable, or truncate the list that is
+   passed to the first recursive call (at a cost). In fact, we can encapsulate
+   both versions of the code into a single [sort] function, which takes an
+   argument of [duplicability a], and performs the choice at runtime,
+   depending on the type [a]. This is perhaps not great, but it shows that we
+   do have a few tricks up our sleeve. *)
+
+val splitAtOrCopyAndChop [a] (
+  dupa: reflection::duplicability a,
+  k: int,
+  consumes xs: list a
+) : (list a, list a) =
+  if dupa then
+    (* If the list elements are duplicable, then we can follow the OCaml
+       version of the code, and keep the first list unchanged. It is too
+       long, but the extra elements will never be accessed. *)
+    xs, chop (k, xs)
+  else
+    (* Otherwise, we have to use [splitAt], which is less efficient (the
+       first part of the list spine is copied) but obviously does not
+       cause the list elements to become shared. Our type system is not
+       expressive enough to understand that ``we own only the first [k]
+       elements of this list''. *)
+    splitAt (k, xs)
+
+(* -------------------------------------------------------------------------- *)
+
 (* Merging and sorting. *)
 
 val rec merge [a] (
@@ -456,7 +494,11 @@ val rec merge [a] (
       else Cons { head = y; tail = merge (cmp, xs, ys.tail) }
   end
 
-val sort [a] (cmp: (a, a) -> int, consumes xs: list a) : list a =
+val sort [a] (
+  dupa: reflection::duplicability a,
+  cmp: (a, a) -> int,
+  consumes xs: list a
+) : list a =
   (* Wrap the comparison function [cmp] so as to take an extra
      argument, [sense], which takes the value -1 or 1 and allows
      reversing the ordering if desired. *)
@@ -512,18 +554,7 @@ val sort [a] (cmp: (a, a) -> int, consumes xs: list a) : list a =
     else begin
       let n1 = n / 2 in
       let n2 = n - n1 in
-       (* While porting the code from OCaml's standard library, we encountered
-	  an ownership problem. OCaml's code uses a trick, which is to *not*
-	  truncate the list in the first recursive call. In other words, the
-	  first recursive instance of [sort] is passed the entire list, but
-	  has permission to use only the [n1] first elements of it. Mezzo's
-	  type system cannot express this subtlety. As a result, we have to
-	  either restrict the code to the case where the type [a] is duplicable,
-	  or truncate the list that is passed to the first recursive call (at
-	  a cost). For the moment, we choose the second solution, but in the
-	  long run we might wish to offer the user a choice between two [sort]
-	  functions. *)
-      let xs1, xs2 = splitAt (n1, xs) in
+      let xs1, xs2 = splitAtOrCopyAndChop (dupa, n1, xs) in
       let xs1 = sort (-sense, n1, xs1) in
       let xs2 = sort (-sense, n2, xs2) in
       rev_merge (-sense, xs1, xs2, Nil)
