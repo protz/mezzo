@@ -20,6 +20,10 @@
 open TypeCore
 open Types
 
+let drop_derivation =
+  Derivations.drop_derivation
+;;
+
 type outcome = MergeWith of var | Proceed | Abort
 
 (* The logic is the same on both sides, but I'm writing this with
@@ -32,7 +36,7 @@ let build_flexible_type_application (left_env, left_perm) (dest_env, t_dest) =
   (* Chances are this will perform a merge in [left_env]: this is why
    * we're returning [left_env]. *)
   let left_env = Permissions.sub_type left_env left_perm t_app_left in
-  left_env, t_app_left
+  left_env |> drop_derivation, t_app_left
 ;;
 
 
@@ -263,7 +267,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
           Log.debug ~level:4 "[make_base] annot: %a" TypePrinter.ptype (top, annot);
 
           let sub_annot env root =
-            match Permissions.sub env root annot with
+            match Permissions.sub env root annot |> drop_derivation with
             | None ->
                 let open TypeErrors in
                 raise_error env (ExpectedType (annot, root))
@@ -814,8 +818,10 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                       begin try
                         let argl = clean top left_env argl in
                         let argr = clean top right_env argr in
-                        Permissions.sub_type dest_env argl argr >>= fun dest_env ->
-                        Permissions.sub_type dest_env argr argl >>= fun dest_env ->
+                        Permissions.sub_type dest_env argl argr
+                        |> drop_derivation >>= fun dest_env ->
+                        Permissions.sub_type dest_env argr argl
+                        |> drop_derivation >>= fun dest_env ->
                         Some (left_env, right_env, dest_env, argl)
                       with UnboundPoint ->
                         None

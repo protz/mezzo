@@ -127,7 +127,7 @@ let check
          * has the same type as the one in the interface. *)
         let point = point_by_name x in
         let env =
-          match Permissions.sub env point t with
+          match Derivations.drop_derivation (Permissions.sub env point t) with
           | Some env ->
               env
           | None ->

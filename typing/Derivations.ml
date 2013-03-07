@@ -40,12 +40,14 @@ and judgement =
   | JSubType of typ * typ
   | JSubVar of var * typ
   | JSubPerm of typ
+  | JSubFloating of typ
   | JSubConstraint of duplicity_constraint
   | JSubConstraints of duplicity_constraint list
   | JEqual of typ * typ
   | JLt of typ * typ
   | JGt of typ * typ
   | JNothing
+  | JAdd of typ
 
 
 (** We then provide various combinators to write this in a fairly natural
@@ -61,23 +63,44 @@ and judgement =
  * a good derivation, or [None] with a bad derivation. *)
 type result = env option * derivation
 
-(** Nothing to prove! *)
+let discard_derivation =
+  fst
+
+(** If you can find no rule to apply in order to prove this judgement... *)
+let no_proof (env: env) (j: judgement): result =
+  None, Bad (env, j, [])
+
+(** If you have a series of premises, and want to state that one of them
+ * requires nothing to prove... *)
 let nothing (env: env) (r: rule_instance): result =
   Some env, Good (env, JNothing, (r, []))
-
-(** Tie the knot. *)
-let drop (env: env): env option =
-  Some env
 
 (** Simple composition that discards derivations. Terminate a sequence with
  * [drop]. *)
 let ( >>| ) (result: result) (f: env -> env option): env option =
   Option.bind (fst result) f
 
+(** Tie the knot. *)
+let drop (env: env): env option =
+  Some env
+
 (** Some simple helpers. *)
 let is_good_derivation = function Good _ -> true | Bad _ -> false
 
 let is_bad_derivation = function Good _ -> false | Bad _ -> true
+
+let is_good (r: result): bool =
+  let env, derivation = r in
+  match env with
+  | Some _ ->
+      Log.check (is_good_derivation derivation) "Inconsistency";
+      true
+  | None ->
+      Log.check (is_bad_derivation derivation) "Inconsistency";
+      false
+
+let drop_derivation =
+  fst
 
 (** While proving a rule with multiple premises, we use [state]; the first
  * component is used in the fashion of the sequence monad, that is, environments
@@ -91,10 +114,6 @@ type state = env option * derivation list
 let ( >>~ ) (state: state) (f: env -> env): state =
   let env, derivations = state in
   Option.map f env, derivations
-
-(** If you have no rule to apply in order to prove this judgement... *)
-let no_proof (env: env) (j: judgement): result =
-  None, Bad (env, j, [])
 
 (** If you want to apply an axiom. *)
 let apply_axiom

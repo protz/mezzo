@@ -23,8 +23,11 @@ open Types
 open TypeErrors
 open Expressions
 
-
 (* -------------------------------------------------------------------------- *)
+
+let drop_derivation =
+  Derivations.drop_derivation
+;;
 
 let add_hint =
   Permissions.add_hint
@@ -148,7 +151,7 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
         Log.debug ~level:5 "[sub-annot]";
         begin try
           let sub_env = env in
-          match Permissions.sub_type sub_env t2 annot with
+          match Permissions.sub_type sub_env t2 annot |> drop_derivation with
           | Some sub_env ->
               Log.debug ~level:5 "[sub-annot SUCCEEDED]";
               import_flex_instanciations env sub_env
@@ -166,12 +169,12 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
   Log.debug ~level:5 "[check_function_call] %a - %a"
     TypePrinter.pnames (env, get_names env x)
     TypePrinter.ptype (env, t1);
-  match Permissions.sub env x t1 with
+  match Permissions.sub env x t1 |> drop_derivation with
   | Some env ->
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
       (* Now we need to check the constraints (after the flexible variables have
        * been instantiated! *)
-      let env = match Permissions.sub_constraints env constraints with
+      let env = match Permissions.sub_constraints env constraints |> drop_derivation with
         | Some env ->
             env
         | None ->
@@ -193,7 +196,7 @@ let check_return_type (env: env) (var: var) (t: typ): unit =
     (* TestUtils.print_env env ;*)
   );
     
-  match Permissions.sub env var t with
+  match Permissions.sub env var t |> drop_derivation with
   | Some _ ->
       ()
   | None ->
@@ -486,7 +489,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
     | None ->
         env, x
     | Some t ->
-        match Permissions.sub env x t with
+        match Permissions.sub env x t |> drop_derivation with
         | Some _ ->
             env, x
         | None ->
@@ -537,7 +540,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* Type-check the function body. *)
       let sub_env, p = check_expression sub_env ~annot:return_type body in
 
-      begin match Permissions.sub sub_env p return_type with
+      begin match Permissions.sub sub_env p return_type |> drop_derivation with
       | Some _ ->
           (* Return the entire arrow type. *)
           let expected_type = type_for_function_def expr in
@@ -1006,7 +1009,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 (* The clause is now [t]. Extract it from the list of available
                  * permissions for [x]. We know it works because we type-checked
                  * the whole [EConstraint] already. *)
-                let env = Option.extract (Permissions.sub env x t) in
+                let env = Option.extract (Permissions.sub env x t |> drop_derivation) in
                 (* Refresh the structural permission for [e], using the new
                  * clause. *)
                 let perm = replace_clause perm t in
@@ -1018,7 +1021,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
               "We erroneously allowed a non-exclusive adopts clause";
             (* The clause is known. Just take the required permission out of the
              * permissions for x. *)
-            match Permissions.sub env x clause with
+            match Permissions.sub env x clause |> drop_derivation with
             | Some env ->
                 return env ty_unit
             | None ->
