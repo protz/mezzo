@@ -8,6 +8,10 @@ open list
 open wref
 open lock
 
+abstract copycat a
+fact duplicable a => duplicable (copycat a)
+fact exclusive a => exclusive (copycat a)
+
 val () =
   d [int] ();
   d [[a]a] ();
@@ -31,3 +35,7 @@ val () =
   (* d [(x: unknown, y: unknown | x @ int * y @ (int, int))] (); BUG *)
   d [{x:term,y:term} (=x, =y | x @ int * y @ (int, int))] ();
   d [{y:term} (int | y @ (int, int))] ();
+  d [copycat int] ();
+  x [copycat (ref int)] ();
+  d [copycat (copycat int, copycat int)] ();
+  x [copycat (copycat (ref int))] ();

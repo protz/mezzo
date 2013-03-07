@@ -843,13 +843,14 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("queue_nesting.mz", fail);
   ("queue_nesting2.mz", fail);
   ("take-abstract.mz", fail);
-  ("overflow.mz", simple_test (Fail (function _ -> true)));
+  ("overflow.mz", fail);
   ("facts.mz", pass);
   ("facts00.mz", fail);
   ("facts01.mz", fail);
   ("facts02.mz", fail);
   ("facts03.mz", fail);
   ("facts04.mz", fail);
+  ("facts05.mz", fail);
   ("data-term.mz", pass);
   ("fact-term.mz", fail);
 
