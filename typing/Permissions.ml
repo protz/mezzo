@@ -765,7 +765,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
 
   let judgement = JSubType (t1, t2) in
   let try_proof_root = try_proof env judgement in
-  let no_proof = no_proof env judgement in
+  let no_proof_root = no_proof env judgement in
 
   let t1 = expand_if_one_branch env t1 in
 
@@ -903,7 +903,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
           ) fields1 fields2)
         end
       else
-        no_proof
+        no_proof_root
 
   | TyConcreteUnfolded ((cons1, datacon1), _, _), TyApp (cons2, args2) ->
       let var1 = !!cons1 in
@@ -919,7 +919,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
           sub_perms env p2
         end
       end else begin
-        no_proof
+        no_proof_root
       end
 
   | TyConcreteUnfolded ((cons1, datacon1), _, _), TyOpen var2 ->
@@ -935,7 +935,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
           qed
         end
       end else begin
-        no_proof
+        no_proof_root
       end
 
   | TyApp (cons1, args1), TyApp (cons2, args2) ->
@@ -973,7 +973,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
           import_flex_instanciations env sub_env
         end
       else
-        no_proof
+        no_proof_root
 
   | TySingleton t1, TySingleton t2 ->
       try_proof_root "Singleton" begin
@@ -1147,7 +1147,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
                   if same env var1 var2 then
                     nothing env "same-vars"
                   else
-                    no_proof
+                    no_proof env (JSubType (t1, t2))
               end >>= fun env ->
               sub_floating_perm env t2 >>=
               qed
@@ -1175,8 +1175,11 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
               (* This is useful if [ps2] is a rigid floating permission, alone, that
                * also happens to be present in our environment. *)
               sub_perms env ps2
-          | _, _ ->
+          | ps1, ps2 ->
               Log.debug ~level:4 "[add_sub] FAILED";
+              let ps1 = fold_star ps1 in
+              let ps2 = fold_star ps2 in
+              no_proof env (JSubType (ps1, ps2)) >>= fun _ ->
               fail
           end
         end
@@ -1208,7 +1211,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
         (fun env _ _ -> env)
 
   | _ ->
-      no_proof
+      no_proof_root
 
 
 (** [sub_perm env t] takes a type [t] with kind KPerm, and tries to return the
