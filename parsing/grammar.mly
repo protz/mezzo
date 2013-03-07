@@ -362,6 +362,8 @@ raw_normal_type:
 (* A type that carries a mode constraint. *)
 | c = mode_constraint DBLARROW ty = normal_type
     { TyImply ([ c ], ty) }
+| c = mode_constraint BAR ty = normal_type
+    { TyAnd ([ c ], ty) }
 
 %inline loose_type:
 | ty = tlocated(raw_loose_type)
