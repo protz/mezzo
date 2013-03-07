@@ -206,12 +206,12 @@ let try_several
     match remaining with
     | [] ->
         None, bad failed_derivations
-    | hd :: tl ->
-        match f hd with
+    | item :: remaining ->
+        match f item with
         | (Some env, derivation) ->
-            let env = success env (List.rev_append failed_items remaining) hd in
+            let env = success env (List.rev_append failed_items remaining) item in
             Some env, good derivation
         | None, derivation ->
-            try_several (derivation :: failed_derivations) (hd :: failed_items) tl
+            try_several (derivation :: failed_derivations) (item :: failed_items) remaining
   in
   try_several [] [] l
