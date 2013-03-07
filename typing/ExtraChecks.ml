@@ -31,7 +31,7 @@ let check_adopts_clauses (env: env): unit =
     | Some (_, _, Some clause), _ ->
         let _return_kind, arg_kinds = flatten_kind kind in
         let arity = List.length arg_kinds in
-        let env, vars = make_datacon_letters env kind false (fun _ -> Affine) in
+        let env, vars = make_datacon_letters env kind false in
         let clause = MzList.fold_lefti (fun i clause var ->
           let index = arity - i - 1 in
           tsubst (TyOpen var) index clause

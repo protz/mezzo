@@ -201,7 +201,7 @@ let check
                * [TransSurface] authorizes declaring a type as abstract
                * in an implementation: we just re-check the fact, since the
                * kinds have been checked earlier already. *)
-              if not (Types.fact_leq fact' fact) then
+              if not (Fact.leq fact' fact) then
                 error_out "facts";
 
           | None, Some _ ->
@@ -212,7 +212,7 @@ let check
                * interface, i.e. [fact], is correct because the fact for an
                * abstract is purely syntactical and does not depend on having
                * run [FactInference.analyze_types] properly. *)
-              if not (Types.fact_leq fact' fact) then
+              if not (Fact.leq fact' fact) then
                 error_out "facts";
 
           | Some _, None ->

@@ -167,6 +167,7 @@ and raw_error =
   | IllegalConsumes
   | BadConditionsInFact of Variable.name
   | BadConclusionInFact of Variable.name
+  | NonDistinctHeadsInFact of Variable.name * Mode.mode
   | DuplicateConstructor of Datacon.name
   | DuplicateField of Variable.name
   | AdopterNotExclusive of Variable.name
@@ -249,6 +250,13 @@ let print_error buf (env, raw_error) =
         Lexer.p env.location
         Variable.p x
         Variable.p x
+  | NonDistinctHeadsInFact (x, mode) ->
+      Printf.bprintf buf
+	"%a distinct facts must concern distinct modes.\n\
+         In the declaration of %a, two distinct facts concern the mode %s"
+        Lexer.p env.location
+	Variable.p x
+	(Mode.print mode)
   | DuplicateField d ->
       Printf.bprintf buf
         "%a the field %a appears several times in this branch"
@@ -292,6 +300,10 @@ let bound_twice env x =
 
 let bad_condition_in_fact env x =
   raise_error env (BadConditionsInFact x)
+;;
+
+let non_distinct_heads_in_fact env x mode =
+  raise_error env (NonDistinctHeadsInFact (x, mode))
 ;;
 
 let bad_conclusion_in_fact env x =
@@ -639,6 +651,16 @@ let rec check_fact_conclusion (env: env) (x: Variable.name) (args: Variable.name
           bad_conclusion_in_fact env x;
 ;;
 
+let check_distinct_heads env name facts =
+  ignore (
+    List.fold_left (fun accu (Fact (_, (mode, _))) ->
+      let mode = FactInference.adapt_flag mode in
+      if Mode.ModeMap.mem mode accu then
+	non_distinct_heads_in_fact env name mode
+      else
+	Mode.ModeMap.add mode () accu
+    ) Mode.ModeMap.empty facts
+  )
 
 let rec check (env: env) (t: typ) (expected_kind: kind) =
   let inferred_kind = infer env t in
@@ -765,7 +787,8 @@ let check_data_type_def (env: env) (def: data_type_def) =
       List.iter (function Fact (clauses, conclusion) ->
         List.iter (fun (_, t) -> check_fact_parameter env name args t) clauses;
         let (_, t) = conclusion in check_fact_conclusion env name args t
-      ) facts
+      ) facts;
+      check_distinct_heads env name facts
   | Concrete (flag, (name, bindings), branches, clause) ->
       let bindings = List.map (fun (_, (x, y, _)) -> x, y) bindings in
       let env = List.fold_left bind env bindings in

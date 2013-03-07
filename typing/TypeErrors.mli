@@ -50,7 +50,7 @@ type raw_error =
   | IllKindedTypeApplication of Expressions.tapp * kind * kind
   | BadTypeApplication of var
   | PolymorphicFunctionCall
-  | BadFactForAdoptedType of var * typ * fact
+  | BadFactForAdoptedType of var * typ * Fact.fact
   | NoAdoptsClause of var
   | NotDynamic of var
   | NoSuitableTypeForAdopts of var * typ

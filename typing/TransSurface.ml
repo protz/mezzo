@@ -392,42 +392,48 @@ and translate_type_with_names (env: env) (t: typ): T.typ =
 
 ;;
 
-let translate_single_fact (params: Variable.name list) (fact: single_fact): T.fact =
+let translate_single_fact (params: Variable.name list) (accu: Fact.fact) (fact: single_fact) : Fact.fact =
+  (* We have an implication. *)
   let Fact (hypotheses, goal) = fact in
-  match goal with
-  | (Exclusive, _) ->
-      assert (hypotheses = []);
-      T.Exclusive
-  | (Duplicable, _) ->
-      let ts =
-	List.map (fun (m, t) ->
-	  assert (m = Duplicable);
-	  t
-	) hypotheses
-      in
-      (* [KindCheck] already made sure these are just names _and_ they're valid. *)
-      let names = List.map (fun t ->
-        match tunloc t with
+  (* We ignore the type in the goal. [KindCheck] has already checked
+     that it is the abstract data type that is being declared. *)
+  let (mode, _) = goal in
+  let mode = FactInference.adapt_flag mode in
+  (* Turn the hypotheses into a map of parameters to modes. Again,
+     [KindCheck] has already checked that every type [t] that appears
+     in the hypotheses is a parameter. *)
+  let open Fact in
+  let hs =
+    List.fold_left (fun hs (mode, t) ->
+      let mode = FactInference.adapt_flag mode in
+      let name =
+	match tunloc t with
         | TyBound name -> name
         | _ -> assert false
-      ) ts in
-      let arity = List.length params in
-      let bitmap = Array.make arity false in
-      List.iter (fun name ->
-        let i = MzList.index (Variable.equal name) params in
-        bitmap.(i) <- true
-      ) names;
-      T.Duplicable bitmap
+      in
+      let p : parameter = MzList.index (Variable.equal name) params in
+      (* We compute a meet of [previous_mode] and [mode], so that if
+	 several hypotheses bear on a single parameter, they will be
+	 correctly taken into account. *)
+      let previous_mode =
+	try ParameterMap.find p hs with Not_found -> Mode.top
+      in
+      ParameterMap.add p (Mode.meet previous_mode mode) hs
+    ) ParameterMap.empty hypotheses
+  in
+  (* We now have an implication, [hs => mode], which we wish to add
+     to the accumulator [accu]. [KindCheck] has already ensured that
+     distinct implications have distinct modes in their heads, so we
+     can add this implication. *)
+  assert (not (Mode.ModeMap.mem mode accu));
+  Mode.ModeMap.add mode (HConjunction hs) accu
 
-let translate_fact (params: Variable.name list) (fact: fact): T.fact =
-  match fact with
-  | [] ->
-      T.Affine
-  | [ fact ] ->
-      translate_single_fact params fact
-  | _ ->
-      assert false
-;;
+let translate_fact (params: Variable.name list) (fact: fact): Fact.fact =
+  (* Starting with an empty mode map, translate each implication.
+     This yields an incomplete mode map, which we complete. *)
+  Fact.complete (
+    List.fold_left (translate_single_fact params) Mode.ModeMap.empty fact
+  )
 
 let translate_data_type_def (env: env) (data_type_def: data_type_def) =
   match data_type_def with
@@ -438,11 +444,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
       (* Translate! *)
       let branches = List.map (translate_data_type_def_branch env) branches in
       (* This fact will be refined later on. *)
-      let arity = List.length params in
-      let fact = match flag with
-        | Exclusive -> T.Exclusive
-        | Duplicable -> T.Duplicable (Array.make arity false)
-      in
+      let fact = Fact.bottom in
       (* Translate the clause as well *)
       let adopts_clause = Option.map (translate_type_with_names env) adopts_clause in
       (* We store the annotated variance here, and then

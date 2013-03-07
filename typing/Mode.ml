@@ -31,6 +31,9 @@ let equal : mode -> mode -> bool =
 let bottom =
   ModeBottom
 
+let top =
+  ModeAffine
+
 let is_maximal = function
   | ModeAffine ->
       true
@@ -58,6 +61,23 @@ let meet m1 m2 =
   | _, _ ->
       if m1 = m2 then m1 else ModeBottom
 
+let print = function
+  | ModeBottom ->
+      "bottom"
+  | ModeDuplicable ->
+      "duplicable"
+  | ModeExclusive ->
+      "exclusive"
+  | ModeAffine ->
+      "affine"
+
+let modes = [
+  ModeBottom;
+  ModeDuplicable;
+  ModeExclusive;
+  ModeAffine
+]
+
 module ModeMap = struct
   
   include Map.Make(struct
@@ -65,16 +85,21 @@ module ModeMap = struct
       let compare = Pervasives.compare
   end)
 
-  (* Building a total map over modes. *)
+  (* Building a total map. *)
 
   let total f =
     List.fold_left (fun accu m ->
       add m (f m) accu
-    ) empty [
-      ModeBottom;
-      ModeDuplicable;
-      ModeExclusive;
-      ModeAffine
-    ]
+    ) empty modes
+
+  (* Completing a partial map. *)
+
+  let complete f map =
+    List.fold_left (fun accu m ->
+      if mem m accu then
+	accu
+      else
+	add m (f m) accu
+    ) map modes
 
 end

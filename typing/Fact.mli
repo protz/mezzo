@@ -101,9 +101,6 @@ and hypotheses =
 
 (* Operations on hypotheses. *)
 
-(** Recognizing an empty conjunction. *) (* TEMPORARY suppress *)
-val is_trivial: hypotheses -> bool
-
 (** Conjunction of hypotheses. *)
 val conjunction: ('a -> hypothesis) -> 'a list -> hypothesis
 
@@ -123,6 +120,11 @@ val leq: fact -> fact -> bool
 (** The lattice join (i.e., least upper bound). *)
 val join: fact -> fact -> fact
 val join_many: ('a -> fact) -> 'a list -> fact
+
+(** The lattice meet. Beware: this operation is defined only for facts
+    of arity zero. (These facts are isomorphic to modes, and this
+    operation has the same effect as [Mode.meet].) *)
+val meet: fact -> fact -> fact
 
 (** Recognition of maximal facts is not performed. This function
     is provided for the benefit of [Fix]. *)
@@ -164,4 +166,26 @@ val parameter: parameter -> fact
     facts about the actual parameters. If these facts have arity [k],
     then the final fact has arity [k] as well. *)
 val compose: fact -> fact list -> fact
+
+(** [complete fact] completes an incomplete fact (i.e., a mode map
+    whose domain does not contain all modes) so as to obtain a valid
+    fact. Use with caution. *)
+val complete: fact -> fact
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Printing. *)
+
+open PPrint
+
+(** [print param head fact] is a textual representation of the fact
+    [fact]. The function [param] is used to map a parameter to its textual
+    representation. [head] is a textual representation of the type that
+    appears in the goals. *)
+val print: (parameter -> document) -> document -> fact -> document
+
+(** [internal_print fact] is a textual representation of the fact
+    [fact]. Parameters are represented by their number, and there
+    is no head. This is for internal use. *)
+val internal_print: fact -> document
 

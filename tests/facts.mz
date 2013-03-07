@@ -10,8 +10,8 @@ open lock
 
 val () =
   d [int] ();
-  (* d [[a]a] (); *) (* TEMPORARY new module will allow this once new fact format is everywhere *)
-  (* x [[a]a] (); *) (* idem *)
+  d [[a]a] ();
+  x [[a]a] ();
   d [[a,b] a -> b] ();
   d [[a] duplicable a => (a, a)] ();
   d [{a} duplicable a => a] ();

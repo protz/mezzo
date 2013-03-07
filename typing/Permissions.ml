@@ -129,16 +129,11 @@ let collect = TypeOps.collect;;
 (* For adding new constraints into the environment. *)
 let add_constraints env constraints =
   let env = List.fold_left (fun env (f, t) ->
-    let f = fact_of_flag f in
+    let f = Fact.constant (FactInference.adapt_flag f) in
     let t = modulo_flex env t in
     match t with
     | TyOpen p ->
-        let f' = get_fact env p in
-        if fact_leq f f' then
-        (* [f] tells, for instance, that [p] be exclusive *)
-          set_fact env p f
-        else
-          env
+        set_fact env p (Fact.meet f (get_fact env p))
     | _ ->
         (* We don't know how to extract meaningful information here, so we're
          * just not doing anything about the constraint we just learned about.
@@ -666,16 +661,15 @@ and sub (env: env) (var: var) (t: typ): env option =
 and sub_constraints env constraints =
   List.fold_left (fun env (f, t) ->
     env >>= fun env ->
-    let f = fact_of_flag f in
+    let mode = FactInference.adapt_flag f in
     (* [t] can be any type; for instance, if we have
      *  f @ [a] (duplicable a) ⇒ ...
      * then, when "f" is instantiated, "a" will be replaced by anything...
      *)
-    let f' = FactInference.analyze_type env t in
-    let is_ok = fact_leq f' f in
+    let is_ok = FactInference.has_mode mode env t in
     Log.debug "fact [is_ok=%b] for %a: %a"
       is_ok
-      TypePrinter.ptype (env, t) TypePrinter.pfact f';
+      TypePrinter.ptype (env, t) TypePrinter.pfact (FactInference.analyze_type env t);
     (* [f] demands, for instance, that [p] be exclusive *)
     if is_ok then
       Some env

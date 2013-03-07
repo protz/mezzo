@@ -152,14 +152,6 @@ val is_user : name -> bool
 
 (* -------------------------------------------------------------------------- *)
 
-(** {1 Dealing with facts} *)
-
-val fact_leq : fact -> fact -> bool
-val fact_of_flag : SurfaceSyntax.data_type_flag -> fact
-
-
-(* -------------------------------------------------------------------------- *)
-
 (** {1 Miscellaneous} *)
 
 val fresh_auto_var : string -> name
@@ -168,7 +160,8 @@ val find_type_by_name :
 val make_datacon_letters :
   env ->
   SurfaceSyntax.kind ->
-  bool -> (int -> fact) -> env * var list
+  bool ->
+  env * var list
 
 (** Our not-so-pretty printer for types. *)
 module TypePrinter :
@@ -204,8 +197,7 @@ module TypePrinter :
       data_field_def list -> typ -> MzPprint.document
     val print_data_type_flag :
       SurfaceSyntax.data_type_flag -> MzPprint.document
-    val print_fact : fact -> MzPprint.document
-    val pfact : Buffer.t -> fact -> unit
+    val pfact : Buffer.t -> Fact.fact -> unit
     val print_facts : env -> MzPprint.document
     val print_permission_list :
       env * typ list -> MzPprint.document

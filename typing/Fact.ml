@@ -37,61 +37,13 @@ module ParameterMap =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* The lattice of facts. *)
-
 (* A fact is a logical statement about the mode of a type [t] that has free
    variables, or in other words, about the mode of a parameterized type [t]. *)
 
-(* Example facts are:
-   
-    duplicable int
-    exclusive (ref a)
-    duplicable a => duplicable (list a)
-    duplicable a => duplicable b => duplicable (map a b)
-
-  We may wish to allow several implications to concern the same type
-  constructor. This could be useful, in particular, to deal with
-  arrays. The type array could be exclusive or duplicable, depending
-  on one of its parameters. Thus, the following conjunction of two
-  implications would form a fact about the type array:
-
-    duplicable m => duplicable a => duplicable (array m a)
-    exclusive m => exclusive (array m a)
-
-  Multiple implications are useful also for a more technical reason.
-  In the base case of parameters, it seems convenient to write:
-
-    duplicable a => duplicable a
-    exclusive a => exclusive a
-
-  and so on, for every mode. For these two reasons, I define a fact to
-  be a conjunction of implications. The conclusion of each implication
-  is a mode assertion of the form [m t], where the type [t] has free
-  parameters. The hypotheses are mode assertions about these parameters.
-  Distinct implications have distinct modes [m] in their conclusions,
-  and we maintain a monotonicity property: if one implication is
-  [h1 => m1 t] and another is [h2 => m2 t], where [m1 <= m2], then
-  [h1] implies [h2]. This ensures that [h2] is indeed a necessary
-  condition for [m2 t] to hold. *)
-
 type property = fact
-
-(* A fact about a type [t] is represented as a total function from
-   a mode [m] -- the mode in the conclusion -- to a hypothesis [h].
-   The type [t] is not explicitly represented. *)
 
 and fact =
   hypothesis ModeMap.t
-
-(* A hypothesis is either [false] or a conjunction of mode constraints
-   bearing on the parameters. This conjunction is represented as a
-   total function from parameters to modes. The domain of the parameters
-   is finite and depends on the type [t]. It is not explicitly specified
-   here. If a parameter is not explicitly mentioned in the conjunction,
-   we assume that there is a trivial hypothesis about it, i.e., it is
-   assumed to be affine. This convention allows the empty conjunction
-   to be represetented by an empty map, independently of the number of
-   parameters in existence. *)
 
 and hypothesis =
   | HFalse
@@ -130,6 +82,21 @@ let conjunction f xs =
   List.fold_left (fun accu x ->
     binary_conjunction accu (f x)
   ) trivial xs
+
+(* Disjunction of hypotheses. Defined only at arity zero, i.e., when
+   there are no parameters. In that case, [HConjunction] is synonymous
+   with [HTrue], and the definition is simple. *)
+
+let binary_disjunction (h1 : hypothesis) (h2 : hypothesis) : hypothesis =
+  match h1, h2 with
+  | HFalse, HFalse ->
+      HFalse
+  | HConjunction hs1, _ ->
+      assert (ParameterMap.cardinal hs1 = 0);
+      h1
+  | _, HConjunction hs2 ->
+      assert (ParameterMap.cardinal hs2 = 0);
+      h2
 
 (* The constant mode [m] is can be viewed as a fact: every mode [m']
    that is equal to or above [m] is mapped to [true], the empty conjunction,
@@ -190,6 +157,19 @@ let join_many f xs =
     join accu (f x)
   ) bottom xs
 
+(* Meet in the lattice of facts. Which is not a lattice, actually,
+   since meets exist only at arity zero. *)
+
+let meet fact1 fact2 =
+  ModeMap.merge (fun _ oh1 oh2 ->
+    match oh1, oh2 with
+    | Some h1, Some h2 ->
+        Some (binary_disjunction h1 h2)
+    | _, _ ->
+	(* These ModeMaps should be total. *)
+	assert false
+  ) fact1 fact2
+
 (* A fact for a parameter [p] is a conjunction of implications of
    the form [m p => m], where [m] ranges over every mode. *)
 
@@ -239,10 +219,6 @@ let leq fact1 fact2 =
         false
   ) fact1 fact2
 
-let is_trivial (hs : hypotheses) =
-  let hs = canonicalize hs in
-  ParameterMap.is_empty hs
-
 (* Recognition of maximal facts -- not performed. *)
 
 let is_maximal _ =
@@ -271,4 +247,53 @@ let compose fact facts =
 	  accu
       ) hs trivial
   ) fact
+
+let complete fact =
+  (* This code is not quite correct. In principle, if we have
+     an entry at mode [m], and no entry at mode [m'], which is
+     greater than [m] and not [top], then we should copy the
+     entry from to [m] to [m'], so as to guarantee monotonicity
+     of the resulting fact. We are in a special case where this
+     situation cannot occur, because our lattice only has 4 points
+     and the user cannot manually write an implication whose head
+     involves the bottom mode. *)
+  ModeMap.complete (fun m ->
+    if Mode.is_maximal m then
+      (* Every type admits the maximal mode. *)
+      trivial
+    else
+      (* Otherwise, a missing implication is translated to an
+	 implication whose hypothesis is unsatisfiable. *)
+      HFalse
+  ) fact
+
+open MzPprint
+
+let print (param : parameter -> document) (head : document) fact =
+  (* Decide which implications must be printed. *)
+  let implications =
+    ModeMap.fold (fun m hyp accu ->
+      if Mode.is_maximal m then
+	(* Omit the implication whose conclusion is trivial. *)
+	accu
+      else
+	match hyp with
+	| HFalse ->
+	    (* Omit an implication whose hypothesis is false. *)
+	    accu
+	| HConjunction hs ->
+	    (hs, m) :: accu
+    ) fact []
+  in
+  (* Print each implication. *)
+  separate_map hardline (fun (hs, m) ->
+    let hs = canonicalize hs in
+    concat_map (fun (i, m) ->
+      string (Mode.print m) ^/^ (param i) ^/^ dblarrow
+    ) (ParameterMap.bindings hs) ^^
+    string (Mode.print m) ^/^ head
+  ) implications
+
+let internal_print =
+  print PPrintOCaml.int empty
 

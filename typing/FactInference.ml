@@ -24,85 +24,13 @@ open Types
 
 (* ---------------------------------------------------------------------------- *)
 
-(* This glue code adapts the type [TypeCore.fact], used in the environment, to
-   our internal representation of modes and facts, which is different. *)
-
-(* TEMPORARY ultimately, the environment itself should be adapted *)
-
-let adapt_mode (f : TypeCore.fact) : mode =
-  match f with
-  | Exclusive ->
-      ModeExclusive
-  | Duplicable bitmap ->
-      assert (Array.length bitmap = 0);
-      ModeDuplicable
-  | Affine ->
-      ModeAffine
-  | Fuzzy _ ->
-      (* no longer used *)
-      assert false
-
-let adapt_fact (f : TypeCore.fact) : Fact.fact =
-  match f with
-  | Exclusive ->
-      Fact.constant ModeExclusive
-  | Affine ->
-      Fact.constant ModeAffine
-  | Duplicable bitmap ->
-      (* This is a bit laborious... *)
-      let hs = ref ParameterMap.empty in
-      Array.iteri (fun i bit ->
-	if bit then
-	  hs := ParameterMap.add i ModeDuplicable !hs
-      ) bitmap;
-      Fact.duplicable (Fact.HConjunction !hs)
-  | Fuzzy _ ->
-      (* no longer used *)
-      assert false
-
+(* TEMPORARY *)
 let adapt_flag (flag : SurfaceSyntax.data_type_flag) : mode =
   match flag with
   | SurfaceSyntax.Exclusive ->
       ModeExclusive
   | SurfaceSyntax.Duplicable ->
       ModeDuplicable
-
-let unadapt_fact (arity : int) (parameters : int VarMap.t) (f : Fact.fact) : TypeCore.fact =
-  (* Every type should be unconditionally affine. *)
-  assert (match ModeMap.find ModeAffine f with
-  | Fact.HFalse ->
-      false
-  | Fact.HConjunction hs ->
-      Fact.is_trivial hs
-  );
-  (* Now, check whether this type can be duplicable/exclusive. *)
-  match ModeMap.find ModeDuplicable f, ModeMap.find ModeExclusive f with
-  | Fact.HFalse, Fact.HFalse ->
-      (* Neither. *)
-      Affine
-  | Fact.HFalse, Fact.HConjunction hs ->
-      (* It can be exclusive. Check that this is unconditional. *)
-      assert (Fact.is_trivial hs);
-      Exclusive
-  | Fact.HConjunction hs, Fact.HFalse ->
-      (* It can be duplicable. Translate the conditions back to a
-	 parameter bitmap. *)
-      let bitmap = Array.make arity false in
-      VarMap.iter (fun _ i ->
-	let m = try ParameterMap.find i hs with Not_found -> ModeAffine in
-	match m with
-	| ModeAffine ->
-	    ()
-	| ModeDuplicable ->
-	    bitmap.(i) <- true
-	| ModeExclusive ->
-	    Log.error "Unexpected fact format! exclusive a => duplicable (...)"
-	| ModeBottom ->
-	    Log.error "Unexpected fact format! bottom a => duplicable (...)"
-      ) parameters;
-      Duplicable bitmap
-  | Fact.HConjunction _, Fact.HConjunction _ ->
-      Log.error "Unexpected fact format! this type is duplicable and exclusive"
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -180,9 +108,9 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
   | TyOpen v ->
 
       (* [v] is not present in [assumptions] or [parameters], so it is
-	 external. We look up the environment in order to obtain a mode [m]
-	 for [v], and turn it into a constant fact [m]. *)
-      Fact.constant (adapt_mode (get_fact w.env v))
+	 external. We look up the environment in order to obtain a fact
+	 for [v]. *)
+      get_fact w.env v
 
   (* In a type application, the type constructor [v] cannot be local and
      cannot be a parameter (due to restrictions at the kind level). It
@@ -200,7 +128,7 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
 	  w.valuation v
 	else
 	  (* [v] is older. Obtain a fact for it through the environment. *)
-	  adapt_fact (get_fact w.env v)
+	  get_fact w.env v
       in
       (* Infer facts for the arguments. We must be careful because not
 	 all arguments have kind [type] or [perm], and fact inference
@@ -402,7 +330,7 @@ let analyze_data_types (env : env) (variables : var list) : env =
 	     In that case, the code in the [DataTypeGroup] has already
 	     taken care of entering an appropriate fact in the environment.
 	     We just look it up. *)
-	  let f = adapt_fact (get_fact env v) in
+	  let f = get_fact env v in
 	  fun (_ : F.valuation) -> f
       | Some (Some (flag, branches, clause), _) ->
 	  fun valuation ->
@@ -439,32 +367,25 @@ let analyze_data_types (env : env) (variables : var list) : env =
      environment with this fact. *)
 
   VarMap.fold (fun v () env ->
-    (* Repeating the [match] construct is inelegant; I am doing this
-       only to obtain [arity] and [parameters], which I need in order
-       to call [unadapt_fact]. TEMPORARY *)
     match get_definition env v with
     | None
     | Some (None, _) ->
+        (* Skip abstract types. There is nothing to do in this case,
+	   and furthermore, an abstract type could have kind [term],
+	   in which case inferring a fact for it does not make sense. *)
         env
-    | Some (Some (_, branches, clause), _) ->
-	let _, parameters, _, _ =
-	  bind_datacon_parameters env (get_kind env v) branches clause
-	in
-	let arity = List.length parameters in
-	let parameters =
-	  MzList.fold_lefti (fun i accu v ->
-	    VarMap.add v i accu
-	  ) VarMap.empty parameters
-	in
-	let f =
-	  unadapt_fact arity parameters (fixpoint v)
-	in
-	set_fact env v f
+    | Some (Some _, _) ->
+        (* This data type has a definition, hence it has kind [type]
+	   or [perm]. Inferring a fact for it makes sense. *)
+	set_fact env v (fixpoint v)
   ) variables env
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Accessors. *)
+
+(* TEMPORARY perhaps we could keep this function private, as it is
+   not used often. *)
 
 let analyze_type (env : env) (ty : typ) : Fact.fact =
   (* Construct a world. Only the [env] component is non-trivial. *)
@@ -483,7 +404,8 @@ let has_mode (m : mode) (env : env) (ty : typ) : bool =
   | Fact.HFalse ->
       false
   | Fact.HConjunction hs ->
-      assert (Fact.is_trivial hs);
+      (* This fact should have arity 0. *)
+      assert (ParameterMap.cardinal hs = 0);
       true
 
 let is_duplicable =
@@ -492,9 +414,3 @@ let is_duplicable =
 let is_exclusive =
   has_mode ModeExclusive
   
-let analyze_type env ty : TypeCore.fact =    
-  unadapt_fact 0 VarMap.empty (analyze_type env ty)
-  (* TEMPORARY since this is a parameterless fact, it is in fact
-     just a mode, or maybe a conjunction of modes. Perhaps we
-     should publish it this way? Or perhaps we could keep this
-     function private, as it is not used often. *)

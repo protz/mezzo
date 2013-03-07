@@ -20,6 +20,8 @@
 (** This module analyzes data type declarations to synthesize facts about
     data types. *)
 
+open Mode
+open Fact
 open TypeCore
 
 (** [analyze_data_types env vars] assumes that [vars] forms a group of
@@ -36,8 +38,14 @@ val analyze_data_types: env -> var list -> env
     or affine. *)
 val analyze_type: env -> typ -> fact
 
-(** A specialized version of [analyze_type]. *)
+(** [has_mode mode env ty] tells whether the predicate [mode ty] is
+    satisfied. This function is a simplified version of [analyze_type]. *)
+val has_mode: mode -> env -> typ -> bool
+
+(** A specialized version of [has_mode]. *)
 val is_duplicable: env -> typ -> bool
 
-(** A specialized version of [analyze_type]. *)
+(** A specialized version of [has_mode]. *)
 val is_exclusive: env -> typ -> bool
+
+val adapt_flag: SurfaceSyntax.data_type_flag -> mode (* TEMPORARY *)

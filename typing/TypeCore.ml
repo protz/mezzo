@@ -132,26 +132,11 @@ type type_def =
   * variance list
 
 type data_type_group =
-  (Variable.name * location * type_def * fact * kind) list
+  (Variable.name * location * type_def * Fact.fact * kind) list
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Program-wide environment. *)
-
-(* A fact refers to any type variable available in scope; the first few facts
- * refer to toplevel data types, and the following facts refer to type variables
- * introduced in the scope, because, for instance, we went through a binder in a
- * function type.
- *
- * The [Fuzzy] case is used when we are inferring facts for a top-level data
- * type; we need to introduce the data type's parameters in the environment, but
- * the correponding facts are evolving as we work through our analysis. The
- * integer tells the number of the parameter. *)
-and fact = Exclusive | Duplicable of bitmap | Affine | Fuzzy of int
-
-(* The 0-th element is the first parameter of the type, and the value is true if
-  * it has to be duplicable for the type to be duplicable. *)
-and bitmap = bool array
 
 type binding_type = Rigid | Flexible
 
@@ -159,7 +144,7 @@ type permissions = typ list
 
 type level = int
 
-(** This is the environment that we use throughout HaMLeT. *)
+(** This is the environment that we use throughout. *)
 type env = {
   (* This maps global names (i.e. [TyOpen]s) to their corresponding binding. *)
   state: binding PersistentUnionFind.state;
@@ -223,9 +208,11 @@ and var_descr = {
    * set of functions to deal with marks. *)
   binding_mark: Mark.t;
 
-  (* Associated fact. Variables with kind type have an associated fact; others
-   * don't. *)
-  fact: fact option;
+  (* Associated fact. A type variable of kind [type] or [perm] has a fact of
+     arity 0, that is, just a mode. A type constructor of kind [... -> type]
+     or [... -> perm] has a fact of arity greater than 0. A type variable or
+     type constructor of kind [term] does not have a fact. *)
+  fact: Fact.fact option;
 
   (* Associated level. *)
   level: level;
@@ -257,7 +244,7 @@ and term_descr = {
 let internal_ptype: (Buffer.t -> (env * typ) -> unit) ref = ref (fun _ -> assert false);;
 let internal_pnames: (Buffer.t -> (env * name list) -> unit) ref = ref (fun _ -> assert false);;
 let internal_ppermissions: (Buffer.t -> env -> unit) ref = ref (fun _ -> assert false);;
-let internal_pfact: (Buffer.t -> fact -> unit) ref = ref (fun _ -> assert false);;
+let internal_pfact: (Buffer.t -> Fact.fact -> unit) ref = ref (fun _ -> assert false);;
 
 (* The empty environment. *)
 let empty_env = {
@@ -454,7 +441,7 @@ let reset_permissions (env: env) (var: var): env =
   )
 ;;
 
-let get_fact (env: env) (var: var): fact =
+let get_fact (env: env) (var: var): Fact.fact =
   Option.extract (get_var_descr env var).fact
 ;;
 
@@ -506,7 +493,7 @@ let get_kind (env: env) (var: var): kind =
   (get_var_descr env var).kind
 ;;
 
-let set_fact (env: env) (var: var) (fact: fact): env =
+let set_fact (env: env) (var: var) (fact: Fact.fact): env =
   let fact = Some fact in
   update_var_descr env var (fun d -> { d with fact })
 ;;
@@ -929,12 +916,15 @@ let mkdescr env name kind location fact =
   var_descr
 ;;
 
+let top_fact =
+  Some (Fact.constant Mode.top)
+
 let mkfact k =
   match k with
   | KTerm ->
       None
   | _ ->
-      Some Affine
+      top_fact
 ;;
 
 let bind_rigid env (name, kind, location) =

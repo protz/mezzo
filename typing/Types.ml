@@ -25,42 +25,6 @@ open DeBruijn
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Fact-related functions. *)
-
-let fact_leq f1 f2 =
-  match f1, f2 with
-  | _, Affine ->
-      true
-  | _ when f1 = f2 ->
-      true
-  | Duplicable b1, Duplicable b2 ->
-      let (<=) b1 b2 = match b1, b2 with
-        | true, false ->
-            false
-        | _ ->
-            true
-      in
-      let v = ref true in
-      v := !v && Array.length b1 = Array.length b2;
-      for i = 0 to Array.length b1 - 1 do
-        (* Covariant! *)
-        v := !v && b2.(i) <= b1.(i)
-      done;
-      !v
-  | _ ->
-      false
-;;
-
-let fact_of_flag = function
-  | SurfaceSyntax.Exclusive ->
-      Exclusive
-  | SurfaceSyntax.Duplicable ->
-      Duplicable [||]
-;;
-
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Various helpers for creating and destructuring [typ]s easily. *)
 
 (* Saves us the trouble of matching all the time. *)
@@ -435,20 +399,17 @@ let is_term env v = (get_kind env v = KTerm);;
 let is_perm env v = (get_kind env v = KPerm);;
 let is_type env v = (fst (flatten_kind (get_kind env v)) = KType);;
 
-let make_datacon_letters env kind flexible f =
+let make_datacon_letters env kind flexible =
   let _return_kind, arg_kinds = flatten_kind kind in
   (* Turn the list of parameters into letters *)
   let letters: string list = MzPprint.name_gen (List.length arg_kinds) in
-  let env, points = MzList.fold_left2i (fun i (env, points) kind letter ->
+  let env, points = List.fold_left2 (fun (env, points) kind letter ->
     let env, point =
       let letter = Auto (Variable.register letter) in
-      let env, var =
-        if flexible then
-          bind_flexible env (letter, kind, location env)
-        else
-          bind_rigid env (letter, kind, location env)
-      in
-      set_fact env var (f i), var
+      if flexible then
+	bind_flexible env (letter, kind, location env)
+      else
+	bind_rigid env (letter, kind, location env)
     in
     env, point :: points) (env, []) arg_kinds letters
   in
@@ -458,7 +419,7 @@ let make_datacon_letters env kind flexible f =
 
 let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_branch list) (clause: adopts_clause):
     env * var list * data_type_def_branch list * adopts_clause =
-  let env, points = make_datacon_letters env kind false (fun i -> Fuzzy i) in
+  let env, points = make_datacon_letters env kind false in
   let arity = get_arity_for_kind kind in
   let branches, clause = MzList.fold_lefti (fun i (branches, clause) point ->
     let index = arity - i - 1 in
@@ -729,81 +690,29 @@ module TypePrinter = struct
         string "duplicable"
   ;;
 
-  (* Prints a sequence of characters representing whether each parameter has to
-   * be duplicable (x) or not (nothing). *)
-  let print_fact (fact: fact): document =
-    match fact with
-    | Duplicable bitmap ->
-        lbracket ^^
-        separate_map
-          empty
-          (fun b -> if b then string "x" else string "-") (Array.to_list bitmap) ^^
-        rbracket
-    | Exclusive ->
-        string "exclusive"
-    | Affine ->
-        string "affine"
-    | Fuzzy i ->
-        string "fuzzy " ^^ int i
-  ;;
-
-  (* Prints a sequence of characters representing whether each parameter has to
-   * be duplicable (x) or not (nothing). *)
-  let pfact buf (fact: fact) =
-    pdoc buf (print_fact, fact)
+  let pfact buf fact =
+    pdoc buf (Fact.internal_print, fact)
   ;;
 
   internal_pfact := pfact;;
 
   let print_facts (env: env): document =
-    let is name is_abstract ?params w =
-      let params =
-        match params with
-        | Some params -> concat_map (fun param -> space ^^ utf8string param) params
-        | None -> empty
-      in
-      colors.underline ^^ print_var env name ^^ params ^^
-      colors.default ^^ string " is " ^^
-      (if is_abstract then string "abstract and " else empty) ^^
-      utf8string w
-    in
-    let print_fact name is_abstract arity fact =
-      let params = MzPprint.name_gen arity in
-      let is w = is name is_abstract ~params w in
-      match fact with
-      | Fuzzy _ ->
-          is "fuzzy"
-      | Exclusive ->
-          is "exclusive"
-      | Affine ->
-          is "affine"
-      | Duplicable bitmap ->
-          let dup_params = List.map2
-            (fun b param -> if b then Some param else None)
-            (Array.to_list bitmap)
-            params
-          in
-          let dup_params = MzList.filter_some dup_params in
-          if List.length dup_params > 0 then begin
-            let verb = string (if List.length dup_params > 1 then " are " else " is ") in
-            let dup_params = List.map utf8string dup_params in
-            is "duplicable if " ^^ english_join dup_params ^^ verb ^^
-            string "duplicable"
-          end else begin
-            is "duplicable"
-          end
-    in
-    let lines =
-      fold_definitions env (fun acc var definition ->
+    separate hardline (
+      fold_definitions env (fun acc var _definition ->
         let fact = get_fact env var in
         let kind = get_kind env var in
-        let name = get_name env var in
-        let arity = get_arity_for_kind kind in
-        let is_abstract = (fst definition = None) in
-        print_fact name is_abstract arity fact :: acc
+        (* let is_abstract = (fst definition = None) in *)
+	(* I no longer print [is_abstract]. *)
+	let env, params = make_datacon_letters env kind false in
+	let param i : document =
+	  print_type env (TyOpen (List.nth params i))
+	in
+	let head =
+	  print_type env (TyApp (TyOpen var, List.map (fun v -> TyOpen v) params))
+	in
+	Fact.print param head fact :: acc
       ) []
-    in
-    separate hardline lines
+    )
   ;;
 
   let print_permission_list (env, permissions): document =

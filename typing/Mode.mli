@@ -51,6 +51,9 @@ type mode =
 (** The least element of the lattice. *)
 val bottom: mode
 
+(** The greatest element of the lattice. *)
+val top: mode
+
 (** Equality. *)
 val equal: mode -> mode -> bool
 
@@ -63,6 +66,9 @@ val leq: mode -> mode -> bool
 (** The lattice meet (i.e., greatest lower bound). *)
 val meet: mode -> mode -> mode
 
+(** Printing. *)
+val print: mode -> string
+
 (** Maps over modes. *)
 module ModeMap : sig
   (** The usual operations. *)
@@ -70,5 +76,9 @@ module ModeMap : sig
   (* [total f] tabulates the function [f] and produces a total map
      over modes, i.e., a map whose domain contains all modes. *)
   val total: (mode -> 'a) -> 'a t
+  (* [complete f m] completes the map [m] by tabulating the function
+     [f] at every missing entry. The result is again a map whose
+     domain contains all modes. *)
+  val complete: (mode -> 'a) -> 'a t -> 'a t
 end
 
