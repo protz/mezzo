@@ -448,11 +448,13 @@ raw_fat_type:
    with commas, could perhaps be allowed, but I am afraid that this looks
    too much like a tuple. *)
 
+(* There is no syntax for the bottom mode or the top mode. *)
+
 mode:
 | EXCLUSIVE
-    { Exclusive }
+    { Mode.ModeExclusive }
 | DUPLICABLE
-    { Duplicable }
+    { Mode.ModeDuplicable }
 
 %inline mode_constraint:
 | m = mode t = atomic_type
@@ -548,11 +550,11 @@ data_type_def_branch_content:
   ADOPTS t = arbitrary_type
     { t }
 
-%inline data_type_flag:
+%inline data_type_flavor:
 | (* nothing *)
-    { Duplicable }
+    { DataTypeFlavor.Immutable }
 | MUTABLE
-    { Exclusive }
+    { DataTypeFlavor.Mutable }
 
 %inline optional_kind_annotation:
 | (* nothing *)
@@ -565,12 +567,12 @@ fact:
     { match List.rev cs with goal :: hypotheses -> Fact (List.rev hypotheses, goal) | [] -> assert false }
 
 data_type_def:
-| flag = data_type_flag
+| flavor = data_type_flavor
   DATA lhs = data_type_def_lhs
   EQUAL
   rhs = data_type_def_rhs
   a = adopts_clause?
-    { Concrete (flag, lhs, rhs, a) }
+    { Concrete (flavor, lhs, rhs, a) }
 | ABSTRACT
   lhs = data_type_def_lhs
   k = optional_kind_annotation

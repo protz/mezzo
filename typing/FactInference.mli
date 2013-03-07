@@ -48,4 +48,3 @@ val is_duplicable: env -> typ -> bool
 (** A specialized version of [has_mode]. *)
 val is_exclusive: env -> typ -> bool
 
-val adapt_flag: SurfaceSyntax.data_type_flag -> mode (* TEMPORARY *)

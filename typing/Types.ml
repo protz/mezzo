@@ -321,7 +321,7 @@ let get_variance (env: env) (var: var): variance list =
       assert false
 ;;
 
-let def_for_datacon (env: env) (datacon: resolved_datacon): SurfaceSyntax.data_type_flag * data_type_def * adopts_clause=
+let def_for_datacon (env: env) (datacon: resolved_datacon): DataTypeFlavor.flavor * data_type_def * adopts_clause=
   match datacon with
   | TyOpen point, _ ->
       let def, _ = Option.extract (get_definition env point) in
@@ -650,8 +650,8 @@ module TypePrinter = struct
         print_type env t
 
   and print_constraints env constraints =
-    let constraints = List.map (fun (f, t) ->
-      print_data_type_flag f ^^ space ^^ print_type env t
+    let constraints = List.map (fun (mode, t) ->
+      string (Mode.print mode) ^^ space ^^ print_type env t
     ) constraints in
     let constraints = separate comma constraints in
     constraints
@@ -682,12 +682,6 @@ module TypePrinter = struct
         space ^^ string "adopts" ^^ space ^^ print_type env clause
     in
     print_datacon name ^^ record ^^ clause
-
-  and print_data_type_flag = function
-    | SurfaceSyntax.Exclusive ->
-        string "exclusive"
-    | SurfaceSyntax.Duplicable ->
-        string "duplicable"
   ;;
 
   let pfact buf fact =

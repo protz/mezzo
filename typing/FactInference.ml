@@ -19,18 +19,9 @@
 
 open Mode
 open Fact
+open DataTypeFlavor
 open TypeCore
 open Types
-
-(* ---------------------------------------------------------------------------- *)
-
-(* TEMPORARY *)
-let adapt_flag (flag : SurfaceSyntax.data_type_flag) : mode =
-  match flag with
-  | SurfaceSyntax.Exclusive ->
-      ModeExclusive
-  | SurfaceSyntax.Duplicable ->
-      ModeDuplicable
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -46,8 +37,7 @@ let hoist_mode_assumptions (_v : var) (_ty : typ) : mode =
   ModeAffine (* TEMPORARY *)
 
 (* TEMPORARY connection with [Permission.add_constraints] *)
-let assume w ((flag, ty) : mode_constraint) : world =
-  let m = adapt_flag flag in
+let assume w ((m, ty) : mode_constraint) : world =
   let ty = modulo_flex w.env ty in
   match ty with
 
@@ -259,7 +249,7 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
 
 and infer_concrete w flag fields =
   match flag with
-  | SurfaceSyntax.Duplicable ->
+  | Immutable ->
       (* When a data type is defined as immutable, it is duplicable
 	 if and only if its fields are duplicable. It is definitely
 	 not exclusive. *)
@@ -268,7 +258,7 @@ and infer_concrete w flag fields =
 	  ModeMap.find ModeDuplicable (infer_field w field)
 	) fields
       )
-  | SurfaceSyntax.Exclusive ->
+  | Mutable ->
       (* When a data type is defined as exclusive, it is exclusive
 	 regardless of its fields. *)
       Fact.constant ModeExclusive

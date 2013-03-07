@@ -558,8 +558,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           | TyConcreteUnfolded (datacon, fieldtypes, clause) ->
               (* Check that datacon vars to a type that is defined as
                * exclusive. *)
-              let flag, _, _ = def_for_datacon env datacon in
-              if flag <> SurfaceSyntax.Exclusive then
+              let flavor, _, _ = def_for_datacon env datacon in
+	      if not (DataTypeFlavor.can_be_written flavor) then
                 raise_error env (AssignNotExclusive (t, snd datacon));
 
               (* Perform the assignment. *)
@@ -618,8 +618,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let permissions = List.map (function
         | TyConcreteUnfolded (old_datacon, fieldexprs, clause) as t ->
             (* The current type should be mutable. *)
-            let flag, _, _ = def_for_datacon env old_datacon in
-            if flag <> SurfaceSyntax.Exclusive then
+            let flavor, _, _ = def_for_datacon env old_datacon in
+	    if not (DataTypeFlavor.can_be_written flavor) then
               raise_error env (AssignNotExclusive (t, snd old_datacon));
 
             (* Also, the number of fields should be the same. *)

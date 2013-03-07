@@ -22,7 +22,6 @@
 
 open TypeCore
 
-
 (* -------------------------------------------------------------------------- *)
 
 (** {1 Convenient combinators.} *)
@@ -136,7 +135,7 @@ val get_variance : env -> var -> variance list
 val def_for_datacon :
   env ->
   resolved_datacon ->
-  SurfaceSyntax.data_type_flag * data_type_def *
+  DataTypeFlavor.flavor * data_type_def *
   adopts_clause
 
 (** Get the variance of the i-th parameter of a data type. *)
@@ -195,8 +194,6 @@ module TypePrinter :
       env ->
       Datacon.name ->
       data_field_def list -> typ -> MzPprint.document
-    val print_data_type_flag :
-      SurfaceSyntax.data_type_flag -> MzPprint.document
     val pfact : Buffer.t -> Fact.fact -> unit
     val print_facts : env -> MzPprint.document
     val print_permission_list :

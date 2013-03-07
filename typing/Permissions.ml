@@ -128,8 +128,8 @@ let collect = TypeOps.collect;;
 
 (* For adding new constraints into the environment. *)
 let add_constraints env constraints =
-  let env = List.fold_left (fun env (f, t) ->
-    let f = Fact.constant (FactInference.adapt_flag f) in
+  let env = List.fold_left (fun env (mode, t) ->
+    let f = Fact.constant mode in
     let t = modulo_flex env t in
     match t with
     | TyOpen p ->
@@ -659,9 +659,8 @@ and sub (env: env) (var: var) (t: typ): env option =
 
 
 and sub_constraints env constraints =
-  List.fold_left (fun env (f, t) ->
+  List.fold_left (fun env (mode, t) ->
     env >>= fun env ->
-    let mode = FactInference.adapt_flag f in
     (* [t] can be any type; for instance, if we have
      *  f @ [a] (duplicable a) ⇒ ...
      * then, when "f" is instantiated, "a" will be replaced by anything...

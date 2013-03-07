@@ -398,14 +398,12 @@ let translate_single_fact (params: Variable.name list) (accu: Fact.fact) (fact: 
   (* We ignore the type in the goal. [KindCheck] has already checked
      that it is the abstract data type that is being declared. *)
   let (mode, _) = goal in
-  let mode = FactInference.adapt_flag mode in
   (* Turn the hypotheses into a map of parameters to modes. Again,
      [KindCheck] has already checked that every type [t] that appears
      in the hypotheses is a parameter. *)
   let open Fact in
   let hs =
     List.fold_left (fun hs (mode, t) ->
-      let mode = FactInference.adapt_flag mode in
       let name =
 	match tunloc t with
         | TyBound name -> name

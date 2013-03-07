@@ -654,7 +654,6 @@ let rec check_fact_conclusion (env: env) (x: Variable.name) (args: Variable.name
 let check_distinct_heads env name facts =
   ignore (
     List.fold_left (fun accu (Fact (_, (mode, _))) ->
-      let mode = FactInference.adapt_flag mode in
       if Mode.ModeMap.mem mode accu then
 	non_distinct_heads_in_fact env name mode
       else
@@ -789,7 +788,7 @@ let check_data_type_def (env: env) (def: data_type_def) =
         let (_, t) = conclusion in check_fact_conclusion env name args t
       ) facts;
       check_distinct_heads env name facts
-  | Concrete (flag, (name, bindings), branches, clause) ->
+  | Concrete (flavor, (name, bindings), branches, clause) ->
       let bindings = List.map (fun (_, (x, y, _)) -> x, y) bindings in
       let env = List.fold_left bind env bindings in
       (* Check the branches. *)
@@ -800,8 +799,8 @@ let check_data_type_def (env: env) (def: data_type_def) =
       | Some t ->
           check_type_with_names env t KType;
           (* We can do that early. *)
-          if flag <> Exclusive then
-            raise_error env (AdopterNotExclusive name);
+	  if not (DataTypeFlavor.can_adopt flavor) then
+	    raise_error env (AdopterNotExclusive name)
 ;;
 
 
@@ -1084,7 +1083,7 @@ module KindPrinter = struct
 
   (* Prints a data type defined in the global scope. Assumes [print_env] has been
      properly populated. *)
-  let print_data_type_def (env: env) flag name kind variance branches clause =
+  let print_data_type_def (env: env) flavor name kind variance branches clause =
     let _return_kind, params = flatten_kind kind in
     (* Turn the list of parameters into letters *)
     let letters: string list = name_gen (List.length params) in
@@ -1095,12 +1094,8 @@ module KindPrinter = struct
       bind_datacon_parameters env kind branches clause
     in
     let sep = break 1 ^^ bar ^^ space in
-    let flag = match flag with
-      | SurfaceSyntax.Exclusive -> string "mutable" ^^ space
-      | SurfaceSyntax.Duplicable -> empty
-    in
     (* The whole blurb *)
-    flag ^^ string "data" ^^ space ^^ lparen ^^
+    string (DataTypeFlavor.print flavor) ^^ string "data" ^^ space ^^ lparen ^^
     print_var env name ^^ space ^^ colon ^^ space ^^
     print_kind kind ^^ rparen ^^ concat_map (precede space) letters ^^
     space ^^ equals ^^
@@ -1118,8 +1113,8 @@ module KindPrinter = struct
 
   let print_def env name kind def =
     match def with
-    | Some (flag, branches, clause), variance ->
-        print_data_type_def env flag name kind variance branches clause
+    | Some (flavor, branches, clause), variance ->
+        print_data_type_def env flavor name kind variance branches clause
     | None, _ ->
         print_abstract_type_def env name kind
   ;;

@@ -123,7 +123,7 @@ and typ =
  * definition. *)
 and resolved_datacon = typ * Datacon.name
 
-and mode_constraint = SurfaceSyntax.data_type_flag * typ
+and mode_constraint = Mode.mode * typ
 
 
 (** {2 Type definitions} *)
@@ -143,7 +143,7 @@ type data_type_def =
 
 type type_def =
   (* option here because abstract types do not have a definition *)
-    (SurfaceSyntax.data_type_flag * data_type_def * adopts_clause) option
+    (DataTypeFlavor.flavor * data_type_def * adopts_clause) option
   * variance list
 
 type data_type_group =
