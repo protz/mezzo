@@ -175,8 +175,7 @@ let try_several
     (j: judgement)
     (r: rule_instance)
     (l: 'a list)
-    (f: 'a -> result)
-    (success: env -> 'a list -> 'a -> env): result =
+    (f: env -> 'a list -> 'a -> result): result =
   let good derivation =
     Good (original_env, j, (r, [derivation]))
   in
@@ -194,9 +193,8 @@ let try_several
     | [] ->
         None, bad failed_derivations
     | item :: remaining ->
-        match f item with
-        | (Some env, derivation) ->
-            let env = success env (List.rev_append failed_items remaining) item in
+        match f original_env remaining item with
+        | Some env, derivation ->
             Some env, good derivation
         | None, derivation ->
             try_several (derivation :: failed_derivations) (item :: failed_items) remaining

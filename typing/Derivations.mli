@@ -74,19 +74,19 @@ val apply_axiom :
 (** This is another way of proving a judgement, namely by trying several
  * instances of the same rule on different items.
  *
- * [try_several env j r items attempt success] will try to prove judgement [j]
- * in environment [env], using rule [r]; for each [item] in [items], it will
- * [attempt item], hoping to find a successful result. If the result is
- * successful, [success env' remaining item] will be called, where [env'] is the
- * resulting environment, [remaining] are the other items, and [item] is the
- * first item in the list that yielded a successful result. If no item in
- * [items] works, the result will be a conjunction of failures. *)
+ * [try_several env j r items attempt] will try to prove judgement [j] in
+ * environment [env], using rule [r]; for each [item] in [items], it will
+ * [attempt item], hoping to find a successful result, passing it [env'] (the
+ * resulting environment), [remaining] (the other items), and [item] (the first
+ * item in the list that yielded a successful result). If no item in [items]
+ * works, the result will be a conjunction of failures. *)
 val try_several:
   env ->
   judgement ->
   rule_instance ->
   'a list ->
-  ('a -> result) -> (env -> 'a list -> 'a -> env) -> result
+  (env -> 'a list -> 'a -> result) ->
+  result
 
 (** If you're iterating over a series of premises, it is sometimes convenient to
  * say that one of them requires no special operations because of a certain

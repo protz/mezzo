@@ -620,7 +620,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
 (** [sub env var t] tries to extract [t] from the available permissions for
     [var] and returns, if successful, the resulting environment. This is one of
     the two "sub" entry points that this module exports.*)
-and sub (env: env) (var: var) (t: typ): result =
+and sub (env: env) (var: var) ?no_singleton (t: typ): result =
   Log.check (is_term env var) "You can only subtract permissions from a var \
     that represents a program identifier.";
 
@@ -656,6 +656,12 @@ and sub (env: env) (var: var) (t: typ): result =
     in
     let sort x y = sort x - sort y in
     let permissions = List.sort sort permissions in
+    let permissions =
+      if Option.unit_bool no_singleton then
+        List.filter (function TySingleton _ -> false | _ -> true) permissions
+      else
+        permissions
+    in
 
 
     try_several
@@ -663,15 +669,17 @@ and sub (env: env) (var: var) (t: typ): result =
       judgement
       "Try-Perms"
       permissions
-      (fun x -> sub_type env x t)
       (fun env remaining t_x ->
         (* [t_x] is the "original" type found in the list of permissions for [x].
          * -- see [tests/fact-inconsistency.mz] as to why I believe it's correct
          * to check [t_x] for duplicity and not just [t]. *)
-        if FactInference.is_duplicable env t_x then
-          env
-        else
-          set_permissions env var remaining
+        let env =
+          if FactInference.is_duplicable env t_x then
+            env
+          else
+            set_permissions env var remaining
+        in
+        sub_type env t_x t
       )
 
 
@@ -1161,16 +1169,10 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
 
   | TySingleton t1, t2 ->
       let var = !!t1 in
-      let perms = List.filter (fun x ->
-        match modulo_flex env x with TySingleton _ -> false | _ -> true
-      ) (get_permissions env var) in
-      try_several
-        env
-        judgement
-        "Singleton-Fold"
-        perms
-        (fun t1 -> sub_type env t1 t2)
-        (fun env _ _ -> env)
+      try_proof_root "Singleton-Fold" begin
+        sub env var ~no_singleton:() t2 >>=
+        qed
+      end
 
   | _ ->
       no_proof_root
@@ -1238,3 +1240,4 @@ and sub_floating_perm (env: env) (t: typ): result =
  * the only one the client should use because it makes sure our invariants are
  * respected. *)
 let sub_type = sub_type_with_unfolding;;
+let sub env var t = sub env var t;;
