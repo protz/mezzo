@@ -53,54 +53,71 @@ and judgement =
  *
  * *)
 
-let is_good_derivation = function Good _ -> true | Bad _ -> false
-let is_bad_derivation = function Good _ -> false | Bad _ -> true
-
-let prove_judgement
-    (env: env)
-    (j: judgement)
-    (r: rule_instance): env * judgement * rule_instance =
-  env, j, r
-
-type state = env option * derivation list
+(** Primitive operations return a result, that is, either [Some env] along with
+ * a good derivation, or [None] with a bad derivation. *)
 type result = env option * derivation
 
-let drop_derivation =
-  fst
+(** Simple composition that discards derivations. Terminate a sequence with
+ * [drop]. *)
+let ( >>| ) (result: result) (f: result -> env option): env option =
+  f result
 
-let begin_proof (env: env): state =
-  Some env, []
+(** Tie the knot. *)
+let drop (r: result) =
+  fst r
 
-let axiom (env: env): state =
-  begin_proof env
+(** Some simple helpers. *)
+let is_good_derivation = function Good _ -> true | Bad _ -> false
 
-let failed_proof: state =
-  None, []
+let is_bad_derivation = function Good _ -> false | Bad _ -> true
 
-let no_proof_for_judgement (env: env) (j: judgement): result =
+(** While proving a rule with multiple premises, we use [state]; the first
+ * component is used in the fashion of the sequence monad, that is, environments
+ * are passed through various stages; the second component is used like the
+ * writer monad, that is, much more like an accumulator that stores the
+ * derivations. Terminate with [qed]. *)
+type state = env option * derivation list
+
+(** If you have no rule to apply in order to prove this judgement... *)
+let no_proof (env: env) (j: judgement): result =
   None, Bad (env, j, [])
 
-let ( *>> ) ((env, derivations): state) (f: env -> result): state =
+(** If you know how you should prove this, i.e. if you know which rule to
+ * apply, call this. *)
+let try_proof
+    (original_env: env)
+    (j: judgement)
+    (r: rule_instance)
+    (state: state): result =
+  match state with
+  | Some final_env, derivations ->
+      Log.check (List.for_all is_good_derivation derivations)
+        "Inconsistency in [prove_judgement].";
+      Some final_env, Good (original_env, j, (r, derivations))
+  | None, derivations ->
+      Log.check (is_bad_derivation (MzList.last derivations))
+        "Inconsistency in [prove_judgement]";
+      None, Bad (original_env, j, [r, derivations])
+
+(** Composing the premises of a rule. End with [qed]. *)
+let ( >>= ) (result: result) (f: env -> state): state =
+  let env, derivation = result in
   match env with
   | Some env ->
-      let env, derivation = f env in
+      let env, derivations = f env in
       env, derivation :: derivations
   | None ->
-      None, derivations
+      (* We're the last derivation that worked, don't bother running the rest of
+       * the operations. *)
+      None, [derivation]
 
-let ( +>> ) (original_env, j, r) ((env, derivations): state): result =
-  match env with
-  | Some env ->
-      Log.check (List.for_all is_good_derivation derivations)
-        "Returning Some env means only good derivations";
-      let derivation = Good (original_env, j, (r, derivations)) in
-      Some env, derivation
-  | None ->
-      Log.check (is_bad_derivation (List.hd derivations))
-        "Returning None means bad derivation";
-      let derivation = Bad (original_env, j, [r, derivations]) in
-      None, derivation
+(** Tying the knot. *)
+let qed (env: env): state =
+  Some env, []
 
+(** Our other combinator, that allows to explore multiple choices, and either
+ * pick the first one that works, or fail by listing all the cases that failed.
+ * *)
 let try_several
     (l: 'a list)
     (f: 'a -> env option * derivation)

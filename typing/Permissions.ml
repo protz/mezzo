@@ -771,10 +771,10 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
 
   | _, TyAnd (constraints, t2) ->
       prove_judgement "And-R" +>>
-      begin_proof env *>> fun env ->
+      (begin_proof env *>> fun env ->
       (* First do the subtraction, because the constraint may be "duplicable α"
        * with "α" being flexible. *)
-      sub_type env t1 t2 *>> fun env ->
+      sub_type env t1 t2) *>> fun env ->
       (* And then, hoping that α has been instantiated, check that it satisfies
        * the constraint. *)
       sub_constraints env constraints
