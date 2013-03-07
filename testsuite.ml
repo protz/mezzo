@@ -107,6 +107,10 @@ let fail =
   simple_test (Fail (function _ -> true))
 ;;
 
+let kfail =
+  simple_test (KFail (function _ -> true))
+;;
+
 let dummy_loc =
   Lexing.dummy_pos, Lexing.dummy_pos
 ;;
@@ -850,7 +854,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("facts02.mz", fail);
   ("facts03.mz", fail);
   ("facts04.mz", fail);
-  ("facts05.mz", fail);
+  ("facts05.mz", kfail);
   ("data-term.mz", pass);
   ("fact-term.mz", fail);
 
