@@ -864,8 +864,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("facts08.mz", fail);
   ("facts09.mz", fail);
   ("facts10.mz", fail);
-  ("data-term.mz", pass);
-  ("fact-term.mz", fail);
+  ("data-term.mz", simple_test ~known_failure:() Pass);
+  ("fact-term.mz", simple_test ~known_failure:() (Fail (fun _ -> true)));
 
   ("local-type.mz", simple_test ~known_failure:() Pass);
   ("local-type2.mz", simple_test ~known_failure:() Pass);
