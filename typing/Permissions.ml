@@ -502,7 +502,7 @@ and add_perm_raw env p t =
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
  * to the list of available permissions for [p] *)
 and add_type (env: env) (p: var) (t: typ): env =
-  if is_good (sub env p t) then begin
+  if is_good (Log.silent (fun () -> sub env p t)) then begin
     (* We're not re-binding env because this has bad consequences: in
      * particular, when adding a flexible type variable to a var, it
      * instantiates it into, say, [=x], which is usually *not* what we want to
@@ -1026,7 +1026,8 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
 
-        qed (import_flex_instanciations env sub_env)
+        qed sub_env >>~ fun sub_env ->
+        import_flex_instanciations env sub_env
       end
 
   | TyBar _, TyBar _ ->
