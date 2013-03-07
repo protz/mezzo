@@ -33,7 +33,7 @@ type world = {
   env: env;
 }
 
-let assume1 (env : env) ((m, ty) : mode_constraint) : env =
+let assume (env : env) ((m, ty) : mode_constraint) : env =
   (* We assume that [ty] has kind [type] or [perm]. *)
   (* Turn the mode [m] into a fact of arity 0. *)
   let fact = Fact.constant m in
@@ -48,12 +48,10 @@ let assume1 (env : env) ((m, ty) : mode_constraint) : env =
         env
 
 (* This function was once known as [Permission.add_constraints]. *)
-let assume =
-  List.fold_left assume1
 
 (* TEMPORARY think about the treatment of assumptions on parameters *)
-let assumew w cs =
-  { w with env = assume w.env cs }
+let assumew w c =
+  { w with env = assume w.env c }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -155,8 +153,8 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      nearest quantifier, they will thus (often) be assumed as early as
      possible. *)
 
-  | TyAnd (cs, ty) ->
-      infer (assumew w cs) ty
+  | TyAnd (c, ty) ->
+      infer (assumew w c) ty
 
   (* The type [c => t], where [c] is a mode constraint and [t] is a type,
      represents [t] if [c] holds and [unknown] otherwise. Thus, in order
@@ -169,9 +167,9 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      we should (for completeness) invoke it again here. This is certainly
      not essential in practice. *)
 
-  | TyImply (cs, ty) ->
+  | TyImply (c, ty) ->
       Fact.join
-	(infer (assumew w cs) (hoist env ty))
+	(infer (assumew w c) (hoist w.env ty))
 	(infer w TyUnknown)
 
   (* We could prove that a tuple or record is [bottom] as soon as one of
@@ -277,7 +275,7 @@ and bind_assume_infer w binding ty (m : mode) : fact =
     match kind with
     | KType
     | KPerm ->
-	assume1 env (m, TyOpen v)
+	assume env (m, TyOpen v)
     | KTerm ->
         env
     | KArrow _ ->
@@ -286,7 +284,7 @@ and bind_assume_infer w binding ty (m : mode) : fact =
   (* Hoist the mode constraints that might be buried down inside [ty]
      to the root. This may allow us to assume these constraints right
      away, instead of finding them (too late) when we reach them. *)
-  let ty = hoist env ty in
+  (* let ty = hoist w.env ty in TEMPORARY *)
   (* Continue. *)
   infer { w with env } ty
 

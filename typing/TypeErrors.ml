@@ -63,7 +63,7 @@ and raw_error =
   | NoSuchTypeInSignature of var * typ
   | DataTypeMismatchInSignature of Variable.name * string
   | NotExclusiveOwns of var
-  | UnsatisfiableConstraint of mode_constraint list
+  | UnsatisfiableConstraint of mode_constraint
   | VarianceAnnotationMismatch
 
 exception TypeCheckerError of error
@@ -150,13 +150,13 @@ and fold_type (env: env) (depth: int) (t: typ): env * typ =
       let components = List.rev components in
       env, TyTuple components
 
-  | TyImply (cs, t) ->
+  | TyImply (c, t) ->
       let env, t = fold_type env (depth + 1) t in
-      env, TyImply (cs, t)
+      env, TyImply (c, t)
 
-  | TyAnd (cs, t) ->
+  | TyAnd (c, t) ->
       let env, t = fold_type env (depth + 1) t in
-      env, TyAnd (cs, t)
+      env, TyAnd (c, t)
 
   | TyConcreteUnfolded (dc, fields, clause) ->
       let env, fields = List.fold_left (fun (env, fields) -> function
@@ -486,10 +486,10 @@ let print_error buf (env, raw_error) =
         ppermission_list (env, p)
   | CyclicDependency m ->
       Printf.bprintf buf "There is a cyclic dependency on module %a" Module.p m
-  | UnsatisfiableConstraint cs ->
-      Printf.bprintf buf "%a one of the following constraints cannot be satisfied: %a"
+  | UnsatisfiableConstraint c ->
+      Printf.bprintf buf "%a the following constraint cannot be satisfied: %a"
         Lexer.p (location env)
-        pconstraints (env, cs)
+        pconstraint (env, c)
   | VarianceAnnotationMismatch ->
       Printf.bprintf buf "%a the variance annotations do not match the inferred ones"
         Lexer.p (location env)

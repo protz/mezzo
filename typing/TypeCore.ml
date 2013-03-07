@@ -96,8 +96,8 @@ type typ =
   | TyStar of typ * typ
 
     (* Constraint *)
-  | TyAnd of mode_constraint list * typ
-  | TyImply of mode_constraint list * typ
+  | TyAnd of mode_constraint * typ
+  | TyImply of mode_constraint * typ
 
 and var =
   | VRigid of point
@@ -532,7 +532,9 @@ let level (env: env) (t: typ): level =
     | TyArrow (t1, t2)
     | TyBar (t1, t2)
     | TyAnchoredPermission (t1, t2)
-    | TyStar (t1, t2) ->
+    | TyStar (t1, t2)
+    | TyAnd ((_, t1), t2)
+    | TyImply ((_, t1), t2) ->
         max (level t1) (level t2)
 
     | TyApp (t, ts) ->
@@ -553,10 +555,6 @@ let level (env: env) (t: typ): level =
         in
         MzList.max ls
 
-    | TyImply (ds, t)
-    | TyAnd (ds, t) ->
-        let ls = level t :: List.map (fun (_, x) -> level x) ds in
-        MzList.max ls
   in
   level t
 ;;
@@ -621,13 +619,12 @@ let clean top sub t =
     | TyStar (t1, t2) ->
         TyStar (clean t1, clean t2)
 
-    | TyAnd (constraints, t) ->
-        let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
-        TyAnd (constraints, clean t)
+    | TyAnd ((m, t1), t2) ->
+        TyAnd ((m, clean t1), clean t2)
 
-    | TyImply (constraints, t) ->
-        let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
-        TyImply (constraints, clean t)
+    | TyImply ((m, t1), t2) ->
+        TyImply ((m, clean t1), clean t2)
+
   in
   clean t
 ;;
@@ -882,15 +879,11 @@ and equal env (t1: typ) (t2: typ) =
     | TyEmpty, TyEmpty ->
         true
 
-    | TyAnd (c1, t1), TyAnd (c2, t2) ->
-        List.for_all2 (fun (f1, t1) (f2, t2) ->
-          f1 = f2 && equal t1 t2) c1 c2
-        && equal t1 t2
-
-    | TyImply (c1, t1), TyImply (c2, t2) ->
-        List.for_all2 (fun (f1, t1) (f2, t2) ->
-          f1 = f2 && equal t1 t2) c1 c2
-        && equal t1 t2
+    | TyAnd ((m1, t1), u1), TyAnd ((m2, t2), u2)
+    | TyImply ((m1, t1), u1), TyImply ((m2, t2), u2) ->
+        Mode.equal m1 m2 &&
+        equal t1 t2 &&
+        equal u1 u2
 
     | _ ->
         false

@@ -125,9 +125,9 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
         let t, acc = strip_consumes env t in
         TyNameIntro (x, t), acc
 
-    | TyAnd (constraints, t) ->
+    | TyAnd (c, t) ->
         let t, acc = strip_consumes env t in
-        TyAnd (constraints, t), acc
+        TyAnd (c, t), acc
 
     | TyBar (t, p) ->
         (* Strip all consumes annotations from [t]. *)
@@ -257,29 +257,15 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyBar (t1, t2) ->
       T.TyBar (translate_type env t1, translate_type env t2)
 
-  | TyAnd (constraints, t) ->
-      let constraints = List.map (fun (f, t) -> f, translate_type env t) constraints in
-      List.iter (fun (_, t) ->
-        match t with
-        | T.TyBound _ ->
-            ()
-        | _ ->
-            Log.error "We support mode constraints only on type variables"
-      ) constraints;
-      T.TyAnd (constraints, translate_type env t)
+  | TyAnd (c, t) ->
+      T.TyAnd (translate_constraint env c, translate_type env t)
 
-  | TyImply (constraints, t) ->
-      let constraints = List.map (fun (f, t) -> f, translate_type env t) constraints in
-      List.iter (fun (_, t) ->
-        match t with
-        | T.TyBound _ ->
-            ()
-        | _ ->
-            Log.error "We support mode constraints only on type variables"
-      ) constraints;
-      T.TyImply (constraints, translate_type env t)
+  | TyImply (c, t) ->
+      T.TyImply (translate_constraint env c, translate_type env t)
 
-
+and translate_constraint env (m, t) =
+  (* There was a check that [t] is [TyBound _], but I have removed it. *)
+  m, translate_type env t
 
 and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.data_type_def_branch =
   let datacon, fields = branch in
@@ -301,9 +287,9 @@ and translate_arrow_type env t1 t2 =
    * simplify as much as possible the function type. TEMPORARY remove *)
   let rec collect_constraints t =
     match t with
-    | TyAnd (cs, t) ->
+    | TyAnd (c, t) ->
         let cs', t = collect_constraints t in
-        cs @ cs', t
+        c :: cs', t
     | _ ->
         [], t
   in
@@ -340,10 +326,7 @@ and translate_arrow_type env t1 t2 =
   let universal_bindings = t1_bindings @ perm_bindings @ [root_binding] in
   let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env universal_bindings in
   let fat_t1 =
-    if List.length constraints > 0 then
-      TyAnd (constraints, fat_t1)
-    else
-      fat_t1
+    List.fold_left (fun t c -> TyAnd (c, t)) fat_t1 constraints
   in
   let fat_t1 = translate_type env fat_t1 in
 

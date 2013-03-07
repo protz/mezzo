@@ -155,8 +155,8 @@ type typ =
   | TyNameIntro of Variable.name * typ
   | TyConsumes of typ
   | TyBar of typ * typ
-  | TyAnd of mode_constraint list * typ
-  | TyImply of mode_constraint list * typ
+  | TyAnd of mode_constraint * typ
+  | TyImply of mode_constraint * typ
 
 and mode_constraint = Mode.mode * typ
 

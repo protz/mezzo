@@ -113,8 +113,8 @@ and typ =
   | TyStar of typ * typ
 
     (** Constraint *)
-  | TyAnd of mode_constraint list * typ
-  | TyImply of mode_constraint list * typ
+  | TyAnd of mode_constraint * typ
+  | TyImply of mode_constraint * typ
 
 (** Since data constructors are now properly scoped, they are resolved, that is,
  * they are either attached to a point, or a De Bruijn index, which will later

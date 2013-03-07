@@ -267,13 +267,13 @@ let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
       let env, t2 = open_all_rigid_in env t2 side in
       env, TyStar (t1, t2)
 
-  | TyAnd (ds, t) ->
+  | TyAnd (c, t) ->
       let env, t = open_all_rigid_in env t side in
-      env, TyAnd (ds, t)
+      env, TyAnd (c, t)
 
-  | TyImply (ds, t) ->
+  | TyImply (c, t) ->
       let env, t = open_all_rigid_in env t side in
-      env, TyImply (ds, t)
+      env, TyImply (c, t)
 ;;
 
 
@@ -347,9 +347,9 @@ and add (env: env) (var: var) (t: typ): env =
       let env, t, _ = bind_rigid_in_type env binding t in
       add env var t
 
-  | TyAnd (constraints, t) ->
+  | TyAnd (c, t) ->
       Log.debug ~level:4 "%s]%s (and-constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
-      let env = FactInference.assume env constraints in
+      let env = FactInference.assume env c in
       add env var t
 
   (* This implement the rule "x @ (=y, =z) * x @ (=y', =z') implies y = y' and z * = z'" *)
@@ -640,24 +640,25 @@ and sub (env: env) (var: var) (t: typ): env option =
 
 
 
-and sub_constraints env constraints =
-  List.fold_left (fun env (mode, t) ->
-    env >>= fun env ->
-    (* [t] can be any type; for instance, if we have
-     *  f @ [a] (duplicable a) ⇒ ...
-     * then, when "f" is instantiated, "a" will be replaced by anything...
-     *)
-    let is_ok = FactInference.has_mode mode env t in
-    Log.debug "fact [is_ok=%b] for %a: %a"
-      is_ok
-      TypePrinter.ptype (env, t) TypePrinter.pfact (FactInference.analyze_type env t);
-    (* [f] demands, for instance, that [p] be exclusive *)
-    if is_ok then
-      Some env
-    else
-      None
-  ) (Some env) constraints
+and sub_constraint env (mode, t) : env option =
+  (* [t] can be any type; for instance, if we have
+   *  f @ [a] (duplicable a) ⇒ ...
+   * then, when "f" is instantiated, "a" will be replaced by anything...
+   *)
+  let is_ok = FactInference.has_mode mode env t in
+  Log.debug "fact [is_ok=%b] for %a: %a"
+    is_ok
+    TypePrinter.ptype (env, t) TypePrinter.pfact (FactInference.analyze_type env t);
+  if is_ok then
+    Some env
+  else
+    None
 
+and sub_constraints env cs : env option =
+  List.fold_left (fun oenv c ->
+    oenv >>= fun env ->
+    sub_constraint env c
+  ) (Some env) cs
 
 (** When comparing "list (a, b)" with "list (a*, b* )" you need to compare the
  * parameters, but for that, unfolding first is a good idea. This is one of the
@@ -707,24 +708,24 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   | _, TyOpen v2 when is_flexible env v2 ->
       instantiate_flexible env v2 t1
 
-  (** Duplicity constraints. *)
+  (** Mode constraints. *)
 
   | TyAnd _, _ ->
       Log.error "Constraints should've been processed when this permission was added"
 
-  | TyImply (constraints, t1), t2 ->
-      sub_type env t1 (TyAnd (constraints, t2))
+  | TyImply (c, t1), t2 ->
+      sub_type env t1 (TyAnd (c, t2))
 
-  | _, TyAnd (constraints, t2) ->
+  | _, TyAnd (c, t2) ->
       (* First do the subtraction, because the constraint may be "duplicable α"
        * with "α" being flexible. *)
       sub_type env t1 t2 >>= fun env ->
       (* And then, hoping that α has been instantiated, check that it satisfies
        * the constraint. *)
-      sub_constraints env constraints
+      sub_constraint env c
 
-  | t1, TyImply (constraints, t2) ->
-      let env = FactInference.assume env constraints in
+  | t1, TyImply (c, t2) ->
+      let env = FactInference.assume env c in
       sub_type env t1 t2
 
 
@@ -867,12 +868,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
       (* 1) Check facts as late as possible (the instantiation of a flexible
        * variables may happen only in "t2 - t'2"). *)
-      let env, t1, constraints = match t1 with
-        | TyAnd (constraints, t1) ->
-            env, t1, constraints
-        | _ ->
-            env, t1, []
-      in
+      let constraints, t1 = Hoist.extract_constraints env (Hoist.hoist env t1) in
 
       (* We perform implicit eta-expansion, so again, non-linear context (we're
        * under an arrow). *)

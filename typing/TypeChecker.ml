@@ -119,8 +119,8 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
     match flex env t with
     | env, TyArrow (t1,t2) ->
         env, (t1, t2), acc
-    | env, TyImply (constraints, t) ->
-        flex_deconstruct env (acc @ constraints) t
+    | env, TyImply (c, t) ->
+        flex_deconstruct env (c :: acc) t
     | _ ->
         assert false
   in
@@ -171,11 +171,14 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
       (* Now we need to check the constraints (after the flexible variables have
        * been instantiated! *)
-      let env = match Permissions.sub_constraints env constraints with
-        | Some env ->
-            env
-        | None ->
-            raise_error env (UnsatisfiableConstraint constraints)
+      let env =
+	List.fold_left (fun env c ->
+	  match Permissions.sub_constraint env c with
+          | Some env ->
+              env
+          | None ->
+              raise_error env (UnsatisfiableConstraint c)
+	) env constraints
       in
       (* Return the "good" type. *)
       env, t2

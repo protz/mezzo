@@ -639,22 +639,16 @@ module TypePrinter = struct
         lparen ^^ print_type env p ^^ space ^^ bar ^^ space ^^
         print_type env q ^^ rparen
 
-    | TyAnd (constraints, t) ->
-        let constraints = print_constraints env constraints in
-        lparen ^^ constraints ^^ rparen ^^ space ^^ string "∧" ^^ space ^^
+    | TyAnd (c, t) ->
+        print_constraint env c ^^ space ^^ string "∧" ^^ space ^^
         print_type env t
 
-    | TyImply (constraints, t) ->
-        let constraints = print_constraints env constraints in
-        lparen ^^ constraints ^^ rparen ^^ space ^^ string "=>" ^^ space ^^
+    | TyImply (c, t) ->
+        print_constraint env c ^^ space ^^ string "=>" ^^ space ^^
         print_type env t
 
-  and print_constraints env constraints =
-    let constraints = List.map (fun (mode, t) ->
-      string (Mode.print mode) ^^ space ^^ print_type env t
-    ) constraints in
-    let constraints = separate comma constraints in
-    constraints
+  and print_constraint env (mode, t) =
+    string (Mode.print mode) ^^ space ^^ print_type env t
 
   and print_data_field_def env = function
     | FieldValue (name, typ) ->
@@ -776,8 +770,8 @@ module TypePrinter = struct
 
   internal_ptype := ptype;;
 
-  let pconstraints buf (env, constraints) =
-    pdoc buf ((fun () -> print_constraints env constraints), ())
+  let pconstraint buf (env, c) =
+    pdoc buf ((fun () -> print_constraint env c), ())
   ;;
 
   let print_binders (env: env): document =

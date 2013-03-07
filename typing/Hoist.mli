@@ -36,3 +36,8 @@ open TypeCore
 
 val hoist: env -> typ -> typ
 
+(* This function extracts the [TyAnd] constructs that are found at the
+   root of a type. *)
+
+val extract_constraints: env -> typ -> mode_constraint list * typ
+

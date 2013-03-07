@@ -738,10 +738,10 @@ and infer (env: env) (t: typ) =
       check env t2 KPerm;
       KType
 
-  | TyAnd (cs, t)
-  | TyImply (cs, t) ->
-      List.iter (fun (_, t) -> check env t KType) cs;
-      infer env t
+  | TyAnd ((_, t), u)
+  | TyImply ((_, t), u) ->
+      check env t KType;
+      infer env u
 
 and check_field (env: env) (field: data_field_def) =
   match field with

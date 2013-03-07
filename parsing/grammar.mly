@@ -361,9 +361,9 @@ raw_normal_type:
     { List.fold_right (fun b ty -> TyExists (b, ty)) bs ty }
 (* A type that carries a mode constraint. *)
 | c = mode_constraint DBLARROW ty = normal_type
-    { TyImply ([ c ], ty) }
+    { TyImply (c, ty) }
 | c = mode_constraint BAR ty = normal_type
-    { TyAnd ([ c ], ty) }
+    { TyAnd (c, ty) }
 
 %inline loose_type:
 | ty = tlocated(raw_loose_type)
@@ -959,14 +959,15 @@ anonymous_function:
   (* Optional type parameters: [a] *)
   type_parameters = loption(type_parameters)
   (* Optional constraint(s): duplicable a => *)
-  constraints = terminated(mode_constraint, DBLARROW)*
+  cs = terminated(mode_constraint, DBLARROW)*
   (* Formal arguments: (x: a) *)
   formal = parenthetic_type
   (* Result type: : (a, a) *)
   COLON result = normal_type
   (* Function body: = (x, x) *)
   EQUAL body = expression
-    { EFun (type_parameters, TyAnd (constraints, formal), result, body) }
+    { let formal = List.fold_right (fun c ty -> TyAnd (c, ty)) cs formal in
+      EFun (type_parameters, formal, result, body) }
 
 (* ---------------------------------------------------------------------------- *)
 

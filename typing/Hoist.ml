@@ -71,8 +71,8 @@ let rec hoist (env : env) (ty : typ) (k : typ -> typ) : typ =
 
   (* This is where we find a constraint and hoist it. *)
 
-  | TyAnd (cs, ty) ->
-      TyAnd (cs, hoist env ty k)
+  | TyAnd (c, ty) ->
+      TyAnd (c, hoist env ty k)
 
 and hoist_field env field k =
   match field with
@@ -87,4 +87,13 @@ and hoist_field env field k =
 
 let hoist env ty =
   hoist env ty (fun ty -> ty)
+
+let rec extract_constraints env ty =
+  let ty = modulo_flex env ty in
+  match ty with
+  | TyAnd (c, ty) ->
+      let cs, ty = extract_constraints env ty in
+      c :: cs, ty
+  | ty ->
+      [], ty
 
