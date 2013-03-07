@@ -267,11 +267,11 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
           Log.debug ~level:4 "[make_base] annot: %a" TypePrinter.ptype (top, annot);
 
           let sub_annot env root =
-            match Permissions.sub env root annot |> drop_derivation with
-            | None ->
+            match Permissions.sub env root annot with
+            | None, d ->
                 let open TypeErrors in
-                raise_error env (ExpectedType (annot, root))
-            | Some env ->
+                raise_error env (ExpectedType (annot, root, d))
+            | Some env, _ ->
                 env
           in
           let left_env = sub_annot left_env left_root in

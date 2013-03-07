@@ -577,8 +577,8 @@ module TypePrinter = struct
     | TyAnchoredPermission (TyOpen p, TySingleton (TyOpen p')) ->
         let star = if is_flexible env p then star else empty in
         let star' = if is_flexible env p' then star else empty in
-        print_names env (get_names env p) ^^ star ^^ space ^^ equals ^^ space ^^
-        print_names env (get_names env p') ^^ star'
+        print_var env (get_name env p) ^^ star ^^ space ^^ equals ^^ space ^^
+        print_var env (get_name env p') ^^ star'
 
     | (TyForall _) as t ->
         let rec strip_bind acc env = function

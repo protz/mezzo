@@ -22,6 +22,7 @@
 open TypeCore
 open Types
 open Expressions
+open DerivationPrinter
 
 type error = env * raw_error
 
@@ -29,7 +30,7 @@ and raw_error =
   | CyclicDependency of Module.name
   | NotAFunction of var
   | HasFlexible of typ
-  | ExpectedType of typ * var
+  | ExpectedType of typ * var * Derivations.derivation
   | RecursiveOnlyForFunctions
   | MissingField of Field.name
   | ExtraField of Field.name
@@ -244,23 +245,14 @@ let print_error buf (env, raw_error) =
         "%a the following type still contains flexible variables:\n%a"
         Lexer.p (location env)
         ptype (env, t);
-  | ExpectedType (t, var) ->
-      let t1 = fold_type env t in
-      let t2 = fold_var env var in
-      begin match t1, t2 with
-      | Some t1, Some t2 -> (* #winning *)
-          Printf.bprintf buf
-            "%a expected an expression of type:\n%a\nbut this expression has type:\n%a\n"
-            Lexer.p (location env)
-            ptype (env, t1)
-            ptype (env, t2)
-      | _ ->
-          Printf.bprintf buf
-            "%a expected an argument of type:\n%a but the only permissions available for %a are:\n%a"
-            Lexer.p (location env)
-            ptype (env, t) pname (env, var)
-            ppermission_list (env, var)
-      end
+  | ExpectedType (t, var, d) ->
+      Printf.bprintf buf
+        "%a could not extract from %a the following type:\n%a\n\
+          some explanations follow:\n%a"
+        Lexer.p (location env)
+        pname (env, var)
+        ptype (env, t)
+        pderivation d
   | RecursiveOnlyForFunctions ->
       Printf.bprintf buf
         "%a recursive definitions are enabled for functions only"

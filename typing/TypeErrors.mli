@@ -26,7 +26,7 @@ type raw_error =
   | CyclicDependency of Module.name
   | NotAFunction of var
   | HasFlexible of typ
-  | ExpectedType of typ * var
+  | ExpectedType of typ * var * Derivations.derivation
   | RecursiveOnlyForFunctions
   | MissingField of Field.name
   | ExtraField of Field.name

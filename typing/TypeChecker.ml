@@ -169,8 +169,8 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
   Log.debug ~level:5 "[check_function_call] %a - %a"
     TypePrinter.pnames (env, get_names env x)
     TypePrinter.ptype (env, t1);
-  match Permissions.sub env x t1 |> drop_derivation with
-  | Some env ->
+  match Permissions.sub env x t1 with
+  | Some env, _ ->
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
       (* Now we need to check the constraints (after the flexible variables have
        * been instantiated! *)
@@ -185,8 +185,8 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
       in
       (* Return the "good" type. *)
       env, t2
-  | None ->
-      raise_error env (ExpectedType (t1, x))
+  | None, d ->
+      raise_error env (ExpectedType (t1, x, d))
 
 ;;
 
@@ -199,13 +199,13 @@ let check_return_type (env: env) (var: var) (t: typ): unit =
     (* TestUtils.print_env env ;*)
   );
     
-  match Permissions.sub env var t |> drop_derivation with
-  | Some _ ->
+  match Permissions.sub env var t with
+  | Some _, _ ->
       ()
-  | None ->
+  | None, derivation ->
       let open TypePrinter in
       Log.debug ~level:4 "%a\n------------\n" penv env;
-      raise_error env (ExpectedType (t, var))
+      raise_error env (ExpectedType (t, var, derivation))
 ;;
 
 
@@ -492,11 +492,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
     | None ->
         env, x
     | Some t ->
-        match Permissions.sub env x t |> drop_derivation with
-        | Some _ ->
+        match Permissions.sub env x t with
+        | Some _, _ ->
             env, x
-        | None ->
-            raise_error env (ExpectedType (t, x))
+        | None, d ->
+            raise_error env (ExpectedType (t, x, d))
   in
 
   match expr with
@@ -543,13 +543,13 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* Type-check the function body. *)
       let sub_env, p = check_expression sub_env ~annot:return_type body in
 
-      begin match Permissions.sub sub_env p return_type |> drop_derivation with
-      | Some _ ->
+      begin match Permissions.sub sub_env p return_type with
+      | Some _, _ ->
           (* Return the entire arrow type. *)
           let expected_type = type_for_function_def expr in
           return env expected_type
-      | None ->
-          raise_error sub_env (NoSuchPermission return_type)
+      | None, d ->
+          raise_error sub_env (ExpectedType (return_type, p, d))
       end
 
   | EAssign (e1, field_struct, e2) ->

@@ -29,11 +29,11 @@ let drop_derivation =
 ;;
 
 let check env point t =
-  match Permissions.sub env point t |> drop_derivation with
-  | Some _ ->
+  match Permissions.sub env point t with
+  | Some _, _ ->
       ()
-  | None ->
-      raise_error env (ExpectedType (t, point))
+  | None, d ->
+      raise_error env (ExpectedType (t, point, d))
 ;;
 
 let point_by_name env ?mname name =
