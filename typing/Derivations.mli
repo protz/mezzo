@@ -77,7 +77,7 @@ val apply_axiom :
  *
  * [try_several env j r items attempt success] will try to prove judgement [j]
  * in environment [env], using rule [r]; for each [item] in [items], it will
- * [attempt item], hoping to find a successfull result. If the result is
+ * [attempt item], hoping to find a successful result. If the result is
  * successful, [success env' remaining item] will be called, where [env'] is the
  * resulting environment, [remaining] are the other items, and [item] is the
  * first item in the list that yielded a successful result. If no item in
