@@ -298,26 +298,12 @@ and translate_fields: env -> data_field_def list -> T.data_field_def list = fun 
 and translate_arrow_type env t1 t2 =
 
   (* Collect nested constraints and put them in an outermost position to
-   * simplify as much as possible the function type. *)
+   * simplify as much as possible the function type. TEMPORARY remove *)
   let rec collect_constraints t =
     match t with
-    | TyBar (t, p) ->
-        let ct, t = collect_constraints t in
-        let cp, p = collect_constraints p in
-        ct @ cp, TyBar (t, p)
-    | TyStar (p, q) ->
-        let cp, p = collect_constraints p in
-        let cq, q = collect_constraints q in
-        cp @ cq, TyStar (p, q)
-    | TyTuple ts ->
-        let cs, ts = List.split (List.map collect_constraints ts) in
-        List.flatten cs, TyTuple ts
     | TyAnd (cs, t) ->
         let cs', t = collect_constraints t in
         cs @ cs', t
-    | TyLocated (t, p) ->
-        let cs, t = collect_constraints t in
-        cs, TyLocated (t, p)
     | _ ->
         [], t
   in
@@ -338,6 +324,9 @@ and translate_arrow_type env t1 t2 =
    * of conflict. *)
   let root = fresh_var "/root" in
   let root_binding = root, KTerm, (tloc t1) in
+    (* TEMPORARY this call to [tloc] works by chance; there is no
+       guarantee that [t1] begins with a location here; in fact,
+       it fails if I remove [collect_constraints] above *)
 
   (* We now turn the argument into (=root | root @ t1 ∗ c @ … ∗ …) with [t1]
    * now devoid of any consumes annotations. *)
