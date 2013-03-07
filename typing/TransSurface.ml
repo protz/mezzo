@@ -305,9 +305,6 @@ and translate_arrow_type env t1 t2 =
         let ct, t = collect_constraints t in
         let cp, p = collect_constraints p in
         ct @ cp, TyBar (t, p)
-    | TyArrow (t, t') ->
-        let ct, t = collect_constraints t in
-        ct, TyArrow (t, t')
     | TyStar (p, q) ->
         let cp, p = collect_constraints p in
         let cq, q = collect_constraints q in
