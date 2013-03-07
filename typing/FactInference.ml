@@ -284,7 +284,7 @@ and bind_assume_infer w binding ty (m : mode) : fact =
   (* Hoist the mode constraints that might be buried down inside [ty]
      to the root. This may allow us to assume these constraints right
      away, instead of finding them (too late) when we reach them. *)
-  (* let ty = hoist w.env ty in TEMPORARY *)
+  let ty = hoist env ty in
   (* Continue. *)
   infer { w with env } ty
 
