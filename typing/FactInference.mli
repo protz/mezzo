@@ -48,3 +48,8 @@ val is_duplicable: env -> typ -> bool
 (** A specialized version of [has_mode]. *)
 val is_exclusive: env -> typ -> bool
 
+(** [assume env cs] produces a new environment where the mode constraints
+    [cs] are assumed (i.e., they are added to the environment as new
+    hypotheses). *)
+val assume: env -> mode_constraint list -> env
+

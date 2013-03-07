@@ -30,33 +30,32 @@ type world = {
   valuation: var -> Fact.fact;
   parameters: parameter VarMap.t;
   env: env;
-  assumptions: mode VarMap.t;
 }
 
 let hoist_mode_assumptions (_v : var) (_ty : typ) : mode =
   ModeAffine (* TEMPORARY *)
 
-(* TEMPORARY connection with [Permission.add_constraints] *)
-let assume w ((m, ty) : mode_constraint) : world =
-  let ty = modulo_flex w.env ty in
+let assume1 (env : env) ((m, ty) : mode_constraint) : env =
+  (* We assume that [ty] has kind [type] or [perm]. *)
+  (* Turn the mode [m] into a fact of arity 0. *)
+  let fact = Fact.constant m in
+  let ty = modulo_flex env ty in
   match ty with
+  | TyOpen v ->
+      set_fact env v (Fact.meet fact (get_fact env v))
+    | _ ->
+        (* We don't know how to extract meaningful information here, so we're
+         * just not doing anything about the constraint we just learned about.
+         * This could (maybe) be improved. TEMPORARY *)
+        env
 
-  | TyOpen v when is_rigid w.env v && VarMap.mem v w.assumptions ->
+(* This function was once known as [Permission.add_constraints]. *)
+let assume =
+  List.fold_left assume1
 
-      (* [v] is present in [assumptions], so [v] is local. Install
-         a new assumption about it. We take the meet of the old
-         and new assumptions. *)
-      let assumptions =
-        VarMap.add v (Mode.meet m (VarMap.find v w.assumptions)) w.assumptions
-      in
-      { w with assumptions }
-
-  | _ ->
-      (* TEMPORARY! treat the other cases *)
-      w
-
-let assume w cs =
-  List.fold_left assume w cs
+(* TEMPORARY think about the treatment of assumptions on parameters *)
+let assumew w cs =
+  { w with env = assume w.env cs }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -69,27 +68,16 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
   let ty = modulo_flex w.env ty in
   match ty with
 
-  (* TEMPORARY if the environment adopts our format for facts, then we can
-     merge [env] and [assumptions], and cases 1 and 3 below become a single
-     case. *)
-
   (* A type variable, represented by [TyOpen _], could be a local variable
      (e.g. introduced by a universal quantifier which we have just entered)
      or a parameter or a pre-existing variable. In the first two cases, it
      must be rigid, I think; in the last case, it could be rigid or flexible. *)
 
-  | TyOpen v when is_rigid w.env v && VarMap.mem v w.assumptions ->
-
-      (* [v] is present in [assumptions], so we are in the first case:
-	 [v] is local. Our assumptions tell us that [v] has mode [m]. We
-	 produce the fact [m], without any hypotheses on the parameters. *)
-      let m : mode = VarMap.find v w.assumptions in
-      Fact.constant m
+  (* We distinguish only two cases: either [v] is a parameter, or it is not. *)
 
   | TyOpen v when is_rigid w.env v && VarMap.mem v w.parameters ->
 
-      (* [v] is present in [parameters], so we are in the second case:
-	 [v] is a parameter [p]. We produce a fact of the form [m p => m],
+      (* [v] is a parameter [p]. We produce a fact of the form [m p => m],
 	 for every mode [m]. This means ``for every mode [m], if the
 	 parameter [p] has mode [m], then this type has mode [m].'' *)
       let p : parameter = VarMap.find v w.parameters in
@@ -97,9 +85,8 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
 
   | TyOpen v ->
 
-      (* [v] is not present in [assumptions] or [parameters], so it is
-	 external. We look up the environment in order to obtain a fact
-	 for [v]. *)
+      (* [v] is not a parameter. We look up the environment in order to
+	 obtain a fact for it. *)
       get_fact w.env v
 
   (* In a type application, the type constructor [v] cannot be local and
@@ -130,7 +117,8 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
       Fact.compose fact facts
 
   (* When we find a universal or existential quantifier, we enter it. The
-     quantified variable becomes local, and is added to [assumptions]. *)
+     quantified variable becomes local, and a fact about it is (possibly)
+     assumed. *)
 
   (* In the universal case, I believe that we are free to associate this
      variable with the most precise mode, [Mode.bottom]. This is logically
@@ -153,15 +141,10 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      variable that can be hoisted out. *)
 
   | TyForall ((binding, _), ty) ->
-      let env, ty, v = bind_rigid_in_type w.env binding ty in
-      let assumptions = VarMap.add v Mode.bottom w.assumptions in
-      infer { w with env; assumptions } ty
+      bind_assume_infer w binding ty (fun _ _ -> Mode.bottom)
 
   | TyExists (binding, ty) ->
-      let env, ty, v = bind_rigid_in_type w.env binding ty in
-      let m = hoist_mode_assumptions v ty in
-      let assumptions = VarMap.add v m w.assumptions in
-      infer { w with env; assumptions } ty
+      bind_assume_infer w binding ty hoist_mode_assumptions
 
   (* A type of the form [c /\ t], where [c] is a mode constraint and [t]
      is a type, can be thought of as a pair of a proof of [c] and a value
@@ -195,7 +178,7 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
 
   | TyImply (cs, ty) ->
       Fact.join
-	(infer (assume w cs) ty)
+	(infer (assumew w cs) ty)
 	(infer w TyUnknown)
 
   (* We could prove that a tuple or record is [bottom] as soon as one of
@@ -289,6 +272,27 @@ and infer_many w kind args =
   | _, _ ->
       assert false (* kind mismatch *)
 
+and bind_assume_infer w binding ty (m : var -> typ -> mode) : fact =
+  (* Introduce a new rigid variable. *)
+  let env, ty, v = bind_rigid_in_type w.env binding ty in
+  (* If this variable has kind [type] or [perm], assume that
+     it has mode [m]. An appropriate mode can sometimes be
+     found by inspection of the type, so [m] is parameterized
+     with [v] and [ty]. *)
+  let (_, kind, _) = binding in
+  let env =
+    match kind with
+    | KType
+    | KPerm ->
+	assume1 env (m v ty, TyOpen v)
+    | KTerm ->
+        env
+    | KArrow _ ->
+        assert false
+  in
+  (* Continue. *)
+  infer { w with env } ty
+
 (* ---------------------------------------------------------------------------- *)
 
 (* The main fixed point computation. *)
@@ -342,7 +346,6 @@ let analyze_data_types (env : env) (variables : var list) : env =
 	      valuation;
 	      parameters;
 	      env;
-	      assumptions = VarMap.empty
 	    } in
 	    (* The right-hand side of the algebraic data type definition can be
 	       viewed as a sum of records. *)
@@ -384,7 +387,6 @@ let analyze_type (env : env) (ty : typ) : Fact.fact =
     valuation = (fun _ -> assert false); (* will not be called *)
     parameters = VarMap.empty;
     env;
-    assumptions = VarMap.empty
   } in
   (* Go. *)
   infer w ty

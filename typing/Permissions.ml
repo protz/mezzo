@@ -126,24 +126,6 @@ let collect = TypeOps.collect;;
 
 (* -------------------------------------------------------------------------- *)
 
-(* For adding new constraints into the environment. *)
-let add_constraints env constraints =
-  let env = List.fold_left (fun env (mode, t) ->
-    let f = Fact.constant mode in
-    let t = modulo_flex env t in
-    match t with
-    | TyOpen p ->
-        set_fact env p (Fact.meet f (get_fact env p))
-    | _ ->
-        (* We don't know how to extract meaningful information here, so we're
-         * just not doing anything about the constraint we just learned about.
-         * This could (maybe) be improved. *)
-        env
-  ) env constraints in
-  env
-;;
-
-
 let perm_not_flex env t =
   match modulo_flex env t with
   | TyAnchoredPermission (x, _) ->
@@ -367,7 +349,7 @@ and add (env: env) (var: var) (t: typ): env =
 
   | TyAnd (constraints, t) ->
       Log.debug ~level:4 "%s]%s (and-constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
-      let env = add_constraints env constraints in
+      let env = FactInference.assume env constraints in
       add env var t
 
   (* This implement the rule "x @ (=y, =z) * x @ (=y', =z') implies y = y' and z * = z'" *)
@@ -742,7 +724,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       sub_constraints env constraints
 
   | t1, TyImply (constraints, t2) ->
-      let env = add_constraints env constraints in
+      let env = FactInference.assume env constraints in
       sub_type env t1 t2
 
 
