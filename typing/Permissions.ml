@@ -404,7 +404,7 @@ and add (env: env) (var: var) (t: typ): env =
       | Some (ts', clause') ->
           begin match
             sub_type env clause clause' >>= fun env ->
-            sub_type env clause' clause |> fst
+            sub_type env clause' clause |> drop_derivation
           with
           | _ when FactInference.is_exclusive env t ->
               mark_inconsistent env
@@ -644,16 +644,16 @@ and sub (env: env) (var: var) (t: typ): result =
   let prove_judgement = prove_judgement env (JSubVar (var, t)) in
 
   if is_inconsistent env then
-    prove_judgement "R-Inconsistent" +>>
+    prove_judgement "Inconsistent" +>>
     axiom env
 
   else if is_singleton env t then
-    prove_judgement "R-Must-Be-Singleton" +>>
+    prove_judgement "Must-Be-Singleton" +>>
     begin_proof env *>> fun env ->
     sub_type env (ty_equals var) t
 
   else
-    prove_judgement "R-Find-Perm" +>>
+    prove_judgement "Find-Perm" +>>
     let permissions = get_permissions env var in
 
     (* Priority-order potential merge candidates. *)
@@ -683,11 +683,11 @@ and sub (env: env) (var: var) (t: typ): result =
 
 
 
-and sub_constraints env constraints =
-  prove_judgement env (JSubConstraints constraints) "R-Constraints" +>>
+and sub_constraints (env: env) (constraints: duplicity_constraint list): result =
+  prove_judgement env (JSubConstraints constraints) "Constraints" +>>
   List.fold_left (fun state (f, t) ->
     state *>> fun env ->
-    prove_judgement env (JSubConstraint (f, t)) "R-Constraint" +>>
+    prove_judgement env (JSubConstraint (f, t)) "Constraint" +>>
     let f = fact_of_flag f in
     (* [t] can be any type; for instance, if we have
      *  f @ [a] (duplicable a) ⇒ ...
@@ -747,16 +747,16 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
   (** Trivial case. *)
   | _, _ when equal env t1 t2 ->
       Log.debug ~level:5 "↳ fast-path";
-      prove_judgement "R-Equal" +>>
+      prove_judgement "Equal" +>>
       axiom env
 
   (** Easy cases involving flexible variables *)
   | TyOpen v1, _ when is_flexible env v1 ->
-      prove_judgement "R-Flex-L" +>>
+      prove_judgement "Flex-L" +>>
       instantiate_flexible env v1 t2
 
   | _, TyOpen v2 when is_flexible env v2 ->
-      prove_judgement "R-Flex-R" +>>
+      prove_judgement "Flex-R" +>>
       instantiate_flexible env v2 t1
 
   (** Duplicity constraints. *)
@@ -765,14 +765,16 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
       Log.error "Constraints should've been processed when this permission was added"
 
   | TyImply (constraints, t1), t2 ->
-      prove_judgement "R-Imply-Is-Constraints" +>>
+      prove_judgement "Imply-L-Is-Constraints-R" +>>
       begin_proof env *>> fun env ->
       sub_type env t1 (TyAnd (constraints, t2))
 
   | _, TyAnd (constraints, t2) ->
+      prove_judgement "And-R" +>>
+      begin_proof env *>> fun env ->
       (* First do the subtraction, because the constraint may be "duplicable α"
        * with "α" being flexible. *)
-      sub_type env t1 t2 >>= fun env ->
+      sub_type env t1 t2 *>> fun env ->
       (* And then, hoping that α has been instantiated, check that it satisfies
        * the constraint. *)
       sub_constraints env constraints

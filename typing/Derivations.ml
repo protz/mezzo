@@ -65,6 +65,9 @@ let prove_judgement
 type state = env option * derivation list
 type result = env option * derivation
 
+let drop_derivation =
+  fst
+
 let begin_proof (env: env): state =
   Some env, []
 
