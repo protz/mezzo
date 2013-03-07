@@ -22,6 +22,7 @@ open Fact
 open DataTypeFlavor
 open TypeCore
 open Types
+open Hoist
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -149,12 +150,13 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      because proofs don't exist at runtime and are duplicable. Similarly,
      for every mode [m], it [t] has mode [m], then [c /\ t] has mode [m]. *)
 
-  (* In the common case where the constraint [c] bears upon a variable [a]
-     that was existentially quantified above, we have already taken this
-     constraint into account via [hoist_mode_assumptions]. *)
+  (* Furthermore, since we have a proof of [c], we may assume that [c]
+     holds while examining [t]. Because we hoist constraints up to the
+     nearest quantifier, they will thus (often) be assumed as early as
+     possible. *)
 
-  | TyAnd (_, ty) ->
-      infer w ty
+  | TyAnd (cs, ty) ->
+      infer (assumew w cs) ty
 
   (* The type [c => t], where [c] is a mode constraint and [t] is a type,
      represents [t] if [c] holds and [unknown] otherwise. Thus, in order
@@ -163,9 +165,13 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      do not assume the negation of [c], as that would make the system
      non-monotonic.) *)
 
+  (* Since [hoist] does not hoist constraints out of [TyImply] constructs,
+     we should (for completeness) invoke it again here. This is certainly
+     not essential in practice. *)
+
   | TyImply (cs, ty) ->
       Fact.join
-	(infer (assumew w cs) ty)
+	(infer (assumew w cs) (hoist env ty))
 	(infer w TyUnknown)
 
   (* We could prove that a tuple or record is [bottom] as soon as one of
@@ -280,7 +286,7 @@ and bind_assume_infer w binding ty (m : mode) : fact =
   (* Hoist the mode constraints that might be buried down inside [ty]
      to the root. This may allow us to assume these constraints right
      away, instead of finding them (too late) when we reach them. *)
-  let ty = Hoist.hoist env ty in
+  let ty = hoist env ty in
   (* Continue. *)
   infer { w with env } ty
 

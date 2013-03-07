@@ -19,8 +19,11 @@ val () =
   d [[a,b] a -> b] ();
   d [[a] duplicable a => (a, a)] ();
   d [{a} duplicable a => a] ();
-  (* d [{a} duplicable a | a] (); TEMPORARY *)
-  (* d [{a} (a, (duplicable a | a))] (); *) (* TEMPORARY does not work yet *)
+  d [{a} duplicable a | a] ();
+  d [{a} (a, (duplicable a | a))] ();
+  d [{a,b} (a, (duplicable b | duplicable a | a))] ();
+  d [{a,b} (duplicable a => (duplicable b | b))] ();
+  x [{a} (exclusive a | a)] ();
   d [[a] (a, a)] ();
   d [list int] ();
   d [list (int, int)] ();
