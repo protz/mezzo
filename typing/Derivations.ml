@@ -29,7 +29,7 @@ type derivation =
   | Bad of env * judgement * rule list
     (** We found either no rule to apply, or we tried several rules, and none of
      * them worked. In that case, we stop recording derivations as soon as we hit
-     * a rule that doesn't work; that rule will be the head of the list. *)
+     * a rule that doesn't work; that rule will be the tail of the list. *)
 
 and rule =
   rule_instance * derivation list
@@ -50,20 +50,11 @@ and judgement =
   | JAdd of typ
 
 
-(** We then provide various combinators to write this in a fairly natural
- * manner. The goal is for the user to be able to write:
- *    prove_judgement env (JSubType (t1, t2)) RSubArrow +>>
- *      begin_proof env *>>
- *      sub_type env t'1 t1 *>>
- *      sub_type env t2 t'2
- *
- * *)
-
 (** Primitive operations return a result, that is, either [Some env] along with
  * a good derivation, or [None] with a bad derivation. *)
 type result = env option * derivation
 
-let discard_derivation =
+let drop_derivation =
   fst
 
 (** If you can find no rule to apply in order to prove this judgement... *)
@@ -98,9 +89,6 @@ let is_good (r: result): bool =
   | None ->
       Log.check (is_bad_derivation derivation) "Inconsistency";
       false
-
-let drop_derivation =
-  fst
 
 (** While proving a rule with multiple premises, we use [state]; the first
  * component is used in the fashion of the sequence monad, that is, environments
