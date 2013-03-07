@@ -26,12 +26,7 @@ open Hoist
 
 (* ---------------------------------------------------------------------------- *)
 
-type world = {
-  variables: unit VarMap.t;
-  valuation: var -> Fact.fact;
-  parameters: parameter VarMap.t;
-  env: env;
-}
+(* Adding a new hypothesis to the environment. *)
 
 let assume (env : env) ((m, ty) : mode_constraint) : env =
   (* We assume that [ty] has kind [type] or [perm]. *)
@@ -47,7 +42,31 @@ let assume (env : env) ((m, ty) : mode_constraint) : env =
          * This could (maybe) be improved. TEMPORARY *)
         env
 
-(* This function was once known as [Permission.add_constraints]. *)
+(* ---------------------------------------------------------------------------- *)
+
+(* When we analyze an algebraic data type definition, we maintain not only an
+   environment, as usual, but also some information about the current fixed
+   point computation. We refer to this collection of information as a world. *)
+
+type world = {
+  (* The environment. *)
+  env: env;
+  (* The data type constructors that are being defined, and for which we are
+     currently attempting to compute a least valid fact. *)
+  variables: unit VarMap.t;
+  (* The current valuation of the fixed point computation. It maps each of
+     the above [variables] to its current fact. *)
+  valuation: var -> Fact.fact;
+  (* The parameters of the particular algebraic data type that we are
+     currently descending into. *)
+  parameters: parameter VarMap.t;
+}
+
+(* When we are not in the process of computing a fixed point, [variables]
+   is empty, so [valuation] becomes irrelevant; and [parameters] is empty
+   as well. *)
+
+(* ---------------------------------------------------------------------------- *)
 
 (* TEMPORARY think about the treatment of assumptions on parameters *)
 let assumew w c =
@@ -57,8 +76,9 @@ let assumew w c =
 
 (* Inferring a fact about a type. *)
 
-(* TEMPORARY document *)
-(* [VarMap] supports rigid variables only. *)
+(* This code is used both during and after the fixed point computation. The
+   type [ty] must have kind [type] or [perm]. We infer a fact whose arity
+   corresponds to the current number of parameters. *)
 
 let rec infer (w : world) (ty : typ) : Fact.fact =
   let ty = modulo_flex w.env ty in
@@ -70,6 +90,8 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      must be rigid, I think; in the last case, it could be rigid or flexible. *)
 
   (* We distinguish only two cases: either [v] is a parameter, or it is not. *)
+
+  (* Note: [VarMap] supports rigid variables only. *)
 
   | TyOpen v when is_rigid w.env v && VarMap.mem v w.parameters ->
 

@@ -24,6 +24,11 @@ open Mode
 open Fact
 open TypeCore
 
+(** [assume env c] produces a new environment where the mode constraint
+    [c] is assumed (i.e., it is added to the environment as a new
+    hypothesis). *)
+val assume: env -> mode_constraint -> env
+
 (** [analyze_data_types env vars] assumes that [vars] forms a group of
     mutually recursive algebraic data type definitions. It assumes that
     the members of [vars] which are *abstract* data types have already
@@ -47,9 +52,4 @@ val is_duplicable: env -> typ -> bool
 
 (** A specialized version of [has_mode]. *)
 val is_exclusive: env -> typ -> bool
-
-(** [assume env c] produces a new environment where the mode constraint
-    [c] is assumed (i.e., it is added to the environment as a new
-    hypothesis). *)
-val assume: env -> mode_constraint -> env
 
