@@ -456,7 +456,7 @@ val rec combine [a, b] (consumes xs: list a, consumes ys: list b) : list (a, b) 
    depending on the type [a]. This is perhaps not great, but it shows that we
    do have a few tricks up our sleeve. *)
 
-val splitAtOrCopyAndChop [a] (
+val splitAtOrShareAndChop [a] (
   dupa: reflection::duplicability a,
   k: int,
   consumes xs: list a
@@ -554,7 +554,7 @@ val sort [a] (
     else begin
       let n1 = n / 2 in
       let n2 = n - n1 in
-      let xs1, xs2 = splitAtOrCopyAndChop (dupa, n1, xs) in
+      let xs1, xs2 = splitAtOrShareAndChop (dupa, n1, xs) in
       let xs1 = sort (-sense, n1, xs1) in
       let xs2 = sort (-sense, n2, xs2) in
       rev_merge (-sense, xs1, xs2, Nil)
