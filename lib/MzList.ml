@@ -231,3 +231,14 @@ let cut i l =
           raise (Invalid_argument "cut")
   in
   cut [] i l
+
+let rec cps_map f xs k =
+  match xs with
+  | [] ->
+      k []
+  | x :: xs ->
+      f x (fun x ->
+      cps_map f xs (fun xs ->
+      k (x :: xs)
+      ))
+
