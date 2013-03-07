@@ -595,7 +595,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
 (** [sub env var t] tries to extract [t] from the available permissions for
     [var] and returns, if successful, the resulting environment. This is one of
     the two "sub" entry points that this module exports.*)
-and sub (env: env) (var: var) (t: typ): env option =
+and sub (env: env) (var: var) ?no_singleton (t: typ): env option =
   Log.check (is_term env var) "You can only subtract permissions from a var \
     that represents a program identifier.";
 
@@ -623,21 +623,34 @@ and sub (env: env) (var: var) (t: typ): env option =
     in
     let sort x y = sort x - sort y in
     let permissions = List.sort sort permissions in
+    let permissions =
+      if Option.unit_bool no_singleton then
+        List.filter (function TySingleton _ -> false | _ -> true) permissions
+      else
+        permissions
+    in
 
 
     (* [take] proceeds left-to-right *)
-    match MzList.take (fun x -> sub_type env x t) permissions with
-    | Some (remaining, (t_x, env)) ->
-        (* [t_x] is the "original" type found in the list of permissions for [x].
-         * -- see [tests/fact-inconsistency.mz] as to why I believe it's correct
-         * to check [t_x] for duplicity and not just [t]. *)
-        if FactInference.is_duplicable env t_x then
-          Some env
-        else
-          Some (set_permissions env var remaining)
-    | None ->
-        None
-
+    let rec take before after =
+      match after with
+      | [] ->
+          None
+      | t_x :: after ->
+          let remaining = List.rev_append before after in
+          let env =
+            if FactInference.is_duplicable env t_x then
+              env
+            else
+              set_permissions env var remaining
+          in
+          match sub_type env t_x t with
+          | Some env ->
+              Some env
+          | None ->
+              take (t_x :: before) after
+    in
+    take [] permissions
 
 
 and sub_constraint env (mode, t) : env option =
@@ -941,7 +954,9 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
        * from [ps2] until there's nothing left we can do, either because
        * something's flexible, or because the permissions can't be subtracted. *)
       let works_for_add = perm_not_flex in
-      let works_for_sub env p2 = perm_not_flex env p2 && Option.is_some (sub_perm env p2) in
+      let works_for_sub env p2 =
+        perm_not_flex env p2 &&
+        Option.is_some (Log.silent (fun () -> sub_perm env p2)) in
 
       (* This is the main function. *)
       let rec add_sub env ps1 ps2: env * typ list * typ list =
@@ -1051,10 +1066,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
   | TySingleton t1, t2 ->
       let var = !!t1 in
-      let perms = List.filter (fun x ->
-        match modulo_flex env x with TySingleton _ -> false | _ -> true
-      ) (get_permissions env var) in
-      MzList.find_opt (fun t1 -> sub_type env t1 t2) perms
+      sub env var ~no_singleton:() t2
 
   | _ ->
       None
@@ -1114,3 +1126,5 @@ and sub_floating_perm env t =
  * the only one the client should use because it makes sure our invariants are
  * respected. *)
 let sub_type = sub_type_with_unfolding;;
+
+let sub env v t = sub env v t;;
