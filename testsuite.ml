@@ -111,6 +111,10 @@ let fail =
   simple_test (Fail (function _ -> true))
 ;;
 
+let kfail =
+  simple_test (KFail (function _ -> true))
+;;
+
 let dummy_loc =
   Lexing.dummy_pos, Lexing.dummy_pos
 ;;
@@ -847,7 +851,21 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("queue_nesting.mz", fail);
   ("queue_nesting2.mz", fail);
   ("take-abstract.mz", fail);
-  ("overflow.mz", simple_test (Fail (function _ -> true)));
+  ("overflow.mz", fail);
+  ("facts.mz", pass);
+  ("facts00.mz", fail);
+  ("facts01.mz", fail);
+  ("facts02.mz", fail);
+  ("facts03.mz", fail);
+  ("facts04.mz", fail);
+  ("facts05.mz", kfail);
+  ("facts06.mz", pass);
+  ("facts07.mz", fail);
+  ("facts08.mz", fail);
+  ("facts09.mz", fail);
+  ("facts10.mz", fail);
+  ("data-term.mz", pass);
+  ("fact-term.mz", fail);
 
   ("local-type.mz", simple_test ~known_failure:() Pass);
   ("local-type2.mz", simple_test ~known_failure:() Pass);

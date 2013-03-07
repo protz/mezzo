@@ -360,8 +360,10 @@ raw_normal_type:
 | bs = existential_quantifiers ty = normal_type
     { List.fold_right (fun b ty -> TyExists (b, ty)) bs ty }
 (* A type that carries a mode constraint. *)
-| c = mode_constraint ty = normal_type
-    { TyImply ([ c ], ty) }
+| c = mode_constraint DBLARROW ty = normal_type
+    { TyImply (c, ty) }
+| c = mode_constraint BAR ty = normal_type
+    { TyAnd (c, ty) }
 
 %inline loose_type:
 | ty = tlocated(raw_loose_type)
@@ -448,19 +450,17 @@ raw_fat_type:
    with commas, could perhaps be allowed, but I am afraid that this looks
    too much like a tuple. *)
 
+(* There is no syntax for the bottom mode or the top mode. *)
+
 mode:
 | EXCLUSIVE
-    { Exclusive }
+    { Mode.ModeExclusive }
 | DUPLICABLE
-    { Duplicable }
+    { Mode.ModeDuplicable }
 
 %inline mode_constraint:
-| m = mode t = atomic_type DBLARROW
+| m = mode t = atomic_type
     { m, t }
-
-mode_constraints:
-  cs = mode_constraint*
-    { cs }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -552,11 +552,11 @@ data_type_def_branch_content:
   ADOPTS t = arbitrary_type
     { t }
 
-%inline data_type_flag:
+%inline data_type_flavor:
 | (* nothing *)
-    { Duplicable }
+    { DataTypeFlavor.Immutable }
 | MUTABLE
-    { Exclusive }
+    { DataTypeFlavor.Mutable }
 
 %inline optional_kind_annotation:
 | (* nothing *)
@@ -564,32 +564,22 @@ data_type_def_branch_content:
 | COLON k = kind
     { k }
 
-%inline fact_conditions:
-| (* nothing *)
-    { [] }
-| DUPLICABLE t = atomic_type DBLARROW
-    { [t] }
-(* TEMPORARY la syntaxe de fact_conditions/fact me semble trop restrictive?
-   et pourquoi n'est-elle pas partagée avec mode_constraint? *)
-
 fact:
-| FACT tup = fact_conditions DUPLICABLE t = atomic_type
-    { FDuplicableIf (tup, t) }
-| FACT EXCLUSIVE t = atomic_type
-    { FExclusive t }
+| FACT cs = separated_nonempty_list(DBLARROW, mode_constraint)
+    { match List.rev cs with goal :: hypotheses -> Fact (List.rev hypotheses, goal) | [] -> assert false }
 
 data_type_def:
-| flag = data_type_flag
+| flavor = data_type_flavor
   DATA lhs = data_type_def_lhs
   EQUAL
   rhs = data_type_def_rhs
   a = adopts_clause?
-    { Concrete (flag, lhs, rhs, a) }
+    { Concrete (flavor, lhs, rhs, a) }
 | ABSTRACT
   lhs = data_type_def_lhs
   k = optional_kind_annotation
-  f = fact?
-    { Abstract (lhs, k, f) }
+  fs = fact*
+    { Abstract (lhs, k, fs) }
 
 %inline data_type_group:
   def = data_type_def
@@ -968,15 +958,16 @@ definition:
 anonymous_function:
   (* Optional type parameters: [a] *)
   type_parameters = loption(type_parameters)
-  (* Optional constraint: duplicable a => *)
-  constraints = mode_constraints
+  (* Optional constraint(s): duplicable a => *)
+  cs = terminated(mode_constraint, DBLARROW)*
   (* Formal arguments: (x: a) *)
   formal = parenthetic_type
   (* Result type: : (a, a) *)
   COLON result = normal_type
   (* Function body: = (x, x) *)
   EQUAL body = expression
-    { EFun (type_parameters, TyAnd (constraints, formal), result, body) }
+    { let formal = List.fold_right (fun c ty -> TyAnd (c, ty)) cs formal in
+      EFun (type_parameters, formal, result, body) }
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -31,7 +31,7 @@ type outcome = MergeWith of var | Proceed | Abort
 let build_flexible_type_application (left_env, left_perm) (dest_env, t_dest) =
   (* First, find the definition of the type so that we know how to
    * instanciate parameters. *)
-  let left_env, arg_vars_l = make_datacon_letters left_env (get_kind dest_env t_dest) true (fun _ -> Affine) in
+  let left_env, arg_vars_l = make_datacon_letters left_env (get_kind dest_env t_dest) true in
   let t_app_left = ty_app (TyOpen t_dest) (List.map (fun x -> TyOpen x) arg_vars_l) in
   (* Chances are this will perform a merge in [left_env]: this is why
    * we're returning [left_env]. *)

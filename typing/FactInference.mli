@@ -17,20 +17,39 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** This module analyzes data type declaration to synthetize facts about the
-   data types. *)
+(** This module analyzes data type declarations to synthesize facts about
+    data types. *)
 
+open Mode
+open Fact
 open TypeCore
 
-(** This function performs the elaboration phase where we build up more precise
- * facts about the various data types defined in the environment. *)
+(** [assume env c] produces a new environment where the mode constraint
+    [c] is assumed (i.e., it is added to the environment as a new
+    hypothesis). *)
+val assume: env -> mode_constraint -> env
+
+(** [analyze_data_types env vars] assumes that [vars] forms a group of
+    mutually recursive algebraic data type definitions. It assumes that
+    the members of [vars] which are *abstract* data types have already
+    received a fact in [env]. It synthesizes a fact for the members of
+    [vars] which are *concrete* data types, and adds these facts to the
+    environment, producing a new environment. *)
 val analyze_data_types: env -> var list -> env
 
-(** Get the fact for a type, which you can then pass to {!fact_leq}. *)
+(** [analyze_type env ty] produces a fact for the type [ty], using the
+    information stored in [env] about the ambient type definitions. In
+    short, this fact indicates whether [ty] is duplicable, exclusive,
+    or affine. *)
 val analyze_type: env -> typ -> fact
 
-(** Is this type duplicable? *)
+(** [has_mode mode env ty] tells whether the predicate [mode ty] is
+    satisfied. This function is a simplified version of [analyze_type]. *)
+val has_mode: mode -> env -> typ -> bool
+
+(** A specialized version of [has_mode]. *)
 val is_duplicable: env -> typ -> bool
 
-(** Is this type exclusive? *)
+(** A specialized version of [has_mode]. *)
 val is_exclusive: env -> typ -> bool
+

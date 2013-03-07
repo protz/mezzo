@@ -67,6 +67,9 @@ let arrow =
   string "->"
 ;;
 
+let dblarrow =
+  string "=>"
+
 let semisemi =
   twice semi
 

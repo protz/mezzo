@@ -125,9 +125,9 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
         let t, acc = strip_consumes env t in
         TyNameIntro (x, t), acc
 
-    | TyAnd (constraints, t) ->
+    | TyAnd (c, t) ->
         let t, acc = strip_consumes env t in
-        TyAnd (constraints, t), acc
+        TyAnd (c, t), acc
 
     | TyBar (t, p) ->
         (* Strip all consumes annotations from [t]. *)
@@ -257,29 +257,15 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyBar (t1, t2) ->
       T.TyBar (translate_type env t1, translate_type env t2)
 
-  | TyAnd (constraints, t) ->
-      let constraints = List.map (fun (f, t) -> f, translate_type env t) constraints in
-      List.iter (fun (_, t) ->
-        match t with
-        | T.TyBound _ ->
-            ()
-        | _ ->
-            Log.error "We support mode constraints only on type variables"
-      ) constraints;
-      T.TyAnd (constraints, translate_type env t)
+  | TyAnd (c, t) ->
+      T.TyAnd (translate_constraint env c, translate_type env t)
 
-  | TyImply (constraints, t) ->
-      let constraints = List.map (fun (f, t) -> f, translate_type env t) constraints in
-      List.iter (fun (_, t) ->
-        match t with
-        | T.TyBound _ ->
-            ()
-        | _ ->
-            Log.error "We support mode constraints only on type variables"
-      ) constraints;
-      T.TyImply (constraints, translate_type env t)
+  | TyImply (c, t) ->
+      T.TyImply (translate_constraint env c, translate_type env t)
 
-
+and translate_constraint env (m, t) =
+  (* There was a check that [t] is [TyBound _], but I have removed it. *)
+  m, translate_type env t
 
 and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.data_type_def_branch =
   let datacon, fields = branch in
@@ -298,29 +284,12 @@ and translate_fields: env -> data_field_def list -> T.data_field_def list = fun 
 and translate_arrow_type env t1 t2 =
 
   (* Collect nested constraints and put them in an outermost position to
-   * simplify as much as possible the function type. *)
+   * simplify as much as possible the function type. TEMPORARY remove *)
   let rec collect_constraints t =
     match t with
-    | TyBar (t, p) ->
-        let ct, t = collect_constraints t in
-        let cp, p = collect_constraints p in
-        ct @ cp, TyBar (t, p)
-    | TyArrow (t, t') ->
-        let ct, t = collect_constraints t in
-        ct, TyArrow (t, t')
-    | TyStar (p, q) ->
-        let cp, p = collect_constraints p in
-        let cq, q = collect_constraints q in
-        cp @ cq, TyStar (p, q)
-    | TyTuple ts ->
-        let cs, ts = List.split (List.map collect_constraints ts) in
-        List.flatten cs, TyTuple ts
-    | TyAnd (cs, t) ->
+    | TyAnd (c, t) ->
         let cs', t = collect_constraints t in
-        cs @ cs', t
-    | TyLocated (t, p) ->
-        let cs, t = collect_constraints t in
-        cs, TyLocated (t, p)
+        c :: cs', t
     | _ ->
         [], t
   in
@@ -341,6 +310,9 @@ and translate_arrow_type env t1 t2 =
    * of conflict. *)
   let root = fresh_var "/root" in
   let root_binding = root, KTerm, (tloc t1) in
+    (* TEMPORARY this call to [tloc] works by chance; there is no
+       guarantee that [t1] begins with a location here; in fact,
+       it fails if I remove [collect_constraints] above *)
 
   (* We now turn the argument into (=root | root @ t1 ∗ c @ … ∗ …) with [t1]
    * now devoid of any consumes annotations. *)
@@ -354,10 +326,7 @@ and translate_arrow_type env t1 t2 =
   let universal_bindings = t1_bindings @ perm_bindings @ [root_binding] in
   let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env universal_bindings in
   let fat_t1 =
-    if List.length constraints > 0 then
-      TyAnd (constraints, fat_t1)
-    else
-      fat_t1
+    List.fold_left (fun t c -> TyAnd (c, t)) fat_t1 constraints
   in
   let fat_t1 = translate_type env fat_t1 in
 
@@ -392,28 +361,46 @@ and translate_type_with_names (env: env) (t: typ): T.typ =
 
 ;;
 
-
-let translate_abstract_fact (params: Variable.name list) (fact: abstract_fact option): T.fact =
-  match fact with
-  | None ->
-      T.Affine
-  | Some (FExclusive _) ->
-      T.Exclusive
-  | Some (FDuplicableIf (ts, _)) ->
-      (* [KindCheck] already made sure these are just names _and_ they're valid. *)
-      let names = List.map (fun t ->
-        match tunloc t with
+let translate_single_fact (params: Variable.name list) (accu: Fact.fact) (fact: single_fact) : Fact.fact =
+  (* We have an implication. *)
+  let Fact (hypotheses, goal) = fact in
+  (* We ignore the type in the goal. [KindCheck] has already checked
+     that it is the abstract data type that is being declared. *)
+  let (mode, _) = goal in
+  (* Turn the hypotheses into a map of parameters to modes. Again,
+     [KindCheck] has already checked that every type [t] that appears
+     in the hypotheses is a parameter. *)
+  let open Fact in
+  let hs =
+    List.fold_left (fun hs (mode, t) ->
+      let name =
+	match tunloc t with
         | TyBound name -> name
         | _ -> assert false
-      ) ts in
-      let arity = List.length params in
-      let bitmap = Array.make arity false in
-      List.iter (fun name ->
-        let i = MzList.index (Variable.equal name) params in
-        bitmap.(i) <- true
-      ) names;
-      T.Duplicable bitmap
-;;
+      in
+      let p : parameter = MzList.index (Variable.equal name) params in
+      (* We compute a meet of [previous_mode] and [mode], so that if
+	 several hypotheses bear on a single parameter, they will be
+	 correctly taken into account. *)
+      let previous_mode =
+	try ParameterMap.find p hs with Not_found -> Mode.top
+      in
+      ParameterMap.add p (Mode.meet previous_mode mode) hs
+    ) ParameterMap.empty hypotheses
+  in
+  (* We now have an implication, [hs => mode], which we wish to add
+     to the accumulator [accu]. [KindCheck] has already ensured that
+     distinct implications have distinct modes in their heads, so we
+     can add this implication. *)
+  assert (not (Mode.ModeMap.mem mode accu));
+  Mode.ModeMap.add mode (HConjunction hs) accu
+
+let translate_fact (params: Variable.name list) (fact: fact): Fact.fact =
+  (* Starting with an empty mode map, translate each implication.
+     This yields an incomplete mode map, which we complete. *)
+  Fact.complete (
+    List.fold_left (translate_single_fact params) Mode.ModeMap.empty fact
+  )
 
 let translate_data_type_def (env: env) (data_type_def: data_type_def) =
   match data_type_def with
@@ -424,11 +411,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
       (* Translate! *)
       let branches = List.map (translate_data_type_def_branch env) branches in
       (* This fact will be refined later on. *)
-      let arity = List.length params in
-      let fact = match flag with
-        | Exclusive -> T.Exclusive
-        | Duplicable -> T.Duplicable (Array.make arity false)
-      in
+      let fact = Fact.bottom in
       (* Translate the clause as well *)
       let adopts_clause = Option.map (translate_type_with_names env) adopts_clause in
       (* We store the annotated variance here, and then
@@ -438,7 +421,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
       name, env.location, (Some (flag, branches, adopts_clause), variance), fact, karrow params KType
   | Abstract ((name, the_params), kind, fact) ->
       let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
-      let fact = translate_abstract_fact (fst (List.split params)) fact in
+      let fact = translate_fact (fst (List.split params)) fact in
       let variance = List.map (fun (v, _) -> v) the_params in
       name, env.location, (None, variance), fact, karrow params kind
 ;;

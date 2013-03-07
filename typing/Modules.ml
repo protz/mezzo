@@ -140,14 +140,12 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | TyArrow (t1, t2)
     | TyAnchoredPermission (t1, t2)
     | TyBar (t1, t2)
-    | TyStar (t1, t2) ->
+    | TyStar (t1, t2)
+    | TyAnd ((_, t1), t2)
+    | TyImply ((_, t1), t2) ->
         collect_type t1 @ collect_type t2
     | TyTuple ts ->
         MzList.map_flatten collect_type ts
-    | TyAnd (dcs, t)
-    | TyImply (dcs, t) ->
-        let _, ts = List.split dcs in
-        collect_type t @ MzList.map_flatten collect_type ts
     | TyConcreteUnfolded branch ->
         collect_data_type_def_branch branch @
         collect_maybe_qualified (fst branch).datacon_unresolved

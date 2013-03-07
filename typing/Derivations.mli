@@ -43,8 +43,7 @@ and judgement =
   | JSubVar of var * typ
   | JSubPerm of typ
   | JSubFloating of typ
-  | JSubConstraint of duplicity_constraint
-  | JSubConstraints of duplicity_constraint list
+  | JSubConstraint of mode_constraint
   | JEqual of typ * typ
   | JLt of typ * typ
   | JGt of typ * typ

@@ -149,17 +149,12 @@ let variance env var_for_ith valuation b t =
     | TyAnchoredPermission (_, t2) ->
         var t2
 
-    | TyAnd (constraints, t)
-    | TyImply (constraints, t) ->
-        let ts = List.map snd constraints in
-	(* Treat this as: [t] is in covariant position, the [ts]
-	   are in invariant position. *)
+    | TyAnd ((_, t), u)
+    | TyImply ((_, t), u) ->
+	(* [t] is in invariant position, [u] is in covariant position. *)
 	lub
-	  (var t)
-	  (
-            let vs = List.map (fun t -> dot Invariant (var t)) ts in
-            List.fold_left lub Bivariant vs
-	  )
+	  (dot Invariant (var t))
+	  (var u)
   in
   var t
 ;;

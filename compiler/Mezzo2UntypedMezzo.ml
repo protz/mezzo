@@ -186,11 +186,11 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       k (U.EMatch (v, reset_transl_equations loc branches))
       )
   | ETuple es ->
-      eval_expressions loc es (fun vs ->
+      MzList.cps_map (eval "component" loc) es (fun vs ->
       k (U.ETuple vs)
       )
   | EConstruct (datacon, fes) ->
-      eval_fields loc fes (fun fvs ->
+      MzList.cps_map (eval_field loc) fes (fun fvs ->
       (* Introduce the adopter field. *)
       k (U.EConstruct (datacon,	init_adopter_field fvs))
       )
@@ -247,25 +247,10 @@ and reset_transl_equations loc equations =
     p, reset_transl loc e
   ) equations
 
-and eval_expressions loc es k =
-  match es with
-  | [] ->
-      k []
-  | e :: es ->
-      eval "component" loc e (fun v ->
-      eval_expressions loc es (fun vs ->
-      k (v :: vs)
-      ))
-
-and eval_fields loc fields k =
-  match fields with
-  | [] ->
-      k []
-  | (f, e) :: fields ->
-      eval (Variable.print f) loc e (fun v ->
-      eval_fields loc fields (fun fvs ->
-      k ((f, v) :: fvs)
-      ))
+and eval_field loc (f, e) k =
+  eval (Variable.print f) loc e (fun v ->
+  k (f, v)
+  )
 
 (* TEMPORARY experiments show that Obj.field and Obj.set_field are less
    efficient than ordinary field accesses, because they contain a test

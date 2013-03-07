@@ -122,8 +122,8 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
     match flex env t with
     | env, TyArrow (t1,t2) ->
         env, (t1, t2), acc
-    | env, TyImply (constraints, t) ->
-        flex_deconstruct env (acc @ constraints) t
+    | env, TyImply (c, t) ->
+        flex_deconstruct env (c :: acc) t
     | _ ->
         assert false
   in
@@ -174,11 +174,14 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
       (* Now we need to check the constraints (after the flexible variables have
        * been instantiated! *)
-      let env = match Permissions.sub_constraints env constraints |> drop_derivation with
-        | Some env ->
-            env
-        | None ->
-            raise_error env (UnsatisfiableConstraint constraints)
+      let env =
+	List.fold_left (fun env c ->
+	  match Permissions.sub_constraint env c |> drop_derivation with
+          | Some env ->
+              env
+          | None ->
+              raise_error env (UnsatisfiableConstraint c)
+	) env constraints
       in
       (* Return the "good" type. *)
       env, t2
@@ -561,8 +564,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           | TyConcreteUnfolded (datacon, fieldtypes, clause) ->
               (* Check that datacon vars to a type that is defined as
                * exclusive. *)
-              let flag, _, _ = def_for_datacon env datacon in
-              if flag <> SurfaceSyntax.Exclusive then
+              let flavor, _, _ = def_for_datacon env datacon in
+	      if not (DataTypeFlavor.can_be_written flavor) then
                 raise_error env (AssignNotExclusive (t, snd datacon));
 
               (* Perform the assignment. *)
@@ -621,8 +624,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let permissions = List.map (function
         | TyConcreteUnfolded (old_datacon, fieldexprs, clause) as t ->
             (* The current type should be mutable. *)
-            let flag, _, _ = def_for_datacon env old_datacon in
-            if flag <> SurfaceSyntax.Exclusive then
+            let flavor, _, _ = def_for_datacon env old_datacon in
+	    if not (DataTypeFlavor.can_be_written flavor) then
               raise_error env (AssignNotExclusive (t, snd old_datacon));
 
             (* Also, the number of fields should be the same. *)

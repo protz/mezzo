@@ -97,3 +97,8 @@ val find_opt: ('a -> 'b option) -> 'a list -> 'b option
 val map_flatten: ('a -> 'b list) -> 'a list -> 'b list
 
 val cut: int -> 'a list -> 'a list
+
+(** A CPS version of [List.map]. *)
+val cps_map:
+  ('a -> ('b -> 'c) -> 'c) ->
+  'a list -> ('b list -> 'c) -> 'c

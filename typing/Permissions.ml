@@ -150,29 +150,6 @@ let collect = TypeOps.collect;;
 
 (* -------------------------------------------------------------------------- *)
 
-(* For adding new constraints into the environment. *)
-let add_constraints env constraints =
-  let env = List.fold_left (fun env (f, t) ->
-    let f = fact_of_flag f in
-    let t = modulo_flex env t in
-    match t with
-    | TyOpen p ->
-        let f' = get_fact env p in
-        if fact_leq f f' then
-        (* [f] tells, for instance, that [p] be exclusive *)
-          set_fact env p f
-        else
-          env
-    | _ ->
-        (* We don't know how to extract meaningful information here, so we're
-         * just not doing anything about the constraint we just learned about.
-         * This could (maybe) be improved. *)
-        env
-  ) env constraints in
-  env
-;;
-
-
 let perm_not_flex env t =
   match modulo_flex env t with
   | TyAnchoredPermission (x, _) ->
@@ -314,13 +291,13 @@ let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
       let env, t2 = open_all_rigid_in env t2 side in
       env, TyStar (t1, t2)
 
-  | TyAnd (ds, t) ->
+  | TyAnd (c, t) ->
       let env, t = open_all_rigid_in env t side in
-      env, TyAnd (ds, t)
+      env, TyAnd (c, t)
 
-  | TyImply (ds, t) ->
+  | TyImply (c, t) ->
       let env, t = open_all_rigid_in env t side in
-      env, TyImply (ds, t)
+      env, TyImply (c, t)
 ;;
 
 
@@ -394,9 +371,9 @@ and add (env: env) (var: var) (t: typ): env =
       let env, t, _ = bind_rigid_in_type env binding t in
       add env var t
 
-  | TyAnd (constraints, t) ->
+  | TyAnd (c, t) ->
       Log.debug ~level:4 "%s]%s (and-constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
-      let env = add_constraints env constraints in
+      let env = FactInference.assume env c in
       add env var t
 
   (* This implement the rule "x @ (=y, =z) * x @ (=y', =z') implies y = y' and z * = z'" *)
@@ -698,31 +675,27 @@ and sub (env: env) (var: var) (t: typ): result =
       )
 
 
-
-and sub_constraints (env: env) (constraints: duplicity_constraint list): result =
-  try_proof env (JSubConstraints constraints) "Constraints" begin
-    premises env (List.map (fun (f, t) ->
-      fun env ->
-        try_proof env (JSubConstraint (f, t)) "Constraint" begin
-          let f = fact_of_flag f in
-          (* [t] can be any type; for instance, if we have
-           *  f @ [a] (duplicable a) ⇒ ...
-           * then, when "f" is instantiated, "a" will be replaced by anything...
-           *)
-          let f' = FactInference.analyze_type env t in
-          let is_ok = fact_leq f' f in
-          Log.debug "fact [is_ok=%b] for %a: %a"
-            is_ok
-            TypePrinter.ptype (env, t) TypePrinter.pfact f';
-          (* [f] demands, for instance, that [p] be exclusive *)
-          if is_ok then
-            qed env
-          else
-            fail
-        end
-    ) constraints)
+and sub_constraint env c : result =
+  let mode, t = c in
+  try_proof env (JSubConstraint c) "Constraints" begin
+    (* [t] can be any type; for instance, if we have
+     *  f @ [a] (duplicable a) ⇒ ...
+     * then, when "f" is instantiated, "a" will be replaced by anything...
+     *)
+    let is_ok = FactInference.has_mode mode env t in
+    Log.debug "fact [is_ok=%b] for %a: %a"
+      is_ok
+      TypePrinter.ptype (env, t) TypePrinter.pfact (FactInference.analyze_type env t);
+    if is_ok then
+      qed env
+    else
+      fail
   end
 
+and sub_constraints env cs : state =
+  premises env (List.map (fun c -> fun env ->
+    sub_constraint env c
+  ) cs)
 
 (** When comparing "list (a, b)" with "list (a*, b* )" you need to compare the
  * parameters, but for that, unfolding first is a good idea. This is one of the
@@ -788,35 +761,34 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
         qed
       end
 
-  (** Duplicity constraints. *)
+  (** Mode constraints. *)
 
   | TyAnd _, _ ->
       Log.error "Constraints should've been processed when this permission was added"
 
-  | TyImply (constraints, t1), t2 ->
+  | TyImply (c, t1), t2 ->
       try_proof_root "Imply-L-Is-Constraints-R" begin
-        sub_type env t1 (TyAnd (constraints, t2)) >>=
+        sub_type env t1 (TyAnd (c, t2)) >>=
         qed
       end
 
-  | _, TyAnd (constraints, t2) ->
+  | _, TyAnd (c, t2) ->
       try_proof_root "And-R" begin
         (* First do the subtraction, because the constraint may be "duplicable α"
          * with "α" being flexible. *)
         sub_type env t1 t2 >>= fun env ->
         (* And then, hoping that α has been instantiated, check that it satisfies
          * the constraint. *)
-        sub_constraints env constraints >>=
+        sub_constraint env c >>=
         qed
       end
 
-  | t1, TyImply (constraints, t2) ->
+  | t1, TyImply (c, t2) ->
       try_proof_root "Imply-R" begin
-        let env = add_constraints env constraints in
+        let env = FactInference.assume env c in
         sub_type env t1 t2 >>=
         qed
       end
-
 
   (** Higher priority for binding rigid = universal quantifiers. *)
 
@@ -989,12 +961,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
 
         (* 1) Check facts as late as possible (the instantiation of a flexible
          * variables may happen only in "t2 - t'2"). *)
-        let env, t1, constraints = match t1 with
-          | TyAnd (constraints, t1) ->
-              env, t1, constraints
-          | _ ->
-              env, t1, []
-        in
+        let constraints, t1 = Hoist.extract_constraints env (Hoist.hoist env t1) in
 
         (* We perform implicit eta-expansion, so again, non-linear context (we're
          * under an arrow). *)
@@ -1016,17 +983,11 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
         Log.debug ~level:4 "%sArrow / Arrow, facts%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        sub_constraints sub_env constraints >>= fun sub_env ->
+        sub_constraints sub_env constraints >>~ fun sub_env ->
 
-        (* 4) We have successfully compared these function types. Just return the
-         * "restored" sub_environment, that is, the sub_environment with the exact same
-         * set of original permissions, except that the unifications that took
-         * place are now retained. *)
         Log.debug ~level:4 "%sArrow / End -- adding back permissions%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-
-        qed sub_env >>~ fun sub_env ->
         import_flex_instanciations env sub_env
       end
 

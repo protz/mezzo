@@ -17,27 +17,27 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** This module analyzes data type declarations to synthesize facts about
-    data types. *)
-
 open TypeCore
 
-(** [analyze_data_types env vars] assumes that [vars] forms a group of
-    mutually recursive algebraic data type definitions. It assumes that
-    the members of [vars] which are *abstract* data types have already
-    received a fact in [env]. It synthesizes a fact for the members of
-    [vars] which are *concrete* data types, and adds these facts to the
-    environment, producing a new environment. *)
-val analyze_data_types: env -> var list -> env
+(* This function hoists [TyAnd] constructs out of a type. This allows mode
+   constraints to become visible as early as possible. This can be useful
+   when trying to prove that a type admits a certain mode. *)
 
-(** [analyze_type env ty] produces a fact for the type [ty], using the
-    information stored in [env] about the ambient type definitions. In
-    short, this fact indicates whether [ty] is duplicable, exclusive,
-    or affine. *)
-val analyze_type: env -> typ -> fact
+(* This is a relatively unambitious hoisting transformation: we stop at
+   quantifiers (i.e. we do not go down into them, and we do not hoist
+   constraints out of them). In principle, we could hoist a constraint
+   out of a quantifier if the quantified variable is not free in it; or,
+   more generally, we could hoist not only constraints, but also quantifiers,
+   up to the toplevel. This would probably be essentially useless, though,
+   as we do not expect the programmer to write a mode constraint at an
+   unnecessarily deep position, under a quantifier. (Actually, even the
+   current transformation might be useless? Well, it will allow us to
+   prove, for instance, that {a} (a, (duplicable a | ())) is duplicable.) *)
 
-(** A specialized version of [analyze_type]. *)
-val is_duplicable: env -> typ -> bool
+val hoist: env -> typ -> typ
 
-(** A specialized version of [analyze_type]. *)
-val is_exclusive: env -> typ -> bool
+(* This function extracts the [TyAnd] constructs that are found at the
+   root of a type. *)
+
+val extract_constraints: env -> typ -> mode_constraint list * typ
+

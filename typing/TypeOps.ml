@@ -122,7 +122,9 @@ let rec mark_reachable env t =
 
   | TyBar (t1, t2)
   | TyAnchoredPermission (t1, t2)
-  | TyStar (t1, t2) ->
+  | TyStar (t1, t2)
+  | TyAnd ((_, t1), t2)
+  | TyImply ((_, t1), t2) ->
       List.fold_left mark_reachable env [t1; t2]
 
   | TyApp (t1, t2) ->
@@ -146,11 +148,4 @@ let rec mark_reachable env t =
 
   | TyArrow _ ->
       env
-
-  | TyAnd (constraints, t)
-  | TyImply (constraints, t) ->
-      let env = List.fold_left (fun env (_, t) ->
-        mark_reachable env t
-      ) env constraints in
-      mark_reachable env t
 ;;

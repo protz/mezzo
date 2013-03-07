@@ -155,10 +155,10 @@ type typ =
   | TyNameIntro of Variable.name * typ
   | TyConsumes of typ
   | TyBar of typ * typ
-  | TyAnd of duplicity_constraint list * typ
-  | TyImply of duplicity_constraint list * typ
+  | TyAnd of mode_constraint * typ
+  | TyImply of mode_constraint * typ
 
-and duplicity_constraint = data_type_flag * typ
+and mode_constraint = Mode.mode * typ
 
 and data_type_def_branch =
     Datacon.name * data_field_def list
@@ -166,8 +166,6 @@ and data_type_def_branch =
 and data_field_def =
   | FieldValue of Field.name * typ
   | FieldPermission of typ
-
-and data_type_flag = Exclusive | Duplicable
 
 let ty_equals (v: Variable.name) =
   TySingleton (TyBound v)
@@ -225,14 +223,16 @@ type data_type_def_rhs =
 type adopts_clause =
     typ option
 
-type abstract_fact = 
-  | FExclusive of typ
-  | FDuplicableIf of typ list * typ
+type single_fact = 
+  | Fact of mode_constraint list * mode_constraint
+
+type fact =
+    single_fact list
 
 type data_type_def =
-  | Concrete of data_type_flag * data_type_def_lhs * data_type_def_rhs *
+  | Concrete of DataTypeFlavor.flavor * data_type_def_lhs * data_type_def_rhs *
       adopts_clause
-  | Abstract of data_type_def_lhs * kind * abstract_fact option
+  | Abstract of data_type_def_lhs * kind * fact
 
 (* A data type group is a group of mutually recursive data type definitions. *)
 

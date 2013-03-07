@@ -17,34 +17,89 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** Various checks that we can't perform until a full environment is ready. *)
+type mode =
+  | ModeBottom
+  | ModeDuplicable
+  | ModeExclusive
+  | ModeAffine
 
-open TypeCore
-open DeBruijn
-open Types
-open TypeErrors
+(* Basic operations. *)
 
-let check_adopts_clauses (env: env): unit =
-  fold_definitions env (fun () var definition ->
-    let kind = get_kind env var in
-    match definition with
-    | Some (_, _, Some clause), _ ->
-        let _return_kind, arg_kinds = flatten_kind kind in
-        let arity = List.length arg_kinds in
-        let env, vars = make_datacon_letters env kind false in
-        let clause = MzList.fold_lefti (fun i clause var ->
-          let index = arity - i - 1 in
-          tsubst (TyOpen var) index clause
-        ) clause vars in
-        if not (FactInference.is_exclusive env clause) then
-          raise_error env (
-            BadFactForAdoptedType (var, clause, FactInference.analyze_type env clause)
-          )
-    | _ ->
-        ()
-  ) ()
-;;
+let equal : mode -> mode -> bool =
+  (=)
 
-let check_env (env: env): unit =
-  check_adopts_clauses env
-;;
+let bottom =
+  ModeBottom
+
+let top =
+  ModeAffine
+
+let is_maximal = function
+  | ModeAffine ->
+      true
+  | _ ->
+      false
+
+let leq m1 m2 =
+  match m1, m2 with
+  | ModeBottom, _
+  | _, ModeAffine
+  | ModeDuplicable, ModeDuplicable
+  | ModeExclusive, ModeExclusive ->
+      true
+  | _, _ ->
+      false
+
+let meet m1 m2 =
+  match m1, m2 with
+  | ModeBottom, _
+  | _, ModeBottom ->
+      ModeBottom
+  | ModeAffine, m
+  | m, ModeAffine ->
+      m
+  | _, _ ->
+      if m1 = m2 then m1 else ModeBottom
+
+let print = function
+  | ModeBottom ->
+      "bottom"
+  | ModeDuplicable ->
+      "duplicable"
+  | ModeExclusive ->
+      "exclusive"
+  | ModeAffine ->
+      "affine"
+
+let modes = [
+  ModeBottom;
+  ModeDuplicable;
+  ModeExclusive;
+  ModeAffine
+]
+
+module ModeMap = struct
+  
+  include Map.Make(struct
+      type t = mode
+      let compare = Pervasives.compare
+  end)
+
+  (* Building a total map. *)
+
+  let total f =
+    List.fold_left (fun accu m ->
+      add m (f m) accu
+    ) empty modes
+
+  (* Completing a partial map. *)
+
+  let complete f map =
+    List.fold_left (fun accu m ->
+      if mem m accu then
+	accu
+      else
+	add m (f m) accu
+    ) map modes
+
+end

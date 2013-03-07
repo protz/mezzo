@@ -113,8 +113,8 @@ and typ =
   | TyStar of typ * typ
 
     (** Constraint *)
-  | TyAnd of duplicity_constraint list * typ
-  | TyImply of duplicity_constraint list * typ
+  | TyAnd of mode_constraint * typ
+  | TyImply of mode_constraint * typ
 
 (** Since data constructors are now properly scoped, they are resolved, that is,
  * they are either attached to a point, or a De Bruijn index, which will later
@@ -123,7 +123,7 @@ and typ =
  * definition. *)
 and resolved_datacon = typ * Datacon.name
 
-and duplicity_constraint = SurfaceSyntax.data_type_flag * typ
+and mode_constraint = Mode.mode * typ
 
 
 (** {2 Type definitions} *)
@@ -143,30 +143,11 @@ type data_type_def =
 
 type type_def =
   (* option here because abstract types do not have a definition *)
-    (SurfaceSyntax.data_type_flag * data_type_def * adopts_clause) option
+    (DataTypeFlavor.flavor * data_type_def * adopts_clause) option
   * variance list
 
 type data_type_group =
-  (Variable.name * location * type_def * fact * kind) list
-
-
-(** {2 Facts} *)
-
-(** A fact refers to any type variable available in scope; the first few facts
- * refer to toplevel data types, and the following facts refer to type variables
- * introduced in the scope, because, for instance, we went through a binder in a
- * function type.
- *
- * The [Fuzzy] case is used when we are inferring facts for a top-level data
- * type; we need to introduce the data type's parameters in the environment, but
- * the correponding facts are evolving as we work through our analysis. The
- * integer tells the number of the parameter. *)
-and fact = Exclusive | Duplicable of bitmap | Affine | Fuzzy of int
-
-(** The 0-th element is the first parameter of the type, and the value is true if
-  * it has to be duplicable for the type to be duplicable. *)
-and bitmap = bool array
-
+  (Variable.name * location * type_def * Fact.fact * kind) list
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -257,7 +238,7 @@ val get_names : env -> var -> name list
 val get_kind : env -> var -> kind
 
 (** Get a fact *)
-val get_fact: env -> var -> fact
+val get_fact: env -> var -> Fact.fact
 
 (** Get the locations *)
 val get_locations: env -> var -> location list
@@ -291,7 +272,7 @@ val reset_permissions : env -> var -> env
  * type-checking. *)
 
 (** Set a fact *)
-val set_fact: env -> var -> fact -> env
+val set_fact: env -> var -> Fact.fact -> env
 
 (** Update a definition. This asserts that there used to be a definition before. *)
 val update_definition: env -> var -> (type_def -> type_def) -> env
@@ -394,7 +375,7 @@ module IVarMap: Fix.IMPERATIVE_MAPS with type key = var
 val internal_ptype : (Buffer.t -> env * typ -> unit) ref
 val internal_pnames : (Buffer.t -> env * name list -> unit) ref
 val internal_ppermissions : (Buffer.t -> env -> unit) ref
-val internal_pfact : (Buffer.t -> fact -> unit) ref
+val internal_pfact : (Buffer.t -> Fact.fact -> unit) ref
 val internal_pflexlist: (Buffer.t -> env -> unit)
 val internal_uniqvarid: env -> var -> int
 val internal_checklevel: env -> typ -> unit

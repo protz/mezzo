@@ -22,7 +22,6 @@
 
 open TypeCore
 
-
 (* -------------------------------------------------------------------------- *)
 
 (** {1 Convenient combinators.} *)
@@ -139,7 +138,7 @@ val get_variance : env -> var -> variance list
 val def_for_datacon :
   env ->
   resolved_datacon ->
-  SurfaceSyntax.data_type_flag * data_type_def *
+  DataTypeFlavor.flavor * data_type_def *
   adopts_clause
 
 (** Get the variance of the i-th parameter of a data type. *)
@@ -155,14 +154,6 @@ val is_user : name -> bool
 
 (* -------------------------------------------------------------------------- *)
 
-(** {1 Dealing with facts} *)
-
-val fact_leq : fact -> fact -> bool
-val fact_of_flag : SurfaceSyntax.data_type_flag -> fact
-
-
-(* -------------------------------------------------------------------------- *)
-
 (** {1 Miscellaneous} *)
 
 val fresh_auto_var : string -> name
@@ -171,7 +162,8 @@ val find_type_by_name :
 val make_datacon_letters :
   env ->
   SurfaceSyntax.kind ->
-  bool -> (int -> fact) -> env * var list
+  bool ->
+  env * var list
 
 (** Our not-so-pretty printer for types. *)
 module TypePrinter :
@@ -196,19 +188,16 @@ module TypePrinter :
       name -> kind -> typ -> MzPprint.document
     val print_point : env -> var -> MzPprint.document
     val print_type : env -> typ -> MzPprint.document
-    val print_constraints :
+    val print_constraint :
       env ->
-      duplicity_constraint list -> MzPprint.document
+      mode_constraint -> MzPprint.document
     val print_data_field_def :
       env -> data_field_def -> MzPprint.document
     val print_data_type_def_branch :
       env ->
       Datacon.name ->
       data_field_def list -> typ -> MzPprint.document
-    val print_data_type_flag :
-      SurfaceSyntax.data_type_flag -> MzPprint.document
-    val print_fact : fact -> MzPprint.document
-    val pfact : Buffer.t -> fact -> unit
+    val pfact : Buffer.t -> Fact.fact -> unit
     val print_facts : env -> MzPprint.document
     val print_permission_list :
       env * typ list -> MzPprint.document
@@ -217,7 +206,7 @@ module TypePrinter :
     val ppermissions : Buffer.t -> env -> unit
     val ptype : Buffer.t -> env * typ -> unit
     val penv : Buffer.t -> env -> unit
-    val pconstraints :
-      Buffer.t -> env * duplicity_constraint list -> unit
+    val pconstraint :
+      Buffer.t -> env * mode_constraint -> unit
     val print_binders : env -> MzPprint.document
   end

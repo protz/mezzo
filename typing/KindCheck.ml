@@ -167,6 +167,7 @@ and raw_error =
   | IllegalConsumes
   | BadConditionsInFact of Variable.name
   | BadConclusionInFact of Variable.name
+  | NonDistinctHeadsInFact of Variable.name * Mode.mode
   | DuplicateConstructor of Datacon.name
   | DuplicateField of Variable.name
   | AdopterNotExclusive of Variable.name
@@ -249,6 +250,13 @@ let print_error buf (env, raw_error) =
         Lexer.p env.location
         Variable.p x
         Variable.p x
+  | NonDistinctHeadsInFact (x, mode) ->
+      Printf.bprintf buf
+	"%a distinct facts must concern distinct modes.\n\
+         In the declaration of %a, two distinct facts concern the mode %s"
+        Lexer.p env.location
+	Variable.p x
+	(Mode.print mode)
   | DuplicateField d ->
       Printf.bprintf buf
         "%a the field %a appears several times in this branch"
@@ -292,6 +300,10 @@ let bound_twice env x =
 
 let bad_condition_in_fact env x =
   raise_error env (BadConditionsInFact x)
+;;
+
+let non_distinct_heads_in_fact env x mode =
+  raise_error env (NonDistinctHeadsInFact (x, mode))
 ;;
 
 let bad_conclusion_in_fact env x =
@@ -614,12 +626,7 @@ let rec check_fact_parameter (env: env) (x: Variable.name) (args: Variable.name 
 
 
 (* The conclusion of a fact, if any, must be the exact original type applied to
-   the exact same arguments.
-
-   TEMPORARY: this function implements a purely syntactic check, which only
-   allows for a very limited form of facts. We should recognize both in the
-   parser and here a more general form of facts, with a conjunction of
-   hypotheses that entail an arbitrary predicate. *)
+   the exact same arguments. *)
 let rec check_fact_conclusion (env: env) (x: Variable.name) (args: Variable.name list) (t: typ) =
   match t with
   | TyLocated (t, p) ->
@@ -644,6 +651,15 @@ let rec check_fact_conclusion (env: env) (x: Variable.name) (args: Variable.name
           bad_conclusion_in_fact env x;
 ;;
 
+let check_distinct_heads env name facts =
+  ignore (
+    List.fold_left (fun accu (Fact (_, (mode, _))) ->
+      if Mode.ModeMap.mem mode accu then
+	non_distinct_heads_in_fact env name mode
+      else
+	Mode.ModeMap.add mode () accu
+    ) Mode.ModeMap.empty facts
+  )
 
 let rec check (env: env) (t: typ) (expected_kind: kind) =
   let inferred_kind = infer env t in
@@ -722,10 +738,10 @@ and infer (env: env) (t: typ) =
       check env t2 KPerm;
       KType
 
-  | TyAnd (cs, t)
-  | TyImply (cs, t) ->
-      List.iter (fun (_, t) -> check env t KType) cs;
-      infer env t
+  | TyAnd ((_, t), u)
+  | TyImply ((_, t), u) ->
+      check env t KType;
+      infer env u
 
 and check_field (env: env) (field: data_field_def) =
   match field with
@@ -763,20 +779,16 @@ and check_type_with_names (env: env) (t: typ) (k: kind) =
    well-formed. *)
 let check_data_type_def (env: env) (def: data_type_def) =
   match def with
-  | Abstract ((name, bindings), _return_kind, fact) ->
+  | Abstract ((name, bindings), _return_kind, facts) ->
       (* Get the names of the parameters. *)
       let args = List.map (fun (_, (x, _, _)) -> x) bindings in
       (* Perform a tedious check. *)
-      begin match fact with
-      | Some (FDuplicableIf (clauses, conclusion)) ->
-          List.iter (check_fact_parameter env name args) clauses;
-          check_fact_conclusion env name args conclusion
-      | Some (FExclusive conclusion) ->
-          check_fact_conclusion env name args conclusion
-      | None ->
-          ()
-      end
-  | Concrete (flag, (name, bindings), branches, clause) ->
+      List.iter (function Fact (clauses, conclusion) ->
+        List.iter (fun (_, t) -> check_fact_parameter env name args t) clauses;
+        let (_, t) = conclusion in check_fact_conclusion env name args t
+      ) facts;
+      check_distinct_heads env name facts
+  | Concrete (flavor, (name, bindings), branches, clause) ->
       let bindings = List.map (fun (_, (x, y, _)) -> x, y) bindings in
       let env = List.fold_left bind env bindings in
       (* Check the branches. *)
@@ -787,8 +799,8 @@ let check_data_type_def (env: env) (def: data_type_def) =
       | Some t ->
           check_type_with_names env t KType;
           (* We can do that early. *)
-          if flag <> Exclusive then
-            raise_error env (AdopterNotExclusive name);
+	  if not (DataTypeFlavor.can_adopt flavor) then
+	    raise_error env (AdopterNotExclusive name)
 ;;
 
 
@@ -1071,7 +1083,7 @@ module KindPrinter = struct
 
   (* Prints a data type defined in the global scope. Assumes [print_env] has been
      properly populated. *)
-  let print_data_type_def (env: env) flag name kind variance branches clause =
+  let print_data_type_def (env: env) flavor name kind variance branches clause =
     let _return_kind, params = flatten_kind kind in
     (* Turn the list of parameters into letters *)
     let letters: string list = name_gen (List.length params) in
@@ -1082,12 +1094,8 @@ module KindPrinter = struct
       bind_datacon_parameters env kind branches clause
     in
     let sep = break 1 ^^ bar ^^ space in
-    let flag = match flag with
-      | SurfaceSyntax.Exclusive -> string "mutable" ^^ space
-      | SurfaceSyntax.Duplicable -> empty
-    in
     (* The whole blurb *)
-    flag ^^ string "data" ^^ space ^^ lparen ^^
+    string (DataTypeFlavor.print flavor) ^^ string "data" ^^ space ^^ lparen ^^
     print_var env name ^^ space ^^ colon ^^ space ^^
     print_kind kind ^^ rparen ^^ concat_map (precede space) letters ^^
     space ^^ equals ^^
@@ -1105,8 +1113,8 @@ module KindPrinter = struct
 
   let print_def env name kind def =
     match def with
-    | Some (flag, branches, clause), variance ->
-        print_data_type_def env flag name kind variance branches clause
+    | Some (flavor, branches, clause), variance ->
+        print_data_type_def env flavor name kind variance branches clause
     | None, _ ->
         print_abstract_type_def env name kind
   ;;

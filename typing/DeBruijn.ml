@@ -81,13 +81,11 @@ let lift (k: int) (t: typ) =
     | TyBar (t, p) ->
         TyBar (lift i t, lift i p)
 
-    | TyAnd (constraints, t) ->
-        let constraints = List.map (fun (f, t) -> f, lift i t) constraints in
-        TyAnd (constraints, lift i t)
+    | TyAnd ((m, t), u) ->
+        TyAnd ((m, lift i t), lift i u)
 
-    | TyImply (constraints, t) ->
-        let constraints = List.map (fun (f, t) -> f, lift i t) constraints in
-        TyImply (constraints, lift i t)
+    | TyImply ((m, t), u) ->
+        TyImply ((m, lift i t), lift i u)
 
   in
   lift 0 t
@@ -165,17 +163,12 @@ let tsubst (t2: typ) (i: int) (t1: typ) =
     | TyBar (t, p) ->
         TyBar (tsubst t2 i t, tsubst t2 i p)
 
-    | TyAnd (constraints, t) ->
-        let constraints = List.map (fun (f, t) ->
-          f, tsubst t2 i t
-        ) constraints in
-        TyAnd (constraints, tsubst t2 i t)
+    | TyAnd ((m, t), u) ->
+        TyAnd ((m, tsubst t2 i t), tsubst t2 i u)
 
-    | TyImply (constraints, t) ->
-        let constraints = List.map (fun (f, t) ->
-          f, tsubst t2 i t
-        ) constraints in
-        TyImply (constraints, tsubst t2 i t)
+    | TyImply ((m, t), u) ->
+        TyImply ((m, tsubst t2 i t), tsubst t2 i u)
+
   in
   tsubst t2 i t1
 ;;
@@ -278,13 +271,12 @@ let tpsubst env (t2: typ) (p: var) (t1: typ) =
     | TyBar (t, p) ->
         TyBar (tsubst t2 t, tsubst t2 p)
 
-    | TyAnd (constraints, t) ->
-        let constraints = List.map (fun (f, t) -> f, tsubst t2 t) constraints in
-        TyAnd (constraints, tsubst t2 t)
+    | TyAnd ((m, t), u) ->
+        TyAnd ((m, tsubst t2 t), tsubst t2 u)
 
-    | TyImply (constraints, t) ->
-        let constraints = List.map (fun (f, t) -> f, tsubst t2 t) constraints in
-        TyImply (constraints, tsubst t2 t)
+    | TyImply ((m, t), u) ->
+        TyImply ((m, tsubst t2 t), tsubst t2 u)
+
   in
   tsubst t2 t1
 ;;

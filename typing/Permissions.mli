@@ -47,7 +47,7 @@ val sub_type: env -> typ -> typ -> result
 
 val add_hint: (name option) -> string -> (name option)
 
-val sub_constraints: env -> duplicity_constraint list -> result
+val sub_constraint: env -> mode_constraint -> result
 
 (** Only keep the duplicable portions of the environment. *)
 val keep_only_duplicable: env -> env
