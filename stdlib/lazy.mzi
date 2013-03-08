@@ -20,8 +20,5 @@ val create: [a, p: perm] duplicable a => (
 
 (* Demand. *)
 
-(* Because a thunk can be forced several times, the type [a] must be
-   duplicable. *)
-
-val force: [a] duplicable a => thunk a -> a
+val force: [a] thunk a -> a
 
