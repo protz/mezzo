@@ -727,7 +727,22 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
       Log.error "Constraints should've been processed when this permission was added"
 
   | TyImply (c, t1), t2 ->
-      sub_type env t1 (TyAnd (c, t2))
+      (* If the constraint [c] happens to hold in the current environment, then
+	 [c => t1] is equivalent to [t1], and we can continue with the subtraction
+	 [t1 - t2]. *)
+      sub_constraint env c >>= fun env ->
+      sub_type env t1 t2
+      (* The previous version of the code:
+         sub_type env t1 (TyAnd (c, t2))
+	 is unsound, because [c => t1] does not imply [t1]. *)
+
+      (* TEMPORARY due to the presence of flexible variables, maybe it would be
+	 better to first compute [t1 - t2] and then check that [c] holds. Can
+	 this be written like this?
+      sub_type env t1 t2 >> fun env ->
+      sub_constraint env c
+      One must be careful: [t1] can be used to justify [t2], but must not be
+      used to justify [c]. *)
 
   | _, TyAnd (c, t2) ->
       (* First do the subtraction, because the constraint may be "duplicable α"
