@@ -558,10 +558,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test ((Fail (function NoSuchField _ -> true | _ -> false))));
 
   ("fail4.mz",
-    simple_test ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+    simple_test ((Fail (function ExpectedType _ -> true | _ -> false))));
 
   ("fail5.mz",
-    simple_test ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+    simple_test ((Fail (function ExpectedType _ -> true | _ -> false))));
 
   ("fail6.mz",
     simple_test ((Fail (function ExpectedType _ -> true | _ -> false))));

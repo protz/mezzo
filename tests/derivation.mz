@@ -1,2 +1,24 @@
-val f [a] (x: a): a =
-  x
+mutable data mlist a =
+  | MNil
+  | MCons { head: a; tail: mlist a }
+
+val rev [a] (consumes l: mlist a): mlist a =
+  match l with
+  | MNil ->
+      MNil
+  | MCons ->
+      let rec rev [a] (
+        consumes r: mlist a,
+        consumes p: MCons { head: a; tail: mlist a }
+      ): mlist a =
+        let tail = p.tail in
+        p.tail <- r;
+        match tail with
+        | MNil ->
+            MNil
+        | MCons ->
+            rev (p, tail)
+        end
+      in
+      rev MNil l
+  end

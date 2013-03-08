@@ -679,7 +679,7 @@ and sub (env: env) (var: var) ?no_singleton (t: typ): result =
           else
             set_permissions env var remaining
         in
-        sub_type env t_x t
+        sub_type env ~no_singleton:() t_x t
       )
 
 
@@ -735,7 +735,7 @@ and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): result =
     
     BEWARE: this is *not* the function that is exported as "sub_type". We export
     "sub_type_with_unfolding" as "sub_type". *)
-and sub_type (env: env) (t1: typ) (t2: typ): result =
+and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
   TypePrinter.(
     Log.debug ~level:4 "[sub_type] %a %s—%s %a"
       ptype (env, t1)
@@ -1167,7 +1167,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): result =
         qed
       end
 
-  | TySingleton t1, t2 ->
+  | TySingleton t1, t2 when not (Option.unit_bool no_singleton) ->
       let var = !!t1 in
       try_proof_root "Singleton-Fold" begin
         sub env var ~no_singleton:() t2 >>=
