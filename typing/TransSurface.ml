@@ -284,7 +284,9 @@ and translate_fields: env -> data_field_def list -> T.data_field_def list = fun 
 and translate_arrow_type env t1 t2 =
 
   (* Collect nested constraints and put them in an outermost position to
-   * simplify as much as possible the function type. TEMPORARY remove *)
+   * simplify as much as possible the function type. *)
+  (* TEMPORARY I do not understand why several tests fail if I remove
+     the three lines of the [TyAnd] case below? *)
   let rec collect_constraints t =
     match t with
     | TyAnd (c, t) ->

@@ -813,6 +813,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("dup_sign2.mz", simple_test (Fail (function UnsatisfiableConstraint _ -> true | _ -> false)));
   ("dup_sign3.mz", pass);
   ("dup_sign4.mz", pass);
+  ("dup_sign5.mz", fail);
 
   ("tableau.mz", pass);
   ("smemoize.mz", pass);
