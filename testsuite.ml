@@ -873,6 +873,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("tyand01.mz", pass);
   ("tyand02.mz", pass);
   ("tyand03.mz", fail);
+  ("tyand04.mz", pass);
+  ("tyand05.mz", fail);
 
 ];;
 

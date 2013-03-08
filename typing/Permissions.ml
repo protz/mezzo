@@ -755,7 +755,9 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   | t1, TyImply (c, t2) ->
       let env = FactInference.assume env c in
       sub_type env t1 t2
-
+      (* TEMPORARY this rule seems unsound: assuming [c] while proving
+	 [t2] is fine, but [c] should not *remain* assumed afterwards.
+	 See tests/tyand05.mz. *)
 
   (** Higher priority for binding rigid = universal quantifiers. *)
 
