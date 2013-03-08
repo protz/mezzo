@@ -1,0 +1,7 @@
+val g [a] (id: (duplicable a | a -> a)) : () =
+  fail
+
+val f [a] duplicable a => (id: a -> a) : () =
+  g id
+
+(* this should succeed *)
