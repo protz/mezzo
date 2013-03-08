@@ -5,7 +5,7 @@ mutable data tree k a =
 
 val concat_or_join [k, a] (consumes t: Node { left: tree k a; key: k; value: option a; right: tree k a; height: unknown }) : tree k a =
   match t.value with
-  | Some { value = d } -> (* BUG if I replace "contents" with "value", I get Assert_failure *)
+  | Some { value = d } ->
       fail
   | None ->
       fail

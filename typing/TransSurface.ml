@@ -284,7 +284,9 @@ and translate_fields: env -> data_field_def list -> T.data_field_def list = fun 
 and translate_arrow_type env t1 t2 =
 
   (* Collect nested constraints and put them in an outermost position to
-   * simplify as much as possible the function type. TEMPORARY remove *)
+   * simplify as much as possible the function type. *)
+  (* TEMPORARY I do not understand why several tests fail if I remove
+     the three lines of the [TyAnd] case below? *)
   let rec collect_constraints t =
     match t with
     | TyAnd (c, t) ->
@@ -309,10 +311,7 @@ and translate_arrow_type env t1 t2 =
    * the returned type. Note: this variable name is not lexable, so no risk
    * of conflict. *)
   let root = fresh_var "/root" in
-  let root_binding = root, KTerm, (tloc t1) in
-    (* TEMPORARY this call to [tloc] works by chance; there is no
-       guarantee that [t1] begins with a location here; in fact,
-       it fails if I remove [collect_constraints] above *)
+  let root_binding = root, KTerm, env.location in
 
   (* We now turn the argument into (=root | root @ t1 ∗ c @ … ∗ …) with [t1]
    * now devoid of any consumes annotations. *)

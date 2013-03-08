@@ -755,6 +755,10 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
   (** Trivial case. *)
   | _, _ when equal env t1 t2 ->
       try_proof_root "Equal" (qed env)
+  (* TEMPORARY could we get rid of this fast path? 1- it may be inefficient
+     2- it may be the only place in the code where we are comparing two types
+     for syntactic equality 3- by removing it, we will be able to discover if
+     some structural rules are missing below. *)
 
   (** Easy cases involving flexible variables *)
   | TyOpen v1, _ when is_flexible env v1 ->
@@ -776,8 +780,23 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
   | TyImply (c, t1), t2 ->
       try_proof_root "Imply-L-Is-Constraints-R" begin
-        sub_type env t1 (TyAnd (c, t2)) >>=
+        (* If the constraint [c] happens to hold in the current environment, then
+           [c => t1] is equivalent to [t1], and we can continue with the subtraction
+           [t1 - t2]. *)
+        sub_constraint env c >>= fun env ->
+        sub_type env t1 t2 >>=
         qed
+        (* The previous version of the code:
+           sub_type env t1 (TyAnd (c, t2))
+           is unsound, because [c => t1] does not imply [t1]. *)
+
+        (* TEMPORARY due to the presence of flexible variables, maybe it would be
+           better to first compute [t1 - t2] and then check that [c] holds. Can
+           this be written like this?
+        sub_type env t1 t2 >> fun env ->
+        sub_constraint env c
+        One must be careful: [t1] can be used to justify [t2], but must not be
+        used to justify [c]. *)
       end
 
   | _, TyAnd (c, t2) ->
@@ -795,6 +814,9 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
       try_proof_root "Imply-R" begin
         let env = FactInference.assume env c in
         sub_type env t1 t2 >>=
+        (* TEMPORARY this rule seems unsound: assuming [c] while proving
+           [t2] is fine, but [c] should not *remain* assumed afterwards.
+           See tests/tyand05.mz. *)
         qed
       end
 
@@ -838,6 +860,9 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
   | TyTuple components1, TyTuple components2
     when List.length components1 = List.length components2 ->
+    (* TEMPORARY the above [when] clause is sound, but when the two lengths
+       do NOT match, we could issue a good error message; for now, we are
+       missing this opportunity. *)
       try_proof_root "Tuple" begin
         premises env (List.map2 (fun t1 t2 -> fun env ->
           match t1, t2 with
