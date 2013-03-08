@@ -203,13 +203,6 @@ let rec tunloc = function
       t
 ;;
 
-let tloc = function
-  | TyLocated (_, p) ->
-      p
-  | _ ->
-      Log.error "[tloc] only works when you know for sure the type is located"
-;;
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Algebraic data type definitions. *)
