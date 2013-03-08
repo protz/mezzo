@@ -31,13 +31,11 @@ val new_block [a] (r: region a) : dynamic (* block *) =
 val new_item [a] (r: region a, consumes x: a) : dynamic (* cell *) =
   let i = Item { block = (); payload = x } in
   i.block <- i;
-  doublylinked::create [item a] (r.cells, i)
-    (* WISH I don't understand why this type application is required *)
+  doublylinked::create (r.cells, i)
 
 val attach [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : () =
   (* Update the cell [c], which is now a member of [b]. *)
-  doublylinked::consult [item a] (r.cells, c, fun (i : item a) : () =
-    (* WISH I don't understand why this type application is required *)
+  doublylinked::consult (r.cells, c, fun (i : item a) : () =
     (* Check that this item was detached. *)
     if (i.block != i) then
       fail;
@@ -53,15 +51,14 @@ val attach [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : ()
 	   No insertion is required. *)
     | Some ->
         (* Insert the cell [c] into the cycle of the elements of [b]. *)
-        doublylinked::meld [item a] (r.cells, c, b.cell.contents)
-          (* WISH I don't understand why this type application is required *)
+        doublylinked::meld (r.cells, c, b.cell.contents)
     end
   end
 
 val detach [a] (r: region a, c: dynamic (* cell *)) : () =
   (* Update the cell [c], which is no longer a member of [b]. *)
   let b : dynamic =
-    doublylinked::consult [a = item a] (r.cells, c, fun (i : item a) : dynamic =
+    doublylinked::consult (r.cells, c, fun (i : item a) : dynamic =
       if (i.block == i) then
 	fail;
       let b = i.block in
@@ -76,9 +73,9 @@ val detach [a] (r: region a, c: dynamic (* cell *)) : () =
       b.cell <- none [dynamic] (* WISH get rid of this type application? *)
     else if b.cell == c then
       (* If the representative element of [b] is [c], find another. *)
-      b.cell <- some (doublylinked::next [item a] (r.cells, c));
+      b.cell <- some (doublylinked::next (r.cells, c));
     (* Take the cell [c] out of the cycle of the elements of [b]. *)
-    doublylinked::isolate [item a] (r.cells, c)
+    doublylinked::isolate (r.cells, c)
   end
 
 val move [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : () =
@@ -86,7 +83,7 @@ val move [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : () =
   attach (r, b, c)
 
 val block [a] (r: region a, c: dynamic (* cell *)) : dynamic (* block *) =
-  doublylinked::consult [item a] (r.cells, c, fun (i : item a) : dynamic =
+  doublylinked::consult (r.cells, c, fun (i : item a) : dynamic =
     if (i.block == i) then
       fail;
     i.block
