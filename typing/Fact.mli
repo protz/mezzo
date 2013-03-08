@@ -121,9 +121,10 @@ val leq: fact -> fact -> bool
 val join: fact -> fact -> fact
 val join_many: ('a -> fact) -> 'a list -> fact
 
-(** The lattice meet. Beware: this operation is defined only for facts
-    of arity zero. (These facts are isomorphic to modes, and this
-    operation has the same effect as [Mode.meet].) *)
+(** The lattice meet. Beware: this operation is defined only when its
+    left-hand argument is a fact of arity zero. (Such a fact is isomorphic to
+    a mode. When both arguments are facts of arity zero, this operation has
+    the same effect as [Mode.meet].) *)
 val meet: fact -> fact -> fact
 
 (** Recognition of maximal facts is not performed. This function

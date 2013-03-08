@@ -68,8 +68,9 @@ type world = {
 
 (* ---------------------------------------------------------------------------- *)
 
-(* TEMPORARY think about the treatment of assumptions on parameters *)
-let assumew w c =
+(* A wrapper for [assume]. *)
+
+let assumew (w : world) (c : mode_constraint) : world =
   { w with env = assume w.env c }
 
 (* ---------------------------------------------------------------------------- *)
@@ -89,23 +90,32 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      or a parameter or a pre-existing variable. In the first two cases, it
      must be rigid, I think; in the last case, it could be rigid or flexible. *)
 
-  (* We distinguish only two cases: either [v] is a parameter, or it is not. *)
-
-  (* Note: [VarMap] supports rigid variables only. *)
-
-  | TyOpen v when is_rigid w.env v && VarMap.mem v w.parameters ->
-
-      (* [v] is a parameter [p]. We produce a fact of the form [m p => m],
-	 for every mode [m]. This means ``for every mode [m], if the
-	 parameter [p] has mode [m], then this type has mode [m].'' *)
-      let p : parameter = VarMap.find v w.parameters in
-      Fact.parameter p
+  (* We distinguish only two cases: either [v] is a parameter, or it is not.
+     In fact, regardless of this distinction, we always look up the
+     environment in order to find an assumption about [v]. Additionally, if
+     [v] is a parameter, then we construct a fact of the form [m p => m], for
+     every mode [m], which means ``for every mode [m], if the parameter [p]
+     has mode [m], then this type has mode [m].'' We take the meet of these
+     two facts, since both are true. The meet is well-defined when its
+     left-hand argument has arity zero, which is the case here, as the fact
+     stored in the environment for a variable of kind [type] or [perm] always
+     has arity zero. *)
 
   | TyOpen v ->
 
-      (* [v] is not a parameter. We look up the environment in order to
-	 obtain a fact for it. *)
-      get_fact w.env v
+      (* Always look up the environment. *)
+      let fact1 = get_fact w.env v in
+
+      (* Check whether [v] is a parameter, and if so, create a more precise
+	 fact. Note: [VarMap] supports rigid variables only, hence the check
+	 in two steps. *)
+      if is_rigid w.env v && VarMap.mem v w.parameters then
+	let p : parameter = VarMap.find v w.parameters in
+	let fact2 = Fact.parameter p in
+	Fact.meet fact1 fact2
+      
+      else
+	fact1
 
   (* In a type application, the type constructor [v] cannot be local and
      cannot be a parameter (due to restrictions at the kind level). It

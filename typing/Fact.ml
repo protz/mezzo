@@ -83,20 +83,21 @@ let conjunction f xs =
     binary_conjunction accu (f x)
   ) trivial xs
 
-(* Disjunction of hypotheses. Defined only at arity zero, i.e., when
-   there are no parameters. In that case, [HConjunction] is synonymous
-   with [HTrue], and the definition is simple. *)
+(* Disjunction of hypotheses. Defined only when the left-hand fact has
+   arity zero, i.e., it has no parameters (in other words, it is a
+   constant fact). In that case, [HConjunction] is synonymous with
+   [HTrue], and the definition is simple. *)
 
 let binary_disjunction (h1 : hypothesis) (h2 : hypothesis) : hypothesis =
   match h1, h2 with
-  | HFalse, HFalse ->
-      HFalse
-  | HConjunction hs1, _ ->
+  | HFalse, h
+  | h, HFalse ->
+      h
+  | HConjunction hs1, HConjunction _ ->
       assert (ParameterMap.cardinal hs1 = 0);
+      (* [hs1] is an empty empty conjunction, i.e. it is true.
+	 The result is true as well. *)
       h1
-  | _, HConjunction hs2 ->
-      assert (ParameterMap.cardinal hs2 = 0);
-      h2
 
 (* The constant mode [m] is can be viewed as a fact: every mode [m']
    that is equal to or above [m] is mapped to [true], the empty conjunction,

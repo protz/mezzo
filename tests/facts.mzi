@@ -1,0 +1,6 @@
+abstract copycat a
+fact duplicable a => duplicable (copycat a)
+fact exclusive a => exclusive (copycat a)
+
+abstract duplicable_thing a
+fact duplicable (duplicable_thing a)

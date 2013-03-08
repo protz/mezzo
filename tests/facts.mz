@@ -12,6 +12,9 @@ abstract copycat a
 fact duplicable a => duplicable (copycat a)
 fact exclusive a => exclusive (copycat a)
 
+data duplicable_thing a =
+  Dup { thing: (duplicable a | a) }
+
 val () =
   d [int] ();
   d [[a]a] ();
@@ -44,3 +47,7 @@ val () =
   x [copycat (ref int)] ();
   d [copycat (copycat int, copycat int)] ();
   x [copycat (copycat (ref int))] ();
+  d [{a} duplicable_thing a] (); 
+  (* d [{a} (a, duplicable_thing a)] ();
+     This type is in fact duplicable, but in order to see that, we would
+     have to unfold the definition of [duplicable_thing]. *)

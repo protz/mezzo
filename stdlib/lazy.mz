@@ -31,6 +31,12 @@ data state a =
 (* The existential quantification over [b], which is a subtype of
    [a], is used to make [thunk] covariant in its parameter [a]. *)
 
+(* We might wish to store the information [duplicable a] as part
+   of the definition of [thunk a]. This would allow us to remove
+   the assumption [duplicable a => ...] in the type of [force].
+   However, if we do that, [thunk] is no longer covariant in [a]!
+   Subtle. *)
+
 data thunk +a =
   | Thunk { thunk: {b} (wref (state b) | id @ b -> a) }
 
