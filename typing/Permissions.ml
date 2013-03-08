@@ -714,6 +714,10 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
   | _, _ when equal env t1 t2 ->
       Log.debug ~level:5 "↳ fast-path";
       Some env
+  (* TEMPORARY could we get rid of this fast path? 1- it may be inefficient
+     2- it may be the only place in the code where we are comparing two types
+     for syntactic equality 3- by removing it, we will be able to discover if
+     some structural rules are missing below. *)
 
   (** Easy cases involving flexible variables *)
   | TyOpen v1, _ when is_flexible env v1 ->
@@ -787,6 +791,9 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
   | TyTuple components1, TyTuple components2
     when List.length components1 = List.length components2 ->
+    (* TEMPORARY the above [when] clause is sound, but when the two lengths
+       do NOT match, we could issue a good error message; for now, we are
+       missing this opportunity. *)
       List.fold_left2 (fun env t1 t2 ->
         env >>= fun env ->
         match t1, t2 with
@@ -805,6 +812,7 @@ and sub_type (env: env) (t1: typ) (t2: typ): env option =
 
   | TyConcreteUnfolded (datacon1, fields1, clause1), TyConcreteUnfolded (datacon2, fields2, clause2)
     when List.length fields1 = List.length fields2 ->
+    (* TEMPORARY why compare the lengths? *)
       if resolved_datacons_equal env datacon1 datacon2 then
         sub_type env clause1 clause2 >>= fun env ->
         List.fold_left2 (fun env f1 f2 ->
