@@ -779,7 +779,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
       Log.error "Constraints should've been processed when this permission was added"
 
   | TyImply (c, t1), t2 ->
-      try_proof_root "Imply-L-Is-Constraints-R" begin
+      try_proof_root "Imply-L" begin
         (* If the constraint [c] happens to hold in the current environment, then
            [c => t1] is equivalent to [t1], and we can continue with the subtraction
            [t1 - t2]. *)
