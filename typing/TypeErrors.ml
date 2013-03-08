@@ -247,10 +247,10 @@ let print_error buf (env, raw_error) =
         ptype (env, t);
   | ExpectedType (t, var, d) ->
       Printf.bprintf buf
-        "%a could not extract from %a the following type:\n%a\n\
+        "%a  could not extract from this subexpression (named %a) the following type:\n%a\n\
           some explanations follow:\n%a"
         Lexer.p (location env)
-        pname (env, var)
+        pnames (env, get_names env var)
         ptype (env, t)
         pderivation d
   | RecursiveOnlyForFunctions ->

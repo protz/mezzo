@@ -1048,7 +1048,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         let rec add_sub env ps1 ps2 k: state =
           match MzList.take_bool (works_for_add env) ps1 with
           | Some (ps1, p1) ->
-              let env = add_perm env p1 in
+              let sub_env = add_perm env p1 in
+              apply_axiom env (JAdd p1) "Add-Sub-Add" sub_env >>= fun env ->
               add_sub env ps1 ps2 k
           | None ->
               match MzList.take_bool (works_for_sub env) ps2 with
