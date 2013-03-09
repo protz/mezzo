@@ -1227,6 +1227,9 @@ and sub_perm (env: env) (t: typ): result =
   | _ ->
       sub_floating_perm env t
 
+(* This function returns a [state] so as to not introduce another judgement when
+ * proving a series of permissions. If you need a result so as to chain that
+ * with something else, use [sub_perm env (fold_star perms)]. *)
 and sub_perms (env: env) (perms: typ list): state =
   (* The order in which we subtract a bunch of permission is important because,
    * again, some of them may have their lhs flexible. Therefore, there is a
