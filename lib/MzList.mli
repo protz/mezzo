@@ -63,9 +63,6 @@ val last: 'a list -> 'a
 (** Map a function and then discard the result. *)
 val ignore_map : ('a -> 'b) -> 'a list -> unit
 
-(** [append_rev_front l1 l2] is tail-rec and returns [(List.rev l1) :: l2]. *)
-val append_rev_front : 'a list -> 'a list -> 'a list
-
 (** Checking for duplicates in a list. [check_for_duplicates compare xs] returns either
     [Some (x1, x2)] where [x1] and [x2] are distinct elements of the list [xs] such
     that [compare x1 x2] is zero, or [None], if no such two elements exist. *)

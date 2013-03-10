@@ -45,12 +45,6 @@ let iter2i f l l' =
   in
   iter2i 0 f l l'
 
-let rec append_rev_front x y = match x,y with
-  | [], l ->
-      l
-  | x::xs, l ->
-      append_rev_front xs (x :: l)
-
 (* Checking for duplicates in a list. [check_for_duplicates compare xs] returns either
    [Some (x1, x2)] where [x1] and [x2] are distinct elements of the list [xs] such
    that [compare x1 x2] is zero, or [None], if no such two elements exist. *)
@@ -190,7 +184,7 @@ let take f l =
     | elt :: l' ->
         match f elt with
         | Some result ->
-            Some (append_rev_front l l', (elt, result))
+            Some (List.rev_append l l', (elt, result))
         | None ->
             take (elt :: l) l'
   in
