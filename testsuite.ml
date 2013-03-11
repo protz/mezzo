@@ -872,13 +872,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("local-type2.mz", simple_test ~known_failure:() Pass);
   ("local-type3.mz", simple_test ~known_failure:() Pass);
   ("local-type4.mz", pass);
-  ("tyapp.mz", pass);
+  ("tyapp.mz", simple_test ~known_failure:() Pass);
   ("tyand00.mz", fail);
   ("tyand01.mz", pass);
   ("tyand02.mz", pass);
   ("tyand03.mz", fail);
   ("tyand04.mz", pass);
-  ("tyand05.mz", fail);
+  ("tyand05.mz", simple_test ~known_failure:() (Fail (fun _ -> true)));
 
 ];;
 
