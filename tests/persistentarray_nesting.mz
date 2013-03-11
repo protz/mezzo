@@ -49,7 +49,7 @@ val create [a] duplicable a => (n: int, x: a) : parray a =
   let p = PFlat { contents = t; unused1 = (); unused2 = () } in
   (* Create the region [r] and make [p] an element of it. *)
   let r = Region in
-  nest r; (* the system infers (p @ point r a)! *)
+  nest [(p @ point r a)] r; (* the system no longer infers (p @ point r a)! *)
   (* Create a lock that protects [r]. *)
   let l : lock (r @ region) = lock::new () in
   (* Done. *)
@@ -164,7 +164,7 @@ val set [a] duplicable a => (pa: parray a, i: int, v: a) : parray a =
     (* We need to nest [q] in [r] before we can defocus [p], because defocusing
        [p] requires [p.previous] to be a valid inhabitant of [r]. Thus, we must
        be able to nest a permission into a punched region. *)
-    nest_punched r; (* the system infers the type application (q @ point r a)! *)
+    nest_punched [(q @ point r a)] r; (* the system no longer infers the type application (q @ point r a)! *)
     p.previous <- q;
     defocus r;
     PArray { contents = (r, l, q) }
