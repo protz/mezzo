@@ -93,22 +93,6 @@ let ty_app t args =
 
 let flatten_kind = SurfaceSyntax.flatten_kind;;
 
-let rec flatten_star env t =
-  let t = modulo_flex env t in
-  match t with
-  | TyStar (p, q) ->
-      flatten_star env p @ flatten_star env q
-  | TyEmpty ->
-      []
-  | TyOpen _
-  | TyBound _
-  | TyAnchoredPermission _
-  | TyApp _ ->
-      [t]
-  | _ ->
-      Log.error "[flatten_star] only works for types with kind perm"
-;;
-
 let fold_star perms =
   if List.length perms > 0 then
     MzList.reduce (fun acc x -> TyStar (acc, x)) perms
@@ -313,6 +297,21 @@ let rec get_kind_for_type env t =
   | TyImply (_, t)
   | TyAnd (_, t) ->
       get_kind_for_type env t
+;;
+
+
+let rec flatten_star env t =
+  let t = modulo_flex env t in
+  match t with
+  | TyStar (p, q) ->
+      flatten_star env p @ flatten_star env q
+  | TyEmpty ->
+      []
+  | _ ->
+      Log.check
+        (get_kind_for_type env t = KPerm)
+        "Bad internal usage of [flatten_star].";
+      [t]
 ;;
 
 

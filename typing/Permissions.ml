@@ -156,15 +156,8 @@ let perm_not_flex env t =
       not (is_flexible env !!x)
   | TyOpen p ->
       not (is_flexible env p)
-  | TyStar _ ->
-      true
-  | TyEmpty ->
-      true
-  | TyApp _ ->
-      true
   | _ ->
-      Log.error "You should not call [perm_not_flex] on %a"
-        TypePrinter.ptype (env, t)
+      true
 ;;
 
 (** Wraps [p] in a bar so that we send this operation into the awesome
@@ -1251,18 +1244,26 @@ and sub_perms (env: env) (perms: typ list): state =
               no_proof env (JSubPerm perm)
         ) perms)
 
-and sub_floating_perm (env: env) (t: typ): result =
-  match MzList.take (fun t' -> sub_type env t t' |> drop_derivation) (get_floating_permissions env) with
-  | Some (remaining_perms, (t', env)) ->
-      let sub_env =
-        if FactInference.is_duplicable env t' then
-          env
-        else
-          set_floating_permissions env remaining_perms
-      in
-      apply_axiom env (JSubFloating t) "Floating-In-Env" sub_env
-  | None ->
-      no_proof env (JSubFloating t)
+and sub_floating_perm (env: env) (t0: typ): result =
+  match modulo_flex env t0 with
+  | TyExists (binding, t) ->
+      try_proof env (JSubFloating t0) "Exists-R" begin
+        let env, t, _ = bind_flexible_in_type env binding t in
+        sub_floating_perm env t >>=
+        qed
+      end
+  | _ as t ->
+      match MzList.take (fun t' -> sub_type env t t' |> drop_derivation) (get_floating_permissions env) with
+      | Some (remaining_perms, (t', env)) ->
+          let sub_env =
+            if FactInference.is_duplicable env t' then
+              env
+            else
+              set_floating_permissions env remaining_perms
+          in
+          apply_axiom env (JSubFloating t) "Floating-In-Env" sub_env
+      | None ->
+          no_proof env (JSubFloating t)
 ;;
 
 (** The version we export is actually the one with unfolding baked in. This is

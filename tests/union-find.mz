@@ -1,0 +1,42 @@
+open nest
+
+(** A version of a mutable union-find done using nesting. *)
+
+(** We need a top-level element that will hold the ownership for all the
+ * elements of the union-find. *)
+mutable data state = 
+  UnionFind
+
+(** An element in the union-find is either a [link] or a [root]. *)
+mutable data content a =
+  | Link { link: content a }
+  | Root { descr: a }
+
+val new (): state =
+  UnionFind
+
+val create [a] duplicable a => (s: state, x: a): (| {e: term} nests s (e @ content a)) =
+  let e = Root { descr = x } in
+  nest [(e @ content a)] s;
+  assert nests s (e @ content a) * s @ state * x @ a;
+  ()
+
+val rec repr [a] duplicable a => (consumes x: content a): Root { descr: a } =
+  match x with
+  | Link ->
+      let r = repr x.link in
+      x.link <- r;
+      r
+  | Root ->
+      x
+  end
+
+val unify [a] duplicable a => (x: content a, y: content a): () =
+  let x = repr x in
+  let y = repr y in
+  if x == y then
+    ()
+  else begin
+    tag of x <- Link;
+    x.link <- y
+  end
