@@ -15,11 +15,13 @@ mutable data content a =
 val new (): state =
   UnionFind
 
-val create [a] duplicable a => (s: state, x: a): (| {e: term} nests s (e @ content a)) =
+data element (s: term) a =
+  | Element { element: (element: unknown | nests s (element @ content a)) }
+
+val create [a] duplicable a => (s: state, x: a): (element s a) =
   let e = Root { descr = x } in
   nest [(e @ content a)] s;
-  assert nests s (e @ content a) * s @ state * x @ a;
-  ()
+  e
 
 val rec repr [a] duplicable a => (consumes x: content a): Root { descr: a } =
   match x with
@@ -31,12 +33,13 @@ val rec repr [a] duplicable a => (consumes x: content a): Root { descr: a } =
       x
   end
 
-val unify [a] duplicable a => (x: content a, y: content a): () =
-  let x = repr x in
-  let y = repr y in
+val unify [a] duplicable a => (s: state, x: element s a, y: element s a): () =
   if x == y then
     ()
   else begin
+    focus [(x @ content a)] s;
+    let x = repr x in
+    let y = repr y in
     tag of x <- Link;
     x.link <- y
   end

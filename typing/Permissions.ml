@@ -1253,17 +1253,20 @@ and sub_floating_perm (env: env) (t0: typ): result =
         qed
       end
   | _ as t ->
-      match MzList.take (fun t' -> sub_type env t t' |> drop_derivation) (get_floating_permissions env) with
-      | Some (remaining_perms, (t', env)) ->
+      try_several
+        env
+        (JSubFloating t)
+        "Floating-In-Env"
+        (get_floating_permissions env)
+        (fun env remaining_perms t' ->
           let sub_env =
             if FactInference.is_duplicable env t' then
               env
             else
               set_floating_permissions env remaining_perms
           in
-          apply_axiom env (JSubFloating t) "Floating-In-Env" sub_env
-      | None ->
-          no_proof env (JSubFloating t)
+          sub_type sub_env t' t
+        )
 ;;
 
 (** The version we export is actually the one with unfolding baked in. This is

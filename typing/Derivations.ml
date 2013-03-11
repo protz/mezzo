@@ -193,7 +193,7 @@ let try_several
     | [] ->
         None, bad failed_derivations
     | item :: remaining ->
-        match f original_env remaining item with
+        match f original_env (List.rev_append failed_items remaining) item with
         | Some env, derivation ->
             Some env, good derivation
         | None, derivation ->
