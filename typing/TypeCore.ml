@@ -593,7 +593,7 @@ end
    automatically extended when a binding is entered. No type normalization
    is performed. *)
 
-class virtual ['env] map = object (self)
+class ['env] map = object (self)
 
   inherit ['env, typ] visitor
 
@@ -652,7 +652,7 @@ class virtual ['env] map = object (self)
     TyImply (self#mode_constraint env c, self#visit env ty)
 
   (* An auxiliary method for transforming a list of types. *)
-  method visit_many env tys =
+  method private visit_many env tys =
     List.map (self#visit env) tys
 
   (* An auxiliary method for transforming a branch. *)
@@ -672,7 +672,7 @@ class virtual ['env] map = object (self)
         FieldPermission (self#visit env p)
 
   (* An auxiliary method for transforming a mode constraint. *)
-  method mode_constraint env (mode, ty) =
+  method private mode_constraint env (mode, ty) =
     (mode, self#visit env ty)
 
 end

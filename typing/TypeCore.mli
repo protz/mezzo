@@ -385,3 +385,77 @@ val internal_pflexlist: (Buffer.t -> env -> unit)
 val internal_uniqvarid: env -> var -> int
 val internal_checklevel: env -> typ -> unit
 val internal_wasflexible: var -> bool
+
+(** {1 Visitors for the internal syntax of types} *)
+
+(* A generic visitor. *)
+
+class virtual ['env, 'result] visitor : object
+
+  (* This method, whose default implementation is the identity,
+     allows normalizing a type before inspecting its structure.
+     This can be used, for instance, to replace flexible variables
+     with the type that they stand for. *)
+  method normalize: 'env -> typ -> typ
+
+  (* The main visitor method inspects the structure of [ty] and
+     dispatches control to the appropriate case method. *)
+  method visit: 'env -> typ -> 'result
+
+  (* The case methods have no default implementation. *)
+  method virtual tyunknown: 'env -> 'result
+  method virtual tydynamic: 'env -> 'result
+  method virtual tybound: 'env -> db_index -> 'result
+  method virtual tyopen: 'env -> var -> 'result
+  method virtual tyforall: 'env -> type_binding -> flavor -> typ -> 'result
+  method virtual tyexists: 'env -> type_binding -> typ -> 'result
+  method virtual tyapp: 'env -> typ -> typ list -> 'result
+  method virtual tytuple: 'env -> typ list -> 'result
+  method virtual tyconcreteunfolded: 'env -> resolved_branch -> 'result
+  method virtual tysingleton: 'env -> typ -> 'result
+  method virtual tyarrow: 'env -> typ -> typ -> 'result
+  method virtual tybar: 'env -> typ -> typ -> 'result
+  method virtual tyanchoredpermission: 'env -> typ -> typ -> 'result
+  method virtual tyempty: 'env -> 'result
+  method virtual tystar: 'env -> typ -> typ -> 'result
+  method virtual tyand: 'env -> mode_constraint -> typ -> 'result
+  method virtual tyimply: 'env -> mode_constraint -> typ -> 'result
+
+end
+
+(* A [map] specialization of the visitor. *)
+
+(* In this version, the environment can be of an arbitrary type, and is not
+   automatically extended when a binding is entered. No type normalization
+   is performed. *)
+
+class ['env] map : object
+
+  inherit ['env, typ] visitor
+
+  (* The case methods now perform a recursive traversal. *)
+  method tyunknown: 'env -> typ
+  method tydynamic: 'env -> typ
+  method tybound: 'env -> db_index -> typ
+  method tyopen: 'env -> var -> typ
+  method tyforall: 'env -> type_binding -> flavor -> typ -> typ
+  method tyexists: 'env -> type_binding -> typ -> typ
+  method tyapp: 'env -> typ -> typ list -> typ
+  method tytuple: 'env -> typ list -> typ
+  method tyconcreteunfolded: 'env -> resolved_branch -> typ
+  method tysingleton: 'env -> typ -> typ
+  method tyarrow: 'env -> typ -> typ -> typ
+  method tybar: 'env -> typ -> typ -> typ
+  method tyanchoredpermission: 'env -> typ -> typ -> typ
+  method tyempty: 'env -> typ
+  method tystar: 'env -> typ -> typ -> typ
+  method tyand: 'env -> mode_constraint -> typ -> typ
+  method tyimply: 'env -> mode_constraint -> typ -> typ
+
+  (* An auxiliary method for transforming a branch. *)
+  method branch: 'env -> resolved_branch -> resolved_branch
+  (* An auxiliary method for transforming a field. *)
+  method field: 'env -> data_field_def -> data_field_def
+
+end
+

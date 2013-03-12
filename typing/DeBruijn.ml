@@ -25,79 +25,21 @@ open TypeCore
 
 (* Fun with de Bruijn indices. *)
 
-let lift (k: int) (t: typ) =
-  let rec lift (i: int) (t: typ) =
-    match t with
-      (* Special type constants. *)
-    | TyUnknown
-    | TyDynamic ->
-        t
+class lift (k : int) = object (self)
+  inherit [int] map
+  method tybound i j =
+    if j < i then
+      TyBound j
+    else
+      TyBound (j + k)
+  method tyforall i binding flavor body =
+    TyForall ((binding, flavor), self#visit (i + 1) body)
+  method tyexists i binding body =
+    TyExists (binding, self#visit (i + 1) body)
+end
 
-    | TyBound j ->
-        if j < i then
-          TyBound j
-        else
-          TyBound (j + k)
-
-    | TyOpen _ ->
-        t
-
-    | TyForall (binder, t) ->
-        TyForall (binder, lift (i+1) t)
-
-    | TyExists (binder, t) ->
-        TyExists (binder, lift (i+1) t)
-
-    | TyApp (t1, t2) ->
-        TyApp (lift i t1, List.map (lift i) t2)
-
-    | TyTuple ts ->
-        TyTuple (List.map (lift i) ts)
-
-    | TyConcreteUnfolded branch ->
-        TyConcreteUnfolded (lift_branch i branch)
-
-    | TySingleton t ->
-        TySingleton (lift i t)
-
-    | TyArrow (t1, t2) ->
-        TyArrow (lift i t1, lift i t2)
-
-    | TyAnchoredPermission (p, q) ->
-        TyAnchoredPermission (lift i p, lift i q)
-
-    | TyEmpty ->
-        t
-
-    | TyStar (p, q) ->
-        TyStar (lift i p, lift i q)
-
-    | TyBar (t, p) ->
-        TyBar (lift i t, lift i p)
-
-    | TyAnd ((m, t), u) ->
-        TyAnd ((m, lift i t), lift i u)
-
-    | TyImply ((m, t), u) ->
-        TyImply ((m, lift i t), lift i u)
-
-  and lift_branch i branch = {
-    branch_flavor = branch.branch_flavor;
-    branch_datacon = lift_resolved_datacon i branch.branch_datacon;
-    branch_fields = List.map (lift_field i) branch.branch_fields;
-    branch_adopts = lift i branch.branch_adopts;
-  }
-
-  and lift_resolved_datacon i (t, dc) =
-    (lift i t, dc)
-
-  and lift_field i = function
-    | FieldValue (field_name, t) -> FieldValue (field_name, lift i t)
-    | FieldPermission t -> FieldPermission (lift i t)
-
-  in
-  lift 0 t
-;;
+let lift (k : int) (ty : typ) : typ =
+  (new lift k) # visit 0 ty
 
 (* Substitute [t2] for [i] in [t1]. This function is easy because [t2] is
  * expected not to have any free [TyBound]s: they've all been converted to
