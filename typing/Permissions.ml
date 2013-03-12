@@ -380,7 +380,8 @@ and add (env: env) (var: var) (t: typ): env =
         | _ -> None)
         original_perms
       with
-      | _ when FactInference.is_exclusive env t ->
+      | Some _ when FactInference.is_exclusive env t ->
+	  Log.debug ~level:4 "%s]%s (two exclusive perms!)" Bash.colors.Bash.red Bash.colors.Bash.default;
 	  (* We cannot possibly have two exclusive permissions for [x]. *)
           mark_inconsistent env
       | Some branch' ->
