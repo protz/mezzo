@@ -174,6 +174,7 @@ and raw_error =
   | DuplicateField of Variable.name
   | AdopterNotExclusive of Variable.name
   | UnboundDataConstructor of Datacon.name
+  | FieldMismatch of Datacon.name * Field.name list (* missing fields *) * Field.name list (* extra fields *)
 
 exception KindError of error
 
@@ -202,6 +203,21 @@ let pkenv buf env =
           p_kind kind
   ) bindings
 ;;
+
+module P = struct
+
+  open MzPprint
+
+  let print_field field =
+    utf8string (Field.print field)
+
+  let print_fields fields =
+    separate_map (comma ^^ space) print_field fields
+
+  let p_fields buf fields =
+    Types.TypePrinter.pdoc buf (print_fields, fields)
+
+end
 
 let print_error buf (env, raw_error) =
   let open Types.TypePrinter in
@@ -279,6 +295,21 @@ let print_error buf (env, raw_error) =
         "%a the data constructor %a is not bound to any type"
         Lexer.p env.location
         Datacon.p d
+  | FieldMismatch (datacon, missing, extra) ->
+      Printf.bprintf buf
+        "%aThis type does not have the fields of data constructor %a"
+        Lexer.p env.location
+        Datacon.p datacon;
+      if missing <> [] then
+	Printf.bprintf buf
+	  "\nThe following field%s missing: %a"
+	  (if List.length missing > 1 then "s are" else " is")
+	  P.p_fields missing;
+      if extra <> [] then
+	Printf.bprintf buf
+	  "\nThe following field%s superfluous: %a"
+	  (if List.length extra > 1 then "s are" else " is")
+	  P.p_fields extra
   end;
   if Log.debug_level () > 4 then
     pkenv buf env;

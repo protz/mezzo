@@ -226,6 +226,15 @@ let cut i l =
   in
   cut [] i l
 
+let rec equal eq xs ys =
+  match xs, ys with
+  | [], [] ->
+      true
+  | x :: xs, y :: ys ->
+      eq x y && equal eq xs ys
+  | _, _ ->
+      false
+
 let rec cps_map f xs k =
   match xs with
   | [] ->

@@ -568,7 +568,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test ((Fail (function ExpectedType _ -> true | _ -> false))));
 
   ("fail7.mz",
-    simple_test ((Fail (function FieldMismatch _ -> true | _ -> false))));
+    simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
 
   ("fail8.mz",
     simple_test ((Fail (function BadPattern _ -> true | _ -> false))));
@@ -578,6 +578,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("fail10.mz",
     simple_test ((Fail (function BadField _ -> true | _ -> false))));
+
+  ("fail11.mz",
+    simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
 
   (* Adoption. *)
 
@@ -880,7 +883,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("tyand03.mz", fail);
   ("tyand04.mz", pass);
   ("tyand05.mz", simple_test ~known_failure:() (Fail (fun _ -> true)));
-  ("incorrect-fields.mz", pass); (* it should fail, really, but the message is not the right one *)
+  ("incorrect-fields.mz",
+    simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
   ("name-intro.mz", pass);
   ("exists-forall.mz", pass);
 

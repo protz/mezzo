@@ -218,7 +218,34 @@ let rec translate_type (env: env) (t: typ): T.typ =
 	T.branch_fields = translate_fields env fields;
 	T.branch_adopts = Types.ty_bottom;
       } in
-      T.TyConcreteUnfolded branch
+      (* This type may be ill-formed in the sense that it has incorrect
+	 fields. Check that, by looking up the definition of this data
+	 constructor. *)
+      (* Perhaps we could perform this check during kind-checking, but
+	 [resolve_datacon] is not available there, perhaps for a good
+	 reason (a reference to a datacon cannot be resolved while we
+	 are still processing the definition of this datacon?). *)
+      let info = Option.extract dref.datacon_info in
+      let module FieldSet = Field.Map.Domain in
+      let required_fields = Field.Map.domain info.datacon_fields in
+      let provided_fields =
+	List.fold_left (fun accu -> function
+	  | FieldValue (field, _) -> FieldSet.add field accu
+	  | FieldPermission _ -> accu
+	) FieldSet.empty fields
+      in
+      let ok = FieldSet.equal required_fields provided_fields in
+      if not ok then
+	let missing = FieldSet.diff required_fields provided_fields
+	and extra = FieldSet.diff provided_fields required_fields in
+	raise_error env (FieldMismatch (
+	  snd datacon,
+	  FieldSet.elements missing,
+	  FieldSet.elements extra
+	))
+      (* Happy. *)
+      else
+	T.TyConcreteUnfolded branch
 
   | TySingleton t ->
       T.TySingleton (translate_type env t)
@@ -293,14 +320,13 @@ and translate_adopts env (adopts : typ option) =
   | Some t ->
       translate_type_with_names env t
 
-and translate_fields: env -> data_field_def list -> T.data_field_def list = fun env fields ->
-  let fields = List.map (function
+and translate_fields env fields =
+  List.map (function
     | FieldValue (name, t) ->
         T.FieldValue (name, translate_type_with_names env t)
     | FieldPermission t ->
         T.FieldPermission (translate_type env t)
-  ) fields in
-  fields
+  ) fields
 
 and translate_arrow_type env t1 t2 =
 

@@ -23,7 +23,6 @@
 
 open TypeCore
 open Types
-open TypeErrors
 open Derivations
 
 type result = env option * derivation
@@ -586,28 +585,6 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
     | TyConcreteUnfolded branch ->
         let datacon = branch.branch_datacon in
 	let fields = branch.branch_fields in
-        (* If this is a user-provided type (e.g. a function parameter's type) we
-         * should not blindly accept this type when adding it into our
-         * environment. *)
-        (* TEMPORARY shouldn't we perform this check earlier, or somewhere else?
-	   maybe during the translation of surface to core? *)
-        let all_fields_there =
-          let def = def_for_datacon env datacon in
-          let branch = List.find (fun branch -> Datacon.equal (snd datacon) branch.branch_datacon) def in
-          let field_name = function
-            | FieldValue (name, _) -> Some name
-            | FieldPermission _ -> None
-          in
-          let fields' = MzList.map_some field_name branch.branch_fields in
-          let fields = MzList.map_some field_name fields in
-          List.length fields = List.length fields' &&
-          List.for_all (fun field' ->
-            List.exists (Field.equal field') fields
-          ) fields'
-        in
-        if not (all_fields_there) then
-          raise_error env (FieldMismatch (t, (snd datacon)));
-        (* It's fine, add it! *)
         let env, fields = List.fold_left (fun (env, fields) -> function
           | FieldPermission _ as field ->
               env, field :: fields

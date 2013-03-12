@@ -378,7 +378,6 @@ let variance env var i =
   List.nth variance i
 ;;
 
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Instantiating. *)

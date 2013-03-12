@@ -35,7 +35,6 @@ and raw_error =
   | MissingField of Field.name
   | ExtraField of Field.name
   | NoSuchField of var * Field.name
-  | FieldMismatch of typ * Datacon.name
   | CantAssignTag of var
   | NoSuchFieldInPattern of pattern * Field.name
   | BadPattern of pattern * var
@@ -309,12 +308,6 @@ let print_error buf (env, raw_error) =
             Field.p f
             ppermission_list (env, var)
       end
-  | FieldMismatch (t, datacon) ->
-      Printf.bprintf buf
-        "%a user-provided type:\n%a\ndoes not match the fields of data constructor %a"
-        Lexer.p (location env)
-        ptype (env, t)
-        Datacon.p datacon
   | CantAssignTag var ->
       begin match fold_var env var with
       | Some t ->

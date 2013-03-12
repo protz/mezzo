@@ -31,7 +31,6 @@ type raw_error =
   | MissingField of Field.name
   | ExtraField of Field.name
   | NoSuchField of var * Field.name
-  | FieldMismatch of typ * Datacon.name
   | CantAssignTag of var
   | NoSuchFieldInPattern of Expressions.pattern * Field.name
   | BadPattern of Expressions.pattern * var
