@@ -1,0 +1,74 @@
+open nest
+
+(** A version of a mutable union-find done using nesting. *)
+
+(** We need a top-level element that will hold the ownership for all the
+ * elements of the union-find. *)
+mutable data state a = 
+  | UnionFind
+adopts content a
+
+(** An element in the union-find is either a [link] or a [root]. *)
+mutable data content a =
+  | Link { link: dynamic }
+  | Root { descr: a }
+
+(* Create a new union-find. *)
+val new [a] (): state a =
+  UnionFind
+
+(* Create a new element that is meant to go in the union-find. *)
+val create [a] duplicable a => (s: state a, x: a): dynamic =
+  let e = Root { descr = x } in
+  give e to s;
+  e
+
+(* Find the root of an equivalence class. This function returns a "Root" so the
+ * caller is expected to give back this "Root" to "s" once it's done with it. This
+ * is a bizarre protocol but since it's an internal function, it's fine. *)
+val rec repr [a] duplicable a => (s: state a, e: dynamic): Root { descr: a } =
+  (* This is NOT a well-parenthesized usage of take/give. *)
+  take e from s;
+  match e with
+  | Link ->
+      (* It's a link! We want to perform path compression, so we need to call
+       * [repr] recursively. *)
+      let r = repr (s, e.link) in
+      (* Perform the write. The root has not been given back! It's up to the
+       * caller to perform that operation. Fortunately, "r @ dynamic" is
+       * available nonetheless. *)
+      e.link <- r;
+      (* The invariant is that we always give back "Link" nodes. *)
+      give e to s;
+      (* And return [r] which is the actual root. *)
+      r
+  | Root ->
+      (* It's a root! Nothing to do here, just return. *)
+      e
+  end
+
+val unify [a] duplicable a => (s: state a, x: dynamic, y: dynamic): () =
+  if x == y then
+    ()
+  else begin
+    (* First of all, find the roots. *)
+    let x = repr (s, x) in
+    let y = repr (s, y) in
+    (* Mutate x so that it points to y *)
+    tag of x <- Link;
+    x.link <- y;
+    (* Turn both back into dynamics. *)
+    give x to s;
+    give y to s;
+  end
+
+val find [a] duplicable a => (s: state a, x: dynamic): a =
+  (* Find the root *)
+  let r = repr (s, x) in
+  let value = r.descr in
+  give r to s;
+  (* [value] has type [a] which is duplicable, so we still have "value @ a" at
+   * that stage. As far as I know, this is the only place where we use the
+   * "duplicable a"  hypothesis; I left it as a precondition on all other
+   * functions to catch client code errors as early as possible. *)
+  value
