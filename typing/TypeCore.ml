@@ -627,7 +627,7 @@ class ['env] map = object (self)
     TyTuple (self#visit_many env tys)
 
   method tyconcreteunfolded env branch =
-    TyConcreteUnfolded (self#branch env branch)
+    TyConcreteUnfolded (self#resolved_branch env branch)
 
   method tysingleton env x =
     TySingleton (self#visit env x)
@@ -657,14 +657,18 @@ class ['env] map = object (self)
   method private visit_many env tys =
     List.map (self#visit env) tys
 
-  (* An auxiliary method for transforming a branch. *)
-  method branch env (branch : resolved_branch) =
+  (* An auxiliary method for transforming a resolved branch. *)
+  method resolved_branch env (branch : resolved_branch) =
     { 
       branch_flavor = branch.branch_flavor;
-      branch_datacon = branch.branch_datacon;
+      branch_datacon = self#resolved_datacon env branch.branch_datacon;
       branch_fields = List.map (self#field env) branch.branch_fields;
       branch_adopts = self#visit env branch.branch_adopts;
     }
+
+  (* An auxiliary method for transforming a resolved data constructor. *)
+  method resolved_datacon env (ty, dc) =
+    self#visit env ty, dc
 
   (* An auxiliary method for transforming a field. *)
   method field env = function
@@ -676,6 +680,15 @@ class ['env] map = object (self)
   (* An auxiliary method for transforming a mode constraint. *)
   method private mode_constraint env (mode, ty) =
     (mode, self#visit env ty)
+
+  (* An auxiliary method for transforming an unresolved branch. *)
+  method unresolved_branch env (branch : unresolved_branch) =
+    { 
+      branch_flavor = branch.branch_flavor;
+      branch_datacon = branch.branch_datacon;
+      branch_fields = List.map (self#field env) branch.branch_fields;
+      branch_adopts = self#visit env branch.branch_adopts;
+    }
 
 end
 

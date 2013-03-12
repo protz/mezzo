@@ -23,7 +23,7 @@ open TypeCore
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Fun with de Bruijn indices. *)
+(* Lifting. *)
 
 class lift (k : int) = object
   (* The environment [i] has type [int]. *)
@@ -44,22 +44,27 @@ end
 let lift (k : int) (ty : typ) : typ =
   (new lift k) # visit 0 ty
 
+(* ---------------------------------------------------------------------------- *)
+
 (* Substitute [t2] for [i] in [t1]. This function is easy because [t2] is
  * expected not to have any free [TyBound]s: they've all been converted to
  * [TyOpen]s. Therefore, [t2] will *not* be lifted when substituted for [i] in
  * [t1]. *)
-let rec tsubst (t2: typ) (i: int) (t1: typ) =
-    match t1 with
-      (* Special type constants. *)
-    | TyUnknown
-    | TyDynamic ->
-        t1
 
-    | TyBound j ->
-        if j = i then
-          t2
-        else
-          TyBound j
+class tsubst (t2 : typ) = object
+  (* The environment [i] has type [int]. It is the variable that
+     we are looking for. *)
+  inherit [int] map
+  (* The environment [i] is incremented at each binder. *)
+  method extend i (_ : type_binding) =
+    i + 1
+  (* The target variable [i] is replaced with [t2]. Any other
+     variable is unaffected. *)
+  method tybound i j =
+    if j = i then
+      t2
+    else
+      TyBound j
 	  (* fpottier: this definition is surprising. The standard notion
 	     of substitution on de Bruijn indices would be [TyBound j] if
 	     [j < i] and [TyBound (j - 1)] if [j > i], because the index
@@ -75,72 +80,13 @@ let rec tsubst (t2: typ) (i: int) (t1: typ) =
 	     2. add [assert (j < i)] and makes sure that it succeeds;
 	     3. potentially allow [TyBound (if j < i then j else j-1)],
 	        which is more general. *)
+end
 
-    | TyOpen _ ->
-        t1
+let tsubst (t2 : typ) (i : int) (t1 : typ) =
+  (new tsubst t2) # visit i t1
 
-    | TyForall (binder, t) ->
-        TyForall (binder, tsubst t2 (i+1) t)
-
-    | TyExists (binder, t) ->
-        TyExists (binder, tsubst t2 (i+1) t)
-
-    | TyApp (t, t') ->
-        TyApp (tsubst t2 i t, List.map (tsubst t2 i) t')
-
-    | TyTuple ts ->
-        TyTuple (List.map (tsubst t2 i) ts)
-
-    | TyConcreteUnfolded branch ->
-       TyConcreteUnfolded (tsubst_resolved_branch t2 i branch)
-
-    | TySingleton t ->
-        TySingleton (tsubst t2 i t)
-
-    | TyArrow (t, t') ->
-        TyArrow (tsubst t2 i t, tsubst t2 i t')
-
-    | TyAnchoredPermission (p, q) ->
-        TyAnchoredPermission (tsubst t2 i p, tsubst t2 i q)
-
-    | TyEmpty ->
-        t1
-
-    | TyStar (p, q) ->
-        TyStar (tsubst t2 i p, tsubst t2 i q)
-
-    | TyBar (t, p) ->
-        TyBar (tsubst t2 i t, tsubst t2 i p)
-
-    | TyAnd ((m, t), u) ->
-        TyAnd ((m, tsubst t2 i t), tsubst t2 i u)
-
-    | TyImply ((m, t), u) ->
-        TyImply ((m, tsubst t2 i t), tsubst t2 i u)
-
-and tsubst_resolved_branch t2 i branch = {
-  branch_flavor = branch.branch_flavor;
-  branch_datacon = tsubst_resolved_datacon t2 i branch.branch_datacon;
-  branch_fields = List.map (tsubst_field t2 i) branch.branch_fields;
-  branch_adopts = tsubst t2 i branch.branch_adopts;
-}
-
-and tsubst_resolved_datacon t2 i (t, dc) =
-  (tsubst t2 i t, dc)
-
-and tsubst_field t2 i = function
-  | FieldValue (name, typ) ->
-      FieldValue (name, tsubst t2 i typ)
-  | FieldPermission typ ->
-      FieldPermission (tsubst t2 i typ)
-;;
-
-let tsubst_unresolved_branch t2 i branch = {
-  branch_flavor = branch.branch_flavor;
-  branch_datacon = branch.branch_datacon;
-  branch_fields = List.map (tsubst_field t2 i) branch.branch_fields;
-  branch_adopts = tsubst t2 i branch.branch_adopts;
-}
+let tsubst_unresolved_branch (t2 : typ) (i : int) (branch : unresolved_branch) =
+  (new tsubst t2) # unresolved_branch i branch
 
 let flatten_kind = SurfaceSyntax.flatten_kind;;
 

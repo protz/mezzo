@@ -453,10 +453,14 @@ class ['env] map : object
   method tyand: 'env -> mode_constraint -> typ -> typ
   method tyimply: 'env -> mode_constraint -> typ -> typ
 
-  (* An auxiliary method for transforming a branch. *)
-  method branch: 'env -> resolved_branch -> resolved_branch
+  (* An auxiliary method for transforming a resolved branch. *)
+  method resolved_branch: 'env -> resolved_branch -> resolved_branch
+  (* An auxiliary method for transforming a resolved data constructor. *)
+  method resolved_datacon: 'env -> resolved_datacon -> resolved_datacon
   (* An auxiliary method for transforming a field. *)
   method field: 'env -> data_field_def -> data_field_def
+  (* An auxiliary method for transforming an unresolved branch. *)
+  method unresolved_branch: 'env -> unresolved_branch -> unresolved_branch
 
 end
 
