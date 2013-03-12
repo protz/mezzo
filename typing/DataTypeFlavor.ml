@@ -8,6 +8,11 @@ type flavor =
   | Immutable
   | Mutable
 
+(* Equality. *)
+
+let equal : flavor -> flavor -> bool =
+  (=)
+
 (* Display. *)
 
 let print = function

@@ -236,7 +236,8 @@ let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
       let ts = List.rev ts in
       env, TyTuple ts
 
-  | TyConcreteUnfolded (d, fields, clause) ->
+  | TyConcreteUnfolded branch ->
+      let fields = branch.branch_fields in
       let env, fields = List.fold_left (fun (env, acc) field ->
         match field with
         | FieldValue (f, t) ->
@@ -251,7 +252,8 @@ let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
             env, FieldPermission t :: acc
       ) (env, []) fields in
       let fields = List.rev fields in
-      env, TyConcreteUnfolded (d, fields, clause)
+      let branch = { branch with branch_fields = fields } in
+      env, TyConcreteUnfolded branch
 
   | TySingleton _ ->
       env, t
@@ -370,38 +372,36 @@ and add (env: env) (var: var) (t: typ): env =
       add env var t
 
   (* This implement the rule "x @ (=y, =z) * x @ (=y', =z') implies y = y' and z * = z'" *)
-  | TyConcreteUnfolded (dc, ts, clause) ->
+  | TyConcreteUnfolded branch ->
       let original_perms = get_permissions env var in
       begin match MzList.find_opt (function
-        | TyConcreteUnfolded (dc', ts', clause') when resolved_datacons_equal env dc dc' ->
-            Some (ts', clause')
+        | TyConcreteUnfolded branch' when resolved_datacons_equal env branch.branch_datacon branch'.branch_datacon ->
+            Some branch'
         | _ -> None)
         original_perms
       with
-      | Some (ts', clause') ->
-          begin match
-            sub_type env clause clause' >>| fun env ->
-            sub_type env clause' clause >>| drop
-          with
-          | _ when FactInference.is_exclusive env t ->
-              mark_inconsistent env
-          | None ->
-              (* Incompatible "adopts" clauses. *)
-              mark_inconsistent env
-          | Some env ->
-              List.fold_left2 (fun env f1 f2 ->
-                match f1, f2 with
-                | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
-                    begin match modulo_flex env t with
-                    | TySingleton (TyOpen p) ->
-                        add env p t'
-                    | _ ->
-                        Log.error "Type not unfolded"
-                    end
-                | _ ->
-                    Log.error "Datacon order invariant not respected"
-              ) env ts ts'
-          end
+      | _ when FactInference.is_exclusive env t ->
+	  (* We cannot possibly have two exclusive permissions for [x]. *)
+          mark_inconsistent env
+      | Some branch' ->
+	  (* If we are still here, then the two permissions at hand are
+	     not exclusive. This implies, I think, that the two adopts
+	     clauses must be bottom. So, there is no need to try and
+	     compute their meet (good). *)
+	  assert (equal env branch.branch_adopts ty_bottom);
+	  assert (equal env branch'.branch_adopts ty_bottom);
+	  List.fold_left2 (fun env f1 f2 ->
+	    match f1, f2 with
+	    | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
+		begin match modulo_flex env t with
+		| TySingleton (TyOpen p) ->
+		    add env p t'
+		| _ ->
+		    Log.error "Type not unfolded"
+		end
+	    | _ ->
+		Log.error "Datacon order invariant not respected"
+	  ) env branch.branch_fields branch'.branch_fields
       | None ->
           add_type env var t
       end
@@ -568,18 +568,22 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
         ) (env, []) components in
         env, TyTuple (List.rev components)
 
-    | TyConcreteUnfolded (datacon, fields, clause) ->
+    | TyConcreteUnfolded branch ->
+        let datacon = branch.branch_datacon in
+	let fields = branch.branch_fields in
         (* If this is a user-provided type (e.g. a function parameter's type) we
          * should not blindly accept this type when adding it into our
          * environment. *)
+        (* TEMPORARY shouldn't we perform this check earlier, or somewhere else?
+	   maybe during the translation of surface to core? *)
         let all_fields_there =
-          let _, def, _ = def_for_datacon env datacon in
-          let _, branch = List.find (fun (datacon', _) -> Datacon.equal (snd datacon) datacon') def in
+          let def = def_for_datacon env datacon in
+          let branch = List.find (fun branch -> Datacon.equal (snd datacon) branch.branch_datacon) def in
           let field_name = function
             | FieldValue (name, _) -> Some name
             | FieldPermission _ -> None
           in
-          let fields' = MzList.map_some field_name branch in
+          let fields' = MzList.map_some field_name branch.branch_fields in
           let fields = MzList.map_some field_name fields in
           List.length fields = List.length fields' &&
           List.for_all (fun field' ->
@@ -600,7 +604,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
               env, FieldValue (name, field) :: fields
         ) (env, []) fields
         in
-        env, TyConcreteUnfolded (datacon, List.rev fields, clause)
+        env, TyConcreteUnfolded { branch with branch_fields = List.rev fields }
 
     | TyAnd _
     | TyImply _ ->
@@ -873,11 +877,12 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         ) components1 components2)
       end
 
-  | TyConcreteUnfolded (datacon1, fields1, clause1), TyConcreteUnfolded (datacon2, fields2, clause2)
-    when List.length fields1 = List.length fields2 ->
-      if resolved_datacons_equal env datacon1 datacon2 then
+  | TyConcreteUnfolded branch1, TyConcreteUnfolded branch2 ->
+      if resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon then begin
+	assert (branch1.branch_flavor = branch2.branch_flavor);
+	assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
         try_proof_root "Concrete" begin
-          sub_type env clause1 clause2 >>= fun env ->
+          sub_type env branch1.branch_adopts branch2.branch_adopts >>= fun env ->
           premises env (List.map2 (fun f1 f2 -> fun env ->
             let t1, t2 =
               match f1, f2 with
@@ -898,20 +903,22 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                 sub env p1 t2
             | _ ->
                 sub_type_with_unfolding env t1 t2
-          ) fields1 fields2)
+          ) branch1.branch_fields branch2.branch_fields)
         end
+      end
       else
         no_proof_root
 
-  | TyConcreteUnfolded ((cons1, datacon1), _, _), TyApp (cons2, args2) ->
+  | TyConcreteUnfolded branch1, TyApp (cons2, args2) ->
+      let (cons1, datacon1) = branch1.branch_datacon in
       let var1 = !!cons1 in
       let cons2 = !!cons2 in
 
       if same env var1 cons2 then begin
         try_proof_root "Fold-L" begin
-          let datacon2, fields2, clause2 = find_and_instantiate_branch env cons2 datacon1 args2 in
+          let branch2 = find_and_instantiate_branch env cons2 datacon1 args2 in
           (* There may be permissions attached to this branch. *)
-          let t2 = TyConcreteUnfolded (datacon2, fields2, clause2) in
+          let t2 = TyConcreteUnfolded branch2 in
           let t2, p2 = collect t2 in
           sub_type env t1 t2 >>= fun env ->
           sub_perms env p2
@@ -920,16 +927,17 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         no_proof_root
       end
 
-  | TyConcreteUnfolded ((cons1, datacon1), _, _), TyOpen var2 ->
+  | TyConcreteUnfolded branch1, TyOpen var2 ->
       (* This is basically the same as above, except that type applications
        * without parameters are not [TyApp]s, they are [TyOpen]s. *)
+      let (cons1, datacon1) = branch1.branch_datacon in
       let var1 = !!cons1 in
 
       if same env var1 var2 then begin
         try_proof_root "Fold-L-2" begin
           (* XXX why are we not collecting permissions here? *)
-          let datacon2, fields2, clause2 = find_and_instantiate_branch env var2 datacon1 [] in
-          sub_type env t1 (TyConcreteUnfolded (datacon2, fields2, clause2)) >>=
+          let branch2 = find_and_instantiate_branch env var2 datacon1 [] in
+          sub_type env t1 (TyConcreteUnfolded branch2) >>=
           qed
         end
       end else begin

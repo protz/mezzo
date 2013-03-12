@@ -59,7 +59,7 @@ module Graph = struct
     (* Get the various blocks and edges that we should draw. *)
     let line, edges =
       match t with
-      | TyConcreteUnfolded (datacon, fields, _) ->
+      | TyConcreteUnfolded { branch_datacon; branch_fields; _ } ->
           let blocks, edges = List.split (List.map (fun f ->
             let name, t =
               match f with
@@ -69,14 +69,14 @@ module Graph = struct
                   Log.error "Need [collect]"
             in
             gen env name t
-          ) fields) in
+          ) branch_fields) in
           let blocks =
             if List.length blocks > 0 then
               "|" ^ String.concat "|" blocks
             else
               ""
           in
-          Datacon.print (snd datacon) ^ blocks, edges
+          Datacon.print (snd branch_datacon) ^ blocks, edges
 
       | TyTuple ts ->
           let blocks, edges = List.split (List.mapi (fun i t ->

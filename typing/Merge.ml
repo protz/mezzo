@@ -647,14 +647,16 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
       lazy begin
         match left_perm, right_perm with
 
-        (* In the case where we have annotations already, we're going great
+        (* In the case where we have annotations already, we're going to great
          * lengths to perform a merge again, even if we have extracted the
          * annotations first. Because we have a rule that says
          *      "x @ (=y, =z) ∗ x @ (=y', =z') => y = y' ∗ z = z'"
-         * we can safely return a structural permissions with different points
+         * we can safely return a structural permission with different points
          * for the sub-fields, the core {!Permissions} module will know how to
          * deal with that. *)
-        | TyConcreteUnfolded (datacon_l, fields_l, clause_l), TyConcreteUnfolded (datacon_r, fields_r, clause_r) ->
+        | TyConcreteUnfolded branch_l, TyConcreteUnfolded branch_r ->
+	    let datacon_l = branch_l.branch_datacon
+	    and datacon_r = branch_r.branch_datacon in
             let t_left: var = !!(fst datacon_l) in
             let t_right: var = !!(fst datacon_r) in
             let dest_var = Option.extract dest_var in
@@ -672,10 +674,12 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                       (dest_env, FieldValue (name_l, ty_equals dest_p) :: dest_fields)
                   | _ ->
                       Log.error "All permissions should be in expanded form."
-                ) (dest_env, []) fields_l fields_r
+                ) (dest_env, []) branch_l.branch_fields branch_r.branch_fields
               in
               let r = 
                 let open TypeErrors in
+	        let clause_l = branch_l.branch_adopts
+		and clause_r = branch_r.branch_adopts in
                 try
                   let clause_l = clean top left_env clause_l in
                   let clause_r = clean top right_env clause_r in
@@ -693,7 +697,11 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                   raise_error top (NotMergingClauses (left_env, left_perm, clause_l, right_env, right_perm, clause_r))
               in
               r >>= fun (left_env, right_env, dest_env, clause) ->
-              Some (left_env, right_env, dest_env, TyConcreteUnfolded (datacon_l, List.rev dest_fields, clause))
+	      let branch = { branch_l with
+		branch_fields = List.rev dest_fields;
+		branch_adopts = clause;
+	      } in
+              Some (left_env, right_env, dest_env, TyConcreteUnfolded branch)
 
 
             else if same dest_env t_left t_right then begin
@@ -761,7 +769,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             r >>= fun (left_env, right_env, dest_env, dest_t) ->
             Some (left_env, right_env, dest_env, TySingleton dest_t)
 
-        | TyConcreteUnfolded (datacon_l, _, _), _ ->
+        | TyConcreteUnfolded branch_l, _ ->
+	    let datacon_l = branch_l.branch_datacon in
             let t_left = !!(fst datacon_l) in
             let t_dest = t_left in
 
@@ -773,7 +782,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             merge_type (left_env, t_app_left) (right_env, right_perm) ?dest_var dest_env
 
 
-        | _, TyConcreteUnfolded (datacon_r, _, _) ->
+        | _, TyConcreteUnfolded branch_r ->
+	    let datacon_r = branch_r.branch_datacon in
             let t_right = !!(fst datacon_r) in
             let t_dest = t_right in
 

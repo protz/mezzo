@@ -65,6 +65,7 @@ val ( |> ) : 'a -> ('a -> 'b) -> 'b
 val ty_unit : typ
 val ty_tuple : typ list -> typ
 val ty_bottom : typ
+val is_non_bottom: typ -> typ option
 val ( @-> ) : typ -> typ -> typ
 val ty_bar : typ -> typ -> typ
 val ty_app : typ -> typ list -> typ
@@ -83,25 +84,27 @@ val bind_flexible_in_type :
 val bind_datacon_parameters :
   env ->
   kind ->
-  data_type_def_branch list ->
-  adopts_clause ->
-  env * var list * data_type_def_branch list *
-  adopts_clause
+  'a data_type_def_branch list ->
+  env * var list * 'a data_type_def_branch list
 
 (** {2 Instantiation} *)
 
-val instantiate_adopts_clause :
-  typ option -> typ list -> typ
+val instantiate_type:
+  typ -> typ list -> typ
 val instantiate_branch:
-  'a * data_field_def list ->
+  'a data_type_def_branch ->
   typ list ->
-  'a * data_field_def list
+  'a data_type_def_branch
 val find_and_instantiate_branch :
   env ->
   var ->
   Datacon.name ->
   typ list ->
-  (typ * Datacon.name) * data_field_def list * typ
+  resolved_datacon data_type_def_branch
+val resolve_branch:
+  var ->
+  Datacon.name data_type_def_branch ->
+  resolved_datacon data_type_def_branch
 
 
 (** {2 Folding and unfolding} *)
@@ -129,17 +132,17 @@ val expand_if_one_branch : env -> typ -> typ
 val get_name : env -> var -> name
 val get_location : env -> var -> location
 val get_adopts_clause :
-  env -> var -> adopts_clause
+  env -> var -> typ
 val get_branches :
-  env -> var -> data_type_def_branch list
+  env -> var -> Datacon.name data_type_def_branch list
 val get_arity : env -> var -> int
 val get_kind_for_type : env -> typ -> kind
 val get_variance : env -> var -> variance list
 val def_for_datacon :
   env ->
   resolved_datacon ->
-  DataTypeFlavor.flavor * data_type_def *
-  adopts_clause
+  data_type_def
+val def_for_branch: env -> resolved_datacon data_type_def_branch -> data_type_def
 
 (** Get the variance of the i-th parameter of a data type. *)
 val variance : env -> var -> int -> variance
@@ -195,8 +198,8 @@ module TypePrinter :
       env -> data_field_def -> MzPprint.document
     val print_data_type_def_branch :
       env ->
-      Datacon.name ->
-      data_field_def list -> typ -> MzPprint.document
+      Datacon.name TypeCore.data_type_def_branch ->
+      MzPprint.document
     val pfact : Buffer.t -> Fact.fact -> unit
     val print_facts : env -> MzPprint.document
     val print_permission_list :

@@ -211,9 +211,14 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyConcreteUnfolded (dref, fields) ->
       (* Performs a side-effect! *)
-      let resolved_datacon = resolve_datacon env dref in
-      let fields = translate_fields env fields in
-      T.TyConcreteUnfolded (resolved_datacon, fields, Types.ty_bottom)
+      let datacon = resolve_datacon env dref in
+      let branch = {
+	T.branch_flavor = assert false; (* TEMPORARY *)
+	T.branch_datacon = datacon;
+	T.branch_fields = translate_fields env fields;
+	T.branch_adopts = Types.ty_bottom;
+      } in
+      T.TyConcreteUnfolded branch
 
   | TySingleton t ->
       T.TySingleton (translate_type env t)
@@ -267,10 +272,26 @@ and translate_constraint env (m, t) =
   (* There was a check that [t] is [TyBound _], but I have removed it. *)
   m, translate_type env t
 
-and translate_data_type_def_branch (env: env) (branch: data_type_def_branch): T.data_type_def_branch =
+and translate_data_type_def_branch
+    (env: env)
+    (flavor: DataTypeFlavor.flavor)
+    (adopts: typ option)
+    (branch: Datacon.name * data_field_def list)
+  : Datacon.name T.data_type_def_branch =
   let datacon, fields = branch in
-  let fields = translate_fields env fields in
-  datacon, fields
+  {
+    T.branch_flavor = flavor;
+    T.branch_datacon = datacon;
+    T.branch_fields = translate_fields env fields;
+    T.branch_adopts = translate_adopts env adopts
+  }
+
+and translate_adopts env (adopts : typ option) =
+  match adopts with
+  | None ->
+      Types.ty_bottom
+  | Some t ->
+      translate_type_with_names env t
 
 and translate_fields: env -> data_field_def list -> T.data_field_def list = fun env fields ->
   let fields = List.map (function
@@ -403,21 +424,19 @@ let translate_fact (params: Variable.name list) (fact: fact): Fact.fact =
 
 let translate_data_type_def (env: env) (data_type_def: data_type_def) =
   match data_type_def with
-  | Concrete (flag, (name, the_params), branches, adopts_clause) ->
+  | Concrete (flavor, (name, the_params), branches, adopts_clause) ->
       let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
       (* Add the type parameters in the environment. *)
       let env = List.fold_left bind env params in
-      (* Translate! *)
-      let branches = List.map (translate_data_type_def_branch env) branches in
+      (* Translate! The flavor and adopts clause are distributed to every branch. *)
+      let branches = List.map (translate_data_type_def_branch env flavor adopts_clause) branches in
       (* This fact will be refined later on. *)
       let fact = Fact.bottom in
-      (* Translate the clause as well *)
-      let adopts_clause = Option.map (translate_type_with_names env) adopts_clause in
       (* We store the annotated variance here, and then
        * [Variance.analyze_data_types] will take of checking these against the
        * actual variance. *)
       let variance = List.map (fun (v, _) -> v) the_params in
-      name, env.location, (Some (flag, branches, adopts_clause), variance), fact, karrow params KType
+      name, env.location, (Some branches, variance), fact, karrow params KType
   | Abstract ((name, the_params), kind, fact) ->
       let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
       let fact = translate_fact (fst (List.split params)) fact in

@@ -50,9 +50,9 @@ let rec hoist (env : env) (ty : typ) (k : typ -> typ) : typ =
       MzList.cps_map (hoist env) tys (fun tys ->
       k (TyTuple tys)
       )
-  | TyConcreteUnfolded (datacon, fields, clause) ->
-      MzList.cps_map (hoist_field env) fields (fun fields ->
-      k (TyConcreteUnfolded (datacon, fields, clause))
+  | TyConcreteUnfolded branch ->
+      MzList.cps_map (hoist_field env) branch.branch_fields (fun branch_fields ->
+      k (TyConcreteUnfolded { branch with branch_fields })
       )
   | TyBar (ty1, ty2) ->
       hoist env ty1 (fun ty1 ->

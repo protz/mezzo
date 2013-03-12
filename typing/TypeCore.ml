@@ -77,9 +77,7 @@ type typ =
 
     (* Structural types. *)
   | TyTuple of typ list
-  | TyConcreteUnfolded of resolved_datacon * data_field_def list * typ
-      (* [typ] is for the type of the adoptees; initially it's bottom and then
-       * it gets instantiated to something more precise. *)
+  | TyConcreteUnfolded of resolved_datacon data_type_def_branch
 
     (* Singleton types. *)
   | TySingleton of typ
@@ -112,23 +110,25 @@ and resolved_datacon = typ * Datacon.name
 
 and mode_constraint = Mode.mode * typ
 
-and data_type_def_branch =
-    Datacon.name * data_field_def list
+and 'datacon data_type_def_branch = {
+  branch_flavor: DataTypeFlavor.flavor;
+  branch_datacon: 'datacon; (* Datacon.name or resolved_datacon; TEMPORARY could we make this uniform? *)
+  branch_fields: data_field_def list;
+  (* The type of the adoptees; initially it's bottom and then
+   * it gets instantiated to something less precise. *)
+  branch_adopts: typ;
+}
 
 and data_field_def =
   | FieldValue of (Field.name * typ)
   | FieldPermission of typ
 
-type adopts_clause =
-  (* option here because not all concrete types adopt someone *)
-  typ option
-
 type data_type_def =
-  data_type_def_branch list
+  Datacon.name data_type_def_branch list
 
 type type_def =
   (* option here because abstract types do not have a definition *)
-    (DataTypeFlavor.flavor * data_type_def * adopts_clause) option
+    data_type_def option
   * variance list
 
 type data_type_group =
@@ -544,14 +544,14 @@ let level (env: env) (t: typ): level =
         let ls = List.map level ts in
         MzList.max ls
 
-    | TyConcreteUnfolded (ds, fields, t) ->
+    | TyConcreteUnfolded { branch_flavor = _; branch_datacon = (ds, _); branch_fields; branch_adopts } ->
         let ls =
-          level (fst ds) :: level t ::
+          level ds :: level branch_adopts ::
           List.map (function
             | FieldValue (_, t)
             | FieldPermission t ->
                 level t
-          ) fields
+          ) branch_fields
         in
         MzList.max ls
 
@@ -594,15 +594,16 @@ let clean top sub t =
     | TyTuple ts ->
         TyTuple (List.map clean ts)
 
-    | TyConcreteUnfolded ((t, dc), fields, clause) ->
+    | TyConcreteUnfolded { branch_flavor; branch_datacon = (t, dc); branch_fields; branch_adopts } ->
         let t = clean t in
-        let fields = List.map (function
+        let branch_fields = List.map (function
           | FieldValue (f, t) ->
               FieldValue (f, clean t)
           | FieldPermission p ->
               FieldPermission (clean p)
-        ) fields in
-        TyConcreteUnfolded ((t, dc), fields, clean clause)
+        ) branch_fields in
+	let branch_adopts = clean branch_adopts in
+        TyConcreteUnfolded { branch_flavor; branch_datacon = (t, dc); branch_fields; branch_adopts }
 
     | TySingleton t ->
         TySingleton (clean t)
@@ -855,18 +856,25 @@ and equal env (t1: typ) (t2: typ) =
     | TyTuple ts1, TyTuple ts2 ->
         List.length ts1 = List.length ts2 && List.for_all2 equal ts1 ts2
 
-    | TyConcreteUnfolded (name1, fields1, clause1), TyConcreteUnfolded (name2, fields2, clause2) ->
-        resolved_datacons_equal env name1 name2 &&
-        equal clause1 clause2 &&
-        List.length fields1 = List.length fields2 &&
-        List.fold_left2 (fun acc f1 f2 ->
-          match f1, f2 with
-          | FieldValue (f1, t1), FieldValue (f2, t2) ->
-              acc && Field.equal f1 f2 && equal t1 t2
-          | FieldPermission t1, FieldPermission t2 ->
-              acc && equal t1 t2
-          | _ ->
-              false) true fields1 fields2
+    | TyConcreteUnfolded branch1, TyConcreteUnfolded branch2 ->
+        resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon &&
+	(* In principle, if the data constructors are equal, then the flavors
+	   should be equal too (we do not allow the flavor to change independently
+	   of the data constructor), and the lists of fields should have the same
+	   lengths (the list of fields is determined by the data constructor). *)
+	(
+	  assert (branch1.branch_flavor = branch2.branch_flavor);
+          assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
+          equal branch1.branch_adopts branch2.branch_adopts &&
+	  List.fold_left2 (fun acc f1 f2 ->
+	    match f1, f2 with
+	    | FieldValue (f1, t1), FieldValue (f2, t2) ->
+		acc && Field.equal f1 f2 && equal t1 t2
+	    | FieldPermission t1, FieldPermission t2 ->
+		acc && equal t1 t2
+	    | _ ->
+		false) true branch1.branch_fields branch2.branch_fields
+	)
 
     | TySingleton t1, TySingleton t2 ->
         equal t1 t2

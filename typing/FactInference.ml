@@ -207,10 +207,8 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
   (* We could prove that a tuple or record is [bottom] as soon as one of
      its components is bottom, but there is no motivation to do so. *)
 
-  | TyConcreteUnfolded (datacon, fields, _) ->
-      (* The [adopts] clause has no impact. *)
-      let flag, _, _ = def_for_datacon w.env datacon in
-      infer_concrete w flag fields
+  | TyConcreteUnfolded branch ->
+      infer_branch w branch
 
   | TyTuple tys ->
       Fact.duplicable (
@@ -252,6 +250,14 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
 
   | TyBound _ ->
       Log.error "There should be no bound variables here."
+
+and infer_branch : 'a . world -> 'a data_type_def_branch -> Fact.fact = (* polymorphic recursion, yech! *)
+fun w branch ->
+  (* The [adopts] clause has no impact. The name of the data
+     constructor does not matter, nor the algebraic data type
+     definition to which it belongs; only the [flavor] of this
+     branch, and the fields, matter. *)
+  infer_concrete w branch.branch_flavor branch.branch_fields
 
 and infer_concrete w flag fields =
   match flag with
@@ -353,11 +359,11 @@ let analyze_data_types (env : env) (variables : var list) : env =
 	     We just look it up. *)
 	  let f = get_fact env v in
 	  fun (_ : F.valuation) -> f
-      | Some (Some (flag, branches, clause), _) ->
+      | Some (Some branches, _) ->
 	  fun valuation ->
-	    (* Bind the parameters. Drop the [adopts] clause. *)
-	    let env, parameters, branches, _ =
-	      bind_datacon_parameters env (get_kind env v) branches clause
+	    (* Bind the parameters. *)
+	    let env, parameters, branches =
+	      bind_datacon_parameters env (get_kind env v) branches
 	    in
 	    (* Construct a map of the parameters to their indices. The ordering
 	       matters, of course; it is used in [compose] when matching formal
@@ -376,10 +382,7 @@ let analyze_data_types (env : env) (variables : var list) : env =
 	    } in
 	    (* The right-hand side of the algebraic data type definition can be
 	       viewed as a sum of records. *)
-	    Fact.join_many (fun branch ->
-	      let _, fields = branch in
-	      infer_concrete w flag fields
-	    ) branches
+	    Fact.join_many (infer_branch w) branches
     )
   in
 

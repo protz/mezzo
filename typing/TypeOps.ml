@@ -55,7 +55,8 @@ let collect (t: typ): typ * typ list =
         let permissions = List.flatten permissions in
         TyTuple ts, permissions
 
-    | TyConcreteUnfolded (datacon, fields, clause) ->
+    | TyConcreteUnfolded branch ->
+        let fields = branch.branch_fields in
         let permissions, values = List.partition
           (function FieldPermission _ -> true | FieldValue _ -> false)
           fields
@@ -75,7 +76,8 @@ let collect (t: typ): typ * typ list =
             ([],[])
             values
         in
-        TyConcreteUnfolded (datacon, List.rev values, clause), List.flatten (permissions :: sub_permissions)
+        TyConcreteUnfolded { branch with branch_fields = List.rev values },
+	List.flatten (permissions :: sub_permissions)
 
     | TyAnchoredPermission (x, t) ->
         let t, t_perms = collect t in
@@ -133,14 +135,14 @@ let rec mark_reachable env t =
   | TyTuple ts ->
       List.fold_left mark_reachable env ts
 
-  | TyConcreteUnfolded (_, fields, clause) ->
+  | TyConcreteUnfolded branch ->
       let ts = List.map (function
         | FieldValue (_, t) ->
             t
         | FieldPermission _ ->
             Log.error "[collect] wanted here"
-      ) fields in
-      let ts = clause :: ts in
+      ) branch.branch_fields in
+      let ts = branch.branch_adopts :: ts in
       List.fold_left mark_reachable env ts
 
   | TySingleton t ->

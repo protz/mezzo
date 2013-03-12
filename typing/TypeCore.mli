@@ -94,9 +94,7 @@ and typ =
 
     (** Structural types. *)
   | TyTuple of typ list
-  | TyConcreteUnfolded of resolved_datacon * data_field_def list * typ
-      (** [typ] is for the type of the adoptees; initially it's bottom and then
-       * it gets instantiated to something more precise. *)
+  | TyConcreteUnfolded of resolved_datacon data_type_def_branch
 
     (** Singleton types. *)
   | TySingleton of typ
@@ -129,21 +127,23 @@ and mode_constraint = Mode.mode * typ
 (** {2 Type definitions} *)
 
 (** Our data constructors have the standard variance. *)
-type variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | Bivariant
+and variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | Bivariant
 
-type data_type_def_branch =
-    Datacon.name * data_field_def list
-
-type adopts_clause =
-  (* option here because not all concrete types adopt someone *)
-  typ option
+and 'datacon data_type_def_branch = {
+  branch_flavor: DataTypeFlavor.flavor;
+  branch_datacon: 'datacon; (* Datacon.name or resolved_datacon *)
+  branch_fields: data_field_def list;
+  (* The type of the adoptees; initially it's bottom and then
+   * it gets instantiated to something less precise. *)
+  branch_adopts: typ;
+}
 
 type data_type_def =
-  data_type_def_branch list
+  Datacon.name data_type_def_branch list
 
 type type_def =
   (* option here because abstract types do not have a definition *)
-    (DataTypeFlavor.flavor * data_type_def * adopts_clause) option
+    data_type_def option
   * variance list
 
 type data_type_group =
