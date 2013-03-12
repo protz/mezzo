@@ -88,13 +88,6 @@ let tsubst (t2 : typ) (i : int) (t1 : typ) =
 let tsubst_unresolved_branch (t2 : typ) (i : int) (branch : unresolved_branch) =
   (new tsubst t2) # unresolved_branch i branch
 
-let flatten_kind = SurfaceSyntax.flatten_kind;;
-
-let get_arity_for_kind kind =
-  let _, tl = flatten_kind kind in
-  List.length tl
-;;
-
 let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_type_group =
   let group = List.map (function ((name, loc, def, fact, kind) as elt) ->
     match def with
@@ -104,10 +97,10 @@ let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_typ
         elt
 
     | Some branches, variance ->
-        let arity = get_arity_for_kind kind in
+        let arity = SurfaceSyntax.get_arity_for_kind kind in
 
         (* We need to add [arity] because one has to move up through the type
-         * parameters to reach the typed defined at [i]. *)
+         * parameters to reach the type defined at [i]. *)
         let index = i + arity in
 
         (* Replace each TyBound with the corresponding TyOpen, for all branches. *)

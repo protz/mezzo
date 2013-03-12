@@ -118,6 +118,10 @@ let flatten_kind kind =
   k, List.rev acc
 ;;
 
+let get_arity_for_kind kind =
+  let _, tl = flatten_kind kind in
+  List.length tl
+;;
 
 (* ---------------------------------------------------------------------------- *)
 

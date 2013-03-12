@@ -287,7 +287,7 @@ let get_branches env point: unresolved_branch list =
 ;;
 
 let get_arity (env: env) (var: var): int =
-  get_arity_for_kind (get_kind env var)
+  SurfaceSyntax.get_arity_for_kind (get_kind env var)
 ;;
 
 let rec get_kind_for_type env t =
@@ -466,7 +466,7 @@ let make_datacon_letters env kind flexible =
 let bind_datacon_parameters (env: env) (kind: kind) (branches: unresolved_branch list):
     env * var list * unresolved_branch list =
   let env, points = make_datacon_letters env kind false in
-  let arity = get_arity_for_kind kind in
+  let arity = SurfaceSyntax.get_arity_for_kind kind in
   let branches = MzList.fold_lefti (fun i branches point ->
     let index = arity - i - 1 in
     let branches = List.map (tsubst_unresolved_branch (TyOpen point) index) branches in

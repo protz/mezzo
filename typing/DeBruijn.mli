@@ -44,4 +44,3 @@ val tpsubst :
   env ->
   typ -> var -> typ -> typ
 
-val get_arity_for_kind : SurfaceSyntax.kind -> int
