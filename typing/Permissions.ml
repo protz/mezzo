@@ -197,104 +197,117 @@ let is_singleton env t =
  * This function actually does quite a bit of work, in the sense that it
  * performs unfolding on demand: if there is a missing structure point that
  * could potentially be a rigid variable, it creates it... *)
-let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
-  let t = modulo_flex env t in
-  let t = expand_if_one_branch env t in
-  match t with
-  | TyUnknown
-  | TyDynamic
-  | TyBound _
-  | TyOpen _
-  | TyApp _ ->
-      env, t
 
-  | TyForall ((binding, _), t1) ->
-      if side = Right then
-        let env, t1, _ = bind_rigid_in_type env binding t1 in
-        let env, t1 = open_all_rigid_in env t1 side in
-        env, t1
-      else
-        env, t
+(* TEMPORARY calling [wrap_bar] causes an existential to appear, so it
+   seems interesting only if on the Left side. If on the right side, on
+   the contrary, it could prevent us from making progress? *)
 
-  | TyExists (binding, t1) ->
-      if side = Left then
-        let env, t1, _ = bind_rigid_in_type env binding t1 in
-        let env, t1 = open_all_rigid_in env t1 side in
-        env, t1
-      else
-        env, t
+class open_all_rigid_in (env : env ref) = object (self)
 
-  | TyTuple ts ->
-      let env, ts = List.fold_left (fun (env, acc) t ->
-        let t =
-          if not (is_singleton env t) then wrap_bar t
-          else t
-        in
-        let env, t = open_all_rigid_in env t side in
-        env, t :: acc
-      ) (env, []) ts in
-      let ts = List.rev ts in
-      env, TyTuple ts
+  (* The type environment [env] has type [env ref], and is threaded
+     through the traversal. It is continuously extended. *)
 
-  | TyConcreteUnfolded branch ->
-      let fields = branch.branch_fields in
-      let env, fields = List.fold_left (fun (env, acc) field ->
-        match field with
-        | FieldValue (f, t) ->
-            let t =
-              if not (is_singleton env t) then wrap_bar t
-              else t
-            in
-            let env, t = open_all_rigid_in env t side in
-            env, FieldValue (f, t) :: acc
-        | FieldPermission t ->
-            let env, t = open_all_rigid_in env t side in
-            env, FieldPermission t :: acc
-      ) (env, []) fields in
-      let fields = List.rev fields in
-      let branch = { branch with branch_fields = fields } in
-      env, TyConcreteUnfolded branch
+  (* Our environment is a pair of [side], which tells us which kind
+     of binders (universal or existential) we are supposed to open,
+     and [deconstructed], a Boolean flag that is set to [true] when
+     a structural type was just deconstructed and we are expected
+     to invoke [wrap_bar]. *)
+  inherit [side * bool] map as super
 
-  | TySingleton _ ->
-      env, t
+  (* We re-implement the main visitor in order to receive a warning
+     when new cases appear and in order to share code. *)
+  method visit (side, deconstructed) ty =
+    let ty = modulo_flex !env ty in
+    let ty = if deconstructed && not (is_singleton !env ty) then wrap_bar ty else ty in
+    let ty = expand_if_one_branch !env ty in
+    match ty, side with
 
-  | TyArrow (t1, t2) ->
-      (* This is subtle! Existentials in the codomain are universal! *)
-      begin match side with
-      | Right ->
-          let env, t1 = open_all_rigid_in env t1 Left in
-          env, TyArrow (t1, t2)
-      | Left ->
-          env, t
-      end
+    (* We stop at the following constructors. *)
 
-  | TyBar (t1, t2) ->
-      let env, t1 = open_all_rigid_in env t1 side in
-      let env, t2 = open_all_rigid_in env t2 side in
-      env, TyBar (t1, t2)
+    | TyUnknown, _
+    | TyDynamic, _
+    | TyBound _, _
+    | TyOpen _, _
+    | TyApp _, _
+    | TyForall _, Left
+    | TyExists _, Right
+    | TySingleton _, _
+    | TyArrow _, Left
+    | TyEmpty, _
+    | TyImply _, _
+	-> ty
 
-  | TyAnchoredPermission (t1, t2) ->
-      let env, t1 = open_all_rigid_in env t1 side in
-      let env, t2 = open_all_rigid_in env t2 side in
-      env, TyAnchoredPermission (t1, t2)
+    (* A universal quantifier on the right-hand side gives rise to a rigid
+       variable. The type environment is extended. The quantifier disappears.
+       The case of an existential on the left-hand side is symmetric. *)
 
-  | TyEmpty ->
-      env, t
+    | TyForall ((binding, _), ty), Right
+    | TyExists (binding, ty), Left ->
+        let new_env, ty, _ = bind_rigid_in_type !env binding ty in
+	env := new_env;
+	self#visit (side, false) ty
 
-  | TyStar (t1, t2) ->
-      let env, t1 = open_all_rigid_in env t1 side in
-      let env, t2 = open_all_rigid_in env t2 side in
-      env, TyStar (t1, t2)
+    (* As a special case, when we find [t -> u] on the right-hand side,
+       we go look for existential quantifiers inside [t], and hoist them
+       out, where they become universal quantifiers and are opened.
+       This amounts to applying the subtyping rule forall a.(t -> u)
+       <= (exists a.t) -> u, I believe. Indeed, the original goal was
+       to prove that some value has type (exists a.t) -> u, and we are
+       replacing it with the goal of proving that this value has type
+       t -> u, for a rigid a. *)
 
-  | TyAnd (c, t) ->
-      let env, t = open_all_rigid_in env t side in
-      env, TyAnd (c, t)
+    (* Note that we do *not* go down into [u]. That would amount to
+       applying the subtyping rule forall a. t -> u <= t -> forall a.u,
+       which is incorrect, as it violates the value restriction. *)
 
-  | TyImply (c, t) ->
-      let env, t = open_all_rigid_in env t side in
-      env, TyImply (c, t)
-;;
+    (* This is in fact the only occasion where [side] changes, and it
+       changes only from [Right] to [Left]. *)
 
+    | TyArrow (ty1, ty2), Right ->
+        let ty1 = self#visit (Left, false) ty1 in
+	TyArrow (ty1, ty2)
+
+    (* We descend into the following constructs. *)
+
+    | TyTuple _, _
+      -> super#visit (side, true) ty
+        (* Setting [deconstructed] to [true] forces the fields to
+	   become named with a point, if they weren't already. *)
+
+    | TyBar _, _
+    | TyAnchoredPermission _, _
+    | TyStar _, _
+    | TyConcreteUnfolded _, _
+      -> super#visit (side, false) ty
+
+    (* We descend into the right-hand side of [TyAnd]. *)
+
+    | TyAnd (c, ty), _ ->
+        TyAnd (c, self#visit (side, false) ty)
+
+  (* At [TyConcreteUnfolded], we descend into the fields, but not into
+     the datacon or into the adopts clause. *)
+    method resolved_branch env branch =
+    { branch with
+      branch_fields = List.map (self#field env) branch.branch_fields;
+    }
+
+  (* At physical fields, we set [deconstructed] to [true]. At permission
+     fields, we do not; it makes sense only at kind [type]. *)
+  method field (side, _) = function
+    | FieldValue (field, ty) ->
+        FieldValue (field, self#visit (side, true) ty)
+        (* Setting [deconstructed] to [true] forces the fields to
+	   become named with a point, if they weren't already. *)
+    | FieldPermission p ->
+        FieldPermission (self#visit (side, false) p)
+
+end
+
+let open_all_rigid_in (env : env) (ty : typ) (side : side) : env * typ =
+  let env = ref env in
+  let ty = (new open_all_rigid_in env) # visit (side, false) ty in
+  !env, ty
 
 (** [unify env p1 p2] merges two vars, and takes care of dealing with how the
     permissions should be merged. *)
