@@ -23,15 +23,23 @@ open TypeCore
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Lifting. *)
+(* Counting binders. *)
 
-class lift (k : int) = object
+class map_counting = object
   (* The environment [i] has type [int]. *)
   inherit [int] map
   (* The environment [i] keeps track of how many binders have been
      entered. It is incremented at each binder. *)
   method extend i (_ : kind) =
     i + 1
+end
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Lifting. *)
+
+class lift (k : int) = object
+  inherit map_counting
   (* A local variable (one that is less than [i]) is unaffected;
      a free variable is lifted up by [k]. *)
   method tybound i j =
@@ -42,7 +50,10 @@ class lift (k : int) = object
 end
 
 let lift (k : int) (ty : typ) : typ =
-  (new lift k) # visit 0 ty
+  if k = 0 then
+    ty
+  else
+    (new lift k) # visit 0 ty
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -52,12 +63,8 @@ let lift (k : int) (ty : typ) : typ =
  * [t1]. *)
 
 class tsubst (t2 : typ) = object
-  (* The environment [i] has type [int]. It is the variable that
-     we are looking for. *)
-  inherit [int] map
-  (* The environment [i] is incremented at each binder. *)
-  method extend i (_ : kind) =
-    i + 1
+  (* The environment [i] is the variable that we are looking for. *)
+  inherit map_counting
   (* The target variable [i] is replaced with [t2]. Any other
      variable is unaffected. *)
   method tybound i j =
@@ -91,77 +98,24 @@ let tsubst_unresolved_branch (t2 : typ) (i : int) (branch : unresolved_branch) =
 let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_type_group =
   (new tsubst t2) # data_type_group i group
 
-(* Substitute [t2] for [p] in [t1]. We allow [t2] to have free variables. *)
-let tpsubst env (t2: typ) (p: var) (t1: typ) =
-  let rec tpsubst t2 t1 =
-    let t1 = modulo_flex env t1 in
-    match t1 with
-      (* Special type constants. *)
-    | TyUnknown
-    | TyDynamic
-    | TyBound _ ->
-        t1
+(* ---------------------------------------------------------------------------- *)
 
-    | TyOpen p' ->
-        if same env p p' then
-          t2
-        else
-          t1
+(* Substitute [t2] for [v] in [t1]. We allow [t2] to have free variables,
+   hence [t2] needs to be lifted when entering a binder. *)
 
-    | TyForall (binder, t) ->
-        TyForall (binder, tpsubst (lift 1 t2) t)
+class tpsubst (env : env) (t2 : typ) (v : var) = object
+  inherit map_counting
+  (* The target variable [v] is replaced with [lift i t2]. Any other
+     variable is unaffected. *)
+  method tyopen i v' =
+    if same env v v' then
+      lift i t2
+    else
+      TyOpen v'
+  (* An earlier version of this code performed normalization using
+     [modulo_flex], but this was apparently not required. *)
+end
 
-    | TyExists (binder, t) ->
-        TyExists (binder, tpsubst (lift 1 t2) t)
-
-    | TyApp (t, t') ->
-        TyApp (tpsubst t2 t, List.map (tpsubst t2) t')
-
-    | TyTuple ts ->
-        TyTuple (List.map (tpsubst t2) ts)
-
-    | TyConcreteUnfolded branch ->
-       TyConcreteUnfolded (tpsubst_branch t2 branch)
-
-    | TySingleton t ->
-        TySingleton (tpsubst t2 t)
-
-    | TyArrow (t, t') ->
-        TyArrow (tpsubst t2 t, tpsubst t2 t')
-
-    | TyAnchoredPermission (p, q) ->
-        TyAnchoredPermission (tpsubst t2 p, tpsubst t2 q)
-
-    | TyEmpty ->
-        t1
-
-    | TyStar (p, q) ->
-        TyStar (tpsubst t2 p, tpsubst t2 q)
-
-    | TyBar (t, p) ->
-        TyBar (tpsubst t2 t, tpsubst t2 p)
-
-    | TyAnd ((m, t), u) ->
-        TyAnd ((m, tpsubst t2 t), tpsubst t2 u)
-
-    | TyImply ((m, t), u) ->
-        TyImply ((m, tpsubst t2 t), tpsubst t2 u)
-
-  and tpsubst_branch t2 branch = {
-    branch_flavor = branch.branch_flavor;
-    branch_datacon = tpsubst_resolved_datacon t2 branch.branch_datacon;
-    branch_fields = List.map (tpsubst_field t2) branch.branch_fields;
-    branch_adopts = tpsubst t2 branch.branch_adopts;
-  }
-
-  and tpsubst_field t2 = function
-    | FieldValue (field_name, t) -> FieldValue (field_name, tpsubst t2 t)
-    | FieldPermission t -> FieldPermission (tpsubst t2 t)
-
-  and tpsubst_resolved_datacon t2 (t, dc) =
-    tpsubst t2 t, dc
-
-  in
-  tpsubst t2 t1
-;;
+let tpsubst env (t2 : typ) (v : var) (t1 : typ) : typ =
+  (new tpsubst env t2 v) # visit 0 t1
 
