@@ -28,19 +28,12 @@ val lift: int -> typ -> typ
 val tsubst : typ -> int -> typ -> typ
 
 (** Same thing with a data type branch. *)
-val tsubst_unresolved_branch:
-  typ ->
-  int ->
-  unresolved_branch ->
-  unresolved_branch
+val tsubst_unresolved_branch: typ -> int -> unresolved_branch -> unresolved_branch
 
 (** Same thing with a data type group. *)
-val tsubst_data_type_group :
-  typ -> int -> data_type_group -> data_type_group
+val tsubst_data_type_group : typ -> int -> data_type_group -> data_type_group
 
 (** [tpsubst env t1 var t2] subtitutes [t1] for [var] in [t2]. [var] is the type
  * of open variables, so this actually {b closes} a binder. *)
-val tpsubst :
-  env ->
-  typ -> var -> typ -> typ
+val tpsubst : env -> typ -> var -> typ -> typ
 

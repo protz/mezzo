@@ -30,7 +30,7 @@ class lift (k : int) = object
   inherit [int] map
   (* The environment [i] keeps track of how many binders have been
      entered. It is incremented at each binder. *)
-  method extend i (_ : type_binding) =
+  method extend i (_ : kind) =
     i + 1
   (* A local variable (one that is less than [i]) is unaffected;
      a free variable is lifted up by [k]. *)
@@ -56,7 +56,7 @@ class tsubst (t2 : typ) = object
      we are looking for. *)
   inherit [int] map
   (* The environment [i] is incremented at each binder. *)
-  method extend i (_ : type_binding) =
+  method extend i (_ : kind) =
     i + 1
   (* The target variable [i] is replaced with [t2]. Any other
      variable is unaffected. *)
@@ -89,28 +89,7 @@ let tsubst_unresolved_branch (t2 : typ) (i : int) (branch : unresolved_branch) =
   (new tsubst t2) # unresolved_branch i branch
 
 let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_type_group =
-  let group = List.map (function ((name, loc, def, fact, kind) as elt) ->
-    match def with
-    | None, _ ->
-        (* It's an abstract type, it has no branches where we should perform the
-         * opening. *)
-        elt
-
-    | Some branches, variance ->
-        let arity = SurfaceSyntax.get_arity_for_kind kind in
-
-        (* We need to add [arity] because one has to move up through the type
-         * parameters to reach the type defined at [i]. *)
-        let index = i + arity in
-
-        (* Replace each TyBound with the corresponding TyOpen, for all branches. *)
-        let branches = List.map (tsubst_unresolved_branch t2 index) branches in
-
-        let def = Some branches, variance in
-        name, loc, def, fact, kind
-  ) group in
-  group
-;;
+  (new tsubst t2) # data_type_group i group
 
 (* Substitute [t2] for [p] in [t1]. We allow [t2] to have free variables. *)
 let tpsubst env (t2: typ) (p: var) (t1: typ) =

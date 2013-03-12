@@ -401,7 +401,7 @@ class virtual ['env, 'result] visitor : object
   (* This method, whose default implementation is the identity,
      can be used to extend the environment when a binding is
      entered. *)
-  method extend: 'env -> type_binding -> 'env
+  method extend: 'env -> kind -> 'env
 
   (* The main visitor method inspects the structure of [ty] and
      dispatches control to the appropriate case method. *)
@@ -461,6 +461,8 @@ class ['env] map : object
   method field: 'env -> data_field_def -> data_field_def
   (* An auxiliary method for transforming an unresolved branch. *)
   method unresolved_branch: 'env -> unresolved_branch -> unresolved_branch
+  (* An auxiliary method for transforming a data type group. *)
+  method data_type_group: 'env -> data_type_group -> data_type_group
 
 end
 

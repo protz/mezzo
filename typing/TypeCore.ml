@@ -528,7 +528,7 @@ class virtual ['env, 'result] visitor = object (self)
   (* This method, whose default implementation is the identity,
      can be used to extend the environment when a binding is
      entered. *)
-  method extend (env : 'env) (_ : type_binding) : 'env =
+  method extend (env : 'env) (_ : kind) : 'env =
     env
 
   (* The main visitor method inspects the structure of [ty] and
@@ -615,10 +615,12 @@ class ['env] map = object (self)
     TyOpen v
 
   method tyforall env binding flavor body =
-    TyForall ((binding, flavor), self#visit (self#extend env binding) body)
+    let _, kind, _ = binding in
+    TyForall ((binding, flavor), self#visit (self#extend env kind) body)
 
   method tyexists env binding body =
-    TyExists (binding, self#visit (self#extend env binding) body)
+    let _, kind, _ = binding in
+    TyExists (binding, self#visit (self#extend env kind) body)
 
   method tyapp env head args =
     TyApp (self#visit env head, self#visit_many env args)
@@ -689,6 +691,26 @@ class ['env] map = object (self)
       branch_fields = List.map (self#field env) branch.branch_fields;
       branch_adopts = self#visit env branch.branch_adopts;
     }
+
+  (* An auxiliary method for transforming a data type group. *)
+  method data_type_group env (group : data_type_group) =
+    List.map (function element ->
+      let name, loc, def, fact, kind = element in
+      match def with
+      | None, _ ->
+          (* This is an abstract type. There are no branches. *)
+          element
+      | Some branches, variance ->
+	  (* Enter the bindings for the type parameters. *)
+	  let _, kinds = SurfaceSyntax.flatten_kind kind in
+	  let env = List.fold_left self#extend env (List.rev kinds) in
+	    (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
+	  (* Transform the branches in this extended environment. *)
+	  let branches = List.map (self#unresolved_branch env) branches in
+	  (* That's it. *)
+	  let def = Some branches, variance in
+          name, loc, def, fact, kind
+    ) group
 
 end
 
