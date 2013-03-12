@@ -881,6 +881,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("tyand04.mz", pass);
   ("tyand05.mz", simple_test ~known_failure:() (Fail (fun _ -> true)));
   ("incorrect-fields.mz", pass); (* it should fail, really, but the message is not the right one *)
+  ("name-intro.mz", pass);
 
 ];;
 
