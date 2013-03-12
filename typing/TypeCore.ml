@@ -512,6 +512,189 @@ let set_floating_permissions env floating_permissions =
   { env with floating_permissions }
 ;;
 
+(* ---------------------------------------------------------------------------- *)
+
+(* A visitor for the internal syntax of types. *)
+
+class virtual ['env, 'result] visitor = object (self)
+
+  (* This method, whose default implementation is the identity,
+     allows normalizing a type before inspecting its structure.
+     This can be used, for instance, to replace flexible variables
+     with the type that they stand for. *)
+  method normalize (_ : 'env) (ty : typ) =
+    ty
+
+  (* The main visitor method inspects the structure of [ty] and
+     dispatches control to the appropriate case method. *)
+  method visit (env : 'env) (ty : typ) : 'result =
+    match self#normalize env ty with
+    | TyUnknown ->
+        self#tyunknown env
+    | TyDynamic ->
+        self#tydynamic env
+    | TyBound i ->
+        self#tybound env i
+    | TyOpen v ->
+        self#tyopen env v
+    | TyForall ((binding, flavor), body) ->
+        self#tyforall env binding flavor body
+    | TyExists (binding, body) ->
+        self#tyexists env binding body
+    | TyApp (head, args) ->
+        self#tyapp env head args
+    | TyTuple tys ->
+        self#tytuple env tys
+    | TyConcreteUnfolded branch ->
+        self#tyconcreteunfolded env branch
+    | TySingleton x ->
+        self#tysingleton env x
+    | TyArrow (ty1, ty2) ->
+        self#tyarrow env ty1 ty2
+    | TyBar (ty1, ty2) ->
+        self#tybar env ty1 ty2
+    | TyAnchoredPermission (ty1, ty2) ->
+        self#tyanchoredpermission env ty1 ty2
+    | TyEmpty ->
+        self#tyempty env
+    | TyStar (ty1, ty2) ->
+        self#tystar env ty1 ty2
+    | TyAnd (c, ty) ->
+        self#tyand env c ty
+    | TyImply (c, ty) ->
+        self#tyimply env c ty
+
+  (* The case methods have no default implementation. *)
+  method virtual tyunknown: 'env -> 'result
+  method virtual tydynamic: 'env -> 'result
+  method virtual tybound: 'env -> db_index -> 'result
+  method virtual tyopen: 'env -> var -> 'result
+  method virtual tyforall: 'env -> type_binding -> flavor -> typ -> 'result
+  method virtual tyexists: 'env -> type_binding -> typ -> 'result
+  method virtual tyapp: 'env -> typ -> typ list -> 'result
+  method virtual tytuple: 'env -> typ list -> 'result
+  method virtual tyconcreteunfolded: 'env -> resolved_branch -> 'result
+  method virtual tysingleton: 'env -> typ -> 'result
+  method virtual tyarrow: 'env -> typ -> typ -> 'result
+  method virtual tybar: 'env -> typ -> typ -> 'result
+  method virtual tyanchoredpermission: 'env -> typ -> typ -> 'result
+  method virtual tyempty: 'env -> 'result
+  method virtual tystar: 'env -> typ -> typ -> 'result
+  method virtual tyand: 'env -> mode_constraint -> typ -> 'result
+  method virtual tyimply: 'env -> mode_constraint -> typ -> 'result
+
+end
+
+(* ---------------------------------------------------------------------------- *)
+
+(* A [map] specialization of the visitor. *)
+
+(* In this version, the environment can be of an arbitrary type, and is not
+   automatically extended when a binding is entered. No type normalization
+   is performed. *)
+
+class virtual ['env] map = object (self)
+
+  inherit ['env, typ] visitor
+
+  (* The case methods are defined by default as the identity, up to
+     a recursive traversal. *)
+
+  method tyunknown _env =
+    TyUnknown
+
+  method tydynamic _env =
+    TyDynamic
+
+  method tybound _env i =
+    TyBound i
+
+  method tyopen _env v =
+    TyOpen v
+
+  method tyforall env binding flavor body =
+    TyForall ((binding, flavor), self#visit env body)
+
+  method tyexists env binding body =
+    TyExists (binding, self#visit env body)
+
+  method tyapp env head args =
+    TyApp (self#visit env head, self#visit_many env args)
+
+  method tytuple env tys =
+    TyTuple (self#visit_many env tys)
+
+  method tyconcreteunfolded env branch =
+    TyConcreteUnfolded (self#branch env branch)
+
+  method tysingleton env x =
+    TySingleton (self#visit env x)
+
+  method tyarrow env ty1 ty2 =
+    TyArrow (self#visit env ty1, self#visit env ty2)
+
+  method tybar env ty1 ty2 =
+    TyBar (self#visit env ty1, self#visit env ty2)
+
+  method tyanchoredpermission env ty1 ty2 =
+    TyAnchoredPermission (self#visit env ty1, self#visit env ty2)
+
+  method tyempty _env =
+    TyEmpty
+
+  method tystar env ty1 ty2 =
+    TyStar (self#visit env ty1, self#visit env ty2)
+
+  method tyand env c ty =
+    TyAnd (self#mode_constraint env c, self#visit env ty)
+
+  method tyimply env c ty =
+    TyImply (self#mode_constraint env c, self#visit env ty)
+
+  (* An auxiliary method for transforming a list of types. *)
+  method visit_many env tys =
+    List.map (self#visit env) tys
+
+  (* An auxiliary method for transforming a branch. *)
+  method branch env (branch : resolved_branch) =
+    { 
+      branch_flavor = branch.branch_flavor;
+      branch_datacon = branch.branch_datacon;
+      branch_fields = List.map (self#field env) branch.branch_fields;
+      branch_adopts = self#visit env branch.branch_adopts;
+    }
+
+  (* An auxiliary method for transforming a field. *)
+  method field env = function
+    | FieldValue (field, ty) ->
+        FieldValue (field, self#visit env ty)
+    | FieldPermission p ->
+        FieldPermission (self#visit env p)
+
+  (* An auxiliary method for transforming a mode constraint. *)
+  method mode_constraint env (mode, ty) =
+    (mode, self#visit env ty)
+
+end
+
+(* ---------------------------------------------------------------------------- *)
+
+(* A [modulo_flex] specialization of the [map] visitor. *)
+
+(* In this version, the environment must be a type environment. It is not
+   automatically extended when a binding is entered. Types are normalized
+   by invoking [modulo_flex]. *)
+
+(* TEMPORARY
+class virtual map_modulo_flex = object
+
+  inherit [env] map
+
+  method normalize env ty =
+    modulo_flex env ty
+
+end
+*)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -565,76 +748,21 @@ let level (env: env) (t: typ): level =
   level t
 ;;
 
-
-let clean top sub t =
-  let rec clean t =
-    match t with
-    (* Special type constants. *)
-    | TyUnknown
-    | TyDynamic
-    | TyEmpty
-    | TyBound _ ->
-        t
-
-    | TyOpen v ->
-        begin match modulo_flex_v sub v with
-        | TyOpen p as t ->
-            if valid top p then
-              t
-            else
-              raise UnboundPoint
-        | _ as t ->
-            clean t
-        end
-
-    | TyForall (b, t) ->
-        TyForall (b, clean t)
-
-    | TyExists (b, t) ->
-        TyExists (b, clean t)
-
-    | TyApp (t1, t2) ->
-        TyApp (clean t1, List.map clean t2)
-
-      (* Structural types. *)
-    | TyTuple ts ->
-        TyTuple (List.map clean ts)
-
-    | TyConcreteUnfolded { branch_flavor; branch_datacon = (t, dc); branch_fields; branch_adopts } ->
-        let t = clean t in
-        let branch_fields = List.map (function
-          | FieldValue (f, t) ->
-              FieldValue (f, clean t)
-          | FieldPermission p ->
-              FieldPermission (clean p)
-        ) branch_fields in
-	let branch_adopts = clean branch_adopts in
-        TyConcreteUnfolded { branch_flavor; branch_datacon = (t, dc); branch_fields; branch_adopts }
-
-    | TySingleton t ->
-        TySingleton (clean t)
-
-    | TyArrow (t1, t2) ->
-        TyArrow (clean t1, clean t2)
-
-    | TyBar (t1, t2) ->
-        TyBar (clean t1, clean t2)
-
-    | TyAnchoredPermission (t1, t2) ->
-        TyAnchoredPermission (clean t1, clean t2)
-
-    | TyStar (t1, t2) ->
-        TyStar (clean t1, clean t2)
-
-    | TyAnd ((m, t1), t2) ->
-        TyAnd ((m, clean t1), clean t2)
-
-    | TyImply ((m, t1), t2) ->
-        TyImply ((m, clean t1), clean t2)
-
-  in
-  clean t
-;;
+let clean (top : env) (sub : env) : typ -> typ =
+  let transform = object (self)
+    inherit [unit] map
+    method tyopen () v =
+      (* Resolve flexible variables with respect to [sub]. *)
+      let ty = modulo_flex_v sub v in
+      match ty with
+      | TyOpen p ->
+	  (* A (rigid or flexible) variable is allowed to escape only
+	     if it makes sense in the environment [top]. *)
+          if valid top p then ty else raise UnboundPoint
+      | _ ->
+          self#visit () ty
+  end in
+  transform#visit ()
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -34,6 +34,9 @@ module Field: module type of Variable with type name = SurfaceSyntax.Field.name
 
 (** {2 Auxiliary definitions} *)
 
+(** The type of user-generated or auto-generated names. *)
+type name = User of Module.name * Variable.name | Auto of Variable.name
+
 (** Types have kinds. *)
 type kind = SurfaceSyntax.kind =
   | KTerm
@@ -41,14 +44,11 @@ type kind = SurfaceSyntax.kind =
   | KPerm
   | KArrow of kind * kind
 
-(** The type of user-generated or auto-generated names. *)
-type name = User of Module.name * Variable.name | Auto of Variable.name
+(** Our locations are made up of ranges. *)
+type location = Lexing.position * Lexing.position
 
 (** A type binding defines a type variable bound in a type. *)
-and type_binding = name * kind * location
-
-(** Our locations are made up of ranges. *)
-and location = Lexing.position * Lexing.position
+type type_binding = name * kind * location
 
 (** A type binding can be either user-provided, through a universal
  * quantification for instance, or auto-generated, by the desugaring pass for
@@ -67,7 +67,6 @@ type db_index =
  * This is the type of open variales; it's abstract, because we provide a set
  * of wrappers and want to prevent mistakes in client code. *)
 type var
-
 
 (** {2 The type of types} *)
 
@@ -126,9 +125,6 @@ and mode_constraint = Mode.mode * typ
 
 (** {2 Type definitions} *)
 
-(** Our data constructors have the standard variance. *)
-and variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | Bivariant
-
 and ('flavor, 'datacon) data_type_def_branch = {
   branch_flavor: 'flavor; (* DataTypeFlavor.flavor or unit *)
   branch_datacon: 'datacon; (* Datacon.name or resolved_datacon *)
@@ -146,6 +142,9 @@ type unresolved_branch =
 
 type data_type_def =
   unresolved_branch list
+
+(** Our data constructors have the standard variance. *)
+type variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | Bivariant
 
 type type_def =
   (* option here because abstract types do not have a definition *)
