@@ -39,7 +39,7 @@ class collect (perms : typ list ref) = object (self)
   (* We re-implement the main visitor method in order to be warned
      about new cases and to share code for some cases. *)
   method visit () ty =
-    (* No normalization. *)
+    (* TEMPORARY No call to [modulo_flex]; is this normal? *)
     match ty with
 
       (* We stop at the following constructors. *)
@@ -101,56 +101,29 @@ let collect (ty : typ) : typ * typ list =
   let ty = (new collect perms) # visit () ty in
   ty, !perms
 
-let rec mark_reachable env t =
-  let t = modulo_flex env t in
-  match t with
-  | TyUnknown
-  | TyDynamic
-  | TyEmpty
-  | TyBound _ ->
-      env
+(* ---------------------------------------------------------------------------- *)
 
-  | TyOpen p ->
-      if is_marked env p then
-        env
-      else
-        let env = mark env p in
-        if is_term env p then
-          let permissions = get_permissions env p in
-          List.fold_left mark_reachable env permissions
-        else
-          env
+class mark (env : env ref) = object (self)
+  inherit [unit] iter
+  method normalize () ty =
+    modulo_flex !env ty
+  (* Mark a variable [v], and if [v] is newly marked, find the permissions
+     for [v] in the environment and follow. *)
+  method tyopen () v =
+    if not (is_marked !env v) then begin
+      env := mark !env v;
+      if is_term !env v then begin
+        let permissions = get_permissions !env v in
+        List.iter (self#visit ()) permissions
+      end
+    end
+  (* Do not descend into arrows. (Why?) *)
+  method tyarrow () _ty1 _ty2 =
+    ()
+end
 
-  | TyForall (_, t)
-  | TyExists (_, t) ->
-      mark_reachable env t
+let mark_reachable (env : env) (ty : typ) : env =
+  let env = ref env in
+  (new mark env) # visit () ty;
+  !env
 
-  | TyBar (t1, t2)
-  | TyAnchoredPermission (t1, t2)
-  | TyStar (t1, t2)
-  | TyAnd ((_, t1), t2)
-  | TyImply ((_, t1), t2) ->
-      List.fold_left mark_reachable env [t1; t2]
-
-  | TyApp (t1, t2) ->
-      List.fold_left mark_reachable env (t1 :: t2)
-
-  | TyTuple ts ->
-      List.fold_left mark_reachable env ts
-
-  | TyConcreteUnfolded branch ->
-      let ts = List.map (function
-        | FieldValue (_, t) ->
-            t
-        | FieldPermission _ ->
-            Log.error "[collect] wanted here"
-      ) branch.branch_fields in
-      let ts = branch.branch_adopts :: ts in
-      List.fold_left mark_reachable env ts
-
-  | TySingleton t ->
-      mark_reachable env t
-
-  | TyArrow _ ->
-      env
-;;
