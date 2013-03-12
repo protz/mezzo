@@ -275,13 +275,14 @@ class open_all_rigid_in (env : env ref) = object (self)
 	   become named with a point, if they weren't already. *)
 
     | TyBar _, _
-    | TyAnchoredPermission _, _
     | TyStar _, _
     | TyConcreteUnfolded _, _
       -> super#visit (side, false) ty
 
-    (* We descend into the right-hand side of [TyAnd]. *)
+    (* We descend into the right-hand side of [TyAnchoredPermission] and [TyAnd]. *)
 
+    | TyAnchoredPermission (ty1, ty2), _ ->
+        TyAnchoredPermission (ty1, self#visit (side, false) ty2)
     | TyAnd (c, ty), _ ->
         TyAnd (c, self#visit (side, false) ty)
 
@@ -358,7 +359,7 @@ and add (env: env) (var: var) (t: typ): env =
    * simplified. [unfold] calls [add] recursively whenever it adds new vars. *)
   let env, t = unfold env ~hint t in
 
-  (* Break up this into a type + permissions. *)
+  (* Break this up into a type + permissions. *)
   let t, perms = collect t in
 
   TypePrinter.(Log.debug ~level:4 "%s[%sadding to %a] %a"
