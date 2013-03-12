@@ -20,7 +20,6 @@
 (* I'm defining module abbreviations because we're juggling with all these
  * modules at the same time, and the names conflict (e.g. env, toplevel_item,
  * etc.). *)
-module T = TypeCore
 module S = SurfaceSyntax
 module E = Expressions
 
