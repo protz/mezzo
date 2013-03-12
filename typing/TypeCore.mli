@@ -398,6 +398,11 @@ class virtual ['env, 'result] visitor : object
      with the type that they stand for. *)
   method normalize: 'env -> typ -> typ
 
+  (* This method, whose default implementation is the identity,
+     can be used to extend the environment when a binding is
+     entered. *)
+  method extend: 'env -> type_binding -> 'env
+
   (* The main visitor method inspects the structure of [ty] and
      dispatches control to the appropriate case method. *)
   method visit: 'env -> typ -> 'result
@@ -424,10 +429,6 @@ class virtual ['env, 'result] visitor : object
 end
 
 (* A [map] specialization of the visitor. *)
-
-(* In this version, the environment can be of an arbitrary type, and is not
-   automatically extended when a binding is entered. No type normalization
-   is performed. *)
 
 class ['env] map : object
 

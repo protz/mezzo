@@ -525,6 +525,12 @@ class virtual ['env, 'result] visitor = object (self)
   method normalize (_ : 'env) (ty : typ) =
     ty
 
+  (* This method, whose default implementation is the identity,
+     can be used to extend the environment when a binding is
+     entered. *)
+  method extend (env : 'env) (_ : type_binding) : 'env =
+    env
+
   (* The main visitor method inspects the structure of [ty] and
      dispatches control to the appropriate case method. *)
   method visit (env : 'env) (ty : typ) : 'result =
@@ -589,10 +595,6 @@ end
 
 (* A [map] specialization of the visitor. *)
 
-(* In this version, the environment can be of an arbitrary type, and is not
-   automatically extended when a binding is entered. No type normalization
-   is performed. *)
-
 class ['env] map = object (self)
 
   inherit ['env, typ] visitor
@@ -613,10 +615,10 @@ class ['env] map = object (self)
     TyOpen v
 
   method tyforall env binding flavor body =
-    TyForall ((binding, flavor), self#visit env body)
+    TyForall ((binding, flavor), self#visit (self#extend env binding) body)
 
   method tyexists env binding body =
-    TyExists (binding, self#visit env body)
+    TyExists (binding, self#visit (self#extend env binding) body)
 
   method tyapp env head args =
     TyApp (self#visit env head, self#visit_many env args)

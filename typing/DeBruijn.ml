@@ -25,17 +25,20 @@ open TypeCore
 
 (* Fun with de Bruijn indices. *)
 
-class lift (k : int) = object (self)
+class lift (k : int) = object
+  (* The environment [i] has type [int]. *)
   inherit [int] map
+  (* The environment [i] keeps track of how many binders have been
+     entered. It is incremented at each binder. *)
+  method extend i (_ : type_binding) =
+    i + 1
+  (* A local variable (one that is less than [i]) is unaffected;
+     a free variable is lifted up by [k]. *)
   method tybound i j =
     if j < i then
       TyBound j
     else
       TyBound (j + k)
-  method tyforall i binding flavor body =
-    TyForall ((binding, flavor), self#visit (i + 1) body)
-  method tyexists i binding body =
-    TyExists (binding, self#visit (i + 1) body)
 end
 
 let lift (k : int) (ty : typ) : typ =
