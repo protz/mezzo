@@ -273,7 +273,7 @@ let get_adopts_clause env point: typ =
       ty_bottom
 ;;
 
-let get_branches env point: Datacon.name data_type_def_branch list =
+let get_branches env point: unresolved_branch list =
   match get_definition env point with
   | Some (Some branches, _) ->
       branches
@@ -356,6 +356,17 @@ let def_for_datacon (env: env) (datacon: resolved_datacon): data_type_def =
 let def_for_branch env branch =
   def_for_datacon env branch.branch_datacon
 
+let branch_for_branch env (branch : resolved_branch) : unresolved_branch =
+  let _, datacon = branch.branch_datacon in
+  let branches : unresolved_branch list = def_for_branch env branch in
+  List.find (fun branch' ->
+    Datacon.equal datacon branch'.branch_datacon
+  ) branches
+
+let flavor_for_branch env (branch : resolved_branch) : DataTypeFlavor.flavor =
+  let branch : unresolved_branch = branch_for_branch env branch in
+  branch.branch_flavor
+
 let variance env var i =
   let definition = get_definition env var in
   let variance = snd (Option.extract definition) in
@@ -372,13 +383,16 @@ let instantiate_type t args =
   MzList.fold_lefti (fun i t arg -> tsubst arg i t) t args
 ;;
 
-let resolve_branch (t: var) (b: Datacon.name data_type_def_branch) : resolved_datacon data_type_def_branch =
-  { b with branch_datacon = (TyOpen t, b.branch_datacon) }
+let resolve_branch (t: var) (b: unresolved_branch) : resolved_branch =
+  { b with
+    branch_flavor = (); (* forget the flavor, we can recover it via [branch_datacon] *)
+    branch_datacon = (TyOpen t, b.branch_datacon);
+  }
 
-let instantiate_branch (branch : 'a data_type_def_branch) args : 'a data_type_def_branch =
+let instantiate_branch (branch : unresolved_branch) args : unresolved_branch =
   let args = List.rev args in
   let branch = MzList.fold_lefti (fun i branch arg ->
-    tsubst_branch arg i branch) branch args
+    tsubst_unresolved_branch arg i branch) branch args
   in
   branch
 ;;
@@ -387,7 +401,7 @@ let find_and_instantiate_branch
     (env: env)
     (var: var)
     (datacon: Datacon.name)
-    (args: typ list) : resolved_datacon data_type_def_branch =
+    (args: typ list) : resolved_branch =
   let branch =
     List.find
       (fun branch -> Datacon.equal datacon branch.branch_datacon)
@@ -444,13 +458,13 @@ let make_datacon_letters env kind flexible =
   env, points
 ;;
 
-let bind_datacon_parameters (env: env) (kind: kind) (branches: 'a data_type_def_branch list):
-    env * var list * 'a data_type_def_branch list =
+let bind_datacon_parameters (env: env) (kind: kind) (branches: unresolved_branch list):
+    env * var list * unresolved_branch list =
   let env, points = make_datacon_letters env kind false in
   let arity = get_arity_for_kind kind in
   let branches = MzList.fold_lefti (fun i branches point ->
     let index = arity - i - 1 in
-    let branches = List.map (tsubst_branch (TyOpen point) index) branches in
+    let branches = List.map (tsubst_unresolved_branch (TyOpen point) index) branches in
     branches
   ) branches points in
   env, points, branches
@@ -637,7 +651,7 @@ module TypePrinter = struct
         rparen
 
     | TyConcreteUnfolded branch ->
-        print_data_type_def_branch env { branch with branch_datacon = snd branch.branch_datacon } (* ugly *)
+        print_resolved_branch env branch
 
       (* Singleton types. *)
     | TySingleton typ ->
@@ -683,7 +697,20 @@ module TypePrinter = struct
     | FieldPermission typ ->
         string "permission" ^^ space ^^ print_type env typ
 
-  and print_data_type_def_branch env (b : Datacon.name data_type_def_branch) =
+  and print_unresolved_branch env (branch : unresolved_branch) =
+    print_branch env
+      (fun flavor -> string (DataTypeFlavor.print flavor))
+      print_datacon
+      branch
+
+  and print_resolved_branch env (branch : resolved_branch) =
+    print_branch env
+      (fun () -> empty)
+      (fun (_, dc) -> print_datacon dc)
+      branch
+
+  and print_branch : 'flavor 'datacon . env -> ('flavor -> document) -> ('datacon -> document) -> ('flavor, 'datacon) data_type_def_branch -> document =
+  fun env pf pdc b ->
     let fields = b.branch_fields in
     let clause = b.branch_adopts in
     let record =
@@ -703,8 +730,8 @@ module TypePrinter = struct
       else
         space ^^ string "adopts" ^^ space ^^ print_type env clause
     in
-    string (DataTypeFlavor.print b.branch_flavor) ^^
-    print_datacon b.branch_datacon ^^ record ^^ clause
+    pf b.branch_flavor ^^
+    pdc b.branch_datacon ^^ record ^^ clause
   ;;
 
   let pfact buf fact =

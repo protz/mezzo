@@ -84,27 +84,27 @@ val bind_flexible_in_type :
 val bind_datacon_parameters :
   env ->
   kind ->
-  'a data_type_def_branch list ->
-  env * var list * 'a data_type_def_branch list
+  unresolved_branch list ->
+  env * var list * unresolved_branch list
 
 (** {2 Instantiation} *)
 
 val instantiate_type:
   typ -> typ list -> typ
 val instantiate_branch:
-  'a data_type_def_branch ->
+  unresolved_branch ->
   typ list ->
-  'a data_type_def_branch
+  unresolved_branch
 val find_and_instantiate_branch :
   env ->
   var ->
   Datacon.name ->
   typ list ->
-  resolved_datacon data_type_def_branch
+  resolved_branch
 val resolve_branch:
   var ->
-  Datacon.name data_type_def_branch ->
-  resolved_datacon data_type_def_branch
+  unresolved_branch ->
+  resolved_branch
 
 
 (** {2 Folding and unfolding} *)
@@ -134,7 +134,7 @@ val get_location : env -> var -> location
 val get_adopts_clause :
   env -> var -> typ
 val get_branches :
-  env -> var -> Datacon.name data_type_def_branch list
+  env -> var -> unresolved_branch list
 val get_arity : env -> var -> int
 val get_kind_for_type : env -> typ -> kind
 val get_variance : env -> var -> variance list
@@ -142,7 +142,8 @@ val def_for_datacon :
   env ->
   resolved_datacon ->
   data_type_def
-val def_for_branch: env -> resolved_datacon data_type_def_branch -> data_type_def
+val def_for_branch: env -> resolved_branch -> data_type_def
+val flavor_for_branch: env -> resolved_branch -> DataTypeFlavor.flavor
 
 (** Get the variance of the i-th parameter of a data type. *)
 val variance : env -> var -> int -> variance
@@ -196,9 +197,9 @@ module TypePrinter :
       mode_constraint -> MzPprint.document
     val print_data_field_def :
       env -> data_field_def -> MzPprint.document
-    val print_data_type_def_branch :
+    val print_unresolved_branch :
       env ->
-      Datacon.name TypeCore.data_type_def_branch ->
+      TypeCore.unresolved_branch ->
       MzPprint.document
     val pfact : Buffer.t -> Fact.fact -> unit
     val print_facts : env -> MzPprint.document

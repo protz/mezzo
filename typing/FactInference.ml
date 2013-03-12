@@ -208,7 +208,8 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      its components is bottom, but there is no motivation to do so. *)
 
   | TyConcreteUnfolded branch ->
-      infer_branch w branch
+      let flavor = flavor_for_branch w.env branch in
+      infer_concrete w flavor branch.branch_fields
 
   | TyTuple tys ->
       Fact.duplicable (
@@ -251,8 +252,7 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
   | TyBound _ ->
       Log.error "There should be no bound variables here."
 
-and infer_branch : 'a . world -> 'a data_type_def_branch -> Fact.fact = (* polymorphic recursion, yech! *)
-fun w branch ->
+and infer_unresolved_branch w branch =
   (* The [adopts] clause has no impact. The name of the data
      constructor does not matter, nor the algebraic data type
      definition to which it belongs; only the [flavor] of this
@@ -382,7 +382,7 @@ let analyze_data_types (env : env) (variables : var list) : env =
 	    } in
 	    (* The right-hand side of the algebraic data type definition can be
 	       viewed as a sum of records. *)
-	    Fact.join_many (infer_branch w) branches
+	    Fact.join_many (infer_unresolved_branch w) branches
     )
   in
 

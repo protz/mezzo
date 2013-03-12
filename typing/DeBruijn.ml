@@ -147,7 +147,7 @@ let rec tsubst (t2: typ) (i: int) (t1: typ) =
         TyTuple (List.map (tsubst t2 i) ts)
 
     | TyConcreteUnfolded branch ->
-       TyConcreteUnfolded (tsubst_branch t2 i branch)
+       TyConcreteUnfolded (tsubst_resolved_branch t2 i branch)
 
     | TySingleton t ->
         TySingleton (tsubst t2 i t)
@@ -173,7 +173,7 @@ let rec tsubst (t2: typ) (i: int) (t1: typ) =
     | TyImply ((m, t), u) ->
         TyImply ((m, tsubst t2 i t), tsubst t2 i u)
 
-and tsubst_branch t2 i branch = {
+and tsubst_resolved_branch t2 i branch = {
   branch_flavor = branch.branch_flavor;
   branch_datacon = tsubst_resolved_datacon t2 i branch.branch_datacon;
   branch_fields = List.map (tsubst_field t2 i) branch.branch_fields;
@@ -190,9 +190,9 @@ and tsubst_field t2 i = function
       FieldPermission (tsubst t2 i typ)
 ;;
 
-let tsubst_branch t2 i branch = {
+let tsubst_unresolved_branch t2 i branch = {
   branch_flavor = branch.branch_flavor;
-  branch_datacon = branch.branch_datacon; (* redefined for non-resolved datacon; ugly *)
+  branch_datacon = branch.branch_datacon;
   branch_fields = List.map (tsubst_field t2 i) branch.branch_fields;
   branch_adopts = tsubst t2 i branch.branch_adopts;
 }
@@ -220,7 +220,7 @@ let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_typ
         let index = i + arity in
 
         (* Replace each TyBound with the corresponding TyOpen, for all branches. *)
-        let branches = List.map (tsubst_branch t2 index) branches in
+        let branches = List.map (tsubst_unresolved_branch t2 index) branches in
 
         let def = Some branches, variance in
         name, loc, def, fact, kind

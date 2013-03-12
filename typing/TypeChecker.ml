@@ -457,7 +457,6 @@ let merge_type_annotations env t1 t2 =
     | TyConcreteUnfolded branch1,
       TyConcreteUnfolded branch2
       when resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon ->
-        assert (DataTypeFlavor.equal branch1.branch_flavor branch2.branch_flavor);
         assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
 	let branch = { branch1 with
 	  branch_fields =
@@ -568,7 +567,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           match t with
           | TyConcreteUnfolded branch ->
               (* Check that this datacon is exclusive. *)
-	      if not (DataTypeFlavor.can_be_written branch.branch_flavor) then
+	      let flavor = flavor_for_branch env branch in
+	      if not (DataTypeFlavor.can_be_written flavor) then
                 raise_error env (AssignNotExclusive (t, snd branch.branch_datacon));
 
               (* Perform the assignment. *)
@@ -629,7 +629,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         | TyConcreteUnfolded old_branch as t ->
 	    let old_datacon = old_branch.branch_datacon in
             (* The current type should be mutable. *)
-	    if not (DataTypeFlavor.can_be_written old_branch.branch_flavor) then
+	    let old_flavor = flavor_for_branch env old_branch in
+	    if not (DataTypeFlavor.can_be_written old_flavor) then
               raise_error env (AssignNotExclusive (t, snd old_datacon));
 
             (* Also, the number of fields should be the same. *)
@@ -654,7 +655,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
             (* And don't forget to change the datacon as well. *)
             TyConcreteUnfolded { old_branch with
-	      branch_flavor = new_branch.branch_flavor; (* this is tied with the datacon *)
+	      (* the flavor is unit anyway *)
 	      branch_datacon = new_datacon;
 	      branch_fields;
 	      (* the type of the adoptees does not change *)
@@ -887,7 +888,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       end;
       let fieldvals = List.rev fieldvals in
       let branch = {
-	branch_flavor = branch.branch_flavor;
+	branch_flavor = ();
 	branch_datacon = datacon;
 	branch_fields = fieldvals;
 	branch_adopts = clause;

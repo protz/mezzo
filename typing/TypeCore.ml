@@ -77,7 +77,7 @@ type typ =
 
     (* Structural types. *)
   | TyTuple of typ list
-  | TyConcreteUnfolded of resolved_datacon data_type_def_branch
+  | TyConcreteUnfolded of resolved_branch
 
     (* Singleton types. *)
   | TySingleton of typ
@@ -110,21 +110,27 @@ and resolved_datacon = typ * Datacon.name
 
 and mode_constraint = Mode.mode * typ
 
-and 'datacon data_type_def_branch = {
-  branch_flavor: DataTypeFlavor.flavor;
-  branch_datacon: 'datacon; (* Datacon.name or resolved_datacon; TEMPORARY could we make this uniform? *)
+and ('flavor, 'datacon) data_type_def_branch = {
+  branch_flavor: 'flavor; (* DataTypeFlavor.flavor or unit *)
+  branch_datacon: 'datacon; (* Datacon.name or resolved_datacon *)
   branch_fields: data_field_def list;
   (* The type of the adoptees; initially it's bottom and then
    * it gets instantiated to something less precise. *)
   branch_adopts: typ;
 }
 
+and resolved_branch =
+    (unit, resolved_datacon) data_type_def_branch
+
 and data_field_def =
   | FieldValue of (Field.name * typ)
   | FieldPermission of typ
 
+type unresolved_branch =
+    (DataTypeFlavor.flavor, Datacon.name) data_type_def_branch
+
 type data_type_def =
-  Datacon.name data_type_def_branch list
+  unresolved_branch list
 
 type type_def =
   (* option here because abstract types do not have a definition *)

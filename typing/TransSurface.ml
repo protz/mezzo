@@ -213,7 +213,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
       (* Performs a side-effect! *)
       let datacon = resolve_datacon env dref in
       let branch = {
-	T.branch_flavor = assert false; (* TEMPORARY *)
+	T.branch_flavor = ();
 	T.branch_datacon = datacon;
 	T.branch_fields = translate_fields env fields;
 	T.branch_adopts = Types.ty_bottom;
@@ -277,7 +277,7 @@ and translate_data_type_def_branch
     (flavor: DataTypeFlavor.flavor)
     (adopts: typ option)
     (branch: Datacon.name * data_field_def list)
-  : Datacon.name T.data_type_def_branch =
+  : T.unresolved_branch =
   let datacon, fields = branch in
   {
     T.branch_flavor = flavor;

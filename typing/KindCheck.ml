@@ -1103,7 +1103,7 @@ module KindPrinter = struct
     space ^^ equals ^^
     jump
       (ifflat empty (bar ^^ space) ^^
-      separate_map sep (print_data_type_def_branch env) branches
+      separate_map sep (print_unresolved_branch env) branches
       )
   ;;
 

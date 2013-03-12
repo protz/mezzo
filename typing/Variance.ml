@@ -204,7 +204,7 @@ let analyze_data_types env points =
   (* This computes the rhs for a given variable. *)
   let equations var =
     (* Find which type this variable belongs to. *)
-    let _, (_, branches) = List.find (fun (_, (vars, _)) ->
+    let owner, (_, branches) = List.find (fun (_, (vars, _)) ->
       List.exists (same env var) vars
     ) store in
     (* The equations for a given variable depend on the valuation. (At this
@@ -213,7 +213,7 @@ let analyze_data_types env points =
       let vs = List.map
         (variance env var_for_ith valuation var)
         (List.map (fun branch ->
-	  TyConcreteUnfolded { branch with branch_datacon = (TyUnknown, branch.branch_datacon) } (* yuch! *)
+	  TyConcreteUnfolded (resolve_branch owner branch)
 	 ) branches)
       in
       List.fold_left lub Bivariant vs

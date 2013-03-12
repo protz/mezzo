@@ -68,19 +68,13 @@ let unit =
   tuple []
 ;;
 
-let concrete flavor datacon fields =
+let concrete datacon fields =
   let branch = {
-    branch_flavor = flavor;
+    branch_flavor = ();
     branch_datacon = datacon;
     branch_fields = fields;
     branch_adopts = ty_bottom;
   } in
   TyConcreteUnfolded branch
 ;;
-
-let modifiable =
-  concrete DataTypeFlavor.Mutable
-
-let immutable =
-  concrete DataTypeFlavor.Immutable
 

@@ -28,11 +28,11 @@ val lift: int -> typ -> typ
 val tsubst : typ -> int -> typ -> typ
 
 (** Same thing with a data type branch. *)
-val tsubst_branch :
+val tsubst_unresolved_branch:
   typ ->
   int ->
-  'a data_type_def_branch ->
-  'a data_type_def_branch
+  unresolved_branch ->
+  unresolved_branch
 
 (** Same thing with a data type group. *)
 val tsubst_data_type_group :
