@@ -255,19 +255,24 @@ let get_adopts_clause env point: typ =
   | Some (Some branches, _) ->
       (* The [adopts] clause is now per-branch, instead of per-data-type.
 	 We should in principle return the meet of the [adopts] clauses
-	 of all branches. *)
-      begin match branches with
-      | [] ->
-	  TyUnknown
-      | [ branch ] ->
-	  branch.branch_adopts
-      | _ :: _ ->
-	  Log.error "Please come back later..." (* TEMPORARY *)
-	  (* The surface language will probably impose that all branches
-	     have the same [adopts] clause, except perhaps some branches
-	     which don't have it at all. In that case, the meet is easy
-	     to compute. *)
-      end
+	 of all branches. However, the surface language imposes that
+	 all branches have the same [adopts] clause, except perhaps some
+	 branches which are immutable and don't have an adopts clause.
+	 In that setting, the meet is easy to compute. *)
+      let meet ty1 branch2 =
+	let ty2 = branch2.branch_adopts in
+	match ty1, is_non_bottom ty2 with
+	| TyUnknown, _ ->
+	    ty2
+	| _, None ->
+	    (* [ty2] is bottom *)
+	    ty2
+	| _, Some _ ->
+	    (* [ty2] is non-bottom *)
+	    assert (equal env ty1 ty2);
+	    ty2
+      in
+      List.fold_left meet TyUnknown branches
   | _ ->
       (* An abstract type has no adopts clause (as of now). *)
       ty_bottom
