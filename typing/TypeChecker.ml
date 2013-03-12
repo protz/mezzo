@@ -634,6 +634,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
               raise_error env (AssignNotExclusive (t, snd old_datacon));
 
             (* Also, the number of fields should be the same. *)
+	    (* TEMPORARY incorrect check, due to FieldPermission, I think *)
             if List.length old_branch.branch_fields <> List.length field_names then
               raise_error env (FieldCountMismatch (t, snd new_datacon));
 
