@@ -466,3 +466,40 @@ class ['env] map : object
 
 end
 
+(* An [iter] specialization of the visitor. *)
+
+class ['env] iter : object
+
+  inherit ['env, unit] visitor
+
+  (* The case methods now perform a recursive traversal. *)
+  method tyunknown: 'env -> unit
+  method tydynamic: 'env -> unit
+  method tybound: 'env -> db_index -> unit
+  method tyopen: 'env -> var -> unit
+  method tyforall: 'env -> type_binding -> flavor -> typ -> unit
+  method tyexists: 'env -> type_binding -> typ -> unit
+  method tyapp: 'env -> typ -> typ list -> unit
+  method tytuple: 'env -> typ list -> unit
+  method tyconcreteunfolded: 'env -> resolved_branch -> unit
+  method tysingleton: 'env -> typ -> unit
+  method tyarrow: 'env -> typ -> typ -> unit
+  method tybar: 'env -> typ -> typ -> unit
+  method tyanchoredpermission: 'env -> typ -> typ -> unit
+  method tyempty: 'env -> unit
+  method tystar: 'env -> typ -> typ -> unit
+  method tyand: 'env -> mode_constraint -> typ -> unit
+  method tyimply: 'env -> mode_constraint -> typ -> unit
+
+  (* An auxiliary method for visiting a resolved branch. *)
+  method resolved_branch: 'env -> resolved_branch -> unit
+  (* An auxiliary method for visiting a resolved data constructor. *)
+  method resolved_datacon: 'env -> resolved_datacon -> unit
+  (* An auxiliary method for visiting a field. *)
+  method field: 'env -> data_field_def -> unit
+  (* An auxiliary method for visiting an unresolved branch. *)
+  method unresolved_branch: 'env -> unresolved_branch -> unit
+  (* An auxiliary method for visiting a data type group. *)
+  method data_type_group: 'env -> data_type_group -> unit
+
+end

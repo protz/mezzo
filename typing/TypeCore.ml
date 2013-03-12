@@ -716,77 +716,140 @@ end
 
 (* ---------------------------------------------------------------------------- *)
 
-(* A [modulo_flex] specialization of the [map] visitor. *)
+(* An [iter] specialization of the visitor. *)
 
-(* In this version, the environment must be a type environment. It is not
-   automatically extended when a binding is entered. Types are normalized
-   by invoking [modulo_flex]. *)
+class ['env] iter = object (self)
 
-(* TEMPORARY
-class virtual map_modulo_flex = object
+  inherit ['env, unit] visitor
 
-  inherit [env] map
+  (* The case methods are defined by default as a recursive traversal. *)
 
-  method normalize env ty =
-    modulo_flex env ty
+  method tyunknown _env =
+    ()
+
+  method tydynamic _env =
+    ()
+
+  method tybound _env _i =
+    ()
+
+  method tyopen _env _v =
+    ()
+
+  method tyforall env binding _flavor body =
+    let _, kind, _ = binding in
+    self#visit (self#extend env kind) body
+
+  method tyexists env binding body =
+    let _, kind, _ = binding in
+    self#visit (self#extend env kind) body
+
+  method tyapp env head args =
+    self#visit env head;
+    self#visit_many env args
+
+  method tytuple env tys =
+    self#visit_many env tys
+
+  method tyconcreteunfolded env branch =
+    self#resolved_branch env branch
+
+  method tysingleton env x =
+    self#visit env x
+
+  method tyarrow env ty1 ty2 =
+    self#visit env ty1;
+    self#visit env ty2
+
+  method tybar env ty1 ty2 =
+    self#visit env ty1;
+    self#visit env ty2
+
+  method tyanchoredpermission env ty1 ty2 =
+    self#visit env ty1;
+    self#visit env ty2
+
+  method tyempty _env =
+    ()
+
+  method tystar env ty1 ty2 =
+    self#visit env ty1;
+    self#visit env ty2
+
+  method tyand env c ty =
+    self#mode_constraint env c;
+    self#visit env ty
+
+  method tyimply env c ty =
+    self#mode_constraint env c;
+    self#visit env ty
+
+  (* An auxiliary method for visiting a list of types. *)
+  method private visit_many env tys =
+    List.iter (self#visit env) tys
+
+  (* An auxiliary method for visiting a resolved branch. *)
+  method resolved_branch env (branch : resolved_branch) =
+    self#resolved_datacon env branch.branch_datacon;
+    List.iter (self#field env) branch.branch_fields;
+    self#visit env branch.branch_adopts
+
+  (* An auxiliary method for visiting a resolved data constructor. *)
+  method resolved_datacon env (ty, _dc) =
+    self#visit env ty
+
+  (* An auxiliary method for visiting a field. *)
+  method field env = function
+    | FieldValue (_, ty) ->
+        self#visit env ty
+    | FieldPermission p ->
+        self#visit env p
+
+  (* An auxiliary method for visiting a mode constraint. *)
+  method private mode_constraint env (_, ty) =
+    self#visit env ty
+
+  (* An auxiliary method for visiting an unresolved branch. *)
+  method unresolved_branch env (branch : unresolved_branch) =
+    List.iter (self#field env) branch.branch_fields;
+    self#visit env branch.branch_adopts
+
+  (* An auxiliary method for visiting a data type group. *)
+  method data_type_group env (group : data_type_group) =
+    List.iter (function element ->
+      let _, _, def, _, kind = element in
+      match def with
+      | None, _ ->
+          (* This is an abstract type. There are no branches. *)
+          ()
+      | Some branches, _variance ->
+	  (* Enter the bindings for the type parameters. *)
+	  let _, kinds = SurfaceSyntax.flatten_kind kind in
+	  let env = List.fold_left self#extend env (List.rev kinds) in
+	    (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
+	  (* Visit the branches in this extended environment. *)
+	  List.iter (self#unresolved_branch env) branches
+    ) group
 
 end
-*)
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Dealing with levels... *)
 
-let level (env: env) (t: typ): level =
-  let default_level = 0 in
-  let rec level t =
-    match modulo_flex env t with
-    | TyOpen v ->
-        (get_var_descr env v).level
-
-    | TyUnknown
-    | TyDynamic
-    | TyEmpty
-    | TyBound _ ->
-        default_level
-
-    | TySingleton t
-    | TyForall (_, t)
-    | TyExists (_, t) ->
-        level t
-
-    | TyArrow (t1, t2)
-    | TyBar (t1, t2)
-    | TyAnchoredPermission (t1, t2)
-    | TyStar (t1, t2)
-    | TyAnd ((_, t1), t2)
-    | TyImply ((_, t1), t2) ->
-        max (level t1) (level t2)
-
-    | TyApp (t, ts) ->
-        MzList.max (List.map level (t :: ts))
-
-    | TyTuple ts ->
-        let ls = List.map level ts in
-        MzList.max ls
-
-    | TyConcreteUnfolded { branch_flavor = _; branch_datacon = (ds, _); branch_fields; branch_adopts } ->
-        let ls =
-          level ds :: level branch_adopts ::
-          List.map (function
-            | FieldValue (_, t)
-            | FieldPermission t ->
-                level t
-          ) branch_fields
-        in
-        MzList.max ls
-
-  in
-  level t
-;;
+let level (env : env) (ty : typ) : level =
+  let max_level = ref 0 in
+  (object
+    inherit [unit] iter
+    method normalize () ty =
+      modulo_flex env ty
+    method tyopen () v =
+      max_level := max !max_level (get_var_descr env v).level
+  end) # visit () ty;
+  !max_level
 
 let clean (top : env) (sub : env) : typ -> typ =
-  let transform = object (self)
+  (object (self)
     inherit [unit] map
     method tyopen () v =
       (* Resolve flexible variables with respect to [sub]. *)
@@ -798,8 +861,7 @@ let clean (top : env) (sub : env) : typ -> typ =
           if valid top p then ty else raise UnboundPoint
       | _ ->
           self#visit () ty
-  end in
-  transform#visit ()
+  end) # visit ()
 
 (* ---------------------------------------------------------------------------- *)
 
