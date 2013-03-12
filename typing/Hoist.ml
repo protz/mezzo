@@ -19,74 +19,59 @@
 
 open TypeCore
 
-(* The code is in CPS style, as usual for a hoisting transform. *)
+class hoist (env : env) (cs : mode_constraint list ref) = object (self)
 
-let rec hoist (env : env) (ty : typ) (k : typ -> typ) : typ =
-  let ty = modulo_flex env ty in
-  match ty with
+  inherit [unit] map as super
 
-  (* We stop at (do not go down into) the following constructs. These
-     include quantifiers, so there are no name capture problems. They
-     also include [TyImply], as it would be logically incorrect to
-     hoist a constraint out of an implication. *)
+  (* We override the main visitor method, in part because we want
+     this code to be re-examined when new cases are added, in part
+     because this allows us to share the cases where we stop. *)
+  method visit () (ty : typ) : 'result =
+    let ty = modulo_flex env ty in
+    match ty with
 
-  | TyUnknown
-  | TyDynamic
-  | TyBound _
-  | TyOpen _
-  | TyForall _
-  | TyExists _
-  | TyApp _
-  | TySingleton _
-  | TyArrow _
-  | TyEmpty
-  | TyImply _
-      -> k ty
+    (* We stop at (do not go down into) the following constructs. These
+       include quantifiers, so there are no name capture problems. They
+       also include [TyImply], as it would be logically incorrect to
+       hoist a constraint out of an implication. *)
 
-  (* We descend into the following constructs, and hoist constraints
-     out of them. *)
+    | TyUnknown
+    | TyDynamic
+    | TyBound _
+    | TyOpen _
+    | TyForall _
+    | TyExists _
+    | TyApp _
+    | TySingleton _
+    | TyArrow _
+    | TyEmpty
+    | TyImply _
+        -> ty
 
-  | TyTuple tys ->
-      MzList.cps_map (hoist env) tys (fun tys ->
-      k (TyTuple tys)
-      )
-  | TyConcreteUnfolded branch ->
-      MzList.cps_map (hoist_field env) branch.branch_fields (fun branch_fields ->
-      k (TyConcreteUnfolded { branch with branch_fields })
-      )
-  | TyBar (ty1, ty2) ->
-      hoist env ty1 (fun ty1 ->
-      hoist env ty2 (fun ty2 ->
-      k (TyBar (ty1, ty2))
-      ))
-  | TyAnchoredPermission (ty1, ty2) ->
-      hoist env ty2 (fun ty2 ->
-      k (TyAnchoredPermission (ty1, ty2))
-      )
-  | TyStar (ty1, ty2) ->
-      hoist env ty1 (fun ty1 ->
-      hoist env ty2 (fun ty2 ->
-      k (TyStar (ty1, ty2))
-      ))
+    (* We descend into the following constructs, and hoist constraints
+       out of them. *)
 
-  (* This is where we find a constraint and hoist it. *)
+    | TyTuple _
+    | TyConcreteUnfolded _
+    | TyBar _
+    | TyAnchoredPermission _
+    | TyStar _
+        -> super#visit () ty
+    
+    (* This is where we find a constraint and hoist it. *)
 
-  | TyAnd (c, ty) ->
-      TyAnd (c, hoist env ty k)
+    | TyAnd (c, ty) ->
+        cs := c :: !cs;
+        self#visit () ty
 
-and hoist_field env field k =
-  match field with
-  | FieldValue (f, ty) ->
-      hoist env ty (fun ty ->
-      k (FieldValue (f, ty))
-      )
-  | FieldPermission ty ->
-      hoist env ty (fun ty ->
-      k (FieldPermission ty)
-      )
+end
 
-let hoist env ty =
-  hoist env ty (fun ty -> ty)
+let hoist (env : env) (ty : typ) : typ =
+  let cs = ref [] in
+  (* Visit the types. *)
+  let ty = (new hoist env cs) # visit () ty in
+  (* The mode constraints that were hoisted out are now in [cs]. *)
+  List.fold_left (fun ty c -> TyAnd (c, ty)) ty !cs
 
 let rec extract_constraints env ty =
   let ty = modulo_flex env ty in
