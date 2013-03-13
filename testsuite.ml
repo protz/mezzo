@@ -815,6 +815,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("vicious-cycle.mz", pass);
 
+  ("cycle1.mz", pass);  (* circular dependency between the modules, detected only at link time by ocaml *)
+  ("cyclic1.mz", fail); (* circular dependency between the interfaces, detected at type-checking time by mezzo *)
+
   ("named-tuple-components.mz", pass);
 
   ("abstract-perm.mz", pass);
