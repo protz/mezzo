@@ -467,7 +467,7 @@ let has_mode (m : mode) (env : env) (ty : typ) : bool =
 	assert (ParameterMap.cardinal hs = 0);
 	true
   in
-  Log.debug "fact [is_ok=%b] for %a: %a"
+  Log.debug ~level:6 "fact [is_ok=%b] for %a: %a"
     ok
     TypePrinter.ptype (env, ty)
     TypePrinter.pfact fact;
