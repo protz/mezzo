@@ -764,8 +764,15 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
   (** Mode constraints. *)
 
-  | TyAnd _, _ ->
-      Log.error "Constraints should've been processed when this permission was added"
+  | TyAnd (c, t1), t2 ->
+      try_proof_root "And-L" begin
+        let env = FactInference.assume env c in
+        sub_type env t1 t2 >>=
+        (* TEMPORARY this rule may be unsound: assuming [c] while proving
+           [t2] is fine, but [c] should not *remain* assumed in the final
+	   environment that is returned. See tests/tyand05.mz. *)
+        qed
+      end
 
   | TyImply (c, t1), t2 ->
       try_proof_root "Imply-L" begin

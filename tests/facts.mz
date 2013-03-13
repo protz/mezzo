@@ -20,12 +20,15 @@ val () =
   d [[a]a] ();
   x [[a]a] ();
   d [[a,b] a -> b] ();
+  (* no more implications:
   d [[a] duplicable a => (a, a)] ();
   d [{a} duplicable a => a] ();
+  d [{a,b} (duplicable a => (duplicable b | b))] ();
+  d [duplicable (ref int) => ref int] ();
+  *)
   d [{a} duplicable a | a] ();
   d [{a} (a, (duplicable a | a))] ();
   d [{a,b} (a, (duplicable b | duplicable a | a))] ();
-  d [{a,b} (duplicable a => (duplicable b | b))] ();
   x [{a} (exclusive a | a)] ();
   d [[a] (a, a)] ();
   d [list int] ();
@@ -34,7 +37,6 @@ val () =
   x [array int] ();
   x [{a} ref a] ();
   d [{x:term} (=x)] ();
-  (* d [duplicable (ref int) => ref int] (); *) (* TEMPORARY not supported yet *)
   x [ref int] ();
   d [( | empty)] ();
   x [(ref int | empty)] ();

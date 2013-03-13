@@ -359,9 +359,10 @@ raw_normal_type:
 (* An existential type. *)
 | bs = existential_quantifiers ty = normal_type
     { List.fold_right (fun b ty -> TyExists (b, ty)) bs ty }
-(* A type that carries a mode constraint. *)
+(* A type that carries a mode constraint (implication). *)
 | c = mode_constraint DBLARROW ty = normal_type
     { TyImply (c, ty) }
+(* A type that carries a mode constraint (conjunction). *)
 | c = mode_constraint BAR ty = normal_type
     { TyAnd (c, ty) }
 

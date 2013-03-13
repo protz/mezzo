@@ -31,9 +31,11 @@ val copy_if_required [a] (dup: duplicability a, copy: a -> a, x: a) : a =
 val dup_int : duplicability int =
   Duplicable { content = () }
 
+(* TEMPORARY this type is no longer supported!
 val dup: [a] duplicable a => duplicability a =
   Duplicable { content = () }
 
 val dup_int_2 : duplicability int =
   dup
+*)
 
