@@ -233,7 +233,6 @@ class open_all_rigid_in (env : env ref) = object (self)
     | TySingleton _, _
     | TyArrow _, Left
     | TyEmpty, _
-    | TyImply _, _
 	-> ty
 
     (* A universal quantifier on the right-hand side gives rise to a rigid
@@ -598,8 +597,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
         in
         env, TyConcreteUnfolded { branch with branch_fields = List.rev fields }
 
-    | TyAnd _
-    | TyImply _ ->
+    | TyAnd _ ->
         env, t
 
   in
@@ -774,27 +772,6 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         qed
       end
 
-  | TyImply (c, t1), t2 ->
-      try_proof_root "Imply-L" begin
-        (* If the constraint [c] happens to hold in the current environment, then
-           [c => t1] is equivalent to [t1], and we can continue with the subtraction
-           [t1 - t2]. *)
-        sub_constraint env c >>= fun env ->
-        sub_type env t1 t2 >>=
-        qed
-        (* The previous version of the code:
-           sub_type env t1 (TyAnd (c, t2))
-           is unsound, because [c => t1] does not imply [t1]. *)
-
-        (* TEMPORARY due to the presence of flexible variables, maybe it would be
-           better to first compute [t1 - t2] and then check that [c] holds. Can
-           this be written like this?
-        sub_type env t1 t2 >> fun env ->
-        sub_constraint env c
-        One must be careful: [t1] can be used to justify [t2], but must not be
-        used to justify [c]. *)
-      end
-
   | _, TyAnd (c, t2) ->
       try_proof_root "And-R" begin
         (* First do the subtraction, because the constraint may be "duplicable α"
@@ -803,16 +780,6 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         (* And then, hoping that α has been instantiated, check that it satisfies
          * the constraint. *)
         sub_constraint env c >>=
-        qed
-      end
-
-  | t1, TyImply (c, t2) ->
-      try_proof_root "Imply-R" begin
-        let env = FactInference.assume env c in
-        sub_type env t1 t2 >>=
-        (* TEMPORARY this rule seems unsound: assuming [c] while proving
-           [t2] is fine, but [c] should not *remain* assumed afterwards.
-           See tests/tyand05.mz. *)
         qed
       end
 

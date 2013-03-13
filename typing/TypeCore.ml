@@ -95,7 +95,6 @@ type typ =
 
     (* Constraint *)
   | TyAnd of mode_constraint * typ
-  | TyImply of mode_constraint * typ
 
 and var =
   | VRigid of point
@@ -567,8 +566,6 @@ class virtual ['env, 'result] visitor = object (self)
         self#tystar env ty1 ty2
     | TyAnd (c, ty) ->
         self#tyand env c ty
-    | TyImply (c, ty) ->
-        self#tyimply env c ty
 
   (* The case methods have no default implementation. *)
   method virtual tyunknown: 'env -> 'result
@@ -587,7 +584,6 @@ class virtual ['env, 'result] visitor = object (self)
   method virtual tyempty: 'env -> 'result
   method virtual tystar: 'env -> typ -> typ -> 'result
   method virtual tyand: 'env -> mode_constraint -> typ -> 'result
-  method virtual tyimply: 'env -> mode_constraint -> typ -> 'result
 
 end
 
@@ -651,9 +647,6 @@ class ['env] map = object (self)
 
   method tyand env c ty =
     TyAnd (self#mode_constraint env c, self#visit env ty)
-
-  method tyimply env c ty =
-    TyImply (self#mode_constraint env c, self#visit env ty)
 
   (* An auxiliary method for transforming a list of types. *)
   method private visit_many env tys =
@@ -777,10 +770,6 @@ class ['env] iter = object (self)
     self#visit env ty2
 
   method tyand env c ty =
-    self#mode_constraint env c;
-    self#visit env ty
-
-  method tyimply env c ty =
     self#mode_constraint env c;
     self#visit env ty
 
@@ -1120,8 +1109,7 @@ and equal env (t1: typ) (t2: typ) =
     | TyEmpty, TyEmpty ->
         true
 
-    | TyAnd ((m1, t1), u1), TyAnd ((m2, t2), u2)
-    | TyImply ((m1, t1), u1), TyImply ((m2, t2), u2) ->
+    | TyAnd ((m1, t1), u1), TyAnd ((m2, t2), u2) ->
         Mode.equal m1 m2 &&
         equal t1 t2 &&
         equal u1 u2

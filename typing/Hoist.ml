@@ -45,7 +45,6 @@ class hoist (env : env) (cs : mode_constraint list ref) = object (self)
     | TySingleton _
     | TyArrow _
     | TyEmpty
-    | TyImply _
         -> ty
 
     (* We descend into the following constructs, and hoist constraints

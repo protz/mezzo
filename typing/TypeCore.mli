@@ -111,7 +111,6 @@ and typ =
 
     (** Constraint *)
   | TyAnd of mode_constraint * typ
-  | TyImply of mode_constraint * typ
 
 (** Since data constructors are now properly scoped, they are resolved, that is,
  * they are either attached to a point, or a De Bruijn index, which will later
@@ -424,7 +423,6 @@ class virtual ['env, 'result] visitor : object
   method virtual tyempty: 'env -> 'result
   method virtual tystar: 'env -> typ -> typ -> 'result
   method virtual tyand: 'env -> mode_constraint -> typ -> 'result
-  method virtual tyimply: 'env -> mode_constraint -> typ -> 'result
 
 end
 
@@ -451,7 +449,6 @@ class ['env] map : object
   method tyempty: 'env -> typ
   method tystar: 'env -> typ -> typ -> typ
   method tyand: 'env -> mode_constraint -> typ -> typ
-  method tyimply: 'env -> mode_constraint -> typ -> typ
 
   (* An auxiliary method for transforming a resolved branch. *)
   method resolved_branch: 'env -> resolved_branch -> resolved_branch
@@ -489,7 +486,6 @@ class ['env] iter : object
   method tyempty: 'env -> unit
   method tystar: 'env -> typ -> typ -> unit
   method tyand: 'env -> mode_constraint -> typ -> unit
-  method tyimply: 'env -> mode_constraint -> typ -> unit
 
   (* An auxiliary method for visiting a resolved branch. *)
   method resolved_branch: 'env -> resolved_branch -> unit

@@ -102,9 +102,6 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
         is_quantified_arrow t
     | TyArrow _ ->
         true
-    | TyImply (_, t) ->
-        (* BEWARE: there may be quantifiers ABOVE and UNDER the [TyImply]. *)
-        is_quantified_arrow t
     | _ ->
         false
   in
@@ -120,33 +117,31 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
         env, t
   in
 
-  (* Instantiate flexible variables and deconstruct the resulting arrow. *)
-  let rec flex_deconstruct env acc t =
-    match flex env t with
-    | env, TyArrow (t1,t2) ->
-        env, (t1, t2), acc
-    | env, TyImply (c, t) ->
-        flex_deconstruct env (c :: acc) t
+  (* Deconstruct a possibly-quantified arrow. *)
+  let flex_deconstruct_arrow env t =
+    let env, t = flex env t in
+    match t with
+    | TyArrow (t1, t2) ->
+        env, (t1, t2)
     | _ ->
         assert false
   in
-  let flex_deconstruct env t = flex_deconstruct env [] t in
 
   (* Try to give some useful error messages in case we have found not enough or
    * too many suitable types for [f]. *)
-  let env, (t1, t2), constraints =
+  let env, (t1, t2) =
     match permissions with
     | [] ->
         raise_error env (NotAFunction f)
     | t :: [] ->
-        flex_deconstruct env t
+        flex_deconstruct_arrow env t
     | t :: _ ->
         Log.debug "More than one permission available for %a, strange"
           TypePrinter.pvar (env, fname);
-        flex_deconstruct env t
+        flex_deconstruct_arrow env t
   in
 
-  (* Try to instanciate flexibles in [t2] better by using the context-provided
+  (* Try to instantiate flexibles in [t2] better by using the context-provided
    * type annotation. *)
   let env =
     match annot with
@@ -175,17 +170,6 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
   match Permissions.sub env x t1 with
   | Some env, _ ->
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
-      (* Now we need to check the constraints (after the flexible variables have
-       * been instantiated! *)
-      let env =
-	List.fold_left (fun env c ->
-	  match Permissions.sub_constraint env c |> drop_derivation with
-          | Some env ->
-              env
-          | None ->
-              raise_error env (UnsatisfiableConstraint c)
-	) env constraints
-      in
       (* Return the "good" type. *)
       env, t2
   | None, d ->

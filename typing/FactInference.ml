@@ -68,13 +68,6 @@ type world = {
 
 (* ---------------------------------------------------------------------------- *)
 
-(* A wrapper for [assume]. *)
-
-let assumew (w : world) (c : mode_constraint) : world =
-  { w with env = assume w.env c }
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Inferring a fact about a type. *)
 
 (* This code is used both during and after the fixed point computation. The
@@ -186,23 +179,7 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      possible. *)
 
   | TyAnd (c, ty) ->
-      infer (assumew w c) ty
-
-  (* The type [c => t], where [c] is a mode constraint and [t] is a type,
-     represents [t] if [c] holds and [unknown] otherwise. Thus, in order
-     to prove that [c => t] has mode [m], we must prove that [t] has mode
-     [m] under the assumption [c] and that [unknown] has mode [m]. (We
-     do not assume the negation of [c], as that would make the system
-     non-monotonic.) *)
-
-  (* Since [hoist] does not hoist constraints out of [TyImply] constructs,
-     we should (for completeness) invoke it again here. This is certainly
-     not essential in practice. *)
-
-  | TyImply (c, ty) ->
-      Fact.join
-	(infer (assumew w c) (hoist w.env ty))
-	(infer w TyUnknown)
+      infer { w with env = assume w.env c } ty
 
   (* We could prove that a tuple or record is [bottom] as soon as one of
      its components is bottom, but there is no motivation to do so. *)

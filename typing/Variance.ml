@@ -149,8 +149,7 @@ let variance env var_for_ith valuation b t =
     | TyAnchoredPermission (_, t2) ->
         var t2
 
-    | TyAnd ((_, t), u)
-    | TyImply ((_, t), u) ->
+    | TyAnd ((_, t), u) ->
 	(* [t] is in invariant position, [u] is in covariant position. *)
 	lub
 	  (dot Invariant (var t))
