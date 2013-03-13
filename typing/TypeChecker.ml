@@ -701,6 +701,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       | EApply _ ->
           if not (!Options.multiple_arguments) then
             raise_error env NoMultipleArguments
+	  (* TEMPORARY this is too violent, and this command line option
+	     does not really make sense, does it? Instead, the error
+	     message [NotAFunction] could be replaced with [NoMultipleArguments]
+	     in certain situations? *)
       | _ ->
           ()
       end;
