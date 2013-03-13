@@ -37,14 +37,9 @@ val assume: env -> mode_constraint -> env
     environment, producing a new environment. *)
 val analyze_data_types: env -> var list -> env
 
-(** [analyze_type env ty] produces a fact for the type [ty], using the
-    information stored in [env] about the ambient type definitions. In
-    short, this fact indicates whether [ty] is duplicable, exclusive,
-    or affine. *)
-val analyze_type: env -> typ -> fact
-
 (** [has_mode mode env ty] tells whether the predicate [mode ty] is
-    satisfied. This function is a simplified version of [analyze_type]. *)
+    satisfied, using the information stored in [env] about the ambient
+    type definitions and mode assumptions. *)
 val has_mode: mode -> env -> typ -> bool
 
 (** A specialized version of [has_mode]. *)

@@ -593,18 +593,11 @@ and sub_constraint env c : result =
      *  f @ [a] (duplicable a) ⇒ ...
      * then, when "f" is instantiated, "a" will be replaced by anything...
      *)
-    let is_ok = FactInference.has_mode mode env t in
-    Log.debug "fact [is_ok=%b] for %a: %a"
-      is_ok
-      TypePrinter.ptype (env, t) TypePrinter.pfact (FactInference.analyze_type env t);
-    if is_ok then
-      qed env
-    else
-      fail
+    if FactInference.has_mode mode env t then qed env else fail
   end
 
 and sub_constraints env cs : state =
-  premises env (List.map (fun c -> fun env ->
+  premises env (List.map (fun c env ->
     sub_constraint env c
   ) cs)
 

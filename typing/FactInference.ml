@@ -382,12 +382,10 @@ let analyze_data_types (env : env) (variables : var list) : env =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Accessors. *)
+(* This wrapper for [infer] constructs a toplevel world. It is used
+   by [has_mode] below. *)
 
-(* TEMPORARY perhaps we could keep this function private, as it is
-   not used often. *)
-
-let analyze_type (env : env) (ty : typ) : Fact.fact =
+let infer (env : env) (ty : typ) : Fact.fact =
   (* Construct a world. Only the [env] component is non-trivial. *)
   let w = {
     variables = VarMap.empty;
@@ -398,14 +396,26 @@ let analyze_type (env : env) (ty : typ) : Fact.fact =
   (* Go. *)
   infer w ty
 
+(* ---------------------------------------------------------------------------- *)
+
+(* Accessors. *)
+
 let has_mode (m : mode) (env : env) (ty : typ) : bool =
-  match ModeMap.find m (analyze_type env ty) with
-  | Fact.HFalse ->
-      false
-  | Fact.HConjunction hs ->
-      (* This fact should have arity 0. *)
-      assert (ParameterMap.cardinal hs = 0);
-      true
+  let fact = infer env ty in
+  let ok =
+    match ModeMap.find m fact with
+    | Fact.HFalse ->
+	false
+    | Fact.HConjunction hs ->
+	(* This fact should have arity 0. *)
+	assert (ParameterMap.cardinal hs = 0);
+	true
+  in
+  Log.debug "fact [is_ok=%b] for %a: %a"
+    ok
+    TypePrinter.ptype (env, ty)
+    TypePrinter.pfact fact;
+  ok
 
 let is_duplicable =
   has_mode ModeDuplicable
