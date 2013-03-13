@@ -351,11 +351,9 @@ and add (env: env) (var: var) (t: typ): env =
 
   let t = modulo_flex env t in
 
-  let hint = get_name env var in
-
   (* We first perform unfolding, so that constructors with one branch are
    * simplified. [unfold] calls [add] recursively whenever it adds new vars. *)
-  let env, t = unfold env ~hint t in
+  let env, t = open_all_rigid_in env t Left in
 
   (* Break this up into a type + permissions. *)
   let t, perms = collect t in
@@ -520,88 +518,6 @@ and add_type (env: env) (p: var) (t: typ): env =
     else
       env
   end
-
-
-(** [unfold env t] returns [env, t] where [t] has been unfolded, which
-    potentially led us into adding new vars to [env]. The [hint] serves when
-    making up names for intermediary variables. *)
-and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
-  (* This auxiliary function takes care of inserting an indirection if needed,
-   * that is, a [=foo] type with [foo] being a newly-allocated [var]. *)
-  let insert_var (env: env) ?(hint: name option) (t: typ): env * typ =
-    let hint = Option.map_none (fresh_auto_var "t_") hint in
-    match t with
-    | TySingleton _ ->
-        env, t
-    | _ ->
-        (* The [expr_binder] also serves as the binder for the corresponding
-         * term type variable. *)
-        let env, p = bind_rigid env (hint, KTerm, location env) in
-        (* This will take care of unfolding where necessary. *)
-        let env = add env p t in
-        env, ty_equals p
-  in
-
-  let rec unfold (env: env) ?(hint: name option) (t: typ): env * typ =
-    let t = modulo_flex env t in
-    let t = expand_if_one_branch env t in
-    match t with
-    | TyUnknown
-    | TyDynamic
-    | TySingleton _
-    | TyArrow _
-    | TyEmpty
-    | TyOpen _
-    | TyApp _ ->
-        env, t
-
-    | TyBound _ ->
-        Log.error "No unbound variables allowed here"
-
-    | TyForall _
-    | TyExists _ ->
-        env, t
-
-    | TyStar _ ->
-        env, t
-
-    | TyBar (t, p) ->
-        let env, t = unfold env ?hint t in
-        env, TyBar (t, p)
-
-    | TyAnchoredPermission _ ->
-        env, t
-
-    (* We're only interested in unfolding structural types. *)
-    | TyTuple components ->
-        let env, components = MzList.fold_lefti (fun i (env, components) component ->
-          let hint = add_hint hint (string_of_int i) in
-          let env, component = insert_var env ?hint component in
-          env, component :: components
-        ) (env, []) components in
-        env, TyTuple (List.rev components)
-
-    | TyConcreteUnfolded branch ->
-        let datacon = branch.branch_datacon in
-	let fields = branch.branch_fields in
-        let env, fields = List.fold_left (fun (env, fields) -> function
-          | FieldPermission _ as field ->
-              env, field :: fields
-          | FieldValue (name, field) ->
-              let hint =
-                add_hint hint (MzString.bsprintf "%a_%a" Datacon.p (snd datacon) Field.p name)
-              in
-              let env, field = insert_var env ?hint field in
-              env, FieldValue (name, field) :: fields
-        ) (env, []) fields
-        in
-        env, TyConcreteUnfolded { branch with branch_fields = List.rev fields }
-
-    | TyAnd _ ->
-        env, t
-
-  in
-  unfold env ?hint t
 
 
 (** [sub env var t] tries to extract [t] from the available permissions for
