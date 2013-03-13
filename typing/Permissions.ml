@@ -217,8 +217,8 @@ class open_all_rigid_in (env : env ref) = object (self)
      when new cases appear and in order to share code. *)
   method visit (side, deconstructed) ty =
     let ty = modulo_flex !env ty in
-    let ty = if deconstructed && not (is_singleton !env ty) then wrap_bar ty else ty in
     let ty = expand_if_one_branch !env ty in
+    let ty = if deconstructed && not (is_singleton !env ty) && side = Left then wrap_bar ty else ty in
     match ty, side with
 
     (* We stop at the following constructors. *)

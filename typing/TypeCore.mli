@@ -125,11 +125,11 @@ and mode_constraint = Mode.mode * typ
 (** {2 Type definitions} *)
 
 and ('flavor, 'datacon) data_type_def_branch = {
-  branch_flavor: 'flavor; (* DataTypeFlavor.flavor or unit *)
-  branch_datacon: 'datacon; (* Datacon.name or resolved_datacon *)
+  branch_flavor: 'flavor; (** {!DataTypeFlavor.flavor} or unit *)
+  branch_datacon: 'datacon; (** {!Datacon.name} or resolved_datacon *)
   branch_fields: data_field_def list;
-  (* The type of the adoptees; initially it's bottom and then
-   * it gets instantiated to something less precise. *)
+    (** The type of the adoptees; initially it's bottom and then
+     * it gets instantiated to something less precise. *)
   branch_adopts: typ;
 }
 
@@ -146,7 +146,7 @@ type data_type_def =
 type variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | Bivariant
 
 type type_def =
-  (* option here because abstract types do not have a definition *)
+  (** option here because abstract types do not have a definition *)
     data_type_def option
   * variance list
 
@@ -323,7 +323,7 @@ val bind_flexible: env -> type_binding -> env * var
  * [mname] can be either the current module name, or some other module name. *)
 val get_exports: env -> Module.name -> (Variable.name * kind * var) list
 
-(* [point_by_name env ?mname x] finds name [x] as exported by module [mname]
+(** [point_by_name env ?mname x] finds name [x] as exported by module [mname]
  * (default: [module_name env]) in [env]. *)
 val point_by_name: env -> ?mname:Module.name -> Variable.name -> var
 
@@ -371,42 +371,28 @@ module VarMap: MzMap.S with type key = var
 (** This is an imperative version of [VarMap], in the form expected by [Fix]. *)
 module IVarMap: Fix.IMPERATIVE_MAPS with type key = var
 
-(**/**)
-
-(** References are assigned to by other modules after the type printers have
- * been set up. Other [internal_] functions are for debugging, as they break the
- * abstraction barriers in quite amazing ways. *)
-val internal_ptype : (Buffer.t -> env * typ -> unit) ref
-val internal_pnames : (Buffer.t -> env * name list -> unit) ref
-val internal_ppermissions : (Buffer.t -> env -> unit) ref
-val internal_pfact : (Buffer.t -> Fact.fact -> unit) ref
-val internal_pflexlist: (Buffer.t -> env -> unit)
-val internal_uniqvarid: env -> var -> int
-val internal_checklevel: env -> typ -> unit
-val internal_wasflexible: var -> bool
-
 (** {1 Visitors for the internal syntax of types} *)
 
-(* A generic visitor. *)
+(** A generic visitor. *)
 
 class virtual ['env, 'result] visitor : object
 
-  (* This method, whose default implementation is the identity,
+  (** This method, whose default implementation is the identity,
      allows normalizing a type before inspecting its structure.
      This can be used, for instance, to replace flexible variables
      with the type that they stand for. *)
   method normalize: 'env -> typ -> typ
 
-  (* This method, whose default implementation is the identity,
+  (** This method, whose default implementation is the identity,
      can be used to extend the environment when a binding is
      entered. *)
   method extend: 'env -> kind -> 'env
 
-  (* The main visitor method inspects the structure of [ty] and
+  (** The main visitor method inspects the structure of [ty] and
      dispatches control to the appropriate case method. *)
   method visit: 'env -> typ -> 'result
 
-  (* The case methods have no default implementation. *)
+  (** The case methods have no default implementation. *)
   method virtual tyunknown: 'env -> 'result
   method virtual tydynamic: 'env -> 'result
   method virtual tybound: 'env -> db_index -> 'result
@@ -426,13 +412,13 @@ class virtual ['env, 'result] visitor : object
 
 end
 
-(* A [map] specialization of the visitor. *)
+(** A [map] specialization of the visitor. *)
 
 class ['env] map : object
 
   inherit ['env, typ] visitor
 
-  (* The case methods now perform a recursive traversal. *)
+  (** The case methods now perform a recursive traversal. *)
   method tyunknown: 'env -> typ
   method tydynamic: 'env -> typ
   method tybound: 'env -> db_index -> typ
@@ -450,26 +436,26 @@ class ['env] map : object
   method tystar: 'env -> typ -> typ -> typ
   method tyand: 'env -> mode_constraint -> typ -> typ
 
-  (* An auxiliary method for transforming a resolved branch. *)
+  (** An auxiliary method for transforming a resolved branch. *)
   method resolved_branch: 'env -> resolved_branch -> resolved_branch
-  (* An auxiliary method for transforming a resolved data constructor. *)
+  (** An auxiliary method for transforming a resolved data constructor. *)
   method resolved_datacon: 'env -> resolved_datacon -> resolved_datacon
-  (* An auxiliary method for transforming a field. *)
+  (** An auxiliary method for transforming a field. *)
   method field: 'env -> data_field_def -> data_field_def
-  (* An auxiliary method for transforming an unresolved branch. *)
+  (** An auxiliary method for transforming an unresolved branch. *)
   method unresolved_branch: 'env -> unresolved_branch -> unresolved_branch
-  (* An auxiliary method for transforming a data type group. *)
+  (** An auxiliary method for transforming a data type group. *)
   method data_type_group: 'env -> data_type_group -> data_type_group
 
 end
 
-(* An [iter] specialization of the visitor. *)
+(** An [iter] specialization of the visitor. *)
 
 class ['env] iter : object
 
   inherit ['env, unit] visitor
 
-  (* The case methods now perform a recursive traversal. *)
+  (** The case methods now perform a recursive traversal. *)
   method tyunknown: 'env -> unit
   method tydynamic: 'env -> unit
   method tybound: 'env -> db_index -> unit
@@ -487,15 +473,30 @@ class ['env] iter : object
   method tystar: 'env -> typ -> typ -> unit
   method tyand: 'env -> mode_constraint -> typ -> unit
 
-  (* An auxiliary method for visiting a resolved branch. *)
+  (** An auxiliary method for visiting a resolved branch. *)
   method resolved_branch: 'env -> resolved_branch -> unit
-  (* An auxiliary method for visiting a resolved data constructor. *)
+  (** An auxiliary method for visiting a resolved data constructor. *)
   method resolved_datacon: 'env -> resolved_datacon -> unit
-  (* An auxiliary method for visiting a field. *)
+  (** An auxiliary method for visiting a field. *)
   method field: 'env -> data_field_def -> unit
-  (* An auxiliary method for visiting an unresolved branch. *)
+  (** An auxiliary method for visiting an unresolved branch. *)
   method unresolved_branch: 'env -> unresolved_branch -> unit
-  (* An auxiliary method for visiting a data type group. *)
+  (** An auxiliary method for visiting a data type group. *)
   method data_type_group: 'env -> data_type_group -> unit
 
 end
+
+(**/**)
+
+(** References are assigned to by other modules after the type printers have
+ * been set up. Other [internal_] functions are for debugging, as they break the
+ * abstraction barriers in quite amazing ways. *)
+val internal_ptype : (Buffer.t -> env * typ -> unit) ref
+val internal_pnames : (Buffer.t -> env * name list -> unit) ref
+val internal_ppermissions : (Buffer.t -> env -> unit) ref
+val internal_pfact : (Buffer.t -> Fact.fact -> unit) ref
+val internal_pflexlist: (Buffer.t -> env -> unit)
+val internal_uniqvarid: env -> var -> int
+val internal_checklevel: env -> typ -> unit
+val internal_wasflexible: var -> bool
+
