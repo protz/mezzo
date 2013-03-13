@@ -45,7 +45,7 @@ type raw_error =
   | ConflictingTypeAnnotations of typ * typ
   | IllKindedTypeApplication of Expressions.tapp * kind * kind
   | BadTypeApplication of var
-  | BadFactForAdoptedType of var * typ * Fact.fact
+  | NonExclusiveAdoptee of typ
   | NoAdoptsClause of var
   | NotDynamic of var
   | NoSuitableTypeForAdopts of var * typ

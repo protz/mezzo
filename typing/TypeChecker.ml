@@ -1011,7 +1011,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 (* First of all, check that the user wants to adopt something
                  * legit. *)
                 if not (FactInference.is_exclusive env t) then
-                  raise_error env (BadFactForAdoptedType (y, t, FactInference.analyze_type env t));
+                  raise_error env (NonExclusiveAdoptee t);
                 (* The clause is now [t]. Extract it from the list of available
                  * permissions for [x]. We know it works because we type-checked
                  * the whole [EConstraint] already. *)

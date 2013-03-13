@@ -49,7 +49,7 @@ and raw_error =
   | ConflictingTypeAnnotations of typ * typ
   | IllKindedTypeApplication of tapp * kind * kind
   | BadTypeApplication of var
-  | BadFactForAdoptedType of var * typ * Fact.fact
+  | NonExclusiveAdoptee of typ
   | NoAdoptsClause of var
   | NotDynamic of var
   | NoSuitableTypeForAdopts of var * typ
@@ -372,12 +372,9 @@ let print_error buf (env, raw_error) =
         pdoc ((fun t -> ExprPrinter.print_tapp env t), t)
         pdoc (print_kind, k) 
         pdoc (print_kind, k');
-  | BadFactForAdoptedType (p, t, f) ->
-      bprintf "Type %a cannot adopt type %a because it is not \
-          marked as exclusive but %a"
-        pnames (env, get_names env p)
+  | NonExclusiveAdoptee t ->
+      bprintf "Type %a cannot be adopted, because it is not exclusive"
         ptype (env, t)
-        pfact f
   | NoAdoptsClause p ->
       bprintf "Trying to give/take to/from %a but this expression \
           cannot adopt; the only permissions available for it are %a"

@@ -588,13 +588,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     pass);
 
   ("adopts2.mz",
-    simple_test (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
+    simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
 
   ("adopts3.mz",
     simple_test (KFail (function K.AdopterNotExclusive _ -> true | _ -> false)));
 
   ("adopts4.mz",
-    simple_test (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
+    simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
 
   ("adopts5.mz",
     pass);
@@ -606,7 +606,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     pass);
 
   ("adopts8.mz",
-    simple_test (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
+    simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
 
   ("adopts9.mz",
     pass);
@@ -746,9 +746,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("monads.mz", pass);
 
-  ("adopts-non-mutable-type.mz", simple_test (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
+  ("adopts-non-mutable-type.mz", simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
 
-  ("adopts-type-variable.mz", simple_test (Fail (function BadFactForAdoptedType _  -> true | _ -> false)));
+  ("adopts-type-variable.mz", simple_test (Fail (function NonExclusiveAdoptee _  -> true | _ -> false)));
 
   ("ref-confusion.mz", simple_test (KFail (function _ -> true)));
 

@@ -39,9 +39,7 @@ let check_adopts_clauses (env: env): unit =
             tsubst (TyOpen var) index clause
           ) branch.branch_adopts vars in
           if not (FactInference.is_exclusive env clause) then
-            raise_error env (
-              BadFactForAdoptedType (var, clause, FactInference.analyze_type env clause)
-            )
+            raise_error env (NonExclusiveAdoptee clause)
 	) branches
     | _ ->
         ()
