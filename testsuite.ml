@@ -325,7 +325,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge1.mz", fun do_it ->
     let env = do_it () in
     let v1 = point_by_name env "v1" in
-    check env v1 (TyConcreteUnfolded (dc env "t" "T", [], ty_bottom)));
+    check env v1 (concrete (dc env "t" "T") []));
 
   ("merge2.mz", fun do_it ->
     let env = do_it () in
@@ -335,12 +335,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
         ty_equals v2,
         TyStar (
           TyAnchoredPermission (TyOpen v2,
-            TyConcreteUnfolded (dc env "u" "U",
+	    concrete
+              (dc env "u" "U")
               [FieldValue (Field.register "left", TySingleton (TyBound 0));
-               FieldValue (Field.register "right", TySingleton (TyBound 0))], ty_bottom)),
+               FieldValue (Field.register "right", TySingleton (TyBound 0))]),
           TyAnchoredPermission (
             TyBound 0,
-            TyConcreteUnfolded (dc env "t" "T", [], ty_bottom)
+	    concrete (dc env "t" "T") []
           )
         )
       ))
@@ -356,17 +357,17 @@ let tests: (string * ((unit -> env) -> unit)) list = [
           ty_equals v3,
           fold_star [
             TyAnchoredPermission (TyOpen v3,
-              TyConcreteUnfolded (dc env "u" "U",
+              concrete (dc env "u" "U")
                 [FieldValue (Field.register "left", TySingleton (TyBound 0));
-                 FieldValue (Field.register "right", TySingleton (TyBound 1))],
-                 ty_bottom));
+                 FieldValue (Field.register "right", TySingleton (TyBound 1))]
+            );
             TyAnchoredPermission (
               TyBound 0,
-              TyConcreteUnfolded (dc env "t" "T", [], ty_bottom)
+              concrete (dc env "t" "T") []
             );
             TyAnchoredPermission (
               TyBound 1,
-              TyConcreteUnfolded (dc env "t" "T", [], ty_bottom)
+              concrete (dc env "t" "T") []
             );
           ]
         )))
@@ -499,7 +500,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     if List.exists (FactInference.is_exclusive env) perms then
       failwith "The permission on [x] should've been consumed";
     let perms = get_permissions env s1 in
-    if not (List.exists ((=) (TyApp (t, [datacon env "t" "A" []]))) perms) then
+    if not (List.exists ((=) (TyApp (t, [concrete (dc env "t" "A") []]))) perms) then
       failwith "The right permission was not extracted for [s1].";
   );
 
@@ -567,7 +568,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test ((Fail (function ExpectedType _ -> true | _ -> false))));
 
   ("fail7.mz",
-    simple_test ((Fail (function FieldMismatch _ -> true | _ -> false))));
+    simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
 
   ("fail8.mz",
     simple_test ((Fail (function BadPattern _ -> true | _ -> false))));
@@ -577,6 +578,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("fail10.mz",
     simple_test ((Fail (function BadField _ -> true | _ -> false))));
+
+  ("fail11.mz",
+    simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
 
   (* Adoption. *)
 
@@ -882,6 +886,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("tyand03.mz", fail);
   ("tyand04.mz", pass);
   ("tyand05.mz", simple_test ~known_failure:() (Fail (fun _ -> true)));
+  ("incorrect-fields.mz",
+    simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
+  ("name-intro.mz", pass);
+  ("exists-forall.mz", pass);
 
 ];;
 

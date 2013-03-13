@@ -35,7 +35,6 @@ and raw_error =
   | MissingField of Field.name
   | ExtraField of Field.name
   | NoSuchField of var * Field.name
-  | FieldMismatch of typ * Datacon.name
   | CantAssignTag of var
   | NoSuchFieldInPattern of pattern * Field.name
   | BadPattern of pattern * var
@@ -159,18 +158,9 @@ and fold_type (env: env) (depth: int) (t: typ): env * typ =
       let env, t = fold_type env (depth + 1) t in
       env, TyAnd (c, t)
 
-  | TyConcreteUnfolded (dc, fields, clause) ->
-      let env, fields = List.fold_left (fun (env, fields) -> function
-        | FieldPermission p ->
-            let env, p = fold_type env (depth + 1) p in
-            env, FieldPermission p :: fields
-        | FieldValue (n, t) ->
-            let env, t = fold_type env (depth + 1) t in
-            env, FieldValue (n, t) :: fields
-      ) (env, []) fields in
-      let fields = List.rev fields in
-      let env, clause = fold_type env (depth + 1) clause in
-      env, TyConcreteUnfolded (dc, fields, clause)
+  | TyConcreteUnfolded branch ->
+      let env, branch = fold_branch env (depth + 1) branch in
+      env, TyConcreteUnfolded branch
 
   | TySingleton _ ->
       env, t
@@ -192,6 +182,23 @@ and fold_type (env: env) (depth: int) (t: typ): env * typ =
   | TyStar _ ->
       Log.error "Huh I don't think we should have that here"
 
+and fold_branch env depth branch =
+  let env, fields =
+    List.fold_left (fun (env, fields) -> function
+      | FieldPermission p ->
+          let env, p = fold_type env depth p in
+          env, FieldPermission p :: fields
+      | FieldValue (n, t) ->
+          let env, t = fold_type env depth t in
+          env, FieldValue (n, t) :: fields
+    ) (env, []) branch.branch_fields in
+  let branch_fields = List.rev fields in
+  let env, branch_adopts = fold_type env depth branch.branch_adopts in
+  let branch = { branch with
+    branch_fields;
+    branch_adopts;
+  } in
+  env, branch
 ;;
 
 let fold_type env t =
@@ -301,12 +308,6 @@ let print_error buf (env, raw_error) =
             Field.p f
             ppermission_list (env, var)
       end
-  | FieldMismatch (t, datacon) ->
-      Printf.bprintf buf
-        "%a user-provided type:\n%a\ndoes not match the fields of data constructor %a"
-        Lexer.p (location env)
-        ptype (env, t)
-        Datacon.p datacon
   | CantAssignTag var ->
       begin match fold_var env var with
       | Some t ->

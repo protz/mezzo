@@ -23,7 +23,6 @@
 
 open TypeCore
 open Types
-open TypeErrors
 open Derivations
 
 type result = env option * derivation
@@ -197,102 +196,118 @@ let is_singleton env t =
  * This function actually does quite a bit of work, in the sense that it
  * performs unfolding on demand: if there is a missing structure point that
  * could potentially be a rigid variable, it creates it... *)
-let rec open_all_rigid_in (env: env) (t: typ) (side: side): env * typ =
-  let t = modulo_flex env t in
-  let t = expand_if_one_branch env t in
-  match t with
-  | TyUnknown
-  | TyDynamic
-  | TyBound _
-  | TyOpen _
-  | TyApp _ ->
-      env, t
 
-  | TyForall ((binding, _), t1) ->
-      if side = Right then
-        let env, t1, _ = bind_rigid_in_type env binding t1 in
-        let env, t1 = open_all_rigid_in env t1 side in
-        env, t1
-      else
-        env, t
+(* TEMPORARY calling [wrap_bar] causes an existential to appear, so it
+   seems interesting only if on the Left side. If on the right side, on
+   the contrary, it could prevent us from making progress? *)
 
-  | TyExists (binding, t1) ->
-      if side = Left then
-        let env, t1, _ = bind_rigid_in_type env binding t1 in
-        let env, t1 = open_all_rigid_in env t1 side in
-        env, t1
-      else
-        env, t
+class open_all_rigid_in (env : env ref) = object (self)
 
-  | TyTuple ts ->
-      let env, ts = List.fold_left (fun (env, acc) t ->
-        let t =
-          if not (is_singleton env t) then wrap_bar t
-          else t
-        in
-        let env, t = open_all_rigid_in env t side in
-        env, t :: acc
-      ) (env, []) ts in
-      let ts = List.rev ts in
-      env, TyTuple ts
+  (* The type environment [env] has type [env ref], and is threaded
+     through the traversal. It is continuously extended. *)
 
-  | TyConcreteUnfolded (d, fields, clause) ->
-      let env, fields = List.fold_left (fun (env, acc) field ->
-        match field with
-        | FieldValue (f, t) ->
-            let t =
-              if not (is_singleton env t) then wrap_bar t
-              else t
-            in
-            let env, t = open_all_rigid_in env t side in
-            env, FieldValue (f, t) :: acc
-        | FieldPermission t ->
-            let env, t = open_all_rigid_in env t side in
-            env, FieldPermission t :: acc
-      ) (env, []) fields in
-      let fields = List.rev fields in
-      env, TyConcreteUnfolded (d, fields, clause)
+  (* Our environment is a pair of [side], which tells us which kind
+     of binders (universal or existential) we are supposed to open,
+     and [deconstructed], a Boolean flag that is set to [true] when
+     a structural type was just deconstructed and we are expected
+     to invoke [wrap_bar]. *)
+  inherit [side * bool] map as super
 
-  | TySingleton _ ->
-      env, t
+  (* We re-implement the main visitor in order to receive a warning
+     when new cases appear and in order to share code. *)
+  method visit (side, deconstructed) ty =
+    let ty = modulo_flex !env ty in
+    let ty = if deconstructed && not (is_singleton !env ty) then wrap_bar ty else ty in
+    let ty = expand_if_one_branch !env ty in
+    match ty, side with
 
-  | TyArrow (t1, t2) ->
-      (* This is subtle! Existentials in the codomain are universal! *)
-      begin match side with
-      | Right ->
-          let env, t1 = open_all_rigid_in env t1 Left in
-          env, TyArrow (t1, t2)
-      | Left ->
-          env, t
-      end
+    (* We stop at the following constructors. *)
 
-  | TyBar (t1, t2) ->
-      let env, t1 = open_all_rigid_in env t1 side in
-      let env, t2 = open_all_rigid_in env t2 side in
-      env, TyBar (t1, t2)
+    | TyUnknown, _
+    | TyDynamic, _
+    | TyBound _, _
+    | TyOpen _, _
+    | TyApp _, _
+    | TyForall _, Left
+    | TyExists _, Right
+    | TySingleton _, _
+    | TyArrow _, Left
+    | TyEmpty, _
+    | TyImply _, _
+	-> ty
 
-  | TyAnchoredPermission (t1, t2) ->
-      let env, t1 = open_all_rigid_in env t1 side in
-      let env, t2 = open_all_rigid_in env t2 side in
-      env, TyAnchoredPermission (t1, t2)
+    (* A universal quantifier on the right-hand side gives rise to a rigid
+       variable. The type environment is extended. The quantifier disappears.
+       The case of an existential on the left-hand side is symmetric. *)
 
-  | TyEmpty ->
-      env, t
+    | TyForall ((binding, _), ty), Right
+    | TyExists (binding, ty), Left ->
+        let new_env, ty, _ = bind_rigid_in_type !env binding ty in
+	env := new_env;
+	self#visit (side, false) ty
 
-  | TyStar (t1, t2) ->
-      let env, t1 = open_all_rigid_in env t1 side in
-      let env, t2 = open_all_rigid_in env t2 side in
-      env, TyStar (t1, t2)
+    (* As a special case, when we find [t -> u] on the right-hand side,
+       we go look for existential quantifiers inside [t], and hoist them
+       out, where they become universal quantifiers and are opened.
+       This amounts to applying the subtyping rule forall a.(t -> u)
+       <= (exists a.t) -> u, I believe. Indeed, the original goal was
+       to prove that some value has type (exists a.t) -> u, and we are
+       replacing it with the goal of proving that this value has type
+       t -> u, for a rigid a. *)
 
-  | TyAnd (c, t) ->
-      let env, t = open_all_rigid_in env t side in
-      env, TyAnd (c, t)
+    (* Note that we do *not* go down into [u]. That would amount to
+       applying the subtyping rule forall a. t -> u <= t -> forall a.u,
+       which is incorrect, as it violates the value restriction. *)
 
-  | TyImply (c, t) ->
-      let env, t = open_all_rigid_in env t side in
-      env, TyImply (c, t)
-;;
+    (* This is in fact the only occasion where [side] changes, and it
+       changes only from [Right] to [Left]. *)
 
+    | TyArrow (ty1, ty2), Right ->
+        let ty1 = self#visit (Left, false) ty1 in
+	TyArrow (ty1, ty2)
+
+    (* We descend into the following constructs. *)
+
+    | TyTuple _, _
+      -> super#visit (side, true) ty
+        (* Setting [deconstructed] to [true] forces the fields to
+	   become named with a point, if they weren't already. *)
+
+    | TyBar _, _
+    | TyStar _, _
+    | TyConcreteUnfolded _, _
+      -> super#visit (side, false) ty
+
+    (* We descend into the right-hand side of [TyAnchoredPermission] and [TyAnd]. *)
+
+    | TyAnchoredPermission (ty1, ty2), _ ->
+        TyAnchoredPermission (ty1, self#visit (side, false) ty2)
+    | TyAnd (c, ty), _ ->
+        TyAnd (c, self#visit (side, false) ty)
+
+  (* At [TyConcreteUnfolded], we descend into the fields, but not into
+     the datacon or into the adopts clause. *)
+    method resolved_branch env branch =
+    { branch with
+      branch_fields = List.map (self#field env) branch.branch_fields;
+    }
+
+  (* At physical fields, we set [deconstructed] to [true]. At permission
+     fields, we do not; it makes sense only at kind [type]. *)
+  method field (side, _) = function
+    | FieldValue (field, ty) ->
+        FieldValue (field, self#visit (side, true) ty)
+        (* Setting [deconstructed] to [true] forces the fields to
+	   become named with a point, if they weren't already. *)
+    | FieldPermission p ->
+        FieldPermission (self#visit (side, false) p)
+
+end
+
+let open_all_rigid_in (env : env) (ty : typ) (side : side) : env * typ =
+  let env = ref env in
+  let ty = (new open_all_rigid_in env) # visit (side, false) ty in
+  !env, ty
 
 (** [unify env p1 p2] merges two vars, and takes care of dealing with how the
     permissions should be merged. *)
@@ -343,7 +358,7 @@ and add (env: env) (var: var) (t: typ): env =
    * simplified. [unfold] calls [add] recursively whenever it adds new vars. *)
   let env, t = unfold env ~hint t in
 
-  (* Break up this into a type + permissions. *)
+  (* Break this up into a type + permissions. *)
   let t, perms = collect t in
 
   TypePrinter.(Log.debug ~level:4 "%s[%sadding to %a] %a"
@@ -370,38 +385,37 @@ and add (env: env) (var: var) (t: typ): env =
       add env var t
 
   (* This implement the rule "x @ (=y, =z) * x @ (=y', =z') implies y = y' and z * = z'" *)
-  | TyConcreteUnfolded (dc, ts, clause) ->
+  | TyConcreteUnfolded branch ->
       let original_perms = get_permissions env var in
       begin match MzList.find_opt (function
-        | TyConcreteUnfolded (dc', ts', clause') when resolved_datacons_equal env dc dc' ->
-            Some (ts', clause')
+        | TyConcreteUnfolded branch' when resolved_datacons_equal env branch.branch_datacon branch'.branch_datacon ->
+            Some branch'
         | _ -> None)
         original_perms
       with
-      | Some (ts', clause') ->
-          begin match
-            sub_type env clause clause' >>| fun env ->
-            sub_type env clause' clause >>| drop
-          with
-          | _ when FactInference.is_exclusive env t ->
-              mark_inconsistent env
-          | None ->
-              (* Incompatible "adopts" clauses. *)
-              mark_inconsistent env
-          | Some env ->
-              List.fold_left2 (fun env f1 f2 ->
-                match f1, f2 with
-                | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
-                    begin match modulo_flex env t with
-                    | TySingleton (TyOpen p) ->
-                        add env p t'
-                    | _ ->
-                        Log.error "Type not unfolded"
-                    end
-                | _ ->
-                    Log.error "Datacon order invariant not respected"
-              ) env ts ts'
-          end
+      | Some _ when FactInference.is_exclusive env t ->
+	  Log.debug ~level:4 "%s]%s (two exclusive perms!)" Bash.colors.Bash.red Bash.colors.Bash.default;
+	  (* We cannot possibly have two exclusive permissions for [x]. *)
+          mark_inconsistent env
+      | Some branch' ->
+	  (* If we are still here, then the two permissions at hand are
+	     not exclusive. This implies, I think, that the two adopts
+	     clauses must be bottom. So, there is no need to try and
+	     compute their meet (good). *)
+	  assert (equal env branch.branch_adopts ty_bottom);
+	  assert (equal env branch'.branch_adopts ty_bottom);
+	  List.fold_left2 (fun env f1 f2 ->
+	    match f1, f2 with
+	    | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
+		begin match modulo_flex env t with
+		| TySingleton (TyOpen p) ->
+		    add env p t'
+		| _ ->
+		    Log.error "Type not unfolded"
+		end
+	    | _ ->
+		Log.error "Datacon order invariant not respected"
+	  ) env branch.branch_fields branch'.branch_fields
       | None ->
           add_type env var t
       end
@@ -568,27 +582,9 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
         ) (env, []) components in
         env, TyTuple (List.rev components)
 
-    | TyConcreteUnfolded (datacon, fields, clause) ->
-        (* If this is a user-provided type (e.g. a function parameter's type) we
-         * should not blindly accept this type when adding it into our
-         * environment. *)
-        let all_fields_there =
-          let _, def, _ = def_for_datacon env datacon in
-          let _, branch = List.find (fun (datacon', _) -> Datacon.equal (snd datacon) datacon') def in
-          let field_name = function
-            | FieldValue (name, _) -> Some name
-            | FieldPermission _ -> None
-          in
-          let fields' = MzList.map_some field_name branch in
-          let fields = MzList.map_some field_name fields in
-          List.length fields = List.length fields' &&
-          List.for_all (fun field' ->
-            List.exists (Field.equal field') fields
-          ) fields'
-        in
-        if not (all_fields_there) then
-          raise_error env (FieldMismatch (t, (snd datacon)));
-        (* It's fine, add it! *)
+    | TyConcreteUnfolded branch ->
+        let datacon = branch.branch_datacon in
+	let fields = branch.branch_fields in
         let env, fields = List.fold_left (fun (env, fields) -> function
           | FieldPermission _ as field ->
               env, field :: fields
@@ -600,7 +596,7 @@ and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
               env, FieldValue (name, field) :: fields
         ) (env, []) fields
         in
-        env, TyConcreteUnfolded (datacon, List.rev fields, clause)
+        env, TyConcreteUnfolded { branch with branch_fields = List.rev fields }
 
     | TyAnd _
     | TyImply _ ->
@@ -873,11 +869,12 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         ) components1 components2)
       end
 
-  | TyConcreteUnfolded (datacon1, fields1, clause1), TyConcreteUnfolded (datacon2, fields2, clause2)
-    when List.length fields1 = List.length fields2 ->
-      if resolved_datacons_equal env datacon1 datacon2 then
+  | TyConcreteUnfolded branch1, TyConcreteUnfolded branch2 ->
+      if resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon then begin
+	assert (branch1.branch_flavor = branch2.branch_flavor);
+	assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
         try_proof_root "Concrete" begin
-          sub_type env clause1 clause2 >>= fun env ->
+          sub_type env branch1.branch_adopts branch2.branch_adopts >>= fun env ->
           premises env (List.map2 (fun f1 f2 -> fun env ->
             let t1, t2 =
               match f1, f2 with
@@ -898,20 +895,22 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                 sub env p1 t2
             | _ ->
                 sub_type_with_unfolding env t1 t2
-          ) fields1 fields2)
+          ) branch1.branch_fields branch2.branch_fields)
         end
+      end
       else
         no_proof_root
 
-  | TyConcreteUnfolded ((cons1, datacon1), _, _), TyApp (cons2, args2) ->
+  | TyConcreteUnfolded branch1, TyApp (cons2, args2) ->
+      let (cons1, datacon1) = branch1.branch_datacon in
       let var1 = !!cons1 in
       let cons2 = !!cons2 in
 
       if same env var1 cons2 then begin
         try_proof_root "Fold-L" begin
-          let datacon2, fields2, clause2 = find_and_instantiate_branch env cons2 datacon1 args2 in
+          let branch2 = find_and_instantiate_branch env cons2 datacon1 args2 in
           (* There may be permissions attached to this branch. *)
-          let t2 = TyConcreteUnfolded (datacon2, fields2, clause2) in
+          let t2 = TyConcreteUnfolded branch2 in
           let t2, p2 = collect t2 in
           sub_type env t1 t2 >>= fun env ->
           sub_perms env p2
@@ -920,16 +919,17 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         no_proof_root
       end
 
-  | TyConcreteUnfolded ((cons1, datacon1), _, _), TyOpen var2 ->
+  | TyConcreteUnfolded branch1, TyOpen var2 ->
       (* This is basically the same as above, except that type applications
        * without parameters are not [TyApp]s, they are [TyOpen]s. *)
+      let (cons1, datacon1) = branch1.branch_datacon in
       let var1 = !!cons1 in
 
       if same env var1 var2 then begin
         try_proof_root "Fold-L-2" begin
           (* XXX why are we not collecting permissions here? *)
-          let datacon2, fields2, clause2 = find_and_instantiate_branch env var2 datacon1 [] in
-          sub_type env t1 (TyConcreteUnfolded (datacon2, fields2, clause2)) >>=
+          let branch2 = find_and_instantiate_branch env var2 datacon1 [] in
+          sub_type env t1 (TyConcreteUnfolded branch2) >>=
           qed
         end
       end else begin

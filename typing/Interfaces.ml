@@ -218,28 +218,21 @@ let check
           | Some _, None ->
               error_out "type abstract in implem but not in sig";
 
-          | Some (flag, branches, clause), Some (flag', branches', clause') ->
-              (* We're not checking facts: if the flag and the branches are
+          | Some branches, Some branches' ->
+              (* We're not checking facts: if the branches are
                * equal, then it results that the facts are equal. Moreover, we
                * haven't run [FactInference.analyze_types] on the *signature* so
                * the information in [fact] is just meaningless. *)
 
-              if flag <> flag' then
-                error_out "flags";
+              List.iter2 (fun branch branch' ->
 
-              begin match clause, clause' with
-              | Some clause, Some clause' ->
-                  if not (T.equal env clause clause') then
-                    error_out "clauses";
-              | None, None ->
-                  ()
-              | Some _, None
-              | None, Some _ ->
-                  error_out "clause in only one of sig, implem";
-              end;
+		if not (DataTypeFlavor.equal branch.T.branch_flavor branch'.T.branch_flavor) then
+                  error_out "flavors";
 
-              List.iter2 (fun (datacon, fields) (datacon', fields') ->
-                if not (Datacon.equal datacon datacon') then
+                if not (T.equal env branch.T.branch_adopts branch'.T.branch_adopts) then
+                  error_out "clauses";
+
+                if not (Datacon.equal branch.T.branch_datacon branch'.T.branch_datacon) then
                   error_out "datacons";
                 List.iter2 (fun field field' ->
                   match field, field' with
@@ -253,7 +246,7 @@ let check
                         error_out "permission field";
                   | _ ->
                       error_out "field nature";
-                ) fields fields';
+                ) branch.T.branch_fields branch'.T.branch_fields;
               ) branches branches';
 
         ) bindings translated_definitions;

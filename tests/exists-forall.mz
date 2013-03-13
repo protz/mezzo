@@ -1,0 +1,18 @@
+(* The apply function can be either be viewed as polymorphic in a
+   or as expecting an existential package in a. Either definition
+   is accepted, and either type can be implicitly converted to the
+   other. *)
+
+val uapply [a, b] (f: (consumes a) -> b, consumes x: a) : b =
+  f x
+
+val () =
+  assert uapply @ [b] (consumes {a} ((consumes a) -> b, a)) -> b
+
+val xapply [b] (consumes package: {a} ((consumes a) -> b, a)) : b =
+  let f, x = package in
+  f x
+
+val () =
+  assert xapply @ [a, b] (f: (consumes a) -> b, consumes x: a) -> b
+

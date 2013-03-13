@@ -126,14 +126,14 @@ let variance env var_for_ith valuation b t =
         let vs = List.map var ts in
         List.fold_left lub Bivariant vs
 
-    | TyConcreteUnfolded (_, fields, clause) ->
+    | TyConcreteUnfolded branch ->
         let vs = List.map (function
           | FieldValue (_, t) ->
               var t
           | FieldPermission p ->
               var p
-        ) fields in
-        let vs = var clause :: vs in
+        ) branch.branch_fields in
+        let vs = var branch.branch_adopts :: vs in
         List.fold_left lub Bivariant vs
 
     | TySingleton _ ->
@@ -186,15 +186,11 @@ let analyze_data_types env points =
           Log.error "Only data type definitions here"
       | Some (None, _) ->
           env, acc
-      | Some (Some (_flag, branches, clause), _) ->
-          let env, points, instantiated_branches, clause =
-            bind_datacon_parameters env kind branches clause
+      | Some (Some branches, _) ->
+          let env, points, instantiated_branches =
+            bind_datacon_parameters env kind branches
           in
-          let clause = match clause with Some clause -> clause | None -> ty_bottom in
-          (* Keep the clause along with the branches so that [equations] can
-           * generate proper concrete types, which will in turn use the clause
-           * to generate correct equations. *)
-          env, (point, (points, (List.map (fun (x, y) -> x, y, clause) instantiated_branches))) :: acc
+          env, (point, (points, instantiated_branches)) :: acc
     ) (original_env, []) points
   in
 
@@ -208,17 +204,17 @@ let analyze_data_types env points =
   (* This computes the rhs for a given variable. *)
   let equations var =
     (* Find which type this variable belongs to. *)
-    let _, (_, branches) = List.find (fun (_, (vars, _)) ->
+    let owner, (_, branches) = List.find (fun (_, (vars, _)) ->
       List.exists (same env var) vars
     ) store in
     (* The equations for a given variable depend on the valuation. (At this
      * stage, you should really, really read the doc for [Fix].) *)
     (fun valuation ->
-      (* The [z] parameter is actually the adopts clause that has been
-       * distributed in all the branches so as to give the correct behavior. *)
       let vs = List.map
         (variance env var_for_ith valuation var)
-        (List.map (fun (x, y, z) -> TyConcreteUnfolded ((TyUnknown, x), y, z)) branches)
+        (List.map (fun branch ->
+	  TyConcreteUnfolded (resolve_branch owner branch)
+	 ) branches)
       in
       List.fold_left lub Bivariant vs
     )

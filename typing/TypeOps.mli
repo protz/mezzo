@@ -26,5 +26,6 @@ open TypeCore
  * returns them as a separate list. *)
 val collect : typ -> typ * typ list
 
-(** Mark all type variables reachable from a type. *)
+(** Mark all type variables reachable from a type, including via the
+    ambient permissions. *)
 val mark_reachable : env -> typ -> env

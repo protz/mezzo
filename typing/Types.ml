@@ -72,6 +72,13 @@ let ty_bottom =
     TyBound 0
   )
 
+let is_non_bottom t =
+  match t with
+  | TyForall (_, TyBound 0) ->
+      None
+  | _ ->
+      Some t
+
 (* This is right-associative, so you can write [list int @-> int @-> tuple []] *)
 let (@->) x y =
   TyArrow (x, y)
@@ -243,25 +250,44 @@ let get_location env p =
   List.hd (get_locations env p)
 ;;
 
-let get_adopts_clause env point: adopts_clause =
+let get_adopts_clause env point: typ =
   match get_definition env point with
-  | Some (Some (_, _, clause), _) ->
-      clause
+  | Some (Some branches, _) ->
+      (* The [adopts] clause is now per-branch, instead of per-data-type.
+	 We should in principle return the meet of the [adopts] clauses
+	 of all branches. However, the surface language imposes that
+	 all branches have the same [adopts] clause, except perhaps some
+	 branches which are immutable and don't have an adopts clause.
+	 In that setting, the meet is easy to compute. *)
+      let meet ty1 branch2 =
+	let ty2 = branch2.branch_adopts in
+	match ty1, is_non_bottom ty2 with
+	| TyUnknown, _ ->
+	    ty2
+	| _, None ->
+	    (* [ty2] is bottom *)
+	    ty2
+	| _, Some _ ->
+	    (* [ty2] is non-bottom *)
+	    assert (equal env ty1 ty2);
+	    ty2
+      in
+      List.fold_left meet TyUnknown branches
   | _ ->
-      (* An abstract exclusive type has no adopts clause (as of now). *)
-      None
+      (* An abstract type has no adopts clause (as of now). *)
+      ty_bottom
 ;;
 
-let get_branches env point: data_type_def_branch list =
+let get_branches env point: unresolved_branch list =
   match get_definition env point with
-  | Some (Some (_, branches, _), _) ->
+  | Some (Some branches, _) ->
       branches
   | _ ->
       Log.error "This is not a concrete data type."
 ;;
 
 let get_arity (env: env) (var: var): int =
-  get_arity_for_kind (get_kind env var)
+  SurfaceSyntax.get_arity_for_kind (get_kind env var)
 ;;
 
 let rec get_kind_for_type env t =
@@ -323,7 +349,7 @@ let get_variance (env: env) (var: var): variance list =
       assert false
 ;;
 
-let def_for_datacon (env: env) (datacon: resolved_datacon): DataTypeFlavor.flavor * data_type_def * adopts_clause=
+let def_for_datacon (env: env) (datacon: resolved_datacon): data_type_def =
   match datacon with
   | TyOpen point, _ ->
       let def, _ = Option.extract (get_definition env point) in
@@ -332,27 +358,45 @@ let def_for_datacon (env: env) (datacon: resolved_datacon): DataTypeFlavor.flavo
       Log.error "Datacon not properly resolved: %a" !internal_ptype (env, t)
 ;;
 
+let def_for_branch env branch =
+  def_for_datacon env branch.branch_datacon
+
+let branch_for_branch env (branch : resolved_branch) : unresolved_branch =
+  let _, datacon = branch.branch_datacon in
+  let branches : unresolved_branch list = def_for_branch env branch in
+  List.find (fun branch' ->
+    Datacon.equal datacon branch'.branch_datacon
+  ) branches
+
+let flavor_for_branch env (branch : resolved_branch) : DataTypeFlavor.flavor =
+  let branch : unresolved_branch = branch_for_branch env branch in
+  branch.branch_flavor
+
 let variance env var i =
   let definition = get_definition env var in
   let variance = snd (Option.extract definition) in
   List.nth variance i
 ;;
 
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Instantiating. *)
 
-let instantiate_adopts_clause clause args =
-  let clause = Option.map_none ty_bottom clause in
+let instantiate_type t args =
   let args = List.rev args in
-  MzList.fold_lefti (fun i clause arg -> tsubst arg i clause) clause args
+  MzList.fold_lefti (fun i t arg -> tsubst arg i t) t args
 ;;
 
-let instantiate_branch branch args =
+let resolve_branch (t: var) (b: unresolved_branch) : resolved_branch =
+  { b with
+    branch_flavor = (); (* forget the flavor, we can recover it via [branch_datacon] *)
+    branch_datacon = (TyOpen t, b.branch_datacon);
+  }
+
+let instantiate_branch (branch : unresolved_branch) args : unresolved_branch =
   let args = List.rev args in
   let branch = MzList.fold_lefti (fun i branch arg ->
-    tsubst_data_type_def_branch arg i branch) branch args
+    tsubst_unresolved_branch arg i branch) branch args
   in
   branch
 ;;
@@ -361,15 +405,14 @@ let find_and_instantiate_branch
     (env: env)
     (var: var)
     (datacon: Datacon.name)
-    (args: typ list) =
+    (args: typ list) : resolved_branch =
   let branch =
     List.find
-      (fun (datacon', _) -> Datacon.equal datacon datacon')
+      (fun branch -> Datacon.equal datacon branch.branch_datacon)
       (get_branches env var)
   in
-  let dc, fields = instantiate_branch branch args in
-  let clause = instantiate_adopts_clause (get_adopts_clause env var) args in
-  (TyOpen var, dc), fields, clause
+  let branch = instantiate_branch branch args in
+  resolve_branch var branch
 ;;
 
 (* Misc. *)
@@ -419,27 +462,26 @@ let make_datacon_letters env kind flexible =
   env, points
 ;;
 
-let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_branch list) (clause: adopts_clause):
-    env * var list * data_type_def_branch list * adopts_clause =
+let bind_datacon_parameters (env: env) (kind: kind) (branches: unresolved_branch list):
+    env * var list * unresolved_branch list =
   let env, points = make_datacon_letters env kind false in
-  let arity = get_arity_for_kind kind in
-  let branches, clause = MzList.fold_lefti (fun i (branches, clause) point ->
+  let arity = SurfaceSyntax.get_arity_for_kind kind in
+  let branches = MzList.fold_lefti (fun i branches point ->
     let index = arity - i - 1 in
-    let branches = List.map (tsubst_data_type_def_branch (TyOpen point) index) branches in
-    let clause = Option.map (tsubst (TyOpen point) index) clause in
-    branches, clause
-  ) (branches, clause) points in
-  env, points, branches, clause
+    let branches = List.map (tsubst_unresolved_branch (TyOpen point) index) branches in
+    branches
+  ) branches points in
+  env, points, branches
 ;;
 
 let expand_if_one_branch (env: env) (t: typ) =
   match is_tyapp t with
   | Some (cons, args) ->
       begin match get_definition env cons with
-      | Some (Some (_, [branch], clause), _) ->
-          let dc, fields = instantiate_branch branch args in
-          let clause = instantiate_adopts_clause clause args in
-          TyConcreteUnfolded ((TyOpen cons, dc), fields, clause)
+      | Some (Some [branch], _) ->
+          let branch = instantiate_branch branch args in
+	  let branch = resolve_branch cons branch in
+          TyConcreteUnfolded branch
       | _ ->
         t
       end
@@ -612,8 +654,8 @@ module TypePrinter = struct
           (print_type env) components ^^
         rparen
 
-    | TyConcreteUnfolded (name, fields, clause) ->
-        print_data_type_def_branch env (snd name) fields clause
+    | TyConcreteUnfolded branch ->
+        print_resolved_branch env branch
 
       (* Singleton types. *)
     | TySingleton typ ->
@@ -659,7 +701,22 @@ module TypePrinter = struct
     | FieldPermission typ ->
         string "permission" ^^ space ^^ print_type env typ
 
-  and print_data_type_def_branch env (name: Datacon.name) fields clause =
+  and print_unresolved_branch env (branch : unresolved_branch) =
+    print_branch env
+      (fun flavor -> string (DataTypeFlavor.print flavor))
+      print_datacon
+      branch
+
+  and print_resolved_branch env (branch : resolved_branch) =
+    print_branch env
+      (fun () -> empty)
+      (fun (_, dc) -> print_datacon dc)
+      branch
+
+  and print_branch : 'flavor 'datacon . env -> ('flavor -> document) -> ('datacon -> document) -> ('flavor, 'datacon) data_type_def_branch -> document =
+  fun env pf pdc b ->
+    let fields = b.branch_fields in
+    let clause = b.branch_adopts in
     let record =
       if List.length fields > 0 then
         space ^^ lbrace ^^
@@ -672,12 +729,13 @@ module TypePrinter = struct
         empty
     in
     let clause =
-      if equal env ty_bottom clause then
+      if equal env clause ty_bottom then
         empty
       else
         space ^^ string "adopts" ^^ space ^^ print_type env clause
     in
-    print_datacon name ^^ record ^^ clause
+    pf b.branch_flavor ^^
+    pdc b.branch_datacon ^^ record ^^ clause
   ;;
 
   let pfact buf fact =

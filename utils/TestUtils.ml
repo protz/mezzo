@@ -68,6 +68,13 @@ let unit =
   tuple []
 ;;
 
-let datacon env t d f =
-  TyConcreteUnfolded (dc env t d, f, ty_bottom)
+let concrete datacon fields =
+  let branch = {
+    branch_flavor = ();
+    branch_datacon = datacon;
+    branch_fields = fields;
+    branch_adopts = ty_bottom;
+  } in
+  TyConcreteUnfolded branch
 ;;
+

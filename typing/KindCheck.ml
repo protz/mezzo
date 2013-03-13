@@ -115,7 +115,7 @@ let empty (env: T.env): env =
       (* We're only interested in things that signatures exported with their
        * corresponding definitions. *)
       match definition with
-      | Some (_, def, _), _ ->
+      | Some def, _ ->
           (* Find the module name which this definition comes from. Yes, there's
            * no better way to do that. *)
           let mname = MzList.find_opt
@@ -124,7 +124,9 @@ let empty (env: T.env): env =
           in
           let mname = Option.extract mname in
           (* Build the entries for [known_datacons]. *)
-          let datacons = List.mapi (fun i (dc, fields) ->
+          let datacons = List.mapi (fun i branch ->
+	    let dc = branch.branch_datacon
+	    and fields = branch.branch_fields in
             (* This data constructor will be initially accessible only in a
              * qualified manner. *)
             let qualif = Qualified (mname, dc) in
@@ -172,6 +174,7 @@ and raw_error =
   | DuplicateField of Variable.name
   | AdopterNotExclusive of Variable.name
   | UnboundDataConstructor of Datacon.name
+  | FieldMismatch of Datacon.name * Field.name list (* missing fields *) * Field.name list (* extra fields *)
 
 exception KindError of error
 
@@ -200,6 +203,21 @@ let pkenv buf env =
           p_kind kind
   ) bindings
 ;;
+
+module P = struct
+
+  open MzPprint
+
+  let print_field field =
+    utf8string (Field.print field)
+
+  let print_fields fields =
+    separate_map (comma ^^ space) print_field fields
+
+  let p_fields buf fields =
+    Types.TypePrinter.pdoc buf (print_fields, fields)
+
+end
 
 let print_error buf (env, raw_error) =
   let open Types.TypePrinter in
@@ -277,6 +295,21 @@ let print_error buf (env, raw_error) =
         "%a the data constructor %a is not bound to any type"
         Lexer.p env.location
         Datacon.p d
+  | FieldMismatch (datacon, missing, extra) ->
+      Printf.bprintf buf
+        "%aThis type does not have the fields of data constructor %a"
+        Lexer.p env.location
+        Datacon.p datacon;
+      if missing <> [] then
+	Printf.bprintf buf
+	  "\nThe following field%s missing: %a"
+	  (if List.length missing > 1 then "s are" else " is")
+	  P.p_fields missing;
+      if extra <> [] then
+	Printf.bprintf buf
+	  "\nThe following field%s superfluous: %a"
+	  (if List.length extra > 1 then "s are" else " is")
+	  P.p_fields extra
   end;
   if Log.debug_level () > 4 then
     pkenv buf env;
@@ -1083,38 +1116,32 @@ module KindPrinter = struct
 
   (* Prints a data type defined in the global scope. Assumes [print_env] has been
      properly populated. *)
-  let print_data_type_def (env: env) flavor name kind variance branches clause =
+  let print_data_type_def (env: env) name kind variance branches =
     let _return_kind, params = flatten_kind kind in
     (* Turn the list of parameters into letters *)
     let letters: string list = name_gen (List.length params) in
     let letters = List.map2 (fun variance letter ->
       print_variance variance ^^ utf8string letter
     ) variance letters in
-    let env, _, branches, clause =
-      bind_datacon_parameters env kind branches clause
+    let env, _, branches =
+      bind_datacon_parameters env kind branches
     in
     let sep = break 1 ^^ bar ^^ space in
     (* The whole blurb *)
-    string (DataTypeFlavor.print flavor) ^^ string "data" ^^ space ^^ lparen ^^
+    string "data" ^^ space ^^ lparen ^^
     print_var env name ^^ space ^^ colon ^^ space ^^
     print_kind kind ^^ rparen ^^ concat_map (precede space) letters ^^
     space ^^ equals ^^
     jump
       (ifflat empty (bar ^^ space) ^^
-      separate_map sep
-        (fun (x, y) -> print_data_type_def_branch env x y ty_bottom) branches
-      ) ^^
-    match clause with
-    | Some t ->
-        break 1 ^^ string "adopts" ^^ space ^^ print_type env t
-    | None ->
-        empty
+      separate_map sep (print_unresolved_branch env) branches
+      )
   ;;
 
   let print_def env name kind def =
     match def with
-    | Some (flavor, branches, clause), variance ->
-        print_data_type_def env flavor name kind variance branches clause
+    | Some branches, variance ->
+        print_data_type_def env name kind variance branches
     | None, _ ->
         print_abstract_type_def env name kind
   ;;

@@ -106,7 +106,7 @@ type kind =
 type variance = Invariant | Covariant | Contravariant | Bivariant
 
 (* A small helper function that transforms
- * [κ₁ → ... → κₙ → κ₀] into [[κ₁; ...; κₙ], κ₀] *)
+ * [κ₁ → ... → κₙ → κ₀] into [κ₀, [κ₁; ...; κₙ]] *)
 let flatten_kind kind =
   let rec flatten_kind acc = function
     | KArrow (k1, k2) ->
@@ -118,6 +118,10 @@ let flatten_kind kind =
   k, List.rev acc
 ;;
 
+let get_arity_for_kind kind =
+  let _, tl = flatten_kind kind in
+  List.length tl
+;;
 
 (* ---------------------------------------------------------------------------- *)
 

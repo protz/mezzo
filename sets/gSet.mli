@@ -73,6 +73,10 @@ module type S = sig
 
   val union: t -> t -> t
 
+  (* [diff s t] returns the set difference of [s] and [t], that is, $s\setminus t$. *)
+
+  val diff: t -> t -> t
+
   (** [inter s t] returns the set intersection of [s] and [t], that is,
      $s\cap t$. *)
 

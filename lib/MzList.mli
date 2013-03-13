@@ -95,6 +95,9 @@ val map_flatten: ('a -> 'b list) -> 'a list -> 'b list
 
 val cut: int -> 'a list -> 'a list
 
+(** Equality of lists, up to equality of elements. *)
+val equal: ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
+
 (** A CPS version of [List.map]. *)
 val cps_map:
   ('a -> ('b -> 'c) -> 'c) ->

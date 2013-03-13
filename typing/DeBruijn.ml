@@ -23,91 +23,55 @@ open TypeCore
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Fun with de Bruijn indices. *)
+(* Counting binders. *)
 
-let lift (k: int) (t: typ) =
-  let rec lift (i: int) (t: typ) =
-    match t with
-      (* Special type constants. *)
-    | TyUnknown
-    | TyDynamic ->
-        t
+class map_counting = object
+  (* The environment [i] has type [int]. *)
+  inherit [int] map
+  (* The environment [i] keeps track of how many binders have been
+     entered. It is incremented at each binder. *)
+  method extend i (_ : kind) =
+    i + 1
+end
 
-    | TyBound j ->
-        if j < i then
-          TyBound j
-        else
-          TyBound (j + k)
+(* ---------------------------------------------------------------------------- *)
 
-    | TyOpen _ ->
-        t
+(* Lifting. *)
 
-    | TyForall (binder, t) ->
-        TyForall (binder, lift (i+1) t)
+class lift (k : int) = object
+  inherit map_counting
+  (* A local variable (one that is less than [i]) is unaffected;
+     a free variable is lifted up by [k]. *)
+  method tybound i j =
+    if j < i then
+      TyBound j
+    else
+      TyBound (j + k)
+end
 
-    | TyExists (binder, t) ->
-        TyExists (binder, lift (i+1) t)
+let lift (k : int) (ty : typ) : typ =
+  if k = 0 then
+    ty
+  else
+    (new lift k) # visit 0 ty
 
-    | TyApp (t1, t2) ->
-        TyApp (lift i t1, List.map (lift i) t2)
-
-    | TyTuple ts ->
-        TyTuple (List.map (lift i) ts)
-
-    | TyConcreteUnfolded ((t, dc), fields, clause) ->
-        TyConcreteUnfolded (
-          (lift i t, dc),
-          List.map (function
-            | FieldValue (field_name, t) -> FieldValue (field_name, lift i t)
-            | FieldPermission t -> FieldPermission (lift i t)) fields,
-          lift i clause
-        )
-
-    | TySingleton t ->
-        TySingleton (lift i t)
-
-    | TyArrow (t1, t2) ->
-        TyArrow (lift i t1, lift i t2)
-
-    | TyAnchoredPermission (p, q) ->
-        TyAnchoredPermission (lift i p, lift i q)
-
-    | TyEmpty ->
-        t
-
-    | TyStar (p, q) ->
-        TyStar (lift i p, lift i q)
-
-    | TyBar (t, p) ->
-        TyBar (lift i t, lift i p)
-
-    | TyAnd ((m, t), u) ->
-        TyAnd ((m, lift i t), lift i u)
-
-    | TyImply ((m, t), u) ->
-        TyImply ((m, lift i t), lift i u)
-
-  in
-  lift 0 t
-;;
+(* ---------------------------------------------------------------------------- *)
 
 (* Substitute [t2] for [i] in [t1]. This function is easy because [t2] is
  * expected not to have any free [TyBound]s: they've all been converted to
  * [TyOpen]s. Therefore, [t2] will *not* be lifted when substituted for [i] in
  * [t1]. *)
-let tsubst (t2: typ) (i: int) (t1: typ) =
-  let rec tsubst t2 i t1 =
-    match t1 with
-      (* Special type constants. *)
-    | TyUnknown
-    | TyDynamic ->
-        t1
 
-    | TyBound j ->
-        if j = i then
-          t2
-        else
-          TyBound j
+class tsubst (t2 : typ) = object
+  (* The environment [i] is the variable that we are looking for. *)
+  inherit map_counting
+  (* The target variable [i] is replaced with [t2]. Any other
+     variable is unaffected. *)
+  method tybound i j =
+    if j = i then
+      t2
+    else
+      TyBound j
 	  (* fpottier: this definition is surprising. The standard notion
 	     of substitution on de Bruijn indices would be [TyBound j] if
 	     [j < i] and [TyBound (j - 1)] if [j > i], because the index
@@ -123,161 +87,35 @@ let tsubst (t2: typ) (i: int) (t1: typ) =
 	     2. add [assert (j < i)] and makes sure that it succeeds;
 	     3. potentially allow [TyBound (if j < i then j else j-1)],
 	        which is more general. *)
+end
 
-    | TyOpen _ ->
-        t1
+let tsubst (t2 : typ) (i : int) (t1 : typ) =
+  (new tsubst t2) # visit i t1
 
-    | TyForall (binder, t) ->
-        TyForall (binder, tsubst t2 (i+1) t)
-
-    | TyExists (binder, t) ->
-        TyExists (binder, tsubst t2 (i+1) t)
-
-    | TyApp (t, t') ->
-        TyApp (tsubst t2 i t, List.map (tsubst t2 i) t')
-
-    | TyTuple ts ->
-        TyTuple (List.map (tsubst t2 i) ts)
-
-    | TyConcreteUnfolded ((t, dc), fields, clause) ->
-       TyConcreteUnfolded ((tsubst t2 i t, dc), List.map (function
-         | FieldValue (field_name, t) -> FieldValue (field_name, tsubst t2 i t)
-         | FieldPermission t -> FieldPermission (tsubst t2 i t)) fields,
-       tsubst t2 i clause)
-
-    | TySingleton t ->
-        TySingleton (tsubst t2 i t)
-
-    | TyArrow (t, t') ->
-        TyArrow (tsubst t2 i t, tsubst t2 i t')
-
-    | TyAnchoredPermission (p, q) ->
-        TyAnchoredPermission (tsubst t2 i p, tsubst t2 i q)
-
-    | TyEmpty ->
-        t1
-
-    | TyStar (p, q) ->
-        TyStar (tsubst t2 i p, tsubst t2 i q)
-
-    | TyBar (t, p) ->
-        TyBar (tsubst t2 i t, tsubst t2 i p)
-
-    | TyAnd ((m, t), u) ->
-        TyAnd ((m, tsubst t2 i t), tsubst t2 i u)
-
-    | TyImply ((m, t), u) ->
-        TyImply ((m, tsubst t2 i t), tsubst t2 i u)
-
-  in
-  tsubst t2 i t1
-;;
-
-let tsubst_field t2 i = function
-  | FieldValue (name, typ) ->
-      FieldValue (name, tsubst t2 i typ)
-  | FieldPermission typ ->
-      FieldPermission (tsubst t2 i typ)
-;;
-
-let tsubst_data_type_def_branch t2 i branch =
-  let name, fields = branch in
-  name, List.map (tsubst_field t2 i) fields
-;;
-let flatten_kind = SurfaceSyntax.flatten_kind;;
-
-let get_arity_for_kind kind =
-  let _, tl = flatten_kind kind in
-  List.length tl
-;;
+let tsubst_unresolved_branch (t2 : typ) (i : int) (branch : unresolved_branch) =
+  (new tsubst t2) # unresolved_branch i branch
 
 let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_type_group =
-  let group = List.map (function ((name, loc, def, fact, kind) as elt) ->
-    match def with
-    | None, _ ->
-        (* It's an abstract type, it has no branches where we should perform the
-         * opening. *)
-        elt
+  (new tsubst t2) # data_type_group i group
 
-    | Some (flag, branches, clause), variance ->
-        let arity = get_arity_for_kind kind in
+(* ---------------------------------------------------------------------------- *)
 
-        (* We need to add [arity] because one has to move up through the type
-         * parameters to reach the typed defined at [i]. *)
-        let index = i + arity in
+(* Substitute [t2] for [v] in [t1]. We allow [t2] to have free variables,
+   hence [t2] needs to be lifted when entering a binder. *)
 
-        (* Replace each TyBound with the corresponding TyOpen, for all branches. *)
-        let branches = List.map (tsubst_data_type_def_branch t2 index) branches in
+class tpsubst (env : env) (t2 : typ) (v : var) = object
+  inherit map_counting
+  (* The target variable [v] is replaced with [lift i t2]. Any other
+     variable is unaffected. *)
+  method tyopen i v' =
+    if same env v v' then
+      lift i t2
+    else
+      TyOpen v'
+  (* An earlier version of this code performed normalization using
+     [modulo_flex], but this was apparently not required. *)
+end
 
-        (* Do the same for the clause *)
-        let clause = Option.map (tsubst t2 index) clause in
-        
-        let def = Some (flag, branches, clause), variance in
-        name, loc, def, fact, kind
-  ) group in
-  group
-;;
-
-(* Substitute [t2] for [p] in [t1]. We allow [t2] to have free variables. *)
-let tpsubst env (t2: typ) (p: var) (t1: typ) =
-  let lift1 = lift 1 in
-  let rec tsubst t2 t1 =
-    let t1 = modulo_flex env t1 in
-    match t1 with
-      (* Special type constants. *)
-    | TyUnknown
-    | TyDynamic
-    | TyBound _ ->
-        t1
-
-    | TyOpen p' ->
-        if same env p p' then
-          t2
-        else
-          t1
-
-    | TyForall (binder, t) ->
-        TyForall (binder, tsubst (lift1 t2) t)
-
-    | TyExists (binder, t) ->
-        TyExists (binder, tsubst (lift1 t2) t)
-
-    | TyApp (t, t') ->
-        TyApp (tsubst t2 t, List.map (tsubst t2) t')
-
-    | TyTuple ts ->
-        TyTuple (List.map (tsubst t2) ts)
-
-    | TyConcreteUnfolded ((t, dc), fields, clause) ->
-       TyConcreteUnfolded ((tsubst t2 t, dc), List.map (function
-         | FieldValue (field_name, t) -> FieldValue (field_name, tsubst t2 t)
-         | FieldPermission t -> FieldPermission (tsubst t2 t)) fields, tsubst t2 clause)
-
-    | TySingleton t ->
-        TySingleton (tsubst t2 t)
-
-    | TyArrow (t, t') ->
-        TyArrow (tsubst t2 t, tsubst t2 t')
-
-    | TyAnchoredPermission (p, q) ->
-        TyAnchoredPermission (tsubst t2 p, tsubst t2 q)
-
-    | TyEmpty ->
-        t1
-
-    | TyStar (p, q) ->
-        TyStar (tsubst t2 p, tsubst t2 q)
-
-    | TyBar (t, p) ->
-        TyBar (tsubst t2 t, tsubst t2 p)
-
-    | TyAnd ((m, t), u) ->
-        TyAnd ((m, tsubst t2 t), tsubst t2 u)
-
-    | TyImply ((m, t), u) ->
-        TyImply ((m, tsubst t2 t), tsubst t2 u)
-
-  in
-  tsubst t2 t1
-;;
+let tpsubst env (t2 : typ) (v : var) (t1 : typ) : typ =
+  (new tpsubst env t2 v) # visit 0 t1
 

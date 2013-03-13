@@ -34,6 +34,9 @@ module Field: module type of Variable with type name = SurfaceSyntax.Field.name
 
 (** {2 Auxiliary definitions} *)
 
+(** The type of user-generated or auto-generated names. *)
+type name = User of Module.name * Variable.name | Auto of Variable.name
+
 (** Types have kinds. *)
 type kind = SurfaceSyntax.kind =
   | KTerm
@@ -41,14 +44,11 @@ type kind = SurfaceSyntax.kind =
   | KPerm
   | KArrow of kind * kind
 
-(** The type of user-generated or auto-generated names. *)
-type name = User of Module.name * Variable.name | Auto of Variable.name
+(** Our locations are made up of ranges. *)
+type location = Lexing.position * Lexing.position
 
 (** A type binding defines a type variable bound in a type. *)
-and type_binding = name * kind * location
-
-(** Our locations are made up of ranges. *)
-and location = Lexing.position * Lexing.position
+type type_binding = name * kind * location
 
 (** A type binding can be either user-provided, through a universal
  * quantification for instance, or auto-generated, by the desugaring pass for
@@ -67,7 +67,6 @@ type db_index =
  * This is the type of open variales; it's abstract, because we provide a set
  * of wrappers and want to prevent mistakes in client code. *)
 type var
-
 
 (** {2 The type of types} *)
 
@@ -94,9 +93,7 @@ and typ =
 
     (** Structural types. *)
   | TyTuple of typ list
-  | TyConcreteUnfolded of resolved_datacon * data_field_def list * typ
-      (** [typ] is for the type of the adoptees; initially it's bottom and then
-       * it gets instantiated to something more precise. *)
+  | TyConcreteUnfolded of resolved_branch
 
     (** Singleton types. *)
   | TySingleton of typ
@@ -128,22 +125,30 @@ and mode_constraint = Mode.mode * typ
 
 (** {2 Type definitions} *)
 
+and ('flavor, 'datacon) data_type_def_branch = {
+  branch_flavor: 'flavor; (* DataTypeFlavor.flavor or unit *)
+  branch_datacon: 'datacon; (* Datacon.name or resolved_datacon *)
+  branch_fields: data_field_def list;
+  (* The type of the adoptees; initially it's bottom and then
+   * it gets instantiated to something less precise. *)
+  branch_adopts: typ;
+}
+
+and resolved_branch =
+    (unit, resolved_datacon) data_type_def_branch
+
+type unresolved_branch =
+    (DataTypeFlavor.flavor, Datacon.name) data_type_def_branch
+
+type data_type_def =
+  unresolved_branch list
+
 (** Our data constructors have the standard variance. *)
 type variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | Bivariant
 
-type data_type_def_branch =
-    Datacon.name * data_field_def list
-
-type adopts_clause =
-  (* option here because not all concrete types adopt someone *)
-  typ option
-
-type data_type_def =
-  data_type_def_branch list
-
 type type_def =
   (* option here because abstract types do not have a definition *)
-    (DataTypeFlavor.flavor * data_type_def * adopts_clause) option
+    data_type_def option
   * variance list
 
 type data_type_group =
@@ -380,3 +385,121 @@ val internal_pflexlist: (Buffer.t -> env -> unit)
 val internal_uniqvarid: env -> var -> int
 val internal_checklevel: env -> typ -> unit
 val internal_wasflexible: var -> bool
+
+(** {1 Visitors for the internal syntax of types} *)
+
+(* A generic visitor. *)
+
+class virtual ['env, 'result] visitor : object
+
+  (* This method, whose default implementation is the identity,
+     allows normalizing a type before inspecting its structure.
+     This can be used, for instance, to replace flexible variables
+     with the type that they stand for. *)
+  method normalize: 'env -> typ -> typ
+
+  (* This method, whose default implementation is the identity,
+     can be used to extend the environment when a binding is
+     entered. *)
+  method extend: 'env -> kind -> 'env
+
+  (* The main visitor method inspects the structure of [ty] and
+     dispatches control to the appropriate case method. *)
+  method visit: 'env -> typ -> 'result
+
+  (* The case methods have no default implementation. *)
+  method virtual tyunknown: 'env -> 'result
+  method virtual tydynamic: 'env -> 'result
+  method virtual tybound: 'env -> db_index -> 'result
+  method virtual tyopen: 'env -> var -> 'result
+  method virtual tyforall: 'env -> type_binding -> flavor -> typ -> 'result
+  method virtual tyexists: 'env -> type_binding -> typ -> 'result
+  method virtual tyapp: 'env -> typ -> typ list -> 'result
+  method virtual tytuple: 'env -> typ list -> 'result
+  method virtual tyconcreteunfolded: 'env -> resolved_branch -> 'result
+  method virtual tysingleton: 'env -> typ -> 'result
+  method virtual tyarrow: 'env -> typ -> typ -> 'result
+  method virtual tybar: 'env -> typ -> typ -> 'result
+  method virtual tyanchoredpermission: 'env -> typ -> typ -> 'result
+  method virtual tyempty: 'env -> 'result
+  method virtual tystar: 'env -> typ -> typ -> 'result
+  method virtual tyand: 'env -> mode_constraint -> typ -> 'result
+  method virtual tyimply: 'env -> mode_constraint -> typ -> 'result
+
+end
+
+(* A [map] specialization of the visitor. *)
+
+class ['env] map : object
+
+  inherit ['env, typ] visitor
+
+  (* The case methods now perform a recursive traversal. *)
+  method tyunknown: 'env -> typ
+  method tydynamic: 'env -> typ
+  method tybound: 'env -> db_index -> typ
+  method tyopen: 'env -> var -> typ
+  method tyforall: 'env -> type_binding -> flavor -> typ -> typ
+  method tyexists: 'env -> type_binding -> typ -> typ
+  method tyapp: 'env -> typ -> typ list -> typ
+  method tytuple: 'env -> typ list -> typ
+  method tyconcreteunfolded: 'env -> resolved_branch -> typ
+  method tysingleton: 'env -> typ -> typ
+  method tyarrow: 'env -> typ -> typ -> typ
+  method tybar: 'env -> typ -> typ -> typ
+  method tyanchoredpermission: 'env -> typ -> typ -> typ
+  method tyempty: 'env -> typ
+  method tystar: 'env -> typ -> typ -> typ
+  method tyand: 'env -> mode_constraint -> typ -> typ
+  method tyimply: 'env -> mode_constraint -> typ -> typ
+
+  (* An auxiliary method for transforming a resolved branch. *)
+  method resolved_branch: 'env -> resolved_branch -> resolved_branch
+  (* An auxiliary method for transforming a resolved data constructor. *)
+  method resolved_datacon: 'env -> resolved_datacon -> resolved_datacon
+  (* An auxiliary method for transforming a field. *)
+  method field: 'env -> data_field_def -> data_field_def
+  (* An auxiliary method for transforming an unresolved branch. *)
+  method unresolved_branch: 'env -> unresolved_branch -> unresolved_branch
+  (* An auxiliary method for transforming a data type group. *)
+  method data_type_group: 'env -> data_type_group -> data_type_group
+
+end
+
+(* An [iter] specialization of the visitor. *)
+
+class ['env] iter : object
+
+  inherit ['env, unit] visitor
+
+  (* The case methods now perform a recursive traversal. *)
+  method tyunknown: 'env -> unit
+  method tydynamic: 'env -> unit
+  method tybound: 'env -> db_index -> unit
+  method tyopen: 'env -> var -> unit
+  method tyforall: 'env -> type_binding -> flavor -> typ -> unit
+  method tyexists: 'env -> type_binding -> typ -> unit
+  method tyapp: 'env -> typ -> typ list -> unit
+  method tytuple: 'env -> typ list -> unit
+  method tyconcreteunfolded: 'env -> resolved_branch -> unit
+  method tysingleton: 'env -> typ -> unit
+  method tyarrow: 'env -> typ -> typ -> unit
+  method tybar: 'env -> typ -> typ -> unit
+  method tyanchoredpermission: 'env -> typ -> typ -> unit
+  method tyempty: 'env -> unit
+  method tystar: 'env -> typ -> typ -> unit
+  method tyand: 'env -> mode_constraint -> typ -> unit
+  method tyimply: 'env -> mode_constraint -> typ -> unit
+
+  (* An auxiliary method for visiting a resolved branch. *)
+  method resolved_branch: 'env -> resolved_branch -> unit
+  (* An auxiliary method for visiting a resolved data constructor. *)
+  method resolved_datacon: 'env -> resolved_datacon -> unit
+  (* An auxiliary method for visiting a field. *)
+  method field: 'env -> data_field_def -> unit
+  (* An auxiliary method for visiting an unresolved branch. *)
+  method unresolved_branch: 'env -> unresolved_branch -> unit
+  (* An auxiliary method for visiting a data type group. *)
+  method data_type_group: 'env -> data_type_group -> unit
+
+end
