@@ -148,6 +148,17 @@ maybe_qualified(X):
 | m = module_name COLONCOLON x = X
     { Qualified (m, x) }
 
+(* TEMPORARY for variables in types, we use TyBound/TyQualified;
+   this should be made uniform *)
+
+maybe_qualified_type_variable:
+(* An unqualified variable. *)
+| x = variable
+    { TyBound x }
+(* A variable just like above, prefixed with a module name. *)
+| m = module_name COLONCOLON x = variable
+    { TyQualified (m, x) }
+
 %inline datacon_reference:
   d = maybe_qualified(datacon)
     { mk_datacon_reference d }
@@ -319,11 +330,8 @@ raw_atomic_type:
 | EMPTY
     { TyEmpty }
 (* Term variable, type variable, permission variable, abstract type, or concrete type. *)
-| x = variable
-    { TyBound x }
-(* A variable just like above, prefixed with a module name. *)
-| m = module_name COLONCOLON x = variable
-    { TyQualified (m, x) }
+| x = maybe_qualified_type_variable
+    { x }
 (* A structural type explicitly mentions a data constructor. *)
 (* TEMPORARY add support for optional adopts clause in structural permissions *)
 | b = data_type_branch
@@ -337,8 +345,8 @@ raw_tight_type:
 | ty = raw_atomic_type
     { ty }
 (* A singleton type. *)
-| EQUAL x = variable
-    { TySingleton (TyBound x) }
+| EQUAL x = maybe_qualified_type_variable
+    { TySingleton x }
 (* A type application. *)
 | ty = type_type_application(tight_type, atomic_type)
     { ty }
@@ -376,11 +384,11 @@ raw_loose_type:
 (* In an anchored permission [x@t], the name [x] is free. This
    represents an assertion that we have permission to use [x] at
    type [t]. *)
-| x = variable AT ty = normal_type
-    { TyAnchoredPermission (TyBound x, ty) }
+| x = maybe_qualified_type_variable AT ty = normal_type
+    { TyAnchoredPermission (x, ty) }
 (* [x = y] is also an anchored permission; it is sugar for [x@=y]. *)
-| x = variable EQUAL y = variable
-    { TyAnchoredPermission (TyBound x, TySingleton (TyBound y)) }
+| x = maybe_qualified_type_variable EQUAL y = maybe_qualified_type_variable
+    { TyAnchoredPermission (x, TySingleton y) }
 (* In a name introduction form [x:t], the name [x] is bound. The scope
    of [x] is defined by somewhat subtle rules that need not concern us
    here. These rules are spelled out later on when we desugar the surface-level
@@ -506,8 +514,8 @@ data_field_def:
    a definition of the field [f] at the singleton type [=y]. In this case,
    only one field name is allowed. This short-hand is useful in the syntax
    of structural permissions. *)
-| f = variable EQUAL y = variable
-    { [ FieldValue (f, TySingleton (TyBound y)) ] }
+| f = variable EQUAL y = maybe_qualified_type_variable
+    { [ FieldValue (f, TySingleton y) ] }
 (* Going one step further, we allow a field definition to consist of just
    a field name [f]. This is a pun: it means [f = f], or in other words,
    [f: =f]. *)
