@@ -222,99 +222,88 @@ end
 
 let print_error buf (env, raw_error) =
   let open Types.TypePrinter in
+  let bprintf s = Printf.bprintf buf s in
+  (* Print the location. *)
+  Lexer.p buf env.location;
+  (* Print the error message. *)
   begin match raw_error with
   | Unbound x ->
-      Printf.bprintf buf
-        "%a unbound identifier %a"
-        Lexer.p env.location
+      bprintf
+        "Unbound identifier %a"
         Variable.p x
   | Mismatch (expected_kind, inferred_kind) ->
       let inferred, _ = flatten_kind inferred_kind in
       let expected, _ = flatten_kind expected_kind in
       if inferred <> expected then
-        Printf.bprintf buf
-          "%a this is a %a but we were expecting a %a"
-          Lexer.p env.location
+        bprintf
+          "This is a %a but we were expecting a %a"
           p_kind inferred
           p_kind expected
       else
-        Printf.bprintf buf
-          "%a this type has kind %a but we were expecting kind %a"
-          Lexer.p env.location
+        bprintf
+          "This type has kind %a but we were expecting kind %a"
           p_kind inferred_kind
           p_kind expected_kind
   | NotAnArrow (kind) ->
-      Printf.bprintf buf
-        "%a cannot apply arguments to this type since it has kind %a"
-        Lexer.p env.location
+      bprintf
+        "Cannot apply arguments to this type since it has kind %a"
         p_kind kind
   | BoundTwice x ->
-      Printf.bprintf buf
-        "%a variable %a is bound twice"
-        Lexer.p env.location
+      bprintf
+        "Variable %a is bound twice"
         Variable.p x
   | IllegalConsumes ->
-      Printf.bprintf buf
-        "%a unexpected consumes annotation"
-        Lexer.p env.location
+      bprintf
+        "Unexpected consumes annotation"
   | BadConditionsInFact x ->
-      Printf.bprintf buf
-        "%a the conditions for the fact about %a can only be type variables"
-        Lexer.p env.location
+      bprintf
+        "The conditions for the fact about %a can only be type variables"
         Variable.p x
   | BadConclusionInFact x ->
-      Printf.bprintf buf
-        "%a the conclusion for the fact about %a can only be %a applied to its \
+      bprintf
+        "The conclusion for the fact about %a can only be %a applied to its \
         parameters"
-        Lexer.p env.location
         Variable.p x
         Variable.p x
   | NonDistinctHeadsInFact (x, mode) ->
-      Printf.bprintf buf
-	"%a distinct facts must concern distinct modes.\n\
+      bprintf
+	"Distinct facts must concern distinct modes.\n\
          In the declaration of %a, two distinct facts concern the mode %s"
-        Lexer.p env.location
 	Variable.p x
 	(Mode.print mode)
   | DuplicateField d ->
-      Printf.bprintf buf
-        "%a the field %a appears several times in this branch"
-        Lexer.p env.location
+      bprintf
+        "The field %a appears several times in this branch"
         Variable.p d
    | DuplicateConstructor d ->
-      Printf.bprintf buf
-        "%a the constructor %a appears several times in this data type group"
-        Lexer.p env.location
+      bprintf
+        "The constructor %a appears several times in this data type group"
         Datacon.p d
   | AdopterNotExclusive x ->
-      Printf.bprintf buf
-        "%a type %a carries an adopts clause, but is not marked as mutable"
-        Lexer.p env.location
+      bprintf
+        "Type %a carries an adopts clause, but is not marked as mutable"
         Variable.p x
   | UnboundDataConstructor d ->
-      Printf.bprintf buf
-        "%a the data constructor %a is not bound to any type"
-        Lexer.p env.location
+      bprintf
+        "The data constructor %a is not bound to any type"
         Datacon.p d
   | FieldMismatch (datacon, missing, extra) ->
-      Printf.bprintf buf
-        "%aThis type does not have the fields of data constructor %a"
-        Lexer.p env.location
+      bprintf
+        "This type does not have the fields of data constructor %a"
         Datacon.p datacon;
       if missing <> [] then
-	Printf.bprintf buf
+	bprintf
 	  "\nThe following field%s missing: %a"
 	  (if List.length missing > 1 then "s are" else " is")
 	  P.p_fields missing;
       if extra <> [] then
-	Printf.bprintf buf
+	bprintf
 	  "\nThe following field%s superfluous: %a"
 	  (if List.length extra > 1 then "s are" else " is")
 	  P.p_fields extra
   | ImplicationOnlyOnArrow ->
-      Printf.bprintf buf
-	"%aImplication => is permitted only on top of a function type."
-	Lexer.p env.location
+      bprintf
+	"Implication => is permitted only on top of a function type."
   end;
   if Log.debug_level () > 4 then
     pkenv buf env;
