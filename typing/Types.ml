@@ -320,7 +320,6 @@ let rec get_kind_for_type env t =
   | TyStar _ ->
       KPerm
 
-  | TyImply (_, t)
   | TyAnd (_, t) ->
       get_kind_for_type env t
 ;;
@@ -685,10 +684,6 @@ module TypePrinter = struct
 
     | TyAnd (c, t) ->
         print_constraint env c ^^ space ^^ string "∧" ^^ space ^^
-        print_type env t
-
-    | TyImply (c, t) ->
-        print_constraint env c ^^ space ^^ string "=>" ^^ space ^^
         print_type env t
 
   and print_constraint env (mode, t) =

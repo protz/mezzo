@@ -1,0 +1,8 @@
+val f [a] (id: a -> a) : ((duplicable a | ()), (duplicable a => a -> a)) =
+  (), id
+
+(* symmetric of tyand05.mz; just in case one of the tests happens to work
+   due to the order in which tuple components are studied, the other test
+   will not be lucky for the same reason *)
+
+(* this should fail *)

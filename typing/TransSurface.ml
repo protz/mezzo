@@ -292,8 +292,31 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyAnd (c, t) ->
       T.TyAnd (translate_constraint env c, translate_type env t)
 
-  | TyImply (c, t) ->
-      T.TyImply (translate_constraint env c, translate_type env t)
+  | TyImply (c, ty) ->
+      translate_implication env [c] ty
+
+and translate_implication env (cs : mode_constraint list) = function
+  | TyArrow (ty1, ty2) ->
+      (* An implication above an arrow is turned into a conjunction in
+	 the left-hand side of the arrow. This is done on the fly, just
+	 before the translation, as a rewriting of the surface syntax to
+	 itself. (Doing it just after the translation would be more
+	 problematic, as the translation of arrows introduces quantifiers.) *)
+      translate_type env (TyArrow (conjunction cs ty1, ty2))
+  | TyImply (c, ty) ->
+      (* Multiple implications above an arrow are allowed. *)
+      translate_implication env (c :: cs) ty
+  | TyLocated (ty, _) ->
+      translate_implication env cs ty
+  | _ ->
+      raise_error env ImplicationOnlyOnArrow
+
+and conjunction cs ty =
+  match cs with
+  | [] ->
+      ty
+  | c :: cs ->
+      conjunction cs (TyAnd (c, ty))
 
 and translate_constraint env (m, t) =
   (* There was a check that [t] is [TyBound _], but I have removed it. *)

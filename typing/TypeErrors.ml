@@ -63,7 +63,6 @@ and raw_error =
   | NoSuchTypeInSignature of var * typ
   | DataTypeMismatchInSignature of Variable.name * string
   | NotExclusiveOwns of var
-  | UnsatisfiableConstraint of mode_constraint
   | VarianceAnnotationMismatch
 
 exception TypeCheckerError of error
@@ -149,10 +148,6 @@ and fold_type (env: env) (depth: int) (t: typ): env * typ =
       in
       let components = List.rev components in
       env, TyTuple components
-
-  | TyImply (c, t) ->
-      let env, t = fold_type env (depth + 1) t in
-      env, TyImply (c, t)
 
   | TyAnd (c, t) ->
       let env, t = fold_type env (depth + 1) t in
@@ -479,10 +474,6 @@ let print_error buf (env, raw_error) =
         ppermission_list (env, p)
   | CyclicDependency m ->
       Printf.bprintf buf "There is a cyclic dependency on module %a" Module.p m
-  | UnsatisfiableConstraint c ->
-      Printf.bprintf buf "%a the following constraint cannot be satisfied: %a"
-        Lexer.p (location env)
-        pconstraint (env, c)
   | VarianceAnnotationMismatch ->
       Printf.bprintf buf "%a the variance annotations do not match the inferred ones"
         Lexer.p (location env)

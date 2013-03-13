@@ -175,6 +175,7 @@ and raw_error =
   | AdopterNotExclusive of Variable.name
   | UnboundDataConstructor of Datacon.name
   | FieldMismatch of Datacon.name * Field.name list (* missing fields *) * Field.name list (* extra fields *)
+  | ImplicationOnlyOnArrow
 
 exception KindError of error
 
@@ -310,6 +311,10 @@ let print_error buf (env, raw_error) =
 	  "\nThe following field%s superfluous: %a"
 	  (if List.length extra > 1 then "s are" else " is")
 	  P.p_fields extra
+  | ImplicationOnlyOnArrow ->
+      Printf.bprintf buf
+	"%aImplication => is permitted only on top of a function type."
+	Lexer.p env.location
   end;
   if Log.debug_level () > 4 then
     pkenv buf env;

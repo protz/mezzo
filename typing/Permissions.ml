@@ -233,7 +233,6 @@ class open_all_rigid_in (env : env ref) = object (self)
     | TySingleton _, _
     | TyArrow _, Left
     | TyEmpty, _
-    | TyImply _, _
 	-> ty
 
     (* A universal quantifier on the right-hand side gives rise to a rigid
@@ -352,11 +351,9 @@ and add (env: env) (var: var) (t: typ): env =
 
   let t = modulo_flex env t in
 
-  let hint = get_name env var in
-
   (* We first perform unfolding, so that constructors with one branch are
    * simplified. [unfold] calls [add] recursively whenever it adds new vars. *)
-  let env, t = unfold env ~hint t in
+  let env, t = open_all_rigid_in env t Left in
 
   (* Break this up into a type + permissions. *)
   let t, perms = collect t in
@@ -523,89 +520,6 @@ and add_type (env: env) (p: var) (t: typ): env =
   end
 
 
-(** [unfold env t] returns [env, t] where [t] has been unfolded, which
-    potentially led us into adding new vars to [env]. The [hint] serves when
-    making up names for intermediary variables. *)
-and unfold (env: env) ?(hint: name option) (t: typ): env * typ =
-  (* This auxiliary function takes care of inserting an indirection if needed,
-   * that is, a [=foo] type with [foo] being a newly-allocated [var]. *)
-  let insert_var (env: env) ?(hint: name option) (t: typ): env * typ =
-    let hint = Option.map_none (fresh_auto_var "t_") hint in
-    match t with
-    | TySingleton _ ->
-        env, t
-    | _ ->
-        (* The [expr_binder] also serves as the binder for the corresponding
-         * term type variable. *)
-        let env, p = bind_rigid env (hint, KTerm, location env) in
-        (* This will take care of unfolding where necessary. *)
-        let env = add env p t in
-        env, ty_equals p
-  in
-
-  let rec unfold (env: env) ?(hint: name option) (t: typ): env * typ =
-    let t = modulo_flex env t in
-    let t = expand_if_one_branch env t in
-    match t with
-    | TyUnknown
-    | TyDynamic
-    | TySingleton _
-    | TyArrow _
-    | TyEmpty
-    | TyOpen _
-    | TyApp _ ->
-        env, t
-
-    | TyBound _ ->
-        Log.error "No unbound variables allowed here"
-
-    | TyForall _
-    | TyExists _ ->
-        env, t
-
-    | TyStar _ ->
-        env, t
-
-    | TyBar (t, p) ->
-        let env, t = unfold env ?hint t in
-        env, TyBar (t, p)
-
-    | TyAnchoredPermission _ ->
-        env, t
-
-    (* We're only interested in unfolding structural types. *)
-    | TyTuple components ->
-        let env, components = MzList.fold_lefti (fun i (env, components) component ->
-          let hint = add_hint hint (string_of_int i) in
-          let env, component = insert_var env ?hint component in
-          env, component :: components
-        ) (env, []) components in
-        env, TyTuple (List.rev components)
-
-    | TyConcreteUnfolded branch ->
-        let datacon = branch.branch_datacon in
-	let fields = branch.branch_fields in
-        let env, fields = List.fold_left (fun (env, fields) -> function
-          | FieldPermission _ as field ->
-              env, field :: fields
-          | FieldValue (name, field) ->
-              let hint =
-                add_hint hint (MzString.bsprintf "%a_%a" Datacon.p (snd datacon) Field.p name)
-              in
-              let env, field = insert_var env ?hint field in
-              env, FieldValue (name, field) :: fields
-        ) (env, []) fields
-        in
-        env, TyConcreteUnfolded { branch with branch_fields = List.rev fields }
-
-    | TyAnd _
-    | TyImply _ ->
-        env, t
-
-  in
-  unfold env ?hint t
-
-
 (** [sub env var t] tries to extract [t] from the available permissions for
     [var] and returns, if successful, the resulting environment. This is one of
     the two "sub" entry points that this module exports.*)
@@ -764,28 +678,14 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
   (** Mode constraints. *)
 
-  | TyAnd _, _ ->
-      Log.error "Constraints should've been processed when this permission was added"
-
-  | TyImply (c, t1), t2 ->
-      try_proof_root "Imply-L" begin
-        (* If the constraint [c] happens to hold in the current environment, then
-           [c => t1] is equivalent to [t1], and we can continue with the subtraction
-           [t1 - t2]. *)
-        sub_constraint env c >>= fun env ->
+  | TyAnd (c, t1), t2 ->
+      try_proof_root "And-L" begin
+        let env = FactInference.assume env c in
         sub_type env t1 t2 >>=
+        (* TEMPORARY this rule may be unsound: assuming [c] while proving
+           [t2] is fine, but [c] should not *remain* assumed in the final
+	   environment that is returned. See tests/tyand05.mz. *)
         qed
-        (* The previous version of the code:
-           sub_type env t1 (TyAnd (c, t2))
-           is unsound, because [c => t1] does not imply [t1]. *)
-
-        (* TEMPORARY due to the presence of flexible variables, maybe it would be
-           better to first compute [t1 - t2] and then check that [c] holds. Can
-           this be written like this?
-        sub_type env t1 t2 >> fun env ->
-        sub_constraint env c
-        One must be careful: [t1] can be used to justify [t2], but must not be
-        used to justify [c]. *)
       end
 
   | _, TyAnd (c, t2) ->
@@ -796,16 +696,6 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         (* And then, hoping that α has been instantiated, check that it satisfies
          * the constraint. *)
         sub_constraint env c >>=
-        qed
-      end
-
-  | t1, TyImply (c, t2) ->
-      try_proof_root "Imply-R" begin
-        let env = FactInference.assume env c in
-        sub_type env t1 t2 >>=
-        (* TEMPORARY this rule seems unsound: assuming [c] while proving
-           [t2] is fine, but [c] should not *remain* assumed afterwards.
-           See tests/tyand05.mz. *)
         qed
       end
 

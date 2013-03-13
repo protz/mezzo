@@ -53,7 +53,6 @@ class collect (perms : typ list ref) = object (self)
     | TyApp _
     | TySingleton _
     | TyArrow _
-    | TyImply _
     | TyEmpty
       -> ty
 

@@ -13,5 +13,6 @@ data duplicability a =
    so it serves as a witness of the fact that [a] is duplicable. It is
    just an abbreviation for [Duplicable ...]. *)
 
+(* TEMPORARY this type is no longer supported!
 val dup: [a] duplicable a => duplicability a
-
+*)

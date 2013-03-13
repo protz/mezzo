@@ -821,7 +821,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("dup_sign.mz", simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
   ("dup_sign1.mz", pass);
-  ("dup_sign2.mz", simple_test (Fail (function UnsatisfiableConstraint _ -> true | _ -> false)));
+  ("dup_sign2.mz", fail);
   ("dup_sign3.mz", pass);
   ("dup_sign4.mz", pass);
   ("dup_sign5.mz", fail);
@@ -880,12 +880,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("local-type3.mz", simple_test ~known_failure:() Pass);
   ("local-type4.mz", pass);
   ("tyapp.mz", simple_test ~known_failure:() Pass);
-  ("tyand00.mz", fail);
+  ("tyand00.mz", kfail);
   ("tyand01.mz", pass);
   ("tyand02.mz", pass);
   ("tyand03.mz", fail);
   ("tyand04.mz", pass);
-  ("tyand05.mz", simple_test ~known_failure:() (Fail (fun _ -> true)));
+  ("tyand05.mz", fail);
+  ("tyand06.mz", fail);
   ("incorrect-fields.mz",
     simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
   ("name-intro.mz", pass);
