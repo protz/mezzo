@@ -1023,8 +1023,14 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 (* We're done. *)
                 return env ty_unit
           else begin
-            Log.check (FactInference.is_exclusive env clause)
-              "We erroneously allowed a non-exclusive adopts clause";
+	    (* Check that the adoptee is exclusive. We do *not* check this when
+	       we examine an algebraic data type definition that has an adopts
+	       clause, because it is more flexible to defer this check to actual
+	       adoption time. Indeed, the type parameters have been instantiated,
+	       local mode assumptions are available, so the check may succeed here
+	       whereas it would have failed if performed at type definition time. *)
+	    if not (FactInference.is_exclusive env clause) then
+              raise_error env (NonExclusiveAdoptee clause);
             (* The clause is known. Just take the required permission out of the
              * permissions for x. *)
             match Permissions.sub env x clause |> drop_derivation with
@@ -1055,11 +1061,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       if not (List.exists (equal env TyDynamic) (get_permissions env x)) then
         raise_error env (NotDynamic x);
       let env, y = check_expression env ?hint y in
-      (* Check that the type of [y] has an adopts clause (which implies that
-	 it is exclusive). This is a stronger condition than strictly required
-	 for type soundness (no condition on [y] would be enough) and for
-	 stability (exclusive-ness would be enough), but it should allow us
-	 to detect a few more programmer errors. *)
+      (* Check that we have an exclusive permission for [y]. This is a stronger condition
+	 than strictly required for type soundness (no condition on [y] would be
+	 enough), but it should allow us to detect a few more programmer errors. *)
       (* TEMPORARY if we have an exclusive permission for [x], then we could
 	 emit a warning, because in this case [y owns x] is certain to return
 	 false. *)

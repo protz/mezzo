@@ -257,8 +257,6 @@ let check_implementation
             Types.TypePrinter.pdoc
             (KindCheck.KindPrinter.print_kinds_and_facts, env);
 
-          (* Do the final checks (is this the right time?) *)
-          ExtraChecks.check_env env;
           env, List.flatten varss
     in
     type_check env program []

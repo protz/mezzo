@@ -1,0 +1,3 @@
+mutable data generic_adopter a =
+  A
+adopts int

@@ -1,0 +1,5 @@
+open mlist
+mutable data generic_adopter a =
+  A
+adopts mlist a
+(* ok, because mlist is exclusive *)

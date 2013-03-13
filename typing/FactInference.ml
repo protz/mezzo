@@ -23,6 +23,7 @@ open DataTypeFlavor
 open TypeCore
 open Types
 open Hoist
+open TypeErrors
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -64,7 +65,14 @@ type world = {
 
 (* When we are not in the process of computing a fixed point, [variables]
    is empty, so [valuation] becomes irrelevant; and [parameters] is empty
-   as well. *)
+   as well. In that case, only the [env] component is non-trivial. *)
+
+let trivial_world env = {
+  env;
+  variables = VarMap.empty;
+  valuation = (fun _ -> assert false); (* will not be called *)
+  parameters = VarMap.empty;
+}
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -305,6 +313,68 @@ and bind_assume_infer w binding ty (m : mode) : fact =
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Auxilliary code for the analysis of a parameterized type definition. *)
+
+let prepare_branches env v branches : world * unresolved_branch list =
+  (* Bind the parameters. *)
+  let env, parameters, branches =
+    bind_datacon_parameters env (get_kind env v) branches
+  in
+  (* Construct a map of the parameters to their indices. The ordering
+     matters, of course; it is used in [compose] when matching formal
+     and actual parameters. *)
+  let parameters =
+    MzList.fold_lefti (fun i accu v ->
+      VarMap.add v i accu
+    ) VarMap.empty parameters
+  in
+  (* Return a world and the branches, ready for analysis. *)
+  { (trivial_world env) with parameters }, branches
+
+(* ---------------------------------------------------------------------------- *)
+
+(* We check that the [adopts] clause carried by every branch of a data type
+   definition is potentially exclusive. This is performed after the fixed
+   point computation is complete. *)
+
+(* We used to check that the type of the adoptee is definitely exclusive.
+   This check has now been deferred to adoption time, for greater
+   flexibility. In principle, it is sound to perform no check at all at type
+   declaration time. *)
+
+(* However, in order to catch certain programmers errors early, we can check
+   that the type of the adoptee is potentially exclusive, i.e., it admits an
+   exclusive instance. *)
+
+let check_adopts_clauses env v branches =
+  (* Bind the parameters. *)
+  let w, branches = prepare_branches env v branches in
+  (* Examine each branch. *)
+  List.iter (fun branch ->
+    (* Infer a (parameterized) fact about the type that appears
+       in the adopts clause. *)
+    let clause = branch.branch_adopts in
+    let fact = infer w clause in
+    (* Find which conditions on the type parameters are required
+       for this type to be exclusive. *)
+    match ModeMap.find ModeExclusive fact with
+    | Fact.HFalse ->
+        (* This type definitely cannot be exclusive. This is a
+	   programmer error. *)
+        (* TEMPORARY the env location is not properly set *)
+        raise_error w.env (NonExclusiveAdoptee clause)
+    | Fact.HConjunction _hs ->
+        (* This type is exclusive (when [hs] is empty), or could
+	   be exclusive provided the type parameters are suitably
+	   instantiated (when [hs] is nonempty). We do not signal
+	   an error. Note that the type [bottom], which is used to
+	   indicate the absence of an adopts clause, is exclusive,
+	   so it will not cause an error. *)
+	()
+  ) branches
+
+(* ---------------------------------------------------------------------------- *)
+
 (* The main fixed point computation. *)
 
 let analyze_data_types (env : env) (variables : var list) : env =
@@ -339,24 +409,9 @@ let analyze_data_types (env : env) (variables : var list) : env =
       | Some (Some branches, _) ->
 	  fun valuation ->
 	    (* Bind the parameters. *)
-	    let env, parameters, branches =
-	      bind_datacon_parameters env (get_kind env v) branches
-	    in
-	    (* Construct a map of the parameters to their indices. The ordering
-	       matters, of course; it is used in [compose] when matching formal
-	       and actual parameters. *)
-	    let parameters =
-	      MzList.fold_lefti (fun i accu v ->
-		VarMap.add v i accu
-	      ) VarMap.empty parameters
-	    in
-	    (* Construct a world. *)
-	    let w = {
-	      variables;
-	      valuation;
-	      parameters;
-	      env;
-	    } in
+	    let w, branches = prepare_branches env v branches in
+	    (* Enrich the resulting world for the fixed point computation. *)
+	    let w = { w with variables; valuation } in
 	    (* The right-hand side of the algebraic data type definition can be
 	       viewed as a sum of records. *)
 	    Fact.join_many (infer_unresolved_branch w) branches
@@ -366,42 +421,43 @@ let analyze_data_types (env : env) (variables : var list) : env =
   (* For each algebraic data type [v], compute a fact, and update the
      environment with this fact. *)
 
-  VarMap.fold (fun v () env ->
+  let env =
+    VarMap.fold (fun v () env ->
+      match get_definition env v with
+      | None
+      | Some (None, _) ->
+	  (* Skip abstract types. There is nothing to do in this case,
+	     and furthermore, an abstract type could have kind [term],
+	     in which case inferring a fact for it does not make sense. *)
+	  env
+      | Some (Some _, _) ->
+	  (* This data type has a definition, hence it has kind [type]
+	     or [perm]. Inferring a fact for it makes sense. *)
+	  set_fact env v (fixpoint v)
+    ) variables env
+  in
+
+  (* Check that every adopts clauses is potentially exclusive. It may
+     seem tempting to fuse this loop with the above loop, but that
+     would not be good; the environment must be fully updated first. *)
+  VarMap.iter (fun v () ->
     match get_definition env v with
     | None
     | Some (None, _) ->
-        (* Skip abstract types. There is nothing to do in this case,
-	   and furthermore, an abstract type could have kind [term],
-	   in which case inferring a fact for it does not make sense. *)
-        env
-    | Some (Some _, _) ->
-        (* This data type has a definition, hence it has kind [type]
-	   or [perm]. Inferring a fact for it makes sense. *)
-	set_fact env v (fixpoint v)
-  ) variables env
+	()
+    | Some (Some branches, _) ->
+	check_adopts_clauses env v branches
+  ) variables;
 
-(* ---------------------------------------------------------------------------- *)
-
-(* This wrapper for [infer] constructs a toplevel world. It is used
-   by [has_mode] below. *)
-
-let infer (env : env) (ty : typ) : Fact.fact =
-  (* Construct a world. Only the [env] component is non-trivial. *)
-  let w = {
-    variables = VarMap.empty;
-    valuation = (fun _ -> assert false); (* will not be called *)
-    parameters = VarMap.empty;
-    env;
-  } in
-  (* Go. *)
-  infer w ty
+  (* Done. *)
+  env
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Accessors. *)
 
 let has_mode (m : mode) (env : env) (ty : typ) : bool =
-  let fact = infer env ty in
+  let fact = infer (trivial_world env) ty in
   let ok =
     match ModeMap.find m fact with
     | Fact.HFalse ->

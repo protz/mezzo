@@ -617,6 +617,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("adopts12.mz",
     pass);
 
+  ("adopts13.mz", fail);
+  ("adopts14.mz", fail);
+  ("adopts15.mz", pass);
+  ("adopts16.mz", pass);
+  ("adopts17.mz", pass);
+  ("adopts18.mz", pass);
+
   (* Bigger examples. *)
 
   ("list-length.mz", fun do_it ->
@@ -748,7 +755,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("adopts-non-mutable-type.mz", simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
 
-  ("adopts-type-variable.mz", simple_test (Fail (function NonExclusiveAdoptee _  -> true | _ -> false)));
+  ("adopts-type-variable.mz", pass);
 
   ("ref-confusion.mz", simple_test (KFail (function _ -> true)));
 

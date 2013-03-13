@@ -1,0 +1,5 @@
+mutable data generic_adopter (x : term) =
+  A
+adopts (ref int | x @ int)
+(* contrived, but works: the adoptee is exclusive *)
+

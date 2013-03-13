@@ -250,6 +250,8 @@ let get_location env p =
   List.hd (get_locations env p)
 ;;
 
+(* TEMPORARY when giving, we should compute a meet; when taking, we should
+   compute a join. *)
 let get_adopts_clause env point: typ =
   match get_definition env point with
   | Some (Some branches, _) ->
