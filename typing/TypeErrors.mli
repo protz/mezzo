@@ -25,7 +25,6 @@ open TypeCore
 type raw_error =
   | CyclicDependency of Module.name
   | NotAFunction of var
-  | HasFlexible of typ
   | ExpectedType of typ * var * Derivations.derivation
   | RecursiveOnlyForFunctions
   | MissingField of Field.name
@@ -35,11 +34,9 @@ type raw_error =
   | NoSuchFieldInPattern of Expressions.pattern * Field.name
   | BadPattern of Expressions.pattern * var
   | BadField of Datacon.name * Field.name
-  | SubPattern of Expressions.pattern
   | NoTwoConstructors of var
   | MatchBadDatacon of var * Datacon.name
   | MatchBadTuple of var
-  | NoSuchPermission of typ
   | AssignNotExclusive of typ * Datacon.name
   | FieldCountMismatch of typ * Datacon.name
   | NoMultipleArguments
@@ -48,7 +45,6 @@ type raw_error =
   | ConflictingTypeAnnotations of typ * typ
   | IllKindedTypeApplication of Expressions.tapp * kind * kind
   | BadTypeApplication of var
-  | PolymorphicFunctionCall
   | BadFactForAdoptedType of var * typ * Fact.fact
   | NoAdoptsClause of var
   | NotDynamic of var
@@ -58,7 +54,6 @@ type raw_error =
   | MissingFieldInSignature of Variable.name
   | NoSuchTypeInSignature of var * typ
   | DataTypeMismatchInSignature of Variable.name * string
-  | NotExclusiveOwns of var
   | VarianceAnnotationMismatch
 
 (** This function raises an exception that will be later on catched in

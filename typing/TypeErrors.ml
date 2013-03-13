@@ -29,7 +29,6 @@ type error = env * raw_error
 and raw_error =
   | CyclicDependency of Module.name
   | NotAFunction of var
-  | HasFlexible of typ
   | ExpectedType of typ * var * Derivations.derivation
   | RecursiveOnlyForFunctions
   | MissingField of Field.name
@@ -39,11 +38,9 @@ and raw_error =
   | NoSuchFieldInPattern of pattern * Field.name
   | BadPattern of pattern * var
   | BadField of Datacon.name * Field.name
-  | SubPattern of pattern
   | NoTwoConstructors of var
   | MatchBadDatacon of var * Datacon.name
   | MatchBadTuple of var
-  | NoSuchPermission of typ
   | AssignNotExclusive of typ * Datacon.name
   | FieldCountMismatch of typ * Datacon.name
   | NoMultipleArguments
@@ -52,7 +49,6 @@ and raw_error =
   | ConflictingTypeAnnotations of typ * typ
   | IllKindedTypeApplication of tapp * kind * kind
   | BadTypeApplication of var
-  | PolymorphicFunctionCall
   | BadFactForAdoptedType of var * typ * Fact.fact
   | NoAdoptsClause of var
   | NotDynamic of var
@@ -62,7 +58,6 @@ and raw_error =
   | MissingFieldInSignature of Variable.name
   | NoSuchTypeInSignature of var * typ
   | DataTypeMismatchInSignature of Variable.name * string
-  | NotExclusiveOwns of var
   | VarianceAnnotationMismatch
 
 exception TypeCheckerError of error
@@ -248,14 +243,6 @@ let print_error buf (env, raw_error) =
             pname (env, p)
             ppermission_list (env, p)
       end
-  | NoSuchPermission t ->
-      bprintf
-        "Unable to extract the following permission:\n%a"
-        ptype (env, t);
-  | HasFlexible t ->
-      bprintf
-        "The following type still contains flexible variables:\n%a"
-        ptype (env, t);
   | ExpectedType (t, var, d) ->
       bprintf
         "Could not extract from this subexpression (named %a) the following type:\n%a\n\
@@ -318,10 +305,6 @@ let print_error buf (env, raw_error) =
             pname (env, var)
             ppermission_list (env, var)
       end
-  | SubPattern pat ->
-      bprintf
-        "There is a sub-constraint in that pattern, not allowed: %a"
-        ppat (env, pat)
   | MatchBadTuple p ->
       bprintf
         "Trying to match a tuple against a var whose only \
@@ -389,9 +372,6 @@ let print_error buf (env, raw_error) =
         pdoc ((fun t -> ExprPrinter.print_tapp env t), t)
         pdoc (print_kind, k) 
         pdoc (print_kind, k');
-  | PolymorphicFunctionCall ->
-      bprintf "This is a polymorphic function call, results are \
-          undefined; consider using a type application"
   | BadFactForAdoptedType (p, t, f) ->
       bprintf "Type %a cannot adopt type %a because it is not \
           marked as exclusive but %a"
@@ -440,11 +420,6 @@ let print_error buf (env, raw_error) =
           signature because of: %s"
         Variable.p x
         reason
-  | NotExclusiveOwns p ->
-      bprintf "%a is not exclusive so it cannot hold anything; \
-          the only permissions available for it are %a"
-        pname (env, p)
-        ppermission_list (env, p)
   | VarianceAnnotationMismatch ->
       bprintf "The variance annotations do not match the inferred ones"
 ;;
