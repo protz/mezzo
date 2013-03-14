@@ -1,0 +1,7 @@
+(* The type [pool a] is the type of a generic adopter, so to speak.
+   It is able to adopt objects of type [a], for an arbitrary (but,
+   for each pool, fixed) exclusive type [a]. *)
+
+mutable data pool a =
+  Pool adopts a
+

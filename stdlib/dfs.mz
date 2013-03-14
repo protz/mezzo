@@ -1,0 +1,159 @@
+open list
+open pool
+
+(* In this approach, we do not need each node to carry a Boolean mark.
+   Instead, we use the hidden [adopter] field for this purpose. If a node is
+   currently adopted by the old pool, then it has not been visited yet. If it
+   is adopted by the new pool, then it has been visited. This technique
+   presents several advantages with respect to a more naïve approach based on
+   Boolean marks: 1- it re-uses the space taken up by the [adopter] field; 2-
+   it does not a priori require the marks to be re-initialized after (or
+   before) each traversal; 3- it allows a strong update, i.e. the nodes that
+   have been visited do not have the same type as the nodes that have not yet
+   been visited. *)
+
+val preorder
+  [unvisited, visited, p : perm]
+  exclusive visited =>
+  (
+    (* A pool of all nodes. *)
+    nodes: pool unvisited,
+    (* A list of the root nodes. *)
+    roots: list dynamic,
+    (* A function that visits a node, changing its state from
+       [unvisited] to [visited], and returns its successors. *)
+    visit: (consumes node: unvisited | p) -> (list dynamic | node @ visited)
+    (* The permission [p] required by [visit]. *)
+    | p
+  ) 
+    (* We return a new pool of the visited nodes. *)
+    : pool visited
+  =
+
+  (* Create a new pool that adopts the visited nodes. *)
+  let reached = Pool in
+  
+  let rec dfs (node: dynamic |
+    nodes @ pool unvisited *
+    reached @ pool visited *
+    p
+  ) : () =
+    (* Perform a dynamic ownership test. *)
+    if nodes owns node then begin
+      (* This node has not been visited yet. *)
+      take node from nodes;
+      (* Visit it, and obtain a list of its successors. *)
+      let successors = visit node in
+      (* Mark this node visited by placing it in the new pool. *)
+      give node to reached;
+      (* Examine the successors. *)
+      iter (successors, dfs)
+    end
+  in
+
+  (* Examine each of the roots. *)
+  iter (roots, dfs);
+
+  (* Return the new pool. *)
+  reached
+
+(* For a postorder traversal, our requirements must be slightly different.
+   The action of marking a node as discovered and the action of visiting
+   the node are performed at distinct instants in time. As a result, we
+   need three node states instead of two. *)
+
+val prepostorder
+  [unvisited, visiting, visited, p : perm]
+  exclusive visited =>
+  (
+    (* A pool of all nodes. *)
+    nodes: pool unvisited,
+    (* A list of the root nodes. *)
+    roots: list dynamic,
+    (* A flag that indicates whether we should abort when a cycle is
+       detected. *)
+    detect: bool,
+    (* A function that changes the state of a node from [unvisited]
+       to [visiting] and returns its successors. *)
+    pre: (consumes node: unvisited | p) -> (list dynamic | node @ visiting),
+    (* A function that changes the state of a node from [visiting]
+       to [visited]. *)
+    post: (consumes node: visiting | p) -> (| node @ visited)
+    (* The permission [p] required by [visit] and [successors]. *)
+    | p
+  ) 
+: (
+  (* A new pool of the visited nodes. *)
+  pool visited,
+  (* An option that indicates: 1. whether a cycle was detected and 2. if so,
+     the list of nodes that were in the state [visiting] when the cycle was
+     detected. These nodes form a path in the graph that ends in a cycle. *)
+  option (list visiting)
+)
+  =
+
+  (* One might think that we need two new pools, which adopt the
+     nodes in the [visiting] and [visited] states. Actually, we
+     only need one pool, which adopts [visited] nodes. The nodes
+     in the [visiting] state can simply be framed out. In short,
+     the [null] adopter pointer serves as the mark for these nodes. *)
+  let completed = Pool in
+
+  (* This reference is used when we have detected a cycle and are
+     building a list on the way back. *)
+  let path = newref nil in
+
+  (* The Boolean value returned by [dfs] is [true] if everything
+     went well and [false] is a cycle was detected. *)
+  let rec dfs (node: dynamic |
+    nodes @ pool unvisited *
+    completed @ pool visited *
+    path @ ref (list visiting) *
+    p
+  ) : bool =
+    (* Perform a dynamic ownership test. *)
+    if nodes owns node then begin
+      (* This node has not been reached yet. *)
+      take node from nodes;
+      (* Change its state to [visiting] and obtain its successors. *)
+      let successors = pre node in
+      (* At this point, the node is not a member of any of the two pools. We
+	 own it. Examine its successors, stopping the loop early if a cycle
+	 is detected. *)
+      let ok = for_all (dfs, successors) in
+      (* After the recursive call, we still own this node, so we
+	 know that its state has not changed: it is still [visiting]. *)
+      if ok then begin
+        (* Change its state to [visited]. *)
+        post node;
+        (* We can now place this node in the final pool. *)
+        give node to completed
+      end
+      else
+	(* If a cycle was detected during the recursive call, push
+	   this node onto the path. *)
+	path := cons (node, !path);
+      (* In either case, propagate the result. *)
+      ok
+    end
+    else if completed owns node then
+      (* There is nothing to do. *)
+      true
+    else
+      (* There is a cycle. *)
+      not detect
+  in
+
+  (* Examine each of the roots. *)
+  let ok = for_all (dfs, roots) in
+
+  (* Return a pair of the new pool and (if a cycle was detected)
+     the path that was constructed. *)
+  let outcome : option (list visiting) =
+    if ok then none else some !path
+  in
+  completed, outcome
+
+(* TEMPORARY getting rid of the type annotation on [outcome]
+   would be nice. *)
+

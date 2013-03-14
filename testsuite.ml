@@ -763,9 +763,11 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("fact-inconsistency.mz", pass);
 
-  ("dfs.mz", pass);
+  ("dfs-simple.mz", pass);
 
   ("dfs-owns.mz", pass);
+
+  ("dfs-example.mz", pass);
 
   ("owns1.mz", pass);
 
