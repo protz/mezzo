@@ -901,6 +901,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
   ("name-intro.mz", pass);
   ("exists-forall.mz", pass);
+  ("name-capture.mz", pass);
 
 ];;
 

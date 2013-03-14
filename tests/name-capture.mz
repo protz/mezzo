@@ -1,0 +1,10 @@
+(* This code is accepted if I change the second "x:" to "y:".
+   My guess is that there is a name capture problem in the
+   desugaring of types, when "x @ ref int" is copied to the
+   result type. We should decide: 1. is this code supposed
+   to be accepted? 2. if yes, fix the bug; 3. if no, reject
+   this code with a reasonable error message. *)
+
+val deref (x: ref int) : (x: int) =
+  !x
+
