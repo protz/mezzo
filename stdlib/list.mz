@@ -10,8 +10,7 @@ data list a =
 
 (* A definition for a list cell whose [tail] field has not yet been
    initialized. Such a cell is mutable, and can be frozen (turned
-   into an immutable list cell) via a tag update instruction (which
-   does nothing at runtime). *)
+   into an immutable list cell) via a tag update instruction. *)
 
 mutable data cell a =
   | Cell { head: a; tail: () }
@@ -19,8 +18,14 @@ mutable data cell a =
 (* The following function writes [xs] into [c.tail] and declares
    that [c] is now immutable. *)
 
-(* The tag update instruction actually does nothing at runtime,
-   so [freeze] is really just one write instruction. *)
+(* Note: in order to ensure that the tag update instruction does
+   nothing at runtime and can be erased, we need [Cons] and [Cell]
+   to translate to the same tag number. This could be achieved by
+   adding a new tag to the definition of the type [cell]. However
+   that would force us to change the type [cell a] to the more
+   verbose type [Cell { head: a; tail: () }] in several function
+   headers. Maybe we will do that when we have type abbreviations.
+   TEMPORARY *)
 
 val freeze [a] (consumes c: cell a, xs: unknown) : (| c @ Cons { head: a; tail = xs }) =
   c.tail <- xs;
