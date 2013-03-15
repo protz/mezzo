@@ -1,0 +1,79 @@
+open list
+open pool
+open queue
+
+val traverse
+  [unvisited, visiting, visited, p : perm]
+  exclusive visited =>
+  (
+    (* A pool of all nodes. *)
+    nodes: pool unvisited,
+    (* A list of the root nodes. *)
+    roots: list dynamic,
+    (* A function that changes the state of a node from [unvisited] to [visiting]. *)
+    pre: (consumes node: unvisited | p) -> (| node @ visiting),
+    (* A function that changes the state of a node from [visiting]
+       to [visited] and returns its successors. *)
+    post: (consumes node: visiting | p) -> (list dynamic | node @ visited)
+    (* The permission [p] required by [pre] and [post]. *)
+    | p
+  ) 
+:
+  (* A new pool of the visited nodes. *)
+  pool visited
+  =
+
+  (* Create a new pool. *)
+  let completed = Pool in
+
+  (* Create a waiting queue of the discovered, but not completed, nodes. *)
+  let waiting = queue::create () in
+
+  (* Examining a node. If it is new, we change its state to [visiting]
+     and enqueue it. *)
+  let examine (node: dynamic |
+    nodes @ pool unvisited *
+    waiting @ fifo visiting *
+    completed @ pool visited *
+    p
+  ) : () =
+    (* Perform a dynamic ownership test. *)
+    if nodes owns node then begin
+      (* This node has not been reached yet. *)
+      take node from nodes;
+      (* Change its state to [visiting]. *)
+      pre node;
+      (* Enqueue it. *)
+      queue::insert (node, waiting)
+    end
+  in
+
+  (* The main loop. *)
+  let rec loop (|
+    nodes @ pool unvisited *
+    waiting @ queue::fifo visiting *
+    completed @ pool visited *
+    p
+  ) : () =
+    (* Take a node off the queue. *)
+    match queue::retrieve waiting with
+    | None ->
+        ()
+    | Some { contents = node } ->
+        (* Change its state to [visited]. *)
+        let successors = post node in
+        (* Place it in the final pool. *)
+        give node to completed;
+	(* Examine its successors. *)
+	list::iter (successors, examine);
+	(* Continue. *)
+	loop()
+    end
+  in
+
+  (* Examine each of the roots, and enter the main loop. *)
+  list::iter (roots, examine);
+  loop();
+
+  (* Return the new pool. *)
+  completed

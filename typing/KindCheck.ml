@@ -563,6 +563,10 @@ let rec bv loc (accu : type_binding list) (p : pattern) : type_binding list =
    is up to the [check] function to introduce the binders in scope in the right
    places. The order is not important here, since this will be passed on to the
    [extend] function which will then pick a give order. *)
+
+(* In principle, the type [ty] should have kind [type], but during kind-checking,
+   [names] can be called before we have ensured that this is the case. *)
+
 let names env ty : type_binding list =
 
   (* First, convert the type [ty] to a pattern, using the function

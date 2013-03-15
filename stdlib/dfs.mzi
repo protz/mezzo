@@ -63,7 +63,7 @@ val prepostorder:
     (* A function that changes the state of a node from [visiting]
        to [visited]. *)
     post: (consumes node: visiting | p) -> (| node @ visited)
-    (* The permission [p] required by [visit] and [successors]. *)
+    (* The permission [p] required by [pre] and [post]. *)
     | p
   ) 
 ->(

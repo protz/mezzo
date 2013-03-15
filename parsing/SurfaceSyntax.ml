@@ -441,8 +441,12 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TyEmpty
   | TyStar _
   | TyAnchoredPermission _ ->
-      (* Type of kind PERM, where a type of kind TERM was expected. *)
-      assert false
+      (* Type of kind PERM, where a type of kind TERM was expected. In
+	 principle, this should not happen, except during kind checking,
+         where it could happen if the type is ill-kinded. We must return
+         silently, and an error will be signaled by the kind checking
+	 algorithm. *)
+      PAny
 
 (* ---------------------------------------------------------------------------- *)
 
