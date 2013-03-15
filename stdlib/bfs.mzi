@@ -1,0 +1,24 @@
+open list
+open pool
+
+(* Generic breadth-first search. *)
+
+val traverse:
+  [unvisited, visiting, visited, p : perm]
+  exclusive visited =>
+  (
+    (* A pool of all nodes. *)
+    nodes: pool unvisited,
+    (* A list of the root nodes. *)
+    roots: list dynamic,
+    (* A function that changes the state of a node from [unvisited] to [visiting]. *)
+    pre: (consumes node: unvisited | p) -> (| node @ visiting),
+    (* A function that changes the state of a node from [visiting]
+       to [visited] and returns its successors. *)
+    post: (consumes node: visiting | p) -> (list dynamic | node @ visited)
+    (* The permission [p] required by [pre] and [post]. *)
+    | p
+  ) 
+->
+  (* A new pool of the visited nodes. *)
+  pool visited
