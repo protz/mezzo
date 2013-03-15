@@ -1,0 +1,7 @@
+abstract fd
+
+val new: string -> fd
+
+val read: fd -> option char
+
+val close: fd -> ()
