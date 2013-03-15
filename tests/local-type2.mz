@@ -1,0 +1,16 @@
+abstract pred (x: term): type
+
+data bool = False | True
+
+val f [f_arg: term, f_arg2: term] (): (x: unknown| (x @ (=f_arg, =f_arg2))) =
+  fail
+
+val v =
+  let x = () in
+  if False then begin
+    let left = () in
+    f [x, left] ()
+  end else begin
+    let right = () in
+    f ()
+  end

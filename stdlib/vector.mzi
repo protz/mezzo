@@ -1,7 +1,7 @@
 (* This module implements resizable arrays, also known as vectors,
    for short. *)
 
-abstract vector a
+abstract vector +a
 fact exclusive (vector a)
 
 (* An array has a logical size -- the number of its elements -- and a

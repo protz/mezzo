@@ -1,0 +1,55 @@
+val d [a] duplicable a => () : () =
+  ()
+
+val x [a] exclusive a => () : () =
+  ()
+
+open list
+open wref
+open lock
+
+abstract copycat a
+fact duplicable a => duplicable (copycat a)
+fact exclusive a => exclusive (copycat a)
+
+data duplicable_thing a =
+  Dup { thing: (duplicable a | a) }
+
+val () =
+  d [int] ();
+  d [[a]a] ();
+  x [[a]a] ();
+  d [[a,b] a -> b] ();
+  (* no more implications:
+  d [[a] duplicable a => (a, a)] ();
+  d [{a} duplicable a => a] ();
+  d [{a,b} (duplicable a => (duplicable b | b))] ();
+  d [duplicable (ref int) => ref int] ();
+  *)
+  d [{a} duplicable a | a] ();
+  d [{a} (a, (duplicable a | a))] ();
+  d [{a,b} (a, (duplicable b | duplicable a | a))] ();
+  x [{a} (exclusive a | a)] ();
+  d [[a] (a, a)] ();
+  d [list int] ();
+  d [list (int, int)] ();
+  d [{a} list (int, wref a)] ();
+  x [array int] ();
+  x [{a} ref a] ();
+  d [{x:term} (=x)] ();
+  x [ref int] ();
+  d [( | empty)] ();
+  x [(ref int | empty)] ();
+  x [{y:term} (ref int | y @ (int, int))] ();
+  d [lock ({x:term} (x @ ref int))] ();
+  (* d [(x: unknown, y: unknown | x @ int * y @ (int, int))] (); BUG *)
+  d [{x:term,y:term} (=x, =y | x @ int * y @ (int, int))] ();
+  d [{y:term} (int | y @ (int, int))] ();
+  d [copycat int] ();
+  x [copycat (ref int)] ();
+  d [copycat (copycat int, copycat int)] ();
+  x [copycat (copycat (ref int))] ();
+  d [{a} duplicable_thing a] (); 
+  (* d [{a} (a, duplicable_thing a)] ();
+     This type is in fact duplicable, but in order to see that, we would
+     have to unfold the definition of [duplicable_thing]. *)

@@ -40,11 +40,11 @@ let lex_and_parse file_path entry_var =
           "Invalid code var %i at offset %i\n" i (Ulexing.lexeme_end lexbuf);
         exit 254
     | Grammar.Error ->
-        Hml_String.beprintf "%a\nError: Syntax error\n"
+        MzString.beprintf "%a\nError: Syntax error\n"
           print_position lexbuf;
         exit 253
     | Lexer.LexingError e ->
-        Hml_String.beprintf "%a\n"
+        MzString.beprintf "%a\n"
           Lexer.print_error (lexbuf, e);
         exit 252
   )
@@ -58,7 +58,7 @@ let mkprefix path =
       Filename.concat Configure.root_dir "corelib"
     in
     let autoload_path = Filename.concat corelib_dir "autoload" in
-    let autoload_modules = Hml_String.split (Utils.file_get_contents autoload_path) '\n' in
+    let autoload_modules = MzString.split (Utils.file_get_contents autoload_path) '\n' in
     let autoload_modules = List.filter (fun s -> String.length s > 0 && s.[0] <> '#') autoload_modules in
     let me = Filename.basename path in
     let my_dir = Filename.dirname path in
@@ -158,16 +158,6 @@ let find_and_lex_implementation : Module.name -> SurfaceSyntax.implementation =
   )
 ;;
 
-(* [build_interface env mname] finds the right interface file for [mname], and
- * lexes it, parses it, and returns a desugared version of it, ready for
- * importing into some environment. *)
-let build_interface (env: TypeCore.env) (mname: Module.name): TypeCore.env * Expressions.interface =
-  let iface = find_and_lex_interface mname in
-  let env = TypeCore.set_module_name env mname in
-  KindCheck.check_interface env iface;
-  env, TransSurface.translate_interface env iface
-;;
-
 
 (* -------------------------------------------------------------------------- *)
 
@@ -185,11 +175,8 @@ let check_interface env signature exports =
 
 let import_dependencies_in_scope env deps =
   List.fold_left (fun env mname ->
-    Log.debug "Massive import, %a" Module.p mname;
-    let env, iface = build_interface env mname in
-
-    (* [env] has the right module name at this stage *)
-    let env = Modules.import_interface env iface in
+    let iface = find_and_lex_interface mname in
+    let env = Interfaces.import_interface env mname iface in
     Log.debug "Imported %a, got names %a"
       Module.p mname
       Types.TypePrinter.pexports (env, mname);
@@ -270,8 +257,6 @@ let check_implementation
             Types.TypePrinter.pdoc
             (KindCheck.KindPrinter.print_kinds_and_facts, env);
 
-          (* Do the final checks (is this the right time?) *)
-          ExtraChecks.check_env env;
           env, List.flatten varss
     in
     type_check env program []
@@ -297,9 +282,9 @@ let check_implementation
          * one ends up being exported. Instead, we can rely on [type_check] to
          * returns for us the list of names along with the corresponding vars
          * that are exported. *)
-        let exports = Hml_List.map_flatten (fun p ->
+        let exports = MzList.map_flatten (fun p ->
           let k = TypeCore.get_kind env p in
-          Hml_List.map_some (function
+          MzList.map_some (function
             | TypeCore.User (mname, x) when Module.equal mname (TypeCore.module_name env) ->
                Some (x, k, p)
             | _ ->
@@ -315,7 +300,7 @@ let check_implementation
          * that end polluting the resulting environment! So we only use that
          * "polluted" environment to perform interface-checking, we don't
          * actually return it to the driver, say, for printing. *)
-        Log.raise_level 5 (fun () -> check_interface env interface exports);
+        Log.raise_level 5 (fun () -> check_interface env interface exports)
     | None ->
         env
   in
@@ -328,6 +313,9 @@ let check_implementation
       Bash.colors.Bash.yellow Bash.colors.Bash.default
       Module.p mname;
     List.iter (fun mname ->
+      Log.debug ~level:2 "\n%s***%s Checking against %a"
+        Bash.colors.Bash.yellow Bash.colors.Bash.default
+        Module.p mname;
       let iface = find_and_lex_interface mname in
       (* Ignore the interface, since there's no risk of an interface consuming
        * another interface's contents! Moreover, this can be a risk: since
@@ -404,13 +392,13 @@ let run { html_errors; backtraces } f =
       if html_errors then begin
         TypeErrors.html_error e
       end else begin
-        Hml_String.beprintf "%a\n" TypeErrors.print_error e;
+        MzString.beprintf "%a\n" TypeErrors.print_error e;
       end;
       if backtraces then
         raise the_exn;
       exit 251
   | KindCheck.KindError e as the_exn ->
-      Hml_String.beprintf "%a\n" KindCheck.print_error e;
+      MzString.beprintf "%a\n" KindCheck.print_error e;
       if backtraces then
         raise the_exn;
       exit 250
@@ -446,7 +434,7 @@ let print_signature (buf: Buffer.t) (env: TypeCore.env): unit =
   let perms = List.sort (fun (_, loc1, _) (_, loc2, _) -> compare_locs loc1 loc2) perms in
   List.iter (fun (var, _, t) ->
     let open Types.TypePrinter in
-    let open Hml_Pprint in
+    let open MzPprint in
     try
       let name = List.find (function
         | User (m, x) ->

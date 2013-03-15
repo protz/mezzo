@@ -2,6 +2,6 @@
    Deconstructing [x == y] yields, in the [RichTrue] branch, an equality
    between [x] and [y]. *)
 
-val ( == ) : (x: unknown, y: unknown) -> rich_bool (x = y) empty
-val ( != ) : (x: unknown, y: unknown) -> rich_bool empty (x = y)
+val ( == ) : (x: unknown, y: unknown) -> rich_bool empty (x = y)
+val ( != ) : (x: unknown, y: unknown) -> rich_bool (x = y) empty
 

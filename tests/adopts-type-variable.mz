@@ -1,7 +1,7 @@
 open list
 
-(* An example where we try to adopt a type variable. Needs a better
-   error message. *)
+(* An example where we declare that we adopt a type variable. This
+   is now OK. *)
 
 mutable data graph node =
   Graph { roots: list dynamic } adopts node

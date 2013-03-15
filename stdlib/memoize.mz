@@ -38,6 +38,7 @@ val memoize
 	  y
       | None ->
           let y = f x in
+          assert held l;
 	  add (x, y, t);
 	  y
       end

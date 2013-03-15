@@ -4,7 +4,7 @@
 
 (* For the moment, arrays are mutable. *)
 
-abstract array a
+abstract array +a
 fact exclusive (array a)
 
 (* ------------------------------------------------------------------------ *)

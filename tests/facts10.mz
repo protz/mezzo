@@ -1,0 +1,7 @@
+val d [a] duplicable a => () : () =
+  ()
+
+(* should be rejected because a is not duplicable *)
+val copy [a] () : () =
+  d [a] ()
+

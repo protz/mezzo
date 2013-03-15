@@ -1,0 +1,196 @@
+(* Operations on mutable lists. *)
+
+(* This module is for the moment quite incomplete. We lack a clear picture
+   of what mutable lists are useful for (what abstract data types do they
+   implement?). *)
+
+(* Note that the module [bucket] also offers operations on mutable lists
+   of key-value pairs. We could in principle share code between these
+   modules, but that would come at the cost of an extra indirection. *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* The algebraic data type of mutable lists. *)
+
+mutable data mlist a =
+  | MNil
+  | MCons { head: a; tail: mlist a }
+
+(* Many operations on mutable lists work ``in place'', that is, without
+   allocating new [MCons] cells. Unfortunately, these operations sometimes
+   allocate a new [MNil] object. These objects cannot be shared, because they
+   are considered exclusive. If we had a null pointer, we would use it in the
+   definition of mutable lists instead of [MNil], and we would be able to work
+   without any memory allocation. Another option would be to consider [MCons]
+   as mutable/exclusive and [MNil] as immutable/duplicable. This would allow
+   the expression [MNil] to be compiled down to code that does not perform a
+   memory allocation. These problems are left for future exploration. *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Length. *)
+
+val rec length_aux [a] (accu: int, xs: mlist a) : int =
+  match xs with
+  | MNil ->
+      accu
+  | MCons ->
+      length_aux (accu + 1, xs.tail)
+  end
+
+val length [a] (xs: mlist a) : int =
+  length_aux (0, xs)
+
+(* -------------------------------------------------------------------------- *)
+
+(* In-place reversal. *)
+
+val rec rev_append [a] (consumes xs: mlist a, consumes ys: mlist a) : mlist a =
+  match xs with
+  | MNil ->
+      ys
+  | MCons { tail } ->
+      xs.tail <- ys;
+      rev_append (tail, ys)
+  end
+
+val rev [a] (consumes xs: mlist a) : mlist a =
+  rev_append (xs, MNil) (* memory allocation *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Indexing operations. *)
+
+val rec splitAtAux [a] (
+  k: int,
+  consumes xs: mlist a,
+  consumes c: MCons { head: a; tail = xs }
+) : (mlist a | c @ mlist a) =
+  if k = 0 then begin
+    c.tail <- MNil; (* memory allocation *)
+    xs
+  end
+  else if xs then
+    splitAtAux (k - 1, xs.tail, xs)
+  else
+    fail
+
+val splitAt [a] (k: int, consumes xs: mlist a) : (mlist a, mlist a) =
+  if k = 0 then
+    MNil, (* memory allocation *)
+    xs
+  else if xs then begin
+    let ys = splitAtAux (k - 1, xs.tail, xs) in
+    xs, ys
+  end
+  else fail
+
+(* -------------------------------------------------------------------------- *)
+
+(* Merging and sorting. *)
+
+(* Merging and sorting are performed in-place. In the case of sorting,
+   unfortunately, each call to [splitAt] and each recursive call to [sort]
+   allocate one [MNil] cell, so in total, we allocate O(nlog n) such cells. *)
+
+(* Note: [merge] is not tail-recursive, and is not used by [sort],
+   which has its own [rev_merge]. *)
+
+val rec merge [a] (
+  cmp: (a, a) -> int,
+  consumes xs: mlist a,
+  consumes ys: mlist a
+) : mlist a =
+  match xs, ys with
+  | MNil, _ ->
+      ys
+  | _, MNil ->
+      xs
+  | MCons { head = x }, MCons { head = y } ->
+      if cmp (x, y) <= 0
+      then begin
+	xs.tail <- merge (cmp, xs.tail, ys);
+	xs
+      end
+      else begin
+	ys.tail <- merge (cmp, xs, ys.tail);
+	ys
+      end
+ end
+
+val sort [a] (
+  cmp: (a, a) -> int,
+  consumes xs: mlist a
+) : mlist a =
+  (* Wrap the comparison function [cmp] so as to take an extra
+     argument, [sense], which takes the value -1 or 1 and allows
+     reversing the ordering if desired. *)
+  let cmp (sense: int, x: a, y: a) : int =
+    sense * cmp (x, y)
+  in
+  (* [rev_merge (sense, xs, ys, accu)] merges the lists [xs] and [ys]
+     and concatenates the reverse of the resulting list in front of
+     [accu]. The ordering is dictated by [sense]. *)
+  let rec rev_merge (sense: int, consumes xs: mlist a, consumes ys: mlist a, consumes accu: mlist a) : mlist a =
+    if xs then
+      if ys then begin
+        let x = xs.head
+        and y = ys.head in
+        if cmp (sense, x, y) <= 0
+        then begin
+	  let tail = xs.tail in
+	  xs.tail <- accu;
+	  rev_merge (sense, tail, ys, accu)
+	end
+        else begin
+	  let tail = ys.tail in
+	  ys.tail <- accu;
+	  rev_merge (sense, xs, tail, accu)
+	end
+      end
+      else
+        rev_append (xs, accu)
+    else
+      rev_append (ys, accu)
+  in
+  (* This is the main sorting function. The integer [n] is always at
+     least [1], and is the length of the list [xs]. Again, the
+     ordering is dictated by [sense]. I have dropped the special
+     case [n = 3], which is present in the OCaml code and in [list.mz],
+     just because it is too painful. *)
+  let rec sort (sense: int, n: int, consumes xs: mlist a) : mlist a =
+    (* Leaf cases. *)
+    if n = 1 then
+      xs
+    else if n = 2 then
+      match xs with
+      | MCons { head = x1; tail = MCons { head = x2; tail = any } as ys} ->
+	  (* [any] must be [MNil]. We do not check this fact. *)
+          if cmp (sense, x1, x2) <= 0 then xs else begin
+	    xs.head <- x2;
+	    ys.head <- x1;
+	    xs
+	  end
+      | _ ->
+	  fail (* impossible *)
+      end
+    (* The general case. *)
+    else begin
+      let n1 = n / 2 in
+      let n2 = n - n1 in
+      let xs1, xs2 = splitAt (n1, xs) in
+      let xs1 = sort (-sense, n1, xs1) in
+      let xs2 = sort (-sense, n2, xs2) in
+      rev_merge (-sense, xs1, xs2, MNil) (* memory allocation *)
+    end
+  in
+  let n = length xs in
+  if n < 2 then xs else sort (1, n, xs)
+
+(* -------------------------------------------------------------------------- *)
+
+(*
+Local Variables:
+compile-command: "../mezzo mlist.mz"
+End:
+*)

@@ -80,7 +80,7 @@ let _ =
         Driver.run opts (fun () -> Driver.process !Options.filename)
       in
       if Log.debug_level () <= 0 then
-	Hml_String.bprintf "%a" Driver.print_signature env
+	MzString.bprintf "%a" Driver.print_signature env
       else
 	Log.debug ~level:0 "\n%a"
 	  Types.TypePrinter.pdoc (Types.TypePrinter.print_permissions, env)

@@ -1,6 +1,6 @@
 (* This is a pretty-printer for Untyped OCaml. *)
 
-open Hml_Pprint
+open MzPprint
 open UntypedOCaml
 
 (* ---------------------------------------------------------------------------- *)

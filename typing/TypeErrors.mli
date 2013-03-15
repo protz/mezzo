@@ -25,22 +25,18 @@ open TypeCore
 type raw_error =
   | CyclicDependency of Module.name
   | NotAFunction of var
-  | HasFlexible of typ
-  | ExpectedType of typ * var
+  | ExpectedType of typ * var * Derivations.derivation
   | RecursiveOnlyForFunctions
   | MissingField of Field.name
   | ExtraField of Field.name
   | NoSuchField of var * Field.name
-  | FieldMismatch of typ * Datacon.name
   | CantAssignTag of var
   | NoSuchFieldInPattern of Expressions.pattern * Field.name
   | BadPattern of Expressions.pattern * var
   | BadField of Datacon.name * Field.name
-  | SubPattern of Expressions.pattern
   | NoTwoConstructors of var
   | MatchBadDatacon of var * Datacon.name
   | MatchBadTuple of var
-  | NoSuchPermission of typ
   | AssignNotExclusive of typ * Datacon.name
   | FieldCountMismatch of typ * Datacon.name
   | NoMultipleArguments
@@ -49,8 +45,7 @@ type raw_error =
   | ConflictingTypeAnnotations of typ * typ
   | IllKindedTypeApplication of Expressions.tapp * kind * kind
   | BadTypeApplication of var
-  | PolymorphicFunctionCall
-  | BadFactForAdoptedType of var * typ * fact
+  | NonExclusiveAdoptee of typ
   | NoAdoptsClause of var
   | NotDynamic of var
   | NoSuitableTypeForAdopts of var * typ
@@ -59,8 +54,7 @@ type raw_error =
   | MissingFieldInSignature of Variable.name
   | NoSuchTypeInSignature of var * typ
   | DataTypeMismatchInSignature of Variable.name * string
-  | NotExclusiveOwns of var
-  | UnsatisfiableConstraint of duplicity_constraint list
+  | VarianceAnnotationMismatch
 
 (** This function raises an exception that will be later on catched in
  * {!Driver}. *)

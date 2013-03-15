@@ -1,0 +1,8 @@
+val d [a] duplicable a => () : () =
+  ()
+
+val x [a] exclusive a => () : () =
+  ()
+
+val () =
+  x [(ref int, ref int)] ()

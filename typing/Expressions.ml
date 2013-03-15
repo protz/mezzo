@@ -621,15 +621,15 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
     ) (env, []) bindings
   in
   let subst_type t =
-    Hml_List.fold_lefti (fun i t var -> tsubst (TyOpen var) i t) t vars
+    MzList.fold_lefti (fun i t var -> tsubst (TyOpen var) i t) t vars
   in
   let subst_expr t =
-    Hml_List.fold_lefti (fun i t var ->
+    MzList.fold_lefti (fun i t var ->
       let t = tsubst_expr (TyOpen var) i t in
       esubst (EOpen var) i t) t vars
   in
   let subst_decl t =
-    Hml_List.fold_lefti (fun i t var ->
+    MzList.fold_lefti (fun i t var ->
       let t = tsubst_decl (TyOpen var) i t in
       esubst_decl (EOpen var) i t) t vars
   in
@@ -1022,7 +1022,7 @@ let tpsubst_expr (env: env) (t2: typ) (p: var) (e1: expression): expression =
 
 module ExprPrinter = struct
 
-  open Hml_Pprint
+  open MzPprint
   open TypePrinter
 
   let print_maybe_qualified p = function

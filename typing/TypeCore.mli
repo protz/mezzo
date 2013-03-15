@@ -23,7 +23,7 @@
 
 (** {1 Various useful modules} *)
 
-module DataconMap: Hml_Map.S with type key = Module.name * Datacon.name
+module DataconMap: MzMap.S with type key = Module.name * Datacon.name
 module Field: module type of Variable with type name = SurfaceSyntax.Field.name
 
 (* -------------------------------------------------------------------------- *)
@@ -34,6 +34,9 @@ module Field: module type of Variable with type name = SurfaceSyntax.Field.name
 
 (** {2 Auxiliary definitions} *)
 
+(** The type of user-generated or auto-generated names. *)
+type name = User of Module.name * Variable.name | Auto of Variable.name
+
 (** Types have kinds. *)
 type kind = SurfaceSyntax.kind =
   | KTerm
@@ -41,14 +44,11 @@ type kind = SurfaceSyntax.kind =
   | KPerm
   | KArrow of kind * kind
 
-(** The type of user-generated or auto-generated names. *)
-type name = User of Module.name * Variable.name | Auto of Variable.name
+(** Our locations are made up of ranges. *)
+type location = Lexing.position * Lexing.position
 
 (** A type binding defines a type variable bound in a type. *)
-and type_binding = name * kind * location
-
-(** Our locations are made up of ranges. *)
-and location = Lexing.position * Lexing.position
+type type_binding = name * kind * location
 
 (** A type binding can be either user-provided, through a universal
  * quantification for instance, or auto-generated, by the desugaring pass for
@@ -67,7 +67,6 @@ type db_index =
  * This is the type of open variales; it's abstract, because we provide a set
  * of wrappers and want to prevent mistakes in client code. *)
 type var
-
 
 (** {2 The type of types} *)
 
@@ -94,9 +93,7 @@ and typ =
 
     (** Structural types. *)
   | TyTuple of typ list
-  | TyConcreteUnfolded of resolved_datacon * data_field_def list * typ
-      (** [typ] is for the type of the adoptees; initially it's bottom and then
-       * it gets instantiated to something more precise. *)
+  | TyConcreteUnfolded of resolved_branch
 
     (** Singleton types. *)
   | TySingleton of typ
@@ -113,8 +110,7 @@ and typ =
   | TyStar of typ * typ
 
     (** Constraint *)
-  | TyAnd of duplicity_constraint list * typ
-  | TyImply of duplicity_constraint list * typ
+  | TyAnd of mode_constraint * typ
 
 (** Since data constructors are now properly scoped, they are resolved, that is,
  * they are either attached to a point, or a De Bruijn index, which will later
@@ -123,50 +119,39 @@ and typ =
  * definition. *)
 and resolved_datacon = typ * Datacon.name
 
-and duplicity_constraint = SurfaceSyntax.data_type_flag * typ
+and mode_constraint = Mode.mode * typ
 
 
 (** {2 Type definitions} *)
 
-(** Our data constructors have the standard variance. *)
-type variance = Invariant | Covariant | Contravariant | Bivariant
+and ('flavor, 'datacon) data_type_def_branch = {
+  branch_flavor: 'flavor; (** {!DataTypeFlavor.flavor} or unit *)
+  branch_datacon: 'datacon; (** {!Datacon.name} or resolved_datacon *)
+  branch_fields: data_field_def list;
+    (** The type of the adoptees; initially it's bottom and then
+     * it gets instantiated to something less precise. *)
+  branch_adopts: typ;
+}
 
-type data_type_def_branch =
-    Datacon.name * data_field_def list
+and resolved_branch =
+    (unit, resolved_datacon) data_type_def_branch
 
-type adopts_clause =
-  (* option here because not all concrete types adopt someone *)
-  typ option
+type unresolved_branch =
+    (DataTypeFlavor.flavor, Datacon.name) data_type_def_branch
 
 type data_type_def =
-  data_type_def_branch list
+  unresolved_branch list
+
+(** Our data constructors have the standard variance. *)
+type variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | Bivariant
 
 type type_def =
-  (* option here because abstract types do not have a definition *)
-    (SurfaceSyntax.data_type_flag * data_type_def * adopts_clause) option
+  (** option here because abstract types do not have a definition *)
+    data_type_def option
   * variance list
 
 type data_type_group =
-  (Variable.name * location * type_def * fact * kind) list
-
-
-(** {2 Facts} *)
-
-(** A fact refers to any type variable available in scope; the first few facts
- * refer to toplevel data types, and the following facts refer to type variables
- * introduced in the scope, because, for instance, we went through a binder in a
- * function type.
- *
- * The [Fuzzy] case is used when we are inferring facts for a top-level data
- * type; we need to introduce the data type's parameters in the environment, but
- * the correponding facts are evolving as we work through our analysis. The
- * integer tells the number of the parameter. *)
-and fact = Exclusive | Duplicable of bitmap | Affine | Fuzzy of int
-
-(** The 0-th element is the first parameter of the type, and the value is true if
-  * it has to be duplicable for the type to be duplicable. *)
-and bitmap = bool array
-
+  (Variable.name * location * type_def * Fact.fact * kind) list
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -207,6 +192,7 @@ val mark_inconsistent: env -> env
 
 (** Is this variable a flexible type variable or not? *)
 val is_flexible: env -> var -> bool
+val is_rigid: env -> var -> bool
 
 (** [instantiate env var t] tries to instantiate the flexible variable [var]
  * with [t]. However, because of various reasons (e.g. levels) this
@@ -235,7 +221,7 @@ val same: env -> var -> var -> bool
 (** Merge two variables while keeping the information about the left one. You
  * must make sure that both variables have been run through [modulo_flex_v]
  * first. This is a low-level operation and you probably want to use
- * [Permissions.unify] instead. *)
+ * {!Permissions.unify} instead. *)
 val merge_left: env -> var -> var -> env option
 
 (** Get the list of permissions that are floating in this environment. *)
@@ -256,7 +242,7 @@ val get_names : env -> var -> name list
 val get_kind : env -> var -> kind
 
 (** Get a fact *)
-val get_fact: env -> var -> fact
+val get_fact: env -> var -> Fact.fact
 
 (** Get the locations *)
 val get_locations: env -> var -> location list
@@ -271,8 +257,8 @@ val add_location: env -> var -> location -> env
 (** {2 Low-level permissions manipulation functions.} *)
 
 (** If you're considering playing with the list of permissions available for a
- * given variable, you should consider using {Permissions.add} and
- * {Permissions.sub} instead of these low-level, potentially dangerous
+ * given variable, you should consider using {!Permissions.add} and
+ * {!Permissions.sub} instead of these low-level, potentially dangerous
  * functions. *)
 
 (** Get the permissions of a term variable. *)
@@ -290,7 +276,7 @@ val reset_permissions : env -> var -> env
  * type-checking. *)
 
 (** Set a fact *)
-val set_fact: env -> var -> fact -> env
+val set_fact: env -> var -> Fact.fact -> env
 
 (** Update a definition. This asserts that there used to be a definition before. *)
 val update_definition: env -> var -> (type_def -> type_def) -> env
@@ -337,7 +323,7 @@ val bind_flexible: env -> type_binding -> env * var
  * [mname] can be either the current module name, or some other module name. *)
 val get_exports: env -> Module.name -> (Variable.name * kind * var) list
 
-(* [point_by_name env ?mname x] finds name [x] as exported by module [mname]
+(** [point_by_name env ?mname x] finds name [x] as exported by module [mname]
  * (default: [module_name env]) in [env]. *)
 val point_by_name: env -> ?mname:Module.name -> Variable.name -> var
 
@@ -380,13 +366,137 @@ val refresh_mark: env -> env
  * data. Beware, however, that this module only works with rigid variables (it's
  * unclear what it should do for flexible variables), so it's up to the client
  * to properly run {!is_flexible} beforehand. *)
-module VarMap: Hml_Map.S with type key = var
+module VarMap: MzMap.S with type key = var
 
+(** This is an imperative version of [VarMap], in the form expected by [Fix]. *)
+module IVarMap: Fix.IMPERATIVE_MAPS with type key = var
+
+(** {1 Visitors for the internal syntax of types} *)
+
+(** A generic visitor. *)
+
+class virtual ['env, 'result] visitor : object
+
+  (** This method, whose default implementation is the identity,
+     allows normalizing a type before inspecting its structure.
+     This can be used, for instance, to replace flexible variables
+     with the type that they stand for. *)
+  method normalize: 'env -> typ -> typ
+
+  (** This method, whose default implementation is the identity,
+     can be used to extend the environment when a binding is
+     entered. *)
+  method extend: 'env -> kind -> 'env
+
+  (** The main visitor method inspects the structure of [ty] and
+     dispatches control to the appropriate case method. *)
+  method visit: 'env -> typ -> 'result
+
+  (** The case methods have no default implementation. *)
+  method virtual tyunknown: 'env -> 'result
+  method virtual tydynamic: 'env -> 'result
+  method virtual tybound: 'env -> db_index -> 'result
+  method virtual tyopen: 'env -> var -> 'result
+  method virtual tyforall: 'env -> type_binding -> flavor -> typ -> 'result
+  method virtual tyexists: 'env -> type_binding -> typ -> 'result
+  method virtual tyapp: 'env -> typ -> typ list -> 'result
+  method virtual tytuple: 'env -> typ list -> 'result
+  method virtual tyconcreteunfolded: 'env -> resolved_branch -> 'result
+  method virtual tysingleton: 'env -> typ -> 'result
+  method virtual tyarrow: 'env -> typ -> typ -> 'result
+  method virtual tybar: 'env -> typ -> typ -> 'result
+  method virtual tyanchoredpermission: 'env -> typ -> typ -> 'result
+  method virtual tyempty: 'env -> 'result
+  method virtual tystar: 'env -> typ -> typ -> 'result
+  method virtual tyand: 'env -> mode_constraint -> typ -> 'result
+
+end
+
+(** A [map] specialization of the visitor. *)
+
+class ['env] map : object
+
+  inherit ['env, typ] visitor
+
+  (** The case methods now perform a recursive traversal. *)
+  method tyunknown: 'env -> typ
+  method tydynamic: 'env -> typ
+  method tybound: 'env -> db_index -> typ
+  method tyopen: 'env -> var -> typ
+  method tyforall: 'env -> type_binding -> flavor -> typ -> typ
+  method tyexists: 'env -> type_binding -> typ -> typ
+  method tyapp: 'env -> typ -> typ list -> typ
+  method tytuple: 'env -> typ list -> typ
+  method tyconcreteunfolded: 'env -> resolved_branch -> typ
+  method tysingleton: 'env -> typ -> typ
+  method tyarrow: 'env -> typ -> typ -> typ
+  method tybar: 'env -> typ -> typ -> typ
+  method tyanchoredpermission: 'env -> typ -> typ -> typ
+  method tyempty: 'env -> typ
+  method tystar: 'env -> typ -> typ -> typ
+  method tyand: 'env -> mode_constraint -> typ -> typ
+
+  (** An auxiliary method for transforming a resolved branch. *)
+  method resolved_branch: 'env -> resolved_branch -> resolved_branch
+  (** An auxiliary method for transforming a resolved data constructor. *)
+  method resolved_datacon: 'env -> resolved_datacon -> resolved_datacon
+  (** An auxiliary method for transforming a field. *)
+  method field: 'env -> data_field_def -> data_field_def
+  (** An auxiliary method for transforming an unresolved branch. *)
+  method unresolved_branch: 'env -> unresolved_branch -> unresolved_branch
+  (** An auxiliary method for transforming a data type group. *)
+  method data_type_group: 'env -> data_type_group -> data_type_group
+
+end
+
+(** An [iter] specialization of the visitor. *)
+
+class ['env] iter : object
+
+  inherit ['env, unit] visitor
+
+  (** The case methods now perform a recursive traversal. *)
+  method tyunknown: 'env -> unit
+  method tydynamic: 'env -> unit
+  method tybound: 'env -> db_index -> unit
+  method tyopen: 'env -> var -> unit
+  method tyforall: 'env -> type_binding -> flavor -> typ -> unit
+  method tyexists: 'env -> type_binding -> typ -> unit
+  method tyapp: 'env -> typ -> typ list -> unit
+  method tytuple: 'env -> typ list -> unit
+  method tyconcreteunfolded: 'env -> resolved_branch -> unit
+  method tysingleton: 'env -> typ -> unit
+  method tyarrow: 'env -> typ -> typ -> unit
+  method tybar: 'env -> typ -> typ -> unit
+  method tyanchoredpermission: 'env -> typ -> typ -> unit
+  method tyempty: 'env -> unit
+  method tystar: 'env -> typ -> typ -> unit
+  method tyand: 'env -> mode_constraint -> typ -> unit
+
+  (** An auxiliary method for visiting a resolved branch. *)
+  method resolved_branch: 'env -> resolved_branch -> unit
+  (** An auxiliary method for visiting a resolved data constructor. *)
+  method resolved_datacon: 'env -> resolved_datacon -> unit
+  (** An auxiliary method for visiting a field. *)
+  method field: 'env -> data_field_def -> unit
+  (** An auxiliary method for visiting an unresolved branch. *)
+  method unresolved_branch: 'env -> unresolved_branch -> unit
+  (** An auxiliary method for visiting a data type group. *)
+  method data_type_group: 'env -> data_type_group -> unit
+
+end
 
 (**/**)
 
+(** References are assigned to by other modules after the type printers have
+ * been set up. Other [internal_] functions are for debugging, as they break the
+ * abstraction barriers in quite amazing ways. *)
 val internal_ptype : (Buffer.t -> env * typ -> unit) ref
 val internal_pnames : (Buffer.t -> env * name list -> unit) ref
 val internal_ppermissions : (Buffer.t -> env -> unit) ref
-val internal_pfact : (Buffer.t -> fact -> unit) ref
+val internal_pfact : (Buffer.t -> Fact.fact -> unit) ref
+val internal_pflexlist: (Buffer.t -> env -> unit)
 val internal_uniqvarid: env -> var -> int
+val internal_checklevel: env -> typ -> unit
+val internal_wasflexible: var -> bool
+

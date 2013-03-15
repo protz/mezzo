@@ -1,0 +1,17 @@
+val f (consumes x: array bool) : array unknown =
+  (* This relies on [array bool <= array unknown]. *)
+  x
+
+val () =
+  let x : array int =
+    array::create (10, 0)
+  and y : array bool =
+    array::create (10, true)
+  in
+  (* This relies on [array bool <= array unknown]. *)
+  array::overwrite (x, 0, y)
+
+(* This relies on [vector None <= vector (option int)]. *)
+val v : vector::vector (option int) =
+  vector::create (fun (_: int) : None = None)
+

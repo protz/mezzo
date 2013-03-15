@@ -22,135 +22,107 @@
 open TypeCore
 open Types
 
+(* ---------------------------------------------------------------------------- *)
+
 (** [collect t] recursively walks down a type with kind KType, extracts all
-    the permissions that appear into it (as tuple or record components), and
+    the permissions that appear in it (as tuple or record components), and
     returns the type without permissions as well as a list of types with kind
     KPerm, which represents all the permissions that were just extracted. *)
-let collect (t: typ): typ * typ list =
-  let rec collect (t: typ): typ * typ list =
-    match t with
+
+(** In fact, [collect] also calls itself recursively at kind KPerm, and
+    is able to extract permissions out of permissions, e.g., to find a
+    TyBar nested inside a TyAnchoredPermission. Because this behavior was
+    not documented, I thought it was not essential, but it fact it is. *)
+
+class collect (perms : typ list ref) = object (self)
+  inherit [unit] map as super
+  (* We re-implement the main visitor method in order to be warned
+     about new cases and to share code for some cases. *)
+  method visit () ty =
+    (* TEMPORARY No call to [modulo_flex]; is this normal? *)
+    match ty with
+
+      (* We stop at the following constructors. *)
+
     | TyUnknown
     | TyDynamic
-
     | TyBound _
     | TyOpen _
-
     | TyForall _
     | TyExists _
     | TyApp _
-
     | TySingleton _
+    | TyArrow _
+    | TyEmpty
+      -> ty
 
-    | TyArrow _ ->
-        t, []
+      (* We descend into the following constructs. *)
 
-    (* Interesting stuff happens for structural types only *)
-    | TyBar (t, p) ->
-        let t, t_perms = collect t in
-        let p, p_perms = collect p in
-        t, p :: t_perms @ p_perms
+    | TyTuple _
+    | TyConcreteUnfolded _
+    | TyStar _
+      -> super#visit () ty
 
-    | TyTuple ts ->
-        let ts, permissions = List.split (List.map collect ts) in
-        let permissions = List.flatten permissions in
-        TyTuple ts, permissions
+      (* We descend into the right-hand side of [TyAnd] and [TyAnchoredPermission]. *)
 
-    | TyConcreteUnfolded (datacon, fields, clause) ->
-        let permissions, values = List.partition
-          (function FieldPermission _ -> true | FieldValue _ -> false)
-          fields
-        in
-        let permissions = List.map (function
-          | FieldPermission p -> p
-          | _ -> assert false) permissions
-        in
-        let sub_permissions, values =
-         List.fold_left (fun (collected_perms, reversed_values) ->
-            function
-              | FieldValue (name, value) ->
-                  let value, permissions = collect value in
-                  permissions :: collected_perms, (FieldValue (name, value)) :: reversed_values
-              | _ ->
-                  assert false)
-            ([],[])
-            values
-        in
-        TyConcreteUnfolded (datacon, List.rev values, clause), List.flatten (permissions :: sub_permissions)
+    | TyAnd (c, ty) ->
+        TyAnd (c, self#visit () ty)
+    | TyAnchoredPermission (x, p) ->
+        TyAnchoredPermission (x, self#visit () p)
 
-    | TyAnchoredPermission (x, t) ->
-        let t, t_perms = collect t in
-        TyAnchoredPermission (x, t), t_perms
+      (* [TyBar] is where the action takes place. *)
 
-    | TyEmpty ->
-        TyEmpty, []
+    | TyBar (ty, p) ->
+        let p = self#visit () p in
+	perms := p :: !perms;
+	self#visit () ty
 
-    | TyStar (p, q) ->
-        let p, p_perms = collect p in
-        let q, q_perms = collect q in
-        TyStar (p, q), p_perms @ q_perms
+  (* At [TyConcreteUnfolded], we set aside the [FieldPermission]s and
+     descend into the [FieldValue]s. *)
+  method resolved_branch () branch =
+    { 
+      branch_flavor = branch.branch_flavor;
+      branch_datacon = branch.branch_datacon;
+      branch_fields = MzList.map_some (function
+	| FieldValue (field, ty) ->
+            Some (FieldValue (field, self#visit () ty))
+	| FieldPermission p ->
+	    perms := p :: !perms;
+	    None
+      ) branch.branch_fields;
+      branch_adopts = branch.branch_adopts;
+    }
 
-    | TyAnd _
-    | TyImply _ ->
-        t, []
-  in
-  collect t
-;;
+end
 
-let rec mark_reachable env t =
-  let t = modulo_flex env t in
-  match t with
-  | TyUnknown
-  | TyDynamic
-  | TyEmpty
-  | TyBound _ ->
-      env
+let collect (ty : typ) : typ * typ list =
+  let perms = ref [] in
+  let ty = (new collect perms) # visit () ty in
+  ty, !perms
 
-  | TyOpen p ->
-      if is_marked env p then
-        env
-      else
-        let env = mark env p in
-        if is_term env p then
-          let permissions = get_permissions env p in
-          List.fold_left mark_reachable env permissions
-        else
-          env
+(* ---------------------------------------------------------------------------- *)
 
-  | TyForall (_, t)
-  | TyExists (_, t) ->
-      mark_reachable env t
+class mark (env : env ref) = object (self)
+  inherit [unit] iter
+  method normalize () ty =
+    modulo_flex !env ty
+  (* Mark a variable [v], and if [v] is newly marked, find the permissions
+     for [v] in the environment and follow. *)
+  method tyopen () v =
+    if not (is_marked !env v) then begin
+      env := mark !env v;
+      if is_term !env v then begin
+        let permissions = get_permissions !env v in
+        List.iter (self#visit ()) permissions
+      end
+    end
+  (* Do not descend into arrows. (Why?) *)
+  method tyarrow () _ty1 _ty2 =
+    ()
+end
 
-  | TyBar (t1, t2)
-  | TyAnchoredPermission (t1, t2)
-  | TyStar (t1, t2) ->
-      List.fold_left mark_reachable env [t1; t2]
+let mark_reachable (env : env) (ty : typ) : env =
+  let env = ref env in
+  (new mark env) # visit () ty;
+  !env
 
-  | TyApp (t1, t2) ->
-      List.fold_left mark_reachable env (t1 :: t2)
-
-  | TyTuple ts ->
-      List.fold_left mark_reachable env ts
-
-  | TyConcreteUnfolded (_, fields, clause) ->
-      let ts = List.map (function
-        | FieldValue (_, t) ->
-            t
-        | FieldPermission _ ->
-            Log.error "[collect] wanted here"
-      ) fields in
-      let ts = clause :: ts in
-      List.fold_left mark_reachable env ts
-
-  | TySingleton t ->
-      mark_reachable env t
-
-  | TyArrow _ ->
-      env
-
-  | TyAnd (constraints, t)
-  | TyImply (constraints, t) ->
-      let env = List.fold_left (fun env (_, t) ->
-        mark_reachable env t
-      ) env constraints in
-      mark_reachable env t
-;;

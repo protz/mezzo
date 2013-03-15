@@ -17,34 +17,6 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** Various checks that we can't perform until a full environment is ready. *)
+(** Find the dependencies of a module. *)
 
-open TypeCore
-open DeBruijn
-open Types
-open TypeErrors
-
-let check_adopts_clauses (env: env): unit =
-  fold_definitions env (fun () var definition ->
-    let kind = get_kind env var in
-    match definition with
-    | Some (_, _, Some clause), _ ->
-        let _return_kind, arg_kinds = flatten_kind kind in
-        let arity = List.length arg_kinds in
-        let env, vars = make_datacon_letters env kind false (fun _ -> Affine) in
-        let clause = Hml_List.fold_lefti (fun i clause var ->
-          let index = arity - i - 1 in
-          tsubst (TyOpen var) index clause
-        ) clause vars in
-        if not (FactInference.is_exclusive env clause) then
-          raise_error env (
-            BadFactForAdoptedType (var, clause, FactInference.analyze_type env clause)
-          )
-    | _ ->
-        ()
-  ) ()
-;;
-
-let check_env (env: env): unit =
-  check_adopts_clauses env
-;;
+val all_dependencies : Module.name -> (Module.name -> SurfaceSyntax.toplevel_item list) -> Module.name list

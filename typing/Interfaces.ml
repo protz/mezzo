@@ -26,13 +26,47 @@ module TS = TransSurface
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Interface-related functions. *)
+(* [build_interface env mname] finds the right interface file for [mname], and
+ * lexes it, parses it, and returns a desugared version of it, ready for
+ * importing into some environment. *)
+let build_interface (env: TypeCore.env) (mname: Module.name) (iface: S.interface): T.env * E.interface =
+  let env = TypeCore.set_module_name env mname in
+  KindCheck.check_interface env iface;
+  env, TransSurface.translate_interface env iface
+;;
 
-let has_same_name x (x', _k, p) =
-  if Variable.equal x' x then
-    Some p
-  else
-    None
+(* Used by [Driver], to import the points from a desugared interface into
+ * another one, prefixed by the module they belong to, namely [mname]. *)
+let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.env =
+  Log.debug "Massive import, %a" Module.p mname;
+  let env, iface = build_interface env mname iface in
+
+  let open TypeCore in
+  let open Expressions in
+  (* We demand that [env] have the right module name. *)
+  let rec import_items env = function
+    | PermDeclaration (name, typ) :: items ->
+        (* XXX the location information is probably wildly inaccurate *)
+        let binding = User (module_name env, name), KTerm, location env in
+        let env, p = bind_rigid env binding in
+        (* [add] takes care of simplifying any function type. *)
+        let env = Permissions.add env p typ in
+        let items = tsubst_toplevel_items (TyOpen p) 0 items in
+        let items = esubst_toplevel_items (EOpen p) 0 items in
+        import_items env items
+
+    | DataTypeGroup group :: items ->
+        let env, items, _ = DataTypeGroup.bind_data_type_group env group items in
+        import_items env items
+
+    | ValueDeclarations _ :: _ ->
+        assert false
+
+    | [] ->
+        env
+  in
+
+  import_items env iface
 ;;
 
 (* Check that [env] respect the [signature] which is that of module [mname]. We
@@ -51,7 +85,7 @@ let check
 : T.env =
   (* Find one specific name among these names. *)
   let point_by_name name =
-    match Hml_List.find_opt (fun (name', _, p') ->
+    match MzList.find_opt (fun (name', _, p') ->
       if Variable.equal name name' then
         Some p'
       else
@@ -93,7 +127,7 @@ let check
          * has the same type as the one in the interface. *)
         let point = point_by_name x in
         let env =
-          match Permissions.sub env point t with
+          match Derivations.drop_derivation (Permissions.sub env point t) with
           | Some env ->
               env
           | None ->
@@ -132,6 +166,7 @@ let check
         (* Check that the translated definitions from the interface in the known
          * definitions from the implementations are consistent. *)
         List.iter2 (fun (name, k, point) (name', _loc, def, fact, kind) ->
+          (* Variables marked with ' belong to the implementation. *)
           let open TypeErrors in
 
           Log.check (Variable.equal name name') "Names not in order?!";
@@ -154,6 +189,9 @@ let check
           let def, variance = def in
           let def', variance' = def' in
 
+          if not (List.for_all2 Variance.leq variance' variance) then
+            error_out "variance";
+
           match def, def' with
           | None, None ->
               (* When re-matching a module against the interfaces it opened,
@@ -163,7 +201,7 @@ let check
                * [TransSurface] authorizes declaring a type as abstract
                * in an implementation: we just re-check the fact, since the
                * kinds have been checked earlier already. *)
-              if not (Types.fact_leq fact' fact) then
+              if not (Fact.leq fact' fact) then
                 error_out "facts";
 
           | None, Some _ ->
@@ -174,47 +212,27 @@ let check
                * interface, i.e. [fact], is correct because the fact for an
                * abstract is purely syntactical and does not depend on having
                * run [FactInference.analyze_types] properly. *)
-              if not (Types.fact_leq fact' fact) then
+              if not (Fact.leq fact' fact) then
                 error_out "facts";
-
-              (* We are *not* checking variance, because we don't have a syntax
-               * for it. When we do, we'll have to make sure we implement
-               * something along the lines of [variance_leq] and check:
-                 * [List.for_all2 variance_leq variance' variance]. *)
-              if false && variance <> variance' then
-                error_out "variance";
-
-              (* This does not check that we won't use one of the data
-               * constructors for the type afterwards. This is not implemented
-               * yet and should be part of [KindCheck]. *)
 
           | Some _, None ->
               error_out "type abstract in implem but not in sig";
 
-          | Some (flag, branches, clause), Some (flag', branches', clause') ->
-              (* We're not checking facts: if the flag and the branches are
+          | Some branches, Some branches' ->
+              (* We're not checking facts: if the branches are
                * equal, then it results that the facts are equal. Moreover, we
                * haven't run [FactInference.analyze_types] on the *signature* so
                * the information in [fact] is just meaningless. *)
 
-              (* We're not checking the variance either: same remark. *)
+              List.iter2 (fun branch branch' ->
 
-              if flag <> flag' then
-                error_out "flags";
+		if not (DataTypeFlavor.equal branch.T.branch_flavor branch'.T.branch_flavor) then
+                  error_out "flavors";
 
-              begin match clause, clause' with
-              | Some clause, Some clause' ->
-                  if not (T.equal env clause clause') then
-                    error_out "clauses";
-              | None, None ->
-                  ()
-              | Some _, None
-              | None, Some _ ->
-                  error_out "clause in only one of sig, implem";
-              end;
+                if not (T.equal env branch.T.branch_adopts branch'.T.branch_adopts) then
+                  error_out "clauses";
 
-              List.iter2 (fun (datacon, fields) (datacon', fields') ->
-                if not (Datacon.equal datacon datacon') then
+                if not (Datacon.equal branch.T.branch_datacon branch'.T.branch_datacon) then
                   error_out "datacons";
                 List.iter2 (fun field field' ->
                   match field, field' with
@@ -228,7 +246,7 @@ let check
                         error_out "permission field";
                   | _ ->
                       error_out "field nature";
-                ) fields fields';
+                ) branch.T.branch_fields branch'.T.branch_fields;
               ) branches branches';
 
         ) bindings translated_definitions;

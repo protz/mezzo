@@ -22,7 +22,6 @@
 
 open TypeCore
 
-
 (* -------------------------------------------------------------------------- *)
 
 (** {1 Convenient combinators.} *)
@@ -53,6 +52,9 @@ val ( ||| ) : 'a option -> 'a option -> 'a option
 (** The standard implication connector, with the right associativity. *)
 val ( ^=> ) : bool -> bool -> bool
 
+(** The pipe operator. *)
+val ( |> ) : 'a -> ('a -> 'b) -> 'b
+
 
 (* -------------------------------------------------------------------------- *)
 
@@ -63,6 +65,7 @@ val ( ^=> ) : bool -> bool -> bool
 val ty_unit : typ
 val ty_tuple : typ list -> typ
 val ty_bottom : typ
+val is_non_bottom: typ -> typ option
 val ( @-> ) : typ -> typ -> typ
 val ty_bar : typ -> typ -> typ
 val ty_app : typ -> typ list -> typ
@@ -81,25 +84,27 @@ val bind_flexible_in_type :
 val bind_datacon_parameters :
   env ->
   kind ->
-  data_type_def_branch list ->
-  adopts_clause ->
-  env * var list * data_type_def_branch list *
-  adopts_clause
+  unresolved_branch list ->
+  env * var list * unresolved_branch list
 
 (** {2 Instantiation} *)
 
-val instantiate_adopts_clause :
-  typ option -> typ list -> typ
+val instantiate_type:
+  typ -> typ list -> typ
 val instantiate_branch:
-  'a * data_field_def list ->
+  unresolved_branch ->
   typ list ->
-  'a * data_field_def list
+  unresolved_branch
 val find_and_instantiate_branch :
   env ->
   var ->
   Datacon.name ->
   typ list ->
-  (typ * Datacon.name) * data_field_def list * typ
+  resolved_branch
+val resolve_branch:
+  var ->
+  unresolved_branch ->
+  resolved_branch
 
 
 (** {2 Folding and unfolding} *)
@@ -127,17 +132,18 @@ val expand_if_one_branch : env -> typ -> typ
 val get_name : env -> var -> name
 val get_location : env -> var -> location
 val get_adopts_clause :
-  env -> var -> adopts_clause
+  env -> var -> typ
 val get_branches :
-  env -> var -> data_type_def_branch list
+  env -> var -> unresolved_branch list
 val get_arity : env -> var -> int
 val get_kind_for_type : env -> typ -> kind
 val get_variance : env -> var -> variance list
 val def_for_datacon :
   env ->
   resolved_datacon ->
-  SurfaceSyntax.data_type_flag * data_type_def *
-  adopts_clause
+  data_type_def
+val def_for_branch: env -> resolved_branch -> data_type_def
+val flavor_for_branch: env -> resolved_branch -> DataTypeFlavor.flavor
 
 (** Get the variance of the i-th parameter of a data type. *)
 val variance : env -> var -> int -> variance
@@ -145,16 +151,9 @@ val variance : env -> var -> int -> variance
 (** {2 Inspecting} *)
 val is_tyapp : typ -> (var * typ list) option
 val is_term : env -> var -> bool
+val is_perm : env -> var -> bool
 val is_type : env -> var -> bool
 val is_user : name -> bool
-
-
-(* -------------------------------------------------------------------------- *)
-
-(** {1 Dealing with facts} *)
-
-val fact_leq : fact -> fact -> bool
-val fact_of_flag : SurfaceSyntax.data_type_flag -> fact
 
 
 (* -------------------------------------------------------------------------- *)
@@ -167,21 +166,22 @@ val find_type_by_name :
 val make_datacon_letters :
   env ->
   SurfaceSyntax.kind ->
-  bool -> (int -> fact) -> env * var list
+  bool ->
+  env * var list
 
 (** Our not-so-pretty printer for types. *)
 module TypePrinter :
   sig
-    val pdoc : Buffer.t -> ('env -> Hml_Pprint.document) * 'env -> unit
-    val print_var : env -> name -> Hml_Pprint.document
+    val pdoc : Buffer.t -> ('env -> MzPprint.document) * 'env -> unit
+    val print_var : env -> name -> MzPprint.document
     val pvar : Buffer.t -> env * name -> unit
-    val print_datacon : Datacon.name -> Hml_Pprint.document
-    val print_field_name : Field.name -> Hml_Pprint.document
-    val print_field : SurfaceSyntax.field -> Hml_Pprint.document
-    val print_kind : SurfaceSyntax.kind -> Hml_Pprint.document
+    val print_datacon : Datacon.name -> MzPprint.document
+    val print_field_name : Field.name -> MzPprint.document
+    val print_field : SurfaceSyntax.field -> MzPprint.document
+    val print_kind : SurfaceSyntax.kind -> MzPprint.document
     val p_kind : Buffer.t -> SurfaceSyntax.kind -> unit
     val print_names :
-      env -> name list -> Hml_Pprint.document
+      env -> name list -> MzPprint.document
     val pnames : Buffer.t -> env * name list -> unit
     val pname : Buffer.t -> env * var -> unit
     val print_exports : env * Module.name -> PPrintEngine.document
@@ -189,31 +189,28 @@ module TypePrinter :
     val print_quantified :
       env ->
       string ->
-      name -> kind -> typ -> Hml_Pprint.document
-    val print_point : env -> var -> Hml_Pprint.document
-    val print_type : env -> typ -> Hml_Pprint.document
-    val print_constraints :
+      name -> kind -> typ -> MzPprint.document
+    val print_point : env -> var -> MzPprint.document
+    val print_type : env -> typ -> MzPprint.document
+    val print_constraint :
       env ->
-      duplicity_constraint list -> Hml_Pprint.document
+      mode_constraint -> MzPprint.document
     val print_data_field_def :
-      env -> data_field_def -> Hml_Pprint.document
-    val print_data_type_def_branch :
+      env -> data_field_def -> MzPprint.document
+    val print_unresolved_branch :
       env ->
-      Datacon.name ->
-      data_field_def list -> typ -> Hml_Pprint.document
-    val print_data_type_flag :
-      SurfaceSyntax.data_type_flag -> Hml_Pprint.document
-    val print_fact : fact -> Hml_Pprint.document
-    val pfact : Buffer.t -> fact -> unit
-    val print_facts : env -> Hml_Pprint.document
+      TypeCore.unresolved_branch ->
+      MzPprint.document
+    val pfact : Buffer.t -> Fact.fact -> unit
+    val print_facts : env -> MzPprint.document
     val print_permission_list :
-      env * typ list -> Hml_Pprint.document
+      env * typ list -> MzPprint.document
     val ppermission_list : Buffer.t -> env * var -> unit
-    val print_permissions : env -> Hml_Pprint.document
+    val print_permissions : env -> MzPprint.document
     val ppermissions : Buffer.t -> env -> unit
     val ptype : Buffer.t -> env * typ -> unit
     val penv : Buffer.t -> env -> unit
-    val pconstraints :
-      Buffer.t -> env * duplicity_constraint list -> unit
-    val print_binders : env -> Hml_Pprint.document
+    val pconstraint :
+      Buffer.t -> env * mode_constraint -> unit
+    val print_binders : env -> MzPprint.document
   end

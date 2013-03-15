@@ -1,0 +1,44 @@
+(* -------------------------------------------------------------------------- *)
+
+(* The algebraic data type of mutable lists. *)
+
+mutable data mlist a =
+  | MNil
+  | MCons { head: a; tail: mlist a }
+
+(* -------------------------------------------------------------------------- *)
+
+(* Length. *)
+
+val length: [a] mlist a -> int
+
+(* -------------------------------------------------------------------------- *)
+
+(* In-place reversal. *)
+
+val rev_append: [a] (consumes mlist a, consumes mlist a) -> mlist a
+val rev: [a] (consumes mlist a) -> mlist a
+
+(* -------------------------------------------------------------------------- *)
+
+(* Indexing. *)
+
+val splitAt: [a] (int, consumes mlist a) -> (mlist a, mlist a)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Merging and sorting. *)
+
+val merge: [a] (
+  cmp: (a, a) -> int,
+  consumes mlist a,
+  consumes mlist a
+) -> mlist a
+
+val sort: [a] (
+  cmp: (a, a) -> int,
+  consumes mlist a
+) -> mlist a
+
+(* -------------------------------------------------------------------------- *)
+

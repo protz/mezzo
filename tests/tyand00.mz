@@ -1,0 +1,13 @@
+val f [a] (id: a -> a) : () =
+  fail
+
+val g [a] (id: duplicable a => (duplicable a | a -> a)) : () =
+  f id
+
+(* this should fail because the actual argument passed to [f]
+   does not have the desired type *)
+
+(* this test is now rejected because implication is
+   permitted only on top of a function type. I am
+   keeping it around anyway, just in case. *)
+

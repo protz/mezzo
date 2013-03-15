@@ -20,6 +20,9 @@
 (** This module provides permission manipulation functions. *)
 
 open TypeCore
+open Derivations
+
+type result = env option * derivation
 
 (** [unify env p1 p2] merges two vars, and takes care of dealing with how the
     permissions should be merged. *)
@@ -35,16 +38,16 @@ val add_perm: env -> typ -> env
 
 (** [sub env var t] tries to extract [t] from the available permissions for
     [var] and returns, if successful, the resulting environment. *)
-val sub: env -> var -> typ -> env option
+val sub: env -> var -> typ -> result
 
 (** [sub_type env t1 t2] tries to perform [t1 - t2]. It is up to
  * the caller to "do the right thing" by not discarding [t1] if it was not
  * duplicable. Unifications may be performed, hence the return environment. *)
-val sub_type: env -> typ -> typ -> env option
+val sub_type: env -> typ -> typ -> result
 
 val add_hint: (name option) -> string -> (name option)
 
-val sub_constraints: env -> duplicity_constraint list -> env option
+val sub_constraint: env -> mode_constraint -> result
 
 (** Only keep the duplicable portions of the environment. *)
 val keep_only_duplicable: env -> env

@@ -1,0 +1,5 @@
+abstract list +a
+
+val test (consumes (arg: ({x: term} list (=x)))):
+                 (| arg @ list ({y: term} =y)) =
+  ()

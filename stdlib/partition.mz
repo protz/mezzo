@@ -1,0 +1,107 @@
+(* An item contains a pointer to its block, plus further (client) information. *)
+
+(* By convention, the [block] field points to the item itself when the item is
+   detached (i.e., not part of a block). We could also use an option (that
+   would be safer, but more expensive) or define two distinct tags for items
+   (also safer, but less convenient). *)
+
+(* An item serves as an extension of the [cell] ... TEMPORARY *)
+
+mutable data item a =
+  Item {
+    block: dynamic (* self or block *);
+    payload: a
+  }
+
+mutable data block =
+  | Block { cardinal: int; cell: option dynamic (* cell *) }
+
+mutable data region a =
+  Region { cells: doublylinked::region (item a) }
+  adopts block
+
+val new_region [a] () : region a =
+  Region { cells = doublylinked::new() }
+
+val new_block [a] (r: region a) : dynamic (* block *) =
+  let b = Block { cardinal = 0; cell = None } in
+  give b to r;
+  b
+
+val new_item [a] (r: region a, consumes x: a) : dynamic (* cell *) =
+  let i = Item { block = (); payload = x } in
+  i.block <- i;
+  doublylinked::create [item a] (r.cells, i)
+    (* WISH I don't understand why this type application is required *)
+
+val attach [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : () =
+  (* Update the cell [c], which is now a member of [b]. *)
+  doublylinked::consult [item a] (r.cells, c, fun (i : item a) : () =
+    (* WISH I don't understand why this type application is required *)
+    (* Check that this item was detached. *)
+    if (i.block != i) then
+      fail;
+    i.block <- b
+  );
+  (* Update the block. *)
+  taking b from r begin
+    b.cardinal <- b.cardinal + 1;
+    match b.cell with
+    | None ->
+        b.cell <- some c
+	(* The cell [c] was isolated, and there is no pre-existing cycle.
+	   No insertion is required. *)
+    | Some ->
+        (* Insert the cell [c] into the cycle of the elements of [b]. *)
+        doublylinked::meld [item a] (r.cells, c, b.cell.contents)
+          (* WISH I don't understand why this type application is required *)
+    end
+  end
+
+val detach [a] (r: region a, c: dynamic (* cell *)) : () =
+  (* Update the cell [c], which is no longer a member of [b]. *)
+  let b : dynamic =
+    doublylinked::consult [a = item a] (r.cells, c, fun (i : item a) : dynamic =
+      if (i.block == i) then
+	fail;
+      let b = i.block in
+      i.block <- i;
+      b
+    )
+  in
+  (* Update the block. *)
+  taking b from r begin
+    b.cardinal <- b.cardinal - 1;
+    if b.cardinal = 0 then
+      b.cell <- none [dynamic] (* WISH get rid of this type application? *)
+    else if b.cell == c then
+      (* If the representative element of [b] is [c], find another. *)
+      b.cell <- some (doublylinked::next [item a] (r.cells, c));
+    (* Take the cell [c] out of the cycle of the elements of [b]. *)
+    doublylinked::isolate [item a] (r.cells, c)
+  end
+
+val move [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : () =
+  detach (r, c);
+  attach (r, b, c)
+
+val block [a] (r: region a, c: dynamic (* cell *)) : dynamic (* block *) =
+  doublylinked::consult [item a] (r.cells, c, fun (i : item a) : dynamic =
+    if (i.block == i) then
+      fail;
+    i.block
+  )
+
+val cardinal [a] (r: region a, b: dynamic (* block *)) : int =
+  taking b from r begin b.cardinal end
+
+val choose [a] (r: region a, b: dynamic (* block *)) : option dynamic (* cell *) =
+  taking b from r begin b.cell end
+
+(* TEMPORARY add iteration functions, etc. *)
+
+(*
+Local Variables:
+compile-command: "../mezzo partition.mz"
+End:
+*)

@@ -1,0 +1,18 @@
+(* The type [duplicability a] can be thought of as the type of a Boolean
+   value, which, when true, means that the type [a] is duplicable. *)
+
+data duplicability a =
+  | NonDuplicable
+  | Duplicable { content: (duplicable a | ()) }
+
+(* Thus, if [d] has type [duplicability a], one can write [if d then ...
+   else ...] and in the first branch, one can assume that the type [a] is
+   duplicable. *)
+
+(* Whenever [a] is a duplicable type, [dup] has type [duplicability a],
+   so it serves as a witness of the fact that [a] is duplicable. It is
+   just an abbreviation for [Duplicable ...]. *)
+
+(* TEMPORARY this type is no longer supported!
+val dup: [a] duplicable a => duplicability a
+*)

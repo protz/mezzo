@@ -103,8 +103,10 @@ type kind =
   | KPerm
   | KArrow of kind * kind
 
+type variance = Invariant | Covariant | Contravariant | Bivariant
+
 (* A small helper function that transforms
- * [κ₁ → ... → κₙ → κ₀] into [[κ₁; ...; κₙ], κ₀] *)
+ * [κ₁ → ... → κₙ → κ₀] into [κ₀, [κ₁; ...; κₙ]] *)
 let flatten_kind kind =
   let rec flatten_kind acc = function
     | KArrow (k1, k2) ->
@@ -116,6 +118,10 @@ let flatten_kind kind =
   k, List.rev acc
 ;;
 
+let get_arity_for_kind kind =
+  let _, tl = flatten_kind kind in
+  List.length tl
+;;
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -131,6 +137,8 @@ type binding_flavor = CanInstantiate | CannotInstantiate
 
 type type_binding =
     Variable.name * kind * (Lexing.position * Lexing.position)
+
+type type_binding_with_variance = variance * type_binding
 
 type typ =
   | TyLocated of typ * location
@@ -151,10 +159,10 @@ type typ =
   | TyNameIntro of Variable.name * typ
   | TyConsumes of typ
   | TyBar of typ * typ
-  | TyAnd of duplicity_constraint list * typ
-  | TyImply of duplicity_constraint list * typ
+  | TyAnd of mode_constraint * typ
+  | TyImply of mode_constraint * typ
 
-and duplicity_constraint = data_type_flag * typ
+and mode_constraint = Mode.mode * typ
 
 and data_type_def_branch =
     Datacon.name * data_field_def list
@@ -162,8 +170,6 @@ and data_type_def_branch =
 and data_field_def =
   | FieldValue of Field.name * typ
   | FieldPermission of typ
-
-and data_type_flag = Exclusive | Duplicable
 
 let ty_equals (v: Variable.name) =
   TySingleton (TyBound v)
@@ -189,7 +195,7 @@ let rec flatten_star p =
 
 let fold_star perms =
   if List.length perms > 0 then
-    Hml_List.reduce (fun acc x -> TyStar (acc, x)) perms
+    MzList.reduce (fun acc x -> TyStar (acc, x)) perms
   else
     TyEmpty
 ;;
@@ -201,19 +207,12 @@ let rec tunloc = function
       t
 ;;
 
-let tloc = function
-  | TyLocated (_, p) ->
-      p
-  | _ ->
-      Log.error "[tloc] only works when you know for sure the type is located"
-;;
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Algebraic data type definitions. *)
 
 type data_type_def_lhs =
-    Variable.name * type_binding list
+    Variable.name * type_binding_with_variance list
 
 type data_type_def_rhs =
     data_type_def_branch list
@@ -221,14 +220,16 @@ type data_type_def_rhs =
 type adopts_clause =
     typ option
 
-type abstract_fact = 
-  | FExclusive of typ
-  | FDuplicableIf of typ list * typ
+type single_fact = 
+  | Fact of mode_constraint list * mode_constraint
+
+type fact =
+    single_fact list
 
 type data_type_def =
-  | Concrete of data_type_flag * data_type_def_lhs * data_type_def_rhs *
+  | Concrete of DataTypeFlavor.flavor * data_type_def_lhs * data_type_def_rhs *
       adopts_clause
-  | Abstract of data_type_def_lhs * kind * abstract_fact option
+  | Abstract of data_type_def_lhs * kind * fact
 
 (* A data type group is a group of mutually recursive data type definitions. *)
 

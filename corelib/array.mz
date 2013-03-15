@@ -148,7 +148,7 @@ val total_blit [a] duplicable a => (r1: array a, r2: array a, ofs2: int) : () =
   blit (r1, 0, r2, ofs2, length r1)
 
 val steal : [a] (consumes r1: array a, r2: array a, ofs2: int) -> (| r1 @ array unknown) =
-  magic::magic blit
+  magic::magic total_blit
 
 (* [steal] is a variant of [blit]. One could also define variants of [sub],
    [copy], [append], based on the same principle. *)
@@ -162,11 +162,8 @@ val steal : [a] (consumes r1: array a, r2: array a, ofs2: int) -> (| r1 @ array 
 val surjective_blit [a] duplicable a => (r1: array a, ofs1: int, r2: array a) : () =
   blit (r1, ofs1, r2, 0, length r2)
 
-val overwrite : [a, b] duplicable a => (r1: array a, ofs1: int, consumes r2: array b) -> (| r2 @ array a) =
+val overwrite : [a] duplicable a => (r1: array a, ofs1: int, consumes r2: array unknown) -> (| r2 @ array a) =
   magic::magic surjective_blit
-
-(* If [array] was known to be covariant, then we could require [array unknown]
-   instead of [array b]. *)
 
 (* ------------------------------------------------------------------------ *)
 

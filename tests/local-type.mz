@@ -1,0 +1,8 @@
+val f (): {t} t =
+  fail
+
+val v =
+  if true then
+    f ()
+  else
+    f ()

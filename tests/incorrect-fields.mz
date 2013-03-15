@@ -1,0 +1,8 @@
+open list
+val f: (Cons { un: int; deux: int; trois: int }) -> int =
+  builtin f
+val x : int =
+  f (Cons { head = 2; tail = Nil })
+(* the type-checker pretends that this is ill-typed; it should
+   instead complain about an ill-formed type in the definition
+   of f *)

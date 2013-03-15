@@ -63,16 +63,6 @@ val last: 'a list -> 'a
 (** Map a function and then discard the result. *)
 val ignore_map : ('a -> 'b) -> 'a list -> unit
 
-(** [append_rev_front l1 l2] is tail-rec and returns [(List.rev l1) :: l2]. *)
-val append_rev_front : 'a list -> 'a list -> 'a list
-
-(** Remove duplicates from a list. You can provide a hash function as well as a
-    custom equality function. The constraint is that two equal elements must
-    have the same hash. Use [Hashtbl.hash_func] if needed. *)
-val remove_duplicates :
-  ?hash_func:('a -> int) ->
-  ?equal_func:('a -> 'a -> bool) -> 'a list -> 'a list
-
 (** Checking for duplicates in a list. [check_for_duplicates compare xs] returns either
     [Some (x1, x2)] where [x1] and [x2] are distinct elements of the list [xs] such
     that [compare x1 x2] is zero, or [None], if no such two elements exist. *)
@@ -90,8 +80,8 @@ val nth_opt: 'a list -> int -> 'a option
 (** Map and discard some elements at the same time. *)
 val map_some: ('a -> 'b option) -> 'a list -> 'b list
 
-(** Find the index of an element in a list. Structural comparison by default. *)
-val index: ?equal_func:('a -> 'a -> bool) -> 'a -> 'a list -> int
+(** Find the index of the first element in a list that satisfies a predicate. *)
+val index: ('a -> bool) -> 'a list -> int
 
 (** If [f] may convert an 'a into a 'b, then [take f l] returns the first
    convertible element in the list, along with the remaining elements in the
@@ -104,3 +94,11 @@ val find_opt: ('a -> 'b option) -> 'a list -> 'b option
 val map_flatten: ('a -> 'b list) -> 'a list -> 'b list
 
 val cut: int -> 'a list -> 'a list
+
+(** Equality of lists, up to equality of elements. *)
+val equal: ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
+
+(** A CPS version of [List.map]. *)
+val cps_map:
+  ('a -> ('b -> 'c) -> 'c) ->
+  'a list -> ('b list -> 'c) -> 'c

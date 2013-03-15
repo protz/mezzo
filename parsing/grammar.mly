@@ -17,6 +17,9 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+(** The grammar of Mezzo. *)
+
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Syntactic categories of names. *)
@@ -55,7 +58,7 @@
 %token          TAKE FROM GIVE TO ADOPTS OWNS TAKING
 %token<int>     INT
 %token<string>  OPPREFIX OPINFIX0a OPINFIX0b OPINFIX0c OPINFIX0d OPINFIX1 OPINFIX2 OPINFIX3 OPINFIX4
-%token<string>  EQUAL STAR MINUS COLONEQUAL (* special cases of operators *)
+%token<string>  EQUAL STAR PLUS MINUS COLONEQUAL (* special cases of operators *)
 %token          EOF
 
 %nonassoc THEN
@@ -68,7 +71,7 @@
 %nonassoc OPINFIX0c EQUAL (* EQUAL is also a OPINFIX0c *)
 %left     OPINFIX0d
 %right    OPINFIX1
-%left     OPINFIX2 MINUS (* MINUS is also an OPINFIX2 *)
+%left     OPINFIX2 PLUS MINUS (* MINUS is also an OPINFIX2 *)
 %left     OPINFIX3 STAR  (* STAR is also an OPINFIX3 *)
 %right    OPINFIX4
 
@@ -111,6 +114,7 @@ open ParserUtils
   | o = EQUAL
   | o = STAR
   | o = MINUS
+  | o = PLUS
   | o = COLONEQUAL
       { o }
 
@@ -143,6 +147,17 @@ maybe_qualified(X):
     { Unqualified x }
 | m = module_name COLONCOLON x = X
     { Qualified (m, x) }
+
+(* TEMPORARY for variables in types, we use TyBound/TyQualified;
+   this should be made uniform *)
+
+maybe_qualified_type_variable:
+(* An unqualified variable. *)
+| x = variable
+    { TyBound x }
+(* A variable just like above, prefixed with a module name. *)
+| m = module_name COLONCOLON x = variable
+    { TyQualified (m, x) }
 
 %inline datacon_reference:
   d = maybe_qualified(datacon)
@@ -215,6 +230,18 @@ atomic_type_binding:
     { x, KType, ($startpos(x), $endpos) }
 | LPAREN b = type_binding RPAREN
     { b }
+
+variance:
+| PLUS
+    { Covariant }
+| MINUS
+    { Contravariant }
+|
+    { Invariant }
+
+atomic_type_binding_with_variance:
+| v = variance b = atomic_type_binding
+    { v, b }
 
 type_binding:
 | b = atomic_type_binding
@@ -303,11 +330,8 @@ raw_atomic_type:
 | EMPTY
     { TyEmpty }
 (* Term variable, type variable, permission variable, abstract type, or concrete type. *)
-| x = variable
-    { TyBound x }
-(* A variable just like above, prefixed with a module name. *)
-| m = module_name COLONCOLON x = variable
-    { TyQualified (m, x) }
+| x = maybe_qualified_type_variable
+    { x }
 (* A structural type explicitly mentions a data constructor. *)
 (* TEMPORARY add support for optional adopts clause in structural permissions *)
 | b = data_type_branch
@@ -321,8 +345,8 @@ raw_tight_type:
 | ty = raw_atomic_type
     { ty }
 (* A singleton type. *)
-| EQUAL x = variable
-    { TySingleton (TyBound x) }
+| EQUAL x = maybe_qualified_type_variable
+    { TySingleton x }
 (* A type application. *)
 | ty = type_type_application(tight_type, atomic_type)
     { ty }
@@ -343,9 +367,12 @@ raw_normal_type:
 (* An existential type. *)
 | bs = existential_quantifiers ty = normal_type
     { List.fold_right (fun b ty -> TyExists (b, ty)) bs ty }
-(* A type that carries a mode constraint. *)
-| c = mode_constraint ty = normal_type
-    { TyImply ([ c ], ty) }
+(* A type that carries a mode constraint (implication). *)
+| c = mode_constraint DBLARROW ty = normal_type
+    { TyImply (c, ty) }
+(* A type that carries a mode constraint (conjunction). *)
+| c = mode_constraint BAR ty = normal_type
+    { TyAnd (c, ty) }
 
 %inline loose_type:
 | ty = tlocated(raw_loose_type)
@@ -357,11 +384,11 @@ raw_loose_type:
 (* In an anchored permission [x@t], the name [x] is free. This
    represents an assertion that we have permission to use [x] at
    type [t]. *)
-| x = variable AT ty = normal_type
-    { TyAnchoredPermission (TyBound x, ty) }
+| x = maybe_qualified_type_variable AT ty = normal_type
+    { TyAnchoredPermission (x, ty) }
 (* [x = y] is also an anchored permission; it is sugar for [x@=y]. *)
-| x = variable EQUAL y = variable
-    { TyAnchoredPermission (TyBound x, TySingleton (TyBound y)) }
+| x = maybe_qualified_type_variable EQUAL y = maybe_qualified_type_variable
+    { TyAnchoredPermission (x, TySingleton y) }
 (* In a name introduction form [x:t], the name [x] is bound. The scope
    of [x] is defined by somewhat subtle rules that need not concern us
    here. These rules are spelled out later on when we desugar the surface-level
@@ -432,19 +459,17 @@ raw_fat_type:
    with commas, could perhaps be allowed, but I am afraid that this looks
    too much like a tuple. *)
 
+(* There is no syntax for the bottom mode or the top mode. *)
+
 mode:
 | EXCLUSIVE
-    { Exclusive }
+    { Mode.ModeExclusive }
 | DUPLICABLE
-    { Duplicable }
+    { Mode.ModeDuplicable }
 
 %inline mode_constraint:
-| m = mode t = atomic_type DBLARROW
+| m = mode t = atomic_type
     { m, t }
-
-mode_constraints:
-  cs = mode_constraint*
-    { cs }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -489,8 +514,8 @@ data_field_def:
    a definition of the field [f] at the singleton type [=y]. In this case,
    only one field name is allowed. This short-hand is useful in the syntax
    of structural permissions. *)
-| f = variable EQUAL y = variable
-    { [ FieldValue (f, TySingleton (TyBound y)) ] }
+| f = variable EQUAL y = maybe_qualified_type_variable
+    { [ FieldValue (f, TySingleton y) ] }
 (* Going one step further, we allow a field definition to consist of just
    a field name [f]. This is a pun: it means [f = f], or in other words,
    [f: =f]. *)
@@ -525,7 +550,7 @@ data_type_def_branch_content:
     { dfs }
 
 %inline data_type_def_lhs:
-  tbs = iterated_type_type_application(variable, atomic_type_binding)
+  tbs = iterated_type_type_application(variable, atomic_type_binding_with_variance)
     { tbs }
 
 %inline data_type_def_rhs:
@@ -536,11 +561,11 @@ data_type_def_branch_content:
   ADOPTS t = arbitrary_type
     { t }
 
-%inline data_type_flag:
+%inline data_type_flavor:
 | (* nothing *)
-    { Duplicable }
+    { DataTypeFlavor.Immutable }
 | MUTABLE
-    { Exclusive }
+    { DataTypeFlavor.Mutable }
 
 %inline optional_kind_annotation:
 | (* nothing *)
@@ -548,32 +573,22 @@ data_type_def_branch_content:
 | COLON k = kind
     { k }
 
-%inline fact_conditions:
-| (* nothing *)
-    { [] }
-| DUPLICABLE t = atomic_type DBLARROW
-    { [t] }
-(* TEMPORARY la syntaxe de fact_conditions/fact me semble trop restrictive?
-   et pourquoi n'est-elle pas partagée avec mode_constraint? *)
-
 fact:
-| FACT tup = fact_conditions DUPLICABLE t = atomic_type
-    { FDuplicableIf (tup, t) }
-| FACT EXCLUSIVE t = atomic_type
-    { FExclusive t }
+| FACT cs = separated_nonempty_list(DBLARROW, mode_constraint)
+    { match List.rev cs with goal :: hypotheses -> Fact (List.rev hypotheses, goal) | [] -> assert false }
 
 data_type_def:
-| flag = data_type_flag
+| flavor = data_type_flavor
   DATA lhs = data_type_def_lhs
   EQUAL
   rhs = data_type_def_rhs
   a = adopts_clause?
-    { Concrete (flag, lhs, rhs, a) }
+    { Concrete (flavor, lhs, rhs, a) }
 | ABSTRACT
   lhs = data_type_def_lhs
   k = optional_kind_annotation
-  f = fact?
-    { Abstract (lhs, k, f) }
+  fs = fact*
+    { Abstract (lhs, k, fs) }
 
 %inline data_type_group:
   def = data_type_def
@@ -952,15 +967,16 @@ definition:
 anonymous_function:
   (* Optional type parameters: [a] *)
   type_parameters = loption(type_parameters)
-  (* Optional constraint: duplicable a => *)
-  constraints = mode_constraints
+  (* Optional constraint(s): duplicable a => *)
+  cs = terminated(mode_constraint, DBLARROW)*
   (* Formal arguments: (x: a) *)
   formal = parenthetic_type
   (* Result type: : (a, a) *)
   COLON result = normal_type
   (* Function body: = (x, x) *)
   EQUAL body = expression
-    { EFun (type_parameters, TyAnd (constraints, formal), result, body) }
+    { let formal = List.fold_right (fun c ty -> TyAnd (c, ty)) cs formal in
+      EFun (type_parameters, formal, result, body) }
 
 (* ---------------------------------------------------------------------------- *)
 

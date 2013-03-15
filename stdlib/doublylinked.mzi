@@ -1,0 +1,84 @@
+(* TEMPORARY expose the type of cells not as [dynamic], but as an
+   abstract [point], or [point r]. *)
+
+(* A cell contains a payload of type [a]. *)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* A region contains many cells, organized in disjoint, non-empty cycles. *)
+
+abstract region +a
+fact exclusive (region a)
+
+(* [new()] creates a new region. *)
+
+val new: [a] () -> region a
+
+(* [create (r, x)] creates a new cell and places it in the region [r].
+   The cell is isolated: that is, it forms a one-element cycle. *)
+
+val create: [a] (r: region a, consumes x: a) -> dynamic
+
+(* [consult (r, c, f)] applies the function [f] to the payload carried
+   by the cell [c]. *)
+
+val consult: [a, b, pre : perm] (
+  r: region a,
+  c: dynamic,
+  f: (a | consumes pre) -> b
+| consumes pre
+) -> b
+
+(* [destroy (r, c)] destroys the cell [c]. The cell must be isolated:
+   that is, it must form a one-element cycle. *)
+
+val destroy: [a] (r: region a, c: dynamic) -> a
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Transforming cycles. *)
+
+(* [meld (r, w, y)] requires [w] and [y] to be part of two distinct cycles,
+   and melds these cycles. *)
+
+val meld: [a] (region a, dynamic, dynamic) -> ()
+
+(* [isolate (r, y)] ensures that [y] is isolated. If [y] is part of a cycle
+   of length greater than one, then [y] is taken out of this cycle, and is
+   made to form a cycle of length one. *)
+
+val isolate: [a] (region a, dynamic) -> ()
+
+(* [is_isolated (r, y)] tells whether [y] is isolated. *)
+
+val is_isolated: [a] (region a, dynamic) -> bool
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Walking. *)
+
+(* [next (r, x)] returns the element that follows [x] along its cycle.
+   [prev (r, x)] returns the element that precedes [x] along its cycle. *)
+
+val next: [a] (region a, dynamic) -> dynamic
+val prev: [a] (region a, dynamic) -> dynamic
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Iteration. *)
+
+(* [iter (r, x, f)] presents the elements of the cycle represented by [x] to
+   the function [f]. The function does not have access to [r], so it cannot
+   modify the region. (We could expose [iter] at a type that does provide
+   access to the region, but that would be somewhat dangerous.) *)
+
+val iter: [p : perm, a] (
+  r: region a,
+  x: dynamic,
+  f: (dynamic | p) -> ()
+| p) -> ()
+
+(* [elements (r, x)] returns the elements of the cycle represented by [x]. *)
+
+val elements: [a] (region a, dynamic) -> list::list dynamic
+

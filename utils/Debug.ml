@@ -33,7 +33,7 @@ module Graph = struct
 
   let draw_point buf env point permissions =
     let id = id_of_point env point in
-    let names = Hml_List.map_some
+    let names = MzList.map_some
       (function User (_, v) -> Some (Variable.print v) | Auto _ -> None)
       (get_names env point)
     in
@@ -59,7 +59,7 @@ module Graph = struct
     (* Get the various blocks and edges that we should draw. *)
     let line, edges =
       match t with
-      | TyConcreteUnfolded (datacon, fields, _) ->
+      | TyConcreteUnfolded { branch_datacon; branch_fields; _ } ->
           let blocks, edges = List.split (List.map (fun f ->
             let name, t =
               match f with
@@ -69,14 +69,14 @@ module Graph = struct
                   Log.error "Need [collect]"
             in
             gen env name t
-          ) fields) in
+          ) branch_fields) in
           let blocks =
             if List.length blocks > 0 then
               "|" ^ String.concat "|" blocks
             else
               ""
           in
-          Datacon.print (snd datacon) ^ blocks, edges
+          Datacon.print (snd branch_datacon) ^ blocks, edges
 
       | TyTuple ts ->
           let blocks, edges = List.split (List.mapi (fun i t ->
@@ -93,7 +93,7 @@ module Graph = struct
 
       | _ ->
           (* Dump the type as a string. *)
-          let s = Hml_String.bsprintf "%a" ptype (env, t) in
+          let s = MzString.bsprintf "%a" ptype (env, t) in
           (* Collapse whitespace. *)
           let regexp = Str.regexp " +" in
           let s = Str.global_replace regexp " " s in
@@ -176,7 +176,7 @@ module Graph = struct
 
   let graph env =
     let ic, oc = Unix.open_process "dot -Tx11" in
-    Hml_String.bfprintf oc "%a" write_graph env;
+    MzString.bfprintf oc "%a" write_graph env;
     close_out oc;
     close_in ic;
   ;;
@@ -212,9 +212,9 @@ module Html = struct
         | Auto v -> `List [`String "auto"; `String (Variable.print v)]
       ) names) in
       let locations = `List (List.map json_of_loc locations) in
-      let kind = `String (Hml_String.bsprintf "%a" pdoc (print_kind, kind)) in
+      let kind = `String (MzString.bsprintf "%a" pdoc (print_kind, kind)) in
       let permissions = `List (List.map (fun perm ->
-        `String (Hml_String.bsprintf "%a" ptype (env, perm))
+        `String (MzString.bsprintf "%a" ptype (env, perm))
       ) permissions) in
       (string_of_int (Graph.id_of_point env var), `Assoc [
         ("names", names);
@@ -228,7 +228,7 @@ module Html = struct
   let render_svg env =
     (* Create the SVG. *)
     let ic, oc = Unix.open_process "dot -Tsvg" in
-    Hml_String.bfprintf oc "%a" Graph.write_graph env;
+    MzString.bfprintf oc "%a" Graph.write_graph env;
     close_out oc;
     let svg = Utils.read ic in
     close_in ic;
@@ -249,7 +249,7 @@ module Html = struct
 
     (* Output it to a file. *)
     let json_file =
-      let f = Hml_String.replace "/" "_" f in
+      let f = MzString.replace "/" "_" f in
       Printf.sprintf "viewer/data/%s.json" f
     in
     let oc = open_out json_file in
@@ -258,7 +258,7 @@ module Html = struct
   ;;
 
   let render env text =
-    Hml_Pprint.disable_colors ();
+    MzPprint.disable_colors ();
 
     let extra = [
       ("type", `String "single");
@@ -269,18 +269,18 @@ module Html = struct
 
     render_base env extra;
 
-    Hml_Pprint.enable_colors ();
+    MzPprint.enable_colors ();
   ;;
 
   let render_merge env sub_envs =
-    Hml_Pprint.disable_colors ();
+    MzPprint.disable_colors ();
 
     let render_env_point (env, point) =
       `Assoc [
         ("svg", `String (render_svg env));
         ("root", `Int (Graph.id_of_point env point));
         ("points", `Assoc (json_of_points env));
-        ("dot", `String (Hml_String.bsprintf "%a" Graph.write_graph env));
+        ("dot", `String (MzString.bsprintf "%a" Graph.write_graph env));
       ]
     in
 
@@ -293,7 +293,7 @@ module Html = struct
 
     render_base (fst env) extra;
 
-    Hml_Pprint.enable_colors ();
+    MzPprint.enable_colors ();
   ;;
 
 end
@@ -310,7 +310,7 @@ let explain ?(text="") ?x env =
     begin match x with
     | Some x ->
       (* Print the current position. *)
-      Hml_String.bprintf "Last checked expression: %a at %a\n"
+      MzString.bprintf "Last checked expression: %a at %a\n"
         pnames (env, get_names env x)
         Lexer.p (location env);
     | None ->
@@ -318,9 +318,9 @@ let explain ?(text="") ?x env =
     end;
 
     (* Print MOAR. *)
-    Hml_String.bprintf "\n";
-    Hml_String.bprintf "%a\n\n" ppermissions env;
-    Hml_String.bprintf "%s\n\n" (String.make twidth '-');
+    MzString.bprintf "\n";
+    MzString.bprintf "%a\n\n" ppermissions env;
+    MzString.bprintf "%s\n\n" (String.make twidth '-');
     flush stdout; flush stderr;
     Graph.graph env
   end

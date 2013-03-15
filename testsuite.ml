@@ -24,12 +24,16 @@ open Types
 open TestUtils
 open TypeErrors
 
+let drop_derivation =
+  Derivations.drop_derivation
+;;
+
 let check env point t =
   match Permissions.sub env point t with
-  | Some _ ->
+  | Some _, _ ->
       ()
-  | None ->
-      raise_error env (ExpectedType (t, point))
+  | None, d ->
+      raise_error env (ExpectedType (t, point, d))
 ;;
 
 let point_by_name env ?mname name =
@@ -94,6 +98,21 @@ let simple_test ?(pedantic=false) ?known_failure outcome = fun do_it ->
       | Fail _ ->
           raise_if (Failure "Test failed but not for the right reason")
       end
+
+  | Log.MzInternalFailure msg ->
+      raise_if (Failure msg)
+;;
+
+let pass =
+  simple_test Pass
+;;
+
+let fail =
+  simple_test (Fail (function _ -> true))
+;;
+
+let kfail =
+  simple_test (KFail (function _ -> true))
 ;;
 
 let dummy_loc =
@@ -114,15 +133,15 @@ let dummy_binding k =
 
 let tests: (string * ((unit -> env) -> unit)) list = [
   ("absdefs.mz",
-    simple_test Pass);
+    pass);
 
   (* Some very simple tests. *)
 
   ("basic.mz",
-    simple_test Pass);
+    pass);
 
   ("constructors.mz",
-    simple_test Pass);
+    pass);
 
   ("dcscope2.mz",
     simple_test (KFail (function K.UnboundDataConstructor _ -> true | _ -> false)));
@@ -137,13 +156,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test (Fail (function ExtraField _ -> true | _ -> false)));
 
   ("field_access.mz",
-    simple_test Pass);
+    pass);
 
   ("field_access_bad.mz",
     simple_test (Fail (function NoSuchField _ -> true | _ -> false)));
 
   ("field_assignment.mz",
-    simple_test Pass);
+    pass);
 
   ("field_assignment_bad.mz",
     simple_test (Fail (function NoSuchField _ -> true | _ -> false)));
@@ -157,48 +176,48 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     check env bar int);
 
   ("atomic.mz",
-    simple_test Pass);
+    pass);
   ("double-release.mz",
-    simple_test (Fail (function _ -> true)));
+    fail);
   ("unwarranted-release.mz",
-    simple_test (Fail (function _ -> true)));
+    fail);
 
   ("value-restriction-violation.mz",
-    simple_test (Fail (function _ -> true)));
+    fail);
   ("comparison-bug.mz",
-    simple_test (Fail (function _ -> true)));
+    fail);
   ("commutations.mz",
-    simple_test Pass);
+    pass);
   ("forall-wref.mz",
-    simple_test (Fail (function _ -> true)));
+    fail);
   ("consumes-duplicable.mz",
-    simple_test Pass);
+    pass);
   ("consumes-forgotten.mz",
-    simple_test (Fail (function _ -> true)));
+    fail);
   ("permission-shift.mz",
-    simple_test (Fail (function _ -> true)));
+    fail);
   ("permission-shift-duplicable.mz",
-    simple_test Pass);
+    pass);
   ("identity.mz",
-    simple_test Pass);
+    pass);
   ("frame.mz",
-    simple_test Pass);
+    pass);
   ("frame-duplicable.mz",
-    simple_test Pass);
+    pass);
   ("singleton-swap.mz",
-    simple_test Pass);
+    pass);
   ("ref-covariant.mz",
-    simple_test Pass);
+    pass);
   ("deref.mz",
-    simple_test Pass);
+    pass);
   ("deref2.mz",
-    simple_test Pass);
+    pass);
   ("deref3.mz",
-    simple_test Pass);
+    pass);
   ("assign.mz",
-    simple_test Pass);
+    pass);
   ("desugaring00.mz",
-    simple_test Pass);
+    simple_test ~known_failure:() Pass);
 
   ("wrong_type_annotation.mz",
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
@@ -207,13 +226,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
 
   ("constraints_in_patterns2.mz",
-    simple_test Pass);
+    pass);
 
   ("constraints_in_patterns3.mz",
-    simple_test Pass);
+    pass);
 
   ("constraints_in_patterns4.mz",
-    simple_test Pass);
+    pass);
 
   ("function.mz", fun do_it ->
     let env = do_it () in
@@ -227,11 +246,11 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("value_restriction.mz",
     simple_test (Fail (function NoSuchField _ -> true | _ -> false)));
   ("value_restriction2.mz",
-    simple_test Pass);
+    pass);
   ("value_restriction3.mz",
-    simple_test Pass);
+    pass);
   ("value_restriction4.mz",
-    simple_test (Fail (function _ -> true)));
+    fail);
 
   ("variance.mz", fun do_it ->
     let env = do_it () in
@@ -254,38 +273,38 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   );
 
   ("stupid-swap.mz",
-    simple_test Pass
+    pass
   );
 
   ("multiple_fields_and_permissions.mz",
-    simple_test Pass
+    pass
   );
 
-  ("anonargs.mz", simple_test Pass);
+  ("anonargs.mz", pass);
 
-  ("pattern1.mz", simple_test Pass);
+  ("pattern1.mz", pass);
 
-  ("pattern2.mz", simple_test Pass);
+  ("pattern2.mz", pass);
 
-  ("pattern3.mz", simple_test Pass);
+  ("pattern3.mz", pass);
 
-  ("pattern4.mz", simple_test Pass);
+  ("pattern4.mz", pass);
 
-  ("loose_variable.mz", simple_test Pass);
+  ("loose_variable.mz", pass);
 
-  ("double-open.mz", simple_test Pass);
+  ("double-open.mz", pass);
 
-  ("double-open2.mz", simple_test Pass);
+  ("double-open2.mz", pass);
 
-  ("multiple_data_type_groups.mz", simple_test Pass);
+  ("multiple_data_type_groups.mz", pass);
 
-  ("hole.mz", simple_test Pass);
+  ("hole.mz", pass);
 
-  ("curry1.mz", simple_test Pass);
+  ("curry1.mz", pass);
 
-  ("impredicative.mz", simple_test Pass);
+  ("impredicative.mz", pass);
 
-  ("impredicative2.mz", simple_test Pass);
+  ("impredicative2.mz", pass);
 
   ("impredicative3.mz", simple_test (Fail (function
     | ExpectedType _ -> true
@@ -297,16 +316,16 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     | _ -> false
   )));
 
-  ("impredicative5.mz", simple_test Pass);
+  ("impredicative5.mz", pass);
 
-  ("twostructural.mz", simple_test Pass);
+  ("twostructural.mz", pass);
 
   (* The merge operation and all its variations. *)
 
   ("merge1.mz", fun do_it ->
     let env = do_it () in
     let v1 = point_by_name env "v1" in
-    check env v1 (TyConcreteUnfolded (dc env "t" "T", [], ty_bottom)));
+    check env v1 (concrete (dc env "t" "T") []));
 
   ("merge2.mz", fun do_it ->
     let env = do_it () in
@@ -316,12 +335,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
         ty_equals v2,
         TyStar (
           TyAnchoredPermission (TyOpen v2,
-            TyConcreteUnfolded (dc env "u" "U",
+	    concrete
+              (dc env "u" "U")
               [FieldValue (Field.register "left", TySingleton (TyBound 0));
-               FieldValue (Field.register "right", TySingleton (TyBound 0))], ty_bottom)),
+               FieldValue (Field.register "right", TySingleton (TyBound 0))]),
           TyAnchoredPermission (
             TyBound 0,
-            TyConcreteUnfolded (dc env "t" "T", [], ty_bottom)
+	    concrete (dc env "t" "T") []
           )
         )
       ))
@@ -337,17 +357,17 @@ let tests: (string * ((unit -> env) -> unit)) list = [
           ty_equals v3,
           fold_star [
             TyAnchoredPermission (TyOpen v3,
-              TyConcreteUnfolded (dc env "u" "U",
+              concrete (dc env "u" "U")
                 [FieldValue (Field.register "left", TySingleton (TyBound 0));
-                 FieldValue (Field.register "right", TySingleton (TyBound 1))],
-                 ty_bottom));
+                 FieldValue (Field.register "right", TySingleton (TyBound 1))]
+            );
             TyAnchoredPermission (
               TyBound 0,
-              TyConcreteUnfolded (dc env "t" "T", [], ty_bottom)
+              concrete (dc env "t" "T") []
             );
             TyAnchoredPermission (
               TyBound 1,
-              TyConcreteUnfolded (dc env "t" "T", [], ty_bottom)
+              concrete (dc env "t" "T") []
             );
           ]
         )))
@@ -370,9 +390,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let t = TyApp (v, [int; int]) in
     check env v5 t);
 
-  ("merge6.mz", simple_test Pass);
+  ("merge6.mz", pass);
 
-  ("merge7.mz", simple_test Pass);
+  ("merge7.mz", pass);
 
   ("merge8.mz", fun do_it ->
     let env = do_it () in
@@ -446,15 +466,15 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let t = TyApp (t, [int]) in
     check env v14 t);
 
-  ("merge15.mz", simple_test Pass);
+  ("merge15.mz", pass);
 
-  ("merge16.mz", simple_test Pass);
+  ("merge16.mz", pass);
 
-  ("merge18.mz", simple_test Pass);
+  ("merge18.mz", pass);
 
-  ("merge19.mz", simple_test Pass);
+  ("merge19.mz", pass);
 
-  ("merge_generalize_val.mz", simple_test Pass);
+  ("merge_generalize_val.mz", pass);
 
   ("constraints_merge.mz",
     simple_test ~pedantic:true Pass);
@@ -480,31 +500,31 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     if List.exists (FactInference.is_exclusive env) perms then
       failwith "The permission on [x] should've been consumed";
     let perms = get_permissions env s1 in
-    if not (List.exists ((=) (TyApp (t, [datacon env "t" "A" []]))) perms) then
+    if not (List.exists ((=) (TyApp (t, [concrete (dc env "t" "A") []]))) perms) then
       failwith "The right permission was not extracted for [s1].";
   );
 
   (* Doesn't pass anymore since we removed singleton-subtyping! *)
-  (* ("singleton2.mz", simple_test Pass); *)
+  (* ("singleton2.mz", pass); *)
 
   (* Marking environments as inconsistent. *)
 
   ("inconsistent1.mz",
-    simple_test Pass
+    pass
   );
 
   ("inconsistent2.mz",
-    simple_test Pass
+    pass
   );
 
   (* Duplicity constraints. *)
 
   ("duplicity1.mz",
-    simple_test Pass
+    pass
   );
 
   ("duplicity2.mz",
-    simple_test Pass
+    pass
   );
 
   (* Polymorphic function calls *)
@@ -539,16 +559,16 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test ((Fail (function NoSuchField _ -> true | _ -> false))));
 
   ("fail4.mz",
-    simple_test ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+    simple_test ((Fail (function ExpectedType _ -> true | _ -> false))));
 
   ("fail5.mz",
-    simple_test ((Fail (function NoSuchPermission _ -> true | _ -> false))));
+    simple_test ((Fail (function ExpectedType _ -> true | _ -> false))));
 
   ("fail6.mz",
     simple_test ((Fail (function ExpectedType _ -> true | _ -> false))));
 
   ("fail7.mz",
-    simple_test ((Fail (function FieldMismatch _ -> true | _ -> false))));
+    simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
 
   ("fail8.mz",
     simple_test ((Fail (function BadPattern _ -> true | _ -> false))));
@@ -559,40 +579,50 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("fail10.mz",
     simple_test ((Fail (function BadField _ -> true | _ -> false))));
 
+  ("fail11.mz",
+    simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
+
   (* Adoption. *)
 
   ("adopts1.mz",
-    simple_test Pass);
+    pass);
 
   ("adopts2.mz",
-    simple_test (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
+    simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
 
   ("adopts3.mz",
     simple_test (KFail (function K.AdopterNotExclusive _ -> true | _ -> false)));
 
   ("adopts4.mz",
-    simple_test (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
+    simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
 
   ("adopts5.mz",
-    simple_test Pass);
+    pass);
 
   ("adopts6.mz",
-    simple_test Pass);
+    pass);
 
   ("adopts7.mz",
-    simple_test Pass);
+    pass);
 
   ("adopts8.mz",
-    simple_test (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
+    simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
 
   ("adopts9.mz",
-    simple_test Pass);
+    pass);
 
   ("adopts10.mz",
     simple_test (Fail (function NotMergingClauses _ -> true | _ -> false)));
 
   ("adopts12.mz",
-    simple_test Pass);
+    pass);
+
+  ("adopts13.mz", fail);
+  ("adopts14.mz", fail);
+  ("adopts15.mz", pass);
+  ("adopts16.mz", pass);
+  ("adopts17.mz", pass);
+  ("adopts18.mz", pass);
 
   (* Bigger examples. *)
 
@@ -602,159 +632,170 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let zero = point_by_name env "zero" in
     check env zero int);
 
-  ("list-length-variant.mz", simple_test Pass);
+  ("list-length-variant.mz", pass);
 
-  ("list-concat.mz", simple_test Pass);
+  ("list-concat.mz", pass);
 
   ("list-concat-dup.mz",
-    simple_test Pass
+    pass
   );
 
   ("list-length.mz",
-    simple_test Pass
+    pass
   );
 
   ("list-map0.mz",
-    simple_test Pass
+    pass
   );
 
   ("list-map1.mz",
-    simple_test Pass
+    pass
   );
 
   ("list-map2.mz",
-    simple_test Pass
+    pass
   );
 
   ("list-map3.mz",
-    simple_test Pass
+    pass
   );
 
   ("list-map-tail-rec.mz",
-    simple_test Pass
+    pass
   );
 
   ("list-rev.mz",
-    simple_test Pass
+    pass
   );
 
   ("list-find.mz",
-    simple_test Pass
+    pass
   );
 
   ("list-mem2.mz",
-    simple_test Pass
+    pass
   );
 
   ("list-id.mz",
-    simple_test Pass
+    pass
   );
 
   ("xlist-copy.mz",
-    simple_test Pass
+    pass
   );
 
   ("xlist-concat.mz",
-    simple_test Pass
+    pass
   );
 
   ("xlist-concat1.mz",
-    simple_test Pass
+    pass
   );
 
   ("xlist-concat2.mz",
-    simple_test Pass
+    pass
   );
 
   ("tree_size.mz",
-    simple_test Pass
+    pass
   );
 
   ("in_place_traversal.mz",
-    simple_test Pass
+    pass
   );
 
   ("counter.mz",
-    simple_test Pass
+    pass
   );
 
   ("xswap.mz",
-    simple_test Pass
+    pass
   );
 
-  ("bag_lifo.mz", simple_test Pass);
+  ("bag_lifo.mz", pass);
 
-  ("bag_fifo.mz", simple_test Pass);
+  ("bag_fifo.mz", pass);
 
-  (* ("landin.mz", simple_test Pass); *)
+  ("union-find-nesting.mz", pass);
+  ("union-find-dynamic.mz", pass);
 
-  ("modules/simple.mz", simple_test Pass);
+  (* ("landin.mz", pass); *)
+
+  ("modules/simple.mz", pass);
 
   ("modules/simple2.mz", simple_test (Fail (function
     | DataTypeMismatchInSignature _ -> true | _ -> false
   )));
 
-  ("modules/m.mz", simple_test Pass);
+  ("modules/m.mz", pass);
 
-  ("modules/exporttwo.mz", simple_test Pass);
+  ("modules/exporttwo.mz", pass);
 
-  ("modules/qualified.mz", simple_test Pass);
+  ("modules/qualified.mz", pass);
 
-  ("modules/equations_in_mzi.mz", simple_test Pass);
+  ("modules/equations_in_mzi.mz", pass);
 
-  ("assert.mz", simple_test Pass);
+  ("modules/altersig.mz",
+    simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
 
-  ("priority.mz", simple_test Pass);
+  ("modules/altersig2.mz",
+    simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
 
-  ("fieldEvaluationOrder.mz", simple_test Pass);
+  ("assert.mz", pass);
 
-  ("fieldEvaluationOrderReject1.mz", simple_test (Fail (function _ -> true)));
+  ("priority.mz", pass);
 
-  ("fieldEvaluationOrderReject2.mz", simple_test (Fail (function _ -> true)));
+  ("fieldEvaluationOrder.mz", pass);
 
-  ("monads.mz", simple_test Pass);
+  ("fieldEvaluationOrderReject1.mz", fail);
 
-  ("adopts-non-mutable-type.mz", simple_test (Fail (function BadFactForAdoptedType _ -> true | _ -> false)));
+  ("fieldEvaluationOrderReject2.mz", fail);
 
-  ("adopts-type-variable.mz", simple_test (Fail (function BadFactForAdoptedType _  -> true | _ -> false)));
+  ("monads.mz", pass);
+
+  ("adopts-non-mutable-type.mz", simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
+
+  ("adopts-type-variable.mz", pass);
 
   ("ref-confusion.mz", simple_test (KFail (function _ -> true)));
 
   ("strip_floating_perms.mz", simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
 
-  ("fact-inconsistency.mz", simple_test Pass);
+  ("fact-inconsistency.mz", pass);
 
-  ("dfs.mz", simple_test Pass);
+  ("dfs-simple.mz", pass);
 
-  ("dfs-owns.mz", simple_test Pass);
+  ("dfs-owns.mz", pass);
 
-  ("owns1.mz", simple_test Pass);
+  ("dfs-example.mz", pass);
+
+  ("owns1.mz", pass);
 
   ("owns2.mz", simple_test (Fail (function NotDynamic _ -> true | _ -> false)));
 
-  ("owns3.mz", simple_test Pass);
+  ("owns3.mz", pass);
 
-  ("tuple-syntax.mz", simple_test Pass);
+  ("tuple-syntax.mz", pass);
 
   ("same-type-var-bug.mz", simple_test (KFail (function K.BoundTwice _ -> true | _ -> false)));
 
   ("assert-bug.mz", simple_test ~known_failure:() Pass);
 
-  ("function-comparison.mz", simple_test Pass);
+  ("function-comparison.mz", pass);
 
-  ("function-comparison2.mz", simple_test (Fail (function _ -> true)));
+  ("function-comparison2.mz", fail);
 
-  ("masking.mz", simple_test (Fail (fun _ -> true)));
+  ("masking.mz", fail);
 
-  ("masking2.mz", simple_test (Fail (function _ -> true)));
+  ("masking2.mz", fail);
 
-  ("masking3.mz", simple_test Pass);
+  ("masking3.mz", pass);
 
-  ("bad-linearity.mz", simple_test (Fail (function _ -> true)));
+  ("bad-linearity.mz", fail);
 
-  ("bad-generalization.mz", simple_test (Fail (function _ -> true)));
+  ("bad-generalization.mz", fail);
 
-  ("bad-levels.mz", simple_test (Fail (function _ -> true)));
+  ("bad-levels.mz", fail);
 
   ("dup-value.mzi", simple_test (KFail (function _ -> true)));
 
@@ -762,59 +803,107 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("unqualified-datacon.mz", simple_test (KFail (function K.UnboundDataConstructor _ -> true | _ -> false)));
 
-  ("improve-inference.mz", simple_test Pass);
-  ("improve-inference2.mz", simple_test Pass);
+  ("improve-inference.mz", pass);
+  ("improve-inference2.mz", pass);
 
-  ("cps-dereliction.mz", simple_test Pass);
+  ("cps-dereliction.mz", pass);
 
-  ("fold-permission.mz", simple_test Pass);
+  ("fold-permission.mz", pass);
 
-  ("abstract.mz", simple_test Pass);
+  ("abstract.mz", pass);
 
   ("abstract2.mz", simple_test (Fail (function
     | DataTypeMismatchInSignature _ -> true | _ -> false
   )));
 
-  ("ref-swap.mz", simple_test Pass);
+  ("ref-swap.mz", pass);
 
-  ("multiple-match-ref.mz", simple_test (Fail (fun _ -> true)));
+  ("multiple-match-ref.mz", fail);
 
-  ("018.mz", simple_test Pass);
+  ("018.mz", pass);
 
-  ("vicious-cycle.mz", simple_test Pass);
+  ("vicious-cycle.mz", pass);
 
-  ("named-tuple-components.mz", simple_test Pass);
+  ("cycle1.mz", pass);  (* circular dependency between the modules, detected only at link time by ocaml *)
+  ("cyclic1.mz", fail); (* circular dependency between the interfaces, detected at type-checking time by mezzo *)
 
-  ("abstract-perm.mz", simple_test Pass);
+  ("named-tuple-components.mz", pass);
+
+  ("abstract-perm.mz", pass);
 
   ("dup_sign.mz", simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
-  ("dup_sign1.mz", simple_test Pass);
-  ("dup_sign2.mz", simple_test (Fail (function UnsatisfiableConstraint _ -> true | _ -> false)));
-  ("dup_sign3.mz", simple_test Pass);
-  ("dup_sign4.mz", simple_test Pass);
+  ("dup_sign1.mz", pass);
+  ("dup_sign2.mz", fail);
+  ("dup_sign3.mz", pass);
+  ("dup_sign4.mz", pass);
+  ("dup_sign5.mz", fail);
 
-  ("tableau.mz", simple_test Pass);
-  ("smemoize.mz", simple_test Pass);
-  ("use-magic.mz", simple_test Pass);
-  ("list2array.mz", simple_test Pass);
-  ("sub_constraints_nonpoint_type.mz", simple_test Pass);
-  ("merge-tyapp-with-two-subs.mz", simple_test Pass);
+  ("tableau.mz", pass);
+  ("smemoize.mz", pass);
+  ("use-magic.mz", pass);
+  ("list2array.mz", pass);
+  ("sub_constraints_nonpoint_type.mz", pass);
+  ("merge-tyapp-with-two-subs.mz", pass);
 
-  ("exist00.mz", simple_test Pass);
-  ("exist01.mz", simple_test Pass);
-  ("exist03.mz", simple_test Pass);
-  ("exist04.mz", simple_test Pass);
-  ("exist05.mz", simple_test Pass);
-  ("exist06.mz", simple_test Pass);
-  ("exist07.mz", simple_test Pass);
-  ("exist08.mz", simple_test Pass);
-  ("exist09.mz", simple_test Pass);
+  ("exist00.mz", pass);
+  ("exist01.mz", pass);
+  ("exist03.mz", pass);
+  ("exist04.mz", pass);
+  ("exist05.mz", pass);
+  ("exist06.mz", pass);
+  ("exist07.mz", pass);
+  ("exist08.mz", pass);
+  ("exist09.mz", pass);
+
+  ("exists-tyapp.mz", pass);
+  ("exists-tyapp2.mz", fail);
 
   ("bad-arity.mz", simple_test (Fail (function BadPattern _ -> true | _ -> false)));
   ("bad-arity2.mz", simple_test (Fail (function BadPattern _ -> true | _ -> false)));
-  ("dependent-type.mz", simple_test Pass);
-  ("caires_seco_node.mz", simple_test Pass);
-  ("persistentarray_nesting.mz", simple_test Pass);
+  ("dependent-type.mz", pass);
+  ("caires_seco_node.mz", pass);
+  ("persistentarray_nesting.mz", pass);
+  ("bad-variance-annot.mz", simple_test (Fail (function VarianceAnnotationMismatch -> true | _ -> false)));
+  ("bad-variance-annot2.mz", simple_test (Fail (function DataTypeMismatchInSignature _ -> true | _ -> false)));
+  ("array-covariance.mz", pass);
+  ("array-contravariance.mz", fail);
+  ("array-focus.mz", fail);
+  ("queue_nesting.mz", fail);
+  ("queue_nesting2.mz", fail);
+  ("take-abstract.mz", fail);
+  ("overflow.mz", fail);
+  ("facts.mz", pass);
+  ("facts00.mz", fail);
+  ("facts01.mz", fail);
+  ("facts02.mz", fail);
+  ("facts03.mz", fail);
+  ("facts04.mz", fail);
+  ("facts05.mz", kfail);
+  ("facts06.mz", pass);
+  ("facts07.mz", fail);
+  ("facts08.mz", fail);
+  ("facts09.mz", fail);
+  ("facts10.mz", fail);
+  ("data-term.mz", simple_test ~known_failure:() Pass);
+  ("fact-term.mz", simple_test ~known_failure:() (Fail (fun _ -> true)));
+
+  ("local-type.mz", simple_test ~known_failure:() Pass);
+  ("local-type2.mz", simple_test ~known_failure:() Pass);
+  ("local-type3.mz", simple_test ~known_failure:() Pass);
+  ("local-type4.mz", pass);
+  ("tyapp.mz", simple_test ~known_failure:() Pass);
+  ("tyand00.mz", kfail);
+  ("tyand01.mz", pass);
+  ("tyand02.mz", pass);
+  ("tyand03.mz", fail);
+  ("tyand04.mz", pass);
+  ("tyand05.mz", fail);
+  ("tyand06.mz", fail);
+  ("incorrect-fields.mz",
+    simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
+  ("name-intro.mz", pass);
+  ("exists-forall.mz", pass);
+  ("name-capture.mz", pass);
 
 ];;
 
@@ -825,11 +914,11 @@ let mz_files_in_directory (dir : string) : string list =
   ) filenames
 
 let corelib_tests: (string * ((unit -> env) -> unit)) list =
-  List.map (fun filename -> filename, simple_test Pass) (mz_files_in_directory (Configure.root_dir ^ "/corelib"))
+  List.map (fun filename -> filename, pass) (mz_files_in_directory (Configure.root_dir ^ "/corelib"))
 ;;
 
 let stdlib_tests: (string * ((unit -> env) -> unit)) list =
-  List.map (fun filename -> filename, simple_test Pass) (mz_files_in_directory (Configure.root_dir ^ "/stdlib"))
+  List.map (fun filename -> filename, pass) (mz_files_in_directory (Configure.root_dir ^ "/stdlib"))
 ;;
 
 let _ =

@@ -17,6 +17,7 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+exception MzInternalFailure of string
 
 let the_debug_level = ref 0
 let debug_level () = !the_debug_level
@@ -26,9 +27,9 @@ let debug ?level fmt =
   (* If no level is provided, the message is always displayed. *)
   let level = Option.map_none 1 level in
   if level <= !the_debug_level then begin
-    Hml_String.bfprintf ~new_line:() stderr fmt
+    MzString.bfprintf ~new_line:() stderr fmt
   end else begin
-    Hml_String.biprintf fmt
+    MzString.biprintf fmt
   end
 
 let warn_count = ref 0
@@ -59,30 +60,33 @@ let msg fmt =
     Buffer.contents buf
   ) (Buffer.create 16) fmt
 
+let fail_with_summary buf =
+  Buffer.output_buffer stderr buf;
+  let c = Buffer.contents buf in
+  let summary =
+    let i = String.index c '\n' in
+    if i >= 0 then String.sub c 0 i else c
+  in
+  raise (MzInternalFailure summary)
+
 let error fmt =
   let buf = Buffer.create 16 in
   Buffer.add_string buf "Mezzo internal error: ";
   Printf.kbprintf (fun buf ->
     Buffer.add_char buf '\n';
-    Buffer.output_buffer stderr buf;
-    let c = Buffer.contents buf in
-    let summary =
-      let i = String.index c '\n' in
-      if i >= 0 then String.sub c 0 i else c
-    in
-    raise (Failure summary)
+    fail_with_summary buf
   ) buf fmt
 
 let check b fmt =
   let open Printf in
   if b then
-    Hml_String.biprintf fmt
+    MzString.biprintf fmt
   else begin
     let buf = Buffer.create 16 in
+    Buffer.add_string buf "Mezzo internal assert failure: ";
     Buffer.add_string buf Bash.colors.Bash.red;
     kbprintf (fun buf ->
       Buffer.add_string buf (Bash.colors.Bash.default ^ "\n");
-      Buffer.output_buffer stderr buf;
-      assert false
+      fail_with_summary buf
     ) buf fmt
   end

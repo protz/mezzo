@@ -1,0 +1,10 @@
+val id [a] (consumes x: a) : a =
+  x
+
+val two =
+  id [(x: int)] 2
+
+val apply [b] (consumes package: {a} (f: (consumes a) -> b, x: a)) : b =
+  let f, x = package in
+  f x
+

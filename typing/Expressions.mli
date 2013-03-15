@@ -189,38 +189,38 @@ val bind_patexprs :
 module ExprPrinter :
   sig
     val print_maybe_qualified :
-      ('a -> Hml_Pprint.document) ->
-      'a SurfaceSyntax.maybe_qualified -> Hml_Pprint.document
+      ('a -> MzPprint.document) ->
+      'a SurfaceSyntax.maybe_qualified -> MzPprint.document
     val print_maybe_qualified_datacon :
-      Datacon.name SurfaceSyntax.maybe_qualified -> Hml_Pprint.document
+      Datacon.name SurfaceSyntax.maybe_qualified -> MzPprint.document
     val pmaybe_qualified_datacon :
       Buffer.t -> Datacon.name SurfaceSyntax.maybe_qualified -> unit
     val print_datacon_reference :
-      SurfaceSyntax.datacon_reference -> Hml_Pprint.document
+      SurfaceSyntax.datacon_reference -> MzPprint.document
     val print_patexpr :
-      env -> pattern * expression -> Hml_Pprint.document
+      env -> pattern * expression -> MzPprint.document
     val print_patexprs :
-      env -> (pattern * expression) list -> Hml_Pprint.document
-    val print_pat : env -> pattern -> Hml_Pprint.document
-    val print_tapp : env -> tapp -> Hml_Pprint.document
-    val print_expr : env -> expression -> Hml_Pprint.document
-    val print_rec_flag : rec_flag -> Hml_Pprint.document
+      env -> (pattern * expression) list -> MzPprint.document
+    val print_pat : env -> pattern -> MzPprint.document
+    val print_tapp : env -> tapp -> MzPprint.document
+    val print_expr : env -> expression -> MzPprint.document
+    val print_rec_flag : rec_flag -> MzPprint.document
     val print_ebinder :
       env ->
-      type_binding * flavor -> Hml_Pprint.document
+      type_binding * flavor -> MzPprint.document
     val print_binder :
       env ->
       (Variable.name * kind * location) * flavor ->
-      Hml_Pprint.document
+      MzPprint.document
     val print_declaration :
       env ->
       declaration ->
-      env * Hml_Pprint.document *
+      env * MzPprint.document *
       (declaration list -> declaration list)
     val print_declarations :
-      env -> declaration list -> Hml_Pprint.document
+      env -> declaration list -> MzPprint.document
     val print_sig_item :
-      env -> Variable.name * typ -> Hml_Pprint.document
+      env -> Variable.name * typ -> MzPprint.document
     val psigitem :
       Buffer.t -> env * (Variable.name * typ) -> unit
     val pdeclarations : Buffer.t -> env * declaration list -> unit

@@ -67,6 +67,9 @@ let arrow =
   string "->"
 ;;
 
+let dblarrow =
+  string "=>"
+
 let semisemi =
   twice semi
 
@@ -91,10 +94,11 @@ let tagof =
 ;;
 
 let name_gen count =
-  (* Of course, won't work nice if more than 26 type parameters... *)
+  (* Of course, won't work nicely if we have more than 26 type parameters... *)
   let alpha = "α" in
+  (* Yes I'm using the fact that this is utf8 and that α is two bytes. *)
   let c0 = Char.code alpha.[1] in
-  Hml_List.make count (fun i ->
+  MzList.make count (fun i ->
     let code = c0 + i in
     Printf.sprintf "%c%c" alpha.[0] (Char.chr code)
   )

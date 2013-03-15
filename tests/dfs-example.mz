@@ -1,0 +1,59 @@
+open list
+open pool
+
+(* Examples of using the standard library module [dfs]. *)
+
+(* Suppose our nodes have the following structure. *)
+
+mutable data node a = Node {
+  (* A list of successors. *)
+  successors: list dynamic; (* owned by a pool *)
+  (* A field that may or may not hold information about this node. *)
+  info: a;
+}
+
+(* Suppose we have a graph, represented by a pool of all nodes and
+   a list of root nodes, and we want to number the nodes in preorder.
+   We assume, here, that all nodes are reachable (if there are any
+   unreachable nodes, they are dropped). *)
+
+val prenumber (consumes nodes: pool (node unknown), roots: list dynamic) : pool (node int) =
+  (* Create a counter. *)
+  let c = newref 0 in
+  (* Traverse the graph. *)
+  dfs::preorder (
+    nodes,
+    roots,
+    fun (consumes x: node unknown | c @ ref int) : (list dynamic | x @ node int) =
+      (* Number this node, updating the counter. *)
+      x.info <- postincr c;
+      (* Return the successors of this node. *)
+      x.successors
+  )
+
+(* Suppose now that we wish to number all nodes in postorder (so each
+   node will carry a greater number than its successors). *)
+
+val postnumber (consumes nodes: pool (node unknown), roots: list dynamic) : pool (node int) =
+  (* Create a counter. *)
+  let c = newref 0 in
+  (* Define the pre-action. *)
+  let successors (x: node unknown) : list dynamic =
+    x.successors
+  in
+  (* Traverse the graph. *)
+  let completed, _ =
+    dfs::prepostorder [visited = node int] (
+      nodes,
+      roots,
+      false,
+      successors,
+      fun (consumes x: node unknown | c @ ref int) : (| x @ node int) =
+	(* Number this node, updating the counter. *)
+	x.info <- postincr c
+    )
+  in
+  completed
+
+(* TEMPORARY why is the type application [visited = node int] necessary? *)
+

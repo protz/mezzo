@@ -17,306 +17,465 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+open Mode
+open Fact
+open DataTypeFlavor
 open TypeCore
 open Types
+open Hoist
+open TypeErrors
 
-(* ------------------------------------------------------------------------- *)
+(* ---------------------------------------------------------------------------- *)
 
-(* The core of the algorithm. *)
+(* Adding a new hypothesis to the environment. *)
 
-(* The [duplicables] function may throw either one of these two to indicate the
- * reason why the type it's currently analyzing is not duplicable. I'm not sure
- * the code always gives the most precise reason. *)
-exception EAffine of typ
-exception EExclusive of typ
-
-(* The algorithm below can be used in two distinct phases. The first one
- * analyses a given data type definition, so the algorithm is allowed to request
- * that a parameter be duplicable for the whole type to be duplicable. The
- * second one tries to tell whether a given type is duplicable or not later on.
- * *)
-type phase = Elaborating of bitmap | Checking
-
-
-(* This function performs a reverse-analysis of a type. As it goes, it marks
- * those variables that needs to be duplicable by updating the bitmap contained
- * in [phase]. It may throw [EAffine] if it turns out the type it's
- * currently analyzing is affine. *)
-let duplicables
-    (env: env) 
-    (phase: phase)
-    (t: typ): unit =
-
-  (* Ok this algorithm needs to be completely rewritten in a functional style,
-   * this is the oldest piece of code in the type-checker ana it's really
-   * terrible. *)
-  let rec follows_exclusive env t t_parent =
-    try
-      duplicables env t
-    with EExclusive t' when t == t' ->
-      raise (EExclusive t_parent)
-
-  and duplicables (env: env) (t: typ): unit =
-    match modulo_flex env t with
-    | TyUnknown
-    | TyDynamic ->
-        ()
-
-    | TyBound _ ->
-        Log.error "There should be no free variables here."
-
-    | TyOpen point ->
-        begin match get_fact env point with
-        | Exclusive ->
-            raise (EExclusive t)
-        | Affine ->
-            raise (EAffine t)
-        | Duplicable bitmap ->
-            if Array.length bitmap != 0 then
-              Log.error "Partial type applications are not allowed"
-        | Fuzzy param_number ->
-            (* Only the current type's parameters are marked as fuzzy. *)
-            begin match phase with
-            | Elaborating my_bitmap ->
-                let my_arity = Array.length my_bitmap in
-                Log.debug ~level:4 "↳ marking parameter %d" param_number;
-                Log.check (param_number >= 0 && param_number < my_arity)
-                  "Marking as duplicable a variable that's not in the right\
-                  range! param_number = %d" param_number;
-                my_bitmap.(param_number) <- true
-            | Checking ->
-                Log.error "No fuzzy variables should be present when checking."
-            end
-        end
-
-    (*
-     *
-     * We could have a lower element called [any] in             aff
-     * the fact lattice, and because these variables           /    \
-     * are universal, they would have that fact.             dup   excl
-     * However, we don't have it, so we can pick an            \    /
-     * element as low as we want. We choose                     any
-     * duplicable, because we know it's the optimal
-     * choice given our limited set of facts.            fig 1: a better
-     *                                                  lattice for facts
-     * *)
-    | TyForall ((binding, _), t') ->
-        (* This variable is universal, so pick the best possible fact for it:
-         * duplicable (see my notebook on Jan, 9th 2013) *)
-        let env, t', var = bind_rigid_in_type env binding t' in
-        let env = set_fact env var (Duplicable [||]) in
-        follows_exclusive env t' t
-
-    | TyExists (binding, t') ->
-        (* Be conservative, bind as affine. *)
-        let env, t', var = bind_rigid_in_type env binding t' in
-        let env = set_fact env var Affine in
-        follows_exclusive env t' t
-
-    | TyApp (cons, args) ->
-        begin match get_fact env !!cons with
-        | Fuzzy _ ->
-            Log.error "I messed up my index computations. Oops!";
-        | Exclusive ->
-            raise (EExclusive t)
-        | Affine ->
-            raise (EAffine t)
-        | Duplicable cons_bitmap ->
-            (* For each argument of the type application... *)
-            List.iteri (fun i ti ->
-              (* The type at [level] may request its [i]-th parameter to be
-               * duplicable. *)
-              if cons_bitmap.(i) then begin
-                (* The answer is yes: the [i]-th parameter for the type
-                 * application is [ti] and it has to be duplicable for the
-                 * type at [level] to be duplicable too. *)
-                duplicables env ti
-              end else begin
-                (* The answer is no: there are no constraints on [ti]. *)
-                ()
-              end
-            ) args
-        end
-
-    | TyTuple ts ->
-        List.iter (duplicables env) ts
-
-    | TyConcreteUnfolded (datacon, fields, _) as t ->
-        let flag, _, _ = def_for_datacon env datacon in
-        begin match flag with
-        | SurfaceSyntax.Duplicable ->
-            List.iter (function
-              | FieldValue (_, typ)
-              | FieldPermission typ ->
-                  duplicables env typ
-            ) fields
-        | SurfaceSyntax.Exclusive ->
-            raise (EExclusive t)
-        end
-
-    | TySingleton _ ->
-        (* Singleton types are always duplicable. *)
-        ()
-
-    | TyArrow _ ->
-        (* Arrows are always duplicable *)
-        ()
-
-    | TyAnchoredPermission (x, t') ->
-        begin match x with
-        | TyOpen p ->
-            Log.check (is_term env p) "Malformed term %a"
-              TypePrinter.ptype (env, t)
-        | _ ->
-            Log.error "Malformed type %a" TypePrinter.ptype (env, t)
-        end;
-        (* For x: τ to be duplicable, τ has to be duplicable as well *)
-        duplicables env t'
-
-    | TyEmpty ->
-        ()
-
-    | TyStar (p, q) ->
-        (* For p ∗ q  to be duplicable, both p and q have to be duplicable. *)
-        duplicables env p;
-        duplicables env q
-
-    | TyBar (t, p) ->
-        duplicables env t;
-        duplicables env p
-
-    | TyAnd (constraints, t)
-    | TyImply (constraints, t) ->
-        let ts = List.map snd constraints in
-        List.iter (duplicables env) (t :: ts)
-  in
-  duplicables env t
-;;
-
-(* This performs one round of constraint propagation.
-   - If the type is initially marked as Exclusive, it remains Exclusive.
-   - If the type is marked as Duplicable, we recursively determine which ones of
-   its type variables should be marked as duplicable for the whole type to be
-   duplicable. *)
-let one_round (env: env) (vars: var list): env =
-  TypePrinter.(Log.debug ~level:4 "env:\n  %a" pdoc (print_binders, env));
-  (* Folding on all the data types. *)
-  List.fold_left (fun env var ->
-    let names = get_names env var in
-    let kind = get_kind env var in
-    let fact = get_fact env var in
-    let definition = get_definition env var in
-    let tname = List.hd names in
-    (* What knowledge do we have from the previous round? *)
-    match definition with
-    | None ->
-        Log.error "Only data type definitions here"
-    | Some (None, _) ->
+let assume (env : env) ((m, ty) : mode_constraint) : env =
+  (* We assume that [ty] has kind [type] or [perm]. *)
+  (* Turn the mode [m] into a fact of arity 0. *)
+  let fact = Fact.constant m in
+  let ty = modulo_flex env ty in
+  match ty with
+  | TyOpen v ->
+      set_fact env v (Fact.meet fact (get_fact env v))
+    | _ ->
+        (* We don't know how to extract meaningful information here, so we're
+         * just not doing anything about the constraint we just learned about.
+         * This could (maybe) be improved. TEMPORARY *)
         env
-    | Some (Some (_flag, branches, clause), _) ->
-        match fact with
-        | Fuzzy _ ->
-            Log.error "I messed up my index computations. Oops!";
-        | Exclusive | Affine ->
-            (* This fact cannot evolve anymore, pass [env] through. *)
-            env
-        | Duplicable bitmap ->
-            Log.debug ~level:4 "Attacking %s%a%s %a" Bash.colors.Bash.red
-              TypePrinter.pvar (env, get_name env var)
-              Bash.colors.Bash.default
-              TypePrinter.pvar (env, tname);
-            (* [bitmap] is shared! *)
-            let phase = Elaborating bitmap in
-            let inner_env, _, branches, clause =
-              bind_datacon_parameters env kind branches clause
-            in
-            Log.check (clause = None) "We allow adopts clauses for types marked \
-              as exclusive, and these should start right away with the exclusive \
-              flag, so we shouldn't be here.";
-            TypePrinter.(Log.debug ~level:4 "inner_env:\n  %a" pdoc (print_binders, inner_env));
-            try
-              (* Iterating on the branches. *)
-              List.iter (fun (_label, fields) ->
-                (* Iterating on the fields. *)
-                List.iter (function
-                  | FieldValue (_, typ)
-                  | FieldPermission typ ->
-                      duplicables inner_env phase typ
-                ) fields
-              ) branches;
-              env
-            with EAffine _t | EExclusive _t ->
-              (* Some exception was raised: the type, although initially
-               * duplicable, contains a sub-part whose type is [Exclusive] or
-               * [Affine], so the whole type need to be affine. *)
-              set_fact env var Affine
-  ) env vars
-;;
 
+(* ---------------------------------------------------------------------------- *)
 
-(* If this function is correct (and I'm not even sure of that), it only is for
- * types that have been expanded (it would return Exclusive for
- * [(xpair int int, int)], for instance, instead of affine. *)
-let analyze_type (env: env) (t: typ): fact =
-  try
-    duplicables env Checking t;
-    Duplicable [||]
-  with
-  | EExclusive t' when t == t' ->
-      Exclusive
-  | EExclusive _
-  | EAffine _ ->
-      Affine
-;;
+(* When we analyze an algebraic data type definition, we maintain not only an
+   environment, as usual, but also some information about the current fixed
+   point computation. We refer to this collection of information as a world. *)
 
-let is_duplicable env t =
-  match analyze_type env t with
-  | Duplicable [||] ->
-      true
-  | Duplicable _
-  | Fuzzy _ ->
-      Log.error "[is_duplicable] works only on types, not definitions, and must \
-        be run after the fact elaboration phase is done"
-  | _ ->
-      false
-;;
+type world = {
+  (* The environment. *)
+  env: env;
+  (* The data type constructors that are being defined, and for which we are
+     currently attempting to compute a least valid fact. *)
+  variables: unit VarMap.t;
+  (* The current valuation of the fixed point computation. It maps each of
+     the above [variables] to its current fact. *)
+  valuation: var -> Fact.fact;
+  (* The parameters of the particular algebraic data type that we are
+     currently descending into. *)
+  parameters: parameter VarMap.t;
+}
 
-let is_exclusive env t =
-  analyze_type env t = Exclusive
-;;
+(* When we are not in the process of computing a fixed point, [variables]
+   is empty, so [valuation] becomes irrelevant; and [parameters] is empty
+   as well. In that case, only the [env] component is non-trivial. *)
 
-let analyze_data_types (env: env) (vars: var list): env =
-  (* We could be even smarter and make the function return both a new env and a
-   * boolean telling whether we udpated the maps or not, but that would require
-   * threading some [was_modified] variable throughout all the code. Because
-   * premature optimization is the root of all evil, let's leave it as is for
-   * now. *)
-  let rec run_to_fixvar env =
-    Bash.(Log.debug ~level:2 "%sOne round of fact analysis...%s" colors.blue colors.default);
-    let copy_fact = function
-      | Duplicable bitmap ->
-          Duplicable (Array.copy bitmap)
-      | _ as x ->
-          x
-    in
-    (* This works because [map_types] guarantees an unspecified, but fixed,
-     * order, and because [replace_type] doesn't change that order. *)
-    let old_facts = List.map (fun var -> copy_fact (get_fact env var)) vars in
-    let new_env = one_round env vars in
-    let new_facts = List.map (fun var -> copy_fact (get_fact new_env var)) vars in
-    (* Hml_List.iter2i (fun level old_fact new_fact ->
-      let index = ByIndex.cardinal env.bindings - level - 1 in
-      Log.debug ~level:3
-        "name %s\t index %d bitmap %a\t | bitmap %a"
-        (name_for_type env index)
-        index
-        TypePrinter.pdoc (TypePrinter.do_print_fact, old_fact)
-        TypePrinter.pdoc (TypePrinter.do_print_fact, new_fact);
-    ) old_facts new_facts; *)
-    if new_facts <> old_facts then
-      run_to_fixvar new_env
-    else
-      new_env
+let trivial_world env = {
+  env;
+  variables = VarMap.empty;
+  valuation = (fun _ -> assert false); (* will not be called *)
+  parameters = VarMap.empty;
+}
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Inferring a fact about a type. *)
+
+(* This code is used both during and after the fixed point computation. The
+   type [ty] must have kind [type] or [perm]. We infer a fact whose arity
+   corresponds to the current number of parameters. *)
+
+let rec infer (w : world) (ty : typ) : Fact.fact =
+  let ty = modulo_flex w.env ty in
+  match ty with
+
+  (* A type variable, represented by [TyOpen _], could be a local variable
+     (e.g. introduced by a universal quantifier which we have just entered)
+     or a parameter or a pre-existing variable. In the first two cases, it
+     must be rigid, I think; in the last case, it could be rigid or flexible. *)
+
+  (* We distinguish only two cases: either [v] is a parameter, or it is not.
+     In fact, regardless of this distinction, we always look up the
+     environment in order to find an assumption about [v]. Additionally, if
+     [v] is a parameter, then we construct a fact of the form [m p => m], for
+     every mode [m], which means ``for every mode [m], if the parameter [p]
+     has mode [m], then this type has mode [m].'' We take the meet of these
+     two facts, since both are true. The meet is well-defined when its
+     left-hand argument has arity zero, which is the case here, as the fact
+     stored in the environment for a variable of kind [type] or [perm] always
+     has arity zero. *)
+
+  | TyOpen v ->
+
+      (* Always look up the environment. *)
+      let fact1 = get_fact w.env v in
+
+      (* Check whether [v] is a parameter, and if so, create a more precise
+	 fact. Note: [VarMap] supports rigid variables only, hence the check
+	 in two steps. *)
+      if is_rigid w.env v && VarMap.mem v w.parameters then
+	let p : parameter = VarMap.find v w.parameters in
+	let fact2 = Fact.parameter p in
+	Fact.meet fact1 fact2
+      
+      else
+	fact1
+
+  (* In a type application, the type constructor [v] cannot be local and
+     cannot be a parameter (due to restrictions at the kind level). It
+     also cannot be flexible. There are two cases to consider: either it
+     is part of the set [variables], i.e. it is involved in the current
+     fixed point computation; or it is older, and is defined in [env]. *)
+
+  | TyApp (v, args) ->
+      let v = !!v in
+      (* Get a fact for [v]. *)
+      let fact =
+	if VarMap.mem v w.variables then
+	  (* [v] is a variable. Obtain a fact for it through the current
+	     valuation. *)
+	  w.valuation v
+	else
+	  (* [v] is older. Obtain a fact for it through the environment. *)
+	  get_fact w.env v
+      in
+      (* Infer facts for the arguments. We must be careful because not
+	 all arguments have kind [type] or [perm], and fact inference
+	 works only at these kinds. We infer a trivial fact at kind
+	 [term], which will not be used. *)
+      let facts = infer_many w (get_kind w.env v) args in
+      (* Compose these facts in order to obtain a fact for the type
+	 application. *)
+      Fact.compose fact facts
+
+  (* When we find a universal or existential quantifier, we enter it. The
+     quantified variable becomes local, and a fact about it is (possibly)
+     assumed. *)
+
+  (* In the universal case, I believe that we are free to associate this
+     variable with the most precise mode, [Mode.bottom]. This is logically
+     equivalent to replacing this variable with the type [TyBottom]. *)
+
+  (* In the existential case, it appears, at first sight, that we must
+     associate this variable with the least precise mode, [Mode.top].
+     However, that would be a bit over-conservative. We would like to
+     be able to establish the following facts:
+
+       exclusive  ({a} (exclusive  a /\ a))
+       duplicable ({a} (duplicable a /\ a))
+
+     and, slightly more difficult,
+
+       duplicable ({a} (a, (duplicable a /\ a)))
+
+     This suggests that, when we enter an existential quantifier, we must
+     descend in the structure and look for assumption about the quantified
+     variable that can be hoisted out. *)
+
+  | TyForall ((binding, _), ty) ->
+      bind_assume_infer w binding ty Mode.bottom
+
+  | TyExists (binding, ty) ->
+      bind_assume_infer w binding ty Mode.top
+
+  (* A type of the form [c /\ t], where [c] is a mode constraint and [t]
+     is a type, can be thought of as a pair of a proof of [c] and a value
+     of type [t]. Certainly, if [t] is duplicable, then [c /\ t] is too,
+     because proofs don't exist at runtime and are duplicable. Similarly,
+     for every mode [m], it [t] has mode [m], then [c /\ t] has mode [m]. *)
+
+  (* Furthermore, since we have a proof of [c], we may assume that [c]
+     holds while examining [t]. Because we hoist constraints up to the
+     nearest quantifier, they will thus (often) be assumed as early as
+     possible. *)
+
+  | TyAnd (c, ty) ->
+      infer { w with env = assume w.env c } ty
+
+  (* We could prove that a tuple or record is [bottom] as soon as one of
+     its components is bottom, but there is no motivation to do so. *)
+
+  | TyConcreteUnfolded branch ->
+      let flavor = flavor_for_branch w.env branch in
+      infer_concrete w flavor branch.branch_fields
+
+  | TyTuple tys ->
+      Fact.duplicable (
+	Fact.conjunction (fun ty ->
+	  ModeMap.find ModeDuplicable (infer w ty)
+	) tys
+      )
+
+  (* [TyBar] is duplicable if both of its components are duplicable,
+     and is exclusive if its left-hand component is exclusive. *)
+
+  | TyBar (ty1, ty2) ->
+      Fact.join
+	(infer w ty1)
+	(Fact.allow_exclusive (infer w ty2))
+
+  (* [TyStar] is duplicable if both of its components are duplicable. *)
+
+  | TyStar (ty1, ty2) ->
+      Fact.join
+	(infer w ty1)
+	(infer w ty2)
+
+  (* [x @ t] is duplicable if [t] is duplicable. It is not considered
+     exclusive. The use of [disallow_exclusive] is probably not essential
+     here, but seems clean/prudent. *)
+
+  | TyAnchoredPermission (_, ty) ->
+      Fact.disallow_exclusive (infer w ty)
+
+  (* [unknown], [dynamic], [empty], [=x], [t -> u] are duplicable. *)
+
+  | TyUnknown
+  | TyDynamic
+  | TyEmpty
+  | TySingleton _ 
+  | TyArrow _ ->
+      Fact.constant ModeDuplicable
+
+  | TyBound _ ->
+      Log.error "There should be no bound variables here."
+
+and infer_unresolved_branch w branch =
+  (* The [adopts] clause has no impact. The name of the data
+     constructor does not matter, nor the algebraic data type
+     definition to which it belongs; only the [flavor] of this
+     branch, and the fields, matter. *)
+  infer_concrete w branch.branch_flavor branch.branch_fields
+
+and infer_concrete w flag fields =
+  match flag with
+  | Immutable ->
+      (* When a data type is defined as immutable, it is duplicable
+	 if and only if its fields are duplicable. It is definitely
+	 not exclusive. *)
+      Fact.duplicable (
+	Fact.conjunction (fun field ->
+	  ModeMap.find ModeDuplicable (infer_field w field)
+	) fields
+      )
+  | Mutable ->
+      (* When a data type is defined as exclusive, it is exclusive
+	 regardless of its fields. *)
+      Fact.constant ModeExclusive
+
+and infer_field w field =
+  match field with
+  | FieldValue (_, ty)
+  | FieldPermission ty ->
+      infer w ty
+
+and infer_many w kind args =
+  match kind, args with
+  | _, [] ->
+      []
+  | KArrow (kind, kinds), arg :: args ->
+      begin match kind with
+      | KTerm ->
+	  (* Do not call [infer] at kind [term]. Instead, provide
+	     a dummy fact. *)
+	  Fact.bottom
+      | KType
+      | KPerm ->
+	  infer w arg
+      | KArrow _ ->
+	  assert false (* higher-order kind *)
+      end
+      :: infer_many w kinds args
+  | _, _ ->
+      assert false (* kind mismatch *)
+
+and bind_assume_infer w binding ty (m : mode) : fact =
+  (* Introduce a new rigid variable. *)
+  let env, ty, v = bind_rigid_in_type w.env binding ty in
+  (* If this variable has kind [type] or [perm], assume that
+     it has mode [m]. An appropriate mode can sometimes be
+     found by inspection of the type, so [m] is parameterized
+     with [v] and [ty]. *)
+  let (_, kind, _) = binding in
+  let env =
+    match kind with
+    | KType
+    | KPerm ->
+	assume env (m, TyOpen v)
+    | KTerm ->
+        env
+    | KArrow _ ->
+        assert false
   in
-  run_to_fixvar env
-;;
+  (* Hoist the mode constraints that might be buried down inside [ty]
+     to the root. This may allow us to assume these constraints right
+     away, instead of finding them (too late) when we reach them. *)
+  let ty = hoist env ty in
+  (* Continue. *)
+  infer { w with env } ty
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Auxilliary code for the analysis of a parameterized type definition. *)
+
+let prepare_branches env v branches : world * unresolved_branch list =
+  (* Bind the parameters. *)
+  let env, parameters, branches =
+    bind_datacon_parameters env (get_kind env v) branches
+  in
+  (* Construct a map of the parameters to their indices. The ordering
+     matters, of course; it is used in [compose] when matching formal
+     and actual parameters. *)
+  let parameters =
+    MzList.fold_lefti (fun i accu v ->
+      VarMap.add v i accu
+    ) VarMap.empty parameters
+  in
+  (* Return a world and the branches, ready for analysis. *)
+  { (trivial_world env) with parameters }, branches
+
+(* ---------------------------------------------------------------------------- *)
+
+(* We check that the [adopts] clause carried by every branch of a data type
+   definition is potentially exclusive. This is performed after the fixed
+   point computation is complete. *)
+
+(* We used to check that the type of the adoptee is definitely exclusive.
+   This check has now been deferred to adoption time, for greater
+   flexibility. In principle, it is sound to perform no check at all at type
+   declaration time. *)
+
+(* However, in order to catch certain programmers errors early, we can check
+   that the type of the adoptee is potentially exclusive, i.e., it admits an
+   exclusive instance. *)
+
+let check_adopts_clauses env v branches =
+  (* Bind the parameters. *)
+  let w, branches = prepare_branches env v branches in
+  (* Examine each branch. *)
+  List.iter (fun branch ->
+    (* Infer a (parameterized) fact about the type that appears
+       in the adopts clause. *)
+    let clause = branch.branch_adopts in
+    let fact = infer w clause in
+    (* Find which conditions on the type parameters are required
+       for this type to be exclusive. *)
+    match ModeMap.find ModeExclusive fact with
+    | Fact.HFalse ->
+        (* This type definitely cannot be exclusive. This is a
+	   programmer error. *)
+        (* TEMPORARY the env location is not properly set *)
+        raise_error w.env (NonExclusiveAdoptee clause)
+    | Fact.HConjunction _hs ->
+        (* This type is exclusive (when [hs] is empty), or could
+	   be exclusive provided the type parameters are suitably
+	   instantiated (when [hs] is nonempty). We do not signal
+	   an error. Note that the type [bottom], which is used to
+	   indicate the absence of an adopts clause, is exclusive,
+	   so it will not cause an error. *)
+	()
+  ) branches
+
+(* ---------------------------------------------------------------------------- *)
+
+(* The main fixed point computation. *)
+
+let analyze_data_types (env : env) (variables : var list) : env =
+
+  (* Make it a set of variables. *)
+
+  let variables =
+    List.fold_left (fun accu v ->
+      VarMap.add v () accu
+    ) VarMap.empty variables
+  in
+
+  (* Tie the knot. *)
+
+  let module F =
+    Fix.Make(IVarMap)(Fact)
+  in
+  let fixpoint : var -> Fact.fact =
+    F.lfp (fun (v : var) ->
+      (* Here, [v] is an algebraic data type, for which we would like
+	 to infer a fact. *)
+      match get_definition env v with
+      | None ->
+	  Log.error "A data type should have a definition."
+      | Some (None, _) ->
+	  (* This is an abstract type. Its fact is declared by the user.
+	     In that case, the code in the [DataTypeGroup] has already
+	     taken care of entering an appropriate fact in the environment.
+	     We just look it up. *)
+	  let f = get_fact env v in
+	  fun (_ : F.valuation) -> f
+      | Some (Some branches, _) ->
+	  fun valuation ->
+	    (* Bind the parameters. *)
+	    let w, branches = prepare_branches env v branches in
+	    (* Enrich the resulting world for the fixed point computation. *)
+	    let w = { w with variables; valuation } in
+	    (* The right-hand side of the algebraic data type definition can be
+	       viewed as a sum of records. *)
+	    Fact.join_many (infer_unresolved_branch w) branches
+    )
+  in
+
+  (* For each algebraic data type [v], compute a fact, and update the
+     environment with this fact. *)
+
+  let env =
+    VarMap.fold (fun v () env ->
+      match get_definition env v with
+      | None
+      | Some (None, _) ->
+	  (* Skip abstract types. There is nothing to do in this case,
+	     and furthermore, an abstract type could have kind [term],
+	     in which case inferring a fact for it does not make sense. *)
+	  env
+      | Some (Some _, _) ->
+	  (* This data type has a definition, hence it has kind [type]
+	     or [perm]. Inferring a fact for it makes sense. *)
+	  set_fact env v (fixpoint v)
+    ) variables env
+  in
+
+  (* Check that every adopts clauses is potentially exclusive. It may
+     seem tempting to fuse this loop with the above loop, but that
+     would not be good; the environment must be fully updated first. *)
+  VarMap.iter (fun v () ->
+    match get_definition env v with
+    | None
+    | Some (None, _) ->
+	()
+    | Some (Some branches, _) ->
+	check_adopts_clauses env v branches
+  ) variables;
+
+  (* Done. *)
+  env
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Accessors. *)
+
+let has_mode (m : mode) (env : env) (ty : typ) : bool =
+  let fact = infer (trivial_world env) ty in
+  let ok =
+    match ModeMap.find m fact with
+    | Fact.HFalse ->
+	false
+    | Fact.HConjunction hs ->
+	(* This fact should have arity 0. *)
+	assert (ParameterMap.cardinal hs = 0);
+	true
+  in
+  Log.debug ~level:6 "fact [is_ok=%b] for %a: %a"
+    ok
+    TypePrinter.ptype (env, ty)
+    TypePrinter.pfact fact;
+  ok
+
+let is_duplicable =
+  has_mode ModeDuplicable
+
+let is_exclusive =
+  has_mode ModeExclusive
+  

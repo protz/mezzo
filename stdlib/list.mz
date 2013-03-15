@@ -10,8 +10,7 @@ data list a =
 
 (* A definition for a list cell whose [tail] field has not yet been
    initialized. Such a cell is mutable, and can be frozen (turned
-   into an immutable list cell) via a tag update instruction (which
-   does nothing at runtime). *)
+   into an immutable list cell) via a tag update instruction. *)
 
 mutable data cell a =
   | Cell { head: a; tail: () }
@@ -19,8 +18,14 @@ mutable data cell a =
 (* The following function writes [xs] into [c.tail] and declares
    that [c] is now immutable. *)
 
-(* The tag update instruction actually does nothing at runtime,
-   so [freeze] is really just one write instruction. *)
+(* Note: in order to ensure that the tag update instruction does
+   nothing at runtime and can be erased, we need [Cons] and [Cell]
+   to translate to the same tag number. This could be achieved by
+   adding a new tag to the definition of the type [cell]. However
+   that would force us to change the type [cell a] to the more
+   verbose type [Cell { head: a; tail: () }] in several function
+   headers. Maybe we will do that when we have type abbreviations.
+   TEMPORARY *)
 
 val freeze [a] (consumes c: cell a, xs: unknown) : (| c @ Cons { head: a; tail = xs }) =
   c.tail <- xs;
@@ -302,20 +307,20 @@ val rec for_all [a, p : perm] (ok: (a | p) -> bool, xs: list a | p) : bool =
     True
 
 val rec rich_for_all
-  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool empty q, xs: list a | p) : rich_bool empty q =
+  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool q empty, xs: list a | p) : rich_bool q empty =
   match xs with
   | Nil ->
       RichTrue
   | Cons { head; tail } ->
       conjunction (
         ok head,
-        fun (| p * tail @ list a) : rich_bool empty q =
+        fun (| p * tail @ list a) : rich_bool q empty =
           rich_for_all (ok, tail)
       )
   end
 
 val rec rich_for_all_with_inlined_conjunction
-  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool empty q, xs: list a | p) : rich_bool empty q =
+  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool q empty, xs: list a | p) : rich_bool q empty =
   match xs with
   | Nil ->
       RichTrue
@@ -330,7 +335,7 @@ val rec exists [a, p : perm] (ok: (a | p) -> bool, xs: list a | p) : bool =
     False
 
 val rec rich_exists_with_inlined_disjunction
-  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool q empty, xs: list a | p) : rich_bool q empty =
+  [a, p : perm, q : perm] (ok: (a | p) -> rich_bool empty q, xs: list a | p) : rich_bool empty q =
   match xs with
   | Nil ->
       RichFalse
@@ -438,7 +443,48 @@ val rec combine [a, b] (consumes xs: list a, consumes ys: list b) : list (a, b) 
 
 (* -------------------------------------------------------------------------- *)
 
+(* This auxiliary function is used by [sort]. It peforms a dynamic test
+   of duplicability in order to choose between two ways of splitting a
+   list, one of which causes the list elements to apparently become
+   shared. *)
+
+(* While porting [sort] from OCaml's standard library, we encountered an
+   ownership problem. OCaml's code uses a trick, which is to *not* truncate
+   the list in the first recursive call. In other words, the first recursive
+   instance of [sort] is passed the entire list, but has permission to use
+   only the [n1] first elements of it. Mezzo's type system cannot express this
+   subtlety. As a result, it seems that we have to either restrict the code to
+   the case where the type [a] is duplicable, or truncate the list that is
+   passed to the first recursive call (at a cost). In fact, we can encapsulate
+   both versions of the code into a single [sort] function, which takes an
+   argument of [duplicability a], and performs the choice at runtime,
+   depending on the type [a]. This is perhaps not great, but it shows that we
+   do have a few tricks up our sleeve. *)
+
+val splitAtOrShareAndChop [a] (
+  dupa: reflection::duplicability a,
+  k: int,
+  consumes xs: list a
+) : (list a, list a) =
+  if dupa then
+    (* If the list elements are duplicable, then we can follow the OCaml
+       version of the code, and keep the first list unchanged. It is too
+       long, but the extra elements will never be accessed. *)
+    xs, chop (k, xs)
+  else
+    (* Otherwise, we have to use [splitAt], which is less efficient (the
+       first part of the list spine is copied) but obviously does not
+       cause the list elements to become shared. Our type system is not
+       expressive enough to understand that ``we own only the first [k]
+       elements of this list''. *)
+    splitAt (k, xs)
+
+(* -------------------------------------------------------------------------- *)
+
 (* Merging and sorting. *)
+
+(* Note: [merge] is not tail-recursive, and is not used by [sort],
+   which has its own [rev_merge]. *)
 
 val rec merge [a] (
   cmp: (a, a) -> int,
@@ -456,7 +502,11 @@ val rec merge [a] (
       else Cons { head = y; tail = merge (cmp, xs, ys.tail) }
   end
 
-val sort [a] (cmp: (a, a) -> int, consumes xs: list a) : list a =
+val sort [a] (
+  dupa: reflection::duplicability a,
+  cmp: (a, a) -> int,
+  consumes xs: list a
+) : list a =
   (* Wrap the comparison function [cmp] so as to take an extra
      argument, [sense], which takes the value -1 or 1 and allows
      reversing the ordering if desired. *)
@@ -481,9 +531,8 @@ val sort [a] (cmp: (a, a) -> int, consumes xs: list a) : list a =
       rev_append (ys, accu)
   in
   (* This is the main sorting function. The integer [n] is always at
-     least [2], and is the length of the list [xs]. (In the OCaml
-     version, [n] was less than or equal to the length of [xs]. See
-     comment below.) Again, the ordering is dictated by [sense]. *)
+     least [2], and is less than or equal to the length of [xs]. Again,
+     the ordering is dictated by [sense]. *)
   let rec sort (sense: int, n: int, consumes xs: list a) : list a =
     (* Leaf cases. *)
     if n = 2 then
@@ -512,18 +561,7 @@ val sort [a] (cmp: (a, a) -> int, consumes xs: list a) : list a =
     else begin
       let n1 = n / 2 in
       let n2 = n - n1 in
-       (* While porting the code from OCaml's standard library, we encountered
-	  an ownership problem. OCaml's code uses a trick, which is to *not*
-	  truncate the list in the first recursive call. In other words, the
-	  first recursive instance of [sort] is passed the entire list, but
-	  has permission to use only the [n1] first elements of it. Mezzo's
-	  type system cannot express this subtlety. As a result, we have to
-	  either restrict the code to the case where the type [a] is duplicable,
-	  or truncate the list that is passed to the first recursive call (at
-	  a cost). For the moment, we choose the second solution, but in the
-	  long run we might wish to offer the user a choice between two [sort]
-	  functions. *)
-      let xs1, xs2 = splitAt (n1, xs) in
+      let xs1, xs2 = splitAtOrShareAndChop (dupa, n1, xs) in
       let xs1 = sort (-sense, n1, xs1) in
       let xs2 = sort (-sense, n2, xs2) in
       rev_merge (-sense, xs1, xs2, Nil)

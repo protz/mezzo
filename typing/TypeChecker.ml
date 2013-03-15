@@ -23,8 +23,11 @@ open Types
 open TypeErrors
 open Expressions
 
-
 (* -------------------------------------------------------------------------- *)
+
+let drop_derivation =
+  Derivations.drop_derivation
+;;
 
 let add_hint =
   Permissions.add_hint
@@ -37,7 +40,7 @@ let is_data_type_with_two_constructors env t =
   let has_two_branches p =
     if is_type env p then
       match get_definition env p with
-      | Some (Some (_, branches, _), _) ->
+      | Some (Some branches, _) ->
           List.length branches = 2
       | _ ->
           false
@@ -51,28 +54,31 @@ let is_data_type_with_two_constructors env t =
   | TyApp (cons, _) ->
       (* e.g. list a *)
       has_two_branches !!cons
-  | TyConcreteUnfolded (datacon, _, _) ->
+  | TyConcreteUnfolded branch ->
       (* e.g. False *)
-      let _, branches, _ = def_for_datacon env datacon in
+      let branches = def_for_branch env branch in
       List.length branches = 2
   | _ ->
       false
 ;;
 
+(* Does [x @ t] allow [x] to adopt? If [t] is an algebraic data type,
+   then an adopts clause of [TyBottom] means that [x] cannot
+   adopt. However, if [t] is unfolded, then an adopts clause of
+   [TyBottom] does allow [x] to adopt, by covariance of the adopts
+   clause. *)
 let has_adopts_clause env t =
   match t with
   | TyOpen p ->
-      get_adopts_clause env p
+      let clause = get_adopts_clause env p in
+      is_non_bottom clause
   | TyApp (cons, args) ->
-      begin match get_adopts_clause env !!cons with
-      | Some clause ->
-          Some (instantiate_adopts_clause (Some clause) args)
-      | None ->
-          None
-      end
-  | TyConcreteUnfolded (_, _, clause) ->
+      let clause = get_adopts_clause env !!cons in
+      let clause = instantiate_type clause args in
+      is_non_bottom clause
+  | TyConcreteUnfolded branch ->
       if FactInference.is_exclusive env t then
-        Some clause
+        Some branch.branch_adopts
       else
         None
   | _ ->
@@ -96,9 +102,6 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
         is_quantified_arrow t
     | TyArrow _ ->
         true
-    | TyImply (_, t) ->
-        (* BEWARE: there may be quantifiers ABOVE and UNDER the [TyImply]. *)
-        is_quantified_arrow t
     | _ ->
         false
   in
@@ -114,33 +117,31 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
         env, t
   in
 
-  (* Instantiate flexible variables and deconstruct the resulting arrow. *)
-  let rec flex_deconstruct env acc t =
-    match flex env t with
-    | env, TyArrow (t1,t2) ->
-        env, (t1, t2), acc
-    | env, TyImply (constraints, t) ->
-        flex_deconstruct env (acc @ constraints) t
+  (* Deconstruct a possibly-quantified arrow. *)
+  let flex_deconstruct_arrow env t =
+    let env, t = flex env t in
+    match t with
+    | TyArrow (t1, t2) ->
+        env, (t1, t2)
     | _ ->
         assert false
   in
-  let flex_deconstruct env t = flex_deconstruct env [] t in
 
   (* Try to give some useful error messages in case we have found not enough or
    * too many suitable types for [f]. *)
-  let env, (t1, t2), constraints =
+  let env, (t1, t2) =
     match permissions with
     | [] ->
         raise_error env (NotAFunction f)
     | t :: [] ->
-        flex_deconstruct env t
+        flex_deconstruct_arrow env t
     | t :: _ ->
         Log.debug "More than one permission available for %a, strange"
           TypePrinter.pvar (env, fname);
-        flex_deconstruct env t
+        flex_deconstruct_arrow env t
   in
 
-  (* Try to instanciate flexibles in [t2] better by using the context-provided
+  (* Try to instantiate flexibles in [t2] better by using the context-provided
    * type annotation. *)
   let env =
     match annot with
@@ -148,7 +149,7 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
         Log.debug ~level:5 "[sub-annot]";
         begin try
           let sub_env = env in
-          match Permissions.sub_type sub_env t2 annot with
+          match Permissions.sub_type sub_env t2 annot |> drop_derivation with
           | Some sub_env ->
               Log.debug ~level:5 "[sub-annot SUCCEEDED]";
               import_flex_instanciations env sub_env
@@ -167,20 +168,12 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
     TypePrinter.pnames (env, get_names env x)
     TypePrinter.ptype (env, t1);
   match Permissions.sub env x t1 with
-  | Some env ->
+  | Some env, _ ->
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
-      (* Now we need to check the constraints (after the flexible variables have
-       * been instantiated! *)
-      let env = match Permissions.sub_constraints env constraints with
-        | Some env ->
-            env
-        | None ->
-            raise_error env (UnsatisfiableConstraint constraints)
-      in
       (* Return the "good" type. *)
       env, t2
-  | None ->
-      raise_error env (ExpectedType (t1, x))
+  | None, d ->
+      raise_error env (ExpectedType (t1, x, d))
 
 ;;
 
@@ -194,12 +187,12 @@ let check_return_type (env: env) (var: var) (t: typ): unit =
   );
     
   match Permissions.sub env var t with
-  | Some _ ->
+  | Some _, _ ->
       ()
-  | None ->
+  | None, derivation ->
       let open TypePrinter in
       Log.debug ~level:4 "%a\n------------\n" penv env;
-      raise_error env (ExpectedType (t, var))
+      raise_error env (ExpectedType (t, var, derivation))
 ;;
 
 
@@ -246,7 +239,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
 
   | PTuple patterns ->
       let permissions = get_permissions env var in
-      let t = Hml_List.map_some (function TyTuple x -> Some x | _ -> None) permissions in
+      let t = MzList.map_some (function TyTuple x -> Some x | _ -> None) permissions in
       if List.length t = 0 then
         raise_error env (BadPattern (pattern, var));
       let t = List.hd t in
@@ -262,10 +255,10 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
 
   | PConstruct (datacon, field_pats) ->
       let permissions = get_permissions env var in
-      let field_defs = Hml_List.map_some
+      let field_defs = MzList.map_some
         (function
-          | TyConcreteUnfolded (datacon', x, _) when resolved_datacons_equal env datacon datacon' ->
-              Some x
+          | TyConcreteUnfolded branch when resolved_datacons_equal env datacon branch.branch_datacon ->
+              Some branch.branch_fields
           | _ ->
               None)
         permissions
@@ -304,7 +297,7 @@ let refine_perms_in_place_for_pattern env var pat =
 
     | PTuple pats ->
         let vars =
-          match Hml_List.find_opt (function
+          match MzList.find_opt (function
             | TyTuple ts ->
                 Some (List.map (function
                   | TySingleton (TyOpen p) ->
@@ -329,11 +322,6 @@ let refine_perms_in_place_for_pattern env var pat =
         let fail () = raise_error env (MatchBadDatacon (var, snd datacon)) in
         let fail_if b = if b then fail () in
 
-        (* Turn the return value of [find_and_instantiate_branch] into a type. *)
-        let mkconcrete (dc, fields, clause) =
-          TyConcreteUnfolded (dc, fields, clause)
-        in
-
         (* Recursively refine the fields of a concrete type according to the
          * sub-patterns. *)
         let refine_fields env fields = List.fold_left (fun env (n2, pat2) ->
@@ -346,7 +334,7 @@ let refine_perms_in_place_for_pattern env var pat =
             | _ ->
                 assert false
           ) fields;
-          let var1 = match Hml_List.find_opt (function
+          let var1 = match MzList.find_opt (function
             | FieldValue (n1, TySingleton (TyOpen p1)) when Field.equal n1 n2 ->
                 Some p1
             | _ ->
@@ -361,14 +349,14 @@ let refine_perms_in_place_for_pattern env var pat =
         ) env patfields in
 
         (* Find a permission that can be refined in there. *)
-        begin match Hml_List.take (function
+        begin match MzList.take (function
           | TyOpen p ->
               let p', datacon = datacon in
               fail_if (not (same env p !!p'));
               fail_if (get_definition env p = None);
               begin try
                 let branch = find_and_instantiate_branch env p datacon [] in
-                Some (env, mkconcrete branch)
+                Some (env, TyConcreteUnfolded branch)
               with Not_found ->
                 (* Urgh [find_and_instantiate_branch] should probably throw
                  * something better... *)
@@ -382,20 +370,20 @@ let refine_perms_in_place_for_pattern env var pat =
               fail_if (not (same env !!cons !!p'));
               begin try
                 let branch = find_and_instantiate_branch env !!cons datacon args in
-                Some (env, mkconcrete branch)
+                Some (env, TyConcreteUnfolded branch)
               with Not_found ->
                 fail ()
               end
-          | TyConcreteUnfolded (datacon', fields', _) as t ->
+          | TyConcreteUnfolded branch' as t ->
               let fields, _ = List.split patfields in
               let is_ok =
-                resolved_datacons_equal env datacon datacon' &&
+                resolved_datacons_equal env datacon branch'.branch_datacon &&
                 List.for_all (function
                   | FieldValue (n1, _) ->
                       List.exists (Field.equal n1) fields
                   | _ ->
                       Log.error "not in order or not expanded"
-                ) fields'
+                ) branch'.branch_fields
               in
               fail_if (not is_ok);
               Some (env, t)
@@ -410,9 +398,9 @@ let refine_perms_in_place_for_pattern env var pat =
             (* Add instead its refined version -- this also makes sure it's in expanded form. *)
             let env = Permissions.add env var t in
             (* Find the resulting structural permission. *)
-            let fields = Option.extract (Hml_List.find_opt (function
-              | TyConcreteUnfolded (_, fields, _) ->
-                  Some fields
+            let fields = Option.extract (MzList.find_opt (function
+              | TyConcreteUnfolded branch ->
+                  Some branch.branch_fields
               | _ ->
                   None
             ) (get_permissions env var)) in
@@ -450,17 +438,23 @@ let merge_type_annotations env t1 t2 =
         t1
     | TyTuple ts1, TyTuple ts2 when List.length ts1 = List.length ts2 ->
         TyTuple (List.map2 merge_type_annotations ts1 ts2)
-    | TyConcreteUnfolded (datacon1, fields1, clause1),
-      TyConcreteUnfolded (datacon2, fields2, clause2)
-      when resolved_datacons_equal env datacon1 datacon2 && List.length fields1 = List.length fields2 ->
-        TyConcreteUnfolded (datacon1, List.map2 (fun f1 f2 ->
-          match f1, f2 with
-          | FieldValue (f1, t1), FieldValue (f2, t2) when Field.equal f1 f2 ->
-              FieldValue (f1, merge_type_annotations t1 t2)
-          | _ ->
-              error ()
-        ) fields1 fields2,
-        merge_type_annotations clause1 clause2)
+    | TyConcreteUnfolded branch1,
+      TyConcreteUnfolded branch2
+      when resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon ->
+        assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
+	let branch = { branch1 with
+	  branch_fields =
+            List.map2 (fun f1 f2 ->
+	      match f1, f2 with
+	      | FieldValue (f1, t1), FieldValue (f2, t2) when Field.equal f1 f2 ->
+		  FieldValue (f1, merge_type_annotations t1 t2)
+	      | _ ->
+		  error ()
+	    ) branch1.branch_fields branch2.branch_fields;
+	  branch_adopts =
+            merge_type_annotations branch1.branch_adopts branch2.branch_adopts;
+	} in
+	TyConcreteUnfolded branch
     | _ ->
         error ()
   in
@@ -487,10 +481,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         env, x
     | Some t ->
         match Permissions.sub env x t with
-        | Some _ ->
+        | Some _, _ ->
             env, x
-        | None ->
-            raise_error env (ExpectedType (t, x))
+        | None, d ->
+            raise_error env (ExpectedType (t, x, d))
   in
 
   match expr with
@@ -538,12 +532,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let sub_env, p = check_expression sub_env ~annot:return_type body in
 
       begin match Permissions.sub sub_env p return_type with
-      | Some _ ->
+      | Some _, _ ->
           (* Return the entire arrow type. *)
           let expected_type = type_for_function_def expr in
           return env expected_type
-      | None ->
-          raise_error sub_env (NoSuchPermission return_type)
+      | None, d ->
+          raise_error sub_env (ExpectedType (return_type, p, d))
       end
 
   | EAssign (e1, field_struct, e2) ->
@@ -555,15 +549,14 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let found = ref false in
       let permissions = List.map (fun t ->
           match t with
-          | TyConcreteUnfolded (datacon, fieldtypes, clause) ->
-              (* Check that datacon vars to a type that is defined as
-               * exclusive. *)
-              let flag, _, _ = def_for_datacon env datacon in
-              if flag <> SurfaceSyntax.Exclusive then
-                raise_error env (AssignNotExclusive (t, snd datacon));
+          | TyConcreteUnfolded branch ->
+              (* Check that this datacon is exclusive. *)
+	      let flavor = flavor_for_branch env branch in
+	      if not (DataTypeFlavor.can_be_written flavor) then
+                raise_error env (AssignNotExclusive (t, snd branch.branch_datacon));
 
               (* Perform the assignment. *)
-              let fieldtypes = List.mapi (fun i -> function
+              let branch_fields = List.mapi (fun i -> function
                 | FieldValue (field, expr) ->
                     let expr = 
                       if Field.equal field fname then
@@ -584,8 +577,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                     FieldValue (field, expr)
                 | FieldPermission _ ->
                     Log.error "These should've been inserted in the environment"
-              ) fieldtypes in
-              TyConcreteUnfolded (datacon, fieldtypes, clause)
+              ) branch.branch_fields in
+              TyConcreteUnfolded { branch with branch_fields }
           | _ ->
               t
         ) permissions
@@ -600,10 +593,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let env, p1 = check_expression env e1 in
 
       (* Find the type [datacon] corresponds to. *)
-      let _, branches, _ = def_for_datacon env new_datacon in
-      let _, fields =
-        List.find (fun (datacon, _) -> Datacon.equal (snd new_datacon) datacon) branches
+      let new_branches = def_for_datacon env new_datacon in
+      let new_branch =
+        List.find (fun branch -> Datacon.equal (snd new_datacon) branch.branch_datacon) new_branches
       in
+      let fields = new_branch.branch_fields in
       let field_names = List.map (function
         | FieldValue (name, _) ->
             name
@@ -616,23 +610,25 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let permissions = get_permissions env p1 in
       let found = ref false in
       let permissions = List.map (function
-        | TyConcreteUnfolded (old_datacon, fieldexprs, clause) as t ->
+        | TyConcreteUnfolded old_branch as t ->
+	    let old_datacon = old_branch.branch_datacon in
             (* The current type should be mutable. *)
-            let flag, _, _ = def_for_datacon env old_datacon in
-            if flag <> SurfaceSyntax.Exclusive then
+	    let old_flavor = flavor_for_branch env old_branch in
+	    if not (DataTypeFlavor.can_be_written old_flavor) then
               raise_error env (AssignNotExclusive (t, snd old_datacon));
 
             (* Also, the number of fields should be the same. *)
-            if List.length fieldexprs <> List.length field_names then
+	    (* TEMPORARY incorrect check, due to FieldPermission, I think *)
+            if List.length old_branch.branch_fields <> List.length field_names then
               raise_error env (FieldCountMismatch (t, snd new_datacon));
 
             (* Change the field names. *)
-            let fieldexprs = List.map2 (fun field -> function
+            let branch_fields = List.map2 (fun field -> function
               | FieldValue (_, e) ->
                   FieldValue (field, e)
               | FieldPermission _ ->
                   Log.error "These should've been inserted in the environment"
-            ) field_names fieldexprs in
+            ) field_names old_branch.branch_fields in
 
             if !found then
               Log.error "Two suitable permissions, strange...";
@@ -643,7 +639,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
               info.SurfaceSyntax.is_phantom_update <- Some false;
 
             (* And don't forget to change the datacon as well. *)
-            TyConcreteUnfolded (new_datacon, fieldexprs, clause)
+            TyConcreteUnfolded { old_branch with
+	      (* the flavor is unit anyway *)
+	      branch_datacon = new_datacon;
+	      branch_fields;
+	      (* the type of the adoptees does not change *)
+	    }
 
         | _ as t ->
             t
@@ -672,7 +673,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       begin try
         List.iter (fun t ->
           match t with
-          | TyConcreteUnfolded (_, fieldexprs, _) ->
+          | TyConcreteUnfolded branch ->
               List.iteri (fun i -> function
                 | FieldValue (field, expr) ->
                     if Field.equal field fname then
@@ -686,7 +687,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                       end;
                 | FieldPermission _ ->
                     ()
-              ) fieldexprs
+              ) branch.branch_fields
           | _ ->
               ()
         ) (get_permissions env p);
@@ -700,6 +701,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       | EApply _ ->
           if not (!Options.multiple_arguments) then
             raise_error env NoMultipleArguments
+	  (* TEMPORARY this is too violent, and this command line option
+	     does not really make sense, does it? Instead, the error
+	     message [NotAFunction] could be replaced with [NoMultipleArguments]
+	     in certain situations? *)
       | _ ->
           ()
       end;
@@ -751,7 +756,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             None
       in
       (* Find something that works. *)
-      let t = Hml_List.find_opt find_and_instantiate (get_permissions env x) in
+      let t = MzList.find_opt find_and_instantiate (get_permissions env x) in
       let t = match t with
         | Some t ->
             t
@@ -775,9 +780,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         | Some (TyTuple annotations) when List.length annotations = List.length exprs ->
             List.map (fun x -> Some x) annotations
         | _ ->
-            Hml_List.make (List.length exprs) (fun _ -> None)
+            MzList.make (List.length exprs) (fun _ -> None)
       in
-      let env, components = Hml_List.fold_left2i
+      let env, components = MzList.fold_left2i
         (fun i (env, components) expr annot ->
           let hint = add_hint hint (string_of_int i) in
           let env, p = check_expression env ?hint ?annot expr in
@@ -791,14 +796,14 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let annot = Option.map (expand_if_one_branch env) annot in
       (* Propagate type annotations inside the constructor. *)
       let clause = match annot with
-        | Some (TyConcreteUnfolded (_, _, clause)) ->
-            clause
+        | Some (TyConcreteUnfolded branch) ->
+            branch.branch_adopts
         | _ ->
             ty_bottom
       in
       let annotations = match annot with
-        | Some (TyConcreteUnfolded (_, fields, _)) ->
-            let annots = Hml_List.map_some (function
+        | Some (TyConcreteUnfolded branch) ->
+            let annots = MzList.map_some (function
                 | FieldValue (name, t) ->
                     Some (name, t)
                 | FieldPermission _ ->
@@ -806,7 +811,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                      * annotation (beneath, say, a constructor). We're not doing
                      * anything useful with these yet. *)
                     None
-              ) fields
+              ) branch.branch_fields
             in
             (* Every field in the type annotation corresponds to a field in the
              * expression, i.e. the type annotation makes sense. *)
@@ -823,10 +828,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             []
       in
       (* Find the corresponding definition. *)
-      let _flag, branches, _ = def_for_datacon env datacon in
+      let branches = def_for_datacon env datacon in
       (* And the corresponding branch, so that we obtain the field names in order. *)
       let branch =
-        List.find (fun (datacon', _) -> Datacon.equal (snd datacon) datacon') branches
+        List.find (fun branch' -> Datacon.equal (snd datacon) branch'.branch_datacon) branches
       in
       (* Take out of the provided fields one of them. *)
       let take env name' l =
@@ -838,7 +843,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       in
       (* Find the annotation for one of the fields. *)
       let annot name =
-        Hml_List.find_opt (function
+        MzList.find_opt (function
           | name', t when Field.equal name name' ->
               Some t
           | _ ->
@@ -862,7 +867,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             env, remaining, FieldValue (name, ty_equals p) :: fieldvals
         | FieldPermission _ ->
             env, remaining, fieldvals
-      ) (env, fieldexprs, []) (snd branch) in
+      ) (env, fieldexprs, []) branch.branch_fields in
       (* Make sure the user hasn't written any superfluous fields. *)
       begin match remaining with
       | (name, _) :: _ ->
@@ -871,7 +876,13 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           ()
       end;
       let fieldvals = List.rev fieldvals in
-      return env (TyConcreteUnfolded (datacon, fieldvals, clause))
+      let branch = {
+	branch_flavor = ();
+	branch_datacon = datacon;
+	branch_fields = fieldvals;
+	branch_adopts = clause;
+      } in
+      return env (TyConcreteUnfolded branch)
 
 
   | EInt _ ->
@@ -895,18 +906,15 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 	 be executed. *)
 
       let env, (false_t, true_t) =
-        match Hml_List.take_bool (is_data_type_with_two_constructors env) (get_permissions env x1) with
+        match MzList.take_bool (is_data_type_with_two_constructors env) (get_permissions env x1) with
         | Some (permissions, t) ->
             let env = set_permissions env x1 permissions in
             let split_apply cons args =
               match get_definition env cons with
-              | Some (Some (_, [b1; b2], clause), _) ->
-                  let dc1, branch1 = instantiate_branch b1 args in
-                  let dc2, branch2 = instantiate_branch b2 args in
-                  let clause = instantiate_adopts_clause clause args in
-                  let t1 = TyConcreteUnfolded ((TyOpen cons, dc1), branch1, clause) in
-                  let t2 = TyConcreteUnfolded ((TyOpen cons, dc2), branch2, clause) in
-                  t1, t2
+              | Some (Some [b1; b2], _) ->
+                  let branch1 = resolve_branch cons (instantiate_branch b1 args) in
+                  let branch2 = resolve_branch cons (instantiate_branch b2 args) in
+                  TyConcreteUnfolded branch1, TyConcreteUnfolded branch2
               | _ ->
                   assert false
             in
@@ -956,7 +964,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       (* Combine all of these left-to-right to obtain a single return
        * environment *)
-      let dest = Hml_List.reduce (Merge.merge_envs env ?annot) sub_envs in
+      let dest = MzList.reduce (Merge.merge_envs env ?annot) sub_envs in
 
       if explain then
         Debug.explain_merge dest sub_envs;
@@ -967,8 +975,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* Small helper function. *)
       let replace_clause perm clause =
         match perm with
-        | TyConcreteUnfolded (dc, branch, _old_clause) ->
-            TyConcreteUnfolded (dc, branch, clause)
+        | TyConcreteUnfolded branch ->
+	    assert (is_non_bottom branch.branch_adopts = None); (* the old clause is bottom *)
+            TyConcreteUnfolded { branch with branch_adopts = clause }
         | _ ->
             Log.error "[perm] must be a nominal type, and we don't allow the \
               user to declare a nominal type that adopts [ty_bottom]."
@@ -988,7 +997,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       in
       let env, y = check_expression env ?hint e in
       (* Find the adopts clause for this structural permission. *)
-      begin match Hml_List.take (has_adopts_clause env) (get_permissions env y) with
+      begin match MzList.take (has_adopts_clause env) (get_permissions env y) with
       | None ->
           raise_error env (NoAdoptsClause y)
       | Some (remaining_perms, (perm, clause)) ->
@@ -1002,11 +1011,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 (* First of all, check that the user wants to adopt something
                  * legit. *)
                 if not (FactInference.is_exclusive env t) then
-                  raise_error env (BadFactForAdoptedType (y, t, FactInference.analyze_type env t));
+                  raise_error env (NonExclusiveAdoptee t);
                 (* The clause is now [t]. Extract it from the list of available
                  * permissions for [x]. We know it works because we type-checked
                  * the whole [EConstraint] already. *)
-                let env = Option.extract (Permissions.sub env x t) in
+                let env = Option.extract (Permissions.sub env x t |> drop_derivation) in
                 (* Refresh the structural permission for [e], using the new
                  * clause. *)
                 let perm = replace_clause perm t in
@@ -1014,11 +1023,17 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 (* We're done. *)
                 return env ty_unit
           else begin
-            Log.check (FactInference.is_exclusive env clause)
-              "We erroneously allowed a non-exclusive adopts clause";
+	    (* Check that the adoptee is exclusive. We do *not* check this when
+	       we examine an algebraic data type definition that has an adopts
+	       clause, because it is more flexible to defer this check to actual
+	       adoption time. Indeed, the type parameters have been instantiated,
+	       local mode assumptions are available, so the check may succeed here
+	       whereas it would have failed if performed at type definition time. *)
+	    if not (FactInference.is_exclusive env clause) then
+              raise_error env (NonExclusiveAdoptee clause);
             (* The clause is known. Just take the required permission out of the
              * permissions for x. *)
-            match Permissions.sub env x clause with
+            match Permissions.sub env x clause |> drop_derivation with
             | Some env ->
                 return env ty_unit
             | None ->
@@ -1031,7 +1046,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       if not (List.exists (equal env TyDynamic) (get_permissions env x)) then
         raise_error env (NotDynamic x);
       let env, y = check_expression env ?hint e in
-      begin match Hml_List.find_opt (has_adopts_clause env) (get_permissions env y) with
+      begin match MzList.find_opt (has_adopts_clause env) (get_permissions env y) with
       | None ->
           raise_error env (NoAdoptsClause y)
       | Some clause ->
@@ -1046,11 +1061,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       if not (List.exists (equal env TyDynamic) (get_permissions env x)) then
         raise_error env (NotDynamic x);
       let env, y = check_expression env ?hint y in
-      (* Check that the type of [y] has an adopts clause (which implies that
-	 it is exclusive). This is a stronger condition than strictly required
-	 for type soundness (no condition on [y] would be enough) and for
-	 stability (exclusive-ness would be enough), but it should allow us
-	 to detect a few more programmer errors. *)
+      (* Check that we have an exclusive permission for [y]. This is a stronger condition
+	 than strictly required for type soundness (no condition on [y] would be
+	 enough), but it should allow us to detect a few more programmer errors. *)
       (* TEMPORARY if we have an exclusive permission for [x], then we could
 	 emit a warning, because in this case [y owns x] is certain to return
 	 false. *)
@@ -1145,7 +1158,7 @@ let check_declaration_group
   (* List kept in reverse, the usual trick. *)
   let vars = List.rev vars in
   let subst_toplevel_items b =
-    Hml_List.fold_lefti (fun i b var ->
+    MzList.fold_lefti (fun i b var ->
       let b = tsubst_toplevel_items (TyOpen var) i b in
       esubst_toplevel_items (EOpen var) i b) b vars
   in

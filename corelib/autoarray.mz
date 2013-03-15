@@ -2,7 +2,7 @@
 
 (* The type of arrays is axiomatized. *)
 
-abstract array a
+abstract array +a
 fact exclusive (array a)
 
 (* A Mezzo array is implemented as an OCaml array. Because Mezzo arrays

@@ -1,0 +1,76 @@
+open list
+open pool
+
+(* A depth-first preorder traversal of a graph. *)
+
+(* The code is polymorphic in the type of the graph nodes. Furthermore,
+   the code allows the type of a node to change as the node is visited.
+   The unvisited nodes have type [unvisited], while the visited nodes
+   have type [visited]. Both of these types are assumed to be exclusive. *)
+
+(* We assume that all nodes are initially adopted by the object [nodes],
+   which has type [pool unvisited]. When a node is visited, it is taken
+   away from this pool; its type changes from [unvisited] to [visited];
+   and it is then adopted by a new pool, which has type [pool visited].
+   At the end of the traversal, the original pool contains the unreachable
+   nodes, while the new pool contains the reachable nodes. *)
+
+(* We require a list [roots] of the root nodes for the traversal. We also
+   require a function [visit], which changes the state of its node argument
+   from [unvisited] to [visited], and returns a list of this node's
+   successors. *)
+
+(* The function [visit] may require a permission [p]. We echo this
+   requirement. *)
+
+val preorder:
+  [unvisited, visited, p : perm]
+  exclusive visited =>
+  (
+    (* A pool of all nodes. *)
+    nodes: pool unvisited,
+    (* A list of the root nodes. *)
+    roots: list dynamic,
+    (* A function that visits a node, changing its state from
+       [unvisited] to [visited], and returns its successors. *)
+    visit: (consumes node: unvisited | p) -> (list dynamic | node @ visited)
+    (* The permission [p] required by [visit]. *)
+    | p
+  ) 
+    (* We return a new pool of the visited nodes. *)
+    -> pool visited
+
+(* A more general traversal function, which allows a pre- and a post-action,
+   and optionally detects a cycle in the graph. *)
+
+(* Because the pre- and post-action are distinguished, there are three node
+   states: [unvisited], [visiting], and [visited]. *)
+
+val prepostorder:
+  [unvisited, visiting, visited, p : perm]
+  exclusive visited =>
+  (
+    (* A pool of all nodes. *)
+    nodes: pool unvisited,
+    (* A list of the root nodes. *)
+    roots: list dynamic,
+    (* A flag that indicates whether we should abort when a cycle is
+       detected. *)
+    detect: bool,
+    (* A function that changes the state of a node from [unvisited]
+       to [visiting] and returns its successors. *)
+    pre: (consumes node: unvisited | p) -> (list dynamic | node @ visiting),
+    (* A function that changes the state of a node from [visiting]
+       to [visited]. *)
+    post: (consumes node: visiting | p) -> (| node @ visited)
+    (* The permission [p] required by [visit] and [successors]. *)
+    | p
+  ) 
+->(
+  (* A new pool of the visited nodes. *)
+  pool visited,
+  (* An option that indicates: 1. whether a cycle was detected and 2. if so,
+     the list of nodes that were in the state [visiting] when the cycle was
+     detected. These nodes form a path in the graph that ends in a cycle. *)
+  option (list visiting)
+)

@@ -18,7 +18,7 @@
 (*****************************************************************************)
 
 (* This module is entirely devoted to computing the variance of type parameters
- * in data type.
+ * in data types.
  *
  * This module uses [Fix], which we bundle as part of Mezzo. See
  * http://gallium.inria.fr/~fpottier/fix/fix.html.en
@@ -26,6 +26,7 @@
 
 open TypeCore
 open Types
+open TypeErrors
 
 type t = variance
 
@@ -55,6 +56,8 @@ let lub a b =
         Invariant
 ;;
 
+let leq a b = (lub a b) = b;;
+
 (* Variance inversion (e.g. left of an arrow). *)
 let (~~) = function
   | Invariant -> Invariant
@@ -72,6 +75,8 @@ let (~~) = function
  * In our case, covariant. *)
 let dot a b =
   match a, b with
+  | Invariant, Bivariant ->
+      Bivariant
   | Invariant, _ ->
       Invariant
   | Covariant, b ->
@@ -121,32 +126,34 @@ let variance env var_for_ith valuation b t =
         let vs = List.map var ts in
         List.fold_left lub Bivariant vs
 
-    | TyConcreteUnfolded (_, fields, clause) ->
+    | TyConcreteUnfolded branch ->
         let vs = List.map (function
           | FieldValue (_, t) ->
               var t
           | FieldPermission p ->
               var p
-        ) fields in
-        let vs = var clause :: vs in
+        ) branch.branch_fields in
+        let vs = var branch.branch_adopts :: vs in
         List.fold_left lub Bivariant vs
 
-    | TySingleton t ->
-        var t
+    | TySingleton _ ->
+        Bivariant
 
     | TyArrow (t1, t2) ->
         lub ~~(var t1) (var t2)
 
     | TyBar (t1, t2)
-    | TyAnchoredPermission (t1, t2)
     | TyStar (t1, t2) ->
         lub (var t1) (var t2)
 
-    | TyAnd (constraints, t)
-    | TyImply (constraints, t) ->
-        let ts = List.map snd constraints in
-        let vs = List.map var (t :: ts) in
-        List.fold_left lub Bivariant vs
+    | TyAnchoredPermission (_, t2) ->
+        var t2
+
+    | TyAnd ((_, t), u) ->
+	(* [t] is in invariant position, [u] is in covariant position. *)
+	lub
+	  (dot Invariant (var t))
+	  (var u)
   in
   var t
 ;;
@@ -159,17 +166,7 @@ module P = struct
   let is_maximal = (=) Invariant
 end
 
-module M = struct
-  type key = var
-  type 'data t = 'data VarMap.t ref
-  let create () = ref VarMap.empty
-  let clear m = m := VarMap.empty
-  let add k v m = m := (VarMap.add k v !m)
-  let find k m = VarMap.find k !m
-  let iter f m = VarMap.iter f !m
-end
-
-module Solver = Fix.Make(M)(P)
+module Solver = Fix.Make(IVarMap)(P)
 
 let analyze_data_types env points =
   (* Keep the original env fresh, since we're going to throw away most of the
@@ -188,15 +185,11 @@ let analyze_data_types env points =
           Log.error "Only data type definitions here"
       | Some (None, _) ->
           env, acc
-      | Some (Some (_flag, branches, clause), _) ->
-          let env, points, instantiated_branches, clause =
-            bind_datacon_parameters env kind branches clause
+      | Some (Some branches, _) ->
+          let env, points, instantiated_branches =
+            bind_datacon_parameters env kind branches
           in
-          let clause = match clause with Some clause -> clause | None -> ty_bottom in
-          (* Keep the clause along with the branches so that [equations] can
-           * generate proper concrete types, which will in turn use the clause
-           * to generate correct equations. *)
-          env, (point, (points, (List.map (fun (x, y) -> x, y, clause) instantiated_branches))) :: acc
+          env, (point, (points, instantiated_branches)) :: acc
     ) (original_env, []) points
   in
 
@@ -210,17 +203,17 @@ let analyze_data_types env points =
   (* This computes the rhs for a given variable. *)
   let equations var =
     (* Find which type this variable belongs to. *)
-    let _, (_, branches) = List.find (fun (_, (vars, _)) ->
+    let owner, (_, branches) = List.find (fun (_, (vars, _)) ->
       List.exists (same env var) vars
     ) store in
     (* The equations for a given variable depend on the valuation. (At this
      * stage, you should really, really read the doc for [Fix].) *)
     (fun valuation ->
-      (* The [z] parameter is actually the adopts clause that has been
-       * distributed in all the branches so as to give the correct behavior. *)
       let vs = List.map
         (variance env var_for_ith valuation var)
-        (List.map (fun (x, y, z) -> TyConcreteUnfolded ((TyUnknown, x), y, z)) branches)
+        (List.map (fun branch ->
+	  TyConcreteUnfolded (resolve_branch owner branch)
+	 ) branches)
       in
       List.fold_left lub Bivariant vs
     )
@@ -232,7 +225,11 @@ let analyze_data_types env points =
   (* Update the data type definitions. *)
   let original_env = List.fold_left (fun env (cons, (vars, _)) ->
     let variance = List.map valuation vars in
-    update_definition env cons (fun (branches, _) -> branches, variance)
+    update_definition env cons (fun (branches, annotated_variance) ->
+      if not (List.for_all2 leq variance annotated_variance) then
+        raise_error env VarianceAnnotationMismatch;
+      branches, variance
+    )
   ) original_env store in
   original_env
 ;;

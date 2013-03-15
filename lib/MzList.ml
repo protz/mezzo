@@ -45,32 +45,6 @@ let iter2i f l l' =
   in
   iter2i 0 f l l'
 
-let rec append_rev_front x y = match x,y with
-  | [], l ->
-      l
-  | x::xs, l ->
-      append_rev_front xs (x :: l)
-
-(* Removes duplicates from a list. The default behaviour is to remove identical
- * elements. You can provide your own equality function (and possibly a better
- * hash function) to optimize things or compare elements using a custom
- * criterion. *)
-let remove_duplicates (type t') ?(hash_func=Hashtbl.hash) ?(equal_func=(=)) (l: t' list) =
-  let module S = struct
-    type t = t'
-    let equal = equal_func
-    let hash = hash_func
-  end in
-  let module MHT = Hashtbl.Make(S) in
-  let seen = MHT.create 16 in
-  let l' = ref [] in
-  List.iter
-    (fun x ->
-       if not (MHT.mem seen x) then begin MHT.add seen x (); l' := x :: !l' end
-    )
-    l;
-  !l'
-
 (* Checking for duplicates in a list. [check_for_duplicates compare xs] returns either
    [Some (x1, x2)] where [x1] and [x2] are distinct elements of the list [xs] such
    that [compare x1 x2] is zero, or [None], if no such two elements exist. *)
@@ -133,7 +107,7 @@ let fold_left3 f init l1 l2 l3 =
     | [], [], [] ->
         acc
     | _ ->
-        raise (Invalid_argument "Hml_List.fold_left3")
+        raise (Invalid_argument "MzList.fold_left3")
   in
   fold_left3 init l1 l2 l3
 
@@ -182,10 +156,10 @@ let nth_opt list index =
 let map_some f l =
   filter_some (List.map f l)
 
-let index ?(equal_func=(=)) e l =
+let index f l =
   let module M = struct exception Found of int end in
   try
-    List.iteri (fun i e' -> if equal_func e e' then raise (M.Found i)) l;
+    List.iteri (fun i e' -> if f e' then raise (M.Found i)) l;
     raise Not_found
   with M.Found i ->
     i
@@ -210,7 +184,7 @@ let take f l =
     | elt :: l' ->
         match f elt with
         | Some result ->
-            Some (append_rev_front l l', (elt, result))
+            Some (List.rev_append l l', (elt, result))
         | None ->
             take (elt :: l) l'
   in
@@ -251,3 +225,23 @@ let cut i l =
           raise (Invalid_argument "cut")
   in
   cut [] i l
+
+let rec equal eq xs ys =
+  match xs, ys with
+  | [], [] ->
+      true
+  | x :: xs, y :: ys ->
+      eq x y && equal eq xs ys
+  | _, _ ->
+      false
+
+let rec cps_map f xs k =
+  match xs with
+  | [] ->
+      k []
+  | x :: xs ->
+      f x (fun x ->
+      cps_map f xs (fun xs ->
+      k (x :: xs)
+      ))
+

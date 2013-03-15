@@ -49,7 +49,7 @@ type type_binding =
 
 type flavor = SurfaceSyntax.binding_flavor = CanInstantiate | CannotInstantiate
 
-module DataconMap = Hml_Map.Make(struct
+module DataconMap = MzMap.Make(struct
   type t = Module.name * Datacon.name
   let compare = Pervasives.compare
 end)
@@ -58,7 +58,7 @@ end)
 
 module Field = Variable
 
-type variance = Invariant | Covariant | Contravariant | Bivariant
+type variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | Bivariant
 
 type typ =
     (* Special type constants. *)
@@ -77,9 +77,7 @@ type typ =
 
     (* Structural types. *)
   | TyTuple of typ list
-  | TyConcreteUnfolded of resolved_datacon * data_field_def list * typ
-      (* [typ] is for the type of the adoptees; initially it's bottom and then
-       * it gets instantiated to something more precise. *)
+  | TyConcreteUnfolded of resolved_branch
 
     (* Singleton types. *)
   | TySingleton of typ
@@ -96,8 +94,7 @@ type typ =
   | TyStar of typ * typ
 
     (* Constraint *)
-  | TyAnd of duplicity_constraint list * typ
-  | TyImply of duplicity_constraint list * typ
+  | TyAnd of mode_constraint * typ
 
 and var =
   | VRigid of point
@@ -110,48 +107,41 @@ and var =
  * definition. *)
 and resolved_datacon = typ * Datacon.name
 
-and duplicity_constraint = SurfaceSyntax.data_type_flag * typ
+and mode_constraint = Mode.mode * typ
 
-and data_type_def_branch =
-    Datacon.name * data_field_def list
+and ('flavor, 'datacon) data_type_def_branch = {
+  branch_flavor: 'flavor; (* DataTypeFlavor.flavor or unit *)
+  branch_datacon: 'datacon; (* Datacon.name or resolved_datacon *)
+  branch_fields: data_field_def list;
+  (* The type of the adoptees; initially it's bottom and then
+   * it gets instantiated to something less precise. *)
+  branch_adopts: typ;
+}
+
+and resolved_branch =
+    (unit, resolved_datacon) data_type_def_branch
 
 and data_field_def =
   | FieldValue of (Field.name * typ)
   | FieldPermission of typ
 
-type adopts_clause =
-  (* option here because not all concrete types adopt someone *)
-  typ option
+type unresolved_branch =
+    (DataTypeFlavor.flavor, Datacon.name) data_type_def_branch
 
 type data_type_def =
-  data_type_def_branch list
+  unresolved_branch list
 
 type type_def =
   (* option here because abstract types do not have a definition *)
-    (SurfaceSyntax.data_type_flag * data_type_def * adopts_clause) option
+    data_type_def option
   * variance list
 
 type data_type_group =
-  (Variable.name * location * type_def * fact * kind) list
+  (Variable.name * location * type_def * Fact.fact * kind) list
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Program-wide environment. *)
-
-(* A fact refers to any type variable available in scope; the first few facts
- * refer to toplevel data types, and the following facts refer to type variables
- * introduced in the scope, because, for instance, we went through a binder in a
- * function type.
- *
- * The [Fuzzy] case is used when we are inferring facts for a top-level data
- * type; we need to introduce the data type's parameters in the environment, but
- * the correponding facts are evolving as we work through our analysis. The
- * integer tells the number of the parameter. *)
-and fact = Exclusive | Duplicable of bitmap | Affine | Fuzzy of int
-
-(* The 0-th element is the first parameter of the type, and the value is true if
-  * it has to be duplicable for the type to be duplicable. *)
-and bitmap = bool array
 
 type binding_type = Rigid | Flexible
 
@@ -159,7 +149,7 @@ type permissions = typ list
 
 type level = int
 
-(** This is the environment that we use throughout HaMLeT. *)
+(** This is the environment that we use throughout. *)
 type env = {
   (* This maps global names (i.e. [TyOpen]s) to their corresponding binding. *)
   state: binding PersistentUnionFind.state;
@@ -223,9 +213,11 @@ and var_descr = {
    * set of functions to deal with marks. *)
   binding_mark: Mark.t;
 
-  (* Associated fact. Variables with kind type have an associated fact; others
-   * don't. *)
-  fact: fact option;
+  (* Associated fact. A type variable of kind [type] or [perm] has a fact of
+     arity 0, that is, just a mode. A type constructor of kind [... -> type]
+     or [... -> perm] has a fact of arity greater than 0. A type variable or
+     type constructor of kind [term] does not have a fact. *)
+  fact: Fact.fact option;
 
   (* Associated level. *)
   level: level;
@@ -257,7 +249,7 @@ and term_descr = {
 let internal_ptype: (Buffer.t -> (env * typ) -> unit) ref = ref (fun _ -> assert false);;
 let internal_pnames: (Buffer.t -> (env * name list) -> unit) ref = ref (fun _ -> assert false);;
 let internal_ppermissions: (Buffer.t -> env -> unit) ref = ref (fun _ -> assert false);;
-let internal_pfact: (Buffer.t -> fact -> unit) ref = ref (fun _ -> assert false);;
+let internal_pfact: (Buffer.t -> Fact.fact -> unit) ref = ref (fun _ -> assert false);;
 
 (* The empty environment. *)
 let empty_env = {
@@ -286,12 +278,11 @@ let module_name { module_name; _ } = module_name;;
 
 let set_module_name env module_name = { env with module_name };;
 
-let valid env p =
-  PersistentUnionFind.valid p env.state
-;;
-
-let repr env p =
-  PersistentUnionFind.repr p env.state
+let valid env = function
+  | VFlexible v ->
+      v < List.length env.flexible
+  | VRigid p ->
+      PersistentUnionFind.valid p env.state
 ;;
 
 let find env p =
@@ -321,13 +312,13 @@ exception UnboundPoint
 (* Goes through any flexible variables before finding "the real type". *)
 let rec modulo_flex_v (env: env) (v: var): typ =
   match v with
-  | VRigid p ->
-      if valid env p then
-        TyOpen (VRigid (repr env p))
+  | VRigid _ ->
+      if valid env v then
+        TyOpen v
       else
         raise UnboundPoint
   | VFlexible f ->
-      if f < List.length env.flexible then
+      if valid env v then
         match (find_flex env f).structure with
         | Instantiated (TyOpen v) ->
             modulo_flex_v env v
@@ -355,18 +346,8 @@ let is_flexible (env: env) (v: var): bool =
       false
 ;;
 
-let import_flex_instanciations env sub_env =
-  let rec chop_n_first n l =
-    if n = 0 then
-      l
-    else
-      chop_n_first (n - 1) (List.tl l)
-  in
-  let diff = List.length sub_env.flexible - List.length env.flexible in 
-  { env with flexible = chop_n_first diff sub_env.flexible }
-;;
-
-
+let is_rigid env v =
+  not (is_flexible env v)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -465,7 +446,7 @@ let reset_permissions (env: env) (var: var): env =
   )
 ;;
 
-let get_fact (env: env) (var: var): fact =
+let get_fact (env: env) (var: var): Fact.fact =
   Option.extract (get_var_descr env var).fact
 ;;
 
@@ -517,7 +498,7 @@ let get_kind (env: env) (var: var): kind =
   (get_var_descr env var).kind
 ;;
 
-let set_fact (env: env) (var: var) (fact: fact): env =
+let set_fact (env: env) (var: var) (fact: Fact.fact): env =
   let fact = Some fact in
   update_var_descr env var (fun d -> { d with fact })
 ;;
@@ -530,61 +511,346 @@ let set_floating_permissions env floating_permissions =
   { env with floating_permissions }
 ;;
 
+(* ---------------------------------------------------------------------------- *)
+
+(* A visitor for the internal syntax of types. *)
+
+class virtual ['env, 'result] visitor = object (self)
+
+  (* This method, whose default implementation is the identity,
+     allows normalizing a type before inspecting its structure.
+     This can be used, for instance, to replace flexible variables
+     with the type that they stand for. *)
+  method normalize (_ : 'env) (ty : typ) =
+    ty
+
+  (* This method, whose default implementation is the identity,
+     can be used to extend the environment when a binding is
+     entered. *)
+  method extend (env : 'env) (_ : kind) : 'env =
+    env
+
+  (* The main visitor method inspects the structure of [ty] and
+     dispatches control to the appropriate case method. *)
+  method visit (env : 'env) (ty : typ) : 'result =
+    match self#normalize env ty with
+    | TyUnknown ->
+        self#tyunknown env
+    | TyDynamic ->
+        self#tydynamic env
+    | TyBound i ->
+        self#tybound env i
+    | TyOpen v ->
+        self#tyopen env v
+    | TyForall ((binding, flavor), body) ->
+        self#tyforall env binding flavor body
+    | TyExists (binding, body) ->
+        self#tyexists env binding body
+    | TyApp (head, args) ->
+        self#tyapp env head args
+    | TyTuple tys ->
+        self#tytuple env tys
+    | TyConcreteUnfolded branch ->
+        self#tyconcreteunfolded env branch
+    | TySingleton x ->
+        self#tysingleton env x
+    | TyArrow (ty1, ty2) ->
+        self#tyarrow env ty1 ty2
+    | TyBar (ty1, ty2) ->
+        self#tybar env ty1 ty2
+    | TyAnchoredPermission (ty1, ty2) ->
+        self#tyanchoredpermission env ty1 ty2
+    | TyEmpty ->
+        self#tyempty env
+    | TyStar (ty1, ty2) ->
+        self#tystar env ty1 ty2
+    | TyAnd (c, ty) ->
+        self#tyand env c ty
+
+  (* The case methods have no default implementation. *)
+  method virtual tyunknown: 'env -> 'result
+  method virtual tydynamic: 'env -> 'result
+  method virtual tybound: 'env -> db_index -> 'result
+  method virtual tyopen: 'env -> var -> 'result
+  method virtual tyforall: 'env -> type_binding -> flavor -> typ -> 'result
+  method virtual tyexists: 'env -> type_binding -> typ -> 'result
+  method virtual tyapp: 'env -> typ -> typ list -> 'result
+  method virtual tytuple: 'env -> typ list -> 'result
+  method virtual tyconcreteunfolded: 'env -> resolved_branch -> 'result
+  method virtual tysingleton: 'env -> typ -> 'result
+  method virtual tyarrow: 'env -> typ -> typ -> 'result
+  method virtual tybar: 'env -> typ -> typ -> 'result
+  method virtual tyanchoredpermission: 'env -> typ -> typ -> 'result
+  method virtual tyempty: 'env -> 'result
+  method virtual tystar: 'env -> typ -> typ -> 'result
+  method virtual tyand: 'env -> mode_constraint -> typ -> 'result
+
+end
+
+(* ---------------------------------------------------------------------------- *)
+
+(* A [map] specialization of the visitor. *)
+
+class ['env] map = object (self)
+
+  inherit ['env, typ] visitor
+
+  (* The case methods are defined by default as the identity, up to
+     a recursive traversal. *)
+
+  method tyunknown _env =
+    TyUnknown
+
+  method tydynamic _env =
+    TyDynamic
+
+  method tybound _env i =
+    TyBound i
+
+  method tyopen _env v =
+    TyOpen v
+
+  method tyforall env binding flavor body =
+    let _, kind, _ = binding in
+    TyForall ((binding, flavor), self#visit (self#extend env kind) body)
+
+  method tyexists env binding body =
+    let _, kind, _ = binding in
+    TyExists (binding, self#visit (self#extend env kind) body)
+
+  method tyapp env head args =
+    TyApp (self#visit env head, self#visit_many env args)
+
+  method tytuple env tys =
+    TyTuple (self#visit_many env tys)
+
+  method tyconcreteunfolded env branch =
+    TyConcreteUnfolded (self#resolved_branch env branch)
+
+  method tysingleton env x =
+    TySingleton (self#visit env x)
+
+  method tyarrow env ty1 ty2 =
+    TyArrow (self#visit env ty1, self#visit env ty2)
+
+  method tybar env ty1 ty2 =
+    TyBar (self#visit env ty1, self#visit env ty2)
+
+  method tyanchoredpermission env ty1 ty2 =
+    TyAnchoredPermission (self#visit env ty1, self#visit env ty2)
+
+  method tyempty _env =
+    TyEmpty
+
+  method tystar env ty1 ty2 =
+    TyStar (self#visit env ty1, self#visit env ty2)
+
+  method tyand env c ty =
+    TyAnd (self#mode_constraint env c, self#visit env ty)
+
+  (* An auxiliary method for transforming a list of types. *)
+  method private visit_many env tys =
+    List.map (self#visit env) tys
+
+  (* An auxiliary method for transforming a resolved branch. *)
+  method resolved_branch env (branch : resolved_branch) =
+    { 
+      branch_flavor = branch.branch_flavor;
+      branch_datacon = self#resolved_datacon env branch.branch_datacon;
+      branch_fields = List.map (self#field env) branch.branch_fields;
+      branch_adopts = self#visit env branch.branch_adopts;
+    }
+
+  (* An auxiliary method for transforming a resolved data constructor. *)
+  method resolved_datacon env (ty, dc) =
+    self#visit env ty, dc
+
+  (* An auxiliary method for transforming a field. *)
+  method field env = function
+    | FieldValue (field, ty) ->
+        FieldValue (field, self#visit env ty)
+    | FieldPermission p ->
+        FieldPermission (self#visit env p)
+
+  (* An auxiliary method for transforming a mode constraint. *)
+  method private mode_constraint env (mode, ty) =
+    (mode, self#visit env ty)
+
+  (* An auxiliary method for transforming an unresolved branch. *)
+  method unresolved_branch env (branch : unresolved_branch) =
+    { 
+      branch_flavor = branch.branch_flavor;
+      branch_datacon = branch.branch_datacon;
+      branch_fields = List.map (self#field env) branch.branch_fields;
+      branch_adopts = self#visit env branch.branch_adopts;
+    }
+
+  (* An auxiliary method for transforming a data type group. *)
+  method data_type_group env (group : data_type_group) =
+    List.map (function element ->
+      let name, loc, def, fact, kind = element in
+      match def with
+      | None, _ ->
+          (* This is an abstract type. There are no branches. *)
+          element
+      | Some branches, variance ->
+	  (* Enter the bindings for the type parameters. *)
+	  let _, kinds = SurfaceSyntax.flatten_kind kind in
+	  let env = List.fold_left self#extend env (List.rev kinds) in
+	    (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
+	  (* Transform the branches in this extended environment. *)
+	  let branches = List.map (self#unresolved_branch env) branches in
+	  (* That's it. *)
+	  let def = Some branches, variance in
+          name, loc, def, fact, kind
+    ) group
+
+end
+
+(* ---------------------------------------------------------------------------- *)
+
+(* An [iter] specialization of the visitor. *)
+
+class ['env] iter = object (self)
+
+  inherit ['env, unit] visitor
+
+  (* The case methods are defined by default as a recursive traversal. *)
+
+  method tyunknown _env =
+    ()
+
+  method tydynamic _env =
+    ()
+
+  method tybound _env _i =
+    ()
+
+  method tyopen _env _v =
+    ()
+
+  method tyforall env binding _flavor body =
+    let _, kind, _ = binding in
+    self#visit (self#extend env kind) body
+
+  method tyexists env binding body =
+    let _, kind, _ = binding in
+    self#visit (self#extend env kind) body
+
+  method tyapp env head args =
+    self#visit env head;
+    self#visit_many env args
+
+  method tytuple env tys =
+    self#visit_many env tys
+
+  method tyconcreteunfolded env branch =
+    self#resolved_branch env branch
+
+  method tysingleton env x =
+    self#visit env x
+
+  method tyarrow env ty1 ty2 =
+    self#visit env ty1;
+    self#visit env ty2
+
+  method tybar env ty1 ty2 =
+    self#visit env ty1;
+    self#visit env ty2
+
+  method tyanchoredpermission env ty1 ty2 =
+    self#visit env ty1;
+    self#visit env ty2
+
+  method tyempty _env =
+    ()
+
+  method tystar env ty1 ty2 =
+    self#visit env ty1;
+    self#visit env ty2
+
+  method tyand env c ty =
+    self#mode_constraint env c;
+    self#visit env ty
+
+  (* An auxiliary method for visiting a list of types. *)
+  method private visit_many env tys =
+    List.iter (self#visit env) tys
+
+  (* An auxiliary method for visiting a resolved branch. *)
+  method resolved_branch env (branch : resolved_branch) =
+    self#resolved_datacon env branch.branch_datacon;
+    List.iter (self#field env) branch.branch_fields;
+    self#visit env branch.branch_adopts
+
+  (* An auxiliary method for visiting a resolved data constructor. *)
+  method resolved_datacon env (ty, _dc) =
+    self#visit env ty
+
+  (* An auxiliary method for visiting a field. *)
+  method field env = function
+    | FieldValue (_, ty) ->
+        self#visit env ty
+    | FieldPermission p ->
+        self#visit env p
+
+  (* An auxiliary method for visiting a mode constraint. *)
+  method private mode_constraint env (_, ty) =
+    self#visit env ty
+
+  (* An auxiliary method for visiting an unresolved branch. *)
+  method unresolved_branch env (branch : unresolved_branch) =
+    List.iter (self#field env) branch.branch_fields;
+    self#visit env branch.branch_adopts
+
+  (* An auxiliary method for visiting a data type group. *)
+  method data_type_group env (group : data_type_group) =
+    List.iter (function element ->
+      let _, _, def, _, kind = element in
+      match def with
+      | None, _ ->
+          (* This is an abstract type. There are no branches. *)
+          ()
+      | Some branches, _variance ->
+	  (* Enter the bindings for the type parameters. *)
+	  let _, kinds = SurfaceSyntax.flatten_kind kind in
+	  let env = List.fold_left self#extend env (List.rev kinds) in
+	    (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
+	  (* Visit the branches in this extended environment. *)
+	  List.iter (self#unresolved_branch env) branches
+    ) group
+
+end
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Dealing with levels... *)
 
-let level (env: env) (t: typ): level =
-  let default_level = 0 in
-  let rec level t =
-    match modulo_flex env t with
-    | TyOpen v ->
-        (get_var_descr env v).level
+let level (env : env) (ty : typ) : level =
+  let max_level = ref 0 in
+  (object
+    inherit [unit] iter
+    method normalize () ty =
+      modulo_flex env ty
+    method tyopen () v =
+      max_level := max !max_level (get_var_descr env v).level
+  end) # visit () ty;
+  !max_level
 
-    | TyUnknown
-    | TyDynamic
-    | TyEmpty
-    | TyBound _ ->
-        default_level
-
-    | TySingleton t
-    | TyForall (_, t)
-    | TyExists (_, t) ->
-        level t
-
-    | TyArrow (t1, t2)
-    | TyBar (t1, t2)
-    | TyAnchoredPermission (t1, t2)
-    | TyStar (t1, t2) ->
-        max (level t1) (level t2)
-
-    | TyApp (t, ts) ->
-        Hml_List.max (List.map level (t :: ts))
-
-    | TyTuple ts ->
-        let ls = List.map level ts in
-        Hml_List.max ls
-
-    | TyConcreteUnfolded (ds, fields, t) ->
-        let ls =
-          level (fst ds) :: level t ::
-          List.map (function
-            | FieldValue (_, t)
-            | FieldPermission t ->
-                level t
-          ) fields
-        in
-        Hml_List.max ls
-
-    | TyImply (ds, t)
-    | TyAnd (ds, t) ->
-        let ls = level t :: List.map (fun (_, x) -> level x) ds in
-        Hml_List.max ls
-  in
-  level t
-;;
-
+let clean (top : env) (sub : env) : typ -> typ =
+  (object (self)
+    inherit [unit] map
+    method tyopen () v =
+      (* Resolve flexible variables with respect to [sub]. *)
+      let ty = modulo_flex_v sub v in
+      match ty with
+      | TyOpen p ->
+	  (* A (rigid or flexible) variable is allowed to escape only
+	     if it makes sense in the environment [top]. *)
+          if valid top p then ty else raise UnboundPoint
+      | _ ->
+          self#visit () ty
+  end) # visit ()
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -594,10 +860,15 @@ let instantiate_flexible (env: env) (v: var) (t: typ): env option =
   
   (* Rework [t] so that this instantiation is legal. *)
   let l = (get_var_descr env v).level in
-  if level env t <= l then begin
-    Log.debug "Instantiating %a with %a"
+  let l_t = level env t in
+  if l_t <= l then begin
+    Log.debug "%sInstantiating%s flexible #%d a.k.a. %a (level=%d) with %a (level=%d)"
+      Bash.colors.Bash.red Bash.colors.Bash.default
+      (match v with VFlexible i -> i | _ -> assert false)
       !internal_pnames (env, get_names env v)
-      !internal_ptype (env, t);
+      l
+      !internal_ptype (env, t)
+      l_t;
 
     begin match modulo_flex_v env v with
     | TyOpen (VFlexible f) ->
@@ -625,7 +896,7 @@ let instantiate_flexible (env: env) (v: var) (t: typ): env option =
 (** Some functions related to the manipulation of the union-find structure of
  * the environment. *)
 
-module VarMap = Hml_Map.Make(struct
+module VarMap = MzMap.Make(struct
   type t = var
   let compare x y =
     match x, y with
@@ -635,6 +906,16 @@ module VarMap = Hml_Map.Make(struct
         Log.error "[VarMap] used in the presence of flexible variables"
 end)
 
+module IVarMap = struct
+  type key = var
+  type 'data t = 'data VarMap.t ref
+  let create () = ref VarMap.empty
+  let clear m = m := VarMap.empty
+  let add k v m = m := (VarMap.add k v !m)
+  let find k m = VarMap.find k !m
+  let iter f m = VarMap.iter f !m
+end
+
 (* Dealing with the union-find nature of the environment. *)
 let same env v1 v2 =
   match assert_var env v1, assert_var env v2 with
@@ -642,6 +923,16 @@ let same env v1 v2 =
       PersistentUnionFind.same p1 p2 env.state
   | VFlexible f1, VFlexible f2 ->
       f1 = f2
+  | _ ->
+      false
+;;
+
+let names_equal n1 n2 =
+  match n1, n2 with
+  | Auto n1, Auto n2 when Variable.equal n1 n2 ->
+      true
+  | User (m1, n1), User (m2, n2) when Variable.equal n1 n2 && Module.equal m1 m2 ->
+      true
   | _ ->
       false
 ;;
@@ -657,10 +948,10 @@ let merge_left_p2p env p2 p1 =
   let { names = names'; locations = locations'; _ }, _b2 =
     PersistentUnionFind.find p2 state
   in
+  let names' = List.filter (fun x -> not (List.exists (names_equal x) names)) names' in
   let names = names @ names' in
-  let names = Hml_List.remove_duplicates names in
+  let locations' = List.filter (fun x -> not (List.exists ((=) x) locations)) locations' in
   let locations = locations @ locations' in
-  let locations = Hml_List.remove_duplicates locations in
 
   (* It is up to the caller to move the permissions if needed... *)
   let state = PersistentUnionFind.update (fun (head, raw) ->
@@ -680,10 +971,12 @@ let merge_left env v1 v2 =
 
   (* Debug *)
   let open Bash in
-  Log.debug ~level:5 "%sMerging%s %a into %a"
+  let l1 = (get_var_descr env v1).level in
+  let l2 = (get_var_descr env v2).level in
+  Log.debug ~level:5 "%sMerging%s %a (level=%d) with %a (level=%d)"
     colors.red colors.default
-    !internal_pnames (env, get_names env v1)
-    !internal_pnames (env, get_names env v2);
+    !internal_pnames (env, get_names env v1) l1
+    !internal_pnames (env, get_names env v2) l2;
   if get_kind env v1 = KType then
     Log.debug ~level:6 "→ facts: merging %a into %a"
       !internal_pfact (get_fact env v1)
@@ -706,90 +999,48 @@ let merge_left env v1 v2 =
 
 (* ---------------------------------------------------------------------------- *)
 
+let internal_pflex buf (env, i, f) =
+  Printf.bprintf buf "Flexible #%d is " i;
+  match f.structure with
+  | Instantiated t ->
+      Printf.bprintf buf "instantiated with %a\n"
+        !internal_ptype (env, t);
+  | NotInstantiated { level; _ } ->
+      Printf.bprintf buf "not instantiated, level=%d\n" level;
+;;
 
-let clean top sub t =
-  let rec clean t =
-    match t with
-    (* Special type constants. *)
-    | TyUnknown
-    | TyDynamic
-    | TyEmpty
-    | TyBound _ ->
-        t
+let internal_pflexlist buf env =
+  Printf.bprintf buf "env.current_level = %d\n" env.current_level;
+  let l = List.length env.flexible in
+  List.iteri (fun i flex ->
+    internal_pflex buf (env, l - i - 1, flex)
+  ) env.flexible
+;;
 
-    | TyOpen (VRigid p) ->
-        let p = repr sub p in
-        if valid top p then
-          TyOpen (VRigid p)
-        else
-          raise UnboundPoint
 
-    | TyOpen ((VFlexible _) as v) ->
-        begin match modulo_flex_v sub v with
-        | TyOpen (VFlexible f) as t ->
-            if f < List.length top.flexible then
-              t
-            else
-              raise UnboundPoint
-        | _ as t ->
-            clean t
-        end
-
-    | TyForall (b, t) ->
-        TyForall (b, clean t)
-
-    | TyExists (b, t) ->
-        TyExists (b, clean t)
-
-    | TyApp (t1, t2) ->
-        TyApp (clean t1, List.map clean t2)
-
-      (* Structural types. *)
-    | TyTuple ts ->
-        TyTuple (List.map clean ts)
-
-    | TyConcreteUnfolded ((t, dc), fields, clause) ->
-        let t = clean t in
-        let fields = List.map (function
-          | FieldValue (f, t) ->
-              FieldValue (f, clean t)
-          | FieldPermission p ->
-              FieldPermission (clean p)
-        ) fields in
-        TyConcreteUnfolded ((t, dc), fields, clean clause)
-
-    | TySingleton t ->
-        TySingleton (clean t)
-
-    | TyArrow (t1, t2) ->
-        TyArrow (clean t1, clean t2)
-
-    | TyBar (t1, t2) ->
-        TyBar (clean t1, clean t2)
-
-    | TyAnchoredPermission (t1, t2) ->
-        TyAnchoredPermission (clean t1, clean t2)
-
-    | TyStar (t1, t2) ->
-        TyStar (clean t1, clean t2)
-
-    | TyAnd (constraints, t) ->
-        let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
-        TyAnd (constraints, clean t)
-
-    | TyImply (constraints, t) ->
-        let constraints = List.map (fun (f, t) -> (f, clean t)) constraints in
-        TyImply (constraints, clean t)
+let import_flex_instanciations env sub_env =
+  Log.debug ~level:6 "%a" internal_pflexlist sub_env;
+  let rec chop_n_first n l =
+    if n = 0 then
+      l
+    else
+      chop_n_first (n - 1) (List.tl l)
   in
-  clean t
+  let diff = List.length sub_env.flexible - List.length env.flexible in 
+  let flexible = chop_n_first diff sub_env.flexible in
+  let flexible = List.map (function
+    | { structure = Instantiated t } ->
+        let t = clean env sub_env t in
+        { structure = Instantiated t }
+    | _ as flex_descr ->
+        flex_descr
+  ) flexible in
+  let floating_permissions = List.map (clean env sub_env) env.floating_permissions in
+  let env = { env with flexible; floating_permissions } in
+  Log.debug ~level:6 "%a" internal_pflexlist env;
+  env
 ;;
 
-let valid env = function
-  | VFlexible _ as v ->
-      (get_var_descr env v).level <= env.current_level
-  | VRigid p ->
-      valid env p
-;;
 
 let rec resolved_datacons_equal env (t1, dc1) (t2, dc2) =
   equal env t1 t2 && Datacon.equal dc1 dc2
@@ -827,18 +1078,25 @@ and equal env (t1: typ) (t2: typ) =
     | TyTuple ts1, TyTuple ts2 ->
         List.length ts1 = List.length ts2 && List.for_all2 equal ts1 ts2
 
-    | TyConcreteUnfolded (name1, fields1, clause1), TyConcreteUnfolded (name2, fields2, clause2) ->
-        resolved_datacons_equal env name1 name2 &&
-        equal clause1 clause2 &&
-        List.length fields1 = List.length fields2 &&
-        List.fold_left2 (fun acc f1 f2 ->
-          match f1, f2 with
-          | FieldValue (f1, t1), FieldValue (f2, t2) ->
-              acc && Field.equal f1 f2 && equal t1 t2
-          | FieldPermission t1, FieldPermission t2 ->
-              acc && equal t1 t2
-          | _ ->
-              false) true fields1 fields2
+    | TyConcreteUnfolded branch1, TyConcreteUnfolded branch2 ->
+        resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon &&
+	(* In principle, if the data constructors are equal, then the flavors
+	   should be equal too (we do not allow the flavor to change independently
+	   of the data constructor), and the lists of fields should have the same
+	   lengths (the list of fields is determined by the data constructor). *)
+	(
+	  assert (branch1.branch_flavor = branch2.branch_flavor);
+          assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
+          equal branch1.branch_adopts branch2.branch_adopts &&
+	  List.fold_left2 (fun acc f1 f2 ->
+	    match f1, f2 with
+	    | FieldValue (f1, t1), FieldValue (f2, t2) ->
+		acc && Field.equal f1 f2 && equal t1 t2
+	    | FieldPermission t1, FieldPermission t2 ->
+		acc && equal t1 t2
+	    | _ ->
+		false) true branch1.branch_fields branch2.branch_fields
+	)
 
     | TySingleton t1, TySingleton t2 ->
         equal t1 t2
@@ -851,15 +1109,10 @@ and equal env (t1: typ) (t2: typ) =
     | TyEmpty, TyEmpty ->
         true
 
-    | TyAnd (c1, t1), TyAnd (c2, t2) ->
-        List.for_all2 (fun (f1, t1) (f2, t2) ->
-          f1 = f2 && equal t1 t2) c1 c2
-        && equal t1 t2
-
-    | TyImply (c1, t1), TyImply (c2, t2) ->
-        List.for_all2 (fun (f1, t1) (f2, t2) ->
-          f1 = f2 && equal t1 t2) c1 c2
-        && equal t1 t2
+    | TyAnd ((m1, t1), u1), TyAnd ((m2, t2), u2) ->
+        Mode.equal m1 m2 &&
+        equal t1 t2 &&
+        equal u1 u2
 
     | _ ->
         false
@@ -885,12 +1138,15 @@ let mkdescr env name kind location fact =
   var_descr
 ;;
 
+let top_fact =
+  Some (Fact.constant Mode.top)
+
 let mkfact k =
   match k with
   | KTerm ->
       None
   | _ ->
-      Some Affine
+      top_fact
 ;;
 
 let bind_rigid env (name, kind, location) =
@@ -924,6 +1180,11 @@ let bind_rigid env (name, kind, location) =
 
 
 let bind_flexible env (name, kind, location) =
+  Log.debug ~level:6 "Binding flexible #%d (%a) @ level %d"
+    (List.length env.flexible)
+    !internal_pnames (env, [name])
+    env.current_level;
+
   (* Deal with levels. No need to bump the level here. *)
   let env = { env with last_binding = Flexible } in
 
@@ -982,7 +1243,7 @@ let map env f =
 let get_exports env mname =
   let assoc =
     internal_fold env (fun acc point ({ names; kind; _ }, _) ->
-      let canonical_names = Hml_List.map_some (function
+      let canonical_names = MzList.map_some (function
         | User (m, x) when Module.equal m mname ->
             Some (x, kind)
         | _ ->
@@ -992,16 +1253,6 @@ let get_exports env mname =
     ) []
   in
   List.flatten assoc
-;;
-
-let names_equal n1 n2 =
-  match n1, n2 with
-  | Auto n1, Auto n2 when Variable.equal n1 n2 ->
-      true
-  | User (m1, n1), User (m2, n2) when Variable.equal n1 n2 && Module.equal m1 m2 ->
-      true
-  | _ ->
-      false
 ;;
 
 let point_by_name (env: env) ?(mname: Module.name option) (name: Variable.name): var =
@@ -1043,3 +1294,17 @@ let internal_uniqvarid env = function
       (Obj.magic p: int)
 ;;
 
+let internal_checklevel env t =
+  let l = level env t in
+  Log.check (l <= env.current_level)
+    "%a inconsistency detected: type %a has level %d, but env has level %d\n"
+    Lexer.p (location env)
+    !internal_ptype (env, t)
+    l
+    env.current_level;
+;;
+
+let internal_wasflexible = function
+  | VFlexible _  -> true
+  | VRigid _ -> false
+;;

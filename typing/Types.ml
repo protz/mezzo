@@ -25,53 +25,20 @@ open DeBruijn
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Fact-related functions. *)
-
-let fact_leq f1 f2 =
-  match f1, f2 with
-  | _, Affine ->
-      true
-  | _ when f1 = f2 ->
-      true
-  | Duplicable b1, Duplicable b2 ->
-      let (<=) b1 b2 = match b1, b2 with
-        | true, false ->
-            false
-        | _ ->
-            true
-      in
-      let v = ref true in
-      v := !v && Array.length b1 = Array.length b2;
-      for i = 0 to Array.length b1 - 1 do
-        (* Covariant! *)
-        v := !v && b2.(i) <= b1.(i)
-      done;
-      !v
-  | _ ->
-      false
-;;
-
-let fact_of_flag = function
-  | SurfaceSyntax.Exclusive ->
-      Exclusive
-  | SurfaceSyntax.Duplicable ->
-      Duplicable [||]
-;;
-
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Various helpers for creating and destructuring [typ]s easily. *)
 
 (* Saves us the trouble of matching all the time. *)
-let (!!)        = function
+let ( |>  ) x f   = f x;;
+let ( !*  )       = Lazy.force;;
+let ( >>= )       = Option.bind;;
+let ( ||| ) o1 o2 = if Option.is_some o1 then o1 else o2 ;;
+let ( ^=> ) x y   = x && y || not x;;
+
+let ( !!  )       = function
   | TyOpen x -> x
   | _ as t -> Log.error "Not a TyOpen %a" !internal_ptype (empty_env, t);;
-let (!*)        = Lazy.force;;
-let (>>=)       = Option.bind;;
-let (|||) o1 o2 = if Option.is_some o1 then o1 else o2 ;;
-let (^=>) x y   = x && y || not x;;
-let (!!=) = function
+
+let ( !!= )       = function
   | TySingleton (TyOpen x) ->
       x
   | _ ->
@@ -105,6 +72,13 @@ let ty_bottom =
     TyBound 0
   )
 
+let is_non_bottom t =
+  match t with
+  | TyForall (_, TyBound 0) ->
+      None
+  | _ ->
+      Some t
+
 (* This is right-associative, so you can write [list int @-> int @-> tuple []] *)
 let (@->) x y =
   TyArrow (x, y)
@@ -126,25 +100,9 @@ let ty_app t args =
 
 let flatten_kind = SurfaceSyntax.flatten_kind;;
 
-let rec flatten_star env t =
-  let t = modulo_flex env t in
-  match t with
-  | TyStar (p, q) ->
-      flatten_star env p @ flatten_star env q
-  | TyEmpty ->
-      []
-  | TyOpen _
-  | TyBound _
-  | TyAnchoredPermission _
-  | TyApp _ ->
-      [t]
-  | _ ->
-      Log.error "[flatten_star] only works for types with kind perm"
-;;
-
 let fold_star perms =
   if List.length perms > 0 then
-    Hml_List.reduce (fun acc x -> TyStar (acc, x)) perms
+    MzList.reduce (fun acc x -> TyStar (acc, x)) perms
   else
     TyEmpty
 ;;
@@ -210,7 +168,7 @@ let bind_flexible_in_type = bind_in_type bind_flexible;;
 *)
 
 (* let map_types env f =
-  Hml_List.filter_some
+  MzList.filter_some
     (List.rev
       (PersistentUnionFind.fold
         (fun acc _k -> function
@@ -220,7 +178,7 @@ let bind_flexible_in_type = bind_in_type bind_flexible;;
 ;;
 
 let map_terms env f =
-  Hml_List.filter_some
+  MzList.filter_some
     (List.rev
       (PersistentUnionFind.fold
         (fun acc _k -> function
@@ -292,24 +250,46 @@ let get_location env p =
   List.hd (get_locations env p)
 ;;
 
-let get_adopts_clause env point: adopts_clause =
+(* TEMPORARY when giving, we should compute a meet; when taking, we should
+   compute a join. *)
+let get_adopts_clause env point: typ =
   match get_definition env point with
-  | Some (Some (_, _, clause), _) ->
-      clause
+  | Some (Some branches, _) ->
+      (* The [adopts] clause is now per-branch, instead of per-data-type.
+	 We should in principle return the meet of the [adopts] clauses
+	 of all branches. However, the surface language imposes that
+	 all branches have the same [adopts] clause, except perhaps some
+	 branches which are immutable and don't have an adopts clause.
+	 In that setting, the meet is easy to compute. *)
+      let meet ty1 branch2 =
+	let ty2 = branch2.branch_adopts in
+	match ty1, is_non_bottom ty2 with
+	| TyUnknown, _ ->
+	    ty2
+	| _, None ->
+	    (* [ty2] is bottom *)
+	    ty2
+	| _, Some _ ->
+	    (* [ty2] is non-bottom *)
+	    assert (equal env ty1 ty2);
+	    ty2
+      in
+      List.fold_left meet TyUnknown branches
   | _ ->
-      Log.error "This is not a concrete data type."
+      (* An abstract type has no adopts clause (as of now). *)
+      ty_bottom
 ;;
 
-let get_branches env point: data_type_def_branch list =
+let get_branches env point: unresolved_branch list =
   match get_definition env point with
-  | Some (Some (_, branches, _), _) ->
+  | Some (Some branches, _) ->
       branches
   | _ ->
       Log.error "This is not a concrete data type."
 ;;
 
 let get_arity (env: env) (var: var): int =
-  get_arity_for_kind (get_kind env var)
+  SurfaceSyntax.get_arity_for_kind (get_kind env var)
 ;;
 
 let rec get_kind_for_type env t =
@@ -342,9 +322,23 @@ let rec get_kind_for_type env t =
   | TyStar _ ->
       KPerm
 
-  | TyImply (_, t)
   | TyAnd (_, t) ->
       get_kind_for_type env t
+;;
+
+
+let rec flatten_star env t =
+  let t = modulo_flex env t in
+  match t with
+  | TyStar (p, q) ->
+      flatten_star env p @ flatten_star env q
+  | TyEmpty ->
+      []
+  | _ ->
+      Log.check
+        (get_kind_for_type env t = KPerm)
+        "Bad internal usage of [flatten_star].";
+      [t]
 ;;
 
 
@@ -356,7 +350,7 @@ let get_variance (env: env) (var: var): variance list =
       assert false
 ;;
 
-let def_for_datacon (env: env) (datacon: resolved_datacon): SurfaceSyntax.data_type_flag * data_type_def * adopts_clause=
+let def_for_datacon (env: env) (datacon: resolved_datacon): data_type_def =
   match datacon with
   | TyOpen point, _ ->
       let def, _ = Option.extract (get_definition env point) in
@@ -365,27 +359,45 @@ let def_for_datacon (env: env) (datacon: resolved_datacon): SurfaceSyntax.data_t
       Log.error "Datacon not properly resolved: %a" !internal_ptype (env, t)
 ;;
 
+let def_for_branch env branch =
+  def_for_datacon env branch.branch_datacon
+
+let branch_for_branch env (branch : resolved_branch) : unresolved_branch =
+  let _, datacon = branch.branch_datacon in
+  let branches : unresolved_branch list = def_for_branch env branch in
+  List.find (fun branch' ->
+    Datacon.equal datacon branch'.branch_datacon
+  ) branches
+
+let flavor_for_branch env (branch : resolved_branch) : DataTypeFlavor.flavor =
+  let branch : unresolved_branch = branch_for_branch env branch in
+  branch.branch_flavor
+
 let variance env var i =
   let definition = get_definition env var in
   let variance = snd (Option.extract definition) in
   List.nth variance i
 ;;
 
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Instantiating. *)
 
-let instantiate_adopts_clause clause args =
-  let clause = Option.map_none ty_bottom clause in
+let instantiate_type t args =
   let args = List.rev args in
-  Hml_List.fold_lefti (fun i clause arg -> tsubst arg i clause) clause args
+  MzList.fold_lefti (fun i t arg -> tsubst arg i t) t args
 ;;
 
-let instantiate_branch branch args =
+let resolve_branch (t: var) (b: unresolved_branch) : resolved_branch =
+  { b with
+    branch_flavor = (); (* forget the flavor, we can recover it via [branch_datacon] *)
+    branch_datacon = (TyOpen t, b.branch_datacon);
+  }
+
+let instantiate_branch (branch : unresolved_branch) args : unresolved_branch =
   let args = List.rev args in
-  let branch = Hml_List.fold_lefti (fun i branch arg ->
-    tsubst_data_type_def_branch arg i branch) branch args
+  let branch = MzList.fold_lefti (fun i branch arg ->
+    tsubst_unresolved_branch arg i branch) branch args
   in
   branch
 ;;
@@ -394,15 +406,14 @@ let find_and_instantiate_branch
     (env: env)
     (var: var)
     (datacon: Datacon.name)
-    (args: typ list) =
+    (args: typ list) : resolved_branch =
   let branch =
     List.find
-      (fun (datacon', _) -> Datacon.equal datacon datacon')
+      (fun branch -> Datacon.equal datacon branch.branch_datacon)
       (get_branches env var)
   in
-  let dc, fields = instantiate_branch branch args in
-  let clause = instantiate_adopts_clause (get_adopts_clause env var) args in
-  (TyOpen var, dc), fields, clause
+  let branch = instantiate_branch branch args in
+  resolve_branch var branch
 ;;
 
 (* Misc. *)
@@ -431,22 +442,20 @@ let is_tyapp = function
 ;;
 
 let is_term env v = (get_kind env v = KTerm);;
+let is_perm env v = (get_kind env v = KPerm);;
 let is_type env v = (fst (flatten_kind (get_kind env v)) = KType);;
 
-let make_datacon_letters env kind flexible f =
+let make_datacon_letters env kind flexible =
   let _return_kind, arg_kinds = flatten_kind kind in
   (* Turn the list of parameters into letters *)
-  let letters: string list = Hml_Pprint.name_gen (List.length arg_kinds) in
-  let env, points = Hml_List.fold_left2i (fun i (env, points) kind letter ->
+  let letters: string list = MzPprint.name_gen (List.length arg_kinds) in
+  let env, points = List.fold_left2 (fun (env, points) kind letter ->
     let env, point =
       let letter = Auto (Variable.register letter) in
-      let env, var =
-        if flexible then
-          bind_flexible env (letter, kind, location env)
-        else
-          bind_rigid env (letter, kind, location env)
-      in
-      set_fact env var (f i), var
+      if flexible then
+	bind_flexible env (letter, kind, location env)
+      else
+	bind_rigid env (letter, kind, location env)
     in
     env, point :: points) (env, []) arg_kinds letters
   in
@@ -454,27 +463,26 @@ let make_datacon_letters env kind flexible f =
   env, points
 ;;
 
-let bind_datacon_parameters (env: env) (kind: kind) (branches: data_type_def_branch list) (clause: adopts_clause):
-    env * var list * data_type_def_branch list * adopts_clause =
-  let env, points = make_datacon_letters env kind false (fun i -> Fuzzy i) in
-  let arity = get_arity_for_kind kind in
-  let branches, clause = Hml_List.fold_lefti (fun i (branches, clause) point ->
+let bind_datacon_parameters (env: env) (kind: kind) (branches: unresolved_branch list):
+    env * var list * unresolved_branch list =
+  let env, points = make_datacon_letters env kind false in
+  let arity = SurfaceSyntax.get_arity_for_kind kind in
+  let branches = MzList.fold_lefti (fun i branches point ->
     let index = arity - i - 1 in
-    let branches = List.map (tsubst_data_type_def_branch (TyOpen point) index) branches in
-    let clause = Option.map (tsubst (TyOpen point) index) clause in
-    branches, clause
-  ) (branches, clause) points in
-  env, points, branches, clause
+    let branches = List.map (tsubst_unresolved_branch (TyOpen point) index) branches in
+    branches
+  ) branches points in
+  env, points, branches
 ;;
 
 let expand_if_one_branch (env: env) (t: typ) =
   match is_tyapp t with
   | Some (cons, args) ->
       begin match get_definition env cons with
-      | Some (Some (_, [branch], clause), _) ->
-          let dc, fields = instantiate_branch branch args in
-          let clause = instantiate_adopts_clause clause args in
-          TyConcreteUnfolded ((TyOpen cons, dc), fields, clause)
+      | Some (Some [branch], _) ->
+          let branch = instantiate_branch branch args in
+	  let branch = resolve_branch cons branch in
+          TyConcreteUnfolded branch
       | _ ->
         t
       end
@@ -489,7 +497,7 @@ let expand_if_one_branch (env: env) (t: typ) =
 
 module TypePrinter = struct
 
-  open Hml_Pprint
+  open MzPprint
 
   (* If [f arg] returns a [document], then write [Log.debug "%a" pdoc (f, arg)] *)
   let pdoc (buf: Buffer.t) (f, env: ('env -> document) * 'env): unit =
@@ -580,14 +588,15 @@ module TypePrinter = struct
     print_kind kind ^^ rparen ^^ dot ^^ jump (print_type env typ)
 
   and print_point env point =
-    (* FIXME *)
-    if modulo_flex_v env point <> TyOpen point then
-        lparen ^^ string "flex→" ^^ print_type env (modulo_flex_v env point) ^^ rparen
-    else
+    try
       if is_flexible env point then
         print_var env (get_name env point) ^^ star
+      else if internal_wasflexible point then
+          lparen ^^ string "inst→" ^^ print_type env (modulo_flex_v env point) ^^ rparen
       else
         print_var env (get_name env point)
+    with UnboundPoint ->
+      colors.red ^^ string "!! ☠ !!" ^^ colors.default
 
 
   (* TEMPORARY this does not respect precedence and won't insert parentheses at
@@ -610,8 +619,8 @@ module TypePrinter = struct
     | TyAnchoredPermission (TyOpen p, TySingleton (TyOpen p')) ->
         let star = if is_flexible env p then star else empty in
         let star' = if is_flexible env p' then star else empty in
-        print_names env (get_names env p) ^^ star ^^ space ^^ equals ^^ space ^^
-        print_names env (get_names env p') ^^ star'
+        print_var env (get_name env p) ^^ star ^^ space ^^ equals ^^ space ^^
+        print_var env (get_name env p') ^^ star'
 
     | (TyForall _) as t ->
         let rec strip_bind acc env = function
@@ -646,8 +655,8 @@ module TypePrinter = struct
           (print_type env) components ^^
         rparen
 
-    | TyConcreteUnfolded (name, fields, clause) ->
-        print_data_type_def_branch env (snd name) fields clause
+    | TyConcreteUnfolded branch ->
+        print_resolved_branch env branch
 
       (* Singleton types. *)
     | TySingleton typ ->
@@ -675,22 +684,12 @@ module TypePrinter = struct
         lparen ^^ print_type env p ^^ space ^^ bar ^^ space ^^
         print_type env q ^^ rparen
 
-    | TyAnd (constraints, t) ->
-        let constraints = print_constraints env constraints in
-        lparen ^^ constraints ^^ rparen ^^ space ^^ string "∧" ^^ space ^^
+    | TyAnd (c, t) ->
+        print_constraint env c ^^ space ^^ string "∧" ^^ space ^^
         print_type env t
 
-    | TyImply (constraints, t) ->
-        let constraints = print_constraints env constraints in
-        lparen ^^ constraints ^^ rparen ^^ space ^^ string "=>" ^^ space ^^
-        print_type env t
-
-  and print_constraints env constraints =
-    let constraints = List.map (fun (f, t) ->
-      print_data_type_flag f ^^ space ^^ print_type env t
-    ) constraints in
-    let constraints = separate comma constraints in
-    constraints
+  and print_constraint env (mode, t) =
+    string (Mode.print mode) ^^ space ^^ print_type env t
 
   and print_data_field_def env = function
     | FieldValue (name, typ) ->
@@ -699,7 +698,22 @@ module TypePrinter = struct
     | FieldPermission typ ->
         string "permission" ^^ space ^^ print_type env typ
 
-  and print_data_type_def_branch env (name: Datacon.name) fields clause =
+  and print_unresolved_branch env (branch : unresolved_branch) =
+    print_branch env
+      (fun flavor -> string (DataTypeFlavor.print flavor))
+      print_datacon
+      branch
+
+  and print_resolved_branch env (branch : resolved_branch) =
+    print_branch env
+      (fun () -> empty)
+      (fun (_, dc) -> print_datacon dc)
+      branch
+
+  and print_branch : 'flavor 'datacon . env -> ('flavor -> document) -> ('datacon -> document) -> ('flavor, 'datacon) data_type_def_branch -> document =
+  fun env pf pdc b ->
+    let fields = b.branch_fields in
+    let clause = b.branch_adopts in
     let record =
       if List.length fields > 0 then
         space ^^ lbrace ^^
@@ -712,95 +726,38 @@ module TypePrinter = struct
         empty
     in
     let clause =
-      if equal env ty_bottom clause then
+      if equal env clause ty_bottom then
         empty
       else
         space ^^ string "adopts" ^^ space ^^ print_type env clause
     in
-    print_datacon name ^^ record ^^ clause
-
-  and print_data_type_flag = function
-    | SurfaceSyntax.Exclusive ->
-        string "exclusive"
-    | SurfaceSyntax.Duplicable ->
-        string "duplicable"
+    pf b.branch_flavor ^^
+    pdc b.branch_datacon ^^ record ^^ clause
   ;;
 
-  (* Prints a sequence of characters representing whether each parameter has to
-   * be duplicable (x) or not (nothing). *)
-  let print_fact (fact: fact): document =
-    match fact with
-    | Duplicable bitmap ->
-        lbracket ^^
-        separate_map
-          empty
-          (fun b -> if b then string "x" else string "-") (Array.to_list bitmap) ^^
-        rbracket
-    | Exclusive ->
-        string "exclusive"
-    | Affine ->
-        string "affine"
-    | Fuzzy i ->
-        string "fuzzy " ^^ int i
-  ;;
-
-  (* Prints a sequence of characters representing whether each parameter has to
-   * be duplicable (x) or not (nothing). *)
-  let pfact buf (fact: fact) =
-    pdoc buf (print_fact, fact)
+  let pfact buf fact =
+    pdoc buf (Fact.internal_print, fact)
   ;;
 
   internal_pfact := pfact;;
 
   let print_facts (env: env): document =
-    let is name is_abstract ?params w =
-      let params =
-        match params with
-        | Some params -> concat_map (fun param -> space ^^ utf8string param) params
-        | None -> empty
-      in
-      colors.underline ^^ print_var env name ^^ params ^^
-      colors.default ^^ string " is " ^^
-      (if is_abstract then string "abstract and " else empty) ^^
-      utf8string w
-    in
-    let print_fact name is_abstract arity fact =
-      let params = Hml_Pprint.name_gen arity in
-      let is w = is name is_abstract ~params w in
-      match fact with
-      | Fuzzy _ ->
-          is "fuzzy"
-      | Exclusive ->
-          is "exclusive"
-      | Affine ->
-          is "affine"
-      | Duplicable bitmap ->
-          let dup_params = List.map2
-            (fun b param -> if b then Some param else None)
-            (Array.to_list bitmap)
-            params
-          in
-          let dup_params = Hml_List.filter_some dup_params in
-          if List.length dup_params > 0 then begin
-            let verb = string (if List.length dup_params > 1 then " are " else " is ") in
-            let dup_params = List.map utf8string dup_params in
-            is "duplicable if " ^^ english_join dup_params ^^ verb ^^
-            string "duplicable"
-          end else begin
-            is "duplicable"
-          end
-    in
-    let lines =
-      fold_definitions env (fun acc var definition ->
+    separate hardline (
+      fold_definitions env (fun acc var _definition ->
         let fact = get_fact env var in
         let kind = get_kind env var in
-        let name = get_name env var in
-        let arity = get_arity_for_kind kind in
-        let is_abstract = (fst definition = None) in
-        print_fact name is_abstract arity fact :: acc
+        (* let is_abstract = (fst definition = None) in *)
+	(* I no longer print [is_abstract]. *)
+	let env, params = make_datacon_letters env kind false in
+	let param i : document =
+	  print_type env (TyOpen (List.nth params i))
+	in
+	let head =
+	  print_type env (TyApp (TyOpen var, List.map (fun v -> TyOpen v) params))
+	in
+	Fact.print param head fact :: acc
       ) []
-    in
-    separate hardline lines
+    )
   ;;
 
   let print_permission_list (env, permissions): document =
@@ -817,12 +774,15 @@ module TypePrinter = struct
   ;;
 
   let print_permissions (env: env): document =
+    let mkheader str =
+      let line = String.make (String.length str) '-' in
+      (string str) ^^ hardline ^^ (string line)
+    in
     let header =
       let str = "PERMISSIONS:" ^
         (if is_inconsistent env then " ⚠ inconsistent ⚠" else "")
       in
-      let line = String.make (String.length str) '-' in
-      (string str) ^^ hardline ^^ (string line)
+      mkheader str
     in
     let lines = fold_terms env (fun acc var permissions ->
       let names = get_names env var in
@@ -841,7 +801,14 @@ module TypePrinter = struct
     let lines = List.rev lines in
     let lines = List.filter ((<>) empty) lines in
     let lines = separate (break 1) lines in
-    header ^^ (nest 2 (break 1 ^^ lines))
+    (* Now print floating permissions. *)
+    let fp_header = mkheader "FLOATING:" in
+    let fp_lines =
+      List.map (print_type env) (get_floating_permissions env)
+    in
+    let fp_lines = separate (break 1) fp_lines in
+    header ^^ (nest 2 (break 1 ^^ lines)) ^^ hardline ^^
+    fp_header ^^ (nest 2 (break 1 ^^ fp_lines))
   ;;
 
   let ppermissions buf permissions =
@@ -860,8 +827,8 @@ module TypePrinter = struct
 
   internal_ptype := ptype;;
 
-  let pconstraints buf (env, constraints) =
-    pdoc buf ((fun () -> print_constraints env constraints), ())
+  let pconstraint buf (env, c) =
+    pdoc buf ((fun () -> print_constraint env c), ())
   ;;
 
   let print_binders (env: env): document =

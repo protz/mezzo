@@ -1,0 +1,258 @@
+(* ---------------------------------------------------------------------------- *)
+
+(* A cell has [prev] and [next] pointers, as well as a payload of type [a].
+   We maintain the invariant that, when a cell is not part of a region, its
+   [prev] and [next] fields point to itself. *)
+
+mutable data cell a =
+| Cell { prev: dynamic; next: dynamic; payload: a }
+
+(* ---------------------------------------------------------------------------- *)
+
+(* A region adopts a group of cells. We maintain the invariant that the [prev]
+   function is a permutation of the cells in the region (i.e., it is bijective)
+   and that the [next] function is its inverse (hence, also a permutation). *)
+
+mutable data region a =
+  Region
+  adopts cell a
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Creating a region. *)
+
+val new [a] () : region a =
+  Region
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Creating and destroying cells. *)
+
+(* When a new cell is created, it is given to the region [r]. When a cell is
+   taken from [r], it is destroyed. We could offer lower-level, finer-grained
+   operations, but this is simpler. *)
+
+val create [a] (r: region a, consumes x: a) : dynamic =
+  let c = Cell { prev = (); next = (); payload = x } in
+  c.prev <- c;
+  c.next <- c;
+  give c to r;
+  c
+
+val consult [a, b, pre : perm] (
+  r: region a,
+  c: dynamic,
+  f: (a | consumes pre) -> b
+| consumes pre
+) : b =
+  taking c from r begin
+    f c.payload
+  end
+
+val destroy [a] (r: region a, c: dynamic) : a =
+  take c from r;
+  if c.next != c then
+    fail
+  else
+    c.payload
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Walking. *)
+
+val next [a] (r: region a, x: dynamic) : dynamic =
+  taking x from r begin x.next end
+
+val prev [a] (r: region a, x: dynamic) : dynamic =
+  taking x from r begin x.prev end
+
+(* ---------------------------------------------------------------------------- *)
+
+(* The following three functions are unused, but are kept for the sake of
+   clarity of exposition. *)
+
+(* The transposition [transpose_next (r, w, y)] exchanges the [next] pointers of
+   the cells [w] and [y]. We assume that [w] and [y] are distinct. This function
+   clearly preserves the fact that the [next] function forms a permutation. It
+   returns a pair of [x] and [z], where [x] and [z] are the successors of [w]
+   and [x] before the transposition took place (hence, [x] and [z] are distinct). *)
+
+val transpose_next [a] (r: region a, w: dynamic, y: dynamic) : (x: dynamic, z: dynamic) =
+  taking w from r begin
+    taking y from r begin
+      let x = w.next
+      and z = y.next in
+      w.next <- z;
+      y.next <- x;
+      x, z
+    end
+  end
+
+(* The transposition [transpose_prev] is symmetric. *)
+
+val transpose_prev [a] (r: region a, x: dynamic, z: dynamic) : (w: dynamic, y: dynamic) =
+  taking x from r begin
+    taking z from r begin
+      let w = x.prev
+      and y = z.prev in
+      x.prev <- y;
+      z.prev <- w;
+      w, y
+    end
+  end
+
+(* By combining [transpose_next] and [transpose_prev], we preserve the fact
+   that [prev] and [next] are inverses of each other. This formulation is
+   elegant (in my opinion) and uses four [take] instructions, which in the
+   general case is optimal. *)
+
+val transpose [a] (r: region a, w: dynamic, y: dynamic) : () =
+  let x, z = transpose_next (r, w, y) in
+  let _ = transpose_prev (r, x, z) in
+  ()
+
+(* ---------------------------------------------------------------------------- *)
+
+(* In the special case where [w] and/or [y] is its own successor, the above
+   definition of [transpose] performs a redundant [take]. Let's fix this by
+   inlining [transpose_prev] inside [transpose_next] and explicitly checking
+   for equality -- this is a form of valid double take, in a sense. This
+   formulation of the code uses an optimal number of [take] instructions. *)
+
+(* We assume that [w] and [y] are distinct, but do not assume that [w] and
+   [y] belong to distinct cycles. Thus, we cannot assume [w != z] or [y != x].
+   This costs us a couple of extra equality checks, but makes [transpose] more
+   versatile: it can be used not only to meld two cycles, but also to split
+   a cycle. *)
+
+val transpose_internal [a] (r: region a, w: cell a, y: cell a) : () =
+  (* Begin as in [transpose_next]. *)
+  let x = w.next
+  and z = y.next in
+  w.next <- z;
+  y.next <- x;
+  (* Continue as in [transpose_prev], but without giving up
+     [w] and [y]. Thus, the [take] instruction for [x] and
+     is required (and permitted!) only if the equality checks
+     [x == w] and [x == y] have failed. *)
+  (* We take advantage of the fact that [x.prev] and [z.prev]
+     are known already -- they are [w] and [y] -- so we only
+     have two write instructions to perform, and each of them
+     needs its own [take] -- that is, the two [take] instructions
+     need not be nested. This reduces the code duplication. *)
+  if x == w then
+    x.prev <- y
+  else if x == y then
+    x.prev <- y
+  else taking x from r begin
+    x.prev <- y
+  end;
+  if z == w then
+    z.prev <- w
+  else if z == y then
+    z.prev <- w
+  else taking z from r begin
+    z.prev <- w
+  end
+
+val transpose [a] (r: region a, w: dynamic, y: dynamic) : () =
+  (* Begin as in [transpose_next]. *)
+  taking w from r begin
+    taking y from r begin
+      transpose_internal (r, w, y)
+    end
+  end
+
+(* ---------------------------------------------------------------------------- *)
+
+(* [meld (r, w, y)] requires [w] and [y] to be part of two distinct cycles,
+   and melds these cycles. The successors of [w] and [y] are exchanged. *)
+
+val meld =
+  transpose
+
+(* ---------------------------------------------------------------------------- *)
+
+(* If [w] and [y] are distinct cells and are part of a single cycle, then the
+   effect of [transpose (r, w, y)] is to split this cycle into two smaller
+   cycles. This is more technical, and the result is dependent on the order of
+   the elements in the original cycle. For these reasons, we do not publish
+   this function; but it could be interesting. We do use it to isolate an
+   element, as follows. *)
+
+val isolate [a] (r: region a, y: dynamic) : () =
+  taking y from r begin
+    let w = y.prev in
+    if w != y then
+      taking w from r begin
+	transpose_internal (r, w, y)
+	(* The successors of [w] and [y] are swapped, so the successor
+	   of [w] is the former successor of [y], and the successor of
+	   [y] is [y] itself. Thus, [y] is isolated, as desired. *)
+      end
+  end
+
+val is_isolated [a] (r: region a, y: dynamic) : bool =
+  taking y from r begin
+    bool::strip (y == y.next)
+  end
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Iteration. *)
+
+(* [iter_next (r, x, f)] presents the elements [x], [x.next], etc. to [f]. *)
+
+val iter_next [p : perm, a] (r: region a, x: dynamic, f: (dynamic | p * r @ region a) -> () | p) : () =
+  let rec loop (y: dynamic | p * r @ region a) : () =
+    (* Process [y]. *)
+    f y;
+    (* Stop if [y.next] is the starting point [x]. *)
+    let z = next (r, y) in
+    if y != z then
+      loop z
+  in
+  loop x
+
+(* [iter_prev (r, x, f)] presents the elements [x], [x.prev], etc. to [f]. *)
+
+val iter_prev [p : perm, a] (r: region a, x: dynamic, f: (dynamic | p * r @ region a) -> () | p) : () =
+  let rec loop (y: dynamic | p * r @ region a) : () =
+    f y;
+    (* Stop if [y.prev] is the starting point [x]. *)
+    let z = prev (r, y) in
+    if y != z then
+      loop z
+  in
+  loop x
+
+val iter =
+  iter_next
+
+(* [elements (r, x)] returns the elements of the cycle represented by [x]. *)
+
+(* The list is returned in the order [x], [x.next], etc. *)
+
+val elements [a] (r: region a, x: dynamic) : list::list dynamic =
+  let xs = newref list::nil in
+  iter_prev (r, prev (r, x), fun (x: dynamic | xs @ ref (list::list dynamic)) : () =
+    (* Note that this anonymous function has access to [r @ region a], but
+       does not need it, so we frame it out by not taking it as an argument.
+       This works! *)
+    xs := list::cons (x, !xs)
+  );
+  !xs
+
+(* ---------------------------------------------------------------------------- *)
+
+(* As noted by Knuth, when a cell is taken out of a doubly-linked list,
+   if the cell's [prev] and [next] pointers are preserved, then the
+   cell's former location in the list is recorded, and the cell can
+   later be re-inserted. Our current implementation does not allow this.
+   Should it? *)
+
+(*
+Local Variables:
+compile-command: "../mezzo doublylinked.mz"
+End:
+*)

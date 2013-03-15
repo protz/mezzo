@@ -1,0 +1,4 @@
+val f [a] (id: a -> a) : ((duplicable a => a -> a), (duplicable a | ())) =
+  id, ()
+
+(* this should fail *)

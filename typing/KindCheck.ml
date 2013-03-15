@@ -90,7 +90,7 @@ type env = {
 
 let mkdatacon_info dc i fields =
   (* Create the map. *)
-  let fmap = Hml_List.fold_lefti
+  let fmap = MzList.fold_lefti
     (fun i fmap f -> Field.Map.add f i fmap)
     Field.Map.empty fields
   in {
@@ -115,22 +115,24 @@ let empty (env: T.env): env =
       (* We're only interested in things that signatures exported with their
        * corresponding definitions. *)
       match definition with
-      | Some (_, def, _), _ ->
+      | Some def, _ ->
           (* Find the module name which this definition comes from. Yes, there's
            * no better way to do that. *)
-          let mname = Hml_List.find_opt
+          let mname = MzList.find_opt
             (function User (mname, _) -> Some mname | _ -> None)
             names
           in
           let mname = Option.extract mname in
           (* Build the entries for [known_datacons]. *)
-          let datacons = List.mapi (fun i (dc, fields) ->
+          let datacons = List.mapi (fun i branch ->
+	    let dc = branch.branch_datacon
+	    and fields = branch.branch_fields in
             (* This data constructor will be initially accessible only in a
              * qualified manner. *)
             let qualif = Qualified (mname, dc) in
             (* We're building information for the interpreter: drop the
              * permission fields. *)
-            let fields = Hml_List.map_some (function
+            let fields = MzList.map_some (function
               | FieldValue (name, _) -> Some name
               | FieldPermission _ -> None
             ) fields in
@@ -167,10 +169,13 @@ and raw_error =
   | IllegalConsumes
   | BadConditionsInFact of Variable.name
   | BadConclusionInFact of Variable.name
+  | NonDistinctHeadsInFact of Variable.name * Mode.mode
   | DuplicateConstructor of Datacon.name
   | DuplicateField of Variable.name
   | AdopterNotExclusive of Variable.name
   | UnboundDataConstructor of Datacon.name
+  | FieldMismatch of Datacon.name * Field.name list (* missing fields *) * Field.name list (* extra fields *)
+  | ImplicationOnlyOnArrow
 
 exception KindError of error
 
@@ -200,75 +205,105 @@ let pkenv buf env =
   ) bindings
 ;;
 
+module P = struct
+
+  open MzPprint
+
+  let print_field field =
+    utf8string (Field.print field)
+
+  let print_fields fields =
+    separate_map (comma ^^ space) print_field fields
+
+  let p_fields buf fields =
+    Types.TypePrinter.pdoc buf (print_fields, fields)
+
+end
+
 let print_error buf (env, raw_error) =
   let open Types.TypePrinter in
+  let bprintf s = Printf.bprintf buf s in
+  (* Print the location. *)
+  Lexer.p buf env.location;
+  (* Print the error message. *)
   begin match raw_error with
   | Unbound x ->
-      Printf.bprintf buf
-        "%a unbound identifier %a"
-        Lexer.p env.location
+      bprintf
+        "Unbound identifier %a"
         Variable.p x
   | Mismatch (expected_kind, inferred_kind) ->
       let inferred, _ = flatten_kind inferred_kind in
       let expected, _ = flatten_kind expected_kind in
       if inferred <> expected then
-        Printf.bprintf buf
-          "%a this is a %a but we were expecting a %a"
-          Lexer.p env.location
+        bprintf
+          "This is a %a but we were expecting a %a"
           p_kind inferred
           p_kind expected
       else
-        Printf.bprintf buf
-          "%a this type has kind %a but we were expecting kind %a"
-          Lexer.p env.location
+        bprintf
+          "This type has kind %a but we were expecting kind %a"
           p_kind inferred_kind
           p_kind expected_kind
   | NotAnArrow (kind) ->
-      Printf.bprintf buf
-        "%a cannot apply arguments to this type since it has kind %a"
-        Lexer.p env.location
+      bprintf
+        "Cannot apply arguments to this type since it has kind %a"
         p_kind kind
   | BoundTwice x ->
-      Printf.bprintf buf
-        "%a variable %a is bound twice"
-        Lexer.p env.location
+      bprintf
+        "Variable %a is bound twice"
         Variable.p x
   | IllegalConsumes ->
-      Printf.bprintf buf
-        "%a unexpected consumes annotation"
-        Lexer.p env.location
+      bprintf
+        "Unexpected consumes annotation"
   | BadConditionsInFact x ->
-      Printf.bprintf buf
-        "%a the conditions for the fact about %a can only be type variables"
-        Lexer.p env.location
+      bprintf
+        "The conditions for the fact about %a can only be type variables"
         Variable.p x
   | BadConclusionInFact x ->
-      Printf.bprintf buf
-        "%a the conclusion for the fact about %a can only be %a applied to its \
+      bprintf
+        "The conclusion for the fact about %a can only be %a applied to its \
         parameters"
-        Lexer.p env.location
         Variable.p x
         Variable.p x
+  | NonDistinctHeadsInFact (x, mode) ->
+      bprintf
+	"Distinct facts must concern distinct modes.\n\
+         In the declaration of %a, two distinct facts concern the mode %s"
+	Variable.p x
+	(Mode.print mode)
   | DuplicateField d ->
-      Printf.bprintf buf
-        "%a the field %a appears several times in this branch"
-        Lexer.p env.location
+      bprintf
+        "The field %a appears several times in this branch"
         Variable.p d
    | DuplicateConstructor d ->
-      Printf.bprintf buf
-        "%a the constructor %a appears several times in this data type group"
-        Lexer.p env.location
+      bprintf
+        "The constructor %a appears several times in this data type group"
         Datacon.p d
   | AdopterNotExclusive x ->
-      Printf.bprintf buf
-        "%a type %a carries an adopts clause, but is not marked as mutable"
-        Lexer.p env.location
+      bprintf
+        "Type %a carries an adopts clause, but is not marked as mutable"
         Variable.p x
   | UnboundDataConstructor d ->
-      Printf.bprintf buf
-        "%a the data constructor %a is not bound to any type"
-        Lexer.p env.location
+      bprintf
+        "The data constructor %a is not bound to any type"
         Datacon.p d
+  | FieldMismatch (datacon, missing, extra) ->
+      bprintf
+        "This type does not have the fields of data constructor %a"
+        Datacon.p datacon;
+      if missing <> [] then
+	bprintf
+	  "\nThe following field%s missing: %a"
+	  (if List.length missing > 1 then "s are" else " is")
+	  P.p_fields missing;
+      if extra <> [] then
+	bprintf
+	  "\nThe following field%s superfluous: %a"
+	  (if List.length extra > 1 then "s are" else " is")
+	  P.p_fields extra
+  | ImplicationOnlyOnArrow ->
+      bprintf
+	"Implication => is permitted only on top of a function type."
   end;
   if Log.debug_level () > 4 then
     pkenv buf env;
@@ -292,6 +327,10 @@ let bound_twice env x =
 
 let bad_condition_in_fact env x =
   raise_error env (BadConditionsInFact x)
+;;
+
+let non_distinct_heads_in_fact env x mode =
+  raise_error env (NonDistinctHeadsInFact (x, mode))
 ;;
 
 let bad_conclusion_in_fact env x =
@@ -386,7 +425,7 @@ let open_module_in (mname: Module.name) (env: env): env =
   let env = List.fold_left bind_external env names in
 
   (* Now also open the data constructors. *)
-  let mname_datacons = Hml_List.map_some (function
+  let mname_datacons = MzList.map_some (function
     | Qualified (mname', dc), origin when Module.equal mname mname' ->
         Some (Unqualified dc, origin)
     | _ ->
@@ -471,7 +510,7 @@ let check_for_duplicate_things
   let compare (x : 'a) (y : 'a) : int =
     compare (project x) (project y)
   in
-  match Hml_List.check_for_duplicates compare elements with
+  match MzList.check_for_duplicates compare elements with
   | None ->
       ()
   | Some (x, _) ->
@@ -554,11 +593,11 @@ let names env ty : type_binding list =
 let bindings_data_type_group (data_type_group: data_type_def list): (Variable.name * kind) list =
   List.map (function
       | Concrete (_flag, (name, params), _, _) ->
-          let params = List.map (fun (x, y, _) -> x, y) params in
+          let params = List.map (fun (_, (x, y, _)) -> x, y) params in
           let k = karrow params KType in
           (name, k)
       | Abstract ((name, params), return_kind, _fact) ->
-          let params = List.map (fun (x, y, _) -> x, y) params in
+          let params = List.map (fun (_, (x, y, _)) -> x, y) params in
           let k = karrow params return_kind in
           (name, k))
     data_type_group
@@ -614,12 +653,7 @@ let rec check_fact_parameter (env: env) (x: Variable.name) (args: Variable.name 
 
 
 (* The conclusion of a fact, if any, must be the exact original type applied to
-   the exact same arguments.
-
-   TEMPORARY: this function implements a purely syntactic check, which only
-   allows for a very limited form of facts. We should recognize both in the
-   parser and here a more general form of facts, with a conjunction of
-   hypotheses that entail an arbitrary predicate. *)
+   the exact same arguments. *)
 let rec check_fact_conclusion (env: env) (x: Variable.name) (args: Variable.name list) (t: typ) =
   match t with
   | TyLocated (t, p) ->
@@ -644,6 +678,15 @@ let rec check_fact_conclusion (env: env) (x: Variable.name) (args: Variable.name
           bad_conclusion_in_fact env x;
 ;;
 
+let check_distinct_heads env name facts =
+  ignore (
+    List.fold_left (fun accu (Fact (_, (mode, _))) ->
+      if Mode.ModeMap.mem mode accu then
+	non_distinct_heads_in_fact env name mode
+      else
+	Mode.ModeMap.add mode () accu
+    ) Mode.ModeMap.empty facts
+  )
 
 let rec check (env: env) (t: typ) (expected_kind: kind) =
   let inferred_kind = infer env t in
@@ -722,10 +765,10 @@ and infer (env: env) (t: typ) =
       check env t2 KPerm;
       KType
 
-  | TyAnd (cs, t)
-  | TyImply (cs, t) ->
-      List.iter (fun (_, t) -> check env t KType) cs;
-      infer env t
+  | TyAnd ((_, t), u)
+  | TyImply ((_, t), u) ->
+      check env t KType;
+      infer env u
 
 and check_field (env: env) (field: data_field_def) =
   match field with
@@ -738,7 +781,7 @@ and check_field (env: env) (field: data_field_def) =
 
 and check_branch: 'a. env -> ('a * data_field_def list) -> unit = fun env branch ->
   let _, fields = branch in
-  let names = Hml_List.map_some (function
+  let names = MzList.map_some (function
     | FieldValue (name, _) ->
         Some name
     | FieldPermission _ ->
@@ -763,21 +806,17 @@ and check_type_with_names (env: env) (t: typ) (k: kind) =
    well-formed. *)
 let check_data_type_def (env: env) (def: data_type_def) =
   match def with
-  | Abstract ((name, bindings), _return_kind, fact) ->
+  | Abstract ((name, bindings), _return_kind, facts) ->
       (* Get the names of the parameters. *)
-      let args = List.map (fun (x, _, _) -> x) bindings in
+      let args = List.map (fun (_, (x, _, _)) -> x) bindings in
       (* Perform a tedious check. *)
-      begin match fact with
-      | Some (FDuplicableIf (clauses, conclusion)) ->
-          List.iter (check_fact_parameter env name args) clauses;
-          check_fact_conclusion env name args conclusion
-      | Some (FExclusive conclusion) ->
-          check_fact_conclusion env name args conclusion
-      | None ->
-          ()
-      end
-  | Concrete (flag, (name, bindings), branches, clause) ->
-      let bindings = List.map (fun (x, y, _) -> x, y) bindings in
+      List.iter (function Fact (clauses, conclusion) ->
+        List.iter (fun (_, t) -> check_fact_parameter env name args t) clauses;
+        let (_, t) = conclusion in check_fact_conclusion env name args t
+      ) facts;
+      check_distinct_heads env name facts
+  | Concrete (flavor, (name, bindings), branches, clause) ->
+      let bindings = List.map (fun (_, (x, y, _)) -> x, y) bindings in
       let env = List.fold_left bind env bindings in
       (* Check the branches. *)
       List.iter (check_branch env) branches;
@@ -787,14 +826,14 @@ let check_data_type_def (env: env) (def: data_type_def) =
       | Some t ->
           check_type_with_names env t KType;
           (* We can do that early. *)
-          if flag <> Exclusive then
-            raise_error env (AdopterNotExclusive name);
+	  if not (DataTypeFlavor.can_adopt flavor) then
+	    raise_error env (AdopterNotExclusive name)
 ;;
 
 
 let check_data_type_group (env: env) (data_type_group: data_type_def list) =
   (* Check that the constructors are unique to this data type group. *)
-  let all_branches = Hml_List.map_flatten (function
+  let all_branches = MzList.map_flatten (function
     | Abstract _ ->
         []
     | Concrete (_, _, branches, _) ->
@@ -1011,7 +1050,7 @@ let check_implementation (tenv: T.env) (program: implementation) =
 
 let check_interface (tenv: T.env) (interface: interface) =
   (* Check for duplicate variables. *)
-  let all_bindings = Hml_List.map_flatten (function
+  let all_bindings = MzList.map_flatten (function
     | DataTypeGroup (_, data_type_group) ->
         bindings_data_type_group data_type_group
     | PermDeclaration (x, _) ->
@@ -1024,9 +1063,9 @@ let check_interface (tenv: T.env) (interface: interface) =
   check_for_duplicate_variables fst all_bindings (bound_twice (empty tenv));
 
   (* Check for duplicate data constructors. *)
-  let all_datacons = Hml_List.map_flatten (function
+  let all_datacons = MzList.map_flatten (function
     | DataTypeGroup (_, data_type_group) ->
-        Hml_List.map_flatten (function
+        MzList.map_flatten (function
           | Abstract _ ->
               []
           | Concrete (_, _, branches, _) ->
@@ -1047,7 +1086,7 @@ let check_interface (tenv: T.env) (interface: interface) =
 
 module KindPrinter = struct
 
-  open Hml_Pprint
+  open MzPprint
   open TypeCore
   open Types
   open TypePrinter
@@ -1071,42 +1110,32 @@ module KindPrinter = struct
 
   (* Prints a data type defined in the global scope. Assumes [print_env] has been
      properly populated. *)
-  let print_data_type_def (env: env) flag name kind variance branches clause =
+  let print_data_type_def (env: env) name kind variance branches =
     let _return_kind, params = flatten_kind kind in
     (* Turn the list of parameters into letters *)
     let letters: string list = name_gen (List.length params) in
     let letters = List.map2 (fun variance letter ->
       print_variance variance ^^ utf8string letter
     ) variance letters in
-    let env, _, branches, clause =
-      bind_datacon_parameters env kind branches clause
+    let env, _, branches =
+      bind_datacon_parameters env kind branches
     in
     let sep = break 1 ^^ bar ^^ space in
-    let flag = match flag with
-      | SurfaceSyntax.Exclusive -> string "mutable" ^^ space
-      | SurfaceSyntax.Duplicable -> empty
-    in
     (* The whole blurb *)
-    flag ^^ string "data" ^^ space ^^ lparen ^^
+    string "data" ^^ space ^^ lparen ^^
     print_var env name ^^ space ^^ colon ^^ space ^^
     print_kind kind ^^ rparen ^^ concat_map (precede space) letters ^^
     space ^^ equals ^^
     jump
       (ifflat empty (bar ^^ space) ^^
-      separate_map sep
-        (fun (x, y) -> print_data_type_def_branch env x y ty_bottom) branches
-      ) ^^
-    match clause with
-    | Some t ->
-        break 1 ^^ string "adopts" ^^ space ^^ print_type env t
-    | None ->
-        empty
+      separate_map sep (print_unresolved_branch env) branches
+      )
   ;;
 
   let print_def env name kind def =
     match def with
-    | Some (flag, branches, clause), variance ->
-        print_data_type_def env flag name kind variance branches clause
+    | Some branches, variance ->
+        print_data_type_def env name kind variance branches
     | None, _ ->
         print_abstract_type_def env name kind
   ;;
