@@ -45,7 +45,7 @@
 (* Other tokens. *)
 
 %token          OPEN BUILTIN
-%token          KTERM KTYPE KPERM
+%token          TERM TYPE PERM
 %token          UNKNOWN DYNAMIC EXCLUSIVE MUTABLE
 %token          DATA BAR UNDERSCORE
 %token          LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
@@ -226,7 +226,7 @@ existential_quantifiers:
    syntax of type variable bindings must be atomic (well-delimited). *)
 
 atomic_type_binding:
-| x = variable (* KTYPE is the default kind *)
+| x = variable (* TYPE is the default kind *)
     { x, KType, ($startpos(x), $endpos) }
 | LPAREN b = type_binding RPAREN
     { b }
@@ -256,11 +256,11 @@ type_binding:
 atomic_kind:
 | LPAREN kind = kind RPAREN
     { kind }
-| KTERM
+| TERM
     { KTerm }
-| KTYPE
+| TYPE
     { KType }
-| KPERM
+| PERM
     { KPerm }
 
 %inline kind:

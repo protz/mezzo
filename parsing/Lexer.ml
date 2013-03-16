@@ -20,6 +20,18 @@
 open Ulexing
 open Grammar
 
+(* Keyword recognition. *)
+
+(* The list of keywords is in the file [Keywords], from which the file
+   [Keywords.ml] is auto-generated. *)
+
+let keywords : (string, token) Hashtbl.t =
+  let keywords = Hashtbl.create 13 in
+  List.iter (fun (keyword, token) ->
+    Hashtbl.add keywords keyword token
+  ) Keywords.keywords;
+  keywords
+
 (* Position handling *)
 
 let pos_fname = ref "<dummy>"
@@ -135,46 +147,12 @@ let rec token = lexer
 | "(*" -> comment 0 lexbuf
 | "*)" -> raise_error UnexpectedEndOfComment
 
-| "abstract" -> locate lexbuf ABSTRACT
-| "adopts" -> locate lexbuf ADOPTS
-| "and" -> locate lexbuf AND
-| "as" -> locate lexbuf AS
-| "assert" -> locate lexbuf ASSERT
-| "begin" -> locate lexbuf BEGIN
-| "builtin" -> locate lexbuf BUILTIN
-| "consumes" -> locate lexbuf CONSUMES
-| "data" -> locate lexbuf DATA
-| "duplicable" -> locate lexbuf DUPLICABLE
-| "dynamic" -> locate lexbuf DYNAMIC
-| "else" -> locate lexbuf ELSE
-| "empty" -> locate lexbuf EMPTY
-| "end" -> locate lexbuf END
-| "exclusive" -> locate lexbuf EXCLUSIVE
-| "explain" -> locate lexbuf EXPLAIN
-| "fact" -> locate lexbuf FACT
-| "fail" -> locate lexbuf FAIL
-| "from" -> locate lexbuf FROM
-| "fun" | 955 (* λ *) -> locate lexbuf FUN
-| "give" -> locate lexbuf GIVE
-| "if" -> locate lexbuf IF
-| "in" -> locate lexbuf IN
-| "let" -> locate lexbuf LET
-| "match" -> locate lexbuf MATCH
-| "mutable" -> locate lexbuf MUTABLE
-| "open" -> locate lexbuf OPEN
-| "owns" -> locate lexbuf OWNS
-| "perm" -> locate lexbuf KPERM
-| "rec" -> locate lexbuf REC
+(* Unicode aliases. *)
+| 955 (* λ *) -> locate lexbuf FUN
+| 8727 (* ∗ *) -> locate lexbuf TYPE
+
+(* A special multi-word keyword. *)
 | "tag" whitespace "of" -> locate lexbuf TAGOF
-| "take" -> locate lexbuf TAKE
-| "taking" -> locate lexbuf TAKING
-| "term" -> locate lexbuf KTERM
-| "then" -> locate lexbuf THEN
-| "to" -> locate lexbuf TO
-| "type" | 8727 (* ∗ *) -> locate lexbuf KTYPE
-| "unknown" -> locate lexbuf UNKNOWN
-| "val" -> locate lexbuf VAL
-| "with" -> locate lexbuf WITH
 
 | "<-" -> locate lexbuf LARROW
 | "." -> locate lexbuf DOT
@@ -216,7 +194,10 @@ let rec token = lexer
     let l = utf8_lexeme lexbuf in
     locate lexbuf (INT (int_of_string l))
 
-| lid -> locate lexbuf (LIDENT (utf8_lexeme lexbuf))
+| lid -> locate lexbuf (
+           let s = utf8_lexeme lexbuf in
+           try Hashtbl.find keywords s with Not_found -> LIDENT s
+         )
 | uid -> locate lexbuf (UIDENT (utf8_lexeme lexbuf))
 | eof -> locate lexbuf EOF
 | _ ->

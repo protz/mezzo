@@ -1,8 +1,9 @@
 .PHONY: all clean test graph doc index release report coverage count doc
 
-# The variables below should be determined by a configure script...
-# On my MacOS laptop, find does not understand -printf; gfind does. -fpottier
+# Default values for auxiliary tools.
+# Can be overridden by Makefile.local (not under version control).
 FIND       := find
+SED        := sed
 -include Makefile.local
 
 OCAMLBUILD := ocamlbuild -j 0 -use-ocamlfind -use-menhir \
@@ -15,13 +16,16 @@ BUILDDIRS   = -I _build $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _
 MY_DIRS    := lib parsing sets typing utils interpreter compiler
 PACKAGES   := -package menhirLib,ocamlbuild,yojson,stdlib,ulex,pprint
 
-all: configure.ml
+all: configure.ml parsing/Keywords.ml
 	$(OCAMLBUILD) $(INCLUDE) $(MAIN).native $(TESTSUITE).native
 	ln -sf $(MAIN).native $(MAIN)
 	ln -sf $(TESTSUITE).native $(TESTSUITE)
 
 configure.ml: configure
 	./configure
+
+parsing/Keywords.ml: parsing/Keywords parsing/KeywordGenerator.ml
+	ocaml parsing/KeywordGenerator.ml < $< > $@
 
 clean:
 	rm -f *~ $(MAIN) $(MAIN).native $(TESTSUITE) $(TESTSUITE).native
