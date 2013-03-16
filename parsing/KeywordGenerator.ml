@@ -6,7 +6,7 @@ let () =
     printf "let keywords = [\n";
     while true do
       let line = input_line stdin in
-      Printf.printf "  \"%s\", %s;\n" line (String.uppercase line)
+      printf "  \"%s\", %s;\n" line (String.uppercase line)
     done
   with End_of_file ->
     printf "]\n%!"
