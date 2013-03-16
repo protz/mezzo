@@ -20,6 +20,8 @@
 open Ulexing
 open Grammar
 
+(* ---------------------------------------------------------------------------- *)
+
 (* Keyword recognition. *)
 
 (* The list of keywords is in the file [Keywords], from which the file
@@ -32,7 +34,9 @@ let keywords : (string, token) Hashtbl.t =
   ) Keywords.keywords;
   keywords
 
-(* Position handling *)
+(* ---------------------------------------------------------------------------- *)
+
+(* Position handling. *)
 
 let pos_fname = ref "<dummy>"
 let pos_lnum = ref 1
@@ -80,7 +84,9 @@ let print_position buf lexbuf =
   let end_pos = end_pos lexbuf in
   p buf (start_pos, end_pos)
 
-(* Error handling *)
+(* ---------------------------------------------------------------------------- *)
+
+(* Error handling. *)
 
 type error =
   | UnexpectedEndOfComment
@@ -101,7 +107,9 @@ let print_error buf (lexbuf, error) =
     | GeneralError e ->
         Printf.bprintf buf "%a\nLexing error: %s" print_position lexbuf e
 
-(* Various regexps *)
+(* ---------------------------------------------------------------------------- *)
+
+(* Various regexps. *)
 
 let regexp whitespace = ['\t' ' ']+
 let regexp linebreak = ['\n' '\r' "\r\n"]
@@ -118,6 +126,8 @@ let regexp lid =
   (low_alpha | low_greek | '_') alpha_greek* (['_' '\''] | alpha_greek | digit)*
 let regexp uid =
   (up_alpha | up_greek | '_') alpha_greek* (['_' '\''] | alpha_greek | digit)*
+
+(* ---------------------------------------------------------------------------- *)
 
 (* The classification of operators is a refinement of OCaml's. *)
 
@@ -139,26 +149,47 @@ let regexp op_infix2  = ['+' '-'] (* left *)
 let regexp op_infix3  = ['*' '/' '%'] (* left *)
 let regexp symbolchar = op_prefix | op_infix0 | op_infix1 | op_infix2 | op_infix3 | ['.' ':']
 
-(* The lexer *)
+(* ---------------------------------------------------------------------------- *)
+
+(* The lexer. *)
 
 let rec token = lexer
-| linebreak -> break_line lexbuf; token lexbuf
+
+(* Whitespace. *)
+| linebreak  -> break_line lexbuf; token lexbuf
 | whitespace -> token lexbuf
+
+(* Comments. *)
 | "(*" -> comment [(start_pos lexbuf, end_pos lexbuf)] lexbuf
 | "*)" -> raise_error UnexpectedEndOfComment
 
-(* Unicode aliases. *)
-| 955 (* λ *) -> locate lexbuf FUN
+(* Unicode aliases for certain keywords. *)
+|  955 (* λ *) -> locate lexbuf FUN
 | 8727 (* ∗ *) -> locate lexbuf TYPE
 
 (* A special multi-word keyword. *)
 | "tag" whitespace "of" -> locate lexbuf TAGOF
 
+(* Special character sequences. *)
 | "<-" -> locate lexbuf LARROW
+| ":=" -> locate lexbuf (COLONEQUAL (utf8_lexeme lexbuf))
+| "::" -> locate lexbuf COLONCOLON
+| "->" | 8594 (* → *) -> locate lexbuf ARROW
+| "=>" | 8658 (* ⇒ *) -> locate lexbuf DBLARROW
+| "!=" -> locate lexbuf (OPINFIX0c (utf8_lexeme lexbuf))
+
+(* Special characters. *)
 | "." -> locate lexbuf DOT
+| "," -> locate lexbuf COMMA
+| ":" -> locate lexbuf COLON
+| ";" -> locate lexbuf SEMI
 | "|" -> locate lexbuf BAR
 | "_" -> locate lexbuf UNDERSCORE
-
+| "@" -> locate lexbuf AT
+| "-" -> locate lexbuf (MINUS (utf8_lexeme lexbuf))
+| "+" -> locate lexbuf (PLUS (utf8_lexeme lexbuf))
+| "*" -> locate lexbuf (STAR (utf8_lexeme lexbuf))
+| "=" -> locate lexbuf (EQUAL (utf8_lexeme lexbuf))
 | "[" -> locate lexbuf LBRACKET
 | "]" -> locate lexbuf RBRACKET
 | "{" -> locate lexbuf LBRACE
@@ -166,44 +197,43 @@ let rec token = lexer
 | "(" -> locate lexbuf LPAREN
 | ")" -> locate lexbuf RPAREN
 
-| "," -> locate lexbuf COMMA
-| ":=" -> locate lexbuf (COLONEQUAL (utf8_lexeme lexbuf))
-| "::" -> locate lexbuf COLONCOLON
-| ":" -> locate lexbuf COLON
-| ";" -> locate lexbuf SEMI
-| "->" | 8594 (* → *) -> locate lexbuf ARROW
-| "=>" | 8658 (* ⇒ *) -> locate lexbuf DBLARROW
-| "*" -> locate lexbuf (STAR (utf8_lexeme lexbuf))
-| "=" -> locate lexbuf (EQUAL (utf8_lexeme lexbuf))
-| "@" -> locate lexbuf AT
-
-| "-" -> locate lexbuf (MINUS (utf8_lexeme lexbuf))
-| "+" -> locate lexbuf (PLUS (utf8_lexeme lexbuf))
-| "!=" -> locate lexbuf (OPINFIX0c (utf8_lexeme lexbuf))
-| op_prefix symbolchar* -> locate lexbuf (OPPREFIX (utf8_lexeme lexbuf))
+(* Operators. *)
+| op_prefix  symbolchar* -> locate lexbuf (OPPREFIX (utf8_lexeme lexbuf))
 | op_infix0a symbolchar* -> locate lexbuf (OPINFIX0a (utf8_lexeme lexbuf))
 | op_infix0b symbolchar* -> locate lexbuf (OPINFIX0b (utf8_lexeme lexbuf))
 | op_infix0c symbolchar* -> locate lexbuf (OPINFIX0c (utf8_lexeme lexbuf))
 | op_infix0d symbolchar* -> locate lexbuf (OPINFIX0d (utf8_lexeme lexbuf))
-| op_infix1 symbolchar* -> locate lexbuf (OPINFIX1 (utf8_lexeme lexbuf))
-| op_infix2 symbolchar* -> locate lexbuf (OPINFIX2 (utf8_lexeme lexbuf))
-| "**" symbolchar *     -> locate lexbuf (OPINFIX4 (utf8_lexeme lexbuf))
-| op_infix3 symbolchar* -> locate lexbuf (OPINFIX3 (utf8_lexeme lexbuf))
+| op_infix1  symbolchar* -> locate lexbuf (OPINFIX1 (utf8_lexeme lexbuf))
+| op_infix2  symbolchar* -> locate lexbuf (OPINFIX2 (utf8_lexeme lexbuf))
+| "**"       symbolchar* -> locate lexbuf (OPINFIX4 (utf8_lexeme lexbuf))
+| op_infix3  symbolchar* -> locate lexbuf (OPINFIX3 (utf8_lexeme lexbuf))
 
+(* Integer literals. *)
 | int ->
     let l = utf8_lexeme lexbuf in
     locate lexbuf (INT (int_of_string l))
 
-| lid -> locate lexbuf (
-           let s = utf8_lexeme lexbuf in
-           try Hashtbl.find keywords s with Not_found -> LIDENT s
-         )
+(* Identifiers and keywords. *)
+| lid ->
+  locate lexbuf (
+     let s = utf8_lexeme lexbuf in
+     try Hashtbl.find keywords s with Not_found -> LIDENT s
+   )
 | uid -> locate lexbuf (UIDENT (utf8_lexeme lexbuf))
+
+(* End-of-file. *)
 | eof -> locate lexbuf EOF
+
+(* Errors. *)
 | _ ->
     raise_error (GeneralError (utf8_lexeme lexbuf))
 
+(* ---------------------------------------------------------------------------- *)
+
+(* Skipping comments. *)
+
 (* [stack] is a non-empty stack of opening comment positions. *)
+
 and comment stack = lexer
 | "(*" ->
     comment ((start_pos lexbuf, end_pos lexbuf) :: stack) lexbuf
@@ -232,6 +262,4 @@ and comment stack = lexer
     end
 | _ ->
     comment stack lexbuf
-
-
 
