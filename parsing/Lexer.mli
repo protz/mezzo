@@ -19,10 +19,7 @@
 
 (** The lexer for Mezzo. *)
 
-type error =
-  | UnexpectedEndOfComment
-  | UnterminatedComment
-  | GeneralError of string
+type error
 
 exception LexingError of error
 

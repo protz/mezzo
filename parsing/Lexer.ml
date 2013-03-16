@@ -84,7 +84,7 @@ let print_position buf lexbuf =
 
 type error =
   | UnexpectedEndOfComment
-  | UnterminatedComment
+  | UnterminatedComment of (Lexing.position * Lexing.position)
   | GeneralError of string
 
 exception LexingError of error
@@ -96,8 +96,8 @@ let print_error buf (lexbuf, error) =
   match error with
     | UnexpectedEndOfComment ->
         Printf.bprintf buf "%a\nUnexpected end of comment" print_position lexbuf
-    | UnterminatedComment ->
-        Printf.bprintf buf "%a\nUnterminated comment" print_position lexbuf
+    | UnterminatedComment positions ->
+        Printf.bprintf buf "%a\nUnterminated comment" p positions
     | GeneralError e ->
         Printf.bprintf buf "%a\nLexing error: %s" print_position lexbuf e
 
@@ -144,7 +144,7 @@ let regexp symbolchar = op_prefix | op_infix0 | op_infix1 | op_infix2 | op_infix
 let rec token = lexer
 | linebreak -> break_line lexbuf; token lexbuf
 | whitespace -> token lexbuf
-| "(*" -> comment 0 lexbuf
+| "(*" -> comment [(start_pos lexbuf, end_pos lexbuf)] lexbuf
 | "*)" -> raise_error UnexpectedEndOfComment
 
 (* Unicode aliases. *)
@@ -203,22 +203,35 @@ let rec token = lexer
 | _ ->
     raise_error (GeneralError (utf8_lexeme lexbuf))
 
-and comment level = lexer
+(* [stack] is a non-empty stack of opening comment positions. *)
+and comment stack = lexer
 | "(*" ->
-    comment (level+1) lexbuf
+    comment ((start_pos lexbuf, end_pos lexbuf) :: stack) lexbuf
 | "*)" ->
-    assert (level >= 0);
-    if level >=1 then
-      comment (level-1) lexbuf
-    else
-      token lexbuf
+    begin match stack with
+    | [ _ ] ->
+        (* Back to normal mode. *)
+        token lexbuf
+    | _ :: stack ->
+        (* Continue in comment mode, one level down. *)
+        comment stack lexbuf
+    | [] ->
+        (* Impossible. *)
+        assert false
+    end
 | linebreak ->
     break_line lexbuf;
-    comment level lexbuf
+    comment stack lexbuf
 | eof ->
-    raise_error UnterminatedComment (* TEMPORARY indiquer où est le début de ce commentaire! *)
+    begin match stack with
+    | positions :: _ ->
+        raise_error (UnterminatedComment positions)
+    | [] ->
+        (* Impossible. *)
+        assert false
+    end
 | _ ->
-    comment level lexbuf
+    comment stack lexbuf
 
 
 
