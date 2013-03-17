@@ -1,10 +1,3 @@
-(* Kinds. *)
-
-(* Arrow kinds are not accessible to the user. They are used internally:
-   a user-defined algebraic data type constructor receives an arrow kind.
-   Thus, even internally, we only use first-order kinds (that is, the
-   left-hand argument of an arrow kind is never itself an arrow kind). *)
-
 type kind =
   | KTerm
   | KType
@@ -28,3 +21,19 @@ let arity k =
         accu
   in
   arity 0 k
+
+let rec print =
+  function
+  | KTerm ->
+      "term"
+  | KPerm ->
+      "perm"
+  | KType ->
+      "type"
+  | KArrow (k1, k2) ->
+      (* No parentheses required; first-order kinds only. *)
+      print k1 ^ " -> " ^ print k2
+
+let print_kind k =
+  PPrint.string (print k)
+

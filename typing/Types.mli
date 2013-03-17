@@ -177,7 +177,6 @@ module TypePrinter :
     val print_datacon : Datacon.name -> MzPprint.document
     val print_field_name : Field.name -> MzPprint.document
     val print_field : SurfaceSyntax.field -> MzPprint.document
-    val print_kind : kind -> MzPprint.document
     val p_kind : Buffer.t -> kind -> unit
     val print_names :
       env -> name list -> MzPprint.document

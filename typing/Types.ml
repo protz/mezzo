@@ -530,18 +530,6 @@ module TypePrinter = struct
     print_field_name (field.SurfaceSyntax.field_name)
   ;;
 
-  let rec print_kind =
-    function
-    | KTerm ->
-        string "term"
-    | KPerm ->
-        string "perm"
-    | KType ->
-        string "type"
-    | KArrow (k1, k2) ->
-        print_kind k1 ^^ space ^^ arrow ^^ space ^^ print_kind k2
-  ;;
-
   (* This is for debugging purposes. Use with [Log.debug] and [%a]. *)
   let p_kind buf kind =
     pdoc buf (print_kind, kind)
