@@ -148,16 +148,9 @@ maybe_qualified(X):
 | m = module_name COLONCOLON x = X
     { Qualified (m, x) }
 
-(* TEMPORARY for variables in types, we use TyBound/TyQualified;
-   this should be made uniform *)
-
-maybe_qualified_type_variable:
-(* An unqualified variable. *)
-| x = variable
-    { TyBound x }
-(* A variable just like above, prefixed with a module name. *)
-| m = module_name COLONCOLON x = variable
-    { TyQualified (m, x) }
+%inline maybe_qualified_type_variable:
+  x = maybe_qualified(variable)
+    { TyVar x }
 
 %inline datacon_reference:
   d = maybe_qualified(datacon)
@@ -520,7 +513,7 @@ data_field_def:
    a field name [f]. This is a pun: it means [f = f], or in other words,
    [f: =f]. *)
 | f = variable
-    { [ FieldValue (f, TySingleton (TyBound f)) ] }
+    { [ FieldValue (f, TySingleton (TyVar (Unqualified f))) ] }
 
 (* Field definitions are semicolon-separated or -terminated. *)
 

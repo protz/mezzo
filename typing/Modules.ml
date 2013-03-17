@@ -121,13 +121,12 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         collect_expr e1 @ collect_expr e2 @ collect_expr e3
 
   and collect_type = function
-    | TyQualified (m, _) ->
-        [m]
+    | TyVar v ->
+        collect_maybe_qualified v
     | TyUnknown
     | TyDynamic
     | TyEmpty
-    | TyBound _ ->
-        []
+        -> []
     | TySingleton t1
     | TyNameIntro (_, t1)
     | TyConsumes t1

@@ -149,13 +149,14 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
 
     | TyConsumes t ->
         let name = fresh_var "/c" in
-        let perm = TyAnchoredPermission (TyBound name, t) in
-        ty_equals name, [Some name, perm, env.location]
+        let c = TyVar (Unqualified name) in
+        let perm = TyAnchoredPermission (c, t) in
+	TySingleton c,
+        [Some name, perm, env.location]
 
     | TyUnknown
     | TyDynamic
-    | TyBound _
-    | TyQualified _
+    | TyVar _
     | TySingleton _
     (* These are opaque, no consumes annotations inside of these. *)
     | TyForall _
@@ -202,11 +203,11 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyEmpty ->
       T.TyEmpty
 
-  | TyBound x ->
+  | TyVar (Unqualified x) ->
       let _, index = find x env in
       tvar index
 
-  | TyQualified (mname, x) ->
+  | TyVar (Qualified (mname, x)) ->
       T.TyOpen (T.point_by_name env.env ~mname x)
 
   | TyConcreteUnfolded (dref, fields) ->
@@ -382,12 +383,13 @@ and translate_arrow_type env t1 t2 =
    * of conflict. *)
   let root = fresh_var "/root" in
   let root_binding = root, KTerm, env.location in
+  let root_var = TyVar (Unqualified root) in
 
   (* We now turn the argument into (=root | root @ t1 ∗ c @ … ∗ …) with [t1]
    * now devoid of any consumes annotations. *)
   let fat_t1 = TyBar (
-    ty_equals root,
-    fold_star (TyAnchoredPermission (TyBound root, t1) :: perms)
+    TySingleton root_var,
+    fold_star (TyAnchoredPermission (root_var, t1) :: perms)
   ) in
 
   (* So that we don't mess up, we use unique names in the surface syntax and
@@ -405,7 +407,7 @@ and translate_arrow_type env t1 t2 =
    * [strip_consumes]. *)
   let t2 = TyBar (
     t2,
-    TyAnchoredPermission (TyBound root, t1)
+    TyAnchoredPermission (root_var, t1)
   ) in
 
   (* The return type can also bind variables with [x: t]. These are
@@ -444,7 +446,7 @@ let translate_single_fact (params: Variable.name list) (accu: Fact.fact) (fact: 
     List.fold_left (fun hs (mode, t) ->
       let name =
 	match tunloc t with
-        | TyBound name -> name
+        | TyVar (Unqualified name) -> name
         | _ -> assert false
       in
       let p : parameter = MzList.index (Variable.equal name) params in
@@ -759,7 +761,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
               ESequence (
                 EAssert (
                   TyAnchoredPermission (
-                    TyBound (Option.extract name),
+                    TyVar (Unqualified (Option.extract name)),
                     annotation
                   )
                 ),

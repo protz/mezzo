@@ -648,7 +648,7 @@ let rec check_fact_parameter (env: env) (x: Variable.name) (args: Variable.name 
   match t with
   | TyLocated (t, p) ->
       check_fact_parameter (locate env p) x args t
-  | TyBound x' ->
+  | TyVar (Unqualified x') ->
       if not (List.exists (Variable.equal x') args) then
         bad_condition_in_fact env x
   | _ ->
@@ -664,7 +664,7 @@ let rec check_fact_conclusion (env: env) (x: Variable.name) (args: Variable.name
       check_fact_conclusion (locate env p) x args t
   | _ ->
       match flatten_tyapp t with
-      | TyBound x', args' ->
+      | TyVar (Unqualified x'), args' ->
           Log.debug "%a %a" Variable.p x Variable.p x';
           if not (Variable.equal x x') then
             bad_conclusion_in_fact env x;
@@ -672,8 +672,8 @@ let rec check_fact_conclusion (env: env) (x: Variable.name) (args: Variable.name
             bad_conclusion_in_fact env x;
           List.iter2 (fun x arg' ->
             match arg' with
-            | TyBound x'
-            | TyLocated (TyBound x', _) ->
+            | TyVar (Unqualified x')
+            | TyLocated (TyVar (Unqualified x'), _) ->
                 if not (Variable.equal x x') then
                   bad_conclusion_in_fact env x;
             | _ ->
@@ -713,10 +713,10 @@ and infer (env: env) (t: typ) =
   | TyEmpty ->
       KPerm
 
-  | TyQualified (mname, x) ->
+  | TyVar (Qualified (mname, x)) ->
       kind_external env mname x
 
-  | TyBound x ->
+  | TyVar (Unqualified x) ->
       let kind, _index = find x env in
       kind
 
