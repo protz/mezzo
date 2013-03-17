@@ -19,6 +19,7 @@
 
 (* This file contains our internal syntax for expressions. *)
 
+open Kind
 open TypeCore
 open DeBruijn
 open Types

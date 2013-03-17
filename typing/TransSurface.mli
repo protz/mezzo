@@ -1,3 +1,4 @@
+open Kind
 open SurfaceSyntax
 open KindCheck
 

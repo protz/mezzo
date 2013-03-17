@@ -17,6 +17,7 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+open Kind
 open TypeCore
 
 (** This module provides various substitution functions. *)

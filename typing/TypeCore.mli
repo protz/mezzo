@@ -17,6 +17,8 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+open Kind
+
 (** This module defines the syntax of types, as manipulated by the
    type-checker. *)
 
@@ -36,13 +38,6 @@ module Field: module type of Variable with type name = SurfaceSyntax.Field.name
 
 (** The type of user-generated or auto-generated names. *)
 type name = User of Module.name * Variable.name | Auto of Variable.name
-
-(** Types have kinds. *)
-type kind = SurfaceSyntax.kind =
-  | KTerm
-  | KType
-  | KPerm
-  | KArrow of kind * kind
 
 (** Our locations are made up of ranges. *)
 type location = Lexing.position * Lexing.position

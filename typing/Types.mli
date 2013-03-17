@@ -20,6 +20,7 @@
 (** This module provides a variety of functions for dealing with types, mostly
  * built on top of {!DeBruijn} and {!TypeCore}. *)
 
+open Kind
 open TypeCore
 
 (* -------------------------------------------------------------------------- *)
@@ -109,8 +110,6 @@ val resolve_branch:
 
 (** {2 Folding and unfolding} *)
 
-val flatten_kind :
-  SurfaceSyntax.kind -> SurfaceSyntax.kind * SurfaceSyntax.kind list
 val flatten_star : env -> typ -> typ list
 val fold_star : typ list -> typ
 val strip_forall :
@@ -165,7 +164,7 @@ val find_type_by_name :
   env -> ?mname:string -> string -> typ
 val make_datacon_letters :
   env ->
-  SurfaceSyntax.kind ->
+  kind ->
   bool ->
   env * var list
 
@@ -178,8 +177,8 @@ module TypePrinter :
     val print_datacon : Datacon.name -> MzPprint.document
     val print_field_name : Field.name -> MzPprint.document
     val print_field : SurfaceSyntax.field -> MzPprint.document
-    val print_kind : SurfaceSyntax.kind -> MzPprint.document
-    val p_kind : Buffer.t -> SurfaceSyntax.kind -> unit
+    val print_kind : kind -> MzPprint.document
+    val p_kind : Buffer.t -> kind -> unit
     val print_names :
       env -> name list -> MzPprint.document
     val pnames : Buffer.t -> env * name list -> unit

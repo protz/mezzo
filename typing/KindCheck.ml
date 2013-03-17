@@ -21,6 +21,7 @@
    the surface language. [Note Jonathan: a clean version of the rules can be
    found in my thesis noteboook, date June, 16th 2012]. *)
 
+open Kind
 open SurfaceSyntax
 module T = TypeCore
 module E = Expressions

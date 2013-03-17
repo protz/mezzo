@@ -17,8 +17,9 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** This module helps dealing with interfaces. *)
+(** This module helps deal with interfaces. *)
 
+open Kind
 module S = SurfaceSyntax
 module E = Expressions
 module T = TypeCore
@@ -87,7 +88,7 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
 let check
   (env: T.env)
   (signature: S.toplevel_item list)
-  (exports: (Variable.name * T.kind * T.var) list)
+  (exports: (Variable.name * kind * T.var) list)
 : T.env =
   (* Find one specific name among these names. *)
   let point_by_name name =
@@ -123,7 +124,7 @@ let check
         Log.debug ~level:3 "*** Checking sig item %a" Variable.p x;
 
         (* Make sure [t] has kind ∗ *)
-        KindCheck.check tsenv t S.KType;
+        KindCheck.check tsenv t KType;
 
         (* Now translate type [t] into the internal syntax; [x] is not bound in
          * [t]. *)
@@ -143,7 +144,7 @@ let check
 
         (* Alright, [x] is now bound, and when it appears afterwards, it will
          * refer to the original [x] from [env]. *)
-        let tsenv = KindCheck.bind_external tsenv (x, S.KTerm, point) in
+        let tsenv = KindCheck.bind_external tsenv (x, KTerm, point) in
 
         (* Check the remainder of the toplevel_items. *)
         check env tsenv toplevel_items

@@ -29,6 +29,7 @@
    - Location information inside types and patterns is dropped.
 *)
 
+open Kind
 open SurfaceSyntax
 open KindCheck
 open Utils
@@ -455,6 +456,13 @@ and translate_type_with_names (env: env) (t: typ): T.typ =
   let t = Types.fold_exists (List.map (name_user env) bindings) t in
   t
 
+;;
+
+let rec tunloc = function
+  | TyLocated (t, _) ->
+      tunloc t
+  | _ as t ->
+      t
 ;;
 
 let translate_single_fact (params: Variable.name list) (accu: Fact.fact) (fact: single_fact) : Fact.fact =

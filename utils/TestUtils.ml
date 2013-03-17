@@ -60,10 +60,6 @@ let (@->) x y =
   TyArrow (x, y)
 ;;
 
-let ktype =
-  SurfaceSyntax.KType
-;;
-
 let unit =
   tuple []
 ;;

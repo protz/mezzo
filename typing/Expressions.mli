@@ -21,6 +21,7 @@
    type-checker. This module also defines various expression-specific
    manipulation functions, esp. w.r.t. binders. *)
 
+open Kind
 open TypeCore
 
 

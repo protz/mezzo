@@ -83,6 +83,7 @@
 
 %{
 
+open Kind
 open SurfaceSyntax
 open ParserUtils
 

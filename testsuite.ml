@@ -19,6 +19,7 @@
 
 module K = KindCheck
 
+open Kind
 open TypeCore
 open Types
 open TestUtils

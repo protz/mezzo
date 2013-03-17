@@ -17,6 +17,8 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+open Kind
+
 (* This module defines the syntax of types, as manipulated by the
    type-checker. *)
 
@@ -32,12 +34,6 @@ type point =
 
 type flex_index =
   int
-
-type kind = SurfaceSyntax.kind = 
-  | KTerm
-  | KType
-  | KPerm
-  | KArrow of kind * kind
 
 (** Has this name been auto-generated or not? *)
 type name = User of Module.name * Variable.name | Auto of Variable.name
@@ -695,7 +691,7 @@ class ['env] map = object (self)
           element
       | Some branches, variance ->
 	  (* Enter the bindings for the type parameters. *)
-	  let _, kinds = SurfaceSyntax.flatten_kind kind in
+	  let _, kinds = Kind.flatten_kind kind in
 	  let env = List.fold_left self#extend env (List.rev kinds) in
 	    (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
 	  (* Transform the branches in this extended environment. *)
@@ -813,7 +809,7 @@ class ['env] iter = object (self)
           ()
       | Some branches, _variance ->
 	  (* Enter the bindings for the type parameters. *)
-	  let _, kinds = SurfaceSyntax.flatten_kind kind in
+	  let _, kinds = Kind.flatten_kind kind in
 	  let env = List.fold_left self#extend env (List.rev kinds) in
 	    (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
 	  (* Visit the branches in this extended environment. *)

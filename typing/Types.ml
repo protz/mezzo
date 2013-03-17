@@ -20,6 +20,7 @@
 (** This module provides various helpers that help dealing with types. It also
  * re-exports most type-related functions. *)
 
+open Kind
 open TypeCore
 open DeBruijn
 
@@ -97,8 +98,6 @@ let ty_app t args =
   else
     t
 ;;
-
-let flatten_kind = SurfaceSyntax.flatten_kind;;
 
 let fold_star perms =
   if List.length perms > 0 then
@@ -289,7 +288,7 @@ let get_branches env point: unresolved_branch list =
 ;;
 
 let get_arity (env: env) (var: var): int =
-  SurfaceSyntax.get_arity_for_kind (get_kind env var)
+  get_arity_for_kind (get_kind env var)
 ;;
 
 let rec get_kind_for_type env t =
@@ -466,7 +465,7 @@ let make_datacon_letters env kind flexible =
 let bind_datacon_parameters (env: env) (kind: kind) (branches: unresolved_branch list):
     env * var list * unresolved_branch list =
   let env, points = make_datacon_letters env kind false in
-  let arity = SurfaceSyntax.get_arity_for_kind kind in
+  let arity = get_arity_for_kind kind in
   let branches = MzList.fold_lefti (fun i branches point ->
     let index = arity - i - 1 in
     let branches = List.map (tsubst_unresolved_branch (TyOpen point) index) branches in
@@ -532,7 +531,6 @@ module TypePrinter = struct
   ;;
 
   let rec print_kind =
-    let open SurfaceSyntax in
     function
     | KTerm ->
         string "term"
@@ -582,7 +580,7 @@ module TypePrinter = struct
       (env: env)
       (q: string)
       (name: name)
-      (kind: SurfaceSyntax.kind)
+      (kind: kind)
       (typ: typ) =
     utf8string q ^^ lparen ^^ print_var env name ^^ space ^^ colon ^^ space ^^
     print_kind kind ^^ rparen ^^ dot ^^ jump (print_type env typ)

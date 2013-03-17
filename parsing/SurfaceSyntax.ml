@@ -22,6 +22,11 @@
 (* In principle, very little desugaring is performed on the fly by the
    parser. *)
 
+(* ---------------------------------------------------------------------------- *)
+
+(* Field names are just variable names. These two namespaces cannot be
+   statically distinguished (due to the possibility of punning). *)
+
 module Field =
   Variable
 
@@ -86,42 +91,9 @@ type datacon_reference = {
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Kinds. *)
-
-(* Arrow kinds are not accessible to the user. They are used internally:
-   a user-defined algebraic data type constructor receives an arrow kind.
-   Thus, even internally, we only use first-order kinds (that is, the
-   left-hand argument of an arrow kind is never itself an arrow kind). *)
-
-type kind =
-  | KTerm
-  | KType
-  | KPerm
-  | KArrow of kind * kind
-
-type variance = Invariant | Covariant | Contravariant | Bivariant
-
-(* A small helper function that transforms
- * [κ₁ → ... → κₙ → κ₀] into [κ₀, [κ₁; ...; κₙ]] *)
-let flatten_kind kind =
-  let rec flatten_kind acc = function
-    | KArrow (k1, k2) ->
-        flatten_kind (k1 :: acc) k2
-    | _ as k ->
-        acc, k
-  in
-  let acc, k = flatten_kind [] kind in
-  k, List.rev acc
-;;
-
-let get_arity_for_kind kind =
-  let _, tl = flatten_kind kind in
-  List.length tl
-;;
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Types and permissions. *)
+
+open Kind
 
 type location = Lexing.position * Lexing.position
 
@@ -133,6 +105,8 @@ type binding_flavor = CanInstantiate | CannotInstantiate
 
 type type_binding =
     Variable.name * kind * (Lexing.position * Lexing.position)
+
+type variance = Invariant | Covariant | Contravariant | Bivariant
 
 type type_binding_with_variance = variance * type_binding
 
@@ -165,13 +139,6 @@ and data_type_def_branch =
 and data_field_def =
   | FieldValue of Field.name * typ
   | FieldPermission of typ
-
-let rec tunloc = function
-  | TyLocated (t, _) ->
-      tunloc t
-  | _ as t ->
-      t
-;;
 
 (* ---------------------------------------------------------------------------- *)
 

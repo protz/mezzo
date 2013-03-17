@@ -21,6 +21,7 @@
  * permissions, subtracting a permission from the environment, adding
  * permissions to the environment. *)
 
+open Kind
 open TypeCore
 open Types
 open Derivations
