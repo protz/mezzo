@@ -607,7 +607,7 @@ and sub_constraints env cs : state =
  * two "sub" entry points that this module exports. *)
 and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): result =
   try_proof env (JSubType (t1, t2)) "With-Unfolding" begin
-    let k, _ = flatten_kind (get_kind_for_type env t1) in
+    let _, k = Kind.as_arrow (get_kind_for_type env t1) in
     match k with
     | KPerm ->
         sub_type env (wrap_bar_perm t1) (wrap_bar_perm t2) >>=

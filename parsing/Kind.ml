@@ -11,21 +11,20 @@ type kind =
   | KPerm
   | KArrow of kind * kind
 
-(* A small helper function that transforms
- * [κ₁ → ... → κₙ → κ₀] into [κ₀, [κ₁; ...; κₙ]] *)
-let flatten_kind kind =
-  let rec flatten_kind acc = function
+let as_arrow k =
+  let rec as_arrow accu = function
     | KArrow (k1, k2) ->
-        flatten_kind (k1 :: acc) k2
-    | _ as k ->
-        acc, k
+        as_arrow (k1 :: accu) k2
+    | k ->
+        List.rev accu, k
   in
-  let acc, k = flatten_kind [] kind in
-  k, List.rev acc
-;;
+  as_arrow [] k
 
-let get_arity_for_kind kind =
-  let _, tl = flatten_kind kind in
-  List.length tl
-;;
-
+let arity k =
+  let rec arity accu = function
+    | KArrow (_, k2) ->
+        arity (1 + accu) k2
+    | _ ->
+        accu
+  in
+  arity 0 k

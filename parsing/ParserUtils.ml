@@ -112,3 +112,12 @@ let mk_field field_name = {
   field_offset = None;
 };;
 
+let rec mktyapp ty1 ty2 =
+  match ty1 with
+  | TyLocated (ty1, _) ->
+      mktyapp ty1 ty2
+  | TyApp (ty1, args) ->
+      TyApp (ty1, args @ [ ty2 ])
+  | _ ->
+      TyApp (ty1, [ ty2 ])
+

@@ -165,7 +165,7 @@ type error = env * raw_error
 and raw_error =
   | Unbound of Variable.name
   | Mismatch of kind * kind
-  | NotAnArrow of kind
+  | ArityMismatch of (* expected: *) int * (* provided: *) int
   | BoundTwice of Variable.name
   | IllegalConsumes
   | BadConditionsInFact of Variable.name
@@ -233,8 +233,8 @@ let print_error buf (env, raw_error) =
         "Unbound identifier %a"
         Variable.p x
   | Mismatch (expected_kind, inferred_kind) ->
-      let inferred, _ = flatten_kind inferred_kind in
-      let expected, _ = flatten_kind expected_kind in
+      let _, inferred = Kind.as_arrow inferred_kind in
+      let _, expected = Kind.as_arrow expected_kind in
       if inferred <> expected then
         bprintf
           "This is a %a but we were expecting a %a"
@@ -245,10 +245,11 @@ let print_error buf (env, raw_error) =
           "This type has kind %a but we were expecting kind %a"
           p_kind inferred_kind
           p_kind expected_kind
-  | NotAnArrow (kind) ->
+  | ArityMismatch (expected, provided) ->
       bprintf
-        "Cannot apply arguments to this type since it has kind %a"
-        p_kind kind
+        "This type expects %d parameter%s, but is applied to %d argument%s."
+        expected (MzPprint.plural expected)
+	provided (MzPprint.plural provided)
   | BoundTwice x ->
       bprintf
         "Variable %a is bound twice"
@@ -356,14 +357,6 @@ let karrow bindings kind =
     KArrow (kind1, kind2)
   ) bindings kind
 ;;
-
-let deconstruct_arrow env = function
-  | KArrow (k1, k2) ->
-      k1, k2
-  | kind ->
-      raise_error env (NotAnArrow kind)
-;;
-
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -482,16 +475,14 @@ let exist bindings ty =
 
 (* Some helper functions for working with [SurfaceSyntax] types. *)
 
-let flatten_tyapp t =
-  let rec flatten_tyapp acc = function
-    | TyApp (t1, t2) ->
-        flatten_tyapp (t2 :: acc) t1
-    | TyLocated (t, _) ->
-        flatten_tyapp acc t
-    | _ as x ->
-        x, acc
-  in
-  flatten_tyapp [] t
+let rec flatten_tyapp ty =
+  match ty with
+  | TyApp (ty, args) ->
+      ty, args
+  | TyLocated (ty, _) ->
+      flatten_tyapp ty
+  | _ ->
+      ty, []
 ;;
 
 (* Yes, this is a bit too abstract and contrived, sorry. I want to
@@ -726,10 +717,15 @@ and infer (env: env) (t: typ) =
       check env t KTerm;
       KType
 
-  | TyApp (t1, t2) ->
-      let k, k' = deconstruct_arrow env (infer env t1) in
-      check env t2 k;
-      k'
+  | TyApp (t1, t2s) ->
+      let k1 = infer env t1 in
+      let k2s, k = as_arrow k1 in
+      let expected = List.length k2s
+      and provided = List.length t2s in
+      if expected <> provided then
+	raise_error env (ArityMismatch (expected, provided));
+      List.iter2 (check env) t2s k2s;
+      k
 
   | TyArrow (t1, t2) ->
       let f1 = names env t1 in
@@ -1113,7 +1109,7 @@ module KindPrinter = struct
   (* Prints a data type defined in the global scope. Assumes [print_env] has been
      properly populated. *)
   let print_data_type_def (env: env) name kind variance branches =
-    let _return_kind, params = flatten_kind kind in
+    let params, _return_kind = Kind.as_arrow kind in
     (* Turn the list of parameters into letters *)
     let letters: string list = name_gen (List.length params) in
     let letters = List.map2 (fun variance letter ->

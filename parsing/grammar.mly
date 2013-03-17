@@ -186,13 +186,13 @@ separated_or_preceded_list(sep, X):
 (* Applications of types to types are based on juxtaposition, just like
    applications of terms to terms. *)
 
-(* Within the syntax of types, type/type applications are considered
-   binary, but in certain places, as in the left-hand side of a data
-   type definition, we must allow iterated applications. *)
+(* In the abstract syntax, type/type applications are n-ary. In the
+   grammar of types, though, they must be binary, in order to avoid
+   ambiguity. *)
 
 %inline type_type_application(X, Y):
   ty1 = X ty2 = Y (* juxtaposition *)
-    { TyApp (ty1, ty2) }
+    { mktyapp ty1 ty2 }
 
 %inline iterated_type_type_application(X, Y):
   x = X ys = Y* (* iterated juxtaposition *)

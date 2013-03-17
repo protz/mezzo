@@ -691,7 +691,7 @@ class ['env] map = object (self)
           element
       | Some branches, variance ->
 	  (* Enter the bindings for the type parameters. *)
-	  let _, kinds = Kind.flatten_kind kind in
+	  let kinds, _ = Kind.as_arrow kind in
 	  let env = List.fold_left self#extend env (List.rev kinds) in
 	    (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
 	  (* Transform the branches in this extended environment. *)
@@ -809,7 +809,7 @@ class ['env] iter = object (self)
           ()
       | Some branches, _variance ->
 	  (* Enter the bindings for the type parameters. *)
-	  let _, kinds = Kind.flatten_kind kind in
+	  let kinds, _ = Kind.as_arrow kind in
 	  let env = List.fold_left self#extend env (List.rev kinds) in
 	    (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
 	  (* Visit the branches in this extended environment. *)

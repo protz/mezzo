@@ -151,3 +151,9 @@ let braces_with_nesting contents =
 let array_with_nesting contents =
   surround 2 1 (string "[|") contents (string "|]")
 
+let plural = function
+  | 0
+  | 1 ->
+      ""
+  | _ ->
+      "s"

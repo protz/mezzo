@@ -119,7 +119,7 @@ type typ =
   | TyVar of Variable.name maybe_qualified
   | TyConcreteUnfolded of (datacon_reference * data_field_def list)
   | TySingleton of typ
-  | TyApp of typ * typ
+  | TyApp of typ * typ list
   | TyArrow of typ * typ
   | TyForall of type_binding * typ
   | TyExists of type_binding * typ

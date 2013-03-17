@@ -288,7 +288,7 @@ let get_branches env point: unresolved_branch list =
 ;;
 
 let get_arity (env: env) (var: var): int =
-  get_arity_for_kind (get_kind env var)
+  Kind.arity (get_kind env var)
 ;;
 
 let rec get_kind_for_type env t =
@@ -304,7 +304,7 @@ let rec get_kind_for_type env t =
       get_kind_for_type env t
 
   | TyApp (p, _) ->
-      let return_kind, _ = flatten_kind (get_kind env !!p) in
+      let _, return_kind = Kind.as_arrow (get_kind env !!p) in
       return_kind
 
   | TyUnknown
@@ -442,10 +442,10 @@ let is_tyapp = function
 
 let is_term env v = (get_kind env v = KTerm);;
 let is_perm env v = (get_kind env v = KPerm);;
-let is_type env v = (fst (flatten_kind (get_kind env v)) = KType);;
+let is_type env v = (snd (Kind.as_arrow (get_kind env v)) = KType);;
 
 let make_datacon_letters env kind flexible =
-  let _return_kind, arg_kinds = flatten_kind kind in
+  let arg_kinds, _return_kind = Kind.as_arrow kind in
   (* Turn the list of parameters into letters *)
   let letters: string list = MzPprint.name_gen (List.length arg_kinds) in
   let env, points = List.fold_left2 (fun (env, points) kind letter ->
@@ -465,7 +465,7 @@ let make_datacon_letters env kind flexible =
 let bind_datacon_parameters (env: env) (kind: kind) (branches: unresolved_branch list):
     env * var list * unresolved_branch list =
   let env, points = make_datacon_letters env kind false in
-  let arity = get_arity_for_kind kind in
+  let arity = Kind.arity kind in
   let branches = MzList.fold_lefti (fun i branches point ->
     let index = arity - i - 1 in
     let branches = List.map (tsubst_unresolved_branch (TyOpen point) index) branches in
