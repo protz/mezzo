@@ -1025,14 +1025,8 @@ module ExprPrinter = struct
   open MzPprint
   open TypePrinter
 
-  let print_maybe_qualified p = function
-    | SurfaceSyntax.Unqualified x ->
-        p x
-    | SurfaceSyntax.Qualified (m, x) ->
-        string (Module.print m) ^^ ccolon ^^ p x
-
-  let print_maybe_qualified_datacon =
-    print_maybe_qualified print_datacon
+  let print_maybe_qualified_datacon dc =
+    utf8string (SurfaceSyntax.print_maybe_qualified Datacon.print dc)
   ;;
 
   let pmaybe_qualified_datacon buf arg =
