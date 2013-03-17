@@ -107,8 +107,10 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         collect_type t
     | ETApply (expr, ts) ->
         collect_expr expr @
-        MzList.map_flatten (fun x ->
-          collect_type (TransSurface.strip_tapp x)
+        MzList.map_flatten (function
+	  | Ordered x
+	  | Named (_, x) ->
+          collect_type x
         ) ts
     | ETuple exprs ->
         MzList.map_flatten collect_expr exprs

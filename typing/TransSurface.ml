@@ -83,6 +83,31 @@ let resolve_datacon env dref =
 ;;
 
 
+let rec flatten_star p =
+  match p with
+  | TyStar (t1, t2) ->
+      flatten_star t1 @ flatten_star t2
+  | TyEmpty ->
+      []
+  | TyVar _
+  | TyConsumes _
+  | TyAnchoredPermission _
+  | TyApp _ ->
+      [p]
+  | TyLocated (p, _) ->
+      flatten_star p
+  | _ as p ->
+      Log.error "[flatten_star] only works for types with kind PERM (%a)"
+        Utils.ptag p
+;;
+
+let fold_star perms =
+  if List.length perms > 0 then
+    MzList.reduce (fun acc x -> TyStar (acc, x)) perms
+  else
+    TyEmpty
+;;
+
 
 (* [strip_consumes env t] removes all the consumes annotations from [t]. A
    [consumes t] annotation is replaced by [=c] with [c] fresh, as well as
@@ -522,13 +547,17 @@ let bind_datacons env data_type_group =
 ;;
 
 
-(* [translate_data_type_group env tenv data_type_group] returns [env, group] where:
+(* [translate_data_type_group bind env tenv data_type_group] returns [env, group] where:
   - the type definitions have been added with the corresponding levels in [env]
-  - type definitions have been desugared into [group],
+  - type definitions have been desugared into [group].
+  The [bind] parameter is normally [KindCheck.bind], but [Interfaces] supplies
+  a different function.
 *)
 let translate_data_type_group
+    (bind: env -> Variable.name * kind -> env)
     (env: env)
-    (data_type_group: data_type_group): env * T.data_type_group
+    (data_type_group: data_type_group)
+  : env * T.data_type_group
   =
 
   let data_type_group = snd data_type_group in
@@ -880,7 +909,7 @@ let translate_item env item =
       (* This just desugars the data type definitions, no binder is opened yet! *)
       let env, defs =
         (* Be strict if we're in an interface. *)
-        translate_data_type_group env data_type_group
+        translate_data_type_group bind env data_type_group
       in
       env, Some (E.DataTypeGroup defs)
   | ValueDeclarations decls ->

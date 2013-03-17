@@ -166,31 +166,6 @@ and data_field_def =
   | FieldValue of Field.name * typ
   | FieldPermission of typ
 
-let rec flatten_star p =
-  match p with
-  | TyStar (t1, t2) ->
-      flatten_star t1 @ flatten_star t2
-  | TyEmpty ->
-      []
-  | TyVar _
-  | TyConsumes _
-  | TyAnchoredPermission _
-  | TyApp _ ->
-      [p]
-  | TyLocated (p, _) ->
-      flatten_star p
-  | _ as p ->
-      Log.error "[flatten_star] only works for types with kind PERM (%a)"
-        Utils.ptag p
-;;
-
-let fold_star perms =
-  if List.length perms > 0 then
-    MzList.reduce (fun acc x -> TyStar (acc, x)) perms
-  else
-    TyEmpty
-;;
-
 let rec tunloc = function
   | TyLocated (t, _) ->
       tunloc t

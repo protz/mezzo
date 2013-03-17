@@ -388,9 +388,6 @@ let find x env =
     unbound env x
 ;;
 
-(* The strict mode of [bind] is never used, it seems; duplicate names
-   are detected using another means. *)
-
 (* [bind env (x, kind)] binds the name [x] with kind [kind]. *)
 let bind env (x, kind) : env =
   (* The current level becomes [x]'s level. The current level is
