@@ -903,13 +903,13 @@ and check_expression (env: env) (expr: expression) =
       check_expression env e;
       check_type_with_names env t KType
 
-  | EVar x ->
+  | EVar (Unqualified x) ->
       let k, _ = find x env in
       (* TEMPORARY check that only lambda-bound variables can appear in code *)
       if k <> KTerm then
         mismatch env KTerm k
 
-  | EQualified (mname, x) ->
+  | EVar (Qualified (mname, x)) ->
       let k = kind_external env mname x in
       if k <> KTerm then
         mismatch env KTerm k

@@ -57,8 +57,8 @@ let abandon v1 v2 success failure =
 
 let f, t =
   let bool = Module.register "bool" in
-  U.EQualified (bool, Variable.register "false"),
-  U.EQualified (bool, Variable.register "true")
+  U.EVar (Qualified (bool, Variable.register "false")),
+  U.EVar (Qualified (bool, Variable.register "true"))
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -80,7 +80,6 @@ let fresh : string -> Variable.name =
 let is_normal (e : U.expression) : bool =
   match e with
   | U.EVar _
-  | U.EQualified _
   | U.EInt _
   | U.ENull
   | U.EBuiltin _
@@ -109,7 +108,7 @@ let name (hint : string) (e : U.expression) (k : continuation) : U.expression =
     (* Otherwise, create a name [x] for it. *)
     let x = fresh hint in
     (* Provide [x] to the continuation, and bind [x] above the continuation. *)
-    U.ELet (Nonrecursive, [ PVar x, e ], k (U.EVar x))
+    U.ELet (Nonrecursive, [ PVar x, e ], k (U.EVar (Unqualified x)))
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -139,8 +138,6 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       transl loc e k
   | EVar x ->
       k (U.EVar x)
-  | EQualified (m, x) ->
-      k (U.EQualified (m, x))
   | EBuiltin b ->
       k (U.EBuiltin b)
   | ELet (flag, equations, body) ->

@@ -76,11 +76,10 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         []
 
   and collect_expr = function
-    | EQualified (m, _) ->
-        [m]
     | EConstraint (expr, t) ->
         collect_expr expr @ collect_type t
-    | EVar _
+    | EVar x ->
+        collect_maybe_qualified x
     | EBuiltin _
     | EInt _
     | EFail ->

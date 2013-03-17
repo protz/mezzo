@@ -202,9 +202,9 @@ and complete i arity ips =
 
 let rec transl (e : expression) : O.expression =
   match e with
-  | EVar x ->
+  | EVar (Unqualified x) ->
       O.EVar (identifier (Variable.print x))
-  | EQualified (m, x) ->
+  | EVar (Qualified (m, x)) ->
       O.EVar (
 	Printf.sprintf "%s.%s"
 	  (translate_module_name m)
@@ -408,6 +408,6 @@ let translate_interface_as_implementation_filter = function
       | OpenDirective _ ->
 	  []
       | ValueDeclaration x ->
-	  [ O.ValueDefinition (Nonrecursive, [ translate_pattern (PVar x), magic (transl (EVar x))]) ]
+	  [ O.ValueDefinition (Nonrecursive, [ translate_pattern (PVar x), magic (transl (EVar (Unqualified x)))]) ]
       ) items)
 

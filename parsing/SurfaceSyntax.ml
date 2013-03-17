@@ -61,10 +61,6 @@ type datacon_info = {
    [m::x]. This holds for variables (of arbitrary kind: term, type, etc.)
    and for data constructors. *)
 
-(* TEMPORARY replace EVar/EQualified to use this
-   instead? do the same in the grammar; see how it is done for data
-   constructors *)
-
 type 'a maybe_qualified =
   | Unqualified of 'a
   | Qualified of Module.name * 'a
@@ -262,10 +258,8 @@ type rec_flag = Nonrecursive | Recursive
 and expression =
   (* e: τ *)
   | EConstraint of expression * typ
-  (* v *)
-  | EVar of Variable.name
-  (* M :: v *)
-  | EQualified of Module.name * Variable.name
+  (* v or M :: v *)
+  | EVar of Variable.name maybe_qualified
   (* builtin foo *)
   | EBuiltin of string
   (* let rec f p₁ … pₙ: τ = e₁ and … and v = e₂ in e *)

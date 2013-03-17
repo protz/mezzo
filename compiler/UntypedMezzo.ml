@@ -57,6 +57,9 @@ module Field =
 type rec_flag =
     SurfaceSyntax.rec_flag
 
+type variable =
+    Variable.name SurfaceSyntax.maybe_qualified
+
 type datacon_reference =
     SurfaceSyntax.datacon_reference
 
@@ -67,8 +70,7 @@ type field =
     SurfaceSyntax.field
 
 type expression =
-  | EVar of Variable.name
-  | EQualified of Module.name * Variable.name
+  | EVar of variable
   | EBuiltin of string
   | ELet of rec_flag * (pattern * expression) list * expression
   | EFun of pattern * expression

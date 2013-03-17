@@ -660,11 +660,11 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let t = translate_type_with_names env t in
       E.EConstraint (e, t)
 
-  | EVar x ->
+  | EVar (Unqualified x) ->
       let _, index = find x env in
       evar index
 
-  | EQualified (mname, x) ->
+  | EVar (Qualified (mname, x)) ->
       E.EOpen (T.point_by_name env.env ~mname x)
 
   | EBuiltin b ->

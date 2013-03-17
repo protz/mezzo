@@ -19,7 +19,6 @@
 
 (** The grammar of Mezzo. *)
 
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Syntactic categories of names. *)
@@ -118,16 +117,13 @@ open ParserUtils
   | o = COLONEQUAL
       { o }
 
-%inline operator:
-  | o = OPPREFIX
-      { o }
-  | o = infix_operator
-      { o }
-
 variable:
+    (* A identifier that begins with a lowercase letter is a variable. *)
   | x = LIDENT
-  | LPAREN x = operator RPAREN
-    { Variable.register x }
+    (* As per the OCaml convention, a parenthesized operator is a variable. *)
+  | LPAREN x = OPPREFIX RPAREN
+  | LPAREN x = infix_operator RPAREN
+      { Variable.register x }
 
 %inline datacon:
   datacon = UIDENT
@@ -155,6 +151,10 @@ maybe_qualified(X):
 %inline datacon_reference:
   d = maybe_qualified(datacon)
     { mk_datacon_reference d }
+
+%inline maybe_qualified_variable:
+  x = maybe_qualified(variable)
+    { EVar x }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -697,11 +697,9 @@ raw_atomic_expression:
    very tightly. Here, we follow OCaml. For instance, [!x.foo] is interpreted
    as [(!x).foo]. Thus, the prefix operators bind more tightly than the dot. *)
 | o = OPPREFIX e = atomic_expression
-    { EApply (EVar (Variable.register o), e) }
-| v = variable
-    { EVar v }
-| m = module_name COLONCOLON x = variable
-    { EQualified (m, x) }
+    { mkprefix o e }
+| v = maybe_qualified_variable
+    { v }
 | i = INT
     { EInt i }
 | FAIL
@@ -753,7 +751,7 @@ data_field_expression:
     { f, e }
 | f = variable
     (* Punning *)
-    { f, EVar f }
+    { f, EVar (Unqualified f) }
 
 explain:
 | (* nothing *)
@@ -811,6 +809,9 @@ raw_algebraic_expression:
    [f - 1]. Like OCaml, we allow [-f x], which is interpreted as [-(f x)]. *)
 | MINUS e = application_expression
     { mkinfix (EInt 0) "-" e }
+    (* TEMPORARY here, unary minus is treated as a non-hygienic macro for
+       binary minus; do we want this? does OCaml allow redefining unary
+       minus? *)
 | e1 = algebraic_expression OWNS e2 = algebraic_expression
     { EOwns (e1, e2) }
 | e = raw_application_expression
