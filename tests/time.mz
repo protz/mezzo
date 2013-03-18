@@ -1,0 +1,95 @@
+(* Just for fun (for now). Axiomatize the notion of a time
+   credit, and see what we can do with it. *)
+
+abstract dollar : perm
+
+(* We must pay one dollar at each function call. The type system
+   does not do this by itself, so we have to be disciplined and
+   call pay() before each function call. *)
+
+val pay (| consumes dollar) : () =
+  ()
+
+(* Define the typical example of a FIFO queue implemented using two
+   lists. The amortized complexity argument requires storing one
+   credit in each cell of the first list. Note that this alone would
+   make the type [fifo a] non-duplicable, even if we had not declared
+   it mutable. We declare it mutable because there is nothing to lose
+   and it is more convenient. *)
+
+open list
+
+mutable data fifo +a =
+  F {
+    front: list (a | dollar);
+    back : list a;
+  }
+
+(* Creation and insertion. *)
+
+val create [a] () : fifo a =
+  F { front = nil; back = nil }
+
+val insert [a] (consumes x: a, f: fifo a | consumes dollar) : () =
+  f.front <- Cons { head = x; tail = f.front }
+     (*  or: cons [(a | dollar)] (x, f.front) *)
+
+(* The code for [rev_append] is the same as in the [list] library, but the
+   type is different. This hints at a scalability problem... *)
+
+val rec rev_append [a] (consumes xs: list (a | dollar), consumes ys: list a) : list a =
+  if xs then begin
+    pay(); (* it just works! *)
+    rev_append (xs.tail, Cons { head = xs.head; tail = ys })
+  end
+  else
+    ys
+
+(* We can prove that [rev_append] returns a non-empty list if either
+   of its arguments is a non-empty list. Unfortunately, this requires
+   some code duplication! Let's do it anyway, for fun. *)
+
+val rec rev_append2 [a] (
+  consumes xs: list (a | dollar),
+  consumes ys: Cons { head: a; tail: list a }
+) : Cons { head: a; tail: list a } =
+  if xs then begin
+    pay(); (* it just works! *)
+    rev_append2 (xs.tail, Cons { head = xs.head; tail = ys })
+  end
+  else
+    ys
+
+val rec rev_append1 [a] (
+  consumes xs: Cons { head: (a | dollar); tail: list (a | dollar) },
+  consumes ys: list a
+) : Cons { head: a; tail: list a } =
+  pay(); (* it just works! *)
+  rev_append2 (xs.tail, Cons { head = xs.head; tail = ys })
+
+(* Retrieval. *)
+
+val rec retrieve [a] (f: fifo a | consumes dollar) : option a =
+  if f.back then begin
+    let x = f.back.head in
+    f.back <- f.back.tail;
+    some x
+  end
+  else if f.front then begin
+    (* Reverse [f.front] and write it into [f.back]. *)
+    pay();
+    f.back <- rev_append1 (f.front, f.back);
+    f.front <- nil;
+    (* Now, I would like to call [retrieve] recursively, but I cannot do
+       that, because [retrieve] will appear to require an infinite number
+       of credits. A termination argument would be needed, which I don't
+       know how to encode. So, I have to duplicate the code. *)
+    (* I used [rev_append1] instead of [rev_append] above, so we know
+       that [f.back] must be non-empty. This saves a run-time test. *)
+    let x = f.back.head in
+    f.back <- f.back.tail;
+    some x
+  end
+  else
+    none
+

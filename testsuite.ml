@@ -905,6 +905,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("name-intro.mz", pass);
   ("exists-forall.mz", pass);
   ("name-capture.mz", pass);
+  ("time.mz", pass);
 
 ];;
 

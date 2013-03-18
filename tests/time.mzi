@@ -1,0 +1,9 @@
+(* Credits. *)
+abstract dollar : perm
+val pay: (| consumes dollar) -> ()
+
+(* The simple FIFO queue with constant amortized time complexity. *)
+abstract fifo +a
+val create: [a] () -> fifo a
+val insert: [a] (consumes a, fifo a | consumes dollar) -> ()
+val retrieve: [a] (fifo a | consumes dollar) -> option a
