@@ -146,9 +146,10 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         MzList.map_flatten collect_type ts
     | TyApp (t, ts) ->
         MzList.map_flatten collect_type (t :: ts)
-    | TyConcreteUnfolded branch ->
+    | TyConcreteUnfolded (branch, clause) ->
         collect_data_type_def_branch branch @
-        collect_maybe_qualified (fst branch).datacon_unresolved
+        collect_maybe_qualified (fst branch).datacon_unresolved @
+	MzList.map_flatten collect_type (Option.to_list clause)
 
   and collect_data_type_def_branch: 'a. 'a * data_field_def list -> Module.name list =
   fun (_, fields)  ->

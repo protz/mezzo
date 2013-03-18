@@ -624,6 +624,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("adopts16.mz", pass);
   ("adopts17.mz", pass);
   ("adopts18.mz", pass);
+  ("adopts19.mz", pass);
 
   (* Bigger examples. *)
 

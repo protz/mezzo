@@ -988,7 +988,7 @@ data bandits k a =
   | More {
       head: Node { left: dynamic; key: k; value: a; right: tree k a; height: int };
       tail: bandits k a
-  }
+    }
 
 (* An enumeration is basically a reference to a list of bandits. Furthermore,
    an enumeration object is able to adopt the tree nodes that have already
@@ -1035,9 +1035,10 @@ val consume_enum [k, a] (e: enumeration k a) : () =
       give head to e
   | End ->
       fail
-      (* TEMPORARY we could eliminate this case if we declared that initially
-	 [e] has type Enum { bandits: More { ... } }
-	 but this will require an explicit adopts clause in a structural type *)
+      (* We could eliminate this case if we declared that initially [e] has type
+	 Enum { bandits: More { ... } }. But this type would be hugely verbose,
+	 plus we would then have to add a [consumes] annotation and write the
+	 post-condition [e @ enumeration k a]. Abandoned. *)
   end
 
 (* The following function reconstructs the ownership of the original tree after

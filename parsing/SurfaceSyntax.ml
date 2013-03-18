@@ -117,7 +117,7 @@ type typ =
   | TyDynamic
   | TyEmpty
   | TyVar of Variable.name maybe_qualified
-  | TyConcreteUnfolded of (datacon_reference * data_field_def list)
+  | TyConcreteUnfolded of (datacon_reference * data_field_def list) * adopts_clause
   | TySingleton of typ
   | TyApp of typ * typ list
   | TyArrow of typ * typ
@@ -140,6 +140,9 @@ and data_field_def =
   | FieldValue of Field.name * typ
   | FieldPermission of typ
 
+and adopts_clause =
+    typ option
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Algebraic data type definitions. *)
@@ -149,9 +152,6 @@ type data_type_def_lhs =
 
 type data_type_def_rhs =
     data_type_def_branch list
-
-type adopts_clause =
-    typ option
 
 type single_fact = 
   | Fact of mode_constraint list * mode_constraint
@@ -316,7 +316,7 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TyTuple tys ->
       PTuple (List.map type_to_pattern tys)
 
-  | TyConcreteUnfolded (datacon, fields) ->
+  | TyConcreteUnfolded ((datacon, fields), _adopts) ->
       let fps =
 	List.fold_left (fun fps field ->
 	  match field with

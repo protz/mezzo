@@ -326,10 +326,10 @@ raw_atomic_type:
 (* Term variable, type variable, permission variable, abstract type, or concrete type. *)
 | x = maybe_qualified_type_variable
     { x }
-(* A structural type explicitly mentions a data constructor. *)
-(* TEMPORARY add support for optional adopts clause in structural permissions *)
+(* A structural type without an [adopts] clause (which is the usual case)
+   is an atomic type. *)
 | b = data_type_branch
-    { TyConcreteUnfolded b }
+    { TyConcreteUnfolded (b, None) }
 
 %inline tight_type:
 | ty = tlocated(raw_tight_type)
@@ -367,6 +367,10 @@ raw_normal_type:
 (* A type that carries a mode constraint (conjunction). *)
 | c = mode_constraint BAR ty = normal_type
     { TyAnd (c, ty) }
+(* A structural type with an [adopts] clause is a considered a normal type.
+   This allows the type in the [adopts] clause to be itself a normal type. *)
+| b = data_type_branch ADOPTS t = normal_type
+    { TyConcreteUnfolded (b, Some t) }
 
 %inline loose_type:
 | ty = tlocated(raw_loose_type)
@@ -551,10 +555,6 @@ data_type_def_branch_content:
   bs = separated_or_preceded_list(BAR, data_type_def_branch)
     { bs }
 
-%inline adopts_clause:
-  ADOPTS t = arbitrary_type
-    { t }
-
 %inline data_type_flavor:
 | (* nothing *)
     { DataTypeFlavor.Immutable }
@@ -576,7 +576,7 @@ data_type_def:
   DATA lhs = data_type_def_lhs
   EQUAL
   rhs = data_type_def_rhs
-  a = adopts_clause?
+  a = preceded(ADOPTS, arbitrary_type)?
     { Concrete (flavor, lhs, rhs, a) }
 | ABSTRACT
   lhs = data_type_def_lhs
