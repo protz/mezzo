@@ -717,9 +717,6 @@ raw_atomic_expression:
 (* The unit value. *)
 | LPAREN RPAREN
     { ETuple [] }
-(* An expression that carries a type constraint. *)
-| LPAREN e = algebraic_expression COLON t = arbitrary_type RPAREN
-    { EConstraint (e, t) }
 (* A parenthesized tuple. Thanks to the presence of the parentheses,
    we can be somewhat flexible and allow the *last* component to be
    a fragile expression. The other components cannot be fragile.
@@ -882,6 +879,11 @@ raw_reasonable_expression:
     { EAssert t }
 | e = algebraic_expression EXPLAIN
     { EExplained e }
+(* An expression that carries a type constraint. We cannot allow a fat type
+   here because they have BARs in them and that would create an ambiguity
+   when used inside a match construct! *)
+| e = algebraic_expression COLON t = very_loose_type
+    { EConstraint (e, t) }
 | e = raw_algebraic_expression
     { e }
 

@@ -5,4 +5,4 @@ data baz = Baz
 val v =
   let f = Foo in
   let b = Bar in
-  give (b: bar) to f
+  give b: bar to f

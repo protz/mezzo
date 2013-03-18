@@ -1,0 +1,14 @@
+mutable data fifo a =
+  | Empty    { head: ();      tail: ()      }
+  | NonEmpty { head: dynamic; tail: dynamic }
+adopts cell a
+
+mutable data cell a =
+  Cell { contents: a; next: dynamic }
+
+val test [a] (f: NonEmpty { head: dynamic; tail: dynamic } adopts cell a, consumes x: a) : () =
+  let c = Cell { contents = x; next = () } in
+  c.next <- f.head;
+  f.head <- c;
+  give c : cell a to f
+
