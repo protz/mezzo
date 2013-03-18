@@ -83,7 +83,9 @@ val rec retrieve [a] (f: fifo a | consumes dollar) : option a =
     (* Now, I would like to call [retrieve] recursively, but I cannot do
        that, because [retrieve] will appear to require an infinite number
        of credits. A termination argument would be needed, which I don't
-       know how to encode. So, I have to duplicate the code. *)
+       know how to encode. So, I have to duplicate the code. Or, I could
+       avoid duplication by defining an auxiliary function that expects
+       a queue with a non-empty [back] component; but let's not. *)
     (* I used [rev_append1] instead of [rev_append] above, so we know
        that [f.back] must be non-empty. This saves a run-time test. *)
     let x = f.back.head in
