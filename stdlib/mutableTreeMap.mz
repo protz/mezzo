@@ -498,10 +498,7 @@ val rec iter [k, a, p : perm] (
   | Empty ->
       True
   | Node ->
-      if iter (f, t.left) && f (t.key, t.value) then
-        iter (f, t.right)
-      else
-        False
+      iter (f, t.left) && f (t.key, t.value) && iter (f, t.right)
   end
 
 (* -------------------------------------------------------------------------- *)
@@ -961,8 +958,7 @@ val iter_variant [k, a, p : perm] (
   let rec loop (| i @ iterator k a * p) : bool =
     match i with
     | IAt { focus = m } ->
-        (* TEMPORARY this could be very concisely written using && *)
-        if f (m.key, m.value) then loop() else False
+        f (m.key, m.value) && loop()
     | _ ->
         True
     end
