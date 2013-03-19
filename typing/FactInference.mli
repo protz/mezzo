@@ -21,7 +21,6 @@
     data types. *)
 
 open Mode
-open Fact
 open TypeCore
 
 (** [assume env c] produces a new environment where the mode constraint
