@@ -908,6 +908,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("name-capture.mz", pass);
   ("time.mz", pass);
   ("cps.mz", pass);
+  ("tree-removal.mz", pass);
 
 ];;
 
