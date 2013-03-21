@@ -266,25 +266,148 @@ val rec normal_iter [a] (
 (* In a sense, the existential quantification over [pre] serves
    exactly to hide the type ``segment of a data structure'',
    which we do not wish to explicitly express. *)
-(* TEMPORARY
-data iterator a =
-    IFinished
-  | IAvailable { content: { pre: perm } (
-		   head: a,
-		   (request | consumes (head @ a * pre)) -> iterator a
-		   | pre
-		 )
-	       }
 
-val yield [a, q : perm] (
+(* The following definitions are cumbersome, due to the lack of type
+   abbreviations and the need to work around certain current bugs. *)
+
+data iterator a (post : perm) =
+    IFinished { outcome: outcome | post }
+  | IAvailable { content: { pre : perm } product a pre post }
+
+data product a (pre : perm) (post : perm) =
+  | Product { content: (
+      head: a,
+      continuation: (request | consumes (head @ a * pre)) -> iterator a post
+        (* If the [request] is [Stop], then the resulting iterator will
+	   certainly be [IFinished]. Unfortunately, we cannot encode this
+	   property in the type of the continuation. *)
+      | pre
+    )}
+
+(* The function [yield] captures the current continuation [k] and uses it
+   to construct an iterator. The iteration is suspended (i.e. [k] is not
+   invoked) and the iterator is returned. *)
+
+val yield [a, q : perm, post : perm] (
   consumes x : a,
-  k: (request | consumes (x @ a * q)) -> iterator a
+  k: (request | consumes (x @ a * q)) -> iterator a post
   | consumes q
-) : iterator a =
+) : iterator a post =
   (* We capture the continuation [k] and store it.
      There is an implicit [shift]. *)
-  Succ { content = (x, k) }
-*)
+  IAvailable { content = Product { content = (x, k) } }
+
+(* Applying [cps_iter] to [yield] allows constructing an iterator for a list
+   [xs]. This iterator produces elements of type [a] and, once finished, allows
+   recovering the ownership of the list [xs]. *)
+
+val iterate [a] (
+  consumes xs: list a
+) : iterator a (xs @ list a) =
+  (* Invoke [cps_iter]. The answer type [b] is instantiated with [iterator a]. *)
+  cps_iter (
+    xs,
+    yield,
+    fun (o : outcome | consumes xs @ list a) : iterator a (xs @ list a) =
+      IFinished { outcome = o }
+  )
+
+(* One can use an iterator to iterate in the same style as with a normal
+   [iter] function. *)
+
+val rec use_iterator [a, p : perm, post : perm] (
+  consumes i: iterator a post,
+  f : (a | p) -> request
+  | p
+) : (outcome | post) =
+  match i with
+  | IFinished ->
+      (* If the iterator is finished, report its outcome. The permission
+	 [post] is available, so we are happy. *)
+      i.outcome
+  | IAvailable ->
+      (* If the iterator is not finished, then we have an element [x] and
+	 a function [next] that will provide us with a new iterator once
+	 we surrender the ownership of [x]. *)
+      let x, next = i.content.content in
+      (* Submit [x] to the user function [f], which returns a request to
+	 stop or continue. *)
+      let r = f x in
+      (* Pass the request on to [next], which returns a new iterator. *)
+      let i = next r in
+      (* Continue with this new iterator. *)
+      use_iterator (i, f)
+  end
+
+(* One can construct a list of the elements of an iterator. This requires
+   the type [a] to be duplicable, because at the end, we own both the newly
+   created list and the original data structure (represented by the abstract
+   permission [post]). *)
+
+val rec elements_of_iterator [a, post : perm] duplicable a => (
+  consumes i: iterator a post
+) : (list a | post) =
+  (* Create a reference to hold the list of elements. *)
+  let r = newref nil in
+  let _ : outcome =
+    use_iterator (
+      i,
+      fun (x: a | r @ ref (list a)) : request =
+	r := cons (x, !r);
+	Continue
+    )
+  in
+  !r
+
+(* One can lazily compare the elements of two iterators. *)
+
+val equal_iterators [a, post1 : perm, post2 : perm] (
+  eq: (a, a) -> bool,
+  consumes i1: iterator a post1,
+  consumes i2: iterator a post2
+) : (bool | post1 * post2) =
+
+  (* An unpleasant aspect is that, once we have determined that
+     the two streams are not equal, we must stop the iterator(s)
+     that are not yet finished, in order to obtain the permissions
+     [post1] and [post2]. And, after stopping them by invoking
+     [next Stop], we must observe that they have indeed finished,
+     by matching them against [IFinished]. This is because the
+     type-checker does not know that a [Stop] request effectively
+     causes the iteration to finish. *)
+
+  (* In order to do this without duplicating too much code, when
+     we observe a mismatch, we stop the iterator(s) that need to
+     be stopped and pretend that we continue iterating, but set
+     [ok] to [False]. Thus, the next call to [loop] finds two
+     [IFinished] iterators and returns [ok], that is, [False]. *)
+     
+  let rec loop (
+    ok: bool,
+    consumes i1: iterator a post1,
+    consumes i2: iterator a post2
+  ) : (bool | post1 * post2) =
+    match i1, i2 with
+    | IFinished, IFinished ->
+        ok
+    | IAvailable, IAvailable ->
+        let x1, next1 = i1.content.content
+        and x2, next2 = i2.content.content in
+        if eq (x1, x2) then
+  	  loop (ok, next1 Continue, next2 Continue)
+        else
+	  loop (False, next1 Stop, next2 Stop)
+    | IAvailable, IFinished ->
+        let x1, next1 = i1.content.content in
+	loop (False, next1 Stop, i2)
+    | IFinished, IAvailable ->
+        let x2, next2 = i2.content.content in
+        loop (False, i1, next2 Stop)
+    end
+  in
+  
+  loop (True, i1, i2)
+
 (*
 Local Variables:
 compile-command: "../mezzo cps.mz"

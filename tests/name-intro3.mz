@@ -1,0 +1,7 @@
+data pair a =
+  Pair {
+    first: (first: a);
+    second = first
+  }
+(* This example should succeed, I think: the scope of the name "first"
+   should be the entire record. *)
