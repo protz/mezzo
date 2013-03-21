@@ -263,19 +263,17 @@ val rec normal_iter [a] (
    as we would not know which parameter to supply in the
    recursive occurrence of [iterator].) *)
 
-(* In a sense, the existential quantification over [q] serves
+(* In a sense, the existential quantification over [pre] serves
    exactly to hide the type ``segment of a data structure'',
    which we do not wish to explicitly express. *)
-
 (* TEMPORARY
 data iterator a =
     IFinished
-  | IAvailable { content:
-		   [some pre: perm] (
-		     head: a,
-		     k: (request | consumes (head @ a * pre)) -> iterator a
-		     | pre
-		   )
+  | IAvailable { content: { pre: perm } (
+		   head: a,
+		   (request | consumes (head @ a * pre)) -> iterator a
+		   | pre
+		 )
 	       }
 
 val yield [a, q : perm] (
