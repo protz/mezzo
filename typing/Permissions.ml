@@ -1046,7 +1046,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                   j_merge_left env var1 var2
               | false, false ->
                   if same env var1 var2 then
-                    nothing env "same-vars"
+                    Log.error "This was meant to be solved by [strip_syntactically_equal]!"
                   else
                     no_proof env (JSubType (t1, t2))
               end >>= fun env ->
