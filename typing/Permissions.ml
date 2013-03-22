@@ -1001,8 +1001,36 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
             TypePrinter.ptype (env, fold_star vars1)
             TypePrinter.ptype (env, fold_star vars2);
 
+          let strip_syntactically_equal env l1 l2 =
+            (* This is only useful if there's a bunch of permission variables
+             * (or abstract permissions) on each side: clear these up, and try
+             * to do something useful with the rest. *)
+            let rec sse env left l1 l2 =
+              match l1 with
+              | [] ->
+                  env, left, l2
+              | elt :: l1 ->
+                  match MzList.take_bool (equal env elt) l2 with
+                  | Some (l2, _elt') ->
+                      let env = 
+                        if FactInference.is_duplicable env elt then
+                          add_perm env elt
+                        else
+                          env
+                      in
+                      sse env left l1 l2
+                  | None ->
+                      sse env (elt :: left) l1 l2
+            in
+            sse env [] l1 l2
+          in
+
+          let ps1 = vars1 @ ps1 and ps2 = vars2 @ ps2 in
+          let env, ps1, ps2 = strip_syntactically_equal env ps1 ps2 in
+
+
           (* And then try to be smart with whatever remains. *)
-          match vars1 @ ps1, vars2 @ ps2 with
+          match ps1, ps2 with
           | [TyOpen var1 as t1], [TyOpen var2 as t2] ->
               (* Beware! We're doing our own one-on-one matching of permission
                * variables, but still, we need to keep [var1] if it happens to be a
@@ -1041,6 +1069,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
               qed
           | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
               when is_flexible env !!x2 ->
+                (* These two are *really* debatable heuristics. *)
                 j_merge_left env !!x2 !!x1 >>= fun env ->
                 sub_type_with_unfolding env t1 t2 >>=
                 qed
