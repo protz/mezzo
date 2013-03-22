@@ -244,7 +244,13 @@ val rec normal_iter [a] (
 
   (* Invoke [cps_iter]. The type [b] is instantiated with [outcome | xs @ list a].
      The permission [p] is instantiated with [empty]. *)
-  cps_iter (xs, wrapped_f, id)
+  cps_iter
+    [a, (outcome | xs @ list a), empty]
+    (xs,
+     wrapped_f [(outcome | xs @ list a)],
+     id)
+  (* TEMPORARY could we get rid of the two type applications? it seems to me that
+     at some point in time I was able to type-check this code without them. *)
 
 (* Now, let's try to invert [cps_iter] and obtain an iterator. *)
 

@@ -98,7 +98,7 @@ val rec retrieve [a] (f: fifo a | consumes dollar) : option a =
 (* Now, let's define a dynamic counter of credits. This might be handy. *)
 
 (* Because we don't (yet!) have arithmetic reasoning, I am defining the
-   balance as a list of dollars, but in principle we could make an integer
+   balance as a list of dollars, but in principle we could make it an integer
    n together with n dollars. TEMPORARY *)
 
 (* [withdraw] allows retrieving one dollar, but it is not very useful,
