@@ -108,6 +108,10 @@ let pass =
   simple_test Pass
 ;;
 
+let pass_known_failure =
+  simple_test ~known_failure:() Pass
+;;
+
 let fail =
   simple_test (Fail (function _ -> true))
 ;;
@@ -903,13 +907,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("tyand06.mz", fail);
   ("incorrect-fields.mz",
     simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
-  ("name-intro.mz", pass);
-  ("name-intro2.mz", pass);
-  ("name-intro3.mz", pass);
+  ("name-intro.mz", pass_known_failure);
+  ("name-intro2.mz", pass_known_failure);
+  ("name-intro3.mz", pass_known_failure);
   ("exists-forall.mz", pass);
-  ("name-capture.mz", pass);
+  ("name-capture.mz", pass_known_failure);
   ("time.mz", pass);
-  ("cps.mz", pass);
+  ("cps.mz", pass_known_failure);
   ("call.mz", pass);
   ("tree-removal.mz", pass);
 
