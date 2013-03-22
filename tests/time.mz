@@ -95,3 +95,32 @@ val rec retrieve [a] (f: fifo a | consumes dollar) : option a =
   else
     none
 
+(* Now, let's define a dynamic counter of credits. This might be handy. *)
+
+(* Because we don't (yet!) have arithmetic reasoning, I am defining the
+   balance as a list of dollars, but in principle we could make an integer
+   n together with n dollars. TEMPORARY *)
+
+(* [withdraw] allows retrieving one dollar, but it is not very useful,
+   because we have to pay one dollar for calling [withdraw] anyway.
+   We should either make [withdraw] a primitive function, or allow
+   depositing and withdrawing more than one dollar at a time, or find
+   some other solution to this problem. TEMPORARY *)
+
+mutable data account =
+  Account { balance: list (| dollar) }
+
+val new_account () : account =
+  Account { balance = nil }
+
+val deposit (a: account | consumes dollar) : () =
+  a.balance <- Cons { head = (); tail = a.balance }
+
+val withdraw (a: account) : (| dollar) =
+  match a.balance with
+  | Nil ->
+      (* Runtime failure: we have run out of credits. *)
+      fail
+  | Cons { tail } ->
+      a.balance <- tail
+  end
