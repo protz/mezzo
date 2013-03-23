@@ -48,22 +48,6 @@ let var (x : string) : document =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Tuples and records. *)
-
-let tuple print components =
-  parens_with_nesting (
-    separate_map commabreak print components
-  )
-
-let record print fields =
-  braces_with_nesting (
-    separate_map semibreak (fun (field, thing) ->
-      (utf8string field ^^ space ^^ equals) ^//^ print thing
-    ) fields
-  )
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Patterns. *)
 
 (* An atomic pattern is well-delimited. *)

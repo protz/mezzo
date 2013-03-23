@@ -167,6 +167,22 @@ let comma1 =
 let commas f xs =
   flow_map comma1 f xs
 
+(* ---------------------------------------------------------------------------- *)
+
+(* Typical forms: tuples, records, applications, etc. *)
+
+let tuple print components =
+  parens_with_nesting (
+    separate_map commabreak print components
+  )
+
+let record print fields =
+  braces_with_nesting (
+    separate_map semibreak (fun (field, thing) ->
+      (utf8string field ^^ space ^^ equals) ^//^ print thing
+    ) fields
+  )
+
 let application f head g arguments =
   group (
     f head ^^ nest 2 (

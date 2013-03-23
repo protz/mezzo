@@ -629,10 +629,6 @@ module TypePrinter = struct
     | TyBound i ->
         int i
 
-      (* A special case: syntactic sugar for equations. *)
-    | TyAnchoredPermission (ty1, TySingleton ty2) ->
-        print_type env ty1 ^^ string " = " ^^ print_type env ty2
-
     | (TyForall _) as t ->
         let vars, env, t = strip_forall_and_bind env t in
 	prefix 0 1
@@ -649,11 +645,7 @@ module TypePrinter = struct
         application (print_type env) head (print_type env) args
 
     | TyTuple components ->
-        lparen ^^
-        separate_map
-          (comma ^^ space)
-          (print_type env) components ^^
-        rparen
+        tuple (print_type env) components
 
     | TyConcreteUnfolded branch ->
         print_resolved_branch env branch
@@ -668,9 +660,15 @@ module TypePrinter = struct
           (print_type env t1 ^^ space ^^ arrow)
           (print_type env t2)
 
+      (* A special case: syntactic sugar for equations. *)
+    | TyAnchoredPermission (ty1, TySingleton ty2) ->
+        print_type env ty1 ^^ string " = " ^^ print_type env ty2
+
       (* Permissions. *)
     | TyAnchoredPermission (t1, t2) ->
-        print_type env t1 ^^ space ^^ at ^^ space ^^ print_type env t2
+        prefix 2 1
+          (print_type env t1 ^^ space ^^ at)
+          (print_type env t2)
 
     | TyEmpty ->
         string "empty"
@@ -681,8 +679,10 @@ module TypePrinter = struct
           (print_type env t2)
 
     | TyBar (p, q) ->
-        lparen ^^ print_type env p ^^ space ^^ bar ^^ space ^^
-        print_type env q ^^ rparen
+        parens (group (
+	  nest 2 (break 0 ^^ print_type env p) ^/^
+	  bar ^^ space ^^ nest 2 (print_type env q)
+	))
 
     | TyAnd (c, t) ->
         print_constraint env c ^^ space ^^ string "∧" ^^ space ^^
