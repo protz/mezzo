@@ -148,6 +148,17 @@ let strip_forall_and_bind env t =
   in
   strip [] env t
 
+let strip_exists_and_bind env t =
+  let rec strip acc env t =
+    match t with
+    | TyExists (binding, t) ->
+        let env, t, _ = bind_rigid_in_type env binding t in
+        strip (binding :: acc) env t
+    | _ ->
+        List.rev acc, env, t
+  in
+  strip [] env t
+
 let fold_forall bindings t =
   List.fold_right (fun binding t ->
     TyForall (binding, t)
@@ -596,7 +607,7 @@ module TypePrinter = struct
       if is_flexible env point then
         print_var env (get_name env point) ^^ star
       else if internal_wasflexible point then
-          lparen ^^ string "inst→" ^^ print_type env (modulo_flex_v env point) ^^ rparen
+        lparen ^^ string "inst→" ^^ print_type env (modulo_flex_v env point) ^^ rparen
       else
         print_var env (get_name env point)
     with UnboundPoint ->
@@ -618,26 +629,21 @@ module TypePrinter = struct
     | TyBound i ->
         int i
 
-      (* Special-casing *)
-    | TyAnchoredPermission (TyOpen p, TySingleton (TyOpen p')) ->
-        let star = if is_flexible env p then star else empty in
-        let star' = if is_flexible env p' then star else empty in
-        print_var env (get_name env p) ^^ star ^^ space ^^ equals ^^ space ^^
-        print_var env (get_name env p') ^^ star'
+      (* A special case: syntactic sugar for equations. *)
+    | TyAnchoredPermission (ty1, TySingleton ty2) ->
+        print_type env ty1 ^^ string " = " ^^ print_type env ty2
 
     | (TyForall _) as t ->
         let vars, env, t = strip_forall_and_bind env t in
-	prefix 0 1 (
-	  brackets (commas (print_binding env) vars)
-	  (* brackets_with_nesting (
-	    separate_map (comma ^^ break 1) (print_binding env) vars
-	  ) *)
-	)
-	(print_type env t)
+	prefix 0 1
+	  (brackets (commas (print_binding env) vars))
+	  (print_type env t)
 
-    | TyExists ((name, kind, _) as binding, typ) ->
-        let env, typ, _ = bind_rigid_in_type env binding typ in
-        print_quantified env "∃" name kind typ
+    | (TyExists _) as t ->
+        let vars, env, t = strip_exists_and_bind env t in
+	prefix 0 1
+	  (braces (commas (print_binding env) vars))
+	  (print_type env t)
 
     | TyApp (t1, t2) ->
         print_type env t1 ^^ space ^^ separate_map space (print_type env) t2
