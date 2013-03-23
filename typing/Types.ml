@@ -685,8 +685,9 @@ module TypePrinter = struct
 	))
 
     | TyAnd (c, t) ->
-        print_constraint env c ^^ space ^^ string "∧" ^^ space ^^
-        print_type env t
+        prefix 0 1
+          (print_constraint env c ^^ space ^^ bar)
+          (print_type env t)
 
   and print_constraint env (mode, t) =
     string (Mode.print mode) ^^ space ^^ print_type env t
@@ -696,7 +697,7 @@ module TypePrinter = struct
         print_field_name name ^^ colon ^^ jump (print_type env typ)
 
     | FieldPermission typ ->
-        string "permission" ^^ space ^^ print_type env typ
+        bar ^^ space ^^ print_type env typ
 
   and print_unresolved_branch env (branch : unresolved_branch) =
     print_branch env
@@ -716,12 +717,9 @@ module TypePrinter = struct
     let clause = b.branch_adopts in
     let record =
       if List.length fields > 0 then
-        space ^^ lbrace ^^
-        nest 4
-          (break 1 ^^ separate_map
-            (semi ^^ break 1)
-            (print_data_field_def env) fields) ^^
-        nest 2 (break 1 ^^ rbrace)
+        space ^^ braces_with_nesting (
+          separate_map semibreak (print_data_field_def env) fields
+	)
       else
         empty
     in
