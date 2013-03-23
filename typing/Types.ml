@@ -645,8 +645,8 @@ module TypePrinter = struct
 	  (braces (commas (print_binding env) vars))
 	  (print_type env t)
 
-    | TyApp (t1, t2) ->
-        print_type env t1 ^^ space ^^ separate_map space (print_type env) t2
+    | TyApp (head, args) ->
+        application (print_type env) head (print_type env) args
 
     | TyTuple components ->
         lparen ^^

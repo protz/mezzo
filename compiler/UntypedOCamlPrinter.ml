@@ -165,11 +165,7 @@ and prefix_application arguments = function
   | EMagic e ->
       prefix_application (e :: arguments) (vobj "magic")
   | head ->
-      group (
-	atomic_expression head ^^ nest 2 (
-	  concat_map (fun arg -> break 1 ^^ atomic_expression arg) arguments
-	)
-      )
+      application atomic_expression head atomic_expression arguments
 
 (* A normal expression can be a tuple or record component, i.e., it binds
    tighter than a comma or semicolon. At this level, we find function

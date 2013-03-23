@@ -166,3 +166,10 @@ let comma1 =
 
 let commas f xs =
   flow_map comma1 f xs
+
+let application f head g arguments =
+  group (
+    f head ^^ nest 2 (
+      concat_map (fun arg -> break 1 ^^ g arg) arguments
+    )
+  )
