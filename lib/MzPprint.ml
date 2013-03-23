@@ -137,6 +137,9 @@ let dump (filename : string) (doc : document) =
 let parens_with_nesting contents =
   surround 2 0 lparen contents rparen
 
+let brackets_with_nesting contents =
+  surround 2 0 lbracket contents rbracket
+
 (* Braces with nesting. Yields either:
    { this }
    or:
@@ -157,3 +160,9 @@ let plural = function
       ""
   | _ ->
       "s"
+
+let comma1 =
+  comma ^^ break 1
+
+let commas f xs =
+  flow_map comma1 f xs

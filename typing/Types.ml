@@ -24,6 +24,27 @@ open Kind
 open TypeCore
 open DeBruijn
 
+(* -------------------------------------------------------------------------- *)
+
+(* Various functions related to binding and finding. *)
+
+(* When crossing a binder, say, [a : type], use this function to properly add
+ * [a] in scope. *)
+let bind_in_type
+    (bind: env -> type_binding -> env * var)
+    (env: env)
+    (binding: type_binding)
+    (typ: typ): env * typ * var
+  =
+  let env, var = bind env binding in
+  let typ = tsubst (TyOpen var) 0 typ in
+  env, typ, var
+;;
+
+let bind_rigid_in_type = bind_in_type bind_rigid;;
+let bind_flexible_in_type = bind_in_type bind_flexible;;
+
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Various helpers for creating and destructuring [typ]s easily. *)
@@ -116,6 +137,17 @@ let strip_forall t =
   strip [] t
 ;;
 
+let strip_forall_and_bind env t =
+  let rec strip acc env t =
+    match t with
+    | TyForall ((binding, _), t) ->
+        let env, t, _ = bind_rigid_in_type env binding t in
+        strip (binding :: acc) env t
+    | _ ->
+        List.rev acc, env, t
+  in
+  strip [] env t
+
 let fold_forall bindings t =
   List.fold_right (fun binding t ->
     TyForall (binding, t)
@@ -130,27 +162,6 @@ let fold_exists bindings t =
 
 let fresh_auto_var prefix = Auto (Utils.fresh_var prefix);;
 
-
-
-(* -------------------------------------------------------------------------- *)
-
-(* Various functions related to binding and finding. *)
-
-(* When crossing a binder, say, [a : type], use this function to properly add
- * [a] in scope. *)
-let bind_in_type
-    (bind: env -> type_binding -> env * var)
-    (env: env)
-    (binding: type_binding)
-    (typ: typ): env * typ * var
-  =
-  let env, var = bind env binding in
-  let typ = tsubst (TyOpen var) 0 typ in
-  env, typ, var
-;;
-
-let bind_rigid_in_type = bind_in_type bind_rigid;;
-let bind_flexible_in_type = bind_in_type bind_flexible;;
 
 
 (* Functions for traversing the binders list. Bindings are traversed in an
@@ -564,6 +575,13 @@ module TypePrinter = struct
 
   internal_pnames := pnames;;
 
+  let print_binding env (x, k, _) =
+    match k with
+    | KType ->
+        print_var env x
+    | _ ->
+        print_var env x ^^ string " : " ^^ print_kind k
+
   let rec print_quantified
       (env: env)
       (q: string)
@@ -599,7 +617,6 @@ module TypePrinter = struct
 
     | TyBound i ->
         int i
-        (* Log.error "All variables should've been bound at this stage" *)
 
       (* Special-casing *)
     | TyAnchoredPermission (TyOpen p, TySingleton (TyOpen p')) ->
@@ -609,23 +626,14 @@ module TypePrinter = struct
         print_var env (get_name env p') ^^ star'
 
     | (TyForall _) as t ->
-        let rec strip_bind acc env = function
-          | TyForall ((binding, _), t) ->
-              let env, t, _ = bind_rigid_in_type env binding t in
-              strip_bind (binding :: acc) env t
-          | _ as t ->
-              List.rev acc, env, t
-        in
-        let vars, env, t = strip_bind [] env t in
-        let vars = List.map (fun (x, k, _) ->
-          if k = KType then
-            print_var env x
-          else
-            print_var env x ^^ space ^^ colon ^^ space ^^ print_kind k
-        ) vars in
-        let vars = separate (comma ^^ space) vars in
-        let vars = lbracket ^^ vars ^^ rbracket in
-        vars ^//^ print_type env t
+        let vars, env, t = strip_forall_and_bind env t in
+	prefix 0 1 (
+	  brackets (commas (print_binding env) vars)
+	  (* brackets_with_nesting (
+	    separate_map (comma ^^ break 1) (print_binding env) vars
+	  ) *)
+	)
+	(print_type env t)
 
     | TyExists ((name, kind, _) as binding, typ) ->
         let env, typ, _ = bind_rigid_in_type env binding typ in
