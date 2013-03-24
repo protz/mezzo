@@ -24,27 +24,6 @@ open Kind
 open TypeCore
 open DeBruijn
 
-(* -------------------------------------------------------------------------- *)
-
-(* Various functions related to binding and finding. *)
-
-(* When crossing a binder, say, [a : type], use this function to properly add
- * [a] in scope. *)
-let bind_in_type
-    (bind: env -> type_binding -> env * var)
-    (env: env)
-    (binding: type_binding)
-    (typ: typ): env * typ * var
-  =
-  let env, var = bind env binding in
-  let typ = tsubst (TyOpen var) 0 typ in
-  env, typ, var
-;;
-
-let bind_rigid_in_type = bind_in_type bind_rigid;;
-let bind_flexible_in_type = bind_in_type bind_flexible;;
-
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Various helpers for creating and destructuring [typ]s easily. *)
@@ -84,22 +63,6 @@ let ty_unit =
 let ty_tuple ts =
   TyTuple ts
 ;;
-
-let ty_bottom =
-  TyForall (
-    (
-      (Auto (Variable.register "⊥"), KType, (Lexing.dummy_pos, Lexing.dummy_pos)),
-      CannotInstantiate
-    ),
-    TyBound 0
-  )
-
-let is_non_bottom t =
-  match t with
-  | TyForall (_, TyBound 0) ->
-      None
-  | _ ->
-      Some t
 
 (* This is right-associative, so you can write [list int @-> int @-> tuple []] *)
 let (@->) x y =
@@ -258,14 +221,6 @@ let replace_type env point f =
 (* ---------------------------------------------------------------------------- *)
 
 (* A hodge-podge of getters. *)
-
-let get_name env p =
-  let names = get_names env p in
-  try
-    List.find (function User _ -> true | Auto _ -> false) names
-  with Not_found ->
-    List.hd names
-;;
 
 let get_location env p =
   List.hd (get_locations env p)
@@ -527,13 +482,13 @@ module TypePrinter = struct
 
   (* --------------------------------------------------------------------------- *)
 
-  let print_var env = function
-    | User (m, var) when Module.equal (module_name env) m ->
-        utf8string (Variable.print var)
-    | User (m, var) ->
-        utf8string (Module.print m) ^^ ccolon ^^ utf8string (Variable.print var)
-    | Auto var ->
-        colors.yellow ^^ utf8string (Variable.print var) ^^ colors.default
+  let print_var env v =
+    let s = SurfaceSyntax.print_maybe_qualified Variable.print (Resugar.surface_print_var env v) in
+    match v with
+    | User _ ->
+        utf8string s
+    | Auto _ ->
+        colors.yellow ^^ utf8string s ^^ colors.default
   ;;
 
   let pvar buf (env, var) =
@@ -702,13 +657,13 @@ module TypePrinter = struct
   and print_unresolved_branch env (branch : unresolved_branch) =
     print_branch env
       (fun flavor -> string (DataTypeFlavor.print flavor))
-      print_datacon
+      print_datacon (* TEMPORARY may be ambiguous? (qualify) *)
       branch
 
   and print_resolved_branch env (branch : resolved_branch) =
     print_branch env
       (fun () -> empty)
-      (fun (_, dc) -> print_datacon dc)
+      (fun (_, dc) -> print_datacon dc) (* TEMPORARY may be ambiguous? (qualify) *)
       branch
 
   and print_branch : 'flavor 'datacon . env -> ('flavor -> document) -> ('datacon -> document) -> ('flavor, 'datacon) data_type_def_branch -> document =

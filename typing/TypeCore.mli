@@ -232,6 +232,7 @@ val set_floating_permissions: env -> typ list -> env
 
 (** Get the names associated to a variable. *)
 val get_names : env -> var -> name list
+val get_name : env -> var -> name
 
 (** Get the kind of any given variable. *)
 val get_kind : env -> var -> kind
@@ -495,3 +496,6 @@ val internal_uniqvarid: env -> var -> int
 val internal_checklevel: env -> typ -> unit
 val internal_wasflexible: var -> bool
 
+(** The bottom type. *)
+val ty_bottom : typ
+val is_non_bottom: typ -> typ option

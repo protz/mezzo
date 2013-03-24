@@ -388,3 +388,8 @@ let print_maybe_qualified print = function
   | Qualified (m, x) ->
       Module.print m ^ "::" ^ print x
 
+let destruct_unqualified = function
+  | Unqualified x ->
+      x
+  | Qualified _ ->
+      assert false

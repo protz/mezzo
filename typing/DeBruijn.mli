@@ -37,3 +37,17 @@ val tsubst_data_type_group : typ -> int -> data_type_group -> data_type_group
  * of open variables, so this actually {b closes} a binder. *)
 val tpsubst : env -> typ -> var -> typ -> typ
 
+(** [bind_rigid_in_type env binding ty] opens the binding [binding], whose scope
+    is the type [ty], by replacing the bound variable with a rigid variable. It
+    returns a triple of an extended environment, the new [ty], and the variable
+    that was created. *)
+val bind_rigid_in_type :
+  env -> type_binding -> typ ->
+  env * typ * var
+
+(** [bind_rigid_in_type env binding ty] opens the binding [binding], whose scope
+    is the type [ty], by replacing the bound variable with a new flexible variable. *)
+val bind_flexible_in_type :
+  env ->
+  type_binding ->
+  typ -> env * typ * var

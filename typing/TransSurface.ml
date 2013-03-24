@@ -243,7 +243,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
       let clause =
 	match clause with
 	| None ->
-	    Types.ty_bottom
+	    TypeCore.ty_bottom
 	| Some ty ->
 	    (* TEMPORARY find the flavor of this data constructor (either
 	       by looking up the definition of its type, or by extending
@@ -379,7 +379,7 @@ and translate_data_type_def_branch
 and translate_adopts env (adopts : typ option) =
   match adopts with
   | None ->
-      Types.ty_bottom
+      TypeCore.ty_bottom
   | Some t ->
       translate_type_with_names env t
 

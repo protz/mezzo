@@ -22,6 +22,7 @@ open Mode
 open Fact
 open DataTypeFlavor
 open TypeCore
+open DeBruijn
 open Types
 open Hoist
 open TypeErrors

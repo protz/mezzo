@@ -460,6 +460,14 @@ let get_names (env: env) (var: var): name list =
   (get_var_descr env var).names
 ;;
 
+let get_name env p =
+  let names = get_names env p in
+  try
+    List.find (function User _ -> true | Auto _ -> false) names
+  with Not_found ->
+    List.hd names
+;;
+
 let get_definition (env: env) (var: var): type_def option =
   match var with
   | VFlexible _ ->
@@ -1304,3 +1312,24 @@ let internal_wasflexible = function
   | VFlexible _  -> true
   | VRigid _ -> false
 ;;
+
+(* ---------------------------------------------------------------------------- *)
+
+(* The [bottom] type. *)
+
+let ty_bottom =
+  TyForall (
+    (
+      (Auto (Variable.register "⊥"), KType, (Lexing.dummy_pos, Lexing.dummy_pos)),
+      CannotInstantiate
+    ),
+    TyBound 0
+  )
+
+let is_non_bottom t =
+  match t with
+  | TyForall (_, TyBound 0) ->
+      None
+  | _ ->
+      Some t
+

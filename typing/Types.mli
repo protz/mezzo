@@ -65,8 +65,6 @@ val ( |> ) : 'a -> ('a -> 'b) -> 'b
 
 val ty_unit : typ
 val ty_tuple : typ list -> typ
-val ty_bottom : typ
-val is_non_bottom: typ -> typ option
 val ( @-> ) : typ -> typ -> typ
 val ty_bar : typ -> typ -> typ
 val ty_app : typ -> typ list -> typ
@@ -74,14 +72,6 @@ val ty_equals : var -> typ
 
 (** {2 Binding types} *)
 
-val bind_rigid_in_type :
-  env ->
-  type_binding ->
-  typ -> env * typ * var
-val bind_flexible_in_type :
-  env ->
-  type_binding ->
-  typ -> env * typ * var
 val bind_datacon_parameters :
   env ->
   kind ->
@@ -128,7 +118,6 @@ val expand_if_one_branch : env -> typ -> typ
 
 (** {2 Various getters} *)
 
-val get_name : env -> var -> name
 val get_location : env -> var -> location
 val get_adopts_clause :
   env -> var -> typ
