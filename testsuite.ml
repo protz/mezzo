@@ -641,6 +641,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("list-length-variant.mz", pass);
 
   ("list-concat.mz", pass);
+  ("icfp.mz", pass);
 
   ("list-concat-dup.mz",
     pass
