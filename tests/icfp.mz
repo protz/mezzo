@@ -1,0 +1,34 @@
+(* Code for the ICFP 2013 submission. *)
+
+data list a =
+   Nil |  Cons { head: a; tail: list a } 
+
+mutable data mlist a =
+  MNil | MCons { head: a; tail: list a } 
+
+val rec appendAux [a] ( 
+    consumes dst: MCons { head: a; tail: () },
+    consumes xs: list a,
+    consumes ys: list a) : (| dst @ list a) =
+  match xs with
+  | Nil -> 
+      dst.tail <- ys;
+      tag of dst <- Cons
+  | Cons -> 
+      let dst' = MCons { head = xs.head; tail = () } in
+      dst.tail <- dst';
+      tag of dst <- Cons; 
+      appendAux (dst', xs.tail, ys)
+  end
+
+val append [a] ( 
+    consumes xs: list a,
+    consumes ys: list a) : list a =
+  match xs with
+  | Nil -> 
+      ys
+  | Cons -> 
+      let dst = MCons { head = xs.head; tail = () } in
+      appendAux (dst, xs.tail, ys); 
+      dst
+  end
