@@ -120,6 +120,10 @@ let kfail =
   simple_test (KFail (function _ -> true))
 ;;
 
+let fail_known_failure =
+  simple_test ~known_failure:() (Fail (function _ -> true))
+;;
+
 let dummy_loc =
   Lexing.dummy_pos, Lexing.dummy_pos
 ;;
@@ -918,6 +922,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("call.mz", pass);
   ("tree-removal.mz", pass);
   ("pattern-sharing.mz", fail);
+  ("gadt.mz", pass);
+  ("gadt-bug.mz", fail_known_failure);
 
 ];;
 
