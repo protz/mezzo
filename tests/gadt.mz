@@ -1,0 +1,16 @@
+(* Mezzo does not exactly have GADTs, but it is able to express
+   something that looks like them. *)
+
+data descr (x : term) =
+  | Int {| x @ int }
+  | Pair { content: { y : term, z : term } (descr y, descr z | x @ (=y, =z)) }
+
+val rec polyprint (d: descr x, x: unknown) : () =
+  match d, x with
+  | Int, _ ->
+      print x
+  | Pair { content = (left, right) }, (y, z) ->
+      polyprint (left, y);
+      polyprint (right, z)
+  end
+
