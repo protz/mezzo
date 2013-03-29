@@ -86,7 +86,7 @@ doc: graph
 	  $(PACKAGES)\
 	  -package stdlib -d ../misc/doc \
 	  -intro ../misc/doc/main \
-	  -charset utf8 -css-style ../../src/misc/ocamlstyle.css\
+	  -charset utf8 -css-style ocamlstyle.css\
 	  configure.ml mezzo.ml\
 	  $(shell $(FIND) _build -maxdepth 2 -iname '*.mli')
 	sed -i 's/<\/body>/<p align="center"><object type="image\/svg+xml" data="graph.svg"><\/object><\/p><\/body>/' ../misc/doc/index.html
