@@ -1,0 +1,28 @@
+(* A one-shot function is an affine resource. *)
+
+(* A one-shot function is coded as a pair of a regular function [f] and 
+   an exclusive permission [p] that is required and consumed by any call
+   to [f]. The permission [p] is quantified existentially. *)
+
+data osf a b =
+  | Osf { osf: {p: perm} ((a | consumes p) -> b | p) }
+
+(* TEMPORARY: better with a type abbreviation! *)
+
+(* Creation. *)
+
+(* One can build one-shot instances of any function. *)
+
+val osf_make [a, b, p: perm] (f: a -> b | consumes p): osf a b =
+  Osf { osf = f }
+
+(* Application of a one-shot function consumes the function. *)
+
+val osf_apply [a, b] (x: a, consumes f: osf a b): b =
+  f.osf x
+
+(*
+Local Variables:
+compile-command: "../mezzo oneshotfunction.mz"
+End:
+*)

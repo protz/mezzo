@@ -1,0 +1,15 @@
+(* A one-shot function is an affine resource. *)
+
+abstract osf a b
+
+(* Creation. *)
+
+(* One can build one-shot instances of any function. *)
+
+val osf_make: [a, b, p: perm] (f: a -> b | consumes p) -> osf a b
+
+(* Application of a one-shot function consumes the function. *)
+
+val osf_apply: [a, b] (x: a, consumes f: osf a b) -> b
+
+
