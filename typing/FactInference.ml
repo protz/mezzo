@@ -17,10 +17,12 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+open Kind
 open Mode
 open Fact
 open DataTypeFlavor
 open TypeCore
+open DeBruijn
 open Types
 open Hoist
 open TypeErrors
@@ -140,7 +142,8 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
 	 all arguments have kind [type] or [perm], and fact inference
 	 works only at these kinds. We infer a trivial fact at kind
 	 [term], which will not be used. *)
-      let facts = infer_many w (get_kind w.env v) args in
+      let kinds, _ = Kind.as_arrow (get_kind w.env v) in
+      let facts = infer_with_kinds w kinds args in
       (* Compose these facts in order to obtain a fact for the type
 	 application. *)
       Fact.compose fact facts
@@ -266,25 +269,19 @@ and infer_field w field =
   | FieldPermission ty ->
       infer w ty
 
-and infer_many w kind args =
-  match kind, args with
-  | _, [] ->
-      []
-  | KArrow (kind, kinds), arg :: args ->
-      begin match kind with
-      | KTerm ->
-	  (* Do not call [infer] at kind [term]. Instead, provide
-	     a dummy fact. *)
-	  Fact.bottom
-      | KType
-      | KPerm ->
-	  infer w arg
-      | KArrow _ ->
-	  assert false (* higher-order kind *)
-      end
-      :: infer_many w kinds args
-  | _, _ ->
-      assert false (* kind mismatch *)
+and infer_with_kinds w kinds args =
+  List.map2 (infer_with_kind w) kinds args
+
+and infer_with_kind w kind arg =
+  match kind with
+  | KTerm ->
+      (* Do not call [infer] at kind [term]. Instead, provide a dummy fact. *)
+      Fact.bottom
+  | KType
+  | KPerm ->
+      infer w arg
+  | KArrow _ ->
+      assert false (* higher-order kind *)
 
 and bind_assume_infer w binding ty (m : mode) : fact =
   (* Introduce a new rigid variable. *)

@@ -17,6 +17,8 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+open Kind
+
 (** This module defines the syntax of types, as manipulated by the
    type-checker. *)
 
@@ -36,13 +38,6 @@ module Field: module type of Variable with type name = SurfaceSyntax.Field.name
 
 (** The type of user-generated or auto-generated names. *)
 type name = User of Module.name * Variable.name | Auto of Variable.name
-
-(** Types have kinds. *)
-type kind = SurfaceSyntax.kind =
-  | KTerm
-  | KType
-  | KPerm
-  | KArrow of kind * kind
 
 (** Our locations are made up of ranges. *)
 type location = Lexing.position * Lexing.position
@@ -237,6 +232,7 @@ val set_floating_permissions: env -> typ list -> env
 
 (** Get the names associated to a variable. *)
 val get_names : env -> var -> name list
+val get_name : env -> var -> name
 
 (** Get the kind of any given variable. *)
 val get_kind : env -> var -> kind
@@ -500,3 +496,6 @@ val internal_uniqvarid: env -> var -> int
 val internal_checklevel: env -> typ -> unit
 val internal_wasflexible: var -> bool
 
+(** The bottom type. *)
+val ty_bottom : typ
+val is_non_bottom: typ -> typ option

@@ -20,6 +20,7 @@
 (** This module provides a variety of functions for dealing with types, mostly
  * built on top of {!DeBruijn} and {!TypeCore}. *)
 
+open Kind
 open TypeCore
 
 (* -------------------------------------------------------------------------- *)
@@ -64,8 +65,6 @@ val ( |> ) : 'a -> ('a -> 'b) -> 'b
 
 val ty_unit : typ
 val ty_tuple : typ list -> typ
-val ty_bottom : typ
-val is_non_bottom: typ -> typ option
 val ( @-> ) : typ -> typ -> typ
 val ty_bar : typ -> typ -> typ
 val ty_app : typ -> typ list -> typ
@@ -73,14 +72,6 @@ val ty_equals : var -> typ
 
 (** {2 Binding types} *)
 
-val bind_rigid_in_type :
-  env ->
-  type_binding ->
-  typ -> env * typ * var
-val bind_flexible_in_type :
-  env ->
-  type_binding ->
-  typ -> env * typ * var
 val bind_datacon_parameters :
   env ->
   kind ->
@@ -109,8 +100,6 @@ val resolve_branch:
 
 (** {2 Folding and unfolding} *)
 
-val flatten_kind :
-  SurfaceSyntax.kind -> SurfaceSyntax.kind * SurfaceSyntax.kind list
 val flatten_star : env -> typ -> typ list
 val fold_star : typ list -> typ
 val strip_forall :
@@ -129,7 +118,6 @@ val expand_if_one_branch : env -> typ -> typ
 
 (** {2 Various getters} *)
 
-val get_name : env -> var -> name
 val get_location : env -> var -> location
 val get_adopts_clause :
   env -> var -> typ
@@ -165,7 +153,7 @@ val find_type_by_name :
   env -> ?mname:string -> string -> typ
 val make_datacon_letters :
   env ->
-  SurfaceSyntax.kind ->
+  kind ->
   bool ->
   env * var list
 
@@ -178,8 +166,7 @@ module TypePrinter :
     val print_datacon : Datacon.name -> MzPprint.document
     val print_field_name : Field.name -> MzPprint.document
     val print_field : SurfaceSyntax.field -> MzPprint.document
-    val print_kind : SurfaceSyntax.kind -> MzPprint.document
-    val p_kind : Buffer.t -> SurfaceSyntax.kind -> unit
+    val p_kind : Buffer.t -> kind -> unit
     val print_names :
       env -> name list -> MzPprint.document
     val pnames : Buffer.t -> env * name list -> unit

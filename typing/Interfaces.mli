@@ -32,7 +32,7 @@
 val check:
   TypeCore.env ->
   SurfaceSyntax.interface ->
-  (Variable.name * TypeCore.kind * TypeCore.var) list ->
+  (Variable.name * Kind.kind * TypeCore.var) list ->
     TypeCore.env
 
 (** Import a given module into scope. *)

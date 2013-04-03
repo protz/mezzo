@@ -5,7 +5,7 @@ val f [a] (consumes elt: a): listmaster a =
   let x = Listmaster in
   let y =
     if True then begin
-      give (XCons { head = elt; tail = XNil }: xlist a) to x;
+      give XCons { head = elt; tail = XNil }: xlist a to x;
       x
     end else begin
       give (XNil: xlist a) to x;

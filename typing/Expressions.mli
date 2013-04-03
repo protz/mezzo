@@ -21,6 +21,7 @@
    type-checker. This module also defines various expression-specific
    manipulation functions, esp. w.r.t. binders. *)
 
+open Kind
 open TypeCore
 
 
@@ -188,9 +189,6 @@ val bind_patexprs :
 (** Our not-so-pretty printer for expressions. *)
 module ExprPrinter :
   sig
-    val print_maybe_qualified :
-      ('a -> MzPprint.document) ->
-      'a SurfaceSyntax.maybe_qualified -> MzPprint.document
     val print_maybe_qualified_datacon :
       Datacon.name SurfaceSyntax.maybe_qualified -> MzPprint.document
     val pmaybe_qualified_datacon :

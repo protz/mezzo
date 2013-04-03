@@ -19,6 +19,7 @@
 
 (** Everything you ever dreamed of for reporting errors. *)
 
+open Kind
 open TypeCore
 
 (** Clients of this module will want to use the various errors offered. *)

@@ -19,6 +19,7 @@
 
 module K = KindCheck
 
+open Kind
 open TypeCore
 open Types
 open TestUtils
@@ -107,12 +108,20 @@ let pass =
   simple_test Pass
 ;;
 
+let pass_known_failure =
+  simple_test ~known_failure:() Pass
+;;
+
 let fail =
   simple_test (Fail (function _ -> true))
 ;;
 
 let kfail =
   simple_test (KFail (function _ -> true))
+;;
+
+let fail_known_failure =
+  simple_test ~known_failure:() (Fail (function _ -> true))
 ;;
 
 let dummy_loc =
@@ -623,6 +632,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("adopts16.mz", pass);
   ("adopts17.mz", pass);
   ("adopts18.mz", pass);
+  ("adopts19.mz", pass);
 
   (* Bigger examples. *)
 
@@ -635,6 +645,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("list-length-variant.mz", pass);
 
   ("list-concat.mz", pass);
+  ("icfp.mz", pass);
 
   ("list-concat-dup.mz",
     pass
@@ -901,9 +912,18 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("tyand06.mz", fail);
   ("incorrect-fields.mz",
     simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
-  ("name-intro.mz", pass);
+  ("name-intro.mz", pass_known_failure);
+  ("name-intro2.mz", pass_known_failure);
+  ("name-intro3.mz", pass_known_failure);
   ("exists-forall.mz", pass);
-  ("name-capture.mz", pass);
+  ("name-capture.mz", pass_known_failure);
+  ("time.mz", pass);
+  ("cps.mz", pass);
+  ("call.mz", pass);
+  ("tree-removal.mz", pass);
+  ("pattern-sharing.mz", fail);
+  ("gadt.mz", pass);
+  ("gadt-bug.mz", fail_known_failure);
 
 ];;
 

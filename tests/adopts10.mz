@@ -5,10 +5,10 @@ val f [a] (elt: a): listmaster a =
   let x = Listmaster in
   let y =
     if True then begin
-      give (XCons { head = elt; tail = XNil }: XCons { head = elt; tail: XNil }) to x;
+      give XCons { head = elt; tail = XNil }: XCons { head = elt; tail: XNil } to x;
       x
     end else begin
-      give (XNil: XNil) to x;
+      give XNil: XNil to x;
       x
     end
   in

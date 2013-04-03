@@ -561,10 +561,7 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
       eval env loc e
 
   | EVar x ->
-      V.lookup_unqualified x env.variables
-
-  | EQualified (m, x) ->
-      V.lookup_qualified m x env.variables
+      V.lookup_maybe_qualified x env.variables
 
   (* Most builtin expressions produce a builtin value (a function), but some
      builtin expressions produce a value of some other nature. *)

@@ -17,6 +17,7 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+open Kind
 open TypeCore
 
 (** This module provides various substitution functions. *)
@@ -118,4 +119,26 @@ end
 
 let tpsubst env (t2 : typ) (v : var) (t1 : typ) : typ =
   (new tpsubst env t2 v) # visit 0 t1
+
+(* -------------------------------------------------------------------------- *)
+
+(* When opening (descending under) a binder, the bound variable must be
+   replaced with a (rigid or flexible) named variable. *)
+
+let bind_in_type
+    (bind: env -> type_binding -> env * var)
+    (env: env)
+    (binding: type_binding)
+    (typ: typ)
+  : env * typ * var
+  =
+  let env, var = bind env binding in
+  let typ = tsubst (TyOpen var) 0 typ in
+  env, typ, var
+
+let bind_rigid_in_type =
+  bind_in_type bind_rigid
+
+let bind_flexible_in_type =
+  bind_in_type bind_flexible
 

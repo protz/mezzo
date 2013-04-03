@@ -1,0 +1,28 @@
+(* After FM 2012 challenge number 3: removing the leftmost node in
+   a nonempty binary search tree (without rebalancing). Here, we do
+   not prove that (only) the least key is removed, but we do prove
+   that some key is removed and the tree property is preserved. *)
+
+mutable data tree a =
+  | Null
+  | Node { left: tree a; value: a; right: tree a }
+
+val rec removeAux [a] (
+  consumes pp: Node { left = p; value: a; right: tree a },
+  consumes p: Node { left: tree a; value: a; right: tree a }
+) : (a | pp @ tree a) =
+  if p.left then
+    removeAux (p, p.left)
+  else begin
+    pp.left <- p.right;
+    p.value
+  end
+
+val remove [a] (
+  consumes t: Node { left: tree a; value: a; right: tree a }
+) : (a, tree a) =
+  if t.left then
+    removeAux(t, t.left), t
+  else
+    t.value, t.right
+

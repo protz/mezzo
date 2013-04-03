@@ -29,6 +29,7 @@
    - Location information inside types and patterns is dropped.
 *)
 
+open Kind
 open SurfaceSyntax
 open KindCheck
 open Utils
@@ -83,6 +84,31 @@ let resolve_datacon env dref =
 ;;
 
 
+let rec flatten_star p =
+  match p with
+  | TyStar (t1, t2) ->
+      flatten_star t1 @ flatten_star t2
+  | TyEmpty ->
+      []
+  | TyVar _
+  | TyConsumes _
+  | TyAnchoredPermission _
+  | TyApp _ ->
+      [p]
+  | TyLocated (p, _) ->
+      flatten_star p
+  | _ as p ->
+      Log.error "[flatten_star] only works for types with kind PERM (%a)"
+        Utils.ptag p
+;;
+
+let fold_star perms =
+  if List.length perms > 0 then
+    MzList.reduce (fun acc x -> TyStar (acc, x)) perms
+  else
+    TyEmpty
+;;
+
 
 (* [strip_consumes env t] removes all the consumes annotations from [t]. A
    [consumes t] annotation is replaced by [=c] with [c] fresh, as well as
@@ -108,7 +134,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
         let ts, accs = List.split (List.map (strip_consumes env) ts) in
         TyTuple ts, List.flatten accs
 
-    | TyConcreteUnfolded (datacon, fields) ->
+    | TyConcreteUnfolded ((datacon, fields), clause) ->
         let accs, fields = List.fold_left (fun (accs, fields) field ->
           match field with
           | FieldPermission _ ->
@@ -119,7 +145,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
         ) ([], []) fields in
         let fields = List.rev fields in
         let acc = List.flatten accs in
-        TyConcreteUnfolded (datacon, fields), acc
+        TyConcreteUnfolded ((datacon, fields), clause), acc
 
     | TyNameIntro (x, t) ->
         let t, acc = strip_consumes env t in
@@ -149,13 +175,14 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
 
     | TyConsumes t ->
         let name = fresh_var "/c" in
-        let perm = TyAnchoredPermission (TyBound name, t) in
-        ty_equals name, [Some name, perm, env.location]
+        let c = TyVar (Unqualified name) in
+        let perm = TyAnchoredPermission (c, t) in
+	TySingleton c,
+        [Some name, perm, env.location]
 
     | TyUnknown
     | TyDynamic
-    | TyBound _
-    | TyQualified _
+    | TyVar _
     | TySingleton _
     (* These are opaque, no consumes annotations inside of these. *)
     | TyForall _
@@ -202,21 +229,34 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyEmpty ->
       T.TyEmpty
 
-  | TyBound x ->
+  | TyVar (Unqualified x) ->
       let _, index = find x env in
       tvar index
 
-  | TyQualified (mname, x) ->
+  | TyVar (Qualified (mname, x)) ->
       T.TyOpen (T.point_by_name env.env ~mname x)
 
-  | TyConcreteUnfolded (dref, fields) ->
+  | TyConcreteUnfolded ((dref, fields), clause) ->
       (* Performs a side-effect! *)
       let datacon = resolve_datacon env dref in
+      (* Translate the [adopts] clause, if there is one. *)
+      let clause =
+	match clause with
+	| None ->
+	    TypeCore.ty_bottom
+	| Some ty ->
+	    (* TEMPORARY find the flavor of this data constructor (either
+	       by looking up the definition of its type, or by extending
+	       the [datacon_info] record with this information?) and check
+	       that its flavor is [Mutable]. *)
+	    translate_type env ty
+      in
+      (* Construct a translated description. *)
       let branch = {
 	T.branch_flavor = ();
 	T.branch_datacon = datacon;
 	T.branch_fields = translate_fields env fields;
-	T.branch_adopts = Types.ty_bottom;
+	T.branch_adopts = clause;
       } in
       (* This type may be ill-formed in the sense that it has incorrect
 	 fields. Check that, by looking up the definition of this data
@@ -339,7 +379,7 @@ and translate_data_type_def_branch
 and translate_adopts env (adopts : typ option) =
   match adopts with
   | None ->
-      Types.ty_bottom
+      TypeCore.ty_bottom
   | Some t ->
       translate_type_with_names env t
 
@@ -382,12 +422,13 @@ and translate_arrow_type env t1 t2 =
    * of conflict. *)
   let root = fresh_var "/root" in
   let root_binding = root, KTerm, env.location in
+  let root_var = TyVar (Unqualified root) in
 
   (* We now turn the argument into (=root | root @ t1 ∗ c @ … ∗ …) with [t1]
    * now devoid of any consumes annotations. *)
   let fat_t1 = TyBar (
-    ty_equals root,
-    fold_star (TyAnchoredPermission (TyBound root, t1) :: perms)
+    TySingleton root_var,
+    fold_star (TyAnchoredPermission (root_var, t1) :: perms)
   ) in
 
   (* So that we don't mess up, we use unique names in the surface syntax and
@@ -405,7 +446,7 @@ and translate_arrow_type env t1 t2 =
    * [strip_consumes]. *)
   let t2 = TyBar (
     t2,
-    TyAnchoredPermission (TyBound root, t1)
+    TyAnchoredPermission (root_var, t1)
   ) in
 
   (* The return type can also bind variables with [x: t]. These are
@@ -430,6 +471,13 @@ and translate_type_with_names (env: env) (t: typ): T.typ =
 
 ;;
 
+let rec tunloc = function
+  | TyLocated (t, _) ->
+      tunloc t
+  | _ as t ->
+      t
+;;
+
 let translate_single_fact (params: Variable.name list) (accu: Fact.fact) (fact: single_fact) : Fact.fact =
   (* We have an implication. *)
   let Fact (hypotheses, goal) = fact in
@@ -444,7 +492,7 @@ let translate_single_fact (params: Variable.name list) (accu: Fact.fact) (fact: 
     List.fold_left (fun hs (mode, t) ->
       let name =
 	match tunloc t with
-        | TyBound name -> name
+        | TyVar (Unqualified name) -> name
         | _ -> assert false
       in
       let p : parameter = MzList.index (Variable.equal name) params in
@@ -520,13 +568,17 @@ let bind_datacons env data_type_group =
 ;;
 
 
-(* [translate_data_type_group env tenv data_type_group] returns [env, group] where:
+(* [translate_data_type_group bind env tenv data_type_group] returns [env, group] where:
   - the type definitions have been added with the corresponding levels in [env]
-  - type definitions have been desugared into [group],
+  - type definitions have been desugared into [group].
+  The [bind] parameter is normally [KindCheck.bind], but [Interfaces] supplies
+  a different function.
 *)
 let translate_data_type_group
+    (bind: env -> Variable.name * kind -> env)
     (env: env)
-    (data_type_group: data_type_group): env * T.data_type_group
+    (data_type_group: data_type_group)
+  : env * T.data_type_group
   =
 
   let data_type_group = snd data_type_group in
@@ -582,7 +634,7 @@ let clean_pattern pattern =
         in
         PConstruct (name, List.combine fields pats),
         if List.exists ((<>) TyUnknown) annotations then
-          TyConcreteUnfolded (name, List.map2 (fun field t -> FieldValue (field, t)) fields annotations)
+          TyConcreteUnfolded ((name, List.map2 (fun field t -> FieldValue (field, t)) fields annotations), None)
         else
           TyUnknown
 
@@ -658,11 +710,11 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let t = translate_type_with_names env t in
       E.EConstraint (e, t)
 
-  | EVar x ->
+  | EVar (Unqualified x) ->
       let _, index = find x env in
       evar index
 
-  | EQualified (mname, x) ->
+  | EVar (Qualified (mname, x)) ->
       E.EOpen (T.point_by_name env.env ~mname x)
 
   | EBuiltin b ->
@@ -759,7 +811,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
               ESequence (
                 EAssert (
                   TyAnchoredPermission (
-                    TyBound (Option.extract name),
+                    TyVar (Unqualified (Option.extract name)),
                     annotation
                   )
                 ),
@@ -878,7 +930,7 @@ let translate_item env item =
       (* This just desugars the data type definitions, no binder is opened yet! *)
       let env, defs =
         (* Be strict if we're in an interface. *)
-        translate_data_type_group env data_type_group
+        translate_data_type_group bind env data_type_group
       in
       env, Some (E.DataTypeGroup defs)
   | ValueDeclarations decls ->

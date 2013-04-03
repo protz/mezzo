@@ -76,11 +76,10 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         []
 
   and collect_expr = function
-    | EQualified (m, _) ->
-        [m]
     | EConstraint (expr, t) ->
         collect_expr expr @ collect_type t
-    | EVar _
+    | EVar x ->
+        collect_maybe_qualified x
     | EBuiltin _
     | EInt _
     | EFail ->
@@ -108,8 +107,10 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         collect_type t
     | ETApply (expr, ts) ->
         collect_expr expr @
-        MzList.map_flatten (fun x ->
-          collect_type (TransSurface.strip_tapp x)
+        MzList.map_flatten (function
+	  | Ordered x
+	  | Named (_, x) ->
+          collect_type x
         ) ts
     | ETuple exprs ->
         MzList.map_flatten collect_expr exprs
@@ -121,13 +122,12 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         collect_expr e1 @ collect_expr e2 @ collect_expr e3
 
   and collect_type = function
-    | TyQualified (m, _) ->
-        [m]
+    | TyVar v ->
+        collect_maybe_qualified v
     | TyUnknown
     | TyDynamic
     | TyEmpty
-    | TyBound _ ->
-        []
+        -> []
     | TySingleton t1
     | TyNameIntro (_, t1)
     | TyConsumes t1
@@ -135,7 +135,6 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | TyForall (_, t1)
     | TyExists (_, t1) ->
         collect_type t1
-    | TyApp (t1, t2)
     | TyArrow (t1, t2)
     | TyAnchoredPermission (t1, t2)
     | TyBar (t1, t2)
@@ -145,9 +144,12 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         collect_type t1 @ collect_type t2
     | TyTuple ts ->
         MzList.map_flatten collect_type ts
-    | TyConcreteUnfolded branch ->
+    | TyApp (t, ts) ->
+        MzList.map_flatten collect_type (t :: ts)
+    | TyConcreteUnfolded (branch, clause) ->
         collect_data_type_def_branch branch @
-        collect_maybe_qualified (fst branch).datacon_unresolved
+        collect_maybe_qualified (fst branch).datacon_unresolved @
+	MzList.map_flatten collect_type (Option.to_list clause)
 
   and collect_data_type_def_branch: 'a. 'a * data_field_def list -> Module.name list =
   fun (_, fields)  ->

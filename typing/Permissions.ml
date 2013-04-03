@@ -21,7 +21,9 @@
  * permissions, subtracting a permission from the environment, adding
  * permissions to the environment. *)
 
+open Kind
 open TypeCore
+open DeBruijn
 open Types
 open Derivations
 
@@ -606,7 +608,7 @@ and sub_constraints env cs : state =
  * two "sub" entry points that this module exports. *)
 and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): result =
   try_proof env (JSubType (t1, t2)) "With-Unfolding" begin
-    let k, _ = flatten_kind (get_kind_for_type env t1) in
+    let _, k = Kind.as_arrow (get_kind_for_type env t1) in
     match k with
     | KPerm ->
         sub_type env (wrap_bar_perm t1) (wrap_bar_perm t2) >>=
@@ -1000,8 +1002,36 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
             TypePrinter.ptype (env, fold_star vars1)
             TypePrinter.ptype (env, fold_star vars2);
 
+          let strip_syntactically_equal env l1 l2 =
+            (* This is only useful if there's a bunch of permission variables
+             * (or abstract permissions) on each side: clear these up, and try
+             * to do something useful with the rest. *)
+            let rec sse env left l1 l2 =
+              match l1 with
+              | [] ->
+                  env, left, l2
+              | elt :: l1 ->
+                  match MzList.take_bool (equal env elt) l2 with
+                  | Some (l2, _elt') ->
+                      let env = 
+                        if FactInference.is_duplicable env elt then
+                          add_perm env elt
+                        else
+                          env
+                      in
+                      sse env left l1 l2
+                  | None ->
+                      sse env (elt :: left) l1 l2
+            in
+            sse env [] l1 l2
+          in
+
+          let ps1 = vars1 @ ps1 and ps2 = vars2 @ ps2 in
+          let env, ps1, ps2 = strip_syntactically_equal env ps1 ps2 in
+
+
           (* And then try to be smart with whatever remains. *)
-          match vars1 @ ps1, vars2 @ ps2 with
+          match ps1, ps2 with
           | [TyOpen var1 as t1], [TyOpen var2 as t2] ->
               (* Beware! We're doing our own one-on-one matching of permission
                * variables, but still, we need to keep [var1] if it happens to be a
@@ -1017,7 +1047,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                   j_merge_left env var1 var2
               | false, false ->
                   if same env var1 var2 then
-                    nothing env "same-vars"
+                    Log.error "This was meant to be solved by [strip_syntactically_equal]!"
                   else
                     no_proof env (JSubType (t1, t2))
               end >>= fun env ->
@@ -1038,6 +1068,17 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                * guess?)... *)
               j_flex_inst env var1 (fold_star ps2) >>=
               qed
+          | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
+              when is_flexible env !!x2 ->
+                (* These two are *really* debatable heuristics. *)
+                j_merge_left env !!x2 !!x1 >>= fun env ->
+                sub_type_with_unfolding env t1 t2 >>=
+                qed
+          | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
+              when is_flexible env !!x1 ->
+                j_merge_left env !!x1 !!x2 >>= fun env ->
+                sub_type_with_unfolding env t1 t2 >>=
+                qed
           | ps1, [] ->
               (* We may have a remaining, rigid, floating permission. Good for us! *)
               let env = add_perm env (fold_star ps1) in

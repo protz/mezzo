@@ -21,6 +21,7 @@
    the surface language. [Note Jonathan: a clean version of the rules can be
    found in my thesis noteboook, date June, 16th 2012]. *)
 
+open Kind
 open SurfaceSyntax
 module T = TypeCore
 module E = Expressions
@@ -164,7 +165,7 @@ type error = env * raw_error
 and raw_error =
   | Unbound of Variable.name
   | Mismatch of kind * kind
-  | NotAnArrow of kind
+  | ArityMismatch of (* expected: *) int * (* provided: *) int
   | BoundTwice of Variable.name
   | IllegalConsumes
   | BadConditionsInFact of Variable.name
@@ -232,8 +233,8 @@ let print_error buf (env, raw_error) =
         "Unbound identifier %a"
         Variable.p x
   | Mismatch (expected_kind, inferred_kind) ->
-      let inferred, _ = flatten_kind inferred_kind in
-      let expected, _ = flatten_kind expected_kind in
+      let _, inferred = Kind.as_arrow inferred_kind in
+      let _, expected = Kind.as_arrow expected_kind in
       if inferred <> expected then
         bprintf
           "This is a %a but we were expecting a %a"
@@ -244,10 +245,11 @@ let print_error buf (env, raw_error) =
           "This type has kind %a but we were expecting kind %a"
           p_kind inferred_kind
           p_kind expected_kind
-  | NotAnArrow (kind) ->
+  | ArityMismatch (expected, provided) ->
       bprintf
-        "Cannot apply arguments to this type since it has kind %a"
-        p_kind kind
+        "This type expects %d parameter%s, but is applied to %d argument%s."
+        expected (MzPprint.plural expected)
+	provided (MzPprint.plural provided)
   | BoundTwice x ->
       bprintf
         "Variable %a is bound twice"
@@ -356,14 +358,6 @@ let karrow bindings kind =
   ) bindings kind
 ;;
 
-let deconstruct_arrow env = function
-  | KArrow (k1, k2) ->
-      k1, k2
-  | kind ->
-      raise_error env (NotAnArrow kind)
-;;
-
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Working with environments *)
@@ -387,9 +381,6 @@ let find x env =
   with Not_found ->
     unbound env x
 ;;
-
-(* The strict mode of [bind] is never used, it seems; duplicate names
-   are detected using another means. *)
 
 (* [bind env (x, kind)] binds the name [x] with kind [kind]. *)
 let bind env (x, kind) : env =
@@ -484,16 +475,14 @@ let exist bindings ty =
 
 (* Some helper functions for working with [SurfaceSyntax] types. *)
 
-let flatten_tyapp t =
-  let rec flatten_tyapp acc = function
-    | TyApp (t1, t2) ->
-        flatten_tyapp (t2 :: acc) t1
-    | TyLocated (t, _) ->
-        flatten_tyapp acc t
-    | _ as x ->
-        x, acc
-  in
-  flatten_tyapp [] t
+let rec flatten_tyapp ty =
+  match ty with
+  | TyApp (ty, args) ->
+      ty, args
+  | TyLocated (ty, _) ->
+      flatten_tyapp ty
+  | _ ->
+      ty, []
 ;;
 
 (* Yes, this is a bit too abstract and contrived, sorry. I want to
@@ -648,7 +637,7 @@ let rec check_fact_parameter (env: env) (x: Variable.name) (args: Variable.name 
   match t with
   | TyLocated (t, p) ->
       check_fact_parameter (locate env p) x args t
-  | TyBound x' ->
+  | TyVar (Unqualified x') ->
       if not (List.exists (Variable.equal x') args) then
         bad_condition_in_fact env x
   | _ ->
@@ -664,7 +653,7 @@ let rec check_fact_conclusion (env: env) (x: Variable.name) (args: Variable.name
       check_fact_conclusion (locate env p) x args t
   | _ ->
       match flatten_tyapp t with
-      | TyBound x', args' ->
+      | TyVar (Unqualified x'), args' ->
           Log.debug "%a %a" Variable.p x Variable.p x';
           if not (Variable.equal x x') then
             bad_conclusion_in_fact env x;
@@ -672,8 +661,8 @@ let rec check_fact_conclusion (env: env) (x: Variable.name) (args: Variable.name
             bad_conclusion_in_fact env x;
           List.iter2 (fun x arg' ->
             match arg' with
-            | TyBound x'
-            | TyLocated (TyBound x', _) ->
+            | TyVar (Unqualified x')
+            | TyLocated (TyVar (Unqualified x'), _) ->
                 if not (Variable.equal x x') then
                   bad_conclusion_in_fact env x;
             | _ ->
@@ -713,25 +702,34 @@ and infer (env: env) (t: typ) =
   | TyEmpty ->
       KPerm
 
-  | TyQualified (mname, x) ->
+  | TyVar (Qualified (mname, x)) ->
       kind_external env mname x
 
-  | TyBound x ->
+  | TyVar (Unqualified x) ->
       let kind, _index = find x env in
       kind
 
-  | TyConcreteUnfolded branch ->
+  | TyConcreteUnfolded (branch, clause) ->
       check_branch env branch;
+      Option.iter (fun t -> check env t KType) clause;
+        (* If there is an [adopts] clause, we might wish to check that 
+	   this data constructor is exclusive. We will do this in
+	   [TransSurface]. *)
       KType
 
   | TySingleton t ->
       check env t KTerm;
       KType
 
-  | TyApp (t1, t2) ->
-      let k, k' = deconstruct_arrow env (infer env t1) in
-      check env t2 k;
-      k'
+  | TyApp (t1, t2s) ->
+      let k1 = infer env t1 in
+      let k2s, k = as_arrow k1 in
+      let expected = List.length k2s
+      and provided = List.length t2s in
+      if expected <> provided then
+	raise_error env (ArityMismatch (expected, provided));
+      List.iter2 (check env) t2s k2s;
+      k
 
   | TyArrow (t1, t2) ->
       let f1 = names env t1 in
@@ -903,13 +901,13 @@ and check_expression (env: env) (expr: expression) =
       check_expression env e;
       check_type_with_names env t KType
 
-  | EVar x ->
+  | EVar (Unqualified x) ->
       let k, _ = find x env in
       (* TEMPORARY check that only lambda-bound variables can appear in code *)
       if k <> KTerm then
         mismatch env KTerm k
 
-  | EQualified (mname, x) ->
+  | EVar (Qualified (mname, x)) ->
       let k = kind_external env mname x in
       if k <> KTerm then
         mismatch env KTerm k
@@ -1115,7 +1113,7 @@ module KindPrinter = struct
   (* Prints a data type defined in the global scope. Assumes [print_env] has been
      properly populated. *)
   let print_data_type_def (env: env) name kind variance branches =
-    let _return_kind, params = flatten_kind kind in
+    let params, _return_kind = Kind.as_arrow kind in
     (* Turn the list of parameters into letters *)
     let letters: string list = name_gen (List.length params) in
     let letters = List.map2 (fun variance letter ->

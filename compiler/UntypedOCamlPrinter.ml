@@ -48,22 +48,6 @@ let var (x : string) : document =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Tuples and records. *)
-
-let tuple print components =
-  parens_with_nesting (
-    separate_map commabreak print components
-  )
-
-let record print fields =
-  braces_with_nesting (
-    separate_map semibreak (fun (field, thing) ->
-      (utf8string field ^^ space ^^ equals) ^//^ print thing
-    ) fields
-  )
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Patterns. *)
 
 (* An atomic pattern is well-delimited. *)
@@ -165,11 +149,7 @@ and prefix_application arguments = function
   | EMagic e ->
       prefix_application (e :: arguments) (vobj "magic")
   | head ->
-      group (
-	atomic_expression head ^^ nest 2 (
-	  concat_map (fun arg -> break 1 ^^ atomic_expression arg) arguments
-	)
-      )
+      application atomic_expression head atomic_expression arguments
 
 (* A normal expression can be a tuple or record component, i.e., it binds
    tighter than a comma or semicolon. At this level, we find function

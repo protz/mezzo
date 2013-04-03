@@ -19,12 +19,14 @@
 
 open SurfaceSyntax
 
+let var x =
+  EVar (Unqualified x)
+
 (* This auxiliary function identifies expressions that can be copied
    without affecting their semantics (basically, just variables). *)
 
 let rec is_var = function
-  | EVar _
-  | EQualified _ ->
+  | EVar _ ->
       true
   | ELocated (e, _) ->
       is_var e
@@ -40,7 +42,7 @@ let name (hint : string) e : (expression -> expression) * expression =
     (fun hole -> hole), e
   else
     let x = Utils.fresh_var hint in
-    (fun hole -> ELet (Nonrecursive, [ PVar x, e ], hole)), EVar x
+    (fun hole -> ELet (Nonrecursive, [ PVar x, e ], hole)), var x
 
 (* Since each declaration is initially parsed as being in its own group, we need
  * to map over consecutive blocks and group them together. *)
@@ -77,6 +79,9 @@ let mk_datacon_reference (d : Datacon.name maybe_qualified) : datacon_reference 
   datacon_info = None
 };;
 
+let mkprefix (o : string) e =
+  EApply (var (Variable.register o), e)
+
 let mkinfix e1 (o : string) e2 =
   match o with
 
@@ -95,7 +100,7 @@ let mkinfix e1 (o : string) e2 =
       context1 (EIfThenElse (false, x1, x1, e2))
 
   | _ ->
-      EApply (EVar (Variable.register o), ETuple [e1; e2])
+      EApply (var (Variable.register o), ETuple [e1; e2])
 ;;
 
 let mk_tag_update_info () = {
@@ -106,4 +111,13 @@ let mk_field field_name = {
   field_name;
   field_offset = None;
 };;
+
+let rec mktyapp ty1 ty2 =
+  match ty1 with
+  | TyLocated (ty1, _) ->
+      mktyapp ty1 ty2
+  | TyApp (ty1, args) ->
+      TyApp (ty1, args @ [ ty2 ])
+  | _ ->
+      TyApp (ty1, [ ty2 ])
 

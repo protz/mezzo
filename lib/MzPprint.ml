@@ -137,6 +137,9 @@ let dump (filename : string) (doc : document) =
 let parens_with_nesting contents =
   surround 2 0 lparen contents rparen
 
+let brackets_with_nesting contents =
+  surround 2 0 lbracket contents rbracket
+
 (* Braces with nesting. Yields either:
    { this }
    or:
@@ -151,3 +154,38 @@ let braces_with_nesting contents =
 let array_with_nesting contents =
   surround 2 1 (string "[|") contents (string "|]")
 
+let plural = function
+  | 0
+  | 1 ->
+      ""
+  | _ ->
+      "s"
+
+let comma1 =
+  comma ^^ break 1
+
+let commas f xs =
+  flow_map comma1 f xs
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Typical forms: tuples, records, applications, etc. *)
+
+let tuple print components =
+  parens_with_nesting (
+    separate_map commabreak print components
+  )
+
+let record print fields =
+  braces_with_nesting (
+    separate_map semibreak (fun (field, thing) ->
+      (utf8string field ^^ space ^^ equals) ^//^ print thing
+    ) fields
+  )
+
+let application f head g arguments =
+  group (
+    f head ^^ nest 2 (
+      concat_map (fun arg -> break 1 ^^ g arg) arguments
+    )
+  )

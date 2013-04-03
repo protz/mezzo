@@ -20,6 +20,7 @@
 (** This module provides various helpers that help dealing with types. It also
  * re-exports most type-related functions. *)
 
+open Kind
 open TypeCore
 open DeBruijn
 
@@ -63,22 +64,6 @@ let ty_tuple ts =
   TyTuple ts
 ;;
 
-let ty_bottom =
-  TyForall (
-    (
-      (Auto (Variable.register "⊥"), KType, (Lexing.dummy_pos, Lexing.dummy_pos)),
-      CannotInstantiate
-    ),
-    TyBound 0
-  )
-
-let is_non_bottom t =
-  match t with
-  | TyForall (_, TyBound 0) ->
-      None
-  | _ ->
-      Some t
-
 (* This is right-associative, so you can write [list int @-> int @-> tuple []] *)
 let (@->) x y =
   TyArrow (x, y)
@@ -98,8 +83,6 @@ let ty_app t args =
     t
 ;;
 
-let flatten_kind = SurfaceSyntax.flatten_kind;;
-
 let fold_star perms =
   if List.length perms > 0 then
     MzList.reduce (fun acc x -> TyStar (acc, x)) perms
@@ -117,6 +100,28 @@ let strip_forall t =
   strip [] t
 ;;
 
+let strip_forall_and_bind env t =
+  let rec strip acc env t =
+    match t with
+    | TyForall ((binding, _), t) ->
+        let env, t, _ = bind_rigid_in_type env binding t in
+        strip (binding :: acc) env t
+    | _ ->
+        List.rev acc, env, t
+  in
+  strip [] env t
+
+let strip_exists_and_bind env t =
+  let rec strip acc env t =
+    match t with
+    | TyExists (binding, t) ->
+        let env, t, _ = bind_rigid_in_type env binding t in
+        strip (binding :: acc) env t
+    | _ ->
+        List.rev acc, env, t
+  in
+  strip [] env t
+
 let fold_forall bindings t =
   List.fold_right (fun binding t ->
     TyForall (binding, t)
@@ -131,27 +136,6 @@ let fold_exists bindings t =
 
 let fresh_auto_var prefix = Auto (Utils.fresh_var prefix);;
 
-
-
-(* -------------------------------------------------------------------------- *)
-
-(* Various functions related to binding and finding. *)
-
-(* When crossing a binder, say, [a : type], use this function to properly add
- * [a] in scope. *)
-let bind_in_type
-    (bind: env -> type_binding -> env * var)
-    (env: env)
-    (binding: type_binding)
-    (typ: typ): env * typ * var
-  =
-  let env, var = bind env binding in
-  let typ = tsubst (TyOpen var) 0 typ in
-  env, typ, var
-;;
-
-let bind_rigid_in_type = bind_in_type bind_rigid;;
-let bind_flexible_in_type = bind_in_type bind_flexible;;
 
 
 (* Functions for traversing the binders list. Bindings are traversed in an
@@ -238,14 +222,6 @@ let replace_type env point f =
 
 (* A hodge-podge of getters. *)
 
-let get_name env p =
-  let names = get_names env p in
-  try
-    List.find (function User _ -> true | Auto _ -> false) names
-  with Not_found ->
-    List.hd names
-;;
-
 let get_location env p =
   List.hd (get_locations env p)
 ;;
@@ -289,7 +265,7 @@ let get_branches env point: unresolved_branch list =
 ;;
 
 let get_arity (env: env) (var: var): int =
-  SurfaceSyntax.get_arity_for_kind (get_kind env var)
+  Kind.arity (get_kind env var)
 ;;
 
 let rec get_kind_for_type env t =
@@ -305,7 +281,7 @@ let rec get_kind_for_type env t =
       get_kind_for_type env t
 
   | TyApp (p, _) ->
-      let return_kind, _ = flatten_kind (get_kind env !!p) in
+      let _, return_kind = Kind.as_arrow (get_kind env !!p) in
       return_kind
 
   | TyUnknown
@@ -443,10 +419,10 @@ let is_tyapp = function
 
 let is_term env v = (get_kind env v = KTerm);;
 let is_perm env v = (get_kind env v = KPerm);;
-let is_type env v = (fst (flatten_kind (get_kind env v)) = KType);;
+let is_type env v = (snd (Kind.as_arrow (get_kind env v)) = KType);;
 
 let make_datacon_letters env kind flexible =
-  let _return_kind, arg_kinds = flatten_kind kind in
+  let arg_kinds, _return_kind = Kind.as_arrow kind in
   (* Turn the list of parameters into letters *)
   let letters: string list = MzPprint.name_gen (List.length arg_kinds) in
   let env, points = List.fold_left2 (fun (env, points) kind letter ->
@@ -466,7 +442,7 @@ let make_datacon_letters env kind flexible =
 let bind_datacon_parameters (env: env) (kind: kind) (branches: unresolved_branch list):
     env * var list * unresolved_branch list =
   let env, points = make_datacon_letters env kind false in
-  let arity = SurfaceSyntax.get_arity_for_kind kind in
+  let arity = Kind.arity kind in
   let branches = MzList.fold_lefti (fun i branches point ->
     let index = arity - i - 1 in
     let branches = List.map (tsubst_unresolved_branch (TyOpen point) index) branches in
@@ -506,13 +482,13 @@ module TypePrinter = struct
 
   (* --------------------------------------------------------------------------- *)
 
-  let print_var env = function
-    | User (m, var) when Module.equal (module_name env) m ->
-        utf8string (Variable.print var)
-    | User (m, var) ->
-        utf8string (Module.print m) ^^ ccolon ^^ utf8string (Variable.print var)
-    | Auto var ->
-        colors.yellow ^^ utf8string (Variable.print var) ^^ colors.default
+  let print_var env v =
+    let s = SurfaceSyntax.print_maybe_qualified Variable.print (Resugar.surface_print_var env v) in
+    match v with
+    | User _ ->
+        utf8string s
+    | Auto _ ->
+        colors.yellow ^^ utf8string s ^^ colors.default
   ;;
 
   let pvar buf (env, var) =
@@ -529,19 +505,6 @@ module TypePrinter = struct
 
   let print_field field =
     print_field_name (field.SurfaceSyntax.field_name)
-  ;;
-
-  let rec print_kind =
-    let open SurfaceSyntax in
-    function
-    | KTerm ->
-        string "term"
-    | KPerm ->
-        string "perm"
-    | KType ->
-        string "type"
-    | KArrow (k1, k2) ->
-        print_kind k1 ^^ space ^^ arrow ^^ space ^^ print_kind k2
   ;;
 
   (* This is for debugging purposes. Use with [Log.debug] and [%a]. *)
@@ -578,11 +541,18 @@ module TypePrinter = struct
 
   internal_pnames := pnames;;
 
+  let print_binding env (x, k, _) =
+    match k with
+    | KType ->
+        print_var env x
+    | _ ->
+        print_var env x ^^ string " : " ^^ print_kind k
+
   let rec print_quantified
       (env: env)
       (q: string)
       (name: name)
-      (kind: SurfaceSyntax.kind)
+      (kind: kind)
       (typ: typ) =
     utf8string q ^^ lparen ^^ print_var env name ^^ space ^^ colon ^^ space ^^
     print_kind kind ^^ rparen ^^ dot ^^ jump (print_type env typ)
@@ -592,7 +562,7 @@ module TypePrinter = struct
       if is_flexible env point then
         print_var env (get_name env point) ^^ star
       else if internal_wasflexible point then
-          lparen ^^ string "inst→" ^^ print_type env (modulo_flex_v env point) ^^ rparen
+        lparen ^^ string "inst→" ^^ print_type env (modulo_flex_v env point) ^^ rparen
       else
         print_var env (get_name env point)
     with UnboundPoint ->
@@ -613,47 +583,24 @@ module TypePrinter = struct
 
     | TyBound i ->
         int i
-        (* Log.error "All variables should've been bound at this stage" *)
-
-      (* Special-casing *)
-    | TyAnchoredPermission (TyOpen p, TySingleton (TyOpen p')) ->
-        let star = if is_flexible env p then star else empty in
-        let star' = if is_flexible env p' then star else empty in
-        print_var env (get_name env p) ^^ star ^^ space ^^ equals ^^ space ^^
-        print_var env (get_name env p') ^^ star'
 
     | (TyForall _) as t ->
-        let rec strip_bind acc env = function
-          | TyForall ((binding, _), t) ->
-              let env, t, _ = bind_rigid_in_type env binding t in
-              strip_bind (binding :: acc) env t
-          | _ as t ->
-              List.rev acc, env, t
-        in
-        let vars, env, t = strip_bind [] env t in
-        let vars = List.map (fun (x, k, _) ->
-          if k = KType then
-            print_var env x
-          else
-            print_var env x ^^ space ^^ colon ^^ space ^^ print_kind k
-        ) vars in
-        let vars = separate (comma ^^ space) vars in
-        let vars = lbracket ^^ vars ^^ rbracket in
-        vars ^//^ print_type env t
+        let vars, env, t = strip_forall_and_bind env t in
+	prefix 0 1
+	  (brackets (commas (print_binding env) vars))
+	  (print_type env t)
 
-    | TyExists ((name, kind, _) as binding, typ) ->
-        let env, typ, _ = bind_rigid_in_type env binding typ in
-        print_quantified env "∃" name kind typ
+    | (TyExists _) as t ->
+        let vars, env, t = strip_exists_and_bind env t in
+	prefix 0 1
+	  (braces (commas (print_binding env) vars))
+	  (print_type env t)
 
-    | TyApp (t1, t2) ->
-        print_type env t1 ^^ space ^^ separate_map space (print_type env) t2
+    | TyApp (head, args) ->
+        application (print_type env) head (print_type env) args
 
     | TyTuple components ->
-        lparen ^^
-        separate_map
-          (comma ^^ space)
-          (print_type env) components ^^
-        rparen
+        tuple (print_type env) components
 
     | TyConcreteUnfolded branch ->
         print_resolved_branch env branch
@@ -668,9 +615,15 @@ module TypePrinter = struct
           (print_type env t1 ^^ space ^^ arrow)
           (print_type env t2)
 
+      (* A special case: syntactic sugar for equations. *)
+    | TyAnchoredPermission (ty1, TySingleton ty2) ->
+        print_type env ty1 ^^ string " = " ^^ print_type env ty2
+
       (* Permissions. *)
     | TyAnchoredPermission (t1, t2) ->
-        print_type env t1 ^^ space ^^ at ^^ space ^^ print_type env t2
+        prefix 2 1
+          (print_type env t1 ^^ space ^^ at)
+          (print_type env t2)
 
     | TyEmpty ->
         string "empty"
@@ -681,12 +634,15 @@ module TypePrinter = struct
           (print_type env t2)
 
     | TyBar (p, q) ->
-        lparen ^^ print_type env p ^^ space ^^ bar ^^ space ^^
-        print_type env q ^^ rparen
+        parens (group (
+	  nest 2 (break 0 ^^ print_type env p) ^/^
+	  bar ^^ space ^^ nest 2 (print_type env q)
+	))
 
     | TyAnd (c, t) ->
-        print_constraint env c ^^ space ^^ string "∧" ^^ space ^^
-        print_type env t
+        prefix 0 1
+          (print_constraint env c ^^ space ^^ bar)
+          (print_type env t)
 
   and print_constraint env (mode, t) =
     string (Mode.print mode) ^^ space ^^ print_type env t
@@ -696,18 +652,18 @@ module TypePrinter = struct
         print_field_name name ^^ colon ^^ jump (print_type env typ)
 
     | FieldPermission typ ->
-        string "permission" ^^ space ^^ print_type env typ
+        bar ^^ space ^^ print_type env typ
 
   and print_unresolved_branch env (branch : unresolved_branch) =
     print_branch env
       (fun flavor -> string (DataTypeFlavor.print flavor))
-      print_datacon
+      print_datacon (* TEMPORARY may be ambiguous? (qualify) *)
       branch
 
   and print_resolved_branch env (branch : resolved_branch) =
     print_branch env
       (fun () -> empty)
-      (fun (_, dc) -> print_datacon dc)
+      (fun (_, dc) -> print_datacon dc) (* TEMPORARY may be ambiguous? (qualify) *)
       branch
 
   and print_branch : 'flavor 'datacon . env -> ('flavor -> document) -> ('datacon -> document) -> ('flavor, 'datacon) data_type_def_branch -> document =
@@ -716,12 +672,9 @@ module TypePrinter = struct
     let clause = b.branch_adopts in
     let record =
       if List.length fields > 0 then
-        space ^^ lbrace ^^
-        nest 4
-          (break 1 ^^ separate_map
-            (semi ^^ break 1)
-            (print_data_field_def env) fields) ^^
-        nest 2 (break 1 ^^ rbrace)
+        space ^^ braces_with_nesting (
+          separate_map semibreak (print_data_field_def env) fields
+	)
       else
         empty
     in

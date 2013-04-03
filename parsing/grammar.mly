@@ -19,7 +19,6 @@
 
 (** The grammar of Mezzo. *)
 
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Syntactic categories of names. *)
@@ -45,7 +44,7 @@
 (* Other tokens. *)
 
 %token          OPEN BUILTIN
-%token          KTERM KTYPE KPERM
+%token          TERM TYPE PERM
 %token          UNKNOWN DYNAMIC EXCLUSIVE MUTABLE
 %token          DATA BAR UNDERSCORE
 %token          LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
@@ -84,6 +83,7 @@
 
 %{
 
+open Kind
 open SurfaceSyntax
 open ParserUtils
 
@@ -118,16 +118,13 @@ open ParserUtils
   | o = COLONEQUAL
       { o }
 
-%inline operator:
-  | o = OPPREFIX
-      { o }
-  | o = infix_operator
-      { o }
-
 variable:
+    (* A identifier that begins with a lowercase letter is a variable. *)
   | x = LIDENT
-  | LPAREN x = operator RPAREN
-    { Variable.register x }
+    (* As per the OCaml convention, a parenthesized operator is a variable. *)
+  | LPAREN x = OPPREFIX RPAREN
+  | LPAREN x = infix_operator RPAREN
+      { Variable.register x }
 
 %inline datacon:
   datacon = UIDENT
@@ -148,20 +145,17 @@ maybe_qualified(X):
 | m = module_name COLONCOLON x = X
     { Qualified (m, x) }
 
-(* TEMPORARY for variables in types, we use TyBound/TyQualified;
-   this should be made uniform *)
-
-maybe_qualified_type_variable:
-(* An unqualified variable. *)
-| x = variable
-    { TyBound x }
-(* A variable just like above, prefixed with a module name. *)
-| m = module_name COLONCOLON x = variable
-    { TyQualified (m, x) }
+%inline maybe_qualified_type_variable:
+  x = maybe_qualified(variable)
+    { TyVar x }
 
 %inline datacon_reference:
   d = maybe_qualified(datacon)
     { mk_datacon_reference d }
+
+%inline maybe_qualified_variable:
+  x = maybe_qualified(variable)
+    { EVar x }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -192,13 +186,13 @@ separated_or_preceded_list(sep, X):
 (* Applications of types to types are based on juxtaposition, just like
    applications of terms to terms. *)
 
-(* Within the syntax of types, type/type applications are considered
-   binary, but in certain places, as in the left-hand side of a data
-   type definition, we must allow iterated applications. *)
+(* In the abstract syntax, type/type applications are n-ary. In the
+   grammar of types, though, they must be binary, in order to avoid
+   ambiguity. *)
 
 %inline type_type_application(X, Y):
   ty1 = X ty2 = Y (* juxtaposition *)
-    { TyApp (ty1, ty2) }
+    { mktyapp ty1 ty2 }
 
 %inline iterated_type_type_application(X, Y):
   x = X ys = Y* (* iterated juxtaposition *)
@@ -226,7 +220,7 @@ existential_quantifiers:
    syntax of type variable bindings must be atomic (well-delimited). *)
 
 atomic_type_binding:
-| x = variable (* KTYPE is the default kind *)
+| x = variable (* TYPE is the default kind *)
     { x, KType, ($startpos(x), $endpos) }
 | LPAREN b = type_binding RPAREN
     { b }
@@ -256,11 +250,11 @@ type_binding:
 atomic_kind:
 | LPAREN kind = kind RPAREN
     { kind }
-| KTERM
+| TERM
     { KTerm }
-| KTYPE
+| TYPE
     { KType }
-| KPERM
+| PERM
     { KPerm }
 
 %inline kind:
@@ -332,10 +326,10 @@ raw_atomic_type:
 (* Term variable, type variable, permission variable, abstract type, or concrete type. *)
 | x = maybe_qualified_type_variable
     { x }
-(* A structural type explicitly mentions a data constructor. *)
-(* TEMPORARY add support for optional adopts clause in structural permissions *)
+(* A structural type without an [adopts] clause (which is the usual case)
+   is an atomic type. *)
 | b = data_type_branch
-    { TyConcreteUnfolded b }
+    { TyConcreteUnfolded (b, None) }
 
 %inline tight_type:
 | ty = tlocated(raw_tight_type)
@@ -373,6 +367,10 @@ raw_normal_type:
 (* A type that carries a mode constraint (conjunction). *)
 | c = mode_constraint BAR ty = normal_type
     { TyAnd (c, ty) }
+(* A structural type with an [adopts] clause is a considered a normal type.
+   This allows the type in the [adopts] clause to be itself a normal type. *)
+| b = data_type_branch ADOPTS t = normal_type
+    { TyConcreteUnfolded (b, Some t) }
 
 %inline loose_type:
 | ty = tlocated(raw_loose_type)
@@ -520,7 +518,7 @@ data_field_def:
    a field name [f]. This is a pun: it means [f = f], or in other words,
    [f: =f]. *)
 | f = variable
-    { [ FieldValue (f, TySingleton (TyBound f)) ] }
+    { [ FieldValue (f, TySingleton (TyVar (Unqualified f))) ] }
 
 (* Field definitions are semicolon-separated or -terminated. *)
 
@@ -557,10 +555,6 @@ data_type_def_branch_content:
   bs = separated_or_preceded_list(BAR, data_type_def_branch)
     { bs }
 
-%inline adopts_clause:
-  ADOPTS t = arbitrary_type
-    { t }
-
 %inline data_type_flavor:
 | (* nothing *)
     { DataTypeFlavor.Immutable }
@@ -582,7 +576,7 @@ data_type_def:
   DATA lhs = data_type_def_lhs
   EQUAL
   rhs = data_type_def_rhs
-  a = adopts_clause?
+  a = preceded(ADOPTS, arbitrary_type)?
     { Concrete (flavor, lhs, rhs, a) }
 | ABSTRACT
   lhs = data_type_def_lhs
@@ -655,7 +649,6 @@ raw_normal_pattern:
     { PTuple ps }
 | p = normal_pattern AS v = variable
     { PAs (p, v) }
-(* TEMPORARY or-patterns are missing *)
 
 %inline loose_pattern:
 | p = plocated(raw_loose_pattern)
@@ -704,11 +697,9 @@ raw_atomic_expression:
    very tightly. Here, we follow OCaml. For instance, [!x.foo] is interpreted
    as [(!x).foo]. Thus, the prefix operators bind more tightly than the dot. *)
 | o = OPPREFIX e = atomic_expression
-    { EApply (EVar (Variable.register o), e) }
-| v = variable
-    { EVar v }
-| m = module_name COLONCOLON x = variable
-    { EQualified (m, x) }
+    { mkprefix o e }
+| v = maybe_qualified_variable
+    { v }
 | i = INT
     { EInt i }
 | FAIL
@@ -725,9 +716,6 @@ raw_atomic_expression:
 (* The unit value. *)
 | LPAREN RPAREN
     { ETuple [] }
-(* An expression that carries a type constraint. *)
-| LPAREN e = algebraic_expression COLON t = arbitrary_type RPAREN
-    { EConstraint (e, t) }
 (* A parenthesized tuple. Thanks to the presence of the parentheses,
    we can be somewhat flexible and allow the *last* component to be
    a fragile expression. The other components cannot be fragile.
@@ -760,7 +748,7 @@ data_field_expression:
     { f, e }
 | f = variable
     (* Punning *)
-    { f, EVar f }
+    { f, EVar (Unqualified f) }
 
 explain:
 | (* nothing *)
@@ -818,6 +806,9 @@ raw_algebraic_expression:
    [f - 1]. Like OCaml, we allow [-f x], which is interpreted as [-(f x)]. *)
 | MINUS e = application_expression
     { mkinfix (EInt 0) "-" e }
+    (* TEMPORARY here, unary minus is treated as a non-hygienic macro for
+       binary minus; do we want this? does OCaml allow redefining unary
+       minus? *)
 | e1 = algebraic_expression OWNS e2 = algebraic_expression
     { EOwns (e1, e2) }
 | e = raw_application_expression
@@ -887,6 +878,11 @@ raw_reasonable_expression:
     { EAssert t }
 | e = algebraic_expression EXPLAIN
     { EExplained e }
+(* An expression that carries a type constraint. We cannot allow a fat type
+   here because they have BARs in them and that would create an ambiguity
+   when used inside a match construct! *)
+| e = algebraic_expression COLON t = very_loose_type
+    { EConstraint (e, t) }
 | e = raw_algebraic_expression
     { e }
 

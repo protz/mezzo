@@ -22,6 +22,11 @@
 (* In principle, very little desugaring is performed on the fly by the
    parser. *)
 
+(* ---------------------------------------------------------------------------- *)
+
+(* Field names are just variable names. These two namespaces cannot be
+   statically distinguished (due to the possibility of punning). *)
+
 module Field =
   Variable
 
@@ -61,10 +66,6 @@ type datacon_info = {
    [m::x]. This holds for variables (of arbitrary kind: term, type, etc.)
    and for data constructors. *)
 
-(* TEMPORARY replace TyBound/TyQualified and EVar/EQualified to use this
-   instead? do the same in the grammar; see how it is done for data
-   constructors *)
-
 type 'a maybe_qualified =
   | Unqualified of 'a
   | Qualified of Module.name * 'a
@@ -90,42 +91,9 @@ type datacon_reference = {
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Kinds. *)
-
-(* Arrow kinds are not accessible to the user. They are used internally:
-   a user-defined algebraic data type constructor receives an arrow kind.
-   Thus, even internally, we only use first-order kinds (that is, the
-   left-hand argument of an arrow kind is never itself an arrow kind). *)
-
-type kind =
-  | KTerm
-  | KType
-  | KPerm
-  | KArrow of kind * kind
-
-type variance = Invariant | Covariant | Contravariant | Bivariant
-
-(* A small helper function that transforms
- * [κ₁ → ... → κₙ → κ₀] into [κ₀, [κ₁; ...; κₙ]] *)
-let flatten_kind kind =
-  let rec flatten_kind acc = function
-    | KArrow (k1, k2) ->
-        flatten_kind (k1 :: acc) k2
-    | _ as k ->
-        acc, k
-  in
-  let acc, k = flatten_kind [] kind in
-  k, List.rev acc
-;;
-
-let get_arity_for_kind kind =
-  let _, tl = flatten_kind kind in
-  List.length tl
-;;
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Types and permissions. *)
+
+open Kind
 
 type location = Lexing.position * Lexing.position
 
@@ -138,6 +106,8 @@ type binding_flavor = CanInstantiate | CannotInstantiate
 type type_binding =
     Variable.name * kind * (Lexing.position * Lexing.position)
 
+type variance = Invariant | Covariant | Contravariant | Bivariant
+
 type type_binding_with_variance = variance * type_binding
 
 type typ =
@@ -146,11 +116,10 @@ type typ =
   | TyUnknown
   | TyDynamic
   | TyEmpty
-  | TyBound of Variable.name
-  | TyQualified of Module.name * Variable.name
-  | TyConcreteUnfolded of (datacon_reference * data_field_def list)
+  | TyVar of Variable.name maybe_qualified
+  | TyConcreteUnfolded of (datacon_reference * data_field_def list) * adopts_clause
   | TySingleton of typ
-  | TyApp of typ * typ
+  | TyApp of typ * typ list
   | TyArrow of typ * typ
   | TyForall of type_binding * typ
   | TyExists of type_binding * typ
@@ -171,41 +140,8 @@ and data_field_def =
   | FieldValue of Field.name * typ
   | FieldPermission of typ
 
-let ty_equals (v: Variable.name) =
-  TySingleton (TyBound v)
-;;
-
-let rec flatten_star p =
-  match p with
-  | TyStar (t1, t2) ->
-      flatten_star t1 @ flatten_star t2
-  | TyEmpty ->
-      []
-  | TyBound _
-  | TyConsumes _
-  | TyAnchoredPermission _
-  | TyApp _ ->
-      [p]
-  | TyLocated (p, _) ->
-      flatten_star p
-  | _ as p ->
-      Log.error "[flatten_star] only works for types with kind PERM (%a)"
-        Utils.ptag p
-;;
-
-let fold_star perms =
-  if List.length perms > 0 then
-    MzList.reduce (fun acc x -> TyStar (acc, x)) perms
-  else
-    TyEmpty
-;;
-
-let rec tunloc = function
-  | TyLocated (t, _) ->
-      tunloc t
-  | _ as t ->
-      t
-;;
+and adopts_clause =
+    typ option
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -216,9 +152,6 @@ type data_type_def_lhs =
 
 type data_type_def_rhs =
     data_type_def_branch list
-
-type adopts_clause =
-    typ option
 
 type single_fact = 
   | Fact of mode_constraint list * mode_constraint
@@ -267,10 +200,8 @@ type rec_flag = Nonrecursive | Recursive
 and expression =
   (* e: τ *)
   | EConstraint of expression * typ
-  (* v *)
-  | EVar of Variable.name
-  (* M :: v *)
-  | EQualified of Module.name * Variable.name
+  (* v or M :: v *)
+  | EVar of Variable.name maybe_qualified
   (* builtin foo *)
   | EBuiltin of string
   (* let rec f p₁ … pₙ: τ = e₁ and … and v = e₂ in e *)
@@ -385,7 +316,7 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TyTuple tys ->
       PTuple (List.map type_to_pattern tys)
 
-  | TyConcreteUnfolded (datacon, fields) ->
+  | TyConcreteUnfolded ((datacon, fields), _adopts) ->
       let fps =
 	List.fold_left (fun fps field ->
 	  match field with
@@ -430,10 +361,9 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TyUnknown
   | TyArrow _ 
   | TySingleton _
-  | TyQualified _
   | TyDynamic
   | TyApp _
-  | TyBound _ ->
+  | TyVar _ ->
       PAny
 
   (* The following cases should not arise. *)
@@ -458,3 +388,8 @@ let print_maybe_qualified print = function
   | Qualified (m, x) ->
       Module.print m ^ "::" ^ print x
 
+let destruct_unqualified = function
+  | Unqualified x ->
+      x
+  | Qualified _ ->
+      assert false

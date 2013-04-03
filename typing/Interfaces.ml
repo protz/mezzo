@@ -17,12 +17,12 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** This module helps dealing with interfaces. *)
+(** This module helps deal with interfaces. *)
 
+open Kind
 module S = SurfaceSyntax
 module E = Expressions
 module T = TypeCore
-module TS = TransSurface
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -69,6 +69,13 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
   import_items env iface
 ;;
 
+(* TEMPORARY suggestion: instead of manually using [translate_type]
+   and [translate_data_type_group], maybe we could translate the
+   entire interface at once using [translate_interface] -- suitably extended
+   with a [bind] parameter that allows choosing the right points. Then, there
+   would only remain to compare implementation & interface, both expressed in
+   the core language. *)
+
 (* Check that [env] respect the [signature] which is that of module [mname]. We
  * will want to check that [env] respects its own signature, but also that of
  * the modules it exports, i.e. that it leaves them intact.
@@ -81,7 +88,7 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
 let check
   (env: T.env)
   (signature: S.toplevel_item list)
-  (exports: (Variable.name * T.kind * T.var) list)
+  (exports: (Variable.name * kind * T.var) list)
 : T.env =
   (* Find one specific name among these names. *)
   let point_by_name name =
@@ -101,7 +108,7 @@ let check
         raise_error env (MissingFieldInSignature name)
   in
 
-  (* As [check] processes one toplevel declaration after another, it first add
+  (* As [check] processes one toplevel declaration after another, it first adds
    * the name into the translation environment (i.e. after processing [val foo @ τ],
    * [foo] is known to point to a point in [env] in [tsenv]). Second, in
    * order to check [val foo @ τ], it removes [τ] from the list of available
@@ -117,7 +124,7 @@ let check
         Log.debug ~level:3 "*** Checking sig item %a" Variable.p x;
 
         (* Make sure [t] has kind ∗ *)
-        KindCheck.check tsenv t S.KType;
+        KindCheck.check tsenv t KType;
 
         (* Now translate type [t] into the internal syntax; [x] is not bound in
          * [t]. *)
@@ -137,40 +144,29 @@ let check
 
         (* Alright, [x] is now bound, and when it appears afterwards, it will
          * refer to the original [x] from [env]. *)
-        let tsenv = KindCheck.bind_external tsenv (x, S.KTerm, point) in
+        let tsenv = KindCheck.bind_external tsenv (x, KTerm, point) in
 
         (* Check the remainder of the toplevel_items. *)
         check env tsenv toplevel_items
 
     | S.DataTypeGroup group :: toplevel_items ->
-        (* We first collect the names of all the data types. *)
-        let group = snd group in
-        let bindings = KindCheck.bindings_data_type_group group in
 
-        (* And associate them to the corresponding definitions in [env]. *)
-        let bindings = List.map (fun (name, k) ->
-          let point = point_by_name name in
-          name, k, point
-        ) bindings in
+        (* Translate this data type group, while taking care to re-use
+	   the existing points in [env]. *)
+        let tsenv, translated_definitions =
+	  TransSurface.translate_data_type_group (fun tsenv (name, kind) ->
+            KindCheck.bind_external tsenv (name, kind, point_by_name name)
+	  ) tsenv group
+	in
 
-        (* Translate the data types definitions so that they refer to the
-         * "original" points from [env]. *)
-        let tsenv = List.fold_left KindCheck.bind_external tsenv bindings in
-        (* Don't forget to bind the data constructors. *)
-        let tsenv = TS.bind_datacons tsenv group in
-        (* Do the translation *)
-        let translated_definitions =
-          List.map (TS.translate_data_type_def tsenv) group
-        in
-
-        (* Check that the translated definitions from the interface in the known
+        (* Check that the translated definitions from the interface and the known
          * definitions from the implementations are consistent. *)
-        List.iter2 (fun (name, k, point) (name', _loc, def, fact, kind) ->
+        List.iter (fun (name, _loc, def, fact, k) ->
+	  let point = point_by_name name in
           (* Variables marked with ' belong to the implementation. *)
-          let open TypeErrors in
 
-          Log.check (Variable.equal name name') "Names not in order?!";
-          Log.check (k = kind) "Inconsistency?!";
+
+          let open TypeErrors in
           let error_out reason =
             raise_error env (DataTypeMismatchInSignature (name, reason))
           in
@@ -249,7 +245,7 @@ let check
                 ) branch.T.branch_fields branch'.T.branch_fields;
               ) branches branches';
 
-        ) bindings translated_definitions;
+        ) translated_definitions;
 
         (* Check the remainder of the toplevel_items. *)
         check env tsenv toplevel_items
