@@ -1,0 +1,74 @@
+(* An attempt at semi-persistent arrays, using one-shot functions
+   to encode the "arrow" permissions associated to rollback. *)
+(* The current implementation is as close as possible to François's
+   example. *)
+
+open oneshotfunction
+
+abstract sparray a
+
+(* The current implementation is as follows. However, the only
+   function whose type requires that knowledge is [reroot], and
+   we do not need to show this function to the user, hence the
+   type is kept abstract here. *)
+
+(* The function [set] also requires some knowledge about the
+   internal representation of [sparray] if one-shot functions
+   are not used properly. *)
+
+(*
+mutable data sparray a =
+  | SPArray { repr: repr a }
+
+mutable data repr a =
+  | RFlat { contents: array a }
+  | RUndo { descendant: sparray a; offset: int; element: a }
+*)
+
+
+val create: [a] duplicable a => (int, a) -> sparray a
+
+(* Reroot is not needed in the interface, and it refers to the
+   internal representation, so it is commented here. *)
+(*
+val reroot: [a] (consumes spa: sparray a) ->
+  ( | spa @ SPArray { repr: RFlat { contents: array a } })
+*)
+
+val get: [a] duplicable a => (sparray a, int) -> a
+
+(* The function [set] consumes a semi-persistent array [spa]
+   and returns two things:
+   - an updated semi-persistent array [spa'], and
+   - a void one-shot function [back] that allows one to retrieve
+     a permission on [spa] by giving up the permission on [spa'].
+*)
+
+(* The one-shot function is a record that contains a hidden
+   (existentially quantified) permission. This permission concerns
+   the root of [spa] as well as the diff between [spa] and [spa'].
+   It is used to retrieve [spa] from [spa']. *)
+
+(* Remark: in this version, the rollback functions have to be
+   applied explicitely! It would be nice to also have some
+   automation here. *)
+
+val set: [a] duplicable a =>
+  (consumes spa: sparray a, offset: int, element: a) ->
+  (spa': sparray a,
+   back: osf ( | spa' @ sparray a) ( | spa @ sparray a) )
+
+(* Below, a version of [set] where one-shot functions are not used.
+   It requires a hard-wired representation of [sparray] in which a
+   kind of magic wand is encoded by hand. *)
+
+(*
+val set: [a] duplicable a =>
+  (consumes spa: sparray a, offset: int, element: a) ->
+  (spa': sparray a,
+   back: ( | consumes (spa' @ sparray a * spa @ SPArray {
+			  repr: RUndo {
+			    descendant: =spa'; offset: int; element: a
+			  } 
+			})) -> ( | spa @ sparray a) )
+*)

@@ -1,0 +1,70 @@
+open oneshotfunction
+
+mutable data sparray a =
+  | SPArray { repr: repr a }
+
+mutable data repr a =
+  | RFlat { contents: array a }
+  | RUndo { descendant: sparray a; offset: int; element: a }
+
+(*
+mutable data sparray a =
+  | SPCurrent { contents: array a }
+  | SPOld { contents: unknown; next: unknown; back: ( | consumes (next @ array a) ) -> ( | contents @ array a) }
+*)
+
+val create [a] duplicable a => (size: int, element: a): sparray a =
+  SPArray {
+    repr = RFlat {
+      contents = array::create (size, element)
+    }
+  }
+   
+val rec reroot [a] (consumes spa: sparray a):
+  ( | spa @ SPArray { repr: RFlat { contents: array a } }) =
+  match spa.repr with
+  | RFlat {} ->
+    ()
+  | RUndo { descendant; offset; element } ->
+    reroot descendant;
+    let n = descendant.repr in
+    let a = n.contents in
+    array::set (a, offset, element);
+    spa.repr <- n
+  end
+
+val get [a] duplicable a => (spa: sparray a, offset: int): a =
+  reroot spa;
+  array::get (spa.repr.contents, offset)
+
+val set [a] duplicable a =>
+  (consumes spa: sparray a, offset: int, element: a):
+  (spa': sparray a,
+   back: osf ( | spa' @ sparray a) ( | spa @ sparray a) ) =
+  reroot spa;
+  let r = spa.repr in
+  let arr = r.contents in
+  let old_x = array::get(arr, offset) in
+  array::set(arr, offset, element);
+  let spa' = SPArray { repr = r } in
+  spa.repr <- RUndo { descendant = spa'; offset = offset; element = element };
+  (* A kind of magic wand is encoded by hand here. *)
+  let back =
+    fun ( | consumes (spa' @ sparray a * spa @ SPArray {
+      repr: RUndo {
+	descendant: =spa'; offset: int; element: a
+      } 
+    })): ( | spa @ sparray a) =
+    ()
+  in
+  spa', (osf_make
+	   (* I guess the needed annotation is the third one. *)
+	   [ ( | spa' @ sparray a) ]
+	   [ ( | spa @ sparray a) ]
+	   [ (spa @ SPArray {
+	     repr: RUndo {
+	       descendant: =spa'; offset: int; element: a
+	     } 
+	   }) ]
+	   back)
+
