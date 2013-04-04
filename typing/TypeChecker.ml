@@ -1138,24 +1138,17 @@ and check_bindings
 
 let check_declaration_group
     (env: env)
-    (declarations: declaration_group)
+    (declarations: declaration)
     (toplevel_items: toplevel_item list): env * toplevel_item list * var list =
-  let rec check_declaration_group env declarations acc =
+  let env, vars =
     match declarations with
-    | DLocated (declarations, p) :: tl ->
+    | DLocated (DMultiple (rec_flag, patexprs), p) ->
         let env = locate env p in
-        check_declaration_group env (declarations :: tl) acc
-    | DMultiple (rec_flag, patexprs) :: tl ->
-        let env, { subst_decl; vars; _ } = check_bindings env rec_flag patexprs in
-        let tl = subst_decl tl in
-        check_declaration_group env tl (vars :: acc)
-    | [] ->
-        env, acc
+        let env, { vars; _ } = check_bindings env rec_flag patexprs in
+        env, vars
+    | _ ->
+        assert false
   in
-  let env, acc = check_declaration_group env declarations [] in
-  (* Alright, this is an UGLY manipulation of De Bruijn indices... *)
-  let vars = List.rev acc in
-  let vars = List.flatten vars in
   (* List kept in reverse, the usual trick. *)
   let vars = List.rev vars in
   let subst_toplevel_items b =

@@ -297,9 +297,6 @@ let rec transl_declaration loc = function
   | DLocated (def, loc) ->
       transl_declaration loc def
 
-let transl_declaration_group defs =
-  List.map (transl_declaration dummy_loc) defs
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Translating top-level items. *)
@@ -308,7 +305,7 @@ let transl_item (implementation : bool) = function
   | DataTypeGroup group ->
       transl_data_type_group group
   | ValueDeclarations group ->
-      transl_declaration_group group
+      [ transl_declaration dummy_loc group ]
   | PermDeclaration (x, _) ->
       [ U.ValueDeclaration x ]
   | OpenDirective m ->

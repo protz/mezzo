@@ -42,7 +42,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
               @ MzList.map_flatten collect_data_type_def_branch rhs
         ) defs
     | ValueDeclarations decls ->
-        MzList.map_flatten collect_decl decls
+        collect_decl decls
     | OpenDirective m ->
         [m]
 
