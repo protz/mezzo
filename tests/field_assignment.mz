@@ -1,4 +1,4 @@
-mutable data foo = Foo { foo: int }
+data mutable foo = Foo { foo: int }
 
 val main: foo =
   let f = Foo { foo = (2, 2) } in

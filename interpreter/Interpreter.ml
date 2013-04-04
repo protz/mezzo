@@ -827,7 +827,7 @@ let evaluate_data_type_def (env : env) (branches : data_type_def_rhs) : env =
 let eval_implementation_item (env : env) (item : toplevel_item) : env =
   match item with
   | ValueDeclarations defs ->
-      List.fold_left (eval_value_definition dummy_loc) env defs
+      eval_value_definition dummy_loc env defs
   | OpenDirective m ->
       (* Assuming that the module [m] has been evaluated before, the (public)
 	 qualified names that it has declared are available in the environment.

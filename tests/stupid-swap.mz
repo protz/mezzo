@@ -1,6 +1,6 @@
 (* Parsing: a structural permission with sugar for singleton types. *)
 
-mutable data xpair a b =
+data mutable xpair a b =
   XPair { left: a; right: b }
 
 val xswap [v : term] (x: XPair { left = v; right = v }) : () =

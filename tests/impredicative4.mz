@@ -2,7 +2,7 @@
  * restrictive: it consumes its argument! See [impredicative5.mz] for the
  * symmetrical case. *)
 
-mutable data foo = Foo
+data mutable foo = Foo
 
 val fst [a, b] (consumes y: a, b): a = y
 

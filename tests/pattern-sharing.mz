@@ -1,4 +1,4 @@
-mutable data t = T
+data mutable t = T
 
 val f (consumes x: t) : (t, t) =
   match x, x with

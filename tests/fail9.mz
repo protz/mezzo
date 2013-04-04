@@ -1,5 +1,5 @@
-mutable data u = Bar
-mutable data t = Foo adopts u
+data mutable u = Bar
+data mutable t = Foo adopts u
 
 val f (y: t, x: unknown): () =
   take x from y

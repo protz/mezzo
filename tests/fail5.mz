@@ -1,4 +1,4 @@
-mutable data option a = Some { contents: a } | None
+data mutable option a = Some { contents: a } | None
 data t a = A | B { b: a }
 
 (* That example is correct but the type-checker doesn't have a linearity

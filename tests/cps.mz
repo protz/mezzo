@@ -280,7 +280,7 @@ data iterator a (post : perm) =
     IFinished { outcome: outcome | post }
   | IAvailable { content: { pre : perm } product a pre post }
 
-data product a (pre : perm) (post : perm) =
+and product a (pre : perm) (post : perm) =
   | Product { content: (
       head: a,
       continuation: (request | consumes (head @ a * pre)) -> iterator a post

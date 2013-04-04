@@ -44,36 +44,6 @@ let name (hint : string) e : (expression -> expression) * expression =
     let x = Utils.fresh_var hint in
     (fun hole -> ELet (Nonrecursive, [ PVar x, e ], hole)), var x
 
-(* Since each declaration is initially parsed as being in its own group, we need
- * to map over consecutive blocks and group them together. *)
-let group (declarations: toplevel_item list): toplevel_item list =
-  let rev_g = function
-    | DataTypeGroup (loc, gs) ->
-        DataTypeGroup (loc, List.rev gs)
-    | ValueDeclarations gs ->
-        ValueDeclarations (List.rev gs)
-    | _ as x ->
-        x
-  in
-  let rev = List.rev_map rev_g in
-  let rec group prev next =
-    match prev, next with
-    | DataTypeGroup (loc, gs) :: prev, DataTypeGroup (loc', g) :: next ->
-        group (DataTypeGroup ((fst loc, snd loc'), g @ gs) :: prev) next
-    | ValueDeclarations gs :: prev, ValueDeclarations g :: next ->
-        group (ValueDeclarations (g @ gs) :: prev) next
-    | _, n :: ns ->
-        group (n :: prev) ns
-    | _, [] ->
-        rev prev
-  in
-  match declarations with
-  | [] ->
-      []
-  | head :: tail ->
-      group [head] tail
-;;
-
 let mk_datacon_reference (d : Datacon.name maybe_qualified) : datacon_reference = {
   datacon_unresolved = d;
   datacon_info = None

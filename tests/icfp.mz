@@ -3,7 +3,7 @@
 data list a =
    Nil |  Cons { head: a; tail: list a } 
 
-mutable data mlist a =
+data mutable mlist a =
   MNil | MCons { head: a; tail: list a } 
 
 val rec appendAux [a] ( 

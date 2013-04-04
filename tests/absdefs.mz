@@ -1,5 +1,5 @@
 data t = T
 data u = U
 
-mutable data t_x = Tx
-mutable data u_x = Ux
+data mutable t_x = Tx
+data mutable u_x = Ux

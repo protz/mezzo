@@ -1,6 +1,6 @@
 open absdefs
 
-mutable data t = T
+data mutable t = T
 
 val f1 (x: u_x, y: u_x): ((), ()) =
   if x == y then

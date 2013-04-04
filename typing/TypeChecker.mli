@@ -27,6 +27,6 @@
  * an environment, the transformed [items], and the list of opened variables. *)
 val check_declaration_group :
   TypeCore.env ->
-  Expressions.declaration_group ->
+  Expressions.declaration ->
   Expressions.toplevel_item list ->
   TypeCore.env * Expressions.toplevel_item list * TypeCore.var list

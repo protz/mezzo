@@ -19,14 +19,14 @@ data parray a =
 
 (* A region serves as an adopter for a set of points. *)
 
-mutable data region a =
+and mutable region a =
   Region adopts point a
 
 (* A point is either flat -- a primitive array -- or a pair of a pointer to
    another point (in the same region) and an undo instruction. We use three
    fields in either case, so as to allow tag updates in either direction. *)
 
-mutable data point a =
+and mutable point a =
 | PFlat { contents: array a; unused1: (); unused2: () }
 | PUndo { previous: dynamic; offset: int; element:  a }
 

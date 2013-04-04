@@ -1,7 +1,7 @@
 (* This module implements resizable arrays, also known as vectors,
    for short. *)
 
-mutable data vector a =
+data mutable vector a =
   Vector {
     (* A default function, used to initialize new locations when the
        vector is enlarged. *)

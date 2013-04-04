@@ -1,5 +1,5 @@
 
-mutable data t a = A | B { b: a }
+data mutable t a = A | B { b: a }
 
 val s1 =
   let x = A in

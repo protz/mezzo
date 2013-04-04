@@ -1,4 +1,4 @@
-mutable data pair a b = Pair { left: a; right: b }
+data mutable pair a b = Pair { left: a; right: b }
 
 val right [a, b] (consumes a, consumes Pair { left: unknown; right: b }): () =
   fail

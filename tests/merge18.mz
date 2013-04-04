@@ -1,5 +1,5 @@
 data foo a = Foo { foo: a } | Bar
-mutable data x = X
+data mutable x = X
 
 val destroy [a] (consumes x: a): () = ()
 

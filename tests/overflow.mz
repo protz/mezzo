@@ -1,4 +1,4 @@
-mutable data item =
+data mutable item =
   Item { block: dynamic }
 
 val new_item () : dynamic =

@@ -1,5 +1,5 @@
 (* Success: 12 *)
-mutable data pool a = P adopts array a
+data mutable pool a = P adopts array a
 val () =
   let x = array::create (10, 12) in
   let p : pool int = P in

@@ -10,7 +10,7 @@ data foo =
   | Nil
   | Cons { head: (); tail: () }
 
-mutable data ref a =
+data mutable ref a =
   Ref { contents: a }
 
 val ref_length [a] (r: ref (list a)) : int =

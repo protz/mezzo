@@ -119,15 +119,12 @@ type declaration =
   | DMultiple of rec_flag * patexpr list
   | DLocated of declaration * location
 
-type declaration_group =
-  declaration list
-
 type sig_item =
   Variable.name * typ
 
 type toplevel_item =
   | DataTypeGroup of data_type_group
-  | ValueDeclarations of declaration_group
+  | ValueDeclarations of declaration
   | PermDeclaration of sig_item
 
 type implementation =
@@ -179,17 +176,14 @@ let collect_pattern (p: pattern): ((Variable.name * (Lexing.position * Lexing.po
 ;;
 
 (* How many binders in this declaration group? *)
-let n_decls decls =
-  let counts = List.map (function
-    | DLocated (DMultiple (_, patexprs), _) ->
-        let names = List.flatten
-          (List.map collect_pattern (fst (List.split patexprs)))
-        in
-        List.length names
-    | _ ->
-        assert false
-  ) decls in
-  List.fold_left (fun acc x -> acc + x) 0 counts
+let n_decls = function
+  | DLocated (DMultiple (_, patexprs), _) ->
+      let names = List.flatten
+        (List.map collect_pattern (fst (List.split patexprs)))
+      in
+      List.length names
+  | _ ->
+      assert false
 ;;
 
 
@@ -387,17 +381,12 @@ and tsubst_expr t2 i e =
 
 (* [tsubst_decl t2 i decls] substitutes type [t2] for index [i] in a list of
  * declarations [decls]. *)
-and tsubst_decl t2 i decls =
-  let rec tsubst_decl acc i = function
-    | DLocated (DMultiple (rec_flag, patexprs), p) :: decls ->
-        let n, patexprs = tsubst_patexprs t2 i rec_flag patexprs in
-        tsubst_decl (DLocated (DMultiple (rec_flag, patexprs), p) :: acc) (i + n) decls
-    | [] ->
-        List.rev acc
-    | _ ->
-        assert false
-  in
-  tsubst_decl [] i decls
+and tsubst_decl t2 i = function
+  | DLocated (DMultiple (rec_flag, patexprs), p) ->
+      let _, patexprs = tsubst_patexprs t2 i rec_flag patexprs in
+      DLocated (DMultiple (rec_flag, patexprs), p)
+  | _ ->
+      assert false
 ;;
 
 let rec tsubst_toplevel_items t2 i toplevel_items =
@@ -409,11 +398,11 @@ let rec tsubst_toplevel_items t2 i toplevel_items =
       let group = tsubst_data_type_group t2 (i + n) group in
       let toplevel_items = tsubst_toplevel_items t2 (i + n) toplevel_items in
       DataTypeGroup group :: toplevel_items
-  | ValueDeclarations decls :: toplevel_items ->
-      let decls = tsubst_decl t2 i decls in
-      let n = n_decls decls in
+  | ValueDeclarations decl :: toplevel_items ->
+      let decl = tsubst_decl t2 i decl in
+      let n = n_decls decl in
       let toplevel_items = tsubst_toplevel_items t2 (i + n) toplevel_items in
-      ValueDeclarations decls :: toplevel_items
+      ValueDeclarations decl :: toplevel_items
   | PermDeclaration (x, t) :: toplevel_items ->
       let t = tsubst t2 i t in
       let toplevel_items = tsubst_toplevel_items t2 (i + 1) toplevel_items in
@@ -547,17 +536,12 @@ and esubst e2 i e1 =
 
 (* [esubst_decl e2 i decls] substitutes expression [e2] for index [i] in a list of
  * declarations [decls]. *)
-and esubst_decl e2 i decls =
-  let rec esubst_decl acc i = function
-    | DLocated (DMultiple (rec_flag, patexprs), p) :: decls ->
-        let n, patexprs = esubst_patexprs e2 i rec_flag patexprs in
-        esubst_decl (DLocated (DMultiple (rec_flag, patexprs), p) :: acc) (i + n) decls
-    | [] ->
-        List.rev acc
-    | _ ->
-        assert false
-  in
-  esubst_decl [] i decls
+and esubst_decl e2 i = function
+  | DLocated (DMultiple (rec_flag, patexprs), p) ->
+      let _, patexprs = esubst_patexprs e2 i rec_flag patexprs in
+      DLocated (DMultiple (rec_flag, patexprs), p)
+  | _ ->
+      assert false
 ;;
 
 let rec esubst_toplevel_items e2 i toplevel_items =
@@ -593,7 +577,7 @@ type substitution_kit = {
   (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EOpen]s in an [expression]. *)
   subst_expr: expression -> expression;
   (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EOpen]s in an [expression]. *)
-  subst_decl: declaration list -> declaration list;
+  subst_decl: declaration -> declaration;
   (* substitute [PVar]s for [POpen]s in a pattern *)
   subst_pat: pattern list -> pattern list;
   (* the vars, in left-to-right order *)
@@ -1222,31 +1206,13 @@ module ExprPrinter = struct
     print_ebinder env ((User (module_name env, name), kind, pos), f)
   ;;
 
-  let rec print_declaration env declaration: env * document * _  =
+  let rec print_declaration env declaration =
     match declaration with
     | DLocated (declaration, _) ->
         print_declaration env declaration
     | DMultiple (rec_flag, patexprs) ->
-        let env, patexprs, { subst_decl; _ } = bind_patexprs env rec_flag patexprs in
-        env,
-        string "val" ^^ print_rec_flag rec_flag ^^ space ^^ print_patexprs env patexprs,
-        subst_decl
-  ;;
-
-  let print_declarations env declarations =
-    let rec print_declarations env acc declarations =
-      match declarations with
-      | declaration :: declarations ->
-          let env, doc, subst_decl = print_declaration env declaration in
-          let declarations = subst_decl declarations in
-          print_declarations env (doc :: acc) declarations
-      | [] ->
-          List.rev acc
-    in
-    let declarations = print_declarations env [] declarations in
-    let declarations = (* hardline ^^ *) separate (twice hardline) declarations in
-    (* colors.red ^^ string "DECLARATIONS:" ^^ colors.default ^^ *)
-    nest 2 declarations ^^ hardline
+        let env, patexprs, _ = bind_patexprs env rec_flag patexprs in
+        string "val" ^^ print_rec_flag rec_flag ^^ space ^^ print_patexprs env patexprs
   ;;
 
   let print_sig_item env (x, t) =
@@ -1258,7 +1224,7 @@ module ExprPrinter = struct
   ;;
 
   let pdeclarations buf arg =
-    pdoc buf ((fun (env, declarations) -> print_declarations env declarations), arg)
+    pdoc buf ((fun (env, declarations) -> print_declaration env declarations), arg)
   ;;
 
   let pexpr buf arg =

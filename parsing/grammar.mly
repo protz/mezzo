@@ -571,21 +571,26 @@ fact:
 | FACT cs = separated_nonempty_list(DBLARROW, mode_constraint)
     { match List.rev cs with goal :: hypotheses -> Fact (List.rev hypotheses, goal) | [] -> assert false }
 
-data_type_def:
+concrete_data_type_def:
 | flavor = data_type_flavor
-  DATA lhs = data_type_def_lhs
+  lhs = data_type_def_lhs
   EQUAL
   rhs = data_type_def_rhs
   a = preceded(ADOPTS, arbitrary_type)?
     { Concrete (flavor, lhs, rhs, a) }
-| ABSTRACT
-  lhs = data_type_def_lhs
+
+abstract_data_type_def:
+| lhs = data_type_def_lhs
   k = optional_kind_annotation
   fs = fact*
     { Abstract (lhs, k, fs) }
 
 %inline data_type_group:
-  def = data_type_def
+| DATA
+  defs = separated_nonempty_list(AND, concrete_data_type_def)
+    { DataTypeGroup (($startpos(defs), $endpos), defs) }
+| ABSTRACT
+  def = abstract_data_type_def
     { DataTypeGroup (($startpos(def), $endpos), [def]) }
 
 (* A concrete data type is necessarily of kind type. We do not allow defining
@@ -985,7 +990,7 @@ definition_group:
     { let flag, defs = flag_defs in
       let d = DMultiple (flag, defs) in
       let d = DLocated (d, ($startpos($1), $endpos)) in
-      ValueDeclarations [ d ] }
+      ValueDeclarations d }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -1028,7 +1033,7 @@ implementation_item:
 
 implementation:
 | items = implementation_item* EOF
-    { ParserUtils.group items }
+    { items }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -1042,7 +1047,7 @@ interface_item:
 
 interface:
   | items = interface_item* EOF
-    { ParserUtils.group items }
+    { items }
 
 (* ---------------------------------------------------------------------------- *)
 

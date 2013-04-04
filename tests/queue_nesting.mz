@@ -11,7 +11,7 @@ open nest
    would save memory but would make access to the [next] field less
    convenient. *)
 
-mutable data cell (f : term) a =
+data mutable cell (f : term) a =
 | Cell { value: option a; next: (n: unknown | nests f (n @ cell f a)) }
 
 (* TEMPORARY I would like the fifo object itself to adopt the cells,
@@ -20,10 +20,10 @@ mutable data cell (f : term) a =
    object, of type [region]. Furthermore, I am forced to use one
    field, which is a triple, whereas I would prefer to use three fields. *)
 
-mutable data region =
+data mutable region =
   Region
 
-mutable data fifo a =
+data mutable fifo a =
   Empty    { contents: (f: region, length: int, ()) }
 | NonEmpty { contents: (f: region, length: int, tail: unknown | nests f (tail @ cell f a)) }
 

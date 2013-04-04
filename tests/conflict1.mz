@@ -1,4 +1,4 @@
-mutable data t = T
+data mutable t = T
 data pair a b = Pair { left: a; right: b }
 
 val v =

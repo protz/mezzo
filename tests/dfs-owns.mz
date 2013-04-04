@@ -10,10 +10,10 @@ open list
 (* The type parameter [a] is the type of the information contained
    in each graph node. *)
 
-mutable data graph a =
+data mutable graph a =
   Graph { roots: list dynamic } adopts node a
 
-mutable data node a =
+and mutable node a =
   Node  { children: list dynamic; payload: a }
 
 (* Depth-first (prefix) numbering. *)

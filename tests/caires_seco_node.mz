@@ -3,7 +3,7 @@ open lock
 (* A node contains a value of type [a] and a successor, which
    is not viewed as a node, but as an object of type [object a]. *)
 
-mutable data node a = Node {
+data mutable node a = Node {
   (* TEMPORARY this option is required in order to preserve the
      lock invariant after we have extracted the content *)
   content: option a;
@@ -16,7 +16,7 @@ mutable data node a = Node {
    used to extract the node out of the queue and recover
    its content. *)
 
-data object a = Object {
+and object a = Object {
   link:
     object a -> ();
   unlink:

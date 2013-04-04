@@ -1,6 +1,6 @@
-mutable data t = T adopts u
+data mutable t = T adopts u
 
-mutable data u = U
+and mutable u = U
 
 val f (x: t, y: dynamic) : u =
   if x owns y then begin

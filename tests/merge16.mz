@@ -1,4 +1,4 @@
-mutable data xlist a = Cons { head: a; tail: xlist a} | Nil
+data mutable xlist a = Cons { head: a; tail: xlist a} | Nil
 
 val id [a] (l: xlist int): () =
   match explain l with

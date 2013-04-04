@@ -1001,14 +1001,12 @@ and check_expression (env: env) (expr: expression) =
  * complicated, because of patterns, this function does both the binding and the
  * checking at the same time (i.e. there's no [bindings_declaration_group]
  * function. However, it returns the environment with all the bindings added. *)
-let check_declaration_group (env: env) (declaration_group: declaration list) =
-  List.fold_left (fun env -> function
-    | DLocated (DMultiple (rec_flag, pat_exprs), p) ->
-      let env = locate env p in
-      check_patexpr env rec_flag pat_exprs
-    | _ ->
-        Log.error "Unexpected shape for a [declaration_group]."
-  ) env declaration_group
+let check_declaration_group (env: env) = function
+  | DLocated (DMultiple (rec_flag, pat_exprs), p) ->
+    let env = locate env p in
+    check_patexpr env rec_flag pat_exprs
+  | _ ->
+      Log.error "Unexpected shape for a [declaration_group]."
 ;;
 
 let check_implementation (tenv: T.env) (program: implementation) =

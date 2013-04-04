@@ -17,10 +17,10 @@ abstract sparray a
    are not used properly. *)
 
 (*
-mutable data sparray a =
+data mutable sparray a =
   | SPArray { repr: repr a }
 
-mutable data repr a =
+data mutable repr a =
   | RFlat { contents: array a }
   | RUndo { descendant: sparray a; offset: int; element: a }
 *)

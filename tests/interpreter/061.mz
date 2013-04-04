@@ -1,6 +1,6 @@
 (* Success: 1 *)
-mutable data pool a = P adopts cell a
-mutable data cell a = Cell { contents: a }
+data mutable pool a = P adopts cell a
+data mutable cell a = Cell { contents: a }
 val () =
   let c = Cell { contents = 3 } in
   let p1 = P in

@@ -30,12 +30,12 @@ data parray a =
 
 (* A region nests a set of points. *)
 
-mutable data region =
+and mutable region =
   Region
 
 (* The representation of points is unchanged. *)
 
-mutable data point (r : term) a =
+and mutable point (r : term) a =
 | PFlat { contents: array a;                                unused1: (); unused2: () }
 | PUndo { previous: (p: unknown | nests r (p @ point r a)); offset: int; element:  a }
 

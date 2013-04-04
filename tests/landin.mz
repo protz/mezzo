@@ -7,7 +7,7 @@
 
 (* The following type is the standard notion of a mutable reference cell. *)
 
-mutable data ref a =
+data mutable ref a =
     Ref { content : a }
 
 (* The following recursive type is defined in such a way that the permission

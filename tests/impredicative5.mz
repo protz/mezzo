@@ -1,6 +1,6 @@
 (* This exercises consumes-subtyping (really, subtraction on arrow types). *)
 
-mutable data foo = Foo
+data mutable foo = Foo
 
 val fst [a, b] (y: a, b): a = fail
 

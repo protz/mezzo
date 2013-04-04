@@ -19,7 +19,7 @@ val pay (| consumes dollar) : () =
 
 open list
 
-mutable data fifo +a =
+data mutable fifo +a =
   F {
     front: list (a | dollar);
     back : list a;
@@ -107,7 +107,7 @@ val rec retrieve [a] (f: fifo a | consumes dollar) : option a =
    depositing and withdrawing more than one dollar at a time, or find
    some other solution to this problem. TEMPORARY *)
 
-mutable data account =
+data mutable account =
   Account { balance: list (| dollar) }
 
 val new_account () : account =

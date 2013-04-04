@@ -2,7 +2,7 @@ data list a =
   | Cons { head: a; tail: list a }
   | Nil
 
-mutable data cell a =
+data mutable cell a =
   | Cell { head: a; tail: () }
 
 val rec concat1 [a] (

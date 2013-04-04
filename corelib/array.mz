@@ -595,7 +595,7 @@ val sort [a, p : perm] duplicable a => (
    could simulate this by abstracting over [taking], or over [take] and [give],
    but that would be a bit heavy. *)
 
-mutable data pool a = Pool adopts ref a
+data mutable pool a = Pool adopts ref a
 
 val nonduplicable_sort [a, s : perm] (
   cmp: (ref a, ref a | s) -> int,

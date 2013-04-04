@@ -1,9 +1,9 @@
-mutable data fifo a =
+data mutable fifo a =
   | Empty    { head: ();      tail: ()      }
   | NonEmpty { head: dynamic; tail: dynamic }
 adopts cell a
 
-mutable data cell a =
+and mutable cell a =
   Cell { contents: a; next: dynamic }
 
 val test [a] (f: NonEmpty { head: dynamic; tail: dynamic } adopts cell a, consumes x: a) : () =

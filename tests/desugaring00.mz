@@ -1,4 +1,4 @@
-mutable data pair a b =
+data mutable pair a b =
   Pair { left: a; right: b }
 
 (* This works: *)

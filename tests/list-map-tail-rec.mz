@@ -4,7 +4,7 @@
 
 data list a = Cons { head: a; tail: list a } | Nil
 
-mutable data cell a = Cell { head: a; tail: () }
+data mutable cell a = Cell { head: a; tail: () }
 
 (* This version is tail-recursive. (The compiler may or may not be smart enough
  * to figure out that "tag of x0 <- Cons" is a no-op, but this does not matter.) *)

@@ -7,16 +7,16 @@
 
 (* An item serves as an extension of the [cell] ... TEMPORARY *)
 
-mutable data item a =
+data mutable item a =
   Item {
     block: dynamic (* self or block *);
     payload: a
   }
 
-mutable data block =
+data mutable block =
   | Block { cardinal: int; cell: option dynamic (* cell *) }
 
-mutable data region a =
+data mutable region a =
   Region { cells: doublylinked::region (item a) }
   adopts block
 

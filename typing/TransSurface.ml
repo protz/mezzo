@@ -910,18 +910,15 @@ and translate_patexprs
 
 
 
-let translate_declaration_group (env: env) (decls: declaration_group): env * E.declaration_group =
-  let env, decls = List.fold_left (fun (env, acc) decl ->
-    match decl with
-    | DLocated (DMultiple (flag, pat_exprs), p) ->
-        let env = locate env p in
-        let env, pat_exprs = translate_patexprs env flag pat_exprs in
-        let decl = E.DLocated (E.DMultiple (flag, pat_exprs), p) in
-        env, decl :: acc
-    | _ ->
-        Log.error "The structure of declarations is supposed to be very simple"
-  ) (env, []) decls in
-  env, List.rev decls
+let translate_declaration_group (env: env) (decl: declaration): env * E.declaration =
+  match decl with
+  | DLocated (DMultiple (flag, pat_exprs), p) ->
+      let env = locate env p in
+      let env, pat_exprs = translate_patexprs env flag pat_exprs in
+      let decl = E.DLocated (E.DMultiple (flag, pat_exprs), p) in
+      env, decl
+  | _ ->
+      Log.error "The structure of declarations is supposed to be very simple"
 ;;
 
 let translate_item env item =
@@ -933,11 +930,11 @@ let translate_item env item =
         translate_data_type_group bind env data_type_group
       in
       env, Some (E.DataTypeGroup defs)
-  | ValueDeclarations decls ->
+  | ValueDeclarations decl ->
       (* Same here, we're only performing desugaring, we're not opening any
        * binders. *)
-      let env, decls = translate_declaration_group env decls in
-      env, Some (E.ValueDeclarations decls)
+      let env, decl = translate_declaration_group env decl in
+      env, Some (E.ValueDeclarations decl)
   | PermDeclaration (x, t) ->
       check env t KType;
       let t = translate_type_with_names env t in
