@@ -2,6 +2,8 @@
    one-shot functions. Instead, an explicit type is given for "incomplete"
    arrays, which is an instance of the magic wand. *)
 
+(*
+
 mutable data sparray a =
   | SPArray { repr: repr a (sparray a) }
 
@@ -11,6 +13,7 @@ mutable data repr a b =
 
 mutable data sparraymw a (s: term) =
   | SPArrayMW { repr: repr a (=s) }
+
 
 val create [a] duplicable a => (size: int, element: a): sparray a =
   SPArray {
@@ -44,3 +47,172 @@ val set [a] duplicable a =>
   spa.repr <- RUndo { descendant = spa'; offset = offset; element = element };
   tag of spa <- SPArrayMW;
   spa'
+
+*)
+
+
+
+(* Une version basique avec deux types vraiment différents pour les
+   tableaux complets ou incomplets. *)
+
+(*
+mutable data sparray a =
+  | SPArray { repr: sprepr a }
+
+mutable data sprepr a =
+  | SPRFlat { contents: array a }
+  | SPRUndo { descendant: sparray a; i: int; x: a }
+
+mutable data mw a (s: term) =
+  | MW { repr: mwrepr a s }
+
+mutable data mwrepr a (s: term) =
+  | MWRLast { descendant: =s    ; i: int; x: a }
+  | MWRUndo { descendant: mw a s; i: int; x: a }
+
+val rec combine [a, s: term]
+  (consumes s1: mw a s2, consumes s2: mw a s):
+  ( | s1 @ mw a s) =
+  let r = s1.repr in
+  match r with
+  | MWRLast ->
+    tag of r <- MWRUndo
+  | MWRUndo { descendant } ->
+    combine (descendant, s2)
+  end
+
+val rec retrieve [a, s2: term]
+  (consumes s1: mw a s2 | consumes (s2 @ sparray a)):
+  ( | s1 @ sparray a) =
+  let r = s1.repr in
+  match r with
+  | MWRLast ->
+    tag of r <- SPRUndo
+  | MWRUndo { descendant } ->
+    retrieve [a] [s2] descendant;
+    tag of r <- SPRUndo
+  end;
+  tag of s1 <- SPArray
+*)
+
+
+(* Une autre manière de paramétrer un seul type. *)
+
+mutable data sp a b =
+  | SP { repr: repr a b }
+
+mutable data repr a b =
+  | RFlat { contents: b }
+  | RUndo { descendant: sp a b; i: int; x: a }
+
+val rec combine [a, b]
+  (consumes s1: sp a (=s2), consumes s2: sp a b):
+  ( | s1 @ sp a b) =
+  let r = s1.repr in
+  match r with
+  | RFlat ->
+    s1.repr <- s2.repr
+  | RUndo { descendant } ->
+    combine (descendant, s2)
+  end
+
+val rec reroot [a] (consumes spa: sp a (array a)):
+  ( | spa @ SP { repr: RFlat { contents: array a } }) =
+  match spa.repr with
+  | RFlat {} ->
+    ()
+  | RUndo { descendant; i; x } ->
+    reroot descendant;
+    let n = descendant.repr in
+    let a = n.contents in
+    array::set (a, i, x);
+    spa.repr <- n
+  end 
+
+val set [a] duplicable a =>
+  (consumes spa: sp a (array a), i: int, x: a):
+  (spa': sp a (array a) | spa @ sp a (=spa')) =
+  reroot spa;
+  let r = spa.repr in
+  let arr = r.contents in
+  let old_x = array::get(arr, i) in
+  array::set(arr, i, x);
+  let spa' = SP { repr = r } in
+  spa.repr <- RUndo { descendant = SP { repr = RFlat { contents = spa' }}; i=i; x=x };
+  spa'
+
+(*
+mutable data sparray a =
+  | SPArray { repr: repr a (array a) }
+
+mutable data sparraymw a (s: term) =
+  | SPArrayMW { repr: repr a (=s) }
+
+mutable data repr a b =
+  | RFlat { contents: b        ; i:()   ; x: () }
+  | RUndo { contents: repr a b ; i: int ; x: a  }
+
+val create [a] duplicable a => (s: int, x: a): sparray a =
+  SPArray {
+    repr = RFlat {
+      contents = array::create (s, x); i=(); x=()
+    }
+  }
+
+val rec combine [a, s: term]
+  (consumes s1: sparraymw a s, consumes s2: sparraymw a s1):
+  ( | s2: sparraymw a s) =
+  match s1 with
+  | RFlat {
+*)
+
+(*
+val combine [a, s: term] (s1: sparraymw a s, s2: sparraymw a s1):()=
+ (* assert(s2 @ sparraymw a s)*)()
+
+val spa = create(2, 0)
+
+val spa1 = SPArrayMW {
+  repr = RUndo {
+    descendant = spa; offset=1; element=1
+  }
+}
+
+val spa2 = SPArrayMW {
+  repr = RUndo {
+    descendant = spa1; offset=0; element=1
+  }
+}
+
+val spa3 = SPArrayMW {
+  repr = RUndo {
+    descendant = SPArrayMW {
+      repr = RUndo {
+	descendant = spa; offset=0; element=0
+      }
+    }; offset=0; element=0
+  }
+}
+
+val test1 = assert (spa @ sparray int)
+val test2 = assert (spa1 @ sparraymw int spa)
+val test3 = assert (spa2 @ sparraymw int spa1)
+(*val test4 = assert (spa3 @ sparraymw int spa)*)
+
+*)
+
+(*
+val set2 [a, s: term] duplicable a =>
+  (consumes spa: sparray a, offset: int, element: a | s @ sparraymw a spa):
+  (spa': sparray a | spa @ sparraymw a spa') =
+  reroot spa;
+  let r = spa.repr in
+  let arr = r.contents in
+  let old_x = array::get(arr, offset) in
+  array::set(arr, offset, element);
+  let spa' = SPArray { repr = r } in
+  spa.repr <- RUndo { descendant = spa'; offset = offset; element = element };
+  tag of spa <- SPArrayMW;
+  assert (s @ sparraymw a spa');
+  spa'
+*)
