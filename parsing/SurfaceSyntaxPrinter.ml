@@ -2,7 +2,7 @@ open Kind
 open SurfaceSyntax
 open MzPprint
 
-(* This a printer for types in the surface syntax. The structure of the
+(* This is a printer for types in the surface syntax. The structure of the
    printer mirrors the structure of the grammar. *)
 
 (* ---------------------------------------------------------------------------- *)
@@ -158,7 +158,7 @@ and concrete ty =
   | TyConcreteUnfolded ((dref, fs), clause) ->
       datacon_reference dref ^^
       (
-	if List.length fields > 0 then
+	if List.length fs > 0 then
 	  space ^^ braces_with_nesting (separate_map semibreak field fs)
 	else
 	  empty
@@ -173,10 +173,27 @@ and concrete ty =
   | _ ->
     assert false (* cannot happen *)
 
+and field = function
+  | FieldValue (f, TySingleton (TyVar y)) ->
+      (* A special case: syntactic sugar for equations. *)
+      utf8string (Field.print f) ^^ string " = " ^^ variable y
+  | FieldValue (f, ty) ->
+      prefix 2 1
+	(utf8string (Field.print f) ^^ colon)
+	(normal_type ty)
+  | FieldPermission ty ->
+      string "| " ^^ very_loose_type ty
+
 and mode_constraint (mode, ty) =
   string (Mode.print mode) ^^ space ^^ atomic_type ty
 
-and datacon_reference (_, dc) =
-  utf8string (Datacon.print datacon)
-  (* TEMPORARY may be ambiguous? (qualify) *)
+and datacon_reference dref =
+  utf8string (print_maybe_qualified Datacon.print dref.datacon_unresolved)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* The main entry point. *)
+
+let print =
+  arbitrary_type
 
