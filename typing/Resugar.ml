@@ -156,3 +156,10 @@ and reset env ty =
   let points = ref VarMap.empty in
   resugar env points ty
 
+(* ---------------------------------------------------------------------------- *)
+
+(* The main entry point. *)
+
+let resugar =
+  reset
+
