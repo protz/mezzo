@@ -1,4 +1,4 @@
-mutable data xlist a = XCons { head: a; tail: xlist a } | XNil
+data mutable xlist a = XCons { head: a; tail: xlist a } | XNil
 
 val rec copy [a] duplicable a => (xs: xlist a): xlist a =
   match xs with

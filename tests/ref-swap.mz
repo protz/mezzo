@@ -1,4 +1,4 @@
-mutable data ref a = Ref { contents: a }
+data mutable ref a = Ref { contents: a }
 
 val sswap [a, b]
   (consumes r: ref a, consumes s: ref b)
@@ -8,7 +8,7 @@ val sswap [a, b]
   r.contents <- s.contents;
   s.contents <- tmp
 
-mutable data pool a = Pool {} adopts ref a
+data mutable pool a = Pool {} adopts ref a
 
 val wswap [a] (p: pool a, r: dynamic, s: dynamic) : () =
   if r != s then begin

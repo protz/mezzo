@@ -27,7 +27,7 @@ data iterator a (post : perm) =
    See [name-intro.mz]. Ideally, we don't need a separate type [item].
    TEMPORARY *)
 
-data item a (pre : perm) (post : perm) =
+and item a (pre : perm) (post : perm) =
   | Item { content: (
       x: a,
       stop: (| consumes (x @ a * pre)) -> IFinished { outcome: Stopped | post },
@@ -35,7 +35,7 @@ data item a (pre : perm) (post : perm) =
       | pre
     )}
 
-data outcome =
+and outcome =
   | Stopped
   | Done
 

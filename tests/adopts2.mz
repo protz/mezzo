@@ -1,1 +1,1 @@
-mutable data bar = Bar adopts (bar -> bar)
+data mutable bar = Bar adopts (bar -> bar)

@@ -5,7 +5,7 @@ open pool
 
 (* Suppose our nodes have the following structure. *)
 
-mutable data node a = Node {
+data mutable node a = Node {
   (* A list of successors. *)
   successors: list dynamic; (* owned by a pool *)
   (* A field that may or may not hold information about this node. *)

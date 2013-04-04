@@ -1,10 +1,10 @@
 
 (* Data type definitions. *)
 
-mutable data cell a =
+data mutable cell a =
   Cell { value: a; next: dynamic }
 
-mutable data bag a =
+data mutable bag a =
   Empty { head: (); tail: () }
 | NonEmpty { head: dynamic; tail: dynamic }
 adopts cell a

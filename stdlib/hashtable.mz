@@ -5,7 +5,7 @@ open bucket
 
 (* The definition of a hash table. *)
 
-mutable data table k a =
+data mutable table k a =
   Table {
     (* The table's current number of elements. *)
     cardinal: int;

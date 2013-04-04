@@ -1,5 +1,5 @@
-mutable data bar = Bar
-mutable data foo = Foo adopts bar
+data mutable bar = Bar
+data mutable foo = Foo adopts bar
 data baz = Baz
 
 val v =

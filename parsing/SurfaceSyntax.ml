@@ -269,9 +269,6 @@ type declaration =
   | DMultiple of rec_flag * (pattern * expression) list
   | DLocated of declaration * location
 
-type declaration_group =
-  declaration list
-
 (* TEMPORARY it is not clear why ValueDeclarations carries a *list* of
    declarations, where each declaration can itself be a *list* of
    pattern-definition pairs. Is there redundancy? Also, the scoping
@@ -279,7 +276,7 @@ type declaration_group =
 
 type toplevel_item =
   | DataTypeGroup of data_type_group
-  | ValueDeclarations of declaration_group
+  | ValueDeclarations of declaration list
   | PermDeclaration of Variable.name * typ
   | OpenDirective of Module.name
 

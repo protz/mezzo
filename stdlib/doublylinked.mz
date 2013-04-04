@@ -4,7 +4,7 @@
    We maintain the invariant that, when a cell is not part of a region, its
    [prev] and [next] fields point to itself. *)
 
-mutable data cell a =
+data mutable cell a =
 | Cell { prev: dynamic; next: dynamic; payload: a }
 
 (* ---------------------------------------------------------------------------- *)
@@ -13,7 +13,7 @@ mutable data cell a =
    function is a permutation of the cells in the region (i.e., it is bijective)
    and that the [next] function is its inverse (hence, also a permutation). *)
 
-mutable data region a =
+data mutable region a =
   Region
   adopts cell a
 

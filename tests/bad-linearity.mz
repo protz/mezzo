@@ -1,6 +1,6 @@
 data list a = Nil | Cons { head: a; tail: list a }
 
-mutable data t = T
+data mutable t = T
 
 val f (l: list int): (x: unknown, l: list (int | x @ T)) =
   let x = T in

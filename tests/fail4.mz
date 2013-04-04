@@ -1,4 +1,4 @@
-mutable data ref a = Ref { contents: a }
+data mutable ref a = Ref { contents: a }
 data list a = Cons { head: a; tail: list a } | Nil
 
 val f (consumes x: list (=y), consumes y: ref int): list (ref int) =

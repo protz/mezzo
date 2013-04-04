@@ -3,6 +3,6 @@ open list
 (* An example where we declare that we adopt a type variable. This
    is now OK. *)
 
-mutable data graph node =
+data mutable graph node =
   Graph { roots: list dynamic } adopts node
 

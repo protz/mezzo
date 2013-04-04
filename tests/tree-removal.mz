@@ -3,7 +3,7 @@
    not prove that (only) the least key is removed, but we do prove
    that some key is removed and the tree property is preserved. *)
 
-mutable data tree a =
+data mutable tree a =
   | Null
   | Node { left: tree a; value: a; right: tree a }
 

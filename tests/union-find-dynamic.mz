@@ -4,12 +4,12 @@ open nest
 
 (** We need a top-level element that will hold the ownership for all the
  * elements of the union-find. *)
-mutable data state a = 
+data mutable state a = 
   | UnionFind
 adopts content a
 
 (** An element in the union-find is either a [link] or a [root]. *)
-mutable data content a =
+and mutable content a =
   | Link { link: dynamic }
   | Root { descr: a }
 

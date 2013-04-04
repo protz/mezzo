@@ -21,7 +21,7 @@ data properties property =
 
 (* The types of nodes and edges. *)
 
-mutable data node info =
+data mutable node info =
   Node {
     (* The client data associated with this node. *)
     info: info;
@@ -34,7 +34,7 @@ mutable data node info =
     marked: bool;
   }
 
-mutable data edge info =
+data mutable edge info =
   Edge {
     (* This edge's nodes. *)
     node1, node2: dynamic; (* node *)
@@ -44,10 +44,10 @@ mutable data edge info =
 
 (* Adopters for nodes and edges. *)
 
-mutable data nodes info =
+data mutable nodes info =
   Nodes adopts node info
 
-mutable data edges info =
+data mutable edges info =
   Edges adopts edge info
 
 data graph info =
@@ -147,7 +147,7 @@ val clear_successors [info] (g: graph info, n: node info) : () =
 (* Each record of type [info] stands for one particular variable [v]
    in the equation system. *)
 
-mutable data info variable property =
+data mutable info variable property =
   Info {
     (* The right-hand side of the equation associated with the variable [v]. *)
     rhs: (variable -> property) -> property;

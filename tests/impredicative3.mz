@@ -1,4 +1,4 @@
-mutable data foo = Foo
+data mutable foo = Foo
 
 val fst [α, β] (consumes x: α, β): α = x
 

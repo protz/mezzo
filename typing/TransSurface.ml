@@ -910,7 +910,7 @@ and translate_patexprs
 
 
 
-let translate_declaration_group (env: env) (decls: declaration_group): env * E.declaration_group =
+let translate_declaration_group (env: env) (decls: declaration list): env * E.declaration_group =
   let env, decls = List.fold_left (fun (env, acc) decl ->
     match decl with
     | DLocated (DMultiple (flag, pat_exprs), p) ->

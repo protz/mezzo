@@ -4,17 +4,17 @@ open nest
 
 (** We need a top-level element that will hold the ownership for all the
  * elements of the union-find. *)
-mutable data state = 
+data mutable state = 
   UnionFind
 
 (** An element in the union-find is either a [link] or a [root]. *)
-mutable data content (s: term) a =
+data mutable content (s: term) a =
   | Link { link: element s a }
   | Root { descr: a }
 
 (** And this is the interface that we expose to the client. I wish I had type
  * abbreviations... *)
-data element (s: term) a =
+and element (s: term) a =
   | Element { element: (element: unknown | nests s (element @ content s a)) }
 
 

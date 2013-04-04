@@ -1,4 +1,4 @@
-mutable data foo = Foo { foo: (); bar: () }
+data mutable foo = Foo { foo: (); bar: () }
 
 val f (consumes x: foo): foo =
   let Foo { foo; bar } = x in

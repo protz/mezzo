@@ -1,4 +1,4 @@
-mutable data tree a = 
+data mutable tree a = 
   | Node { left: tree a; right: tree a; size: a }
   | Leaf
 

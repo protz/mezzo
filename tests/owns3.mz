@@ -1,6 +1,6 @@
-mutable data t = T
+data mutable t = T
 
-mutable data u = U
+data mutable u = U
 
 data foo = Foo
 

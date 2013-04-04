@@ -1,4 +1,4 @@
-mutable data tree k a =
+data mutable tree k a =
   | Empty
   | Node { left: tree k a; key: k; value: a; right: tree k a; height: int }
 

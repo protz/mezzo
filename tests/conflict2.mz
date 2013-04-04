@@ -1,4 +1,4 @@
-mutable data t = T
+data mutable t = T
 
 val (v: t), w =
   if explain True then begin

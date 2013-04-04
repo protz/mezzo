@@ -1,5 +1,5 @@
 
-mutable data ref a = Nil | Ref { contents: a }
+data mutable ref a = Nil | Ref { contents: a }
 
 (* Cet exemple permet de mettre en évidence une situation encore plus
  * compliquée. Lors du merge, on a d'un côté Nil, et l'autre côté Ref, donc on

@@ -6,7 +6,7 @@ data t a =
     baz: a;
   }
 
-data tree a =
+and tree a =
   | Leaf
   | Node {
       datum: a;
@@ -14,16 +14,16 @@ data tree a =
       right: tree a
     }
 
-data ty = DummyType
+and ty = DummyType
 
-data typechecker =
+and typechecker =
   TC { typechecker: [a] (consumes t: tree a) -> (ty | t @ tree ty) }
 
-data list a =
+and list a =
   | Cons { head: a; tail: list a }
   | Nil
 
-data listops =
+and listops =
   ListOps {
     length0: [a] (x: list a) -> int;
     length1: [a] (consumes xs: list a) -> (result: int | xs @ list a); (* more explicit form *)
@@ -35,55 +35,55 @@ data listops =
 
 val x = ()
 
-mutable data foo a b c =
+data mutable foo a b c =
   Foo {
     bar: a;
     baz: baz b c a;
   }
 
-data baz a b c =
+and baz a b c =
   Baz {
     foo: foo a b c;
   }
 
-data v α = V {
+and v α = V {
   foo: u α;
 }
 
-data u α = U {
+and u α = U {
   bar: α;
   baz: v α;
 }
 
 (* The example discussed on the board. Takes three rounds to get to the
  * fixpoint. *)
-data t1 a b = T1 {
+and t1 a b = T1 {
   foo: t2 a b;
 }
 
-data t2 a b = T2 {
+and t2 a b = T2 {
   bar: t1 (a, b) b;
   baz: a;
 }
 
 (* Only b and d should be constrained. *)
-data odd a b c d = S { foo: b; bar: d }
+and odd a b c d = S { foo: b; bar: d }
 
 (* [list_of_refs] should be affine *)
-mutable data ref a = Ref { contents: a }
-data list_refs a = L { list: list (ref a) }
+and mutable ref a = Ref { contents: a }
+and list_refs a = L { list: list (ref a) }
 
-(* data not_well_kinded container a = N { contents: container a; } *)
+(* and not_well_kinded container a = N { contents: container a; } *)
 
-data should_be_dup a = D {
+and should_be_dup a = D {
   foo: Nil;
   bar: a;
   foo2: Cons { head: a; tail: list a };
 }
 
-data should_be_aff a = A {
+and should_be_aff a = A {
   foo: Cons { head: ref a; tail: list (ref a) };
 }
 
-mutable data noparams = NoParams
-data aff = Whatever { whatever: noparams; }
+and mutable noparams = NoParams
+and aff = Whatever { whatever: noparams; }

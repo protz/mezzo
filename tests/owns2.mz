@@ -1,6 +1,6 @@
-mutable data t = T adopts u
+data mutable t = T adopts u
 
-mutable data u = U
+and mutable u = U
 
 data foo = Foo
 

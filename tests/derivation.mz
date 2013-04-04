@@ -1,4 +1,4 @@
-mutable data mlist a =
+data mutable mlist a =
   | MNil
   | MCons { head: a; tail: mlist a }
 

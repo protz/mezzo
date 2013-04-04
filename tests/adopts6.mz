@@ -1,2 +1,2 @@
-mutable data bar = Bar
-mutable data foo = Foo adopts Bar
+data mutable bar = Bar
+data mutable foo = Foo adopts Bar

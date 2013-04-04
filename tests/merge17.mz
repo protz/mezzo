@@ -1,4 +1,4 @@
-mutable data t = T { t: t }
+data mutable t = T { t: t }
 
 val v =
   if True then begin

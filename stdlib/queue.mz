@@ -1,6 +1,6 @@
 (* A FIFO queue implementation, adapted from OCaml's queue.ml. *)
 
-mutable data cell a =
+data mutable cell a =
   Cell { value: a; next: dynamic }
 
 (* The FIFO structure is implemented as a cyclic list. The
@@ -11,7 +11,7 @@ mutable data cell a =
    provides this information. The [tail] pointer is present
    only when the queue is nonempty. *)
 
-mutable data fifo a =
+data mutable fifo a =
   Empty    { length: int; tail: ()      }
 | NonEmpty { length: int; tail: dynamic }
 adopts cell a

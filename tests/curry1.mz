@@ -1,4 +1,4 @@
-mutable data foo = Foo
+data mutable foo = Foo
 
 val fst [t, u] (x: t): (y: u | consumes x @ t) -> t =
   fun (y: u | consumes x @ t): t =

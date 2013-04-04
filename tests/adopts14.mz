@@ -1,4 +1,4 @@
 open list
-mutable data generic_adopter a =
+data mutable generic_adopter a =
   A
 adopts list a

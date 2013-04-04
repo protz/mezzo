@@ -1,4 +1,4 @@
-mutable data generic_adopter (x : term) a b =
+data mutable generic_adopter (x : term) a b =
   A
 adopts (a | x @ int)
 (* contrived, but works: the adoptee is potentially exclusive *)
