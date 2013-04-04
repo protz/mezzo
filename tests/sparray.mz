@@ -31,7 +31,26 @@ val rec reroot [a] (consumes spa: sparray a):
     let a = n.contents in
     array::set (a, offset, element);
     spa.repr <- n
-  end
+  end 
+
+(*
+val retrieve [a] (
+  consumes spa': sparray a,
+  consumes spa: SPArray {
+  repr: RUndo {
+    descendant: =spa'; offset: int; element: a
+  }}):
+  ( | spa @ sparray a) =
+  ()
+*)
+
+val retrieve [a, spa: term, spa': term]
+  ( consumes ( | (spa' @ sparray a)) | consumes (spa @ SPArray {
+      repr: RUndo {
+	descendant: =spa'; offset: int; element: a
+      } 
+    })): ( | spa @ sparray a) =
+    ()
 
 val get [a] duplicable a => (spa: sparray a, offset: int): a =
   reroot spa;
@@ -49,22 +68,22 @@ val set [a] duplicable a =>
   let spa' = SPArray { repr = r } in
   spa.repr <- RUndo { descendant = spa'; offset = offset; element = element };
   (* A kind of magic wand is encoded by hand here. *)
-  let back =
+(*  let back =
     fun ( | consumes (spa' @ sparray a * spa @ SPArray {
       repr: RUndo {
 	descendant: =spa'; offset: int; element: a
       } 
     })): ( | spa @ sparray a) =
     ()
-  in
+  in*)
   spa', (osf_make
 	   (* I guess the needed annotation is the third one. *)
-	   [ ( | spa' @ sparray a) ]
+(*	   [ ( | spa' @ sparray a) ]
 	   [ ( | spa @ sparray a) ]
 	   [ (spa @ SPArray {
 	     repr: RUndo {
 	       descendant: =spa'; offset: int; element: a
 	     } 
-	   }) ]
-	   back)
+	   }) ]*)
+	   (retrieve [a] [spa] [spa']))
 
