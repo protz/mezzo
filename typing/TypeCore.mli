@@ -134,19 +134,25 @@ and resolved_branch =
 type unresolved_branch =
     (DataTypeFlavor.flavor, Datacon.name) data_type_def_branch
 
-type data_type_def =
-  unresolved_branch list
-
 (** Our data constructors have the standard variance. *)
 type variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | Bivariant
 
 type type_def =
-  (** option here because abstract types do not have a definition *)
-    data_type_def option
-  * variance list
+  | Concrete of unresolved_branch list
+  | Abstract
+  | Abbrev of typ
+
+type data_type = {
+  data_name: Variable.name;
+  data_location: location;
+  data_definition: type_def;
+  data_variance: variance list;
+  data_fact: Fact.fact;
+  data_kind: kind;
+}
 
 type data_type_group =
-  (Variable.name * location * type_def * Fact.fact * kind) list
+  data_type list
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -246,6 +252,9 @@ val get_locations: env -> var -> location list
 (** Get the definition, if any. *)
 val get_definition: env -> var -> type_def option
 
+(** Get the variance, asserting that this variable is that of a type definition. *)
+val get_variance : env -> var -> variance list
+
 (** {2 Low-level variable manipulation functions.} *)
 
 val add_location: env -> var -> location -> env
@@ -274,11 +283,14 @@ val reset_permissions : env -> var -> env
 (** Set a fact *)
 val set_fact: env -> var -> Fact.fact -> env
 
+(** Set a definition. This asserts that there was no definition before. *)
+val set_definition: env -> var -> type_def -> variance list -> env
+
 (** Update a definition. This asserts that there used to be a definition before. *)
 val update_definition: env -> var -> (type_def -> type_def) -> env
 
-(** Set a definition. This asserts that there was no definition before. *)
-val set_definition: env -> var -> type_def -> env
+(** Update variance. *)
+val update_variance: env -> var -> (variance list -> variance list) -> env
 
 (* ---------------------------------------------------------------------------- *)
 

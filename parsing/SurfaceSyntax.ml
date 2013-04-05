@@ -163,6 +163,7 @@ type data_type_def =
   | Concrete of DataTypeFlavor.flavor * data_type_def_lhs * data_type_def_rhs *
       adopts_clause
   | Abstract of data_type_def_lhs * kind * fact
+  | Abbrev of data_type_def_lhs * kind * typ
 
 (* A data type group is a group of mutually recursive data type definitions. *)
 

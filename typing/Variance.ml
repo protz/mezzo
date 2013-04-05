@@ -180,12 +180,15 @@ let analyze_data_types env points =
     List.fold_left (fun (env, acc) point ->
       let kind = get_kind env point in
       let definition = get_definition env point in
-      match definition with
-      | None ->
-          Log.error "Only data type definitions here"
-      | Some (None, _) ->
+      match Option.extract definition with
+      | Abstract
+      | Abbrev _ ->
+          (* TEMPORARY We're not computing the variance of type abbreviations
+           * since we're expanding them aggressively. This is something that we
+           * may want to fix in the future, when we have a better system to deal
+           * with that. *)
           env, acc
-      | Some (Some branches, _) ->
+      | Concrete branches ->
           let env, points, instantiated_branches =
             bind_datacon_parameters env kind branches
           in
@@ -225,10 +228,10 @@ let analyze_data_types env points =
   (* Update the data type definitions. *)
   let original_env = List.fold_left (fun env (cons, (vars, _)) ->
     let variance = List.map valuation vars in
-    update_definition env cons (fun (branches, annotated_variance) ->
+    update_variance env cons (fun annotated_variance ->
       if not (List.for_all2 leq variance annotated_variance) then
         raise_error env VarianceAnnotationMismatch;
-      branches, variance
+      variance
     )
   ) original_env store in
   original_env

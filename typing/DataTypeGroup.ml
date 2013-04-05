@@ -39,19 +39,19 @@ let bind_group_in_group (vars: var list) (group: data_type_group) =
 
 
 let bind_group_definitions (env: env) (vars: var list) (group: data_type_group): env =
-  List.fold_left2 (fun env var (_, _, def, _, _) ->
+  List.fold_left2 (fun env var data_type ->
     (* Replace the corresponding definition in [env]. *)
-    set_definition env var def
+    set_definition env var data_type.data_definition data_type.data_variance
   ) env vars group
 ;;
 
 
 let bind_group (env: env) (group: data_type_group) =
   (* Allocate the vars in the environment. We don't put a definition yet. *)
-  let env, vars = List.fold_left (fun (env, acc) (name, location, _, fact, kind) ->
-    let name = User (module_name env, name) in
-    let env, var = bind_rigid env (name, kind, location) in
-    let env = set_fact env var fact in
+  let env, vars = List.fold_left (fun (env, acc) data_type ->
+    let name = User (module_name env, data_type.data_name) in
+    let env, var = bind_rigid env (name, data_type.data_kind, data_type.data_location) in
+    let env = set_fact env var data_type.data_fact in
     env, var :: acc
   ) (env, []) group in
   let vars = List.rev vars in

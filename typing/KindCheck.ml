@@ -116,7 +116,7 @@ let empty (env: T.env): env =
       (* We're only interested in things that signatures exported with their
        * corresponding definitions. *)
       match definition with
-      | Some def, _ ->
+      | Concrete def ->
           (* Find the module name which this definition comes from. Yes, there's
            * no better way to do that. *)
           let mname = MzList.find_opt
@@ -585,15 +585,16 @@ let names env ty : type_binding list =
    the data type definitions. *)
 let bindings_data_type_group (data_type_group: data_type_def list): (Variable.name * kind) list =
   List.map (function
-      | Concrete (_flag, (name, params), _, _) ->
-          let params = List.map (fun (_, (x, y, _)) -> x, y) params in
-          let k = karrow params KType in
-          (name, k)
-      | Abstract ((name, params), return_kind, _fact) ->
-          let params = List.map (fun (_, (x, y, _)) -> x, y) params in
-          let k = karrow params return_kind in
-          (name, k))
-    data_type_group
+    | Concrete (_flag, (name, params), _, _) ->
+        let params = List.map (fun (_, (x, y, _)) -> x, y) params in
+        let k = karrow params KType in
+        (name, k)
+    | Abbrev ((name, params), return_kind, _)
+    | Abstract ((name, params), return_kind, _) ->
+        let params = List.map (fun (_, (x, y, _)) -> x, y) params in
+        let k = karrow params return_kind in
+        (name, k)
+  ) data_type_group
 ;;
 
 
@@ -822,7 +823,7 @@ let check_data_type_def (env: env) (def: data_type_def) =
       let env = List.fold_left bind env bindings in
       (* Check the branches. *)
       List.iter (check_branch env) branches;
-      match clause with
+      begin match clause with
       | None ->
           ()
       | Some t ->
@@ -830,12 +831,16 @@ let check_data_type_def (env: env) (def: data_type_def) =
           (* We can do that early. *)
 	  if not (DataTypeFlavor.can_adopt flavor) then
 	    raise_error env (AdopterNotExclusive name)
+      end
+  | Abbrev (_, return_kind, t) ->
+      check env t return_kind
 ;;
 
 
 let check_data_type_group (env: env) (data_type_group: data_type_def list) =
   (* Check that the constructors are unique to this data type group. *)
   let all_branches = MzList.map_flatten (function
+    | Abbrev _
     | Abstract _ ->
         []
     | Concrete (_, _, branches, _) ->
@@ -1066,6 +1071,7 @@ let check_interface (tenv: T.env) (interface: interface) =
   let all_datacons = MzList.map_flatten (function
     | DataTypeGroup (_, data_type_group) ->
         MzList.map_flatten (function
+          | Abbrev _
           | Abstract _ ->
               []
           | Concrete (_, _, branches, _) ->
@@ -1132,11 +1138,25 @@ module KindPrinter = struct
       )
   ;;
 
-  let print_def env name kind def =
+  let print_abbrev_type_def (env: env) name kind t =
+    let env, points = make_datacon_letters env kind false in
+    let letters = List.map (fun p -> print_var env (get_name env p)) points in
+    let vars = List.map (fun x -> TyOpen x) points in
+    let t = instantiate_type t vars in
+    (* The whole blurb *)
+    string "alias" ^^ space ^^ lparen ^^
+    print_var env name ^^ space ^^ colon ^^ space ^^
+    print_kind kind ^^ rparen ^^ concat_map (precede space) letters ^^
+    space ^^ equals ^^ print_type env t
+  ;;
+
+  let print_def env name kind variance def =
     match def with
-    | Some branches, variance ->
+    | Concrete branches ->
         print_data_type_def env name kind variance branches
-    | None, _ ->
+    | Abbrev t ->
+        print_abbrev_type_def env name kind t
+    | Abstract ->
         print_abstract_type_def env name kind
   ;;
 
@@ -1146,15 +1166,16 @@ module KindPrinter = struct
     let defs = fold_definitions env (fun acc var definition ->
       let name = get_name env var in
       let kind = get_kind env var in
-      print_def env name kind definition :: acc
+      let variance = get_variance env var in
+      print_def env name kind variance definition :: acc
     ) [] in
     separate (twice (break 1)) defs
   ;;
 
   let print_group env (group: data_type_group) =
-    let defs = List.map (fun (name, _, def, _, kind) ->
-      let name = User (module_name env, name) in
-      print_def env name kind def
+    let defs = List.map (fun data_type ->
+      let name = User (module_name env, data_type.data_name) in
+      print_def env name data_type.data_kind data_type.data_variance data_type.data_definition
     ) group in
     nest 2 (separate (twice (break 1)) defs) ^^ hardline
   ;;

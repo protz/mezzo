@@ -41,14 +41,14 @@ let is_data_type_with_two_constructors env t =
   let has_two_branches p =
     if is_type env p then
       match get_definition env p with
-      | Some (Some branches, _) ->
+      | Some (Concrete branches) ->
           List.length branches = 2
       | _ ->
           false
     else
       false
   in
-  match t with
+  match expand_if_one_branch env t with
   | TyOpen p ->
       (* e.g. bool *)
       has_two_branches p
@@ -57,7 +57,7 @@ let is_data_type_with_two_constructors env t =
       has_two_branches !!cons
   | TyConcreteUnfolded branch ->
       (* e.g. False *)
-      let branches = def_for_branch env branch in
+      let branches = branches_for_branch env branch in
       List.length branches = 2
   | _ ->
       false
@@ -594,7 +594,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let env, p1 = check_expression env e1 in
 
       (* Find the type [datacon] corresponds to. *)
-      let new_branches = def_for_datacon env new_datacon in
+      let new_branches = branches_for_datacon env new_datacon in
       let new_branch =
         List.find (fun branch -> Datacon.equal (snd new_datacon) branch.branch_datacon) new_branches
       in
@@ -829,7 +829,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             []
       in
       (* Find the corresponding definition. *)
-      let branches = def_for_datacon env datacon in
+      let branches = branches_for_datacon env datacon in
       (* And the corresponding branch, so that we obtain the field names in order. *)
       let branch =
         List.find (fun branch' -> Datacon.equal (snd datacon) branch'.branch_datacon) branches
@@ -911,8 +911,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         | Some (permissions, t) ->
             let env = set_permissions env x1 permissions in
             let split_apply cons args =
-              match get_definition env cons with
-              | Some (Some [b1; b2], _) ->
+              match Option.extract (get_definition env cons) with
+              | Concrete [b1; b2] ->
                   let branch1 = resolve_branch cons (instantiate_branch b1 args) in
                   let branch2 = resolve_branch cons (instantiate_branch b2 args) in
                   TyConcreteUnfolded branch1, TyConcreteUnfolded branch2

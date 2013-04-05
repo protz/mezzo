@@ -265,11 +265,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let env = do_it () in
     let check_variance n vs =
       let t = find_type_by_name env n in
-      match get_definition env !!t with
-      | Some (_, vs') when vs = vs' ->
-          ()
-      | _ ->
-          failwith "Variances don't match"
+      if not (get_variance env !!t = vs) then
+        failwith "Variances don't match"
     in
     let co = Covariant and contra = Contravariant and bi = Bivariant and inv = Invariant in
     check_variance "list" [co];

@@ -161,7 +161,16 @@ let check
 
         (* Check that the translated definitions from the interface and the known
          * definitions from the implementations are consistent. *)
-        List.iter (fun (name, _loc, def, fact, k) ->
+        List.iter (fun data_type ->
+          let {
+            T.data_name = name;
+            data_kind = k;
+            data_variance = variance;
+            data_definition = def;
+            data_fact = fact;
+            _
+          } = data_type in
+
 	  let point = point_by_name name in
           (* Variables marked with ' belong to the implementation. *)
 
@@ -182,14 +191,14 @@ let check
 
           (* Definitions. *)
           let def' = Option.extract (T.get_definition env point) in
-          let def, variance = def in
-          let def', variance' = def' in
+          let variance' = T.get_variance env point in
 
           if not (List.for_all2 Variance.leq variance' variance) then
             error_out "variance";
 
+          (* match [the-one-from-the-interface], [the-one-from-the-implem] with *)
           match def, def' with
-          | None, None ->
+          | T.Abstract, T.Abstract
               (* When re-matching a module against the interfaces it opened,
                * we'll encounter the case where in [env] the type is defined as
                * abstract, and in the signature it is still abstract.
@@ -197,10 +206,8 @@ let check
                * [TransSurface] authorizes declaring a type as abstract
                * in an implementation: we just re-check the fact, since the
                * kinds have been checked earlier already. *)
-              if not (Fact.leq fact' fact) then
-                error_out "facts";
-
-          | None, Some _ ->
+          | T.Abstract, T.Abbrev _
+          | T.Abstract, T.Concrete _ ->
               (* Type made abstract. We just check that the facts are
                * consistent. The fact information in [fact'] (the
                * implementation) is correct, since [Driver] took care of running
@@ -211,10 +218,7 @@ let check
               if not (Fact.leq fact' fact) then
                 error_out "facts";
 
-          | Some _, None ->
-              error_out "type abstract in implem but not in sig";
-
-          | Some branches, Some branches' ->
+          | T.Concrete branches, T.Concrete branches' ->
               (* We're not checking facts: if the branches are
                * equal, then it results that the facts are equal. Moreover, we
                * haven't run [FactInference.analyze_types] on the *signature* so
@@ -244,6 +248,16 @@ let check
                       error_out "field nature";
                 ) branch.T.branch_fields branch'.T.branch_fields;
               ) branches branches';
+
+            | T.Abbrev t, T.Abbrev t' ->
+                (* We must export exactly the same abbreviation for the
+                 * signature to match (we may want this to be smarter but
+                 * well... *)
+                if Derivations.is_good (Permissions.sub_type env t' t) then
+                  error_out "abbreviations not compatible";
+
+            | _ ->
+                error_out "definition mismatch"
 
         ) translated_definitions;
 

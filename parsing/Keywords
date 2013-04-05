@@ -1,5 +1,6 @@
 abstract
 adopts
+alias
 and
 as
 assert

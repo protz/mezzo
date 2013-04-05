@@ -125,12 +125,11 @@ val get_branches :
   env -> var -> unresolved_branch list
 val get_arity : env -> var -> int
 val get_kind_for_type : env -> typ -> kind
-val get_variance : env -> var -> variance list
-val def_for_datacon :
+val branches_for_datacon :
   env ->
   resolved_datacon ->
-  data_type_def
-val def_for_branch: env -> resolved_branch -> data_type_def
+  unresolved_branch list
+val branches_for_branch: env -> resolved_branch -> unresolved_branch list
 val flavor_for_branch: env -> resolved_branch -> DataTypeFlavor.flavor
 
 (** Get the variance of the i-th parameter of a data type. *)

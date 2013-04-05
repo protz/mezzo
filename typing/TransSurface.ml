@@ -533,12 +533,37 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
        * [Variance.analyze_data_types] will take of checking these against the
        * actual variance. *)
       let variance = List.map (fun (v, _) -> v) the_params in
-      name, env.location, (Some branches, variance), fact, karrow params KType
+      T.({ data_name = name;
+        data_location = env.location;
+        data_definition = Concrete branches;
+        data_variance = variance;
+        data_fact = fact;
+        data_kind = karrow params KType
+      })
   | Abstract ((name, the_params), kind, fact) ->
       let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
       let fact = translate_fact (fst (List.split params)) fact in
       let variance = List.map (fun (v, _) -> v) the_params in
-      name, env.location, (None, variance), fact, karrow params kind
+      T.({ data_name = name;
+        data_location = env.location;
+        data_definition = Abstract;
+        data_variance = variance;
+        data_fact = fact;
+        data_kind = karrow params kind
+      })
+  | Abbrev ((name, the_params), kind, t) ->
+      let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
+      (* Same remarks for fact/variance as with the Concrete case. *)
+      let fact = Fact.bottom in
+      let variance = List.map (fun (v, _) -> v) the_params in
+      let t = translate_type env t in
+      T.({ data_name = name;
+        data_location = env.location;
+        data_definition = Abbrev t;
+        data_variance = variance;
+        data_fact = fact;
+        data_kind = karrow params kind
+      })
 ;;
 
 
@@ -562,6 +587,7 @@ let bind_datacons env data_type_group =
           ) fields in
           bind env dc (mkdatacon_info dc i fields)
         ) env rhs
+    | Abbrev _
     | Abstract _ ->
         env
   ) env data_type_group
