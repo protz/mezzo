@@ -42,7 +42,7 @@ let bind_group_definitions (env: env) (vars: var list) (group: data_type_group):
   List.fold_left2 (fun env var data_type ->
     (* Replace the corresponding definition in [env]. *)
     set_definition env var data_type.data_definition data_type.data_variance
-  ) env vars group
+  ) env vars group.group_items
 ;;
 
 
@@ -53,7 +53,7 @@ let bind_group (env: env) (group: data_type_group) =
     let env, var = bind_rigid env (name, data_type.data_kind, data_type.data_location) in
     let env = set_fact env var data_type.data_fact in
     env, var :: acc
-  ) (env, []) group in
+  ) (env, []) group.group_items in
   let vars = List.rev vars in
 
   env, vars
@@ -81,16 +81,20 @@ let debug_toplevel_items env toplevel_items =
   Log.debug "#### END DEBUGGING TOPLEVEL_ITEMS ####\n"
 ;;
 
-
 let bind_data_type_group
     (env: env)
     (group: data_type_group)
     (toplevel_items: toplevel_item list): env * toplevel_item list * var list =
   (* First, allocate vars for all the data types. *)
   let env, vars = bind_group env group in
-  (* Open references to these data types in the branches themselves, since the
-   * definitions are all mutually recursive. *)
-  let group = bind_group_in_group vars group in
+  let group =
+    if group.group_recursive = Recursive then
+      (* Open references to these data types in the branches themselves, since the
+       * definitions are all mutually recursive. *)
+      bind_group_in_group vars group
+    else
+      group
+  in
   (* Attach the definitions! *)
   let env = bind_group_definitions env vars group in
   (* Now we can perform some more advanced analyses. *)

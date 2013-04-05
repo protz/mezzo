@@ -168,32 +168,38 @@ end
 
 module Solver = Fix.Make(IVarMap)(P)
 
-let analyze_data_types env points =
+let analyze_data_types env vars =
   (* Keep the original env fresh, since we're going to throw away most of the
    * work below. *)
   let original_env = env in
 
-  (* Create a sub-enviroment where points have been allocated for each one of
+  (* Create a sub-enviroment where vars have been allocated for each one of
    * the data type parameters. We keep a list of instantiated branches with
-   * their corresponding point. *)
+   * their corresponding var. *)
   let env, store =
-    List.fold_left (fun (env, acc) point ->
-      let kind = get_kind env point in
-      let definition = get_definition env point in
+    List.fold_left (fun (env, acc) var ->
+      let kind = get_kind env var in
+      let definition = get_definition env var in
       match Option.extract definition with
-      | Abstract
-      | Abbrev _ ->
-          (* TEMPORARY We're not computing the variance of type abbreviations
-           * since we're expanding them aggressively. This is something that we
-           * may want to fix in the future, when we have a better system to deal
-           * with that. *)
+      | Abstract ->
           env, acc
+      | Abbrev t ->
+          let env, vars = make_datacon_letters env kind false in
+          Log.debug "Before instantiation: %a"
+            TypePrinter.ptype (env, t);
+          let t = instantiate_type t (List.map ty_open vars) in
+          Log.debug "After instantiation: %a"
+            TypePrinter.ptype (env, t);
+          env, (var, (vars, [t])) :: acc
       | Concrete branches ->
-          let env, points, instantiated_branches =
+          let env, vars, branches =
             bind_datacon_parameters env kind branches
           in
-          env, (point, (points, instantiated_branches)) :: acc
-    ) (original_env, []) points
+          let branches = List.map (fun branch ->
+            TyConcreteUnfolded (resolve_branch var branch)
+          ) branches in
+          env, (var, (vars, branches)) :: acc
+    ) (original_env, []) vars
   in
 
   (* This function is needed inside [variance]. It returns a variable (i.e. a
@@ -206,7 +212,7 @@ let analyze_data_types env points =
   (* This computes the rhs for a given variable. *)
   let equations var =
     (* Find which type this variable belongs to. *)
-    let owner, (_, branches) = List.find (fun (_, (vars, _)) ->
+    let _, (_, branches) = List.find (fun (_, (vars, _)) ->
       List.exists (same env var) vars
     ) store in
     (* The equations for a given variable depend on the valuation. (At this
@@ -214,9 +220,7 @@ let analyze_data_types env points =
     (fun valuation ->
       let vs = List.map
         (variance env var_for_ith valuation var)
-        (List.map (fun branch ->
-	  TyConcreteUnfolded (resolve_branch owner branch)
-	 ) branches)
+        branches
       in
       List.fold_left lub Bivariant vs
     )

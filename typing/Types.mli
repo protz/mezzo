@@ -69,6 +69,7 @@ val ( @-> ) : typ -> typ -> typ
 val ty_bar : typ -> typ -> typ
 val ty_app : typ -> typ list -> typ
 val ty_equals : var -> typ
+val ty_open : var -> typ
 
 (** {2 Binding types} *)
 

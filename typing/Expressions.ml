@@ -392,10 +392,15 @@ and tsubst_decl t2 i = function
 let rec tsubst_toplevel_items t2 i toplevel_items =
   match toplevel_items with
   | DataTypeGroup group :: toplevel_items ->
-      let n = List.length group in
-      (* Since the type bindings are all mutually recursive, they're considered
-       * to be all bound in the data type groups. *)
-      let group = tsubst_data_type_group t2 (i + n) group in
+      let n = List.length group.group_items in
+      let group =
+        if group.group_recursive = Recursive then
+          (* Since the type bindings are all mutually recursive, they're considered
+           * to be all bound in the data type groups. *)
+          tsubst_data_type_group t2 (i + n) group
+        else 
+          tsubst_data_type_group t2 i group
+      in
       let toplevel_items = tsubst_toplevel_items t2 (i + n) toplevel_items in
       DataTypeGroup group :: toplevel_items
   | ValueDeclarations decl :: toplevel_items ->
@@ -548,7 +553,7 @@ let rec esubst_toplevel_items e2 i toplevel_items =
   match toplevel_items with
   | DataTypeGroup group :: toplevel_items ->
       (* Nothing to substitute here, only binders to cross. *)
-      let n = List.length group in
+      let n = List.length group.group_items in
       let toplevel_items = esubst_toplevel_items e2 (i + n) toplevel_items in
       DataTypeGroup group :: toplevel_items
   | ValueDeclarations decls :: toplevel_items ->

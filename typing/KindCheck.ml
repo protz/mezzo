@@ -832,8 +832,10 @@ let check_data_type_def (env: env) (def: data_type_def) =
 	  if not (DataTypeFlavor.can_adopt flavor) then
 	    raise_error env (AdopterNotExclusive name)
       end
-  | Abbrev (_, return_kind, t) ->
-      check env t return_kind
+  | Abbrev ((_, bindings), return_kind, t) ->
+      let bindings = List.map (fun (_, (x, y, _)) -> x, y) bindings in
+      let env = List.fold_left bind env bindings in
+      check_type_with_names env t return_kind
 ;;
 
 
@@ -1017,7 +1019,7 @@ let check_declaration_group (env: env) = function
 let check_implementation (tenv: T.env) (program: implementation) =
   let env = empty tenv in
   let env = List.fold_left (fun env -> function
-    | DataTypeGroup (p, data_type_group) ->
+    | DataTypeGroup (p, rec_flag, data_type_group) ->
         (* Collect the names from the data type definitions, since they
          * will be made available in both the data type definitions themselves,
          * and the value definitions. All definitions in a data type groupe are
@@ -1031,7 +1033,12 @@ let check_implementation (tenv: T.env) (program: implementation) =
          * makes sure we don't bind the same name twice. Admittedly, we could do
          * something better for error reporting. *)
         let env = locate env p in
-        let env = List.fold_left bind env bindings in
+        let env =
+          if rec_flag = Recursive then
+            List.fold_left bind env bindings
+          else
+            env
+        in
         (* Check the data type definitions in the environment. *)
         check_data_type_group env data_type_group;
 
@@ -1056,7 +1063,7 @@ let check_implementation (tenv: T.env) (program: implementation) =
 let check_interface (tenv: T.env) (interface: interface) =
   (* Check for duplicate variables. *)
   let all_bindings = MzList.map_flatten (function
-    | DataTypeGroup (_, data_type_group) ->
+    | DataTypeGroup (_, _, data_type_group) ->
         bindings_data_type_group data_type_group
     | PermDeclaration (x, _) ->
         [x, KTerm]
@@ -1069,7 +1076,7 @@ let check_interface (tenv: T.env) (interface: interface) =
 
   (* Check for duplicate data constructors. *)
   let all_datacons = MzList.map_flatten (function
-    | DataTypeGroup (_, data_type_group) ->
+    | DataTypeGroup (_, _, data_type_group) ->
         MzList.map_flatten (function
           | Abbrev _
           | Abstract _ ->
@@ -1138,16 +1145,19 @@ module KindPrinter = struct
       )
   ;;
 
-  let print_abbrev_type_def (env: env) name kind t =
+  let print_abbrev_type_def (env: env) name kind variance t =
     let env, points = make_datacon_letters env kind false in
-    let letters = List.map (fun p -> print_var env (get_name env p)) points in
+    let letters = List.map (fun p -> get_name env p) points in
+    let letters = List.map2 (fun variance letter ->
+      print_variance variance ^^ print_var env letter
+    ) variance letters in
     let vars = List.map (fun x -> TyOpen x) points in
     let t = instantiate_type t vars in
     (* The whole blurb *)
     string "alias" ^^ space ^^ lparen ^^
     print_var env name ^^ space ^^ colon ^^ space ^^
     print_kind kind ^^ rparen ^^ concat_map (precede space) letters ^^
-    space ^^ equals ^^ print_type env t
+    space ^^ equals ^^ space ^^ print_type env t
   ;;
 
   let print_def env name kind variance def =
@@ -1155,7 +1165,7 @@ module KindPrinter = struct
     | Concrete branches ->
         print_data_type_def env name kind variance branches
     | Abbrev t ->
-        print_abbrev_type_def env name kind t
+        print_abbrev_type_def env name kind variance t
     | Abstract ->
         print_abstract_type_def env name kind
   ;;
@@ -1176,7 +1186,7 @@ module KindPrinter = struct
     let defs = List.map (fun data_type ->
       let name = User (module_name env, data_type.data_name) in
       print_def env name data_type.data_kind data_type.data_variance data_type.data_definition
-    ) group in
+    ) group.group_items in
     nest 2 (separate (twice (break 1)) defs) ^^ hardline
   ;;
 

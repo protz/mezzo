@@ -151,8 +151,10 @@ type data_type = {
   data_kind: kind;
 }
 
-type data_type_group =
-  data_type list
+type data_type_group = {
+  group_recursive: SurfaceSyntax.rec_flag;
+  group_items: data_type list;
+}
 
 (* ---------------------------------------------------------------------------- *)
 

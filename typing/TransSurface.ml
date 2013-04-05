@@ -553,6 +553,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
       })
   | Abbrev ((name, the_params), kind, t) ->
       let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
+      let env = List.fold_left bind env params in
       (* Same remarks for fact/variance as with the Concrete case. *)
       let fact = Fact.bottom in
       let variance = List.map (fun (v, _) -> v) the_params in
@@ -607,7 +608,7 @@ let translate_data_type_group
   : env * T.data_type_group
   =
 
-  let data_type_group = snd data_type_group in
+  let _loc, rec_flag, data_type_group = data_type_group in
 
   let bindings = bindings_data_type_group data_type_group in
   (* The check for duplicate names has been performed already. *)
@@ -622,9 +623,10 @@ let translate_data_type_group
   let env = bind_datacons env data_type_group in
 
   (* First do the translation pass. *)
-  let translated_definitions: T.data_type_group =
-    List.map (translate_data_type_def env) data_type_group
-  in
+  let translated_definitions: T.data_type_group = {
+    T.group_recursive = rec_flag;
+    group_items = List.map (translate_data_type_def env) data_type_group
+  } in
 
   (* Return both the environment and the desugared definitions. *)
   env, translated_definitions

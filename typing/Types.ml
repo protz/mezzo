@@ -83,6 +83,10 @@ let ty_app t args =
     t
 ;;
 
+let ty_open v =
+  TyOpen v
+;;
+
 let fold_star perms =
   if List.length perms > 0 then
     MzList.reduce (fun acc x -> TyStar (acc, x)) perms
@@ -420,18 +424,18 @@ let make_datacon_letters env kind flexible =
   let arg_kinds, _return_kind = Kind.as_arrow kind in
   (* Turn the list of parameters into letters *)
   let letters: string list = MzPprint.name_gen (List.length arg_kinds) in
-  let env, points = List.fold_left2 (fun (env, points) kind letter ->
-    let env, point =
+  let env, vars = List.fold_left2 (fun (env, vars) kind letter ->
+    let env, var =
       let letter = Auto (Variable.register letter) in
       if flexible then
 	bind_flexible env (letter, kind, location env)
       else
 	bind_rigid env (letter, kind, location env)
     in
-    env, point :: points) (env, []) arg_kinds letters
+    env, var :: vars) (env, []) arg_kinds letters
   in
-  let points = List.rev points in
-  env, points
+  let vars = List.rev vars in
+  env, vars
 ;;
 
 let bind_datacon_parameters (env: env) (kind: kind) (branches: unresolved_branch list):

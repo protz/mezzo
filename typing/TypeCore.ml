@@ -138,8 +138,10 @@ type data_type = {
   data_kind: kind;
 }
 
-type data_type_group =
-  data_type list
+type data_type_group = {
+  group_recursive: SurfaceSyntax.rec_flag;
+  group_items: data_type list;
+}
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -491,9 +493,6 @@ let get_definition (env: env) (var: var): type_def option =
 let get_variance (env: env) (var: var): variance list =
   let p = assert_point env var in
   match find env p with
-  | _, DType { definition = Abbrev _; _ } ->
-      Log.error "You should not be asking for the variance of an abbreviation \
-        since we expand them eagerly!"
   | _, DType { variance; _ } ->
       variance
   | _ ->
@@ -721,24 +720,27 @@ class ['env] map = object (self)
 
   (* An auxiliary method for transforming a data type group. *)
   method data_type_group env (group : data_type_group) =
-    List.map (function element ->
-      match element.data_definition with
-      | Abstract ->
-          (* This is an abstract type. There are no branches. *)
-          element
-      | Abbrev t ->
-          let data_definition = Abbrev (self#visit env t) in
-          { element with data_definition }
-      | Concrete branches ->
-	  (* Enter the bindings for the type parameters. *)
-	  let kinds, _ = Kind.as_arrow element.data_kind in
-	  let env = List.fold_left self#extend env (List.rev kinds) in
-	    (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
-	  (* Transform the branches in this extended environment. *)
-	  let branches = List.map (self#unresolved_branch env) branches in
-	  (* That's it. *)
-          { element with data_definition = Concrete branches }
-    ) group
+    let group_items =
+      List.map (function element ->
+        match element.data_definition with
+        | Abstract ->
+            (* This is an abstract type. There are no branches. *)
+            element
+        | Abbrev t ->
+            let data_definition = Abbrev (self#visit env t) in
+            { element with data_definition }
+        | Concrete branches ->
+            (* Enter the bindings for the type parameters. *)
+            let kinds, _ = Kind.as_arrow element.data_kind in
+            let env = List.fold_left self#extend env (List.rev kinds) in
+              (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
+            (* Transform the branches in this extended environment. *)
+            let branches = List.map (self#unresolved_branch env) branches in
+            (* That's it. *)
+            { element with data_definition = Concrete branches }
+      ) group.group_items
+    in
+    { group with group_items }
 
 end
 
@@ -854,7 +856,7 @@ class ['env] iter = object (self)
 	  List.iter (self#unresolved_branch env) branches
       | Abbrev t ->
           self#visit env t
-    ) group
+    ) group.group_items
 
 end
 

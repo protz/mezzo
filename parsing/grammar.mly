@@ -588,10 +588,10 @@ abstract_data_type_def:
 %inline data_type_group:
 | DATA
   defs = separated_nonempty_list(AND, concrete_data_type_def)
-    { DataTypeGroup (($startpos(defs), $endpos), defs) }
+    { DataTypeGroup (($startpos(defs), $endpos), Recursive, defs) }
 | ABSTRACT
   def = abstract_data_type_def
-    { DataTypeGroup (($startpos(def), $endpos), [def]) }
+    { DataTypeGroup (($startpos(def), $endpos), Nonrecursive, [def]) }
 
 (* A concrete data type is necessarily of kind type. We do not allow defining
    concrete data types of kind perm. In principle, we could allow it. I think
@@ -607,7 +607,7 @@ abbreviation_def:
 
 type_abbreviation:
 | ALIAS def = abbreviation_def
-    { DataTypeGroup (($startpos(def), $endpos), [def]) }
+    { DataTypeGroup (($startpos(def), $endpos), Nonrecursive, [def]) }
 
 
 (* ---------------------------------------------------------------------------- *)

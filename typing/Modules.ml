@@ -33,7 +33,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
   and collect_item = function
     | PermDeclaration (_, t) ->
         collect_type t
-    | DataTypeGroup (_, defs) ->
+    | DataTypeGroup (_, _, defs) ->
         MzList.map_flatten (function
           | Abstract _ ->
               []

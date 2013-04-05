@@ -165,10 +165,12 @@ type data_type_def =
   | Abstract of data_type_def_lhs * kind * fact
   | Abbrev of data_type_def_lhs * kind * typ
 
-(* A data type group is a group of mutually recursive data type definitions. *)
+(* A data type group is a group of data type definitions. *)
+
+type rec_flag = Nonrecursive | Recursive
 
 type data_type_group =
-    location * data_type_def list
+    location * rec_flag * data_type_def list
 
 
 (* ---------------------------------------------------------------------------- *)
@@ -195,8 +197,6 @@ type pattern =
 (* ---------------------------------------------------------------------------- *)
 
 (* Expressions *)
-
-type rec_flag = Nonrecursive | Recursive
 
 and expression =
   (* e: τ *)
