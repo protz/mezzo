@@ -722,6 +722,10 @@ class ['env] map = object (self)
   method data_type_group env (group : data_type_group) =
     let group_items =
       List.map (function element ->
+        (* Enter the bindings for the type parameters. *)
+        let kinds, _ = Kind.as_arrow element.data_kind in
+        let env = List.fold_left self#extend env (List.rev kinds) in
+          (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
         match element.data_definition with
         | Abstract ->
             (* This is an abstract type. There are no branches. *)
@@ -730,10 +734,6 @@ class ['env] map = object (self)
             let data_definition = Abbrev (self#visit env t) in
             { element with data_definition }
         | Concrete branches ->
-            (* Enter the bindings for the type parameters. *)
-            let kinds, _ = Kind.as_arrow element.data_kind in
-            let env = List.fold_left self#extend env (List.rev kinds) in
-              (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
             (* Transform the branches in this extended environment. *)
             let branches = List.map (self#unresolved_branch env) branches in
             (* That's it. *)
@@ -843,15 +843,15 @@ class ['env] iter = object (self)
   (* An auxiliary method for visiting a data type group. *)
   method data_type_group env (group : data_type_group) =
     List.iter (function element ->
+      (* Enter the bindings for the type parameters. *)
+      let kinds, _ = Kind.as_arrow element.data_kind in
+      let env = List.fold_left self#extend env (List.rev kinds) in
+        (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
       match element.data_definition with
       | Abstract ->
           (* This is an abstract type. There are no branches. *)
           ()
       | Concrete branches ->
-	  (* Enter the bindings for the type parameters. *)
-	  let kinds, _ = Kind.as_arrow element.data_kind in
-	  let env = List.fold_left self#extend env (List.rev kinds) in
-	    (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
 	  (* Visit the branches in this extended environment. *)
 	  List.iter (self#unresolved_branch env) branches
       | Abbrev t ->
