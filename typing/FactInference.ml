@@ -310,7 +310,7 @@ and bind_assume_infer w binding ty (m : mode) : fact =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Auxilliary code for the analysis of a parameterized type definition. *)
+(* Auxiliary code for the analysis of a parameterized type definition. *)
 
 let prepare_branches env v branches : world * unresolved_branch list =
   (* Bind the parameters. *)
@@ -327,6 +327,22 @@ let prepare_branches env v branches : world * unresolved_branch list =
   in
   (* Return a world and the branches, ready for analysis. *)
   { (trivial_world env) with parameters }, branches
+
+let prepare_type env v t : world * typ =
+  (* Make letters for the type application. *)
+  let env, parameters =
+    make_datacon_letters env (get_kind env v) false
+  in
+  (* We'll work on [t] instantiated with its parameters. *)
+  let t = instantiate_type t (List.map ty_open parameters) in
+  (* Do the same as above. *)
+  let parameters =
+    MzList.fold_lefti (fun i accu v ->
+      VarMap.add v i accu
+    ) VarMap.empty parameters
+  in
+  (* Return a world and the branches, ready for analysis. *)
+  { (trivial_world env) with parameters }, t
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -394,11 +410,12 @@ let analyze_data_types (env : env) (variables : var list) : env =
       (* Here, [v] is an algebraic data type, for which we would like
 	 to infer a fact. *)
       match Option.extract (get_definition env v) with
-      | Abbrev _ ->
-          (* TEMPORARY we do not yet compute facts for type abbreviations, as
-           * we're expanding them eagerly. We may wish to change that in the
-           * future, though. *)
-          Log.error "Not computing facts for type abbreviations."
+      | Abbrev t ->
+          fun valuation ->
+            (* We do something similar to the [Concrete] case below. *)
+            let w, t = prepare_type env v t in
+            let w = { w with variables; valuation } in
+            infer w t
       | Abstract ->
 	  (* This is an abstract type. Its fact is declared by the user.
 	     In that case, the code in the [DataTypeGroup] has already
@@ -427,7 +444,7 @@ let analyze_data_types (env : env) (variables : var list) : env =
       | Abbrev _ ->
           (* We skip type abbreviations as well, as we're not computing their
            * facts (see above). *)
-          env
+	  set_fact env v (fixpoint v)
       | Abstract ->
 	  (* Skip abstract types. There is nothing to do in this case,
 	     and furthermore, an abstract type could have kind [term],
