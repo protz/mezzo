@@ -393,17 +393,20 @@ let analyze_data_types (env : env) (variables : var list) : env =
     F.lfp (fun (v : var) ->
       (* Here, [v] is an algebraic data type, for which we would like
 	 to infer a fact. *)
-      match get_definition env v with
-      | None ->
-	  Log.error "A data type should have a definition."
-      | Some (None, _) ->
+      match Option.extract (get_definition env v) with
+      | Abbrev _ ->
+          (* TEMPORARY we do not yet compute facts for type abbreviations, as
+           * we're expanding them eagerly. We may wish to change that in the
+           * future, though. *)
+          Log.error "Not computing facts for type abbreviations."
+      | Abstract ->
 	  (* This is an abstract type. Its fact is declared by the user.
 	     In that case, the code in the [DataTypeGroup] has already
 	     taken care of entering an appropriate fact in the environment.
 	     We just look it up. *)
 	  let f = get_fact env v in
 	  fun (_ : F.valuation) -> f
-      | Some (Some branches, _) ->
+      | Concrete branches ->
 	  fun valuation ->
 	    (* Bind the parameters. *)
 	    let w, branches = prepare_branches env v branches in
@@ -420,14 +423,17 @@ let analyze_data_types (env : env) (variables : var list) : env =
 
   let env =
     VarMap.fold (fun v () env ->
-      match get_definition env v with
-      | None
-      | Some (None, _) ->
+      match Option.extract (get_definition env v) with
+      | Abbrev _ ->
+          (* We skip type abbreviations as well, as we're not computing their
+           * facts (see above). *)
+          env
+      | Abstract ->
 	  (* Skip abstract types. There is nothing to do in this case,
 	     and furthermore, an abstract type could have kind [term],
 	     in which case inferring a fact for it does not make sense. *)
 	  env
-      | Some (Some _, _) ->
+      | Concrete _ ->
 	  (* This data type has a definition, hence it has kind [type]
 	     or [perm]. Inferring a fact for it makes sense. *)
 	  set_fact env v (fixpoint v)
@@ -438,11 +444,11 @@ let analyze_data_types (env : env) (variables : var list) : env =
      seem tempting to fuse this loop with the above loop, but that
      would not be good; the environment must be fully updated first. *)
   VarMap.iter (fun v () ->
-    match get_definition env v with
-    | None
-    | Some (None, _) ->
+    match Option.extract (get_definition env v) with
+    | Abstract
+    | Abbrev _ ->
 	()
-    | Some (Some branches, _) ->
+    | Concrete branches ->
 	check_adopts_clauses env v branches
   ) variables;
 

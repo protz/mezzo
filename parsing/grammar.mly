@@ -46,7 +46,7 @@
 %token          OPEN BUILTIN
 %token          TERM TYPE PERM
 %token          UNKNOWN DYNAMIC EXCLUSIVE MUTABLE
-%token          DATA BAR UNDERSCORE
+%token          DATA ALIAS BAR UNDERSCORE
 %token          LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
 %token          COMMA COLON COLONCOLON SEMI AT AS
 %token          ARROW LARROW DBLARROW TAGOF FUN
@@ -588,14 +588,27 @@ abstract_data_type_def:
 %inline data_type_group:
 | DATA
   defs = separated_nonempty_list(AND, concrete_data_type_def)
-    { DataTypeGroup (($startpos(defs), $endpos), defs) }
+    { DataTypeGroup (($startpos(defs), $endpos), Recursive, defs) }
 | ABSTRACT
   def = abstract_data_type_def
-    { DataTypeGroup (($startpos(def), $endpos), [def]) }
+    { DataTypeGroup (($startpos(def), $endpos), Nonrecursive, [def]) }
 
 (* A concrete data type is necessarily of kind type. We do not allow defining
    concrete data types of kind perm. In principle, we could allow it. I think
    we can live without it (experience will tell). *)
+
+(* Type abbreviations. *)
+
+abbreviation_def:
+  lhs = data_type_def_lhs
+  k = optional_kind_annotation
+  EQUAL t = arbitrary_type
+    { Abbrev (lhs, k, t) }
+
+type_abbreviation:
+| ALIAS def = abbreviation_def
+    { DataTypeGroup (($startpos(def), $endpos), Nonrecursive, [def]) }
+
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -1026,6 +1039,7 @@ open_directive:
    together. This is done in implementation and interface files. *)
 
 implementation_item:
+| item = type_abbreviation
 | item = data_type_group
 | item = definition_group
 | item = open_directive
@@ -1040,6 +1054,7 @@ implementation:
 (* Module signatures, i.e. interfaces. *)
 
 interface_item:
+| item = type_abbreviation
 | item = data_type_group
 | item = value_declaration
 | item = open_directive

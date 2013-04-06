@@ -33,10 +33,12 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
   and collect_item = function
     | PermDeclaration (_, t) ->
         collect_type t
-    | DataTypeGroup (_, defs) ->
+    | DataTypeGroup (_, _, defs) ->
         MzList.map_flatten (function
           | Abstract _ ->
               []
+          | Abbrev (_, _, t) ->
+              collect_type t
           | Concrete (_flag, _lhs, rhs, adopts) ->
               Option.map_none [] (Option.map collect_type adopts)
               @ MzList.map_flatten collect_data_type_def_branch rhs

@@ -83,6 +83,10 @@ let ty_app t args =
     t
 ;;
 
+let ty_open v =
+  TyOpen v
+;;
+
 let fold_star perms =
   if List.length perms > 0 then
     MzList.reduce (fun acc x -> TyStar (acc, x)) perms
@@ -230,7 +234,7 @@ let get_location env p =
    compute a join. *)
 let get_adopts_clause env point: typ =
   match get_definition env point with
-  | Some (Some branches, _) ->
+  | Some (Concrete branches) ->
       (* The [adopts] clause is now per-branch, instead of per-data-type.
 	 We should in principle return the meet of the [adopts] clauses
 	 of all branches. However, the surface language imposes that
@@ -252,13 +256,13 @@ let get_adopts_clause env point: typ =
       in
       List.fold_left meet TyUnknown branches
   | _ ->
-      (* An abstract type has no adopts clause (as of now). *)
+      (* An abstract type / type abbreviation has no adopts clause (as of now). *)
       ty_bottom
 ;;
 
 let get_branches env point: unresolved_branch list =
   match get_definition env point with
-  | Some (Some branches, _) ->
+  | Some (Concrete branches) ->
       branches
   | _ ->
       Log.error "This is not a concrete data type."
@@ -318,29 +322,25 @@ let rec flatten_star env t =
 ;;
 
 
-let get_variance (env: env) (var: var): variance list =
-  match get_definition env var with
-  | Some (_, v) ->
-      v
-  | None ->
-      assert false
-;;
-
-let def_for_datacon (env: env) (datacon: resolved_datacon): data_type_def =
+let branches_for_datacon (env: env) (datacon: resolved_datacon): unresolved_branch list =
   match datacon with
   | TyOpen point, _ ->
-      let def, _ = Option.extract (get_definition env point) in
-      Option.extract def
+      begin match get_definition env point with
+      | Some (Concrete branches) ->
+          branches
+      | _ ->
+          assert false
+      end
   | t, _ ->
       Log.error "Datacon not properly resolved: %a" !internal_ptype (env, t)
 ;;
 
-let def_for_branch env branch =
-  def_for_datacon env branch.branch_datacon
+let branches_for_branch env branch =
+  branches_for_datacon env branch.branch_datacon
 
 let branch_for_branch env (branch : resolved_branch) : unresolved_branch =
   let _, datacon = branch.branch_datacon in
-  let branches : unresolved_branch list = def_for_branch env branch in
+  let branches = branches_for_branch env branch in
   List.find (fun branch' ->
     Datacon.equal datacon branch'.branch_datacon
   ) branches
@@ -350,8 +350,7 @@ let flavor_for_branch env (branch : resolved_branch) : DataTypeFlavor.flavor =
   branch.branch_flavor
 
 let variance env var i =
-  let definition = get_definition env var in
-  let variance = snd (Option.extract definition) in
+  let variance = get_variance env var in
   List.nth variance i
 ;;
 
@@ -425,18 +424,18 @@ let make_datacon_letters env kind flexible =
   let arg_kinds, _return_kind = Kind.as_arrow kind in
   (* Turn the list of parameters into letters *)
   let letters: string list = MzPprint.name_gen (List.length arg_kinds) in
-  let env, points = List.fold_left2 (fun (env, points) kind letter ->
-    let env, point =
+  let env, vars = List.fold_left2 (fun (env, vars) kind letter ->
+    let env, var =
       let letter = Auto (Variable.register letter) in
       if flexible then
 	bind_flexible env (letter, kind, location env)
       else
 	bind_rigid env (letter, kind, location env)
     in
-    env, point :: points) (env, []) arg_kinds letters
+    env, var :: vars) (env, []) arg_kinds letters
   in
-  let points = List.rev points in
-  env, points
+  let vars = List.rev vars in
+  env, vars
 ;;
 
 let bind_datacon_parameters (env: env) (kind: kind) (branches: unresolved_branch list):
@@ -455,10 +454,12 @@ let expand_if_one_branch (env: env) (t: typ) =
   match is_tyapp t with
   | Some (cons, args) ->
       begin match get_definition env cons with
-      | Some (Some [branch], _) ->
+      | Some (Concrete [branch]) ->
           let branch = instantiate_branch branch args in
 	  let branch = resolve_branch cons branch in
           TyConcreteUnfolded branch
+      | Some (Abbrev t) ->
+          instantiate_type t args
       | _ ->
         t
       end

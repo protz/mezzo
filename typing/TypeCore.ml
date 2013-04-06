@@ -124,16 +124,24 @@ and data_field_def =
 type unresolved_branch =
     (DataTypeFlavor.flavor, Datacon.name) data_type_def_branch
 
-type data_type_def =
-  unresolved_branch list
-
 type type_def =
-  (* option here because abstract types do not have a definition *)
-    data_type_def option
-  * variance list
+  | Concrete of unresolved_branch list
+  | Abstract
+  | Abbrev of typ
 
-type data_type_group =
-  (Variable.name * location * type_def * Fact.fact * kind) list
+type data_type = {
+  data_name: Variable.name;
+  data_location: location;
+  data_definition: type_def;
+  data_variance: variance list;
+  data_fact: Fact.fact;
+  data_kind: kind;
+}
+
+type data_type_group = {
+  group_recursive: SurfaceSyntax.rec_flag;
+  group_items: data_type list;
+}
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -222,9 +230,10 @@ and var_descr = {
 and extra_descr = DType of type_descr | DTerm of term_descr | DNone
 
 and type_descr = {
-  (* This is the descriptor for a data type definition / abstract type
-   * definition. *)
+  (* This is the descriptor for a data type definition / abstract type /
+   * abbreviation definition. *)
   definition: type_def;
+  variance: variance list;
 }
 
 and term_descr = {
@@ -480,19 +489,39 @@ let get_definition (env: env) (var: var): type_def option =
           None
 ;;
 
+
+let get_variance (env: env) (var: var): variance list =
+  let p = assert_point env var in
+  match find env p with
+  | _, DType { variance; _ } ->
+      variance
+  | _ ->
+      assert false
+;;
+
+
+let update_variance (env: env) (var: var) (f: variance list -> variance list): env =
+  update_extra_descr env var (function
+    | DType descr ->
+        DType { descr with variance = f descr.variance }
+    | _ ->
+        Log.error "Refining the variance of a type that didn't have one in the first place"
+  )
+;;
+
 let update_definition (env: env) (var: var) (f: type_def -> type_def): env =
   update_extra_descr env var (function
-    | DType { definition } ->
-        DType { definition = f definition }
+    | DType descr ->
+        DType { descr with definition = f descr.definition }
     | _ ->
         Log.error "Refining the definition of a type that didn't have one in the first place"
   )
 ;;
 
-let set_definition (env: env) (var: var) (definition: type_def): env =
+let set_definition (env: env) (var: var) (definition: type_def) (variance: variance list): env =
   update_extra_descr env var (function
     | DNone ->
-        DType { definition }
+        DType { definition; variance }
     | _ ->
         Log.error "Setting the definition of a type that had one in the first place"
   )
@@ -691,23 +720,27 @@ class ['env] map = object (self)
 
   (* An auxiliary method for transforming a data type group. *)
   method data_type_group env (group : data_type_group) =
-    List.map (function element ->
-      let name, loc, def, fact, kind = element in
-      match def with
-      | None, _ ->
-          (* This is an abstract type. There are no branches. *)
-          element
-      | Some branches, variance ->
-	  (* Enter the bindings for the type parameters. *)
-	  let kinds, _ = Kind.as_arrow kind in
-	  let env = List.fold_left self#extend env (List.rev kinds) in
-	    (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
-	  (* Transform the branches in this extended environment. *)
-	  let branches = List.map (self#unresolved_branch env) branches in
-	  (* That's it. *)
-	  let def = Some branches, variance in
-          name, loc, def, fact, kind
-    ) group
+    let group_items =
+      List.map (function element ->
+        match element.data_definition with
+        | Abstract ->
+            (* This is an abstract type. There are no branches. *)
+            element
+        | Abbrev t ->
+            let data_definition = Abbrev (self#visit env t) in
+            { element with data_definition }
+        | Concrete branches ->
+            (* Enter the bindings for the type parameters. *)
+            let kinds, _ = Kind.as_arrow element.data_kind in
+            let env = List.fold_left self#extend env (List.rev kinds) in
+              (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
+            (* Transform the branches in this extended environment. *)
+            let branches = List.map (self#unresolved_branch env) branches in
+            (* That's it. *)
+            { element with data_definition = Concrete branches }
+      ) group.group_items
+    in
+    { group with group_items }
 
 end
 
@@ -810,19 +843,20 @@ class ['env] iter = object (self)
   (* An auxiliary method for visiting a data type group. *)
   method data_type_group env (group : data_type_group) =
     List.iter (function element ->
-      let _, _, def, _, kind = element in
-      match def with
-      | None, _ ->
+      match element.data_definition with
+      | Abstract ->
           (* This is an abstract type. There are no branches. *)
           ()
-      | Some branches, _variance ->
+      | Concrete branches ->
 	  (* Enter the bindings for the type parameters. *)
-	  let kinds, _ = Kind.as_arrow kind in
+	  let kinds, _ = Kind.as_arrow element.data_kind in
 	  let env = List.fold_left self#extend env (List.rev kinds) in
 	    (* TEMPORARY not sure about [kinds] versus [List.rev kinds] *)
 	  (* Visit the branches in this extended environment. *)
 	  List.iter (self#unresolved_branch env) branches
-    ) group
+      | Abbrev t ->
+          self#visit env t
+    ) group.group_items
 
 end
 
@@ -1231,7 +1265,7 @@ let fold_terms env f acc =
 
 let fold_definitions env f acc =
   PersistentUnionFind.fold (fun acc point (_, extra_descr) ->
-    match extra_descr with DType { definition } -> f acc (VRigid point) definition | _ -> acc)
+    match extra_descr with DType { definition; _ } -> f acc (VRigid point) definition | _ -> acc)
   acc env.state
 ;;
 

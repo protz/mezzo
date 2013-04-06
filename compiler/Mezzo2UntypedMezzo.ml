@@ -283,8 +283,10 @@ let transl_data_type_def = function
       [ U.DataType (transl_data_type_def_lhs lhs, transl_data_type_def_rhs rhs) ]
   | Abstract _ ->
       []
+  | Abbrev _ ->
+      Log.error "TODO"
 
-let transl_data_type_group (_location, defs) =
+let transl_data_type_group (_location, _rec_flag, defs) =
   List.flatten (List.map transl_data_type_def defs)
 
 (* ---------------------------------------------------------------------------- *)

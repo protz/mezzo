@@ -842,6 +842,8 @@ let eval_implementation_item (env : env) (item : toplevel_item) : env =
             evaluate_data_type_def env rhs
         | Abstract _ ->
             env
+        | Abbrev _ ->
+            env
       ) env defs
   | PermDeclaration _ ->
       (* We are evaluating an implementation, not an interface. *)
@@ -888,6 +890,8 @@ let export_interface_item (m : Module.name) (env : env) (item : toplevel_item) :
 		{ env with datacons = D.qualify m datacon env.datacons }
 	    ) env branches
         | Abstract _ ->
+            env
+        | Abbrev _ ->
             env
       ) env defs
   | PermDeclaration (x, _) ->

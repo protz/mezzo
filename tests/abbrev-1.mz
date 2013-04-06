@@ -1,0 +1,5 @@
+(* Make sure the variance for type abbreviations is correct. *)
+alias pair a b = (a, b)
+alias func a b = a -> b
+alias iden a = a -> a
+alias drop a = ()
