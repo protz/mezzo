@@ -452,7 +452,12 @@ let print_signature (buf: Buffer.t) (env: TypeCore.env): unit =
             t
       in
       pdoc buf ((fun () ->
-        let t = print_type env t in
+        let t =
+	  if true (* TEMPORARY *) then 
+	    print_type env t
+	  else
+	    SurfaceSyntaxPrinter.print (Resugar.resugar env t)
+	in
         string "val" ^^ space ^^
         print_var env name ^^ space ^^ at ^^ space ^^ (nest 2 t) ^^
         break 1
