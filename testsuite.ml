@@ -921,6 +921,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("pattern-sharing.mz", fail);
   ("gadt.mz", pass);
   ("gadt-bug.mz", fail_known_failure);
+  ("abbrev-1.mz", pass);
 
 ];;
 

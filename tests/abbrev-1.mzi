@@ -1,0 +1,11 @@
+abstract pair +a +b
+fact duplicable a => duplicable b => duplicable (pair a b)
+
+abstract func -a +b
+fact duplicable (func a b)
+
+abstract iden a
+fact duplicable (iden a)
+
+abstract drop a
+fact duplicable (drop a)
