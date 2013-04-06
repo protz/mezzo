@@ -32,7 +32,7 @@ let resugar_binding env (x, kind, loc) =
      throughout the type-checking process
 *)
 
-let rec resugar env (points : unit VarMap.t ref) ty =
+let rec resugar env (points : unit VarMap.t ref) (soup : typ VarMap.t ref) ty =
   match modulo_flex env ty with
   | TyUnknown ->
       S.TyUnknown
@@ -63,9 +63,9 @@ let rec resugar env (points : unit VarMap.t ref) ty =
       (* No name introduction is possible inside a type application. *)
       S.TyApp (reset env head, List.map (reset env) args)
   | TyTuple tys ->
-      S.TyTuple (List.map (resugar env points) tys)
+      S.TyTuple (List.map (resugar env points soup) tys)
   | TyConcreteUnfolded branch ->
-      resugar_resolved_branch env points branch
+      resugar_resolved_branch env points soup branch
   | TySingleton (TyOpen x) ->
       (* Construct a name for this variable. *)
       let name = surface_print_point env x in
@@ -75,7 +75,19 @@ let rec resugar env (points : unit VarMap.t ref) ty =
 	 success. *)
       if not (is_flexible env x) && VarMap.mem x !points then begin
         points := VarMap.remove x !points;
-	S.TyNameIntro (S.destruct_unqualified name, S.TyUnknown)
+	(* Try finding a type for this point in the soup. If there
+	   is one, translate it recursively. This is important, as
+	   we may be able to create further name introduction forms
+	   inside it. *)
+	let ty =
+	  try
+	    let ty = VarMap.find x !soup in
+	    soup := VarMap.remove x !soup;
+	    ty
+	  with Not_found ->
+	    TyUnknown
+	in
+	S.TyNameIntro (S.destruct_unqualified name, resugar env points soup ty)
       end
       (* Otherwise, just create a normal singleton type node. *)
       else
@@ -83,8 +95,16 @@ let rec resugar env (points : unit VarMap.t ref) ty =
   | TySingleton _ ->
       (* Only type variables have kind [KTerm]. *)
       assert false
+  | TyBar (ty, TyEmpty) ->
+      resugar env points soup ty
+  | TyBar (ty, TyStar (p, q)) ->
+      resugar env points soup (TyBar (TyBar (ty, p), q))
+  | TyBar (ty, TyAnchoredPermission (TyOpen x, t)) ->
+      (* Add [x @ t] to the soup, and use it when translating [ty]. *)
+      soup := VarMap.add x t !soup;
+      resugar env points soup ty
   | TyBar (ty, p) ->
-      S.TyBar (resugar env points ty, reset env p)
+      S.TyBar (resugar env points soup ty, reset env p)
   | TyAnchoredPermission (ty1, ty2) ->
       assert (VarMap.is_empty !points);
       S.TyAnchoredPermission (reset env ty1, reset env ty2)
@@ -95,7 +115,7 @@ let rec resugar env (points : unit VarMap.t ref) ty =
       assert (VarMap.is_empty !points);
       S.TyStar (reset env p1, reset env p2)
   | TyAnd (c, ty) ->
-      S.TyAnd (reset_mode_constraint env c, resugar env points ty)
+      S.TyAnd (reset_mode_constraint env c, resugar env points soup ty)
 
 and resugar_arrow env points ty =
   match modulo_flex env ty with
@@ -114,9 +134,12 @@ and resugar_arrow env points ty =
 	 points that we have collected will receive a name
 	 introduction form. *)
       let points = ref points in
-      let ty1 = resugar env points ty1 in
+      let soup = ref VarMap.empty in
+      let ty1 = resugar env points soup ty1 in
       (* This may be too naive. *)
       assert (VarMap.is_empty !points);
+      (* TEMPORARY construct TyBar for the remaining soup elements *)
+      assert (VarMap.is_empty !soup);
       (* Since every point has been named via a name introduction
 	 form, there is no need to create explicit universal
 	 quantifiers. Translate the codomain and build an arrow. *)
@@ -126,7 +149,7 @@ and resugar_arrow env points ty =
       (* This may be too naive. *)
       assert false
 
-and resugar_resolved_branch env points branch =
+and resugar_resolved_branch env points soup branch =
   (* Recreate a [datacon_reference] for this data constructor. *)
   (* TEMPORARY something is wrong:
      1. it is clumsy to recreate this info; (why did we forget it?)
@@ -137,15 +160,15 @@ and resugar_resolved_branch env points branch =
     S.datacon_info = None
   } in
   (* Resugar the fields. *)
-  let fields = List.map (resugar_field env points) branch.branch_fields in
+  let fields = List.map (resugar_field env points soup) branch.branch_fields in
   (* Resugar the adopts clause. If it is [bottom], it becomes [None]. *)
   let clause = Option.map (reset env) (is_non_bottom branch.branch_adopts) in
   (* Done. *)
   S.TyConcreteUnfolded ((dref, fields), clause)
 
-and resugar_field env points = function
+and resugar_field env points soup = function
   | FieldValue (f, ty) ->
-      S.FieldValue (f, resugar env points ty)
+      S.FieldValue (f, resugar env points soup ty)
   | FieldPermission p ->
       S.FieldPermission (reset env p)
 
@@ -154,7 +177,15 @@ and reset_mode_constraint env (mode, ty) =
 
 and reset env ty =
   let points = ref VarMap.empty in
-  resugar env points ty
+  let soup = ref VarMap.empty in
+  let ty = resugar env points soup ty in
+  assert (VarMap.is_empty !points);
+  spill_soup env !soup ty
+
+and spill_soup env soup ty =
+  VarMap.fold (fun x t ty ->
+    S.TyBar (ty, reset env (TyAnchoredPermission (TyOpen x, t)))
+  ) soup ty
 
 (* ---------------------------------------------------------------------------- *)
 
