@@ -259,7 +259,7 @@ let check
             | _ ->
                 error_out "definition mismatch"
 
-        ) translated_definitions;
+        ) translated_definitions.T.group_items;
 
         (* Check the remainder of the toplevel_items. *)
         check env tsenv toplevel_items

@@ -833,7 +833,7 @@ let eval_implementation_item (env : env) (item : toplevel_item) : env =
 	 qualified names that it has declared are available in the environment.
 	 For each name of the form [m::x], we create a new local name [x]. *)
       unqualify m env
-  | DataTypeGroup (_, defs) ->
+  | DataTypeGroup (_, _, defs) ->
       (* The effect of evaluating a data type definition is to generate new
 	 data constructors. *)
       List.fold_left (fun env def ->
@@ -879,7 +879,7 @@ let export_interface_item (m : Module.name) (env : env) (item : toplevel_item) :
       (* An [open] directive does not affect the set of names that are exported.
          Thus, it is ignored. *)
       env
-  | DataTypeGroup (_, defs) ->
+  | DataTypeGroup (_, _, defs) ->
       (* The effect of a data type declaration is to export data constructors. *)
       List.fold_left (fun env def ->
         match def with

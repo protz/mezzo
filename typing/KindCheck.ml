@@ -1033,16 +1033,15 @@ let check_implementation (tenv: T.env) (program: implementation) =
          * makes sure we don't bind the same name twice. Admittedly, we could do
          * something better for error reporting. *)
         let env = locate env p in
-        let env =
-          if rec_flag = Recursive then
-            List.fold_left bind env bindings
-          else
-            env
-        in
-        (* Check the data type definitions in the environment. *)
-        check_data_type_group env data_type_group;
+        let sub_env = List.fold_left bind env bindings in
 
-        env
+        (* Check the data type definitions in the environment. *)
+        if rec_flag = Recursive then
+          check_data_type_group sub_env data_type_group
+        else
+          check_data_type_group env data_type_group;
+
+        sub_env
 
     | ValueDeclarations declaration_group ->
         (* This function does everything at once and takes care of both binding

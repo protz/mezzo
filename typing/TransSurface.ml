@@ -616,20 +616,22 @@ let translate_data_type_group
   (* We're recycling the environments from [SurfaceSyntax] because we're lazy.
    * We don't really need the [Types.kind] information here, but all the other
    * functions such as [bind] and [find] are defined already. *)
-  let env = List.fold_left bind env bindings in
+  let sub_env = List.fold_left bind env bindings in
 
   (* Also bind the constructors, as we're performing a scope-check of data
    * constructors in this module, while we're at it... *)
-  let env = bind_datacons env data_type_group in
+  let sub_env = bind_datacons sub_env data_type_group in
 
   (* First do the translation pass. *)
   let translated_definitions: T.data_type_group = {
     T.group_recursive = rec_flag;
-    group_items = List.map (translate_data_type_def env) data_type_group
+    group_items =
+      let sub_env = if rec_flag = Recursive then sub_env else env in
+      List.map (translate_data_type_def sub_env) data_type_group
   } in
 
   (* Return both the environment and the desugared definitions. *)
-  env, translated_definitions
+  sub_env, translated_definitions
 ;;
 
 
