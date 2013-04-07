@@ -37,13 +37,14 @@ let ( ^=> ) x y   = x && y || not x;;
 
 let ( !!  )       = function
   | TyOpen x -> x
-  | _ as t -> Log.error "Not a TyOpen %a" !internal_ptype (empty_env, t);;
+  | _ as t -> Log.error "Not a TyOpen %a" !internal_ptype (empty_env, t)
+;;
 
 let ( !!= )       = function
   | TySingleton (TyOpen x) ->
       x
-  | _ ->
-      assert false
+  | _ as t ->
+      Log.error "Not a ty_equals %a" !internal_ptype (empty_env, t)
 ;;
 
 let fst3 (x, _, _) = x;;
@@ -457,7 +458,7 @@ let bind_datacon_parameters (env: env) (kind: kind) (branches: unresolved_branch
   env, points, branches
 ;;
 
-let expand_if_one_branch (env: env) (t: typ) =
+let rec expand_if_one_branch (env: env) (t: typ) =
   match is_tyapp t with
   | Some (cons, args) ->
       begin match get_definition env cons with
@@ -466,7 +467,8 @@ let expand_if_one_branch (env: env) (t: typ) =
 	  let branch = resolve_branch cons branch in
           TyConcreteUnfolded branch
       | Some (Abbrev t) ->
-          instantiate_type t args
+          let t = instantiate_type t args in
+          expand_if_one_branch env t
       | _ ->
         t
       end

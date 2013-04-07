@@ -508,12 +508,16 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
        * compatible types? There is no case below that deals with function
        * types, and still, we should be able to merge them. Instead of doing a
        * simple call to [equal], we should do:
+       *
        * if valid top left_perm && valid top right_perm then
        *   sub_type dest_env left_perm right_perm >>=
        *   sub_type dest_env right_perm left_perm >>=
        *   Some (left_env, right_env, dest_env, left_perm)
        * else
        *   None
+       *
+       * But this may be too expensive... need to think about it more (in the
+       * meanwhile, read tests/merge-func.mz).
        *)
       lazy begin
         try
@@ -838,6 +842,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                    * consider the parameter to be invariant. *)
                   match variance dest_env cons i with
                   | Covariant ->
+                      (* TEMPORARY we should have a
+                       * [merge_type_with_unfolding] here, see tests/merge20.mz *)
                       merge_type (left_env, argl) (right_env, argr) ?dest_var dest_env
                   | _ ->
                       begin try
@@ -866,6 +872,36 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
               (* And we're good to go. *)
               Some (left_env, right_env, dest_env, t)
+
+        | _ ->
+            None
+      end;
+
+      (* If nothing else worked we can still make progress by expanding eagerly
+       * type abbreviations. We could pick the opposite strategy, and then
+       * re-fold into a type abbreviation. But what if the type abbreviation is
+       * a TyBar which contains permissions that are only available on one side?
+       * That would make the merge operation fail. So let's be conservative and
+       * expand eagerly the type abbreviation. *)
+      lazy begin
+        match is_tyapp left_perm, is_tyapp right_perm with
+        | Some (cons1, args1) , _ when is_abbrev left_env cons1 ->
+            begin match get_definition left_env cons1 with
+            | Some (Abbrev left_perm) ->
+                let left_perm = instantiate_type left_perm args1 in
+                merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
+            | _ ->
+                assert false
+            end
+
+        | _, Some (cons2, args2) when is_abbrev left_env cons2 ->
+            begin match get_definition right_env cons2 with
+            | Some (Abbrev right_perm) ->
+                let right_perm = instantiate_type right_perm args2 in
+                merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
+            | _ ->
+                assert false
+            end
 
         | _ ->
             None

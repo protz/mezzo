@@ -1,0 +1,11 @@
+val mkoption [a, b] (): option (a, b) =
+  fail
+
+val _ =
+  if True then
+    mkoption [int, int] ()
+  else begin
+    let x = 1 in
+    let y = 2 in
+    mkoption [=x, =y] ()
+  end

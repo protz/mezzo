@@ -480,6 +480,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("merge19.mz", pass);
 
+  ("merge20.mz", pass_known_failure);
+
   ("merge_generalize_val.mz", pass);
 
   ("merge-funcs.mz", pass_known_failure);
