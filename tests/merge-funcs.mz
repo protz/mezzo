@@ -1,0 +1,9 @@
+(* See digression in [Merge]. *)
+val f: [a] (consumes a) -> a =
+  let x =
+    if True then
+      (fun [a] (consumes (x: a)): a = x)
+    else
+      (fun [a] (consumes a): a = fail)
+  in
+  x

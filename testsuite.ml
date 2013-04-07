@@ -482,6 +482,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("merge_generalize_val.mz", pass);
 
+  ("merge-funcs.mz", pass_known_failure);
+
   ("constraints_merge.mz",
     simple_test ~pedantic:true Pass);
 

@@ -500,7 +500,21 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
      * knows how to deal with that. *)
     let strategies = [
 
-      (* Simple equals strategy. *)
+      (* Simple equals strategy.
+       *
+       * TEMPORARY: the call to "equal" is just a syntactic check; this is not a
+       * powerful tool, and we may want to merge things in a more sophisticated
+       * way. What about merging two functions that have slightly different, but
+       * compatible types? There is no case below that deals with function
+       * types, and still, we should be able to merge them. Instead of doing a
+       * simple call to [equal], we should do:
+       * if valid top left_perm && valid top right_perm then
+       *   sub_type dest_env left_perm right_perm >>=
+       *   sub_type dest_env right_perm left_perm >>=
+       *   Some (left_env, right_env, dest_env, left_perm)
+       * else
+       *   None
+       *)
       lazy begin
         try
           if equal top left_perm right_perm then begin
