@@ -922,6 +922,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("gadt.mz", pass);
   ("gadt-bug.mz", fail_known_failure);
   ("abbrev-1.mz", pass);
+  ("abbrev-2.mz", pass);
 
 ];;
 

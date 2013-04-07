@@ -416,6 +416,13 @@ let is_tyapp = function
       None
 ;;
 
+let is_abbrev env v =
+  match get_definition env v with
+  | Some (Abbrev _) ->
+      true
+  | _ -> false
+;;
+
 let is_term env v = (get_kind env v = KTerm);;
 let is_perm env v = (get_kind env v = KPerm);;
 let is_type env v = (snd (Kind.as_arrow (get_kind env v)) = KType);;

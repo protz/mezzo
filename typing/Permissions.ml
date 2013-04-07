@@ -786,6 +786,92 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
       else
         no_proof_root
 
+  (* This rule compares type applications. This works for all sorts of type
+   * applications: abstract types, data types, or type abbreviations. This means
+   * that we don't always eagerly expand type abbreviations. *)
+  | TyApp (cons1, args1), TyApp (cons2, args2) when same env !!cons1 !!cons2 ->
+      try_proof_root "Application" begin
+        let cons1 = !!cons1 in
+        (* We enter a potentially non-linear context here. Only keep duplicable
+         * parts. *)
+        let sub_env = keep_only_duplicable env in
+        premises sub_env (MzList.map2i (fun i arg1 arg2 -> fun sub_env ->
+          (* Variance comes into play here as well. The behavior is fairly
+           * intuitive. *)
+          match variance sub_env cons1 i with
+          | Covariant ->
+              try_proof sub_env (JLt (arg1, arg2)) "Covariance" begin
+                sub_type_with_unfolding sub_env arg1 arg2 >>=
+                qed
+              end
+          | Contravariant ->
+              try_proof sub_env (JGt (arg1, arg2)) "Contravariance" begin
+                sub_type_with_unfolding sub_env arg2 arg1 >>=
+                qed
+              end
+          | Bivariant ->
+              nothing env "Bivariance"
+          | Invariant ->
+              try_proof sub_env (JEqual (arg1, arg2)) "Invariance" begin
+                sub_type_with_unfolding sub_env arg1 arg2 >>= fun sub_env ->
+                sub_type_with_unfolding sub_env arg2 arg1 >>=
+                qed
+              end
+        ) args1 args2) >>~ fun sub_env ->
+        import_flex_instanciations env sub_env
+      end
+
+  (* Our strategy to deal with type abbreviations it to expand them eagerly. The
+   * rules with [TyConcreteUnfolded] implicitly assume that the type application
+   * on the other side is a data type application, so we must put these rules
+   * first. Indeed, we could have: "alias t = Cons { head: ...; tail: ... }"
+   * and we must make sure the alias gets expanded first if the other side is a
+   * constructor. *)
+  | TyOpen cons1, _ when is_abbrev env cons1 ->
+      try_proof_root "Abbreviation-L" begin
+        match get_definition env cons1 with
+        | Some (Abbrev t1) ->
+            sub_type_with_unfolding env t1 t2 >>=
+            qed
+        | _ ->
+            assert false
+      end
+
+  | _, TyOpen cons2 when is_abbrev env cons2 ->
+      try_proof_root "Abbreviation-R" begin
+        match get_definition env cons2 with
+        | Some (Abbrev t2) ->
+            sub_type_with_unfolding env t1 t2 >>=
+            qed
+        | _ ->
+            assert false
+      end
+
+  | TyApp (cons1, args1), _ when is_abbrev env !!cons1 ->
+      try_proof_root "Abbreviation-L" begin
+        match get_definition env !!cons1 with
+        | Some (Abbrev t1) ->
+            let t1 = instantiate_type t1 args1 in
+            sub_type_with_unfolding env t1 t2 >>=
+            qed
+        | _ ->
+            assert false
+      end
+
+  | _, TyApp (cons2, args2) when is_abbrev env !!cons2 ->
+      try_proof_root "Abbreviation-R" begin
+        match get_definition env !!cons2 with
+        | Some (Abbrev t2) ->
+            let t2 = instantiate_type t2 args2 in
+            sub_type_with_unfolding env t1 t2 >>=
+            qed
+        | _ ->
+            assert false
+      end
+
+  (* Now that we've made sure that the type application is not an abbreviation,
+   * we can consider folding back the branch. We could reorder this branch
+   * anywhere if we had a guard such has "compatible_branch branch1 cons2". *)
   | TyConcreteUnfolded branch1, TyApp (cons2, args2) ->
       let (cons1, datacon1) = branch1.branch_datacon in
       let var1 = !!cons1 in
@@ -820,43 +906,6 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
       end else begin
         no_proof_root
       end
-
-  | TyApp (cons1, args1), TyApp (cons2, args2) ->
-      let cons1 = !!cons1 in
-      let cons2 = !!cons2 in
-
-      if same env cons1 cons2 then
-        try_proof_root "Application" begin
-          (* We enter a potentially non-linear context here. Only keep duplicable
-           * parts. *)
-          let sub_env = keep_only_duplicable env in
-          premises sub_env (MzList.map2i (fun i arg1 arg2 -> fun sub_env ->
-            (* Variance comes into play here as well. The behavior is fairly
-             * intuitive. *)
-            match variance sub_env cons1 i with
-            | Covariant ->
-                try_proof sub_env (JLt (arg1, arg2)) "Covariance" begin
-                  sub_type_with_unfolding sub_env arg1 arg2 >>=
-                  qed
-                end
-            | Contravariant ->
-                try_proof sub_env (JGt (arg1, arg2)) "Contravariance" begin
-                  sub_type_with_unfolding sub_env arg2 arg1 >>=
-                  qed
-                end
-            | Bivariant ->
-                nothing env "Bivariance"
-            | Invariant ->
-                try_proof sub_env (JEqual (arg1, arg2)) "Invariance" begin
-                  sub_type_with_unfolding sub_env arg1 arg2 >>= fun sub_env ->
-                  sub_type_with_unfolding sub_env arg2 arg1 >>=
-                  qed
-                end
-          ) args1 args2) >>~ fun sub_env ->
-          import_flex_instanciations env sub_env
-        end
-      else
-        no_proof_root
 
   | TySingleton t1, TySingleton t2 ->
       try_proof_root "Singleton" begin

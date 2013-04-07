@@ -1,0 +1,25 @@
+alias pair a b = (a, b)
+
+val fst [a, b] (consumes x: pair a b): a =
+  let x, _ = x in
+  x
+
+val fst2 [a, b] (consumes (x: a, y: b)): a =
+  x
+
+val f [a, b] (fst: (consumes (pair a b) -> a), x: pair a b): a =
+  fst x
+
+val f2 [a, b] (fst: (consumes (a, b) -> a), x: (a, b)): a =
+  fst x
+
+val ignore [a] (x: a): () =
+  ()
+
+val _ =
+  let x: pair () () = ((), ()) in
+  ignore (f (fst, x));
+  ignore (f (fst2, x));
+  ignore (f2 (fst, x));
+  ignore (f2 (fst2, x))
+
