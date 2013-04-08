@@ -3,7 +3,7 @@ open oneshotfunction
 data mutable sparray a =
   | SPArray { repr: repr a }
 
-data mutable repr a =
+and mutable repr a =
   | RFlat { contents: array a }
   | RUndo { descendant: sparray a; offset: int; element: a }
 
@@ -78,12 +78,12 @@ val set [a] duplicable a =>
   in*)
   spa', (osf_make
 	   (* I guess the needed annotation is the third one. *)
-(*	   [ ( | spa' @ sparray a) ]
+	   [ ( | spa' @ sparray a) ]
 	   [ ( | spa @ sparray a) ]
 	   [ (spa @ SPArray {
 	     repr: RUndo {
 	       descendant: =spa'; offset: int; element: a
 	     } 
-	   }) ]*)
+	   }) ]
 	   (retrieve [a] [spa] [spa']))
 
