@@ -39,10 +39,7 @@ data state a =
    the fact that [b] is duplicable! So we can get rid of this
    assumption in the type of [force]. *)
 
-data thunk +a =
-  | Thunk { thunk: {b} (wref (state b) | id @ b -> a) }
-
-(* TEMPORARY we need a type abbreviation here! *)
+alias thunk +a = {b} (wref (state b) | id @ b -> a)
 
 (* Creation. *)
 
@@ -54,7 +51,7 @@ val create [a, p : perm] duplicable a => (
 | consumes p
 ) : thunk a =
   let s : state a = Suspended { computation = f } in
-  Thunk { thunk = new [state a] s }
+  new [state a] s
 
 (* A custom unpacking function. This is another shortcoming of the
    system; if we had a generic mechanism for naming the variable
@@ -80,8 +77,8 @@ val unpack [a, c] (
 
 val force [a] (t: thunk a) : a =
   (* Unpack the existential, and let [b] stand for the witness. *)
-  unpack (t.thunk, fun [b] (x: wref (state b) | id @ b -> a) : a =
-    (* We get access to [t.thunk], under the name [x], at type
+  unpack (t, fun [b] (x: wref (state b) | id @ b -> a) : a =
+    (* We get access to [t], under the name [x], at type
        [wref (state b)], where [b] is an unknown subtype of [a],
        as witnessed by the permission [id @ b -> a]. *)
     update (x, fun (consumes s: state b) : (state b, a) =
