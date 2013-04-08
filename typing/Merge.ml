@@ -243,7 +243,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
      * merging, at the front of the list (this implements our first heuristic). *)
     let left_env, left_root = left in
     let right_env, right_root = right in
-    let root_name = fresh_auto_var "merge_root" in
+    let root_name = fresh_auto_name "merge_root" in
     let dest_env, dest_root = bind_rigid dest_env (root_name, KTerm, location dest_env) in
     push_job (left_root, right_root, dest_root);
 
@@ -460,7 +460,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
       | Some dest_p ->
           dest_env, dest_p
       | None ->
-          let name = fresh_auto_var "merge_var" in
+          let name = fresh_auto_name "merge_var" in
           let dest_env, dest_p = bind_rigid dest_env (name, KTerm, location left_env) in
           let dest_env = add_location dest_env dest_p (location right_env) in
           push_job (left_p, right_p, dest_p);
@@ -842,9 +842,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                    * consider the parameter to be invariant. *)
                   match variance dest_env cons i with
                   | Covariant ->
-                      (* TEMPORARY we should have a
-                       * [merge_type_with_unfolding] here, see tests/merge20.mz *)
-                      merge_type (left_env, argl) (right_env, argr) ?dest_var dest_env
+                      merge_type_with_unfolding (left_env, argl) (right_env, argr) ?dest_var dest_env
                   | _ ->
                       begin try
                         let argl = clean top left_env argl in
@@ -889,7 +887,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             begin match get_definition left_env cons1 with
             | Some (Abbrev left_perm) ->
                 let left_perm = instantiate_type left_perm args1 in
-                merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
+                merge_type_with_unfolding (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
             | _ ->
                 assert false
             end
@@ -898,7 +896,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             begin match get_definition right_env cons2 with
             | Some (Abbrev right_perm) ->
                 let right_perm = instantiate_type right_perm args2 in
-                merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
+                merge_type_with_unfolding (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
             | _ ->
                 assert false
             end
@@ -943,6 +941,38 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
     | _ ->
         None
 
+  (* The merge procedure makes the assumption that everything is in the expanded
+   * form, that is, that tuples (and concrete types) are of the form
+   * "(=x₁, ..., =xₙ)". This assumption is unfortunately broken when entering
+   * "opaque" constructs, i.e. those which don't go through the unfolding (see
+   * the extended version of the ICFP2013 paper). Right now, we don't merge
+   * functions, existentials, universals, or mode constraints (existentials and
+   * mode assumptions are removed when performing a [Permissions.add], and we
+   * don't use universal values that much). Function types are not merged
+   * either. The only "opaque" contexts that remains is type applications and
+   * type abbreviations which have not been expanded. For these, we must first
+   * unfold the type before performing the merge. *)
+  and merge_type_with_unfolding (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env =
+    (* How do we expand a type? We bind a point, and add the permission to the
+     * given point. Unfortunately, we don't have an easy way to recover the type
+     * we just added to the point, so we use that little hack, telling that when
+     * the type is "simple", it remains simple, so we don't have to perform the
+     * whole procedure... *)
+    let expand env t =
+      let t = modulo_flex env t in
+      Log.debug "[merge_type_with_unfolding] %a" TypePrinter.ptype (env, t);
+      let simple = function TyUnknown | TyDynamic | TySingleton _ -> true | _ -> false in
+      if simple t then
+        env, t
+      else
+        let env, point = bind_rigid env (fresh_auto_name "mtwu", KTerm, location env) in
+        let env = Permissions.add env point t in
+        let t = List.find (fun x -> not (simple x)) (get_permissions env point) in
+        env, t
+    in
+    let left_env, left_perm = expand left_env left_perm in
+    let right_env, right_perm = expand right_env right_perm in
+    merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
   in
 
   (* First, start by merging the floating permissions. *)
