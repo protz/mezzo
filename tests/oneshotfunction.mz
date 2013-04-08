@@ -1,43 +1,59 @@
 (* A one-shot function is an affine resource. *)
 
-(* A one-shot function is coded as a pair of a regular function [f] and 
-   an exclusive permission [p] that is required and consumed by any call
+(* A one-shot function is coded as a regular function [f] and an attached
+   exclusive permission [p] that is required and consumed by any call
    to [f]. The permission [p] is quantified existentially. *)
 
-data osf a b =
-  | Osf { osf: {p: perm} ((consumes (a | p)) -> b | p) }
+(* This is a successful use of type abbreviation! *)
 
-(* TEMPORARY: better with a type abbreviation! *)
+alias osf a b = {p: perm} (((consumes (a|p)) -> b) | p)
+
 
 (* Creation. *)
 
 (* One can build one-shot instances of any function. *)
+(* The one-shot function is just the function. *)
 
-val osf_make [a, b, p: perm] (f: (consumes (a | p)) -> b | consumes p): osf a b =
-  Osf { osf = f }
+val osf_make [a, b, p: perm] (f: (consumes (a | p)) -> b | consumes p): osf a b = f
+
+
+(* Application. *)
 
 (* Application of a one-shot function consumes the function. *)
 
-val osf_apply [a, b] (consumes x: a, consumes f: osf a b): b =
-  f.osf x
+val osf_apply [a, b] (consumes x: a, consumes f: osf a b): b = f x
+
+
+(* Composition. *)
 
 (* Strange case in [osf_compose]: the call to [osf_make] typechecks when
    no type application is provided. However it fails if the third argument
    (the permission to be hidden in the one-shot function) is given. *)
 
+(* It appears that the call to [osf_apply] is not needed. The function 
+   can be used like any other function! *)
+
 val osf_compose [a, b, c] (consumes f: osf a b, consumes g: osf b c): osf a c=
   let h = fun (consumes x: a | consumes (f @ osf a b * g @ osf b c)): c=
-    osf_apply (osf_apply (x, f), g)
+    (*osf_apply (osf_apply (x, f), g)*)
+    g (f x)
   in
-  osf_make [a] [c] [(f @ osf a b * g @ osf b c)] h
+  osf_make (*[a] [c] [(f @ osf a b * g @ osf b c)]*) h
 
 
-(* Is it possible to have a special, degenerated case of one-shot functions
-   that would encode just the magic wand? *)
-
+(* The function below does not typecheck: one-shot functions can be used
+   only once. *)
 (*
-data magicwand p1 p2 =
-  | MagicWand { mw: {q: perm} ( | consumes (p1 * q) -> ( | p2) | q) } 
+val wrong (consumes f: osf () ()): ((), ())=
+  (f (), f ())
+*)
+(* In the following other wrong function, any application of [f] after
+   the line that defines [g] is rejected. This seems strange. *)
+(*
+val wrong (f: () -> ()): ((), ())=
+  let r = newref () in
+  let g = osf_make [()] [()] [(r@ref ())] f in
+  (g(),g())
 *)
 
 (*
