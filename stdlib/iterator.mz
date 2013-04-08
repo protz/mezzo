@@ -19,21 +19,19 @@ data iterator a (post : perm) =
        a more precise return type than that of [next].) Furthermore, [stop] and
        [next] requires the ownership of [x], so the element can be inspected, but
        cannot be retained. *)
-  | IAvailable { content: { pre : perm } item a pre post }
-
-(* The following definitions are cumbersome, due to the lack of type
-   abbreviations and the need to work around certain current bugs,
-   e.g. can't use name-intro under an existential quantification.
-   See [name-intro.mz]. Ideally, we don't need a separate type [item].
-   TEMPORARY *)
-
-and item a (pre : perm) (post : perm) =
-  | Item { content: (
+  | IAvailable { content: { pre : perm } (
       x: a,
       stop: (| consumes (x @ a * pre)) -> IFinished { outcome: Stopped | post },
       next: (| consumes (x @ a * pre)) -> iterator a post
       | pre
     )}
+
+(* The above definition is a bit heavy. Ideally, the existential
+   quantification { pre } could be moved outside of IAvailable,
+   and the field x would be named by x: (x: a), so it could be
+   referred to by the other fields. This would allow us to get
+   rid of this bizarre [content] field which contains a triple.
+   TEMPORARY *)
 
 and outcome =
   | Stopped
