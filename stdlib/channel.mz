@@ -9,11 +9,8 @@ open condition
    A channel is duplicable: multiple threads may simultaneously try to
    send or receive by waiting on the condition variable. *)
 
-(* TEMPORARY a type abbreviation would be nice! or a data type whose
-   fields can be referred to *)
-
-data channel a =
-  Channel { channel: (q: unknown, l: lock (q @ fifo a), condition l) }
+alias channel a =
+  (q: unknown, l: lock (q @ fifo a), condition l)
 
 (* Channel creation. *)
 
@@ -24,7 +21,7 @@ val new [a] (): channel a =
   let q = queue::create () in
   let l: lock (q @ fifo a) = lock::new () in
   let c = condition::new l in
-  Channel { channel = (q, l, c) }
+  (q, l, c)
 
 (* Send. *)
 
@@ -35,7 +32,7 @@ val new [a] (): channel a =
    expert (Luc?). TEMPORARY *)
 
 val send [a] (c: channel a, consumes x: a): () =
-  let q, l, cond = c.channel in
+  let q, l, cond = c in
   acquire l;
   insert (x, q);
   if length q = 1 then
@@ -48,7 +45,7 @@ val send [a] (c: channel a, consumes x: a): () =
    it will suspend the thread and wait on the condition variable. *)
 
 val receive [a] (c: channel a): a =
-  let q, l, cond = c.channel in
+  let q, l, cond = c in
   acquire l;
 
   (* A call to [receive_aux] requires the lock [l] to be held. The

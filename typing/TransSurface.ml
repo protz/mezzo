@@ -557,7 +557,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
       (* Same remarks for fact/variance as with the Concrete case. *)
       let fact = Fact.bottom in
       let variance = List.map (fun (v, _) -> v) the_params in
-      let t = translate_type env t in
+      let t = translate_type_with_names env t in
       T.({ data_name = name;
         data_location = env.location;
         data_definition = Abbrev t;
