@@ -3,7 +3,7 @@ data mutable ref a =
 
 val newref  : [a] (consumes a) -> ref a
 val (!)     : [y : term] (ref (=y)) -> =y
-val (:=)    : [a, b] (consumes x: ref a, consumes b) -> (| x @ ref b)
+val (:=)    : [y1: term, y2: term] (consumes x: ref (=y1), =y2) -> (| x @ ref (=y2))
 
 val incr    : ref int -> ()
 val decr    : ref int -> ()

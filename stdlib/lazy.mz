@@ -39,7 +39,8 @@ data state a =
    the fact that [b] is duplicable! So we can get rid of this
    assumption in the type of [force]. *)
 
-alias thunk +a = {b} (wref (state b) | id @ b -> a)
+alias thunk +a =
+  {b} (wref (state b) | id @ b -> a)
 
 (* Creation. *)
 

@@ -913,8 +913,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("tyand06.mz", fail);
   ("incorrect-fields.mz",
     simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
-  ("name-intro.mz", pass_known_failure);
-  ("name-intro2.mz", pass_known_failure);
+  ("name-intro.mz", pass);
+  ("name-intro2.mz", pass);
   ("name-intro3.mz", pass_known_failure);
   ("exists-forall.mz", pass);
   ("name-capture.mz", pass_known_failure);
