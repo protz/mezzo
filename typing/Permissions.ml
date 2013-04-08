@@ -827,32 +827,23 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
    * first. Indeed, we could have: "alias t = Cons { head: ...; tail: ... }"
    * and we must make sure the alias gets expanded first if the other side is a
    * constructor. *)
-  | TyOpen cons1, _ when is_abbrev env cons1 ->
-      try_proof_root "Abbreviation-L" begin
-        match get_definition env cons1 with
-        | Some (Abbrev t1) ->
-            sub_type_with_unfolding env t1 t2 >>=
-            qed
-        | _ ->
-            assert false
-      end
-
   | _, TyOpen cons2 when is_abbrev env cons2 ->
       try_proof_root "Abbreviation-R" begin
         match get_definition env cons2 with
         | Some (Abbrev t2) ->
-            sub_type_with_unfolding env t1 t2 >>=
+            let env, t2 = open_all_rigid_in env t2 Right in
+            sub_type env t1 t2 >>=
             qed
         | _ ->
             assert false
       end
 
-  | TyApp (cons1, args1), _ when is_abbrev env !!cons1 ->
+  | TyOpen cons1, _ when is_abbrev env cons1 ->
       try_proof_root "Abbreviation-L" begin
-        match get_definition env !!cons1 with
+        match get_definition env cons1 with
         | Some (Abbrev t1) ->
-            let t1 = instantiate_type t1 args1 in
-            sub_type_with_unfolding env t1 t2 >>=
+            let env, t1 = open_all_rigid_in env t1 Left in
+            sub_type env t1 t2 >>=
             qed
         | _ ->
             assert false
@@ -863,7 +854,20 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         match get_definition env !!cons2 with
         | Some (Abbrev t2) ->
             let t2 = instantiate_type t2 args2 in
-            sub_type_with_unfolding env t1 t2 >>=
+            let env, t2 = open_all_rigid_in env t2 Right in
+            sub_type env t1 t2 >>=
+            qed
+        | _ ->
+            assert false
+      end
+
+  | TyApp (cons1, args1), _ when is_abbrev env !!cons1 ->
+      try_proof_root "Abbreviation-L" begin
+        match get_definition env !!cons1 with
+        | Some (Abbrev t1) ->
+            let t1 = instantiate_type t1 args1 in
+            let env, t1 = open_all_rigid_in env t1 Left in
+            sub_type env t1 t2 >>=
             qed
         | _ ->
             assert false
