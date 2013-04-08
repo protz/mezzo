@@ -51,8 +51,20 @@ data iterator a (post : perm) =
    TEMPORARY *)
 
 (* TEMPORARY we might wish to represent an iterator that has not yet started
-   as a (one-shot) function of unit to iterator a post. Otherwise, we are
-   forcing the first element to be fetched immediately. *)
+   as a (one-shot) function of unit to [iterator a post]. Otherwise, we are
+   forcing the first element to be fetched immediately. Maybe a third case [ISkip]
+   needs to be added for this purpose. It would be like [IAvailable], except
+   it would have no element [x]. Hmm, but this third case will pollute things.
+   We cannot indicate that [next] will *not* produce this third case... *)
+
+(* TEMPORARY maybe the iterator should be mutable, so we don't need
+   to re-allocate a new iterator at every loop iteration; since the
+   continuations are one-shot, there is no benefit to an immutable
+   iterator *)
+
+(* TEMPORARY maybe the type [iterator] should be abstract, with a
+   simple interface; do not reveal how it is implemented. Write
+   iterator.mzi *)
 
 (* ------------------------------------------------------------------------------ *)
 
