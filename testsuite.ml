@@ -225,8 +225,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     pass);
   ("assign.mz",
     pass);
-  ("desugaring00.mz",
-    simple_test ~known_failure:() Pass);
 
   ("wrong_type_annotation.mz",
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
@@ -897,13 +895,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("facts09.mz", fail);
   ("facts10.mz", fail);
   ("data-term.mz", pass_known_failure);
-  ("fact-term.mz", simple_test ~known_failure:() (Fail (fun _ -> true)));
+  ("fact-term.mz", fail_known_failure);
 
   ("local-type.mz", pass_known_failure);
   ("local-type2.mz", pass_known_failure);
   ("local-type3.mz", pass_known_failure);
   ("local-type4.mz", pass);
-  ("tyapp.mz", pass_known_failure);
+  ("tyapp.mz", pass);
   ("tyand00.mz", kfail);
   ("tyand01.mz", pass);
   ("tyand02.mz", pass);
@@ -916,6 +914,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("name-intro.mz", pass);
   ("name-intro2.mz", pass);
   ("name-intro3.mz", pass_known_failure);
+  ("desugaring00.mz", pass_known_failure);
   ("exists-forall.mz", pass);
   ("name-capture.mz", pass_known_failure);
   ("time.mz", pass);

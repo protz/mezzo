@@ -1,4 +1,4 @@
 val id [a] (consumes x: a) : a = x
 
-val () =
+val _ =
   id [(x: int)] 0
