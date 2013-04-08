@@ -149,7 +149,7 @@ val is_user : name -> bool
 
 (** {1 Miscellaneous} *)
 
-val fresh_auto_var : string -> name
+val fresh_auto_name : string -> name
 val find_type_by_name :
   env -> ?mname:string -> string -> typ
 val make_datacon_letters :

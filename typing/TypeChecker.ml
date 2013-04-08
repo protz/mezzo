@@ -474,7 +474,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
    * the environment as well as the var *)
   let return env t =
     (* Not the most clever function, but will do for now on *)
-    let hint = Option.map_none (fresh_auto_var "/x_") hint in
+    let hint = Option.map_none (fresh_auto_name "/x_") hint in
     let env, x = bind_rigid env (hint, KTerm, location env) in
     let env = Permissions.add env x t in
     match annot with
@@ -526,7 +526,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* This is actually pretty simple! We just bind an anonymous name for the
        * argument, give it the right type, and everything happens automatically.
        * *)
-      let sub_env, x_arg = bind_rigid sub_env (fresh_auto_var "arg", KTerm, location sub_env) in
+      let sub_env, x_arg = bind_rigid sub_env (fresh_auto_name "arg", KTerm, location sub_env) in
       let sub_env = Permissions.add sub_env x_arg arg in
 
       (* Type-check the function body. *)

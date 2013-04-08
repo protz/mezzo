@@ -480,7 +480,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("merge19.mz", pass);
 
-  ("merge20.mz", pass_known_failure);
+  ("merge20.mz", pass);
 
   ("merge_generalize_val.mz", pass);
 
@@ -791,7 +791,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("same-type-var-bug.mz", simple_test (KFail (function K.BoundTwice _ -> true | _ -> false)));
 
-  ("assert-bug.mz", simple_test ~known_failure:() Pass);
+  ("assert-bug.mz", pass_known_failure);
 
   ("function-comparison.mz", pass);
 
@@ -896,14 +896,14 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("facts08.mz", fail);
   ("facts09.mz", fail);
   ("facts10.mz", fail);
-  ("data-term.mz", simple_test ~known_failure:() Pass);
+  ("data-term.mz", pass_known_failure);
   ("fact-term.mz", simple_test ~known_failure:() (Fail (fun _ -> true)));
 
-  ("local-type.mz", simple_test ~known_failure:() Pass);
-  ("local-type2.mz", simple_test ~known_failure:() Pass);
-  ("local-type3.mz", simple_test ~known_failure:() Pass);
+  ("local-type.mz", pass_known_failure);
+  ("local-type2.mz", pass_known_failure);
+  ("local-type3.mz", pass_known_failure);
   ("local-type4.mz", pass);
-  ("tyapp.mz", simple_test ~known_failure:() Pass);
+  ("tyapp.mz", pass_known_failure);
   ("tyand00.mz", kfail);
   ("tyand01.mz", pass);
   ("tyand02.mz", pass);
@@ -927,6 +927,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("gadt-bug.mz", fail_known_failure);
   ("abbrev-1.mz", pass);
   ("abbrev-2.mz", pass);
+  ("abbrev-3.mz", pass);
 
 ];;
 
