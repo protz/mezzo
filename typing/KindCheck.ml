@@ -475,6 +475,13 @@ let exist bindings ty =
 
 (* Some helper functions for working with [SurfaceSyntax] types. *)
 
+let iter_tapp f = function
+  | Ordered t ->
+      f t
+  | Named (_, t) ->
+      f t
+;;
+
 let rec flatten_tyapp ty =
   match ty with
   | TyApp (ty, args) ->
@@ -744,7 +751,7 @@ and infer (env: env) (t: typ) =
   | TyForall ((x, k, _), t)
   | TyExists ((x, k, _), t) ->
       let env = bind env (x, k) in
-      infer env t
+      infer_type_with_names env t
 
   | TyAnchoredPermission (t1, t2) ->
       check env t1 KTerm;
@@ -801,6 +808,10 @@ and check_type_with_names (env: env) (t: typ) (k: kind) =
   let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env bindings in
   check env t k
 
+and infer_type_with_names (env: env) (t: typ): kind =
+  let bindings = names env t in
+  let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env bindings in
+  infer env t
 ;;
 
 
@@ -956,9 +967,12 @@ and check_expression (env: env) (expr: expression) =
       check_expression env e2
 
   | ETApply (e1, _) ->
-      (* The kind-checking of [ts] is deferred until we have performed type
-       * inference, which will allow [TypeChecker] to tell whether this type
-       * application is valid or not. *)
+      (* We are not checking the types here:
+       * - we're calling [infer_type_with_names] in [typing/TransSurface.ml] to
+       *   attach in the internal representation the kind of the type arguments;
+       * - the [TypeChecker] will take care of checking that the kind of the
+       *   arguments and the kind of the function variables match, once
+       *   type-checking has been performed. *)
       check_expression env e1
 
   | EMatch (_, e, pat_exprs) ->

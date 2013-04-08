@@ -301,11 +301,11 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyForall ((x, k, loc), t) ->
       let env = bind env (x, k) in
-      T.TyForall ((name_user env (x, k, loc), CanInstantiate), translate_type env t)
+      T.TyForall ((name_user env (x, k, loc), CanInstantiate), translate_type_with_names env t)
 
   | TyExists ((x, k, loc), t) ->
       let env = bind env (x, k) in
-      T.TyExists (name_user env (x, k, loc), translate_type env t)
+      T.TyExists (name_user env (x, k, loc), translate_type_with_names env t)
 
   | TyAnchoredPermission (t1, t2) ->
       T.TyAnchoredPermission (translate_type env t1, translate_type env t2)
@@ -806,7 +806,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   | ETApply (e1, ts) ->
       let e1 = translate_expr env e1 in
       let ts = List.map (fun t ->
-        map_tapp (translate_type env) t, infer env (strip_tapp t)
+        map_tapp (translate_type_with_names env) t, infer_type_with_names env (strip_tapp t)
       ) ts in
       List.fold_left (fun e (t, k) -> E.ETApply (e, t, k)) e1 ts
 
