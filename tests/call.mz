@@ -1,8 +1,4 @@
-(* This program does not type-check. It seems to me that it should.
-   I note that it does type-check if I add the hypothesis that [a]
-   is duplicable. But I don't see why this hypothesis should be
-   necessary? *)
-
+(* An extract from cps.mz, which used to cause a bug. *)
 val rec cps_iter [a] (
   consumes head: a,
   f: (
@@ -14,4 +10,3 @@ val rec cps_iter [a] (
     head,
     fun (| consumes head @ a) : int = fail
   )
-
