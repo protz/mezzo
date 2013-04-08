@@ -60,7 +60,7 @@ module Graph = struct
     (* Get the various blocks and edges that we should draw. *)
     let line, edges =
       match t with
-      | TyConcreteUnfolded { branch_datacon; branch_fields; _ } ->
+      | TyConcrete { branch_datacon; branch_fields; _ } ->
           let blocks, edges = List.split (List.map (fun f ->
             let name, t =
               match f with

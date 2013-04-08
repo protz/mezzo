@@ -73,7 +73,7 @@ type typ =
 
     (* Structural types. *)
   | TyTuple of typ list
-  | TyConcreteUnfolded of resolved_branch
+  | TyConcrete of resolved_branch
 
     (* Singleton types. *)
   | TySingleton of typ
@@ -583,7 +583,7 @@ class virtual ['env, 'result] visitor = object (self)
         self#tyapp env head args
     | TyTuple tys ->
         self#tytuple env tys
-    | TyConcreteUnfolded branch ->
+    | TyConcrete branch ->
         self#tyconcreteunfolded env branch
     | TySingleton x ->
         self#tysingleton env x
@@ -658,7 +658,7 @@ class ['env] map = object (self)
     TyTuple (self#visit_many env tys)
 
   method tyconcreteunfolded env branch =
-    TyConcreteUnfolded (self#resolved_branch env branch)
+    TyConcrete (self#resolved_branch env branch)
 
   method tysingleton env x =
     TySingleton (self#visit env x)
@@ -1116,7 +1116,7 @@ and equal env (t1: typ) (t2: typ) =
     | TyTuple ts1, TyTuple ts2 ->
         List.length ts1 = List.length ts2 && List.for_all2 equal ts1 ts2
 
-    | TyConcreteUnfolded branch1, TyConcreteUnfolded branch2 ->
+    | TyConcrete branch1, TyConcrete branch2 ->
         resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon &&
 	(* In principle, if the data constructors are equal, then the flavors
 	   should be equal too (we do not allow the flavor to change independently

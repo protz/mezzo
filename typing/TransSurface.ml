@@ -134,7 +134,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
         let ts, accs = List.split (List.map (strip_consumes env) ts) in
         TyTuple ts, List.flatten accs
 
-    | TyConcreteUnfolded ((datacon, fields), clause) ->
+    | TyConcrete ((datacon, fields), clause) ->
         let accs, fields = List.fold_left (fun (accs, fields) field ->
           match field with
           | FieldPermission _ ->
@@ -145,7 +145,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
         ) ([], []) fields in
         let fields = List.rev fields in
         let acc = List.flatten accs in
-        TyConcreteUnfolded ((datacon, fields), clause), acc
+        TyConcrete ((datacon, fields), clause), acc
 
     | TyNameIntro (x, t) ->
         let t, acc = strip_consumes env t in
@@ -236,7 +236,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyVar (Qualified (mname, x)) ->
       T.TyOpen (T.point_by_name env.env ~mname x)
 
-  | TyConcreteUnfolded ((dref, fields), clause) ->
+  | TyConcrete ((dref, fields), clause) ->
       (* Performs a side-effect! *)
       let datacon = resolve_datacon env dref in
       (* Translate the [adopts] clause, if there is one. *)
@@ -285,7 +285,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
 	))
       (* Happy. *)
       else
-	T.TyConcreteUnfolded branch
+	T.TyConcrete branch
 
   | TySingleton t ->
       T.TySingleton (translate_type env t)
@@ -664,7 +664,7 @@ let clean_pattern pattern =
         in
         PConstruct (name, List.combine fields pats),
         if List.exists ((<>) TyUnknown) annotations then
-          TyConcreteUnfolded ((name, List.map2 (fun field t -> FieldValue (field, t)) fields annotations), None)
+          TyConcrete ((name, List.map2 (fun field t -> FieldValue (field, t)) fields annotations), None)
         else
           TyUnknown
 

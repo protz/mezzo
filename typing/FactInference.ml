@@ -195,7 +195,7 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
   (* We could prove that a tuple or record is [bottom] as soon as one of
      its components is bottom, but there is no motivation to do so. *)
 
-  | TyConcreteUnfolded branch ->
+  | TyConcrete branch ->
       let flavor = flavor_for_branch w.env branch in
       infer_concrete w flavor branch.branch_fields
 

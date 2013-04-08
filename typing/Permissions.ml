@@ -62,7 +62,7 @@ let safety_check env =
        * explode, and remind us that this is one more situation that will mark an
        * environment as inconsistent. *)
       let concrete = List.filter (function
-        | TyConcreteUnfolded _ ->
+        | TyConcrete _ ->
             true
         | TyTuple _ ->
             true
@@ -276,7 +276,7 @@ class open_all_rigid_in (env : env ref) = object (self)
 
     | TyBar _, _
     | TyStar _, _
-    | TyConcreteUnfolded _, _
+    | TyConcrete _, _
       -> super#visit (side, false) ty
 
     (* We descend into the right-hand side of [TyAnchoredPermission] and [TyAnd]. *)
@@ -286,7 +286,7 @@ class open_all_rigid_in (env : env ref) = object (self)
     | TyAnd (c, ty), _ ->
         TyAnd (c, self#visit (side, false) ty)
 
-  (* At [TyConcreteUnfolded], we descend into the fields, but not into
+  (* At [TyConcrete], we descend into the fields, but not into
      the datacon or into the adopts clause. *)
     method resolved_branch env branch =
     { branch with
@@ -384,10 +384,10 @@ and add (env: env) (var: var) (t: typ): env =
       add env var t
 
   (* This implement the rule "x @ (=y, =z) * x @ (=y', =z') implies y = y' and z * = z'" *)
-  | TyConcreteUnfolded branch ->
+  | TyConcrete branch ->
       let original_perms = get_permissions env var in
       begin match MzList.find_opt (function
-        | TyConcreteUnfolded branch' when resolved_datacons_equal env branch.branch_datacon branch'.branch_datacon ->
+        | TyConcrete branch' when resolved_datacons_equal env branch.branch_datacon branch'.branch_datacon ->
             Some branch'
         | _ -> None)
         original_perms
@@ -754,7 +754,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         ) components1 components2)
       end
 
-  | TyConcreteUnfolded branch1, TyConcreteUnfolded branch2 ->
+  | TyConcrete branch1, TyConcrete branch2 ->
       if resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon then begin
 	assert (branch1.branch_flavor = branch2.branch_flavor);
 	assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
@@ -822,7 +822,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
       end
 
   (* Our strategy to deal with type abbreviations it to expand them eagerly. The
-   * rules with [TyConcreteUnfolded] implicitly assume that the type application
+   * rules with [TyConcrete] implicitly assume that the type application
    * on the other side is a data type application, so we must put these rules
    * first. Indeed, we could have: "alias t = Cons { head: ...; tail: ... }"
    * and we must make sure the alias gets expanded first if the other side is a
@@ -876,7 +876,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
   (* Now that we've made sure that the type application is not an abbreviation,
    * we can consider folding back the branch. We could reorder this branch
    * anywhere if we had a guard such has "compatible_branch branch1 cons2". *)
-  | TyConcreteUnfolded branch1, TyApp (cons2, args2) ->
+  | TyConcrete branch1, TyApp (cons2, args2) ->
       let (cons1, datacon1) = branch1.branch_datacon in
       let var1 = !!cons1 in
       let cons2 = !!cons2 in
@@ -885,7 +885,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         try_proof_root "Fold-L" begin
           let branch2 = find_and_instantiate_branch env cons2 datacon1 args2 in
           (* There may be permissions attached to this branch. *)
-          let t2 = TyConcreteUnfolded branch2 in
+          let t2 = TyConcrete branch2 in
           let t2, p2 = collect t2 in
           sub_type env t1 t2 >>= fun env ->
           sub_perms env p2
@@ -894,7 +894,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         no_proof_root
       end
 
-  | TyConcreteUnfolded branch1, TyOpen var2 ->
+  | TyConcrete branch1, TyOpen var2 ->
       (* This is basically the same as above, except that type applications
        * without parameters are not [TyApp]s, they are [TyOpen]s. *)
       let (cons1, datacon1) = branch1.branch_datacon in
@@ -904,7 +904,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         try_proof_root "Fold-L-2" begin
           (* XXX why are we not collecting permissions here? *)
           let branch2 = find_and_instantiate_branch env var2 datacon1 [] in
-          sub_type env t1 (TyConcreteUnfolded branch2) >>=
+          sub_type env t1 (TyConcrete branch2) >>=
           qed
         end
       end else begin

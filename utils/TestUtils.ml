@@ -71,6 +71,6 @@ let concrete datacon fields =
     branch_fields = fields;
     branch_adopts = ty_bottom;
   } in
-  TyConcreteUnfolded branch
+  TyConcrete branch
 ;;
 

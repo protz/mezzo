@@ -149,9 +149,9 @@ and fold_type (env: env) (depth: int) (t: typ): env * typ =
       let env, t = fold_type env (depth + 1) t in
       env, TyAnd (c, t)
 
-  | TyConcreteUnfolded branch ->
+  | TyConcrete branch ->
       let env, branch = fold_branch env (depth + 1) branch in
-      env, TyConcreteUnfolded branch
+      env, TyConcrete branch
 
   | TySingleton _ ->
       env, t

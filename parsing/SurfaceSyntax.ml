@@ -117,7 +117,7 @@ type typ =
   | TyDynamic
   | TyEmpty
   | TyVar of Variable.name maybe_qualified
-  | TyConcreteUnfolded of (datacon_reference * data_field_def list) * adopts_clause
+  | TyConcrete of (datacon_reference * data_field_def list) * adopts_clause
   | TySingleton of typ
   | TyApp of typ * typ list
   | TyArrow of typ * typ
@@ -314,7 +314,7 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TyTuple tys ->
       PTuple (List.map type_to_pattern tys)
 
-  | TyConcreteUnfolded ((datacon, fields), _adopts) ->
+  | TyConcrete ((datacon, fields), _adopts) ->
       let fps =
 	List.fold_left (fun fps field ->
 	  match field with

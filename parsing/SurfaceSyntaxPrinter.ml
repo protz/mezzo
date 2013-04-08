@@ -26,7 +26,7 @@ and atomic_type ty =
       string "empty"
   | TyVar x ->
       variable x
-  | TyConcreteUnfolded (_, None) ->
+  | TyConcrete (_, None) ->
       concrete ty
   | _ ->
       parenthetic_type ty
@@ -64,7 +64,7 @@ and normal_type ty =
         prefix 0 1
           (mode_constraint c ^^ string " |")
           (normal_type ty)
-  | TyConcreteUnfolded _ ->
+  | TyConcrete _ ->
       concrete ty
   | _ ->
       tight_type ty
@@ -155,7 +155,7 @@ and binding (x, kind, _) =
 
 and concrete ty =
   match ty with
-  | TyConcreteUnfolded ((dref, fs), clause) ->
+  | TyConcrete ((dref, fs), clause) ->
       datacon_reference dref ^^
       (
 	if List.length fs > 0 then
