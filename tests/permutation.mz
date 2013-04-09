@@ -1,0 +1,59 @@
+(* A [permutation] function that takes an array and generates all its
+   permutations. This is a test client for the module [sparray]. *)
+
+open oneshotfunction
+open sparray
+
+(* The fact [duplicable a] is here because it is required by the current
+   form of [swap]. It should be removed in a better version. *)
+
+(* The function [out] simulates an action on the generated permutation. *)
+
+val out [a] duplicable a => (t: sparray a): ()= ()
+
+(* The call [perm_i (t, i, n)] generates all the permutations of the elements
+   of [t] whose index is comprised between [i] and [n]. *)
+
+(* The call [loop_ij (t, i, j, n)] generates the permutations of the elements
+   between indices [i] and [n] in which the element of index [j] is taken as
+   first element. Then it simulates a loop for [j] from [i] to [n]. *)
+   
+val rec loop_ij [a] duplicable a =>
+  (t: sparray a, i: int, j: int, n: int): () =
+  if j=n
+  (* The loop on [j] is over. *)
+  then ()
+  else begin
+    (* Swap the elements of indices [i] and [j] and bind the rollback
+       function. *)
+    let u, b = swap (t, i, j) in
+    (* Generate the permutations with the [i+1] first elements fixed. *)
+    (* At this point we have a permission [u @ sparray a] and no permission
+       on [t]. *)
+    perm_i (u, i+1, n);
+    (* Give up the permission on [u] to get back [t @ sparray a]. *)
+    osf_apply [(|u @ sparray a)] [(|t @ sparray a)] ((), b);
+    (* Next turn in the loop. *)
+    loop_ij (t, i, j+1, n)
+  end
+
+and perm_i [a] duplicable a => (t: sparray a, i: int, n: int): () =
+  if i=n
+  (* We just got a complete permutation. *)
+  then out t
+  (* Else trigger the loop to choose the next element. *)
+  else loop_ij (t, i, i, n)
+
+(* The function [permutation] consumes its array argument and returns
+   a fresh one. Actually the transformation is in place, but the current
+   annotations do not allow to follow this. *)
+
+val permutation [a] duplicable a => (consumes t: array a): (array a) =
+  let n = array::length t in
+  (* Consumes [t @ array a] and produces [u @ sparray a]. *)
+  let u = from_array t in
+  (* Generating the permutations preserves [u @ sparray a]. *)
+  perm_i (u, 0, n);
+  (* Rebuild an ordinary array. The "new" array happens to be [t], but the
+     type system is not aware of this. *)
+  to_array u

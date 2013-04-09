@@ -3,15 +3,19 @@
 abstract osf a b
 
 (* Creation. *)
-
-(* One can build one-shot instances of any function. *)
+(* One can build one-shot instances of any function, by associating it with
+   a permission. *)
 
 val osf_make: [a, b, p: perm] (f: (consumes (a | p)) -> b | consumes p) -> osf a b
 
+(* Application; *)
 (* Application of a one-shot function consumes the function. *)
 
 val osf_apply: [a, b] (consumes x: a, consumes f: osf a b) -> b
 
+(* Composition. *)
+(* The two permissions associated to two one-shot functions can be combined
+   into one. *)
 
 val osf_compose: [a, b, c] (consumes f: osf a b, consumes g: osf b c) -> osf a c
 
