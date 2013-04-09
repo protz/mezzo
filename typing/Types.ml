@@ -295,7 +295,7 @@ let rec get_kind_for_type env t =
   | TyArrow _
   | TyBar _
   | TyTuple _
-  | TyConcreteUnfolded _ ->
+  | TyConcrete _ ->
       KType
 
   | TyAnchoredPermission _
@@ -465,7 +465,7 @@ let rec expand_if_one_branch (env: env) (t: typ) =
       | Some (Concrete [branch]) ->
           let branch = instantiate_branch branch args in
 	  let branch = resolve_branch cons branch in
-          TyConcreteUnfolded branch
+          TyConcrete branch
       | Some (Abbrev t) ->
           let t = instantiate_type t args in
           expand_if_one_branch env t
@@ -612,7 +612,7 @@ module TypePrinter = struct
     | TyTuple components ->
         tuple (print_type env) components
 
-    | TyConcreteUnfolded branch ->
+    | TyConcrete branch ->
         print_resolved_branch env branch
 
       (* Singleton types. *)

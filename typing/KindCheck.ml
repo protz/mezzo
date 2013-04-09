@@ -717,7 +717,7 @@ and infer (env: env) (t: typ) =
       let kind, _index = find x env in
       kind
 
-  | TyConcreteUnfolded (branch, clause) ->
+  | TyConcrete (branch, clause) ->
       check_branch env branch;
       Option.iter (fun t -> check env t KType) clause;
         (* If there is an [adopts] clause, we might wish to check that 

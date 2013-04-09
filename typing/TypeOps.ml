@@ -59,7 +59,7 @@ class collect (perms : typ list ref) = object (self)
       (* We descend into the following constructs. *)
 
     | TyTuple _
-    | TyConcreteUnfolded _
+    | TyConcrete _
     | TyStar _
       -> super#visit () ty
 
@@ -77,7 +77,7 @@ class collect (perms : typ list ref) = object (self)
 	perms := p :: !perms;
 	self#visit () ty
 
-  (* At [TyConcreteUnfolded], we set aside the [FieldPermission]s and
+  (* At [TyConcrete], we set aside the [FieldPermission]s and
      descend into the [FieldValue]s. *)
   method resolved_branch () branch =
     { 

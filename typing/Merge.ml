@@ -673,7 +673,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
          * we can safely return a structural permission with different points
          * for the sub-fields, the core {!Permissions} module will know how to
          * deal with that. *)
-        | TyConcreteUnfolded branch_l, TyConcreteUnfolded branch_r ->
+        | TyConcrete branch_l, TyConcrete branch_r ->
 	    let datacon_l = branch_l.branch_datacon
 	    and datacon_r = branch_r.branch_datacon in
             let t_left: var = !!(fst datacon_l) in
@@ -720,7 +720,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 		branch_fields = List.rev dest_fields;
 		branch_adopts = clause;
 	      } in
-              Some (left_env, right_env, dest_env, TyConcreteUnfolded branch)
+              Some (left_env, right_env, dest_env, TyConcrete branch)
 
 
             else if same dest_env t_left t_right then begin
@@ -788,7 +788,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             r >>= fun (left_env, right_env, dest_env, dest_t) ->
             Some (left_env, right_env, dest_env, TySingleton dest_t)
 
-        | TyConcreteUnfolded branch_l, _ ->
+        | TyConcrete branch_l, _ ->
 	    let datacon_l = branch_l.branch_datacon in
             let t_left = !!(fst datacon_l) in
             let t_dest = t_left in
@@ -801,7 +801,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             merge_type (left_env, t_app_left) (right_env, right_perm) ?dest_var dest_env
 
 
-        | _, TyConcreteUnfolded branch_r ->
+        | _, TyConcrete branch_r ->
 	    let datacon_r = branch_r.branch_datacon in
             let t_right = !!(fst datacon_r) in
             let t_dest = t_right in

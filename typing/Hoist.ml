@@ -51,7 +51,7 @@ class hoist (env : env) (cs : mode_constraint list ref) = object (self)
        out of them. *)
 
     | TyTuple _
-    | TyConcreteUnfolded _
+    | TyConcrete _
     | TyBar _
     | TyAnchoredPermission _
     | TyStar _

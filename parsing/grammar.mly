@@ -329,7 +329,7 @@ raw_atomic_type:
 (* A structural type without an [adopts] clause (which is the usual case)
    is an atomic type. *)
 | b = data_type_branch
-    { TyConcreteUnfolded (b, None) }
+    { TyConcrete (b, None) }
 
 %inline tight_type:
 | ty = tlocated(raw_tight_type)
@@ -370,7 +370,7 @@ raw_normal_type:
 (* A structural type with an [adopts] clause is a considered a normal type.
    This allows the type in the [adopts] clause to be itself a normal type. *)
 | b = data_type_branch ADOPTS t = normal_type
-    { TyConcreteUnfolded (b, Some t) }
+    { TyConcrete (b, Some t) }
 
 %inline loose_type:
 | ty = tlocated(raw_loose_type)

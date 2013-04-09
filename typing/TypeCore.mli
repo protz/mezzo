@@ -88,7 +88,7 @@ and typ =
 
     (** Structural types. *)
   | TyTuple of typ list
-  | TyConcreteUnfolded of resolved_branch
+  | TyConcrete of resolved_branch
 
     (** Singleton types. *)
   | TySingleton of typ

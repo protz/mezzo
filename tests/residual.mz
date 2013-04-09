@@ -43,23 +43,11 @@ val osf_compose [a, b, c] (consumes f: osf a b, consumes g: osf b c): osf a c=
 
 (* The function below does not typecheck: one-shot functions can be used
    only once. *)
-
 (* val wrong (consumes f: osf () ()): ((), ())=
   (f (), f ()) *)
 
-
-(* In the following other wrong function, any application of [f] after
-   the line that defines [g] is rejected. Explanation: the application of
-   [osf_make] to [f] refines the knowledge on the type of [f] by adding
-   the precondition [consumes (r@ref ())]. Since [r] is consumed at the
-   same time, [f] cannot be used anymore. *)
-
-(* This calls for a new definition for one-shot functions, where a
-   one-shot copy can be defined without affecting the original one. *)
-
 (* In the following other wrong function, any application of [f] after
    the line that defines [g] is rejected. This seems strange. *)
-
 val wrong (f: () -> ()): ((), ())=
   let r = newref () in
   let g = osf_make [()] [()] [(r@ref ())] f in

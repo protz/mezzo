@@ -126,7 +126,7 @@ let variance env var_for_ith valuation b t =
         let vs = List.map var ts in
         List.fold_left lub Bivariant vs
 
-    | TyConcreteUnfolded branch ->
+    | TyConcrete branch ->
         let vs = List.map (function
           | FieldValue (_, t) ->
               var t
@@ -196,7 +196,7 @@ let analyze_data_types env vars =
             bind_datacon_parameters env kind branches
           in
           let branches = List.map (fun branch ->
-            TyConcreteUnfolded (resolve_branch var branch)
+            TyConcrete (resolve_branch var branch)
           ) branches in
           env, (var, (vars, branches)) :: acc
     ) (original_env, []) vars

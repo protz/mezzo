@@ -55,7 +55,7 @@ let is_data_type_with_two_constructors env t =
   | TyApp (cons, _) ->
       (* e.g. list a *)
       has_two_branches !!cons
-  | TyConcreteUnfolded branch ->
+  | TyConcrete branch ->
       (* e.g. False *)
       let branches = branches_for_branch env branch in
       List.length branches = 2
@@ -77,7 +77,7 @@ let has_adopts_clause env t =
       let clause = get_adopts_clause env !!cons in
       let clause = instantiate_type clause args in
       is_non_bottom clause
-  | TyConcreteUnfolded branch ->
+  | TyConcrete branch ->
       if FactInference.is_exclusive env t then
         Some branch.branch_adopts
       else
@@ -258,7 +258,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
       let permissions = get_permissions env var in
       let field_defs = MzList.map_some
         (function
-          | TyConcreteUnfolded branch when resolved_datacons_equal env datacon branch.branch_datacon ->
+          | TyConcrete branch when resolved_datacons_equal env datacon branch.branch_datacon ->
               Some branch.branch_fields
           | _ ->
               None)
@@ -357,7 +357,7 @@ let refine_perms_in_place_for_pattern env var pat =
               fail_if (get_definition env p = None);
               begin try
                 let branch = find_and_instantiate_branch env p datacon [] in
-                Some (env, TyConcreteUnfolded branch)
+                Some (env, TyConcrete branch)
               with Not_found ->
                 (* Urgh [find_and_instantiate_branch] should probably throw
                  * something better... *)
@@ -371,11 +371,11 @@ let refine_perms_in_place_for_pattern env var pat =
               fail_if (not (same env !!cons !!p'));
               begin try
                 let branch = find_and_instantiate_branch env !!cons datacon args in
-                Some (env, TyConcreteUnfolded branch)
+                Some (env, TyConcrete branch)
               with Not_found ->
                 fail ()
               end
-          | TyConcreteUnfolded branch' as t ->
+          | TyConcrete branch' as t ->
               let fields, _ = List.split patfields in
               let is_ok =
                 resolved_datacons_equal env datacon branch'.branch_datacon &&
@@ -400,7 +400,7 @@ let refine_perms_in_place_for_pattern env var pat =
             let env = Permissions.add env var t in
             (* Find the resulting structural permission. *)
             let fields = Option.extract (MzList.find_opt (function
-              | TyConcreteUnfolded branch ->
+              | TyConcrete branch ->
                   Some branch.branch_fields
               | _ ->
                   None
@@ -439,8 +439,8 @@ let merge_type_annotations env t1 t2 =
         t1
     | TyTuple ts1, TyTuple ts2 when List.length ts1 = List.length ts2 ->
         TyTuple (List.map2 merge_type_annotations ts1 ts2)
-    | TyConcreteUnfolded branch1,
-      TyConcreteUnfolded branch2
+    | TyConcrete branch1,
+      TyConcrete branch2
       when resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon ->
         assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
 	let branch = { branch1 with
@@ -455,7 +455,7 @@ let merge_type_annotations env t1 t2 =
 	  branch_adopts =
             merge_type_annotations branch1.branch_adopts branch2.branch_adopts;
 	} in
-	TyConcreteUnfolded branch
+	TyConcrete branch
     | _ ->
         error ()
   in
@@ -550,7 +550,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let found = ref false in
       let permissions = List.map (fun t ->
           match t with
-          | TyConcreteUnfolded branch ->
+          | TyConcrete branch ->
               (* Check that this datacon is exclusive. *)
 	      let flavor = flavor_for_branch env branch in
 	      if not (DataTypeFlavor.can_be_written flavor) then
@@ -579,7 +579,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 | FieldPermission _ ->
                     Log.error "These should've been inserted in the environment"
               ) branch.branch_fields in
-              TyConcreteUnfolded { branch with branch_fields }
+              TyConcrete { branch with branch_fields }
           | _ ->
               t
         ) permissions
@@ -611,7 +611,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let permissions = get_permissions env p1 in
       let found = ref false in
       let permissions = List.map (function
-        | TyConcreteUnfolded old_branch as t ->
+        | TyConcrete old_branch as t ->
 	    let old_datacon = old_branch.branch_datacon in
             (* The current type should be mutable. *)
 	    let old_flavor = flavor_for_branch env old_branch in
@@ -640,7 +640,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
               info.SurfaceSyntax.is_phantom_update <- Some false;
 
             (* And don't forget to change the datacon as well. *)
-            TyConcreteUnfolded { old_branch with
+            TyConcrete { old_branch with
 	      (* the flavor is unit anyway *)
 	      branch_datacon = new_datacon;
 	      branch_fields;
@@ -674,7 +674,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       begin try
         List.iter (fun t ->
           match t with
-          | TyConcreteUnfolded branch ->
+          | TyConcrete branch ->
               List.iteri (fun i -> function
                 | FieldValue (field, expr) ->
                     if Field.equal field fname then
@@ -797,13 +797,13 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let annot = Option.map (expand_if_one_branch env) annot in
       (* Propagate type annotations inside the constructor. *)
       let clause = match annot with
-        | Some (TyConcreteUnfolded branch) ->
+        | Some (TyConcrete branch) ->
             branch.branch_adopts
         | _ ->
             ty_bottom
       in
       let annotations = match annot with
-        | Some (TyConcreteUnfolded branch) ->
+        | Some (TyConcrete branch) ->
             let annots = MzList.map_some (function
                 | FieldValue (name, t) ->
                     Some (name, t)
@@ -883,7 +883,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 	branch_fields = fieldvals;
 	branch_adopts = clause;
       } in
-      return env (TyConcreteUnfolded branch)
+      return env (TyConcrete branch)
 
 
   | EInt _ ->
@@ -915,7 +915,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
               | Concrete [b1; b2] ->
                   let branch1 = resolve_branch cons (instantiate_branch b1 args) in
                   let branch2 = resolve_branch cons (instantiate_branch b2 args) in
-                  TyConcreteUnfolded branch1, TyConcreteUnfolded branch2
+                  TyConcrete branch1, TyConcrete branch2
               | _ ->
                   assert false
             in
@@ -924,7 +924,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 split_apply p []
             | TyApp (cons, args) ->
                 split_apply !!cons args
-            | TyConcreteUnfolded _ ->
+            | TyConcrete _ ->
                 t, t
             | _ ->
                 Log.error "Contradicts [is_data_type_with_two_constructors]";
@@ -976,9 +976,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* Small helper function. *)
       let replace_clause perm clause =
         match perm with
-        | TyConcreteUnfolded branch ->
+        | TyConcrete branch ->
 	    assert (is_non_bottom branch.branch_adopts = None); (* the old clause is bottom *)
-            TyConcreteUnfolded { branch with branch_adopts = clause }
+            TyConcrete { branch with branch_adopts = clause }
         | _ ->
             Log.error "[perm] must be a nominal type, and we don't allow the \
               user to declare a nominal type that adopts [ty_bottom]."
