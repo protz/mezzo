@@ -1,0 +1,2 @@
+data pack =
+  | Pack { func: {p: perm} ((consumes (|p)) -> () | p) }

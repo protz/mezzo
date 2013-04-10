@@ -707,18 +707,23 @@ module TypePrinter = struct
   let print_facts (env: env): document =
     separate hardline (
       fold_definitions env (fun acc var _definition ->
+        let name = get_name env var in
         let fact = get_fact env var in
         let kind = get_kind env var in
         (* let is_abstract = (fst definition = None) in *)
-	(* I no longer print [is_abstract]. *)
-	let env, params = make_datacon_letters env kind false in
-	let param i : document =
-	  print_type env (TyOpen (List.nth params i))
-	in
-	let head =
-	  print_type env (TyApp (TyOpen var, List.map (fun v -> TyOpen v) params))
-	in
-	Fact.print param head fact :: acc
+        (* I no longer print [is_abstract]. *)
+        let env, params = make_datacon_letters env kind false in
+        let param i : document =
+          print_type env (TyOpen (List.nth params i))
+        in
+        let head =
+          print_type env (TyApp (TyOpen var, List.map (fun v -> TyOpen v) params))
+        in
+        let printed_fact = string "Fact for" ^^ space ^^ print_var env name ^^
+        colon ^^ jump (
+          Fact.print param head fact
+        ) in
+        printed_fact :: acc
       ) []
     )
   ;;
