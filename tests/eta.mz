@@ -1,6 +1,13 @@
 open list
 
-val f [a] (xs: list a) : () =
+val consumer [a, q : perm] (
+  consumes x: a,
+  (| consumes (x @ a * q)) -> ()
+| consumes q
+) : () =
+  ()
+
+val f [a] (consumes xs: list a) : () =
 
   let j (| consumes xs @ list a) : () =
     ()
@@ -10,7 +17,7 @@ val f [a] (xs: list a) : () =
   | Cons { head } ->
 
       (* Eta-expansion. *)
-      let k1 (| consumes (head @ a * xs @ Cons { head; tail: list a })) : () =
+      let k1   (| consumes (head @ a * xs @ Cons { head; tail: list a })) : () =
 	j()
       in
 
@@ -19,6 +26,14 @@ val f [a] (xs: list a) : () =
 	j
       in
 
-      ()
+      (* This works. *)
+      consumer [a, (xs @ Cons { head; tail: list a })] (head, k1);
+
+      (* This does NOT work, but I would like to to work! *)
+      consumer [a, (xs @ Cons { head; tail: list a })] (head, k2)
+
+      (* Comment 1: surprisingly, if I replace a with int everywhere, the code is accepted. *)
+      (* Comment 2: this behavior seems to indicate that the type annotation that I gave
+	 for k2 is checked (and is correct), but is not used. *)
 
   end
