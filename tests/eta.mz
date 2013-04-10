@@ -1,0 +1,24 @@
+open list
+
+val f [a] (xs: list a) : () =
+
+  let j (| consumes xs @ list a) : () =
+    ()
+  in
+  
+  match xs with
+  | Cons { head } ->
+
+      (* Eta-expansion. *)
+      let k1 (| consumes (head @ a * xs @ Cons { head; tail: list a })) : () =
+	j()
+      in
+
+      (* No eta-expansion. *)
+      let k2 : (| consumes (head @ a * xs @ Cons { head; tail: list a })) -> () =
+	j
+      in
+
+      ()
+
+  end
