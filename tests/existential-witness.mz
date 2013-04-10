@@ -4,19 +4,20 @@ data pack =
   | Pack { func: {p: perm} ((consumes (|p)) -> () | p) }
 
 (* Building a [pack] requires consuming a permission. *)
-val make_pack [p: perm] (f: (consumes (|p)) -> () | consumes p): pack =
-  Pack { func = f }
+val make_pack [p: perm] ((consumes (|p)) -> () | consumes p): pack =
+  fail
 
 (* The function [repack] builds a function that opens its argument
    and puts it in a new pack. *)
 val repack (consumes f: pack): pack=
   let h = fun (consumes (x: () | f@pack)): ()=
-    f.func x
+    fail
   in
-(* The type application below is supposed to be the one that is expected.
-   However, the code does not typecheck anymore if the type application
-   gets uncommented. *)
-  make_pack [(f@pack)] h
+  (* The type application below is supposed to be the one that is expected.
+     However, the code does not typecheck anymore if the type application
+     gets uncommented. *)
+  let y = make_pack [(f@pack)] h in
+  fail
 
 
 

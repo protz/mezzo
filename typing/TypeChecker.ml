@@ -169,8 +169,9 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
     TypePrinter.pnames (env, get_names env x)
     TypePrinter.ptype (env, t1);
   match Permissions.sub env x t1 with
-  | Some env, _ ->
+  | Some env, derivation ->
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
+      Log.debug ~level:6 "\nDerivation: %a\n" DerivationPrinter.pderivation derivation;
       (* Return the "good" type. *)
       env, t2
   | None, d ->

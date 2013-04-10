@@ -219,8 +219,8 @@ class open_all_rigid_in (env : env ref) = object (self)
      when new cases appear and in order to share code. *)
   method visit (side, deconstructed) ty =
     let ty = modulo_flex !env ty in
+    let ty = if deconstructed && not (is_singleton !env ty) then wrap_bar ty else ty in
     let ty = expand_if_one_branch !env ty in
-    let ty = if deconstructed && not (is_singleton !env ty) && side = Left then wrap_bar ty else ty in
     match ty, side with
 
     (* We stop at the following constructors. *)
@@ -530,6 +530,7 @@ and sub (env: env) (var: var) ?no_singleton (t: typ): result =
     that represents a program identifier.";
 
   let t = modulo_flex env t in
+  let t = expand_if_one_branch env t in
 
   let judgement = JSubVar (var, t) in
   let try_proof = try_proof env judgement in
@@ -1142,11 +1143,9 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                * also happens to be present in our environment. *)
               sub_perms env ps2
           | ps1, ps2 ->
-              Log.debug ~level:4 "[add_sub] FAILED";
-              let ps1 = fold_star ps1 in
-              let ps2 = fold_star ps2 in
-              no_proof env (JSubType (ps1, ps2)) >>= fun _ ->
-              fail
+              Log.debug ~level:4 "[add_sub] NOTICE: probable failure, dropping %a"
+                TypePrinter.ptype (env, fold_star ps1);
+              sub_perms env ps2
           end
         end
       end
