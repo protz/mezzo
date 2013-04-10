@@ -1,0 +1,61 @@
+open list
+
+(* An iterator of type [iterator a post] allows enumerating a series of
+   elements of type [a] (presumably the elements of some underlying
+   collection) and, once stopped or finished, recovering the permission [p]
+   (which typically represents the ownership of the underlying collection). *)
+
+(* ------------------------------------------------------------------------------ *)
+
+(* A request is an instruction sent by the client to the iterator. *)
+
+data request =
+  | Stop
+  | Next
+
+(* An outcome is information returned by the iterator to the client. *)
+
+data outcome =
+  | Stopped
+  | Done
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Concretely, an iterator is either: *)
+data iterator a (post : perm) =
+
+    (* finished, in which case the permission [post] is available, and the field
+       [outcome] indicates whether the iteration was stopped or finished by itself; *)
+    IFinished { outcome: outcome | post }
+
+    (* or not finished, in which case an element [x] is available for inspection;
+       this element is accompanied with two continuations, [stop] and [next]. Both
+       of these continuations require an abstract permission [pre], only one copy
+       of which is available, so the user is able to call [stop], or [next], but
+       not both. (This is equivalent to a single continuation that takes a Boolean
+       argument. We use two continuations because this allows [stop] and [next]
+       to have distinct return types.) Furthermore, [stop] and [next] require the
+       ownership of [x], so the element can be inspected, but cannot be retained. *)
+  | IAvailable { content: { pre : perm } (
+      x: a,
+      stop: (| consumes (x @ a * pre)) -> (| post),
+      next: (| consumes (x @ a * pre)) -> iterator a post
+      | pre
+    )}
+
+(* ------------------------------------------------------------------------------ *)
+
+(* The function [yield] captures the current continuations [stop] and [next]
+   and uses them to construct an iterator. The iteration is suspended (i.e.
+   no continuation is invoked) and the iterator is returned. *)
+
+(* The type of [yield] is lengthy, but the code is trivial: it is just an
+   application of the constructor [IAvailable]. *)
+
+val yield: [a, pre : perm, post : perm] (
+  consumes x : a,
+  stop: (| consumes (x @ a * pre)) -> (| post),
+  next: (| consumes (x @ a * pre)) -> iterator a post
+  | consumes pre
+) -> iterator a post
+

@@ -212,6 +212,68 @@ val rec cps_iter [a, b, p : perm] (
 	)
   end
 
+val rec cps_iter2 [a, b, c, p : perm] (
+  (* The permission [xs @ list a] is taken away; it will be passed on to
+     the continuation [k]. *)
+  consumes xs: list a,
+  (* The user-supplied iteratee [f] has access to one list element, [x], at
+     type [a], and must return the permission [x @ a] to its own
+     continuation. Furthermore, it must be parametric in a permission [q]
+     which is passed to [f] and which [f] must pass on to its own
+     continuation. (This implies that [f] invokes its continuation at most
+     once.) The answer type of [f] is [b], the same as the answer type of
+     [cps_iter], because [cps_iter] may or may not call [f]. The function [f]
+     passes a request to its continuation, which indicates whether the
+     iteration should continue. *)
+  f: [q : perm] (
+    consumes x: a,
+    (| consumes (x @ a * q)) -> c,
+    (| consumes (x @ a * q)) -> b
+  | consumes q
+  ) -> b,
+  (* The continuation [k] receives the final outcome of [cps_iter]. It
+     indicates whether the iteration went all the way to the end of the list,
+     or was prematurely stopped. Furthermore, [k] recovers the ownership of
+     the list [xs]. Finally, [cps_iter] is parametric in a permission [p],
+     which [cps_iter] consumes and passes on to its continuation [k]. *)
+  j: (| consumes (p * xs @ list a)) -> c,
+  k: (| consumes (p * xs @ list a)) -> b
+| consumes p
+) : b =
+  match xs with
+  | Nil ->
+      (* The list is empty. We are done. Easy! *)
+      k()
+  | Cons { head } ->
+
+      (* The list is non-empty. The first thing to do is to call [f].
+	 All of our permissions are transmitted to [f]. Indeed, the
+	 permission [head @ a] is explicitly requested by [f], and
+	 our other permissions collectively become the parameter [q]
+	 that [f] passes on to one of its continuations. *)
+
+      (* In preparation for the call to [f], define two continuations
+	 for [f], which will invoke at most one of them, to indicate
+	 whether it wishes to stop or to continue. *)
+      let stop (| consumes (head @ a * xs @ Cons { head; tail: list a } * p)) : c =
+	(* We are able to reconstruct [xs @ list a], which [k] requires. *)
+	j() (* TEMPORARY avoid eta expansion *)
+      in
+      let next (| consumes (head @ a * xs @ Cons { head; tail: list a } * p)) : b =
+	(* This is the trickier case. The code is simple: it is just a
+	   recursive call. The trick is in understanding the permissions that
+	   are passed to [k]. Officially, [k] requires [p] and [xs @ list a].
+	   It will receive [p * xs @ Cons { head: a; tail }] and [tail @ list a].
+	   Up to a recombination, these are the same, so the call is well-typed. *)
+	let tail = xs.tail in
+	cps_iter2 [ p = (p * xs @ Cons { head: a; tail }) ] (tail, f, j, k)
+      in
+      (* Now, call [f]. *)
+      f
+	[ (xs @ Cons { head; tail: list a } * p) ] (* optional annotation! *)
+	(head, stop, next)
+  end
+
 (* Now, suppose [f] does not need to capture its continuation. We wrap the
    call to [f] within a monadic [return], and we recover a normal [iter]
    function. *)
@@ -251,6 +313,46 @@ val rec normal_iter [a] (
      id)
   (* TEMPORARY could we get rid of the two type applications? it seems to me that
      at some point in time I was able to type-check this code without them. *)
+
+val rec normal_iter2 [a] (
+  xs: list a,
+  f : a -> request
+) : outcome =
+
+  (* Wrap [f], which is a normal function, to obtain a function in CPS
+     style, which invokes its continuation [k] just once at the end.
+     This function is in fact polymorphic in its answer type; this is
+     a more general type than required by [cps_iter], and reflects the
+     fact that [wrapped_f] does not have a control effect. *)
+  let wrapped_f [b, q : perm] (
+    consumes x: a,
+    j: (| consumes (x @ a * q)) -> b,
+    k: (| consumes (x @ a * q)) -> b
+  | consumes q
+  ) : b =
+    (if f x then k else j) ()
+  in
+
+  (* Define a failure continuation. *)
+  let failure (| xs @ list a) : outcome =
+    Stopped
+  in
+
+  (* Define an identity continuation. This amounts to enclosing the
+     call to [cps_iter] within a [reset]. This continuation will be
+     invoked at the very end of the iteration, and will have access
+     (again) to the entire list [xs @ list a]. *)
+  let success (| xs @ list a) : outcome =
+    Done
+  in
+
+  (* Invoke [cps_iter]. The type [b] is instantiated with [outcome | xs @ list a].
+     The permission [p] is instantiated with [empty]. *)
+  cps_iter2
+    [a, (outcome | xs @ list a), (outcome | xs @ list a), empty]
+    (xs,
+     wrapped_f [(outcome | xs @ list a)],
+     failure, success)
 
 (* Now, let's try to invert [cps_iter] and obtain an iterator. *)
 
@@ -316,6 +418,22 @@ val iterate [a] (
     yield,
     fun (o : outcome | consumes xs @ list a) : iterator a (xs @ list a) =
       IFinished { outcome = o }
+  )
+
+val iterate2 [a] (
+  consumes xs: list a
+) : iterator::iterator a (xs @ list a) =
+  (* Invoke [cps_iter]. The answer type [b] is instantiated with [iterator a]. *)
+  let failure (| xs @ list a) : () =
+    ()
+  and success (| consumes xs @ list a) : iterator::iterator a (xs @ list a) =
+    iterator::IFinished { outcome = iterator::Done }
+  in
+  cps_iter2 [c=(| xs @ list a)] (
+    xs,
+    iterator::yield,
+    failure,
+    success
   )
 
 (* One can use an iterator to iterate in the same style as with a normal

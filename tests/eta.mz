@@ -29,7 +29,7 @@ val f [a] (consumes xs: list a) : () =
       (* This works. *)
       consumer [a, (xs @ Cons { head; tail: list a })] (head, k1);
 
-      (* This does NOT work, but I would like to to work! *)
+      (* This does NOT work, but I would like it to work! *)
       consumer [a, (xs @ Cons { head; tail: list a })] (head, k2)
 
       (* Comment 1: surprisingly, if I replace a with int everywhere, the code is accepted. *)
