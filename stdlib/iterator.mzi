@@ -49,13 +49,28 @@ data iterator a (post : perm) =
    and uses them to construct an iterator. The iteration is suspended (i.e.
    no continuation is invoked) and the iterator is returned. *)
 
-(* The type of [yield] is lengthy, but the code is trivial: it is just an
-   application of the constructor [IAvailable]. *)
-
 val yield: [a, pre : perm, post : perm] (
   consumes x : a,
   stop: (| consumes (x @ a * pre)) -> (| post),
   next: (| consumes (x @ a * pre)) -> iterator a post
   | consumes pre
 ) -> iterator a post
+
+(* One can use an iterator to iterate in the same style as with a normal
+   [iter] function. *)
+
+val use: [a, pre : perm, post : perm] (
+  consumes i: iterator a post,
+  f : (a | pre) -> request
+  | pre
+) -> (outcome | post)
+
+(* One can construct a list of the elements of an iterator. This requires
+   the type [a] to be duplicable, because at the end, we own both the newly
+   created list and the original data structure (represented by the abstract
+   permission [post]). *)
+
+val elements: [a, post : perm] duplicable a => (
+  consumes i: iterator a post
+) -> (list a | post)
 
