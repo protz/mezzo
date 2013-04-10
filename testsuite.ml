@@ -929,6 +929,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("abbrev-3.mz", pass);
   ("existential-witness.mz", pass_known_failure);
   ("residual.mz", pass_known_failure);
+  ("quantifier-bug.mz", fail_known_failure);
 
 ];;
 
