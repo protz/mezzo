@@ -49,6 +49,7 @@ and judgement =
   | JGt of typ * typ
   | JNothing
   | JAdd of typ
+  | JDebug of typ * typ
 
 (** {1 The type of primitive functions} *)
 

@@ -29,7 +29,7 @@ val f [a] (consumes xs: list a) : () =
       in
 
       (* This works. *)
-      consumer [a, (xs @ Cons { head; tail: list a })] (head, k1);
+      (* consumer [a, (xs @ Cons { head; tail: list a })] (head, k1); *)
 
       (* This does NOT work, but I would like it to work! *)
       consumer [a, (xs @ Cons { head; tail: list a })] (head, k2)

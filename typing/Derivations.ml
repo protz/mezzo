@@ -47,6 +47,7 @@ and judgement =
   | JGt of typ * typ
   | JNothing
   | JAdd of typ
+  | JDebug of typ * typ
 
 
 (** Primitive operations return a result, that is, either [Some env] along with

@@ -52,6 +52,10 @@ let print_judgement env = function
   | JAdd t ->
       words "perform:" ^^^ string "P" ^^^ equals ^^^
       string "P" ^^^ utf8string "∗" ^^^ print_type env t
+  | JDebug (t1, t2) ->
+      words "debug info:" ^^^
+      string "t1 =" ^^^ print_type env t1 ^^^
+      string "t2 =" ^^^ print_type env t2
 
 
 let comma_or_newline =

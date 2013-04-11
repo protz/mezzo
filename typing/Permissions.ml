@@ -960,7 +960,6 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
          * something's flexible, or because the permissions can't be subtracted. *)
         let works_for_add = perm_not_flex in
         let works_for_sub env p2 =
-          perm_not_flex env p2 &&
           is_good (sub_perm env p2)
         in
 
@@ -1046,6 +1045,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
           let ps1 = vars1 @ ps1 and ps2 = vars2 @ ps2 in
           let env, ps1, ps2 = strip_syntactically_equal env ps1 ps2 in
 
+          apply_axiom env (JDebug (fold_star ps1, fold_star ps2)) "Remaining-Add-Sub" env >>= fun env ->
 
           (* And then try to be smart with whatever remains. *)
           match ps1, ps2 with
@@ -1088,14 +1088,14 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
           | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
               when is_flexible env !!x2 ->
                 (* These two are *really* debatable heuristics. *)
-                j_merge_left env !!x2 !!x1 >>= fun env ->
-                sub_type_with_unfolding env t1 t2 >>=
+                sub_type_with_unfolding env t1 t2 >>= fun env ->
+                j_merge_left env !!x2 !!x1 >>=
                 qed
           | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
               when is_flexible env !!x1 ->
-                j_merge_left env !!x1 !!x2 >>= fun env ->
-                sub_type_with_unfolding env t1 t2 >>=
-                qed
+                    sub_type_with_unfolding env t1 t2 >>= fun env ->
+                    j_merge_left env !!x1 !!x2 >>=
+                    qed
           | ps1, [] ->
               (* We may have a remaining, rigid, floating permission. Good for us! *)
               let sub_env = add_perm env (fold_star ps1) in
@@ -1154,11 +1154,21 @@ and sub_perm (env: env) (t: typ): result =
   let t = modulo_flex env t in
   let t = expand_if_one_branch env t in
   match t with
-  | TyAnchoredPermission (TyOpen p, t) ->
-      try_proof "Sub-Anchored" begin
-        sub env p t >>=
-        qed
-      end
+  | TyAnchoredPermission (TyOpen p, t') ->
+      if is_flexible env p then
+        match t' with
+        | TySingleton (TyOpen p') ->
+            try_proof "Sub-Anchored-Double-Flex" begin
+              j_merge_left env p p' >>=
+              qed
+            end
+        | _ ->
+            no_proof env (JSubPerm t')
+      else
+        try_proof "Sub-Anchored" begin
+          sub env p t' >>=
+          qed
+        end
   | TyStar _ ->
       try_proof "Sub-Star" begin
         sub_perms env (flatten_star env t)
