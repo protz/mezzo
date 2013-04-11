@@ -1,0 +1,198 @@
+open list
+
+(* An iterator of type [iterator a post] allows enumerating a series of
+   elements of type [a] (presumably the elements of some underlying
+   collection) and, once stopped or finished, recovering the permission [p]
+   (which typically represents the ownership of the underlying collection). *)
+
+(* ------------------------------------------------------------------------------ *)
+
+(* An outcome is information returned by the iterator to the client. *)
+
+data outcome =
+  | Stopped
+  | Done
+
+(* TEMPORARY parameterize the type [iterator] over [outcome]? *)
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Concretely, an iterator is either: *)
+data mutable iterator (self : term) a (post : perm) =
+
+    (* finished, in which case the permission [post] is available, and the field
+       [outcome] indicates whether the iteration was stopped or finished by itself; *)
+    IFinished { outcome: outcome | post }
+
+    (* or not finished, in which case an element [x] is available for inspection;
+       this element is accompanied with two continuations, [stop] and [next]. Both
+       of these continuations require an abstract permission [pre], only one copy
+       of which is available, so the user is able to call [stop], or [next], but
+       not both. (This is equivalent to a single continuation that takes a Boolean
+       argument. We use two continuations because this allows [stop] and [next]
+       to have distinct return types.) Furthermore, [stop] and [next] require the
+       ownership of [x], so the element can be inspected, but cannot be retained. *)
+  | IAvailable { content: { pre : perm } (
+      x: a,
+      stop: (| consumes (x @ a * pre * self @ IAvailable { content: unknown })) -> (| self @ IFinished { outcome: outcome | post }),
+      next: (| consumes (x @ a * pre * self @ IAvailable { content: unknown })) -> (| self @ iterator self a post)
+      | pre
+    )}
+
+alias scratch (self : term) : perm =
+  self @ IAvailable { content: unknown }
+
+alias finished (self : term) (post : perm) : perm =
+  self @ IFinished { outcome: outcome | post }
+
+alias stop_ty (self : term) (x : term) a (pre : perm) (post : perm) =
+  (| consumes (x @ a * pre * scratch self)) -> (| finished self post)
+
+alias next_ty (self : term) (x : term) a (pre : perm) (post : perm) =
+  (| consumes (x @ a * pre * scratch self)) -> (| self @ iterator self a post)
+
+(* The above definition is a bit heavy. Ideally, the existential
+   quantification { pre } could be moved outside of IAvailable,
+   and the field x would be named by x: (x: a), so it could be
+   referred to by the other fields. This would allow us to get
+   rid of this bizarre [content] field which contains a triple.
+   TEMPORARY *)
+
+(* TEMPORARY we might wish to represent an iterator that has not yet started
+   as a (one-shot) function of unit to [iterator a post]. Otherwise, we are
+   forcing the first element to be fetched immediately. Maybe a third case [ISkip]
+   needs to be added for this purpose. It would be like [IAvailable], except
+   it would have no element [x]. Hmm, but this third case will pollute things.
+   We cannot indicate that [next] will *not* produce this third case... *)
+
+(* TEMPORARY maybe the iterator should be mutable, so we don't need
+   to re-allocate a new iterator at every loop iteration; since the
+   continuations are one-shot, there is no benefit to an immutable
+   iterator *)
+
+(* TEMPORARY maybe the type [iterator] should be abstract, with a
+   simple interface; do not reveal how it is implemented. Write
+   iterator.mzi *)
+
+(* ------------------------------------------------------------------------------ *)
+
+(* The function [yield] captures the current continuations [stop] and [next]
+   and uses them to construct an iterator. The iteration is suspended (i.e.
+   no continuation is invoked) and the iterator is returned. *)
+
+(* The type of [yield] is lengthy, but the code is trivial: it is just an
+   application of the constructor [IAvailable]. *)
+(* TEMPORARY
+val yield [a, pre : perm, post : perm] (
+  self: unknown,
+  consumes x: a,
+  stop: stop_ty self x a pre post,
+  next: next_ty self x a pre post
+  | consumes pre
+  | consumes scratch self
+) : (| self @ iterator self a post) =
+  (* We capture the continuations and store them. In direct style, this
+     would be expressed using [shift]. *)
+  self.content <- (x, stop, next)
+*)
+(* ------------------------------------------------------------------------------ *)
+
+(* One can use an iterator to iterate in the same style as with a normal
+   [iter] function. *)
+
+val rec use [a, s : perm, post : perm] (
+  consumes i: iterator i a post,
+  f : (a | s) -> bool
+  | s
+) : (| finished i post) =
+  (* BUG this code is rejected, but if I manually expand [finished i post]
+     in the line above, then it is accepted. *)
+  match i with
+  | IFinished ->
+      (* If the iterator is finished, there is nothing to do. *)
+      ()
+  | IAvailable ->
+      (* If the iterator is not finished, then we have an element [x] and
+	 a function [next] that will provide us with a new iterator once
+	 we surrender the ownership of [x]. We also have a function [stop],
+         which allows us to stop the iteration, if the client so requires. *)
+      let x, stop, next = i.content in
+      (* Submit [x] to the user function [f], which returns a request to
+	 stop or continue. *)
+      if f x then begin
+	  (* If we should continue, invoke [next], which updates this
+	     iterator; and continue. *)
+	next();
+	use (i, f)
+      end
+      else
+	(* If we should stop, invoke [stop]. *)
+	stop()
+  end
+
+(* ------------------------------------------------------------------------------ *)
+
+(* One can construct a list of the elements of an iterator. This requires
+   the type [a] to be duplicable, because at the end, we own both the newly
+   created list and the original data structure (represented by the abstract
+   permission [post]). *)
+
+val rec elements [a, post : perm] duplicable a => (
+  consumes i: iterator i a post
+) : (list a | post) =
+  (* Create a reference to hold the list of elements. *)
+  let r = newref nil in
+  (* Iterate. *)
+  use (
+    i,
+    fun (x: a | r @ ref (list a)) : bool =
+      r := cons (x, !r);
+      true
+  );
+  (* Done! *)
+  !r
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Once we have determined that the two streams are not equal, we
+   must explicitly stop the iterator(s) that are not yet finished,
+   in order to obtain the permissions [post1] and [post2]. *)
+
+val rec equal [a, post1 : perm, post2 : perm, p : perm] (
+  eq: (a, a | p) -> bool,
+  consumes i1: iterator i1 a post1,
+  consumes i2: iterator i2 a post2
+| p
+) : (bool | finished i1 post1 * finished i2 post2) =
+
+  match i1, i2 with
+  | IFinished, IFinished ->
+      True
+  | IAvailable, IAvailable ->
+      let x1, stop1, next1 = i1.content
+      and x2, stop2, next2 = i2.content in
+      if eq (x1, x2) then begin
+	next1();
+	next2();
+	equal (eq, i1, i2)
+      end
+      else begin
+	stop1();
+	stop2();
+	False
+      end
+  | IAvailable, IFinished ->
+      let _, stop1, _ = i1.content in
+      stop1();
+      False
+  | IFinished, IAvailable ->
+      let _, stop2, _ = i2.content in
+      stop2();
+      False
+  end
+
+(*
+Local Variables:
+compile-command: "../mezzo miterator.mz"
+End:
+*)
