@@ -16,7 +16,7 @@ data mutable ref a =
    that this is a duplicable permission. *)
 
 data narcissic_cell (r : term) a b =
-  Narcissic { content : (a | r @ narcissic_cell r a b) -> b }
+  Narcissic { content : (x: a | r @ narcissic_cell r a b) -> b }
 
 (* Let us now define a fixed point combinator. *)
 
