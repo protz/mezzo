@@ -66,6 +66,15 @@ val wrong (f: () -> ()): ((), ())=
   f ();
   ((), ())
 
+(* A type of one-shot choice between two functions. *)
+
+alias osc a1 b1 a2 b2 =
+  { p : perm } (
+    (a1 | consumes p) -> b1,
+    (a2 | consumes p) -> b2
+  | p
+  )
+
 (*
 Local Variables:
 compile-command: "../mezzo oneshotfunction.mz"

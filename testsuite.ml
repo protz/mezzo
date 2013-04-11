@@ -918,6 +918,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("exists-forall.mz", pass);
   ("name-capture.mz", pass_known_failure);
   ("time.mz", pass);
+  ("cps-old.mz", pass);
+  ("delimcc.mz", pass);
   ("cps.mz", pass);
   ("call.mz", pass);
   ("tree-removal.mz", pass);

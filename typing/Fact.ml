@@ -271,11 +271,13 @@ let complete fact =
 open MzPprint
 
 let print (param : parameter -> document) (head : document) fact =
+  (* TEMPORARY if the fact is "affine", then nothing is printed --
+     maybe we should something about that *)
   (* Decide which implications must be printed. *)
   let implications =
     ModeMap.fold (fun m hyp accu ->
       if Mode.is_maximal m then
-	(* Omit the implication whose conclusion is trivial. *)
+	(* Omit an implication whose conclusion is trivial. *)
 	accu
       else
 	match hyp with

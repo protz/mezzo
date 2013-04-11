@@ -1,5 +1,3 @@
-(* TEMPORARY should declare that array is covariant *)
-
 (* ------------------------------------------------------------------------ *)
 
 (* Basic operations over arrays. *)

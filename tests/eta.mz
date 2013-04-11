@@ -1,5 +1,7 @@
 open list
 
+(* This is a slightly simplified version of a problem that I have in cps.mz *)
+
 val consumer [a, q : perm] (
   consumes x: a,
   (| consumes (x @ a * q)) -> ()

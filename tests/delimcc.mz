@@ -1,0 +1,134 @@
+(* An implementation of the delimited (composable) continuation monad. *)
+
+(* We manipulate computations of type (a -> b) -> c, where:
+
+   a :          result type; the continuation's argument type
+   b : internal answer type; the continuation's return type
+   c : external answer type; the computation's return type *)
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Monadic Return. *)
+
+(* Usually, [return] has type [a, b] (x : a) -> (a -> b) -> b. *)
+
+(* It seems that we must restrict [a] to be duplicable, because the value [x]
+   is captured by the lambda-abstraction [\k.k x]. The other option would be
+   to make this lambda-abstraction a one-shot function (assuming that we have
+   one-shot functions). But this would force us to work with computations of
+   type (a -> b) -1-> c. Then, in the definition of [bind], we would have to
+   guarantee that the application [r x k] takes place at most once, so we
+   would have to guarantee that [l] invokes its continuation at most once,
+   so would be forced to work with computations of type (a -1-> b) -1-> c.
+   Thus, the continuation captured by [shift] would be one-shot. This might
+   be sufficient for some applications (e.g., inverting a fold), but I would
+   prefer to avoid it. *)
+
+(* Requiring that [a] be duplicable is a strong restriction. We can relax this
+   type, however, by threading a permission through our computations. In general,
+   we can work with computations of type:
+
+     ((a | consumes post) -> b | consumes pre) -> c
+     where a is duplicable
+   
+   Thus, each the two arrows above expects an argument of duplicable type
+   (either a, or (a | consumes post) -> b), but also expects a permission,
+   pre or post, which may or may not be duplicable. The permission pre is
+   the precondition of the computation; the permission post is the
+   precondition of the continuation, hence the internal postcondition
+   of the computation. *)
+
+(* I believe that this approach might give us the best of the two worlds:
+   one-shot functions when we need them, and multi-shot functions otherwise.
+   Indeed, a function that happens to preserve its precondition can be
+   invoked multiple times, whereas a function that consumes (or transforms)
+   its precondition can be invoked at most once. Thus, for various choices
+   of [pre] and [post], we get one-shot or multi-shot functions. *)
+
+(* I am worried, though, that in general we would like the postcondition
+   to depend on the result [x], so the type of computations should be:
+
+     ((x: a | consumes post x) -> b | consumes pre) -> c
+     where a is duplicable
+   
+   Because we do not have higher-order quantification, we cannot express
+   [bind] for computations of this type. *)
+
+(* AH -- maybe there is no point in describing the argument of the
+   continuation as (x: a | consumes post x). Indeed, this amounts to
+   splitting the argument type between a duplicable part [x: a] and a
+   possibly-non-duplicable part [post x]. Could we instead just write
+   (consumes x: a)? NO. In the case of [return], we do need to split
+   [a] and [p]. In the case of [bind], we do need to split [a] and
+   [middle]. *)
+
+(* In the case of [return], of course, [pre] and [post] must coincide. The
+   permission [p] is not required to be duplicable. *)
+
+val return
+  [a, b, p : perm]
+  duplicable a =>
+  (x : a) : ((a | consumes p) -> b | consumes p) -> b =
+  fun  (k :  (a | consumes p) -> b | consumes p)  : b =
+    k x
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Monadic Bind. *)
+
+(* Although the type annotations make this code unreadable, it is just the
+   expected code, with its most general ML type, extended with permissions
+   [pre], [middle], and [post], which form a Hoare-like sequencing rule.
+   One simplification is that [a1] and [post] always appear together, so
+   we can use just [consumes a1] instead of [a1 | consumes post], without
+   loss of generality. *)
+
+(* Note that, although [a] is not technically required to be duplicable,
+   it will usually be duplicable, since the curried function [r] would
+   otherwise not be able to do anything useful with its first arugment. *)
+
+(* We define [bind] as a two-argument function; it does not need to be
+   curried. In the [do]-notation, [bind] is applied to two arguments at
+   once. This saves us one large type annotation. *)
+
+(* It would be nice if we could uncurry [r] as well, as this would allow us
+   to merge [a1] and [middle], but I don't think that is possible. In
+   the [do]-notation, the second argument to [bind] is a lambda-abstraction
+   of one argument. *)
+
+val bind
+  [a, a1, b, b1, c, pre : perm, middle : perm]
+  (l : ((a | consumes middle) -> b | consumes pre) -> c,
+   r : a -> ((consumes a1) -> b1 | consumes middle) -> b) :
+  (k : (consumes a1) -> b1 | consumes pre) -> c
+  =
+  fun (k : (consumes a1) -> b1 | consumes pre) : c =
+    l (fun (x : a | consumes middle) : b =
+      r x k
+    )
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Reset. *)
+
+(* Here, [reify] is the identity, and [reset c] is implemented by passing an
+   identity continuation to the computation [c]. We do not re-package the
+   resulting value as a computation (i.e., we do not pass it to [return]),
+   because we are in a two-layer world, where the code outside of [reset]
+   is not monadic. *)
+
+(* The type of the identity, in Mezzo, is [(consumes a) -> a]. This is
+   equivalent, I believe, to [(a | p) -> a], where [a] is required to
+   be duplicable. *)
+
+val reset [a, b] (c: ((consumes a) -> a) -> b) : b =
+  c (fun (consumes x : a) : a = x)
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Shift. *)
+
+(* Here, [shift] is the identity. When one wishes to capture the current
+   continuation, one simply writes [fun (k: a -> b) : c = ...], and
+   presto, this is a computation that has access to its continuation. *)
+

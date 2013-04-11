@@ -1,536 +1,157 @@
-(* An implementation of the delimited (composable) continuation monad. *)
-
-(* We manipulate computations of type (a -> b) -> c, where:
-
-   a :          result type; the continuation's argument type
-   b : internal answer type; the continuation's return type
-   c : external answer type; the computation's return type *)
-
-(* ------------------------------------------------------------------------------ *)
-
-(* Monadic Return. *)
-
-(* Usually, [return] has type [a, b] (x : a) -> (a -> b) -> b. *)
-
-(* It seems that we must restrict [a] to be duplicable, because the value [x]
-   is captured by the lambda-abstraction [\k.k x]. The other option would be
-   to make this lambda-abstraction a one-shot function (assuming that we have
-   one-shot functions). But this would force us to work with computations of
-   type (a -> b) -1-> c. Then, in the definition of [bind], we would have to
-   guarantee that the application [r x k] takes place at most once, so we
-   would have to guarantee that [l] invokes its continuation at most once,
-   so would be forced to work with computations of type (a -1-> b) -1-> c.
-   Thus, the continuation captured by [shift] would be one-shot. This might
-   be sufficient for some applications (e.g., inverting a fold), but I would
-   prefer to avoid it. *)
-
-(* Requiring that [a] be duplicable is a strong restriction. We can relax this
-   type, however, by threading a permission through our computations. In general,
-   we can work with computations of type:
-
-     ((a | consumes post) -> b | consumes pre) -> c
-     where a is duplicable
-   
-   Thus, each the two arrows above expects an argument of duplicable type
-   (either a, or (a | consumes post) -> b), but also expects a permission,
-   pre or post, which may or may not be duplicable. The permission pre is
-   the precondition of the computation; the permission post is the
-   precondition of the continuation, hence the internal postcondition
-   of the computation. *)
-
-(* I believe that this approach might give us the best of the two worlds:
-   one-shot functions when we need them, and multi-shot functions otherwise.
-   Indeed, a function that happens to preserve its precondition can be
-   invoked multiple times, whereas a function that consumes (or transforms)
-   its precondition can be invoked at most once. Thus, for various choices
-   of [pre] and [post], we get one-shot or multi-shot functions. *)
-
-(* I am worried, though, that in general we would like the postcondition
-   to depend on the result [x], so the type of computations should be:
-
-     ((x: a | consumes post x) -> b | consumes pre) -> c
-     where a is duplicable
-   
-   Because we do not have higher-order quantification, we cannot express
-   [bind] for computations of this type. *)
-
-(* AH -- maybe there is no point in describing the argument of the
-   continuation as (x: a | consumes post x). Indeed, this amounts to
-   splitting the argument type between a duplicable part [x: a] and a
-   possibly-non-duplicable part [post x]. Could we instead just write
-   (consumes x: a)? NO. In the case of [return], we do need to split
-   [a] and [p]. In the case of [bind], we do need to split [a] and
-   [middle]. *)
-
-(* In the case of [return], of course, [pre] and [post] must coincide. The
-   permission [p] is not required to be duplicable. *)
-
-val return
-  [a, b, p : perm]
-  duplicable a =>
-  (x : a) : ((a | consumes p) -> b | consumes p) -> b =
-  fun  (k :  (a | consumes p) -> b | consumes p)  : b =
-    k x
-
-(* ------------------------------------------------------------------------------ *)
-
-(* Monadic Bind. *)
-
-(* Although the type annotations make this code unreadable, it is just the
-   expected code, with its most general ML type, extended with permissions
-   [pre], [middle], and [post], which form a Hoare-like sequencing rule.
-   One simplification is that [a1] and [post] always appear together, so
-   we can use just [consumes a1] instead of [a1 | consumes post], without
-   loss of generality. *)
-
-(* Note that, although [a] is not technically required to be duplicable,
-   it will usually be duplicable, since the curried function [r] would
-   otherwise not be able to do anything useful with its first arugment. *)
-
-(* We define [bind] as a two-argument function; it does not need to be
-   curried. In the [do]-notation, [bind] is applied to two arguments at
-   once. This saves us one large type annotation. *)
-
-(* It would be nice if we could uncurry [r] as well, as this would allow us
-   to merge [a1] and [middle], but I don't think that is possible. In
-   the [do]-notation, the second argument to [bind] is a lambda-abstraction
-   of one argument. *)
-
-val bind
-  [a, a1, b, b1, c, pre : perm, middle : perm]
-  (l : ((a | consumes middle) -> b | consumes pre) -> c,
-   r : a -> ((consumes a1) -> b1 | consumes middle) -> b) :
-  (k : (consumes a1) -> b1 | consumes pre) -> c
-  =
-  fun (k : (consumes a1) -> b1 | consumes pre) : c =
-    l (fun (x : a | consumes middle) : b =
-      r x k
-    )
-
-(* ------------------------------------------------------------------------------ *)
-
-(* Reset. *)
-
-(* Here, [reify] is the identity, and [reset c] is implemented by passing an
-   identity continuation to the computation [c]. We do not re-package the
-   resulting value as a computation (i.e., we do not pass it to [return]),
-   because we are in a two-layer world, where the code outside of [reset]
-   is not monadic. *)
-
-(* The type of the identity, in Mezzo, is [(consumes a) -> a]. This is
-   equivalent, I believe, to [(a | p) -> a], where [a] is required to
-   be duplicable. *)
-
-val reset [a, b] (c: ((consumes a) -> a) -> b) : b =
-  c (fun (consumes x : a) : a = x)
-
-(* ------------------------------------------------------------------------------ *)
-
-(* Shift. *)
-
-(* Here, [shift] is the identity. When one wishes to capture the current
-   continuation, one simply writes [fun (k: a -> b) : c = ...], and
-   presto, this is a computation that has access to its continuation. *)
+open list
+open iterator
 
 (* ------------------------------------------------------------------------------ *)
 
 (* Higher-order list iteration in CPS style. *)
 
-(* TEMPORARY this code needs to be generalized in order to allow [f]
-   to perform a side effect on some state [s]. *)
+(* The function [cps_iter] expects a list [xs], a client function [f],
+   and two continuations [j] and [k], which are the abort continuation
+   and the normal continuation. [cps_iter] invokes at most one of its
+   continuations -- this is encoded by quantifying over the permission
+   [p], which both continuations require. This quantification over [p]
+   also serves as a ``frame rule in CPS style'', as it means that all
+   of the permissions that we hold when we call [f] and that [f] itself
+   does not need are transmitted to [f]'s continuation. [cps_iter] takes
+   away the permission [xs @ list a] and passes it on to [j] or [k]. *)
 
-open list
+(* The client function [f] follows the same template. It expects an
+   element [x] and two continuations. It invokes at most one of these
+   continuations, and passes the ownership of [x] to it. *)
 
-data request =
-  | Stop
-  | Continue
+(* A permission [s] is threaded throughout the whole thing, so as to
+   allow the client function to have a side effect. *)
 
-data outcome =
-  | Stopped
-  | Done
+(* If we were not afraid of unnecessary boxing and unboxing, we could
+   make the types of [f] and [cps_iter] much clearer by packing the
+   two continuations together as a ``one-shot choice'' between two
+   continuations. *)
 
-val rec cps_iter [a, b, p : perm] (
-  (* The permission [xs @ list a] is taken away; it will be passed on to
-     the continuation [k]. *)
+(* Perhaps surprisingly, the two continuations can have distinct answer
+   types. Actually, we do not directly do anything with the abort continuation
+   [j]. It is only carried around and passed to [f]. Its type changes at every
+   iteration, though, as it plays the role of a ``magic wand'' that takes us
+   back from the ownership of a sub-list to the ownership of the whole
+   list. *)
+
+val rec cps_iter [a, b, c, s : perm, p : perm] (
+  (* The list. *)
   consumes xs: list a,
-  (* The user-supplied iteratee [f] has access to one list element, [x], at
-     type [a], and must return the permission [x @ a] to its own
-     continuation. Furthermore, it must be parametric in a permission [q]
-     which is passed to [f] and which [f] must pass on to its own
-     continuation. (This implies that [f] invokes its continuation at most
-     once.) The answer type of [f] is [b], the same as the answer type of
-     [cps_iter], because [cps_iter] may or may not call [f]. The function [f]
-     passes a request to its continuation, which indicates whether the
-     iteration should continue. *)
+  (* The client. *)
   f: [q : perm] (
+    (* The element. *)
     consumes x: a,
-    (request | consumes (x @ a * q)) -> b
+  (* The abort and normal continuations. *)
+    (| consumes (x @ a * q * s)) -> b,
+    (| consumes (x @ a * q * s)) -> c
   | consumes q
-  ) -> b,
-  (* The continuation [k] receives the final outcome of [cps_iter]. It
-     indicates whether the iteration went all the way to the end of the list,
-     or was prematurely stopped. Furthermore, [k] recovers the ownership of
-     the list [xs]. Finally, [cps_iter] is parametric in a permission [p],
-     which [cps_iter] consumes and passes on to its continuation [k]. *)
-  k: (outcome | consumes (p * xs @ list a)) -> b
+  | consumes s
+  ) -> c,
+  (* The abort and normal continuations. *)
+  j: (| consumes (xs @ list a * p * s)) -> b,
+  k: (| consumes (xs @ list a * p * s)) -> c
 | consumes p
-) : b =
+| consumes s
+) : c =
   match xs with
   | Nil ->
-      (* The list is empty. We are done. Easy! *)
-      k Done
-  | Cons { head } ->
-      (* The list is non-empty. The first thing to do is to call [f].
-	 All of our permissions are transmitted to [f]. Indeed, the
-	 permission [head @ a] is explicitly requested by [f], and
-	 our other permissions collectively become the parameter [q]
-	 that [f] passes on to its continuation. *)
-      f
-	[ q = (xs @ Cons { head; tail: list a } * p) ] (* optional annotation! *)
-	(head,
-	fun (r : request | consumes (head @ a * xs @ Cons { head; tail: list a } * p)) : b =
-	  (* We are now in the continuation of [f]. Our permissions
-	     have been passed back to us, so we are still in good
-	     shape. *)
-	  match r with
-	  | Stop ->
-	      (* The request produced by [f] is [Stop]. Easy. We are
-		 able to reconstruct [xs @ list a], which [k] requires. *)
-	      k Stopped
-	  | Continue ->
-	      (* The request produced by [f] is [Continue]. This is
-		 the trickier case. The code is simple: it is just
-		 a recursive call. The trick is in understanding the
-		 permissions that will be passed to [k]. Officially,
-		 [k] requires [p] and [xs @ list a]. It will receive
-		 [p * xs @ Cons { head: a; tail }] and [tail @ list a].
-		 Up to a recombination, these are the same, so the call
-		 is well-typed. *)
-	      let tail = xs.tail in
-  	      cps_iter [ p = (p * xs @ Cons { head: a; tail }) ] (tail, f, k)
-	  end
-	)
-  end
-
-val rec cps_iter2 [a, b, c, p : perm] (
-  (* The permission [xs @ list a] is taken away; it will be passed on to
-     the continuation [k]. *)
-  consumes xs: list a,
-  (* The user-supplied iteratee [f] has access to one list element, [x], at
-     type [a], and must return the permission [x @ a] to its own
-     continuation. Furthermore, it must be parametric in a permission [q]
-     which is passed to [f] and which [f] must pass on to its own
-     continuation. (This implies that [f] invokes its continuation at most
-     once.) The answer type of [f] is [b], the same as the answer type of
-     [cps_iter], because [cps_iter] may or may not call [f]. The function [f]
-     passes a request to its continuation, which indicates whether the
-     iteration should continue. *)
-  f: [q : perm] (
-    consumes x: a,
-    (| consumes (x @ a * q)) -> c,
-    (| consumes (x @ a * q)) -> b
-  | consumes q
-  ) -> b,
-  (* The continuation [k] receives the final outcome of [cps_iter]. It
-     indicates whether the iteration went all the way to the end of the list,
-     or was prematurely stopped. Furthermore, [k] recovers the ownership of
-     the list [xs]. Finally, [cps_iter] is parametric in a permission [p],
-     which [cps_iter] consumes and passes on to its continuation [k]. *)
-  j: (| consumes (p * xs @ list a)) -> c,
-  k: (| consumes (p * xs @ list a)) -> b
-| consumes p
-) : b =
-  match xs with
-  | Nil ->
-      (* The list is empty. We are done. Easy! *)
+      (* The list is empty. We are done. *)
       k()
   | Cons { head } ->
-
-      (* The list is non-empty. The first thing to do is to call [f].
-	 All of our permissions are transmitted to [f]. Indeed, the
-	 permission [head @ a] is explicitly requested by [f], and
-	 our other permissions collectively become the parameter [q]
-	 that [f] passes on to one of its continuations. *)
-
-      (* In preparation for the call to [f], define two continuations
-	 for [f], which will invoke at most one of them, to indicate
-	 whether it wishes to stop or to continue. *)
-      let stop (| consumes (head @ a * xs @ Cons { head; tail: list a } * p)) : c =
-	(* We are able to reconstruct [xs @ list a], which [k] requires. *)
-	j() (* TEMPORARY avoid eta expansion *)
+      (* TEMPORARY BUG ideally, [stop] should be just [j], and we should
+	 not need to eta-expand. See also [eta.mz]. *)
+      assert j @ (| consumes (head @ a * xs @ Cons { head; tail: list a } * p * s)) -> b;
+      let stop   (| consumes (head @ a * xs @ Cons { head; tail: list a } * p * s)) : b =
+	j ()
       in
-      let next (| consumes (head @ a * xs @ Cons { head; tail: list a } * p)) : b =
-	(* This is the trickier case. The code is simple: it is just a
-	   recursive call. The trick is in understanding the permissions that
-	   are passed to [k]. Officially, [k] requires [p] and [xs @ list a].
-	   It will receive [p * xs @ Cons { head: a; tail }] and [tail @ list a].
-	   Up to a recombination, these are the same, so the call is well-typed. *)
-	let tail = xs.tail in
-	cps_iter2 [ p = (p * xs @ Cons { head: a; tail }) ] (tail, f, j, k)
-      in
-      (* Now, call [f]. *)
-      f
-	[ (xs @ Cons { head; tail: list a } * p) ] (* optional annotation! *)
-	(head, stop, next)
-  end
+      (* The list is non-empty. We must invoke [f]. *)
+      f [ (xs @ Cons { head; tail: list a } * p) ] (
+	head,
+	stop,
+	fun (| consumes (xs @ Cons { head: a; tail: list a } * p * s)) : c =
+	  let tail = xs.tail in
+	  cps_iter [ p = (xs @ Cons { head: a; tail } * p) ] (tail, f, j, k)
+      )
+  end 
 
-(* Now, suppose [f] does not need to capture its continuation. We wrap the
-   call to [f] within a monadic [return], and we recover a normal [iter]
-   function. *)
+(* TEMPORARY it would be nice if we could get rid of the two type applications
+   above. In each case, these type applications intuitively indicate what is
+   ``framed out'', i.e. transmitted to the continuations. This is a kind of
+   ``frame inference problem'' in CPS style. Here the appropriate behavior might
+   be to instantiate the flexible permission variable with ``everything that
+   remains''. *)
 
-val rec normal_iter [a] (
+(* ------------------------------------------------------------------------------ *)
+
+(* We recover a normal (direct-style) higher-order iteration function by
+   applying [cps_iter] to a client function that does not capture the
+   continuations. *)
+
+val rec normal_iter [a, s : perm] (
   xs: list a,
-  f : a -> request
+  f : (a | s) -> request
+| consumes s
 ) : outcome =
 
   (* Wrap [f], which is a normal function, to obtain a function in CPS
-     style, which invokes its continuation [k] just once at the end.
-     This function is in fact polymorphic in its answer type; this is
+     style, which invokes a continuation just once at the end. Which
+     continuation is invoked depends on the request returned by [f]. *)
+  (* This function is in fact polymorphic in its answer type; this is
      a more general type than required by [cps_iter], and reflects the
      fact that [wrapped_f] does not have a control effect. *)
   let wrapped_f [b, q : perm] (
     consumes x: a,
-    k: (request | consumes (x @ a * q)) -> b
+    j: (| consumes (x @ a * q * s)) -> b,
+    k: (| consumes (x @ a * q * s)) -> b
   | consumes q
+  | consumes s
   ) : b =
-    k (f x)
+    if f x then k() else j()
   in
 
-  (* Define an identity continuation. This amounts to enclosing the
-     call to [cps_iter] within a [reset]. This continuation will be
-     invoked at the very end of the iteration, and will have access
-     (again) to the entire list [xs @ list a]. *)
-  let id (b : outcome | xs @ list a) : outcome =
-    b
-  in
+  (* Define two continuations that construct the final outcome. *)
+  let aborted  () : outcome = Stopped
+  and finished () : outcome = Done in
 
-  (* Invoke [cps_iter]. The type [b] is instantiated with [outcome | xs @ list a].
-     The permission [p] is instantiated with [empty]. *)
+  (* Invoke [cps_iter]. Both answer types are instantiated with
+     [outcome | xs @ list a]. The permission [p] is instantiated
+     with [empty]. *)
   cps_iter
-    [a, (outcome | xs @ list a), empty]
+    [a, (outcome | xs @ list a), (outcome | xs @ list a), s]
     (xs,
      wrapped_f [(outcome | xs @ list a)],
-     id)
-  (* TEMPORARY could we get rid of the two type applications? it seems to me that
-     at some point in time I was able to type-check this code without them. *)
+     aborted,
+     finished)
 
-val rec normal_iter2 [a] (
-  xs: list a,
-  f : a -> request
-) : outcome =
+(* TEMPORARY could we get rid of the type application on [wrapped_f]? *)
 
-  (* Wrap [f], which is a normal function, to obtain a function in CPS
-     style, which invokes its continuation [k] just once at the end.
-     This function is in fact polymorphic in its answer type; this is
-     a more general type than required by [cps_iter], and reflects the
-     fact that [wrapped_f] does not have a control effect. *)
-  let wrapped_f [b, q : perm] (
-    consumes x: a,
-    j: (| consumes (x @ a * q)) -> b,
-    k: (| consumes (x @ a * q)) -> b
-  | consumes q
-  ) : b =
-    (if f x then k else j) ()
-  in
+(* ------------------------------------------------------------------------------ *)
 
-  (* Define a failure continuation. *)
-  let failure (| xs @ list a) : outcome =
-    Stopped
-  in
-
-  (* Define an identity continuation. This amounts to enclosing the
-     call to [cps_iter] within a [reset]. This continuation will be
-     invoked at the very end of the iteration, and will have access
-     (again) to the entire list [xs @ list a]. *)
-  let success (| xs @ list a) : outcome =
-    Done
-  in
-
-  (* Invoke [cps_iter]. The type [b] is instantiated with [outcome | xs @ list a].
-     The permission [p] is instantiated with [empty]. *)
-  cps_iter2
-    [a, (outcome | xs @ list a), (outcome | xs @ list a), empty]
-    (xs,
-     wrapped_f [(outcome | xs @ list a)],
-     failure, success)
-
-(* Now, let's try to invert [cps_iter] and obtain an iterator. *)
-
-(* A iterator is either finished, or a pair of an element and a
-   captured continuation that expects precisely this element,
-   and which (when invoked) produces another iterator. (Thus,
-   the type iterator is recursive. It is a type of streams.) *)
-
-(* A difficulty is that the captured continuation expects a
-   certain permission, which corresponds to [q] in the type
-   of [cps_iter]. We must store a pair of the continuation
-   and the permission [q] that it requires -- this is
-   exactly the encoding of one-shot functions. It requires
-   an existential quantification over [q]. (An attempt to
-   parameterize the type [iterator] over [q] would fail,
-   as we would not know which parameter to supply in the
-   recursive occurrence of [iterator].) *)
-
-(* In a sense, the existential quantification over [pre] serves
-   exactly to hide the type ``segment of a data structure'',
-   which we do not wish to explicitly express. *)
-
-(* The following definitions are cumbersome, due to the lack of type
-   abbreviations and the need to work around certain current bugs. *)
-
-data iterator a (post : perm) =
-    IFinished { outcome: outcome | post }
-  | IAvailable { content: { pre : perm } product a pre post }
-
-and product a (pre : perm) (post : perm) =
-  | Product { content: (
-      head: a,
-      continuation: (request | consumes (head @ a * pre)) -> iterator a post
-        (* If the [request] is [Stop], then the resulting iterator will
-	   certainly be [IFinished]. Unfortunately, we cannot encode this
-	   property in the type of the continuation. *)
-      | pre
-    )}
-
-(* The function [yield] captures the current continuation [k] and uses it
-   to construct an iterator. The iteration is suspended (i.e. [k] is not
-   invoked) and the iterator is returned. *)
-
-val yield [a, q : perm, post : perm] (
-  consumes x : a,
-  k: (request | consumes (x @ a * q)) -> iterator a post
-  | consumes q
-) : iterator a post =
-  (* We capture the continuation [k] and store it.
-     There is an implicit [shift]. *)
-  IAvailable { content = Product { content = (x, k) } }
-
-(* Applying [cps_iter] to [yield] allows constructing an iterator for a list
-   [xs]. This iterator produces elements of type [a] and, once finished, allows
-   recovering the ownership of the list [xs]. *)
+(* Applying [cps_iter] to [yield] allows constructing an iterator for a list.
+   This iterator produces elements of type [a] and, once finished or stopped,
+   gives back the ownership of the list. *)
 
 val iterate [a] (
   consumes xs: list a
 ) : iterator a (xs @ list a) =
-  (* Invoke [cps_iter]. The answer type [b] is instantiated with [iterator a]. *)
-  cps_iter (
+  let aborted  () : () = ()
+  and finished (| consumes xs @ list a) : iterator a (xs @ list a) =
+    IFinished { outcome = Done }
+  in
+  cps_iter [b = (| xs @ list a), s = empty, p = empty] (
     xs,
     yield,
-    fun (o : outcome | consumes xs @ list a) : iterator a (xs @ list a) =
-      IFinished { outcome = o }
+    aborted,
+    finished
   )
 
-val iterate2 [a] (
-  consumes xs: list a
-) : iterator::iterator a (xs @ list a) =
-  (* Invoke [cps_iter]. The answer type [b] is instantiated with [iterator a]. *)
-  let failure (| xs @ list a) : () =
-    ()
-  and success (| consumes xs @ list a) : iterator::iterator a (xs @ list a) =
-    iterator::IFinished { outcome = iterator::Done }
-  in
-  cps_iter2 [c=(| xs @ list a)] (
-    xs,
-    iterator::yield,
-    failure,
-    success
-  )
+(* TEMPORARY could we get rid of the type applications for s and p?
+   currently we can remove either of them, but not both. *)
 
-(* One can use an iterator to iterate in the same style as with a normal
-   [iter] function. *)
-
-val rec use_iterator [a, p : perm, post : perm] (
-  consumes i: iterator a post,
-  f : (a | p) -> request
-  | p
-) : (outcome | post) =
-  match i with
-  | IFinished ->
-      (* If the iterator is finished, report its outcome. The permission
-	 [post] is available, so we are happy. *)
-      i.outcome
-  | IAvailable ->
-      (* If the iterator is not finished, then we have an element [x] and
-	 a function [next] that will provide us with a new iterator once
-	 we surrender the ownership of [x]. *)
-      let x, next = i.content.content in
-      (* Submit [x] to the user function [f], which returns a request to
-	 stop or continue. *)
-      let r = f x in
-      (* Pass the request on to [next], which returns a new iterator. *)
-      let i = next r in
-      (* Continue with this new iterator. *)
-      use_iterator (i, f)
-  end
-
-(* One can construct a list of the elements of an iterator. This requires
-   the type [a] to be duplicable, because at the end, we own both the newly
-   created list and the original data structure (represented by the abstract
-   permission [post]). *)
-
-val rec elements_of_iterator [a, post : perm] duplicable a => (
-  consumes i: iterator a post
-) : (list a | post) =
-  (* Create a reference to hold the list of elements. *)
-  let r = newref nil in
-  let _ : outcome =
-    use_iterator (
-      i,
-      fun (x: a | r @ ref (list a)) : request =
-	r := cons (x, !r);
-	Continue
-    )
-  in
-  !r
-
-(* One can lazily compare the elements of two iterators. *)
-
-val equal_iterators [a, post1 : perm, post2 : perm] (
-  eq: (a, a) -> bool,
-  consumes i1: iterator a post1,
-  consumes i2: iterator a post2
-) : (bool | post1 * post2) =
-
-  (* An unpleasant aspect is that, once we have determined that
-     the two streams are not equal, we must stop the iterator(s)
-     that are not yet finished, in order to obtain the permissions
-     [post1] and [post2]. And, after stopping them by invoking
-     [next Stop], we must observe that they have indeed finished,
-     by matching them against [IFinished]. This is because the
-     type-checker does not know that a [Stop] request effectively
-     causes the iteration to finish. *)
-
-  (* In order to do this without duplicating too much code, when
-     we observe a mismatch, we stop the iterator(s) that need to
-     be stopped and pretend that we continue iterating, but set
-     [ok] to [False]. Thus, the next call to [loop] finds two
-     [IFinished] iterators and returns [ok], that is, [False]. *)
-     
-  let rec loop (
-    ok: bool,
-    consumes i1: iterator a post1,
-    consumes i2: iterator a post2
-  ) : (bool | post1 * post2) =
-    match i1, i2 with
-    | IFinished, IFinished ->
-        ok
-    | IAvailable, IAvailable ->
-        let x1, next1 = i1.content.content
-        and x2, next2 = i2.content.content in
-        if eq (x1, x2) then
-  	  loop (ok, next1 Continue, next2 Continue)
-        else
-	  loop (False, next1 Stop, next2 Stop)
-    | IAvailable, IFinished ->
-        let x1, next1 = i1.content.content in
-	loop (False, next1 Stop, i2)
-    | IFinished, IAvailable ->
-        let x2, next2 = i2.content.content in
-        loop (False, i1, next2 Stop)
-    end
-  in
-  
-  loop (True, i1, i2)
+(* Note: the functions [normal_iter] are not specific of lists in any way.
+   We could in principle abstract them over [list a] and [cps_iter] in
+   order to obtain generic versions of these functions. Do this after the
+   API has stabilized... TEMPORARY *)
 
 (*
 Local Variables:
