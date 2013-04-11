@@ -144,11 +144,6 @@ let add_hint hint str =
       None
 ;;
 
-(** [collect t] returns all the permissions contained in [t] along with the
- * "cleaned up" version of [t]. *)
-let collect = TypeOps.collect;;
-
-
 (* -------------------------------------------------------------------------- *)
 
 let perm_not_flex env t =
@@ -366,7 +361,7 @@ and add (env: env) (var: var) (t: typ): env =
     ptype (env, t));
 
   (* Add the permissions. *)
-  let env = List.fold_left add_perm env perms in
+  let env = add_perms env perms in
 
   begin match t with
   | TySingleton (TyOpen p) when not (same env var p) ->
@@ -477,6 +472,8 @@ and add_perm (env: env) (t: typ): env =
   | _ ->
       add_floating_perm env t
 
+and add_perms env perms =
+  List.fold_left add_perm env perms
 
 and add_perm_raw env p t =
   let permissions = get_permissions env p in
@@ -530,7 +527,6 @@ and sub (env: env) (var: var) ?no_singleton (t: typ): result =
     that represents a program identifier.";
 
   let t = modulo_flex env t in
-  let t = expand_if_one_branch env t in
 
   let judgement = JSubVar (var, t) in
   let try_proof = try_proof env judgement in
@@ -648,6 +644,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
   let no_proof_root = no_proof env judgement in
 
   let t1 = expand_if_one_branch env t1 in
+  let t2 = expand_if_one_branch env t2 in
 
   match t1, t2 with
 
@@ -905,8 +902,10 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         try_proof_root "Fold-L-2" begin
           (* XXX why are we not collecting permissions here? *)
           let branch2 = find_and_instantiate_branch env var2 datacon1 [] in
-          sub_type env t1 (TyConcrete branch2) >>=
-          qed
+          let t2 = TyConcrete branch2 in
+          let t2, p2 = collect t2 in
+          sub_type env t1 t2 >>= fun env ->
+          sub_perms env p2
         end
       end else begin
         no_proof_root

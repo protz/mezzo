@@ -115,6 +115,20 @@ val expand_if_one_branch : env -> typ -> typ
 
 (* -------------------------------------------------------------------------- *)
 
+(** {1 Type traversals} *)
+
+(** [collect t] syntactically separates [t] into a structural part and a
+ * permission part, i.e. it extracts all the permissions hidden inside [t] and
+ * returns them as a separate list. *)
+val collect : typ -> typ * typ list
+
+(** Mark all type variables reachable from a type, including via the
+    ambient permissions. *)
+val mark_reachable : env -> typ -> env
+
+
+(* -------------------------------------------------------------------------- *)
+
 (** {1 Dealing with variables} *)
 
 (** {2 Various getters} *)

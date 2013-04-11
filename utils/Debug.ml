@@ -147,7 +147,7 @@ module Graph = struct
   let write_simple_graph buf (env, root) =
     write_intro buf;
     let env = refresh_mark env in
-    let env = TypeOps.mark_reachable env (TyOpen root) in
+    let env = mark_reachable env (TyOpen root) in
     fold_terms env (fun () var permissions ->
       if is_marked env var then
         draw_point buf env var permissions

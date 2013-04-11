@@ -46,8 +46,10 @@ tags: all
 
 # For easily debugging inside an editor. When editing tests/foo.mz, just do (in
 # vim): ":make %".
-tests/%.mz stdlib/%.mz corelib/%.mz: mezzo.byte FORCE
-	OCAMLRUNPARAM=b ./mezzo.byte -I tests -nofancypants $@ -debug 5 2>&1 | tail -n 80
+#tests/%.mz stdlib/%.mz corelib/%.mz: mezzo.byte FORCE
+#	OCAMLRUNPARAM=b ./mezzo.byte -I tests -nofancypants $@ -debug 5 2>&1 | tail -n 80
+tests/%.mz stdlib/%.mz corelib/%.mz: all
+	OCAMLRUNPARAM=b ./mezzo.native -I tests -nofancypants $@ 2>&1 | tail -n 80
 
 FORCE:
 
