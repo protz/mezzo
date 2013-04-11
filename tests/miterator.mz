@@ -64,20 +64,6 @@ alias next_ty (i : term) (x : term) a (pre : perm) (post : perm) =
 val yield [a, pre : perm, post : perm] (
   i: unknown,
   consumes x: a,
-  stop: (| consumes (x @ a * pre * i @ IAvailable { content: unknown })) -> (| i @ IFinished { outcome: outcome | post }),
-  next: (| consumes (x @ a * pre * i @ IAvailable { content: unknown })) -> (| i @ iterator i a post)
-  | consumes pre
-  | consumes i @ IAvailable { content: unknown }
-) : (| i @ iterator i a post) =
-  (* We capture the continuations and store them. In direct style, this
-     would be expressed using [shift]. *)
-  i.content <- (x, stop, next)
-
-(* BUG this variant is rejected, even though it is identical to [yield],
-   modulo unfolding a lot of abbreviations *)
-val yield2 [a, pre : perm, post : perm] (
-  i: unknown,
-  consumes x: a,
   stop: stop_ty i x a pre post,
   next: next_ty i x a pre post
   | consumes pre
