@@ -2,7 +2,7 @@ open list
 
 (* An iterator of type [iterator a post] allows enumerating a series of
    elements of type [a] (presumably the elements of some underlying
-   collection) and, once stopped or finished, recovering the permission [p]
+   collection) and, once stopped or finished, recovering the permission [post]
    (which typically represents the ownership of the underlying collection). *)
 
 (* ------------------------------------------------------------------------------ *)
