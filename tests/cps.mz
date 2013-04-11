@@ -89,7 +89,7 @@ val rec cps_iter [a, b, c, s : perm, p : perm] (
 
 val rec normal_iter [a, s : perm] (
   xs: list a,
-  f : (a | s) -> request
+  f : (a | s) -> bool
 | consumes s
 ) : outcome =
 

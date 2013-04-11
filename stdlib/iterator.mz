@@ -7,17 +7,13 @@ open list
 
 (* ------------------------------------------------------------------------------ *)
 
-(* A request is an instruction sent by the client to the iterator. *)
-
-data request =
-  | Stop
-  | Next
-
 (* An outcome is information returned by the iterator to the client. *)
 
 data outcome =
   | Stopped
   | Done
+
+(* TEMPORARY parameterize the type [iterator] over [outcome]? *)
 
 (* ------------------------------------------------------------------------------ *)
 
@@ -92,7 +88,7 @@ val yield [a, pre : perm, post : perm] (
 
 val rec use [a, pre : perm, post : perm] (
   consumes i: iterator a post,
-  f : (a | pre) -> request
+  f : (a | pre) -> bool
   | pre
 ) : (outcome | post) =
   match i with
@@ -108,16 +104,16 @@ val rec use [a, pre : perm, post : perm] (
       let x, stop, next = i.content in
       (* Submit [x] to the user function [f], which returns a request to
 	 stop or continue. *)
-      match f x with
-      | Stop ->
-	  (* If we should stop, invoke [stop]. This yields [post]. *)
-	  stop();
-	  Stopped
-      | Next ->
+      if f x then begin
 	  (* If we should continue, invoke [next], which returns a new
 	     iterator; and continue with this iterator. *)
 	let i = next() in
 	use (i, f)
+      end
+      else begin
+	  (* If we should stop, invoke [stop]. This yields [post]. *)
+	  stop();
+	  Stopped
       end
   end
 
@@ -136,9 +132,9 @@ val rec elements [a, post : perm] duplicable a => (
   let _ : outcome =
     use (
       i,
-      fun (x: a | r @ ref (list a)) : request =
+      fun (x: a | r @ ref (list a)) : bool =
 	r := cons (x, !r);
-	Next
+	true
     )
   in
   !r

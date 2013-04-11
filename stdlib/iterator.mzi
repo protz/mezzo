@@ -7,12 +7,6 @@ open list
 
 (* ------------------------------------------------------------------------------ *)
 
-(* A request is an instruction sent by the client to the iterator. *)
-
-data request =
-  | Stop
-  | Next
-
 (* An outcome is information returned by the iterator to the client. *)
 
 data outcome =
@@ -61,7 +55,7 @@ val yield: [a, pre : perm, post : perm] (
 
 val use: [a, pre : perm, post : perm] (
   consumes i: iterator a post,
-  f : (a | pre) -> request
+  f : (a | pre) -> bool
   | pre
 ) -> (outcome | post)
 
