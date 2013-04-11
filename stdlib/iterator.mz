@@ -143,48 +143,39 @@ val rec elements [a, post : perm] duplicable a => (
 
 (* One can lazily compare the elements of two iterators. *)
 
-val equal [a, post1 : perm, post2 : perm, p : perm] (
+(* Once we have determined that the two streams are not equal, we
+   must explicitly stop the iterator(s) that are not yet finished,
+   in order to obtain the permissions [post1] and [post2]. *)
+
+val rec equal [a, post1 : perm, post2 : perm, p : perm] (
   eq: (a, a | p) -> bool,
   consumes i1: iterator a post1,
   consumes i2: iterator a post2
 | p
 ) : (bool | post1 * post2) =
 
-  (* A slightly unpleasant aspect is that, once we have determined that
-     the two streams are not equal, we must stop the iterator(s) that
-     are not yet finished, in order to obtain the permissions [post1]
-     and [post2]. *)
-
-  let rec loop (
-    consumes i1: iterator a post1,
-    consumes i2: iterator a post2
-  | p
-  ) : (bool | post1 * post2) =
-    match i1, i2 with
-    | IFinished, IFinished ->
-        True
-    | IAvailable, IAvailable ->
-        let x1, stop1, next1 = i1.content
-        and x2, stop2, next2 = i2.content in
-        if eq (x1, x2) then
-  	  loop (next1(), next2())
-        else begin
-	  stop1();
-	  stop2();
-	  False
-	end
-    | IAvailable, IFinished ->
-        let _, stop1, _ = i1.content in
+  match i1, i2 with
+  | IFinished, IFinished ->
+      True
+  | IAvailable, IAvailable ->
+      let x1, stop1, next1 = i1.content
+      and x2, stop2, next2 = i2.content in
+      if eq (x1, x2) then
+	equal (eq, next1(), next2())
+      else begin
 	stop1();
-	False
-    | IFinished, IAvailable ->
-        let _, stop2, _ = i2.content in
 	stop2();
-        False
-    end
-  in
-
-  loop (i1, i2)
+	False
+      end
+  | IAvailable, IFinished ->
+      let _, stop1, _ = i1.content in
+      stop1();
+      False
+  | IFinished, IAvailable ->
+      let _, stop2, _ = i2.content in
+      stop2();
+      False
+  end
 
 (*
 Local Variables:
