@@ -37,11 +37,11 @@ data mutable iterator (i : term) a (post : perm) =
       | pre
     )}
 
-alias scratch (i : term) : perm =
-  i @ IAvailable { content: unknown }
-
 alias finished (i : term) (post : perm) : perm =
   i @ IFinished { outcome: outcome | post }
+
+alias scratch (i : term) : perm =
+  i @ IAvailable { content: unknown }
 
 alias active (i : term) a (post : perm) : perm =
   i @ iterator i a post
@@ -52,14 +52,53 @@ alias stop_ty (i : term) (x : term) a (pre : perm) (post : perm) =
 alias next_ty (i : term) (x : term) a (pre : perm) (post : perm) =
   (| consumes (x @ a * pre * scratch i)) -> (| active i a post)
 
+alias available (i : term) a (post : perm) : perm =
+  i @ IAvailable { content: { pre : perm } (
+    x: a,
+    stop: stop_ty i x a pre post,
+    next: next_ty i x a pre post
+  | pre
+  )}
+
+(* ------------------------------------------------------------------------------ *)
+
+(* An iterator API. *)
+
+val is_available [a, post : perm]
+  (i: unknown | consumes active i a post)
+: rich_bool
+    (finished i post)
+    (i @ IAvailable { content: { pre : perm } (
+      x: a,
+      stop: (| consumes (x @ a * pre * scratch i)) -> (| i @ IFinished { outcome: outcome | post }),
+      next: next_ty i x a pre post
+    | pre
+    )})
+  =
+  match i with
+  | IFinished ->
+      RichFalse
+  | IAvailable ->
+      RichTrue
+  end
+
+(* BUG is_available is accepted, but is_available2 is rejected, yet they differ
+   only in the unfolding of type abbreviations *)
+val is_available2 [a, post : perm]
+  (i: unknown | consumes active i a post)
+: rich_bool (finished i post) (available i a post) =
+  match i with
+  | IFinished ->
+      RichFalse
+  | IAvailable ->
+      RichTrue
+  end
+
 (* ------------------------------------------------------------------------------ *)
 
 (* The function [yield] captures the current continuations [stop] and [next]
    and uses them to construct an iterator. The iteration is suspended (i.e.
    no continuation is invoked) and the iterator is returned. *)
-
-(* The type of [yield] is lengthy, but the code is trivial: it is just an
-   application of the constructor [IAvailable]. *)
 
 val yield [a, pre : perm, post : perm] (
   i: unknown,
