@@ -455,7 +455,11 @@ and add (env: env) (var: var) (t: typ): env =
 
 
 (** [add_perm env t] adds a type [t] with kind KPerm to [env], returning the new
-    environment. *)
+    environment. Attention! Because the [add*] function are not designed a
+    faillible, you have to make sure, prior to calling [add*], that the
+    permission you're about to add is not flexible (use [perm_not_flex]). The
+    [sub*] functions, on the other hand, will gracefully fail if something's
+    flexible (use [is_good] to check whether their result is okay). *)
 and add_perm (env: env) (t: typ): env =
   Log.check (get_kind_for_type env t = KPerm) "This function only works with types of kind perm.";
   if t <> TyEmpty then
@@ -1175,6 +1179,8 @@ and sub_perm (env: env) (t: typ): result =
       end
   | TyEmpty ->
       try_proof "Sub-Empty" (qed env)
+  | TyOpen p when is_flexible env p ->
+      j_flex_inst env p TyEmpty
   | _ ->
       sub_floating_perm env t
 
@@ -1189,20 +1195,13 @@ and sub_perms (env: env) (perms: typ list): state =
   if List.length perms = 0 then
     qed env
   else
-    match MzList.take_bool (perm_not_flex env) perms with
+    match MzList.take_bool (fun p -> (is_good (sub_perm env p))) perms with
     | Some (perms, perm) ->
         sub_perm env perm >>= fun env ->
         sub_perms env perms
     | None ->
-        premises env (List.map (fun perm -> fun env ->
-          let perm = modulo_flex env perm in
-          let perm = expand_if_one_branch env perm in
-          match perm with
-          | TyOpen p when is_flexible env p ->
-              j_flex_inst env p TyEmpty
-          | _ ->
-              no_proof env (JSubPerm perm)
-        ) perms)
+        no_proof env (JSubPerm (fold_star perms)) >>= fun _ ->
+        fail
 
 (* Attention! This function should not be called directly. Even if you know that
  * your permission is a floating one, please call [sub_perm] so that the type
