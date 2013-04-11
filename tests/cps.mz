@@ -32,7 +32,9 @@ open iterator
    [j]. It is only carried around and passed to [f]. Its type changes at every
    iteration, though, as it plays the role of a ``magic wand'' that takes us
    back from the ownership of a sub-list to the ownership of the whole
-   list. *)
+   list. We rely on the fact that the type-checker is able to assign a new
+   type to [j] without requiring an explicit eta-expansion. This allows us
+   to keep a continuation [j] that costs O(1), as opposed to O(n). *)
 
 val rec cps_iter [a, b, c, s : perm, p : perm] (
   (* The list. *)
@@ -58,16 +60,10 @@ val rec cps_iter [a, b, c, s : perm, p : perm] (
       (* The list is empty. We are done. *)
       k()
   | Cons { head } ->
-      (* TEMPORARY BUG ideally, [stop] should be just [j], and we should
-	 not need to eta-expand. See also [eta.mz]. *)
-      assert j @ (| consumes (head @ a * xs @ Cons { head; tail: list a } * p * s)) -> b;
-      let stop   (| consumes (head @ a * xs @ Cons { head; tail: list a } * p * s)) : b =
-	j ()
-      in
       (* The list is non-empty. We must invoke [f]. *)
       f [ (xs @ Cons { head; tail: list a } * p) ] (
 	head,
-	stop,
+	j,
 	fun (| consumes (xs @ Cons { head: a; tail: list a } * p * s)) : c =
 	  let tail = xs.tail in
 	  cps_iter [ p = (xs @ Cons { head: a; tail } * p) ] (tail, f, j, k)

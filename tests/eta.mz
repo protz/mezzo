@@ -1,6 +1,6 @@
 open list
 
-(* This is a slightly simplified version of a problem that I have in cps.mz *)
+(* This is a slightly simplified version of a problem that I found in cps.mz *)
 
 val consumer [a, q : perm] (
   consumes x: a,
@@ -31,11 +31,7 @@ val f [a] (consumes xs: list a) : () =
       (* This works. *)
       (* consumer [a, (xs @ Cons { head; tail: list a })] (head, k1); *)
 
-      (* This does NOT work, but I would like it to work! *)
+      (* This used to NOT work, and has been fixed! *)
       consumer [a, (xs @ Cons { head; tail: list a })] (head, k2)
-
-      (* Comment 1: surprisingly, if I replace a with int everywhere, the code is accepted. *)
-      (* Comment 2: this behavior seems to indicate that the type annotation that I gave
-	 for k2 is checked (and is correct), but is not used. *)
 
   end
