@@ -1150,7 +1150,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                 qed
           | ps1, [] ->
               (* We may have a remaining, rigid, floating permission. Good for us! *)
-              let env = add_perm env (fold_star ps1) in
+              let sub_env = add_perm env (fold_star ps1) in
+              apply_axiom env (JAdd (fold_star ps1)) "Add-Sub-Add" sub_env >>= fun env ->
               nothing env "adding-everything" >>=
               qed
           | [], ps2 ->
@@ -1158,10 +1159,13 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                * also happens to be present in our environment. *)
               sub_perms env ps2
           | ps1, ps2 ->
-              Log.debug ~level:4 "[add_sub] NOTICE: pending failure\n  \
+              let ps1, ps1_flex = List.partition (perm_not_flex env) ps1 in
+              let sub_env = add_perms env ps1 in
+              apply_axiom env (JAdd (fold_star ps1)) "Add-Sub-Add" sub_env >>= fun env ->
+              Log.debug ~level:4 "[add_sub] NOTICE: probable pending failure\n  \
                   coud not add: %a\n  \
                   could not sub: %a"
-                TypePrinter.ptype (env, fold_star ps1)
+                TypePrinter.ptype (env, fold_star ps1_flex)
                 TypePrinter.ptype (env, fold_star ps2);
               sub_perms env ps2
           end
