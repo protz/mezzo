@@ -127,11 +127,12 @@ let j_merge_left (env: env) (v1: var) (v2: var): result =
  * these two helpers. *)
 
 
+(* Attention! This function should not be called directly. Even if you know that
+ * your permission is a floating one, please call [add_perm] so that the type
+ * gets run through [modulo_flex] and [expand_if_one_branch]. *)
 let add_floating_perm env t =
   let floating_permissions = get_floating_permissions env in
-  let t = expand_if_one_branch env t in
-  let t, perms = collect t in
-  set_floating_permissions env (t :: perms @ floating_permissions)
+  set_floating_permissions env (t :: floating_permissions)
 ;;
 
 
@@ -149,7 +150,9 @@ let add_hint hint str =
 (* -------------------------------------------------------------------------- *)
 
 let perm_not_flex env t =
-  match modulo_flex env t with
+  let t = modulo_flex env t in
+  let t = expand_if_one_branch env t in
+  match t with
   | TyAnchoredPermission (x, _) ->
       not (is_flexible env !!x)
   | TyOpen p ->
@@ -180,7 +183,9 @@ let wrap_bar t1 =
 type side = Left | Right
 
 let is_singleton env t =
-  match modulo_flex env t with
+  let t = modulo_flex env t in
+  let t = expand_if_one_branch env t in
+  match t with
   | TySingleton _ -> true
   | TyBar (TySingleton _, _) -> true
   | _ -> false
@@ -216,8 +221,8 @@ class open_all_rigid_in (env : env ref) = object (self)
      when new cases appear and in order to share code. *)
   method visit (side, deconstructed) ty =
     let ty = modulo_flex !env ty in
-    let ty = if deconstructed && not (is_singleton !env ty) && side = Left then wrap_bar ty else ty in
     let ty = expand_if_one_branch !env ty in
+    let ty = if deconstructed && not (is_singleton !env ty) && side = Left then wrap_bar ty else ty in
     match ty, side with
 
     (* We stop at the following constructors. *)
@@ -349,6 +354,7 @@ and add (env: env) (var: var) (t: typ): env =
     represents a program identifier.";
 
   let t = modulo_flex env t in
+  let t = expand_if_one_branch env t in
 
   (* We first perform unfolding, so that constructors with one branch are
    * simplified. [unfold] calls [add] recursively whenever it adds new vars. *)
@@ -403,7 +409,9 @@ and add (env: env) (var: var) (t: typ): env =
 	  List.fold_left2 (fun env f1 f2 ->
 	    match f1, f2 with
 	    | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
-		begin match modulo_flex env t with
+                let t = modulo_flex env t in
+                let t = expand_if_one_branch env t in
+		begin match t with
 		| TySingleton (TyOpen p) ->
 		    add env p t'
 		| _ ->
@@ -424,7 +432,9 @@ and add (env: env) (var: var) (t: typ): env =
             mark_inconsistent env
           else
             List.fold_left2 (fun env t t' ->
-              match modulo_flex env t with
+              let t = modulo_flex env t in
+              let t = expand_if_one_branch env t in
+              match t with
               | TySingleton (TyOpen p) ->
                   add env p t'
               | _ ->
@@ -451,7 +461,10 @@ and add_perm (env: env) (t: typ): env =
   if t <> TyEmpty then
     TypePrinter.(Log.debug ~level:4 "[add_perm] %a" ptype (env, t));
 
-  match modulo_flex env t with
+  let t = modulo_flex env t in
+  let t = expand_if_one_branch env t in
+
+  match t with
   | TyAnchoredPermission (p, t) as perm ->
       if is_flexible env !!p then
         (* We should be able to handle adding [x* = y*] into the environment
@@ -529,6 +542,7 @@ and sub (env: env) (var: var) ?no_singleton (t: typ): result =
     that represents a program identifier.";
 
   let t = modulo_flex env t in
+  let t = expand_if_one_branch env t in
 
   let judgement = JSubVar (var, t) in
   let try_proof = try_proof env judgement in
@@ -1092,7 +1106,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                * variables, but still, we need to keep [var1] if it happens to be a
                * duplicable one! So we add it here, and [sub_floating_perm] will
                * remove it or not, depending on the associated fact. *)
-              let env = add_floating_perm env t1 in
+              let env = add_perm env t1 in
               begin match is_flexible env var1, is_flexible env var2 with
               | true, false ->
                   j_merge_left env var2 var1
@@ -1106,7 +1120,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                   else
                     no_proof env (JSubType (t1, t2))
               end >>= fun env ->
-              sub_floating_perm env t2 >>=
+              sub_perm env t2 >>=
               qed
           | ps1, [TyOpen var2] when is_flexible env var2 ->
               j_flex_inst env var2 (fold_star ps1) >>=
@@ -1185,7 +1199,9 @@ and sub_perm (env: env) (t: typ): result =
     TypePrinter.(Log.debug ~level:4 "[sub_perm] %a" ptype (env, t));
 
   let try_proof = try_proof env (JSubPerm t) in
-  match modulo_flex env t with
+  let t = modulo_flex env t in
+  let t = expand_if_one_branch env t in
+  match t with
   | TyAnchoredPermission (TyOpen p, t) ->
       try_proof "Sub-Anchored" begin
         sub env p t >>=
@@ -1217,21 +1233,24 @@ and sub_perms (env: env) (perms: typ list): state =
         sub_perms env perms
     | None ->
         premises env (List.map (fun perm -> fun env ->
-          match modulo_flex env perm with
+          let perm = modulo_flex env perm in
+          let perm = expand_if_one_branch env perm in
+          match perm with
           | TyOpen p when is_flexible env p ->
               j_flex_inst env p TyEmpty
           | _ ->
               no_proof env (JSubPerm perm)
         ) perms)
 
+(* Attention! This function should not be called directly. Even if you know that
+ * your permission is a floating one, please call [sub_perm] so that the type
+ * gets run through [modulo_flex] and [expand_if_one_branch]. *)
 and sub_floating_perm (env: env) (t0: typ): result =
-  let t0 = modulo_flex env t0 in
-  let t0 = expand_if_one_branch env t0 in
   match t0 with
   | TyExists (binding, t) ->
       try_proof env (JSubFloating t0) "Exists-R" begin
         let env, t, _ = bind_flexible_in_type env binding t in
-        sub_floating_perm env t >>=
+        sub_perm env t >>=
         qed
       end
   | _ as t ->
@@ -1247,7 +1266,7 @@ and sub_floating_perm (env: env) (t0: typ): result =
             else
               set_floating_permissions env remaining_perms
           in
-          sub_type_with_unfolding sub_env t' t
+          sub_type sub_env t' t
         )
 ;;
 
