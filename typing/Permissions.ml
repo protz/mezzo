@@ -835,58 +835,6 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         import_flex_instanciations env sub_env
       end
 
-  (* Our strategy to deal with type abbreviations it to expand them eagerly. The
-   * rules with [TyConcrete] implicitly assume that the type application
-   * on the other side is a data type application, so we must put these rules
-   * first. Indeed, we could have: "alias t = Cons { head: ...; tail: ... }"
-   * and we must make sure the alias gets expanded first if the other side is a
-   * constructor. *)
-  | _, TyOpen cons2 when is_abbrev env cons2 ->
-      try_proof_root "Abbreviation-R" begin
-        match get_definition env cons2 with
-        | Some (Abbrev t2) ->
-            let env, t2 = open_all_rigid_in env t2 Right in
-            sub_type env t1 t2 >>=
-            qed
-        | _ ->
-            assert false
-      end
-
-  | TyOpen cons1, _ when is_abbrev env cons1 ->
-      try_proof_root "Abbreviation-L" begin
-        match get_definition env cons1 with
-        | Some (Abbrev t1) ->
-            let env, t1 = open_all_rigid_in env t1 Left in
-            sub_type env t1 t2 >>=
-            qed
-        | _ ->
-            assert false
-      end
-
-  | _, TyApp (cons2, args2) when is_abbrev env !!cons2 ->
-      try_proof_root "Abbreviation-R" begin
-        match get_definition env !!cons2 with
-        | Some (Abbrev t2) ->
-            let t2 = instantiate_type t2 args2 in
-            let env, t2 = open_all_rigid_in env t2 Right in
-            sub_type env t1 t2 >>=
-            qed
-        | _ ->
-            assert false
-      end
-
-  | TyApp (cons1, args1), _ when is_abbrev env !!cons1 ->
-      try_proof_root "Abbreviation-L" begin
-        match get_definition env !!cons1 with
-        | Some (Abbrev t1) ->
-            let t1 = instantiate_type t1 args1 in
-            let env, t1 = open_all_rigid_in env t1 Left in
-            sub_type env t1 t2 >>=
-            qed
-        | _ ->
-            assert false
-      end
-
   (* Now that we've made sure that the type application is not an abbreviation,
    * we can consider folding back the branch. We could reorder this branch
    * anywhere if we had a guard such has "compatible_branch branch1 cons2". *)
