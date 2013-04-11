@@ -1,0 +1,95 @@
+open list
+
+(* ------------------------------------------------------------------------------ *)
+
+(* An outcome is information returned by the iterator to the client. *)
+
+data outcome =
+  | Stopped
+  | Done
+
+(* ------------------------------------------------------------------------------ *)
+
+abstract scratch (i : term) : perm
+
+abstract finished (i : term) (post : perm) : perm
+
+abstract active (i : term) a (post : perm) : perm
+
+abstract available (i : term) (x : term) a (post : perm) : perm
+
+(* ------------------------------------------------------------------------------ *)
+
+(* An iterator API. *)
+
+data offer (i : term) a (post : perm) =
+    None {| finished i post }
+  | Some { x: (x: a | available i x a post) }
+
+val query:
+  [a, post : perm]
+    (i: unknown | consumes active i a post) ->
+    offer i a post
+
+val stop:
+   [x : term, a, post : perm]
+     (i: unknown | consumes (x @ a * available i x a post)) ->
+     (| finished i post)
+
+val next:
+  [x : term, a, post : perm]
+    (i: unknown | consumes (x @ a * available i x a post)) ->
+    (| active i a post)
+
+(* ------------------------------------------------------------------------------ *)
+
+val new: () -> (i: unknown | scratch i)
+
+val finish: [post : perm] (i: unknown, o: outcome | consumes (post * scratch i)) -> (| finished i post)
+
+val yield:
+  (i: unknown) ->
+  [a, pre : perm, post : perm] 
+  (
+    consumes x: a,
+    stop: (| consumes (x @ a * pre * scratch i)) -> (| finished i post),
+    next: (| consumes (x @ a * pre * scratch i)) -> (| active i a post)
+    | consumes pre
+    | consumes scratch i
+  ) -> (| active i a post)
+
+(* ------------------------------------------------------------------------------ *)
+
+val use:
+  [a, s : perm, post : perm] (
+    consumes i: unknown,
+    f : (a | s) -> bool
+  | consumes active i a post
+  | s
+  ) -> (| finished i post)
+
+(* ------------------------------------------------------------------------------ *)
+
+(* One can construct a list of the elements of an iterator. This requires
+   the type [a] to be duplicable, because at the end, we own both the newly
+   created list and the original data structure (represented by the abstract
+   permission [post]). *)
+
+val elements:
+  [a, post : perm] duplicable a => (
+    consumes i: unknown
+  | consumes active i a post
+  ) -> (list a | post)
+
+(* ------------------------------------------------------------------------------ *)
+
+val equal:
+  [a, post1 : perm, post2 : perm, p : perm] (
+    eq: (a, a | p) -> bool,
+    consumes i1: unknown,
+    consumes i2: unknown
+  | consumes active i1 a post1
+  | consumes active i2 a post2
+  | p
+  ) -> (bool | finished i1 post1 * finished i2 post2)
+

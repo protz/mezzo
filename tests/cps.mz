@@ -149,6 +149,28 @@ val iterate [a] (
    order to obtain generic versions of these functions. Do this after the
    API has stabilized... TEMPORARY *)
 
+(* ------------------------------------------------------------------------------ *)
+
+(* We can also create a mutable iterator. *)
+
+(* TEMPORARY
+open miterator
+
+val miterate [a] (
+  consumes xs: list a
+) : (i: unknown | active i a (xs @ list a)) =
+  let aborted  () : () = ()
+  and finished (| consumes xs @ list a * scratch i) : (i: unknown | finished i (xs @ list a)) =
+    finish (i, Done)
+  in
+  cps_iter [b = (| xs @ list a), s = empty, p = empty] (
+    xs,
+    yield,
+    aborted,
+    finished
+  )
+*)
+
 (*
 Local Variables:
 compile-command: "../mezzo cps.mz"

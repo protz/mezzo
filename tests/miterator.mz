@@ -52,9 +52,9 @@ alias stop_ty (i : term) (x : term) a (pre : perm) (post : perm) =
 alias next_ty (i : term) (x : term) a (pre : perm) (post : perm) =
   (| consumes (x @ a * pre * scratch i)) -> (| active i a post)
 
-alias available (i : term) a (post : perm) : perm =
+alias available (i : term) (x : term) a (post : perm) : perm =
   i @ IAvailable { content: { pre : perm } (
-    x: a,
+    =x,
     stop: stop_ty i x a pre post,
     next: next_ty i x a pre post
   | pre
@@ -64,53 +64,67 @@ alias available (i : term) a (post : perm) : perm =
 
 (* An iterator API. *)
 
-val is_available [a, post : perm]
+data offer (i : term) a (post : perm) =
+    None {| finished i post }
+  | Some { x: (x: a | available i x a post) }
+
+val query [a, post : perm]
   (i: unknown | consumes active i a post)
-: rich_bool
-    (finished i post)
-    (i @ IAvailable { content: { pre : perm } (
-      x: a,
-      stop: (| consumes (x @ a * pre * scratch i)) -> (| i @ IFinished { outcome: outcome | post }),
-      next: next_ty i x a pre post
-    | pre
-    )})
-  =
+: offer i a post =
   match i with
   | IFinished ->
-      RichFalse
+      None
   | IAvailable ->
-      RichTrue
+      let x, _, _ = i.content in
+      Some { x }
   end
 
-(* BUG is_available is accepted, but is_available2 is rejected, yet they differ
-   only in the unfolding of type abbreviations *)
-val is_available2 [a, post : perm]
-  (i: unknown | consumes active i a post)
-: rich_bool (finished i post) (available i a post) =
-  match i with
-  | IFinished ->
-      RichFalse
-  | IAvailable ->
-      RichTrue
-  end
+val stop [x : term, a, post : perm]
+  (i: unknown | consumes (x @ a * available i x a post))
+: (| finished i post) =
+  let _, stop, _ = i.content in
+  stop()
+
+val next [x : term, a, post : perm]
+  (i: unknown | consumes (x @ a * available i x a post))
+: (| active i a post) =
+  let _, _, next = i.content in
+  next()
 
 (* ------------------------------------------------------------------------------ *)
+
+val new () : (i: unknown | scratch i) =
+  IAvailable { content = () }
+
+val finish [post : perm] (i: unknown, o: outcome | consumes (post * scratch i)) : (| finished i post) =
+  tag of i <- IFinished;
+  i.outcome <- o
 
 (* The function [yield] captures the current continuations [stop] and [next]
    and uses them to construct an iterator. The iteration is suspended (i.e.
    no continuation is invoked) and the iterator is returned. *)
 
-val yield [a, pre : perm, post : perm] (
-  i: unknown,
-  consumes x: a,
-  stop: stop_ty i x a pre post,
-  next: next_ty i x a pre post
-  | consumes pre
-  | consumes scratch i
-) : (| active i a post) =
-  (* We capture the continuations and store them. In direct style, this
-     would be expressed using [shift]. *)
-  i.content <- (x, stop, next)
+(* TEMPORARY syntax for currying would be nice here *)
+
+val yield (i: unknown) :
+  [a, pre : perm, post : perm] 
+  (
+    consumes x: a,
+    stop: stop_ty i x a pre post,
+    next: next_ty i x a pre post
+    | consumes pre
+    | consumes scratch i
+  ) -> (| active i a post)
+  =
+  fun [a, pre : perm, post : perm] (
+    consumes x: a,
+    stop: stop_ty i x a pre post,
+    next: next_ty i x a pre post
+    | consumes pre
+    | consumes scratch i
+  ) : (| active i a post) =
+    (* We capture the continuations and write them into [i]. *)
+    i.content <- (x, stop, next)
 
 (* ------------------------------------------------------------------------------ *)
 
@@ -118,33 +132,27 @@ val yield [a, pre : perm, post : perm] (
    [iter] function. *)
 
 val rec use [a, s : perm, post : perm] (
-  consumes i: iterator i a post,
+  consumes i: unknown,
   f : (a | s) -> bool
+  | consumes active i a post
   | s
 ) : (| finished i post) =
-  (* BUG this code is rejected, but if I manually expand [finished i post]
-     in the line above, then it is accepted. *)
-  match i with
-  | IFinished ->
-      (* If the iterator is finished, there is nothing to do. *)
+  match query i with
+  | None ->
+      (* The iterator is finished. *)
       ()
-  | IAvailable ->
-      (* If the iterator is not finished, then we have an element [x] and
-	 a function [next] that will provide us with a new iterator once
-	 we surrender the ownership of [x]. We also have a function [stop],
-         which allows us to stop the iteration, if the client so requires. *)
-      let x, stop, next = i.content in
-      (* Submit [x] to the user function [f], which returns a request to
-	 stop or continue. *)
+  | Some { x } ->
+      (* The iterator is not finished. Submit the element [x] to the user
+	 function [f], which returns a request to stop or continue. *)
       if f x then begin
 	  (* If we should continue, invoke [next], which updates this
 	     iterator; and continue. *)
-	next();
+	next i;
 	use (i, f)
       end
       else
 	(* If we should stop, invoke [stop]. *)
-	stop()
+	stop i
   end
 
 (* ------------------------------------------------------------------------------ *)
@@ -155,7 +163,8 @@ val rec use [a, s : perm, post : perm] (
    permission [post]). *)
 
 val rec elements [a, post : perm] duplicable a => (
-  consumes i: iterator i a post
+  consumes i: unknown
+| consumes active i a post
 ) : (list a | post) =
   (* Create a reference to hold the list of elements. *)
   let r = newref nil in
@@ -177,34 +186,32 @@ val rec elements [a, post : perm] duplicable a => (
 
 val rec equal [a, post1 : perm, post2 : perm, p : perm] (
   eq: (a, a | p) -> bool,
-  consumes i1: iterator i1 a post1,
-  consumes i2: iterator i2 a post2
+  consumes i1: unknown,
+  consumes i2: unknown
+| consumes active i1 a post1
+| consumes active i2 a post2
 | p
 ) : (bool | finished i1 post1 * finished i2 post2) =
 
-  match i1, i2 with
-  | IFinished, IFinished ->
+  match query i1, query i2 with
+  | None, None ->
       True
-  | IAvailable, IAvailable ->
-      let x1, stop1, next1 = i1.content
-      and x2, stop2, next2 = i2.content in
+  | Some { x = x1 }, Some { x = x2 } ->
       if eq (x1, x2) then begin
-	next1();
-	next2();
+	next i1;
+	next i2;
 	equal (eq, i1, i2)
       end
       else begin
-	stop1();
-	stop2();
+	stop i1;
+	stop i2;
 	False
       end
-  | IAvailable, IFinished ->
-      let _, stop1, _ = i1.content in
-      stop1();
+  | Some, None ->
+      stop i1;
       False
-  | IFinished, IAvailable ->
-      let _, stop2, _ = i2.content in
-      stop2();
+  | None, Some ->
+      stop i2;
       False
   end
 

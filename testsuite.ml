@@ -921,6 +921,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("cps-old.mz", pass);
   ("delimcc.mz", pass);
   ("cps.mz", pass);
+  ("miterator.mz", pass);
   ("call.mz", pass);
   ("tree-removal.mz", pass);
   ("pattern-sharing.mz", fail);
