@@ -336,15 +336,18 @@ let branches_for_datacon (env: env) (datacon: resolved_datacon): unresolved_bran
       Log.error "Datacon not properly resolved: %a" !internal_ptype (env, t)
 ;;
 
-let branches_for_branch env branch =
+let branches_for_branch env (branch : resolved_branch) : unresolved_branch list =
   branches_for_datacon env branch.branch_datacon
 
-let branch_for_branch env (branch : resolved_branch) : unresolved_branch =
-  let _, datacon = branch.branch_datacon in
-  let branches = branches_for_branch env branch in
+let branch_for_datacon env (datacon : resolved_datacon) : unresolved_branch =
+  let branches = branches_for_datacon env datacon in
+  let _, datacon = datacon in
   List.find (fun branch' ->
     Datacon.equal datacon branch'.branch_datacon
   ) branches
+
+let branch_for_branch env (branch : resolved_branch) : unresolved_branch =
+  branch_for_datacon env branch.branch_datacon
 
 let flavor_for_branch env (branch : resolved_branch) : DataTypeFlavor.flavor =
   let branch : unresolved_branch = branch_for_branch env branch in
@@ -354,6 +357,15 @@ let variance env var i =
   let variance = get_variance env var in
   List.nth variance i
 ;;
+
+let fields_for_datacon env (datacon : resolved_datacon) : Field.name list =
+  let branch = branch_for_datacon env datacon in
+  List.flatten (List.map (function
+    | FieldValue (f, _) ->
+        [ f ]
+    | FieldPermission _ ->
+        []
+  ) branch.branch_fields)
 
 (* ---------------------------------------------------------------------------- *)
 

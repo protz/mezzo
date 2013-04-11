@@ -145,6 +145,8 @@ val branches_for_datacon :
   resolved_datacon ->
   unresolved_branch list
 val branches_for_branch: env -> resolved_branch -> unresolved_branch list
+val branch_for_datacon: env -> resolved_datacon -> unresolved_branch
+val fields_for_datacon: env -> resolved_datacon -> Field.name list
 val flavor_for_branch: env -> resolved_branch -> DataTypeFlavor.flavor
 
 (** Get the variance of the i-th parameter of a data type. *)

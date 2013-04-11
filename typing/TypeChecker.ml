@@ -594,20 +594,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* Type-check [e1]. *)
       let env, p1 = check_expression env e1 in
 
-      (* Find the type [datacon] corresponds to. *)
-      let new_branches = branches_for_datacon env new_datacon in
-      let new_branch =
-        List.find (fun branch -> Datacon.equal (snd new_datacon) branch.branch_datacon) new_branches
-      in
-      let fields = new_branch.branch_fields in
-      let field_names = List.map (function
-        | FieldValue (name, _) ->
-            name
-        | FieldPermission _ ->
-            (* We should just subtract the required permissions from the
-             * environment. *)
-            Log.error "Not implemented yet"
-      ) fields in
+      (* Find the ordered list of field names associated with [new_datacon]. *)
+      let field_names = fields_for_datacon env new_datacon in
 
       let permissions = get_permissions env p1 in
       let found = ref false in
@@ -620,7 +608,6 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
               raise_error env (AssignNotExclusive (t, snd old_datacon));
 
             (* Also, the number of fields should be the same. *)
-	    (* TEMPORARY incorrect check, due to FieldPermission, I think *)
             if List.length old_branch.branch_fields <> List.length field_names then
               raise_error env (FieldCountMismatch (t, snd new_datacon));
 
