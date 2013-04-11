@@ -729,7 +729,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("union-find-nesting.mz", pass);
   ("union-find-dynamic.mz", pass);
 
-  (* ("landin.mz", pass); *)
+  ("landin.mz", pass);
 
   ("modules/simple.mz", pass);
 
