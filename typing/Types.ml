@@ -573,7 +573,10 @@ let rec expand_if_one_branch (env: env) (t: typ) =
   let wrap_if t =
     let t, p = collect t in
     if List.length p > 0 then
-      TyBar (t, fold_star p)
+      if get_kind_for_type env t = KPerm then
+        TyStar (t, fold_star p)
+      else
+        TyBar (t, fold_star p)
     else
       t
   in

@@ -129,7 +129,9 @@ let j_merge_left (env: env) (v1: var) (v2: var): result =
 
 let add_floating_perm env t =
   let floating_permissions = get_floating_permissions env in
-  set_floating_permissions env (t :: floating_permissions)
+  let t = expand_if_one_branch env t in
+  let t, perms = collect t in
+  set_floating_permissions env (t :: perms @ floating_permissions)
 ;;
 
 
@@ -1223,7 +1225,9 @@ and sub_perms (env: env) (perms: typ list): state =
         ) perms)
 
 and sub_floating_perm (env: env) (t0: typ): result =
-  match modulo_flex env t0 with
+  let t0 = modulo_flex env t0 in
+  let t0 = expand_if_one_branch env t0 in
+  match t0 with
   | TyExists (binding, t) ->
       try_proof env (JSubFloating t0) "Exists-R" begin
         let env, t, _ = bind_flexible_in_type env binding t in
@@ -1243,7 +1247,7 @@ and sub_floating_perm (env: env) (t0: typ): result =
             else
               set_floating_permissions env remaining_perms
           in
-          sub_type sub_env t' t
+          sub_type_with_unfolding sub_env t' t
         )
 ;;
 
