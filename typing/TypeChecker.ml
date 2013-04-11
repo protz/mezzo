@@ -533,6 +533,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* Type-check the function body. *)
       let sub_env, p = check_expression sub_env ~annot:return_type body in
 
+      Log.debug ~level:4 "Now checking the body's return type";
       begin match Permissions.sub sub_env p return_type with
       | Some _, _ ->
           (* Return the entire arrow type. *)

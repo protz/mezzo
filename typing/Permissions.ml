@@ -497,33 +497,28 @@ and add_perm_raw env p t =
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
  * to the list of available permissions for [p] *)
 and add_type (env: env) (p: var) (t: typ): env =
-  if is_good (Log.silent (fun () -> sub env p t)) then begin
-    (* We're not re-binding env because this has bad consequences: in
-     * particular, when adding a flexible type variable to a var, it
-     * instantiates it into, say, [=x], which is usually *not* what we want to
-     * do. Happens mostly when doing higher-order, see impredicative.mz or
-     * list-map2.mz for examples. *)
-    Log.debug ~level:4 "→ sub worked%s]%s" Bash.colors.Bash.red Bash.colors.Bash.default;
-    let in_there_already =
-      List.exists (fun x -> equal env x t) (get_permissions env p)
-    in
-    if FactInference.is_exclusive env t then begin
-      (* If [t] is exclusive, then this makes the environment inconsistent. *)
-      Log.debug ~level:4 "%sInconsistency detected%s, adding %a as an exclusive \
-          permission, but it's already available."
-        Bash.colors.Bash.red Bash.colors.Bash.default
-        TypePrinter.ptype (env, t);
-      mark_inconsistent env
-    end else if FactInference.is_duplicable env t && in_there_already then
-      env
-    else
-      (* Either the type is not duplicable (so we need to add it!), or it is
-       * duplicable, but doesn't exist per se (e.g. α flexible with
-       * [duplicable α]) in the permission list. Add it. *)
-      add_perm_raw env p t
-
-  end else begin
-    Log.debug ~level:4 "→ sub did NOT work%s]%s" Bash.colors.Bash.red Bash.colors.Bash.default;
+  (* We're not re-binding env because this has bad consequences: in
+   * particular, when adding a flexible type variable to a var, it
+   * instantiates it into, say, [=x], which is usually *not* what we want to
+   * do. Happens mostly when doing higher-order, see impredicative.mz or
+   * list-map2.mz for examples. *)
+  Log.debug ~level:4 "→ sub worked%s]%s" Bash.colors.Bash.red Bash.colors.Bash.default;
+  let in_there_already =
+    List.exists (fun x -> equal env x t) (get_permissions env p)
+  in
+  if in_there_already && FactInference.is_exclusive env t then begin
+    (* If [t] is exclusive, then this makes the environment inconsistent. *)
+    Log.debug ~level:4 "%sInconsistency detected%s, adding %a as an exclusive \
+        permission, but it's already available."
+      Bash.colors.Bash.red Bash.colors.Bash.default
+      TypePrinter.ptype (env, t);
+    mark_inconsistent env
+  end else if in_there_already && FactInference.is_duplicable env t then
+    env
+  else
+    (* Either the type is not duplicable (so we need to add it!), or it is
+     * duplicable, but doesn't exist per se (e.g. α flexible with
+     * [duplicable α]) in the permission list. Add it. *)
     let env = add_perm_raw env p t in
     (* If we just added an exclusive type to the var, then it automatically
      * gains the [dynamic] type. *)
@@ -531,7 +526,6 @@ and add_type (env: env) (p: var) (t: typ): env =
       add_type env p TyDynamic
     else
       env
-  end
 
 
 (** [sub env var t] tries to extract [t] from the available permissions for
