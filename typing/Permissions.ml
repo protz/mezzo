@@ -900,8 +900,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
       if same env var1 var2 then begin
         try_proof_root "Fold-L-2" begin
-          (* XXX why are we not collecting permissions here? *)
           let branch2 = find_and_instantiate_branch env var2 datacon1 [] in
+          (* Same as above. *)
           let t2 = TyConcrete branch2 in
           let t2, p2 = collect t2 in
           sub_type env t1 t2 >>= fun env ->
@@ -1142,8 +1142,11 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                * also happens to be present in our environment. *)
               sub_perms env ps2
           | ps1, ps2 ->
-              Log.debug ~level:4 "[add_sub] NOTICE: probable failure, dropping %a"
-                TypePrinter.ptype (env, fold_star ps1);
+              Log.debug ~level:4 "[add_sub] NOTICE: pending failure\n  \
+                  coud not add: %a\n  \
+                  could not sub: %a"
+                TypePrinter.ptype (env, fold_star ps1)
+                TypePrinter.ptype (env, fold_star ps2);
               sub_perms env ps2
           end
         end

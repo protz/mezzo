@@ -566,6 +566,10 @@ let bind_datacon_parameters (env: env) (kind: kind) (branches: unresolved_branch
 ;;
 
 let rec expand_if_one_branch (env: env) (t: typ) =
+  (* Having [FieldPermission] was a mistake... because almost no single place in
+   * the code is able to deal with [FieldPermission]s, we must make sure
+   * everytime a nominal type turns into a branch, we collect the permissions
+   * and rewrap everything in a [TyBar] (which the code handles well). *)
   let wrap_if t =
     let t, p = collect t in
     if List.length p > 0 then
