@@ -9,12 +9,12 @@ SED        := sed
 OCAMLBUILD := ocamlbuild -j 0 -use-ocamlfind -use-menhir \
   -menhir "menhir --explain --infer -la 1 --table" \
   -classic-display
-INCLUDE    := -Is sets,typing,parsing,lib,utils,fix,interpreter,compiler,mezzolib
+INCLUDE    := -Is typing,parsing,lib,utils,fix,interpreter,compiler,mezzolib
 MAIN       := mezzo
 TESTSUITE  := testsuite
 BUILDDIRS   = -I _build $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
-MY_DIRS    := lib parsing sets typing utils interpreter compiler
-PACKAGES   := -package menhirLib,ocamlbuild,yojson,stdlib,ulex,pprint
+MY_DIRS    := lib parsing typing utils interpreter compiler
+PACKAGES   := -package menhirLib,ocamlbuild,yojson,ulex,pprint
 
 all: configure.ml parsing/Keywords.ml
 	$(OCAMLBUILD) $(INCLUDE) $(MAIN).native $(TESTSUITE).native
@@ -61,7 +61,7 @@ FORCE:
 index:
 	$(shell cd viewer && ./gen_index.sh)
 
-# TAG=m1 make release
+# TAG=m1 make release ; this just exports the current src/ directory
 release:
 	git archive --format tar --prefix mezzo-$(TAG)/ $(TAG) | bzip2 -9 > ../mezzo-$(TAG).tar.bz2
 

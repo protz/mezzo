@@ -22,8 +22,10 @@ open Command;;
 
 dispatch begin function
 | After_rules ->
-    flag ["ocaml"; "compile"; "strict_sequence"] (A "-strict-sequence");
     flag ["ocaml"; "compile"; "my_warnings"] (S[A "-w"; A "@1..3@8..12@14..21@23..39"]);
+    (* TEMPORARY once we switch OCaml 4.01.0, remove these two definitions (I've
+     * added them in the core OCamlbuild files). *)
+    flag ["ocaml"; "compile"; "strict_sequence"] (A "-strict-sequence");
     flag ["bin_annot"; "compile"; "ocaml"] (A "-bin-annot");
 | _ -> ()
 end;;
