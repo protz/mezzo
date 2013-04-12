@@ -37,7 +37,7 @@ test: all
 
 # Re-generate the TAGS file
 tags: all
-	otags $(shell $(FIND) $(MY_DIRS) -iname '*.ml' -or -iname '*.mli')
+	otags $(shell $(FIND) $(MY_DIRS) \( -iname '*.ml' -or -iname '*.mli' \) -and -not -iname 'Lexer.ml')
 
 # When you need to build a small program linking with all the libraries (to
 # write a test for a very specific function, for instance).
@@ -75,7 +75,7 @@ graph: all
 	-ocamlfind ocamldoc -dot $(BUILDDIRS)\
 	  $(PACKAGES)\
 	  -o graph.dot\
-	  $(shell $(FIND) $(MY_DIRS) -iname '*.ml' -or -iname '*.mli')\
+	  $(shell $(FIND) typing/ -iname '*.ml' -or -iname '*.mli')\
 	  configure.ml mezzo.ml
 	sed -i 's/rotate=90;//g' graph.dot
 	dot -Tsvg graph.dot > misc/graph.svg
