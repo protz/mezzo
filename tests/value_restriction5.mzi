@@ -1,0 +1,3 @@
+open wref
+
+val make: ([a] (a -> a)) -> [a] wref (a -> a)

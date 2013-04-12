@@ -68,7 +68,7 @@ val rec cps_iter [a, b, c, s : perm, p : perm] (
 	  let tail = xs.tail in
 	  cps_iter [ p = (xs @ Cons { head: a; tail } * p) ] (tail, f, j, k)
       )
-  end 
+  end
 
 (* TEMPORARY it would be nice if we could get rid of the two type applications
    above. In each case, these type applications intuitively indicate what is

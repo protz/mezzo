@@ -258,6 +258,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     pass);
   ("value_restriction4.mz",
     fail);
+  ("value_restriction5.mz",
+    fail);
 
   ("variance.mz", fun do_it ->
     let env = do_it () in

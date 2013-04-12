@@ -1,0 +1,8 @@
+open wref
+
+val make [a] (f: a -> a) : wref (a -> a) =
+  fail
+
+(* should be rejected, because in the .mzi file, we try to push
+   the universal quantification under both sides of the arrow. *)
+
