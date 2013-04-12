@@ -9,12 +9,12 @@ SED        := sed
 OCAMLBUILD := ocamlbuild -j 0 -use-ocamlfind -use-menhir \
   -menhir "menhir --explain --infer -la 1 --table" \
   -classic-display
-INCLUDE    := -Is sets,typing,parsing,lib,utils,fix,interpreter,compiler,mezzolib
+INCLUDE    := -Is typing,parsing,lib,utils,fix,interpreter,compiler,mezzolib
 MAIN       := mezzo
 TESTSUITE  := testsuite
 BUILDDIRS   = -I _build $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
-MY_DIRS    := lib parsing sets typing utils interpreter compiler
-PACKAGES   := -package menhirLib,ocamlbuild,yojson,stdlib,ulex,pprint
+MY_DIRS    := lib parsing typing utils interpreter compiler
+PACKAGES   := -package menhirLib,ocamlbuild,yojson,ulex,pprint
 
 all: configure.ml parsing/Keywords.ml
 	$(OCAMLBUILD) $(INCLUDE) $(MAIN).native $(TESTSUITE).native
@@ -37,7 +37,7 @@ test: all
 
 # Re-generate the TAGS file
 tags: all
-	otags $(shell $(FIND) $(MY_DIRS) -iname '*.ml' -or -iname '*.mli')
+	otags $(shell $(FIND) $(MY_DIRS) \( -iname '*.ml' -or -iname '*.mli' \) -and -not -iname 'Lexer.ml')
 
 # When you need to build a small program linking with all the libraries (to
 # write a test for a very specific function, for instance).
@@ -61,7 +61,7 @@ FORCE:
 index:
 	$(shell cd viewer && ./gen_index.sh)
 
-# TAG=m1 make release
+# TAG=m1 make release ; this just exports the current src/ directory
 release:
 	git archive --format tar --prefix mezzo-$(TAG)/ $(TAG) | bzip2 -9 > ../mezzo-$(TAG).tar.bz2
 
@@ -75,7 +75,7 @@ graph: all
 	-ocamlfind ocamldoc -dot $(BUILDDIRS)\
 	  $(PACKAGES)\
 	  -o graph.dot\
-	  $(shell $(FIND) $(MY_DIRS) -iname '*.ml' -or -iname '*.mli')\
+	  $(shell $(FIND) typing/ -iname '*.ml' -or -iname '*.mli')\
 	  configure.ml mezzo.ml
 	sed -i 's/rotate=90;//g' graph.dot
 	dot -Tsvg graph.dot > misc/graph.svg

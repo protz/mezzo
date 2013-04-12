@@ -1,8 +1,20 @@
-true: debug, explain, use_menhir, use_ocamlbuild, use_unix, use_str, annot, \
+# The general set of flags for compiling Mezzo.
+# - We enable debug information.
+# - Menhir is our parser generator.
+# - We use the following libraries: Ocamlbuild_Plugin, Unix, Str
+# - We generate .annot files and .cmt files.
+# - We use the following ocamlfind packages: yojson, menhirlib, ulex, pprint
+true: debug, use_menhir, use_ocamlbuild, use_unix, use_str, annot, bin_annot, \
+  strict_sequence, \
   package(yojson), package(menhirLib), package(ulex), package(pprint)
-not <parsing/grammar.*>: bin_annot
-not <test.*> and not <parsing/Lexer.*> and not <sets/**/*> and not <parsing/grammar.*>: my_warnings
+
+# Enable the "nazi warnings". A few files really trigger too many warnings: the
+# generated parser and lexer files, as well as the imported [patricia.ml].
+not <parsing/Lexer.*> and not <lib/patricia.*> and not <parsing/grammar.*>: my_warnings
+
+# Our lexer generator is ulex.
 "parsing/Lexer.ml": syntax(camlp4o), syntax(pa_ulex)
+
 # Comment out the line below to compile with coverage (requires bisect,
 # available in OPAM).
 #not <parsing/Lexer.*> and not <parsing/grammar.*>: package(bisect), syntax(camlp4o), syntax(bisect_pp)
