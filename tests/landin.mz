@@ -11,12 +11,12 @@ data mutable ref a =
     Ref { content : a }
 
 (* The following recursive type is defined in such a way that the permission
-   [r @ narcissic_cell r a b] means that the immutable cell [r] contains a
+   [r @ narcissic r a b] means that the immutable cell [r] contains a
    function [f] that requires a copy of itself to be stored in [r]. Note
    that this is a duplicable permission. *)
 
-data narcissic_cell (r : term) a b =
-  Narcissic { content : (a | r @ narcissic_cell r a b) -> b }
+data narcissic (r : term) a b =
+  Narcissic { content : (a | r @ narcissic r a b) -> b }
 
 (* Let us now define a fixed point combinator. *)
 
@@ -25,12 +25,12 @@ val fix [ a, b ] (ff : (a -> b) -> (a -> b)) : a -> b =
   let r = Ref { content = () } in
   (* We have r @ Ref { content : () } *)
 
-  let f (x : a | r @ narcissic_cell r a b) : b =
+  let f (x : a | r @ narcissic r a b) : b =
 
-    (* We have r @ narcissic_cell r a b, so we can read r.content *)
+    (* We have r @ narcissic r a b, so we can read r.content *)
     let self = r.content in
-    (* We now have self @ (a | r @ narcissic_cell r a b) -> b *)
-    (* Furthermore, we still have r @ narcissic_cell r a b *)
+    (* We now have self @ (a | r @ narcissic r a b) -> b *)
+    (* Furthermore, we still have r @ narcissic r a b *)
 
     (* By subtyping (an annotation might be required), or by explicit
        eta-expansion, when a duplicable permission p is available, a
@@ -45,23 +45,23 @@ val fix [ a, b ] (ff : (a -> b) -> (a -> b)) : a -> b =
 
   in
 
-  (* We have f @ (a | r @ narcissic_cell r a b) -> b *)
+  (* We have f @ (a | r @ narcissic r a b) -> b *)
 
   (* Tie the knot. *)
 
   r.content <- f;
 
-  (* We now have r @ Ref { content : (a | r @ narcissic_cell r a b) -> b } *)
+  (* We now have r @ Ref { content : (a | r @ narcissic r a b) -> b } *)
 
   (* Freeze the knot. *)
 
   tag of r <- Narcissic;
 
-  (* We now have r @ Narcissic { f : (a | r @ narcissic_cell r a b) -> b } *)
+  (* We now have r @ Narcissic { f : (a | r @ narcissic r a b) -> b } *)
 
   (* By folding the definition of the recursive type, this means: *)
 
-  (* We have r @ narcissic_cell r a b *)
+  (* We have r @ narcissic r a b *)
 
   (* Thus, by the same subtyping step as above, we may deduce: *)
 

@@ -1,0 +1,18 @@
+data iref a =
+    IRef { content : a }
+
+val fix [ a, b ] (ff : (a -> b) -> (a -> b)) : a -> b =
+
+  let r = newref () in
+
+  let f (x : a | r @ IRef { content: (f: (a | r @ IRef { content = f }) -> b) }) : b =
+    let self = r.content in
+    assert self @ a -> b;
+    ff self x
+  in
+
+  r := f;
+  tag of r <- IRef;
+  (* Up to here, all is well... But trying to assert f @ a -> b causes the type-checker to diverge. *)
+  f
+
