@@ -1,0 +1,13 @@
+open list
+
+data mutable cell a =
+  | Cell { head: a; tail: () }
+
+val f () : list int =
+  let c = Cell { head = 0; tail = () } in
+  c.tail <- c;
+  tag of c <- Cons;
+  c
+(* In principle, this code should be rejected. The type-checker
+   diverges because it tries to build an infinite proof. *)
+
