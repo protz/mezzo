@@ -55,8 +55,8 @@ let rec resugar env (points : unit VarMap.t ref) (soup : typ VarMap.t ref) ty =
 	 arrow. *)
   | TyArrow _ ->
       resugar_arrow env VarMap.empty ty
-  | TyExists (binding, ty) ->
-      (* TEMPORARY why doesn't [TyExists] carry a flavor? treat it as explicit for now *)
+  | TyExists ((binding, _flavor), ty) ->
+      (* TEMPORARY use flavor; treated as explicit for now *)
       let env, ty, _ = bind_rigid_in_type env binding ty in
       S.TyExists (resugar_binding env binding, reset env ty)
   | TyApp (head, args) ->

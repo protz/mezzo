@@ -109,7 +109,7 @@ val strip_forall :
 val fold_forall :
   (type_binding * flavor) list ->
   typ -> typ
-val fold_exists : type_binding list -> typ -> typ
+val fold_exists : (type_binding * flavor) list -> typ -> typ
 val expand_if_one_branch : env -> typ -> typ
 
 

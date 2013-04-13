@@ -132,10 +132,6 @@ let dummy_name =
   User (Module.register "<none>", Variable.register "foo")
 ;;
 
-let edummy_binding k =
-  dummy_name, k, dummy_loc
-;;
-
 let dummy_binding k =
   (dummy_name, k, dummy_loc), CanInstantiate
 ;;
@@ -336,7 +332,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge2.mz", fun do_it ->
     let env = do_it () in
     let v2 = point_by_name env "v2" in
-    let t = TyExists (edummy_binding KTerm,
+    let t = TyExists (dummy_binding KTerm,
       TyBar (
         ty_equals v2,
         TyStar (
@@ -357,8 +353,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge3.mz", fun do_it ->
     let env = do_it () in
     let v3 = point_by_name env "v3" in
-    let t = TyExists (edummy_binding KTerm,
-      TyExists (edummy_binding KTerm,
+    let t = TyExists (dummy_binding KTerm,
+      TyExists (dummy_binding KTerm,
         TyBar (
           ty_equals v3,
           fold_star [
@@ -465,7 +461,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let int = find_type_by_name env ~mname:"int" "int" in
     let t = find_type_by_name env "t" in
     (* Look at how fancy we used to be when we had singleton-subtyping! *)
-    (* let t = TyExists (edummy_binding KTerm, TyBar (
+    (* let t = TyExists (dummy_binding KTerm, TyBar (
       TyApp (t, [TySingleton (TyBound 0)]),
       TyAnchoredPermission (TyBound 0, int)
     )) in *)

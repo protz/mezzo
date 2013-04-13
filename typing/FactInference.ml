@@ -175,7 +175,7 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
   | TyForall ((binding, _), ty) ->
       bind_assume_infer w binding ty Mode.bottom
 
-  | TyExists (binding, ty) ->
+  | TyExists ((binding, _), ty) ->
       bind_assume_infer w binding ty Mode.top
 
   (* A type of the form [c /\ t], where [c] is a mode constraint and [t]

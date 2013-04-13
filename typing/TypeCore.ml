@@ -68,7 +68,7 @@ type typ =
 
     (* Quantification and type application. *)
   | TyForall of (type_binding * flavor) * typ
-  | TyExists of type_binding * typ
+  | TyExists of (type_binding * flavor) * typ
   | TyApp of typ * typ list
 
     (* Structural types. *)
@@ -577,8 +577,8 @@ class virtual ['env, 'result] visitor = object (self)
         self#tyopen env v
     | TyForall ((binding, flavor), body) ->
         self#tyforall env binding flavor body
-    | TyExists (binding, body) ->
-        self#tyexists env binding body
+    | TyExists ((binding, flavor), body) ->
+        self#tyexists env binding flavor body
     | TyApp (head, args) ->
         self#tyapp env head args
     | TyTuple tys ->
@@ -606,7 +606,7 @@ class virtual ['env, 'result] visitor = object (self)
   method virtual tybound: 'env -> db_index -> 'result
   method virtual tyopen: 'env -> var -> 'result
   method virtual tyforall: 'env -> type_binding -> flavor -> typ -> 'result
-  method virtual tyexists: 'env -> type_binding -> typ -> 'result
+  method virtual tyexists: 'env -> type_binding -> flavor -> typ -> 'result
   method virtual tyapp: 'env -> typ -> typ list -> 'result
   method virtual tytuple: 'env -> typ list -> 'result
   method virtual tyconcreteunfolded: 'env -> resolved_branch -> 'result
@@ -647,9 +647,9 @@ class ['env] map = object (self)
     let _, kind, _ = binding in
     TyForall ((binding, flavor), self#visit (self#extend env kind) body)
 
-  method tyexists env binding body =
+  method tyexists env binding flavor body =
     let _, kind, _ = binding in
-    TyExists (binding, self#visit (self#extend env kind) body)
+    TyExists ((binding, flavor), self#visit (self#extend env kind) body)
 
   method tyapp env head args =
     TyApp (self#visit env head, self#visit_many env args)
@@ -770,7 +770,7 @@ class ['env] iter = object (self)
     let _, kind, _ = binding in
     self#visit (self#extend env kind) body
 
-  method tyexists env binding body =
+  method tyexists env binding _flavor body =
     let _, kind, _ = binding in
     self#visit (self#extend env kind) body
 
@@ -1102,7 +1102,7 @@ and equal env (t1: typ) (t2: typ) =
 
         same env p1 p2
 
-    | TyExists ((_, k1, _), t1), TyExists ((_, k2, _), t2)
+    | TyExists (((_, k1, _), _), t1), TyExists (((_, k2, _), _), t2)
     | TyForall (((_, k1, _), _), t1), TyForall (((_, k2, _), _), t2) ->
         k1 = k2 && equal t1 t2
 

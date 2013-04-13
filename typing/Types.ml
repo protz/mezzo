@@ -119,7 +119,7 @@ let strip_forall_and_bind env t =
 let strip_exists_and_bind env t =
   let rec strip acc env t =
     match t with
-    | TyExists (binding, t) ->
+    | TyExists ((binding, _), t) ->
         let env, t, _ = bind_rigid_in_type env binding t in
         strip (binding :: acc) env t
     | _ ->
@@ -281,7 +281,7 @@ let rec get_kind_for_type env t =
       get_kind env p
 
   | TyForall ((binding, _), t)
-  | TyExists (binding, t) ->
+  | TyExists ((binding, _), t) ->
       let env, t, _ = bind_rigid_in_type env binding t in
       get_kind_for_type env t
 

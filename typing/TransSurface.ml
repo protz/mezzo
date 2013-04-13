@@ -305,7 +305,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyExists ((x, k, loc), t) ->
       let env = bind env (x, k) in
-      T.TyExists (name_user env (x, k, loc), translate_type_with_names env t)
+      T.TyExists ((name_user env (x, k, loc), CanInstantiate), translate_type_with_names env t)
 
   | TyAnchoredPermission (t1, t2) ->
       T.TyAnchoredPermission (translate_type env t1, translate_type env t2)
@@ -466,7 +466,7 @@ and translate_type_with_names (env: env) (t: typ): T.typ =
   let bindings = names env t in
   let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env bindings in
   let t = translate_type env t in
-  let t = Types.fold_exists (List.map (name_user env) bindings) t in
+  let t = Types.fold_exists (List.map (fun binding -> name_user env binding, CanInstantiate) bindings) t in
   t
 
 ;;

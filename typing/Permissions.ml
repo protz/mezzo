@@ -172,7 +172,7 @@ let wrap_bar_perm p =
  * free call to [unfold]! *)
 let wrap_bar t1 =
   let binding = Auto (Utils.fresh_var "sp"), KTerm, location empty_env in
-  TyExists (binding,
+  TyExists ((binding, CannotInstantiate),
     TyBar (
       TySingleton (TyBound 0),
       TyAnchoredPermission (TyBound 0, DeBruijn.lift 1 t1)
@@ -244,7 +244,7 @@ class open_all_rigid_in (env : env ref) = object (self)
        The case of an existential on the left-hand side is symmetric. *)
 
     | TyForall ((binding, _), ty), Right
-    | TyExists (binding, ty), Left ->
+    | TyExists ((binding, _), ty), Left ->
         let new_env, ty, _ = bind_rigid_in_type !env binding ty in
 	env := new_env;
 	self#visit (side, false) ty
@@ -376,7 +376,7 @@ and add (env: env) (var: var) (t: typ): env =
       Log.debug ~level:4 "%s]%s (singleton)" Bash.colors.Bash.red Bash.colors.Bash.default;
       unify env var p
 
-  | TyExists (binding, t) ->
+  | TyExists ((binding, _), t) ->
       Log.debug ~level:4 "%s]%s (exists)" Bash.colors.Bash.red Bash.colors.Bash.default;
       let env, t, _ = bind_rigid_in_type env binding t in
       add env var t
@@ -721,7 +721,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         qed
       end
 
-  | TyExists (binding, t1), _ ->
+  | TyExists ((binding, _), t1), _ ->
       try_proof_root "Exists-L" begin
         let env, t1, _ = bind_rigid_in_type env binding t1 in
         sub_type env t1 t2 >>=
@@ -739,7 +739,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         qed
       end
 
-  | _, TyExists (binding, t2) ->
+  | _, TyExists ((binding, _), t2) ->
       try_proof_root "Exists-R" begin
         let env, t1 = open_all_rigid_in env t1 Left in
         let env, t2, _ = bind_flexible_in_type env binding t2 in
@@ -1208,7 +1208,7 @@ and sub_perms (env: env) (perms: typ list): state =
  * gets run through [modulo_flex] and [expand_if_one_branch]. *)
 and sub_floating_perm (env: env) (t0: typ): result =
   match t0 with
-  | TyExists (binding, t) ->
+  | TyExists ((binding, _), t) ->
       try_proof env (JSubFloating t0) "Exists-R" begin
         let env, t, _ = bind_flexible_in_type env binding t in
         sub_perm env t >>=
