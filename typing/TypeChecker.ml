@@ -710,7 +710,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   | ETApply (e, t, k) ->
       let env, x = check_expression env e in
       let rec find_and_instantiate = function
-        | TyForall (((name, k', loc), CanInstantiate), t') as t0 ->
+        | TyForall (((name, k', loc), UserIntroduced), t') as t0 ->
             Log.debug "%a" TypePrinter.ptype (env, t0);
             let check_kind () =
               if k <> k' then
@@ -736,7 +736,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 end else begin
                   match find_and_instantiate t' with
                   | Some t' ->
-                      Some (TyForall (((name, k', loc), CanInstantiate), t'))
+                      Some (TyForall (((name, k', loc), UserIntroduced), t'))
                   | None ->
                       None
                 end

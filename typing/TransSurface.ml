@@ -301,11 +301,11 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyForall ((x, k, loc), t) ->
       let env = bind env (x, k) in
-      T.TyForall ((name_user env (x, k, loc), CanInstantiate), translate_type_with_names env t)
+      T.TyForall ((name_user env (x, k, loc), UserIntroduced), translate_type_with_names env t)
 
   | TyExists ((x, k, loc), t) ->
       let env = bind env (x, k) in
-      T.TyExists ((name_user env (x, k, loc), CanInstantiate), translate_type_with_names env t)
+      T.TyExists ((name_user env (x, k, loc), UserIntroduced), translate_type_with_names env t)
 
   | TyAnchoredPermission (t1, t2) ->
       T.TyAnchoredPermission (translate_type env t1, translate_type env t2)
@@ -459,14 +459,14 @@ and translate_arrow_type env t1 t2 =
     List.map name_auto perm_bindings @
     List.map name_auto [root_binding]
   in
-  let universal_bindings = List.map (fun x -> x, CannotInstantiate) universal_bindings in
+  let universal_bindings = List.map (fun x -> x, AutoIntroduced) universal_bindings in
   universal_bindings, fat_t1, t2
 
 and translate_type_with_names (env: env) (t: typ): T.typ =
   let bindings = names env t in
   let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env bindings in
   let t = translate_type env t in
-  let t = Types.fold_exists (List.map (fun binding -> name_user env binding, CanInstantiate) bindings) t in
+  let t = Types.fold_exists (List.map (fun binding -> name_user env binding, UserIntroduced) bindings) t in
   t
 
 ;;
@@ -774,7 +774,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
        * names). *)
       let body = translate_expr env body in
       let vars = List.map (name_user env) vars in
-      let vars = List.map (fun x -> x, CanInstantiate) vars in
+      let vars = List.map (fun x -> x, UserIntroduced) vars in
       E.EFun (vars @ universal_bindings, arg, return_type, body)
 
   | EAssign (e1, f, e2) ->

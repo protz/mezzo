@@ -101,7 +101,7 @@ let dummy_loc = (Lexing.dummy_pos, Lexing.dummy_pos)
 
 (* Some quantifiers can be instantiated by a user, some cannot, especially those
  * introduced in the desugaring phase. *)
-type binding_flavor = CanInstantiate | CannotInstantiate
+type binding_flavor = UserIntroduced | AutoIntroduced
 
 type type_binding =
     Variable.name * kind * (Lexing.position * Lexing.position)

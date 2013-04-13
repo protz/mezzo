@@ -49,8 +49,8 @@ type type_binding = name * kind * location
  * quantification for instance, or auto-generated, by the desugaring pass for
  * instance. *)
 type flavor = SurfaceSyntax.binding_flavor =
-  | CanInstantiate
-  | CannotInstantiate
+  | UserIntroduced
+  | AutoIntroduced
 
 (** In the surface syntax, variables are named. Here, variables are
    represented as de Bruijn indices. We keep a variable name at each

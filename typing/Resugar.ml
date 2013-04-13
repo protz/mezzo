@@ -42,14 +42,14 @@ let rec resugar env (points : unit VarMap.t ref) (soup : typ VarMap.t ref) ty =
       assert false
   | TyOpen x ->
       S.TyVar (surface_print_point env x)
-  | TyForall ((binding, CanInstantiate), ty) ->
+  | TyForall ((binding, UserIntroduced), ty) ->
       (* This universal quantifier was introduced by the user. We
          do not attempt it to make it implicit. Furthermore, we
          must not propagate [points] under it, as the scope of
 	 name introduction forms does not enter quantifiers. *)
       let env, ty, _ = bind_rigid_in_type env binding ty in
       S.TyForall (resugar_binding env binding, reset env ty)
-  | TyForall ((_, CannotInstantiate), _)
+  | TyForall ((_, AutoIntroduced), _)
       (* This universal quantifier was introduced as part of the
 	 desugaring process, and signals the presence of a desugared
 	 arrow. *)
@@ -119,7 +119,7 @@ let rec resugar env (points : unit VarMap.t ref) (soup : typ VarMap.t ref) ty =
 
 and resugar_arrow env points ty =
   match modulo_flex env ty with
-  | TyForall ((((_, kind, _) as binding), CannotInstantiate), ty) ->
+  | TyForall ((((_, kind, _) as binding), AutoIntroduced), ty) ->
       assert (kind = KTerm);
       (* This universal quantifier was introduced as part of the
 	 desugaring process. Let's try and make it implicit. We

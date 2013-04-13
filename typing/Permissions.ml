@@ -172,7 +172,7 @@ let wrap_bar_perm p =
  * free call to [unfold]! *)
 let wrap_bar t1 =
   let binding = Auto (Utils.fresh_var "sp"), KTerm, location empty_env in
-  TyExists ((binding, CannotInstantiate),
+  TyExists ((binding, AutoIntroduced),
     TyBar (
       TySingleton (TyBound 0),
       TyAnchoredPermission (TyBound 0, DeBruijn.lift 1 t1)

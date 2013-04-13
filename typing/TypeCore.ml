@@ -43,7 +43,7 @@ type location = Lexing.position * Lexing.position
 type type_binding =
   name * kind * location
 
-type flavor = SurfaceSyntax.binding_flavor = CanInstantiate | CannotInstantiate
+type flavor = SurfaceSyntax.binding_flavor = UserIntroduced | AutoIntroduced
 
 module DataconMap = MzMap.Make(struct
   type t = Module.name * Datacon.name
@@ -1355,7 +1355,7 @@ let ty_bottom =
   TyForall (
     (
       (Auto (Variable.register "⊥"), KType, (Lexing.dummy_pos, Lexing.dummy_pos)),
-      CannotInstantiate
+      AutoIntroduced
     ),
     TyBound 0
   )
