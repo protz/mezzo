@@ -103,9 +103,6 @@ val resolve_branch:
 
 val flatten_star : env -> typ -> typ list
 val fold_star : typ list -> typ
-val strip_forall :
-  typ ->
-  (type_binding * flavor) list * typ
 val fold_forall :
   (type_binding * flavor) list ->
   typ -> typ

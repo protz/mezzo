@@ -95,20 +95,10 @@ let fold_star perms =
     TyEmpty
 ;;
 
-let strip_forall t =
-  let rec strip acc = function
-  | TyForall (b, t) ->
-      strip (b :: acc) t
-  | _ as t ->
-      List.rev acc, t
-  in
-  strip [] t
-;;
-
-let strip_forall_and_bind env t =
+let strip_quantifiers_and_bind env q t =
   let rec strip acc env t =
     match t with
-    | TyForall ((binding, _), t) ->
+    | TyQ (q', binding, _, t) when q = q' ->
         let env, t, _ = bind_rigid_in_type env binding t in
         strip (binding :: acc) env t
     | _ ->
@@ -116,28 +106,17 @@ let strip_forall_and_bind env t =
   in
   strip [] env t
 
-let strip_exists_and_bind env t =
-  let rec strip acc env t =
-    match t with
-    | TyExists ((binding, _), t) ->
-        let env, t, _ = bind_rigid_in_type env binding t in
-        strip (binding :: acc) env t
-    | _ ->
-        List.rev acc, env, t
-  in
-  strip [] env t
-
-let fold_forall bindings t =
-  List.fold_right (fun binding t ->
-    TyForall (binding, t)
+let fold_quantifier q bindings t =
+  List.fold_right (fun (binding, flavor) t ->
+    TyQ (q, binding, flavor, t)
   ) bindings t
 ;;
 
-let fold_exists bindings t =
-  List.fold_right (fun binding t ->
-    TyExists (binding, t)
-  ) bindings t
-;;
+let fold_forall =
+  fold_quantifier Forall
+
+let fold_exists =
+  fold_quantifier Exists
 
 let fresh_auto_name prefix = Auto (Utils.fresh_var prefix);;
 
@@ -280,8 +259,7 @@ let rec get_kind_for_type env t =
   | TyOpen p ->
       get_kind env p
 
-  | TyForall ((binding, _), t)
-  | TyExists ((binding, _), t) ->
+  | TyQ (_, binding, _, t) ->
       let env, t, _ = bind_rigid_in_type env binding t in
       get_kind_for_type env t
 
@@ -468,8 +446,7 @@ class collect (perms : typ list ref) = object (self)
     | TyDynamic
     | TyBound _
     | TyOpen _
-    | TyForall _
-    | TyExists _
+    | TyQ _
     | TyApp _
     | TySingleton _
     | TyArrow _
@@ -727,16 +704,15 @@ module TypePrinter = struct
     | TyBound i ->
         int i
 
-    | (TyForall _) as t ->
-        let vars, env, t = strip_forall_and_bind env t in
+    | TyQ (q, _, _, _) as t ->
+        let vars, env, t = strip_quantifiers_and_bind env q t in
+	let delimiters =
+	  match q with
+	  | Forall -> brackets
+	  | Exists -> braces
+	in
 	prefix 0 1
-	  (brackets (commas (print_binding env) vars))
-	  (print_type env t)
-
-    | (TyExists _) as t ->
-        let vars, env, t = strip_exists_and_bind env t in
-	prefix 0 1
-	  (braces (commas (print_binding env) vars))
+	  (delimiters (commas (print_binding env) vars))
 	  (print_type env t)
 
     | TyApp (head, args) ->

@@ -172,7 +172,7 @@ let wrap_bar_perm p =
  * free call to [unfold]! *)
 let wrap_bar t1 =
   let binding = Auto (Utils.fresh_var "sp"), KTerm, location empty_env in
-  TyExists ((binding, AutoIntroduced),
+  TyQ (Exists, binding, AutoIntroduced,
     TyBar (
       TySingleton (TyBound 0),
       TyAnchoredPermission (TyBound 0, DeBruijn.lift 1 t1)
@@ -232,8 +232,8 @@ class open_all_rigid_in (env : env ref) = object (self)
     | TyBound _, _
     | TyOpen _, _
     | TyApp _, _
-    | TyForall _, Left
-    | TyExists _, Right
+    | TyQ (Forall, _, _, _), Left
+    | TyQ (Exists, _, _, _), Right
     | TySingleton _, _
     | TyArrow _, Left
     | TyEmpty, _
@@ -243,8 +243,8 @@ class open_all_rigid_in (env : env ref) = object (self)
        variable. The type environment is extended. The quantifier disappears.
        The case of an existential on the left-hand side is symmetric. *)
 
-    | TyForall ((binding, _), ty), Right
-    | TyExists ((binding, _), ty), Left ->
+    | TyQ (Forall, binding, _, ty), Right
+    | TyQ (Exists, binding, _, ty), Left ->
         let new_env, ty, _ = bind_rigid_in_type !env binding ty in
 	env := new_env;
 	self#visit (side, false) ty
@@ -376,7 +376,7 @@ and add (env: env) (var: var) (t: typ): env =
       Log.debug ~level:4 "%s]%s (singleton)" Bash.colors.Bash.red Bash.colors.Bash.default;
       unify env var p
 
-  | TyExists ((binding, _), t) ->
+  | TyQ (Exists, binding, _, t) ->
       Log.debug ~level:4 "%s]%s (exists)" Bash.colors.Bash.red Bash.colors.Bash.default;
       let env, t, _ = bind_rigid_in_type env binding t in
       add env var t
@@ -714,14 +714,14 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
   (** Higher priority for binding rigid = universal quantifiers. *)
 
-  | _, TyForall ((binding, _), t2) ->
+  | _, TyQ (Forall, binding, _, t2) ->
       try_proof_root "Forall-R" begin
         let env, t2, _ = bind_rigid_in_type env binding t2 in
         sub_type env t1 t2 >>=
         qed
       end
 
-  | TyExists ((binding, _), t1), _ ->
+  | TyQ (Exists, binding, _, t1), _ ->
       try_proof_root "Exists-L" begin
         let env, t1, _ = bind_rigid_in_type env binding t1 in
         sub_type env t1 t2 >>=
@@ -731,7 +731,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
   (** Lower priority for binding flexible = existential quantifiers. *)
 
-  | TyForall ((binding, _), t1), _ ->
+  | TyQ (Forall, binding, _, t1), _ ->
       try_proof_root "Forall-L" begin
         let env, t2 = open_all_rigid_in env t2 Right in
         let env, t1, _ = bind_flexible_in_type env binding t1 in
@@ -739,7 +739,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         qed
       end
 
-  | _, TyExists ((binding, _), t2) ->
+  | _, TyQ (Exists, binding, _, t2) ->
       try_proof_root "Exists-R" begin
         let env, t1 = open_all_rigid_in env t1 Left in
         let env, t2, _ = bind_flexible_in_type env binding t2 in
@@ -1208,7 +1208,7 @@ and sub_perms (env: env) (perms: typ list): state =
  * gets run through [modulo_flex] and [expand_if_one_branch]. *)
 and sub_floating_perm (env: env) (t0: typ): result =
   match t0 with
-  | TyExists ((binding, _), t) ->
+  | TyQ (Exists, binding, _, t) ->
       try_proof env (JSubFloating t0) "Exists-R" begin
         let env, t, _ = bind_flexible_in_type env binding t in
         sub_perm env t >>=

@@ -40,6 +40,10 @@ type name = User of Module.name * Variable.name | Auto of Variable.name
 
 type location = Lexing.position * Lexing.position
 
+type quantifier =
+  | Forall
+  | Exists
+
 type type_binding =
   name * kind * location
 
@@ -67,8 +71,7 @@ type typ =
   | TyOpen of var
 
     (* Quantification and type application. *)
-  | TyForall of (type_binding * flavor) * typ
-  | TyExists of (type_binding * flavor) * typ
+  | TyQ of quantifier * type_binding * flavor * typ
   | TyApp of typ * typ list
 
     (* Structural types. *)
@@ -575,10 +578,8 @@ class virtual ['env, 'result] visitor = object (self)
         self#tybound env i
     | TyOpen v ->
         self#tyopen env v
-    | TyForall ((binding, flavor), body) ->
-        self#tyforall env binding flavor body
-    | TyExists ((binding, flavor), body) ->
-        self#tyexists env binding flavor body
+    | TyQ (q, binding, flavor, body) ->
+        self#tyq env q binding flavor body
     | TyApp (head, args) ->
         self#tyapp env head args
     | TyTuple tys ->
@@ -605,8 +606,7 @@ class virtual ['env, 'result] visitor = object (self)
   method virtual tydynamic: 'env -> 'result
   method virtual tybound: 'env -> db_index -> 'result
   method virtual tyopen: 'env -> var -> 'result
-  method virtual tyforall: 'env -> type_binding -> flavor -> typ -> 'result
-  method virtual tyexists: 'env -> type_binding -> flavor -> typ -> 'result
+  method virtual tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> 'result
   method virtual tyapp: 'env -> typ -> typ list -> 'result
   method virtual tytuple: 'env -> typ list -> 'result
   method virtual tyconcreteunfolded: 'env -> resolved_branch -> 'result
@@ -643,13 +643,9 @@ class ['env] map = object (self)
   method tyopen _env v =
     TyOpen v
 
-  method tyforall env binding flavor body =
+  method tyq env q binding flavor body =
     let _, kind, _ = binding in
-    TyForall ((binding, flavor), self#visit (self#extend env kind) body)
-
-  method tyexists env binding flavor body =
-    let _, kind, _ = binding in
-    TyExists ((binding, flavor), self#visit (self#extend env kind) body)
+    TyQ (q, binding, flavor, self#visit (self#extend env kind) body)
 
   method tyapp env head args =
     TyApp (self#visit env head, self#visit_many env args)
@@ -766,11 +762,7 @@ class ['env] iter = object (self)
   method tyopen _env _v =
     ()
 
-  method tyforall env binding _flavor body =
-    let _, kind, _ = binding in
-    self#visit (self#extend env kind) body
-
-  method tyexists env binding _flavor body =
+  method tyq env _q binding _flavor body =
     let _, kind, _ = binding in
     self#visit (self#extend env kind) body
 
@@ -1102,9 +1094,8 @@ and equal env (t1: typ) (t2: typ) =
 
         same env p1 p2
 
-    | TyExists (((_, k1, _), _), t1), TyExists (((_, k2, _), _), t2)
-    | TyForall (((_, k1, _), _), t1), TyForall (((_, k2, _), _), t2) ->
-        k1 = k2 && equal t1 t2
+    | TyQ (q1, (_, k1, _), _, t1), TyQ (q2, (_, k2, _), _, t2) ->
+        q1 = q2 && k1 = k2 && equal t1 t2
 
     | TyArrow (t1, t'1), TyArrow (t2, t'2)
     | TyBar (t1, t'1), TyBar (t2, t'2) ->
@@ -1352,17 +1343,16 @@ let internal_wasflexible = function
 (* The [bottom] type. *)
 
 let ty_bottom =
-  TyForall (
-    (
-      (Auto (Variable.register "⊥"), KType, (Lexing.dummy_pos, Lexing.dummy_pos)),
-      AutoIntroduced
-    ),
+  TyQ (
+    Forall,
+    (Auto (Variable.register "⊥"), KType, (Lexing.dummy_pos, Lexing.dummy_pos)),
+    AutoIntroduced,
     TyBound 0
   )
 
 let is_non_bottom t =
   match t with
-  | TyForall (_, TyBound 0) ->
+  | TyQ (Forall, _, _, TyBound 0) ->
       None
   | _ ->
       Some t

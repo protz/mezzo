@@ -122,8 +122,7 @@ and fold_type (env: env) (depth: int) (t: typ): env * typ =
   | TyOpen _ ->
       env, t
 
-  | TyForall _
-  | TyExists _
+  | TyQ _
   | TyApp _ ->
       env, t
 

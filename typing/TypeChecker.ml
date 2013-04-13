@@ -99,7 +99,7 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
   let fname = get_name env f in
   (* Find a suitable permission for [f] first *)
   let rec is_quantified_arrow = function
-    | TyForall (_, t) ->
+    | TyQ (Forall, _, _, t) ->
         is_quantified_arrow t
     | TyArrow _ ->
         true
@@ -110,7 +110,7 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
 
   (* Instantiate all universally quantified variables with flexible variables. *)
   let rec flex = fun env -> function
-    | TyForall ((binding, _), t) ->
+    | TyQ (Forall, binding, _, t) ->
         let env, t, _ = bind_flexible_in_type env binding t in
         let env, t = flex env t in
         env, t
@@ -710,7 +710,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   | ETApply (e, t, k) ->
       let env, x = check_expression env e in
       let rec find_and_instantiate = function
-        | TyForall (((name, k', loc), UserIntroduced), t') as t0 ->
+        | TyQ (Forall, (name, k', loc), UserIntroduced, t') as t0 ->
             Log.debug "%a" TypePrinter.ptype (env, t0);
             let check_kind () =
               if k <> k' then
@@ -736,7 +736,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 end else begin
                   match find_and_instantiate t' with
                   | Some t' ->
-                      Some (TyForall (((name, k', loc), UserIntroduced), t'))
+                      Some (TyQ (Forall, (name, k', loc), UserIntroduced, t'))
                   | None ->
                       None
                 end

@@ -42,6 +42,11 @@ type name = User of Module.name * Variable.name | Auto of Variable.name
 (** Our locations are made up of ranges. *)
 type location = Lexing.position * Lexing.position
 
+(** A quantifier is universal or existential. *)
+type quantifier =
+  | Forall
+  | Exists
+
 (** A type binding defines a type variable bound in a type. *)
 type type_binding = name * kind * location
 
@@ -82,8 +87,7 @@ and typ =
   | TyOpen of var
 
     (** Quantification and type application. *)
-  | TyForall of (type_binding * flavor) * typ
-  | TyExists of (type_binding * flavor) * typ
+  | TyQ of quantifier * type_binding * flavor * typ
   | TyApp of typ * typ list
 
     (** Structural types. *)
@@ -407,8 +411,7 @@ class virtual ['env, 'result] visitor : object
   method virtual tydynamic: 'env -> 'result
   method virtual tybound: 'env -> db_index -> 'result
   method virtual tyopen: 'env -> var -> 'result
-  method virtual tyforall: 'env -> type_binding -> flavor -> typ -> 'result
-  method virtual tyexists: 'env -> type_binding -> flavor -> typ -> 'result
+  method virtual tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> 'result
   method virtual tyapp: 'env -> typ -> typ list -> 'result
   method virtual tytuple: 'env -> typ list -> 'result
   method virtual tyconcreteunfolded: 'env -> resolved_branch -> 'result
@@ -433,8 +436,7 @@ class ['env] map : object
   method tydynamic: 'env -> typ
   method tybound: 'env -> db_index -> typ
   method tyopen: 'env -> var -> typ
-  method tyforall: 'env -> type_binding -> flavor -> typ -> typ
-  method tyexists: 'env -> type_binding -> flavor -> typ -> typ
+  method tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> typ
   method tyapp: 'env -> typ -> typ list -> typ
   method tytuple: 'env -> typ list -> typ
   method tyconcreteunfolded: 'env -> resolved_branch -> typ
@@ -470,8 +472,7 @@ class ['env] iter : object
   method tydynamic: 'env -> unit
   method tybound: 'env -> db_index -> unit
   method tyopen: 'env -> var -> unit
-  method tyforall: 'env -> type_binding -> flavor -> typ -> unit
-  method tyexists: 'env -> type_binding -> flavor -> typ -> unit
+  method tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> unit
   method tyapp: 'env -> typ -> typ list -> unit
   method tytuple: 'env -> typ list -> unit
   method tyconcreteunfolded: 'env -> resolved_branch -> unit

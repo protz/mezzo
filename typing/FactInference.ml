@@ -172,11 +172,13 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      descend in the structure and look for assumption about the quantified
      variable that can be hoisted out. *)
 
-  | TyForall ((binding, _), ty) ->
-      bind_assume_infer w binding ty Mode.bottom
-
-  | TyExists ((binding, _), ty) ->
-      bind_assume_infer w binding ty Mode.top
+  | TyQ (q, binding, _, ty) ->
+      let assumption =
+	match q with
+	| Forall -> Mode.bottom
+	| Exists -> Mode.top
+      in
+      bind_assume_infer w binding ty assumption
 
   (* A type of the form [c /\ t], where [c] is a mode constraint and [t]
      is a type, can be thought of as a pair of a proof of [c] and a value

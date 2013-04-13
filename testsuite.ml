@@ -133,7 +133,7 @@ let dummy_name =
 ;;
 
 let dummy_binding k =
-  (dummy_name, k, dummy_loc), CanInstantiate
+  (dummy_name, k, dummy_loc)
 ;;
 
 let tests: (string * ((unit -> env) -> unit)) list = [
@@ -332,7 +332,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge2.mz", fun do_it ->
     let env = do_it () in
     let v2 = point_by_name env "v2" in
-    let t = TyExists (dummy_binding KTerm,
+    let t = TyQ (Exists, dummy_binding KTerm, UserIntroduced,
       TyBar (
         ty_equals v2,
         TyStar (
@@ -353,8 +353,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge3.mz", fun do_it ->
     let env = do_it () in
     let v3 = point_by_name env "v3" in
-    let t = TyExists (dummy_binding KTerm,
-      TyExists (dummy_binding KTerm,
+    let t = TyQ (Exists, dummy_binding KTerm, UserIntroduced,
+      TyQ (Exists, dummy_binding KTerm, UserIntroduced,
         TyBar (
           ty_equals v3,
           fold_star [
@@ -400,7 +400,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let env = do_it () in
     let v8 = point_by_name env "v8" in
     let v = find_type_by_name env "v" in
-    let t = TyForall (dummy_binding KType,
+    let t = TyQ (Forall, dummy_binding KType, UserIntroduced,
         TyApp (v, [TyBound 0; TyBound 0])
       )
     in
@@ -437,7 +437,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     (* Urgh, have to input internal syntax to check function types... maybe we
      * should write surface syntax here and have it simplified by the desugar
      * procedure? ... *)
-    let t = TyForall (dummy_binding KTerm, TyArrow (
+    let t = TyQ (Forall, dummy_binding KTerm, UserIntroduced, TyArrow (
       TyBar (
         TySingleton (TyBound 0),
         TyAnchoredPermission (TyBound 0, int)
@@ -461,7 +461,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let int = find_type_by_name env ~mname:"int" "int" in
     let t = find_type_by_name env "t" in
     (* Look at how fancy we used to be when we had singleton-subtyping! *)
-    (* let t = TyExists (dummy_binding KTerm, TyBar (
+    (* let t = TyQ (Exists, dummy_binding KTerm, UserIntroduced, TyBar (
       TyApp (t, [TySingleton (TyBound 0)]),
       TyAnchoredPermission (TyBound 0, int)
     )) in *)

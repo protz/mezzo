@@ -105,8 +105,7 @@ let variance env var_for_ith valuation b t =
         else
           Bivariant
 
-    | TyForall (_, t)
-    | TyExists (_, t) ->
+    | TyQ (_, _, _, t) ->
         var t
 
     | TyApp (cons, args) ->

@@ -454,23 +454,6 @@ let extend (env : env) (xs : type_binding list) : env =
     bind env (x, k)) env xs
 ;;
 
-(* [forall bindings ty] builds a series of universal quantifiers.
-   The innermost binding comes first in the list [bindings]. *)
-let forall bindings ty =
-  List.fold_left (fun ty binding ->
-    T.TyForall (binding, ty)
-  ) ty bindings
-;;
-
-(* [exist bindings ty] builds a series of existential quantifiers.
-   The innermost binding comes first in the list [bindings]. *)
-let exist bindings ty =
-  List.fold_left (fun ty binding ->
-    T.TyExists (binding, ty)
-  ) ty bindings
-;;
-
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Some helper functions for working with [SurfaceSyntax] types. *)
