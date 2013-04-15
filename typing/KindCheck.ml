@@ -36,22 +36,25 @@ module E = Expressions
 module M =
   Variable.Map
 
-(* An environment maps an identifier to a pair of a kind and a de Bruijn level
-   (not to be confused with a de Bruijn index!). An environment also keeps
-   track of the current de Bruijn level.
-
-   This binding representation is specific to this first phase -- we use more
-   sophisticated environments later on, and the level thing is just a hack. *)
+(* A local identifier (one that is defined in the current module) is represented
+   as a de Bruijn level (not to be confused with a de Bruijn index!). This is an
+   implementation detail of [KindCheck] and does not affect its clients. *)
 
 type level =
     int
 
-(* When a module is opened in scope, the names it exports point to points that
- * are already valid in the environment (think of these as binders that have
- * been opened already). Otherwise, it's a bound variable. *)
-type var = Var of level | Point of T.var
-let tvar = function Var x -> T.TyBound x | Point x -> T.TyOpen x;;
-let evar = function Var x -> E.EVar x | Point x -> E.EOpen x;;
+(* An external identifier (one that comes from another module) is represented
+   as a variable of type [TypeCore.var]. Think of it as a binder that has been
+   opened already. *)
+
+(* A [var] is either a local name or a non-local name. *)
+
+type var =
+       Local of level
+  | NonLocal of T.var
+
+let tvar = function Local x -> T.TyBound x | NonLocal x -> T.TyOpen x;;
+let evar = function Local x -> E.EVar x | NonLocal x -> E.EOpen x;;
 
 type datacon_origin =
   | InCurrentModule of level * SurfaceSyntax.datacon_info
@@ -196,12 +199,12 @@ let pkenv buf env =
   let bindings = List.sort (fun (x, _) (y, _) -> compare x y) bindings in
   List.iter (fun (level, (x, kind)) ->
     match level with
-    | Var level ->
+    | Local level ->
         Printf.bprintf buf "  [debug] level=%d, variable=%a, kind=%a\n"
           level
           Variable.p x
           p_kind kind
-    | Point _ ->
+    | NonLocal _ ->
         Printf.bprintf buf "  [debug] external point, variable=%a, kind=%a\n"
           Variable.p x
           p_kind kind
@@ -374,9 +377,9 @@ let find x env =
     let kind, level = M.find x env.mapping in
     let level =
       match level with
-      | Var level ->
-          Var (env.level - level - 1)
-      | Point _ ->
+      | Local level ->
+          Local (env.level - level - 1)
+      | NonLocal _ ->
           level
     in
     kind, level
@@ -390,11 +393,11 @@ let bind env (x, kind) : env =
      then incremented. *)
   { env with
     level = env.level + 1;
-    mapping = M.add x (kind, Var env.level) env.mapping }
+    mapping = M.add x (kind, Local env.level) env.mapping }
 ;;
 
 let bind_external env (x, kind, p): env =
-  { env with mapping = M.add x (kind, Point p) env.mapping }
+  { env with mapping = M.add x (kind, NonLocal p) env.mapping }
 ;;
 
 let bind_datacon env dc level info =
@@ -1017,7 +1020,7 @@ let check_declaration_group (env: env) = function
 
 let check_implementation (tenv: T.env) (program: implementation) : unit =
   let env = empty tenv in
-  let env = List.fold_left (fun env -> function
+  let (_ : env) = List.fold_left (fun env -> function
     | DataTypeGroup (p, rec_flag, data_type_group) ->
         (* Collect the names from the data type definitions, since they
          * will be made available in both the data type definitions themselves,

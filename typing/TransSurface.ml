@@ -574,9 +574,9 @@ let bind_datacons env data_type_group =
     | Concrete (_, (name, _), rhs, _) ->
         let bind =
           match M.find name env.mapping with
-          | _, Var level ->
+          | _, Local level ->
               fun env dc fields -> bind_datacon env dc level fields
-          | _, Point point ->
+          | _, NonLocal point ->
               fun env dc fields -> bind_external_datacon env dc point fields
         in
         MzList.fold_lefti (fun i env (dc, fields) ->
