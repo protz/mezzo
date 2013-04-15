@@ -391,3 +391,17 @@ let destruct_unqualified = function
       x
   | Qualified _ ->
       assert false
+
+let unqualify = function
+  | Qualified (_, d)
+  | Unqualified d ->
+      d
+
+let maybe_qualified_equal eq q1 q2 =
+  match q1, q2 with
+  | Qualified (m1, x1), Qualified (m2, x2) ->
+      Module.equal m1 m2 && eq x1 x2
+  | Unqualified x1, Unqualified x2 ->
+      eq x1 x2
+  | _, _ ->
+      false

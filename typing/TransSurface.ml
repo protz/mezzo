@@ -45,35 +45,8 @@ module E = Expressions
 let name_user = fun env (x, k, l) -> (T.User (T.module_name env.env, x), k, l);;
 let name_auto = fun (x, k, l) -> (T.Auto x, k, l);;
 
-let qualified_equals q1 q2 =
-  match q1, q2 with
-  | Qualified (m1, d1), Qualified (m2, d2) ->
-      Module.equal m1 m2 && Datacon.equal d1 d2
-  | Unqualified d1, Unqualified d2 ->
-      Datacon.equal d1 d2
-  | _ ->
-      false
-;;
-
-let unqualify = function
-  | Qualified (_, d)
-  | Unqualified d ->
-      d
-;;
-
-let resolve_datacon
-    (env: KindCheck.env)
-    (datacon: Datacon.name maybe_qualified): SurfaceSyntax.datacon_info * T.resolved_datacon
-    =
-  try
-    let _, v, info = List.find (fun (dc, _, _) -> qualified_equals datacon dc) env.known_datacons in
-    info, (tvar v env, unqualify datacon)
-  with Not_found ->
-    raise_error env (UnboundDataConstructor (unqualify datacon))
-;;
-
 let resolve_datacon env dref =
-  let info, resolved_datacon = resolve_datacon env dref.datacon_unresolved in
+  let info, resolved_datacon = find_datacon env dref.datacon_unresolved in
   dref.datacon_info <- Some info;
   resolved_datacon
 ;;

@@ -439,6 +439,17 @@ let open_module_in (mname: Module.name) (env: env): env =
   { env with known_datacons = mname_datacons @ env.known_datacons }
 ;;
 
+let find_datacon env (datacon : Datacon.name maybe_qualified) : SurfaceSyntax.datacon_info * T.resolved_datacon =
+  try
+    let _, v, info =
+      List.find (fun (dc, _, _) ->
+	maybe_qualified_equal Datacon.equal datacon dc
+      ) env.known_datacons
+    in
+    info, (tvar v env, unqualify datacon)
+  with Not_found ->
+    raise_error env (UnboundDataConstructor (unqualify datacon))
+
 let kind_external env mname x =
   let open T in
   try
