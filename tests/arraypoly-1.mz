@@ -1,0 +1,19 @@
+open arraypoly
+
+alias pair a b = (a, b)
+alias double a = pair a a
+
+val f [a] (x: iarray a) : double (iarray a) = (x, x)
+
+val g [a, m] (consumes x: array m a) : double (iarray a) =
+  freeze x;
+  (x, x)
+
+val h (consumes x: marray int) : double (iarray int) =
+  set (x, 0, 0);
+  freeze x;
+  (x, x)
+
+val i [m] (consumes x: array m int) : pair (array m int) (iarray bool) =
+  let y = map (Down, x, fun (n: int) : bool = (n <> 0)) in
+  x, y

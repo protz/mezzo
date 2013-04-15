@@ -1,0 +1,9 @@
+open arraypoly
+
+alias pair a b = (a, b)
+alias double a = pair a a
+
+val f (consumes x: marray int) : double (marray int) =
+  x, x 
+
+(* Shoud be rejected *)

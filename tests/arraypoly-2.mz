@@ -1,0 +1,6 @@
+open arraypoly
+
+val f (x: iarray int) : () =
+  set (x, 0, 0) 
+
+(* Shoud be rejected *)
