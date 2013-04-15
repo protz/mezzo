@@ -1,0 +1,275 @@
+(* ------------------------------------------------------------------------ *)
+
+(* Type and alias definitions *)
+
+abstract mut : type
+fact exclusive mut
+
+abstract immut : type
+fact duplicable immut
+
+abstract array m +a : type
+fact duplicable m => duplicable (array m a)
+fact exclusive m => exclusive (array m a)
+
+alias iarray a = array immut a
+alias marray a = array mut a 
+
+(* Basic operations over arrays. *)
+
+(* [create (n, v)] creates a new array of [n] elements, which are
+   initialized with the value [v]. Because [v] is copied, the type
+   [a] must be duplicable. *)
+val create : [a, m] duplicable a => (int, a) -> array m a
+
+(* [get (r, i)] reads the element at index [i] in the array [r].
+   Because the value is copied, the type [a] must be duplicable. *)
+val get : [a, m] duplicable a => (array m a, int) -> a
+
+(* [set (r, i, v)] sets the element at index [i] in the array [r]
+   to the value [v]. *)
+val set : [a] (marray a, int, consumes a) -> ()
+
+(* [length r] is the length of the array [r]. *)
+val length : [a, m] array m a -> int
+
+(* [max_length] is the maximum length of an array. *)
+val max_length : int
+
+(* ------------------------------------------------------------------------ *)
+
+(* Variants of the basic operations over arrays. *)
+
+(* [init (n, f)] creates a new array of [n] elements, where the element
+   at index [i] is initialized with the value [f i]. *)
+
+val init : [a, m, p : perm] (
+  s: sense,
+  n: int,
+  f: (int | p) -> a
+  | p
+) -> array m a
+
+(* The following functions are replacements for [get] in certain scenarios
+   where the constraint [duplicable a], imposed by [get], is unnecessary. *)
+
+(* [swap (r, i, j)] exchanges the elements at indices [i] and [j] in the
+   array [r]. *)
+
+val swap : [a] (r: marray a, i: int, j: int) -> ()
+
+(* [consult (r, i, f)] is [f r[i]]. *)
+
+val consult : [a, m, pre : perm, b] (
+  r: array m a, i: int,
+  f: (a | consumes pre) -> b
+  | consumes pre
+) -> b
+
+(* [update (r, i, f)] is [r[i] <- f r[i]]. *)
+
+val update : [a, pre : perm, post : perm] (
+  r: marray a, i: int,
+  f: (consumes a | consumes pre) -> (a | post)
+  | consumes pre
+) -> (| post)
+
+(* ------------------------------------------------------------------------ *)
+
+(* Transformations of arrays. *)
+
+(* [transform (s, r, f)] applies the function [f], in place, to every element
+   of the array [r]. It can perform a strong update over the entire array: the
+   types [a] and [b] need not coincide. *)
+
+val transform : [a, b, p : perm] (
+  s: sense,
+  consumes r: marray a,
+  f: (int, consumes a | p) -> b
+  | p
+) -> (| r @ marray b)
+
+(* [map (r, f)] produces a new array whose contents are obtained by applying
+   [f], pointwise, to the array [r]. *)
+
+val map : [a, m1, b, m2, p : perm] (
+  s: sense,
+  r: array m1 a,
+  f: (a | p) -> b
+  | p
+) -> array m2 b
+
+(* [mapi] is analogous to [map], but applies [f] to the index and element. *)
+
+val mapi : [a, m1, b, m2, p : perm] (
+  s: sense,
+  r: array m1 a,
+  f: (int, a | p) -> b
+  | p
+) -> array m2 b
+
+(* ------------------------------------------------------------------------ *)
+
+(* Making copies of arrays or array segments. *)
+
+(* [sub (r, ofs, len)] copies the array segment defined by [r], [ofs], and
+   [len] into a new array. *)
+val sub : [a, m1, m2] duplicable a =>
+  (r: array m1 a, ofs: int, len: int) ->
+  array m2 a
+
+(* [copy r] copies the array [r] into a new array. *)
+val copy : [a, m1, m2] duplicable a =>
+  (r: array m1 a) ->
+  array m2 a
+
+(* [freeze r] makes an array immutable. *)
+val freeze : [a, m]
+  (consumes r: array m a) ->
+  (| r@iarray a)
+
+(* [append (r1, r2)] concatenates the arrays [r1] and [r2] into a new array. *)
+val append : [a, m1, m2, m3] duplicable a =>
+  (r1: array m1 a, r2: array m2 a) ->
+  array m3 a
+
+(* [blit (r1, ofs1, r2, ofs2, len)] copies the array segment defined by [r1],
+   [ofs1], and [len] into the array segment defined by [r2], [ofs2], and [len]. *)
+val blit : [a, m] duplicable a =>
+  (r1: array m a, ofs1: int, r2: marray a, ofs2: int, len: int) -> ()
+
+(* The following three functions are special cases of [blit] that can be
+   assigned more general types. *)
+
+(* [steal (r1, r2, ofs2)] copies the array [r1] into the array segment defined
+   by [r2], [ofs2], and [length r1]. The array [r1] is deprived of the ownership
+   of its elements, which is transferred to [r2]. *)
+
+val steal : [a, m]
+  (consumes r1: array m a, r2: marray a, ofs2: int) ->
+  (| r1 @ array m unknown)
+
+(* [overwrite (r1, ofs1, r2)] copies the array segment defined by [r1], [ofs1],
+   and [length r2] into the array [r2], whose previous contents is completely
+   lost. This operation performs a strong update over [r2]: the types [a] and
+   [b] need not coincide. *)
+
+val overwrite : [a, m] duplicable a =>
+  (r1: array m a, ofs1: int, consumes r2: marray unknown) ->
+  (| r2 @ marray a)
+
+(* [transfer (r1, r2)] copies the array [r1] into the array [r2]. The two
+   arrays must have the same length. [transfer] is a combination of [steal]
+   and [overwrite]: that is, the array [r1] is deprived of the ownership of
+   its elements, which is transferred to [r2]; and the previous contents of
+   [r2] is completely lost, so a strong update of [r2] is possible. *)
+
+val transfer : [a, m]
+  (consumes r1: array m a, consumes r2: marray unknown) ->
+  (| r1 @ array m unknown * r2 @ marray a)
+
+(* ------------------------------------------------------------------------ *)
+
+(* Filling a segment with a value. *)
+
+val fill_segment : [a] duplicable a => (r: marray a, i: int,   j: int, v: a) -> ()
+val fill         : [a] duplicable a => (r: marray a, i: int, len: int, v: a) -> ()
+val fill_array   : [a] duplicable a => (r: marray a, v: a) -> ()
+
+(* ------------------------------------------------------------------------ *)
+
+(* Generic loops over a semi-open interval. *)
+
+(* We use semi-open intervals of the form [i, j). That is, the index [i] is
+   part of the interval, and the index [j] is not part of it. The interval
+   is non-empty if and only if [i < j] holds. *)
+
+(* The following four functions actually do not read (or write) any array
+   elements. They deal only with the management of the current index. *)
+
+val fold_segment : [a] (
+  s: sense,
+  i: int, j: int, consumes accu: a,
+  f: (int, consumes a) -> a
+) -> a
+
+val iter_segment : [p : perm] (
+  s: sense,
+  i: int, j: int,
+  f: (int | p) -> ()
+  | p) -> ()
+
+(* Generic loops over an entire array. *)
+
+val fold_array : [a, m, b] (
+  s: sense,
+  r: array m a, consumes seed: b,
+  f: (int, consumes b | r @ array m a) -> b
+) -> b
+
+val iter_array : [a, m, p : perm] (
+  s: sense,
+  r: array m a,
+  f: (int | r @ array m a * p) -> ()
+  | p) -> ()
+
+(* ------------------------------------------------------------------------ *)
+
+(* A variant of the above loops, where [f] receives not only an index [i],
+   but also the corresponding array element. Note that [f] does not have
+   permission to access the array [r]. *)
+
+val foldi : [a, m, b] (
+  s: sense,
+  r: array m a,
+  consumes seed: b,
+  f: (int, a, consumes accu: b) -> b
+) -> b
+
+val iteri : [a, m, p : perm] (
+  s: sense,
+  r: array m a,
+  f: (int, a | p) -> ()
+  | p) -> ()
+
+(* A degenerate variant of the above loops, where [f] has access to the
+   element, but not the index [i]. Note that [f] does not have permission
+   to access the array [r]. *)
+
+val fold : [a, m, b] (
+  s: sense,
+  r: array m a,
+  consumes seed: b,
+  f: (a, consumes accu: b) -> b
+) -> b
+
+val iter : [a, m, p : perm] (
+  s: sense,
+  r: array m a,
+  f: (a | p) -> ()
+  | p) -> ()
+
+(* -------------------------------------------------------------------------- *)
+
+(* Sorting. *)
+
+val sort : [a, p : perm] duplicable a => (
+  cmp: (a, a | p) -> int,
+  r: marray a
+  | p) -> ()
+
+val sort_initial_segment : [a, p : perm] duplicable a => (
+  cmp: (a, a | p) -> int,
+  r: marray a,
+  l: int
+  | p) -> ()
+
+(* -------------------------------------------------------------------------- *)
+
+(* Miscellaneous. *)
+
+(* [above] repeatedly multiplies [x] by 2 until either [x >= n] holds
+   or [2 * x] exceeds the maximum array length. *)
+
+val above: (x: int, n: int) -> int
+
