@@ -11,6 +11,9 @@ type kind =
   | KPerm
   | KArrow of kind * kind
 
+(* [karrow] helps build an [n]-ary arrow. *)
+val karrow: ('a * kind) list -> kind -> kind
+
 (** [as_arrow k] transforms the kind [k] to an [n]-ary arrow kind. This
     is permitted for every kind [k]. A non-arrow kind is viewed as an
     arrow kind of arity 0. *)

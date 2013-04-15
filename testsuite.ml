@@ -43,7 +43,7 @@ let point_by_name env ?mname name =
 
 type outcome =
   (* Fail at kind-checking time. *)
-  | KFail of (KindCheck.raw_error -> bool)
+  | KFail
   (* Fail at type-checking time. *)
   | Fail of (raw_error -> bool)
   | Pass
@@ -66,7 +66,7 @@ let simple_test ?(pedantic=false) ?known_failure outcome = fun do_it ->
     Options.pedantic := pedantic;
     ignore (do_it ());
     match outcome with
-    | KFail _ ->
+    | KFail ->
         raise_if (Failure "Test passed, it was supposed to fail")
     | Fail _ ->
         raise_if (Failure "Test passed, it was supposed to fail")
@@ -83,19 +83,16 @@ let simple_test ?(pedantic=false) ?known_failure outcome = fun do_it ->
             success_if ()
           else
             raise_if (Failure "Test failed but not for the right reason")
-      | KFail _ ->
+      | KFail ->
           raise_if (Failure "Test failed but not for the right reason")
       end
 
-  | K.KindError (_, e) ->
+  | K.KindError _ ->
       begin match outcome with
       | Pass ->
           raise_if (Failure "Test failed, it was supposed to pass")
-      | KFail f ->
-          if f e then
-            success_if ()
-          else
-            raise_if (Failure "Test failed but not for the right reason")
+      | KFail ->
+          success_if ()
       | Fail _ ->
           raise_if (Failure "Test failed but not for the right reason")
       end
@@ -117,7 +114,7 @@ let fail =
 ;;
 
 let kfail =
-  simple_test (KFail (function _ -> true))
+  simple_test KFail
 ;;
 
 let fail_known_failure =
@@ -148,11 +145,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("constructors.mz",
     pass);
 
-  ("dcscope2.mz",
-    simple_test (KFail (function K.UnboundDataConstructor _ -> true | _ -> false)));
+  ("dcscope2.mz", kfail);
 
-  ("modules/dcscope.mz",
-    simple_test (KFail (function K.UnboundDataConstructor _ -> true | _ -> false)));
+  ("modules/dcscope.mz", kfail);
 
   ("constructors_bad_1.mz",
     simple_test (Fail (function MissingField _ -> true | _ -> false)));
@@ -573,8 +568,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("fail6.mz",
     simple_test ((Fail (function ExpectedType _ -> true | _ -> false))));
 
-  ("fail7.mz",
-    simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
+  ("fail7.mz", kfail);
 
   ("fail8.mz",
     simple_test ((Fail (function BadPattern _ -> true | _ -> false))));
@@ -585,8 +579,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("fail10.mz",
     simple_test ((Fail (function BadField _ -> true | _ -> false))));
 
-  ("fail11.mz",
-    simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
+  ("fail11.mz", kfail);
 
   (* Adoption. *)
 
@@ -596,8 +589,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("adopts2.mz",
     simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
 
-  ("adopts3.mz",
-    simple_test (KFail (function K.AdopterNotExclusive _ -> true | _ -> false)));
+  ("adopts3.mz", kfail);
 
   ("adopts4.mz",
     simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
@@ -765,7 +757,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("adopts-type-variable.mz", pass);
 
-  ("ref-confusion.mz", simple_test (KFail (function _ -> true)));
+  ("ref-confusion.mz", kfail);
 
   ("strip_floating_perms.mz", simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
 
@@ -785,7 +777,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("tuple-syntax.mz", pass);
 
-  ("same-type-var-bug.mz", simple_test (KFail (function K.BoundTwice _ -> true | _ -> false)));
+  ("same-type-var-bug.mz", kfail);
 
   ("assert-bug.mz", pass_known_failure);
 
@@ -805,11 +797,11 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("bad-levels.mz", fail);
 
-  ("dup-value.mzi", simple_test (KFail (function _ -> true)));
+  ("dup-value.mzi", kfail);
 
-  ("dup-datacon.mzi", simple_test (KFail (function _ -> true)));
+  ("dup-datacon.mzi", kfail);
 
-  ("unqualified-datacon.mz", simple_test (KFail (function K.UnboundDataConstructor _ -> true | _ -> false)));
+  ("unqualified-datacon.mz", kfail);
 
   ("improve-inference.mz", pass);
   ("improve-inference2.mz", pass);
@@ -907,8 +899,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("tyand04.mz", pass);
   ("tyand05.mz", fail);
   ("tyand06.mz", fail);
-  ("incorrect-fields.mz",
-    simple_test ((KFail (function K.FieldMismatch _ -> true | _ -> false))));
+  ("incorrect-fields.mz", kfail);
   ("name-intro.mz", pass);
   ("name-intro2.mz", pass);
   ("name-intro3.mz", pass_known_failure);
@@ -936,6 +927,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("arraypoly-1.mz", pass);
   ("arraypoly-2.mz", fail);
   ("arraypoly-3.mz", fail);
+  ("export-names.mz", pass);
 
 ];;
 

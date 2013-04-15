@@ -4,6 +4,11 @@ type kind =
   | KPerm
   | KArrow of kind * kind
 
+let karrow bindings kind =
+  List.fold_right (fun (_, kind1) kind2 ->
+    KArrow (kind1, kind2)
+  ) bindings kind
+
 let as_arrow k =
   let rec as_arrow accu = function
     | KArrow (k1, k2) ->

@@ -124,11 +124,11 @@ let check
         Log.debug ~level:3 "*** Checking sig item %a" Variable.p x;
 
         (* Make sure [t] has kind ∗ *)
-        KindCheck.check tsenv t KType;
+        KindCheck.check_type_with_names tsenv t KType;
 
         (* Now translate type [t] into the internal syntax; [x] is not bound in
          * [t]. *)
-        let t = TransSurface.translate_type tsenv t in
+        let t = TransSurface.translate_type_with_names tsenv t in
 
         (* Now check that the point in the implementation's environment actually
          * has the same type as the one in the interface. *)

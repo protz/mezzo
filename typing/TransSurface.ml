@@ -45,7 +45,7 @@ let name_user = fun env (x, k, l) -> (T.User (module_name env, x), k, l);;
 let name_auto = fun (x, k, l) -> (T.Auto x, k, l);;
 
 let resolve_datacon env dref =
-  let info, resolved_datacon = find_datacon env dref.datacon_unresolved in
+  let info, resolved_datacon = find_datacon dref.datacon_unresolved env in
   dref.datacon_info <- Some info;
   resolved_datacon
 ;;
@@ -241,11 +241,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
       if not ok then
 	let missing = FieldSet.diff required_fields provided_fields
 	and extra = FieldSet.diff provided_fields required_fields in
-	raise_error env (FieldMismatch (
-	  snd datacon,
-	  FieldSet.elements missing,
-	  FieldSet.elements extra
-	))
+	field_mismatch env (snd datacon) (FieldSet.elements missing) (FieldSet.elements extra)
       (* Happy. *)
       else
 	T.TyConcrete branch
@@ -312,7 +308,7 @@ and translate_implication env (cs : mode_constraint list) = function
   | TyLocated (ty, _) ->
       translate_implication env cs ty
   | _ ->
-      raise_error env ImplicationOnlyOnArrow
+      implication_only_on_arrow env
 
 and conjunction cs ty =
   match cs with
@@ -529,27 +525,6 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
         data_fact = fact;
         data_kind = karrow params kind
       })
-;;
-
-
-(* Bind all the data constructors from a data type group *)
-let bind_datacons env data_type_group =
-  List.fold_left (fun env -> function
-    | Concrete (_, (name, _), rhs, _) ->
-        let v : var = find_var (Unqualified name) env in
-        MzList.fold_lefti (fun i env (dc, fields) ->
-          (* We're building information for the interpreter: drop the
-           * permission fields. *)
-          let fields = MzList.map_some (function
-            | FieldValue (name, _) -> Some name
-            | FieldPermission _ -> None
-          ) fields in
-          bind_datacon env dc v (mkdatacon_info dc i fields)
-        ) env rhs
-    | Abbrev _
-    | Abstract _ ->
-        env
-  ) env data_type_group
 ;;
 
 
@@ -783,7 +758,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
                 PAs (pat, name), Some name
         in
         (* Collect the names. *)
-        let names = bindings_pattern None pat in
+        let names = bindings_pattern pat in
         (* Translate the pattern. *)
         let pat = translate_pattern env pat in
         (* Bind the names for further translating, and don't forget to include
@@ -867,7 +842,7 @@ and translate_patexprs
    * constraint.*)
   let patterns, annotations = List.split (List.map clean_pattern patterns) in
   (* Find names in patterns. *)
-  let names = bindings_patterns None patterns in
+  let names = bindings_patterns patterns in
   (* Translate the patterns. *)
   let patterns = List.map (translate_pattern env) patterns in
   (* Bind all the names in the sub-environment. *)
@@ -920,7 +895,7 @@ let translate_item env item =
       let env, decl = translate_declaration_group env decl in
       env, Some (E.ValueDeclarations decl)
   | PermDeclaration (x, t) ->
-      check env t KType;
+      check_type_with_names env t KType;
       let t = translate_type_with_names env t in
       let env = bind env (x, KTerm) in
       env, Some (E.PermDeclaration (x, t))

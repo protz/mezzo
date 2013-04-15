@@ -4,8 +4,8 @@ open KindCheck
 
 (** Translating the surface syntax down into the core language syntax. *)
 
-(** [translate_type] translates a type. *)
-val translate_type: env -> typ -> TypeCore.typ
+(** [translate_type_with_names] translates a type. *)
+val translate_type_with_names: env -> typ -> TypeCore.typ
 
 (** [translate_data_type_group bind env group] translates a data type group.
     The [bind] function is passed a pair of a data type name and its kind,

@@ -299,6 +299,17 @@ type interface =
 
 (* ---------------------------------------------------------------------------- *)
 
+let rec flatten_tyapp ty =
+  match ty with
+  | TyApp (ty, args) ->
+      ty, args
+  | TyLocated (ty, _) ->
+      flatten_tyapp ty
+  | _ ->
+      ty, []
+
+(* ---------------------------------------------------------------------------- *)
+
 (* The following function translates a type to a pattern. *)
 
 (* Note in [EFun] above, the argument is described by a type. This function
