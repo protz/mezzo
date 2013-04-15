@@ -17,15 +17,17 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(* This module implements a well-kindedness check for the types of
-   the surface language. [Note Jonathan: a clean version of the rules can be
-   found in my thesis noteboook, date June, 16th 2012]. *)
+(* This module implements a well-kindedness check for the types of the surface
+   language. [Note Jonathan: a clean version of the rules can be found in my
+   thesis noteboook, date June, 16th 2012]. *)
+
+(* The environments defined here are used for kind checking and for translating
+   types down to the core syntax. *)
 
 open Kind
 open SurfaceSyntax
 module T = TypeCore
 module E = Expressions
-
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -39,8 +41,7 @@ module M =
    track of the current de Bruijn level.
 
    This binding representation is specific to this first phase -- we use more
-   sophisticated environments later on, and the level thing is just some sort of
-   hack. *)
+   sophisticated environments later on, and the level thing is just a hack. *)
 
 type level =
     int
@@ -57,6 +58,7 @@ type datacon_origin =
   | InAnotherModule of T.var * SurfaceSyntax.datacon_info
 
 type env = {
+
   (* The current de Bruijn level. *)
   level: level;
 
@@ -71,11 +73,11 @@ type env = {
    * contains no information about the module that's being processed, except
    * for the field [module_name] (that's not entirely true if we're matching an
    * implementation against its interface but the bottom line is: only use this
-   * environment for you dependencies on other modules). *)
+   * environment for your dependencies on other modules). *)
   env: T.env;
 
   (* If the data constructor belongs to another module, that module's signature
-   * has been imported in [env] and the definition which the data constructors
+   * has been imported in [env] and the definition which the data constructor
    * belongs to will be found there (using the point).
    *
    * If the data constructor belongs to a data type defined in the current
@@ -1013,7 +1015,7 @@ let check_declaration_group (env: env) = function
       Log.error "Unexpected shape for a [declaration_group]."
 ;;
 
-let check_implementation (tenv: T.env) (program: implementation) =
+let check_implementation (tenv: T.env) (program: implementation) : unit =
   let env = empty tenv in
   let env = List.fold_left (fun env -> function
     | DataTypeGroup (p, rec_flag, data_type_group) ->
@@ -1053,7 +1055,7 @@ let check_implementation (tenv: T.env) (program: implementation) =
     | OpenDirective mname ->
         open_module_in mname env
   ) env program in
-  ignore (env);
+  ()
 ;;
 
 let check_interface (tenv: T.env) (interface: interface) =
