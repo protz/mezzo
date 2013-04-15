@@ -161,6 +161,8 @@ let check
 
         (* Check that the translated definitions from the interface and the known
          * definitions from the implementations are consistent. *)
+        flush stdout;
+        flush stderr;
         List.iter (fun data_type ->
           let {
             T.data_name = name;
@@ -249,15 +251,18 @@ let check
                 ) branch.T.branch_fields branch'.T.branch_fields;
               ) branches branches';
 
-            | T.Abbrev t, T.Abbrev t' ->
-                (* We must export exactly the same abbreviation for the
-                 * signature to match (we may want this to be smarter but
-                 * well... *)
-                if Derivations.is_good (Permissions.sub_type env t' t) then
-                  error_out "abbreviations not compatible";
+          | T.Abbrev t, T.Abbrev t' ->
+              (* We must export exactly the same abbreviation for the
+               * signature to match. We may want to be smarter, e.g. allow
+               * subtyping by using [Permissions.sub] instead of [T.equal] but
+               * these types contain bound variables (we haven't bound the type
+               * parameters), and [Permissions] does not know how to deal with
+               * that yet). *)
+              if not (T.equal env t t') then
+                error_out "abbreviations not compatible";
 
-            | _ ->
-                error_out "definition mismatch"
+          | _ ->
+              error_out "definition mismatch"
 
         ) translated_definitions.T.group_items;
 
