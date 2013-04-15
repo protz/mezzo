@@ -21,9 +21,6 @@
    language. [Note Jonathan: a clean version of the rules can be found in my
    thesis noteboook, date June, 16th 2012]. *)
 
-(* The environments defined here are used for kind checking and for translating
-   types down to the core syntax. *)
-
 open Kind
 open SurfaceSyntax
 module T = TypeCore
@@ -53,19 +50,18 @@ type var =
        Local of level
   | NonLocal of T.var
 
-type datacon_origin =
-  | InCurrentModule of level * SurfaceSyntax.datacon_info
-  | InAnotherModule of T.var * SurfaceSyntax.datacon_info
+(* The environments defined here are used for kind checking and for translating
+   types down to the core syntax. *)
 
 type env = {
 
   (* The current de Bruijn level. *)
   level: level;
 
-  (* A mapping of identifiers to pairs of a kind and a level. *)
+  (* A mapping of identifiers to pairs of a kind and a variable. *)
   mapping: (kind * var) M.t;
 
-  (* The current start and end positions *)
+  (* The current start and end positions. *)
   location: Lexing.position * Lexing.position;
 
   (* [Driver] already discovered our dependencies for us, and processed them, so
@@ -88,7 +84,7 @@ type env = {
    * are only created once.
    *
    * This order counts (at least for unqualified items). *)
-  known_datacons: (Datacon.name maybe_qualified * datacon_origin) list;
+  known_datacons: (Datacon.name maybe_qualified * var * SurfaceSyntax.datacon_info) list;
 }
 
 let mkdatacon_info dc i fields =
@@ -140,8 +136,8 @@ let empty (env: T.env): env =
               | FieldPermission _ -> None
             ) fields in
             (* Now the info structure is ready. *)
-            let info = InAnotherModule (var, mkdatacon_info dc i fields) in
-            qualif, info
+            let info = mkdatacon_info dc i fields in
+            qualif, NonLocal var, info
           ) def in
           datacons @ acc
       | _ ->
@@ -371,30 +367,31 @@ let find x env : kind * var =
   with Not_found ->
     unbound env x
 
+let find_kind x env : kind =
+  let kind, _ = find x env in
+  kind
+
+let find_var x env : var =
+  let _, v = find x env in
+  v
+
 (* [level2index] converts a de Bruijn level to a de Bruijn index. *)
 let level2index env level =
   env.level - level - 1
 
-(* [tvar x env] looks up the name [x] in the environment [env] and
-   returns a type variable in the internal syntax. *)
-let tvar x env =
-  let _, v = find x env in
+(* [tvar v env] transforms the variable [v] into a type variable in
+   the internal syntax. *)
+let tvar v env : T.typ =
   match v with
   |    Local level -> T.TyBound (level2index env level)
   | NonLocal v     -> T.TyOpen v
 
-(* [tvar x env] looks up the name [x] in the environment [env] and
-   returns an expression variable in the internal syntax. *)
-let evar x env =
-  let _, v = find x env in
+(* [tvar v env] transforms the variable [v] into an expression variable
+   in the internal syntax. *)
+let evar v env =
   match v with
   |    Local level -> E.EVar (level2index env level)
   | NonLocal v     -> E.EOpen v
-
-(* [find] is now re-defined to return only a kind. *)
-let find x env : kind =
-  let kind, _ = find x env in
-  kind
 
 (* [bind env (x, kind)] binds the name [x] with kind [kind]. *)
 let bind env (x, kind) : env =
@@ -410,11 +407,11 @@ let bind_external env (x, kind, p): env =
 ;;
 
 let bind_datacon env dc level info =
-  { env with known_datacons = (Unqualified dc, InCurrentModule (level, info)) :: env.known_datacons }
+  { env with known_datacons = (Unqualified dc, Local level, info) :: env.known_datacons }
 ;;
 
 let bind_external_datacon env dc point info =
-  { env with known_datacons = (Unqualified dc, InAnotherModule (point, info)) :: env.known_datacons }
+  { env with known_datacons = (Unqualified dc, NonLocal point, info) :: env.known_datacons }
 ;;
 
 (* Find in [tsenv.env] all the names exported by module [mname], and add them to our
@@ -431,8 +428,8 @@ let open_module_in (mname: Module.name) (env: env): env =
 
   (* Now also open the data constructors. *)
   let mname_datacons = MzList.map_some (function
-    | Qualified (mname', dc), origin when Module.equal mname mname' ->
-        Some (Unqualified dc, origin)
+    | Qualified (mname', dc), var, info when Module.equal mname mname' ->
+        Some (Unqualified dc, var, info)
     | _ ->
         None
   ) env.known_datacons in
@@ -711,7 +708,7 @@ and infer (env: env) (t: typ) =
       kind_external env mname x
 
   | TyVar (Unqualified x) ->
-      find x env
+      find_kind x env
 
   | TyConcrete (branch, clause) ->
       check_branch env branch;
@@ -760,7 +757,7 @@ and infer (env: env) (t: typ) =
       KPerm
 
   | TyNameIntro (x, t) ->
-      assert (find x env = KTerm);
+      assert (find_kind x env = KTerm);
       infer env t
 
   | TyConsumes t ->
@@ -872,7 +869,7 @@ let rec check_pattern (env: env) (pattern: pattern) =
       Log.debug "check_type_with_names";
       check_type_with_names env t KType
   | PVar x ->
-      assert (find x env = KTerm)
+      assert (find_kind x env = KTerm)
   | PTuple patterns ->
       List.iter (check_pattern env) patterns
   | PConstruct (_, name_pats) ->
@@ -917,7 +914,7 @@ and check_expression (env: env) (expr: expression) =
 
   (* TEMPORARY share the following two cases *)
   | EVar (Unqualified x) ->
-      let k = find x env in
+      let k = find_kind x env in
       (* TEMPORARY check that only lambda-bound variables can appear in code *)
       if k <> KTerm then
         mismatch env KTerm k

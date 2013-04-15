@@ -62,19 +62,14 @@ let unqualify = function
 ;;
 
 let resolve_datacon
-    (kenv: KindCheck.env)
+    (env: KindCheck.env)
     (datacon: Datacon.name maybe_qualified): SurfaceSyntax.datacon_info * T.resolved_datacon
     =
   try
-    let _, origin = List.find (fun (dc, _) -> qualified_equals datacon dc) kenv.known_datacons in
-    begin match origin with
-    | InAnotherModule (p, info) ->
-        info, (T.TyOpen p, unqualify datacon)
-    | InCurrentModule (level, info) ->
-        info, (T.TyBound (kenv.level - level - 1), unqualify datacon)
-    end
+    let _, v, info = List.find (fun (dc, _, _) -> qualified_equals datacon dc) env.known_datacons in
+    info, (tvar v env, unqualify datacon)
   with Not_found ->
-    raise_error kenv (UnboundDataConstructor (unqualify datacon))
+    raise_error env (UnboundDataConstructor (unqualify datacon))
 ;;
 
 let resolve_datacon env dref =
@@ -230,7 +225,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
       T.TyEmpty
 
   | TyVar (Unqualified x) ->
-      tvar x env
+      tvar (find_var x env) env
 
   | TyVar (Qualified (mname, x)) ->
       T.TyOpen (T.point_by_name env.env ~mname x)
@@ -315,7 +310,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyNameIntro (x, t) ->
       (* [x: t] translates into [(=x | x@t)] -- with [x] bound somewhere above
          us. *)
-      let x = tvar x env in
+      let x = tvar (find_var x env) env in
       T.TyBar (
         T.TySingleton x,
         T.TyAnchoredPermission (x, translate_type env t)
@@ -740,7 +735,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       E.EConstraint (e, t)
 
   | EVar (Unqualified x) ->
-      evar x env
+      evar (find_var x env) env
 
   | EVar (Qualified (mname, x)) ->
       E.EOpen (T.point_by_name env.env ~mname x)
