@@ -161,7 +161,7 @@ let empty (env: T.env): env =
 type error = env * raw_error
 
 and raw_error =
-  | Unbound of Variable.name
+  | Unbound of string
   | Mismatch of kind * kind
   | ArityMismatch of (* expected: *) int * (* provided: *) int
   | BoundTwice of Variable.name
@@ -227,9 +227,7 @@ let print_error buf (env, raw_error) =
   (* Print the error message. *)
   begin match raw_error with
   | Unbound x ->
-      bprintf
-        "Unbound identifier %a"
-        Variable.p x
+      bprintf "Unbound identifier: %s" x
   | Mismatch (expected_kind, inferred_kind) ->
       let _, inferred = Kind.as_arrow inferred_kind in
       let _, expected = Kind.as_arrow expected_kind in
@@ -360,12 +358,24 @@ let karrow bindings kind =
 
 (* Working with environments *)
 
-(* [find x env] looks up the name [x] in the environment [env]. *)
+let location env =
+  env.location
+
+let module_name env =
+  T.module_name env.env
+
+(* [find x env] looks up the possibly-qualified name [x] in the environment [env]. *)
 let find x env : kind * var =
   try
-    M.find x env.mapping
+    begin match x with
+    | Unqualified x ->
+        M.find x env.mapping
+    | Qualified (mname, x) ->
+        let p = T.point_by_name env.env ~mname x in
+	T.get_kind env.env p, NonLocal p
+    end
   with Not_found ->
-    unbound env x
+    unbound env (print_maybe_qualified Variable.print x)
 
 let find_kind x env : kind =
   let kind, _ = find x env in
@@ -379,14 +389,14 @@ let find_var x env : var =
 let level2index env level =
   env.level - level - 1
 
-(* [tvar v env] transforms the variable [v] into a type variable in
-   the internal syntax. *)
+(* [tvar v env] transforms the variable [v] into a type variable
+   in the internal syntax. *)
 let tvar v env : T.typ =
   match v with
   |    Local level -> T.TyBound (level2index env level)
   | NonLocal v     -> T.TyOpen v
 
-(* [tvar v env] transforms the variable [v] into an expression variable
+(* [evar v env] transforms the variable [v] into an expression variable
    in the internal syntax. *)
 let evar v env =
   match v with
@@ -406,12 +416,10 @@ let bind_external env (x, kind, p): env =
   { env with mapping = M.add x (kind, NonLocal p) env.mapping }
 ;;
 
-let bind_datacon env dc level info =
-  { env with known_datacons = (Unqualified dc, Local level, info) :: env.known_datacons }
-;;
-
-let bind_external_datacon env dc point info =
-  { env with known_datacons = (Unqualified dc, NonLocal point, info) :: env.known_datacons }
+(* [dc] is the unqualified data constructor, [v] is the data type
+   that it is associated with. *)
+let bind_datacon env dc (v : var) info =
+  { env with known_datacons = (Unqualified dc, v, info) :: env.known_datacons }
 ;;
 
 (* Find in [tsenv.env] all the names exported by module [mname], and add them to our
@@ -449,16 +457,6 @@ let find_datacon env (datacon : Datacon.name maybe_qualified) : SurfaceSyntax.da
     info, (tvar v env, unqualify datacon)
   with Not_found ->
     raise_error env (UnboundDataConstructor (unqualify datacon))
-
-let kind_external env mname x =
-  let open T in
-  try
-    let { env; _ } = env in
-    let p = point_by_name env ~mname x in
-    get_kind env p
-  with Not_found ->
-    unbound env (Variable.register (Module.print mname ^ "::" ^ Variable.print x))
-;;
 
 (* [locate env p] extends [env] with the provided location information. *)
 let locate env p : env =
@@ -715,10 +713,7 @@ and infer (env: env) (t: typ) =
   | TyEmpty ->
       KPerm
 
-  | TyVar (Qualified (mname, x)) ->
-      kind_external env mname x
-
-  | TyVar (Unqualified x) ->
+  | TyVar x ->
       find_kind x env
 
   | TyConcrete (branch, clause) ->
@@ -768,7 +763,7 @@ and infer (env: env) (t: typ) =
       KPerm
 
   | TyNameIntro (x, t) ->
-      assert (find_kind x env = KTerm);
+      assert (find_kind (Unqualified x) env = KTerm);
       infer env t
 
   | TyConsumes t ->
@@ -880,7 +875,7 @@ let rec check_pattern (env: env) (pattern: pattern) =
       Log.debug "check_type_with_names";
       check_type_with_names env t KType
   | PVar x ->
-      assert (find_kind x env = KTerm)
+      assert (find_kind (Unqualified x) env = KTerm)
   | PTuple patterns ->
       List.iter (check_pattern env) patterns
   | PConstruct (_, name_pats) ->
@@ -923,15 +918,9 @@ and check_expression (env: env) (expr: expression) =
       check_expression env e;
       check_type_with_names env t KType
 
-  (* TEMPORARY share the following two cases *)
-  | EVar (Unqualified x) ->
+  | EVar x ->
       let k = find_kind x env in
       (* TEMPORARY check that only lambda-bound variables can appear in code *)
-      if k <> KTerm then
-        mismatch env KTerm k
-
-  | EVar (Qualified (mname, x)) ->
-      let k = kind_external env mname x in
       if k <> KTerm then
         mismatch env KTerm k
 

@@ -37,12 +37,11 @@ open Utils
 module T = TypeCore
 module E = Expressions
 
-
 (* -------------------------------------------------------------------------- *)
 
-(* We need to tell the next AST which names are used provided and which are
+(* We wish to record which names are user-provided and which are
  * auto-generated. *)
-let name_user = fun env (x, k, l) -> (T.User (T.module_name env.env, x), k, l);;
+let name_user = fun env (x, k, l) -> (T.User (module_name env, x), k, l);;
 let name_auto = fun (x, k, l) -> (T.Auto x, k, l);;
 
 let resolve_datacon env dref =
@@ -134,7 +133,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
           List.partition (function TyConsumes _ -> true | _ -> false) perms
         in
         let consumed =
-          List.map (function TyConsumes p -> None, p, env.location | _ -> assert false) consumed
+          List.map (function TyConsumes p -> None, p, location env | _ -> assert false) consumed
         in
         let p = fold_star kept in
         (* Minimal cleanup. *)
@@ -146,7 +145,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
         let c = TyVar (Unqualified name) in
         let perm = TyAnchoredPermission (c, t) in
 	TySingleton c,
-        [Some name, perm, env.location]
+        [Some name, perm, location env]
 
     | TyUnknown
     | TyDynamic
@@ -197,11 +196,8 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyEmpty ->
       T.TyEmpty
 
-  | TyVar (Unqualified x) ->
+  | TyVar x ->
       tvar (find_var x env) env
-
-  | TyVar (Qualified (mname, x)) ->
-      T.TyOpen (T.point_by_name env.env ~mname x)
 
   | TyConcrete ((dref, fields), clause) ->
       (* Performs a side-effect! *)
@@ -283,7 +279,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyNameIntro (x, t) ->
       (* [x: t] translates into [(=x | x@t)] -- with [x] bound somewhere above
          us. *)
-      let x = tvar (find_var x env) env in
+      let x = tvar (find_var (Unqualified x) env) env in
       T.TyBar (
         T.TySingleton x,
         T.TyAnchoredPermission (x, translate_type env t)
@@ -388,7 +384,7 @@ and translate_arrow_type env t1 t2 =
    * the returned type. Note: this variable name is not lexable, so no risk
    * of conflict. *)
   let root = fresh_var "/root" in
-  let root_binding = root, KTerm, env.location in
+  let root_binding = root, KTerm, location env in
   let root_var = TyVar (Unqualified root) in
 
   (* We now turn the argument into (=root | root @ t1 ∗ c @ … ∗ …) with [t1]
@@ -487,6 +483,7 @@ let translate_fact (params: Variable.name list) (fact: fact): Fact.fact =
   )
 
 let translate_data_type_def (env: env) (data_type_def: data_type_def) =
+  let loc = location env in
   match data_type_def with
   | Concrete (flavor, (name, the_params), branches, adopts_clause) ->
       let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
@@ -501,7 +498,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
        * actual variance. *)
       let variance = List.map (fun (v, _) -> v) the_params in
       T.({ data_name = name;
-        data_location = env.location;
+        data_location = loc;
         data_definition = Concrete branches;
         data_variance = variance;
         data_fact = fact;
@@ -512,7 +509,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
       let fact = translate_fact (fst (List.split params)) fact in
       let variance = List.map (fun (v, _) -> v) the_params in
       T.({ data_name = name;
-        data_location = env.location;
+        data_location = loc;
         data_definition = Abstract;
         data_variance = variance;
         data_fact = fact;
@@ -526,7 +523,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
       let variance = List.map (fun (v, _) -> v) the_params in
       let t = translate_type_with_names env t in
       T.({ data_name = name;
-        data_location = env.location;
+        data_location = loc;
         data_definition = Abbrev t;
         data_variance = variance;
         data_fact = fact;
@@ -539,13 +536,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
 let bind_datacons env data_type_group =
   List.fold_left (fun env -> function
     | Concrete (_, (name, _), rhs, _) ->
-        let bind =
-          match M.find name env.mapping with
-          | _, Local level ->
-              fun env dc fields -> bind_datacon env dc level fields
-          | _, NonLocal point ->
-              fun env dc fields -> bind_external_datacon env dc point fields
-        in
+        let v : var = find_var (Unqualified name) env in
         MzList.fold_lefti (fun i env (dc, fields) ->
           (* We're building information for the interpreter: drop the
            * permission fields. *)
@@ -553,7 +544,7 @@ let bind_datacons env data_type_group =
             | FieldValue (name, _) -> Some name
             | FieldPermission _ -> None
           ) fields in
-          bind env dc (mkdatacon_info dc i fields)
+          bind_datacon env dc v (mkdatacon_info dc i fields)
         ) env rhs
     | Abbrev _
     | Abstract _ ->
@@ -639,7 +630,7 @@ let clean_pattern pattern =
         let pattern, annotation = clean_pattern env pattern in
         if annotation <> TyUnknown then
           (* TODO provide a real error reporting mechanism for this module *)
-          Log.warn "%a nested type annotations are forbidden" Lexer.p env.location;
+          Log.warn "%a nested type annotations are forbidden" Lexer.p (location env);
         pattern, typ
 
     | PAs (pattern, var) ->
@@ -659,7 +650,7 @@ let clean_pattern pattern =
 
 let rec translate_pattern env = function
   | PVar x ->
-      E.PVar (x, env.location)
+      E.PVar (x, location env)
   | PTuple ps ->
       E.PTuple (List.map (translate_pattern env) ps)
   | PConstruct (datacon, fieldpats) ->
@@ -707,11 +698,8 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let t = translate_type_with_names env t in
       E.EConstraint (e, t)
 
-  | EVar (Unqualified x) ->
+  | EVar x ->
       evar (find_var x env) env
-
-  | EVar (Qualified (mname, x)) ->
-      E.EOpen (T.point_by_name env.env ~mname x)
 
   | EBuiltin b ->
       E.EBuiltin b
