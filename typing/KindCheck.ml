@@ -53,9 +53,6 @@ type var =
        Local of level
   | NonLocal of T.var
 
-let tvar = function Local x -> T.TyBound x | NonLocal x -> T.TyOpen x;;
-let evar = function Local x -> E.EVar x | NonLocal x -> E.EOpen x;;
-
 type datacon_origin =
   | InCurrentModule of level * SurfaceSyntax.datacon_info
   | InAnotherModule of T.var * SurfaceSyntax.datacon_info
@@ -367,25 +364,37 @@ let karrow bindings kind =
 
 (* Working with environments *)
 
-type fragment =
-    kind M.t
-
-(* [find x env] looks up the name [x] in the environment [env] and returns a
-   pair of a kind and a de Bruijn index (not a de Bruijn level!). *)
-let find x env =
+(* [find x env] looks up the name [x] in the environment [env]. *)
+let find x env : kind * var =
   try
-    let kind, level = M.find x env.mapping in
-    let level =
-      match level with
-      | Local level ->
-          Local (env.level - level - 1)
-      | NonLocal _ ->
-          level
-    in
-    kind, level
+    M.find x env.mapping
   with Not_found ->
     unbound env x
-;;
+
+(* [level2index] converts a de Bruijn level to a de Bruijn index. *)
+let level2index env level =
+  env.level - level - 1
+
+(* [tvar x env] looks up the name [x] in the environment [env] and
+   returns a type variable in the internal syntax. *)
+let tvar x env =
+  let _, v = find x env in
+  match v with
+  |    Local level -> T.TyBound (level2index env level)
+  | NonLocal v     -> T.TyOpen v
+
+(* [tvar x env] looks up the name [x] in the environment [env] and
+   returns an expression variable in the internal syntax. *)
+let evar x env =
+  let _, v = find x env in
+  match v with
+  |    Local level -> E.EVar (level2index env level)
+  | NonLocal v     -> E.EOpen v
+
+(* [find] is now re-defined to return only a kind. *)
+let find x env : kind =
+  let kind, _ = find x env in
+  kind
 
 (* [bind env (x, kind)] binds the name [x] with kind [kind]. *)
 let bind env (x, kind) : env =
@@ -702,8 +711,7 @@ and infer (env: env) (t: typ) =
       kind_external env mname x
 
   | TyVar (Unqualified x) ->
-      let kind, _index = find x env in
-      kind
+      find x env
 
   | TyConcrete (branch, clause) ->
       check_branch env branch;
@@ -752,7 +760,7 @@ and infer (env: env) (t: typ) =
       KPerm
 
   | TyNameIntro (x, t) ->
-      ignore (find x env);
+      assert (find x env = KTerm);
       infer env t
 
   | TyConsumes t ->
@@ -864,7 +872,7 @@ let rec check_pattern (env: env) (pattern: pattern) =
       Log.debug "check_type_with_names";
       check_type_with_names env t KType
   | PVar x ->
-      ignore (find x env)
+      assert (find x env = KTerm)
   | PTuple patterns ->
       List.iter (check_pattern env) patterns
   | PConstruct (_, name_pats) ->
@@ -907,8 +915,9 @@ and check_expression (env: env) (expr: expression) =
       check_expression env e;
       check_type_with_names env t KType
 
+  (* TEMPORARY share the following two cases *)
   | EVar (Unqualified x) ->
-      let k, _ = find x env in
+      let k = find x env in
       (* TEMPORARY check that only lambda-bound variables can appear in code *)
       if k <> KTerm then
         mismatch env KTerm k

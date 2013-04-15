@@ -230,8 +230,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
       T.TyEmpty
 
   | TyVar (Unqualified x) ->
-      let _, index = find x env in
-      tvar index
+      tvar x env
 
   | TyVar (Qualified (mname, x)) ->
       T.TyOpen (T.point_by_name env.env ~mname x)
@@ -316,10 +315,10 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyNameIntro (x, t) ->
       (* [x: t] translates into [(=x | x@t)] -- with [x] bound somewhere above
          us. *)
-      let _, index = find x env in
+      let x = tvar x env in
       T.TyBar (
-        T.TySingleton (tvar index),
-        T.TyAnchoredPermission (tvar index, translate_type env t)
+        T.TySingleton x,
+        T.TyAnchoredPermission (x, translate_type env t)
       )
 
   | TyConsumes _ ->
@@ -741,8 +740,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       E.EConstraint (e, t)
 
   | EVar (Unqualified x) ->
-      let _, index = find x env in
-      evar index
+      evar x env
 
   | EVar (Qualified (mname, x)) ->
       E.EOpen (T.point_by_name env.env ~mname x)
