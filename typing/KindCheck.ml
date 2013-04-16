@@ -120,22 +120,30 @@ let empty (env: T.env): env =
             names
           in
           let mname = Option.extract mname in
-          (* Build the entries for [known_datacons]. *)
-          MzList.fold_lefti (fun i accu branch ->
-	    let dc = branch.branch_datacon
-	    and fields = branch.branch_fields in
-            (* We're building information for the interpreter: drop the
-             * permission fields. *)
-            let fields = MzList.map_some (function
-              | FieldValue (name, _) -> Some name
-              | FieldPermission _ -> None
-            ) fields in
-            (* Now the info structure is ready. *)
-            let info = mkdatacon_info dc i fields in
-            (* This data constructor will be initially accessible only in a
-             * qualified manner. *)
-	    D.extend_qualified mname dc (NonLocal var, info) accu
-          ) accu def
+	  (* In principle, we should be called with an environment [env] that
+	     does not contain any information about the *current* module.
+	     However, some callers do not respect this convention (...) so
+	     we must be careful to ignore any data constructors that are
+	     qualified with the name of the current module. Argh. *)
+	  if Module.equal mname (module_name env) then
+	    accu
+	  else
+	    (* Build the entries for [known_datacons]. *)
+	    MzList.fold_lefti (fun i accu branch ->
+	      let dc = branch.branch_datacon
+	      and fields = branch.branch_fields in
+	      (* We're building information for the interpreter: drop the
+	       * permission fields. *)
+	      let fields = MzList.map_some (function
+		| FieldValue (name, _) -> Some name
+		| FieldPermission _ -> None
+	      ) fields in
+	      (* Now the info structure is ready. *)
+	      let info = mkdatacon_info dc i fields in
+	      (* This data constructor will be initially accessible only in a
+	       * qualified manner. *)
+	      D.extend_qualified mname dc (NonLocal var, info) accu
+	    ) accu def
       | _ ->
           accu
   ) D.empty
