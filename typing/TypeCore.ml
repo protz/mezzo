@@ -1288,6 +1288,7 @@ let point_by_name (env: env) ?(mname: Module.name option) (name: Variable.name):
   let mname = Option.map_none env.module_name mname in
   let module T = struct exception Found of point end in
   try
+    (* TEMPORARY this looks really slow to me... *)
     internal_fold env (fun () point ({ names; _ }, _binding) ->
       if List.exists (names_equal (User (mname, name))) names then
         raise (T.Found point)) ();
