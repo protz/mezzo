@@ -30,11 +30,7 @@ end) : Namespace with type name = I.name = struct
   }
 
   let lookup_local (x : name) (env : 'a local_env) : 'a =
-    try
-      I.Map.find x env
-    with Not_found ->
-      (* This name is undefined. *)
-      Log.error "Internal failure: undefined variable or data constructor: %s" (I.print x)
+    I.Map.find x env
 
   let extend_local (x : name) (a : 'a) (env : 'a local_env) : 'a local_env =
     I.Map.add x a env
@@ -93,7 +89,14 @@ end) : Namespace with type name = I.name = struct
 
   let qualify (m : Module.name) (x : name) (env : 'a global_env) : 'a global_env =
     (* Look up the unqualified name [x]. *)
-    let a = lookup_unqualified x env in
+    let a =
+      try
+	lookup_unqualified x env
+      with Not_found ->
+        (* This name is undefined. *)
+        Log.warn "Internal failure: undefined variable or data constructor: %s" (I.print x);
+	assert false
+    in
     (* Add a binding to the same value for [m::x]. *)
     extend_qualified m x a env
 

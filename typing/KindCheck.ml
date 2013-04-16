@@ -287,7 +287,7 @@ let print_error buf (env, raw_error) =
         Variable.p x
   | UnboundDataConstructor d ->
       bprintf
-        "The data constructor %a is not bound to any type"
+        "Unknown data constructor: %a"
         Datacon.p d
   | FieldMismatch (datacon, missing, extra) ->
       bprintf

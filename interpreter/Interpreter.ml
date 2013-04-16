@@ -215,7 +215,11 @@ let empty : env = {
    field, and look up the environment that the interpreter has constructed. *)
 
 let resolve_datacon_reference (dref : datacon_reference) (env : env) : datacon_info =
-  D.lookup_maybe_qualified dref.datacon_unresolved env.datacons
+  try
+    D.lookup_maybe_qualified dref.datacon_unresolved env.datacons
+  with Not_found ->
+    (* Unknown data constructor. *)
+    assert false
 
 (* Extending the environment with a new unqualified variable. *)
 
@@ -298,7 +302,13 @@ let boolean_value datacon env =
      This implies that the primitive operations which manufacture a
      Boolean result cannot be defined in the module [bool], but only
      in a later module. *)
-  let info = D.lookup_qualified bool datacon env.datacons in
+  let info =
+    try
+      D.lookup_qualified bool datacon env.datacons
+    with Not_found ->
+      (* Unknown data constructor. *)
+      assert false
+  in
   VAddress { tag = info; adopter = None; fields = [||] }
 
 let false_value =
@@ -561,7 +571,12 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
       eval env loc e
 
   | EVar x ->
-      V.lookup_maybe_qualified x env.variables
+      begin try
+	V.lookup_maybe_qualified x env.variables
+      with Not_found ->
+	(* Unknown variable. *)
+	assert false
+      end
 
   (* Most builtin expressions produce a builtin value (a function), but some
      builtin expressions produce a value of some other nature. *)

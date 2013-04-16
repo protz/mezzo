@@ -14,19 +14,19 @@ module type Namespace = sig
   (* An empty global environment. *)
   val empty: 'a global_env
 
-  (* Looking up an unqualified name. *)
+  (* Looking up an unqualified name. May raise [Not_found]. *)
   val lookup_unqualified: name -> 'a global_env -> 'a
 
   (* Extending the environment with an unqualified name. *)
   val extend_unqualified: name -> 'a -> 'a global_env -> 'a global_env
 
-  (* Looking up a qualified name. *)
+  (* Looking up a qualified name. May raise [Not_found]. *)
   val lookup_qualified: Module.name -> name -> 'a global_env -> 'a
 
   (* Extending the environment with a qualified name. *)
   val extend_qualified: Module.name -> name -> 'a -> 'a global_env -> 'a global_env
 
-  (* Looking up a possibly qualified name. *)
+  (* Looking up a possibly qualified name. May raise [Not_found]. *)
   val lookup_maybe_qualified: name SurfaceSyntax.maybe_qualified -> 'a global_env -> 'a
 
   (* Create a qualified version of an unqualified name. *)
