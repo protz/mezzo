@@ -337,6 +337,10 @@ val bind_flexible: env -> type_binding -> env * var
  * [mname] can be either the current module name, or some other module name. *)
 val get_exports: env -> Module.name -> (Variable.name * kind * var) list
 
+(** [get_external_names env] lists the qualified names exported by all modules
+    other than the current module. *)
+val get_external_names: env -> (Module.name * Variable.name * kind * var) list
+
 (** [point_by_name env ?mname x] finds name [x] as exported by module [mname]
  * (default: [module_name env]) in [env]. *)
 val point_by_name: env -> ?mname:Module.name -> Variable.name -> var

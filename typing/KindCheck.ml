@@ -44,7 +44,11 @@ type var =
        Local of level
   | NonLocal of T.var
 
-(* This data structure is used to keep track of the known data constructors. *)
+(* These data structures are used to keep track of the known variables and data
+   constructors. *)
+
+module V =
+  InterpreterNamespace.MakeNamespace(Variable)
 
 module D =
   InterpreterNamespace.MakeNamespace(Datacon)
@@ -70,6 +74,9 @@ type env = {
    * implementation against its interface but the bottom line is: only use this
    * environment for your dependencies on other modules). *)
   env: T.env; (* BOO *)
+  
+  (* TEMPORARY *)
+  variables: (kind * var) V.global_env;
 
   (* If the data constructor belongs to another module, that module's signature
    * has been imported in [env] and the definition which the data constructor
@@ -103,6 +110,14 @@ let mkdatacon_info dc i fields =
 (* The empty environment. *)
 
 let empty (env: T.env): env =
+
+  (* TEMPORARY comment *)
+  let variables =
+    List.fold_left (fun accu (m, x, kind, v) ->
+      V.extend_qualified m x (kind, NonLocal v) accu
+    ) V.empty (T.get_external_names env)
+  in
+
   (* Build a table of the initially available data constructors: these are
      the data constructors that exist in [env] and have been defined in a
      module other than the current module. They are accessible via their
@@ -125,6 +140,7 @@ let empty (env: T.env): env =
     mapping = Variable.Map.empty;
     location = dummy_loc;
 (* BOO *)   env;
+    variables;
     datacons;
   }
 
@@ -340,10 +356,11 @@ let find env x : kind * var =
     begin match x with
     | Unqualified x ->
         Variable.Map.find x env.mapping
-    | Qualified (mname, x) ->
-        (* BOO *)
+    | Qualified _ ->
+        V.lookup_maybe_qualified x env.variables
+        (* BOO *) (*
         let p = T.point_by_name env.env ~mname x in
-	T.get_kind env.env p, NonLocal p
+	T.get_kind env.env p, NonLocal p *)
     end
   with Not_found ->
     unbound env (print_maybe_qualified Variable.print x)
@@ -417,6 +434,12 @@ let bind_datacons env data_type_group =
 (* Find in [tsenv.env] all the names exported by module [mname], and add them to our
  * own [tsenv]. *)
 let open_module_in (mname: Module.name) (env: env): env =
+
+(* TEMPORARY not yet ready; need to look up local names in env.variables
+   for this to make sense (i.e. get rid of env.mapping)
+  let env = { env with variables = V.unqualify mname env.variables } in
+*)
+
   (* Import all the names. *)
   let names = T.get_exports (* BOO *) env.env mname in
   let _ =

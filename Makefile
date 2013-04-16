@@ -33,7 +33,7 @@ clean:
 	$(OCAMLBUILD) -clean
 
 test: all
-	OCAMLRUNPARAM=b ./testsuite
+	OCAMLRUNPARAM=b time ./testsuite
 
 # Re-generate the TAGS file
 tags: all

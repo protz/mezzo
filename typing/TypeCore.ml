@@ -1301,6 +1301,19 @@ let get_exports env mname =
     ) acc names
   ) []
 
+(* Get all the names NOT from the current module found in [env]. *)
+let get_external_names env =
+  let mname = module_name env in
+  internal_fold env (fun acc point ({ names; kind; _ }, _) ->
+    List.fold_left (fun acc name ->
+      match name with
+      | User (m, x) when not (Module.equal m mname) ->
+	  (m, x, kind, VRigid point) :: acc
+      | _ ->
+	  acc
+    ) acc names
+  ) []
+
 let point_by_name (env: env) ?(mname: Module.name option) (name: Variable.name): var =
   let mname = Option.map_none env.module_name mname in
   let module T = struct exception Found of point end in
