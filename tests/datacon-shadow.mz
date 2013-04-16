@@ -1,0 +1,19 @@
+data mylist =
+  Nil
+| Cons { tail: mylist }
+
+val x =
+  Cons { tail = Nil }
+
+val rec length (x: mylist) : int =
+  if x then length x.tail else 0
+
+data mylist2 =
+  Nil
+| Cons { tail: mylist }
+
+val y =
+  Cons { tail = x }
+
+val n =
+  length y

@@ -291,6 +291,9 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
 ;;
 
 
+(* TEMPORARY MatchBadTuple and MatchBadDatacon should not produce a type
+   error; they should produce an inconsistent environment (hence cause
+   the whole branch to be skipped) if the intersection is empty *)
 let refine_perms_in_place_for_pattern env var pat =
   let rec refine env var pat =
     match pat with
