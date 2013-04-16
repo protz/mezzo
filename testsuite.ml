@@ -719,8 +719,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("union-find-nesting.mz", pass);
   ("union-find-dynamic.mz", pass);
 
-  (* ("landin.mz", pass); *)
-
   ("modules/simple.mz", pass);
 
   ("modules/simple2.mz", simple_test (Fail (function
@@ -932,6 +930,12 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("datacon-shadow.mz", fail);
   ("self.mz", fail);
 
+
+  (* The tests below are intentionally not run as they cause the type-checker to
+   * loop. We still want to list them as, eventually, we will want to fix them. *)
+  ("landin.mz", fun _ -> raise KnownFailure);
+  ("landin-variant.mz", fun _ -> raise KnownFailure);
+  ("cyclic-list.mz", fun _ -> raise KnownFailure);
 ];;
 
 let mz_files_in_directory (dir : string) : string list =
@@ -1011,7 +1015,8 @@ let _ =
   run "tests/" tests;
   Printf.printf "\n";
 
-  Printf.printf "%s%d%s tests run, " colors.blue (List.length tests) colors.default;
+  let n_tests = List.length tests + List.length corelib_tests + List.length stdlib_tests in
+  Printf.printf "%s%d%s tests run, " colors.blue n_tests colors.default;
   if !failed > 0 then
     let names_failed =
       match !names_failed with
