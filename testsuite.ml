@@ -925,6 +925,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("arraypoly-1.mz", pass);
   ("arraypoly-2.mz", fail);
   ("arraypoly-3.mz", fail);
+  ("arraypoly-kmp.mz", pass);
   ("export-names.mz", pass);
   ("double-datacon.mz", kfail);
   ("datacon-shadow.mz", fail);
