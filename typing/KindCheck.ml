@@ -17,8 +17,8 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(* [Note Jonathan: a clean version of the rules can be found in my
-   thesis noteboook, date June, 16th 2012]. *)
+(* Note by Jonathan: a clean version of the kind checking rules can be
+   found in my thesis noteboook, date June, 16th 2012. *)
 
 open Kind
 open SurfaceSyntax
@@ -27,11 +27,6 @@ module E = Expressions
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Maps of identifiers to things. *)
-
-module M =
-  Variable.Map
-
 (* A local identifier (one that is defined in the current module) is represented
    as a de Bruijn level (not to be confused with a de Bruijn index!). This is an
    implementation detail of [KindCheck] and does not affect its clients. *)
@@ -39,16 +34,17 @@ module M =
 type level =
     int
 
-(* An external identifier (one that comes from another module) is represented
+(* An external identifier (one that is defined in another module) is represented
    as a variable of type [TypeCore.var]. Think of it as a binder that has been
    opened already. *)
 
-(* A [var] is either a local name or a non-local name. *)
+(* Thus, for our purposes, a [var] is either a local name or a non-local name. *)
 
 type var =
        Local of level
   | NonLocal of T.var
 
+(* TEMPORARY comment *)
 module D =
   InterpreterNamespace.MakeNamespace(Datacon)
 
@@ -61,7 +57,7 @@ type env = {
   level: level;
 
   (* A mapping of identifiers to pairs of a kind and a variable. *)
-  mapping: (kind * var) M.t;
+  mapping: (kind * var) Variable.Map.t;
 
   (* The current start and end positions. *)
   location: Lexing.position * Lexing.position;
@@ -72,7 +68,7 @@ type env = {
    * for the field [module_name] (that's not entirely true if we're matching an
    * implementation against its interface but the bottom line is: only use this
    * environment for your dependencies on other modules). *)
-  env: T.env;
+  env: T.env; (* BOO *)
 
   (* If the data constructor belongs to another module, that module's signature
    * has been imported in [env] and the definition which the data constructor
@@ -85,8 +81,9 @@ type env = {
    * they're all stored here and this helps us maintain the invariant that they
    * are only created once.
    *
-   * This order counts (at least for unqualified items). *)
-  known_datacons: (Datacon.name maybe_qualified * var * SurfaceSyntax.datacon_info) list;
+   * This order counts (at least for unqualified items). *) (* TEMPORARY update *)
+  known_datacons: (Datacon.name SurfaceSyntax.maybe_qualified * var * SurfaceSyntax.datacon_info) list;
+  (* TEMPORARY (var * SurfaceSyntax.datacon_info) D.global_env; *)
 }
 
 let mkdatacon_info dc i fields =
@@ -147,9 +144,9 @@ let empty (env: T.env): env =
   ) []
   in {
     level = 0;
-    mapping = M.empty;
+    mapping = Variable.Map.empty;
     location = Lexing.dummy_pos, Lexing.dummy_pos;
-    env;
+(* BOO *)   env;
     known_datacons = initial_datacons;
   }
 ;;
@@ -188,7 +185,7 @@ let pkenv buf env =
   let open Types.TypePrinter in
   (* Uncomment this part to get a really verbose error message. *)
   Printf.bprintf buf "\n";
-  let bindings = M.fold (fun x (kind, level) acc ->
+  let bindings = Variable.Map.fold (fun x (kind, level) acc ->
     (level, (x, kind)) :: acc) env.mapping []
   in
   let bindings = List.sort (fun (x, _) (y, _) -> compare x y) bindings in
@@ -359,6 +356,7 @@ let location env =
   env.location
 
 let module_name env =
+  (* BOO *)
   T.module_name env.env
 
 (* [find env x] looks up the possibly-qualified name [x] in the environment [env]. *)
@@ -366,8 +364,9 @@ let find env x : kind * var =
   try
     begin match x with
     | Unqualified x ->
-        M.find x env.mapping
+        Variable.Map.find x env.mapping
     | Qualified (mname, x) ->
+        (* BOO *)
         let p = T.point_by_name env.env ~mname x in
 	T.get_kind env.env p, NonLocal p
     end
@@ -406,11 +405,11 @@ let bind env (x, kind) : env =
      then incremented. *)
   { env with
     level = env.level + 1;
-    mapping = M.add x (kind, Local env.level) env.mapping }
+    mapping = Variable.Map.add x (kind, Local env.level) env.mapping }
 ;;
 
 let bind_external env (x, kind, p): env =
-  { env with mapping = M.add x (kind, NonLocal p) env.mapping }
+  { env with mapping = Variable.Map.add x (kind, NonLocal p) env.mapping }
 ;;
 
 (* [dc] is the unqualified data constructor, [v] is the data type
@@ -444,7 +443,7 @@ let bind_datacons env data_type_group =
  * own [tsenv]. *)
 let open_module_in (mname: Module.name) (env: env): env =
   (* Import all the names. *)
-  let names = T.get_exports env.env mname in
+  let names = T.get_exports (* BOO *) env.env mname in
   let _ =
     let names = List.map (fun (x, _, _) -> Variable.print x) names in
     let names = String.concat ", " names in

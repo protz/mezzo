@@ -71,9 +71,11 @@ end) : Namespace with type name = I.name = struct
     else
       { env with modules = Module.Map.add m I.Map.empty env.modules }
 
-  let qualify (m : Module.name) (x : name) (env : 'a global_env) : 'a global_env =
-    (* Look up the unqualified name [x]. *)
-    let a = lookup_unqualified x env in
+  (* When used directly, this function may seem fishy, because we should
+     never need to add a single definition to an existing module. It is
+     used by [qualify] below. It is not used directly by the interpreter,
+     but is used by [KindCheck]. *)
+  let extend_qualified (m : Module.name) (x : name) (a : 'a) (env : 'a global_env) : 'a global_env =
     (* Look up the bindings for the module [m]. *)
     let menv =
       try
@@ -86,6 +88,12 @@ end) : Namespace with type name = I.name = struct
     assert (not (I.Map.mem x menv));
     (* Add a binding for [m::x]. *)
     { env with modules = Module.Map.add m (I.Map.add x a menv) env.modules }
+
+  let qualify (m : Module.name) (x : name) (env : 'a global_env) : 'a global_env =
+    (* Look up the unqualified name [x]. *)
+    let a = lookup_unqualified x env in
+    (* Add a binding to the same value for [m::x]. *)
+    extend_qualified m x a env
 
   let unqualify (m : Module.name) (env : 'a global_env) : 'a global_env =
     (* Check that this module is already defined. *)
