@@ -61,7 +61,7 @@ type env = {
   mapping: (kind * var) Variable.Map.t;
 
   (* The current start and end positions. *)
-  location: Lexing.position * Lexing.position;
+  location: location;
 
   (* [Driver] already discovered our dependencies for us, and processed them, so
    * [env] contains all the information about our dependencies. However, it
@@ -123,7 +123,7 @@ let empty (env: T.env): env =
   in {
     level = 0;
     mapping = Variable.Map.empty;
-    location = SurfaceSyntax.dummy_loc;
+    location = dummy_loc;
 (* BOO *)   env;
     datacons;
   }
