@@ -930,6 +930,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("export-names.mz", pass);
   ("double-datacon.mz", kfail);
   ("datacon-shadow.mz", fail);
+  ("self.mz", fail);
 
 ];;
 

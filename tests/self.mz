@@ -1,0 +1,4 @@
+val x = 3
+
+val y = self::x
+
