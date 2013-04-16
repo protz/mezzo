@@ -1291,19 +1291,15 @@ let fold_external_datacons env f acc =
 
 (* Get all the names from module [mname] found in [env]. *)
 let get_exports env mname =
-  let assoc =
-    internal_fold env (fun acc point ({ names; kind; _ }, _) ->
-      let canonical_names = MzList.map_some (function
-        | User (m, x) when Module.equal m mname ->
-            Some (x, kind)
-        | _ ->
-            None
-      ) names in
-      List.map (fun (x, k) -> x, k, VRigid point) canonical_names :: acc
-    ) []
-  in
-  List.flatten assoc
-;;
+  internal_fold env (fun acc point ({ names; kind; _ }, _) ->
+    List.fold_left (fun acc name ->
+      match name with
+      | User (m, x) when Module.equal m mname ->
+	  (x, kind, VRigid point) :: acc
+      | _ ->
+	  acc
+    ) acc names
+  ) []
 
 let point_by_name (env: env) ?(mname: Module.name option) (name: Variable.name): var =
   let mname = Option.map_none env.module_name mname in
