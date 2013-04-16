@@ -49,6 +49,9 @@ type var =
        Local of level
   | NonLocal of T.var
 
+module D =
+  InterpreterNamespace.MakeNamespace(Datacon)
+
 (* The environments defined here are used for kind checking and for translating
    types down to the core syntax. *)
 
@@ -358,8 +361,8 @@ let location env =
 let module_name env =
   T.module_name env.env
 
-(* [find x env] looks up the possibly-qualified name [x] in the environment [env]. *)
-let find x env : kind * var =
+(* [find env x] looks up the possibly-qualified name [x] in the environment [env]. *)
+let find env x : kind * var =
   try
     begin match x with
     | Unqualified x ->
@@ -371,12 +374,12 @@ let find x env : kind * var =
   with Not_found ->
     unbound env (print_maybe_qualified Variable.print x)
 
-let find_kind x env : kind =
-  let kind, _ = find x env in
+let find_kind env x : kind =
+  let kind, _ = find env x in
   kind
 
-let find_var x env : var =
-  let _, v = find x env in
+let find_var env x : var =
+  let _, v = find env x in
   v
 
 (* [level2index] converts a de Bruijn level to a de Bruijn index. *)
@@ -385,14 +388,14 @@ let level2index env level =
 
 (* [tvar v env] transforms the variable [v] into a type variable
    in the internal syntax. *)
-let tvar v env : T.typ =
+let tvar env v : T.typ =
   match v with
   |    Local level -> T.TyBound (level2index env level)
   | NonLocal v     -> T.TyOpen v
 
 (* [evar v env] transforms the variable [v] into an expression variable
    in the internal syntax. *)
-let evar v env =
+let evar env v =
   match v with
   |    Local level -> E.EVar (level2index env level)
   | NonLocal v     -> E.EOpen v
@@ -420,7 +423,7 @@ let bind_datacon env dc (v : var) info =
 let bind_datacons env data_type_group =
   List.fold_left (fun env -> function
     | Concrete (_, (name, _), rhs, _) ->
-        let v : var = find_var (Unqualified name) env in
+        let v : var = find_var env (Unqualified name) in
         MzList.fold_lefti (fun i env (dc, fields) ->
           (* We're building information for the interpreter: drop the
            * permission fields. *)
@@ -462,14 +465,14 @@ let open_module_in (mname: Module.name) (env: env): env =
   { env with known_datacons = mname_datacons @ env.known_datacons }
 ;;
 
-let find_datacon (datacon : Datacon.name maybe_qualified) env : SurfaceSyntax.datacon_info * T.resolved_datacon =
+let find_datacon env (datacon : Datacon.name maybe_qualified) : SurfaceSyntax.datacon_info * T.resolved_datacon =
   try
     let _, v, info =
       List.find (fun (dc, _, _) ->
 	maybe_qualified_equal Datacon.equal datacon dc
       ) env.known_datacons
     in
-    info, (tvar v env, unqualify datacon)
+    info, (tvar env v, unqualify datacon)
   with Not_found ->
     raise_error env (UnboundDataConstructor (unqualify datacon))
 
@@ -704,7 +707,7 @@ and infer (env: env) (t: typ) =
       KPerm
 
   | TyVar x ->
-      find_kind x env
+      find_kind env x
 
   | TyConcrete (branch, clause) ->
       (* TEMPORARY datacon is not checked here! *)
@@ -754,7 +757,7 @@ and infer (env: env) (t: typ) =
       KPerm
 
   | TyNameIntro (x, t) ->
-      assert (find_kind (Unqualified x) env = KTerm);
+      assert (find_kind env (Unqualified x) = KTerm);
       infer env t
 
   | TyConsumes t ->
@@ -866,7 +869,7 @@ let rec check_pattern (env: env) (pattern: pattern) =
       Log.debug "check_type_with_names";
       check_type_with_names env t KType
   | PVar x ->
-      assert (find_kind (Unqualified x) env = KTerm)
+      assert (find_kind env (Unqualified x) = KTerm)
   | PTuple patterns ->
       List.iter (check_pattern env) patterns
   | PConstruct (_, name_pats) ->
@@ -911,7 +914,7 @@ and check_expression (env: env) (expr: expression) =
       check_type_with_names env t KType
 
   | EVar x ->
-      let k = find_kind x env in
+      let k = find_kind env x in
       (* TEMPORARY check that only lambda-bound variables can appear in code *)
       if k <> KTerm then
         mismatch env KTerm k

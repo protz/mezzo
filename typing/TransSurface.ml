@@ -45,7 +45,7 @@ let name_user = fun env (x, k, l) -> (T.User (module_name env, x), k, l);;
 let name_auto = fun (x, k, l) -> (T.Auto x, k, l);;
 
 let resolve_datacon env dref =
-  let info, resolved_datacon = find_datacon dref.datacon_unresolved env in
+  let info, resolved_datacon = find_datacon env dref.datacon_unresolved in
   dref.datacon_info <- Some info;
   resolved_datacon
 ;;
@@ -197,7 +197,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
       T.TyEmpty
 
   | TyVar x ->
-      tvar (find_var x env) env
+      tvar env (find_var env x)
 
   | TyConcrete ((dref, fields), clause) ->
       (* Performs a side-effect! *)
@@ -275,7 +275,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyNameIntro (x, t) ->
       (* [x: t] translates into [(=x | x@t)] -- with [x] bound somewhere above
          us. *)
-      let x = tvar (find_var (Unqualified x) env) env in
+      let x = tvar env (find_var env (Unqualified x)) in
       T.TyBar (
         T.TySingleton x,
         T.TyAnchoredPermission (x, translate_type env t)
@@ -674,7 +674,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       E.EConstraint (e, t)
 
   | EVar x ->
-      evar (find_var x env) env
+      evar env (find_var env x)
 
   | EBuiltin b ->
       E.EBuiltin b

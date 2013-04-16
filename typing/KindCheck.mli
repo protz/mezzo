@@ -45,12 +45,12 @@ val locate: env -> SurfaceSyntax.location -> env
 
 val location: env -> SurfaceSyntax.location
 val module_name: env -> Module.name
-val find_var: Variable.name SurfaceSyntax.maybe_qualified -> env -> var
-val find_datacon: Datacon.name SurfaceSyntax.maybe_qualified -> env -> SurfaceSyntax.datacon_info * TypeCore.resolved_datacon
+val find_var: env -> Variable.name SurfaceSyntax.maybe_qualified -> var
+val find_datacon: env -> Datacon.name SurfaceSyntax.maybe_qualified -> SurfaceSyntax.datacon_info * TypeCore.resolved_datacon
 
 
-val tvar: var -> env -> TypeCore.typ
-val evar: var -> env -> Expressions.expression
+val tvar: env -> var -> TypeCore.typ
+val evar: env -> var -> Expressions.expression
 
 val names: env -> SurfaceSyntax.typ -> SurfaceSyntax.type_binding list
 val bindings_pattern: SurfaceSyntax.pattern -> (Variable.name * kind) list
