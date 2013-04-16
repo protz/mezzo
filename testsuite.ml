@@ -1011,7 +1011,8 @@ let _ =
   run "tests/" tests;
   Printf.printf "\n";
 
-  Printf.printf "%s%d%s tests run, " colors.blue (List.length tests) colors.default;
+  let n_tests = List.length tests + List.length corelib_tests + List.length stdlib_tests in
+  Printf.printf "%s%d%s tests run, " colors.blue n_tests colors.default;
   if !failed > 0 then
     let names_failed =
       match !names_failed with
