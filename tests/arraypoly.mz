@@ -131,7 +131,12 @@ val copy [a, m1, m2] duplicable a => (r: array m1 a) : array m2 a =
      fact that our arrays are exclusive and have an adopter field. *)
   unsafe_sub (r, 0, length r)
 
-val freeze [a, m] (consumes r: array m a) : (| r@iarray a) =
+val freeze [a, m] (consumes r: array m a) : (| r @ iarray a) =
+  magic::magic ()
+
+(* Internal function used to freeze or not a mutable array, depending on the
+ * returned permission *)
+val maybe_freeze [a, m] (consumes r: marray a) : (| r @ array m a) =
   magic::magic ()
 
 val append [a, m1, m2, m3] duplicable a => (r1: array m1 a, r2: array m2 a) :
@@ -409,9 +414,8 @@ val init [a, m, p : perm] (
   transform (s, r, fun (i: int, int | p) : a =
     f i
   );
-  (* Some magic to allow the client to choose between mutable and immutable
-   * without having to freeze afterwards. *)
-  magic::magic r
+  maybe_freeze r;
+  r
 
 (* Map. *)
 
@@ -611,6 +615,15 @@ val sort [a, p : perm] duplicable a => (
   r: marray a
   | p) : () =
   sort_initial_segment (cmp, r, length r)
+
+val sorted [a, m1, m2, p : perm] duplicable a => (
+  cmp: (a, a | p) -> int,
+  r: array m1 a
+  | p) : array m2 a =
+    let r = copy r in
+    sort (cmp, r);
+    maybe_freeze r;
+    r
 
 (* -------------------------------------------------------------------------- *)
 

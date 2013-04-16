@@ -264,6 +264,11 @@ val sort_initial_segment : [a, p : perm] duplicable a => (
   l: int
   | p) -> ()
 
+val sorted : [a, m1, m2, p : perm] duplicable a => (
+  cmp: (a, a | p) -> int,
+  r: array m1 a
+  | p) -> array m2 a
+
 (* -------------------------------------------------------------------------- *)
 
 (* Miscellaneous. *)
