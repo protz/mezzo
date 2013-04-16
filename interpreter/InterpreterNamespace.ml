@@ -85,7 +85,9 @@ end) : Namespace with type name = I.name = struct
 	I.Map.empty
     in
     (* Check that [m::x] is not defined already. *)
-    assert (not (I.Map.mem x menv));
+    assert (not (I.Map.mem x menv) || (
+      Log.warn "extend_qualified: %s::%s is already defined." (Module.print m) (I.print x); false
+    ));
     (* Add a binding for [m::x]. *)
     { env with modules = Module.Map.add m (I.Map.add x a menv) env.modules }
 

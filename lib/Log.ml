@@ -20,8 +20,12 @@
 exception MzInternalFailure of string
 
 let the_debug_level = ref 0
+
 let debug_level () = !the_debug_level
-let enable_debug level = the_debug_level := level
+
+let enable_debug level =
+  assert (level >= 0);
+  the_debug_level := level
 
 let debug ?level fmt =
   (* If no level is provided, the message is always displayed. *)
@@ -35,24 +39,20 @@ let debug ?level fmt =
 let warn_count = ref 0
 let warn x = incr warn_count; debug ~level:0 x
 
-let raise_level d f =
-  let l = !the_debug_level in
-  the_debug_level := !the_debug_level - d;
-  let r = f () in
-  the_debug_level := l;
-  r
+let raise_level delta f =
+  assert (delta >= 0);
+  let level = !the_debug_level in
+  the_debug_level := level + delta;
+  Utils.try_finally f (fun () ->
+    the_debug_level := level
+  )
 
 let silent f =
-  let l = !the_debug_level in
+  let level = !the_debug_level in
   the_debug_level := 0;
-  let r =
-    try f ()
-    with e ->
-      the_debug_level := l;
-      raise e
-  in
-  the_debug_level := l;
-  r
+  Utils.try_finally f (fun () ->
+    the_debug_level := level
+  )
 
 let msg fmt =
   Printf.kbprintf (fun buf ->

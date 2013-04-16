@@ -300,7 +300,7 @@ let check_implementation
          * that end polluting the resulting environment! So we only use that
          * "polluted" environment to perform interface-checking, we don't
          * actually return it to the driver, say, for printing. *)
-        Log.raise_level 5 (fun () -> check_interface env interface exports)
+        check_interface env interface exports
     | None ->
         env
   in
@@ -323,8 +323,7 @@ let check_implementation
        * polluted with internal names (the result of performing calls to
        * [Permissions.sub]), opening the same module twice may cause conflicts... *)
       let exports = TypeCore.get_exports env mname in
-      Log.raise_level 5 (fun () ->
-        ignore (check_interface output_env iface exports));
+      ignore (check_interface output_env iface exports)
     ) deps;
 
     env

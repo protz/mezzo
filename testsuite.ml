@@ -949,7 +949,6 @@ let stdlib_tests: (string * ((unit -> env) -> unit)) list =
 
 let _ =
   let open Bash in
-  Log.enable_debug (-1);
   Driver.add_include_dir (Filename.concat Configure.root_dir "corelib");
   Driver.add_include_dir (Filename.concat Configure.root_dir "stdlib");
   let failed = ref 0 in
