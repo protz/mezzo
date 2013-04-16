@@ -1236,9 +1236,7 @@ let bind_flexible env (name, kind, location) =
 (* Iterating on rigid variables. *)
 
 let internal_fold env f acc =
-  PersistentUnionFind.fold (fun acc k v ->
-    f acc k v)
-  acc env.state
+  PersistentUnionFind.fold f acc env.state
 ;;
 
 let fold env f acc =
