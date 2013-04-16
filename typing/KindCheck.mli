@@ -17,12 +17,16 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+(* This module implements a well-kindedness check for the types of the surface
+   language. It also offers the necessary building blocks for resolving names
+   (i.e. determining which definition each variable and data constructor refers
+   to) and translating types and expressions down to the internal syntax. *)
+
 open Kind
 
 type var
 type env
-type raw_error
-type error = env * raw_error
+type error
 exception KindError of error
 
 (* TEMPORARY try not to publish any of the functions that raise errors *)
@@ -37,9 +41,9 @@ val bind: env -> Variable.name * kind -> env
 val bind_external: env -> Variable.name * kind * TypeCore.var -> env
 val bind_datacons: env -> SurfaceSyntax.data_type_def list -> env
 val open_module_in: Module.name -> env -> env
-val locate: env -> Lexing.position * Lexing.position -> env
+val locate: env -> SurfaceSyntax.location -> env
 
-val location: env -> Lexing.position * Lexing.position
+val location: env -> SurfaceSyntax.location
 val module_name: env -> Module.name
 val find_var: Variable.name SurfaceSyntax.maybe_qualified -> env -> var
 val find_datacon: Datacon.name SurfaceSyntax.maybe_qualified -> env -> SurfaceSyntax.datacon_info * TypeCore.resolved_datacon

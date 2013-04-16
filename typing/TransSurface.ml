@@ -541,7 +541,7 @@ let translate_data_type_group
   : env * T.data_type_group
   =
 
-  let _loc, rec_flag, data_type_group = data_type_group in
+  let loc, rec_flag, data_type_group = data_type_group in
 
   let bindings = bindings_data_type_group data_type_group in
   (* The check for duplicate names has been performed already. *)
@@ -551,8 +551,8 @@ let translate_data_type_group
    * functions such as [bind] and [find] are defined already. *)
   let sub_env = List.fold_left bind env bindings in
 
-  (* Also bind the constructors, as we're performing a scope-check of data
-   * constructors in this module, while we're at it... *)
+  (* Also bind the constructors. *)
+  let env = locate env loc in
   let sub_env = bind_datacons sub_env data_type_group in
 
   (* First do the translation pass. *)

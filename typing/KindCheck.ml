@@ -17,8 +17,7 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(* This module implements a well-kindedness check for the types of the surface
-   language. [Note Jonathan: a clean version of the rules can be found in my
+(* [Note Jonathan: a clean version of the rules can be found in my
    thesis noteboook, date June, 16th 2012]. *)
 
 open Kind
@@ -708,6 +707,7 @@ and infer (env: env) (t: typ) =
       find_kind x env
 
   | TyConcrete (branch, clause) ->
+      (* TEMPORARY datacon is not checked here! *)
       check_branch env branch;
       Option.iter (fun t -> check env t KType) clause;
         (* If there is an [adopts] clause, we might wish to check that 
@@ -975,6 +975,7 @@ and check_expression (env: env) (expr: expression) =
       List.iter (check_expression env) exprs
 
   | EConstruct (_, field_exprs) ->
+      (* TEMPORARY datacon is not checked here! *)
       let _, exprs = List.split field_exprs in
       List.iter (check_expression env) exprs
 
@@ -1020,26 +1021,29 @@ let check_declaration_group (env: env) = function
 let check_implementation (tenv: T.env) (program: implementation) : unit =
   let env = empty tenv in
   let (_ : env) = List.fold_left (fun env -> function
-    | DataTypeGroup (p, rec_flag, data_type_group) ->
+    | DataTypeGroup (loc, rec_flag, data_type_group) ->
         (* Collect the names from the data type definitions, since they
          * will be made available in both the data type definitions themselves,
          * and the value definitions. All definitions in a data type groupe are
          * mutually recursive. *)
         let bindings = bindings_data_type_group data_type_group in
         check_for_duplicate_bindings env bindings;
-        (* Create an environment that includes those names. The strict parameter
-         * makes sure we don't bind the same name twice. Admittedly, we could do
-         * something better for error reporting. *)
-        let env = locate env p in
-        let sub_env = List.fold_left bind env bindings in
-
-        (* Check the data type definitions in the environment. *)
-        if rec_flag = Recursive then
-          check_data_type_group sub_env data_type_group
-        else
-          check_data_type_group env data_type_group;
-
-        sub_env
+        (* Create an environment that includes those names. *)
+        let env = locate env loc in
+        let extended_env = List.fold_left bind env bindings in
+	(* Also include the data constructors. *)
+	let extended_env = bind_datacons extended_env data_type_group in
+        (* Check the data type definitions in the appropriate environment. *)
+	let appropriate_env =
+	  match rec_flag with
+	  | Nonrecursive -> env
+	  | Recursive -> extended_env
+	in
+	check_data_type_group appropriate_env data_type_group;
+	(* Return the extended environment. *)
+        extended_env
+	  (* TEMPORARY there is code duplication between here and
+	     [TransSurface.translate_data_type_group] *)
 
     | ValueDeclarations declaration_group ->
         (* This function does everything at once and takes care of both binding
