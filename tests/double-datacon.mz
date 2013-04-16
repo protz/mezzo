@@ -1,0 +1,9 @@
+data t =
+  A
+| B
+
+val x = 3
+
+data u =
+  B
+

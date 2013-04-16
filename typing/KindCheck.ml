@@ -1058,7 +1058,8 @@ let check_implementation (tenv: T.env) (program: implementation) : unit =
 ;;
 
 let check_interface (tenv: T.env) (interface: interface) =
-  (* Check for duplicate variables. *)
+  (* Check for duplicate variables. A variable cannot be declared twice
+     in an interface file. *)
   let all_bindings = MzList.map_flatten (function
     | DataTypeGroup (_, _, data_type_group) ->
         bindings_data_type_group data_type_group
@@ -1070,8 +1071,10 @@ let check_interface (tenv: T.env) (interface: interface) =
         assert false
   ) interface in
   check_for_duplicate_variables fst all_bindings (bound_twice (empty tenv));
+    (* TEMPORARY this results in a dummy location *)
 
-  (* Check for duplicate data constructors. *)
+  (* Check for duplicate data constructors. A data constructor cannot be
+     declared twice in an interface file. *)
   let all_datacons = MzList.map_flatten (function
     | DataTypeGroup (_, _, data_type_group) ->
         MzList.map_flatten (function
@@ -1085,6 +1088,7 @@ let check_interface (tenv: T.env) (interface: interface) =
         []
   ) interface in
   check_for_duplicate_datacons fst all_datacons (duplicate_constructor (empty tenv));
+    (* TEMPORARY this results in a dummy location *)
 
   (* Do all the regular checks. *)
   check_implementation tenv interface

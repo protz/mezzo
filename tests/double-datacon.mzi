@@ -1,0 +1,9 @@
+data t =
+  A
+| B
+
+val x: int
+
+data u =
+  B
+
