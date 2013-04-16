@@ -1264,6 +1264,29 @@ let map env f =
   fold env (fun acc var -> f var :: acc) []
 ;;
 
+let fold_external_datacons env f acc =
+  fold_definitions env (fun acc var definition ->
+    let names = get_names env var in
+    (* We're only interested in things that signatures exported with their
+     * corresponding definitions. *)
+    match definition with
+    | Concrete def ->
+	(* Find the module name which this definition comes from. Yes, there's
+	 * no better way to do that. *)
+	let mname = MzList.find_opt (function User (mname, _) -> Some mname | _ -> None) names in
+	let mname = Option.extract mname in
+	(* Ignore this definition if it is associated with the current module. *)
+	if Module.equal mname (module_name env) then
+	  acc
+	else
+	  (* Iterate over the branches of this definition. *)
+	  MzList.fold_lefti (fun i acc branch ->
+	    f acc mname var i branch
+	  ) acc def
+    | _ ->
+	acc
+  ) acc
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Interface-related functions. *)

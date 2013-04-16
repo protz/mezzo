@@ -342,11 +342,7 @@ val get_exports: env -> Module.name -> (Variable.name * kind * var) list
 val point_by_name: env -> ?mname:Module.name -> Variable.name -> var
 
 (* Note: there is no direct way of listing the data constructors exported by
-   a module. Instead, one must list the variables exported by this module;
-   for each such variable, test whether it comes with an algebraic data type
-   definition; and list the data constructors that appear in this definition.
-   This is done in [KindCheck], which is in charge of resolving occurrences
-   of data constructors. *)
+   a module. *)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -361,8 +357,17 @@ val point_by_name: env -> ?mname:Module.name -> Variable.name -> var
  * Of course, we only fold over variables that have been opened in the current
  * environment. *)
 
-(** Fold over all opened types definitions. *)
+(** Fold over all opened type definitions. *)
 val fold_definitions: env -> ('acc -> var -> type_def -> 'acc) -> 'acc -> 'acc
+
+(** Fold over all external data constructor definitions, i.e. all data
+    constructors that are currently known but are defined outside the
+    current module. *)
+val fold_external_datacons:
+  env ->
+  ('acc -> Module.name -> var -> int -> unresolved_branch -> 'acc) ->
+  'acc ->
+  'acc
 
 (** Fold over all opened terms, providing the corresponding [var] and
  * permissions. *)

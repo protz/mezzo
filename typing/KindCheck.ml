@@ -44,7 +44,8 @@ type var =
        Local of level
   | NonLocal of T.var
 
-(* TEMPORARY comment *)
+(* This data structure is used to keep track of the known data constructors. *)
+
 module D =
   InterpreterNamespace.MakeNamespace(Datacon)
 
@@ -82,7 +83,7 @@ type env = {
    * are only created once.
    *
    * This order counts (at least for unqualified items). *) (* TEMPORARY update *)
-  known_datacons: (var * SurfaceSyntax.datacon_info) D.global_env;
+  datacons: (var * SurfaceSyntax.datacon_info) D.global_env;
 }
 
 let mkdatacon_info dc i fields =
@@ -102,61 +103,30 @@ let mkdatacon_info dc i fields =
 (* The empty environment. *)
 
 let empty (env: T.env): env =
-  (* We build the list of initially available data constructors: these are
-   * available through a [Qualified] prefix, and they are defined
-   * [InAnotherModule]. *)
-  let initial_datacons =
+  (* Build a table of the initially available data constructors: these are
+     the data constructors that exist in [env] and have been defined in a
+     module other than the current module. They are accessible via their
+     qualified name. *)
+  let datacons =
     let open T in
-    fold_definitions env (fun accu var definition ->
-      let names = get_names env var in
-      (* We're only interested in things that signatures exported with their
-       * corresponding definitions. *)
-      match definition with
-      | Concrete def ->
-          (* Find the module name which this definition comes from. Yes, there's
-           * no better way to do that. *)
-          let mname = MzList.find_opt
-            (function User (mname, _) -> Some mname | _ -> None)
-            names
-          in
-          let mname = Option.extract mname in
-	  (* In principle, we should be called with an environment [env] that
-	     does not contain any information about the *current* module.
-	     However, some callers do not respect this convention (...) so
-	     we must be careful to ignore any data constructors that are
-	     qualified with the name of the current module. Argh. *)
-	  if Module.equal mname (module_name env) then
-	    accu
-	  else
-	    (* Build the entries for [known_datacons]. *)
-	    MzList.fold_lefti (fun i accu branch ->
-	      let dc = branch.branch_datacon
-	      and fields = branch.branch_fields in
-	      (* We're building information for the interpreter: drop the
-	       * permission fields. *)
-	      let fields = MzList.map_some (function
-		| FieldValue (name, _) -> Some name
-		| FieldPermission _ -> None
-	      ) fields in
-	      (* Now the info structure is ready. *)
-	      let info = mkdatacon_info dc i fields in
-	      (* This data constructor will be initially accessible only in a
-	       * qualified manner. *)
-	      D.extend_qualified mname dc (NonLocal var, info) accu
-	    ) accu def
-      | _ ->
-          accu
-  ) D.empty
+    fold_external_datacons env (fun accu mname var i branch ->
+      let dc = branch.branch_datacon
+      and fields = branch.branch_fields in
+      (* Drop the permission fields. *)
+      let fields = MzList.map_some (function
+	| FieldValue (name, _) -> Some name
+	| FieldPermission _ -> None
+      ) fields in
+      let info = mkdatacon_info dc i fields in
+      D.extend_qualified mname dc (NonLocal var, info) accu
+    ) D.empty
   in {
     level = 0;
     mapping = Variable.Map.empty;
-    location = Lexing.dummy_pos, Lexing.dummy_pos;
+    location = SurfaceSyntax.dummy_loc;
 (* BOO *)   env;
-    known_datacons = initial_datacons;
+    datacons;
   }
-;;
-
-
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -420,7 +390,7 @@ let bind_external env (x, kind, p): env =
 (* [dc] is the unqualified data constructor, [v] is the data type
    that it is associated with. *)
 let bind_datacon env dc (v : var) info =
-  { env with known_datacons = D.extend_unqualified dc (v, info) env.known_datacons }
+  { env with datacons = D.extend_unqualified dc (v, info) env.datacons }
 ;;
 
 (* Bind all the data constructors from a data type group *)
@@ -460,12 +430,12 @@ let open_module_in (mname: Module.name) (env: env): env =
   (* The call to [freeze] is just a way of avoiding the failure
      in [unqualify] if this module does not exist, i.e. it exports
      no data constructors. *)
-  { env with known_datacons = D.unqualify mname (D.freeze mname env.known_datacons) }
+  { env with datacons = D.unqualify mname (D.freeze mname env.datacons) }
 ;;
 
 let find_datacon env (datacon : Datacon.name maybe_qualified) : SurfaceSyntax.datacon_info * T.resolved_datacon =
   try
-    let v, info = D.lookup_maybe_qualified datacon env.known_datacons in
+    let v, info = D.lookup_maybe_qualified datacon env.datacons in
     info, (tvar env v, unqualify datacon)
   with Not_found ->
     raise_error env (UnboundDataConstructor (unqualify datacon))
