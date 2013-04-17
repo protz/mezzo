@@ -61,30 +61,27 @@ type env = {
   (* The current de Bruijn level. *)
   level: level;
 
-  (* A mapping of identifiers to pairs of a kind and a variable. *)
+  (* A mapping of (qualified or unqualified) variable names to pairs of a kind
+     and a variable. *)
   variables: (kind * var) V.global_env;
 
-  (* If the data constructor belongs to another module, that module's signature
-   * has been imported in [env] and the definition which the data constructor
-   * belongs to will be found there (using the point).
-   *
-   * If the data constructor belongs to a data type defined in the current
-   * module, then it belongs to a type definition that has a De Bruijn level.
-   *
-   * Because we must maintain the physical identity of the [datacon_info]s,
-   * they're all stored here and this helps us maintain the invariant that they
-   * are only created once.
-   *
-   * This order counts (at least for unqualified items). *) (* TEMPORARY update *)
-  datacons: (var * SurfaceSyntax.datacon_info) D.global_env;
+  (* A mapping of (qualified or unqualified) data constructor names to... well,
+     for now, we keep a variable (the algebraic data type with which this data
+     constructor is associated) and a [datacon_info] record. TEMPORARY maybe we
+     could simplify this? The physical identity of the [datacon_info] records
+     matters (there must be one record per data constructor, no more). *)
+  datacons: (var * datacon_info) D.global_env;
 
-  (* The name of the current module. *)
+  (* The name of the current module. Not relevant for us, but this is used by
+     the function [TransSurface.name_user]. TEMPORARY? *)
   module_name: Module.name;
 
   (* The current start and end positions. *)
   location: location;
 
 }
+
+(* ---------------------------------------------------------------------------- *)
 
 let mkdatacon_info dc i fields =
   (* Create the map. *)
