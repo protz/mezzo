@@ -60,8 +60,8 @@ val bindings_data_type_group: SurfaceSyntax.data_type_def list -> (Variable.name
 val check_type_with_names: env -> SurfaceSyntax.typ -> kind -> unit
 val infer_type_with_names: env -> SurfaceSyntax.typ -> kind
 
-val check_implementation: TypeCore.env -> SurfaceSyntax.implementation -> unit
-val check_interface: TypeCore.env -> SurfaceSyntax.interface -> unit
+val check_implementation: env -> SurfaceSyntax.implementation -> unit
+val check_interface: env -> SurfaceSyntax.interface -> unit
 
 module KindPrinter : sig
   val pgroup: Buffer.t -> TypeCore.env * TypeCore.data_type_group -> unit

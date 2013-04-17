@@ -980,8 +980,7 @@ let check_declaration_group (env: env) = function
       Log.error "Unexpected shape for a [declaration_group]."
 ;;
 
-let check_implementation (tenv: T.env) (program: implementation) : unit =
-  let env = initial tenv in
+let check_implementation (env: env) (program: implementation) : unit =
   let (_ : env) = List.fold_left (fun env -> function
     | DataTypeGroup (loc, rec_flag, data_type_group) ->
         (* Collect the names from the data type definitions, since they
@@ -1023,7 +1022,7 @@ let check_implementation (tenv: T.env) (program: implementation) : unit =
   ()
 ;;
 
-let check_interface (tenv: T.env) (interface: interface) =
+let check_interface (env: env) (interface: interface) =
   (* Check for duplicate variables. A variable cannot be declared twice
      in an interface file. *)
   let all_bindings = MzList.map_flatten (function
@@ -1036,8 +1035,8 @@ let check_interface (tenv: T.env) (interface: interface) =
     | ValueDeclarations _ ->
         assert false
   ) interface in
-  check_for_duplicate_variables fst all_bindings (fun x -> bound_twice (initial tenv) x);
-    (* TEMPORARY this results in a dummy location; plus, calling [initial] is costly *)
+  check_for_duplicate_variables fst all_bindings (bound_twice env);
+    (* TEMPORARY this results in a dummy location *)
 
   (* Check for duplicate data constructors. A data constructor cannot be
      declared twice in an interface file. *)
@@ -1053,11 +1052,11 @@ let check_interface (tenv: T.env) (interface: interface) =
     | _ ->
         []
   ) interface in
-  check_for_duplicate_datacons fst all_datacons (fun x -> duplicate_constructor (initial tenv) x);
-    (* TEMPORARY this results in a dummy location; plus, calling [initial] is costly *)
+  check_for_duplicate_datacons fst all_datacons (duplicate_constructor env);
+    (* TEMPORARY this results in a dummy location *)
 
   (* Do all the regular checks. *)
-  check_implementation tenv interface
+  check_implementation env interface
 ;;
 
 (* ---------------------------------------------------------------------------- *)

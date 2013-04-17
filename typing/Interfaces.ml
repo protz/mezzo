@@ -31,8 +31,9 @@ module T = TypeCore
  * importing into some environment. *)
 let build_interface (env: TypeCore.env) (mname: Module.name) (iface: S.interface): T.env * E.interface =
   let env = TypeCore.set_module_name env mname in
-  KindCheck.check_interface env iface;
-  env, TransSurface.translate_interface env iface
+  let kenv = KindCheck.initial env in
+  KindCheck.check_interface kenv iface;
+  env, TransSurface.translate_interface kenv iface
 ;;
 
 (* Used by [Driver], to import the points from a desugared interface into

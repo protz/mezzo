@@ -915,14 +915,10 @@ let rec translate_items env = function
 (* [translate_implementation implementation] returns an
  * [Expressions.implementation], i.e. a desugared version of the entire
  * program. *)
-let translate_implementation (tenv: T.env) (program: toplevel_item list): E.implementation =
-  let env = KindCheck.initial tenv in
+let translate_implementation (env: env) (program: toplevel_item list): E.implementation =
   translate_items env program
-;;
 
 (* [translate_interface] is used by the Driver, before importing an interface
  * into scope. *)
-let translate_interface (tenv: T.env) (program: toplevel_item list): E.interface =
-  let env = KindCheck.initial tenv in
+let translate_interface (env: env) (program: toplevel_item list): E.interface =
   translate_items env program
-;;

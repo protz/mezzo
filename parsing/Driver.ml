@@ -166,7 +166,7 @@ let find_and_lex_implementation : Module.name -> SurfaceSyntax.implementation =
 (* Check a module against its interface. Not related to importing an interface
  * or anything. *)
 let check_interface env signature exports =
-  KindCheck.check_interface env signature;
+  KindCheck.check_interface (KindCheck.initial env) signature;
   (* It may very well be that [Interfaces.check] subsumes what
    * [KindCheck.check_interface] does. *)
   Interfaces.check env signature exports
@@ -193,8 +193,6 @@ let check_implementation
 
   let open Expressions in
 
-  let env = TypeCore.empty_env in
-
   (* Find all the dependencies... *)
   Log.debug ~level:2 "\n%s***%s Computing dependencies for %a"
     Bash.colors.Bash.yellow Bash.colors.Bash.default
@@ -210,16 +208,21 @@ let check_implementation
   Log.debug ~level:2 "\n%s***%s Importing the dependencies of %a in scope"
     Bash.colors.Bash.yellow Bash.colors.Bash.default
     Module.p mname;
+  let env = TypeCore.empty_env in
   let env = import_dependencies_in_scope env deps in
-
   let env = TypeCore.set_module_name env mname in
+
+  (* Build a kind-checking environment out of this type environment. We could
+     bypass this if we had a version of [import_dependencies_in_scope] that
+     constructed a kind-checking environment... TEMPORARY *)
+  let kenv = KindCheck.initial env in
 
   (* First pass of kind-checking; it checks for unbound variables and variables
    * with the wrong kind. *)
-  KindCheck.check_implementation env program;
+  KindCheck.check_implementation kenv program;
 
   (* We need to translate the program down to the internal syntax. *)
-  let program = TransSurface.translate_implementation env program in
+  let program = TransSurface.translate_implementation kenv program in
 
   (* [type_check] also returns a list of vars, with the property that if x
    * comes later than y in the file, then the var associated to x will come
