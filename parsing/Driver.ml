@@ -325,6 +325,9 @@ let check_implementation
        * [check_interface] has the nasty consequence that the [env] it returns is
        * polluted with internal names (the result of performing calls to
        * [Permissions.sub]), opening the same module twice may cause conflicts... *)
+      (* TEMPORARY this also creates problems when passing the polluted environment
+	 to [KindCheck.initial]. I suggest it would be simpler to just require that
+	 everything published in an interface be duplicable. *)
       let exports = TypeCore.get_exports env mname in
       ignore (check_interface output_env iface exports)
     ) deps;

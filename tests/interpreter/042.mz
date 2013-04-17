@@ -1,11 +1,11 @@
 (* Success: 7 *)
-val add (x : int) : int -> int =
-  fun (y : int) : int = x + y
+val add (un : int) : int -> int =
+  fun (deux : int) : int = un + deux
 val xs =
   list::cons (1, list::cons (2, list::nil))
 val ys =
   list::map (xs, add 2)
 val sum =
-  fun (x : int, y : int) : int = x + y
+  fun (uno : int, due : int) : int = uno + due
 val () =
   print (list::fold_left (sum, 0, ys))

@@ -947,13 +947,22 @@ let mz_files_in_directory (dir : string) : string list =
     Filename.check_suffix filename ".mz"
   ) filenames
 
+let tests_in_directory dir =
+  List.map (fun filename ->
+    filename, pass
+  ) (mz_files_in_directory (Configure.root_dir ^ "/" ^ dir))
+
 let corelib_tests: (string * ((unit -> env) -> unit)) list =
-  List.map (fun filename -> filename, pass) (mz_files_in_directory (Configure.root_dir ^ "/corelib"))
+  tests_in_directory "corelib"
 ;;
 
 let stdlib_tests: (string * ((unit -> env) -> unit)) list =
-  List.map (fun filename -> filename, pass) (mz_files_in_directory (Configure.root_dir ^ "/stdlib"))
+  tests_in_directory "stdlib"
 ;;
+
+let interpreter_tests =
+  tests_in_directory "tests/interpreter"
+
 
 let _ =
   let open Bash in
@@ -961,10 +970,14 @@ let _ =
   Driver.add_include_dir (Filename.concat Configure.root_dir "stdlib");
   let failed = ref 0 in
   let names_failed = ref [] in
+  let count = ref 0 in
+  let do_it_count = ref 0 in
   let run prefix tests =
     List.iter (fun (file, test) ->
       Log.warn_count := 0;
+      incr count;
       let do_it = fun () ->
+	incr do_it_count;
         let env = Driver.process (Filename.concat prefix file) in
         env
       in
@@ -1010,6 +1023,11 @@ let _ =
   run "stdlib/" stdlib_tests;
   Printf.printf "\n";
 
+  (* Check the interpreter tests. *)
+  center "~[ Interpreter Tests ]~";
+  run "tests/interpreter/" interpreter_tests;
+  Printf.printf "\n";
+
   (* Thrash the include path, and then do the unit tests. *)
   Options.no_auto_include := true;
   Driver.add_include_dir "tests";
@@ -1018,8 +1036,7 @@ let _ =
   run "tests/" tests;
   Printf.printf "\n";
 
-  let n_tests = List.length tests + List.length corelib_tests + List.length stdlib_tests in
-  Printf.printf "%s%d%s tests run, " colors.blue n_tests colors.default;
+  Printf.printf "%s%d%s tests listed (%d tests actually run), " colors.blue !count colors.default !do_it_count;
   if !failed > 0 then
     let names_failed =
       match !names_failed with
