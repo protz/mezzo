@@ -1,5 +1,3 @@
-open pervasives (* TEMPORARY *)
-
 (* An object of type [permission x a] is a runtime representation
    of a nonzero fractional permission for the reference cell [x],
    whose ``real'' type is [ref a]. *)

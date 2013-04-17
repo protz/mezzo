@@ -1,0 +1,4 @@
+open vide
+
+val x = 1
+

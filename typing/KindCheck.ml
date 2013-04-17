@@ -62,20 +62,6 @@ type env = {
   level: level;
 
   (* A mapping of identifiers to pairs of a kind and a variable. *)
-  mapping: (kind * var) Variable.Map.t;
-
-  (* The current start and end positions. *)
-  location: location;
-
-  (* [Driver] already discovered our dependencies for us, and processed them, so
-   * [env] contains all the information about our dependencies. However, it
-   * contains no information about the module that's being processed, except
-   * for the field [module_name] (that's not entirely true if we're matching an
-   * implementation against its interface but the bottom line is: only use this
-   * environment for your dependencies on other modules). *)
-  env: T.env; (* BOO *)
-  
-  (* TEMPORARY *)
   variables: (kind * var) V.global_env;
 
   (* If the data constructor belongs to another module, that module's signature
@@ -91,6 +77,13 @@ type env = {
    *
    * This order counts (at least for unqualified items). *) (* TEMPORARY update *)
   datacons: (var * SurfaceSyntax.datacon_info) D.global_env;
+
+  (* The name of the current module. *)
+  module_name: Module.name;
+
+  (* The current start and end positions. *)
+  location: location;
+
 }
 
 let mkdatacon_info dc i fields =
@@ -109,6 +102,13 @@ let mkdatacon_info dc i fields =
 
 (* The empty environment. *)
 
+  (* [Driver] already discovered our dependencies for us, and processed them, so
+   * [env] contains all the information about our dependencies. However, it
+   * contains no information about the module that's being processed, except
+   * for the field [module_name] (that's not entirely true if we're matching an
+   * implementation against its interface but the bottom line is: only use this
+   * environment for your dependencies on other modules). *)
+  
 let empty (env: T.env): env =
 
   (* TEMPORARY comment *)
@@ -137,11 +137,10 @@ let empty (env: T.env): env =
     ) D.empty
   in {
     level = 0;
-    mapping = Variable.Map.empty;
-    location = dummy_loc;
-(* BOO *)   env;
     variables;
     datacons;
+    module_name = T.module_name env;
+    location = dummy_loc;
   }
 
 (* ---------------------------------------------------------------------------- *)
@@ -172,31 +171,22 @@ let raise_error env e =
   raise (KindError (env, e))
 ;;
 
-let pkenv buf env =
-  let open Types.TypePrinter in
-  (* Uncomment this part to get a really verbose error message. *)
-  Printf.bprintf buf "\n";
-  let bindings = Variable.Map.fold (fun x (kind, level) acc ->
-    (level, (x, kind)) :: acc) env.mapping []
-  in
-  let bindings = List.sort (fun (x, _) (y, _) -> compare x y) bindings in
-  List.iter (fun (level, (x, kind)) ->
-    match level with
-    | Local level ->
-        Printf.bprintf buf "  [debug] level=%d, variable=%a, kind=%a\n"
-          level
-          Variable.p x
-          p_kind kind
-    | NonLocal _ ->
-        Printf.bprintf buf "  [debug] external point, variable=%a, kind=%a\n"
-          Variable.p x
-          p_kind kind
-  ) bindings
-;;
-
 module P = struct
 
   open MzPprint
+
+  let print_var (v : var) : string =
+    match v with
+    | Local level ->
+	Printf.sprintf "level = %d" level
+    | NonLocal _ ->
+	"external point"
+
+  let print_env (env : env) : document =
+    (* We print just [env.variables]. *)
+    V.print_global_env (fun (kind, v) ->
+      string "kind = " ^^ print_kind kind ^^ string ", " ^^ string (print_var v)
+    ) env.variables
 
   let print_field field =
     utf8string (Field.print field)
@@ -293,8 +283,10 @@ let print_error buf (env, raw_error) =
       bprintf
 	"Implication => is permitted only on top of a function type."
   end;
-  if Log.debug_level () > 4 then
-    pkenv buf env;
+  if Log.debug_level () > 4 then begin
+    Printf.bprintf buf "\n";
+    Types.TypePrinter.pdoc buf (P.print_env, env)
+  end
 ;;
 
 let unbound env x =
@@ -347,21 +339,12 @@ let location env =
   env.location
 
 let module_name env =
-  (* BOO *)
-  T.module_name env.env
+  env.module_name
 
 (* [find env x] looks up the possibly-qualified name [x] in the environment [env]. *)
 let find env x : kind * var =
   try
-    begin match x with
-    | Unqualified x ->
-        Variable.Map.find x env.mapping
-    | Qualified _ ->
-        V.lookup_maybe_qualified x env.variables
-        (* BOO *) (*
-        let p = T.point_by_name env.env ~mname x in
-	T.get_kind env.env p, NonLocal p *)
-    end
+    V.lookup_maybe_qualified x env.variables
   with Not_found ->
     unbound env (print_maybe_qualified Variable.print x)
 
@@ -397,11 +380,11 @@ let bind env (x, kind) : env =
      then incremented. *)
   { env with
     level = env.level + 1;
-    mapping = Variable.Map.add x (kind, Local env.level) env.mapping }
+    variables = V.extend_unqualified x (kind, Local env.level) env.variables }
 ;;
 
-let bind_external env (x, kind, p): env =
-  { env with mapping = Variable.Map.add x (kind, NonLocal p) env.mapping }
+let bind_external env (x, kind, p) : env =
+  { env with variables = V.extend_unqualified x (kind, NonLocal p) env.variables }
 ;;
 
 (* [dc] is the unqualified data constructor, [v] is the data type
@@ -433,28 +416,17 @@ let bind_datacons env data_type_group =
 
 (* Find in [tsenv.env] all the names exported by module [mname], and add them to our
  * own [tsenv]. *)
-let open_module_in (mname: Module.name) (env: env): env =
-
-(* TEMPORARY not yet ready; need to look up local names in env.variables
-   for this to make sense (i.e. get rid of env.mapping)
-  let env = { env with variables = V.unqualify mname env.variables } in
-*)
-
-  (* Import all the names. *)
-  let names = T.get_exports (* BOO *) env.env mname in
-  let _ =
-    let names = List.map (fun (x, _, _) -> Variable.print x) names in
-    let names = String.concat ", " names in
-    Log.debug "Importing module %a into scope, names = %s" Module.p mname names
-  in
-  let env = List.fold_left bind_external env names in
-
-  (* Now also open the data constructors. *)
+let open_module_in (m: Module.name) (env: env): env =
+  (* Unqualify the variables and data constructors qualified with [m]. *)
   (* The call to [freeze] is just a way of avoiding the failure
      in [unqualify] if this module does not exist, i.e. it exports
-     no data constructors. *)
-  { env with datacons = D.unqualify mname (D.freeze mname env.datacons) }
-;;
+     no variables or no data constructors. We could potentially
+     perform this [freeze] earlier, i.e. when the module is constructed,
+     not when it is opened. *)
+  { env with
+    variables = V.unqualify m (V.freeze m env.variables);
+    datacons = D.unqualify m (D.freeze m env.datacons);
+  }
 
 let find_datacon env (datacon : Datacon.name maybe_qualified) : SurfaceSyntax.datacon_info * T.resolved_datacon =
   try

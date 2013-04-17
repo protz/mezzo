@@ -1,5 +1,3 @@
-open pervasives
-
 abstract bag a
 val create : [a] () -> bag a
 val insert : [a] (consumes a, bag a) -> ()
