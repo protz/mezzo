@@ -41,6 +41,8 @@ val next:
     (i: unknown | consumes (x @ a * available i x a post)) ->
     (| active i a post)
 
+(* TEMPORARY missing a function to go from finished to scratch | post *)
+
 (* ------------------------------------------------------------------------------ *)
 
 val new: () -> (i: unknown | scratch i)

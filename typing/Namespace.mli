@@ -1,4 +1,4 @@
-open InterpreterNamespaceSignature
+open NamespaceSignature
 
 (* This functor creates a new namespace. *)
 

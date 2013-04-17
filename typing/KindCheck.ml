@@ -48,10 +48,10 @@ type var =
    constructors. *)
 
 module V =
-  InterpreterNamespace.MakeNamespace(Variable)
+  Namespace.MakeNamespace(Variable)
 
 module D =
-  InterpreterNamespace.MakeNamespace(Datacon)
+  Namespace.MakeNamespace(Datacon)
 
 (* The environments defined here are used for kind checking and for translating
    types down to the core syntax. *)
@@ -100,7 +100,7 @@ let mkdatacon_info dc i fields =
 ;;
 
 
-(* The empty environment. *)
+(* The initial environment. *)
 
   (* [Driver] already discovered our dependencies for us, and processed them, so
    * [env] contains all the information about our dependencies. However, it
@@ -109,7 +109,7 @@ let mkdatacon_info dc i fields =
    * implementation against its interface but the bottom line is: only use this
    * environment for your dependencies on other modules). *)
   
-let empty (env: T.env): env =
+let initial (env: T.env): env =
 
   (* TEMPORARY comment *)
   let variables =
@@ -981,7 +981,7 @@ let check_declaration_group (env: env) = function
 ;;
 
 let check_implementation (tenv: T.env) (program: implementation) : unit =
-  let env = empty tenv in
+  let env = initial tenv in
   let (_ : env) = List.fold_left (fun env -> function
     | DataTypeGroup (loc, rec_flag, data_type_group) ->
         (* Collect the names from the data type definitions, since they
@@ -1036,8 +1036,8 @@ let check_interface (tenv: T.env) (interface: interface) =
     | ValueDeclarations _ ->
         assert false
   ) interface in
-  check_for_duplicate_variables fst all_bindings (bound_twice (empty tenv));
-    (* TEMPORARY this results in a dummy location *)
+  check_for_duplicate_variables fst all_bindings (fun x -> bound_twice (initial tenv) x);
+    (* TEMPORARY this results in a dummy location; plus, calling [initial] is costly *)
 
   (* Check for duplicate data constructors. A data constructor cannot be
      declared twice in an interface file. *)
@@ -1053,8 +1053,8 @@ let check_interface (tenv: T.env) (interface: interface) =
     | _ ->
         []
   ) interface in
-  check_for_duplicate_datacons fst all_datacons (duplicate_constructor (empty tenv));
-    (* TEMPORARY this results in a dummy location *)
+  check_for_duplicate_datacons fst all_datacons (fun x -> duplicate_constructor (initial tenv) x);
+    (* TEMPORARY this results in a dummy location; plus, calling [initial] is costly *)
 
   (* Do all the regular checks. *)
   check_implementation tenv interface

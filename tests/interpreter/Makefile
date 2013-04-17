@@ -4,7 +4,7 @@ SHELL    := /bin/bash
 SED      := $(shell if which gsed >/dev/null ; then echo gsed ; else echo sed ; fi)
 
 MEZZODIR := ../..
-MEZZO    := $(MEZZODIR)/mezzo
+MEZZO    := OCAMLRUNPARAM=b $(MEZZODIR)/mezzo
 
 test:
 # Make sure mezzo is up-to-date.

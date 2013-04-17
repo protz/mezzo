@@ -46,10 +46,10 @@ open SurfaceSyntax
 (* Thus, we have two namespaces: variables and data constructors. *)
 
 module V =
-  InterpreterNamespace.MakeNamespace(Variable)
+  Namespace.MakeNamespace(Variable)
 
 module D =
-  InterpreterNamespace.MakeNamespace(Datacon)
+  Namespace.MakeNamespace(Datacon)
 
 (* ---------------------------------------------------------------------------- *)
 

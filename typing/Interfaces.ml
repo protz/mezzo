@@ -277,5 +277,5 @@ let check
         env
   in
 
-  check env (KindCheck.empty env) signature
+  check env (KindCheck.initial env) signature
 ;;

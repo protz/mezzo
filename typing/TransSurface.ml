@@ -576,12 +576,12 @@ let translate_data_type_group
  * constructing a top-level type where "holes" have been replaced by
  * [TyUnknown]s. (x: τ, y) will be cleaned up into (x, y) and (τ, TyUnknown) *)
 let clean_pattern pattern =
-  let rec clean_pattern env = function
+  let rec clean_pattern loc = function
     | PVar _ as pattern ->
         pattern, TyUnknown
 
     | PTuple patterns ->
-        let patterns, annotations = List.split (List.map (clean_pattern env) patterns) in
+        let patterns, annotations = List.split (List.map (clean_pattern loc) patterns) in
         PTuple patterns,
         if List.exists ((<>) TyUnknown) annotations then
           TyTuple annotations
@@ -591,7 +591,7 @@ let clean_pattern pattern =
     | PConstruct (name, fieldpats) ->
         let fields, pats, annotations = MzList.split3 (List.map
           (fun (field, pat) ->
-            let pat, annotation = clean_pattern env pat in
+            let pat, annotation = clean_pattern loc pat in
             field, pat, annotation
           ) fieldpats)
         in
@@ -602,24 +602,24 @@ let clean_pattern pattern =
           TyUnknown
 
     | PConstraint (pattern, typ) ->
-        let pattern, annotation = clean_pattern env pattern in
+        let pattern, annotation = clean_pattern loc pattern in
         if annotation <> TyUnknown then
           (* TODO provide a real error reporting mechanism for this module *)
-          Log.warn "%a nested type annotations are forbidden" Lexer.p (location env);
+          Log.warn "%a nested type annotations are forbidden" Lexer.p loc;
         pattern, typ
 
     | PAs (pattern, var) ->
-        let pattern, annotation = clean_pattern env pattern in
+        let pattern, annotation = clean_pattern loc pattern in
         PAs (pattern, var), annotation
 
-    | PLocated (pattern, pos) ->
-        let pattern, annotation = clean_pattern (locate env pos) pattern in
-        PLocated (pattern, pos), annotation
+    | PLocated (pattern, loc) ->
+        let pattern, annotation = clean_pattern loc pattern in
+        PLocated (pattern, loc), annotation
 
     | PAny ->
         PAny, TyUnknown
   in
-  clean_pattern (empty T.empty_env) pattern
+  clean_pattern dummy_loc pattern
 ;;
 
 
@@ -916,13 +916,13 @@ let rec translate_items env = function
  * [Expressions.implementation], i.e. a desugared version of the entire
  * program. *)
 let translate_implementation (tenv: T.env) (program: toplevel_item list): E.implementation =
-  let env = empty tenv in
+  let env = KindCheck.initial tenv in
   translate_items env program
 ;;
 
 (* [translate_interface] is used by the Driver, before importing an interface
  * into scope. *)
 let translate_interface (tenv: T.env) (program: toplevel_item list): E.interface =
-  let env = empty tenv in
+  let env = KindCheck.initial tenv in
   translate_items env program
 ;;
