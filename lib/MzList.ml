@@ -250,8 +250,8 @@ let rec map f xs =
   | [] ->
       xs
   | hd :: tl ->
-      let hd' = f hd
-      and tl' = map f tl in
+      let hd' = f hd in
+      let tl' = map f tl in
       if hd == hd' && tl == tl' then
 	xs
       else
