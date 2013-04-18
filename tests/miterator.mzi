@@ -18,6 +18,15 @@ abstract active (i : term) a (post : perm) : perm
 
 abstract available (i : term) (x : term) a (post : perm) : perm
 
+(* TEMPORARY remarque de Cyprien: il manque des coercions
+      de finished i post              vers active i a post
+   et de x @ a * available i x a post vers active i a post
+   en fait,
+   l'inverse de la fonction query, mais qui ne fait rien à
+   runtime; on oublie simplement de l'information. *)
+
+(* TEMPORARY missing a function to go from finished to scratch | post *)
+
 (* ------------------------------------------------------------------------------ *)
 
 (* An iterator API. *)
@@ -40,8 +49,6 @@ val next:
   [x : term, a, post : perm]
     (i: unknown | consumes (x @ a * available i x a post)) ->
     (| active i a post)
-
-(* TEMPORARY missing a function to go from finished to scratch | post *)
 
 (* ------------------------------------------------------------------------------ *)
 
