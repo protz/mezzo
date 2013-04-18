@@ -682,7 +682,7 @@ module TypePrinter = struct
       if is_flexible env point then
         print_var env (get_name env point) ^^ star
       else if internal_wasflexible point then
-        lparen ^^ string "inst→" ^^ print_type env (modulo_flex_v env point) ^^ rparen
+        lparen ^^ string "inst→" ^^ print_type env (modulo_flex env (TyOpen point)) ^^ rparen
       else
         print_var env (get_name env point)
     with UnboundPoint ->
