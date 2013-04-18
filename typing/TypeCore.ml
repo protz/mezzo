@@ -308,6 +308,15 @@ let find_flex (env: env) (f: flex_index): flex_descr =
   List.nth env.flexible (l - f - 1) 
 ;;
 
+exception UnboundPoint
+
+(* This variant is used by [modulo_flex]. *)
+let find_flex_or_fail env f =
+  try
+    find_flex env f
+  with Invalid_argument _ (* List.nth *) ->
+    raise UnboundPoint
+
 (* Replace the descriptor of a flexible variable with another one. *)
 let replace_flex (env: env) (f: flex_index) (d: flex_descr): env =
   let l = List.length env.flexible in
@@ -315,25 +324,16 @@ let replace_flex (env: env) (f: flex_index) (d: flex_descr): env =
   { env with flexible }
 ;;
 
-exception UnboundPoint
-
 (* Goes through any flexible variables before finding "the real type". *)
 let rec modulo_flex (env: env) (ty: typ): typ =
   match ty with
-  | TyOpen (VRigid _ as v) ->
-      if valid env v then
-        ty
-      else
-        raise UnboundPoint
-  | TyOpen (VFlexible f as v) ->
-      if valid env v then
-        match (find_flex env f).structure with
-        | Instantiated ty ->
-            modulo_flex env ty
-        | NotInstantiated _ ->
-            ty
-      else
-        raise UnboundPoint
+  | TyOpen (VFlexible f) ->
+      begin match (find_flex_or_fail env f).structure with
+      | Instantiated ty ->
+	  modulo_flex env ty
+      | NotInstantiated _ ->
+	  ty
+      end
   | _ ->
       ty
 ;;

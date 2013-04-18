@@ -209,7 +209,9 @@ val instantiate_flexible: env -> var -> typ -> env option
 (** Make sure we're dealing with the real representation of a variable. Any
  * function wishing to examine either a type or a variable should call this
  * function; then, whenever they encounter a [TyOpen], they need not worry
- * about it having a structure (because it won't). *)
+ * about it having a structure (because it won't). [modulo_flex env ty]
+ * raises [UnboundPoint] if it finds a flexible variable that does not
+ * exist in [env]. This behavior is exploited by advanced users... *)
 val modulo_flex: env -> typ -> typ
 
 (** [import_flex_instanciations env sub_env] brings into [env] all the flexible
