@@ -1,0 +1,7 @@
+(* Accepted *)
+val f [a] exclusive a => (consumes x: a) : dynamic =
+  x
+
+(* Rejected, but should be accepted *) 
+val h [a] exclusive a => (n: int, consumes x: a) : dynamic =
+  x
