@@ -318,32 +318,28 @@ let replace_flex (env: env) (f: flex_index) (d: flex_descr): env =
 exception UnboundPoint
 
 (* Goes through any flexible variables before finding "the real type". *)
-let rec modulo_flex_v (env: env) (v: var): typ =
-  match v with
-  | VRigid _ ->
+let rec modulo_flex (env: env) (ty: typ): typ =
+  match ty with
+  | TyOpen (VRigid _ as v) ->
       if valid env v then
-        TyOpen v
+        ty
       else
         raise UnboundPoint
-  | VFlexible f ->
+  | TyOpen (VFlexible f as v) ->
       if valid env v then
         match (find_flex env f).structure with
-        | Instantiated (TyOpen v) ->
-            modulo_flex_v env v
-        | Instantiated t ->
-            t
+        | Instantiated ty ->
+            modulo_flex env ty
         | NotInstantiated _ ->
-            TyOpen v
+            ty
       else
         raise UnboundPoint
+  | _ ->
+      ty
 ;;
 
-(* Same thing with a type. *)
-let modulo_flex (env: env) (t: typ): typ =
-  match t with
-  | TyOpen v -> modulo_flex_v env v
-  | _ -> t
-;;
+let modulo_flex_v env v =
+  modulo_flex env (TyOpen v)
 
 (* Is this variable flexible? (i.e. can I call "instantiate_flexible" on it? *)
 let is_flexible (env: env) (v: var): bool =
