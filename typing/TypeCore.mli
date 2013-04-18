@@ -429,7 +429,7 @@ class virtual ['env, 'result] visitor : object
   method virtual tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> 'result
   method virtual tyapp: 'env -> typ -> typ list -> 'result
   method virtual tytuple: 'env -> typ list -> 'result
-  method virtual tyconcreteunfolded: 'env -> resolved_branch -> 'result
+  method virtual tyconcrete: 'env -> resolved_branch -> 'result
   method virtual tysingleton: 'env -> typ -> 'result
   method virtual tyarrow: 'env -> typ -> typ -> 'result
   method virtual tybar: 'env -> typ -> typ -> 'result
@@ -454,7 +454,7 @@ class ['env] map : object
   method tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> typ
   method tyapp: 'env -> typ -> typ list -> typ
   method tytuple: 'env -> typ list -> typ
-  method tyconcreteunfolded: 'env -> resolved_branch -> typ
+  method tyconcrete: 'env -> resolved_branch -> typ
   method tysingleton: 'env -> typ -> typ
   method tyarrow: 'env -> typ -> typ -> typ
   method tybar: 'env -> typ -> typ -> typ
@@ -490,7 +490,7 @@ class ['env] iter : object
   method tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> unit
   method tyapp: 'env -> typ -> typ list -> unit
   method tytuple: 'env -> typ list -> unit
-  method tyconcreteunfolded: 'env -> resolved_branch -> unit
+  method tyconcrete: 'env -> resolved_branch -> unit
   method tysingleton: 'env -> typ -> unit
   method tyarrow: 'env -> typ -> typ -> unit
   method tybar: 'env -> typ -> typ -> unit

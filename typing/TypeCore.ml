@@ -581,7 +581,7 @@ class virtual ['env, 'result] visitor = object (self)
     | TyTuple tys ->
         self#tytuple env tys
     | TyConcrete branch ->
-        self#tyconcreteunfolded env branch
+        self#tyconcrete env branch
     | TySingleton x ->
         self#tysingleton env x
     | TyArrow (ty1, ty2) ->
@@ -605,7 +605,7 @@ class virtual ['env, 'result] visitor = object (self)
   method virtual tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> 'result
   method virtual tyapp: 'env -> typ -> typ list -> 'result
   method virtual tytuple: 'env -> typ list -> 'result
-  method virtual tyconcreteunfolded: 'env -> resolved_branch -> 'result
+  method virtual tyconcrete: 'env -> resolved_branch -> 'result
   method virtual tysingleton: 'env -> typ -> 'result
   method virtual tyarrow: 'env -> typ -> typ -> 'result
   method virtual tybar: 'env -> typ -> typ -> 'result
@@ -649,7 +649,7 @@ class ['env] map = object (self)
   method tytuple env tys =
     TyTuple (self#visit_many env tys)
 
-  method tyconcreteunfolded env branch =
+  method tyconcrete env branch =
     TyConcrete (self#resolved_branch env branch)
 
   method tysingleton env x =
@@ -769,7 +769,7 @@ class ['env] iter = object (self)
   method tytuple env tys =
     self#visit_many env tys
 
-  method tyconcreteunfolded env branch =
+  method tyconcrete env branch =
     self#resolved_branch env branch
 
   method tysingleton env x =
