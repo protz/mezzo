@@ -102,3 +102,6 @@ val equal: ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
 val cps_map:
   ('a -> ('b -> 'c) -> 'c) ->
   'a list -> ('b list -> 'c) -> 'c
+
+(** A sharing-preserving version of [List.map]. *)
+val map: ('a -> 'a) -> 'a list -> 'a list

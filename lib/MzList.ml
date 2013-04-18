@@ -245,3 +245,15 @@ let rec cps_map f xs k =
       k (x :: xs)
       ))
 
+let rec map f xs =
+  match xs with
+  | [] ->
+      xs
+  | hd :: tl ->
+      let hd' = f hd
+      and tl' = map f tl in
+      if hd == hd' && tl == tl' then
+	xs
+      else
+	hd' :: tl'
+
