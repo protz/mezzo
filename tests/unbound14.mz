@@ -1,0 +1,2 @@
+data t a b =
+  T { l: a; r: b }

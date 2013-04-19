@@ -1,0 +1,2 @@
+abstract t a b
+fact duplicable a => duplicable b => duplicable (t b a)

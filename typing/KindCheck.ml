@@ -93,7 +93,7 @@ type error =
   | ModeConstraintMismatch of (* provided: *) kind
   | IllegalConsumes
   | BadHypothesisInFact
-  | BadConclusionInFact of Variable.name
+  | BadConclusionInFact of (* data type constructor: *) Variable.name * (* parameters: *) Variable.name list
   | NonDistinctHeadsInFact of Variable.name * Mode.mode
   | DuplicateField of Variable.name
   | AdopterNotExclusive of Variable.name
@@ -185,12 +185,15 @@ let print_error env error buf () =
   | BadHypothesisInFact ->
       bprintf
         "An assumption in a fact must bear on a type variable."
-  | BadConclusionInFact x ->
+  | BadConclusionInFact (x, args) ->
+      let expected =
+	List.fold_left (fun accu arg ->
+	  accu ^ " " ^ Variable.print arg
+	) (Variable.print x) args
+      in
       bprintf
-        "The conclusion for the fact about %a can only be %a applied to its \
-        parameters"
-        Variable.p x
-        Variable.p x
+        "The conclusion of this fact must bear on the type %s."
+        expected
   | NonDistinctHeadsInFact (x, mode) ->
       bprintf
 	"Distinct facts must concern distinct modes.\n\
@@ -248,8 +251,8 @@ let non_distinct_heads_in_fact env x mode =
   raise_error env (NonDistinctHeadsInFact (x, mode))
 ;;
 
-let bad_conclusion_in_fact env x =
-  raise_error env (BadConclusionInFact x)
+let bad_conclusion_in_fact env x args =
+  raise_error env (BadConclusionInFact (x, args))
 ;;
 
 let duplicate_field env f =
@@ -580,28 +583,28 @@ let rec check_fact_parameter env (args: Variable.name list) (t: typ) =
 
 (* The conclusion of a fact, if any, must be the exact original type applied to
    the exact same arguments. *)
-let rec check_fact_conclusion env (x: Variable.name) (args: Variable.name list) (t: typ) =
+let rec check_fact_conclusion env (tc: Variable.name) (args: Variable.name list) (t: typ) =
   match t with
   | TyLocated (t, p) ->
-      check_fact_conclusion (locate env p) x args t
+      check_fact_conclusion (locate env p) tc args t
   | _ ->
       match flatten_tyapp t with
       | TyVar (Unqualified x'), args' ->
-          Log.debug "%a %a" Variable.p x Variable.p x';
-          if not (Variable.equal x x') then
-            bad_conclusion_in_fact env x;
+          Log.debug "%a %a" Variable.p tc Variable.p x';
+          if not (Variable.equal tc x') then
+            bad_conclusion_in_fact env tc args;
           if not (List.length args = List.length args') then
-            bad_conclusion_in_fact env x;
+            bad_conclusion_in_fact env tc args;
           List.iter2 (fun x arg' ->
             match arg' with
             | TyVar (Unqualified x')
             | TyLocated (TyVar (Unqualified x'), _) ->
                 if not (Variable.equal x x') then
-                  bad_conclusion_in_fact env x;
+                  bad_conclusion_in_fact env tc args;
             | _ ->
-                bad_conclusion_in_fact env x) args args';
+                bad_conclusion_in_fact env tc args) args args';
       | _ ->
-          bad_conclusion_in_fact env x;
+          bad_conclusion_in_fact env tc args;
 ;;
 
 let check_distinct_heads env name facts =
