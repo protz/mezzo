@@ -1,0 +1,2 @@
+val f (x : list::list int int) : () =
+  ()

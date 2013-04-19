@@ -1,0 +1,2 @@
+abstract t a
+fact duplicable int => duplicable (t a)

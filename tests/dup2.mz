@@ -1,0 +1,3 @@
+(* Valid: [p] is duplicable. *)
+val duplicate [p : perm] duplicable p => (| p) : (| p) =
+  ()

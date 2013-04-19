@@ -1,0 +1,3 @@
+(* Invalid: [p] is not duplicable. *)
+val duplicate [p : perm] (| p) : (| p) =
+  ()

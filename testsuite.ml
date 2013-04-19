@@ -150,6 +150,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("unbound08.mz", kfail);
   ("unbound09.mz", pass);
   ("unbound10.mz", kfail);
+  ("unbound11.mz", kfail);
+  ("unbound12.mz", kfail);
+  ("unbound13.mz", kfail);
 
   ("basic.mz",
     pass);
@@ -532,13 +535,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   (* Duplicity constraints. *)
 
-  ("duplicity1.mz",
-    pass
-  );
-
-  ("duplicity2.mz",
-    pass
-  );
+  ("duplicity1.mz", pass);
+  ("duplicity2.mz", pass);
+  ("dup.mz", fail);
+  ("dup2.mz", pass);
 
   (* Polymorphic function calls *)
 

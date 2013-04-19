@@ -90,8 +90,9 @@ type error =
   | BoundTwice of (* namespace: *) string * (* name: *) string
   | Mismatch of (* expected: *) kind * (* inferred: *) kind
   | ArityMismatch of (* expected: *) int * (* provided: *) int
+  | ModeConstraintMismatch of (* provided: *) kind
   | IllegalConsumes
-  | BadConditionsInFact of Variable.name
+  | BadHypothesisInFact
   | BadConclusionInFact of Variable.name
   | NonDistinctHeadsInFact of Variable.name * Mode.mode
   | DuplicateField of Variable.name
@@ -174,13 +175,16 @@ let print_error env error buf () =
         "This type expects %d parameter%s, but is applied to %d argument%s."
         expected (MzPprint.plural expected)
 	provided (MzPprint.plural provided)
+  | ModeConstraintMismatch inferred ->
+      bprintf
+	"This type has kind %s, whereas a type of kind type or perm was expected."
+        (print inferred)
   | IllegalConsumes ->
       bprintf
-        "Unexpected consumes annotation"
-  | BadConditionsInFact x ->
+        "The consumes keyword is not allowed here."
+  | BadHypothesisInFact ->
       bprintf
-        "The conditions for the fact about %a can only be type variables"
-        Variable.p x
+        "An assumption in a fact must bear on a type variable."
   | BadConclusionInFact x ->
       bprintf
         "The conclusion for the fact about %a can only be %a applied to its \
@@ -236,15 +240,9 @@ let bound_twice namespace print env x =
 
 let mismatch env expected_kind inferred_kind =
   raise_error env (Mismatch (expected_kind, inferred_kind))
-;;
 
 let illegal_consumes env =
   raise_error env IllegalConsumes
-;;
-
-let bad_condition_in_fact env x =
-  raise_error env (BadConditionsInFact x)
-;;
 
 let non_distinct_heads_in_fact env x mode =
   raise_error env (NonDistinctHeadsInFact (x, mode))
@@ -571,17 +569,14 @@ let bindings_patterns (ps: pattern list) : (Variable.name * kind) list =
 
 (* This just makes sure that the type parameters mentioned in the fact are in
    the list of the original type parameters. *)
-let rec check_fact_parameter env (x: Variable.name) (args: Variable.name list) (t: typ) =
+let rec check_fact_parameter env (args: Variable.name list) (t: typ) =
   match t with
   | TyLocated (t, p) ->
-      check_fact_parameter (locate env p) x args t
-  | TyVar (Unqualified x') ->
-      if not (List.exists (Variable.equal x') args) then
-        bad_condition_in_fact env x
+      check_fact_parameter (locate env p) args t
+  | TyVar (Unqualified x) when List.exists (Variable.equal x) args ->
+      ()
   | _ ->
-      bad_condition_in_fact env x
-;;
-
+      raise_error env BadHypothesisInFact
 
 (* The conclusion of a fact, if any, must be the exact original type applied to
    the exact same arguments. *)
@@ -720,11 +715,19 @@ and infer env (ty : typ) : kind =
       check env t2 KPerm; (* [reset] irrelevant *)
       KType
 
-  | TyAnd ((_, ty1), ty2)
-  | TyImply ((_, ty1), ty2) ->
-      check_reset env ty1 KType;
-      check env ty2 KType;
+  | TyAnd (c, ty)
+  | TyImply (c, ty) ->
+      check_mode_constraint env c;
+      check env ty KType;
       KType
+
+and check_mode_constraint env (_, ty) =
+  match infer_reset env ty with
+  | KType
+  | KPerm ->
+      ()
+  | inferred ->
+      raise_error env (ModeConstraintMismatch inferred)
 
 and check_field env (field : data_field_def) =
   match field with
@@ -763,7 +766,7 @@ let check_data_type_def env (def: data_type_def) =
       let args = List.map (fun (_, (x, _, _)) -> x) bindings in
       (* Perform a tedious check. *)
       List.iter (function Fact (clauses, conclusion) ->
-        List.iter (fun (_, t) -> check_fact_parameter env name args t) clauses;
+        List.iter (fun (_, t) -> check_fact_parameter env args t) clauses;
         let (_, t) = conclusion in check_fact_conclusion env name args t
       ) facts;
       check_distinct_heads env name facts
