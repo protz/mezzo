@@ -129,10 +129,14 @@ module P = struct
 
 end
 
+let is_dummy_location (sp, _) =
+  sp == Lexing.dummy_pos
+
 let print_error env error buf () =
   let bprintf s = Printf.bprintf buf s in
-  (* Print the location. *)
-  Lexer.p buf env.location;
+  (* Print the location, unless it is a dummy location (it should not be). *)
+  if not (is_dummy_location env.location) then
+    Lexer.p buf env.location;
   (* Print the error message. *)
   begin match error with
   | Unbound (namespace, x) ->
