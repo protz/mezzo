@@ -1,0 +1,154 @@
+open arraypoly
+
+(* Alias definitions *)
+
+alias char = int
+
+alias string m = array m char
+
+alias istring = string immut
+alias mstring = string mut
+
+(* Specific operations over strings. Other basic functions are already present
+ * in the [array] module. *)
+
+(* [cmp (a, b)] returns a negative value if a is less than b lexicographically
+ * speaking, 0 if a equals b, a positive value otherwise. *)
+val cmp [m1, m2] (
+  a: string m1,
+  b: string m2
+) : int =
+  let rec loop (
+    i: int
+    | a @ string m1
+    | b @ string m2
+  ) : int =
+    if i = length a && i = length b then 0
+    else if i = length b then -1
+    else if i = length a then 1
+    else begin
+      let u = get (a, i) and v = get (b, i) in
+      if u = v then loop (i + 1)
+      else u - v
+    end
+  in loop 0
+
+(* [eq (a, b)] is the equality function for strings. *)
+val eq [m1, m2] (
+  a: string m1,
+  b: string m2
+) : bool =
+  cmp (a, b) = 0
+
+(* [first_from (s, i, f)] returns the position j of the first character after the
+ * [i]-th verifying [f s[j]]. *)
+val first_from [m, p: perm] (
+  s: string m,
+  i: int,
+  f: (char | p) -> bool
+  | p
+) : int =
+  let rec loop (
+    i: int
+    | s @ string m * p
+  ) : int =
+    if i = length s then length s
+    else if f (get (s, i)) then i
+    else loop (i + 1)
+  in loop i
+
+(* [last_from (s, i, f)] returns the position j of the last character before the
+ * [i]-th verifying [f s[j]]. *)
+val last_from [m, p: perm] (
+  s: string m,
+  i: int,
+  f: (char | p) -> bool
+  | p
+) : int =
+  let rec loop (
+    i: int
+    | s @ string m * p
+  ) : int =
+    if i = -1 then -1
+    else if f (get (s, i)) then i
+    else loop (i-1)
+  in loop i
+
+(* [first (s, f)] is [first_from (s, 0, f)]. *)
+val first [m, p: perm] (
+  s: string m,
+  f: (char | p) -> bool
+  | p
+) : int =
+  first_from (s, 0, f)
+
+(* [last (s, f)] is [last_from (s, 0, f)]. *)
+val last [m, p: perm] (
+  s: string m,
+  f: (char | p) -> bool
+  | p
+) : int =
+  first_from (s, length s - 1, f)
+
+(* [index_from (s, i, c)] returns the position of the first occurrence of
+ * character [c] after the [i]-th position. *)
+val index_from [m] (
+  s: string m,
+  i: int,
+  c: char
+) : int =
+  first_from (s, i, fun (d: char) : bool = c = d)
+
+(* [rindex_from (s, i, c)] returns the position of the last occurrence of
+ * character [c] before the [i]-th position. *)
+val rindex_from [m] (
+  s: string m,
+  i: int,
+  c: char
+) : int =
+  last_from (s, i, fun (d: char) : bool = c = d)
+
+(* [index (s, c)] is [index_from (s, 0, c)]. *)
+val index [m] (
+  s: string m,
+  c: char
+) : int =
+  index_from (s, 0, c)
+
+(* [rindex (s, c) is [rindex_from (s, length s - 1, c)]. *)
+val rindex [m] (
+  s: string m,
+  c: char
+) : int =
+  rindex_from (s, length s - 1, c)
+
+(* Auxiliary function for [trim]. *)
+val is_whitespace (c: char) : bool =
+  c = 32 || c = 10 || c = 13 || c = 9 || c = 12
+  (* TEMPORARY c = ' ' || c = '\n' || c = '\r' || c = '\t' || c = '\012' *)
+
+(* [trim s] removes all leading and trailing whitespaces in [s] and returns a new
+ * string. *)
+val trim [m1, m2] (
+  s: string m1
+) : string m2 =
+  let i = first_from (s, 0, fun (c: char) : bool = not (is_whitespace (c))) in
+  let j = last_from (s, length s - 1, fun (c: char) : bool = not (is_whitespace (c))) in
+  if i <= j then sub (s, i, j-i)
+  else copy s
+
+(* [contains_from (s, i, c)] is true if the string [s] contains the character
+ * [c] after the [i]-th position. *)
+val contains_from [m] (
+  s: string m,
+  i: int,
+  c: char
+) : bool =
+  index_from (s, i, c) < length s
+
+(* [contains (s, c)] is [contains_from (s, 0, c)]. *)
+val contains [m] (
+  s: string m,
+  c: char
+) : bool =
+  contains_from (s, 0, c)

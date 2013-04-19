@@ -1,0 +1,62 @@
+open arraypoly
+
+(* char and string alias definitions *)
+
+(* TEMPORARY Maybe this should be abstract? But the parser has to implement char
+ * support if so. *)
+alias char = int
+
+(* Making the following aliases abstract imply redoing all the [array] module
+ * just for strings. *)
+alias string m = array m char
+alias istring = string immut
+alias mstring = string mut
+
+(* Specification operations over strings. Other basic functions are present in
+ * the [array] module. *)
+
+(* [cmp (a, b)] returns a negative value if a is less than b lexicographically
+ * speaking, 0 if a equals b, a positive value otherwise. *)
+val cmp : [m1, m2] (string m1, string m2) -> int
+
+(* [eq (a, b)] is the equality function for strings. *)
+val eq : [m1, m2] (string m1, string m2) -> bool
+
+(* [first_from (s, i, f)] returns the position j of the first character after the
+ * [i]-th verifying [f s[j]]. *)
+val first_from : [m, p: perm] (string m, int, (char | p) -> bool | p) -> int
+
+(* [last_from (s, i, f)] returns the position j of the last character before the
+ * [i]-th verifying [f s[j]]. *)
+val last_from : [m, p: perm] (string m, int, (char | p) -> bool | p) -> int
+
+(* [first (s, f)] is [first_from (s, 0, f)]. *)
+val first : [m, p: perm] (string m, (char | p) -> bool | p) -> int
+
+(* [last (s, f)] is [last_from (s, length s - 1, f)]. *)
+val last : [m, p: perm] (string m, (char | p) -> bool | p) -> int
+
+(* [index_from (s, i, c)] returns the position of the first occurrence of
+ * character [c] after the [i]-th position. *)
+val index_from : [m] (string m, int, char) -> int
+
+(* [rindex_from (s, i, c)] returns the position of the last occurrence of
+ * character [c] before the [i]-th position. *)
+val rindex_from : [m] (string m, int, char) -> int
+
+(* [index (s, c)] is [index_from (s, 0, c)]. *)
+val index : [m] (string m, char) -> int
+
+(* [rindex (s, c) is [rindex_from (s, length s - 1, c)]. *)
+val rindex : [m] (string m, char) -> int
+
+(* [trim s] removes all leading and trailing whitespaces in [s] and returns a new
+ * string. *)
+val trim : [m1, m2] string m1 -> string m2
+
+(* [contains_from (s, i, c)] is true if the string [s] contains the character
+ * [c] after the [i]-th position. *)
+val contains_from : [m] (string m, int, char) -> bool
+
+(* [contains (s, c)] is [contains_from (s, 0, c)]. *)
+val contains : [m] (string m, char) -> bool
