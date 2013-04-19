@@ -68,6 +68,11 @@ let check_for_duplicates (compare : 'a -> 'a -> int) (xs : 'a list) : ('a * 'a) 
   | x1 :: xs ->
       loop x1 xs
 
+let exit_if_duplicates (compare : 'b -> 'b -> int) (project : 'a -> 'b) (xs: 'a list) (exit: 'b -> unit) : unit =
+  match check_for_duplicates (fun x1 x2 -> compare (project x1) (project x2)) xs with
+  | None        -> ()
+  | Some (x, _) -> exit (project x)
+
 let max l = List.fold_left max min_int l
 
 let filter_some l =

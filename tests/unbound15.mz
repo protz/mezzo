@@ -1,0 +1,1 @@
+val x : (y: int, y: int) = (0, 0)

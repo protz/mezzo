@@ -68,6 +68,12 @@ val ignore_map : ('a -> 'b) -> 'a list -> unit
     that [compare x1 x2] is zero, or [None], if no such two elements exist. *)
 val check_for_duplicates : ('a -> 'a -> int) -> 'a list -> ('a * 'a) option
 
+(** Checking for duplicates in a list. The comparison function operates on values
+    of type ['b], while the list elements have type ['a]. A projection function
+    maps ['a] to ['b]. If a duplicate element is found, the exit function is
+    invoked. *)
+val exit_if_duplicates: ('b -> 'b -> int) -> ('a -> 'b) -> 'a list -> ('b -> unit) -> unit
+
 (** Find the biggest element in a list *)
 val max: int list -> int
 
