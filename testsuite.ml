@@ -139,6 +139,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   (* Some very simple tests. *)
 
+  ("unbound.mz", kfail);
+
   ("basic.mz",
     pass);
 

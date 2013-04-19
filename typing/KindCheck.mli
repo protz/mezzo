@@ -37,14 +37,12 @@ type var =
   | NonLocal of TypeCore.var
 
 type env
-type error
-exception KindError of error
+exception KindError of (Buffer.t -> unit -> unit)
 
 (* TEMPORARY try not to publish any of the functions that raise errors *)
 val field_mismatch: env -> Datacon.name -> SurfaceSyntax.Field.name list (* missing fields *) -> SurfaceSyntax.Field.name list (* extra fields *) -> 'a
 val implication_only_on_arrow: env -> 'a
 val illegal_consumes: env -> 'a
-val print_error: Buffer.t -> error -> unit
 
 val initial: TypeCore.env -> env
 val bind: env -> Variable.name * kind -> env

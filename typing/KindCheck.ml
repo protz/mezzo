@@ -148,9 +148,7 @@ let initial (env: TypeCore.env): env =
 
 (* Error messages. *)
 
-type error = env * raw_error
-
-and raw_error =
+type raw_error =
   | Unbound of string
   | Mismatch of kind * kind
   | ArityMismatch of (* expected: *) int * (* provided: *) int
@@ -166,11 +164,7 @@ and raw_error =
   | FieldMismatch of Datacon.name * Field.name list (* missing fields *) * Field.name list (* extra fields *)
   | ImplicationOnlyOnArrow
 
-exception KindError of error
-
-let raise_error env e =
-  raise (KindError (env, e))
-;;
+exception KindError of (Buffer.t -> unit -> unit)
 
 module P = struct
 
@@ -200,7 +194,7 @@ module P = struct
 
 end
 
-let print_error buf (env, raw_error) =
+let print_error env raw_error buf () =
   let open Types.TypePrinter in
   let bprintf s = Printf.bprintf buf s in
   (* Print the location. *)
@@ -288,6 +282,10 @@ let print_error buf (env, raw_error) =
     Printf.bprintf buf "\n";
     Types.TypePrinter.pdoc buf (P.print_env, env)
   end
+;;
+
+let raise_error env e =
+  raise (KindError (print_error env e))
 ;;
 
 let unbound env x =

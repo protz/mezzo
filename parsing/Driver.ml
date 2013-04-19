@@ -403,7 +403,7 @@ let run { html_errors; backtraces } f =
         raise the_exn;
       exit 251
   | KindCheck.KindError e as the_exn ->
-      MzString.beprintf "%a\n" KindCheck.print_error e;
+      MzString.beprintf "%a\n" e ();
       if backtraces then
         raise the_exn;
       exit 250
