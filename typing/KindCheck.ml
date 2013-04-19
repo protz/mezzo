@@ -40,7 +40,7 @@ type level =
 (* There is a subtlety concerning the meaning of the integer argument carried
    by [Local]. Internally, an environment contains [var]s represented using
    de Bruijn levels. However, the public functions that export variables,
-   namely [find_var] and [find_datacon], produce [var]s represented using de
+   namely [find_variable] and [find_datacon], produce [var]s represented using de
    Bruijn indices. *)
 
 type 'v var =
@@ -324,15 +324,15 @@ let initial
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Working with environments *)
-
-let location env =
-  env.location
+(* Extracting information out of an environment. *)
 
 let module_name env =
   env.module_name
 
-(* [find env x] looks up the possibly-qualified name [x] in the environment [env]. *)
+let location env =
+  env.location
+
+(* [find env x] looks up the possibly-qualified variable [x] in [env]. *)
 let find env x : 'v var * kind =
   try
     V.lookup_maybe_qualified x env.variables
@@ -343,20 +343,17 @@ let find_kind env x : kind =
   let _, kind = find env x in
   kind
 
-(* This version of [find_var] is for internal use; it returns a de-Bruijn-level
-   [var]. Further on, we compose it with [level2index]. *)
+(* This function is for internal use; it returns a de-Bruijn-level
+   [var]. Further on, we compose it with [level2index] and publish it as
+   [find_variable]. *)
 let find_var env x : 'v var =
   let v, _ = find env x in
   v
 
-(* [level2index] converts a de-Bruijn-level [var] to a de-Bruijn-index [var]. *)
-let level2index env = function
-  | Local level ->
-      Local (env.level - level - 1)
-  | NonLocal _ as v ->
-      v
-
-let find_datacon env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info =
+(* This function is for internal use; it returns a de-Bruijn-level
+   [var]. Further on, we compose it with [level2index] and publish it as
+   [find_datacon]. *)
+let find_dc env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info =
   try
     D.lookup_maybe_qualified datacon env.datacons
   with Not_found ->
@@ -364,18 +361,23 @@ let find_datacon env (datacon : Datacon.name maybe_qualified) : 'v var * datacon
 
 (* ---------------------------------------------------------------------------- *)
 
-(* [bind env (x, kind)] binds the name [x] with kind [kind]. *)
-let bind env (x, kind) : 'v env =
-  (* The current level becomes [x]'s level. The current level is
-     then incremented. *)
-  { env with
-    level = env.level + 1;
-    variables = V.extend_unqualified x (Local env.level, kind) env.variables }
-;;
+(* Extending an environment. *)
+
+(* [bind env x data] binds the unqualified name [x] to the information [data]. *)
+let bind env x (data : 'v var * kind) : 'v env =
+  { env with variables = V.extend_unqualified x data env.variables }
+
+(* [bind_local env (x, kind)] binds the unqualified name [x] to a new local
+   name whose kind is [kind]. *)
+let bind_local env (x, kind) : 'v env =
+  (* The current level is used to create a new local name. The current level
+     is then incremented. *)
+  let data = (Local env.level, kind) in
+  let env = { env with level = env.level + 1 } in
+  bind env x data
 
 let bind_external env (x, kind, p) : 'v env =
-  { env with variables = V.extend_unqualified x (NonLocal p, kind) env.variables }
-;;
+  bind env x (NonLocal p, kind)
 
 (* [dc] is the unqualified data constructor, [v] is the data type
    that it is associated with. *)
@@ -425,7 +427,7 @@ let locate env location =
 (* [extend env xs] extends the current environment with a lsit of new bindings. *)
 let extend env (xs : type_binding list) : 'v env =
   List.fold_left (fun env (x, k, _) ->
-    bind env (x, k)
+    bind_local env (x, k)
   ) env xs
 ;;
 
@@ -695,7 +697,7 @@ and infer env (ty : typ) : kind =
 
   | TyForall ((x, kind, _), ty)
   | TyExists ((x, kind, _), ty) ->
-      let env = bind env (x, kind) in
+      let env = bind_local env (x, kind) in
       check_reset env ty KType;
       KType
 
@@ -778,7 +780,7 @@ let check_data_type_def env (def: data_type_def) =
       check_distinct_heads env name facts
   | Concrete (flavor, (name, bindings), branches, clause) ->
       let bindings = List.map (fun (_, (x, y, _)) -> x, y) bindings in
-      let env = List.fold_left bind env bindings in
+      let env = List.fold_left bind_local env bindings in
       (* Check the branches. *)
       List.iter (check_branch env) branches;
       begin match clause with
@@ -792,7 +794,7 @@ let check_data_type_def env (def: data_type_def) =
       end
   | Abbrev ((_, bindings), return_kind, t) ->
       let bindings = List.map (fun (_, (x, y, _)) -> x, y) bindings in
-      let env = List.fold_left bind env bindings in
+      let env = List.fold_left bind_local env bindings in
       check_reset env t return_kind
 ;;
 
@@ -843,7 +845,7 @@ let rec check_patexpr env (flag: rec_flag) (pat_exprs: (pattern * expression) li
   (* Introduce all bindings from the patterns *)
   let bindings = bindings_patterns patterns in
   check_for_duplicate_bindings env bindings;
-  let sub_env = List.fold_left bind env bindings in
+  let sub_env = List.fold_left bind_local env bindings in
   (* Type annotation in patterns may reference names introduced in the entire
    * pattern (same behavior as tuple types). *)
   List.iter (check_pattern sub_env) patterns;
@@ -882,7 +884,7 @@ and check_expression env (expr: expression) =
   | EFun (bindings, arg, return_type, body) ->
       check_for_duplicate_variables Types.fst3 bindings (bound_twice "variable" Variable.print env);
       let bindings = List.map (fun (x, y, _) -> x, y) bindings in
-      let env = List.fold_left bind env bindings in
+      let env = List.fold_left bind_local env bindings in
       let env = reset env arg in
       check env arg KType;
       check_expression env body;
@@ -914,7 +916,7 @@ and check_expression env (expr: expression) =
       List.iter (fun (pat, expr) ->
         let bindings = bindings_pattern pat in
 	check_for_duplicate_bindings env bindings;
-        let sub_env = List.fold_left bind env bindings in
+        let sub_env = List.fold_left bind_local env bindings in
         check_pattern sub_env pat;
         check_expression sub_env expr
       ) pat_exprs
@@ -983,7 +985,7 @@ let check_implementation env (program: implementation) : unit =
         check_for_duplicate_bindings env bindings;
         (* Create an environment that includes those names. *)
         let env = locate env loc in
-        let extended_env = List.fold_left bind env bindings in
+        let extended_env = List.fold_left bind_local env bindings in
 	(* Also include the data constructors. *)
 	let extended_env = bind_datacons extended_env data_type_group in
         (* Check the data type definitions in the appropriate environment. *)
@@ -1005,7 +1007,7 @@ let check_implementation env (program: implementation) : unit =
 
     | PermDeclaration (x, t) ->
         check_reset env t KType;
-        bind env (x, KTerm)
+        bind_local env (x, KTerm)
 
     | OpenDirective mname ->
         open_module_in mname env
@@ -1050,12 +1052,19 @@ let check_interface env (interface: interface) =
   check_implementation env interface
 ;;
 
-(* Redefine [find_var] and [find_datacon] for public use. *)
-let find_var env x =
+(* [level2index] converts a de-Bruijn-level [var] to a de-Bruijn-index [var]. *)
+let level2index env = function
+  | Local level ->
+      Local (env.level - level - 1)
+  | NonLocal _ as v ->
+      v
+
+(* Define [find_variable] and [find_datacon] for public use. *)
+let find_variable env x =
   level2index env (find_var env x)
 
 let find_datacon env datacon =
-  let v, info = find_datacon env datacon in
+  let v, info = find_dc env datacon in
   level2index env v, info
 
 (* Rename [check_reset] and [infer_reset] for public use. *)

@@ -23,6 +23,7 @@
    to) and translating types and expressions down to the internal syntax. *)
 
 open Kind
+open SurfaceSyntax
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -42,6 +43,18 @@ type 'v env
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Errors. *)
+
+(** A [KindError] exception carries a function that displays an error message. *)
+exception KindError of (Buffer.t -> unit -> unit)
+
+(* TEMPORARY try not to publish any of the functions that raise errors? *)
+val field_mismatch: 'v env -> Datacon.name -> Field.name list (* missing fields *) -> Field.name list (* extra fields *) -> 'a
+val implication_only_on_arrow: 'v env -> 'a
+val illegal_consumes: 'v env -> 'a
+
+(* ---------------------------------------------------------------------------- *)
+
 (* Building environments. *)
 
 (** An empty environment. *)
@@ -54,39 +67,48 @@ val empty: Module.name -> 'v env
 val initial:
   Module.name ->
   (Module.name * Variable.name * kind * 'v) list ->
-  (Module.name * 'v * int * Datacon.name * SurfaceSyntax.Field.name list) list ->
+  (Module.name * 'v * int * Datacon.name * Field.name list) list ->
   'v env
 
+(* ---------------------------------------------------------------------------- *)
 
-(** A [KindError] exception carries a function that displays an error message. *)
-exception KindError of (Buffer.t -> unit -> unit)
+(* Extracting information out of an environment. *)
 
-(* TEMPORARY try not to publish any of the functions that raise errors *)
-val field_mismatch: 'v env -> Datacon.name -> SurfaceSyntax.Field.name list (* missing fields *) -> SurfaceSyntax.Field.name list (* extra fields *) -> 'a
-val implication_only_on_arrow: 'v env -> 'a
-val illegal_consumes: 'v env -> 'a
-
-val bind: 'v env -> Variable.name * kind -> 'v env
-val bind_external: 'v env -> Variable.name * kind * 'v -> 'v env
-val bind_datacons: 'v env -> SurfaceSyntax.data_type_def list -> 'v env
-val open_module_in: Module.name -> 'v env -> 'v env
-val locate: 'v env -> SurfaceSyntax.location -> 'v env
-
-val location: 'v env -> SurfaceSyntax.location
+(** [module_name env] is the name of the current module. *)
 val module_name: 'v env -> Module.name
-val find_var: 'v env -> Variable.name SurfaceSyntax.maybe_qualified -> 'v var
-val find_datacon: 'v env -> Datacon.name SurfaceSyntax.maybe_qualified -> 'v var * SurfaceSyntax.datacon_info
+
+(** [location env] is the current location in the source code. *)
+val location: 'v env -> location
+
+(** [find_variable env x] looks up the possibly-qualified variable [x]
+    in the environment [env]. *)
+val find_variable: 'v env -> Variable.name maybe_qualified -> 'v var
+
+(** [find_datacon env x] looks up the possibly-qualified data constructor [x]
+    in the environment [env]. *)
+val find_datacon: 'v env -> Datacon.name maybe_qualified -> 'v var * datacon_info
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Extending an environment. *)
+
+val bind_local: 'v env -> Variable.name * kind -> 'v env
+val bind_external: 'v env -> Variable.name * kind * 'v -> 'v env
+val bind_datacons: 'v env -> data_type_def list -> 'v env
+val open_module_in: Module.name -> 'v env -> 'v env
+val locate: 'v env -> location -> 'v env
 
 
-val names: 'v env -> SurfaceSyntax.typ -> SurfaceSyntax.type_binding list
-val bindings_pattern: SurfaceSyntax.pattern -> (Variable.name * kind) list
-val bindings_patterns: SurfaceSyntax.pattern list -> (Variable.name * kind) list
 
-val bindings_data_type_group: SurfaceSyntax.data_type_def list -> (Variable.name * kind) list
+val names: 'v env -> typ -> type_binding list
+val bindings_pattern: pattern -> (Variable.name * kind) list
+val bindings_patterns: pattern list -> (Variable.name * kind) list
 
-val check: 'v env -> SurfaceSyntax.typ -> kind -> unit
-val infer: 'v env -> SurfaceSyntax.typ -> kind
+val bindings_data_type_group: data_type_def list -> (Variable.name * kind) list
 
-val check_implementation: 'v env -> SurfaceSyntax.implementation -> unit
-val check_interface: 'v env -> SurfaceSyntax.interface -> unit
+val check: 'v env -> typ -> kind -> unit
+val infer: 'v env -> typ -> kind
+
+val check_implementation: 'v env -> implementation -> unit
+val check_interface: 'v env -> interface -> unit
 

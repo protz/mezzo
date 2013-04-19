@@ -218,7 +218,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
       T.TyEmpty
 
   | TyVar x ->
-      tvar (find_var env x)
+      tvar (find_variable env x)
 
   | TyConcrete ((dref, fields), clause) ->
       (* Performs a side-effect! *)
@@ -280,11 +280,11 @@ let rec translate_type (env: env) (t: typ): T.typ =
       Types.fold_forall universal_bindings arrow
 
   | TyForall ((x, k, loc), t) ->
-      let env = bind env (x, k) in
+      let env = bind_local env (x, k) in
       T.TyQ (T.Forall, name_user env (x, k, loc), UserIntroduced, translate_type_with_names env t)
 
   | TyExists ((x, k, loc), t) ->
-      let env = bind env (x, k) in
+      let env = bind_local env (x, k) in
       T.TyQ (T.Exists, name_user env (x, k, loc), UserIntroduced, translate_type_with_names env t)
 
   | TyAnchoredPermission (t1, t2) ->
@@ -298,7 +298,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyNameIntro (x, t) ->
       (* [x: t] translates into [(=x | x@t)] -- with [x] bound somewhere above
          us. *)
-      let x = tvar (find_var env (Unqualified x)) in
+      let x = tvar (find_variable env (Unqualified x)) in
       T.TyBar (
         T.TySingleton x,
         T.TyAnchoredPermission (x, translate_type env t)
@@ -416,7 +416,7 @@ and translate_arrow_type env t1 t2 =
   (* So that we don't mess up, we use unique names in the surface syntax and
    * let the translation phase do the proper index computations. *)
   let universal_bindings = t1_bindings @ perm_bindings @ [root_binding] in
-  let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env universal_bindings in
+  let env = List.fold_left (fun env (x, k, _) -> bind_local env (x, k)) env universal_bindings in
   let fat_t1 =
     List.fold_left (fun t c -> TyAnd (c, t)) fat_t1 constraints
   in
@@ -446,7 +446,7 @@ and translate_arrow_type env t1 t2 =
 
 and translate_type_with_names (env: env) (t: typ): T.typ =
   let bindings = names env t in
-  let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env bindings in
+  let env = List.fold_left (fun env (x, k, _) -> bind_local env (x, k)) env bindings in
   let t = translate_type env t in
   let t = Types.fold_exists (List.map (fun binding -> name_user env binding, UserIntroduced) bindings) t in
   t
@@ -507,7 +507,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
   | Concrete (flavor, (name, the_params), branches, adopts_clause) ->
       let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
       (* Add the type parameters in the environment. *)
-      let env = List.fold_left bind env params in
+      let env = List.fold_left bind_local env params in
       (* Translate! The flavor and adopts clause are distributed to every branch. *)
       let branches = List.map (translate_data_type_def_branch env flavor adopts_clause) branches in
       (* This fact will be refined later on. *)
@@ -536,7 +536,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
       })
   | Abbrev ((name, the_params), kind, t) ->
       let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
-      let env = List.fold_left bind env params in
+      let env = List.fold_left bind_local env params in
       (* Same remarks for fact/variance as with the Concrete case. *)
       let fact = Fact.bottom in
       let variance = List.map (fun (v, _) -> v) the_params in
@@ -697,7 +697,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       E.EConstraint (e, t)
 
   | EVar x ->
-      evar (find_var env x)
+      evar (find_variable env x)
 
   | EBuiltin b ->
       E.EBuiltin b
@@ -710,7 +710,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   | EFun (vars, arg, return_type, body) ->
 
       (* Introduce all universal bindings. *)
-      let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env vars in
+      let env = List.fold_left (fun env (x, k, _) -> bind_local env (x, k)) env vars in
 
       (* Translate the function type. *)
       let universal_bindings, arg, return_type =
@@ -719,7 +719,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
 
       (* Introduce all other bindings in scope *)
       let env = List.fold_left (fun env -> function
-        | ((T.Auto x, k, _), _) | ((T.User (_, x), k, _), _) -> bind env (x, k)
+        | ((T.Auto x, k, _), _) | ((T.User (_, x), k, _), _) -> bind_local env (x, k)
       ) env universal_bindings in
 
       (* Now translate the body (which will probably refer to these bound
@@ -786,7 +786,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
         let pat = translate_pattern env pat in
         (* Bind the names for further translating, and don't forget to include
          * assertions in the translation as well. *)
-        let sub_env = List.fold_left bind env names in
+        let sub_env = List.fold_left bind_local env names in
         let expr =
           if annotation <> TyUnknown then
             translate_expr sub_env (
@@ -869,7 +869,7 @@ and translate_patexprs
   (* Translate the patterns. *)
   let patterns = List.map (translate_pattern env) patterns in
   (* Bind all the names in the sub-environment. *)
-  let sub_env = List.fold_left bind env names in
+  let sub_env = List.fold_left bind_local env names in
   (* Translate the expressions and annotations. *)
   let expressions, annotations = match flag with
     | Recursive ->
@@ -909,7 +909,7 @@ let translate_item env item =
       (* This just desugars the data type definitions, no binder is opened yet! *)
       let env, defs =
         (* Be strict if we're in an interface. *)
-        translate_data_type_group bind env data_type_group
+        translate_data_type_group bind_local env data_type_group
       in
       env, Some (E.DataTypeGroup defs)
   | ValueDeclarations decl ->
@@ -920,7 +920,7 @@ let translate_item env item =
   | PermDeclaration (x, t) ->
       check env t KType;
       let t = translate_type_with_names env t in
-      let env = bind env (x, KTerm) in
+      let env = bind_local env (x, KTerm) in
       env, Some (E.PermDeclaration (x, t))
   | OpenDirective mname ->
       open_module_in mname env, None
