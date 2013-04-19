@@ -83,28 +83,13 @@ type 'v env = {
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Error messages. *)
-
-type error =
-  | Unbound of (* namespace: *) string * (* name: *) string
-  | BoundTwice of (* namespace: *) string * (* name: *) string
-  | Mismatch of (* expected: *) kind * (* inferred: *) kind
-  | ArityMismatch of (* expected: *) int * (* provided: *) int
-  | ModeConstraintMismatch of (* provided: *) kind
-  | IllegalConsumes
-  | BadHypothesisInFact
-  | BadConclusionInFact of (* data type constructor: *) Variable.name * (* parameters: *) Variable.name list
-  | NonDistinctHeadsInFact of Variable.name * Mode.mode
-  | DuplicateField of Variable.name
-  | AdopterNotExclusive of Variable.name
-  | FieldMismatch of Datacon.name * Field.name list (* missing fields *) * Field.name list (* extra fields *)
-  | ImplicationOnlyOnArrow
-
-exception KindError of (Buffer.t -> unit -> unit)
+(* A few auxiliary functions for printing. *)
 
 module P = struct
 
   open MzPprint
+
+  (* For debugging only. *)
 
   let print_var (v : 'v var) : string =
     match v with
@@ -119,6 +104,8 @@ module P = struct
       string "kind = " ^^ print_kind kind ^^ string ", " ^^ string (print_var v)
     ) env.variables
 
+  (* Printing a comma-separated list of field names. *)
+
   let print_field field =
     utf8string (Field.print field)
 
@@ -130,15 +117,37 @@ module P = struct
 
 end
 
-let is_dummy_location (sp, _) =
-  sp == Lexing.dummy_pos
+(* ---------------------------------------------------------------------------- *)
+
+(* Errors. *)
+
+type error =
+  | Unbound of (* namespace: *) string * (* name: *) string
+  | BoundTwice of (* namespace: *) string * (* name: *) string
+  | Mismatch of (* expected: *) kind * (* inferred: *) kind
+  | ArityMismatch of (* expected: *) int * (* provided: *) int
+  | ModeConstraintMismatch of (* provided: *) kind
+  | IllegalConsumes
+  | BadHypothesisInFact
+  | BadConclusionInFact of (* data type constructor: *) Variable.name * (* parameters: *) Variable.name list
+  | NonDistinctHeadsInFact of (* data type constructor: *) Variable.name * (* duplicate mode: *) Mode.mode
+  | DuplicateField of (* duplicate field: *) Field.name
+  | AdopterNotExclusive of (* data type constructor: *) Variable.name
+  | FieldMismatch of Datacon.name * Field.name list (* missing fields *) * Field.name list (* extra fields *)
+  | ImplicationOnlyOnArrow
+
+(* The [KindError] exception. *)
+
+exception KindError of (Buffer.t -> unit -> unit)
+
+(* Error messages. *)
 
 let print_error env error buf () =
-  let bprintf s = Printf.bprintf buf s in
   (* Print the location, unless it is a dummy location (it should not be). *)
-  if not (is_dummy_location env.location) then
+  if not (is_dummy_loc env.location) then
     Lexer.p buf env.location;
   (* Print the error message. *)
+  let bprintf s = Printf.bprintf buf s in
   begin match error with
   | Unbound (namespace, x) ->
       bprintf
@@ -197,21 +206,22 @@ let print_error env error buf () =
   | NonDistinctHeadsInFact (x, mode) ->
       bprintf
 	"Distinct facts must concern distinct modes.\n\
-         In the declaration of %a, two distinct facts concern the mode %s"
+         In the declaration of %a, two distinct facts concern the mode %s."
 	Variable.p x
 	(Mode.print mode)
   | DuplicateField d ->
       bprintf
-        "The field %a appears several times in this branch"
-        Variable.p d
+        "The field %a appears twice."
+        Field.p d
   | AdopterNotExclusive x ->
       bprintf
-        "Type %a carries an adopts clause, but is not marked as mutable"
+        "The type %a carries an adopts clause: it should be declared mutable."
         Variable.p x
   | FieldMismatch (datacon, missing, extra) ->
       bprintf
-        "This type does not have the fields of data constructor %a"
+        "The fields are not those of the data constructor %a."
         Datacon.p datacon;
+      assert (missing <> [] || extra <> []);
       if missing <> [] then
 	bprintf
 	  "\nThe following field%s missing: %a"
@@ -230,7 +240,6 @@ let print_error env error buf () =
     Printf.bprintf buf "\n";
     MzPprint.pdoc buf (P.print_env, env)
   end
-;;
 
 let raise_error env e =
   raise (KindError (print_error env e))
@@ -247,17 +256,11 @@ let mismatch env expected_kind inferred_kind =
 let illegal_consumes env =
   raise_error env IllegalConsumes
 
-let non_distinct_heads_in_fact env x mode =
-  raise_error env (NonDistinctHeadsInFact (x, mode))
-;;
-
 let bad_conclusion_in_fact env x args =
   raise_error env (BadConclusionInFact (x, args))
-;;
 
 let duplicate_field env f =
   raise_error env (DuplicateField f)
-;;
 
 let field_mismatch env dc missing extra =
   raise_error env (FieldMismatch (dc, missing, extra))
@@ -611,7 +614,7 @@ let check_distinct_heads env name facts =
   ignore (
     List.fold_left (fun accu (Fact (_, (mode, _))) ->
       if Mode.ModeMap.mem mode accu then
-	non_distinct_heads_in_fact env name mode
+	raise_error env (NonDistinctHeadsInFact (name, mode))
       else
 	Mode.ModeMap.add mode () accu
     ) Mode.ModeMap.empty facts

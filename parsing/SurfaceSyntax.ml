@@ -99,6 +99,9 @@ type location = Lexing.position * Lexing.position
 
 let dummy_loc = (Lexing.dummy_pos, Lexing.dummy_pos)
 
+let is_dummy_loc (sp, _) =
+  sp == Lexing.dummy_pos
+
 (* Some quantifiers can be instantiated by a user, some cannot, especially those
  * introduced in the desugaring phase. *)
 type binding_flavor = UserIntroduced | AutoIntroduced

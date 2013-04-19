@@ -58,7 +58,7 @@ val initial:
   'v env
 
 
-
+(** A [KindError] exception carries a function that displays an error message. *)
 exception KindError of (Buffer.t -> unit -> unit)
 
 (* TEMPORARY try not to publish any of the functions that raise errors *)
