@@ -24,7 +24,18 @@
 
 open Kind
 
-type var
+(* An environment maintains a mapping of external variable names to internal
+   objects, represented by the type [var]. A [var] is either a local name,
+   represented as de Bruijn index, or a non-local name, represented in some
+   other way. Typically, when checking a compilation unit, the names defined
+   within this compilation unit are translated to local names, whereas the
+   names defined in other units that this unit depends on are translated to
+   non-local names. *)
+
+type var =
+    Local of int
+  | NonLocal of TypeCore.var
+
 type env
 type error
 exception KindError of error
@@ -47,9 +58,6 @@ val module_name: env -> Module.name
 val find_var: env -> Variable.name SurfaceSyntax.maybe_qualified -> var
 val find_datacon: env -> Datacon.name SurfaceSyntax.maybe_qualified -> var * SurfaceSyntax.datacon_info
 
-
-val tvar: env -> var -> TypeCore.typ
-val evar: env -> var -> Expressions.expression
 
 val names: env -> SurfaceSyntax.typ -> SurfaceSyntax.type_binding list
 val bindings_pattern: SurfaceSyntax.pattern -> (Variable.name * kind) list

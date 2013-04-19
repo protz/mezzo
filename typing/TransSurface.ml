@@ -44,6 +44,18 @@ module E = Expressions
 let name_user = fun env (x, k, l) -> (T.User (module_name env, x), k, l);;
 let name_auto = fun (x, k, l) -> (T.Auto x, k, l);;
 
+(* [tvar] transforms [v] into a type variable in the internal syntax. *)
+let tvar v : T.typ =
+  match v with
+  |    Local v -> T.TyBound v
+  | NonLocal v -> T.TyOpen  v
+
+(* [evar] transforms [v] into an expression variable in the internal syntax. *)
+let evar v =
+  match v with
+  |    Local v -> E.EVar  v
+  | NonLocal v -> E.EOpen v
+
 let resolve_datacon env dref =
   let datacon = dref.datacon_unresolved in
   (* Get the type [v] with which this data constructor is associated,
@@ -55,7 +67,7 @@ let resolve_datacon env dref =
   (* A resolved data constructor is a pair of the type with which this
      data constructor is associated and the unqualified name of this
      data constructor. *)
-  tvar env v,
+  tvar v,
   unqualify datacon
 
 
@@ -205,7 +217,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
       T.TyEmpty
 
   | TyVar x ->
-      tvar env (find_var env x)
+      tvar (find_var env x)
 
   | TyConcrete ((dref, fields), clause) ->
       (* Performs a side-effect! *)
@@ -283,7 +295,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TyNameIntro (x, t) ->
       (* [x: t] translates into [(=x | x@t)] -- with [x] bound somewhere above
          us. *)
-      let x = tvar env (find_var env (Unqualified x)) in
+      let x = tvar (find_var env (Unqualified x)) in
       T.TyBar (
         T.TySingleton x,
         T.TyAnchoredPermission (x, translate_type env t)
@@ -682,7 +694,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       E.EConstraint (e, t)
 
   | EVar x ->
-      evar env (find_var env x)
+      evar (find_var env x)
 
   | EBuiltin b ->
       E.EBuiltin b

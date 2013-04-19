@@ -40,6 +40,12 @@ type level =
 
 (* Thus, for our purposes, a [var] is either a local name or a non-local name. *)
 
+(* There is a subtlety concerning the meaning of the integer argument carried
+   by [Local]. Internally, an environment contains [var]s represented using
+   de Bruijn levels. However, the public functions that export variables,
+   namely [find_var] and [find_datacon], produce [var]s represented using de
+   Bruijn indices. *)
+
 type var =
        Local of level
   | NonLocal of T.var
@@ -349,27 +355,18 @@ let find_kind env x : kind =
   let kind, _ = find env x in
   kind
 
+(* This version of [find_var] is for internal use; it returns a de-Bruijn-level
+   [var]. Further on, we compose it with [level2index]. *)
 let find_var env x : var =
   let _, v = find env x in
   v
 
-(* [level2index] converts a de Bruijn level to a de Bruijn index. *)
-let level2index env level =
-  env.level - level - 1
-
-(* [tvar v env] transforms the variable [v] into a type variable
-   in the internal syntax. *)
-let tvar env v : T.typ =
-  match v with
-  |    Local level -> T.TyBound (level2index env level)
-  | NonLocal v     -> T.TyOpen v
-
-(* [evar v env] transforms the variable [v] into an expression variable
-   in the internal syntax. *)
-let evar env v =
-  match v with
-  |    Local level -> E.EVar (level2index env level)
-  | NonLocal v     -> E.EOpen v
+(* [level2index] converts a de-Bruijn-level [var] to a de-Bruijn-index [var]. *)
+let level2index env = function
+  | Local level ->
+      Local (env.level - level - 1)
+  | NonLocal _ as v ->
+      v
 
 (* [bind env (x, kind)] binds the name [x] with kind [kind]. *)
 let bind env (x, kind) : env =
@@ -394,6 +391,7 @@ let bind_datacon env dc (v : var) info =
 let bind_datacons env data_type_group =
   List.fold_left (fun env -> function
     | Concrete (_, (name, _), rhs, _) ->
+        (* TEMPORARY why Unqualified? no risk of masking? *)
         let v : var = find_var env (Unqualified name) in
         MzList.fold_lefti (fun i env (dc, fields) ->
           (* We're building information for the interpreter: drop the
@@ -410,6 +408,9 @@ let bind_datacons env data_type_group =
   ) env data_type_group
 ;;
 
+(* Redefine [find_var]. *)
+let find_var env x : var =
+  level2index env (find_var env x)
 
 (* Find in [tsenv.env] all the names exported by module [mname], and add them to our
  * own [tsenv]. *)
@@ -427,7 +428,8 @@ let open_module_in (m: Module.name) (env: env): env =
 
 let find_datacon env (datacon : Datacon.name maybe_qualified) : var * datacon_info =
   try
-    D.lookup_maybe_qualified datacon env.datacons
+    let v, info = D.lookup_maybe_qualified datacon env.datacons in
+    level2index env v, info
   with Not_found ->
     raise_error env (UnboundDataConstructor (unqualify datacon))
 
