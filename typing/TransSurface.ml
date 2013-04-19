@@ -923,7 +923,7 @@ let translate_item env item =
       let env = bind_local env (x, KTerm) in
       env, Some (E.PermDeclaration (x, t))
   | OpenDirective mname ->
-      open_module_in mname env, None
+      dissolve env mname, None
 ;;
 
 let rec translate_items env = function

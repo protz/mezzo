@@ -92,15 +92,27 @@ val find_datacon: 'v env -> Datacon.name maybe_qualified -> 'v var * datacon_inf
 
 (* Extending an environment. *)
 
+(** [locate env loc] updates [env] with the location [loc]. *)
+val locate: 'v env -> location -> 'v env
+
 (** [bind_local env (x, kind)] binds the unqualified variable [x] to a new local
     name whose kind is [kind]. *)
 val bind_local: 'v env -> Variable.name * kind -> 'v env
+
+(** [bind_nonlocal env (x, kind, v)] binds the unqualified variable [x] to the
+    non-local name [v], whose kind is [kind]. *)
 val bind_nonlocal: 'v env -> Variable.name * kind * 'v -> 'v env
+
+(** [extend] is an iterated form of [bind_local]. *)
 val extend: 'v env -> type_binding list -> 'v env
 
+(** [dissolve env m] has the effect of introducing a new binding of [x]
+    for every existing binding of [m::x]. This concerns both variables and
+    data constructors. *)
+val dissolve: 'v env -> Module.name -> 'v env
+
+
 val bind_datacons: 'v env -> data_type_def list -> 'v env
-val open_module_in: Module.name -> 'v env -> 'v env
-val locate: 'v env -> location -> 'v env
 
 
 

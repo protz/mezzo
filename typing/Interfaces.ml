@@ -117,7 +117,7 @@ let check
   let rec check (env: T.env) (tsenv: KindCheckGlue.env) (toplevel_items: S.toplevel_item list) =
     match toplevel_items with
     | S.OpenDirective mname :: toplevel_items ->
-        let tsenv = KindCheck.open_module_in mname tsenv in
+        let tsenv = KindCheck.dissolve tsenv mname in
         check env tsenv toplevel_items
 
     | S.PermDeclaration (x, t) :: toplevel_items ->

@@ -363,8 +363,12 @@ let find_dc env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info
 
 (* Extending an environment. *)
 
-(* [bind env x data] binds the unqualified name [x] to the information [data]. *)
-let bind env x (data : 'v var * kind) : 'v env =
+(* [locate env loc] updates [env] with the location [loc]. *)
+let locate env location =
+  { env with location }
+
+(* [bind_variable env x data] binds the unqualified variable [x]. *)
+let bind_variable env x (data : 'v var * kind) : 'v env =
   { env with variables = V.extend_unqualified x data env.variables }
 
 (* [bind_local env (x, kind)] binds the unqualified variable [x] to a new local
@@ -374,41 +378,24 @@ let bind_local env (x, kind) =
      is then incremented. *)
   let data = (Local env.level, kind) in
   let env = { env with level = env.level + 1 } in
-  bind env x data
+  bind_variable env x data
 
+(* [bind_nonlocal env (x, kind, v)] binds the unqualified variable [x] to the
+   non-local name [v], whose kind is [kind]. *)
 let bind_nonlocal env (x, kind, v) =
-  bind env x (NonLocal v, kind)
+  bind_variable env x (NonLocal v, kind)
 
-(* [dc] is the unqualified data constructor, [v] is the data type
-   that it is associated with. *)
-let bind_datacon env dc (v : 'v var) info =
-  { env with datacons = D.extend_unqualified dc (v, info) env.datacons }
-;;
+(* [extend] is an iterated form of [bind_local]. *)
+let extend env (xs : type_binding list) : 'v env =
+  List.fold_left (fun env (x, k, _loc) ->
+    bind_local env (x, k)
+  ) env xs
 
-(* Bind all the data constructors from a data type group *)
-let bind_datacons env data_type_group =
-  List.fold_left (fun env -> function
-    | Concrete (_, (name, _), rhs, _) ->
-        (* TEMPORARY why Unqualified? no risk of masking? *)
-        let v : 'v var = find_var env (Unqualified name) in
-        MzList.fold_lefti (fun i env (dc, fields) ->
-          (* We're building information for the interpreter: drop the
-           * permission fields. *)
-          let fields = MzList.map_some (function
-            | FieldValue (name, _) -> Some name
-            | FieldPermission _ -> None
-          ) fields in
-          bind_datacon env dc v (mkdatacon_info dc i fields)
-        ) env rhs
-    | Abbrev _
-    | Abstract _ ->
-        env
-  ) env data_type_group
-;;
+(* [bind_datacon env x data] binds the unqualified data constructor [x]. *)
+let bind_datacon env x (data : 'v var * datacon_info) : 'v env =
+  { env with datacons = D.extend_unqualified x data env.datacons }
 
-(* Find in [tsenv.env] all the names exported by module [mname], and add them to our
- * own [tsenv]. *)
-let open_module_in (m : Module.name) (env : 'v env) : 'v env =
+let dissolve env m =
   (* Unqualify the variables and data constructors qualified with [m]. *)
   (* The call to [freeze] is just a way of avoiding the failure
      in [unqualify] if this module does not exist, i.e. it exports
@@ -419,17 +406,6 @@ let open_module_in (m : Module.name) (env : 'v env) : 'v env =
     variables = V.unqualify m (V.freeze m env.variables);
     datacons = D.unqualify m (D.freeze m env.datacons);
   }
-
-(* [locate env p] updates [env] with the provided location information. *)
-let locate env location =
-  { env with location }
-
-(* [extend env xs] extends the current environment with a list of new bindings. *)
-let extend env (xs : type_binding list) : 'v env =
-  List.fold_left (fun env (x, k, _) ->
-    bind_local env (x, k)
-  ) env xs
-;;
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -535,6 +511,30 @@ let names env ty : type_binding list =
 
 let reset env ty =
   extend env (names env ty)
+
+(* Bind all the data constructors from a data type group *)
+let bind_datacons env data_type_group =
+  List.fold_left (fun env -> function
+    | Concrete (_, (name, _), rhs, _) ->
+        (* TEMPORARY why Unqualified? no risk of masking? *)
+        (* TEMPORARY merging this function with [bindings_data_type_group] should
+	   allow getting rid of this call to [find_var]. This in turn would allow
+	   us to remove the distinction between [find_var] and [find_variable]. *)
+        let v : 'v var = find_var env (Unqualified name) in
+        MzList.fold_lefti (fun i env (dc, fields) ->
+          (* We're building information for the interpreter: drop the
+           * permission fields. *)
+          let fields = MzList.map_some (function
+            | FieldValue (name, _) -> Some name
+            | FieldPermission _ -> None
+          ) fields in
+          bind_datacon env dc (v, mkdatacon_info dc i fields)
+        ) env rhs
+    | Abbrev _
+    | Abstract _ ->
+        env
+  ) env data_type_group
+;;
 
 (* [bindings_data_type_group] returns a list of names that the whole data type
    group binds, with the corresponding kinds. The list is in the same order as
@@ -1010,7 +1010,7 @@ let check_implementation env (program: implementation) : unit =
         bind_local env (x, KTerm)
 
     | OpenDirective mname ->
-        open_module_in mname env
+        dissolve env mname
   ) env program in
   ()
 ;;
