@@ -367,17 +367,17 @@ let find_dc env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info
 let bind env x (data : 'v var * kind) : 'v env =
   { env with variables = V.extend_unqualified x data env.variables }
 
-(* [bind_local env (x, kind)] binds the unqualified name [x] to a new local
+(* [bind_local env (x, kind)] binds the unqualified variable [x] to a new local
    name whose kind is [kind]. *)
-let bind_local env (x, kind) : 'v env =
+let bind_local env (x, kind) =
   (* The current level is used to create a new local name. The current level
      is then incremented. *)
   let data = (Local env.level, kind) in
   let env = { env with level = env.level + 1 } in
   bind env x data
 
-let bind_nonlocal env (x, kind, p) : 'v env =
-  bind env x (NonLocal p, kind)
+let bind_nonlocal env (x, kind, v) =
+  bind env x (NonLocal v, kind)
 
 (* [dc] is the unqualified data constructor, [v] is the data type
    that it is associated with. *)
@@ -424,7 +424,7 @@ let open_module_in (m : Module.name) (env : 'v env) : 'v env =
 let locate env location =
   { env with location }
 
-(* [extend env xs] extends the current environment with a lsit of new bindings. *)
+(* [extend env xs] extends the current environment with a list of new bindings. *)
 let extend env (xs : type_binding list) : 'v env =
   List.fold_left (fun env (x, k, _) ->
     bind_local env (x, k)

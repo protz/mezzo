@@ -416,7 +416,7 @@ and translate_arrow_type env t1 t2 =
   (* So that we don't mess up, we use unique names in the surface syntax and
    * let the translation phase do the proper index computations. *)
   let universal_bindings = t1_bindings @ perm_bindings @ [root_binding] in
-  let env = List.fold_left (fun env (x, k, _) -> bind_local env (x, k)) env universal_bindings in
+  let env = extend env universal_bindings in
   let fat_t1 =
     List.fold_left (fun t c -> TyAnd (c, t)) fat_t1 constraints
   in
@@ -446,7 +446,7 @@ and translate_arrow_type env t1 t2 =
 
 and translate_type_with_names (env: env) (t: typ): T.typ =
   let bindings = names env t in
-  let env = List.fold_left (fun env (x, k, _) -> bind_local env (x, k)) env bindings in
+  let env = extend env bindings in
   let t = translate_type env t in
   let t = Types.fold_exists (List.map (fun binding -> name_user env binding, UserIntroduced) bindings) t in
   t
@@ -710,7 +710,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   | EFun (vars, arg, return_type, body) ->
 
       (* Introduce all universal bindings. *)
-      let env = List.fold_left (fun env (x, k, _) -> bind_local env (x, k)) env vars in
+      let env = extend env vars in
 
       (* Translate the function type. *)
       let universal_bindings, arg, return_type =
