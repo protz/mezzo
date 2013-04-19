@@ -145,7 +145,7 @@ let check
 
         (* Alright, [x] is now bound, and when it appears afterwards, it will
          * refer to the original [x] from [env]. *)
-        let tsenv = KindCheck.bind_external tsenv (x, KTerm, point) in
+        let tsenv = KindCheck.bind_nonlocal tsenv (x, KTerm, point) in
 
         (* Check the remainder of the toplevel_items. *)
         check env tsenv toplevel_items
@@ -156,7 +156,7 @@ let check
 	   the existing points in [env]. *)
         let tsenv, translated_definitions =
 	  TransSurface.translate_data_type_group (fun tsenv (name, kind) ->
-            KindCheck.bind_external tsenv (name, kind, point_by_name name)
+            KindCheck.bind_nonlocal tsenv (name, kind, point_by_name name)
 	  ) tsenv group
 	in
 

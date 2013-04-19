@@ -376,7 +376,7 @@ let bind_local env (x, kind) : 'v env =
   let env = { env with level = env.level + 1 } in
   bind env x data
 
-let bind_external env (x, kind, p) : 'v env =
+let bind_nonlocal env (x, kind, p) : 'v env =
   bind env x (NonLocal p, kind)
 
 (* [dc] is the unqualified data constructor, [v] is the data type

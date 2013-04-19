@@ -93,7 +93,7 @@ val find_datacon: 'v env -> Datacon.name maybe_qualified -> 'v var * datacon_inf
 (* Extending an environment. *)
 
 val bind_local: 'v env -> Variable.name * kind -> 'v env
-val bind_external: 'v env -> Variable.name * kind * 'v -> 'v env
+val bind_nonlocal: 'v env -> Variable.name * kind * 'v -> 'v env
 val bind_datacons: 'v env -> data_type_def list -> 'v env
 val open_module_in: Module.name -> 'v env -> 'v env
 val locate: 'v env -> location -> 'v env
