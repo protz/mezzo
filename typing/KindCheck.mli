@@ -84,8 +84,8 @@ val bindings_patterns: SurfaceSyntax.pattern list -> (Variable.name * kind) list
 
 val bindings_data_type_group: SurfaceSyntax.data_type_def list -> (Variable.name * kind) list
 
-val check_type_with_names: 'v env -> SurfaceSyntax.typ -> kind -> unit
-val infer_type_with_names: 'v env -> SurfaceSyntax.typ -> kind
+val check: 'v env -> SurfaceSyntax.typ -> kind -> unit
+val infer: 'v env -> SurfaceSyntax.typ -> kind
 
 val check_implementation: 'v env -> SurfaceSyntax.implementation -> unit
 val check_interface: 'v env -> SurfaceSyntax.interface -> unit

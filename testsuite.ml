@@ -146,6 +146,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("unbound04.mz", kfail);
   ("unbound05.mz", kfail);
   ("unbound06.mz", kfail);
+  ("unbound07.mz", kfail);
+  ("unbound08.mz", kfail);
+  ("unbound09.mz", pass);
 
   ("basic.mz",
     pass);
@@ -620,6 +623,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("adopts10.mz",
     simple_test (Fail (function NotMergingClauses _ -> true | _ -> false)));
 
+  ("adopts11.mz", pass_known_failure);
   ("adopts12.mz",
     pass);
 

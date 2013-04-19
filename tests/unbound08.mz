@@ -1,0 +1,2 @@
+(* This does not make sense because y: is used at kind perm. *)
+alias t = (x: int | y: (x @ int))

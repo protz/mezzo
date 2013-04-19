@@ -24,3 +24,6 @@ val arity: kind -> int
 
 (** [print_kind] converts a kind to a textual representation. *)
 val print_kind: kind -> PPrint.document
+
+(** [equal] tests the equality of two kinds. *)
+val equal: kind -> kind -> bool

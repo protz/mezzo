@@ -1,0 +1,3 @@
+open list
+val f (x: list) : () =
+  ()

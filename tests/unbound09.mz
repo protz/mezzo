@@ -1,0 +1,6 @@
+(* These do make sense... *)
+
+alias t = (x: int | x @ (y: int))
+
+alias v = list::list (x: int)
+

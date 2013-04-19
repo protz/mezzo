@@ -125,7 +125,7 @@ let check
         Log.debug ~level:3 "*** Checking sig item %a" Variable.p x;
 
         (* Make sure [t] has kind ∗ *)
-        KindCheck.check_type_with_names tsenv t KType;
+        KindCheck.check tsenv t KType;
 
         (* Now translate type [t] into the internal syntax; [x] is not bound in
          * [t]. *)

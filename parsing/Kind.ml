@@ -42,3 +42,6 @@ let rec print =
 let print_kind k =
   PPrint.string (print k)
 
+let equal =
+  (=)
+

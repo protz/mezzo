@@ -402,10 +402,9 @@ let open_module_in (m : Module.name) (env : 'v env) : 'v env =
     datacons = D.unqualify m (D.freeze m env.datacons);
   }
 
-(* [locate env p] extends [env] with the provided location information. *)
-let locate env p =
-  { env with location = p }
-;;
+(* [locate env p] updates [env] with the provided location information. *)
+let locate env location =
+  { env with location }
 
 (* [extend env xs] extends the current environment with a lsit of new bindings. *)
 let extend env (xs : type_binding list) : 'v env =
@@ -516,6 +515,9 @@ let names env ty : type_binding list =
   bindings
 ;;
 
+let reset env ty =
+  extend env (names env ty)
+
 (* [bindings_data_type_group] returns a list of names that the whole data type
    group binds, with the corresponding kinds. The list is in the same order as
    the data type definitions. *)
@@ -605,21 +607,42 @@ let check_distinct_heads env name facts =
     ) Mode.ModeMap.empty facts
   )
 
-let rec check env (t: typ) (expected_kind: kind) =
-  let inferred_kind = infer env t in
-  if expected_kind <> inferred_kind then
-    mismatch env expected_kind inferred_kind
+let rec check env (ty : typ) (expected : kind) =
+  match ty with
 
-and infer env (t: typ) =
-  match t with
-  | TyLocated (t, p) ->
-      infer (locate env p) t
+  (* Treating the following cases here may seem redundant, but allows us to
+     detect a mismatch between inferred and expected kinds at a deeper
+     location, leading to a better error message. *)
 
-  | TyTuple ts ->
-      List.iter (fun t -> check env t KType) ts;
+  | TyLocated (ty, loc) ->
+      check (locate env loc) ty expected
+
+  | TyConsumes ty ->
+      check env ty expected
+
+  (* The general case. *)
+
+  | _ ->
+      let inferred = infer env ty in
+      if not (Kind.equal inferred expected) then
+	mismatch env expected inferred
+
+and infer env (ty : typ) : kind =
+  match ty with
+
+  | TyLocated (ty, loc) ->
+      infer (locate env loc) ty
+
+  | TyConsumes ty ->
+      infer env ty
+
+  | TyTuple tys ->
+      List.iter (fun ty -> check env ty KType) tys;
       KType
 
-  | TyUnknown
+  | TyUnknown ->
+      KType
+
   | TyDynamic ->
       KType
 
@@ -630,77 +653,73 @@ and infer env (t: typ) =
       find_kind env x
 
   | TyConcrete (branch, clause) ->
-      (* TEMPORARY datacon is not checked here! *)
+      (* TEMPORARY parts of the checks are performed later, in [TransSurface]. Why? *)
       check_branch env branch;
-      Option.iter (fun t -> check env t KType) clause;
-        (* If there is an [adopts] clause, we might wish to check that 
-	   this data constructor is exclusive. We will do this in
-	   [TransSurface]. *)
+      Option.iter (fun ty -> check_reset env ty KType) clause;
       KType
 
-  | TySingleton t ->
-      check env t KTerm;
+  | TySingleton ty ->
+      check env ty KTerm; (* [reset] irrelevant *)
       KType
 
-  | TyApp (t1, t2s) ->
-      let k1 = infer env t1 in
-      let k2s, k = as_arrow k1 in
-      let expected = List.length k2s
-      and provided = List.length t2s in
+  | TyApp (ty1, ty2s) ->
+      let kind1 = infer env ty1 in (* [reset] irrelevant *)
+      let kind2s, kind = as_arrow kind1 in
+      let expected = List.length kind2s
+      and provided = List.length ty2s in
       if expected <> provided then
 	raise_error env (ArityMismatch (expected, provided));
-      List.iter2 (check env) t2s k2s;
-      k
+      List.iter2 (check_reset env) ty2s kind2s;
+      kind
 
-  | TyArrow (t1, t2) ->
-      let f1 = names env t1 in
-      let f2 = names env t2 in
-      let env = extend env f1 in
-      check env t1 KType;
-      let env = extend env f2 in
-      check env t2 KType;
+  | TyArrow (ty1, ty2) ->
+      (* The scope of the names introduced in the left-hand side
+	 extends to the left- and right-hand sides. *)
+      let env = reset env ty1 in
+      check env ty1 KType;
+      check_reset env ty2 KType;
       KType
 
-  | TyForall ((x, k, _), t)
-  | TyExists ((x, k, _), t) ->
-      let env = bind env (x, k) in
-      infer_type_with_names env t
+  | TyForall ((x, kind, _), ty)
+  | TyExists ((x, kind, _), ty) ->
+      let env = bind env (x, kind) in
+      check_reset env ty KType;
+      KType
 
-  | TyAnchoredPermission (t1, t2) ->
-      check env t1 KTerm;
-      check env t2 KType;
+  | TyAnchoredPermission (ty1, ty2) ->
+      check env ty1 KTerm;  (* [reset] irrelevant *)
+      check_reset env ty2 KType;
       KPerm
 
-  | TyStar (t1, t2) ->
-      check env t1 KPerm;
-      check env t2 KPerm;
+  | TyStar (ty1, ty2) ->
+      check env ty1 KPerm; (* [reset] irrelevant *)
+      check env ty2 KPerm; (* [reset] irrelevant *)
       KPerm
 
-  | TyNameIntro (x, t) ->
+  | TyNameIntro (x, ty) ->
+      (* In principle, this name has already been bound in the
+	 environment, via a previous call to [reset]. *)
       assert (find_kind env (Unqualified x) = KTerm);
-      infer env t
-
-  | TyConsumes t ->
-      infer env t
+    check env ty KType;
+    KType
 
   | TyBar (t1, t2) ->
       check env t1 KType;
-      check env t2 KPerm;
+      check env t2 KPerm; (* [reset] irrelevant *)
       KType
 
-  | TyAnd ((_, t), u)
-  | TyImply ((_, t), u) ->
-      check env t KType;
-      infer env u
+  | TyAnd ((_, ty1), ty2)
+  | TyImply ((_, ty1), ty2) ->
+      check_reset env ty1 KType;
+      check env ty2 KType;
+      KType
 
-and check_field env (field: data_field_def) =
+and check_field env (field : data_field_def) =
   match field with
-  | FieldValue (_name, t) ->
-      check_type_with_names env t KType
+  | FieldValue (_, ty) ->
+      check_reset env ty KType
   | FieldPermission t ->
-      (* I have removed the calls to [names] and [extend], because
-	 a permission component does not bind any names. -fpottier *)
-      check env t KPerm
+      check env t KPerm (* [reset] irrelevant *)
 
 and check_branch: 'a. 'v env -> ('a * data_field_def list) -> unit = fun env branch ->
   let _, fields = branch in
@@ -716,17 +735,11 @@ and check_branch: 'a. 'v env -> ('a * data_field_def list) -> unit = fun env bra
     (duplicate_field env);
   List.iter (check_field env) fields
 
-and check_type_with_names env (t: typ) (k: kind) =
-  let bindings = names env t in
-  let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env bindings in
-  check env t k
+and infer_reset env ty =
+  infer (reset env ty) ty
 
-and infer_type_with_names env (t: typ): kind =
-  let bindings = names env t in
-  let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env bindings in
-  infer env t
-;;
-
+and check_reset env ty expected =
+  check (reset env ty) ty expected
 
 (* Check a data type definition. For abstract types, this just checks that the
    fact is well-formed. For concrete types, check that the branches are all
@@ -751,7 +764,7 @@ let check_data_type_def env (def: data_type_def) =
       | None ->
           ()
       | Some t ->
-          check_type_with_names env t KType;
+          check_reset env t KType;
           (* We can do that early. *)
 	  if not (DataTypeFlavor.can_adopt flavor) then
 	    raise_error env (AdopterNotExclusive name)
@@ -759,7 +772,7 @@ let check_data_type_def env (def: data_type_def) =
   | Abbrev ((_, bindings), return_kind, t) ->
       let bindings = List.map (fun (_, (x, y, _)) -> x, y) bindings in
       let env = List.fold_left bind env bindings in
-      check_type_with_names env t return_kind
+      check_reset env t return_kind
 ;;
 
 
@@ -786,8 +799,7 @@ let rec check_pattern env (pattern: pattern) =
   match pattern with
   | PConstraint (p, t) ->
       check_pattern env p;
-      Log.debug "check_type_with_names";
-      check_type_with_names env t KType
+      check_reset env t KType
   | PVar x ->
       assert (find_kind env (Unqualified x) = KTerm)
   | PTuple patterns ->
@@ -831,7 +843,7 @@ and check_expression env (expr: expression) =
   match expr with
   | EConstraint (e, t) ->
       check_expression env e;
-      check_type_with_names env t KType
+      check_reset env t KType
 
   | EVar x ->
       let k = find_kind env x in
@@ -850,13 +862,10 @@ and check_expression env (expr: expression) =
       check_for_duplicate_variables Types.fst3 bindings (bound_twice "variable" Variable.print env);
       let bindings = List.map (fun (x, y, _) -> x, y) bindings in
       let env = List.fold_left bind env bindings in
-      let arg_bindings = names env arg in
-      let env = extend env arg_bindings in
+      let env = reset env arg in
       check env arg KType;
       check_expression env body;
-      let return_bindings = names env return_type in
-      let env = extend env return_bindings in
-      check env return_type KType
+      check_reset env return_type KType
 
   | EAssign (e1, _, e2) ->
       check_expression env e1;
@@ -869,20 +878,15 @@ and check_expression env (expr: expression) =
       check_expression env e
 
   | EAssert t ->
-      check env t KPerm
+      check env t KPerm (* [reset] irrelevant *)
 
   | EApply (e1, e2) ->
       check_expression env e1;
       check_expression env e2
 
-  | ETApply (e1, _) ->
-      (* We are not checking the types here:
-       * - we're calling [infer_type_with_names] in [typing/TransSurface.ml] to
-       *   attach in the internal representation the kind of the type arguments;
-       * - the [TypeChecker] will take care of checking that the kind of the
-       *   arguments and the kind of the function variables match, once
-       *   type-checking has been performed. *)
-      check_expression env e1
+  | ETApply (e, args) ->
+      List.iter (check_tapp env) args;
+      check_expression env e
 
   | EMatch (_, e, pat_exprs) ->
       check_expression env e;
@@ -926,6 +930,12 @@ and check_expression env (expr: expression) =
 
   | EFail ->
       ()
+
+and check_tapp env = function
+  | Ordered ty
+  | Named (_, ty) ->
+      ignore (infer_reset env ty)
+
 ;;
 
 
@@ -973,9 +983,8 @@ let check_implementation env (program: implementation) : unit =
         check_declaration_group env declaration_group;
 
     | PermDeclaration (x, t) ->
-        check_type_with_names env t KType;
-        let env = bind env (x, KTerm) in
-        env
+        check_reset env t KType;
+        bind env (x, KTerm)
 
     | OpenDirective mname ->
         open_module_in mname env
@@ -1027,4 +1036,11 @@ let find_var env x =
 let find_datacon env datacon =
   let v, info = find_datacon env datacon in
   level2index env v, info
+
+(* Rename [check_reset] and [infer_reset] for public use. *)
+let check =
+  check_reset
+
+let infer =
+  infer_reset
 

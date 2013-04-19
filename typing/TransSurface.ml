@@ -272,7 +272,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyApp _ ->
       let t, ts = flatten_tyapp t in
-      T.TyApp (translate_type env t, List.map (translate_type env) ts)
+      T.TyApp (translate_type env t, List.map (translate_type_with_names env) ts)
 
   | TyArrow (t1, t2) ->
       let universal_bindings, t1, t2 = translate_arrow_type env t1 t2 in
@@ -289,6 +289,8 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyAnchoredPermission (t1, t2) ->
       T.TyAnchoredPermission (translate_type env t1, translate_type env t2)
+	(* TEMPORARY should be translate_type_with_names on the right-hand side,
+	   but that causes a large number of failures (why?). *)
 
   | TyStar (t1, t2) ->
       T.TyStar (translate_type env t1, translate_type env t2)
@@ -756,7 +758,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   | ETApply (e1, ts) ->
       let e1 = translate_expr env e1 in
       let ts = List.map (fun t ->
-        map_tapp (translate_type_with_names env) t, infer_type_with_names env (strip_tapp t)
+        map_tapp (translate_type_with_names env) t, infer env (strip_tapp t)
       ) ts in
       List.fold_left (fun e (t, k) -> E.ETApply (e, t, k)) e1 ts
 
@@ -916,7 +918,7 @@ let translate_item env item =
       let env, decl = translate_declaration_group env decl in
       env, Some (E.ValueDeclarations decl)
   | PermDeclaration (x, t) ->
-      check_type_with_names env t KType;
+      check env t KType;
       let t = translate_type_with_names env t in
       let env = bind env (x, KTerm) in
       env, Some (E.PermDeclaration (x, t))

@@ -1,0 +1,6 @@
+(* This test currently fails because the name intro "x:" prevents
+   recognizing "ref int" as exclusive. *)
+
+data mutable u = U
+  adopts (x: ref int)
+
