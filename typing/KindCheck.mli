@@ -24,6 +24,8 @@
 
 open Kind
 
+(* ---------------------------------------------------------------------------- *)
+
 (* An environment maintains a mapping of external variable names to internal
    objects, represented by the type [var]. A [var] is either a local name,
    represented as de Bruijn index, or a non-local name, represented in some
@@ -37,18 +39,32 @@ type 'v var =
   | NonLocal of 'v
 
 type 'v env
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Building environments. *)
+
+(** An empty environment. *)
+val empty: Module.name -> 'v env
+
+(** A so-called initial environment can be constructed by populating an empty
+    environment with qualified names of variables and data constructors. They
+    represent names that have been defined in a module other than the current
+    module. *)
+val initial:
+  Module.name ->
+  (Module.name * Variable.name * kind * 'v) list ->
+  (Module.name * 'v * int * Datacon.name * SurfaceSyntax.Field.name list) list ->
+  'v env
+
+
+
 exception KindError of (Buffer.t -> unit -> unit)
 
 (* TEMPORARY try not to publish any of the functions that raise errors *)
 val field_mismatch: 'v env -> Datacon.name -> SurfaceSyntax.Field.name list (* missing fields *) -> SurfaceSyntax.Field.name list (* extra fields *) -> 'a
 val implication_only_on_arrow: 'v env -> 'a
 val illegal_consumes: 'v env -> 'a
-
-val initial:
-  Module.name ->
-  (Module.name * Variable.name * kind * 'v) list ->
-  (Module.name * 'v * int * Datacon.name * SurfaceSyntax.Field.name list) list ->
-  'v env
 
 val bind: 'v env -> Variable.name * kind -> 'v env
 val bind_external: 'v env -> Variable.name * kind * 'v -> 'v env

@@ -1,0 +1,3 @@
+data t =
+| A { x: int }
+| A { x: bool }

@@ -139,7 +139,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   (* Some very simple tests. *)
 
-  ("unbound.mz", kfail);
+  ("unbound00.mz", kfail);
+  ("unbound01.mz", kfail);
+  ("unbound02.mz", kfail);
+  ("unbound03.mz", kfail);
+  ("unbound04.mz", kfail);
+  ("unbound05.mz", kfail);
+  ("unbound06.mz", kfail);
 
   ("basic.mz",
     pass);

@@ -66,17 +66,14 @@ type 'v env = {
 
   (* A mapping of (qualified or unqualified) variable names to pairs of a kind
      and a variable. *)
-  variables: (kind * 'v var) V.global_env;
+  variables: ('v var * kind) V.global_env;
 
-  (* A mapping of (qualified or unqualified) data constructor names to... well,
-     for now, we keep a variable (the algebraic data type with which this data
-     constructor is associated) and a [datacon_info] record. TEMPORARY maybe we
-     could simplify this? The physical identity of the [datacon_info] records
-     matters (there must be one record per data constructor, no more). *)
+  (* A mapping of (qualified or unqualified) data constructor names to a pair
+     of a variable (the algebraic data type with which this data constructor
+     is associated) and a [datacon_info] record. *)
   datacons: ('v var * datacon_info) D.global_env;
 
-  (* The name of the current module. Not relevant for us, but this is used by
-     the function [TransSurface.name_user]. TEMPORARY? *)
+  (* The name of the current module. *)
   module_name: Module.name;
 
   (* The current start and end positions. *)
@@ -86,75 +83,19 @@ type 'v env = {
 
 (* ---------------------------------------------------------------------------- *)
 
-let mkdatacon_info dc i fields =
-  (* Create the map. *)
-  let fmap = MzList.fold_lefti
-    (fun i fmap f -> Field.Map.add f i fmap)
-    Field.Map.empty fields
-  in {
-    datacon_name = Datacon.print dc;
-    datacon_arity = List.length fields;
-    datacon_index = i;
-    datacon_fields = fmap;
-  }
-;;
-
-
-(* The initial environment. *)
-
-  (* [Driver] already discovered our dependencies for us, and processed them, so
-   * [env] contains all the information about our dependencies. However, it
-   * contains no information about the module that's being processed, except
-   * for the field [module_name] (that's not entirely true if we're matching an
-   * implementation against its interface but the bottom line is: only use this
-   * environment for your dependencies on other modules). *)
-  
-let initial
-    (module_name : Module.name)
-    (names : (Module.name * Variable.name * kind * 'v) list)
-    (datacons : (Module.name * 'v * int * Datacon.name * Field.name list) list)
-: 'v env =
-
-  let variables =
-    List.fold_left (fun accu (m, x, kind, v) ->
-      V.extend_qualified m x (kind, NonLocal v) accu
-    ) V.empty names
-  in
-
-  (* Build a table of the initially available data constructors: these are
-     the data constructors that exist in [env] and have been defined in a
-     module other than the current module. They are accessible via their
-     qualified name. *)
-  let datacons =
-    List.fold_left (fun accu (mname, var, i, dc, fields) ->
-      let info = mkdatacon_info dc i fields in
-      D.extend_qualified mname dc (NonLocal var, info) accu
-    ) D.empty datacons
-  in {
-    level = 0;
-    variables;
-    datacons;
-    module_name;
-    location = dummy_loc;
-  }
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Error messages. *)
 
-type raw_error =
-  | Unbound of string
-  | Mismatch of kind * kind
+type error =
+  | Unbound of (* namespace: *) string * (* name: *) string
+  | BoundTwice of (* namespace: *) string * (* name: *) string
+  | Mismatch of (* expected: *) kind * (* inferred: *) kind
   | ArityMismatch of (* expected: *) int * (* provided: *) int
-  | BoundTwice of Variable.name
   | IllegalConsumes
   | BadConditionsInFact of Variable.name
   | BadConclusionInFact of Variable.name
   | NonDistinctHeadsInFact of Variable.name * Mode.mode
-  | DuplicateConstructor of Datacon.name
   | DuplicateField of Variable.name
   | AdopterNotExclusive of Variable.name
-  | UnboundDataConstructor of Datacon.name
   | FieldMismatch of Datacon.name * Field.name list (* missing fields *) * Field.name list (* extra fields *)
   | ImplicationOnlyOnArrow
 
@@ -173,7 +114,7 @@ module P = struct
 
   let print_env (env : 'v env) : document =
     (* We print just [env.variables]. *)
-    V.print_global_env (fun (kind, v) ->
+    V.print_global_env (fun (v, kind) ->
       string "kind = " ^^ print_kind kind ^^ string ", " ^^ string (print_var v)
     ) env.variables
 
@@ -188,15 +129,21 @@ module P = struct
 
 end
 
-let print_error env raw_error buf () =
+let print_error env error buf () =
   let open Types.TypePrinter in
   let bprintf s = Printf.bprintf buf s in
   (* Print the location. *)
   Lexer.p buf env.location;
   (* Print the error message. *)
-  begin match raw_error with
-  | Unbound x ->
-      bprintf "Unbound identifier: %s" x
+  begin match error with
+  | Unbound (namespace, x) ->
+      bprintf
+	"The %s %s has not been defined."
+	namespace x
+  | BoundTwice (namespace, x) ->
+      bprintf
+        "The %s %s is defined twice."
+        namespace x
   | Mismatch (expected_kind, inferred_kind) ->
       let _, inferred = Kind.as_arrow inferred_kind in
       let _, expected = Kind.as_arrow expected_kind in
@@ -215,10 +162,6 @@ let print_error env raw_error buf () =
         "This type expects %d parameter%s, but is applied to %d argument%s."
         expected (MzPprint.plural expected)
 	provided (MzPprint.plural provided)
-  | BoundTwice x ->
-      bprintf
-        "Variable %a is bound twice"
-        Variable.p x
   | IllegalConsumes ->
       bprintf
         "Unexpected consumes annotation"
@@ -242,18 +185,10 @@ let print_error env raw_error buf () =
       bprintf
         "The field %a appears several times in this branch"
         Variable.p d
-   | DuplicateConstructor d ->
-      bprintf
-        "The constructor %a appears several times in this data type group"
-        Datacon.p d
   | AdopterNotExclusive x ->
       bprintf
         "Type %a carries an adopts clause, but is not marked as mutable"
         Variable.p x
-  | UnboundDataConstructor d ->
-      bprintf
-        "Unknown data constructor: %a"
-        Datacon.p d
   | FieldMismatch (datacon, missing, extra) ->
       bprintf
         "This type does not have the fields of data constructor %a"
@@ -280,11 +215,12 @@ let print_error env raw_error buf () =
 
 let raise_error env e =
   raise (KindError (print_error env e))
-;;
 
-let unbound env x =
-  raise_error env (Unbound x)
-;;
+let unbound namespace print env x =
+  raise_error env (Unbound (namespace, print_maybe_qualified print x))
+
+let bound_twice namespace print env x =
+  raise_error env (BoundTwice (namespace, print x))
 
 let mismatch env expected_kind inferred_kind =
   raise_error env (Mismatch (expected_kind, inferred_kind))
@@ -292,10 +228,6 @@ let mismatch env expected_kind inferred_kind =
 
 let illegal_consumes env =
   raise_error env IllegalConsumes
-;;
-
-let bound_twice env x =
-  raise_error env (BoundTwice x)
 ;;
 
 let bad_condition_in_fact env x =
@@ -310,10 +242,6 @@ let bad_conclusion_in_fact env x =
   raise_error env (BadConclusionInFact x)
 ;;
 
-let duplicate_constructor env d =
-  raise_error env (DuplicateConstructor d)
-;;
-
 let duplicate_field env f =
   raise_error env (DuplicateField f)
 ;;
@@ -326,6 +254,60 @@ let implication_only_on_arrow env =
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Provided we have the name of a data constructor, its index, and the ordered
+   list of its fields, we can create a [datacon_info] record. *)
+
+let mkdatacon_info dc i fields = {
+  datacon_name = Datacon.print dc;
+  datacon_arity = List.length fields;
+  datacon_index = i;
+  datacon_fields =
+    let open Field.Map in
+    MzList.fold_lefti (fun i accu f -> add f i accu) empty fields;
+}
+
+(* ---------------------------------------------------------------------------- *)
+
+(* An empty environment. *)
+
+let empty module_name = {
+  level = 0;
+  variables = V.empty;
+  datacons = D.empty;
+  module_name;
+  location = dummy_loc;
+}
+
+(* A so-called initial environment can be constructed by populating an empty
+   environment with qualified names of variables and data constructors. They
+   represent names that have been defined in a module other than the current
+   module. *)
+
+(* TEMPORARY this approach seems inelegant and should ideally be abandoned in
+   the future *)
+
+let initial
+  (module_name : Module.name)
+  (names : (Module.name * Variable.name * kind * 'v) list)
+  (datacons : (Module.name * 'v * int * Datacon.name * Field.name list) list)
+: 'v env =
+
+  let variables =
+    List.fold_left (fun accu (m, x, kind, v) ->
+      V.extend_qualified m x (NonLocal v, kind) accu
+    ) V.empty names
+
+  and datacons =
+    List.fold_left (fun accu (m, var, i, dc, fields) ->
+      let info = mkdatacon_info dc i fields in
+      D.extend_qualified m dc (NonLocal var, info) accu
+    ) D.empty datacons
+  in
+
+  { (empty module_name) with variables; datacons }
+
+(* ---------------------------------------------------------------------------- *)
+
 (* Working with environments *)
 
 let location env =
@@ -335,20 +317,20 @@ let module_name env =
   env.module_name
 
 (* [find env x] looks up the possibly-qualified name [x] in the environment [env]. *)
-let find env x : kind * 'v var =
+let find env x : 'v var * kind =
   try
     V.lookup_maybe_qualified x env.variables
   with Not_found ->
-    unbound env (print_maybe_qualified Variable.print x)
+    unbound "variable" Variable.print env x
 
 let find_kind env x : kind =
-  let kind, _ = find env x in
+  let _, kind = find env x in
   kind
 
 (* This version of [find_var] is for internal use; it returns a de-Bruijn-level
    [var]. Further on, we compose it with [level2index]. *)
 let find_var env x : 'v var =
-  let _, v = find env x in
+  let v, _ = find env x in
   v
 
 (* [level2index] converts a de-Bruijn-level [var] to a de-Bruijn-index [var]. *)
@@ -358,17 +340,25 @@ let level2index env = function
   | NonLocal _ as v ->
       v
 
+let find_datacon env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info =
+  try
+    D.lookup_maybe_qualified datacon env.datacons
+  with Not_found ->
+    unbound "data constructor" Datacon.print env datacon
+
+(* ---------------------------------------------------------------------------- *)
+
 (* [bind env (x, kind)] binds the name [x] with kind [kind]. *)
 let bind env (x, kind) : 'v env =
   (* The current level becomes [x]'s level. The current level is
      then incremented. *)
   { env with
     level = env.level + 1;
-    variables = V.extend_unqualified x (kind, Local env.level) env.variables }
+    variables = V.extend_unqualified x (Local env.level, kind) env.variables }
 ;;
 
 let bind_external env (x, kind, p) : 'v env =
-  { env with variables = V.extend_unqualified x (kind, NonLocal p) env.variables }
+  { env with variables = V.extend_unqualified x (NonLocal p, kind) env.variables }
 ;;
 
 (* [dc] is the unqualified data constructor, [v] is the data type
@@ -398,10 +388,6 @@ let bind_datacons env data_type_group =
   ) env data_type_group
 ;;
 
-(* Redefine [find_var]. *)
-let find_var env x =
-  level2index env (find_var env x)
-
 (* Find in [tsenv.env] all the names exported by module [mname], and add them to our
  * own [tsenv]. *)
 let open_module_in (m : Module.name) (env : 'v env) : 'v env =
@@ -415,13 +401,6 @@ let open_module_in (m : Module.name) (env : 'v env) : 'v env =
     variables = V.unqualify m (V.freeze m env.variables);
     datacons = D.unqualify m (D.freeze m env.datacons);
   }
-
-let find_datacon env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info =
-  try
-    let v, info = D.lookup_maybe_qualified datacon env.datacons in
-    level2index env v, info
-  with Not_found ->
-    raise_error env (UnboundDataConstructor (unqualify datacon))
 
 (* [locate env p] extends [env] with the provided location information. *)
 let locate env p =
@@ -469,7 +448,7 @@ let check_for_duplicate_bindings env bindings = (* TEMPORARY isn't this check pe
   check_for_duplicate_variables
     (fun (x, _) -> x)
     bindings
-    (fun x -> bound_twice env x)
+    (fun x -> bound_twice "variable" Variable.print env x)
 
 let check_for_duplicate_datacons
     (project : 'a -> Datacon.name)
@@ -531,7 +510,7 @@ let names env ty : type_binding list =
   check_for_duplicate_variables
     (fun (x, _, _) -> x)
     bindings
-    (fun x -> bound_twice env x);
+    (fun x -> bound_twice "variable" Variable.print env x);
 
   (* Return the bindings. *)
   bindings
@@ -796,7 +775,7 @@ let check_data_type_group env (data_type_group: data_type_def list) =
   check_for_duplicate_datacons
     (fun (datacon, _fields) -> datacon)
     all_branches
-    (duplicate_constructor env);
+    (bound_twice "data constructor" Datacon.print env);
 
   (* Do the remainder of the checks. *)
   List.iter (check_data_type_def env) data_type_group
@@ -868,7 +847,7 @@ and check_expression env (expr: expression) =
       check_expression env expr
 
   | EFun (bindings, arg, return_type, body) ->
-      check_for_duplicate_variables Types.fst3 bindings (bound_twice env);
+      check_for_duplicate_variables Types.fst3 bindings (bound_twice "variable" Variable.print env);
       let bindings = List.map (fun (x, y, _) -> x, y) bindings in
       let env = List.fold_left bind env bindings in
       let arg_bindings = names env arg in
@@ -1017,7 +996,7 @@ let check_interface env (interface: interface) =
     | ValueDeclarations _ ->
         assert false
   ) interface in
-  check_for_duplicate_variables fst all_bindings (bound_twice env);
+  check_for_duplicate_variables fst all_bindings (bound_twice "variable" Variable.print env);
     (* TEMPORARY this results in a dummy location *)
 
   (* Check for duplicate data constructors. A data constructor cannot be
@@ -1034,10 +1013,18 @@ let check_interface env (interface: interface) =
     | _ ->
         []
   ) interface in
-  check_for_duplicate_datacons fst all_datacons (duplicate_constructor env);
+  check_for_duplicate_datacons fst all_datacons (bound_twice "data constructor" Datacon.print env);
     (* TEMPORARY this results in a dummy location *)
 
   (* Do all the regular checks. *)
   check_implementation env interface
 ;;
+
+(* Redefine [find_var] and [find_datacon] for public use. *)
+let find_var env x =
+  level2index env (find_var env x)
+
+let find_datacon env datacon =
+  let v, info = find_datacon env datacon in
+  level2index env v, info
 
