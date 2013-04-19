@@ -45,7 +45,7 @@ val locate: env -> SurfaceSyntax.location -> env
 val location: env -> SurfaceSyntax.location
 val module_name: env -> Module.name
 val find_var: env -> Variable.name SurfaceSyntax.maybe_qualified -> var
-val find_datacon: env -> Datacon.name SurfaceSyntax.maybe_qualified -> SurfaceSyntax.datacon_info * TypeCore.resolved_datacon
+val find_datacon: env -> Datacon.name SurfaceSyntax.maybe_qualified -> var * SurfaceSyntax.datacon_info
 
 
 val tvar: env -> var -> TypeCore.typ

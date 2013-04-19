@@ -425,10 +425,9 @@ let open_module_in (m: Module.name) (env: env): env =
     datacons = D.unqualify m (D.freeze m env.datacons);
   }
 
-let find_datacon env (datacon : Datacon.name maybe_qualified) : SurfaceSyntax.datacon_info * T.resolved_datacon =
+let find_datacon env (datacon : Datacon.name maybe_qualified) : var * datacon_info =
   try
-    let v, info = D.lookup_maybe_qualified datacon env.datacons in
-    info, (tvar env v, unqualify datacon)
+    D.lookup_maybe_qualified datacon env.datacons
   with Not_found ->
     raise_error env (UnboundDataConstructor (unqualify datacon))
 
@@ -437,15 +436,11 @@ let locate env p : env =
   { env with location = p }
 ;;
 
-(* [extend env xs] extends the current environment with new bindings; [xs] is
-   a fragment, that is, a map of identifiers to kinds. Because an arbitrary
-   order is chosen for the bindings, the function returns not only an extended
-   environment, but also a list of bindings, which indicates in which order
-   the bindings are performed. At the head of the list comes the innermost
-   binding. *)
+(* [extend env xs] extends the current environment with a lsit of new bindings. *)
 let extend (env : env) (xs : type_binding list) : env =
   List.fold_left (fun env (x, k, _) ->
-    bind env (x, k)) env xs
+    bind env (x, k)
+  ) env xs
 ;;
 
 (* ---------------------------------------------------------------------------- *)
@@ -519,10 +514,8 @@ let rec bv loc (accu : type_binding list) (p : pattern) : type_binding list =
   | PAny ->
       accu
 
-(* [names ty] returns a [fragment] containing all the names that [ty] binds. It
-   is up to the [check] function to introduce the binders in scope in the right
-   places. The order is not important here, since this will be passed on to the
-   [extend] function which will then pick a give order. *)
+(* [names ty] returns a list of the names that [ty] binds. We check
+   that these names are distinct, so their order is irrelevant. *)
 
 (* In principle, the type [ty] should have kind [type], but during kind-checking,
    [names] can be called before we have ensured that this is the case. *)

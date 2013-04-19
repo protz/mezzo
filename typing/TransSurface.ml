@@ -45,10 +45,18 @@ let name_user = fun env (x, k, l) -> (T.User (module_name env, x), k, l);;
 let name_auto = fun (x, k, l) -> (T.Auto x, k, l);;
 
 let resolve_datacon env dref =
-  let info, resolved_datacon = find_datacon env dref.datacon_unresolved in
+  let datacon = dref.datacon_unresolved in
+  (* Get the type [v] with which this data constructor is associated,
+     and get its [info] record. *)
+  let v, info = find_datacon env datacon in
+  (* Write the address of the [info] record into the abstract syntax
+     tree. This info is used by the compiler. *)
   dref.datacon_info <- Some info;
-  resolved_datacon
-;;
+  (* A resolved data constructor is a pair of the type with which this
+     data constructor is associated and the unqualified name of this
+     data constructor. *)
+  tvar env v,
+  unqualify datacon
 
 
 let rec flatten_star p =
