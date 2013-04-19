@@ -44,7 +44,12 @@ val field_mismatch: env -> Datacon.name -> SurfaceSyntax.Field.name list (* miss
 val implication_only_on_arrow: env -> 'a
 val illegal_consumes: env -> 'a
 
-val initial: TypeCore.env -> env
+val initial:
+  Module.name ->
+  (Module.name * Variable.name * kind * TypeCore.var) list ->
+  (Module.name * TypeCore.var * int * Datacon.name * SurfaceSyntax.Field.name list) list ->
+  env
+
 val bind: env -> Variable.name * kind -> env
 val bind_external: env -> Variable.name * kind * TypeCore.var -> env
 val bind_datacons: env -> SurfaceSyntax.data_type_def list -> env

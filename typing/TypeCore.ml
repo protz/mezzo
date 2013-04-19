@@ -1258,7 +1258,10 @@ let map env f =
   fold env (fun acc var -> f var :: acc) []
 ;;
 
-let fold_external_datacons env f acc =
+(** Produce a list of all external data constructor definitions, i.e.
+    all data constructors that are currently known but are defined
+    outside the current module. *)
+let get_external_datacons env : (Module.name * var * int * Datacon.name * Field.name list) list =
   fold_definitions env (fun acc var definition ->
     let names = get_names env var in
     (* We're only interested in things that signatures exported with their
@@ -1275,11 +1278,18 @@ let fold_external_datacons env f acc =
 	else
 	  (* Iterate over the branches of this definition. *)
 	  MzList.fold_lefti (fun i acc branch ->
-	    f acc mname var i branch
+	    let dc = branch.branch_datacon
+	    and fields =
+	      MzList.map_some (function
+	      | FieldValue (name, _) -> Some name
+	      | FieldPermission _ -> None
+	      ) branch.branch_fields
+	    in
+	    (mname, var, i, dc, fields) :: acc
 	  ) acc def
     | _ ->
 	acc
-  ) acc
+  ) []
 
 (* ---------------------------------------------------------------------------- *)
 

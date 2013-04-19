@@ -110,13 +110,16 @@ let mkdatacon_info dc i fields =
    * implementation against its interface but the bottom line is: only use this
    * environment for your dependencies on other modules). *)
   
-let initial (env: TypeCore.env): env =
+let initial
+    (module_name : Module.name)
+    (names : (Module.name * Variable.name * kind * TypeCore.var) list)
+    (datacons : (Module.name * TypeCore.var * int * Datacon.name * Field.name list) list)
+: env =
 
-  (* TEMPORARY comment *)
   let variables =
     List.fold_left (fun accu (m, x, kind, v) ->
       V.extend_qualified m x (kind, NonLocal v) accu
-    ) V.empty (TypeCore.get_external_names env)
+    ) V.empty names
   in
 
   (* Build a table of the initially available data constructors: these are
@@ -124,23 +127,15 @@ let initial (env: TypeCore.env): env =
      module other than the current module. They are accessible via their
      qualified name. *)
   let datacons =
-    let open TypeCore in
-    fold_external_datacons env (fun accu mname var i branch ->
-      let dc = branch.branch_datacon
-      and fields = branch.branch_fields in
-      (* Drop the permission fields. *)
-      let fields = MzList.map_some (function
-	| FieldValue (name, _) -> Some name
-	| FieldPermission _ -> None
-      ) fields in
+    List.fold_left (fun accu (mname, var, i, dc, fields) ->
       let info = mkdatacon_info dc i fields in
       D.extend_qualified mname dc (NonLocal var, info) accu
-    ) D.empty
+    ) D.empty datacons
   in {
     level = 0;
     variables;
     datacons;
-    module_name = TypeCore.module_name env;
+    module_name;
     location = dummy_loc;
   }
 

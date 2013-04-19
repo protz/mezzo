@@ -31,7 +31,7 @@ module T = TypeCore
  * importing into some environment. *)
 let build_interface (env: TypeCore.env) (mname: Module.name) (iface: S.interface): T.env * E.interface =
   let env = TypeCore.set_module_name env mname in
-  let kenv = KindCheck.initial env in
+  let kenv = KindCheckGlue.initial env in
   KindCheck.check_interface kenv iface;
   env, TransSurface.translate_interface kenv iface
 ;;
@@ -278,5 +278,5 @@ let check
         env
   in
 
-  check env (KindCheck.initial env) signature
+  check env (KindCheckGlue.initial env) signature
 ;;

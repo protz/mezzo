@@ -166,7 +166,7 @@ let find_and_lex_implementation : Module.name -> SurfaceSyntax.implementation =
 (* Check a module against its interface. Not related to importing an interface
  * or anything. *)
 let check_interface env signature exports =
-  KindCheck.check_interface (KindCheck.initial env) signature;
+  KindCheck.check_interface (KindCheckGlue.initial env) signature;
   (* It may very well be that [Interfaces.check] subsumes what
    * [KindCheck.check_interface] does. *)
   Interfaces.check env signature exports
@@ -215,7 +215,7 @@ let check_implementation
   (* Build a kind-checking environment out of this type environment. We could
      bypass this if we had a version of [import_dependencies_in_scope] that
      constructed a kind-checking environment... TEMPORARY *)
-  let kenv = KindCheck.initial env in
+  let kenv = KindCheckGlue.initial env in
 
   (* First pass of kind-checking; it checks for unbound variables and variables
    * with the wrong kind. *)

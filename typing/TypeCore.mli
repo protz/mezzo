@@ -365,18 +365,14 @@ val point_by_name: env -> ?mname:Module.name -> Variable.name -> var
 (** Fold over all opened type definitions. *)
 val fold_definitions: env -> ('acc -> var -> type_def -> 'acc) -> 'acc -> 'acc
 
-(** Fold over all external data constructor definitions, i.e. all data
-    constructors that are currently known but are defined outside the
-    current module. *)
-val fold_external_datacons:
-  env ->
-  ('acc -> Module.name -> var -> int -> unresolved_branch -> 'acc) ->
-  'acc ->
-  'acc
-
 (** Fold over all opened terms, providing the corresponding [var] and
  * permissions. *)
 val fold_terms: env -> ('acc -> var -> typ list -> 'acc) -> 'acc -> 'acc
+
+(** Produce a list of all external data constructor definitions, i.e.
+    all data constructors that are currently known but are defined
+    outside the current module. *)
+val get_external_datacons: env -> (Module.name * var * int * Datacon.name * Field.name list) list
 
 (** General fold operation. *)
 val fold: env -> ('acc -> var -> 'acc) -> 'acc -> 'acc
