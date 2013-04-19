@@ -144,19 +144,24 @@ let print_error env error buf () =
       bprintf
         "The %s %s is defined twice."
         namespace x
-  | Mismatch (expected_kind, inferred_kind) ->
-      let _, inferred = Kind.as_arrow inferred_kind in
-      let _, expected = Kind.as_arrow expected_kind in
-      if inferred <> expected then
+  | Mismatch (expected, inferred) ->
+      let il, ir = Kind.as_arrow inferred in
+      let xl, xr = Kind.as_arrow expected in
+      (* The expected kind is never an arrow. *)
+      assert (xl = []);
+      if Kind.equal ir xr then begin
+	let missing = List.length il in
+	assert (missing <> 0);
         bprintf
-          "This is a %a but we were expecting a %a"
-          p_kind inferred
-          p_kind expected
+          "This type constructor expects %d more argument%s."
+          missing
+	  (if missing > 1 then "s" else "")
+      end
       else
         bprintf
-          "This type has kind %a but we were expecting kind %a"
-          p_kind inferred_kind
-          p_kind expected_kind
+          "This type has kind %a, whereas a type of kind %a was expected."
+          p_kind ir
+          p_kind xr
   | ArityMismatch (expected, provided) ->
       bprintf
         "This type expects %d parameter%s, but is applied to %d argument%s."
