@@ -151,8 +151,12 @@ let print_error env error buf () =
       if Kind.equal ir xr then begin
 	let missing = List.length il in
 	assert (missing <> 0);
+	(* Only a type variable can have an arrow kind; a type application
+	   cannot. So the number of arguments supplied by the user must be
+	   zero, and we can print "expects %d arguments" as opposed to the
+	   less precise "expects %d more arguments". *)
         bprintf
-          "This type constructor expects %d more argument%s."
+          "This type constructor expects %d argument%s."
           missing
 	  (if missing > 1 then "s" else "")
       end
