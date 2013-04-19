@@ -83,7 +83,7 @@ let _ =
 	MzString.bprintf "%a" Driver.print_signature env
       else
 	Log.debug ~level:0 "\n%a"
-	  Types.TypePrinter.pdoc (Types.TypePrinter.print_permissions, env)
+	  MzPprint.pdoc (Types.TypePrinter.print_permissions, env)
   | Interpret ->
       Driver.run opts (fun () -> Driver.interpret !Options.filename)
 ;;

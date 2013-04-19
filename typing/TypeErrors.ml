@@ -214,7 +214,7 @@ let print_error buf (env, raw_error) =
   let bprintf s = Printf.bprintf buf s in
   (* Extra verbose debugging output. *)
   if Log.debug_level () >= 5 then begin
-    bprintf "\nOH NOES. Printing permissions.\n\n%a" pdoc (print_permissions, env);
+    bprintf "\nOH NOES. Printing permissions.\n\n%a" MzPprint.pdoc (print_permissions, env);
     bprintf "\nError message follows.\n\n";
   end;
   (* A few error messages are printed *without* an error location. *)
@@ -369,9 +369,9 @@ let print_error buf (env, raw_error) =
   | IllKindedTypeApplication (t, k, k') ->
       bprintf "While applying type %a: this type has kind %a but \
           the sub-expression has a polymorphic type with kind %a"
-        pdoc ((fun t -> ExprPrinter.print_tapp env t), t)
-        pdoc (print_kind, k) 
-        pdoc (print_kind, k');
+        MzPprint.pdoc ((fun t -> ExprPrinter.print_tapp env t), t)
+        MzPprint.pdoc (print_kind, k) 
+        MzPprint.pdoc (print_kind, k');
   | NonExclusiveAdoptee t ->
       bprintf "Type %a cannot be adopted, because it is not exclusive"
         ptype (env, t)

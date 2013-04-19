@@ -184,7 +184,7 @@ let check_return_type (env: env) (var: var) (t: typ): unit =
   TypePrinter.(
     Log.debug ~level:4 "Expecting return type %a; permissions for the var: %a"
       ptype (env, t)
-      pdoc (print_permission_list, (env, get_permissions env var));
+      MzPprint.pdoc (print_permission_list, (env, get_permissions env var));
     (* TestUtils.print_env env ;*)
   );
     

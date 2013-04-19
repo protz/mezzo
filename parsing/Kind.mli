@@ -22,7 +22,8 @@ val as_arrow: kind -> kind list * kind
 (** [arity k] is the arity of [k], viewed as an arrow kind. *)
 val arity: kind -> int
 
-(** [print_kind] converts a kind to a textual representation. *)
+(** [print] and [print_kind] convert a kind to a textual representation. *)
+val print: kind -> string
 val print_kind: kind -> PPrint.document
 
 (** [equal] tests the equality of two kinds. *)

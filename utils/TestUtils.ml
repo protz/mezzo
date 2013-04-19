@@ -22,7 +22,7 @@ open Types
 
 let print_env (env: env) =
   let open TypePrinter in
-  Log.debug ~level:1 "%a\n" pdoc (print_permissions, env);
+  Log.debug ~level:1 "%a\n" MzPprint.pdoc (print_permissions, env);
 ;;
 
 (* Some OCaml functions that create HaMLeT types. *)

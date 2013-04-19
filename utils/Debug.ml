@@ -213,7 +213,7 @@ module Html = struct
         | Auto v -> `List [`String "auto"; `String (Variable.print v)]
       ) names) in
       let locations = `List (List.map json_of_loc locations) in
-      let kind = `String (MzString.bsprintf "%a" pdoc (print_kind, kind)) in
+      let kind = `String (MzString.bsprintf "%a" MzPprint.pdoc (print_kind, kind)) in
       let permissions = `List (List.map (fun perm ->
         `String (MzString.bsprintf "%a" ptype (env, perm))
       ) permissions) in

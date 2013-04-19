@@ -119,6 +119,10 @@ let render doc =
   PPrint.ToBuffer.pretty 0.95 Bash.twidth buf doc;
   Buffer.contents buf
 
+(* If [f arg] returns a [document], then write [Log.debug "%a" pdoc (f, arg)] *)
+let pdoc (buf: Buffer.t) (f, env: ('env -> document) * 'env): unit =
+  PPrint.ToBuffer.pretty 1.0 Bash.twidth buf (f env)
+
 let dump (filename : string) (doc : document) =
   let buf = Buffer.create 32768 in
   PPrint.ToBuffer.pretty 0.95 Bash.twidth buf doc;

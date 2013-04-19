@@ -257,7 +257,7 @@ let check_implementation
           (* Print some extra debugging information. *)
           Log.debug ~level:2 "\n%s***%s Done type-checking:\n%a"
             Bash.colors.Bash.yellow Bash.colors.Bash.default
-            Types.TypePrinter.pdoc
+            MzPprint.pdoc
             (KindPrinter.print_kinds_and_facts, env);
 
           env, List.flatten varss

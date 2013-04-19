@@ -125,12 +125,11 @@ module P = struct
     separate_map (comma ^^ space) print_field fields
 
   let p_fields buf fields =
-    Types.TypePrinter.pdoc buf (print_fields, fields)
+    pdoc buf (print_fields, fields)
 
 end
 
 let print_error env error buf () =
-  let open Types.TypePrinter in
   let bprintf s = Printf.bprintf buf s in
   (* Print the location. *)
   Lexer.p buf env.location;
@@ -159,9 +158,9 @@ let print_error env error buf () =
       end
       else
         bprintf
-          "This type has kind %a, whereas a type of kind %a was expected."
-          p_kind ir
-          p_kind xr
+          "This type has kind %s, whereas a type of kind %s was expected."
+          (print ir)
+          (print xr)
   | ArityMismatch (expected, provided) ->
       bprintf
         "This type expects %d parameter%s, but is applied to %d argument%s."
@@ -214,7 +213,7 @@ let print_error env error buf () =
   end;
   if Log.debug_level () > 4 then begin
     Printf.bprintf buf "\n";
-    Types.TypePrinter.pdoc buf (P.print_env, env)
+    MzPprint.pdoc buf (P.print_env, env)
   end
 ;;
 

@@ -174,7 +174,6 @@ val make_datacon_letters :
 (** Our not-so-pretty printer for types. *)
 module TypePrinter :
   sig
-    val pdoc : Buffer.t -> ('env -> MzPprint.document) * 'env -> unit
     val print_var : env -> name -> MzPprint.document
     val pvar : Buffer.t -> env * name -> unit
     val print_datacon : Datacon.name -> MzPprint.document

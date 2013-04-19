@@ -202,13 +202,13 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
   let dump_envs left_env right_env dest_env =
 
     Log.debug ~level:3 "\n------------ LEFT --------------\n\n%a"
-      TypePrinter.pdoc (TypePrinter.print_permissions, left_env);
+      MzPprint.pdoc (TypePrinter.print_permissions, left_env);
 
     Log.debug ~level:3 "\n------------ RIGHT -------------\n\n%a"
-      TypePrinter.pdoc (TypePrinter.print_permissions, right_env);
+      MzPprint.pdoc (TypePrinter.print_permissions, right_env);
 
     Log.debug ~level:3 "\n------------ DEST -------------\n\n%a"
-      TypePrinter.pdoc (TypePrinter.print_permissions, dest_env);
+      MzPprint.pdoc (TypePrinter.print_permissions, dest_env);
 
     Log.debug ~level:3 "\n--------------------------------\n";
 
@@ -219,7 +219,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
     Log.debug ~level:3 "\n--------- START MERGE @ %a ----------\n\n%a\n\n"
       Lexer.p (location top)
-      TypePrinter.pdoc (TypePrinter.print_permissions, top);
+      MzPprint.pdoc (TypePrinter.print_permissions, top);
 
     (* This is the destination environment; it will evolve over time. Initially,
      * it is empty. As an optimization, we keep the vars that were previously
@@ -1017,7 +1017,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
   if false then dump_known_triples left_env right_env dest_env;
   Log.debug ~level:3 "\n--------- END MERGE ----------\n\n%a"
-    TypePrinter.pdoc (TypePrinter.print_permissions, dest_env);
+    MzPprint.pdoc (TypePrinter.print_permissions, dest_env);
   Log.debug ~level:3 "\n--------------------------------\n";
 
   Permissions.safety_check dest_env;
