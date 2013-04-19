@@ -233,7 +233,7 @@ let check_implementation
       | DataTypeGroup group :: blocks ->
           Log.debug ~level:2 "\n%s***%s Processing data type group:\n%a"
             Bash.colors.Bash.yellow Bash.colors.Bash.default
-            KindCheck.KindPrinter.pgroup (env, group);
+            KindPrinter.pgroup (env, group);
 
           (* The binders in the data type group will be opened in the rest of the
            * blocks. Also performs the actual binding in the data type group, as
@@ -258,7 +258,7 @@ let check_implementation
           Log.debug ~level:2 "\n%s***%s Done type-checking:\n%a"
             Bash.colors.Bash.yellow Bash.colors.Bash.default
             Types.TypePrinter.pdoc
-            (KindCheck.KindPrinter.print_kinds_and_facts, env);
+            (KindPrinter.print_kinds_and_facts, env);
 
           env, List.flatten varss
     in

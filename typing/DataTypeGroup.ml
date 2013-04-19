@@ -70,7 +70,7 @@ let debug_toplevel_items env toplevel_items =
   List.iter (function
     | DataTypeGroup group ->
         Log.debug "%a\n"
-          KindCheck.KindPrinter.pgroup (env, group);
+          KindPrinter.pgroup (env, group);
     | ValueDeclarations decls ->
         Log.debug "%a\n"
           Expressions.ExprPrinter.pdeclarations (env, decls);

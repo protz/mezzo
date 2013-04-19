@@ -71,7 +71,3 @@ val infer_type_with_names: env -> SurfaceSyntax.typ -> kind
 val check_implementation: env -> SurfaceSyntax.implementation -> unit
 val check_interface: env -> SurfaceSyntax.interface -> unit
 
-module KindPrinter : sig
-  val pgroup: Buffer.t -> TypeCore.env * TypeCore.data_type_group -> unit
-  val print_kinds_and_facts: TypeCore.env -> MzPprint.document
-end
