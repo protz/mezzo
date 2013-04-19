@@ -1,0 +1,28 @@
+(* Type definition *)
+
+abstract dynarray a
+fact exclusive (dynarray a)
+
+(* Basic operations over dynamic arrays *)
+
+(* [create n] creates a new array of [n] elements, which are initialized with a
+ * dummy value that the client can't retrieve. *)
+val create : [a] exclusive a => int -> dynarray a
+
+(* [init (n, f)] creates a new dynamic array of [n] elements, where the element
+ * at index [i] is initialized with the value [f i]. *)
+val init : [a, p: perm] exclusive a =>
+  (sense, int, (int | p) -> a | p) -> dynarray a
+
+(* [get (d, i)] reads the element at index [i] in the array [d].
+ * Although the type a is exclusive, it can only succeeds once because
+ * [x] is taken from [d]. *)
+val get : [a] exclusive a => (dynarray a, int) -> a
+
+(* [set (d, i, v)] sets the element at index [i] in the array [d] to the value
+ * [v]. *)
+val set : [a] exclusive a => (dynarray a, int, consumes a) -> ()
+
+(* [adopt (d, i, v)] gives back [v] to array [d] and performs a runtime check
+ * to ensure that [v] is actually the element at index [i]. *)
+val adopt : [a] exclusive a => (dynarray a, int, consumes a) -> ()

@@ -1,0 +1,66 @@
+(* Types definitions *)
+
+data mutable dynarray a =
+  DArray { r: arraypoly::marray dynamic }
+adopts a
+
+data mutable dummy = Dummy
+val dummy : dynamic = Dummy
+
+(* A few basic operations over dynamic arrays *)
+
+(* [create n] creates a new array of [n] elements, which are initialized with a
+ * dummy value that the client can't retrieve. *)
+val create [a] exclusive a => (
+  n: int
+) : dynarray a =
+  DArray { r = arraypoly::create (n, dummy) }
+
+(* [init (n, f)] creates a new dynamic array of [n] elements, where the element
+ * at index [i] is initialized with the value [f i]. *)
+val init [a, p : perm] exclusive a => (
+  s: sense,
+  n: int,
+  f: (int | p) -> a
+  | p
+) : dynarray a =
+  let d = DArray { r = arraypoly::create (0, dummy) } in
+  d.r <- arraypoly::init (
+    s, n,
+      fun (i: int | p * d @ dynarray a) : dynamic =
+        let x = f i in
+        give x to d; x
+  );
+  tag of d <- DArray; d
+
+(* [get (d, i)] reads the element at index [i] in the array [d].
+ * Although the type a is exclusive, it can only succeeds once because
+ * [x] is taken from [d]. *)
+val get [a] exclusive a => (
+  d: dynarray a,
+  i: int
+) : a =
+  let x = arraypoly::get (d.r, i) in
+  take x from d; x
+
+(* [set (d, i, v)] sets the element at index [i] in the array [d] to the value
+ * [v]. *)
+val set [a] exclusive a => (
+  d: dynarray a,
+  i: int,
+  consumes x: a
+) : () =
+  give x to d;
+  arraypoly::set (d.r, i, x)
+
+(* [adopt (d, i, v)] gives back [v] to array [d] and performs a runtime check
+ * to ensure that [v] is actually the element at index [i]. *)
+val adopt [a] exclusive a => (
+  d: dynarray a,
+  i: int,
+  consumes x: a
+) : () =
+  give x to d;
+  let y = arraypoly::get (d.r, i) in
+  if y != x then
+    fail
