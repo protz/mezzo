@@ -32,6 +32,7 @@
 open Kind
 open SurfaceSyntax
 open KindCheck
+open KindCheckGlue
 open Utils
 
 module T = TypeCore

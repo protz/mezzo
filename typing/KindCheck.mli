@@ -32,45 +32,45 @@ open Kind
    names defined in other units that this unit depends on are translated to
    non-local names. *)
 
-type var =
-    Local of int
-  | NonLocal of TypeCore.var
+type 'v var =
+       Local of int
+  | NonLocal of 'v
 
-type env
+type 'v env
 exception KindError of (Buffer.t -> unit -> unit)
 
 (* TEMPORARY try not to publish any of the functions that raise errors *)
-val field_mismatch: env -> Datacon.name -> SurfaceSyntax.Field.name list (* missing fields *) -> SurfaceSyntax.Field.name list (* extra fields *) -> 'a
-val implication_only_on_arrow: env -> 'a
-val illegal_consumes: env -> 'a
+val field_mismatch: 'v env -> Datacon.name -> SurfaceSyntax.Field.name list (* missing fields *) -> SurfaceSyntax.Field.name list (* extra fields *) -> 'a
+val implication_only_on_arrow: 'v env -> 'a
+val illegal_consumes: 'v env -> 'a
 
 val initial:
   Module.name ->
-  (Module.name * Variable.name * kind * TypeCore.var) list ->
-  (Module.name * TypeCore.var * int * Datacon.name * SurfaceSyntax.Field.name list) list ->
-  env
+  (Module.name * Variable.name * kind * 'v) list ->
+  (Module.name * 'v * int * Datacon.name * SurfaceSyntax.Field.name list) list ->
+  'v env
 
-val bind: env -> Variable.name * kind -> env
-val bind_external: env -> Variable.name * kind * TypeCore.var -> env
-val bind_datacons: env -> SurfaceSyntax.data_type_def list -> env
-val open_module_in: Module.name -> env -> env
-val locate: env -> SurfaceSyntax.location -> env
+val bind: 'v env -> Variable.name * kind -> 'v env
+val bind_external: 'v env -> Variable.name * kind * 'v -> 'v env
+val bind_datacons: 'v env -> SurfaceSyntax.data_type_def list -> 'v env
+val open_module_in: Module.name -> 'v env -> 'v env
+val locate: 'v env -> SurfaceSyntax.location -> 'v env
 
-val location: env -> SurfaceSyntax.location
-val module_name: env -> Module.name
-val find_var: env -> Variable.name SurfaceSyntax.maybe_qualified -> var
-val find_datacon: env -> Datacon.name SurfaceSyntax.maybe_qualified -> var * SurfaceSyntax.datacon_info
+val location: 'v env -> SurfaceSyntax.location
+val module_name: 'v env -> Module.name
+val find_var: 'v env -> Variable.name SurfaceSyntax.maybe_qualified -> 'v var
+val find_datacon: 'v env -> Datacon.name SurfaceSyntax.maybe_qualified -> 'v var * SurfaceSyntax.datacon_info
 
 
-val names: env -> SurfaceSyntax.typ -> SurfaceSyntax.type_binding list
+val names: 'v env -> SurfaceSyntax.typ -> SurfaceSyntax.type_binding list
 val bindings_pattern: SurfaceSyntax.pattern -> (Variable.name * kind) list
 val bindings_patterns: SurfaceSyntax.pattern list -> (Variable.name * kind) list
 
 val bindings_data_type_group: SurfaceSyntax.data_type_def list -> (Variable.name * kind) list
 
-val check_type_with_names: env -> SurfaceSyntax.typ -> kind -> unit
-val infer_type_with_names: env -> SurfaceSyntax.typ -> kind
+val check_type_with_names: 'v env -> SurfaceSyntax.typ -> kind -> unit
+val infer_type_with_names: 'v env -> SurfaceSyntax.typ -> kind
 
-val check_implementation: env -> SurfaceSyntax.implementation -> unit
-val check_interface: env -> SurfaceSyntax.interface -> unit
+val check_implementation: 'v env -> SurfaceSyntax.implementation -> unit
+val check_interface: 'v env -> SurfaceSyntax.interface -> unit
 

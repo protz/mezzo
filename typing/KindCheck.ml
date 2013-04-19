@@ -33,8 +33,7 @@ type level =
     int
 
 (* An external identifier (one that is defined in another module) is represented
-   as a variable of type [TypeCore.var]. Think of it as a binder that has been
-   opened already. *)
+   as a value of type ['v]. Think of it as a binder that has been opened already. *)
 
 (* Thus, for our purposes, a [var] is either a local name or a non-local name. *)
 
@@ -44,9 +43,9 @@ type level =
    namely [find_var] and [find_datacon], produce [var]s represented using de
    Bruijn indices. *)
 
-type var =
+type 'v var =
        Local of level
-  | NonLocal of TypeCore.var
+  | NonLocal of 'v
 
 (* These data structures are used to keep track of the known variables and data
    constructors. *)
@@ -60,21 +59,21 @@ module D =
 (* The environments defined here are used for kind checking and for translating
    types down to the core syntax. *)
 
-type env = {
+type 'v env = {
 
   (* The current de Bruijn level. *)
   level: level;
 
   (* A mapping of (qualified or unqualified) variable names to pairs of a kind
      and a variable. *)
-  variables: (kind * var) V.global_env;
+  variables: (kind * 'v var) V.global_env;
 
   (* A mapping of (qualified or unqualified) data constructor names to... well,
      for now, we keep a variable (the algebraic data type with which this data
      constructor is associated) and a [datacon_info] record. TEMPORARY maybe we
      could simplify this? The physical identity of the [datacon_info] records
      matters (there must be one record per data constructor, no more). *)
-  datacons: (var * datacon_info) D.global_env;
+  datacons: ('v var * datacon_info) D.global_env;
 
   (* The name of the current module. Not relevant for us, but this is used by
      the function [TransSurface.name_user]. TEMPORARY? *)
@@ -112,9 +111,9 @@ let mkdatacon_info dc i fields =
   
 let initial
     (module_name : Module.name)
-    (names : (Module.name * Variable.name * kind * TypeCore.var) list)
-    (datacons : (Module.name * TypeCore.var * int * Datacon.name * Field.name list) list)
-: env =
+    (names : (Module.name * Variable.name * kind * 'v) list)
+    (datacons : (Module.name * 'v * int * Datacon.name * Field.name list) list)
+: 'v env =
 
   let variables =
     List.fold_left (fun accu (m, x, kind, v) ->
@@ -165,14 +164,14 @@ module P = struct
 
   open MzPprint
 
-  let print_var (v : var) : string =
+  let print_var (v : 'v var) : string =
     match v with
     | Local level ->
 	Printf.sprintf "level = %d" level
     | NonLocal _ ->
 	"external point"
 
-  let print_env (env : env) : document =
+  let print_env (env : 'v env) : document =
     (* We print just [env.variables]. *)
     V.print_global_env (fun (kind, v) ->
       string "kind = " ^^ print_kind kind ^^ string ", " ^^ string (print_var v)
@@ -336,7 +335,7 @@ let module_name env =
   env.module_name
 
 (* [find env x] looks up the possibly-qualified name [x] in the environment [env]. *)
-let find env x : kind * var =
+let find env x : kind * 'v var =
   try
     V.lookup_maybe_qualified x env.variables
   with Not_found ->
@@ -348,7 +347,7 @@ let find_kind env x : kind =
 
 (* This version of [find_var] is for internal use; it returns a de-Bruijn-level
    [var]. Further on, we compose it with [level2index]. *)
-let find_var env x : var =
+let find_var env x : 'v var =
   let _, v = find env x in
   v
 
@@ -360,7 +359,7 @@ let level2index env = function
       v
 
 (* [bind env (x, kind)] binds the name [x] with kind [kind]. *)
-let bind env (x, kind) : env =
+let bind env (x, kind) : 'v env =
   (* The current level becomes [x]'s level. The current level is
      then incremented. *)
   { env with
@@ -368,13 +367,13 @@ let bind env (x, kind) : env =
     variables = V.extend_unqualified x (kind, Local env.level) env.variables }
 ;;
 
-let bind_external env (x, kind, p) : env =
+let bind_external env (x, kind, p) : 'v env =
   { env with variables = V.extend_unqualified x (kind, NonLocal p) env.variables }
 ;;
 
 (* [dc] is the unqualified data constructor, [v] is the data type
    that it is associated with. *)
-let bind_datacon env dc (v : var) info =
+let bind_datacon env dc (v : 'v var) info =
   { env with datacons = D.extend_unqualified dc (v, info) env.datacons }
 ;;
 
@@ -383,7 +382,7 @@ let bind_datacons env data_type_group =
   List.fold_left (fun env -> function
     | Concrete (_, (name, _), rhs, _) ->
         (* TEMPORARY why Unqualified? no risk of masking? *)
-        let v : var = find_var env (Unqualified name) in
+        let v : 'v var = find_var env (Unqualified name) in
         MzList.fold_lefti (fun i env (dc, fields) ->
           (* We're building information for the interpreter: drop the
            * permission fields. *)
@@ -400,12 +399,12 @@ let bind_datacons env data_type_group =
 ;;
 
 (* Redefine [find_var]. *)
-let find_var env x : var =
+let find_var env x =
   level2index env (find_var env x)
 
 (* Find in [tsenv.env] all the names exported by module [mname], and add them to our
  * own [tsenv]. *)
-let open_module_in (m: Module.name) (env: env): env =
+let open_module_in (m : Module.name) (env : 'v env) : 'v env =
   (* Unqualify the variables and data constructors qualified with [m]. *)
   (* The call to [freeze] is just a way of avoiding the failure
      in [unqualify] if this module does not exist, i.e. it exports
@@ -417,7 +416,7 @@ let open_module_in (m: Module.name) (env: env): env =
     datacons = D.unqualify m (D.freeze m env.datacons);
   }
 
-let find_datacon env (datacon : Datacon.name maybe_qualified) : var * datacon_info =
+let find_datacon env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info =
   try
     let v, info = D.lookup_maybe_qualified datacon env.datacons in
     level2index env v, info
@@ -425,12 +424,12 @@ let find_datacon env (datacon : Datacon.name maybe_qualified) : var * datacon_in
     raise_error env (UnboundDataConstructor (unqualify datacon))
 
 (* [locate env p] extends [env] with the provided location information. *)
-let locate env p : env =
+let locate env p =
   { env with location = p }
 ;;
 
 (* [extend env xs] extends the current environment with a lsit of new bindings. *)
-let extend (env : env) (xs : type_binding list) : env =
+let extend env (xs : type_binding list) : 'v env =
   List.fold_left (fun env (x, k, _) ->
     bind env (x, k)
   ) env xs
@@ -579,7 +578,7 @@ let bindings_patterns (ps: pattern list) : (Variable.name * kind) list =
 
 (* This just makes sure that the type parameters mentioned in the fact are in
    the list of the original type parameters. *)
-let rec check_fact_parameter (env: env) (x: Variable.name) (args: Variable.name list) (t: typ) =
+let rec check_fact_parameter env (x: Variable.name) (args: Variable.name list) (t: typ) =
   match t with
   | TyLocated (t, p) ->
       check_fact_parameter (locate env p) x args t
@@ -593,7 +592,7 @@ let rec check_fact_parameter (env: env) (x: Variable.name) (args: Variable.name 
 
 (* The conclusion of a fact, if any, must be the exact original type applied to
    the exact same arguments. *)
-let rec check_fact_conclusion (env: env) (x: Variable.name) (args: Variable.name list) (t: typ) =
+let rec check_fact_conclusion env (x: Variable.name) (args: Variable.name list) (t: typ) =
   match t with
   | TyLocated (t, p) ->
       check_fact_conclusion (locate env p) x args t
@@ -627,12 +626,12 @@ let check_distinct_heads env name facts =
     ) Mode.ModeMap.empty facts
   )
 
-let rec check (env: env) (t: typ) (expected_kind: kind) =
+let rec check env (t: typ) (expected_kind: kind) =
   let inferred_kind = infer env t in
   if expected_kind <> inferred_kind then
     mismatch env expected_kind inferred_kind
 
-and infer (env: env) (t: typ) =
+and infer env (t: typ) =
   match t with
   | TyLocated (t, p) ->
       infer (locate env p) t
@@ -715,7 +714,7 @@ and infer (env: env) (t: typ) =
       check env t KType;
       infer env u
 
-and check_field (env: env) (field: data_field_def) =
+and check_field env (field: data_field_def) =
   match field with
   | FieldValue (_name, t) ->
       check_type_with_names env t KType
@@ -724,7 +723,7 @@ and check_field (env: env) (field: data_field_def) =
 	 a permission component does not bind any names. -fpottier *)
       check env t KPerm
 
-and check_branch: 'a. env -> ('a * data_field_def list) -> unit = fun env branch ->
+and check_branch: 'a. 'v env -> ('a * data_field_def list) -> unit = fun env branch ->
   let _, fields = branch in
   let names = MzList.map_some (function
     | FieldValue (name, _) ->
@@ -738,12 +737,12 @@ and check_branch: 'a. env -> ('a * data_field_def list) -> unit = fun env branch
     (duplicate_field env);
   List.iter (check_field env) fields
 
-and check_type_with_names (env: env) (t: typ) (k: kind) =
+and check_type_with_names env (t: typ) (k: kind) =
   let bindings = names env t in
   let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env bindings in
   check env t k
 
-and infer_type_with_names (env: env) (t: typ): kind =
+and infer_type_with_names env (t: typ): kind =
   let bindings = names env t in
   let env = List.fold_left (fun env (x, k, _) -> bind env (x, k)) env bindings in
   infer env t
@@ -753,7 +752,7 @@ and infer_type_with_names (env: env) (t: typ): kind =
 (* Check a data type definition. For abstract types, this just checks that the
    fact is well-formed. For concrete types, check that the branches are all
    well-formed. *)
-let check_data_type_def (env: env) (def: data_type_def) =
+let check_data_type_def env (def: data_type_def) =
   match def with
   | Abstract ((name, bindings), _return_kind, facts) ->
       (* Get the names of the parameters. *)
@@ -785,7 +784,7 @@ let check_data_type_def (env: env) (def: data_type_def) =
 ;;
 
 
-let check_data_type_group (env: env) (data_type_group: data_type_def list) =
+let check_data_type_group env (data_type_group: data_type_def list) =
   (* Check that the constructors are unique to this data type group. *)
   let all_branches = MzList.map_flatten (function
     | Abbrev _
@@ -804,7 +803,7 @@ let check_data_type_group (env: env) (data_type_group: data_type_def list) =
 ;;
 
 
-let rec check_pattern (env: env) (pattern: pattern) =
+let rec check_pattern env (pattern: pattern) =
   match pattern with
   | PConstraint (p, t) ->
       check_pattern env p;
@@ -827,7 +826,7 @@ let rec check_pattern (env: env) (pattern: pattern) =
 ;;
 
 
-let rec check_patexpr (env: env) (flag: rec_flag) (pat_exprs: (pattern * expression) list): env =
+let rec check_patexpr env (flag: rec_flag) (pat_exprs: (pattern * expression) list): 'v env =
   let patterns, expressions = List.split pat_exprs in
   (* Introduce all bindings from the patterns *)
   let bindings = bindings_patterns patterns in
@@ -849,7 +848,7 @@ let rec check_patexpr (env: env) (flag: rec_flag) (pat_exprs: (pattern * express
   sub_env
 
 
-and check_expression (env: env) (expr: expression) =
+and check_expression env (expr: expression) =
   match expr with
   | EConstraint (e, t) ->
       check_expression env e;
@@ -955,7 +954,7 @@ and check_expression (env: env) (expr: expression) =
  * complicated, because of patterns, this function does both the binding and the
  * checking at the same time (i.e. there's no [bindings_declaration_group]
  * function. However, it returns the environment with all the bindings added. *)
-let check_declaration_group (env: env) = function
+let check_declaration_group env = function
   | DLocated (DMultiple (rec_flag, pat_exprs), p) ->
     let env = locate env p in
     check_patexpr env rec_flag pat_exprs
@@ -963,8 +962,8 @@ let check_declaration_group (env: env) = function
       Log.error "Unexpected shape for a [declaration_group]."
 ;;
 
-let check_implementation (env: env) (program: implementation) : unit =
-  let (_ : env) = List.fold_left (fun env -> function
+let check_implementation env (program: implementation) : unit =
+  let (_ : 'v env) = List.fold_left (fun env -> function
     | DataTypeGroup (loc, rec_flag, data_type_group) ->
         (* Collect the names from the data type definitions, since they
          * will be made available in both the data type definitions themselves,
@@ -1005,7 +1004,7 @@ let check_implementation (env: env) (program: implementation) : unit =
   ()
 ;;
 
-let check_interface (env: env) (interface: interface) =
+let check_interface env (interface: interface) =
   (* Check for duplicate variables. A variable cannot be declared twice
      in an interface file. *)
   let all_bindings = MzList.map_flatten (function

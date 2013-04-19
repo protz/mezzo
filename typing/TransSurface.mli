@@ -1,6 +1,6 @@
 open Kind
 open SurfaceSyntax
-open KindCheck
+open KindCheckGlue
 
 (** Translating the surface syntax down into the core language syntax. *)
 
