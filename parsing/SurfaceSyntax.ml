@@ -176,6 +176,14 @@ type data_type_def = {
 
 type rec_flag = Nonrecursive | Recursive
 
+(* The meaning of the [rec_flag] in a data type group could be a little bit
+   unclear, as it is not obvious a priori which namespace(s) it concerns:
+   variables, data constructors, or both? We take the answer to be "both".
+   For a concrete data type definition, the parser always produces the
+   flag [Recursive], so we obtain the desired behavior, which is that the
+   right-hand sides can refer to the types and data constructors that are
+   being defined. *)
+
 type data_type_group =
     location * rec_flag * data_type_def list
 

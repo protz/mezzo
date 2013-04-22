@@ -556,7 +556,7 @@ let check_distinct_heads env name facts =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* The kind-checking functions. *)
+(* The main kind-checking functions. *)
 
 let rec check env (ty : typ) (expected : kind) =
   match ty with
