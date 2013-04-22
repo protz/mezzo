@@ -487,22 +487,23 @@ let reset env ty =
 (* A type definition binds a variable (the type that is being defined). If it is
    an algebraic data type definition, it also binds a number of data constructors. *)
 
-(* [bindings_data_type_group] returns a list of names that the whole data type
-   group binds, with the corresponding kinds. The list is in the same order as
-   the data type definitions. *)
-let bindings_data_type_group (group : data_type_def list) : type_binding list =
+(* [bindings_data_group_types group] returns a list of bindings for the types
+   of the data group. *)
+let bindings_data_group_types (group : data_type_def list) : type_binding list =
   List.map (function def -> binding_of_lhs def.lhs) group
+    (* TEMPORARY why do I break a lot of tests if I replace List.map with
+       List.rev_map? The order should not matter here. *)
 
-(* Bind all the data constructors from a data type group *)
-let bind_datacons env (group : data_type_def list) : 'v env =
+(* [bind_data_group_datacons env group] extends the environment with bindings
+   for the data constructors of the data group. It must be called after the
+   environment has been extended with bindings for the types. *)
+let bind_data_group_datacons env (group : data_type_def list) : 'v env =
   List.fold_left (fun env def ->
     match def.rhs with
     | Concrete (_, branches, _) ->
         let (x, _, _), _ = def.lhs in
         let v = find_var env (Unqualified x) in
         MzList.fold_lefti (fun i env (dc, fields) ->
-          (* We're building information for the interpreter: drop the
-           * permission fields. *)
           let fields = MzList.map_some (function
             | FieldValue (f, _) -> Some f
             | FieldPermission _ -> None
@@ -763,7 +764,6 @@ let branches_of_interface (interface : interface) =
   ) interface
 
 let check_data_type_group env (group: data_type_def list) =
-  (* TEMPORARY should check that the types are unique within this group. *)
   (* Check that the constructors are unique within this data type group. *)
   let (_ : _ list) = check_for_duplicate_datacons env (branches_of_data_type_group group) in
   (* Do the remainder of the checks. *)
@@ -914,12 +914,12 @@ let check_implementation env (program: implementation) : unit =
          * will be made available in both the data type definitions themselves,
          * and the value definitions. All definitions in a data type groupe are
          * mutually recursive. *)
-        let bindings = bindings_data_type_group data_type_group in
+        let bindings = bindings_data_group_types data_type_group in
         (* Create an environment that includes those names. *)
         let env = locate env loc in
         let extended_env = extend_check env bindings in
 	(* Also include the data constructors. *)
-	let extended_env = bind_datacons extended_env data_type_group in
+	let extended_env = bind_data_group_datacons extended_env data_type_group in
         (* Check the data type definitions in the appropriate environment. *)
 	let appropriate_env =
 	  match rec_flag with
@@ -951,7 +951,7 @@ let check_interface env (interface: interface) =
      in an interface file. *)
   let all_bindings = MzList.map_flatten (function
     | DataTypeGroup (_, _, data_type_group) ->
-        bindings_data_type_group data_type_group
+        bindings_data_group_types data_type_group
     | ValueDeclaration (x, _, loc) ->
         [x, KTerm, loc]
     | OpenDirective _ ->

@@ -560,7 +560,7 @@ let translate_data_type_group
 
   let loc, rec_flag, data_type_group = data_type_group in
 
-  let bindings = bindings_data_type_group data_type_group in
+  let bindings = bindings_data_group_types data_type_group in
   (* The check for duplicate names has been performed already. *)
 
   (* We're recycling the environments from [SurfaceSyntax] because we're lazy.
@@ -570,7 +570,7 @@ let translate_data_type_group
 
   (* Also bind the constructors. *)
   let env = locate env loc in
-  let sub_env = bind_datacons sub_env data_type_group in
+  let sub_env = bind_data_group_datacons sub_env data_type_group in
 
   (* First do the translation pass. *)
   let translated_definitions: T.data_type_group = {

@@ -113,14 +113,18 @@ val extend: 'v env -> type_binding list -> 'v env
 val dissolve: 'v env -> Module.name -> 'v env
 
 
-val bind_datacons: 'v env -> data_type_def list -> 'v env
+(** [bindings_data_group_types group] returns a list of bindings for the types
+    of the data group. *)
+val bindings_data_group_types: data_type_def list -> type_binding list
+(** [bind_data_group_datacons env group] extends the environment with bindings
+    for the data constructors of the data group. It must be called after the
+    environment has been extended with bindings for the types. *)
+val bind_data_group_datacons: 'v env -> data_type_def list -> 'v env
 
 
 
 val names: typ -> type_binding list
 val bv: pattern -> type_binding list
-
-val bindings_data_type_group: data_type_def list -> type_binding list
 
 val check: 'v env -> typ -> kind -> unit
 val infer: 'v env -> typ -> kind
