@@ -1,0 +1,7 @@
+open wref
+val () =
+  let i = new 0 in
+  while get i < 10 do
+  begin
+    set (i, get i + 1)
+  end
