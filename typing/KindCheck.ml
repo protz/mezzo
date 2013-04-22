@@ -974,6 +974,18 @@ let find_datacon env datacon =
   let v, info = find_dc env datacon in
   level2index env v, info
 
+let resolve_datacon env (dref : datacon_reference) : 'v var * Datacon.name =
+  let datacon = dref.datacon_unresolved in
+  (* Get the type [v] with which this data constructor is associated,
+     and get its [info] record. *)
+  let v, info = find_datacon env datacon in
+  (* Write the address of the [info] record into the abstract syntax
+     tree. This info is used by the compiler. *)
+  dref.datacon_info <- Some info;
+  (* Return a pair of the type with which this data constructor is associated
+     and the unqualified name of this data constructor. *)
+  v, unqualify datacon
+
 (* Rename [check_reset] and [infer_reset] for public use. *)
 let check =
   check_reset

@@ -58,19 +58,8 @@ let evar v =
   | NonLocal v -> E.EOpen v
 
 let resolve_datacon env dref =
-  let datacon = dref.datacon_unresolved in
-  (* Get the type [v] with which this data constructor is associated,
-     and get its [info] record. *)
-  let v, info = find_datacon env datacon in
-  (* Write the address of the [info] record into the abstract syntax
-     tree. This info is used by the compiler. *)
-  dref.datacon_info <- Some info;
-  (* A resolved data constructor is a pair of the type with which this
-     data constructor is associated and the unqualified name of this
-     data constructor. *)
-  tvar v,
-  unqualify datacon
-
+  let v, datacon = KindCheck.resolve_datacon env dref in
+  tvar v, datacon
 
 let rec flatten_star p =
   match p with

@@ -84,9 +84,12 @@ val location: 'v env -> location
     in the environment [env]. *)
 val find_variable: 'v env -> Variable.name maybe_qualified -> 'v var
 
-(** [find_datacon env x] looks up the possibly-qualified data constructor [x]
-    in the environment [env]. *)
-val find_datacon: 'v env -> Datacon.name maybe_qualified -> 'v var * datacon_info
+(** [resolve_datacon env dref] looks up the possibly-qualified data constructor
+    [dref.datacon_unresolved] in the environment [env]. It updates [dref] in
+    place with a [datacon_info] component. It returns a pair of the type with
+    which this data constructor is associated and the unqualified name of this
+    data constructor. *)
+val resolve_datacon: 'v env -> datacon_reference -> 'v var * Datacon.name
 
 (* ---------------------------------------------------------------------------- *)
 
