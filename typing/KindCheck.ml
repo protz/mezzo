@@ -755,12 +755,6 @@ let branches_of_interface (interface : interface) =
         []
   ) interface
 
-let check_data_type_group env (group: data_type_def list) =
-  (* Check that the constructors are unique within this data type group. *)
-  let (_ : _ list) = check_for_duplicate_datacons env (branches_of_data_type_group group) in
-  (* Do the remainder of the checks. *)
-  List.iter (check_data_type_def env) group
-
 let rec check_pattern env (pattern: pattern) =
   match pattern with
   | PConstraint (p, t) ->
@@ -902,24 +896,21 @@ and check_tapp env = function
 (* Also used to check an interface. *)
 let check_implementation env (program: implementation) : unit =
   let (_ : 'v env) = List.fold_left (fun env -> function
-    | DataTypeGroup (loc, rec_flag, data_type_group) ->
-        (* Collect the names from the data type definitions, since they
-         * will be made available in both the data type definitions themselves,
-         * and the value definitions. All definitions in a data type groupe are
-         * mutually recursive. *)
-        let bindings = bindings_data_group_types data_type_group in
-        (* Create an environment that includes those names. *)
+    | DataTypeGroup (loc, rec_flag, group) ->
         let env = { env with loc } in
-        let extended_env = extend_check env bindings in
-	(* Also include the data constructors. *)
-	let extended_env = bind_data_group_datacons extended_env data_type_group in
-        (* Check the data type definitions in the appropriate environment. *)
+        (* Create an environment that includes the types and data constructors
+	   defined in this group. *)
+        let extended_env = extend_check env (bindings_data_group_types group) in
+	let extended_env = bind_data_group_datacons extended_env group in
+        (* Check that the data constructors are unique within this group. *)
+	let (_ : _ list) = check_for_duplicate_datacons env (branches_of_data_type_group group) in
+        (* Check each type definition in an appropriate environment. *)
 	let appropriate_env =
 	  match rec_flag with
 	  | Nonrecursive -> env
 	  | Recursive -> extended_env
 	in
-	check_data_type_group appropriate_env data_type_group;
+	List.iter (check_data_type_def appropriate_env) group;
 	(* Return the extended environment. *)
         extended_env
 	  (* TEMPORARY there is code duplication between here and
