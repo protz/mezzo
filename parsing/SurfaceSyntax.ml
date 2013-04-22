@@ -162,12 +162,9 @@ type data_type_def_lhs =
 type single_fact = 
   | Fact of mode_constraint list * mode_constraint
 
-type fact =
-    single_fact list
-
 type data_type_def_rhs =
   | Concrete of DataTypeFlavor.flavor * data_type_def_branch list * adopts_clause
-  | Abstract of fact
+  | Abstract of single_fact list
   | Abbrev of typ
 
 type data_type_def = {

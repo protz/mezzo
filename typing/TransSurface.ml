@@ -494,7 +494,7 @@ let translate_single_fact (params: type_binding list) (accu: Fact.fact) (fact: s
   assert (not (Mode.ModeMap.mem mode accu));
   Mode.ModeMap.add mode (HConjunction hs) accu
 
-let translate_fact (params: type_binding list) (fact: fact): Fact.fact =
+let translate_fact (params: type_binding list) (fact: single_fact list): Fact.fact =
   (* Starting with an empty mode map, translate each implication.
      This yields an incomplete mode map, which we complete. *)
   Fact.complete (
