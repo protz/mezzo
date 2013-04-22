@@ -1,0 +1,9 @@
+val c (consumes list::list unknown): () =
+  ()
+
+val f (x: list::list (ref int)): list::list (ref int) =
+  (* We have x @ list (ref int) *)
+  c x;
+  (* We should still have x @ list (ref int) because no exclusive permission was
+   * consumed. However, this requires quite a bit of reasoning. *)
+  x
