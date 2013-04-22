@@ -482,8 +482,33 @@ let names ty : type_binding list =
 let reset env ty =
   extend_check env (names ty)
 
+(* ---------------------------------------------------------------------------- *)
+
+(* A type definition binds a variable (the type that is being defined). If it is
+   an algebraic data type definition, it also binds a number of data constructors. *)
+
+(* [bindings_data_type_group] returns a list of names that the whole data type
+   group binds, with the corresponding kinds. The list is in the same order as
+   the data type definitions. *)
+let bindings_data_type_group (group : data_type_def list) : type_binding list =
+  List.map (function def ->
+    (* Find the name, parameters, and return kind of the type that is being defined. *)
+    let x, params, kind =
+      match def with
+      | Concrete (_, (x, params), _, _) ->
+	  x, params, KType
+      | Abbrev ((x, params), kind, _)
+      | Abstract ((x, params), kind, _) ->
+	  x, params, kind
+    in
+    (* Build its kind. *)
+    let kind = List.fold_right (fun (_, (_, k, _)) kind -> KArrow (k, kind)) params kind in
+    (* Construct a binding. *) (* TEMPORARY dummy location, for now *)
+    x, kind, dummy_loc
+  ) group
+
 (* Bind all the data constructors from a data type group *)
-let bind_datacons env data_type_group =
+let bind_datacons env (group : data_type_def list) : 'v env =
   List.fold_left (fun env -> function
     | Concrete (_, (x, _), rhs, _) ->
         let v = find_var env (Unqualified x) in
@@ -499,28 +524,7 @@ let bind_datacons env data_type_group =
     | Abbrev _
     | Abstract _ ->
         env
-  ) env data_type_group
-;;
-
-(* [bindings_data_type_group] returns a list of names that the whole data type
-   group binds, with the corresponding kinds. The list is in the same order as
-   the data type definitions. *)
-let bindings_data_type_group (data_type_group: data_type_def list): type_binding list =
-  List.map (function def ->
-    (* Find the name, parameters, and return kind of the type that is being defined. *)
-    let x, params, kind =
-      match def with
-      | Concrete (_, (x, params), _, _) ->
-	  x, params, KType
-      | Abbrev ((x, params), kind, _)
-      | Abstract ((x, params), kind, _) ->
-	  x, params, kind
-    in
-    (* Build its kind. *)
-    let kind = List.fold_right (fun (_, (_, k, _)) kind -> KArrow (k, kind)) params kind in
-    (* Return a binding. *) (* TEMPORARY dummy location, for now *)
-    x, kind, dummy_loc
-  ) data_type_group
+  ) env group
 
 (* ---------------------------------------------------------------------------- *)
 
