@@ -241,7 +241,7 @@ let check_implementation
           let env, blocks, vars = DataTypeGroup.bind_data_type_group env group blocks in
           (* Move on to the rest of the blocks. *)
           type_check env blocks (vars :: varss)
-      | ValueDeclarations decls :: blocks ->
+      | ValueDefinitions decls :: blocks ->
           Log.debug ~level:2 "\n%s***%s Processing declarations:\n%a"
             Bash.colors.Bash.yellow Bash.colors.Bash.default
             Expressions.ExprPrinter.pdeclarations (env, decls);

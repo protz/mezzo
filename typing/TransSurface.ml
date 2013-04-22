@@ -908,16 +908,16 @@ let translate_item env item =
         translate_data_type_group bind_local_loc env data_type_group
       in
       env, Some (E.DataTypeGroup defs)
-  | ValueDeclarations decl ->
+  | ValueDefinitions decl ->
       (* Same here, we're only performing desugaring, we're not opening any
        * binders. *)
       let env, decl = translate_declaration_group env decl in
-      env, Some (E.ValueDeclarations decl)
-  | PermDeclaration (x, t, loc) ->
+      env, Some (E.ValueDefinitions decl)
+  | ValueDeclaration (x, t, loc) ->
       check env t KType;
       let t = translate_type_with_names env t in
       let env = bind_local_loc env (x, KTerm, loc) in
-      env, Some (E.PermDeclaration (x, t))
+      env, Some (E.ValueDeclaration (x, t))
   | OpenDirective mname ->
       dissolve env mname, None
 ;;

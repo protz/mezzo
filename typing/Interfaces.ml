@@ -46,7 +46,7 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
   let open Expressions in
   (* We demand that [env] have the right module name. *)
   let rec import_items env = function
-    | PermDeclaration (name, typ) :: items ->
+    | ValueDeclaration (name, typ) :: items ->
         (* XXX the location information is probably wildly inaccurate *)
         let binding = User (module_name env, name), KTerm, location env in
         let env, p = bind_rigid env binding in
@@ -61,7 +61,7 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
 	(* TEMPORARY why don't we bind the data constructors here? *)
         import_items env items
 
-    | ValueDeclarations _ :: _ ->
+    | ValueDefinitions _ :: _ ->
         assert false
 
     | [] ->
@@ -121,7 +121,7 @@ let check
         let tsenv = KindCheck.dissolve tsenv mname in
         check env tsenv toplevel_items
 
-    | S.PermDeclaration (x, t, _loc) :: toplevel_items ->
+    | S.ValueDeclaration (x, t, _loc) :: toplevel_items ->
         (* val x: t *)
         Log.debug ~level:3 "*** Checking sig item %a" Variable.p x;
 
@@ -272,7 +272,7 @@ let check
         check env tsenv toplevel_items
 
 
-    | S.ValueDeclarations _ :: _ ->
+    | S.ValueDefinitions _ :: _ ->
         assert false
 
     | [] ->

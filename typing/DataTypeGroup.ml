@@ -71,10 +71,10 @@ let debug_toplevel_items env toplevel_items =
     | DataTypeGroup group ->
         Log.debug "%a\n"
           KindPrinter.pgroup (env, group);
-    | ValueDeclarations decls ->
+    | ValueDefinitions decls ->
         Log.debug "%a\n"
           Expressions.ExprPrinter.pdeclarations (env, decls);
-    | PermDeclaration it ->
+    | ValueDeclaration it ->
         Log.debug "%a\n"
           Expressions.ExprPrinter.psigitem (env, it)
   ) toplevel_items;

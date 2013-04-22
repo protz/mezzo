@@ -1007,7 +1007,7 @@ definition_group:
     { let flag, defs = flag_defs in
       let d = DMultiple (flag, defs) in
       let d = DLocated (d, ($startpos($1), $endpos)) in
-      ValueDeclarations d }
+      ValueDefinitions d }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -1021,7 +1021,7 @@ definition_group:
 
 value_declaration:
 | VAL x = variable COLON ty = arbitrary_type
-    { PermDeclaration (x, ty, ($startpos(x), $endpos(x))) }
+    { ValueDeclaration (x, ty, ($startpos(x), $endpos(x))) }
 
 (* ---------------------------------------------------------------------------- *)
 

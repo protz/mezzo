@@ -124,8 +124,8 @@ type sig_item =
 
 type toplevel_item =
   | DataTypeGroup of data_type_group
-  | ValueDeclarations of declaration
-  | PermDeclaration of sig_item
+  | ValueDefinitions of declaration
+  | ValueDeclaration of sig_item
 
 type implementation =
   toplevel_item list
@@ -403,15 +403,15 @@ let rec tsubst_toplevel_items t2 i toplevel_items =
       in
       let toplevel_items = tsubst_toplevel_items t2 (i + n) toplevel_items in
       DataTypeGroup group :: toplevel_items
-  | ValueDeclarations decl :: toplevel_items ->
+  | ValueDefinitions decl :: toplevel_items ->
       let decl = tsubst_decl t2 i decl in
       let n = n_decls decl in
       let toplevel_items = tsubst_toplevel_items t2 (i + n) toplevel_items in
-      ValueDeclarations decl :: toplevel_items
-  | PermDeclaration (x, t) :: toplevel_items ->
+      ValueDefinitions decl :: toplevel_items
+  | ValueDeclaration (x, t) :: toplevel_items ->
       let t = tsubst t2 i t in
       let toplevel_items = tsubst_toplevel_items t2 (i + 1) toplevel_items in
-      PermDeclaration (x, t) :: toplevel_items
+      ValueDeclaration (x, t) :: toplevel_items
   | [] ->
       []
 ;;
@@ -556,12 +556,12 @@ let rec esubst_toplevel_items e2 i toplevel_items =
       let n = List.length group.group_items in
       let toplevel_items = esubst_toplevel_items e2 (i + n) toplevel_items in
       DataTypeGroup group :: toplevel_items
-  | ValueDeclarations decls :: toplevel_items ->
+  | ValueDefinitions decls :: toplevel_items ->
       let decls = esubst_decl e2 i decls in
       let n = n_decls decls in
       let toplevel_items = esubst_toplevel_items e2 (i + n) toplevel_items in
-      ValueDeclarations decls :: toplevel_items
-  | (PermDeclaration _ as toplevel_item) :: toplevel_items ->
+      ValueDefinitions decls :: toplevel_items
+  | (ValueDeclaration _ as toplevel_item) :: toplevel_items ->
       let toplevel_items = esubst_toplevel_items e2 (i + 1) toplevel_items in
       toplevel_item :: toplevel_items
   | [] ->

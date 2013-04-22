@@ -31,7 +31,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     MzList.map_flatten collect_item items
 
   and collect_item = function
-    | PermDeclaration (_, t, _) ->
+    | ValueDeclaration (_, t, _) ->
         collect_type t
     | DataTypeGroup (_, _, defs) ->
         MzList.map_flatten (function
@@ -43,7 +43,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
               Option.map_none [] (Option.map collect_type adopts)
               @ MzList.map_flatten collect_data_type_def_branch rhs
         ) defs
-    | ValueDeclarations decls ->
+    | ValueDefinitions decls ->
         collect_decl decls
     | OpenDirective m ->
         [m]

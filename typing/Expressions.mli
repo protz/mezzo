@@ -85,8 +85,8 @@ type sig_item = Variable.name * typ
 
 type toplevel_item =
     DataTypeGroup of data_type_group
-  | ValueDeclarations of declaration
-  | PermDeclaration of sig_item
+  | ValueDefinitions of declaration
+  | ValueDeclaration of sig_item
 
 type implementation = toplevel_item list
 

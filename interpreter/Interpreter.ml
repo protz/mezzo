@@ -841,7 +841,7 @@ let evaluate_data_type_def (env : env) (branches : data_type_def_rhs) : env =
 
 let eval_implementation_item (env : env) (item : toplevel_item) : env =
   match item with
-  | ValueDeclarations defs ->
+  | ValueDefinitions defs ->
       eval_value_definition dummy_loc env defs
   | OpenDirective m ->
       (* Assuming that the module [m] has been evaluated before, the (public)
@@ -860,7 +860,7 @@ let eval_implementation_item (env : env) (item : toplevel_item) : env =
         | Abbrev _ ->
             env
       ) env defs
-  | PermDeclaration _ ->
+  | ValueDeclaration _ ->
       (* We are evaluating an implementation, not an interface. *)
       assert false
 
@@ -887,7 +887,7 @@ let eval_implementation (env : env) (impl : implementation) : env =
 
 let export_interface_item (m : Module.name) (env : env) (item : toplevel_item) : env =
   match item with
-  | ValueDeclarations _ ->
+  | ValueDefinitions _ ->
       (* We are evaluating an interface, not an implementation. *)
       assert false
   | OpenDirective _ ->
@@ -909,7 +909,7 @@ let export_interface_item (m : Module.name) (env : env) (item : toplevel_item) :
         | Abbrev _ ->
             env
       ) env defs
-  | PermDeclaration (x, _, _) ->
+  | ValueDeclaration (x, _, _) ->
       (* The effect of a variable declaration is to export this variable. *)
       { env with variables = V.qualify m x env.variables }
 

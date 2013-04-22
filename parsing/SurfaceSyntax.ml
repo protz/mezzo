@@ -273,22 +273,11 @@ type declaration =
   | DMultiple of rec_flag * (pattern * expression) list
   | DLocated of declaration * location
 
-(* TEMPORARY it is not clear why ValueDeclarations carries a *list* of
-   declarations, where each declaration can itself be a *list* of
-   pattern-definition pairs. Is there redundancy? Also, the scoping
-   rules should be clarified (add comments). *)
-
 type toplevel_item =
   | DataTypeGroup of data_type_group
-  | ValueDeclarations of declaration
-  | PermDeclaration of Variable.name * typ * location
+  | ValueDefinitions of declaration
+  | ValueDeclaration of Variable.name * typ * location
   | OpenDirective of Module.name
-
-(* TEMPORARY I suggest renaming as follows:
-   "declaration"       -> "value_definition"
-   "ValueDeclarations" -> "ValueDefinitions"
-   "PermDeclaration"   -> "ValueDeclaration"
--fpottier *)
 
 (* An implementation will only contain data type groups, value declarations and
  * open directives. *)

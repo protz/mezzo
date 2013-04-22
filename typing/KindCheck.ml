@@ -958,12 +958,12 @@ let check_implementation env (program: implementation) : unit =
 	  (* TEMPORARY there is code duplication between here and
 	     [TransSurface.translate_data_type_group] *)
 
-    | ValueDeclarations declaration_group ->
+    | ValueDefinitions declaration_group ->
         (* This function does everything at once and takes care of both binding
          * the variables and checking the bodies. *)
         check_declaration_group env declaration_group;
 
-    | PermDeclaration (x, t, loc) ->
+    | ValueDeclaration (x, t, loc) ->
         check_reset env t KType;
         bind_local_loc env (x, KTerm, loc)
 
@@ -979,11 +979,11 @@ let check_interface env (interface: interface) =
   let all_bindings = MzList.map_flatten (function
     | DataTypeGroup (_, _, data_type_group) ->
         bindings_data_type_group data_type_group
-    | PermDeclaration (x, _, loc) ->
+    | ValueDeclaration (x, _, loc) ->
         [x, KTerm, loc]
     | OpenDirective _ ->
         []
-    | ValueDeclarations _ ->
+    | ValueDefinitions _ ->
         assert false
   ) interface in
   let (_ : _ list) = check_for_duplicate_bindings env all_bindings in
