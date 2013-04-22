@@ -899,6 +899,7 @@ and check_tapp env = function
 ;;
 
 
+(* Also used to check an interface. *)
 let check_implementation env (program: implementation) : unit =
   let (_ : 'v env) = List.fold_left (fun env -> function
     | DataTypeGroup (loc, rec_flag, data_type_group) ->
