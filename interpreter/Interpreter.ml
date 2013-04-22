@@ -803,7 +803,7 @@ and eval_recursive_equation ((new_env, closures) as accu) (p, e) =
 
 (* Evaluating a concrete data type definition. *)
 
-let evaluate_data_type_def (env : env) (branches : data_type_def_rhs) : env =
+let evaluate_data_type_def (env : env) (branches : data_type_def_branch list) : env =
   snd (
     (* For each data constructor, *)
     List.fold_left (fun (index, env) (datacon, defs) ->

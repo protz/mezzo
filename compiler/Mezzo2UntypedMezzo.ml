@@ -275,12 +275,12 @@ let transl_data_field_def = function
 let transl_data_type_def_branch (d, fields) =
   d, adopter_field :: List.flatten (List.map transl_data_field_def fields)
 
-let transl_data_type_def_rhs rhs =
-  List.map transl_data_type_def_branch rhs
+let transl_data_type_branches branches =
+  List.map transl_data_type_def_branch branches
 
 let transl_data_type_def = function
-  | Concrete (_flag, lhs, rhs, _adopts_clause) ->
-      [ U.DataType (transl_data_type_def_lhs lhs, transl_data_type_def_rhs rhs) ]
+  | Concrete (_flag, lhs, branches, _adopts_clause) ->
+      [ U.DataType (transl_data_type_def_lhs lhs, transl_data_type_branches branches) ]
   | Abstract _ ->
       []
   | Abbrev _ ->

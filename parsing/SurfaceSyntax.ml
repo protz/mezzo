@@ -153,9 +153,6 @@ and adopts_clause =
 type data_type_def_lhs =
     type_binding * type_binding_with_variance list
 
-type data_type_def_rhs =
-    data_type_def_branch list
-
 type single_fact = 
   | Fact of mode_constraint list * mode_constraint
 
@@ -164,7 +161,7 @@ type fact =
 
 (* TEMPORARY factorize common parts *)
 type data_type_def =
-  | Concrete of DataTypeFlavor.flavor * data_type_def_lhs * data_type_def_rhs * adopts_clause
+  | Concrete of DataTypeFlavor.flavor * data_type_def_lhs * data_type_def_branch list * adopts_clause
   | Abstract of data_type_def_lhs * fact
   | Abbrev of data_type_def_lhs * typ
 
