@@ -324,6 +324,10 @@ let module_name env =
 let location env =
   env.location
 
+(* [locate env loc] updates [env] with the location [loc]. *)
+let locate env location =
+  { env with location }
+
 (* [find env x] looks up the possibly-qualified variable [x] in [env]. *)
 let find env x : 'v var * kind =
   try
@@ -353,11 +357,25 @@ let find_dc env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Extending an environment. *)
+(* Checking for duplicate definitions. *)
 
-(* [locate env loc] updates [env] with the location [loc]. *)
-let locate env location =
-  { env with location }
+(* TEMPORARY this version should disappear, it does not produce a good location *)
+let check_for_duplicate_variables2 env xs =
+  MzList.exit_if_duplicates Variable.compare (fun (x, _) -> x) xs
+    (fun (x, _) -> bound_twice "variable" Variable.print env x)
+
+let check_for_duplicate_bindings env (xs : type_binding list) =
+  MzList.exit_if_duplicates Variable.compare (fun (x, _, _) -> x) xs
+    (fun (x, _, loc) -> bound_twice "variable" Variable.print (locate env loc) x)
+
+(* TEMPORARY this function also does not produce a good error location *)
+let check_for_duplicate_datacons env (branches: (Datacon.name * 'a) list) =
+  MzList.exit_if_duplicates Datacon.compare fst branches
+    (fun (x, _) -> bound_twice "data constructor" Datacon.print env x)
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Extending an environment. *)
 
 (* [bind_variable env x data] binds the unqualified variable [x]. *)
 let bind_variable env x (data : 'v var * kind) : 'v env =
@@ -383,6 +401,10 @@ let extend env (xs : type_binding list) : 'v env =
     bind_local env (x, k)
   ) env xs
 
+(* [extend_check] performs a check for duplicate variables before using [extend]. *)
+let extend_check env xs =
+  extend env (check_for_duplicate_bindings env xs)
+
 (* [bind_datacon env x data] binds the unqualified data constructor [x]. *)
 let bind_datacon env x (data : 'v var * datacon_info) : 'v env =
   { env with datacons = D.extend_unqualified x data env.datacons }
@@ -398,24 +420,6 @@ let dissolve env m =
     variables = V.unqualify m (V.freeze m env.variables);
     datacons = D.unqualify m (D.freeze m env.datacons);
   }
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Checking for duplicate definitions. *)
-
-(* TEMPORARY this version should disappear, it does not produce a good location *)
-let check_for_duplicate_variables2 env xs =
-  MzList.exit_if_duplicates Variable.compare (fun (x, _) -> x) xs
-    (fun (x, _) -> bound_twice "variable" Variable.print env x)
-
-let check_for_duplicate_variables3 env (xs : type_binding list) =
-  MzList.exit_if_duplicates Variable.compare (fun (x, _, _) -> x) xs
-    (fun (x, _, loc) -> bound_twice "variable" Variable.print (locate env loc) x)
-
-(* TEMPORARY this function also does not produce a good error location *)
-let check_for_duplicate_datacons env (branches: (Datacon.name * 'a) list) =
-  MzList.exit_if_duplicates Datacon.compare fst branches
-    (fun (x, _) -> bound_twice "data constructor" Datacon.print env x)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -467,23 +471,14 @@ let bv p =
    of which names are ghost and which names are actually available at
    runtime. *)
 
-(* The check for distinctness is not built into the public version of [names],
-   because that would lead to redundant checks. *)
-
-let public_names ty : type_binding list =
+let names ty : type_binding list =
   bv (type_to_pattern ty)
-
-let names env ty =
-  let bindings = public_names ty in
-  (* Check that no name is bound twice. *)
-  check_for_duplicate_variables3 env bindings;
-  bindings
 
 (* [reset env ty] extends the environment [env] with the names introduced
    by the type [ty]. *)
 
 let reset env ty =
-  extend env (names env ty)
+  extend_check env (names ty)
 
 (* Bind all the data constructors from a data type group *)
 let bind_datacons env data_type_group =
@@ -525,21 +520,6 @@ let bindings_data_type_group (data_type_group: data_type_def list): (Variable.na
         (name, k)
   ) data_type_group
 ;;
-
-
-(* [bindings_pattern] returns in prefix order the list of names bound in a
-   pattern. *)
-let bindings_pattern (p: pattern) : (Variable.name * kind) list =
-  let bindings = bv p in
-  (* Discard the unneeded location information. *)
-  List.map (fun (x, kind, _) -> x, kind) bindings
-;;
-
-(* [bindings_patterns] is the same, but applies to a list of patterns.
-   The check for duplicates (if performed) applies to all patterns at
-   once. *)
-let bindings_patterns (ps: pattern list) : (Variable.name * kind) list =
-  bindings_pattern (PTuple ps)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -724,8 +704,10 @@ and check_branch: 'a. 'v env -> ('a * data_field_def list) -> unit = fun env bra
         None
   ) fields in
   (* Check that no field name appears twice. *)
-  MzList.exit_if_duplicates Field.compare (fun f -> f) fs
-    (bound_twice "field" Field.print env);
+  let (_ : _ list) =
+    MzList.exit_if_duplicates Field.compare (fun f -> f) fs
+      (bound_twice "field" Field.print env)
+  in
   List.iter (check_field env) fields
 
 and infer_reset env ty =
@@ -787,7 +769,7 @@ let branches_of_interface (interface : interface) =
 
 let check_data_type_group env (group: data_type_def list) =
   (* Check that the constructors are unique within this data type group. *)
-  check_for_duplicate_datacons env (branches_of_data_type_group group);
+  let (_ : _ list) = check_for_duplicate_datacons env (branches_of_data_type_group group) in
   (* Do the remainder of the checks. *)
   List.iter (check_data_type_def env) group
 
@@ -816,9 +798,7 @@ let rec check_pattern env (pattern: pattern) =
 let rec check_patexpr env (flag: rec_flag) (pat_exprs: (pattern * expression) list): 'v env =
   let patterns, expressions = List.split pat_exprs in
   (* Introduce all bindings from the patterns *)
-  let bindings = bindings_patterns patterns in
-  check_for_duplicate_variables2 env bindings;
-  let sub_env = List.fold_left bind_local env bindings in
+  let sub_env = extend_check env (bv (PTuple patterns)) in
   (* Type annotation in patterns may reference names introduced in the entire
    * pattern (same behavior as tuple types). *)
   List.iter (check_pattern sub_env) patterns;
@@ -855,9 +835,7 @@ and check_expression env (expr: expression) =
       check_expression env expr
 
   | EFun (bindings, arg, return_type, body) ->
-      check_for_duplicate_variables3 env bindings;
-      let bindings = List.map (fun (x, y, _) -> x, y) bindings in
-      let env = List.fold_left bind_local env bindings in
+      let env = extend_check env bindings in
       let env = reset env arg in
       check env arg KType;
       check_expression env body;
@@ -887,9 +865,7 @@ and check_expression env (expr: expression) =
   | EMatch (_, e, pat_exprs) ->
       check_expression env e;
       List.iter (fun (pat, expr) ->
-        let bindings = bindings_pattern pat in
-	check_for_duplicate_variables2 env bindings;
-        let sub_env = List.fold_left bind_local env bindings in
+        let sub_env = extend_check env (bv pat) in
         check_pattern sub_env pat;
         check_expression sub_env expr
       ) pat_exprs
@@ -955,7 +931,7 @@ let check_implementation env (program: implementation) : unit =
          * and the value definitions. All definitions in a data type groupe are
          * mutually recursive. *)
         let bindings = bindings_data_type_group data_type_group in
-        check_for_duplicate_variables2 env bindings;
+        let bindings = check_for_duplicate_variables2 env bindings in
         (* Create an environment that includes those names. *)
         let env = locate env loc in
         let extended_env = List.fold_left bind_local env bindings in
@@ -1001,12 +977,12 @@ let check_interface env (interface: interface) =
     | ValueDeclarations _ ->
         assert false
   ) interface in
-  check_for_duplicate_variables2 env all_bindings;
+  let (_ : _ list) = check_for_duplicate_variables2 env all_bindings in
     (* TEMPORARY this results in a dummy location *)
 
   (* Check for duplicate data constructors. A data constructor cannot be
      declared twice in an interface file. *)
-  check_for_duplicate_datacons env (branches_of_interface interface);
+  let (_ : _ list) = check_for_duplicate_datacons env (branches_of_interface interface) in
     (* TEMPORARY this results in a dummy location *)
 
   (* Do all the regular checks. *)
@@ -1034,7 +1010,4 @@ let check =
 
 let infer =
   infer_reset
-
-let names =
-  public_names
 

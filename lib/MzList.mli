@@ -72,7 +72,7 @@ val check_for_duplicates : ('a -> 'a -> int) -> 'a list -> ('a * 'a) option
     of type ['b], while the list elements have type ['a]. A projection function
     maps ['a] to ['b]. If a duplicate element is found, the exit function is
     invoked. *)
-val exit_if_duplicates: ('b -> 'b -> int) -> ('a -> 'b) -> 'a list -> ('a -> unit) -> unit
+val exit_if_duplicates: ('b -> 'b -> int) -> ('a -> 'b) -> 'a list -> ('a -> 'a list) -> 'a list
 
 (** Find the biggest element in a list *)
 val max: int list -> int

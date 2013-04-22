@@ -117,8 +117,7 @@ val bind_datacons: 'v env -> data_type_def list -> 'v env
 
 
 val names: typ -> type_binding list
-val bindings_pattern: pattern -> (Variable.name * kind) list
-val bindings_patterns: pattern list -> (Variable.name * kind) list
+val bv: pattern -> type_binding list
 
 val bindings_data_type_group: data_type_def list -> (Variable.name * kind) list
 

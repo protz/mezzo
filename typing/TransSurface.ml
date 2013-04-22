@@ -780,13 +780,11 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
                 let name = fresh_var "/a" in
                 PAs (pat, name), Some name
         in
-        (* Collect the names. *)
-        let names = bindings_pattern pat in
         (* Translate the pattern. *)
+        let sub_env = extend env (bv pat) in
         let pat = translate_pattern env pat in
         (* Bind the names for further translating, and don't forget to include
          * assertions in the translation as well. *)
-        let sub_env = List.fold_left bind_local env names in
         let expr =
           if annotation <> TyUnknown then
             translate_expr sub_env (
@@ -864,12 +862,10 @@ and translate_patexprs
   (* Remove all inner type annotations and transform them into a bigger type
    * constraint.*)
   let patterns, annotations = List.split (List.map clean_pattern patterns) in
-  (* Find names in patterns. *)
-  let names = bindings_patterns patterns in
+  (* Bind all the names in the sub-environment. *)
+  let sub_env = extend env (bv (PTuple patterns)) in
   (* Translate the patterns. *)
   let patterns = List.map (translate_pattern env) patterns in
-  (* Bind all the names in the sub-environment. *)
-  let sub_env = List.fold_left bind_local env names in
   (* Translate the expressions and annotations. *)
   let expressions, annotations = match flag with
     | Recursive ->
