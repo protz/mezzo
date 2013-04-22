@@ -487,30 +487,34 @@ let reset env ty =
 (* A type definition binds a variable (the type that is being defined). If it is
    an algebraic data type definition, it also binds a number of data constructors. *)
 
+(* TEMPORARY *)
+let lhs = function
+  | Concrete (_, lhs, _, _)
+  | Abstract (lhs, _)
+  | Abbrev (lhs, _) ->
+      lhs
+
+(* TEMPORARY *)
+let binding_of_lhs lhs =
+  (* Find the name, return kind, and parameters of the type that is being defined. *)
+  let (x, kind, loc), params = lhs in
+  (* Build an arrow kind. *)
+  let kind = List.fold_right (fun (_, (_, k, _)) kind -> KArrow (k, kind)) params kind in
+  (* Construct a binding. *)
+  x, kind, loc
+
 (* [bindings_data_type_group] returns a list of names that the whole data type
    group binds, with the corresponding kinds. The list is in the same order as
    the data type definitions. *)
 let bindings_data_type_group (group : data_type_def list) : type_binding list =
   List.map (function def ->
-    (* Find the name, parameters, and return kind of the type that is being defined. *)
-    let x, params, kind =
-      match def with
-      | Concrete (_, (x, params), _, _) ->
-	  x, params, KType
-      | Abbrev ((x, params), kind, _)
-      | Abstract ((x, params), kind, _) ->
-	  x, params, kind
-    in
-    (* Build its kind. *)
-    let kind = List.fold_right (fun (_, (_, k, _)) kind -> KArrow (k, kind)) params kind in
-    (* Construct a binding. *) (* TEMPORARY dummy location, for now *)
-    x, kind, dummy_loc
+    binding_of_lhs (lhs def)
   ) group
 
 (* Bind all the data constructors from a data type group *)
 let bind_datacons env (group : data_type_def list) : 'v env =
   List.fold_left (fun env -> function
-    | Concrete (_, (x, _), rhs, _) ->
+    | Concrete (_, ((x, _, _), _), rhs, _) ->
         let v = find_var env (Unqualified x) in
         MzList.fold_lefti (fun i env (dc, fields) ->
           (* We're building information for the interpreter: drop the
@@ -726,7 +730,7 @@ and check_reset env ty expected =
    well-formed. *)
 let check_data_type_def env (def: data_type_def) =
   match def with
-  | Abstract ((name, bindings), _return_kind, facts) ->
+  | Abstract (((name, _, _), bindings), facts) ->
       (* Get the names of the parameters. *)
       let args = List.map (fun (_, (x, _, _)) -> x) bindings in
       (* Perform a tedious check. *)
@@ -735,7 +739,7 @@ let check_data_type_def env (def: data_type_def) =
         let (_, t) = conclusion in check_fact_conclusion env name args t
       ) facts;
       check_distinct_heads env name facts
-  | Concrete (flavor, (name, bindings), branches, clause) ->
+  | Concrete (flavor, ((name, _, _), bindings), branches, clause) ->
       let bindings = List.map (fun (_, binding) -> binding) bindings in
       let env = extend env bindings in
       (* Check the branches. *)
@@ -749,7 +753,7 @@ let check_data_type_def env (def: data_type_def) =
 	  if not (DataTypeFlavor.can_adopt flavor) then
 	    raise_error env (AdopterNotExclusive name)
       end
-  | Abbrev ((_, bindings), return_kind, t) ->
+  | Abbrev (((_, return_kind, _), bindings), t) ->
       let bindings = List.map (fun (_, (x, y, _)) -> x, y) bindings in
       let env = List.fold_left bind_local env bindings in
       check_reset env t return_kind
@@ -773,6 +777,7 @@ let branches_of_interface (interface : interface) =
   ) interface
 
 let check_data_type_group env (group: data_type_def list) =
+  (* TEMPORARY should check that the types are unique within this group. *)
   (* Check that the constructors are unique within this data type group. *)
   let (_ : _ list) = check_for_duplicate_datacons env (branches_of_data_type_group group) in
   (* Do the remainder of the checks. *)

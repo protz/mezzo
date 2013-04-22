@@ -548,8 +548,12 @@ data_type_def_branch_content:
     { dfs }
 
 %inline data_type_def_lhs:
-  tbs = iterated_type_type_application(variable, atomic_type_binding_with_variance)
-    { tbs }
+  x = variable ys = atomic_type_binding_with_variance*
+    { (* A little hack: we don't know the kind yet, so we abstract over it. *)
+      fun kind ->
+        (x, kind, ($startpos(x), $endpos(x))),
+	ys
+    }
 
 %inline data_type_def_rhs:
   bs = separated_or_preceded_list(BAR, data_type_def_branch)
@@ -577,13 +581,13 @@ concrete_data_type_def:
   EQUAL
   rhs = data_type_def_rhs
   a = preceded(ADOPTS, arbitrary_type)?
-    { Concrete (flavor, lhs, rhs, a) }
+    { Concrete (flavor, lhs KType, rhs, a) }
 
 abstract_data_type_def:
 | lhs = data_type_def_lhs
   k = optional_kind_annotation
   fs = fact*
-    { Abstract (lhs, k, fs) }
+    { Abstract (lhs k, fs) }
 
 %inline data_type_group:
 | DATA
@@ -603,7 +607,7 @@ abbreviation_def:
   lhs = data_type_def_lhs
   k = optional_kind_annotation
   EQUAL t = arbitrary_type
-    { Abbrev (lhs, k, t) }
+    { Abbrev (lhs k, t) }
 
 type_abbreviation:
 | ALIAS def = abbreviation_def

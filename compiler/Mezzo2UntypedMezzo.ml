@@ -263,7 +263,7 @@ and eval_field loc (f, e) k =
 
 (* Translating data type definitions. *)
 
-let transl_data_type_def_lhs (t, _parameters) =
+let transl_data_type_def_lhs ((t, _, _), _parameters) =
   t
 
 let transl_data_field_def = function

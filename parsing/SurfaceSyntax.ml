@@ -151,7 +151,7 @@ and adopts_clause =
 (* Algebraic data type definitions. *)
 
 type data_type_def_lhs =
-    Variable.name * type_binding_with_variance list
+    type_binding * type_binding_with_variance list
 
 type data_type_def_rhs =
     data_type_def_branch list
@@ -162,11 +162,11 @@ type single_fact =
 type fact =
     single_fact list
 
+(* TEMPORARY factorize common parts *)
 type data_type_def =
-  | Concrete of DataTypeFlavor.flavor * data_type_def_lhs * data_type_def_rhs *
-      adopts_clause
-  | Abstract of data_type_def_lhs * kind * fact
-  | Abbrev of data_type_def_lhs * kind * typ
+  | Concrete of DataTypeFlavor.flavor * data_type_def_lhs * data_type_def_rhs * adopts_clause
+  | Abstract of data_type_def_lhs * fact
+  | Abbrev of data_type_def_lhs * typ
 
 (* A data type group is a group of data type definitions. *)
 

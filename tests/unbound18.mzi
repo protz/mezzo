@@ -1,0 +1,5 @@
+data t = T
+val x: int
+data u = U
+val y: int
+data t = V

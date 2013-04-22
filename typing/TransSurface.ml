@@ -504,7 +504,7 @@ let translate_fact (params: Variable.name list) (fact: fact): Fact.fact =
 let translate_data_type_def (env: env) (data_type_def: data_type_def) =
   let loc = location env in
   match data_type_def with
-  | Concrete (flavor, (name, the_params), branches, adopts_clause) ->
+  | Concrete (flavor, ((name, _, _), the_params), branches, adopts_clause) ->
       let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
       (* Add the type parameters in the environment. *)
       let env = List.fold_left bind_local env params in
@@ -523,7 +523,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
         data_fact = fact;
         data_kind = karrow params KType
       })
-  | Abstract ((name, the_params), kind, fact) ->
+  | Abstract (((name, kind, _), the_params), fact) ->
       let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
       let fact = translate_fact (fst (List.split params)) fact in
       let variance = List.map (fun (v, _) -> v) the_params in
@@ -534,7 +534,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
         data_fact = fact;
         data_kind = karrow params kind
       })
-  | Abbrev ((name, the_params), kind, t) ->
+  | Abbrev (((name, kind, _), the_params), t) ->
       let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
       let env = List.fold_left bind_local env params in
       (* Same remarks for fact/variance as with the Concrete case. *)

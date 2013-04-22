@@ -37,7 +37,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         MzList.map_flatten (function
           | Abstract _ ->
               []
-          | Abbrev (_, _, t) ->
+          | Abbrev (_, t) ->
               collect_type t
           | Concrete (_flag, _lhs, rhs, adopts) ->
               Option.map_none [] (Option.map collect_type adopts)

@@ -1,0 +1,5 @@
+data t = T
+val x = 0
+data u = U
+val y = 0
+data t = V
