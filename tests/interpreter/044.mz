@@ -1,14 +1,14 @@
 (* Success: 100 *)
-val rec while [p : perm] (c: (| p) -> bool, f : (| p) -> () | p) : () =
+val rec loop [p : perm] (c: (| p) -> bool, f : (| p) -> () | p) : () =
   if c() then begin
     f();
-    while (c, f)
+    loop (c, f)
   end
 val () =
   let r = newref 100 in
   let s = newref 0 in
   let c (| r @ ref int) : bool = !r > 0
   and f (| r @ ref int * s @ ref int) : ()   = r := !r - 1; s := !s + 1 in
-  while [(r @ ref int * s @ ref int)] (c, f);
+  loop [(r @ ref int * s @ ref int)] (c, f);
   (* WISH get rid of this type application *)
   print !s

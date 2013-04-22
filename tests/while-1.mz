@@ -1,0 +1,6 @@
+val () =
+  let i = newref 0 in
+  preserving (i @ ref int) while !i < 10 do
+  begin
+    incr i
+  end

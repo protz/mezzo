@@ -1,0 +1,7 @@
+(* Success: 100 *)
+val () =
+  let r = newref 100 in
+  let s = newref 0 in
+  preserving (r @ ref int * s @ ref int)
+  while !r > 0 do (decr r; incr s);
+  print !s
