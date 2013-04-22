@@ -210,51 +210,15 @@ let rec translate_type (env: env) (t: typ): T.typ =
       tvar (find_variable env x)
 
   | TyConcrete ((dref, fields), clause) ->
-      (* Performs a side-effect! *)
-      let datacon = resolve_datacon env dref in
-      (* Translate the [adopts] clause, if there is one. *)
-      let clause =
-	match clause with
-	| None ->
-	    TypeCore.ty_bottom
-	| Some ty ->
-	    (* TEMPORARY find the flavor of this data constructor (either
-	       by looking up the definition of its type, or by extending
-	       the [datacon_info] record with this information?) and check
-	       that its flavor is [Mutable]. *)
-	    translate_type env ty
-      in
-      (* Construct a translated description. *)
-      let branch = {
+      T.TyConcrete {
 	T.branch_flavor = ();
-	T.branch_datacon = datacon;
+	T.branch_datacon = resolve_datacon env dref;
 	T.branch_fields = translate_fields env fields;
-	T.branch_adopts = clause;
-      } in
-      (* This type may be ill-formed in the sense that it has incorrect
-	 fields. Check that, by looking up the definition of this data
-	 constructor. *)
-      (* Perhaps we could perform this check during kind-checking, but
-	 [resolve_datacon] is not available there, perhaps for a good
-	 reason (a reference to a datacon cannot be resolved while we
-	 are still processing the definition of this datacon?). *)
-      let info = Option.extract dref.datacon_info in
-      let module FieldSet = Field.Map.Domain in
-      let required_fields = Field.Map.domain info.datacon_fields in
-      let provided_fields =
-	List.fold_left (fun accu -> function
-	  | FieldValue (field, _) -> FieldSet.add field accu
-	  | FieldPermission _ -> accu
-	) FieldSet.empty fields
-      in
-      let ok = FieldSet.equal required_fields provided_fields in
-      if not ok then
-	let missing = FieldSet.diff required_fields provided_fields
-	and extra = FieldSet.diff provided_fields required_fields in
-	field_mismatch env (snd datacon) (FieldSet.elements missing) (FieldSet.elements extra)
-      (* Happy. *)
-      else
-	T.TyConcrete branch
+	T.branch_adopts =
+	  match clause with
+	  | None    -> TypeCore.ty_bottom
+	  | Some ty -> translate_type env ty
+      }
 
   | TySingleton t ->
       T.TySingleton (translate_type env t)

@@ -1,0 +1,4 @@
+open list
+(* Missing field. *)
+val x: Cons { head: int } =
+  fail

@@ -251,9 +251,6 @@ let mismatch env expected_kind inferred_kind =
 let illegal_consumes env =
   raise_error env IllegalConsumes
 
-let field_mismatch env dc missing extra =
-  raise_error env (FieldMismatch (dc, missing, extra))
-
 let implication_only_on_arrow env =
   raise_error env ImplicationOnlyOnArrow
 
@@ -339,14 +336,32 @@ let find_var env x : 'v var =
   let v, _ = find env x in
   v
 
-(* This function is for internal use; it returns a de-Bruijn-level
-   [var]. Further on, we compose it with [level2index] and publish it as
-   [find_datacon]. *)
-let find_dc env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info =
+(* [level2index] converts a de-Bruijn-level [var] to a de-Bruijn-index [var]. *)
+let level2index env = function
+  | Local level ->
+      Local (env.level - level - 1)
+  | NonLocal _ as v ->
+      v
+
+(* This function is for public use; it returns a de-Bruijn-index [var]. *)
+let find_datacon env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info =
   try
-    D.lookup_maybe_qualified datacon env.datacons
+    let v, info = D.lookup_maybe_qualified datacon env.datacons in
+    level2index env v, info
   with Not_found ->
     unbound "data constructor" Datacon.print env datacon
+
+let resolve_datacon env (dref : datacon_reference) : 'v var * Datacon.name =
+  let datacon = dref.datacon_unresolved in
+  (* Get the type [v] with which this data constructor is associated,
+     and get its [info] record. *)
+  let v, info = find_datacon env datacon in
+  (* Write the address of the [info] record into the abstract syntax
+     tree. This info is used by the compiler. *)
+  dref.datacon_info <- Some info;
+  (* Return a pair of the type with which this data constructor is associated
+     and the unqualified name of this data constructor. *)
+  v, unqualify datacon
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -603,9 +618,20 @@ and infer env (ty : typ) : kind =
   | TyVar x ->
       find_kind env x
 
-  | TyConcrete (branch, clause) ->
-      (* TEMPORARY parts of the checks are performed later, in [TransSurface]. Why? *)
-      check_branch env branch;
+  | TyConcrete ((dref, fields), clause) ->
+      (* TEMPORARY find the flavor of this data constructor (either
+	 by looking up the definition of its type, or by extending
+	 the [datacon_info] record with this information?) and check
+	 that its flavor is [Mutable]. Not required for soundness,
+	 but seems reasonable. *)
+      (* Resolve this data constructor reference. *)
+      let _, _ = resolve_datacon env dref in
+      (* Check that no field is provided twice, and check the type
+	 of each field. *)
+      check_branch env fields;
+      (* Check that exactly the expected fields are provided. *)
+      check_exact_fields env dref fields;
+      (* Check the adopts clause, if there is one. *)
       Option.iter (fun ty -> check_reset env ty KType) clause;
       KType
 
@@ -680,8 +706,8 @@ and check_field env (field : data_field_def) =
   | FieldPermission t ->
       check env t KPerm (* [reset] irrelevant *)
 
-and check_branch: 'a. 'v env -> ('a * data_field_def list) -> unit = fun env branch ->
-  let _, fields = branch in
+(* Used both for resolved and unresolved branches. *)
+and check_branch env fields =
   let fs = MzList.map_some (function
     | FieldValue (f, _) ->
         Some f
@@ -692,8 +718,30 @@ and check_branch: 'a. 'v env -> ('a * data_field_def list) -> unit = fun env bra
   let (_ : _ list) =
     MzList.exit_if_duplicates Field.compare (fun f -> f) fs
       (bound_twice "field" Field.print env)
+      (* TEMPORARY better location? *)
   in
   List.iter (check_field env) fields
+
+(* Check that exactly the correct fields are provided (no more, no less). *)
+and check_exact_fields env (dref : datacon_reference) (fields : data_field_def list) =
+  let info = Option.extract dref.datacon_info in
+  let module FieldSet = Field.Map.Domain in
+  let required_fields = Field.Map.domain info.datacon_fields in
+  let provided_fields =
+    List.fold_left (fun accu -> function
+      | FieldValue (field, _) -> FieldSet.add field accu
+      | FieldPermission _ -> accu
+    ) FieldSet.empty fields
+  in
+  let ok = FieldSet.equal required_fields provided_fields in
+  if not ok then
+    let missing = FieldSet.diff required_fields provided_fields
+    and extra = FieldSet.diff provided_fields required_fields in
+    raise_error env (FieldMismatch (
+      unqualify dref.datacon_unresolved,
+      FieldSet.elements missing,
+      FieldSet.elements extra
+    ))
 
 and infer_reset env ty =
   infer (reset env ty) ty
@@ -721,7 +769,7 @@ let check_data_type_def env (def: data_type_def) =
       let bindings = List.map (fun (_, binding) -> binding) bindings in
       let env = extend env bindings in
       (* Check the branches. *)
-      List.iter (check_branch env) branches;
+      List.iter (fun (_, fields) -> check_branch env fields) branches;
       begin match clause with
       | None ->
           ()
@@ -959,32 +1007,9 @@ let check_interface env (interface: interface) =
   check_implementation env interface
 ;;
 
-(* [level2index] converts a de-Bruijn-level [var] to a de-Bruijn-index [var]. *)
-let level2index env = function
-  | Local level ->
-      Local (env.level - level - 1)
-  | NonLocal _ as v ->
-      v
-
-(* Define [find_variable] and [find_datacon] for public use. *)
+(* Define [find_variable] for public use. *)
 let find_variable env x =
   level2index env (find_var env x)
-
-let find_datacon env datacon =
-  let v, info = find_dc env datacon in
-  level2index env v, info
-
-let resolve_datacon env (dref : datacon_reference) : 'v var * Datacon.name =
-  let datacon = dref.datacon_unresolved in
-  (* Get the type [v] with which this data constructor is associated,
-     and get its [info] record. *)
-  let v, info = find_datacon env datacon in
-  (* Write the address of the [info] record into the abstract syntax
-     tree. This info is used by the compiler. *)
-  dref.datacon_info <- Some info;
-  (* Return a pair of the type with which this data constructor is associated
-     and the unqualified name of this data constructor. *)
-  v, unqualify datacon
 
 (* Rename [check_reset] and [infer_reset] for public use. *)
 let check =

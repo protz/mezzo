@@ -1,0 +1,4 @@
+open list
+(* Not the right fields. *)
+val x: Cons { foo: int } =
+  fail

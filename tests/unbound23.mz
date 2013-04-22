@@ -1,0 +1,6 @@
+data t =
+  T { f: int }
+
+val x : T { f: int; f: int } =
+  T { f = 2; f = 3 }
+

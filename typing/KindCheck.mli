@@ -49,7 +49,6 @@ type 'v env
 exception KindError of (Buffer.t -> unit -> unit)
 
 (* TEMPORARY try not to publish any of the functions that raise errors? *)
-val field_mismatch: 'v env -> Datacon.name -> Field.name list (* missing fields *) -> Field.name list (* extra fields *) -> 'a
 val implication_only_on_arrow: 'v env -> 'a
 val illegal_consumes: 'v env -> 'a
 

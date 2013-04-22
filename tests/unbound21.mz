@@ -1,0 +1,6 @@
+(* A weird data type that refers to itself via a structural type. *)
+data t =
+  T { head: T { head: () }}
+
+val x : t =
+  T { head = T { head = () }}

@@ -1,0 +1,4 @@
+open list
+(* Extra field. *)
+val x: Cons { head: int; tail: Nil; extra: () } =
+  fail
