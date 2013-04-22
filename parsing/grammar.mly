@@ -53,7 +53,7 @@
 %token          EMPTY ASSERT EXPLAIN FAIL
 %token          CONSUMES DUPLICABLE FACT ABSTRACT
 %token          VAL LET REC AND IN DOT WITH BEGIN END MATCH
-%token          IF THEN ELSE
+%token          IF THEN ELSE PRESERVING WHILE DO
 %token          TAKE FROM GIVE TO ADOPTS OWNS TAKING
 %token<int>     INT
 %token<string>  OPPREFIX OPINFIX0a OPINFIX0b OPINFIX0c OPINFIX0d OPINFIX1 OPINFIX2 OPINFIX3 OPINFIX4
@@ -866,6 +866,8 @@ raw_reasonable_expression:
 | IF b = explain e1 = expression THEN e2 = tuple_or_reasonable_expression
                                  ELSE e3 = tuple_or_reasonable_expression
     { EIfThenElse (b, e1, e2, e3) }
+| PRESERVING t = normal_type WHILE e1 = expression DO e2 = reasonable_expression
+    { EWhile (t, e1, e2) }
   (* We cannot allow "let" on the right-hand side of an assignment, because
      the right-hand side of "let" can contain a semi-colon. We disallow
      unparenthesized tuples, even though we could allow them, for two

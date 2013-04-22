@@ -8,6 +8,7 @@ begin
 builtin
 consumes
 data
+do
 duplicable
 dynamic
 else
@@ -28,6 +29,7 @@ mutable
 open
 owns
 perm
+preserving
 rec
 take
 taking
@@ -37,4 +39,5 @@ to
 type
 unknown
 val
+while
 with
