@@ -392,7 +392,7 @@ and translate_arrow_type env t1 t2 =
 
   (* Get the implicitly quantified variables in [t1]. These will be
      quantified as universal variables above the arrow type. *)
-  let t1_bindings = names env t1 in
+  let t1_bindings = names t1 in
 
   (* This is the procedure that removes the consumes annotations. It is
    * performed in the surface syntax. The first step consists in carving out
@@ -445,7 +445,7 @@ and translate_arrow_type env t1 t2 =
   universal_bindings, fat_t1, t2
 
 and translate_type_with_names (env: env) (t: typ): T.typ =
-  let bindings = names env t in
+  let bindings = names t in
   let env = extend env bindings in
   let t = translate_type env t in
   let t = Types.fold_exists (List.map (fun binding -> name_user env binding, UserIntroduced) bindings) t in

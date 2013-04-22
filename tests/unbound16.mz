@@ -1,0 +1,2 @@
+val f : (x: int, (y: int, x: int)) -> (y: int) =
+  fail

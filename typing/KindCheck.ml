@@ -403,13 +403,19 @@ let dissolve env m =
 
 (* Checking for duplicate definitions. *)
 
-let check_for_duplicate_variables (project : 'a -> Variable.name) env (xs: 'a list) =
-  MzList.exit_if_duplicates Variable.compare project xs
-    (bound_twice "variable" Variable.print env)
+(* TEMPORARY this version should disappear, it does not produce a good location *)
+let check_for_duplicate_variables2 env xs =
+  MzList.exit_if_duplicates Variable.compare (fun (x, _) -> x) xs
+    (fun (x, _) -> bound_twice "variable" Variable.print env x)
 
+let check_for_duplicate_variables3 env (xs : type_binding list) =
+  MzList.exit_if_duplicates Variable.compare (fun (x, _, _) -> x) xs
+    (fun (x, _, loc) -> bound_twice "variable" Variable.print (locate env loc) x)
+
+(* TEMPORARY this function also does not produce a good error location *)
 let check_for_duplicate_datacons env (branches: (Datacon.name * 'a) list) =
   MzList.exit_if_duplicates Datacon.compare fst branches
-    (bound_twice "data constructor" Datacon.print env)
+    (fun (x, _) -> bound_twice "data constructor" Datacon.print env x)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -436,22 +442,26 @@ let rec bv loc (accu : type_binding list) (p : pattern) : type_binding list =
   | PAny ->
       accu
 
-(* [bv loc p] returns the names bound by the pattern [p], in left-to-right
-   order. I am not sure why, but this appears to be important. *)
+(* [bv p] returns the names bound by the pattern [p], in left-to-right order. *)
 
-let bv loc p =
-  List.rev (bv loc [] p)
+(* I am not sure why, but the order appears to be important. Is this normal
+   (e.g. because a lot of our Mezzo code relies on left-to-right instantiation
+   of flexible variables) or is it a bug? TEMPORARY *)
 
-let fst3 (x, _, _) = x (* TEMPORARY *)
+let bv p =
+  (* Starting with a dummy location is not a problem, since the parser
+     produces patterns that contain [PLocated] nodes. *)
+  List.rev (bv dummy_loc [] p)
 
-(* [names env ty] returns a list of the names that [ty] binds. We check that
-   these names are distinct, so their order is irrelevant. *)
+(* [names ty] returns a list of the names introduced by the type [ty], via
+   [TyNameIntro] forms. We check that these names are distinct, so their
+   order is in principle irrelevant. *)
 
 (* In principle, the type [ty] should have kind [type]. However, during
    kind-checking, [names] can be called before we have ensured that this is
    the case. *)
 
-(* We implement [names env ty] by first converting the type [ty] to a pattern,
+(* We implement [names ty] by first converting the type [ty] to a pattern,
    using the function [type_to_pattern]. This function is also used by the
    interpreter and compiler. This helps ensure that we have a unified notion
    of which names are ghost and which names are actually available at
@@ -460,15 +470,17 @@ let fst3 (x, _, _) = x (* TEMPORARY *)
 (* The check for distinctness is not built into the public version of [names],
    because that would lead to redundant checks. *)
 
-let public_names env ty : type_binding list =
-  bv env.location (type_to_pattern ty)
+let public_names ty : type_binding list =
+  bv (type_to_pattern ty)
 
 let names env ty =
-  let bindings = public_names env ty in
+  let bindings = public_names ty in
   (* Check that no name is bound twice. *)
-  check_for_duplicate_variables fst3 env bindings;
-    (* TEMPORARY the error location is not very good *)
+  check_for_duplicate_variables3 env bindings;
   bindings
+
+(* [reset env ty] extends the environment [env] with the names introduced
+   by the type [ty]. *)
 
 let reset env ty =
   extend env (names env ty)
@@ -518,7 +530,7 @@ let bindings_data_type_group (data_type_group: data_type_def list): (Variable.na
 (* [bindings_pattern] returns in prefix order the list of names bound in a
    pattern. *)
 let bindings_pattern (p: pattern) : (Variable.name * kind) list =
-  let bindings = bv dummy_loc p in
+  let bindings = bv p in
   (* Discard the unneeded location information. *)
   List.map (fun (x, kind, _) -> x, kind) bindings
 ;;
@@ -805,7 +817,7 @@ let rec check_patexpr env (flag: rec_flag) (pat_exprs: (pattern * expression) li
   let patterns, expressions = List.split pat_exprs in
   (* Introduce all bindings from the patterns *)
   let bindings = bindings_patterns patterns in
-  check_for_duplicate_variables fst env bindings;
+  check_for_duplicate_variables2 env bindings;
   let sub_env = List.fold_left bind_local env bindings in
   (* Type annotation in patterns may reference names introduced in the entire
    * pattern (same behavior as tuple types). *)
@@ -843,7 +855,7 @@ and check_expression env (expr: expression) =
       check_expression env expr
 
   | EFun (bindings, arg, return_type, body) ->
-      check_for_duplicate_variables fst3 env bindings;
+      check_for_duplicate_variables3 env bindings;
       let bindings = List.map (fun (x, y, _) -> x, y) bindings in
       let env = List.fold_left bind_local env bindings in
       let env = reset env arg in
@@ -876,7 +888,7 @@ and check_expression env (expr: expression) =
       check_expression env e;
       List.iter (fun (pat, expr) ->
         let bindings = bindings_pattern pat in
-	check_for_duplicate_variables fst env bindings;
+	check_for_duplicate_variables2 env bindings;
         let sub_env = List.fold_left bind_local env bindings in
         check_pattern sub_env pat;
         check_expression sub_env expr
@@ -943,7 +955,7 @@ let check_implementation env (program: implementation) : unit =
          * and the value definitions. All definitions in a data type groupe are
          * mutually recursive. *)
         let bindings = bindings_data_type_group data_type_group in
-        check_for_duplicate_variables fst env bindings;
+        check_for_duplicate_variables2 env bindings;
         (* Create an environment that includes those names. *)
         let env = locate env loc in
         let extended_env = List.fold_left bind_local env bindings in
@@ -989,7 +1001,7 @@ let check_interface env (interface: interface) =
     | ValueDeclarations _ ->
         assert false
   ) interface in
-  check_for_duplicate_variables fst env all_bindings;
+  check_for_duplicate_variables2 env all_bindings;
     (* TEMPORARY this results in a dummy location *)
 
   (* Check for duplicate data constructors. A data constructor cannot be
