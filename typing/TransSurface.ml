@@ -816,6 +816,19 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let e3 = translate_expr env e3 in
       E.EIfThenElse (b, e1, e2, e3)
 
+  | EWhile (t, e1, e2) ->
+      (* New name for the loop function. *)
+      let name = fresh_var "/loop" in
+      (* [call] is: loop() *)
+      let call = EApply (EVar (Unqualified name) , ETuple []) in
+      (* [body] is: if e₁ then begin e₂ ; loop() end *)
+      let body = EIfThenElse (false, e1, ESequence (e2, call), ETuple []) in
+      (* [f] is: fun (|t) : () -> [body] *)
+      let f = EFun ([], TyBar(TyTuple[], t), TyTuple [], body) in
+      (* The actual translation: let loop = [f] in loop() *)
+      translate_expr env
+        (ELet (Recursive, [(PVar name, f)] , call))
+
   | ESequence (e1, e2) ->
       let e1 = translate_expr env e1 in
       let e2 = translate_expr env e2 in

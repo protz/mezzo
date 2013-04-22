@@ -117,6 +117,8 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         collect_maybe_qualified dref.datacon_unresolved
     | EIfThenElse (_, e1, e2, e3) ->
         collect_expr e1 @ collect_expr e2 @ collect_expr e3
+    | EWhile (t, e1, e2) ->
+        collect_type t @ collect_expr e1 @ collect_expr e2
 
   and collect_type = function
     | TyVar v ->

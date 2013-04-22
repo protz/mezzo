@@ -243,6 +243,8 @@ and expression =
   | EConstruct of (datacon_reference * (Field.name * expression) list)
   (* if e₁ then e₂ else e₃ *)
   | EIfThenElse of bool * expression * expression * expression
+  (* preserving p while e₁ do e₂ *) 
+  | EWhile of typ * expression * expression
   (* e₁; e₂ → desugared as let () = e₁ in e₂ *)
   | ESequence of expression * expression
   | ELocated of expression * location

@@ -676,6 +676,12 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
       let b = asBlock (eval env loc e) in
       eval env loc (if b.tag.datacon_index > 0 then e1 else e2)
 
+  | EWhile (_, e1, e2) ->
+      while (asBlock (eval env loc e1)).tag.datacon_index > 0  do
+        ignore (eval env loc e2)
+      done;
+      unit_value
+
   | ESequence (e1, e2) ->
       let _unit = eval env loc e1 in
       eval env loc e2

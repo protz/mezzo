@@ -195,6 +195,18 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       transl loc e (fun v ->
       k (U.EIfThenElse (v, reset_transl loc e1, reset_transl loc e2))
       )
+  | EWhile (_, e1, e2) ->
+      (* New name for our loop function. *)
+      let fresh_name = fresh "/loop" in
+      (* [application] is: loop () *)
+      let application = U.EApply (U.EVar (Unqualified fresh_name), U.ETuple []) in
+      (* [body] is: if e1 then begin e2; loop () end *)
+      let body = U.EIfThenElse (reset_transl loc e1, 
+        U.ESequence (reset_transl loc e2, application), U.ETuple [])  in
+      (* [efun] is: fun () : () = [body] *)
+      let efun = U.EFun (PTuple [], body) in
+      (* Finally: let loop = [efun] in loop () *)
+      k (U.ELet (Recursive, [(PVar fresh_name, efun)], application))
   | ESequence (e1, e2) ->
       if is_unit e1 then
 	transl loc e2 k
