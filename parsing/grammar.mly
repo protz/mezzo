@@ -581,13 +581,13 @@ concrete_data_type_def:
   EQUAL
   rhs = data_type_def_rhs
   a = preceded(ADOPTS, arbitrary_type)?
-    { Concrete (flavor, lhs KType, rhs, a) }
+    { { lhs = lhs KType; rhs = Concrete (flavor, rhs, a) } }
 
 abstract_data_type_def:
 | lhs = data_type_def_lhs
   k = optional_kind_annotation
-  fs = fact*
-    { Abstract (lhs k, fs) }
+  facts = fact*
+    { { lhs = lhs k; rhs = Abstract facts } }
 
 %inline data_type_group:
 | DATA
@@ -607,7 +607,7 @@ abbreviation_def:
   lhs = data_type_def_lhs
   k = optional_kind_annotation
   EQUAL t = arbitrary_type
-    { Abbrev (lhs k, t) }
+    { { lhs = lhs k; rhs = Abbrev t } }
 
 type_abbreviation:
 | ALIAS def = abbreviation_def

@@ -487,34 +487,18 @@ let reset env ty =
 (* A type definition binds a variable (the type that is being defined). If it is
    an algebraic data type definition, it also binds a number of data constructors. *)
 
-(* TEMPORARY *)
-let lhs = function
-  | Concrete (_, lhs, _, _)
-  | Abstract (lhs, _)
-  | Abbrev (lhs, _) ->
-      lhs
-
-(* TEMPORARY *)
-let binding_of_lhs lhs =
-  (* Find the name, return kind, and parameters of the type that is being defined. *)
-  let (x, kind, loc), params = lhs in
-  (* Build an arrow kind. *)
-  let kind = List.fold_right (fun (_, (_, k, _)) kind -> KArrow (k, kind)) params kind in
-  (* Construct a binding. *)
-  x, kind, loc
-
 (* [bindings_data_type_group] returns a list of names that the whole data type
    group binds, with the corresponding kinds. The list is in the same order as
    the data type definitions. *)
 let bindings_data_type_group (group : data_type_def list) : type_binding list =
-  List.map (function def ->
-    binding_of_lhs (lhs def)
-  ) group
+  List.map (function def -> binding_of_lhs def.lhs) group
 
 (* Bind all the data constructors from a data type group *)
 let bind_datacons env (group : data_type_def list) : 'v env =
-  List.fold_left (fun env -> function
-    | Concrete (_, ((x, _, _), _), rhs, _) ->
+  List.fold_left (fun env def ->
+    match def.rhs with
+    | Concrete (_, branches, _) ->
+        let (x, _, _), _ = def.lhs in
         let v = find_var env (Unqualified x) in
         MzList.fold_lefti (fun i env (dc, fields) ->
           (* We're building information for the interpreter: drop the
@@ -524,7 +508,7 @@ let bind_datacons env (group : data_type_def list) : 'v env =
             | FieldPermission _ -> None
           ) fields in
           bind_datacon env dc (v, mkdatacon_info dc i fields)
-        ) env rhs
+        ) env branches
     | Abbrev _
     | Abstract _ ->
         env
@@ -729,8 +713,9 @@ and check_reset env ty expected =
    fact is well-formed. For concrete types, check that the branches are all
    well-formed. *)
 let check_data_type_def env (def: data_type_def) =
-  match def with
-  | Abstract (((name, _, _), bindings), facts) ->
+  let (name, return_kind, _), bindings = def.lhs in
+  match def.rhs with
+  | Abstract facts ->
       (* Get the names of the parameters. *)
       let args = List.map (fun (_, (x, _, _)) -> x) bindings in
       (* Perform a tedious check. *)
@@ -739,7 +724,7 @@ let check_data_type_def env (def: data_type_def) =
         let (_, t) = conclusion in check_fact_conclusion env name args t
       ) facts;
       check_distinct_heads env name facts
-  | Concrete (flavor, ((name, _, _), bindings), branches, clause) ->
+  | Concrete (flavor, branches, clause) ->
       let bindings = List.map (fun (_, binding) -> binding) bindings in
       let env = extend env bindings in
       (* Check the branches. *)
@@ -753,18 +738,19 @@ let check_data_type_def env (def: data_type_def) =
 	  if not (DataTypeFlavor.can_adopt flavor) then
 	    raise_error env (AdopterNotExclusive name)
       end
-  | Abbrev (((_, return_kind, _), bindings), t) ->
-      let bindings = List.map (fun (_, (x, y, _)) -> x, y) bindings in
-      let env = List.fold_left bind_local env bindings in
+  | Abbrev t ->
+      let bindings = List.map (fun (_, binding) -> binding) bindings in
+      let env = extend env bindings in
       check_reset env t return_kind
 ;;
 
 let branches_of_data_type_group (group : data_type_def list) =
-  MzList.map_flatten (function
+  MzList.map_flatten (function def ->
+    match def.rhs with
     | Abbrev _
     | Abstract _ ->
         []
-    | Concrete (_, _, branches, _) ->
+    | Concrete (_, branches, _) ->
 	branches
   ) group
 

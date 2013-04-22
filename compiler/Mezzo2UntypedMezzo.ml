@@ -278,13 +278,13 @@ let transl_data_type_def_branch (d, fields) =
 let transl_data_type_branches branches =
   List.map transl_data_type_def_branch branches
 
-let transl_data_type_def = function
-  | Concrete (_flag, lhs, branches, _adopts_clause) ->
-      [ U.DataType (transl_data_type_def_lhs lhs, transl_data_type_branches branches) ]
-  | Abstract _ ->
-      []
+let transl_data_type_def def =
+  match def.rhs with
+  | Concrete (_flag, branches, _adopts_clause) ->
+      [ U.DataType (transl_data_type_def_lhs def.lhs, transl_data_type_branches branches) ]
+  | Abstract _
   | Abbrev _ ->
-      Log.error "TODO"
+      []
 
 let transl_data_type_group (_location, _rec_flag, defs) =
   List.flatten (List.map transl_data_type_def defs)

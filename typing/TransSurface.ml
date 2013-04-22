@@ -460,7 +460,7 @@ let rec tunloc = function
       t
 ;;
 
-let translate_single_fact (params: Variable.name list) (accu: Fact.fact) (fact: single_fact) : Fact.fact =
+let translate_single_fact (params: type_binding list) (accu: Fact.fact) (fact: single_fact) : Fact.fact =
   (* We have an implication. *)
   let Fact (hypotheses, goal) = fact in
   (* We ignore the type in the goal. [KindCheck] has already checked
@@ -477,7 +477,7 @@ let translate_single_fact (params: Variable.name list) (accu: Fact.fact) (fact: 
         | TyVar (Unqualified name) -> name
         | _ -> assert false
       in
-      let p : parameter = MzList.index (Variable.equal name) params in
+      let p : parameter = MzList.index (fun (x, _, _) -> Variable.equal name x) params in
       (* We compute a meet of [previous_mode] and [mode], so that if
 	 several hypotheses bear on a single parameter, they will be
 	 correctly taken into account. *)
@@ -494,59 +494,53 @@ let translate_single_fact (params: Variable.name list) (accu: Fact.fact) (fact: 
   assert (not (Mode.ModeMap.mem mode accu));
   Mode.ModeMap.add mode (HConjunction hs) accu
 
-let translate_fact (params: Variable.name list) (fact: fact): Fact.fact =
+let translate_fact (params: type_binding list) (fact: fact): Fact.fact =
   (* Starting with an empty mode map, translate each implication.
      This yields an incomplete mode map, which we complete. *)
   Fact.complete (
     List.fold_left (translate_single_fact params) Mode.ModeMap.empty fact
   )
 
-let translate_data_type_def (env: env) (data_type_def: data_type_def) =
+let translate_data_type_def (env : env) (def : data_type_def) =
   let loc = location env in
-  match data_type_def with
-  | Concrete (flavor, ((name, _, _), the_params), branches, adopts_clause) ->
-      let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
-      (* Add the type parameters in the environment. *)
-      let env = List.fold_left bind_local env params in
+  let (name, _, _), annotated_params = def.lhs in
+  let variance, params = List.split annotated_params in
+  let env = extend env params in
+  let _, kind, _ = binding_of_lhs def.lhs in
+  match def.rhs with
+  | Concrete (flavor, branches, adopts_clause) ->
       (* Translate! The flavor and adopts clause are distributed to every branch. *)
       let branches = List.map (translate_data_type_def_branch env flavor adopts_clause) branches in
       (* This fact will be refined later on. *)
       let fact = Fact.bottom in
-      (* We store the annotated variance here, and then
-       * [Variance.analyze_data_types] will take of checking these against the
-       * actual variance. *)
-      let variance = List.map (fun (v, _) -> v) the_params in
+      (* We store the annotated variance here. [Variance.analyze_data_types] will
+	 take care of checking it against the actual variance. *)
       T.({ data_name = name;
         data_location = loc;
         data_definition = Concrete branches;
         data_variance = variance;
         data_fact = fact;
-        data_kind = karrow params KType
+        data_kind = kind
       })
-  | Abstract (((name, kind, _), the_params), fact) ->
-      let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
-      let fact = translate_fact (fst (List.split params)) fact in
-      let variance = List.map (fun (v, _) -> v) the_params in
+  | Abstract fact ->
+      let fact = translate_fact params fact in
       T.({ data_name = name;
         data_location = loc;
         data_definition = Abstract;
         data_variance = variance;
         data_fact = fact;
-        data_kind = karrow params kind
+        data_kind = kind
       })
-  | Abbrev (((name, kind, _), the_params), t) ->
-      let params = List.map (fun (_, (x, k, _)) -> x, k) the_params in
-      let env = List.fold_left bind_local env params in
+  | Abbrev t ->
       (* Same remarks for fact/variance as with the Concrete case. *)
       let fact = Fact.bottom in
-      let variance = List.map (fun (v, _) -> v) the_params in
       let t = translate_type_with_names env t in
       T.({ data_name = name;
         data_location = loc;
         data_definition = Abbrev t;
         data_variance = variance;
         data_fact = fact;
-        data_kind = karrow params kind
+        data_kind = kind
       })
 ;;
 

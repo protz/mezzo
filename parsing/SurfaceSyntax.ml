@@ -150,6 +150,12 @@ and adopts_clause =
 
 (* Algebraic data type definitions. *)
 
+(* A left-hand side contains a binding for the type that is being defined
+   and a list of bindings for its parameters. Be careful: the left-hand
+   binding contains the *return kind* for the type that is being defined,
+   that is, its kind when it is fully applied. The function [binding_of_lhs]
+   can be used to construct a binding that contains an arrow kind. *)
+
 type data_type_def_lhs =
     type_binding * type_binding_with_variance list
 
@@ -159,11 +165,15 @@ type single_fact =
 type fact =
     single_fact list
 
-(* TEMPORARY factorize common parts *)
-type data_type_def =
-  | Concrete of DataTypeFlavor.flavor * data_type_def_lhs * data_type_def_branch list * adopts_clause
-  | Abstract of data_type_def_lhs * fact
-  | Abbrev of data_type_def_lhs * typ
+type data_type_def_rhs =
+  | Concrete of DataTypeFlavor.flavor * data_type_def_branch list * adopts_clause
+  | Abstract of fact
+  | Abbrev of typ
+
+type data_type_def = {
+  lhs: data_type_def_lhs;
+  rhs: data_type_def_rhs;
+}
 
 (* A data type group is a group of data type definitions. *)
 
@@ -172,6 +182,13 @@ type rec_flag = Nonrecursive | Recursive
 type data_type_group =
     location * rec_flag * data_type_def list
 
+let binding_of_lhs (lhs : data_type_def_lhs) : type_binding =
+  (* Find the name, return kind, and parameters of the type that is being defined. *)
+  let (x, kind, loc), params = lhs in
+  (* Build an arrow kind. *)
+  let kind = List.fold_right (fun (_, (_, k, _)) kind -> KArrow (k, kind)) params kind in
+  (* Construct a binding. *)
+  x, kind, loc
 
 (* ---------------------------------------------------------------------------- *)
 

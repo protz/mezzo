@@ -848,11 +848,10 @@ let eval_implementation_item (env : env) (item : toplevel_item) : env =
       (* The effect of evaluating a data type definition is to generate new
 	 data constructors. *)
       List.fold_left (fun env def ->
-        match def with
-        | Concrete (_, _, rhs, _) ->
+        match def.rhs with
+        | Concrete (_, rhs, _) ->
             evaluate_data_type_def env rhs
-        | Abstract _ ->
-            env
+        | Abstract _
         | Abbrev _ ->
             env
       ) env defs
@@ -893,15 +892,14 @@ let export_interface_item (m : Module.name) (env : env) (item : toplevel_item) :
   | DataTypeGroup (_, _, defs) ->
       (* The effect of a data type declaration is to export data constructors. *)
       List.fold_left (fun env def ->
-        match def with
-        | Concrete (_, _, branches, _) ->
+        match def.rhs with
+        | Concrete (_, branches, _) ->
 	    (* For each data constructor, *)
 	    List.fold_left (fun env (datacon, _) ->
 	      (* Export this data constructor. *)
 		{ env with datacons = D.qualify m datacon env.datacons }
 	    ) env branches
-        | Abstract _ ->
-            env
+        | Abstract _
         | Abbrev _ ->
             env
       ) env defs
