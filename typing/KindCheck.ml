@@ -921,18 +921,6 @@ and check_tapp env = function
 ;;
 
 
-(* Because the binding structure of top-level declarations is possibly
- * complicated, because of patterns, this function does both the binding and the
- * checking at the same time (i.e. there's no [bindings_declaration_group]
- * function. However, it returns the environment with all the bindings added. *)
-let check_declaration_group env = function
-  | DLocated (DMultiple (rec_flag, pat_exprs), p) ->
-    let env = locate env p in
-    check_patexpr env rec_flag pat_exprs
-  | _ ->
-      Log.error "Unexpected shape for a [declaration_group]."
-;;
-
 let check_implementation env (program: implementation) : unit =
   let (_ : 'v env) = List.fold_left (fun env -> function
     | DataTypeGroup (loc, rec_flag, data_type_group) ->
@@ -958,10 +946,9 @@ let check_implementation env (program: implementation) : unit =
 	  (* TEMPORARY there is code duplication between here and
 	     [TransSurface.translate_data_type_group] *)
 
-    | ValueDefinitions declaration_group ->
-        (* This function does everything at once and takes care of both binding
-         * the variables and checking the bodies. *)
-        check_declaration_group env declaration_group;
+    | ValueDefinitions (loc, rec_flag, pat_exprs) ->
+        let env = locate env loc in
+        check_patexpr env rec_flag pat_exprs
 
     | ValueDeclaration (x, t, loc) ->
         check_reset env t KType;

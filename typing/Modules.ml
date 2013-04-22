@@ -43,16 +43,10 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
               Option.map_none [] (Option.map collect_type adopts)
               @ MzList.map_flatten collect_data_type_def_branch rhs
         ) defs
-    | ValueDefinitions decls ->
-        collect_decl decls
+    | ValueDefinitions (_, _, patexprs) ->
+        collect_patexprs patexprs
     | OpenDirective m ->
         [m]
-
-  and collect_decl = function
-    | DLocated (d, _) ->
-        collect_decl d
-    | DMultiple (_, patexprs) ->
-        collect_patexprs patexprs
 
   and collect_patexprs patexprs =
     let pats, exprs = List.split patexprs in

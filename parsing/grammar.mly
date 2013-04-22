@@ -1005,9 +1005,8 @@ anonymous_function:
 definition_group:
 | VAL flag_defs = definitions
     { let flag, defs = flag_defs in
-      let d = DMultiple (flag, defs) in
-      let d = DLocated (d, ($startpos($1), $endpos)) in
-      ValueDefinitions d }
+      let loc = ($startpos($1), $endpos) in
+      ValueDefinitions (loc, flag, defs) }
 
 (* ---------------------------------------------------------------------------- *)
 

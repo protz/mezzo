@@ -269,13 +269,12 @@ and tapp =
 
 (* Top-level declarations *)
 
-type declaration =
-  | DMultiple of rec_flag * (pattern * expression) list
-  | DLocated of declaration * location
+type definitions =
+  location * rec_flag * (pattern * expression) list
 
 type toplevel_item =
   | DataTypeGroup of data_type_group
-  | ValueDefinitions of declaration
+  | ValueDefinitions of definitions
   | ValueDeclaration of Variable.name * typ * location
   | OpenDirective of Module.name
 

@@ -888,16 +888,6 @@ and translate_patexprs
 
 
 
-let translate_declaration_group (env: env) (decl: declaration): env * E.toplevel_item =
-  match decl with
-  | DLocated (DMultiple (flag, pat_exprs), loc) ->
-      let env = locate env loc in
-      let env, pat_exprs = translate_patexprs env flag pat_exprs in
-      env, E.ValueDefinitions (loc, flag, pat_exprs)
-  | _ ->
-      Log.error "The structure of declarations is supposed to be very simple"
-;;
-
 let translate_item env item =
   match item with
   | DataTypeGroup data_type_group ->
@@ -907,10 +897,12 @@ let translate_item env item =
         translate_data_type_group bind_local_loc env data_type_group
       in
       env, Some (E.DataTypeGroup defs)
-  | ValueDefinitions decl ->
+  | ValueDefinitions (loc, flag, pat_exprs) ->
       (* Same here, we're only performing desugaring, we're not opening any
        * binders. *)
-      let env, item = translate_declaration_group env decl in
+      let env = locate env loc in
+      let env, pat_exprs = translate_patexprs env flag pat_exprs in
+      let item = E.ValueDefinitions (loc, flag, pat_exprs) in
       env, Some item
   | ValueDeclaration (x, t, loc) ->
       check env t KType;

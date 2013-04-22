@@ -291,23 +291,13 @@ let transl_data_type_group (_location, _rec_flag, defs) =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Translating value definitions. *)
-
-let rec transl_declaration loc = function
-  | DMultiple (flag, equations) ->
-      U.ValueDefinition (flag, reset_transl_equations loc equations)
-  | DLocated (def, loc) ->
-      transl_declaration loc def
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Translating top-level items. *)
 
 let transl_item (implementation : bool) = function
   | DataTypeGroup group ->
       transl_data_type_group group
-  | ValueDefinitions group ->
-      [ transl_declaration dummy_loc group ]
+  | ValueDefinitions (loc, flag, equations) ->
+      [ U.ValueDefinition (flag, reset_transl_equations loc equations) ]
   | ValueDeclaration (x, _, _) ->
       [ U.ValueDeclaration x ]
   | OpenDirective m ->

@@ -588,7 +588,7 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
       VBuiltin b
 
   | ELet (rec_flag, equations, body) ->
-      let env = eval_value_definition loc env (DMultiple (rec_flag, equations)) in
+      let env = eval_definitions env (loc, rec_flag, equations) in
       eval env loc body
 
   | EFun (_type_parameters, argument_type, _result_type, body) ->
@@ -746,13 +746,9 @@ and switch (env : env) (loc : location) (v : value) (branches : (pattern * expre
 
 (* Evaluating a value definition. *)
 
-and eval_value_definition (loc : location) (env : env) (def : declaration) : env =
-  match def with
-  | DLocated (def, loc) ->
-      (* Another place where [loc] is updated. *)
-      eval_value_definition loc env def
-
-  | DMultiple (Nonrecursive, equations) ->
+and eval_definitions (env : env) ((loc, rec_flag, equations) : definitions) : env =
+  match rec_flag with
+  | Nonrecursive ->
       (* Evaluate the equations, in left-to-right order. *)
       List.fold_left (fun new_env (p, e) ->
 	(* For each equation [p = e], evaluate the expression [e] in the old
@@ -763,7 +759,7 @@ and eval_value_definition (loc : location) (env : env) (def : declaration) : env
 	match_irrefutable_pattern new_env p (eval env loc e)
       ) env equations
 
-  | DMultiple (Recursive, equations) ->
+  | Recursive ->
       (* We must construct an environment and a number of closures
 	 that point to each other; this is Landin's knot. We begin
          by constructing a list of partly initialized closures, as
@@ -842,7 +838,7 @@ let evaluate_data_type_def (env : env) (branches : data_type_def_rhs) : env =
 let eval_implementation_item (env : env) (item : toplevel_item) : env =
   match item with
   | ValueDefinitions defs ->
-      eval_value_definition dummy_loc env defs
+      eval_definitions env defs
   | OpenDirective m ->
       (* Assuming that the module [m] has been evaluated before, the (public)
 	 qualified names that it has declared are available in the environment.
