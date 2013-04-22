@@ -77,15 +77,14 @@ and tapp = Ordered of typ | Named of Variable.name * typ
 
 and patexpr = pattern * expression
 
-type declaration =
-    DMultiple of rec_flag * patexpr list
-  | DLocated of declaration * location
+type definitions =
+  location * rec_flag * (pattern * expression) list
 
 type sig_item = Variable.name * typ
 
 type toplevel_item =
     DataTypeGroup of data_type_group
-  | ValueDefinitions of declaration
+  | ValueDefinitions of definitions
   | ValueDeclaration of sig_item
 
 type implementation = toplevel_item list
@@ -153,7 +152,7 @@ val epsubst :
 type substitution_kit = {
   subst_type : typ -> typ;
   subst_expr : expression -> expression;
-  subst_decl : declaration -> declaration;
+  subst_def : definitions -> definitions;
   subst_pat : pattern list -> pattern list;
   vars : var list;
 }
@@ -208,15 +207,15 @@ module ExprPrinter :
       env ->
       (Variable.name * kind * location) * flavor ->
       MzPprint.document
-    val print_declaration :
+    val print_definitions:
       env ->
-      declaration ->
+      definitions ->
       MzPprint.document
     val print_sig_item :
       env -> Variable.name * typ -> MzPprint.document
     val psigitem :
       Buffer.t -> env * (Variable.name * typ) -> unit
-    val pdeclarations : Buffer.t -> env * declaration -> unit
+    val pdefinitions : Buffer.t -> env * definitions -> unit
     val pexpr : Buffer.t -> env * expression -> unit
     val ppat : Buffer.t -> env * pattern -> unit
   end

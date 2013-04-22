@@ -73,7 +73,7 @@ let debug_toplevel_items env toplevel_items =
           KindPrinter.pgroup (env, group);
     | ValueDefinitions decls ->
         Log.debug "%a\n"
-          Expressions.ExprPrinter.pdeclarations (env, decls);
+          Expressions.ExprPrinter.pdefinitions (env, decls);
     | ValueDeclaration it ->
         Log.debug "%a\n"
           Expressions.ExprPrinter.psigitem (env, it)

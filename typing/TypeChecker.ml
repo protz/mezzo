@@ -1129,17 +1129,11 @@ and check_bindings
 
 let check_declaration_group
     (env: env)
-    (declarations: declaration)
+    (defs: definitions)
     (toplevel_items: toplevel_item list): env * toplevel_item list * var list =
-  let env, vars =
-    match declarations with
-    | DLocated (DMultiple (rec_flag, patexprs), p) ->
-        let env = locate env p in
-        let env, { vars; _ } = check_bindings env rec_flag patexprs in
-        env, vars
-    | _ ->
-        assert false
-  in
+  let p, rec_flag, patexprs = defs in
+  let env = locate env p in
+  let env, { vars; _ } = check_bindings env rec_flag patexprs in
   (* List kept in reverse, the usual trick. *)
   let vars = List.rev vars in
   let subst_toplevel_items b =
@@ -1150,6 +1144,6 @@ let check_declaration_group
   (* ...but it works! *)
 
   (* NB: don't forget to return the list of vars in the same
-   * order as the [DMultiple] came in. *)
+   * order as they came in. *)
   env, subst_toplevel_items toplevel_items, (List.rev vars)
 ;;

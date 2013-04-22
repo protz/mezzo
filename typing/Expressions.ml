@@ -115,16 +115,16 @@ and patexpr =
  * order of the bindings is significant: if the binding is recursive, the
  * variables in all the patterns are collected in order before type-checking the
  * expressions. *)
-type declaration =
-  | DMultiple of rec_flag * patexpr list
-  | DLocated of declaration * location
+
+type definitions =
+  location * rec_flag * (pattern * expression) list
 
 type sig_item =
   Variable.name * typ
 
 type toplevel_item =
   | DataTypeGroup of data_type_group
-  | ValueDefinitions of declaration
+  | ValueDefinitions of definitions
   | ValueDeclaration of sig_item
 
 type implementation =
@@ -155,7 +155,7 @@ let map_tapp f = function
 (* [collect_pattern] returns the list of bindings present in the pattern. The
  * binding with index [i] in the returned list has De Bruijn index [i] in the
  * bound term. *)
-let collect_pattern (p: pattern): ((Variable.name * (Lexing.position * Lexing.position)) list) =
+let collect_pattern (p: pattern): ((Variable.name * location) list) =
   let rec collect_pattern acc = function
   | PVar (name, p) ->
       (name, p) :: acc
@@ -176,16 +176,9 @@ let collect_pattern (p: pattern): ((Variable.name * (Lexing.position * Lexing.po
 ;;
 
 (* How many binders in this declaration group? *)
-let n_decls = function
-  | DLocated (DMultiple (_, patexprs), _) ->
-      let names = List.flatten
-        (List.map collect_pattern (fst (List.split patexprs)))
-      in
-      List.length names
-  | _ ->
-      assert false
-;;
-
+let n_defs (_, _, patexprs) =
+  let names = List.flatten (List.map collect_pattern (fst (List.split patexprs))) in
+  List.length names
 
 (* [psubst pat vars] replaces names in [pat] as it goes, by popping vars off
  * the front of [vars]. *)
@@ -379,15 +372,11 @@ and tsubst_expr t2 i e =
       EFail
 
 
-(* [tsubst_decl t2 i decls] substitutes type [t2] for index [i] in a list of
- * declarations [decls]. *)
-and tsubst_decl t2 i = function
-  | DLocated (DMultiple (rec_flag, patexprs), p) ->
-      let _, patexprs = tsubst_patexprs t2 i rec_flag patexprs in
-      DLocated (DMultiple (rec_flag, patexprs), p)
-  | _ ->
-      assert false
-;;
+(* [tsubst_def t2 i defs] substitutes type [t2] for index [i] in a definition
+ * group [defs]. *)
+and tsubst_def t2 i (loc, rec_flag, patexprs) =
+  let _, patexprs = tsubst_patexprs t2 i rec_flag patexprs in
+  loc, rec_flag, patexprs
 
 let rec tsubst_toplevel_items t2 i toplevel_items =
   match toplevel_items with
@@ -403,11 +392,11 @@ let rec tsubst_toplevel_items t2 i toplevel_items =
       in
       let toplevel_items = tsubst_toplevel_items t2 (i + n) toplevel_items in
       DataTypeGroup group :: toplevel_items
-  | ValueDefinitions decl :: toplevel_items ->
-      let decl = tsubst_decl t2 i decl in
-      let n = n_decls decl in
+  | ValueDefinitions defs :: toplevel_items ->
+      let defs = tsubst_def t2 i defs in
+      let n = n_defs defs in
       let toplevel_items = tsubst_toplevel_items t2 (i + n) toplevel_items in
-      ValueDefinitions decl :: toplevel_items
+      ValueDefinitions defs :: toplevel_items
   | ValueDeclaration (x, t) :: toplevel_items ->
       let t = tsubst t2 i t in
       let toplevel_items = tsubst_toplevel_items t2 (i + 1) toplevel_items in
@@ -539,15 +528,11 @@ and esubst e2 i e1 =
   | EFail ->
       EFail
 
-(* [esubst_decl e2 i decls] substitutes expression [e2] for index [i] in a list of
- * declarations [decls]. *)
-and esubst_decl e2 i = function
-  | DLocated (DMultiple (rec_flag, patexprs), p) ->
-      let _, patexprs = esubst_patexprs e2 i rec_flag patexprs in
-      DLocated (DMultiple (rec_flag, patexprs), p)
-  | _ ->
-      assert false
-;;
+(* [esubst_def e2 i decls] substitutes expression [e2] for index [i] in a
+ * definition group [defs]. *)
+and esubst_def e2 i (loc, rec_flag, patexprs) =
+  let _, patexprs = esubst_patexprs e2 i rec_flag patexprs in
+  loc, rec_flag, patexprs
 
 let rec esubst_toplevel_items e2 i toplevel_items =
   match toplevel_items with
@@ -556,11 +541,11 @@ let rec esubst_toplevel_items e2 i toplevel_items =
       let n = List.length group.group_items in
       let toplevel_items = esubst_toplevel_items e2 (i + n) toplevel_items in
       DataTypeGroup group :: toplevel_items
-  | ValueDefinitions decls :: toplevel_items ->
-      let decls = esubst_decl e2 i decls in
-      let n = n_decls decls in
+  | ValueDefinitions defs :: toplevel_items ->
+      let defs = esubst_def e2 i defs in
+      let n = n_defs defs in
       let toplevel_items = esubst_toplevel_items e2 (i + n) toplevel_items in
-      ValueDefinitions decls :: toplevel_items
+      ValueDefinitions defs :: toplevel_items
   | (ValueDeclaration _ as toplevel_item) :: toplevel_items ->
       let toplevel_items = esubst_toplevel_items e2 (i + 1) toplevel_items in
       toplevel_item :: toplevel_items
@@ -581,8 +566,8 @@ type substitution_kit = {
   subst_type: typ -> typ;
   (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EOpen]s in an [expression]. *)
   subst_expr: expression -> expression;
-  (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EOpen]s in an [expression]. *)
-  subst_decl: declaration -> declaration;
+  (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EOpen]s in a [definitions]. *)
+  subst_def: definitions -> definitions;
   (* substitute [PVar]s for [POpen]s in a pattern *)
   subst_pat: pattern list -> pattern list;
   (* the vars, in left-to-right order *)
@@ -618,10 +603,10 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
       let t = tsubst_expr (TyOpen var) i t in
       esubst (EOpen var) i t) t vars
   in
-  let subst_decl t =
+  let subst_def t =
     MzList.fold_lefti (fun i t var ->
-      let t = tsubst_decl (TyOpen var) i t in
-      esubst_decl (EOpen var) i t) t vars
+      let t = tsubst_def (TyOpen var) i t in
+      esubst_def (EOpen var) i t) t vars
   in
   (* Now keep the list in order. *)
   let vars = List.rev vars in
@@ -634,7 +619,7 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
     let patterns = List.rev patterns in
     patterns
   in
-  env, { subst_type; subst_expr; subst_decl; subst_pat; vars = vars }
+  env, { subst_type; subst_expr; subst_def; subst_pat; vars = vars }
 ;;
 
 let bind_vars (env: env) (bindings: SurfaceSyntax.type_binding list): env * substitution_kit =
@@ -1211,13 +1196,9 @@ module ExprPrinter = struct
     print_ebinder env ((User (module_name env, name), kind, pos), f)
   ;;
 
-  let rec print_declaration env declaration =
-    match declaration with
-    | DLocated (declaration, _) ->
-        print_declaration env declaration
-    | DMultiple (rec_flag, patexprs) ->
-        let env, patexprs, _ = bind_patexprs env rec_flag patexprs in
-        string "val" ^^ print_rec_flag rec_flag ^^ space ^^ print_patexprs env patexprs
+  let print_definitions env (_loc, rec_flag, patexprs) =
+    let env, patexprs, _ = bind_patexprs env rec_flag patexprs in
+    string "val" ^^ print_rec_flag rec_flag ^^ space ^^ print_patexprs env patexprs
   ;;
 
   let print_sig_item env (x, t) =
@@ -1228,8 +1209,8 @@ module ExprPrinter = struct
     pdoc buf ((fun () -> print_sig_item env arg), ())
   ;;
 
-  let pdeclarations buf arg =
-    pdoc buf ((fun (env, declarations) -> print_declaration env declarations), arg)
+  let pdefinitions buf arg =
+    pdoc buf ((fun (env, declarations) -> print_definitions env declarations), arg)
   ;;
 
   let pexpr buf arg =

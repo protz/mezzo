@@ -244,7 +244,7 @@ let check_implementation
       | ValueDefinitions decls :: blocks ->
           Log.debug ~level:2 "\n%s***%s Processing declarations:\n%a"
             Bash.colors.Bash.yellow Bash.colors.Bash.default
-            Expressions.ExprPrinter.pdeclarations (env, decls);
+            Expressions.ExprPrinter.pdefinitions (env, decls);
 
           (* Perform the actual checking. The binders in the declaration group
            * will be opened in [blocks] as well. *)
