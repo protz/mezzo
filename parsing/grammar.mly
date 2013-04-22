@@ -1021,7 +1021,7 @@ definition_group:
 
 value_declaration:
 | VAL x = variable COLON ty = arbitrary_type
-    { PermDeclaration (x, ty) }
+    { PermDeclaration (x, ty, ($startpos(x), $endpos(x))) }
 
 (* ---------------------------------------------------------------------------- *)
 

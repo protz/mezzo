@@ -158,6 +158,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("unbound16.mz", kfail);
   ("unbound17.mz", kfail);
   ("unbound18.mz", kfail);
+  ("unbound19.mz", kfail);
 
   ("basic.mz",
     pass);

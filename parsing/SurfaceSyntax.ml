@@ -281,7 +281,7 @@ type declaration =
 type toplevel_item =
   | DataTypeGroup of data_type_group
   | ValueDeclarations of declaration
-  | PermDeclaration of Variable.name * typ
+  | PermDeclaration of Variable.name * typ * location
   | OpenDirective of Module.name
 
 (* TEMPORARY I suggest renaming as follows:

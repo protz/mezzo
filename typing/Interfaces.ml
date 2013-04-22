@@ -121,7 +121,7 @@ let check
         let tsenv = KindCheck.dissolve tsenv mname in
         check env tsenv toplevel_items
 
-    | S.PermDeclaration (x, t) :: toplevel_items ->
+    | S.PermDeclaration (x, t, _loc) :: toplevel_items ->
         (* val x: t *)
         Log.debug ~level:3 "*** Checking sig item %a" Variable.p x;
 

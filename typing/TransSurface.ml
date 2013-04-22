@@ -913,10 +913,10 @@ let translate_item env item =
        * binders. *)
       let env, decl = translate_declaration_group env decl in
       env, Some (E.ValueDeclarations decl)
-  | PermDeclaration (x, t) ->
+  | PermDeclaration (x, t, loc) ->
       check env t KType;
       let t = translate_type_with_names env t in
-      let env = bind_local env (x, KTerm) in
+      let env = bind_local_loc env (x, KTerm, loc) in
       env, Some (E.PermDeclaration (x, t))
   | OpenDirective mname ->
       dissolve env mname, None

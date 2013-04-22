@@ -963,9 +963,9 @@ let check_implementation env (program: implementation) : unit =
          * the variables and checking the bodies. *)
         check_declaration_group env declaration_group;
 
-    | PermDeclaration (x, t) ->
+    | PermDeclaration (x, t, loc) ->
         check_reset env t KType;
-        bind_local env (x, KTerm)
+        bind_local_loc env (x, KTerm, loc)
 
     | OpenDirective mname ->
         dissolve env mname
@@ -979,15 +979,14 @@ let check_interface env (interface: interface) =
   let all_bindings = MzList.map_flatten (function
     | DataTypeGroup (_, _, data_type_group) ->
         bindings_data_type_group data_type_group
-    | PermDeclaration (x, _) ->
-        [x, KTerm, dummy_loc] (* TEMPORARY *)
+    | PermDeclaration (x, _, loc) ->
+        [x, KTerm, loc]
     | OpenDirective _ ->
         []
     | ValueDeclarations _ ->
         assert false
   ) interface in
   let (_ : _ list) = check_for_duplicate_bindings env all_bindings in
-    (* TEMPORARY this results in a dummy location *)
 
   (* Check for duplicate data constructors. A data constructor cannot be
      declared twice in an interface file. *)

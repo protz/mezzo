@@ -308,7 +308,7 @@ let transl_item (implementation : bool) = function
       transl_data_type_group group
   | ValueDeclarations group ->
       [ transl_declaration dummy_loc group ]
-  | PermDeclaration (x, _) ->
+  | PermDeclaration (x, _, _) ->
       [ U.ValueDeclaration x ]
   | OpenDirective m ->
       if implementation then
