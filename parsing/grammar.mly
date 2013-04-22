@@ -866,7 +866,7 @@ raw_reasonable_expression:
 | IF b = explain e1 = expression THEN e2 = tuple_or_reasonable_expression
                                  ELSE e3 = tuple_or_reasonable_expression
     { EIfThenElse (b, e1, e2, e3) }
-| PRESERVING t = normal_type WHILE e1 = expression DO e2 = reasonable_expression
+| PRESERVING t = arbitrary_type WHILE e1 = expression DO e2 = reasonable_expression
     { EWhile (t, e1, e2) }
   (* We cannot allow "let" on the right-hand side of an assignment, because
      the right-hand side of "let" can contain a semi-colon. We disallow

@@ -866,7 +866,7 @@ and check_expression env (expr: expression) =
       check_expression env e3
 
   | EWhile (t, e1, e2) ->
-      check env t KPerm;
+      check env t KPerm; (* [reset] irrelevant *)
       check_expression env e1;
       check_expression env e2
 
