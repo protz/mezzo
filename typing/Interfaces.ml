@@ -58,6 +58,7 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
 
     | DataTypeGroup group :: items ->
         let env, items, _ = DataTypeGroup.bind_data_type_group env group items in
+	(* TEMPORARY why don't we bind the data constructors here? *)
         import_items env items
 
     | ValueDeclarations _ :: _ ->
@@ -155,7 +156,7 @@ let check
         (* Translate this data type group, while taking care to re-use
 	   the existing points in [env]. *)
         let tsenv, translated_definitions =
-	  TransSurface.translate_data_type_group (fun tsenv (name, kind) ->
+	  TransSurface.translate_data_type_group (fun tsenv (name, kind, _loc) ->
             KindCheck.bind_nonlocal tsenv (name, kind, point_by_name name)
 	  ) tsenv group
 	in

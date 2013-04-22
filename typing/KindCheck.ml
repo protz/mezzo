@@ -359,11 +359,6 @@ let find_dc env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info
 
 (* Checking for duplicate definitions. *)
 
-(* TEMPORARY this version should disappear, it does not produce a good location *)
-let check_for_duplicate_variables2 env xs =
-  MzList.exit_if_duplicates Variable.compare (fun (x, _) -> x) xs
-    (fun (x, _) -> bound_twice "variable" Variable.print env x)
-
 let check_for_duplicate_bindings env (xs : type_binding list) =
   MzList.exit_if_duplicates Variable.compare (fun (x, _, _) -> x) xs
     (fun (x, _, loc) -> bound_twice "variable" Variable.print (locate env loc) x)
@@ -381,14 +376,23 @@ let check_for_duplicate_datacons env (branches: (Datacon.name * 'a) list) =
 let bind_variable env x (data : 'v var * kind) : 'v env =
   { env with variables = V.extend_unqualified x data env.variables }
 
+(* [new_local_name env] allocates a new local name. *)
+(* The current level is used to create a new local name. The current level
+     is then incremented. *)
+let new_local_name env : 'v env * 'v var =
+  let v = Local env.level in
+  let env = { env with level = env.level + 1 } in
+  env, v  
+
 (* [bind_local env (x, kind)] binds the unqualified variable [x] to a new local
    name whose kind is [kind]. *)
 let bind_local env (x, kind) =
-  (* The current level is used to create a new local name. The current level
-     is then incremented. *)
-  let data = (Local env.level, kind) in
-  let env = { env with level = env.level + 1 } in
-  bind_variable env x data
+  let env, v = new_local_name env in
+  bind_variable env x (v, kind)
+
+(* TEMPORARY try to do everything with [bind_local_loc], and rename it *)
+let bind_local_loc env (x, kind, _loc) =
+  bind_local env (x, kind)
 
 (* [bind_nonlocal env (x, kind, v)] binds the unqualified variable [x] to the
    non-local name [v], whose kind is [kind]. *)
@@ -397,9 +401,7 @@ let bind_nonlocal env (x, kind, v) =
 
 (* [extend] is an iterated form of [bind_local]. *)
 let extend env (xs : type_binding list) : 'v env =
-  List.fold_left (fun env (x, k, _loc) ->
-    bind_local env (x, k)
-  ) env xs
+  List.fold_left bind_local_loc env xs
 
 (* [extend_check] performs a check for duplicate variables before using [extend]. *)
 let extend_check env xs =
@@ -483,17 +485,13 @@ let reset env ty =
 (* Bind all the data constructors from a data type group *)
 let bind_datacons env data_type_group =
   List.fold_left (fun env -> function
-    | Concrete (_, (name, _), rhs, _) ->
-        (* TEMPORARY why Unqualified? no risk of masking? *)
-        (* TEMPORARY merging this function with [bindings_data_type_group] should
-	   allow getting rid of this call to [find_var]. This in turn would allow
-	   us to remove the distinction between [find_var] and [find_variable]. *)
-        let v : 'v var = find_var env (Unqualified name) in
+    | Concrete (_, (x, _), rhs, _) ->
+        let v = find_var env (Unqualified x) in
         MzList.fold_lefti (fun i env (dc, fields) ->
           (* We're building information for the interpreter: drop the
            * permission fields. *)
           let fields = MzList.map_some (function
-            | FieldValue (name, _) -> Some name
+            | FieldValue (f, _) -> Some f
             | FieldPermission _ -> None
           ) fields in
           bind_datacon env dc (v, mkdatacon_info dc i fields)
@@ -507,19 +505,22 @@ let bind_datacons env data_type_group =
 (* [bindings_data_type_group] returns a list of names that the whole data type
    group binds, with the corresponding kinds. The list is in the same order as
    the data type definitions. *)
-let bindings_data_type_group (data_type_group: data_type_def list): (Variable.name * kind) list =
-  List.map (function
-    | Concrete (_flag, (name, params), _, _) ->
-        let params = List.map (fun (_, (x, y, _)) -> x, y) params in
-        let k = karrow params KType in
-        (name, k)
-    | Abbrev ((name, params), return_kind, _)
-    | Abstract ((name, params), return_kind, _) ->
-        let params = List.map (fun (_, (x, y, _)) -> x, y) params in
-        let k = karrow params return_kind in
-        (name, k)
+let bindings_data_type_group (data_type_group: data_type_def list): type_binding list =
+  List.map (function def ->
+    (* Find the name, parameters, and return kind of the type that is being defined. *)
+    let x, params, kind =
+      match def with
+      | Concrete (_, (x, params), _, _) ->
+	  x, params, KType
+      | Abbrev ((x, params), kind, _)
+      | Abstract ((x, params), kind, _) ->
+	  x, params, kind
+    in
+    (* Build its kind. *)
+    let kind = List.fold_right (fun (_, (_, k, _)) kind -> KArrow (k, kind)) params kind in
+    (* Return a binding. *) (* TEMPORARY dummy location, for now *)
+    x, kind, dummy_loc
   ) data_type_group
-;;
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -646,9 +647,9 @@ and infer env (ty : typ) : kind =
       check_reset env ty2 KType;
       KType
 
-  | TyForall ((x, kind, _), ty)
-  | TyExists ((x, kind, _), ty) ->
-      let env = bind_local env (x, kind) in
+  | TyForall (binding, ty)
+  | TyExists (binding, ty) ->
+      let env = bind_local_loc env binding in
       check_reset env ty KType;
       KType
 
@@ -731,8 +732,8 @@ let check_data_type_def env (def: data_type_def) =
       ) facts;
       check_distinct_heads env name facts
   | Concrete (flavor, (name, bindings), branches, clause) ->
-      let bindings = List.map (fun (_, (x, y, _)) -> x, y) bindings in
-      let env = List.fold_left bind_local env bindings in
+      let bindings = List.map (fun (_, binding) -> binding) bindings in
+      let env = extend env bindings in
       (* Check the branches. *)
       List.iter (check_branch env) branches;
       begin match clause with
@@ -931,10 +932,9 @@ let check_implementation env (program: implementation) : unit =
          * and the value definitions. All definitions in a data type groupe are
          * mutually recursive. *)
         let bindings = bindings_data_type_group data_type_group in
-        let bindings = check_for_duplicate_variables2 env bindings in
         (* Create an environment that includes those names. *)
         let env = locate env loc in
-        let extended_env = List.fold_left bind_local env bindings in
+        let extended_env = extend_check env bindings in
 	(* Also include the data constructors. *)
 	let extended_env = bind_datacons extended_env data_type_group in
         (* Check the data type definitions in the appropriate environment. *)
@@ -971,13 +971,13 @@ let check_interface env (interface: interface) =
     | DataTypeGroup (_, _, data_type_group) ->
         bindings_data_type_group data_type_group
     | PermDeclaration (x, _) ->
-        [x, KTerm]
+        [x, KTerm, dummy_loc] (* TEMPORARY *)
     | OpenDirective _ ->
         []
     | ValueDeclarations _ ->
         assert false
   ) interface in
-  let (_ : _ list) = check_for_duplicate_variables2 env all_bindings in
+  let (_ : _ list) = check_for_duplicate_bindings env all_bindings in
     (* TEMPORARY this results in a dummy location *)
 
   (* Check for duplicate data constructors. A data constructor cannot be

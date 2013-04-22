@@ -558,7 +558,7 @@ let translate_data_type_def (env: env) (data_type_def: data_type_def) =
   a different function.
 *)
 let translate_data_type_group
-    (bind: env -> Variable.name * kind -> env)
+    (bind: env -> type_binding -> env)
     (env: env)
     (data_type_group: data_type_group)
   : env * T.data_type_group
@@ -905,7 +905,7 @@ let translate_item env item =
       (* This just desugars the data type definitions, no binder is opened yet! *)
       let env, defs =
         (* Be strict if we're in an interface. *)
-        translate_data_type_group bind_local env data_type_group
+        translate_data_type_group bind_local_loc env data_type_group
       in
       env, Some (E.DataTypeGroup defs)
   | ValueDeclarations decl ->

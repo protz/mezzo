@@ -14,7 +14,7 @@ val translate_type_with_names: env -> typ -> TypeCore.typ
     The function returns a pair of an environment that has been extended with
     new types and new data constructors, and a translated data type group. *)
 val translate_data_type_group:
-  (env -> Variable.name * kind -> env) ->
+  (env -> type_binding -> env) ->
   env ->
   data_type_group ->
   env * TypeCore.data_type_group

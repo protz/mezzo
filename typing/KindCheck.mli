@@ -98,6 +98,7 @@ val locate: 'v env -> location -> 'v env
 (** [bind_local env (x, kind)] binds the unqualified variable [x] to a new local
     name whose kind is [kind]. *)
 val bind_local: 'v env -> Variable.name * kind -> 'v env
+val bind_local_loc: 'v env -> type_binding -> 'v env
 
 (** [bind_nonlocal env (x, kind, v)] binds the unqualified variable [x] to the
     non-local name [v], whose kind is [kind]. *)
@@ -119,7 +120,7 @@ val bind_datacons: 'v env -> data_type_def list -> 'v env
 val names: typ -> type_binding list
 val bv: pattern -> type_binding list
 
-val bindings_data_type_group: data_type_def list -> (Variable.name * kind) list
+val bindings_data_type_group: data_type_def list -> type_binding list
 
 val check: 'v env -> typ -> kind -> unit
 val infer: 'v env -> typ -> kind
