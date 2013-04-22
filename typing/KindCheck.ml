@@ -77,7 +77,7 @@ type 'v env = {
   module_name: Module.name;
 
   (* The current start and end positions. *)
-  location: location;
+  loc: location;
 
 }
 
@@ -143,8 +143,8 @@ exception KindError of (Buffer.t -> unit -> unit)
 
 let print_error env error buf () =
   (* Print the location, unless it is a dummy location (it should not be). *)
-  if not (is_dummy_loc env.location) then
-    Lexer.p buf env.location;
+  if not (is_dummy_loc env.loc) then
+    Lexer.p buf env.loc;
   (* Print the error message. *)
   let bprintf s = Printf.bprintf buf s in
   begin match error with
@@ -251,9 +251,6 @@ let mismatch env expected_kind inferred_kind =
 let illegal_consumes env =
   raise_error env IllegalConsumes
 
-let bad_conclusion_in_fact env x args =
-  raise_error env (BadConclusionInFact (x, args))
-
 let field_mismatch env dc missing extra =
   raise_error env (FieldMismatch (dc, missing, extra))
 
@@ -283,7 +280,7 @@ let empty module_name = {
   variables = V.empty;
   datacons = D.empty;
   module_name;
-  location = dummy_loc;
+  loc = dummy_loc;
 }
 
 (* A so-called initial environment can be constructed by populating an empty
@@ -322,11 +319,7 @@ let module_name env =
   env.module_name
 
 let location env =
-  env.location
-
-(* [locate env loc] updates [env] with the location [loc]. *)
-let locate env location =
-  { env with location }
+  env.loc
 
 (* [find env x] looks up the possibly-qualified variable [x] in [env]. *)
 let find env x : 'v var * kind =
@@ -361,7 +354,7 @@ let find_dc env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info
 
 let check_for_duplicate_bindings env (xs : type_binding list) =
   MzList.exit_if_duplicates Variable.compare (fun (x, _, _) -> x) xs
-    (fun (x, _, loc) -> bound_twice "variable" Variable.print (locate env loc) x)
+    (fun (x, _, loc) -> bound_twice "variable" Variable.print { env with loc } x)
 
 (* TEMPORARY this function also does not produce a good error location *)
 let check_for_duplicate_datacons env (branches: (Datacon.name * 'a) list) =
@@ -371,6 +364,10 @@ let check_for_duplicate_datacons env (branches: (Datacon.name * 'a) list) =
 (* ---------------------------------------------------------------------------- *)
 
 (* Extending an environment. *)
+
+(* [locate env loc] updates [env] with the location [loc]. *)
+let locate env loc =
+  { env with loc }
 
 (* [bind_variable env x data] binds the unqualified variable [x]. *)
 let bind_variable env x (data : 'v var * kind) : 'v env =
@@ -517,55 +514,49 @@ let bind_data_group_datacons env (group : data_type_def list) : 'v env =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* The kind-checking functions. *)
+(* Checking fact declarations. *)
 
-
-(* This just makes sure that the type parameters mentioned in the fact are in
-   the list of the original type parameters. *)
-let rec check_fact_parameter env (args: Variable.name list) (t: typ) =
-  match t with
-  | TyLocated (t, p) ->
-      check_fact_parameter (locate env p) args t
-  | TyVar (Unqualified x) when List.exists (Variable.equal x) args ->
+(* A hypothesis can bear only on a type parameter. *)
+let rec check_fact_parameter env (params : Variable.name list) (ty : typ) =
+  match ty with
+  | TyLocated (ty, loc) ->
+      check_fact_parameter { env with loc } params ty
+  | TyVar (Unqualified x) when (List.exists (Variable.equal x) params) ->
       ()
   | _ ->
       raise_error env BadHypothesisInFact
 
-(* The conclusion of a fact, if any, must be the exact original type applied to
-   the exact same arguments. *)
-let rec check_fact_conclusion env (tc: Variable.name) (args: Variable.name list) (t: typ) =
-  match t with
-  | TyLocated (t, p) ->
-      check_fact_conclusion (locate env p) tc args t
+(* [equal_TyVar x y] tests whether the type [y] is equal to [TyVar (Unqualified x)]. *)
+let rec equal_TyVar x = function
+  | TyLocated (y, _) ->
+      equal_TyVar x y
+  | TyVar (Unqualified y) ->
+      Variable.equal x y
   | _ ->
-      match flatten_tyapp t with
-      | TyVar (Unqualified x'), args' ->
-          Log.debug "%a %a" Variable.p tc Variable.p x';
-          if not (Variable.equal tc x') then
-            bad_conclusion_in_fact env tc args;
-          if not (List.length args = List.length args') then
-            bad_conclusion_in_fact env tc args;
-          List.iter2 (fun x arg' ->
-            match arg' with
-            | TyVar (Unqualified x')
-            | TyLocated (TyVar (Unqualified x'), _) ->
-                if not (Variable.equal x x') then
-                  bad_conclusion_in_fact env tc args;
-            | _ ->
-                bad_conclusion_in_fact env tc args) args args';
-      | _ ->
-          bad_conclusion_in_fact env tc args;
-;;
+      false
 
+(* The type that appears in the conclusion must be exactly the type that
+   is being declared. *)
+let rec check_fact_conclusion env (x : Variable.name) (xs : Variable.name list) (ty : typ) =
+  match ty with
+  | TyLocated (ty, loc) ->
+      check_fact_conclusion { env with loc } x xs ty
+  | _ ->
+      match flatten_tyapp ty with
+      | y, ys when equal_TyVar x y && MzList.equal equal_TyVar xs ys ->
+	  ()
+      | _ ->
+	  raise_error env (BadConclusionInFact (x, xs))
+
+(* Each implication must mention a distinct mode in its conclusion. *)
 let check_distinct_heads env name facts =
-  ignore (
-    List.fold_left (fun accu (Fact (_, (mode, _))) ->
-      if Mode.ModeMap.mem mode accu then
-	raise_error env (NonDistinctHeadsInFact (name, mode))
-      else
-	Mode.ModeMap.add mode () accu
-    ) Mode.ModeMap.empty facts
-  )
+  let project (Fact (_, (mode, _))) = mode in
+  MzList.exit_if_duplicates Mode.compare project facts
+    (fun fact -> raise_error env (NonDistinctHeadsInFact (name, project fact)))
+
+(* ---------------------------------------------------------------------------- *)
+
+(* The kind-checking functions. *)
 
 let rec check env (ty : typ) (expected : kind) =
   match ty with
@@ -575,7 +566,7 @@ let rec check env (ty : typ) (expected : kind) =
      location, leading to a better error message. *)
 
   | TyLocated (ty, loc) ->
-      check (locate env loc) ty expected
+      check { env with loc } ty expected
 
   | TyConsumes ty ->
       check env ty expected
@@ -591,7 +582,7 @@ and infer env (ty : typ) : kind =
   match ty with
 
   | TyLocated (ty, loc) ->
-      infer (locate env loc) ty
+      infer { env with loc } ty
 
   | TyConsumes ty ->
       infer env ty
@@ -718,13 +709,14 @@ let check_data_type_def env (def: data_type_def) =
   match def.rhs with
   | Abstract facts ->
       (* Get the names of the parameters. *)
-      let args = List.map (fun (_, (x, _, _)) -> x) bindings in
+      let params = List.map (fun (_, (x, _, _)) -> x) bindings in
       (* Perform a tedious check. *)
       List.iter (function Fact (clauses, conclusion) ->
-        List.iter (fun (_, t) -> check_fact_parameter env args t) clauses;
-        let (_, t) = conclusion in check_fact_conclusion env name args t
+        List.iter (fun (_, t) -> check_fact_parameter env params t) clauses;
+        let (_, t) = conclusion in check_fact_conclusion env name params t
       ) facts;
-      check_distinct_heads env name facts
+      let (_ : _ list) = check_distinct_heads env name facts in
+      ()
   | Concrete (flavor, branches, clause) ->
       let bindings = List.map (fun (_, binding) -> binding) bindings in
       let env = extend env bindings in
@@ -886,8 +878,8 @@ and check_expression env (expr: expression) =
       check_expression env e1;
       check_expression env e2
 
-  | ELocated (e, p) ->
-      check_expression (locate env p) e
+  | ELocated (e, loc) ->
+      check_expression { env with loc } e
 
   | EInt _ ->
       ()
@@ -916,7 +908,7 @@ let check_implementation env (program: implementation) : unit =
          * mutually recursive. *)
         let bindings = bindings_data_group_types data_type_group in
         (* Create an environment that includes those names. *)
-        let env = locate env loc in
+        let env = { env with loc } in
         let extended_env = extend_check env bindings in
 	(* Also include the data constructors. *)
 	let extended_env = bind_data_group_datacons extended_env data_type_group in
@@ -933,7 +925,7 @@ let check_implementation env (program: implementation) : unit =
 	     [TransSurface.translate_data_type_group] *)
 
     | ValueDefinitions (loc, rec_flag, pat_exprs) ->
-        let env = locate env loc in
+        let env = { env with loc } in
         check_patexpr env rec_flag pat_exprs
 
     | ValueDeclaration (x, t, loc) ->

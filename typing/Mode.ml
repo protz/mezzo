@@ -28,6 +28,9 @@ type mode =
 let equal : mode -> mode -> bool =
   (=)
 
+let compare : mode -> mode -> int =
+  Pervasives.compare
+
 let bottom =
   ModeBottom
 

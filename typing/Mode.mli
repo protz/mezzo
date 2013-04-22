@@ -57,6 +57,9 @@ val top: mode
 (** Equality. *)
 val equal: mode -> mode -> bool
 
+(** Ordering. *)
+val compare: mode -> mode -> int
+
 (** A test for the top element of the lattice. *)
 val is_maximal: mode -> bool
 
