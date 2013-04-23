@@ -1,7 +1,11 @@
 (* Types definitions *)
 
 data mutable dynarray a =
-  DArray { r: array::marray dynamic }
+  DArray { r: marray dynamic }
+adopts a
+
+data mutable unfinished a =
+  Unfinished { r: () }
 adopts a
 
 data mutable dummy = Dummy
@@ -24,13 +28,17 @@ val init [a, p : perm] exclusive a => (
   f: (int | p) -> a
   | p
 ) : dynarray a =
-  let d = DArray { r = array::create (0, dummy) } in
+  (* First, create a temporay object that will be our adopter. *)
+  let d = Unfinished { r = () } in
+  (* Fill the field [d.r] with the array. Don't forget to give the newly-created
+   * elements to d! *)
   d.r <- array::init (
     s, n,
-      fun (i: int | p * d @ dynarray a) : dynamic =
+      fun (i: int | p * d @ unfinished a) : dynamic =
         let x = f i in
         give x to d; x
   );
+  (* Finalize this by chaning the tag of d. *)
   tag of d <- DArray; d
 
 (* [get (d, i)] reads the element at index [i] in the array [d].
@@ -64,3 +72,57 @@ val adopt [a] exclusive a => (
   let y = array::get (d.r, i) in
   if y != x then
     fail
+
+(* [from_array r] creates a new dynamic array from a given array. *)
+val from_array [a] exclusive a => (
+  consumes r: marray a
+) : dynarray a =
+  (* Same trick as above to have a temporary adopter. *)
+  let d = Unfinished { r = () } in
+  array::transform (Up, r, fun (
+    _: int,
+    consumes x: a
+    | d @ unfinished a
+  ) : dynamic = give x to d; x);
+  tag of d <- DArray; d.r <- r; d
+
+(* [to_array d] attempts to recover the underlying array. This can fail at
+ * runtime if some elements are being borrowed. *)
+val to_array [a, m] exclusive a => (
+  consumes d: dynarray a
+) : array m a =
+  array::init (Up, array::length d.r, fun (
+    i: int
+    | d @ dynarray a
+  ) : a = get (d, i))
+
+(* [length d] is the length of the underlying array. *)
+val length [a] exclusive a => (
+  d: dynarray a
+) : int =
+  array::length d.r
+
+(* [sort (cmp, d)] sorts in place the dynamic array [d] using [array::sort] *)
+val sort [a, p : perm] exclusive a => (
+  cmp: (a, a | p) -> int,
+  d: dynarray a
+  | p
+) : () =
+  let cmp (x: dynamic, y: dynamic | p * d @ unfinished a) : int =
+    if x == y then 0
+    else
+      taking x from d begin
+        taking y from d begin
+          cmp (x, y)
+        end
+      end
+  in
+  (* We need the following trick to give the permissions [d @ unfinished a] and
+   * [r @ marray dynamic] altogether. It won't work otherwise becaue [marray a]
+   * is exclusive. *)
+  let r = d.r in
+  d.r <- ();
+  tag of d <- Unfinished;
+  array::sort (cmp, r);
+  tag of d <- DArray;
+  d.r <- r
