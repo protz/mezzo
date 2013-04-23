@@ -27,7 +27,7 @@ and mutable region a =
    fields in either case, so as to allow tag updates in either direction. *)
 
 and mutable point a =
-| PFlat { contents: array a; unused1: (); unused2: () }
+| PFlat { contents: marray a; unused1: (); unused2: () }
 | PUndo { previous: dynamic; offset: int; element:  a }
 
 (* One shortcoming of this encoding of persistent arrays is that we are
@@ -68,7 +68,7 @@ val create [a] duplicable a => (n: int, x: a) : parray a =
 
 val rec revert [a] duplicable a =>
   (r: region a, p: dynamic)
-: (array a | p @ PUndo { previous: unknown; offset: unknown; element: unknown })
+: (marray a | p @ PUndo { previous: unknown; offset: unknown; element: unknown })
 =
   (* Take [p] out of the region [r]. *)
   take p from r;
@@ -91,7 +91,7 @@ val rec revert [a] duplicable a =>
 
 and revert_link [a] duplicable a =>
   (r: region a, consumes p: PUndo { previous: dynamic; offset: int; element: a })
-: (array a | p @ PUndo { previous: unknown; offset: unknown; element: unknown })
+: (marray a | p @ PUndo { previous: unknown; offset: unknown; element: unknown })
 =
   let previous = p.previous in
   (* Make a recursive call on [previous]. Because the [previous]
@@ -126,7 +126,7 @@ and revert_link [a] duplicable a =>
    a cool return type that involves explicit sharing. *)
 
 val reroot [a] duplicable a => (r: region a, p: dynamic)
-  : (t: array a | p @ PFlat { contents = t; unused1: (); unused2: () })
+  : (t: marray a | p @ PFlat { contents = t; unused1: (); unused2: () })
 =
 
   take p from r;
@@ -155,7 +155,7 @@ val reroot [a] duplicable a => (r: region a, p: dynamic)
 
 val borrow [a, b, p : perm] duplicable a => (
   pa: parray a, 
-  f: (array a | consumes p) -> b
+  f: (marray a | consumes p) -> b
 | consumes p
 ) : b =
   (* Acquire the lock, so as to get access to the region [r]. *)
@@ -176,7 +176,7 @@ val borrow [a, b, p : perm] duplicable a => (
 (* Read access. *)
 
 val get [a] duplicable a => (pa: parray a, i: int) : a =
-  borrow (pa, fun (t: array a) : a =
+  borrow (pa, fun (t: marray a) : a =
     array::get (t, i)
   )
 

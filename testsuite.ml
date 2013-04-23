@@ -949,10 +949,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("residual.mz", pass_known_failure);
   ("quantifier-bug.mz", fail_known_failure);
   ("eta.mz", pass);
-  ("arraypoly-1.mz", pass);
-  ("arraypoly-2.mz", fail);
-  ("arraypoly-3.mz", fail);
-  ("arraypoly-kmp.mz", pass);
+  ("array-1.mz", pass);
+  ("array-2.mz", fail);
+  ("array-3.mz", fail);
+  ("array-kmp.mz", pass);
   ("export-names.mz", pass);
   ("double-datacon.mz", kfail);
   ("datacon-shadow.mz", fail);

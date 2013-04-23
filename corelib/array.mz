@@ -8,22 +8,22 @@
 val max_length : int =
   builtin _mz_array_max_length
 
-val length : [a] array a -> int =
+val length : [a, m] array m a -> int =
   builtin _mz_array_length
 
-val get : [a] duplicable a => (array a, int) -> a =
+val get : [a, m] duplicable a => (array m a, int) -> a =
   builtin _mz_array_get
 
-val set : [a] (array a, int, consumes a) -> () =
+val set : [a] (marray a, int, consumes a) -> () =
   builtin _mz_array_set
 
-val unsafe_get : [a] duplicable a => (array a, int) -> a =
+val unsafe_get : [a, m] duplicable a => (array m a, int) -> a =
   builtin _mz_array_unsafe_get
 
-val unsafe_set : [a] (array a, int, a) -> () =
+val unsafe_set : [a] (marray a, int, a) -> () =
   builtin _mz_array_unsafe_set
 
-val create : [a] duplicable a => (int, a) -> array a =
+val create : [a, m] duplicable a => (int, a) -> array m a =
   builtin _mz_array_create
 
 (* TEMPORARY the type of create is not quite general enough; the
@@ -31,17 +31,17 @@ val create : [a] duplicable a => (int, a) -> array a =
    in some cases, we will be forced to use [array::init] instead of
    [array::create]. *)
 
-val unsafe_sub : [a] duplicable a => (array a, int, int) -> array a =
+val unsafe_sub : [a, m1, m2] duplicable a => (array m1 a, int, int) -> array m2 a =
   builtin _mz_array_unsafe_sub
 
-val append_prim : [a] duplicable a => (array a, array a) -> array a =
+val append_prim : [a, m1, m2, m3] duplicable a => (array m1 a, array m2 a) -> array m3 a =
   builtin _mz_array_append_prim
 
 (* OCaml's primitive operation [Array.concat] uses an OCaml list. We cannot
    expose it in Mezzo unless a Mezzo list is an OCaml list. This will be
    possible once we implement the keyword [slim]. *)
 
-val unsafe_blit : [a] duplicable a => (array a, int, array a, int, int) -> () =
+val unsafe_blit : [a, m] duplicable a => (array m a, int, marray a, int, int) -> () =
   builtin _mz_array_unsafe_blit
 
 (* ------------------------------------------------------------------------ *)
@@ -50,7 +50,7 @@ val unsafe_blit : [a] duplicable a => (array a, int, array a, int, int) -> () =
    [duplicable a]. It is unsound, so it must be used with care. We use it,
    below, to define a few operations which (we believe) are sound. *)
 
-val magic_get : [a] (array a, int) -> a =
+val magic_get : [a, m] (array m a, int) -> a =
   builtin _mz_array_get
 
 (* The following functions can be programmed using [get] and [set], but if we
@@ -58,22 +58,22 @@ val magic_get : [a] (array a, int) -> a =
    unnecessary, because no value is duplicated in the process. Thus, we use
    [magic_get] instead of [get]. *)
 
-val swap [a] (r: array a, i: int, j: int) : () =
+val swap [a] (r: marray a, i: int, j: int) : () =
   if i <> j then begin
     let ri = magic_get (r, i) in
     set (r, i, magic_get (r, j));
     set (r, j, ri)
   end
 
-val consult [a, pre : perm, b] (
-  r: array a, i: int,
+val consult [a, m, pre : perm, b] (
+  r: array m a, i: int,
   f: (a | consumes pre) -> b
   | consumes pre
 ) : b =
   f (magic_get (r, i))
 
 val update [a, pre : perm, post : perm] (
-  r: array a, i: int,
+  r: marray a, i: int,
   f: (consumes a | consumes pre) -> (a | post)
   | consumes pre
 ) : (| post) =
@@ -104,24 +104,34 @@ val update [a, pre : perm, post : perm] (
 (* The following are safe wrappers for the unsafe primitive operations.
    They are implemented in the same manner as in OCaml. *)
 
-val sub [a] duplicable a => (r: array a, ofs: int, len: int) : array a =
+val sub [a, m1, m2] duplicable a => (r: array m1 a, ofs: int, len: int) : array
+m2 a =
   if len < 0 || ofs > length r - len
   then fail
   else unsafe_sub (r, ofs, len)
 
-val copy [a] duplicable a => (r: array a) : array a =
+val copy [a, m1, m2] duplicable a => (r: array m1 a) : array m2 a =
   (* OCaml's implementation contains a special case for an array
      of length 0. We cannot keep this special case, due to the
      fact that our arrays are exclusive and have an adopter field. *)
   unsafe_sub (r, 0, length r)
 
-val append [a] duplicable a => (r1: array a, r2: array a) : array a =
+val freeze [a, m] (consumes r: array m a) : (| r @ iarray a) =
+  magic::magic ()
+
+(* Internal function used to freeze or not a mutable array, depending on the
+ * returned permission *)
+val maybe_freeze [a, m] (consumes r: marray a) : (| r @ array m a) =
+  magic::magic ()
+
+val append [a, m1, m2, m3] duplicable a => (r1: array m1 a, r2: array m2 a) :
+  array m3 a =
   let l1 = length r1 in
   if l1 = 0 then copy r2
   else if length r2 = 0 then unsafe_sub (r1, 0, l1)
   else append_prim (r1, r2)
 
-val blit [a] duplicable a => (r1: array a, ofs1: int, r2: array a, ofs2: int, len: int) : () =
+val blit [a, m] duplicable a => (r1: array m a, ofs1: int, r2: marray a, ofs2: int, len: int) : () =
   if len < 0 || ofs1 < 0 || ofs1 > length r1 - len
              || ofs2 < 0 || ofs2 > length r2 - len
   then fail
@@ -144,10 +154,11 @@ val blit [a] duplicable a => (r1: array a, ofs1: int, r2: array a, ofs2: int, le
 (* The original array itself is not lost; it becomes an array of unknown data,
    which can be re-used to store new data, if desired. *)
 
-val total_blit [a] duplicable a => (r1: array a, r2: array a, ofs2: int) : () =
+val total_blit [a, m] duplicable a => (r1: array m a, r2: marray a, ofs2: int) : () =
   blit (r1, 0, r2, ofs2, length r1)
 
-val steal : [a] (consumes r1: array a, r2: array a, ofs2: int) -> (| r1 @ array unknown) =
+val steal : [a, m] (consumes r1: array m a, r2: marray a, ofs2: int) -> (| r1 @
+array m unknown) =
   magic::magic total_blit
 
 (* [steal] is a variant of [blit]. One could also define variants of [sub],
@@ -159,23 +170,25 @@ val steal : [a] (consumes r1: array a, r2: array a, ofs2: int) -> (| r1 @ array 
    entire destination array is written. In this case, a strong update
    is possible. *)
 
-val surjective_blit [a] duplicable a => (r1: array a, ofs1: int, r2: array a) : () =
+val surjective_blit [a, m] duplicable a => (r1: array m a, ofs1: int, r2: marray a) : () =
   blit (r1, ofs1, r2, 0, length r2)
 
-val overwrite : [a] duplicable a => (r1: array a, ofs1: int, consumes r2: array unknown) -> (| r2 @ array a) =
+val overwrite : [a, m] duplicable a => (r1: array m a, ofs1: int, consumes r2:
+  marray unknown) -> (| r2 @ marray a) =
   magic::magic surjective_blit
 
 (* ------------------------------------------------------------------------ *)
 
 (* The above two variants of [blit] can be combined! *)
 
-val bijective_blit [a] duplicable a => (r1: array a, r2: array a) : () =
+val bijective_blit [a, m] duplicable a => (r1: array m a, r2: marray a) : () =
   let l2 = length r2 in
   if length r1 <> l2
   then fail
   else blit (r1, 0, r2, 0, l2)
 
-val transfer : [a, b] (consumes r1: array a, consumes r2: array b) -> (| r1 @ array unknown * r2 @ array a) =
+val transfer : [a, m] (consumes r1: array m a, consumes r2: marray unknown) ->
+  (| r1 @ array m unknown * r2 @ marray a) =
   magic::magic bijective_blit
 
 (* -------------------------------------------------------------------------- *)
@@ -247,18 +260,18 @@ val iter_segment [p : perm] (
 
 (* Generic loops over an entire array. *)
 
-val fold_array [a, b] (
+val fold_array [a, m, b] (
   s: sense,
-  r: array a, consumes seed: b,
-  f: (int, consumes b | r @ array a) -> b
+  r: array m a, consumes seed: b,
+  f: (int, consumes b | r @ array m a) -> b
 ) : b =
-  fold_segment [(b | r @ array a)] (s, 0, length r, seed, f)
+  fold_segment [(b | r @ array m a)] (s, 0, length r, seed, f)
   (* WISH could we get rid of this type application? *)
 
-val iter_array [a, p : perm] (
+val iter_array [a, m, p : perm] (
   s: sense,
-  r: array a,
-  f: (int | r @ array a * p) -> ()
+  r: array m a,
+  f: (int | r @ array m a * p) -> ()
   | p
 ) : () =
   iter_segment (s, 0, length r, f)
@@ -280,25 +293,25 @@ val iter_array [a, p : perm] (
    [f] changes the type of its argument, and the loop changes the
    type of the array. TEMPORARY *)
 
-val foldi [a, b] (
+val foldi [a, m, b] (
   s: sense,
-  r: array a, consumes seed: b,
+  r: array m a, consumes seed: b,
   f: (int, a, consumes accu: b) -> b
 ) : b =
-  fold_array (s, r, seed, fun (i: int, consumes accu: b | r @ array a) : b =
+  fold_array (s, r, seed, fun (i: int, consumes accu: b | r @ array m a) : b =
     consult (r, i, fun (v: a | consumes accu @ b) : b =
       f (i, v, accu)
     )
   )
 
-val iteri [a, p : perm] (
+val iteri [a, m, p : perm] (
   s: sense,
-  r: array a,
+  r: array m a,
   f: (int, a | p) -> ()
   | p
 ) : () =
-  iter_array (s, r, fun (i: int | r @ array a * p) : () =
-    consult [a, p, (| p)] (r, i, fun (v: a | p) : () =
+  iter_array (s, r, fun (i: int | r @ array m a * p) : () =
+    consult [a, m, p, (| p)] (r, i, fun (v: a | p) : () =
       (* WISH could we get rid of this type application? *)
       f (i, v)
     )
@@ -307,26 +320,26 @@ val iteri [a, p : perm] (
 (* A degenerate variant of the above loops, where the function [f] has
    access to the element, but not the index [i] or to the array [x]. *)
 
-val fold [a, b] (
+val fold [a, m, b] (
   s: sense,
-  r: array a,
+  r: array m a,
   consumes seed: b,
   f: (a, consumes accu: b) -> b
 ) : b =
-  fold_array (s, r, seed, fun (i: int, consumes accu: b | r @ array a) : b =
+  fold_array (s, r, seed, fun (i: int, consumes accu: b | r @ array m a) : b =
     consult (r, i, fun (v: a | consumes accu @ b) : b =
       f (v, accu)
     )
   )
 
-val iter [a, p : perm] (
+val iter [a, m, p : perm] (
   s: sense,
-  r: array a,
+  r: array m a,
   f: (a | p) -> ()
   | p
 ) : () =
-  iter_array (s, r, fun (i: int | r @ array a * p) : () =
-    consult [a, p, (| p)] (r, i, fun (v: a | p) : () =
+  iter_array (s, r, fun (i: int | r @ array m a * p) : () =
+    consult [a, m, p, (| p)] (r, i, fun (v: a | p) : () =
       f v
     )
   )
@@ -340,23 +353,24 @@ val iter [a, p : perm] (
 
 val weak_transform [a, p : perm] (
   s: sense,
-  r: array a,
+  r: marray a,
   f: (int, consumes a | p) -> a
   | p
 ) : () =
-  iter_array (s, r, fun (i: int | r @ array a * p) : () =
+  iter_array (s, r, fun (i: int | r @ marray a * p) : () =
     update [a, p, p] (r, i, fun (consumes x: a | p) : a = f(i, x))
   )
 
 val transform : [a, b, p : perm] (
   s: sense,
-  consumes r: array a,
+  consumes r: marray a,
   f: (int, consumes a | p) -> b
   | p
-) -> (| r @ array b) =
+) -> (| r @ marray b) =
   magic::magic [
-    ([a, p : perm] (s: sense, r: array a, f: (int, consumes a | p) -> a | p) -> ()),
-    ([a, b, p : perm] (s: sense, consumes r: array a, f: (int, consumes a | p) -> b | p) -> (| r @ array b))
+    ([a, p : perm] (s: sense, r: marray a, f: (int, consumes a | p) -> a | p) -> ()),
+    ([a, b, p : perm] (s: sense, consumes r: marray a, f: (int, consumes a | p)
+    -> b | p) -> (| r @ marray b))
   ]
   (* TEMPORARY the above type application is used to work around a BUG *)
   weak_transform
@@ -371,42 +385,43 @@ val transform : [a, b, p : perm] (
 
 (* [init] is the composition of [create] and [transform]. *)
 
-val init [a, p : perm] (
+val init [a, m, p : perm] (
   s: sense,
   n: int,
   f: (int | p) -> a
   | p)
-  : array a
+  : array m a
 =
   (* Allocate an array and fill it with an arbitrary value, say 0.
      Because the type [int] is duplicable, this is well-typed! *)
-  let r : array int = create (n, 0) in
+  let r : marray int = create (n, 0) in
   (* Transform the array. *)
   transform (s, r, fun (i: int, int | p) : a =
     f i
   );
+  maybe_freeze r;
   r
 
 (* Map. *)
 
-val map [a, b, p : perm] (
+val map [a, m1, b, m2, p : perm] (
   s: sense,
-  r: array a,
+  r: array m1 a,
   f: (a | p) -> b
   | p
-) : array b =
-  init (s, length r, fun (i: int | r @ array a * p) : b =
-    consult [a, p, (b | p)] (r, i, f)
+) : array m2 b =
+  init (s, length r, fun (i: int | r @ array m1 a * p) : b =
+    consult [a, m1, p, (b | p)] (r, i, f)
   )
 
-val mapi [a, b, p : perm] (
+val mapi [a, m1, b, m2, p : perm] (
   s: sense,
-  r: array a,
+  r: array m1 a,
   f: (int, a | p) -> b
   | p
-) : array b =
-  init (s, length r, fun (i: int | r @ array a * p) : b =
-    consult [a, p, (b | p)] (r, i, fun (v: a | p) : b =
+) : array m2 b =
+  init (s, length r, fun (i: int | r @ array m1 a * p) : b =
+    consult [a, m1, p, (b | p)] (r, i, fun (v: a | p) : b =
       f (i, v)
     )
   )
@@ -430,16 +445,16 @@ val mapi [a, b, p : perm] (
    but that would be less efficient (and cumbersome, in the common case where [a]
    and [b] coincide). *)
 
-val rec fill_segment [a] duplicable a => (r: array a, i: int, j: int, v: a) : () =
+val rec fill_segment [a] duplicable a => (r: marray a, i: int, j: int, v: a) : () =
   if i < j then begin
     set (r, i, v);
     fill_segment (r, i + 1, j, v)
   end
 
-val fill [a] duplicable a => (r: array a, i: int, len: int, v: a) : () =
+val fill [a] duplicable a => (r: marray a, i: int, len: int, v: a) : () =
   fill_segment (r, i, i + len, v)
 
-val fill_array [a] duplicable a => (r: array a, v: a) : () =
+val fill_array [a] duplicable a => (r: marray a, v: a) : () =
   fill_segment (r, 0, length r, v)
 
 (* -------------------------------------------------------------------------- *)
@@ -457,7 +472,7 @@ val fill_array [a] duplicable a => (r: array a, v: a) : () =
 
 val sort_initial_segment [a, p : perm] duplicable a => (
   cmp: (a, a | p) -> int,
-  r: array a,
+  r: marray a,
   l: int
   | p) : () =
 
@@ -478,9 +493,9 @@ val sort_initial_segment [a, p : perm] duplicable a => (
 
   let maxson [b] (
     l: int, i: int,
-    bottom: (int | consumes (p * r @ array a)) -> b,
-    normal: (int | consumes (p * r @ array a)) -> b
-                 | consumes (p * r @ array a))  : b =
+    bottom: (int | consumes (p * r @ marray a)) -> b,
+    normal: (int | consumes (p * r @ marray a)) -> b
+                 | consumes (p * r @ marray a))  : b =
     let i31 = i+i+i+1 in
     if i31+2 < l then begin
       (* If there are three children, find which one has the maximum value. *)
@@ -508,10 +523,10 @@ val sort_initial_segment [a, p : perm] duplicable a => (
 
   let rec trickledown (
     l: int, i: int, e: a,
-    bottom: (int | p * r @ array a) -> ()
-    | p * r @ array a
+    bottom: (int | p * r @ marray a) -> ()
+    | p * r @ marray a
   ) : () =
-    maxson [b = (| p * r @ array a)] (l, i, bottom, fun (j: int | p * r @ array a) : () =
+    maxson [b = (| p * r @ marray a)] (l, i, bottom, fun (j: int | p * r @ marray a) : () =
       (* [j] is the maximum son of [i]. If the element [e] is ? than the
 	 element found at [j], then send it down, otherwise write [e] into
 	 node [i]. *)
@@ -527,8 +542,8 @@ val sort_initial_segment [a, p : perm] duplicable a => (
   (* The function [trickle] provides [trickledown] with a bottom continuation
      that writes [e] into the childless node.  *)
 
-  let trickle (l: int, i: int, e: a | p * r @ array a) : () =
-    trickledown (l, i, e, fun (i: int | p * r @ array a) : () =
+  let trickle (l: int, i: int, e: a | p * r @ marray a) : () =
+    trickledown (l, i, e, fun (i: int | p * r @ marray a) : () =
       set (r, i, e)
     )
   in
@@ -538,15 +553,16 @@ val sort_initial_segment [a, p : perm] duplicable a => (
      always reaches a point where [maxson] invokes its bottom continuation.
      For this reason, we can supply an identity continuation to [maxson]. *)
 
-  let identity (i: int | p * r @ array a) : int =
+  let identity (i: int | p * r @ marray a) : int =
     i
   in
 
   let rec bubbledown (
     l: int, i: int
-    | p * r @ array a
+    | p * r @ marray a
   ) : int =
-    maxson [b = (int | p * r @ array a)] (l, i, identity, fun (j: int | p * r @ array a) : int =
+    maxson [b = (int | p * r @ marray a)] (l, i, identity, fun (j: int | p * r @
+    marray a) : int =
       set (r, i, get (r, j));
       bubbledown (l, j)
     )
@@ -554,7 +570,7 @@ val sort_initial_segment [a, p : perm] duplicable a => (
 
   (* Trickle up... *)
 
-  let rec trickleup (i: int, e: a | p * r @ array a) : () =
+  let rec trickleup (i: int, e: a | p * r @ marray a) : () =
     let father = (i - 1) / 3 in
     if cmp (get (r, father), e) < 0 then begin
       set (r, i, get (r, father));
@@ -568,10 +584,10 @@ val sort_initial_segment [a, p : perm] duplicable a => (
 
   if l < 0 || l > length r then
     fail;
-  iter_segment_down (0, (l + 1) / 3, fun (i: int | p * r @ array a) : () =
+  iter_segment_down (0, (l + 1) / 3, fun (i: int | p * r @ marray a) : () =
     trickle (l, i, get (r, i))
   );
-  iter_segment_down (2, l, fun (i: int | p * r @ array a) : () =
+  iter_segment_down (2, l, fun (i: int | p * r @ marray a) : () =
     let e = get (r, i) in
     set (r, i, get (r, 0));
     trickleup (bubbledown (i, 0), e)
@@ -581,9 +597,18 @@ val sort_initial_segment [a, p : perm] duplicable a => (
 
 val sort [a, p : perm] duplicable a => (
   cmp: (a, a | p) -> int,
-  r: array a
+  r: marray a
   | p) : () =
   sort_initial_segment (cmp, r, length r)
+
+val sorted [a, m1, m2, p : perm] duplicable a => (
+  cmp: (a, a | p) -> int,
+  r: array m1 a
+  | p) : array m2 a =
+    let r = copy r in
+    sort (cmp, r);
+    maybe_freeze r;
+    r
 
 (* -------------------------------------------------------------------------- *)
 
@@ -599,7 +624,7 @@ data mutable pool a = Pool adopts ref a
 
 val nonduplicable_sort [a, s : perm] (
   cmp: (ref a, ref a | s) -> int,
-  r: array dynamic,
+  r: marray dynamic,
   p : pool a
   | s
 ) : () =

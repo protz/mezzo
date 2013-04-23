@@ -93,7 +93,7 @@ data statistics = Statistics {
   num_bindings: int;
   num_buckets: int;
   max_bucket_length: int;
-  bucket_histogram: array int
+  bucket_histogram: marray int
 }
 
 val stats : [k, a] (t: table k a) -> statistics

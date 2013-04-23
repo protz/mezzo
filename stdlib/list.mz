@@ -612,13 +612,13 @@ val rec compare [a, b] (cmp: (a, b) -> int, xs: list a, ys: list b) : int =
 
 (* Converting an array (segment) to a list. *)
 
-val rec segment2list [a] duplicable a => (x: array a, i: int, j: int, consumes accu: list a) : list a =
+val rec segment2list [a, m] duplicable a => (x: array m a, i: int, j: int, consumes accu: list a) : list a =
   if i < j then
     segment2list (x, i, j - 1, Cons { head = array::get (x, j - 1); tail = accu })
   else
     accu
 
-val array2list [a] duplicable a => (x: array a) : list a =
+val array2list [a, m] duplicable a => (x: array m a) : list a =
   segment2list (x, 0, array::length x, Nil)
 
 (* TEMPORARY using [array::transform], we could offer a variant of [array2list]
@@ -626,7 +626,7 @@ val array2list [a] duplicable a => (x: array a) : list a =
 
 (* Converting a list to an array. *)
 
-val list2array [a] (consumes xs: list a) : array a =
+val list2array [a, m] (consumes xs: list a) : array m a =
   let n = length xs in
   let r = newref xs in
   array::init (Up, n, fun (i: int | r @ ref (list a)) : a =

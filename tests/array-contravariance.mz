@@ -1,3 +1,3 @@
-val f (consumes x: array unknown) : array bool =
+val f [m] (consumes x: array m unknown) : array m bool =
   x
 

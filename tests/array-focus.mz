@@ -1,8 +1,8 @@
-val f [y : term] (x: array (=y)) : () =
+val f [y : term] (x: marray (=y)) : () =
   ()
 
 val () =
-  let x : array int = array::create (10, 0) in
+  let x : marray int = array::create (10, 0) in
   (* We check that [array int] cannot be converted to [array (=y)] for
      a fresh [y]. *)
   f x

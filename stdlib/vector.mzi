@@ -25,7 +25,7 @@ val init: [a] (size: int, default: int -> a, f: int -> a) -> vector a
 (* [grab (r, default)] turns the array [r] into a vector of the same size.
    [default] serves the same purpose as in [create] above. *)
 
-val grab: [a] (consumes r: array a, default: int -> a) -> vector a
+val grab: [a] (consumes r: marray a, default: int -> a) -> vector a
 
 (* [list2vector (xs, default)] turns the list [xs] into a vector of the
    same size. [default] serves the same purpose as in [create] above. *)

@@ -16,7 +16,7 @@ data mutable vector a =
        If we had permissions for array segments, then we would be
        able to encode this invariant and get rid of the option,
        I suppose. TEMPORARY that would be nice! *)
-    table: array (option a)
+    table: marray (option a)
   } 
 
 val minimum_length =
@@ -49,7 +49,7 @@ val init [a] (size: int, default: int -> a, f: int -> a) : vector a =
     )
   }
 
-val grab [a] (consumes r: array a, default: int -> a) : vector a =
+val grab [a] (consumes r: marray a, default: int -> a) : vector a =
   (* We take the ownership of [r]. We replace every element [x]
      with [some x], so as to make it an array of type [option a]. *)
   array::transform (Up, r, fun (_: int, consumes x: a) : option a = some x);
@@ -83,7 +83,7 @@ val resize [a] (v: vector a, new_size: int) : () =
 	 array::fill_segment (table, new_size, n, None);
 	 but this is not currently possible, see comment in [array.mz];
 	 so, instead, we must use an explicit loop: *)
-      array::iter_segment (Up, new_size, old_size, fun (k: int | table @ array (option a)) : () =
+      array::iter_segment (Up, new_size, old_size, fun (k: int | table @ marray (option a)) : () =
 	  array::set (table, k, None)
       )
     else begin

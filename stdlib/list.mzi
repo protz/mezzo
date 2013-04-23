@@ -146,6 +146,6 @@ val compare : [a, b] (cmp: (a, b) -> int, xs: list a, ys: list b) -> int
 
 (* Conversions between arrays and lists. *)
 
-val array2list : [a] duplicable a => array a -> list a
-val list2array : [a] (consumes list a) -> array a
+val array2list : [a, m] duplicable a => array m a -> list a
+val list2array : [a, m] (consumes list a) -> array m a
 

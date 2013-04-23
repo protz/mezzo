@@ -1,4 +1,4 @@
-open arraypoly
+open array
 
 (* Implementation of the KMP algorithm *)
 (* This implemtation works only for type [array m a] with a duplicable, because

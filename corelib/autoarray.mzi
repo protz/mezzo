@@ -2,10 +2,22 @@
 
 (* The type of arrays. *)
 
-(* For the moment, arrays are mutable. *)
+(* Arrays can be either mutable or immutable. *)
+abstract mut : type
+fact exclusive mut
 
-abstract array +a
-fact exclusive (array a)
+abstract immut : type
+fact duplicable immut
+
+(* Arrays are mutable if the first type parameter is exclusive, immutable
+ * otherwise. *)
+abstract array m +a : type
+fact duplicable m => duplicable (array m a)
+fact exclusive m => exclusive (array m a)
+
+(* Aliases for immutable and mutable arrays. *)
+alias iarray a = array immut a
+alias marray a = array mut a 
 
 (* ------------------------------------------------------------------------ *)
 

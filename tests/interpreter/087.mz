@@ -1,7 +1,7 @@
 (* Success: 12 *)
-data mutable pool a = P adopts array a
+data mutable pool a = P adopts marray a
 val () =
-  let x = array::create (10, 12) in
+  let x = array::create [m=mut] (10, 12) in
   let p : pool int = P in
   give x to p;
   take x from p;

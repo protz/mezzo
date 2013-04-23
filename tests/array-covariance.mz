@@ -1,11 +1,11 @@
-val f (consumes x: array bool) : array unknown =
-  (* This relies on [array bool <= array unknown]. *)
+val f [m] (consumes x: array m bool) : array m unknown =
+  (* This relies on [array m bool <= array m unknown]. *)
   x
 
 val () =
-  let x : array int =
+  let x : marray int =
     array::create (10, 0)
-  and y : array bool =
+  and y : marray bool =
     array::create (10, true)
   in
   (* This relies on [array bool <= array unknown]. *)

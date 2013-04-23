@@ -1,4 +1,4 @@
-open arraypoly
+open array
 
 alias pair a b = (a, b)
 alias double a = pair a a

@@ -1,6 +1,6 @@
-open arraypoly
+open array
 
 val f (x: iarray int) : () =
   set (x, 0, 0) 
 
-(* Shoud be rejected *)
+(* Should be rejected *)

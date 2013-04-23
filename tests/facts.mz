@@ -34,7 +34,7 @@ val () =
   d [list int] ();
   d [list (int, int)] ();
   d [{a} list (int, wref a)] ();
-  x [array int] ();
+  x [marray int] ();
   x [{a} ref a] ();
   d [{x:term} (=x)] ();
   x [ref int] ();

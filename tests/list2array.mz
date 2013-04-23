@@ -2,13 +2,13 @@
    use of [create], it is restricted to a duplicable element type. I keep only
    as a test of the type-checker. *)
 
-val list2array [a] duplicable a => (xs: list::list a) : array a =
+val list2array [a] duplicable a => (xs: list::list a) : marray a =
   match xs with
   | list::Nil ->
       array::init (Up, 0, fun (i: int) : a = fail)
   | list::Cons { head; tail } ->
       let x = array::create (1 + list::length tail, head) in
-      let rec fill (i: int, xs: list::list a | x @ array a) : =x =
+      let rec fill (i: int, xs: list::list a | x @ marray a) : =x =
 	match xs with
 	| list::Nil ->
 	    x

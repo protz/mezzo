@@ -1,7 +1,7 @@
 (* Types definitions *)
 
 data mutable dynarray a =
-  DArray { r: arraypoly::marray dynamic }
+  DArray { r: array::marray dynamic }
 adopts a
 
 data mutable dummy = Dummy
@@ -14,7 +14,7 @@ val dummy : dynamic = Dummy
 val create [a] exclusive a => (
   n: int
 ) : dynarray a =
-  DArray { r = arraypoly::create (n, dummy) }
+  DArray { r = array::create (n, dummy) }
 
 (* [init (n, f)] creates a new dynamic array of [n] elements, where the element
  * at index [i] is initialized with the value [f i]. *)
@@ -24,8 +24,8 @@ val init [a, p : perm] exclusive a => (
   f: (int | p) -> a
   | p
 ) : dynarray a =
-  let d = DArray { r = arraypoly::create (0, dummy) } in
-  d.r <- arraypoly::init (
+  let d = DArray { r = array::create (0, dummy) } in
+  d.r <- array::init (
     s, n,
       fun (i: int | p * d @ dynarray a) : dynamic =
         let x = f i in
@@ -40,7 +40,7 @@ val get [a] exclusive a => (
   d: dynarray a,
   i: int
 ) : a =
-  let x = arraypoly::get (d.r, i) in
+  let x = array::get (d.r, i) in
   take x from d; x
 
 (* [set (d, i, v)] sets the element at index [i] in the array [d] to the value
@@ -51,7 +51,7 @@ val set [a] exclusive a => (
   consumes x: a
 ) : () =
   give x to d;
-  arraypoly::set (d.r, i, x)
+  array::set (d.r, i, x)
 
 (* [adopt (d, i, v)] gives back [v] to array [d] and performs a runtime check
  * to ensure that [v] is actually the element at index [i]. *)
@@ -61,6 +61,6 @@ val adopt [a] exclusive a => (
   consumes x: a
 ) : () =
   give x to d;
-  let y = arraypoly::get (d.r, i) in
+  let y = array::get (d.r, i) in
   if y != x then
     fail

@@ -36,7 +36,7 @@ and mutable region =
 (* The representation of points is unchanged. *)
 
 and mutable point (r : term) a =
-| PFlat { contents: array a;                                unused1: (); unused2: () }
+| PFlat { contents: marray a;                                unused1: (); unused2: () }
 | PUndo { previous: (p: unknown | nests r (p @ point r a)); offset: int; element:  a }
 
 (* ---------------------------------------------------------------------------- *)
@@ -59,7 +59,7 @@ val create [a] duplicable a => (n: int, x: a) : parray a =
 
 val rec revert [a] duplicable a =>
   (consumes r: region, p: unknown | nests r (p @ point r a))
-: (array a | p @ PUndo { previous: unknown; offset: unknown; element: unknown }
+: (marray a | p @ PUndo { previous: unknown; offset: unknown; element: unknown }
            * r @ punched region (p @ point r a))
 =
   (* Take [p] out of the region [r]. *)
@@ -77,7 +77,7 @@ and revert_link [a] duplicable a =>
   (r: punched region (p @ point r a),
    consumes p: PUndo { previous: (previous: unknown | nests r (previous @ point r a)); offset: int; element: a }
  | nests r (p @ point r a))
-: (array a | p @ PUndo { previous: unknown; offset: unknown; element: unknown })
+: (marray a | p @ PUndo { previous: unknown; offset: unknown; element: unknown })
 =
   let previous = p.previous in
   (* We must give [p] back to the region before the recursive call.
@@ -109,7 +109,7 @@ val reroot [a] duplicable a => (
   consumes r: region,
   p: unknown | nests r (p @ point r a)
 )
-: (t: array a | p @ PFlat { contents = t; unused1: (); unused2: () }
+: (t: marray a | p @ PFlat { contents = t; unused1: (); unused2: () }
               * r @ punched region (p @ point r a))
 =
 
@@ -130,7 +130,7 @@ val reroot [a] duplicable a => (
 
 val borrow [a, b, q : perm] duplicable a => (
   pa: parray a, 
-  f: (array a | consumes q) -> b
+  f: (marray a | consumes q) -> b
 | consumes q
 ) : b =
   let PArray { contents = (r, l, p) } = pa in
@@ -144,7 +144,7 @@ val borrow [a, b, q : perm] duplicable a => (
 (* ---------------------------------------------------------------------------- *)
 
 val get [a] duplicable a => (pa: parray a, i: int) : a =
-  borrow (pa, fun (t: array a) : a =
+  borrow (pa, fun (t: marray a) : a =
     array::get (t, i)
   )
 

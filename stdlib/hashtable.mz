@@ -10,7 +10,7 @@ data mutable table k a =
     (* The table's current number of elements. *)
     cardinal: int;
     (* The bucket array, whose length is always a power of 2. *)
-    buckets: array (bucket k a);
+    buckets: marray (bucket k a);
     (* The hash function. *)
     hash: k -> int;
     (* The equality function. *)
@@ -24,7 +24,7 @@ data mutable table k a =
 (* [create_buckets] rounds up its [capacity] argument to the nearest power of
    2 above [n], then allocates a new bucket array. *)
 
-val create_buckets [k, a] (capacity: int) : array (bucket k a) =
+val create_buckets [k, a] (capacity: int) : marray (bucket k a) =
   array::init (Up, array::above (16, capacity), fun (i: int) : bucket k a = BNil)
 
 (* Creation. *)
@@ -58,7 +58,7 @@ val create [k, a] (capacity: int, hash: k -> int, equal: (k, k) -> bool) : table
 val key_index [k, a, buckets : term] (
   t: Table { cardinal: int; buckets = buckets; hash: k -> int; equal: (k, k) -> bool },
   x: k
-  | buckets @ array (bucket k a)
+  | buckets @ marray (bucket k a)
 ) : int =
   t.hash x & (array::length t.buckets - 1)
 
@@ -335,7 +335,7 @@ data statistics = Statistics {
   num_bindings: int;
   num_buckets: int;
   max_bucket_length: int;
-  bucket_histogram: array int
+  bucket_histogram: marray int
 }
 
 val stats [k, a] (t: table k a) : statistics =
@@ -347,7 +347,7 @@ val stats [k, a] (t: table k a) : statistics =
   in
   (* Build a histogram, which maps bucket lengths to bucket counts. *)
   let histo = array::create (mbl + 1, 0) in
-  array::iter (Up, t.buckets, fun (b: bucket k a | histo @ array int) : () =
+  array::iter (Up, t.buckets, fun (b: bucket k a | histo @ marray int) : () =
     let l = bucket::length b in
     array::set (histo, l, array::get (histo, l) + 1)
   );
