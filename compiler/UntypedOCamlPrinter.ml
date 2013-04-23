@@ -125,6 +125,17 @@ let rec atomic_expression (e : expression) : document =
 	) branches ^^
 	break 1 ^^ string "end"
       )
+  | EWhile (e1, e2) ->
+      group (
+  surround 2 1
+    (string "while")
+    (expression e1)
+    (string "do")
+  ^^
+  nest 2 (break 1 ^^ expression e2)
+  ^^
+  break 1 ^^ string "done"
+      )
   | _ ->
       group (parens (expression e))
 

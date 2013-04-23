@@ -260,6 +260,11 @@ let rec transl (e : expression) : O.expression =
 	transl e1,
 	magic (transl e2)
       )
+  | EWhile (e1, e2) ->
+      O.EWhile (
+  gtz (O.EGetTag (transl e1)),
+  transl e2
+      )
   | ESequence (e1, e2) ->
       seq (transl e1) (transl e2)
   | EInt i ->

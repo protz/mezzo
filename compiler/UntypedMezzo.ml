@@ -83,6 +83,7 @@ type expression =
   | ETuple of expression list
   | EConstruct of (datacon_reference * (Variable.name * expression) list)
   | EIfThenElse of expression * expression * expression
+  | EWhile of expression * expression
   | ESequence of expression * expression
   | EInt of int
   | EFail of string (* cause and location of failure *)
