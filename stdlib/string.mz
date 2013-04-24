@@ -1,4 +1,4 @@
-open arraypoly
+open array
 
 (* Alias definitions *)
 
@@ -134,7 +134,7 @@ val trim [m1, m2] (
 ) : string m2 =
   let i = first_from (s, 0, fun (c: char) : bool = not (is_whitespace (c))) in
   let j = last_from (s, length s - 1, fun (c: char) : bool = not (is_whitespace (c))) in
-  if i <= j then sub (s, i, j-i)
+  if i <= j then sub (s, i, j)
   else copy s
 
 (* [contains_from (s, i, c)] is true if the string [s] contains the character
@@ -152,3 +152,58 @@ val contains [m] (
   c: char
 ) : bool =
   contains_from (s, 0, c)
+
+val build_table [a, m, p : perm] duplicable a => (
+  needle: array m a,
+  eq: (a, a | p) -> bool
+  | p
+) : iarray int =
+  let table = create (length needle, 0) in
+  set (table, 0, -1);
+
+  let rec loop (i: int, j: int | needle @ array m a * table @ marray int * p) : () =
+    if i >= length needle
+    then ()
+    else if eq (get (needle, i-1), get(needle, j))
+    then begin
+      set(table, i, j+1);
+      loop (i+1, j+1)
+    end
+    else if j > 0
+    then loop(i, get(table, j))
+    else begin
+      set(table, i, 0);
+      loop(i+1, 0)
+    end
+  in
+  loop (2, 0);
+  freeze table;
+  table
+
+(* [search (needle, haystack, eq)] returns the position of the first occurence
+ * of [needle] in [haystack], using [eq] to compare elements of both arrays. *)
+val search [a, m1, m2, p : perm] duplicable a => (
+  needle: array m1 a,
+  haystack: array m2 a,
+  eq: (a, a | p) -> bool
+  | p
+) : int =
+  let table = build_table (needle, eq) in
+  let rec loop (
+    m: int, i: int 
+    | needle @ array m1 a * haystack @ array m2 a * p)
+  : int =
+    if m + 1 >= length haystack
+    then length haystack
+    else if eq (get (needle, i), get(haystack, m + i))
+    then begin
+      if i == length needle - 1
+      then m
+      else loop(m, i+1)
+    end
+    else
+      loop(m + i - (get (table, i)), 
+        if get (table, i) > -1
+        then get (table, i)
+        else 0)
+  in loop (0, 0)

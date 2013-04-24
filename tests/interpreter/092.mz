@@ -1,0 +1,52 @@
+(* Success: True *)
+
+open array
+open string
+
+val alphabet_from [m] (c: char) : string m =
+  if c < 97 || c > 122 then fail;
+  let left = init (Up, 123 - c, fun (i: int) : char = c + i) in
+  let right = init (Up, c - 97, fun (i: int) : char = 97 + i) in
+  append (left, right)
+
+val mod (a: int, b: int) : int =
+  if b = 0 then fail;
+  a - (a/b)*b
+
+val some_primes : iarray int =
+  let r = create (10, 2) in
+  set (r, 1, 3);
+  set (r, 2, 5);
+  set (r, 3, 7);
+  set (r, 4, 11);
+  set (r, 5, 13);
+  set (r, 6, 17);
+  set (r, 7, 19);
+  set (r, 8, 23);
+  set (r, 9, 29);
+  freeze r; r
+
+val shuffle [a] (o: int, r: marray a) : () =
+  let n = length r in
+  let i = newref 0 in
+  preserving (r @ marray a * i @ ref int)
+  while !i < n do begin
+    iter (Up, some_primes, fun (p: int | r @ marray a * i @ ref int) : () =
+      swap (r, !i, mod(!i*p+o, n))
+    );
+    i := !i + 1
+  end
+
+val () =
+  let tab : marray mstring = init (Up, 26, fun (i: int) : mstring = alphabet_from (i + 97)) in
+  (* Shuffle a little *)
+  iteri (Up, tab, shuffle);
+  shuffle [mstring] (0, tab);
+  (* Freeze the whole array *)
+  transform (Up, tab, fun (_: int, consumes s: mstring) : istring = freeze s; s);
+  (* Sort again line by line *)
+  transform(Up, tab, fun (_: int, s: istring) : istring = sorted ((-), s));
+  (* Check that all lines are the same *)
+  let r : istring = alphabet_from 97 in
+  let b = fold (Up, tab, true, fun (s: istring, b: bool) : bool = b && eq (r, s)) in
+  print b
