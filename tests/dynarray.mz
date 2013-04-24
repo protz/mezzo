@@ -108,7 +108,15 @@ val sort [a, p : perm] exclusive a => (
   d: dynarray a
   | p
 ) : () =
-  let cmp (x: dynamic, y: dynamic | p * d @ unfinished a) : int =
+  let r = d.r in
+  (* The function [cmp] needs an exclusive permission for [d], because
+     it needs to give and take objects to and from it, but it cannot
+     require [d @ dynarray a], because the ownership of the array has
+     been temporarily taken away from [d]. Instead, we use a structural
+     permission for [d], which states that the contents of the field [d.r]
+     is the value [r]. *)
+  let cmp (x: dynamic, y: dynamic | p * d @ DArray { r } adopts a) : int =
+    (* An address comparison is required in order to avoid a double take. *)
     if x == y then 0
     else
       taking x from d begin
@@ -117,12 +125,10 @@ val sort [a, p : perm] exclusive a => (
         end
       end
   in
-  (* We need the following trick to give the permissions [d @ unfinished a] and
-   * [r @ marray dynamic] altogether. It won't work otherwise becaue [marray a]
-   * is exclusive. *)
-  let r = d.r in
-  d.r <- ();
-  tag of d <- Unfinished;
-  array::sort (cmp, r);
-  tag of d <- DArray;
-  d.r <- r
+  array::sort (cmp, r)
+
+(*
+Local Variables:
+compile-command: "../mezzo dynarray.mz"
+End:
+*)
