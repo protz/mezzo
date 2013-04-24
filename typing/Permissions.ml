@@ -94,6 +94,27 @@ let safety_check env =
   end
 ;;
 
+
+(* ---------------------------------------------------------------------------- *)
+
+(* When we learn that "a" turns out to be exclusive, new permissions become
+ * available. For instance, if we previously had "x @ a", we now have
+ * "x @ a ∗ x @ dynamic". *)
+
+let refresh_facts env =
+  fold_terms env (fun env var permissions ->
+    if List.exists (FactInference.is_exclusive env) permissions &&
+       not (List.exists (equal env TyDynamic) permissions) then
+      set_permissions env var (TyDynamic :: permissions)
+    else
+      env
+  ) env
+;;
+
+
+(* ---------------------------------------------------------------------------- *)
+
+
 (** Re-wrap instantiate_flexible so that it fits in our framework. *)
 
 let j_flex_inst (env: env) (v: var) (t: typ): result =
@@ -384,6 +405,7 @@ and add (env: env) (var: var) (t: typ): env =
   | TyAnd (c, t) ->
       Log.debug ~level:4 "%s]%s (and-constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
       let env = FactInference.assume env c in
+      let env = refresh_facts env in
       add env var t
 
   (* This implement the rule "x @ (=y, =z) * x @ (=y', =z') implies y = y' and z * = z'" *)
@@ -694,6 +716,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
   | TyAnd (c, t1), t2 ->
       try_proof_root "And-L" begin
         let env = FactInference.assume env c in
+        let env = refresh_facts env in
         sub_type env t1 t2 >>=
         (* TEMPORARY this rule may be unsound: assuming [c] while proving
            [t2] is fine, but [c] should not *remain* assumed in the final

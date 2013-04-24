@@ -960,8 +960,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("fractional.mzi", pass); (* no implementation, for now *)
   ("vide.mz", pass);
   ("openvide.mz", pass);
-  ("exclusive-bug.mz", pass_known_failure);
-  ("dynarray.mz", pass_known_failure);
+  ("exclusive-bug.mz", pass);
+  ("dynarray.mz", pass);
   ("while-1.mz", pass);
   ("while-2.mz", fail);
   ("while-3.mz", pass);
