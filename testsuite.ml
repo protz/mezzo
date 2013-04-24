@@ -952,7 +952,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("array-1.mz", pass);
   ("array-2.mz", fail);
   ("array-3.mz", fail);
-  ("array-kmp.mz", pass);
   ("export-names.mz", pass);
   ("double-datacon.mz", kfail);
   ("datacon-shadow.mz", fail);
