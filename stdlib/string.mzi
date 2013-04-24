@@ -60,3 +60,9 @@ val contains_from : [m] (string m, int, char) -> bool
 
 (* [contains (s, c)] is [contains_from (s, 0, c)]. *)
 val contains : [m] (string m, char) -> bool
+
+(* [search (needle, haystack, eq)] returns the position of the first occurence
+ * of [needle] in [haystack], using [eq] to compare elements of both arrays.
+ * It returns [length haystack] if [needle] is not in [haystack]. *)
+val search : [a, m1, m2, p : perm] duplicable a =>
+  (array m1 a, array m2 a, (a, a | p) -> bool | p) -> int
