@@ -1,4 +1,4 @@
-open arraypoly
+open array
 
 (* Alias definitions *)
 
@@ -134,7 +134,7 @@ val trim [m1, m2] (
 ) : string m2 =
   let i = first_from (s, 0, fun (c: char) : bool = not (is_whitespace (c))) in
   let j = last_from (s, length s - 1, fun (c: char) : bool = not (is_whitespace (c))) in
-  if i <= j then sub (s, i, j-i)
+  if i <= j then sub (s, i, j)
   else copy s
 
 (* [contains_from (s, i, c)] is true if the string [s] contains the character
