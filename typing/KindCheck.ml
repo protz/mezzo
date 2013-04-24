@@ -94,9 +94,9 @@ module P = struct
   let print_var (v : 'v var) : string =
     match v with
     | Local level ->
-	Printf.sprintf "level = %d" level
+       Printf.sprintf "level = %d" level
     | NonLocal _ ->
-	"external point"
+       "external point"
 
   let print_env (env : 'v env) : document =
     (* We print just [env.variables]. *)
@@ -150,8 +150,8 @@ let print_error env error buf () =
   begin match error with
   | Unbound (namespace, x) ->
       bprintf
-	"The %s %s has not been defined."
-	namespace x
+       "The %s %s has not been defined."
+       namespace x
   | BoundTwice (namespace, x) ->
       bprintf
         "The %s %s is defined twice."
@@ -162,16 +162,16 @@ let print_error env error buf () =
       (* The expected kind is never an arrow. *)
       assert (xl = []);
       if Kind.equal ir xr then begin
-	let missing = List.length il in
-	assert (missing <> 0);
-	(* Only a type variable can have an arrow kind; a type application
-	   cannot. So the number of arguments supplied by the user must be
-	   zero, and we can print "expects %d arguments" as opposed to the
-	   less precise "expects %d more arguments". *)
+       let missing = List.length il in
+       assert (missing <> 0);
+       (* Only a type variable can have an arrow kind; a type application
+          cannot. So the number of arguments supplied by the user must be
+          zero, and we can print "expects %d arguments" as opposed to the
+          less precise "expects %d more arguments". *)
         bprintf
           "This type constructor expects %d argument%s."
           missing
-	  (if missing > 1 then "s" else "")
+         (if missing > 1 then "s" else "")
       end
       else
         bprintf
@@ -182,10 +182,10 @@ let print_error env error buf () =
       bprintf
         "This type expects %d parameter%s, but is applied to %d argument%s."
         expected (MzPprint.plural expected)
-	provided (MzPprint.plural provided)
+       provided (MzPprint.plural provided)
   | ModeConstraintMismatch inferred ->
       bprintf
-	"This type has kind %s, whereas a type of kind type or perm was expected."
+       "This type has kind %s, whereas a type of kind type or perm was expected."
         (print inferred)
   | IllegalConsumes ->
       bprintf
@@ -195,19 +195,19 @@ let print_error env error buf () =
         "An assumption in a fact must bear on a type variable."
   | BadConclusionInFact (x, args) ->
       let expected =
-	List.fold_left (fun accu arg ->
-	  accu ^ " " ^ Variable.print arg
-	) (Variable.print x) args
+       List.fold_left (fun accu arg ->
+         accu ^ " " ^ Variable.print arg
+       ) (Variable.print x) args
       in
       bprintf
         "The conclusion of this fact must bear on the type %s."
         expected
   | NonDistinctHeadsInFact (x, mode) ->
       bprintf
-	"Distinct facts must concern distinct modes.\n\
+       "Distinct facts must concern distinct modes.\n\
          In the declaration of %a, two distinct facts concern the mode %s."
-	Variable.p x
-	(Mode.print mode)
+       Variable.p x
+       (Mode.print mode)
   | AdopterNotExclusive x ->
       bprintf
         "The type %a carries an adopts clause: it should be declared mutable."
@@ -218,18 +218,18 @@ let print_error env error buf () =
         Datacon.p datacon;
       assert (missing <> [] || extra <> []);
       if missing <> [] then
-	bprintf
-	  "\nThe following field%s missing: %a"
-	  (if List.length missing > 1 then "s are" else " is")
-	  P.p_fields missing;
+       bprintf
+         "\nThe following field%s missing: %a"
+         (if List.length missing > 1 then "s are" else " is")
+         P.p_fields missing;
       if extra <> [] then
-	bprintf
-	  "\nThe following field%s superfluous: %a"
-	  (if List.length extra > 1 then "s are" else " is")
-	  P.p_fields extra
+       bprintf
+         "\nThe following field%s superfluous: %a"
+         (if List.length extra > 1 then "s are" else " is")
+         P.p_fields extra
   | ImplicationOnlyOnArrow ->
       bprintf
-	"Implication => is permitted only on top of a function type."
+       "Implication => is permitted only on top of a function type."
   end;
   if Log.debug_level () > 4 then begin
     Printf.bprintf buf "\n";
@@ -449,7 +449,7 @@ let rec bv loc (accu : type_binding list) (p : pattern) : type_binding list =
       List.fold_left (bv loc) accu ps
   | PConstruct (_, fps) ->
       List.fold_left (fun accu (_, p) ->
-	bv loc accu p
+       bv loc accu p
       ) accu fps
   | PLocated (p, loc) ->
       bv loc accu p
@@ -559,9 +559,9 @@ let rec check_fact_conclusion env (x : Variable.name) (xs : Variable.name list) 
   | _ ->
       match flatten_tyapp ty with
       | y, ys when equal_TyVar x y && MzList.equal equal_TyVar xs ys ->
-	  ()
+         ()
       | _ ->
-	  raise_error env (BadConclusionInFact (x, xs))
+         raise_error env (BadConclusionInFact (x, xs))
 
 (* Each implication must mention a distinct mode in its conclusion. *)
 let check_distinct_heads env name facts =
@@ -591,7 +591,7 @@ let rec check env (ty : typ) (expected : kind) =
   | _ ->
       let inferred = infer env ty in
       if not (Kind.equal inferred expected) then
-	mismatch env expected inferred
+       mismatch env expected inferred
 
 and infer env (ty : typ) : kind =
   match ty with
@@ -620,14 +620,14 @@ and infer env (ty : typ) : kind =
 
   | TyConcrete ((dref, fields), clause) ->
       (* TEMPORARY find the flavor of this data constructor (either
-	 by looking up the definition of its type, or by extending
-	 the [datacon_info] record with this information?) and check
-	 that its flavor is [Mutable]. Not required for soundness,
-	 but seems reasonable. *)
+        by looking up the definition of its type, or by extending
+        the [datacon_info] record with this information?) and check
+        that its flavor is [Mutable]. Not required for soundness,
+        but seems reasonable. *)
       (* Resolve this data constructor reference. *)
       let _, _ = resolve_datacon env dref in
       (* Check that no field is provided twice, and check the type
-	 of each field. *)
+        of each field. *)
       check_branch env fields;
       (* Check that exactly the expected fields are provided. *)
       check_exact_fields env dref fields;
@@ -645,13 +645,13 @@ and infer env (ty : typ) : kind =
       let expected = List.length kind2s
       and provided = List.length ty2s in
       if expected <> provided then
-	raise_error env (ArityMismatch (expected, provided));
+       raise_error env (ArityMismatch (expected, provided));
       List.iter2 (check_reset env) ty2s kind2s;
       kind
 
   | TyArrow (ty1, ty2) ->
       (* The scope of the names introduced in the left-hand side
-	 extends to the left- and right-hand sides. *)
+        extends to the left- and right-hand sides. *)
       let env = reset env ty1 in
       check env ty1 KType;
       check_reset env ty2 KType;
@@ -675,7 +675,7 @@ and infer env (ty : typ) : kind =
 
   | TyNameIntro (x, ty) ->
       (* In principle, this name has already been bound in the
-	 environment, via a previous call to [reset]. *)
+        environment, via a previous call to [reset]. *)
       assert (find_kind env (Unqualified x) = KTerm);
     check env ty KType;
     KType
@@ -776,8 +776,8 @@ let check_data_type_def env (def: data_type_def) =
       | Some t ->
           check_reset env t KType;
           (* We can do that early. *)
-	  if not (DataTypeFlavor.can_adopt flavor) then
-	    raise_error env (AdopterNotExclusive name)
+         if not (DataTypeFlavor.can_adopt flavor) then
+           raise_error env (AdopterNotExclusive name)
       end
   | Abbrev t ->
       let bindings = List.map (fun (_, binding) -> binding) bindings in
@@ -792,7 +792,7 @@ let branches_of_data_type_group (group : data_type_def list) =
     | Abstract _ ->
         []
     | Concrete (_, branches, _) ->
-	branches
+       branches
   ) group
 
 let branches_of_interface (interface : interface) =
@@ -952,22 +952,22 @@ let check_implementation env (program: implementation) : unit =
     | DataTypeGroup (loc, rec_flag, group) ->
         let env = { env with loc } in
         (* Create an environment that includes the types and data constructors
-	   defined in this group. *)
+          defined in this group. *)
         let extended_env = extend_check env (bindings_data_group_types group) in
-	let extended_env = bind_data_group_datacons extended_env group in
+       let extended_env = bind_data_group_datacons extended_env group in
         (* Check that the data constructors are unique within this group. *)
-	let (_ : _ list) = check_for_duplicate_datacons env (branches_of_data_type_group group) in
+       let (_ : _ list) = check_for_duplicate_datacons env (branches_of_data_type_group group) in
         (* Check each type definition in an appropriate environment. *)
-	let appropriate_env =
-	  match rec_flag with
-	  | Nonrecursive -> env
-	  | Recursive -> extended_env
-	in
-	List.iter (check_data_type_def appropriate_env) group;
-	(* Return the extended environment. *)
+       let appropriate_env =
+         match rec_flag with
+         | Nonrecursive -> env
+         | Recursive -> extended_env
+       in
+       List.iter (check_data_type_def appropriate_env) group;
+       (* Return the extended environment. *)
         extended_env
-	  (* TEMPORARY there is code duplication between here and
-	     [TransSurface.translate_data_type_group] *)
+         (* TEMPORARY there is code duplication between here and
+            [TransSurface.translate_data_type_group] *)
 
     | ValueDefinitions (loc, rec_flag, pat_exprs) ->
         let env = { env with loc } in

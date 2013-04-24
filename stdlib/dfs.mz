@@ -118,11 +118,11 @@ val prepostorder
       (* Change its state to [visiting] and obtain its successors. *)
       let successors = pre node in
       (* At this point, the node is not a member of any of the two pools. We
-	 own it. Examine its successors, stopping the loop early if a cycle
-	 is detected. *)
+        own it. Examine its successors, stopping the loop early if a cycle
+        is detected. *)
       let ok = for_all (dfs, successors) in
       (* After the recursive call, we still own this node, so we
-	 know that its state has not changed: it is still [visiting]. *)
+        know that its state has not changed: it is still [visiting]. *)
       if ok then begin
         (* Change its state to [visited]. *)
         post node;
@@ -130,9 +130,9 @@ val prepostorder
         give node to completed
       end
       else
-	(* If a cycle was detected during the recursive call, push
-	   this node onto the path. *)
-	path := cons (node, !path);
+       (* If a cycle was detected during the recursive call, push
+          this node onto the path. *)
+       path := cons (node, !path);
       (* In either case, propagate the result. *)
       ok
     end

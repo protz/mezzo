@@ -151,46 +151,46 @@ module ValuePrinter = struct
     else
       match v with
       | VInt i ->
-	  OCaml.int i
+         OCaml.int i
       | VAddress b ->
-	  let info = b.tag in
-	  if is_array info then
-	    (* An array. *)
-	    let vs = Array.to_list b.fields in
-	    array_with_nesting (
-	      separate_map semibreak (print_value depth) vs
-	    )
-	  else begin
-	    (* A memory block. *)
-	    let fields : (int * string * value) list =
-	      Variable.Map.fold (fun field index accu ->
-		(index, Variable.print field, b.fields.(index)) :: accu
-	      ) info.datacon_fields []
-	    in
-	    let fields =
-	      List.sort (fun (i1, _, _) (i2, _, _) ->
-		Pervasives.compare i1 i2
-	      ) fields
-	    in
-	    begin match fields with
-	    | [] ->
-		utf8string info.datacon_name
-	    | _ :: _ ->
-		utf8string info.datacon_name ^^ space ^^ braces_with_nesting (
-		  separate_map semibreak (fun (_, field, v) ->
-		    (utf8string field ^^ space ^^ equals) ^//^
-		      print_value (depth + 1) v
-		  ) fields
-		)
-	    end
-	  end
+         let info = b.tag in
+         if is_array info then
+           (* An array. *)
+           let vs = Array.to_list b.fields in
+           array_with_nesting (
+             separate_map semibreak (print_value depth) vs
+           )
+         else begin
+           (* A memory block. *)
+           let fields : (int * string * value) list =
+             Variable.Map.fold (fun field index accu ->
+              (index, Variable.print field, b.fields.(index)) :: accu
+             ) info.datacon_fields []
+           in
+           let fields =
+             List.sort (fun (i1, _, _) (i2, _, _) ->
+              Pervasives.compare i1 i2
+             ) fields
+           in
+           begin match fields with
+           | [] ->
+              utf8string info.datacon_name
+           | _ :: _ ->
+              utf8string info.datacon_name ^^ space ^^ braces_with_nesting (
+                separate_map semibreak (fun (_, field, v) ->
+                  (utf8string field ^^ space ^^ equals) ^//^
+                    print_value (depth + 1) v
+                ) fields
+              )
+           end
+         end
       | VTuple vs ->
-	  parens_with_nesting (
-	    separate_map commabreak (print_value depth) vs
-	  )
+         parens_with_nesting (
+           separate_map commabreak (print_value depth) vs
+         )
       | VClosure _
       | VBuiltin _ ->
-	  string "<fun>"
+         string "<fun>"
 
   let print_value v =
     print_value 0 v
@@ -439,26 +439,26 @@ let eval_builtin (env : env) (loc : location) (b : string) (v : value) : value =
   | "_mz_array_create" ->
       let n, v = asPair asInt asValue v in
       begin try
-	makeArray (Array.create n v)
+       makeArray (Array.create n v)
       with Invalid_argument _ ->
-	Log.error "%aInvalid length at array creation: %d.\n" Lexer.p loc n
+       Log.error "%aInvalid length at array creation: %d.\n" Lexer.p loc n
       end
   | "_mz_array_unsafe_get"
   | "_mz_array_get" ->
       let r, i = asPair asArray asInt v in
       begin try
-	r.(i)
+       r.(i)
       with Invalid_argument _ ->
-	Log.error "%aInvalid index at array access: %d (%d).\n" Lexer.p loc i (Array.length r)
+       Log.error "%aInvalid index at array access: %d (%d).\n" Lexer.p loc i (Array.length r)
       end
   | "_mz_array_unsafe_set"
   | "_mz_array_set" ->
       let r, i, v = asTriple asArray asInt asValue v in
       begin try
-	r.(i) <- v;
-	unit_value
+       r.(i) <- v;
+       unit_value
       with Invalid_argument _ ->
-	Log.error "%aInvalid index at array update: %d (%d).\n" Lexer.p loc i (Array.length r)
+       Log.error "%aInvalid index at array update: %d (%d).\n" Lexer.p loc i (Array.length r)
       end
   | "_mz_array_length" ->
       let r = asArray v in
@@ -517,24 +517,24 @@ let rec match_pattern (env : env) (p : pattern) (v : value) : env =
       extend_unqualified_variable x v env
   | PTuple ps ->
       begin try
-	List.fold_left2 match_pattern env ps (asTuple v)
+       List.fold_left2 match_pattern env ps (asTuple v)
       with Invalid_argument _ ->
-	(* Tuples of non-matching lengths. *)
-	assert false
+       (* Tuples of non-matching lengths. *)
+       assert false
       end
   | PConstruct (dref, fps) ->
       let b = asBlock v in
       let info = resolve_datacon_reference dref env in
       if info == b.tag then
-	let fields = b.fields in
+       let fields = b.fields in
         List.fold_left (fun env (f, p) ->
-	  let offset = find_field f info.datacon_fields in
-	  match_pattern env p fields.(offset)
-	) env fps
+         let offset = find_field f info.datacon_fields in
+         match_pattern env p fields.(offset)
+       ) env fps
       else begin
-	(* A sanity check: physical equality of [datacon_info] records
-	   should be equivalent to equality of the [datacon_index] fields. *)
-	assert (info.datacon_index <> b.tag.datacon_index);
+       (* A sanity check: physical equality of [datacon_info] records
+          should be equivalent to equality of the [datacon_index] fields. *)
+       assert (info.datacon_index <> b.tag.datacon_index);
         raise MatchFailure
       end
   | PLocated (p, _)
@@ -572,10 +572,10 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
 
   | EVar x ->
       begin try
-	V.lookup_maybe_qualified x env.variables
+       V.lookup_maybe_qualified x env.variables
       with Not_found ->
-	(* Unknown variable. *)
-	assert false
+       (* Unknown variable. *)
+       assert false
       end
 
   (* Most builtin expressions produce a builtin value (a function), but some
@@ -593,13 +593,13 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
 
   | EFun (_type_parameters, argument_type, _result_type, body) ->
       VClosure {
-	(* The argument pattern is implicit in the argument type. *)
-	arg = type_to_pattern argument_type;
-	(* The function body. *)
-	body = body;
-	(* The environment. *)
-	(* TEMPORARY environment could/should be filtered? *)
-	env = env;
+       (* The argument pattern is implicit in the argument type. *)
+       arg = type_to_pattern argument_type;
+       (* The function body. *)
+       body = body;
+       (* The environment. *)
+       (* TEMPORARY environment could/should be filtered? *)
+       env = env;
       }
 
   | EAssign (e1, f, e2) ->
@@ -612,7 +612,7 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
 
   | EAssignTag (e, dref, _) ->
       (* We do not assume that the type-checker has annotated the abstract
-	 syntax tree, so we cannot use the [tag_update_info] component. *)
+        syntax tree, so we cannot use the [tag_update_info] component. *)
       let b = asBlock (eval env loc e) in
       b.tag <- resolve_datacon_reference dref env;
       unit_value
@@ -631,15 +631,15 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
       let v2 = eval env loc e2 in
       begin match v1 with
       | VClosure c1 ->
-	  (* Extend the closure's environment with a binding of the
-	     formal argument to the actual argument. Evaluate the
-	     closure body. *)
-	  eval (match_irrefutable_pattern c1.env c1.arg v2) loc c1.body
+         (* Extend the closure's environment with a binding of the
+            formal argument to the actual argument. Evaluate the
+            closure body. *)
+         eval (match_irrefutable_pattern c1.env c1.arg v2) loc c1.body
       | VBuiltin b ->
-	  eval_builtin env loc b v2
+         eval_builtin env loc b v2
       | _ ->
-	  (* Runtime tag error. *)
-	  assert false
+         (* Runtime tag error. *)
+         assert false
       end
 
   | ETApply (e, _) ->
@@ -655,21 +655,21 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
   | EConstruct (dref, fes) ->
       (* Evaluate the fields in the order specified by the programmer. *)
       let fvs =
-	List.map (fun (f, e) -> (f, eval env loc e)) fes
+       List.map (fun (f, e) -> (f, eval env loc e)) fes
       in
       (* Allocate a field array. *)
       let info = resolve_datacon_reference dref env in
       let fields = Array.create info.datacon_arity unit_value in
       (* Populate the field array. *)
       List.iter (fun (f, v) ->
-	let offset = find_field f info.datacon_fields in
-	fields.(offset) <- v
+       let offset = find_field f info.datacon_fields in
+       fields.(offset) <- v
       ) fvs;
       (* Allocate a memory block. *)
       VAddress {
-	tag = info;
-	adopter = None;
-	fields = fields;
+       tag = info;
+       adopter = None;
+       fields = fields;
       }
 
   | EIfThenElse (_, e, e1, e2) ->
@@ -719,7 +719,7 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
       let b1 = asBlock (eval env loc e1) in
       begin match b1.adopter with
       | Some b when (b == b2) ->
-	  true_value env
+         true_value env
       | _ ->
           false_value env
       end
@@ -736,11 +736,11 @@ and switch (env : env) (loc : location) (v : value) (branches : (pattern * expre
   | (p, e) :: branches ->
       begin match match_refutable_pattern env p v with
       | Some env ->
-	  (* [p] matches [v]. Evaluate the branch [e]. *)
-	  eval env loc e
+         (* [p] matches [v]. Evaluate the branch [e]. *)
+         eval env loc e
       | None ->
-	  (* [p] does not match [v]. Try the next branch. *)
-	  switch env loc v branches
+         (* [p] does not match [v]. Try the next branch. *)
+         switch env loc v branches
       end
   | [] ->
       (* No more branches. This should not happen if the type-checker has
@@ -757,25 +757,25 @@ and eval_definitions (env : env) ((loc, rec_flag, equations) : definitions) : en
   | Nonrecursive ->
       (* Evaluate the equations, in left-to-right order. *)
       List.fold_left (fun new_env (p, e) ->
-	(* For each equation [p = e], evaluate the expression [e] in the old
-	   environment [env], and match the resulting value against the
-	   pattern [p]. Accumulate the resulting bindings in the new
-	   environment [new_env]. The type-checker guarantees that no
-	   variable is bound twice. *)
-	match_irrefutable_pattern new_env p (eval env loc e)
+       (* For each equation [p = e], evaluate the expression [e] in the old
+          environment [env], and match the resulting value against the
+          pattern [p]. Accumulate the resulting bindings in the new
+          environment [new_env]. The type-checker guarantees that no
+          variable is bound twice. *)
+       match_irrefutable_pattern new_env p (eval env loc e)
       ) env equations
 
   | Recursive ->
       (* We must construct an environment and a number of closures
-	 that point to each other; this is Landin's knot. We begin
+        that point to each other; this is Landin's knot. We begin
          by constructing a list of partly initialized closures, as
          well as the new environment, which contains these closures. *)
       let (new_env : env), (closures : closure list) =
-	List.fold_left eval_recursive_equation (env, []) equations
+       List.fold_left eval_recursive_equation (env, []) equations
       in
       (* There remains to patch the closures with the new environment. *)
       List.iter (fun c ->
-	(* TEMPORARY environment could/should be filtered? *)
+       (* TEMPORARY environment could/should be filtered? *)
         c.env <- new_env
       ) closures;
       (* Done. *)
@@ -786,12 +786,12 @@ and eval_recursive_equation ((new_env, closures) as accu) (p, e) =
   | PVar f, EFun (_type_parameters, argument_type, _result_type, body) ->
       (* Build a closure with an uninitialized environment field. *)
       let c = {
-	(* The argument pattern is implicit in the argument type. *)
-	arg = type_to_pattern argument_type;
-	(* The function body. *)
-	body = body;
-	(* An uninitialized environment. *)
-	env = empty;
+       (* The argument pattern is implicit in the argument type. *)
+       arg = type_to_pattern argument_type;
+       (* The function body. *)
+       body = body;
+       (* An uninitialized environment. *)
+       env = empty;
       } in
       (* Bind [f] to this closure. *)
       extend_unqualified_variable f (VClosure c) new_env,
@@ -802,7 +802,7 @@ and eval_recursive_equation ((new_env, closures) as accu) (p, e) =
       eval_recursive_equation accu (p, e)
   | _, _ ->
       (* The left-hand side of a recursive definition must be a variable,
-	 and the right-hand side must be a lambda-abstraction. *)
+        and the right-hand side must be a lambda-abstraction. *)
       assert false
 
 (* ---------------------------------------------------------------------------- *)
@@ -814,22 +814,22 @@ let evaluate_data_type_def (env : env) (branches : data_type_def_branch list) : 
     (* For each data constructor, *)
     List.fold_left (fun (index, env) (datacon, defs) ->
       (* Compute the number of fields, and create a mapping of field names
-	 to field indices. *)
+        to field indices. *)
       let arity, fields =
-	List.fold_left (fun (arity, fields) def ->
-	  match def with
-	  | FieldValue (f, _) ->
-	      arity + 1, Variable.Map.add f arity fields
-	  | FieldPermission _ ->
-	      arity, fields
-	) (0, Variable.Map.empty) defs
+       List.fold_left (fun (arity, fields) def ->
+         match def with
+         | FieldValue (f, _) ->
+             arity + 1, Variable.Map.add f arity fields
+         | FieldPermission _ ->
+             arity, fields
+       ) (0, Variable.Map.empty) defs
       in
       (* Generate a new data constructor information record. *)
       let info = {
-	datacon_name = Datacon.print datacon;
-	datacon_arity = arity;
-	datacon_index = index;
-	datacon_fields = fields;
+       datacon_name = Datacon.print datacon;
+       datacon_arity = arity;
+       datacon_index = index;
+       datacon_fields = fields;
       } in
       (* Extend the environment with it. *)
       index + 1,
@@ -847,12 +847,12 @@ let eval_implementation_item (env : env) (item : toplevel_item) : env =
       eval_definitions env defs
   | OpenDirective m ->
       (* Assuming that the module [m] has been evaluated before, the (public)
-	 qualified names that it has declared are available in the environment.
-	 For each name of the form [m::x], we create a new local name [x]. *)
+        qualified names that it has declared are available in the environment.
+        For each name of the form [m::x], we create a new local name [x]. *)
       unqualify m env
   | DataTypeGroup (_, _, defs) ->
       (* The effect of evaluating a data type definition is to generate new
-	 data constructors. *)
+        data constructors. *)
       List.fold_left (fun env def ->
         match def.rhs with
         | Concrete (_, rhs, _) ->
@@ -900,11 +900,11 @@ let export_interface_item (m : Module.name) (env : env) (item : toplevel_item) :
       List.fold_left (fun env def ->
         match def.rhs with
         | Concrete (_, branches, _) ->
-	    (* For each data constructor, *)
-	    List.fold_left (fun env (datacon, _) ->
-	      (* Export this data constructor. *)
-		{ env with datacons = D.qualify m datacon env.datacons }
-	    ) env branches
+           (* For each data constructor, *)
+           List.fold_left (fun env (datacon, _) ->
+             (* Export this data constructor. *)
+              { env with datacons = D.qualify m datacon env.datacons }
+           ) env branches
         | Abstract _
         | Abbrev _ ->
             env

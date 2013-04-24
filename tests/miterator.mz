@@ -143,16 +143,16 @@ val rec use [a, s : perm, post : perm] (
       ()
   | Some { x } ->
       (* The iterator is not finished. Submit the element [x] to the user
-	 function [f], which returns a request to stop or continue. *)
+        function [f], which returns a request to stop or continue. *)
       if f x then begin
-	  (* If we should continue, invoke [next], which updates this
-	     iterator; and continue. *)
-	next i;
-	use (i, f)
+         (* If we should continue, invoke [next], which updates this
+            iterator; and continue. *)
+       next i;
+       use (i, f)
       end
       else
-	(* If we should stop, invoke [stop]. *)
-	stop i
+       (* If we should stop, invoke [stop]. *)
+       stop i
   end
 
 (* ------------------------------------------------------------------------------ *)
@@ -198,14 +198,14 @@ val rec equal [a, post1 : perm, post2 : perm, p : perm] (
       True
   | Some { x = x1 }, Some { x = x2 } ->
       if eq (x1, x2) then begin
-	next i1;
-	next i2;
-	equal (eq, i1, i2)
+       next i1;
+       next i2;
+       equal (eq, i1, i2)
       end
       else begin
-	stop i1;
-	stop i2;
-	False
+       stop i1;
+       stop i2;
+       False
       end
   | Some, None ->
       stop i1;

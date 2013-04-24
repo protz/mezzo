@@ -109,12 +109,12 @@ val rec merge [a] (
   | MCons { head = x }, MCons { head = y } ->
       if cmp (x, y) <= 0
       then begin
-	xs.tail <- merge (cmp, xs.tail, ys);
-	xs
+       xs.tail <- merge (cmp, xs.tail, ys);
+       xs
       end
       else begin
-	ys.tail <- merge (cmp, xs, ys.tail);
-	ys
+       ys.tail <- merge (cmp, xs, ys.tail);
+       ys
       end
  end
 
@@ -138,15 +138,15 @@ val sort [a] (
         and y = ys.head in
         if cmp (sense, x, y) <= 0
         then begin
-	  let tail = xs.tail in
-	  xs.tail <- accu;
-	  rev_merge (sense, tail, ys, accu)
-	end
+         let tail = xs.tail in
+         xs.tail <- accu;
+         rev_merge (sense, tail, ys, accu)
+       end
         else begin
-	  let tail = ys.tail in
-	  ys.tail <- accu;
-	  rev_merge (sense, xs, tail, accu)
-	end
+         let tail = ys.tail in
+         ys.tail <- accu;
+         rev_merge (sense, xs, tail, accu)
+       end
       end
       else
         rev_append (xs, accu)
@@ -165,14 +165,14 @@ val sort [a] (
     else if n = 2 then
       match xs with
       | MCons { head = x1; tail = MCons { head = x2; tail = any } as ys} ->
-	  (* [any] must be [MNil]. We do not check this fact. *)
+         (* [any] must be [MNil]. We do not check this fact. *)
           if cmp (sense, x1, x2) <= 0 then xs else begin
-	    xs.head <- x2;
-	    ys.head <- x1;
-	    xs
-	  end
+           xs.head <- x2;
+           ys.head <- x1;
+           xs
+         end
       | _ ->
-	  fail (* impossible *)
+         fail (* impossible *)
       end
     (* The general case. *)
     else begin

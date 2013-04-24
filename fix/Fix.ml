@@ -197,16 +197,16 @@ end
     assert (src.outgoing = []);
     let rec loop = function
       | [] ->
-	  ()
+         ()
       | dst :: dsts ->
-	  if dst.marked then
-	    loop dsts (* skip duplicate elements *)
-	  else begin
-	    dst.marked <- true;
-	    link src dst;
-	    loop dsts;
-	    dst.marked <- false
-	  end
+         if dst.marked then
+           loop dsts (* skip duplicate elements *)
+         else begin
+           dst.marked <- true;
+           link src dst;
+           loop dsts;
+           dst.marked <- false
+         end
     in
     loop dsts
 

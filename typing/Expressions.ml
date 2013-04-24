@@ -1105,7 +1105,7 @@ module ExprPrinter = struct
 
     | EAssignTag (e1, d, _) ->
         tagof ^^ print_expr env e1 ^^ larrow ^^ print_datacon (snd d)
-	  (* d.previous_datacon is not printed *)
+         (* d.previous_datacon is not printed *)
 
     | EAccess (e, f) ->
         print_expr env e ^^ dot ^^ print_field f
@@ -1176,7 +1176,7 @@ module ExprPrinter = struct
     | EOwns (e1, e2) ->
         print_expr env e1 ^^ space ^^
         string "owns" ^^ space ^^
-	print_expr env e2
+       print_expr env e2
 
     | EFail ->
         string "fail"

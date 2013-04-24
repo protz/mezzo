@@ -154,7 +154,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
         let name = fresh_var "/c" in
         let c = TyVar (Unqualified name) in
         let perm = TyAnchoredPermission (c, t) in
-	TySingleton c,
+       TySingleton c,
         [Some name, perm, location env]
 
     | TyUnknown
@@ -211,13 +211,13 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyConcrete ((dref, fields), clause) ->
       T.TyConcrete {
-	T.branch_flavor = ();
-	T.branch_datacon = resolve_datacon env dref;
-	T.branch_fields = translate_fields env fields;
-	T.branch_adopts =
-	  match clause with
-	  | None    -> TypeCore.ty_bottom
-	  | Some ty -> translate_type env ty
+       T.branch_flavor = ();
+       T.branch_datacon = resolve_datacon env dref;
+       T.branch_fields = translate_fields env fields;
+       T.branch_adopts =
+         match clause with
+         | None    -> TypeCore.ty_bottom
+         | Some ty -> translate_type env ty
       }
 
   | TySingleton t ->
@@ -242,8 +242,8 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyAnchoredPermission (t1, t2) ->
       T.TyAnchoredPermission (translate_type env t1, translate_type env t2)
-	(* TEMPORARY should be translate_type_with_names on the right-hand side,
-	   but that causes a large number of failures (why?). *)
+       (* TEMPORARY should be translate_type_with_names on the right-hand side,
+          but that causes a large number of failures (why?). *)
 
   | TyStar (t1, t2) ->
       T.TyStar (translate_type env t1, translate_type env t2)
@@ -273,10 +273,10 @@ let rec translate_type (env: env) (t: typ): T.typ =
 and translate_implication env (cs : mode_constraint list) = function
   | TyArrow (ty1, ty2) ->
       (* An implication above an arrow is turned into a conjunction in
-	 the left-hand side of the arrow. This is done on the fly, just
-	 before the translation, as a rewriting of the surface syntax to
-	 itself. (Doing it just after the translation would be more
-	 problematic, as the translation of arrows introduces quantifiers.) *)
+        the left-hand side of the arrow. This is done on the fly, just
+        before the translation, as a rewriting of the surface syntax to
+        itself. (Doing it just after the translation would be more
+        problematic, as the translation of arrows introduces quantifiers.) *)
       translate_type env (TyArrow (conjunction cs ty1, ty2))
   | TyImply (c, ty) ->
       (* Multiple implications above an arrow are allowed. *)
@@ -426,16 +426,16 @@ let translate_single_fact (params: type_binding list) (accu: Fact.fact) (fact: s
   let hs =
     List.fold_left (fun hs (mode, t) ->
       let name =
-	match tunloc t with
+       match tunloc t with
         | TyVar (Unqualified name) -> name
         | _ -> assert false
       in
       let p : parameter = MzList.index (fun (x, _, _) -> Variable.equal name x) params in
       (* We compute a meet of [previous_mode] and [mode], so that if
-	 several hypotheses bear on a single parameter, they will be
-	 correctly taken into account. *)
+        several hypotheses bear on a single parameter, they will be
+        correctly taken into account. *)
       let previous_mode =
-	try ParameterMap.find p hs with Not_found -> Mode.top
+       try ParameterMap.find p hs with Not_found -> Mode.top
       in
       ParameterMap.add p (Mode.meet previous_mode mode) hs
     ) ParameterMap.empty hypotheses
@@ -467,7 +467,7 @@ let translate_data_type_def (env : env) (def : data_type_def) =
       (* This fact will be refined later on. *)
       let fact = Fact.bottom in
       (* We store the annotated variance here. [Variance.analyze_data_types] will
-	 take care of checking it against the actual variance. *)
+        take care of checking it against the actual variance. *)
       T.({ data_name = name;
         data_location = loc;
         data_definition = Concrete branches;
@@ -608,8 +608,8 @@ let rec translate_pattern env = function
       translate_pattern (locate env pos) p
   | PAs (p, x) ->
       (* The internal syntax allows a pattern on the right-hand side,
-	 because this is more regular, even the surface syntax does
-	 not allow it. *)
+        because this is more regular, even the surface syntax does
+        not allow it. *)
       E.PAs (translate_pattern env p, translate_pattern env (PVar x))
   | PConstraint _ ->
         Log.error "[clean_pattern] should've been called on that type before!"

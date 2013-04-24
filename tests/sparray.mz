@@ -93,7 +93,7 @@ val to_array [a] (consumes t: sparray a): array a =
 val retrieve [a, spa: term, spa': term]
   ( consumes ( | (spa' @ sparray a)) | consumes (spa @ SPArray {
       repr: RUndo {
-	descendant: =spa'; offset: int; element: a
+       descendant: =spa'; offset: int; element: a
       } 
     })): ( | spa @ sparray a) =
     ()
@@ -116,15 +116,15 @@ val set [a] duplicable a =>
   (* Return the new semi-persistent array and a one-shot function that
      possesses the only permission to access the diff. *)
   spa', (osf_make
-	   (* I guess the needed annotation is the third one. *)
-	   [ ( | spa' @ sparray a) ]
-	   [ ( | spa @ sparray a) ]
-	   [ (spa @ SPArray {
-	     repr: RUndo {
-	       descendant: =spa'; offset: int; element: a
-	     } 
-	   }) ]
-	   (retrieve [a] [spa] [spa']))
+          (* I guess the needed annotation is the third one. *)
+          [ ( | spa' @ sparray a) ]
+          [ ( | spa @ sparray a) ]
+          [ (spa @ SPArray {
+            repr: RUndo {
+              descendant: =spa'; offset: int; element: a
+            } 
+          }) ]
+          (retrieve [a] [spa] [spa']))
 
 (* Swap two elements in a semi-persistent array, and return a one-shot
    function accouting for the two steps of the swap. *)

@@ -47,10 +47,10 @@ val internal_insert [a] (consumes x: a, q: fifo a, insertAtEnd: bool): () =
       give c to q;
       q.length <- q.length + 1;
       (* We have just inserted the cell [c] at the beginning of the
-	 queue. If the caller would like [c] to be inserted at the
-	 end of the queue, advance the [tail] pointer. *)
+        queue. If the caller would like [c] to be inserted at the
+        end of the queue, advance the [tail] pointer. *)
       if insertAtEnd then
-	q.tail <- c*)
+       q.tail <- c*)
   end
 
 (*
@@ -68,21 +68,21 @@ val retrieve [a] (q: fifo a) : option a =
       take tail from q; (* TEMPORARY why is there an "exclusive resource allocation conflict" here? *)
       let head = tail.next in
       if head == tail then begin
-	tag of q <- Empty;
-	q.length <- 0;
-	q.tail <- ()
+       tag of q <- Empty;
+       q.length <- 0;
+       q.tail <- ()
       end
       else begin
-	q.length <- q.length - 1;
-	take head from q;
-	tail.next <- head.next;
-	give tail to q
+       q.length <- q.length - 1;
+       take head from q;
+       tail.next <- head.next;
+       give tail to q
       end;
       (* At this point, we own the [head] cell. Note that this annotation
-	 is not required. *)
+        is not required. *)
       assert head @ cell a;
       (* The head cell must not be given back to the queue. We need to assert
-	 the ownership of [head.value], whose type is not duplicable. *)
+        the ownership of [head.value], whose type is not duplicable. *)
       some head.value
  end
 
@@ -92,12 +92,12 @@ val peek [a] duplicable a => (q: fifo a) : option a =
       none
   | NonEmpty { tail } ->
       let head =
-	taking tail from q begin
-	  tail.next
-	end
+       taking tail from q begin
+         tail.next
+       end
       in
       taking head from q begin
-	some head.value
+       some head.value
       end
   end
 
@@ -127,7 +127,7 @@ val rotate [a] (q: fifo a) : () =
   | NonEmpty { tail } ->
       (* Advance the tail pointer. *)
       taking tail from q begin
-	q.tail <- tail.next
+       q.tail <- tail.next
       end
   end
 
@@ -146,10 +146,10 @@ val fold [a, b] (
       accu
   | NonEmpty { tail } ->
       let rec fold (consumes accu: b, c: dynamic | q @ fifo a) : b =
-	take c from q;
+       take c from q;
         let Cell { next; value } = c in
         let accu = f (value, accu) in
-	give c to q;
+       give c to q;
         if tail == c then
           accu
         else

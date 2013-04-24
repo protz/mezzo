@@ -79,11 +79,11 @@ val remove [k, a, p : perm] (
         none
     | BCons { key; value } ->
         if ok key then begin
-	  prev.tail <- this.tail;
-	  some value
-	end
-	else
-	  loop (this, this.tail)
+         prev.tail <- this.tail;
+         some value
+       end
+       else
+         loop (this, this.tail)
     end
   in
 
@@ -93,11 +93,11 @@ val remove [k, a, p : perm] (
       b, none
   | BCons { key; value } ->
       if ok key then
-	(* If the first cell matches, return the list tail. *)
-	b.tail, some value
+       (* If the first cell matches, return the list tail. *)
+       b.tail, some value
       else
-	(* Otherwise, enter the above loop, and return the list head. *)
-	b, loop (b, b.tail)
+       (* Otherwise, enter the above loop, and return the list head. *)
+       b, loop (b, b.tail)
   end
 
 (* -------------------------------------------------------------------------- *)
@@ -171,10 +171,10 @@ val update [k, a, pre : perm, post : perm] (
         prev.tail <- insert (x, f none, this)
     | BCons { key; value } ->
         if equal (x, key) then
-	  (* The desired key was found. Invoke [f] with argument [some value]. *)
-	  prev.tail <- update_or_remove (this, f (some value))
-	else
-	  loop (this, this.tail)
+         (* The desired key was found. Invoke [f] with argument [some value]. *)
+         prev.tail <- update_or_remove (this, f (some value))
+       else
+         loop (this, this.tail)
     end
   in
 
@@ -184,12 +184,12 @@ val update [k, a, pre : perm, post : perm] (
       insert (x, f none, b)
   | BCons { key; value } ->
       if equal (x, key) then
-	(* The desired key was found. Invoke [f] with argument [some value]. *)
-	update_or_remove (b, f (some value))
+       (* The desired key was found. Invoke [f] with argument [some value]. *)
+       update_or_remove (b, f (some value))
       else begin
-	(* Otherwise, enter the above loop. The list head does not change. *)
-	loop (b, b.tail);
-	b
+       (* Otherwise, enter the above loop. The list head does not change. *)
+       loop (b, b.tail);
+       b
       end
   end
 
@@ -242,9 +242,9 @@ val length [k, a] (b: bucket k a) : int =
   let rec loop (b: bucket k a, accu: int) : int =
     match b with
     | BNil ->
-	accu
+       accu
     | BCons ->
-	loop (b.tail, accu + 1)
+       loop (b.tail, accu + 1)
     end
   in
   loop (b, 0)

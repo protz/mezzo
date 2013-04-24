@@ -90,8 +90,8 @@ val set: [a] duplicable a =>
   (consumes spa: sparray a, offset: int, element: a) ->
   (spa': sparray a,
    back: ( | consumes (spa' @ sparray a * spa @ SPArray {
-			  repr: RUndo {
-			    descendant: =spa'; offset: int; element: a
-			  } 
-			})) -> ( | spa @ sparray a) )
+                       repr: RUndo {
+                         descendant: =spa'; offset: int; element: a
+                       } 
+                     })) -> ( | spa @ sparray a) )
 *)

@@ -49,8 +49,8 @@ val postnumber (consumes nodes: pool (node unknown), roots: list dynamic) : pool
       false,
       successors,
       fun (consumes x: node unknown | c @ ref int) : (| x @ node int) =
-	(* Number this node, updating the counter. *)
-	x.info <- postincr c
+       (* Number this node, updating the counter. *)
+       x.info <- postincr c
     )
   in
   completed

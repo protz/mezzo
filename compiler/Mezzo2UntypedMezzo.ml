@@ -43,8 +43,8 @@ let abandon v1 v2 success failure =
     EApply (
       EBuiltin "_mz_address_eq",
       ETuple [
-	EAccess (v1, ParserUtils.mk_field adopter_field);
-	v2
+       EAccess (v1, ParserUtils.mk_field adopter_field);
+       v2
       ]
     ),
     success,
@@ -86,8 +86,8 @@ let is_normal (e : U.expression) : bool =
   | U.ETuple _
   | U.EConstruct _ ->
       (* We do not need to go deep, because this expression has been
-	 produced by [transl] and cannot be a tuple or construct
-	 that contains non-trivial computations. *)
+        produced by [transl] and cannot be a tuple or construct
+        that contains non-trivial computations. *)
       true
   | _ ->
       false
@@ -143,9 +143,9 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
   | ELet (flag, equations, body) ->
       (* We do not hoist definitions out of a [let] binding. TEMPORARY? *)
       k (U.ELet (
-	flag,
-	reset_transl_equations loc equations,
-	reset_transl loc body
+       flag,
+       reset_transl_equations loc equations,
+       reset_transl loc body
       ))
   | EFun (_type_parameters, argument_type, _result_type, body) ->
       (* The argument pattern is implicit in the argument type. *)
@@ -153,7 +153,7 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       k (U.EFun (p, reset_transl loc body))
   | EAssign (e1, f, e2) ->
       (* Naming [e1] is sufficient to impose left-to-right evaluation.
-	 There is no need to also name [e2]. *)
+        There is no need to also name [e2]. *)
       eval "obj" loc e1 (fun v1 ->
       transl     loc e2 (fun v2 ->
       k (U.EAssign (v1, f, v2))
@@ -171,7 +171,7 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       k (U.ETuple [])
   | EApply (e1, e2) ->
       (* Naming [e1] is sufficient to impose left-to-right evaluation.
-	 There is no need to also name [e2]. *)
+        There is no need to also name [e2]. *)
       eval "fun" loc e1 (fun v1 ->
       transl loc e2 (fun v2 ->
       k (U.EApply (v1, v2))
@@ -189,7 +189,7 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
   | EConstruct (datacon, fes) ->
       MzList.cps_map (eval_field loc) fes (fun fvs ->
       (* Introduce the adopter field. *)
-      k (U.EConstruct (datacon,	init_adopter_field fvs))
+      k (U.EConstruct (datacon,       init_adopter_field fvs))
       )
   | EIfThenElse (_, e, e1, e2) ->
       transl loc e (fun v ->
@@ -199,10 +199,10 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       k (U.EWhile (reset_transl loc e1, reset_transl loc e2))
   | ESequence (e1, e2) ->
       if is_unit e1 then
-	transl loc e2 k
+       transl loc e2 k
       else
-	(* We do not hoist definitions out of a sequence. TEMPORARY? *)
-	k (U.ESequence (reset_transl loc e1, reset_transl loc e2))
+       (* We do not hoist definitions out of a sequence. TEMPORARY? *)
+       k (U.ESequence (reset_transl loc e1, reset_transl loc e2))
   | ELocated (e, loc) ->
       transl loc e k
   | EInt i ->
@@ -223,11 +223,11 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       eval "adopter" loc e2 (fun v2 ->
       (* if v1.adopter == v2 *)
       k (
-	abandon v1 v2
-	  (* then v1.adopter <- null *)
-	  (U.EAssign (v1, ParserUtils.mk_field adopter_field, U.ENull))
-	  (* else fail *)
-	  (U.EFail (Log.msg "%aA take instruction failed.\n" Lexer.p loc))
+       abandon v1 v2
+         (* then v1.adopter <- null *)
+         (U.EAssign (v1, ParserUtils.mk_field adopter_field, U.ENull))
+         (* else fail *)
+         (U.EFail (Log.msg "%aA take instruction failed.\n" Lexer.p loc))
       )))
 
   | EOwns (e2, e1) ->
@@ -304,9 +304,9 @@ let transl_item (implementation : bool) = function
       [ U.ValueDeclaration x ]
   | OpenDirective m ->
       if implementation then
-	[ U.OpenDirective m ]
+       [ U.OpenDirective m ]
       else
-	[]
+       []
 
 (* ---------------------------------------------------------------------------- *)
 

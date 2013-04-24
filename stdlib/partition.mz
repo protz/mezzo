@@ -49,8 +49,8 @@ val attach [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : ()
     match b.cell with
     | None ->
         b.cell <- some c
-	(* The cell [c] was isolated, and there is no pre-existing cycle.
-	   No insertion is required. *)
+       (* The cell [c] was isolated, and there is no pre-existing cycle.
+          No insertion is required. *)
     | Some ->
         (* Insert the cell [c] into the cycle of the elements of [b]. *)
         doublylinked::meld [item a] (r.cells, c, b.cell.contents)
@@ -63,7 +63,7 @@ val detach [a] (r: region a, c: dynamic (* cell *)) : () =
   let b : dynamic =
     doublylinked::consult [a = item a] (r.cells, c, fun (i : item a) : dynamic =
       if (i.block == i) then
-	fail;
+       fail;
       let b = i.block in
       i.block <- i;
       b

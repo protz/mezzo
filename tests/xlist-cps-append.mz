@@ -19,7 +19,7 @@ val rec cps_mappend [a, b, p : perm] (
       (* Naïve: every [XCons] cell of the list [x] will be assigned. *)
       let f (consumes z : xlist a | consumes (x @ XCons { head: a; tail: unknown } * p)) : b =
         x.tail <- z;
-	k x
+       k x
       in 
       cps_mappend (x.tail, y, f)
   end

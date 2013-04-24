@@ -330,9 +330,9 @@ let rec modulo_flex (env: env) (ty: typ): typ =
   | TyOpen (VFlexible f) ->
       begin match (find_flex_or_fail env f).structure with
       | Instantiated ty ->
-	  modulo_flex env ty
+         modulo_flex env ty
       | NotInstantiated _ ->
-	  ty
+         ty
       end
   | _ ->
       ty
@@ -840,8 +840,8 @@ class ['env] iter = object (self)
           (* This is an abstract type. There are no branches. *)
           ()
       | Concrete branches ->
-	  (* Visit the branches in this extended environment. *)
-	  List.iter (self#unresolved_branch env) branches
+         (* Visit the branches in this extended environment. *)
+         List.iter (self#unresolved_branch env) branches
       | Abbrev t ->
           self#visit env t
     ) group.group_items
@@ -871,8 +871,8 @@ let clean (top : env) (sub : env) : typ -> typ =
       let ty = modulo_flex_v sub v in
       match ty with
       | TyOpen p ->
-	  (* A (rigid or flexible) variable is allowed to escape only
-	     if it makes sense in the environment [top]. *)
+         (* A (rigid or flexible) variable is allowed to escape only
+            if it makes sense in the environment [top]. *)
           if valid top p then ty else raise UnboundPoint
       | _ ->
           self#visit () ty
@@ -1105,23 +1105,23 @@ and equal env (t1: typ) (t2: typ) =
 
     | TyConcrete branch1, TyConcrete branch2 ->
         resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon &&
-	(* In principle, if the data constructors are equal, then the flavors
-	   should be equal too (we do not allow the flavor to change independently
-	   of the data constructor), and the lists of fields should have the same
-	   lengths (the list of fields is determined by the data constructor). *)
-	(
-	  assert (branch1.branch_flavor = branch2.branch_flavor);
+       (* In principle, if the data constructors are equal, then the flavors
+          should be equal too (we do not allow the flavor to change independently
+          of the data constructor), and the lists of fields should have the same
+          lengths (the list of fields is determined by the data constructor). *)
+       (
+         assert (branch1.branch_flavor = branch2.branch_flavor);
           assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
           equal branch1.branch_adopts branch2.branch_adopts &&
-	  List.fold_left2 (fun acc f1 f2 ->
-	    match f1, f2 with
-	    | FieldValue (f1, t1), FieldValue (f2, t2) ->
-		acc && Field.equal f1 f2 && equal t1 t2
-	    | FieldPermission t1, FieldPermission t2 ->
-		acc && equal t1 t2
-	    | _ ->
-		false) true branch1.branch_fields branch2.branch_fields
-	)
+         List.fold_left2 (fun acc f1 f2 ->
+           match f1, f2 with
+           | FieldValue (f1, t1), FieldValue (f2, t2) ->
+              acc && Field.equal f1 f2 && equal t1 t2
+           | FieldPermission t1, FieldPermission t2 ->
+              acc && equal t1 t2
+           | _ ->
+              false) true branch1.branch_fields branch2.branch_fields
+       )
 
     | TySingleton t1, TySingleton t2 ->
         equal t1 t2
@@ -1268,27 +1268,27 @@ let get_external_datacons env : (Module.name * var * int * Datacon.name * Field.
      * corresponding definitions. *)
     match definition with
     | Concrete def ->
-	(* Find the module name which this definition comes from. Yes, there's
-	 * no better way to do that. *)
-	let mname = MzList.find_opt (function User (mname, _) -> Some mname | _ -> None) names in
-	let mname = Option.extract mname in
-	(* Ignore this definition if it is associated with the current module. *)
-	if Module.equal mname (module_name env) then
-	  acc
-	else
-	  (* Iterate over the branches of this definition. *)
-	  MzList.fold_lefti (fun i acc branch ->
-	    let dc = branch.branch_datacon
-	    and fields =
-	      MzList.map_some (function
-	      | FieldValue (name, _) -> Some name
-	      | FieldPermission _ -> None
-	      ) branch.branch_fields
-	    in
-	    (mname, var, i, dc, fields) :: acc
-	  ) acc def
+       (* Find the module name which this definition comes from. Yes, there's
+        * no better way to do that. *)
+       let mname = MzList.find_opt (function User (mname, _) -> Some mname | _ -> None) names in
+       let mname = Option.extract mname in
+       (* Ignore this definition if it is associated with the current module. *)
+       if Module.equal mname (module_name env) then
+         acc
+       else
+         (* Iterate over the branches of this definition. *)
+         MzList.fold_lefti (fun i acc branch ->
+           let dc = branch.branch_datacon
+           and fields =
+             MzList.map_some (function
+             | FieldValue (name, _) -> Some name
+             | FieldPermission _ -> None
+             ) branch.branch_fields
+           in
+           (mname, var, i, dc, fields) :: acc
+         ) acc def
     | _ ->
-	acc
+       acc
   ) []
 
 (* ---------------------------------------------------------------------------- *)
@@ -1301,9 +1301,9 @@ let get_exports env mname =
     List.fold_left (fun acc name ->
       match name with
       | User (m, x) when Module.equal m mname ->
-	  (x, kind, VRigid point) :: acc
+         (x, kind, VRigid point) :: acc
       | _ ->
-	  acc
+         acc
     ) acc names
   ) []
 
@@ -1314,9 +1314,9 @@ let get_external_names env =
     List.fold_left (fun acc name ->
       match name with
       | User (m, x) when not (Module.equal m mname) ->
-	  (m, x, kind, VRigid point) :: acc
+         (m, x, kind, VRigid point) :: acc
       | _ ->
-	  acc
+         acc
     ) acc names
   ) []
 

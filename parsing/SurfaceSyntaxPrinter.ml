@@ -52,14 +52,14 @@ and normal_type ty =
       (* TEMPORARY might wish to fuse adjacent quantifiers *)
       let bs = [ b ] in
       prefix 0 1
-	(brackets (commas binding bs))
-	(normal_type ty)
+       (brackets (commas binding bs))
+       (normal_type ty)
   | TyExists (b, ty) ->
       (* TEMPORARY might wish to fuse adjacent quantifiers *)
       let bs = [ b ] in
       prefix 0 1
-	(braces (commas binding bs))
-	(normal_type ty)
+       (braces (commas binding bs))
+       (normal_type ty)
   | TyAnd (c, ty) ->
         prefix 0 1
           (mode_constraint c ^^ string " |")
@@ -91,8 +91,8 @@ and consumes_type ty =
   match ty with
   | TyConsumes ty ->
       prefix 2 1
-	(string "consumes")
-	(loose_type ty)
+       (string "consumes")
+       (loose_type ty)
   | _ ->
       loose_type ty
 
@@ -100,11 +100,11 @@ and very_loose_type ty =
   match ty with
   | TyStar (ty1, ty2) ->
       prefix 0 1
-	(consumes_type ty1 ^^ string " *")
+       (consumes_type ty1 ^^ string " *")
         (very_loose_type ty2)
   | TyTuple ((_ :: _ :: _) as tys) ->
       (* I do not insert parentheses by default. They will be inserted
-	 if required. *)
+        if required. *)
       separate_map commabreak consumes_type tys
   | TyTuple [ _ ] ->
       assert false (* unexpected *)
@@ -118,14 +118,14 @@ and fat_type ty =
       string "| " ^^ very_loose_type ty2
   | TyBar (ty1, ty2) ->
       (* either:
-	 t | p
-	 or:
-	   t
-	 | p
+        t | p
+        or:
+          t
+        | p
       *)
       group (
-	nest 2 (break 0 ^^ fat_type ty1) ^/^
-	string "| " ^^ nest 2 (very_loose_type ty2)
+       nest 2 (break 0 ^^ fat_type ty1) ^/^
+       string "| " ^^ nest 2 (very_loose_type ty2)
       )
   | _ ->
       very_loose_type ty
@@ -158,17 +158,17 @@ and concrete ty =
   | TyConcrete ((dref, fs), clause) ->
       datacon_reference dref ^^
       (
-	if List.length fs > 0 then
-	  space ^^ braces_with_nesting (separate_map semibreak field fs)
-	else
-	  empty
+       if List.length fs > 0 then
+         space ^^ braces_with_nesting (separate_map semibreak field fs)
+       else
+         empty
       ) ^^
       (
-	match clause with
-	| None ->
-	    empty
-	| Some clause ->
-	    string " adopts " ^^ normal_type clause
+       match clause with
+       | None ->
+           empty
+       | Some clause ->
+           string " adopts " ^^ normal_type clause
       )
   | _ ->
     assert false (* cannot happen *)
@@ -179,8 +179,8 @@ and field = function
       utf8string (Field.print f) ^^ string " = " ^^ variable y
   | FieldValue (f, ty) ->
       prefix 2 1
-	(utf8string (Field.print f) ^^ colon)
-	(normal_type ty)
+       (utf8string (Field.print f) ^^ colon)
+       (normal_type ty)
   | FieldPermission ty ->
       string "| " ^^ very_loose_type ty
 

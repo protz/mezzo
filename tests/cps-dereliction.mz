@@ -6,13 +6,13 @@ val dereliction [a, b] (
     [answer, p : perm] (
       x: a,
       k: (b | consumes p) -> answer
-			   | consumes p
+                        | consumes p
     ) -> answer
 ) :
   [answer, p : perm] (
     x: a,
     k: (b |          p) -> answer
-			 |          p
+                      |          p
   ) -> answer
   =
   (* Here, we are forced to eta-expand the function [f] and to use an

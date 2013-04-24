@@ -674,8 +674,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
          * for the sub-fields, the core {!Permissions} module will know how to
          * deal with that. *)
         | TyConcrete branch_l, TyConcrete branch_r ->
-	    let datacon_l = branch_l.branch_datacon
-	    and datacon_r = branch_r.branch_datacon in
+           let datacon_l = branch_l.branch_datacon
+           and datacon_r = branch_r.branch_datacon in
             let t_left: var = !!(fst datacon_l) in
             let t_right: var = !!(fst datacon_r) in
             let dest_var = Option.extract dest_var in
@@ -697,8 +697,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
               in
               let r = 
                 let open TypeErrors in
-	        let clause_l = branch_l.branch_adopts
-		and clause_r = branch_r.branch_adopts in
+               let clause_l = branch_l.branch_adopts
+              and clause_r = branch_r.branch_adopts in
                 try
                   let clause_l = clean top left_env clause_l in
                   let clause_r = clean top right_env clause_r in
@@ -716,10 +716,10 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                   raise_error top (NotMergingClauses (left_env, left_perm, clause_l, right_env, right_perm, clause_r))
               in
               r >>= fun (left_env, right_env, dest_env, clause) ->
-	      let branch = { branch_l with
-		branch_fields = List.rev dest_fields;
-		branch_adopts = clause;
-	      } in
+             let branch = { branch_l with
+              branch_fields = List.rev dest_fields;
+              branch_adopts = clause;
+             } in
               Some (left_env, right_env, dest_env, TyConcrete branch)
 
 
@@ -789,7 +789,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             Some (left_env, right_env, dest_env, TySingleton dest_t)
 
         | TyConcrete branch_l, _ ->
-	    let datacon_l = branch_l.branch_datacon in
+           let datacon_l = branch_l.branch_datacon in
             let t_left = !!(fst datacon_l) in
             let t_dest = t_left in
 
@@ -802,7 +802,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
 
         | _, TyConcrete branch_r ->
-	    let datacon_r = branch_r.branch_datacon in
+           let datacon_r = branch_r.branch_datacon in
             let t_right = !!(fst datacon_r) in
             let t_dest = t_right in
 

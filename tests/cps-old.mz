@@ -44,35 +44,35 @@ val rec cps_iter [a, b, p : perm] (
       k Done
   | Cons { head } ->
       (* The list is non-empty. The first thing to do is to call [f].
-	 All of our permissions are transmitted to [f]. Indeed, the
-	 permission [head @ a] is explicitly requested by [f], and
-	 our other permissions collectively become the parameter [q]
-	 that [f] passes on to its continuation. *)
+        All of our permissions are transmitted to [f]. Indeed, the
+        permission [head @ a] is explicitly requested by [f], and
+        our other permissions collectively become the parameter [q]
+        that [f] passes on to its continuation. *)
       f
-	[ q = (xs @ Cons { head; tail: list a } * p) ] (* optional annotation! *)
-	(head,
-	fun (r : request | consumes (head @ a * xs @ Cons { head; tail: list a } * p)) : b =
-	  (* We are now in the continuation of [f]. Our permissions
-	     have been passed back to us, so we are still in good
-	     shape. *)
-	  match r with
-	  | Stop ->
-	      (* The request produced by [f] is [Stop]. Easy. We are
-		 able to reconstruct [xs @ list a], which [k] requires. *)
-	      k Stopped
-	  | Continue ->
-	      (* The request produced by [f] is [Continue]. This is
-		 the trickier case. The code is simple: it is just
-		 a recursive call. The trick is in understanding the
-		 permissions that will be passed to [k]. Officially,
-		 [k] requires [p] and [xs @ list a]. It will receive
-		 [p * xs @ Cons { head: a; tail }] and [tail @ list a].
-		 Up to a recombination, these are the same, so the call
-		 is well-typed. *)
-	      let tail = xs.tail in
-  	      cps_iter [ p = (p * xs @ Cons { head: a; tail }) ] (tail, f, k)
-	  end
-	)
+       [ q = (xs @ Cons { head; tail: list a } * p) ] (* optional annotation! *)
+       (head,
+       fun (r : request | consumes (head @ a * xs @ Cons { head; tail: list a } * p)) : b =
+         (* We are now in the continuation of [f]. Our permissions
+            have been passed back to us, so we are still in good
+            shape. *)
+         match r with
+         | Stop ->
+             (* The request produced by [f] is [Stop]. Easy. We are
+               able to reconstruct [xs @ list a], which [k] requires. *)
+             k Stopped
+         | Continue ->
+             (* The request produced by [f] is [Continue]. This is
+               the trickier case. The code is simple: it is just
+               a recursive call. The trick is in understanding the
+               permissions that will be passed to [k]. Officially,
+               [k] requires [p] and [xs @ list a]. It will receive
+               [p * xs @ Cons { head: a; tail }] and [tail @ list a].
+               Up to a recombination, these are the same, so the call
+               is well-typed. *)
+             let tail = xs.tail in
+               cps_iter [ p = (p * xs @ Cons { head: a; tail }) ] (tail, f, k)
+         end
+       )
   end
 
 (* Now, suppose [f] does not need to capture its continuation. We wrap the
@@ -146,8 +146,8 @@ and product a (pre : perm) (post : perm) =
       head: a,
       continuation: (request | consumes (head @ a * pre)) -> iterator a post
         (* If the [request] is [Stop], then the resulting iterator will
-	   certainly be [IFinished]. Unfortunately, we cannot encode this
-	   property in the type of the continuation. *)
+          certainly be [IFinished]. Unfortunately, we cannot encode this
+          property in the type of the continuation. *)
       | pre
     )}
 
@@ -190,15 +190,15 @@ val rec use_iterator [a, p : perm, post : perm] (
   match i with
   | IFinished ->
       (* If the iterator is finished, report its outcome. The permission
-	 [post] is available, so we are happy. *)
+        [post] is available, so we are happy. *)
       i.outcome
   | IAvailable ->
       (* If the iterator is not finished, then we have an element [x] and
-	 a function [next] that will provide us with a new iterator once
-	 we surrender the ownership of [x]. *)
+        a function [next] that will provide us with a new iterator once
+        we surrender the ownership of [x]. *)
       let x, next = i.content.content in
       (* Submit [x] to the user function [f], which returns a request to
-	 stop or continue. *)
+        stop or continue. *)
       let r = f x in
       (* Pass the request on to [next], which returns a new iterator. *)
       let i = next r in
@@ -220,8 +220,8 @@ val rec elements_of_iterator [a, post : perm] duplicable a => (
     use_iterator (
       i,
       fun (x: a | r @ ref (list a)) : request =
-	r := cons (x, !r);
-	Continue
+       r := cons (x, !r);
+       Continue
     )
   in
   !r
@@ -261,12 +261,12 @@ val equal_iterators [a, post1 : perm, post2 : perm] (
         let x1, next1 = i1.content.content
         and x2, next2 = i2.content.content in
         if eq (x1, x2) then
-  	  loop (ok, next1 Continue, next2 Continue)
+           loop (ok, next1 Continue, next2 Continue)
         else
-	  loop (False, next1 Stop, next2 Stop)
+         loop (False, next1 Stop, next2 Stop)
     | IAvailable, IFinished ->
         let x1, next1 = i1.content.content in
-	loop (False, next1 Stop, i2)
+       loop (False, next1 Stop, i2)
     | IFinished, IAvailable ->
         let x2, next2 = i2.content.content in
         loop (False, i1, next2 Stop)

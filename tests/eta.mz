@@ -20,12 +20,12 @@ val f [a] (consumes xs: list a) : () =
 
       (* Eta-expansion. *)
       let k1   (| consumes (head @ a * xs @ Cons { head; tail: list a })) : () =
-	j()
+       j()
       in
 
       (* No eta-expansion. *)
       let k2 : (| consumes (head @ a * xs @ Cons { head; tail: list a })) -> () =
-	j
+       j
       in
 
       (* This works. *)

@@ -84,14 +84,14 @@ val force [a] (t: thunk a) : a =
        as witnessed by the permission [id @ b -> a]. *)
     update (x, fun (consumes s: state b) : (state b, a) =
       (* We will now possibly update [x], by writing a new value
-	 of type [state b] into it, and return a result of type
-	 [b], which, by applying [id], we coerce to type [a]. *)
+        of type [state b] into it, and return a result of type
+        [b], which, by applying [id], we coerce to type [a]. *)
       match s with
       | Evaluated ->
-	  s, (id s.result)
+         s, (id s.result)
       | Suspended ->
-	  let result : b = s.computation() in
-	  Evaluated { result = result }, id result
+         let result : b = s.computation() in
+         Evaluated { result = result }, id result
       end
     )
   )

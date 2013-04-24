@@ -96,9 +96,9 @@ module Endianness = struct
     let rec highest_bit x =
       let m = lowest_bit x in
       if x = m then
-	m
+       m
       else
-	highest_bit (x - m)
+       highest_bit (x - m)
 
     (* Performing a logical ``xor'' of [i0] and [i1] yields a bit field where all differences between [i0] and [i1]
        show up as one bits. (There must be at least one, since [i0] and [i1] are distinct.) The ``first'' one is
@@ -158,11 +158,11 @@ module Make (X : Endianness.S) = struct
 
   let rec choose = function
     | Empty ->
-	raise Not_found
+       raise Not_found
     | Leaf (key, data) ->
-	key, data
+       key, data
     | Branch (_, _, tree0, _) ->
-	choose tree0
+       choose tree0
 
   (* [lookup k m] looks up the value associated to the key [k] in the map [m], and raises [Not_found] if no value is
      bound to [k].
@@ -174,14 +174,14 @@ module Make (X : Endianness.S) = struct
 
   let rec lookup key = function
     | Empty ->
-	raise Not_found
+       raise Not_found
     | Leaf (key', data) ->
-	if key = key' then
-	  data
-	else
-	  raise Not_found
+       if key = key' then
+         data
+       else
+         raise Not_found
     | Branch (_, mask, tree0, tree1) ->
-	lookup key (if (key land mask) = 0 then tree0 else tree1)
+       lookup key (if (key land mask) = 0 then tree0 else tree1)
 
   let find =
     lookup
@@ -235,23 +235,23 @@ module Make (X : Endianness.S) = struct
 
     let rec add t =
       match t with
-      |	Empty ->
-	  Leaf (k, d)
-      |	Leaf (k0, d0) ->
-	  if k = k0 then
-	    let d' = decide d0 d in
-	    if d' == d0 then
-	      raise Unchanged
-	    else
-	      Leaf (k, d')
-	  else
-	    join k (Leaf (k, d)) k0 t
-      |	Branch (p, m, t0, t1) ->
-	  if match_prefix k p m then
-	    if (k land m) = 0 then Branch (p, m, add t0, t1)
-	    else Branch (p, m, t0, add t1)
-	  else
-	    join k (Leaf (k, d)) p t in
+      |       Empty ->
+         Leaf (k, d)
+      |       Leaf (k0, d0) ->
+         if k = k0 then
+           let d' = decide d0 d in
+           if d' == d0 then
+             raise Unchanged
+           else
+             Leaf (k, d')
+         else
+           join k (Leaf (k, d)) k0 t
+      |       Branch (p, m, t0, t1) ->
+         if match_prefix k p m then
+           if (k land m) = 0 then Branch (p, m, add t0, t1)
+           else Branch (p, m, t0, add t1)
+         else
+           join k (Leaf (k, d)) p t in
 
     add m
 
@@ -280,30 +280,30 @@ module Make (X : Endianness.S) = struct
 
   let is_singleton = function
     | Leaf (k, d) ->
-	Some (k, d)
+       Some (k, d)
     | Empty
     | Branch _ ->
-	None
+       None
 
   (* [is_empty m] returns [true] if and only if the map [m] defines no bindings at all. *)
 
   let is_empty = function
     | Empty ->
-	true
+       true
     | Leaf _
     | Branch _ ->
-	false
+       false
 
   (* [cardinal m] returns [m]'s cardinal, that is, the number of keys it binds, or, in other words, its domain's
      cardinal. *)
 
   let rec cardinal = function
     | Empty ->
-	0
+       0
     | Leaf _ ->
-	1
+       1
     | Branch (_, _, t0, t1) ->
-	cardinal t0 + cardinal t1
+       cardinal t0 + cardinal t1
 
   (* [remove k m] returns the map [m] deprived from any binding involving [k]. *)
 
@@ -311,25 +311,25 @@ module Make (X : Endianness.S) = struct
 
     let rec remove = function
       | Empty ->
-	  raise Not_found
+         raise Not_found
       | Leaf (key', _) ->
-	  if key = key' then
-	    Empty
-	  else
-	    raise Not_found
+         if key = key' then
+           Empty
+         else
+           raise Not_found
       | Branch (prefix, mask, tree0, tree1) ->
-	  if (key land mask) = 0 then
-	    match remove tree0 with
-	    | Empty ->
-		tree1
-	    | tree0 ->
-		Branch (prefix, mask, tree0, tree1)
-	  else
-	    match remove tree1 with
-	    | Empty ->
-		tree0
-	    | tree1 ->
-		Branch (prefix, mask, tree0, tree1) in
+         if (key land mask) = 0 then
+           match remove tree0 with
+           | Empty ->
+              tree1
+           | tree0 ->
+              Branch (prefix, mask, tree0, tree1)
+         else
+           match remove tree1 with
+           | Empty ->
+              tree0
+           | tree1 ->
+              Branch (prefix, mask, tree0, tree1) in
 
     try
       remove m
@@ -342,25 +342,25 @@ module Make (X : Endianness.S) = struct
 
   let rec lookup_and_remove key = function
     | Empty ->
-	raise Not_found
+       raise Not_found
     | Leaf (key', data) ->
-	if key = key' then
-	  data, Empty
-	else
-	  raise Not_found
+       if key = key' then
+         data, Empty
+       else
+         raise Not_found
     | Branch (prefix, mask, tree0, tree1) ->
-	if (key land mask) = 0 then
-	  match lookup_and_remove key tree0 with
-	  | data, Empty ->
-	      data, tree1
-	  | data, tree0 ->
-	      data, Branch (prefix, mask, tree0, tree1)
-	else
-	  match lookup_and_remove key tree1 with
-	  | data, Empty ->
-	      data, tree0
-	  | data, tree1 ->
-	      data, Branch (prefix, mask, tree0, tree1)
+       if (key land mask) = 0 then
+         match lookup_and_remove key tree0 with
+         | data, Empty ->
+             data, tree1
+         | data, tree0 ->
+             data, Branch (prefix, mask, tree0, tree1)
+       else
+         match lookup_and_remove key tree1 with
+         | data, Empty ->
+             data, tree0
+         | data, tree1 ->
+             data, Branch (prefix, mask, tree0, tree1)
 
   let find_and_remove =
     lookup_and_remove
@@ -379,54 +379,54 @@ module Make (X : Endianness.S) = struct
 
     let rec union s t =
       match s, t with
-	
-      |	Empty, _ ->
-	  t
+       
+      |       Empty, _ ->
+         t
       | (Leaf _ | Branch _), Empty ->
-	  s
+         s
 
       | Leaf(key, value), _ ->
-	  fine_add (reverse decide) key value t
+         fine_add (reverse decide) key value t
       | Branch _, Leaf(key, value) ->
-	  fine_add decide key value s
+         fine_add decide key value s
 
       | Branch(p, m, s0, s1), Branch(q, n, t0, t1) ->
-	  if (p = q) & (m = n) then
+         if (p = q) & (m = n) then
 
-  	    (* The trees have the same prefix. Merge their sub-trees. *)
+             (* The trees have the same prefix. Merge their sub-trees. *)
 
-	    let u0 = union s0 t0
-	    and u1 = union s1 t1 in
-	    if t0 == u0 && t1 == u1 then t
-	    else Branch(p, m, u0, u1)
+           let u0 = union s0 t0
+           and u1 = union s1 t1 in
+           if t0 == u0 && t1 == u1 then t
+           else Branch(p, m, u0, u1)
 
-	  else if (X.shorter m n) & (match_prefix q p m) then
+         else if (X.shorter m n) & (match_prefix q p m) then
 
-  	    (* [q] contains [p]. Merge [t] with a sub-tree of [s]. *)
+             (* [q] contains [p]. Merge [t] with a sub-tree of [s]. *)
 
-	    if (q land m) = 0 then
-	      Branch(p, m, union s0 t, s1)
-	    else
-	      Branch(p, m, s0, union s1 t)
+           if (q land m) = 0 then
+             Branch(p, m, union s0 t, s1)
+           else
+             Branch(p, m, s0, union s1 t)
 
-	  else if (X.shorter n m) & (match_prefix p q n) then
+         else if (X.shorter n m) & (match_prefix p q n) then
 
-	    (* [p] contains [q]. Merge [s] with a sub-tree of [t]. *)
+           (* [p] contains [q]. Merge [s] with a sub-tree of [t]. *)
 
-	    if (p land n) = 0 then
-	      let u0 = union s t0 in
-	      if t0 == u0 then t
-	      else Branch(q, n, u0, t1)
-	    else
-	      let u1 = union s t1 in
-	      if t1 == u1 then t
-	      else Branch(q, n, t0, u1)
+           if (p land n) = 0 then
+             let u0 = union s t0 in
+             if t0 == u0 then t
+             else Branch(q, n, u0, t1)
+           else
+             let u1 = union s t1 in
+             if t1 == u1 then t
+             else Branch(q, n, t0, u1)
 
-	  else
+         else
 
-	    (* The prefixes disagree. *)
+           (* The prefixes disagree. *)
 
-	    join p s q t in
+           join p s q t in
 
     union m1 m2
 
@@ -441,12 +441,12 @@ module Make (X : Endianness.S) = struct
 
   let rec iter f = function
     | Empty ->
-	()
+       ()
     | Leaf (key, data) ->
-	f key data
+       f key data
     | Branch (_, _, tree0, tree1) ->
-	iter f tree0;
-	iter f tree1
+       iter f tree0;
+       iter f tree1
 
   (* [fold f m seed] invokes [f k d accu], in turn, for each binding from key [k] to datum [d] in the map
      [m]. Keys are presented to [f] in increasing order according to the map's ordering. The initial value of
@@ -456,22 +456,22 @@ module Make (X : Endianness.S) = struct
   let rec fold f m accu =
     match m with
     | Empty ->
-	accu
+       accu
     | Leaf (key, data) ->
-	f key data accu
+       f key data accu
     | Branch (_, _, tree0, tree1) ->
-	fold f tree1 (fold f tree0 accu)
+       fold f tree1 (fold f tree0 accu)
 
   (* [fold_rev] performs exactly the same job as [fold], but presents keys to [f] in the opposite order. *)
 
   let rec fold_rev f m accu =
     match m with
     | Empty ->
-	accu
+       accu
     | Leaf (key, data) ->
-	f key data accu
+       f key data accu
     | Branch (_, _, tree0, tree1) ->
-	fold_rev f tree0 (fold_rev f tree1 accu)
+       fold_rev f tree0 (fold_rev f tree1 accu)
 
   (* It is valid to evaluate [iter2 f m1 m2] if and only if [m1] and [m2] have the same domain. Doing so invokes
      [f k x1 x2], in turn, for each key [k] bound to [x1] in [m1] and to [x2] in [m2]. Bindings are presented to [f]
@@ -480,28 +480,28 @@ module Make (X : Endianness.S) = struct
   let rec iter2 f t1 t2 =
     match t1, t2 with
     | Empty, Empty ->
-	()
+       ()
     | Leaf (key1, data1), Leaf (key2, data2) ->
-	assert (key1 = key2);
-	f key1 (* for instance *) data1 data2
+       assert (key1 = key2);
+       f key1 (* for instance *) data1 data2
     | Branch (p1, m1, left1, right1), Branch (p2, m2, left2, right2) ->
-	assert (p1 = p2);
-	assert (m1 = m2);
-	iter2 f left1 left2;
-	iter2 f right1 right2
+       assert (p1 = p2);
+       assert (m1 = m2);
+       iter2 f left1 left2;
+       iter2 f right1 right2
     | _, _ ->
-	assert false
+       assert false
 
   (* [map f m] returns the map obtained by composing the map [m] with the function [f]; that is, the map
      $k\mapsto f(m(k))$. *)
 
   let rec map f = function
     | Empty ->
-	Empty
+       Empty
     | Leaf (key, data) ->
-	Leaf(key, f data)
+       Leaf(key, f data)
     | Branch (p, m, tree0, tree1) ->
-	Branch (p, m, map f tree0, map f tree1)
+       Branch (p, m, map f tree0, map f tree1)
 
   (* [endo_map] is similar to [map], but attempts to physically share its result with its input. This saves
      memory when [f] is the identity function. *)
@@ -509,20 +509,20 @@ module Make (X : Endianness.S) = struct
   let rec endo_map f tree =
     match tree with
     | Empty ->
-	tree
+       tree
     | Leaf (key, data) ->
-	let data' = f data in
-	if data == data' then
-	  tree
-	else
-	  Leaf(key, data')
+       let data' = f data in
+       if data == data' then
+         tree
+       else
+         Leaf(key, data')
     | Branch (p, m, tree0, tree1) ->
-	let tree0' = endo_map f tree0 in
-	let tree1' = endo_map f tree1 in
-	if (tree0' == tree0) & (tree1' == tree1) then
-	  tree
-	else
-	  Branch (p, m, tree0', tree1')
+       let tree0' = endo_map f tree0 in
+       let tree1' = endo_map f tree1 in
+       if (tree0' == tree0) & (tree1' == tree1) then
+         tree
+       else
+         Branch (p, m, tree0', tree1')
 
   (* [iterator m] returns a stateful iterator over the map [m]. *)
 
@@ -535,16 +535,16 @@ module Make (X : Endianness.S) = struct
     let rec next () =
       match !remainder with
       | [] ->
-	  None
+         None
       | Empty :: parent ->
-	  remainder := parent;
-	  next()
+         remainder := parent;
+         next()
       | (Leaf (key, data)) :: parent ->
-	  remainder := parent;
-	  Some (key, data)
+         remainder := parent;
+         Some (key, data)
       | (Branch(_, _, s0, s1)) :: parent ->
-	  remainder := s0 :: s1 :: parent;
-	  next () in
+         remainder := s0 :: s1 :: parent;
+         next () in
 
     next
 
@@ -557,23 +557,23 @@ module Make (X : Endianness.S) = struct
     let iterator2 = iterator m2 in
     try
       iter (fun key1 data1 ->
-	match iterator2() with
-	| None ->
-	    raise (Got 1)
-	| Some (key2, data2) ->
-	    let c = Pervasives.compare key1 key2 in
-	    if c <> 0 then
-	      raise (Got c)
-	    else
-	      let c = dcompare data1 data2 in
-	      if c <> 0 then
-		raise (Got c)
+       match iterator2() with
+       | None ->
+           raise (Got 1)
+       | Some (key2, data2) ->
+           let c = Pervasives.compare key1 key2 in
+           if c <> 0 then
+             raise (Got c)
+           else
+             let c = dcompare data1 data2 in
+             if c <> 0 then
+              raise (Got c)
       ) m1;
       match iterator2() with
       | None ->
-	  0
+         0
       | Some _ ->
-	  -1
+         -1
     with Got c ->
       c
 
@@ -602,10 +602,10 @@ module Domain = struct
 
   let is_empty = function
     | Empty ->
-	true
+       true
     | Leaf _
     | Branch _ ->
-	false
+       false
 
   (* [singleton x] returns a set whose only element is [x]. *)
 
@@ -618,41 +618,41 @@ module Domain = struct
 
   let is_singleton = function
     | Leaf x ->
-	Some x
+       Some x
     | Empty
-    |	Branch _ ->
-	None
+    |       Branch _ ->
+       None
 
   (* [choose s] returns an arbitrarily chosen element of [s], if [s]
      is nonempty, and raises [Not_found] otherwise. *)
 
   let rec choose = function
     | Empty ->
-	raise Not_found
+       raise Not_found
     | Leaf x ->
-	x
+       x
     | Branch (_, _, tree0, _) ->
-	choose tree0
+       choose tree0
 
   (* [cardinal s] returns [s]'s cardinal. *)
 
   let rec cardinal = function
     | Empty ->
-	0
+       0
     | Leaf _ ->
-	1
+       1
     | Branch (_, _, t0, t1) ->
-	cardinal t0 + cardinal t1
+       cardinal t0 + cardinal t1
 
   (* [mem x s] returns [true] if and only if [x] appears in the set [s]. *)
 
   let rec mem x = function
     | Empty ->
-	false
+       false
     | Leaf x' ->
-	x = x'
+       x = x'
     | Branch (_, mask, tree0, tree1) ->
-	mem x (if (x land mask) = 0 then tree0 else tree1)
+       mem x (if (x land mask) = 0 then tree0 else tree1)
 
   (* The auxiliary function [join] merges two trees in the simple case where their prefixes disagree. *)
 
@@ -671,18 +671,18 @@ module Domain = struct
   let rec strict_add x t =
     match t with
     | Empty ->
-	Leaf x
+       Leaf x
     | Leaf x0 ->
-	if x = x0 then
-	  raise Unchanged
-	else
-	  join x (Leaf x) x0 t
+       if x = x0 then
+         raise Unchanged
+       else
+         join x (Leaf x) x0 t
     | Branch (p, m, t0, t1) ->
-	if match_prefix x p m then
-	  if (x land m) = 0 then Branch (p, m, strict_add x t0, t1)
-	  else Branch (p, m, t0, strict_add x t1)
-	else
-	  join x (Leaf x) p t
+       if match_prefix x p m then
+         if (x land m) = 0 then Branch (p, m, strict_add x t0, t1)
+         else Branch (p, m, t0, strict_add x t1)
+       else
+         join x (Leaf x) p t
 
   let add x s =
     try
@@ -708,25 +708,25 @@ module Domain = struct
 
     let rec strict_remove = function
       | Empty ->
-	  raise Not_found
+         raise Not_found
       | Leaf x' ->
-	if x = x' then
-	  Empty
-	else
-	  raise Not_found
+       if x = x' then
+         Empty
+       else
+         raise Not_found
       | Branch (prefix, mask, tree0, tree1) ->
-	  if (x land mask) = 0 then
-	    match strict_remove tree0 with
-	    | Empty ->
-		tree1
-	    | tree0 ->
-		Branch (prefix, mask, tree0, tree1)
-	  else
-	    match strict_remove tree1 with
-	    | Empty ->
-		tree0
-	    | tree1 ->
-		Branch (prefix, mask, tree0, tree1) in
+         if (x land mask) = 0 then
+           match strict_remove tree0 with
+           | Empty ->
+              tree1
+           | tree0 ->
+              Branch (prefix, mask, tree0, tree1)
+         else
+           match strict_remove tree1 with
+           | Empty ->
+              tree0
+           | tree1 ->
+              Branch (prefix, mask, tree0, tree1) in
 
     try
       strict_remove s
@@ -739,52 +739,52 @@ module Domain = struct
     match s, t with
 
     | Empty, _ ->
-	t
+       t
     | _, Empty ->
-	s
+       s
 
     | Leaf x, _ ->
-	add x t
+       add x t
     | _, Leaf x ->
-	add x s
+       add x s
 
     | Branch(p, m, s0, s1), Branch(q, n, t0, t1) ->
-	if (p = q) & (m = n) then
+       if (p = q) & (m = n) then
 
-	  (* The trees have the same prefix. Merge their sub-trees. *)
+         (* The trees have the same prefix. Merge their sub-trees. *)
 
-	  let u0 = union s0 t0
-	  and u1 = union s1 t1 in
-	  if t0 == u0 && t1 == u1 then t
-	  else Branch(p, m, u0, u1)
+         let u0 = union s0 t0
+         and u1 = union s1 t1 in
+         if t0 == u0 && t1 == u1 then t
+         else Branch(p, m, u0, u1)
 
-	else if (X.shorter m n) & (match_prefix q p m) then
+       else if (X.shorter m n) & (match_prefix q p m) then
 
-	  (* [q] contains [p]. Merge [t] with a sub-tree of [s]. *)
+         (* [q] contains [p]. Merge [t] with a sub-tree of [s]. *)
 
-	  if (q land m) = 0 then
-	    Branch(p, m, union s0 t, s1)
-	  else
-	    Branch(p, m, s0, union s1 t)
+         if (q land m) = 0 then
+           Branch(p, m, union s0 t, s1)
+         else
+           Branch(p, m, s0, union s1 t)
 
-	else if (X.shorter n m) & (match_prefix p q n) then
+       else if (X.shorter n m) & (match_prefix p q n) then
 
-	  (* [p] contains [q]. Merge [s] with a sub-tree of [t]. *)
+         (* [p] contains [q]. Merge [s] with a sub-tree of [t]. *)
 
-	  if (p land n) = 0 then
-	    let u0 = union s t0 in
-	    if t0 == u0 then t
-	    else Branch(q, n, u0, t1)
-	  else
-	    let u1 = union s t1 in
-	    if t1 == u1 then t
-	    else Branch(q, n, t0, u1)
+         if (p land n) = 0 then
+           let u0 = union s t0 in
+           if t0 == u0 then t
+           else Branch(q, n, u0, t1)
+         else
+           let u1 = union s t1 in
+           if t1 == u1 then t
+           else Branch(q, n, t0, u1)
 
-	else
+       else
 
-	  (* The prefixes disagree. *)
+         (* The prefixes disagree. *)
 
-	  join p s q t
+         join p s q t
 
   (* [fine_union] does not make much sense for sets of integers. Better warn the user. *)
 
@@ -796,56 +796,56 @@ module Domain = struct
 
   let build p m t0 t1 =
     match t0, t1 with
-    |	Empty, Empty ->
-	Empty
-    |	Empty, _ ->
-	t1
-    |	_, Empty ->
-	t0
-    |	_, _ ->
-	Branch(p, m, t0, t1)
+    |       Empty, Empty ->
+       Empty
+    |       Empty, _ ->
+       t1
+    |       _, Empty ->
+       t0
+    |       _, _ ->
+       Branch(p, m, t0, t1)
 
   (* [diff s t] returns the set difference of [s] and [t], that is, $s\setminus t$. *)
 
   let rec diff s t =
     match s, t with
 
-    |	Empty, _
-    |	_, Empty ->
-	s
+    |       Empty, _
+    |       _, Empty ->
+       s
 
-    |	Leaf x, _ ->
-	if mem x t then Empty else s
-    |	_, Leaf x ->
-	remove x s
+    |       Leaf x, _ ->
+       if mem x t then Empty else s
+    |       _, Leaf x ->
+       remove x s
 
     | Branch(p, m, s0, s1), Branch(q, n, t0, t1) ->
-	if (p = q) & (m = n) then
+       if (p = q) & (m = n) then
 
-	  (* The trees have the same prefix. Compute the differences of their sub-trees. *)
+         (* The trees have the same prefix. Compute the differences of their sub-trees. *)
 
-	  build p m (diff s0 t0) (diff s1 t1)
+         build p m (diff s0 t0) (diff s1 t1)
 
-	else if (X.shorter m n) & (match_prefix q p m) then
+       else if (X.shorter m n) & (match_prefix q p m) then
 
-	  (* [q] contains [p]. Subtract [t] off a sub-tree of [s]. *)
+         (* [q] contains [p]. Subtract [t] off a sub-tree of [s]. *)
 
-	  if (q land m) = 0 then
-	    build p m (diff s0 t) s1
-	  else
-	    build p m s0 (diff s1 t)
+         if (q land m) = 0 then
+           build p m (diff s0 t) s1
+         else
+           build p m s0 (diff s1 t)
 
-	else if (X.shorter n m) & (match_prefix p q n) then
+       else if (X.shorter n m) & (match_prefix p q n) then
 
-	  (* [p] contains [q]. Subtract a sub-tree of [t] off [s]. *)
+         (* [p] contains [q]. Subtract a sub-tree of [t] off [s]. *)
 
-	  diff s (if (p land n) = 0 then t0 else t1)
+         diff s (if (p land n) = 0 then t0 else t1)
 
-	else
+       else
 
-	  (* The prefixes disagree. *)
+         (* The prefixes disagree. *)
 
-	  s
+         s
 
   (* [inter s t] returns the set intersection of [s] and [t], that is, $s\cap t$. *)
 
@@ -854,36 +854,36 @@ module Domain = struct
 
     | Empty, _
     | _, Empty ->
-	Empty
+       Empty
 
     | (Leaf x as s), t
     | t, (Leaf x as s) ->
-	if mem x t then s else Empty
+       if mem x t then s else Empty
 
     | Branch(p, m, s0, s1), Branch(q, n, t0, t1) ->
-	if (p = q) & (m = n) then
+       if (p = q) & (m = n) then
 
-	  (* The trees have the same prefix. Compute the intersections of their sub-trees. *)
+         (* The trees have the same prefix. Compute the intersections of their sub-trees. *)
 
-	  build p m (inter s0 t0) (inter s1 t1)
+         build p m (inter s0 t0) (inter s1 t1)
 
-	else if (X.shorter m n) & (match_prefix q p m) then
+       else if (X.shorter m n) & (match_prefix q p m) then
 
-	  (* [q] contains [p]. Intersect [t] with a sub-tree of [s]. *)
+         (* [q] contains [p]. Intersect [t] with a sub-tree of [s]. *)
 
-	  inter (if (q land m) = 0 then s0 else s1) t
+         inter (if (q land m) = 0 then s0 else s1) t
 
-	else if (X.shorter n m) & (match_prefix p q n) then
+       else if (X.shorter n m) & (match_prefix p q n) then
 
-	  (* [p] contains [q]. Intersect [s] with a sub-tree of [t]. *)
+         (* [p] contains [q]. Intersect [s] with a sub-tree of [t]. *)
 
-	  inter s (if (p land n) = 0 then t0 else t1)
+         inter s (if (p land n) = 0 then t0 else t1)
 
-	else
+       else
 
-	  (* The prefixes disagree. *)
+         (* The prefixes disagree. *)
 
-	  Empty
+         Empty
 
   (* [disjoint s1 s2] returns [true] if and only if the sets [s1] and [s2] are disjoint, i.e. iff their intersection
      is empty. It is a specialized version of [inter], which uses less space. *)
@@ -897,26 +897,26 @@ module Domain = struct
 
       | Empty, _
       | _, Empty ->
-	  ()
+         ()
 
       | Leaf x, _ ->
-	  if mem x t then
-	    raise NotDisjoint
+         if mem x t then
+           raise NotDisjoint
       | _, Leaf x ->
-	  if mem x s then
-	    raise NotDisjoint
+         if mem x s then
+           raise NotDisjoint
 
       | Branch(p, m, s0, s1), Branch(q, n, t0, t1) ->
-	  if (p = q) & (m = n) then begin
-	    inter s0 t0;
-	    inter s1 t1
-	  end
-	  else if (X.shorter m n) & (match_prefix q p m) then
-	    inter (if (q land m) = 0 then s0 else s1) t
-	  else if (X.shorter n m) & (match_prefix p q n) then
-	    inter s (if (p land n) = 0 then t0 else t1)
-	  else
-	    () in
+         if (p = q) & (m = n) then begin
+           inter s0 t0;
+           inter s1 t1
+         end
+         else if (X.shorter m n) & (match_prefix q p m) then
+           inter (if (q land m) = 0 then s0 else s1) t
+         else if (X.shorter n m) & (match_prefix p q n) then
+           inter s (if (p land n) = 0 then t0 else t1)
+         else
+           () in
 
     try
       inter s t;
@@ -929,12 +929,12 @@ module Domain = struct
 
   let rec iter f = function
     | Empty ->
-	()
+       ()
     | Leaf x ->
-	f x
+       f x
     | Branch (_, _, tree0, tree1) ->
-	iter f tree0;
-	iter f tree1
+       iter f tree0;
+       iter f tree1
 
   (* [fold f s seed] invokes [f x accu], in turn, for each element [x] of the set [s]. Elements are presented to [f]
      according to some unspecified, but fixed, order. The initial value of [accu] is [seed]; then, at each new call,
@@ -944,12 +944,12 @@ module Domain = struct
 
   let rec fold f s accu =
     match s with
-    |	Empty ->
-	accu
-    |	Leaf x ->
-	f x accu
-    |	Branch (_, _, s0, s1) ->
-	fold f s1 (fold f s0 accu)
+    |       Empty ->
+       accu
+    |       Leaf x ->
+       f x accu
+    |       Branch (_, _, s0, s1) ->
+       fold f s1 (fold f s0 accu)
 
   (* [elements s] is a list of all elements in the set [s]. *)
 
@@ -961,11 +961,11 @@ module Domain = struct
   let rec fold_rev f s accu =
     match s with
     | Empty ->
-	accu
+       accu
     | Leaf x ->
-	f x accu
+       f x accu
     | Branch (_, _, s0, s1) ->
-	fold_rev f s0 (fold_rev f s1 accu)
+       fold_rev f s0 (fold_rev f s1 accu)
 
   (* [iter2] does not make much sense for sets of integers. Better warn the user. *)
 
@@ -986,16 +986,16 @@ module Domain = struct
     let rec next () =
       match !remainder with
       | [] ->
-	  None
+         None
       | Empty :: parent ->
-	  remainder := parent;
-	  next()
+         remainder := parent;
+         next()
       | (Leaf x) :: parent ->
-	  remainder := parent;
-	  Some x
+         remainder := parent;
+         Some x
       | (Branch(_, _, s0, s1)) :: parent ->
-	  remainder := s0 :: s1 :: parent;
-	  next () in
+         remainder := s0 :: s1 :: parent;
+         next () in
 
     next
 
@@ -1006,8 +1006,8 @@ module Domain = struct
   let exists p s =
     try
       iter (fun x ->
-	if p x then
-	  raise Exists
+       if p x then
+         raise Exists
       ) s;
       false
     with Exists ->
@@ -1021,19 +1021,19 @@ module Domain = struct
     let iterator2 = iterator s2 in
     try
       iter (fun x1 ->
-	match iterator2() with
-	| None ->
-	    raise (Got 1)
-	| Some x2 ->
-	    let c = Pervasives.compare x1 x2 in
-	    if c <> 0 then
-	      raise (Got c)
+       match iterator2() with
+       | None ->
+           raise (Got 1)
+       | Some x2 ->
+           let c = Pervasives.compare x1 x2 in
+           if c <> 0 then
+             raise (Got c)
       ) s1;
       match iterator2() with
       | None ->
-	  0
+         0
       | Some _ ->
-	  -1
+         -1
     with Got c ->
       c
 
@@ -1053,33 +1053,33 @@ module Domain = struct
       match s, t with
 
       | Empty, _ ->
-	  ()
+         ()
       | _, Empty
 
       | Branch _, Leaf _ ->
-	  raise NotSubset
+         raise NotSubset
       | Leaf x, _ ->
-	  if not (mem x t) then
-	    raise NotSubset
+         if not (mem x t) then
+           raise NotSubset
 
       | Branch(p, m, s0, s1), Branch(q, n, t0, t1) ->
 
-	  if (p = q) & (m = n) then begin
+         if (p = q) & (m = n) then begin
 
-	    diff s0 t0;
-	    diff s1 t1
+           diff s0 t0;
+           diff s1 t1
 
-	  end
-	  else if (X.shorter n m) & (match_prefix p q n) then
+         end
+         else if (X.shorter n m) & (match_prefix p q n) then
 
-	    diff s (if (p land n) = 0 then t0 else t1)
+           diff s (if (p land n) = 0 then t0 else t1)
 
-	  else
+         else
 
-	    (* Either [q] contains [p], which means at least one of [s]'s sub-trees is not contained within [t],
-	       or the prefixes disagree. In either case, the subset relationship cannot possibly hold. *)
+           (* Either [q] contains [p], which means at least one of [s]'s sub-trees is not contained within [t],
+              or the prefixes disagree. In either case, the subset relationship cannot possibly hold. *)
 
-	    raise NotSubset in
+           raise NotSubset in
 
     try
       diff s t;
@@ -1094,10 +1094,10 @@ module Domain = struct
 
     let subset = fold (fun element subset ->
       if predicate element then
-	add element subset
+       add element subset
       else begin
-	modified := true;
-	subset
+       modified := true;
+       subset
       end
     ) s Empty in
 
@@ -1132,21 +1132,21 @@ end
 
   let rec domain = function
     | Empty ->
-	Domain.Empty
+       Domain.Empty
     | Leaf (k, _) ->
-	Domain.Leaf k
+       Domain.Leaf k
     | Branch (p, m, t0, t1) ->
-	Domain.Branch (p, m, domain t0, domain t1)
+       Domain.Branch (p, m, domain t0, domain t1)
 
   (* [lift f s] returns the map $k\mapsto f(k)$, where $k$ ranges over a set of keys [s]. *)
 
   let rec lift f = function
     | Domain.Empty ->
-	Empty
+       Empty
     | Domain.Leaf k ->
-	Leaf (k, f k)
+       Leaf (k, f k)
     | Domain.Branch (p, m, t0, t1) ->
-	Branch(p, m, lift f t0, lift f t1)
+       Branch(p, m, lift f t0, lift f t1)
 
   (* [build] is a ``smart constructor''. It builds a [Branch] node with the specified arguments, but ensures
      that the newly created node does not have an [Empty] child. *)
@@ -1154,13 +1154,13 @@ end
   let build p m t0 t1 =
     match t0, t1 with
     | Empty, Empty ->
-	Empty
+       Empty
     | Empty, _ ->
-	t1
+       t1
     | _, Empty ->
-	t0
+       t0
     | _, _ ->
-	Branch(p, m, t0, t1)
+       Branch(p, m, t0, t1)
 
   (* [corestrict m d] performs a co-restriction of the map [m] to the domain [d]. That is, it returns the map
      $k\mapsto m(k)$, where $k$ ranges over all keys bound in [m] but \emph{not} present in [d]. Its code resembles
@@ -1169,34 +1169,34 @@ end
     let rec corestrict s t =
       match s, t with
 
-      |	Empty, _
-      |	_, Domain.Empty ->
-	  s
+      |       Empty, _
+      |       _, Domain.Empty ->
+         s
 
-      |	Leaf (k, _), _ ->
-	  if Domain.mem k t then Empty else s
-      |	_, Domain.Leaf k ->
-	  remove k s
+      |       Leaf (k, _), _ ->
+         if Domain.mem k t then Empty else s
+      |       _, Domain.Leaf k ->
+         remove k s
       
       | Branch(p, m, s0, s1), Domain.Branch(q, n, t0, t1) ->
-	  if (p = q) & (m = n) then
+         if (p = q) & (m = n) then
 
-	    build p m (corestrict s0 t0) (corestrict s1 t1)
+           build p m (corestrict s0 t0) (corestrict s1 t1)
 
-	  else if (X.shorter m n) & (match_prefix q p m) then
+         else if (X.shorter m n) & (match_prefix q p m) then
 
-	    if (q land m) = 0 then
-	      build p m (corestrict s0 t) s1
-	    else
-	      build p m s0 (corestrict s1 t)
+           if (q land m) = 0 then
+             build p m (corestrict s0 t) s1
+           else
+             build p m s0 (corestrict s1 t)
 
-	  else if (X.shorter n m) & (match_prefix p q n) then
+         else if (X.shorter n m) & (match_prefix p q n) then
 
-	    corestrict s (if (p land n) = 0 then t0 else t1)
+           corestrict s (if (p land n) = 0 then t0 else t1)
 
-	  else
+         else
 
-	    s
+           s
 
 end
 

@@ -75,7 +75,7 @@ val rec revert [a] duplicable a =>
   match p with
   | PFlat ->
       (* This is the end of the line. Steal the underlying array,
-	 and change the tag of [p] to [PUndo]. *)
+        and change the tag of [p] to [PUndo]. *)
       let t = p.contents in
       tag of p <- PUndo;
       t

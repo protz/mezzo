@@ -67,11 +67,11 @@ module Make (U : sig end) = struct
     let cache = ref Map.empty in
     function (m : name) ->
       try
-	Map.find m !cache
+       Map.find m !cache
       with Not_found ->
-	let v = f m in
-	cache := Map.add m v !cache;
-	v
+       let v = f m in
+       cache := Map.add m v !cache;
+       v
 
 end
 

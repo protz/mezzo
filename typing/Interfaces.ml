@@ -58,7 +58,7 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
 
     | DataTypeGroup group :: items ->
         let env, items, _ = DataTypeGroup.bind_data_type_group env group items in
-	(* TEMPORARY why don't we bind the data constructors here? *)
+       (* TEMPORARY why don't we bind the data constructors here? *)
         import_items env items
 
     | ValueDefinitions _ :: _ ->
@@ -154,12 +154,12 @@ let check
     | S.DataTypeGroup group :: toplevel_items ->
 
         (* Translate this data type group, while taking care to re-use
-	   the existing points in [env]. *)
+          the existing points in [env]. *)
         let tsenv, translated_definitions =
-	  TransSurface.translate_data_type_group (fun tsenv (name, kind, _loc) ->
+         TransSurface.translate_data_type_group (fun tsenv (name, kind, _loc) ->
             KindCheck.bind_nonlocal tsenv (name, kind, point_by_name name)
-	  ) tsenv group
-	in
+         ) tsenv group
+       in
 
         (* Check that the translated definitions from the interface and the known
          * definitions from the implementations are consistent. *)
@@ -175,7 +175,7 @@ let check
             _
           } = data_type in
 
-	  let point = point_by_name name in
+         let point = point_by_name name in
           (* Variables marked with ' belong to the implementation. *)
 
 
@@ -230,7 +230,7 @@ let check
 
               List.iter2 (fun branch branch' ->
 
-		if not (DataTypeFlavor.equal branch.T.branch_flavor branch'.T.branch_flavor) then
+              if not (DataTypeFlavor.equal branch.T.branch_flavor branch'.T.branch_flavor) then
                   error_out "flavors";
 
                 if not (T.equal env branch.T.branch_adopts branch'.T.branch_adopts) then

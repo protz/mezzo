@@ -56,9 +56,9 @@ let rec repr x state =
    | Link y ->
        let z = repr y state in
        if neq y z then
-	 (* updating the state in place is ok, because the meaning
-	    of this state is unchanged *)
-	 state := set x (get y !state) !state;
+        (* updating the state in place is ok, because the meaning
+           of this state is unchanged *)
+        state := set x (get y !state) !state;
        z
 
 (* [init()] produces a fresh empty state. *)
@@ -104,14 +104,14 @@ let find x state =
   | Link y ->
       match get y store with
       | Root desc ->
-	  desc
+         desc
       | Link _ ->
-	  let r = repr x state in
-	  match get r !state with
-	  | Root desc ->
-	      desc
-	  | Link _ ->
-	      assert false
+         let r = repr x state in
+         match get r !state with
+         | Root desc ->
+             desc
+         | Link _ ->
+             assert false
 
 (* [update f x state] updates the descriptor associated with [x]'s equivalence
    class. The new descriptor is obtained by applying the function [f] to the

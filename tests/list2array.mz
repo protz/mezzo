@@ -9,12 +9,12 @@ val list2array [a] duplicable a => (xs: list::list a) : marray a =
   | list::Cons { head; tail } ->
       let x = array::create (1 + list::length tail, head) in
       let rec fill (i: int, xs: list::list a | x @ marray a) : =x =
-	match xs with
-	| list::Nil ->
-	    x
-	| list::Cons ->
-	    array::set (x, i, xs.head);
-	    fill (i + 1, xs.tail)
+       match xs with
+       | list::Nil ->
+           x
+       | list::Cons ->
+           array::set (x, i, xs.head);
+           fill (i + 1, xs.tail)
         end
       in
       fill (1, tail)

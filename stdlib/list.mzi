@@ -58,12 +58,12 @@ val flatten : [a] (consumes list (list a)) -> list a
 val map : [a1, a2, b, p : perm] (
       consumes xs: list a1,
   f: (consumes  x:      a1 | p) -> (     b |  x @      a2)
-			   | p) -> (list b | xs @ list a2)
+                        | p) -> (list b | xs @ list a2)
 
 val rev_map : [a1, a2, b, p : perm] (
       consumes xs: list a1,
   f: (consumes  x:      a1 | p) -> (     b |  x @      a2)
-			   | p) -> (list b | xs @ list a2)
+                        | p) -> (list b | xs @ list a2)
 
 (* -------------------------------------------------------------------------- *)
 

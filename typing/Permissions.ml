@@ -258,7 +258,7 @@ class open_all_rigid_in (env : env ref) = object (self)
     | TySingleton _, _
     | TyArrow _, Left
     | TyEmpty, _
-	-> ty
+       -> ty
 
     (* A universal quantifier on the right-hand side gives rise to a rigid
        variable. The type environment is extended. The quantifier disappears.
@@ -267,8 +267,8 @@ class open_all_rigid_in (env : env ref) = object (self)
     | TyQ (Forall, binding, _, ty), Right
     | TyQ (Exists, binding, _, ty), Left ->
         let new_env, ty, _ = bind_rigid_in_type !env binding ty in
-	env := new_env;
-	self#visit (side, false) ty
+       env := new_env;
+       self#visit (side, false) ty
 
     (* As a special case, when we find [t -> u] on the right-hand side,
        we go look for existential quantifiers inside [t], and hoist them
@@ -288,14 +288,14 @@ class open_all_rigid_in (env : env ref) = object (self)
 
     | TyArrow (ty1, ty2), Right ->
         let ty1 = self#visit (Left, false) ty1 in
-	TyArrow (ty1, ty2)
+       TyArrow (ty1, ty2)
 
     (* We descend into the following constructs. *)
 
     | TyTuple _, _
       -> super#visit (side, true) ty
         (* Setting [deconstructed] to [true] forces the fields to
-	   become named with a point, if they weren't already. *)
+          become named with a point, if they weren't already. *)
 
     | TyBar _, _
     | TyStar _, _
@@ -322,7 +322,7 @@ class open_all_rigid_in (env : env ref) = object (self)
     | FieldValue (field, ty) ->
         FieldValue (field, self#visit (side, true) ty)
         (* Setting [deconstructed] to [true] forces the fields to
-	   become named with a point, if they weren't already. *)
+          become named with a point, if they weren't already. *)
     | FieldPermission p ->
         FieldPermission (self#visit (side, false) p)
 
@@ -418,30 +418,30 @@ and add (env: env) (var: var) (t: typ): env =
         original_perms
       with
       | Some _ when FactInference.is_exclusive env t ->
-	  Log.debug ~level:4 "%s]%s (two exclusive perms!)" Bash.colors.Bash.red Bash.colors.Bash.default;
-	  (* We cannot possibly have two exclusive permissions for [x]. *)
+         Log.debug ~level:4 "%s]%s (two exclusive perms!)" Bash.colors.Bash.red Bash.colors.Bash.default;
+         (* We cannot possibly have two exclusive permissions for [x]. *)
           mark_inconsistent env
       | Some branch' ->
-	  (* If we are still here, then the two permissions at hand are
-	     not exclusive. This implies, I think, that the two adopts
-	     clauses must be bottom. So, there is no need to try and
-	     compute their meet (good). *)
-	  assert (equal env branch.branch_adopts ty_bottom);
-	  assert (equal env branch'.branch_adopts ty_bottom);
-	  List.fold_left2 (fun env f1 f2 ->
-	    match f1, f2 with
-	    | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
+         (* If we are still here, then the two permissions at hand are
+            not exclusive. This implies, I think, that the two adopts
+            clauses must be bottom. So, there is no need to try and
+            compute their meet (good). *)
+         assert (equal env branch.branch_adopts ty_bottom);
+         assert (equal env branch'.branch_adopts ty_bottom);
+         List.fold_left2 (fun env f1 f2 ->
+           match f1, f2 with
+           | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
                 let t = modulo_flex env t in
                 let t = expand_if_one_branch env t in
-		begin match t with
-		| TySingleton (TyOpen p) ->
-		    add env p t'
-		| _ ->
-		    Log.error "Type not unfolded"
-		end
-	    | _ ->
-		Log.error "Datacon order invariant not respected"
-	  ) env branch.branch_fields branch'.branch_fields
+              begin match t with
+              | TySingleton (TyOpen p) ->
+                  add env p t'
+              | _ ->
+                  Log.error "Type not unfolded"
+              end
+           | _ ->
+              Log.error "Datacon order invariant not respected"
+         ) env branch.branch_fields branch'.branch_fields
       | None ->
           add_type env var t
       end
@@ -720,7 +720,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         sub_type env t1 t2 >>=
         (* TEMPORARY this rule may be unsound: assuming [c] while proving
            [t2] is fine, but [c] should not *remain* assumed in the final
-	   environment that is returned. See tests/tyand05.mz. *)
+          environment that is returned. See tests/tyand05.mz. *)
         qed
       end
 
@@ -797,8 +797,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
   | TyConcrete branch1, TyConcrete branch2 ->
       if resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon then begin
-	assert (branch1.branch_flavor = branch2.branch_flavor);
-	assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
+       assert (branch1.branch_flavor = branch2.branch_flavor);
+       assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
         try_proof_root "Concrete" begin
           sub_type env branch1.branch_adopts branch2.branch_adopts >>= fun env ->
           premises env (List.map2 (fun f1 f2 -> fun env ->

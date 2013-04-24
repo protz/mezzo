@@ -43,13 +43,13 @@ let theight, twidth =
     try
       let height, width = ref 0, ref 0 in
       Scanf.sscanf
-	(Ocamlbuild_plugin.run_and_read "stty size 2>/dev/null")
-	"%d %d"
-	(fun h w -> height := h; width := w);
+       (Ocamlbuild_plugin.run_and_read "stty size 2>/dev/null")
+       "%d %d"
+       (fun h w -> height := h; width := w);
       !height, !width
     with
     | Failure _ ->
-	24, 80
+       24, 80
   (* When run under emacs, stty size returns 0 0. *)
   with
   | 0, 0 ->

@@ -80,30 +80,30 @@ val resize [a] (v: vector a, new_size: int) : () =
       (* The logical size of the vector decreases. *)
       (* Avoid a memory leak. *)
       (* TEMPORARY we would like to use:
-	 array::fill_segment (table, new_size, n, None);
-	 but this is not currently possible, see comment in [array.mz];
-	 so, instead, we must use an explicit loop: *)
+        array::fill_segment (table, new_size, n, None);
+        but this is not currently possible, see comment in [array.mz];
+        so, instead, we must use an explicit loop: *)
       array::iter_segment (Up, new_size, old_size, fun (k: int | table @ marray (option a)) : () =
-	  array::set (table, k, None)
+         array::set (table, k, None)
       )
     else begin
       (* The logical size of the vector increases. *)
       v.size <- new_size;
       let old_length = array::length table in
       if new_size > old_length then begin
-	let new_length = new_length (old_length, new_size) in
-	(* The physical size of the array must increase. *)
-	(* The array [table'] is initialized with [None], a duplicable value,
-	   so [array::create] can be used. Thus, [table'] has type [array None].
-	   Because [array] is covariant, [table'] also has type [array (option a)],
-	   and is a suitable argument for [array::steal]. *)
-	let table' = array::create [None] (new_length, None) in
-	array::steal [option a] (table, table', 0);
-	v.table <- table'
+       let new_length = new_length (old_length, new_size) in
+       (* The physical size of the array must increase. *)
+       (* The array [table'] is initialized with [None], a duplicable value,
+          so [array::create] can be used. Thus, [table'] has type [array None].
+          Because [array] is covariant, [table'] also has type [array (option a)],
+          and is a suitable argument for [array::steal]. *)
+       let table' = array::create [None] (new_length, None) in
+       array::steal [option a] (table, table', 0);
+       v.table <- table'
       end;
       (* Initialize the new elements. *)
       array::iter_segment (Up, old_size, new_size, fun (k: int | v @ vector a) : () =
-	array::set (v.table, k, some (v.default k))
+       array::set (v.table, k, some (v.default k))
       )
     end
   end

@@ -47,8 +47,8 @@ val internal_insert [a] (consumes x: a, q: fifo a, insertAtEnd: bool): () =
       nest_punched r; (* crazy inference! *)
       tail.next <- c;
       (* Because [tail.next] is [c], which is now a valid
-	 inhabitant of [r], we can argue that [tail] has
-	 type [cell r a], and give it back to [r]. *)
+        inhabitant of [r], we can argue that [tail] has
+        type [cell r a], and give it back to [r]. *)
       defocus r;
       let length = length + 1 in
       q.contents <- (r, length, if insertAtEnd then c else tail)
@@ -74,7 +74,7 @@ val retrieve [a] (q: fifo a) : option a =
       head.value <- None;
       if head == tail then begin
         defocus r;
-	tag of q <- Empty;
+       tag of q <- Empty;
         q.contents <- (r, 0, ())
       end
       else begin
@@ -83,7 +83,7 @@ val retrieve [a] (q: fifo a) : option a =
         defocus r;
         (* This fine-grained focusing and defocusing is really painful. *)
         focus [(tail @ cell r a)] r;
-	tail.next <- new_head;
+       tail.next <- new_head;
         defocus r;
         q.contents <- (r, length, tail)
       end; (* BUG at the merge? Fatal error: exception TypeCore.UnboundPoint *)
@@ -97,12 +97,12 @@ val peek [a] duplicable a => (q: fifo a) : option a =
       none
   | NonEmpty { tail } ->
       let head =
-	taking tail from q begin
-	  tail.next
-	end
+       taking tail from q begin
+         tail.next
+       end
       in
       taking head from q begin
-	some head.value
+       some head.value
       end
   end
 
@@ -132,7 +132,7 @@ val rotate [a] (q: fifo a) : () =
   | NonEmpty { tail } ->
       (* Advance the tail pointer. *)
       taking tail from q begin
-	q.tail <- tail.next
+       q.tail <- tail.next
       end
   end
 
@@ -151,10 +151,10 @@ val fold [a, b] (
       accu
   | NonEmpty { tail } ->
       let rec fold (consumes accu: b, c: dynamic | q @ fifo a) : b =
-	take c from q;
+       take c from q;
         let Cell { next; value } = c in
         let accu = f (value, accu) in
-	give c to q;
+       give c to q;
         if tail == c then
           accu
         else

@@ -94,26 +94,26 @@ val rec use [a, pre : perm, post : perm] (
   match i with
   | IFinished ->
       (* If the iterator is finished, report its outcome. The permission
-	 [post] is available, so we are happy. *)
+        [post] is available, so we are happy. *)
       i.outcome
   | IAvailable ->
       (* If the iterator is not finished, then we have an element [x] and
-	 a function [next] that will provide us with a new iterator once
-	 we surrender the ownership of [x]. We also have a function [stop],
+        a function [next] that will provide us with a new iterator once
+        we surrender the ownership of [x]. We also have a function [stop],
          which allows us to stop the iteration, if the client so requires. *)
       let x, stop, next = i.content in
       (* Submit [x] to the user function [f], which returns a request to
-	 stop or continue. *)
+        stop or continue. *)
       if f x then begin
-	  (* If we should continue, invoke [next], which returns a new
-	     iterator; and continue with this iterator. *)
-	let i = next() in
-	use (i, f)
+         (* If we should continue, invoke [next], which returns a new
+            iterator; and continue with this iterator. *)
+       let i = next() in
+       use (i, f)
       end
       else begin
-	  (* If we should stop, invoke [stop]. This yields [post]. *)
-	  stop();
-	  Stopped
+         (* If we should stop, invoke [stop]. This yields [post]. *)
+         stop();
+         Stopped
       end
   end
 
@@ -133,8 +133,8 @@ val rec elements [a, post : perm] duplicable a => (
     use (
       i,
       fun (x: a | r @ ref (list a)) : bool =
-	r := cons (x, !r);
-	true
+       r := cons (x, !r);
+       true
     )
   in
   !r
@@ -161,11 +161,11 @@ val rec equal [a, post1 : perm, post2 : perm, p : perm] (
       let x1, stop1, next1 = i1.content
       and x2, stop2, next2 = i2.content in
       if eq (x1, x2) then
-	equal (eq, next1(), next2())
+       equal (eq, next1(), next2())
       else begin
-	stop1();
-	stop2();
-	False
+       stop1();
+       stop2();
+       False
       end
   | IAvailable, IFinished ->
       let _, stop1, _ = i1.content in

@@ -58,9 +58,9 @@ let check_for_duplicates (compare : 'a -> 'a -> int) (xs : 'a list) : ('a * 'a) 
         None
     | x2 :: xs ->
         if compare x1 x2 = 0 then
-	  Some (x1, x2)
-	else
-	  loop x2 xs
+         Some (x1, x2)
+       else
+         loop x2 xs
   in
   match xs with
   | [] ->
@@ -258,7 +258,7 @@ let rec map f xs =
       let hd' = f hd in
       let tl' = map f tl in
       if hd == hd' && tl == tl' then
-	xs
+       xs
       else
-	hd' :: tl'
+       hd' :: tl'
 

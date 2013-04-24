@@ -115,15 +115,15 @@ let rec atomic_expression (e : expression) : document =
       atomic_expression e ^^ dot ^^ utf8string field
   | EMatch (e, branches) ->
       group (
-	surround 2 1
-	  (string "begin match")
-	  (expression e)
-	  (string "with")
-	^^
-	concat_map (fun (p, e) ->
-	  break 1 ^^ string "| " ^^ branch 4 p e
-	) branches ^^
-	break 1 ^^ string "end"
+       surround 2 1
+         (string "begin match")
+         (expression e)
+         (string "with")
+       ^^
+       concat_map (fun (p, e) ->
+         break 1 ^^ string "| " ^^ branch 4 p e
+       ) branches ^^
+       break 1 ^^ string "end"
       )
   | EWhile (e1, e2) ->
       group (
@@ -175,8 +175,8 @@ and normal_expression e =
 and sequence_expression = function
   | EAssign (e1, f, e2) ->
       group (
-	(atomic_expression e1 ^^ dot ^^ utf8string f ^^ larrow) ^//^
-	  normal_expression e2
+       (atomic_expression e1 ^^ dot ^^ utf8string f ^^ larrow) ^//^
+         normal_expression e2
       )
   | ESequence (e1, e2) ->
       sequence_expression e1 ^^ semi ^^ hardline ^^
@@ -191,10 +191,10 @@ and sequence_expression = function
 and dangling_expression = function
   | ELet (f, eqs, body) ->
       group (
-	string "let " ^^
-	flag f ^^
-	equations eqs ^/^
-	string "in"
+       string "let " ^^
+       flag f ^^
+       equations eqs ^/^
+       string "in"
       )
       ^^ hardline ^^
       dangling_expression body
@@ -202,20 +202,20 @@ and dangling_expression = function
       string "function " ^^ branch 2 p body
   | EIfThenElse (c, e1, e2) ->
       group (
-	surround 2 1
-	  (string "if")
-	  (normal_expression c)
-	  (string "then")
-	^^
-	nest 2 (break 1 ^^ normal_expression e1)
-	^^
-	begin match e2 with
-	| ETuple [] ->
-	    empty
-	| _ ->
-	  break 1 ^^ string "else" ^^
-	  nest 2 (break 1 ^^ normal_expression e2)
-	end
+       surround 2 1
+         (string "if")
+         (normal_expression c)
+         (string "then")
+       ^^
+       nest 2 (break 1 ^^ normal_expression e1)
+       ^^
+       begin match e2 with
+       | ETuple [] ->
+           empty
+       | _ ->
+         break 1 ^^ string "else" ^^
+         nest 2 (break 1 ^^ normal_expression e2)
+       end
       )
   | e ->
       sequence_expression e

@@ -218,7 +218,7 @@ val rec flatten [a] (consumes xss : list (list a)) : list a =
 val rec map [a1, a2, b, p : perm] (
       consumes xs: list a1,
   f: (consumes  x:      a1 | p) -> (     b |  x @      a2)
-			   | p)  : (list b | xs @ list a2)
+                        | p)  : (list b | xs @ list a2)
 =
   if xs then
     Cons { head = f xs.head; tail = map (xs.tail, f) }
@@ -228,7 +228,7 @@ val rec map [a1, a2, b, p : perm] (
 val rev_map [a1, a2, b, p : perm] (
       consumes xs: list a1,
   f: (consumes  x:      a1 | p) -> (     b |  x @      a2)
-			   | p)  : (list b | xs @ list a2)
+                        | p)  : (list b | xs @ list a2)
 =
   let rec rev_map_aux (consumes accu: list b, consumes xs: list a1 | p) : (list b | xs @ list a2) =
     if xs then
@@ -540,7 +540,7 @@ val sort [a] (
       | Cons { head = x1; tail = Cons { head = x2; tail = any }} ->
           if cmp (sense, x1, x2) <= 0 then two (x1, x2) else two (x2, x1)
       | _ ->
-	  fail (* impossible *)
+         fail (* impossible *)
       end
     else if n = 3 then
       match xs with
@@ -551,11 +551,11 @@ val sort [a] (
             else three (x3, x1, x2)
           end else begin
             if cmp (sense, x1, x3) <= 0 then three (x2, x1, x3)
-	    else if cmp (sense, x2, x3) <= 0 then three (x2, x3, x1)
-	    else three (x3, x2, x1)
+           else if cmp (sense, x2, x3) <= 0 then three (x2, x3, x1)
+           else three (x3, x2, x1)
           end
       | _ ->
-	  fail (* impossible *)
+         fail (* impossible *)
       end
     (* The general case. *)
     else begin

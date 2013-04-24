@@ -114,17 +114,17 @@ val set_successors [info] (g: graph info, src: dynamic (* node *), dsts: list dy
         ()
     | Cons { head = dst; tail = dsts } ->
         if taking dst from g.nodes begin dst.marked end then
-	  (* Skip this duplicate node. *)
-	  loop dsts
-	else begin
-	  taking dst from g.nodes begin dst.marked <- True end;
-	  (* Create a link. *)
-	  link (g, src, dst);
-	  (* Continue. *)
-	  loop dsts;
-	  (* Clear the mark. *)
-	  taking dst from g.nodes begin dst.marked <- False end;
-	end
+         (* Skip this duplicate node. *)
+         loop dsts
+       else begin
+         taking dst from g.nodes begin dst.marked <- True end;
+         (* Create a link. *)
+         link (g, src, dst);
+         (* Continue. *)
+         loop dsts;
+         (* Clear the mark. *)
+         taking dst from g.nodes begin dst.marked <- False end;
+       end
     end
   in
   loop dsts

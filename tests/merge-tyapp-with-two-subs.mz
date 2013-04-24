@@ -54,12 +54,12 @@ val memoize
       match find (x, t) with
       | Some { contents = y } ->
           assert t @ table a b;
-	  y
+         y
       | None ->
           let y = f x in
-	  add (x, y, t);
+         add (x, y, t);
           assert t @ table a b;
-	  y
+         y
       end
     in
     (* Release the lock. This consumes [t @ table a b]. *)

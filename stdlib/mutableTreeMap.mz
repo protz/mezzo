@@ -70,28 +70,28 @@ val bal [k, a] (
   | Empty -> fail (* impossible! *)
   | Node { left = ll; right = lr } ->
       if height ll >= height lr then begin
-	(* The left node becomes the root node. *)
-	(* The root node becomes the right child. *)
-	t.left <- lr;
-	update_height t;
-	l.right <- t;
-	update_height l;
-	l
+       (* The left node becomes the root node. *)
+       (* The root node becomes the right child. *)
+       t.left <- lr;
+       update_height t;
+       l.right <- t;
+       update_height l;
+       l
       end
       else match lr with
       | Empty -> fail (* impossible! *)
       | Node { left = lrl; right = lrr } ->
-	  (* The node [lr] becomes the root node. *)
-	  (* The root node becomes the right child. *)
-	  (* The left node remains the left child. *)
-	  l.right <- lrl;
-	  update_height l;
-	  t.left <- lrr;
-	  update_height t;
-	  lr.left <- l;
-	  lr.right <- t;
-	  update_height lr;
-	  lr
+         (* The node [lr] becomes the root node. *)
+         (* The root node becomes the right child. *)
+         (* The left node remains the left child. *)
+         l.right <- lrl;
+         update_height l;
+         t.left <- lrr;
+         update_height t;
+         lr.left <- l;
+         lr.right <- t;
+         update_height lr;
+         lr
       end
   end
 
@@ -100,28 +100,28 @@ val bal [k, a] (
   | Empty -> fail (* impossible! *)
   | Node { left = rl; right = rr } ->
       if height rr >= height rl then begin
-	(* The right node becomes the root node. *)
+       (* The right node becomes the root node. *)
         (* The root node becomes the left child. *)
-	t.right <- rl;
-	update_height t;
-	r.left <- t;
-	update_height r;
-	r
+       t.right <- rl;
+       update_height t;
+       r.left <- t;
+       update_height r;
+       r
       end
       else match rl with
       | Empty -> fail (* impossible! *)
       | Node { left = rll; right = rlr } ->
-	  (* The node [rl] becomes the root node. *)
-	  (* The root node becomes the left child. *)
-	  (* The right node remains the right child. *)
+         (* The node [rl] becomes the root node. *)
+         (* The root node becomes the left child. *)
+         (* The right node remains the right child. *)
           t.right <- rll;
-	  update_height t;
-	  r.left <- rlr;
-	  update_height r;
-	  rl.left <- t;
-	  rl.right <- r;
-	  update_height rl;
-	  rl
+         update_height t;
+         r.left <- rlr;
+         update_height r;
+         rl.left <- t;
+         rl.right <- r;
+         update_height rl;
+         rl
       end
   end
 
@@ -169,17 +169,17 @@ val rec add [k, a] (
   | Node ->
       let c = cmp (x, t.key) in
       if c = 0 then begin
-	(* The key already exists; overwrite the previous data *)
-	t.value <- d;
-	t
+       (* The key already exists; overwrite the previous data *)
+       t.value <- d;
+       t
       end
       else if c < 0 then begin
-	t.left <- add (cmp, x, d, t.left);
-	bal t
+       t.left <- add (cmp, x, d, t.left);
+       bal t
       end
       else begin
-	t.right <- add (cmp, x, d, t.right);
-	bal t
+       t.right <- add (cmp, x, d, t.right);
+       bal t
       end
   end
 
@@ -203,13 +203,13 @@ val rec find [k, a] duplicable a => (
       let c = cmp (x, t.key) in
       if c = 0 then some t.value
       (* It is interesting to note that we cannot write the more compact code:
-	 find (cmp, x, (if c < 0 then t.left else t.right))
-	 Indeed, the type-checker is unable to figure out the desired type of
-	 the conditional sub-expression; it reports a resource allocation
-	 conflict. In fact, if we wanted to explicitly declare this type,
-	 I believe that we would need a magic wand: this sub-expression
-	 produces a result [s] together with the permissions [s @ tree k a]
-	 and [s @ tree k a -* t @ tree k a]. *)
+        find (cmp, x, (if c < 0 then t.left else t.right))
+        Indeed, the type-checker is unable to figure out the desired type of
+        the conditional sub-expression; it reports a resource allocation
+        conflict. In fact, if we wanted to explicitly declare this type,
+        I believe that we would need a magic wand: this sub-expression
+        produces a result [s] together with the permissions [s @ tree k a]
+        and [s @ tree k a -* t @ tree k a]. *)
       else if c < 0 then find (cmp, x, t.left)
       else find (cmp, x, t.right)
   end
@@ -239,12 +239,12 @@ val rec update
   | Node ->
       let c = cmp (x, t.key) in
       if c = 0 then
-	t.value <- f t.value
+       t.value <- f t.value
       else if c < 0 then
-	update [k, a, preserved, consumed] (cmp, x, t.left, f)
-	(* WISH: get rid of the above type application *)
+       update [k, a, preserved, consumed] (cmp, x, t.left, f)
+       (* WISH: get rid of the above type application *)
       else
-	update [k, a, preserved, consumed] (cmp, x, t.right, f)
+       update [k, a, preserved, consumed] (cmp, x, t.right, f)
   end
 
 (* The following two functions (currently not exported) show that versions
@@ -278,11 +278,11 @@ val rec mem [k, a] (cmp: (k, k) -> int, x: k, t: tree k a) : bool =
   | Node ->
       let c = cmp (x, t.key) in
       if c = 0 then
-	True
+       True
       else if c < 0 then
-	mem (cmp, x, t.left)
+       mem (cmp, x, t.left)
       else
-	mem (cmp, x, t.right)
+       mem (cmp, x, t.right)
  end
 
 (* -------------------------------------------------------------------------- *)
@@ -456,16 +456,16 @@ val rec remove [k, a] (
   | Node ->
       let c = cmp (x, t.key) in
       if c = 0 then begin
-	dst := some [(k, a)] (t.key, t.value);
-	merge (t.left, t.right)
+       dst := some [(k, a)] (t.key, t.value);
+       merge (t.left, t.right)
       end
       else if c < 0 then begin
-	t.left <- remove (cmp, x, t.left, dst);
-	bal t
+       t.left <- remove (cmp, x, t.left, dst);
+       bal t
       end
       else begin
-	t.right <- remove (cmp, x, t.right, dst);
-	bal t
+       t.right <- remove (cmp, x, t.right, dst);
+       bal t
       end
   end
 
@@ -517,11 +517,11 @@ val rec map [k, a1, a2, b, p : perm] duplicable k => (
       Empty
   | Node ->
       Node {
-	left = map (f, t.left);
-	key = t.key;
-	value = f (t.key, t.value);
-	right = map (f, t.right);
-	height = t.height
+       left = map (f, t.left);
+       key = t.key;
+       value = f (t.key, t.value);
+       right = map (f, t.right);
+       height = t.height
       }
   end
 
@@ -574,20 +574,20 @@ val rec join [k, a] (
       add_max_binding (t, left)
   | Node, Node ->
       if left.height > right.height + 2 then begin
-	(* The left node becomes the root. *)
-	(* The root node becomes the right child. *)
-	t.left <- left.right;
-	left.right <- join t;
-	bal left
+       (* The left node becomes the root. *)
+       (* The root node becomes the right child. *)
+       t.left <- left.right;
+       left.right <- join t;
+       bal left
       end
       else if right.height > left.height + 2 then begin
-	t.right <- right.left;
-	right.left <- join t;
-	bal right
+       t.right <- right.left;
+       right.left <- join t;
+       bal right
       end
       else begin
-	update_height t;
-	t
+       update_height t;
+       t
       end
   end
 
@@ -622,21 +622,21 @@ val rec split [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a)
   | Node ->
       let c = cmp (x, t.key) in
       if c = 0 then begin
-	(* We found the desired key. *)
-	t.value <- some t.value; (* ah ha! look at this, feeble ML programmers *)
-	t
+       (* We found the desired key. *)
+       t.value <- some t.value; (* ah ha! look at this, feeble ML programmers *)
+       t
       end
       else if c < 0 then begin
         let root = split (cmp, x, t.left) in
-	t.left <- root.right;
-	root.right <- join t;
-	root
+       t.left <- root.right;
+       root.right <- join t;
+       root
       end
       else begin
         let root = split (cmp, x, t.right) in
-	t.right <- root.left;
-	root.left <- join t;
-	root
+       t.right <- root.left;
+       root.left <- join t;
+       root
       end
   end
 
@@ -673,28 +673,28 @@ val rec merge [k, a, b, c] (
       s1
   | _, _ ->
       if height s1 >= height s2 then
-	match s1 with
-	| Node ->
-	    let root2 = split (cmp, s1.key, s2) in
-	    root2.left <- merge (cmp, f, s1.left, root2.left);
-	    root2.key <- s1.key;
-	    root2.value <- f (s1.key, some s1.value, root2.value);
-	    root2.right <- merge (cmp, f, s1.right, root2.right);
-	    concat_or_join root2
+       match s1 with
+       | Node ->
+           let root2 = split (cmp, s1.key, s2) in
+           root2.left <- merge (cmp, f, s1.left, root2.left);
+           root2.key <- s1.key;
+           root2.value <- f (s1.key, some s1.value, root2.value);
+           root2.right <- merge (cmp, f, s1.right, root2.right);
+           concat_or_join root2
         | Empty ->
-	    fail (* impossible *)
+           fail (* impossible *)
         end
       else
-	match s2 with
-	| Node ->
-	    let root1 = split (cmp, s2.key, s1) in
-	    root1.left <- merge (cmp, f, root1.left, s2.left);
-	    root1.key <- s2.key;
-	    root1.value <- f (s2.key, root1.value, some s2.value);
-	    root1.right <- merge (cmp, f, root1.right, s2.right);
-	    concat_or_join root1
+       match s2 with
+       | Node ->
+           let root1 = split (cmp, s2.key, s1) in
+           root1.left <- merge (cmp, f, root1.left, s2.left);
+           root1.key <- s2.key;
+           root1.value <- f (s2.key, root1.value, some s2.value);
+           root1.right <- merge (cmp, f, root1.right, s2.right);
+           concat_or_join root1
         | Empty ->
-	    fail (* impossible *)
+           fail (* impossible *)
         end
   end
 
@@ -737,18 +737,18 @@ val rec partition [k, a, b, c] (
       let rl, rr = partition (p, t.right) in
       match choice with
       | Left ->
-	  t.left <- ll;
-	  t.value <- choice.contents;
-	  t.right <- rl;
-	  join t, concat (lr, rr)
+         t.left <- ll;
+         t.value <- choice.contents;
+         t.right <- rl;
+         join t, concat (lr, rr)
       | Right ->
-	  t.left <- lr;
-	  t.value <- choice.contents;
-	  t.right <- rr;
-	  concat (ll, rl), join t
+         t.left <- lr;
+         t.value <- choice.contents;
+         t.right <- rr;
+         concat (ll, rl), join t
       end
       (* TEMPORARY why do I get a warning about this merge? isn't the expected type
-	 propagated all the way down? *)
+        propagated all the way down? *)
   end
 
 (* -------------------------------------------------------------------------- *)
@@ -793,17 +793,17 @@ val rec advance [k, a] (i: iterator k a) : () =
   | IArriving { context = z; focus = f } ->
       match f with
       | Empty ->
-	  (* Skip empty nodes. *)
-	  tag of i <- ILeaving;
-	  advance i
+         (* Skip empty nodes. *)
+         tag of i <- ILeaving;
+         advance i
       | Node { left } ->
-	  (* When arriving at a node, descend immediately into the left child. *)
-	  tag of f <- ZLeft;
-	  f.father <- z;
-	  (* [f] is now a zipper! *)
-	  i.context <- f;
-	  i.focus <- left;
-	  advance i
+         (* When arriving at a node, descend immediately into the left child. *)
+         tag of f <- ZLeft;
+         f.father <- z;
+         (* [f] is now a zipper! *)
+         i.context <- f;
+         i.focus <- left;
+         advance i
         end
   | IAt { context = z; focus = f } ->
       let right = f.right in
@@ -818,24 +818,24 @@ val rec advance [k, a] (i: iterator k a) : () =
   | ILeaving { context = z; focus = f } ->
       match z with
       | ZEmpty ->
-	  (* We are finished. *)
-	  ()
+         (* We are finished. *)
+         ()
       | ZLeft { father } ->
-	  tag of z <- Node;
-	  z.left <- f;
-	  (* [z] is now a tree! *)
-	  (* After exiting a left child, pause at its father. *)
-	  tag of i <- IAt;
-	  i.context <- father;
-	  i.focus <- z
+         tag of z <- Node;
+         z.left <- f;
+         (* [z] is now a tree! *)
+         (* After exiting a left child, pause at its father. *)
+         tag of i <- IAt;
+         i.context <- father;
+         i.focus <- z
       | ZRight { father } ->
-	  tag of z <- Node;
-	  z.right <- f;
-	  (* [z] is now a tree! *)
-	  (* After exiting a right child, continue in ascending mode. *)
-	  i.context <- father;
-	  i.focus <- z;
-	  advance i
+         tag of z <- Node;
+         z.right <- f;
+         (* [z] is now a tree! *)
+         (* After exiting a right child, continue in ascending mode. *)
+         i.context <- father;
+         i.focus <- z;
+         advance i
       end
   end
 
@@ -858,21 +858,21 @@ val rec stop [k, a] (consumes i: iterator k a) : tree k a =
   | IAt { context = z; focus = f } ->
       match z with
       | ZEmpty ->
-	  f
+         f
       | ZLeft { father } ->
-	  tag of z <- Node;
-	  z.left <- f;
+         tag of z <- Node;
+         z.left <- f;
           (* [z] is now a tree! *)
-	  i.context <- father;
-	  i.focus <- z;
-	  stop i
+         i.context <- father;
+         i.focus <- z;
+         stop i
       | ZRight { father } ->
-	  tag of z <- Node;
-	  z.right <- f;
+         tag of z <- Node;
+         z.right <- f;
           (* [z] is now a tree! *)
-	  i.context <- father;
-	  i.focus <- z;
-	  stop i
+         i.context <- father;
+         i.focus <- z;
+         stop i
       end
   | ILeaving { context = ZEmpty; focus = f } ->
       f
@@ -911,24 +911,24 @@ val compare [k, a] (
   let rec loop (| i1 @ iterator k a * i2 @ iterator k a) : int =
     match i1, i2 with
     | IAt { focus = m1 }, IAt { focus = m2 } ->
-	let c = cmpk (m1.key, m2.key) in
-	if c <> 0 then c else begin
-	  let c = cmpa (m1.value, m2.value) in
-	  if c <> 0 then c else begin
-	    advance i1;
-	    advance i2;
-	    loop()
-	  end
-	end
+       let c = cmpk (m1.key, m2.key) in
+       if c <> 0 then c else begin
+         let c = cmpa (m1.value, m2.value) in
+         if c <> 0 then c else begin
+           advance i1;
+           advance i2;
+           loop()
+         end
+       end
     | IAt, _ ->
-	(* The sequence [i1] is longer. *)
+       (* The sequence [i1] is longer. *)
         1
     | _, IAt ->
-	(* The sequence [i2] is longer. *)
+       (* The sequence [i2] is longer. *)
         -1
     | _, _ ->
-	(* The comparison suceeded, all the way. *)
-	0
+       (* The comparison suceeded, all the way. *)
+       0
     end
 
   in
@@ -1032,9 +1032,9 @@ val consume_enum [k, a] (e: enumeration k a) : () =
   | End ->
       fail
       (* We could eliminate this case if we declared that initially [e] has type
-	 Enum { bandits: More { ... } }. But this type would be hugely verbose,
-	 plus we would then have to add a [consumes] annotation and write the
-	 post-condition [e @ enumeration k a]. Abandoned. *)
+        Enum { bandits: More { ... } }. But this type would be hugely verbose,
+        plus we would then have to add a [consumes] annotation and write the
+        post-condition [e @ enumeration k a]. Abandoned. *)
   end
 
 (* The following function reconstructs the ownership of the original tree after
@@ -1053,7 +1053,7 @@ val rec reconstruct [k, a] (t: dynamic, e: enumeration k a) : (| t @ tree k a) =
     | VisitedNode ->
         tag of t <- Node; (* this is a no-op *)
         reconstruct (t.left, e);
-	reconstruct (t.right, e)
+       reconstruct (t.right, e)
     end
   end
   else
@@ -1062,17 +1062,17 @@ val rec reconstruct [k, a] (t: dynamic, e: enumeration k a) : (| t @ tree k a) =
         fail (* impossible *)
     | More { head; tail } ->
         if head == t then begin
-	  (* At this point, [t] is a bandit, a tree node that does not own
-	     its left child. We need to reconstruct this left child in order
-	     to obtain [t @ tree k a]. *)
-	  e.bandits <- tail;
-	  reconstruct (t.left, e)
-	end
-	else
-	  fail (* impossible *)
-	  (* TEMPORARY I need to think more about the order of the non-visited
-	     trees in e.bandits; I am afraid they will *not* appear in the
-	     desired order, so the test [head == t] *WILL* FAIL! *)
+         (* At this point, [t] is a bandit, a tree node that does not own
+            its left child. We need to reconstruct this left child in order
+            to obtain [t @ tree k a]. *)
+         e.bandits <- tail;
+         reconstruct (t.left, e)
+       end
+       else
+         fail (* impossible *)
+         (* TEMPORARY I need to think more about the order of the non-visited
+            trees in e.bandits; I am afraid they will *not* appear in the
+            desired order, so the test [head == t] *WILL* FAIL! *)
     end
 
 (* We use an enumeration to implement the comparison of two trees. *)
@@ -1092,24 +1092,24 @@ val compare_variant [k, a] (
   let rec loop (| e1 @ enumeration k a * e2 @ enumeration k a) : int =
     match e1.bandits, e2.bandits with
     | More { head = m1 }, More { head = m2 } ->
-	let c = cmpk (m1.key, m2.key) in
-	if c <> 0 then c else begin
-	  let c = cmpa (m1.value, m2.value) in
-	  if c <> 0 then c else begin
-	    consume_enum e1;
-	    consume_enum e2;
-	    loop()
-	  end
-	end
+       let c = cmpk (m1.key, m2.key) in
+       if c <> 0 then c else begin
+         let c = cmpa (m1.value, m2.value) in
+         if c <> 0 then c else begin
+           consume_enum e1;
+           consume_enum e2;
+           loop()
+         end
+       end
     | More, End ->
-	(* The sequence [i1] is longer. *)
+       (* The sequence [i1] is longer. *)
         1
     | End, More ->
-	(* The sequence [i2] is longer. *)
+       (* The sequence [i2] is longer. *)
         -1
     | End, End ->
-	(* The comparison suceeded, all the way. *)
-	0
+       (* The comparison suceeded, all the way. *)
+       0
     end
 
   in

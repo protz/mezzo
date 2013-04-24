@@ -185,10 +185,10 @@ val isolate [a] (r: region a, y: dynamic) : () =
     let w = y.prev in
     if w != y then
       taking w from r begin
-	transpose_internal (r, w, y)
-	(* The successors of [w] and [y] are swapped, so the successor
-	   of [w] is the former successor of [y], and the successor of
-	   [y] is [y] itself. Thus, [y] is isolated, as desired. *)
+       transpose_internal (r, w, y)
+       (* The successors of [w] and [y] are swapped, so the successor
+          of [w] is the former successor of [y], and the successor of
+          [y] is [y] itself. Thus, [y] is isolated, as desired. *)
       end
   end
 

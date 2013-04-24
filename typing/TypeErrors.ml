@@ -228,7 +228,7 @@ let print_error buf (env, raw_error) =
   match raw_error with
   | CyclicDependency m ->
       (* TEMPORARY cyclic dependencies are hard to understand, so
-	 showing the cycle in a more explicit manner would be useful *)
+        showing the cycle in a more explicit manner would be useful *)
       bprintf "There is a cyclic dependency on module %a" Module.p m
   | NotAFunction p ->
       begin match fold_var env p with

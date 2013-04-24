@@ -66,16 +66,16 @@ let binary_conjunction (h1 : hypothesis) (h2 : hypothesis) : hypothesis =
       HFalse
   | HConjunction hs1, HConjunction hs2 ->
       (* Pointwise union of the maps, with mode *intersection* on the
-	 common elements. *)
+        common elements. *)
       HConjunction (ParameterMap.merge (fun _ om1 om2 ->
-	match om1, om2 with
-	| Some m1, Some m2 ->
-	    Some (Mode.meet m1 m2)
-	| Some m, None
-	| None, Some m ->
-	    Some m
-	| None, None ->
-	    assert false
+       match om1, om2 with
+       | Some m1, Some m2 ->
+           Some (Mode.meet m1 m2)
+       | Some m, None
+       | None, Some m ->
+           Some m
+       | None, None ->
+           assert false
       ) hs1 hs2)
 
 let conjunction f xs =
@@ -96,7 +96,7 @@ let binary_disjunction (h1 : hypothesis) (h2 : hypothesis) : hypothesis =
   | HConjunction hs1, HConjunction _ ->
       assert (ParameterMap.cardinal hs1 = 0);
       (* [hs1] is an empty empty conjunction, i.e. it is true.
-	 The result is true as well. *)
+        The result is true as well. *)
       h1
 
 (* The constant mode [m] is can be viewed as a fact: every mode [m']
@@ -147,10 +147,10 @@ let join fact1 fact2 =
   ModeMap.merge (fun _ oh1 oh2 ->
     match oh1, oh2 with
     | Some h1, Some h2 ->
-	Some (binary_conjunction h1 h2)
+       Some (binary_conjunction h1 h2)
     | _, _ ->
-	(* These ModeMaps should be total. *)
-	assert false
+       (* These ModeMaps should be total. *)
+       assert false
   ) fact1 fact2
 
 let join_many f xs =
@@ -167,8 +167,8 @@ let meet fact1 fact2 =
     | Some h1, Some h2 ->
         Some (binary_disjunction h1 h2)
     | _, _ ->
-	(* These ModeMaps should be total. *)
-	assert false
+       (* These ModeMaps should be total. *)
+       assert false
   ) fact1 fact2
 
 (* A fact for a parameter [p] is a conjunction of implications of
@@ -191,15 +191,15 @@ let equal fact1 fact2 =
   ModeMap.equal (fun hyp1 hyp2 ->
     match hyp1, hyp2 with
     | HFalse, HFalse ->
-	true
+       true
     | HConjunction hs1, HConjunction hs2 ->
-	(* Account for the fact that the maps [hs1] and [hs2] may have
-	   different domains (though they logically have the same domain)
-	   because trivial hypotheses may be omitted. *)
-	ParameterMap.equal Mode.equal (canonicalize hs1) (canonicalize hs2)
+       (* Account for the fact that the maps [hs1] and [hs2] may have
+          different domains (though they logically have the same domain)
+          because trivial hypotheses may be omitted. *)
+       ParameterMap.equal Mode.equal (canonicalize hs1) (canonicalize hs2)
     | HFalse, HConjunction _
     | HConjunction _, HFalse ->
-	false
+       false
   ) fact1 fact2
 
 let leq fact1 fact2 =
@@ -208,14 +208,14 @@ let leq fact1 fact2 =
     | _, HFalse ->
         true
     | HConjunction hs1, HConjunction hs2 ->
-	(* Account for the fact that the maps [hs1] and [hs2] may have
-	   different domains (though they logically have the same domain)
-	   because trivial hypotheses may be omitted. *)
+       (* Account for the fact that the maps [hs1] and [hs2] may have
+          different domains (though they logically have the same domain)
+          because trivial hypotheses may be omitted. *)
         (* Note that [hs2] and [hs1] are reversed, due to contravariance.
-	   If [hs1] requires a parameter to have a certain mode [m1], then
-	   it is fine if [hs2] requires this parameter to have a stronger
-	   mode [m2]. *)
-	ParameterMap.equal Mode.leq (canonicalize hs2) (canonicalize hs1)
+          If [hs1] requires a parameter to have a certain mode [m1], then
+          it is fine if [hs2] requires this parameter to have a stronger
+          mode [m2]. *)
+       ParameterMap.equal Mode.leq (canonicalize hs2) (canonicalize hs1)
     | HFalse, HConjunction _ ->
         false
   ) fact1 fact2
@@ -237,15 +237,15 @@ let compose fact facts =
       HFalse
   | HConjunction hs ->
       (* We are looking at a conjunction of requirements of the
-	 form [m i], where [i] is one of the [n] parameters.
-	 For each such requirement, we look up the [i]-th element
-	 of the list [facts], and specialize it on [m], so as obtain
-	 the conditions that bear on our parameters. Then, we
-	 combine all of these requirements via a conjunction. *)
+        form [m i], where [i] is one of the [n] parameters.
+        For each such requirement, we look up the [i]-th element
+        of the list [facts], and specialize it on [m], so as obtain
+        the conditions that bear on our parameters. Then, we
+        combine all of these requirements via a conjunction. *)
       ParameterMap.fold (fun i m accu ->
-	binary_conjunction
-	  (ModeMap.find m (List.nth facts i))
-	  accu
+       binary_conjunction
+         (ModeMap.find m (List.nth facts i))
+         accu
       ) hs trivial
   ) fact
 
@@ -264,7 +264,7 @@ let complete fact =
       trivial
     else
       (* Otherwise, a missing implication is translated to an
-	 implication whose hypothesis is unsatisfiable. *)
+        implication whose hypothesis is unsatisfiable. *)
       HFalse
   ) fact
 
@@ -277,15 +277,15 @@ let print (param : parameter -> document) (head : document) fact =
   let implications =
     ModeMap.fold (fun m hyp accu ->
       if Mode.is_maximal m then
-	(* Omit an implication whose conclusion is trivial. *)
-	accu
+       (* Omit an implication whose conclusion is trivial. *)
+       accu
       else
-	match hyp with
-	| HFalse ->
-	    (* Omit an implication whose hypothesis is false. *)
-	    accu
-	| HConjunction hs ->
-	    (hs, m) :: accu
+       match hyp with
+       | HFalse ->
+           (* Omit an implication whose hypothesis is false. *)
+           accu
+       | HConjunction hs ->
+           (hs, m) :: accu
     ) fact []
   in
   (* Print each implication. *)

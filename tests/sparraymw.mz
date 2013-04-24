@@ -188,7 +188,7 @@ val spa3 = SPArrayMW {
   repr = RUndo {
     descendant = SPArrayMW {
       repr = RUndo {
-	descendant = spa; offset=0; element=0
+       descendant = spa; offset=0; element=0
       }
     }; offset=0; element=0
   }

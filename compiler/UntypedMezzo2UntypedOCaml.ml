@@ -115,11 +115,11 @@ let rec magic e =
       e
   | O.EGetField _ ->
       (* We have changed the return type of [get_field] to ['b], so a
-	 magic on top of it is unnecessary. *)
+        magic on top of it is unnecessary. *)
       e
   | O.EApply (e1, e2) ->
       (* Push magic into the left-hand side of applications, where it is
-	 just as powerful. This will allow more redundancy elimination. *)
+        just as powerful. This will allow more redundancy elimination. *)
       O.EApply (magic e1, e2)
   | e ->
       (* The default case. *)
@@ -158,15 +158,15 @@ let rec translate_pattern (p : pattern) : O.pattern =
       let info : datacon_info = Option.extract dref.datacon_info in
       (* Build a list of (field index, pattern) pairs. *)
       let fields =
-	List.map (fun (f, p) ->
-	  field_index info f,
-	  translate_pattern p
-	) fields
+       List.map (fun (f, p) ->
+         field_index info f,
+         translate_pattern p
+       ) fields
       in
       (* Sort this list by index. *)
       let fields = sort_by_index fields in
       (* Complete any missing entries, up to this data constructor's arity,
-	 with wildcard patterns. At the same time, forget the indices. *)
+        with wildcard patterns. At the same time, forget the indices. *)
       let arity = 1 + info.datacon_arity in
       let ps = complete 0 arity fields in
       (* Create a data constructor pattern. *)
@@ -206,13 +206,13 @@ let rec transl (e : expression) : O.expression =
       O.EVar (identifier (Variable.print x))
   | EVar (Qualified (m, x)) ->
       O.EVar (
-	Printf.sprintf "%s.%s"
-	  (translate_module_name m)
-	  (identifier (Variable.print x))
+       Printf.sprintf "%s.%s"
+         (translate_module_name m)
+         (identifier (Variable.print x))
       )
   | EBuiltin b ->
       (* The builtin operations are defined in the OCaml library module
-	 [MezzoLib]. *)
+        [MezzoLib]. *)
       O.EVar (Printf.sprintf "MezzoLib.%s" b)
   | ELet (flag, eqs, body) ->
       O.ELet (flag, transl_equations eqs, transl body)
@@ -223,15 +223,15 @@ let rec transl (e : expression) : O.expression =
   | EAssignTag (e, dref, info) ->
       (* We must use [Obj.set_tag]; there is no other way. *)
       (* As an optimization, if the old and new integer tags are equal,
-	 there is nothing to do. It is OK, in this case, not to translate
+        there is nothing to do. It is OK, in this case, not to translate
          [e] at all, because the definition of Untyped Mezzo guarantees
-	 that [e] is a value. *)
+        that [e] is a value. *)
       let phantom = Option.extract info.is_phantom_update in
       if phantom then
-	O.ETuple []
+       O.ETuple []
       else
-	let info = Option.extract dref.datacon_info in
-	O.ESetTag (transl e, info.datacon_index)
+       let info = Option.extract dref.datacon_info in
+       O.ESetTag (transl e, info.datacon_index)
   | EAccess (e, f) ->
       O.EGetField (transl e, extract_field_index f)
   | EApply (e1, e2) ->
@@ -244,21 +244,21 @@ let rec transl (e : expression) : O.expression =
       let info : datacon_info = Option.extract dref.datacon_info in
       (* Build a list of (field index, expression) pairs. *)
       let fields =
-	List.map (fun (f, e) ->
-	  field_index info f,
-	  transl e
-	) fields
+       List.map (fun (f, e) ->
+         field_index info f,
+         transl e
+       ) fields
       in
       (* Sort this list by index. *)
       let fields = sort_by_index fields in
       (* In principle, every field is there. Drop the field names,
-	 and create a data constructor expression. *)
+        and create a data constructor expression. *)
       O.EConstruct (print_datacon_reference dref, List.map snd fields)
   | EIfThenElse (e, e1, e2) ->
       O.EIfThenElse (
-	gtz (O.EGetTag (transl e)),
-	transl e1,
-	magic (transl e2)
+       gtz (O.EGetTag (transl e)),
+       transl e1,
+       magic (transl e2)
       )
   | EWhile (e1, e2) ->
       O.EWhile (
@@ -411,8 +411,8 @@ let translate_interface_as_implementation_filter = function
       | DataType _
       | ValueDefinition _
       | OpenDirective _ ->
-	  []
+         []
       | ValueDeclaration x ->
-	  [ O.ValueDefinition (Nonrecursive, [ translate_pattern (PVar x), magic (transl (EVar (Unqualified x)))]) ]
+         [ O.ValueDefinition (Nonrecursive, [ translate_pattern (PVar x), magic (transl (EVar (Unqualified x)))]) ]
       ) items)
 

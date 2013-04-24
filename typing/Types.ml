@@ -216,23 +216,23 @@ let get_adopts_clause env point: typ =
   match get_definition env point with
   | Some (Concrete branches) ->
       (* The [adopts] clause is now per-branch, instead of per-data-type.
-	 We should in principle return the meet of the [adopts] clauses
-	 of all branches. However, the surface language imposes that
-	 all branches have the same [adopts] clause, except perhaps some
-	 branches which are immutable and don't have an adopts clause.
-	 In that setting, the meet is easy to compute. *)
+        We should in principle return the meet of the [adopts] clauses
+        of all branches. However, the surface language imposes that
+        all branches have the same [adopts] clause, except perhaps some
+        branches which are immutable and don't have an adopts clause.
+        In that setting, the meet is easy to compute. *)
       let meet ty1 branch2 =
-	let ty2 = branch2.branch_adopts in
-	match ty1, is_non_bottom ty2 with
-	| TyUnknown, _ ->
-	    ty2
-	| _, None ->
-	    (* [ty2] is bottom *)
-	    ty2
-	| _, Some _ ->
-	    (* [ty2] is non-bottom *)
-	    assert (equal env ty1 ty2);
-	    ty2
+       let ty2 = branch2.branch_adopts in
+       match ty1, is_non_bottom ty2 with
+       | TyUnknown, _ ->
+           ty2
+       | _, None ->
+           (* [ty2] is bottom *)
+           ty2
+       | _, Some _ ->
+           (* [ty2] is non-bottom *)
+           assert (equal env ty1 ty2);
+           ty2
       in
       List.fold_left meet TyUnknown branches
   | _ ->
@@ -471,8 +471,8 @@ class collect (perms : typ list ref) = object (self)
 
     | TyBar (ty, p) ->
         let p = self#visit () p in
-	perms := p :: !perms;
-	self#visit () ty
+       perms := p :: !perms;
+       self#visit () ty
 
   (* At [TyConcrete], we set aside the [FieldPermission]s and
      descend into the [FieldValue]s. *)
@@ -481,11 +481,11 @@ class collect (perms : typ list ref) = object (self)
       branch_flavor = branch.branch_flavor;
       branch_datacon = branch.branch_datacon;
       branch_fields = MzList.map_some (function
-	| FieldValue (field, ty) ->
+       | FieldValue (field, ty) ->
             Some (FieldValue (field, self#visit () ty))
-	| FieldPermission p ->
-	    perms := p :: !perms;
-	    None
+       | FieldPermission p ->
+           perms := p :: !perms;
+           None
       ) branch.branch_fields;
       branch_adopts = branch.branch_adopts;
     }
@@ -532,9 +532,9 @@ let make_datacon_letters env kind flexible =
     let env, var =
       let letter = Auto (Variable.register letter) in
       if flexible then
-	bind_flexible env (letter, kind, location env)
+       bind_flexible env (letter, kind, location env)
       else
-	bind_rigid env (letter, kind, location env)
+       bind_rigid env (letter, kind, location env)
     in
     env, var :: vars) (env, []) arg_kinds letters
   in
@@ -574,7 +574,7 @@ let rec expand_if_one_branch (env: env) (t: typ) =
       begin match get_definition env cons with
       | Some (Concrete [branch]) ->
           let branch = instantiate_branch branch args in
-	  let branch = resolve_branch cons branch in
+         let branch = resolve_branch cons branch in
           wrap_if (TyConcrete branch)
       | Some (Abbrev t) ->
           let t = instantiate_type t args in
@@ -701,14 +701,14 @@ module TypePrinter = struct
 
     | TyQ (q, _, _, _) as t ->
         let vars, env, t = strip_quantifiers_and_bind env q t in
-	let delimiters =
-	  match q with
-	  | Forall -> brackets
-	  | Exists -> braces
-	in
-	prefix 0 1
-	  (delimiters (commas (print_binding env) vars))
-	  (print_type env t)
+       let delimiters =
+         match q with
+         | Forall -> brackets
+         | Exists -> braces
+       in
+       prefix 0 1
+         (delimiters (commas (print_binding env) vars))
+         (print_type env t)
 
     | TyApp (head, args) ->
         application (print_type env) head (print_type env) args
@@ -749,9 +749,9 @@ module TypePrinter = struct
 
     | TyBar (p, q) ->
         parens (group (
-	  nest 2 (break 0 ^^ print_type env p) ^/^
-	  bar ^^ space ^^ nest 2 (print_type env q)
-	))
+         nest 2 (break 0 ^^ print_type env p) ^/^
+         bar ^^ space ^^ nest 2 (print_type env q)
+       ))
 
     | TyAnd (c, t) ->
         prefix 0 1
@@ -788,7 +788,7 @@ module TypePrinter = struct
       if List.length fields > 0 then
         space ^^ braces_with_nesting (
           separate_map semibreak (print_data_field_def env) fields
-	)
+       )
       else
         empty
     in

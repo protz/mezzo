@@ -360,13 +360,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
         ty_equals v2,
         TyStar (
           TyAnchoredPermission (TyOpen v2,
-	    concrete
+           concrete
               (dc env "u" "U")
               [FieldValue (Field.register "left", TySingleton (TyBound 0));
                FieldValue (Field.register "right", TySingleton (TyBound 0))]),
           TyAnchoredPermission (
             TyBound 0,
-	    concrete (dc env "t" "T") []
+           concrete (dc env "t" "T") []
           )
         )
       ))
@@ -1009,7 +1009,7 @@ let _ =
       Log.warn_count := 0;
       incr count;
       let do_it = fun () ->
-	incr do_it_count;
+       incr do_it_count;
         let env = Driver.process (Filename.concat prefix file) in
         env
       in

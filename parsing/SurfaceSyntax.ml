@@ -339,11 +339,11 @@ let rec type_to_pattern (ty : typ) : pattern =
 
   | TyConcrete ((datacon, fields), _adopts) ->
       let fps =
-	List.fold_left (fun fps field ->
-	  match field with
+       List.fold_left (fun fps field ->
+         match field with
           | FieldValue (f, ty) -> (f, type_to_pattern ty) :: fps
           | FieldPermission _  -> fps
-	) [] fields in
+       ) [] fields in
       PConstruct (datacon, fps)
 
   (* A name introduction gives rise to a variable pattern. *)
@@ -393,10 +393,10 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TyStar _
   | TyAnchoredPermission _ ->
       (* Type of kind PERM, where a type of kind TERM was expected. In
-	 principle, this should not happen, except during kind checking,
+        principle, this should not happen, except during kind checking,
          where it could happen if the type is ill-kinded. We must return
          silently, and an error will be signaled by the kind checking
-	 algorithm. *)
+        algorithm. *)
       PAny
 
 (* ---------------------------------------------------------------------------- *)

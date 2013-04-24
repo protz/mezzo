@@ -62,11 +62,11 @@ val rec cps_iter [a, b, c, s : perm, p : perm] (
   | Cons { head } ->
       (* The list is non-empty. We must invoke [f]. *)
       f [ (xs @ Cons { head; tail: list a } * p) ] (
-	head,
-	j,
-	fun (| consumes (xs @ Cons { head: a; tail: list a } * p * s)) : c =
-	  let tail = xs.tail in
-	  cps_iter [ p = (xs @ Cons { head: a; tail } * p) ] (tail, f, j, k)
+       head,
+       j,
+       fun (| consumes (xs @ Cons { head: a; tail: list a } * p * s)) : c =
+         let tail = xs.tail in
+         cps_iter [ p = (xs @ Cons { head: a; tail } * p) ] (tail, f, j, k)
       )
   end
 

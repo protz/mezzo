@@ -514,7 +514,7 @@ val sort_initial_segment [a, p : perm] duplicable a => (
       normal i31
     else
       (* If there are no children, we have hit the bottom. Return [i]
-	 via the exceptional continuation. *)
+        via the exceptional continuation. *)
       bottom i
   in
 
@@ -528,14 +528,14 @@ val sort_initial_segment [a, p : perm] duplicable a => (
   ) : () =
     maxson [b = (| p * r @ marray a)] (l, i, bottom, fun (j: int | p * r @ marray a) : () =
       (* [j] is the maximum son of [i]. If the element [e] is ? than the
-	 element found at [j], then send it down, otherwise write [e] into
-	 node [i]. *)
+        element found at [j], then send it down, otherwise write [e] into
+        node [i]. *)
       if cmp (get (r, j), e) > 0 then begin
-	set (r, i, get (r, j));
-	trickledown (l, j, e, bottom)
+       set (r, i, get (r, j));
+       trickledown (l, j, e, bottom)
       end
       else
-	set (r, i, e)
+       set (r, i, e)
     )
   in
 
@@ -633,9 +633,9 @@ val nonduplicable_sort [a, s : perm] (
     if x == y then 0
     else
       taking x from p begin
-	taking y from p begin
-	  cmp (x, y)
-	end
+       taking y from p begin
+         cmp (x, y)
+       end
       end
   in
   sort (cmp, r)

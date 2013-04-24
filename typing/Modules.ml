@@ -35,7 +35,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         collect_type t
     | DataTypeGroup (_, _, defs) ->
         MzList.map_flatten (function def ->
-	  match def.rhs with
+         match def.rhs with
           | Abstract _ ->
               []
           | Abbrev t ->
@@ -105,8 +105,8 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | ETApply (expr, ts) ->
         collect_expr expr @
         MzList.map_flatten (function
-	  | Ordered x
-	  | Named (_, x) ->
+         | Ordered x
+         | Named (_, x) ->
           collect_type x
         ) ts
     | ETuple exprs ->
@@ -148,7 +148,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | TyConcrete (branch, clause) ->
         collect_data_type_def_branch branch @
         collect_maybe_qualified (fst branch).datacon_unresolved @
-	MzList.map_flatten collect_type (Option.to_list clause)
+       MzList.map_flatten collect_type (Option.to_list clause)
 
   and collect_data_type_def_branch: 'a. 'a * data_field_def list -> Module.name list =
   fun (_, fields)  ->

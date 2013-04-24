@@ -35,12 +35,12 @@ val memoize
     let y =
       match find (x, t) with
       | Some { contents = y } ->
-	  y
+         y
       | None ->
           let y = f x in
           assert held l;
-	  add (x, y, t);
-	  y
+         add (x, y, t);
+         y
       end
     in
     (* Release the lock. This consumes [t @ table a b]. *)
@@ -83,9 +83,9 @@ val fix
     | Some { contents = y } ->
         y
     | None ->
-	let y = f (memoized, x) in
-	add (x, y, t);
-	y
+       let y = f (memoized, x) in
+       add (x, y, t);
+       y
     end
   in
 

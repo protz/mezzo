@@ -64,10 +64,10 @@ val traverse
         let successors = post node in
         (* Place it in the final pool. *)
         give node to completed;
-	(* Examine its successors. *)
-	list::iter (successors, examine);
-	(* Continue. *)
-	loop()
+       (* Examine its successors. *)
+       list::iter (successors, examine);
+       (* Continue. *)
+       loop()
     end
   in
 

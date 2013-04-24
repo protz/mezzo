@@ -32,11 +32,11 @@ let lex_and_parse file_path entry_var =
     the_parser (fun _ -> Lexer.token lexbuf)
   with
     | Ulexing.Error ->
-	Printf.eprintf
+       Printf.eprintf
           "Lexing error at offset %i\n" (Ulexing.lexeme_end lexbuf);
         exit 255
     | Ulexing.InvalidCodepoint i ->
-	Printf.eprintf
+       Printf.eprintf
           "Invalid code var %i at offset %i\n" i (Ulexing.lexeme_end lexbuf);
         exit 254
     | Grammar.Error ->
@@ -326,8 +326,8 @@ let check_implementation
        * polluted with internal names (the result of performing calls to
        * [Permissions.sub]), opening the same module twice may cause conflicts... *)
       (* TEMPORARY this also creates problems when passing the polluted environment
-	 to [KindCheck.initial]. I suggest it would be simpler to just require that
-	 everything published in an interface be duplicable. *)
+        to [KindCheck.initial]. I suggest it would be simpler to just require that
+        everything published in an interface be duplicable. *)
       let exports = TypeCore.get_exports env mname in
       ignore (check_interface output_env iface exports)
     ) deps;
@@ -458,11 +458,11 @@ let print_signature (buf: Buffer.t) (env: TypeCore.env): unit =
       in
       pdoc buf ((fun () ->
         let t =
-	  if true (* TEMPORARY *) then 
-	    print_type env t
-	  else
-	    SurfaceSyntaxPrinter.print (Resugar.resugar env t)
-	in
+         if true (* TEMPORARY *) then 
+           print_type env t
+         else
+           SurfaceSyntaxPrinter.print (Resugar.resugar env t)
+       in
         string "val" ^^ space ^^
         print_var env name ^^ space ^^ at ^^ space ^^ (nest 2 t) ^^
         break 1
@@ -509,14 +509,14 @@ let interpret (file_path : string) : unit =
     List.fold_left (fun env m ->
     
       (* We assume that each module consists of an interface file
-	 and an implementation file. The interface file serves a
+        and an implementation file. The interface file serves a
          role as a filter (not all definitions are exported), so
          it cannot be disregarded. *)
       Interpreter.eval_unit
-	env
-	m
-	(find_and_lex_interface m)
-	(find_and_lex_implementation m)
+       env
+       m
+       (find_and_lex_interface m)
+       (find_and_lex_implementation m)
 
     ) Interpreter.empty ms
   in

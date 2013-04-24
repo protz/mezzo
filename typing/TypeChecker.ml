@@ -447,19 +447,19 @@ let merge_type_annotations env t1 t2 =
       TyConcrete branch2
       when resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon ->
         assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
-	let branch = { branch1 with
-	  branch_fields =
+       let branch = { branch1 with
+         branch_fields =
             List.map2 (fun f1 f2 ->
-	      match f1, f2 with
-	      | FieldValue (f1, t1), FieldValue (f2, t2) when Field.equal f1 f2 ->
-		  FieldValue (f1, merge_type_annotations t1 t2)
-	      | _ ->
-		  error ()
-	    ) branch1.branch_fields branch2.branch_fields;
-	  branch_adopts =
+             match f1, f2 with
+             | FieldValue (f1, t1), FieldValue (f2, t2) when Field.equal f1 f2 ->
+                FieldValue (f1, merge_type_annotations t1 t2)
+             | _ ->
+                error ()
+           ) branch1.branch_fields branch2.branch_fields;
+         branch_adopts =
             merge_type_annotations branch1.branch_adopts branch2.branch_adopts;
-	} in
-	TyConcrete branch
+       } in
+       TyConcrete branch
     | _ ->
         error ()
   in
@@ -556,8 +556,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           match t with
           | TyConcrete branch ->
               (* Check that this datacon is exclusive. *)
-	      let flavor = flavor_for_branch env branch in
-	      if not (DataTypeFlavor.can_be_written flavor) then
+             let flavor = flavor_for_branch env branch in
+             if not (DataTypeFlavor.can_be_written flavor) then
                 raise_error env (AssignNotExclusive (t, snd branch.branch_datacon));
 
               (* Perform the assignment. *)
@@ -604,10 +604,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let found = ref false in
       let permissions = List.map (function
         | TyConcrete old_branch as t ->
-	    let old_datacon = old_branch.branch_datacon in
+           let old_datacon = old_branch.branch_datacon in
             (* The current type should be mutable. *)
-	    let old_flavor = flavor_for_branch env old_branch in
-	    if not (DataTypeFlavor.can_be_written old_flavor) then
+           let old_flavor = flavor_for_branch env old_branch in
+           if not (DataTypeFlavor.can_be_written old_flavor) then
               raise_error env (AssignNotExclusive (t, snd old_datacon));
 
             (* Also, the number of fields should be the same. *)
@@ -632,11 +632,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
             (* And don't forget to change the datacon as well. *)
             TyConcrete { old_branch with
-	      (* the flavor is unit anyway *)
-	      branch_datacon = new_datacon;
-	      branch_fields;
-	      (* the type of the adoptees does not change *)
-	    }
+             (* the flavor is unit anyway *)
+             branch_datacon = new_datacon;
+             branch_fields;
+             (* the type of the adoptees does not change *)
+           }
 
         | _ as t ->
             t
@@ -693,10 +693,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       | EApply _ ->
           if not (!Options.multiple_arguments) then
             raise_error env NoMultipleArguments
-	  (* TEMPORARY this is too violent, and this command line option
-	     does not really make sense, does it? Instead, the error
-	     message [NotAFunction] could be replaced with [NoMultipleArguments]
-	     in certain situations? *)
+         (* TEMPORARY this is too violent, and this command line option
+            does not really make sense, does it? Instead, the error
+            message [NotAFunction] could be replaced with [NoMultipleArguments]
+            in certain situations? *)
       | _ ->
           ()
       end;
@@ -869,10 +869,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       end;
       let fieldvals = List.rev fieldvals in
       let branch = {
-	branch_flavor = ();
-	branch_datacon = datacon;
-	branch_fields = fieldvals;
-	branch_adopts = clause;
+       branch_flavor = ();
+       branch_datacon = datacon;
+       branch_fields = fieldvals;
+       branch_adopts = clause;
       } in
       return env (TyConcrete branch)
 
@@ -891,11 +891,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let env, x1 = check_expression env ?hint:hint_1 e1 in
 
       (* The current convention is that if a data type has two
-	 constructors, say False | True, then the first one
-	 means false and the second one means true; i.e., the
-	 first one will cause the [else] branch to be executed,
-	 whereas the second one will cause the [then] branch to
-	 be executed. *)
+        constructors, say False | True, then the first one
+        means false and the second one means true; i.e., the
+        first one will cause the [else] branch to be executed,
+        whereas the second one will cause the [then] branch to
+        be executed. *)
 
       let env, (false_t, true_t) =
         match MzList.take_bool (is_data_type_with_two_constructors env) (get_permissions env x1) with
@@ -968,7 +968,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let replace_clause perm clause =
         match perm with
         | TyConcrete branch ->
-	    assert (is_non_bottom branch.branch_adopts = None); (* the old clause is bottom *)
+           assert (is_non_bottom branch.branch_adopts = None); (* the old clause is bottom *)
             TyConcrete { branch with branch_adopts = clause }
         | _ ->
             Log.error "[perm] must be a nominal type, and we don't allow the \
@@ -1015,13 +1015,13 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 (* We're done. *)
                 return env ty_unit
           else begin
-	    (* Check that the adoptee is exclusive. We do *not* check this when
-	       we examine an algebraic data type definition that has an adopts
-	       clause, because it is more flexible to defer this check to actual
-	       adoption time. Indeed, the type parameters have been instantiated,
-	       local mode assumptions are available, so the check may succeed here
-	       whereas it would have failed if performed at type definition time. *)
-	    if not (FactInference.is_exclusive env clause) then
+           (* Check that the adoptee is exclusive. We do *not* check this when
+              we examine an algebraic data type definition that has an adopts
+              clause, because it is more flexible to defer this check to actual
+              adoption time. Indeed, the type parameters have been instantiated,
+              local mode assumptions are available, so the check may succeed here
+              whereas it would have failed if performed at type definition time. *)
+           if not (FactInference.is_exclusive env clause) then
               raise_error env (NonExclusiveAdoptee clause);
             (* The clause is known. Just take the required permission out of the
              * permissions for x. *)
@@ -1048,17 +1048,17 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
   | EOwns (y, x) ->
       (* Careful: the order of the parameters is reversed compared to [EGive]
-	 and [ETake]. *)
+        and [ETake]. *)
       let env, x = check_expression env ?hint x in
       if not (List.exists (equal env TyDynamic) (get_permissions env x)) then
         raise_error env (NotDynamic x);
       let env, y = check_expression env ?hint y in
       (* Check that we have an exclusive permission for [y]. This is a stronger condition
-	 than strictly required for type soundness (no condition on [y] would be
-	 enough), but it should allow us to detect a few more programmer errors. *)
+        than strictly required for type soundness (no condition on [y] would be
+        enough), but it should allow us to detect a few more programmer errors. *)
       (* TEMPORARY if we have an exclusive permission for [x], then we could
-	 emit a warning, because in this case [y owns x] is certain to return
-	 false. *)
+        emit a warning, because in this case [y owns x] is certain to return
+        false. *)
       if not (List.exists (FactInference.is_exclusive env) (get_permissions env y)) then
         raise_error env (NoAdoptsClause y);
       return env !*t_bool
@@ -1078,9 +1078,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
   | EBuiltin _ ->
       (* A builtin value is type-checked like [fail], i.e., it has type
-	 bottom. This is unsafe! The user must know what they are doing.
-	 Unlike [fail], this does not imply that the code that follows
-	 is dead, so we do not set [env.inconsistent]. *)
+        bottom. This is unsafe! The user must know what they are doing.
+        Unlike [fail], this does not imply that the code that follows
+        is dead, so we do not set [env.inconsistent]. *)
       begin match annot with
       | Some t ->
           return env t
