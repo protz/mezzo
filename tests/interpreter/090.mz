@@ -1,0 +1,7 @@
+(* Success: 7 *)
+open array
+
+val () =
+  let r = init (Up, 10, fun (i: int) : int = i) in
+  sort ((fun (x: int, y: int) : int = y - x), r);
+  print (get (r, 2))

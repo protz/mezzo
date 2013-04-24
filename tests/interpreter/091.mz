@@ -1,0 +1,22 @@
+(* Success: 143 *)
+open array
+
+val () =
+  let n = 10 in
+  let prev = newref 0 in
+  let cur = newref 1 in
+  let r : iarray int = init (Up, n,
+    fun (i: int | prev @ ref int * cur @ ref int) : int =
+      let tmp = !cur in
+        cur := tmp + !prev;
+        prev := tmp;
+        tmp
+  ) in
+  let i = newref 0 in
+  let s = newref 0 in
+  preserving (i @ ref int * s @ ref int) while !i < length r do
+  begin
+    s := !s + get (r, !i);
+    i := !i + 1
+  end;
+  print !s
