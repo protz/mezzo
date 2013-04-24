@@ -148,7 +148,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("unbound06.mz", kfail);
   ("unbound07.mz", kfail);
   ("unbound08.mz", kfail);
-  ("unbound09.mz", pass);
+  ("unbound09.mz", pass_known_failure);
   ("unbound10.mz", kfail);
   ("unbound11.mz", kfail);
   ("unbound12.mz", kfail);
