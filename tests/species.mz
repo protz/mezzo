@@ -1,0 +1,73 @@
+open list
+
+(* [splits (xs, f)] enumerates all ways of splitting [xs], a list of distinct
+   elements, into two sub-lists. Each such split is passed as an argument to
+   the user-supplied function [f]. *)
+
+(* The key point that would make this code interesting is that the type [a] is
+   not assumed to be duplicable, hence no element can be sent (by mistake)
+   simultaneously into the left and right sub-lists. *)
+
+(* This code could be considered well-typed, I hope, but this requires rather
+   subtle reasoning about const-ness. The difficulty is to prove that the
+   three permissions [left @ list a * right @ list a * x @ a] are preserved
+   by the two consecutive calls to [f] in the [Cons] case.
+
+   Let me write [xleft] for the list [Cons { head = x; tail = left }].
+   Before the first call to [f], we have:
+     xleft @ Cons { head = x; tail = left }
+     left @ list a
+     right @ list a
+     x @ a
+     p
+   The first of the five permissions above is duplicable, hence it
+   should never be forgotten. Now, we can fold these permissions as
+   follows:
+     xleft @ list a
+     right @ list a
+     p
+   Hence we can f(xleft, right), which requires these permissions, and
+   preserves them. Now comes the key reasoning step. We have two
+   permissions for xleft, namely:
+     xleft @ Cons { head = x; tail = left }
+     xleft @ list a
+   In an ideal world, the type-checker should be able to deduce that
+   the second permission must in fact be a Cons permission (it cannot
+   possibly be Nil), hence we must in fact have:
+     xleft @ Cons { head = x; tail = left }
+     xleft @ Cons { head: a; tail: list a }
+   which (by a further reasoning step, perhaps already implemented)
+   implies that we have:
+     xleft @ Cons { head = x; tail = left }
+     x @ a
+     left @ a
+   This allows us to make the second call to [f], which by the same
+   reasoning, preserves [left @ list a * right @ list a * x @ a], so
+   the postcondition of the anonymous function is met. *)
+
+val rec splits [a, p : perm] (
+  xs: list a,
+  f: (list a, list a | p) -> ()
+| p
+) : () =
+  match xs with
+  | Nil ->
+      f (Nil, Nil)
+  | Cons { head = x } ->
+      (* Enumerate all ways of splitting [xs.tail], and for each such way,
+	 call [f] twice, once with [x] added to the left sub-list, once
+	 with [x] added to the right sub-list. *)
+      splits [a, (x @ a * p)] (xs.tail, fun (left: list a, right: list a | x @ a * p) : () =
+	f (Cons { head = x; tail = left }, right);
+        assert right @ list a;
+	assert x @ a;
+	assert left @ list a;
+	f (left, Cons { head = x; tail = right });
+      )
+  end
+
+(*
+Local Variables:
+compile-command: "../mezzo species.mz"
+End:
+*)
