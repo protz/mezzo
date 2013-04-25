@@ -953,7 +953,10 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
          * under an arrow). *)
         let sub_env = keep_only_duplicable env in
 
-        (* 2) Let us compare the domains... *)
+        (* 2) Let us compare the domains... any kind of information that we
+         * learn at this stage will be made available in the codomain. So it's
+         * important that we compare domains THEN codomains, and not the
+         * opposite. *)
         Log.debug ~level:4 "%sArrow / Arrow, left%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
