@@ -31,7 +31,7 @@ type result = env option * derivation
 
 (* -------------------------------------------------------------------------- *)
 
-(* This should help debuggnig. *)
+(* This should help debugging. *)
 
 let safety_check env =
   (* Be paranoid, perform an expensive safety check. *)
@@ -392,6 +392,16 @@ and add (env: env) (var: var) (t: typ): env =
   (* Add the permissions. *)
   let env = add_perms env perms in
 
+  (* There are several cases that we can optimize for, but here's the default
+   * one to start with: *)
+  let default env =
+    (* Add the "bare" type. Recursive calls took care of calling [add]. *)
+    let env = add_type env var t in
+    safety_check env;
+
+    env
+  in
+
   begin match t with
   | TySingleton (TyOpen p) when not (same env var p) ->
       Log.debug ~level:4 "%s]%s (singleton)" Bash.colors.Bash.red Bash.colors.Bash.default;
@@ -408,7 +418,7 @@ and add (env: env) (var: var) (t: typ): env =
       let env = refresh_facts env in
       add env var t
 
-  (* This implement the rule "x @ (=y, =z) * x @ (=y', =z') implies y = y' and z * = z'" *)
+  (* This implements the rule "x @ C { f⃗⃗: =y⃗ } * x @ C { f⃗: =y⃗' } implies y⃗ = * y⃗'" *)
   | TyConcrete branch ->
       let original_perms = get_permissions env var in
       begin match MzList.find_opt (function
@@ -446,6 +456,7 @@ and add (env: env) (var: var) (t: typ): env =
           add_type env var t
       end
 
+  (* This implements the rule "x @ (=y, =z) * x @ (=y', =z') implies y = y' and z * = z'" *)
   | TyTuple ts ->
       let original_perms = get_permissions env var in
       begin match MzList.find_opt (function TyTuple ts' -> Some ts' | _ -> None) original_perms with
@@ -466,13 +477,33 @@ and add (env: env) (var: var) (t: typ): env =
           add_type env var t
       end
 
+  (* This implements the rule "x @ Cons { head = h; tail = t } ∗ x @ list a" implies "x @ Cons
+   * { ... } ∗ x @ Cons { head: a; tail: list a }". After using that rule, the
+   * other special rule above will be applied immediately, resulting in extra
+   * permissions for [h] and [t]. This is necessary for the [species.mz]
+   * example. *)
+  | TyApp (t, ts) ->
+      let original_perms = get_permissions env var in
+      let t = !!t in
+      begin match MzList.find_opt (function
+        | TyConcrete { branch_datacon = (t', datacon); _ } ->
+            if same env t !!t' then
+              Some datacon
+            else
+              None
+        | _ ->
+            None
+      ) original_perms with
+      | Some datacon ->
+          let branch = find_and_instantiate_branch env t datacon ts in
+          let branch = TyConcrete branch in
+          add env var branch
+      | None ->
+          default env
+      end
 
   | _ ->
-      (* Add the "bare" type. Recursive calls took care of calling [add]. *)
-      let env = add_type env var t in
-      safety_check env;
-
-      env
+      default env
   end
 
 
