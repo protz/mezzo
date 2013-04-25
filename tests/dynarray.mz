@@ -4,10 +4,6 @@ data mutable dynarray a =
   DArray { r: marray dynamic }
 adopts a
 
-data mutable unfinished a =
-  Unfinished { r: () }
-adopts a
-
 data mutable dummy = Dummy
 val dummy : dynamic = Dummy
 
@@ -29,17 +25,15 @@ val init [a, p : perm] exclusive a => (
   | p
 ) : dynarray a =
   (* First, create a temporay object that will be our adopter. *)
-  let d = Unfinished { r = () } in
+  let d = DArray { r = () } in
   (* Fill the field [d.r] with the array. Don't forget to give the newly-created
    * elements to d! *)
   d.r <- array::init (
     s, n,
-      fun (i: int | p * d @ unfinished a) : dynamic =
+      fun (i: int | p * d @ DArray { r : () } adopts a) : dynamic =
         let x = f i in
         give x to d; x
-  );
-  (* Finalize this by chaning the tag of d. *)
-  tag of d <- DArray; d
+  ); d
 
 (* [get (d, i)] reads the element at index [i] in the array [d].
  * Although the type a is exclusive, it can only succeeds once because
@@ -78,13 +72,13 @@ val from_array [a] exclusive a => (
   consumes r: marray a
 ) : dynarray a =
   (* Same trick as above to have a temporary adopter. *)
-  let d = Unfinished { r = () } in
+  let d = DArray { r = () } in
   array::transform (Up, r, fun (
     _: int,
     consumes x: a
-    | d @ unfinished a
+    | d @ DArray { r : () } adopts a
   ) : dynamic = give x to d; x);
-  tag of d <- DArray; d.r <- r; d
+  d.r <- r; d
 
 (* [to_array d] attempts to recover the underlying array. This can fail at
  * runtime if some elements are being borrowed. *)
