@@ -8,7 +8,7 @@ open list
    not assumed to be duplicable, hence no element can be sent (by mistake)
    simultaneously into the left and right sub-lists. *)
 
-(* This code could be considered well-typed, I hope, but this requires rather
+(* This code is well-typed, but the derivation requires rather
    subtle reasoning about const-ness. The difficulty is to prove that the
    three permissions [left @ list a * right @ list a * x @ a] are preserved
    by the two consecutive calls to [f] in the [Cons] case.
@@ -26,7 +26,7 @@ open list
      xleft @ list a
      right @ list a
      p
-   Hence we can f(xleft, right), which requires these permissions, and
+   Hence we can call f(xleft, right), which requires these permissions, and
    preserves them. Now comes the key reasoning step. We have two
    permissions for xleft, namely:
      xleft @ Cons { head = x; tail = left }
@@ -57,11 +57,8 @@ val rec splits [a, p : perm] (
       (* Enumerate all ways of splitting [xs.tail], and for each such way,
 	 call [f] twice, once with [x] added to the left sub-list, once
 	 with [x] added to the right sub-list. *)
-      splits [a, (x @ a * p)] (xs.tail, fun (left: list a, right: list a | x @ a * p) : () =
+      splits (xs.tail, fun (left: list a, right: list a | x @ a * p) : () =
 	f (Cons { head = x; tail = left }, right);
-        assert right @ list a;
-	assert x @ a;
-	assert left @ list a;
 	f (left, Cons { head = x; tail = right });
       )
   end
