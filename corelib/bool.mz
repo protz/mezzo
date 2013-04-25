@@ -13,37 +13,27 @@
 (* Ideally, immutable types should be slim, which will allow a Mezzo
    boolean to coincide with an ocaml Boolean. TEMPORARY *)
 
-(* The type [bool] of Booleans. *)
-
-data bool =
-  | False
-  | True
-
-(* Constants. *)
-
-val false = False
-val true = True
-
-(* Negation. *)
-
-val not (b : bool) : bool =
-  match b with
-  | False -> True
-  | True -> False
-  end
-
 (* The type [rich_bool] of Booleans indexed with permissions. *)
 
 data rich_bool (p : perm) (q: perm) =
-  | RichFalse { | p }
-  | RichTrue { | q }
+  | False { | p }
+  | True { | q }
+
+(* The type [bool] of Booleans. *)
+
+alias bool = rich_bool empty empty
+
+(* Constants. *)
+
+val false : bool = False
+val true : bool = True
 
 (* Negation. *)
 
-val rich_not [p : perm, q : perm] (consumes b : rich_bool p q) : rich_bool q p =
+val not [p : perm, q : perm] (consumes b : rich_bool p q) : rich_bool q p =
   match b with
-  | RichFalse -> RichTrue
-  | RichTrue -> RichFalse
+  | False -> True
+  | True -> False
   end
 
 (* Conjunction and disjunction. *)
@@ -56,9 +46,9 @@ val conjunction
   | s
   ) : rich_bool q p2 =
   match b1 with
-  | RichFalse ->
-      RichFalse
-  | RichTrue ->
+  | False ->
+      False
+  | True ->
       b2()
   end
 
@@ -70,10 +60,10 @@ val disjunction
   | s
   ) : rich_bool q2 p =
   match b1 with
-  | RichFalse ->
+  | False ->
       b2()
-  | RichTrue ->
-      RichTrue
+  | True ->
+      True
   end
 
 (* Conversion to a bare Boolean. *)

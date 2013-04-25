@@ -48,22 +48,22 @@ data lock (p : perm) =
 (* Creation. *)
 
 val newlock [p : perm] (| consumes p) : lock p =
-  Lock { contents = newref [rich_bool empty p] RichTrue }
+  Lock { contents = newref [rich_bool empty p] True }
 
 (* Acquisition. *)
 
 val try_acquire [p : perm] (l: lock p) : rich_bool empty p =
-  swap (l.contents, RichFalse)
+  swap (l.contents, False)
 
 val acquire [p : perm] (l: lock p) : (| p) =
-  if rich_not (try_acquire l) then
+  if not (try_acquire l) then
     (* Runtime failure: the lock is already taken! *)
     fail
 
 (* Release. *)
 
 val release [p : perm] (l: lock p | consumes p) : () =
-  let _ = swap (l.contents, RichTrue) in
+  let _ = swap (l.contents, True) in
   (* We could use a [match] construct to check dynamically
      against multiple releases, but these are unlikely to
      occur, since multiple copies of [p] would be needed. *)

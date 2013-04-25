@@ -12,5 +12,5 @@ val ( == ) : (x: unknown, y: unknown) -> rich_bool empty (x = y) =
   builtin _mz_address_eq
 
 val ( != ) (x: unknown, y: unknown) : rich_bool (x = y) empty =
-  rich_not (x == y)
+  not (x == y)
 

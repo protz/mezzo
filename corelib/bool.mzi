@@ -1,8 +1,12 @@
+(* The type [rich_bool] of Booleans indexed with permissions. *)
+
+data rich_bool (p : perm) (q: perm) =
+  | False { | p }
+  | True { | q }
+
 (* The type [bool] of Booleans. *)
 
-data bool =
-  | False
-  | True
+alias bool = rich_bool empty empty
 
 (* Constants. *)
 
@@ -11,17 +15,7 @@ val true : bool
 
 (* Negation. *)
 
-val not : bool -> bool
-
-(* The type [rich_bool] of Booleans indexed with permissions. *)
-
-data rich_bool (p : perm) (q: perm) =
-  | RichFalse { | p }
-  | RichTrue { | q }
-
-(* Negation. *)
-
-val rich_not : [p : perm, q : perm] (consumes rich_bool p q) -> rich_bool q p
+val not : [p : perm, q : perm] (consumes rich_bool p q) -> rich_bool q p
 
 (* Conjunction and disjunction. *)
 
