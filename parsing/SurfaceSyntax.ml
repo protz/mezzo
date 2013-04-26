@@ -253,6 +253,8 @@ and expression =
   | EIfThenElse of bool * expression * expression * expression
   (* preserving p while e₁ do e₂ *) 
   | EWhile of typ * expression * expression
+  (* preserving p for v = el to eh do e *)
+  | EFor of typ * Variable.name * expression * expression * expression
   (* e₁; e₂ → desugared as let () = e₁ in e₂ *)
   | ESequence of expression * expression
   | ELocated of expression * location

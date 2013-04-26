@@ -57,6 +57,7 @@ type expression =
   | ERecord of (string * expression) list
   | EIfThenElse of expression * expression * expression
   | EWhile of expression * expression
+  | EFor of string * expression * expression * expression
   | ESequence of expression * expression
   | EInt of int
   | EStringLiteral of string

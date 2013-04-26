@@ -918,6 +918,13 @@ and check_expression env (expr: expression) =
       check_expression env e1;
       check_expression env e2
 
+  | EFor (t, x, el, eh, e) ->
+      check env t KPerm;
+      check_expression env el;
+      check_expression env eh;
+      let env = bind_local_loc env (x, KTerm ,location env) in
+      check_expression env e
+
   | ESequence (e1, e2)
   | EGive (e1, e2)
   | ETake (e1, e2)

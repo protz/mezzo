@@ -136,6 +136,19 @@ let rec atomic_expression (e : expression) : document =
   ^^
   break 1 ^^ string "done"
       )
+  | EFor (x, el, eh, e) ->
+      group (
+  surround 2 1
+    (string "for")
+    (((string x ^^ space ^^ equals) ^//^
+       expression el ^^ space ^^ string "to") ^/^
+       expression eh)
+    (string "do")
+  ^^
+  nest 2 (break 1 ^^ expression e)
+  ^^
+  break 1 ^^ string "done"
+      )
   | _ ->
       group (parens (expression e))
 

@@ -197,6 +197,10 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       )
   | EWhile (_, e1, e2) ->
       k (U.EWhile (reset_transl loc e1, reset_transl loc e2))
+  | EFor (_, x, el, eh, e) ->
+      k (U.EFor (
+        x, reset_transl loc el, reset_transl loc eh, reset_transl loc e
+      ))
   | ESequence (e1, e2) ->
       if is_unit e1 then
        transl loc e2 k

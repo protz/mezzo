@@ -265,6 +265,8 @@ let rec transl (e : expression) : O.expression =
   gtz (O.EGetTag (transl e1)),
   transl e2
       )
+  | EFor (x, el, eh, e) ->
+      O.EFor (identifier (Variable.print x), transl el, transl eh, transl e)
   | ESequence (e1, e2) ->
       seq (transl e1) (transl e2)
   | EInt i ->

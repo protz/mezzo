@@ -52,7 +52,7 @@
 %token          ARROW LARROW DBLARROW TAGOF FUN
 %token          EMPTY ASSERT EXPLAIN FAIL
 %token          CONSUMES DUPLICABLE FACT ABSTRACT
-%token          VAL LET REC AND IN DOT WITH BEGIN END MATCH
+%token          VAL LET REC AND IN DOT WITH BEGIN END MATCH FOR
 %token          IF THEN ELSE PRESERVING WHILE DO
 %token          TAKE FROM GIVE TO ADOPTS OWNS TAKING
 %token<int>     INT
@@ -870,6 +870,13 @@ raw_reasonable_expression:
     { EWhile (TyEmpty, e1, e2) }
 | PRESERVING t = arbitrary_type WHILE e1 = expression DO e2 = reasonable_expression
     { EWhile (t, e1, e2) }
+| FOR x = variable EQUAL el = expression TO eh = expression
+  DO e = reasonable_expression
+    { EFor (TyEmpty, x, el, eh, e) }
+| PRESERVING t = arbitrary_type
+  FOR x = variable EQUAL el = expression TO eh = expression
+  DO e = reasonable_expression
+    { EFor (t, x, el, eh, e) }
   (* We cannot allow "let" on the right-hand side of an assignment, because
      the right-hand side of "let" can contain a semi-colon. We disallow
      unparenthesized tuples, even though we could allow them, for two

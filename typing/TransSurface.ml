@@ -778,9 +778,40 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let body = EIfThenElse (false, e1, ESequence (e2, call), ETuple []) in
       (* [f] is: fun (|t) : () -> [body] *)
       let f = EFun ([], TyBar(TyTuple[], t), TyTuple [], body) in
-      (* The actual translation: let loop = [f] in loop() *)
+      (* The actual translation: let rec loop = [f] in loop() *)
       translate_expr env
         (ELet (Recursive, [(PVar name, f)] , call))
+
+  | EFor (t, x, el, eh, e) ->
+      let name = fresh_var "/loop" in
+      let name_eh = fresh_var "/max" in
+      (* [vi] is: x *)
+      let vi = EVar (Unqualified x) in
+      (* [add] is: [vi] + 1 *)
+      let add = EApply (
+        EVar (Unqualified (Variable.register "+")),
+        ETuple [vi; EInt 1]
+      ) in
+      (* [call e] is: loop ([e]) *)
+      let call e = EApply (EVar (Unqualified name), e) in
+      (* [cmp] is: [vi] <= max *)
+      let cmp = EApply (EVar (Unqualified (Variable.register "<=")),
+                ETuple [vi; EVar (Unqualified name_eh)]) in
+      (* [body] is: if [cmp] then begin e; [call add] end *)
+      let body = EIfThenElse (
+        false, cmp, ESequence (e, call add), ETuple []
+      ) in
+      let ty_int = TyVar (Unqualified (Variable.register "int")) in
+      (* [f] is: fun (x: int|t) : () -> [body] *)
+      let f = EFun ([], TyBar(TyNameIntro (x, ty_int), t), TyTuple [], body) in 
+      (* The actual translation is:
+       * let max = eh in 
+       * let rec loop = [f] in loop(el) *)
+      translate_expr env (
+        ELet (Nonrecursive, [(PVar name_eh, eh)],
+          ELet (Recursive, [(PVar name, f)], call el)
+        )
+      )
 
   | ESequence (e1, e2) ->
       let e1 = translate_expr env e1 in
