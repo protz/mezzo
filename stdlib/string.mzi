@@ -22,20 +22,6 @@ val cmp : [m1, m2] (string m1, string m2) -> int
 (* [eq (a, b)] is the equality function for strings. *)
 val eq : [m1, m2] (string m1, string m2) -> bool
 
-(* [first_from (s, i, f)] returns the position j of the first character after the
- * [i]-th verifying [f s[j]]. *)
-val first_from : [m, p: perm] (string m, int, (char | p) -> bool | p) -> int
-
-(* [last_from (s, i, f)] returns the position j of the last character before the
- * [i]-th verifying [f s[j]]. *)
-val last_from : [m, p: perm] (string m, int, (char | p) -> bool | p) -> int
-
-(* [first (s, f)] is [first_from (s, 0, f)]. *)
-val first : [m, p: perm] (string m, (char | p) -> bool | p) -> int
-
-(* [last (s, f)] is [last_from (s, length s - 1, f)]. *)
-val last : [m, p: perm] (string m, (char | p) -> bool | p) -> int
-
 (* [index_from (s, i, c)] returns the position of the first occurrence of
  * character [c] after the [i]-th position. *)
 val index_from : [m] (string m, int, char) -> int
@@ -60,9 +46,3 @@ val contains_from : [m] (string m, int, char) -> bool
 
 (* [contains (s, c)] is [contains_from (s, 0, c)]. *)
 val contains : [m] (string m, char) -> bool
-
-(* [search (needle, haystack, eq)] returns the position of the first occurence
- * of [needle] in [haystack], using [eq] to compare elements of both arrays.
- * It returns [length haystack] if [needle] is not in [haystack]. *)
-val search : [a, m1, m2, p : perm] duplicable a =>
-  (array m1 a, array m2 a, (a, a | p) -> bool | p) -> int
