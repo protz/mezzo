@@ -26,15 +26,15 @@ val some_primes : iarray int =
   set (r, 9, 29);
   freeze r; r
 
+val ignore [a] (_: a) : () = ()
+
 val shuffle [a] (o: int, r: marray a) : () =
   let n = length r in
-  let i = newref 0 in
-  preserving (r @ marray a * i @ ref int)
-  while !i < n do begin
-    iter (Up, some_primes, fun (p: int | r @ marray a * i @ ref int) : () =
-      swap (r, !i, mod(!i*p+o, n))
-    );
-    i := !i + 1
+  preserving (r @ marray a)
+  for i = 0 to n - 1 do begin
+    iter (Up, some_primes, fun (p: int | r @ marray a) : () =
+      swap (r, i, mod(i*p+o, n))
+    )
   end
 
 val () =

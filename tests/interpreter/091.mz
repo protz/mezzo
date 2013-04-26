@@ -12,11 +12,8 @@ val () =
         prev := tmp;
         tmp
   ) in
-  let i = newref 0 in
   let s = newref 0 in
-  preserving (i @ ref int * s @ ref int) while !i < length r do
-  begin
-    s := !s + get (r, !i);
-    i := !i + 1
-  end;
+  preserving (s @ ref int)
+  for i = 0 to length r - 1 do
+    s := !s + get (r, i);
   print !s
