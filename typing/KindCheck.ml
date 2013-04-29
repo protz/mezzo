@@ -500,11 +500,10 @@ let reset env ty =
    an algebraic data type definition, it also binds a number of data constructors. *)
 
 (* [bindings_data_group_types group] returns a list of bindings for the types
-   of the data group. *)
+   of the data group. The order of these bindings matters (by convention, they
+   are de Bruijn-numbered from left to right). *)
 let bindings_data_group_types (group : data_type_def list) : type_binding list =
   List.map (function def -> binding_of_lhs def.lhs) group
-    (* TEMPORARY why do I break a lot of tests if I replace List.map with
-       List.rev_map? The order should not matter here. *)
 
 (* [bind_data_group_datacons env group] extends the environment with bindings
    for the data constructors of the data group. It must be called after the
@@ -591,7 +590,7 @@ let rec check env (ty : typ) (expected : kind) =
   | _ ->
       let inferred = infer env ty in
       if not (Kind.equal inferred expected) then
-       mismatch env expected inferred
+        mismatch env expected inferred
 
 and infer env (ty : typ) : kind =
   match ty with
@@ -627,7 +626,7 @@ and infer env (ty : typ) : kind =
       (* Resolve this data constructor reference. *)
       let _, _ = resolve_datacon env dref in
       (* Check that no field is provided twice, and check the type
-        of each field. *)
+         of each field. *)
       check_branch env fields;
       (* Check that exactly the expected fields are provided. *)
       check_exact_fields env dref fields;
@@ -645,13 +644,13 @@ and infer env (ty : typ) : kind =
       let expected = List.length kind2s
       and provided = List.length ty2s in
       if expected <> provided then
-       raise_error env (ArityMismatch (expected, provided));
+        raise_error env (ArityMismatch (expected, provided));
       List.iter2 (check_reset env) ty2s kind2s;
       kind
 
   | TyArrow (ty1, ty2) ->
       (* The scope of the names introduced in the left-hand side
-        extends to the left- and right-hand sides. *)
+         extends to the left- and right-hand sides. *)
       let env = reset env ty1 in
       check env ty1 KType;
       check_reset env ty2 KType;
@@ -675,10 +674,10 @@ and infer env (ty : typ) : kind =
 
   | TyNameIntro (x, ty) ->
       (* In principle, this name has already been bound in the
-        environment, via a previous call to [reset]. *)
+         environment, via a previous call to [reset]. *)
       assert (find_kind env (Unqualified x) = KTerm);
-    check env ty KType;
-    KType
+      check env ty KType;
+      KType
 
   | TyBar (t1, t2) ->
       check env t1 KType;
@@ -748,6 +747,8 @@ and infer_reset env ty =
 
 and check_reset env ty expected =
   check (reset env ty) ty expected
+
+(* ---------------------------------------------------------------------------- *)
 
 (* Check a data type definition. For abstract types, this just checks that the
    fact is well-formed. For concrete types, check that the branches are all
