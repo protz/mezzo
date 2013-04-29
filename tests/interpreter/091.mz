@@ -14,6 +14,6 @@ val () =
   ) in
   let s = newref 0 in
   preserving (s @ ref int)
-  for i = 0 to length r - 1 do
+  for i = 0 below length r do
     s := !s + get (r, i);
   print !s

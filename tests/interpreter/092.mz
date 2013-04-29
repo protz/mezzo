@@ -31,7 +31,7 @@ val ignore [a] (_: a) : () = ()
 val shuffle [a] (o: int, r: marray a) : () =
   let n = length r in
   preserving (r @ marray a)
-  for i = 0 to n - 1 do begin
+  for i = 0 below n do begin
     iter (Up, some_primes, fun (p: int | r @ marray a) : () =
       swap (r, i, mod(i*p+o, n))
     )
