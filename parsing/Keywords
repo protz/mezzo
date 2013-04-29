@@ -1,3 +1,4 @@
+above
 abstract
 adopts
 alias
@@ -5,10 +6,12 @@ and
 as
 assert
 begin
+below
 builtin
 consumes
 data
 do
+downto
 duplicable
 dynamic
 else

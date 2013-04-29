@@ -265,8 +265,15 @@ let rec transl (e : expression) : O.expression =
   gtz (O.EGetTag (transl e1)),
   transl e2
       )
-  | EFor (x, el, eh, e) ->
-      O.EFor (identifier (Variable.print x), transl el, transl eh, transl e)
+  | EFor (x, e1, f, e2, e) ->
+      let mkop s = EVar (Unqualified (Variable.register s)) in
+      let f, e2 = match f with
+      | To -> O.To, e2
+      | Downto -> O.Downto, e2
+      | Below -> O.To, EApply (mkop "-", ETuple [e2; EInt 1])
+      | Above -> O.Downto, EApply (mkop "+", ETuple [e2; EInt 1])
+      in
+      O.EFor (identifier (Variable.print x), transl e1, f, transl e2, transl e)
   | ESequence (e1, e2) ->
       seq (transl e1) (transl e2)
   | EInt i ->

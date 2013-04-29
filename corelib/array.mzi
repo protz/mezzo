@@ -282,8 +282,8 @@ val sorted : [a, m1, m2, p : perm] duplicable a => (
 
 (* Miscellaneous. *)
 
-(* [above] repeatedly multiplies [x] by 2 until either [x >= n] holds
+(* [above_pow] repeatedly multiplies [x] by 2 until either [x >= n] holds
    or [2 * x] exceeds the maximum array length. *)
 
-val above: (x: int, n: int) -> int
+val above_pow: (x: int, n: int) -> int
 

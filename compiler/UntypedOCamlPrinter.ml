@@ -136,13 +136,13 @@ let rec atomic_expression (e : expression) : document =
   ^^
   break 1 ^^ string "done"
       )
-  | EFor (x, el, eh, e) ->
+  | EFor (x, e1, f, e2, e) ->
       group (
   surround 2 1
     (string "for")
     (((string x ^^ space ^^ equals) ^//^
-       expression el ^^ space ^^ string "to") ^/^
-       expression eh)
+       expression e1 ^^ space ^^ for_flag f) ^/^
+       expression e2)
     (string "do")
   ^^
   nest 2 (break 1 ^^ expression e)
@@ -238,6 +238,10 @@ and flag = function
       empty
   | SurfaceSyntax.Recursive ->
       string "rec "
+
+and for_flag = function
+  | To -> string "to"
+  | Downto -> string "downto"
 
 and branch (n : int) p e =
   group (

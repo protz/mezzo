@@ -119,8 +119,8 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         collect_expr e1 @ collect_expr e2 @ collect_expr e3
     | EWhile (t, e1, e2) ->
         collect_type t @ collect_expr e1 @ collect_expr e2
-    | EFor (t, _, el, eh, e) ->
-        collect_type t @ collect_expr el @ collect_expr eh @ collect_expr e
+    | EFor (t, _, e1, _, e2, e) ->
+        collect_type t @ collect_expr e1 @ collect_expr e2 @ collect_expr e
 
   and collect_type = function
     | TyVar v ->

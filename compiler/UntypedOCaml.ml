@@ -40,6 +40,8 @@ type pattern =
 type rec_flag =
     SurfaceSyntax.rec_flag
 
+type for_flag = To | Downto
+
 type expression =
     (* Unqualified and qualified references are conflated. *)
   | EVar of string
@@ -57,7 +59,7 @@ type expression =
   | ERecord of (string * expression) list
   | EIfThenElse of expression * expression * expression
   | EWhile of expression * expression
-  | EFor of string * expression * expression * expression
+  | EFor of string * expression * for_flag * expression * expression
   | ESequence of expression * expression
   | EInt of int
   | EStringLiteral of string

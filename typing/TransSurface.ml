@@ -782,24 +782,32 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       translate_expr env
         (ELet (Recursive, [(PVar name, f)] , call))
 
-  | EFor (t, x, el, eh, e) ->
+  | EFor (t, x, e1, f, e2, e) ->
       let name = fresh_var "/loop" in
-      let name_eh = fresh_var "/max" in
+      let name_e2 = fresh_var "/max" in
       (* [vi] is: x *)
       let vi = EVar (Unqualified x) in
-      (* [add] is: [vi] + 1 *)
-      let add = EApply (
-        EVar (Unqualified (Variable.register "+")),
+      let mkop s = EVar (Unqualified (Variable.register s)) in
+      (* [next_op] is: + or - *)
+      (* [cmp_op] is: <= or >= or < or > *)
+      let next_op, cmp_op = match f with
+      | To -> mkop "+", mkop "<="
+      | Downto -> mkop "-", mkop ">="
+      | Below -> mkop "+", mkop "<"
+      | Above -> mkop "-", mkop ">"
+      in
+      (* [next] is: [vi] [next_op] 1 *)
+      let next = EApply (
+        next_op,
         ETuple [vi; EInt 1]
       ) in
       (* [call e] is: loop ([e]) *)
       let call e = EApply (EVar (Unqualified name), e) in
-      (* [cmp] is: [vi] <= max *)
-      let cmp = EApply (EVar (Unqualified (Variable.register "<=")),
-                ETuple [vi; EVar (Unqualified name_eh)]) in
-      (* [body] is: if [cmp] then begin e; [call add] end *)
+      (* [cmp] is: [vi] [cmp_op] max *)
+      let cmp = EApply (cmp_op, ETuple [vi; EVar (Unqualified name_e2)]) in
+      (* [body] is: if [cmp] then begin e; [call next] end *)
       let body = EIfThenElse (
-        false, cmp, ESequence (e, call add), ETuple []
+        false, cmp, ESequence (e, call next), ETuple []
       ) in
       let ty_int = TyVar (Unqualified (Variable.register "int")) in
       (* [f] is: fun (x: int|t) : () -> [body] *)
@@ -808,8 +816,8 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
        * let max = eh in 
        * let rec loop = [f] in loop(el) *)
       translate_expr env (
-        ELet (Nonrecursive, [(PVar name_eh, eh)],
-          ELet (Recursive, [(PVar name, f)], call el)
+        ELet (Nonrecursive, [(PVar name_e2, e2)],
+          ELet (Recursive, [(PVar name, f)], call e1)
         )
       )
 

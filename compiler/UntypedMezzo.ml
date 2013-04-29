@@ -69,6 +69,9 @@ type tag_update_info =
 type field =
     SurfaceSyntax.field
 
+type for_flag =
+    SurfaceSyntax.for_flag
+
 type expression =
   | EVar of variable
   | EBuiltin of string
@@ -84,7 +87,7 @@ type expression =
   | EConstruct of (datacon_reference * (Variable.name * expression) list)
   | EIfThenElse of expression * expression * expression
   | EWhile of expression * expression
-  | EFor of Variable.name * expression * expression * expression
+  | EFor of Variable.name * expression * for_flag * expression * expression
   | ESequence of expression * expression
   | EInt of int
   | EFail of string (* cause and location of failure *)

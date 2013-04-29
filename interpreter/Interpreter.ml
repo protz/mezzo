@@ -682,12 +682,18 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
       done;
       unit_value
   
-  | EFor (_, x, el, eh, e) ->
-      for i = asInt (eval env loc el) to asInt (eval env loc eh) do
+  | EFor (_, x, e1, f, e2, e) ->
+      let i1, i2 = asInt (eval env loc e1), asInt (eval env loc e2) in
+      let body i =
         let env = match_irrefutable_pattern env (PVar x) (VInt i) in
         ignore (eval env loc e)
-      done;
-      unit_value
+      in begin
+      match f with
+      | To -> for i = i1 to i2 do body i done
+      | Downto -> for i = i1 downto i2 do body i done
+      | Below -> for i = i1 to i2 - 1 do body i done
+      | Above -> for i = i1 downto i2 + 1 do body i done
+      end; unit_value
 
   | ESequence (e1, e2) ->
       let _unit = eval env loc e1 in

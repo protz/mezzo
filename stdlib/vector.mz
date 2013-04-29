@@ -28,7 +28,7 @@ val new_length (length: int, size: int) : int =
   let length =
     max (
       minimum_length,
-      (array::above (length, size))
+      (array::above_pow (length, size))
     )
   in
   if size <= length then

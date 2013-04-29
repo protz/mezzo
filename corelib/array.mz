@@ -754,10 +754,10 @@ val nonduplicable_sort [a, s : perm] (
 
 (* Miscellaneous. *)
 
-val rec above (x: int, n: int) : int =
+val rec above_pow (x: int, n: int) : int =
   if x >= n then x
   else if x * 2 > max_length then x
-  else above (x * 2, n)
+  else above_pow (x * 2, n)
 
 (*
 Local Variables:

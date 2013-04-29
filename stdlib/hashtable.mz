@@ -25,7 +25,7 @@ data mutable table k a =
    2 above [n], then allocates a new bucket array. *)
 
 val create_buckets [k, a] (capacity: int) : marray (bucket k a) =
-  array::init (Up, array::above (16, capacity), fun (i: int) : bucket k a = BNil)
+  array::init (Up, array::above_pow (16, capacity), fun (i: int) : bucket k a = BNil)
 
 (* Creation. *)
 
