@@ -1,0 +1,9 @@
+data redundant_pair a =
+  Pair { left: (x: a); right = x }
+
+val p : redundant_pair int =
+  let x = 0 in
+  Pair { left = x; right = x }
+
+(* I believe this should be accepted? *)
+
