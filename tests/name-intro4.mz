@@ -1,0 +1,7 @@
+(* In principe, this should be accepted. The two uses of z are unconsidered
+   unrelated, as there is a reset after the @. *)
+val () =
+  let v = (2, 3) in
+  assert v @ (x: unknown, y: unknown | x @ (z: int) * y @ (z: int));
+  ()
+

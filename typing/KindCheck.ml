@@ -460,11 +460,8 @@ let rec bv loc (accu : type_binding list) (p : pattern) : type_binding list =
   | PAny ->
       accu
 
-(* [bv p] returns the names bound by the pattern [p], in left-to-right order. *)
-
-(* I am not sure why, but the order appears to be important. Is this normal
-   (e.g. because a lot of our Mezzo code relies on left-to-right instantiation
-   of flexible variables) or is it a bug? TEMPORARY *)
+(* [bv p] returns the names bound by the pattern [p], in left-to-right order.
+   The order matters -- the de Bruijn numbering convention relies on it. *)
 
 let bv p =
   (* Starting with a dummy location is not a problem, since the parser
@@ -572,7 +569,16 @@ let check_distinct_heads env name facts =
 
 (* The main kind-checking functions. *)
 
-let rec check env (ty : typ) (expected : kind) =
+(* [check] and [infer] check that the type [ty] is well-kinded and (in the
+   case of [check]) that it has the [expected] kind. These functions expect
+   that the names bound by the [TyNameIntro] forms have already been added to
+   the environment. By contrast, [check_reset] and [infer_reset] do not make
+   this assumption; they extend the environment before invoking [check] or
+   [infer]. In principle, the [_reset] variant is used whenever we switch from
+   some kind other than [KType] to kind [KType]. As a result, when checking a
+   type of kind [KTerm] or [KPerm], it is irrelevant which variant one uses. *)
+
+let rec check env (ty : typ) (expected : kind) : unit =
   match ty with
 
   (* Treating the following cases here may seem redundant, but allows us to
@@ -690,22 +696,14 @@ and infer env (ty : typ) : kind =
       check env ty KType;
       KType
 
-and check_mode_constraint env (_, ty) =
-  match infer_reset env ty with
-  | KType
-  | KPerm ->
-      ()
-  | inferred ->
-      raise_error env (ModeConstraintMismatch inferred)
+and infer_reset env ty =
+  infer (reset env ty) ty
 
-and check_field env (field : data_field_def) =
-  match field with
-  | FieldValue (_, ty) ->
-      check_reset env ty KType
-  | FieldPermission t ->
-      check env t KPerm (* [reset] irrelevant *)
+and check_reset env ty expected =
+  check (reset env ty) ty expected
 
-(* Used both for resolved and unresolved branches. *)
+(* [check_branch] is used both for resolved and unresolved branches, that is,
+   both for [TyConcrete] types and for algebraic data type definitions. *)
 and check_branch env fields =
   let fs = MzList.map_some (function
     | FieldValue (f, _) ->
@@ -717,9 +715,16 @@ and check_branch env fields =
   let (_ : _ list) =
     MzList.exit_if_duplicates Field.compare (fun f -> f) fs
       (bound_twice "field" Field.print env)
-      (* TEMPORARY better location? *)
   in
+  (* Check that every field is well-kinded. *)
   List.iter (check_field env) fields
+
+and check_field env (field : data_field_def) =
+  match field with
+  | FieldValue (_, ty) ->
+      check_reset env ty KType
+  | FieldPermission t ->
+      check env t KPerm (* [reset] irrelevant *)
 
 (* Check that exactly the correct fields are provided (no more, no less). *)
 and check_exact_fields env (dref : datacon_reference) (fields : data_field_def list) =
@@ -742,11 +747,14 @@ and check_exact_fields env (dref : datacon_reference) (fields : data_field_def l
       FieldSet.elements extra
     ))
 
-and infer_reset env ty =
-  infer (reset env ty) ty
-
-and check_reset env ty expected =
-  check (reset env ty) ty expected
+(* A mode constraint bears on a type or permission. *)
+and check_mode_constraint env (_, ty) =
+  match infer_reset env ty with
+  | KType
+  | KPerm ->
+      ()
+  | inferred ->
+      raise_error env (ModeConstraintMismatch inferred)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -770,6 +778,7 @@ let check_data_type_def env (def: data_type_def) =
       let bindings = List.map (fun (_, binding) -> binding) bindings in
       let env = extend env bindings in
       (* Check the branches. *)
+      (* TEMPORARY provide a per-branch location? *)
       List.iter (fun (_, fields) -> check_branch env fields) branches;
       begin match clause with
       | None ->

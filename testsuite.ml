@@ -166,6 +166,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("unbound24.mz", kfail);
   ("unbound25.mz", kfail);
   ("unbound26.mz", kfail);
+  ("unbound27.mz", kfail);
+  ("unbound28.mz", kfail);
 
   ("basic.mz",
     pass);
@@ -928,6 +930,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("name-intro.mz", pass);
   ("name-intro2.mz", pass);
   ("name-intro3.mz", pass_known_failure);
+  ("name-intro4.mz", pass_known_failure);
+  ("name-intro5.mz", pass);
   ("desugaring00.mz", pass_known_failure);
   ("exists-forall.mz", pass);
   ("name-capture.mz", pass_known_failure);

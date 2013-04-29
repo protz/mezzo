@@ -1,0 +1,6 @@
+data pair a b =
+  Pair { left: a; right: b }
+
+val make_redundant_pair [a] (consumes x: a) : Pair { left: (y: a); right = y } =
+  Pair { left = x; right = x }
+

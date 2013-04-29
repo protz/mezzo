@@ -1,0 +1,3 @@
+data t = 
+  T { f: int; f: int; g: int }
+
