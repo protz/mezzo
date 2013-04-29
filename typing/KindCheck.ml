@@ -565,6 +565,16 @@ let check_distinct_heads env name facts =
   MzList.exit_if_duplicates Mode.compare project facts
     (fun fact -> raise_error env (NonDistinctHeadsInFact (name, project fact)))
 
+(* Checking a conjunction of facts about a type. *)
+let check_facts env name bindings facts =
+  let params = List.map (fun (x, _, _) -> x) bindings in
+  List.iter (function Fact (hypotheses, conclusion) ->
+    List.iter (fun (_mode, t) -> check_fact_parameter env params t) hypotheses;
+    let (_mode, t) = conclusion in check_fact_conclusion env name params t
+  ) facts;
+  let (_ : _ list) = check_distinct_heads env name facts in
+  ()
+
 (* ---------------------------------------------------------------------------- *)
 
 (* The main kind-checking functions. *)
@@ -628,7 +638,8 @@ and infer env (ty : typ) : kind =
         by looking up the definition of its type, or by extending
         the [datacon_info] record with this information?) and check
         that its flavor is [Mutable]. Not required for soundness,
-        but seems reasonable. *)
+        but seems reasonable. Try to share code with the checking
+	of unresolved branches? *)
       (* Resolve this data constructor reference. *)
       let _, _ = resolve_datacon env dref in
       (* Check that no field is provided twice, and check the type
@@ -759,6 +770,9 @@ and check_mode_constraint env (_, ty) =
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Checking type definitions. *)
+
+(* Checking a branch in an algebraic data type definition. *)
 let check_unresolved_branch env (datacon, fields) =
   (* We need a [reset] at the level of the entire branch, so that
      a name introduced by [TyNameIntro] within any field is in
@@ -768,42 +782,31 @@ let check_unresolved_branch env (datacon, fields) =
   let env = reset env (TyConcrete ((dref, fields), adopts)) in
   check_branch env fields
 
-(* Check a data type definition. For abstract types, this just checks that the
-   fact is well-formed. For concrete types, check that the branches are all
+(* Checking a type definition. For abstract types, we just check that the
+   fact is well-formed. For concrete types, we check that the branches are
    well-formed. *)
 let check_data_type_def env (def: data_type_def) =
   let (name, return_kind, _), bindings = def.lhs in
+  let bindings = List.map (fun (_, binding) -> binding) bindings in
   match def.rhs with
   | Abstract facts ->
-      (* Get the names of the parameters. *)
-      let params = List.map (fun (_, (x, _, _)) -> x) bindings in
-      (* Perform a tedious check. *)
-      List.iter (function Fact (clauses, conclusion) ->
-        List.iter (fun (_, t) -> check_fact_parameter env params t) clauses;
-        let (_, t) = conclusion in check_fact_conclusion env name params t
-      ) facts;
-      let (_ : _ list) = check_distinct_heads env name facts in
-      ()
+      check_facts env name bindings facts
   | Concrete (flavor, branches, clause) ->
-      let bindings = List.map (fun (_, binding) -> binding) bindings in
       let env = extend env bindings in
       (* Check the branches. *)
       (* TEMPORARY provide a per-branch location? *)
       List.iter (check_unresolved_branch env) branches;
-      begin match clause with
-      | None ->
-          ()
-      | Some t ->
-          check_reset env t KType;
-          (* We can do that early. *)
-         if not (DataTypeFlavor.can_adopt flavor) then
-           raise_error env (AdopterNotExclusive name)
-      end
+      (* Check the adopts clause. *)
+      Option.iter (fun ty ->
+	check_reset env ty KType;
+        (* If there is an adopts clause, then the data type must be
+	   marked mutable. *)
+        if not (DataTypeFlavor.can_adopt flavor) then
+          raise_error env (AdopterNotExclusive name)
+      ) clause
   | Abbrev t ->
-      let bindings = List.map (fun (_, binding) -> binding) bindings in
       let env = extend env bindings in
       check_reset env t return_kind
-;;
 
 let branches_of_data_type_group (group : data_type_def list) =
   MzList.map_flatten (function def ->
