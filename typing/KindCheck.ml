@@ -722,7 +722,8 @@ and check_branch env fields =
 and check_field env (field : data_field_def) =
   match field with
   | FieldValue (_, ty) ->
-      check_reset env ty KType
+      (* No [reset] here. *)
+      check env ty KType
   | FieldPermission t ->
       check env t KPerm (* [reset] irrelevant *)
 
@@ -758,6 +759,15 @@ and check_mode_constraint env (_, ty) =
 
 (* ---------------------------------------------------------------------------- *)
 
+let check_unresolved_branch env (datacon, fields) =
+  (* We need a [reset] at the level of the entire branch, so that
+     a name introduced by [TyNameIntro] within any field is in
+     scope in all fields. *)
+  let dref = { datacon_unresolved = Unqualified datacon; datacon_info = None } in (* dummy *)
+  let adopts = None in (* dummy *)
+  let env = reset env (TyConcrete ((dref, fields), adopts)) in
+  check_branch env fields
+
 (* Check a data type definition. For abstract types, this just checks that the
    fact is well-formed. For concrete types, check that the branches are all
    well-formed. *)
@@ -779,7 +789,7 @@ let check_data_type_def env (def: data_type_def) =
       let env = extend env bindings in
       (* Check the branches. *)
       (* TEMPORARY provide a per-branch location? *)
-      List.iter (fun (_, fields) -> check_branch env fields) branches;
+      List.iter (check_unresolved_branch env) branches;
       begin match clause with
       | None ->
           ()
