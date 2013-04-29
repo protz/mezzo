@@ -808,6 +808,11 @@ let check_data_type_def env (def: data_type_def) =
       let env = extend env bindings in
       check_reset env t return_kind
 
+(* ---------------------------------------------------------------------------- *)
+
+(* The following two auxiliary functions are used below when detecting
+   duplicate data constructor definitions. *)
+
 let branches_of_data_type_group (group : data_type_def list) =
   MzList.map_flatten (function def ->
     match def.rhs with
@@ -815,7 +820,7 @@ let branches_of_data_type_group (group : data_type_def list) =
     | Abstract _ ->
         []
     | Concrete (_, branches, _) ->
-       branches
+        branches
   ) group
 
 let branches_of_interface (interface : interface) =
@@ -826,18 +831,25 @@ let branches_of_interface (interface : interface) =
         []
   ) interface
 
-let rec check_pattern env (pattern: pattern) =
-  match pattern with
-  | PConstraint (p, t) ->
+(* ---------------------------------------------------------------------------- *)
+
+(* Checking a pattern. *)
+
+(* The environment [env] must already include the bound names of this pattern.
+   The code is mostly trivial -- the only actual check is at [PConstraint]
+   nodes, where the type annotation is kind-checked. *)
+
+let rec check_pattern env (p : pattern) : unit =
+  match p with
+  | PConstraint (p, ty) ->
       check_pattern env p;
-      check_reset env t KType
+      check_reset env ty KType
   | PVar x ->
       assert (find_kind env (Unqualified x) = KTerm)
-  | PTuple patterns ->
-      List.iter (check_pattern env) patterns
-  | PConstruct (_, name_pats) ->
-      let _, patterns = List.split name_pats in
-      List.iter (check_pattern env) patterns
+  | PTuple ps ->
+      List.iter (check_pattern env) ps
+  | PConstruct (_, fps) ->
+      List.iter (fun (_, p) -> check_pattern env p) fps
   | PLocated (p, _) ->
       check_pattern env p
   | PAs (p1, x2) ->
@@ -845,8 +857,6 @@ let rec check_pattern env (pattern: pattern) =
       check_pattern env (PVar x2)
   | PAny ->
       ()
-;;
-
 
 let rec check_patexpr env (flag: rec_flag) (pat_exprs: (pattern * expression) list): 'v env =
   let patterns, expressions = List.split pat_exprs in

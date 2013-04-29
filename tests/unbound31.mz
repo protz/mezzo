@@ -1,0 +1,9 @@
+data pair a b =
+  Pair { left: a; right: b }
+
+val f (p : Pair { left: (x: int); right = x }) : int =
+  let Pair { left = z; right = (_ : =z) } = p in
+  x
+
+(* I believe this should be accepted? *)
+
