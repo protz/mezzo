@@ -858,31 +858,42 @@ let rec check_pattern env (p : pattern) : unit =
   | PAny ->
       ()
 
-let rec check_patexpr env (flag: rec_flag) (pat_exprs: (pattern * expression) list): 'v env =
-  let patterns, expressions = List.split pat_exprs in
-  (* Introduce all bindings from the patterns *)
+(* ---------------------------------------------------------------------------- *)
+
+(* Checking (non-recursive or recursive) pattern/expression bindings. *)
+
+let appropriate flag old_env new_env =
+  match flag with
+  | Nonrecursive ->
+      old_env
+  | Recursive ->
+      new_env
+
+let rec check_patexpr env (flag : rec_flag) (pes : (pattern * expression) list) : 'v env =
+  let patterns, expressions = List.split pes in
+  (* Introduce all bindings from the patterns. *)
   let sub_env = extend_check env (bv (PTuple patterns)) in
-  (* Type annotation in patterns may reference names introduced in the entire
-   * pattern (same behavior as tuple types). *)
-  List.iter (check_pattern sub_env) patterns;
+  (* A type annotation in any pattern may refer to a name introduced by any
+   * pattern (same behavior as in tuple types). *)
+  check_pattern sub_env (PTuple patterns);
   (* Whether the variables defined in the pattern are available in the
    * expressions depends, of course, on whether this is a recursive binding. *)
-  begin match flag with
-  | Recursive ->
-      List.iter (check_expression sub_env) expressions
-  | Nonrecursive ->
-      List.iter (check_expression env) expressions
-  end;
+  let appropriate_env = appropriate flag env sub_env in
+  List.iter (check_expression appropriate_env) expressions;
   (* Return the environment extended with bindings so that we can check whatever
    * comes afterwards. *)
   sub_env
 
+(* ---------------------------------------------------------------------------- *)
 
-and check_expression env (expr: expression) =
+(* Checking expressions. *)
+
+and check_expression env (expr : expression) : unit =
   match expr with
-  | EConstraint (e, t) ->
+
+  | EConstraint (e, ty) ->
       check_expression env e;
-      check_reset env t KType
+      check_reset env ty KType
 
   | EVar x ->
       let k = find_kind env x in
@@ -893,9 +904,9 @@ and check_expression env (expr: expression) =
   | EBuiltin _ ->
       ()
 
-  | ELet (flag, pat_exprs, expr) ->
-      let env = check_patexpr env flag pat_exprs in
-      check_expression env expr
+  | ELet (flag, pes, body) ->
+      let env = check_patexpr env flag pes in
+      check_expression env body
 
   | EFun (bindings, arg, return_type, body) ->
       let env = extend_check env bindings in
@@ -998,11 +1009,7 @@ let check_implementation env (program: implementation) : unit =
         (* Check that the data constructors are unique within this group. *)
        let (_ : _ list) = check_for_duplicate_datacons env (branches_of_data_type_group group) in
         (* Check each type definition in an appropriate environment. *)
-       let appropriate_env =
-         match rec_flag with
-         | Nonrecursive -> env
-         | Recursive -> extended_env
-       in
+       let appropriate_env = appropriate rec_flag env extended_env in
        List.iter (check_data_type_def appropriate_env) group;
        (* Return the extended environment. *)
         extended_env
