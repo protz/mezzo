@@ -56,6 +56,19 @@ module V =
 module D =
   Namespace.MakeNamespace(Datacon)
 
+(* A variable bound by little-lambda is viewed both as a term variable (i.e. it
+   can occur within an expression) and as a type variable (i.e. it can occur
+   within a type, and has kind [KTerm]). On the other hand, a variable bound by
+   capital-Lambda is only a type variable -- it cannot be used at an [EVar] node.
+   This ensures that types can be erased. In order to impose this restriction,
+   we map each variable to a ``variety''. Note that we could perhaps instead
+   encode this distinction into the kinds, by distinguishing [KRealTerm] and
+   [KTerm]. The former would be a sub-kind of the latter. *)
+
+type variety =
+  | Real      (* can be used at an [EVar] node *)
+  | Fictional (* cannot be used at an [EVar] node *)
+
 (* The environments defined here are used for kind checking and for translating
    types down to the core syntax. *)
 
@@ -64,9 +77,9 @@ type 'v env = {
   (* The current de Bruijn level. *)
   level: level;
 
-  (* A mapping of (qualified or unqualified) variable names to pairs of a kind
-     and a variable. *)
-  variables: ('v var * kind) V.global_env;
+  (* A mapping of (qualified or unqualified) variable names to triples of
+     a variable, a kind, and a variety. *)
+  variables: ('v var * kind * variety) V.global_env;
 
   (* A mapping of (qualified or unqualified) data constructor names to a pair
      of a variable (the algebraic data type with which this data constructor
@@ -98,10 +111,18 @@ module P = struct
     | NonLocal _ ->
        "external point"
 
+  let print_variety = function
+    | Real ->
+        "real"
+    | Fictional ->
+        "fictional"
+
   let print_env (env : 'v env) : document =
     (* We print just [env.variables]. *)
-    V.print_global_env (fun (v, kind) ->
-      string "kind = " ^^ print_kind kind ^^ string ", " ^^ string (print_var v)
+    V.print_global_env (fun (v, kind, variety) ->
+      string (print_var v) ^^ string ", " ^^
+      string "kind = " ^^ print_kind kind ^^ string ", " ^^
+      string "variety = " ^^ string (print_variety variety)
     ) env.variables
 
   (* Printing a comma-separated list of field names. *)
@@ -124,6 +145,7 @@ end
 type error =
   | Unbound of (* namespace: *) string * (* name: *) string
   | BoundTwice of (* namespace: *) string * (* name: *) string
+  | FictionalEVar of (* variable: *) Variable.name maybe_qualified
   | Mismatch of (* expected: *) kind * (* inferred: *) kind
   | ArityMismatch of (* expected: *) int * (* provided: *) int
   | ModeConstraintMismatch of (* provided: *) kind
@@ -156,6 +178,10 @@ let print_error env error buf () =
       bprintf
         "The %s %s is defined twice."
         namespace x
+  | FictionalEVar x ->
+      bprintf
+	"The variable %s is fictional and cannot appear in an expression."
+	(print_maybe_qualified Variable.print x)
   | Mismatch (expected, inferred) ->
       let il, ir = Kind.as_arrow inferred in
       let xl, xr = Kind.as_arrow expected in
@@ -296,7 +322,7 @@ let initial
 
   let variables =
     List.fold_left (fun accu (m, x, kind, v) ->
-      V.extend_qualified m x (NonLocal v, kind) accu
+      V.extend_qualified m x (NonLocal v, kind, Real) accu
     ) V.empty names
 
   and datacons =
@@ -319,21 +345,25 @@ let location env =
   env.loc
 
 (* [find env x] looks up the possibly-qualified variable [x] in [env]. *)
-let find env x : 'v var * kind =
+let find env x =
   try
     V.lookup_maybe_qualified x env.variables
   with Not_found ->
     unbound "variable" Variable.print env x
 
 let find_kind env x : kind =
-  let _, kind = find env x in
+  let _, kind, _ = find env x in
   kind
+
+let find_variety env x : variety =
+  let _, _, variety = find env x in
+  variety
 
 (* This function is for internal use; it returns a de-Bruijn-level
    [var]. Further on, we compose it with [level2index] and publish it as
    [find_variable]. *)
 let find_var env x : 'v var =
-  let v, _ = find env x in
+  let v, _, _ = find env x in
   v
 
 (* [level2index] converts a de-Bruijn-level [var] to a de-Bruijn-index [var]. *)
@@ -385,7 +415,7 @@ let locate env loc =
   { env with loc }
 
 (* [bind_variable env x data] binds the unqualified variable [x]. *)
-let bind_variable env x (data : 'v var * kind) : 'v env =
+let bind_variable env x (data : 'v var * kind * variety) : 'v env =
   { env with variables = V.extend_unqualified x data env.variables }
 
 (* [new_local_name env] allocates a new local name. *)
@@ -396,28 +426,30 @@ let new_local_name env : 'v env * 'v var =
   let env = { env with level = env.level + 1 } in
   env, v  
 
-(* [bind_local env (x, kind)] binds the unqualified variable [x] to a new local
-   name whose kind is [kind]. *)
-let bind_local env (x, kind) =
+(* [bind_local variety env (x, kind)] binds the unqualified variable [x]
+   to a new local name of the specified [kind] and [variety]. *)
+let bind_local variety env (x, kind) =
   let env, v = new_local_name env in
-  bind_variable env x (v, kind)
+  bind_variable env x (v, kind, variety)
 
 (* TEMPORARY try to do everything with [bind_local_loc], and rename it *)
-let bind_local_loc env (x, kind, _loc) =
-  bind_local env (x, kind)
+let bind_local_loc variety env (x, kind, _loc) =
+  bind_local variety env (x, kind)
 
 (* [bind_nonlocal env (x, kind, v)] binds the unqualified variable [x] to the
    non-local name [v], whose kind is [kind]. *)
 let bind_nonlocal env (x, kind, v) =
-  bind_variable env x (NonLocal v, kind)
+  (* The variety does not matter here, as [bind_nonlocal] is used for a
+     purpose other than kind-checking. *)
+  bind_variable env x (NonLocal v, kind, Fictional)
 
 (* [extend] is an iterated form of [bind_local]. *)
-let extend env (xs : type_binding list) : 'v env =
-  List.fold_left bind_local_loc env xs
+let extend variety env (xs : type_binding list) : 'v env =
+  List.fold_left (bind_local_loc variety) env xs
 
 (* [extend_check] performs a check for duplicate variables before using [extend]. *)
-let extend_check env xs =
-  extend env (check_for_duplicate_bindings env xs)
+let extend_check variety env xs =
+  extend variety env (check_for_duplicate_bindings env xs)
 
 (* [bind_datacon env x data] binds the unqualified data constructor [x]. *)
 let bind_datacon env x (data : 'v var * datacon_info) : 'v env =
@@ -485,11 +517,11 @@ let bv p =
 let names ty : type_binding list =
   bv (type_to_pattern ty)
 
-(* [reset env ty] extends the environment [env] with the names introduced
+(* [reset variety env ty] extends the environment [env] with the names introduced
    by the type [ty]. *)
 
-let reset env ty =
-  extend_check env (names ty)
+let reset variety env ty =
+  extend_check variety env (names ty)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -577,7 +609,7 @@ let check_facts env name bindings facts =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* The main kind-checking functions. *)
+(* Kind-checking for types and permissions. *)
 
 (* [check] and [infer] check that the type [ty] is well-kinded and (in the
    case of [check]) that it has the [expected] kind. These functions expect
@@ -587,6 +619,9 @@ let check_facts env name bindings facts =
    [infer]. In principle, the [_reset] variant is used whenever we switch from
    some kind other than [KType] to kind [KType]. As a result, when checking a
    type of kind [KTerm] or [KPerm], it is irrelevant which variant one uses. *)
+
+(* In this code, the varieties are not relevant, as we will never encounter
+   an [EVar] node anyway. We use [Fictional] everywhere. *)
 
 let rec check env (ty : typ) (expected : kind) : unit =
   match ty with
@@ -668,14 +703,14 @@ and infer env (ty : typ) : kind =
   | TyArrow (ty1, ty2) ->
       (* The scope of the names introduced in the left-hand side
          extends to the left- and right-hand sides. *)
-      let env = reset env ty1 in
+      let env = reset Fictional env ty1 in
       check env ty1 KType;
       check_reset env ty2 KType;
       KType
 
   | TyForall (binding, ty)
   | TyExists (binding, ty) ->
-      let env = bind_local_loc env binding in
+      let env = bind_local_loc Fictional env binding in
       check_reset env ty KType;
       KType
 
@@ -708,10 +743,10 @@ and infer env (ty : typ) : kind =
       KType
 
 and infer_reset env ty =
-  infer (reset env ty) ty
+  infer (reset Fictional env ty) ty
 
 and check_reset env ty expected =
-  check (reset env ty) ty expected
+  check (reset Fictional env ty) ty expected
 
 (* [check_branch] is used both for resolved and unresolved branches, that is,
    both for [TyConcrete] types and for algebraic data type definitions. *)
@@ -779,7 +814,7 @@ let check_unresolved_branch env (datacon, fields) =
      scope in all fields. *)
   let dref = { datacon_unresolved = Unqualified datacon; datacon_info = None } in (* dummy *)
   let adopts = None in (* dummy *)
-  let env = reset env (TyConcrete ((dref, fields), adopts)) in
+  let env = reset Fictional env (TyConcrete ((dref, fields), adopts)) in
   check_branch env fields
 
 (* Checking a type definition. For abstract types, we just check that the
@@ -792,7 +827,7 @@ let check_data_type_def env (def: data_type_def) =
   | Abstract facts ->
       check_facts env name bindings facts
   | Concrete (flavor, branches, clause) ->
-      let env = extend env bindings in
+      let env = extend Fictional env bindings in
       (* Check the branches. *)
       (* TEMPORARY provide a per-branch location? *)
       List.iter (check_unresolved_branch env) branches;
@@ -805,7 +840,7 @@ let check_data_type_def env (def: data_type_def) =
           raise_error env (AdopterNotExclusive name)
       ) clause
   | Abbrev t ->
-      let env = extend env bindings in
+      let env = extend Fictional env bindings in
       check_reset env t return_kind
 
 (* ---------------------------------------------------------------------------- *)
@@ -871,8 +906,10 @@ let appropriate flag old_env new_env =
 
 let rec check_patexpr env (flag : rec_flag) (pes : (pattern * expression) list) : 'v env =
   let patterns, expressions = List.split pes in
-  (* Introduce all bindings from the patterns. *)
-  let sub_env = extend_check env (bv (PTuple patterns)) in
+  (* Introduce all bindings from the patterns. These bindings are ``real'',
+     i.e. the variables that are bound here can be referred to by an [EVar]
+     node. *)
+  let sub_env = extend_check Real env (bv (PTuple patterns)) in
   (* A type annotation in any pattern may refer to a name introduced by any
    * pattern (same behavior as in tuple types). *)
   check_pattern sub_env (PTuple patterns);
@@ -896,10 +933,13 @@ and check_expression env (expr : expression) : unit =
       check_reset env ty KType
 
   | EVar x ->
+      (* [x] must have kind [KTerm]. *)
       let k = find_kind env x in
-      (* TEMPORARY check that only lambda-bound variables can appear in code *)
       if k <> KTerm then
-        mismatch env KTerm k
+        mismatch env KTerm k;
+      (* [x] must have variety [Real]. *)
+      if find_variety env x <> Real then
+	raise_error env (FictionalEVar x)
 
   | EBuiltin _ ->
       ()
@@ -909,8 +949,11 @@ and check_expression env (expr : expression) : unit =
       check_expression env body
 
   | EFun (bindings, arg, return_type, body) ->
-      let env = extend_check env bindings in
-      let env = reset env arg in
+      (* The variables bound by capital-Lambda are fictional. *)
+      let env = extend_check Fictional env bindings in
+      (* The variables bound by little-lambda are real. The argument type
+	 [arg] is interpreted here as a pattern. *)
+      let env = reset Real env arg in
       check env arg KType;
       check_expression env body;
       check_reset env return_type KType
@@ -939,7 +982,7 @@ and check_expression env (expr : expression) : unit =
   | EMatch (_, e, pat_exprs) ->
       check_expression env e;
       List.iter (fun (pat, expr) ->
-        let sub_env = extend_check env (bv pat) in
+        let sub_env = extend_check Real env (bv pat) in
         check_pattern sub_env pat;
         check_expression sub_env expr
       ) pat_exprs
@@ -966,7 +1009,7 @@ and check_expression env (expr : expression) : unit =
       check env t KPerm;
       check_expression env e1;
       check_expression env e2;
-      let env = bind_local_loc env (x, KTerm ,location env) in
+      let env = bind_local_loc Real env (x, KTerm ,location env) in
       check_expression env e
 
   | ESequence (e1, e2)
@@ -985,7 +1028,6 @@ and check_expression env (expr : expression) : unit =
   | EExplained e ->
       check_expression env e
 
-
   | EFail ->
       ()
 
@@ -994,9 +1036,6 @@ and check_tapp env = function
   | Named (_, ty) ->
       ignore (infer_reset env ty)
 
-;;
-
-
 (* Also used to check an interface. *)
 let check_implementation env (program: implementation) : unit =
   let (_ : 'v env) = List.fold_left (fun env -> function
@@ -1004,17 +1043,17 @@ let check_implementation env (program: implementation) : unit =
         let env = { env with loc } in
         (* Create an environment that includes the types and data constructors
           defined in this group. *)
-        let extended_env = extend_check env (bindings_data_group_types group) in
-       let extended_env = bind_data_group_datacons extended_env group in
+        let extended_env = extend_check Fictional env (bindings_data_group_types group) in
+        let extended_env = bind_data_group_datacons extended_env group in
         (* Check that the data constructors are unique within this group. *)
-       let (_ : _ list) = check_for_duplicate_datacons env (branches_of_data_type_group group) in
+        let (_ : _ list) = check_for_duplicate_datacons env (branches_of_data_type_group group) in
         (* Check each type definition in an appropriate environment. *)
-       let appropriate_env = appropriate rec_flag env extended_env in
-       List.iter (check_data_type_def appropriate_env) group;
-       (* Return the extended environment. *)
+        let appropriate_env = appropriate rec_flag env extended_env in
+        List.iter (check_data_type_def appropriate_env) group;
+        (* Return the extended environment. *)
         extended_env
-         (* TEMPORARY there is code duplication between here and
-            [TransSurface.translate_data_type_group] *)
+          (* TEMPORARY there is code duplication between here and
+             [TransSurface.translate_data_type_group] *)
 
     | ValueDefinitions (loc, rec_flag, pat_exprs) ->
         let env = { env with loc } in
@@ -1022,13 +1061,13 @@ let check_implementation env (program: implementation) : unit =
 
     | ValueDeclaration (x, t, loc) ->
         check_reset env t KType;
-        bind_local_loc env (x, KTerm, loc)
+        bind_local_loc Real env (x, KTerm, loc)
 
     | OpenDirective mname ->
         dissolve env mname
+
   ) env program in
   ()
-;;
 
 let check_interface env (interface: interface) =
   (* Check for duplicate variables. A variable cannot be declared twice
@@ -1064,4 +1103,17 @@ let check =
 
 let infer =
   infer_reset
+
+(* Specialize some functions on an arbitrary variety for public use.
+   The variety does not matter any more after kind-checking has been
+   performed. *)
+
+let bind_local env data =
+  bind_local Fictional env data
+
+let bind_local_loc env binding =
+  bind_local_loc Fictional env binding
+
+let extend env bindings =
+  extend Fictional env bindings
 
