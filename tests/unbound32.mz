@@ -1,0 +1,7 @@
+open list
+
+val crazy (consumes x: Cons { head: int; tail: list int }) : () =
+  tag of x <- Crazy
+
+(* Ill-formed, because [Crazy] is unknown. *)
+

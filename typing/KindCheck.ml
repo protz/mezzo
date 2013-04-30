@@ -966,10 +966,15 @@ and check_expression env (expr : expression) : unit =
       check_reset env return_type KType
 
   | EAssign (e1, _, e2) ->
+      (* The field name is ignored. The type-checker will later ensure
+	 that this field exists and can be accessed. *)
       check_expression env e1;
       check_expression env e2
 
-  | EAssignTag (e1, _, _) ->
+  | EAssignTag (e1, dref, _) ->
+      (* We can certainly resolve this data constructor reference right
+	 now (and fail if this data constructor is unknown). *)
+      let _ = resolve_datacon env dref in
       check_expression env e1
 
   | EAccess (e, _) ->
