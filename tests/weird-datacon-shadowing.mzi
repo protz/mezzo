@@ -1,0 +1,9 @@
+data t =
+  A | B
+
+val a : A
+
+abstract u
+
+val f: u -> int
+

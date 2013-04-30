@@ -121,6 +121,10 @@ let fail_known_failure =
   simple_test ~known_failure:() (Fail (function _ -> true))
 ;;
 
+let kfail_known_failure =
+  simple_test ~known_failure:() KFail
+;;
+
 let dummy_loc =
   Lexing.dummy_pos, Lexing.dummy_pos
 ;;
@@ -775,6 +779,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
 
   ("missing-export.mz", kfail);
+
+  ("weird-datacon-shadowing.mz", kfail_known_failure);
 
   ("assert.mz", pass);
 

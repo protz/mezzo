@@ -310,7 +310,8 @@ let check_implementation
 	 in
 	 (* TEMPORARY [delta] says nothing about datacons, and that is fishy.
 	    The data constructor that is exported could be other than the one
-	    that is in scope at the end of the module? -- try it *)
+	    that is in scope at the end of the module? -- yes, see
+	    weird-datacons-shadowing. *)
 
         (* If the function types are not syntactically equal, the decision
          * procedure for comparing those two types introduces internal names

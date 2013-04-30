@@ -1,0 +1,24 @@
+data t = 
+  A | B
+
+val a : A =
+  A
+
+data u =
+  A | B
+
+val f (x : u) : int =
+  match x with
+  | A -> 0
+  | B -> 1
+  end
+
+(* At the time of writing, this .mzi/.mz pair is accepted.
+   One could however argue that it should be rejected, but
+   the data constructors A and B that are in scope at the
+   end of the .mz file are those of u, yet the data constructors
+   that are exported are those of t. Weird. *)
+
+(* I would suggest forbidding duplicate data constructor
+   definitions in .mz files. *)
+
