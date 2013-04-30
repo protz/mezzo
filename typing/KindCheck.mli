@@ -128,7 +128,6 @@ val bind_data_group_datacons: 'v env -> data_type_def list -> 'v env
 val names: typ -> type_binding list
 val bv: pattern -> type_binding list
 
-val check: 'v env -> typ -> kind -> unit
 val infer: 'v env -> typ -> kind
 
 val check_implementation: 'v env -> implementation -> unit

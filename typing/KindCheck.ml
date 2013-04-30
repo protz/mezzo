@@ -1127,10 +1127,7 @@ let check_interface env (interface : interface) : unit =
 let find_variable env x =
   level2index env (find_var env x)
 
-(* Rename [check_reset] and [infer_reset] for public use. *)
-let check =
-  check_reset
-
+(* Rename [infer_reset] for public use. *)
 let infer =
   infer_reset
 
