@@ -426,15 +426,11 @@ let new_local_name env : 'v env * 'v var =
   let env = { env with level = env.level + 1 } in
   env, v  
 
-(* [bind_local variety env (x, kind)] binds the unqualified variable [x]
+(* [bind_local variety env (x, kind, loc)] binds the unqualified variable [x]
    to a new local name of the specified [kind] and [variety]. *)
-let bind_local variety env (x, kind) =
+let bind_local variety env (x, kind, _) =
   let env, v = new_local_name env in
   bind_variable env x (v, kind, variety)
-
-(* TEMPORARY try to do everything with [bind_local_loc], and rename it *)
-let bind_local_loc variety env (x, kind, _loc) =
-  bind_local variety env (x, kind)
 
 (* [bind_nonlocal env (x, kind, v)] binds the unqualified variable [x] to the
    non-local name [v], whose kind is [kind]. *)
@@ -445,7 +441,7 @@ let bind_nonlocal env (x, kind, v) =
 
 (* [extend] is an iterated form of [bind_local]. *)
 let extend variety env (xs : type_binding list) : 'v env =
-  List.fold_left (bind_local_loc variety) env xs
+  List.fold_left (bind_local variety) env xs
 
 (* [extend_check] performs a check for duplicate variables before using [extend]. *)
 let extend_check variety env xs =
@@ -710,7 +706,7 @@ and infer env (ty : typ) : kind =
 
   | TyForall (binding, ty)
   | TyExists (binding, ty) ->
-      let env = bind_local_loc Fictional env binding in
+      let env = bind_local Fictional env binding in
       check_reset env ty KType;
       KType
 
@@ -1025,7 +1021,7 @@ and check_expression env (expr : expression) : unit =
       check env p KPerm; (* [reset] irrelevant *)
       check_expression env e1;
       check_expression env e2;
-      check_expression (bind_local_loc Real env binding) e
+      check_expression (bind_local Real env binding) e
 
   | ESequence (e1, e2)
   | EGive (e1, e2)
@@ -1081,7 +1077,7 @@ let check_implementation env (program: implementation) : unit =
 
     | ValueDeclaration (binding, ty) ->
         check_reset env ty KType;
-        bind_local_loc Real env binding
+        bind_local Real env binding
 
     | OpenDirective mname ->
         dissolve env mname
@@ -1135,11 +1131,8 @@ let infer =
    The variety does not matter any more after kind-checking has been
    performed. *)
 
-let bind_local env data =
-  bind_local Fictional env data
-
-let bind_local_loc env binding =
-  bind_local_loc Fictional env binding
+let bind_local env binding =
+  bind_local Fictional env binding
 
 let extend env bindings =
   extend Fictional env bindings

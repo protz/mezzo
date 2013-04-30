@@ -232,13 +232,13 @@ let rec translate_type (env: env) (t: typ): T.typ =
       let arrow = T.TyArrow (t1, t2) in
       Types.fold_forall universal_bindings arrow
 
-  | TyForall ((x, k, loc), t) ->
-      let env = bind_local env (x, k) in
-      T.TyQ (T.Forall, name_user env (x, k, loc), UserIntroduced, translate_type_with_names env t)
+  | TyForall (binding, t) ->
+      let env = bind_local env binding in
+      T.TyQ (T.Forall, name_user env binding, UserIntroduced, translate_type_with_names env t)
 
-  | TyExists ((x, k, loc), t) ->
-      let env = bind_local env (x, k) in
-      T.TyQ (T.Exists, name_user env (x, k, loc), UserIntroduced, translate_type_with_names env t)
+  | TyExists (binding, t) ->
+      let env = bind_local env binding in
+      T.TyQ (T.Exists, name_user env binding, UserIntroduced, translate_type_with_names env t)
 
   | TyAnchoredPermission (t1, t2) ->
       T.TyAnchoredPermission (translate_type env t1, translate_type env t2)
@@ -666,9 +666,10 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
         translate_arrow_type env arg return_type
       in
 
+      (* TEMPORARY very weird! *)
       (* Introduce all other bindings in scope *)
       let env = List.fold_left (fun env -> function
-        | ((T.Auto x, k, _), _) | ((T.User (_, x), k, _), _) -> bind_local env (x, k)
+        | ((T.Auto x, k, _), _) | ((T.User (_, x), k, _), _) -> bind_local env (x, k, dummy_loc)
       ) env universal_bindings in
 
       (* Now translate the body (which will probably refer to these bound
@@ -896,7 +897,7 @@ let translate_item env item =
       (* This just desugars the data type definitions, no binder is opened yet! *)
       let env, defs =
         (* Be strict if we're in an interface. *)
-        translate_data_type_group bind_local_loc env data_type_group
+        translate_data_type_group bind_local env data_type_group
       in
       env, Some (E.DataTypeGroup defs)
   | ValueDefinitions (loc, flag, pat_exprs) ->
@@ -908,7 +909,7 @@ let translate_item env item =
       env, Some item
   | ValueDeclaration ((x, _, _) as binding, ty) ->
       let ty = translate_type_with_names env ty in
-      let env = bind_local_loc env binding in
+      let env = bind_local env binding in
       env, Some (E.ValueDeclaration (x, ty))
   | OpenDirective mname ->
       dissolve env mname, None
