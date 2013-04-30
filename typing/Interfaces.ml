@@ -152,11 +152,12 @@ let check
 
         (* Translate this data type group, while taking care to re-use
           the existing points in [env]. *)
+        let special_bind tsenv (name, kind, _loc) =
+          KindCheck.bind_nonlocal tsenv (name, kind, point_by_name name)
+	in
         let tsenv, translated_definitions =
-         TransSurface.translate_data_type_group (fun tsenv (name, kind, _loc) ->
-            KindCheck.bind_nonlocal tsenv (name, kind, point_by_name name)
-         ) tsenv group
-       in
+         TransSurface.translate_data_type_group (List.fold_left special_bind) tsenv group
+        in
 
         (* Check that the translated definitions from the interface and the known
          * definitions from the implementations are consistent. *)

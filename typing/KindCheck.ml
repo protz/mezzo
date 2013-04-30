@@ -1131,9 +1131,6 @@ let infer =
    The variety does not matter any more after kind-checking has been
    performed. *)
 
-let bind_local env binding =
-  bind_local Fictional env binding
-
 let extend env bindings =
   extend Fictional env bindings
 

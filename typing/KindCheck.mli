@@ -97,16 +97,15 @@ val resolve_datacon: 'v env -> datacon_reference -> 'v var * Datacon.name
 (** [locate env loc] updates [env] with the location [loc]. *)
 val locate: 'v env -> location -> 'v env
 
-(** [bind_local env (x, kind, loc)] binds the unqualified variable [x] to a new
-    local name whose kind is [kind]. *)
-val bind_local: 'v env -> type_binding -> 'v env
+(** [extend env bindings] iterates over the list [bindings], from left to
+    right, and for each binding of the form [(x, kind, loc)], it extends
+    the environment by binding the unqualified variable [x] to a new local
+    name whose kind is [kind]. *)
+val extend: 'v env -> type_binding list -> 'v env
 
 (** [bind_nonlocal env (x, kind, v)] binds the unqualified variable [x] to the
     non-local name [v], whose kind is [kind]. *)
 val bind_nonlocal: 'v env -> Variable.name * kind * 'v -> 'v env
-
-(** [extend] is an iterated form of [bind_local]. *)
-val extend: 'v env -> type_binding list -> 'v env
 
 (** [dissolve env m] has the effect of introducing a new binding of [x]
     for every existing binding of [m::x]. This concerns both variables and

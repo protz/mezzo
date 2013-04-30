@@ -233,11 +233,11 @@ let rec translate_type (env: env) (t: typ): T.typ =
       Types.fold_forall universal_bindings arrow
 
   | TyForall (binding, t) ->
-      let env = bind_local env binding in
+      let env = extend env [ binding ] in
       T.TyQ (T.Forall, name_user env binding, UserIntroduced, translate_type_with_names env t)
 
   | TyExists (binding, t) ->
-      let env = bind_local env binding in
+      let env = extend env [ binding ] in
       T.TyQ (T.Exists, name_user env binding, UserIntroduced, translate_type_with_names env t)
 
   | TyAnchoredPermission (t1, t2) ->
@@ -498,14 +498,14 @@ let translate_data_type_def (env : env) (def : data_type_def) =
 ;;
 
 
-(* [translate_data_type_group bind env tenv data_type_group] returns [env, group] where:
+(* [translate_data_type_group extend env tenv data_type_group] returns [env, group] where:
   - the type definitions have been added with the corresponding levels in [env]
   - type definitions have been desugared into [group].
-  The [bind] parameter is normally [KindCheck.bind], but [Interfaces] supplies
+  The [extend] parameter is normally [KindCheck.extend], but [Interfaces] supplies
   a different function.
 *)
 let translate_data_type_group
-    (bind: env -> type_binding -> env)
+    (extend: env -> type_binding list -> env)
     (env: env)
     (data_type_group: data_type_group)
   : env * T.data_type_group
@@ -519,7 +519,7 @@ let translate_data_type_group
   (* We're recycling the environments from [SurfaceSyntax] because we're lazy.
    * We don't really need the [Types.kind] information here, but all the other
    * functions such as [bind] and [find] are defined already. *)
-  let sub_env = List.fold_left bind env bindings in
+  let sub_env = extend env bindings in
 
   (* Also bind the constructors. *)
   let env = locate env loc in
@@ -669,7 +669,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       (* TEMPORARY very weird! *)
       (* Introduce all other bindings in scope *)
       let env = List.fold_left (fun env -> function
-        | ((T.Auto x, k, _), _) | ((T.User (_, x), k, _), _) -> bind_local env (x, k, dummy_loc)
+        | ((T.Auto x, k, _), _) | ((T.User (_, x), k, _), _) -> extend env [(x, k, dummy_loc)]
       ) env universal_bindings in
 
       (* Now translate the body (which will probably refer to these bound
@@ -897,7 +897,7 @@ let translate_item env item =
       (* This just desugars the data type definitions, no binder is opened yet! *)
       let env, defs =
         (* Be strict if we're in an interface. *)
-        translate_data_type_group bind_local env data_type_group
+        translate_data_type_group extend env data_type_group
       in
       env, Some (E.DataTypeGroup defs)
   | ValueDefinitions (loc, flag, pat_exprs) ->
@@ -909,7 +909,7 @@ let translate_item env item =
       env, Some item
   | ValueDeclaration ((x, _, _) as binding, ty) ->
       let ty = translate_type_with_names env ty in
-      let env = bind_local env binding in
+      let env = extend env [ binding ] in
       env, Some (E.ValueDeclaration (x, ty))
   | OpenDirective mname ->
       dissolve env mname, None
