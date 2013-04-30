@@ -1025,8 +1025,7 @@ and check_expression env (expr : expression) : unit =
       check env p KPerm; (* [reset] irrelevant *)
       check_expression env e1;
       check_expression env e2;
-      let env = bind_local_loc Real env binding in
-      check_expression env e
+      check_expression (bind_local_loc Real env binding) e
 
   | ESequence (e1, e2)
   | EGive (e1, e2)
@@ -1052,9 +1051,16 @@ and check_type_argument env = function
   | Named (_, ty) ->
       ignore (infer_reset env ty)
 
-(* Also used to check an interface. *)
+(* ---------------------------------------------------------------------------- *)
+
+(* Kind-checking for implementations and interfaces. *)
+
+(* [check_implementation] is used both for implementations and interfaces. *)
+
 let check_implementation env (program: implementation) : unit =
-  let (_ : 'v env) = List.fold_left (fun env -> function
+  ignore (List.fold_left (fun env item ->
+    match item with
+
     | DataTypeGroup (loc, rec_flag, group) ->
         let env = { env with loc } in
         (* Create an environment that includes the types and data constructors
@@ -1068,22 +1074,19 @@ let check_implementation env (program: implementation) : unit =
         List.iter (check_data_type_def appropriate_env) group;
         (* Return the extended environment. *)
         extended_env
-          (* TEMPORARY there is code duplication between here and
-             [TransSurface.translate_data_type_group] *)
 
     | ValueDefinitions (loc, rec_flag, pat_exprs) ->
         let env = { env with loc } in
         check_patexpr env rec_flag pat_exprs
 
-    | ValueDeclaration (x, t, loc) ->
-        check_reset env t KType;
+    | ValueDeclaration (x, ty, loc) ->
+        check_reset env ty KType;
         bind_local_loc Real env (x, KTerm, loc)
 
     | OpenDirective mname ->
         dissolve env mname
 
-  ) env program in
-  ()
+  ) env program)
 
 let check_interface env (interface: interface) =
   (* Check for duplicate variables. A variable cannot be declared twice

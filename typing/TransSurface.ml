@@ -537,6 +537,8 @@ let translate_data_type_group
   sub_env, translated_definitions
 ;;
 
+          (* TEMPORARY there is some code duplication between here and
+             [KindCheck.check_implementation] *)
 
 (* -------------------------------------------------------------------------- *)
 
