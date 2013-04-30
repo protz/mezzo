@@ -172,6 +172,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("unbound30.mz", pass_known_failure);
   ("unbound31.mz", pass_known_failure);
   ("unbound32.mz", kfail);
+  ("unbound33.mz", kfail);
 
   ("basic.mz",
     pass);

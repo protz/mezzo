@@ -959,7 +959,8 @@ and check_expression env (expr : expression) : unit =
       (* The variables bound by capital-Lambda are fictional. *)
       let env = extend_check Fictional env bindings in
       (* The variables bound by little-lambda are real. The argument type
-	 [arg] is interpreted here as a pattern. *)
+	 [arg] is interpreted here as a pattern. The scope of these
+         variables extends to the function body and result type. *)
       let env = reset Real env arg in
       check env arg KType;
       check_expression env body;
@@ -972,40 +973,43 @@ and check_expression env (expr : expression) : unit =
       check_expression env e2
 
   | EAssignTag (e1, dref, _) ->
-      (* We can certainly resolve this data constructor reference right
-	 now (and fail if this data constructor is unknown). *)
+      (* Resolve this data constructor reference, and fail if this data
+	 constructor is unknown. *)
       let _ = resolve_datacon env dref in
       check_expression env e1
 
   | EAccess (e, _) ->
+      (* The field name is ignored. The type-checker will later ensure
+	 that this field exists and can be accessed. *)
       check_expression env e
 
-  | EAssert t ->
-      check env t KPerm (* [reset] irrelevant *)
+  | EAssert p ->
+      check env p KPerm (* [reset] irrelevant *)
 
   | EApply (e1, e2) ->
       check_expression env e1;
       check_expression env e2
 
   | ETApply (e, args) ->
-      List.iter (check_tapp env) args;
-      check_expression env e
-
-  | EMatch (_, e, pat_exprs) ->
       check_expression env e;
-      List.iter (fun (pat, expr) ->
-        let sub_env = extend_check Real env (bv pat) in
-        check_pattern sub_env pat;
-        check_expression sub_env expr
-      ) pat_exprs
+      List.iter (check_type_argument env) args
+
+  | EMatch (_, e, branches) ->
+      check_expression env e;
+      List.iter (fun (p, e) ->
+        let sub_env = extend_check Real env (bv p) in
+        check_pattern sub_env p;
+        check_expression sub_env e
+      ) branches
 
   | ETuple exprs ->
       List.iter (check_expression env) exprs
 
-  | EConstruct (_, field_exprs) ->
-      (* TEMPORARY datacon is not checked here! *)
-      let _, exprs = List.split field_exprs in
-      List.iter (check_expression env) exprs
+  | EConstruct (dref, field_exprs) ->
+      (* Resolve this data constructor reference, and fail if this data
+	 constructor is unknown. *)
+      let _ = resolve_datacon env dref in
+      List.iter (fun (_, e) -> check_expression env e) field_exprs
 
   | EIfThenElse (_, e1, e2, e3) ->
       check_expression env e1;
@@ -1043,7 +1047,7 @@ and check_expression env (expr : expression) : unit =
   | EFail ->
       ()
 
-and check_tapp env = function
+and check_type_argument env = function
   | Ordered ty
   | Named (_, ty) ->
       ignore (infer_reset env ty)

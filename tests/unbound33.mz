@@ -1,0 +1,5 @@
+open list
+val c : list int =
+  Crazy
+(* Ill-formed, because [Crazy] is unknown. *)
+
