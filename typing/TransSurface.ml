@@ -709,7 +709,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let e1 = translate_expr env e1 in
       let ts = List.map (fun t ->
         map_tapp (translate_type_with_names env) t,
-        KindCheck.infer env (strip_tapp t)
+        KindCheck.infer_reset env (strip_tapp t)
       ) ts in
       List.fold_left (fun e (t, k) -> E.ETApply (e, t, k)) e1 ts
 

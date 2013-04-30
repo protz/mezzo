@@ -1116,20 +1116,16 @@ let check_interface env (interface : interface) : unit =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* We are almost done. There remains to redefine or rename a few functions
-   for public use. *)
+(* We are almost done. There remains to redefine a few functions for public
+   use. *)
 
-(* Define [find_variable] for public use. *)
+(* Define [find_variable]. *)
+
 let find_variable env x =
   level2index env (find_var env x)
 
-(* Rename [infer_reset] for public use. *)
-let infer =
-  infer_reset
-
-(* Specialize some functions on an arbitrary variety for public use.
-   The variety does not matter any more after kind-checking has been
-   performed. *)
+(* Specialize [extend] with an arbitrary variety. The variety does not matter
+   any more after kind-checking has been performed. *)
 
 let extend env bindings =
   extend Fictional env bindings

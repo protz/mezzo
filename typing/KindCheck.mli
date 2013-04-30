@@ -112,22 +112,43 @@ val bind_nonlocal: 'v env -> Variable.name * kind * 'v -> 'v env
     data constructors. *)
 val dissolve: 'v env -> Module.name -> 'v env
 
-
 (** [bindings_data_group_types group] returns a list of bindings for the types
     of the data group. *)
 val bindings_data_group_types: data_type_def list -> type_binding list
+
 (** [bind_data_group_datacons env group] extends the environment with bindings
     for the data constructors of the data group. It must be called after the
     environment has been extended with bindings for the types. *)
 val bind_data_group_datacons: 'v env -> data_type_def list -> 'v env
 
+(* ---------------------------------------------------------------------------- *)
 
+(* Functions for obtaining the bindings introduced by a pattern or by a type
+   (interpreted as a pattern). *)
 
-val names: typ -> type_binding list
+(** [bv p] returns the names bound by the pattern [p], in left-to-right order.
+    The order matters -- the de Bruijn numbering convention relies on it. *)
 val bv: pattern -> type_binding list
 
-val infer: 'v env -> typ -> kind
+(** [names ty] returns a list of the names introduced by the type [ty], via
+    [TyNameIntro] forms. The list is returned in left-to-right order, as
+    above. [names] is in fact implemented via a call to [bv]. *)
+val names: typ -> type_binding list
 
+(* ---------------------------------------------------------------------------- *)
+
+(* Kind-checking functions. *)
+
+(** [infer_reset env ty] returns the kind of the type [ty]. *)
+val infer_reset: 'v env -> typ -> kind
+
+(** [check_implementation env i] checks that the implementation file [i] is
+    well-formed, i.e. all names are properly bound and all types are
+    well-kinded. *)
 val check_implementation: 'v env -> implementation -> unit
+
+(** [check_implementation env i] checks that the interface file [i] is
+    well-formed, i.e. all names are properly bound and all types are
+    well-kinded. *)
 val check_interface: 'v env -> interface -> unit
 
