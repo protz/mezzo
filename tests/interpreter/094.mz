@@ -1,0 +1,7 @@
+(* Success: 155 *)
+
+val () =
+  let s = newref 0 in
+  preserving s @ ref int for i = 20 downto 11 do begin s := !s + i end;
+  print !s
+

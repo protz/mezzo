@@ -1,0 +1,7 @@
+(* Success: 5 *)
+
+val () =
+  let s = newref 0 in
+  preserving s @ ref int for i = 2 below 4 do begin s := !s + i end;
+  print !s
+
