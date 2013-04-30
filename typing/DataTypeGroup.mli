@@ -30,3 +30,6 @@ open Expressions
  * are returned, as well as the list of {!var}s that have been bound. *)
 val bind_data_type_group: env -> data_type_group -> toplevel_item list ->
       env * toplevel_item list * var list
+
+(* TEMPORARY this whole thing seems to duplicate [KindCheck] *)
+

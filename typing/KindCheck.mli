@@ -83,6 +83,14 @@ val location: 'v env -> location
     in the environment [env]. *)
 val find_variable: 'v env -> Variable.name maybe_qualified -> 'v var
 
+(** [find_nonlocal_variable env x] looks up the unqualified variable [x]
+    in the environment [env]. The result is expected to be a [NonLocal]
+    variable, and this injection is stripped off. If the variable is not
+    found, the error message indicates that [x] is not defined in an
+    implementation file, whereas its existence is advertised in the
+    corresponding interface file. *)
+val find_nonlocal_variable: 'v env -> Variable.name -> 'v
+
 (** [resolve_datacon env dref] looks up the possibly-qualified data constructor
     [dref.datacon_unresolved] in the environment [env]. It updates [dref] in
     place with a [datacon_info] component. It returns a pair of the type with

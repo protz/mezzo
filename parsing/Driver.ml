@@ -165,11 +165,11 @@ let find_and_lex_implementation : Module.name -> SurfaceSyntax.implementation =
 
 (* Check a module against its interface. Not related to importing an interface
  * or anything. *)
-let check_interface env signature exports =
+let check_interface env signature delta =
   KindCheck.check_interface (KindCheckGlue.initial env) signature;
   (* It may very well be that [Interfaces.check] subsumes what
    * [KindCheck.check_interface] does. *)
-  Interfaces.check env signature exports
+  Interfaces.check env signature delta
 ;;
 
 
@@ -224,9 +224,15 @@ let check_implementation
   (* We need to translate the program down to the internal syntax. *)
   let program = TransSurface.translate_implementation kenv program in
 
-  (* [type_check] also returns a list of vars, with the property that if x
-   * comes later than y in the file, then the var associated to x will come
-   * before that of y in the list of vars. *)
+  (* [type_check env unit] type-checks the compilation unit [unit] within the
+     environment [env], which describes the previous compilation units. It
+     returns a pair of an extended environment (the old and new bindings) and
+     a list of the newly defined variables only. The former is a *type*
+     environment (it describes the permissions at the end, for every variable
+     in scope) while the latter SHOULD BE a *kind* environment (it maps the newly
+     defined variables to a point). TEMPORARY DataTypeGroup.bind_data_type_group
+     and TypeChecker.check_declaration_group should be modified so as to extend
+     a kind environment, instead of returning a list of vars *)
   let type_check env program =
     let rec type_check env program varss =
       match program with
@@ -240,7 +246,7 @@ let check_implementation
            * well as the variance and fact inference. *)
           let env, blocks, vars = DataTypeGroup.bind_data_type_group env group blocks in
           (* Move on to the rest of the blocks. *)
-          type_check env blocks (vars :: varss)
+          type_check env blocks (vars @ varss)
       | ValueDefinitions decls :: blocks ->
           Log.debug ~level:2 "\n%s***%s Processing declarations:\n%a"
             Bash.colors.Bash.yellow Bash.colors.Bash.default
@@ -250,7 +256,7 @@ let check_implementation
            * will be opened in [blocks] as well. *)
           let env, blocks, vars = TypeChecker.check_declaration_group env decls blocks in
           (* Move on to the rest of the blocks. *)
-          type_check env blocks (vars :: varss)
+          type_check env blocks (vars @ varss)
       | _ :: _ ->
           Log.error "The parser should forbid this"
       | [] ->
@@ -260,7 +266,7 @@ let check_implementation
             MzPprint.pdoc
             (KindPrinter.print_kinds_and_facts, env);
 
-          env, List.flatten varss
+          env, varss
     in
     type_check env program []
   in
@@ -271,7 +277,10 @@ let check_implementation
     Bash.colors.Bash.yellow Bash.colors.Bash.default
     Module.p mname
     Types.TypePrinter.penv env;
-  let env, vars = type_check env program in
+  let env, delta = type_check env program in
+  (* [env] is the state of the world at the end of this module, and [delta]
+     tells us what (internal) values this module wishes to export and under
+     what (external) names. *)
 
   (* And type-check the implementation against its own signature, if any. *)
   Log.debug ~level:2 "\n%s***%s Matching %a against its signature"
@@ -280,30 +289,35 @@ let check_implementation
   let output_env =
     match interface with
     | Some interface ->
-        (* We cannot use [Types.get_exports] here because we may have the same
-         * name at top-level twice, and [Types.get_exports] doesn't know which
-         * one ends up being exported. Instead, we can rely on [type_check] to
-         * returns for us the list of names along with the corresponding vars
-         * that are exported. *)
-        let exports = MzList.map_flatten (fun p ->
-          let k = TypeCore.get_kind env p in
-          MzList.map_some (function
-            | TypeCore.User (mname, x) when Module.equal mname (TypeCore.module_name env) ->
-               Some (x, k, p)
-            | _ ->
-               (* Either an auto-generated name, or a name coming from another
-                * module. Think about a top-level definition such as:
-                *   let x = m::y
-                * we just drop the name "y" here. *)
-               None
-          ) (TypeCore.get_names env p)
-        ) vars in
+
+         (* Convert the list of variables [delta] to a kind environment.
+	    TEMPORARY ugly, of course. Somewhat analogous to [KindCheck.initial]. *)
+         let delta =
+	   List.fold_right (fun p delta ->
+	     let k = TypeCore.get_kind env p in
+	     List.fold_left (fun delta name ->
+	       match name with
+	       | TypeCore.User (mname, x) when Module.equal mname (TypeCore.module_name env) ->
+		   KindCheck.bind_nonlocal delta (x, k, p)
+	       | _ ->
+		  (* Either an auto-generated name, or a name coming from another
+		   * module. Think about a top-level definition such as:
+		   *   let x = m::y
+		   * we just drop the name "y" here. *)
+		  delta
+	     ) delta (TypeCore.get_names env p)
+           ) delta (KindCheck.empty (TypeCore.module_name env))
+	 in
+	 (* TEMPORARY [delta] says nothing about datacons, and that is fishy.
+	    The data constructor that is exported could be other than the one
+	    that is in scope at the end of the module? -- try it *)
+
         (* If the function types are not syntactically equal, the decision
          * procedure for comparing those two types introduces internal names
          * that end polluting the resulting environment! So we only use that
          * "polluted" environment to perform interface-checking, we don't
          * actually return it to the driver, say, for printing. *)
-        check_interface env interface exports
+        check_interface env interface delta
     | None ->
         env
   in
@@ -329,6 +343,7 @@ let check_implementation
         to [KindCheck.initial]. I suggest it would be simpler to just require that
         everything published in an interface be duplicable. *)
       let exports = TypeCore.get_exports env mname in
+      let exports = List.fold_left KindCheck.bind_nonlocal (KindCheck.empty mname) exports in
       ignore (check_interface output_env iface exports)
     ) deps;
 

@@ -156,6 +156,7 @@ type error =
   | AdopterNotExclusive of (* data type constructor: *) Variable.name
   | FieldMismatch of Datacon.name * Field.name list (* missing fields *) * Field.name list (* extra fields *)
   | ImplicationOnlyOnArrow
+  | MissingExport of Variable.name
 
 (* The [KindError] exception. *)
 
@@ -256,6 +257,9 @@ let print_error env error buf () =
   | ImplicationOnlyOnArrow ->
       bprintf
        "Implication => is permitted only on top of a function type."
+  | MissingExport x ->
+      bprintf "The variable %a is advertised in the interface,\nbut is not defined in the implementation."
+        Variable.p x
   end;
   if Log.debug_level () > 4 then begin
     Printf.bprintf buf "\n";
@@ -1109,7 +1113,8 @@ let check_interface env (interface : interface) : unit =
   let (_ : _ list) = check_for_duplicate_datacons env (
     branches_of_interface interface
   ) in
-    (* TEMPORARY this results in a dummy location, see unbound34 *)
+    (* TEMPORARY this results in a dummy location, see unbound34; we should
+       have one location per branch? *)
 
   (* Continue with the same checks as for an implementation file. *)
   check_implementation env interface
@@ -1123,6 +1128,23 @@ let check_interface env (interface : interface) : unit =
 
 let find_variable env x =
   level2index env (find_var env x)
+
+(* Define [find_nonlocal_variable]. This variant of [find_var] is customized
+   in that: 1. it looks for an unqualified variable; 2. it expects this
+   variable to be bound to a [NonLocal] name; 3. if the variable is not found,
+   we report a missing export. This is kind of ad hoc, but convenient. *)
+
+let find_nonlocal_variable env x =
+  try (
+    match
+      V.lookup_unqualified x env.variables
+    with
+    | Local _, _, _ ->
+	assert false
+    | NonLocal v, _, _ ->
+	v
+  ) with Not_found ->
+    raise_error env (MissingExport x)
 
 (* Specialize [extend] with an arbitrary variety. The variety does not matter
    any more after kind-checking has been performed. *)

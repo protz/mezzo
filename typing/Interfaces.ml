@@ -90,25 +90,8 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
 let check
   (env: T.env)
   (signature: S.toplevel_item list)
-  (exports: (Variable.name * kind * T.var) list)
+  (exports: KindCheckGlue.env)
 : T.env =
-  (* Find one specific name among these names. *)
-  let point_by_name name =
-    match MzList.find_opt (fun (name', _, p') ->
-      if Variable.equal name name' then
-        Some p'
-      else
-        None
-    ) exports with
-    | Some p ->
-        p
-    | None ->
-        List.iter (fun (name, _, _) ->
-          Log.debug "%a" Variable.p name
-        ) exports;
-        let open TypeErrors in
-        raise_error env (MissingFieldInSignature name)
-  in
 
   (* As [check] processes one toplevel declaration after another, it first adds
    * the name into the translation environment (i.e. after processing [val foo @ τ],
@@ -131,7 +114,7 @@ let check
 
         (* Now check that the point in the implementation's environment actually
          * has the same type as the one in the interface. *)
-        let point = point_by_name x in
+        let point = KindCheck.find_nonlocal_variable exports x in
         let env =
           match Derivations.drop_derivation (Permissions.sub env point t) with
           | Some env ->
@@ -153,7 +136,7 @@ let check
         (* Translate this data type group, while taking care to re-use
           the existing points in [env]. *)
         let special_bind tsenv (name, kind, _loc) =
-          KindCheck.bind_nonlocal tsenv (name, kind, point_by_name name)
+          KindCheck.bind_nonlocal tsenv (name, kind, KindCheck.find_nonlocal_variable exports name)
 	in
         let tsenv, translated_definitions =
          TransSurface.translate_data_type_group (List.fold_left special_bind) tsenv group
@@ -173,7 +156,7 @@ let check
             _
           } = data_type in
 
-         let point = point_by_name name in
+         let point = KindCheck.find_nonlocal_variable exports name in
           (* Variables marked with ' belong to the implementation. *)
 
 

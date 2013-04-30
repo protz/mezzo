@@ -774,6 +774,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("modules/altersig2.mz",
     simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
 
+  ("missing-export.mz", kfail);
+
   ("assert.mz", pass);
 
   ("priority.mz", pass);

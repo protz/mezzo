@@ -56,7 +56,6 @@ and raw_error =
   | NoSuitableTypeForAdopts of var * typ
   | AdoptsNoAnnotation
   | NotMergingClauses of env * typ * typ * env * typ * typ
-  | MissingFieldInSignature of Variable.name
   | NoSuchTypeInSignature of var * typ
   | DataTypeMismatchInSignature of Variable.name * string
   | VarianceAnnotationMismatch
@@ -403,9 +402,6 @@ let print_error buf (env, raw_error) =
         ptype (right_env, right_var)
         ptype (left_env, left_t)
         ptype (right_env, right_t)
-  | MissingFieldInSignature name ->
-      bprintf "This file does not export a variable named %a"
-        Variable.p name
   | NoSuchTypeInSignature (p, t) ->
       bprintf "This file exports a variable named %a, but it does \
         not have type %a, the only permissions available for it are: %a"

@@ -52,7 +52,6 @@ type raw_error =
   | NoSuitableTypeForAdopts of var * typ
   | AdoptsNoAnnotation
   | NotMergingClauses of env * typ * typ * env * typ * typ
-  | MissingFieldInSignature of Variable.name
   | NoSuchTypeInSignature of var * typ
   | DataTypeMismatchInSignature of Variable.name * string
   | VarianceAnnotationMismatch
