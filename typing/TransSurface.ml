@@ -906,7 +906,6 @@ let translate_item env item =
       let item = E.ValueDefinitions (loc, flag, pat_exprs) in
       env, Some item
   | ValueDeclaration ((x, _, _) as binding, ty) ->
-      check env ty KType; (* TEMPORARY why re-check? *)
       let ty = translate_type_with_names env ty in
       let env = bind_local_loc env binding in
       env, Some (E.ValueDeclaration (x, ty))
