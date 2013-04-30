@@ -866,17 +866,15 @@ raw_reasonable_expression:
 | IF b = explain e1 = expression THEN e2 = tuple_or_reasonable_expression
                                  ELSE e3 = tuple_or_reasonable_expression
     { EIfThenElse (b, e1, e2, e3) }
-| WHILE e1 = expression DO e2 = reasonable_expression
-    { EWhile (TyEmpty, e1, e2) }
-| PRESERVING t = arbitrary_type WHILE e1 = expression DO e2 = reasonable_expression
-    { EWhile (t, e1, e2) }
-| FOR x = variable EQUAL e1 = expression f = for_flag e2 = expression
-  DO e = reasonable_expression
-    { EFor (TyEmpty, x, e1, f, e2, e) }
-| PRESERVING t = arbitrary_type
+| p = optional_preserving
+  WHILE e1 = expression
+  DO e2 = reasonable_expression
+    { EWhile (p, e1, e2) }
+| p = optional_preserving
   FOR x = variable EQUAL e1 = expression f = for_flag e2 = expression
   DO e = reasonable_expression
-    { EFor (t, x, e1, f, e2, e) }
+    { let binding = (x, KTerm, ($startpos(x), $endpos(x))) in
+      EFor (p, binding, e1, f, e2, e) }
   (* We cannot allow "let" on the right-hand side of an assignment, because
      the right-hand side of "let" can contain a semi-colon. We disallow
      unparenthesized tuples, even though we could allow them, for two
@@ -918,6 +916,12 @@ raw_reasonable_expression:
     { EConstraint (e, t) }
 | e = raw_algebraic_expression
     { e }
+
+optional_preserving:
+| PRESERVING p = arbitrary_type
+    { p }
+| (* nothing *)
+    { TyEmpty }
 
 %inline tuple_or_fragile_expression:
 | e = elocated(raw_tuple_or(raw_fragile_expression))

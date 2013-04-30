@@ -682,7 +682,7 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
       done;
       unit_value
   
-  | EFor (_, x, e1, f, e2, e) ->
+  | EFor (_, (x, _, _), e1, f, e2, e) ->
       let i1, i2 = asInt (eval env loc e1), asInt (eval env loc e2) in
       let body i =
         let env = match_irrefutable_pattern env (PVar x) (VInt i) in

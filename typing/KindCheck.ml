@@ -1016,16 +1016,16 @@ and check_expression env (expr : expression) : unit =
       check_expression env e2;
       check_expression env e3
 
-  | EWhile (t, e1, e2) ->
-      check env t KPerm; (* [reset] irrelevant *)
+  | EWhile (p, e1, e2) ->
+      check env p KPerm; (* [reset] irrelevant *)
       check_expression env e1;
       check_expression env e2
 
-  | EFor (t, x, e1, _, e2, e) ->
-      check env t KPerm;
+  | EFor (p, binding, e1, _, e2, e) ->
+      check env p KPerm; (* [reset] irrelevant *)
       check_expression env e1;
       check_expression env e2;
-      let env = bind_local_loc Real env (x, KTerm ,location env) in
+      let env = bind_local_loc Real env binding in
       check_expression env e
 
   | ESequence (e1, e2)

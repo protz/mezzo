@@ -782,7 +782,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       translate_expr env
         (ELet (Recursive, [(PVar name, f)] , call))
 
-  | EFor (t, x, e1, f, e2, e) ->
+  | EFor (t, (x, _, _), e1, f, e2, e) ->
       let name = fresh_var "/loop" in
       let name_e2 = fresh_var "/max" in
       (* [vi] is: x *)

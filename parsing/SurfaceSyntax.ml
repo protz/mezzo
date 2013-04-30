@@ -253,8 +253,8 @@ and expression =
   | EIfThenElse of bool * expression * expression * expression
   (* preserving p while e₁ do e₂ *) 
   | EWhile of typ * expression * expression
-  (* preserving p for v = e₁ to/downto/below/above e₂  do e *)
-  | EFor of typ * Variable.name * expression * for_flag * expression * expression
+  (* preserving p for v = e₁ to/downto/below/above e₂ do e *)
+  | EFor of typ * type_binding * expression * for_flag * expression * expression
   (* e₁; e₂ → desugared as let () = e₁ in e₂ *)
   | ESequence of expression * expression
   | ELocated of expression * location

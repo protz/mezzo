@@ -261,7 +261,10 @@ val rec iter [a1, a2, p : perm] (
 (* The following function should not be useful to the client, who can just
    use [iter], but it is a good test of the type-checker. *)
 
-val simpler_iter [a] (xs: list a, f: a -> ()) : () =
+val simpler_iter [a, p : perm] (xs: list a, f: (a | p) -> () | p) : () =
+  iter (xs, f)
+
+val yet_simpler_iter [a] (xs: list a, f: a -> ()) : () =
   iter (xs, f)
 
 (* -------------------------------------------------------------------------- *)

@@ -197,7 +197,7 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       )
   | EWhile (_, e1, e2) ->
       k (U.EWhile (reset_transl loc e1, reset_transl loc e2))
-  | EFor (_, x, e1, f, e2, e) ->
+  | EFor (_, (x, _, _), e1, f, e2, e) ->
       k (U.EFor (
         x, reset_transl loc e1, f, reset_transl loc e2, reset_transl loc e
       ))
