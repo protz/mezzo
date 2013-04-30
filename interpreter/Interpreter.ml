@@ -307,7 +307,7 @@ let boolean_value datacon env =
       D.lookup_qualified bool datacon env.datacons
     with Not_found ->
       (* Unknown data constructor. *)
-      assert false
+      Log.error "Interpreter: failed to find the built-in data constructor: bool::%s" (Datacon.print datacon)
   in
   VAddress { tag = info; adopter = None; fields = [||] }
 
@@ -319,15 +319,6 @@ let true_value =
 
 let bool (env : env) (b : bool) =
   if b then true_value env else false_value env
-
-let rich_false_value =
-  boolean_value (Datacon.register "RichFalse")
-
-let rich_true_value =
-  boolean_value (Datacon.register "RichTrue")
-
-let rich_bool (env : env) (b : bool) =
-  if b then rich_true_value env else rich_false_value env
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -430,7 +421,7 @@ let eval_builtin (env : env) (loc : location) (b : string) (v : value) : value =
       VInt (_mz_iand (asIntPair v))
   | "_mz_address_eq" ->
       let b1, b2 = asPair asBlock asBlock v in
-      rich_bool env (b1 == b2)
+      bool env (b1 == b2)
   | "_mz_print_value" ->
       print_endline (ValuePrinter.render v);
       unit_value
