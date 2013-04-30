@@ -121,7 +121,7 @@ let check
         let tsenv = KindCheck.dissolve tsenv mname in
         check env tsenv toplevel_items
 
-    | S.ValueDeclaration (x, t, _loc) :: toplevel_items ->
+    | S.ValueDeclaration ((x, _, _loc), t) :: toplevel_items ->
         (* val x: t *)
         Log.debug ~level:3 "*** Checking sig item %a" Variable.p x;
 

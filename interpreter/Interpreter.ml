@@ -922,7 +922,7 @@ let export_interface_item (m : Module.name) (env : env) (item : toplevel_item) :
         | Abbrev _ ->
             env
       ) env defs
-  | ValueDeclaration (x, _, _) ->
+  | ValueDeclaration ((x, _, _), _) ->
       (* The effect of a variable declaration is to export this variable. *)
       { env with variables = V.qualify m x env.variables }
 

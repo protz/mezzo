@@ -31,8 +31,8 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     MzList.map_flatten collect_item items
 
   and collect_item = function
-    | ValueDeclaration (_, t, _) ->
-        collect_type t
+    | ValueDeclaration (_, ty) ->
+        collect_type ty
     | DataTypeGroup (_, _, defs) ->
         MzList.map_flatten (function def ->
          match def.rhs with

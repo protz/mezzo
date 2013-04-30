@@ -688,6 +688,15 @@ raw_loose_pattern:
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Sometimes a variable is viewed as a term binding. This is a degenerate
+   case of a pattern. *)
+
+variable_as_term_binding:
+  x = variable
+    { x, KTerm, ($startpos(x), $endpos) }
+
+(* ---------------------------------------------------------------------------- *)
+
 (* Expressions. *)
 
 (* The syntax of expressions is stratified into the following levels:
@@ -871,10 +880,9 @@ raw_reasonable_expression:
   DO e2 = reasonable_expression
     { EWhile (p, e1, e2) }
 | p = optional_preserving
-  FOR x = variable EQUAL e1 = expression f = for_flag e2 = expression
+  FOR x = variable_as_term_binding EQUAL e1 = expression f = for_flag e2 = expression
   DO e = reasonable_expression
-    { let binding = (x, KTerm, ($startpos(x), $endpos(x))) in
-      EFor (p, binding, e1, f, e2, e) }
+    { EFor (p, x, e1, f, e2, e) }
   (* We cannot allow "let" on the right-hand side of an assignment, because
      the right-hand side of "let" can contain a semi-colon. We disallow
      unparenthesized tuples, even though we could allow them, for two
@@ -1032,6 +1040,8 @@ definition_group:
     { let flag, defs = flag_defs in
       let loc = ($startpos($1), $endpos) in
       ValueDefinitions (loc, flag, defs) }
+(* TEMPORARY why do we have a single location for an entire group
+   of definitions? *)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -1044,8 +1054,8 @@ definition_group:
    vice-versa. *)
 
 value_declaration:
-| VAL x = variable COLON ty = arbitrary_type
-    { ValueDeclaration (x, ty, ($startpos(x), $endpos(x))) }
+| VAL x = variable_as_term_binding COLON ty = arbitrary_type
+    { ValueDeclaration (x, ty) }
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -304,7 +304,7 @@ let transl_item (implementation : bool) = function
       transl_data_type_group group
   | ValueDefinitions (loc, flag, equations) ->
       [ U.ValueDefinition (flag, reset_transl_equations loc equations) ]
-  | ValueDeclaration (x, _, _) ->
+  | ValueDeclaration ((x, _, _), _) ->
       [ U.ValueDeclaration x ]
   | OpenDirective m ->
       if implementation then

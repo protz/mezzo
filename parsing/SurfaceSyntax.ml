@@ -300,7 +300,7 @@ type definitions =
 type toplevel_item =
   | DataTypeGroup of data_type_group
   | ValueDefinitions of definitions
-  | ValueDeclaration of Variable.name * typ * location
+  | ValueDeclaration of type_binding * typ
   | OpenDirective of Module.name
 
 (* An implementation will only contain data type groups, value declarations and

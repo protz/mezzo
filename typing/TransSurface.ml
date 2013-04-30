@@ -905,11 +905,11 @@ let translate_item env item =
       let env, pat_exprs = translate_patexprs env flag pat_exprs in
       let item = E.ValueDefinitions (loc, flag, pat_exprs) in
       env, Some item
-  | ValueDeclaration (x, t, loc) ->
-      check env t KType;
-      let t = translate_type_with_names env t in
-      let env = bind_local_loc env (x, KTerm, loc) in
-      env, Some (E.ValueDeclaration (x, t))
+  | ValueDeclaration ((x, _, _) as binding, ty) ->
+      check env ty KType; (* TEMPORARY why re-check? *)
+      let ty = translate_type_with_names env ty in
+      let env = bind_local_loc env binding in
+      env, Some (E.ValueDeclaration (x, ty))
   | OpenDirective mname ->
       dissolve env mname, None
 ;;

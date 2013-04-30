@@ -1079,9 +1079,9 @@ let check_implementation env (program: implementation) : unit =
         let env = { env with loc } in
         check_patexpr env rec_flag pat_exprs
 
-    | ValueDeclaration (x, ty, loc) ->
+    | ValueDeclaration (binding, ty) ->
         check_reset env ty KType;
-        bind_local_loc Real env (x, KTerm, loc)
+        bind_local_loc Real env binding
 
     | OpenDirective mname ->
         dissolve env mname
@@ -1094,8 +1094,8 @@ let check_interface env (interface: interface) =
   let all_bindings = MzList.map_flatten (function
     | DataTypeGroup (_, _, data_type_group) ->
         bindings_data_group_types data_type_group
-    | ValueDeclaration (x, _, loc) ->
-        [x, KTerm, loc]
+    | ValueDeclaration (binding, _) ->
+        [ binding ]
     | OpenDirective _ ->
         []
     | ValueDefinitions _ ->
