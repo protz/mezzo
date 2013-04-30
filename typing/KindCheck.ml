@@ -1088,29 +1088,40 @@ let check_implementation env (program: implementation) : unit =
 
   ) env program)
 
-let check_interface env (interface: interface) =
-  (* Check for duplicate variables. A variable cannot be declared twice
-     in an interface file. *)
-  let all_bindings = MzList.map_flatten (function
-    | DataTypeGroup (_, _, data_type_group) ->
-        bindings_data_group_types data_type_group
-    | ValueDeclaration (binding, _) ->
-        [ binding ]
-    | OpenDirective _ ->
-        []
-    | ValueDefinitions _ ->
-        assert false
-  ) interface in
-  let (_ : _ list) = check_for_duplicate_bindings env all_bindings in
+(* [check_interface] extends [check_implementation] with a few extra checks
+   against duplicate definitions. Whereas, in an implementation, we allow a
+   new toplevel definition to shadow a previous one, in an interface, this
+   is not permitted. *)
 
-  (* Check for duplicate data constructors. A data constructor cannot be
-     declared twice in an interface file. *)
-  let (_ : _ list) = check_for_duplicate_datacons env (branches_of_interface interface) in
-    (* TEMPORARY this results in a dummy location *)
+let check_interface env (interface : interface) : unit =
 
-  (* Do all the regular checks. *)
+  (* A variable must not be declared twice in an interface file. *)
+  let (_ : _ list) = check_for_duplicate_bindings env (
+    MzList.map_flatten (function
+      | DataTypeGroup (_, _, data_type_group) ->
+          bindings_data_group_types data_type_group
+      | ValueDeclaration (binding, _) ->
+	  [ binding ]
+      | OpenDirective _ ->
+	  []
+      | ValueDefinitions _ ->
+	  assert false
+    ) interface
+  ) in
+
+  (* A data constructor must not be declared twice in an interface file. *)
+  let (_ : _ list) = check_for_duplicate_datacons env (
+    branches_of_interface interface
+  ) in
+    (* TEMPORARY this results in a dummy location, see unbound34 *)
+
+  (* Continue with the same checks as for an implementation file. *)
   check_implementation env interface
-;;
+
+(* ---------------------------------------------------------------------------- *)
+
+(* We are almost done. There remains to redefine or rename a few functions
+   for public use. *)
 
 (* Define [find_variable] for public use. *)
 let find_variable env x =
