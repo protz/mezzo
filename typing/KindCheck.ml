@@ -904,26 +904,33 @@ let appropriate flag old_env new_env =
   | Recursive ->
       new_env
 
+(* [check_patexpr env flag pes] checks that the pattern/expression list [pes]
+   is well-kinded and extends the environment with the new variables introduced
+   by these patterns. The [flag] tells whether the bindings should be interpreted
+   as recursive or non-recursive. *)
+
 let rec check_patexpr env (flag : rec_flag) (pes : (pattern * expression) list) : 'v env =
-  let patterns, expressions = List.split pes in
-  (* Introduce all bindings from the patterns. These bindings are ``real'',
-     i.e. the variables that are bound here can be referred to by an [EVar]
+  (* It's just as if we had a tuple pattern and a tuple expression. *)
+  let ps, es = List.split pes in
+  let p = PTuple ps
+  and e = ETuple es in
+  (* Introduce the variables bound by the pattern. These bindings are ``real'',
+     i.e. the variables that are bound here can be later referred to by an [EVar]
      node. *)
-  let sub_env = extend_check Real env (bv (PTuple patterns)) in
-  (* A type annotation in any pattern may refer to a name introduced by any
-   * pattern (same behavior as in tuple types). *)
-  check_pattern sub_env (PTuple patterns);
+  let sub_env = extend_check Real env (bv p) in
+  (* A type annotation in any part of the pattern may refer to a name introduced
+     in any other part of the pattern. *)
+  check_pattern sub_env p;
   (* Whether the variables defined in the pattern are available in the
-   * expressions depends, of course, on whether this is a recursive binding. *)
-  let appropriate_env = appropriate flag env sub_env in
-  List.iter (check_expression appropriate_env) expressions;
-  (* Return the environment extended with bindings so that we can check whatever
-   * comes afterwards. *)
+     expression depends on whether this is a recursive binding. *)
+  check_expression (appropriate flag env sub_env) e;
+  (* Return the extended environment, so that we can check whatever is in the
+     scope of these bindings. *)
   sub_env
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Checking expressions. *)
+(* Kind-checking for expressions. *)
 
 and check_expression env (expr : expression) : unit =
   match expr with
@@ -937,7 +944,8 @@ and check_expression env (expr : expression) : unit =
       let k = find_kind env x in
       if k <> KTerm then
         mismatch env KTerm k;
-      (* [x] must have variety [Real]. *)
+      (* [x] must have variety [Real]. This is the only place where
+         varieties matter. *)
       if find_variety env x <> Real then
 	raise_error env (FictionalEVar x)
 
@@ -945,8 +953,7 @@ and check_expression env (expr : expression) : unit =
       ()
 
   | ELet (flag, pes, body) ->
-      let env = check_patexpr env flag pes in
-      check_expression env body
+      check_expression (check_patexpr env flag pes) body
 
   | EFun (bindings, arg, return_type, body) ->
       (* The variables bound by capital-Lambda are fictional. *)
