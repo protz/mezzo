@@ -50,7 +50,6 @@ exception KindError of (Buffer.t -> unit -> unit)
 
 (* TEMPORARY try not to publish any of the functions that raise errors? *)
 val implication_only_on_arrow: 'v env -> 'a
-val illegal_consumes: 'v env -> 'a
 
 (* ---------------------------------------------------------------------------- *)
 

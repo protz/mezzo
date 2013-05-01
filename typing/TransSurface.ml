@@ -259,7 +259,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyConsumes _ ->
       (* These should've been removed by [strip_consumes]. *)
-      illegal_consumes env
+      assert false
 
   | TyBar (t1, t2) ->
       T.TyBar (translate_type env t1, translate_type env t2)

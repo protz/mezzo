@@ -216,7 +216,7 @@ let print_error env error buf () =
         (print inferred)
   | IllegalConsumes ->
       bprintf
-        "The consumes keyword is not allowed here."
+        "The consumes keyword is allowed only in the left-hand side of an arrow."
   | BadHypothesisInFact ->
       bprintf
         "An assumption in a fact must bear on a type variable."
@@ -277,9 +277,6 @@ let bound_twice namespace print env x =
 
 let mismatch env expected_kind inferred_kind =
   raise_error env (Mismatch (expected_kind, inferred_kind))
-
-let illegal_consumes env =
-  raise_error env IllegalConsumes
 
 let implication_only_on_arrow env =
   raise_error env ImplicationOnlyOnArrow
@@ -623,7 +620,14 @@ let check_facts env name bindings facts =
 (* In this code, the varieties are not relevant, as we will never encounter
    an [EVar] node anyway. We use [Fictional] everywhere. *)
 
-let rec check env (ty : typ) (expected : kind) : unit =
+(* The parameter [s] keeps track of whether we are in the left-hand side of
+   an arrow (in which case [TyConsumes] is allowed) or not. *)
+
+type s =
+  | ConsumesAllowed
+  | ConsumesDisallowed
+
+let rec check env s (ty : typ) (expected : kind) : unit =
   match ty with
 
   (* Treating the following cases here may seem redundant, but allows us to
@@ -631,29 +635,35 @@ let rec check env (ty : typ) (expected : kind) : unit =
      location, leading to a better error message. *)
 
   | TyLocated (ty, loc) ->
-      check { env with loc } ty expected
+      check { env with loc } s ty expected
 
   | TyConsumes ty ->
-      check env ty expected
+      if s = ConsumesAllowed then
+	check env s ty expected
+      else
+	raise_error env IllegalConsumes
 
   (* The general case. *)
 
   | _ ->
-      let inferred = infer env ty in
+      let inferred = infer env s ty in
       if not (Kind.equal inferred expected) then
         mismatch env expected inferred
 
-and infer env (ty : typ) : kind =
+and infer env s (ty : typ) : kind =
   match ty with
 
   | TyLocated (ty, loc) ->
-      infer { env with loc } ty
+      infer { env with loc } s ty
 
   | TyConsumes ty ->
-      infer env ty
+      if s = ConsumesAllowed then
+	infer env s ty
+      else
+	raise_error env IllegalConsumes
 
   | TyTuple tys ->
-      List.iter (fun ty -> check env ty KType) tys;
+      List.iter (fun ty -> check env s ty KType) tys;
       KType
 
   | TyUnknown ->
@@ -679,7 +689,7 @@ and infer env (ty : typ) : kind =
       let _, _ = resolve_datacon env dref in
       (* Check that no field is provided twice, and check the type
          of each field. *)
-      check_branch env fields;
+      check_branch env s fields;
       (* Check that exactly the expected fields are provided. *)
       check_exact_fields env dref fields;
       (* Check the adopts clause, if there is one. *)
@@ -687,11 +697,11 @@ and infer env (ty : typ) : kind =
       KType
 
   | TySingleton ty ->
-      check env ty KTerm; (* [reset] irrelevant *)
+      check_reset env ty KTerm;
       KType
 
   | TyApp (ty1, ty2s) ->
-      let kind1 = infer env ty1 in (* [reset] irrelevant *)
+      let kind1 = infer_reset env ty1 in
       let kind2s, kind = as_arrow kind1 in
       let expected = List.length kind2s
       and provided = List.length ty2s in
@@ -704,7 +714,7 @@ and infer env (ty : typ) : kind =
       (* The scope of the names introduced in the left-hand side
          extends to the left- and right-hand sides. *)
       let env = reset Fictional env ty1 in
-      check env ty1 KType;
+      check env ConsumesAllowed ty1 KType;
       check_reset env ty2 KType;
       KType
 
@@ -715,42 +725,42 @@ and infer env (ty : typ) : kind =
       KType
 
   | TyAnchoredPermission (ty1, ty2) ->
-      check env ty1 KTerm;  (* [reset] irrelevant *)
+      check_reset env ty1 KTerm;
       check_reset env ty2 KType;
       KPerm
 
   | TyStar (ty1, ty2) ->
-      check env ty1 KPerm; (* [reset] irrelevant *)
-      check env ty2 KPerm; (* [reset] irrelevant *)
+      check env s ty1 KPerm;
+      check env s ty2 KPerm;
       KPerm
 
   | TyNameIntro (x, ty) ->
       (* In principle, this name has already been bound in the
          environment, via a previous call to [reset]. *)
       assert (find_kind env (Unqualified x) = KTerm);
-      check env ty KType;
+      check env s ty KType;
       KType
 
   | TyBar (t1, t2) ->
-      check env t1 KType;
-      check env t2 KPerm; (* [reset] irrelevant *)
+      check env s t1 KType;
+      check env s t2 KPerm;
       KType
 
   | TyAnd (c, ty)
   | TyImply (c, ty) ->
       check_mode_constraint env c;
-      check env ty KType;
+      check env s ty KType;
       KType
 
 and infer_reset env ty =
-  infer (reset Fictional env ty) ty
+  infer (reset Fictional env ty) ConsumesDisallowed ty
 
 and check_reset env ty expected =
-  check (reset Fictional env ty) ty expected
+  check (reset Fictional env ty) ConsumesDisallowed ty expected
 
 (* [check_branch] is used both for resolved and unresolved branches, that is,
    both for [TyConcrete] types and for algebraic data type definitions. *)
-and check_branch env fields =
+and check_branch env s fields =
   let fs = MzList.map_some (function
     | FieldValue (f, _) ->
         Some f
@@ -763,15 +773,15 @@ and check_branch env fields =
       (bound_twice "field" Field.print env)
   in
   (* Check that every field is well-kinded. *)
-  List.iter (check_field env) fields
+  List.iter (check_field env s) fields
 
-and check_field env (field : data_field_def) =
+and check_field env s (field : data_field_def) =
   match field with
   | FieldValue (_, ty) ->
       (* No [reset] here. *)
-      check env ty KType
+      check env s ty KType
   | FieldPermission t ->
-      check env t KPerm (* [reset] irrelevant *)
+      check env s t KPerm
 
 (* Check that exactly the correct fields are provided (no more, no less). *)
 and check_exact_fields env (dref : datacon_reference) (fields : data_field_def list) =
@@ -815,7 +825,7 @@ let check_unresolved_branch env (datacon, fields) =
   let dref = { datacon_unresolved = Unqualified datacon; datacon_info = None } in (* dummy *)
   let adopts = None in (* dummy *)
   let env = reset Fictional env (TyConcrete ((dref, fields), adopts)) in
-  check_branch env fields
+  check_branch env ConsumesDisallowed fields
 
 (* Checking a type definition. For abstract types, we just check that the
    fact is well-formed. For concrete types, we check that the branches are
@@ -962,7 +972,7 @@ and check_expression env (expr : expression) : unit =
 	 [arg] is interpreted here as a pattern. The scope of these
          variables extends to the function body and result type. *)
       let env = reset Real env arg in
-      check env arg KType;
+      check env ConsumesAllowed arg KType;
       check_expression env body;
       check_reset env return_type KType
 
@@ -984,7 +994,7 @@ and check_expression env (expr : expression) : unit =
       check_expression env e
 
   | EAssert p ->
-      check env p KPerm (* [reset] irrelevant *)
+      check_reset env p KPerm
 
   | EApply (e1, e2) ->
       check_expression env e1;
@@ -1017,12 +1027,12 @@ and check_expression env (expr : expression) : unit =
       check_expression env e3
 
   | EWhile (p, e1, e2) ->
-      check env p KPerm; (* [reset] irrelevant *)
+      check_reset env p KPerm;
       check_expression env e1;
       check_expression env e2
 
   | EFor (p, binding, e1, _, e2, e) ->
-      check env p KPerm; (* [reset] irrelevant *)
+      check_reset env p KPerm;
       check_expression env e1;
       check_expression env e2;
       check_expression (bind_local Real env binding) e
