@@ -177,8 +177,8 @@ let collect_pattern (p: pattern): ((Variable.name * location) list) =
 
 (* How many binders in this declaration group? *)
 let n_defs (_, _, patexprs) =
-  let names = List.flatten (List.map collect_pattern (fst (List.split patexprs))) in
-  List.length names
+  let patterns, _ = List.split patexprs in
+  List.length (collect_pattern (PTuple patterns))
 
 (* [psubst pat vars] replaces names in [pat] as it goes, by popping vars off
  * the front of [vars]. *)

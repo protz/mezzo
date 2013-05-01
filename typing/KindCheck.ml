@@ -581,12 +581,12 @@ let rec check_fact_conclusion env (x : Variable.name) (xs : Variable.name list) 
   match ty with
   | TyLocated (ty, loc) ->
       check_fact_conclusion { env with loc } x xs ty
+  | TyApp (y, ys) when equal_TyVar x y && MzList.equal equal_TyVar xs ys ->
+      ()
+  | y when equal_TyVar x y && MzList.equal equal_TyVar xs [] ->
+      ()
   | _ ->
-      match flatten_tyapp ty with
-      | y, ys when equal_TyVar x y && MzList.equal equal_TyVar xs ys ->
-         ()
-      | _ ->
-         raise_error env (BadConclusionInFact (x, xs))
+      raise_error env (BadConclusionInFact (x, xs))
 
 (* Each implication must mention a distinct mode in its conclusion. *)
 let check_distinct_heads env name facts =

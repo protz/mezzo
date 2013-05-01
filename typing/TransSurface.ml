@@ -61,6 +61,120 @@ let resolve_datacon env dref =
   let v, datacon = KindCheck.resolve_datacon env dref in
   tvar v, datacon
 
+(* -------------------------------------------------------------------------- *)
+
+(* Experimental section. *)
+(* TEMPORARY
+let top = function
+  | KType ->
+      TyUnknown
+  | KPerm ->
+      TyEmpty
+  | _ ->
+      assert false
+
+let twice x =
+  x, x
+
+(* TEMPORARY maybe try to preserve sharing when there is no consumes *)
+
+let rec translate_type env (ty : typ) (expected : kind) : T.typ * T.typ =
+  match ty with
+
+  | TyLocated (ty, loc) ->
+      translate_type (locate env loc) ty expected
+
+  | TyConsumes ty ->
+      (* First, translate [ty]. *)
+      let ty1, ty2 = translate_type env ty expected in
+      (* Construct a version of this type where everything is kept, *)
+      ty1,
+      (* and a version of this type where everything is lost. *)
+      top expected
+
+  | TyTuple tys ->
+      let tys1, tys2 = MzList.split_map (fun ty -> translate_type env ty KType) tys in
+      T.TyTuple tys1, T.TyTuple tys2
+
+  | TyUnknown ->
+      twice T.TyUnknown
+
+  | TyDynamic ->
+      twice T.TyDynamic
+
+  | TyEmpty ->
+      twice T.TyEmpty
+
+  | TyVar x ->
+      twice (tvar (find_variable env x))
+
+  | TyConcrete ((dref, fields), clause) ->
+      let fields1, fields2 = MzList.split_map (translate_field env) fields in
+      let branch1 = {
+	T.branch_flavor = ();
+	T.branch_datacon = resolve_datacon env dref;
+	T.branch_fields = fields1;
+	T.branch_adopts = translate_adopts_clause env clause
+      } in
+      let branch2 = {
+	branch1 with
+	T.branch_fields = fields2
+      } in
+      T.TyConcrete branch1, T.TyConcrete branch2
+
+  | TySingleton ty ->
+      twice (T.TySingleton (translate_type_reset env ty KTerm))
+
+  | TyApp (t, ts) ->
+      T.TyApp (translate_type env t, List.map (translate_type_with_names env) ts)
+
+  | TyArrow (t1, t2) ->
+      let universal_bindings, t1, t2 = translate_arrow_type env t1 t2 in
+      let arrow = T.TyArrow (t1, t2) in
+      Types.fold_forall universal_bindings arrow
+
+  | TyForall (binding, t) ->
+      let env = extend env [ binding ] in
+      T.TyQ (T.Forall, name_user env binding, UserIntroduced, translate_type_with_names env t)
+
+  | TyExists (binding, t) ->
+      let env = extend env [ binding ] in
+      T.TyQ (T.Exists, name_user env binding, UserIntroduced, translate_type_with_names env t)
+
+  | TyAnchoredPermission (t1, t2) ->
+      T.TyAnchoredPermission (translate_type env t1, translate_type env t2)
+       (* TEMPORARY should be translate_type_with_names on the right-hand side,
+          but that causes a large number of failures (why?). *)
+
+  | TyStar (t1, t2) ->
+      T.TyStar (translate_type env t1, translate_type env t2)
+
+  | TyNameIntro (x, t) ->
+      (* [x: t] translates into [(=x | x@t)] -- with [x] bound somewhere above
+         us. *)
+      let x = tvar (find_variable env (Unqualified x)) in
+      T.TyBar (
+        T.TySingleton x,
+        T.TyAnchoredPermission (x, translate_type env t)
+      )
+
+  | TyBar (t1, t2) ->
+      T.TyBar (translate_type env t1, translate_type env t2)
+
+  | TyAnd (c, t) ->
+      T.TyAnd (translate_constraint env c, translate_type env t)
+
+  | TyImply (c, ty) ->
+      translate_implication env [c] ty
+
+and translate_adopts_clause = function
+  | None ->
+      TypeCore.ty_bottom
+  | Some ty ->
+      translate_type_reset env ty KType
+*)
+(* -------------------------------------------------------------------------- *)
+
 let rec flatten_star p =
   match p with
   | TyStar (t1, t2) ->
@@ -108,7 +222,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
         TyLocated (t, p), acc
 
     | TyTuple ts ->
-        let ts, accs = List.split (List.map (strip_consumes env) ts) in
+        let ts, accs = MzList.split_map (strip_consumes env) ts in
         TyTuple ts, List.flatten accs
 
     | TyConcrete ((datacon, fields), clause) ->
@@ -223,8 +337,7 @@ let rec translate_type (env: env) (t: typ): T.typ =
   | TySingleton t ->
       T.TySingleton (translate_type env t)
 
-  | TyApp _ ->
-      let t, ts = flatten_tyapp t in
+  | TyApp (t, ts) ->
       T.TyApp (translate_type env t, List.map (translate_type_with_names env) ts)
 
   | TyArrow (t1, t2) ->
@@ -553,7 +666,7 @@ let clean_pattern pattern =
         pattern, TyUnknown
 
     | PTuple patterns ->
-        let patterns, annotations = List.split (List.map (clean_pattern loc) patterns) in
+        let patterns, annotations = MzList.split_map (clean_pattern loc) patterns in
         PTuple patterns,
         if List.exists ((<>) TyUnknown) annotations then
           TyTuple annotations
@@ -864,7 +977,7 @@ and translate_patexprs
   let patterns, expressions = List.split pat_exprs in
   (* Remove all inner type annotations and transform them into a bigger type
    * constraint.*)
-  let patterns, annotations = List.split (List.map clean_pattern patterns) in
+  let patterns, annotations = MzList.split_map clean_pattern patterns in
   (* Bind all the names in the sub-environment. *)
   let sub_env = extend env (bv (PTuple patterns)) in
   (* Translate the patterns. *)

@@ -61,7 +61,7 @@ module Graph = struct
     let line, edges =
       match t with
       | TyConcrete { branch_datacon; branch_fields; _ } ->
-          let blocks, edges = List.split (List.map (fun f ->
+          let blocks, edges = MzList.split_map (fun f ->
             let name, t =
               match f with
               | FieldValue (name, t) ->
@@ -70,7 +70,7 @@ module Graph = struct
                   Log.error "Need [collect]"
             in
             gen env name t
-          ) branch_fields) in
+          ) branch_fields in
           let blocks =
             if List.length blocks > 0 then
               "|" ^ String.concat "|" blocks
