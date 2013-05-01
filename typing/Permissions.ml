@@ -989,8 +989,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         (* This has the nice guarantee that we don't need to worry about flexible
          * PERM variables anymore (hence the call to List.partition a few lines
          * below). *)
-        let ps1 = MzList.map_flatten (flatten_star env) ps1 in
-        let ps2 = MzList.map_flatten (flatten_star env) ps2 in
+        let ps1 = MzList.flatten_map (flatten_star env) ps1 in
+        let ps2 = MzList.flatten_map (flatten_star env) ps2 in
 
         (* "(t1 | p1) - (t2 | p2)" means doing "t1 - t2", adding all of [p1],
          * removing all of [p2]. However, the order in which we perform these

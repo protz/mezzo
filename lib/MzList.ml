@@ -215,7 +215,7 @@ let take_bool f l =
   | None ->
       None
 
-let map_flatten f l =
+let flatten_map f l =
   List.flatten (List.map f l)
 
 let rec split_map f xs =

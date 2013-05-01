@@ -28,13 +28,13 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
   let open SurfaceSyntax in
 
   let rec collect_items items =
-    MzList.map_flatten collect_item items
+    MzList.flatten_map collect_item items
 
   and collect_item = function
     | ValueDeclaration (_, ty) ->
         collect_type ty
     | DataTypeGroup (_, _, defs) ->
-        MzList.map_flatten (function def ->
+        MzList.flatten_map (function def ->
          match def.rhs with
           | Abstract _ ->
               []
@@ -42,7 +42,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
               collect_type t
           | Concrete (_flag, rhs, adopts) ->
               Option.map_none [] (Option.map collect_type adopts)
-              @ MzList.map_flatten collect_data_type_def_branch rhs
+              @ MzList.flatten_map collect_data_type_def_branch rhs
         ) defs
     | ValueDefinitions (_, _, patexprs) ->
         collect_patexprs patexprs
@@ -51,8 +51,8 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
 
   and collect_patexprs patexprs =
     let pats, exprs = List.split patexprs in
-    MzList.map_flatten collect_pattern pats
-    @ MzList.map_flatten collect_expr exprs
+    MzList.flatten_map collect_pattern pats
+    @ MzList.flatten_map collect_expr exprs
 
   and collect_pattern = function
     | PVar _ ->
@@ -62,10 +62,10 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | PConstraint (p1, t1) ->
         collect_pattern p1 @ collect_type t1
     | PTuple ps ->
-        MzList.map_flatten collect_pattern ps
+        MzList.flatten_map collect_pattern ps
     | PConstruct (dref, namepats) ->
         let _, ps = List.split namepats in
-        MzList.map_flatten collect_pattern ps @
+        MzList.flatten_map collect_pattern ps @
         collect_maybe_qualified dref.datacon_unresolved
     | PAs (p1, _) ->
         collect_pattern p1
@@ -104,16 +104,16 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         collect_type t
     | ETApply (expr, ts) ->
         collect_expr expr @
-        MzList.map_flatten (function
+        MzList.flatten_map (function
          | Ordered x
          | Named (_, x) ->
           collect_type x
         ) ts
     | ETuple exprs ->
-        MzList.map_flatten collect_expr exprs
+        MzList.flatten_map collect_expr exprs
     | EConstruct (dref, nameexprs) ->
         let _, exprs = List.split nameexprs in
-        MzList.map_flatten collect_expr exprs @
+        MzList.flatten_map collect_expr exprs @
         collect_maybe_qualified dref.datacon_unresolved
     | EIfThenElse (_, e1, e2, e3) ->
         collect_expr e1 @ collect_expr e2 @ collect_expr e3
@@ -144,13 +144,13 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | TyImply ((_, t1), t2) ->
         collect_type t1 @ collect_type t2
     | TyTuple ts ->
-        MzList.map_flatten collect_type ts
+        MzList.flatten_map collect_type ts
     | TyApp (t, ts) ->
-        MzList.map_flatten collect_type (t :: ts)
+        MzList.flatten_map collect_type (t :: ts)
     | TyConcrete (branch, clause) ->
         collect_data_type_def_branch branch @
         collect_maybe_qualified (fst branch).datacon_unresolved @
-       MzList.map_flatten collect_type (Option.to_list clause)
+       MzList.flatten_map collect_type (Option.to_list clause)
 
   and collect_data_type_def_branch: 'a. 'a * data_field_def list -> Module.name list =
   fun (_, fields)  ->
@@ -160,7 +160,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
       | FieldPermission t ->
           t
     ) fields in
-    MzList.map_flatten collect_type ts
+    MzList.flatten_map collect_type ts
 
   and collect_maybe_qualified: 'a. 'a maybe_qualified -> Module.name list =
   function

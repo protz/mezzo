@@ -859,7 +859,7 @@ let check_data_type_def env (def: data_type_def) =
    duplicate data constructor definitions. *)
 
 let branches_of_data_type_group (group : data_type_def list) =
-  MzList.map_flatten (function def ->
+  MzList.flatten_map (function def ->
     match def.rhs with
     | Abbrev _
     | Abstract _ ->
@@ -869,7 +869,7 @@ let branches_of_data_type_group (group : data_type_def list) =
   ) group
 
 let branches_of_interface (interface : interface) =
-  MzList.map_flatten (function
+  MzList.flatten_map (function
     | DataTypeGroup (_, _, group) ->
         branches_of_data_type_group group
     | _ ->
@@ -1107,7 +1107,7 @@ let check_interface env (interface : interface) : unit =
 
   (* A variable must not be declared twice in an interface file. *)
   let (_ : _ list) = check_for_duplicate_bindings env (
-    MzList.map_flatten (function
+    MzList.flatten_map (function
       | DataTypeGroup (_, _, data_type_group) ->
           bindings_data_group_types data_type_group
       | ValueDeclaration (binding, _) ->
