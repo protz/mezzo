@@ -99,6 +99,9 @@ val find_opt: ('a -> 'b option) -> 'a list -> 'b option
 
 val map_flatten: ('a -> 'b list) -> 'a list -> 'b list
 
+(** [split_map f xs] is equivalent to [List.split (List.map f xs)]. *)
+val split_map: ('a -> 'b * 'c) -> 'a list -> 'b list * 'c list
+
 val cut: int -> 'a list -> 'a list
 
 (** Equality of lists, up to equality of elements. *)

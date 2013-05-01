@@ -218,6 +218,15 @@ let take_bool f l =
 let map_flatten f l =
   List.flatten (List.map f l)
 
+let rec split_map f xs =
+  match xs with
+  | [] ->
+      [], []
+  | x :: xs ->
+      let y1, y2 = f x in
+      let ys1, ys2 = split_map f xs in
+      y1 :: ys1, y2 :: ys2
+
 let cut i l =
   let rec cut acc i l =
     if i = 0 then
