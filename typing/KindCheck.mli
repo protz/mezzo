@@ -48,7 +48,7 @@ type 'v env
 (** A [KindError] exception carries a function that displays an error message. *)
 exception KindError of (Buffer.t -> unit -> unit)
 
-(* TEMPORARY try not to publish any of the functions that raise errors? *)
+(** This error is detected during the translation towards the internal syntax. *)
 val implication_only_on_arrow: 'v env -> 'a
 
 (* ---------------------------------------------------------------------------- *)
@@ -81,6 +81,10 @@ val location: 'v env -> location
 (** [find_variable env x] looks up the possibly-qualified variable [x]
     in the environment [env]. *)
 val find_variable: 'v env -> Variable.name maybe_qualified -> 'v var
+
+(** [find_kind env x] returns the kind of the possibly-qualified
+    variable [x]. *)
+val find_kind: 'v env -> Variable.name maybe_qualified -> kind
 
 (** [find_nonlocal_variable env x] looks up the unqualified variable [x]
     in the environment [env]. The result is expected to be a [NonLocal]

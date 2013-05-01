@@ -64,49 +64,66 @@ let resolve_datacon env dref =
 (* -------------------------------------------------------------------------- *)
 
 (* Experimental section. *)
-(* TEMPORARY
+
+let rec conjunction cs ty =
+  match cs with
+  | [] ->
+      ty
+  | c :: cs ->
+      conjunction cs (TyAnd (c, ty))
+
+module Experimental = struct
+
 let top = function
   | KType ->
-      TyUnknown
+      T.TyUnknown
   | KPerm ->
-      TyEmpty
+      T.TyEmpty
   | _ ->
       assert false
 
-let twice x =
-  x, x
+let twice x kind =
+  x, x, kind
+
+let auto_tyq q binding ty =
+  T.TyQ (q, name_auto binding, AutoIntroduced, ty)
 
 (* TEMPORARY maybe try to preserve sharing when there is no consumes *)
 
-let rec translate_type env (ty : typ) (expected : kind) : T.typ * T.typ =
+let rec translate_type env (ty : typ) : T.typ * T.typ * kind =
   match ty with
 
   | TyLocated (ty, loc) ->
-      translate_type (locate env loc) ty expected
+      translate_type (locate env loc) ty
 
   | TyConsumes ty ->
       (* First, translate [ty]. *)
-      let ty1, ty2 = translate_type env ty expected in
+      let ty1, _, kind = translate_type env ty in
       (* Construct a version of this type where everything is kept, *)
       ty1,
       (* and a version of this type where everything is lost. *)
-      top expected
+      top kind,
+      (* Also return the kind. *)
+      kind
 
   | TyTuple tys ->
-      let tys1, tys2 = MzList.split_map (fun ty -> translate_type env ty KType) tys in
-      T.TyTuple tys1, T.TyTuple tys2
+      let tys1, tys2 = MzList.split_map (fun ty ->
+	let ty1, ty2, _ = translate_type env ty
+	in ty1, ty2
+      ) tys in
+      T.TyTuple tys1, T.TyTuple tys2, KType
 
   | TyUnknown ->
-      twice T.TyUnknown
+      twice T.TyUnknown KType
 
   | TyDynamic ->
-      twice T.TyDynamic
+      twice T.TyDynamic KType
 
   | TyEmpty ->
-      twice T.TyEmpty
+      twice T.TyEmpty KPerm
 
   | TyVar x ->
-      twice (tvar (find_variable env x))
+      twice (tvar (find_variable env x)) (find_kind env x)
 
   | TyConcrete ((dref, fields), clause) ->
       let fields1, fields2 = MzList.split_map (translate_field env) fields in
@@ -120,59 +137,142 @@ let rec translate_type env (ty : typ) (expected : kind) : T.typ * T.typ =
 	branch1 with
 	T.branch_fields = fields2
       } in
-      T.TyConcrete branch1, T.TyConcrete branch2
+      T.TyConcrete branch1, T.TyConcrete branch2, KType
 
   | TySingleton ty ->
-      twice (T.TySingleton (translate_type_reset env ty KTerm))
+      let ty, _ = translate_type_reset env ty in
+      twice (T.TySingleton ty) KType
 
-  | TyApp (t, ts) ->
-      T.TyApp (translate_type env t, List.map (translate_type_with_names env) ts)
+  | TyApp (ty1, ty2s) ->
+      let ty1, kind1 = translate_type_reset env ty1 in
+      let ty2s, _ = MzList.split_map (translate_type_reset env) ty2s in
+      let _, kind = as_arrow kind1 in
+      twice (T.TyApp (ty1, ty2s)) kind
 
-  | TyArrow (t1, t2) ->
-      let universal_bindings, t1, t2 = translate_arrow_type env t1 t2 in
-      let arrow = T.TyArrow (t1, t2) in
-      Types.fold_forall universal_bindings arrow
+  | TyArrow (domain, codomain) ->
+      (* Bind a fresh variable to stand for the root of the function
+	 argument. Bind the names introduced in the left-hand side. *)
+      let root = fresh_var "/root" in
+      let bindings = (root, KTerm, location env) :: names domain in
+      (* Extend the environment with these bindings, so that we can
+	 translate [domain] and [codomain] and construct the body of
+	 the desired universal type. *)
+      let env = extend env bindings in
+      let root = tvar (find_variable env (Unqualified root)) in
+      (* Translate the left-hand side. We obtain [domain1], which
+	 represents the domain with the [consumed] components, and
+	 [domain2], which represents the domain without them. *)
+      let domain1, domain2, _ = translate_type env domain in
+      (* Translate the right-hand side. *)
+      let codomain, _ = translate_type_reset env codomain in
+      (* Build a translated function type. *)
+      let ty =
+	T.TyArrow (
+	  (* The domain is (=root | root @ domain1). *)
+	  T.TyBar (T.TySingleton root, T.TyAnchoredPermission (root, domain1)),
+	  (* The codomain is (codomain | root @ domain2). *)
+	  T.TyBar (codomain, T.TyAnchoredPermission (root, domain2))
+	)
+      in
+      (* Add the universal quantifiers. *)
+      let ty = List.fold_right (auto_tyq T.Forall) bindings ty in
+      (* Done. *)
+      twice ty KType
 
-  | TyForall (binding, t) ->
-      let env = extend env [ binding ] in
-      T.TyQ (T.Forall, name_user env binding, UserIntroduced, translate_type_with_names env t)
+  | TyForall (binding, ty) ->
+      translate_quantified_type env T.Forall binding ty
 
-  | TyExists (binding, t) ->
-      let env = extend env [ binding ] in
-      T.TyQ (T.Exists, name_user env binding, UserIntroduced, translate_type_with_names env t)
+  | TyExists (binding, ty) ->
+      translate_quantified_type env T.Exists binding ty
 
-  | TyAnchoredPermission (t1, t2) ->
-      T.TyAnchoredPermission (translate_type env t1, translate_type env t2)
-       (* TEMPORARY should be translate_type_with_names on the right-hand side,
-          but that causes a large number of failures (why?). *)
+  | TyAnchoredPermission (ty1, ty2) ->
+      let ty1, _ = translate_type_reset env ty1 in
+      let ty2, _ = translate_type_reset env ty2 in
+      twice (T.TyAnchoredPermission (ty1, ty2)) KPerm
 
-  | TyStar (t1, t2) ->
-      T.TyStar (translate_type env t1, translate_type env t2)
+  | TyStar (p, q) ->
+      let p1, p2, _ = translate_type env p in
+      let q1, q2, _ = translate_type env q in
+      T.TyStar (p1, q1), T.TyStar (p2, q2), KPerm
 
-  | TyNameIntro (x, t) ->
-      (* [x: t] translates into [(=x | x@t)] -- with [x] bound somewhere above
-         us. *)
+  | TyNameIntro (x, ty) ->
+      (* In principle, [x] has already been bound in the environment.
+         The translation of this type is [(=x | x @ ty)]. *)
       let x = tvar (find_variable env (Unqualified x)) in
-      T.TyBar (
-        T.TySingleton x,
-        T.TyAnchoredPermission (x, translate_type env t)
-      )
+      let ty1, ty2, _ = translate_type env ty in
+      T.TyBar (T.TySingleton x, T.TyAnchoredPermission (x, ty1)),
+      T.TyBar (T.TySingleton x, T.TyAnchoredPermission (x, ty2)),
+      KType
 
-  | TyBar (t1, t2) ->
-      T.TyBar (translate_type env t1, translate_type env t2)
+  | TyBar (ty, p) ->
+      let ty1, ty2, _ = translate_type env ty in
+      let p1, p2, _ = translate_type env p in
+      T.TyBar (ty1, p1), T.TyBar (ty2, p2), KType
 
-  | TyAnd (c, t) ->
-      T.TyAnd (translate_constraint env c, translate_type env t)
+  | TyAnd (c, ty) ->
+      let c = translate_mode_constraint env c in
+      let ty1, ty2, _ = translate_type env ty in
+      T.TyAnd (c, ty1), T.TyAnd (c, ty2), KType
 
   | TyImply (c, ty) ->
       translate_implication env [c] ty
 
-and translate_adopts_clause = function
+and translate_type_reset env ty : T.typ * kind =
+  (* Gather and bind the names introduced within [ty]. *)
+  let bindings = names ty in
+  let env = extend env bindings in
+  (* Translate [ty]. There should be no [consumes] annotations, so the
+     two types that are returned by this call are identical. *)
+  let ty, _, kind = translate_type env ty in
+  (* Build a series of existential quantifiers. *)
+  let ty = List.fold_right (auto_tyq T.Exists) bindings ty in
+  ty, kind
+
+and translate_field env = function
+  | FieldValue (f, ty) ->
+      (* No [reset] here. *)
+      let ty1, ty2, _ = translate_type env ty in
+      T.FieldValue (f, ty1), T.FieldValue (f, ty2)
+  | FieldPermission ty ->
+      let ty1, ty2, _ = translate_type env ty in
+      T.FieldPermission ty1, T.FieldPermission ty2
+
+and translate_adopts_clause env = function
   | None ->
-      TypeCore.ty_bottom
+      T.ty_bottom
   | Some ty ->
-      translate_type_reset env ty KType
-*)
+      let ty, _ = translate_type_reset env ty in
+      ty
+
+(* TEMPORARY merge TyForall/TyExists in the surface syntax *)
+and translate_quantified_type env q binding ty =
+  let env = extend env [ binding ] in
+  let ty, kind = translate_type_reset env ty in
+  let ty = T.TyQ (q, name_user env binding, UserIntroduced, ty) in
+  twice ty kind
+
+and translate_mode_constraint env (m, ty) =
+  let ty, _ = translate_type_reset env ty in
+  m, ty
+
+and translate_implication env (cs : mode_constraint list) = function
+  | TyArrow (ty1, ty2) ->
+      (* An implication above an arrow is turned into a conjunction in
+        the left-hand side of the arrow. This is done on the fly, just
+        before the translation, as a rewriting of the surface syntax to
+        itself. (Doing it just after the translation would be more
+        problematic, as the translation of arrows introduces quantifiers.) *)
+      translate_type env (TyArrow (conjunction cs ty1, ty2))
+  | TyImply (c, ty) ->
+      (* Multiple implications above an arrow are allowed. *)
+      translate_implication env (c :: cs) ty
+  | TyLocated (ty, _) ->
+      translate_implication env cs ty
+  | _ ->
+      implication_only_on_arrow env
+
+end
+
 (* -------------------------------------------------------------------------- *)
 
 let rec flatten_star p =
@@ -399,13 +499,6 @@ and translate_implication env (cs : mode_constraint list) = function
   | _ ->
       implication_only_on_arrow env
 
-and conjunction cs ty =
-  match cs with
-  | [] ->
-      ty
-  | c :: cs ->
-      conjunction cs (TyAnd (c, ty))
-
 and translate_constraint env (m, t) =
   (* There was a check that [t] is [TyBound _], but I have removed it. *)
   m, translate_type env t
@@ -515,6 +608,7 @@ and translate_type_with_names (env: env) (t: typ): T.typ =
   let env = extend env bindings in
   let t = translate_type env t in
   let t = Types.fold_exists (List.map (fun binding -> name_user env binding, UserIntroduced) bindings) t in
+    (* TEMPORARY these bindings are not user-introduced? *)
   t
 
 ;;

@@ -4,6 +4,11 @@ open KindCheckGlue
 
 (** Translating the surface syntax down into the core language syntax. *)
 
+(* TEMPORARY *)
+module Experimental : sig
+  val translate_type_reset: env -> typ -> TypeCore.typ * kind
+end
+
 (** [translate_type_with_names] translates a type. *)
 val translate_type_with_names: env -> typ -> TypeCore.typ
 

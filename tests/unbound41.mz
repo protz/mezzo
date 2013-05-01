@@ -1,0 +1,4 @@
+(* Nested consumes. *)
+val f (consumes (consumes x: int)) : int =
+  x
+

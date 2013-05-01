@@ -639,7 +639,10 @@ let rec check env s (ty : typ) (expected : kind) : unit =
 
   | TyConsumes ty ->
       if s = ConsumesAllowed then
-	check env s ty expected
+	(* Note that we disallow nested [consumes] annotations. We could
+	   allow them, as they are harmless, but they are also useless,
+	   so it seems better to warn the user against them. *)
+	check env ConsumesDisallowed ty expected
       else
 	raise_error env IllegalConsumes
 
