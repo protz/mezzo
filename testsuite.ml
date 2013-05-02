@@ -991,6 +991,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("while-3.mz", pass);
   ("species.mz", pass);
   ("ghost00.mz", kfail);
+  ("ifthen-bug.mz", pass_known_failure);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)
