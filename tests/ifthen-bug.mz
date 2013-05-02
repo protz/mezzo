@@ -1,0 +1,15 @@
+data mutable dummy a =
+  Dummy {
+    f: a -> ()
+  }
+
+val foo [a] (d: dummy a) : () = ()
+
+val bar [a] (d: dummy a) : () = 
+  if true then foo d;
+  assert d @ dummy a; (* This is rejected. *)
+  ()
+
+(* This file is accepted if you remove the "mutable" keyword,
+ * or if you say that the type of Dummy.f is () -> (),
+ * or if you remove "if true then". *)
