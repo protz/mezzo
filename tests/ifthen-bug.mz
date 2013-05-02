@@ -3,10 +3,12 @@ data mutable dummy a =
     f: a -> ()
   }
 
+data bool = False | True
+
 val foo [a] (d: dummy a) : () = ()
 
 val bar [a] (d: dummy a) : () = 
-  if true then foo d;
+  if True then foo d;
   assert d @ dummy a; (* This is rejected. *)
   ()
 

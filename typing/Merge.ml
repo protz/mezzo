@@ -521,6 +521,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
        *)
       lazy begin
         try
+          let left_perm = clean left_env left_env left_perm in
+          let right_perm = clean right_env right_env right_perm in
           if equal top left_perm right_perm then begin
             Log.debug ~level:5 "→ fast_path, the types are equal in the original environment, \
               don't touch them";
