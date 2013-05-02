@@ -102,7 +102,6 @@ type interface = toplevel_item list
  * - [tsubst_X] substitutes a type for an index in an [X]
  * - [esubst_X] substitutes an expression for an index in an [X]
  * - [tpsubst_X] substitutes a var for a type in an [X]
- * - [epsubst_X] substitutes a var for an expression an [X]
  *
  * Because most of the things are done through the "substitution kit" (see
  * below), most of the variants for substitution functions are *not* exposed to
@@ -128,18 +127,10 @@ val tsubst_toplevel_items :
   typ ->
   db_index -> toplevel_item list -> toplevel_item list
 
-val tpsubst_expr :
-  env -> typ -> var -> expression -> expression
-
-
 (** {2 Substitution functions for expressions.} *)
 
 val esubst_toplevel_items :
   expression -> db_index -> toplevel_item list -> toplevel_item list
-
-val epsubst :
-  env -> expression -> var -> expression -> expression
-
 
 (* -------------------------------------------------------------------------- *)
 
