@@ -4,6 +4,7 @@
 # Can be overridden by Makefile.local (not under version control).
 FIND       := find
 SED        := sed
+TIME       := time
 -include Makefile.local
 
 OCAMLBUILD := ocamlbuild -j 0 -use-ocamlfind -use-menhir \
@@ -33,7 +34,7 @@ clean:
 	$(OCAMLBUILD) -clean
 
 test: all
-	OCAMLRUNPARAM=b time --format="Elapsed time (wall-clock): %E" ./testsuite
+	OCAMLRUNPARAM=b $(TIME) --format="Elapsed time (wall-clock): %E" ./testsuite
 
 # Re-generate the TAGS file
 tags: all
