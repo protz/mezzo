@@ -4,9 +4,21 @@
 # - We use the following libraries: Ocamlbuild_Plugin, Unix, Str
 # - We generate .annot files and .cmt files.
 # - We use the following ocamlfind packages: yojson, menhirlib, ulex, pprint
-true: debug, use_menhir, use_ocamlbuild, use_unix, use_str, annot, bin_annot, \
-  strict_sequence, \
-  package(yojson), package(menhirLib), package(ulex), package(pprint)
+
+# - We normally need use_unix, but testsuite.* needs package(functory) instead
+#   (for some reason, functory seems to include unix)
+
+not <testsuite.*>: debug, \
+  use_menhir, use_ocamlbuild, use_str, \
+  annot, bin_annot, strict_sequence, \
+  package(yojson), package(menhirLib), package(ulex), package(pprint), \
+  use_unix
+
+<testsuite.*>: debug, \
+  use_menhir, use_ocamlbuild, use_str, \
+  annot, bin_annot, strict_sequence, \
+  package(yojson), package(menhirLib), package(ulex), package(pprint), \
+  package(functory)
 
 # Enable the "nazi warnings". A few files really trigger too many warnings: the
 # generated parser and lexer files, as well as the imported [patricia.ml].

@@ -1058,52 +1058,63 @@ let run_one_test prefix (file, test) : result * string =
   in
   !result, Buffer.contents buf
 
-let _ =
+(* Total number of tests. *)
+let count = ref 0
+(* Number of tests actually run. *)
+let do_it_count = ref 0
+(* Number of tests considered failed (not counting known failures). *)
+let failed = ref 0
+(* Names of tests considered failed. *)
+let names_failed = ref []
+
+(* [acknowledge] is invoked in the master process when a test finishes. *)
+let acknowledge ((file, _), ()) (result, output) =
+  incr count;
+  print_string output;
+  flush stdout;
+  begin match result with
+  | WasNotRun ->
+      ()
+  | Success ->
+      incr do_it_count
+  | Failure ->
+      incr do_it_count;
+      incr failed;
+      names_failed := file :: !names_failed
+  end;
+  (* An empty list means, no new tasks. *)
+  []
+
+(* [run] runs a bunch of tests in parallel. *)
+let run prefix tests : unit =
+  let tests = List.map (fun x -> x, ()) tests in
+  Functory.Cores.set_number_of_cores 4;
+  Functory.Cores.compute
+    ~worker:(run_one_test prefix)
+    ~master:acknowledge
+    tests
+
+let () =
   let open Bash in
   Driver.add_include_dir (Filename.concat Configure.root_dir "corelib");
   Driver.add_include_dir (Filename.concat Configure.root_dir "stdlib");
-  let failed = ref 0 in
-  let names_failed = ref [] in
-  let count = ref 0 in
-  let do_it_count = ref 0 in
-  let run prefix tests =
-    List.iter (fun (file, test) ->
-      incr count;
-      let result, output = run_one_test prefix (file, test) in
-      begin match result with
-      | WasNotRun ->
-          ()
-      | Success ->
-          incr do_it_count
-      | Failure ->
-          incr do_it_count;
-          incr failed;
-          names_failed := file :: !names_failed
-      end;
-      print_string output;
-      flush stdout
-    ) tests
-  in
   let center s =
     let l = String.length s in
     let padding = String.make ((Bash.twidth - l) / 2) ' ' in
-    Printf.printf "%s%s\n" padding s;
+    Printf.printf "\n%s%s\n\n%!" padding s;
   in
 
   (* Check the core modules. *)
   center "~[ Core Modules ]~";
   run "corelib/" corelib_tests;
-  Printf.printf "\n";
 
   (* Check the standard library modules. *)
   center "~[ Standard Library Modules ]~";
   run "stdlib/" stdlib_tests;
-  Printf.printf "\n";
 
   (* Check the interpreter tests. *)
   center "~[ Interpreter Tests ]~";
   run "tests/interpreter/" interpreter_tests;
-  Printf.printf "\n";
 
   (* Thrash the include path, and then do the unit tests. *)
   Options.no_auto_include := true;
@@ -1111,9 +1122,9 @@ let _ =
   Driver.add_include_dir "tests/modules";
   center "~[ Unit Tests ]~";
   run "tests/" tests;
-  Printf.printf "\n";
 
-  Printf.printf "%s%d%s tests listed (%d tests actually run), " colors.blue !count colors.default !do_it_count;
+  Printf.printf "%s%d%s tests listed (%d tests actually run), "
+    colors.blue !count colors.default !do_it_count;
   if !failed > 0 then
     let names_failed =
       match !names_failed with
@@ -1130,5 +1141,5 @@ let _ =
       names_failed
       colors.default
   else
-    Printf.printf "%sall passed%s, congratulations.\n" colors.green colors.default;
+    Printf.printf "%sall passed%s, congratulations.\n" colors.green colors.default
 ;;
