@@ -867,6 +867,10 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
 
       (* Introduce all universal bindings. *)
       let env = extend env vars in
+      let vars = List.map (fun binding -> name_user env binding, UserIntroduced) vars in
+
+      (* Interpret the argument type as a pattern. *)
+      let p = type_to_pattern arg in
 
       (* Translate the function type. *)
       let universal_bindings, arg, return_type =
@@ -879,12 +883,21 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
         | ((T.Auto x, k, _), _) | ((T.User (_, x), k, _), _) -> extend env [(x, k, dummy_loc)]
       ) env universal_bindings in
 
-      (* Now translate the body (which will probably refer to these bound
-       * names). *)
+      (* Introduce a fresh name for the argument. *)
+      let x = fresh_var "/arg" in
+      let env = extend env [ x, KTerm, location env ] in
+      assert (translate_expr env (EVar (Unqualified x)) = E.EVar 0); (* TEMPORARY DEBUG *)
+      (* Introduce "let p = x in ..." in front of the body. This is subtle: by
+         doing so, we capture the references to [bv p] within [body], so that
+         these names now refer to this [let] definition, instead of referring
+         to the [Lambda]-bound names in [universal_bindings]. It should work? *)
+      let body = ELet (Nonrecursive, [ p, EVar (Unqualified x) ], body) in
+
+      (* Now translate the body. *)
       let body = translate_expr env body in
-      let vars = List.map (name_user env) vars in
-      let vars = List.map (fun x -> x, UserIntroduced) vars in
-      E.EFun (vars @ universal_bindings, arg, return_type, body)
+
+      (* Done. *)
+      E.ELambda (vars @ universal_bindings, arg, return_type, body)
 
   | EAssign (e1, f, e2) ->
       let e1 = translate_expr env e1 in

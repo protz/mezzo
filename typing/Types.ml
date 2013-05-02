@@ -599,11 +599,9 @@ module TypePrinter = struct
 
   let print_var env v =
     let s = SurfaceSyntax.print_maybe_qualified Variable.print (Resugar.surface_print_var env v) in
-    match v with
-    | User _ ->
-        utf8string s
-    | Auto _ ->
-        colors.yellow ^^ utf8string s ^^ colors.default
+    (* I have removed the color, it looks horrible in my terminal
+       and produces garbage when output is redirected to a file. *)
+    utf8string s
   ;;
 
   let pvar buf (env, var) =
@@ -697,7 +695,7 @@ module TypePrinter = struct
         print_point env point
 
     | TyBound i ->
-        int i
+        string "TyBound(" ^^ int i ^^ string ")"
 
     | TyQ (q, _, _, _) as t ->
         let vars, env, t = strip_quantifiers_and_bind env q t in

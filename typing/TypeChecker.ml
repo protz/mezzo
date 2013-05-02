@@ -200,7 +200,7 @@ let check_return_type (env: env) (var: var) (t: typ): unit =
 
 let type_for_function_def (expression: expression): typ =
   match expression with
-  | EFun (bindings, arg, return_type, _) ->
+  | ELambda (bindings, arg, return_type, _) ->
       let t = TyArrow (arg, return_type) in
       fold_forall bindings t
   | _ ->
@@ -515,7 +515,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       check_expression env ?annot body
 
 
-  | EFun (vars, arg, return_type, body) ->
+  | ELambda (vars, arg, return_type, body) ->
       (* We can't create a closure over exclusive variables. Create a stripped
        * environment with only the duplicable parts. *)
       let sub_env = Permissions.keep_only_duplicable env in
@@ -527,11 +527,13 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let return_type = subst_type return_type in
       let body = subst_expr body in
 
-      (* This is actually pretty simple! We just bind an anonymous name for the
-       * argument, give it the right type, and everything happens automatically.
-       * *)
-      let sub_env, x_arg = bind_rigid sub_env (fresh_auto_name "arg", KTerm, location sub_env) in
-      let sub_env = Permissions.add sub_env x_arg arg in
+      (* Introduce a variable [x] that stands for the function argument. *)
+      let sub_env, { subst_expr; vars; _ } = bind_evars sub_env [ fresh_auto_name "arg", KTerm, location sub_env ] in
+      (* Its scope is just the function body. *)
+      let x = match vars with [ x ] -> x | _ -> assert false in
+      let body = subst_expr body in
+      (* Assume that we have permission [x @ arg]. *)
+      let sub_env = Permissions.add sub_env x arg in
 
       (* Type-check the function body. *)
       let sub_env, p = check_expression sub_env ~annot:return_type body in
@@ -1093,6 +1095,8 @@ and check_bindings
   (rec_flag: rec_flag)
   (patexprs: (pattern * expression) list): env * substitution_kit
   =
+    Log.debug "%a" MzPprint.pdoc (ExprPrinter.print_definitions env, (SurfaceSyntax.dummy_loc, rec_flag, patexprs)); (* TEMPORARY DEBUG *)
+    flush stderr;
     let env, patexprs, subst_kit = bind_patexprs env rec_flag patexprs in
     let { subst_expr; subst_pat; _ } = subst_kit in
     let patterns, expressions = List.split patexprs in
@@ -1103,7 +1107,7 @@ and check_bindings
           List.fold_left2 (fun env expr pat ->
             let expr = eunloc expr in
             match pat, expr with
-            | POpen p, EFun _ ->
+            | POpen p, ELambda _ ->
                 let t = type_for_function_def expr in
                 (* [add] takes care of simplifying the function type *)
                 Permissions.add env p t
@@ -1124,6 +1128,7 @@ and check_bindings
       let env = unify_pattern env pat var in
       env) env patterns expressions
     in
+    Log.debug "OK\n%!";
     env, subst_kit
 ;;
 

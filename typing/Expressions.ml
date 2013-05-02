@@ -43,11 +43,12 @@ type field =
 type pattern =
   (* x *)
   | PVar of Variable.name * location
+        (* TEMPORARY is the name important here, or just a hint? *)
   (* (x₁, …, xₙ) *)
   | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)
   | PConstruct of resolved_datacon * (Field.name * pattern) list
-  (* Once the variables in a pattern have been bound, they may replaced by
+  (* Once the variables in a pattern have been bound, they may be replaced by
    * [POpen]s so that we know how to speak about the bound variables. *)
   | POpen of var
   | PAs of pattern * pattern
@@ -70,8 +71,11 @@ type expression =
   | EBuiltin of string
   (* let rec pat = expr and pat' = expr' in expr *)
   | ELet of rec_flag * patexpr list * expression
-  (* fun [a] (x: τ): τ -> e *)
-  | EFun of (type_binding * flavor) list * typ * typ * expression
+  (* lambda [a] (x: τ): τ -> e *)
+  (* A lambda binds exactly one variable, which has de Bruijn index 0.
+     This is in contrast with the surface syntax, where many variables
+     can be bound, and the argument type is interpreted as a pattern. *)
+  | ELambda of (type_binding * flavor) list * typ * typ * expression
   (* v.f <- e *)
   | EAssign of expression * field * expression
   (* tag of v <- Foo *)
@@ -264,6 +268,7 @@ let rec tsubst_patexprs t2 i rec_flag patexprs =
   in
   let names = List.flatten names in
   let n = List.length names in
+  (* TEMPORARY looks as if only the length of [names] matters; use [n_defs] *)
   let expressions = match rec_flag with
     | Recursive ->
         List.map (tsubst_expr t2 (i + n)) expressions
@@ -289,12 +294,13 @@ and tsubst_expr t2 i e =
       let body = tsubst_expr t2 (i + n) body in
       ELet (rec_flag, patexprs, body)
 
-  | EFun (vars, arg, return_type, body) ->
+  | ELambda (vars, arg, return_type, body) ->
       let i = i + List.length vars in
       let arg = tsubst t2 i arg in
       let return_type = tsubst t2 i return_type in
+      let i = i + 1 in
       let body = tsubst_expr t2 i body in
-      EFun (vars, arg, return_type, body)
+      ELambda (vars, arg, return_type, body)
 
   | EAssign (e1, field, e2) ->
       let e1 = tsubst_expr t2 i e1 in
@@ -325,6 +331,7 @@ and tsubst_expr t2 i e =
           let pat = tsubst_pat t2 i pat in
           let names = collect_pattern pat in
           let n = List.length names in
+          (* TEMPORARY looks as if only the length of [names] matters; use [n_defs] *)
           pat, tsubst_expr t2 (i + n) expr
         ) patexprs
       in
@@ -419,6 +426,7 @@ let rec esubst_patexprs e2 i rec_flag patexprs =
   in
   let names = List.flatten names in
   let n = List.length names in
+  (* TEMPORARY looks as if only the length of [names] matters; use [n_defs] *)
   let expressions = match rec_flag with
     | Recursive ->
         List.map (esubst e2 (i + n)) expressions
@@ -449,10 +457,10 @@ and esubst e2 i e1 =
       let body = esubst e2 (i + n) body in
       ELet (rec_flag, patexprs, body)
 
-  | EFun (vars, arg, return_type, body) ->
+  | ELambda (vars, arg, return_type, body) ->
       let n = List.length vars in
-      let body = esubst e2 (i + n) body in
-      EFun (vars, arg, return_type, body)
+      let body = esubst e2 (i + n + 1) body in
+      ELambda (vars, arg, return_type, body)
 
   | EAssign (e, f, e') ->
       let e = esubst e2 i e in
@@ -481,6 +489,7 @@ and esubst e2 i e1 =
       let patexprs = List.map (fun (pat, expr) ->
         let names = collect_pattern pat in
         let n = List.length names in
+        (* TEMPORARY looks as if only the length of [names] matters; use [n_defs] *)
         let expr = esubst e2 (i + n) expr in
         pat, expr) patexprs
       in
@@ -641,6 +650,7 @@ let bind_patexprs env rec_flag patexprs =
   let names = List.map collect_pattern patterns in
   let names = List.flatten names in
   let bindings = List.map (fun (v, p) -> (v, KTerm, p)) names in
+  (* TEMPORARY are the names important here, or just a hint? *)
   let env, kit = bind_vars env bindings in
   let expressions = match rec_flag with
     | Recursive ->
@@ -729,7 +739,7 @@ module ExprPrinter = struct
         print_expr env e ^^ colon ^^ space ^^ print_type env t
 
     | EVar i ->
-        int i
+        string "EVar(" ^^ int i ^^ string ")"
 
     | EOpen var ->
         print_var env (get_name env var)
@@ -745,17 +755,26 @@ module ExprPrinter = struct
         print_expr env body
 
     (* fun [a] (x: τ): τ -> e *)
-    | EFun (vars, arg, return_type, body) ->
+    | ELambda (vars, arg, return_type, body) ->
         let env, { subst_type; subst_expr; _ } = bind_evars env (List.map fst vars) in
         (* Remember: this is all in desugared form, so the variables in [args]
          * are all bound. *)
         let arg = subst_type arg in
         let return_type = subst_type return_type in
         let body = subst_expr body in
-        string "fun " ^^ lbracket ^^ separate_map (comma ^^ space) (print_ebinder env) vars ^^
-        rbracket ^^ jump (
+        (* Bind the function argument. Its scope is [body] only, not the
+           argument and return types. But that does not matter here. In
+           locally nameless style, if [arg] and [return_type] make sense
+           outside the binding of [x], they still make sense inside it. *)
+        let env, { subst_expr; _ } = bind_evars env [ fresh_auto_name "arg", KTerm, location env ] in
+        let x = subst_expr (EVar 0) in
+        let body = subst_expr body in
+        (* Print. *)
+        string "lambda " ^^ lbracket ^^ separate_map (comma ^^ space) (print_ebinder env) vars ^^
+        rbracket ^^ jump (parens (
+          print_expr env x ^^ colon ^^ space ^^
           print_type env arg
-        ) ^^ colon ^^ space ^^ print_type env return_type ^^ space ^^ equals ^^
+        )) ^^ colon ^^ space ^^ print_type env return_type ^^ space ^^ equals ^^
         jump (print_expr env body)
 
     | EAssign (e1, f, e2) ->
