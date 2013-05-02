@@ -398,14 +398,30 @@ let resolve_datacon env (dref : datacon_reference) : 'v var * Datacon.name =
 
 (* Checking for duplicate definitions. *)
 
-let check_for_duplicate_bindings env (xs : type_binding list) =
+let check_for_duplicate_bindings env (xs : type_binding list) : type_binding list =
   MzList.exit_if_duplicates Variable.compare (fun (x, _, _) -> x) xs
     (fun (x, _, loc) -> bound_twice "variable" Variable.print { env with loc } x)
 
 (* TEMPORARY this function also does not produce a good error location *)
-let check_for_duplicate_datacons env (branches: (Datacon.name * 'a) list) =
-  MzList.exit_if_duplicates Datacon.compare fst branches
-    (fun (x, _) -> bound_twice "data constructor" Datacon.print env x)
+let check_for_duplicate_datacons env (branches: (Datacon.name * 'a) list) : unit =
+  ignore (
+    MzList.exit_if_duplicates Datacon.compare fst branches
+      (fun (x, _) -> bound_twice "data constructor" Datacon.print env x)
+  )
+
+let check_for_duplicate_fields env fields : unit =
+  (* Extract the named fields. *)
+  let fields = MzList.map_some (function
+    | FieldValue (f, _) ->
+        Some f
+    | FieldPermission _ ->
+        None
+  ) fields in
+  (* Check that no field name appears twice. *)
+  ignore (
+    MzList.exit_if_duplicates Field.compare (fun f -> f) fields
+      (bound_twice "field" Field.print env)
+  )
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -764,17 +780,8 @@ and check_reset env ty expected =
 (* [check_branch] is used both for resolved and unresolved branches, that is,
    both for [TyConcrete] types and for algebraic data type definitions. *)
 and check_branch env s fields =
-  let fs = MzList.map_some (function
-    | FieldValue (f, _) ->
-        Some f
-    | FieldPermission _ ->
-        None
-  ) fields in
   (* Check that no field name appears twice. *)
-  let (_ : _ list) =
-    MzList.exit_if_duplicates Field.compare (fun f -> f) fs
-      (bound_twice "field" Field.print env)
-  in
+  check_for_duplicate_fields env fields;
   (* Check that every field is well-kinded. *)
   List.iter (check_field env s) fields
 
@@ -820,6 +827,13 @@ and check_mode_constraint env (_, ty) =
 
 (* Checking type definitions. *)
 
+(* TEMPORARY Ideally, I would like to see the following definition of
+   [check_unresolved_branch], with a global [reset]. However, this
+   would lead us to introduce existential quantifiers *above*
+   [TyConcrete], which currently is not supported. So, for now,
+   we will use a version of [check_unresolved_branch] with
+   a per-field [reset].
+
 (* Checking a branch in an algebraic data type definition. *)
 let check_unresolved_branch env (datacon, fields) =
   (* We need a [reset] at the level of the entire branch, so that
@@ -829,6 +843,21 @@ let check_unresolved_branch env (datacon, fields) =
   let adopts = None in (* dummy *)
   let env = reset Fictional env (TyConcrete ((dref, fields), adopts)) in
   check_branch env ConsumesDisallowed fields
+
+*)
+
+let check_field_reset env (field : data_field_def) =
+  match field with
+  | FieldValue (_, ty) ->
+      check_reset env ty KType
+  | FieldPermission ty ->
+      check_reset env ty KPerm
+
+let check_unresolved_branch env (_, fields) =
+  (* Check that no field name appears twice. *)
+  check_for_duplicate_fields env fields;
+  (* Check that every field is well-kinded. *)
+  List.iter (check_field_reset env) fields
 
 (* Checking a type definition. For abstract types, we just check that the
    fact is well-formed. For concrete types, we check that the branches are
@@ -1081,7 +1110,7 @@ let check_implementation env (program: implementation) : unit =
         let extended_env = extend_check Fictional env (bindings_data_group_types group) in
         let extended_env = bind_data_group_datacons extended_env group in
         (* Check that the data constructors are unique within this group. *)
-        let (_ : _ list) = check_for_duplicate_datacons env (branches_of_data_type_group group) in
+        check_for_duplicate_datacons env (branches_of_data_type_group group);
         (* Check each type definition in an appropriate environment. *)
         let appropriate_env = appropriate rec_flag env extended_env in
         List.iter (check_data_type_def appropriate_env) group;
@@ -1123,9 +1152,7 @@ let check_interface env (interface : interface) : unit =
   ) in
 
   (* A data constructor must not be declared twice in an interface file. *)
-  let (_ : _ list) = check_for_duplicate_datacons env (
-    branches_of_interface interface
-  ) in
+  check_for_duplicate_datacons env (branches_of_interface interface);
     (* TEMPORARY this results in a dummy location, see unbound34; we should
        have one location per branch? *)
 
