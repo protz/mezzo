@@ -1021,6 +1021,42 @@ let stdlib_tests: (string * ((unit -> env) -> unit)) list =
 let interpreter_tests =
   tests_in_directory "tests/interpreter"
 
+type result =
+| WasNotRun
+| Success
+| Failure
+
+let run_one_test prefix (file, test) : result * string =
+  let open Bash in
+  (* This function is intended to be possibly run in a separate
+     process. Avoid side effects (global variables, printing, etc.). *)
+  Log.warn_count := 0;
+  let buf = Buffer.create 1024 in
+  let result = ref WasNotRun in
+  let () =
+    try
+      test (fun () ->
+        result := Success;
+        Driver.process (Filename.concat prefix file)
+      );
+      Printf.bprintf buf "%s✓ %s%s"
+        colors.green colors.default file;
+      if !Log.warn_count > 0 then
+        Printf.bprintf buf ", %s%d%s warning%s"
+          colors.red !Log.warn_count colors.default
+          (if !Log.warn_count > 1 then "s" else "");
+      Printf.bprintf buf "\n"
+    with
+    | KnownFailure ->
+        Printf.bprintf buf "%s! %s%s\n" colors.orange colors.default file
+    | _ as e ->
+        result := Failure;
+        Printf.bprintf buf "%s✗ %s%s\n%s\n%s"
+          colors.red colors.default file
+          (Printexc.to_string e)
+          (Printexc.get_backtrace())
+  in
+  !result, Buffer.contents buf
 
 let _ =
   let open Bash in
@@ -1032,39 +1068,22 @@ let _ =
   let do_it_count = ref 0 in
   let run prefix tests =
     List.iter (fun (file, test) ->
-      Log.warn_count := 0;
       incr count;
-      let do_it = fun () ->
-       incr do_it_count;
-        let env = Driver.process (Filename.concat prefix file) in
-        env
-      in
-      begin try
-        test do_it;
-        if !Log.warn_count > 0 then
-          Printf.printf "%s✓ %s%s, %s%d%s warning%s\n"
-            colors.green colors.default file
-            colors.red !Log.warn_count colors.default
-            (if !Log.warn_count > 1 then "s" else "")
-        else
-          Printf.printf "%s✓ %s%s\n" colors.green colors.default file;
-      with
-      | KnownFailure ->
-          Printf.printf "%s! %s%s\n" colors.orange colors.default file;
-      | Exit ->
-          exit 255
-      | _ as e ->
-          failed := !failed + 1;
-          names_failed := file :: !names_failed;
-          Printf.printf "%s✗ %s%s\n" colors.red colors.default file;
-          print_endline (Printexc.to_string e);
-          Printexc.print_backtrace stdout;
+      let result, output = run_one_test prefix (file, test) in
+      begin match result with
+      | WasNotRun ->
+          ()
+      | Success ->
+          incr do_it_count
+      | Failure ->
+          incr do_it_count;
+          incr failed;
+          names_failed := file :: !names_failed
       end;
-      flush stdout;
-      flush stderr;
-    ) tests;
+      print_string output;
+      flush stdout
+    ) tests
   in
-
   let center s =
     let l = String.length s in
     let padding = String.make ((Bash.twidth - l) / 2) ' ' in
