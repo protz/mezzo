@@ -886,7 +886,6 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       (* Introduce a fresh name for the argument. *)
       let x = fresh_var "/arg" in
       let env = extend env [ x, KTerm, location env ] in
-      assert (translate_expr env (EVar (Unqualified x)) = E.EVar 0); (* TEMPORARY DEBUG *)
       (* Introduce "let p = x in ..." in front of the body. This is subtle: by
          doing so, we capture the references to [bv p] within [body], so that
          these names now refer to this [let] definition, instead of referring
@@ -896,8 +895,11 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       (* Now translate the body. *)
       let body = translate_expr env body in
 
-      (* Done. *)
-      E.ELambda (vars @ universal_bindings, arg, return_type, body)
+      (* Build a little lambda. *)
+      let body = E.ELambda (arg, return_type, body) in
+
+      (* Build big Lambdas. *)
+      E.EBigLambdas (vars @ universal_bindings, body)
 
   | EAssign (e1, f, e2) ->
       let e1 = translate_expr env e1 in

@@ -55,7 +55,8 @@ type expression =
   | EOpen of var
   | EBuiltin of string
   | ELet of rec_flag * patexpr list * expression
-  | ELambda of (type_binding * flavor) list * typ * typ * expression
+  | EBigLambdas of (type_binding * flavor) list * expression
+  | ELambda of typ * typ * expression
   | EAssign of expression * field * expression
   | EAssignTag of expression * resolved_datacon * tag_update_info
   | EAccess of expression * field

@@ -71,11 +71,14 @@ type expression =
   | EBuiltin of string
   (* let rec pat = expr and pat' = expr' in expr *)
   | ELet of rec_flag * patexpr list * expression
-  (* lambda [a] (x: τ): τ -> e *)
+  (* [a, ..., a] e *)
+  | EBigLambdas of (type_binding * flavor) list * expression
+  (* lambda (x: τ): τ -> e *)
   (* A lambda binds exactly one variable, which has de Bruijn index 0.
+     The scope of this variable is the function body, [e].
      This is in contrast with the surface syntax, where many variables
      can be bound, and the argument type is interpreted as a pattern. *)
-  | ELambda of (type_binding * flavor) list * typ * typ * expression
+  | ELambda of typ * typ * expression
   (* v.f <- e *)
   | EAssign of expression * field * expression
   (* tag of v <- Foo *)
@@ -294,13 +297,15 @@ and tsubst_expr t2 i e =
       let body = tsubst_expr t2 (i + n) body in
       ELet (rec_flag, patexprs, body)
 
-  | ELambda (vars, arg, return_type, body) ->
-      let i = i + List.length vars in
+  | EBigLambdas (xs, e) ->
+      let n = List.length xs in
+      EBigLambdas (xs, tsubst_expr t2 (i + n) e)
+
+  | ELambda (arg, return_type, body) ->
       let arg = tsubst t2 i arg in
       let return_type = tsubst t2 i return_type in
-      let i = i + 1 in
-      let body = tsubst_expr t2 i body in
-      ELambda (vars, arg, return_type, body)
+      let body = tsubst_expr t2 (i + 1) body in
+      ELambda (arg, return_type, body)
 
   | EAssign (e1, field, e2) ->
       let e1 = tsubst_expr t2 i e1 in
@@ -457,10 +462,12 @@ and esubst e2 i e1 =
       let body = esubst e2 (i + n) body in
       ELet (rec_flag, patexprs, body)
 
-  | ELambda (vars, arg, return_type, body) ->
-      let n = List.length vars in
-      let body = esubst e2 (i + n + 1) body in
-      ELambda (vars, arg, return_type, body)
+  | EBigLambdas (xs, e) ->
+      let n = List.length xs in
+      EBigLambdas (xs, esubst e2 (i + n) e)
+
+  | ELambda (arg, return_type, body) ->
+      ELambda (arg, return_type, esubst e2 (i + 1) body)
 
   | EAssign (e, f, e') ->
       let e = esubst e2 i e in
@@ -754,24 +761,23 @@ module ExprPrinter = struct
         print_patexprs env patexprs ^^ break 1 ^^ string "in" ^^ break 1 ^^
         print_expr env body
 
+    | EBigLambdas (xs, e) ->
+        let env, { subst_expr; _ } = bind_evars env (List.map fst xs) in
+        let e = subst_expr e in
+	brackets (
+	  separate_map (comma ^^ space) (print_ebinder env) xs
+	) ^^ space ^^
+	print_expr env e
+
     (* fun [a] (x: τ): τ -> e *)
-    | ELambda (vars, arg, return_type, body) ->
-        let env, { subst_type; subst_expr; _ } = bind_evars env (List.map fst vars) in
-        (* Remember: this is all in desugared form, so the variables in [args]
-         * are all bound. *)
-        let arg = subst_type arg in
-        let return_type = subst_type return_type in
-        let body = subst_expr body in
+    | ELambda (arg, return_type, body) ->
         (* Bind the function argument. Its scope is [body] only, not the
-           argument and return types. But that does not matter here. In
-           locally nameless style, if [arg] and [return_type] make sense
-           outside the binding of [x], they still make sense inside it. *)
+           argument and return types. *)
         let env, { subst_expr; _ } = bind_evars env [ fresh_auto_name "arg", KTerm, location env ] in
         let x = subst_expr (EVar 0) in
         let body = subst_expr body in
         (* Print. *)
-        string "lambda " ^^ lbracket ^^ separate_map (comma ^^ space) (print_ebinder env) vars ^^
-        rbracket ^^ jump (parens (
+        string "lambda " ^^ jump (parens (
           print_expr env x ^^ colon ^^ space ^^
           print_type env arg
         )) ^^ colon ^^ space ^^ print_type env return_type ^^ space ^^ equals ^^
