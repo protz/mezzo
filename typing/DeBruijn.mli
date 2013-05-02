@@ -33,10 +33,6 @@ val tsubst_unresolved_branch: typ -> int -> unresolved_branch -> unresolved_bran
 (** Same thing with a data type group. *)
 val tsubst_data_type_group : typ -> int -> data_type_group -> data_type_group
 
-(** [tpsubst env t1 var t2] subtitutes [t1] for [var] in [t2]. [var] is the type
- * of open variables, so this actually {b closes} a binder. *)
-val tpsubst : env -> typ -> var -> typ -> typ
-
 (** [bind_rigid_in_type env binding ty] opens the binding [binding], whose scope
     is the type [ty], by replacing the bound variable with a rigid variable. It
     returns a triple of an extended environment, the new [ty], and the variable

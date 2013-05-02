@@ -99,27 +99,6 @@ let tsubst_unresolved_branch (t2 : typ) (i : int) (branch : unresolved_branch) =
 let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_type_group =
   (new tsubst t2) # data_type_group i group
 
-(* ---------------------------------------------------------------------------- *)
-
-(* Substitute [t2] for [v] in [t1]. We allow [t2] to have free variables,
-   hence [t2] needs to be lifted when entering a binder. *)
-
-class tpsubst (env : env) (t2 : typ) (v : var) = object
-  inherit map_counting
-  (* The target variable [v] is replaced with [lift i t2]. Any other
-     variable is unaffected. *)
-  method tyopen i v' =
-    if same env v v' then
-      lift i t2
-    else
-      TyOpen v'
-  (* An earlier version of this code performed normalization using
-     [modulo_flex], but this was apparently not required. *)
-end
-
-let tpsubst env (t2 : typ) (v : var) (t1 : typ) : typ =
-  (new tpsubst env t2 v) # visit 0 t1
-
 (* -------------------------------------------------------------------------- *)
 
 (* When opening (descending under) a binder, the bound variable must be
