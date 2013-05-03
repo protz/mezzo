@@ -208,9 +208,15 @@ and count_field accu (_, p) =
 and count_patterns accu ps =
   List.fold_left count_pattern accu ps
 
+let count_patexpr accu (p, _) =
+  count_pattern accu p
+
+let count_patexprs accu pes =
+  List.fold_left count_patexpr accu pes
+
 (* How many binders in this declaration group? *)
 let n_defs (_, _, patexprs) =
-  List.fold_left (fun accu (p, _) -> count_pattern accu p) 0 patexprs
+  count_patexprs 0 patexprs
 
 (* [psubst pat vars] replaces names in [pat] as it goes, by popping vars off
  * the front of [vars]. *)
@@ -285,17 +291,12 @@ let tsubst_pat (t2: typ) (i: db_index) (p1: pattern): pattern =
  * in the list of pattern-expressions [pat_exprs], defined recursively or not,
  * depending on [rec_flag]. *)
 let rec tsubst_patexprs t2 i rec_flag patexprs =
-  let patterns, expressions = List.split patexprs in
-  let patterns = List.map (tsubst_pat t2 i) patterns in
-  let n = count_patterns 0 patterns in
-  let expressions = match rec_flag with
-    | Recursive ->
-        List.map (tsubst_expr t2 (i + n)) expressions
-    | Nonrecursive ->
-        List.map (tsubst_expr t2 i) expressions
-  in
-  n, List.combine patterns expressions
-
+  let n = count_patexprs 0 patexprs in
+  let j = match rec_flag with Recursive -> i + n | Nonrecursive -> i in
+  n, List.map (fun (p, e) ->
+    tsubst_pat  t2 i p,
+    tsubst_expr t2 j e
+  ) patexprs
 
 (* [tsubst_expr t2 i e] substitutes type [t2] for index [i] in expression [e]. *)
 and tsubst_expr t2 i e =
