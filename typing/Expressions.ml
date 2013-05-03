@@ -23,7 +23,6 @@ open Kind
 open TypeCore
 open DeBruijn
 open Types
-module RAL = RandomAccessList (* TEMPORARY *)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -167,30 +166,51 @@ let map_tapp f = function
 (* [collect_pattern] returns the list of bindings present in the pattern. The
  * binding with index [i] in the returned list has De Bruijn index [i] in the
  * bound term. *)
-let collect_pattern (p: pattern): ((Variable.name * location) list) =
-  let rec collect_pattern acc = function
-  | PVar (name, p) ->
-      (name, p) :: acc
-  | PTuple patterns ->
-      List.fold_left collect_pattern acc patterns
+let rec collect_pattern acc = function
+| PVar (name, p) ->
+    (name, KTerm, p) :: acc
+| PTuple patterns ->
+    List.fold_left collect_pattern acc patterns
+| PConstruct (_, fields) ->
+    let patterns = snd (List.split fields) in
+    List.fold_left collect_pattern acc patterns
+| POpen _ ->
+    assert false
+| PAs (p1, p2) ->
+    List.fold_left collect_pattern acc [p1; p2]
+| PAny ->
+    acc
+
+let collect_pattern (p: pattern) : (Variable.name * kind * location) list =
+  (* Return the names in reading order, i.e. left-to-right. *)
+  List.rev (collect_pattern [] p)
+
+(* Counting the number of names bound by a pattern. *)
+let rec count_pattern accu = function
+  | PVar _ ->
+      accu + 1
+  | PTuple ps ->
+      count_patterns accu ps
   | PConstruct (_, fields) ->
-      let patterns = snd (List.split fields) in
-      List.fold_left collect_pattern acc patterns
+      List.fold_left count_field accu fields
   | POpen _ ->
       assert false
   | PAs (p1, p2) ->
-      List.fold_left collect_pattern acc [p1; p2]
+      let accu = count_pattern accu p1 in
+      let accu = count_pattern accu p2 in
+      accu
   | PAny ->
-      acc
-  in
-  (* Return the names in reading order, i.e. left-to-right. *)
-  List.rev (collect_pattern [] p)
-;;
+      accu
+
+and count_field accu (_, p) =
+  count_pattern accu p
+
+and count_patterns accu ps =
+  List.fold_left count_pattern accu ps
 
 (* How many binders in this declaration group? *)
 let n_defs (_, _, patexprs) =
-  let patterns, _ = List.split patexprs in
-  List.length (collect_pattern (PTuple patterns))
+  List.fold_left (fun accu (p, _) -> count_pattern accu p) 0 patexprs
 
 (* [psubst pat vars] replaces names in [pat] as it goes, by popping vars off
  * the front of [vars]. *)
@@ -267,12 +287,7 @@ let tsubst_pat (t2: typ) (i: db_index) (p1: pattern): pattern =
 let rec tsubst_patexprs t2 i rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
   let patterns = List.map (tsubst_pat t2 i) patterns in
-  let names = List.fold_left (fun acc p ->
-    collect_pattern p :: acc) [] patterns
-  in
-  let names = List.flatten names in
-  let n = List.length names in
-  (* TEMPORARY looks as if only the length of [names] matters; use [n_defs] *)
+  let n = count_patterns 0 patterns in
   let expressions = match rec_flag with
     | Recursive ->
         List.map (tsubst_expr t2 (i + n)) expressions
@@ -335,9 +350,7 @@ and tsubst_expr t2 i e =
       let e = tsubst_expr t2 i e in
       let patexprs = List.map (fun (pat, expr) ->
           let pat = tsubst_pat t2 i pat in
-          let names = collect_pattern pat in
-          let n = List.length names in
-          (* TEMPORARY looks as if only the length of [names] matters; use [n_defs] *)
+          let n = count_pattern 0 pat in
           pat, tsubst_expr t2 (i + n) expr
         ) patexprs
       in
@@ -427,12 +440,7 @@ let rec tsubst_toplevel_items t2 i toplevel_items =
  * depending on [rec_flag]. *)
 let rec esubst_patexprs e2 i rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
-  let names = List.fold_left (fun acc p ->
-    collect_pattern p :: acc) [] patterns
-  in
-  let names = List.flatten names in
-  let n = List.length names in
-  (* TEMPORARY looks as if only the length of [names] matters; use [n_defs] *)
+  let n = count_patterns 0 patterns in
   let expressions = match rec_flag with
     | Recursive ->
         List.map (esubst e2 (i + n)) expressions
@@ -495,9 +503,7 @@ and esubst e2 i e1 =
   | EMatch (b, e, patexprs) ->
       let e = esubst e2 i e in
       let patexprs = List.map (fun (pat, expr) ->
-        let names = collect_pattern pat in
-        let n = List.length names in
-        (* TEMPORARY looks as if only the length of [names] matters; use [n_defs] *)
+        let n = count_pattern 0 pat in
         let expr = esubst e2 (i + n) expr in
         pat, expr) patexprs
       in
@@ -655,10 +661,7 @@ let bind_vars (env: env) (bindings: SurfaceSyntax.type_binding list): env * subs
  * substitutions according to the recursivity flag. *)
 let bind_patexprs env rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
-  let names = List.map collect_pattern patterns in
-  let names = List.flatten names in
-  let bindings = List.map (fun (v, p) -> (v, KTerm, p)) names in
-  (* TEMPORARY are the names important here, or just a hint? *)
+  let bindings = collect_pattern (PTuple patterns) in
   let env, kit = bind_vars env bindings in
   let expressions = match rec_flag with
     | Recursive ->
@@ -811,8 +814,7 @@ module ExprPrinter = struct
 
     | EMatch (b, e, patexprs) ->
         let patexprs = List.map (fun (pat, expr) ->
-          let vars = collect_pattern pat in
-          let bindings = List.map (fun (v, p) -> (v, KTerm, p)) vars in
+          let bindings = collect_pattern pat in
           let env, { subst_expr; _ } = bind_vars env bindings in
           let expr = subst_expr expr in
           print_pat env pat ^^ space ^^ arrow ^^ jump (print_expr env expr)
