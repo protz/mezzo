@@ -1,5 +1,5 @@
-(* A random access list is a data structure that implements a sequence
-   of elements and supports efficient [cons] and [lookup] operations. *)
+(** A random access list is a data structure that implements a sequence
+    of elements and supports efficient [cons] and [lookup] operations. *)
 
 (* More operations, including, [head], [tail], and [update], could be
    efficiently implemented if desired. *)
@@ -9,6 +9,9 @@ type 'a t
 
 (** The empty list. *)
 val empty: 'a t
+
+(** Whether a list is empty can be determined in constant time. *)
+val is_empty: 'a t -> bool
 
 (** [cons x xs] is the list obtained by inserting [x] in front of the
     list [xs]. The cost of this operation is O(1). *)

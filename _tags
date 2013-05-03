@@ -30,3 +30,5 @@ not <parsing/Lexer.*> and not <lib/patricia.*> and not <parsing/grammar.*>: my_w
 # Comment out the line below to compile with coverage (requires bisect,
 # available in OPAM).
 #not <parsing/Lexer.*> and not <parsing/grammar.*>: package(bisect), syntax(camlp4o), syntax(bisect_pp)
+
+"typing/Essai.ml": rectypes

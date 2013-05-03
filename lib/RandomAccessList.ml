@@ -79,6 +79,14 @@ type 'a t =
 let empty =
   Nil
 
+(* Whether a list is empty can be determined in constant time. *)
+
+let is_empty = function
+  | Nil ->
+      true
+  | Cons _ ->
+      false
+
 (* Insertion corresponds to incrementing a number. Its cost is O(1). *)
 
 let cons x = function
