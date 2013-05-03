@@ -23,6 +23,7 @@ open Kind
 open TypeCore
 open DeBruijn
 open Types
+module RAL = RandomAccessList (* TEMPORARY *)
 
 (* ---------------------------------------------------------------------------- *)
 
