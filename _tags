@@ -31,4 +31,3 @@ not <parsing/Lexer.*> and not <lib/patricia.*> and not <parsing/grammar.*>: my_w
 # available in OPAM).
 #not <parsing/Lexer.*> and not <parsing/grammar.*>: package(bisect), syntax(camlp4o), syntax(bisect_pp)
 
-"typing/Essai.ml": rectypes

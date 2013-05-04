@@ -1,0 +1,19 @@
+Is it possible to unify expressions and patterns so as to avoid
+code duplication? We can force 'i and 'o to be the same type,
+but how do we distinguish inner/outer?
+
+Should I stick with alphaCaml's language, or switch to Binders
+Unbound?
+
+Contiguous numbering, or two-level numbering, as in Binders Unbound?
+
+Think about how to define multiple kinds, or syntactic categories
+(e.g. terms versus types, etc.). Not easy?
+
+Songer à la construction en temps linéaire des types, dans
+le style de ce que fait KindCheck...
+
+Test d'égalité. Fonction de hachage.
+
+Fonctions de parcours diverses?
+
