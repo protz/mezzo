@@ -21,6 +21,7 @@ val cons: 'a -> 'a t -> 'a t
     of this operation is O(log w), where [w] is the length of the list.
     It is also O(i). This operation requires [0 <= i < w]. *)
 val lookup: int -> 'a t -> 'a
+val apply : 'a t -> int -> 'a
 
 (** [foldl] iterates over the elements of a list, in pre-order. *)
 val foldl: ('a -> 'b -> 'b) -> 'a t -> 'b -> 'b

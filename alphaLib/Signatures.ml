@@ -59,3 +59,13 @@ module type PATTERN = sig
 
 end
 
+module type NAME = sig
+
+  type name
+
+  val equal: name -> name -> bool
+
+  val fresh: unit -> name
+
+end
+

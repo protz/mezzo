@@ -162,3 +162,91 @@ module Make (E : EXPRESSION) = struct
 
 end
 
+module MakeWithPattern (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
+
+  let map (fx : 'x1 -> 'x2) (fp : 'p1 -> 'p2) (e : ('x1, 'p1) E.expr) : ('x2, 'p2) E.expr =
+    E.subst
+      (fun x -> E.var (fx x))
+      fp
+      e
+
+  (* The standard locally nameless representation is obtained by filling
+     variable holes with [N.name var] and by filling pattern holes with
+     [closed_pat]. In closed patterns, we fill variable holes with [int] and
+     fill inner and outer expression holes with [expr]. *)
+
+  (* In the definition of ['x closed_pat], we could choose to fill variable
+     holes with [unit]. This would yield a representation where bound names
+     are anonymous. The present decision allows us to represent non-linear
+     patterns, i.e., patterns where a name occurs several times. We adopt the
+     convention that, once an abstraction has been closed, the names that
+     occur in the pattern form an interval of the form [0, n), for some value
+     of n, which is less than or equal to the number of variable holes in the
+     pattern. *)
+
+  (* TEMPORARY a type abbreviation should be permitted? (with -rectypes) *)
+  type expr =
+      E of (N.name var, closed_pat) E.expr
+
+  and closed_pat =
+      (int, expr, expr) P.pat
+
+  (* We also have a type of exposed patterns, where variable holes are filled
+     with [N.name]. *)
+
+  type pat =
+      (N.name, expr, expr) P.pat
+
+  (* [gap p] computes the number of distinct names bound by the pattern [p]. *)
+  (* TEMPORARY perhaps we could cache this info so as to avoid re-computing *)
+
+  let gap (p : closed_pat) : int =
+    P.fold
+      (fun i accu -> max (i + 1) accu)
+      (fun _ accu -> accu)
+      (fun _ accu -> accu)
+      p
+      0
+
+  (* [cons_fresh n rho] produces [n] fresh names and conses them in front
+     of the renaming [rho]. *)
+
+  let rec cons_fresh (n : int) (rho : N.name renaming) : N.name renaming =
+    if n = 0 then
+      rho
+    else
+      cons_fresh (n - 1) (RandomAccessList.cons (N.fresh()) rho)
+
+  (* [unbind_expr delta rho e] requires [delta/rho/e] to be 0-closed. Its effect
+     is to apply [delta/rho] to [e]. *)
+
+  let rec unbind_expr (delta : int) (rho : N.name renaming) ((E e) : expr) : expr =
+    E (
+      map
+	(apply_shift delta rho)
+	(fun p -> unbind_closed_pat (delta + gap p) delta rho p)
+	e
+    )
+
+  and unbind_closed_pat (inner : int) (outer : int) (rho : N.name renaming) (p : closed_pat) : closed_pat =
+    P.map
+      (fun i -> i)
+      (unbind_expr inner rho)
+      (unbind_expr outer rho)
+      p
+
+  (* [freshen p] opens the abstraction represented by the pattern [p].
+     The bound names are replaced with fresh names. The replacement is
+     performed within [p] itself and within the sub-expressions found
+     in inner holes. *)
+
+  let freshen (p : closed_pat) : pat =
+    let rho = cons_fresh (gap p) RandomAccessList.empty in
+    P.map
+      (RandomAccessList.apply rho)
+      (unbind_expr 0 rho)
+      (fun e -> e)
+      p
+
+end
+

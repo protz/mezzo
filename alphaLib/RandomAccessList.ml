@@ -114,6 +114,9 @@ let rec lookup i = function
       else
         lookup (i - w) ts
 
+let apply ts i =
+  lookup i ts
+
 (* [foldl] iterates over the elements of a list, in pre-order. *)
 
 let rec foldl f ts accu =
