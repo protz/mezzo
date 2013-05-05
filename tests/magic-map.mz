@@ -1,0 +1,21 @@
+open list
+
+(* Interesting example: in OCaml, this code can be written, but the
+   type-checker forces the equality of the types [a] and [b]. *)
+
+val rec map [a, b] (xs: list a, f : a -> b) : list b =
+  match xs with
+  | Nil ->
+      xs
+  | Cons { head; tail } ->
+      let head' = f head in
+      let tail' = map (xs.tail, f) in
+      if head == head' && tail == tail' then begin
+	assert head = head'; (* BUG? why is this equality not known? *)
+	assert tail = tail';
+	xs
+      end
+      else
+	Cons { head = head'; tail = tail' }
+  end
+
