@@ -6,19 +6,21 @@ type ('x, 'p) expr =
 
 open Obj
 
-let rec map fx fp ty =
+let rec subst fx fp ty =
   match ty with
   | TyVar x ->
-      let x' = fx x in
-      if magic (==) x x' then
-	magic ty
-      else
-	TyVar x'
+      let ty' = fx x in
+      begin match ty' with
+      | TyVar x' when magic (==) x x' ->
+	  magic ty
+      | _ ->
+	  ty'
+      end
   | TyAtom ->
       TyAtom
   | TyArrow (ty1, ty2) ->
-      let ty1' = map fx fp ty1 in 
-      let ty2' = map fx fp ty2 in
+      let ty1' = subst fx fp ty1 in 
+      let ty2' = subst fx fp ty2 in
       if magic (==) ty1 ty1' && magic (==) ty2 ty2' then
 	magic ty
       else
@@ -29,6 +31,9 @@ let rec map fx fp ty =
 	magic ty
       else
 	TyQ p'
+
+let var x =
+  TyVar x
 
 let rec fold fx fp ty accu =
   match ty with

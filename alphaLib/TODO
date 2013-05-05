@@ -11,9 +11,17 @@ Think about how to define multiple kinds, or syntactic categories
 (e.g. terms versus types, etc.). Not easy?
 
 Songer à la construction en temps linéaire des types, dans
-le style de ce que fait KindCheck...
+le style de ce que fait KindCheck... Définir une représentation
+nominale et fournir l'import/export? Le client voudra avoir
+accès aux environnements d'import/export (et aux fonctions qui
+les étendent) pour pouvoir utiliser l'import/export sous contexte
+non vide.
 
 Test d'égalité. Fonction de hachage.
 
 Fonctions de parcours diverses?
+
+Implémenter aussi la substitution. Exige une variante de map
+qui n'impose pas l'injection Var. La substitution fournie par
+le client peut être une fonction de 'x dans 'x expr.
 

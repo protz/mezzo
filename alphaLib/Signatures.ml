@@ -6,14 +6,20 @@ module type EXPRESSION = sig
 
   type ('x, 'p) expr
 
-  (* The [map] operation transforms an expression into an expression of
+  (* The [subst] operation transforms an expression into an expression of
      identical shape, applying the suitable user-supplied function at every
-     hole. *)
+     hole. At variable holes, the user-supplied function produces a new
+     expression, to be substituted for the variable. *)
 
-  val map:
-    ('x1 -> 'x2) ->
+  val subst:
+    ('x1 -> ('x2, 'p2) expr) ->
     ('p1 -> 'p2) ->
     ('x1, 'p1) expr -> ('x2, 'p2) expr
+
+  (* The [var] operation constructs an expression that consists of a single
+     variable hole. *)
+
+  val var: 'x -> ('x, 'p) expr
 
   (* The [fold] operation allows iterating over every hole. *)
 

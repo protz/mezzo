@@ -57,6 +57,12 @@ open Signatures
 
 module Make (E : EXPRESSION) = struct
 
+  let map (fx : 'x1 -> 'x2) (fp : 'p1 -> 'p2) (e : ('x1, 'p1) E.expr) : ('x2, 'p2) E.expr =
+    E.subst
+      (fun x -> E.var (fx x))
+      fp
+      e
+
   (* The standard locally nameless representation is obtained by filling
      variable holes with ['x var] and by filling expression holes
      (recursively) with ['x expr]. *)
@@ -70,7 +76,7 @@ module Make (E : EXPRESSION) = struct
 
   let rec unbind (delta : int) (rho : 'x renaming) ((E e) : 'x expr) : 'x expr =
     E (
-      E.map
+      map
 	(apply_shift delta rho)
 	(unbind (delta + 1) rho)
 	e
@@ -81,9 +87,22 @@ module Make (E : EXPRESSION) = struct
 
   let rec bind (i : int) (x : 'x) ((E e) : 'x expr) : 'x expr =
     E (
-      E.map
+      map
 	(replace i x)
 	(bind (i + 1) x)
+	e
+    )
+
+  (* [subst phi e] applies the substitution [phi], which maps external
+     names to 0-closed expressions, to the expression [e]. *)
+
+  let rec subst (phi : 'x -> 'x expr) ((E e) : 'x expr) : 'x expr =
+    E (
+      E.subst
+	(function
+	  | External x -> (match phi x with E e -> e)
+	  | Internal _ as v -> E.var v)
+	(subst phi)
 	e
     )
 
@@ -100,20 +119,20 @@ module Make (E : EXPRESSION) = struct
   type 'x exposed =
     ('x, 'x abstraction) E.expr
 
-  (* [subst rho e] requires that the domain of [rho] include [e], or in
+  (* [attack rho e] requires that the domain of [rho] include [e], or in
      other words, that [rho/e] be 0-closed. Its effect is to apply [rho]
      to [e], stopping at the first layer of binders, hence producing an
      exposed expression. *)
 
-  let subst (rho : 'x renaming) ((E e) : 'x expr) : 'x exposed =
-    E.map (apply rho) (suspend rho) e
+  let attack (rho : 'x renaming) ((E e) : 'x expr) : 'x exposed =
+    map (apply rho) (suspend rho) e
 
   let instantiate (a : 'x abstraction) (x : 'x) : 'x exposed =
     let Suspension (rho, e) = a in
-    subst (RandomAccessList.cons x rho) e
+    attack (RandomAccessList.cons x rho) e
 
   let expose (e : 'x expr) : 'x exposed =
-    subst RandomAccessList.empty e
+    attack RandomAccessList.empty e
 
   let force (a : 'x abstraction) : 'x expr =
     let Suspension (rho, e) = a in
@@ -129,7 +148,7 @@ module Make (E : EXPRESSION) = struct
 
   let close (e : 'x exposed) : 'x expr = (* 0-closed *)
     E (
-      E.map
+      map
 	(fun v -> External v)
 	force
 	e
