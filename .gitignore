@@ -7,3 +7,4 @@ testsuite
 bisect*.out
 coverage*.out
 configure.ml
+callgrind.out.*
