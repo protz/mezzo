@@ -167,26 +167,34 @@ module MakeWithPattern (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
   module NameMap =
     Map.Make(N)
 
-  (* The standard locally nameless representation is obtained by filling
+  (* The locally nameless representation of expressions is obtained by filling
      variable holes with [N.name var] and by filling pattern holes with
      [closed_pat]. In closed patterns, we fill variable holes with [int] and
      fill inner and outer expression holes with [expr]. *)
 
-  (* In the definition of ['x closed_pat], we could choose to fill variable
-     holes with [unit]. This would yield a representation where bound names
-     are anonymous. The present decision allows us to represent non-linear
-     patterns, i.e., patterns where a name occurs several times. We adopt the
-     convention that, once an abstraction has been closed, the names that
-     occur in the pattern form an interval of the form [0, n), for some value
-     of n, which is less than or equal to the number of variable holes in the
-     pattern. *)
+  (* In the definition of [closed_pat], we could choose to fill variable holes
+     with [unit]. This would yield a representation where bound names are
+     anonymous. The present decision allows representing non-linear patterns,
+     i.e., patterns where a name occurs several times. We adopt the convention
+     that, once an abstraction has been closed, the names that occur in the
+     pattern form an interval of the form [0, n), for some value of [n], which
+     is less than or equal to the number of variable holes in the pattern.
+     We refer to [n] as the gap. *)
 
-  (* TEMPORARY a type abbreviation should be permitted? (with -rectypes) *)
+  (* A technical remark. Because the type constructors [E.expr] and [P.pat]
+     are not known to be contractive, OCaml 4 does not allow us to define
+     their fixed point as a recursive type abbreviation. In order to work
+     around this limitation, we make [closed_pat] a record type. This is
+     convenient also because it allows us to explicitly store the gap instead
+     of recomputing it every time we transform this closed pattern. *)
+
   type expr =
-      E of (N.name var, closed_pat) E.expr
+    (N.name var, closed_pat) E.expr
 
-  and closed_pat =
-      (int, expr, expr) P.pat
+  and closed_pat = {
+    gap: int;
+    pat: (int, expr, expr) P.pat
+  }
 
   (* We also have a type of exposed patterns, where variable holes are filled
      with [N.name]. *)
@@ -194,36 +202,30 @@ module MakeWithPattern (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
   type pat =
       (N.name, expr, expr) P.pat
 
-  (* [gap p] computes the number of distinct names bound by the pattern [p]. *)
-  (* TEMPORARY perhaps we could cache this info so as to avoid re-computing *)
-
-  let gap (p : closed_pat) : int =
-    P.fold
-      (fun i accu -> max (i + 1) accu)
-      (fun _ accu -> accu)
-      (fun _ accu -> accu)
-      p
-      0
-
   (* [transform_expr] and [transform_closed_pat] apply a transformation to an
      expression and a closed pattern, while keeping track of how many binders
      have been entered. The parameter [f] is applied at every variable
      occurrence within an expression. *)
 
-  let rec transform_expr (delta : int) (f : int -> N.name var -> (N.name var, closed_pat) E.expr) ((E e) : expr) : expr =
-    E (
-      E.subst
-	(f delta)
-	(fun p -> transform_closed_pat (delta + gap p) delta f p)
-	e
-    )
+  let rec transform_expr (delta : int) (f : int -> N.name var -> (N.name var, closed_pat) E.expr) (e : expr) : expr =
+    E.subst
+      (f delta)
+      (fun p -> transform_closed_pat (delta + p.gap) delta f p)
+      e
 
   and transform_closed_pat (inner : int) (outer : int) (f : int -> N.name var -> (N.name var, closed_pat) E.expr) (p : closed_pat) : closed_pat =
-    P.map
-      (fun i -> i)
-      (transform_expr inner f)
-      (transform_expr outer f)
+    let pat = p.pat in
+    let pat' = 
+      P.map
+        (fun i -> i)
+        (transform_expr inner f)
+        (transform_expr outer f)
+        pat
+    in
+    if pat == pat' then
       p
+    else
+      { gap = p.gap; pat = pat' }
 
   (* [cons_fresh n rho] produces [n] fresh names and conses them in front
      of the renaming [rho]. *)
@@ -249,12 +251,12 @@ module MakeWithPattern (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
      in inner holes. *)
 
   let freshen (p : closed_pat) : pat =
-    let rho = cons_fresh (gap p) RandomAccessList.empty in
+    let rho = cons_fresh p.gap RandomAccessList.empty in
     P.map
       (RandomAccessList.apply rho)
       (unbind rho)
       (fun e -> e)
-      p
+      p.pat
 
   (* A closing substitution maps external names to internal indices. It is
      represented as a pair of a map [phi] and an integer [delta], which is
@@ -275,28 +277,34 @@ module MakeWithPattern (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
     transform_expr 0 (bind_var phi) e
 
   (* Compute a map of the names that occur in binding position in [p]
-     to indices. *)
+     to indices. At the same time, compute the gap. *)
 
-  let bv (p : pat) : int NameMap.t =
+  let bv (p : pat) : int NameMap.t * int =
     let n = ref 0 in
-    P.fold
-      (fun x accu ->
-	if NameMap.mem x accu then accu (* allow non-linear patterns *)
-	else let i = !n in n := i + 1; NameMap.add x i accu)
-      (fun _ accu -> accu)
-      (fun _ accu -> accu)
-      p
-      NameMap.empty
+    let phi =
+      P.fold
+        (fun x phi ->
+          if NameMap.mem x phi then phi (* allow non-linear patterns *)
+          else let i = !n in n := i + 1; NameMap.add x i phi)
+        (fun _ phi -> phi)
+        (fun _ phi -> phi)
+        p
+        NameMap.empty
+    in
+    phi, !n
 
   (* Closing an abstraction. *)
 
   let close (p : pat) : closed_pat =
-    let phi = bv p in
-    P.map
-      (fun x -> NameMap.find x phi)
-      (bind phi)
-      (fun e -> e)
-      p
+    let phi, gap = bv p in
+    let pat =
+      P.map
+        (fun x -> NameMap.find x phi)
+        (bind phi)
+        (fun e -> e)
+        p
+    in
+    { gap; pat }
 
   (* [subst phi e] applies the substitution [phi], which maps external
      names to 0-closed expressions, to the expression [e]. *)
@@ -304,7 +312,7 @@ module MakeWithPattern (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
   let subst_var phi _ v =
     match v with
     | External x ->
-        begin match phi x with E e -> e end
+        phi x
     | Internal _ ->
         E.var v
 
