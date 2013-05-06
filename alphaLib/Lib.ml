@@ -51,12 +51,12 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
         x
     )
 
-  (* [open_var_shift rho delta v] applies the opening [rho], shifted up by
+  (* [open_var rho delta v] applies the opening [rho], shifted up by
      [delta], to the variable [v]. We assume that the variable [v] is either
      external or in the domain of [rho^delta]. The result is an external or
      internal name, which we wrap as an expression. *)
 
-  let open_var_shift (rho : opening) (delta : int) (v : var) : (var, _) E.expr =
+  let open_var (rho : opening) (delta : int) (v : var) : (var, _) E.expr =
     E.var (
       match v with
       | Internal i when i >= delta ->
@@ -66,6 +66,26 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
       | _ ->
           (* An external name, or an internal name below [delta], is unaffected. *)
           v
+    )
+
+  (* -------------------------------------------------------------------------- *)
+
+  (* A closing substitution maps external names to internal indices. It is
+     represented as a pair of a map [phi] and an integer [delta], which is
+     added to the indices in the codomain of [phi]. It behaves as the
+     identity outside of the domain of [phi]. *)
+
+  (* [close_var phi delta v] applies the closing [phi], shifted up by [delta],
+     to the variable [v]. The result is an external or internal name, which we
+     wrap as an expression. *)
+
+  let close_var (phi : int N.Map.t) (delta : int) (v : var) : (var, _) E.expr =
+    E.var (
+      match v with
+      | Internal _ ->
+	  v
+      | External x ->
+	  try Internal (N.Map.find x phi + delta) with Not_found -> v
     )
 
   (* -------------------------------------------------------------------------- *)
@@ -142,61 +162,51 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
 
   (* -------------------------------------------------------------------------- *)
 
-  (* [unbind_expr rho delta e] requires the domain of [rho^delta] to cover the
+  (* [open_expr rho delta e] requires the domain of [rho^delta] to cover the
      free internal names of [e]. Its effect is to apply [rho^delta] to [e]. *)
 
-  let unbind_expr (rho : opening) (delta : int) (e : expr) : expr =
-    transform_expr delta (open_var_shift rho) e
+  let open_expr (rho : opening) (delta : int) (e : expr) : expr =
+    transform_expr delta (open_var rho) e
 
-  (* [freshen p] opens the closed pattern [p]. The bound names of [p] are
+  (* [open_pat p] opens the closed pattern [p]. The bound names of [p] are
      replaced with fresh names. The replacement is performed within [p] itself
      and within the sub-expressions found in inner holes. *)
 
-  let unbind_closed_pat (p : closed_pat) : pat =
+  let open_pat (p : closed_pat) : pat =
     (* Create as many fresh names as dictated by [p.gap]. *)
     let rho = extend p.gap empty in
     P.map
       (* Replace each bound name with the corresponding fresh name. *)
       (RandomAccessList.apply rho)
       (* Apply this opening substitution to the inner expressions. *)
-      (unbind_expr rho 0)
+      (open_expr rho 0)
       (* Do not touch the outer expressions. *)
       (fun e -> e)
       p.pat
 
-  let freshen =
-    unbind_closed_pat
-
   (* -------------------------------------------------------------------------- *)
 
-  (* A closing substitution maps external names to internal indices. It is
-     represented as a pair of a map [phi] and an integer [delta], which is
-     added to the indices in the codomain of [phi]. *)
+  (* [close_expr phi e] applies the closing [phi] to the expression [e]. *)
 
-  let bind_var (phi : int N.Map.t) (delta : int) (v : var) : (var, _) E.expr =
-    E.var (
-      match v with
-      | External x ->
-	  begin try Internal (N.Map.find x phi + delta) with Not_found -> v end
-      | Internal _ ->
-	  v
-    )
+  let close_expr (phi : int N.Map.t) (e : expr) : expr =
+    transform_expr 0 (close_var phi) e
 
-  (* [bind phi e] applies [phi] to the expression [e]. *)
-
-  let bind (phi : int N.Map.t) (e : expr) : expr =
-    transform_expr 0 (bind_var phi) e
-
-  (* Compute a map of the names that occur in binding position in [p]
-     to indices. At the same time, compute the gap. *)
+  (* [bv p] returns a map of the names that occur in binding position in
+     the pattern [p] to indices in the interval [0, n), where [n] is the
+     gap of [p]. It also computes and returns [n]. *)
 
   let bv (p : (N.name, _, _) P.pat) : int N.Map.t * int =
     let n = ref 0 in
     let phi =
       P.fold
         (fun x phi ->
-          if N.Map.mem x phi then phi (* allow non-linear patterns *)
-          else let i = !n in n := i + 1; N.Map.add x i phi)
+	  (* We allow non-linear patterns, so if a name has already been
+	     encountered, we skip it without generating a new index. *)
+          if N.Map.mem x phi then
+	    phi
+          else begin
+	    let i = !n in n := i + 1; N.Map.add x i phi
+	  end)
         (fun _ phi -> phi)
         (fun _ phi -> phi)
         p
@@ -204,31 +214,50 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
     in
     phi, !n
 
-  (* Closing an abstraction. *)
+  (* [close_pat p] closes the pattern [p]. The names that appear in
+     binding position become anonymous, within [p] itself and within
+     the sub-expressions that lie within the scope of the pattern. *)
 
-  let close (p : pat) : closed_pat =
+  let close_pat (p : pat) : closed_pat =
+    (* Create a closing substitution. Compute the gap. *)
     let phi, gap = bv p in
     let pat =
       P.map
+	(* A name in binding position is replaced with the corresponding
+	   de Bruijn index. *)
         (fun x -> N.Map.find x phi)
-        (bind phi)
+	(* The closing [phi] is applied to an inner expression. *)
+        (close_expr phi)
+	(* An outer expression is unaffected. *)
         (fun e -> e)
         p
     in
     { gap; pat }
 
-  (* [subst phi e] applies the substitution [phi], which maps external
-     names to 0-closed expressions, to the expression [e]. *)
+  (* -------------------------------------------------------------------------- *)
 
-  let subst_var phi _ v =
+  (* A substitution maps external names to 0-closed expressions. *)
+
+  type substitution =
+    N.name -> expr
+
+  (* [subst_var psi delta v] applies the substitution [psi] to the variable [v].
+     The parameter [delta] is ignored, since internal names are unaffected by
+     the substitution anyway. *)
+
+  let subst_var (psi : substitution) _ (v : var) : expr =
     match v with
     | External x ->
-        phi x
+        psi x
     | Internal _ ->
         E.var v
 
-  let subst (phi : N.name -> expr) (e : expr) : expr =
-    transform_expr 0 (subst_var phi) e
+  (* [subst_expr psi e] applies the substitution [psi] to the expression [e]. *)
+
+  let subst_expr (psi : substitution) (e : expr) : expr =
+    transform_expr 0 (subst_var psi) e
+
+  (* -------------------------------------------------------------------------- *)
 
   (* An abstraction is the suspended application of a opening to a closed
      pattern. *)
@@ -291,8 +320,8 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
       let pat' =
         P.map
           (fun i -> i)
-          (unbind_expr rho p.gap)
-          (unbind_expr rho 0)
+          (open_expr rho p.gap)
+          (open_expr rho 0)
           p.pat
       in
       { gap = p.gap; pat = pat' }
@@ -311,7 +340,7 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
       p
 
   let bind (p : exposed_pat) : abstraction =
-    trivial (close (close_exposed_pat p))
+    trivial (close_pat (close_exposed_pat p))
 
 end
 
