@@ -164,11 +164,8 @@ end
 
 module MakeWithPattern (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
 
-  let map (fx : 'x1 -> 'x2) (fp : 'p1 -> 'p2) (e : ('x1, 'p1) E.expr) : ('x2, 'p2) E.expr =
-    E.subst
-      (fun x -> E.var (fx x))
-      fp
-      e
+  module NameMap =
+    Map.Make(N)
 
   (* The standard locally nameless representation is obtained by filling
      variable holes with [N.name var] and by filling pattern holes with
@@ -208,6 +205,26 @@ module MakeWithPattern (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
       p
       0
 
+  (* [transform_expr] and [transform_closed_pat] apply a transformation to an
+     expression and a closed pattern, while keeping track of how many binders
+     have been entered. The parameter [f] is applied at every variable
+     occurrence within an expression. *)
+
+  let rec transform_expr (delta : int) (f : int -> N.name var -> (N.name var, closed_pat) E.expr) ((E e) : expr) : expr =
+    E (
+      E.subst
+	(f delta)
+	(fun p -> transform_closed_pat (delta + gap p) delta f p)
+	e
+    )
+
+  and transform_closed_pat (inner : int) (outer : int) (f : int -> N.name var -> (N.name var, closed_pat) E.expr) (p : closed_pat) : closed_pat =
+    P.map
+      (fun i -> i)
+      (transform_expr inner f)
+      (transform_expr outer f)
+      p
+
   (* [cons_fresh n rho] produces [n] fresh names and conses them in front
      of the renaming [rho]. *)
 
@@ -217,23 +234,14 @@ module MakeWithPattern (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
     else
       cons_fresh (n - 1) (RandomAccessList.cons (N.fresh()) rho)
 
-  (* [unbind_expr delta rho e] requires [delta/rho/e] to be 0-closed. Its effect
-     is to apply [delta/rho] to [e]. *)
+  (* [unbind rho e] requires [rho/e] to be 0-closed. Its effect is to apply
+     [rho] to [e]. *)
 
-  let rec unbind_expr (delta : int) (rho : N.name renaming) ((E e) : expr) : expr =
-    E (
-      map
-	(apply_shift delta rho)
-	(fun p -> unbind_closed_pat (delta + gap p) delta rho p)
-	e
-    )
-
-  and unbind_closed_pat (inner : int) (outer : int) (rho : N.name renaming) (p : closed_pat) : closed_pat =
-    P.map
-      (fun i -> i)
-      (unbind_expr inner rho)
-      (unbind_expr outer rho)
-      p
+  let unbind (rho : N.name renaming) (e : expr) : expr =
+    transform_expr
+      0
+      (fun delta x -> E.var (apply_shift delta rho x))
+      e
 
   (* [freshen p] opens the abstraction represented by the pattern [p].
      The bound names are replaced with fresh names. The replacement is
@@ -244,9 +252,64 @@ module MakeWithPattern (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
     let rho = cons_fresh (gap p) RandomAccessList.empty in
     P.map
       (RandomAccessList.apply rho)
-      (unbind_expr 0 rho)
+      (unbind rho)
       (fun e -> e)
       p
+
+  (* A closing substitution maps external names to internal indices. It is
+     represented as a pair of a map [phi] and an integer [delta], which is
+     added to the indices in the codomain of [phi]. *)
+
+  let bind_var (phi : int NameMap.t) (delta : int) (v : N.name var) : (N.name var, _) E.expr =
+    E.var (
+      match v with
+      | External x ->
+	  begin try Internal (NameMap.find x phi + delta) with Not_found -> v end
+      | Internal _ ->
+	  v
+    )
+
+  (* [bind phi e] applies [phi] to the expression [e]. *)
+
+  let bind (phi : int NameMap.t) (e : expr) : expr =
+    transform_expr 0 (bind_var phi) e
+
+  (* Compute a map of the names that occur in binding position in [p]
+     to indices. *)
+
+  let bv (p : pat) : int NameMap.t =
+    let n = ref 0 in
+    P.fold
+      (fun x accu ->
+	if NameMap.mem x accu then accu (* allow non-linear patterns *)
+	else let i = !n in n := i + 1; NameMap.add x i accu)
+      (fun _ accu -> accu)
+      (fun _ accu -> accu)
+      p
+      NameMap.empty
+
+  (* Closing an abstraction. *)
+
+  let close (p : pat) : closed_pat =
+    let phi = bv p in
+    P.map
+      (fun x -> NameMap.find x phi)
+      (bind phi)
+      (fun e -> e)
+      p
+
+  (* [subst phi e] applies the substitution [phi], which maps external
+     names to 0-closed expressions, to the expression [e]. *)
+
+  let subst_var phi _ v =
+    match v with
+    | External x ->
+        begin match phi x with E e -> e end
+    | Internal _ ->
+        E.var v
+
+  let subst (phi : N.name -> expr) (e : expr) : expr =
+    transform_expr 0 (subst_var phi) e
 
 end
 

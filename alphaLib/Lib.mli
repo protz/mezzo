@@ -30,3 +30,6 @@ module Make (E : EXPRESSION) : sig
 
 end
 
+module MakeWithPattern (N : NAME) (P : PATTERN) (E : EXPRESSION) : sig
+
+end

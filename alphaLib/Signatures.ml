@@ -62,8 +62,9 @@ end
 module type NAME = sig
 
   type name
+  type t = name
 
-  val equal: name -> name -> bool
+  val compare: name -> name -> int
 
   val fresh: unit -> name
 
