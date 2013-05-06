@@ -2,6 +2,10 @@ open Signatures
 
 module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) : sig
 
+  (* -------------------------------------------------------------------------- *)
+
+
+
   (* Represents an expression with no free index, i.e., a locally-closed expression. *)
   type expr
 
@@ -31,5 +35,31 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) : sig
   (* [bind] abstracts away the bound names. The implementation is eager. *)
   val bind: exposed_pat -> abstraction
 
+  (* -------------------------------------------------------------------------- *)
+
+  (* The experts-only interface. *)
+(* TEMPORARY
+  module Expert : sig
+
+    type var =
+      | External of N.name
+      | Internal of int
+
+    type expr =
+      (var, closed_pat) E.expr
+
+    and closed_pat
+
+    type pat =
+	(N.name, expr, expr) P.pat
+
+    (* [freshen p] opens the closed pattern [p]. The bound names of [p] are
+       replaced with fresh names. The replacement is performed within [p] itself
+       and within the sub-expressions found in inner holes. *)
+
+    val freshen: closed_pat -> pat
+
+  end
+*)
 end
 
