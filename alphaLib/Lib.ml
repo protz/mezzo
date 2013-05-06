@@ -1,58 +1,3 @@
-(* A variable is either external (a name) or internal (a de Bruijn index). *)
-
-type 'x var =
-| External of 'x
-| Internal of int
-
-(* A renaming is a mapping of internal names to external names. This sort
-   of renaming is used when opening an abstraction (i.e., unbinding). *)
-
-type 'x renaming =
-    'x RandomAccessList.t
-
-(* [apply rho v] applies the renaming [rho] to the variable [v]. The result
-   is an external name. We assume that the variable [v] is either external
-   or in the domain of [rho]. *)
-
-let apply (rho : 'x renaming) (v : 'x var) : 'x =
-  match v with
-  | Internal i ->
-      (* By assumption, the domain of [rho] includes [i], so we apply [rho]
-	 without fear. *)
-      RandomAccessList.lookup i rho
-  | External x ->
-      (* An external name is unaffected. *)
-      x
-
-(* [apply_shift delta rho v] applies the renaming [rho], shifted up by [delta],
-   to the variable [v]. The result is an external or internal name. We assume
-   that the variable [v] is either external or in the domain of [delta/rho]. *)
-
-let apply_shift (delta : int) (rho : 'x renaming) (v : 'x var) : 'x var =
-  match v with
-  | Internal i when i >= delta ->
-      (* By assumption, the domain of [rho] includes [i - delta], so we apply
-	 [rho] without fear. *)
-      External (RandomAccessList.lookup (i - delta) rho)
-  | _ ->
-      (* An external name, or an internal name below [delta], is unaffected. *)
-      v
-
-(* [replace i x] is the function of variables to variables that replaces
-   the external name [x] with the internal index [i]. *)
-
-let replace (i : int) (x : 'x) : 'x var -> 'x var = function
-  | External y when x == y -> (* TEMPORARY parameterize with equality on 'x *)
-      Internal i
-  | v ->
-      v
-
-type ('x, 'e) suspension =
-    Suspension of 'x renaming * 'e
-
-let suspend rho e =
-  Suspension (rho, e)
-
 open Signatures
 
 module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
@@ -60,8 +5,52 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
   module NameMap =
     Map.Make(N)
 
+  (* A variable is either external (a name) or internal (a de Bruijn index). *)
+
+  type var =
+  | External of N.name
+  | Internal of int
+
+  (* A renaming is a mapping of internal names to external names. This sort
+     of renaming is used when opening an abstraction (i.e., unbinding). *)
+
+  type renaming =
+    N.name RandomAccessList.t
+
+  (* [apply rho v] applies the renaming [rho] to the variable [v]. The result
+     is an external name. We assume that the variable [v] is either external
+     or in the domain of [rho]. *)
+
+  let apply (rho : renaming) (v : var) : (N.name, _) E.expr =
+    E.var (
+      match v with
+      | Internal i ->
+          (* By assumption, the domain of [rho] includes [i], so we apply [rho]
+             without fear. *)
+          RandomAccessList.lookup i rho
+      | External x ->
+          (* An external name is unaffected. *)
+          x
+    )
+
+  (* [apply_shift rho delta v] applies the renaming [rho], shifted up by [delta],
+     to the variable [v]. The result is an external or internal name. We assume
+     that the variable [v] is either external or in the domain of [delta/rho]. *)
+
+  let apply_shift (rho : renaming) (delta : int) (v : var) : (var, _) E.expr =
+    E.var (
+      match v with
+      | Internal i when i >= delta ->
+          (* By assumption, the domain of [rho] includes [i - delta], so we apply
+             [rho] without fear. *)
+          External (RandomAccessList.lookup (i - delta) rho)
+      | _ ->
+          (* An external name, or an internal name below [delta], is unaffected. *)
+          v
+    )
+
   (* The locally nameless representation of expressions is obtained by filling
-     variable holes with [N.name var] and by filling pattern holes with
+     variable holes with [var] and by filling pattern holes with
      [closed_pat]. In closed patterns, we fill variable holes with [int] and
      fill inner and outer expression holes with [expr]. *)
 
@@ -82,7 +71,7 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
      of recomputing it every time we transform this closed pattern. *)
 
   type expr =
-    (N.name var, closed_pat) E.expr
+    (var, closed_pat) E.expr
 
   and closed_pat = {
     gap: int;
@@ -100,13 +89,13 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
      have been entered. The parameter [f] is applied at every variable
      occurrence within an expression. *)
 
-  let rec transform_expr (delta : int) (f : int -> N.name var -> (N.name var, closed_pat) E.expr) (e : expr) : expr =
+  let rec transform_expr (delta : int) (f : int -> var -> (var, closed_pat) E.expr) (e : expr) : expr =
     E.subst
       (f delta)
       (fun p -> transform_closed_pat (delta + p.gap) delta f p)
       e
 
-  and transform_closed_pat (inner : int) (outer : int) (f : int -> N.name var -> (N.name var, closed_pat) E.expr) (p : closed_pat) : closed_pat =
+  and transform_closed_pat (inner : int) (outer : int) (f : int -> var -> (var, closed_pat) E.expr) (p : closed_pat) : closed_pat =
     let pat = p.pat in
     let pat' = 
       P.map
@@ -123,7 +112,7 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
   (* [cons_fresh n rho] produces [n] fresh names and conses them in front
      of the renaming [rho]. *)
 
-  let rec cons_fresh (n : int) (rho : N.name renaming) : N.name renaming =
+  let rec cons_fresh (n : int) (rho : renaming) : renaming =
     if n = 0 then
       rho
     else
@@ -132,10 +121,10 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
   (* [unbind rho e] requires [rho/e] to be 0-closed. Its effect is to apply
      [rho] to [e]. *)
 
-  let unbind delta (rho : N.name renaming) (e : expr) : expr =
+  let unbind delta (rho : renaming) (e : expr) : expr =
     transform_expr
       delta
-      (fun delta x -> E.var (apply_shift delta rho x))
+      (apply_shift rho)
       e
 
   (* [freshen p] opens the abstraction represented by the pattern [p].
@@ -155,7 +144,7 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
      represented as a pair of a map [phi] and an integer [delta], which is
      added to the indices in the codomain of [phi]. *)
 
-  let bind_var (phi : int NameMap.t) (delta : int) (v : N.name var) : (N.name var, _) E.expr =
+  let bind_var (phi : int NameMap.t) (delta : int) (v : var) : (var, _) E.expr =
     E.var (
       match v with
       | External x ->
@@ -216,14 +205,14 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
      pattern. *)
 
   type abstraction = {
-    rho: N.name renaming;
+    rho: renaming;
     p  : closed_pat;
   }
 
   (* In the exposed (or transparent) representation of expressions, variable
-     holes are filled with [N.name], as opposed to [N.name var], which means
-     that only external names are visible to the client. Furthermore, pattern
-     holes are filled with [abstraction], which means that there is a suspended
+     holes are filled with [N.name], as opposed to [var], which means that
+     only external names are visible to the client. Furthermore, pattern holes
+     are filled with [abstraction], which means that there is a suspended
      renaming at each binding site in the first layer. *)
 
   type exposed_expr =
@@ -246,9 +235,9 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
   let suspend rho (p : closed_pat) : abstraction =
     { rho; p }
 
-  let attack_expr (rho : N.name renaming) (e : expr) : exposed_expr =
+  let attack_expr (rho : renaming) (e : expr) : exposed_expr =
     E.subst
-      (fun x -> E.var (apply rho x))
+      (apply rho)
       (suspend rho)
       e
 
