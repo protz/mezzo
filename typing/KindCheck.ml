@@ -677,7 +677,7 @@ and infer env s (ty : typ) : kind =
 
   | TyConsumes ty ->
       if s = ConsumesAllowed then
-	infer env s ty
+	infer env ConsumesDisallowed ty
       else
 	raise_error env IllegalConsumes
 
