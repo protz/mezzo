@@ -112,6 +112,19 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
      store the gap instead of recomputing it every time we transform this
      closed pattern. *)
 
+  (* The type [expr] represents both locally-closed and non-locally-closed
+     expressions. (An expression is locally-closed if it does not have any
+     free internal names.) However, in the simple interface that is eventually
+     presented to the client of the library, the type [expr] can be viewed as
+     a type of locally-closed expressions. *)
+
+  (* One might think that the simple interface could publish the definition of
+     the type [expr], together with an opaque type [closed_pat]. It could also
+     publish the functions [open_pat] and [close_pat]. This would be somewhat
+     unsatisfactory, though, as we would have to publish the type [var], with
+     some kind of guarantee that the client will never encounter an internal
+     name. The type [exposed_expr] is more satisfactory in this regard. *)
+
   type expr =
     (var, closed_pat) E.expr
 
@@ -267,6 +280,17 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
     p  : closed_pat;
   }
 
+  (* [trivial p] creates a trivial abstraction, where the suspended opening
+     is the identity. *)
+
+  let trivial (p : closed_pat) : abstraction =
+    { rho = empty; p }
+
+  let suspend rho (p : closed_pat) : abstraction =
+    { rho; p }
+
+  (* -------------------------------------------------------------------------- *)
+
   (* In the exposed (or transparent) representation of expressions, variable
      holes are filled with [N.name], as opposed to [var], which means that
      only external names are visible to the client. Furthermore, pattern holes
@@ -276,47 +300,87 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
   type exposed_expr =
     (N.name, abstraction) E.expr
 
-  (* In the exposed representation of patterns, only external names are visible,
-     and inner and outer holes contain exposed expressions. *)
+  (* In the exposed representation of patterns, only external names are
+     visible, and inner and outer holes contain exposed expressions. *)
 
   type exposed_pat =
     (N.name, exposed_expr, exposed_expr) P.pat
 
-  (* [attack rho e] requires that the domain of [rho] include [e], or in
-     other words, that [rho/e] be 0-closed. Its effect is to apply [rho]
-     to [e], stopping at the first layer of binders, hence producing an
-     exposed expression. *)
+  (* There is a certain dissymmetry in the above definitions. The type
+     [exposed_expr] represents one layer of transparent structure, through
+     [E.expr] and down to the opaque abstractions, whereas the type
+     [exposed_pat] represents two layers of transparent structure, through
+     [P.pat] and [E.expr] down to the opaque abstractions. I can't easily
+     think of a better solution, though. We can't just use [expr] in the
+     definition of [exposed_pat], because [expr] does not allow suspended
+     openings anywhere. Probably we could introduce a type of delayed
+     renaming/expression pairs, in addition to our current type [abstraction]
+     of delayed renaming/pattern pairs, but that seems somewhat heavy. *)
 
-  let trivial (p : closed_pat) : abstraction =
-    { rho = RandomAccessList.empty; p }
+  (* When going down, this dissymmetry does not seem to cause a problem.
+     When coming back up, it is more problematic, as it seems wasteful
+     to have to go down two levels when closing a pattern. This leads me
+     to using [pat], as the type of patterns whose sub-expressions have
+     been unexposed already. *)
 
-  let suspend rho (p : closed_pat) : abstraction =
-    { rho; p }
+  (* -------------------------------------------------------------------------- *)
 
-  let attack_expr (rho : opening) (e : expr) : exposed_expr =
+  (* [expose_expr rho e] requires that the domain of [rho] include [e], i.e.,
+     that [rho/e] be 0-closed. Its effect is to apply [rho] to [e], stopping
+     at the first layer of binders, hence producing an exposed expression. *)
+
+  let expose_expr (rho : opening) (e : expr) : exposed_expr =
     E.subst
+      (* At variable occurrences, apply [rho]. *)
       (open_var_zero rho)
+      (* At patterns, suspend the application of [rho]. *)
       (suspend rho)
       e
 
-  let expose (e : expr) : exposed_expr =
-    attack_expr RandomAccessList.empty e
+  (* [expose_pat] converts an opaque abstraction to an exposed pattern. *)
 
-  let instantiate ({ rho = outer; p } : abstraction) : exposed_pat =
+  let expose_pat ({ rho = outer; p } : abstraction) : exposed_pat =
+    (* The suspended opening is the one that must be applied to the
+       sub-expressions in outer positions. By extending it with a
+       suitable number of fresh names, we obtain the opening that
+       must be applied to the sub-expressions in inner positions. *)
     let inner = extend p.gap outer in
     P.map
+      (* At binding occurrences, apply the inner opening. *)
       (RandomAccessList.apply inner)
-      (attack_expr inner)
-      (attack_expr outer)
+      (* By using [expose_expr], we push the opening substitution only
+	 one level down. This ensures that a traversal will have linear
+	 complexity (up to a logarithmic factor, which is the cost of
+	 lookup in a random access list). *)
+      (expose_expr inner)
+      (expose_expr outer)
       p.pat
 
+  (* This public version of [expose_expr] converts a locally-closed expression
+     [e] to an exposed expression. *)
+
+  let expose_expr (e : expr) : exposed_expr =
+    expose_expr empty e
+
+  (* -------------------------------------------------------------------------- *)
+
+  (* Our suspended openings are designed to allow efficient traversals on the
+     way down, where abstractions must be repeatedly opened. If at some point
+     one stops and wishes to go back up, one must be able to convert an
+     abstraction, which involves a suspended opening, back to a plain closed
+     pattern. This requires eagerly applying the suspended opening, all the
+     way down to the leaves. The function [force] does this. *)
+
   let force ({ rho; p } : abstraction) : closed_pat =
-    (* Recognize the special case where [rho] is the identity. This could be important
-       because we sometimes build a trivial abstraction. *)
+    (* Recognize the special case where [rho] is the identity. This is important
+       because [unexpose_pat] builds a trivial abstraction. *)
     if RandomAccessList.is_empty rho then
       p
     else
-      (* Perform an eager opening. *)
+      (* Apply the suspended opening all the way to the leaves. Note
+	 that the pattern [p] itself remains closed, so its bound
+         variables are not affected by the renaming, which is shifted
+	 up by [p.gap]. *)
       let pat' =
         P.map
           (fun i -> i)
@@ -326,21 +390,22 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
       in
       { gap = p.gap; pat = pat' }
 
-  let close_exposed_expr (e : exposed_expr) : expr = (* 0-closed *)
+  (* [unexpose_expr e] converts a locally-closed exposed expression [e]
+     back to an expression. *)
+
+  let unexpose_expr (e : exposed_expr) : expr =
     E.subst
+      (* The free variables must be tagged again. *)
       (fun v -> E.var (External v))
+      (* Any suspended openings must be forced. *)
       force
       e
 
-  let close_exposed_pat (p : exposed_pat) : pat =
-    P.map
-      (fun x -> x)
-      close_exposed_expr
-      close_exposed_expr
-      p
+  (* [unexpose_pat p] converts a pattern [p] back to a closed pattern,
+     which we masquerade as a trivial abstraction. *)
 
-  let bind (p : exposed_pat) : abstraction =
-    trivial (close_pat (close_exposed_pat p))
+  let unexpose_pat (p : pat) : abstraction =
+    trivial (close_pat p)
 
 end
 
