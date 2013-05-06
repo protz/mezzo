@@ -2,9 +2,6 @@ open Signatures
 
 module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
 
-  module NameMap =
-    Map.Make(N)
-
   (* A variable is either external (a name) or internal (a de Bruijn index). *)
 
   type var =
@@ -144,34 +141,34 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
      represented as a pair of a map [phi] and an integer [delta], which is
      added to the indices in the codomain of [phi]. *)
 
-  let bind_var (phi : int NameMap.t) (delta : int) (v : var) : (var, _) E.expr =
+  let bind_var (phi : int N.Map.t) (delta : int) (v : var) : (var, _) E.expr =
     E.var (
       match v with
       | External x ->
-	  begin try Internal (NameMap.find x phi + delta) with Not_found -> v end
+	  begin try Internal (N.Map.find x phi + delta) with Not_found -> v end
       | Internal _ ->
 	  v
     )
 
   (* [bind phi e] applies [phi] to the expression [e]. *)
 
-  let bind (phi : int NameMap.t) (e : expr) : expr =
+  let bind (phi : int N.Map.t) (e : expr) : expr =
     transform_expr 0 (bind_var phi) e
 
   (* Compute a map of the names that occur in binding position in [p]
      to indices. At the same time, compute the gap. *)
 
-  let bv (p : (N.name, _, _) P.pat) : int NameMap.t * int =
+  let bv (p : (N.name, _, _) P.pat) : int N.Map.t * int =
     let n = ref 0 in
     let phi =
       P.fold
         (fun x phi ->
-          if NameMap.mem x phi then phi (* allow non-linear patterns *)
-          else let i = !n in n := i + 1; NameMap.add x i phi)
+          if N.Map.mem x phi then phi (* allow non-linear patterns *)
+          else let i = !n in n := i + 1; N.Map.add x i phi)
         (fun _ phi -> phi)
         (fun _ phi -> phi)
         p
-        NameMap.empty
+        N.Map.empty
     in
     phi, !n
 
@@ -181,7 +178,7 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
     let phi, gap = bv p in
     let pat =
       P.map
-        (fun x -> NameMap.find x phi)
+        (fun x -> N.Map.find x phi)
         (bind phi)
         (fun e -> e)
         p

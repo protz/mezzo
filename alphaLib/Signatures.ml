@@ -2,10 +2,15 @@ module type NAME = sig
 
   (* A type of names. *)
   type name
-  type t = name
 
-  (* A total ordering on names. *)
-  val compare: name -> name -> int
+  (* Maps whose keys are names. *)
+  module Map : sig
+    type 'a t
+    val empty: 'a t
+    val add: name -> 'a -> 'a t -> 'a t
+    val find: name -> 'a t -> 'a
+    val mem: name -> 'a t -> bool
+  end
 
   (* [fresh x] produces a new name, which serves as a replacement for the
      previous name [x]. Passing [x] to [fresh] allows it to retain some
