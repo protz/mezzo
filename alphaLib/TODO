@@ -1,0 +1,19 @@
+Think about how to define multiple syntactic categories (e.g. terms versus
+types, etc.). Not easy?
+
+Think about allowing multiple namespaces for variables. Allow printing
+hints, too.
+
+Songer à la construction en temps linéaire des types, dans
+le style de ce que fait KindCheck... Définir une représentation
+nominale et fournir l'import/export? Le client voudra avoir
+accès aux environnements d'import/export (et aux fonctions qui
+les étendent) pour pouvoir utiliser l'import/export sous contexte
+non vide.
+
+Test d'égalité. Fonction de hachage. Calcul des variables libres.
+
+Fonctions de parcours diverses?
+
+Distinguer les interfaces simple (sûre) et expert.
+

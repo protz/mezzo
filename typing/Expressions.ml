@@ -43,11 +43,12 @@ type field =
 type pattern =
   (* x *)
   | PVar of Variable.name * location
+        (* TEMPORARY is the name important here, or just a hint? *)
   (* (x₁, …, xₙ) *)
   | PTuple of pattern list
   (* Foo { bar = bar; baz = baz; … } *)
   | PConstruct of resolved_datacon * (Field.name * pattern) list
-  (* Once the variables in a pattern have been bound, they may replaced by
+  (* Once the variables in a pattern have been bound, they may be replaced by
    * [POpen]s so that we know how to speak about the bound variables. *)
   | POpen of var
   | PAs of pattern * pattern
@@ -70,8 +71,14 @@ type expression =
   | EBuiltin of string
   (* let rec pat = expr and pat' = expr' in expr *)
   | ELet of rec_flag * patexpr list * expression
-  (* fun [a] (x: τ): τ -> e *)
-  | EFun of (type_binding * flavor) list * typ * typ * expression
+  (* [a, ..., a] e *)
+  | EBigLambdas of (type_binding * flavor) list * expression
+  (* lambda (x: τ): τ -> e *)
+  (* A lambda binds exactly one variable, which has de Bruijn index 0.
+     The scope of this variable is the function body, [e].
+     This is in contrast with the surface syntax, where many variables
+     can be bound, and the argument type is interpreted as a pattern. *)
+  | ELambda of typ * typ * expression
   (* v.f <- e *)
   | EAssign of expression * field * expression
   (* tag of v <- Foo *)
@@ -159,30 +166,57 @@ let map_tapp f = function
 (* [collect_pattern] returns the list of bindings present in the pattern. The
  * binding with index [i] in the returned list has De Bruijn index [i] in the
  * bound term. *)
-let collect_pattern (p: pattern): ((Variable.name * location) list) =
-  let rec collect_pattern acc = function
-  | PVar (name, p) ->
-      (name, p) :: acc
-  | PTuple patterns ->
-      List.fold_left collect_pattern acc patterns
+let rec collect_pattern acc = function
+| PVar (name, p) ->
+    (name, KTerm, p) :: acc
+| PTuple patterns ->
+    List.fold_left collect_pattern acc patterns
+| PConstruct (_, fields) ->
+    let patterns = snd (List.split fields) in
+    List.fold_left collect_pattern acc patterns
+| POpen _ ->
+    assert false
+| PAs (p1, p2) ->
+    List.fold_left collect_pattern acc [p1; p2]
+| PAny ->
+    acc
+
+let collect_pattern (p: pattern) : (Variable.name * kind * location) list =
+  (* Return the names in reading order, i.e. left-to-right. *)
+  List.rev (collect_pattern [] p)
+
+(* Counting the number of names bound by a pattern. *)
+let rec count_pattern accu = function
+  | PVar _ ->
+      accu + 1
+  | PTuple ps ->
+      count_patterns accu ps
   | PConstruct (_, fields) ->
-      let patterns = snd (List.split fields) in
-      List.fold_left collect_pattern acc patterns
+      List.fold_left count_field accu fields
   | POpen _ ->
       assert false
   | PAs (p1, p2) ->
-      List.fold_left collect_pattern acc [p1; p2]
+      let accu = count_pattern accu p1 in
+      let accu = count_pattern accu p2 in
+      accu
   | PAny ->
-      acc
-  in
-  (* Return the names in reading order, i.e. left-to-right. *)
-  List.rev (collect_pattern [] p)
-;;
+      accu
+
+and count_field accu (_, p) =
+  count_pattern accu p
+
+and count_patterns accu ps =
+  List.fold_left count_pattern accu ps
+
+let count_patexpr accu (p, _) =
+  count_pattern accu p
+
+let count_patexprs accu pes =
+  List.fold_left count_patexpr accu pes
 
 (* How many binders in this declaration group? *)
 let n_defs (_, _, patexprs) =
-  let patterns, _ = List.split patexprs in
-  List.length (collect_pattern (PTuple patterns))
+  count_patexprs 0 patexprs
 
 (* [psubst pat vars] replaces names in [pat] as it goes, by popping vars off
  * the front of [vars]. *)
@@ -257,21 +291,12 @@ let tsubst_pat (t2: typ) (i: db_index) (p1: pattern): pattern =
  * in the list of pattern-expressions [pat_exprs], defined recursively or not,
  * depending on [rec_flag]. *)
 let rec tsubst_patexprs t2 i rec_flag patexprs =
-  let patterns, expressions = List.split patexprs in
-  let patterns = List.map (tsubst_pat t2 i) patterns in
-  let names = List.fold_left (fun acc p ->
-    collect_pattern p :: acc) [] patterns
-  in
-  let names = List.flatten names in
-  let n = List.length names in
-  let expressions = match rec_flag with
-    | Recursive ->
-        List.map (tsubst_expr t2 (i + n)) expressions
-    | Nonrecursive ->
-        List.map (tsubst_expr t2 i) expressions
-  in
-  n, List.combine patterns expressions
-
+  let n = count_patexprs 0 patexprs in
+  let j = match rec_flag with Recursive -> i + n | Nonrecursive -> i in
+  n, List.map (fun (p, e) ->
+    tsubst_pat  t2 i p,
+    tsubst_expr t2 j e
+  ) patexprs
 
 (* [tsubst_expr t2 i e] substitutes type [t2] for index [i] in expression [e]. *)
 and tsubst_expr t2 i e =
@@ -289,12 +314,15 @@ and tsubst_expr t2 i e =
       let body = tsubst_expr t2 (i + n) body in
       ELet (rec_flag, patexprs, body)
 
-  | EFun (vars, arg, return_type, body) ->
-      let i = i + List.length vars in
+  | EBigLambdas (xs, e) ->
+      let n = List.length xs in
+      EBigLambdas (xs, tsubst_expr t2 (i + n) e)
+
+  | ELambda (arg, return_type, body) ->
       let arg = tsubst t2 i arg in
       let return_type = tsubst t2 i return_type in
-      let body = tsubst_expr t2 i body in
-      EFun (vars, arg, return_type, body)
+      let body = tsubst_expr t2 (i + 1) body in
+      ELambda (arg, return_type, body)
 
   | EAssign (e1, field, e2) ->
       let e1 = tsubst_expr t2 i e1 in
@@ -323,8 +351,7 @@ and tsubst_expr t2 i e =
       let e = tsubst_expr t2 i e in
       let patexprs = List.map (fun (pat, expr) ->
           let pat = tsubst_pat t2 i pat in
-          let names = collect_pattern pat in
-          let n = List.length names in
+          let n = count_pattern 0 pat in
           pat, tsubst_expr t2 (i + n) expr
         ) patexprs
       in
@@ -414,11 +441,7 @@ let rec tsubst_toplevel_items t2 i toplevel_items =
  * depending on [rec_flag]. *)
 let rec esubst_patexprs e2 i rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
-  let names = List.fold_left (fun acc p ->
-    collect_pattern p :: acc) [] patterns
-  in
-  let names = List.flatten names in
-  let n = List.length names in
+  let n = count_patterns 0 patterns in
   let expressions = match rec_flag with
     | Recursive ->
         List.map (esubst e2 (i + n)) expressions
@@ -449,10 +472,12 @@ and esubst e2 i e1 =
       let body = esubst e2 (i + n) body in
       ELet (rec_flag, patexprs, body)
 
-  | EFun (vars, arg, return_type, body) ->
-      let n = List.length vars in
-      let body = esubst e2 (i + n) body in
-      EFun (vars, arg, return_type, body)
+  | EBigLambdas (xs, e) ->
+      let n = List.length xs in
+      EBigLambdas (xs, esubst e2 (i + n) e)
+
+  | ELambda (arg, return_type, body) ->
+      ELambda (arg, return_type, esubst e2 (i + 1) body)
 
   | EAssign (e, f, e') ->
       let e = esubst e2 i e in
@@ -479,8 +504,7 @@ and esubst e2 i e1 =
   | EMatch (b, e, patexprs) ->
       let e = esubst e2 i e in
       let patexprs = List.map (fun (pat, expr) ->
-        let names = collect_pattern pat in
-        let n = List.length names in
+        let n = count_pattern 0 pat in
         let expr = esubst e2 (i + n) expr in
         pat, expr) patexprs
       in
@@ -638,9 +662,7 @@ let bind_vars (env: env) (bindings: SurfaceSyntax.type_binding list): env * subs
  * substitutions according to the recursivity flag. *)
 let bind_patexprs env rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
-  let names = List.map collect_pattern patterns in
-  let names = List.flatten names in
-  let bindings = List.map (fun (v, p) -> (v, KTerm, p)) names in
+  let bindings = collect_pattern (PTuple patterns) in
   let env, kit = bind_vars env bindings in
   let expressions = match rec_flag with
     | Recursive ->
@@ -729,7 +751,7 @@ module ExprPrinter = struct
         print_expr env e ^^ colon ^^ space ^^ print_type env t
 
     | EVar i ->
-        int i
+        string "EVar(" ^^ int i ^^ string ")"
 
     | EOpen var ->
         print_var env (get_name env var)
@@ -744,18 +766,26 @@ module ExprPrinter = struct
         print_patexprs env patexprs ^^ break 1 ^^ string "in" ^^ break 1 ^^
         print_expr env body
 
+    | EBigLambdas (xs, e) ->
+        let env, { subst_expr; _ } = bind_evars env (List.map fst xs) in
+        let e = subst_expr e in
+	brackets (
+	  separate_map (comma ^^ space) (print_ebinder env) xs
+	) ^^ space ^^
+	print_expr env e
+
     (* fun [a] (x: τ): τ -> e *)
-    | EFun (vars, arg, return_type, body) ->
-        let env, { subst_type; subst_expr; _ } = bind_evars env (List.map fst vars) in
-        (* Remember: this is all in desugared form, so the variables in [args]
-         * are all bound. *)
-        let arg = subst_type arg in
-        let return_type = subst_type return_type in
+    | ELambda (arg, return_type, body) ->
+        (* Bind the function argument. Its scope is [body] only, not the
+           argument and return types. *)
+        let env, { subst_expr; _ } = bind_evars env [ fresh_auto_name "arg", KTerm, location env ] in
+        let x = subst_expr (EVar 0) in
         let body = subst_expr body in
-        string "fun " ^^ lbracket ^^ separate_map (comma ^^ space) (print_ebinder env) vars ^^
-        rbracket ^^ jump (
+        (* Print. *)
+        string "lambda " ^^ jump (parens (
+          print_expr env x ^^ colon ^^ space ^^
           print_type env arg
-        ) ^^ colon ^^ space ^^ print_type env return_type ^^ space ^^ equals ^^
+        )) ^^ colon ^^ space ^^ print_type env return_type ^^ space ^^ equals ^^
         jump (print_expr env body)
 
     | EAssign (e1, f, e2) ->
@@ -785,8 +815,7 @@ module ExprPrinter = struct
 
     | EMatch (b, e, patexprs) ->
         let patexprs = List.map (fun (pat, expr) ->
-          let vars = collect_pattern pat in
-          let bindings = List.map (fun (v, p) -> (v, KTerm, p)) vars in
+          let bindings = collect_pattern pat in
           let env, { subst_expr; _ } = bind_vars env bindings in
           let expr = subst_expr expr in
           print_pat env pat ^^ space ^^ arrow ^^ jump (print_expr env expr)

@@ -342,7 +342,7 @@ let rec type_to_pattern (ty : typ) : pattern =
   (* A name introduction gives rise to a variable pattern. *)
 
   | TyNameIntro (x, ty) ->
-      PAs (type_to_pattern ty, x)
+      mkpas (type_to_pattern ty) x
 
   (* Keep locations. *)
 
@@ -391,6 +391,15 @@ let rec type_to_pattern (ty : typ) : pattern =
          silently, and an error will be signaled by the kind checking
         algorithm. *)
       PAny
+
+and mkpas p x =
+  match p with
+  | PAny
+  | PLocated (PAny, _) ->
+      (* As a special case, produce [PVar x] instead of [PAs (PAny, x)]. *)
+      PVar x
+  | _ ->
+      PAs (p, x)
 
 (* ---------------------------------------------------------------------------- *)
 

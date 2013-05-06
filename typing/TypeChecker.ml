@@ -198,11 +198,11 @@ let check_return_type (env: env) (var: var) (t: typ): unit =
 ;;
 
 
-let type_for_function_def (expression: expression): typ =
-  match expression with
-  | EFun (bindings, arg, return_type, _) ->
-      let t = TyArrow (arg, return_type) in
-      fold_forall bindings t
+let rec type_for_function_def = function
+  | EBigLambdas (bindings, e) ->
+      fold_forall bindings (type_for_function_def e)
+  | ELambda (arg, return_type, _) ->
+      TyArrow (arg, return_type)
   | _ ->
       Log.error "[type_for_function_def], as the name implies, expects a \
         function expression...";
@@ -514,33 +514,52 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let body = subst_expr body in
       check_expression env ?annot body
 
+  (* We assume that [EBigLambdas] is allowed only above [ELambda]. This
+     allows us to cheat when handling [EBigLambda]. Instead of introducing a
+     fresh type variable [a], synthesizing the type [t] of the body, and
+     constructing the abstraction of [a] in [t], we rely on the fact that
+     [ELambda] carries a type annotation. This allows us to determine,
+     ahead of time, the desired type, so we don't need to implement the
+     operation of abstracting [a] in [t]. *)
 
-  | EFun (vars, arg, return_type, body) ->
+  | EBigLambdas (vars, e) ->
+
+      (* Build the desired polymorphic function type. Note that we build
+	 this type without opening or closing any quantifiers. This is the
+	 trick. *)
+      let desired = type_for_function_def expr in
+      
+      (* Enter the big Lambdas. *)
+      let env, { subst_expr; _ } = bind_evars env (List.map fst vars) in
+      let e = subst_expr e in
+
+      (* Check that the body is well-typed. *)
+      let (_ : env * var) = check_expression env e in
+
+      (* Return the desired type. This is where we cheat. *)
+      return env desired
+
+  | ELambda (arg, return_type, body) ->
+
       (* We can't create a closure over exclusive variables. Create a stripped
        * environment with only the duplicable parts. *)
       let sub_env = Permissions.keep_only_duplicable env in
 
-      (* Bind all variables. *)
-      let vars = List.map fst vars in
-      let sub_env, { subst_type; subst_expr; _ } = bind_evars sub_env vars in
-      let arg = subst_type arg in
-      let return_type = subst_type return_type in
+      (* Introduce a variable [x] that stands for the function argument. *)
+      let sub_env, { subst_expr; vars; _ } = bind_evars sub_env [ fresh_auto_name "arg", KTerm, location sub_env ] in
+      (* Its scope is just the function body. *)
+      let x = match vars with [ x ] -> x | _ -> assert false in
       let body = subst_expr body in
-
-      (* This is actually pretty simple! We just bind an anonymous name for the
-       * argument, give it the right type, and everything happens automatically.
-       * *)
-      let sub_env, x_arg = bind_rigid sub_env (fresh_auto_name "arg", KTerm, location sub_env) in
-      let sub_env = Permissions.add sub_env x_arg arg in
+      (* Assume that we have permission [x @ arg]. *)
+      let sub_env = Permissions.add sub_env x arg in
 
       (* Type-check the function body. *)
       let sub_env, p = check_expression sub_env ~annot:return_type body in
 
       begin match Permissions.sub sub_env p return_type with
       | Some _, _ ->
-          (* Return the entire arrow type. *)
-          let expected_type = type_for_function_def expr in
-          return env expected_type
+          (* Return the desired arrow type. *)
+          return env (TyArrow (arg, return_type))
       | None, d ->
           raise_error sub_env (ExpectedType (return_type, p, d))
       end
@@ -1103,7 +1122,7 @@ and check_bindings
           List.fold_left2 (fun env expr pat ->
             let expr = eunloc expr in
             match pat, expr with
-            | POpen p, EFun _ ->
+            | POpen p, (EBigLambdas _ | ELambda _) ->
                 let t = type_for_function_def expr in
                 (* [add] takes care of simplifying the function type *)
                 Permissions.add env p t
@@ -1124,6 +1143,7 @@ and check_bindings
       let env = unify_pattern env pat var in
       env) env patterns expressions
     in
+    Log.debug "OK\n%!";
     env, subst_kit
 ;;
 

@@ -953,7 +953,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("name-intro3.mz", pass_known_failure);
   ("name-intro4.mz", pass_known_failure);
   ("name-intro5.mz", pass);
-  ("desugaring00.mz", pass_known_failure);
+  ("desugaring00.mz", pass);
   ("exists-forall.mz", pass);
   ("name-capture.mz", pass_known_failure);
   ("time.mz", pass);

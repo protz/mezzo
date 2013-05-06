@@ -6,7 +6,7 @@ val f (consumes p: Pair { left: int; right: int }) : int =
   let left = p.left in
   left
 
-(* But this does not work: *)
+(* This more elaborate approach should also work: *)
 val g (consumes p: Pair { left: (left: int); right: int }) : int =
   left
 

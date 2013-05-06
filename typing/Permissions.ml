@@ -196,7 +196,10 @@ let wrap_bar t1 =
   TyQ (Exists, binding, AutoIntroduced,
     TyBar (
       TySingleton (TyBound 0),
-      TyAnchoredPermission (TyBound 0, DeBruijn.lift 1 t1)
+      TyAnchoredPermission (TyBound 0, t1)
+        (* I have removed a call to [lift]. There is no need to lift
+           the type [t1], provided it is locally closed! That's the
+           point of the locally nameless representation. *)
     )
   )
 ;;
