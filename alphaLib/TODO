@@ -1,14 +1,8 @@
-Is it possible to unify expressions and patterns so as to avoid
-code duplication? We can force 'i and 'o to be the same type,
-but how do we distinguish inner/outer?
+Think about how to define multiple syntactic categories (e.g. terms versus
+types, etc.). Not easy?
 
-Should I stick with alphaCaml's language, or switch to Binders
-Unbound?
-
-Contiguous numbering, or two-level numbering, as in Binders Unbound?
-
-Think about how to define multiple kinds, or syntactic categories
-(e.g. terms versus types, etc.). Not easy?
+Think about allowing multiple namespaces for variables. Allow printing
+hints, too.
 
 Songer à la construction en temps linéaire des types, dans
 le style de ce que fait KindCheck... Définir une représentation
@@ -17,11 +11,9 @@ accès aux environnements d'import/export (et aux fonctions qui
 les étendent) pour pouvoir utiliser l'import/export sous contexte
 non vide.
 
-Test d'égalité. Fonction de hachage.
+Test d'égalité. Fonction de hachage. Calcul des variables libres.
 
 Fonctions de parcours diverses?
 
-Implémenter aussi la substitution. Exige une variante de map
-qui n'impose pas l'injection Var. La substitution fournie par
-le client peut être une fonction de 'x dans 'x expr.
+Distinguer les interfaces simple (sûre) et expert.
 

@@ -1,32 +1,17 @@
-module type EXPRESSION = sig
+module type NAME = sig
 
-  (* An expression has holes of type ['x] that stand for variable occurrences
-     and holes of type ['p] that stand for a pattern and signal the presence
-     of a binding construct. *)
+  (* A type of names. *)
+  type name
+  type t = name
 
-  type ('x, 'p) expr
+  (* A total ordering on names. *)
+  val compare: name -> name -> int
 
-  (* The [subst] operation transforms an expression into an expression of
-     identical shape, applying the suitable user-supplied function at every
-     hole. At variable holes, the user-supplied function produces a new
-     expression, to be substituted for the variable. *)
-
-  val subst:
-    ('x1 -> ('x2, 'p2) expr) ->
-    ('p1 -> 'p2) ->
-    ('x1, 'p1) expr -> ('x2, 'p2) expr
-
-  (* The [var] operation constructs an expression that consists of a single
-     variable hole. *)
-
-  val var: 'x -> ('x, 'p) expr
-
-  (* The [fold] operation allows iterating over every hole. *)
-
-  val fold:
-    ('x -> 'a -> 'a) ->
-    ('p -> 'a -> 'a) ->
-    ('x, 'p) expr -> 'a -> 'a
+  (* [fresh x] produces a new name, which serves as a replacement for the
+     previous name [x]. Passing [x] to [fresh] allows it to retain some
+     information, such as a printing hint, or a sort (if there are several
+     sorts of names). *) (* TEMPORARY not yet implemented *)
+  val fresh: unit -> name
 
 end
 
@@ -59,14 +44,35 @@ module type PATTERN = sig
 
 end
 
-module type NAME = sig
+module type EXPRESSION = sig
 
-  type name
-  type t = name
+  (* An expression has holes of type ['x] that stand for variable occurrences
+     and holes of type ['p] that stand for a pattern and signal the presence
+     of a binding construct. *)
 
-  val compare: name -> name -> int
+  type ('x, 'p) expr
 
-  val fresh: unit -> name
+  (* The [subst] operation transforms an expression into an expression of
+     identical shape, applying the suitable user-supplied function at every
+     hole. At variable holes, the user-supplied function produces a new
+     expression, to be substituted for the variable. *)
+
+  val subst:
+    ('x1 -> ('x2, 'p2) expr) ->
+    ('p1 -> 'p2) ->
+    ('x1, 'p1) expr -> ('x2, 'p2) expr
+
+  (* The [var] operation constructs an expression that consists of a single
+     variable hole. *)
+
+  val var: 'x -> ('x, 'p) expr
+
+  (* The [fold] operation allows iterating over every hole. *)
+
+  val fold:
+    ('x -> 'a -> 'a) ->
+    ('p -> 'a -> 'a) ->
+    ('x, 'p) expr -> 'a -> 'a
 
 end
 

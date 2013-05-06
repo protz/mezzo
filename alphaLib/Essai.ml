@@ -1,1 +1,1 @@
-module T = Lib.Make(MyTypes)
+module T = Lib.Make(MyNames)(UnaryBinders)(MyTypes)
