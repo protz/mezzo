@@ -239,9 +239,9 @@ module MakeWithPattern (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
   (* [unbind rho e] requires [rho/e] to be 0-closed. Its effect is to apply
      [rho] to [e]. *)
 
-  let unbind (rho : N.name renaming) (e : expr) : expr =
+  let unbind delta (rho : N.name renaming) (e : expr) : expr =
     transform_expr
-      0
+      delta
       (fun delta x -> E.var (apply_shift delta rho x))
       e
 
@@ -254,7 +254,7 @@ module MakeWithPattern (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
     let rho = cons_fresh p.gap RandomAccessList.empty in
     P.map
       (RandomAccessList.apply rho)
-      (unbind rho)
+      (unbind 0 rho)
       (fun e -> e)
       p.pat
 
@@ -279,7 +279,7 @@ module MakeWithPattern (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
   (* Compute a map of the names that occur in binding position in [p]
      to indices. At the same time, compute the gap. *)
 
-  let bv (p : pat) : int NameMap.t * int =
+  let bv (p : (N.name, _, _) P.pat) : int NameMap.t * int =
     let n = ref 0 in
     let phi =
       P.fold
@@ -318,6 +318,89 @@ module MakeWithPattern (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
 
   let subst (phi : N.name -> expr) (e : expr) : expr =
     transform_expr 0 (subst_var phi) e
+
+  (* An abstraction is the suspended application of a renaming to a closed
+     pattern. *)
+
+  type abstraction = {
+    rho: N.name renaming;
+    p  : closed_pat;
+  }
+
+  (* In the exposed (or transparent) representation of expressions, variable
+     holes are filled with [N.name], as opposed to [N.name var], which means
+     that only external names are visible to the client. Furthermore, pattern
+     holes are filled with [abstraction], which means that there is a suspended
+     renaming at each binding site in the first layer. *)
+
+  type exposed_expr =
+    (N.name, abstraction) E.expr
+
+  (* In the exposed representation of patterns, only external names are visible,
+     and inner and outer holes contain exposed expressions. *)
+
+  type exposed_pat =
+    (N.name, exposed_expr, exposed_expr) P.pat
+
+  (* [attack rho e] requires that the domain of [rho] include [e], or in
+     other words, that [rho/e] be 0-closed. Its effect is to apply [rho]
+     to [e], stopping at the first layer of binders, hence producing an
+     exposed expression. *)
+
+  let trivial (p : closed_pat) : abstraction =
+    { rho = RandomAccessList.empty; p }
+
+  let suspend rho (p : closed_pat) : abstraction =
+    { rho; p }
+
+  let attack_expr (rho : N.name renaming) (e : expr) : exposed_expr =
+    E.subst
+      (fun x -> E.var (apply rho x))
+      (suspend rho)
+      e
+
+  let expose (e : expr) : exposed_expr =
+    attack_expr RandomAccessList.empty e
+
+  let instantiate ({ rho = outer; p } : abstraction) : exposed_pat =
+    let inner = cons_fresh p.gap outer in
+    P.map
+      (RandomAccessList.apply inner)
+      (attack_expr inner)
+      (attack_expr outer)
+      p.pat
+
+  let force ({ rho; p } : abstraction) : closed_pat =
+    (* Recognize the special case where [rho] is the identity. This could be important
+       because we sometimes build a trivial abstraction. *)
+    if RandomAccessList.is_empty rho then
+      p
+    else
+      (* Perform an eager renaming. *)
+      let pat' =
+        P.map
+          (fun i -> i)
+          (unbind p.gap rho)
+          (unbind 0 rho)
+          p.pat
+      in
+      { gap = p.gap; pat = pat' }
+
+  let close_exposed_expr (e : exposed_expr) : expr = (* 0-closed *)
+    E.subst
+      (fun v -> E.var (External v))
+      force
+      e
+
+  let close_exposed_pat (p : exposed_pat) : pat =
+    P.map
+      (fun x -> x)
+      close_exposed_expr
+      close_exposed_expr
+      p
+
+  let bind (p : exposed_pat) : abstraction =
+    trivial (close (close_exposed_pat p))
 
 end
 
