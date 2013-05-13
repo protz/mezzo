@@ -81,6 +81,9 @@ and typ =
   | TyUnknown
   | TyDynamic
 
+    (** Literals. *)
+  | TyLiteral of int
+
     (** We adopt a locally nameless style. Local names are [TyBound]s, global
      * names are [TyOpen]. *)
   | TyBound of db_index
@@ -422,6 +425,7 @@ class virtual ['env, 'result] visitor : object
   (** The case methods have no default implementation. *)
   method virtual tyunknown: 'env -> 'result
   method virtual tydynamic: 'env -> 'result
+  method virtual tyliteral: 'env -> int -> 'result
   method virtual tybound: 'env -> db_index -> 'result
   method virtual tyopen: 'env -> var -> 'result
   method virtual tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> 'result
@@ -447,6 +451,7 @@ class ['env] map : object
   (** The case methods now perform a recursive traversal. *)
   method tyunknown: 'env -> typ
   method tydynamic: 'env -> typ
+  method tyliteral: 'env -> int -> typ
   method tybound: 'env -> db_index -> typ
   method tyopen: 'env -> var -> typ
   method tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> typ
@@ -483,6 +488,7 @@ class ['env] iter : object
   (** The case methods now perform a recursive traversal. *)
   method tyunknown: 'env -> unit
   method tydynamic: 'env -> unit
+  method tyliteral: 'env -> int -> unit
   method tybound: 'env -> db_index -> unit
   method tyopen: 'env -> var -> unit
   method tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> unit

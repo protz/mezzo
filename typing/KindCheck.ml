@@ -694,6 +694,9 @@ and infer env s (ty : typ) : kind =
   | TyEmpty ->
       KPerm
 
+  | TyLiteral _ ->
+      KTerm
+
   | TyVar x ->
       find_kind env x
 

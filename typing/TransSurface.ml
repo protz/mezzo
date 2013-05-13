@@ -122,6 +122,9 @@ let rec translate_type env (ty : typ) : T.typ * T.typ * kind =
   | TyEmpty ->
       twice T.TyEmpty KPerm
 
+  | TyLiteral i ->
+      twice (T.TyLiteral i) KTerm
+
   | TyVar x ->
       twice (tvar (find_variable env x)) (find_kind env x)
 
@@ -373,6 +376,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
 
     | TyUnknown
     | TyDynamic
+    | TyLiteral _
     | TyVar _
     | TySingleton _
     (* These are opaque, no consumes annotations inside of these. *)
@@ -419,6 +423,9 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyEmpty ->
       T.TyEmpty
+
+  | TyLiteral i ->
+      T.TyLiteral i
 
   | TyVar x ->
       tvar (find_variable env x)

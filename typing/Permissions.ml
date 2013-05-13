@@ -253,6 +253,7 @@ class open_all_rigid_in (env : env ref) = object (self)
 
     | TyUnknown, _
     | TyDynamic, _
+    | TyLiteral _, _
     | TyBound _, _
     | TyOpen _, _
     | TyApp _, _

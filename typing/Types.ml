@@ -276,6 +276,9 @@ let rec get_kind_for_type env t =
   | TyConcrete _ ->
       KType
 
+  | TyLiteral _ ->
+      KTerm
+
   | TyAnchoredPermission _
   | TyEmpty
   | TyStar _ ->
@@ -444,6 +447,7 @@ class collect (perms : typ list ref) = object (self)
 
     | TyUnknown
     | TyDynamic
+    | TyLiteral _
     | TyBound _
     | TyOpen _
     | TyQ _
@@ -690,6 +694,9 @@ module TypePrinter = struct
 
     | TyDynamic ->
         string "dynamic"
+
+    | TyLiteral i ->
+        string "TyLiteral(" ^^ int i ^^ string ")"
 
     | TyOpen point ->
         print_point env point

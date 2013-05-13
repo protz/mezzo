@@ -37,6 +37,7 @@ class hoist (env : env) (cs : mode_constraint list ref) = object (self)
 
     | TyUnknown
     | TyDynamic
+    | TyLiteral _
     | TyBound _
     | TyOpen _
     | TyQ _

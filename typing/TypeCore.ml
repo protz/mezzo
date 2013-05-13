@@ -64,6 +64,9 @@ type typ =
     (* Special type constants. *)
   | TyUnknown
   | TyDynamic
+    
+    (* Literals. *)
+  | TyLiteral of int
 
     (* We adopt a locally nameless style. Local names are [TyBound]s, global
      * names are [TyOpen]. *)
@@ -570,6 +573,8 @@ class virtual ['env, 'result] visitor = object (self)
         self#tyunknown env
     | TyDynamic ->
         self#tydynamic env
+    | TyLiteral i ->
+        self#tyliteral env i
     | TyBound i ->
         self#tybound env i
     | TyOpen v ->
@@ -600,6 +605,7 @@ class virtual ['env, 'result] visitor = object (self)
   (* The case methods have no default implementation. *)
   method virtual tyunknown: 'env -> 'result
   method virtual tydynamic: 'env -> 'result
+  method virtual tyliteral: 'env -> int -> 'result
   method virtual tybound: 'env -> db_index -> 'result
   method virtual tyopen: 'env -> var -> 'result
   method virtual tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> 'result
@@ -632,6 +638,9 @@ class ['env] map = object (self)
 
   method tydynamic _env =
     TyDynamic
+
+  method tyliteral _env i =
+    TyLiteral i
 
   method tybound _env i =
     TyBound i
@@ -750,6 +759,9 @@ class ['env] iter = object (self)
     ()
 
   method tydynamic _env =
+    ()
+
+  method tyliteral _env _i =
     ()
 
   method tybound _env _i =

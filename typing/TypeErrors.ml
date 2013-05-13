@@ -112,6 +112,7 @@ and fold_type (env: env) (depth: int) (t: typ): env * typ =
 
   match t with
   | TyUnknown
+  | TyLiteral _
   | TyDynamic ->
       env, t
 

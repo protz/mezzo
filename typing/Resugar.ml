@@ -38,6 +38,8 @@ let rec resugar env (points : unit VarMap.t ref) (soup : typ VarMap.t ref) ty =
       S.TyUnknown
   | TyDynamic ->
       S.TyDynamic
+  | TyLiteral i ->
+      S.TyLiteral i
   | TyBound _ ->
       assert false
   | TyOpen x ->

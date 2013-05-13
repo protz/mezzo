@@ -119,6 +119,7 @@ type typ =
   | TyUnknown
   | TyDynamic
   | TyEmpty
+  | TyLiteral of int
   | TyVar of Variable.name maybe_qualified
   | TyConcrete of (datacon_reference * data_field_def list) * adopts_clause
   | TySingleton of typ
@@ -377,6 +378,7 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TySingleton _
   | TyDynamic
   | TyApp _
+  | TyLiteral _
   | TyVar _ ->
       PAny
 
