@@ -330,6 +330,9 @@ raw_atomic_type:
    is an atomic type. *)
 | b = data_type_branch
     { TyConcrete (b, None) }
+(* A literal type. For now, only integers can be literals. *)
+| i = INT
+    { TyLiteral i }
 
 %inline tight_type:
 | ty = tlocated(raw_tight_type)
@@ -344,6 +347,9 @@ raw_tight_type:
 (* A type application. *)
 | ty = type_type_application(tight_type, atomic_type)
     { ty }
+(* An arithmetic formula. *)
+| f = formula
+    { f }
 
 %inline normal_type:
 | ty = tlocated(raw_normal_type)
@@ -448,6 +454,16 @@ raw_fat_type:
 %inline arbitrary_type:
   ty = fat_type
     { ty }
+
+formula:
+| e1 = formula_expr o = infix_operator e2 = formula_expr
+    { TyApp (TyVar (Unqualified (Variable.register o)), [e1; e2]) }
+
+formula_expr:
+| x = variable
+    { TyVar (Unqualified x) } 
+| i = INT
+    { TyLiteral i }
 
 (* ---------------------------------------------------------------------------- *)
 
