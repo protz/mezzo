@@ -1,0 +1,4 @@
+abstract ( ~< ) (x: term) (y: term) : perm
+abstract ( ~> ) (x: term) (y: term) : perm
+abstract ( ~<= ) (x: term) (y: term) : perm
+abstract ( ~>= ) (x: term) (y: term) : perm
