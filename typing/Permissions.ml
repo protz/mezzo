@@ -1207,7 +1207,6 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
   | _ ->
       no_proof_root
 
-
 (** [sub_perm env t] takes a type [t] with kind KPerm, and tries to return the
     environment without the corresponding permission. *)
 and sub_perm (env: env) (t: typ): result =
@@ -1242,8 +1241,18 @@ and sub_perm (env: env) (t: typ): result =
       try_proof "Sub-Empty" (qed env)
   | TyOpen p when is_flexible env p ->
       j_flex_inst env p TyEmpty
+  | TyApp (TyOpen v, _) when is_arith_op env v ->
+      try_proof "Sub-Arithmetic" (qed env)
   | _ ->
       sub_floating_perm env t
+
+(* TEMPORARY Should be moved elsewhere, probably. *)
+and is_arith_op (env: env) (v: var): bool =
+  let name = get_name env v in
+  let name = Resugar.surface_print_var env name in
+  let name = SurfaceSyntax.print_maybe_qualified Variable.print name in
+  (* TEMPORARY Check if the function is arithmetic. *)
+  String.length name > 8 && String.sub name 0 8 = "arith::~"
 
 (* This function returns a [state] so as to not introduce another judgement when
  * proving a series of permissions. If you need a result so as to chain that
