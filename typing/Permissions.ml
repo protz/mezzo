@@ -1241,18 +1241,11 @@ and sub_perm (env: env) (t: typ): result =
       try_proof "Sub-Empty" (qed env)
   | TyOpen p when is_flexible env p ->
       j_flex_inst env p TyEmpty
-  | TyApp (TyOpen v, _) when is_arith_op env v ->
+  | TyApp (TyOpen v, _) when Arith.is_arith_op env v && Arith.check env t ->
+      (* TEMPORARY The proper check shouldn't be in the guard I guess. *)
       try_proof "Sub-Arithmetic" (qed env)
   | _ ->
       sub_floating_perm env t
-
-(* TEMPORARY Should be moved elsewhere, probably. *)
-and is_arith_op (env: env) (v: var): bool =
-  let name = get_name env v in
-  let name = Resugar.surface_print_var env name in
-  let name = SurfaceSyntax.print_maybe_qualified Variable.print name in
-  (* TEMPORARY Check if the function is arithmetic. *)
-  String.length name > 8 && String.sub name 0 8 = "arith::~"
 
 (* This function returns a [state] so as to not introduce another judgement when
  * proving a series of permissions. If you need a result so as to chain that
