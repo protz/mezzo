@@ -1,4 +1,19 @@
 open TypeCore
+open Why3
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Why3 specifics *)
+
+type _why3env = {
+  prover: Whyconf.config_prover;
+  driver: Why3.Driver.driver;
+  env: Env.env
+}
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Public interface *)
 
 (* TEMPORARY The way we distinguish an arithmetic operator from other functions
  * should change later. *)

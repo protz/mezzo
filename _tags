@@ -7,17 +7,19 @@
 
 # - We normally need use_unix, but testsuite.* needs package(functory) instead
 #   (for some reason, functory seems to include unix)
+# - why3 includes both Str and Unix
 
 not <testsuite.*>: debug, \
-  use_menhir, use_ocamlbuild, use_str, \
+  use_menhir, use_ocamlbuild, \
   annot, bin_annot, strict_sequence, \
   package(yojson), package(menhirLib), package(ulex), package(pprint), \
-  use_unix
+  package(why3)
 
 <testsuite.*>: debug, \
-  use_menhir, use_ocamlbuild, use_str, \
+  use_menhir, use_ocamlbuild, \
   annot, bin_annot, strict_sequence, \
   package(yojson), package(menhirLib), package(ulex), package(pprint), \
+  package(why3), \
   package(functory)
 
 # Enable the "nazi warnings". A few files really trigger too many warnings: the
