@@ -43,6 +43,10 @@ val init : [a, m, p : perm] (
 
 val swap : [a] (r: marray a, i: int, j: int) -> ()
 
+(* [replace (r, i, v)] sets the element at index [i] in the array [r]
+   to the value [v] and returns the previous element at this index. *)
+val replace : [a] (marray a, int, consumes a) -> a
+
 (* [consult (r, i, f)] is [f r[i]]. *)
 
 val consult : [a, m, pre : perm, b] (

@@ -65,6 +65,10 @@ val swap [a] (r: marray a, i: int, j: int) : () =
     set (r, j, ri)
   end
 
+val replace [a] (r: marray a, i: int, consumes v: a) : a =
+  let x = magic_get (r, i) in
+  set (r, i, v); x
+
 val consult [a, m, pre : perm, b] (
   r: array m a, i: int,
   f: (a | consumes pre) -> b
