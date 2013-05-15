@@ -457,7 +457,7 @@ raw_fat_type:
 
 formula:
 | e1 = formula_expr o = infix_operator e2 = formula_expr
-    { TyApp (TyVar (Unqualified (Variable.register o)), [e1; e2]) }
+    { TyApp (TyVar (Unqualified (Variable.register ("~"^o))), [e1; e2]) }
 
 formula_expr:
 | x = variable

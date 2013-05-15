@@ -137,10 +137,10 @@ let regexp uid =
    and '&'. I take the liberty to divide OCaml's level 0 into four
    further sub-levels. *)
 
-let regexp op_prefix  = ['!' '?']
+let regexp op_prefix  = ['!' '~' '?']
 let regexp op_infix0a = ['|'] (* left *)
 let regexp op_infix0b = ['&'] (* left *)
-let regexp op_infix0c = ['=' '<' '>' '~'] (* nonassoc *)
+let regexp op_infix0c = ['=' '<' '>'] (* nonassoc *)
 let regexp op_infix0d = ['$'] (* left *)
 
 let regexp op_infix0  = op_infix0a | op_infix0b | op_infix0c | op_infix0d
