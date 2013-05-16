@@ -729,15 +729,15 @@ val sorted [a, m1, m2, p : perm] duplicable a => (
 (* Sorting an array of non-duplicable elements. *)
 
 (* TEMPORARY this is just a demonstration; this code is currently limited to
-   a fixed adopter type and a fixed adoptee type, namely [pool a] and [ref a].
-   Ideally, it should be polymorphic in [t] and [u], where [t adopts u]. One
+   a fixed adopter type, namely [pool a].
+   Ideally, it should be polymorphic in [t] and [a], where [t adopts a]. One
    could simulate this by abstracting over [taking], or over [take] and [give],
    but that would be a bit heavy. *)
 
-data mutable pool a = Pool adopts ref a
+data mutable pool a = Pool adopts a
 
-val nonduplicable_sort [a, s : perm] (
-  cmp: (ref a, ref a | s) -> int,
+val nonduplicable_sort [a, s : perm] exclusive a => (
+  cmp: (a, a | s) -> int,
   r: marray dynamic,
   p : pool a
   | s
@@ -747,9 +747,9 @@ val nonduplicable_sort [a, s : perm] (
     if x == y then 0
     else
       taking x from p begin
-       taking y from p begin
-         cmp (x, y)
-       end
+        taking y from p begin
+          cmp (x, y)
+        end
       end
   in
   sort (cmp, r)
