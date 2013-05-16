@@ -1,0 +1,95 @@
+open array
+
+(* The type of bounded queues. 
+ * These queues have a maximum capacity, but the insert and retrieve operations
+ * are not blocking. *)
+
+data mutable queue a =
+  Queue { length: int; first: int; last: int; contents: marray (option a) }
+
+(* [create n] creates a new, empty bounded queue of capacity [n]. *)
+val create [a] (n: int) : queue a =
+  if n < 1 then fail
+  else
+    Queue { length = 0; first = 0; last = 0;
+      contents = init (Up, n, fun (_:int) : option a = None) }
+
+(* Helpers for index management *)
+val incr_mod (i: int, m: int) : int =
+  if i = m - 1 then 0 else i + 1
+
+val decr_mod (i: int, m: int) : int =
+  if i = 0 then m - 1 else i - 1
+
+(* [insert (x, q)] inserts the element [x] at the end of the queue [q].
+ * If the queue is full, then it returns [False] with the ownership of x.
+ * Otherwise, it returns [True]. *)
+val insert [a] (consumes x: a, q: queue a) : rich_bool (x @ a) empty =
+  if q.length = array::length q.contents then False
+  else begin
+    set (q.contents, q.last, some x);
+    q.length <- q.length + 1;
+    q.last <- incr_mod (q.last, array::length q.contents);
+    True
+  end
+
+(* [retrieve q] extracts the first element of the queue [q] if there is one. *)
+val retrieve [a] (q: queue a) : option a =
+  if q.length = 0 then None
+  else begin
+    let x = replace (q.contents, q.first, None) in
+    q.length <- q.length - 1;
+    q.first <- incr_mod (q.first, array::length q.contents);
+    x
+  end
+
+(* [peek q] returns the first element of the queue [q] without removing it. *)
+val peek [a] duplicable a => (q: queue a) : option a =
+  if q.length = 0 then None
+  else begin
+    let x = force (replace (q.contents, q.first, None)) in
+    set (q.contents, q.first, some x); some x
+  end
+
+(* [length q] returns the number of elements in the queue [q]. *)
+val length [a] (q: queue a) : int =
+  q.length
+
+(* [clear q] empties the queue [q]. *)
+val clear [a] (q: queue a) : () =
+  transform (Up, q.contents, fun (_: int, consumes _: option a) : option a = None)
+
+(* [insert_at_head (x, q)] inserts the element [x] at the beginning of the queue
+ * [q]. If the queue is full, then it returns [False] with the ownership of x.
+ * Otherwise, it returns [True]. *)
+val insert_at_head [a] (consumes x: a, q: queue a) : rich_bool (x @ a) empty =
+  if q.length = array::length q.contents then False
+  else begin
+    q.first <- decr_mod (q.first, array::length q.contents);
+    set (q.contents, q.first, some x);
+    q.length <- q.length + 1;
+    True
+  end
+
+(* [rotate q] moves the first element of [q] to the end of the queue. If [q] is
+ * empty, then it does nothing. *)
+val rotate [a] (q: queue a) : () =
+  if q.length > 1 then begin
+    let x = replace (q.contents, q.first, None) in
+    q.first <- incr_mod (q.first, array::length q.contents);
+    set (q.contents, q.last, x);
+    q.last <- incr_mod (q.last, array::length q.contents)
+  end
+
+(* [copy q] returns a new queue whose elements are the elements of [q], in the
+ * same order. *)
+val copy [a] duplicable a => (q: queue a) : queue a =
+  Queue { length = q.length; first = q.first; last = q.last;
+    contents = init (Up, array::length q.contents,
+      fun (i: int | q @ queue a) : option a =
+        match replace (q.contents, i, None) with
+        | Some {contents = x} -> set (q.contents, i, some x); some x
+        | None -> None
+        end
+    )
+  }
