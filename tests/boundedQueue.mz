@@ -25,8 +25,8 @@ val decr_mod (i: int, m: int) : int =
  * If the queue is full, then it returns [False] with the ownership of x.
  * Otherwise, it returns [True]. *)
 val insert [a] (consumes x: a, q: queue a) : rich_bool (x @ a) empty =
-  if q.length = array::length q.contents then False
-  else begin
+  q.length < array::length q.contents &&
+  begin
     set (q.contents, q.last, some x);
     q.length <- q.length + 1;
     q.last <- incr_mod (q.last, array::length q.contents);
@@ -63,8 +63,8 @@ val clear [a] (q: queue a) : () =
  * [q]. If the queue is full, then it returns [False] with the ownership of x.
  * Otherwise, it returns [True]. *)
 val insert_at_head [a] (consumes x: a, q: queue a) : rich_bool (x @ a) empty =
-  if q.length = array::length q.contents then False
-  else begin
+  q.length < array::length q.contents &&
+  begin
     q.first <- decr_mod (q.first, array::length q.contents);
     set (q.contents, q.first, some x);
     q.length <- q.length + 1;
@@ -93,3 +93,9 @@ val copy [a] duplicable a => (q: queue a) : queue a =
         end
     )
   }
+
+(*
+Local Variables:
+compile-command: "../mezzo boundedQueue.mz"
+End:
+*)
