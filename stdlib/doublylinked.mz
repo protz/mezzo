@@ -17,6 +17,13 @@ data mutable region a =
   Region
   adopts cell a
 
+(* Convenient abbreviation to hide the fact that [dynamic] is used. *)
+
+(* TEMPORARY We would like to quantify over a term to state the fact that
+ * a given cell is attached to some region, but that's not really possible
+ * for now. *)
+alias point a = dynamic
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Creating a region. *)
