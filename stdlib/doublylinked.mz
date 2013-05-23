@@ -210,31 +210,45 @@ val is_isolated [a] (r: region a, y: dynamic) : bool =
 
 (* [iter_next (r, x, f)] presents the elements [x], [x.next], etc. to [f]. *)
 
-val iter_next [p : perm, a] (r: region a, x: dynamic, f: (dynamic | p * r @ region a) -> () | p) : () =
+val iter_next [p : perm, a] (r: region a, x: dynamic, f: (dynamic | p) -> () | p) : () =
   let rec loop (y: dynamic | p * r @ region a) : () =
     (* Process [y]. *)
     f y;
     (* Stop if [y.next] is the starting point [x]. *)
-    let z = next (r, y) in
-    if y != z then
-      loop z
+    let y = next (r, y) in
+    if y != x then
+      loop y
   in
   loop x
 
 (* [iter_prev (r, x, f)] presents the elements [x], [x.prev], etc. to [f]. *)
 
-val iter_prev [p : perm, a] (r: region a, x: dynamic, f: (dynamic | p * r @ region a) -> () | p) : () =
+val iter_prev [p : perm, a] (r: region a, x: dynamic, f: (dynamic | p) -> () | p) : () =
   let rec loop (y: dynamic | p * r @ region a) : () =
     f y;
     (* Stop if [y.prev] is the starting point [x]. *)
-    let z = prev (r, y) in
-    if y != z then
-      loop z
+    let y = prev (r, y) in
+    if y != x then
+      loop y
   in
   loop x
 
 val iter =
   iter_next
+
+
+(* Folds over the elements of a cycle. It presents the payloads to [f], not the
+ * cells. *)
+
+val fold [a, b] (r: region a, x: dynamic, consumes seed: b, f: (a, consumes b) -> b) : b =
+  let rec loop (y: dynamic, consumes accu: b | r @ region a) : b =
+    let accu = taking y from r begin f (y.payload, accu) end in
+    let y = next (r, y) in
+    if y == x then
+      accu
+    else loop (y, accu)
+  in
+  loop (x, seed)
 
 (* [elements (r, x)] returns the elements of the cycle represented by [x]. *)
 

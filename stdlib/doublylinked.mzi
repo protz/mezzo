@@ -78,6 +78,14 @@ val iter: [p : perm, a] (
   f: (point a | p) -> ()
 | p) -> ()
 
+
+val fold: [a, b] (
+  r: region a,
+  x: point a,
+  consumes seed: b,
+  f: (a, consumes b) -> b
+) -> b
+
 (* [elements (r, x)] returns the elements of the cycle represented by [x]. *)
 
 val elements: [a] (r: region a, point a) -> list::list (point a)
