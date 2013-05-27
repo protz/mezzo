@@ -552,8 +552,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
       failwith "The right permission was not extracted for [s1].";
   );
 
-  (* Doesn't pass anymore since we removed singleton-subtyping! *)
-  (* ("singleton2.mz", pass); *)
+  ("singleton2.mz", pass);
 
   (* Marking environments as inconsistent. *)
 
