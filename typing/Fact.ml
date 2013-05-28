@@ -83,7 +83,7 @@ let conjunction f xs =
     binary_conjunction accu (f x)
   ) trivial xs
 
-(* Disjunction of hypotheses. Defined only when the one of the facts has
+(* Disjunction of hypotheses. Defined only when one of the facts has
    arity zero, i.e., it has no parameters (in other words, it is a
    constant fact). In that case, [HConjunction] is synonymous with
    [HTrue], and the definition is simple. *)
@@ -95,7 +95,7 @@ let binary_disjunction (h1 : hypothesis) (h2 : hypothesis) : hypothesis =
       h
   | HConjunction hs1, HConjunction _ when ParameterMap.cardinal hs1 = 0 ->
       (* [hs1] is an empty empty conjunction, i.e. it is true.
-        The result is true as well. *)
+         The result is true as well. *)
       h1
   | HConjunction _, HConjunction hs2 when ParameterMap.cardinal hs2 = 0 ->
       h2
@@ -163,7 +163,8 @@ let join_many f xs =
   ) bottom xs
 
 (* Meet in the lattice of facts. Which is not a lattice, actually,
-   since meets exist only at arity zero. *)
+   since meet exists only when at least one of the arguments has
+   zero hypotheses (see the precondition of [binary_disjunction]). *)
 
 let meet fact1 fact2 =
   ModeMap.merge (fun _ oh1 oh2 ->

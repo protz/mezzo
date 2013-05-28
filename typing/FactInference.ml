@@ -29,19 +29,6 @@ open TypeErrors
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Assume a new fact about a given parameter. Only works if the parameter has
- * either kind [perm] or [type]. *)
-
-let assume_parameter (env: env) (v: var) (fact: fact): env =
-  (* We look up the environment to find the original assumption on [v], and
-   * we take the meet of the two facts, since both are true. The meet is
-   * well-defined when it does not need to store a disjunction of conjunctions
-   * in the hypotheses. Therefore, [assume_parameter] only works for parameters, since
-   * their facts are of the form [m p => v], which we combine with flat
-   * predicates [m p], whose hypotheses are either [true] or [false]. *)
-  set_fact env v (Fact.meet fact (get_fact env v))
-
-
 (* Adding a new hypothesis to the environment. *)
 
 let assume (env : env) ((m, ty) : mode_constraint) : env =
@@ -51,7 +38,13 @@ let assume (env : env) ((m, ty) : mode_constraint) : env =
   let ty = modulo_flex env ty in
   match ty with
   | TyOpen v ->
-      assume_parameter env v fact
+      (* We look up the environment to find the original assumption on [v], and
+       * we take the meet of the two facts, since both are true. The meet is
+       * well-defined when it does not need to store a disjunction of conjunctions
+       * in the hypotheses. Therefore, [assume_parameter] only works for parameters, since
+       * their facts are of the form [m p => m], which we combine with flat
+       * predicates [m p], whose hypotheses are either [true] or [false]. *)
+      set_fact env v (Fact.meet fact (get_fact env v))
   | _ ->
       (* We don't know how to extract meaningful information here, so we're
        * just not doing anything about the constraint we just learned about.
@@ -217,9 +210,11 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
        (infer w ty1)
        (infer w ty2)
 
-  (* [x @ t] is duplicable if [t] is duplicable. It is not considered
-     exclusive. The use of [disallow_exclusive] is probably not essential
-     here, but seems clean/prudent. *)
+  (* [x @ t] has the same properties as [t]. The use of [disallow_exclusive]
+     is a defensive programming measure: in principle, [exclusive t] makes
+     sense when [t] has kind [TYPE], but not when [t] has kind [PERM], so we
+     avoid constructing a fact that claims [exclusive (x @ t)]. If we did
+     construct such a fact, it would probably be unused anyway. *)
 
   | TyAnchoredPermission (_, ty) ->
       Fact.disallow_exclusive (infer w ty)
@@ -319,7 +314,7 @@ let prepare_branches env v branches : world * unresolved_branch list =
   let env = MzList.fold_lefti (fun i env v ->
     let f = Fact.parameter i in
     if get_kind env v <> KTerm then
-      assume_parameter env v f
+      set_fact env v f
     else
       env
   ) env parameters in
@@ -343,7 +338,7 @@ let prepare_type env v t : world * typ =
   let env = MzList.fold_lefti (fun i env v ->
     let f = Fact.parameter i in
     if get_kind env v <> KTerm then
-      assume_parameter env v f
+      set_fact env v f
     else
       env
   ) env parameters in
