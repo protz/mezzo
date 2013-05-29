@@ -954,6 +954,22 @@ module IVarMap = struct
   let iter f m = VarMap.iter f !m
 end
 
+module type ENV = sig val env: env end
+
+module VarMapModulo (E: ENV): module type of VarMap = MzMap.Make(struct
+  type t = var
+  let compare x y =
+    match x, y with
+    | VRigid x, VRigid y ->
+        (* Get the root of [x] and [y] in the union-find, so that the comparison
+         * is accurate. *)
+        let x = PersistentUnionFind.repr x E.env.state in
+        let y = PersistentUnionFind.repr y E.env.state in
+        PersistentUnionFind.compare x y
+    | _ ->
+        Log.error "[VarMapModulo] used in the presence of flexible variables"
+end)
+
 (* Dealing with the union-find nature of the environment. *)
 let same env v1 v2 =
   match assert_var env v1, assert_var env v2 with

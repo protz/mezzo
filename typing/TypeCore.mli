@@ -401,6 +401,11 @@ module VarMap: MzMap.S with type key = var
 (** This is an imperative version of [VarMap], in the form expected by [Fix]. *)
 module IVarMap: Fix.IMPERATIVE_MAPS with type key = var
 
+(** This is a functor building a [VarMap] whose [compare] function is computed
+ * modulo the equivalence relation given in an [env]. *)
+module type ENV = sig val env: env end
+module VarMapModulo (E: ENV): module type of VarMap
+
 (** {1 Visitors for the internal syntax of types} *)
 
 (** A generic visitor. *)
