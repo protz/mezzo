@@ -29,9 +29,5 @@ val is_arith_op: env -> var -> bool
  * are arithmetic. *)
 val fetch_arith: env -> typ list
 
-(** [implies hyps consequence] returns the logic value
- * of [hyps] => [consequence]. *)
-val implies: typ list -> typ -> bool
-
 (** [check env consequence] is [implies (fetch_arith env) consequence]. *)
 val check: env -> typ -> bool
