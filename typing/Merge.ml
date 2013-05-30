@@ -816,7 +816,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             merge_type (left_env, left_perm) (right_env, t_app_right) ?dest_var dest_env
 
 
-        | TyApp (consl, argsl), TyApp (consr, argsr) ->
+        | TyApp (consl, argsl), TyApp (consr, argsr)
+            when get_kind left_env !!consl = get_kind right_env !!consr ->
             (* Merge the constructors. This should be a no-op, unless they're
              * distinct, in which case we stop here. *)
             let r = merge_type (left_env, consl) (right_env, consr) ?dest_var dest_env in
