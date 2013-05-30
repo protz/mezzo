@@ -552,8 +552,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
       failwith "The right permission was not extracted for [s1].";
   );
 
-  (* Doesn't pass anymore since we removed singleton-subtyping! *)
-  (* ("singleton2.mz", pass); *)
+  ("singleton2.mz", pass);
 
   (* Marking environments as inconsistent. *)
 
@@ -992,7 +991,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("species.mz", pass);
   ("ghost00.mz", kfail);
   ("ifthen-bug.mz", pass);
-  ("magic-map.mz", pass_known_failure);
+  ("magic-map.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)

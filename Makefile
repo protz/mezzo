@@ -27,7 +27,9 @@ configure.ml: configure
 
 parsing/Keywords.ml: parsing/Keywords parsing/KeywordGenerator.ml
 	ocaml parsing/KeywordGenerator.ml < $< > $@
-	ocaml parsing/KeywordPygments.ml < $< > ../misc/pygments/mezzolexer/mezzokeywords.py
+	if [ -d ../misc/pygments/mezzolexer ] ; \
+	  ocaml parsing/KeywordPygments.ml < $< > ../misc/pygments/mezzolexer/mezzokeywords.py ; \
+	fi
 
 clean:
 	rm -f *~ $(MAIN) $(MAIN).native $(TESTSUITE) $(TESTSUITE).native

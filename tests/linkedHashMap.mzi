@@ -1,0 +1,102 @@
+(* An implementation of hash tables where the entries are stored also in a
+ * doubly-linked list, in order to allow linear iteration. *)
+
+abstract linkedTable k +a
+fact exclusive (linkedTable k a)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Creation. *)
+
+val create_aff : [k, a] (
+  capacity: int,
+  hash: k -> int,
+  equal: (k, k) -> bool,
+  copy_key: k -> k
+) -> linkedTable k a
+
+val create : [k, a] duplicable k => (
+  capacity: int,
+  hash: k -> int,
+  equal: (k, k) -> bool
+) -> linkedTable k a
+
+(* -------------------------------------------------------------------------- *)
+
+(* Clearing. *)
+
+val clear : [k, a] linkedTable k a -> ()
+val reset : [k, a] (linkedTable k a, capacity: int) -> ()
+
+(* -------------------------------------------------------------------------- *)
+
+(* Insertion. *)
+
+val add : [k, a] (consumes k, consumes a, linkedTable k a) -> ()
+
+(* -------------------------------------------------------------------------- *)
+
+(* Merging. *)
+
+(* [merge (t1, t2)] does not require the two linkedTables to use the same notions
+   of equality of hashing. It is equivalent to successively inserting each
+   element of [t1] into [t2]. *)
+
+val merge: [k, a] (consumes linkedTable k a, linkedTable k a) -> ()
+
+(* -------------------------------------------------------------------------- *)
+
+(* Removal. *)
+
+val remove : [k, a] (x: k, t: linkedTable k a) -> option a
+
+(* -------------------------------------------------------------------------- *)
+
+(* Lookup. *)
+
+val mem : [k, a] (x: k, t: linkedTable k a) -> bool
+
+val find     : [k, a] duplicable a => (x: k, t: linkedTable k a) -> option a
+val find_all : [k, a] duplicable a => (x: k, t: linkedTable k a) -> list::list a
+
+(* -------------------------------------------------------------------------- *)
+
+(* Update. *)
+
+(* [update (t, x, f)] looks for the key [x] in the table [t]. It calls the
+   user-supplied function [f] exactly once, and passes it either the value [v]
+   that is associated with the key [x], or nothing, if the key [x] does not
+   appear in the linkedTable. The function [f] returns either a new value, or
+   nothing. In the former case, the new value replaces the value [v]. In the
+   latter case, the key [x] is removed (if it was there at all). *)
+
+val update : [k, a, pre : perm, post : perm] (
+  t: linkedTable k a,
+  consumes x: k,
+  f: (consumes (option a | pre)) -> (option a | post)
+  | consumes pre
+) -> (| post)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Iteration. *)
+
+val fold : [k, a, b] (
+  t: linkedTable k a,
+  consumes seed: b,
+  f: (k, a, consumes b) -> b
+) -> b
+
+val iter : [k, a, p : perm] (
+  t: linkedTable k a,
+  f: (k, a | p) -> ()
+  | p
+) -> ()
+
+(* -------------------------------------------------------------------------- *)
+
+(* Statistics. *)
+
+val cardinal : [k, a] (t: linkedTable k a) -> int
+
+val stats : [k, a] (t: linkedTable k a) -> hashtable::statistics

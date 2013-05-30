@@ -1,0 +1,259 @@
+(* An implementation of hash tables where the entries are stored also in a
+ * doubly-linked list, in order to allow linear iteration.
+ * It relies on the modules [hashtable] and [doublylinked]. *)
+
+(* The type of the cells in the doubly-linked list. *)
+alias entry k a = doublylinked::point (k, a)
+
+data mutable linkedTable k a =
+  LinkedTable {
+    (* The underlying [hashtable]. *)
+    table: hashtable::table k (entry k a);
+    (* The region which stores the entries in a doubly-linked list. *)
+    region: doublylinked::region (k, a);
+    (* One cell of the doubly-linked list, starting point for iterations. *)
+    head: option (entry k a);
+    (* The key is stored at two different places: as a key for the underlying
+     * hashtable, and in the doubly-linked list. That's why we need [copy_key]. *)
+    copy_key: k -> k
+  }
+
+(* -------------------------------------------------------------------------- *)
+
+(* Creation. *)
+
+(* [create_aff (capacity, hash, equal, copy_key)] creates a new [linkedTable].
+ * The arguments [capacity], [hash] and [equal] are used to create the
+ * underlying [hashtable]. *)
+val create_aff [k, a] (
+  capacity: int,
+  hash: k -> int,
+  equal: (k, k) -> bool,
+  copy_key: k -> k
+) : linkedTable k a =
+  LinkedTable {
+    table = hashtable::create (capacity, hash, equal);
+    region = doublylinked::new ();
+    head = None;
+    copy_key
+  }
+
+(* Like [create_aff], but for a duplicable key type. For this case, we can
+ * provide a trivial [copy_key] function. *)
+val create [k, a] duplicable k => (
+  capacity: int,
+  hash: k -> int,
+  equal: (k, k) -> bool
+) : linkedTable k a =
+  (* Use the identity function to copy keys. *)
+  create_aff (capacity, hash, equal, fun (x: k) : k = x)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Clearing. *)
+
+val clear [k, a] (t: linkedTable k a) : () =
+  hashtable::clear t.table;
+  (* There is no need here to free the region, because the cells will be
+   * collected anyway: a region doesn't know what are its cells. That's
+   * convenient, because we just have to forget the head of the doubly-linked
+   * list to allow the GC to collect all the cells. *)
+  t.head <- None
+
+val reset [k, a] (t: linkedTable k a, capacity: int) : () =
+  hashtable::reset (t.table, capacity);
+  t.head <- None
+
+(* -------------------------------------------------------------------------- *)
+
+(* Insertion. *)
+
+(* Auxiliary function to manage the doubly-linked list when adding a new entry
+ * to the table.
+ * We need to expand the type [linkedTable k a] to be more precise and specify
+ * that we don't even read the field [table]. *)
+val add_cell [k, a, c: term] (
+  d: entry k a, 
+  t: LinkedTable {
+      table = c;
+      region: doublylinked::region (k, a);
+      head: option (entry k a);
+      copy_key: k -> k
+  }
+) : () =
+  match t.head with
+  | None -> t.head <- some d
+(* WISH we could get rid of the following type application. *)
+  | Some { contents = h } -> doublylinked::meld [(k, a)] (t.region, h, d)
+  end
+
+val add [k, a] (consumes x: k, consumes v: a, t: linkedTable k a) : () =
+  let y = t.copy_key x in
+  let d = doublylinked::create [(k, a)] (t.region, (x, v)) in
+  hashtable::add (y, d, t.table);
+  add_cell (d, t)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Removal. *)
+
+(* Auxiliary function to manage the doubly-linked list when removing an entry
+ * from the table.
+ * We need to expand the type [linkedTable k a] to be more precise and specify
+ * that we don't even read the field [table]. *)
+val remove_cell [k, a, c: term] (
+  d: entry k a,
+  t: LinkedTable {
+      table = c;
+      region: doublylinked::region (k, a);
+      head: option (entry k a);
+      copy_key: k -> k
+  } 
+) : entry k a =
+  if doublylinked::is_isolated [(k, a)] (t.region, d) then
+    (* In this case, there was a single cell remaining, so the list is now
+     * empty. We have to forget its head. *)
+    t.head <- None
+  else begin
+    let h = force t.head in
+    (* We have to change the head of the list if it's precisely the cell which
+     * is being removed. *)
+    if h == d then t.head <- some (doublylinked::next [(k, a)] (t.region, h));
+    doublylinked::isolate [(k, a)] (t.region, d)
+  end;
+  d
+
+val remove [k, a] (x: k, t: linkedTable k a) : option a =
+  match hashtable::remove (x, t.table) with
+  | None -> None
+  | Some { contents = d } ->
+      (* An entry has been removed from the hashtable, we have to remove it from
+       * the doubly-linked list. *)
+      let d = remove_cell (d, t) in
+      let _, v = doublylinked::destroy [(k, a)] (t.region, d)
+      in some v
+  end
+
+(* -------------------------------------------------------------------------- *)
+
+(* Merging. *)
+
+val merge [k, a] (consumes src: linkedTable k a, dest: linkedTable k a) : () =
+  preserving (src @ linkedTable k a * dest @ linkedTable k a)
+  while src.head do begin
+    (* Just copy the dynamic from the old region to the new one, without
+     * creating new cells. *)
+    let d = remove_cell (force src.head, src) in
+    add_cell (d, dest)
+  end;
+  hashtable::merge (src.table, dest.table);
+
+(* -------------------------------------------------------------------------- *)
+
+(* Lookup. *)
+
+val mem [k, a] (x: k, t: linkedTable k a) : bool =
+  hashtable::mem (x, t.table)
+
+val find [k, a] duplicable a => (x: k, t: linkedTable k a) : option a =
+  match hashtable::find (x, t.table) with
+  | None -> None
+  | Some { contents = d } ->
+      (* An entry has been retrieved, extract it from the doubly-linked list. *)
+      some (doublylinked::consult [(k, a)] (t.region, d, fun (_:k, v: a) : a = v))
+  end
+
+val find_all [k, a] duplicable a => (x: k, t: linkedTable k a) : list::list a =
+  list::map (hashtable::find_all (x, t.table),
+    fun (d: entry k a | t @ linkedTable k a) : a = 
+      doublylinked::consult [(k, a)] (t.region, d, fun (_: k, v: a) : a = v)
+  )
+
+(* -------------------------------------------------------------------------- *)
+
+(* Update. *)
+
+(* As all other functions, [update] has the exact same behavior as the one from
+ * [hashtable]. *)
+val update [k, a, pre: perm, post: perm] (
+  t: linkedTable k a,
+  consumes x: k,
+  f: (consumes (option a | pre)) -> (option a | post)
+  | consumes pre
+) : (|post) =
+  let y = t.copy_key x in
+  let table = t.table in
+  (* We have to wrap the given function in another function that can update an
+   * entry, not directly a value of type [a]. *)
+  let f = fun (
+    consumes od: option (entry k a)
+  | consumes pre * consumes y @ k *
+    t @ LinkedTable {
+      table;
+      region: doublylinked::region (k, a);
+      head: option (entry k a);
+      copy_key: k -> k
+    }
+  ) : (option (entry k a) | post) =
+    let ov =
+      match od with
+        | None -> None
+        | Some { contents = d } ->
+            (* If the key existed, remove the matching entry. *)
+            let d = remove_cell (d, t) in 
+            let _, v = doublylinked::destroy [(k, a)] (t.region, d) in
+              some v
+      end
+    (* Then apply the actual [f]. *)
+    in match f ov with
+    | None -> None
+    | Some { contents = v } ->
+        (* Finally, insert a new entry if [f] returned some value. *)
+        let d = doublylinked::create [(k, a)] (t.region, (y, v)) in
+        add_cell (d, t);
+        some d
+    end
+  in hashtable::update
+      [post = (
+        post *
+        t @ LinkedTable {
+          table;
+          region: doublylinked::region (k, a);
+          head: option (entry k a);
+          copy_key: k -> k
+        })]
+      (table, x, f)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Iteration. *)
+(* We iterate over the doubly-linked list, not over the hashtable. *)
+
+val fold [k, a, b] (
+  t: linkedTable k a,
+  consumes seed: b,
+  f: (k, a, consumes b) -> b
+) : b =
+  match t.head with
+  | None -> seed
+  | Some { contents = d } ->
+      let f = fun ((x: k, v: a), consumes w: b) : b =
+        f (x, v, w)
+      in doublylinked::fold [(k, a)] (t.region, d, seed, f)
+  end
+
+val iter [k, a, p: perm] (
+  t: linkedTable k a,
+  f: (k, a | p) -> ()
+  | p
+) : () =
+  fold [b=(|p)] (t, (), fun (x: k, v: a, (|p)) : () = f (x, v))
+
+(* -------------------------------------------------------------------------- *)
+
+(* Statistics. *)
+
+val cardinal [k, a] (t: linkedTable k a) : int = hashtable::cardinal t.table
+
+val stats [k, a] (t: linkedTable k a) : hashtable::statistics = 
+  hashtable::stats t.table

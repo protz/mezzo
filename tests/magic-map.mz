@@ -10,7 +10,10 @@ val rec map [a, b] (xs: list a, f : a -> b) : list b =
   | Cons { head; tail } ->
       let head' = f head in
       let tail' = map (xs.tail, f) in
-      if head == head' && tail == tail' then begin
+      let e1: rich_bool empty (head = head' * tail = tail') =
+        head == head' && tail == tail'
+      in
+      if e1 then begin
 	assert head = head'; (* BUG? why is this equality not known? *)
 	assert tail = tail';
 	xs

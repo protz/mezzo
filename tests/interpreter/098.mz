@@ -1,0 +1,10 @@
+(* Success: 42 *)
+
+open array
+
+val () =
+  let r : marray int = init (Up, 10, fun (i: int) : int = i) in
+  let s = newref 37 in
+  s := replace (r, 5, !s);
+  s := !s + get (r, 5);
+  print !s

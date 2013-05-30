@@ -38,12 +38,18 @@ let assume (env : env) ((m, ty) : mode_constraint) : env =
   let ty = modulo_flex env ty in
   match ty with
   | TyOpen v ->
+      (* We look up the environment to find the original assumption on [v], and
+       * we take the meet of the two facts, since both are true. The meet is
+       * well-defined when it does not need to store a disjunction of conjunctions
+       * in the hypotheses. Therefore, [assume_parameter] only works for parameters, since
+       * their facts are of the form [m p => m], which we combine with flat
+       * predicates [m p], whose hypotheses are either [true] or [false]. *)
       set_fact env v (Fact.meet fact (get_fact env v))
-    | _ ->
-        (* We don't know how to extract meaningful information here, so we're
-         * just not doing anything about the constraint we just learned about.
-         * This could (maybe) be improved. TEMPORARY *)
-        env
+  | _ ->
+      (* We don't know how to extract meaningful information here, so we're
+       * just not doing anything about the constraint we just learned about.
+       * This could (maybe) be improved. TEMPORARY *)
+      env
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -93,32 +99,13 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      or a parameter or a pre-existing variable. In the first two cases, it
      must be rigid, I think; in the last case, it could be rigid or flexible. *)
 
-  (* We distinguish only two cases: either [v] is a parameter, or it is not.
-     In fact, regardless of this distinction, we always look up the
-     environment in order to find an assumption about [v]. Additionally, if
-     [v] is a parameter, then we construct a fact of the form [m p => m], for
-     every mode [m], which means ``for every mode [m], if the parameter [p]
-     has mode [m], then this type has mode [m].'' We take the meet of these
-     two facts, since both are true. The meet is well-defined when its
-     left-hand argument has arity zero, which is the case here, as the fact
-     stored in the environment for a variable of kind [type] or [perm] always
-     has arity zero. *)
+  (* The environment is initially populated with a relevant fact for [v],
+   * regardless of whether [v] is a parameter, one of the fixed-point
+   * computation variables, or a type defined somewhere. Therefore, we just need
+   * to look up the fact from the environment. *)
 
   | TyOpen v ->
-
-      (* Always look up the environment. *)
-      let fact1 = get_fact w.env v in
-
-      (* Check whether [v] is a parameter, and if so, create a more precise
-        fact. Note: [VarMap] supports rigid variables only, hence the check
-        in two steps. *)
-      if is_rigid w.env v && VarMap.mem v w.parameters then
-       let p : parameter = VarMap.find v w.parameters in
-       let fact2 = Fact.parameter p in
-       Fact.meet fact1 fact2
-      
-      else
-       fact1
+      get_fact w.env v
 
   (* In a type application, the type constructor [v] cannot be local and
      cannot be a parameter (due to restrictions at the kind level). It
@@ -130,13 +117,13 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
       let v = !!v in
       (* Get a fact for [v]. *)
       let fact =
-       if VarMap.mem v w.variables then
-         (* [v] is a variable. Obtain a fact for it through the current
-            valuation. *)
-         w.valuation v
-       else
-         (* [v] is older. Obtain a fact for it through the environment. *)
-         get_fact w.env v
+        if VarMap.mem v w.variables then
+          (* [v] is a variable. Obtain a fact for it through the current
+             valuation. *)
+          w.valuation v
+        else
+          (* [v] is older. Obtain a fact for it through the environment. *)
+          get_fact w.env v
       in
       (* Infer facts for the arguments. We must be careful because not
         all arguments have kind [type] or [perm], and fact inference
@@ -174,9 +161,9 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
 
   | TyQ (q, binding, _, ty) ->
       let assumption =
-       match q with
-       | Forall -> Mode.bottom
-       | Exists -> Mode.top
+        match q with
+        | Forall -> Mode.bottom
+        | Exists -> Mode.top
       in
       bind_assume_infer w binding ty assumption
 
@@ -223,9 +210,11 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
        (infer w ty1)
        (infer w ty2)
 
-  (* [x @ t] is duplicable if [t] is duplicable. It is not considered
-     exclusive. The use of [disallow_exclusive] is probably not essential
-     here, but seems clean/prudent. *)
+  (* [x @ t] has the same properties as [t]. The use of [disallow_exclusive]
+     is a defensive programming measure: in principle, [exclusive t] makes
+     sense when [t] has kind [TYPE], but not when [t] has kind [PERM], so we
+     avoid constructing a fact that claims [exclusive (x @ t)]. If we did
+     construct such a fact, it would probably be unused anyway. *)
 
   | TyAnchoredPermission (_, ty) ->
       Fact.disallow_exclusive (infer w ty)
@@ -298,7 +287,7 @@ and bind_assume_infer w binding ty (m : mode) : fact =
     match kind with
     | KType
     | KPerm ->
-       assume env (m, TyOpen v)
+        assume env (m, TyOpen v)
     | KTerm ->
         env
     | KArrow _ ->
@@ -320,6 +309,16 @@ let prepare_branches env v branches : world * unresolved_branch list =
   let env, parameters, branches =
     bind_datacon_parameters env (get_kind env v) branches
   in
+  (* If [v] is a parameter, then we construct a fact of the form [m p => m], for
+     every mode [m], which means ``for every mode [m], if the parameter [p] has
+     mode [m], then this type has mode [m].'' *)
+  let env = MzList.fold_lefti (fun i env v ->
+    let f = Fact.parameter i in
+    if get_kind env v <> KTerm then
+      set_fact env v f
+    else
+      env
+  ) env parameters in
   (* Construct a map of the parameters to their indices. The ordering
      matters, of course; it is used in [compose] when matching formal
      and actual parameters. *)
@@ -336,6 +335,14 @@ let prepare_type env v t : world * typ =
   let env, parameters =
     make_datacon_letters env (get_kind env v) false
   in
+  (* Do the same as above. *)
+  let env = MzList.fold_lefti (fun i env v ->
+    let f = Fact.parameter i in
+    if get_kind env v <> KTerm then
+      set_fact env v f
+    else
+      env
+  ) env parameters in
   (* We'll work on [t] instantiated with its parameters. *)
   let t = instantiate_type t (List.map ty_open parameters) in
   (* Do the same as above. *)

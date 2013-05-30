@@ -9,18 +9,13 @@
 #   (for some reason, functory seems to include unix)
 # - why3 includes both Str and Unix
 
-not <testsuite.*>: debug, \
+true: debug, \
   use_menhir, use_ocamlbuild, \
   annot, bin_annot, strict_sequence, \
   package(yojson), package(menhirLib), package(ulex), package(pprint), \
   package(why3)
 
-<testsuite.*>: debug, \
-  use_menhir, use_ocamlbuild, \
-  annot, bin_annot, strict_sequence, \
-  package(yojson), package(menhirLib), package(ulex), package(pprint), \
-  package(why3), \
-  package(functory)
+<testsuite.*>: package(functory)
 
 # Enable the "nazi warnings". A few files really trigger too many warnings: the
 # generated parser and lexer files, as well as the imported [patricia.ml].

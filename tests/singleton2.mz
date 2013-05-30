@@ -1,5 +1,3 @@
-(* This test doesn't pass anymore now that I removed the singleton-subtyping
- * rule (which was way too complicated)! *)
 data list a = Cons { head: a; tail: list a } | Nil
 
 val f (x: list (=y), y: int): list int =

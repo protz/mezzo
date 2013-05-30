@@ -13,12 +13,14 @@ data mutable item a =
     payload: a
   }
 
-data mutable block =
-  | Block { cardinal: int; cell: option dynamic (* cell *) }
+alias cell a = doublylinked::point (item a)
+
+data mutable block a =
+  | Block { cardinal: int; cell: option (cell a) }
 
 data mutable region a =
   Region { cells: doublylinked::region (item a) }
-  adopts block
+  adopts block a
 
 val new_region [a] () : region a =
   Region { cells = doublylinked::new() }
@@ -28,13 +30,13 @@ val new_block [a] (r: region a) : dynamic (* block *) =
   give b to r;
   b
 
-val new_item [a] (r: region a, consumes x: a) : dynamic (* cell *) =
+val new_item [a] (r: region a, consumes x: a) : cell a =
   let i = Item { block = (); payload = x } in
   i.block <- i;
   doublylinked::create [item a] (r.cells, i)
     (* WISH I don't understand why this type application is required *)
 
-val attach [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : () =
+val attach [a] (r: region a, b: dynamic (* block *), c: cell a) : () =
   (* Update the cell [c], which is now a member of [b]. *)
   doublylinked::consult [item a] (r.cells, c, fun (i : item a) : () =
     (* WISH I don't understand why this type application is required *)
@@ -58,7 +60,7 @@ val attach [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : ()
     end
   end
 
-val detach [a] (r: region a, c: dynamic (* cell *)) : () =
+val detach [a] (r: region a, c: cell a) : () =
   (* Update the cell [c], which is no longer a member of [b]. *)
   let b : dynamic =
     doublylinked::consult [a = item a] (r.cells, c, fun (i : item a) : dynamic =
@@ -73,7 +75,7 @@ val detach [a] (r: region a, c: dynamic (* cell *)) : () =
   taking b from r begin
     b.cardinal <- b.cardinal - 1;
     if b.cardinal = 0 then
-      b.cell <- none [dynamic] (* WISH get rid of this type application? *)
+      b.cell <- none [cell a] (* WISH get rid of this type application? *)
     else if b.cell == c then
       (* If the representative element of [b] is [c], find another. *)
       b.cell <- some (doublylinked::next [item a] (r.cells, c));
@@ -81,11 +83,11 @@ val detach [a] (r: region a, c: dynamic (* cell *)) : () =
     doublylinked::isolate [item a] (r.cells, c)
   end
 
-val move [a] (r: region a, b: dynamic (* block *), c: dynamic (* cell *)) : () =
+val move [a] (r: region a, b: dynamic (* block *), c: cell a) : () =
   detach (r, c);
   attach (r, b, c)
 
-val block [a] (r: region a, c: dynamic (* cell *)) : dynamic (* block *) =
+val block [a] (r: region a, c: cell a) : dynamic (* block *) =
   doublylinked::consult [item a] (r.cells, c, fun (i : item a) : dynamic =
     if (i.block == i) then
       fail;
@@ -95,7 +97,7 @@ val block [a] (r: region a, c: dynamic (* cell *)) : dynamic (* block *) =
 val cardinal [a] (r: region a, b: dynamic (* block *)) : int =
   taking b from r begin b.cardinal end
 
-val choose [a] (r: region a, b: dynamic (* block *)) : option dynamic (* cell *) =
+val choose [a] (r: region a, b: dynamic (* block *)) : option (cell a) =
   taking b from r begin b.cell end
 
 (* TEMPORARY add iteration functions, etc. *)
