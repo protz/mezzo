@@ -1,3 +1,6 @@
 val f (i:int | 0 <= i) : () =
   assert 0 <= i;
   ()
+
+val g () : () =
+  f 0
