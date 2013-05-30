@@ -472,16 +472,21 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
   (* lazy because we need to typecheck the core modules too! *)
   let t_int = lazy (find_type_by_name env ~mname:"int" "int")
+  and t_equal = lazy (find_type_by_name env ~mname:"arith" "~=")
   and t_bool = lazy (find_type_by_name env ~mname:"bool" "bool") in
 
   (* [return t] creates a new var with type [t] available for it, and returns
    * the environment as well as the var *)
-  let return env t =
+  let return env ?(value: int option) t =
     (* Not the most clever function, but will do for now on *)
     let hint = Option.map_none (fresh_auto_name "/x_") hint in
     let env, x = bind_rigid env (hint, KTerm, location env) in
     let env = Permissions.add env x t in
-    match annot with
+    let env = match value with
+    | None -> env
+    | Some i -> 
+        Permissions.add_perm env (TyApp (!*t_equal, [TyOpen x; TyLiteral i]))
+    in match annot with
     | None ->
         env, x
     | Some t ->
@@ -896,8 +901,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       return env (TyConcrete branch)
 
 
-  | EInt _ ->
-      return env !*t_int
+  | EInt i ->
+      return env ?value:(Some i) !*t_int
 
   | ELocated (e, new_pos) ->
       let old_pos = location env in

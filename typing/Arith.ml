@@ -41,7 +41,7 @@ let wenv: why3env option =
         StringMap.add ("~"^s) (
           Theory.ns_find_ls int_theory.Theory.th_export ["infix " ^ s]
         ) m
-      ) StringMap.empty [">";"<";">=";"<="] in
+      ) StringMap.empty [">";"<";">=";"<=";"="] in
 
     Some {prover; driver; env; int_theory; symbols}
 

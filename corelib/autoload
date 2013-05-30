@@ -3,9 +3,9 @@
 # (i.e. only \n separators).
 bool
 physical
+arith
 int
 option
 ref
 print
 autoarray
-arith
