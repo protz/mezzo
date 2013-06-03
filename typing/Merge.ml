@@ -834,12 +834,13 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             r >>= fun (left_env, right_env, dest_env, cons) ->
 
             let cons = !!cons in
+            let arg_kinds, _ = Kind.as_arrow (get_kind top cons) in
 
             if Option.is_some dest_var && has_nominal_type_annotation dest_env (Option.extract dest_var) cons then
               None
             else
               (* So the constructors match. Let's now merge pairwise the arguments. *)
-              let r = MzList.fold_left2i (fun i acc argl argr ->
+              let r = MzList.fold_left3i (fun i acc k argl argr ->
                 (* We keep the current triple of environments and the merge
                  * arguments in the accumulator. *)
                 acc >>= fun (left_env, right_env, dest_env, args) ->
@@ -855,7 +856,14 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                    * consider the parameter to be invariant. *)
                   match variance dest_env cons i with
                   | Covariant ->
-                      merge_type_with_unfolding (left_env, argl) (right_env, argr) ?dest_var dest_env
+                      (merge_type_with_unfolding k (left_env, argl) (right_env, argr) ?dest_var dest_env) |||
+                      (* If the parameters of a covariant data type disagree,
+                       * and they both have kind [perm], then we can still
+                       * decide to merge as [empty]. *)
+                      if k = KPerm then
+                        Some (left_env, right_env, dest_env, TyEmpty)
+                      else
+                        None
                   | _ ->
                       begin try
                         let argl = clean top left_env argl in
@@ -872,7 +880,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                 v >>= fun (left_env, right_env, dest_env, arg) ->
                 (* The parameter was merged. Return a valid accumulator. *)
                 Some (left_env, right_env, dest_env, arg :: args)
-              ) (Some (left_env, right_env, dest_env, [])) argsl argsr in
+              ) (Some (left_env, right_env, dest_env, [])) arg_kinds argsl argsr in
               r >>= fun (left_env, right_env, dest_env, args) ->
 
               (* Yay! All type parameters were merged. Reverse the list. *)
@@ -900,7 +908,8 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             begin match get_definition left_env cons1 with
             | Some (Abbrev left_perm) ->
                 let left_perm = instantiate_type left_perm args1 in
-                merge_type_with_unfolding (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
+                (* The branches of a data type always have kind KType. *)
+                merge_type_with_unfolding KType (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
             | _ ->
                 assert false
             end
@@ -909,7 +918,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             begin match get_definition right_env cons2 with
             | Some (Abbrev right_perm) ->
                 let right_perm = instantiate_type right_perm args2 in
-                merge_type_with_unfolding (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
+                merge_type_with_unfolding KType (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
             | _ ->
                 assert false
             end
@@ -965,27 +974,33 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
    * either. The only "opaque" contexts that remains is type applications and
    * type abbreviations which have not been expanded. For these, we must first
    * unfold the type before performing the merge. *)
-  and merge_type_with_unfolding (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env =
-    (* How do we expand a type? We bind a point, and add the permission to the
-     * given point. Unfortunately, we don't have an easy way to recover the type
-     * we just added to the point, so we use that little hack, telling that when
-     * the type is "simple", it remains simple, so we don't have to perform the
-     * whole procedure... *)
-    let expand env t =
-      let t = modulo_flex env t in
-      Log.debug "[merge_type_with_unfolding] %a" TypePrinter.ptype (env, t);
-      let simple = function TyUnknown | TyDynamic | TySingleton _ -> true | _ -> false in
-      if simple t then
-        env, t
-      else
-        let env, point = bind_rigid env (fresh_auto_name "mtwu", KTerm, location env) in
-        let env = Permissions.add env point t in
-        let t = List.find (fun x -> not (simple x)) (get_permissions env point) in
-        env, t
-    in
-    let left_env, left_perm = expand left_env left_perm in
-    let right_env, right_perm = expand right_env right_perm in
-    merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
+  and merge_type_with_unfolding kind (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env =
+    match kind with
+    | KType ->
+        (* How do we expand a type? We bind a point, and add the permission to the
+         * given point. Unfortunately, we don't have an easy way to recover the type
+         * we just added to the point, so we use that little hack, telling that when
+         * the type is "simple", it remains simple, so we don't have to perform the
+         * whole procedure... *)
+        let expand env t =
+          let t = modulo_flex env t in
+          Log.debug "[merge_type_with_unfolding] %a" TypePrinter.ptype (env, t);
+          let simple = function TyUnknown | TyDynamic | TySingleton _ -> true | _ -> false in
+          if simple t then
+            env, t
+          else
+            let env, point = bind_rigid env (fresh_auto_name "mtwu", KTerm, location env) in
+            let env = Permissions.add env point t in
+            let t = List.find (fun x -> not (simple x)) (get_permissions env point) in
+            env, t
+        in
+        let left_env, left_perm = expand left_env left_perm in
+        let right_env, right_perm = expand right_env right_perm in
+        merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
+    | KPerm | KTerm ->
+        merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
+    | _ ->
+        assert false
   in
 
   (* First, start by merging the floating permissions. *)

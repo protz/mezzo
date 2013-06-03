@@ -35,6 +35,10 @@ val fold_lefti: (int -> 'acc -> 'elt -> 'acc) -> 'acc -> 'elt list -> 'acc
    list *)
 val fold_left2i: (int -> 'acc -> 'b -> 'c -> 'acc) -> 'acc -> 'b list -> 'c list -> 'acc
 
+(** Same as [fold_left3] except that the function takes the current index in the
+   list *)
+val fold_left3i: (int -> 'acc -> 'b -> 'c -> 'd -> 'acc) -> 'acc -> 'b list -> 'c list -> 'd list -> 'acc
+
 (** Same as [fold_left2] but with three lists. *)
 val fold_left3: ('acc -> 't1 -> 't2 -> 't3 -> 'acc) -> 'acc -> 't1 list -> 't2 list -> 't3 list -> 'acc
 
