@@ -820,7 +820,17 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             when get_kind left_env !!consl = get_kind right_env !!consr ->
             (* Merge the constructors. This should be a no-op, unless they're
              * distinct, in which case we stop here. *)
-            let r = merge_type (left_env, consl) (right_env, consr) ?dest_var dest_env in
+            let r =
+              try
+                let consl = clean top left_env consl in
+                let consr = clean top right_env consr in
+                if equal top consl consr then
+                  Some (left_env, right_env, dest_env, consl)
+                else
+                  None
+              with UnboundPoint ->
+                None
+            in
             r >>= fun (left_env, right_env, dest_env, cons) ->
 
             let cons = !!cons in

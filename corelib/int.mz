@@ -19,7 +19,7 @@ val ( & )  : (int, int) -> int  = builtin _mz_iand
 val ( = )  : (int, int) -> bool = builtin _mz_ieq
 val ( <> ) : (int, int) -> bool = builtin _mz_ine
 val ( < )  : (int, int) -> bool = builtin _mz_ilt
-val ( <= ) : (int, int) -> bool = builtin _mz_ile
+val ( <= ) : (x: int, y: int) -> rich_bool (x > y) (x <= y) = builtin _mz_ile
 val ( > )  : (int, int) -> bool = builtin _mz_igt
 val ( >= ) : (int, int) -> bool = builtin _mz_ige
 

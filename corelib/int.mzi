@@ -19,7 +19,7 @@ val ( & )  : (int, int) -> int
 val ( = )  : (int, int) -> bool
 val ( <> ) : (int, int) -> bool
 val ( < )  : (int, int) -> bool
-val ( <= ) : (int, int) -> bool
+val ( <= ) : (x: int, y: int) -> rich_bool (x > y) (x <= y)
 val ( > )  : (int, int) -> bool
 val ( >= ) : (int, int) -> bool
 
