@@ -13,6 +13,7 @@ type why3env = {
   env: Env.env;
   int_theory: Theory.theory;
   symbols: Term.lsymbol StringMap.t; 
+  minus: Term.term -> Term.term;
 }
 
 let wenv: why3env option =
@@ -41,9 +42,15 @@ let wenv: why3env option =
         StringMap.add ("~"^s) (
           Theory.ns_find_ls int_theory.Theory.th_export ["infix " ^ s]
         ) m
-      ) StringMap.empty [">";"<";">=";"<=";"="] in
+      ) StringMap.empty [">";"<";">=";"<=";"=";"-";"+"] in
+    (* The minus operator is used to build negative integers. *)
+    let minus t = 
+      let minus = StringMap.find "-" symbols in
+      let zero = Term.t_nat_const 0 in
+      Term.t_app_infer minus [zero; t]
+    in
 
-    Some {prover; driver; env; int_theory; symbols}
+    Some {prover; driver; env; int_theory; symbols; minus}
 
   with _ ->
     None
@@ -75,6 +82,11 @@ let mk_vsymbol (env: env) (var: var): Term.vsymbol =
   let ident = Ident.id_fresh name in
   let vsymbol = Term.create_vsymbol ident Ty.ty_int in
   vsymbol
+
+(* Translates an integer to a Term.term. *)
+let mk_int (wenv: why3env) (i: int): Term.term =
+  if i >= 0 then Term.t_nat_const i
+  else wenv.minus (Term.t_nat_const (-i))
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -120,7 +132,7 @@ module ArithChecker (E: sig val wenv: why3env val env: env end) = struct
         let vars, l = tr_many vars args in
         (* Apply the right operator *)
         vars, Term.t_app_infer (StringMap.find (get_symbol env op) wenv.symbols) l
-    | TyLiteral i -> vars, Term.t_nat_const i
+    | TyLiteral i -> vars, mk_int wenv i
     | TyOpen var ->
         if is_flexible env var then raise Flexible;
         begin try
