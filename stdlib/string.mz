@@ -38,7 +38,7 @@ val eq [m1, m2] (
   a: string m1,
   b: string m2
 ) : bool =
-  cmp (a, b) = 0
+  strip (cmp (a, b) = 0)
 
 (* [index_from (s, i, c)] returns the position of the first occurrence of
  * character [c] after the [i]-th position. *)
@@ -47,7 +47,7 @@ val index_from [m] (
   i: int,
   c: char
 ) : int =
-  first_from (s, i, fun (d: char) : bool = c = d)
+  first_from (s, i, fun (d: char) : bool = strip(c = d))
 
 (* [rindex_from (s, i, c)] returns the position of the last occurrence of
  * character [c] before the [i]-th position. *)
@@ -56,7 +56,7 @@ val rindex_from [m] (
   i: int,
   c: char
 ) : int =
-  last_from (s, i, fun (d: char) : bool = c = d)
+  last_from (s, i, fun (d: char) : bool = strip(c = d))
 
 (* [index (s, c)] is [index_from (s, 0, c)]. *)
 val index [m] (
@@ -74,7 +74,7 @@ val rindex [m] (
 
 (* Auxiliary function for [trim]. *)
 val is_whitespace (c: char) : bool =
-  c = 32 || c = 10 || c = 13 || c = 9 || c = 12
+  strip (c = 32 || c = 10 || c = 13 || c = 9 || c = 12)
   (* TEMPORARY c = ' ' || c = '\n' || c = '\r' || c = '\t' || c = '\012' *)
 
 (* [trim s] removes all leading and trailing whitespaces in [s] and returns a new

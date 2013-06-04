@@ -15,5 +15,5 @@ val h (consumes x: marray int) : double (iarray int) =
   (x, x)
 
 val i [m] (consumes x: array m int) : pair (array m int) (iarray bool) =
-  let y = map (Down, x, fun (n: int) : bool = (n <> 0)) in
+  let y = map (Down, x, fun (n: int) : bool = strip (n <> 0)) in
   x, y

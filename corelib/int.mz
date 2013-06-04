@@ -16,18 +16,18 @@ val ( & )  : (int, int) -> int  = builtin _mz_iand
 
 (* Primitive comparison operators on integers. *)
 
-val ( = )  : (int, int) -> bool = builtin _mz_ieq
-val ( <> ) : (int, int) -> bool = builtin _mz_ine
-val ( < )  : (int, int) -> bool = builtin _mz_ilt
+val ( = )  : (x: int, y: int) -> rich_bool (x <> y) (x = y) = builtin _mz_ieq
+val ( <> ) : (x: int, y: int) -> rich_bool (x = y) (x <> y) = builtin _mz_ine
+val ( < )  : (x: int, y: int) -> rich_bool (x >= y) (x < y) = builtin _mz_ilt
 val ( <= ) : (x: int, y: int) -> rich_bool (x > y) (x <= y) = builtin _mz_ile
-val ( > )  : (int, int) -> bool = builtin _mz_igt
-val ( >= ) : (int, int) -> bool = builtin _mz_ige
+val ( > )  : (x: int, y: int) -> rich_bool (x <= y) (x > y) = builtin _mz_igt
+val ( >= ) : (x: int, y: int) -> rich_bool (x < y) (x >= y) = builtin _mz_ige
 
 (* Defined operations on integers. *)
 
-val min (x: int, y: int) : int =
+val min (x: int, y: int) : (z: int | x >= z * y >= z) =
   if x <= y then x else y
 
-val max (x: int, y: int) : int =
+val max (x: int, y: int) : (z: int | x <= z * y <= z) =
   if x <= y then y else x
 
