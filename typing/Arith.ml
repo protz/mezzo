@@ -43,7 +43,7 @@ let wenv: why3env option =
         StringMap.add ("~"^s) (
           Theory.ns_find_ls int_theory.Theory.th_export ["infix " ^ s]
         ) m
-      ) StringMap.empty [">";"<";">=";"<=";"=";"-";"+"] in
+      ) StringMap.empty [">";"<";">=";"<=";"-";"+"] in
     (* The minus operator is used to build negative integers. *)
     let minus t = 
       let minus = StringMap.find "-" symbols in
@@ -132,7 +132,14 @@ module ArithChecker (E: sig val wenv: why3env val env: env end) = struct
         (* Translate the operands *)
         let vars, l = tr_many vars args in
         (* Apply the right operator *)
-        vars, Term.t_app_infer (StringMap.find (get_symbol env op) wenv.symbols) l
+        let app =
+          let op = get_symbol env op in
+            match l with
+            | [x;y] when op = "~=" || op = "~<>" -> 
+                (if op = "~=" then Term.t_equ else Term.t_neq) x y
+            | _ -> Term.t_app_infer (StringMap.find op wenv.symbols) l
+        in
+        vars, app
     | TyLiteral i -> vars, mk_int wenv i
     | TyOpen var ->
         if is_flexible env var then raise Flexible;
