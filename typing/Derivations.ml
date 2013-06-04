@@ -48,6 +48,7 @@ and judgement =
   | JNothing
   | JAdd of typ
   | JDebug of typ * typ
+  | JArith of typ
 
 
 (** Primitive operations return a result, that is, either [Some env] along with

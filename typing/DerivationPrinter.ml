@@ -56,6 +56,9 @@ let print_judgement env = function
       words "debug info:" ^^^
       string "t1 =" ^^^ print_type env t1 ^^^
       string "t2 =" ^^^ print_type env t2
+  | JArith t ->
+      words "prove arithmetic predicate:" ^^^
+      print_type env t
 
 
 let comma_or_newline =

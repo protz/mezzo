@@ -20,6 +20,7 @@
 (** This module provides arithmetic permissions support. *)
 
 open TypeCore
+open Derivations
 
 (** [is_arith_op env v] returns true if the variable [v] is an arithmetic
  * operator. *)
@@ -30,4 +31,4 @@ val is_arith_op: env -> var -> bool
 val fetch_arith: env -> typ list
 
 (** [check env consequence] is [implies (fetch_arith env) consequence]. *)
-val check: env -> typ -> bool
+val check: env -> typ -> result

@@ -1241,9 +1241,12 @@ and sub_perm (env: env) (t: typ): result =
       try_proof "Sub-Empty" (qed env)
   | TyOpen p when is_flexible env p ->
       j_flex_inst env p TyEmpty
-  | TyApp (TyOpen v, _) when Arith.is_arith_op env v && Arith.check env t ->
+  | TyApp (TyOpen v, _) when Arith.is_arith_op env v ->
       (* TEMPORARY The proper check shouldn't be in the guard I guess. *)
-      try_proof "Sub-Arithmetic" (qed env)
+      try_proof "Sub-Arithmetic" begin
+        Arith.check env t >>=
+        qed
+      end
   | _ ->
       sub_floating_perm env t
 

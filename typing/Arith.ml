@@ -1,4 +1,5 @@
 open TypeCore
+open Derivations
 open Why3
 
 module StringMap = Map.Make (String)
@@ -174,8 +175,7 @@ let fetch_arith (env: env): typ list =
     | _ -> false
   ) (get_floating_permissions env)
 
-
-let check (env: env) (consequence: typ): bool =
+let bool_check (env: env) (consequence: typ): bool =
   match wenv with
   | Some wenv -> (
     try
@@ -185,3 +185,9 @@ let check (env: env) (consequence: typ): bool =
   | None ->
       (* Why3 isn't available, accept all arithmetic check. *)
       true
+
+let check (env: env) (consequence: typ): result =
+  if bool_check env consequence then
+    apply_axiom env (JArith consequence) "Arith" env
+  else
+    no_proof env (JArith consequence)
