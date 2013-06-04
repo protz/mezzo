@@ -1,0 +1,9 @@
+val f(i: int | 0 <= i) : () =
+  ()
+
+val g(i: int | 0 > i) : () =
+  ()
+
+val h (i: int) : () =
+  if 0 <= i then f i
+  else g i
