@@ -1,0 +1,6 @@
+(* This currently raises an assert failure in the typechecker because
+   of a strange name conflict between the two existential "k" *)
+
+val () =
+  exist10::f ();
+  exist10::f ()
