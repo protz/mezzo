@@ -1108,7 +1108,8 @@ and equal env (t1: typ) (t2: typ) =
     | TyUnknown, TyUnknown
     | TyDynamic, TyDynamic ->
         true
-
+    
+    | TyLiteral i, TyLiteral i'
     | TyBound i, TyBound i' ->
         i = i'
 
