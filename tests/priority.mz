@@ -1,2 +1,2 @@
 val f (x: int, y: int) : bool =
-  strip (x = y - 1)
+  x = y - 1

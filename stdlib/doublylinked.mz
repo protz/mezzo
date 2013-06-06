@@ -201,7 +201,7 @@ val isolate [a] (r: region a, y: dynamic) : () =
 
 val is_isolated [a] (r: region a, y: dynamic) : bool =
   taking y from r begin
-    bool::strip (y == y.next)
+    y == y.next
   end
 
 (* ---------------------------------------------------------------------------- *)

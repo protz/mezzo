@@ -685,8 +685,11 @@ and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): result =
     let _, k = Kind.as_arrow (get_kind_for_type env t1) in
     match k with
     | KPerm ->
-        sub_type env (wrap_bar_perm t1) (wrap_bar_perm t2) >>=
-        qed
+        if equal env t2 TyEmpty then
+          (qed env)
+        else
+          sub_type env (wrap_bar_perm t1) (wrap_bar_perm t2) >>=
+          qed
     | KTerm ->
         sub_type env t1 t2 >>=
         qed
