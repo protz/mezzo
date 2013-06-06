@@ -64,6 +64,8 @@ let rec resugar env (points : unit VarMap.t ref) (soup : typ VarMap.t ref) ty =
   | TyApp (head, args) ->
       (* No name introduction is possible inside a type application. *)
       S.TyApp (reset env head, List.map (reset env) args)
+  | TyProp ty ->
+      S.TyProp (resugar env points soup ty)
   | TyTuple tys ->
       S.TyTuple (List.map (resugar env points soup) tys)
   | TyConcrete branch ->

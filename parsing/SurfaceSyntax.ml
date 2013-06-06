@@ -124,6 +124,7 @@ type typ =
   | TyConcrete of (datacon_reference * data_field_def list) * adopts_clause
   | TySingleton of typ
   | TyApp of typ * typ list
+  | TyProp of typ
   | TyArrow of typ * typ
   | TyForall of type_binding * typ
   | TyExists of type_binding * typ
@@ -378,6 +379,7 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TySingleton _
   | TyDynamic
   | TyApp _
+  | TyProp _
   | TyLiteral _
   | TyVar _ ->
       PAny

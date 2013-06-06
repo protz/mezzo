@@ -73,10 +73,6 @@ let get_symbol (env: env) (var: var): string =
   let var = Resugar.surface_print_var env var in
   Variable.print (SurfaceSyntax.unqualify var)
 
-let is_arith_op (env: env) (var: var): bool =
-  (* TEMPORARY Check with first character if the function is arithmetic. *)
-  String.get (get_symbol env var) 0 = '~'
-
 (* Creates a new Term.vsymbol with a name taken from var. *)
 let mk_vsymbol (env: env) (var: var): Term.vsymbol =
   let name = get_symbol env var in
@@ -177,10 +173,15 @@ end
 
 let fetch_arith (env: env): typ list =
   (* An arithmetic permission is a TyApp whose function is arithmetic. *)
-  List.filter (function
-    | TyApp (TyOpen v, _) -> is_arith_op env v
-    | _ -> false
-  ) (get_floating_permissions env)
+  List.map (function
+    | TyProp t -> t
+    | _ -> assert false
+  ) (
+    List.filter (function
+      | TyProp _ -> true
+      | _ -> false
+    ) (get_floating_permissions env)
+  )
 
 let bool_check (env: env) (consequence: typ): bool =
   match wenv with

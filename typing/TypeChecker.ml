@@ -485,7 +485,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
     let env = match value with
     | None -> env
     | Some i -> 
-        Permissions.add_perm env (TyApp (!*t_equal, [TyOpen x; TyLiteral i]))
+        let app = TyApp (!*t_equal, [TyOpen x; TyLiteral i]) in
+        Permissions.add_perm env (TyProp app)
     in match annot with
     | None ->
         env, x

@@ -152,6 +152,10 @@ let rec translate_type env (ty : typ) : T.typ * T.typ * kind =
       let _, kind = as_arrow kind1 in
       twice (T.TyApp (ty1, ty2s)) kind
 
+  | TyProp ty ->
+      let ty, _, _ = translate_type env ty in
+      twice (T.TyProp ty) KPerm
+
   | TyArrow (domain, codomain) ->
       (* Bind a fresh variable to stand for the root of the function
 	 argument. Bind the names introduced in the left-hand side. *)
@@ -287,7 +291,8 @@ let rec flatten_star p =
   | TyVar _
   | TyConsumes _
   | TyAnchoredPermission _
-  | TyApp _ ->
+  | TyApp _
+  | TyProp _ ->
       [p]
   | TyLocated (p, _) ->
       flatten_star p
@@ -384,6 +389,7 @@ let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
     | TyExists _
     | TyImply _
     | TyApp _
+    | TyProp _
     | TyArrow _ ->
         t, []
 
@@ -446,6 +452,9 @@ let rec translate_type (env: env) (t: typ): T.typ =
 
   | TyApp (t, ts) ->
       T.TyApp (translate_type env t, List.map (translate_type_with_names env) ts)
+
+  | TyProp t ->
+      T.TyProp (translate_type env t)
 
   | TyArrow (t1, t2) ->
       let universal_bindings, t1, t2 = translate_arrow_type env t1 t2 in

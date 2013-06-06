@@ -225,6 +225,7 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
   | TyDynamic
   | TyEmpty
   | TyLiteral _
+  | TyProp _
   | TySingleton _ 
   | TyArrow _ ->
       Fact.constant ModeDuplicable

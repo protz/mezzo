@@ -732,6 +732,10 @@ and infer env s (ty : typ) : kind =
       List.iter2 (check_reset env) ty2s kind2s;
       kind
 
+  | TyProp ty ->
+      check env ConsumesDisallowed ty KPerm;
+      KPerm
+
   | TyArrow (ty1, ty2) ->
       (* The scope of the names introduced in the left-hand side
          extends to the left- and right-hand sides. *)

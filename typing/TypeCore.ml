@@ -77,6 +77,9 @@ type typ =
   | TyQ of quantifier * type_binding * flavor * typ
   | TyApp of typ * typ list
 
+    (* Arithmetic permission. *)
+  | TyProp of typ
+
     (* Structural types. *)
   | TyTuple of typ list
   | TyConcrete of resolved_branch
@@ -583,6 +586,8 @@ class virtual ['env, 'result] visitor = object (self)
         self#tyq env q binding flavor body
     | TyApp (head, args) ->
         self#tyapp env head args
+    | TyProp ty ->
+        self#typrop env ty
     | TyTuple tys ->
         self#tytuple env tys
     | TyConcrete branch ->
@@ -610,6 +615,7 @@ class virtual ['env, 'result] visitor = object (self)
   method virtual tyopen: 'env -> var -> 'result
   method virtual tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> 'result
   method virtual tyapp: 'env -> typ -> typ list -> 'result
+  method virtual typrop: 'env -> typ -> 'result
   method virtual tytuple: 'env -> typ list -> 'result
   method virtual tyconcrete: 'env -> resolved_branch -> 'result
   method virtual tysingleton: 'env -> typ -> 'result
@@ -654,6 +660,9 @@ class ['env] map = object (self)
 
   method tyapp env head args =
     TyApp (self#visit env head, self#visit_many env args)
+
+  method typrop env ty =
+    TyProp (self#visit env ty)
 
   method tytuple env tys =
     TyTuple (self#visit_many env tys)
@@ -777,6 +786,9 @@ class ['env] iter = object (self)
   method tyapp env head args =
     self#visit env head;
     self#visit_many env args
+
+  method typrop env ty =
+    self#visit env ty
 
   method tytuple env tys =
     self#visit_many env tys
@@ -1128,6 +1140,9 @@ and equal env (t1: typ) (t2: typ) =
 
     | TyApp (t1, t'1), TyApp (t2, t'2)  ->
         equal t1 t2 && List.for_all2 equal t'1 t'2
+
+    | TyProp t1, TyProp t2 ->
+        equal t1 t2
 
     | TyTuple ts1, TyTuple ts2 ->
         List.length ts1 = List.length ts2 && List.for_all2 equal ts1 ts2

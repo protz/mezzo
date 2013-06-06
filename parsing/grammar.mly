@@ -349,7 +349,7 @@ raw_tight_type:
     { ty }
 (* An arithmetic formula. *)
 | f = formula
-    { f }
+    { TyProp f }
 
 %inline normal_type:
 | ty = tlocated(raw_normal_type)

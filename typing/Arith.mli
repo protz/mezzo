@@ -22,10 +22,6 @@
 open TypeCore
 open Derivations
 
-(** [is_arith_op env v] returns true if the variable [v] is an arithmetic
- * operator. *)
-val is_arith_op: env -> var -> bool
-
 (** [fetch_arith env] returns the list of floating permissions in [env] which
  * are arithmetic. *)
 val fetch_arith: env -> typ list

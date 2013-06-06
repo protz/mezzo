@@ -281,6 +281,7 @@ let rec get_kind_for_type env t =
 
   | TyAnchoredPermission _
   | TyEmpty
+  | TyProp _
   | TyStar _ ->
       KPerm
 
@@ -452,6 +453,7 @@ class collect (perms : typ list ref) = object (self)
     | TyOpen _
     | TyQ _
     | TyApp _
+    | TyProp _
     | TySingleton _
     | TyArrow _
     | TyEmpty
@@ -717,6 +719,9 @@ module TypePrinter = struct
 
     | TyApp (head, args) ->
         application (print_type env) head (print_type env) args
+    
+    | TyProp ty ->
+        string "TyProp(" ^^ ((print_type env) ty) ^^ string ")"
 
     | TyTuple components ->
         tuple (print_type env) components

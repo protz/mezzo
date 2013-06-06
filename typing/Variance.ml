@@ -97,6 +97,7 @@ let variance env var_for_ith valuation b t =
     | TyDynamic
     | TyLiteral _
     | TyBound _
+    | TyProp _
     | TyEmpty ->
         Bivariant
 

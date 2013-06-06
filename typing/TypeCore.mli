@@ -93,6 +93,9 @@ and typ =
   | TyQ of quantifier * type_binding * flavor * typ
   | TyApp of typ * typ list
 
+    (** Arithmetic permission. *)
+  | TyProp of typ
+
     (** Structural types. *)
   | TyTuple of typ list
   | TyConcrete of resolved_branch
@@ -435,6 +438,7 @@ class virtual ['env, 'result] visitor : object
   method virtual tyopen: 'env -> var -> 'result
   method virtual tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> 'result
   method virtual tyapp: 'env -> typ -> typ list -> 'result
+  method virtual typrop: 'env -> typ -> 'result
   method virtual tytuple: 'env -> typ list -> 'result
   method virtual tyconcrete: 'env -> resolved_branch -> 'result
   method virtual tysingleton: 'env -> typ -> 'result
@@ -461,6 +465,7 @@ class ['env] map : object
   method tyopen: 'env -> var -> typ
   method tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> typ
   method tyapp: 'env -> typ -> typ list -> typ
+  method typrop: 'env -> typ -> typ
   method tytuple: 'env -> typ list -> typ
   method tyconcrete: 'env -> resolved_branch -> typ
   method tysingleton: 'env -> typ -> typ
@@ -498,6 +503,7 @@ class ['env] iter : object
   method tyopen: 'env -> var -> unit
   method tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> unit
   method tyapp: 'env -> typ -> typ list -> unit
+  method typrop: 'env -> typ -> unit
   method tytuple: 'env -> typ list -> unit
   method tyconcrete: 'env -> resolved_branch -> unit
   method tysingleton: 'env -> typ -> unit

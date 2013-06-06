@@ -257,6 +257,7 @@ class open_all_rigid_in (env : env ref) = object (self)
     | TyBound _, _
     | TyOpen _, _
     | TyApp _, _
+    | TyProp _, _
     | TyQ (Forall, _, _, _), Left
     | TyQ (Exists, _, _, _), Right
     | TySingleton _, _
@@ -1244,7 +1245,7 @@ and sub_perm (env: env) (t: typ): result =
       try_proof "Sub-Empty" (qed env)
   | TyOpen p when is_flexible env p ->
       j_flex_inst env p TyEmpty
-  | TyApp (TyOpen v, _) when Arith.is_arith_op env v ->
+  | TyProp t ->
       (* TEMPORARY The proper check shouldn't be in the guard I guess. *)
       try_proof "Sub-Arithmetic" begin
         Arith.check env t >>=

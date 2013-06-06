@@ -123,7 +123,8 @@ and fold_type (env: env) (depth: int) (t: typ): env * typ =
       env, t
 
   | TyQ _
-  | TyApp _ ->
+  | TyApp _ 
+  | TyProp _ ->
       env, t
 
   | TySingleton (TyOpen p) ->
