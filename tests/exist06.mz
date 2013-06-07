@@ -1,11 +1,58 @@
-val foo () : (f: =x -> int, x: int) =
+(* Interestingly enough, this test is highly sensitive to the order of
+ * instantiation in flexible variables. It has broken several times in the past,
+ * and each time, swapping "k, f" with "f, k" solved it. *)
+val foo () : (x: int, f: =x -> int) =
   let k = 3 in
   let f (y: =k) : int =
     y + 1
   in
-  f, k
+  k, f
+(*
+
+The explanation is as follows:
+==============================
+
+(=f, =k) — {f : term, x : term} ((=f | f @ [/root34 : term] (=/root34 | /root34 = x) -> (int::int | /root34 = x)), (=x | x @ int::int))
+
+
+If we start on the left-hand side:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  =f — (=f* | f* @ [/root34 : term] (=/root34 | /root34 = x* ) -> (int::int | /root34 = x* ))
+  >>> Instantiating flexible #0 a.k.a. f (level=0) with f (level=0)
+
+  (...)
+
+  [/root36 : term, y : term] (=/root36 | /root36 @ (=y | y = k)) -> (int::int | /root36 @ (=y | y = k))
+    —
+  [/root34 : term] (=/root34 | /root34 = x* ) -> (int::int | /root34 = x* )
+
+  (...)
+
+  (=/root34 | /root34 = x* ) — (=/root36* | /root36* @ (=y* | y* = k))
+  >>> Instantiating flexible #2 a.k.a. /root36 (level=1) with /root34 (level=1)
+  >>> Merging /root34 (level=1) with x (level=0)
+  !! NOT instantiating !!
+    level(x* ) = 0
+    level(/root34) = 1
+
+  ========= (failure) ========
+
+If we start on the right-hand side:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  >>> Merging k (level=0) with x (level=0)
+  >>> Instantiating flexible #1 a.k.a. x (level=0) with k (level=0)
+
+  And then, no level problems because
+
+  (=/root34 | /root34 = x* ) — (=/root36* | /root36* @ (=y* | y* = k))
+
+  will succeed.
+
+*)
 
 val g : int =
-  let f, x = foo() in
+  let x, f = foo() in
   f x
 
