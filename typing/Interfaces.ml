@@ -110,7 +110,7 @@ let check
 
         (* Now translate type [t] into the internal syntax; [x] is not bound in
          * [t]. *)
-        let t = TransSurface.translate_type_with_names tsenv t in
+        let t = TransSurface.translate_type_reset tsenv t in
 
         (* Signatures now must only contain duplicable exports. *)
         if not (FactInference.is_duplicable env t) then

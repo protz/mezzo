@@ -63,16 +63,12 @@ let resolve_datacon env dref =
 
 (* -------------------------------------------------------------------------- *)
 
-(* Experimental section. *)
-
 let rec conjunction cs ty =
   match cs with
   | [] ->
       ty
   | c :: cs ->
       conjunction cs (TyAnd (c, ty))
-
-module Experimental = struct
 
 let top = function
   | KType ->
@@ -108,8 +104,8 @@ let rec translate_type env (ty : typ) : T.typ * T.typ * kind =
 
   | TyTuple tys ->
       let tys1, tys2 = MzList.split_map (fun ty ->
-	let ty1, ty2, _ = translate_type env ty
-	in ty1, ty2
+        let ty1, ty2, _ = translate_type env ty
+        in ty1, ty2
       ) tys in
       T.TyTuple tys1, T.TyTuple tys2, KType
 
@@ -128,14 +124,14 @@ let rec translate_type env (ty : typ) : T.typ * T.typ * kind =
   | TyConcrete ((dref, fields), clause) ->
       let fields1, fields2 = MzList.split_map (translate_field env) fields in
       let branch1 = {
-	T.branch_flavor = ();
-	T.branch_datacon = resolve_datacon env dref;
-	T.branch_fields = fields1;
-	T.branch_adopts = translate_adopts_clause env clause
+        T.branch_flavor = ();
+        T.branch_datacon = resolve_datacon env dref;
+        T.branch_fields = fields1;
+        T.branch_adopts = translate_adopts_clause env clause
       } in
       let branch2 = {
-	branch1 with
-	T.branch_fields = fields2
+        branch1 with
+        T.branch_fields = fields2
       } in
       T.TyConcrete branch1, T.TyConcrete branch2, KType
 
@@ -150,30 +146,11 @@ let rec translate_type env (ty : typ) : T.typ * T.typ * kind =
       twice (T.TyApp (ty1, ty2s)) kind
 
   | TyArrow (domain, codomain) ->
-      (* Bind a fresh variable to stand for the root of the function
-	 argument. Bind the names introduced in the left-hand side. *)
-      let root = fresh_var "/root" in
-      let bindings = (root, KTerm, location env) :: names domain in
-      (* Extend the environment with these bindings, so that we can
-	 translate [domain] and [codomain] and construct the body of
-	 the desired universal type. *)
-      let env = extend env bindings in
-      let root = tvar (find_variable env (Unqualified root)) in
-      (* Translate the left-hand side. We obtain [domain1], which
-	 represents the domain with the [consumed] components, and
-	 [domain2], which represents the domain without them. *)
-      let domain1, domain2, _ = translate_type env domain in
-      (* Translate the right-hand side. *)
-      let codomain, _ = translate_type_reset env codomain in
-      (* Build a translated function type. *)
-      let ty =
-	T.TyArrow (
-	  (* The domain is (=root | root @ domain1). *)
-	  T.TyBar (T.TySingleton root, T.TyAnchoredPermission (root, domain1)),
-	  (* The codomain is (codomain | root @ domain2). *)
-	  T.TyBar (codomain, T.TyAnchoredPermission (root, domain2))
-	)
+      let bindings, domain, codomain =
+        translate_arrow_type env domain codomain
       in
+      (* Build a translated function type. *)
+      let ty = T.TyArrow (domain, codomain) in
       (* Add the universal quantifiers. *)
       let ty = List.fold_right (auto_tyq T.Forall) bindings ty in
       (* Done. *)
@@ -217,6 +194,32 @@ let rec translate_type env (ty : typ) : T.typ * T.typ * kind =
   | TyImply (c, ty) ->
       translate_implication env [c] ty
 
+and translate_arrow_type env domain codomain =
+  (* Bind a fresh variable to stand for the root of the function
+     argument. Bind the names introduced in the left-hand side. *)
+  let root = fresh_var "/root" in
+  let bindings = (root, KTerm, location env) :: names domain in
+  (* Extend the environment with these bindings, so that we can
+     translate [domain] and [codomain] and construct the body of
+     the desired universal type. *)
+  let env = extend env bindings in
+  let root = tvar (find_variable env (Unqualified root)) in
+  (* Translate the left-hand side. We obtain [domain1], which
+     represents the domain with the [consumed] components, and
+     [domain2], which represents the domain without them. *)
+  let domain1, domain2, _ = translate_type env domain in
+  (* Translate the right-hand side. *)
+  let codomain, _ = translate_type_reset env codomain in
+  let domain = 
+    (* The domain is (=root | root @ domain1). *)
+    T.TyBar (T.TySingleton root, T.TyAnchoredPermission (root, domain1))
+  in
+  let codomain =
+    (* The codomain is (codomain | root @ domain2). *)
+    T.TyBar (codomain, T.TyAnchoredPermission (root, domain2))
+  in
+  bindings, domain, codomain
+
 and translate_type_reset env ty : T.typ * kind =
   (* Gather and bind the names introduced within [ty]. *)
   let bindings = names ty in
@@ -227,6 +230,9 @@ and translate_type_reset env ty : T.typ * kind =
   (* Build a series of existential quantifiers. *)
   let ty = List.fold_right (auto_tyq T.Exists) bindings ty in
   ty, kind
+
+and translate_type_reset_no_kind env t : T.typ =
+  fst (translate_type_reset env t)
 
 and translate_field env = function
   | FieldValue (f, ty) ->
@@ -241,8 +247,7 @@ and translate_adopts_clause env = function
   | None ->
       T.ty_bottom
   | Some ty ->
-      let ty, _ = translate_type_reset env ty in
-      ty
+      translate_type_reset_no_kind env ty
 
 (* TEMPORARY merge TyForall/TyExists in the surface syntax *)
 and translate_quantified_type env q binding ty =
@@ -252,8 +257,7 @@ and translate_quantified_type env q binding ty =
   twice ty kind
 
 and translate_mode_constraint env (m, ty) =
-  let ty, _ = translate_type_reset env ty in
-  m, ty
+  m, translate_type_reset_no_kind env ty
 
 and translate_implication env (cs : mode_constraint list) = function
   | TyArrow (ty1, ty2) ->
@@ -270,240 +274,10 @@ and translate_implication env (cs : mode_constraint list) = function
       translate_implication env cs ty
   | _ ->
       implication_only_on_arrow env
-
-end
 
 (* -------------------------------------------------------------------------- *)
 
-let rec flatten_star p =
-  match p with
-  | TyStar (t1, t2) ->
-      flatten_star t1 @ flatten_star t2
-  | TyEmpty ->
-      []
-  | TyVar _
-  | TyConsumes _
-  | TyAnchoredPermission _
-  | TyApp _ ->
-      [p]
-  | TyLocated (p, _) ->
-      flatten_star p
-  | _ as p ->
-      Log.error "[flatten_star] only works for types with kind PERM (%a)"
-        Utils.ptag p
-;;
-
-let fold_star perms =
-  if List.length perms > 0 then
-    MzList.reduce (fun acc x -> TyStar (acc, x)) perms
-  else
-    TyEmpty
-;;
-
-
-(* [strip_consumes env t] removes all the consumes annotations from [t]. A
-   [consumes t] annotation is replaced by [=c] with [c] fresh, as well as
-   [c @ t] at top-level. The function returns:
-   - [t] without its consumes annotations
-   - the list of fresh names such as [c]
-   - the list of permissions such as [c @ t].
-*)
-let strip_consumes (env: env) (t: typ): typ * type_binding list * typ list =
-  (* I don't think it's worth having a tail-rec function here... this internal
-   * function returns pairs of [name * typ], except that permissions that are
-   * marked as [consumes] do not allocate a fresh name, so they have no
-   * associated name, hence the [Variable.name option]. *)
-  let rec strip_consumes (env: env) (t: typ): typ * (Variable.name option * typ * T.location) list  =
-    match t with
-    | TyLocated (t, p) ->
-        (* Keep the location information, may be useful later on. *)
-        let env = locate env p in
-        let t, acc = strip_consumes env t in
-        TyLocated (t, p), acc
-
-    | TyTuple ts ->
-        let ts, accs = MzList.split_map (strip_consumes env) ts in
-        TyTuple ts, List.flatten accs
-
-    | TyConcrete ((datacon, fields), clause) ->
-        let accs, fields = List.fold_left (fun (accs, fields) field ->
-          match field with
-          | FieldPermission _ ->
-              (accs, field :: fields)
-          | FieldValue (name, t) ->
-              let t, acc = strip_consumes env t in
-              (acc :: accs, FieldValue (name, t) :: fields)
-        ) ([], []) fields in
-        let fields = List.rev fields in
-        let acc = List.flatten accs in
-        TyConcrete ((datacon, fields), clause), acc
-
-    | TyNameIntro (x, t) ->
-        let t, acc = strip_consumes env t in
-        TyNameIntro (x, t), acc
-
-    | TyAnd (c, t) ->
-        let t, acc = strip_consumes env t in
-        TyAnd (c, t), acc
-
-    | TyBar (t, p) ->
-        (* Strip all consumes annotations from [t]. *)
-        let t, acc = strip_consumes env t in
-        (* Get the permissions contained in [p] as a list. *)
-        let perms = flatten_star p in
-        (* Some of them are consumed, and should be returned in the accumulator
-         * of consumed permissions. Others are kept. *)
-        let consumed, kept =
-          List.partition (function TyConsumes _ -> true | _ -> false) perms
-        in
-        let consumed =
-          List.map (function TyConsumes p -> None, p, location env | _ -> assert false) consumed
-        in
-        let p = fold_star kept in
-        (* Minimal cleanup. *)
-        (if List.length kept > 0 then TyBar (t, p) else t),
-        acc @ consumed
-
-    | TyConsumes t ->
-        let name = fresh_var "/c" in
-        let c = TyVar (Unqualified name) in
-        let perm = TyAnchoredPermission (c, t) in
-       TySingleton c,
-        [Some name, perm, location env]
-
-    | TyUnknown
-    | TyDynamic
-    | TyVar _
-    | TySingleton _
-    (* These are opaque, no consumes annotations inside of these. *)
-    | TyForall _
-    | TyExists _
-    | TyImply _
-    | TyApp _
-    | TyArrow _ ->
-        t, []
-
-    (* Permissions *)
-    | TyAnchoredPermission _
-    | TyEmpty
-    | TyStar _ ->
-        Log.error "[KindCheck] made sure there are no unwanted permissions here, and \
-          the right-hand side of a [TyBar] gets a special treatment in [TyBar]."
-
-  in
-  let t, name_perms = strip_consumes env t in
-  let names, perms, locations = MzList.split3 name_perms in
-  let bindings = MzList.map_some (function
-    | Some x, loc ->
-        Some (x, KTerm, loc)
-    | None, _ ->
-        None
-
-  ) (List.combine names locations) in
-  t, bindings, perms
-;;
-
-let rec translate_type (env: env) (t: typ): T.typ =
-  match t with
-  | TyLocated (t, p) ->
-      translate_type (locate env p) t
-
-  | TyTuple ts ->
-      T.TyTuple (List.map (translate_type env) ts)
-
-  | TyUnknown ->
-      T.TyUnknown
-
-  | TyDynamic ->
-      T.TyDynamic
-
-  | TyEmpty ->
-      T.TyEmpty
-
-  | TyVar x ->
-      tvar (find_variable env x)
-
-  | TyConcrete ((dref, fields), clause) ->
-      T.TyConcrete {
-       T.branch_flavor = ();
-       T.branch_datacon = resolve_datacon env dref;
-       T.branch_fields = translate_fields env fields;
-       T.branch_adopts =
-         match clause with
-         | None    -> TypeCore.ty_bottom
-         | Some ty -> translate_type env ty
-      }
-
-  | TySingleton t ->
-      T.TySingleton (translate_type env t)
-
-  | TyApp (t, ts) ->
-      T.TyApp (translate_type env t, List.map (translate_type_with_names env) ts)
-
-  | TyArrow (t1, t2) ->
-      let universal_bindings, t1, t2 = translate_arrow_type env t1 t2 in
-      let arrow = T.TyArrow (t1, t2) in
-      Types.fold_forall universal_bindings arrow
-
-  | TyForall (binding, t) ->
-      let env = extend env [ binding ] in
-      T.TyQ (T.Forall, name_user env binding, UserIntroduced, translate_type_with_names env t)
-
-  | TyExists (binding, t) ->
-      let env = extend env [ binding ] in
-      T.TyQ (T.Exists, name_user env binding, UserIntroduced, translate_type_with_names env t)
-
-  | TyAnchoredPermission (t1, t2) ->
-      T.TyAnchoredPermission (translate_type env t1, translate_type env t2)
-       (* TEMPORARY should be translate_type_with_names on the right-hand side,
-          but that causes a large number of failures (why?). *)
-
-  | TyStar (t1, t2) ->
-      T.TyStar (translate_type env t1, translate_type env t2)
-
-  | TyNameIntro (x, t) ->
-      (* [x: t] translates into [(=x | x@t)] -- with [x] bound somewhere above
-         us. *)
-      let x = tvar (find_variable env (Unqualified x)) in
-      T.TyBar (
-        T.TySingleton x,
-        T.TyAnchoredPermission (x, translate_type env t)
-      )
-
-  | TyConsumes _ ->
-      (* These should've been removed by [strip_consumes]. *)
-      assert false
-
-  | TyBar (t1, t2) ->
-      T.TyBar (translate_type env t1, translate_type env t2)
-
-  | TyAnd (c, t) ->
-      T.TyAnd (translate_constraint env c, translate_type env t)
-
-  | TyImply (c, ty) ->
-      translate_implication env [c] ty
-
-and translate_implication env (cs : mode_constraint list) = function
-  | TyArrow (ty1, ty2) ->
-      (* An implication above an arrow is turned into a conjunction in
-        the left-hand side of the arrow. This is done on the fly, just
-        before the translation, as a rewriting of the surface syntax to
-        itself. (Doing it just after the translation would be more
-        problematic, as the translation of arrows introduces quantifiers.) *)
-      translate_type env (TyArrow (conjunction cs ty1, ty2))
-  | TyImply (c, ty) ->
-      (* Multiple implications above an arrow are allowed. *)
-      translate_implication env (c :: cs) ty
-  | TyLocated (ty, _) ->
-      translate_implication env cs ty
-  | _ ->
-      implication_only_on_arrow env
-
-and translate_constraint env (m, t) =
-  (* There was a check that [t] is [TyBound _], but I have removed it. *)
-  m, translate_type env t
-
-and translate_data_type_def_branch
+let rec translate_data_type_def_branch
     (env: env)
     (flavor: DataTypeFlavor.flavor)
     (adopts: typ option)
@@ -522,94 +296,16 @@ and translate_adopts env (adopts : typ option) =
   | None ->
       TypeCore.ty_bottom
   | Some t ->
-      translate_type_with_names env t
+      translate_type_reset_no_kind env t
 
 and translate_fields env fields =
   List.map (function
     | FieldValue (name, t) ->
-        T.FieldValue (name, translate_type_with_names env t)
+        T.FieldValue (name, translate_type_reset_no_kind env t)
     | FieldPermission t ->
-        T.FieldPermission (translate_type env t)
+        let t, _, _ = translate_type env t in
+        T.FieldPermission t
   ) fields
-
-and translate_arrow_type env t1 t2 =
-
-  (* Collect nested constraints and put them in an outermost position to
-   * simplify as much as possible the function type. *)
-  (* TEMPORARY I do not understand why several tests fail if I remove
-     the three lines of the [TyAnd] case below? *)
-  let rec collect_constraints t =
-    match t with
-    | TyAnd (c, t) ->
-        let cs', t = collect_constraints t in
-        c :: cs', t
-    | _ ->
-        [], t
-  in
-
-  let constraints, t1 = collect_constraints t1 in
-
-  (* Get the implicitly quantified variables in [t1]. These will be
-     quantified as universal variables above the arrow type. *)
-  let t1_bindings = names t1 in
-
-  (* This is the procedure that removes the consumes annotations. It is
-   * performed in the surface syntax. The first step consists in carving out
-   * the [consumes] annotations, replacing them with [=c]. *)
-  let t1, perm_bindings, perms = strip_consumes env t1 in
-
-  (* Now we give a name to [t1] so that we can speak about the argument in
-   * the returned type. Note: this variable name is not lexable, so no risk
-   * of conflict. *)
-  let root = fresh_var "/root" in
-  let root_binding = root, KTerm, location env in
-  let root_var = TyVar (Unqualified root) in
-
-  (* We now turn the argument into (=root | root @ t1 ∗ c @ … ∗ …) with [t1]
-   * now devoid of any consumes annotations. *)
-  let fat_t1 = TyBar (
-    TySingleton root_var,
-    fold_star (TyAnchoredPermission (root_var, t1) :: perms)
-  ) in
-
-  (* So that we don't mess up, we use unique names in the surface syntax and
-   * let the translation phase do the proper index computations. *)
-  let universal_bindings = t1_bindings @ perm_bindings @ [root_binding] in
-  let env = extend env universal_bindings in
-  let fat_t1 =
-    List.fold_left (fun t c -> TyAnd (c, t)) fat_t1 constraints
-  in
-  let fat_t1 = translate_type env fat_t1 in
-
-
-  (* We need to return the original permission on [t1], minus the components
-   * that were consumed: these have been carved out of [t1] by
-   * [strip_consumes]. *)
-  let t2 = TyBar (
-    t2,
-    TyAnchoredPermission (root_var, t1)
-  ) in
-
-  (* The return type can also bind variables with [x: t]. These are
-   * existentially quantified. *)
-  let t2 = translate_type_with_names env t2 in
-
-  (* Finally, translate the universal bindings as well. *)
-  let universal_bindings =
-    List.map (name_user env) t1_bindings @
-    List.map name_auto perm_bindings @
-    List.map name_auto [root_binding]
-  in
-  let universal_bindings = List.map (fun x -> x, AutoIntroduced) universal_bindings in
-  universal_bindings, fat_t1, t2
-
-and translate_type_with_names (env: env) (t: typ): T.typ =
-  let bindings = names t in
-  let env = extend env bindings in
-  let t = translate_type env t in
-  let t = Types.fold_exists (List.map (fun binding -> name_user env binding, UserIntroduced) bindings) t in
-    (* TEMPORARY these bindings are not user-introduced? *)
-  t
 
 ;;
 
@@ -694,10 +390,9 @@ let translate_data_type_def (env : env) (def : data_type_def) =
   | Abbrev t ->
       (* Same remarks for fact/variance as with the Concrete case. *)
       let fact = Fact.bottom in
-      let t = translate_type_with_names env t in
       T.({ data_name = name;
         data_location = loc;
-        data_definition = Abbrev t;
+        data_definition = Abbrev (translate_type_reset_no_kind env t);
         data_variance = variance;
         data_fact = fact;
         data_kind = kind
@@ -849,7 +544,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   match expr with
   | EConstraint (e, t) ->
       let e = translate_expr env e in
-      let t = translate_type_with_names env t in
+      let t = translate_type_reset_no_kind env t in
       E.EConstraint (e, t)
 
   | EVar x ->
@@ -877,11 +572,10 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
         translate_arrow_type env arg return_type
       in
 
-      (* TEMPORARY very weird! *)
-      (* Introduce all other bindings in scope *)
-      let env = List.fold_left (fun env -> function
-        | ((T.Auto x, k, _), _) | ((T.User (_, x), k, _), _) -> extend env [(x, k, dummy_loc)]
-      ) env universal_bindings in
+      (* Introduce all other bindings in scope: these will end up in the
+       * EBigLambdas, so they must be introduced before translating the function
+       * body. *)
+      let env = extend env universal_bindings in
 
       (* Introduce a fresh name for the argument. *)
       let x = fresh_var "/arg" in
@@ -897,6 +591,10 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
 
       (* Build a little lambda. *)
       let body = E.ELambda (arg, return_type, body) in
+
+      (* All universal bindings returned by [translate_arrow_type] are
+       * auto-introduced universal bindings at kind [term]. *)
+      let universal_bindings = List.map (fun binding -> name_auto binding, AutoIntroduced) universal_bindings in
 
       (* Build big Lambdas. *)
       E.EBigLambdas (vars @ universal_bindings, body)
@@ -919,7 +617,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       E.EAccess (e, f)
 
   | EAssert t ->
-      let t = translate_type env t in
+      let t, _, _ = translate_type env t in
       E.EConstraint (E.e_unit, T.TyBar (Types.ty_unit, t))
 
   | EApply (e1, e2) ->
@@ -930,7 +628,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   | ETApply (e1, ts) ->
       let e1 = translate_expr env e1 in
       let ts = List.map (fun t ->
-        map_tapp (translate_type_with_names env) t,
+        map_tapp (translate_type_reset_no_kind env) t,
         KindCheck.infer_reset env (strip_tapp t)
       ) ts in
       List.fold_left (fun e (t, k) -> E.ETApply (e, t, k)) e1 ts
@@ -1095,10 +793,10 @@ and translate_patexprs
   let expressions, annotations = match flag with
     | Recursive ->
         List.map (translate_expr sub_env) expressions,
-        List.map (translate_type_with_names sub_env) annotations
+        List.map (translate_type_reset_no_kind sub_env) annotations
     | Nonrecursive ->
         List.map (translate_expr env) expressions,
-        List.map (translate_type_with_names env) annotations
+        List.map (translate_type_reset_no_kind env) annotations
   in
   (* Turn them into constrainted expressions if need be. *)
   let expressions = List.map2 (fun expr annot ->
@@ -1130,7 +828,7 @@ let translate_item env item =
       let item = E.ValueDefinitions (loc, flag, pat_exprs) in
       env, Some item
   | ValueDeclaration ((x, _, _) as binding, ty) ->
-      let ty = translate_type_with_names env ty in
+      let ty = translate_type_reset_no_kind env ty in
       let env = extend env [ binding ] in
       env, Some (E.ValueDeclaration (x, ty))
   | OpenDirective mname ->
@@ -1156,3 +854,5 @@ let translate_implementation (env: env) (program: toplevel_item list): E.impleme
  * into scope. *)
 let translate_interface (env: env) (program: toplevel_item list): E.interface =
   translate_items env program
+
+let translate_type_reset = translate_type_reset_no_kind
