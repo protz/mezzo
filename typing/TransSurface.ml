@@ -214,10 +214,12 @@ and translate_arrow_type env domain codomain =
     (* The domain is (=root | root @ domain1). *)
     T.TyBar (T.TySingleton root, T.TyAnchoredPermission (root, domain1))
   in
+  let domain = Hoist.hoist TypeCore.empty_env domain in
   let codomain =
     (* The codomain is (codomain | root @ domain2). *)
     T.TyBar (codomain, T.TyAnchoredPermission (root, domain2))
   in
+  let codomain = Hoist.hoist TypeCore.empty_env codomain in
   bindings, domain, codomain
 
 and translate_type_reset env ty : T.typ * kind =
