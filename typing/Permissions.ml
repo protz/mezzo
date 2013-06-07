@@ -965,7 +965,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
         (* We perform implicit eta-expansion, so again, non-linear context (we're
          * under an arrow). *)
-        let sub_env = keep_only_duplicable env in
+        let clean_env = keep_only_duplicable env in
 
         (* 2) Let us compare the domains... any kind of information that we
          * learn at this stage will be made available in the codomain. So it's
@@ -974,24 +974,28 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         Log.debug ~level:4 "%sArrow / Arrow, left%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        sub_type sub_env t'1 t1 >>= fun sub_env ->
-
-        (* 3b) Now check facts! *)
-        Log.debug ~level:4 "%sArrow / Arrow, facts%s"
-          Bash.colors.Bash.red
-          Bash.colors.Bash.default;
-        sub_constraints sub_env constraints >>= fun sub_env ->
+        sub_type clean_env t'1 t1 >>= fun domain_env ->
 
         (* 3) And let us compare the codomains... *)
         Log.debug ~level:4 "%sArrow / Arrow, right%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        sub_type sub_env t2 t'2 >>= fun sub_env ->
+        sub_type domain_env t2 t'2 >>= fun codomain_env ->
+
+        (* 3b) And now, check that the facts in the domain are satisfied. We do
+         * this just now, because the codomain may have performed flexible
+         * variable instantiations. However, the codomain may also have brought
+         * us some hypotheses which we are not allowed to use! This is tricky. *)
+        Log.debug ~level:4 "%sArrow / Arrow, facts%s"
+          Bash.colors.Bash.red
+          Bash.colors.Bash.default;
+        let fact_env = import_flex_instanciations domain_env codomain_env in
+        sub_constraints fact_env constraints >>= fun final_env ->
 
         Log.debug ~level:4 "%sArrow / End -- adding back permissions%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        qed (import_flex_instanciations env sub_env)
+        qed (import_flex_instanciations env final_env)
       end
 
   | TyBar _, TyBar _ ->

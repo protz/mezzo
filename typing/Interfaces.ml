@@ -120,12 +120,12 @@ let check
          * has the same type as the one in the interface. *)
         let point = KindCheck.find_nonlocal_variable exports x in
         let env =
-          match Derivations.drop_derivation (Permissions.sub env point t) with
-          | Some env ->
+          match Permissions.sub env point t with
+          | Some env, _ ->
               env
-          | None ->
+          | None, d ->
               let open TypeErrors in
-              raise_error env (NoSuchTypeInSignature (point, t))
+              raise_error env (NoSuchTypeInSignature (point, t, d))
         in
 
         (* Alright, [x] is now bound, and when it appears afterwards, it will
