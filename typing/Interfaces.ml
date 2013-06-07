@@ -112,6 +112,10 @@ let check
          * [t]. *)
         let t = TransSurface.translate_type_with_names tsenv t in
 
+        (* Signatures now must only contain duplicable exports. *)
+        if not (FactInference.is_duplicable env t) then
+          TypeErrors.(raise_error env (ExportNotDuplicable x));
+
         (* Now check that the point in the implementation's environment actually
          * has the same type as the one in the interface. *)
         let point = KindCheck.find_nonlocal_variable exports x in

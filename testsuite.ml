@@ -777,11 +777,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("modules/equations_in_mzi.mz", pass);
 
-  ("modules/altersig.mz",
-    simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
-
-  ("modules/altersig2.mz",
-    simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
+  ("modules/export_nondup.mz",
+    simple_test (Fail (function ExportNotDuplicable _ -> true | _ -> false)));
 
   ("missing-export.mz", kfail);
 
@@ -992,7 +989,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("ghost00.mz", kfail);
   ("ifthen-bug.mz", pass);
   ("magic-map.mz", pass);
-  ("exist-name-conflict.mz", fail_known_failure);
+  ("exist-name-conflict.mz", pass);
   ("assert-point.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to

@@ -59,6 +59,7 @@ and raw_error =
   | NoSuchTypeInSignature of var * typ
   | DataTypeMismatchInSignature of Variable.name * string
   | VarianceAnnotationMismatch
+  | ExportNotDuplicable of Variable.name
 
 exception TypeCheckerError of error
 
@@ -415,6 +416,10 @@ let print_error buf (env, raw_error) =
         reason
   | VarianceAnnotationMismatch ->
       bprintf "The variance annotations do not match the inferred ones"
+  | ExportNotDuplicable v ->
+      bprintf "This module exports variable %a with a non-duplicable type, \
+          this is no longer allowed"
+        Variable.p v
 ;;
 
 let html_error error =

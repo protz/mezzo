@@ -55,6 +55,7 @@ type raw_error =
   | NoSuchTypeInSignature of var * typ
   | DataTypeMismatchInSignature of Variable.name * string
   | VarianceAnnotationMismatch
+  | ExportNotDuplicable of Variable.name
 
 (** This function raises an exception that will be later on catched in
  * {!Driver}. *)
