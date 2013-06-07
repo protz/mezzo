@@ -39,11 +39,8 @@ let print_judgement env = function
   | JSubConstraint c ->
       words "satisfy" ^^^ print_constraint env c
   | JSubConstraints cs ->
-      if List.length cs > 0 then
-        let cs = List.map (print_constraint env) cs in
-        words "satisfy" ^^^ english_join cs
-      else
-        empty
+      let cs = List.map (print_constraint env) cs in
+      words "satisfy" ^^^ english_join cs
   | JEqual (t1, t2) ->
       words "prove equality:" ^^^
       print_type env t1 ^^^ equals ^^^ print_type env t2
