@@ -672,7 +672,7 @@ and sub (env: env) (var: var) ?no_singleton (t: typ): result =
 
 and sub_constraint env c : result =
   let mode, t = c in
-  try_proof env (JSubConstraint c) "Constraint" begin
+  try_proof env (JSubConstraint c) "Constraints" begin
     (* [t] can be any type; for instance, if we have
      *  f @ [a] (duplicable a) ⇒ ...
      * then, when "f" is instantiated, "a" will be replaced by anything...
@@ -680,12 +680,10 @@ and sub_constraint env c : result =
     if FactInference.has_mode mode env t then qed env else fail
   end
 
-and sub_constraints env cs : result =
-  try_proof env (JSubConstraints cs) "Constraints" (
-    premises env (List.map (fun c env ->
-      sub_constraint env c
-    ) cs)
-  )
+and sub_constraints env cs : state =
+  premises env (List.map (fun c env ->
+    sub_constraint env c
+  ) cs)
 
 (** When comparing "list (a, b)" with "list (a*, b* )" you need to compare the
  * parameters, but for that, unfolding first is a good idea. This is one of the
@@ -986,20 +984,16 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         Log.debug ~level:4 "%sArrow / Arrow, facts%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        sub_constraints sub_env constraints >>= fun sub_env ->
+        sub_constraints sub_env constraints >>~ fun sub_env ->
 
         Log.debug ~level:4 "%sArrow / End -- adding back permissions%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        qed (import_flex_instanciations env sub_env)
+        import_flex_instanciations env sub_env
       end
 
   | TyBar _, TyBar _ ->
       try_proof_root "Bar-Vs-Bar" begin
-        (* Think about constraints! *)
-        let c1, t1 = Hoist.extract_constraints env (Hoist.hoist env t1) in
-        let c2, t2 = Hoist.extract_constraints env (Hoist.hoist env t2) in
-
         (* Unless we do this, we can't handle (t|p) - (t|p|p') properly. *)
         let t1, ps1 = collect t1 in
         let t2, ps2 = collect t2 in
@@ -1014,9 +1008,6 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
          * removing all of [p2]. However, the order in which we perform these
          * operations matters, unfortunately. *)
         Log.debug ~level:4 "[add_sub] entering...";
-
-        (* Assume the constraints we have ASAP. *)
-        let env = List.fold_left FactInference.assume env c1 in
 
         (*  All these manipulations are required when doing higher-order, because
          * we need to compare function types, and function types have complicated
@@ -1129,9 +1120,6 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
           apply_axiom env (JDebug (fold_star ps1, fold_star ps2)) "Remaining-Add-Sub" env >>= fun env ->
 
-          (* Subtract the constraints now. Maybe later would be better? *)
-          sub_constraints env c2 >>= fun env ->
-
           (* And then try to be smart with whatever remains. *)
           match ps1, ps2 with
           | [TyOpen var1 as t1], [TyOpen var2 as t2] ->
@@ -1201,7 +1189,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                 TypePrinter.ptype (env, fold_star ps1_flex)
                 TypePrinter.ptype (env, fold_star ps2);
               sub_perms env ps2
-          end (* end match *)
+          end
         end
       end
 

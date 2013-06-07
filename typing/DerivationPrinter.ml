@@ -38,9 +38,6 @@ let print_judgement env = function
       words "subtract floating permission" ^^^ print_type env t
   | JSubConstraint c ->
       words "satisfy" ^^^ print_constraint env c
-  | JSubConstraints cs ->
-      let cs = List.map (print_constraint env) cs in
-      words "satisfy" ^^^ english_join cs
   | JEqual (t1, t2) ->
       words "prove equality:" ^^^
       print_type env t1 ^^^ equals ^^^ print_type env t2

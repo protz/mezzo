@@ -44,7 +44,6 @@ and judgement =
   | JSubPerm of typ
   | JSubFloating of typ
   | JSubConstraint of mode_constraint
-  | JSubConstraints of mode_constraint list
   | JEqual of typ * typ
   | JLt of typ * typ
   | JGt of typ * typ
