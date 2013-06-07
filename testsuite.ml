@@ -777,11 +777,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("modules/equations_in_mzi.mz", pass);
 
-  ("modules/altersig.mz",
-    simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
-
-  ("modules/altersig2.mz",
-    simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
+  ("modules/export_nondup.mz",
+    simple_test (Fail (function ExportNotDuplicable _ -> true | _ -> false)));
 
   ("missing-export.mz", kfail);
 
@@ -992,6 +989,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("ghost00.mz", kfail);
   ("ifthen-bug.mz", pass);
   ("magic-map.mz", pass);
+  ("exist-name-conflict.mz", pass);
+  ("assert-point.mz", pass);
   
   ("arith1.mz", pass);
   ("arith2.mz", pass);
@@ -1001,6 +1000,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("landin.mz", fun _ -> raise KnownFailure);
   ("landin-variant.mz", fun _ -> raise KnownFailure);
   ("cyclic-list.mz", fun _ -> raise KnownFailure);
+  ("diverge.mz", fun _ -> raise KnownFailure);
 ];;
 
 let mz_files_in_directory (dir : string) : string list =

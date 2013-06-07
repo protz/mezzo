@@ -27,7 +27,7 @@ configure.ml: configure
 
 parsing/Keywords.ml: parsing/Keywords parsing/KeywordGenerator.ml
 	ocaml parsing/KeywordGenerator.ml < $< > $@
-	if [ -d ../misc/pygments/mezzolexer ] ; \
+	if [ -d ../misc/pygments/mezzolexer ] ; then \
 	  ocaml parsing/KeywordPygments.ml < $< > ../misc/pygments/mezzolexer/mezzokeywords.py ; \
 	fi
 

@@ -1,0 +1,6 @@
+val f(i: int, j: int | i @ =j) : () =
+  ()
+
+val g() : () =
+  (* The type-checker diverges on this call. *)
+  f (0, 0)

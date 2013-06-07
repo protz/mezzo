@@ -1351,7 +1351,15 @@ let get_exports env mname =
     ) acc names
   ) []
 
-(* Get all the names NOT from the current module found in [env]. *)
+(* Get all the names NOT from the current module found in [env].
+l
+   TEMPORARY: this function has several bugs^Wshortcomings:
+   - a function with type "val m::f: (x: int, y: int) -> ...", when called, will
+     bind names "x" and "y" as belonging to "m", meaning they will be returned
+     by this function;
+   - existentially-quantified names from other modules, when opened repeatedly,
+     share the same name, so they get exported twice...
+*)
 let get_external_names env =
   let mname = module_name env in
   internal_fold env (fun acc point ({ names; kind; _ }, _) ->

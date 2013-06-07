@@ -1,2 +1,0 @@
-val foobar =
-  exportref::x := (1, 2)
