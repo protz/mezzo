@@ -354,7 +354,7 @@ let rec unify (env: env) (p1: var) (p2: var): env =
     | None ->
         (* So far, only happens when subtracting the context-provided type from
          * the return type of a function. *)
-        raise UnboundPoint
+        env
 
 and keep_only_duplicable env =
   let env = fold_terms env (fun env var permissions ->
@@ -1046,6 +1046,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         let rec add_sub env ps1 ps2 k: state =
           match MzList.take_bool (works_for_add env) ps1 with
           | Some (ps1, p1) ->
+              Log.debug "About to add %a"
+                TypePrinter.ptype (env, p1);
               let sub_env = add_perm env p1 in
               apply_axiom env (JAdd p1) "Add-Sub-Add" sub_env >>= fun env ->
               add_sub env ps1 ps2 k

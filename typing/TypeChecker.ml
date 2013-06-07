@@ -148,16 +148,14 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
     match annot with
     | Some annot ->
         Log.debug ~level:5 "[sub-annot]";
-        begin try
+        begin 
           let sub_env = env in
           match Permissions.sub_type sub_env t2 annot |> drop_derivation with
           | Some sub_env ->
               Log.debug ~level:5 "[sub-annot SUCCEEDED]";
               import_flex_instanciations env sub_env
-          | None -> env
-        with UnboundPoint ->
-          Log.debug ~level:5 "[sub-annot FAILED]";
-          env
+          | None ->
+              env
         end
     | None ->
         env
