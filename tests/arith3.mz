@@ -1,0 +1,14 @@
+val f (i: int | {i = 0}) : () = ()
+val g (i: int | {i <> 0}) : () = ()
+val h (i: int | {i < 0}) : () = g i
+val j (i: int | {i <= 0}) : () = ()
+val k (i: int | {i > 0}) : () = g i
+val l (i: int | {i >= 0}) : () = ()
+
+val m (i: int) : () =
+  if i = 0 then f i else g i;
+  if i <> 0 then g i else f i;
+  if i < 0 then h i else l i;
+  if i >= 0 then l i else h i;
+  if i <= 0 then j i else k i;
+  if i > 0 then k i else j i

@@ -1,0 +1,13 @@
+val f (i: int | {i >= 0}): () = ()
+
+val g (i: int | {i <= 0}): () = ()
+
+val h (i: int | {i = 0}): () = ()
+
+val m (i: int, j: int) : () =
+  let k = -i in
+  f (max (i, k));
+  g (min (i, k));
+  h (i + k);
+  let l = (max (i, j)) - (min (i, j)) in
+  f l
