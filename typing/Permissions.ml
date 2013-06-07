@@ -260,8 +260,8 @@ class open_all_rigid_in (env : env ref) = object (self)
     | TyQ (Exists, _, _, _), Right
     | TySingleton _, _
     | TyArrow _, Left
-    | TyEmpty, _
-       -> ty
+    | TyEmpty, _ ->
+        ty
 
     (* A universal quantifier on the right-hand side gives rise to a rigid
        variable. The type environment is extended. The quantifier disappears.
@@ -269,7 +269,7 @@ class open_all_rigid_in (env : env ref) = object (self)
 
     | TyQ (Forall, binding, _, ty), Right
     | TyQ (Exists, binding, _, ty), Left ->
-        let new_env, ty, _ = bind_rigid_in_type !env binding ty in
+       let new_env, ty, _ = bind_rigid_in_type !env binding ty in
        env := new_env;
        self#visit (side, false) ty
 
@@ -290,20 +290,24 @@ class open_all_rigid_in (env : env ref) = object (self)
        changes only from [Right] to [Left]. *)
 
     | TyArrow (ty1, ty2), Right ->
-        let ty1 = self#visit (Left, false) ty1 in
+       let ty1 = self#visit (Left, false) ty1 in
        TyArrow (ty1, ty2)
 
     (* We descend into the following constructs. *)
 
     | TyTuple _, _
-      -> super#visit (side, true) ty
+    | TyConcrete _, _ ->
+        super#visit (side, true) ty
         (* Setting [deconstructed] to [true] forces the fields to
           become named with a point, if they weren't already. *)
 
     | TyBar _, _
-    | TyStar _, _
-    | TyConcrete _, _
-      -> super#visit (side, false) ty
+        (* I feel like, just like we're descending into the right-hand side of
+         * "x @ t", we should descend into "t" inside "(t|P)". What about the
+         * rigid variables contained in "(int, int) | P"? However, doing this
+         * causes several failures... *)
+    | TyStar _, _ ->
+        super#visit (side, false) ty
 
     (* We descend into the right-hand side of [TyAnchoredPermission] and [TyAnd]. *)
 
