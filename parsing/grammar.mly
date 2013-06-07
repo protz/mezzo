@@ -347,7 +347,7 @@ raw_tight_type:
 | ty = type_type_application(tight_type, atomic_type)
     { ty }
 (* An arithmetic formula. *)
-| LBRACE f = formula RBRACE
+| LBRACE f = non_atomic_formula RBRACE
     { TyProp f }
 
 %inline normal_type:
@@ -454,11 +454,15 @@ raw_fat_type:
   ty = fat_type
     { ty }
 
-formula:
-| e1 = formula_expr o = infix_operator e2 = formula_expr
+non_atomic_formula:
+| e1 = atomic_formula o = infix_operator e2 = atomic_formula
     { TyApp (TyVar (Unqualified (Variable.register ("~"^o))), [e1; e2]) }
 
-formula_expr:
+atomic_formula:
+| LPAREN f = non_atomic_formula RPAREN
+    { f }
+| f = non_atomic_formula
+    { f }
 | x = variable
     { TyVar (Unqualified x) } 
 | i = INT
