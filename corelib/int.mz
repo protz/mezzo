@@ -5,8 +5,8 @@ fact duplicable int
 
 (* Primitive arithmetic operations on integers. *)
 
-val ( + ) : (int, int) -> int = builtin _mz_iadd
-val ( - ) : (int, int) -> int = builtin _mz_isub
+val ( + ) : (x: int, y: int) -> (z: int | {z = x + y}) = builtin _mz_iadd
+val ( - ) : (x: int, y: int) -> (z: int | {z = x - y}) = builtin _mz_isub
 val ( * ) : (int, int) -> int = builtin _mz_imul
 val ( / ) : (int, int) -> int = builtin _mz_idiv
 

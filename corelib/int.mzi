@@ -5,8 +5,8 @@ fact duplicable int
 
 (* Primitive arithmetic operations on integers. *)
 
-val ( + ) : (int, int) -> int
-val ( - ) : (int, int) -> int
+val ( + ) : (x: int, y: int) -> (z: int | {z = x + y})
+val ( - ) : (x: int, y: int) -> (z: int | {z = x - y})
 val ( * ) : (int, int) -> int
 val ( / ) : (int, int) -> int
 

@@ -45,7 +45,8 @@ val () =
   (* Freeze the whole array *)
   transform (Up, tab, fun (_: int, consumes s: mstring) : istring = freeze s; s);
   (* Sort again line by line *)
-  transform(Up, tab, fun (_: int, s: istring) : istring = sorted ((-), s));
+  (* WISH we could just call (-) without wrapping it. *)
+  transform(Up, tab, fun (_: int, s: istring) : istring = sorted ((fun (x: int, y: int) : int = x - y), s));
   (* Check that all lines are the same *)
   let r : istring = alphabet_from 97 in
   let b = fold (Up, tab, true, fun (s: istring, b: bool) : bool = b && eq (r, s)) in

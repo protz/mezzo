@@ -1,3 +1,7 @@
+abstract ( ~+ ) (x: term) (y: term) : term
+abstract ( ~- ) (x: term) (y: term) : term
+
+
 abstract ( ~= ) (x: term) (y: term) : perm
 abstract ( ~<> ) (x: term) (y: term) : perm
 abstract ( ~< ) (x: term) (y: term) : perm
