@@ -148,6 +148,8 @@ maybe_qualified(X):
 %inline maybe_qualified_type_variable:
   x = maybe_qualified(variable)
     { TyVar x }
+| i = INT
+    { TyLiteral i }
 
 %inline datacon_reference:
   d = maybe_qualified(datacon)
@@ -330,9 +332,6 @@ raw_atomic_type:
    is an atomic type. *)
 | b = data_type_branch
     { TyConcrete (b, None) }
-(* A literal type. For now, only integers can be literals. *)
-| i = INT
-    { TyLiteral i }
 
 %inline tight_type:
 | ty = tlocated(raw_tight_type)
@@ -348,7 +347,7 @@ raw_tight_type:
 | ty = type_type_application(tight_type, atomic_type)
     { ty }
 (* An arithmetic formula. *)
-| f = formula
+| LBRACE f = formula RBRACE
     { TyProp f }
 
 %inline normal_type:

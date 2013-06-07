@@ -16,15 +16,15 @@ val ( & )  : (int, int) -> int
 
 (* Primitive comparison operators on integers. *)
 
-val ( = )  : (x: int, y: int) -> rich_bool (x <> y) (x = y)
-val ( <> ) : (x: int, y: int) -> rich_bool (x = y) (x <> y)
-val ( < )  : (x: int, y: int) -> rich_bool (x >= y) (x < y)
-val ( <= ) : (x: int, y: int) -> rich_bool (x > y) (x <= y)
-val ( > )  : (x: int, y: int) -> rich_bool (x <= y) (x > y)
-val ( >= ) : (x: int, y: int) -> rich_bool (x < y) (x >= y)
+val ( = )  : (x: int, y: int) -> rich_bool ({x <> y}) ({x = y})
+val ( <> ) : (x: int, y: int) -> rich_bool ({x = y}) ({x <> y})
+val ( < )  : (x: int, y: int) -> rich_bool ({x >= y}) ({x < y})
+val ( <= ) : (x: int, y: int) -> rich_bool ({x > y}) ({x <= y})
+val ( > )  : (x: int, y: int) -> rich_bool ({x <= y}) ({x > y})
+val ( >= ) : (x: int, y: int) -> rich_bool ({x < y}) ({x >= y})
 
 (* Defined operations on integers. *)
 
-val max : (x: int, y: int) -> (z: int | x <= z * y <= z)
-val min : (x: int, y: int) -> (z: int | x >= z * y >= z)
+val max : (x: int, y: int) -> (z: int | {x <= z} * {y <= z})
+val min : (x: int, y: int) -> (z: int | {x >= z} * {y >= z})
 
