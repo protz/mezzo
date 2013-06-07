@@ -557,7 +557,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let sub_env, p = check_expression sub_env ~annot:return_type body in
 
       begin match Permissions.sub sub_env p return_type with
-      | Some _, _ ->
+      | Some _, d ->
+          Log.debug "%a" DerivationPrinter.pderivation d;
           (* Return the desired arrow type. *)
           return env (TyArrow (arg, return_type))
       | None, d ->

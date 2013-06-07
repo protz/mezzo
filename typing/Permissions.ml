@@ -672,7 +672,7 @@ and sub (env: env) (var: var) ?no_singleton (t: typ): result =
 
 and sub_constraint env c : result =
   let mode, t = c in
-  try_proof env (JSubConstraint c) "Constraints" begin
+  try_proof env (JSubConstraint c) "Constraint" begin
     (* [t] can be any type; for instance, if we have
      *  f @ [a] (duplicable a) ⇒ ...
      * then, when "f" is instantiated, "a" will be replaced by anything...
@@ -680,10 +680,12 @@ and sub_constraint env c : result =
     if FactInference.has_mode mode env t then qed env else fail
   end
 
-and sub_constraints env cs : state =
-  premises env (List.map (fun c env ->
-    sub_constraint env c
-  ) cs)
+and sub_constraints env cs : result =
+  try_proof env (JSubConstraints cs) "Constraints" (
+    premises env (List.map (fun c env ->
+      sub_constraint env c
+    ) cs)
+  )
 
 (** When comparing "list (a, b)" with "list (a*, b* )" you need to compare the
  * parameters, but for that, unfolding first is a good idea. This is one of the
@@ -974,22 +976,22 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
           Bash.colors.Bash.default;
         sub_type sub_env t'1 t1 >>= fun sub_env ->
 
+        (* 3b) Now check facts! *)
+        Log.debug ~level:4 "%sArrow / Arrow, facts%s"
+          Bash.colors.Bash.red
+          Bash.colors.Bash.default;
+        sub_constraints sub_env constraints >>= fun sub_env ->
+
         (* 3) And let us compare the codomains... *)
         Log.debug ~level:4 "%sArrow / Arrow, right%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
         sub_type sub_env t2 t'2 >>= fun sub_env ->
 
-        (* 3b) Now check facts! *)
-        Log.debug ~level:4 "%sArrow / Arrow, facts%s"
-          Bash.colors.Bash.red
-          Bash.colors.Bash.default;
-        sub_constraints sub_env constraints >>~ fun sub_env ->
-
         Log.debug ~level:4 "%sArrow / End -- adding back permissions%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        import_flex_instanciations env sub_env
+        qed (import_flex_instanciations env sub_env)
       end
 
   | TyBar _, TyBar _ ->
