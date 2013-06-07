@@ -1,0 +1,14 @@
+val f (i: int) : (c: int) = 0
+
+val g (x: int -> int) : int = x 0
+
+val _ =
+  let _ = 
+    (* This works. *)
+    g (fun (i: int) : int = f i)
+  in
+  (* This doesn't. *)
+  g f
+
+(* This seems to be related to the fact that we named
+ * the return value of [f]. *)
