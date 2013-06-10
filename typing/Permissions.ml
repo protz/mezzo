@@ -192,16 +192,24 @@ let wrap_bar_perm p =
  * meant to be added afterwards, then [t1] will be added in expanded form with a
  * free call to [unfold]! *)
 let wrap_bar t1 =
-  let binding = Auto (Utils.fresh_var "sp"), KTerm, location empty_env in
-  TyQ (Exists, binding, AutoIntroduced,
-    TyBar (
-      TySingleton (TyBound 0),
-      TyAnchoredPermission (TyBound 0, t1)
-        (* I have removed a call to [lift]. There is no need to lift
-           the type [t1], provided it is locally closed! That's the
-           point of the locally nameless representation. *)
-    )
-  )
+  let t1, perms = collect t1 in
+  match t1 with
+  | TySingleton _ ->
+      TyBar (t1, fold_star perms)
+  | _ ->
+      let binding = Auto (Utils.fresh_var "sp"), KTerm, location empty_env in
+      TyQ (Exists, binding, AutoIntroduced,
+        TyBar (
+          TySingleton (TyBound 0),
+          fold_star (
+            TyAnchoredPermission (TyBound 0, t1) ::
+            perms
+          )
+            (* I have removed a call to [lift]. There is no need to lift
+               the type [t1], provided it is locally closed! That's the
+               point of the locally nameless representation. *)
+        )
+      )
 ;;
 
 type side = Left | Right
