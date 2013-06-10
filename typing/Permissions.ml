@@ -1011,7 +1011,11 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
       end
 
   | TyBar _, TyBar _ ->
-      try_proof_root "Bar-Vs-Bar" begin
+      if is_singleton env t1 <> is_singleton env t2 then
+        sub_type env (wrap_bar t1) (wrap_bar t2)
+
+      else try_proof_root "Bar-Vs-Bar" begin
+
         (* Unless we do this, we can't handle (t|p) - (t|p|p') properly. *)
         let t1, ps1 = collect t1 in
         let t2, ps2 = collect t2 in
