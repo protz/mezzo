@@ -4,13 +4,8 @@ open KindCheckGlue
 
 (** Translating the surface syntax down into the core language syntax. *)
 
-(* TEMPORARY *)
-module Experimental : sig
-  val translate_type_reset: env -> typ -> TypeCore.typ * kind
-end
-
-(** [translate_type_with_names] translates a type. *)
-val translate_type_with_names: env -> typ -> TypeCore.typ
+(** [translate_type_reset] translates a type. *)
+val translate_type_reset: env -> typ -> TypeCore.typ
 
 (** [translate_data_type_group extend env group] translates a data type group.
     The [extend] function is passed a (list of) pairs of a data type name and

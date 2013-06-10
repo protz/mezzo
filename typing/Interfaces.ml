@@ -110,18 +110,22 @@ let check
 
         (* Now translate type [t] into the internal syntax; [x] is not bound in
          * [t]. *)
-        let t = TransSurface.translate_type_with_names tsenv t in
+        let t = TransSurface.translate_type_reset tsenv t in
+
+        (* Signatures now must only contain duplicable exports. *)
+        if not (FactInference.is_duplicable env t) then
+          TypeErrors.(raise_error env (ExportNotDuplicable x));
 
         (* Now check that the point in the implementation's environment actually
          * has the same type as the one in the interface. *)
         let point = KindCheck.find_nonlocal_variable exports x in
         let env =
-          match Derivations.drop_derivation (Permissions.sub env point t) with
-          | Some env ->
+          match Permissions.sub env point t with
+          | Some env, _ ->
               env
-          | None ->
+          | None, d ->
               let open TypeErrors in
-              raise_error env (NoSuchTypeInSignature (point, t))
+              raise_error env (NoSuchTypeInSignature (point, t, d))
         in
 
         (* Alright, [x] is now bound, and when it appears afterwards, it will

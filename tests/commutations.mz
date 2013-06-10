@@ -16,3 +16,20 @@ val w: ref ([a]a) =
 val z2: [a] wref::wref a =
   builtin foobar
 
+val () =
+  (* forall can be hoisted out a pair *)
+  assert x @ [a] (a -> a, int);
+
+  (* forall can be pushed into a pair *)
+  assert y @ ([a] a -> a, int);
+
+  (* two forall's commute *)
+  assert exchange @ [b, a] (consumes (a, b)) -> (b, a);
+
+  (* forall commutes with ref -- this one is sound because ref
+     is known to be covariant *)
+  assert z @ ref ([a] a);
+
+  assert w @ [a] ref a;
+
+  assert z2 @ wref::wref ([a] a);

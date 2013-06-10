@@ -1,1 +1,0 @@
-val foobar: (ref int, ref int)

@@ -286,72 +286,47 @@ let check_implementation
   Log.debug ~level:2 "\n%s***%s Matching %a against its signature"
     Bash.colors.Bash.yellow Bash.colors.Bash.default
     Module.p mname;
-  let output_env =
-    match interface with
-    | Some interface ->
 
-         (* Convert the list of variables [delta] to a kind environment.
-	    TEMPORARY ugly, of course. Somewhat analogous to [KindCheck.initial]. *)
-         let delta =
-	   List.fold_right (fun p delta ->
-	     let k = TypeCore.get_kind env p in
-	     List.fold_left (fun delta name ->
-	       match name with
-	       | TypeCore.User (mname, x) when Module.equal mname (TypeCore.module_name env) ->
-		   KindCheck.bind_nonlocal delta (x, k, p)
-	       | _ ->
-		  (* Either an auto-generated name, or a name coming from another
-		   * module. Think about a top-level definition such as:
-		   *   let x = m::y
-		   * we just drop the name "y" here. *)
-		  delta
-	     ) delta (TypeCore.get_names env p)
-           ) delta (KindCheck.empty (TypeCore.module_name env))
-	 in
-	 (* TEMPORARY [delta] says nothing about datacons, and that is fishy.
-	    The data constructor that is exported could be other than the one
-	    that is in scope at the end of the module? -- yes, see
-	    weird-datacons-shadowing. *)
+  match interface with
+  | Some interface ->
 
-        (* If the function types are not syntactically equal, the decision
-         * procedure for comparing those two types introduces internal names
-         * that end polluting the resulting environment! So we only use that
-         * "polluted" environment to perform interface-checking, we don't
-         * actually return it to the driver, say, for printing. *)
-        check_interface env interface delta
-    | None ->
-        env
-  in
+       (* Convert the list of variables [delta] to a kind environment.
+          TEMPORARY ugly, of course. Somewhat analogous to [KindCheck.initial]. *)
+       let delta =
+         List.fold_right (fun p delta ->
+           let k = TypeCore.get_kind env p in
+           List.fold_left (fun delta name ->
+             match name with
+             | TypeCore.User (mname, x) when Module.equal mname (TypeCore.module_name env) ->
+                 KindCheck.bind_nonlocal delta (x, k, p)
+             | _ ->
+                (* Either an auto-generated name, or a name coming from another
+                 * module. Think about a top-level definition such as:
+                 *   let x = m::y
+                 * we just drop the name "y" here. *)
+                delta
+           ) delta (TypeCore.get_names env p)
+         ) delta (KindCheck.empty (TypeCore.module_name env))
+       in
+       (* TEMPORARY [delta] says nothing about datacons, and that is fishy.
+          The data constructor that is exported could be other than the one
+          that is in scope at the end of the module? -- yes, see
+          weird-datacons-shadowing. *)
 
-  (* Check that the implementation leaves all other modules intact (matching
-   * against the signature right above may have consumed permissions from other
-   * modules!) *)
-  if not !Options.no_sig_check then begin
-    Log.debug ~level:2 "\n%s***%s Checking %a does not alter other interfaces"
-      Bash.colors.Bash.yellow Bash.colors.Bash.default
-      Module.p mname;
-    List.iter (fun mname ->
-      Log.debug ~level:2 "\n%s***%s Checking against %a"
-        Bash.colors.Bash.yellow Bash.colors.Bash.default
-        Module.p mname;
-      let iface = find_and_lex_interface mname in
-      (* Ignore the interface, since there's no risk of an interface consuming
-       * another interface's contents! Moreover, this can be a risk: since
-       * [check_interface] has the nasty consequence that the [env] it returns is
-       * polluted with internal names (the result of performing calls to
-       * [Permissions.sub]), opening the same module twice may cause conflicts... *)
-      (* TEMPORARY this also creates problems when passing the polluted environment
-        to [KindCheck.initial]. I suggest it would be simpler to just require that
-        everything published in an interface be duplicable. *)
-      let exports = TypeCore.get_exports env mname in
-      let exports = List.fold_left KindCheck.bind_nonlocal (KindCheck.empty mname) exports in
-      ignore (check_interface output_env iface exports)
-    ) deps;
+      (* If the function types are not syntactically equal, the decision
+       * procedure for comparing those two types introduces internal names
+       * that end polluting the resulting environment! So we only use that
+       * "polluted" environment to perform interface-checking, we don't
+       * actually return it to the driver, say, for printing. *)
+      check_interface env interface delta
+  | None ->
+      env
 
-    env
-  end else begin
-    env
-  end
+  (* We used to check that after type-checking the current module, no other
+   * signature was altered. We used to be able to alter other signatures as
+   * exclusive values used to be export-able. We now require all exports to be
+   * duplicable (enforced in [check_interface]) so this check is no longer
+   * necessary. *)
 ;;
 
 

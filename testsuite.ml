@@ -152,7 +152,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("unbound06.mz", kfail);
   ("unbound07.mz", kfail);
   ("unbound08.mz", kfail);
-  ("unbound09.mz", pass_known_failure);
+  ("unbound09.mz", pass);
   ("unbound10.mz", kfail);
   ("unbound11.mz", kfail);
   ("unbound12.mz", kfail);
@@ -777,11 +777,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("modules/equations_in_mzi.mz", pass);
 
-  ("modules/altersig.mz",
-    simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
-
-  ("modules/altersig2.mz",
-    simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
+  ("modules/export_nondup.mz",
+    simple_test (Fail (function ExportNotDuplicable _ -> true | _ -> false)));
 
   ("missing-export.mz", kfail);
 
@@ -950,11 +947,11 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("name-intro.mz", pass);
   ("name-intro2.mz", pass);
   ("name-intro3.mz", pass_known_failure);
-  ("name-intro4.mz", pass_known_failure);
+  ("name-intro4.mz", pass);
   ("name-intro5.mz", pass);
   ("desugaring00.mz", pass);
   ("exists-forall.mz", pass);
-  ("name-capture.mz", pass_known_failure);
+  ("name-capture.mz", pass);
   ("time.mz", pass);
   ("cps-old.mz", pass);
   ("delimcc.mz", pass);
@@ -992,13 +989,16 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("ghost00.mz", kfail);
   ("ifthen-bug.mz", pass);
   ("magic-map.mz", pass);
-  ("exist-name-conflict.mz", fail_known_failure);
+  ("exist-name-conflict.mz", pass);
+  ("assert-point.mz", pass);
+  ("named-return.mz", pass_known_failure);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)
   ("landin.mz", fun _ -> raise KnownFailure);
   ("landin-variant.mz", fun _ -> raise KnownFailure);
   ("cyclic-list.mz", fun _ -> raise KnownFailure);
+  ("diverge.mz", fun _ -> raise KnownFailure);
 ];;
 
 let mz_files_in_directory (dir : string) : string list =

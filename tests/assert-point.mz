@@ -1,0 +1,6 @@
+val f(i: int | i = i) : () =
+  ()
+
+val g() : () =
+  (* This call makes the type-checker fail. *)
+  f 0

@@ -49,7 +49,6 @@ let _ =
       include directories";
     "-noautoinclude", Arg.Set Options.no_auto_include, "  Don't automatically \
       open the corelib modules";
-    "-nosigcheck", Arg.Set Options.no_sig_check, "  [for debugging only, unsound]";
     "-c", Arg.Unit (fun () -> arg_mode := TypecheckAndCompile), "type-check and compile";
     "-i", Arg.Unit (fun () -> arg_mode := Interpret), "do not type-check; interpret";
     "-t", Arg.Unit (fun () -> arg_mode := Typecheck), "just type-check (default)";

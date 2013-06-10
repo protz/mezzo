@@ -52,9 +52,10 @@ type raw_error =
   | NoSuitableTypeForAdopts of var * typ
   | AdoptsNoAnnotation
   | NotMergingClauses of env * typ * typ * env * typ * typ
-  | NoSuchTypeInSignature of var * typ
+  | NoSuchTypeInSignature of var * typ * Derivations.derivation
   | DataTypeMismatchInSignature of Variable.name * string
   | VarianceAnnotationMismatch
+  | ExportNotDuplicable of Variable.name
 
 (** This function raises an exception that will be later on catched in
  * {!Driver}. *)

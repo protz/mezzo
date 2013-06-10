@@ -63,7 +63,7 @@ val acquire [p : perm] (l: lock p) : (| p) =
 (* Release. *)
 
 val release [p : perm] (l: lock p | consumes p) : () =
-  let _ = swap (l.contents, True) in
+  let _ = swap [(rich_bool empty p)] (l.contents, True) in
   (* We could use a [match] construct to check dynamically
      against multiple releases, but these are unlikely to
      occur, since multiple copies of [p] would be needed. *)

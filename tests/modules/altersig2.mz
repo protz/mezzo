@@ -1,1 +1,0 @@
-val foobar = (exportref::x, newref 0)

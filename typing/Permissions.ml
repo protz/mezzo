@@ -260,8 +260,8 @@ class open_all_rigid_in (env : env ref) = object (self)
     | TyQ (Exists, _, _, _), Right
     | TySingleton _, _
     | TyArrow _, Left
-    | TyEmpty, _
-       -> ty
+    | TyEmpty, _ ->
+        ty
 
     (* A universal quantifier on the right-hand side gives rise to a rigid
        variable. The type environment is extended. The quantifier disappears.
@@ -269,7 +269,7 @@ class open_all_rigid_in (env : env ref) = object (self)
 
     | TyQ (Forall, binding, _, ty), Right
     | TyQ (Exists, binding, _, ty), Left ->
-        let new_env, ty, _ = bind_rigid_in_type !env binding ty in
+       let new_env, ty, _ = bind_rigid_in_type !env binding ty in
        env := new_env;
        self#visit (side, false) ty
 
@@ -290,20 +290,24 @@ class open_all_rigid_in (env : env ref) = object (self)
        changes only from [Right] to [Left]. *)
 
     | TyArrow (ty1, ty2), Right ->
-        let ty1 = self#visit (Left, false) ty1 in
+       let ty1 = self#visit (Left, false) ty1 in
        TyArrow (ty1, ty2)
 
     (* We descend into the following constructs. *)
 
     | TyTuple _, _
-      -> super#visit (side, true) ty
+    | TyConcrete _, _ ->
+        super#visit (side, true) ty
         (* Setting [deconstructed] to [true] forces the fields to
           become named with a point, if they weren't already. *)
 
     | TyBar _, _
-    | TyStar _, _
-    | TyConcrete _, _
-      -> super#visit (side, false) ty
+        (* I feel like, just like we're descending into the right-hand side of
+         * "x @ t", we should descend into "t" inside "(t|P)". What about the
+         * rigid variables contained in "(int, int) | P"? However, doing this
+         * causes several failures... *)
+    | TyStar _, _ ->
+        super#visit (side, false) ty
 
     (* We descend into the right-hand side of [TyAnchoredPermission] and [TyAnd]. *)
 
@@ -354,7 +358,7 @@ let rec unify (env: env) (p1: var) (p2: var): env =
     | None ->
         (* So far, only happens when subtracting the context-provided type from
          * the return type of a function. *)
-        raise UnboundPoint
+        env
 
 and keep_only_duplicable env =
   let env = fold_terms env (fun env var permissions ->
@@ -380,134 +384,143 @@ and add (env: env) (var: var) (t: typ): env =
   let t = modulo_flex env t in
   let t = expand_if_one_branch env t in
 
-  (* We first perform unfolding, so that constructors with one branch are
-   * simplified. [unfold] calls [add] recursively whenever it adds new vars. *)
-  let env, t = open_all_rigid_in env t Left in
-
-  (* Break this up into a type + permissions. *)
-  let t, perms = collect t in
-
-  TypePrinter.(Log.debug ~level:4 "%s[%sadding to %a] %a"
-    Bash.colors.Bash.red Bash.colors.Bash.default
-    pnames (env, get_names env var)
-    ptype (env, t));
-
-  (* Add the permissions. *)
-  let env = add_perms env perms in
-
-  (* There are several cases that we can optimize for, but here's the default
-   * one to start with: *)
-  let default env =
-    (* Add the "bare" type. Recursive calls took care of calling [add]. *)
-    let env = add_type env var t in
-    safety_check env;
-
+  if is_flexible env var then begin
+    Log.debug ~level:1 "Notice: not adding %a to %a because its \
+      left-hand side is flexible"
+      TypePrinter.ptype (env, TyOpen var)
+      TypePrinter.ptype (env, t);
     env
-  in
 
-  begin match t with
-  | TySingleton (TyOpen p) when not (same env var p) ->
-      Log.debug ~level:4 "%s]%s (singleton)" Bash.colors.Bash.red Bash.colors.Bash.default;
-      unify env var p
+  end else
 
-  | TyQ (Exists, binding, _, t) ->
-      Log.debug ~level:4 "%s]%s (exists)" Bash.colors.Bash.red Bash.colors.Bash.default;
-      let env, t, _ = bind_rigid_in_type env binding t in
-      add env var t
+    (* We first perform unfolding, so that constructors with one branch are
+     * simplified. [unfold] calls [add] recursively whenever it adds new vars. *)
+    let env, t = open_all_rigid_in env t Left in
 
-  | TyAnd (c, t) ->
-      Log.debug ~level:4 "%s]%s (and-constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
-      let env = FactInference.assume env c in
-      let env = refresh_facts env in
-      add env var t
+    (* Break this up into a type + permissions. *)
+    let t, perms = collect t in
 
-  (* This implements the rule "x @ C { f⃗⃗: =y⃗ } * x @ C { f⃗: =y⃗' } implies y⃗ = * y⃗'" *)
-  | TyConcrete branch ->
-      let original_perms = get_permissions env var in
-      begin match MzList.find_opt (function
-        | TyConcrete branch' when resolved_datacons_equal env branch.branch_datacon branch'.branch_datacon ->
-            Some branch'
-        | _ -> None)
-        original_perms
-      with
-      | Some _ when FactInference.is_exclusive env t ->
-         Log.debug ~level:4 "%s]%s (two exclusive perms!)" Bash.colors.Bash.red Bash.colors.Bash.default;
-         (* We cannot possibly have two exclusive permissions for [x]. *)
-          mark_inconsistent env
-      | Some branch' ->
-         (* If we are still here, then the two permissions at hand are
-            not exclusive. This implies, I think, that the two adopts
-            clauses must be bottom. So, there is no need to try and
-            compute their meet (good). *)
-         assert (equal env branch.branch_adopts ty_bottom);
-         assert (equal env branch'.branch_adopts ty_bottom);
-         List.fold_left2 (fun env f1 f2 ->
-           match f1, f2 with
-           | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
+    TypePrinter.(Log.debug ~level:4 "%s[%sadding to %a] %a"
+      Bash.colors.Bash.red Bash.colors.Bash.default
+      pnames (env, get_names env var)
+      ptype (env, t));
+
+    (* Add the permissions. *)
+    let env = add_perms env perms in
+
+    (* There are several cases that we can optimize for, but here's the default
+     * one to start with: *)
+    let default env =
+      (* Add the "bare" type. Recursive calls took care of calling [add]. *)
+      let env = add_type env var t in
+      safety_check env;
+
+      env
+    in
+
+    begin match t with
+    | TySingleton (TyOpen p) when not (same env var p) ->
+        Log.debug ~level:4 "%s]%s (singleton)" Bash.colors.Bash.red Bash.colors.Bash.default;
+        unify env var p
+
+    | TyQ (Exists, binding, _, t) ->
+        Log.debug ~level:4 "%s]%s (exists)" Bash.colors.Bash.red Bash.colors.Bash.default;
+        let env, t, _ = bind_rigid_in_type env binding t in
+        add env var t
+
+    | TyAnd (c, t) ->
+        Log.debug ~level:4 "%s]%s (and-constraints)" Bash.colors.Bash.red Bash.colors.Bash.default;
+        let env = FactInference.assume env c in
+        let env = refresh_facts env in
+        add env var t
+
+    (* This implements the rule "x @ C { f⃗⃗: =y⃗ } * x @ C { f⃗: =y⃗' } implies y⃗ = * y⃗'" *)
+    | TyConcrete branch ->
+        let original_perms = get_permissions env var in
+        begin match MzList.find_opt (function
+          | TyConcrete branch' when resolved_datacons_equal env branch.branch_datacon branch'.branch_datacon ->
+              Some branch'
+          | _ -> None)
+          original_perms
+        with
+        | Some _ when FactInference.is_exclusive env t ->
+           Log.debug ~level:4 "%s]%s (two exclusive perms!)" Bash.colors.Bash.red Bash.colors.Bash.default;
+           (* We cannot possibly have two exclusive permissions for [x]. *)
+            mark_inconsistent env
+        | Some branch' ->
+           (* If we are still here, then the two permissions at hand are
+              not exclusive. This implies, I think, that the two adopts
+              clauses must be bottom. So, there is no need to try and
+              compute their meet (good). *)
+           assert (equal env branch.branch_adopts ty_bottom);
+           assert (equal env branch'.branch_adopts ty_bottom);
+           List.fold_left2 (fun env f1 f2 ->
+             match f1, f2 with
+             | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
+                  let t = modulo_flex env t in
+                  let t = expand_if_one_branch env t in
+                begin match t with
+                | TySingleton (TyOpen p) ->
+                    add env p t'
+                | _ ->
+                    Log.error "Type not unfolded"
+                end
+             | _ ->
+                Log.error "Datacon order invariant not respected"
+           ) env branch.branch_fields branch'.branch_fields
+        | None ->
+            add_type env var t
+        end
+
+    (* This implements the rule "x @ (=y, =z) * x @ (=y', =z') implies y = y' and z * = z'" *)
+    | TyTuple ts ->
+        let original_perms = get_permissions env var in
+        begin match MzList.find_opt (function TyTuple ts' -> Some ts' | _ -> None) original_perms with
+        | Some ts' ->
+            if List.length ts <> List.length ts' then
+              mark_inconsistent env
+            else
+              List.fold_left2 (fun env t t' ->
                 let t = modulo_flex env t in
                 let t = expand_if_one_branch env t in
-              begin match t with
-              | TySingleton (TyOpen p) ->
-                  add env p t'
-              | _ ->
-                  Log.error "Type not unfolded"
-              end
-           | _ ->
-              Log.error "Datacon order invariant not respected"
-         ) env branch.branch_fields branch'.branch_fields
-      | None ->
-          add_type env var t
-      end
+                match t with
+                | TySingleton (TyOpen p) ->
+                    add env p t'
+                | _ ->
+                    Log.error "Type not unfolded"
+              ) env ts ts'
+        | None ->
+            add_type env var t
+        end
 
-  (* This implements the rule "x @ (=y, =z) * x @ (=y', =z') implies y = y' and z * = z'" *)
-  | TyTuple ts ->
-      let original_perms = get_permissions env var in
-      begin match MzList.find_opt (function TyTuple ts' -> Some ts' | _ -> None) original_perms with
-      | Some ts' ->
-          if List.length ts <> List.length ts' then
-            mark_inconsistent env
-          else
-            List.fold_left2 (fun env t t' ->
-              let t = modulo_flex env t in
-              let t = expand_if_one_branch env t in
-              match t with
-              | TySingleton (TyOpen p) ->
-                  add env p t'
-              | _ ->
-                  Log.error "Type not unfolded"
-            ) env ts ts'
-      | None ->
-          add_type env var t
-      end
-
-  (* This implements the rule "x @ Cons { head = h; tail = t } ∗ x @ list a" implies "x @ Cons
-   * { ... } ∗ x @ Cons { head: a; tail: list a }". After using that rule, the
-   * other special rule above will be applied immediately, resulting in extra
-   * permissions for [h] and [t]. This is necessary for the [species.mz]
-   * example. *)
-  | TyApp (t, ts) ->
-      let original_perms = get_permissions env var in
-      let t = !!t in
-      begin match MzList.find_opt (function
-        | TyConcrete { branch_datacon = (t', datacon); _ } ->
-            if same env t !!t' then
-              Some datacon
-            else
+    (* This implements the rule "x @ Cons { head = h; tail = t } ∗ x @ list a" implies "x @ Cons
+     * { ... } ∗ x @ Cons { head: a; tail: list a }". After using that rule, the
+     * other special rule above will be applied immediately, resulting in extra
+     * permissions for [h] and [t]. This is necessary for the [species.mz]
+     * example. *)
+    | TyApp (t, ts) ->
+        let original_perms = get_permissions env var in
+        let t = !!t in
+        begin match MzList.find_opt (function
+          | TyConcrete { branch_datacon = (t', datacon); _ } ->
+              if same env t !!t' then
+                Some datacon
+              else
+                None
+          | _ ->
               None
-        | _ ->
-            None
-      ) original_perms with
-      | Some datacon ->
-          let branch = find_and_instantiate_branch env t datacon ts in
-          let branch = TyConcrete branch in
-          add env var branch
-      | None ->
-          default env
-      end
+        ) original_perms with
+        | Some datacon ->
+            let branch = find_and_instantiate_branch env t datacon ts in
+            let branch = TyConcrete branch in
+            add env var branch
+        | None ->
+            default env
+        end
 
-  | _ ->
-      default env
-  end
+    | _ ->
+        default env
+    end
 
 
 (** [add_perm env t] adds a type [t] with kind KPerm to [env], returning the new
@@ -663,7 +676,7 @@ and sub (env: env) (var: var) ?no_singleton (t: typ): result =
 
 and sub_constraint env c : result =
   let mode, t = c in
-  try_proof env (JSubConstraint c) "Constraints" begin
+  try_proof env (JSubConstraint c) "Constraint" begin
     (* [t] can be any type; for instance, if we have
      *  f @ [a] (duplicable a) ⇒ ...
      * then, when "f" is instantiated, "a" will be replaced by anything...
@@ -671,10 +684,12 @@ and sub_constraint env c : result =
     if FactInference.has_mode mode env t then qed env else fail
   end
 
-and sub_constraints env cs : state =
-  premises env (List.map (fun c env ->
-    sub_constraint env c
-  ) cs)
+and sub_constraints env cs : result =
+  try_proof env (JSubConstraints cs) "Constraints" (
+    premises env (List.map (fun c env ->
+      sub_constraint env c
+    ) cs)
+  )
 
 (** When comparing "list (a, b)" with "list (a*, b* )" you need to compare the
  * parameters, but for that, unfolding first is a good idea. This is one of the
@@ -954,7 +969,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
         (* We perform implicit eta-expansion, so again, non-linear context (we're
          * under an arrow). *)
-        let sub_env = keep_only_duplicable env in
+        let clean_env = keep_only_duplicable env in
 
         (* 2) Let us compare the domains... any kind of information that we
          * learn at this stage will be made available in the codomain. So it's
@@ -963,24 +978,28 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         Log.debug ~level:4 "%sArrow / Arrow, left%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        sub_type sub_env t'1 t1 >>= fun sub_env ->
+        sub_type clean_env t'1 t1 >>= fun domain_env ->
 
         (* 3) And let us compare the codomains... *)
         Log.debug ~level:4 "%sArrow / Arrow, right%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        sub_type sub_env t2 t'2 >>= fun sub_env ->
+        sub_type domain_env t2 t'2 >>= fun codomain_env ->
 
-        (* 3b) Now check facts! *)
+        (* 3b) And now, check that the facts in the domain are satisfied. We do
+         * this just now, because the codomain may have performed flexible
+         * variable instantiations. However, the codomain may also have brought
+         * us some hypotheses which we are not allowed to use! This is tricky. *)
         Log.debug ~level:4 "%sArrow / Arrow, facts%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        sub_constraints sub_env constraints >>~ fun sub_env ->
+        let fact_env = import_flex_instanciations domain_env codomain_env in
+        sub_constraints fact_env constraints >>= fun final_env ->
 
         Log.debug ~level:4 "%sArrow / End -- adding back permissions%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        import_flex_instanciations env sub_env
+        qed (import_flex_instanciations env final_env)
       end
 
   | TyBar _, TyBar _ ->
@@ -1031,6 +1050,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         let rec add_sub env ps1 ps2 k: state =
           match MzList.take_bool (works_for_add env) ps1 with
           | Some (ps1, p1) ->
+              Log.debug "About to add %a"
+                TypePrinter.ptype (env, p1);
               let sub_env = add_perm env p1 in
               apply_axiom env (JAdd p1) "Add-Sub-Add" sub_env >>= fun env ->
               add_sub env ps1 ps2 k
