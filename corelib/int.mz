@@ -7,8 +7,8 @@ fact duplicable int
 
 val ( + ) : (x: int, y: int) -> (z: int | {z = x + y}) = builtin _mz_iadd
 val ( - ) : (x: int, y: int) -> (z: int | {z = x - y}) = builtin _mz_isub
-val ( * ) : (int, int) -> int = builtin _mz_imul
-val ( / ) : (int, int) -> int = builtin _mz_idiv
+val ( * ) : (x: int, y: int) -> (z: int | {z = x * y}) = builtin _mz_imul
+val ( / ) : (x: int, y: int | {y <> 0}) -> (z: int | {z = x / y}) = builtin _mz_idiv
 
 (* Primitive bitwise operations on integers. *)
 

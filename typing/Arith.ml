@@ -12,7 +12,7 @@ type why3env = {
   prover: Whyconf.config_prover;
   driver: Why3.Driver.driver;
   env: Env.env;
-  int_theory: Theory.theory;
+  theories: Theory.theory list;
   symbols: Term.lsymbol StringMap.t; 
   minus: Term.term -> Term.term;
 }
@@ -37,13 +37,19 @@ let wenv: why3env option =
     (* Int theory *)
     let int_theory: Theory.theory =
       Env.find_theory env ["int"] "Int" in
+    (* Theory for euclidean division. *)
+    let euc_theory: Theory.theory =
+      Env.find_theory env ["int"] "EuclideanDivision" in
     (* Some symbols *)
     let symbols: Term.lsymbol StringMap.t =
       List.fold_left (fun m s ->
         StringMap.add ("~"^s) (
           Theory.ns_find_ls int_theory.Theory.th_export ["infix " ^ s]
         ) m
-      ) StringMap.empty [">";"<";">=";"<=";"-";"+"] in
+      ) StringMap.empty [">";"<";">=";"<=";"-";"+";"*"] in
+    let symbols: Term.lsymbol StringMap.t =
+      StringMap.add "~/"
+        (Theory.ns_find_ls euc_theory.Theory.th_export ["div"]) symbols in
     (* The minus operator is used to build negative integers. *)
     let minus t = 
       let minus = StringMap.find "-" symbols in
@@ -51,7 +57,9 @@ let wenv: why3env option =
       Term.t_app_infer minus [zero; t]
     in
 
-    Some {prover; driver; env; int_theory; symbols; minus}
+    let theories = [int_theory; euc_theory] in
+
+    Some {prover; driver; env; theories; symbols; minus}
 
   with _ ->
     None
@@ -62,7 +70,7 @@ let wenv: why3env option =
     
 (* Build a Why3 task from a given term. *)
 let mk_task (wenv: why3env) (t: Term.term): Task.task =
-  let task = Task.use_export None wenv.int_theory in
+  let task = List.fold_left Task.use_export None wenv.theories in
   let goal_id = Decl.create_prsymbol (Ident.id_fresh "goal") in
   Task.add_prop_decl task Decl.Pgoal goal_id t
 

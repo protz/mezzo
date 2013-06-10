@@ -7,8 +7,8 @@ fact duplicable int
 
 val ( + ) : (x: int, y: int) -> (z: int | {z = x + y})
 val ( - ) : (x: int, y: int) -> (z: int | {z = x - y})
-val ( * ) : (int, int) -> int
-val ( / ) : (int, int) -> int
+val ( * ) : (x: int, y: int) -> (z: int | {z = x * y})
+val ( / ) : (x: int, y: int | {y <> 0}) -> (z: int | {z = x / y})
 
 (* Primitive bitwise operations on integers. *)
 
