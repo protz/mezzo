@@ -152,7 +152,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("unbound06.mz", kfail);
   ("unbound07.mz", kfail);
   ("unbound08.mz", kfail);
-  ("unbound09.mz", pass_known_failure);
+  ("unbound09.mz", pass);
   ("unbound10.mz", kfail);
   ("unbound11.mz", kfail);
   ("unbound12.mz", kfail);
@@ -947,11 +947,11 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("name-intro.mz", pass);
   ("name-intro2.mz", pass);
   ("name-intro3.mz", pass_known_failure);
-  ("name-intro4.mz", pass_known_failure);
+  ("name-intro4.mz", pass);
   ("name-intro5.mz", pass);
   ("desugaring00.mz", pass);
   ("exists-forall.mz", pass);
-  ("name-capture.mz", pass_known_failure);
+  ("name-capture.mz", pass);
   ("time.mz", pass);
   ("cps-old.mz", pass);
   ("delimcc.mz", pass);
@@ -991,6 +991,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("magic-map.mz", pass);
   ("exist-name-conflict.mz", pass);
   ("assert-point.mz", pass);
+  ("named-return.mz", pass);
   
   ("arith1.mz", pass);
   ("arith2.mz", pass);

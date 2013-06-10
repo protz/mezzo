@@ -192,16 +192,24 @@ let wrap_bar_perm p =
  * meant to be added afterwards, then [t1] will be added in expanded form with a
  * free call to [unfold]! *)
 let wrap_bar t1 =
-  let binding = Auto (Utils.fresh_var "sp"), KTerm, location empty_env in
-  TyQ (Exists, binding, AutoIntroduced,
-    TyBar (
-      TySingleton (TyBound 0),
-      TyAnchoredPermission (TyBound 0, t1)
-        (* I have removed a call to [lift]. There is no need to lift
-           the type [t1], provided it is locally closed! That's the
-           point of the locally nameless representation. *)
-    )
-  )
+  let t1, perms = collect t1 in
+  match t1 with
+  | TySingleton _ ->
+      TyBar (t1, fold_star perms)
+  | _ ->
+      let binding = Auto (Utils.fresh_var "sp"), KTerm, location empty_env in
+      TyQ (Exists, binding, AutoIntroduced,
+        TyBar (
+          TySingleton (TyBound 0),
+          fold_star (
+            TyAnchoredPermission (TyBound 0, t1) ::
+            perms
+          )
+            (* I have removed a call to [lift]. There is no need to lift
+               the type [t1], provided it is locally closed! That's the
+               point of the locally nameless representation. *)
+        )
+      )
 ;;
 
 type side = Left | Right
@@ -262,8 +270,8 @@ class open_all_rigid_in (env : env ref) = object (self)
     | TyQ (Exists, _, _, _), Right
     | TySingleton _, _
     | TyArrow _, Left
-    | TyEmpty, _
-       -> ty
+    | TyEmpty, _ ->
+        ty
 
     (* A universal quantifier on the right-hand side gives rise to a rigid
        variable. The type environment is extended. The quantifier disappears.
@@ -271,7 +279,7 @@ class open_all_rigid_in (env : env ref) = object (self)
 
     | TyQ (Forall, binding, _, ty), Right
     | TyQ (Exists, binding, _, ty), Left ->
-        let new_env, ty, _ = bind_rigid_in_type !env binding ty in
+       let new_env, ty, _ = bind_rigid_in_type !env binding ty in
        env := new_env;
        self#visit (side, false) ty
 
@@ -292,20 +300,24 @@ class open_all_rigid_in (env : env ref) = object (self)
        changes only from [Right] to [Left]. *)
 
     | TyArrow (ty1, ty2), Right ->
-        let ty1 = self#visit (Left, false) ty1 in
+       let ty1 = self#visit (Left, false) ty1 in
        TyArrow (ty1, ty2)
 
     (* We descend into the following constructs. *)
 
     | TyTuple _, _
-      -> super#visit (side, true) ty
+    | TyConcrete _, _ ->
+        super#visit (side, true) ty
         (* Setting [deconstructed] to [true] forces the fields to
           become named with a point, if they weren't already. *)
 
     | TyBar _, _
-    | TyStar _, _
-    | TyConcrete _, _
-      -> super#visit (side, false) ty
+        (* I feel like, just like we're descending into the right-hand side of
+         * "x @ t", we should descend into "t" inside "(t|P)". What about the
+         * rigid variables contained in "(int, int) | P"? However, doing this
+         * causes several failures... *)
+    | TyStar _, _ ->
+        super#visit (side, false) ty
 
     (* We descend into the right-hand side of [TyAnchoredPermission] and [TyAnd]. *)
 
@@ -356,7 +368,7 @@ let rec unify (env: env) (p1: var) (p2: var): env =
     | None ->
         (* So far, only happens when subtracting the context-provided type from
          * the return type of a function. *)
-        raise UnboundPoint
+        env
 
 and keep_only_duplicable env =
   let env = fold_terms env (fun env var permissions ->
@@ -674,7 +686,7 @@ and sub (env: env) (var: var) ?no_singleton (t: typ): result =
 
 and sub_constraint env c : result =
   let mode, t = c in
-  try_proof env (JSubConstraint c) "Constraints" begin
+  try_proof env (JSubConstraint c) "Constraint" begin
     (* [t] can be any type; for instance, if we have
      *  f @ [a] (duplicable a) ⇒ ...
      * then, when "f" is instantiated, "a" will be replaced by anything...
@@ -682,10 +694,12 @@ and sub_constraint env c : result =
     if FactInference.has_mode mode env t then qed env else fail
   end
 
-and sub_constraints env cs : state =
-  premises env (List.map (fun c env ->
-    sub_constraint env c
-  ) cs)
+and sub_constraints env cs : result =
+  try_proof env (JSubConstraints cs) "Constraints" (
+    premises env (List.map (fun c env ->
+      sub_constraint env c
+    ) cs)
+  )
 
 (** When comparing "list (a, b)" with "list (a*, b* )" you need to compare the
  * parameters, but for that, unfolding first is a good idea. This is one of the
@@ -968,7 +982,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
         (* We perform implicit eta-expansion, so again, non-linear context (we're
          * under an arrow). *)
-        let sub_env = keep_only_duplicable env in
+        let clean_env = keep_only_duplicable env in
 
         (* 2) Let us compare the domains... any kind of information that we
          * learn at this stage will be made available in the codomain. So it's
@@ -977,28 +991,36 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         Log.debug ~level:4 "%sArrow / Arrow, left%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        sub_type sub_env t'1 t1 >>= fun sub_env ->
+        sub_type clean_env t'1 t1 >>= fun domain_env ->
 
         (* 3) And let us compare the codomains... *)
         Log.debug ~level:4 "%sArrow / Arrow, right%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        sub_type sub_env t2 t'2 >>= fun sub_env ->
+        sub_type domain_env t2 t'2 >>= fun codomain_env ->
 
-        (* 3b) Now check facts! *)
+        (* 3b) And now, check that the facts in the domain are satisfied. We do
+         * this just now, because the codomain may have performed flexible
+         * variable instantiations. However, the codomain may also have brought
+         * us some hypotheses which we are not allowed to use! This is tricky. *)
         Log.debug ~level:4 "%sArrow / Arrow, facts%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        sub_constraints sub_env constraints >>~ fun sub_env ->
+        let fact_env = import_flex_instanciations domain_env codomain_env in
+        sub_constraints fact_env constraints >>= fun final_env ->
 
         Log.debug ~level:4 "%sArrow / End -- adding back permissions%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        import_flex_instanciations env sub_env
+        qed (import_flex_instanciations env final_env)
       end
 
   | TyBar _, TyBar _ ->
-      try_proof_root "Bar-Vs-Bar" begin
+      if is_singleton env t1 <> is_singleton env t2 then
+        sub_type env (wrap_bar t1) (wrap_bar t2)
+
+      else try_proof_root "Bar-Vs-Bar" begin
+
         (* Unless we do this, we can't handle (t|p) - (t|p|p') properly. *)
         let t1, ps1 = collect t1 in
         let t2, ps2 = collect t2 in
@@ -1045,6 +1067,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         let rec add_sub env ps1 ps2 k: state =
           match MzList.take_bool (works_for_add env) ps1 with
           | Some (ps1, p1) ->
+              Log.debug "About to add %a"
+                TypePrinter.ptype (env, p1);
               let sub_env = add_perm env p1 in
               apply_axiom env (JAdd p1) "Add-Sub-Add" sub_env >>= fun env ->
               add_sub env ps1 ps2 k

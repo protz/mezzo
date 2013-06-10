@@ -56,7 +56,7 @@ and raw_error =
   | NoSuitableTypeForAdopts of var * typ
   | AdoptsNoAnnotation
   | NotMergingClauses of env * typ * typ * env * typ * typ
-  | NoSuchTypeInSignature of var * typ
+  | NoSuchTypeInSignature of var * typ * Derivations.derivation
   | DataTypeMismatchInSignature of Variable.name * string
   | VarianceAnnotationMismatch
   | ExportNotDuplicable of Variable.name
@@ -405,12 +405,13 @@ let print_error buf (env, raw_error) =
         ptype (right_env, right_var)
         ptype (left_env, left_t)
         ptype (right_env, right_t)
-  | NoSuchTypeInSignature (p, t) ->
+  | NoSuchTypeInSignature (p, t, d) ->
       bprintf "This file exports a variable named %a, but it does \
-        not have type %a, the only permissions available for it are: %a"
+        not have type %a, the only permissions available for it are: %a\n%a"
         pname (env, p)
         ptype (env, t)
         ppermission_list (env, p)
+        pderivation d
   | DataTypeMismatchInSignature (x, reason) ->
       bprintf "Cannot match the definition of %a against the \
           signature because of: %s"

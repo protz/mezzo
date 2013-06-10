@@ -148,16 +148,14 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
     match annot with
     | Some annot ->
         Log.debug ~level:5 "[sub-annot]";
-        begin try
+        begin 
           let sub_env = env in
           match Permissions.sub_type sub_env t2 annot |> drop_derivation with
           | Some sub_env ->
               Log.debug ~level:5 "[sub-annot SUCCEEDED]";
               import_flex_instanciations env sub_env
-          | None -> env
-        with UnboundPoint ->
-          Log.debug ~level:5 "[sub-annot FAILED]";
-          env
+          | None ->
+              env
         end
     | None ->
         env
@@ -563,7 +561,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let sub_env, p = check_expression sub_env ~annot:return_type body in
 
       begin match Permissions.sub sub_env p return_type with
-      | Some _, _ ->
+      | Some _, d ->
+          Log.debug "%a" DerivationPrinter.pderivation d;
           (* Return the desired arrow type. *)
           return env (TyArrow (arg, return_type))
       | None, d ->
