@@ -120,8 +120,10 @@ module ArithChecker (E: sig val wenv: why3env val env: env end) = struct
     let task = mk_task wenv t in
     (* Call the prover. *)
     let result = Call_provers.wait_on_call
-      (Why3.Driver.prove_task ~command:wenv.prover.Whyconf.command
-      wenv.driver task ()) () in
+      (Why3.Driver.prove_task 
+        ~command:wenv.prover.Whyconf.command
+        ~timelimit:2
+        wenv.driver task ()) () in
     (* Evaluate the answer. *)
     match result.Call_provers.pr_answer with
     | Call_provers.Valid -> true
