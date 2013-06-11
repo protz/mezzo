@@ -11,7 +11,7 @@
 true: debug, \
   use_menhir, use_ocamlbuild, use_str, \
   annot, bin_annot, strict_sequence, \
-  package(yojson), package(menhirLib), package(ulex), package(pprint)
+  package(yojson), package(menhirLib), package(ulex), package(pprint), package(fix)
 
 not <testsuite.*>: use_unix
 
