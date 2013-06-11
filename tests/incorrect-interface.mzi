@@ -1,0 +1,5 @@
+abstract p : perm
+
+data foo =
+| None { | p }
+| Bar { x : int }
