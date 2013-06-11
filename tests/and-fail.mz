@@ -1,0 +1,10 @@
+val f(i: int | {i = 0}): () = ()
+
+val g(i: int) : () =
+  (* This works. *)
+  if i >= 0 then
+    if i <= 0 then
+      f i;
+  (* This doesn't work. *)
+  if i >= 0 && i <= 0 then
+    f i

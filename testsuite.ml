@@ -997,6 +997,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("arith2.mz", pass);
   ("arith3.mz", pass);
   ("arith4.mz", pass);
+  
+  ("and-fail.mz", pass_known_failure);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)
