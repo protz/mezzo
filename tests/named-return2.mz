@@ -1,10 +1,13 @@
-val f(i: int): (j: int | j @ int) = 0
 (* The whole test passes if [j @ int] is removed. *)
 
-val g(h: int -> int, i: int): int = h i
+val f1 (i: int): (j: int | j @ int) = 0
+val f2 (i: int): (j: int) = 0
 
-val m(i: int): int =
+val g (h: int -> int, i: int): int = h i
+
+val m (i: int): () =
   (* This works. *)
-  let _ = g ((fun (x: int): int = f x), i) in
+  let _ = g (f2, i) in
   (* This doesn't. *)
-  g (f, i)
+  let _ = g (f1, i) in
+  ()

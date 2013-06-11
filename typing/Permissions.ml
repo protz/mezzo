@@ -217,9 +217,9 @@ type side = Left | Right
 let is_singleton env t =
   let t = modulo_flex env t in
   let t = expand_if_one_branch env t in
+  let t, _ = collect t in
   match t with
   | TySingleton _ -> true
-  | TyBar (TySingleton _, _) -> true
   | _ -> false
 ;;
 
