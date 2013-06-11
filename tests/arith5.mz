@@ -1,0 +1,21 @@
+(* Multiplication. *)
+val f (i: int | {i >= 0}): () = ()
+
+val g (i: int | {i >= 0} * {i <= 9}): () = ()
+
+val m (i: int) : () =
+  f (i * i);
+  if i >= -3 then
+    if i <= 3 then
+      g (i * i)
+
+(* Division. *)
+
+val k(i: int | {i >= 1}): () = ()
+
+val h(i: int | {i <> 0}): () =
+  (* Here, Why3 can't prove [(i/i) <= 1]. *)
+  k (i/i)
+
+val n(i: int | {i > 0}): () =
+  h i

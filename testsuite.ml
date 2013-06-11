@@ -997,6 +997,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("arith2.mz", pass);
   ("arith3.mz", pass);
   ("arith4.mz", pass);
+  ("arith5.mz", pass);
   
   ("and-fail.mz", pass_known_failure);
 
