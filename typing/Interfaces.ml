@@ -223,6 +223,10 @@ let check
 
                 if not (Datacon.equal branch.T.branch_datacon branch'.T.branch_datacon) then
                   error_out "datacons";
+
+                if not (List.length branch.T.branch_fields = List.length branch'.T.branch_fields) then
+                  error_out "different number of fields";
+
                 List.iter2 (fun field field' ->
                   match field, field' with
                   | T.FieldValue (fname, t), T.FieldValue (fname', t') ->
