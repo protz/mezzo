@@ -992,6 +992,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("exist-name-conflict.mz", pass);
   ("assert-point.mz", pass);
   ("named-return.mz", pass);
+  ("named-return2.mz", pass);
+  ("incorrect-interface.mz", fail);
   
   ("arith1.mz", pass);
   ("arith2.mz", pass);

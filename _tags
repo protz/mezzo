@@ -12,7 +12,7 @@
 true: debug, \
   use_menhir, use_ocamlbuild, \
   annot, bin_annot, strict_sequence, \
-  package(yojson), package(menhirLib), package(ulex), package(pprint), \
+  package(yojson), package(menhirLib), package(ulex), package(pprint), package(fix), \
   package(why3)
 
 <testsuite.*>: package(functory)
