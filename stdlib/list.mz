@@ -45,13 +45,16 @@ val freeze [a] (consumes c: cell a, xs: unknown) : (| c @ Cons { head: a; tail =
 val nil =
   Nil
 
-val cons [a] (consumes x: a, consumes xs: list a) : list a =
+alias cons_t a b = Cons { head: a; tail: b }
+
+val cons [a] (consumes x: a, consumes xs: list a) : cons_t a (list a) =
   Cons { head = x; tail = xs }
 
-val two [a] (consumes x1: a, consumes x2: a) : list a =
+val two [a] (consumes x1: a, consumes x2: a) : cons_t a (cons_t a Nil) =
   Cons { head = x1; tail = Cons { head = x2; tail = Nil }}
 
-val three [a] (consumes x1: a, consumes x2: a, consumes x3: a) : list a =
+val three [a] (consumes x1: a, consumes x2: a, consumes x3: a) :
+  cons_t a (cons_t a (cons_t a Nil)) =
   Cons { head = x1; tail = Cons { head = x2; tail = Cons { head = x3; tail = Nil }}}
 
 val init [a, p : perm] (n : int, f : (int | p) -> a | p) : list a =

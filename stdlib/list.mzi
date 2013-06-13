@@ -10,10 +10,12 @@ data list a =
 
 (* Short-hands for constructing lists. *)
 
+alias cons_t a b = Cons { head: a; tail: b }
+
 val nil   : Nil
-val cons  : [a] (consumes a, consumes list a) -> list a
-val two   : [a] (consumes (a, a)) -> list a
-val three : [a] (consumes (a, a, a)) -> list a
+val cons  : [a] (consumes a, consumes list a) -> cons_t a (list a)
+val two   : [a] (consumes (a, a)) -> cons_t a (cons_t a Nil)
+val three : [a] (consumes (a, a, a)) -> cons_t a (cons_t a (cons_t a Nil))
 val init  : [a, p : perm] (n : int, f : (int | p) -> a | p) -> list a
  
 (* -------------------------------------------------------------------------- *)
