@@ -1061,18 +1061,13 @@ let import_flex_instanciations env sub_env =
   Log.debug ~level:6 "env: %a" internal_pflexlist env;
   Log.debug ~level:6 "sub_env: %a" internal_pflexlist sub_env;
 
-  (* We need to get the maximum level seen in [env]. Beware! If there are no
-   * flexible variables at all in [env], we must not import anything (because
-   * the sub environment may have bound rigid variables at level 0, *then*
-   * flexible variables at level 0 that refer to the rigids at level 0. *)
   let max_level = MzList.max
     (List.map (fun { original_level; _ } -> original_level) env.flexible)
   in
-
-  (* Keep only the flexible up to [env]'s level. *)
   let flexible = List.filter (fun { original_level; _ } ->
     original_level <= max_level
   ) sub_env.flexible in
+
   Log.check (List.length flexible >= List.length env.flexible)
     "We are dropping some flexible variables!";
 
@@ -1083,8 +1078,8 @@ let import_flex_instanciations env sub_env =
 
   (* The only dangerous case is when [max_level = l], and sub_env contains a
    * flexible at level [l] instantiated to a rigid that does not exist in
-   * sub_env. If this is the case, this means that the list of quantifiers is
-   * one of the two following cases:
+   * env. If this is the case, this means that the list of quantifiers is one of
+   * the two following cases:
    *
    *    ∀∀ | ∀∃∃∃               here, if one of the ∃ in sub_env is at level
    *   env | sub_env            [l], then [max_level < l]
