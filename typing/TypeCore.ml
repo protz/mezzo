@@ -200,6 +200,8 @@ and flex_descr = {
    * the variable (fact, level, kind) are "better" after it lost its descriptor
    * (more precise fact, lower level, equal kind). *)
   structure: structure;
+  
+  original_level: level;
 }
 
 and structure = NotInstantiated of var_descr | Instantiated of typ
@@ -318,9 +320,14 @@ let find_flex_or_fail env f =
     raise UnboundPoint
 
 (* Replace the descriptor of a flexible variable with another one. *)
-let replace_flex (env: env) (f: flex_index) (d: flex_descr): env =
+let replace_flex (env: env) (f: flex_index) (s: structure): env =
   let l = List.length env.flexible in
-  let flexible = List.mapi (fun i d' -> if i = l - f - 1 then d else d') env.flexible in
+  let flexible = List.mapi (fun i d' ->
+    if i = l - f - 1 then
+      { d' with structure = s }
+    else
+      d'
+  ) env.flexible in
   { env with flexible }
 ;;
 
@@ -403,9 +410,9 @@ let update_var_descr (env: env) (v: var) (f: var_descr -> var_descr): env =
   | VFlexible i ->
       replace_flex env i (
         match find_flex env i with
-        | { structure = NotInstantiated descr } ->
-            { structure = NotInstantiated (f descr) }
-        | { structure = Instantiated _ } ->
+        | { structure = NotInstantiated descr; _ } ->
+            NotInstantiated (f descr)
+        | { structure = Instantiated _; _ } ->
             assert false
       )
   | VRigid p ->
@@ -871,9 +878,15 @@ let clean (top : env) (sub : env) : typ -> typ =
       let ty = modulo_flex_v sub v in
       match ty with
       | TyOpen p ->
-         (* A (rigid or flexible) variable is allowed to escape only
+          (* A (rigid or flexible) variable is allowed to escape only
             if it makes sense in the environment [top]. *)
-          if valid top p then ty else raise UnboundPoint
+          if valid top p then
+            ty
+          else begin
+            Log.debug "%a" !internal_ptype (sub, ty);
+            Log.debug "%a" !internal_ptype (top, ty);
+            raise UnboundPoint
+          end
       | _ ->
           self#visit () ty
   end) # visit ()
@@ -898,7 +911,7 @@ let instantiate_flexible (env: env) (v: var) (t: typ): env option =
 
     begin match modulo_flex_v env v with
     | TyOpen (VFlexible f) ->
-        Some (replace_flex env f { structure = Instantiated t })
+        Some (replace_flex env f (Instantiated t))
     | _ ->
         assert false
     end
@@ -1045,25 +1058,45 @@ let internal_pflexlist buf env =
 
 
 let import_flex_instanciations env sub_env =
-  Log.debug ~level:6 "%a" internal_pflexlist sub_env;
-  let rec chop_n_first n l =
-    if n = 0 then
-      l
-    else
-      chop_n_first (n - 1) (List.tl l)
+  Log.debug ~level:6 "env: %a" internal_pflexlist env;
+  Log.debug ~level:6 "sub_env: %a" internal_pflexlist sub_env;
+
+  (* We need to get the maximum level seen in [env]. Beware! If there are no
+   * flexible variables at all in [env], we must not import anything (because
+   * the sub environment may have bound rigid variables at level 0, *then*
+   * flexible variables at level 0 that refer to the rigids at level 0. *)
+  let max_level = MzList.max
+    (List.map (fun { original_level; _ } -> original_level) env.flexible)
   in
-  let diff = List.length sub_env.flexible - List.length env.flexible in 
-  let flexible = chop_n_first diff sub_env.flexible in
-  let flexible = List.map (function
-    | { structure = Instantiated t } ->
-        let t = clean env sub_env t in
-        { structure = Instantiated t }
-    | _ as flex_descr ->
-        flex_descr
-  ) flexible in
-  let floating_permissions = List.map (clean env sub_env) env.floating_permissions in
-  let env = { env with flexible; floating_permissions } in
-  Log.debug ~level:6 "%a" internal_pflexlist env;
+
+  (* Keep only the flexible up to [env]'s level. *)
+  let flexible = List.filter (fun { original_level; _ } ->
+    original_level <= max_level
+  ) sub_env.flexible in
+  Log.check (List.length flexible >= List.length env.flexible)
+    "We are dropping some flexible variables!";
+
+  (* And put them into [env], which is now equipped with everything it needs. *)
+  let env = { env with flexible } in
+
+  Log.debug ~level:6 "Kept %d flexible" (List.length flexible);
+
+  (* The only dangerous case is when [max_level = l], and sub_env contains a
+   * flexible at level [l] instantiated to a rigid that does not exist in
+   * sub_env. If this is the case, this means that the list of quantifiers is
+   * one of the two following cases:
+   *
+   *    ∀∀ | ∀∃∃∃               here, if one of the ∃ in sub_env is at level
+   *   env | sub_env            [l], then [max_level < l]
+   *
+   *    ∀∀∀∃ | ∃∃               here, if one of the ∃ in sub_env is at level
+   *   env   | sub_env          [l], then [max_level = l] but then all the
+   *                            rigid variables are in [env]
+   *
+   * We thus have the invariant that all types originally in [env] remain valid,
+   * even if some of the flexible variables they contain have been instantiated.
+   * We also have the invariant that all the types that the flexible variables
+   * have been instantiated to make sense in [env]. *)
   env
 ;;
 
@@ -1220,7 +1253,10 @@ let bind_flexible env (name, kind, location) =
   let f = List.length env.flexible in
 
   (* Create the flexible descriptor, add it to our list of flexible variables. *)
-  let flex_descr = { structure = NotInstantiated var_descr } in
+  let flex_descr = {
+    structure = NotInstantiated var_descr;
+    original_level = env.current_level
+  } in
   let env = { env with flexible = flex_descr :: env.flexible } in
 
   env, VFlexible f

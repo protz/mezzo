@@ -29,5 +29,12 @@ let unit_tests = [
     Log.debug "Flexible: %a\nResulting permissions: %a"
       internal_pflexlist env
       TypePrinter.ppermissions env
-  end, Some (), Pass);
+  end, None, Pass);
 ];;
+
+(* make tests/unit/UnitTests.byte *)
+(* let _ =
+  Log.enable_debug 8;
+  List.iter (fun (_, (f, _, _)) ->
+    f ()
+  ) unit_tests *)
