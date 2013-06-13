@@ -20,13 +20,17 @@
 (** This is the top of the pyramid: the module that actually performs
  * type-checking. *)
 
+open TypeCore
+
 (** [check_declaration_group env declarations items] type-checks a set of
  * top-level [declarations]; in order to do that, it will end up opening certain
  * binders, which is why it takes a list of [items] which will be correctly
  * transformed so as to refer to the variables that have been opened. It returns
  * an environment, the transformed [items], and the list of opened variables. *)
 val check_declaration_group :
-  TypeCore.env ->
+  env ->
   Expressions.definitions ->
   Expressions.toplevel_item list ->
-  TypeCore.env * Expressions.toplevel_item list * TypeCore.var list
+  env * Expressions.toplevel_item list * var list
+
+val check_function_call: env -> ?annot: typ -> var -> var -> env * typ

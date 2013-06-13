@@ -41,13 +41,6 @@ let point_by_name env ?mname name =
   point_by_name env ?mname (Variable.register name)
 ;;
 
-type outcome =
-  (* Fail at kind-checking time. *)
-  | KFail
-  (* Fail at type-checking time. *)
-  | Fail of (raw_error -> bool)
-  | Pass
-
 exception KnownFailure
 
 let simple_test ?(pedantic=false) ?known_failure outcome = fun do_it ->
@@ -994,7 +987,14 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("named-return.mz", pass);
   ("named-return2.mz", pass);
   ("incorrect-interface.mz", fail);
-  ("bind-op.mz", kfail_known_failure);
+  (* The uncatchable error. Happens somewhere in the middle of Functory, giving
+   * up on this for the moment. *)
+  (*("bind-op.mz", fun do_it ->
+    try
+      ignore (do_it ())
+    with Grammar.Error | End_of_file ->
+      raise KnownFailure
+  );*)
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)
@@ -1031,7 +1031,7 @@ type result =
 | Success
 | Failure
 
-let run_one_test prefix (file, test) : result * string =
+let run_one_test_raw name (f: result ref -> unit): result * string =
   let open Bash in
   (* This function is intended to be possibly run in a separate
      process. Avoid side effects (global variables, printing, etc.). *)
@@ -1040,12 +1040,9 @@ let run_one_test prefix (file, test) : result * string =
   let result = ref WasNotRun in
   let () =
     try
-      test (fun () ->
-        result := Success;
-        Driver.process (Filename.concat prefix file)
-      );
+      f result;
       Printf.bprintf buf "%s✓ %s%s"
-        colors.green colors.default file;
+        colors.green colors.default name;
       if !Log.warn_count > 0 then
         Printf.bprintf buf ", %s%d%s warning%s"
           colors.red !Log.warn_count colors.default
@@ -1053,15 +1050,30 @@ let run_one_test prefix (file, test) : result * string =
       Printf.bprintf buf "\n"
     with
     | KnownFailure ->
-        Printf.bprintf buf "%s! %s%s\n" colors.orange colors.default file
+        Printf.bprintf buf "%s! %s%s\n" colors.orange colors.default name
     | _ as e ->
         result := Failure;
         Printf.bprintf buf "%s✗ %s%s\n%s\n%s"
-          colors.red colors.default file
+          colors.red colors.default name
           (Printexc.to_string e)
           (Printexc.get_backtrace())
   in
   !result, Buffer.contents buf
+
+let run_one_test prefix (file, test) : result * string =
+  run_one_test_raw file (fun result ->
+    test (fun () ->
+      result := Success;
+      Driver.process (Filename.concat prefix file)
+    );
+  )
+
+let run_one_unit_test (name, (f, known_failure, outcome)) =
+  run_one_test_raw name (fun result ->
+    simple_test ?known_failure outcome (fun () ->
+      result := Success;
+      f ()
+  ))
 
 (* Total number of tests. *)
 let count = ref 0
@@ -1091,13 +1103,23 @@ let acknowledge ((file, _), ()) (result, output) =
   []
 
 (* [run] runs a bunch of tests in parallel. *)
-let run prefix tests : unit =
-  let tests = List.map (fun x -> x, ()) tests in
+let run worker tests : unit =
   Functory.Cores.set_number_of_cores 4;
   Functory.Cores.compute
-    ~worker:(run_one_test prefix)
+    ~worker
     ~master:acknowledge
     tests
+
+let run_files prefix tests : unit =
+  let worker = run_one_test prefix in
+  let tests = List.map (fun x -> x, ()) tests in
+  run worker tests
+
+let run_unit_tests () : unit =
+  let worker = run_one_unit_test in
+  let tests = UnitTests.unit_tests in
+  let tests = List.map (fun x -> x, ()) tests in
+  run worker tests
 
 let () =
   let open Bash in
@@ -1111,22 +1133,26 @@ let () =
 
   (* Check the core modules. *)
   center "~[ Core Modules ]~";
-  run "corelib/" corelib_tests;
+  run_files "corelib/" corelib_tests;
 
   (* Check the standard library modules. *)
   center "~[ Standard Library Modules ]~";
-  run "stdlib/" stdlib_tests;
+  run_files "stdlib/" stdlib_tests;
 
   (* Check the interpreter tests. *)
   center "~[ Interpreter Tests ]~";
-  run "tests/interpreter/" interpreter_tests;
+  run_files "tests/interpreter/" interpreter_tests;
+
+  (* Unit tests. *)
+  center "~[ Hand-written Unit Tests ]~";
+  run_unit_tests ();
 
   (* Thrash the include path, and then do the unit tests. *)
   Options.no_auto_include := true;
   Driver.add_include_dir "tests";
   Driver.add_include_dir "tests/modules";
   center "~[ Unit Tests ]~";
-  run "tests/" tests;
+  run_files "tests/" tests;
 
   Printf.printf "%s%d%s tests listed (%d tests actually run), "
     colors.blue !count colors.default !do_it_count;

@@ -20,12 +20,20 @@
 open TypeCore
 open Types
 
+(* This is shared between [testsuite.ml] and [UnitTests.ml] *)
+type outcome =
+  (* Fail at kind-checking time. *)
+  | KFail
+  (* Fail at type-checking time. *)
+  | Fail of (TypeErrors.raw_error -> bool)
+  | Pass
+
+(* Below are mostly facilities for constructing types "by hand". *)
+
 let print_env (env: env) =
   let open TypePrinter in
   Log.debug ~level:1 "%a\n" MzPprint.pdoc (print_permissions, env);
 ;;
-
-(* Some OCaml functions that create HaMLeT types. *)
 
 let tuple l =
   TyTuple l
@@ -43,10 +51,23 @@ let permission (p, x) =
   TyAnchoredPermission (p, x)
 ;;
 
+let user x k =
+  User (Module.register "<none>", Variable.register x), k, (Lexing.dummy_pos, Lexing.dummy_pos)
+;;
+
 let forall (x, k) t =
   TyQ (
     Forall,
-    (User (Module.register "<none>", Variable.register x), k, (Lexing.dummy_pos, Lexing.dummy_pos)),
+    (user x k),
+    UserIntroduced,
+    t
+  )
+;;
+
+let exists (x, k) t =
+  TyQ (
+    Exists,
+    (user x k),
     UserIntroduced,
     t
   )
@@ -54,6 +75,14 @@ let forall (x, k) t =
 
 let var x =
   TyBound x
+;;
+
+let bar x p =
+  TyBar (x, p)
+;;
+
+let empty =
+  TyEmpty
 ;;
 
 let dc env x y =

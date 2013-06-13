@@ -10,11 +10,11 @@ TIME       := time
 OCAMLBUILD := ocamlbuild -j 0 -use-ocamlfind -use-menhir \
   -menhir "menhir --explain --infer -la 1 --table" \
   -classic-display
-INCLUDE    := -Is typing,parsing,lib,utils,fix,interpreter,compiler,mezzolib
+INCLUDE    := -Is typing,parsing,lib,utils,fix,interpreter,compiler,mezzolib,tests/unit
 MAIN       := mezzo
 TESTSUITE  := testsuite
 BUILDDIRS   = -I _build $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
-MY_DIRS    := lib parsing typing utils interpreter compiler
+MY_DIRS    := lib parsing typing utils interpreter compiler tests/unit
 PACKAGES   := -package menhirLib,ocamlbuild,yojson,ulex,pprint
 
 all: configure.ml parsing/Keywords.ml
