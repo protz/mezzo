@@ -1,4 +1,3 @@
-open Kind
 open SurfaceSyntax
 open KindCheckGlue
 

@@ -391,7 +391,7 @@ module Make (X : Endianness.S) = struct
          fine_add decide key value s
 
       | Branch(p, m, s0, s1), Branch(q, n, t0, t1) ->
-         if (p = q) & (m = n) then
+         if (p = q) && (m = n) then
 
              (* The trees have the same prefix. Merge their sub-trees. *)
 
@@ -400,7 +400,7 @@ module Make (X : Endianness.S) = struct
            if t0 == u0 && t1 == u1 then t
            else Branch(p, m, u0, u1)
 
-         else if (X.shorter m n) & (match_prefix q p m) then
+         else if (X.shorter m n) && (match_prefix q p m) then
 
              (* [q] contains [p]. Merge [t] with a sub-tree of [s]. *)
 
@@ -409,7 +409,7 @@ module Make (X : Endianness.S) = struct
            else
              Branch(p, m, s0, union s1 t)
 
-         else if (X.shorter n m) & (match_prefix p q n) then
+         else if (X.shorter n m) && (match_prefix p q n) then
 
            (* [p] contains [q]. Merge [s] with a sub-tree of [t]. *)
 
@@ -519,7 +519,7 @@ module Make (X : Endianness.S) = struct
     | Branch (p, m, tree0, tree1) ->
        let tree0' = endo_map f tree0 in
        let tree1' = endo_map f tree1 in
-       if (tree0' == tree0) & (tree1' == tree1) then
+       if (tree0' == tree0) && (tree1' == tree1) then
          tree
        else
          Branch (p, m, tree0', tree1')
@@ -749,7 +749,7 @@ module Domain = struct
        add x s
 
     | Branch(p, m, s0, s1), Branch(q, n, t0, t1) ->
-       if (p = q) & (m = n) then
+       if (p = q) && (m = n) then
 
          (* The trees have the same prefix. Merge their sub-trees. *)
 
@@ -758,7 +758,7 @@ module Domain = struct
          if t0 == u0 && t1 == u1 then t
          else Branch(p, m, u0, u1)
 
-       else if (X.shorter m n) & (match_prefix q p m) then
+       else if (X.shorter m n) && (match_prefix q p m) then
 
          (* [q] contains [p]. Merge [t] with a sub-tree of [s]. *)
 
@@ -767,7 +767,7 @@ module Domain = struct
          else
            Branch(p, m, s0, union s1 t)
 
-       else if (X.shorter n m) & (match_prefix p q n) then
+       else if (X.shorter n m) && (match_prefix p q n) then
 
          (* [p] contains [q]. Merge [s] with a sub-tree of [t]. *)
 
@@ -820,13 +820,13 @@ module Domain = struct
        remove x s
 
     | Branch(p, m, s0, s1), Branch(q, n, t0, t1) ->
-       if (p = q) & (m = n) then
+       if (p = q) && (m = n) then
 
          (* The trees have the same prefix. Compute the differences of their sub-trees. *)
 
          build p m (diff s0 t0) (diff s1 t1)
 
-       else if (X.shorter m n) & (match_prefix q p m) then
+       else if (X.shorter m n) && (match_prefix q p m) then
 
          (* [q] contains [p]. Subtract [t] off a sub-tree of [s]. *)
 
@@ -835,7 +835,7 @@ module Domain = struct
          else
            build p m s0 (diff s1 t)
 
-       else if (X.shorter n m) & (match_prefix p q n) then
+       else if (X.shorter n m) && (match_prefix p q n) then
 
          (* [p] contains [q]. Subtract a sub-tree of [t] off [s]. *)
 
@@ -861,19 +861,19 @@ module Domain = struct
        if mem x t then s else Empty
 
     | Branch(p, m, s0, s1), Branch(q, n, t0, t1) ->
-       if (p = q) & (m = n) then
+       if (p = q) && (m = n) then
 
          (* The trees have the same prefix. Compute the intersections of their sub-trees. *)
 
          build p m (inter s0 t0) (inter s1 t1)
 
-       else if (X.shorter m n) & (match_prefix q p m) then
+       else if (X.shorter m n) && (match_prefix q p m) then
 
          (* [q] contains [p]. Intersect [t] with a sub-tree of [s]. *)
 
          inter (if (q land m) = 0 then s0 else s1) t
 
-       else if (X.shorter n m) & (match_prefix p q n) then
+       else if (X.shorter n m) && (match_prefix p q n) then
 
          (* [p] contains [q]. Intersect [s] with a sub-tree of [t]. *)
 
@@ -907,13 +907,13 @@ module Domain = struct
            raise NotDisjoint
 
       | Branch(p, m, s0, s1), Branch(q, n, t0, t1) ->
-         if (p = q) & (m = n) then begin
+         if (p = q) && (m = n) then begin
            inter s0 t0;
            inter s1 t1
          end
-         else if (X.shorter m n) & (match_prefix q p m) then
+         else if (X.shorter m n) && (match_prefix q p m) then
            inter (if (q land m) = 0 then s0 else s1) t
-         else if (X.shorter n m) & (match_prefix p q n) then
+         else if (X.shorter n m) && (match_prefix p q n) then
            inter s (if (p land n) = 0 then t0 else t1)
          else
            () in
@@ -1064,13 +1064,13 @@ module Domain = struct
 
       | Branch(p, m, s0, s1), Branch(q, n, t0, t1) ->
 
-         if (p = q) & (m = n) then begin
+         if (p = q) && (m = n) then begin
 
            diff s0 t0;
            diff s1 t1
 
          end
-         else if (X.shorter n m) & (match_prefix p q n) then
+         else if (X.shorter n m) && (match_prefix p q n) then
 
            diff s (if (p land n) = 0 then t0 else t1)
 
@@ -1179,18 +1179,18 @@ end
          remove k s
       
       | Branch(p, m, s0, s1), Domain.Branch(q, n, t0, t1) ->
-         if (p = q) & (m = n) then
+         if (p = q) && (m = n) then
 
            build p m (corestrict s0 t0) (corestrict s1 t1)
 
-         else if (X.shorter m n) & (match_prefix q p m) then
+         else if (X.shorter m n) && (match_prefix q p m) then
 
            if (q land m) = 0 then
              build p m (corestrict s0 t) s1
            else
              build p m s0 (corestrict s1 t)
 
-         else if (X.shorter n m) & (match_prefix p q n) then
+         else if (X.shorter n m) && (match_prefix p q n) then
 
            corestrict s (if (p land n) = 0 then t0 else t1)
 
