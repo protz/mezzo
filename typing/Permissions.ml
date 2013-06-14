@@ -309,11 +309,9 @@ class open_all_rigid_in (env : env ref) = object (self)
         (* Setting [deconstructed] to [true] forces the fields to
           become named with a point, if they weren't already. *)
 
-    | TyBar _, _
-        (* I feel like, just like we're descending into the right-hand side of
-         * "x @ t", we should descend into "t" inside "(t|P)". What about the
-         * rigid variables contained in "(int, int) | P"? However, doing this
-         * causes several failures... *)
+    | TyBar (t, p), _ ->
+        TyBar (self # visit (side, true) t, self # visit (side, false) p)
+
     | TyStar _, _ ->
         super#visit (side, false) ty
 
@@ -726,7 +724,7 @@ and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): result =
 (** [sub_type env t1 t2] examines [t1] and, if [t1] "provides" [t2], returns
     [Some env] where [env] has been modified accordingly (for instance, by
     unifying some flexible variables); it returns [None] otherwise.
-    
+
     BEWARE: this is *not* the function that is exported as "sub_type". We export
     "sub_type_with_unfolding" as "sub_type". *)
 and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
@@ -992,7 +990,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         Log.debug ~level:4 "%sArrow / Arrow, right%s"
           Bash.colors.Bash.red
           Bash.colors.Bash.default;
-        sub_type domain_env t2 t'2 >>= fun codomain_env ->
+        sub_type_with_unfolding domain_env t2 t'2 >>= fun codomain_env ->
 
         (* 3b) And now, check that the facts in the domain are satisfied. We do
          * this just now, because the codomain may have performed flexible
@@ -1126,7 +1124,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
               | elt :: l1 ->
                   match MzList.take_bool (equal env elt) l2 with
                   | Some (l2, _elt') ->
-                      let env = 
+                      let env =
                         if FactInference.is_duplicable env elt then
                           add_perm env elt
                         else

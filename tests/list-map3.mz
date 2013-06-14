@@ -31,7 +31,7 @@ val usage_test2 =
     else
       cons (f i, make (i - 1, f))
   in
-  let l = make (10, (fun (x: int): ref int = newref x)) in
+  let l: list (ref int) = make (10, (fun (x: int): ref int = newref x)) in
   let count = newref 0 in
   (* [f] does something super fancy *)
   let f = fun (consumes y: ref int | count @ ref int):
@@ -40,4 +40,4 @@ val usage_test2 =
       y := (v, v);
       v
   in
-  map [ref int, ref (int, int), int, (count @ ref int)] (f, l)
+  map [a1 = (ref int)] (f, l)
