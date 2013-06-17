@@ -740,8 +740,7 @@ and infer env s (ty : typ) : kind =
   | TyForall (binding, ty)
   | TyExists (binding, ty) ->
       let env = bind_local Fictional env binding in
-      check_reset env ty KType;
-      KType
+      infer_reset env ty
 
   | TyAnchoredPermission (ty1, ty2) ->
       check_reset env ty1 KTerm;
