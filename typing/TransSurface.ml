@@ -305,8 +305,7 @@ and translate_fields env fields =
     | FieldValue (name, t) ->
         T.FieldValue (name, translate_type_reset_no_kind env t)
     | FieldPermission t ->
-        let t, _, _ = translate_type env t in
-        T.FieldPermission t
+        T.FieldPermission (translate_type_reset_no_kind env t)
   ) fields
 
 ;;
