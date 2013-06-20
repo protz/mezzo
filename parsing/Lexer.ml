@@ -140,7 +140,7 @@ let regexp uid =
 let regexp op_prefix  = ['!' '~' '?']
 let regexp op_infix0a = ['|'] (* left *)
 let regexp op_infix0b = ['&'] (* left *)
-let regexp op_infix0c = ['=' '<' '>'] (* nonassoc *)
+let regexp op_infix0c = ['=' '<' '>'] (* left *)
 let regexp op_infix0d = ['$'] (* left *)
 
 let regexp op_infix0  = op_infix0a | op_infix0b | op_infix0c | op_infix0d

@@ -67,7 +67,7 @@
 %nonassoc COLONEQUAL
 %left     OPINFIX0a
 %left     OPINFIX0b
-%nonassoc OPINFIX0c EQUAL (* EQUAL is also a OPINFIX0c *)
+%left     OPINFIX0c EQUAL (* EQUAL is also a OPINFIX0c *)
 %left     OPINFIX0d
 %right    OPINFIX1
 %left     OPINFIX2 PLUS MINUS (* MINUS is also an OPINFIX2 *)
