@@ -229,6 +229,8 @@ and expression =
   | EBuiltin of string
   (* let rec f p₁ … pₙ: τ = e₁ and … and v = e₂ in e *)
   | ELet of rec_flag * (pattern * expression) list * expression
+  (* let flex v such that t in e *)
+  | ELetFlex of type_binding * typ * expression
   (* fun [a] (x: τ): τ -> e *)
   | EFun of type_binding list * typ * typ * expression
   (* v.f <- e *)

@@ -560,6 +560,12 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let body = translate_expr env body in
       E.ELet (flag, patexprs, body)
 
+  | ELetFlex (binding, t, e) ->
+      let env = extend env [binding] in
+      let t  = translate_type_reset_no_kind env t in
+      let e = translate_expr env e in
+      E.ELetFlex ((name_user env binding, UserIntroduced), t, e)
+
   | EFun (vars, arg, return_type, body) ->
 
       (* Introduce all universal bindings. *)

@@ -84,6 +84,8 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | EMatch (_, expr, patexprs)
     | ELet (_, patexprs, expr) ->
         collect_patexprs patexprs @ collect_expr expr
+    | ELetFlex (_, t, e) ->
+        collect_type t @ collect_expr e
     | EFun (_, t1, t2, expr) ->
         collect_type t1 @ collect_type t2 @ collect_expr expr
     | EAssign (e1, _, e2)

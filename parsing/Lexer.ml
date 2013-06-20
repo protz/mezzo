@@ -169,6 +169,7 @@ let rec token = lexer
 
 (* A special multi-word keyword. *)
 | "tag" whitespace "of" -> locate lexbuf TAGOF
+| "such" whitespace "that" -> locate lexbuf SUCHTHAT
 
 (* Special character sequences. *)
 | "<-" -> locate lexbuf LARROW

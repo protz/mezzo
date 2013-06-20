@@ -512,6 +512,21 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let body = subst_expr body in
       check_expression env ?annot body
 
+  | ELetFlex (binding, t, e) ->
+      let env, { subst_expr; subst_type; vars; _ } = bind_evars env [fst binding] in
+      Log.check (List.length vars = 1) "What?";
+      let x = List.hd vars in
+      let t = subst_type t in
+      let e = subst_expr e in
+      let sub_env = Permissions.sub env x t in
+      begin match sub_env with
+      | (Some sub_env), _ ->
+          let env = import_flex_instanciations env sub_env in
+          check_expression env ?annot e
+      | None, _derivation ->
+          Log.error "blah"
+      end
+
   (* We assume that [EBigLambdas] is allowed only above [ELambda]. This
      allows us to cheat when handling [EBigLambda]. Instead of introducing a
      fresh type variable [a], synthesizing the type [t] of the body, and

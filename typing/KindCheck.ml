@@ -996,6 +996,11 @@ and check_expression env (expr : expression) : unit =
   | ELet (flag, pes, body) ->
       check_expression (check_patexpr env flag pes) body
 
+  | ELetFlex (binding, t, e) ->
+      let env = bind_local Fictional env binding in
+      ignore (infer_reset env t);
+      check_expression env e
+
   | EFun (bindings, arg, return_type, body) ->
       (* The variables bound by capital-Lambda are fictional. *)
       let env = extend_check Fictional env bindings in
