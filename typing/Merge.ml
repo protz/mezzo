@@ -221,11 +221,24 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
       Lexer.p (location top)
       MzPprint.pdoc (TypePrinter.print_permissions, top);
 
+    let is_external var =
+      let names = get_names top var in
+      List.exists (function
+        | User (mname, _) when not (Module.equal (module_name top) mname) ->
+            true
+        | _ ->
+            false
+      ) names
+    in
+
     (* This is the destination environment; it will evolve over time. Initially,
      * it is empty. As an optimization, we keep the vars that were previously
      * defined so that the mapping is the identity for all the vars from [top]. *)
     let dest_env = fold_terms top (fun dest_env var _ ->
-      reset_permissions dest_env var
+      if not (is_external var) then
+        reset_permissions dest_env var
+      else
+        dest_env
     ) top in
     let dest_env = set_floating_permissions dest_env [] in
 
@@ -237,7 +250,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
     (* All the roots should be merged. *)
     let roots = fold_terms top (fun acc k _ -> k :: acc) [] in
-    List.iter (fun p -> push_job (p, p, p)) roots;
+    List.iter (fun p -> if not (is_external p) then push_job (p, p, p)) roots;
 
     (* Create an additional root for the result of the match. Schedule it for
      * merging, at the front of the list (this implements our first heuristic). *)
