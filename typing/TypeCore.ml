@@ -887,7 +887,8 @@ let clean (top : env) (sub : env) : typ -> typ =
             ty
           else begin
             Log.debug "%a" !internal_ptype (sub, ty);
-            Log.debug "%a" !internal_ptype (top, ty);
+            (* Obviously we can't print that!! *)
+            (* Log.debug "%a" !internal_ptype (top, ty); *)
             raise UnboundPoint
           end
       | _ ->

@@ -843,21 +843,21 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                    * merge. I'm not going to write 1000 more lines just for that, so
                    * we're conservative, and move up the variance lattice, and
                    * consider the parameter to be invariant. *)
-                  begin try
-                    let argl = clean top left_env argl in
-                    let argr = clean top right_env argr in
-                    match variance dest_env cons i with
-                    | Covariant ->
-                        merge_type_with_unfolding (left_env, argl) (right_env, argr) ?dest_var dest_env
-                    | _ ->
+                  match variance dest_env cons i with
+                  | Covariant ->
+                      merge_type_with_unfolding (left_env, argl) (right_env, argr) ?dest_var dest_env
+                  | _ ->
+                      begin try
+                        let argl = clean top left_env argl in
+                        let argr = clean top right_env argr in
                         Permissions.sub_type dest_env argl argr
                         |> drop_derivation >>= fun dest_env ->
                         Permissions.sub_type dest_env argr argl
                         |> drop_derivation >>= fun dest_env ->
                         Some (left_env, right_env, dest_env, argl)
-                  with UnboundPoint ->
-                    None
-                  end
+                      with UnboundPoint ->
+                        None
+                      end
                 in
                 v >>= fun (left_env, right_env, dest_env, arg) ->
                 (* The parameter was merged. Return a valid accumulator. *)
