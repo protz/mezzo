@@ -156,6 +156,11 @@ type permissions = typ list
 
 type level = int
 
+module IntMap = Map.Make(struct
+  type t = int
+  let compare = Pervasives.compare
+end)
+
 (** This is the environment that we use throughout. *)
 type env = {
   (* This maps global names (i.e. [TyOpen]s) to their corresponding binding. *)
@@ -190,7 +195,7 @@ type env = {
   current_level: level;
 
   (* The list of flexible bindings. *)
-  flexible: flex_descr list;
+  flexible: flex_descr IntMap.t;
 }
 
 and flex_descr = {
@@ -271,7 +276,7 @@ let empty_env = {
   floating_permissions = [];
   last_binding = Rigid;
   current_level = 0;
-  flexible = [];
+  flexible = IntMap.empty;
 }
 
 let locate env location =
@@ -288,13 +293,6 @@ let module_name { module_name; _ } = module_name;;
 
 let set_module_name env module_name = { env with module_name };;
 
-let valid env = function
-  | VFlexible v ->
-      v < List.length env.flexible
-  | VRigid p ->
-      PersistentUnionFind.valid p env.state
-;;
-
 let find env p =
   PersistentUnionFind.find p env.state
 ;;
@@ -306,8 +304,15 @@ let find env p =
 
 (* Given the index of a flexible variable, find its corresponding descriptor. *)
 let find_flex (env: env) (f: flex_index): flex_descr =
-  let l = List.length env.flexible in
-  List.nth env.flexible (l - f - 1) 
+  IntMap.find f env.flexible
+;;
+
+let valid env = function
+  | VFlexible v ->
+      let { original_level; _ } = find_flex env v in
+      original_level <= env.current_level
+  | VRigid p ->
+      PersistentUnionFind.valid p env.state
 ;;
 
 exception UnboundPoint
@@ -316,19 +321,13 @@ exception UnboundPoint
 let find_flex_or_fail env f =
   try
     find_flex env f
-  with Invalid_argument _ (* List.nth *) ->
+  with Not_found (* IntMap.find *) ->
     raise UnboundPoint
 
 (* Replace the descriptor of a flexible variable with another one. *)
 let replace_flex (env: env) (f: flex_index) (s: structure): env =
-  let l = List.length env.flexible in
-  let flexible = List.mapi (fun i d' ->
-    if i = l - f - 1 then
-      { d' with structure = s }
-    else
-      d'
-  ) env.flexible in
-  { env with flexible }
+  let descr = find_flex env f in
+  { env with flexible = IntMap.add f { descr with structure = s } env.flexible }
 ;;
 
 (* Goes through any flexible variables before finding "the real type". *)
@@ -1050,9 +1049,8 @@ let internal_pflex buf (env, i, f) =
 
 let internal_pflexlist buf env =
   Printf.bprintf buf "env.current_level = %d\n" env.current_level;
-  let l = List.length env.flexible in
-  List.iteri (fun i flex ->
-    internal_pflex buf (env, l - i - 1, flex)
+  IntMap.iter (fun i flex ->
+    internal_pflex buf (env, i, flex)
   ) env.flexible
 ;;
 
@@ -1061,20 +1059,20 @@ let import_flex_instanciations env sub_env =
   Log.debug ~level:6 "env: %a" internal_pflexlist env;
   Log.debug ~level:6 "sub_env: %a" internal_pflexlist sub_env;
 
-  let max_level = MzList.max
-    (List.map (fun { original_level; _ } -> original_level) env.flexible)
-  in
-  let flexible = List.filter (fun { original_level; _ } ->
+  let max_level = IntMap.fold (fun _ { original_level; _ } acc ->
+    max original_level acc
+  ) env.flexible (-1) in
+  let flexible = IntMap.filter (fun _ { original_level; _ } ->
     original_level <= max_level
   ) sub_env.flexible in
 
-  Log.check (List.length flexible >= List.length env.flexible)
+  Log.check (IntMap.cardinal flexible >= IntMap.cardinal env.flexible)
     "We are dropping some flexible variables!";
 
   (* And put them into [env], which is now equipped with everything it needs. *)
   let env = { env with flexible } in
 
-  Log.debug ~level:6 "Kept %d flexible" (List.length flexible);
+  Log.debug ~level:6 "Kept %d flexible" (IntMap.cardinal flexible);
 
   (* The only dangerous case is when [max_level = l], and sub_env contains a
    * flexible at level [l] instantiated to a rigid that does not exist in
@@ -1231,10 +1229,16 @@ let bind_rigid env (name, kind, location) =
   { env with state }, VRigid point
 ;;
 
+let fresh_atom =
+  let r = ref 0 in
+  fun () ->
+    r := !r + 1;
+    !r
+;;
 
 let bind_flexible env (name, kind, location) =
   Log.debug ~level:6 "Binding flexible #%d (%a) @ level %d"
-    (List.length env.flexible)
+    (IntMap.cardinal env.flexible)
     !internal_pnames (env, [name])
     env.current_level;
 
@@ -1244,15 +1248,15 @@ let bind_flexible env (name, kind, location) =
   (* Create the descriptor *)
   let var_descr = mkdescr env name kind location (mkfact kind) in
 
-  (* Our (future) index in the list *)
-  let f = List.length env.flexible in
+  (* Our (future) key *)
+  let f = fresh_atom () in
 
   (* Create the flexible descriptor, add it to our list of flexible variables. *)
   let flex_descr = {
     structure = NotInstantiated var_descr;
     original_level = env.current_level
   } in
-  let env = { env with flexible = flex_descr :: env.flexible } in
+  let env = { env with flexible = IntMap.add f flex_descr env.flexible } in
 
   env, VFlexible f
 ;;
