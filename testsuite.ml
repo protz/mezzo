@@ -987,6 +987,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("named-return.mz", pass);
   ("named-return2.mz", pass);
   ("incorrect-interface.mz", fail);
+  ("instantiate_exists.mz", fail_known_failure);
   (* The uncatchable error. Happens somewhere in the middle of Functory, giving
    * up on this for the moment. *)
   (*("bind-op.mz", fun do_it ->
