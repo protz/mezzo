@@ -1,0 +1,14 @@
+data list a =
+  | Nil
+  | Cons { head: a; tail: list a }
+
+val test [a, b] (x: list (a, b)): () =
+  let () (* : (| x @ list (a, b)) *) = 
+    match x with
+    | Cons ->
+        ()
+    | Nil ->
+        ()
+    end
+  in
+  ()

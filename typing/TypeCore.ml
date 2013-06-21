@@ -309,8 +309,12 @@ let find_flex (env: env) (f: flex_index): flex_descr =
 
 let valid env = function
   | VFlexible v ->
-      let { original_level; _ } = find_flex env v in
-      original_level <= env.current_level
+      begin try
+        let { original_level; _ } = find_flex env v in
+        original_level <= env.current_level
+      with Not_found ->
+        false
+      end
   | VRigid p ->
       PersistentUnionFind.valid p env.state
 ;;
@@ -1177,14 +1181,14 @@ and equal env (t1: typ) (t2: typ) =
 
 (* Binding, finding, iterating. *)
 
-let mkdescr env name kind location fact =
+let mkdescr _env name kind location fact level =
   let var_descr = {
     names = [name];
     locations = [location];
     kind;
     fact;
     binding_mark = Mark.create ();
-    level = env.current_level;
+    level = level;
   } in
   var_descr
 ;;
@@ -1211,7 +1215,7 @@ let bind_rigid env (name, kind, location) =
   in
 
   (* Prepare the descriptor. *)
-  let var_descr = mkdescr env name kind location (mkfact kind) in
+  let var_descr = mkdescr env name kind location (mkfact kind) env.current_level in
   let descr = var_descr, DNone in
 
   (* Register the descriptors in the union-find, update the list of permissions
@@ -1236,17 +1240,17 @@ let fresh_atom =
     !r
 ;;
 
-let bind_flexible env (name, kind, location) =
+let bind_flexible_raw env (name, kind, location) level =
   Log.debug ~level:6 "Binding flexible #%d (%a) @ level %d"
     (IntMap.cardinal env.flexible)
     !internal_pnames (env, [name])
-    env.current_level;
+    level;
 
   (* Deal with levels. No need to bump the level here. *)
   let env = { env with last_binding = Flexible } in
 
   (* Create the descriptor *)
-  let var_descr = mkdescr env name kind location (mkfact kind) in
+  let var_descr = mkdescr env name kind location (mkfact kind) level in
 
   (* Our (future) key *)
   let f = fresh_atom () in
@@ -1254,13 +1258,28 @@ let bind_flexible env (name, kind, location) =
   (* Create the flexible descriptor, add it to our list of flexible variables. *)
   let flex_descr = {
     structure = NotInstantiated var_descr;
-    original_level = env.current_level
+    original_level = level
   } in
   let env = { env with flexible = IntMap.add f flex_descr env.flexible } in
 
   env, VFlexible f
 ;;
 
+let bind_flexible env binding =
+  bind_flexible_raw env binding env.current_level
+;;
+
+let bind_flexible_before env binding v =
+  match modulo_flex_v env v with
+  | TyOpen (VFlexible i) ->
+      let level = (find_flex env i).original_level in
+      Log.debug ~level:6 "Binding a new flexible before %a (level %d)"
+        !internal_pnames (env, get_names env v)
+        level;
+      bind_flexible_raw env binding level
+  | _ ->
+      Log.error "Must bind before a variable that's still flexible"
+;;
 
 (* ---------------------------------------------------------------------------- *)
 

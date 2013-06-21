@@ -329,6 +329,9 @@ val bind_rigid: env -> type_binding -> env * var
 (** Bind a flexible type variable. *)
 val bind_flexible: env -> type_binding -> env * var
 
+(** Bind a flexible type variables before another one. *)
+val bind_flexible_before: env -> type_binding -> var -> env * var
+
 (* ---------------------------------------------------------------------------- *)
 
 

@@ -754,6 +754,36 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
      some structural rules are missing below. *)
 
   (** Easy cases involving flexible variables *)
+  | TyOpen v1, TyTuple ts when is_flexible env v1 ->
+      try_proof_root "Flex-L-Tuple" begin
+        let env, vs = List.fold_left (fun (env, acc) _ ->
+          let binding =
+            fresh_auto_name "flt", KType, location env
+          in
+          let env, v = bind_flexible_before env binding v1 in
+          env, v :: acc
+        ) (env, []) ts in
+        let t1 = TyTuple (List.map (fun x -> TyOpen x) vs) in
+        j_flex_inst env v1 t1 >>= fun env ->
+        sub_type env t1 t2 >>=
+        qed
+      end
+
+  | TyTuple ts, TyOpen v2  when is_flexible env v2 ->
+      try_proof_root "Flex-R-Tuple" begin
+        let env, vs = List.fold_left (fun (env, acc) _ ->
+          let binding =
+            fresh_auto_name "frt", KType, location env
+          in
+          let env, v = bind_flexible_before env binding v2 in
+          env, v :: acc
+        ) (env, []) ts in
+        let t2 = TyTuple (List.map (fun x -> TyOpen x) vs) in
+        j_flex_inst env v2 t2 >>= fun env ->
+        sub_type env t1 t2 >>=
+        qed
+      end
+
   | TyOpen v1, _ when is_flexible env v1 ->
       try_proof_root "Flex-L" begin
         j_flex_inst env v1 t2 >>=
