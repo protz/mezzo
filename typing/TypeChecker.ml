@@ -707,26 +707,46 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       end
 
   | EApply (e1, e2) ->
-      begin match eunloc e1 with
-      | EApply _ ->
-          if not (!Options.multiple_arguments) then
-            raise_error env NoMultipleArguments
-         (* TEMPORARY this is too violent, and this command line option
-            does not really make sense, does it? Instead, the error
-            message [NotAFunction] could be replaced with [NoMultipleArguments]
-            in certain situations? *)
-      | _ ->
-          ()
-      end;
+      let without_tapply =
+        match eunloc e1 with
+        | EApply _ ->
+            if not (!Options.multiple_arguments) then
+              raise_error env NoMultipleArguments
+            else
+              None
+           (* TEMPORARY this is too violent, and this command line option
+              does not really make sense, does it? Instead, the error
+              message [NotAFunction] could be replaced with [NoMultipleArguments]
+              in certain situations? *)
+        | ETApply (e, _, _) ->
+            Some e
+        | _ ->
+            None
+      in
       let hint1 = add_hint hint "fun" in
       let hint2 = add_hint hint "arg" in
-      let env, x1 = check_expression env ?hint:hint1 e1 in
-      let env, x2 = check_expression env ?hint:hint2 e2 in
-      (* Give an error message that mentions the entire function call. We should
-       * probably have a function called nearest_loc that returns the location
-       * of [e2] so that we can be even more precise in the error message. *)
-      let env, return_type = check_function_call env ?annot x1 x2 in
-      return env return_type
+      let default e1 =
+        let env, x1 = check_expression env ?hint:hint1 e1 in
+        let env, x2 = check_expression env ?hint:hint2 e2 in
+        (* Give an error message that mentions the entire function call. We should
+         * probably have a function called nearest_loc that returns the location
+         * of [e2] so that we can be even more precise in the error message. *)
+        let env, return_type = check_function_call env ?annot x1 x2 in
+        return env return_type
+      in
+      begin match without_tapply with
+      | Some e'1 ->
+          begin try
+            let r = default e'1 in
+            MzString.bfprintf stderr "%a This type application may be unnecessary.\n"
+              Lexer.p (location env);
+            r
+          with _ ->
+            default e1
+          end
+      | None ->
+          default e1
+      end
 
   | ETApply (e, t, k) ->
       let env, x = check_expression env e in
