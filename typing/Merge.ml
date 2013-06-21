@@ -847,6 +847,10 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                  * arguments in the accumulator. *)
                 acc >>= fun (left_env, right_env, dest_env, args) ->
                 let v =
+                  (* In the obvious case where one variable is flexible, do the
+                   * obvious thing! *)
+                  try_merge_flexible (left_env, argl) (right_env, argr) dest_env |||
+
                   (* Here, variance comes into play. The merge operation is a
                    * disjunction, so it "goes up" (subtyping-wise), that is, it is
                    * covariant. So if we need to recursively merge type parameters,
