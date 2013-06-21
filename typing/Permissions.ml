@@ -754,6 +754,56 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
      some structural rules are missing below. *)
 
   (** Easy cases involving flexible variables *)
+  | TyConcrete branch1, TyOpen v2 when is_flexible env v2 ->
+      try_proof_root "Flex-R-Concrete" begin
+        let env, vs = List.fold_left (fun (env, acc) _ ->
+          let binding =
+            fresh_auto_name "frc", KType, location env
+          in
+          let env, v = bind_flexible_before env binding v2 in
+          env, v :: acc
+        ) (env, []) branch1.branch_fields in
+        let branch2: resolved_branch = {
+          branch1 with
+          branch_fields = List.map2 (fun f1 v ->
+            match f1 with
+            | FieldValue (fname, _) ->
+                FieldValue (fname, TyOpen v)
+            | _ ->
+                assert false
+          ) branch1.branch_fields vs
+        } in
+        let t2 = TyConcrete branch2 in
+        j_flex_inst env v2 t2 >>= fun env ->
+        sub_type env t1 t2 >>=
+        qed
+      end
+
+  | TyOpen v1, TyConcrete branch2 when is_flexible env v1 ->
+      try_proof_root "Flex-L-Concrete" begin
+        let env, vs = List.fold_left (fun (env, acc) _ ->
+          let binding =
+            fresh_auto_name "flc", KType, location env
+          in
+          let env, v = bind_flexible_before env binding v1 in
+          env, v :: acc
+        ) (env, []) branch2.branch_fields in
+        let branch1: resolved_branch = {
+          branch2 with
+          branch_fields = List.map2 (fun f2 v ->
+            match f2 with
+            | FieldValue (fname, _) ->
+                FieldValue (fname, TyOpen v)
+            | _ ->
+                assert false
+          ) branch2.branch_fields vs
+        } in
+        let t1 = TyConcrete branch1 in
+        j_flex_inst env v1 t1 >>= fun env ->
+        sub_type env t1 t2 >>=
+        qed
+      end
+
   | TyOpen v1, TyTuple ts when is_flexible env v1 ->
       try_proof_root "Flex-L-Tuple" begin
         let env, vs = List.fold_left (fun (env, acc) _ ->
