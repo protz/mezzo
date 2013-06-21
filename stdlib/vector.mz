@@ -97,7 +97,7 @@ val resize [a] (v: vector a, new_size: int) : () =
           so [array::create] can be used. Thus, [table'] has type [array None].
           Because [array] is covariant, [table'] also has type [array (option a)],
           and is a suitable argument for [array::steal]. *)
-       let table' = array::create [None] (new_length, None) in
+       let table' = array::create (new_length, None) in
        array::steal [option a] (table, table', 0);
        v.table <- table'
       end;

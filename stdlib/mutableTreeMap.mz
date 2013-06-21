@@ -242,7 +242,6 @@ val rec update
        t.value <- f t.value
       else if c < 0 then
        update [k, a, preserved, consumed] (cmp, x, t.left, f)
-       (* WISH: get rid of the above type application *)
       else
        update [k, a, preserved, consumed] (cmp, x, t.right, f)
   end

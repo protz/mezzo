@@ -56,7 +56,7 @@ val receive [a] (c: channel a): a =
   let rec receive_aux (| consumes (q @ fifo a * held l) ): a =
     match retrieve q with
     | None ->
-        wait [l] cond; receive_aux ()
+        wait cond; receive_aux ()
     | Some { contents = x } ->
         release l; x
     end 
