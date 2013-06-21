@@ -84,12 +84,12 @@ val add_cell [k, a, c: term] (
   match t.head with
   | None -> t.head <- some d
 (* WISH we could get rid of the following type application. *)
-  | Some { contents = h } -> doublylinked::meld [(k, a)] (t.region, h, d)
+  | Some { contents = h } -> doublylinked::meld (t.region, h, d)
   end
 
 val add [k, a] (consumes x: k, consumes v: a, t: linkedTable k a) : () =
   let y = t.copy_key x in
-  let d = doublylinked::create [(k, a)] (t.region, (x, v)) in
+  let d = doublylinked::create (t.region, (x, v)) in
   hashtable::add (y, d, t.table);
   add_cell (d, t)
 
@@ -110,7 +110,7 @@ val remove_cell [k, a, c: term] (
       copy_key: k -> k
   } 
 ) : entry k a =
-  if doublylinked::is_isolated [(k, a)] (t.region, d) then
+  if doublylinked::is_isolated (t.region, d) then
     (* In this case, there was a single cell remaining, so the list is now
      * empty. We have to forget its head. *)
     t.head <- None
@@ -118,8 +118,8 @@ val remove_cell [k, a, c: term] (
     let h = force t.head in
     (* We have to change the head of the list if it's precisely the cell which
      * is being removed. *)
-    if h == d then t.head <- some (doublylinked::next [(k, a)] (t.region, h));
-    doublylinked::isolate [(k, a)] (t.region, d)
+    if h == d then t.head <- some (doublylinked::next (t.region, h));
+    doublylinked::isolate (t.region, d)
   end;
   d
 
@@ -130,7 +130,7 @@ val remove [k, a] (x: k, t: linkedTable k a) : option a =
       (* An entry has been removed from the hashtable, we have to remove it from
        * the doubly-linked list. *)
       let d = remove_cell (d, t) in
-      let _, v = doublylinked::destroy [(k, a)] (t.region, d)
+      let _, v = doublylinked::destroy (t.region, d)
       in some v
   end
 
@@ -160,13 +160,13 @@ val find [k, a] duplicable a => (x: k, t: linkedTable k a) : option a =
   | None -> None
   | Some { contents = d } ->
       (* An entry has been retrieved, extract it from the doubly-linked list. *)
-      some (doublylinked::consult [(k, a)] (t.region, d, fun (_:k, v: a) : a = v))
+      some (doublylinked::consult (t.region, d, fun (_:k, v: a) : a = v))
   end
 
 val find_all [k, a] duplicable a => (x: k, t: linkedTable k a) : list::list a =
   list::map (hashtable::find_all (x, t.table),
     fun (d: entry k a | t @ linkedTable k a) : a = 
-      doublylinked::consult [(k, a)] (t.region, d, fun (_: k, v: a) : a = v)
+      doublylinked::consult (t.region, d, fun (_: k, v: a) : a = v)
   )
 
 (* -------------------------------------------------------------------------- *)
@@ -201,7 +201,7 @@ val update [k, a, pre: perm, post: perm] (
         | Some { contents = d } ->
             (* If the key existed, remove the matching entry. *)
             let d = remove_cell (d, t) in 
-            let _, v = doublylinked::destroy [(k, a)] (t.region, d) in
+            let _, v = doublylinked::destroy (t.region, d) in
               some v
       end
     (* Then apply the actual [f]. *)
@@ -209,7 +209,7 @@ val update [k, a, pre: perm, post: perm] (
     | None -> None
     | Some { contents = v } ->
         (* Finally, insert a new entry if [f] returned some value. *)
-        let d = doublylinked::create [(k, a)] (t.region, (y, v)) in
+        let d = doublylinked::create (t.region, (y, v)) in
         add_cell (d, t);
         some d
     end
@@ -239,7 +239,7 @@ val fold [k, a, b] (
   | Some { contents = d } ->
       let f = fun ((x: k, v: a), consumes w: b) : b =
         f (x, v, w)
-      in doublylinked::fold [(k, a)] (t.region, d, seed, f)
+      in doublylinked::fold (t.region, d, seed, f)
   end
 
 val iter [k, a, p: perm] (
