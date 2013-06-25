@@ -996,6 +996,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("incorrect-interface.mz", fail);
   ("instantiate_exists.mz", pass);
   ("bind-op.mz", pass);
+  ("letflex.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)
