@@ -61,6 +61,7 @@ and raw_error =
   | DataTypeMismatchInSignature of Variable.name * string
   | VarianceAnnotationMismatch
   | ExportNotDuplicable of Variable.name
+  | LocalType
 
 exception TypeCheckerError of error
 
@@ -422,6 +423,9 @@ let print_error buf (env, raw_error) =
       bprintf "This module exports variable %a with a non-duplicable type, \
           this is no longer allowed"
         Variable.p v
+  | LocalType ->
+      bprintf "This merge operation led us into trying to merge local types \
+        (see tests/local-types.mz). Discarding these types."
 ;;
 
 let html_error error =
@@ -444,8 +448,16 @@ let html_error error =
 
 let internal_extracterror = snd;;
 
-let flags = Array.make 4 CError;;
+let flags = Array.make 5 CError;;
 
+(* When adding a new user-configurable error, there are *several* things to
+   update:
+     - you should make the array above bigger;
+     - you should update parsing/options.ml so that the default value is correct
+     for the new message;
+     - you should update testsuite.ml, the variables silent_warn_error and
+     pedantic_warn_error should be refreshed.
+*)
 let errno_of_error = function
   | UncertainMerge _ ->
      1
@@ -453,6 +465,8 @@ let errno_of_error = function
      2
   | NoMultipleArguments ->
      3
+  | LocalType ->
+     4
   | _ ->
      0 
 ;;

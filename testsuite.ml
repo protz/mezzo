@@ -44,11 +44,11 @@ let point_by_name env ?mname name =
 exception KnownFailure
 
 let silent_warn_error =
-  "-1..3"
+  "@1..4"
 ;;
 
 let pedantic_warn_error =
-  "+1..3"
+  "+1..4"
 ;;
 
 let simple_test ?(warn_error=silent_warn_error) ?known_failure outcome = fun do_it ->
@@ -931,7 +931,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("data-term.mz", pass_known_failure);
   ("fact-term.mz", fail_known_failure);
 
-  ("local-type.mz", pass_known_failure);
+  ("local-type.mz", pass);
   ("local-type2.mz", pass_known_failure);
   ("local-type3.mz", pass_known_failure);
   ("local-type4.mz", pass);

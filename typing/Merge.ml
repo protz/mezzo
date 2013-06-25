@@ -575,15 +575,18 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                    *   ∃(t::★). ...
                    * and after calling that function in one of the
                    * sub-environments, we opened [t] in the local environment. *)
-                  begin try
-                    ignore (clean dest_env left_env (TyOpen left_p));
-                    ignore (clean dest_env right_env (TyOpen right_p));
-                  with UnboundPoint ->
-                    (* Repack as an existential? Urgh... *)
-                    Log.error "Local types are not supported yet";
-                  end;
+                  let is_local_type =
+                    try
+                      ignore (clean dest_env left_env (TyOpen left_p));
+                      ignore (clean dest_env right_env (TyOpen right_p));
+                      false
+                    with UnboundPoint ->
+                      let open TypeErrors in
+                      may_raise_error top LocalType;
+                      true
+                  in
 
-                  if not (same dest_env left_p right_p) then
+                  if is_local_type || not (same dest_env left_p right_p) then
                     (* e.g. [int] vs [float] *)
                     None
                   else
