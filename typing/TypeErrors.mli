@@ -58,6 +58,7 @@ type raw_error =
   | VarianceAnnotationMismatch
   | ExportNotDuplicable of Variable.name
   | LocalType
+  | Instantiated of Variable.name * typ
 
 (** Set up the module to take into account the warn / error / silent settings
  * specified on the command-line. *)

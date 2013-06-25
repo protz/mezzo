@@ -63,6 +63,7 @@ and raw_error =
   | VarianceAnnotationMismatch
   | ExportNotDuplicable of Variable.name
   | LocalType
+  | Instantiated of Variable.name * typ
 
 exception TypeCheckerError of error
 
@@ -432,6 +433,10 @@ let print_error buf (env, raw_error) =
   | LocalType ->
       bprintf "This merge operation led us into trying to merge local types \
         (see tests/local-types.mz). Discarding these types."
+  | Instantiated (v, t) ->
+      bprintf "We instantiated %a as %a"
+        Variable.p v
+        ptype (env, t)
 ;;
 
 let html_error error =
@@ -454,7 +459,7 @@ let html_error error =
 
 let internal_extracterror = snd;;
 
-let flags = Array.make 5 CError;;
+let flags = Array.make 6 CError;;
 
 (* When adding a new user-configurable error, there are *several* things to
    update:
@@ -473,6 +478,8 @@ let errno_of_error = function
      3
   | LocalType ->
      4
+  | Instantiated _ ->
+     5
   | _ ->
      0 
 ;;

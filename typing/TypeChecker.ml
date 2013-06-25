@@ -111,26 +111,31 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
   (* Instantiate all universally quantified variables with flexible variables. *)
   let rec flex = fun env -> function
     | TyQ (Forall, binding, _, t) ->
-        let env, t, _ = bind_flexible_in_type env binding t in
-        let env, t = flex env t in
-        env, t
+        let env, t, var = bind_flexible_in_type env binding t in
+        let env, t, vars = flex env t in
+        let vars =
+          match binding with
+          | User (_, name), _, _ -> (name, var) :: vars
+          | Auto _, _, _ -> vars
+        in
+        env, t, vars
     | _ as t ->
-        env, t
+        env, t, []
   in
 
   (* Deconstruct a possibly-quantified arrow. *)
   let flex_deconstruct_arrow env t =
-    let env, t = flex env t in
+    let env, t, vars = flex env t in
     match t with
     | TyArrow (t1, t2) ->
-        env, (t1, t2)
+        env, (t1, t2), vars
     | _ ->
         assert false
   in
 
   (* Try to give some useful error messages in case we have found not enough or
    * too many suitable types for [f]. *)
-  let env, (t1, t2) =
+  let env, (t1, t2), vars =
     match permissions with
     | [] ->
         raise_error env (NotAFunction f)
@@ -171,6 +176,9 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
       Log.debug ~level:6 "\nDerivation: %a\n" DerivationPrinter.pderivation derivation;
       (* Return the "good" type. *)
+      List.iter (fun (name, var) ->
+        may_raise_error env (Instantiated (name, TyOpen var))
+      ) vars;
       env, t2
   | None, d ->
       raise_error env (ExpectedType (t1, x, d))
@@ -521,6 +529,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       begin match sub_env with
       | (Some sub_env), _ ->
           let env = import_flex_instanciations env sub_env in
+          let name =
+            match binding with
+            | (User (_, n), _, _), _ -> n
+            | _ -> assert false
+          in
+          may_raise_error env (Instantiated (name, t0));
           check_expression env ?annot e
       | None, derivation ->
           raise_error env (ExpectedPermission (t, derivation))

@@ -34,4 +34,4 @@ let please_compile =
   ref false
 
 let warn_error =
-  ref "@1-2..4"
+  ref "@1-2..4@5"

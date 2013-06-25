@@ -44,11 +44,11 @@ let point_by_name env ?mname name =
 exception KnownFailure
 
 let silent_warn_error =
-  "@1..4"
+  "@1..5"
 ;;
 
 let pedantic_warn_error =
-  "+1..4"
+  "+1..4@5"
 ;;
 
 let simple_test ?(warn_error=silent_warn_error) ?known_failure outcome = fun do_it ->
