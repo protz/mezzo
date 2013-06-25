@@ -131,6 +131,8 @@ val tsubst_toplevel_items :
 
 (** {2 Substitution functions for expressions.} *)
 
+val tsubst_expr: typ -> int -> expression -> expression
+
 val esubst_toplevel_items :
   expression -> db_index -> toplevel_item list -> toplevel_item list
 

@@ -513,9 +513,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       check_expression env ?annot body
 
   | ELetFlex (binding, t, e) ->
-      let env, { subst_expr; subst_type; _ } = bind_evars env [fst binding] in
-      let t = subst_type t in
-      let e = subst_expr e in
+      let env, var = bind_flexible env (fst binding) in
+      let t0 = TyOpen var in
+      let t = tsubst t0 0 t in
+      let e = tsubst_expr t0 0 e in
       let sub_env = Permissions.sub_perm env t in
       begin match sub_env with
       | (Some sub_env), _ ->
