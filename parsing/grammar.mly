@@ -80,6 +80,7 @@
 
 %start <SurfaceSyntax.implementation> implementation
 %start <SurfaceSyntax.interface> interface
+%start <(ClFlags.flag * (int * int)) list> warn_error_list
 
 %{
 
@@ -1099,8 +1100,34 @@ interface_item:
     { item }
 
 interface:
-  | items = interface_item* EOF
-    { items }
+| items = interface_item* EOF
+  { items }
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Parsing of command-line error/warning/silent flags. *)
+
+warn_error_list:
+| ws = warn_error+ EOF
+  { ws }
+
+warn_error:
+| f = flag r = range
+  { f, r }
+
+flag:
+| AT
+  { ClFlags.CSilent }
+| MINUS
+  { ClFlags.CWarning }
+| PLUS
+  { ClFlags.CError }
+
+range:
+| i = INT
+  { i, i }
+| i = INT DOT DOT j = INT
+  { i, j }
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -57,13 +57,18 @@ type raw_error =
   | VarianceAnnotationMismatch
   | ExportNotDuplicable of Variable.name
 
+(** Set up the module to take into account the warn / error / silent settings
+ * specified on the command-line. *)
+val parse_warn_error: string -> unit
+
 (** This function raises an exception that will be later on catched in
  * {!Driver}. *)
 val raise_error : env -> raw_error -> 'a
 
-(** This function will emit a warning or potentially raise an error, depending
- * on the runtime flags. *)
-val warn_or_error: env -> raw_error -> unit
+(** This function may raise an exception that will be later on catched in
+ * {!Driver}, or emit a warning, or do nothing, depending on whether the error
+ * has been tweaked with the warn/error string. *)
+val may_raise_error : env -> raw_error -> unit
 
 (** A {!raw_error} is wrapped. *)
 type error

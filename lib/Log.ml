@@ -28,7 +28,6 @@ let enable_debug level =
   the_debug_level := level
 
 let debug ?level fmt =
-  (* If no level is provided, the message is always displayed. *) (* TEMPORARY out-of-date comment? *)
   let level = Option.map_none 1 level in
   if level <= !the_debug_level then begin
     MzString.bfprintf ~new_line:() stderr fmt

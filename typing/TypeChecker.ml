@@ -709,12 +709,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   | EApply (e1, e2) ->
       begin match eunloc e1 with
       | EApply _ ->
-          if not (!Options.multiple_arguments) then
-            raise_error env NoMultipleArguments
-         (* TEMPORARY this is too violent, and this command line option
-            does not really make sense, does it? Instead, the error
-            message [NotAFunction] could be replaced with [NoMultipleArguments]
-            in certain situations? *)
+          may_raise_error env NoMultipleArguments
       | _ ->
           ()
       end;

@@ -7,6 +7,7 @@ SED        := sed
 TIME       := time
 -include Makefile.local
 
+# Use --trace with menhir to debug.
 OCAMLBUILD := ocamlbuild -j 0 -use-ocamlfind -use-menhir \
   -menhir "menhir --explain --infer -la 1 --table" \
   -classic-display

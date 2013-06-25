@@ -161,14 +161,14 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
         ) !known_triples then begin
           let open TypeErrors in
           let error = ResourceAllocationConflict left_var in
-          warn_or_error left_env error
+          may_raise_error left_env error
         end;
         if List.exists (fun (_, r, _) ->
           same right_env right_var r && is_marked right_env r
         ) !known_triples then begin
           let open TypeErrors in
           let error = ResourceAllocationConflict right_var in
-          warn_or_error right_env error
+          may_raise_error right_env error
         end;
 
 
@@ -757,7 +757,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                 if get_arity dest_env t_dest > 0 then begin
                   let open TypeErrors in
                   let error = UncertainMerge dest_var in
-                  warn_or_error dest_env error
+                  may_raise_error dest_env error
                 end;
 
                 Log.debug ~level:4 "[cons_vs_cons] left";

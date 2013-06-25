@@ -24,6 +24,7 @@ open TypeCore
 open Types
 open Expressions
 open DerivationPrinter
+open ClFlags
 
 type error = env * raw_error
 
@@ -441,12 +442,46 @@ let html_error error =
   ignore (Sys.command cmd)
 ;;
 
-let warn_or_error env error =
-  (* FIXME switch to a better error system *)
-  if !Options.pedantic then
-    Log.warn "%a" print_error (env, error)
-  else if false then
-    raise_error env error
+let internal_extracterror = snd;;
+
+let flags = Array.make 4 CError;;
+
+let errno_of_error = function
+  | UncertainMerge _ ->
+     1
+  | ResourceAllocationConflict _ ->
+     2
+  | NoMultipleArguments ->
+     3
+  | _ ->
+     0 
 ;;
 
-let internal_extracterror = snd;;
+let may_raise_error env raw_error =
+  let errno = errno_of_error raw_error in
+  match flags.(errno) with
+  | CError ->
+      raise_error env raw_error
+  | CWarning ->
+      Log.warn "%a" print_error (env, raw_error)
+  | CSilent ->
+      ()
+;;
+
+let parse_warn_error s =
+  let lexbuf = Ulexing.from_utf8_string s in
+  let the_parser = MenhirLib.Convert.Simplified.traditional2revised Grammar.warn_error_list in
+  let user_flags =
+    try
+      the_parser (fun _ -> Lexer.token lexbuf)
+    with Ulexing.Error | Grammar.Error ->
+      Log.error "Malformed warn-error list"
+  in
+  List.iter (fun (f, (l, h)) ->
+    if l < 0 || h >= Array.length flags then
+      Log.error "No error for that number";
+    for i = l to h do
+      flags.(i) <- f
+    done;
+  ) user_flags
+;;

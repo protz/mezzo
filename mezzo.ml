@@ -44,7 +44,7 @@ let _ =
     "-html-errors", Arg.Unit (fun () ->
         arg_html_errors := true;
         arg_trace := "html"), " Use a browser to display errors";
-    "-pedantic", Arg.Set Options.pedantic, " Non-principal situations are errors";
+    "-warn-error", Arg.Set_string Options.warn_error, " Decide which errors are fatal / warnings / silent. Same syntax as OCaml.";
     "-I", Arg.String Driver.add_include_dir, " <dir>  Add <dir> to the list of \
       include directories";
     "-noautoinclude", Arg.Set Options.no_auto_include, "  Don't automatically \
@@ -64,6 +64,7 @@ let _ =
   end;
   Log.enable_debug !arg_debug;
   Debug.enable_trace !arg_trace;
+  TypeErrors.parse_warn_error !Options.warn_error;
   let opts =
     let open Driver in
     { html_errors = !arg_html_errors; backtraces = not !arg_backtraces }
