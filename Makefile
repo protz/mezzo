@@ -7,6 +7,7 @@ SED        := sed
 TIME       := time
 -include Makefile.local
 
+# Use --trace with menhir to debug.
 OCAMLBUILD := ocamlbuild -j 0 -use-ocamlfind -use-menhir \
   -menhir "menhir --explain --infer -la 1 --table" \
   -classic-display
@@ -49,9 +50,9 @@ tags: all
 
 # For easily debugging inside an editor. When editing tests/foo.mz, just do (in
 # vim): ":make %".
-#tests/%.mz stdlib/%.mz corelib/%.mz: mezzo.byte FORCE
+#%.mz: mezzo.byte FORCE
 #	OCAMLRUNPARAM=b ./mezzo.byte -I tests -nofancypants $@ -debug 5 2>&1 | tail -n 80
-tests/%.mz stdlib/%.mz corelib/%.mz: all
+%.mz: all
 	OCAMLRUNPARAM=b ./mezzo.native -I tests -nofancypants $@ 2>&1 | tail -n 80
 
 FORCE:

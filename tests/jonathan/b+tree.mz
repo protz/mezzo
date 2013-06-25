@@ -1,0 +1,80 @@
+(* This module contains a B+-Tree implementation in Mezzo. *)
+
+open bucket
+
+(* A B+-Tree provides efficient searching over a set of /records/. Records are
+ * indexed by /search keys/, and the B+-Tree maintains a data structure that
+ * maps a search key to a record. The B+-Tree, as the name implies, uses a tree
+ * to provide efficient lookup.
+ *
+ * Typically, records are stored on the disk, and the B+-Tree maps a search key
+ * to an offset in a file. The corresponding record is to be found at the given
+ * offset on the disk.
+ *
+ * *) 
+data node key offset =
+  | Node { bucket: bucket key node; last: node }
+  | Leaf { leaf: dynamic }
+
+and mutable leaf key offset =
+  | LLeaf { bucket: bucket key offset; next: dynamic }
+
+and mutable btree key offset =
+  | BTree {
+      cmp: (key, key) -> bool;
+      root: duplicable key | duplicable offset | node key offset;
+  }
+  adopts node key offset
+
+val find_in_bucket [key, offset, a] duplicable a => (
+  t: btree key offset,
+  b: bucket key a,
+  k: key
+): option a =
+  let cmp = t.cmp in
+  fold (b, None, fun (k': key, v: a, acc: option a): option a =
+    match acc with
+    | Some ->
+        acc
+    | None ->
+        if cmp (k, k') then
+          Some { contents = v }
+        else
+          None
+    end
+  )
+
+val find [key, offset] (t: btree key offset, k: key): option offset =
+  (* Let [c] be the root node. *)
+  let c = newref t.root in
+
+  (* This helper function finds the leaf whose bucket contains [k], if any. *)
+  let rec find_leaf (x: node key offset | t @ btree key offset):
+    dynamic
+  =
+    (* [x] is the node we must examine. *)
+    match x with
+    | LLeaf ->
+        (* This is a leaf. Bingo! We've found what we needed. *)
+        x.leaf
+    | Node ->
+        (* We need to refine our search. First, let's find the pointer to the
+         * next node using the auxiliary function [find_in_bucket]. It will
+         * return the value associated to the first key strictly greater than
+         * [k]. *)
+        let child =
+          match find_in_bucket (t, x.bucket, k) with
+          | Some { contents } -> contents
+          | None -> x.last
+          end
+        in
+        (* Let's call ourselves again. *)
+        find_leaf child
+    end
+  in
+
+  (* Actual use-site for [find_leaf]. *)
+  find_leaf ();
+
+  (* Return the offset associated with the key, if any. *)
+  find_in_bucket (t, !c.bucket, k)

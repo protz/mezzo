@@ -24,6 +24,7 @@ open TypeCore
 open Types
 open Expressions
 open DerivationPrinter
+open ClFlags
 
 type error = env * raw_error
 
@@ -61,6 +62,7 @@ and raw_error =
   | DataTypeMismatchInSignature of Variable.name * string
   | VarianceAnnotationMismatch
   | ExportNotDuplicable of Variable.name
+  | LocalType
 
 exception TypeCheckerError of error
 
@@ -427,6 +429,9 @@ let print_error buf (env, raw_error) =
       bprintf "This module exports variable %a with a non-duplicable type, \
           this is no longer allowed"
         Variable.p v
+  | LocalType ->
+      bprintf "This merge operation led us into trying to merge local types \
+        (see tests/local-types.mz). Discarding these types."
 ;;
 
 let html_error error =
@@ -447,12 +452,56 @@ let html_error error =
   ignore (Sys.command cmd)
 ;;
 
-let warn_or_error env error =
-  (* FIXME switch to a better error system *)
-  if !Options.pedantic then
-    Log.warn "%a" print_error (env, error)
-  else if false then
-    raise_error env error
+let internal_extracterror = snd;;
+
+let flags = Array.make 5 CError;;
+
+(* When adding a new user-configurable error, there are *several* things to
+   update:
+     - you should make the array above bigger;
+     - you should update parsing/options.ml so that the default value is correct
+     for the new message;
+     - you should update testsuite.ml, the variables silent_warn_error and
+     pedantic_warn_error should be refreshed.
+*)
+let errno_of_error = function
+  | UncertainMerge _ ->
+     1
+  | ResourceAllocationConflict _ ->
+     2
+  | NoMultipleArguments ->
+     3
+  | LocalType ->
+     4
+  | _ ->
+     0 
 ;;
 
-let internal_extracterror = snd;;
+let may_raise_error env raw_error =
+  let errno = errno_of_error raw_error in
+  match flags.(errno) with
+  | CError ->
+      raise_error env raw_error
+  | CWarning ->
+      Log.warn "%a" print_error (env, raw_error)
+  | CSilent ->
+      ()
+;;
+
+let parse_warn_error s =
+  let lexbuf = Ulexing.from_utf8_string s in
+  let the_parser = MenhirLib.Convert.Simplified.traditional2revised Grammar.warn_error_list in
+  let user_flags =
+    try
+      the_parser (fun _ -> Lexer.token lexbuf)
+    with Ulexing.Error | Grammar.Error ->
+      Log.error "Malformed warn-error list"
+  in
+  List.iter (fun (f, (l, h)) ->
+    if l < 0 || h >= Array.length flags then
+      Log.error "No error for that number";
+    for i = l to h do
+      flags.(i) <- f
+    done;
+  ) user_flags
+;;

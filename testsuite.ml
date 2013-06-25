@@ -43,7 +43,15 @@ let point_by_name env ?mname name =
 
 exception KnownFailure
 
-let simple_test ?(pedantic=false) ?known_failure outcome = fun do_it ->
+let silent_warn_error =
+  "@1..4"
+;;
+
+let pedantic_warn_error =
+  "+1..4"
+;;
+
+let simple_test ?(warn_error=silent_warn_error) ?known_failure outcome = fun do_it ->
   let known_failure = Option.unit_bool known_failure in
   let raise_if (e: exn): unit =
     if not known_failure then
@@ -56,7 +64,7 @@ let simple_test ?(pedantic=false) ?known_failure outcome = fun do_it ->
       raise (Failure "Test started working, remove ~known_failure!")
   in
   try
-    Options.pedantic := pedantic;
+    TypeErrors.parse_warn_error warn_error;
     ignore (do_it ());
     match outcome with
     | KFail ->
@@ -518,17 +526,26 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge-funcs.mz", pass_known_failure);
 
   ("constraints_merge.mz",
-    simple_test ~pedantic:true Pass);
+    simple_test ~warn_error:pedantic_warn_error Pass);
 
   (* Resource allocation conflicts. *)
 
   ("conflict2.mz",
-    simple_test ~pedantic:true Pass);
+    simple_test ~warn_error:pedantic_warn_error Pass);
+
+  (* Marking environments as inconsistent. *)
+
+  ("inconsistent1.mz",
+    pass
+  );
+
+  ("inconsistent2.mz",
+    pass
+  );
 
   (* Singleton types. *)
 
   ("singleton1.mz", fun do_it ->
-    Options.pedantic := false;
     let env = do_it () in
     let x = point_by_name env "x" in
     let s1 = point_by_name env "s1" in
@@ -547,16 +564,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("singleton2.mz", pass);
 
-  (* Marking environments as inconsistent. *)
-
-  ("inconsistent1.mz",
-    pass
-  );
-
-  ("inconsistent2.mz",
-    pass
-  );
-
   (* Duplicity constraints. *)
 
   ("duplicity1.mz", pass);
@@ -573,16 +580,16 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     simple_test (Fail (function BadTypeApplication _ -> true | _ -> false)));
 
   ("polycall3.mz",
-    simple_test ~pedantic:true Pass);
+    simple_test ~warn_error:pedantic_warn_error Pass);
 
   ("polycall4.mz",
-    simple_test ~pedantic:true Pass);
+    simple_test ~warn_error:pedantic_warn_error Pass);
 
   ("polycall5.mz",
-    simple_test ~pedantic:true Pass);
+    simple_test ~warn_error:pedantic_warn_error Pass);
 
   ("polycall6.mz",
-    simple_test ~pedantic:true Pass);
+    simple_test ~warn_error:pedantic_warn_error Pass);
 
   (* Tests are expected to fail. *)
 
@@ -924,7 +931,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("data-term.mz", pass_known_failure);
   ("fact-term.mz", fail_known_failure);
 
-  ("local-type.mz", pass_known_failure);
+  ("local-type.mz", pass);
   ("local-type2.mz", pass_known_failure);
   ("local-type3.mz", pass_known_failure);
   ("local-type4.mz", pass);
@@ -987,14 +994,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("named-return.mz", pass);
   ("named-return2.mz", pass);
   ("incorrect-interface.mz", fail);
-  (* The uncatchable error. Happens somewhere in the middle of Functory, giving
-   * up on this for the moment. *)
-  (*("bind-op.mz", fun do_it ->
-    try
-      ignore (do_it ())
-    with Grammar.Error | End_of_file ->
-      raise KnownFailure
-  );*)
+  ("instantiate_exists.mz", pass);
+  ("bind-op.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)
@@ -1061,6 +1062,7 @@ let run_one_test_raw name (f: result ref -> unit): result * string =
   !result, Buffer.contents buf
 
 let run_one_test prefix (file, test) : result * string =
+  TypeErrors.parse_warn_error silent_warn_error;
   run_one_test_raw file (fun result ->
     test (fun () ->
       result := Success;

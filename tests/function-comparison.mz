@@ -19,4 +19,4 @@ val g1 [a] (a): () =
   fail
 
 val h1 [a, b] (): () =
-  f1 [a, b] (g1 [(a, b)])
+  f1 [a, b] g1

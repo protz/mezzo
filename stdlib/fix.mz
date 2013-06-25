@@ -101,9 +101,8 @@ val link [info] (g: graph info, src: dynamic (* node *), dst: dynamic (* node *)
     node2 = dst;
   } in
   give e to g.edges;
-  taking src from g.nodes begin src.outgoing <- cons [dynamic] (e, src.outgoing) end;
-  taking dst from g.nodes begin dst.incoming <- cons [dynamic] (e, dst.incoming) end
-    (* WISH get rid of the type application *)
+  taking src from g.nodes begin src.outgoing <- cons (e, src.outgoing) end;
+  taking dst from g.nodes begin dst.incoming <- cons (e, dst.incoming) end
 
 (* Setting a node's successors. *)
 

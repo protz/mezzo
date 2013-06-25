@@ -362,7 +362,7 @@ val weak_transform [a, p : perm] (
   | p
 ) : () =
   iter_array (s, r, fun (i: int | r @ marray a * p) : () =
-    update [a, p, p] (r, i, fun (consumes x: a | p) : a = f(i, x))
+    update (r, i, fun (consumes x: a | p) : a = f(i, x))
   )
 
 val transform : [a, b, p : perm] (
@@ -371,13 +371,7 @@ val transform : [a, b, p : perm] (
   f: (int, consumes a | p) -> b
   | p
 ) -> (| r @ marray b) =
-  magic::magic [
-    ([a, p : perm] (s: sense, r: marray a, f: (int, consumes a | p) -> a | p) -> ()),
-    ([a, b, p : perm] (s: sense, consumes r: marray a, f: (int, consumes a | p)
-    -> b | p) -> (| r @ marray b))
-  ]
-  (* TEMPORARY the above type application is used to work around a BUG *)
-  weak_transform
+  magic::magic weak_transform
 
 (* One could imagine variants of this operation, e.g., an operation that
    performs a strong update simultaneously over TWO arrays, etc., etc.

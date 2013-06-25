@@ -69,7 +69,7 @@ val fix
   : a -> b =
 
   (* Create the internal hash table and lock. *)
-  let t = create [a, b] (11, hash, eq) in
+  let t = create (11, hash, eq) in
   let l : lock (t @ table a b) = new () in
 
   (* For the sake of efficiency, we prefer not to release and re-acquire

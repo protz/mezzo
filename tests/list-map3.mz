@@ -20,7 +20,7 @@ val usage_test: list int =
     incr x;
     y * y
   in
-  let l = map [p = (x @ ref int)] (f, l) in
+  let l = map (f, l) in
   l
 
 val usage_test2 =

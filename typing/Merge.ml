@@ -161,14 +161,14 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
         ) !known_triples then begin
           let open TypeErrors in
           let error = ResourceAllocationConflict left_var in
-          warn_or_error left_env error
+          may_raise_error left_env error
         end;
         if List.exists (fun (_, r, _) ->
           same right_env right_var r && is_marked right_env r
         ) !known_triples then begin
           let open TypeErrors in
           let error = ResourceAllocationConflict right_var in
-          warn_or_error right_env error
+          may_raise_error right_env error
         end;
 
 
@@ -221,11 +221,24 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
       Lexer.p (location top)
       MzPprint.pdoc (TypePrinter.print_permissions, top);
 
+    let is_external var =
+      let names = get_names top var in
+      List.exists (function
+        | User (mname, _) when not (Module.equal (module_name top) mname) ->
+            true
+        | _ ->
+            false
+      ) names
+    in
+
     (* This is the destination environment; it will evolve over time. Initially,
      * it is empty. As an optimization, we keep the vars that were previously
      * defined so that the mapping is the identity for all the vars from [top]. *)
     let dest_env = fold_terms top (fun dest_env var _ ->
-      reset_permissions dest_env var
+      if not (is_external var) then
+        reset_permissions dest_env var
+      else
+        dest_env
     ) top in
     let dest_env = set_floating_permissions dest_env [] in
 
@@ -237,7 +250,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
     (* All the roots should be merged. *)
     let roots = fold_terms top (fun acc k _ -> k :: acc) [] in
-    List.iter (fun p -> push_job (p, p, p)) roots;
+    List.iter (fun p -> if not (is_external p) then push_job (p, p, p)) roots;
 
     (* Create an additional root for the result of the match. Schedule it for
      * merging, at the front of the list (this implements our first heuristic). *)
@@ -562,15 +575,18 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                    *   ∃(t::★). ...
                    * and after calling that function in one of the
                    * sub-environments, we opened [t] in the local environment. *)
-                  begin try
-                    ignore (clean dest_env left_env (TyOpen left_p));
-                    ignore (clean dest_env right_env (TyOpen right_p));
-                  with UnboundPoint ->
-                    (* Repack as an existential? Urgh... *)
-                    Log.error "Local types are not supported yet";
-                  end;
+                  let is_local_type =
+                    try
+                      ignore (clean dest_env left_env (TyOpen left_p));
+                      ignore (clean dest_env right_env (TyOpen right_p));
+                      false
+                    with UnboundPoint ->
+                      let open TypeErrors in
+                      may_raise_error top LocalType;
+                      true
+                  in
 
-                  if not (same dest_env left_p right_p) then
+                  if is_local_type || not (same dest_env left_p right_p) then
                     (* e.g. [int] vs [float] *)
                     None
                   else
@@ -744,7 +760,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                 if get_arity dest_env t_dest > 0 then begin
                   let open TypeErrors in
                   let error = UncertainMerge dest_var in
-                  warn_or_error dest_env error
+                  may_raise_error dest_env error
                 end;
 
                 Log.debug ~level:4 "[cons_vs_cons] left";
@@ -834,6 +850,10 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                  * arguments in the accumulator. *)
                 acc >>= fun (left_env, right_env, dest_env, args) ->
                 let v =
+                  (* In the obvious case where one variable is flexible, do the
+                   * obvious thing! *)
+                  try_merge_flexible (left_env, argl) (right_env, argr) dest_env |||
+
                   (* Here, variance comes into play. The merge operation is a
                    * disjunction, so it "goes up" (subtyping-wise), that is, it is
                    * covariant. So if we need to recursively merge type parameters,

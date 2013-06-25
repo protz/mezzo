@@ -242,7 +242,6 @@ val rec update
        t.value <- f t.value
       else if c < 0 then
        update [k, a, preserved, consumed] (cmp, x, t.left, f)
-       (* WISH: get rid of the above type application *)
       else
        update [k, a, preserved, consumed] (cmp, x, t.right, f)
   end
@@ -456,7 +455,7 @@ val rec remove [k, a] (
   | Node ->
       let c = cmp (x, t.key) in
       if c = 0 then begin
-       dst := some [(k, a)] (t.key, t.value);
+       dst := some (t.key, t.value);
        merge (t.left, t.right)
       end
       else if c < 0 then begin
@@ -1121,7 +1120,7 @@ val compare_variant [k, a] (
 
 val bindings [k, a] duplicable k => duplicable a => (t: tree k a) : list::list (k, a) =
   let f (x: k, v: a, accu: list::list (k, a)) : list::list (k, a) =
-    list::cons [(k, a)] ((x, v), accu)
+    list::cons ((x, v), accu)
   in
   fold_descending (f, t, list::nil)
 
@@ -1191,7 +1190,7 @@ val extract_min_binding [k, c: term, a] (m: treeMap k c a) : option (k, a) =
   | Node ->
       let node = extract_min_binding m.tree in
       m.tree <- node.right;
-      some [(k, a)] (node.key, node.value)
+      some (node.key, node.value)
   end
 
 val extract_max_binding [k, c: term, a] (m: treeMap k c a) : option (k, a) =
@@ -1201,7 +1200,7 @@ val extract_max_binding [k, c: term, a] (m: treeMap k c a) : option (k, a) =
   | Node ->
       let node = extract_max_binding m.tree in
       m.tree <- node.left;
-      some [(k, a)] (node.key, node.value)
+      some (node.key, node.value)
   end
 
 val remove [k, c: term, a] (x: k, m: treeMap k c a) : option (k, a) =

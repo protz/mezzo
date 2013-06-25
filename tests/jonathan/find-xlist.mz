@@ -1,0 +1,32 @@
+data mlist a =
+  | MNil
+  | MCons { head: a; tail: mlist a }
+
+val finish (): () = ()
+
+data result a (l: term) =
+  | None {| l @ mlist a}
+  | Some { contents: {p: perm} (
+      elt: a | p * finish @ (| consumes (p * elt @ a)) -> (| l @ mlist a)
+    )
+  }
+
+val rec splitAt [a] (pred: a -> bool, consumes l: mlist a): result a l =
+  match l with
+  | MNil ->
+      (* We've reached the end of the list without finding our element. Let's give
+       * up. *)
+      None
+  | MCons { head; tail } ->
+      if pred head then begin
+        (* This is the element that we're looking for! Split the list here. *)
+        let contents =
+          pack head
+          as { p: perm } a | p * finish @ (| consumes (p * elt @ a)) -> (| l @ mlist a)
+          witness l @ MCons { head; tail: mlist a }
+        in
+        Some { contents }
+      end else begin
+        splitAt (pred, tail)
+      end
+  end

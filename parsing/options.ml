@@ -21,10 +21,6 @@ let pedantic =
   ref false
 ;;
 
-let multiple_arguments =
-  ref true
-;;
-
 let no_auto_include =
   ref false
 ;;
@@ -36,3 +32,6 @@ let filename =
 (* [false] : just type-check. [true] : type-check and compile down to OCaml. *)
 let please_compile =
   ref false
+
+let warn_error =
+  ref "@1-2..4"

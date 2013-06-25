@@ -754,6 +754,86 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
      some structural rules are missing below. *)
 
   (** Easy cases involving flexible variables *)
+  | TyConcrete branch1, TyOpen v2 when is_flexible env v2 ->
+      try_proof_root "Flex-R-Concrete" begin
+        let env, vs = List.fold_left (fun (env, acc) _ ->
+          let binding =
+            fresh_auto_name "frc", KType, location env
+          in
+          let env, v = bind_flexible_before env binding v2 in
+          env, v :: acc
+        ) (env, []) branch1.branch_fields in
+        let branch2: resolved_branch = {
+          branch1 with
+          branch_fields = List.map2 (fun f1 v ->
+            match f1 with
+            | FieldValue (fname, _) ->
+                FieldValue (fname, TyOpen v)
+            | _ ->
+                assert false
+          ) branch1.branch_fields vs
+        } in
+        let t2 = TyConcrete branch2 in
+        j_flex_inst env v2 t2 >>= fun env ->
+        sub_type env t1 t2 >>=
+        qed
+      end
+
+  | TyOpen v1, TyConcrete branch2 when is_flexible env v1 ->
+      try_proof_root "Flex-L-Concrete" begin
+        let env, vs = List.fold_left (fun (env, acc) _ ->
+          let binding =
+            fresh_auto_name "flc", KType, location env
+          in
+          let env, v = bind_flexible_before env binding v1 in
+          env, v :: acc
+        ) (env, []) branch2.branch_fields in
+        let branch1: resolved_branch = {
+          branch2 with
+          branch_fields = List.map2 (fun f2 v ->
+            match f2 with
+            | FieldValue (fname, _) ->
+                FieldValue (fname, TyOpen v)
+            | _ ->
+                assert false
+          ) branch2.branch_fields vs
+        } in
+        let t1 = TyConcrete branch1 in
+        j_flex_inst env v1 t1 >>= fun env ->
+        sub_type env t1 t2 >>=
+        qed
+      end
+
+  | TyOpen v1, TyTuple ts when is_flexible env v1 ->
+      try_proof_root "Flex-L-Tuple" begin
+        let env, vs = List.fold_left (fun (env, acc) _ ->
+          let binding =
+            fresh_auto_name "flt", KType, location env
+          in
+          let env, v = bind_flexible_before env binding v1 in
+          env, v :: acc
+        ) (env, []) ts in
+        let t1 = TyTuple (List.map (fun x -> TyOpen x) vs) in
+        j_flex_inst env v1 t1 >>= fun env ->
+        sub_type env t1 t2 >>=
+        qed
+      end
+
+  | TyTuple ts, TyOpen v2  when is_flexible env v2 ->
+      try_proof_root "Flex-R-Tuple" begin
+        let env, vs = List.fold_left (fun (env, acc) _ ->
+          let binding =
+            fresh_auto_name "frt", KType, location env
+          in
+          let env, v = bind_flexible_before env binding v2 in
+          env, v :: acc
+        ) (env, []) ts in
+        let t2 = TyTuple (List.map (fun x -> TyOpen x) vs) in
+        j_flex_inst env v2 t2 >>= fun env ->
+        sub_type env t1 t2 >>=
+        qed
+      end
+
   | TyOpen v1, _ when is_flexible env v1 ->
       try_proof_root "Flex-L" begin
         j_flex_inst env v1 t2 >>=
@@ -1264,14 +1344,25 @@ and sub_perm (env: env) (t: typ): result =
           sub env p t' >>=
           qed
         end
+
   | TyStar _ ->
       try_proof "Sub-Star" begin
         sub_perms env (flatten_star env t)
       end
+
   | TyEmpty ->
       try_proof "Sub-Empty" (qed env)
+
   | TyOpen p when is_flexible env p ->
       j_flex_inst env p TyEmpty
+
+  | TyQ (Exists, binding, _, p) ->
+      try_proof "Exists-Perm-R" begin
+        let env, p, _ = bind_flexible_in_type env binding p in
+        sub_perm env p >>=
+        qed
+      end
+
   | _ ->
       sub_floating_perm env t
 
@@ -1279,6 +1370,13 @@ and sub_perm (env: env) (t: typ): result =
  * proving a series of permissions. If you need a result so as to chain that
  * with something else, use [sub_perm env (fold_star perms)]. *)
 and sub_perms (env: env) (perms: typ list): state =
+  (* Put the flexible perm variables last. In the case where we have:
+   * "t p * p": first subtracting "t p" will instantiate "p" to its right value,
+   * whereas first subtracting "p" will instantiate it to "empty". *)
+  let perms = List.sort (fun y x ->
+    Pervasives.compare (perm_not_flex env x) (perm_not_flex env y)
+  ) perms in
+
   (* The order in which we subtract a bunch of permission is important because,
    * again, some of them may have their lhs flexible. Therefore, there is a
    * small search procedure here that picks a suitable permission for
@@ -1297,29 +1395,21 @@ and sub_perms (env: env) (perms: typ list): state =
 (* Attention! This function should not be called directly. Even if you know that
  * your permission is a floating one, please call [sub_perm] so that the type
  * gets run through [modulo_flex] and [expand_if_one_branch]. *)
-and sub_floating_perm (env: env) (t0: typ): result =
-  match t0 with
-  | TyQ (Exists, binding, _, t) ->
-      try_proof env (JSubFloating t0) "Exists-R" begin
-        let env, t, _ = bind_flexible_in_type env binding t in
-        sub_perm env t >>=
-        qed
-      end
-  | _ as t ->
-      try_several
-        env
-        (JSubFloating t)
-        "Floating-In-Env"
-        (get_floating_permissions env)
-        (fun env remaining_perms t' ->
-          let sub_env =
-            if FactInference.is_duplicable env t' then
-              env
-            else
-              set_floating_permissions env remaining_perms
-          in
-          sub_type sub_env t' t
-        )
+and sub_floating_perm (env: env) (t: typ): result =
+  try_several
+    env
+    (JSubFloating t)
+    "Floating-In-Env"
+    (get_floating_permissions env)
+    (fun env remaining_perms t' ->
+      let sub_env =
+        if FactInference.is_duplicable env t' then
+          env
+        else
+          set_floating_permissions env remaining_perms
+      in
+      sub_type sub_env t' t
+    )
 ;;
 
 (** The version we export is actually the one with unfolding baked in. This is

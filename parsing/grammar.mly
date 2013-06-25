@@ -68,7 +68,7 @@
 %nonassoc COLONEQUAL
 %left     OPINFIX0a
 %left     OPINFIX0b
-%nonassoc OPINFIX0c EQUAL (* EQUAL is also a OPINFIX0c *)
+%left     OPINFIX0c EQUAL (* EQUAL is also a OPINFIX0c *)
 %left     OPINFIX0d
 %right    OPINFIX1
 %left     OPINFIX2 PLUS MINUS (* MINUS is also an OPINFIX2 *)
@@ -81,6 +81,7 @@
 
 %start <SurfaceSyntax.implementation> implementation
 %start <SurfaceSyntax.interface> interface
+%start <(ClFlags.flag * (int * int)) list> warn_error_list
 
 %{
 
@@ -1102,8 +1103,34 @@ interface_item:
     { item }
 
 interface:
-  | items = interface_item* EOF
-    { items }
+| items = interface_item* EOF
+  { items }
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Parsing of command-line error/warning/silent flags. *)
+
+warn_error_list:
+| ws = warn_error+ EOF
+  { ws }
+
+warn_error:
+| f = flag r = range
+  { f, r }
+
+flag:
+| AT
+  { ClFlags.CSilent }
+| MINUS
+  { ClFlags.CWarning }
+| PLUS
+  { ClFlags.CError }
+
+range:
+| i = INT
+  { i, i }
+| i = INT DOT DOT j = INT
+  { i, j }
 
 (* ---------------------------------------------------------------------------- *)
 

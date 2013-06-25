@@ -1,0 +1,17 @@
+val convert (): () = ()
+alias convertible (p: perm) (q: perm): perm = convert @ (| consumes p) -> (| q)
+
+data state a (post: perm) = State {
+  content: { p: perm } (
+    l: a
+    | p * convertible (p * l @ a) post
+  )
+}
+
+val f [ a, post: perm, l: term, p: perm ] (| consumes (p * convertible (p * l @ a) post)): () =
+  fail
+
+val get [a, post: perm] (consumes s: state a post): () =
+  let l = s.content in
+  assert ({ p: perm } (p * convertible (p * l @ a) post)); (* FAIL *)
+  ()

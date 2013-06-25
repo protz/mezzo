@@ -393,7 +393,7 @@ val assoc [a, b, p : perm] (equal: (a, a | p) -> bool, x: a, consumes xs: list (
   let ok (y: a, _: b | x @ a * p) : bool =
     equal (x, y)
   in
-  find [(a, b), (x @ a * p)] (ok, xs)
+  find (ok, xs)
 
 (* TEMPORARY
    mem   should be called find_equal

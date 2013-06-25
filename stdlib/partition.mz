@@ -33,8 +33,7 @@ val new_block [a] (r: region a) : dynamic (* block *) =
 val new_item [a] (r: region a, consumes x: a) : cell a =
   let i = Item { block = (); payload = x } in
   i.block <- i;
-  doublylinked::create [item a] (r.cells, i)
-    (* WISH I don't understand why this type application is required *)
+  doublylinked::create (r.cells, i)
 
 val attach [a] (r: region a, b: dynamic (* block *), c: cell a) : () =
   (* Update the cell [c], which is now a member of [b]. *)
