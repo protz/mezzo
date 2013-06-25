@@ -52,7 +52,7 @@
 %token          ARROW LARROW DBLARROW TAGOF FUN
 %token          EMPTY ASSERT EXPLAIN FAIL
 %token          CONSUMES DUPLICABLE FACT ABSTRACT
-%token          FLEXIBLE SUCHTHAT
+%token          FLEX SUCHTHAT
 %token          VAL LET REC AND IN DOT WITH BEGIN END MATCH FOR ABOVE BELOW DOWNTO
 %token          IF THEN ELSE PRESERVING WHILE DO
 %token          TAKE FROM GIVE TO ADOPTS OWNS TAKING
@@ -954,7 +954,7 @@ raw_fragile_expression:
    are introduced by [val]. Their syntax is otherwise identical. *)
 | LET flag_defs = definitions IN e = tuple_or_fragile_expression
     { let flag, defs = flag_defs in ELet (flag, defs, e) }
-| LET FLEXIBLE v = type_binding SUCHTHAT t = normal_type IN e = tuple_or_fragile_expression
+| LET FLEX v = type_binding SUCHTHAT t = normal_type IN e = tuple_or_fragile_expression
     { ELetFlex (v, t, e) }
 | FUN e = anonymous_function
     { e }
