@@ -31,6 +31,7 @@ and raw_error =
   | CyclicDependency of Module.name
   | NotAFunction of var
   | ExpectedType of typ * var * Derivations.derivation
+  | ExpectedPermission of typ * Derivations.derivation
   | RecursiveOnlyForFunctions
   | MissingField of Field.name
   | ExtraField of Field.name
@@ -248,6 +249,11 @@ let print_error buf (env, raw_error) =
         "Could not extract from this subexpression (named %a) the following type:\n%a\n\
           some explanations follow:\n%a"
         pnames (env, get_names env var)
+        ptype (env, t)
+        pderivation d
+  | ExpectedPermission (t, d) ->
+      bprintf
+        "Could not extract the following perm:\n%a\nsome explanations follow:\n%a"
         ptype (env, t)
         pderivation d
   | RecursiveOnlyForFunctions ->

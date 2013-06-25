@@ -45,6 +45,8 @@ val sub: env -> var -> typ -> result
  * duplicable. Unifications may be performed, hence the return environment. *)
 val sub_type: env -> typ -> typ -> result
 
+val sub_perm: env -> typ -> result
+
 val add_hint: (name option) -> string -> (name option)
 
 val sub_constraint: env -> mode_constraint -> result
