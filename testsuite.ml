@@ -987,15 +987,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("named-return.mz", pass);
   ("named-return2.mz", pass);
   ("incorrect-interface.mz", fail);
-  ("instantiate_exists.mz", fail_known_failure);
-  (* The uncatchable error. Happens somewhere in the middle of Functory, giving
-   * up on this for the moment. *)
-  (*("bind-op.mz", fun do_it ->
-    try
-      ignore (do_it ())
-    with Grammar.Error | End_of_file ->
-      raise KnownFailure
-  );*)
+  ("instantiate_exists.mz", pass_known_failure);
+  ("bind-op.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)

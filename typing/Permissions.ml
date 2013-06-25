@@ -1352,6 +1352,14 @@ and sub_perm (env: env) (t: typ): result =
       try_proof "Sub-Empty" (qed env)
   | TyOpen p when is_flexible env p ->
       j_flex_inst env p TyEmpty
+
+  | TyQ (Exists, binding, _, p) ->
+      try_proof "Exists-Perm-R" begin
+        let env, p, _ = bind_flexible_in_type env binding p in
+        sub_perm env p >>=
+        qed
+      end
+
   | _ ->
       sub_floating_perm env t
 
@@ -1377,29 +1385,21 @@ and sub_perms (env: env) (perms: typ list): state =
 (* Attention! This function should not be called directly. Even if you know that
  * your permission is a floating one, please call [sub_perm] so that the type
  * gets run through [modulo_flex] and [expand_if_one_branch]. *)
-and sub_floating_perm (env: env) (t0: typ): result =
-  match t0 with
-  | TyQ (Exists, binding, _, t) ->
-      try_proof env (JSubFloating t0) "Exists-R" begin
-        let env, t, _ = bind_flexible_in_type env binding t in
-        sub_perm env t >>=
-        qed
-      end
-  | _ as t ->
-      try_several
-        env
-        (JSubFloating t)
-        "Floating-In-Env"
-        (get_floating_permissions env)
-        (fun env remaining_perms t' ->
-          let sub_env =
-            if FactInference.is_duplicable env t' then
-              env
-            else
-              set_floating_permissions env remaining_perms
-          in
-          sub_type sub_env t' t
-        )
+and sub_floating_perm (env: env) (t: typ): result =
+  try_several
+    env
+    (JSubFloating t)
+    "Floating-In-Env"
+    (get_floating_permissions env)
+    (fun env remaining_perms t' ->
+      let sub_env =
+        if FactInference.is_duplicable env t' then
+          env
+        else
+          set_floating_permissions env remaining_perms
+      in
+      sub_type sub_env t' t
+    )
 ;;
 
 (** The version we export is actually the one with unfolding baked in. This is
