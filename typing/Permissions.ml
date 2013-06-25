@@ -1344,12 +1344,15 @@ and sub_perm (env: env) (t: typ): result =
           sub env p t' >>=
           qed
         end
+
   | TyStar _ ->
       try_proof "Sub-Star" begin
         sub_perms env (flatten_star env t)
       end
+
   | TyEmpty ->
       try_proof "Sub-Empty" (qed env)
+
   | TyOpen p when is_flexible env p ->
       j_flex_inst env p TyEmpty
 
@@ -1367,6 +1370,13 @@ and sub_perm (env: env) (t: typ): result =
  * proving a series of permissions. If you need a result so as to chain that
  * with something else, use [sub_perm env (fold_star perms)]. *)
 and sub_perms (env: env) (perms: typ list): state =
+  (* Put the flexible perm variables last. In the case where we have:
+   * "t p * p": first subtracting "t p" will instantiate "p" to its right value,
+   * whereas first subtracting "p" will instantiate it to "empty". *)
+  let perms = List.sort (fun y x ->
+    Pervasives.compare (perm_not_flex env x) (perm_not_flex env y)
+  ) perms in
+
   (* The order in which we subtract a bunch of permission is important because,
    * again, some of them may have their lhs flexible. Therefore, there is a
    * small search procedure here that picks a suitable permission for

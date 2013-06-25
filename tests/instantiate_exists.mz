@@ -9,11 +9,9 @@ data state a (post: perm) = State {
 }
 
 val f [ a, post: perm, l: term, p: perm ] (| consumes (p * convertible (p * l @ a) post)): () =
-  ()
+  fail
 
 val get [a, post: perm] (consumes s: state a post): () =
   let l = s.content in
-  assert s @ state a post; (* OK *)
   assert ({ p: perm } (p * convertible (p * l @ a) post)); (* FAIL *)
-  f (); (* OK (if the previous assert is commented) *)
   ()
