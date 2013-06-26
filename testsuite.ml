@@ -785,6 +785,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("weird-datacon-shadowing.mz", kfail_known_failure);
 
   ("assert.mz", pass);
+  ("assert2.mz", fail);
 
   ("priority.mz", pass);
 

@@ -1,0 +1,8 @@
+data mutable mlist a =
+  | MNil
+  | MCons { head: a; tail: mlist a }
+
+val _ =
+  let x = MCons { head = 1; tail = MNil } in
+  assert x @ mlist int;
+  assert x @ MCons { head: int; tail: mlist int }

@@ -51,7 +51,7 @@ val create [a, p : perm] duplicable a => (
   f: (|consumes p) -> a
 | consumes p
 ) : thunk a =
-  let s : state a = Suspended { computation = f } in
+  let s = Suspended { computation = f } in
   new [state a] s
 
 (* A custom unpacking function. This is another shortcoming of the

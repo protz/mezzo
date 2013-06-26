@@ -186,7 +186,7 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
 ;;
 
 
-let check_return_type (env: env) (var: var) (t: typ): unit =
+let check_return_type (env: env) (var: var) (t: typ): env * var =
   TypePrinter.(
     Log.debug ~level:4 "Expecting return type %a; permissions for the var: %a"
       ptype (env, t)
@@ -195,8 +195,8 @@ let check_return_type (env: env) (var: var) (t: typ): unit =
   );
     
   match Permissions.sub env var t with
-  | Some _, _ ->
-      ()
+  | Some env, _ ->
+      Permissions.add env var t, var
   | None, derivation ->
       let open TypePrinter in
       Log.debug ~level:4 "%a\n------------\n" penv env;
@@ -505,13 +505,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         | None -> t
       in
       let env, p = check_expression env ?hint ~annot e in
-      check_return_type env p t;
-      env, p
+      check_return_type env p t
 
   | EAssert p ->
       begin match Permissions.sub_perm env p with
-      | (Some sub_env), _ ->
-          let env = import_flex_instanciations env sub_env in
+      | Some env, _ ->
+          let env = Permissions.add_perm env p in
           return env ty_unit
       | None, derivation ->
           raise_error env (ExpectedPermission (p, derivation))
