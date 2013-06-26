@@ -169,7 +169,8 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       transl loc e (fun v ->
       k (U.EAccess (v, f))
       )
-  | EAssert _ ->
+  | EAssert _
+  | EPack _ ->
       k (U.ETuple [])
   | EApply (e1, e2) ->
       (* Naming [e1] is sufficient to impose left-to-right evaluation.

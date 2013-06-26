@@ -516,6 +516,27 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           raise_error env (ExpectedPermission (p, derivation))
       end
 
+  | EPack (u, t') ->
+      (* Type-checking « pack ∃α.t witness t' » with « u = ∃α.t » amounts to:
+       * - subtract [t'/α]t
+       * - add u
+       * *)
+      let t =
+        match u with
+        | TyQ (Exists, _, UserIntroduced, t) -> t
+        | _ -> assert false
+      in
+      (* I could use a combo of [bind_flexible] / [instantiate_flexible] here but
+       * the [tsubst] solution seems more legible. *)
+      begin match Permissions.sub_perm env (tsubst t' 0 t) with
+      | Some env, _ ->
+          let env = Permissions.add_perm env u in
+          return env ty_unit
+      | None, derivation ->
+          raise_error env (ExpectedPermission (t, derivation))
+      end
+
+
   | EVar _ ->
       Log.error "[check_expression] expects an expression where all variables \
         has been opened";

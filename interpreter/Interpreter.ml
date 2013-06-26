@@ -617,6 +617,7 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
       let b = asBlock (eval env loc e) in
       b.fields.(field_offset f.field_name b.tag)
 
+  | EPack _
   | EAssert _ ->
       unit_value
 

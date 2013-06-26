@@ -1,0 +1,8 @@
+data mutable list a =
+  | Nil
+  | Cons { head: a; tail: list a }
+
+val _ =
+  let x = Nil in
+  pack {t} (x @ t) witness list int;
+  x

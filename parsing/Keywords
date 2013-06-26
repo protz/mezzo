@@ -33,6 +33,7 @@ match
 mutable
 open
 owns
+pack
 perm
 preserving
 rec
@@ -46,3 +47,4 @@ unknown
 val
 while
 with
+witness

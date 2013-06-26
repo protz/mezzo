@@ -559,10 +559,17 @@ and add_perm (env: env) (t: typ): env =
         end
       else
         add env !!p t
+
   | TyStar (p, q) ->
       add_perm (add_perm env p) q
+
   | TyEmpty ->
       env
+
+  | TyQ (Exists, binding, _, p) ->
+      let env, p, _ = bind_rigid_in_type env binding p in
+      add_perm env p
+
   | _ ->
       add_floating_perm env t
 

@@ -89,6 +89,8 @@ type expression =
   | EAccess of expression * field
   (* assert τ *)
   | EAssert of typ
+  (* pack {t} p witness t' *)
+  | EPack of typ * typ
   (* e₁ e₂ *)
   | EApply of expression * expression
   (* e [τ₁, …, τₙ] *)
@@ -311,6 +313,9 @@ and tsubst_expr t2 i e =
   | EAssert t ->
       EAssert (tsubst t2 i t)
 
+  | EPack (t, t') ->
+      EPack (tsubst t2 i t, tsubst t2 i t')
+
   | EVar _
   | EOpen _ 
   | EBuiltin _ ->
@@ -474,6 +479,7 @@ and esubst e2 i e1 =
       else
         e1
 
+  | EPack _
   | EAssert _
   | EOpen _
   | EBuiltin _ ->
@@ -777,6 +783,10 @@ module ExprPrinter = struct
 
     | EAssert t ->
         string "assert" ^^ space ^^ print_type env t
+
+    | EPack (t, t') ->
+        string "pack" ^^ space ^^ print_type env t ^^ space ^^ string "witness" ^^
+        space ^^ print_type env t'
 
     | ELet (rec_flag, patexprs, body) ->
         let env, patexprs, { subst_expr; _ } = bind_patexprs env rec_flag patexprs in

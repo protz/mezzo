@@ -979,6 +979,10 @@ and check_expression env (expr : expression) : unit =
   | EConstraint (e, ty) ->
       check_expression env e;
       check_reset env ty KType
+    
+  | EPack (t, t') ->
+      check_reset env t KPerm;
+      ignore (infer_reset env t')
 
   | EVar x ->
       (* [x] must have kind [KTerm]. *)

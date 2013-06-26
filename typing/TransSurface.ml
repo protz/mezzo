@@ -549,6 +549,11 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let t = translate_type_reset_no_kind env t in
       E.EConstraint (e, t)
 
+  | EPack (t, t') ->
+      let t = translate_type_reset_no_kind env t in
+      let t' = translate_type_reset_no_kind env t' in
+      E.EPack (t, t')
+
   | EVar x ->
       evar (find_variable env x)
 

@@ -241,6 +241,8 @@ and expression =
   | EAccess of expression * field
   (* assert τ *)
   | EAssert of typ
+  (* pack {t} p witness t' *)
+  | EPack of typ * typ
   (* e₁ e₂ *)
   | EApply of expression * expression
   (* e [τ₁, …, τₙ] *)
