@@ -583,42 +583,20 @@ and add_perm_raw env p t =
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
  * to the list of available permissions for [p] *)
 and add_type (env: env) (p: var) (t: typ): env =
-  if is_good (Log.silent (fun () -> sub env p t)) then begin
-    (* We're not re-binding env because this has bad consequences: in
-     * particular, when adding a flexible type variable to a var, it
-     * instantiates it into, say, [=x], which is usually *not* what we want to
-     * do. Happens mostly when doing higher-order, see impredicative.mz or
-     * list-map2.mz for examples. *)
-    Log.debug ~level:4 "→ sub worked%s]%s" Bash.colors.Bash.red Bash.colors.Bash.default;
-    let in_there_already =
-      List.exists (fun x -> equal env x t) (get_permissions env p)
-    in
-    if FactInference.is_exclusive env t then begin
-      (* If [t] is exclusive, then this makes the environment inconsistent. *)
-      Log.debug ~level:4 "%sInconsistency detected%s, adding %a as an exclusive \
-          permission, but it's already available."
-        Bash.colors.Bash.red Bash.colors.Bash.default
-        TypePrinter.ptype (env, t);
-      mark_inconsistent env
-    end else if FactInference.is_duplicable env t && in_there_already then
-      env
-    else
-      (* Either the type is not duplicable (so we need to add it!), or it is
-       * duplicable, but doesn't exist per se (e.g. α flexible with
-       * [duplicable α]) in the permission list. Add it. *)
-      add_perm_raw env p t
-
-  end else begin
-    Log.debug ~level:4 "→ sub did NOT work%s]%s" Bash.colors.Bash.red Bash.colors.Bash.default;
+  if not (List.exists (equal env t) (get_permissions env p)) then
     let env = add_perm_raw env p t in
-    (* If we just added an exclusive type to the var, then it automatically
-     * gains the [dynamic] type. *)
     if FactInference.is_exclusive env t then
       add_type env p TyDynamic
     else
       env
-  end
-
+  else if FactInference.is_exclusive env t then
+    (* This test is a little bit expensive but we've got one test that relies on
+     * this... but no real-world code that seriously needs it. TEMPORARY Should
+     * we remove all the extra legwork that marks an environment as
+     * inconsistent? *)
+    mark_inconsistent env
+  else
+    env
 
 (** [sub env var t] tries to extract [t] from the available permissions for
     [var] and returns, if successful, the resulting environment. This is one of
