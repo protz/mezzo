@@ -61,6 +61,7 @@ type expression =
   | EAssign of expression * field * expression
   | EAssignTag of expression * resolved_datacon * tag_update_info
   | EAccess of expression * field
+  | EAssert of typ
   | EApply of expression * expression
   | ETApply of expression * tapp * kind
   | EMatch of bool * expression * patexpr list

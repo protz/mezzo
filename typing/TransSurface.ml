@@ -626,7 +626,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
 
   | EAssert t ->
       let t, _, _ = translate_type env t in
-      E.EConstraint (E.e_unit, T.TyBar (Types.ty_unit, t))
+      E.EAssert t
 
   | EApply (e1, e2) ->
       let e1 = translate_expr env e1 in

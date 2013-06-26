@@ -508,6 +508,15 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       check_return_type env p t;
       env, p
 
+  | EAssert p ->
+      begin match Permissions.sub_perm env p with
+      | (Some sub_env), _ ->
+          let env = import_flex_instanciations env sub_env in
+          return env ty_unit
+      | None, derivation ->
+          raise_error env (ExpectedPermission (p, derivation))
+      end
+
   | EVar _ ->
       Log.error "[check_expression] expects an expression where all variables \
         has been opened";

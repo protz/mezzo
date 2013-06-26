@@ -822,7 +822,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("same-type-var-bug.mz", kfail);
 
-  ("assert-bug.mz", pass_known_failure);
+  ("assert-bug.mz", pass);
 
   ("function-comparison.mz", pass);
 

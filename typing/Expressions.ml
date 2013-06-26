@@ -87,6 +87,8 @@ type expression =
   | EAssignTag of expression * resolved_datacon * tag_update_info
   (* v.f *)
   | EAccess of expression * field
+  (* assert τ *)
+  | EAssert of typ
   (* e₁ e₂ *)
   | EApply of expression * expression
   (* e [τ₁, …, τₙ] *)
@@ -306,6 +308,9 @@ and tsubst_expr t2 i e =
   | EConstraint (e, t) ->
       EConstraint (tsubst_expr t2 i e, tsubst t2 i t)
 
+  | EAssert t ->
+      EAssert (tsubst t2 i t)
+
   | EVar _
   | EOpen _ 
   | EBuiltin _ ->
@@ -469,6 +474,7 @@ and esubst e2 i e1 =
       else
         e1
 
+  | EAssert _
   | EOpen _
   | EBuiltin _ ->
       e1
@@ -768,6 +774,9 @@ module ExprPrinter = struct
 
     | EBuiltin b ->
         string "builtin" ^^ space ^^ string b
+
+    | EAssert t ->
+        string "assert" ^^ space ^^ print_type env t
 
     | ELet (rec_flag, patexprs, body) ->
         let env, patexprs, { subst_expr; _ } = bind_patexprs env rec_flag patexprs in
