@@ -529,25 +529,23 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let body = subst_expr body in
       check_expression env ?annot body
 
-  | ELetFlex (binding, t, e) ->
+  | ELetFlex (binding, e) ->
+      (* Bind (manually) the variable as flexible. *)
       let env, var = bind_flexible env (fst binding) in
       let t0 = TyOpen var in
-      let t = tsubst t0 0 t in
+      (* And substitute it properly in [e]. *)
       let e = tsubst_expr t0 0 e in
-      let sub_env = Permissions.sub_perm env t in
-      begin match sub_env with
-      | (Some sub_env), _ ->
-          let env = import_flex_instanciations env sub_env in
-          let name =
-            match binding with
-            | (User (_, n), _, _), _ -> n
-            | _ -> assert false
-          in
-          may_raise_error env (Instantiated (name, t0));
-          check_expression env ?annot e
-      | None, derivation ->
-          raise_error env (ExpectedPermission (t, derivation))
-      end
+      (* Type-check [e] itself. *)
+      let env, x = check_expression env ?annot e in
+      (* And notify the user about the choice we made for the flexible variable
+       * instantiation. *)
+      let name =
+        match binding with
+        | (User (_, n), _, _), _ -> n
+        | _ -> assert false
+      in
+      may_raise_error env (Instantiated (name, t0));
+      env, x
 
   (* We assume that [EBigLambdas] is allowed only above [ELambda]. This
      allows us to cheat when handling [EBigLambda]. Instead of introducing a

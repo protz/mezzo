@@ -147,7 +147,7 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
        reset_transl_equations loc equations,
        reset_transl loc body
       ))
-  | ELetFlex (_, _, e) ->
+  | ELetFlex (_, e) ->
       transl loc e k
   | EFun (_type_parameters, argument_type, _result_type, body) ->
       (* The argument pattern is implicit in the argument type. *)

@@ -582,7 +582,7 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
       let env = eval_definitions env (loc, rec_flag, equations) in
       eval env loc body
 
-  | ELetFlex (_, _, e) ->
+  | ELetFlex (_, e) ->
       eval env loc e
 
   | EFun (_type_parameters, argument_type, _result_type, body) ->

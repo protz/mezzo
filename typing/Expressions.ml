@@ -71,8 +71,8 @@ type expression =
   | EBuiltin of string
   (* let rec pat = expr and pat' = expr' in expr *)
   | ELet of rec_flag * patexpr list * expression
-  (* let flex v such that t in e *)
-  | ELetFlex of (type_binding * flavor) * typ * expression
+  (* let flex v in e *)
+  | ELetFlex of (type_binding * flavor) * expression
   (* [a, ..., a] e *)
   | EBigLambdas of (type_binding * flavor) list * expression
   (* lambda (x: τ): τ -> e *)
@@ -321,9 +321,9 @@ and tsubst_expr t2 i e =
       let body = tsubst_expr t2 (i + n) body in
       ELet (rec_flag, patexprs, body)
 
-  | ELetFlex (binding, t, e) ->
+  | ELetFlex (binding, e) ->
       let i = i + 1 in
-      ELetFlex (binding, tsubst t2 i t, tsubst_expr t2 i e)
+      ELetFlex (binding, tsubst_expr t2 i e)
 
   | EBigLambdas (xs, e) ->
       let n = List.length xs in
@@ -484,9 +484,9 @@ and esubst e2 i e1 =
       let body = esubst e2 (i + n) body in
       ELet (rec_flag, patexprs, body)
 
-  | ELetFlex (binding, t, e) ->
+  | ELetFlex (binding, e) ->
       let i = i + 1 in
-      ELetFlex (binding, t, esubst e2 i e)
+      ELetFlex (binding, esubst e2 i e)
 
   | EBigLambdas (xs, e) ->
       let n = List.length xs in
@@ -785,14 +785,11 @@ module ExprPrinter = struct
         print_patexprs env patexprs ^^ break 1 ^^ string "in" ^^ break 1 ^^
         print_expr env body
 
-    | ELetFlex (binding, t, e) ->
-        let env, { subst_expr; subst_type; _ } = bind_evars env [fst binding] in
-        let t = subst_type t in
+    | ELetFlex (binding, e) ->
+        let env, { subst_expr; _ } = bind_evars env [fst binding] in
         let e = subst_expr e in
         string "let" ^^ space ^^ string "flex" ^^ space ^^ print_ebinder env binding ^^
-        string "such" ^^ space ^^ string "that" ^^
-        break 1 ^^ print_type env t ^^ break 1 ^^ string "in" ^^ break 1 ^^
-        print_expr env e
+        string "in" ^^ break 1 ^^ print_expr env e
 
 
     | EBigLambdas (xs, e) ->
