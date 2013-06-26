@@ -522,9 +522,23 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
        * - add u
        * *)
       let t =
+        let u =
+          (* A local version of [u] where type abbreviations have been properly
+           * expanded. *)
+          match u with
+          | TyAnchoredPermission (x, t) ->
+              TyAnchoredPermission (x, expand_if_one_branch env t)
+          | _ ->
+              expand_if_one_branch env u
+        in
         match u with
-        | TyQ (Exists, _, UserIntroduced, t) -> t
-        | _ -> assert false
+        | TyQ (Exists, _, UserIntroduced, t) ->
+            t
+        | TyAnchoredPermission (x, TyQ (Exists, _, UserIntroduced, t)) ->
+            (* [x] is a free variable so we're free to just zap the quantifier. *)
+            TyAnchoredPermission (x, t)
+        | _ ->
+            raise_error env PackWithExists
       in
       (* I could use a combo of [bind_flexible] / [instantiate_flexible] here but
        * the [tsubst] solution seems more legible. *)

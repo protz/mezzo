@@ -64,6 +64,7 @@ and raw_error =
   | ExportNotDuplicable of Variable.name
   | LocalType
   | Instantiated of Variable.name * typ
+  | PackWithExists
 
 exception TypeCheckerError of error
 
@@ -437,6 +438,8 @@ let print_error buf (env, raw_error) =
       bprintf "We instantiated %a as %a"
         Variable.p v
         ptype (env, t)
+  | PackWithExists ->
+      bprintf "You can only pack an existential"
 ;;
 
 let html_error error =

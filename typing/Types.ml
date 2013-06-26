@@ -574,7 +574,7 @@ let rec expand_if_one_branch (env: env) (t: typ) =
       begin match get_definition env cons with
       | Some (Concrete [branch]) ->
           let branch = instantiate_branch branch args in
-         let branch = resolve_branch cons branch in
+          let branch = resolve_branch cons branch in
           wrap_if (TyConcrete branch)
       | Some (Abbrev t) ->
           let t = instantiate_type t args in

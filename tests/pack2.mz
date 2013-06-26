@@ -1,0 +1,7 @@
+alias t u = {x} (u, x)
+
+val x =
+  let y = 1 in
+  let x = (y, 2) in
+  pack x @ t (=y) witness int;
+  x

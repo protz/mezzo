@@ -351,11 +351,6 @@ raw_tight_type:
 | ty = tlocated(raw_normal_type)
     { ty }
 
-%inline existential_type:
-(* An existential type. *)
-| bs = existential_quantifiers ty = normal_type
-    { List.fold_right (fun b ty -> TyExists (b, ty)) bs ty }
-
 raw_normal_type:
 | ty = raw_tight_type
     { ty }
@@ -365,6 +360,9 @@ raw_normal_type:
 (* A polymorphic type. *)
 | bs = type_parameters ty = normal_type
     { List.fold_right (fun b ty -> TyForall (b, ty)) bs ty }
+(* An existential type. *)
+| bs = existential_quantifiers ty = normal_type
+    { List.fold_right (fun b ty -> TyExists (b, ty)) bs ty }
 (* A type that carries a mode constraint (implication). *)
 | c = mode_constraint DBLARROW ty = normal_type
     { TyImply (c, ty) }
@@ -375,8 +373,6 @@ raw_normal_type:
    This allows the type in the [adopts] clause to be itself a normal type. *)
 | b = data_type_branch ADOPTS t = normal_type
     { TyConcrete (b, Some t) }
-| e = existential_type
-    { e }
 
 %inline loose_type:
 | ty = tlocated(raw_loose_type)
@@ -921,7 +917,7 @@ raw_reasonable_expression:
     }
 | ASSERT t = very_loose_type
     { EAssert t }
-| PACK t1 = existential_type WITNESS t2 = very_loose_type
+| PACK t1 = very_loose_type WITNESS t2 = very_loose_type
     { EPack (t1, t2) }
 | e = algebraic_expression EXPLAIN
     { EExplained e }

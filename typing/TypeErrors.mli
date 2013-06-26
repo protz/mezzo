@@ -59,6 +59,7 @@ type raw_error =
   | ExportNotDuplicable of Variable.name
   | LocalType
   | Instantiated of Variable.name * typ
+  | PackWithExists
 
 (** Set up the module to take into account the warn / error / silent settings
  * specified on the command-line. *)
