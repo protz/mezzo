@@ -1000,10 +1000,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("letflex.mz", pass);
   ("pack1.mz", pass);
   ("pack2.mz", pass);
+  ("landin.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)
-  ("landin.mz", fun _ -> raise KnownFailure);
   ("landin-variant.mz", fun _ -> raise KnownFailure);
   ("cyclic-list.mz", fun _ -> raise KnownFailure);
   ("diverge.mz", fun _ -> raise KnownFailure);
