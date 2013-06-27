@@ -1,0 +1,18 @@
+(* Conversion between permissions: [convertible p q] stands if, given
+   [p], we can convert it to [q] using [convert ()] *)
+
+val convert: () -> ()
+
+alias convertible (p: perm) (q: perm): perm =
+  convert @ (| consumes p) -> (| q)
+
+
+(* Consumable type: a term [t] is [consumable a pre post] if, given
+   [t] and [pre], we can consume them to have the [post]
+   permission. *)
+
+alias consumable a (pre: perm) (post: perm) =
+  { p: perm } (x: a | p * convertible (p * pre * x @ a) post)
+
+val consume: [a, pre: perm, post: perm]
+  (consumes (x: consumable a pre post | pre)) -> (| post)
