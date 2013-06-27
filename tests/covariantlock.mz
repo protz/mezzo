@@ -21,7 +21,7 @@ val try_acquire: [p: perm] (l: lock p) -> {q : perm} rich_bool empty (p * q * l 
 val release: [p: perm] (consumes (l: exact p | p)) -> () =
   builtin __mz_lock_release
 
-val xstrengthen: [p : perm, q : perm] (consumes l: exact p) -> (| l @ exact (p * q)) =
+val __strengthen: [p : perm, q : perm] (consumes l: exact p) -> (| l @ exact (p * q)) =
   magic::magic ()
 
 val publish: [p : perm] (l: exact p) -> (| l @ lock p) =
@@ -30,15 +30,22 @@ val publish: [p : perm] (l: exact p) -> (| l @ lock p) =
 (* ------------------------------------------------------------------------------ *)
 
 (* The permission [l @ held p] is a witness that the lock [l] is held
-   and that its invariant is *at least* [p]. It is defined in terms
-   of [exact], using an existential quantification over the unknown
-   part of the invariant. *)
+   and that its invariant is *at least* [p]. More precisely, the lock's
+   invariant is the form [p * q], for some permission [q], and we hold
+   [q]. Thus, giving up [p] is sufficient to release the lock. *)
 
 alias held (p : perm) =
   {q : perm} (exact (p * q) | q)
 
+(* The operations [try_acquire], [release], [strengthen], and [publish],
+   as defined above, have types that mention the lock's [exact] invariant.
+   We wish to export them with types that mention [held] instead. In all
+   cases but one, this conversion is automatically checked by the Mezzo
+   type-checker. In the case of [strengthen], though, a type annotation
+   appears to be necessary (which in turn requires an eta-expansion). *)
+
 val strengthen [p : perm, q : perm] (consumes l: held p) : (| l @ held (p * q)) =
-  xstrengthen [q = q] l
+  __strengthen [q = q] l
 
 (* ------------------------------------------------------------------------------ *)
 
