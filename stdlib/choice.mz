@@ -2,3 +2,10 @@ data choice a b =
   | Left  { contents: a }
   | Right { contents: b }
 
+(* Constructors *)
+
+val left [a] (consumes x: a): Left { contents: a } =
+  Left { contents = x }
+
+val right [a] (consumes x: a): Right { contents: a } =
+  Right { contents = x }
