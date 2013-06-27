@@ -1,0 +1,57 @@
+(* This file offers an experimental version of the lock API, where
+   locks are monotonic (their invariant grows stronger with time)
+   and covariant (so a client knows only part of the invariant). *)
+
+(* A lock protects a permission [p], which usually is not duplicable. *)
+
+(* In this elaborate variant of the lock API, the type [lock] is viewed
+   as covariant. This means that [p] need not represent everything that
+   the lock protects, but can represent only part of it. *)
+
+abstract lock +(p: perm)
+
+(* A lock is duplicable: multiple threads may simultaneously attempt
+   to acquire it. Note that, because the type [lock] is covariant, it
+   is possible for a single lock to be known under several types, such
+   as [lock p] and [lock q], where [p] and [q] are entirely unrelated. *)
+
+fact duplicable (lock p)
+
+
+abstract held (p: perm)
+
+(* Creation. *)
+
+(* An invariant [p] is chosen at creation time. Note that we could let
+   the initial invariant be [empty], and strengthen it later on. For
+   compatibility with the basic lock API, though, it is better to pick
+   a non-trivial initial invariant. *)
+
+val new: [p: perm] (| consumes p) -> lock p
+
+(* Acquisition. *)
+
+(* Because [p] represents only a part of the lock's invariant, acquiring
+   the lock yields [p * q], for an unknown permission [q], together with
+   the permission [l @ held (p * q)], which states that [p * q] is the
+   lock's invariant. *)
+
+val acquire:     [p: perm] (l: lock p) -> (              | p * l @ held p)
+val try_acquire: [p: perm] (l: lock p) -> rich_bool empty (p * l @ held p)
+
+val strengthen: [p : perm, q : perm] (consumes l: held p) -> (| l @ held (p * q))
+
+val publish: [p : perm] (l: held p) -> (| l @ lock p)
+
+(* Release. *)
+
+val release: [p: perm] (consumes (l: held p | p)) -> ()
+
+(* A well-balanced acquire/release pair. *)
+
+val borrow: [p: perm, q: perm, b] (
+  l: lock p,
+  f: (| p * consumes q) -> b
+| consumes q
+) -> b
+

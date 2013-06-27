@@ -121,7 +121,10 @@ let check
         let point = KindCheck.find_nonlocal_variable exports x in
         let env =
           match Permissions.sub env point t with
-          | Some env, _ ->
+          | Some env, derivation ->
+              Log.debug ~level:6 "\nDerivation for %a: %a\n"
+                Variable.p x
+                DerivationPrinter.pderivation derivation;
               env
           | None, d ->
               let open TypeErrors in

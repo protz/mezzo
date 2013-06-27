@@ -1,0 +1,7 @@
+abstract exact (p: perm)
+
+val strange [p: perm, q: perm] (consumes l: exact (p * q)) : (| l @ exact p) =
+  ()
+  (* BUG: this is accepted, as if exact was covariant, but it hasn't been
+     declared as covariant! *)
+

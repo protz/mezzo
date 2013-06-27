@@ -16,6 +16,12 @@ val w: ref ([a]a) =
 val z2: [a] wref::wref a =
   builtin foobar
 
+val f [a] (consumes x: a): a = 
+  x
+
+val g [a, p: perm] (consumes (x: a | p)): (a | p) =
+  x
+
 val () =
   (* forall can be hoisted out a pair *)
   assert x @ [a] (a -> a, int);
@@ -33,3 +39,7 @@ val () =
   assert w @ [a] ref a;
 
   assert z2 @ wref::wref ([a] a);
+
+  assert f @ [a, p: perm] (consumes (a | p)) -> (a | p);
+
+  assert g @ [a] (consumes x: a) -> a;
