@@ -1,0 +1,96 @@
+open list
+open choice
+open idioms
+
+data mutable tree a =
+| Leaf
+| Node { left: tree a; x: a; right: tree a }
+
+alias not_empty_list a = Cons { head: a; tail: list a }
+
+(* ----- The iterator ----- *)
+
+alias content_t a (hole: perm) (post: perm) =
+  consumable (not_empty_list (tree a)) hole post
+
+alias iterator a (hole: perm) (post: perm) =
+  ref (content_t a hole post)
+
+(* ----- Base functions ----- *)
+
+val new [a] (consumes t: tree a): iterator a empty (t @ tree a) =
+  (* [l] will be the list of the subtrees of [t] that are to be
+     explored *)
+  let l = Cons { head = t; tail = Nil } in
+  newref l
+
+val rec next [a, hole: perm, post: perm]
+  (consumes (it: iterator a hole post | hole)): 
+  choice (x: a | it @ iterator a (x @ a) post) (| post) =
+  
+  (* Merge [hole] into the iterator *) 
+  assert (it @ iterator a empty post);
+
+  (* Find the next node *)
+  let Cons { head = t; tail = ts } = !it in
+  match t with
+  | Leaf ->
+    (* Continue in the next subtree of the list *)
+    match ts with
+    | Nil ->
+      (* There is no more subtrees *)
+      consume [pre = empty] !it;
+      choice::right ()
+    | Cons { head; tail } ->
+      it := ts;
+      (* We store [t @ Leaf] into the iterator to avoid losing
+	 information *)
+      let flex p: perm in
+      pack ts @ content_t a empty post witness (p * t @ Leaf);
+      next [a = a, hole = empty] it
+    end
+
+  | Node { left; x; right } ->
+    (* A node is found, split it and put the subtrees into the list *)
+    let l = Cons { head = left; tail = Cons { head = right; tail = ts } } in
+    it := l;
+    (* Store the fact that [t @ Node { left; x; right }], to avoid
+       losing information *)
+    let flex p: perm in
+    pack l @ content_t a (x @ a) post witness (p * t @ Node { left; x; right });
+    (* Return [x] *)
+    choice::left x
+  end
+
+val stop [a, hole: perm, post: perm]
+  (consumes (it: iterator a hole post | hole)): (| post) =
+  consume [pre = hole] !it
+
+(* -------------------------------------------------------------------------- *)
+
+val rec loop [a, hole: perm, post: perm]
+  (consumes (it: iterator a hole post | hole), f: a -> ()): (| post) =
+
+  match next [hole = hole] it with
+  | Right { contents } ->
+    ()
+  | Left { contents = x } ->
+    f x;
+    loop [hole = (x @ a)] (it, f)
+  end
+
+val rec nth [a, hole: perm, post: perm]
+  (consumes it: (iterator a hole post | hole), n: int):
+  choice (x: a | it @ iterator a (x @ a) post) (| post) =
+
+  match next [hole = hole] it with
+  | Right { contents } ->
+    (* There is no more elements in the iterator *)
+    choice::right contents
+  | Left { contents = x } ->
+    if n <= 0 then (
+      choice::left x
+    ) else (
+      nth [a = a, hole = (x @ a)] (it, n-1)
+    )
+  end
