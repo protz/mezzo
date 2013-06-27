@@ -1,0 +1,80 @@
+open list
+open choice
+
+data iterator_s a (s: perm) (post: perm) = Iterator {
+  next: (| consumes s) -> choice (a | s) (| post);
+  stop: (| consumes s) -> (| post)
+| s }
+
+alias iterator a (post: perm) = { s: perm } iterator_s a s post 
+
+val new [a, iter, post: perm] (consumes (
+  it: iter,
+  next: (consumes it: iter) -> choice (a | it @ iter) (| post),
+  stop: (consumes it: iter) -> (| post)
+)): iterator a post =
+  Iterator {
+    next = (fun (| consumes (it @ iter)): choice (a | it @ iter) (| post) = next it);
+    stop = (fun (| consumes (it @ iter)): (| post) = stop it)
+  }
+
+val filter [a, post: perm] (consumes it: iterator a post, pred: a -> bool): iterator a post =
+  let rec next_filter (| consumes (it @ iterator a post)): choice (a | it @ iterator a post) (| post) =
+    match it.next () with
+    | Right ->
+      right ()
+    | Left { contents = x } ->
+      if pred x then
+	left x
+      else
+	next_filter ()
+    end 
+  in
+
+  let stop_filter (| consumes (it @ iterator a post)): (| post) =
+    it.stop ()
+  in
+
+  Iterator {
+    next = next_filter;
+    stop = stop_filter
+  }
+
+val map [a, b, post: perm] (consumes it: iterator a post, f: a -> b): iterator b post =
+  let next_map (| consumes (it @ iterator a post)): choice (b | it @ iterator a post) (| post) =
+    match it.next () with
+    | Right ->
+      right ()
+    | Left { contents = x } ->
+      left (f x)
+    end 
+  in
+
+  let stop_map (| consumes (it @ iterator a post)): (| post) =
+    it.stop ()
+  in
+
+  Iterator {
+    next = next_map;
+    stop = stop_map;
+  }
+
+open duplist_iterator
+
+val _ =
+  let l = three (1, 2, 3) in
+  let i = new_iterator_dup l in
+  
+  let it = new (i, next_dup, stop_dup) in
+  let mit = map (it, fun (x: int): () = print x) in
+  
+  let rec loop [a, post: perm] (consumes it: iterator a post): (| post) =
+    match it.next () with
+    | Right ->
+      ()
+    | Left { contents = x } ->
+      loop it
+    end 
+  in
+  loop mit;
+  ()
