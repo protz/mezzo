@@ -21,7 +21,7 @@ val try_acquire: [p: perm] (l: lock p) -> {q : perm} rich_bool empty (p * q * l 
 val release: [p: perm] (consumes (l: exact p | p)) -> () =
   builtin __mz_lock_release
 
-val strengthen: [p : perm, q : perm] (consumes l: exact p) -> (| l @ exact (p * q)) =
+val xstrengthen: [p : perm, q : perm] (consumes l: exact p) -> (| l @ exact (p * q)) =
   magic::magic ()
 
 val publish: [p : perm] (l: exact p) -> (| l @ lock p) =
@@ -36,6 +36,10 @@ val publish: [p : perm] (l: exact p) -> (| l @ lock p) =
 
 alias held (p : perm) =
   {q : perm} (exact (p * q) | q)
+
+val strengthen [p : perm, q : perm] (consumes (l: held p | q)) : (| l @ held (p * q)) =
+  let flex r : perm in
+  xstrengthen [(p * r), q] l
 
 (* ------------------------------------------------------------------------------ *)
 

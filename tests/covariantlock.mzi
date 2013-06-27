@@ -39,9 +39,11 @@ val new: [p: perm] (| consumes p) -> lock p
 val acquire:     [p: perm] (l: lock p) -> (              | p * l @ held p)
 val try_acquire: [p: perm] (l: lock p) -> rich_bool empty (p * l @ held p)
 
-val strengthen: [p : perm, q : perm] (consumes l: held p) -> (| l @ held (p * q))
+(* TEMPORARY not happy with this, as [q] will have to be given twice;
+   we should perhaps combine strengthen/release internally? *)
+val strengthen:  [p : perm, q : perm] (consumes (l: held p | q)) -> (| l @ held (p * q))
 
-val publish: [p : perm] (l: held p) -> (| l @ lock p)
+val publish:     [p : perm] (l: held p) -> (| l @ lock p)
 
 (* Release. *)
 
