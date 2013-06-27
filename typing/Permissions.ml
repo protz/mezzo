@@ -962,21 +962,25 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
           match variance sub_env cons1 i with
           | Covariant ->
               try_proof sub_env (JLt (arg1, arg2)) "Covariance" begin
-                sub_type_with_unfolding sub_env arg1 arg2 >>=
-                qed
+                sub_type_with_unfolding sub_env arg1 arg2 >>= fun sub_sub_env ->
+                let sub_env = import_flex_instanciations sub_env sub_sub_env in
+                qed sub_env
               end
           | Contravariant ->
               try_proof sub_env (JGt (arg1, arg2)) "Contravariance" begin
-                sub_type_with_unfolding sub_env arg2 arg1 >>=
-                qed
+                sub_type_with_unfolding sub_env arg2 arg1 >>= fun sub_sub_env ->
+                let sub_env = import_flex_instanciations sub_env sub_sub_env in
+                qed sub_env
               end
           | Bivariant ->
               nothing env "Bivariance"
           | Invariant ->
               try_proof sub_env (JEqual (arg1, arg2)) "Invariance" begin
-                sub_type_with_unfolding sub_env arg1 arg2 >>= fun sub_env ->
-                sub_type_with_unfolding sub_env arg2 arg1 >>=
-                qed
+                sub_type_with_unfolding sub_env arg1 arg2 >>= fun sub_sub_env ->
+                let sub_env = import_flex_instanciations sub_env sub_sub_env in
+                sub_type_with_unfolding sub_env arg2 arg1 >>= fun sub_sub_env ->
+                let sub_env = import_flex_instanciations sub_env sub_sub_env in
+                qed sub_env
               end
         ) args1 args2) >>~ fun sub_env ->
         import_flex_instanciations env sub_env
