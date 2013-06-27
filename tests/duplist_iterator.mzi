@@ -1,0 +1,14 @@
+open list
+open choice
+
+abstract iterator_dup a (post: perm)
+fact exclusive (iterator_dup a post)
+
+val new_iterator_dup: [a] duplicable a =>
+  (consumes l: list a) -> iterator_dup a (l @ list a)
+
+val next_dup: [a, post: perm] 
+  (consumes it: iterator_dup a post) -> choice (x: a | it @ iterator_dup a post) (| post)
+
+val stop_dup: [a, post: perm]
+  (consumes it: iterator_dup a post) -> (| post)
