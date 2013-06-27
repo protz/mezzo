@@ -1,0 +1,63 @@
+(* ------------------------------------------------------------------------------ *)
+
+(* Several types and operations are axiomatized. *)
+
+(* The permission [l @ exact p] is a witness that the lock [l] is held
+   and that its invariant is *exactly* [p]. This permission is not
+   duplicable. It represents a permission to release the lock and also
+   a permission to strengthen the lock's invariant. *)
+
+abstract lock +(p: perm)
+fact duplicable (lock p)
+
+abstract exact (p: perm)
+
+val new: [p: perm] (| consumes p) -> lock p =
+  builtin __mz_lock_new
+
+val try_acquire: [p: perm] (l: lock p) -> {q : perm} rich_bool empty (p * q * l @ exact (p * q)) =
+  builtin __mz_lock_try_acquire
+
+val release: [p: perm] (consumes (l: exact p | p)) -> () =
+  builtin __mz_lock_release
+
+val strengthen: [p : perm, q : perm] (consumes l: exact p) -> (| l @ exact (p * q)) =
+  magic::magic ()
+
+val publish: [p : perm] (l: exact p) -> (| l @ lock p) =
+  magic::magic ()
+
+(* ------------------------------------------------------------------------------ *)
+
+(* The permission [l @ held p] is a witness that the lock [l] is held
+   and that its invariant is *at least* [p]. It is defined in terms
+   of [exact], using an existential quantification over the unknown
+   part of the invariant. *)
+
+alias held (p : perm) =
+  {q : perm} (exact (p * q) | q)
+
+(* ------------------------------------------------------------------------------ *)
+
+(* [acquire] can be defined in terms of [try_acquire], by busy waiting.
+   This is a not a good implementation, but it is a good test of the
+   type-checker. *)
+
+val rec acquire [p: perm] (l: lock p) : (| p * l @ held p) =
+  if not (try_acquire l) then
+    acquire l
+
+(* ------------------------------------------------------------------------------ *)
+
+(* [borrow] is just an [acquire/release] pair. *)
+
+val borrow [p: perm, q: perm, b] (
+  l: lock p,
+  f: (| p * consumes q) -> b
+| consumes q
+) : b =
+  acquire l;
+  let x = f() in
+  release l;
+  x
+
