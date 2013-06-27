@@ -422,6 +422,71 @@ val partition [a] (p: a -> bool, consumes xs: list a) : (list a, list a) =
 
 (* -------------------------------------------------------------------------- *)
 
+(* Iterator. *)
+
+open idioms
+open choice
+
+alias iterator a (hole: perm) (post: perm) = ref (consumable (list a) hole post)
+
+(* Base functions *)
+
+val new_iterator [a] (consumes l: list a): iterator a empty (l @ list a) =
+  newref l
+
+val next [a, hole: perm, post: perm]
+  (consumes (it: iterator a hole post | hole)):
+  choice (x: a | it @ iterator a (x @ a) post) (| post) =
+
+  (* Merge [hole] into [it] *)
+  assert (it @ iterator a empty post);
+
+  (* Go one step forward *)
+  match !it with
+  | Nil ->
+    consume [pre = empty] !it;
+    right ()
+  | Cons { head; tail } ->
+    it := tail;
+    left head
+  end
+
+val stop [a, hole: perm, post: perm]
+  (consumes (it: iterator a hole post | hole)): (| post) =
+  consume [pre = hole] !it
+
+(* Utility functions using a list iterator.
+   Mostly useful to stress the typechecker, they are not exported *)
+
+val rec loop_iterator [a, hole: perm, post: perm]
+  (consumes (it: iterator a hole post | hole), f: a -> ()): (| post) =
+
+  match next [hole = hole] it with
+  | Right ->
+    ()
+  | Left { contents = x } ->
+    f x;
+    loop_iterator [hole = (x @ a)] (it, f)
+  end
+
+val rec nth_iterator [a, hole: perm, post: perm]
+  (consumes it: (iterator a hole post | hole), n: int):
+  choice (x: a | it @ iterator a (x @ a) post) (| post) =
+
+  match next [hole = hole] it with
+  | Right ->
+    (* There is no more elements in the iterator *)
+    right ()
+  | Left { contents = x } ->
+    if n <= 0 then (
+      left x
+    ) else (
+      nth_iterator [a = a, hole = (x @ a)] (it, n-1)
+    )
+  end
+
+(* -------------------------------------------------------------------------- *)
+
 (* Lists of pairs. *)
 
 val rec split [a, b] (consumes xys : list (a, b)) : (list a, list b) =
