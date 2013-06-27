@@ -37,9 +37,8 @@ val publish: [p : perm] (l: exact p) -> (| l @ lock p) =
 alias held (p : perm) =
   {q : perm} (exact (p * q) | q)
 
-val strengthen [p : perm, q : perm] (consumes (l: held p | q)) : (| l @ held (p * q)) =
-  let flex r : perm in
-  xstrengthen [(p * r), q] l
+val strengthen [p : perm, q : perm] (consumes l: held p) : (| l @ held (p * q)) =
+  xstrengthen [q = q] l
 
 (* ------------------------------------------------------------------------------ *)
 
