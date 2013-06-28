@@ -1,0 +1,5 @@
+val _ =
+  let alias t = int in
+  let x = 2 in
+  assert x @ t;
+  x
