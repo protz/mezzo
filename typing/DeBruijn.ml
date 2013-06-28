@@ -97,11 +97,7 @@ let tsubst_unresolved_branch (t2 : typ) (i : int) (branch : unresolved_branch) =
   (new tsubst t2) # unresolved_branch i branch
 
 let tsubst_data_type_group (t2: typ) (i: int) (group: data_type_group): data_type_group =
-  let n = List.length group.group_items in
-  if group.group_recursive = SurfaceSyntax.Recursive then
-    (new tsubst t2) # data_type_group (i + n) group
-  else
-    (new tsubst t2) # data_type_group i group
+  (new tsubst t2) # data_type_group i group
 
 (* -------------------------------------------------------------------------- *)
 

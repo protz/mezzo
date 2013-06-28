@@ -305,7 +305,12 @@ and tsubst_expr t2 i e =
 
   | ELocalType (group, e) ->
       let n = List.length group.group_items in
-      let group = tsubst_data_type_group t2 i group in
+      let group =
+        if group.group_recursive = SurfaceSyntax.Recursive then
+          tsubst_data_type_group t2 (i + n) group
+        else
+          tsubst_data_type_group t2 i group
+      in
       let e = tsubst_expr t2 (i + n) e in
       ELocalType (group, e)
  
@@ -409,7 +414,12 @@ and tsubst_toplevel_items t2 i toplevel_items =
   match toplevel_items with
   | DataTypeGroup group :: toplevel_items ->
       let n = List.length group.group_items in
-      let group = tsubst_data_type_group t2 i group in
+      let group =
+        if group.group_recursive = SurfaceSyntax.Recursive then
+          tsubst_data_type_group t2 (i + n) group
+        else
+          tsubst_data_type_group t2 i group
+      in
       let toplevel_items = tsubst_toplevel_items t2 (i + n) toplevel_items in
       DataTypeGroup group :: toplevel_items
   | ValueDefinitions defs :: toplevel_items ->
