@@ -1,0 +1,2 @@
+(* If we give a name to the argument, the type-checker accepts this. *)
+val f : [n: term] (int | n @ int) -> ()

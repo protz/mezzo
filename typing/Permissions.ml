@@ -114,18 +114,6 @@ let refresh_facts env =
 
 (* ---------------------------------------------------------------------------- *)
 
-
-(** Re-wrap instantiate_flexible so that it fits in our framework. *)
-
-let j_flex_inst (env: env) (v: var) (t: typ): result =
-  let judgement = JEqual (TyOpen v, t) in
-  match instantiate_flexible env v t with
-  | Some sub_env ->
-      apply_axiom env judgement "Instantiate" sub_env
-  | None ->
-      no_proof env judgement
-;;
-
 let j_merge_left (env: env) (v1: var) (v2: var): result =
   let judgement = JEqual (TyOpen v1, TyOpen v2) in
   match merge_left env v1 v2 with
@@ -346,9 +334,48 @@ let open_all_rigid_in (env : env) (ty : typ) (side : side) : env * typ =
   let ty = (new open_all_rigid_in env) # visit (side, false) ty in
   !env, ty
 
+(* -------------------------------------------------------------------------- *)
+
+(** Re-wrap instantiate_flexible so that it fits in our framework. *)
+
+let rec instantiate_flexible env var typ =
+  match instantiate_flexible_raw env var typ with
+  | Some env ->
+      begin match typ with
+      | TyAnchoredPermission _ ->
+          (* Did this permission just get instantiated to something anchored?
+           * Re-anchor it! *)
+          begin match sub_floating_perm env typ |> drop_derivation with
+          | Some env ->
+              (* The permission *was* in the list of floating permissions!
+               * Re-add it so that it is now anchored properly. *)
+              if true then
+                failwith "Please uncomment this line and let me know that this \
+                  special-case *was* useful";
+              Some (add_perm env typ)
+          | None ->
+              (* Meh. It wasn't there. Do nothing. *)
+              Some env
+          end
+      | _ ->
+          Some env
+      end
+  | None ->
+      None
+
+
+and j_flex_inst (env: env) (v: var) (t: typ): result =
+  let judgement = JEqual (TyOpen v, t) in
+  match instantiate_flexible env v t with
+  | Some sub_env ->
+      apply_axiom env judgement "Instantiate" sub_env
+  | None ->
+      no_proof env judgement
+
+
 (** [unify env p1 p2] merges two vars, and takes care of dealing with how the
     permissions should be merged. *)
-let rec unify (env: env) (p1: var) (p2: var): env =
+and unify (env: env) (p1: var) (p2: var): env =
   Log.check (is_term env p1 && is_term env p2) "[unify p1 p2] expects [p1] and \
     [p2] to be variables with kind term, not type";
 
@@ -1360,9 +1387,8 @@ and sub_perm (env: env) (t: typ): result =
   | _ ->
       sub_floating_perm env t
 
-(* This function returns a [state] so as to not introduce another judgement when
- * proving a series of permissions. If you need a result so as to chain that
- * with something else, use [sub_perm env (fold_star perms)]. *)
+(* Efficient subtraction of a list of permissions, with a strategy to deal with
+ * flexible variables. *)
 and sub_perms (env: env) (perms: typ list): result =
   try_proof env (JSubPerms perms) "Perms" (
 
