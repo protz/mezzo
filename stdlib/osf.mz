@@ -1,0 +1,52 @@
+(* A one-shot function is a function that can be invoked at most once. *)
+
+(* A one-shot function is encoded as a regular function [f] that consumes
+   an abstract affine permission [p], together with one copy of [p]. The
+   variable [p] is existentially quantified. Because [p] is abstract, it
+   is considered affine (i.e., not duplicable). Hence, the type of one-shot
+   functions is also affine. *)
+
+alias osf a b = {p: perm} (((consumes (a | p)) -> b) | p)
+
+(* An ordinary function can be turned into a one-shot function, if it
+   needs [p] and [p] happens to be available. [make] appears to return
+   a new value, whereas [bless] makes it clear that the one-shot
+   function is the same value as the underlying ordinary function. *)
+
+(* [bless] is more precise, but has the potential drawback that, after
+   a call to [bless f], the function [f] has two distinct types. *)
+
+val make [a, b, p: perm] (f: (consumes (a | p)) -> b | consumes p) : osf a b =
+  f
+
+val bless [a, b, p: perm] (f: (consumes (a | p)) -> b | consumes p) : (| f @ osf a b) =
+  ()
+
+(* Applying a one-shot function consumes it. *)
+
+(* This function is not exported, because ordinary function application
+   just works. *)
+
+val apply [a, b] (consumes f: osf a b, consumes x: a): b =
+  f x
+
+(* Composition of one-shot functions is ordinary function composition. *)
+
+val compose [a, b, c] (consumes f: osf a b, consumes g: osf b c) : osf a c =
+  fun (consumes x: a | consumes (f @ osf a b * g @ osf b c)) : c =
+    g (f x)
+
+(* A type of one-shot choice between two functions. *) (* TEMPORARY export *)
+
+alias osc a1 b1 a2 b2 =
+  { p : perm } (
+    (a1 | consumes p) -> b1,
+    (a2 | consumes p) -> b2
+  | p
+  )
+
+(*
+Local Variables:
+compile-command: "../mezzo osf.mz"
+End:
+*)

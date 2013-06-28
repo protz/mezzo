@@ -1,0 +1,23 @@
+(* A one-shot function is a function that can be invoked at most once. *)
+
+alias osf a b = {p: perm} (((consumes (a|p)) -> b) | p)
+
+(* An ordinary function can be turned into a one-shot function, if it
+   needs [p] and [p] happens to be available. [make] appears to return
+   a new value, whereas [bless] makes it clear that the one-shot
+   function is the same value as the underlying ordinary function. *)
+
+val make: [a, b, p: perm] (
+  f: (consumes (a | p)) -> b
+| consumes p
+) -> osf a b
+
+val bless: [a, b, p: perm] (
+  f: (consumes (a | p)) -> b
+| consumes p
+) -> (| f @ osf a b)
+
+(* One-shot functions can be composed. *)
+
+val compose: [a, b, c] (consumes osf a b, consumes osf b c) -> osf a c
+

@@ -1,0 +1,8 @@
+open osf
+
+(* The function below does not typecheck: one-shot functions can be used
+   only once. *)
+
+val wrong (consumes f: osf () ()) : ((), ()) =
+  (f (), f ())
+
