@@ -1,0 +1,75 @@
+open choice
+open idioms
+
+(* A new idiom. *)
+
+alias osconvertible (pre : perm) (post : perm) : perm =
+  {p : perm} (p * convertible (p * pre) post)
+
+alias borrowed a (post : perm) =
+  (x: a | osconvertible (x @ a) post)
+
+(* Definition of generic (OO-style) iterators. *)
+
+data iterator_s (s : perm) a (post : perm) =
+  Iterator {
+    next: (| consumes s) -> choice (borrowed a s) (| post);
+    stop: (| consumes s) -> (| post)
+  | s }
+
+alias iterator a (post : perm) =
+  { s : perm } iterator_s s a post
+
+(* Re-implementation of list iterators. *)
+
+alias list_iterator a (post : perm) =
+  ref (borrowed (list::list a) post)
+
+val new_iterator [a] (consumes l: list::list a): list_iterator a (l @ list::list a) =
+  newref l
+
+val next
+  [a, post : perm]
+  (consumes it: list_iterator a post)
+: choice (borrowed a (it @ list_iterator a post)) (| post) =
+
+  let l = !it in
+  match l with
+  | list::Nil ->
+      convert();
+      right ()
+  | list::Cons { head; tail } ->
+      it := tail;
+      (* Here is what we have: *)
+      let flex p : perm in
+      assert p * head @ a * tail @ list::list a * convertible (p * tail @ list::list a * head @ a) post;
+      (* Here, we could assert it @ list_iterator a post;
+	 but by doing so, we would abstract away head @ a,
+	 and would no longer be able to hand it off to the
+	 client. Instead, we must keep head @ a, and build
+         an argument that proves that, once the client gives
+	 it back to us, we will be able to construct it @ ... *)
+      let c (| consumes (it @ Ref { contents = tail } * p * head @ a * tail @ list::list a * convertible (p * tail @ list::list a * head @ a) post))
+	  : (| it @ list_iterator a post) =
+	()
+      in
+      (* TEMPORARY BUG? this assertion fails (rightfully so, there is a missing consumes in front of head @ a)
+	 but the error message involves TyBound(0) *)
+      pack { p : perm } (p * c @ (| consumes p * head @ a) -> (| it @ list_iterator a post))
+      witness it @ Ref { contents = tail } * p * tail @ list::list a * convertible (p * tail @ list::list a * head @ a) post;
+      assert head @ borrowed a (it @ list_iterator a post);
+      left head
+  end
+
+(* Wrapping an ADT-style iterator into a generic (OO-style) iterator. *)
+
+val wrap [a, i, post: perm] (
+  consumes it: i,
+  next: (consumes it: i) -> choice (borrowed a (it @ i)) (| post),
+  stop: (consumes it: i) -> (| post)
+): iterator a post =
+  Iterator {
+    next = (fun (| consumes it @ i): choice (borrowed a (it @ i)) (| post) = next it);
+    stop = (fun (| consumes it @ i): (| post) = stop it)
+  }
+
