@@ -1001,7 +1001,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
           let t2 = TyConcrete branch2 in
           let t2, p2 = collect t2 in
           sub_type env t1 t2 >>= fun env ->
-          sub_perms env p2
+          sub_perms env p2 >>=
+          qed
         end
       end else begin
         no_proof_root
@@ -1020,7 +1021,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
           let t2 = TyConcrete branch2 in
           let t2, p2 = collect t2 in
           sub_type env t1 t2 >>= fun env ->
-          sub_perms env p2
+          sub_perms env p2 >>=
+          qed
         end
       end else begin
         no_proof_root
@@ -1269,7 +1271,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
           | [], ps2 ->
               (* This is useful if [ps2] is a rigid floating permission, alone, that
                * also happens to be present in our environment. *)
-              sub_perms env ps2
+              sub_perms env ps2 >>=
+              qed
           | ps1, ps2 ->
               let ps1, ps1_flex = List.partition (perm_not_flex env) ps1 in
               let sub_env = add_perms env ps1 in
@@ -1279,7 +1282,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                   could not sub: %a"
                 TypePrinter.ptype (env, fold_star ps1_flex)
                 TypePrinter.ptype (env, fold_star ps2);
-              sub_perms env ps2
+              sub_perms env ps2 >>=
+              qed
           end
         end
       end
@@ -1336,7 +1340,8 @@ and sub_perm (env: env) (t: typ): result =
 
   | TyStar _ ->
       try_proof "Sub-Star" begin
-        sub_perms env (flatten_star env t)
+        sub_perms env (flatten_star env t) >>=
+        qed
       end
 
   | TyEmpty ->
@@ -1358,28 +1363,40 @@ and sub_perm (env: env) (t: typ): result =
 (* This function returns a [state] so as to not introduce another judgement when
  * proving a series of permissions. If you need a result so as to chain that
  * with something else, use [sub_perm env (fold_star perms)]. *)
-and sub_perms (env: env) (perms: typ list): state =
-  (* Put the flexible perm variables last. In the case where we have:
-   * "t p * p": first subtracting "t p" will instantiate "p" to its right value,
-   * whereas first subtracting "p" will instantiate it to "empty". *)
-  let perms = List.sort (fun y x ->
-    Pervasives.compare (perm_not_flex env x) (perm_not_flex env y)
-  ) perms in
+and sub_perms (env: env) (perms: typ list): result =
+  try_proof env (JSubPerms perms) "Perms" (
 
-  (* The order in which we subtract a bunch of permission is important because,
-   * again, some of them may have their lhs flexible. Therefore, there is a
-   * small search procedure here that picks a suitable permission for
-   * subtracting. *)
-  if List.length perms = 0 then
-    qed env
-  else
-    match MzList.take_bool (fun p -> (is_good (sub_perm env p))) perms with
-    | Some (perms, perm) ->
-        sub_perm env perm >>= fun env ->
-        sub_perms env perms
-    | None ->
-        no_proof env (JSubPerm (fold_star perms)) >>= fun _ ->
-        fail
+    (* Put the flexible perm variables last. In the case where we have:
+     * "t p * p": first subtracting "t p" will instantiate "p" to its right value,
+     * whereas first subtracting "p" will instantiate it to "empty". *)
+    let perms = List.sort (fun y x ->
+      Pervasives.compare (perm_not_flex env x) (perm_not_flex env y)
+    ) perms in
+
+    let rec sub_perms (env: env) (perms: typ list): state =
+      (* The order in which we subtract a bunch of permission is important because,
+       * again, some of them may have their lhs flexible. Therefore, there is a
+       * small search procedure here that picks a suitable permission for
+       * subtracting. *)
+      if List.length perms = 0 then
+        qed env
+      else
+        match MzList.take_bool (fun p -> (is_good (sub_perm env p))) perms with
+        | Some (perms, perm) ->
+            sub_perm env perm >>= fun env ->
+            sub_perms env perms
+        | None ->
+            (* Rather than saying « I don't know how to subtract this big set
+             * of permissions », explain why one of them (e.g. the first one)
+             * can't be subtracted. *)
+            let perm = List.hd perms and perms = List.tl perms in
+            sub_perm env perm >>= fun env ->
+            sub_perms env perms
+    in
+
+    sub_perms env perms
+  )
+
 
 (* Attention! This function should not be called directly. Even if you know that
  * your permission is a floating one, please call [sub_perm] so that the type

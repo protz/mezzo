@@ -34,6 +34,8 @@ let print_judgement env = function
       words "subtract" ^^^ print_type env t
   | JSubPerm t ->
       words "subtract permission" ^^^ print_type env t
+  | JSubPerms t ->
+      words "subtract a set of permissions" ^^^ print_type env (fold_star t)
   | JSubFloating t ->
       words "subtract floating permission" ^^^ print_type env t
   | JSubConstraint c ->
