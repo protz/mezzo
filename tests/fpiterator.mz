@@ -92,3 +92,39 @@ val new_generic_list_iterator [a] (consumes l: list::list a) : iterator a (l @ l
   wrap [a, (list_iterator a post), post]
     (it, next [a, post], stop [a, post])
 
+(* Comparison of two generic iterators. *)
+
+val rec equal [a, post1 : perm, post2 : perm, p : perm] (
+  eq: (a, a | p) -> bool,
+  consumes i1: iterator a post1,
+  consumes i2: iterator a post2
+| p
+) : (bool | post1 * post2) =
+
+  match i1.next(), i2.next() with
+  | Right, Right ->
+      True
+  | Left { contents = x1 }, Left { contents = x2 } ->
+      if eq (x1, x2) then begin
+	surrender();
+	fail (*
+	surrender();
+	equal (eq, i1, i2); *)
+      end
+      else begin
+	surrender();
+	i2.stop();
+	fail (*
+	surrender();
+	i1.stop();
+	False *)
+      end
+  | Left, Right ->
+      surrender();
+      i1.stop();
+      False
+  | Right, Left ->
+      surrender();
+      i2.stop();
+      False
+  end
