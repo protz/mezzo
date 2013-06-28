@@ -1,10 +1,8 @@
-open oneshotfunction
-
 (* In the following function, any application of [f] after
    the line that defines [g] is rejected. This seems strange. *)
 val ok (f: () -> ()): ((), ())=
   let r = newref () in
-  let g = osf_make [()] [()] [(r@ref ())] f in
+  let g = osf::make [()] [()] [(r@ref ())] f in
   f ();
   ((), ())
 

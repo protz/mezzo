@@ -3,9 +3,7 @@
 (* The current implementation is as close as possible to François's
    example. *)
 
-open oneshotfunction
-
-abstract sparray a
+abstract sparray +a
 
 (* The current implementation is as follows. However, the only
    function whose type requires that knowledge is [reroot], and
@@ -35,7 +33,7 @@ val create: [a] duplicable a => (int, a) -> sparray a
 
 (* Turning an array into a semi-persistent array. *)
 
-val from_array: [a] (consumes array a) -> sparray a
+val from_array: [a] (consumes marray a) -> sparray a
 
 
 (* Reroot is not needed in the interface, and it refers to the
@@ -51,7 +49,7 @@ val get: [a] duplicable a => (sparray a, int) -> a
 
 (* Retrieve the array represented by a semi-persistent array. *)
 
-val to_array: [a] (consumes sparray a) -> array a
+val to_array: [a] (consumes sparray a) -> marray a
 
 (* Set. *)
 
@@ -74,12 +72,12 @@ val to_array: [a] (consumes sparray a) -> array a
 val set: [a] duplicable a =>
   (consumes spa: sparray a, offset: int, element: a) ->
   (spa': sparray a,
-   back: osf ( | spa' @ sparray a) ( | spa @ sparray a) )
+   back: osf::osf ( | spa' @ sparray a) ( | spa @ sparray a) )
 
 val swap: [a] duplicable a =>
   (consumes spa: sparray a, int, int) ->
   (spa': sparray a,
-   back: osf ( | spa' @ sparray a) ( | spa @ sparray a) )
+   back: osf::osf ( | spa' @ sparray a) ( | spa @ sparray a) )
 
 (* Below, a version of [set] where one-shot functions are not used.
    It requires a hard-wired representation of [sparray] in which a
