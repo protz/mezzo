@@ -30,20 +30,23 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
   let rec collect_items items =
     MzList.flatten_map collect_item items
 
+  and collect_group (_, _, defs) =
+    MzList.flatten_map (function def ->
+     match def.rhs with
+      | Abstract _ ->
+          []
+      | Abbrev t ->
+          collect_type t
+      | Concrete (_flag, rhs, adopts) ->
+          Option.map_none [] (Option.map collect_type adopts)
+          @ MzList.flatten_map collect_data_type_def_branch rhs
+    ) defs
+
   and collect_item = function
     | ValueDeclaration (_, ty) ->
         collect_type ty
-    | DataTypeGroup (_, _, defs) ->
-        MzList.flatten_map (function def ->
-         match def.rhs with
-          | Abstract _ ->
-              []
-          | Abbrev t ->
-              collect_type t
-          | Concrete (_flag, rhs, adopts) ->
-              Option.map_none [] (Option.map collect_type adopts)
-              @ MzList.flatten_map collect_data_type_def_branch rhs
-        ) defs
+    | DataTypeGroup group ->
+        collect_group group
     | ValueDefinitions (_, _, patexprs) ->
         collect_patexprs patexprs
     | OpenDirective m ->
@@ -88,6 +91,8 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         collect_patexprs patexprs @ collect_expr expr
     | ELetFlex (_, e) ->
         collect_expr e
+    | ELocalType (group, e) ->
+        collect_group group @ collect_expr e
     | EFun (_, t1, t2, expr) ->
         collect_type t1 @ collect_type t2 @ collect_expr expr
     | EAssign (e1, _, e2)

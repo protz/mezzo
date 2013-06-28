@@ -1004,6 +1004,10 @@ and check_expression env (expr : expression) : unit =
       let env = bind_local Fictional env binding in
       check_expression env e
 
+  | ELocalType (group, e) ->
+      let env = check_data_type_group env group in
+      check_expression env e
+
   | EFun (bindings, arg, return_type, body) ->
       (* The variables bound by capital-Lambda are fictional. *)
       let env = extend_check Fictional env bindings in
@@ -1100,6 +1104,20 @@ and check_type_argument env = function
   | Named (_, ty) ->
       ignore (infer_reset env ty)
 
+and check_data_type_group env (loc, rec_flag, group) =
+  let env = { env with loc } in
+  (* Create an environment that includes the types and data constructors
+    defined in this group. *)
+  let extended_env = extend_check Fictional env (bindings_data_group_types group) in
+  let extended_env = bind_data_group_datacons extended_env group in
+  (* Check that the data constructors are unique within this group. *)
+  check_for_duplicate_datacons env (branches_of_data_type_group group);
+  (* Check each type definition in an appropriate environment. *)
+  let appropriate_env = appropriate rec_flag env extended_env in
+  List.iter (check_data_type_def appropriate_env) group;
+  (* Return the extended environment. *)
+  extended_env
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Kind-checking for implementations and interfaces. *)
@@ -1110,19 +1128,8 @@ let check_implementation env (program: implementation) : unit =
   ignore (List.fold_left (fun env item ->
     match item with
 
-    | DataTypeGroup (loc, rec_flag, group) ->
-        let env = { env with loc } in
-        (* Create an environment that includes the types and data constructors
-          defined in this group. *)
-        let extended_env = extend_check Fictional env (bindings_data_group_types group) in
-        let extended_env = bind_data_group_datacons extended_env group in
-        (* Check that the data constructors are unique within this group. *)
-        check_for_duplicate_datacons env (branches_of_data_type_group group);
-        (* Check each type definition in an appropriate environment. *)
-        let appropriate_env = appropriate rec_flag env extended_env in
-        List.iter (check_data_type_def appropriate_env) group;
-        (* Return the extended environment. *)
-        extended_env
+    | DataTypeGroup group ->
+        check_data_type_group env group
 
     | ValueDefinitions (loc, rec_flag, pat_exprs) ->
         let env = { env with loc } in

@@ -591,14 +591,6 @@ abstract_data_type_def:
   facts = fact*
     { { lhs = lhs k; rhs = Abstract facts } }
 
-%inline data_type_group:
-| DATA
-  defs = separated_nonempty_list(AND, concrete_data_type_def)
-    { DataTypeGroup (($startpos(defs), $endpos), Recursive, defs) }
-| ABSTRACT
-  def = abstract_data_type_def
-    { DataTypeGroup (($startpos(def), $endpos), Nonrecursive, [def]) }
-
 (* A concrete data type is necessarily of kind type. We do not allow defining
    concrete data types of kind perm. In principle, we could allow it. I think
    we can live without it (experience will tell). *)
@@ -611,9 +603,19 @@ abbreviation_def:
   EQUAL t = arbitrary_type
     { { lhs = lhs k; rhs = Abbrev t } }
 
-type_abbreviation:
+%inline data_type_group_body:
+| DATA
+  defs = separated_nonempty_list(AND, concrete_data_type_def)
+    { ($startpos(defs), $endpos), Recursive, defs }
+| ABSTRACT
+  def = abstract_data_type_def
+    { ($startpos(def), $endpos), Nonrecursive, [def] }
 | ALIAS def = abbreviation_def
-    { DataTypeGroup (($startpos(def), $endpos), Nonrecursive, [def]) }
+    { ($startpos(def), $endpos), Nonrecursive, [def] }
+
+%inline data_type_group:
+| g = data_type_group_body
+    { DataTypeGroup g }
 
 
 (* ---------------------------------------------------------------------------- *)
@@ -959,6 +961,8 @@ raw_fragile_expression:
     { let flag, defs = flag_defs in ELet (flag, defs, e) }
 | LET FLEX v = type_binding IN e = tuple_or_fragile_expression
     { ELetFlex (v, e) }
+| LET d = data_type_group_body IN e = tuple_or_fragile_expression
+    { ELocalType (d, e) }
 | FUN e = anonymous_function
     { e }
 | e = raw_reasonable_expression
@@ -1083,7 +1087,6 @@ open_directive:
    together. This is done in implementation and interface files. *)
 
 implementation_item:
-| item = type_abbreviation
 | item = data_type_group
 | item = definition_group
 | item = open_directive
@@ -1098,7 +1101,6 @@ implementation:
 (* Module signatures, i.e. interfaces. *)
 
 interface_item:
-| item = type_abbreviation
 | item = data_type_group
 | item = value_declaration
 | item = open_directive

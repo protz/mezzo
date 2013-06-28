@@ -191,7 +191,7 @@ let check_implementation
     (program: SurfaceSyntax.implementation)
     (interface: SurfaceSyntax.interface option) =
 
-  let open Expressions in
+  let open ExpressionsCore in
 
   (* Find all the dependencies... *)
   Log.debug ~level:2 "\n%s***%s Computing dependencies for %a"
@@ -244,7 +244,9 @@ let check_implementation
           (* The binders in the data type group will be opened in the rest of the
            * blocks. Also performs the actual binding in the data type group, as
            * well as the variance and fact inference. *)
-          let env, blocks, vars = DataTypeGroup.bind_data_type_group env group blocks in
+          let env, blocks, vars =
+            Expressions.bind_data_type_group_in_toplevel_items env group blocks
+          in
           (* Move on to the rest of the blocks. *)
           type_check env blocks (vars @ varss)
       | ValueDefinitions decls :: blocks ->

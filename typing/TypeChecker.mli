@@ -29,8 +29,8 @@ open TypeCore
  * an environment, the transformed [items], and the list of opened variables. *)
 val check_declaration_group :
   env ->
-  Expressions.definitions ->
-  Expressions.toplevel_item list ->
-  env * Expressions.toplevel_item list * var list
+  ExpressionsCore.definitions ->
+  ExpressionsCore.toplevel_item list ->
+  env * ExpressionsCore.toplevel_item list * var list
 
 val check_function_call: env -> ?annot: typ -> var -> var -> env * typ

@@ -23,128 +23,16 @@ open Kind
 open TypeCore
 open DeBruijn
 open Types
+open ExpressionsCore
+
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Definitions borrowed from SurfaceSyntax. *)
+(* Patterns, and a whole bunch of substitution functions. *)
 
-type tag_update_info =
-    SurfaceSyntax.tag_update_info
-
-type field =
-    SurfaceSyntax.field
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Patterns *)
-
-(* The De Bruijn numbering is defined according to a depth-first traversal of
- * the pattern: the first variable encountered will have index 0, and so on. *)
-type pattern =
-  (* x *)
-  | PVar of Variable.name * location
-        (* TEMPORARY is the name important here, or just a hint? *)
-  (* (x₁, …, xₙ) *)
-  | PTuple of pattern list
-  (* Foo { bar = bar; baz = baz; … } *)
-  | PConstruct of resolved_datacon * (Field.name * pattern) list
-  (* Once the variables in a pattern have been bound, they may be replaced by
-   * [POpen]s so that we know how to speak about the bound variables. *)
-  | POpen of var
-  | PAs of pattern * pattern
-  | PAny
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Expressions *)
-
-type rec_flag = SurfaceSyntax.rec_flag = Nonrecursive | Recursive
-
-type expression =
-  (* e: τ *)
-  | EConstraint of expression * typ
-  (* v, bound *)
-  | EVar of db_index
-  (* v, free *)
-  | EOpen of var
-  (* builtin foo *)
-  | EBuiltin of string
-  (* let rec pat = expr and pat' = expr' in expr *)
-  | ELet of rec_flag * patexpr list * expression
-  (* let flex v in e *)
-  | ELetFlex of (type_binding * flavor) * expression
-  (* [a, ..., a] e *)
-  | EBigLambdas of (type_binding * flavor) list * expression
-  (* lambda (x: τ): τ -> e *)
-  (* A lambda binds exactly one variable, which has de Bruijn index 0.
-     The scope of this variable is the function body, [e].
-     This is in contrast with the surface syntax, where many variables
-     can be bound, and the argument type is interpreted as a pattern. *)
-  | ELambda of typ * typ * expression
-  (* v.f <- e *)
-  | EAssign of expression * field * expression
-  (* tag of v <- Foo *)
-  | EAssignTag of expression * resolved_datacon * tag_update_info
-  (* v.f *)
-  | EAccess of expression * field
-  (* assert τ *)
-  | EAssert of typ
-  (* pack {t} p witness t' *)
-  | EPack of typ * typ
-  (* e₁ e₂ *)
-  | EApply of expression * expression
-  (* e [τ₁, …, τₙ] *)
-  | ETApply of expression * tapp * kind
-  (* match e with pᵢ -> eᵢ *)
-  | EMatch of bool * expression * patexpr list
-  (* (e₁, …, eₙ) *)
-  | ETuple of expression list
-  (* Foo { bar = bar; baz = baz; … *)
-  | EConstruct of resolved_datacon * (Field.name * expression) list
-  (* if e₁ then e₂ else e₃ *)
-  | EIfThenElse of bool * expression * expression * expression
-  | ELocated of expression * location
-  | EInt of int
-  (* Explanations *)
-  | EExplained of expression
-  (* Adoption/abandon *)
-  | EGive of expression * expression
-  | ETake of expression * expression
-  | EOwns of expression * expression
-  (* fail *)
-  | EFail
-
-and tapp =
-  | Ordered of typ
-  | Named of Variable.name * typ
-
-and patexpr =
-  (* A binding is made up of a pattern, an optional type annotation for the
-   * entire pattern (desugared), and an expression. *)
-  pattern * expression
-
-(* The grammar below doesn't enforce the “only variables are allowed on the
- * left-hand side of a let rec” rule. We'll see to that later. Here too, the
- * order of the bindings is significant: if the binding is recursive, the
- * variables in all the patterns are collected in order before type-checking the
- * expressions. *)
-
-type definitions =
-  location * rec_flag * (pattern * expression) list
-
-type sig_item =
-  Variable.name * typ
-
-type toplevel_item =
-  | DataTypeGroup of data_type_group
-  | ValueDefinitions of definitions
-  | ValueDeclaration of sig_item
-
-type implementation =
-  toplevel_item list
-
-type interface =
-  toplevel_item list
+(* TEMPORARY since type variables and expression variables belong to the same
+   namespace, I believe that there is some code duplication that we could
+   eliminate here. *)
 
 let e_unit =
   ETuple []
@@ -153,14 +41,6 @@ let e_unit =
 let p_unit =
   PTuple []
 ;;
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Moar fun with De Bruijn. *)
-
-(* TEMPORARY since type variables and expression variables belong to the same
-   namespace, I believe that there is some code duplication that we could
-   eliminate here. *)
 
 let map_tapp f = function
   | Ordered t ->
@@ -293,16 +173,109 @@ let tsubst_pat (t2: typ) (i: db_index) (p1: pattern): pattern =
 ;;
 
 
+(* -------------------------------------------------------------------------- *)
+
+(* Data type groups *)
+
+(* These definitions used to be in a separate module but since expressions can
+ * now contain data type definitions, they have to come over here.
+ *
+ * BEWARE: everything from now on is mutually recursive.*)
+
+
+let rec bind_group_in: 'a. var list -> (typ -> int -> 'a -> 'a) -> 'a -> 'a =
+  fun vars subst_func_for_thing thing ->
+  let total_number_of_data_types = List.length vars in
+  let thing =
+    MzList.fold_lefti (fun level thing var ->
+      let index = total_number_of_data_types - level - 1 in
+      subst_func_for_thing (TyOpen var) index thing
+    ) thing vars
+  in
+  thing
+
+
+and bind_group_in_group (vars: var list) (group: data_type_group) =
+  bind_group_in vars tsubst_data_type_group group
+
+and bind_group_definitions (env: env) (vars: var list) (group: data_type_group): env =
+  List.fold_left2 (fun env var data_type ->
+    (* Replace the corresponding definition in [env]. *)
+    set_definition env var data_type.data_definition data_type.data_variance
+  ) env vars group.group_items
+
+
+and bind_group (env: env) (group: data_type_group) =
+  (* Allocate the vars in the environment. We don't put a definition yet. *)
+  let env, vars = List.fold_left (fun (env, acc) data_type ->
+    let name = User (module_name env, data_type.data_name) in
+    let env, var = bind_rigid env (name, data_type.data_kind, data_type.data_location) in
+    let env = set_fact env var data_type.data_fact in
+    env, var :: acc
+  ) (env, []) group.group_items in
+  let vars = List.rev vars in
+
+  env, vars
+
+
+and bind_group_in_expr (vars: var list) (expr: expression) =
+  bind_group_in vars tsubst_expr expr
+
+
+and bind_group_in_toplevel_items (vars: var list) (toplevel_items: toplevel_item list) =
+  bind_group_in vars tsubst_toplevel_items toplevel_items
+
+
+and bind_data_type_group_in:
+  'a. env -> data_type_group -> (var list -> 'a -> 'a) -> 'a -> env * 'a * var list =
+  fun env group bind_group_in_thing thing ->
+
+  (* First, allocate vars for all the data types. *)
+  let env, vars = bind_group env group in
+  let group =
+    if group.group_recursive = Recursive then
+      (* Open references to these data types in the branches themselves, since the
+       * definitions are all mutually recursive. *)
+      bind_group_in_group vars group
+    else
+      group
+  in
+  (* Attach the definitions! *)
+  let env = bind_group_definitions env vars group in
+  (* Now we can perform some more advanced analyses. *)
+  let env = FactInference.analyze_data_types env vars in
+  let env = Variance.analyze_data_types env vars in
+  (* Open references to these data types in the rest of the program. *)
+  let thing = bind_group_in_thing vars thing in
+  (* We're done. *)
+  env, thing, vars
+
+
+and bind_data_type_group_in_expr
+    (env: env)
+    (group: data_type_group)
+    (expr: expression): env * expression * var list =
+  bind_data_type_group_in env group bind_group_in_expr expr
+
+
+and bind_data_type_group_in_toplevel_items
+    (env: env)
+    (group: data_type_group)
+    (toplevel_items: toplevel_item list): env * toplevel_item list * var list =
+  bind_data_type_group_in env group bind_group_in_toplevel_items toplevel_items
+
+
 (* [tsubst_patexprs t2 i rec_flag pat_exprs] substitutes type [t2] for index [i]
  * in the list of pattern-expressions [pat_exprs], defined recursively or not,
  * depending on [rec_flag]. *)
-let rec tsubst_patexprs t2 i rec_flag patexprs =
+and tsubst_patexprs t2 i rec_flag patexprs =
   let n = count_patexprs 0 patexprs in
   let j = match rec_flag with Recursive -> i + n | Nonrecursive -> i in
   n, List.map (fun (p, e) ->
     tsubst_pat  t2 i p,
     tsubst_expr t2 j e
   ) patexprs
+
 
 (* [tsubst_expr t2 i e] substitutes type [t2] for index [i] in expression [e]. *)
 and tsubst_expr t2 i e =
@@ -330,6 +303,12 @@ and tsubst_expr t2 i e =
       let i = i + 1 in
       ELetFlex (binding, tsubst_expr t2 i e)
 
+  | ELocalType (group, e) ->
+      let n = List.length group.group_items in
+      let group = tsubst_data_type_group t2 i group in
+      let e = tsubst_expr t2 (i + n) e in
+      ELocalType (group, e)
+ 
   | EBigLambdas (xs, e) ->
       let n = List.length xs in
       EBigLambdas (xs, tsubst_expr t2 (i + n) e)
@@ -425,18 +404,12 @@ and tsubst_def t2 i (loc, rec_flag, patexprs) =
   let _, patexprs = tsubst_patexprs t2 i rec_flag patexprs in
   loc, rec_flag, patexprs
 
-let rec tsubst_toplevel_items t2 i toplevel_items =
+
+and tsubst_toplevel_items t2 i toplevel_items =
   match toplevel_items with
   | DataTypeGroup group :: toplevel_items ->
       let n = List.length group.group_items in
-      let group =
-        if group.group_recursive = Recursive then
-          (* Since the type bindings are all mutually recursive, they're considered
-           * to be all bound in the data type groups. *)
-          tsubst_data_type_group t2 (i + n) group
-        else 
-          tsubst_data_type_group t2 i group
-      in
+      let group = tsubst_data_type_group t2 i group in
       let toplevel_items = tsubst_toplevel_items t2 (i + n) toplevel_items in
       DataTypeGroup group :: toplevel_items
   | ValueDefinitions defs :: toplevel_items ->
@@ -450,12 +423,11 @@ let rec tsubst_toplevel_items t2 i toplevel_items =
       ValueDeclaration (x, t) :: toplevel_items
   | [] ->
       []
-;;
 
 (* [esubst_patexprs e2 i rec_flag pat_exprs] substitutes expression [e2] for index [i]
  * in the list of pattern-expressions [pat_exprs], defined recursively or not,
  * depending on [rec_flag]. *)
-let rec esubst_patexprs e2 i rec_flag patexprs =
+and esubst_patexprs e2 i rec_flag patexprs =
   let patterns, expressions = List.split patexprs in
   let n = count_patterns 0 patterns in
   let expressions = match rec_flag with
@@ -465,6 +437,7 @@ let rec esubst_patexprs e2 i rec_flag patexprs =
         List.map (esubst e2 i) expressions
   in
   n, List.combine patterns expressions
+
 
 (* [esubst e2 i e1] substitutes expression [e2] for index [i] in expression [e1]. *)
 and esubst e2 i e1 =
@@ -493,6 +466,10 @@ and esubst e2 i e1 =
   | ELetFlex (binding, e) ->
       let i = i + 1 in
       ELetFlex (binding, esubst e2 i e)
+
+  | ELocalType (group, e) ->
+      let n = List.length group.group_items in
+      ELocalType (group, esubst e2 (i + n) e)
 
   | EBigLambdas (xs, e) ->
       let n = List.length xs in
@@ -584,7 +561,8 @@ and esubst_def e2 i (loc, rec_flag, patexprs) =
   let _, patexprs = esubst_patexprs e2 i rec_flag patexprs in
   loc, rec_flag, patexprs
 
-let rec esubst_toplevel_items e2 i toplevel_items =
+
+and esubst_toplevel_items e2 i toplevel_items =
   match toplevel_items with
   | DataTypeGroup group :: toplevel_items ->
       (* Nothing to substitute here, only binders to cross. *)
@@ -631,7 +609,6 @@ let rec eunloc = function
   | _ as e ->
       e
 ;;
-
 
 
 (* [bind_vars env bindings] adds [bindings] in the environment, and returns the
@@ -695,7 +672,6 @@ let bind_patexprs env rec_flag patexprs =
   in
   env, List.combine patterns expressions, kit
 ;;
-
 
 module ExprPrinter = struct
 
@@ -799,6 +775,11 @@ module ExprPrinter = struct
         let env, { subst_expr; _ } = bind_evars env [fst binding] in
         let e = subst_expr e in
         string "let" ^^ space ^^ string "flex" ^^ space ^^ print_ebinder env binding ^^
+        string "in" ^^ break 1 ^^ print_expr env e
+
+    | ELocalType (group, e) ->
+        let env, e, _ = bind_data_type_group_in_expr env group e in
+        string "let" ^^ space ^^ string "[some data type group]" ^^ space ^^
         string "in" ^^ break 1 ^^ print_expr env e
 
 
@@ -943,5 +924,12 @@ module ExprPrinter = struct
   let ppat buf arg =
     pdoc buf ((fun (env, pat) -> print_pat env pat), arg)
   ;;
+
+  let ptapp buf arg =
+    pdoc buf ((fun (env, tapp) -> print_tapp env tapp), arg)
+  ;;
+
+  internal_ptapp := ptapp;;
+  internal_ppat := ppat;;
 
 end

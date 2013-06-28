@@ -17,83 +17,28 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** This module defines the syntax of expressions, as manipulated by the
-   type-checker. This module also defines various expression-specific
-   manipulation functions, esp. w.r.t. binders. *)
+(** This module defines substitution functions and binding functions on
+ * expressions as well as data type groups. *)
 
 open Kind
 open TypeCore
+open ExpressionsCore
 
 
 (* -------------------------------------------------------------------------- *)
 
-(** {1 The definition of expressions} *)
+(** {1 Data type groups} *)
 
-type tag_update_info = SurfaceSyntax.tag_update_info
+(** This function processes a {!data_type_group}, and opens the corresponding
+ * binders in the {!toplevel_item}s that follow. The resulting {!toplevel_item}s
+ * are returned, as well as the list of {!var}s that have been bound. *)
+val bind_data_type_group_in_toplevel_items: env -> data_type_group -> toplevel_item list ->
+      env * toplevel_item list * var list
 
-type field = SurfaceSyntax.field
+val bind_data_type_group_in_expr: env -> data_type_group -> expression ->
+      env * expression * var list
 
-(** The type of patterns. We don't have type annotations anymore, they have been
- * transformed into type annotations onto the corresponding expression, i.e.
- * [EConstraint] nodes. *)
-type pattern =
-    PVar of Variable.name * location
-  | PTuple of pattern list
-  | PConstruct of resolved_datacon *
-      (Field.name * pattern) list
-  | POpen of var
-  | PAs of pattern * pattern
-  | PAny
-
-type rec_flag = SurfaceSyntax.rec_flag = Nonrecursive | Recursive
-
-(** This is not very different from {!SurfaceSyntax.expression}. Some nodes such
- * as [ESequence] have been removed. *)
-type expression =
-    EConstraint of expression * typ
-  | EVar of db_index
-  | EOpen of var
-  | EBuiltin of string
-  | ELet of rec_flag * patexpr list * expression
-  | ELetFlex of (type_binding * flavor) * expression
-  | EBigLambdas of (type_binding * flavor) list * expression
-  | ELambda of typ * typ * expression
-  | EAssign of expression * field * expression
-  | EAssignTag of expression * resolved_datacon * tag_update_info
-  | EAccess of expression * field
-  | EAssert of typ
-  | EPack of typ * typ
-  | EApply of expression * expression
-  | ETApply of expression * tapp * kind
-  | EMatch of bool * expression * patexpr list
-  | ETuple of expression list
-  | EConstruct of resolved_datacon * (Field.name * expression) list
-  | EIfThenElse of bool * expression * expression * expression
-  | ELocated of expression * location
-  | EInt of int
-  | EExplained of expression
-  | EGive of expression * expression
-  | ETake of expression * expression
-  | EOwns of expression * expression
-  | EFail
-
-and tapp = Ordered of typ | Named of Variable.name * typ
-
-and patexpr = pattern * expression
-
-type definitions =
-  location * rec_flag * (pattern * expression) list
-
-type sig_item = Variable.name * typ
-
-type toplevel_item =
-    DataTypeGroup of data_type_group
-  | ValueDefinitions of definitions
-  | ValueDeclaration of sig_item
-
-type implementation = toplevel_item list
-
-type interface = toplevel_item list
+(* TEMPORARY this whole thing seems to duplicate [KindCheck] *)
 
 
 (* -------------------------------------------------------------------------- *)
@@ -137,6 +82,7 @@ val tsubst_expr: typ -> int -> expression -> expression
 
 val esubst_toplevel_items :
   expression -> db_index -> toplevel_item list -> toplevel_item list
+
 
 (* -------------------------------------------------------------------------- *)
 

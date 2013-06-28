@@ -33,8 +33,8 @@ type raw_error =
   | ExtraField of Field.name
   | NoSuchField of var * Field.name
   | CantAssignTag of var
-  | NoSuchFieldInPattern of Expressions.pattern * Field.name
-  | BadPattern of Expressions.pattern * var
+  | NoSuchFieldInPattern of ExpressionsCore.pattern * Field.name
+  | BadPattern of ExpressionsCore.pattern * var
   | BadField of Datacon.name * Field.name
   | NoTwoConstructors of var
   | MatchBadDatacon of var * Datacon.name
@@ -45,7 +45,7 @@ type raw_error =
   | ResourceAllocationConflict of var
   | UncertainMerge of var
   | ConflictingTypeAnnotations of typ * typ
-  | IllKindedTypeApplication of Expressions.tapp * kind * kind
+  | IllKindedTypeApplication of ExpressionsCore.tapp * kind * kind
   | BadTypeApplication of var
   | NonExclusiveAdoptee of typ
   | NoAdoptsClause of var
