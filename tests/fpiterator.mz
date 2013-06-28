@@ -50,6 +50,7 @@ val next
       it := tail;
       (* Here is what we have: *)
       let flex p : perm in
+      (* This assert is superfluous. *)
       assert p * head @ a * tail @ list::list a * convertible rewind (p * tail @ list::list a * head @ a) post;
       (* Here, we could assert it @ list_iterator a post;
 	 but by doing so, we would abstract away head @ a,
@@ -58,18 +59,11 @@ val next
          an argument that proves that, once the client gives
 	 it back to us, we will be able to construct it @ ... *)
 
-      (*
-      assert surrender @
-	   (| consumes (it @ Ref { contents = tail } * p * head @ a * tail @ list::list a * convertible rewind (p * tail @ list::list a * head @ a) post))
-	-> (| it @ list_iterator a post);
-      *)
-
       pack osconvertible surrender (head @ a) (it @ list_iterator a post)
       witness it @ Ref { contents = tail } * p * tail @ list::list a * convertible rewind (p * tail @ list::list a * head @ a) post;
 
-      (*
+      (* This assert is superfluous. *)
       assert head @ borrowed surrender a (it @ list_iterator a post);
-      *)
 
       left head
   end
@@ -94,6 +88,7 @@ val wrap [a, i, post: perm] (
 (* TEMPORARY slow/rejected if we omit the type applications *)
 val new_generic_list_iterator [a] (consumes l: list::list a) : iterator a (l @ list::list a) =
   let it = new_list_iterator l in
-  wrap [a, (list_iterator a (l @ list::list a)), (l @ list::list a)]
-    (it, next [a, (l @ list::list a)], stop [a, (l @ list::list a)])
+  let alias post : perm = l @ list::list a in
+  wrap [a, (list_iterator a post), post]
+    (it, next [a, post], stop [a, post])
 
