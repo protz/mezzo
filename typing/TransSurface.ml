@@ -36,7 +36,7 @@ open KindCheckGlue
 open Utils
 
 module T = TypeCore
-module E = Expressions
+module E = ExpressionsCore
 
 (* -------------------------------------------------------------------------- *)
 
@@ -570,6 +570,11 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let e = translate_expr env e in
       E.ELetFlex ((name_user env binding, UserIntroduced), e)
 
+  | ELocalType (group, e) ->
+      let env, group = translate_data_type_group extend env group in
+      let e = translate_expr env e in
+      E.ELocalType (group, e)
+
   | EFun (vars, arg, return_type, body) ->
 
       (* Introduce all universal bindings. *)
@@ -760,7 +765,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   | ESequence (e1, e2) ->
       let e1 = translate_expr env e1 in
       let e2 = translate_expr env e2 in
-      E.(ELet (Nonrecursive, [p_unit, e1], e2))
+      E.(ELet (Nonrecursive, [Expressions.p_unit, e1], e2))
 
   | ELocated (e, p) ->
       let e = translate_expr env e in
@@ -826,7 +831,6 @@ and translate_patexprs
 let translate_item env item =
   match item with
   | DataTypeGroup data_type_group ->
-      (* This just desugars the data type definitions, no binder is opened yet! *)
       let env, defs =
         (* Be strict if we're in an interface. *)
         translate_data_type_group extend env data_type_group

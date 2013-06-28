@@ -22,9 +22,9 @@
 open Kind
 open TypeCore
 open Types
-open Expressions
 open DerivationPrinter
 open ClFlags
+open ExpressionsCore
 
 type error = env * raw_error
 
@@ -213,7 +213,6 @@ let fold_var env t =
 (* The main error printing function. *)
 
 open TypePrinter
-open ExprPrinter
 
 let print_error buf (env, raw_error) =
   let bprintf s = Printf.bprintf buf s in
@@ -329,12 +328,12 @@ let print_error buf (env, raw_error) =
   | NoSuchFieldInPattern (pat, field) ->
       bprintf
         "The pattern %a mentions field %a which is unknown for that branch"
-        ppat (env, pat)
+        !internal_ppat (env, pat)
         Field.p field
   | BadPattern (pat, var) ->
       bprintf
         "Cannot match pattern %a against %a, the only permissions available for it are:\n%a"
-        ppat (env, pat)
+        !internal_ppat (env, pat)
         pname (env, var)
         ppermission_list (env, var)
   | BadField (datacon, name) ->
@@ -379,7 +378,7 @@ let print_error buf (env, raw_error) =
   | IllKindedTypeApplication (t, k, k') ->
       bprintf "While applying type %a: this type has kind %a but \
           the sub-expression has a polymorphic type with kind %a"
-        MzPprint.pdoc ((fun t -> ExprPrinter.print_tapp env t), t)
+        !internal_ptapp (env, t)
         MzPprint.pdoc (print_kind, k) 
         MzPprint.pdoc (print_kind, k');
   | NonExclusiveAdoptee t ->

@@ -231,6 +231,8 @@ and expression =
   | ELet of rec_flag * (pattern * expression) list * expression
   (* let flex v in e *)
   | ELetFlex of type_binding * expression
+  (* let alias t = τ in e *)
+  | ELocalType of data_type_group * expression
   (* fun [a] (x: τ): τ -> e *)
   | EFun of type_binding list * typ * typ * expression
   (* v.f <- e *)

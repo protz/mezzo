@@ -22,6 +22,7 @@ open TypeCore
 open DeBruijn
 open Types
 open TypeErrors
+open ExpressionsCore
 open Expressions
 
 (* -------------------------------------------------------------------------- *)
@@ -580,6 +581,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       in
       may_raise_error env (Instantiated (name, t0));
       env, x
+
+  | ELocalType (group, e) ->
+      let env, e, _ = bind_data_type_group_in_expr env group e in
+      check_expression env e
 
   (* We assume that [EBigLambdas] is allowed only above [ELambda]. This
      allows us to cheat when handling [EBigLambda]. Instead of introducing a

@@ -20,7 +20,7 @@ val translate_data_type_group:
   env * TypeCore.data_type_group
 
 (** [translate_implementation] translates a compilation unit. *)
-val translate_implementation: env -> toplevel_item list -> Expressions.implementation
+val translate_implementation: env -> toplevel_item list -> ExpressionsCore.implementation
 
 (** [translate_interface] translates an interface. *)
-val translate_interface: env -> toplevel_item list -> Expressions.interface
+val translate_interface: env -> toplevel_item list -> ExpressionsCore.interface

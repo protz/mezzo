@@ -40,6 +40,7 @@ and judgement =
   | JSubType of typ * typ
   | JSubVar of var * typ
   | JSubPerm of typ
+  | JSubPerms of typ list
   | JSubFloating of typ
   | JSubConstraint of mode_constraint
   | JSubConstraints of mode_constraint list

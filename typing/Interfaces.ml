@@ -21,7 +21,7 @@
 
 open Kind
 module S = SurfaceSyntax
-module E = Expressions
+module E = ExpressionsCore
 module T = TypeCore
 
 (* ---------------------------------------------------------------------------- *)
@@ -43,7 +43,7 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
   let env, iface = build_interface env mname iface in
 
   let open TypeCore in
-  let open Expressions in
+  let open ExpressionsCore in
   (* We demand that [env] have the right module name. *)
   let rec import_items env = function
     | ValueDeclaration (name, typ) :: items ->
@@ -52,12 +52,12 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
         let env, p = bind_rigid env binding in
         (* [add] takes care of simplifying any function type. *)
         let env = Permissions.add env p typ in
-        let items = tsubst_toplevel_items (TyOpen p) 0 items in
-        let items = esubst_toplevel_items (EOpen p) 0 items in
+        let items = Expressions.tsubst_toplevel_items (TyOpen p) 0 items in
+        let items = Expressions.esubst_toplevel_items (EOpen p) 0 items in
         import_items env items
 
     | DataTypeGroup group :: items ->
-        let env, items, _ = DataTypeGroup.bind_data_type_group env group items in
+        let env, items, _ = Expressions.bind_data_type_group_in_toplevel_items env group items in
        (* TEMPORARY why don't we bind the data constructors here? *)
         import_items env items
 
