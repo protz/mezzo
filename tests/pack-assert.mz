@@ -1,0 +1,18 @@
+data t_s (s: perm) = T {
+  foo: (| consumes s) -> ()
+| s }
+
+alias t = { s: perm } t_s s
+
+val f (): t =
+  let st = newref () in
+
+  let foo (| consumes (st @ ref ())): () = () in
+
+  let u = T { foo } in
+  
+  pack u @ t
+    witness (st @ ref ());
+
+  assert (u @ t);
+  u

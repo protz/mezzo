@@ -17,6 +17,10 @@ abstract lock +(p: perm)
 
 fact duplicable (lock p)
 
+(* The permission [l @ held p] is a witness that the lock [l] is held
+   and that its invariant is (at least) [p]. This can be viewed as a
+   permission to release the lock (by giving up the permission [p])
+   and a permission to strengthen the lock's invariant. *)
 
 abstract held (p: perm)
 
@@ -31,17 +35,8 @@ val new: [p: perm] (| consumes p) -> lock p
 
 (* Acquisition. *)
 
-(* Because [p] represents only a part of the lock's invariant, acquiring
-   the lock yields [p * q], for an unknown permission [q], together with
-   the permission [l @ held (p * q)], which states that [p * q] is the
-   lock's invariant. *)
-
 val acquire:     [p: perm] (l: lock p) -> (              | p * l @ held p)
 val try_acquire: [p: perm] (l: lock p) -> rich_bool empty (p * l @ held p)
-
-val strengthen: [p : perm, q : perm] (consumes l: held p) -> (| l @ held (p * q))
-
-val publish: [p : perm] (l: held p) -> (| l @ lock p)
 
 (* Release. *)
 
@@ -54,4 +49,18 @@ val borrow: [p: perm, q: perm, b] (
   f: (| p * consumes q) -> b
 | consumes q
 ) -> b
+
+(* Strengthening. *)
+
+(* When the lock is held, its invariant can be strengthened. This
+   operation has no runtime effect. *)
+
+val strengthen: [p : perm, q : perm] (consumes l: held p) -> (| l @ held (p * q))
+
+(* A lock that is held is also a lock. This is a conversion between
+   permissions, which has no runtime effect. This operation can be
+   used, for instance, when one wishes to publish a strengthened
+   invariant. *)
+
+val publish:    [p : perm] (l: held p) -> (| l @ lock p)
 

@@ -54,17 +54,6 @@ val create [a, p : perm] duplicable a => (
   let s = Suspended { computation = f } in
   new [state a] s
 
-(* A custom unpacking function. This is another shortcoming of the
-   system; if we had a generic mechanism for naming the variable
-   that is introduced when an existential is unpacked, we would
-   not need this. *)
-
-val unpack [a, c] (
-  x: {b} (wref (state b) | id @ b -> a),
-  f: [b] (wref (state b) | id @ b -> a) -> c
-) : c =
-  f x
-
 (* Evaluation. *)
 
 (* Using [wref::update] means that we hold the lock while the call to
@@ -78,22 +67,22 @@ val unpack [a, c] (
 
 val force [a] (t: thunk a) : a =
   (* Unpack the existential, and let [b] stand for the witness. *)
-  unpack (t, fun [b] (x: wref (state b) | id @ b -> a) : a =
-    (* We get access to [t], under the name [x], at type
-       [wref (state b)], where [b] is an unknown subtype of [a],
-       as witnessed by the permission [id @ b -> a]. *)
-    update (x, fun (consumes s: state b) : (state b, a) =
-      (* We will now possibly update [x], by writing a new value
-        of type [state b] into it, and return a result of type
-        [b], which, by applying [id], we coerce to type [a]. *)
-      match s with
-      | Evaluated ->
-         s, (id s.result)
-      | Suspended ->
-         let result : b = s.computation() in
-         Evaluated { result = result }, id result
-      end
-    )
+  let flex b in
+  assert t @ wref (state b) * id @ b -> a;
+  (* We get access to [t], under the name [x], at type
+     [wref (state b)], where [b] is an unknown subtype of [a],
+     as witnessed by the permission [id @ b -> a]. *)
+  update (t, fun (consumes s: state b) : (state b, a) =
+    (* We will now possibly update [x], by writing a new value
+      of type [state b] into it, and return a result of type
+      [b], which, by applying [id], we coerce to type [a]. *)
+    match s with
+    | Evaluated ->
+        s, (id s.result)
+    | Suspended ->
+        let result : b = s.computation() in
+        Evaluated { result = result }, id result
+    end
   )
 
 (*
