@@ -946,7 +946,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
           (* Will raise [UnboundPoint] if we can't get [t] to make sense in
              the toplevel environment. *)
           let t = clean top right_env t in
-          instantiate_flexible left_env p t >>= fun left_env ->
+          Permissions.instantiate_flexible left_env p t >>= fun left_env ->
           Some (left_env, right_env, dest_env, t)
         with UnboundPoint ->
           None
@@ -955,7 +955,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
     | t, TyOpen p when is_flexible right_env p ->
         begin try
           let t = clean top left_env t in
-          instantiate_flexible right_env p t >>= fun right_env ->
+          Permissions.instantiate_flexible right_env p t >>= fun right_env ->
           Some (left_env, right_env, dest_env, t)
         with UnboundPoint ->
           None

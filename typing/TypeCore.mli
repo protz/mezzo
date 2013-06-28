@@ -201,11 +201,6 @@ val mark_inconsistent: env -> env
 val is_flexible: env -> var -> bool
 val is_rigid: env -> var -> bool
 
-(** [instantiate env var t] tries to instantiate the flexible variable [var]
- * with [t]. However, because of various reasons (e.g. levels) this
- * instantiation may or may not be possible directly. *)
-val instantiate_flexible: env -> var -> typ -> env option
-
 (** Make sure we're dealing with the real representation of a variable. Any
  * function wishing to examine either a type or a variable should call this
  * function; then, whenever they encounter a [TyOpen], they need not worry
@@ -221,6 +216,13 @@ val import_flex_instanciations: env -> env -> env
 
 
 (** {2 Low-level operations} *)
+
+(** [instantiate_raw env var t] tries to instantiate the flexible variable [var]
+ * with [t]. However, because of various reasons (e.g. levels) this
+ * instantiation may or may not be possible directly. There are extra steps
+ * needed (e.g. reanchoring) to properly perform this operation, so please use
+ * [Permissions.instantiate_flexible] instead. *)
+val instantiate_flexible_raw: env -> var -> typ -> env option
 
 (** Are these two variables the same? This is a low-level operation and you
  * probably want to use [equal] instead. *)

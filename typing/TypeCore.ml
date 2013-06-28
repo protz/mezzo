@@ -898,7 +898,7 @@ let clean (top : env) (sub : env) : typ -> typ =
 (* ---------------------------------------------------------------------------- *)
 
 (* Instantiate a flexible variable with a given type. *)
-let instantiate_flexible (env: env) (v: var) (t: typ): env option =
+let instantiate_flexible_raw (env: env) (v: var) (t: typ): env option =
   Log.check (is_flexible env v) "[instantiate_flex] wants flexible";
   
   (* Rework [t] so that this instantiation is legal. *)
@@ -1031,12 +1031,12 @@ let merge_left env v1 v2 =
       Some (merge_left_p2p env p1 p2)
   | (VRigid _ as v), (VFlexible _ as vf)
   | (VFlexible _ as vf), (VRigid _ as v) ->
-      instantiate_flexible env vf (TyOpen v)
+      instantiate_flexible_raw env vf (TyOpen v)
   | VFlexible i, VFlexible j ->
       if i < j then
-        instantiate_flexible env v2 (TyOpen v1)
+        instantiate_flexible_raw env v2 (TyOpen v1)
       else
-        instantiate_flexible env v1 (TyOpen v2)
+        instantiate_flexible_raw env v1 (TyOpen v2)
 ;;
 
 

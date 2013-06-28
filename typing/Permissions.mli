@@ -54,6 +54,10 @@ val sub_constraint: env -> mode_constraint -> result
 (** Only keep the duplicable portions of the environment. *)
 val keep_only_duplicable: env -> env
 
+(** Instantiate a flexible variable to a given type and perform all the required
+ * operations to maintain the invariants of our representation. *)
+val instantiate_flexible: env -> var -> typ -> env option
+
 (**/**)
 
 (** This is for debugging, it runs a consistency check on a given environment. *)
