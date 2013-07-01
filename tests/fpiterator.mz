@@ -128,3 +128,68 @@ val rec equal [a, post1 : perm, post2 : perm, p : perm] (
       i2.stop();
       False
   end
+
+(* filter: constructs a new iterator, returning only the elements of
+   [it] that match the predicate [f] *)
+val filter [a, p: perm, post: perm] (
+  consumes it: iterator a post,
+  f: (a | p) -> bool
+| consumes p): iterator a (p * post)
+=
+  let rec next (| consumes (p * it @ iterator a post)):
+      choice (borrowed surrender a (p * it @ iterator a post)) (| post * p) =
+
+    let flex it_st: perm in
+
+    match it.next () with
+    | Right ->
+      right ()
+    | Left { contents = x } ->
+      if f x then (
+	let flex q: perm in
+	assert (x @ a * surrender @ (| consumes (q * x @ a)) -> (| it_st));
+	assert (x @ a * surrender @ (| consumes (p * q * x @ a)) -> (| it_st * p));
+
+	left x
+      ) else (
+	surrender ();
+	next ()
+      )
+    end 
+  in
+
+  let stop (| consumes (p * it @ iterator a post)): (| post * p) =
+    it.stop ()
+  in
+
+  Iterator { next; stop }
+
+(* map: constructs a new iterator, returning [f x] for each element
+   [x] of [it]. Note that [f] cannot consume the elements of [it] so
+   that [post] can be finally returned. *)
+val map [a, b, p: perm, post: perm] (
+  consumes it: iterator a post,
+  f: (a | p) -> b
+| consumes p): iterator b (p * post)
+=
+  let next (| consumes (p * it @ iterator a post)):
+      choice (borrowed surrender b (p * it @ iterator a post)) (| post * p) =
+    
+    let flex it_st: perm in
+    match it.next () with
+    | Right ->
+      right ()
+    | Left { contents = x } ->
+      let flex q: perm in
+      assert (x @ a * surrender @ (| consumes (q * x @ a)) -> (| it_st));
+      assert (x @ a * surrender @ (| consumes (p * q * x @ a)) -> (| it_st * p));
+      left (f x)
+    end 
+  in
+
+  let stop (| consumes (it @ iterator a post * p)): (| post * p) =
+    it.stop ()
+  in
+
+  Iterator { next; stop }
+
