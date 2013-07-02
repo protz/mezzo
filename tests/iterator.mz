@@ -19,6 +19,20 @@ val new [a, iter, post: perm] (
     stop = (fun (| consumes (it @ iter)): (| post) = stop it)
   }
 
+(* Calls [f] on each element of the iterator [it] *)
+val rec iter [a, post: perm, p: perm] (
+  consumes it: iterator a post,
+  f: (consumes a | p) -> ()
+| p): (| post)
+=
+  match it.next () with
+  | Right ->
+    ()
+  | Left { contents = x } ->
+    f x;
+    iter (it, f)
+  end 
+
 (* filter: constructs a new iterator, returning only the elements of
    [it] that match the predicate [f] *)
 val filter [a, post: perm, p: perm] (
@@ -71,6 +85,107 @@ val map [a, b, post: perm, p: perm] (
 
   Iterator { next; stop }
 
+(* Classical fold_left on the elements of the iterator *)
+val rec fold_left [a, b, post: perm] (
+  f: (consumes b, consumes x: a) -> b,
+  consumes accu: b,
+  consumes it: iterator a post
+): (b | post)
+=
+  match it.next () with
+  | Right ->
+    accu
+  | Left { contents = x } ->
+    fold_left (f, f (accu, x), it)
+  end 
+
+(* Classical fold_right on the elements of the iterator *)
+val rec fold_right [a, b, post: perm] (
+  f: (consumes x: a, consumes b) -> b,
+  consumes it: iterator a post,
+  consumes accu: b
+): (b | post)
+=
+  match it.next () with
+  | Right ->
+    accu
+  | Left { contents = x } ->
+    f (x, fold_right (f, it, accu))
+  end 
+
+(* [fold_left_it] returns an iterator returning the successive accumulators
+   of a [fold_left]. Thus, this equality holds:
+
+   fold_left (f, acc, it) = option::force (last (fold_left_it (f, acc, it)))
+*)
+(* TEMPORARY We require the accumulator type to be duplicable, but it
+   may not be necessary if we use an idiom like [borrowed] of
+   [fpiterator.mz]
+*)
+val fold_left_it [a, b, post: perm] duplicable b => (
+  f: (consumes b, consumes x: a) -> b,
+    consumes accu: b,
+    consumes it: iterator a post
+): iterator b post
+  =
+  let acc = newref accu in
+  let alias st: perm = acc @ ref (duplicable b | b) * f @ (consumes b, consumes x: a) -> b in
+
+  map [p = st] (
+    it,
+    (fun (consumes x: a | st): b =
+	acc := f (!acc, x);
+     !acc)
+  )
+
+(* Drops the [n] first elements of the iterator - that is, [drop]
+   calls [it.next ()] [n] times *)
+val rec drop [a, post: perm] (
+  consumes it: iterator a post,
+  n: int
+): choice (| it @ iterator a post) (| post)
+  =
+  if n <= 0 then
+    left ()
+  else
+    match it.next () with
+    | Right ->
+      right ()
+    | Left ->
+      drop (it, n-1)
+    end 
+
+(* Drops elements of [it] of the iterator while the predicate [pred]
+   evaluates to [True] on them *)
+val rec dropWhile [a, post: perm, p: perm] (
+  consumes it: iterator a post,
+  pred: (a | p) -> bool
+| p): choice (a | it @ iterator a post) (| post)
+=
+  match it.next () with
+  | Right ->
+    right ()
+  | Left { contents = x } ->
+    if not (pred x) then
+      left x
+    else
+      dropWhile (it, pred)
+  end 
+
+(* Returns the last element of the iterator, or [None] if [it] is
+   empty *)
+val last [a, post: perm] (
+  consumes it: iterator a post
+): (option a | post)
+  =
+  let previous = newref None in
+  iter (
+    it,
+    (fun (consumes x: a | previous @ ref (option a)): () =
+	(previous := some x))
+  );
+  !previous
+
 open duplist_iterator
 
 val _ =
@@ -80,13 +195,7 @@ val _ =
   let it = new (i, next_dup, stop_dup) in
   let mit = map (it, fun (x: int): () = print x) in
   
-  let rec loop [a, post: perm] (consumes it: iterator a post): (| post) =
-    match it.next () with
-    | Right ->
-      ()
-    | Left { contents = x } ->
-      loop it
-    end 
-  in
-  loop mit;
-  ()
+  iter (
+    mit,
+    (fun (consumes x: ()): () = ())
+  )
