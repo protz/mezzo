@@ -286,20 +286,6 @@ let rec get_kind_for_type env t =
 ;;
 
 
-let rec flatten_star env t =
-  let t = modulo_flex env t in
-  match t with
-  | TyStar (p, q) ->
-      flatten_star env p @ flatten_star env q
-  | TyEmpty ->
-      []
-  | _ ->
-      Log.check
-        (get_kind_for_type env t = KPerm)
-        "Bad internal usage of [flatten_star].";
-      [t]
-;;
-
 
 let branches_for_datacon (env: env) (datacon: resolved_datacon): unresolved_branch list =
   match datacon with
@@ -586,6 +572,21 @@ let rec expand_if_one_branch (env: env) (t: typ) =
       t
 ;;
 
+
+let rec flatten_star env t =
+  let t = modulo_flex env t in
+  let t = expand_if_one_branch env t in
+  match t with
+  | TyStar (p, q) ->
+      flatten_star env p @ flatten_star env q
+  | TyEmpty ->
+      []
+  | _ ->
+      Log.check
+        (get_kind_for_type env t = KPerm)
+        "Bad internal usage of [flatten_star].";
+      [t]
+;;
 
 (* ---------------------------------------------------------------------------- *)
 
