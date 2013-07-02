@@ -93,7 +93,9 @@ val wrap [a, i, post: perm] (
 
 val new_generic_list_iterator [a] (consumes l: list::list a) : iterator a (l @ list::list a) =
   let it = new_list_iterator l in
-  wrap (it, next, stop)
+  let alias post : perm = l @ list::list a in
+  wrap [a, (list_iterator a post), post]
+    (it, next [a, post], stop [a, post])
 
 (* Comparison of two generic iterators. *)
 
