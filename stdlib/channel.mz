@@ -2,12 +2,12 @@ open lock
 open queue
 open condition
 
-(* Deriving channels using locks and queues. *)
+(* An implementation of an unbounded-capacity channel based on a FIFO queue,
+   a lock, and a condition variable. *)
 
-(* A channel is a triple formed by a queue [q], a lock [l] that protects
-   the exclusive permission on [q], and a condition variable on [l].
-   A channel is duplicable: multiple threads may simultaneously try to
-   send or receive by waiting on the condition variable. *)
+(* A channel is a triple of a queue [q], a lock [l] that yields exclusive
+   access to [q], and a condition variable for [l]. A channel is duplicable:
+   multiple threads may simultaneously attempt to send or receive. *)
 
 alias channel a =
   (q: unknown, l: lock (q @ fifo a), condition l)
@@ -17,21 +17,18 @@ alias channel a =
 (* A queue [q] is created and its exclusive permission is straight away
    hidden by a lock. *)
 
-val new [a] (): channel a =
+val new [a] () : channel a =
   let q = queue::create () in
-  let l: lock (q @ fifo a) = lock::new () in
-  let c = condition::new l in
-  (q, l, c)
+  let l : lock (q @ fifo a) = lock::new () in
+  let cond = condition::new l in
+  q, l, cond
 
-(* Send. *)
+(* Sending. *)
 
-(* Sending on the channel requires acquiring the lock. *)
+(* Acquire the lock, insert the element, wake up any waiting receivers,
+   release the lock. *)
 
-(* francois: I think it is preferable to send the signal
-   before releasing the lock, but maybe we should ask an
-   expert (Luc?). TEMPORARY *)
-
-val send [a] (c: channel a, consumes x: a): () =
+val send [a] (c: channel a, consumes x: a) : () =
   let q, l, cond = c in
   acquire l;
   insert (x, q);
@@ -39,31 +36,29 @@ val send [a] (c: channel a, consumes x: a): () =
     signal (cond, SignalMany);
   release l
 
-(* Receive. *)
+(* Receiving. *)
 
-(* This call does not require anything. If there is no message available,
-   it will suspend the thread and wait on the condition variable. *)
+(* If there is no message in the queue, wait on the condition variable. *)
 
-val receive [a] (c: channel a): a =
+val receive [a] (c : channel a) : a =
   let q, l, cond = c in
   acquire l;
 
-  (* A call to [receive_aux] requires the lock [l] to be held. The
-     lock is released when the reception finally succeeds. According to
-     the semantics of wait it is also temporarily released while the
-     thread is suspended. *)
+  (* A call to [loop] requires the lock [l] to be held. The lock is released
+     when the reception finally succeeds. According to the semantics of
+     [wait], the lock is temporarily released while the thread is suspended. *)
 
-  let rec receive_aux (| consumes (q @ fifo a * held l) ): a =
+  let rec loop (| consumes (q @ fifo a * held l)) : a =
     match retrieve q with
     | None ->
-        wait cond; receive_aux ()
+        wait cond;
+        loop()
     | Some { contents = x } ->
-        release l; x
+        release l;
+        x
     end 
   in
-
-  receive_aux ()
-
+  loop()
 
 (*
 Local Variables:

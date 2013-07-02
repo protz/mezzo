@@ -1,8 +1,12 @@
+(* The type [channel a] describes a channel that can be used to send and
+   receive messages of type [a]. This type is duplicable, so there can be an
+   arbitrary number of senders and receivers. The type [a] need not be
+   duplicable, so a message can imply a transfer of ownership. *)
+
 abstract channel a
 fact duplicable (channel a)
 
-val new: [a] () -> channel a
+val new:     [a] () -> channel a
+val send:    [a] (channel a, consumes a) -> ()
+val receive: [a] channel a -> a
 
-val send: [a] (channel a, consumes a) -> ()
-
-val receive: [a] (channel a) -> a
