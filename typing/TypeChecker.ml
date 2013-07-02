@@ -548,7 +548,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           let env = Permissions.add_perm env u in
           return env ty_unit
       | None, derivation ->
-          raise_error env (ExpectedPermission (t, derivation))
+          raise_error env (ExpectedPermission (u, derivation))
       end
 
 
