@@ -1,0 +1,94 @@
+open choice
+
+(* Idioms. *)
+
+alias convertible (c : term) (pre : perm) (post : perm) : perm =
+  c @ (| consumes pre) -> (| post)
+
+alias osconvertible (c : term) (pre : perm) (post : perm) : perm =
+  {p : perm} (p * convertible c (p * pre) post)
+
+alias borrowed (c : term) a (post : perm) =
+  (x: a | osconvertible c (x @ a) post)
+
+(* Definition of generic (OO-style) iterators. *)
+
+val surrender () : () =
+  ()
+
+data iterator_s (s : perm) a (post : perm) =
+  Iterator {
+    next: (| consumes s) -> choice (borrowed surrender a s) (| post);
+    stop: (| consumes s) -> (| post)
+  | s }
+
+alias iterator a (post : perm) =
+  { s : perm } iterator_s s a post
+
+(* Re-implementation of list iterators. *)
+
+val rewind () : () =
+  ()
+
+alias list_iterator a (post : perm) =
+  ref (borrowed rewind (list::list a) post)
+
+val new_list_iterator [a] (consumes l: list::list a): list_iterator a (l @ list::list a) =
+  fail
+
+val next
+  [a, post : perm]
+  (consumes it: list_iterator a post)
+: choice (borrowed surrender a (it @ list_iterator a post)) (| post) =
+
+  fail
+
+val stop [a, post: perm]
+  (consumes it: list_iterator a post)
+: (| post) =
+  fail
+
+(* Wrapping an ADT-style iterator into a generic (OO-style) iterator. *)
+
+val wrap [a, i, post: perm] (
+  consumes it: i,
+  next: (consumes it: i) -> choice (borrowed surrender a (it @ i)) (| post),
+  stop: (consumes it: i) -> (| post)
+): iterator a post =
+  fail
+
+(* TEMPORARY slow/rejected if we omit the type applications *)
+val new_generic_list_iterator [a] (consumes l: list::list a) : iterator a (l @ list::list a) =
+  fail
+
+(* Comparison of two generic iterators. *)
+
+val rec equal [a, post1 : perm, post2 : perm, p : perm] (
+  eq: (a, a | p) -> bool,
+  consumes i1: iterator a post1,
+  consumes i2: iterator a post2
+| p
+) : (bool | post1 * post2) =
+
+  fail
+
+(* Pas OK *)
+val identity2 [a, p: perm, post: perm] (
+  consumes it: iterator a post
+): iterator a post
+=
+  let alias s: perm = it @ iterator a post in
+
+  let next (| consumes s): choice (borrowed surrender a s) (| post) =
+    match it.next () with
+    | Right -> right ()
+    | Left { contents } -> left contents
+    end
+  in
+
+  let stop (| consumes s): (| post) =
+    it.stop ()
+  in
+
+  Iterator { next; stop }
+

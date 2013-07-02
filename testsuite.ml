@@ -1003,6 +1003,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("landin.mz", pass);
   ("strange.mz", fail);
   ("localtype1.mz", pass);
+  ("localtype2.mz", pass);
   ("covariantlock.mz", pass);
   ("pack-assert.mz", pass_known_failure);
   ("oneshot-test.mz", fail);
