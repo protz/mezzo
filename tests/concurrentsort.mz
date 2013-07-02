@@ -1,0 +1,46 @@
+open list
+
+(* A concurrent version of merge sort, that spawns two new threads to sort
+   the two halves of the list [l], except if length of [l] is smaller than
+   an arbitrary threshold. *)
+val concurrent_threshold: int = 5000
+
+val concurrent_sort [a] (
+  d: reflection::duplicability a,
+  cmp: (a, a) -> int,
+  consumes l: list a
+) : list a =
+
+  (* [c_sort_aux] takes an integer [n] and a list of length [n]. *)
+  let rec c_sort_aux (n: int, consumes l: list a) : list a =
+    if n < concurrent_threshold
+    then list::sort (d, cmp, l)
+    else begin
+      let n1 = n / 2  in
+      (* The permission on [l] is consumed, and replaced by permissions
+        on the two sublists [l1] and [l2]. *)
+      let l1, l2 = splitAt (n1, l) in (* or: list::splitAtOrShareAndChop(d, n1, l) *)
+      (* The new thread will send its result on the following channel. *)
+      let c1 = channel::new [list a] () in
+      (* Spawn a thread that will sort the list [l1] and send the result
+        on the channel [c1]. *)
+      thread::spawn (
+       fun (| consumes (l1 @ list a)): () =
+         channel::send (c1, c_sort_aux (n1, l1))
+      );
+      (* The list [l2] is sorted locally. *)
+      let sl2 = c_sort_aux (n - n1, l2) in
+      (* Receive the result sent by the other thread. *)
+      let sl1 = channel::receive c1 in
+      (* Merge the sorted lists. *)
+      merge (cmp, sl1, sl2)
+    end
+  in
+
+  c_sort_aux (length l, l)
+
+(*
+Local Variables:
+compile-command: "../../mezzo concurrentsort.mz"
+End:
+*)
