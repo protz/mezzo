@@ -1,0 +1,8 @@
+(* TEMPORARY these built-in operations are currently not implemented! *)
+
+val spawn: [p: perm] (
+  f: (| consumes p) -> ()
+| consumes p
+) -> () =
+  builtin __mz_thread_spawn
+

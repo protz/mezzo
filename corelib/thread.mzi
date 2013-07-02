@@ -1,0 +1,9 @@
+(* This operation spawns a new thread. The permission [p] is transferred to
+   the new thread. This operation offers no way waiting for the thread to
+   finish and recovering [p], but this can be done by using channels. *)
+
+val spawn: [p: perm] (
+  f: (| consumes p) -> ()
+| consumes p
+) -> ()
+
