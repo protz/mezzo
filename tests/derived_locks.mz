@@ -1,4 +1,4 @@
-open channels
+open channel
 
 data lock (p: perm) =
   Lock { channel: channel ( | p) }
@@ -16,7 +16,7 @@ val giveheld [p: perm] (l: lock p | consumes (held l)): () = ()
 (* Possible variant: include the permission held in the channel. This way the permission is created only once, and then passed within the channel. *)
 
 val newlock [p: perm] ( | consumes p): lock p =
-  let c = newchannel [(|p)] () in
+  let c = channel::new [(|p)] () in
   Lock { channel = c }
 
 val acquire [p: perm] (l: lock p): ( | p * held l) =
@@ -87,8 +87,6 @@ data lock (p: perm) =
 
 (*
 (* Cyclic version *)
-
-open channels
 
 abstract held (l: term): perm
 fact exclusive (held l)
