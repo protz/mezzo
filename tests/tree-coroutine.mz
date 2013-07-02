@@ -1,0 +1,67 @@
+data mutable tree a =
+  Leaf
+| Node { left: tree a; elem: a; right: tree a }
+
+open channel
+
+(* This function iterates over the tree, and submits the elements onto the
+   channel [pipe]. It then waits for an acknowledgement to arrive on the
+   channel [ack], and proceeds with the iteration. *)
+
+(* The code is too simplistic, insofar as there is no way for the producer
+   to signal that the iteration is finished. Maybe we should allow a channel
+   to be closed, in which case further calls to [send] or [receive] would
+   fail at runtime? *)
+
+(* Unfortunately, this approach is limited to the case where [a] is duplicable,
+   because we cannot express the idea that [ack] transmits [x @ a] where [x] is
+   the last element that was sent via [pipe]. *)
+
+val rec iter [a] duplicable a => (t: tree a, pipe: channel a, ack: channel bool) : bool =
+  match t with
+  | Leaf ->
+      true
+  | Node ->
+      iter (t.left, pipe, ack) &&
+      begin send (pipe, t.elem); receive ack end &&
+      iter (t.right, pipe, ack)
+  end 
+
+(* Here is a client that receives the elements and counts them. Note that it
+   has local state. *)
+
+val count [a] (pipe: channel a, ack: channel bool) : () =
+  let c = newref 0 in
+  preserving c @ ref int while true do begin
+    let x = receive pipe in
+    incr c;
+    send (ack, true)
+  end
+  (* Stupid. This point in the code is unreachable. *)
+
+(* Now, combine the producer and consumer. We cheat by running the producer
+   on the current thread. If we spawned a new thread, we would have to
+   transmit [t @ tree a] to it, and get it back afterwards, using [join]. *)
+
+val test [a] duplicable a => (t: tree a) : bool =
+  let pipe, ack = new(), new() in
+  thread::spawn (fun () : () =
+    count (pipe, ack)
+  );
+  iter [a] (t, pipe, ack)
+    (* Interesting example of a type application that is required. *)
+
+(* TODO find a way of encoding the protocol when [a] is not duplicable.
+   - possibly create one new [ack] channel for each element (not very nice)
+   - possibly use a non-shareable channel, with explicit permissions to send
+     and receive; send every element [x] on the pipe together with a permission
+     to emit [x @ a] on the channel [ack]. Keep a permission to receive [x @ a]
+     on [ack]. This requires the ability to manufacture a dual send/receive
+     permission pair. Can we implement these controlled channels in the
+     language? *)
+
+(*
+Local Variables:
+compile-command: "../mezzo tree-coroutine.mz"
+End:
+*)
