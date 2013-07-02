@@ -8,18 +8,27 @@ data iterator_s a (s: perm) (post: perm) = Iterator {
 
 alias iterator a (post: perm) = { s: perm } iterator_s a s post 
 
-val new [a, iter, post: perm] (consumes (
-  it: iter,
+val new [a, iter, post: perm] (
+  consumes it: iter,
   next: (consumes it: iter) -> choice (a | it @ iter) (| post),
   stop: (consumes it: iter) -> (| post)
-)): iterator a post =
+): iterator a post
+=
   Iterator {
     next = (fun (| consumes (it @ iter)): choice (a | it @ iter) (| post) = next it);
     stop = (fun (| consumes (it @ iter)): (| post) = stop it)
   }
 
-val filter [a, post: perm] (consumes it: iterator a post, pred: a -> bool): iterator a post =
-  let rec next_filter (| consumes (it @ iterator a post)): choice (a | it @ iterator a post) (| post) =
+(* filter: constructs a new iterator, returning only the elements of
+   [it] that match the predicate [f] *)
+val filter [a, post: perm, p: perm] (
+  consumes it: iterator a post,
+  pred: (a | p) -> bool
+| consumes p): iterator a (post * p)
+=
+  let rec next
+      (| consumes (it @ iterator a post * p)):
+      choice (a | it @ iterator a post * p) (| post * p) =
     match it.next () with
     | Right ->
       right ()
@@ -27,21 +36,27 @@ val filter [a, post: perm] (consumes it: iterator a post, pred: a -> bool): iter
       if pred x then
 	left x
       else
-	next_filter ()
+	next ()
     end 
   in
 
-  let stop_filter (| consumes (it @ iterator a post)): (| post) =
+  let stop (| consumes (it @ iterator a post * p)):
+      (| post * p) =
     it.stop ()
   in
 
-  Iterator {
-    next = next_filter;
-    stop = stop_filter
-  }
+  Iterator { next; stop }
 
-val map [a, b, post: perm] (consumes it: iterator a post, f: a -> b): iterator b post =
-  let next_map (| consumes (it @ iterator a post)): choice (b | it @ iterator a post) (| post) =
+(* map: constructs a new iterator, returning [f x] for each element
+   [x] of [it]. *)
+val map [a, b, post: perm, p: perm] (
+  consumes it: iterator a post,
+  f: (consumes a | p) -> b
+| consumes p): iterator b (post * p)
+=
+  let next
+      (| consumes (it @ iterator a post * p)):
+      choice (b | it @ iterator a post * p) (| post * p) =
     match it.next () with
     | Right ->
       right ()
@@ -50,14 +65,11 @@ val map [a, b, post: perm] (consumes it: iterator a post, f: a -> b): iterator b
     end 
   in
 
-  let stop_map (| consumes (it @ iterator a post)): (| post) =
+  let stop (| consumes (it @ iterator a post * p)): (| post * p) =
     it.stop ()
   in
 
-  Iterator {
-    next = next_map;
-    stop = stop_map;
-  }
+  Iterator { next; stop }
 
 open duplist_iterator
 
