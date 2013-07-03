@@ -44,7 +44,7 @@ val rec next [a, hole: perm, post: perm]
     | Cons { head; tail } ->
       it := ts;
       (* We store [t @ Leaf] into the iterator to avoid losing
-	 information *)
+         information *)
       let flex p: perm in
       pack ts @ content_t a empty post witness (p * t @ Leaf);
       next [a = a, hole = empty] it
@@ -57,7 +57,8 @@ val rec next [a, hole: perm, post: perm]
     (* Store the fact that [t @ Node { left; x; right }], to avoid
        losing information *)
     let flex p: perm in
-    pack l @ content_t a (x @ a) post witness (p * t @ Node { left; x; right });
+    pack l @ content_t a (x @ a) post
+      witness (p * t @ Node { left; x; right });
     (* Return [x] *)
     choice::left x
   end

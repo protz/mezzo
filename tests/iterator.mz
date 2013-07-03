@@ -48,9 +48,9 @@ val filter [a, post: perm, p: perm] (
       right ()
     | Left { contents = x } ->
       if pred x then
-	left x
+  left x
       else
-	next ()
+  next ()
     end 
   in
 
@@ -134,8 +134,8 @@ val fold_left_it [a, b, post: perm] duplicable b => (
   map [p = st] (
     it,
     (fun (consumes x: a | st): b =
-	acc := f (!acc, x);
-     !acc)
+        acc := f (!acc, x);
+        !acc)
   )
 
 (* Drops the [n] first elements of the iterator - that is, [drop]
