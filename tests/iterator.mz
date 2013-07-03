@@ -1,8 +1,8 @@
 open list
-open choice
+open either
 
 data iterator_s a (s: perm) (post: perm) = Iterator {
-  next: (| consumes s) -> choice (a | s) (| post);
+  next: (| consumes s) -> either (a | s) (| post);
   stop: (| consumes s) -> (| post)
 | s }
 
@@ -10,12 +10,12 @@ alias iterator a (post: perm) = { s: perm } iterator_s a s post
 
 val new [a, iter, post: perm] (
   consumes it: iter,
-  next: (consumes it: iter) -> choice (a | it @ iter) (| post),
+  next: (consumes it: iter) -> either (a | it @ iter) (| post),
   stop: (consumes it: iter) -> (| post)
 ): iterator a post
 =
   Iterator {
-    next = (fun (| consumes (it @ iter)): choice (a | it @ iter) (| post) = next it);
+    next = (fun (| consumes (it @ iter)): either (a | it @ iter) (| post) = next it);
     stop = (fun (| consumes (it @ iter)): (| post) = stop it)
   }
 
@@ -42,7 +42,7 @@ val filter [a, post: perm, p: perm] (
 =
   let rec next
       (| consumes (it @ iterator a post * p)):
-      choice (a | it @ iterator a post * p) (| post * p) =
+      either (a | it @ iterator a post * p) (| post * p) =
     match it.next () with
     | Right ->
       right ()
@@ -70,7 +70,7 @@ val map [a, b, post: perm, p: perm] (
 =
   let next
       (| consumes (it @ iterator a post * p)):
-      choice (b | it @ iterator a post * p) (| post * p) =
+      either (b | it @ iterator a post * p) (| post * p) =
     match it.next () with
     | Right ->
       right ()
@@ -143,7 +143,7 @@ val fold_left_it [a, b, post: perm] duplicable b => (
 val rec drop [a, post: perm] (
   consumes it: iterator a post,
   n: int
-): choice (| it @ iterator a post) (| post)
+): either (| it @ iterator a post) (| post)
   =
   if n <= 0 then
     left ()
@@ -160,7 +160,7 @@ val rec drop [a, post: perm] (
 val rec dropWhile [a, post: perm, p: perm] (
   consumes it: iterator a post,
   pred: (a | p) -> bool
-| p): choice (a | it @ iterator a post) (| post)
+| p): either (a | it @ iterator a post) (| post)
 =
   match it.next () with
   | Right ->

@@ -103,7 +103,7 @@ val filter : [k, cmp: term, a, b] (
 
 val partition : [k, cmp: term, a, b, c] (
   consumes treeMap k cmp a,
-  p: (k, consumes a) -> choice::choice b c
+  p: (k, consumes a) -> either::either b c
 ) -> (treeMap k cmp b, treeMap k cmp c)
 
 val compare : [k, cmp: term, a] (

@@ -1,4 +1,4 @@
-open choice
+open either
 
 (* Idioms. *)
 
@@ -18,7 +18,7 @@ val surrender () : () =
 
 data iterator_s (s : perm) a (post : perm) =
   Iterator {
-    next: (| consumes s) -> choice (borrowed surrender a s) (| post);
+    next: (| consumes s) -> either (borrowed surrender a s) (| post);
     stop: (| consumes s) -> (| post)
   | s }
 
@@ -39,7 +39,7 @@ val new_list_iterator [a] (consumes l: list::list a): list_iterator a (l @ list:
 val next
   [a, post : perm]
   (consumes it: list_iterator a post)
-: choice (borrowed surrender a (it @ list_iterator a post)) (| post) =
+: either (borrowed surrender a (it @ list_iterator a post)) (| post) =
 
   let l = !it in
   match l with
@@ -77,11 +77,11 @@ val stop [a, post: perm]
 
 val wrap [a, i, post: perm] (
   consumes it: i,
-  next: (consumes it: i) -> choice (borrowed surrender a (it @ i)) (| post),
+  next: (consumes it: i) -> either (borrowed surrender a (it @ i)) (| post),
   stop: (consumes it: i) -> (| post)
 ): iterator a post =
   Iterator {
-    next = (fun (| consumes it @ i): choice (borrowed surrender a (it @ i)) (| post) = next it);
+    next = (fun (| consumes it @ i): either (borrowed surrender a (it @ i)) (| post) = next it);
     stop = (fun (| consumes it @ i): (| post) = stop it)
   }
 
@@ -137,7 +137,7 @@ val filter [a, p: perm, post: perm] (
 | consumes p): iterator a (p * post)
 =
   let rec next (| consumes (p * it @ iterator a post)):
-      choice (borrowed surrender a (p * it @ iterator a post)) (| post * p) =
+      either (borrowed surrender a (p * it @ iterator a post)) (| post * p) =
 
     let flex it_st: perm in
 
@@ -173,7 +173,7 @@ val map [a, b, p: perm, post: perm] (
 | consumes p): iterator b (p * post)
 =
   let next (| consumes (p * it @ iterator a post)):
-      choice (borrowed surrender b (p * it @ iterator a post)) (| post * p) =
+      either (borrowed surrender b (p * it @ iterator a post)) (| post * p) =
     
     let flex it_st: perm in
     match it.next () with

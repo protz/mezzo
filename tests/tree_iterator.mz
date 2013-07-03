@@ -1,5 +1,5 @@
 open list
-open choice
+open either
 open idioms
 
 data mutable tree a =
@@ -26,7 +26,7 @@ val new [a] (consumes t: tree a): iterator a empty (t @ tree a) =
 
 val rec next [a, hole: perm, post: perm]
   (consumes (it: iterator a hole post | hole)): 
-  choice (x: a | it @ iterator a (x @ a) post) (| post) =
+  either (x: a | it @ iterator a (x @ a) post) (| post) =
   
   (* Merge [hole] into the iterator *) 
   assert (it @ iterator a empty post);
@@ -40,7 +40,7 @@ val rec next [a, hole: perm, post: perm]
     | Nil ->
       (* There is no more subtrees *)
       consume [pre = empty] !it;
-      choice::right ()
+      right ()
     | Cons { head; tail } ->
       it := ts;
       (* We store [t @ Leaf] into the iterator to avoid losing
@@ -59,7 +59,7 @@ val rec next [a, hole: perm, post: perm]
     let flex p: perm in
     pack l @ content_t a (x @ a) post witness (p * t @ Node { left; x; right });
     (* Return [x] *)
-    choice::left x
+    left x
   end
 
 val stop [a, hole: perm, post: perm]
@@ -81,15 +81,15 @@ val rec loop [a, hole: perm, post: perm]
 
 val rec nth [a, hole: perm, post: perm]
   (consumes it: (iterator a hole post | hole), n: int):
-  choice (x: a | it @ iterator a (x @ a) post) (| post) =
+  either (x: a | it @ iterator a (x @ a) post) (| post) =
 
   match next [hole = hole] it with
   | Right { contents } ->
     (* There is no more elements in the iterator *)
-    choice::right contents
+    right contents
   | Left { contents = x } ->
     if n <= 0 then (
-      choice::left x
+      left x
     ) else (
       nth [a = a, hole = (x @ a)] (it, n-1)
     )

@@ -721,10 +721,8 @@ val rec filter [k, a, b] (
 (* The function [partition] is generalized in a similar manner. Instead
    of returning a Boolean value, it returns a choice. *)
 
-open choice (* TEMPORARY *)
-
 val rec partition [k, a, b, c] (
-  p: (k, consumes a) -> choice b c,
+  p: (k, consumes a) -> either::either b c,
   consumes t: tree k a
 ) : (tree k b, tree k c) =
   match t with
@@ -732,17 +730,16 @@ val rec partition [k, a, b, c] (
       t, Empty
   | Node ->
       let ll, lr = partition (p, t.left) in
-      let choice = p (t.key, t.value) in
       let rl, rr = partition (p, t.right) in
-      match choice with
-      | Left ->
+      match p (t.key, t.value) with
+      | either::Left { contents = d } ->
          t.left <- ll;
-         t.value <- choice.contents;
+         t.value <- d;
          t.right <- rl;
          join t, concat (lr, rr)
-      | Right ->
+      | either::Right { contents = d } ->
          t.left <- lr;
-         t.value <- choice.contents;
+         t.value <- d;
          t.right <- rr;
          concat (ll, rl), join t
       end
@@ -1286,7 +1283,7 @@ val filter [k, c: term, a, b] (
 
 val partition [k, cmp: term, a, b, c] (
   consumes m: treeMap k cmp a,
-  p: (k, consumes a) -> choice b c
+  p: (k, consumes a) -> either::either b c
 ) : (treeMap k cmp b, treeMap k cmp c) =
   let left, right = partition (p, m.tree) in
   m.tree <- left;

@@ -118,15 +118,13 @@ val partition : [a] (p: a -> bool, consumes xs: list a) -> (list a, list a)
 
 (* Iterator. *)
 
-open choice
-
 abstract iterator a (hole: perm) (post: perm)
 fact exclusive (iterator a hole post)
 
 val new_iterator: [a] (consumes l: list a) -> iterator a empty (l @ list a)
 
 val next: [a, hole: perm, post: perm] (consumes (it: iterator a hole post | hole)) ->
-  choice (x: a | it @ iterator a (x @ a) post) (| post)
+  either::either (x: a | it @ iterator a (x @ a) post) (| post)
 val stop: [a, hole: perm, post: perm] (consumes (s: iterator a hole post | hole)) -> (| post)
 
 
