@@ -1,4 +1,4 @@
-open choice
+open either
 
 (* Idioms. *)
 
@@ -9,7 +9,7 @@ alias focused a (post: perm) =
 
 data iterator_s (s : perm) a (post : perm) =
   Iterator {
-    next: (| consumes s) -> choice (focused a s) (| post);
+    next: (| consumes s) -> either (focused a s) (| post);
     stop: (| consumes s) -> (| post)
   | s }
 
@@ -27,7 +27,7 @@ val new_list_iterator [a] (consumes l: list::list a): list_iterator a (l @ list:
 val next
   [a, post : perm]
   (consumes it: list_iterator a post)
-: choice (focused a (it @ list_iterator a post)) (| post) =
+: either (focused a (it @ list_iterator a post)) (| post) =
 
   let l, rewind_to_list = !it in
   match l with
@@ -83,11 +83,11 @@ val stop [a, post: perm]
 
 val wrap [a, i, post: perm] (
   consumes it: i,
-  next: (consumes it: i) -> choice (focused a (it @ i)) (| post),
+  next: (consumes it: i) -> either (focused a (it @ i)) (| post),
   stop: (consumes it: i) -> (| post)
 ): iterator a post =
   Iterator {
-    next = (fun (| consumes it @ i): choice (focused a (it @ i)) (| post) = next it);
+    next = (fun (| consumes it @ i): either (focused a (it @ i)) (| post) = next it);
     stop = (fun (| consumes it @ i): (| post) = stop it)
   }
 
@@ -155,7 +155,7 @@ val identity [a, p: perm, post: perm] (
   let alias st: perm = it @ iterator a post in
 
   let next (| consumes it @ iterator a post):
-      choice (focused a (it @ iterator a post)) (| post) =
+      either (focused a (it @ iterator a post)) (| post) =
     match it.next () with
     | Right -> right ()
     | Left { contents } -> left contents
@@ -176,7 +176,7 @@ val filter [a, p: perm, post: perm] (
 | consumes p): iterator a (p * post)
 =
   let rec next (| consumes (p * it @ iterator a post)):
-      choice (focused a (p * it @ iterator a post)) (| post * p) =
+      either (focused a (p * it @ iterator a post)) (| post * p) =
 
     let flex it_st: perm in
 
@@ -215,7 +215,7 @@ val map [a, b, p: perm, post: perm] (
 | consumes p): iterator b (p * post)
 =
   let next (| consumes (p * it @ iterator a post)):
-      choice (focused b (p * it @ iterator a post)) (| post * p) =
+      either (focused b (p * it @ iterator a post)) (| post * p) =
     
     let flex it_st: perm in
     match it.next () with

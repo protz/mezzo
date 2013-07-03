@@ -1,4 +1,4 @@
-data choice a b =
+data either a b =
   | Left  { contents: a }
   | Right { contents: b }
 

@@ -1,4 +1,4 @@
-open choice
+open either
 open idioms
 
 (* A new idiom. *)
@@ -13,7 +13,7 @@ alias borrowed a (post : perm) =
 
 data iterator_s (s : perm) a (post : perm) =
   Iterator {
-    next: (| consumes s) -> choice (borrowed a s) (| post);
+    next: (| consumes s) -> either (borrowed a s) (| post);
     stop: (| consumes s) -> (| post)
   | s }
 
@@ -31,7 +31,7 @@ val new_iterator [a] (consumes l: list::list a): list_iterator a (l @ list::list
 val next
   [a, post : perm]
   (consumes it: list_iterator a post)
-: choice (borrowed a (it @ list_iterator a post)) (| post) =
+: either (borrowed a (it @ list_iterator a post)) (| post) =
 
   let l = !it in
   match l with
@@ -67,11 +67,11 @@ val next
 
 val wrap [a, i, post: perm] (
   consumes it: i,
-  next: (consumes it: i) -> choice (borrowed a (it @ i)) (| post),
+  next: (consumes it: i) -> either (borrowed a (it @ i)) (| post),
   stop: (consumes it: i) -> (| post)
 ): iterator a post =
   Iterator {
-    next = (fun (| consumes it @ i): choice (borrowed a (it @ i)) (| post) = next it);
+    next = (fun (| consumes it @ i): either (borrowed a (it @ i)) (| post) = next it);
     stop = (fun (| consumes it @ i): (| post) = stop it)
   }
 

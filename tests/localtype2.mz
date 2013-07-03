@@ -1,4 +1,4 @@
-open choice
+open either
 
 (* Idioms. *)
 
@@ -18,7 +18,7 @@ val surrender () : () =
 
 data iterator_s (s : perm) a (post : perm) =
   Iterator {
-    next: (| consumes s) -> choice (borrowed surrender a s) (| post);
+    next: (| consumes s) -> either (borrowed surrender a s) (| post);
     stop: (| consumes s) -> (| post)
   | s }
 
@@ -39,7 +39,7 @@ val new_list_iterator [a] (consumes l: list::list a): list_iterator a (l @ list:
 val next
   [a, post : perm]
   (consumes it: list_iterator a post)
-: choice (borrowed surrender a (it @ list_iterator a post)) (| post) =
+: either (borrowed surrender a (it @ list_iterator a post)) (| post) =
 
   fail
 
@@ -52,7 +52,7 @@ val stop [a, post: perm]
 
 val wrap [a, i, post: perm] (
   consumes it: i,
-  next: (consumes it: i) -> choice (borrowed surrender a (it @ i)) (| post),
+  next: (consumes it: i) -> either (borrowed surrender a (it @ i)) (| post),
   stop: (consumes it: i) -> (| post)
 ): iterator a post =
   fail
@@ -79,7 +79,7 @@ val identity2 [a, p: perm, post: perm] (
 =
   let alias s: perm = it @ iterator a post in
 
-  let next (| consumes s): choice (borrowed surrender a s) (| post) =
+  let next (| consumes s): either (borrowed surrender a s) (| post) =
     match it.next () with
     | Right -> right ()
     | Left { contents } -> left contents

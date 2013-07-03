@@ -640,8 +640,37 @@ module TypePrinter = struct
     pdoc buf (print_names env, names)
   ;;
 
+  let smallint i =
+    let base = "₀" in
+    let mkchar i =
+      let str = String.copy base in
+      str.[2] <- Char.chr (Char.code base.[2] + i);
+      str
+    in
+    let rec mk acc i =
+      if i > 0 then
+        let digit = mkchar (i mod 10) in
+        mk (digit :: acc) (i / 10)
+      else
+        List.rev acc
+    in
+    if i = 0 then
+      string "0"
+    else
+      utf8string (String.concat "" (mk [] i))
+  ;;
+
+
+  let print_point env point =
+    print_var env (get_name env point) ^^
+    if Log.debug_level () > 0 then
+      smallint (internal_uniqvarid env point)
+    else
+      empty
+  ;;
+
   let pname buf (env, point) =
-    pdoc buf ((fun () -> print_var env (get_name env point)), ())
+    pdoc buf ((fun () -> print_point env point), ())
   ;;
 
   let print_exports (env, mname) =
@@ -671,14 +700,14 @@ module TypePrinter = struct
     utf8string q ^^ lparen ^^ print_var env name ^^ space ^^ colon ^^ space ^^
     print_kind kind ^^ rparen ^^ dot ^^ jump (print_type env typ)
 
-  and print_point env point =
+  and print_open env point =
     try
       if is_flexible env point then
-        print_var env (get_name env point) ^^ star
+        print_point env point ^^ star
       else if internal_wasflexible point then
         lparen ^^ string "inst→" ^^ print_type env (modulo_flex env (TyOpen point)) ^^ rparen
       else
-        print_var env (get_name env point)
+        print_point env point
     with UnboundPoint ->
       colors.red ^^ string "!! ☠ !!" ^^ colors.default
 
@@ -693,7 +722,7 @@ module TypePrinter = struct
         string "dynamic"
 
     | TyOpen point ->
-        print_point env point
+        print_open env point
 
     | TyBound i ->
         string "TyBound(" ^^ int i ^^ string ")"

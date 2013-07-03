@@ -425,7 +425,7 @@ val partition [a] (p: a -> bool, consumes xs: list a) : (list a, list a) =
 (* Iterator. *)
 
 open idioms
-open choice
+open either
 
 alias iterator a (hole: perm) (post: perm) = ref (consumable (list a) hole post)
 
@@ -436,7 +436,7 @@ val new_iterator [a] (consumes l: list a): iterator a empty (l @ list a) =
 
 val next [a, hole: perm, post: perm]
   (consumes (it: iterator a hole post | hole)):
-  choice (x: a | it @ iterator a (x @ a) post) (| post) =
+  either (x: a | it @ iterator a (x @ a) post) (| post) =
 
   (* Merge [hole] into [it] *)
   assert (it @ iterator a empty post);
@@ -471,7 +471,7 @@ val rec loop_iterator [a, hole: perm, post: perm]
 
 val rec nth_iterator [a, hole: perm, post: perm]
   (consumes it: (iterator a hole post | hole), n: int):
-  choice (x: a | it @ iterator a (x @ a) post) (| post) =
+  either (x: a | it @ iterator a (x @ a) post) (| post) =
 
   match next [hole = hole] it with
   | Right ->
