@@ -1142,8 +1142,8 @@ and equal env (t1: typ) (t2: typ) =
           lengths (the list of fields is determined by the data constructor). *)
        (
          assert (branch1.branch_flavor = branch2.branch_flavor);
-          assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
-          equal branch1.branch_adopts branch2.branch_adopts &&
+         assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
+         equal branch1.branch_adopts branch2.branch_adopts &&
          List.fold_left2 (fun acc f1 f2 ->
            match f1, f2 with
            | FieldValue (f1, t1), FieldValue (f2, t2) ->
