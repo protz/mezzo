@@ -132,6 +132,21 @@ val rec equal [a, post1 : perm, post2 : perm, p : perm] (
     False
   end
 
+(* Calls [f] on each element of the iterator [it] *)
+val rec iter [a, post: perm, p: perm] (
+  consumes it: iterator a post,
+  f: (a | p) -> ()
+| p): (| post)
+=
+  match it.next () with
+  | Right ->
+    ()
+  | Left { contents = (x, rewind_to_iter) } ->
+    f x;
+    rewind_to_iter ();
+    iter (it, f)
+  end 
+
 val identity [a, p: perm, post: perm] (
   consumes it: iterator a post
 ): iterator a post
@@ -219,3 +234,56 @@ val map [a, b, p: perm, post: perm] (
   in
 
   Iterator { next; stop }
+
+(* Classical fold_left on the elements of the iterator *)
+val rec fold_left [a, b, post: perm] (
+  f: (consumes b, a) -> b,
+  consumes accu: b,
+  consumes it: iterator a post
+): (b | post)
+=
+  match it.next () with
+  | Right ->
+    accu
+  | Left { contents = (x, rewind_to_it) } ->
+    let new_accu = f (accu, x) in
+    rewind_to_it ();
+    fold_left (f, new_accu, it)
+  end 
+
+(* Drops the [n] first elements of the iterator - that is, [drop]
+   calls [it.next ()] [n] times *)
+val rec drop [a, post: perm] (
+  consumes it: iterator a post,
+  n: int
+): choice (| it @ iterator a post) (| post)
+  =
+  if n <= 0 then
+    left ()
+  else
+    match it.next () with
+    | Right ->
+      right ()
+    | Left { contents = (_, rewind_to_it) } ->
+      rewind_to_it ();
+      drop (it, n-1)
+    end 
+
+(* Drops elements of [it] of the iterator while the predicate [pred]
+   evaluates to [True] on them *)
+val rec dropWhile [a, post: perm, p: perm] (
+  consumes it: iterator a post,
+  pred: (a | p) -> bool
+| p): choice (focused a (it @ iterator a post)) (| post)
+=
+  match it.next () with
+  | Right ->
+    right ()
+  | Left { contents = (x, rewind_to_it) } ->
+    if not (pred x) then (
+      left (x, rewind_to_it)
+    ) else (
+      rewind_to_it ();
+      dropWhile (it, pred)
+    )
+  end 
