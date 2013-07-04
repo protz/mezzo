@@ -1,0 +1,88 @@
+open lazy
+
+(* A definition of lazy (finite or infinite) streams. *)
+
+data cell a =
+  Nil
+| Cons { head: a; tail: thunk (cell a) }
+
+alias stream a =
+  (duplicable a | thunk (cell a))
+
+(* Short-hands for constructing streams. *)
+
+val _nil : Nil =
+  Nil
+
+val _cons (head: unknown, tail: unknown) : Cons { head; tail } =
+  Cons { head; tail }
+
+val nil =
+  lazy::constant _nil
+
+val cons [a] (head: a, tail: stream a) : stream a =
+  lazy::constant (_cons(head, tail))
+
+(* Accessors. *)
+
+val head [a] (xs: stream a) : option a =
+  match lazy::force xs with
+  | Nil ->
+      none
+  | Cons { head } ->
+      some head
+  end
+
+val tail [a] (xs: stream a) : option (stream a) =
+  match lazy::force xs with
+  | Nil ->
+      none
+  | Cons { tail } ->
+      some tail
+  end 
+
+(* Concatenation. *)
+
+val rec concat [a] (xs: stream a, ys: stream a) : stream a =
+  lazy::create (fun () : cell a =
+    match lazy::force xs with
+    | Nil ->
+        lazy::force ys
+    | Cons { head = x; tail = xs } ->
+        (* TEMPORARY change to:_cons(x, concat(xs, ys)) *)
+        Cons { head = x; tail = concat (xs, ys) }
+    end
+  )
+
+(* An infinite stream can be created out of a production function.
+   The function's internal state becomes hidden forever. *)
+
+val infinite [a, p : perm] duplicable a => (
+  f: (| p) -> a
+| consumes p
+) : stream a =
+
+  let rec next (| consumes p) : cell a =
+    Cons { head = f(); tail = lazy::create next }
+  in
+  lazy::create next
+
+(* Printing BUG? If I remove "duplicable a =>" above, I get an error
+   message that contains "!! ☠ !!" *)
+
+(* A constant infinite stream. *)
+
+val constant [a] duplicable a => (x: a) : stream a =
+  infinite (fun () : a = x)
+
+(* The infinite stream of the natural integers. *)
+
+val nats : stream int =
+  let r = newref 0 in
+  infinite (fun (| r @ ref int) : int = postincr r)
+
+(*
+Local Variables:
+compile-command: "../mezzo stream.mz"
+End:
+*)

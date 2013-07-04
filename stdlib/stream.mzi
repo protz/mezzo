@@ -1,0 +1,48 @@
+open lazy
+
+(* A definition of lazy (finite or infinite) streams. *)
+
+(* A non-empty stream of type [stream a] can be constructed only
+   if the type [a] is duplicable. The type [stream a] is itself
+   duplicable. *)
+
+data cell a =
+  Nil
+| Cons { head: a; tail: thunk (cell a) }
+
+alias stream a =
+  (duplicable a | thunk (cell a))
+
+(* Short-hands for constructing streams. *)
+
+(* TEMPORARY interesting: the type-checker refuses to consider
+   that nil has type [a] stream a, even though that would be
+   correct as per the *relaxed* value restriction. *)
+val nil: stream Nil
+val cons: [a] (a, stream a) -> stream a
+
+(* Accessors. *)
+
+val head: [a] stream a -> option a
+val tail: [a] stream a -> option (stream a)
+
+(* Concatenation. *)
+
+val concat: [a] (stream a, stream a) -> stream a
+
+(* An infinite stream can be created out of a production function.
+   The function's internal state becomes hidden forever. *)
+
+val infinite: [a, p : perm] duplicable a => (
+  f: (| p) -> a
+| consumes p
+) -> stream a
+
+(* A constant infinite stream. *)
+
+val constant: [a] duplicable a => (x: a) -> stream a
+
+(* The infinite stream of the natural integers. *)
+
+val nats: stream int
+
