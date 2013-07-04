@@ -158,34 +158,46 @@ val identity [a, p: perm, post: perm] (
 val filter [a, p: perm, post: perm] (
   consumes it: iterator a post,
   f: (a | p) -> bool
-| consumes p): iterator a (p * post)
+| consumes p) : iterator a (p * post)
 =
-  let rec next (| consumes (p * it @ iterator a post)):
-      either (focused a (p * it @ iterator a post)) (| post * p) =
+  (* An abbreviation for the internal state of the new iterator.
+     It contains the underlying iterator and the permission [p],
+     which represents the internal state of [f]. *)
+  let alias s : perm = p * it @ iterator a post in
+
+  let rec next (| consumes s) : either (focused a s) (| post * p) =
 
     let flex it_st: perm in
 
     match it.next () with
     | Right ->
-      right ()
-    | Left { contents = (x, rewind_to_it) } ->
-      if f x then (
-	(* assert (rewind_to_it @ osf::osf (| x @ a) (| it_st)); *)
-	let flex q: perm in
-	assert (q * rewind_to_it @ (| consumes (q * x @ a)) -> (| it_st));
-	assert (q * rewind_to_it @ (| consumes (p * q * x @ a)) -> (| p * it_st));
+        (* The underlying iterator is finished. We are finished as well. *)
+        right ()
+    | Left { contents = (x, surrender) } ->
+        (* The underlying iterator produces [x], together with a magic
+           wand [surrender], which we must use to signal that we are done
+           with [x]. *)
+        if f x then begin
+          (* We would like to keep [x]. *)
+          (* assert (surrender @ osf::osf (| x @ a) (| it_st)); *)
+          let flex q: perm in
+          assert (q * surrender @ (| consumes (q * x @ a)) -> (| it_st));
+          assert (q * surrender @ (| consumes (p * q * x @ a)) -> (| p * it_st));
 
-	(* assert (rewind_to_it @ osf::osf (| x @ a) (| p * it_st)); *)
+          (* assert (surrender @ osf::osf (| x @ a) (| p * it_st)); *)
 
-	left (x, rewind_to_it)
-      ) else (
-	rewind_to_it ();
-	next ()
-      )
+          left (x, surrender)
+        end
+        else begin
+          (* We would like to skip [x]. Signal that we are done with it,
+             and look for the next element. *)
+          surrender();
+          next()
+        end
     end 
   in
 
-  let stop (| consumes (p * it @ iterator a post)): (| post * p) =
+  let stop (| consumes s): (| post * p) =
     it.stop ()
   in
 
@@ -220,3 +232,8 @@ val map [a, b, p: perm, post: perm] (
 
   Iterator { next; stop }
 
+(*
+Local Variables:
+compile-command: "../mezzo fpiterator-focused.mz"
+End:
+*)
