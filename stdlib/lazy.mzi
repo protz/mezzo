@@ -18,6 +18,11 @@ val create: [a, p: perm] duplicable a => (
 | consumes p
 ) -> thunk a
 
+(* It is sometimes convenient to be able to build a thunk that is
+   already evaluated. *)
+
+val constant: [a] duplicable a => a -> thunk a
+
 (* Demand. *)
 
 val force: [a] thunk a -> a

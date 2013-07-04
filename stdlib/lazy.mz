@@ -54,6 +54,13 @@ val create [a, p : perm] duplicable a => (
   let s = Suspended { computation = f } in
   new [state a] s
 
+(* It is sometimes convenient to be able to build a thunk that is
+   already evaluated. *)
+
+val constant [a] duplicable a => (x: a) : thunk a =
+  let s = Evaluated { result = x } in
+  new [state a] s
+
 (* Evaluation. *)
 
 (* Using [wref::update] means that we hold the lock while the call to
