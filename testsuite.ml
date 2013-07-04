@@ -1013,6 +1013,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("concurrentsort.mz", pass);
   ("derived_locks.mz", pass);
   ("rich-bool1.mz", pass_known_failure);
+  ("frame-wand.mz", pass_known_failure);
   ("iteration.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to

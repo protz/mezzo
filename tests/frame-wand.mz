@@ -1,0 +1,11 @@
+alias wand (pre: perm) (post: perm) =
+  {ammo: perm} (
+    (| consumes (pre * ammo)) -> (| post)
+  | ammo)
+
+(* A frame rule for magic wands. *)
+
+val frame [p : perm, pre : perm, post : perm]
+  (w: wand pre post) : wand (p * pre) (p * post)
+ = w
+
