@@ -140,6 +140,7 @@ let j_merge_left (env: env) (v1: var) (v2: var): result =
  * your permission is a floating one, please call [add_perm] so that the type
  * gets run through [modulo_flex] and [expand_if_one_branch]. *)
 let add_floating_perm env t =
+  Log.check (not (is_star env t)) "Star not flattened";
   let floating_permissions = get_floating_permissions env in
   set_floating_permissions env (t :: floating_permissions)
 ;;
@@ -339,30 +340,15 @@ let open_all_rigid_in (env : env) (ty : typ) (side : side) : env * typ =
 (** Re-wrap instantiate_flexible so that it fits in our framework. *)
 
 let rec instantiate_flexible env var typ =
-  match instantiate_flexible_raw env var typ with
-  | Some env ->
-      begin match typ with
-      | TyAnchoredPermission _ ->
-          (* Did this permission just get instantiated to something anchored?
-           * Re-anchor it! *)
-          begin match sub_floating_perm env typ |> drop_derivation with
-          | Some env ->
-              (* The permission *was* in the list of floating permissions!
-               * Re-add it so that it is now anchored properly. *)
-              if true then
-                failwith "Please uncomment this line and let me know that this \
-                  special-case *was* useful";
-              Some (add_perm env typ)
-          | None ->
-              (* Meh. It wasn't there. Do nothing. *)
-              Some env
-          end
-      | _ ->
-          Some env
-      end
-  | None ->
-      None
+  Log.check (not (
+     get_kind_for_type env typ = KPerm &&
+     match typ with
+      | TyStar _ | TyAnchoredPermission _
+      | _ -> false && 
+     List.exists (equal env (TyOpen var)) (get_floating_permissions env)
+  )) "TODO: do something smart here";
 
+  instantiate_flexible_raw env var typ
 
 and j_flex_inst (env: env) (v: var) (t: typ): result =
   let judgement = JEqual (TyOpen v, t) in
@@ -1116,12 +1102,6 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         let t1, ps1 = collect t1 in
         let t2, ps2 = collect t2 in
 
-        (* This has the nice guarantee that we don't need to worry about flexible
-         * PERM variables anymore (hence the call to List.partition a few lines
-         * below). *)
-        let ps1 = MzList.flatten_map (flatten_star env) ps1 in
-        let ps2 = MzList.flatten_map (flatten_star env) ps2 in
-
         (* "(t1 | p1) - (t2 | p2)" means doing "t1 - t2", adding all of [p1],
          * removing all of [p2]. However, the order in which we perform these
          * operations matters, unfortunately. *)
@@ -1139,6 +1119,13 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
          *  The first step consists in subtracting [t2] from [t1], as most of the
          * time, we're dealing with “(=x|...) - (=x'|...)”. *)
         sub_type env t1 t2 >>= fun env ->
+
+        (* This has the nice guarantee that we don't need to worry about flexible
+         * PERM variables anymore (hence the call to List.partition a few lines
+         * below). We should do this just now because some instantiations may
+         * have happened in the call to [sub_type] right above... *)
+        let ps1 = MzList.flatten_map (flatten_star env) ps1 in
+        let ps2 = MzList.flatten_map (flatten_star env) ps2 in
 
         (*   [add_perm] will fail if we add "x @ t" when "x" is flexible. So we
          * search among the permissions in [ps1] one that is suitable for adding,
@@ -1176,7 +1163,9 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
          * instantiate it to [ps1] right now. *)
         begin match ps1, ps2 with
         | ps1, [TyOpen var2] when is_flexible env var2 ->
-            j_flex_inst env var2 (fold_star ps1) >>=
+            j_flex_inst env var2 (fold_star ps1) >>= fun env ->
+            let env = add_perms env ps1 in
+            sub_perms env ps1 >>=
             qed
         | _ ->
 
@@ -1434,6 +1423,8 @@ and sub_floating_perm (env: env) (t: typ): result =
     "Floating-In-Env"
     (get_floating_permissions env)
     (fun env remaining_perms t' ->
+      Log.check (not (is_star env t')) "Star not flattened: %a (%a)"
+        TypePrinter.ptype (env, t') Utils.ptag t';
       let sub_env =
         if FactInference.is_duplicable env t' then
           env
