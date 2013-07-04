@@ -108,29 +108,27 @@ val rec equal [a, post1 : perm, post2 : perm, p : perm] (
 
   match i1.next(), i2.next() with
   | Right, Right ->
-    True
-  | Left { contents = (x1, rewind1) }, Left { contents = (x2, rewind2) } ->
-    if eq (x1, x2) then begin
-      rewind1 ();
-      rewind2 ();
-      equal (eq, i1, i2)
-    end
-    else begin
-      rewind1 ();
-      rewind2 ();
+      true
+  | Left { contents = (x1, release1) }, Left { contents = (x2, release2) } ->
+      let e = eq (x1, x2) in
+      release1 ();
+      release2 ();
+      if e then
+        equal (eq, i1, i2)
+      else begin
+        i1.stop ();
+        i2.stop ();
+        False
+      end
+  | Left { contents = (_, release1) }, Right ->
+      release1 ();
       i1.stop ();
+      false
+  | Right, Left { contents = (_, release2) } ->
+      release2 ();
       i2.stop ();
-      False
-    end
-  | Left { contents = (_, rewind1) }, Right ->
-    rewind1 ();
-    i1.stop ();
-    False
-  | Right, Left { contents = (_, rewind2) } ->
-    rewind2 ();
-    i2.stop ();
-    False
-  end
+      false
+  end 
 
 (* Calls [f] on each element of the iterator [it] *)
 val rec iter [a, post: perm, p: perm] (
@@ -244,6 +242,66 @@ val map [a, b, p: perm, post: perm] (
 
   let stop (| consumes (it @ iterator a post * p)): (| post * p) =
     it.stop ()
+  in
+
+  Iterator { next; stop }
+
+(* [zip] combines two generic iterators. *)
+
+val zip [a1, a2, post1 : perm, post2: perm] (
+  consumes it1: iterator a1 post1,
+  consumes it2: iterator a2 post2
+) : iterator (a1, a2) (post1 * post2)
+=
+
+  (* Name the unpacked internal states of the underlying iterators. *)
+  let flex s1: perm in
+  assert it1 @ iterator_s s1 a1 post1;
+  let flex s2: perm in
+  assert it2 @ iterator_s s2 a2 post2;
+  (* Define the internal state, result type, and postcondition of the
+     new iterator. *)
+  let alias s : perm = s1 * s2 in
+  let alias a = (a1, a2) in
+  let alias post : perm = post1 * post2 in
+
+  let rec next (| consumes s) : either (focused a s) (| post) =
+    let e1 = it1.next()
+    and e2 = it2.next() in
+    match e1, e2 with
+    | Right, Right ->
+        (* The underlying iterators are finished. We are finished as well. *)
+        e1
+    | Left { contents = (x1, surrender1) }, Left { contents = (x2, surrender2) } ->
+        (* The underlying iterators produce [x1] and [x2]. *)
+        let x = (x1, x2) in
+        let flex q1 : perm in
+        let flex q2 : perm in
+        (* The following two assertions are superfluous. *)
+        assert surrender1 @ (| consumes (q1 * x1 @ a1)) -> (| s1);
+        assert surrender2 @ (| consumes (q2 * x2 @ a2)) -> (| s2);
+        let surrender (| consumes (q1 * q2 * x @ a)) : (| s) =
+          surrender1();
+          surrender2()
+        in
+        (* The following assertion is superfluous. *)
+        assert surrender @ osf::osf (| x @ a) (| s);
+        Left { contents = (x, surrender) }
+    | Left { contents = (_, surrender1) }, Right ->
+        (* One of the iterators is finished. Stop the other, and we are done. *)
+        surrender1();
+        it1.stop();
+        e2
+    | Right, Left { contents = (_, surrender2) } ->
+        surrender2();
+        it2.stop();
+        e1
+    end
+  in
+
+  let stop (| consumes s) : (| post) =
+    it1.stop();
+    it2.stop()
   in
 
   Iterator { next; stop }
