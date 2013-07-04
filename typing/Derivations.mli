@@ -96,16 +96,6 @@ val try_several:
  * rule... *)
 val nothing : env -> rule_instance -> result
 
-(** {2 Composition of results} *)
-
-(** Simple composition that discards derivations. Terminate a sequence with
- * [drop]. *)
-val ( >>| ) :
-  result -> (env -> env option) -> env option
-
-(** Tie the knot. *)
-val drop : env -> env option
-
 (** {2 Convenient helpers to deal with results} *)
 
 (** Get the [env option] part of a result. *)
