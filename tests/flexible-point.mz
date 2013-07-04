@@ -1,0 +1,23 @@
+open lazy
+
+data cell a =
+  Nil
+| Cons { head: a; tail: thunk (cell a) }
+
+alias stream a =
+  (duplicable a | thunk (cell a))
+
+val _cons (head: unknown, tail: unknown) : Cons { head; tail } =
+  Cons { head; tail }
+
+val f [a] (c: cell a) : cell a =
+  match c with
+    | Cons { head = x; tail = xs } ->
+        _cons(x, xs)
+  end
+
+(*
+Local Variables:
+compile-command: "../mezzo flexible-point.mz"
+End:
+*)
