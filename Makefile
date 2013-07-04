@@ -18,7 +18,7 @@ BUILDDIRS   = -I _build $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _
 MY_DIRS    := lib parsing typing utils interpreter compiler tests/unit
 PACKAGES   := -package menhirLib,ocamlbuild,yojson,ulex,pprint
 
-all: configure.ml parsing/Keywords.ml
+all: configure.ml parsing/Keywords.ml vim/syntax/mezzo.vim
 	$(OCAMLBUILD) $(INCLUDE) $(MAIN).native $(TESTSUITE).native
 	ln -sf $(MAIN).native $(MAIN)
 	ln -sf $(TESTSUITE).native $(TESTSUITE)
@@ -31,6 +31,9 @@ parsing/Keywords.ml: parsing/Keywords parsing/KeywordGenerator.ml
 	if [ -d ../misc/pygments/mezzolexer ] ; then \
 	  ocaml parsing/KeywordPygments.ml < $< > ../misc/pygments/mezzolexer/mezzokeywords.py ; \
 	fi
+
+vim/syntax/mezzo.vim: parsing/Keywords parsing/KeywordGenerator.ml
+	ocaml parsing/KeywordGenerator.ml -vim $@.raw < $< > $@
 
 clean:
 	rm -f *~ $(MAIN) $(MAIN).native $(TESTSUITE) $(TESTSUITE).native
