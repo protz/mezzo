@@ -68,15 +68,6 @@ let no_proof (env: env) (j: judgement): result =
 let nothing (env: env) (r: rule_instance): result =
   Some env, Good (env, JNothing, (r, []))
 
-(** Simple composition that discards derivations. Terminate a sequence with
- * [drop]. *)
-let ( >>| ) (result: result) (f: env -> env option): env option =
-  Option.bind (fst result) f
-
-(** Tie the knot. *)
-let drop (env: env): env option =
-  Some env
-
 (** Some simple helpers. *)
 let is_good_derivation = function Good _ -> true | Bad _ -> false
 
