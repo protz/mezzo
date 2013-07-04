@@ -1,0 +1,18 @@
+val unlikely [b] (f: unknown) : () =
+
+  (* We CAN define [g] as an eta-expansion of [f] and
+     prove that [g] has type [() -> b] under the assumption
+     that [f] has this type. *)
+  let g (| consumes f @ () -> b) : b =
+    f()
+  in
+
+  (* Thus, IF we had the rule that eta-expansion is never
+     necessary, then we would be able to conclude that [f]
+     has has type [() -> b] under the assumption that [f]
+     has this type... a weird tautology! This would imply
+     that every value admits a function type at every time.
+     This is currently rejected (quite reasonably?). *)
+  assert f @ (| consumes f @ () -> b) -> b;
+
+  ()
