@@ -136,54 +136,59 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
 
   (* Try to give some useful error messages in case we have found not enough or
    * too many suitable types for [f]. *)
-  let env, (t1, t2), vars =
-    match permissions with
-    | [] ->
-        raise_error env (NotAFunction f)
-    | t :: [] ->
-        flex_deconstruct_arrow env t
-    | t :: _ ->
+
+  let valid, invalid = List.fold_left (fun (valid, invalid) t ->
+    let env, (t1, t2), vars = flex_deconstruct_arrow env t in
+
+    (* Try to instantiate flexibles in [t2] better by using the context-provided
+     * type annotation. *)
+    let env =
+      match annot with
+      | Some annot ->
+          Log.debug ~level:5 "[sub-annot]";
+          begin
+            let sub_env = env in
+            match Permissions.sub_type sub_env t2 annot |> drop_derivation with
+            | Some sub_env ->
+                Log.debug ~level:5 "[sub-annot SUCCEEDED]";
+                import_flex_instanciations env sub_env
+            | None ->
+              env
+          end
+      | None ->
+          env
+    in
+
+    (* Examine [x]. [sub] will take care of running collect on [t1] so that the
+     * expected permissions are subtracted as well from the environment. *)
+    Log.debug ~level:5 "[check_function_call] %a - %a"
+      TypePrinter.pnames (env, get_names env x)
+      TypePrinter.ptype (env, t1);
+
+    match Permissions.sub env x t1 with
+    | Some env, derivation ->
+        ((env, derivation, (t1, t2), vars)::valid, invalid)
+    | None, derivation ->
+        (valid, (derivation, (t1, t2))::invalid)
+  ) ([], []) permissions in
+
+  match valid, invalid with
+  | [], [] ->
+      raise_error env (NotAFunction f)
+  | [], (d, (t1, _)) :: _ ->
+      raise_error env (ExpectedType (t1, x, d))
+  | (env', d, (_, t2), vars) :: xs, _ ->
+      if xs <> [] then (
         Log.debug "More than one permission available for %a, strange"
           TypePrinter.pvar (env, fname);
-        flex_deconstruct_arrow env t
-  in
+        List.iter (fun (name, var) ->
+          may_raise_error env (Instantiated (name, TyOpen var))
+        ) vars
+      );
 
-  (* Try to instantiate flexibles in [t2] better by using the context-provided
-   * type annotation. *)
-  let env =
-    match annot with
-    | Some annot ->
-        Log.debug ~level:5 "[sub-annot]";
-        begin 
-          let sub_env = env in
-          match Permissions.sub_type sub_env t2 annot |> drop_derivation with
-          | Some sub_env ->
-              Log.debug ~level:5 "[sub-annot SUCCEEDED]";
-              import_flex_instanciations env sub_env
-          | None ->
-              env
-        end
-    | None ->
-        env
-  in
-
-  (* Examine [x]. [sub] will take care of running collect on [t1] so that the
-   * expected permissions are subtracted as well from the environment. *)
-  Log.debug ~level:5 "[check_function_call] %a - %a"
-    TypePrinter.pnames (env, get_names env x)
-    TypePrinter.ptype (env, t1);
-  match Permissions.sub env x t1 with
-  | Some env, derivation ->
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
-      Log.debug ~level:6 "\nDerivation: %a\n" DerivationPrinter.pderivation derivation;
-      (* Return the "good" type. *)
-      List.iter (fun (name, var) ->
-        may_raise_error env (Instantiated (name, TyOpen var))
-      ) vars;
-      env, t2
-  | None, d ->
-      raise_error env (ExpectedType (t1, x, d))
-
+      Log.debug ~level:6 "\nDerivation: %a\n" DerivationPrinter.pderivation d;
+      env', t2
 ;;
 
 
