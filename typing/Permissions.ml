@@ -608,18 +608,23 @@ and add_perm_raw env p t =
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
  * to the list of available permissions for [p] *)
 and add_type (env: env) (p: var) (t: typ): env =
-  if not (List.exists (equal env t) (get_permissions env p)) then
+  let perms = get_permissions env p in
+  let is_excl = FactInference.is_exclusive env t in
+
+  (* This test is a little bit expensive but we need it to ensure internal
+   * consistency. *)
+  if List.exists (FactInference.is_exclusive env) perms && is_excl then
+    let env = add_perm_raw env p t in
+    mark_inconsistent env
+
+  (* Type is not already in there. Let's simply add it. *)
+  else if not (List.exists (equal env t) (get_permissions env p)) then
     let env = add_perm_raw env p t in
     if FactInference.is_exclusive env t then
       add_type env p TyDynamic
     else
       env
-  else if FactInference.is_exclusive env t then
-    (* This test is a little bit expensive but we've got one test that relies on
-     * this... but no real-world code that seriously needs it. TEMPORARY Should
-     * we remove all the extra legwork that marks an environment as
-     * inconsistent? *)
-    mark_inconsistent env
+
   else
     env
 
