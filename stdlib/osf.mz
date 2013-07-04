@@ -6,6 +6,10 @@
    is considered affine (i.e., not duplicable). Hence, the type of one-shot
    functions is also affine. *)
 
+(* One might wish to make this an abstract type. However, one would then
+   need to publish many more operations, including [apply], and including
+   many subsumption rules, such as the frame rule. *)
+
 alias osf a b = {p: perm} (((consumes (a | p)) -> b) | p)
 
 (* An ordinary function can be turned into a one-shot function, if it
