@@ -466,36 +466,39 @@ and add (env: env) (var: var) (t: typ): env =
     | TyConcrete branch ->
         let original_perms = get_permissions env var in
         begin match MzList.find_opt (function
-          | TyConcrete branch' when resolved_datacons_equal env branch.branch_datacon branch'.branch_datacon ->
-              Some branch'
+          | TyConcrete branch' -> Some branch'
           | _ -> None)
           original_perms
         with
         | Some _ when FactInference.is_exclusive env t ->
-           Log.debug ~level:4 "%s]%s (two exclusive perms!)" Bash.colors.Bash.red Bash.colors.Bash.default;
-           (* We cannot possibly have two exclusive permissions for [x]. *)
+            Log.debug ~level:4 "%s]%s (two exclusive perms!)" Bash.colors.Bash.red Bash.colors.Bash.default;
+            (* We cannot possibly have two exclusive permissions for [x]. *)
             mark_inconsistent env
-        | Some branch' ->
-           (* If we are still here, then the two permissions at hand are
-              not exclusive. This implies, I think, that the two adopts
-              clauses must be bottom. So, there is no need to try and
-              compute their meet (good). *)
-           assert (equal env branch.branch_adopts ty_bottom);
-           assert (equal env branch'.branch_adopts ty_bottom);
-           List.fold_left2 (fun env f1 f2 ->
-             match f1, f2 with
-             | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
-                  let t = modulo_flex env t in
-                  let t = expand_if_one_branch env t in
-                begin match t with
-                | TySingleton (TyOpen p) ->
-                    add env p t'
+        | Some branch' -> 
+            if not (resolved_datacons_equal env branch.branch_datacon branch'.branch_datacon) then
+              mark_inconsistent env
+            else begin
+              (* If we are still here, then the two permissions at hand are
+                 not exclusive. This implies, I think, that the two adopts
+                 clauses must be bottom. So, there is no need to try and
+                 compute their meet (good). *)
+              assert (equal env branch.branch_adopts ty_bottom);
+              assert (equal env branch'.branch_adopts ty_bottom);
+              List.fold_left2 (fun env f1 f2 ->
+                match f1, f2 with
+                | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
+                     let t = modulo_flex env t in
+                     let t = expand_if_one_branch env t in
+                   begin match t with
+                   | TySingleton (TyOpen p) ->
+                       add env p t'
+                   | _ ->
+                       Log.error "Type not unfolded"
+                   end
                 | _ ->
-                    Log.error "Type not unfolded"
-                end
-             | _ ->
-                Log.error "Datacon order invariant not respected"
-           ) env branch.branch_fields branch'.branch_fields
+                   Log.error "Datacon order invariant not respected"
+              ) env branch.branch_fields branch'.branch_fields
+            end
         | None ->
             add_type env var t
         end
