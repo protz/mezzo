@@ -359,6 +359,32 @@ val rec dropWhile [a, post: perm, p: perm] (
     )
   end 
 
+(* Turning a generic iterator into a stream. A bit trivial, because this
+   works only when the elements are duplicable, and in that case, there
+   is little reason to create an iterator in the first place. Also, this
+   consumes the iterator, so the underlying collection can never be
+   recovered. But it should be a good test of the type-checker. *)
+
+val generic_iterator_to_stream [a, post : perm] duplicable a => (
+  consumes it: iterator a post
+) : stream::stream a
+=
+
+  let rec next (| consumes it @ iterator a post) : stream::cell a =
+    let e = it.next() in
+    match e with
+    | Right ->
+        stream::Nil
+    | Left { contents = (x, surrender) } ->
+        surrender(); (* [x] is duplicable! *)
+        stream::Cons {
+          head = x;
+          tail = lazy::create next
+        }
+    end
+  in
+  lazy::create next
+
 (*
 Local Variables:
 compile-command: "../mezzo fpiterator-focused.mz"
