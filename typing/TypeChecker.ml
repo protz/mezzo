@@ -151,7 +151,7 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
             match Permissions.sub_type sub_env t2 annot |> drop_derivation with
             | Some sub_env ->
                 Log.debug ~level:5 "[sub-annot SUCCEEDED]";
-                import_flex_instanciations env sub_env
+                Permissions.import_flex_instanciations env sub_env
             | None ->
               env
           end

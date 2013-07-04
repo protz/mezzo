@@ -156,6 +156,7 @@ val is_term : env -> var -> bool
 val is_perm : env -> var -> bool
 val is_type : env -> var -> bool
 val is_user : name -> bool
+val is_star : env -> typ -> bool
 
 
 (* -------------------------------------------------------------------------- *)

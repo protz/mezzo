@@ -209,13 +209,14 @@ val is_rigid: env -> var -> bool
  * exist in [env]. This behavior is exploited by advanced users... *)
 val modulo_flex: env -> typ -> typ
 
-(** [import_flex_instanciations env sub_env] brings into [env] all the flexible
- * variable instanciations that happened in [sub_env] without modifying the rest
- * of [env]. *)
-val import_flex_instanciations: env -> env -> env
-
 
 (** {2 Low-level operations} *)
+
+(** [import_flex_instanciations env sub_env] brings into [env] all the flexible
+ * variable instanciations that happened in [sub_env] without modifying the rest
+ * of [env]. This is a low-level operation, and you're better off using
+ * [Permissions.import_flex_instanciations]. *)
+val import_flex_instanciations_raw: env -> env -> env
 
 (** [instantiate_raw env var t] tries to instantiate the flexible variable [var]
  * with [t]. However, because of various reasons (e.g. levels) this

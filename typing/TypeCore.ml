@@ -1060,7 +1060,7 @@ let internal_pflexlist buf env =
 ;;
 
 
-let import_flex_instanciations env sub_env =
+let import_flex_instanciations_raw env sub_env =
   Log.debug ~level:6 "env: %a" internal_pflexlist env;
   Log.debug ~level:6 "sub_env: %a" internal_pflexlist sub_env;
 

@@ -572,6 +572,15 @@ let rec expand_if_one_branch (env: env) (t: typ) =
       t
 ;;
 
+let is_star env t =
+  let t = modulo_flex env t in
+  let t = expand_if_one_branch env t in
+  match t with
+  | TyStar _ ->
+      true
+  | _ ->
+      false
+;;
 
 let rec flatten_star env t =
   let t = modulo_flex env t in

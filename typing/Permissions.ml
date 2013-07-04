@@ -140,6 +140,7 @@ let j_merge_left (env: env) (v1: var) (v2: var): result =
  * your permission is a floating one, please call [add_perm] so that the type
  * gets run through [modulo_flex] and [expand_if_one_branch]. *)
 let add_floating_perm env t =
+  Log.check (not (is_star env t)) "Star not flattened";
   let floating_permissions = get_floating_permissions env in
   set_floating_permissions env (t :: floating_permissions)
 ;;
@@ -338,31 +339,25 @@ let open_all_rigid_in (env : env) (ty : typ) (side : side) : env * typ =
 
 (** Re-wrap instantiate_flexible so that it fits in our framework. *)
 
-let rec instantiate_flexible env var typ =
-  match instantiate_flexible_raw env var typ with
-  | Some env ->
-      begin match typ with
-      | TyAnchoredPermission _ ->
-          (* Did this permission just get instantiated to something anchored?
-           * Re-anchor it! *)
-          begin match sub_floating_perm env typ |> drop_derivation with
-          | Some env ->
-              (* The permission *was* in the list of floating permissions!
-               * Re-add it so that it is now anchored properly. *)
-              if true then
-                failwith "Please uncomment this line and let me know that this \
-                  special-case *was* useful";
-              Some (add_perm env typ)
-          | None ->
-              (* Meh. It wasn't there. Do nothing. *)
-              Some env
-          end
-      | _ ->
-          Some env
-      end
-  | None ->
-      None
+let rec clean_floating_permissions env =
+  let perms = get_floating_permissions env in
+  let perms = List.map (fun x ->
+    let x = modulo_flex env x in
+    let x = expand_if_one_branch env x in
+    x
+  ) perms in
+  let perms = List.filter (function TyEmpty -> false | _ -> true) perms in
+  let to_add, perms = List.partition (function TyStar _ | TyAnchoredPermission _ -> true | _ -> false) perms in
+  let env = set_floating_permissions env perms in
+  add_perms env to_add
 
+and instantiate_flexible env var typ =
+  let env = instantiate_flexible_raw env var typ in
+  Option.map clean_floating_permissions env
+
+and import_flex_instanciations env sub_env =
+  let env = import_flex_instanciations_raw env sub_env in
+  clean_floating_permissions env
 
 and j_flex_inst (env: env) (v: var) (t: typ): result =
   let judgement = JEqual (TyOpen v, t) in
@@ -471,36 +466,39 @@ and add (env: env) (var: var) (t: typ): env =
     | TyConcrete branch ->
         let original_perms = get_permissions env var in
         begin match MzList.find_opt (function
-          | TyConcrete branch' when resolved_datacons_equal env branch.branch_datacon branch'.branch_datacon ->
-              Some branch'
+          | TyConcrete branch' -> Some branch'
           | _ -> None)
           original_perms
         with
         | Some _ when FactInference.is_exclusive env t ->
-           Log.debug ~level:4 "%s]%s (two exclusive perms!)" Bash.colors.Bash.red Bash.colors.Bash.default;
-           (* We cannot possibly have two exclusive permissions for [x]. *)
+            Log.debug ~level:4 "%s]%s (two exclusive perms!)" Bash.colors.Bash.red Bash.colors.Bash.default;
+            (* We cannot possibly have two exclusive permissions for [x]. *)
             mark_inconsistent env
-        | Some branch' ->
-           (* If we are still here, then the two permissions at hand are
-              not exclusive. This implies, I think, that the two adopts
-              clauses must be bottom. So, there is no need to try and
-              compute their meet (good). *)
-           assert (equal env branch.branch_adopts ty_bottom);
-           assert (equal env branch'.branch_adopts ty_bottom);
-           List.fold_left2 (fun env f1 f2 ->
-             match f1, f2 with
-             | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
-                  let t = modulo_flex env t in
-                  let t = expand_if_one_branch env t in
-                begin match t with
-                | TySingleton (TyOpen p) ->
-                    add env p t'
+        | Some branch' -> 
+            if not (resolved_datacons_equal env branch.branch_datacon branch'.branch_datacon) then
+              mark_inconsistent env
+            else begin
+              (* If we are still here, then the two permissions at hand are
+                 not exclusive. This implies, I think, that the two adopts
+                 clauses must be bottom. So, there is no need to try and
+                 compute their meet (good). *)
+              assert (equal env branch.branch_adopts ty_bottom);
+              assert (equal env branch'.branch_adopts ty_bottom);
+              List.fold_left2 (fun env f1 f2 ->
+                match f1, f2 with
+                | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
+                     let t = modulo_flex env t in
+                     let t = expand_if_one_branch env t in
+                   begin match t with
+                   | TySingleton (TyOpen p) ->
+                       add env p t'
+                   | _ ->
+                       Log.error "Type not unfolded"
+                   end
                 | _ ->
-                    Log.error "Type not unfolded"
-                end
-             | _ ->
-                Log.error "Datacon order invariant not respected"
-           ) env branch.branch_fields branch'.branch_fields
+                   Log.error "Datacon order invariant not respected"
+              ) env branch.branch_fields branch'.branch_fields
+            end
         | None ->
             add_type env var t
         end
@@ -610,18 +608,23 @@ and add_perm_raw env p t =
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
  * to the list of available permissions for [p] *)
 and add_type (env: env) (p: var) (t: typ): env =
-  if not (List.exists (equal env t) (get_permissions env p)) then
+  let perms = get_permissions env p in
+  let is_excl = FactInference.is_exclusive env t in
+
+  (* This test is a little bit expensive but we need it to ensure internal
+   * consistency. *)
+  if List.exists (FactInference.is_exclusive env) perms && is_excl then
+    let env = add_perm_raw env p t in
+    mark_inconsistent env
+
+  (* Type is not already in there. Let's simply add it. *)
+  else if not (List.exists (equal env t) (get_permissions env p)) then
     let env = add_perm_raw env p t in
     if FactInference.is_exclusive env t then
       add_type env p TyDynamic
     else
       env
-  else if FactInference.is_exclusive env t then
-    (* This test is a little bit expensive but we've got one test that relies on
-     * this... but no real-world code that seriously needs it. TEMPORARY Should
-     * we remove all the extra legwork that marks an environment as
-     * inconsistent? *)
-    mark_inconsistent env
+
   else
     env
 
@@ -1116,16 +1119,16 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         let t1, ps1 = collect t1 in
         let t2, ps2 = collect t2 in
 
+        (* "(t1 | p1) - (t2 | p2)" means doing "t1 - t2", adding all of [p1],
+         * removing all of [p2]. However, the order in which we perform these
+         * operations matters, unfortunately. *)
+        Log.debug ~level:4 "[add_sub] entering...";
+
         (* This has the nice guarantee that we don't need to worry about flexible
          * PERM variables anymore (hence the call to List.partition a few lines
          * below). *)
         let ps1 = MzList.flatten_map (flatten_star env) ps1 in
         let ps2 = MzList.flatten_map (flatten_star env) ps2 in
-
-        (* "(t1 | p1) - (t2 | p2)" means doing "t1 - t2", adding all of [p1],
-         * removing all of [p2]. However, the order in which we perform these
-         * operations matters, unfortunately. *)
-        Log.debug ~level:4 "[add_sub] entering...";
 
         (*  All these manipulations are required when doing higher-order, because
          * we need to compare function types, and function types have complicated
@@ -1176,7 +1179,9 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
          * instantiate it to [ps1] right now. *)
         begin match ps1, ps2 with
         | ps1, [TyOpen var2] when is_flexible env var2 ->
-            j_flex_inst env var2 (fold_star ps1) >>=
+            j_flex_inst env var2 (fold_star ps1) >>= fun env ->
+            let env = add_perms env ps1 in
+            sub_perms env ps1 >>=
             qed
         | _ ->
 
@@ -1276,6 +1281,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                * whole universe + [ps2]. Not sure that's a good idea computationally
                * speaking but that would certainly make some more examples work (I
                * guess?)... *)
+              Log.debug ~level:5 "Add-sub case #2";
               j_flex_inst env var1 (fold_star ps2) >>=
               qed
           | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
@@ -1291,7 +1297,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                     qed
           | ps1, [] ->
               (* We may have a remaining, rigid, floating permission. Good for us! *)
-              let sub_env = add_perm env (fold_star ps1) in
+              let sub_env = add_perms env ps1 in
               apply_axiom env (JAdd (fold_star ps1)) "Add-Sub-Add" sub_env >>= fun env ->
               nothing env "adding-everything" >>=
               qed
@@ -1434,6 +1440,8 @@ and sub_floating_perm (env: env) (t: typ): result =
     "Floating-In-Env"
     (get_floating_permissions env)
     (fun env remaining_perms t' ->
+      Log.check (not (is_star env t')) "Star not flattened: %a (%a)"
+        TypePrinter.ptype (env, t') Utils.ptag t';
       let sub_env =
         if FactInference.is_duplicable env t' then
           env
