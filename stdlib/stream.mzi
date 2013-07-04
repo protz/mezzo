@@ -46,3 +46,20 @@ val constant: [a] duplicable a => (x: a) -> stream a
 
 val nats: stream int
 
+(* A finite or infinite stream can be created out of a production function
+   that produces an optional result. As soon as the function produces [None],
+   the stream is terminated. As in the case of [infinite] above, the
+   function's internal state becomes hidden forever. The function [f] is
+   allowed to destroy its own internal state when it returns [None]. This
+   can be useful, for instance, if one wishes to close a file after all
+   characters have been read. *)
+
+val produce: [a, p : perm] duplicable a => (
+  f: (| consumes p) -> option (a | p)
+| consumes p
+) -> stream a
+
+(* A finite stream of integers. *)
+
+val interval: int -> stream int
+

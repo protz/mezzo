@@ -370,20 +370,16 @@ val generic_iterator_to_stream [a, post : perm] duplicable a => (
 ) : stream::stream a
 =
 
-  let rec next (| consumes it @ iterator a post) : stream::cell a =
-    let e = it.next() in
-    match e with
+  let alias s : perm = it @ iterator a post in
+  stream::produce (fun (| consumes s) : option (a | s) =
+    match it.next() with
     | Right ->
-        stream::Nil
+        None
     | Left { contents = (x, surrender) } ->
         surrender(); (* [x] is duplicable! *)
-        stream::Cons {
-          head = x;
-          tail = lazy::create next
-        }
+        Some { contents = x }
     end
-  in
-  lazy::create next
+  )
 
 (*
 Local Variables:

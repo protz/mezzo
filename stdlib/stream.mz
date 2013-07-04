@@ -81,6 +81,43 @@ val nats : stream int =
   let r = newref 0 in
   infinite (fun (| r @ ref int) : int = postincr r)
 
+(* A finite or infinite stream can be created out of a production function
+   that produces an optional result. As soon as the function produces [None],
+   the stream is terminated. As in the case of [infinite] above, the
+   function's internal state becomes hidden forever. The function [f] is
+   allowed to destroy its own internal state when it returns [None]. This
+   can be useful, for instance, if one wishes to close a file after all
+   characters have been read. *)
+
+val produce [a, p : perm] duplicable a => (
+  f: (| consumes p) -> option (a | p)
+| consumes p
+) : stream a =
+
+  let rec next (| consumes p) : cell a =
+    match f() with
+    | None ->
+        Nil
+    | Some { contents = x } ->
+        Cons { head = x; tail = lazy::create next }
+    end
+  in
+  lazy::create next
+
+(* A finite stream of integers. *)
+
+val interval (n: int) : stream int =
+  let r = newref 0 in
+  produce (fun (| consumes r @ ref int) : option (int | r @ ref int) =
+    let x = !r in
+    if x < n then begin
+      r := x + 1;
+      Some { contents = x }
+    end
+    else
+      None
+  )
+
 (*
 Local Variables:
 compile-command: "../mezzo stream.mz"
