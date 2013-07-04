@@ -54,9 +54,11 @@ val sub_constraint: env -> mode_constraint -> result
 (** Only keep the duplicable portions of the environment. *)
 val keep_only_duplicable: env -> env
 
-(** Instantiate a flexible variable to a given type and perform all the required
- * operations to maintain the invariants of our representation. *)
+(** The safe version of the function found in [TypeCore]. *)
 val instantiate_flexible: env -> var -> typ -> env option
+
+(** The safe version of the function found in [TypeCore]. *)
+val import_flex_instanciations: env -> env -> env
 
 (**/**)
 

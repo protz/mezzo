@@ -339,16 +339,25 @@ let open_all_rigid_in (env : env) (ty : typ) (side : side) : env * typ =
 
 (** Re-wrap instantiate_flexible so that it fits in our framework. *)
 
-let rec instantiate_flexible env var typ =
-  Log.check (not (
-     get_kind_for_type env typ = KPerm &&
-     match typ with
-      | TyStar _ | TyAnchoredPermission _
-      | _ -> false && 
-     List.exists (equal env (TyOpen var)) (get_floating_permissions env)
-  )) "TODO: do something smart here";
+let rec clean_floating_permissions env =
+  let perms = get_floating_permissions env in
+  let perms = List.map (fun x ->
+    let x = modulo_flex env x in
+    let x = expand_if_one_branch env x in
+    x
+  ) perms in
+  let perms = List.filter (function TyEmpty -> false | _ -> true) perms in
+  let to_add, perms = List.partition (function TyStar _ | TyAnchoredPermission _ -> true | _ -> false) perms in
+  let env = set_floating_permissions env perms in
+  add_perms env to_add
 
-  instantiate_flexible_raw env var typ
+and instantiate_flexible env var typ =
+  let env = instantiate_flexible_raw env var typ in
+  Option.map clean_floating_permissions env
+
+and import_flex_instanciations env sub_env =
+  let env = import_flex_instanciations_raw env sub_env in
+  clean_floating_permissions env
 
 and j_flex_inst (env: env) (v: var) (t: typ): result =
   let judgement = JEqual (TyOpen v, t) in
@@ -1107,6 +1116,12 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
          * operations matters, unfortunately. *)
         Log.debug ~level:4 "[add_sub] entering...";
 
+        (* This has the nice guarantee that we don't need to worry about flexible
+         * PERM variables anymore (hence the call to List.partition a few lines
+         * below). *)
+        let ps1 = MzList.flatten_map (flatten_star env) ps1 in
+        let ps2 = MzList.flatten_map (flatten_star env) ps2 in
+
         (*  All these manipulations are required when doing higher-order, because
          * we need to compare function types, and function types have complicated
          * [TyBar]s for their arguments and return values.
@@ -1119,13 +1134,6 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
          *  The first step consists in subtracting [t2] from [t1], as most of the
          * time, we're dealing with “(=x|...) - (=x'|...)”. *)
         sub_type env t1 t2 >>= fun env ->
-
-        (* This has the nice guarantee that we don't need to worry about flexible
-         * PERM variables anymore (hence the call to List.partition a few lines
-         * below). We should do this just now because some instantiations may
-         * have happened in the call to [sub_type] right above... *)
-        let ps1 = MzList.flatten_map (flatten_star env) ps1 in
-        let ps2 = MzList.flatten_map (flatten_star env) ps2 in
 
         (*   [add_perm] will fail if we add "x @ t" when "x" is flexible. So we
          * search among the permissions in [ps1] one that is suitable for adding,
@@ -1265,6 +1273,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                * whole universe + [ps2]. Not sure that's a good idea computationally
                * speaking but that would certainly make some more examples work (I
                * guess?)... *)
+              Log.debug ~level:5 "Add-sub case #2";
               j_flex_inst env var1 (fold_star ps2) >>=
               qed
           | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
@@ -1280,7 +1289,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
                     qed
           | ps1, [] ->
               (* We may have a remaining, rigid, floating permission. Good for us! *)
-              let sub_env = add_perm env (fold_star ps1) in
+              let sub_env = add_perms env ps1 in
               apply_axiom env (JAdd (fold_star ps1)) "Add-Sub-Add" sub_env >>= fun env ->
               nothing env "adding-everything" >>=
               qed
