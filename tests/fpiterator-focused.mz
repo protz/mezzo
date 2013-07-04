@@ -256,7 +256,7 @@ val rec fold_left [a, b, post: perm] (
 val rec drop [a, post: perm] (
   consumes it: iterator a post,
   n: int
-): choice (| it @ iterator a post) (| post)
+): either (| it @ iterator a post) (| post)
   =
   if n <= 0 then
     left ()
@@ -274,7 +274,7 @@ val rec drop [a, post: perm] (
 val rec dropWhile [a, post: perm, p: perm] (
   consumes it: iterator a post,
   pred: (a | p) -> bool
-| p): choice (focused a (it @ iterator a post)) (| post)
+| p): either (focused a (it @ iterator a post)) (| post)
 =
   match it.next () with
   | Right ->
