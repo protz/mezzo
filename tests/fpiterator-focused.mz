@@ -39,32 +39,32 @@ val next
 
       let flex p : perm in
       (* By unpacking the [osf::osf] definition, we have:
-	 p * rewind_to_list @ (| consumes (l @ list a) * p) -> (| post)
+         p * rewind_to_list @ (| consumes (l @ list a) * p) -> (| post)
       *)
       
       (* This is a bit heavy: we create a new [rewind_to_iterator]
-	 function for each value returned by [next].
+         function for each value returned by [next].
 
-	 Its purpose is, provided the needed permissions to rewind,
-	 namely [head @ a], to repack [rewind_to_list] so we can have [it
-	 @ list_iterator a post] again.
+         Its purpose is, provided the needed permissions to rewind,
+         namely [head @ a], to repack [rewind_to_list] so we can have [it
+         @ list_iterator a post] again.
       *)
       let rewind_to_iterator (|
-	  consumes (
-	    head @ a *
-	    it @ Ref { contents: (=tail, =rewind_to_list) } *
-	      (* The following bunch of permissions will be abstracted
-		 by the existential quantification of the [osf::osf]
-		 alias *)
-	      l @ list::Cons { head; tail } * tail @ list::list a * p
-	  )
+          consumes (
+            head @ a *
+            it @ Ref { contents: (=tail, =rewind_to_list) } *
+            (* The following bunch of permissions will be abstracted
+               by the existential quantification of the [osf::osf]
+               alias *)
+            l @ list::Cons { head; tail } * tail @ list::list a * p
+          )
       ): (| it @ list_iterator a post)
-	  =
-	pack rewind_to_list @ osf::osf (| tail @ list::list a) (| post)
-	  witness (p * (head @ a) * (l @ list::Cons { head; tail }));
+          =
+        pack rewind_to_list @ osf::osf (| tail @ list::list a) (| post)
+          witness (p * (head @ a) * (l @ list::Cons { head; tail }));
 
-	assert (rewind_to_list @ osf::osf (| tail @ list::list a) (| post));
-	()
+        assert (rewind_to_list @ osf::osf (| tail @ list::list a) (| post));
+        ()
       in
 
       (* This assert is superfluous. *)
@@ -74,8 +74,8 @@ val next
   end
 
 val stop [a, post: perm]
-  (consumes it: list_iterator a post)
-: (| post) =
+  (consumes it: list_iterator a post):
+  (| post) =
   let _, rewind_to_list = !it in
   rewind_to_list ()
 
@@ -96,9 +96,9 @@ val new_generic_list_iterator [a] (consumes l: list::list a) : iterator a (l @ l
   let alias post : perm = l @ list::list a in
   wrap [a, (list_iterator a post), post]
     (it, next [a, post], stop [a, post])
-
+    
 (* Comparison of two generic iterators. *)
-
+    
 val rec equal [a, post1 : perm, post2 : perm, p : perm] (
   eq: (a, a | p) -> bool,
   consumes i1: iterator a post1,
@@ -108,29 +108,44 @@ val rec equal [a, post1 : perm, post2 : perm, p : perm] (
 
   match i1.next(), i2.next() with
   | Right, Right ->
-      True
+    True
   | Left { contents = (x1, rewind1) }, Left { contents = (x2, rewind2) } ->
-      if eq (x1, x2) then begin
-	rewind1 ();
-	rewind2 ();
-	equal (eq, i1, i2)
-      end
-      else begin
-	rewind1 ();
-	rewind2 ();
-	i1.stop ();
-	i2.stop ();
-	False
-      end
-  | Left { contents = (_, rewind1) }, Right ->
+    if eq (x1, x2) then begin
       rewind1 ();
-      i1.stop ();
-      False
-  | Right, Left { contents = (_, rewind2) } ->
       rewind2 ();
+      equal (eq, i1, i2)
+    end
+    else begin
+      rewind1 ();
+      rewind2 ();
+      i1.stop ();
       i2.stop ();
       False
+    end
+  | Left { contents = (_, rewind1) }, Right ->
+    rewind1 ();
+    i1.stop ();
+    False
+  | Right, Left { contents = (_, rewind2) } ->
+    rewind2 ();
+    i2.stop ();
+    False
   end
+
+(* Calls [f] on each element of the iterator [it] *)
+val rec iter [a, post: perm, p: perm] (
+  consumes it: iterator a post,
+  f: (a | p) -> ()
+| p): (| post)
+=
+  match it.next () with
+  | Right ->
+    ()
+  | Left { contents = (x, rewind_to_iter) } ->
+    f x;
+    rewind_to_iter ();
+    iter (it, f)
+  end 
 
 val identity [a, p: perm, post: perm] (
   consumes it: iterator a post
@@ -158,34 +173,47 @@ val identity [a, p: perm, post: perm] (
 val filter [a, p: perm, post: perm] (
   consumes it: iterator a post,
   f: (a | p) -> bool
-| consumes p): iterator a (p * post)
+| consumes p) : iterator a (p * post)
 =
-  let rec next (| consumes (p * it @ iterator a post)):
-      either (focused a (p * it @ iterator a post)) (| post * p) =
+  (* An abbreviation for the internal state of the new iterator.
+     It contains the underlying iterator and the permission [p],
+     which represents the internal state of [f]. *)
+  let alias s : perm = p * it @ iterator a post in
+
+  let rec next (| consumes s) : either (focused a s) (| post * p) =
 
     let flex it_st: perm in
 
-    match it.next () with
+    let e = it.next() in
+    match e with
     | Right ->
-      right ()
-    | Left { contents = (x, rewind_to_it) } ->
-      if f x then (
-	(* assert (rewind_to_it @ osf::osf (| x @ a) (| it_st)); *)
-	let flex q: perm in
-	assert (q * rewind_to_it @ (| consumes (q * x @ a)) -> (| it_st));
-	assert (q * rewind_to_it @ (| consumes (p * q * x @ a)) -> (| p * it_st));
+        (* The underlying iterator is finished. We are finished as well. *)
+        e
+    | Left { contents = (x, surrender) } ->
+        (* The underlying iterator produces [x], together with a magic
+           wand [surrender], which we must use to signal that we are done
+           with [x]. *)
+        if f x then begin
+          (* We would like to keep [x]. *)
+          (* assert (surrender @ osf::osf (| x @ a) (| it_st)); *)
+          let flex q: perm in
+          assert (q * surrender @ (| consumes (q * x @ a)) -> (| it_st));
+          assert (q * surrender @ (| consumes (p * q * x @ a)) -> (| p * it_st));
 
-	(* assert (rewind_to_it @ osf::osf (| x @ a) (| p * it_st)); *)
+          (* assert (surrender @ osf::osf (| x @ a) (| p * it_st)); *)
 
-	left (x, rewind_to_it)
-      ) else (
-	rewind_to_it ();
-	next ()
-      )
+          e
+        end
+        else begin
+          (* We would like to skip [x]. Signal that we are done with it,
+             and look for the next element. *)
+          surrender();
+          next()
+        end
     end 
   in
 
-  let stop (| consumes (p * it @ iterator a post)): (| post * p) =
+  let stop (| consumes s): (| post * p) =
     it.stop ()
   in
 
@@ -219,4 +247,63 @@ val map [a, b, p: perm, post: perm] (
   in
 
   Iterator { next; stop }
+
+(* Classical fold_left on the elements of the iterator *)
+val rec fold_left [a, b, post: perm] (
+  f: (consumes b, a) -> b,
+  consumes accu: b,
+  consumes it: iterator a post
+): (b | post)
+=
+  match it.next () with
+  | Right ->
+    accu
+  | Left { contents = (x, rewind_to_it) } ->
+    let new_accu = f (accu, x) in
+    rewind_to_it ();
+    fold_left (f, new_accu, it)
+  end 
+
+(* Drops the [n] first elements of the iterator - that is, [drop]
+   calls [it.next ()] [n] times *)
+val rec drop [a, post: perm] (
+  consumes it: iterator a post,
+  n: int
+): either (| it @ iterator a post) (| post)
+  =
+  if n <= 0 then
+    left ()
+  else
+    match it.next () with
+    | Right ->
+      right ()
+    | Left { contents = (_, rewind_to_it) } ->
+      rewind_to_it ();
+      drop (it, n-1)
+    end 
+
+(* Drops elements of [it] of the iterator while the predicate [pred]
+   evaluates to [True] on them *)
+val rec dropWhile [a, post: perm, p: perm] (
+  consumes it: iterator a post,
+  pred: (a | p) -> bool
+| p): either (focused a (it @ iterator a post)) (| post)
+=
+  match it.next () with
+  | Right ->
+    right ()
+  | Left { contents = (x, rewind_to_it) } ->
+    if not (pred x) then (
+      left (x, rewind_to_it)
+    ) else (
+      rewind_to_it ();
+      dropWhile (it, pred)
+    )
+  end 
+
+(*
+Local Variables:
+compile-command: "../mezzo fpiterator-focused.mz"
+End:
+*)
 

@@ -968,7 +968,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("abbrev-3.mz", pass);
   ("abbrev-4.mz", pass);
   ("existential-witness.mz", pass);
-  ("residual.mz", pass_known_failure);
+  ("residual.mz", pass);
   ("quantifier-bug.mz", fail_known_failure);
   ("eta.mz", pass);
   ("array-1.mz", pass);
@@ -1013,6 +1013,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("concurrentsort.mz", pass);
   ("derived_locks.mz", pass);
   ("rich-bool1.mz", pass_known_failure);
+  ("frame-wand.mz", pass_known_failure);
   ("iteration.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to
