@@ -137,7 +137,7 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
   (* Try to give some useful error messages in case we have found not enough or
    * too many suitable types for [f]. *)
 
-  let valid, invalid = List.fold_left (fun (valid, invalid) t ->
+  let valid, invalid = List.fold_right (fun t (valid, invalid) ->
     let env, (t1, t2), vars = flex_deconstruct_arrow env t in
 
     (* Try to instantiate flexibles in [t2] better by using the context-provided
@@ -170,7 +170,7 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
         ((env, derivation, (t1, t2), vars)::valid, invalid)
     | None, derivation ->
         (valid, (derivation, (t1, t2))::invalid)
-  ) ([], []) permissions in
+  ) permissions ([], []) in
 
   match valid, invalid with
   | [], [] ->
