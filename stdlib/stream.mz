@@ -48,9 +48,8 @@ val rec concat [a] (xs: stream a, ys: stream a) : stream a =
     match lazy::force xs with
     | Nil ->
         lazy::force ys
-    | Cons { head = x; tail = xs } ->
-        (* TEMPORARY change to:_cons(x, concat(xs, ys)) *)
-        Cons { head = x; tail = concat (xs, ys) }
+    | Cons as xs ->
+        _cons(xs.head, concat(xs.tail, ys))
     end
   )
 
@@ -63,7 +62,7 @@ val infinite [a, p : perm] duplicable a => (
 ) : stream a =
 
   let rec next (| consumes p) : cell a =
-    Cons { head = f(); tail = lazy::create next }
+    _cons(f(), lazy::create next)
   in
   lazy::create next
 
@@ -99,7 +98,7 @@ val produce [a, p : perm] duplicable a => (
     | None ->
         Nil
     | Some { contents = x } ->
-        Cons { head = x; tail = lazy::create next }
+        _cons(x, lazy::create next)
     end
   in
   lazy::create next
