@@ -635,64 +635,70 @@ and sub (env: env) (var: var) ?no_singleton (t: typ): result =
   Log.check (is_term env var) "You can only subtract permissions from a var \
     that represents a program identifier.";
 
-  let t = modulo_flex env t in
-  let t = expand_if_one_branch env t in
-
   let judgement = JSubVar (var, t) in
-  let try_proof = try_proof env judgement in
 
-  if is_inconsistent env then
-    try_proof "Inconsistent" begin
-      qed env
-    end
-
-  else if is_singleton env t then
-    try_proof "Must-Be-Singleton" begin
-      sub_type env (ty_equals var) t >>=
-      qed
-    end
+  if is_flexible env var then
+    no_proof env judgement
 
   else
-    let permissions = get_permissions env var in
 
-    (* Priority-order potential merge candidates. *)
-    let sort = function
-      | _ as t when not (FactInference.is_duplicable env t) -> 0
-      (* This basically makes sure we never instantiate a flexible variable with a
-       * singleton type. The rationale is that we're too afraid of instantiating
-       * with something local to a branch, which will then make the [Merge]
-       * operation fail (see [merge18.mz] and [merge19.mz]). *)
-      | TyUnknown -> 3
-      | TySingleton _ -> 2
-      | _ -> 1
-    in
-    let sort x y = sort x - sort y in
-    let permissions = List.sort sort permissions in
-    let permissions =
-      if Option.unit_bool no_singleton then
-        List.filter (function TySingleton _ -> false | _ -> true) permissions
-      else
+    let t = modulo_flex env t in
+    let t = expand_if_one_branch env t in
+
+    let try_proof = try_proof env judgement in
+
+    if is_inconsistent env then
+      try_proof "Inconsistent" begin
+        qed env
+      end
+
+    else if is_singleton env t then
+      try_proof "Must-Be-Singleton" begin
+        sub_type env (ty_equals var) t >>=
+        qed
+      end
+
+    else
+      let permissions = get_permissions env var in
+
+      (* Priority-order potential merge candidates. *)
+      let sort = function
+        | _ as t when not (FactInference.is_duplicable env t) -> 0
+        (* This basically makes sure we never instantiate a flexible variable with a
+         * singleton type. The rationale is that we're too afraid of instantiating
+         * with something local to a branch, which will then make the [Merge]
+         * operation fail (see [merge18.mz] and [merge19.mz]). *)
+        | TyUnknown -> 3
+        | TySingleton _ -> 2
+        | _ -> 1
+      in
+      let sort x y = sort x - sort y in
+      let permissions = List.sort sort permissions in
+      let permissions =
+        if Option.unit_bool no_singleton then
+          List.filter (function TySingleton _ -> false | _ -> true) permissions
+        else
+          permissions
+      in
+
+
+      try_several
+        env
+        judgement
+        "Try-Perms"
         permissions
-    in
-
-
-    try_several
-      env
-      judgement
-      "Try-Perms"
-      permissions
-      (fun env remaining t_x ->
-        (* [t_x] is the "original" type found in the list of permissions for [x].
-         * -- see [tests/fact-inconsistency.mz] as to why I believe it's correct
-         * to check [t_x] for duplicity and not just [t]. *)
-        let env =
-          if FactInference.is_duplicable env t_x then
-            env
-          else
-            set_permissions env var remaining
-        in
-        sub_type env ~no_singleton:() t_x t
-      )
+        (fun env remaining t_x ->
+          (* [t_x] is the "original" type found in the list of permissions for [x].
+           * -- see [tests/fact-inconsistency.mz] as to why I believe it's correct
+           * to check [t_x] for duplicity and not just [t]. *)
+          let env =
+            if FactInference.is_duplicable env t_x then
+              env
+            else
+              set_permissions env var remaining
+          in
+          sub_type env ~no_singleton:() t_x t
+        )
 
 
 and sub_constraint env c : result =

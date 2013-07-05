@@ -10,7 +10,7 @@ alias stream a =
 val _cons (head: unknown, tail: unknown) : Cons { head; tail } =
   Cons { head; tail }
 
-val f [a] (c: cell a) : cell a =
+val f [a] (consumes c: cell a) : cell a =
   match c with
     | Cons { head = x; tail = xs } ->
         _cons(x, xs)
