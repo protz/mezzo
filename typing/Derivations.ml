@@ -212,6 +212,10 @@ let try_several
         try_several (r :: acc) (item :: before) after
   in
   let choices = try_several [] [] l in
+  (* Ok, in practice, the list is actually priority-ordered: when we finish and
+   * have to pick a solution, we want the solution where "α" is instantiated to
+   * "int", not "=x" or "unknown". *)
+  let choices = List.rev choices in
   if List.for_all is_right choices then
     let choices = List.map (function
       | Right d ->
