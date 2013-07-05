@@ -20,6 +20,7 @@
 (** This module helps deal with interfaces. *)
 
 open Kind
+open Either
 module S = SurfaceSyntax
 module E = ExpressionsCore
 module T = TypeCore
@@ -121,12 +122,12 @@ let check
         let point = KindCheck.find_nonlocal_variable exports x in
         let env =
           match Permissions.sub env point t with
-          | Some env, derivation ->
+          | Left (env, derivation) ->
               Log.debug ~level:6 "\nDerivation for %a: %a\n"
                 Variable.p x
                 DerivationPrinter.pderivation derivation;
               env
-          | None, d ->
+          | Right d ->
               let open TypeErrors in
               raise_error env (NoSuchTypeInSignature (point, t, d))
         in

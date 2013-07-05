@@ -26,8 +26,7 @@ open TypeCore
 open DeBruijn
 open Types
 open Derivations
-
-type result = env option * derivation
+open Either
 
 (* -------------------------------------------------------------------------- *)
 
@@ -1458,8 +1457,34 @@ and sub_floating_perm (env: env) (t: typ): result =
     )
 ;;
 
+(* -------------------------------------------------------------------------- *)
+
+(* Exports *)
+
+let pick_arbitrary (result: Derivations.result) =
+  let module D = Derivations in
+  match result with
+  | Either.Left (r :: _) ->
+      Either.Left r
+  | Either.Left [] ->
+      Log.error "Invariant violated"
+  | Either.Right d ->
+      Either.Right d
+;;
+
 (** The version we export is actually the one with unfolding baked in. This is
  * the only one the client should use because it makes sure our invariants are
  * respected. *)
-let sub_type = sub_type_with_unfolding;;
-let sub env var t = sub env var t;;
+type result = ((env * derivation), derivation) either
+
+let drop_derivation = function
+  | Either.Left (env, _) ->
+      Some env
+  | Either.Right _ ->
+      None
+;;
+
+let sub_type env t1 t2: result = pick_arbitrary (sub_type_with_unfolding env t1 t2);;
+let sub env var t: result = pick_arbitrary (sub env var t);;
+let sub_perm env p: result = pick_arbitrary (sub_perm env p);;
+let sub_constraint env c: result = pick_arbitrary (sub_constraint env c);;

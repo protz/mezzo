@@ -18,6 +18,7 @@
 (*****************************************************************************)
 
 open Kind
+open Either
 open TypeCore
 open DeBruijn
 open Types
@@ -26,10 +27,6 @@ open ExpressionsCore
 open Expressions
 
 (* -------------------------------------------------------------------------- *)
-
-let drop_derivation =
-  Derivations.drop_derivation
-;;
 
 let add_hint =
   Permissions.add_hint
@@ -148,12 +145,12 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
           Log.debug ~level:5 "[sub-annot]";
           begin
             let sub_env = env in
-            match Permissions.sub_type sub_env t2 annot |> drop_derivation with
+            match Permissions.sub_type sub_env t2 annot |> Permissions.drop_derivation with
             | Some sub_env ->
                 Log.debug ~level:5 "[sub-annot SUCCEEDED]";
                 Permissions.import_flex_instanciations env sub_env
             | None ->
-              env
+                env
           end
       | None ->
           env
@@ -166,10 +163,10 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
       TypePrinter.ptype (env, t1);
 
     match Permissions.sub env x t1 with
-    | Some env, derivation ->
-        ((env, derivation, (t1, t2), vars)::valid, invalid)
-    | None, derivation ->
-        (valid, (derivation, (t1, t2))::invalid)
+    | Left (env, derivation) ->
+        (env, derivation, (t1, t2), vars) :: valid, invalid
+    | Right derivation ->
+        valid, (derivation, (t1, t2)) :: invalid
   ) permissions ([], []) in
 
   match valid, invalid with
@@ -201,9 +198,9 @@ let check_return_type (env: env) (var: var) (t: typ): env * var =
   );
     
   match Permissions.sub env var t with
-  | Some env, _ ->
+  | Left (env, _) ->
       Permissions.add env var t, var
-  | None, derivation ->
+  | Right derivation ->
       let open TypePrinter in
       Log.debug ~level:4 "%a\n------------\n" penv env;
       raise_error env (ExpectedType (t, var, derivation))
@@ -498,9 +495,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         env, x
     | Some t ->
         match Permissions.sub env x t with
-        | Some _, _ ->
+        | Left _ ->
             env, x
-        | None, d ->
+        | Right d ->
             raise_error env (ExpectedType (t, x, d))
   in
 
@@ -515,10 +512,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
   | EAssert p ->
       begin match Permissions.sub_perm env p with
-      | Some env, _ ->
+      | Left (env, _) ->
           let env = Permissions.add_perm env p in
           return env ty_unit
-      | None, derivation ->
+      | Right derivation ->
           raise_error env (ExpectedPermission (p, derivation))
       end
 
@@ -549,10 +546,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* I could use a combo of [bind_flexible] / [instantiate_flexible] here but
        * the [tsubst] solution seems more legible. *)
       begin match Permissions.sub_perm env (tsubst t' 0 t) with
-      | Some env, _ ->
+      | Left (env, _) ->
           let env = Permissions.add_perm env u in
           return env ty_unit
-      | None, derivation ->
+      | Right derivation ->
           raise_error env (ExpectedPermission (u, derivation))
       end
 
@@ -634,11 +631,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let sub_env, p = check_expression sub_env ~annot:return_type body in
 
       begin match Permissions.sub sub_env p return_type with
-      | Some _, d ->
+      | Left (_, d) ->
           Log.debug "%a" DerivationPrinter.pderivation d;
           (* Return the desired arrow type. *)
           return env (TyArrow (arg, return_type))
-      | None, d ->
+      | Right d ->
           raise_error sub_env (ExpectedType (return_type, p, d))
       end
 
@@ -1099,7 +1096,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 (* The clause is now [t]. Extract it from the list of available
                  * permissions for [x]. We know it works because we type-checked
                  * the whole [EConstraint] already. *)
-                let env = Option.extract (Permissions.sub env x t |> drop_derivation) in
+                let env = Option.extract (Permissions.sub env x t |> Permissions.drop_derivation) in
                 (* Refresh the structural permission for [e], using the new
                  * clause. *)
                 let perm = replace_clause perm t in
@@ -1117,7 +1114,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
               raise_error env (NonExclusiveAdoptee clause);
             (* The clause is known. Just take the required permission out of the
              * permissions for x. *)
-            match Permissions.sub env x clause |> drop_derivation with
+            match Permissions.sub env x clause |> Permissions.drop_derivation with
             | Some env ->
                 return env ty_unit
             | None ->

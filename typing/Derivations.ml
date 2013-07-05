@@ -18,6 +18,7 @@
 (*****************************************************************************)
 
 open TypeCore
+open Either
 
 (** This file provides a representation of typing derivations, built by
  * [Permissions]. A typing derivation can either represent success, or failure.
@@ -51,22 +52,26 @@ and judgement =
   | JAdd of typ
   | JDebug of typ * typ
 
+(** Primitive operations return a result. A result is either a list of good
+ * derivations along with the corresponding environment (we may have several
+ * choices to pick from) or a failed derivation that serves as an example of how
+ * an operation failed (we don't keep *all* the failed derivations). *)
+type result = ((env * derivation) list, derivation) either
 
-(** Primitive operations return a result, that is, either [Some env] along with
- * a good derivation, or [None] with a bad derivation. *)
-type result = env option * derivation
-
-let drop_derivation =
-  fst
+let drop_derivation = function
+  | Left choices ->
+      Some (fst (List.hd choices))
+  | Right _ ->
+      None
 
 (** If you can find no rule to apply in order to prove this judgement... *)
 let no_proof (env: env) (j: judgement): result =
-  None, Bad (env, j, [])
+  Right (Bad (env, j, []))
 
 (** If you have a series of premises, and want to state that one of them
  * requires nothing to prove... *)
 let nothing (env: env) (r: rule_instance): result =
-  Some env, Good (env, JNothing, (r, []))
+  Left [env, Good (env, JNothing, (r, []))]
 
 (** Some simple helpers. *)
 let is_good_derivation = function Good _ -> true | Bad _ -> false
@@ -74,12 +79,11 @@ let is_good_derivation = function Good _ -> true | Bad _ -> false
 let is_bad_derivation = function Good _ -> false | Bad _ -> true
 
 let is_good (r: result): bool =
-  let env, derivation = r in
-  match env with
-  | Some _ ->
-      Log.check (is_good_derivation derivation) "Inconsistency";
+  match r with
+  | Left choices ->
+      Log.check (List.for_all (fun (_, d) -> is_good_derivation d) choices) "Inconsistency";
       true
-  | None ->
+  | Right derivation ->
       Log.check (is_bad_derivation derivation) "Inconsistency";
       false
 
@@ -88,13 +92,16 @@ let is_good (r: result): bool =
  * are passed through various stages; the second component is used like the
  * writer monad, that is, much more like an accumulator that stores the
  * derivations. Terminate with [qed]. *)
-type state = env option * derivation list
+type state = ((env * derivation list) list, derivation list) either
 
 (** Perform an operation on the [env] part of a state without giving any
  * justification for it. *)
 let ( >>~ ) (state: state) (f: env -> env): state =
-  let env, derivations = state in
-  Option.map f env, derivations
+  match state with
+  | Right _ ->
+      state
+  | Left choices ->
+      Left (List.map (fun (env, ds) -> f env, ds) choices)
 
 (** If you want to apply an axiom. *)
 let apply_axiom
@@ -102,7 +109,7 @@ let apply_axiom
     (j: judgement)
     (r: rule_instance)
     (resulting_env: env): result =
-  Some resulting_env, Good (original_env, j, (r, []))
+  Left [resulting_env, Good (original_env, j, (r, []))]
 
 (** If you know how you should prove this, i.e. if you know which rule to
  * apply, call this. *)
@@ -112,53 +119,67 @@ let try_proof
     (r: rule_instance)
     (state: state): result =
   match state with
-  | Some final_env, derivations ->
-      Log.check (List.for_all is_good_derivation derivations)
-        "Inconsistency in [prove_judgement].";
-      Some final_env, Good (original_env, j, (r, derivations))
-  | None, derivations ->
-      if List.length derivations > 0 then
-        Log.check (is_bad_derivation (MzList.last derivations))
-          "Inconsistency in [prove_judgement]";
-      None, Bad (original_env, j, [r, derivations])
+  | Left choices ->
+      let choices = List.map (fun (env, derivations) ->
+        Log.check (List.for_all is_good_derivation derivations) "Inconsistency in [prove_judgement].";
+        env, Good (original_env, j, (r, derivations))
+      ) choices in
+      Left choices
+  | Right ds ->
+      (* The last element of [ds] is a bad derivation! *)
+      if List.length ds > 0 then
+        Log.check (is_bad_derivation (MzList.last ds)) "Inconsistency in [prove_judgement]";
+      Right (Bad (original_env, j, [r, ds]))
 
 (** Composing the premises of a rule. End with [qed]. *)
 let ( >>= ) (result: result) (f: env -> state): state =
-  let env, derivation = result in
-  match env with
-  | Some env ->
-      let env, derivations = f env in
-      env, derivation :: derivations
-  | None ->
-      (* We're the last derivation that worked, don't bother running the rest of
-       * the operations. *)
-      None, [derivation]
-
-(** Sometimes it is more convenient to have the premises of a rule as a list. *)
-let premises (env: env) (fs: (env -> result) list): state =
-  let rec fold env acc fs =
-    match fs with
-    | [] ->
-        (* Everything worked, yay! *)
-        Some env, List.rev acc
-    | hd :: tl ->
-        let env, derivation = hd env in
-        match env with
-        | Some env ->
-            fold env (derivation :: acc) tl
-        | None ->
-            None, List.rev (derivation :: acc)
-  in
-  fold env [] fs
-
+  match result with
+  | Right derivation ->
+      (* What should we do after an operation that failed? Nothing, that is, not
+       * compute the premises after that one. *)
+      Right [derivation]
+  | Left choices ->
+      let choices = List.map (fun (env, derivation) ->
+        match f env with
+        | Right l ->
+            (* [l] is a list whose last element is a failed derivation. *)
+            Right (derivation :: l)
+        | Left choices ->
+            Left (List.map (fun (env, derivations) -> env, derivation :: derivations) choices)
+      ) choices in
+      Log.check (List.length choices > 0) "Inconsistency";
+      if List.for_all is_right choices then
+        (* Starting from [result], we can find no good derivation. Just keep one
+         * so as to give it to the user. *)
+        List.hd choices
+      else
+        let choices = List.filter is_left choices in
+        Left (MzList.flatten_map (function
+          | Right _ -> assert false
+          | Left choices ->
+              choices
+        ) choices)
 
 (** Tying the knot. *)
 let qed (env: env): state =
-  Some env, []
+  Left [env, []]
 
 (** If you need to fail *)
 let fail: state =
-  None, []
+  Right []
+
+(** Sometimes it is more convenient to have the premises of a rule as a list. *)
+let premises (env: env) (fs: (env -> result) list): state =
+  let rec wrap_bind env fs =
+    match fs with
+    | [] ->
+        qed env
+    | f :: fs ->
+        f env >>= fun env ->
+        wrap_bind env fs
+  in
+  wrap_bind env fs
+
 
 (** Our other combinator, that allows to explore multiple choices, and either
  * pick the first one that works, or fail by listing all the cases that failed.
@@ -180,17 +201,29 @@ let try_several
     Bad (original_env, j, rules)
   in
   let rec try_several
-      (failed_derivations: derivation list)
-      (failed_items: 'a list)
-      (remaining: 'a list) =
-    match remaining with
+      (acc: result list)
+      (before: 'a list)
+      (after: 'a list) =
+    match after with
     | [] ->
-        None, bad failed_derivations
-    | item :: remaining ->
-        match f original_env (List.rev_append failed_items remaining) item with
-        | Some env, derivation ->
-            Some env, good derivation
-        | None, derivation ->
-            try_several (derivation :: failed_derivations) (item :: failed_items) remaining
+        acc
+    | item :: after ->
+        let r = f original_env (List.rev_append before after) item in
+        try_several (r :: acc) (item :: before) after
   in
-  try_several [] [] l
+  let choices = try_several [] [] l in
+  if List.for_all is_right choices then
+    let choices = List.map (function
+      | Right d ->
+          d
+      | Left _ ->
+          assert false
+    ) choices in
+    Right (bad choices)
+  else
+    let choices = List.filter is_left choices in
+    Left (MzList.flatten_map (function
+      | Right _ -> assert false
+      | Left choices ->
+          List.map (fun (env, d) -> env, good d) choices
+    ) choices)

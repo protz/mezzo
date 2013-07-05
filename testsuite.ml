@@ -20,6 +20,7 @@
 module K = KindCheck
 
 open Kind
+open Either
 open TypeCore
 open Types
 open TestUtils
@@ -31,9 +32,9 @@ let drop_derivation =
 
 let check env point t =
   match Permissions.sub env point t with
-  | Some _, _ ->
+  | Left _ ->
       ()
-  | None, d ->
+  | Right d ->
       raise_error env (ExpectedType (t, point, d))
 ;;
 

@@ -18,6 +18,7 @@
 (*****************************************************************************)
 
 open TypeCore
+open Either
 
 (** This file provides a representation of typing derivations, built by
  * [Permissions]. A typing derivation can either represent success, or failure.
@@ -57,7 +58,7 @@ and judgement =
 
 (** Primitive operations return a result, that is, either [Some env] along with
  * a good derivation, or [None] with a bad derivation. *)
-type result = env option * derivation
+type result = ((env * derivation) list, derivation) either
 
 (** Here is how to {b not} prove a judgement. This means that you found no rules
  * to apply in order to prove that judgement. *)
