@@ -1479,7 +1479,18 @@ let drop_derivation = function
       None
 ;;
 
-let sub_type env t1 t2: result = pick_arbitrary (sub_type_with_unfolding env t1 t2);;
-let sub env var t: result = pick_arbitrary (sub env var t);;
-let sub_perm env p: result = pick_arbitrary (sub_perm env p);;
-let sub_constraint env c: result = pick_arbitrary (sub_constraint env c);;
+let sub_type env t1 t2: result =
+  pick_arbitrary (sub_type_with_unfolding env t1 t2)
+;;
+
+let sub env var t: result =
+  pick_arbitrary (sub env var t)
+;;
+
+let sub_perm env p: result =
+  pick_arbitrary (sub_perm env p)
+;;
+
+let sub_constraint env c: result =
+  pick_arbitrary (sub_constraint env c)
+;;
