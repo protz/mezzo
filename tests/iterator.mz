@@ -186,6 +186,71 @@ val last [a, post: perm] (
   );
   !previous
 
+val concat [a, post1: perm, post2: perm] (
+  consumes it1: iterator a post1,
+  consumes it2: iterator a post2
+): iterator a (post1 * post2) =
+
+  let alias state_ty =
+    (rich_bool post1 (it1 @ iterator a post1) (* Is it1 living? *)
+    | it2 @ iterator a post2)
+  in
+  
+  let state : ref state_ty = newref True in
+
+  let alias st: perm = state @ ref state_ty in
+
+  let rec next (| consumes st): either (a | st) (| post1 * post2) =
+   match !state with
+    | True ->
+      (* assert (it1 @ iterator a post1); *)
+      
+      (* it1 is not consumed yet *)
+      match it1.next () with
+      | Right ->
+        (* No more elements in it1. state is now a Right { ... } *)
+        state := False (* ((): (| post1 * it2 @ iterator a post2)) *);
+        next ()
+      | Left { contents = x } ->
+        (* Found [x]. Return it *)
+        left x
+      end
+    | False ->
+      (* We are iterating on it2 *)
+      match it2.next () with
+      | Right ->
+        (* No more elements in it2. Return [post1 * post2] *)
+        right ()
+      | Left { contents = x } ->
+        (* Found [x]. Return it *)
+        left x
+      end
+    end
+  in
+
+  let stop (| consumes st): (| post1 * post2) =
+    match !state with
+    | True ->
+      (* We have to stop both [it1] and [it2] *)
+      it1.stop ();
+      it2.stop ();
+      ()
+    | False ->
+      (* We only have to stop [it2] *)
+      it2.stop ();
+      ()
+    end
+  in
+
+  let it = Iterator { next; stop } in
+
+  pack it @ iterator a (post1 * post2)
+    witness st;
+
+  (* assert (it @ iterator a (post1 * post2)); *)
+ 
+  it
+
 open duplist_iterator
 
 val _ =
