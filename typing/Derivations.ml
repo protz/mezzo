@@ -23,6 +23,23 @@ open Either
 
 module L = BatLazyList
 
+(** The ****** from batteries lied about their implementation of [concat] which
+ * is *not* lazy! I wasted 2h+ on this... *)
+let lazy_concat (outer: 'a L.t L.t): 'a L.t =
+  let open L in
+  let rec lazy_concat_aux (inner: 'a L.t) (outer: 'a L.t L.t): 'a L.t = lazy begin
+    match next inner with
+    | Cons (head, tail) ->
+        Cons (head, lazy_concat_aux tail outer)
+    | Nil ->
+        match next outer with
+        | Nil ->
+            Nil
+        | Cons (head, tail) ->
+            !* (lazy_concat_aux head tail)
+  end in
+  lazy_concat_aux nil outer
+
 (** This file provides a representation of typing derivations, built by
  * [Permissions]. A typing derivation can either represent success, or failure.
  * This module provides printing functions for derivations. *)
@@ -150,7 +167,7 @@ let ( >>= ) (result: result) (f: env -> state): state =
         ) (f env) in
         choices
   in
-  L.map f result |> L.concat
+  L.map f result |> lazy_concat
 
 (** Tying the knot. *)
 let qed (env: env): state =
@@ -172,21 +189,6 @@ let premises (env: env) (fs: (env -> result) list): state =
   in
   wrap_bind env fs
 
-
-let lazy_concat (outer: 'a L.t L.t): 'a L.t =
-  let open L in
-  let rec lazy_concat_aux (inner: 'a L.t) (outer: 'a L.t L.t): 'a L.t = lazy begin
-    match next inner with
-    | Cons (head, tail) ->
-        Cons (head, lazy_concat_aux tail outer)
-    | Nil ->
-        match next outer with
-        | Nil ->
-            Nil
-        | Cons (head, tail) ->
-            !* (lazy_concat_aux head tail)
-  end in
-  lazy_concat_aux nil outer
 
 
 (** Our other combinator, that allows to explore multiple choices, and either
