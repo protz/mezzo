@@ -873,12 +873,11 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("abstract-perm.mz", pass);
 
-  ("dup_sign.mz", simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
   ("dup_sign1.mz", pass);
   ("dup_sign2.mz", fail);
   ("dup_sign3.mz", pass);
   ("dup_sign4.mz", pass);
-  ("dup_sign5.mz", fail);
+  ("dup_sign5.mz", pass);
 
   ("tableau.mz", pass);
   ("smemoize.mz", pass);
@@ -1003,7 +1002,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("localtype1.mz", pass);
   ("localtype2.mz", pass);
   ("covariantlock.mz", pass);
-  ("pack-assert.mz", pass_known_failure);
+  ("pack-assert.mz", pass);
   ("oneshot-test.mz", fail);
   ("sparray.mz", pass);
   ("interface-arg-name.mz", pass_known_failure);
