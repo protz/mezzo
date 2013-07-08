@@ -21,8 +21,7 @@ open TypeCore
 open Either
 
 (** This file provides a representation of typing derivations, built by
- * [Permissions]. A typing derivation can either represent success, or failure.
- * This module provides printing functions for derivations. *)
+ * [Permissions]. A typing derivation can either represent success, or failure. *)
 
 (** {1 The type of derivations} *)
 
@@ -56,9 +55,11 @@ and judgement =
 
 (** {1 The type of primitive functions} *)
 
-(** Primitive operations return a result, that is, either [Some env] along with
- * a good derivation, or [None] with a bad derivation. *)
-type result = ((env * derivation) list, derivation) either
+(** Primitive operations return a result. A result is a lazy list of either a
+ * derivation that "worked", meaning we have a "good" environment along with the
+ * corresponding derivation, or a derivation that failed, meaning we have no
+ * resulting environment. *)
+type result = ((env * derivation, derivation) either) BatLazyList.t
 
 (** Here is how to {b not} prove a judgement. This means that you found no rules
  * to apply in order to prove that judgement. *)
@@ -100,7 +101,7 @@ val nothing : env -> rule_instance -> result
 (** {2 Convenient helpers to deal with results} *)
 
 (** Get the [env option] part of a result. *)
-val drop_derivation : result -> env option
+val option_of_result : result -> env option
 
 (** This tells whether a result is successful or not. *)
 val is_good : result -> bool

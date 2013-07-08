@@ -22,3 +22,5 @@ type ('a, 'b) either = Left of 'a | Right of 'b
 
 let is_left = function Left _ -> true | Right _ -> false;;
 let is_right = function Left _ -> false | Right _ -> true;;
+let assert_left = function Left x -> x | Right _ -> assert false;;
+let assert_right = function Left _ -> assert false | Right x -> x;;

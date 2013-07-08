@@ -28,6 +28,8 @@ open Types
 open Derivations
 open Either
 
+module L = BatLazyList
+
 (* -------------------------------------------------------------------------- *)
 
 (* This should help debugging. *)
@@ -1461,15 +1463,8 @@ and sub_floating_perm (env: env) (t: typ): result =
 
 (* Exports *)
 
-let pick_arbitrary (result: Derivations.result) =
-  let module D = Derivations in
-  match result with
-  | Either.Left (r :: _) ->
-      Either.Left r
-  | Either.Left [] ->
-      Log.error "Invariant violated"
-  | Either.Right d ->
-      Either.Right d
+let pick_arbitrary =
+  L.hd
 ;;
 
 (** The version we export is actually the one with unfolding baked in. This is

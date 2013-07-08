@@ -26,9 +26,6 @@ open Types
 open TestUtils
 open TypeErrors
 
-let drop_derivation =
-  Derivations.drop_derivation
-;;
 
 let check env point t =
   match Permissions.sub env point t with

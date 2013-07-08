@@ -22,3 +22,5 @@ type ('a, 'b) either = Left of 'a | Right of 'b
 
 val is_left: ('a, 'b) either -> bool
 val is_right: ('a, 'b) either -> bool
+val assert_left: ('a, 'b) either -> 'a
+val assert_right: ('a, 'b) either -> 'b
