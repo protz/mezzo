@@ -1276,8 +1276,8 @@ and add_sub env ps1 ps2 =
         sse env [] l1 l2
       in
 
-      (* Another round of simplifications. XXX we should add the elements in
-       * [ps1] that are duplicable! *)
+      (* Another round of simplifications. [strip_syntactically_equal] takes
+       * care of adding the elements in [ps1] that are duplicable! *)
       let ps1 = vars1 @ ps1 and ps2 = vars2 @ ps2 in
       let ps1 = MzList.flatten_map (flatten_star env) ps1 in
       let ps2 = MzList.flatten_map (flatten_star env) ps2 in
