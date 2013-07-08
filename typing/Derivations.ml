@@ -173,6 +173,22 @@ let premises (env: env) (fs: (env -> result) list): state =
   wrap_bind env fs
 
 
+let lazy_concat (outer: 'a L.t L.t): 'a L.t =
+  let open L in
+  let rec lazy_concat_aux (inner: 'a L.t) (outer: 'a L.t L.t): 'a L.t = lazy begin
+    match next inner with
+    | Cons (head, tail) ->
+        Cons (head, lazy_concat_aux tail outer)
+    | Nil ->
+        match next outer with
+        | Nil ->
+            Nil
+        | Cons (head, tail) ->
+            !* (lazy_concat_aux head tail)
+  end in
+  lazy_concat_aux nil outer
+
+
 (** Our other combinator, that allows to explore multiple choices, and either
  * pick the first one that works, or fail by listing all the cases that failed.
  * This one tries multiple instances of the same rule!
@@ -200,7 +216,7 @@ let try_several
   let choices = try_several [] l in
   (* Each call to [f] may return several choices, so we have to flatten that
    * lazy list of lazy lists... *)
-  let choices = L.concat choices in
+  let choices = lazy_concat choices in
 
   (* When faced with several choices, either some of them in the list are [Good]
    * derivations, which in turn provide a good derivation for the outer rule. *)
