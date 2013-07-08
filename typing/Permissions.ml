@@ -334,15 +334,18 @@ let open_all_rigid_in (env : env) (ty : typ) (side : side) : env * typ =
 
 (** Re-wrap instantiate_flexible so that it fits in our framework. *)
 
-let rec clean_floating_permissions env =
-  let perms = get_floating_permissions env in
+let rec clean_vars env perms = 
   let perms = List.map (fun x ->
     let x = modulo_flex env x in
     let x = expand_if_one_branch env x in
     x
   ) perms in
   let perms = List.filter (function TyEmpty -> false | _ -> true) perms in
-  let to_add, perms = List.partition (function TyStar _ | TyAnchoredPermission _ -> true | _ -> false) perms in
+  List.partition (function TyStar _ | TyAnchoredPermission _ -> true | _ -> false) perms
+
+and clean_floating_permissions env =
+  let perms = get_floating_permissions env in
+  let to_add, perms = clean_vars env perms in
   let env = set_floating_permissions env perms in
   add_perms env to_add
 
@@ -730,8 +733,10 @@ and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): result =
         (* Re-route this operation onto the add-sub dance. *)
         let t1, ps1 = collect t1 in
         let t2, ps2 = collect t2 in
-        sub_type env t1 t2 >>= fun env ->
-        add_sub env ps1 ps2 >>=
+        let env, v = bind_rigid env (fresh_auto_name "stwu-ng", KTerm, location env) in
+        add_sub env
+          (TyAnchoredPermission (TyOpen v, t1) :: ps1)
+          (TyAnchoredPermission (TyOpen v, t2) :: ps2) >>=
         qed
     | _ ->
         assert false
@@ -1271,7 +1276,11 @@ and add_sub env ps1 ps2 =
         sse env [] l1 l2
       in
 
+      (* Another round of simplifications. XXX we should add the elements in
+       * [ps1] that are duplicable! *)
       let ps1 = vars1 @ ps1 and ps2 = vars2 @ ps2 in
+      let ps1 = MzList.flatten_map (flatten_star env) ps1 in
+      let ps2 = MzList.flatten_map (flatten_star env) ps2 in
       let env, ps1, ps2 = strip_syntactically_equal env ps1 ps2 in
 
       apply_axiom env (JDebug (fold_star ps1, fold_star ps2)) "Remaining-Add-Sub" env >>= fun env ->
