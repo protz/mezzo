@@ -1347,6 +1347,9 @@ and add_sub env ps1 ps2 =
           sub_perms env ps2 >>=
           qed
       | ps1, ps2 ->
+          (* jp: why are we even doing that? Adding permissions shouldn't
+           * hurt... yet, when I remove it, an incredible number of tests fail.
+           * /me is puzzled... *)
           let ps1, ps1_flex = List.partition (perm_not_flex env) ps1 in
           let sub_env = add_perms env ps1 in
           apply_axiom env (JAdd (fold_star ps1)) "Add-Sub-Add" sub_env >>= fun env ->
