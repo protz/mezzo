@@ -1,0 +1,7 @@
+(* This code should be rejected because the .mz and .mzi files disagree.
+   Instead, we obtain an internal error: [assert_var] failed (empty is not a var) *)
+val cyclic [a, p : perm] (
+  (| consumes p) -> a
+| consumes p
+) : () =
+  fail
