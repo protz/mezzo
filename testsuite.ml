@@ -1008,6 +1008,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("sparray.mz", pass);
   ("interface-arg-name.mz", pass_known_failure);
   ("tree-coroutine.mz", pass);
+  ("tree-coroutine-disposable-ack.mz", pass);
   ("concurrentsort.mz", pass);
   ("derived_locks.mz", pass);
   ("rich-bool1.mz", pass_known_failure);
@@ -1015,6 +1016,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("iteration.mz", pass);
   ("fpiterator-focused.mz", pass); (* very costly, sorry *)
   ("flexible-point.mz", pass);
+  ("assert-exists.mz", pass);
+  ("assert-var.mz", fail_known_failure);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)
