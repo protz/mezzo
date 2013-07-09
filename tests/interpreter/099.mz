@@ -1,0 +1,14 @@
+(* Success: 42 *)
+
+open stream
+
+val () =
+  let xs : stream int = constant 42 in
+  print (head xs);
+  match tail xs with
+  | None ->
+      fail
+  | Some { contents = ys } ->
+      print (head ys)
+  end
+
