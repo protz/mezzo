@@ -1,0 +1,4 @@
+val cyclic: [a, p : perm] (
+  (x: =x) -> (| consumes p) -> a
+| consumes p
+) -> ()
