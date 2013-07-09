@@ -93,9 +93,8 @@ val try_several:
   result
 
 (** This is a slightly different combinator, that allows you to try several
- * rules to prove the same judgement (it is up to you to make sure it's the same
- * judgement). Just pass it a list of results. *)
-val par: result list -> result
+ * rules to prove the same judgement. *)
+val par: env -> judgement -> rule_instance -> result list -> result
 
 (** If you're iterating over a series of premises, it is sometimes convenient to
  * say that one of them requires no special operations because of a certain

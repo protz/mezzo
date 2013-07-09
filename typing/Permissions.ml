@@ -912,7 +912,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
   (** Lower priority for binding flexible = existential quantifiers. *)
 
   | TyQ (Forall, binding1, _, t'1), TyQ (Exists, binding2, _, t'2) ->
-      par [
+      par env judgement "Intro-Flex" [
         try_proof_root "Forall-L" begin
           let env, t2 = open_all_rigid_in env t2 Right in
           let env, t'1, _ = bind_flexible_in_type env binding1 t'1 in

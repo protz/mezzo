@@ -190,36 +190,7 @@ let premises (env: env) (fs: (env -> result) list): state =
   wrap_bind env fs
 
 
-
-(** Our other combinator, that allows to explore multiple choices, and either
- * pick the first one that works, or fail by listing all the cases that failed.
- * This one tries multiple instances of the same rule!
- * *)
-let try_several
-    (original_env: env)
-    (j: judgement)
-    (r: rule_instance)
-    (l: 'a list)
-    (f: env -> 'a list -> 'a -> result): result =
-  (* [try_several] is tail-rec (thanks to lazyness) and preserves the order of
-   * the initial list (it's important!). Its goal is to lazily map over the list
-   * [l] of items, and for each item, call [f] on it. *)
-  let rec try_several
-      (before: 'a list)
-      (after: 'a list): result L.t =
-    lazy begin match after with
-    | [] ->
-        L.Cons (L.nil, L.nil)
-    | item :: after ->
-        let result = f original_env (List.rev_append before after) item in
-        L.Cons (result, try_several (item :: before) after)
-    end
-  in
-  let choices = try_several [] l in
-  (* Each call to [f] may return several choices, so we have to flatten that
-   * lazy list of lazy lists... *)
-  let choices = lazy_concat choices in
-
+let walk original_env j r choices =
   (* When faced with several choices, either some of them in the list are [Good]
    * derivations, which in turn provide a good derivation for the outer rule. *)
   let good derivation =
@@ -259,10 +230,42 @@ let try_several
             !* (walk (d :: failed) tl)
     end
   in
+
   walk [] choices
 
 
+(** Our other combinator, that allows to explore multiple choices, and either
+ * pick the first one that works, or fail by listing all the cases that failed.
+ * This one tries multiple instances of the same rule!
+ * *)
+let try_several
+    (original_env: env)
+    (j: judgement)
+    (r: rule_instance)
+    (l: 'a list)
+    (f: env -> 'a list -> 'a -> result): result =
+  (* [try_several] is tail-rec (thanks to lazyness) and preserves the order of
+   * the initial list (it's important!). Its goal is to lazily map over the list
+   * [l] of items, and for each item, call [f] on it. *)
+  let rec try_several
+      (before: 'a list)
+      (after: 'a list): result L.t =
+    lazy begin match after with
+    | [] ->
+        L.Cons (L.nil, L.nil)
+    | item :: after ->
+        let result = f original_env (List.rev_append before after) item in
+        L.Cons (result, try_several (item :: before) after)
+    end
+  in
+  let choices = try_several [] l in
+  (* Each call to [f] may return several choices, so we have to flatten that
+   * lazy list of lazy lists... *)
+  let choices = lazy_concat choices in
+
+  walk original_env j r choices
+
 (** Simple combinator that allows a less fancy combination of several choices.
  * *)
-let par (rs: result list): result =
-  L.flatten rs
+let par env j r (rs: result list): result =
+  walk env j r (L.flatten rs)
