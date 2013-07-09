@@ -92,6 +92,41 @@ val force [a] (t: thunk a) : a =
     end
   )
 
+(* A utility for creating a cyclic suspension. *)
+
+(* Note: this code is somewhat unsafe, insofar as the client could
+   misbehave and have [f] force [x], which is a dummy thunk. One
+   might wish to say that [f] should have type
+     (x: =x | consumes p) -> (y: =y | wand (x @ thunk a) (y @ a))
+   i.e. [f] cannot assume that [x] is a thunk, and must return a
+   value [y] such that, once it becomes known that [x] is a thunk,
+   [y] can be proven to have type [a]. This might work, but seems
+   complex. *)
+
+val cyclic [a, p : perm] duplicable a => (
+  f: (thunk a | consumes p) -> a
+| consumes p
+) : thunk a =
+  (* Create a dummy function. *)
+  let dummy () : a = fail in
+  (* Create a dummy initial state. *)
+  let s : state a = Suspended { computation = dummy } in
+  (* Allocate the suspension. *)
+  let x : wref (state a) = new [state a] s in
+  (* Now, [x] is a thunk. (The following assertion is superfluous.)
+     It also has type [wref (state a)], which is more precise, and
+     is required for the following update to make sense. *)
+  assert x @ thunk a;
+  (* Apply [f] to the thunk. If the client misbehaves and tries to
+     force the thunk, the [fail] instruction above will be executed.
+     One could also obtain a deadlock, instead of a failure, by
+     invoking [f] within the [update] block below. Failure seems
+     preferable. *)
+  let result = f x in
+  update (x, fun (consumes s: state a) : (state a, thunk a) =
+    Evaluated { result }, x
+  )
+
 (*
 Local Variables:
 compile-command: "../mezzo lazy.mz"

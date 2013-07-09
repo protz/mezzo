@@ -74,6 +74,15 @@ val infinite [a, p : perm] duplicable a => (
 val constant [a] duplicable a => (x: a) : stream a =
   infinite (fun () : a = x)
 
+(* The above definition of [constant] causes new suspensions to be created as
+   the stream is forced. One might prefer a definition that consists of a
+   single cyclic suspension. Here it is. *)
+
+val constant [a] duplicable a => (x: a) : stream a =
+  lazy::cyclic (fun (self: stream a) : cell a =
+    _cons(x, self)
+  )
+
 (* The infinite stream of the natural integers. *)
 
 val nats : stream int =
