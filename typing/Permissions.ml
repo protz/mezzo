@@ -1299,9 +1299,8 @@ and add_sub env ps1 ps2 =
         end >>= fun env ->
         sub_perm env t2 >>=
         qed
-    | ps1, [TyOpen var2] when is_flexible env var2 ->
-        j_flex_inst env var2 (fold_star ps1) >>=
-        qed
+    | _, [TyOpen var2] when is_flexible env var2 ->
+        assert false
     | [TyOpen var1], [TyEmpty] when is_flexible env var1 ->
         (* Any instantiation of [var1] would be fine, actually, so don't
          * commit to [TyEmpty]! *)
@@ -1326,23 +1325,10 @@ and add_sub env ps1 ps2 =
           sub_type_with_unfolding env t1 t2 >>= fun env ->
           j_merge_left env !!x1 !!x2 >>=
           qed
-    | ps1, [] ->
-        (* We may have a remaining, rigid, floating permission. Good for us! *)
-        let sub_env = add_perms env ps1 in
-        apply_axiom env (JAdd (fold_star ps1)) "Add-Sub-Add" sub_env >>= fun env ->
-        nothing env "adding-everything" >>=
-        qed
-    | [], ps2 ->
-        (* This is useful if [ps2] is a rigid floating permission, alone, that
-         * also happens to be present in our environment. *)
-        sub_perms env ps2 >>=
-        qed
     | ps1, ps2 ->
         let sub_env = add_perms env ps1 in
         apply_axiom env (JAdd (fold_star ps1)) "Add-Sub-Add" sub_env >>= fun env ->
-        Log.debug ~level:4 "[add_sub] NOTICE: probable pending failure\n  \
-            coud not add: %a\n  \
-            could not sub: %a"
+        Log.debug ~level:4 "[add_sub] final case\n  \ ps1: %a\n  \ ps2: %a"
           TypePrinter.ptype (env, fold_star ps1)
           TypePrinter.ptype (env, fold_star ps2);
         sub_perms env ps2 >>=
