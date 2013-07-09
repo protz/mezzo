@@ -6,6 +6,6 @@ alias wand (pre: perm) (post: perm) =
 (* A frame rule for magic wands. *)
 
 val frame [p : perm, pre : perm, post : perm]
-  (w: wand pre post) : wand (p * pre) (p * post)
+  (consumes w: wand pre post) : wand (p * pre) (p * post)
  = w
 

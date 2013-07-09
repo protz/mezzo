@@ -260,3 +260,9 @@ let try_several
     end
   in
   walk [] choices
+
+
+(** Simple combinator that allows a less fancy combination of several choices.
+ * *)
+let par (rs: result list): result =
+  L.flatten rs

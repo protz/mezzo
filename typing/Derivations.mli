@@ -93,6 +93,8 @@ val try_several:
   (env -> 'a list -> 'a -> result) ->
   result
 
+val par: result list -> result
+
 (** If you're iterating over a series of premises, it is sometimes convenient to
  * say that one of them requires no special operations because of a certain
  * rule... *)

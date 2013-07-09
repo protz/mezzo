@@ -1010,7 +1010,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("concurrentsort.mz", pass);
   ("derived_locks.mz", pass);
   ("rich-bool1.mz", pass_known_failure);
-  ("frame-wand.mz", pass_known_failure);
+  ("frame-wand.mz", pass);
   ("iteration.mz", pass);
   ("fpiterator-focused.mz", pass); (* very costly, sorry *)
   ("flexible-point.mz", pass);

@@ -911,6 +911,23 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
   (** Lower priority for binding flexible = existential quantifiers. *)
 
+  | TyQ (Forall, binding1, _, t'1), TyQ (Exists, binding2, _, t'2) ->
+      par [
+        try_proof_root "Forall-L" begin
+          let env, t2 = open_all_rigid_in env t2 Right in
+          let env, t'1, _ = bind_flexible_in_type env binding1 t'1 in
+          sub_type env t'1 t2 >>=
+          qed
+        end;
+
+        try_proof_root "Exists-R" begin
+          let env, t1 = open_all_rigid_in env t1 Left in
+          let env, t'2, _ = bind_flexible_in_type env binding2 t'2 in
+          sub_type env t1 t'2 >>=
+          qed
+        end
+      ]
+
   | TyQ (Forall, binding, _, t1), _ ->
       try_proof_root "Forall-L" begin
         let env, t2 = open_all_rigid_in env t2 Right in
@@ -1358,8 +1375,16 @@ and add_sub env ps1 ps2 =
               could not sub: %a"
             TypePrinter.ptype (env, fold_star ps1_flex)
             TypePrinter.ptype (env, fold_star ps2);
-          sub_perms env ps2 >>=
-          qed
+          match ps1_flex, ps2 with
+          | [TyOpen var1], _ when is_flexible env var1 ->
+              j_flex_inst env var1 (fold_star ps2) >>=
+              qed
+          | _, [TyOpen var2] when is_flexible env var2 ->
+              j_flex_inst env var2 (fold_star ps1) >>=
+              qed
+          | _ ->
+              sub_perms env ps2 >>=
+              qed
       end
     end
   end
@@ -1423,9 +1448,8 @@ and sub_perms (env: env) (perms: typ list): result =
     (* Put the flexible perm variables last. In the case where we have:
      * "t p * p": first subtracting "t p" will instantiate "p" to its right value,
      * whereas first subtracting "p" will instantiate it to "empty". *)
-    let perms = List.sort (fun y x ->
-      Pervasives.compare (perm_not_flex env x) (perm_not_flex env y)
-    ) perms in
+    let not_flex, flex = List.partition (perm_not_flex env) perms in
+    let perms = not_flex @ flex in
 
     let rec sub_perms (env: env) (perms: typ list): state =
       (* The order in which we subtract a bunch of permission is important because,
@@ -1435,11 +1459,6 @@ and sub_perms (env: env) (perms: typ list): result =
       if List.length perms = 0 then
         qed env
       else
-        match MzList.take_bool (fun p -> (is_good (sub_perm env p))) perms with
-        | Some (perms, perm) ->
-            sub_perm env perm >>= fun env ->
-            sub_perms env perms
-        | None ->
             (* Rather than saying « I don't know how to subtract this big set
              * of permissions », explain why one of them (e.g. the first one)
              * can't be subtracted. *)
