@@ -1,5 +1,4 @@
 open channel
-(* open tree_iterator *)
 
 data mutable tree a =
   Leaf
@@ -14,30 +13,40 @@ data mutable tree a =
    where [x] is the hole of the iterator, this approach allows [a] to be
    exclusive. *)
 
-val send_and_wait_ack [a] (x: a, pipe: channel ({x: term} (a, channel ( | x@a)))): () =
-  let c = channel::new [( | x@a)] () in
-  assert c @ channel ( | x@a);
-  assert {y: term} (c @ channel ( | y@a));
-  send [a] (pipe, (x, c));
-  receive c
+alias ack_t (p : perm) =
+  channel (bool | p)
 
-val rec iter [a] duplicable a => (t: tree a, pipe: channel a, ack: channel bool) : bool =
+alias packet a =
+  (x: a, ack_t (x @ a))
+
+alias pipe_t a =
+  channel (packet a)
+
+val send_and_wait [a] (pipe: pipe_t a, x: a) : bool =
+  let ack : ack_t (x @ a) = new [(bool | x @ a)] () in
+    (* BUG? why is the above type application required? *)
+  let p : packet a = (x, ack) in
+  send(pipe, p);
+    (* BUG? why is the above function call ill-typed? *)
+  receive ack
+
+val rec iter [a] (t: tree a, pipe: pipe_t a) : bool =
   match t with
   | Leaf ->
       true
   | Node ->
-      iter (t.left, pipe, ack) &&
-      begin send (pipe, t.elem); receive ack end &&
-      iter (t.right, pipe, ack)
+      iter (t.left, pipe) &&
+      send_and_wait (pipe, t.elem) &&
+      iter (t.right, pipe)
   end 
 
 (* Here is a client that receives the elements and counts them. Note that it
    has local state. *)
 
-val count [a] (pipe: channel a, ack: channel bool) : () =
+val count [a] (pipe: pipe_t a) : () =
   let c = newref 0 in
   preserving c @ ref int while true do begin
-    let x = receive pipe in
+    let x, ack = receive pipe in
     incr c;
     send (ack, true)
   end
@@ -47,22 +56,13 @@ val count [a] (pipe: channel a, ack: channel bool) : () =
    on the current thread. If we spawned a new thread, we would have to
    transmit [t @ tree a] to it, and get it back afterwards, using [join]. *)
 
-val test [a] duplicable a => (t: tree a) : bool =
-  let pipe, ack = new(), new() in
+val test [a] (t: tree a) : bool =
+  let pipe = new() in
   thread::spawn (fun () : () =
-    count (pipe, ack)
+    count(pipe)
   );
-  iter [a] (t, pipe, ack)
+  iter [a] (t, pipe)
     (* Interesting example of a type application that is required. *)
-
-(* TODO find a way of encoding the protocol when [a] is not duplicable.
-   - possibly create one new [ack] channel for each element (not very nice)
-   - possibly use a non-shareable channel, with explicit permissions to send
-     and receive; send every element [x] on the pipe together with a permission
-     to emit [x @ a] on the channel [ack]. Keep a permission to receive [x @ a]
-     on [ack]. This requires the ability to manufacture a dual send/receive
-     permission pair. Can we implement these controlled channels in the
-     language? *)
 
 (*
 Local Variables:
