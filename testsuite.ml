@@ -926,6 +926,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("facts09.mz", fail);
   ("facts10.mz", fail);
   ("facts11.mz", pass_known_failure);
+  ("facts12.mz", pass_known_failure);
   ("data-term.mz", pass_known_failure);
   ("fact-term.mz", fail_known_failure);
 

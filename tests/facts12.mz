@@ -1,0 +1,27 @@
+val x [a] exclusive a => () : () =
+  ()
+
+(* success *)
+val () =
+  x [(ref int)] ()
+
+(* success *)
+val () =
+  x [{p: perm} (ref int)] ()
+
+(* success *)
+val () =
+  x [{p: perm} (ref int | p)] ()
+
+(* failure (BUG) *)
+val () =
+  x [(r: ref int)] ()
+
+(* failure (BUG) *)
+val () =
+  x [{r: term} (=r | r @ ref int)] ()
+
+(* The problem is, the singleton type =r should be recognized
+   as exclusive when accompanied by r @ some exclusive type.
+   Technically this is not a bug, but a missing feature. *)
+
