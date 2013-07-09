@@ -1189,12 +1189,37 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
 
 and add_sub env ps1 ps2 =
-  try_proof env (JSubType (fold_star ps1, fold_star ps2)) "Add-Sub" begin
-    (* This has the nice guarantee that we don't need to worry about flexible
-     * PERM variables anymore (hence the call to List.partition a few lines
-     * below). *)
-    let ps1 = MzList.flatten_map (flatten_star env) ps1 in
-    let ps2 = MzList.flatten_map (flatten_star env) ps2 in
+  let judgement = JSubType (fold_star ps1, fold_star ps2) in
+
+  try_proof env judgement "Add-Sub" begin
+
+    let strip_syntactically_equal env ps1 ps2 =
+      let ps1 = MzList.flatten_map (flatten_star env) ps1 in
+      let ps2 = MzList.flatten_map (flatten_star env) ps2 in
+      (* This is only useful if there's a bunch of permission variables
+       * (or abstract permissions) on each side: clear these up, and try
+       * to do something useful with the rest. *)
+      let rec sse env left ps1 ps2 =
+        match ps1 with
+        | [] ->
+            env, left, ps2
+        | elt :: ps1 ->
+            match MzList.take_bool (equal env elt) ps2 with
+            | Some (ps2, _elt') ->
+                let env =
+                  if FactInference.is_duplicable env elt then
+                    add_perm env elt
+                  else
+                    env
+                in
+                sse env left ps1 ps2
+            | None ->
+                sse env (elt :: left) ps1 ps2
+      in
+      sse env [] ps1 ps2
+    in
+    let env, ps1, ps2 = strip_syntactically_equal env ps1 ps2 in
+
 
     (*   [add_perm] will fail if we add "x @ t" when "x" is flexible. So we
      * search among the permissions in [ps1] one that is suitable for adding,
@@ -1205,187 +1230,123 @@ and add_sub env ps1 ps2 =
      * permission in [ps1]. So we alternate adding from [ps1] and subtracting
      * from [ps2] until there's nothing left we can do, either because
      * something's flexible, or because the permissions can't be subtracted. *)
-    let works_for_add = perm_not_flex in
     let works_for_sub env p2 =
+      perm_not_flex env p2 &&
       is_good (sub_perm env p2)
+    in
+    let works_for_add env p1 =
+      perm_not_flex env p1
     in
 
     (* This is the main function. *)
     let rec add_sub env ps1 ps2 k: state =
-      match MzList.take_bool (works_for_add env) ps1 with
-      | Some (ps1, p1) ->
-          Log.debug "About to add %a"
-            TypePrinter.ptype (env, p1);
-          let sub_env = add_perm env p1 in
-          apply_axiom env (JAdd p1) "Add-Sub-Add" sub_env >>= fun env ->
-          add_sub env ps1 ps2 k
-      | None ->
-          match MzList.take_bool (works_for_sub env) ps2 with
-          | Some (ps2, p2) ->
-              sub_perm env p2 >>= fun env ->
-              add_sub env ps1 ps2 k
-          | None ->
-              k env ps1 ps2
-    in
-
-    (* If the rhs is made up of only a single variable, it's a good idea to
-     * instantiate it to [ps1] right now. *)
-    begin match ps1, ps2 with
-    | ps1, [TyOpen var2] when is_flexible env var2 ->
-        j_flex_inst env var2 (fold_star ps1) >>= fun env ->
-        let env = add_perms env ps1 in
-        sub_perms env ps1 >>=
-        qed
-    | _ ->
-
-      (* Our new strategy for inferring PERM variables is as follows. We first
-       * put the PERM variables aside, perform the add/sub dance, and see what's
-       * left. If either side is made up of just one flexible PERM variable,
-       * then bingo, we win.
-       *
-       * FIXME: this works very well when the flexible variable is in [vars1]; when
-       * it is in [vars2], chances are, we've added everything from [ps1] into
-       * the environment, so we don't know what's left for us to instanciate
-       * [ps2] with... first try a syntactic criterion? Only add permissions in
-       * [ps1] if they “unlock” something in [ps2]? I don't know...
-       *
-       * 20130219: the extra match right above us somehow mitigates this
-       * problem, but the paragraph above remains relevant. *)
-      let vars1, ps1 = List.partition (function TyOpen _ -> true | _ -> false) ps1 in
-      let vars2, ps2 = List.partition (function TyOpen _ -> true | _ -> false) ps2 in
-
-      Log.debug ~level:4 "[add_sub] starting with ps1=%a, ps2=%a, vars1=%a, vars2=%a"
-        TypePrinter.ptype (env, fold_star ps1)
-        TypePrinter.ptype (env, fold_star ps2)
-        TypePrinter.ptype (env, fold_star vars1)
-        TypePrinter.ptype (env, fold_star vars2);
-
-      (* Try to eliminate as much as we can... *)
-      add_sub env ps1 ps2 begin fun env ps1 ps2 ->
-
-      Log.debug ~level:4 "[add_sub] ended up with ps1=%a, ps2=%a, vars1=%a, vars2=%a"
-        TypePrinter.ptype (env, fold_star ps1)
-        TypePrinter.ptype (env, fold_star ps2)
-        TypePrinter.ptype (env, fold_star vars1)
-        TypePrinter.ptype (env, fold_star vars2);
-
-      let strip_syntactically_equal env l1 l2 =
-        (* This is only useful if there's a bunch of permission variables
-         * (or abstract permissions) on each side: clear these up, and try
-         * to do something useful with the rest. *)
-        let rec sse env left l1 l2 =
-          match l1 with
-          | [] ->
-              env, left, l2
-          | elt :: l1 ->
-              match MzList.take_bool (equal env elt) l2 with
-              | Some (l2, _elt') ->
-                  let env =
-                    if FactInference.is_duplicable env elt then
-                      add_perm env elt
-                    else
-                      env
-                  in
-                  sse env left l1 l2
-              | None ->
-                  sse env (elt :: left) l1 l2
-        in
-        sse env [] l1 l2
-      in
-
-      (* Another round of simplifications. [strip_syntactically_equal] takes
-       * care of adding the elements in [ps1] that are duplicable! *)
-      let ps1 = vars1 @ ps1 and ps2 = vars2 @ ps2 in
       let ps1 = MzList.flatten_map (flatten_star env) ps1 in
       let ps2 = MzList.flatten_map (flatten_star env) ps2 in
-      let env, ps1, ps2 = strip_syntactically_equal env ps1 ps2 in
-
-      apply_axiom env (JDebug (fold_star ps1, fold_star ps2)) "Remaining-Add-Sub" env >>= fun env ->
-
-      (* And then try to be smart with whatever remains. *)
       match ps1, ps2 with
-      | [TyOpen var1 as t1], [TyOpen var2 as t2] ->
-          (* Beware! We're doing our own one-on-one matching of permission
-           * variables, but still, we need to keep [var1] if it happens to be a
-           * duplicable one! So we add it here, and [sub_floating_perm] will
-           * remove it or not, depending on the associated fact. *)
-          let env = add_perm env t1 in
-          begin match is_flexible env var1, is_flexible env var2 with
-          | true, false ->
-              j_merge_left env var2 var1
-          | false, true ->
-              j_merge_left env var1 var2
-          | true, true ->
-              j_merge_left env var1 var2
-          | false, false ->
-              if same env var1 var2 then
-                Log.error "This was meant to be solved by [strip_syntactically_equal]!"
-              else
-                no_proof env (JSubType (t1, t2))
-          end >>= fun env ->
-          sub_perm env t2 >>=
+      | _, [TyOpen v2] when is_flexible env v2 ->
+          j_flex_inst env v2 (fold_star ps1) >>=
           qed
-      | ps1, [TyOpen var2] when is_flexible env var2 ->
-          j_flex_inst env var2 (fold_star ps1) >>=
+      | _ ->
+          match MzList.take_bool (works_for_add env) ps1 with
+          | Some (ps1, p1) ->
+              Log.debug "About to add %a"
+                TypePrinter.ptype (env, p1);
+              let sub_env = add_perm env p1 in
+              apply_axiom env (JAdd p1) "Add-Sub-Add" sub_env >>= fun env ->
+              add_sub env ps1 ps2 k
+          | None ->
+              match MzList.take_bool (works_for_sub env) ps2 with
+              | Some (ps2, p2) ->
+                  sub_perm env p2 >>= fun env ->
+                  add_sub env ps1 ps2 k
+              | None ->
+                  k env ps1 ps2
+    in
+
+    Log.debug ~level:4 "[add_sub] starting with ps1=%a, ps2=%a"
+      TypePrinter.ptype (env, fold_star ps1)
+      TypePrinter.ptype (env, fold_star ps2);
+
+    (* Try to eliminate as much as we can... *)
+    add_sub env ps1 ps2 begin fun env ps1 ps2 ->
+
+    Log.debug ~level:4 "[add_sub] ended up with ps1=%a, ps2=%a"
+      TypePrinter.ptype (env, fold_star ps1)
+      TypePrinter.ptype (env, fold_star ps2);
+
+    apply_axiom env (JDebug (fold_star ps1, fold_star ps2)) "Remaining-Add-Sub" env >>= fun env ->
+
+    (* And then try to be smart with whatever remains. *)
+    match ps1, ps2 with
+    | [TyOpen var1 as t1], [TyOpen var2 as t2] ->
+        (* Beware! We're doing our own one-on-one matching of permission
+         * variables, but still, we need to keep [var1] if it happens to be a
+         * duplicable one! So we add it here, and [sub_floating_perm] will
+         * remove it or not, depending on the associated fact. *)
+        let env = add_perm env t1 in
+        begin match is_flexible env var1, is_flexible env var2 with
+        | true, false ->
+            j_merge_left env var2 var1
+        | false, true ->
+            j_merge_left env var1 var2
+        | true, true ->
+            j_merge_left env var1 var2
+        | false, false ->
+            if same env var1 var2 then
+              Log.error "This was meant to be solved by [strip_syntactically_equal]!"
+            else
+              no_proof env (JSubType (t1, t2))
+        end >>= fun env ->
+        sub_perm env t2 >>=
+        qed
+    | ps1, [TyOpen var2] when is_flexible env var2 ->
+        j_flex_inst env var2 (fold_star ps1) >>=
+        qed
+    | [TyOpen var1], [TyEmpty] when is_flexible env var1 ->
+        (* Any instantiation of [var1] would be fine, actually, so don't
+         * commit to [TyEmpty]! *)
+        nothing env "keep-flex" >>=
+        qed
+    | [TyOpen var1], ps2 when is_flexible env var1 ->
+        (* We could actually instantiate [var1] to something bigger, e.g. the
+         * whole universe + [ps2]. Not sure that's a good idea computationally
+         * speaking but that would certainly make some more examples work (I
+         * guess?)... *)
+        Log.debug ~level:5 "Add-sub case #2";
+        j_flex_inst env var1 (fold_star ps2) >>=
+        qed
+    | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
+        when is_flexible env !!x2 ->
+          (* These two are *really* debatable heuristics. *)
+          sub_type_with_unfolding env t1 t2 >>= fun env ->
+          j_merge_left env !!x2 !!x1 >>=
           qed
-      | [TyOpen var1], [TyEmpty] when is_flexible env var1 ->
-          (* Any instantiation of [var1] would be fine, actually, so don't
-           * commit to [TyEmpty]! *)
-          nothing env "keep-flex" >>=
+    | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
+        when is_flexible env !!x1 ->
+          sub_type_with_unfolding env t1 t2 >>= fun env ->
+          j_merge_left env !!x1 !!x2 >>=
           qed
-      | [TyOpen var1], ps2 when is_flexible env var1 ->
-          (* We could actually instantiate [var1] to something bigger, e.g. the
-           * whole universe + [ps2]. Not sure that's a good idea computationally
-           * speaking but that would certainly make some more examples work (I
-           * guess?)... *)
-          Log.debug ~level:5 "Add-sub case #2";
-          j_flex_inst env var1 (fold_star ps2) >>=
-          qed
-      | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
-          when is_flexible env !!x2 ->
-            (* These two are *really* debatable heuristics. *)
-            sub_type_with_unfolding env t1 t2 >>= fun env ->
-            j_merge_left env !!x2 !!x1 >>=
-            qed
-      | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
-          when is_flexible env !!x1 ->
-            sub_type_with_unfolding env t1 t2 >>= fun env ->
-            j_merge_left env !!x1 !!x2 >>=
-            qed
-      | ps1, [] ->
-          (* We may have a remaining, rigid, floating permission. Good for us! *)
-          let sub_env = add_perms env ps1 in
-          apply_axiom env (JAdd (fold_star ps1)) "Add-Sub-Add" sub_env >>= fun env ->
-          nothing env "adding-everything" >>=
-          qed
-      | [], ps2 ->
-          (* This is useful if [ps2] is a rigid floating permission, alone, that
-           * also happens to be present in our environment. *)
-          sub_perms env ps2 >>=
-          qed
-      | ps1, ps2 ->
-          (* jp: why are we even doing that? Adding permissions shouldn't
-           * hurt... yet, when I remove it, an incredible number of tests fail.
-           * /me is puzzled... *)
-          let ps1, ps1_flex = List.partition (perm_not_flex env) ps1 in
-          let sub_env = add_perms env ps1 in
-          apply_axiom env (JAdd (fold_star ps1)) "Add-Sub-Add" sub_env >>= fun env ->
-          Log.debug ~level:4 "[add_sub] NOTICE: probable pending failure\n  \
-              coud not add: %a\n  \
-              could not sub: %a"
-            TypePrinter.ptype (env, fold_star ps1_flex)
-            TypePrinter.ptype (env, fold_star ps2);
-          match ps1_flex, ps2 with
-          | [TyOpen var1], _ when is_flexible env var1 ->
-              j_flex_inst env var1 (fold_star ps2) >>=
-              qed
-          | _, [TyOpen var2] when is_flexible env var2 ->
-              j_flex_inst env var2 (fold_star ps1) >>=
-              qed
-          | _ ->
-              sub_perms env ps2 >>=
-              qed
-      end
+    | ps1, [] ->
+        (* We may have a remaining, rigid, floating permission. Good for us! *)
+        let sub_env = add_perms env ps1 in
+        apply_axiom env (JAdd (fold_star ps1)) "Add-Sub-Add" sub_env >>= fun env ->
+        nothing env "adding-everything" >>=
+        qed
+    | [], ps2 ->
+        (* This is useful if [ps2] is a rigid floating permission, alone, that
+         * also happens to be present in our environment. *)
+        sub_perms env ps2 >>=
+        qed
+    | ps1, ps2 ->
+        let sub_env = add_perms env ps1 in
+        apply_axiom env (JAdd (fold_star ps1)) "Add-Sub-Add" sub_env >>= fun env ->
+        Log.debug ~level:4 "[add_sub] NOTICE: probable pending failure\n  \
+            coud not add: %a\n  \
+            could not sub: %a"
+          TypePrinter.ptype (env, fold_star ps1)
+          TypePrinter.ptype (env, fold_star ps2);
+        sub_perms env ps2 >>=
+        qed
     end
   end
 
