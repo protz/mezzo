@@ -82,9 +82,8 @@ val apply_axiom :
  * [try_several env j r items attempt] will try to prove judgement [j] in
  * environment [env], using rule [r]; for each [item] in [items], it will
  * [attempt item], hoping to find a successful result, passing it [env'] (the
- * resulting environment), [remaining] (the other items), and [item] (the first
- * item in the list that yielded a successful result). If no item in [items]
- * works, the result will be a conjunction of failures. *)
+ * resulting environment), [remaining] (the other items), and [item]. If no item
+ * in [items] works, the result will be a conjunction of failures. *)
 val try_several:
   env ->
   judgement ->
@@ -93,6 +92,9 @@ val try_several:
   (env -> 'a list -> 'a -> result) ->
   result
 
+(** This is a slightly different combinator, that allows you to try several
+ * rules to prove the same judgement (it is up to you to make sure it's the same
+ * judgement). Just pass it a list of results. *)
 val par: result list -> result
 
 (** If you're iterating over a series of premises, it is sometimes convenient to
