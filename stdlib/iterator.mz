@@ -149,7 +149,7 @@ val map [a, b, p: perm, post: perm] (
 | consumes p): iterator b (p * post)
 =
   let flex underlying: perm in
-  assert (it @ iterator_s underlying a post);
+  assert it @ iterator_s underlying a post;
 
   let alias s: perm = underlying * p in
 
@@ -243,8 +243,8 @@ val concat [a, post1: perm, post2: perm] (
 
   let flex s1: perm in
   let flex s2: perm in
-  assert (it1 @ iterator_s s1 a post1);
-  assert (it2 @ iterator_s s2 a post2);
+  assert it1 @ iterator_s s1 a post1;
+  assert it2 @ iterator_s s2 a post2;
 
   let alias s_ty =
     (rich_bool post1 s1 (* Is it1 alive? *)
@@ -266,7 +266,7 @@ val concat [a, post1: perm, post2: perm] (
         next ()
       | Left { contents = (x, surrender) } ->
         let flex p: perm in
-        assert (surrender @ (| consumes (p * x @ a)) -> (| s1));
+        assert surrender @ (| consumes (p * x @ a)) -> (| s1);
         pack surrender @ wand (x @ a) s witness p * s2 * state @ ref True;
         left (x, surrender)
       end
@@ -278,7 +278,7 @@ val concat [a, post1: perm, post2: perm] (
         right ()
       | Left { contents = (x, surrender) } ->
         let flex p: perm in
-        assert (surrender @ (| consumes (p * x @ a)) -> (| s2));
+        assert surrender @ (| consumes (p * x @ a)) -> (| s2);
         pack surrender @ wand (x @ a) s witness post1 * p * state @ ref False;
         left (x, surrender)
       end 
