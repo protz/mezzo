@@ -55,7 +55,60 @@ val test [a] duplicable a => (t: tree a) : bool =
 
 (* ------------------------------------------------------------------------------ *)
 
+(* Another approach, where we use a new [ack] channel at every interaction.
+   This is a bit wasteful but allows us to typecheck the code even when [a]
+   is not duplicable. *)
 
+alias ack_t (p : perm) =
+  channel (bool | p)
+
+alias packet a =
+  (x: a, ack_t (x @ a))
+
+alias pipe_t a =
+  channel (packet a)
+
+(* TEMPORARY a lot of unpleasant type applications are required in the
+   code that follows. *)
+
+val send_and_wait [a] (pipe: pipe_t a, x: a) : bool =
+  let ack : ack_t (x @ a) = new [(bool | x @ a)] () in
+  send [packet a] (pipe, (x, ack));
+  receive [(bool | x @ a)] ack
+
+val rec iter [a] (t: tree a, pipe: pipe_t a) : bool =
+  match t with
+  | Leaf ->
+      true
+  | Node ->
+      iter (t.left, pipe) &&
+      send_and_wait (pipe, t.elem) &&
+      iter (t.right, pipe)
+  end 
+
+(* Here is a client that receives the elements and counts them. Note that it
+   has local state. *)
+
+val count [a] (pipe: pipe_t a) : () =
+  let c = newref 0 in
+  preserving c @ ref int while true do begin
+    let x, ack = receive [packet a] pipe in
+    incr c;
+    send [(bool | x @ a)] (ack, true)
+  end
+  (* Stupid. This point in the code is unreachable. *)
+
+(* Now, combine the producer and consumer. We cheat by running the producer
+   on the current thread. If we spawned a new thread, we would have to
+   transmit [t @ tree a] to it, and get it back afterwards, using [join]. *)
+
+val test [a] (t: tree a) : bool =
+  let pipe = new() in
+  thread::spawn (fun () : () =
+    count [a] pipe
+      (* Interesting example of a type application that is required. *)
+  );
+  iter (t, pipe)
 
 (* ------------------------------------------------------------------------------ *)
 

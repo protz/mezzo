@@ -1010,7 +1010,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("sparray.mz", pass);
   ("interface-arg-name.mz", pass_known_failure);
   ("tree-coroutine.mz", pass);
-  ("tree-coroutine-disposable-ack.mz", pass);
   ("concurrentsort.mz", pass);
   ("derived_locks.mz", pass);
   ("rich-bool1.mz", pass_known_failure);
