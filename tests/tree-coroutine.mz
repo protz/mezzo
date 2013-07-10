@@ -112,13 +112,76 @@ val test [a] (t: tree a) : bool =
 
 (* ------------------------------------------------------------------------------ *)
 
-(* TODO find another way of encoding the protocol when [a] is not duplicable.
-   - possibly use a non-shareable channel, with explicit permissions to send
-     and receive; send every element [x] on the pipe together with a permission
-     to emit [x @ a] on the channel [ack]. Keep a permission to receive [x @ a]
-     on [ack]. This requires the ability to manufacture a dual send/receive
-     permission pair. Can we implement these controlled channels in the
-     language? *)
+(* A third approach, where [ack] is a tube and is re-used at every interaction. *)
+
+open tube
+
+alias ack_inlet (p : perm) =
+  inlet (bool | p)
+
+alias ack_outlet (p : perm) =
+  outlet (bool | p)
+
+alias packet a (ack : term) =
+  (x: a | ack @ ack_outlet (x @ a))
+
+alias pipe_t a (ack : term) =
+  channel (packet a ack)
+
+(* In this variant of [send_and_wait], we do not create the [ack]
+   tube, which already exists. We set it up for one exchange, send
+   the outlet permission via the pipe, and keep the inlet permission,
+   which is used to receive. After the interaction, the tube is
+   inert again. *)
+
+val send_and_wait [a] (pipe: pipe_t a ack, ack: inert, x: a) : bool =
+  (* Set up the tube for this one interaction. *)
+  setup [(bool | x @ a)] ack;
+  (* Send [x], together with the outlet permission for [ack], via the pipe. *)
+  channel::send [packet a ack] (pipe, x);
+  (* Recover the permission [x @ a] via the inlet side of [ack]. *)
+  tube::receive [(bool | x @ a)] ack
+  (* [ack] is now inert again. *)
+
+val rec iter [a] (t: tree a, pipe: pipe_t a ack, ack: inert) : bool =
+  match t with
+  | Leaf ->
+      true
+  | Node ->
+      iter (t.left, pipe, ack) &&
+      send_and_wait (pipe, ack, t.elem) &&
+      iter (t.right, pipe, ack)
+  end 
+
+(* Here is a client that receives the elements and counts them. Note that it
+   has local state. *)
+
+val count [a] (pipe: pipe_t a ack, ack: =ack) : () =
+  let c = newref 0 in
+  preserving c @ ref int while true do begin
+    let x = channel::receive [packet a ack] pipe in
+    (* We now have a permission to send on [ack]. *)
+    assert ack @ outlet (bool | x @ a);
+    incr c;
+    tube::send [(bool | x @ a)] (ack, true)
+  end
+  (* Stupid. This point in the code is unreachable. *)
+
+(* Now, combine the producer and consumer. We cheat by running the producer
+   on the current thread. If we spawned a new thread, we would have to
+   transmit [t @ tree a] to it, and get it back afterwards, using [join]. *)
+
+val test [a] (t: tree a) : bool =
+  (* [ack] must be allocated first, because the type of [pipe] refers to it! *)
+  let ack = tube::new() in
+  let pipe = channel::new() in
+  thread::spawn (fun () : () =
+    count [a] (pipe, ack)
+      (* Interesting example of a type application that is required. *)
+  );
+  iter (t, pipe, ack)
+
+(* ------------------------------------------------------------------------------ *)
 
 (*
 Local Variables:

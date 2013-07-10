@@ -1,0 +1,100 @@
+open thread
+open channel
+open tube
+
+(* An advertisement channel is a channel on which the server posts just
+   one message and the clients can compete to receive this message. The
+   message contains a pair of request/reply outlet/inlet, which are private
+   and used only for one client/server interaction. *)
+
+alias advertisement a b =
+  channel (outlet a, inlet b)
+
+(* A client can use an advertisement channel as follows. *)
+
+val invoke [a, b] (
+  ad: advertisement a b,
+  consumes x: a
+) : b =
+  let request, reply = channel::receive ad in
+  tube::send(request, x);
+  tube::receive reply
+    (* Here, we own the inert [reply] tube, but cannot do anything
+       useful with it. We could return this permission to the server,
+       but that would require another message exchange. *)
+
+(* [serve f] spawns a new server thread, which listens on a new
+   advertisement channel. It returns this channel, for use by
+   client threads. Each reply on the request channel is served
+   by applying the function [f] to the request and sending the
+   result via the reply channel. Multiple requests can be served
+   concurrently. For fun, the function itself has access to the
+   advertisement channel, so the server can send requests to
+   itself in the process of servicing a request. *)
+
+(* There is no mechanism for terminating the server. *)
+
+(* In principle, instead of allocating new request/reply objects every
+   time, the server could maintain a pool of unused objects and use
+   one of them (if available) or allocate a new one. This would
+   require a type of rendez-vous objects that supports
+   re-initialization for multiple uses. One difficulty is that for the
+   request object, we would like the receiver to recover full
+   ownership of the object, whereas for the reply object, we would
+   like the send to recover full ownership. Furthermore, it seems
+   that the only sound option is for the *receiver* to recover full
+   ownership, since the receive operation completes after the send,
+   while the converse is not true, unless we assume a synchronous send
+   (which could make sense in some scenarios). *)
+
+val serve [a, b] (
+  f: (advertisement a b, consumes a) -> b
+) : advertisement a b
+=
+  (* Create the advertisement channel. *)
+  let ad : advertisement a b = channel::new() in
+  (* Spawn a server thread. *)
+  spawn (fun () : () =
+    while true do begin
+      (* Post a message on the advertisement channel, containing
+         a pair of fresh reply/request tubes. *)
+      let request = tube::new()
+      and reply   = tube::new() in
+      setup [a] request;
+      setup [b] reply;
+      channel::send(ad, (request, reply));
+      (* Wait for a client to grab this message. We will know
+         that this has occurred once we receive a message via
+         the [request] channel. *)
+      let x = tube::receive request in
+      (* Here, we own the inert request tube, and could in principle
+         store it in a pool for future re-use. *)
+      assert request @ inert;
+      (* Spawn a new thread to deal with this request. Note that
+         the ownership of [x] is transferred to this new thread. *)
+      spawn (fun (| consumes (x @ a * reply @ outlet b)) : () =
+        (* Reply to the client by sending the result of [f] via
+           the reply channel. *)
+        tube::send(reply, f(ad, x))
+      )
+    end
+  );
+  (* As soon as everything is set up, return the advertisement channel. *)
+  ad
+
+(* Just for fun, a recursive and very inefficient Fibonacci server. *)
+
+val fib (n: int) : int =
+
+  (* Set up a recursive server. *)
+  let ad : advertisement int int =
+    serve (fun (ad: advertisement int int, n: int) : int =
+      if n <= 1 then
+        1
+      else
+        invoke(ad, n-2) + invoke(ad, n-1)
+    )
+  in
+
+  invoke(ad, n)
+

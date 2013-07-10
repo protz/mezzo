@@ -1018,6 +1018,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("assert-exists.mz", pass_known_failure);
   ("assert-var.mz", fail_known_failure);
   ("internal_choice.mz", pass);
+  ("server.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)

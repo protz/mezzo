@@ -1,0 +1,57 @@
+(* A tube is a channel that is shared by only two participants.
+   This allows messages of heterogeneous types to be sent over the
+   tube. *)
+
+(* A tube is initially inert. *)
+
+abstract inert
+fact exclusive inert
+
+val new: () -> inert
+
+(* A tube can be prepared for a single message exchange. The
+   type of the message is fixed at this point. This gives rise
+   to two dual permissions, for sending and for receiving. The
+   two ends of the tube are known as the outlet and inlet. This
+   operation does nothing at runtime. *)
+
+abstract outlet -a
+abstract inlet +a
+
+val setup: [a] (consumes c: inert) -> (| c @ outlet a * c @ inlet a)
+
+(* One permission allows sending, while the other allows receiving. *)
+
+(* We adopt the convention that the receiver recovers the full
+   ownership over the inert tube. This allows the tube to be
+   re-used for further interactions. If [send] is asynchronous,
+   then only the receiver can recover the full permission --
+   it would be unsound for the sender to recover it, as it
+   would then be possible to obtain two [inlet] permissions
+   and use them in the wrong order. If [send] was synchronous,
+   we could decide for either the receiver or the sender to
+   receive full permission; these scenarios can probably be
+   encoded in terms of asynchronous tubes anyway. *)
+
+val send:    [a] (consumes outlet a, consumes a) -> ()
+val receive: [a] (consumes c: inlet a) -> (a | c @ inert)
+
+(* This notion of tube is less expressive than Lozes and Villard's
+   automata, because the sender always loses all knowledge of the
+   tube, and it is up to the receiver to establish a new convention
+   (the type of the next message) and somehow transmit it to the
+   other party. In other words, not much useful work can be done
+   with just one tube; one always needs several tubes, or a tube
+   and a standard channel. In contrast, Lozes and Villard are able
+   to impose a complex protocol on a single channel. *)
+
+(* If one is willing to perform a lot of ugly and costly dynamic
+   checks, one might be able to encode any Lozes/Villard protocol
+   as a system composed of two participants, a mediator, channels
+   between each of the participants and the mediator, and tubes
+   (distributed by the mediator) between the participants. The
+   mediator would maintain the state of the automaton and set up
+   the tubes for the next interaction. The participants would need
+   to check at runtime that the state published by the mediator is
+   indeed the state that they expect to be in. *)
+
