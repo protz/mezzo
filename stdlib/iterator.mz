@@ -77,40 +77,60 @@ val print [a, post : perm] (
   iter_uninterruptibly (it, print)
 
 (* Comparison of two generic iterators. *)
-    
-val rec equal [a, post1 : perm, post2 : perm, p : perm] (
+
+val rec compare [a, post1 : perm, post2 : perm, p : perm] (
+  cmp: (a, a | p) -> int,
+  consumes i1: iterator a post1,
+  consumes i2: iterator a post2
+| p
+) : (int | post1 * post2) =
+
+  match i1.next(), i2.next() with
+  | Right, Right ->
+      0
+  | Left { contents = (x1, surrender1) }, Left { contents = (x2, surrender2) } ->
+      let e = cmp (x1, x2) in
+      surrender1 ();
+      surrender2 ();
+      if e = 0 then
+        compare (cmp, i1, i2)
+      else begin
+        i1.stop ();
+        i2.stop ();
+        e
+      end
+  | Left { contents = (_, surrender1) }, Right ->
+    (* The sequence [i1] is longer. *)
+      surrender1 ();
+      i1.stop ();
+      1
+  | Right, Left { contents = (_, surrender2) } ->
+    (* The sequence [i2] is longer. *)
+      surrender2 ();
+      i2.stop ();
+      -1
+  end
+
+(* Equality between two generic iterators *)
+
+val equal [a, post1: perm, post2: perm, p: perm] (
   eq: (a, a | p) -> bool,
   consumes i1: iterator a post1,
   consumes i2: iterator a post2
 | p
 ) : (bool | post1 * post2) =
 
-  match i1.next(), i2.next() with
-  | Right, Right ->
-      true
-  | Left { contents = (x1, surrender1) }, Left { contents = (x2, surrender2) } ->
-      let e = eq (x1, x2) in
-      surrender1 ();
-      surrender2 ();
-      if e then
-        equal (eq, i1, i2)
-      else begin
-        i1.stop ();
-        i2.stop ();
-        False
-      end
-  | Left { contents = (_, surrender1) }, Right ->
-      surrender1 ();
-      i1.stop ();
-      false
-  | Right, Left { contents = (_, surrender2) } ->
-      surrender2 ();
-      i2.stop ();
-      false
-  end 
+  let cmp (x: a, y: a | p): int =
+    if eq (x, y) then
+      0
+    else
+      1 (* dummy non-zero value *)
+  in
+  compare (cmp, i1, i2) = 0
+
 
 (* A [filter] function on generic iterators.
- 
+
    Constructs a new iterator, which returns only the elements of [it] that match
    the predicate [f]
 *)
@@ -162,7 +182,7 @@ val filter [a, p: perm, post: perm] (
           surrender();
           next()
         end
-    end 
+    end
   in
 
   Iterator { next; stop = it.stop }
@@ -180,13 +200,13 @@ val map [a, b, p: perm, post: perm] (
 | consumes p): iterator b (p * post)
 =
   let flex underlying: perm in
-  assert (it @ iterator_s underlying a post);
+  assert it @ iterator_s underlying a post;
 
   let alias s: perm = underlying * p in
 
   let next (| consumes s):
       either (focused b s) (| post * p) =
-    
+
     match it.next () with
     | Right ->
       right ()
@@ -197,7 +217,7 @@ val map [a, b, p: perm, post: perm] (
       let y = f x in
       pack surrender @ wand (y @ b) s witness p * q * x @ a;
       left (y, surrender)
-    end 
+    end
   in
 
   Iterator { next; stop = it.stop }
@@ -274,8 +294,8 @@ val concat [a, post1: perm, post2: perm] (
 
   let flex s1: perm in
   let flex s2: perm in
-  assert (it1 @ iterator_s s1 a post1);
-  assert (it2 @ iterator_s s2 a post2);
+  assert it1 @ iterator_s s1 a post1;
+  assert it2 @ iterator_s s2 a post2;
 
   let alias s_ty =
     (rich_bool post1 s1 (* Is it1 alive? *)
@@ -297,7 +317,7 @@ val concat [a, post1: perm, post2: perm] (
         next ()
       | Left { contents = (x, surrender) } ->
         let flex p: perm in
-        assert (surrender @ (| consumes (p * x @ a)) -> (| s1));
+        assert surrender @ (| consumes (p * x @ a)) -> (| s1);
         pack surrender @ wand (x @ a) s witness p * s2 * state @ ref True;
         left (x, surrender)
       end
@@ -309,10 +329,10 @@ val concat [a, post1: perm, post2: perm] (
         right ()
       | Left { contents = (x, surrender) } ->
         let flex p: perm in
-        assert (surrender @ (| consumes (p * x @ a)) -> (| s2));
+        assert surrender @ (| consumes (p * x @ a)) -> (| s2);
         pack surrender @ wand (x @ a) s witness post1 * p * state @ ref False;
         left (x, surrender)
-      end 
+      end
     end
   in
 
@@ -386,7 +406,7 @@ val rec drop [a, post: perm] (
     | Left { contents = (_, surrender) } ->
       surrender ();
       drop (it, n-1)
-    end 
+    end
 
 (* Drops elements of [it] of the iterator while the predicate [pred]
    evaluates to [True] on them *)
@@ -405,7 +425,7 @@ val rec dropWhile [a, post: perm, p: perm] (
       surrender ();
       dropWhile (it, pred)
     )
-  end 
+  end
 
 (* Turning a generic iterator into a stream. A bit trivial, because this
    works only when the elements are duplicable, and in that case, there

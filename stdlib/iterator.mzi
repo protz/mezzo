@@ -45,7 +45,8 @@ val fold: [a, b, post: perm] (
   f: (consumes b, a) -> (b, bool)
 ) -> (b, bool | post)
 
-(* Comparison of two generic iterators.
+
+(* Equality between two generic iterators.
 *)
 val equal: [a, post1 : perm, post2 : perm, p : perm] (
   eq: (a, a | p) -> bool,
@@ -55,8 +56,18 @@ val equal: [a, post1 : perm, post2 : perm, p : perm] (
 ) -> (bool | post1 * post2)
 
 
+(* Comparison of two generic iterators.
+*)
+val compare: [a, post1 : perm, post2 : perm, p : perm] (
+  cmp: (a, a | p) -> int,
+  consumes i1: iterator a post1,
+  consumes i2: iterator a post2
+| p
+) -> (int | post1 * post2)
+
+
 (* A [filter] function on generic iterators.
- 
+
    Constructs a new iterator, which returns only the elements of [it] that match
    the predicate [f]
 *)
