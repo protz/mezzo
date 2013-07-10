@@ -317,7 +317,33 @@ val rec fold_left [a, b, post: perm] (
     let new_accu = f (accu, x) in
     surrender ();
     fold_left (f, new_accu, it)
-  end 
+  end
+
+(* A fold function where the iteration can be interrupted by the user.
+
+   If the boolean returned by [f] with the new accumulator is [true],
+   the iteration continues. Otherwise, the iterator is stopped and the
+   current accumulator is returned.
+*)
+val rec fold_stop [a, b, post: perm] (
+  f: (consumes b, a) -> (b, bool),
+  consumes accu: b,
+  consumes it: iterator a post
+): (b | post)
+=
+  match it.next () with
+  | Right ->
+    accu
+  | Left { contents = (x, surrender) } ->
+    let new_accu, continue = f (accu, x) in
+    surrender ();
+    if continue then
+      fold_stop (f, new_accu, it)
+    else begin
+      it.stop ();
+      new_accu
+    end
+  end
 
 (* Drops the [n] first elements of the iterator - that is, [drop]
    calls [it.next ()] [n] times *)

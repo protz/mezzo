@@ -93,6 +93,19 @@ val fold_left: [a, b, post: perm] (
 ) -> (b | post)
 
 
+(* A fold function where the iteration can be interrupted by the user.
+
+   If the boolean returned by [f] with the new accumulator is [true],
+   the iteration continues. Otherwise, the iterator is stopped and the
+   current accumulator is returned.
+*)
+val fold_stop: [a, b, post: perm] (
+  f: (consumes b, a) -> (b, bool),
+  consumes accu: b,
+  consumes it: iterator a post
+) -> (b | post)
+
+
 (* Drops the [n] first elements of the iterator - that is, [drop]
    calls [it.next ()] [n] times
 *)
