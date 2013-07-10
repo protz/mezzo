@@ -1,0 +1,366 @@
+(* A tree is either empty or a binary node. Besides its children, a binary
+   node contains a key, a value, and its height. *)
+
+data mutable tree k a =
+  | Empty
+  | Node { left: tree k a; key: k; value: a; right: tree k a; height: int }
+
+(* OCaml's [Map] library uses iterators in order to implement the comparison
+   of two trees. It implements an iterator as a list of trees. Unfortunately,
+   as of now, ordinary tree iterators are difficult to express in Mezzo,
+   because it is hard to explain how/why the ownership of the tree cells (and
+   keys, and values) is returned from the iterator to the tree once iteration
+   is complete. *)
+
+(* Mutable zippers allow building a form of tree iterators that have the key
+   feature that the memory footprint of the iterator is exactly the memory
+   footprint of the original tree. Hence, keeping track of ownership is simpler
+   in this approach. *)
+
+data mutable zipper k a =
+  | ZEmpty
+  | ZLeft  { father: zipper k a; key: k; value: a; right: tree k a;    height: int }
+  | ZRight { left: tree k a;     key: k; value: a; father: zipper k a; height: int }
+
+(* In this approach, an iterator is a pair of a zipper and a tree, together
+   with a tag that indicates whether we are arriving at this node, currently
+   paused at this node, or leaving this node. Furthermore, an iterator can
+   be paused only at a binary node -- never at an empty node. *)
+
+data mutable iterator k a =
+  | IArriving { context: zipper k a; focus: tree k a }
+  | IAt       { context: zipper k a; focus: Node { left: tree k a; key: k; value: a; right: tree k a; height: int }}
+  | ILeaving  { context: zipper k a; focus: tree k a }
+
+(* The function [advance] advances an iterator until either it reaches a new
+   element (in which case the iterator is left in state [IAt]) or there are no
+   more elements (in which case the iterator is left in state [ILeaving], with
+   an [Empty] tree). Initially, the iterator can be in any state; if it is
+   initially in state [IAt], then it will advance to the next element. *)
+
+val rec advance [k, a] (i: iterator k a) : () =
+  match i with
+  | IArriving { context = z; focus = f } ->
+      match f with
+      | Empty ->
+         (* Skip empty nodes. *)
+         tag of i <- ILeaving;
+         advance i
+      | Node { left } ->
+         (* When arriving at a node, descend immediately into the left child. *)
+         tag of f <- ZLeft;
+         f.father <- z;
+         (* [f] is now a zipper! *)
+         i.context <- f;
+         i.focus <- left;
+         advance i
+        end
+  | IAt { context = z; focus = f } ->
+      let right = f.right in
+      (* After handling a node, descend into its right child. *)
+      tag of f <- ZRight;
+      f.father <- z;
+      (* [f] is now a zipper! *)
+      tag of i <- IArriving;
+      i.context <- f;
+      i.focus <- right;
+      advance i
+  | ILeaving { context = z; focus = f } ->
+      match z with
+      | ZEmpty ->
+         (* We are finished. *)
+         ()
+      | ZLeft { father } ->
+         tag of z <- Node;
+         z.left <- f;
+         (* [z] is now a tree! *)
+         (* After exiting a left child, pause at its father. *)
+         tag of i <- IAt;
+         i.context <- father;
+         i.focus <- z
+      | ZRight { father } ->
+         tag of z <- Node;
+         z.right <- f;
+         (* [z] is now a tree! *)
+         (* After exiting a right child, continue in ascending mode. *)
+         i.context <- father;
+         i.focus <- z;
+         advance i
+      end
+  end
+
+(* Our iterators are unsatisfactory in that [advance] returns an internal
+   representation of the iterator, instead of a nicely packaged pair of an
+   element and a new iterator. For the time being, this is ok, because we are
+   using the iterators only internally. TEMPORARY *)
+
+(* [iterate] turns a tree into a fresh iterator. *)
+
+val iterate [k, a] (consumes t: tree k a) : iterator k a =
+  let i = IArriving { context = ZEmpty; focus = t } in
+  advance i;
+  i
+
+(* [stop] turns an iterator back into a complete tree. *)
+
+val rec stop [k, a] (consumes i: iterator k a) : tree k a =
+  match i with
+  | IAt { context = z; focus = f } ->
+      match z with
+      | ZEmpty ->
+         f
+      | ZLeft { father } ->
+         tag of z <- Node;
+         z.left <- f;
+          (* [z] is now a tree! *)
+         i.context <- father;
+         i.focus <- z;
+         stop i
+      | ZRight { father } ->
+         tag of z <- Node;
+         z.right <- f;
+          (* [z] is now a tree! *)
+         i.context <- father;
+         i.focus <- z;
+         stop i
+      end
+  | ILeaving { context = ZEmpty; focus = f } ->
+      f
+  | _ ->
+      fail (* impossible, if iterator has been properly [advance]d *)
+  end
+
+(* [recover] stops the iterator [i] and dynamically checks that the resulting
+   tree is equal to the argument [t]. This dynamic check is required for the
+   moment. Assigning more precise types to our iterators might allow us to
+   avoid it. TEMPORARY *)
+
+val recover [k, a] (consumes i: iterator k a, t: unknown) : (| t @ tree k a) =
+  let u = stop i in
+  if t == u then
+    ()
+  else
+    fail
+
+(* -------------------------------------------------------------------------- *)
+
+(* We use an iterator to implement the comparison of two trees. *)
+
+val compare [k, a] (
+  cmpk: (k, k) -> int,
+  cmpa: (a, a) -> int,
+  m1: tree k a,
+  m2: tree k a
+) : int =
+  
+  (* Create an iterator for each of the trees. *)
+  let i1 = iterate m1
+  and i2 = iterate m2 in
+
+  (* Loop. *)
+  let rec loop (| i1 @ iterator k a * i2 @ iterator k a) : int =
+    match i1, i2 with
+    | IAt { focus = m1 }, IAt { focus = m2 } ->
+       let c = cmpk (m1.key, m2.key) in
+       if c <> 0 then c else begin
+         let c = cmpa (m1.value, m2.value) in
+         if c <> 0 then c else begin
+           advance i1;
+           advance i2;
+           loop()
+         end
+       end
+    | IAt, _ ->
+       (* The sequence [i1] is longer. *)
+        1
+    | _, IAt ->
+       (* The sequence [i2] is longer. *)
+        -1
+    | _, _ ->
+       (* The comparison suceeded, all the way. *)
+       0
+    end
+
+  in
+  let c : int = loop() in
+  (* Stop the iterators and recover the permissions for the trees. *)
+  recover (i1, m1);
+  recover (i2, m2);
+  c
+  (* BUG well, not a bug, but a feature wish: if I omit the calls to
+     recover above, I get a good error message, but with a completely
+     useless location (the entire function body). Since we are
+     propagating expected types down, couldn't we signal the error
+     message at the sub-expression "c" (final line), instead of at
+     the level of the entire function? *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* As a test of the type-checker, we re-implement [iter] using iterators. *)
+
+val iter_variant [k, a, p : perm] (
+  f: (k,           a | p) -> bool,
+         t: tree k a | p)  : bool =
+
+  (* Create an iterator. *)
+  let i = iterate t in
+  (* Loop. *)
+  let rec loop (| i @ iterator k a * p) : bool =
+    match i with
+    | IAt { focus = m } ->
+        f (m.key, m.value) && loop()
+    | _ ->
+        True
+    end
+  in
+  (* Stop the iterator and recover the permission for the tree. *)
+  let outcome : bool = loop() in
+  recover (i, t);
+  outcome
+
+(* -------------------------------------------------------------------------- *)
+
+(* Iterators in another style. *)
+
+(* A bandit is a binary tree node that has no left child. *)
+
+(* The following type describes a list of bandits. *)
+
+(* TEMPORARY because we don't have type abbreviations, we redefine this type
+   instead of using an abbreviation for a list of bandits. *)
+
+data bandits k a =
+  | End
+  | More {
+      head: Node { left: dynamic; key: k; value: a; right: tree k a; height: int };
+      tail: bandits k a
+    }
+
+(* An enumeration is basically a reference to a list of bandits. Furthermore,
+   an enumeration object is able to adopt the tree nodes that have already
+   been visited. The nodes that are adopted are isolated, i.e. they do not
+   own their children; this forces us (unfortunately) to redefine a new type
+   of tree nodes that do not own their children. *)
+
+(* TEMPORARY perhaps we could plan ahead and parameterize the type of tree
+   nodes with the type of their children before tying the recursive knot?
+   but that would require a recursive type abbreviation, I am afraid *)
+
+data mutable enumeration k a =
+  Enum { bandits: bandits k a } adopts visited k a
+
+and mutable visited k a =
+  | VisitedEmpty
+  | VisitedNode { left: dynamic; key: k; value: a; right: dynamic; height: int }
+
+(* This smart constructor [cons]es a tree in front of a list of bandits. The
+   left spine of the tree is walked down all the way, so that the nodes that
+   are effectively insert into the list are bandits. *)
+
+val rec cons_bandits [k, a] (consumes t: tree k a, e: enumeration k a) : () =
+  match t with
+  | Empty ->
+      tag of t <- VisitedEmpty; (* this is a no-op *)
+      give t to e
+  | Node ->
+      e.bandits <- More { head = t; tail = e.bandits };
+      cons_bandits (t.left, e)
+  end
+
+val new_enum [k, a] (consumes t: tree k a) : enumeration k a =
+  let e = Enum { bandits = End } in
+  cons_bandits (t, e);
+  e
+
+val consume_enum [k, a] (e: enumeration k a) : () =
+  match e.bandits with
+  | More { head; tail } ->
+      e.bandits <- tail;
+      cons_bandits (head.right, e);
+      tag of head <- VisitedNode; (* this is a no-op *)
+      give head to e
+  | End ->
+      fail
+      (* We could eliminate this case if we declared that initially [e] has type
+        Enum { bandits: More { ... } }. But this type would be hugely verbose,
+        plus we would then have to add a [consumes] annotation and write the
+        post-condition [e @ enumeration k a]. Abandoned. *)
+  end
+
+(* The following function reconstructs the ownership of the original tree after
+   the enumeration has stopped. We are in a situation where the tree nodes that
+   have already been visited have been adopted by the enumeration object, whereas
+   the tree nodes that have not yet been visited are listed, *in order*, as part
+   of the list [e.bandits]. A dynamic ownership test is used to distinguish these
+   two situations. Yes, this is quite crazy, and I am not even sure that it works. *)
+
+val rec reconstruct [k, a] (t: dynamic, e: enumeration k a) : (| t @ tree k a) =
+  if e owns t then begin
+    take t from e;
+    match t with
+    | VisitedEmpty ->
+        tag of t <- Empty (* this is a no-op *)
+    | VisitedNode ->
+        tag of t <- Node; (* this is a no-op *)
+        reconstruct (t.left, e);
+       reconstruct (t.right, e)
+    end
+  end
+  else
+    match e.bandits with
+    | End ->
+        fail (* impossible *)
+    | More { head; tail } ->
+        if head == t then begin
+         (* At this point, [t] is a bandit, a tree node that does not own
+            its left child. We need to reconstruct this left child in order
+            to obtain [t @ tree k a]. *)
+         e.bandits <- tail;
+         reconstruct (t.left, e)
+       end
+       else
+         fail (* impossible *)
+         (* TEMPORARY I need to think more about the order of the non-visited
+            trees in e.bandits; I am afraid they will *not* appear in the
+            desired order, so the test [head == t] *WILL* FAIL! *)
+    end
+
+(* We use an enumeration to implement the comparison of two trees. *)
+
+val compare_variant [k, a] (
+  cmpk: (k, k) -> int,
+  cmpa: (a, a) -> int,
+  consumes m1: tree k a,
+  consumes m2: tree k a
+) : int =
+  
+  (* Create an enumeration for each of the trees. *)
+  let e1 = new_enum m1
+  and e2 = new_enum m2 in
+
+  (* Loop. *)
+  let rec loop (| e1 @ enumeration k a * e2 @ enumeration k a) : int =
+    match e1.bandits, e2.bandits with
+    | More { head = m1 }, More { head = m2 } ->
+       let c = cmpk (m1.key, m2.key) in
+       if c <> 0 then c else begin
+         let c = cmpa (m1.value, m2.value) in
+         if c <> 0 then c else begin
+           consume_enum e1;
+           consume_enum e2;
+           loop()
+         end
+       end
+    | More, End ->
+       (* The sequence [i1] is longer. *)
+        1
+    | End, More ->
+       (* The sequence [i2] is longer. *)
+        -1
+    | End, End ->
+       (* The comparison suceeded, all the way. *)
+       0
+    end
+
+  in
+  loop()
