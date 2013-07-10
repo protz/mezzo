@@ -2,11 +2,11 @@ data option a =
   | None
   | Some { contents: a }
 
-val none : [a] option a =
+val none =
   None
 
-val some [a] (consumes x: a): option a =
-  Some { contents = x }
+val some (consumes contents: unknown) : Some { contents } =
+  Some { contents }
 
 val force [a] (consumes o: option a) : a =
   match o with

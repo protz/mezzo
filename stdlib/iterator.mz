@@ -35,20 +35,26 @@ val wrap [a, i, post: perm] (
 (* ------------------------------------------------------------------------------ *)
 
 
-(* Calls [f] on each element of the iterator [it] *)
+(* Calls [f] on each element of the iterator [it]. *)
 
 val rec iter [a, post: perm, p: perm] (
   consumes it: iterator a post,
-  f: (a | p) -> ()
-| p): (| post)
+  f: (a | p) -> bool
+| p
+) : (bool | post)
 =
   match it.next () with
   | Right ->
-    ()
+      true
   | Left { contents = (x, surrender) } ->
-    f x;
-    surrender ();
-    iter (it, f)
+      let continue : bool = f x in
+      surrender ();
+      if continue then
+        iter (it, f)
+      else begin
+        it.stop();
+        false
+      end
   end
 
 (* Comparison of two generic iterators. *)
@@ -117,12 +123,18 @@ val filter [a, p: perm, post: perm] (
            with [x]. *)
         if f x then begin
           (* We would like to keep [x]. *)
+          (* There are several ways of convincing the type-checker that
+             [surrender] has type [wand (x @ a) s]. One is via the following
+             three lines: *)
+          (*
           let flex q: perm in
-          (* TEMPORARY the following two assertions seem to be required
-             in order to convince the type-checker to apply the frame
-             rule to a wand. See tests/frame-wand.mz. *)
           assert q * surrender @ (| consumes (q * x @ a)) -> (| underlying);
           pack surrender @ wand (x @ a) s witness p * q;
+          *)
+          (* The other is via the following single line. This line forces
+             the type-checker to auto-pack [q], and from there, it can
+             auto-pack [p]. It is unable to auto-pack [p * q] in one go. *)
+          assert p * surrender @ wand (p * x @ a) s;
           e
         end
         else begin
@@ -303,47 +315,41 @@ let stop (| consumes s): (| post1 * post2) =
 
   it
 
-(* Classical fold on the elements of the iterator *)
-val rec fold [a, b, post: perm] (
-  f: (consumes b, a) -> b,
-  consumes accu: b,
-  consumes it: iterator a post
-): (b | post)
-=
-  match it.next () with
-  | Right ->
-    accu
-  | Left { contents = (x, surrender) } ->
-    let new_accu = f (accu, x) in
-    surrender ();
-    fold (f, new_accu, it)
-  end
-
 (* A fold function where the iteration can be interrupted by the user.
 
    If the boolean returned by [f] with the new accumulator is [true],
    the iteration continues. Otherwise, the iterator is stopped and the
    current accumulator is returned.
 *)
-val rec fold_stop [a, b, post: perm] (
-  f: (consumes b, a) -> (b, bool),
+val fold [a, b, post: perm] (
+  consumes it: iterator a post,
   consumes accu: b,
-  consumes it: iterator a post
-): (b | post)
+  f: (consumes b, a) -> (b, bool)
+) : (b, bool | post)
 =
-  match it.next () with
-  | Right ->
-    accu
-  | Left { contents = (x, surrender) } ->
-    let new_accu, continue = f (accu, x) in
-    surrender ();
-    if continue then
-      fold_stop (f, new_accu, it)
-    else begin
-      it.stop ();
-      new_accu
-    end
-  end
+  let accu = newref accu in
+  let outcome = iter (it, fun (x: a | accu @ ref b) : bool =
+    let new_accu, continue = f (!accu, x) in
+    accu := new_accu;
+    continue
+  ) in
+  !accu, outcome
+
+(* [fold] can be specialized to a non-interruptible version. This function
+   is not exported, in order to avoid polluting the interface with too
+   many variants, but is kept here as a test of the type-checker. *)
+val fold_uninterruptibly [a, b, post: perm] (
+  consumes it: iterator a post,
+  consumes accu: b,
+  f: (consumes b, a) -> b
+) : (b | post)
+=
+  let accu, outcome =
+    fold [a, b, post] (it, accu, fun (consumes accu: b, x: a) : (b, bool) =
+      f(accu, x), true
+    )
+  in
+  accu
 
 (* Drops the [n] first elements of the iterator - that is, [drop]
    calls [it.next ()] [n] times *)
@@ -397,10 +403,10 @@ val to_stream [a, post : perm] duplicable a => (
   stream::produce (fun (| consumes s) : option (a | s) =
     match it.next() with
     | Right ->
-        None
+        none
     | Left { contents = (x, surrender) } ->
         surrender(); (* [x] is duplicable! *)
-        Some { contents = x }
+        some x
     end
   )
 

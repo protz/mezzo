@@ -74,7 +74,7 @@ val detach [a] (r: region a, c: cell a) : () =
   taking b from r begin
     b.cardinal <- b.cardinal - 1;
     if b.cardinal = 0 then
-      b.cell <- none [cell a] (* WISH get rid of this type application? *)
+      b.cell <- none
     else if b.cell == c then
       (* If the representative element of [b] is [c], find another. *)
       b.cell <- some (doublylinked::next [item a] (r.cells, c));

@@ -11,8 +11,8 @@ data option a =
    moment, let's try and see if we can work with the following more abstract
    types. *)
 
-val none : [a] option a
-val some : [a] (consumes a) -> option a
+val none : None
+val some : (contents: unknown) -> Some { contents }
 
 (* A destructor, which can fail at runtime. *)
 

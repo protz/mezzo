@@ -120,10 +120,10 @@ val interval (n: int) : stream int =
     let x = !r in
     if x < n then begin
       r := x + 1;
-      Some { contents = x }
+      some x
     end
     else
-      None
+      none
   )
 
 (*
