@@ -1,0 +1,30 @@
+open channel
+open thread
+
+(* An implementation of internal choice, i.e. non-deterministic choice
+   between two operations. This example is inspired by an analogous one
+   in Lozes and Villard's paper. Their protocol is slightly different
+   (the winner thread sends a message to the loser) and they are able
+   to show that the channel can be closed after two messages have been
+   sent. We don't have a notion of closing a channel. *)
+
+val choose [p: perm] (
+  f: (| consumes p) -> (),
+  g: (| consumes p) -> ()
+| consumes p
+) : () =
+  (* Create a communication channel. *)
+  let c : channel (rich_bool empty p) = new() in
+  (* Send two messages into this channel. *)
+  send(c, True);
+  send(c, False);
+  (* Spawn two threads, and let the scheduler decide which thread
+     receives which message. The thread which reads [True] wins
+     and gets to run, while the other loses and dies. *)
+  spawn (fun () : () =
+    if receive c then f()
+  );
+  spawn (fun () : () =
+    if receive c then g()
+  )
+
