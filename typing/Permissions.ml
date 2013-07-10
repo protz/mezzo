@@ -1316,6 +1316,10 @@ and add_sub env ps1 ps2 =
         qed
     | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
         when is_flexible env !!x2 ->
+          (* If [x1] was rigid, then it was added by [add_sub]. We should
+           * trigger this heuristic earlier, probably after
+           * [strip_syntactically_equal]. *)
+          if true then assert false;
           (* These two are *really* debatable heuristics. *)
           sub_type_with_unfolding env t1 t2 >>= fun env ->
           j_merge_left env !!x2 !!x1 >>=
