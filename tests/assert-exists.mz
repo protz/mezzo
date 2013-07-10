@@ -1,19 +1,19 @@
 abstract channel a
 
-(* All the following assertions should succeed. At present, they
-   all seem to fail. *)
-
-val f [a] (c: channel a) : () =
+val f [a] (consumes c: channel a) : () =
   assert c @ {b} b
 
-val f [a] (c: channel a) : () =
+val f [a] (consumes c: channel a) : () =
   assert {b} (c @ b)
 
-val f [a] (c: channel a) : () =
+val f [a] (consumes c: channel a) : () =
   assert {b} (c @ channel b)
 
-val f [p : perm] (c: channel (| p)) : () =
+val f [p : perm] (consumes c: channel (| p)) : () =
   assert {q: perm} (c @ channel (| q))
 
-val f [x: term, a] (c: channel (| x @ a)) : () =
+(* The following assertion fails. *)
+
+val f [x: term, a] (consumes c: channel (| x @ a)) : () =
   assert {y: term} (c @ channel (| y @ a))
+
