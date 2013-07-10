@@ -4,6 +4,8 @@ data mutable tree a =
 
 open channel
 
+(* ------------------------------------------------------------------------------ *)
+
 (* This function iterates over the tree, and submits the elements onto the
    channel [pipe]. It then waits for an acknowledgement to arrive on the
    channel [ack], and proceeds with the iteration. *)
@@ -51,8 +53,13 @@ val test [a] duplicable a => (t: tree a) : bool =
   iter [a] (t, pipe, ack)
     (* Interesting example of a type application that is required. *)
 
-(* TODO find a way of encoding the protocol when [a] is not duplicable.
-   - possibly create one new [ack] channel for each element (not very nice)
+(* ------------------------------------------------------------------------------ *)
+
+
+
+(* ------------------------------------------------------------------------------ *)
+
+(* TODO find another way of encoding the protocol when [a] is not duplicable.
    - possibly use a non-shareable channel, with explicit permissions to send
      and receive; send every element [x] on the pipe together with a permission
      to emit [x @ a] on the channel [ack]. Keep a permission to receive [x @ a]

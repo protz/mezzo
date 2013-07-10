@@ -22,13 +22,14 @@ alias packet a =
 alias pipe_t a =
   channel (packet a)
 
+(* TEMPORARY a lot of unpleasant type applications are required in the
+   code that follows. *)
+
 val send_and_wait [a] (pipe: pipe_t a, x: a) : bool =
   let ack : ack_t (x @ a) = new [(bool | x @ a)] () in
-    (* BUG? why is the above type application required? *)
   let p : packet a = (x, ack) in
-  send(pipe, p);
-    (* BUG? why is the above function call ill-typed? *)
-  receive ack
+  send [packet a] (pipe, p);
+  receive [(bool | x @ a)] ack
 
 val rec iter [a] (t: tree a, pipe: pipe_t a) : bool =
   match t with
@@ -46,9 +47,9 @@ val rec iter [a] (t: tree a, pipe: pipe_t a) : bool =
 val count [a] (pipe: pipe_t a) : () =
   let c = newref 0 in
   preserving c @ ref int while true do begin
-    let x, ack = receive pipe in
+    let x, ack = receive [packet a] pipe in
     incr c;
-    send (ack, true)
+    send [(bool | x @ a)] (ack, true)
   end
   (* Stupid. This point in the code is unreachable. *)
 
@@ -59,10 +60,10 @@ val count [a] (pipe: pipe_t a) : () =
 val test [a] (t: tree a) : bool =
   let pipe = new() in
   thread::spawn (fun () : () =
-    count(pipe)
+    count [a] pipe
+      (* Interesting example of a type application that is required. *)
   );
-  iter [a] (t, pipe)
-    (* Interesting example of a type application that is required. *)
+  iter (t, pipe)
 
 (*
 Local Variables:
