@@ -20,20 +20,18 @@
 module K = KindCheck
 
 open Kind
+open Either
 open TypeCore
 open Types
 open TestUtils
 open TypeErrors
 
-let drop_derivation =
-  Derivations.drop_derivation
-;;
 
 let check env point t =
   match Permissions.sub env point t with
-  | Some _, _ ->
+  | Left _ ->
       ()
-  | None, d ->
+  | Right d ->
       raise_error env (ExpectedType (t, point, d))
 ;;
 
@@ -875,12 +873,11 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("abstract-perm.mz", pass);
 
-  ("dup_sign.mz", simple_test (Fail (function NoSuchTypeInSignature _ -> true | _ -> false)));
   ("dup_sign1.mz", pass);
   ("dup_sign2.mz", fail);
   ("dup_sign3.mz", pass);
   ("dup_sign4.mz", pass);
-  ("dup_sign5.mz", fail);
+  ("dup_sign5.mz", pass);
 
   ("tableau.mz", pass);
   ("smemoize.mz", pass);
@@ -929,6 +926,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("facts09.mz", fail);
   ("facts10.mz", fail);
   ("facts11.mz", pass_known_failure);
+  ("facts12.mz", pass_known_failure);
   ("data-term.mz", pass_known_failure);
   ("fact-term.mz", fail_known_failure);
 
@@ -1005,7 +1003,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("localtype1.mz", pass);
   ("localtype2.mz", pass);
   ("covariantlock.mz", pass);
-  ("pack-assert.mz", pass_known_failure);
+  ("pack-assert.mz", pass);
   ("oneshot-test.mz", fail);
   ("sparray.mz", pass);
   ("interface-arg-name.mz", pass_known_failure);
@@ -1013,13 +1011,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("concurrentsort.mz", pass);
   ("derived_locks.mz", pass);
   ("rich-bool1.mz", pass_known_failure);
-  ("frame-wand.mz", pass_known_failure);
+  ("frame-wand.mz", pass);
   ("iteration.mz", pass);
   ("fpiterator-focused.mz", pass); (* very costly, sorry *)
   ("flexible-point.mz", pass);
   ("old-iterator.mz", pass);
   ("assert-exists.mz", pass);
-  ("assert-var.mz", fail);
+  ("assert-var.mz", fail_known_failure);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)
