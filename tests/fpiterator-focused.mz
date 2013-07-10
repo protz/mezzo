@@ -196,7 +196,9 @@ val filter [a, p: perm, post: perm] (
           (* assert (surrender @ osf::osf (| x @ a) (| it_st)); *)
           let flex q: perm in
           assert (q * surrender @ (| consumes (q * x @ a)) -> (| it_st));
-          assert (q * surrender @ (| consumes (p * q * x @ a)) -> (| p * it_st));
+          pack surrender @ osf::osf (| x @ a) (| s)
+            witness p * q;
+          (* assert (q * surrender @ (| consumes (p * q * x @ a)) -> (| p * it_st)); *)
 
           (* assert (surrender @ osf::osf (| x @ a) (| p * it_st)); *)
 
@@ -233,10 +235,13 @@ val map [a, b, p: perm, post: perm] (
     | Right ->
       right ()
     | Left { contents = (x, rewind_to_it) } ->
+      let x = f x in
       let flex q: perm in
       assert (q * rewind_to_it @ (| consumes (q * x @ a)) -> (| it_st));
-      assert (q * rewind_to_it @ (| consumes (p * q * x @ a)) -> (| p * it_st));
-      left (f x, rewind_to_it)
+      (* assert (q * rewind_to_it @ (| consumes (p * q * x @ a)) -> (| p * it_st)); *)
+      pack rewind_to_it @ osf::osf (| x @ b) (| p * it @ iterator a post)
+        witness p * q;
+      left (x, rewind_to_it)
     end 
   in
 

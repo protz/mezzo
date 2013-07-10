@@ -998,7 +998,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("letflex.mz", pass);
   ("pack1.mz", pass);
   ("pack2.mz", pass);
-  ("landin.mz", pass);
   ("strange.mz", fail);
   ("localtype1.mz", pass);
   ("localtype2.mz", pass);
@@ -1016,11 +1015,12 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("fpiterator-focused.mz", pass); (* very costly, sorry *)
   ("flexible-point.mz", pass);
   ("old_iterator.mz", pass);
-  ("assert-exists.mz", pass);
+  ("assert-exists.mz", pass_known_failure);
   ("assert-var.mz", fail_known_failure);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)
+  ("landin.mz", fun _ -> raise KnownFailure);
   ("landin-variant.mz", fun _ -> raise KnownFailure);
   ("cyclic-list.mz", fun _ -> raise KnownFailure);
   ("diverge.mz", fun _ -> raise KnownFailure);
