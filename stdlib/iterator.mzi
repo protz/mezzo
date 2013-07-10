@@ -67,7 +67,7 @@ val compare: [a, post1 : perm, post2 : perm, p : perm] (
 
 
 (* A [filter] function on generic iterators.
- 
+
    Constructs a new iterator, which returns only the elements of [it] that match
    the predicate [f]
 *)

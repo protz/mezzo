@@ -163,7 +163,7 @@ val filter [a, p: perm, post: perm] (
           surrender();
           next()
         end
-    end 
+    end
   in
 
   Iterator { next; stop = it.stop }
@@ -187,7 +187,7 @@ val map [a, b, p: perm, post: perm] (
 
   let next (| consumes s):
       either (focused b s) (| post * p) =
-    
+
     match it.next () with
     | Right ->
       right ()
@@ -198,7 +198,7 @@ val map [a, b, p: perm, post: perm] (
       let y = f x in
       pack surrender @ wand (y @ b) s witness p * q * x @ a;
       left (y, surrender)
-    end 
+    end
   in
 
   Iterator { next; stop = it.stop }
@@ -313,7 +313,7 @@ val concat [a, post1: perm, post2: perm] (
         assert surrender @ (| consumes (p * x @ a)) -> (| s2);
         pack surrender @ wand (x @ a) s witness post1 * p * state @ ref False;
         left (x, surrender)
-      end 
+      end
     end
   in
 
@@ -387,7 +387,7 @@ val rec drop [a, post: perm] (
     | Left { contents = (_, surrender) } ->
       surrender ();
       drop (it, n-1)
-    end 
+    end
 
 (* Drops elements of [it] of the iterator while the predicate [pred]
    evaluates to [True] on them *)
@@ -406,7 +406,7 @@ val rec dropWhile [a, post: perm, p: perm] (
       surrender ();
       dropWhile (it, pred)
     )
-  end 
+  end
 
 (* Turning a generic iterator into a stream. A bit trivial, because this
    works only when the elements are duplicable, and in that case, there
