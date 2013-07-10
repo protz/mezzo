@@ -122,9 +122,7 @@ val filter [a, p: perm, post: perm] (
              in order to convince the type-checker to apply the frame
              rule to a wand. See tests/frame-wand.mz. *)
           assert q * surrender @ (| consumes (q * x @ a)) -> (| underlying);
-          assert q * surrender @ (| consumes (p * q * x @ a)) -> (| p * underlying);
-          (* The following assertion is superfluous. *)
-          assert surrender @ wand (p * x @ a) (p * underlying);
+          pack surrender @ wand (x @ a) s witness p * q;
           e
         end
         else begin
@@ -163,9 +161,11 @@ val map [a, b, p: perm, post: perm] (
       right ()
     | Left { contents = (x, surrender) } ->
       let flex q: perm in
-      assert (surrender @ (| consumes (q * x @ a)) -> (| underlying));
-      assert (surrender @ (| consumes (p * q * x @ a)) -> (| p * underlying));
-      left (f x, surrender)
+      assert surrender @ (| consumes (q * x @ a)) -> (| underlying);
+
+      let y = f x in
+      pack surrender @ wand (y @ b) s witness p * q * x @ a;
+      left (y, surrender)
     end 
   in
 
@@ -267,7 +267,7 @@ val concat [a, post1: perm, post2: perm] (
       | Left { contents = (x, surrender) } ->
         let flex p: perm in
         assert (surrender @ (| consumes (p * x @ a)) -> (| s1));
-        assert (surrender @ (| consumes (p * x @ a * s2 * state @ ref True)) -> (| s));
+        pack surrender @ wand (x @ a) s witness p * s2 * state @ ref True;
         left (x, surrender)
       end
     | False ->
@@ -279,7 +279,7 @@ val concat [a, post1: perm, post2: perm] (
       | Left { contents = (x, surrender) } ->
         let flex p: perm in
         assert (surrender @ (| consumes (p * x @ a)) -> (| s2));
-        assert (surrender @ (| consumes (post1 * p * x @ a * state @ ref False)) -> (| s));
+        pack surrender @ wand (x @ a) s witness post1 * p * state @ ref False;
         left (x, surrender)
       end 
     end
