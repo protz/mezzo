@@ -55,7 +55,26 @@ val rec iter [a, post: perm, p: perm] (
         it.stop();
         false
       end
-  end
+  end 
+
+(* [iter] can be specialized to a non-interruptible version. This function
+   is not exported, in order to avoid polluting the interface with too
+   many variants, but is kept here as a test of the type-checker. *)
+val iter_uninterruptibly [a, post: perm, p : perm] (
+  consumes it: iterator a post,
+  f: (a | p) -> ()
+| p
+) : (| post)
+=
+  let _ = iter (it, fun (x: a | p) : bool = f x; true) in
+  ()
+
+(* Printing. *)
+
+val print [a, post : perm] (
+  consumes it: iterator a post
+) : (| post) =
+  iter_uninterruptibly (it, print)
 
 (* Comparison of two generic iterators. *)
     

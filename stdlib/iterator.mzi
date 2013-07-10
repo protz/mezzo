@@ -123,3 +123,9 @@ val dropWhile: [a, post: perm, p: perm] (
 val to_stream: [a, post : perm] duplicable a => (
   consumes it: iterator a post
 ) -> stream::stream a
+
+(* Printing. *)
+
+val print: [a, post : perm] (
+  consumes it: iterator a post
+) -> (| post)
