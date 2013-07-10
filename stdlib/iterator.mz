@@ -210,7 +210,7 @@ val zip [a1, a2, post1 : perm, post2: perm] (
           surrender2()
         in
         (* The following assertion is superfluous. *)
-        assert surrender @ osf (| x @ a) (| s);
+        assert surrender @ wand (x @ a) s;
         Left { contents = (x, surrender) }
     | Left { contents = (_, surrender1) }, Right ->
         (* One of the iterators is finished. Stop the other, and we are done. *)
