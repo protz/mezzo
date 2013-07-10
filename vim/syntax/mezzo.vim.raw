@@ -30,14 +30,13 @@ syn match    mezzoCommentErr "\*)"
 syn match    mezzoCountErr   "\<downto\>"
 syn match    mezzoCountErr   "\<to\>"
 
-syn match    mezzoDoneErr    "\<done\>"
 syn match    mezzoThenErr    "\<then\>"
 syn match    mezzoEndErr     "\<end\>"
 
 " Some convenient clusters
-syn cluster  mezzoAllErrs contains=mezzoBraceErr,mezzoBrackErr,mezzoParenErr,mezzoCommentErr,mezzoCountErr,mezzoDoErr,mezzoDoneErr,mezzoEndErr,mezzoThenErr
+syn cluster  mezzoAllErrs contains=mezzoBraceErr,mezzoBrackErr,mezzoParenErr,mezzoCommentErr,mezzoCountErr,mezzoDoErr,mezzoEndErr,mezzoThenErr
 
-syn cluster  mezzoAENoParen contains=mezzoBraceErr,mezzoBrackErr,mezzoCommentErr,mezzoCountErr,mezzoDoErr,mezzoDoneErr,mezzoEndErr,mezzoThenErr
+syn cluster  mezzoAENoParen contains=mezzoBraceErr,mezzoBrackErr,mezzoCommentErr,mezzoCountErr,mezzoDoErr,mezzoEndErr,mezzoThenErr
 
 syn cluster  mezzoContained contains=mezzoTodo,mezzoPreDef,mezzoModParam,mezzoModParam1,mezzoPreMPRestr,mezzoMPRestr,mezzoMPRestr1,mezzoMPRestr2,mezzoMPRestr3,mezzoModRHS,mezzoFuncWith,mezzoFuncStruct,mezzoModTypeRestr,mezzoModTRWith,mezzoWith,mezzoWithRest,mezzoModType,mezzoFullMod,mezzoVal
 
@@ -170,7 +169,6 @@ if version >= 508 || !exists("did_mezzo_syntax_inits")
 
   HiLink mezzoCountErr     Error
   HiLink mezzoDoErr        Error
-  HiLink mezzoDoneErr      Error
   HiLink mezzoEndErr       Error
   HiLink mezzoThenErr      Error
 

@@ -590,6 +590,9 @@ let rec flatten_star env t =
       flatten_star env p @ flatten_star env q
   | TyEmpty ->
       []
+  | TyAnchoredPermission (x, t) ->
+      let t, ps = collect t in
+      TyAnchoredPermission (x, t) :: ps
   | _ ->
       Log.check
         (get_kind_for_type env t = KPerm)

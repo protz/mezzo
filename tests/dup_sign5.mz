@@ -1,2 +1,6 @@
-val f: [a, b] duplicable a => (x: a) -> b =
-  builtin f
+(* This can actually be seen as a function which has type "a -> b"! The
+ * high-level argument is that one can create an eta-expansion that saves a copy
+ * of "x @ a", instantiates "f" with "=x", thus getting "x @ a * f @ (x: =x) ->
+ * b", which can be subtyped into "f @ a -> b". *)
+val f [a, b] duplicable a => (x: a): b =
+  fail

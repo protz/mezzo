@@ -21,8 +21,13 @@
 
 open TypeCore
 open Derivations
+open Either
 
-type result = env option * derivation
+(** The module internally can explore several solutions, but in order not to
+ * propagate this complexity outside the [Permissions] module, we chose to pick
+ * either an arbitrary solution (along with the corresponding derivation), or an
+ * arbitrary failed derivation. *)
+type result = ((env * derivation), derivation) either
 
 (** [unify env p1 p2] merges two vars, and takes care of dealing with how the
     permissions should be merged. *)
@@ -59,6 +64,9 @@ val instantiate_flexible: env -> var -> typ -> env option
 
 (** The safe version of the function found in [TypeCore]. *)
 val import_flex_instanciations: env -> env -> env
+
+(** Drop the derivation information and just get an [env option]. *)
+val drop_derivation: result -> env option
 
 (**/**)
 
