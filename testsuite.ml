@@ -1007,7 +1007,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("sparray.mz", pass);
   ("interface-arg-name.mz", pass_known_failure);
   ("tree-coroutine.mz", pass);
-  ("tree-coroutine-disposable-ack.mz", pass);
   ("concurrentsort.mz", pass);
   ("derived_locks.mz", pass);
   ("rich-bool1.mz", pass_known_failure);
@@ -1015,7 +1014,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("iteration.mz", pass);
   ("fpiterator-focused.mz", pass); (* very costly, sorry *)
   ("flexible-point.mz", pass);
-  ("old-iterator.mz", pass);
+  ("old_iterator.mz", pass);
   ("iterator.mz", pass);
   ("assert-exists.mz", pass);
   ("assert-var.mz", fail_known_failure);
