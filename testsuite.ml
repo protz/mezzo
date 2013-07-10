@@ -1017,6 +1017,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("iteration.mz", pass);
   ("fpiterator-focused.mz", pass); (* very costly, sorry *)
   ("flexible-point.mz", pass);
+  ("old-iterator.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)
