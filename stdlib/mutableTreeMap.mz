@@ -4,13 +4,6 @@
 
 (* -------------------------------------------------------------------------- *)
 
-(* Some stuff that should be moved to another file. *) (* TEMPORARY *)
-
-val max (x: int, y: int) : int =
-  if x >= y then x else y
-
-(* -------------------------------------------------------------------------- *)
-
 (* A tree is either empty or a binary node. Besides its children, a binary
    node contains a key, a value, and its height. *)
 
