@@ -1015,7 +1015,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("iteration.mz", pass);
   ("fpiterator-focused.mz", pass); (* very costly, sorry *)
   ("flexible-point.mz", pass);
-  ("old-iterator.mz", pass);
+  ("old_iterator.mz", pass);
   ("assert-exists.mz", pass);
   ("assert-var.mz", fail_known_failure);
 
