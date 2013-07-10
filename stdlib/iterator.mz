@@ -303,8 +303,8 @@ let stop (| consumes s): (| post1 * post2) =
 
   it
 
-(* Classical fold_left on the elements of the iterator *)
-val rec fold_left [a, b, post: perm] (
+(* Classical fold on the elements of the iterator *)
+val rec fold [a, b, post: perm] (
   f: (consumes b, a) -> b,
   consumes accu: b,
   consumes it: iterator a post
@@ -316,7 +316,7 @@ val rec fold_left [a, b, post: perm] (
   | Left { contents = (x, surrender) } ->
     let new_accu = f (accu, x) in
     surrender ();
-    fold_left (f, new_accu, it)
+    fold (f, new_accu, it)
   end
 
 (* A fold function where the iteration can be interrupted by the user.

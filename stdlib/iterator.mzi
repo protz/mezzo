@@ -84,9 +84,9 @@ val concat: [a, post1: perm, post2: perm] (
 ) -> iterator a (post1 * post2)
 
 
-(* Classical fold_left on the elements of the iterator
+(* Classical fold on the elements of the iterator
 *)
-val fold_left: [a, b, post: perm] (
+val fold: [a, b, post: perm] (
   f: (consumes b, a) -> b,
   consumes accu: b,
   consumes it: iterator a post
