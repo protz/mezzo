@@ -1,113 +1,37 @@
 open channel
 
-data lock (p: perm) =
-  Lock { channel: channel ( | p) }
+(* A lock is implemented as a duplicable channel
+   where there is at most one outstanding message. 
+   This message carries the permission [p]. *)
 
-abstract held (l: term): perm
-fact exclusive (held l)
+alias lock (p: perm) =
+  channel (| p)
 
-val takeheld [p: perm] (l: lock p): ( | held l) =
-  magic::magic [(), ( |held l)] ()
+(* The permission [held l] is phantom, i.e., it is
+   an abbreviation for [empty]. It enforces the
+   invariant that there is at most one outstanding
+   message; but this invariant cannot be stated.
+   Note, though, that we could perhaps define
+   [held l] as the ownership of a ghost reference
+   cell, whose address is ghost-stored within [l].
+   This ref cell would store an integer count of
+   the number of messages in the channel. When
+   there is message in the channel, the message
+   would carry the assertion that [r] is one;
+   and [held l] would assert that [r] is zero. *)
 
-(* Nothing to do here.
-val giveheld [p: perm] (l: lock p | consumes (held l)): () = ()
-*)
+alias held (l: term) : perm =
+  empty
 
-(* Possible variant: include the permission held in the channel. This way the permission is created only once, and then passed within the channel. *)
+(* One might hope eta-expansion to be unnecessary in the
+   definition of [new] and [acquire], yet it is. *)
 
-val newlock [p: perm] ( | consumes p): lock p =
-  let c = channel::new [(|p)] () in
-  Lock { channel = c }
+val new [p: perm] (| consumes p) : lock p =
+  new [(| p)] ()
 
-val acquire [p: perm] (l: lock p): ( | p * held l) =
-  match l with
-  | Lock { channel } ->
-    let _ = receive [(|p)] channel in
-    takeheld [p] l
-  end
+val acquire [p: perm] (l: lock p): (| p * held l) =
+  receive [(| p)] l
 
-val release [p: perm] (l: lock p | consumes (p * held l)): () =
-  match l with
-  | Lock { channel } ->
-    send [(|p)] (channel,())
-  end
+val release [p: perm] (l: lock p | consumes (p * held l)) : () =
+  send [(| p)] (l, ())
 
-(*
-(* Implementation of held through a dummy reference whose permission is sent on the channel. *)
-(*
-data lock (p: perm) =
-  | Lock { dummy: unknown; chan: channel ( =dummy | p ) | dummy @ ref () }
-*)
-
-data lock (p: perm) =
-  | Lock { dummy: unknown; chan: channel ( ref () | p ) }
-
-(*
-abstract held (l: term): perm
-fact exclusive (held l)
-*)
-
-val new_lock [p: perm] ( | consumes p): lock p =
-  let c = new_channel [ ( ref () | p ) ] () in
-  let r = Ref { contents = () } in
-  send [ ( ref () | p ) ] (c,r);
-  Lock { dummy = r; chan = c }
-
-(*
-val acquire [p: perm]
-  (l: Lock { dummy: unknown; chan: channel ( ref () | p ) } ):
-  ( | p  * p.dummy @ ref () ) =
-  match l with
-  | Lock { dummy; chan } -> 
-    receive [ ( ref () | p ) ] chan
-  end
-*)
-
-val release [p: perm] (l: Lock { dummy: (dummy: unknown); chan: channel (ref () | p) } | consumes (p * dummy @ ref ()) ): () =
-  match l with
-  | Lock { dummy; chan } ->
-(*    let r = Ref {contents = ()} in*)
-    send [ ( ref () | p ) ] (chan, dummy)
-  end
-*)
-
-(*
-(* Adoption/Abandon version, fails because the adopts clause is restricted to 
-   mutable structures. *)
-data lock (p: perm) =
-  | Lock { dummy: dynamic; chan: channel ( | p) }
-adopts ref ()
-*)
-
-(*
-(* Cyclic version with a dummy reference. *)      
-data lock (p: perm) =
-  | Lock { held: unknown; chan: channel ( | held @ ref () * p) }
-*)
-
-(*
-(* Cyclic version *)
-
-abstract held (l: term): perm
-fact exclusive (held l)
-
-(* A cycle is to be added on held l here. *)
-data lock (p: perm) =
-  | Lock { chan: channel ( | p) }
-
-val new_lock [p: perm] ( | consumes p): lock p =
-  let c = new_channel [ ( | p) ] () in
-  Lock { chan = c }
-
-val acquire [p: perm] (l: lock (p * held l)): ( | p * held l) =
-  match l with
-  | Lock { chan } -> 
-    receive [ ( | p * held l) ] chan
-  end
-
-val release [p: perm] ( l: lock (p * held l) | consumes (p * held l) ): () =
-  match l with
-  | Lock { chan } -> send [ ( | p * held l) ] (chan,())
-  end
-      
-*)

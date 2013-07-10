@@ -2,27 +2,10 @@ abstract lock (p: perm)
 fact duplicable (lock p)
 
 abstract held (l: term): perm
-fact exclusive (held l)
 
-val newlock: [p: perm] ( | consumes p) -> lock p
+val new: [p: perm] (| consumes p) -> lock p
 
-val acquire: [p: perm] (l: lock p) -> ( | p * held l)
+val acquire: [p: perm] (l: lock p) -> (| p * held l)
 
 val release: [p: perm] (l: lock p | consumes (p * held l)) -> ()
 
-(*
-(* Cyclic version *)
-
-abstract lock (p: perm)
-fact duplicable (lock p)
-
-abstract held (l: term): perm
-fact exclusive (held l)
-
-val new_lock: [p: perm] ( | consumes p) -> lock p
-
-val acquire: [p: perm] (l: lock (p * held l)) -> ( | p * held l)
-
-val release: [p: perm] (l: lock (p * held l) | consumes p * consumes (held l)) -> ()
-
-*)
