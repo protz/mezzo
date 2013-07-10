@@ -424,66 +424,86 @@ val partition [a] (p: a -> bool, consumes xs: list a) : (list a, list a) =
 
 (* Iterator. *)
 
-open idioms
-open either
+(* Implementation of ADT-style iterators on lists.
 
-alias iterator a (hole: perm) (post: perm) = ref (consumable (list a) hole post)
+   Given the alias type [iterator a post], the [next] and [stop] functions, one
+   can wrap this iterator to a generic iterator using [iterator::wrap].
+
+   It is also possible to directly create a generic iterator from a list, using
+   [new_generic_iterator].
+*)
+
+alias iterator a (post: perm) =
+  ref (focused::focused (list a) post)
 
 (* Base functions *)
 
-val new_iterator [a] (consumes l: list a): iterator a empty (l @ list a) =
-  newref l
+val new_iterator [a] (consumes l: list a): iterator a (l @ list a) =
+  newref (l, fun (): () = ())
 
-val next [a, hole: perm, post: perm]
-  (consumes (it: iterator a hole post | hole)):
-  either (x: a | it @ iterator a (x @ a) post) (| post) =
+val next
+  [a, post : perm]
+  (consumes it: iterator a post)
+: either::either (focused::focused a (it @ iterator a post)) (| post) =
 
-  (* Merge [hole] into [it] *)
-  assert (it @ iterator a empty post);
-
-  (* Go one step forward *)
-  match !it with
+  let l, rewind_to_list = !it in
+  match l with
   | Nil ->
-    consume [pre = empty] !it;
-    right ()
+    rewind_to_list ();
+    either::right ()
   | Cons { head; tail } ->
-    it := tail;
-    left head
+      it := (tail, rewind_to_list);
+
+      let flex p : perm in
+      (* By unpacking the [osf::osf] definition, we have:
+         p * rewind_to_list @ (| consumes (l @ list a) * p) -> (| post)
+      *)
+
+      (* This is a bit heavy: we create a new [rewind_to_iterator]
+         function for each value returned by [next].
+
+         Its purpose is, provided the needed permissions to rewind,
+         namely [head @ a], to repack [rewind_to_list] so we can have [it
+         @ list_iterator a post] again.
+      *)
+      let rewind_to_iterator (|
+          consumes (
+            head @ a *
+            it @ Ref { contents: (=tail, =rewind_to_list) } *
+            (* The following bunch of permissions will be abstracted
+               by the existential quantification of the [osf::osf]
+               alias *)
+            l @ Cons { head; tail } * tail @ list a * p
+          )
+      ): (| it @ iterator a post)
+          =
+        pack rewind_to_list @ osf::osf (| tail @ list a) (| post)
+          witness (p * (head @ a) * (l @ Cons { head; tail }));
+
+        assert (rewind_to_list @ osf::osf (| tail @ list a) (| post));
+        ()
+      in
+
+      (* This assert is superfluous. *)
+      assert (rewind_to_iterator @ osf::osf (| head @ a) (| it @ iterator a post));
+
+      either::left (head, rewind_to_iterator)
   end
 
-val stop [a, hole: perm, post: perm]
-  (consumes (it: iterator a hole post | hole)): (| post) =
-  consume [pre = hole] !it
+val stop [a, post: perm]
+  (consumes it: iterator a post):
+  (| post) =
+  let _, rewind_to_list = !it in
+  rewind_to_list ()
 
-(* Utility functions using a list iterator.
-   Mostly useful to stress the typechecker, they are not exported *)
+(* Directly provides an OO-style generic iterator ([iterator::iterator]) *)
 
-val rec loop_iterator [a, hole: perm, post: perm]
-  (consumes (it: iterator a hole post | hole), f: a -> ()): (| post) =
+val new_generic_iterator [a] (consumes l: list a):
+  iterator::iterator a (l @ list a) =
 
-  match next [hole = hole] it with
-  | Right ->
-    ()
-  | Left { contents = x } ->
-    f x;
-    loop_iterator [hole = (x @ a)] (it, f)
-  end
-
-val rec nth_iterator [a, hole: perm, post: perm]
-  (consumes it: (iterator a hole post | hole), n: int):
-  either (x: a | it @ iterator a (x @ a) post) (| post) =
-
-  match next [hole = hole] it with
-  | Right ->
-    (* There is no more elements in the iterator *)
-    right ()
-  | Left { contents = x } ->
-    if n <= 0 then (
-      left x
-    ) else (
-      nth_iterator [a = a, hole = (x @ a)] (it, n-1)
-    )
-  end
+  let alias post: perm = l @ list a in
+  iterator::wrap [a, (iterator a post), post]
+    (new_iterator l, next [a, post], stop [a, post])
 
 (* -------------------------------------------------------------------------- *)
 

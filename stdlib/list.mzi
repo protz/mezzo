@@ -118,14 +118,30 @@ val partition : [a] (p: a -> bool, consumes xs: list a) -> (list a, list a)
 
 (* Iterator. *)
 
-abstract iterator a (hole: perm) (post: perm)
-fact exclusive (iterator a hole post)
+(* Implementation of ADT-style iterators on lists.
 
-val new_iterator: [a] (consumes l: list a) -> iterator a empty (l @ list a)
+   Given the alias type [iterator a post], the [next] and [stop] functions, one
+   can wrap this iterator to a generic iterator using [iterator::wrap].
 
-val next: [a, hole: perm, post: perm] (consumes (it: iterator a hole post | hole)) ->
-  either::either (x: a | it @ iterator a (x @ a) post) (| post)
-val stop: [a, hole: perm, post: perm] (consumes (s: iterator a hole post | hole)) -> (| post)
+   It is also possible to directly create a generic iterator from a list, using
+   [new_generic_iterator].
+*)
+
+abstract iterator a (post: perm)
+fact exclusive (iterator a post)
+
+(* Base functions *)
+
+val new_iterator: [a] (consumes l: list a) -> iterator a (l @ list a)
+
+val next: [a, post: perm] (consumes it: iterator a post) ->
+  either::either (focused::focused a (it @ iterator a post)) (| post)
+val stop: [a, post: perm] (consumes it: iterator a post) -> (| post)
+
+(* Directly provides an OO-style generic iterator ([iterator::iterator]) *)
+
+val new_generic_iterator: [a] (consumes l: list a) ->
+  iterator::iterator a (l @ list a)
 
 
 (* -------------------------------------------------------------------------- *)

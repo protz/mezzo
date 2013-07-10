@@ -21,3 +21,14 @@ val bless: [a, b, p: perm] (
 
 val compose: [a, b, c] (consumes osf a b, consumes osf b c) -> osf a c
 
+
+(* A one-shot function that deals only with permissions. It is strictly less
+   general than [osf], but useful to lighten the types when it can be used.
+
+   It also fits the notion of "magic wand" in separation logic: [p -* q] means
+   the same in separation logic that [wand p q] in Mezzo.
+*)
+alias wand (pre: perm) (post: perm) =
+  {ammo: perm} (
+    (| consumes (pre * ammo)) -> (| post)
+  | ammo)

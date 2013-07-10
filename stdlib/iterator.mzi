@@ -1,0 +1,122 @@
+open either
+open osf
+open focused
+
+(* Generic OO-style iterators *)
+
+data iterator_s (s: perm) a (post: perm) =
+  Iterator {
+    next: (| consumes s) -> either (focused a s)
+                                   (| post);
+    stop: (| consumes s) -> (| post)
+| s }
+
+alias iterator a (post: perm) =
+  {s: perm} iterator_s s a post
+
+(* Wrapping an ADT-style iterator into a generic (OO-style) iterator. *)
+
+val wrap: [a, i, post: perm] (
+  consumes it: i,
+  next: (consumes it: i) -> either (focused a (it @ i)) (| post),
+  stop: (consumes it: i) -> (| post)
+) -> iterator a post
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Calls [f] on each element of the iterator [it]
+*)
+val iter: [a, post: perm, p: perm] (
+  consumes it: iterator a post,
+  f: (a | p) -> ()
+| p) -> (| post)
+
+
+(* Comparison of two generic iterators.
+*)
+val equal: [a, post1 : perm, post2 : perm, p : perm] (
+  eq: (a, a | p) -> bool,
+  consumes i1: iterator a post1,
+  consumes i2: iterator a post2
+| p
+) -> (bool | post1 * post2)
+
+
+(* A [filter] function on generic iterators.
+ 
+   Constructs a new iterator, which returns only the elements of [it] that match
+   the predicate [f]
+*)
+val filter: [a, p: perm, post: perm] (
+  consumes it: iterator a post,
+  f: (a | p) -> bool
+| consumes p) -> iterator a (p * post)
+
+
+(* A [map] function on generic iterators.
+
+   Constructs a new iterator, returning [f x] for each element [x] of [it]. Note
+   that [f] cannot consume the elements of [it] so that [post] can be finally
+   returned.
+*)
+val map: [a, b, p: perm, post: perm] (
+  consumes it: iterator a post,
+  f: (a | p) -> b
+| consumes p) -> iterator b (p * post)
+
+
+(* [zip] combines two generic iterators.
+*)
+val zip: [a1, a2, post1 : perm, post2: perm] (
+  consumes it1: iterator a1 post1,
+  consumes it2: iterator a2 post2
+) -> iterator (a1, a2) (post1 * post2)
+
+
+(* [concat] returns the concatenation of two iterators.
+
+   The returned iterator will give first the elements of [it1], then
+   those of [it2].
+*)
+val concat: [a, post1: perm, post2: perm] (
+  consumes it1: iterator a post1,
+  consumes it2: iterator a post2
+) -> iterator a (post1 * post2)
+
+
+(* Classical fold_left on the elements of the iterator
+*)
+val fold_left: [a, b, post: perm] (
+  f: (consumes b, a) -> b,
+  consumes accu: b,
+  consumes it: iterator a post
+) -> (b | post)
+
+
+(* Drops the [n] first elements of the iterator - that is, [drop]
+   calls [it.next ()] [n] times
+*)
+val drop: [a, post: perm] (
+  consumes it: iterator a post,
+  n: int
+) -> either (| it @ iterator a post) (| post)
+
+
+(* Drops elements of [it] of the iterator while the predicate [pred]
+   evaluates to [True] on them
+*)
+val dropWhile: [a, post: perm, p: perm] (
+  consumes it: iterator a post,
+  pred: (a | p) -> bool
+| p) -> either (focused a (it @ iterator a post)) (| post)
+
+
+(* Turning a generic iterator into a stream. A bit trivial, because this
+   works only when the elements are duplicable, and in that case, there
+   is little reason to create an iterator in the first place. Also, this
+   consumes the iterator, so the underlying collection can never be
+   recovered. But it should be a good test of the type-checker.
+*)
+val to_stream: [a, post : perm] duplicable a => (
+  consumes it: iterator a post
+) -> stream::stream a

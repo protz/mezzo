@@ -1,0 +1,385 @@
+open either
+open osf
+open focused
+
+(* Generic OO-style iterators *)
+
+data iterator_s (s : perm) a (post : perm) =
+  Iterator {
+    next: (| consumes s) -> either (focused a s) (| post);
+    stop: (| consumes s) -> (| post)
+  | s }
+
+alias iterator a (post : perm) =
+  { s : perm } iterator_s s a post
+
+
+(* Wrapping an ADT-style iterator into a generic (OO-style) iterator. *)
+
+val wrap [a, i, post: perm] (
+  consumes it: i,
+  next: (consumes it: i) -> either (focused a (it @ i)) (| post),
+  stop: (consumes it: i) -> (| post)
+): iterator a post =
+
+  (* A convenient abbreviation. *)
+  let alias s: perm = it @ i in
+
+  (* Perform the application of the ADT functions to the iterator [i],
+     so as to obtain an object whose internal state is inaccessible. *)
+  Iterator {
+    next = (fun (| consumes s): either (focused a s) (| post) = next it);
+    stop = (fun (| consumes s): (| post) = stop it)
+  }
+
+(* ------------------------------------------------------------------------------ *)
+
+
+(* Calls [f] on each element of the iterator [it] *)
+
+val rec iter [a, post: perm, p: perm] (
+  consumes it: iterator a post,
+  f: (a | p) -> ()
+| p): (| post)
+=
+  match it.next () with
+  | Right ->
+    ()
+  | Left { contents = (x, surrender) } ->
+    f x;
+    surrender ();
+    iter (it, f)
+  end
+
+(* Comparison of two generic iterators. *)
+    
+val rec equal [a, post1 : perm, post2 : perm, p : perm] (
+  eq: (a, a | p) -> bool,
+  consumes i1: iterator a post1,
+  consumes i2: iterator a post2
+| p
+) : (bool | post1 * post2) =
+
+  match i1.next(), i2.next() with
+  | Right, Right ->
+      true
+  | Left { contents = (x1, surrender1) }, Left { contents = (x2, surrender2) } ->
+      let e = eq (x1, x2) in
+      surrender1 ();
+      surrender2 ();
+      if e then
+        equal (eq, i1, i2)
+      else begin
+        i1.stop ();
+        i2.stop ();
+        False
+      end
+  | Left { contents = (_, surrender1) }, Right ->
+      surrender1 ();
+      i1.stop ();
+      false
+  | Right, Left { contents = (_, surrender2) } ->
+      surrender2 ();
+      i2.stop ();
+      false
+  end 
+
+(* A [filter] function on generic iterators.
+ 
+   Constructs a new iterator, which returns only the elements of [it] that match
+   the predicate [f]
+*)
+val filter [a, p: perm, post: perm] (
+  consumes it: iterator a post,
+  f: (a | p) -> bool
+| consumes p) : iterator a (p * post)
+=
+
+  (* A name for the (unpacked) internal state of the underlying iterator. *)
+  let flex underlying: perm in
+  assert it @ iterator_s underlying a post;
+
+  (* An abbreviation for the internal state of the new iterator.
+     It contains the underlying iterator and the permission [p],
+     which represents the internal state of [f]. The underlying
+     iterator is in an unpacked state. *)
+  let alias s : perm = p * underlying in
+
+  let rec next (| consumes s) : either (focused a s) (| post * p) =
+    let e = it.next() in
+    match e with
+    | Right ->
+        (* The underlying iterator is finished. We are finished as well. *)
+        e
+    | Left { contents = (x, surrender) } ->
+        (* The underlying iterator produces [x], together with a magic
+           wand [surrender], which we must use to signal that we are done
+           with [x]. *)
+        if f x then begin
+          (* We would like to keep [x]. *)
+          let flex q: perm in
+          (* TEMPORARY the following two assertions seem to be required
+             in order to convince the type-checker to apply the frame
+             rule to a wand. See tests/frame-wand.mz. *)
+          assert q * surrender @ (| consumes (q * x @ a)) -> (| underlying);
+          assert q * surrender @ (| consumes (p * q * x @ a)) -> (| p * underlying);
+          (* The following assertion is superfluous. *)
+          assert surrender @ wand (p * x @ a) (p * underlying);
+          e
+        end
+        else begin
+          (* We would like to skip [x]. Signal that we are done with it,
+             and look for the next element. *)
+          surrender();
+          next()
+        end
+    end 
+  in
+
+  Iterator { next; stop = it.stop }
+
+
+(* A [map] function on generic iterators.
+
+   Constructs a new iterator, returning [f x] for each element [x] of [it]. Note
+   that [f] cannot consume the elements of [it] so that [post] can be finally
+   returned.
+*)
+val map [a, b, p: perm, post: perm] (
+  consumes it: iterator a post,
+  f: (a | p) -> b
+| consumes p): iterator b (p * post)
+=
+  let flex underlying: perm in
+  assert (it @ iterator_s underlying a post);
+
+  let alias s: perm = underlying * p in
+
+  let next (| consumes s):
+      either (focused b s) (| post * p) =
+    
+    match it.next () with
+    | Right ->
+      right ()
+    | Left { contents = (x, surrender) } ->
+      let flex q: perm in
+      assert (surrender @ (| consumes (q * x @ a)) -> (| underlying));
+      assert (surrender @ (| consumes (p * q * x @ a)) -> (| p * underlying));
+      left (f x, surrender)
+    end 
+  in
+
+  Iterator { next; stop = it.stop }
+
+(* [zip] combines two generic iterators. *)
+
+val zip [a1, a2, post1 : perm, post2: perm] (
+  consumes it1: iterator a1 post1,
+  consumes it2: iterator a2 post2
+) : iterator (a1, a2) (post1 * post2)
+=
+
+  (* Name the unpacked internal states of the underlying iterators. *)
+  let flex s1: perm in
+  assert it1 @ iterator_s s1 a1 post1;
+  let flex s2: perm in
+  assert it2 @ iterator_s s2 a2 post2;
+  (* Define the internal state, result type, and postcondition of the
+     new iterator. *)
+  let alias s : perm = s1 * s2 in
+  let alias a = (a1, a2) in
+  let alias post : perm = post1 * post2 in
+
+  let rec next (| consumes s) : either (focused a s) (| post) =
+    let e1 = it1.next()
+    and e2 = it2.next() in
+    match e1, e2 with
+    | Right, Right ->
+        (* The underlying iterators are finished. We are finished as well. *)
+        e1
+    | Left { contents = (x1, surrender1) }, Left { contents = (x2, surrender2) } ->
+        (* The underlying iterators produce [x1] and [x2]. *)
+        let x = (x1, x2) in
+        let flex q1 : perm in
+        let flex q2 : perm in
+        (* The following two assertions are superfluous. *)
+        assert surrender1 @ (| consumes (q1 * x1 @ a1)) -> (| s1);
+        assert surrender2 @ (| consumes (q2 * x2 @ a2)) -> (| s2);
+        let surrender (| consumes (q1 * q2 * x @ a)) : (| s) =
+          surrender1();
+          surrender2()
+        in
+        (* The following assertion is superfluous. *)
+        assert surrender @ osf (| x @ a) (| s);
+        Left { contents = (x, surrender) }
+    | Left { contents = (_, surrender1) }, Right ->
+        (* One of the iterators is finished. Stop the other, and we are done. *)
+        surrender1();
+        it1.stop();
+        e2
+    | Right, Left { contents = (_, surrender2) } ->
+        surrender2();
+        it2.stop();
+        e1
+    end
+  in
+
+  let stop (| consumes s) : (| post) =
+    it1.stop();
+    it2.stop()
+  in
+
+  Iterator { next; stop }
+
+(* [concat] returns the concatenation of two iterators.
+
+   The returned iterator will give first the elements of [it1], then
+   those of [it2].
+*)
+val concat [a, post1: perm, post2: perm] (
+  consumes it1: iterator a post1,
+  consumes it2: iterator a post2
+): iterator a (post1 * post2) =
+
+  let flex s1: perm in
+  let flex s2: perm in
+  assert (it1 @ iterator_s s1 a post1);
+  assert (it2 @ iterator_s s2 a post2);
+
+  let alias s_ty =
+    (rich_bool post1 s1 (* Is it1 alive? *)
+    | s2)
+  in
+
+  let state : ref s_ty = newref True in
+
+  let alias s: perm = state @ ref s_ty in
+
+  let rec next (| consumes s): either (focused a s) (| post1 * post2) =
+    match !state with
+    | True ->
+      (* [it1] is not consumed yet *)
+      match it1.next () with
+      | Right ->
+        (* No more elements in [it1]. [state] is now a Right { ... } *)
+        state := False;
+        next ()
+      | Left { contents = (x, surrender) } ->
+        let flex p: perm in
+        assert (surrender @ (| consumes (p * x @ a)) -> (| s1));
+        assert (surrender @ (| consumes (p * x @ a * s2 * state @ ref True)) -> (| s));
+        left (x, surrender)
+      end
+    | False ->
+      (* We are iterating of [it2] *)
+      match it2.next () with
+      | Right ->
+        (* No more elements it [it2]. Return [post1 * post2] *)
+        right ()
+      | Left { contents = (x, surrender) } ->
+        let flex p: perm in
+        assert (surrender @ (| consumes (p * x @ a)) -> (| s2));
+        assert (surrender @ (| consumes (post1 * p * x @ a * state @ ref False)) -> (| s));
+        left (x, surrender)
+      end 
+    end
+  in
+
+let stop (| consumes s): (| post1 * post2) =
+  match !state with
+  | True ->
+    it1.stop ();
+    it2.stop ();
+    ()
+  | False ->
+    it2.stop ();
+    ()
+  end
+  in
+
+  let it = Iterator { next; stop } in
+  (* pack it @ iterator a (post1 * post2) *)
+  (*   witness s; *)
+
+  it
+
+(* Classical fold_left on the elements of the iterator *)
+val rec fold_left [a, b, post: perm] (
+  f: (consumes b, a) -> b,
+  consumes accu: b,
+  consumes it: iterator a post
+): (b | post)
+=
+  match it.next () with
+  | Right ->
+    accu
+  | Left { contents = (x, surrender) } ->
+    let new_accu = f (accu, x) in
+    surrender ();
+    fold_left (f, new_accu, it)
+  end 
+
+(* Drops the [n] first elements of the iterator - that is, [drop]
+   calls [it.next ()] [n] times *)
+val rec drop [a, post: perm] (
+  consumes it: iterator a post,
+  n: int
+): either (| it @ iterator a post) (| post)
+  =
+  if n <= 0 then
+    left ()
+  else
+    match it.next () with
+    | Right ->
+      right ()
+    | Left { contents = (_, surrender) } ->
+      surrender ();
+      drop (it, n-1)
+    end 
+
+(* Drops elements of [it] of the iterator while the predicate [pred]
+   evaluates to [True] on them *)
+val rec dropWhile [a, post: perm, p: perm] (
+  consumes it: iterator a post,
+  pred: (a | p) -> bool
+| p): either (focused a (it @ iterator a post)) (| post)
+=
+  match it.next () with
+  | Right ->
+    right ()
+  | Left { contents = (x, surrender) } ->
+    if not (pred x) then (
+      left (x, surrender)
+    ) else (
+      surrender ();
+      dropWhile (it, pred)
+    )
+  end 
+
+(* Turning a generic iterator into a stream. A bit trivial, because this
+   works only when the elements are duplicable, and in that case, there
+   is little reason to create an iterator in the first place. Also, this
+   consumes the iterator, so the underlying collection can never be
+   recovered. But it should be a good test of the type-checker. *)
+
+val to_stream [a, post : perm] duplicable a => (
+  consumes it: iterator a post
+) : stream::stream a
+=
+
+  let alias s : perm = it @ iterator a post in
+  stream::produce (fun (| consumes s) : option (a | s) =
+    match it.next() with
+    | Right ->
+        None
+    | Left { contents = (x, surrender) } ->
+        surrender(); (* [x] is duplicable! *)
+        Some { contents = x }
+    end
+  )
+
+(*
+Local Variables:
+compile-command: "../mezzo iterator.mz"
+End:
+*)
