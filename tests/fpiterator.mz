@@ -106,18 +106,16 @@ val rec equal [a, post1 : perm, post2 : perm, p : perm] (
       True
   | Left { contents = x1 }, Left { contents = x2 } ->
       if eq (x1, x2) then begin
-	surrender();
-	fail (*
-	surrender();
-	equal (eq, i1, i2); *)
+       surrender();
+       surrender();
+       equal (eq, i1, i2);
       end
       else begin
-	surrender();
-	i2.stop();
-	fail (*
-	surrender();
-	i1.stop();
-	False *)
+       surrender();
+       i2.stop();
+       surrender();
+       i1.stop();
+       False
       end
   | Left, Right ->
       surrender();
