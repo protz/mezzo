@@ -23,6 +23,19 @@ val create: [a, p: perm] duplicable a => (
 
 val constant: [a] duplicable a => a -> thunk a
 
+(* Creating a recursive thunk, i.e., a suspended computation that
+   refers to itself. When one invokes [cyclic f], the function [f]
+   is invoked immediately. It is applied to the thunk [self] that
+   is being created, and must return a value, of type [a], for this
+   thunk. Of course it must not attempt to force this thunk; it is
+   allowed only to take its address. If it did attempt to force the
+   thunk, a runtime failure would occur. *)
+
+val cyclic: [a, p : perm] duplicable a => (
+  f: (thunk a | consumes p) -> a
+| consumes p
+) -> thunk a
+
 (* Demand. *)
 
 val force: [a] thunk a -> a
