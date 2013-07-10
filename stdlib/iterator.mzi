@@ -24,13 +24,26 @@ val wrap: [a, i, post: perm] (
 
 (* ------------------------------------------------------------------------------ *)
 
-(* Calls [f] on each element of the iterator [it]
+(* Interruptible iteration. *)
+
+(* [iter(it, f)] invokes [f] on each element of the iterator [it]. The
+   function [f] must return a Boolean result that indicates whether iteration
+   should continue. The final outcome of [iter] indicates whether iteration
+   did continue all the way to the end, or was aborted.
 *)
 val iter: [a, post: perm, p: perm] (
   consumes it: iterator a post,
-  f: (a | p) -> ()
-| p) -> (| post)
+  f: (a | p) -> bool
+| p) -> (bool | post)
 
+
+(* [fold] is analogous to [iter], but maintains an explicit accumulator.
+*)
+val fold: [a, b, post: perm] (
+  consumes it: iterator a post,
+  consumes accu: b,
+  f: (consumes b, a) -> (b, bool)
+) -> (b, bool | post)
 
 (* Comparison of two generic iterators.
 *)
@@ -82,29 +95,6 @@ val concat: [a, post1: perm, post2: perm] (
   consumes it1: iterator a post1,
   consumes it2: iterator a post2
 ) -> iterator a (post1 * post2)
-
-
-(* Classical fold on the elements of the iterator
-*)
-val fold: [a, b, post: perm] (
-  f: (consumes b, a) -> b,
-  consumes accu: b,
-  consumes it: iterator a post
-) -> (b | post)
-
-
-(* A fold function where the iteration can be interrupted by the user.
-
-   If the boolean returned by [f] with the new accumulator is [true],
-   the iteration continues. Otherwise, the iterator is stopped and the
-   current accumulator is returned.
-*)
-val fold_stop: [a, b, post: perm] (
-  f: (consumes b, a) -> (b, bool),
-  consumes accu: b,
-  consumes it: iterator a post
-) -> (b | post)
-
 
 (* Drops the [n] first elements of the iterator - that is, [drop]
    calls [it.next ()] [n] times
