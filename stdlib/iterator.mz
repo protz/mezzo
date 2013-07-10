@@ -58,40 +58,60 @@ val rec iter [a, post: perm, p: perm] (
   end
 
 (* Comparison of two generic iterators. *)
-    
-val rec equal [a, post1 : perm, post2 : perm, p : perm] (
+
+val rec compare [a, post1 : perm, post2 : perm, p : perm] (
+  cmp: (a, a | p) -> int,
+  consumes i1: iterator a post1,
+  consumes i2: iterator a post2
+| p
+) : (int | post1 * post2) =
+
+  match i1.next(), i2.next() with
+  | Right, Right ->
+      0
+  | Left { contents = (x1, surrender1) }, Left { contents = (x2, surrender2) } ->
+      let e = cmp (x1, x2) in
+      surrender1 ();
+      surrender2 ();
+      if e = 0 then
+        compare (cmp, i1, i2)
+      else begin
+        i1.stop ();
+        i2.stop ();
+        e
+      end
+  | Left { contents = (_, surrender1) }, Right ->
+    (* The sequence [i1] is longer. *)
+      surrender1 ();
+      i1.stop ();
+      1
+  | Right, Left { contents = (_, surrender2) } ->
+    (* The sequence [i2] is longer. *)
+      surrender2 ();
+      i2.stop ();
+      -1
+  end
+
+(* Equality between two generic iterators *)
+
+val equal [a, post1: perm, post2: perm, p: perm] (
   eq: (a, a | p) -> bool,
   consumes i1: iterator a post1,
   consumes i2: iterator a post2
 | p
 ) : (bool | post1 * post2) =
 
-  match i1.next(), i2.next() with
-  | Right, Right ->
-      true
-  | Left { contents = (x1, surrender1) }, Left { contents = (x2, surrender2) } ->
-      let e = eq (x1, x2) in
-      surrender1 ();
-      surrender2 ();
-      if e then
-        equal (eq, i1, i2)
-      else begin
-        i1.stop ();
-        i2.stop ();
-        False
-      end
-  | Left { contents = (_, surrender1) }, Right ->
-      surrender1 ();
-      i1.stop ();
-      false
-  | Right, Left { contents = (_, surrender2) } ->
-      surrender2 ();
-      i2.stop ();
-      false
-  end 
+  let cmp (x: a, y: a | p): int =
+    if eq (x, y) then
+      0
+    else
+      1 (* dummy non-zero value *)
+  in
+  compare (cmp, i1, i2) = 0
+
 
 (* A [filter] function on generic iterators.
- 
+
    Constructs a new iterator, which returns only the elements of [it] that match
    the predicate [f]
 *)
