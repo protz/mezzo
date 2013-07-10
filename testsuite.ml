@@ -1016,7 +1016,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("flexible-point.mz", pass);
   ("old_iterator.mz", pass);
   ("iterator.mz", pass);
-  ("assert-exists.mz", pass);
+  ("assert-exists.mz", pass_known_failure);
   ("assert-var.mz", fail_known_failure);
 
   (* The tests below are intentionally not run as they cause the type-checker to
