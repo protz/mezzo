@@ -123,12 +123,18 @@ val filter [a, p: perm, post: perm] (
            with [x]. *)
         if f x then begin
           (* We would like to keep [x]. *)
+          (* There are several ways of convincing the type-checker that
+             [surrender] has type [wand (x @ a) s]. One is via the following
+             three lines: *)
+          (*
           let flex q: perm in
-          (* TEMPORARY the following two assertions seem to be required
-             in order to convince the type-checker to apply the frame
-             rule to a wand. See tests/frame-wand.mz. *)
           assert q * surrender @ (| consumes (q * x @ a)) -> (| underlying);
           pack surrender @ wand (x @ a) s witness p * q;
+          *)
+          (* The other is via the following single line. This line forces
+             the type-checker to auto-pack [q], and from there, it can
+             auto-pack [p]. It is unable to auto-pack [p * q] in one go. *)
+          assert p * surrender @ wand (p * x @ a) s;
           e
         end
         else begin
