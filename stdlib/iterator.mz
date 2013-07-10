@@ -397,10 +397,10 @@ val to_stream [a, post : perm] duplicable a => (
   stream::produce (fun (| consumes s) : option (a | s) =
     match it.next() with
     | Right ->
-        None
+        none
     | Left { contents = (x, surrender) } ->
         surrender(); (* [x] is duplicable! *)
-        Some { contents = x }
+        some x
     end
   )
 
