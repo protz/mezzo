@@ -25,9 +25,9 @@ val invoke [a, b] (
 
 (* [serve f] spawns a new server thread, which listens on a new
    advertisement channel. It returns this channel, for use by
-   client threads. Each reply on the request channel is served
+   client threads. Each reply on the request tube is served
    by applying the function [f] to the request and sending the
-   result via the reply channel. Multiple requests can be served
+   result via the reply tube. Multiple requests can be served
    concurrently. For fun, the function itself has access to the
    advertisement channel, so the server can send requests to
    itself in the process of servicing a request. *)
@@ -65,7 +65,7 @@ val serve [a, b] (
       channel::send(ad, (request, reply));
       (* Wait for a client to grab this message. We will know
          that this has occurred once we receive a message via
-         the [request] channel. *)
+         the [request] tube. *)
       let x = tube::receive request in
       (* Here, we own the inert request tube, and could in principle
          store it in a pool for future re-use. *)
@@ -74,7 +74,7 @@ val serve [a, b] (
          the ownership of [x] is transferred to this new thread. *)
       spawn (fun (| consumes (x @ a * reply @ outlet b)) : () =
         (* Reply to the client by sending the result of [f] via
-           the reply channel. *)
+           the reply tube. *)
         tube::send(reply, f(ad, x))
       )
     end
@@ -98,3 +98,61 @@ val fib (n: int) : int =
 
   invoke(ad, n)
 
+(* A variant of [serve], where the server posts several messages in
+   advance on the advertisement channel, so as to augment the degree
+   of concurrency. The threads that handle the requests are also
+   spawned in advance. *)
+
+val serve [a, b] (
+  f: (advertisement a b, consumes a) -> b
+) : advertisement a b
+=
+  (* Create the advertisement channel. *)
+  let ad : advertisement a b = channel::new() in
+
+  (* This function posts a new message on the advertisement
+     channel and spawns the thread that will handle the
+     request/reply. *)
+  let rec post () : () =
+    (* Post a message on the advertisement channel, containing
+         a pair of fresh reply/request tubes. *)
+      let request = tube::new()
+      and reply   = tube::new() in
+      setup [a] request;
+      setup [b] reply;
+      channel::send(ad, (request, reply));
+      (* Spawn a new thread to wait for and deal with a request
+         on the request tube. *)
+      spawn (fun (| consumes (request @ inlet a * reply @ outlet b)) : () =
+        (* Wait for a client to grab this message. We will know
+           that this has occurred once we receive a message via
+           the [request] tube. *)
+        let x = tube::receive request in
+        (* In order to maintain the number of messages posted
+           on the advertisement channel, post a new message and
+           spawn a new thread. Ideally, in order to avoid slowing
+           down the processing of the request, a delayed spawn
+           might be useful here. *)
+        post();
+        (* Now, reply to the client by sending the result of [f]
+           via the reply tube. *)
+        tube::send(reply, f(ad, x))
+      )
+  in
+
+  (* Initially, post a fixed number [k] of messages on the advertisement
+     channel. Thus, there will always be [k] messages on this channel,
+     and there will always be [k] threads ready to receive a request on
+     the corresponding request tubes. *)
+  let k = 10 in
+  for i = 1 to k do
+    post();
+
+  (* As soon as everything is set up, return the advertisement channel. *)
+  ad
+
+(*
+Local Variables:
+compile-command: "../mezzo server.mz"
+End:
+*)
