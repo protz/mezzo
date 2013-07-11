@@ -1,14 +1,17 @@
 open thread
 open channel
-open tube
 
 (* An advertisement channel is a channel on which the server posts just
    one message and the clients can compete to receive this message. The
    message contains a pair of request/reply outlet/inlet, which are private
    and used only for one client/server interaction. *)
 
+(* We make the reply tube synchronous, just so that we can recover the
+   full ownership of it at the end of the interaction. This is
+   not essential. *)
+
 alias advertisement a b =
-  channel (outlet a, inlet b)
+  channel (tube::outlet a, synctube::inlet b)
 
 (* A client can use an advertisement channel as follows. *)
 
@@ -18,10 +21,7 @@ val invoke [a, b] (
 ) : b =
   let request, reply = channel::receive ad in
   tube::send(request, x);
-  tube::receive reply
-    (* Here, we own the inert [reply] tube, but cannot do anything
-       useful with it. We could return this permission to the server,
-       but that would require another message exchange. *)
+  synctube::receive reply
 
 (* [serve f] spawns a new server thread, which listens on a new
    advertisement channel. It returns this channel, for use by
@@ -34,18 +34,9 @@ val invoke [a, b] (
 
 (* There is no mechanism for terminating the server. *)
 
-(* In principle, instead of allocating new request/reply objects every
-   time, the server could maintain a pool of unused objects and use
-   one of them (if available) or allocate a new one. This would
-   require a type of rendez-vous objects that supports
-   re-initialization for multiple uses. One difficulty is that for the
-   request object, we would like the receiver to recover full
-   ownership of the object, whereas for the reply object, we would
-   like the send to recover full ownership. Furthermore, it seems
-   that the only sound option is for the *receiver* to recover full
-   ownership, since the receive operation completes after the send,
-   while the converse is not true, unless we assume a synchronous send
-   (which could make sense in some scenarios). *)
+(* In principle, instead of allocating new request/reply tubes every
+   time, the server could maintain a pool of unused tubes and use
+   one of them (if available) or allocate a new one. *)
 
 val serve [a, b] (
   f: (advertisement a b, consumes a) -> b
@@ -59,9 +50,9 @@ val serve [a, b] (
       (* Post a message on the advertisement channel, containing
          a pair of fresh reply/request tubes. *)
       let request = tube::new()
-      and reply   = tube::new() in
-      setup [a] request;
-      setup [b] reply;
+      and reply   = synctube::new() in
+      tube::setup [a] request;
+      synctube::setup [b] reply;
       channel::send(ad, (request, reply));
       (* Wait for a client to grab this message. We will know
          that this has occurred once we receive a message via
@@ -69,13 +60,16 @@ val serve [a, b] (
       let x = tube::receive request in
       (* Here, we own the inert request tube, and could in principle
          store it in a pool for future re-use. *)
-      assert request @ inert;
+      assert request @ tube::inert;
       (* Spawn a new thread to deal with this request. Note that
          the ownership of [x] is transferred to this new thread. *)
-      spawn (fun (| consumes (x @ a * reply @ outlet b)) : () =
+      spawn (fun (| consumes (x @ a * reply @ synctube::outlet b)) : () =
         (* Reply to the client by sending the result of [f] via
            the reply tube. *)
-        tube::send(reply, f(ad, x))
+        synctube::send(reply, f(ad, x));
+        (* Here, we own the inert reply tube, and could in principle
+           store it in a pool for future re-use. *)
+        assert reply @ synctube::inert
       )
     end
   );
@@ -117,13 +111,13 @@ val serve [a, b] (
     (* Post a message on the advertisement channel, containing
          a pair of fresh reply/request tubes. *)
       let request = tube::new()
-      and reply   = tube::new() in
-      setup [a] request;
-      setup [b] reply;
+      and reply   = synctube::new() in
+      tube::setup [a] request;
+      synctube::setup [b] reply;
       channel::send(ad, (request, reply));
       (* Spawn a new thread to wait for and deal with a request
          on the request tube. *)
-      spawn (fun (| consumes (request @ inlet a * reply @ outlet b)) : () =
+      spawn (fun (| consumes (request @ tube::inlet a * reply @ synctube::outlet b)) : () =
         (* Wait for a client to grab this message. We will know
            that this has occurred once we receive a message via
            the [request] tube. *)
@@ -136,7 +130,7 @@ val serve [a, b] (
         post();
         (* Now, reply to the client by sending the result of [f]
            via the reply tube. *)
-        tube::send(reply, f(ad, x))
+        synctube::send(reply, f(ad, x))
       )
   in
 
