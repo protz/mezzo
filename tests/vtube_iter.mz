@@ -2,7 +2,7 @@ data mutable tree a =
   Leaf
 | Node { left: tree a; elem: a; right: tree a }
 
-val rec producer [a] (t: tree a, e: vtube::endpoint | e @ vtube::send_ready e a): () =
+val rec producer [a] (t: tree a, e: vtube::send_ready e a): () =
   match t with
   | Leaf ->
     ()
@@ -18,9 +18,9 @@ val rec producer [a] (t: tree a, e: vtube::endpoint | e @ vtube::send_ready e a)
 
 (* A consumer that calls [f] on each element it receives *)
 val rec consumer [a, p: perm] (
-  e: vtube::endpoint,
+  e: vtube::receive_ready e a,
   f: (a | p) -> ()
-| p * e @ vtube::receive_ready e a): () =
+| p): () =
 
   let x = vtube::receive e in
   (* x @ a *)
@@ -37,7 +37,7 @@ val iter [a, p: perm] (
   let (s, r) = vtube::new () in
   let t =
     joinable_thread::spawn
-      (fun (| t @ tree a * s @ vtube::endpoint * s @ vtube::send_ready s a): () =
+      (fun (| t @ tree a * s @ vtube::send_ready s a): () =
          producer (t, s)
       )
   in

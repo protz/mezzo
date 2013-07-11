@@ -2,9 +2,6 @@
 val send: unknown
 val receive: unknown
 
-abstract endpoint
-fact exclusive endpoint
-
 (* Sender's endpoint states *)
 data send_ready (ep: term) a =
   S0 { contents: {p: perm} (|
@@ -27,7 +24,6 @@ and receive_standby (ep: term) a (x: term) =
 
 (* Creates a new vtube, and returns it two endpoints in ready state *)
 val new: [a] () -> (
-  sender: endpoint,
-  receiver: endpoint
-| sender @ send_ready sender a *
-  receiver @ receive_ready receiver a)
+  sender: send_ready sender a,
+  receiver: receive_ready receiver a
+)
