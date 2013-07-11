@@ -1,0 +1,8 @@
+val _ =
+  if true then begin
+    let data t = A in
+    A
+  end else begin
+    let data t = A in
+    A
+  end
