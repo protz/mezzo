@@ -1,0 +1,33 @@
+(* These will be used as functions! *)
+val send: unknown
+val receive: unknown
+
+abstract endpoint
+fact exclusive endpoint
+
+(* Sender's endpoint states *)
+data send_ready (ep: term) a =
+  S0 { contents: {p: perm} (|
+      p * send @ (=ep, consumes x: a | consumes p) -> (| ep @ send_standby ep a x)
+  )}
+and send_standby (ep: term) a (x: term) =
+  S1 { contents: {q: perm} (|
+      q * receive @ (=ep | consumes q) -> (| x @ a * ep @ send_ready ep a)
+  )}
+
+(* Receiver's endpoint states *)
+data receive_ready (ep: term) a =
+  R0 { contents: {p: perm} (|
+      p * receive @ (=ep | consumes p) -> (x: a | ep @ receive_standby ep a x)
+  )}
+and receive_standby (ep: term) a (x: term) =
+  R1 { contents: {q: perm} (|
+      q * send @ (=ep | consumes (x @ a * q)) -> (| ep @ receive_ready ep a)
+  )}
+
+(* Creates a new vtube, and returns it two endpoints in ready state *)
+val new: [a] () -> (
+  sender: endpoint,
+  receiver: endpoint
+| sender @ send_ready sender a *
+  receiver @ receive_ready receiver a)
