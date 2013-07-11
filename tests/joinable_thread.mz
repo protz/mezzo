@@ -1,0 +1,16 @@
+alias thread (p: perm) = channel::channel (| p)
+
+val spawn [p: perm, q: perm] (
+  f: (| consumes p) -> (| q)
+| consumes p): thread q =
+
+  let c = channel::new [(| q)] () in
+  thread::spawn (
+    fun (| consumes p): () =
+      f ();
+      channel::send [(| q)] (c, ())
+  );
+  c
+
+val join [p: perm] (consumes t: thread p): (| p) =
+  channel::receive [(| p)] t

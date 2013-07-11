@@ -1,0 +1,10 @@
+abstract thread (p: perm)
+fact duplicable (thread p)
+
+val spawn: [p: perm, q: perm] (
+  f: (| consumes p) -> (| q)
+| consumes p) -> thread q
+
+val join: [p: perm] (
+  consumes thread p
+) -> (| p)
