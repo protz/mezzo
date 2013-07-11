@@ -1,6 +1,9 @@
 (* These will be used as functions! *)
 val send: unknown
+val receive_ack: unknown
+
 val receive: unknown
+val send_ack: unknown
 
 (* Sender's endpoint states *)
 data send_ready (ep: term) a =
@@ -9,7 +12,7 @@ data send_ready (ep: term) a =
   )}
 and send_standby (ep: term) a (x: term) =
   S1 { contents: {q: perm} (|
-      q * receive @ (=ep | consumes q) -> (| x @ a * ep @ send_ready ep a)
+      q * receive_ack @ (=ep | consumes q) -> (| x @ a * ep @ send_ready ep a)
   )}
 
 (* Receiver's endpoint states *)
@@ -19,7 +22,7 @@ data receive_ready (ep: term) a =
   )}
 and receive_standby (ep: term) a (x: term) =
   R1 { contents: {q: perm} (|
-      q * send @ (=ep | consumes (x @ a * q)) -> (| ep @ receive_ready ep a)
+      q * send_ack @ (=ep | consumes (x @ a * q)) -> (| ep @ receive_ready ep a)
   )}
 
 (* Creates a new vtube, and returns it two endpoints in ready state *)

@@ -10,7 +10,7 @@ val rec producer [a] (t: tree a, e: vtube::send_ready e a): () =
     (* Give (elem @ a) to the consumer *)
     vtube::send (e, elem);
     (* Get (elem @ a) back *)
-    vtube::receive e;
+    vtube::receive_ack e;
 
     producer (left, e);
     producer (right, e)
@@ -26,7 +26,7 @@ val rec consumer [a, p: perm] (
   (* x @ a *)
   f x;
   (* Send (x @ a) back to the producer *)
-  vtube::send e;
+  vtube::send_ack e;
   consumer (e, f)
 
 val iter [a, p: perm] (
