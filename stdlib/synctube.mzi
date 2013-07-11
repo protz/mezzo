@@ -1,0 +1,20 @@
+(* This module defines synchronous tubes on top of the asynchronous
+   tubes of [tube]. The interface is exactly the same, except that
+   after an interaction, the sender (instead of the receiver) retains
+   the ownership of the tube. *)
+
+abstract inert
+(* fact exclusive inert *)
+  (* not satisfied by the current implementation, but could be, if
+     needed *)
+
+val new: () -> inert
+
+abstract outlet -a
+abstract inlet +a
+
+val setup: [a] (consumes c: inert) -> (| c @ outlet a * c @ inlet a)
+
+val send: [a] (consumes c: outlet a, consumes a) -> (| c @ inert)
+val receive: [a] (consumes inlet a) -> a
+

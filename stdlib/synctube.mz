@@ -1,0 +1,43 @@
+(* A synchronous tube is implemented as a pair of asynchronous tube.
+   The first tube, [payload], is used to deliver a message of type [a].
+   The second tube, [ack], is used to deliver an acknowledgement (hence
+   enforcing synchrony) and to transmit the ownership of the first tube
+   back to the sender. *)
+
+(* We could use a mutable pair so as to be able to publish [inert] as
+   an exclusive type. For the moment, a tuple is more convenient
+   because it can be dependent. *)
+
+(* The code is amazingly simple. *)
+
+alias inert =
+  (tube::inert, tube::inert)
+
+val new () : inert =
+  (tube::new(), tube::new())
+
+alias outlet -a =
+  (payload: tube::outlet a, tube::inlet (| payload @ tube::inert))
+
+alias inlet +a =
+  (payload: tube::inlet a, tube::outlet (| payload @ tube::inert))
+
+val setup [a] (consumes c: inert) : (| c @ outlet a * c @ inlet a) =
+  let payload, ack = c in
+  tube::setup [a] payload;
+  tube::setup [(| payload @ tube::inert)] ack
+
+val send [a] (consumes c: outlet a, consumes x: a) : (| c @ inert) =
+  let payload, ack = c in
+  tube::send(payload, x);
+  tube::receive [(| payload @ tube::inert)] ack
+    (* The type application is mandatory, otherwise, by covariance
+       of [tube::outlet], reception occurs at type [()], and we
+       lose a permission. *)
+
+val receive [a] (consumes c: inlet a) : a =
+  let payload, ack = c in
+  let x = tube::receive payload in
+  tube::send [(| payload @ tube::inert)] (ack, ());
+  x
+
