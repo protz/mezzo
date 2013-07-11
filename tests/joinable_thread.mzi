@@ -5,17 +5,9 @@ val spawn: [p: perm, q: perm] (
   f: (| consumes p) -> (| q)
 | consumes p) -> thread q
 
+(* The first thread which invokes [join t] gets [true] together with
+   the permission [p], and any further calls to [join t] return
+   [false] with no permission. *)
 val join: [p: perm] (
   consumes thread p
-) -> (| p)
-
-(* In this version of the code, only one thread should attempt to
-   invoke [join t]. Indeed, any further calls to [join t] will
-   block forever. *)
-
-(* One could design a variant of this module where [join] produces
-   a result of type [rich_bool empty p]. The first thread which
-   invokes [join t] gets [true] together with the permission [p],
-   and any further calls to [join t] return [false] with no
-   permission. *)
-
+) -> rich_bool empty p

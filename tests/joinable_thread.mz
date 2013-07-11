@@ -1,16 +1,20 @@
-alias thread (p: perm) = channel::channel (| p)
+alias thread (p: perm) = channel::channel (rich_bool empty p)
 
 val spawn [p: perm, q: perm] (
   f: (| consumes p) -> (| q)
 | consumes p): thread q =
 
-  let c = channel::new [(| q)] () in
+  let c = channel::new [rich_bool empty q] () in
   thread::spawn (
     fun (| consumes p): () =
       f ();
-      channel::send [(| q)] (c, ())
+      channel::send [rich_bool empty q] (c, True)
   );
   c
 
-val join [p: perm] (consumes t: thread p): (| p) =
-  channel::receive [(| p)] t
+val join [p: perm] (consumes t: thread p): rich_bool empty p =
+  let b = channel::receive [rich_bool empty p] t in
+  (* Put [False] on the channel so that other threads can know that they won't
+     get [p] *)
+  channel::send [rich_bool empty p] (t, False);
+  b

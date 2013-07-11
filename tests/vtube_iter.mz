@@ -42,4 +42,7 @@ val iter [a, p: perm] (
       )
   in
   consumer (r, f);
-  joinable_thread::join t
+  match joinable_thread::join t with
+  | True -> ()
+  | False -> fail
+  end
