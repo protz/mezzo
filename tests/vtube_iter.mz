@@ -1,0 +1,45 @@
+data mutable tree a =
+  Leaf
+| Node { left: tree a; elem: a; right: tree a }
+
+val rec producer [a] (t: tree a, e: vtube::endpoint | e @ vtube::send_ready e a): () =
+  match t with
+  | Leaf ->
+    ()
+  | Node { left; elem; right } ->
+    (* Give (elem @ a) to the consumer *)
+    vtube::send (e, elem);
+    (* Get (elem @ a) back *)
+    vtube::receive e;
+
+    producer (left, e);
+    producer (right, e)
+  end
+
+(* A consumer that calls [f] on each element it receives *)
+val rec consumer [a, p: perm] (
+  e: vtube::endpoint,
+  f: (a | p) -> ()
+| p * e @ vtube::receive_ready e a): () =
+
+  let x = vtube::receive e in
+  (* x @ a *)
+  f x;
+  (* Send (x @ a) back to the producer *)
+  vtube::send e;
+  consumer (e, f)
+
+val iter [a, p: perm] (
+  t: tree a,
+  f: (a | p) -> ()
+| p): () =
+
+  let (s, r) = vtube::new () in
+  let t =
+    joinable_thread::spawn
+      (fun (| t @ tree a * s @ vtube::endpoint * s @ vtube::send_ready s a): () =
+         producer (t, s)
+      )
+  in
+  consumer (r, f);
+  joinable_thread::join t
