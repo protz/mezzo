@@ -29,6 +29,34 @@ val bind [a, b] (m: option a, k: a -> option b) : option b =
       None
   end
 
+(* The error monad with a custom error type. *)
+
+data result e a =
+| Error { err : e }
+| Ok { value : a }
+
+val return [e, a] (consumes x: a) : result e a =
+  Ok { value = x }
+
+val bind [e, a, b] (consumes m: result e a, k: a -> result e b) : result e b =
+  match m with
+  | Error ->
+      m
+  | Ok ->
+      k m.value
+  end
+
+val raise [e, a] (consumes err : e) : result e a =
+  Error { err }
+
+val trywith [e, a] (consumes m: result e a, handle: e -> a) : a =
+  match m with
+  | Error ->
+      handle m.err
+  | Ok ->
+      m.value
+  end
+
 (* The state-passing monad. *)
 
 data state s a =
