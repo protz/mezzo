@@ -59,7 +59,7 @@ and judgement =
  * derivation that "worked", meaning we have a "good" environment along with the
  * corresponding derivation, or a derivation that failed, meaning we have no
  * resulting environment. *)
-type result = ((env * derivation, derivation) either) BatLazyList.t
+type result = ((env * derivation, derivation) either) LazyList.t
 
 (** Here is how to {b not} prove a judgement. This means that you found no rules
  * to apply in order to prove that judgement. *)

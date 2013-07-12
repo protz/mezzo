@@ -28,7 +28,7 @@ open Types
 open Derivations
 open Either
 
-module L = BatLazyList
+module L = LazyList
 
 (* -------------------------------------------------------------------------- *)
 
