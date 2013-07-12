@@ -3,9 +3,9 @@ open array
 alias pair a b = (a, b)
 alias double a = pair a a
 
-val f [a] (x: iarray a) : double (iarray a) = (x, x)
+val f [a] duplicable a => (x: iarray a) : double (iarray a) = (x, x)
 
-val g [a, m] (consumes x: array m a) : double (iarray a) =
+val g [a, m] duplicable a => (consumes x: array m a) : double (iarray a) =
   freeze x;
   (x, x)
 
