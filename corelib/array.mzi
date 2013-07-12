@@ -47,6 +47,11 @@ val swap : [a] (r: marray a, i: int, j: int) -> ()
    to the value [v] and returns the previous element at this index. *)
 val replace : [a] (marray a, int, consumes a) -> a
 
+(* [borrow (r, i)] returns the element at index [i] in the array [r],
+ * along with a wand that allows to lose the element and get the array back. *)
+val borrow : [a, m] (consumes r: array m a, i: int) ->
+  focused::focused a (r @ array m a)
+
 (* [consult (r, i, f)] is [f r[i]]. *)
 
 val consult : [a, m, pre : perm, b] (

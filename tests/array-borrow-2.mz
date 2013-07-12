@@ -1,0 +1,5 @@
+open array
+
+val f [a, m] (r: array m a) : () =
+  let x, release = borrow(r, 0) in
+  ()
