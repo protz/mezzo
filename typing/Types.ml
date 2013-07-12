@@ -294,7 +294,7 @@ let branches_for_datacon (env: env) (datacon: resolved_datacon): unresolved_bran
       | Some (Concrete branches) ->
           branches
       | _ ->
-          assert false
+          Log.error "Point has no datacon"
       end
   | t, _ ->
       Log.error "Datacon not properly resolved: %a" !internal_ptype (env, t)
