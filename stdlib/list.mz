@@ -2,9 +2,11 @@
 
 (* The standard definition of immutable lists. *)
 
+(* LIST_DEF *)
 data list a =
   | Nil
   | Cons { head: a; tail: list a }
+(* LIST_DEF *)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -154,11 +156,16 @@ val splitAt [a] (k: int, consumes xs: list a) : (list a, list a) =
 
 (* A non-tail-recursive version of [append]. *)
 
-val rec append [a] (consumes xs: list a, consumes ys: list a) : list a =
+(* LIST_APPEND *)
+val rec append [a] (
+  consumes xs: list a,
+  consumes ys: list a
+) : list a =
   if xs then
     Cons { head = xs.head; tail = append (xs.tail, ys) }
   else
     ys
+(* LIST_APPEND *)
 
 (* A tail-recursive version of [append], which uses auxiliary storage. *)
 
@@ -177,6 +184,7 @@ val append [a] (consumes xs: list a, consumes ys: list a) : list a =
 (* A tail-recursive version of [append], using no auxiliary storage, in
    destination-passing-style. *)
 
+(* LIST_TAILREC_AUX_APPEND *)
 val rec appendAux [a] (
    consumes dst: cell a,
    consumes xs: list a,
@@ -190,8 +198,13 @@ val rec appendAux [a] (
   end
   else
     freeze (dst, ys)
+(* LIST_TAILREC_AUX_APPEND *)
 
-val append [a] (consumes xs: list a, consumes ys: list a) : list a =
+(* LIST_TAILREC_APPEND *)
+val append [a] (
+  consumes xs: list a,
+  consumes ys: list a
+) : list a =
   if xs then begin
     let dst = Cell { head = xs.head; tail = () } in
     appendAux (dst, xs.tail, ys);
@@ -199,6 +212,7 @@ val append [a] (consumes xs: list a, consumes ys: list a) : list a =
   end
   else
     ys
+(* LIST_TAILREC_APPEND *)
 
 (* -------------------------------------------------------------------------- *)
 
