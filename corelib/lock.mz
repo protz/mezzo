@@ -3,18 +3,18 @@
 abstract lock (p: perm)
 fact duplicable (lock p)
 
-abstract held (l: term): perm
+abstract locked
 
 val new: [p: perm] (| consumes p) -> lock p =
   builtin __mz_lock_new
 
-val acquire:     [p: perm] (l: lock p) -> (| p * held l) =
+val acquire:     [p: perm] (l: lock p) -> (| p * l @ locked) =
   builtin __mz_lock_acquire
 
-val try_acquire: [p: perm] (l: lock p) -> rich_bool empty (p * held l) =
+val try_acquire: [p: perm] (l: lock p) -> rich_bool empty (p * l @ locked) =
   builtin __mz_lock_try_acquire
 
-val release: [p: perm] (l: lock p | consumes (p * held l)) -> () =
+val release: [p: perm] (l: lock p | consumes (p * l @ locked)) -> () =
   builtin __mz_lock_release
 
 val borrow [p: perm, q: perm, b] (
@@ -23,7 +23,7 @@ val borrow [p: perm, q: perm, b] (
 | consumes q
 ) : b =
   acquire l;
-  (* We could pass [held l] to [f], but we don't, so [f] cannot
+  (* We could pass [l @ locked] to [f], but we don't, so [f] cannot
      release the lock, either intentionally or by mistake. *)
   let x = f() in
   release l;

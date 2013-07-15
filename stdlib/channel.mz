@@ -48,7 +48,7 @@ val receive [a] (c : channel a) : a =
      when the reception finally succeeds. According to the semantics of
      [wait], the lock is temporarily released while the thread is suspended. *)
 
-  let rec loop (| consumes (q @ fifo a * held l)) : a =
+  let rec loop (| consumes (q @ fifo a * l @ locked)) : a =
     match retrieve q with
     | None ->
         wait cond;

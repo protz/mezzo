@@ -5,12 +5,12 @@
 abstract lock (p: perm)
 fact duplicable (lock p)
 
-(* The permission [held l], where [l] is a lock, is a witness that the
+(* The permission [l @ locked], where [l] is a lock, is a witness that the
    lock [l] is held. This permission is not duplicable. This allows
    the type system to prevent calling [release l] unless the lock [l]
    is held. *)
 
-abstract held (l: term): perm
+abstract locked
 
 (* Creation. *)
 
@@ -19,18 +19,18 @@ abstract held (l: term): perm
 (* When the lock is created, it is available; for this reason, [new]
    consumes the permission [p]. One could offer a variant of [new]
    where the lock is initially held; this variant would not require
-   [p], and would produce [held l]. *)
+   [p], and would produce [l @ locked]. *)
 
 val new: [p: perm] (| consumes p) -> lock p
 
 (* Acquisition. *)
 
-val acquire:     [p: perm] (l: lock p) -> (| p * held l)
-val try_acquire: [p: perm] (l: lock p) -> rich_bool empty (p * held l)
+val acquire:     [p: perm] (l: lock p) -> (| p * l @ locked)
+val try_acquire: [p: perm] (l: lock p) -> rich_bool empty (p * l @ locked)
 
 (* Release. *)
 
-val release: [p: perm] (l: lock p | consumes (p * held l)) -> ()
+val release: [p: perm] (l: lock p | consumes (p * l @ locked)) -> ()
 
 (* A well-balanced acquire/release pair. *)
 

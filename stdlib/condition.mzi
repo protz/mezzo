@@ -22,7 +22,7 @@ val new: [p : perm] (l: lock p) -> condition l
    and returns, so that, from the point of view of the current
    thread, the lock is still held when [wait] returns. *)
 
-val wait: [l: term] (condition l | held l) -> ()
+val wait: [l: term] (condition l | l @ locked) -> ()
 
 (* Sending a signal via a condition variable. *)
 

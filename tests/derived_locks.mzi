@@ -1,11 +1,11 @@
 abstract lock (p: perm)
 fact duplicable (lock p)
 
-abstract held (l: term): perm
+abstract locked
 
 val new: [p: perm] (| consumes p) -> lock p
 
-val acquire: [p: perm] (l: lock p) -> (| p * held l)
+val acquire: [p: perm] (l: lock p) -> (| p * l @ locked)
 
-val release: [p: perm] (l: lock p | consumes (p * held l)) -> ()
+val release: [p: perm] (l: lock p | consumes (p * l @ locked)) -> ()
 

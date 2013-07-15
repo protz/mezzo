@@ -7,21 +7,21 @@ open channel
 alias lock (p: perm) =
   channel (| p)
 
-(* The permission [held l] is phantom, i.e., it is
-   an abbreviation for [empty]. It enforces the
+(* The type [locked] is phantom, i.e., it is
+   an abbreviation for a trivial type. It enforces the
    invariant that there is at most one outstanding
    message; but this invariant cannot be stated.
    Note, though, that we could perhaps define
-   [held l] as the ownership of a ghost reference
+   [locked] as the ownership of a ghost reference
    cell, whose address is ghost-stored within [l].
    This ref cell would store an integer count of
    the number of messages in the channel. When
    there is message in the channel, the message
    would carry the assertion that [r] is one;
-   and [held l] would assert that [r] is zero. *)
+   and [l @ locked] would assert that [r] is zero. *)
 
-alias held (l: term) : perm =
-  empty
+alias locked =
+  (l: =l)
 
 (* One might hope eta-expansion to be unnecessary in the
    definition of [new] and [acquire], yet it is. *)
@@ -29,9 +29,9 @@ alias held (l: term) : perm =
 val new [p: perm] (| consumes p) : lock p =
   new [(| p)] ()
 
-val acquire [p: perm] (l: lock p): (| p * held l) =
+val acquire [p: perm] (l: lock p): (| p * l @ locked) =
   receive [(| p)] l
 
-val release [p: perm] (l: lock p | consumes (p * held l)) : () =
+val release [p: perm] (l: lock p | consumes (p * l @ locked)) : () =
   send [(| p)] (l, ())
 

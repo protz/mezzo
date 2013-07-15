@@ -1,6 +1,6 @@
 open lock
 
-val f (l: lock empty | held l) : () =
+val f (l: lock empty | l @ locked) : () =
   release l;
   release l
 
