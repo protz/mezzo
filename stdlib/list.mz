@@ -14,8 +14,10 @@ data list a =
    initialized. Such a cell is mutable, and can be frozen (turned
    into an immutable list cell) via a tag update instruction. *)
 
+(* CELL_DEF *)
 data mutable cell a =
   | Cell { head: a; tail: () }
+(* CELL_DEF *)
 
 (* The following function writes [xs] into [c.tail] and declares
    that [c] is now immutable. *)

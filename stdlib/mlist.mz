@@ -12,9 +12,11 @@
 
 (* The algebraic data type of mutable lists. *)
 
+(* MLIST_DEF *)
 data mutable mlist a =
   | MNil
   | MCons { head: a; tail: mlist a }
+(* MLIST_DEF *)
 
 (* Many operations on mutable lists work ``in place'', that is, without
    allocating new [MCons] cells. Unfortunately, these operations sometimes
@@ -40,6 +42,28 @@ val rec length_aux [a] (accu: int, xs: mlist a) : int =
 
 val length [a] (xs: mlist a) : int =
   length_aux (0, xs)
+
+(* -------------------------------------------------------------------------- *)
+
+(* In-place concatenation. *)
+
+(* MLIST_APPEND*)
+val rec append1 [a]
+  (xs: MCons { head: a; tail: mlist a },
+   consumes ys: mlist a) : () =
+  match xs.tail with
+  | MNil  -> xs.tail <- ys
+  | MCons -> append1 (xs.tail, ys)
+  end
+
+val append [a] (consumes xs: mlist a,
+                consumes ys: mlist a) : mlist a =
+  match xs with
+  | MNil  -> ys
+  | MCons -> append1 (xs, ys); xs
+  end
+(* MLIST_APPEND*)
+
 
 (* -------------------------------------------------------------------------- *)
 
