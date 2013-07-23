@@ -1,0 +1,15 @@
+open list
+
+val f (xs: list int) : () =
+  match xs with
+  | Cons ->
+      if xs == xs.tail then () else ()
+  end
+
+(* In principle, this code should be accepted, even though the
+   first branch of the "if" construct is dead: [xs] cannot
+   possibly be equal to [xs.tail], because lists are finite.
+   The type-checker diverges because it tries to expand the
+   hypothesis [xs @ list int * xs @ Cons { head: int; tail = xs }]
+   ad infinitum. *)
+
