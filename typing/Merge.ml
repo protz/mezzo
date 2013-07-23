@@ -185,8 +185,9 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
           (* This piece of code is actually dead because we always allocate a
            * fresh (existentially-quantified) var in the destination
-           * environment. This means always call this function with [dest_var]
-           * fresh, which means there's no way we processed it already. *)
+           * environment. This means we always call this function with
+           * [dest_var] fresh, which means there's no way we processed it
+           * already. *)
           if true then assert false;
 
           (* Do nothing, since it would be illegal! *)
@@ -573,18 +574,16 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                    * and after calling that function in one of the
                    * sub-environments, we opened [t] in the local environment. *)
                   let is_local_type =
-                    try
-                      ignore (clean dest_env left_env (TyOpen left_p));
-                      ignore (clean dest_env right_env (TyOpen right_p));
-                      false
-                    with UnboundPoint ->
-                      let open TypeErrors in
-                      may_raise_error top LocalType;
-                      true
+                    not (is_valid dest_env left_env (TyOpen left_p)) ||
+                    not (is_valid dest_env right_env (TyOpen right_p))
                   in
+                  if is_local_type then begin
+                    let open TypeErrors in
+                    may_raise_error top LocalType
+                  end;
 
                   if is_local_type || not (same dest_env left_p right_p) then
-                    (* e.g. [int] vs [float] *)
+                    (* e.g. [int] vs [float], or [t] vs [float] *)
                     None
                   else
                     (* e.g. [int] vs [int] *)
@@ -598,18 +597,20 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             | false, true ->
                 let dest_p = left_p in
 
-                (* This eliminates the case where [left_p] is a variable with a
-                 * structure that makes no sense in the destination environment.
-                 * Typically, a flexible variable that was instanciated with
-                 * [=x], [x] being local to the left environment. *)
+                (* This must be a top-level type and [left_p] must be valid in the
+                 * destination environment. *)
+                Log.check (is_type dest_env dest_p) "A flexible variable must refer \
+                  to a type defined in the top-level scope, we don't know how to treat \
+                  flexible variables with kind other than type yet.";
+
+                (* This is the same as above: we don't know how to merge a
+                 * local type variable, and we don't want to repack. *)
                 if is_valid top left_env left_perm then begin
 
-                  (* This must be a top-level type and [left_p] must be valid in the
-                   * destination environment. *)
-                  Log.check (is_type dest_env dest_p) "A flexible variable must refer \
-                    to a type defined in the top-level scope, we don't know how to treat \
-                    flexible variables with kind other than type yet.";
-
+                  (* From now on, we decide that [right_p], a flexible variable
+                   * on the right-hand-side, is instantiated to [dest_p], a type
+                   * that is known to be valid in [top], hence in [right_env].
+                   * *)
                   merge_left right_env dest_p right_p >>= fun right_env ->
                   Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
                     "All top-level types should be in known_triples by default";
@@ -622,13 +623,12 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             | true, false ->
                 let dest_p = right_p in
 
-                if is_valid top right_env right_perm then begin
+                (* See above *)
+                Log.check (is_type dest_env dest_p) "A flexible variable must refer \
+                  to a type defined in the top-level scope, we don't know how to treat \
+                  flexible variables with kind other than type yet.";
 
-                  (* This must be a top-level type and [right_p] must be valid in the
-                   * destination environment. *)
-                  Log.check (is_type dest_env dest_p) "A flexible variable must refer \
-                    to a type defined in the top-level scope, we don't know how to treat \
-                    flexible variables with kind other than type yet.";
+                if is_valid top right_env right_perm then begin
 
                   merge_left left_env dest_p left_p >>= fun left_env ->
                   Log.check (is_known_triple (left_env, left_p) (right_env, right_p) (dest_env, dest_p))
@@ -681,23 +681,22 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
       lazy begin
         match left_perm, right_perm with
 
-        (* In the case where we have annotations already, we're going to great
-         * lengths to perform a merge again, even if we have extracted the
-         * annotations first. Because we have a rule that says
-         *      "x @ (=y, =z) ∗ x @ (=y', =z') => y = y' ∗ z = z'"
-         * we can safely return a structural permission with different points
-         * for the sub-fields, the core {!Permissions} module will know how to
-         * deal with that. *)
         | TyConcrete branch_l, TyConcrete branch_r ->
-           let datacon_l = branch_l.branch_datacon
-           and datacon_r = branch_r.branch_datacon in
-            let t_left: var = !!(fst datacon_l) in
-            let t_right: var = !!(fst datacon_r) in
+            let datacon_l = branch_l.branch_datacon
+            and datacon_r = branch_r.branch_datacon in
+            let t_left: var = !!(fst datacon_l)
+            and t_right: var = !!(fst datacon_r) in
             let dest_var = Option.extract dest_var in
 
+            (* The procedure here is a little bit complicated. We first start by
+             * the case where the data constructors are equal (e.g. [Cons] vs
+             * [Cons]), then we treat the case where the data constructors
+             * belong to the same type (e.g. [Cons] vs [Nil]). *)
+
             if resolved_datacons_equal dest_env datacon_l datacon_r then
-              (* Same constructors: both are in expanded form so just schedule the
-               * vars in their fields for merging. *)
+              (* The constructors are equal, so we can start by merging the
+               * fields one-by-one. We assume the fields to be in expanded form,
+               * so we can always call [bind_merge]. *)
               let dest_env, dest_fields =
                 List.fold_left2 (fun (dest_env, dest_fields) field_l field_r ->
                   match field_l, field_r with
@@ -710,18 +709,31 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                       Log.error "All permissions should be in expanded form."
                 ) (dest_env, []) branch_l.branch_fields branch_r.branch_fields
               in
+
+              (* Please note that we're building a type "A { fᵢ = xᵢ }" which
+               * may contradict a pre-existing type "A { fᵢ = yᵢ }" for
+               * [dest_var] obtained through a type annotation. That's fine,
+               * though, because the [Permissions] module will use its special
+               * rule to assume "xᵢ = yᵢ". *)
+              let dest_fields = List.rev dest_fields in
+
+              (* Finally, we need to merge the "adopts" clause on the structural
+               * types. *)
               let r = 
                 let open TypeErrors in
-               let clause_l = branch_l.branch_adopts
-              and clause_r = branch_r.branch_adopts in
+                let clause_l = branch_l.branch_adopts
+                and clause_r = branch_r.branch_adopts in
                 try
                   let clause_l = clean top left_env clause_l in
                   let clause_r = clean top right_env clause_r in
-                  (* We don't want to be smart here, because
-                   * i) the type is not in expanded form and I'm not sure
-                   * what it means for it be merged in closed form and
-                   * ii) the user had to annotate, so they could at least
-                   * annotate properly! *)
+                  (* We don't want to be smart here, because:
+                   * i) the clause is not in expanded form (no singletons
+                   *    everywhere) and the whole [Merge] module makes that
+                   *    assumption, so recursively calling [merge_type] would be
+                   *    dangerous. I don't understand what
+                   *    [merge_type_with_unfolding] would mean in that case
+                   *    either (we'd have to re-fold permissions with a [TyBar]?).
+                   * ii) it's a good practice to annotate such a tricky case. *)
                   if not (equal top clause_l clause_r) then
                     raise_error top (NotMergingClauses (left_env, left_perm, clause_l, right_env, right_perm, clause_r))
                   else
@@ -731,10 +743,10 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                   raise_error top (NotMergingClauses (left_env, left_perm, clause_l, right_env, right_perm, clause_r))
               in
               r >>= fun (left_env, right_env, dest_env, clause) ->
-             let branch = { branch_l with
-              branch_fields = List.rev dest_fields;
-              branch_adopts = clause;
-             } in
+              let branch = { branch_l with
+                branch_fields = dest_fields;
+                branch_adopts = clause;
+              } in
               Some (left_env, right_env, dest_env, TyConcrete branch)
 
 
@@ -804,7 +816,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             Some (left_env, right_env, dest_env, TySingleton dest_t)
 
         | TyConcrete branch_l, _ ->
-           let datacon_l = branch_l.branch_datacon in
+            let datacon_l = branch_l.branch_datacon in
             let t_left = !!(fst datacon_l) in
             let t_dest = t_left in
 
@@ -817,7 +829,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
 
         | _, TyConcrete branch_r ->
-           let datacon_r = branch_r.branch_datacon in
+            let datacon_r = branch_r.branch_datacon in
             let t_right = !!(fst datacon_r) in
             let t_dest = t_right in
 
@@ -994,6 +1006,9 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
     let right_env, right_perm = expand right_env right_perm in
     merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
   in
+
+
+  (** This is the start of the actual merge logic. *)
 
   (* First, start by merging the floating permissions. *)
   let fp_left = get_floating_permissions left_env in
