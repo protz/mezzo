@@ -1,0 +1,18 @@
+(* Success: 42 *)
+
+val f (b : bool) : int =
+  let x = newref () in
+  (* Not really a merge, since (for the moment) the annotation is required. *)
+  let () : (| b @ rich_bool empty (x @ ref (ref int))) =
+    if b then
+      x := newref 42
+  in
+  (* If [b] is true, then [x] contains a [ref int], otherwise [x] contains
+     nothing. *)
+  if b then
+    !(!x)
+  else
+    0
+
+val () =
+  print (f true)
