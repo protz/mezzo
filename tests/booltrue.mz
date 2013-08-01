@@ -1,5 +1,15 @@
-val z1 =
-  if true then 1 else 2
+data mutable mbool = MFalse | MTrue
 
-val z2 =
-  if true then 1 else 2
+val b: mbool = MFalse
+
+val z1 =
+  if true then () else ();
+  if true then () else ();
+  if b then () else ();
+  if b then () else ();
+  ()
+
+val z2 = 
+  match b with MFalse -> () | MTrue -> () end;
+  match b with MFalse -> () | MTrue -> () end;
+  ()

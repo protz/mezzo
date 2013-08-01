@@ -988,8 +988,21 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       let env, (false_t, true_t) =
         match MzList.take_bool (is_data_type_with_two_constructors env) (get_permissions env x1) with
-        | Some (permissions, t) ->
-            let env = set_permissions env x1 permissions in
+        | Some (stripped_permissions, t) ->
+            (* The type that has two constructors should only disappear from the
+             * permission list of [x1] if not duplicable. One may ask: how come
+             * the merge operation won't re-merge the two constructors into the
+             * original, nominal type? Well, if this is a _value_ exported from
+             * another module, the [Merge] operation won't touch it, assuming
+             * that values exported from other modules won't change (since they
+             * now can only be duplicable), so we need to leave the original,
+             * duplicable permission here. *)
+            let env =
+              if FactInference.is_duplicable env t then
+                env
+              else
+                set_permissions env x1 stripped_permissions
+            in
             let split_apply cons args =
               match Option.extract (get_definition env cons) with
               | Concrete [b1; b2] ->
@@ -1012,6 +1025,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         | None ->
             raise_error env (NoTwoConstructors x1);
       in
+      (* Here, if the original type was duplicable, we may be doing "x @ bool * x
+       * @ True" but [Permissions] knows (I hope) how to simplify that. *)
       let false_env = Permissions.add env x1 false_t in
       let true_env = Permissions.add env x1 true_t in
 
