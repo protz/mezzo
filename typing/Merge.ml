@@ -985,26 +985,29 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
    * type abbreviations which have not been expanded. For these, we must first
    * unfold the type before performing the merge. *)
   and merge_type_with_unfolding (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env =
-    (* How do we expand a type? We bind a point, and add the permission to the
-     * given point. Unfortunately, we don't have an easy way to recover the type
-     * we just added to the point, so we use that little hack, telling that when
-     * the type is "simple", it remains simple, so we don't have to perform the
-     * whole procedure... *)
-    let expand env t =
-      let t = modulo_flex env t in
-      Log.debug "[merge_type_with_unfolding] %a" TypePrinter.ptype (env, t);
-      let simple = function TyUnknown | TyDynamic | TySingleton _ -> true | _ -> false in
-      if simple t then
-        env, t
-      else
-        let env, point = bind_rigid env (fresh_auto_name "mtwu", KTerm, location env) in
-        let env = Permissions.add env point t in
-        let t = List.find (fun x -> not (simple x)) (get_permissions env point) in
-        env, t
-    in
-    let left_env, left_perm = expand left_env left_perm in
-    let right_env, right_perm = expand right_env right_perm in
-    merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
+    if get_kind_for_type left_env left_perm = KType then
+      (* How do we expand a type? We bind a point, and add the permission to the
+       * given point. Unfortunately, we don't have an easy way to recover the type
+       * we just added to the point, so we use that little hack, telling that when
+       * the type is "simple", it remains simple, so we don't have to perform the
+       * whole procedure... *)
+      let expand env t =
+        let t = modulo_flex env t in
+        Log.debug "[merge_type_with_unfolding] %a" TypePrinter.ptype (env, t);
+        let simple = function TyUnknown | TyDynamic | TySingleton _ -> true | _ -> false in
+        if simple t then
+          env, t
+        else
+          let env, point = bind_rigid env (fresh_auto_name "mtwu", KTerm, location env) in
+          let env = Permissions.add env point t in
+          let t = List.find (fun x -> not (simple x)) (get_permissions env point) in
+          env, t
+      in
+      let left_env, left_perm = expand left_env left_perm in
+      let right_env, right_perm = expand right_env right_perm in
+      merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
+    else
+      merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
   in
 
 
