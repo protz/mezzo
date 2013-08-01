@@ -934,6 +934,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("local-type2.mz", pass_known_failure);
   ("local-type3.mz", pass_known_failure);
   ("local-type4.mz", pass);
+  ("local-type5.mz", pass_known_failure);
   ("tyapp.mz", pass);
   ("tyand00.mz", kfail);
   ("tyand01.mz", pass);
