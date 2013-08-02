@@ -166,13 +166,13 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
     | Left (env, derivation) ->
         (env, derivation, (t1, t2), vars) :: valid, invalid
     | Right derivation ->
-        valid, (derivation, (t1, t2)) :: invalid
+        valid, (env, derivation, (t1, t2)) :: invalid
   ) permissions ([], []) in
 
   match valid, invalid with
   | [], [] ->
       raise_error env (NotAFunction f)
-  | [], (d, (t1, _)) :: _ ->
+  | [], (env, d, (t1, _)) :: _ ->
       raise_error env (ExpectedType (t1, x, d))
   | (env', d, (_, t2), vars) :: xs, _ ->
       if xs <> [] then (
