@@ -1311,7 +1311,14 @@ and add_sub env ps1 ps2 =
         qed
     | _, [TyOpen var2] when is_flexible env var2 ->
         assert false
-    | [TyOpen var1], [TyEmpty] when is_flexible env var1 ->
+    | _, [TyEmpty] ->
+        assert false
+    | [TyOpen var1], [] when is_flexible env var1 && false ->
+        (* This is disabled, as it causes several tests to fail. I believe
+         * having a flexible permission is ok per se, but then breaks inference
+         * pretty badly (it would make _any_ subtraction succeed?). Original
+         * comment below.*)
+
         (* Any instantiation of [var1] would be fine, actually, so don't
          * commit to [TyEmpty]! *)
         nothing env "keep-flex" >>=

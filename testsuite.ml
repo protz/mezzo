@@ -1019,7 +1019,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("flexible-point.mz", pass);
   ("old_iterator.mz", pass);
   ("assert-exists.mz", pass);
-  ("assert-var.mz", fail_known_failure);
+  ("assert-var.mz", pass);
   ("internal_choice.mz", pass);
   ("server.mz", pass);
   ("array-borrow-1.mz", pass);
@@ -1032,7 +1032,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("landin-variant.mz", fun _ -> raise KnownFailure);
   ("cyclic-list.mz", fun _ -> raise KnownFailure);
   ("cyclic-list2.mz", fun _ -> raise KnownFailure);
-  ("diverge.mz", fun _ -> raise KnownFailure);
+  ("diverge.mz", fail);
 ];;
 
 let mz_files_in_directory (dir : string) : string list =
