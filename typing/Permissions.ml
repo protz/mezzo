@@ -1220,6 +1220,16 @@ and add_sub env ps1 ps2 =
     in
     let env, ps1, ps2 = strip_syntactically_equal env ps1 ps2 in
 
+    (* Early heuristic. *)
+    match ps1, ps2 with
+    | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
+        when is_flexible env !!x2 ->
+          (* This is a fairly debatable heuristic. *)
+          sub_type_with_unfolding env t1 t2 >>= fun env ->
+          j_merge_left env !!x2 !!x1 >>=
+          qed
+
+    | _ ->
 
     (*   [add_perm] will fail if we add "x @ t" when "x" is flexible. So we
      * search among the permissions in [ps1] one that is suitable for adding,
@@ -1314,16 +1324,6 @@ and add_sub env ps1 ps2 =
         Log.debug ~level:5 "Add-sub case #2";
         j_flex_inst env var1 (fold_star ps2) >>=
         qed
-    | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
-        when is_flexible env !!x2 ->
-          (* If [x1] was rigid, then it was added by [add_sub]. We should
-           * trigger this heuristic earlier, probably after
-           * [strip_syntactically_equal]. *)
-          if true then assert false;
-          (* These two are *really* debatable heuristics. *)
-          sub_type_with_unfolding env t1 t2 >>= fun env ->
-          j_merge_left env !!x2 !!x1 >>=
-          qed
     | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
         when is_flexible env !!x1 ->
           sub_type_with_unfolding env t1 t2 >>= fun env ->
