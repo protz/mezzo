@@ -962,7 +962,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("tree-removal.mz", pass);
   ("pattern-sharing.mz", fail);
   ("gadt.mz", pass);
-  ("gadt-bug.mz", fail_known_failure);
+  ("gadt-bug.mz", fail);
   ("abbrev-1.mz", pass);
   ("abbrev-2.mz", pass);
   ("abbrev-3.mz", pass);

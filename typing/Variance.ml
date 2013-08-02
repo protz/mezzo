@@ -135,8 +135,10 @@ let variance env var_for_ith valuation b t =
         let vs = var branch.branch_adopts :: vs in
         List.fold_left lub Bivariant vs
 
-    | TySingleton _ ->
-        Bivariant
+    | TySingleton t ->
+        (* The parameter whose variance we're computing may be at kind term,
+         * meaning it may appear in t! *)
+        var t
 
     | TyArrow (t1, t2) ->
         lub ~~(var t1) (var t2)
@@ -145,8 +147,9 @@ let variance env var_for_ith valuation b t =
     | TyStar (t1, t2) ->
         lub (var t1) (var t2)
 
-    | TyAnchoredPermission (_, t2) ->
-        var t2
+    | TyAnchoredPermission (t1, t2) ->
+        (* Same remark as for the [TySingleton] case. *)
+        lub (var t1) (var t2)
 
     | TyAnd ((_, t), u) ->
        (* [t] is in invariant position, [u] is in covariant position. *)
