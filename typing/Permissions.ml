@@ -34,6 +34,10 @@ module L = LazyList
 
 (* This should help debugging. *)
 
+(* -- jonathan (20130810): these assertions are currently broken in
+ * tree-coroutine.mz and bad-generalization.mz; some program variables only have
+ * "unknown" for a permission; no idea why (but seems harmless). *)
+
 let safety_check env =
   (* Be paranoid, perform an expensive safety check. *)
   if Log.debug_level () >= 5 then begin
