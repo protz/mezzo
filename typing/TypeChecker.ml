@@ -456,19 +456,19 @@ let merge_type_annotations env t1 t2 =
       TyConcrete branch2
       when resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon ->
         assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
-       let branch = { branch1 with
-         branch_fields =
+        let branch = { branch1 with
+          branch_fields =
             List.map2 (fun f1 f2 ->
-             match f1, f2 with
-             | FieldValue (f1, t1), FieldValue (f2, t2) when Field.equal f1 f2 ->
-                FieldValue (f1, merge_type_annotations t1 t2)
-             | _ ->
-                error ()
-           ) branch1.branch_fields branch2.branch_fields;
-         branch_adopts =
-            merge_type_annotations branch1.branch_adopts branch2.branch_adopts;
-       } in
-       TyConcrete branch
+              match f1, f2 with
+              | FieldValue (f1, t1), FieldValue (f2, t2) when Field.equal f1 f2 ->
+                  FieldValue (f1, merge_type_annotations t1 t2)
+              | _ ->
+                  error ()
+            ) branch1.branch_fields branch2.branch_fields;
+          branch_adopts =
+             merge_type_annotations branch1.branch_adopts branch2.branch_adopts;
+        } in
+        TyConcrete branch
     | _ ->
         error ()
   in
@@ -647,41 +647,40 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let permissions = get_permissions env p1 in
       let found = ref false in
       let permissions = List.map (fun t ->
-          match t with
-          | TyConcrete branch ->
-              (* Check that this datacon is exclusive. *)
-             let flavor = flavor_for_branch env branch in
-             if not (DataTypeFlavor.can_be_written flavor) then
-                raise_error env (AssignNotExclusive (t, snd branch.branch_datacon));
+        match t with
+        | TyConcrete branch ->
+            (* Check that this datacon is exclusive. *)
+            let flavor = flavor_for_branch env branch in
+            if not (DataTypeFlavor.can_be_written flavor) then
+               raise_error env (AssignNotExclusive (t, snd branch.branch_datacon));
 
-              (* Perform the assignment. *)
-              let branch_fields = List.mapi (fun i -> function
-                | FieldValue (field, expr) ->
-                    let expr = 
-                      if Field.equal field fname then
-                        begin match expr with
-                        | TySingleton (TyOpen _) ->
-                            if !found then
-                              Log.error "Two matching permissions? That's strange...";
-                            field_struct.SurfaceSyntax.field_offset <- Some i;
-                            found := true;
-                            TySingleton (TyOpen p2)
-                        | t ->
-                            let open TypePrinter in
-                            Log.error "Not a var %a" ptype (env, t)
-                        end
-                      else
-                        expr
-                    in
-                    FieldValue (field, expr)
-                | FieldPermission _ ->
-                    Log.error "These should've been inserted in the environment"
-              ) branch.branch_fields in
-              TyConcrete { branch with branch_fields }
-          | _ ->
-              t
-        ) permissions
-      in
+            (* Perform the assignment. *)
+            let branch_fields = List.mapi (fun i -> function
+              | FieldValue (field, expr) ->
+                  let expr = 
+                    if Field.equal field fname then
+                      begin match expr with
+                      | TySingleton (TyOpen _) ->
+                          if !found then
+                            Log.error "Two matching permissions? That's strange...";
+                          field_struct.SurfaceSyntax.field_offset <- Some i;
+                          found := true;
+                          TySingleton (TyOpen p2)
+                      | t ->
+                          let open TypePrinter in
+                          Log.error "Not a var %a" ptype (env, t)
+                      end
+                    else
+                      expr
+                  in
+                  FieldValue (field, expr)
+              | FieldPermission _ ->
+                  Log.error "These should've been inserted in the environment"
+            ) branch.branch_fields in
+            TyConcrete { branch with branch_fields }
+        | _ ->
+            t
+      ) permissions in
       if not !found then
         raise_error env (NoSuchField (p1, fname));
       let env = set_permissions env p1 permissions in
@@ -698,10 +697,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let found = ref false in
       let permissions = List.map (function
         | TyConcrete old_branch as t ->
-           let old_datacon = old_branch.branch_datacon in
+            let old_datacon = old_branch.branch_datacon in
             (* The current type should be mutable. *)
-           let old_flavor = flavor_for_branch env old_branch in
-           if not (DataTypeFlavor.can_be_written old_flavor) then
+            let old_flavor = flavor_for_branch env old_branch in
+            if not (DataTypeFlavor.can_be_written old_flavor) then
               raise_error env (AssignNotExclusive (t, snd old_datacon));
 
             (* Also, the number of fields should be the same. *)
@@ -726,11 +725,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
             (* And don't forget to change the datacon as well. *)
             TyConcrete { old_branch with
-             (* the flavor is unit anyway *)
-             branch_datacon = new_datacon;
-             branch_fields;
-             (* the type of the adoptees does not change *)
-           }
+              (* the flavor is unit anyway *)
+              branch_datacon = new_datacon;
+              branch_fields;
+              (* the type of the adoptees does not change *)
+            }
 
         | _ as t ->
             t
@@ -885,22 +884,21 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let annotations = match annot with
         | Some (TyConcrete branch) ->
             let annots = MzList.map_some (function
-                | FieldValue (name, t) ->
-                    Some (name, t)
-                | FieldPermission _ ->
-                    (* There may be some permissions bundled in the type
-                     * annotation (beneath, say, a constructor). We're not doing
-                     * anything useful with these yet. *)
-                    None
-              ) branch.branch_fields
-            in
+              | FieldValue (name, t) ->
+                  Some (name, t)
+              | FieldPermission _ ->
+                  (* There may be some permissions bundled in the type
+                   * annotation (beneath, say, a constructor). We're not doing
+                   * anything useful with these yet. *)
+                  None
+            ) branch.branch_fields in
             (* Every field in the type annotation corresponds to a field in the
              * expression, i.e. the type annotation makes sense. *)
             if List.for_all (fun (name, _) ->
-                List.exists (function
-                  | name', _ ->
-                      Field.equal name name'
-                ) fieldexprs
+              List.exists (function
+                | name', _ ->
+                    Field.equal name name'
+              ) fieldexprs
             ) annots then
               annots
             else
@@ -958,10 +956,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       end;
       let fieldvals = List.rev fieldvals in
       let branch = {
-       branch_flavor = ();
-       branch_datacon = datacon;
-       branch_fields = fieldvals;
-       branch_adopts = clause;
+        branch_flavor = ();
+        branch_datacon = datacon;
+        branch_fields = fieldvals;
+        branch_adopts = clause;
       } in
       return env (TyConcrete branch)
 
@@ -1119,13 +1117,13 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 (* We're done. *)
                 return env ty_unit
           else begin
-           (* Check that the adoptee is exclusive. We do *not* check this when
-              we examine an algebraic data type definition that has an adopts
-              clause, because it is more flexible to defer this check to actual
-              adoption time. Indeed, the type parameters have been instantiated,
-              local mode assumptions are available, so the check may succeed here
-              whereas it would have failed if performed at type definition time. *)
-           if not (FactInference.is_exclusive env clause) then
+            (* Check that the adoptee is exclusive. We do *not* check this when
+               we examine an algebraic data type definition that has an adopts
+               clause, because it is more flexible to defer this check to actual
+               adoption time. Indeed, the type parameters have been instantiated,
+               local mode assumptions are available, so the check may succeed here
+               whereas it would have failed if performed at type definition time. *)
+            if not (FactInference.is_exclusive env clause) then
               raise_error env (NonExclusiveAdoptee clause);
             (* The clause is known. Just take the required permission out of the
              * permissions for x. *)
