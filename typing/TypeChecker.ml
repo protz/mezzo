@@ -136,23 +136,19 @@ let transform_constructor_permission
 let replace_field
   (branch: resolved_branch)
   (field: Field.name)
-  (f: int -> var -> typ)
-  =
-  let branch_fields = List.mapi (fun i -> function
-    | FieldValue (field', (TySingleton (TyOpen p) as t)) ->
-        if Field.equal field field' then
-          FieldValue (field', f i p)
-        else
-          FieldValue (field', t)
-    | _ ->
-        assert false
-  ) branch.branch_fields in
-  { branch with branch_fields }
+  (f: int -> var -> typ) =
+    let branch_fields = List.mapi (fun i -> function
+      | FieldValue (field', (TySingleton (TyOpen p) as t)) ->
+          if Field.equal field field' then
+            FieldValue (field', f i p)
+          else
+            FieldValue (field', t)
+      | _ ->
+          assert false
+    ) branch.branch_fields in
+    { branch with branch_fields }
 ;;
 
-(* Since everything is, or will be, in A-normal form, type-checking a function
- * call amounts to type-checking a var applied to another var. The default
- * behavior is: do not return a type that contains flexible variables. *)
 let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env * typ =
   Log.debug ~level:5 "[check_function_call], f = %a, x = %a, env below\n\n%a\n"
     TypePrinter.pnames (env, get_names env f)
@@ -319,11 +315,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
       if List.length t <> List.length patterns then
         raise_error env (BadPattern (pattern, var));
       List.fold_left2 (fun env pattern component ->
-        match component with
-        | TySingleton (TyOpen p') ->
-            unify_pattern env pattern p'
-        | _ ->
-            Log.error "Expecting a type that went through [unfold] and [collect] here"
+        unify_pattern env pattern !!=component
       ) env patterns t
 
   | PConstruct (datacon, field_pats) ->
@@ -350,10 +342,10 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
             raise_error env (NoSuchFieldInPattern (pattern, name))
         in
         match field with
-        | FieldValue (_, TySingleton (TyOpen p')) ->
-            unify_pattern env pat p'
+        | FieldValue (_, t) ->
+            unify_pattern env pat !!=t
         | _ ->
-            Log.error "Expecting a type that went through [unfold] and [collect] here"
+            assert false
       ) env field_pats
 
   | PAny ->
@@ -375,12 +367,7 @@ let refine_perms_in_place_for_pattern env var pat =
         let vars =
           match MzList.find_opt (function
             | TyTuple ts ->
-                Some (List.map (function
-                  | TySingleton (TyOpen p) ->
-                      p
-                  | _ ->
-                      Log.error "expanded form"
-                ) ts)
+                Some (List.map (!!=) ts)
             | _ ->
                 None
           ) (get_permissions env var) with
@@ -399,29 +386,22 @@ let refine_perms_in_place_for_pattern env var pat =
         let fail_if b = if b then fail () in
 
         (* Recursively refine the fields of a concrete type according to the
-         * sub-patterns. *)
+         * sub-patterns. This will be called once we have found the types of the
+         * corresponding [fields]. *)
         let refine_fields env fields = List.fold_left (fun env (n2, pat2) ->
-          let open ExprPrinter in
-          let open TypePrinter in
-          Log.debug ~level:8 "Field = %a, pat = %a" Field.p n2 ppat (env, pat2);
-          List.iter (function
+          match MzList.find_opt (function
             | FieldValue (n1, t1) ->
-                Log.debug ~level:8 "Field = %a, t = %a" Field.p n1 ptype (env, t1)
+                if Field.equal n1 n2 then
+                  Some !!=t1
+                else
+                  None
             | _ ->
                 assert false
-          ) fields;
-          let var1 = match MzList.find_opt (function
-            | FieldValue (n1, TySingleton (TyOpen p1)) when Field.equal n1 n2 ->
-                Some p1
-            | _ ->
-                None
           ) fields with
           | Some p1 ->
-              p1
+              refine env p1 pat2
           | None ->
               raise_error env (BadField (snd datacon, n2))
-          in
-          refine env var1 pat2
         ) env patfields in
 
         (* Find a permission that can be refined in there. *)
@@ -440,9 +420,6 @@ let refine_perms_in_place_for_pattern env var pat =
               end
           | TyApp (cons, args) ->
               let p', datacon = datacon in
-              Log.debug ~level:8 "cons=%a, p'=%a"
-                TypePrinter.ptype (env, cons)
-                TypePrinter.ptype (env, p');
               fail_if (not (same env !!cons !!p'));
               begin try
                 let branch = find_and_instantiate_branch env !!cons datacon args in
@@ -458,7 +435,7 @@ let refine_perms_in_place_for_pattern env var pat =
                   | FieldValue (n1, _) ->
                       List.exists (Field.equal n1) fields
                   | _ ->
-                      Log.error "not in order or not expanded"
+                      assert false
                 ) branch'.branch_fields
               in
               fail_if (not is_ok);
