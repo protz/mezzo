@@ -118,19 +118,37 @@ let transform_constructor_permission
   (failure: unit -> 'a) =
     let permissions = get_permissions env x in
     let concrete, not_concrete = List.partition is_concrete permissions in
-    if List.length concrete > 1 then
-      Log.debug ~level:5 "Several concrete permissions. Weird, but maybe ok.";
-    if List.length concrete = 0 then
-      failure ()
-    else
-      success (assert_concrete (List.hd concrete)) (fun branch k ->
-        let new_permissions =
-          TyConcrete branch :: List.tl concrete @ not_concrete
-        in
-        let env = set_permissions env x new_permissions in
-        k env
-      )
+    match concrete with
+    | [] ->
+        failure ()
+    | hd :: tl ->
+        if tl <> [] then
+          Log.debug ~level:5 "Several concrete permissions. Weird, but maybe ok.";
+        success (assert_concrete hd) (fun branch k ->
+          let new_permissions =
+            TyConcrete branch :: tl @ not_concrete
+          in
+          let env = set_permissions env x new_permissions in
+          k env
+        )
+;;
 
+let replace_field
+  (branch: resolved_branch)
+  (field: Field.name)
+  (f: int -> var -> typ)
+  =
+  let branch_fields = List.mapi (fun i -> function
+    | FieldValue (field', (TySingleton (TyOpen p) as t)) ->
+        if Field.equal field field' then
+          FieldValue (field', f i p)
+        else
+          FieldValue (field', t)
+    | _ ->
+        assert false
+  ) branch.branch_fields in
+  { branch with branch_fields }
+;;
 
 (* Since everything is, or will be, in A-normal form, type-checking a function
  * call amounts to type-checking a var applied to another var. The default
@@ -564,7 +582,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       end
 
   | EPack (u, t') ->
-      (* Type-checking « pack ∃α.t witness t' » with « u = ∃α.t » amounts to:
+      (* Type-checking « pack u witness t' » with « u = ∃α.t » amounts to:
        * - subtract [t'/α]t
        * - add u
        * *)
@@ -687,27 +705,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         if not (DataTypeFlavor.can_be_written flavor) then
            raise_error env (AssignNotExclusive (TyConcrete branch, snd branch.branch_datacon));
 
-        (* Perform the assignment. *)
-        let branch_fields = List.mapi (fun i -> function
-          | FieldValue (field, expr) ->
-              let expr = 
-                if Field.equal field fname then
-                  begin match expr with
-                  | TySingleton (TyOpen _) ->
-                      field_struct.SurfaceSyntax.field_offset <- Some i;
-                      TySingleton (TyOpen p2)
-                  | t ->
-                      let open TypePrinter in
-                      Log.error "Not a var %a" ptype (env, t)
-                  end
-                else
-                  expr
-              in
-              FieldValue (field, expr)
-          | FieldPermission _ ->
-              Log.error "These should've been inserted in the environment"
-        ) branch.branch_fields in
-        k { branch with branch_fields } (fun env -> return env ty_unit)
+        let branch = replace_field branch fname (fun i _ ->
+          field_struct.SurfaceSyntax.field_offset <- Some i;
+          TySingleton (TyOpen p2)
+        ) in
+        k branch (fun env -> return env ty_unit)
       in
       let failure () =
         raise_error env (NoSuchField (p1, fname))
@@ -741,6 +743,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
               Log.error "These should've been inserted in the environment"
         ) field_names old_branch.branch_fields in
 
+        (* XXX jp: I believe this check is incorrect, we need to check that the
+         * branch number is the same, not that this is the same data constructor
+         * (meaning this would be a very dumb tag update). *)
         if resolved_datacons_equal env old_datacon new_datacon then
           info.SurfaceSyntax.is_phantom_update <- Some true
         else
@@ -761,31 +766,26 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
 
   | EAccess (e, field_struct) ->
-      (* We could be a little bit smarter, and generic here. Instead of iterating
-       * on the permissions, we could use a reverse map from field names to
-       * types. We could then subtract the type (instanciated using flexible
-       * variables) from the expression. In case the subtraction function does
-       * something super fancy, like using P ∗ P -o τ to obtain τ, this would
-       * allow us to reuse the code. Of course, this raises the question of
-       * “what do we do in case there's an ambiguity”, that is, multiple
-       * datacons that feature this field name... We'll leave that for later. *)
       let fname = field_struct.SurfaceSyntax.field_name in
       let hint = add_hint hint (Field.print fname) in
       let env, p = check_expression env ?hint e in
       let success branch k =
         match MzList.find_opti (fun i -> function
-          | FieldValue (field, TySingleton (TyOpen p'))
-            when Field.equal field fname ->
-              field_struct.SurfaceSyntax.field_offset <- Some i;
-              Some p'
+          | FieldValue (field, TySingleton (TyOpen p')) ->
+              if Field.equal field fname then begin
+                field_struct.SurfaceSyntax.field_offset <- Some i;
+                Some p'
+              end else
+                None
           | _ ->
-            None) branch.branch_fields
+            assert false
+        ) branch.branch_fields
         with
         | Some p' -> k branch (fun env -> env, p')
         | None -> raise_error env (NoSuchField (p, fname))
       in
       let failure () =
-        (* XXX we could give a better error message here *)
+        (* XXX jp: could we give a better error message here *)
         raise_error env (NoSuchField (p, fname))
       in
       transform_constructor_permission env p success failure
