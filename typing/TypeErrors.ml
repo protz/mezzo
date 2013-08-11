@@ -65,6 +65,7 @@ and raw_error =
   | LocalType
   | Instantiated of Variable.name * typ
   | PackWithExists
+  | SeveralWorkingFunctionTypes of var
 
 exception TypeCheckerError of error
 
@@ -439,6 +440,10 @@ let print_error buf (env, raw_error) =
         ptype (env, t)
   | PackWithExists ->
       bprintf "You can only pack an existential"
+  | SeveralWorkingFunctionTypes p ->
+      bprintf "Several function types can be used for calling %a, \
+        picking an arbitrary one."
+        pnames (env, get_names env p)
 ;;
 
 let html_error error =
@@ -461,7 +466,7 @@ let html_error error =
 
 let internal_extracterror = snd;;
 
-let flags = Array.make 6 CError;;
+let flags = Array.make 7 CError;;
 
 (* When adding a new user-configurable error, there are *several* things to
    update:
@@ -482,6 +487,8 @@ let errno_of_error = function
      4
   | Instantiated _ ->
      5
+  | SeveralWorkingFunctionTypes _ ->
+     6
   | _ ->
      0 
 ;;

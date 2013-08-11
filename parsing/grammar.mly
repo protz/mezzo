@@ -1124,11 +1124,11 @@ warn_error:
 
 flag:
 | AT
-  { ClFlags.CSilent }
-| MINUS
-  { ClFlags.CWarning }
-| PLUS
   { ClFlags.CError }
+| MINUS
+  { ClFlags.CSilent }
+| PLUS
+  { ClFlags.CWarning }
 
 range:
 | i = INT

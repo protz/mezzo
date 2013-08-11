@@ -94,7 +94,6 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
     TypePrinter.pnames (env, get_names env x)
     TypePrinter.penv env;
 
-  let fname = get_name env f in
   (* Find a suitable permission for [f] first *)
   let rec is_quantified_arrow = function
     | TyQ (Forall, _, _, t) ->
@@ -175,13 +174,11 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
   | [], (env, d, (t1, _)) :: _ ->
       raise_error env (ExpectedType (t1, x, d))
   | (env', d, (_, t2), vars) :: xs, _ ->
-      if xs <> [] then (
-        Log.debug "More than one permission available for %a, strange"
-          TypePrinter.pvar (env, fname);
-        List.iter (fun (name, var) ->
-          may_raise_error env (Instantiated (name, TyOpen var))
-        ) vars
-      );
+      if xs <> [] then
+        may_raise_error env (SeveralWorkingFunctionTypes f);
+      List.iter (fun (name, var) ->
+        may_raise_error env (Instantiated (name, TyOpen var))
+      ) vars;
 
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
       Log.debug ~level:6 "\nDerivation: %a\n" DerivationPrinter.pderivation d;
@@ -341,10 +338,10 @@ let refine_perms_in_place_for_pattern env var pat =
         let refine_fields env fields = List.fold_left (fun env (n2, pat2) ->
           let open ExprPrinter in
           let open TypePrinter in
-          Log.debug "Field = %a, pat = %a" Field.p n2 ppat (env, pat2);
+          Log.debug ~level:8 "Field = %a, pat = %a" Field.p n2 ppat (env, pat2);
           List.iter (function
             | FieldValue (n1, t1) ->
-                Log.debug "Field = %a, t = %a" Field.p n1 ptype (env, t1)
+                Log.debug ~level:8 "Field = %a, t = %a" Field.p n1 ptype (env, t1)
             | _ ->
                 assert false
           ) fields;
@@ -378,7 +375,7 @@ let refine_perms_in_place_for_pattern env var pat =
               end
           | TyApp (cons, args) ->
               let p', datacon = datacon in
-              Log.debug "cons=%a, p'=%a"
+              Log.debug ~level:8 "cons=%a, p'=%a"
                 TypePrinter.ptype (env, cons)
                 TypePrinter.ptype (env, p');
               fail_if (not (same env !!cons !!p'));
@@ -632,7 +629,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       begin match Permissions.sub sub_env p return_type with
       | Left (_, d) ->
-          Log.debug "%a" DerivationPrinter.pderivation d;
+          Log.debug ~level:8 "%a" DerivationPrinter.pderivation d;
           (* Return the desired arrow type. *)
           return env (TyArrow (arg, return_type))
       | Right d ->
@@ -801,8 +798,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   | ETApply (e, t, k) ->
       let env, x = check_expression env e in
       let rec find_and_instantiate = function
-        | TyQ (Forall, (name, k', loc), UserIntroduced, t') as t0 ->
-            Log.debug "%a" TypePrinter.ptype (env, t0);
+        | TyQ (Forall, (name, k', loc), UserIntroduced, t') as _t0 ->
             let check_kind () =
               if k <> k' then
                 raise_error env (IllKindedTypeApplication (t, k, k'))
@@ -888,8 +884,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                   Some (name, t)
               | FieldPermission _ ->
                   (* There may be some permissions bundled in the type
-                   * annotation (beneath, say, a constructor). We're not doing
-                   * anything useful with these yet. *)
+                   * annotation (beneath, say, a constructor). We're ignoring
+                   * them: this is just a hint, and the [EConstraint] above us
+                   * will take care of emitting the right error message, should
+                   * the permission happen to absent. *)
                   None
             ) branch.branch_fields in
             (* Every field in the type annotation corresponds to a field in the
@@ -902,6 +900,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             ) annots then
               annots
             else
+              (* XXX Error here? *)
               []
         | _ ->
             []
@@ -914,11 +913,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       in
       (* Take out of the provided fields one of them. *)
       let take env name' l =
-        try
-          let elt = List.find (fun (name, _) -> Field.equal name name') l in
-          snd elt, List.filter (fun x -> x != elt) l
-        with Not_found ->
-          raise_error env (MissingField name')
+        match MzList.take_bool (fun (name, _) -> Field.equal name name') l with
+        | Some (l, elt) ->
+            snd elt, l
+        | None ->
+            raise_error env (MissingField name')
       in
       (* Find the annotation for one of the fields. *)
       let annot name =
@@ -937,7 +936,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         env, (name, p) :: acc
       ) (env, []) fieldexprs in
 
-      (* Do the bulk of the work. *)
+      (* Do the bulk of the work. We're iterating on the _definition_ of the
+       * fields to make sure we construct the expression with the fields in the
+       * right order, and with all the fields. *)
       let env, remaining, fieldvals = List.fold_left (fun (env, remaining, fieldvals) -> function
         | FieldValue (name, _t) ->
             (* Actually we don't care about the expected type for the field. We
@@ -945,6 +946,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             let p, remaining = take env name remaining in
             env, remaining, FieldValue (name, ty_equals p) :: fieldvals
         | FieldPermission _ ->
+            (* Again, our job is not to bundle a permission here: all
+             * permissions are expanded. When the time comes, a type annotation
+             * will take care of subtracting the permission. *)
             env, remaining, fieldvals
       ) (env, fieldexprs, []) branch.branch_fields in
       (* Make sure the user hasn't written any superfluous fields. *)
@@ -999,6 +1003,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
               if FactInference.is_duplicable env t then
                 env
               else
+                (* Necessarily in our own module, meaning it will be merged
+                 * properly. *)
                 set_permissions env x1 stripped_permissions
             in
             let split_apply cons args =
@@ -1070,7 +1076,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let replace_clause perm clause =
         match perm with
         | TyConcrete branch ->
-           assert (is_non_bottom branch.branch_adopts = None); (* the old clause is bottom *)
+            assert (is_non_bottom branch.branch_adopts = None); (* the old clause is bottom *)
             TyConcrete { branch with branch_adopts = clause }
         | _ ->
             Log.error "[perm] must be a nominal type, and we don't allow the \
@@ -1226,7 +1232,6 @@ and check_bindings
       let env = unify_pattern env pat var in
       env) env patterns expressions
     in
-    Log.debug "OK\n%!";
     env, subst_kit
 ;;
 

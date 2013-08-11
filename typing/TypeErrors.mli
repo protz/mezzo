@@ -60,6 +60,7 @@ type raw_error =
   | LocalType
   | Instantiated of Variable.name * typ
   | PackWithExists
+  | SeveralWorkingFunctionTypes of var
 
 (** Set up the module to take into account the warn / error / silent settings
  * specified on the command-line. *)
