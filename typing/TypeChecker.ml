@@ -85,6 +85,53 @@ let has_adopts_clause env t =
 ;;
 
 
+(* This function expands type abbreviations / data types with one branch even
+ * under a "x @ _" anchored permission. *)
+let expand_if_one_branch_even_if_anchored env = function
+  | TyAnchoredPermission (x, t) ->
+      TyAnchoredPermission (x, expand_if_one_branch env t)
+  | u ->
+      expand_if_one_branch env u
+;;
+
+let is_concrete = function TyConcrete _ -> true | _ -> false;;
+let assert_concrete = function TyConcrete b -> b | _ -> assert false;;
+
+(* This is a third-order helper function that starts with environment [env].
+ * - If no concrete type is available for [x], it calls [failure env].
+ * - If at least one concrete type [TyConcrete b] is available for [x]...
+ *
+ * It calls [success b k].
+ * The [success] function modifies the branch [b]. When [success] is done, it
+ *  hands over control to [k], by calling [k b' k'], where [b'] is the new
+ *  branch that replaces [b]. [success] is not supposed to modify any
+ *  environment.
+ * The [k] function updates the original environment with the new branch [b'],
+ *  producing an updated environment [env']. It then calls [k' env'].
+ * The [k'] function takes the modified environment and produces the final
+ *  value.
+ * *)
+let transform_constructor_permission
+  (env: env)
+  (x: var)
+  (success: resolved_branch -> (resolved_branch -> (env -> 'a) -> 'a) -> 'a)
+  (failure: unit -> 'a) =
+    let permissions = get_permissions env x in
+    let concrete, not_concrete = List.partition is_concrete permissions in
+    if List.length concrete > 1 then
+      Log.debug ~level:5 "Several concrete permissions. Weird, but maybe ok.";
+    if List.length concrete = 0 then
+      failure ()
+    else
+      success (assert_concrete (List.hd concrete)) (fun branch k ->
+        let new_permissions =
+          TyConcrete branch :: List.tl concrete @ not_concrete
+        in
+        let env = set_permissions env x new_permissions in
+        k env
+      )
+
+
 (* Since everything is, or will be, in A-normal form, type-checking a function
  * call amounts to type-checking a var applied to another var. The default
  * behavior is: do not return a type that contains flexible variables. *)
@@ -522,27 +569,15 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
        * - add u
        * *)
       let t =
-        let u =
-          (* A local version of [u] where type abbreviations have been properly
-           * expanded. *)
-          match u with
-          | TyAnchoredPermission (x, t) ->
-              TyAnchoredPermission (x, expand_if_one_branch env t)
-          | _ ->
-              expand_if_one_branch env u
-        in
-        match u with
+        match expand_if_one_branch_even_if_anchored env u with
         | TyQ (Exists, _, UserIntroduced, t) ->
-            t
+            tsubst t' 0 t
         | TyAnchoredPermission (x, TyQ (Exists, _, UserIntroduced, t)) ->
-            (* [x] is a free variable so we're free to just zap the quantifier. *)
-            TyAnchoredPermission (x, t)
+            TyAnchoredPermission (x, tsubst t' 0 t)
         | _ ->
             raise_error env PackWithExists
       in
-      (* I could use a combo of [bind_flexible] / [instantiate_flexible] here but
-       * the [tsubst] solution seems more legible. *)
-      begin match Permissions.sub_perm env (tsubst t' 0 t) with
+      begin match Permissions.sub_perm env t with
       | Left (env, _) ->
           let env = Permissions.add_perm env u in
           return env ty_unit
@@ -605,7 +640,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let e = subst_expr e in
 
       (* Check that the body is well-typed. *)
-      let (_ : env * var) = check_expression env e in
+      let (sub_env, _ : env * var) = check_expression env e in
+
+      (* In case type-checking the function body instantiated some flexible
+       * variables, carry this information over to the environment which we
+       * return. This is in line with the subtraction of arrow types. *)
+      let env = Permissions.import_flex_instanciations env sub_env in
 
       (* Return the desired type. This is where we cheat. *)
       return env desired
@@ -641,47 +681,38 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let hint = add_hint hint (Field.print fname) in
       let env, p1 = check_expression env ?hint e1 in
       let env, p2 = check_expression env e2 in
-      let permissions = get_permissions env p1 in
-      let found = ref false in
-      let permissions = List.map (fun t ->
-        match t with
-        | TyConcrete branch ->
-            (* Check that this datacon is exclusive. *)
-            let flavor = flavor_for_branch env branch in
-            if not (DataTypeFlavor.can_be_written flavor) then
-               raise_error env (AssignNotExclusive (t, snd branch.branch_datacon));
+      let success branch k =
+        (* Check that this datacon is exclusive. *)
+        let flavor = flavor_for_branch env branch in
+        if not (DataTypeFlavor.can_be_written flavor) then
+           raise_error env (AssignNotExclusive (TyConcrete branch, snd branch.branch_datacon));
 
-            (* Perform the assignment. *)
-            let branch_fields = List.mapi (fun i -> function
-              | FieldValue (field, expr) ->
-                  let expr = 
-                    if Field.equal field fname then
-                      begin match expr with
-                      | TySingleton (TyOpen _) ->
-                          if !found then
-                            Log.error "Two matching permissions? That's strange...";
-                          field_struct.SurfaceSyntax.field_offset <- Some i;
-                          found := true;
-                          TySingleton (TyOpen p2)
-                      | t ->
-                          let open TypePrinter in
-                          Log.error "Not a var %a" ptype (env, t)
-                      end
-                    else
-                      expr
-                  in
-                  FieldValue (field, expr)
-              | FieldPermission _ ->
-                  Log.error "These should've been inserted in the environment"
-            ) branch.branch_fields in
-            TyConcrete { branch with branch_fields }
-        | _ ->
-            t
-      ) permissions in
-      if not !found then
-        raise_error env (NoSuchField (p1, fname));
-      let env = set_permissions env p1 permissions in
-      return env ty_unit
+        (* Perform the assignment. *)
+        let branch_fields = List.mapi (fun i -> function
+          | FieldValue (field, expr) ->
+              let expr = 
+                if Field.equal field fname then
+                  begin match expr with
+                  | TySingleton (TyOpen _) ->
+                      field_struct.SurfaceSyntax.field_offset <- Some i;
+                      TySingleton (TyOpen p2)
+                  | t ->
+                      let open TypePrinter in
+                      Log.error "Not a var %a" ptype (env, t)
+                  end
+                else
+                  expr
+              in
+              FieldValue (field, expr)
+          | FieldPermission _ ->
+              Log.error "These should've been inserted in the environment"
+        ) branch.branch_fields in
+        k { branch with branch_fields } (fun env -> return env ty_unit)
+      in
+      let failure () =
+        raise_error env (NoSuchField (p1, fname))
+      in
+      transform_constructor_permission env p1 success failure
 
   | EAssignTag (e1, new_datacon, info) ->
       (* Type-check [e1]. *)
@@ -690,53 +721,43 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* Find the ordered list of field names associated with [new_datacon]. *)
       let field_names = fields_for_datacon env new_datacon in
 
-      let permissions = get_permissions env p1 in
-      let found = ref false in
-      let permissions = List.map (function
-        | TyConcrete old_branch as t ->
-            let old_datacon = old_branch.branch_datacon in
-            (* The current type should be mutable. *)
-            let old_flavor = flavor_for_branch env old_branch in
-            if not (DataTypeFlavor.can_be_written old_flavor) then
-              raise_error env (AssignNotExclusive (t, snd old_datacon));
+      let success old_branch k =
+        let t = TyConcrete old_branch in
+        let old_datacon = old_branch.branch_datacon in
+        (* The current type should be mutable. *)
+        let old_flavor = flavor_for_branch env old_branch in
+        if not (DataTypeFlavor.can_be_written old_flavor) then
+          raise_error env (AssignNotExclusive (t, snd old_datacon));
 
-            (* Also, the number of fields should be the same. *)
-            if List.length old_branch.branch_fields <> List.length field_names then
-              raise_error env (FieldCountMismatch (t, snd new_datacon));
+        (* Also, the number of fields should be the same. *)
+        if List.length old_branch.branch_fields <> List.length field_names then
+          raise_error env (FieldCountMismatch (t, snd new_datacon));
 
-            (* Change the field names. *)
-            let branch_fields = List.map2 (fun field -> function
-              | FieldValue (_, e) ->
-                  FieldValue (field, e)
-              | FieldPermission _ ->
-                  Log.error "These should've been inserted in the environment"
-            ) field_names old_branch.branch_fields in
+        (* Change the field names. *)
+        let branch_fields = List.map2 (fun field -> function
+          | FieldValue (_, e) ->
+              FieldValue (field, e)
+          | FieldPermission _ ->
+              Log.error "These should've been inserted in the environment"
+        ) field_names old_branch.branch_fields in
 
-            if !found then
-              Log.error "Two suitable permissions, strange...";
-            found := true;
-            if resolved_datacons_equal env old_datacon new_datacon then
-              info.SurfaceSyntax.is_phantom_update <- Some true
-            else
-              info.SurfaceSyntax.is_phantom_update <- Some false;
+        if resolved_datacons_equal env old_datacon new_datacon then
+          info.SurfaceSyntax.is_phantom_update <- Some true
+        else
+          info.SurfaceSyntax.is_phantom_update <- Some false;
 
-            (* And don't forget to change the datacon as well. *)
-            TyConcrete { old_branch with
-              (* the flavor is unit anyway *)
-              branch_datacon = new_datacon;
-              branch_fields;
-              (* the type of the adoptees does not change *)
-            }
-
-        | _ as t ->
-            t
-      ) permissions in
-
-      if not !found then
-        raise_error env (CantAssignTag p1);
-
-      let env = set_permissions env p1 permissions in
-      return env ty_unit
+        (* And don't forget to change the datacon as well. *)
+        k { old_branch with
+          (* the flavor is unit anyway *)
+          branch_datacon = new_datacon;
+          branch_fields;
+          (* the type of the adoptees does not change *)
+        } (fun env -> return env ty_unit)
+      in
+      let failure () =
+        raise_error env (CantAssignTag p1)
+      in
+      transform_constructor_permission env p1 success failure
 
 
   | EAccess (e, field_struct) ->
@@ -751,32 +772,33 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let fname = field_struct.SurfaceSyntax.field_name in
       let hint = add_hint hint (Field.print fname) in
       let env, p = check_expression env ?hint e in
-      let module M = struct exception Found of var end in
-      begin try
-        List.iter (fun t ->
-          match t with
-          | TyConcrete branch ->
-              List.iteri (fun i -> function
-                | FieldValue (field, expr) ->
-                    if Field.equal field fname then
-                      begin match expr with
-                      | TySingleton (TyOpen p) ->
-                          field_struct.SurfaceSyntax.field_offset <- Some i;
-                          raise (M.Found p)
-                      | t ->
-                          let open TypePrinter in
-                          Log.error "Not a var %a" ptype (env, t)
-                      end;
-                | FieldPermission _ ->
-                    ()
-              ) branch.branch_fields
-          | _ ->
-              ()
-        ) (get_permissions env p);
+      let success branch k =
+        let module M = struct exception Found of var end in
+        try
+          List.iteri (fun i -> function
+            | FieldValue (field, expr) ->
+                if Field.equal field fname then
+                  begin match expr with
+                  | TySingleton (TyOpen p) ->
+                      field_struct.SurfaceSyntax.field_offset <- Some i;
+                      raise (M.Found p)
+                  | t ->
+                      let open TypePrinter in
+                      Log.error "Not a var %a" ptype (env, t)
+                  end;
+            | FieldPermission _ ->
+                ()
+          ) branch.branch_fields;
+          raise Not_found
+        with
+        | M.Found p' -> k branch (fun env -> env, p')
+        | Not_found -> raise_error env (NoSuchField (p, fname))
+      in
+      let failure () =
+        (* XXX we could give a better error message here *)
         raise_error env (NoSuchField (p, fname))
-      with M.Found p' ->
-        env, p'
-      end
+      in
+      transform_constructor_permission env p success failure
 
   | EApply (e1, e2) ->
       begin match eunloc e1 with
@@ -821,6 +843,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                   let t = lift (-1) t in
                   Some t
                 end else begin
+                  (* The trick is: we're not opening the binders that we're
+                   * crossing, meaning that we need to "unlift" the instantiated
+                   * type to account for the binder that we just destroyed. This
+                   * is the reason for the "lift (-1)" above. *)
                   match find_and_instantiate t' with
                   | Some t' ->
                       Some (TyQ (Forall, (name, k', loc), UserIntroduced, t'))
