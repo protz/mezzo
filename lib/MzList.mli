@@ -96,6 +96,7 @@ val take: ('a -> 'b option) -> 'a list -> ('a list * ('a * 'b)) option
 val take_bool: ('a -> bool) -> 'a list -> ('a list * 'a) option
 
 val find_opt: ('a -> 'b option) -> 'a list -> 'b option
+val find_opti: (int -> 'a -> 'b option) -> 'a list -> 'b option
 
 val flatten_map: ('a -> 'b list) -> 'a list -> 'b list
 

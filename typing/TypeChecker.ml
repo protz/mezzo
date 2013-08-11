@@ -773,26 +773,16 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let hint = add_hint hint (Field.print fname) in
       let env, p = check_expression env ?hint e in
       let success branch k =
-        let module M = struct exception Found of var end in
-        try
-          List.iteri (fun i -> function
-            | FieldValue (field, expr) ->
-                if Field.equal field fname then
-                  begin match expr with
-                  | TySingleton (TyOpen p) ->
-                      field_struct.SurfaceSyntax.field_offset <- Some i;
-                      raise (M.Found p)
-                  | t ->
-                      let open TypePrinter in
-                      Log.error "Not a var %a" ptype (env, t)
-                  end;
-            | FieldPermission _ ->
-                ()
-          ) branch.branch_fields;
-          raise Not_found
+        match MzList.find_opti (fun i -> function
+          | FieldValue (field, TySingleton (TyOpen p'))
+            when Field.equal field fname ->
+              field_struct.SurfaceSyntax.field_offset <- Some i;
+              Some p'
+          | _ ->
+            None) branch.branch_fields
         with
-        | M.Found p' -> k branch (fun env -> env, p')
-        | Not_found -> raise_error env (NoSuchField (p, fname))
+        | Some p' -> k branch (fun env -> env, p')
+        | None -> raise_error env (NoSuchField (p, fname))
       in
       let failure () =
         (* XXX we could give a better error message here *)
