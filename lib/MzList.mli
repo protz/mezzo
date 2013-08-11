@@ -80,11 +80,11 @@ val max: int list -> int
 (** Turns [[Some a; None; ...]] into [[a; ...]] *)
 val filter_some: 'a option list -> 'a list
 
+(** Composition of [List.map] and [filter_some]. *)
+val map_some: ('a -> 'b option) -> 'a list -> 'b list
+
 (** Just like [List.nth] except it returns an [Option] type. *)
 val nth_opt: 'a list -> int -> 'a option
-
-(** Map and discard some elements at the same time. *)
-val map_some: ('a -> 'b option) -> 'a list -> 'b list
 
 (** Find the index of the first element in a list that satisfies a predicate. *)
 val index: ('a -> bool) -> 'a list -> int

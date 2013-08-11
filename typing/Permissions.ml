@@ -489,16 +489,11 @@ and add (env: env) (var: var) (t: typ): env =
               List.fold_left2 (fun env f1 f2 ->
                 match f1, f2 with
                 | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
-                     let t = modulo_flex env t in
-                     let t = expand_if_one_branch env t in
-                   begin match t with
-                   | TySingleton (TyOpen p) ->
-                       add env p t'
-                   | _ ->
-                       Log.error "Type not unfolded"
-                   end
+                    let t = modulo_flex env t in
+                    let t = expand_if_one_branch env t in
+                    add env !!=t t'
                 | _ ->
-                   Log.error "Datacon order invariant not respected"
+                    Log.error "Datacon order invariant not respected"
               ) env branch.branch_fields branch'.branch_fields
             end
         | None ->
@@ -516,11 +511,7 @@ and add (env: env) (var: var) (t: typ): env =
               List.fold_left2 (fun env t t' ->
                 let t = modulo_flex env t in
                 let t = expand_if_one_branch env t in
-                match t with
-                | TySingleton (TyOpen p) ->
-                    add env p t'
-                | _ ->
-                    Log.error "Type not unfolded"
+                add env !!=t t'
               ) env ts ts'
         | None ->
             add_type env var t

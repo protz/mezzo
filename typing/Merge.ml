@@ -700,10 +700,10 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
               let dest_env, dest_fields =
                 List.fold_left2 (fun (dest_env, dest_fields) field_l field_r ->
                   match field_l, field_r with
-                  | FieldValue (name_l, TySingleton (TyOpen left_p)),
-                    FieldValue (name_r, TySingleton (TyOpen right_p)) ->
+                  | FieldValue (name_l, left_t),
+                    FieldValue (name_r, right_t) ->
                       Log.check (Field.equal name_l name_r) "Not in order?";
-                      let dest_env, dest_p = bind_merge dest_env left_p right_p in
+                      let dest_env, dest_p = bind_merge dest_env !!=left_t !!=right_t in
                       (dest_env, FieldValue (name_l, ty_equals dest_p) :: dest_fields)
                   | _ ->
                       Log.error "All permissions should be in expanded form."

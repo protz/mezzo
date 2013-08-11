@@ -138,9 +138,9 @@ let replace_field
   (field: Field.name)
   (f: int -> var -> typ) =
     let branch_fields = List.mapi (fun i -> function
-      | FieldValue (field', (TySingleton (TyOpen p) as t)) ->
+      | FieldValue (field', t) ->
           if Field.equal field field' then
-            FieldValue (field', f i p)
+            FieldValue (field', f i !!=t)
           else
             FieldValue (field', t)
       | _ ->
@@ -748,10 +748,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let env, p = check_expression env ?hint e in
       let success branch k =
         match MzList.find_opti (fun i -> function
-          | FieldValue (field, TySingleton (TyOpen p')) ->
+          | FieldValue (field, t) ->
               if Field.equal field fname then begin
                 field_struct.SurfaceSyntax.field_offset <- Some i;
-                Some p'
+                Some !!=t
               end else
                 None
           | _ ->
