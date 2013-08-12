@@ -431,12 +431,15 @@ let refine_perms_in_place_for_pattern env var pat =
               let fields, _ = List.split patfields in
               let is_ok =
                 resolved_datacons_equal env datacon branch'.branch_datacon &&
-                List.for_all (function
-                  | FieldValue (n1, _) ->
-                      List.exists (Field.equal n1) fields
-                  | _ ->
-                      assert false
-                ) branch'.branch_fields
+                List.for_all (fun field ->
+                  List.exists (function
+                    | FieldValue (field_from_type, _)
+                      when Field.equal field_from_type field ->
+                        true
+                    | _ ->
+                        false
+                  ) branch'.branch_fields
+                ) fields
               in
               fail_if (not is_ok);
               Some (env, t)
