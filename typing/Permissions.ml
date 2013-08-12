@@ -99,6 +99,14 @@ let safety_check env =
   end
 ;;
 
+let safety_check_branch env { branch_datacon = (t, _); _ } =
+  match t with
+  | TyOpen _ ->
+      ()
+  | _ ->
+      Log.error "[safety_check_branch], [fst branch_datacon] is %a"
+        TypePrinter.ptype (env, t);
+;;
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -239,7 +247,7 @@ class open_all_rigid_in (env : env ref) = object (self)
 
   (* We re-implement the main visitor in order to receive a warning
      when new cases appear and in order to share code. *)
-  method visit (side, deconstructed) ty =
+  method! visit (side, deconstructed) ty =
     let ty = modulo_flex !env ty in
     let ty = expand_if_one_branch !env ty in
     let ty = if deconstructed && not (is_singleton !env ty) && side = Left then wrap_bar ty else ty in
@@ -312,14 +320,14 @@ class open_all_rigid_in (env : env ref) = object (self)
 
   (* At [TyConcrete], we descend into the fields, but not into
      the datacon or into the adopts clause. *)
-    method resolved_branch env branch =
-    { branch with
-      branch_fields = List.map (self#field env) branch.branch_fields;
-    }
+  method! branch env branch =
+  { branch with
+    branch_fields = List.map (self#field env) branch.branch_fields;
+  }
 
   (* At physical fields, we set [deconstructed] to [true]. At permission
      fields, we do not; it makes sense only at kind [type]. *)
-  method field (side, _) = function
+  method! field (side, _) = function
     | FieldValue (field, ty) ->
         FieldValue (field, self#visit (side, true) ty)
         (* Setting [deconstructed] to [true] forces the fields to
@@ -780,7 +788,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
           let env, v = bind_flexible_before env binding v2 in
           env, v :: acc
         ) (env, []) branch1.branch_fields in
-        let branch2: resolved_branch = {
+        let branch2: branch = {
           branch1 with
           branch_fields = List.map2 (fun f1 v ->
             match f1 with
@@ -805,7 +813,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
           let env, v = bind_flexible_before env binding v1 in
           env, v :: acc
         ) (env, []) branch2.branch_fields in
-        let branch1: resolved_branch = {
+        let branch1: branch = {
           branch2 with
           branch_fields = List.map2 (fun f2 v ->
             match f2 with
@@ -1046,9 +1054,11 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
       if same env var1 cons2 then begin
         try_proof_root "Fold-L" begin
           let branch2 = find_and_instantiate_branch env cons2 datacon1 args2 in
+          safety_check_branch env branch2;
           (* There may be permissions attached to this branch. *)
           let t2 = TyConcrete branch2 in
           let t2, p2 = collect t2 in
+          safety_check_branch env (assert_concrete t2);
           sub_type env t1 t2 >>= fun env ->
           sub_perms env p2 >>=
           qed

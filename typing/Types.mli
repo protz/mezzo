@@ -76,27 +76,23 @@ val ty_open : var -> typ
 val bind_datacon_parameters :
   env ->
   kind ->
-  unresolved_branch list ->
-  env * var list * unresolved_branch list
+  branch list ->
+  env * var list * branch list
 
 (** {2 Instantiation} *)
 
 val instantiate_type:
   typ -> typ list -> typ
 val instantiate_branch:
-  unresolved_branch ->
+  branch ->
   typ list ->
-  unresolved_branch
+  branch
 val find_and_instantiate_branch :
   env ->
   var ->
   Datacon.name ->
   typ list ->
-  resolved_branch
-val resolve_branch:
-  var ->
-  unresolved_branch ->
-  resolved_branch
+  branch
 
 
 (** {2 Folding and unfolding} *)
@@ -134,17 +130,14 @@ val get_location : env -> var -> location
 val get_adopts_clause :
   env -> var -> typ
 val get_branches :
-  env -> var -> unresolved_branch list
+  env -> var -> branch list
 val get_arity : env -> var -> int
 val get_kind_for_type : env -> typ -> kind
-val branches_for_datacon :
-  env ->
-  resolved_datacon ->
-  unresolved_branch list
-val branches_for_branch: env -> resolved_branch -> unresolved_branch list
-val branch_for_datacon: env -> resolved_datacon -> unresolved_branch
+val branches_for_branch: env -> branch -> branch list
+val branches_for_datacon: env -> resolved_datacon -> branch list
+val branch_for_datacon: env -> resolved_datacon -> branch
 val fields_for_datacon: env -> resolved_datacon -> Field.name list
-val flavor_for_branch: env -> resolved_branch -> DataTypeFlavor.flavor
+val flavor_for_datacon: env -> resolved_datacon -> DataTypeFlavor.flavor
 
 (** Get the variance of the i-th parameter of a data type. *)
 val variance : env -> var -> int -> variance
@@ -157,6 +150,9 @@ val is_perm : env -> var -> bool
 val is_type : env -> var -> bool
 val is_user : name -> bool
 val is_star : env -> typ -> bool
+val is_concrete : typ -> bool
+val is_tyopen : typ -> bool
+val assert_concrete : typ -> branch
 
 
 (* -------------------------------------------------------------------------- *)
@@ -198,9 +194,9 @@ module TypePrinter :
       mode_constraint -> MzPprint.document
     val print_data_field_def :
       env -> data_field_def -> MzPprint.document
-    val print_unresolved_branch :
+    val print_branch :
       env ->
-      TypeCore.unresolved_branch ->
+      TypeCore.branch ->
       MzPprint.document
     val pfact : Buffer.t -> Fact.fact -> unit
     val print_facts : env -> MzPprint.document

@@ -185,8 +185,7 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      its components is bottom, but there is no motivation to do so. *)
 
   | TyConcrete branch ->
-      let flavor = flavor_for_branch w.env branch in
-      infer_concrete w flavor branch.branch_fields
+      infer_concrete w branch.branch_flavor branch.branch_fields
 
   | TyTuple tys ->
       Fact.duplicable (
@@ -303,7 +302,7 @@ and bind_assume_infer w binding ty (m : mode) : fact =
 
 (* Auxiliary code for the analysis of a parameterized type definition. *)
 
-let prepare_branches env v branches : world * unresolved_branch list =
+let prepare_branches env v branches : world * branch list =
   (* Bind the parameters. *)
   let env, parameters, branches =
     bind_datacon_parameters env (get_kind env v) branches

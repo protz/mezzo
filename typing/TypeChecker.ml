@@ -94,9 +94,6 @@ let expand_if_one_branch_even_if_anchored env = function
       expand_if_one_branch env u
 ;;
 
-let is_concrete = function TyConcrete _ -> true | _ -> false;;
-let assert_concrete = function TyConcrete b -> b | _ -> assert false;;
-
 (* This is a third-order helper function that starts with environment [env].
  * - If no concrete type is available for [x], it calls [failure env].
  * - If at least one concrete type [TyConcrete b] is available for [x]...
@@ -114,7 +111,7 @@ let assert_concrete = function TyConcrete b -> b | _ -> assert false;;
 let transform_constructor_permission
   (env: env)
   (x: var)
-  (success: resolved_branch -> (resolved_branch -> (env -> 'a) -> 'a) -> 'a)
+  (success: branch -> (branch -> (env -> 'a) -> 'a) -> 'a)
   (failure: unit -> 'a) =
     let permissions = get_permissions env x in
     let concrete, not_concrete = List.partition is_concrete permissions in
@@ -134,7 +131,7 @@ let transform_constructor_permission
 ;;
 
 let replace_field
-  (branch: resolved_branch)
+  (branch: branch)
   (field: Field.name)
   (f: int -> var -> typ) =
     let branch_fields = List.mapi (fun i -> function
@@ -681,7 +678,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let env, p2 = check_expression env e2 in
       let success branch k =
         (* Check that this datacon is exclusive. *)
-        let flavor = flavor_for_branch env branch in
+        let flavor = branch.branch_flavor in
         if not (DataTypeFlavor.can_be_written flavor) then
            raise_error env (AssignNotExclusive (TyConcrete branch, snd branch.branch_datacon));
 
@@ -707,7 +704,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         let t = TyConcrete old_branch in
         let old_datacon = old_branch.branch_datacon in
         (* The current type should be mutable. *)
-        let old_flavor = flavor_for_branch env old_branch in
+        let old_flavor = old_branch.branch_flavor in
         if not (DataTypeFlavor.can_be_written old_flavor) then
           raise_error env (AssignNotExclusive (t, snd old_datacon));
 
@@ -733,7 +730,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
         (* And don't forget to change the datacon as well. *)
         k { old_branch with
-          (* the flavor is unit anyway *)
+          branch_flavor = flavor_for_datacon env new_datacon;
           branch_datacon = new_datacon;
           branch_fields;
           (* the type of the adoptees does not change *)
@@ -902,11 +899,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             []
       in
       (* Find the corresponding definition. *)
-      let branches = branches_for_datacon env datacon in
-      (* And the corresponding branch, so that we obtain the field names in order. *)
-      let branch =
-        List.find (fun branch' -> Datacon.equal (snd datacon) branch'.branch_datacon) branches
-      in
+      let branch = branch_for_datacon env datacon in
       (* Take out of the provided fields one of them. *)
       let take env name' l =
         match MzList.take_bool (fun (name, _) -> Field.equal name name') l with
@@ -956,7 +949,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       end;
       let fieldvals = List.rev fieldvals in
       let branch = {
-        branch_flavor = ();
+        branch_flavor = branch.branch_flavor;
         branch_datacon = datacon;
         branch_fields = fieldvals;
         branch_adopts = clause;
@@ -1006,8 +999,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             let split_apply cons args =
               match Option.extract (get_definition env cons) with
               | Concrete [b1; b2] ->
-                  let branch1 = resolve_branch cons (instantiate_branch b1 args) in
-                  let branch2 = resolve_branch cons (instantiate_branch b2 args) in
+                  let branch1 = instantiate_branch b1 args in
+                  let branch2 = instantiate_branch b2 args in
                   TyConcrete branch1, TyConcrete branch2
               | _ ->
                   assert false

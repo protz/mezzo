@@ -219,13 +219,13 @@ let check
 
               List.iter2 (fun branch branch' ->
 
-              if not (DataTypeFlavor.equal branch.T.branch_flavor branch'.T.branch_flavor) then
-                  error_out "flavors";
+                if not (DataTypeFlavor.equal branch.T.branch_flavor branch'.T.branch_flavor) then
+                    error_out "flavors";
 
                 if not (T.equal env branch.T.branch_adopts branch'.T.branch_adopts) then
                   error_out "clauses";
 
-                if not (Datacon.equal branch.T.branch_datacon branch'.T.branch_datacon) then
+                if not (Datacon.equal (snd branch.T.branch_datacon) (snd branch'.T.branch_datacon)) then
                   error_out "datacons";
 
                 if not (List.length branch.T.branch_fields = List.length branch'.T.branch_fields) then

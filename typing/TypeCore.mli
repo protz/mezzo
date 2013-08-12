@@ -92,7 +92,7 @@ and typ =
 
     (** Structural types. *)
   | TyTuple of typ list
-  | TyConcrete of resolved_branch
+  | TyConcrete of branch
 
     (** Singleton types. *)
   | TySingleton of typ
@@ -111,38 +111,37 @@ and typ =
     (** Constraint *)
   | TyAnd of mode_constraint * typ
 
-(** Since data constructors are now properly scoped, they are resolved, that is,
- * they are either attached to a point, or a De Bruijn index, which will later
- * resolve to a point when we open the corresponding type definition. That way,
- * we can easily jump from a data constructor to the corresponding type
- * definition. *)
-and resolved_datacon = typ * Datacon.name
 
 and mode_constraint = Mode.mode * typ
 
-
-(** {2 Type definitions} *)
-
-and ('flavor, 'datacon) data_type_def_branch = {
-  branch_flavor: 'flavor; (** {!DataTypeFlavor.flavor} or unit *)
-  branch_datacon: 'datacon; (** {!Datacon.name} or resolved_datacon *)
+and branch = {
+  branch_flavor: DataTypeFlavor.flavor;
+  (* Since data constructors are now properly scoped, they are resolved, that
+   * is, they are either attached to a point, or a De Bruijn index, which will
+   * later resolve to a point when we open the corresponding type definition.
+   * That way, we can easily jump from a data constructor to the corresponding
+   * type definition.
+   *
+   * In a situation where we cannot reasonably have a resolved datacon, such as
+   * a data type _definition_, we use [TyUnknown] for the type. This disappears
+   * as soon as the type enters the environment. *)
+  branch_datacon: resolved_datacon;
   branch_fields: data_field_def list;
-    (** The type of the adoptees; initially it's bottom and then
-     * it gets instantiated to something less precise. *)
+  (* The type of the adoptees; initially it's bottom and then
+   * it gets instantiated to something less precise. *)
   branch_adopts: typ;
 }
 
-and resolved_branch =
-    (unit, resolved_datacon) data_type_def_branch
+and resolved_datacon = typ * Datacon.name
 
-type unresolved_branch =
-    (DataTypeFlavor.flavor, Datacon.name) data_type_def_branch
+
+(** {2 Type definitions} *)
 
 (** Our data constructors have the standard variance. *)
 type variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | Bivariant
 
 type type_def =
-  | Concrete of unresolved_branch list
+  | Concrete of branch list
   | Abstract
   | Abbrev of typ
 
@@ -352,8 +351,10 @@ val get_external_names: env -> (Module.name * Variable.name * kind * var) list
  * (default: [module_name env]) in [env]. *)
 val point_by_name: env -> ?mname:Module.name -> Variable.name -> var
 
-(* Note: there is no direct way of listing the data constructors exported by
-   a module. *)
+(** Produce a list of all external data constructor definitions, i.e.
+    all data constructors that are currently known but are defined
+    outside the current module. *)
+val get_external_datacons: env -> (Module.name * var * int * Datacon.name * DataTypeFlavor.flavor * Field.name list) list
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -374,11 +375,6 @@ val fold_definitions: env -> ('acc -> var -> type_def -> 'acc) -> 'acc -> 'acc
 (** Fold over all opened terms, providing the corresponding [var] and
  * permissions. *)
 val fold_terms: env -> ('acc -> var -> typ list -> 'acc) -> 'acc -> 'acc
-
-(** Produce a list of all external data constructor definitions, i.e.
-    all data constructors that are currently known but are defined
-    outside the current module. *)
-val get_external_datacons: env -> (Module.name * var * int * Datacon.name * Field.name list) list
 
 (** General fold operation. *)
 val fold: env -> ('acc -> var -> 'acc) -> 'acc -> 'acc
@@ -433,7 +429,7 @@ class virtual ['env, 'result] visitor : object
   method virtual tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> 'result
   method virtual tyapp: 'env -> typ -> typ list -> 'result
   method virtual tytuple: 'env -> typ list -> 'result
-  method virtual tyconcrete: 'env -> resolved_branch -> 'result
+  method virtual tyconcrete: 'env -> branch -> 'result
   method virtual tysingleton: 'env -> typ -> 'result
   method virtual tyarrow: 'env -> typ -> typ -> 'result
   method virtual tybar: 'env -> typ -> typ -> 'result
@@ -458,7 +454,7 @@ class ['env] map : object
   method tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> typ
   method tyapp: 'env -> typ -> typ list -> typ
   method tytuple: 'env -> typ list -> typ
-  method tyconcrete: 'env -> resolved_branch -> typ
+  method tyconcrete: 'env -> branch -> typ
   method tysingleton: 'env -> typ -> typ
   method tyarrow: 'env -> typ -> typ -> typ
   method tybar: 'env -> typ -> typ -> typ
@@ -467,14 +463,12 @@ class ['env] map : object
   method tystar: 'env -> typ -> typ -> typ
   method tyand: 'env -> mode_constraint -> typ -> typ
 
-  (** An auxiliary method for transforming a resolved branch. *)
-  method resolved_branch: 'env -> resolved_branch -> resolved_branch
+  (** An auxiliary method for transforming a branch. *)
+  method branch: 'env -> branch -> branch
   (** An auxiliary method for transforming a resolved data constructor. *)
   method resolved_datacon: 'env -> resolved_datacon -> resolved_datacon
   (** An auxiliary method for transforming a field. *)
   method field: 'env -> data_field_def -> data_field_def
-  (** An auxiliary method for transforming an unresolved branch. *)
-  method unresolved_branch: 'env -> unresolved_branch -> unresolved_branch
   (** An auxiliary method for transforming a data type group. *)
   method data_type_group: 'env -> data_type_group -> data_type_group
 
@@ -494,7 +488,7 @@ class ['env] iter : object
   method tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> unit
   method tyapp: 'env -> typ -> typ list -> unit
   method tytuple: 'env -> typ list -> unit
-  method tyconcrete: 'env -> resolved_branch -> unit
+  method tyconcrete: 'env -> branch -> unit
   method tysingleton: 'env -> typ -> unit
   method tyarrow: 'env -> typ -> typ -> unit
   method tybar: 'env -> typ -> typ -> unit
@@ -503,14 +497,12 @@ class ['env] iter : object
   method tystar: 'env -> typ -> typ -> unit
   method tyand: 'env -> mode_constraint -> typ -> unit
 
-  (** An auxiliary method for visiting a resolved branch. *)
-  method resolved_branch: 'env -> resolved_branch -> unit
+  (** An auxiliary method for visiting a branch. *)
+  method branch: 'env -> branch -> unit
   (** An auxiliary method for visiting a resolved data constructor. *)
   method resolved_datacon: 'env -> resolved_datacon -> unit
   (** An auxiliary method for visiting a field. *)
   method field: 'env -> data_field_def -> unit
-  (** An auxiliary method for visiting an unresolved branch. *)
-  method unresolved_branch: 'env -> unresolved_branch -> unit
   (** An auxiliary method for visiting a data type group. *)
   method data_type_group: 'env -> data_type_group -> unit
 

@@ -43,7 +43,7 @@ let print_data_type_def (env: env) name kind variance branches =
   space ^^ equals ^^
   jump
     (ifflat empty (bar ^^ space) ^^
-    separate_map sep (print_unresolved_branch env) branches
+    separate_map sep (print_branch env) branches
     )
 ;;
 

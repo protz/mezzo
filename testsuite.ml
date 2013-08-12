@@ -25,6 +25,7 @@ open TypeCore
 open Types
 open TestUtils
 open TypeErrors
+open DataTypeFlavor
 
 
 let check env point t =
@@ -368,7 +369,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge1.mz", fun do_it ->
     let env = do_it () in
     let v1 = point_by_name env "v1" in
-    check env v1 (concrete (dc env "t" "T") []));
+    check env v1 (concrete Immutable (dc env "t" "T") []));
 
   ("merge2.mz", fun do_it ->
     let env = do_it () in
@@ -378,13 +379,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
         ty_equals v2,
         TyStar (
           TyAnchoredPermission (TyOpen v2,
-           concrete
+           concrete Immutable
               (dc env "u" "U")
               [FieldValue (Field.register "left", TySingleton (TyBound 0));
                FieldValue (Field.register "right", TySingleton (TyBound 0))]),
           TyAnchoredPermission (
             TyBound 0,
-           concrete (dc env "t" "T") []
+           concrete Mutable (dc env "t" "T") []
           )
         )
       ))
@@ -400,17 +401,17 @@ let tests: (string * ((unit -> env) -> unit)) list = [
           ty_equals v3,
           fold_star [
             TyAnchoredPermission (TyOpen v3,
-              concrete (dc env "u" "U")
+              concrete Immutable (dc env "u" "U")
                 [FieldValue (Field.register "left", TySingleton (TyBound 0));
                  FieldValue (Field.register "right", TySingleton (TyBound 1))]
             );
             TyAnchoredPermission (
               TyBound 0,
-              concrete (dc env "t" "T") []
+              concrete Immutable (dc env "t" "T") []
             );
             TyAnchoredPermission (
               TyBound 1,
-              concrete (dc env "t" "T") []
+              concrete Immutable (dc env "t" "T") []
             );
           ]
         )))
@@ -556,7 +557,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     if List.exists (FactInference.is_exclusive env) perms then
       failwith "The permission on [x] should've been consumed";
     let perms = get_permissions env s1 in
-    if not (List.exists ((=) (TyApp (t, [concrete (dc env "t" "A") []]))) perms) then
+    if not (List.exists ((=) (TyApp (t, [concrete Mutable (dc env "t" "A") []]))) perms) then
       failwith "The right permission was not extracted for [s1].";
   );
 
@@ -1003,7 +1004,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("strange.mz", fail);
   ("localtype1.mz", pass);
   ("localtype2.mz", pass);
-  ("localtype3.mz", pass_known_failure);
+  ("localtype3.mz", pass);
   ("covariantlock.mz", pass);
   ("pack-assert.mz", pass);
   ("oneshot-test.mz", fail);

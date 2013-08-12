@@ -58,8 +58,8 @@ let evar v =
   | NonLocal v -> E.EOpen v
 
 let resolve_datacon env dref =
-  let v, datacon = KindCheck.resolve_datacon env dref in
-  tvar v, datacon
+  let v, datacon, f = KindCheck.resolve_datacon env dref in
+  tvar v, datacon, f
 
 (* -------------------------------------------------------------------------- *)
 
@@ -123,9 +123,10 @@ let rec translate_type env (ty : typ) : T.typ * T.typ * kind =
 
   | TyConcrete ((dref, fields), clause) ->
       let fields1, fields2 = MzList.split_map (translate_field env) fields in
+      let v, dc, f = resolve_datacon env dref in
       let branch1 = {
-        T.branch_flavor = ();
-        T.branch_datacon = resolve_datacon env dref;
+        T.branch_flavor = f;
+        T.branch_datacon = v, dc;
         T.branch_fields = fields1;
         T.branch_adopts = translate_adopts_clause env clause
       } in
@@ -284,11 +285,14 @@ let rec translate_data_type_def_branch
     (flavor: DataTypeFlavor.flavor)
     (adopts: typ option)
     (branch: Datacon.name * data_field_def list)
-  : T.unresolved_branch =
+  : T.branch =
   let datacon, fields = branch in
   {
+    (* [Expressions.bind_group_definition] will take care of putting the right
+     * value. We perform eager resolving: as soon we've opened the binder for
+     * the data type, all its branches contain a reference to it. *)
     T.branch_flavor = flavor;
-    T.branch_datacon = datacon;
+    T.branch_datacon = T.TyUnknown, datacon;
     T.branch_fields = translate_fields env fields;
     T.branch_adopts = translate_adopts env adopts
   }
@@ -506,10 +510,10 @@ let rec translate_pattern env = function
       E.PTuple (List.map (translate_pattern env) ps)
   | PConstruct (datacon, fieldpats) ->
       (* Performs a side-effect! *)
-      let resolved_datacon = resolve_datacon env datacon in
+      let v, dc, _ = resolve_datacon env datacon in
       let fields, pats = List.split fieldpats in
       let pats = List.map (translate_pattern env) pats in
-      E.PConstruct (resolved_datacon, List.combine fields pats)
+      E.PConstruct ((v, dc), List.combine fields pats)
   | PLocated (p, pos) ->
       translate_pattern (locate env pos) p
   | PAs (p, x) ->
@@ -623,9 +627,9 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       E.EAssign (e1, f, e2)
 
   | EAssignTag (e1, datacon, info) ->
-      let resolved_datacon = resolve_datacon env datacon in
+      let v, dc, _ = resolve_datacon env datacon in
       let e1 = translate_expr env e1 in
-      E.EAssignTag (e1, resolved_datacon, info)
+      E.EAssignTag (e1, (v, dc), info)
 
   | EAccess (e, f) ->
       let e = translate_expr env e in
@@ -697,11 +701,11 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
 
   | EConstruct (datacon, fieldexprs) ->
       (* Performs a side-effect! *)
-      let resolved_datacon = resolve_datacon env datacon in
+      let v, dc, _ = resolve_datacon env datacon in
       let fieldexprs = List.map (fun (field, expr) ->
         field, translate_expr env expr) fieldexprs
       in
-      E.EConstruct (resolved_datacon, fieldexprs)
+      E.EConstruct ((v, dc), fieldexprs)
 
   | EIfThenElse (b, e1, e2, e3) ->
       let e1 = translate_expr env e1 in

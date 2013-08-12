@@ -98,9 +98,9 @@ let unit =
   tuple []
 ;;
 
-let concrete datacon fields =
+let concrete f datacon fields =
   let branch = {
-    branch_flavor = ();
+    branch_flavor = f;
     branch_datacon = datacon;
     branch_fields = fields;
     branch_adopts = ty_bottom;

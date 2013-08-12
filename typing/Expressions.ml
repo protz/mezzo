@@ -184,6 +184,17 @@ let tsubst_pat (t2: typ) (i: db_index) (p1: pattern): pattern =
  * BEWARE: everything from now on is mutually recursive.
  * *)
 
+let resolve_branch var branch =
+  { branch with branch_datacon = (TyOpen var, snd branch.branch_datacon) }
+;;
+
+let resolve_definition var def =
+  match def with
+  | Concrete branches ->
+      Concrete (List.map (resolve_branch var) branches)
+  | _ ->
+      def
+;;
 
 let rec bind_group_in: 'a. var list -> (typ -> int -> 'a -> 'a) -> 'a -> 'a =
   fun vars subst_func_for_thing thing ->
@@ -202,8 +213,9 @@ and bind_group_in_group (vars: var list) (group: data_type_group) =
 
 and bind_group_definitions (env: env) (vars: var list) (group: data_type_group): env =
   List.fold_left2 (fun env var data_type ->
+    let definition = resolve_definition var data_type.data_definition in
     (* Replace the corresponding definition in [env]. *)
-    set_definition env var data_type.data_definition data_type.data_variance
+    set_definition env var definition data_type.data_variance
   ) env vars group.group_items
 
 

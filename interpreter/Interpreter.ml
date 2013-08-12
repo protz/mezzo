@@ -116,6 +116,7 @@ let array_datacon_info : datacon_info = {
   datacon_arity = -1;
   datacon_index = 0;
   datacon_fields = Field.Map.empty;
+  datacon_flavor = DataTypeFlavor.Mutable;
 }
 
 let is_array info =
@@ -818,27 +819,27 @@ and eval_recursive_equation ((new_env, closures) as accu) (p, e) =
 
 (* Evaluating a concrete data type definition. *)
 
-let evaluate_data_type_def (env : env) (branches : data_type_def_branch list) : env =
+let evaluate_data_type_def (env : env) (f: DataTypeFlavor.flavor) (branches : data_type_def_branch list) : env =
   snd (
     (* For each data constructor, *)
     List.fold_left (fun (index, env) (datacon, defs) ->
       (* Compute the number of fields, and create a mapping of field names
         to field indices. *)
       let arity, fields =
-       List.fold_left (fun (arity, fields) def ->
-         match def with
-         | FieldValue (f, _) ->
-             arity + 1, Variable.Map.add f arity fields
-         | FieldPermission _ ->
-             arity, fields
-       ) (0, Variable.Map.empty) defs
-      in
+      List.fold_left (fun (arity, fields) def ->
+        match def with
+        | FieldValue (f, _) ->
+            arity + 1, Variable.Map.add f arity fields
+        | FieldPermission _ ->
+            arity, fields
+      ) (0, Variable.Map.empty) defs in
       (* Generate a new data constructor information record. *)
       let info = {
-       datacon_name = Datacon.print datacon;
-       datacon_arity = arity;
-       datacon_index = index;
-       datacon_fields = fields;
+        datacon_name = Datacon.print datacon;
+        datacon_arity = arity;
+        datacon_index = index;
+        datacon_fields = fields;
+        datacon_flavor = f;
       } in
       (* Extend the environment with it. *)
       index + 1,
@@ -864,8 +865,8 @@ let eval_implementation_item (env : env) (item : toplevel_item) : env =
         data constructors. *)
       List.fold_left (fun env def ->
         match def.rhs with
-        | Concrete (_, rhs, _) ->
-            evaluate_data_type_def env rhs
+        | Concrete (f, rhs, _) ->
+            evaluate_data_type_def env f rhs
         | Abstract _
         | Abbrev _ ->
             env
