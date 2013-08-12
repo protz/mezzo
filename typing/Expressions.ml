@@ -17,7 +17,8 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(* This file contains our internal syntax for expressions. *)
+(* This file contains our internal syntax for expressions and data type groups,
+ * since the two are mutually recursive, because of local type definitions. *)
 
 open Kind
 open TypeCore
@@ -180,7 +181,8 @@ let tsubst_pat (t2: typ) (i: db_index) (p1: pattern): pattern =
 (* These definitions used to be in a separate module but since expressions can
  * now contain data type definitions, they have to come over here.
  *
- * BEWARE: everything from now on is mutually recursive.*)
+ * BEWARE: everything from now on is mutually recursive.
+ * *)
 
 
 let rec bind_group_in: 'a. var list -> (typ -> int -> 'a -> 'a) -> 'a -> 'a =
