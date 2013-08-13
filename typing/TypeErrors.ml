@@ -180,13 +180,9 @@ and fold_type (env: env) (depth: int) (t: typ): env * typ =
 
 and fold_branch env depth branch =
   let env, fields =
-    List.fold_left (fun (env, fields) -> function
-      | FieldPermission p ->
-          let env, p = fold_type env depth p in
-          env, FieldPermission p :: fields
-      | FieldValue (n, t) ->
-          let env, t = fold_type env depth t in
-          env, FieldValue (n, t) :: fields
+    List.fold_left (fun (env, fields) (n, t) ->
+      let env, t = fold_type env depth t in
+      env, (n, t) :: fields
     ) (env, []) branch.branch_fields in
   let branch_fields = List.rev fields in
   let env, branch_adopts = fold_type env depth branch.branch_adopts in

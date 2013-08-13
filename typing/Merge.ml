@@ -698,15 +698,10 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                * fields one-by-one. We assume the fields to be in expanded form,
                * so we can always call [bind_merge]. *)
               let dest_env, dest_fields =
-                List.fold_left2 (fun (dest_env, dest_fields) field_l field_r ->
-                  match field_l, field_r with
-                  | FieldValue (name_l, left_t),
-                    FieldValue (name_r, right_t) ->
-                      Log.check (Field.equal name_l name_r) "Not in order?";
-                      let dest_env, dest_p = bind_merge dest_env !!=left_t !!=right_t in
-                      (dest_env, FieldValue (name_l, ty_equals dest_p) :: dest_fields)
-                  | _ ->
-                      Log.error "All permissions should be in expanded form."
+                List.fold_left2 (fun (dest_env, dest_fields) (name_l, left_t) (name_r, right_t) ->
+                  Log.check (Field.equal name_l name_r) "Not in order?";
+                  let dest_env, dest_p = bind_merge dest_env !!=left_t !!=right_t in
+                  dest_env, (name_l, ty_equals dest_p) :: dest_fields
                 ) (dest_env, []) branch_l.branch_fields branch_r.branch_fields
               in
 

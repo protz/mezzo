@@ -318,13 +318,10 @@ class open_all_rigid_in (env : env ref) = object (self)
 
   (* At physical fields, we set [deconstructed] to [true]. At permission
      fields, we do not; it makes sense only at kind [type]. *)
-  method! field (side, _) = function
-    | FieldValue (field, ty) ->
-        FieldValue (field, self#visit (side, true) ty)
-        (* Setting [deconstructed] to [true] forces the fields to
-          become named with a point, if they weren't already. *)
-    | FieldPermission p ->
-        FieldPermission (self#visit (side, false) p)
+  method! field (side, _) (field, ty) =
+    (* Setting [deconstructed] to [true] forces the fields to
+      become named with a point, if they weren't already. *)
+    field, self#visit (side, true) ty
 
 end
 
@@ -485,14 +482,11 @@ and add (env: env) (var: var) (t: typ): env =
                  compute their meet (good). *)
               assert (equal env branch.branch_adopts ty_bottom);
               assert (equal env branch'.branch_adopts ty_bottom);
-              List.fold_left2 (fun env f1 f2 ->
-                match f1, f2 with
-                | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
-                    let t = modulo_flex env t in
-                    let t = expand_if_one_branch env t in
-                    add env !!=t t'
-                | _ ->
-                    Log.error "Datacon order invariant not respected"
+              List.fold_left2 (fun env (f, t) (f', t') ->
+                Log.check (Field.equal f f') "Datacon order invariant";
+                let t = modulo_flex env t in
+                let t = expand_if_one_branch env t in
+                add env !!=t t'
               ) env branch.branch_fields branch'.branch_fields
             end
         | None ->
@@ -780,13 +774,10 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         ) (env, []) branch1.branch_fields in
         let branch2: branch = {
           branch1 with
-          branch_fields = List.map2 (fun f1 v ->
-            match f1 with
-            | FieldValue (fname, _) ->
-                FieldValue (fname, TyOpen v)
-            | _ ->
-                assert false
-          ) branch1.branch_fields vs
+          branch_fields = List.map2
+            (fun (fname, _) v -> fname, TyOpen v)
+            branch1.branch_fields
+            vs
         } in
         let t2 = TyConcrete branch2 in
         j_flex_inst env v2 t2 >>= fun env ->
@@ -805,13 +796,10 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         ) (env, []) branch2.branch_fields in
         let branch1: branch = {
           branch2 with
-          branch_fields = List.map2 (fun f2 v ->
-            match f2 with
-            | FieldValue (fname, _) ->
-                FieldValue (fname, TyOpen v)
-            | _ ->
-                assert false
-          ) branch2.branch_fields vs
+          branch_fields = List.map2
+            (fun (fname, _) v -> fname, TyOpen v)
+            branch2.branch_fields
+            vs
         } in
         let t1 = TyConcrete branch1 in
         j_flex_inst env v1 t1 >>= fun env ->
@@ -968,16 +956,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
        assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
         try_proof_root "Concrete" begin
           sub_type env branch1.branch_adopts branch2.branch_adopts >>= fun env ->
-          premises env (List.map2 (fun f1 f2 -> fun env ->
-            let t1, t2 =
-              match f1, f2 with
-              | FieldValue (name1, t1), FieldValue (name2, t2) ->
-                  Log.check (Field.equal name1 name2) "Not in order?";
-                  t1, t2
-              | _ ->
-                  Log.error "The type we're trying to extract should've been \
-                    cleaned first."
-            in
+          premises env (List.map2 (fun (name1, t1) (name2, t2) -> fun env ->
+            Log.check (Field.equal name1 name2) "Not in order?";
             (* This is the same logic as the [TyTuple] case above, scroll up for
              * comments and detailed explanations as to why these rules are
              * correct. *)

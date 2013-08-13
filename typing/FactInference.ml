@@ -250,11 +250,8 @@ and infer_concrete w flag fields =
         regardless of its fields. *)
       Fact.constant ModeExclusive
 
-and infer_field w field =
-  match field with
-  | FieldValue (_, ty)
-  | FieldPermission ty ->
-      infer w ty
+and infer_field w (_, ty) =
+  infer w ty
 
 and infer_with_kinds w kinds args =
   List.map2 (infer_with_kind w) kinds args

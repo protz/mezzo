@@ -122,7 +122,8 @@ let rec translate_type env (ty : typ) : T.typ * T.typ * kind =
       twice (tvar (find_variable env x)) (find_kind env x)
 
   | TyConcrete ((dref, fields), clause) ->
-      let fields1, fields2 = MzList.split_map (translate_field env) fields in
+      let fields1, fields2 = translate_fields_values env fields in
+      let perms1, perms2 = translate_fields_perms env fields in
       let v, dc, f = resolve_datacon env dref in
       let branch1 = {
         T.branch_flavor = f;
@@ -134,7 +135,7 @@ let rec translate_type env (ty : typ) : T.typ * T.typ * kind =
         branch1 with
         T.branch_fields = fields2
       } in
-      T.TyConcrete branch1, T.TyConcrete branch2, KType
+      T.construct_branch branch1 perms1, T.construct_branch branch2 perms2, KType
 
   | TySingleton ty ->
       let ty, _ = translate_type_reset env ty in
@@ -237,14 +238,24 @@ and translate_type_reset env ty : T.typ * kind =
 and translate_type_reset_no_kind env t : T.typ =
   fst (translate_type_reset env t)
 
-and translate_field env = function
-  | FieldValue (f, ty) ->
-      (* No [reset] here. *)
-      let ty1, ty2, _ = translate_type env ty in
-      T.FieldValue (f, ty1), T.FieldValue (f, ty2)
-  | FieldPermission ty ->
-      let ty1, ty2, _ = translate_type env ty in
-      T.FieldPermission ty1, T.FieldPermission ty2
+and translate_fields_values env fields =
+  List.split (MzList.map_some (function
+    | FieldValue (f, ty) ->
+        (* No [reset] here. *)
+        let ty1, ty2, _ = translate_type env ty in
+        Some ((f, ty1), (f, ty2))
+    | FieldPermission _ ->
+        None
+  ) fields)
+
+and translate_fields_perms env fields =
+  List.split (MzList.map_some (function
+    | FieldValue _ ->
+        None
+    | FieldPermission ty ->
+        let ty1, ty2, _ = translate_type env ty in
+        Some (ty1, ty2)
+  ) fields)
 
 and translate_adopts_clause env = function
   | None ->
@@ -293,10 +304,10 @@ let rec translate_data_type_def_branch
      * the data type, all its branches contain a reference to it. *)
     T.branch_flavor = flavor;
     T.branch_datacon = T.TyUnknown, datacon;
-    T.branch_fields = translate_fields_values env fields;
+    T.branch_fields = translate_field_defs_values env fields;
     T.branch_adopts = translate_adopts env adopts
   } in
-  let perms = translate_fields_perms env fields in
+  let perms = translate_field_defs_perms env fields in
   T.construct_branch branch perms
 
 and translate_adopts env (adopts : typ option) =
@@ -306,15 +317,15 @@ and translate_adopts env (adopts : typ option) =
   | Some t ->
       translate_type_reset_no_kind env t
 
-and translate_fields_values env fields =
+and translate_field_defs_values env fields =
   MzList.map_some (function
     | FieldValue (name, t) ->
-        Some (T.FieldValue (name, translate_type_reset_no_kind env t))
+        Some (name, translate_type_reset_no_kind env t)
     | FieldPermission _ ->
         None
   ) fields
 
-and translate_fields_perms env fields =
+and translate_field_defs_perms env fields =
   MzList.map_some (function
     | FieldValue _ ->
         None

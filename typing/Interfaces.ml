@@ -234,18 +234,11 @@ let check
                 if not (List.length branch.T.branch_fields = List.length branch'.T.branch_fields) then
                   error_out "different number of fields";
 
-                List.iter2 (fun field field' ->
-                  match field, field' with
-                  | T.FieldValue (fname, t), T.FieldValue (fname', t') ->
-                      if not (Variable.equal fname fname') then
-                        error_out "field names";
-                      if not (T.equal env t t') then
-                        error_out "field defs";
-                  | T.FieldPermission t, T.FieldPermission t' ->
-                      if not (T.equal env t t') then
-                        error_out "permission field";
-                  | _ ->
-                      error_out "field nature";
+                List.iter2 (fun (fname, t) (fname', t') ->
+                  if not (Variable.equal fname fname') then
+                    error_out "field names";
+                  if not (T.equal env t t') then
+                    error_out "field defs";
                 ) branch.T.branch_fields branch'.T.branch_fields;
 
                 if not (List.length perms = List.length perms') then

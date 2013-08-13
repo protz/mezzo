@@ -71,9 +71,7 @@ type var
 (** {2 The type of types} *)
 
 (** A field in a data type *)
-type data_field_def =
-  | FieldValue of (Field.name * typ)
-  | FieldPermission of typ
+type data_field_def = Field.name * typ
 
 (** The type of types. *)
 and typ =

@@ -134,14 +134,11 @@ let replace_field
   (branch: branch)
   (field: Field.name)
   (f: int -> var -> typ) =
-    let branch_fields = List.mapi (fun i -> function
-      | FieldValue (field', t) ->
-          if Field.equal field field' then
-            FieldValue (field', f i !!=t)
-          else
-            FieldValue (field', t)
-      | _ ->
-          assert false
+    let branch_fields = List.mapi (fun i (field', t) ->
+      if Field.equal field field' then
+        field', f i !!=t
+      else
+        field', t
     ) branch.branch_fields in
     { branch with branch_fields }
 ;;
@@ -330,19 +327,13 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
       let field_defs = List.hd field_defs in
       List.fold_left (fun env (name, pat) ->
         (* The pattern fields may not all be there or in an arbitrary order. *)
-        let field =
+        let _, t =
           try
-            List.find (function
-              | FieldValue (name', _) when Field.equal name name' -> true
-              | _ -> false) field_defs
+            List.find (fun (name', _) -> Field.equal name name') field_defs
           with Not_found ->
             raise_error env (NoSuchFieldInPattern (pattern, name))
         in
-        match field with
-        | FieldValue (_, t) ->
-            unify_pattern env pat !!=t
-        | _ ->
-            assert false
+        unify_pattern env pat !!=t
       ) env field_pats
 
   | PAny ->
@@ -386,14 +377,11 @@ let refine_perms_in_place_for_pattern env var pat =
          * sub-patterns. This will be called once we have found the types of the
          * corresponding [fields]. *)
         let refine_fields env fields = List.fold_left (fun env (n2, pat2) ->
-          match MzList.find_opt (function
-            | FieldValue (n1, t1) ->
-                if Field.equal n1 n2 then
-                  Some !!=t1
-                else
-                  None
-            | _ ->
-                assert false
+          match MzList.find_opt (fun (n1, t1) ->
+            if Field.equal n1 n2 then
+              Some !!=t1
+            else
+              None
           ) fields with
           | Some p1 ->
               refine env p1 pat2
@@ -429,12 +417,8 @@ let refine_perms_in_place_for_pattern env var pat =
               let is_ok =
                 resolved_datacons_equal env datacon branch'.branch_datacon &&
                 List.for_all (fun field ->
-                  List.exists (function
-                    | FieldValue (field_from_type, _)
-                      when Field.equal field_from_type field ->
-                        true
-                    | _ ->
-                        false
+                  List.exists (fun (field_from_type, _) ->
+                    Field.equal field_from_type field
                   ) branch'.branch_fields
                 ) fields
               in
@@ -497,12 +481,11 @@ let merge_type_annotations env t1 t2 =
         assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
         let branch = { branch1 with
           branch_fields =
-            List.map2 (fun f1 f2 ->
-              match f1, f2 with
-              | FieldValue (f1, t1), FieldValue (f2, t2) when Field.equal f1 f2 ->
-                  FieldValue (f1, merge_type_annotations t1 t2)
-              | _ ->
-                  error ()
+            List.map2 (fun (f1, t1) (f2, t2) ->
+              if Field.equal f1 f2 then
+                f1, merge_type_annotations t1 t2
+              else
+                error ()
             ) branch1.branch_fields branch2.branch_fields;
           branch_adopts =
              merge_type_annotations branch1.branch_adopts branch2.branch_adopts;
@@ -713,12 +696,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
           raise_error env (FieldCountMismatch (t, snd new_datacon));
 
         (* Change the field names. *)
-        let branch_fields = List.map2 (fun field -> function
-          | FieldValue (_, e) ->
-              FieldValue (field, e)
-          | FieldPermission _ ->
-              Log.error "These should've been inserted in the environment"
-        ) field_names old_branch.branch_fields in
+        let branch_fields = List.map2
+          (fun field (_, e) -> field, e)
+          field_names
+          old_branch.branch_fields
+        in
 
         (* XXX jp: I believe this check is incorrect, we need to check that the
          * branch number is the same, not that this is the same data constructor
@@ -747,15 +729,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let hint = add_hint hint (Field.print fname) in
       let env, p = check_expression env ?hint e in
       let success branch k =
-        match MzList.find_opti (fun i -> function
-          | FieldValue (field, t) ->
-              if Field.equal field fname then begin
-                field_struct.SurfaceSyntax.field_offset <- Some i;
-                Some !!=t
-              end else
-                None
-          | _ ->
-            assert false
+        match MzList.find_opti (fun i (field, t) ->
+          if Field.equal field fname then begin
+            field_struct.SurfaceSyntax.field_offset <- Some i;
+            Some !!=t
+          end else
+            None
         ) branch.branch_fields
         with
         | Some p' -> k branch (fun env -> env, p')
@@ -872,23 +851,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       in
       let annotations = match annot with
         | Some (TyConcrete branch) ->
-            let annots = MzList.map_some (function
-              | FieldValue (name, t) ->
-                  Some (name, t)
-              | FieldPermission _ ->
-                  (* There may be some permissions bundled in the type
-                   * annotation (beneath, say, a constructor). We're ignoring
-                   * them: this is just a hint, and the [EConstraint] above us
-                   * will take care of emitting the right error message, should
-                   * the permission happen to absent. *)
-                  None
-            ) branch.branch_fields in
+            let annots = branch.branch_fields in
             (* Every field in the type annotation corresponds to a field in the
              * expression, i.e. the type annotation makes sense. *)
             if List.for_all (fun (name, _) ->
-              List.exists (function
-                | name', _ ->
-                    Field.equal name name'
+              List.exists (fun (name', _) ->
+                Field.equal name name'
               ) fieldexprs
             ) annots then
               annots
@@ -932,7 +900,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         (* Actually we don't care about the expected type for the field. We
          * just want to make sure all fields are provided. *)
         let p, remaining = take env name remaining in
-        env, remaining, FieldValue (name, ty_equals p) :: fieldvals
+        env, remaining, (name, ty_equals p) :: fieldvals
       ) (env, fieldexprs, []) fields in
       (* Make sure the user hasn't written any superfluous fields. *)
       begin match remaining with

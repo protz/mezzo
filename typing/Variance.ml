@@ -126,12 +126,7 @@ let variance env var_for_ith valuation b t =
         List.fold_left lub Bivariant vs
 
     | TyConcrete branch ->
-        let vs = List.map (function
-          | FieldValue (_, t) ->
-              var t
-          | FieldPermission p ->
-              var p
-        ) branch.branch_fields in
+        let vs = List.map (fun (_, t) -> var t) branch.branch_fields in
         let vs = var branch.branch_adopts :: vs in
         List.fold_left lub Bivariant vs
 

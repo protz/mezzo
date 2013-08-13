@@ -122,9 +122,7 @@ and branch = {
 and resolved_datacon = typ * Datacon.name
 
 
-and data_field_def =
-  | FieldValue of (Field.name * typ)
-  | FieldPermission of typ
+and data_field_def = Field.name * typ
 
 type type_def =
   | Concrete of typ list
@@ -731,11 +729,8 @@ class ['env] map = object (self)
     self#visit env ty, dc
 
   (* An auxiliary method for transforming a field. *)
-  method field env = function
-    | FieldValue (field, ty) ->
-        FieldValue (field, self#visit env ty)
-    | FieldPermission p ->
-        FieldPermission (self#visit env p)
+  method field env (field, ty) =
+    field, self#visit env ty
 
   (* An auxiliary method for transforming a mode constraint. *)
   method private mode_constraint env (mode, ty) =
@@ -844,11 +839,8 @@ class ['env] iter = object (self)
     self#visit env ty
 
   (* An auxiliary method for visiting a field. *)
-  method field env = function
-    | FieldValue (_, ty) ->
-        self#visit env ty
-    | FieldPermission p ->
-        self#visit env p
+  method field env (_, ty) =
+    self#visit env ty
 
   (* An auxiliary method for visiting a mode constraint. *)
   method private mode_constraint env (_, ty) =
@@ -1161,14 +1153,9 @@ and equal env (t1: typ) (t2: typ) =
          Log.check (branch1.branch_flavor = branch2.branch_flavor) "Flavor mismatch";
          Log.check (List.length branch1.branch_fields = List.length branch2.branch_fields) "Field length mismatch";
          equal branch1.branch_adopts branch2.branch_adopts &&
-         List.fold_left2 (fun acc f1 f2 ->
-           match f1, f2 with
-           | FieldValue (f1, t1), FieldValue (f2, t2) ->
-              acc && Field.equal f1 f2 && equal t1 t2
-           | FieldPermission t1, FieldPermission t2 ->
-              acc && equal t1 t2
-           | _ ->
-              false) true branch1.branch_fields branch2.branch_fields
+         List.fold_left2 (fun acc (f1, t1) (f2, t2) ->
+           acc && Field.equal f1 f2 && equal t1 t2
+         ) true branch1.branch_fields branch2.branch_fields
        )
 
     | TySingleton t1, TySingleton t2 ->
@@ -1353,12 +1340,7 @@ let get_external_datacons env : (Module.name * var * int * Datacon.name * DataTy
            let branch, _perms = deconstruct_branch t in
            let dc = snd branch.branch_datacon
            and f = branch.branch_flavor
-           and fields =
-             MzList.map_some (function
-             | FieldValue (name, _) -> Some name
-             | FieldPermission _ -> None
-             ) branch.branch_fields
-           in
+           and fields = List.map fst branch.branch_fields in
            (mname, var, i, dc, f, fields) :: acc
          ) acc def
     | _ ->

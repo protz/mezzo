@@ -381,8 +381,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
           TyAnchoredPermission (TyOpen v2,
            concrete Immutable
               (dc env "u" "U")
-              [FieldValue (Field.register "left", TySingleton (TyBound 0));
-               FieldValue (Field.register "right", TySingleton (TyBound 0))]),
+              [(Field.register "left", TySingleton (TyBound 0));
+               (Field.register "right", TySingleton (TyBound 0))]),
           TyAnchoredPermission (
             TyBound 0,
            concrete Mutable (dc env "t" "T") []
@@ -402,8 +402,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
           fold_star [
             TyAnchoredPermission (TyOpen v3,
               concrete Immutable (dc env "u" "U")
-                [FieldValue (Field.register "left", TySingleton (TyBound 0));
-                 FieldValue (Field.register "right", TySingleton (TyBound 1))]
+                [(Field.register "left", TySingleton (TyBound 0));
+                 (Field.register "right", TySingleton (TyBound 1))]
             );
             TyAnchoredPermission (
               TyBound 0,
@@ -1013,7 +1013,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("tree-coroutine.mz", pass);
   ("concurrentsort.mz", pass);
   ("derived_locks.mz", pass);
-  ("rich-bool1.mz", pass_known_failure);
+  ("rich-bool1.mz", pass);
   ("frame-wand.mz", pass);
   ("iteration.mz", pass);
   ("fpiterator-focused.mz", pass); (* very costly, sorry *)

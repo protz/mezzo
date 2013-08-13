@@ -312,12 +312,7 @@ let branch_for_datacon env (typ, datacon) : typ =
 let fields_for_datacon env dc : Field.name list =
   let branch = branch_for_datacon env dc in
   let branch, _perms = deconstruct_branch branch in
-  List.flatten (List.map (function
-    | FieldValue (f, _) ->
-        [ f ]
-    | FieldPermission _ ->
-        []
-  ) branch.branch_fields)
+  List.map fst branch.branch_fields
 ;;
 
 let flavor_for_datacon env dc =
@@ -454,13 +449,7 @@ class collect (perms : typ list ref) = object (self)
       branch_flavor = branch.branch_flavor;
       (* Nothing to collect here. *)
       branch_datacon = branch.branch_datacon;
-      branch_fields = MzList.map_some (function
-       | FieldValue (field, ty) ->
-            Some (FieldValue (field, self#visit () ty))
-       | FieldPermission p ->
-           perms := p :: !perms;
-           None
-      ) branch.branch_fields;
+      branch_fields = List.map (self#field ()) branch.branch_fields;
       branch_adopts = branch.branch_adopts;
     }
 
@@ -788,12 +777,8 @@ module TypePrinter = struct
   and print_constraint env (mode, t) =
     string (Mode.print mode) ^^ space ^^ print_type env t
 
-  and print_data_field_def env = function
-    | FieldValue (name, typ) ->
-        print_field_name name ^^ colon ^^ jump (print_type env typ)
-
-    | FieldPermission typ ->
-        bar ^^ space ^^ print_type env typ
+  and print_data_field_def env (name, typ) =
+      print_field_name name ^^ colon ^^ jump (print_type env typ)
 
   and print_branch env b =
     let fields = b.branch_fields in
