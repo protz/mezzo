@@ -409,7 +409,7 @@ let refine_perms_in_place_for_pattern env var pat =
               fail_if (get_definition env p = None);
               begin try
                 let branch = find_and_instantiate_branch env p datacon [] in
-                Some (env, TyConcrete branch)
+                Some (env, branch)
               with Not_found ->
                 (* Urgh [find_and_instantiate_branch] should probably throw
                  * something better... *)
@@ -420,7 +420,7 @@ let refine_perms_in_place_for_pattern env var pat =
               fail_if (not (same env !!cons !!p'));
               begin try
                 let branch = find_and_instantiate_branch env !!cons datacon args in
-                Some (env, TyConcrete branch)
+                Some (env, branch)
               with Not_found ->
                 fail ()
               end
@@ -900,6 +900,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       in
       (* Find the corresponding definition. *)
       let branch = branch_for_datacon env datacon in
+      let branch = deconstruct_branch branch in
       (* Take out of the provided fields one of them. *)
       let take env name' l =
         match MzList.take_bool (fun (name, _) -> Field.equal name name') l with
@@ -999,9 +1000,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
             let split_apply cons args =
               match Option.extract (get_definition env cons) with
               | Concrete [b1; b2] ->
-                  let branch1 = instantiate_branch b1 args in
-                  let branch2 = instantiate_branch b2 args in
-                  TyConcrete branch1, TyConcrete branch2
+                  let branch1 = instantiate_type b1 args in
+                  let branch2 = instantiate_type b2 args in
+                  branch1, branch2
               | _ ->
                   assert false
             in

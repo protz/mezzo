@@ -219,8 +219,11 @@ let check
 
               List.iter2 (fun branch branch' ->
 
+                let branch = T.deconstruct_branch branch in
+                let branch' = T.deconstruct_branch branch' in
+
                 if not (DataTypeFlavor.equal branch.T.branch_flavor branch'.T.branch_flavor) then
-                    error_out "flavors";
+                  error_out "flavors";
 
                 if not (T.equal env branch.T.branch_adopts branch'.T.branch_adopts) then
                   error_out "clauses";

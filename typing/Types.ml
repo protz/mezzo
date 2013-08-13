@@ -214,7 +214,8 @@ let get_location env p =
    compute a join. *)
 let get_adopts_clause env point: typ =
   match get_definition env point with
-  | Some (Concrete branches) ->
+  | Some (Concrete ts) ->
+      let branches = List.map deconstruct_branch ts in
       (* The [adopts] clause is now per-branch, instead of per-data-type.
         We should in principle return the meet of the [adopts] clauses
         of all branches. However, the surface language imposes that
@@ -222,17 +223,17 @@ let get_adopts_clause env point: typ =
         branches which are immutable and don't have an adopts clause.
         In that setting, the meet is easy to compute. *)
       let meet ty1 branch2 =
-       let ty2 = branch2.branch_adopts in
-       match ty1, is_non_bottom ty2 with
-       | TyUnknown, _ ->
-           ty2
-       | _, None ->
-           (* [ty2] is bottom *)
-           ty2
-       | _, Some _ ->
-           (* [ty2] is non-bottom *)
-           assert (equal env ty1 ty2);
-           ty2
+        let ty2 = branch2.branch_adopts in
+        match ty1, is_non_bottom ty2 with
+        | TyUnknown, _ ->
+            ty2
+        | _, None ->
+            (* [ty2] is bottom *)
+            ty2
+        | _, Some _ ->
+            (* [ty2] is non-bottom *)
+            assert (equal env ty1 ty2);
+            ty2
       in
       List.fold_left meet TyUnknown branches
   | _ ->
@@ -245,12 +246,9 @@ let is_tyopen = function
   | _ -> false
 ;;
 
-let get_branches env point: branch list =
+let get_branches env point: typ list =
   match get_definition env point with
   | Some (Concrete branches) ->
-      Log.check (List.for_all (function { branch_datacon = (t, _); _ } ->
-        is_tyopen t
-      ) branches) "Did not resolve the branch ahead of time";
       branches
   | _ ->
       Log.error "This is not a concrete data type."
@@ -298,19 +296,21 @@ let branches_for_datacon env (t, _dc) =
   get_branches env !!t
 ;;
 
-let branches_for_branch env (branch : branch) : branch list =
+let branches_for_branch env (branch : branch) : typ list =
   get_branches env !!(fst branch.branch_datacon)
 ;;
 
-let branch_for_datacon env (typ, datacon) : branch =
+let branch_for_datacon env (typ, datacon) : typ =
   let branches = get_branches env !!typ in
-  List.find (fun branch' ->
+  List.find (fun t' ->
+    let branch' = deconstruct_branch t' in
     Datacon.equal datacon (snd branch'.branch_datacon)
   ) branches
 ;;
 
 let fields_for_datacon env dc : Field.name list =
   let branch = branch_for_datacon env dc in
+  let branch = deconstruct_branch branch in
   List.flatten (List.map (function
     | FieldValue (f, _) ->
         [ f ]
@@ -321,6 +321,7 @@ let fields_for_datacon env dc : Field.name list =
 
 let flavor_for_datacon env dc =
   let branch = branch_for_datacon env dc in
+  let branch = deconstruct_branch branch in
   branch.branch_flavor
 ;;
 
@@ -338,25 +339,13 @@ let instantiate_type t args =
   MzList.fold_lefti (fun i t arg -> tsubst arg i t) t args
 ;;
 
-let instantiate_branch (branch : branch) args : branch =
-  let args = List.rev args in
-  let branch = MzList.fold_lefti (fun i branch arg ->
-    tsubst_branch arg i branch) branch args
-  in
-  branch
-;;
-
 let find_and_instantiate_branch
     (env: env)
     (var: var)
     (datacon: Datacon.name)
-    (args: typ list) : branch =
-  let branch =
-    List.find
-      (fun branch -> Datacon.equal datacon (snd branch.branch_datacon))
-      (get_branches env var)
-  in
-  instantiate_branch branch args
+    (args: typ list) : typ =
+  let branch = branch_for_datacon env (TyOpen var, datacon) in
+  instantiate_type branch args
 ;;
 
 (* Misc. *)
@@ -526,13 +515,13 @@ let make_datacon_letters env kind flexible =
   env, vars
 ;;
 
-let bind_datacon_parameters (env: env) (kind: kind) (branches: branch list):
-    env * var list * branch list =
+let bind_datacon_parameters (env: env) (kind: kind) (branches: typ list):
+    env * var list * typ list =
   let env, points = make_datacon_letters env kind false in
   let arity = Kind.arity kind in
   let branches = MzList.fold_lefti (fun i branches point ->
     let index = arity - i - 1 in
-    let branches = List.map (tsubst_branch (TyOpen point) index) branches in
+    let branches = List.map (tsubst (TyOpen point) index) branches in
     branches
   ) branches points in
   env, points, branches
@@ -557,8 +546,8 @@ let rec expand_if_one_branch (env: env) (t: typ) =
   | Some (cons, args) ->
       begin match get_definition env cons with
       | Some (Concrete [branch]) ->
-          let branch = instantiate_branch branch args in
-          wrap_if (TyConcrete branch)
+          let branch = instantiate_type branch args in
+          wrap_if branch
       | Some (Abbrev t) ->
           let t = instantiate_type t args in
           wrap_if (expand_if_one_branch env t)

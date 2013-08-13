@@ -141,7 +141,7 @@ and resolved_datacon = typ * Datacon.name
 type variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | Bivariant
 
 type type_def =
-  | Concrete of branch list
+  | Concrete of typ list
   | Abstract
   | Abbrev of typ
 
@@ -319,6 +319,14 @@ val equal: env -> typ -> typ -> bool
 
 (** Equality function on resolved data constructors. *)
 val resolved_datacons_equal: env -> resolved_datacon -> resolved_datacon -> bool
+
+(* ---------------------------------------------------------------------------- *)
+
+
+(** {1 Data type definitions} *)
+
+val construct_branch: branch -> typ
+val deconstruct_branch: typ -> branch
 
 (* ---------------------------------------------------------------------------- *)
 

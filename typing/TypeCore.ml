@@ -127,7 +127,7 @@ and data_field_def =
   | FieldPermission of typ
 
 type type_def =
-  | Concrete of branch list
+  | Concrete of typ list
   | Abstract
   | Abbrev of typ
 
@@ -144,6 +144,20 @@ type data_type_group = {
   group_recursive: SurfaceSyntax.rec_flag;
   group_items: data_type list;
 }
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Data type branches. *)
+
+let construct_branch (branch: branch): typ =
+  TyConcrete branch
+
+let deconstruct_branch (t: typ): branch =
+  match t with
+  | TyConcrete branch ->
+      branch
+  | _ ->
+      assert false
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -727,7 +741,7 @@ class ['env] map = object (self)
             { element with data_definition }
         | Concrete branches ->
             (* Transform the branches in this extended environment. *)
-            let branches = List.map (self#branch env) branches in
+            let branches = List.map (self#visit env) branches in
             (* That's it. *)
             { element with data_definition = Concrete branches }
       ) group.group_items
@@ -836,7 +850,7 @@ class ['env] iter = object (self)
           ()
       | Concrete branches ->
          (* Visit the branches in this extended environment. *)
-         List.iter (self#branch env) branches
+         List.iter (self#visit env) branches
       | Abbrev t ->
           self#visit env t
     ) group.group_items
@@ -1318,7 +1332,8 @@ let get_external_datacons env : (Module.name * var * int * Datacon.name * DataTy
          acc
        else
          (* Iterate over the branches of this definition. *)
-         MzList.fold_lefti (fun i acc branch ->
+         MzList.fold_lefti (fun i acc t ->
+           let branch = deconstruct_branch t in
            let dc = snd branch.branch_datacon
            and f = branch.branch_flavor
            and fields =

@@ -76,23 +76,19 @@ val ty_open : var -> typ
 val bind_datacon_parameters :
   env ->
   kind ->
-  branch list ->
-  env * var list * branch list
+  typ list ->
+  env * var list * typ list
 
 (** {2 Instantiation} *)
 
 val instantiate_type:
   typ -> typ list -> typ
-val instantiate_branch:
-  branch ->
-  typ list ->
-  branch
 val find_and_instantiate_branch :
   env ->
   var ->
   Datacon.name ->
   typ list ->
-  branch
+  typ
 
 
 (** {2 Folding and unfolding} *)
@@ -127,15 +123,13 @@ val mark_reachable : env -> typ -> env
 (** {2 Various getters} *)
 
 val get_location : env -> var -> location
-val get_adopts_clause :
-  env -> var -> typ
-val get_branches :
-  env -> var -> branch list
+val get_adopts_clause : env -> var -> typ
+val get_branches : env -> var -> typ list
 val get_arity : env -> var -> int
 val get_kind_for_type : env -> typ -> kind
-val branches_for_branch: env -> branch -> branch list
-val branches_for_datacon: env -> resolved_datacon -> branch list
-val branch_for_datacon: env -> resolved_datacon -> branch
+val branches_for_branch: env -> branch -> typ list
+val branches_for_datacon: env -> resolved_datacon -> typ list
+val branch_for_datacon: env -> resolved_datacon -> typ
 val fields_for_datacon: env -> resolved_datacon -> Field.name list
 val flavor_for_datacon: env -> resolved_datacon -> DataTypeFlavor.flavor
 

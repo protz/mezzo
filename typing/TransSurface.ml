@@ -285,9 +285,9 @@ let rec translate_data_type_def_branch
     (flavor: DataTypeFlavor.flavor)
     (adopts: typ option)
     (branch: Datacon.name * data_field_def list)
-  : T.branch =
+  : T.typ =
   let datacon, fields = branch in
-  {
+  let branch = {
     (* [Expressions.bind_group_definition] will take care of putting the right
      * value. We perform eager resolving: as soon we've opened the binder for
      * the data type, all its branches contain a reference to it. *)
@@ -295,7 +295,8 @@ let rec translate_data_type_def_branch
     T.branch_datacon = T.TyUnknown, datacon;
     T.branch_fields = translate_fields env fields;
     T.branch_adopts = translate_adopts env adopts
-  }
+  } in
+  T.construct_branch branch
 
 and translate_adopts env (adopts : typ option) =
   match adopts with

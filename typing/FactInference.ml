@@ -231,6 +231,7 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
       Log.error "There should be no bound variables here."
 
 and infer_unresolved_branch w branch =
+  let branch = deconstruct_branch branch in
   (* The [adopts] clause has no impact. The name of the data
      constructor does not matter, nor the algebraic data type
      definition to which it belongs; only the [flavor] of this
@@ -302,7 +303,7 @@ and bind_assume_infer w binding ty (m : mode) : fact =
 
 (* Auxiliary code for the analysis of a parameterized type definition. *)
 
-let prepare_branches env v branches : world * branch list =
+let prepare_branches env v branches : world * typ list =
   (* Bind the parameters. *)
   let env, parameters, branches =
     bind_datacon_parameters env (get_kind env v) branches
@@ -372,6 +373,7 @@ let check_adopts_clauses env v branches =
   let w, branches = prepare_branches env v branches in
   (* Examine each branch. *)
   List.iter (fun branch ->
+    let branch = deconstruct_branch branch in
     (* Infer a (parameterized) fact about the type that appears
        in the adopts clause. *)
     let clause = branch.branch_adopts in

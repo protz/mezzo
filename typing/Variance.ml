@@ -197,9 +197,6 @@ let analyze_data_types env vars =
           let env, vars, branches =
             bind_datacon_parameters env kind branches
           in
-          let branches = List.map (fun branch ->
-            TyConcrete branch
-          ) branches in
           env, (var, (vars, branches)) :: acc
     ) (original_env, []) vars
   in

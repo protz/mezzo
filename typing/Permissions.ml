@@ -99,15 +99,6 @@ let safety_check env =
   end
 ;;
 
-let safety_check_branch env { branch_datacon = (t, _); _ } =
-  match t with
-  | TyOpen _ ->
-      ()
-  | _ ->
-      Log.error "[safety_check_branch], [fst branch_datacon] is %a"
-        TypePrinter.ptype (env, t);
-;;
-
 (* ---------------------------------------------------------------------------- *)
 
 (* When we learn that "a" turns out to be exclusive, new permissions become
@@ -544,7 +535,6 @@ and add (env: env) (var: var) (t: typ): env =
         ) original_perms with
         | Some datacon ->
             let branch = find_and_instantiate_branch env t datacon ts in
-            let branch = TyConcrete branch in
             add env var branch
         | None ->
             default env
@@ -1053,12 +1043,9 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
       if same env var1 cons2 then begin
         try_proof_root "Fold-L" begin
-          let branch2 = find_and_instantiate_branch env cons2 datacon1 args2 in
-          safety_check_branch env branch2;
+          let t2 = find_and_instantiate_branch env cons2 datacon1 args2 in
           (* There may be permissions attached to this branch. *)
-          let t2 = TyConcrete branch2 in
           let t2, p2 = collect t2 in
-          safety_check_branch env (assert_concrete t2);
           sub_type env t1 t2 >>= fun env ->
           sub_perms env p2 >>=
           qed
@@ -1075,9 +1062,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
       if same env var1 var2 then begin
         try_proof_root "Fold-L-2" begin
-          let branch2 = find_and_instantiate_branch env var2 datacon1 [] in
+          let t2 = find_and_instantiate_branch env var2 datacon1 [] in
           (* Same as above. *)
-          let t2 = TyConcrete branch2 in
           let t2, p2 = collect t2 in
           sub_type env t1 t2 >>= fun env ->
           sub_perms env p2 >>=
