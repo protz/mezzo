@@ -192,9 +192,9 @@ let resolve_definition var def =
   match def with
   | Concrete branches ->
       let branches = List.map (fun b ->
-        let b = deconstruct_branch b in
+        let b, perms = deconstruct_branch b in
         let b = resolve_branch var b in
-        let b = construct_branch b in
+        let b = construct_branch b perms in
         b
       ) branches in
       Concrete branches

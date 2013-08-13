@@ -223,6 +223,7 @@ let get_adopts_clause env point: typ =
         branches which are immutable and don't have an adopts clause.
         In that setting, the meet is easy to compute. *)
       let meet ty1 branch2 =
+        let branch2, _perms2 = branch2 in
         let ty2 = branch2.branch_adopts in
         match ty1, is_non_bottom ty2 with
         | TyUnknown, _ ->
@@ -303,14 +304,14 @@ let branches_for_branch env (branch : branch) : typ list =
 let branch_for_datacon env (typ, datacon) : typ =
   let branches = get_branches env !!typ in
   List.find (fun t' ->
-    let branch' = deconstruct_branch t' in
+    let branch', _perms' = deconstruct_branch t' in
     Datacon.equal datacon (snd branch'.branch_datacon)
   ) branches
 ;;
 
 let fields_for_datacon env dc : Field.name list =
   let branch = branch_for_datacon env dc in
-  let branch = deconstruct_branch branch in
+  let branch, _perms = deconstruct_branch branch in
   List.flatten (List.map (function
     | FieldValue (f, _) ->
         [ f ]
@@ -321,7 +322,7 @@ let fields_for_datacon env dc : Field.name list =
 
 let flavor_for_datacon env dc =
   let branch = branch_for_datacon env dc in
-  let branch = deconstruct_branch branch in
+  let branch, _perms = deconstruct_branch branch in
   branch.branch_flavor
 ;;
 

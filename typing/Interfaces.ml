@@ -219,8 +219,8 @@ let check
 
               List.iter2 (fun branch branch' ->
 
-                let branch = T.deconstruct_branch branch in
-                let branch' = T.deconstruct_branch branch' in
+                let branch, perms = T.deconstruct_branch branch in
+                let branch', perms' = T.deconstruct_branch branch' in
 
                 if not (DataTypeFlavor.equal branch.T.branch_flavor branch'.T.branch_flavor) then
                   error_out "flavors";
@@ -247,6 +247,14 @@ let check
                   | _ ->
                       error_out "field nature";
                 ) branch.T.branch_fields branch'.T.branch_fields;
+
+                if not (List.length perms = List.length perms') then
+                  error_out "different number of permission fields";
+
+                List.iter2 (fun perm perm' ->
+                  if not (T.equal env perm perm') then
+                    error_out "permission field";
+                ) perms perms';
               ) branches branches';
 
           | T.Abbrev t, T.Abbrev t' ->

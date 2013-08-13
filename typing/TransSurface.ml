@@ -293,10 +293,11 @@ let rec translate_data_type_def_branch
      * the data type, all its branches contain a reference to it. *)
     T.branch_flavor = flavor;
     T.branch_datacon = T.TyUnknown, datacon;
-    T.branch_fields = translate_fields env fields;
+    T.branch_fields = translate_fields_values env fields;
     T.branch_adopts = translate_adopts env adopts
   } in
-  T.construct_branch branch
+  let perms = translate_fields_perms env fields in
+  T.construct_branch branch perms
 
 and translate_adopts env (adopts : typ option) =
   match adopts with
@@ -305,14 +306,23 @@ and translate_adopts env (adopts : typ option) =
   | Some t ->
       translate_type_reset_no_kind env t
 
-and translate_fields env fields =
-  List.map (function
+and translate_fields_values env fields =
+  MzList.map_some (function
     | FieldValue (name, t) ->
-        T.FieldValue (name, translate_type_reset_no_kind env t)
+        Some (T.FieldValue (name, translate_type_reset_no_kind env t))
+    | FieldPermission _ ->
+        None
+  ) fields
+
+and translate_fields_perms env fields =
+  MzList.map_some (function
+    | FieldValue _ ->
+        None
     | FieldPermission t ->
         let t, _, _ = translate_type env t in
-        T.FieldPermission t
+        Some t
   ) fields
+
 
 ;;
 

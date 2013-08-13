@@ -898,9 +898,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         | _ ->
             []
       in
-      (* Find the corresponding definition. *)
-      let branch = branch_for_datacon env datacon in
-      let branch = deconstruct_branch branch in
+      (* Find the corresponding fields. *)
+      let fields = fields_for_datacon env datacon in
       (* Take out of the provided fields one of them. *)
       let take env name' l =
         match MzList.take_bool (fun (name, _) -> Field.equal name name') l with
@@ -929,18 +928,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* Do the bulk of the work. We're iterating on the _definition_ of the
        * fields to make sure we construct the expression with the fields in the
        * right order, and with all the fields. *)
-      let env, remaining, fieldvals = List.fold_left (fun (env, remaining, fieldvals) -> function
-        | FieldValue (name, _t) ->
-            (* Actually we don't care about the expected type for the field. We
-             * just want to make sure all fields are provided. *)
-            let p, remaining = take env name remaining in
-            env, remaining, FieldValue (name, ty_equals p) :: fieldvals
-        | FieldPermission _ ->
-            (* Again, our job is not to bundle a permission here: all
-             * permissions are expanded. When the time comes, a type annotation
-             * will take care of subtracting the permission. *)
-            env, remaining, fieldvals
-      ) (env, fieldexprs, []) branch.branch_fields in
+      let env, remaining, fieldvals = List.fold_left (fun (env, remaining, fieldvals) name ->
+        (* Actually we don't care about the expected type for the field. We
+         * just want to make sure all fields are provided. *)
+        let p, remaining = take env name remaining in
+        env, remaining, FieldValue (name, ty_equals p) :: fieldvals
+      ) (env, fieldexprs, []) fields in
       (* Make sure the user hasn't written any superfluous fields. *)
       begin match remaining with
       | (name, _) :: _ ->
@@ -950,7 +943,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       end;
       let fieldvals = List.rev fieldvals in
       let branch = {
-        branch_flavor = branch.branch_flavor;
+        branch_flavor = flavor_for_datacon env datacon;
         branch_datacon = datacon;
         branch_fields = fieldvals;
         branch_adopts = clause;

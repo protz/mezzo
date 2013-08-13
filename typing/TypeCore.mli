@@ -325,8 +325,17 @@ val resolved_datacons_equal: env -> resolved_datacon -> resolved_datacon -> bool
 
 (** {1 Data type definitions} *)
 
-val construct_branch: branch -> typ
-val deconstruct_branch: typ -> branch
+(** The branches in data type definitions are now represented as types. If the
+ * branch contains permissions, it will be a TyBar. Thus, "branch definitions as
+ * types" hold a very particular structure. In order to maintain the invariant,
+ * one should use construct_branch and deconstruct_branch. *)
+
+(** Need to translate a branch definition [b] with nested permissions [ps] into
+ * a type? Use [construct_branch b ps]. *)
+val construct_branch: branch -> typ list -> typ
+
+(** Need to see a type as a branch with its permissions? Use this helper. *)
+val deconstruct_branch: typ -> branch * typ list
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -185,6 +185,10 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
      its components is bottom, but there is no motivation to do so. *)
 
   | TyConcrete branch ->
+      (* The [adopts] clause has no impact. The name of the data
+         constructor does not matter, nor the algebraic data type
+         definition to which it belongs; only the [flavor] of this
+         branch, and the fields, matter. *)
       infer_concrete w branch.branch_flavor branch.branch_fields
 
   | TyTuple tys ->
@@ -229,14 +233,6 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
 
   | TyBound _ ->
       Log.error "There should be no bound variables here."
-
-and infer_unresolved_branch w branch =
-  let branch = deconstruct_branch branch in
-  (* The [adopts] clause has no impact. The name of the data
-     constructor does not matter, nor the algebraic data type
-     definition to which it belongs; only the [flavor] of this
-     branch, and the fields, matter. *)
-  infer_concrete w branch.branch_flavor branch.branch_fields
 
 and infer_concrete w flag fields =
   match flag with
@@ -373,7 +369,7 @@ let check_adopts_clauses env v branches =
   let w, branches = prepare_branches env v branches in
   (* Examine each branch. *)
   List.iter (fun branch ->
-    let branch = deconstruct_branch branch in
+    let branch, _perms = deconstruct_branch branch in
     (* Infer a (parameterized) fact about the type that appears
        in the adopts clause. *)
     let clause = branch.branch_adopts in
@@ -441,7 +437,7 @@ let analyze_data_types (env : env) (variables : var list) : env =
            let w = { w with variables; valuation } in
            (* The right-hand side of the algebraic data type definition can be
               viewed as a sum of records. *)
-           Fact.join_many (infer_unresolved_branch w) branches
+           Fact.join_many (infer w) branches
     )
   in
 

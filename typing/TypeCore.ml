@@ -149,13 +149,30 @@ type data_type_group = {
 
 (* Data type branches. *)
 
-let construct_branch (branch: branch): typ =
-  TyConcrete branch
+(* Two low-tech versions of fold_star and flatten_star. *)
 
-let deconstruct_branch (t: typ): branch =
+let fold_star perms =
+  List.fold_left (fun acc x -> TyStar (acc, x)) TyEmpty perms
+
+let flatten_star t =
+  let rec flatten_star acc t =
+    match t with
+    | TyStar (p, q) ->
+        flatten_star (q :: acc) p
+    | TyEmpty ->
+        List.rev acc
+    | _ ->
+        assert false
+  in
+  flatten_star [] t
+
+let construct_branch (branch: branch) (ps: typ list): typ =
+  TyBar (TyConcrete branch, fold_star ps)
+
+let deconstruct_branch (t: typ): branch * typ list =
   match t with
-  | TyConcrete branch ->
-      branch
+  | TyBar (TyConcrete branch, ps) ->
+      branch, flatten_star ps
   | _ ->
       assert false
 
@@ -1333,7 +1350,7 @@ let get_external_datacons env : (Module.name * var * int * Datacon.name * DataTy
        else
          (* Iterate over the branches of this definition. *)
          MzList.fold_lefti (fun i acc t ->
-           let branch = deconstruct_branch t in
+           let branch, _perms = deconstruct_branch t in
            let dc = snd branch.branch_datacon
            and f = branch.branch_flavor
            and fields =
