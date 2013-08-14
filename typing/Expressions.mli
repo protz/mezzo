@@ -38,6 +38,8 @@ val bind_data_type_group_in_toplevel_items: env -> data_type_group -> toplevel_i
 val bind_data_type_group_in_expr: env -> data_type_group -> expression ->
       env * expression * var list
 
+val resolve_branch: var -> branch -> branch
+
 (* TEMPORARY this whole thing seems to duplicate [KindCheck] *)
 
 

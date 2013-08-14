@@ -366,7 +366,7 @@ let check_adopts_clauses env v branches =
   let w, branches = prepare_branches env v branches in
   (* Examine each branch. *)
   List.iter (fun branch ->
-    let branch, _perms = deconstruct_branch branch in
+    let branch = find_branch branch in
     (* Infer a (parameterized) fact about the type that appears
        in the adopts clause. *)
     let clause = branch.branch_adopts in

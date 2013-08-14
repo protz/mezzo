@@ -332,8 +332,11 @@ val resolved_datacons_equal: env -> resolved_datacon -> resolved_datacon -> bool
  * a type? Use [construct_branch b ps]. *)
 val construct_branch: branch -> typ list -> typ
 
-(** Need to see a type as a branch with its permissions? Use this helper. *)
-val deconstruct_branch: typ -> branch * typ list
+(** Need to see the branch hidden beneath a type? Use this helper. *)
+val find_branch: typ -> branch
+
+(** Need to modify the branch hidden beneath a type? Use this helper. *)
+val touch_branch: typ -> (branch -> branch) -> typ
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -523,6 +526,15 @@ class ['env] iter : object
 
 end
 
+
+(* -------------------------------------------------------------------------- *)
+
+(** {1 Misc.} *)
+
+(** The bottom type. *)
+val ty_bottom : typ
+val is_non_bottom: typ -> typ option
+
 (**/**)
 
 (** References are assigned to by other modules after the type printers have
@@ -537,6 +549,3 @@ val internal_uniqvarid: env -> var -> int
 val internal_checklevel: env -> typ -> unit
 val internal_wasflexible: var -> bool
 
-(** The bottom type. *)
-val ty_bottom : typ
-val is_non_bottom: typ -> typ option

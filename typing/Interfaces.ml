@@ -164,7 +164,7 @@ let check
             _
           } = data_type in
 
-         let point = KindCheck.find_nonlocal_variable exports name in
+          let point = KindCheck.find_nonlocal_variable exports name in
           (* Variables marked with ' belong to the implementation. *)
 
 
@@ -217,37 +217,21 @@ let check
                * haven't run [FactInference.analyze_types] on the *signature* so
                * the information in [fact] is just meaningless. *)
 
-              List.iter2 (fun branch branch' ->
+              List.iter2 (fun t t' ->
+                (* Resolve the data constructor from the interface, so that we
+                 * can leverage [equal] to do all the comparison work for us. *)
+                let t = T.touch_branch t (fun b ->
+                  Expressions.resolve_branch point b
+                ) in
 
-                let branch, perms = T.deconstruct_branch branch in
-                let branch', perms' = T.deconstruct_branch branch' in
-
-                if not (DataTypeFlavor.equal branch.T.branch_flavor branch'.T.branch_flavor) then
-                  error_out "flavors";
-
-                if not (T.equal env branch.T.branch_adopts branch'.T.branch_adopts) then
-                  error_out "clauses";
-
-                if not (Datacon.equal (snd branch.T.branch_datacon) (snd branch'.T.branch_datacon)) then
-                  error_out "datacons";
-
-                if not (List.length branch.T.branch_fields = List.length branch'.T.branch_fields) then
-                  error_out "different number of fields";
-
-                List.iter2 (fun (fname, t) (fname', t') ->
-                  if not (Variable.equal fname fname') then
-                    error_out "field names";
-                  if not (T.equal env t t') then
-                    error_out "field defs";
-                ) branch.T.branch_fields branch'.T.branch_fields;
-
-                if not (List.length perms = List.length perms') then
-                  error_out "different number of permission fields";
-
-                List.iter2 (fun perm perm' ->
-                  if not (T.equal env perm perm') then
-                    error_out "permission field";
-                ) perms perms';
+                if not (T.equal env t t') then begin
+                  let msg = MzString.bsprintf
+                    "different definitions between %a and %a"
+                    Types.TypePrinter.ptype (env, t)
+                    Types.TypePrinter.ptype (env, t')
+                  in
+                  error_out msg;
+                end;
               ) branches branches';
 
           | T.Abbrev t, T.Abbrev t' ->

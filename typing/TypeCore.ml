@@ -147,30 +147,31 @@ type data_type_group = {
 
 (* Data type branches. *)
 
-(* Two low-tech versions of fold_star and flatten_star. *)
-
+(* Low-level wrapper that assumes [perms] is non-nil. *)
 let fold_star perms =
-  List.fold_left (fun acc x -> TyStar (acc, x)) TyEmpty perms
-
-let flatten_star t =
-  let rec flatten_star acc t =
-    match t with
-    | TyStar (p, q) ->
-        flatten_star (q :: acc) p
-    | TyEmpty ->
-        List.rev acc
-    | _ ->
-        assert false
-  in
-  flatten_star [] t
+  MzList.reduce (fun acc x -> TyStar (acc, x)) perms
 
 let construct_branch (branch: branch) (ps: typ list): typ =
-  TyBar (TyConcrete branch, fold_star ps)
+  if List.length ps > 0 then
+    TyBar (TyConcrete branch, fold_star ps)
+  else
+    TyConcrete branch
 
-let deconstruct_branch (t: typ): branch * typ list =
+let rec find_branch (t: typ): branch =
   match t with
-  | TyBar (TyConcrete branch, ps) ->
-      branch, flatten_star ps
+  | TyBar (t, _) ->
+      find_branch t
+  | TyConcrete b ->
+      b
+  | _ ->
+      assert false
+
+let rec touch_branch (t: typ) (f: branch -> branch): typ =
+  match t with
+  | TyBar (t, ps) ->
+      TyBar (touch_branch t f, ps)
+  | TyConcrete b ->
+      TyConcrete (f b)
   | _ ->
       assert false
 
@@ -1145,18 +1146,17 @@ and equal env (t1: typ) (t2: typ) =
 
     | TyConcrete branch1, TyConcrete branch2 ->
         resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon &&
-       (* In principle, if the data constructors are equal, then the flavors
-          should be equal too (we do not allow the flavor to change independently
-          of the data constructor), and the lists of fields should have the same
-          lengths (the list of fields is determined by the data constructor). *)
-       (
-         Log.check (branch1.branch_flavor = branch2.branch_flavor) "Flavor mismatch";
-         Log.check (List.length branch1.branch_fields = List.length branch2.branch_fields) "Field length mismatch";
-         equal branch1.branch_adopts branch2.branch_adopts &&
-         List.fold_left2 (fun acc (f1, t1) (f2, t2) ->
-           acc && Field.equal f1 f2 && equal t1 t2
-         ) true branch1.branch_fields branch2.branch_fields
-       )
+        (* Since [Interfaces] now uses [equal] to compare data type definitions,
+         * we have to be ready to deal with the case where flavors and fields
+         * differ. *)
+        (
+          branch1.branch_flavor = branch2.branch_flavor &&
+          List.length branch1.branch_fields = List.length branch2.branch_fields &&
+          equal branch1.branch_adopts branch2.branch_adopts &&
+          List.fold_left2 (fun acc (f1, t1) (f2, t2) ->
+            acc && Field.equal f1 f2 && equal t1 t2
+          ) true branch1.branch_fields branch2.branch_fields
+        )
 
     | TySingleton t1, TySingleton t2 ->
         equal t1 t2
@@ -1337,7 +1337,7 @@ let get_external_datacons env : (Module.name * var * int * Datacon.name * DataTy
        else
          (* Iterate over the branches of this definition. *)
          MzList.fold_lefti (fun i acc t ->
-           let branch, _perms = deconstruct_branch t in
+           let branch = find_branch t in
            let dc = snd branch.branch_datacon
            and f = branch.branch_flavor
            and fields = List.map fst branch.branch_fields in
