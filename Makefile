@@ -16,7 +16,7 @@ MAIN       := mezzo
 TESTSUITE  := testsuite
 BUILDDIRS   = -I _build $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
 MY_DIRS    := lib parsing typing utils interpreter compiler tests/unit
-PACKAGES   := -package menhirLib,ocamlbuild,yojson,ulex,pprint
+PACKAGES   := -package menhirLib,ocamlbuild,yojson,ulex,pprint,fix
 
 all: configure.ml parsing/Keywords.ml vim/syntax/mezzo.vim
 	$(OCAMLBUILD) $(INCLUDE) $(MAIN).native $(TESTSUITE).native

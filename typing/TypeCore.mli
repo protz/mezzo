@@ -23,16 +23,12 @@ open Kind
    type-checker. *)
 
 
-(** {1 Various useful modules} *)
-
-module DataconMap: MzMap.S with type key = Module.name * Datacon.name
-module Field: module type of Variable with type name = SurfaceSyntax.Field.name
-
 (* -------------------------------------------------------------------------- *)
 
 
 (** {1 The definition of types} *)
 
+module Field: module type of Variable with type name = SurfaceSyntax.Field.name
 
 (** {2 Auxiliary definitions} *)
 
@@ -156,6 +152,24 @@ type data_type_group = {
   group_recursive: SurfaceSyntax.rec_flag;
   group_items: data_type list;
 }
+
+
+(* -------------------------------------------------------------------------- *)
+
+(** {1 Various useful modules} *)
+
+module DataconMap: MzMap.S with type key = Module.name * Datacon.name
+
+(** This module provides a clean way to map a variable to any given piece of
+ * data. Beware, however, that this module only works with rigid variables (it's
+ * unclear what it should do for flexible variables), so it's up to the client
+ * to properly run {!is_flexible} beforehand. *)
+module VarMap: MzMap.S with type key = var
+
+(** This is an imperative version of [VarMap], in the form expected by [Fix]. *)
+module IVarMap: Fix.IMPERATIVE_MAPS with type key = var
+
+
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -324,9 +338,9 @@ val resolved_datacons_equal: env -> resolved_datacon -> resolved_datacon -> bool
 (** {1 Data type definitions} *)
 
 (** The branches in data type definitions are now represented as types. If the
- * branch contains permissions, it will be a TyBar. Thus, "branch definitions as
- * types" hold a very particular structure. In order to maintain the invariant,
- * one should use construct_branch and deconstruct_branch. *)
+ * branch contains permissions, there will be a [TyBar]. There may be other type
+ * constructors above the [TyConcrete]. Thus, we provide a set of wrappers to
+ * peek at / modify the [branch] found below other type constructors. *)
 
 (** Need to translate a branch definition [b] with nested permissions [ps] into
  * a type? Use [construct_branch b ps]. *)
@@ -381,7 +395,7 @@ val get_external_datacons: env -> (Module.name * var * int * Datacon.name * Data
 
 (** We provide a set of fold/map operations on variables defined in the
  * environment. Existential variables are not folded over, as they only serve as
- * placeholders; only rigid variables are consider when performing the various
+ * placeholders; only rigid variables are considered when performing the various
  * [fold] operations.
  *
  * Of course, we only fold over variables that have been opened in the current
@@ -408,15 +422,6 @@ val map: env -> (var -> 'a) -> 'a list
 val is_marked: env -> var -> bool
 val mark: env -> var -> env
 val refresh_mark: env -> env
-
-(** This module provides a clean way to map a variable to any given piece of
- * data. Beware, however, that this module only works with rigid variables (it's
- * unclear what it should do for flexible variables), so it's up to the client
- * to properly run {!is_flexible} beforehand. *)
-module VarMap: MzMap.S with type key = var
-
-(** This is an imperative version of [VarMap], in the form expected by [Fix]. *)
-module IVarMap: Fix.IMPERATIVE_MAPS with type key = var
 
 (** {1 Visitors for the internal syntax of types} *)
 
