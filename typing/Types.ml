@@ -517,29 +517,15 @@ let bind_datacon_parameters (env: env) (kind: kind) (branches: typ list):
 ;;
 
 let rec expand_if_one_branch (env: env) (t: typ) =
-  (* Having [FieldPermission] was a mistake... because almost no single place in
-   * the code is able to deal with [FieldPermission]s, we must make sure
-   * everytime a nominal type turns into a branch, we collect the permissions
-   * and rewrap everything in a [TyBar] (which the code handles well). *)
-  let wrap_if t =
-    let t, p = collect t in
-    if List.length p > 0 then
-      if get_kind_for_type env t = KPerm then
-        TyStar (t, fold_star p)
-      else
-        TyBar (t, fold_star p)
-    else
-      t
-  in
   match is_tyapp t with
   | Some (cons, args) ->
       begin match get_definition env cons with
       | Some (Concrete [branch]) ->
           let branch = instantiate_type branch args in
-          wrap_if branch
+          branch
       | Some (Abbrev t) ->
           let t = instantiate_type t args in
-          wrap_if (expand_if_one_branch env t)
+          expand_if_one_branch env t
       | _ ->
         t
       end
