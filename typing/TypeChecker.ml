@@ -276,7 +276,8 @@ let rec type_for_function_def = function
  * permission to a var named [p]. We then need to glue the vars in the
  * pattern to the intermediate vars in the permission for [p]. If, for
  * instance, [pat] is [(p1, p2)] and [p @ (=p'1, =p'2)] holds, this function
- * will merge [p1] and [p'1], as well as [p2] and [p'2]. *)
+ * will merge [p1] and [p'1], as well as [p2] and [p'2].
+ *)
 let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
 
   match pattern with
@@ -342,16 +343,25 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
 ;;
 
 
-(* TEMPORARY MatchBadTuple and MatchBadDatacon should not produce a type
-   error; they should produce an inconsistent environment (hence cause
-   the whole branch to be skipped) if the intersection is empty *)
+(** This function takes a permission (e.g. "list int") and refines it following
+ * a given pattern (e.g. "Cons { head; _ }") thus changing it into something
+ * more precise (e.g. "Cons { head = h; tail = t } * h @ ... * t @ ..."). The
+ * variables in the pattern are not tied to the structure points: this is the
+ * job of [unify_pattern], which will be typically called by [check_bindings].
+ * *)
 let refine_perms_in_place_for_pattern env var pat =
+  (* TEMPORARY MatchBadTuple and MatchBadDatacon should not produce a type
+     error; they should produce an inconsistent environment (hence cause
+     the whole branch to be skipped) if the intersection is empty *)
   let rec refine env var pat =
     match pat with
     | PAs (pat, _) ->
         refine env var pat
 
     | PTuple pats ->
+        (** This is an easy case: there's nothing to refine here (a tuple type
+         * can always match a tuple type), so recursively refine the tuple
+         * components. *)
         let vars =
           match MzList.find_opt (function
             | TyTuple ts ->
@@ -364,6 +374,11 @@ let refine_perms_in_place_for_pattern env var pat =
           | None ->
               raise_error env (MatchBadTuple var)
         in
+        (* We need to check here that the lengths match because of the call to
+         * [fold_left2]. This is duplicating the check that [unify_pattern]
+         * performs. However, since [unify_pattern] is not always preceded by a
+         * call to [refine_perms_in_place_for_pattern], we have to check in both
+         * places. *)
         if List.length vars <> List.length pats then
           raise_error env (MatchBadTuple var);
         List.fold_left2 refine env vars pats
@@ -413,16 +428,13 @@ let refine_perms_in_place_for_pattern env var pat =
                 fail ()
               end
           | TyConcrete branch' as t ->
-              let fields, _ = List.split patfields in
-              let is_ok =
-                resolved_datacons_equal env datacon branch'.branch_datacon &&
-                List.for_all (fun field ->
-                  List.exists (fun (field_from_type, _) ->
-                    Field.equal field_from_type field
-                  ) branch'.branch_fields
-                ) fields
-              in
-              fail_if (not is_ok);
+              if not (resolved_datacons_equal env datacon branch'.branch_datacon) then
+                (* [refine_fields] takes care of checking that the fields in the
+                 * pattern all map to an existing field name for the structural
+                 * permission we found. We could technically skip this check
+                 * since [unify_pattern] will check that again for us, but well,
+                 * better do it now. *)
+                fail ();
               Some (env, t)
           | _ ->
               None
@@ -454,51 +466,6 @@ let refine_perms_in_place_for_pattern env var pat =
   refine env var pat
 ;;
 
-
-(** [merge_type_annotations] is useful when the context provides a type
- * annotation and we hit a [EConstraint] expression. We need to make sure the
- * type annotations are consistent: (unknown, τ) and (σ, unknown) are consistent
- * type annotations; τ and τ are. We are conservative, and refuse to merge a lot
- * other cases: (τ | σ) and (τ | σ') should probably be merged in a clever
- * manner, but that's too complicated. *)
-let merge_type_annotations env t1 t2 =
-  let error () =
-    raise_error env (ConflictingTypeAnnotations (t1, t2))
-  in
-  let rec merge_type_annotations t1 t2 =
-    match t1, t2 with
-    | _, _ when t1 = t2 ->
-        t1
-    | TyUnknown, _ ->
-        t2
-    | _, TyUnknown ->
-        t1
-    | TyTuple ts1, TyTuple ts2 when List.length ts1 = List.length ts2 ->
-        TyTuple (List.map2 merge_type_annotations ts1 ts2)
-    | TyConcrete branch1,
-      TyConcrete branch2
-      when resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon ->
-        assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
-        let branch = { branch1 with
-          branch_fields =
-            List.map2 (fun (f1, t1) (f2, t2) ->
-              if Field.equal f1 f2 then
-                f1, merge_type_annotations t1 t2
-              else
-                error ()
-            ) branch1.branch_fields branch2.branch_fields;
-          branch_adopts =
-            merge_type_annotations branch1.branch_adopts branch2.branch_adopts;
-        } in
-        TyConcrete branch
-    | _ ->
-        error ()
-  in
-  merge_type_annotations t1 t2
-;;
-
-
-
 let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * var =
 
   (* lazy because we need to typecheck the core modules too! *)
@@ -516,6 +483,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
     | None ->
         env, x
     | Some t ->
+        (* jp: This is possibly quadratic, so I tried removing that check to see
+         * whether it helped. Turns out it does not change performances the
+         * least bit, so I'm leaving it in the hope that it gives potentially
+         * better error messages. *)
         match Permissions.sub env x t with
         | Left _ ->
             env, x
@@ -525,8 +496,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
   match expr with
   | EConstraint (e, t) ->
+      (* We used to be smart and merge type annotations but not a single test
+       * file used this (dubious) feature, so it was removed. *)
       let annot = match annot with
-        | Some t' -> merge_type_annotations env t t'
+        | Some t' -> raise_error env (ConflictingTypeAnnotations (t, t'))
         | None -> t
       in
       let env, p = check_expression env ?hint ~annot e in
@@ -1164,7 +1137,6 @@ and check_bindings
             match pat, expr with
             | POpen p, (EBigLambdas _ | ELambda _) ->
                 let t = type_for_function_def expr in
-                (* [add] takes care of simplifying the function type *)
                 Permissions.add env p t
             | _ ->
                 raise_error env RecursiveOnlyForFunctions
