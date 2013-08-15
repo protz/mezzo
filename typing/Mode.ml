@@ -100,9 +100,9 @@ module ModeMap = struct
   let complete f map =
     List.fold_left (fun accu m ->
       if mem m accu then
-       accu
+        accu
       else
-       add m (f m) accu
+        add m (f m) accu
     ) map modes
 
 end

@@ -59,7 +59,7 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
 
     | DataTypeGroup group :: items ->
         let env, items, _ = Expressions.bind_data_type_group_in_toplevel_items env group items in
-       (* TEMPORARY why don't we bind the data constructors here? *)
+        (* TEMPORARY why don't we bind the data constructors here? *)
         import_items env items
 
     | ValueDefinitions _ :: _ ->
@@ -147,7 +147,7 @@ let check
           KindCheck.bind_nonlocal tsenv (name, kind, KindCheck.find_nonlocal_variable exports name)
 	in
         let tsenv, translated_definitions =
-         TransSurface.translate_data_type_group (List.fold_left special_bind) tsenv group
+          TransSurface.translate_data_type_group (List.fold_left special_bind) tsenv group
         in
 
         (* Check that the translated definitions from the interface and the known

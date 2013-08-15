@@ -909,7 +909,7 @@ module ExprPrinter = struct
     | EOwns (e1, e2) ->
         print_expr env e1 ^^ space ^^
         string "owns" ^^ space ^^
-       print_expr env e2
+        print_expr env e2
 
     | EFail ->
         string "fail"

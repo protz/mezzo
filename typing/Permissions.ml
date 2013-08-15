@@ -108,7 +108,7 @@ let safety_check env =
 let refresh_facts env =
   fold_terms env (fun env var permissions ->
     if List.exists (FactInference.is_exclusive env) permissions &&
-       not (List.exists (equal env TyDynamic) permissions) then
+      not (List.exists (equal env TyDynamic) permissions) then
       set_permissions env var (TyDynamic :: permissions)
     else
       env
@@ -192,9 +192,6 @@ let wrap_bar t1 =
             TyAnchoredPermission (TyBound 0, t1) ::
             perms
           )
-            (* I have removed a call to [lift]. There is no need to lift
-               the type [t1], provided it is locally closed! That's the
-               point of the locally nameless representation. *)
         )
       )
 ;;
@@ -264,9 +261,9 @@ class open_all_rigid_in (env : env ref) = object (self)
 
     | TyQ (Forall, binding, _, ty), Right
     | TyQ (Exists, binding, _, ty), Left ->
-       let new_env, ty, _ = bind_rigid_in_type !env binding ty in
-       env := new_env;
-       self#visit (side, false) ty
+        let new_env, ty, _ = bind_rigid_in_type !env binding ty in
+        env := new_env;
+        self#visit (side, false) ty
 
     (* As a special case, when we find [t -> u] on the right-hand side,
        we go look for existential quantifiers inside [t], and hoist them
@@ -285,8 +282,8 @@ class open_all_rigid_in (env : env ref) = object (self)
        changes only from [Right] to [Left]. *)
 
     | TyArrow (ty1, ty2), Right ->
-       let ty1 = self#visit (Left, false) ty1 in
-       TyArrow (ty1, ty2)
+        let ty1 = self#visit (Left, false) ty1 in
+        TyArrow (ty1, ty2)
 
     (* We descend into the following constructs. *)
 
@@ -375,7 +372,7 @@ and unify (env: env) (p1: var) (p2: var): env =
   if same env p1 p2 then
     env
   else
-   (* We need to first merge the environment, otherwise this will go into an
+    (* We need to first merge the environment, otherwise this will go into an
      * infinite loop when hitting the TySingletons... *)
     let perms = if is_flexible env p2 then [] else get_permissions env p2 in
     match merge_left env p1 p2 with
@@ -952,8 +949,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
   | TyConcrete branch1, TyConcrete branch2 ->
       if resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon then begin
-       assert (branch1.branch_flavor = branch2.branch_flavor);
-       assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
+        assert (branch1.branch_flavor = branch2.branch_flavor);
+        assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
         try_proof_root "Concrete" begin
           sub_type env branch1.branch_adopts branch2.branch_adopts >>= fun env ->
           premises env (List.map2 (fun (name1, t1) (name2, t2) -> fun env ->

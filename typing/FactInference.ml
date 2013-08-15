@@ -193,9 +193,9 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
 
   | TyTuple tys ->
       Fact.duplicable (
-       Fact.conjunction (fun ty ->
-         ModeMap.find ModeDuplicable (infer w ty)
-       ) tys
+        Fact.conjunction (fun ty ->
+          ModeMap.find ModeDuplicable (infer w ty)
+      ) tys
       )
 
   (* [TyBar] is duplicable if both of its components are duplicable,
@@ -203,15 +203,15 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
 
   | TyBar (ty1, ty2) ->
       Fact.join
-       (infer w ty1)
-       (Fact.allow_exclusive (infer w ty2))
+        (infer w ty1)
+        (Fact.allow_exclusive (infer w ty2))
 
   (* [TyStar] is duplicable if both of its components are duplicable. *)
 
   | TyStar (ty1, ty2) ->
       Fact.join
-       (infer w ty1)
-       (infer w ty2)
+        (infer w ty1)
+        (infer w ty2)
 
   (* [x @ t] has the same properties as [t]. The use of [disallow_exclusive]
      is a defensive programming measure: in principle, [exclusive t] makes
@@ -241,9 +241,9 @@ and infer_concrete w flag fields =
         if and only if its fields are duplicable. It is definitely
         not exclusive. *)
       Fact.duplicable (
-       Fact.conjunction (fun field ->
-         ModeMap.find ModeDuplicable (infer_field w field)
-       ) fields
+        Fact.conjunction (fun field ->
+          ModeMap.find ModeDuplicable (infer_field w field)
+        ) fields
       )
   | Mutable ->
       (* When a data type is defined as exclusive, it is exclusive
@@ -386,7 +386,7 @@ let check_adopts_clauses env v branches =
           an error. Note that the type [bottom], which is used to
           indicate the absence of an adopts clause, is exclusive,
           so it will not cause an error. *)
-       ()
+        ()
   ) branches
 
 (* ---------------------------------------------------------------------------- *)
@@ -420,21 +420,21 @@ let analyze_data_types (env : env) (variables : var list) : env =
             let w = { w with variables; valuation } in
             infer w t
       | Abstract ->
-         (* This is an abstract type. Its fact is declared by the user.
-            In that case, the code in the [DataTypeGroup] has already
-            taken care of entering an appropriate fact in the environment.
-            We just look it up. *)
-         let f = get_fact env v in
-         fun (_ : F.valuation) -> f
+          (* This is an abstract type. Its fact is declared by the user.
+             In that case, the code in the [DataTypeGroup] has already
+             taken care of entering an appropriate fact in the environment.
+             We just look it up. *)
+          let f = get_fact env v in
+          fun (_ : F.valuation) -> f
       | Concrete branches ->
-         fun valuation ->
-           (* Bind the parameters. *)
-           let w, branches = prepare_branches env v branches in
-           (* Enrich the resulting world for the fixed point computation. *)
-           let w = { w with variables; valuation } in
-           (* The right-hand side of the algebraic data type definition can be
-              viewed as a sum of records. *)
-           Fact.join_many (infer w) branches
+          fun valuation ->
+            (* Bind the parameters. *)
+            let w, branches = prepare_branches env v branches in
+            (* Enrich the resulting world for the fixed point computation. *)
+            let w = { w with variables; valuation } in
+            (* The right-hand side of the algebraic data type definition can be
+               viewed as a sum of records. *)
+            Fact.join_many (infer w) branches
     )
   in
 
@@ -447,16 +447,16 @@ let analyze_data_types (env : env) (variables : var list) : env =
       | Abbrev _ ->
           (* We skip type abbreviations as well, as we're not computing their
            * facts (see above). *)
-         set_fact env v (fixpoint v)
+          set_fact env v (fixpoint v)
       | Abstract ->
-         (* Skip abstract types. There is nothing to do in this case,
-            and furthermore, an abstract type could have kind [term],
-            in which case inferring a fact for it does not make sense. *)
-         env
+          (* Skip abstract types. There is nothing to do in this case,
+             and furthermore, an abstract type could have kind [term],
+             in which case inferring a fact for it does not make sense. *)
+          env
       | Concrete _ ->
-         (* This data type has a definition, hence it has kind [type]
-            or [perm]. Inferring a fact for it makes sense. *)
-         set_fact env v (fixpoint v)
+          (* This data type has a definition, hence it has kind [type]
+             or [perm]. Inferring a fact for it makes sense. *)
+          set_fact env v (fixpoint v)
     ) variables env
   in
 
@@ -467,9 +467,9 @@ let analyze_data_types (env : env) (variables : var list) : env =
     match Option.extract (get_definition env v) with
     | Abstract
     | Abbrev _ ->
-       ()
+        ()
     | Concrete branches ->
-       check_adopts_clauses env v branches
+        check_adopts_clauses env v branches
   ) variables;
 
   (* Done. *)
@@ -484,11 +484,11 @@ let has_mode (m : mode) (env : env) (ty : typ) : bool =
   let ok =
     match ModeMap.find m fact with
     | Fact.HFalse ->
-       false
+        false
     | Fact.HConjunction hs ->
-       (* This fact should have arity 0. *)
-       assert (ParameterMap.cardinal hs = 0);
-       true
+        (* This fact should have arity 0. *)
+        assert (ParameterMap.cardinal hs = 0);
+        true
   in
   Log.debug ~level:10 "fact [is_ok=%b] for %a: %a"
     ok

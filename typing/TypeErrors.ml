@@ -292,7 +292,7 @@ let print_error buf (env, raw_error) =
       | None ->
           bprintf
             "%a has no suitable permission with field %a;\n\
-             the only permissions available for it are:\n%a"
+              the only permissions available for it are:\n%a"
             pname (env, var)
             Field.p f
             ppermission_list (env, var)
@@ -465,28 +465,28 @@ let internal_extracterror = snd;;
 let flags = Array.make 7 CError;;
 
 (* When adding a new user-configurable error, there are *several* things to
-   update:
-     - you should make the array above bigger;
-     - you should update parsing/options.ml so that the default value is correct
-     for the new message;
-     - you should update testsuite.ml, the variables silent_warn_error and
-     pedantic_warn_error should be refreshed.
-*)
+ * update:
+ *   - you should make the array above bigger;
+ *   - you should update parsing/options.ml so that the default value is correct
+ *   for the new message;
+ *   - you should update testsuite.ml, the variables silent_warn_error and
+ *   pedantic_warn_error should be refreshed.
+ *)
 let errno_of_error = function
   | UncertainMerge _ ->
-     1
+      1
   | ResourceAllocationConflict _ ->
-     2
+      2
   | NoMultipleArguments ->
-     3
+      3
   | LocalType ->
-     4
+      4
   | Instantiated _ ->
-     5
+      5
   | SeveralWorkingFunctionTypes _ ->
-     6
+      6
   | _ ->
-     0 
+      0 
 ;;
 
 let may_raise_error env raw_error =

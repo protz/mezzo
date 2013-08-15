@@ -357,7 +357,7 @@ let translate_single_fact (params: type_binding list) (accu: Fact.fact) (fact: s
   let hs =
     List.fold_left (fun hs (mode, t) ->
       let name =
-       match tunloc t with
+        match tunloc t with
         | TyVar (Unqualified name) -> name
         | _ -> assert false
       in
@@ -366,7 +366,7 @@ let translate_single_fact (params: type_binding list) (accu: Fact.fact) (fact: s
         several hypotheses bear on a single parameter, they will be
         correctly taken into account. *)
       let previous_mode =
-       try ParameterMap.find p hs with Not_found -> Mode.top
+        try ParameterMap.find p hs with Not_found -> Mode.top
       in
       ParameterMap.add p (Mode.meet previous_mode mode) hs
     ) ParameterMap.empty hypotheses

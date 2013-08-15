@@ -438,8 +438,8 @@ class collect (perms : typ list ref) = object (self)
 
     | TyBar (ty, p) ->
         let p = self#visit () p in
-       perms := p :: !perms;
-       self#visit () ty
+        perms := p :: !perms;
+        self#visit () ty
 
   (* At [TyConcrete], we set aside the [FieldPermission]s and
      descend into the [FieldValue]s. *)
@@ -494,9 +494,9 @@ let make_datacon_letters env kind flexible =
     let env, var =
       let letter = Auto (Variable.register letter) in
       if flexible then
-       bind_flexible env (letter, kind, location env)
+        bind_flexible env (letter, kind, location env)
       else
-       bind_rigid env (letter, kind, location env)
+        bind_rigid env (letter, kind, location env)
     in
     env, var :: vars) (env, []) arg_kinds letters
   in
@@ -702,14 +702,14 @@ module TypePrinter = struct
 
     | TyQ (q, _, _, _) as t ->
         let vars, env, t = strip_quantifiers_and_bind env q t in
-       let delimiters =
-         match q with
-         | Forall -> brackets
-         | Exists -> braces
-       in
-       prefix 0 1
-         (delimiters (commas (print_binding env) vars))
-         (print_type env t)
+        let delimiters =
+          match q with
+          | Forall -> brackets
+          | Exists -> braces
+        in
+        prefix 0 1
+          (delimiters (commas (print_binding env) vars))
+          (print_type env t)
 
     | TyApp (head, args) ->
         application (print_type env) head (print_type env) args
@@ -750,9 +750,9 @@ module TypePrinter = struct
 
     | TyBar (p, q) ->
         parens (group (
-         nest 2 (break 0 ^^ print_type env p) ^/^
-         bar ^^ space ^^ nest 2 (print_type env q)
-       ))
+          nest 2 (break 0 ^^ print_type env p) ^/^
+          bar ^^ space ^^ nest 2 (print_type env q)
+        ))
 
     | TyAnd (c, t) ->
         prefix 0 1
@@ -772,7 +772,7 @@ module TypePrinter = struct
       if List.length fields > 0 then
         space ^^ braces_with_nesting (
           separate_map semibreak (print_data_field_def env) fields
-       )
+        )
       else
         empty
     in

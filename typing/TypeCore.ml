@@ -369,9 +369,9 @@ let rec modulo_flex (env: env) (ty: typ): typ =
   | TyOpen (VFlexible f) ->
       begin match (find_flex_or_fail env f).structure with
       | Instantiated ty ->
-         modulo_flex env ty
+          modulo_flex env ty
       | NotInstantiated _ ->
-         ty
+          ty
       end
   | _ ->
       ty
@@ -859,8 +859,8 @@ class ['env] iter = object (self)
           (* This is an abstract type. There are no branches. *)
           ()
       | Concrete branches ->
-         (* Visit the branches in this extended environment. *)
-         List.iter (self#visit env) branches
+          (* Visit the branches in this extended environment. *)
+          List.iter (self#visit env) branches
       | Abbrev t ->
           self#visit env t
     ) group.group_items
@@ -1327,24 +1327,24 @@ let get_external_datacons env : (Module.name * var * int * Datacon.name * DataTy
      * corresponding definitions. *)
     match definition with
     | Concrete def ->
-       (* Find the module name which this definition comes from. Yes, there's
-        * no better way to do that. *)
-       let mname = MzList.find_opt (function User (mname, _) -> Some mname | _ -> None) names in
-       let mname = Option.extract mname in
-       (* Ignore this definition if it is associated with the current module. *)
-       if Module.equal mname (module_name env) then
-         acc
-       else
-         (* Iterate over the branches of this definition. *)
-         MzList.fold_lefti (fun i acc t ->
-           let branch = find_branch t in
-           let dc = snd branch.branch_datacon
-           and f = branch.branch_flavor
-           and fields = List.map fst branch.branch_fields in
-           (mname, var, i, dc, f, fields) :: acc
-         ) acc def
+        (* Find the module name which this definition comes from. Yes, there's
+         * no better way to do that. *)
+        let mname = MzList.find_opt (function User (mname, _) -> Some mname | _ -> None) names in
+        let mname = Option.extract mname in
+        (* Ignore this definition if it is associated with the current module. *)
+        if Module.equal mname (module_name env) then
+          acc
+        else
+          (* Iterate over the branches of this definition. *)
+          MzList.fold_lefti (fun i acc t ->
+            let branch = find_branch t in
+            let dc = snd branch.branch_datacon
+            and f = branch.branch_flavor
+            and fields = List.map fst branch.branch_fields in
+            (mname, var, i, dc, f, fields) :: acc
+          ) acc def
     | _ ->
-       acc
+        acc
   ) []
 
 (* ---------------------------------------------------------------------------- *)
@@ -1357,14 +1357,14 @@ let get_exports env mname =
     List.fold_left (fun acc name ->
       match name with
       | User (m, x) when Module.equal m mname ->
-         (x, kind, VRigid point) :: acc
+          (x, kind, VRigid point) :: acc
       | _ ->
-         acc
+          acc
     ) acc names
   ) []
 
 (* Get all the names NOT from the current module found in [env].
-l
+
    TEMPORARY: this function has several bugs^Wshortcomings:
    - a function with type "val m::f: (x: int, y: int) -> ...", when called, will
      bind names "x" and "y" as belonging to "m", meaning they will be returned
@@ -1378,9 +1378,9 @@ let get_external_names env =
     List.fold_left (fun acc name ->
       match name with
       | User (m, x) when not (Module.equal m mname) ->
-         (m, x, kind, VRigid point) :: acc
+          (m, x, kind, VRigid point) :: acc
       | _ ->
-         acc
+          acc
     ) acc names
   ) []
 

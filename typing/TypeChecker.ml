@@ -488,7 +488,7 @@ let merge_type_annotations env t1 t2 =
                 error ()
             ) branch1.branch_fields branch2.branch_fields;
           branch_adopts =
-             merge_type_annotations branch1.branch_adopts branch2.branch_adopts;
+            merge_type_annotations branch1.branch_adopts branch2.branch_adopts;
         } in
         TyConcrete branch
     | _ ->
@@ -663,7 +663,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         (* Check that this datacon is exclusive. *)
         let flavor = branch.branch_flavor in
         if not (DataTypeFlavor.can_be_written flavor) then
-           raise_error env (AssignNotExclusive (TyConcrete branch, snd branch.branch_datacon));
+          raise_error env (AssignNotExclusive (TyConcrete branch, snd branch.branch_datacon));
 
         let branch = replace_field branch fname (fun i _ ->
           field_struct.SurfaceSyntax.field_offset <- Some i;

@@ -147,10 +147,10 @@ let variance env var_for_ith valuation b t =
         lub (var t1) (var t2)
 
     | TyAnd ((_, t), u) ->
-       (* [t] is in invariant position, [u] is in covariant position. *)
-       lub
-         (dot Invariant (var t))
-         (var u)
+        (* [t] is in invariant position, [u] is in covariant position. *)
+        lub
+          (dot Invariant (var t))
+          (var u)
   in
   var t
 ;;
