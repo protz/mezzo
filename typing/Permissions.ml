@@ -754,10 +754,10 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
   (** Trivial case. *)
   | _, _ when equal env t1 t2 ->
       try_proof_root "Equal" (qed env)
-  (* TEMPORARY could we get rid of this fast path? 1- it may be inefficient
-     2- it may be the only place in the code where we are comparing two types
-     for syntactic equality 3- by removing it, we will be able to discover if
-     some structural rules are missing below. *)
+      (* TEMPORARY could we get rid of this fast path? 1- it may be inefficient
+         2- it may be the only place in the code where we are comparing two
+         types for syntactic equality 3- by removing it, we will be able to
+         discover if some structural rules are missing below. *)
 
   (** Easy cases involving flexible variables *)
   | TyConcrete branch1, TyOpen v2 when is_flexible env v2 ->
@@ -1159,14 +1159,31 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 and add_sub env ps1 ps2 =
   let judgement = JSubType (fold_star ps1, fold_star ps2) in
 
+  (** This is a central algorithm for the subtraction. We use it whenever
+   * confronted with a set of permissions for each side. The difficulty is
+   * twofold. First, some permissions may be of the form "?x @ t", where "?x" is
+   * flexible. We thus need to find the right sequence of additions /
+   * subtractions that will instantiate "?x", thus allowing us to go keep going.
+   * Second, there are a lot of heuristics involved; this is where we make
+   * decisions for instantiating flexible perm variables. This is important for
+   * polymorphic function calls, where we want to "guess" the value of perm
+   * variables.
+   *
+   * There are different phases for the algorithm, which we detail below.
+   *
+   * This is very fragile, reordering the phases or changing the heuristics will
+   * break things. It may render some annotations useless (we don't have a
+   * warning for that yet), and it may require more annotations in other places.
+   *)
+
   try_proof env judgement "Add-Sub" begin
 
+    (** (1) Strip syntactically equal variables. This is useful in the case of
+     * abstract permissions. This is a heuristic, so it may not always be the
+     * best idea, but well. *)
     let strip_syntactically_equal env ps1 ps2 =
       let ps1 = MzList.flatten_map (flatten_star env) ps1 in
       let ps2 = MzList.flatten_map (flatten_star env) ps2 in
-      (* This is only useful if there's a bunch of permission variables
-       * (or abstract permissions) on each side: clear these up, and try
-       * to do something useful with the rest. *)
       let rec sse env left ps1 ps2 =
         match ps1 with
         | [] ->
@@ -1188,7 +1205,9 @@ and add_sub env ps1 ps2 =
     in
     let env, ps1, ps2 = strip_syntactically_equal env ps1 ps2 in
 
-    (* Early heuristic. *)
+
+    (** (2) In the case where we have "x @ t - ?x @ t", we recognize this as a
+     * pattern that we can solve easily. *)
     match ps1, ps2 with
     | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
         when is_flexible env !!x2 ->
@@ -1198,6 +1217,9 @@ and add_sub env ps1 ps2 =
           qed
 
     | _ ->
+
+
+    (** (3) Alternating with additions and subtractions. Explanations below. *)
 
     (*   [add_perm] will fail if we add "x @ t" when "x" is flexible. So we
      * search among the permissions in [ps1] one that is suitable for adding,
@@ -1216,7 +1238,6 @@ and add_sub env ps1 ps2 =
       perm_not_flex env p1
     in
 
-    (* This is the main function. *)
     let rec add_sub env ps1 ps2 k: state =
       let ps1 = MzList.flatten_map (flatten_star env) ps1 in
       let ps2 = MzList.flatten_map (flatten_star env) ps2 in
@@ -1245,21 +1266,25 @@ and add_sub env ps1 ps2 =
       TypePrinter.ptype (env, fold_star ps1)
       TypePrinter.ptype (env, fold_star ps2);
 
-    (* Try to eliminate as much as we can... *)
     add_sub env ps1 ps2 begin fun env ps1 ps2 ->
 
     Log.debug ~level:4 "[add_sub] ended up with ps1=%a, ps2=%a"
       TypePrinter.ptype (env, fold_star ps1)
       TypePrinter.ptype (env, fold_star ps2);
 
+    (* This is just debugging. *)
     apply_axiom env (JDebug (fold_star ps1, fold_star ps2)) "Remaining-Add-Sub" env >>= fun env ->
 
-    (* And then try to be smart with whatever remains. *)
+
+    (** (4) Now that we've added / subtracted as much as we could, we take a
+     * look at whatever remains, and recognize some patterns which we know how
+     * to solve. Failing that, we use a default case. *)
+
     match ps1, ps2 with
     | [TyOpen var1 as t1], [TyOpen var2 as t2] ->
         (* Beware! We're doing our own one-on-one matching of permission
          * variables, but still, we need to keep [var1] if it happens to be a
-         * duplicable one! So we add it here, and [sub_floating_perm] will
+         * duplicable one! So we add it here, and [sub_perm] will
          * remove it or not, depending on the associated fact. *)
         let env = add_perm env t1 in
         begin match is_flexible env var1, is_flexible env var2 with
@@ -1300,10 +1325,10 @@ and add_sub env ps1 ps2 =
         j_flex_inst env var1 (fold_star ps2) >>=
         qed
     | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
-        when is_flexible env !!x1 ->
-          sub_type_with_unfolding env t1 t2 >>= fun env ->
-          j_merge_left env !!x1 !!x2 >>=
-          qed
+      when is_flexible env !!x1 ->
+        sub_type_with_unfolding env t1 t2 >>= fun env ->
+        j_merge_left env !!x1 !!x2 >>=
+        qed
     | ps1, ps2 ->
         let sub_env = add_perms env ps1 in
         apply_axiom env (JAdd (fold_star ps1)) "Add-Sub-Add" sub_env >>= fun env ->
