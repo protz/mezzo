@@ -32,11 +32,11 @@ let lex_and_parse file_path entry_var =
     the_parser (fun _ -> Lexer.token lexbuf)
   with
     | Ulexing.Error ->
-       Printf.eprintf
+        Printf.eprintf
           "Lexing error at offset %i\n" (Ulexing.lexeme_end lexbuf);
         exit 255
     | Ulexing.InvalidCodepoint i ->
-       Printf.eprintf
+        Printf.eprintf
           "Invalid code var %i at offset %i\n" i (Ulexing.lexeme_end lexbuf);
         exit 254
     | Grammar.Error ->
@@ -292,28 +292,28 @@ let check_implementation
   match interface with
   | Some interface ->
 
-       (* Convert the list of variables [delta] to a kind environment.
-          TEMPORARY ugly, of course. Somewhat analogous to [KindCheck.initial]. *)
-       let delta =
-         List.fold_right (fun p delta ->
-           let k = TypeCore.get_kind env p in
-           List.fold_left (fun delta name ->
-             match name with
-             | TypeCore.User (mname, x) when Module.equal mname (TypeCore.module_name env) ->
-                 KindCheck.bind_nonlocal delta (x, k, p)
-             | _ ->
-                (* Either an auto-generated name, or a name coming from another
-                 * module. Think about a top-level definition such as:
-                 *   let x = m::y
-                 * we just drop the name "y" here. *)
-                delta
-           ) delta (TypeCore.get_names env p)
-         ) delta (KindCheck.empty (TypeCore.module_name env))
-       in
-       (* TEMPORARY [delta] says nothing about datacons, and that is fishy.
-          The data constructor that is exported could be other than the one
-          that is in scope at the end of the module? -- yes, see
-          weird-datacons-shadowing. *)
+      (* Convert the list of variables [delta] to a kind environment.
+         TEMPORARY ugly, of course. Somewhat analogous to [KindCheck.initial]. *)
+      let delta =
+        List.fold_right (fun p delta ->
+          let k = TypeCore.get_kind env p in
+          List.fold_left (fun delta name ->
+            match name with
+            | TypeCore.User (mname, x) when Module.equal mname (TypeCore.module_name env) ->
+                KindCheck.bind_nonlocal delta (x, k, p)
+            | _ ->
+               (* Either an auto-generated name, or a name coming from another
+                * module. Think about a top-level definition such as:
+                *   let x = m::y
+                * we just drop the name "y" here. *)
+               delta
+          ) delta (TypeCore.get_names env p)
+        ) delta (KindCheck.empty (TypeCore.module_name env))
+      in
+      (* TEMPORARY [delta] says nothing about datacons, and that is fishy.
+         The data constructor that is exported could be other than the one
+         that is in scope at the end of the module? -- yes, see
+         weird-datacons-shadowing. *)
 
       (* If the function types are not syntactically equal, the decision
        * procedure for comparing those two types introduces internal names
@@ -451,11 +451,11 @@ let print_signature (buf: Buffer.t) (env: TypeCore.env): unit =
       in
       pdoc buf ((fun () ->
         let t =
-         if true (* TEMPORARY *) then 
-           print_type env t
-         else
-           SurfaceSyntaxPrinter.print (Resugar.resugar env t)
-       in
+          if true (* TEMPORARY *) then 
+            print_type env t
+          else
+            SurfaceSyntaxPrinter.print (Resugar.resugar env t)
+        in
         string "val" ^^ space ^^
         print_var env name ^^ space ^^ at ^^ space ^^ (nest 2 t) ^^
         break 1
@@ -506,10 +506,10 @@ let interpret (file_path : string) : unit =
          role as a filter (not all definitions are exported), so
          it cannot be disregarded. *)
       Interpreter.eval_unit
-       env
-       m
-       (find_and_lex_interface m)
-       (find_and_lex_implementation m)
+        env
+        m
+        (find_and_lex_interface m)
+        (find_and_lex_implementation m)
 
     ) Interpreter.empty ms
   in
