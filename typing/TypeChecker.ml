@@ -1164,17 +1164,6 @@ let check_declaration_group
     (toplevel_items: toplevel_item list): env * toplevel_item list * var list =
   let p, rec_flag, patexprs = defs in
   let env = locate env p in
-  let env, { vars; _ } = check_bindings env rec_flag patexprs in
-  (* List kept in reverse, the usual trick. *)
-  let vars = List.rev vars in
-  let subst_toplevel_items b =
-    MzList.fold_lefti (fun i b var ->
-      let b = tsubst_toplevel_items (TyOpen var) i b in
-      esubst_toplevel_items (EOpen var) i b) b vars
-  in
-  (* ...but it works! *)
-
-  (* NB: don't forget to return the list of vars in the same
-   * order as they came in. *)
-  env, subst_toplevel_items toplevel_items, (List.rev vars)
+  let env, { vars; subst_toplevel; _ } = check_bindings env rec_flag patexprs in
+  env, subst_toplevel toplevel_items, vars
 ;;

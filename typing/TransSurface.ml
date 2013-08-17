@@ -299,10 +299,11 @@ let rec translate_data_type_def_branch
   : T.typ =
   let datacon, fields = branch in
   let branch = {
+    T.branch_flavor = flavor;
     (* [Expressions.bind_group_definition] will take care of putting the right
      * value. We perform eager resolving: as soon we've opened the binder for
-     * the data type, all its branches contain a reference to it. *)
-    T.branch_flavor = flavor;
+     * the data type, all its branches contain a reference to it. So for now,
+     * just put [TyUnknown]. *)
     T.branch_datacon = T.TyUnknown, datacon;
     T.branch_fields = translate_field_defs_values env fields;
     T.branch_adopts = translate_adopts env adopts

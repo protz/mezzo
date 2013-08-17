@@ -623,8 +623,10 @@ type substitution_kit = {
   subst_type: typ -> typ;
   (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EOpen]s in an [expression]. *)
   subst_expr: expression -> expression;
-  (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EOpen]s in a [definitions]. *)
+  (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EOpen]s in [definitions]. *)
   subst_def: definitions -> definitions;
+  (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EOpen]s in [toplevel_items]. *)
+  subst_toplevel: toplevel_item list -> toplevel_item list;
   (* substitute [PVar]s for [POpen]s in a pattern *)
   subst_pat: pattern list -> pattern list;
   (* the vars, in left-to-right order *)
@@ -664,6 +666,11 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
       let t = tsubst_def (TyOpen var) i t in
       esubst_def (EOpen var) i t) t vars
   in
+  let subst_toplevel t =
+    MzList.fold_lefti (fun i t var ->
+      let t = tsubst_toplevel_items (TyOpen var) i t in
+      esubst_toplevel_items (EOpen var) i t) t vars
+  in
   (* Now keep the list in order. *)
   let vars = List.rev vars in
   let subst_pat patterns =
@@ -675,7 +682,7 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
     let patterns = List.rev patterns in
     patterns
   in
-  env, { subst_type; subst_expr; subst_def; subst_pat; vars = vars }
+  env, { subst_type; subst_expr; subst_def; subst_pat; subst_toplevel; vars }
 ;;
 
 let bind_vars (env: env) (bindings: SurfaceSyntax.type_binding list): env * substitution_kit =
