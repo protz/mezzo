@@ -184,7 +184,7 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
       ) TyEmpty perms
     in
     let env = reset_permissions env x in
-    env, TyBar (TyOpen x, perms)
+    env, TyBar (TySingleton (TyOpen x), perms)
   in
   (* See if "f" can be shown to have type "t1 -> t2". *)
   let t = TyArrow (t1, t2) in
