@@ -175,7 +175,9 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
   in
   (* Let "t1" be "(=x | x⃗ @ t⃗)", where "t⃗" are all the permissions
    * currently available for "x".
-   * Let "env" be stripped of all the permissions for "x". *)
+   *
+   * XXX: actually, this should be the whole universe instead of permissions
+   * just for "x". This is why we're failing here. *)
   let env, t1 =
     let perms = get_permissions env x in
     let perms =
@@ -183,6 +185,7 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
         TyStar (acc, TyAnchoredPermission (TyOpen x, t))
       ) TyEmpty perms
     in
+    (* Let "env" be stripped of all the permissions for "x". *)
     let env = reset_permissions env x in
     env, TyBar (TySingleton (TyOpen x), perms)
   in
