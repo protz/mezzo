@@ -173,21 +173,38 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
         in
         env, TyBar (TyOpen c, TyOpen r)
   in
-  (* Let "t1" be "(=x | x⃗ @ t⃗)", where "t⃗" are all the permissions
-   * currently available for "x".
-   *
-   * XXX: actually, this should be the whole universe instead of permissions
-   * just for "x". This is why we're failing here. *)
+  (* Let "t1" be "(=x | P)", where "P" is the whole universe. *)
   let env, t1 =
-    let perms = get_permissions env x in
-    let perms =
-      List.fold_left (fun acc t ->
-        TyStar (acc, TyAnchoredPermission (TyOpen x, t))
-      ) TyEmpty perms
+    (* The whole universe is rigid variables... *)
+    let env, p =
+      fold_terms env (fun (env, p) y perms ->
+        let dup, nondup = List.partition (FactInference.is_duplicable env) perms in
+        (* Let "p" be "p * y⃗ @ t⃗)", where "t⃗" are all the non-duplicable
+         * permissions currently available for "y". *)
+        let p =
+          List.fold_left (fun acc t ->
+            TyStar (acc, TyAnchoredPermission (TyOpen y, t))
+          ) p nondup
+        in
+        (* Let "env" be stripped of all the permissions for "y". *)
+        let env = set_permissions env y dup in
+        env, p
+      ) (env, TyEmpty)
     in
-    (* Let "env" be stripped of all the permissions for "x". *)
-    let env = reset_permissions env x in
-    env, TyBar (TySingleton (TyOpen x), perms)
+    (* ...and floating permissions. *)
+    let env, p =
+      let dup, nondup =
+        List.partition (FactInference.is_duplicable env) (get_floating_permissions env)
+      in
+      let p =
+        List.fold_left (fun acc t ->
+          TyStar (acc, t)
+        ) p nondup
+      in
+      let env = set_floating_permissions env dup in
+      env, p
+    in
+    env, TyBar (TySingleton (TyOpen x), p)
   in
   (* See if "f" can be shown to have type "t1 -> t2". *)
   let t = TyArrow (t1, t2) in
