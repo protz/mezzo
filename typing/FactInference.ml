@@ -91,6 +91,7 @@ let trivial_world env = {
    corresponds to the current number of parameters. *)
 
 let rec infer (w : world) (ty : typ) : Fact.fact =
+  Log.debug "infer %a" TypePrinter.ptype (w.env, ty);
   let ty = modulo_flex w.env ty in
   match ty with
 

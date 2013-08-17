@@ -21,7 +21,14 @@ open TypeCore
 open Types
 open Either
 
-module L = LazyList
+module L = struct
+  include List
+  type 'a t = 'a list
+  let one x = [x]
+  let nil = []
+end
+
+let ( !* ) = fun x -> x;;
 
 (** This file provides a representation of typing derivations, built by
  * [Permissions]. A typing derivation can either represent success, or failure.
@@ -192,13 +199,13 @@ let walk original_env j r choices =
    * the derivation isn't a good one, [walk] will eagerly try to find a
    * derivation that works until it reaches the end of the list. We eagerly
    * eliminate bad solutions! *)
-  let rec walk (failed: derivation list) (remaining: result) =
-    lazy begin match !* remaining with
-    | L.Nil ->
+  let rec walk (failed: derivation list) (remaining: result): result =
+    begin match !* remaining with
+    | [] ->
         (* We've reached the end of the [result] list without finding a good
          * derivation in there. *)
-        L.Cons (Right (bad failed), L.nil)
-    | L.Cons (hd, tl) ->
+        (Right (bad failed) :: L.nil)
+    | (hd :: tl) ->
         match hd with
         | Left (env, d) ->
             let remaining = L.filter is_left tl in
@@ -206,7 +213,7 @@ let walk original_env j r choices =
               | Left (env, d) -> Left (env, good d)
               | Right _ -> assert false
             ) remaining in
-            L.Cons (Left (env, good d), remaining)
+            (Left (env, good d) :: remaining)
         | Right d ->
             !* (walk (d :: failed) tl)
     end
@@ -231,12 +238,12 @@ let try_several
   let rec try_several
       (before: 'a list)
       (after: 'a list): result L.t =
-    lazy begin match after with
+    begin match after with
     | [] ->
-        L.Cons (L.nil, L.nil)
+        []
     | item :: after ->
         let result = f original_env (List.rev_append before after) item in
-        L.Cons (result, try_several (item :: before) after)
+        (result :: try_several (item :: before) after)
     end
   in
   let choices = try_several [] l in

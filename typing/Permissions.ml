@@ -1436,7 +1436,7 @@ and sub_floating_perm (env: env) (t: typ): result =
 (* Exports *)
 
 let pick_arbitrary =
-  L.hd
+  List.hd
 ;;
 
 type result = ((env * derivation), derivation) either
