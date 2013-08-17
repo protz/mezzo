@@ -143,101 +143,57 @@ let replace_field
     { branch with branch_fields }
 ;;
 
-let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env * typ =
-  Log.debug ~level:5 "[check_function_call], f = %a, x = %a, env below\n\n%a\n"
-    TypePrinter.pnames (env, get_names env f)
-    TypePrinter.pnames (env, get_names env x)
-    TypePrinter.penv env;
 
-  (* Find a suitable permission for [f] first *)
-  let rec is_quantified_arrow = function
-    | TyQ (Forall, _, _, t) ->
-        is_quantified_arrow t
-    | TyArrow _ ->
-        true
-    | _ ->
-        false
-  in
-  let permissions = List.filter is_quantified_arrow (get_permissions env f) in
+(* [return t] creates a new var with type [t] available for it, and returns
+ * the environment as well as the var *)
+let return env ?hint t =
+  (* Not the most clever function, but will do for now on *)
+  let hint = Option.map_none (fresh_auto_name "/x_") hint in
+  let env, x = bind_rigid env (hint, KTerm, location env) in
+  let env = Permissions.add env x t in
+  env, x
+;;
 
-  (* Instantiate all universally quantified variables with flexible variables. *)
-  let rec flex = fun env -> function
-    | TyQ (Forall, binding, _, t) ->
-        let env, t, var = bind_flexible_in_type env binding t in
-        let env, t, vars = flex env t in
-        let vars =
-          match binding with
-          | User (_, name), _, _ -> (name, var) :: vars
-          | Auto _, _, _ -> vars
+let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env * var =
+  (* Let "t2" be "(annot | ?r)", if there is a type annotation; "(?c | ?r)"
+   * otherwise. *)
+  let env, t2 =
+    match annot with
+    | Some annot ->
+        let env, r =
+          bind_flexible env (fresh_auto_name "cfc", KPerm, location env)
         in
-        env, t, vars
-    | _ as t ->
-        env, t, []
+        env, TyBar (annot, TyOpen r)
+    | None ->
+        let env, c =
+          bind_flexible env (fresh_auto_name "cfc", KType, location env)
+        in
+        let env, r =
+          bind_flexible env (fresh_auto_name "cfc", KPerm, location env)
+        in
+        env, TyBar (TyOpen c, TyOpen r)
   in
-
-  (* Deconstruct a possibly-quantified arrow. *)
-  let flex_deconstruct_arrow env t =
-    let env, t, vars = flex env t in
-    match t with
-    | TyArrow (t1, t2) ->
-        env, (t1, t2), vars
-    | _ ->
-        assert false
-  in
-
-  (* Try to give some useful error messages in case we have found not enough or
-   * too many suitable types for [f]. *)
-
-  let valid, invalid = List.fold_right (fun t (valid, invalid) ->
-    let env, (t1, t2), vars = flex_deconstruct_arrow env t in
-
-    (* Try to instantiate flexibles in [t2] better by using the context-provided
-     * type annotation. *)
-    let env =
-      match annot with
-      | Some annot ->
-          Log.debug ~level:5 "[sub-annot]";
-          begin
-            let sub_env = env in
-            match Permissions.sub_type sub_env t2 annot |> Permissions.drop_derivation with
-            | Some sub_env ->
-                Log.debug ~level:5 "[sub-annot SUCCEEDED]";
-                Permissions.import_flex_instanciations env sub_env
-            | None ->
-                env
-          end
-      | None ->
-          env
+  (* Let "t1" be "(=x | x⃗ @ t⃗)", where "t⃗" are all the permissions
+   * currently available for "x".
+   * Let "env" be stripped of all the permissions for "x". *)
+  let env, t1 =
+    let perms = get_permissions env x in
+    let perms =
+      List.fold_left (fun acc t ->
+        TyStar (acc, TyAnchoredPermission (TyOpen x, t))
+      ) TyEmpty perms
     in
-
-    (* Examine [x]. [sub] will take care of running collect on [t1] so that the
-     * expected permissions are subtracted as well from the environment. *)
-    Log.debug ~level:5 "[check_function_call] %a - %a"
-      TypePrinter.pnames (env, get_names env x)
-      TypePrinter.ptype (env, t1);
-
-    match Permissions.sub env x t1 with
-    | Left (env, derivation) ->
-        (env, derivation, (t1, t2), vars) :: valid, invalid
-    | Right derivation ->
-        valid, (env, derivation, (t1, t2)) :: invalid
-  ) permissions ([], []) in
-
-  match valid, invalid with
-  | [], [] ->
-      raise_error env (NotAFunction f)
-  | [], (env, d, (t1, _)) :: _ ->
-      raise_error env (ExpectedType (t1, x, d))
-  | (env', d, (_, t2), vars) :: xs, _ ->
-      if xs <> [] then
-        may_raise_error env (SeveralWorkingFunctionTypes f);
-      List.iter (fun (name, var) ->
-        may_raise_error env (Instantiated (name, TyOpen var))
-      ) vars;
-
-      Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
-      Log.debug ~level:6 "\nDerivation: %a\n" DerivationPrinter.pderivation d;
-      env', t2
+    let env = reset_permissions env x in
+    env, TyBar (TyOpen x, perms)
+  in
+  (* See if "f" can be shown to have type "t1 -> t2". *)
+  let t = TyArrow (t1, t2) in
+  match Permissions.sub env f t with
+  | Right d ->
+      raise_error env (ExpectedType (t, f, d))
+  | Left (env, _) ->
+      (* If so, we gain "t2". *)
+      return env t2
 ;;
 
 
@@ -472,13 +428,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   let t_int = lazy (find_type_by_name env ~mname:"int" "int")
   and t_bool = lazy (find_type_by_name env ~mname:"bool" "bool") in
 
-  (* [return t] creates a new var with type [t] available for it, and returns
-   * the environment as well as the var *)
   let return env t =
-    (* Not the most clever function, but will do for now on *)
-    let hint = Option.map_none (fresh_auto_name "/x_") hint in
-    let env, x = bind_rigid env (hint, KTerm, location env) in
-    let env = Permissions.add env x t in
+    let env, x = return env ?hint t in
     match annot with
     | None ->
         env, x
@@ -733,8 +684,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* Give an error message that mentions the entire function call. We should
        * probably have a function called nearest_loc that returns the location
        * of [e2] so that we can be even more precise in the error message. *)
-      let env, return_type = check_function_call env ?annot x1 x2 in
-      return env return_type
+      check_function_call env ?annot x1 x2
 
   | ETApply (e, t, k) ->
       let env, x = check_expression env e in

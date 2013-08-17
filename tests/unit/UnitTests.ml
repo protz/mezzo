@@ -22,9 +22,7 @@ let unit_tests = [
       tuple [TyBound 0; TyBound 1]
     )) @-> unit) @-> unit) in
     (* g @ (consumes g: {a, b} (a, b) -> ()) -> () *)
-    let env, arg = bind_rigid env (user "arg" KTerm) in
-    let env, t = TypeChecker.check_function_call env f x in
-    let env = Permissions.add env arg t in
+    let env, arg = TypeChecker.check_function_call env f x in
     let env, _ = TypeChecker.check_function_call env g arg in
     Log.debug "Flexible: %a\nResulting permissions: %a"
       internal_pflexlist env

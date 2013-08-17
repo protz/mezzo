@@ -33,4 +33,4 @@ val check_declaration_group :
   ExpressionsCore.toplevel_item list ->
   env * ExpressionsCore.toplevel_item list * var list
 
-val check_function_call: env -> ?annot: typ -> var -> var -> env * typ
+val check_function_call: env -> ?annot: typ -> var -> var -> env * var

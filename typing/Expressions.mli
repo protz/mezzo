@@ -77,6 +77,7 @@ val eunloc : expression -> expression
 
 (** {2 Substitution functions for types.} *)
 
+(** Used by [Interfaces]. *)
 val tsubst_toplevel_items :
   typ ->
   db_index -> toplevel_item list -> toplevel_item list
@@ -84,8 +85,10 @@ val tsubst_toplevel_items :
 
 (** {2 Substitution functions for expressions.} *)
 
+(** Used by [TypeChecker]. *)
 val tsubst_expr: typ -> int -> expression -> expression
 
+(** Used by [Interfaces]. *)
 val esubst_toplevel_items :
   expression -> db_index -> toplevel_item list -> toplevel_item list
 
