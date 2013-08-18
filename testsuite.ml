@@ -1023,6 +1023,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("array-borrow-1.mz", pass);
   ("array-borrow-2.mz", fail);
   ("booltrue.mz", pass_known_failure);
+  ("woref.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)

@@ -1,0 +1,37 @@
+(* Write-once references. *)
+
+alias uninitialised = ref ()
+
+val create () : uninitialised =
+  newref ()
+
+data initialised a =
+  ImmutableRef { contents: (duplicable a | a) }
+
+val write [a] duplicable a => (consumes p: uninitialised, consumes x: a) : (| p @ initialised a) =
+  p := x;
+  tag of p <- ImmutableRef
+
+val read [a] (r: initialised a) : a =
+  r.contents
+
+(* Speculative comments: *)
+
+(* I believe that this module could be implemented in a special (magic)
+   way, where the tag [ImmutableRef] is globally unique and the GC removes
+   indirections (replacing a pointer to an initialised reference
+   with a pointer to the content) when it finds them. The [read] operation
+   would then involve a dynamic test. *)
+
+(* This would remain type-safe, in spite of the presence of [==] in the
+   language, because the GC's effect would be to introduce more equalities,
+   and the type system does not keep track of disequalities. *)
+
+(* OCaml's [Lazy] module involves something like this. In OCaml, there
+   is also a dynamic test in [write], in order to avoid creating a
+   special pointer to a special pointer, as this might later cause
+   us to confuse a suspension with its content and force a suspension
+   too early. Here, this does not seem to be necessary: the mechanism
+   of write-once references is pure and it seems sound to create chains
+   of write-once references. *)
+
