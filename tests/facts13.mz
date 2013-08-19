@@ -1,0 +1,12 @@
+abstract t +a
+abstract u +(x: term)
+
+val f (): {x: term} () -> (u x) = fail
+val g (): ({x: term} (u x)) = fail
+
+val z = 
+  if true then begin
+    f () ()
+  end else begin
+    g ()
+  end

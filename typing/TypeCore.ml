@@ -76,7 +76,7 @@ type typ =
 
     (* Structural types. *)
   | TyTuple of typ list
-  | TyConcrete of resolved_branch
+  | TyConcrete of branch
 
     (* Singleton types. *)
   | TySingleton of typ
@@ -99,36 +99,33 @@ and var =
   | VRigid of point
   | VFlexible of flex_index
 
-(* Since data constructors are now properly scoped, they are resolved, that is,
- * they are either attached to a point, or a De Bruijn index, which will later
- * resolve to a point when we open the corresponding type definition. That way,
- * we can easily jump from a data constructor to the corresponding type
- * definition. *)
-and resolved_datacon = typ * Datacon.name
-
 and mode_constraint = Mode.mode * typ
 
-and ('flavor, 'datacon) data_type_def_branch = {
-  branch_flavor: 'flavor; (* DataTypeFlavor.flavor or unit *)
-  branch_datacon: 'datacon; (* Datacon.name or resolved_datacon *)
+and branch = {
+  branch_flavor: DataTypeFlavor.flavor;
+  (* Since data constructors are now properly scoped, they are resolved, that
+   * is, they are either attached to a point, or a De Bruijn index, which will
+   * later resolve to a point when we open the corresponding type definition.
+   * That way, we can easily jump from a data constructor to the corresponding
+   * type definition.
+   *
+   * In a situation where we cannot reasonably have a resolved datacon, such as
+   * a data type _definition_, we use [TyUnknown] for the type. This disappears
+   * as soon as the type enters the environment. *)
+  branch_datacon: resolved_datacon;
   branch_fields: data_field_def list;
   (* The type of the adoptees; initially it's bottom and then
    * it gets instantiated to something less precise. *)
   branch_adopts: typ;
 }
 
-and resolved_branch =
-    (unit, resolved_datacon) data_type_def_branch
+and resolved_datacon = typ * Datacon.name
 
-and data_field_def =
-  | FieldValue of (Field.name * typ)
-  | FieldPermission of typ
 
-type unresolved_branch =
-    (DataTypeFlavor.flavor, Datacon.name) data_type_def_branch
+and data_field_def = Field.name * typ
 
 type type_def =
-  | Concrete of unresolved_branch list
+  | Concrete of typ list
   | Abstract
   | Abbrev of typ
 
@@ -145,6 +142,38 @@ type data_type_group = {
   group_recursive: SurfaceSyntax.rec_flag;
   group_items: data_type list;
 }
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Data type branches. *)
+
+(* Low-level wrapper that assumes [perms] is non-nil. *)
+let fold_star perms =
+  MzList.reduce (fun acc x -> TyStar (acc, x)) perms
+
+let construct_branch (branch: branch) (ps: typ list): typ =
+  if List.length ps > 0 then
+    TyBar (TyConcrete branch, fold_star ps)
+  else
+    TyConcrete branch
+
+let rec find_branch (t: typ): branch =
+  match t with
+  | TyBar (t, _) ->
+      find_branch t
+  | TyConcrete b ->
+      b
+  | _ ->
+      assert false
+
+let rec touch_branch (t: typ) (f: branch -> branch): typ =
+  match t with
+  | TyBar (t, ps) ->
+      TyBar (touch_branch t f, ps)
+  | TyConcrete b ->
+      TyConcrete (f b)
+  | _ ->
+      assert false
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -340,9 +369,9 @@ let rec modulo_flex (env: env) (ty: typ): typ =
   | TyOpen (VFlexible f) ->
       begin match (find_flex_or_fail env f).structure with
       | Instantiated ty ->
-         modulo_flex env ty
+          modulo_flex env ty
       | NotInstantiated _ ->
-         ty
+          ty
       end
   | _ ->
       ty
@@ -615,7 +644,7 @@ class virtual ['env, 'result] visitor = object (self)
   method virtual tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> 'result
   method virtual tyapp: 'env -> typ -> typ list -> 'result
   method virtual tytuple: 'env -> typ list -> 'result
-  method virtual tyconcrete: 'env -> resolved_branch -> 'result
+  method virtual tyconcrete: 'env -> branch -> 'result
   method virtual tysingleton: 'env -> typ -> 'result
   method virtual tyarrow: 'env -> typ -> typ -> 'result
   method virtual tybar: 'env -> typ -> typ -> 'result
@@ -660,7 +689,7 @@ class ['env] map = object (self)
     TyTuple (self#visit_many env tys)
 
   method tyconcrete env branch =
-    TyConcrete (self#resolved_branch env branch)
+    TyConcrete (self#branch env branch)
 
   method tysingleton env x =
     TySingleton (self#visit env x)
@@ -687,8 +716,8 @@ class ['env] map = object (self)
   method private visit_many env tys =
     List.map (self#visit env) tys
 
-  (* An auxiliary method for transforming a resolved branch. *)
-  method resolved_branch env (branch : resolved_branch) =
+  (* An auxiliary method for transforming a branch. *)
+  method branch env (branch : branch) =
     { 
       branch_flavor = branch.branch_flavor;
       branch_datacon = self#resolved_datacon env branch.branch_datacon;
@@ -701,24 +730,12 @@ class ['env] map = object (self)
     self#visit env ty, dc
 
   (* An auxiliary method for transforming a field. *)
-  method field env = function
-    | FieldValue (field, ty) ->
-        FieldValue (field, self#visit env ty)
-    | FieldPermission p ->
-        FieldPermission (self#visit env p)
+  method field env (field, ty) =
+    field, self#visit env ty
 
   (* An auxiliary method for transforming a mode constraint. *)
   method private mode_constraint env (mode, ty) =
     (mode, self#visit env ty)
-
-  (* An auxiliary method for transforming an unresolved branch. *)
-  method unresolved_branch env (branch : unresolved_branch) =
-    { 
-      branch_flavor = branch.branch_flavor;
-      branch_datacon = branch.branch_datacon;
-      branch_fields = List.map (self#field env) branch.branch_fields;
-      branch_adopts = self#visit env branch.branch_adopts;
-    }
 
   (* An auxiliary method for transforming a data type group. *)
   method data_type_group env (group : data_type_group) =
@@ -737,7 +754,7 @@ class ['env] map = object (self)
             { element with data_definition }
         | Concrete branches ->
             (* Transform the branches in this extended environment. *)
-            let branches = List.map (self#unresolved_branch env) branches in
+            let branches = List.map (self#visit env) branches in
             (* That's it. *)
             { element with data_definition = Concrete branches }
       ) group.group_items
@@ -780,7 +797,7 @@ class ['env] iter = object (self)
     self#visit_many env tys
 
   method tyconcrete env branch =
-    self#resolved_branch env branch
+    self#branch env branch
 
   method tysingleton env x =
     self#visit env x
@@ -812,8 +829,8 @@ class ['env] iter = object (self)
   method private visit_many env tys =
     List.iter (self#visit env) tys
 
-  (* An auxiliary method for visiting a resolved branch. *)
-  method resolved_branch env (branch : resolved_branch) =
+  (* An auxiliary method for visiting a branch. *)
+  method branch env (branch : branch) =
     self#resolved_datacon env branch.branch_datacon;
     List.iter (self#field env) branch.branch_fields;
     self#visit env branch.branch_adopts
@@ -823,20 +840,12 @@ class ['env] iter = object (self)
     self#visit env ty
 
   (* An auxiliary method for visiting a field. *)
-  method field env = function
-    | FieldValue (_, ty) ->
-        self#visit env ty
-    | FieldPermission p ->
-        self#visit env p
+  method field env (_, ty) =
+    self#visit env ty
 
   (* An auxiliary method for visiting a mode constraint. *)
   method private mode_constraint env (_, ty) =
     self#visit env ty
-
-  (* An auxiliary method for visiting an unresolved branch. *)
-  method unresolved_branch env (branch : unresolved_branch) =
-    List.iter (self#field env) branch.branch_fields;
-    self#visit env branch.branch_adopts
 
   (* An auxiliary method for visiting a data type group. *)
   method data_type_group env (group : data_type_group) =
@@ -850,8 +859,8 @@ class ['env] iter = object (self)
           (* This is an abstract type. There are no branches. *)
           ()
       | Concrete branches ->
-         (* Visit the branches in this extended environment. *)
-         List.iter (self#unresolved_branch env) branches
+          (* Visit the branches in this extended environment. *)
+          List.iter (self#visit env) branches
       | Abbrev t ->
           self#visit env t
     ) group.group_items
@@ -866,9 +875,9 @@ let level (env : env) (ty : typ) : level =
   let max_level = ref 0 in
   (object
     inherit [unit] iter
-    method normalize () ty =
+    method! normalize () ty =
       modulo_flex env ty
-    method tyopen () v =
+    method! tyopen () v =
       max_level := max !max_level (get_var_descr env v).level
   end) # visit () ty;
   !max_level
@@ -876,7 +885,7 @@ let level (env : env) (ty : typ) : level =
 let clean (top : env) (sub : env) : typ -> typ =
   (object (self)
     inherit [unit] map
-    method tyopen () v =
+    method! tyopen () v =
       (* Resolve flexible variables with respect to [sub]. *)
       let ty = modulo_flex_v sub v in
       match ty with
@@ -1102,6 +1111,7 @@ let import_flex_instanciations_raw env sub_env =
 let rec resolved_datacons_equal env (t1, dc1) (t2, dc2) =
   equal env t1 t2 && Datacon.equal dc1 dc2
 
+
 (* [equal env t1 t2] provides an equality relation between [t1] and [t2] modulo
  * equivalence in the [PersistentUnionFind]. *)
 and equal env (t1: typ) (t2: typ) =
@@ -1136,23 +1146,17 @@ and equal env (t1: typ) (t2: typ) =
 
     | TyConcrete branch1, TyConcrete branch2 ->
         resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon &&
-       (* In principle, if the data constructors are equal, then the flavors
-          should be equal too (we do not allow the flavor to change independently
-          of the data constructor), and the lists of fields should have the same
-          lengths (the list of fields is determined by the data constructor). *)
-       (
-         Log.check (branch1.branch_flavor = branch2.branch_flavor) "Flavor mismatch";
-         Log.check (List.length branch1.branch_fields = List.length branch2.branch_fields) "Field length mismatch";
-         equal branch1.branch_adopts branch2.branch_adopts &&
-         List.fold_left2 (fun acc f1 f2 ->
-           match f1, f2 with
-           | FieldValue (f1, t1), FieldValue (f2, t2) ->
-              acc && Field.equal f1 f2 && equal t1 t2
-           | FieldPermission t1, FieldPermission t2 ->
-              acc && equal t1 t2
-           | _ ->
-              false) true branch1.branch_fields branch2.branch_fields
-       )
+        (* Since [Interfaces] now uses [equal] to compare data type definitions,
+         * we have to be ready to deal with the case where flavors and fields
+         * differ. *)
+        (
+          branch1.branch_flavor = branch2.branch_flavor &&
+          List.length branch1.branch_fields = List.length branch2.branch_fields &&
+          equal branch1.branch_adopts branch2.branch_adopts &&
+          List.fold_left2 (fun acc (f1, t1) (f2, t2) ->
+            acc && Field.equal f1 f2 && equal t1 t2
+          ) true branch1.branch_fields branch2.branch_fields
+        )
 
     | TySingleton t1, TySingleton t2 ->
         equal t1 t2
@@ -1316,34 +1320,31 @@ let map env f =
 (** Produce a list of all external data constructor definitions, i.e.
     all data constructors that are currently known but are defined
     outside the current module. *)
-let get_external_datacons env : (Module.name * var * int * Datacon.name * Field.name list) list =
+let get_external_datacons env : (Module.name * var * int * Datacon.name * DataTypeFlavor.flavor * Field.name list) list =
   fold_definitions env (fun acc var definition ->
     let names = get_names env var in
     (* We're only interested in things that signatures exported with their
      * corresponding definitions. *)
     match definition with
     | Concrete def ->
-       (* Find the module name which this definition comes from. Yes, there's
-        * no better way to do that. *)
-       let mname = MzList.find_opt (function User (mname, _) -> Some mname | _ -> None) names in
-       let mname = Option.extract mname in
-       (* Ignore this definition if it is associated with the current module. *)
-       if Module.equal mname (module_name env) then
-         acc
-       else
-         (* Iterate over the branches of this definition. *)
-         MzList.fold_lefti (fun i acc branch ->
-           let dc = branch.branch_datacon
-           and fields =
-             MzList.map_some (function
-             | FieldValue (name, _) -> Some name
-             | FieldPermission _ -> None
-             ) branch.branch_fields
-           in
-           (mname, var, i, dc, fields) :: acc
-         ) acc def
+        (* Find the module name which this definition comes from. Yes, there's
+         * no better way to do that. *)
+        let mname = MzList.find_opt (function User (mname, _) -> Some mname | _ -> None) names in
+        let mname = Option.extract mname in
+        (* Ignore this definition if it is associated with the current module. *)
+        if Module.equal mname (module_name env) then
+          acc
+        else
+          (* Iterate over the branches of this definition. *)
+          MzList.fold_lefti (fun i acc t ->
+            let branch = find_branch t in
+            let dc = snd branch.branch_datacon
+            and f = branch.branch_flavor
+            and fields = List.map fst branch.branch_fields in
+            (mname, var, i, dc, f, fields) :: acc
+          ) acc def
     | _ ->
-       acc
+        acc
   ) []
 
 (* ---------------------------------------------------------------------------- *)
@@ -1356,14 +1357,14 @@ let get_exports env mname =
     List.fold_left (fun acc name ->
       match name with
       | User (m, x) when Module.equal m mname ->
-         (x, kind, VRigid point) :: acc
+          (x, kind, VRigid point) :: acc
       | _ ->
-         acc
+          acc
     ) acc names
   ) []
 
 (* Get all the names NOT from the current module found in [env].
-l
+
    TEMPORARY: this function has several bugs^Wshortcomings:
    - a function with type "val m::f: (x: int, y: int) -> ...", when called, will
      bind names "x" and "y" as belonging to "m", meaning they will be returned
@@ -1377,9 +1378,9 @@ let get_external_names env =
     List.fold_left (fun acc name ->
       match name with
       | User (m, x) when not (Module.equal m mname) ->
-         (m, x, kind, VRigid point) :: acc
+          (m, x, kind, VRigid point) :: acc
       | _ ->
-         acc
+          acc
     ) acc names
   ) []
 

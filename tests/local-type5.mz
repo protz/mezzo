@@ -1,0 +1,10 @@
+abstract t +a
+
+val f [x: term] (): (t (=x)) = fail
+
+val z = 
+  if true then begin
+    f ()
+  end else begin
+    f ()
+  end

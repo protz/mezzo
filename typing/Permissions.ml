@@ -34,6 +34,10 @@ module L = LazyList
 
 (* This should help debugging. *)
 
+(* -- jonathan (20130810): these assertions are currently broken in
+ * tree-coroutine.mz and bad-generalization.mz; some program variables only have
+ * "unknown" for a permission; no idea why (but seems harmless). *)
+
 let safety_check env =
   (* Be paranoid, perform an expensive safety check. *)
   if Log.debug_level () >= 5 then begin
@@ -95,7 +99,6 @@ let safety_check env =
   end
 ;;
 
-
 (* ---------------------------------------------------------------------------- *)
 
 (* When we learn that "a" turns out to be exclusive, new permissions become
@@ -105,7 +108,7 @@ let safety_check env =
 let refresh_facts env =
   fold_terms env (fun env var permissions ->
     if List.exists (FactInference.is_exclusive env) permissions &&
-       not (List.exists (equal env TyDynamic) permissions) then
+      not (List.exists (equal env TyDynamic) permissions) then
       set_permissions env var (TyDynamic :: permissions)
     else
       env
@@ -189,12 +192,49 @@ let wrap_bar t1 =
             TyAnchoredPermission (TyBound 0, t1) ::
             perms
           )
-            (* I have removed a call to [lift]. There is no need to lift
-               the type [t1], provided it is locally closed! That's the
-               point of the locally nameless representation. *)
         )
       )
 ;;
+
+
+(** Given an existentially-quantified [v2], this function inserts existential
+ * quantifiers before [v2] and returns the concrete type "A { f⃗: v⃗ }". The
+ * caller is then free to instantiate [v2] to the freshly created type, since
+ * the existential quantifiers have a level lower than that of [v2]. *)
+let split_flexible_as_concrete_type env v2 branch1 =
+  let env, vs = List.fold_left (fun (env, acc) _ ->
+    let binding =
+      fresh_auto_name "frc", KType, location env
+    in
+    let env, v = bind_flexible_before env binding v2 in
+    env, v :: acc
+  ) (env, []) branch1.branch_fields in
+  let branch2: branch = {
+    branch1 with
+    branch_fields = List.map2
+      (fun (fname, _) v -> fname, TyOpen v)
+      branch1.branch_fields
+      vs
+  } in
+  let t2 = TyConcrete branch2 in
+  env, t2
+;;
+
+
+(** Same with [v2] and a tuple type "(t⃗s)" *)
+let split_flexible_as_tuple_type env v1 ts =
+  let env, vs = List.fold_left (fun (env, acc) _ ->
+    let binding =
+      fresh_auto_name "flt", KType, location env
+    in
+    let env, v = bind_flexible_before env binding v1 in
+    env, v :: acc
+  ) (env, []) ts in
+  let t1 = TyTuple (List.map (fun x -> TyOpen x) vs) in
+  env, t1
+;;
+
+
 
 type side = Left | Right
 
@@ -235,7 +275,7 @@ class open_all_rigid_in (env : env ref) = object (self)
 
   (* We re-implement the main visitor in order to receive a warning
      when new cases appear and in order to share code. *)
-  method visit (side, deconstructed) ty =
+  method! visit (side, deconstructed) ty =
     let ty = modulo_flex !env ty in
     let ty = expand_if_one_branch !env ty in
     let ty = if deconstructed && not (is_singleton !env ty) && side = Left then wrap_bar ty else ty in
@@ -261,9 +301,9 @@ class open_all_rigid_in (env : env ref) = object (self)
 
     | TyQ (Forall, binding, _, ty), Right
     | TyQ (Exists, binding, _, ty), Left ->
-       let new_env, ty, _ = bind_rigid_in_type !env binding ty in
-       env := new_env;
-       self#visit (side, false) ty
+        let new_env, ty, _ = bind_rigid_in_type !env binding ty in
+        env := new_env;
+        self#visit (side, false) ty
 
     (* As a special case, when we find [t -> u] on the right-hand side,
        we go look for existential quantifiers inside [t], and hoist them
@@ -282,8 +322,8 @@ class open_all_rigid_in (env : env ref) = object (self)
        changes only from [Right] to [Left]. *)
 
     | TyArrow (ty1, ty2), Right ->
-       let ty1 = self#visit (Left, false) ty1 in
-       TyArrow (ty1, ty2)
+        let ty1 = self#visit (Left, false) ty1 in
+        TyArrow (ty1, ty2)
 
     (* We descend into the following constructs. *)
 
@@ -308,20 +348,17 @@ class open_all_rigid_in (env : env ref) = object (self)
 
   (* At [TyConcrete], we descend into the fields, but not into
      the datacon or into the adopts clause. *)
-    method resolved_branch env branch =
-    { branch with
-      branch_fields = List.map (self#field env) branch.branch_fields;
-    }
+  method! branch env branch =
+  { branch with
+    branch_fields = List.map (self#field env) branch.branch_fields;
+  }
 
   (* At physical fields, we set [deconstructed] to [true]. At permission
      fields, we do not; it makes sense only at kind [type]. *)
-  method field (side, _) = function
-    | FieldValue (field, ty) ->
-        FieldValue (field, self#visit (side, true) ty)
-        (* Setting [deconstructed] to [true] forces the fields to
-          become named with a point, if they weren't already. *)
-    | FieldPermission p ->
-        FieldPermission (self#visit (side, false) p)
+  method! field (side, _) (field, ty) =
+    (* Setting [deconstructed] to [true] forces the fields to
+      become named with a point, if they weren't already. *)
+    field, self#visit (side, true) ty
 
 end
 
@@ -332,9 +369,7 @@ let open_all_rigid_in (env : env) (ty : typ) (side : side) : env * typ =
 
 (* -------------------------------------------------------------------------- *)
 
-(** Re-wrap instantiate_flexible so that it fits in our framework. *)
-
-let rec clean_vars env perms = 
+let rec clean_vars env perms =
   let perms = List.map (fun x ->
     let x = modulo_flex env x in
     let x = expand_if_one_branch env x in
@@ -357,6 +392,8 @@ and import_flex_instanciations env sub_env =
   let env = import_flex_instanciations_raw env sub_env in
   clean_floating_permissions env
 
+(** Re-wrap instantiate_flexible so that it fits in our framework. *)
+
 and j_flex_inst (env: env) (v: var) (t: typ): result =
   let judgement = JEqual (TyOpen v, t) in
   match instantiate_flexible env v t with
@@ -375,7 +412,7 @@ and unify (env: env) (p1: var) (p2: var): env =
   if same env p1 p2 then
     env
   else
-   (* We need to first merge the environment, otherwise this will go into an
+    (* We need to first merge the environment, otherwise this will go into an
      * infinite loop when hitting the TySingletons... *)
     let perms = if is_flexible env p2 then [] else get_permissions env p2 in
     match merge_left env p1 p2 with
@@ -419,8 +456,7 @@ and add (env: env) (var: var) (t: typ): env =
 
   end else
 
-    (* We first perform unfolding, so that constructors with one branch are
-     * simplified. [unfold] calls [add] recursively whenever it adds new vars. *)
+    (* Eagerly introduce all rigid quantifiers. *)
     let env, t = open_all_rigid_in env t Left in
 
     (* Break this up into a type + permissions. *)
@@ -437,10 +473,8 @@ and add (env: env) (var: var) (t: typ): env =
     (* There are several cases that we can optimize for, but here's the default
      * one to start with: *)
     let default env =
-      (* Add the "bare" type. Recursive calls took care of calling [add]. *)
       let env = add_type env var t in
       safety_check env;
-
       env
     in
 
@@ -472,7 +506,7 @@ and add (env: env) (var: var) (t: typ): env =
             Log.debug ~level:4 "%s]%s (two exclusive perms!)" Bash.colors.Bash.red Bash.colors.Bash.default;
             (* We cannot possibly have two exclusive permissions for [x]. *)
             mark_inconsistent env
-        | Some branch' -> 
+        | Some branch' ->
             if not (resolved_datacons_equal env branch.branch_datacon branch'.branch_datacon) then
               mark_inconsistent env
             else begin
@@ -482,19 +516,11 @@ and add (env: env) (var: var) (t: typ): env =
                  compute their meet (good). *)
               assert (equal env branch.branch_adopts ty_bottom);
               assert (equal env branch'.branch_adopts ty_bottom);
-              List.fold_left2 (fun env f1 f2 ->
-                match f1, f2 with
-                | FieldValue (f, t), FieldValue (f', t') when Field.equal f f' ->
-                     let t = modulo_flex env t in
-                     let t = expand_if_one_branch env t in
-                   begin match t with
-                   | TySingleton (TyOpen p) ->
-                       add env p t'
-                   | _ ->
-                       Log.error "Type not unfolded"
-                   end
-                | _ ->
-                   Log.error "Datacon order invariant not respected"
+              List.fold_left2 (fun env (f, t) (f', t') ->
+                Log.check (Field.equal f f') "Datacon order invariant";
+                let t = modulo_flex env t in
+                let t = expand_if_one_branch env t in
+                add env !!=t t'
               ) env branch.branch_fields branch'.branch_fields
             end
         | None ->
@@ -512,11 +538,7 @@ and add (env: env) (var: var) (t: typ): env =
               List.fold_left2 (fun env t t' ->
                 let t = modulo_flex env t in
                 let t = expand_if_one_branch env t in
-                match t with
-                | TySingleton (TyOpen p) ->
-                    add env p t'
-                | _ ->
-                    Log.error "Type not unfolded"
+                add env !!=t t'
               ) env ts ts'
         | None ->
             add_type env var t
@@ -541,7 +563,6 @@ and add (env: env) (var: var) (t: typ): env =
         ) original_perms with
         | Some datacon ->
             let branch = find_and_instantiate_branch env t datacon ts in
-            let branch = TyConcrete branch in
             add env var branch
         | None ->
             default env
@@ -553,7 +574,7 @@ and add (env: env) (var: var) (t: typ): env =
 
 
 (** [add_perm env t] adds a type [t] with kind KPerm to [env], returning the new
-    environment. Attention! Because the [add*] function are not designed a
+    environment. Attention! Because the [add*] function are not designed to be
     faillible, you have to make sure, prior to calling [add*], that the
     permission you're about to add is not flexible (use [perm_not_flex]). The
     [sub*] functions, on the other hand, will gracefully fail if something's
@@ -659,7 +680,9 @@ and sub (env: env) (var: var) ?no_singleton (t: typ): result =
     else
       let permissions = get_permissions env var in
 
-      (* Priority-order potential merge candidates. *)
+      (* Priority-order potential merge candidates. Now that we're doing
+       * exploration, this mostly ensures that we consider the most likely
+       * solution first, thus only computing other solutions in rare cases. *)
       let sort = function
         | _ as t when not (FactInference.is_duplicable env t) -> 0
         (* This basically makes sure we never instantiate a flexible variable with a
@@ -770,32 +793,15 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
   (** Trivial case. *)
   | _, _ when equal env t1 t2 ->
       try_proof_root "Equal" (qed env)
-  (* TEMPORARY could we get rid of this fast path? 1- it may be inefficient
-     2- it may be the only place in the code where we are comparing two types
-     for syntactic equality 3- by removing it, we will be able to discover if
-     some structural rules are missing below. *)
+      (* TEMPORARY could we get rid of this fast path? 1- it may be inefficient
+         2- it may be the only place in the code where we are comparing two
+         types for syntactic equality 3- by removing it, we will be able to
+         discover if some structural rules are missing below. *)
 
   (** Easy cases involving flexible variables *)
   | TyConcrete branch1, TyOpen v2 when is_flexible env v2 ->
       try_proof_root "Flex-R-Concrete" begin
-        let env, vs = List.fold_left (fun (env, acc) _ ->
-          let binding =
-            fresh_auto_name "frc", KType, location env
-          in
-          let env, v = bind_flexible_before env binding v2 in
-          env, v :: acc
-        ) (env, []) branch1.branch_fields in
-        let branch2: resolved_branch = {
-          branch1 with
-          branch_fields = List.map2 (fun f1 v ->
-            match f1 with
-            | FieldValue (fname, _) ->
-                FieldValue (fname, TyOpen v)
-            | _ ->
-                assert false
-          ) branch1.branch_fields vs
-        } in
-        let t2 = TyConcrete branch2 in
+        let env, t2 = split_flexible_as_concrete_type env v2 branch1 in
         j_flex_inst env v2 t2 >>= fun env ->
         sub_type env t1 t2 >>=
         qed
@@ -803,39 +809,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
   | TyOpen v1, TyConcrete branch2 when is_flexible env v1 ->
       try_proof_root "Flex-L-Concrete" begin
-        let env, vs = List.fold_left (fun (env, acc) _ ->
-          let binding =
-            fresh_auto_name "flc", KType, location env
-          in
-          let env, v = bind_flexible_before env binding v1 in
-          env, v :: acc
-        ) (env, []) branch2.branch_fields in
-        let branch1: resolved_branch = {
-          branch2 with
-          branch_fields = List.map2 (fun f2 v ->
-            match f2 with
-            | FieldValue (fname, _) ->
-                FieldValue (fname, TyOpen v)
-            | _ ->
-                assert false
-          ) branch2.branch_fields vs
-        } in
-        let t1 = TyConcrete branch1 in
-        j_flex_inst env v1 t1 >>= fun env ->
-        sub_type env t1 t2 >>=
-        qed
-      end
-
-  | TyOpen v1, TyTuple ts when is_flexible env v1 ->
-      try_proof_root "Flex-L-Tuple" begin
-        let env, vs = List.fold_left (fun (env, acc) _ ->
-          let binding =
-            fresh_auto_name "flt", KType, location env
-          in
-          let env, v = bind_flexible_before env binding v1 in
-          env, v :: acc
-        ) (env, []) ts in
-        let t1 = TyTuple (List.map (fun x -> TyOpen x) vs) in
+        let env, t1 = split_flexible_as_concrete_type env v1 branch2 in
         j_flex_inst env v1 t1 >>= fun env ->
         sub_type env t1 t2 >>=
         qed
@@ -843,15 +817,16 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
   | TyTuple ts, TyOpen v2  when is_flexible env v2 ->
       try_proof_root "Flex-R-Tuple" begin
-        let env, vs = List.fold_left (fun (env, acc) _ ->
-          let binding =
-            fresh_auto_name "frt", KType, location env
-          in
-          let env, v = bind_flexible_before env binding v2 in
-          env, v :: acc
-        ) (env, []) ts in
-        let t2 = TyTuple (List.map (fun x -> TyOpen x) vs) in
+        let env, t2 = split_flexible_as_tuple_type env v2 ts in
         j_flex_inst env v2 t2 >>= fun env ->
+        sub_type env t1 t2 >>=
+        qed
+      end
+
+  | TyOpen v1, TyTuple ts when is_flexible env v1 ->
+      try_proof_root "Flex-L-Tuple" begin
+        let env, t1 = split_flexible_as_tuple_type env v1 ts in
+        j_flex_inst env v1 t1 >>= fun env ->
         sub_type env t1 t2 >>=
         qed
       end
@@ -875,9 +850,6 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         let env = FactInference.assume env c in
         let env = refresh_facts env in
         sub_type env t1 t2 >>=
-        (* TEMPORARY this rule may be unsound: assuming [c] while proving
-           [t2] is fine, but [c] should not *remain* assumed in the final
-          environment that is returned. See tests/tyand05.mz. *)
         qed
       end
 
@@ -912,6 +884,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
   (** Lower priority for binding flexible = existential quantifiers. *)
 
   | TyQ (Forall, binding1, _, t'1), TyQ (Exists, binding2, _, t'2) ->
+      (* This is a situation where we need to explore. See the IFL paper for
+       * explanations. *)
       par env judgement "Intro-Flex" [
         try_proof_root "Forall-L" begin
           let env, t2 = open_all_rigid_in env t2 Right in
@@ -955,42 +929,28 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
       try_proof_root "Tuple" begin
         premises env (List.map2 (fun t1 t2 -> fun env ->
           match t1, t2 with
-          | TySingleton (TyOpen p1), TySingleton (TyOpen p2) when is_flexible env p2 ->
-              (* This is a fast-path that creates less debug output and makes
-               * things easier to understand when reading traces. *)
-              j_merge_left env p1 p2
           | TySingleton (TyOpen p1), _ ->
               (* “=x - τ” can always be rephrased as “take τ from the list of
                * available permissions for x” by replacing “τ” with
                * “∃x'.(=x'|x' @ τ)” and instantiating “x'” with “x”. *)
               sub env p1 t2
           | _ ->
+              (* jp: I thought [open_all_rigid_in] made sure we always work
+               * with the expanded form. This is not the case: we do go through
+               * this branch, though rarely. *)
               sub_type_with_unfolding env t1 t2
         ) components1 components2)
       end
 
   | TyConcrete branch1, TyConcrete branch2 ->
       if resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon then begin
-       assert (branch1.branch_flavor = branch2.branch_flavor);
-       assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
+        assert (branch1.branch_flavor = branch2.branch_flavor);
+        assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
         try_proof_root "Concrete" begin
           sub_type env branch1.branch_adopts branch2.branch_adopts >>= fun env ->
-          premises env (List.map2 (fun f1 f2 -> fun env ->
-            let t1, t2 =
-              match f1, f2 with
-              | FieldValue (name1, t1), FieldValue (name2, t2) ->
-                  Log.check (Field.equal name1 name2) "Not in order?";
-                  t1, t2
-              | _ ->
-                  Log.error "The type we're trying to extract should've been \
-                    cleaned first."
-            in
-            (* This is the same logic as the [TyTuple] case above, scroll up for
-             * comments and detailed explanations as to why these rules are
-             * correct. *)
+          premises env (List.map2 (fun (name1, t1) (name2, t2) -> fun env ->
+            Log.check (Field.equal name1 name2) "Not in order?";
             match t1, t2 with
-            | TySingleton (TyOpen p1), TySingleton (TyOpen p2) when is_flexible env p2 ->
-                j_merge_left env p1 p2
             | TySingleton (TyOpen p1), _ ->
                 sub env p1 t2
             | _ ->
@@ -1050,9 +1010,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
       if same env var1 cons2 then begin
         try_proof_root "Fold-L" begin
-          let branch2 = find_and_instantiate_branch env cons2 datacon1 args2 in
+          let t2 = find_and_instantiate_branch env cons2 datacon1 args2 in
           (* There may be permissions attached to this branch. *)
-          let t2 = TyConcrete branch2 in
           let t2, p2 = collect t2 in
           sub_type env t1 t2 >>= fun env ->
           sub_perms env p2 >>=
@@ -1070,9 +1029,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 
       if same env var1 var2 then begin
         try_proof_root "Fold-L-2" begin
-          let branch2 = find_and_instantiate_branch env var2 datacon1 [] in
+          let t2 = find_and_instantiate_branch env var2 datacon1 [] in
           (* Same as above. *)
-          let t2 = TyConcrete branch2 in
           let t2, p2 = collect t2 in
           sub_type env t1 t2 >>= fun env ->
           sub_perms env p2 >>=
@@ -1191,14 +1149,31 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
 and add_sub env ps1 ps2 =
   let judgement = JSubType (fold_star ps1, fold_star ps2) in
 
+  (** This is a central algorithm for the subtraction. We use it whenever
+   * confronted with a set of permissions for each side. The difficulty is
+   * twofold. First, some permissions may be of the form "?x @ t", where "?x" is
+   * flexible. We thus need to find the right sequence of additions /
+   * subtractions that will instantiate "?x", thus allowing us to go keep going.
+   * Second, there are a lot of heuristics involved; this is where we make
+   * decisions for instantiating flexible perm variables. This is important for
+   * polymorphic function calls, where we want to "guess" the value of perm
+   * variables.
+   *
+   * There are different phases for the algorithm, which we detail below.
+   *
+   * This is very fragile, reordering the phases or changing the heuristics will
+   * break things. It may render some annotations useless (we don't have a
+   * warning for that yet), and it may require more annotations in other places.
+   *)
+
   try_proof env judgement "Add-Sub" begin
 
+    (** (1) Strip syntactically equal variables. This is useful in the case of
+     * abstract permissions. This is a heuristic, so it may not always be the
+     * best idea, but well. *)
     let strip_syntactically_equal env ps1 ps2 =
       let ps1 = MzList.flatten_map (flatten_star env) ps1 in
       let ps2 = MzList.flatten_map (flatten_star env) ps2 in
-      (* This is only useful if there's a bunch of permission variables
-       * (or abstract permissions) on each side: clear these up, and try
-       * to do something useful with the rest. *)
       let rec sse env left ps1 ps2 =
         match ps1 with
         | [] ->
@@ -1221,6 +1196,21 @@ and add_sub env ps1 ps2 =
     let env, ps1, ps2 = strip_syntactically_equal env ps1 ps2 in
 
 
+    (** (2) In the case where we have "x @ t - ?x @ t", we recognize this as a
+     * pattern that we can solve easily. *)
+    match ps1, ps2 with
+    | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
+        when is_flexible env !!x2 ->
+          (* This is a fairly debatable heuristic. *)
+          sub_type_with_unfolding env t1 t2 >>= fun env ->
+          j_merge_left env !!x2 !!x1 >>=
+          qed
+
+    | _ ->
+
+
+    (** (3) Alternating with additions and subtractions. Explanations below. *)
+
     (*   [add_perm] will fail if we add "x @ t" when "x" is flexible. So we
      * search among the permissions in [ps1] one that is suitable for adding,
      * i.e. a permission whose left-hand-side is not flexible.
@@ -1238,7 +1228,6 @@ and add_sub env ps1 ps2 =
       perm_not_flex env p1
     in
 
-    (* This is the main function. *)
     let rec add_sub env ps1 ps2 k: state =
       let ps1 = MzList.flatten_map (flatten_star env) ps1 in
       let ps2 = MzList.flatten_map (flatten_star env) ps2 in
@@ -1267,21 +1256,25 @@ and add_sub env ps1 ps2 =
       TypePrinter.ptype (env, fold_star ps1)
       TypePrinter.ptype (env, fold_star ps2);
 
-    (* Try to eliminate as much as we can... *)
     add_sub env ps1 ps2 begin fun env ps1 ps2 ->
 
     Log.debug ~level:4 "[add_sub] ended up with ps1=%a, ps2=%a"
       TypePrinter.ptype (env, fold_star ps1)
       TypePrinter.ptype (env, fold_star ps2);
 
+    (* This is just debugging. *)
     apply_axiom env (JDebug (fold_star ps1, fold_star ps2)) "Remaining-Add-Sub" env >>= fun env ->
 
-    (* And then try to be smart with whatever remains. *)
+
+    (** (4) Now that we've added / subtracted as much as we could, we take a
+     * look at whatever remains, and recognize some patterns which we know how
+     * to solve. Failing that, we use a default case. *)
+
     match ps1, ps2 with
     | [TyOpen var1 as t1], [TyOpen var2 as t2] ->
         (* Beware! We're doing our own one-on-one matching of permission
          * variables, but still, we need to keep [var1] if it happens to be a
-         * duplicable one! So we add it here, and [sub_floating_perm] will
+         * duplicable one! So we add it here, and [sub_perm] will
          * remove it or not, depending on the associated fact. *)
         let env = add_perm env t1 in
         begin match is_flexible env var1, is_flexible env var2 with
@@ -1301,7 +1294,14 @@ and add_sub env ps1 ps2 =
         qed
     | _, [TyOpen var2] when is_flexible env var2 ->
         assert false
-    | [TyOpen var1], [TyEmpty] when is_flexible env var1 ->
+    | _, [TyEmpty] ->
+        assert false
+    | [TyOpen var1], [] when is_flexible env var1 && false ->
+        (* This is disabled, as it causes several tests to fail. I believe
+         * having a flexible permission is ok per se, but then breaks inference
+         * pretty badly (it would make _any_ subtraction succeed?). Original
+         * comment below.*)
+
         (* Any instantiation of [var1] would be fine, actually, so don't
          * commit to [TyEmpty]! *)
         nothing env "keep-flex" >>=
@@ -1315,20 +1315,10 @@ and add_sub env ps1 ps2 =
         j_flex_inst env var1 (fold_star ps2) >>=
         qed
     | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
-        when is_flexible env !!x2 ->
-          (* If [x1] was rigid, then it was added by [add_sub]. We should
-           * trigger this heuristic earlier, probably after
-           * [strip_syntactically_equal]. *)
-          if true then assert false;
-          (* These two are *really* debatable heuristics. *)
-          sub_type_with_unfolding env t1 t2 >>= fun env ->
-          j_merge_left env !!x2 !!x1 >>=
-          qed
-    | [TyAnchoredPermission (x1, t1)], [TyAnchoredPermission (x2, t2)]
-        when is_flexible env !!x1 ->
-          sub_type_with_unfolding env t1 t2 >>= fun env ->
-          j_merge_left env !!x1 !!x2 >>=
-          qed
+      when is_flexible env !!x1 ->
+        sub_type_with_unfolding env t1 t2 >>= fun env ->
+        j_merge_left env !!x1 !!x2 >>=
+        qed
     | ps1, ps2 ->
         let sub_env = add_perms env ps1 in
         apply_axiom env (JAdd (fold_star ps1)) "Add-Sub-Add" sub_env >>= fun env ->
@@ -1407,15 +1397,12 @@ and sub_perms (env: env) (perms: typ list): result =
        * again, some of them may have their lhs flexible. Therefore, there is a
        * small search procedure here that picks a suitable permission for
        * subtracting. *)
-      if List.length perms = 0 then
-        qed env
-      else
-            (* Rather than saying « I don't know how to subtract this big set
-             * of permissions », explain why one of them (e.g. the first one)
-             * can't be subtracted. *)
-            let perm = List.hd perms and perms = List.tl perms in
-            sub_perm env perm >>= fun env ->
-            sub_perms env perms
+      match perms with
+      | [] ->
+          qed env
+      | perm :: perms ->
+          sub_perm env perm >>= fun env ->
+          sub_perms env perms
     in
 
     sub_perms env perms
@@ -1452,9 +1439,6 @@ let pick_arbitrary =
   L.hd
 ;;
 
-(** The version we export is actually the one with unfolding baked in. This is
- * the only one the client should use because it makes sure our invariants are
- * respected. *)
 type result = ((env * derivation), derivation) either
 
 let drop_derivation = function
@@ -1464,6 +1448,9 @@ let drop_derivation = function
       None
 ;;
 
+(** The version we export is actually the one with unfolding baked in. This is
+ * the only one the client should use because it makes sure our invariants are
+ * respected. *)
 let sub_type env t1 t2: result =
   pick_arbitrary (sub_type_with_unfolding env t1 t2)
 ;;

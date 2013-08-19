@@ -214,7 +214,8 @@ let get_location env p =
    compute a join. *)
 let get_adopts_clause env point: typ =
   match get_definition env point with
-  | Some (Concrete branches) ->
+  | Some (Concrete ts) ->
+      let branches = List.map find_branch ts in
       (* The [adopts] clause is now per-branch, instead of per-data-type.
         We should in principle return the meet of the [adopts] clauses
         of all branches. However, the surface language imposes that
@@ -222,17 +223,17 @@ let get_adopts_clause env point: typ =
         branches which are immutable and don't have an adopts clause.
         In that setting, the meet is easy to compute. *)
       let meet ty1 branch2 =
-       let ty2 = branch2.branch_adopts in
-       match ty1, is_non_bottom ty2 with
-       | TyUnknown, _ ->
-           ty2
-       | _, None ->
-           (* [ty2] is bottom *)
-           ty2
-       | _, Some _ ->
-           (* [ty2] is non-bottom *)
-           assert (equal env ty1 ty2);
-           ty2
+        let ty2 = branch2.branch_adopts in
+        match ty1, is_non_bottom ty2 with
+        | TyUnknown, _ ->
+            ty2
+        | _, None ->
+            (* [ty2] is bottom *)
+            ty2
+        | _, Some _ ->
+            (* [ty2] is non-bottom *)
+            assert (equal env ty1 ty2);
+            ty2
       in
       List.fold_left meet TyUnknown branches
   | _ ->
@@ -240,7 +241,12 @@ let get_adopts_clause env point: typ =
       ty_bottom
 ;;
 
-let get_branches env point: unresolved_branch list =
+let is_tyopen = function
+  | TyOpen _ -> true
+  | _ -> false
+;;
+
+let get_branches env point: typ list =
   match get_definition env point with
   | Some (Concrete branches) ->
       branches
@@ -286,50 +292,38 @@ let rec get_kind_for_type env t =
 ;;
 
 
-
-let branches_for_datacon (env: env) (datacon: resolved_datacon): unresolved_branch list =
-  match datacon with
-  | TyOpen point, _ ->
-      begin match get_definition env point with
-      | Some (Concrete branches) ->
-          branches
-      | _ ->
-          Log.error "Point has no datacon"
-      end
-  | t, _ ->
-      Log.error "Datacon not properly resolved: %a" !internal_ptype (env, t)
+let branches_for_datacon env (t, _dc) =
+  get_branches env !!t
 ;;
 
-let branches_for_branch env (branch : resolved_branch) : unresolved_branch list =
-  branches_for_datacon env branch.branch_datacon
+let branches_for_branch env (branch : branch) : typ list =
+  get_branches env !!(fst branch.branch_datacon)
+;;
 
-let branch_for_datacon env (datacon : resolved_datacon) : unresolved_branch =
-  let branches = branches_for_datacon env datacon in
-  let _, datacon = datacon in
-  List.find (fun branch' ->
-    Datacon.equal datacon branch'.branch_datacon
+let branch_for_datacon env (typ, datacon) : typ =
+  let branches = get_branches env !!typ in
+  List.find (fun t' ->
+    let branch' = find_branch t' in
+    Datacon.equal datacon (snd branch'.branch_datacon)
   ) branches
+;;
 
-let branch_for_branch env (branch : resolved_branch) : unresolved_branch =
-  branch_for_datacon env branch.branch_datacon
+let fields_for_datacon env dc : Field.name list =
+  let branch = branch_for_datacon env dc in
+  let branch = find_branch branch in
+  List.map fst branch.branch_fields
+;;
 
-let flavor_for_branch env (branch : resolved_branch) : DataTypeFlavor.flavor =
-  let branch : unresolved_branch = branch_for_branch env branch in
+let flavor_for_datacon env dc =
+  let branch = branch_for_datacon env dc in
+  let branch = find_branch branch in
   branch.branch_flavor
+;;
 
 let variance env var i =
   let variance = get_variance env var in
   List.nth variance i
 ;;
-
-let fields_for_datacon env (datacon : resolved_datacon) : Field.name list =
-  let branch = branch_for_datacon env datacon in
-  List.flatten (List.map (function
-    | FieldValue (f, _) ->
-        [ f ]
-    | FieldPermission _ ->
-        []
-  ) branch.branch_fields)
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -340,32 +334,13 @@ let instantiate_type t args =
   MzList.fold_lefti (fun i t arg -> tsubst arg i t) t args
 ;;
 
-let resolve_branch (t: var) (b: unresolved_branch) : resolved_branch =
-  { b with
-    branch_flavor = (); (* forget the flavor, we can recover it via [branch_datacon] *)
-    branch_datacon = (TyOpen t, b.branch_datacon);
-  }
-
-let instantiate_branch (branch : unresolved_branch) args : unresolved_branch =
-  let args = List.rev args in
-  let branch = MzList.fold_lefti (fun i branch arg ->
-    tsubst_unresolved_branch arg i branch) branch args
-  in
-  branch
-;;
-
 let find_and_instantiate_branch
     (env: env)
     (var: var)
     (datacon: Datacon.name)
-    (args: typ list) : resolved_branch =
-  let branch =
-    List.find
-      (fun branch -> Datacon.equal datacon branch.branch_datacon)
-      (get_branches env var)
-  in
-  let branch = instantiate_branch branch args in
-  resolve_branch var branch
+    (args: typ list) : typ =
+  let branch = branch_for_datacon env (TyOpen var, datacon) in
+  instantiate_type branch args
 ;;
 
 (* Misc. *)
@@ -400,6 +375,12 @@ let is_abbrev env v =
   | _ -> false
 ;;
 
+let assert_concrete t =
+  match t with TyConcrete b -> b | _ -> assert false;;
+
+let is_concrete t =
+  match t with TyConcrete _ -> true | _ -> false;;
+
 let is_term env v = (get_kind env v = KTerm);;
 let is_perm env v = (get_kind env v = KPerm);;
 let is_type env v = (snd (Kind.as_arrow (get_kind env v)) = KType);;
@@ -422,7 +403,7 @@ class collect (perms : typ list ref) = object (self)
   inherit [unit] map as super
   (* We re-implement the main visitor method in order to be warned
      about new cases and to share code for some cases. *)
-  method visit () ty =
+  method! visit () ty =
     (* TEMPORARY No call to [modulo_flex]; is this normal? *)
     match ty with
 
@@ -457,22 +438,17 @@ class collect (perms : typ list ref) = object (self)
 
     | TyBar (ty, p) ->
         let p = self#visit () p in
-       perms := p :: !perms;
-       self#visit () ty
+        perms := p :: !perms;
+        self#visit () ty
 
   (* At [TyConcrete], we set aside the [FieldPermission]s and
      descend into the [FieldValue]s. *)
-  method resolved_branch () branch =
+  method! branch () branch =
     { 
       branch_flavor = branch.branch_flavor;
+      (* Nothing to collect here. *)
       branch_datacon = branch.branch_datacon;
-      branch_fields = MzList.map_some (function
-       | FieldValue (field, ty) ->
-            Some (FieldValue (field, self#visit () ty))
-       | FieldPermission p ->
-           perms := p :: !perms;
-           None
-      ) branch.branch_fields;
+      branch_fields = List.map (self#field ()) branch.branch_fields;
       branch_adopts = branch.branch_adopts;
     }
 
@@ -485,11 +461,11 @@ let collect (ty : typ) : typ * typ list =
 
 class mark (env : env ref) = object (self)
   inherit [unit] iter
-  method normalize () ty =
+  method! normalize () ty =
     modulo_flex !env ty
   (* Mark a variable [v], and if [v] is newly marked, find the permissions
      for [v] in the environment and follow. *)
-  method tyopen () v =
+  method! tyopen () v =
     if not (is_marked !env v) then begin
       env := mark !env v;
       if is_term !env v then begin
@@ -498,7 +474,7 @@ class mark (env : env ref) = object (self)
       end
     end
   (* Do not descend into arrows. (Why?) *)
-  method tyarrow () _ty1 _ty2 =
+  method! tyarrow () _ty1 _ty2 =
     ()
 end
 
@@ -518,9 +494,9 @@ let make_datacon_letters env kind flexible =
     let env, var =
       let letter = Auto (Variable.register letter) in
       if flexible then
-       bind_flexible env (letter, kind, location env)
+        bind_flexible env (letter, kind, location env)
       else
-       bind_rigid env (letter, kind, location env)
+        bind_rigid env (letter, kind, location env)
     in
     env, var :: vars) (env, []) arg_kinds letters
   in
@@ -528,43 +504,28 @@ let make_datacon_letters env kind flexible =
   env, vars
 ;;
 
-let bind_datacon_parameters (env: env) (kind: kind) (branches: unresolved_branch list):
-    env * var list * unresolved_branch list =
+let bind_datacon_parameters (env: env) (kind: kind) (branches: typ list):
+    env * var list * typ list =
   let env, points = make_datacon_letters env kind false in
   let arity = Kind.arity kind in
   let branches = MzList.fold_lefti (fun i branches point ->
     let index = arity - i - 1 in
-    let branches = List.map (tsubst_unresolved_branch (TyOpen point) index) branches in
+    let branches = List.map (tsubst (TyOpen point) index) branches in
     branches
   ) branches points in
   env, points, branches
 ;;
 
 let rec expand_if_one_branch (env: env) (t: typ) =
-  (* Having [FieldPermission] was a mistake... because almost no single place in
-   * the code is able to deal with [FieldPermission]s, we must make sure
-   * everytime a nominal type turns into a branch, we collect the permissions
-   * and rewrap everything in a [TyBar] (which the code handles well). *)
-  let wrap_if t =
-    let t, p = collect t in
-    if List.length p > 0 then
-      if get_kind_for_type env t = KPerm then
-        TyStar (t, fold_star p)
-      else
-        TyBar (t, fold_star p)
-    else
-      t
-  in
   match is_tyapp t with
   | Some (cons, args) ->
       begin match get_definition env cons with
       | Some (Concrete [branch]) ->
-          let branch = instantiate_branch branch args in
-          let branch = resolve_branch cons branch in
-          wrap_if (TyConcrete branch)
+          let branch = instantiate_type branch args in
+          branch
       | Some (Abbrev t) ->
           let t = instantiate_type t args in
-          wrap_if (expand_if_one_branch env t)
+          expand_if_one_branch env t
       | _ ->
         t
       end
@@ -720,7 +681,7 @@ module TypePrinter = struct
         lparen ^^ string "inst→" ^^ print_type env (modulo_flex env (TyOpen point)) ^^ rparen
       else
         print_point env point
-    with UnboundPoint ->
+    with UnboundPoint | Assert_failure _ ->
       colors.red ^^ string "!! ☠ !!" ^^ colors.default
 
 
@@ -741,14 +702,14 @@ module TypePrinter = struct
 
     | TyQ (q, _, _, _) as t ->
         let vars, env, t = strip_quantifiers_and_bind env q t in
-       let delimiters =
-         match q with
-         | Forall -> brackets
-         | Exists -> braces
-       in
-       prefix 0 1
-         (delimiters (commas (print_binding env) vars))
-         (print_type env t)
+        let delimiters =
+          match q with
+          | Forall -> brackets
+          | Exists -> braces
+        in
+        prefix 0 1
+          (delimiters (commas (print_binding env) vars))
+          (print_type env t)
 
     | TyApp (head, args) ->
         application (print_type env) head (print_type env) args
@@ -757,7 +718,7 @@ module TypePrinter = struct
         tuple (print_type env) components
 
     | TyConcrete branch ->
-        print_resolved_branch env branch
+        print_branch env branch
 
       (* Singleton types. *)
     | TySingleton typ ->
@@ -789,9 +750,9 @@ module TypePrinter = struct
 
     | TyBar (p, q) ->
         parens (group (
-         nest 2 (break 0 ^^ print_type env p) ^/^
-         bar ^^ space ^^ nest 2 (print_type env q)
-       ))
+          nest 2 (break 0 ^^ print_type env p) ^/^
+          bar ^^ space ^^ nest 2 (print_type env q)
+        ))
 
     | TyAnd (c, t) ->
         prefix 0 1
@@ -801,34 +762,17 @@ module TypePrinter = struct
   and print_constraint env (mode, t) =
     string (Mode.print mode) ^^ space ^^ print_type env t
 
-  and print_data_field_def env = function
-    | FieldValue (name, typ) ->
-        print_field_name name ^^ colon ^^ jump (print_type env typ)
+  and print_data_field_def env (name, typ) =
+      print_field_name name ^^ colon ^^ jump (print_type env typ)
 
-    | FieldPermission typ ->
-        bar ^^ space ^^ print_type env typ
-
-  and print_unresolved_branch env (branch : unresolved_branch) =
-    print_branch env
-      (fun flavor -> string (DataTypeFlavor.print flavor))
-      print_datacon (* TEMPORARY may be ambiguous? (qualify) *)
-      branch
-
-  and print_resolved_branch env (branch : resolved_branch) =
-    print_branch env
-      (fun () -> empty)
-      (fun (_, dc) -> print_datacon dc) (* TEMPORARY may be ambiguous? (qualify) *)
-      branch
-
-  and print_branch : 'flavor 'datacon . env -> ('flavor -> document) -> ('datacon -> document) -> ('flavor, 'datacon) data_type_def_branch -> document =
-  fun env pf pdc b ->
+  and print_branch env b =
     let fields = b.branch_fields in
     let clause = b.branch_adopts in
     let record =
       if List.length fields > 0 then
         space ^^ braces_with_nesting (
           separate_map semibreak (print_data_field_def env) fields
-       )
+        )
       else
         empty
     in
@@ -838,8 +782,8 @@ module TypePrinter = struct
       else
         space ^^ string "adopts" ^^ space ^^ print_type env clause
     in
-    pf b.branch_flavor ^^
-    pdc b.branch_datacon ^^ record ^^ clause
+    string (DataTypeFlavor.print b.branch_flavor) ^^
+    print_datacon (snd b.branch_datacon) ^^ record ^^ clause
   ;;
 
   let pfact buf fact =

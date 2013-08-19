@@ -286,10 +286,11 @@ let implication_only_on_arrow env =
 (* Provided we have the name of a data constructor, its index, and the ordered
    list of its fields, we can create a [datacon_info] record. *)
 
-let mkdatacon_info dc i fields = {
+let mkdatacon_info dc i f fields = {
   datacon_name = Datacon.print dc;
   datacon_arity = List.length fields;
   datacon_index = i;
+  datacon_flavor = f;
   datacon_fields =
     let open Field.Map in
     MzList.fold_lefti (fun i accu f -> add f i accu) empty fields;
@@ -318,7 +319,7 @@ let empty module_name = {
 let initial
   (module_name : Module.name)
   (names : (Module.name * Variable.name * kind * 'v) list)
-  (datacons : (Module.name * 'v * int * Datacon.name * Field.name list) list)
+  (datacons : (Module.name * 'v * int * Datacon.name * DataTypeFlavor.flavor * Field.name list) list)
 : 'v env =
 
   let variables =
@@ -327,8 +328,8 @@ let initial
     ) V.empty names
 
   and datacons =
-    List.fold_left (fun accu (m, var, i, dc, fields) ->
-      let info = mkdatacon_info dc i fields in
+    List.fold_left (fun accu (m, var, i, dc, f, fields) ->
+      let info = mkdatacon_info dc i f fields in
       D.extend_qualified m dc (NonLocal var, info) accu
     ) D.empty datacons
   in
@@ -382,7 +383,7 @@ let find_datacon env (datacon : Datacon.name maybe_qualified) : 'v var * datacon
   with Not_found ->
     unbound "data constructor" Datacon.print env datacon
 
-let resolve_datacon env (dref : datacon_reference) : 'v var * Datacon.name =
+let resolve_datacon env (dref : datacon_reference) : 'v var * Datacon.name * DataTypeFlavor.flavor  =
   let datacon = dref.datacon_unresolved in
   (* Get the type [v] with which this data constructor is associated,
      and get its [info] record. *)
@@ -390,9 +391,9 @@ let resolve_datacon env (dref : datacon_reference) : 'v var * Datacon.name =
   (* Write the address of the [info] record into the abstract syntax
      tree. This info is used by the compiler. *)
   dref.datacon_info <- Some info;
-  (* Return a pair of the type with which this data constructor is associated
-     and the unqualified name of this data constructor. *)
-  v, unqualify datacon
+  (* Return a triple of the type with which this data constructor is associated,
+     the unqualified name and the flavor of the data constructor. *)
+  v, unqualify datacon, info.datacon_flavor
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -553,7 +554,7 @@ let bindings_data_group_types (group : data_type_def list) : type_binding list =
 let bind_data_group_datacons env (group : data_type_def list) : 'v env =
   List.fold_left (fun env def ->
     match def.rhs with
-    | Concrete (_, branches, _) ->
+    | Concrete (f, branches, _) ->
         let (x, _, _), _ = def.lhs in
         let v = find_var env (Unqualified x) in
         MzList.fold_lefti (fun i env (dc, fields) ->
@@ -561,7 +562,7 @@ let bind_data_group_datacons env (group : data_type_def list) : 'v env =
             | FieldValue (f, _) -> Some f
             | FieldPermission _ -> None
           ) fields in
-          bind_datacon env dc (v, mkdatacon_info dc i fields)
+          bind_datacon env dc (v, mkdatacon_info dc i f fields)
         ) env branches
     | Abbrev _
     | Abstract _ ->
@@ -705,7 +706,7 @@ and infer env s (ty : typ) : kind =
         but seems reasonable. Try to share code with the checking
 	of unresolved branches? *)
       (* Resolve this data constructor reference. *)
-      let _, _ = resolve_datacon env dref in
+      let _, _, _ = resolve_datacon env dref in
       (* Check that no field is provided twice, and check the type
          of each field. *)
       check_branch env s fields;

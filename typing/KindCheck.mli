@@ -65,7 +65,7 @@ val empty: Module.name -> 'v env
 val initial:
   Module.name ->
   (Module.name * Variable.name * kind * 'v) list ->
-  (Module.name * 'v * int * Datacon.name * Field.name list) list ->
+  (Module.name * 'v * int * Datacon.name * DataTypeFlavor.flavor * Field.name list) list ->
   'v env
 
 (* ---------------------------------------------------------------------------- *)
@@ -96,10 +96,10 @@ val find_nonlocal_variable: 'v env -> Variable.name -> 'v
 
 (** [resolve_datacon env dref] looks up the possibly-qualified data constructor
     [dref.datacon_unresolved] in the environment [env]. It updates [dref] in
-    place with a [datacon_info] component. It returns a pair of the type with
-    which this data constructor is associated and the unqualified name of this
-    data constructor. *)
-val resolve_datacon: 'v env -> datacon_reference -> 'v var * Datacon.name
+    place with a [datacon_info] component. It returns a triple of the type with
+    which this data constructor is associated, the unqualified name of this
+    data constructor, and its flavor. *)
+val resolve_datacon: 'v env -> datacon_reference -> 'v var * Datacon.name * DataTypeFlavor.flavor
 
 (* ---------------------------------------------------------------------------- *)
 

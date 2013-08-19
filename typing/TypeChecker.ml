@@ -85,16 +85,70 @@ let has_adopts_clause env t =
 ;;
 
 
-(* Since everything is, or will be, in A-normal form, type-checking a function
- * call amounts to type-checking a var applied to another var. The default
- * behavior is: do not return a type that contains flexible variables. *)
+(* This function expands type abbreviations / data types with one branch even
+ * under a "x @ _" anchored permission. *)
+let expand_if_one_branch_even_if_anchored env = function
+  | TyAnchoredPermission (x, t) ->
+      TyAnchoredPermission (x, expand_if_one_branch env t)
+  | u ->
+      expand_if_one_branch env u
+;;
+
+(* This is a third-order helper function that starts with environment [env].
+ * - If no concrete type is available for [x], it calls [failure env].
+ * - If at least one concrete type [TyConcrete b] is available for [x]...
+ *
+ * It calls [success b k].
+ * The [success] function modifies the branch [b]. When [success] is done, it
+ *  hands over control to [k], by calling [k b' k'], where [b'] is the new
+ *  branch that replaces [b]. [success] is not supposed to modify any
+ *  environment.
+ * The [k] function updates the original environment with the new branch [b'],
+ *  producing an updated environment [env']. It then calls [k' env'].
+ * The [k'] function takes the modified environment and produces the final
+ *  value.
+ * *)
+let transform_constructor_permission
+  (env: env)
+  (x: var)
+  (success: branch -> (branch -> (env -> 'a) -> 'a) -> 'a)
+  (failure: unit -> 'a) =
+    let permissions = get_permissions env x in
+    let concrete, not_concrete = List.partition is_concrete permissions in
+    match concrete with
+    | [] ->
+        failure ()
+    | hd :: tl ->
+        if tl <> [] then
+          Log.debug ~level:5 "Several concrete permissions. Weird, but maybe ok.";
+        success (assert_concrete hd) (fun branch k ->
+          let new_permissions =
+            TyConcrete branch :: tl @ not_concrete
+          in
+          let env = set_permissions env x new_permissions in
+          k env
+        )
+;;
+
+let replace_field
+  (branch: branch)
+  (field: Field.name)
+  (f: int -> var -> typ) =
+    let branch_fields = List.mapi (fun i (field', t) ->
+      if Field.equal field field' then
+        field', f i !!=t
+      else
+        field', t
+    ) branch.branch_fields in
+    { branch with branch_fields }
+;;
+
 let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env * typ =
   Log.debug ~level:5 "[check_function_call], f = %a, x = %a, env below\n\n%a\n"
     TypePrinter.pnames (env, get_names env f)
     TypePrinter.pnames (env, get_names env x)
     TypePrinter.penv env;
 
-  let fname = get_name env f in
   (* Find a suitable permission for [f] first *)
   let rec is_quantified_arrow = function
     | TyQ (Forall, _, _, t) ->
@@ -166,22 +220,20 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
     | Left (env, derivation) ->
         (env, derivation, (t1, t2), vars) :: valid, invalid
     | Right derivation ->
-        valid, (derivation, (t1, t2)) :: invalid
+        valid, (env, derivation, (t1, t2)) :: invalid
   ) permissions ([], []) in
 
   match valid, invalid with
   | [], [] ->
       raise_error env (NotAFunction f)
-  | [], (d, (t1, _)) :: _ ->
+  | [], (env, d, (t1, _)) :: _ ->
       raise_error env (ExpectedType (t1, x, d))
   | (env', d, (_, t2), vars) :: xs, _ ->
-      if xs <> [] then (
-        Log.debug "More than one permission available for %a, strange"
-          TypePrinter.pvar (env, fname);
-        List.iter (fun (name, var) ->
-          may_raise_error env (Instantiated (name, TyOpen var))
-        ) vars
-      );
+      if xs <> [] then
+        may_raise_error env (SeveralWorkingFunctionTypes f);
+      List.iter (fun (name, var) ->
+        may_raise_error env (Instantiated (name, TyOpen var))
+      ) vars;
 
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
       Log.debug ~level:6 "\nDerivation: %a\n" DerivationPrinter.pderivation d;
@@ -224,7 +276,8 @@ let rec type_for_function_def = function
  * permission to a var named [p]. We then need to glue the vars in the
  * pattern to the intermediate vars in the permission for [p]. If, for
  * instance, [pat] is [(p1, p2)] and [p @ (=p'1, =p'2)] holds, this function
- * will merge [p1] and [p'1], as well as [p2] and [p'2]. *)
+ * will merge [p1] and [p'1], as well as [p2] and [p'2].
+ *)
 let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
 
   match pattern with
@@ -257,11 +310,7 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
       if List.length t <> List.length patterns then
         raise_error env (BadPattern (pattern, var));
       List.fold_left2 (fun env pattern component ->
-        match component with
-        | TySingleton (TyOpen p') ->
-            unify_pattern env pattern p'
-        | _ ->
-            Log.error "Expecting a type that went through [unfold] and [collect] here"
+        unify_pattern env pattern !!=component
       ) env patterns t
 
   | PConstruct (datacon, field_pats) ->
@@ -279,19 +328,13 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
       let field_defs = List.hd field_defs in
       List.fold_left (fun env (name, pat) ->
         (* The pattern fields may not all be there or in an arbitrary order. *)
-        let field =
+        let _, t =
           try
-            List.find (function
-              | FieldValue (name', _) when Field.equal name name' -> true
-              | _ -> false) field_defs
+            List.find (fun (name', _) -> Field.equal name name') field_defs
           with Not_found ->
             raise_error env (NoSuchFieldInPattern (pattern, name))
         in
-        match field with
-        | FieldValue (_, TySingleton (TyOpen p')) ->
-            unify_pattern env pat p'
-        | _ ->
-            Log.error "Expecting a type that went through [unfold] and [collect] here"
+        unify_pattern env pat !!=t
       ) env field_pats
 
   | PAny ->
@@ -300,25 +343,29 @@ let rec unify_pattern (env: env) (pattern: pattern) (var: var): env =
 ;;
 
 
-(* TEMPORARY MatchBadTuple and MatchBadDatacon should not produce a type
-   error; they should produce an inconsistent environment (hence cause
-   the whole branch to be skipped) if the intersection is empty *)
+(** This function takes a permission (e.g. "list int") and refines it following
+ * a given pattern (e.g. "Cons { head; _ }") thus changing it into something
+ * more precise (e.g. "Cons { head = h; tail = t } * h @ ... * t @ ..."). The
+ * variables in the pattern are not tied to the structure points: this is the
+ * job of [unify_pattern], which will be typically called by [check_bindings].
+ * *)
 let refine_perms_in_place_for_pattern env var pat =
+  (* TEMPORARY MatchBadTuple and MatchBadDatacon should not produce a type
+     error; they should produce an inconsistent environment (hence cause
+     the whole branch to be skipped) if the intersection is empty *)
   let rec refine env var pat =
     match pat with
     | PAs (pat, _) ->
         refine env var pat
 
     | PTuple pats ->
+        (** This is an easy case: there's nothing to refine here (a tuple type
+         * can always match a tuple type), so recursively refine the tuple
+         * components. *)
         let vars =
           match MzList.find_opt (function
             | TyTuple ts ->
-                Some (List.map (function
-                  | TySingleton (TyOpen p) ->
-                      p
-                  | _ ->
-                      Log.error "expanded form"
-                ) ts)
+                Some (List.map (!!=) ts)
             | _ ->
                 None
           ) (get_permissions env var) with
@@ -327,6 +374,11 @@ let refine_perms_in_place_for_pattern env var pat =
           | None ->
               raise_error env (MatchBadTuple var)
         in
+        (* We need to check here that the lengths match because of the call to
+         * [fold_left2]. This is duplicating the check that [unify_pattern]
+         * performs. However, since [unify_pattern] is not always preceded by a
+         * call to [refine_perms_in_place_for_pattern], we have to check in both
+         * places. *)
         if List.length vars <> List.length pats then
           raise_error env (MatchBadTuple var);
         List.fold_left2 refine env vars pats
@@ -337,29 +389,19 @@ let refine_perms_in_place_for_pattern env var pat =
         let fail_if b = if b then fail () in
 
         (* Recursively refine the fields of a concrete type according to the
-         * sub-patterns. *)
+         * sub-patterns. This will be called once we have found the types of the
+         * corresponding [fields]. *)
         let refine_fields env fields = List.fold_left (fun env (n2, pat2) ->
-          let open ExprPrinter in
-          let open TypePrinter in
-          Log.debug "Field = %a, pat = %a" Field.p n2 ppat (env, pat2);
-          List.iter (function
-            | FieldValue (n1, t1) ->
-                Log.debug "Field = %a, t = %a" Field.p n1 ptype (env, t1)
-            | _ ->
-                assert false
-          ) fields;
-          let var1 = match MzList.find_opt (function
-            | FieldValue (n1, TySingleton (TyOpen p1)) when Field.equal n1 n2 ->
-                Some p1
-            | _ ->
-                None
+          match MzList.find_opt (fun (n1, t1) ->
+            if Field.equal n1 n2 then
+              Some !!=t1
+            else
+              None
           ) fields with
           | Some p1 ->
-              p1
+              refine env p1 pat2
           | None ->
               raise_error env (BadField (snd datacon, n2))
-          in
-          refine env var1 pat2
         ) env patfields in
 
         (* Find a permission that can be refined in there. *)
@@ -370,7 +412,7 @@ let refine_perms_in_place_for_pattern env var pat =
               fail_if (get_definition env p = None);
               begin try
                 let branch = find_and_instantiate_branch env p datacon [] in
-                Some (env, TyConcrete branch)
+                Some (env, branch)
               with Not_found ->
                 (* Urgh [find_and_instantiate_branch] should probably throw
                  * something better... *)
@@ -378,28 +420,21 @@ let refine_perms_in_place_for_pattern env var pat =
               end
           | TyApp (cons, args) ->
               let p', datacon = datacon in
-              Log.debug "cons=%a, p'=%a"
-                TypePrinter.ptype (env, cons)
-                TypePrinter.ptype (env, p');
               fail_if (not (same env !!cons !!p'));
               begin try
                 let branch = find_and_instantiate_branch env !!cons datacon args in
-                Some (env, TyConcrete branch)
+                Some (env, branch)
               with Not_found ->
                 fail ()
               end
           | TyConcrete branch' as t ->
-              let fields, _ = List.split patfields in
-              let is_ok =
-                resolved_datacons_equal env datacon branch'.branch_datacon &&
-                List.for_all (function
-                  | FieldValue (n1, _) ->
-                      List.exists (Field.equal n1) fields
-                  | _ ->
-                      Log.error "not in order or not expanded"
-                ) branch'.branch_fields
-              in
-              fail_if (not is_ok);
+              if not (resolved_datacons_equal env datacon branch'.branch_datacon) then
+                (* [refine_fields] takes care of checking that the fields in the
+                 * pattern all map to an existing field name for the structural
+                 * permission we found. We could technically skip this check
+                 * since [unify_pattern] will check that again for us, but well,
+                 * better do it now. *)
+                fail ();
               Some (env, t)
           | _ ->
               None
@@ -431,52 +466,6 @@ let refine_perms_in_place_for_pattern env var pat =
   refine env var pat
 ;;
 
-
-(** [merge_type_annotations] is useful when the context provides a type
- * annotation and we hit a [EConstraint] expression. We need to make sure the
- * type annotations are consistent: (unknown, τ) and (σ, unknown) are consistent
- * type annotations; τ and τ are. We are conservative, and refuse to merge a lot
- * other cases: (τ | σ) and (τ | σ') should probably be merged in a clever
- * manner, but that's too complicated. *)
-let merge_type_annotations env t1 t2 =
-  let error () =
-    raise_error env (ConflictingTypeAnnotations (t1, t2))
-  in
-  let rec merge_type_annotations t1 t2 =
-    match t1, t2 with
-    | _, _ when t1 = t2 ->
-        t1
-    | TyUnknown, _ ->
-        t2
-    | _, TyUnknown ->
-        t1
-    | TyTuple ts1, TyTuple ts2 when List.length ts1 = List.length ts2 ->
-        TyTuple (List.map2 merge_type_annotations ts1 ts2)
-    | TyConcrete branch1,
-      TyConcrete branch2
-      when resolved_datacons_equal env branch1.branch_datacon branch2.branch_datacon ->
-        assert (List.length branch1.branch_fields = List.length branch2.branch_fields);
-       let branch = { branch1 with
-         branch_fields =
-            List.map2 (fun f1 f2 ->
-             match f1, f2 with
-             | FieldValue (f1, t1), FieldValue (f2, t2) when Field.equal f1 f2 ->
-                FieldValue (f1, merge_type_annotations t1 t2)
-             | _ ->
-                error ()
-           ) branch1.branch_fields branch2.branch_fields;
-         branch_adopts =
-            merge_type_annotations branch1.branch_adopts branch2.branch_adopts;
-       } in
-       TyConcrete branch
-    | _ ->
-        error ()
-  in
-  merge_type_annotations t1 t2
-;;
-
-
-
 let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * var =
 
   (* lazy because we need to typecheck the core modules too! *)
@@ -494,6 +483,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
     | None ->
         env, x
     | Some t ->
+        (* jp: This is possibly quadratic, so I tried removing that check to see
+         * whether it helped. Turns out it does not change performances the
+         * least bit, so I'm leaving it in the hope that it gives potentially
+         * better error messages. *)
         match Permissions.sub env x t with
         | Left _ ->
             env, x
@@ -503,8 +496,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
   match expr with
   | EConstraint (e, t) ->
+      (* We used to be smart and merge type annotations but not a single test
+       * file used this (dubious) feature, so it was removed. *)
       let annot = match annot with
-        | Some t' -> merge_type_annotations env t t'
+        | Some t' -> raise_error env (ConflictingTypeAnnotations (t, t'))
         | None -> t
       in
       let env, p = check_expression env ?hint ~annot e in
@@ -520,32 +515,20 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       end
 
   | EPack (u, t') ->
-      (* Type-checking « pack ∃α.t witness t' » with « u = ∃α.t » amounts to:
+      (* Type-checking « pack u witness t' » with « u = ∃α.t » amounts to:
        * - subtract [t'/α]t
        * - add u
        * *)
       let t =
-        let u =
-          (* A local version of [u] where type abbreviations have been properly
-           * expanded. *)
-          match u with
-          | TyAnchoredPermission (x, t) ->
-              TyAnchoredPermission (x, expand_if_one_branch env t)
-          | _ ->
-              expand_if_one_branch env u
-        in
-        match u with
+        match expand_if_one_branch_even_if_anchored env u with
         | TyQ (Exists, _, UserIntroduced, t) ->
-            t
+            tsubst t' 0 t
         | TyAnchoredPermission (x, TyQ (Exists, _, UserIntroduced, t)) ->
-            (* [x] is a free variable so we're free to just zap the quantifier. *)
-            TyAnchoredPermission (x, t)
+            TyAnchoredPermission (x, tsubst t' 0 t)
         | _ ->
             raise_error env PackWithExists
       in
-      (* I could use a combo of [bind_flexible] / [instantiate_flexible] here but
-       * the [tsubst] solution seems more legible. *)
-      begin match Permissions.sub_perm env (tsubst t' 0 t) with
+      begin match Permissions.sub_perm env t with
       | Left (env, _) ->
           let env = Permissions.add_perm env u in
           return env ty_unit
@@ -608,7 +591,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let e = subst_expr e in
 
       (* Check that the body is well-typed. *)
-      let (_ : env * var) = check_expression env e in
+      let (sub_env, _ : env * var) = check_expression env e in
+
+      (* In case type-checking the function body instantiated some flexible
+       * variables, carry this information over to the environment which we
+       * return. This is in line with the subtraction of arrow types. *)
+      let env = Permissions.import_flex_instanciations env sub_env in
 
       (* Return the desired type. This is where we cheat. *)
       return env desired
@@ -632,7 +620,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       begin match Permissions.sub sub_env p return_type with
       | Left (_, d) ->
-          Log.debug "%a" DerivationPrinter.pderivation d;
+          Log.debug ~level:8 "%a" DerivationPrinter.pderivation d;
           (* Return the desired arrow type. *)
           return env (TyArrow (arg, return_type))
       | Right d ->
@@ -644,48 +632,22 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let hint = add_hint hint (Field.print fname) in
       let env, p1 = check_expression env ?hint e1 in
       let env, p2 = check_expression env e2 in
-      let permissions = get_permissions env p1 in
-      let found = ref false in
-      let permissions = List.map (fun t ->
-          match t with
-          | TyConcrete branch ->
-              (* Check that this datacon is exclusive. *)
-             let flavor = flavor_for_branch env branch in
-             if not (DataTypeFlavor.can_be_written flavor) then
-                raise_error env (AssignNotExclusive (t, snd branch.branch_datacon));
+      let success branch k =
+        (* Check that this datacon is exclusive. *)
+        let flavor = branch.branch_flavor in
+        if not (DataTypeFlavor.can_be_written flavor) then
+          raise_error env (AssignNotExclusive (TyConcrete branch, snd branch.branch_datacon));
 
-              (* Perform the assignment. *)
-              let branch_fields = List.mapi (fun i -> function
-                | FieldValue (field, expr) ->
-                    let expr = 
-                      if Field.equal field fname then
-                        begin match expr with
-                        | TySingleton (TyOpen _) ->
-                            if !found then
-                              Log.error "Two matching permissions? That's strange...";
-                            field_struct.SurfaceSyntax.field_offset <- Some i;
-                            found := true;
-                            TySingleton (TyOpen p2)
-                        | t ->
-                            let open TypePrinter in
-                            Log.error "Not a var %a" ptype (env, t)
-                        end
-                      else
-                        expr
-                    in
-                    FieldValue (field, expr)
-                | FieldPermission _ ->
-                    Log.error "These should've been inserted in the environment"
-              ) branch.branch_fields in
-              TyConcrete { branch with branch_fields }
-          | _ ->
-              t
-        ) permissions
+        let branch = replace_field branch fname (fun i _ ->
+          field_struct.SurfaceSyntax.field_offset <- Some i;
+          TySingleton (TyOpen p2)
+        ) in
+        k branch (fun env -> return env ty_unit)
       in
-      if not !found then
-        raise_error env (NoSuchField (p1, fname));
-      let env = set_permissions env p1 permissions in
-      return env ty_unit
+      let failure () =
+        raise_error env (NoSuchField (p1, fname))
+      in
+      transform_constructor_permission env p1 success failure
 
   | EAssignTag (e1, new_datacon, info) ->
       (* Type-check [e1]. *)
@@ -694,93 +656,68 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* Find the ordered list of field names associated with [new_datacon]. *)
       let field_names = fields_for_datacon env new_datacon in
 
-      let permissions = get_permissions env p1 in
-      let found = ref false in
-      let permissions = List.map (function
-        | TyConcrete old_branch as t ->
-           let old_datacon = old_branch.branch_datacon in
-            (* The current type should be mutable. *)
-           let old_flavor = flavor_for_branch env old_branch in
-           if not (DataTypeFlavor.can_be_written old_flavor) then
-              raise_error env (AssignNotExclusive (t, snd old_datacon));
+      let success old_branch k =
+        let t = TyConcrete old_branch in
+        let old_datacon = old_branch.branch_datacon in
+        (* The current type should be mutable. *)
+        let old_flavor = old_branch.branch_flavor in
+        if not (DataTypeFlavor.can_be_written old_flavor) then
+          raise_error env (AssignNotExclusive (t, snd old_datacon));
 
-            (* Also, the number of fields should be the same. *)
-            if List.length old_branch.branch_fields <> List.length field_names then
-              raise_error env (FieldCountMismatch (t, snd new_datacon));
+        (* Also, the number of fields should be the same. *)
+        if List.length old_branch.branch_fields <> List.length field_names then
+          raise_error env (FieldCountMismatch (t, snd new_datacon));
 
-            (* Change the field names. *)
-            let branch_fields = List.map2 (fun field -> function
-              | FieldValue (_, e) ->
-                  FieldValue (field, e)
-              | FieldPermission _ ->
-                  Log.error "These should've been inserted in the environment"
-            ) field_names old_branch.branch_fields in
+        (* Change the field names. *)
+        let branch_fields = List.map2
+          (fun field (_, e) -> field, e)
+          field_names
+          old_branch.branch_fields
+        in
 
-            if !found then
-              Log.error "Two suitable permissions, strange...";
-            found := true;
-            if resolved_datacons_equal env old_datacon new_datacon then
-              info.SurfaceSyntax.is_phantom_update <- Some true
-            else
-              info.SurfaceSyntax.is_phantom_update <- Some false;
+        (* XXX jp: I believe this check is incorrect, we need to check that the
+         * branch number is the same, not that this is the same data constructor
+         * (meaning this would be a very dumb tag update). *)
+        if resolved_datacons_equal env old_datacon new_datacon then
+          info.SurfaceSyntax.is_phantom_update <- Some true
+        else
+          info.SurfaceSyntax.is_phantom_update <- Some false;
 
-            (* And don't forget to change the datacon as well. *)
-            TyConcrete { old_branch with
-             (* the flavor is unit anyway *)
-             branch_datacon = new_datacon;
-             branch_fields;
-             (* the type of the adoptees does not change *)
-           }
-
-        | _ as t ->
-            t
-      ) permissions in
-
-      if not !found then
-        raise_error env (CantAssignTag p1);
-
-      let env = set_permissions env p1 permissions in
-      return env ty_unit
+        (* And don't forget to change the datacon as well. *)
+        k { old_branch with
+          branch_flavor = flavor_for_datacon env new_datacon;
+          branch_datacon = new_datacon;
+          branch_fields;
+          (* the type of the adoptees does not change *)
+        } (fun env -> return env ty_unit)
+      in
+      let failure () =
+        raise_error env (CantAssignTag p1)
+      in
+      transform_constructor_permission env p1 success failure
 
 
   | EAccess (e, field_struct) ->
-      (* We could be a little bit smarter, and generic here. Instead of iterating
-       * on the permissions, we could use a reverse map from field names to
-       * types. We could then subtract the type (instanciated using flexible
-       * variables) from the expression. In case the subtraction function does
-       * something super fancy, like using P ∗ P -o τ to obtain τ, this would
-       * allow us to reuse the code. Of course, this raises the question of
-       * “what do we do in case there's an ambiguity”, that is, multiple
-       * datacons that feature this field name... We'll leave that for later. *)
       let fname = field_struct.SurfaceSyntax.field_name in
       let hint = add_hint hint (Field.print fname) in
       let env, p = check_expression env ?hint e in
-      let module M = struct exception Found of var end in
-      begin try
-        List.iter (fun t ->
-          match t with
-          | TyConcrete branch ->
-              List.iteri (fun i -> function
-                | FieldValue (field, expr) ->
-                    if Field.equal field fname then
-                      begin match expr with
-                      | TySingleton (TyOpen p) ->
-                          field_struct.SurfaceSyntax.field_offset <- Some i;
-                          raise (M.Found p)
-                      | t ->
-                          let open TypePrinter in
-                          Log.error "Not a var %a" ptype (env, t)
-                      end;
-                | FieldPermission _ ->
-                    ()
-              ) branch.branch_fields
-          | _ ->
-              ()
-        ) (get_permissions env p);
+      let success branch k =
+        match MzList.find_opti (fun i (field, t) ->
+          if Field.equal field fname then begin
+            field_struct.SurfaceSyntax.field_offset <- Some i;
+            Some !!=t
+          end else
+            None
+        ) branch.branch_fields
+        with
+        | Some p' -> k branch (fun env -> env, p')
+        | None -> raise_error env (NoSuchField (p, fname))
+      in
+      let failure () =
+        (* XXX jp: could we give a better error message here *)
         raise_error env (NoSuchField (p, fname))
-      with M.Found p' ->
-        env, p'
-      end
+      in
+      transform_constructor_permission env p success failure
 
   | EApply (e1, e2) ->
       begin match eunloc e1 with
@@ -802,8 +739,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   | ETApply (e, t, k) ->
       let env, x = check_expression env e in
       let rec find_and_instantiate = function
-        | TyQ (Forall, (name, k', loc), UserIntroduced, t') as t0 ->
-            Log.debug "%a" TypePrinter.ptype (env, t0);
+        | TyQ (Forall, (name, k', loc), UserIntroduced, t') as _t0 ->
             let check_kind () =
               if k <> k' then
                 raise_error env (IllKindedTypeApplication (t, k, k'))
@@ -826,6 +762,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                   let t = lift (-1) t in
                   Some t
                 end else begin
+                  (* The trick is: we're not opening the binders that we're
+                   * crossing, meaning that we need to "unlift" the instantiated
+                   * type to account for the binder that we just destroyed. This
+                   * is the reason for the "lift (-1)" above. *)
                   match find_and_instantiate t' with
                   | Some t' ->
                       Some (TyQ (Forall, (name, k', loc), UserIntroduced, t'))
@@ -884,43 +824,30 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       in
       let annotations = match annot with
         | Some (TyConcrete branch) ->
-            let annots = MzList.map_some (function
-                | FieldValue (name, t) ->
-                    Some (name, t)
-                | FieldPermission _ ->
-                    (* There may be some permissions bundled in the type
-                     * annotation (beneath, say, a constructor). We're not doing
-                     * anything useful with these yet. *)
-                    None
-              ) branch.branch_fields
-            in
+            let annots = branch.branch_fields in
             (* Every field in the type annotation corresponds to a field in the
              * expression, i.e. the type annotation makes sense. *)
             if List.for_all (fun (name, _) ->
-                List.exists (function
-                  | name', _ ->
-                      Field.equal name name'
-                ) fieldexprs
+              List.exists (fun (name', _) ->
+                Field.equal name name'
+              ) fieldexprs
             ) annots then
               annots
             else
+              (* XXX Error here? *)
               []
         | _ ->
             []
       in
-      (* Find the corresponding definition. *)
-      let branches = branches_for_datacon env datacon in
-      (* And the corresponding branch, so that we obtain the field names in order. *)
-      let branch =
-        List.find (fun branch' -> Datacon.equal (snd datacon) branch'.branch_datacon) branches
-      in
+      (* Find the corresponding fields. *)
+      let fields = fields_for_datacon env datacon in
       (* Take out of the provided fields one of them. *)
       let take env name' l =
-        try
-          let elt = List.find (fun (name, _) -> Field.equal name name') l in
-          snd elt, List.filter (fun x -> x != elt) l
-        with Not_found ->
-          raise_error env (MissingField name')
+        match MzList.take_bool (fun (name, _) -> Field.equal name name') l with
+        | Some (l, elt) ->
+            snd elt, l
+        | None ->
+            raise_error env (MissingField name')
       in
       (* Find the annotation for one of the fields. *)
       let annot name =
@@ -939,16 +866,15 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         env, (name, p) :: acc
       ) (env, []) fieldexprs in
 
-      (* Do the bulk of the work. *)
-      let env, remaining, fieldvals = List.fold_left (fun (env, remaining, fieldvals) -> function
-        | FieldValue (name, _t) ->
-            (* Actually we don't care about the expected type for the field. We
-             * just want to make sure all fields are provided. *)
-            let p, remaining = take env name remaining in
-            env, remaining, FieldValue (name, ty_equals p) :: fieldvals
-        | FieldPermission _ ->
-            env, remaining, fieldvals
-      ) (env, fieldexprs, []) branch.branch_fields in
+      (* Do the bulk of the work. We're iterating on the _definition_ of the
+       * fields to make sure we construct the expression with the fields in the
+       * right order, and with all the fields. *)
+      let env, remaining, fieldvals = List.fold_left (fun (env, remaining, fieldvals) name ->
+        (* Actually we don't care about the expected type for the field. We
+         * just want to make sure all fields are provided. *)
+        let p, remaining = take env name remaining in
+        env, remaining, (name, ty_equals p) :: fieldvals
+      ) (env, fieldexprs, []) fields in
       (* Make sure the user hasn't written any superfluous fields. *)
       begin match remaining with
       | (name, _) :: _ ->
@@ -958,10 +884,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       end;
       let fieldvals = List.rev fieldvals in
       let branch = {
-       branch_flavor = ();
-       branch_datacon = datacon;
-       branch_fields = fieldvals;
-       branch_adopts = clause;
+        branch_flavor = flavor_for_datacon env datacon;
+        branch_datacon = datacon;
+        branch_fields = fieldvals;
+        branch_adopts = clause;
       } in
       return env (TyConcrete branch)
 
@@ -988,14 +914,29 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       let env, (false_t, true_t) =
         match MzList.take_bool (is_data_type_with_two_constructors env) (get_permissions env x1) with
-        | Some (permissions, t) ->
-            let env = set_permissions env x1 permissions in
+        | Some (stripped_permissions, t) ->
+            (* The type that has two constructors should only disappear from the
+             * permission list of [x1] if not duplicable. One may ask: how come
+             * the merge operation won't re-merge the two constructors into the
+             * original, nominal type? Well, if this is a _value_ exported from
+             * another module, the [Merge] operation won't touch it, assuming
+             * that values exported from other modules won't change (since they
+             * now can only be duplicable), so we need to leave the original,
+             * duplicable permission here. *)
+            let env =
+              if FactInference.is_duplicable env t then
+                env
+              else
+                (* Necessarily in our own module, meaning it will be merged
+                 * properly. *)
+                set_permissions env x1 stripped_permissions
+            in
             let split_apply cons args =
               match Option.extract (get_definition env cons) with
               | Concrete [b1; b2] ->
-                  let branch1 = resolve_branch cons (instantiate_branch b1 args) in
-                  let branch2 = resolve_branch cons (instantiate_branch b2 args) in
-                  TyConcrete branch1, TyConcrete branch2
+                  let branch1 = instantiate_type b1 args in
+                  let branch2 = instantiate_type b2 args in
+                  branch1, branch2
               | _ ->
                   assert false
             in
@@ -1012,6 +953,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         | None ->
             raise_error env (NoTwoConstructors x1);
       in
+      (* Here, if the original type was duplicable, we may be doing "x @ bool * x
+       * @ True" but [Permissions] knows (I hope) how to simplify that. *)
       let false_env = Permissions.add env x1 false_t in
       let true_env = Permissions.add env x1 true_t in
 
@@ -1057,7 +1000,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let replace_clause perm clause =
         match perm with
         | TyConcrete branch ->
-           assert (is_non_bottom branch.branch_adopts = None); (* the old clause is bottom *)
+            assert (is_non_bottom branch.branch_adopts = None); (* the old clause is bottom *)
             TyConcrete { branch with branch_adopts = clause }
         | _ ->
             Log.error "[perm] must be a nominal type, and we don't allow the \
@@ -1104,13 +1047,13 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
                 (* We're done. *)
                 return env ty_unit
           else begin
-           (* Check that the adoptee is exclusive. We do *not* check this when
-              we examine an algebraic data type definition that has an adopts
-              clause, because it is more flexible to defer this check to actual
-              adoption time. Indeed, the type parameters have been instantiated,
-              local mode assumptions are available, so the check may succeed here
-              whereas it would have failed if performed at type definition time. *)
-           if not (FactInference.is_exclusive env clause) then
+            (* Check that the adoptee is exclusive. We do *not* check this when
+               we examine an algebraic data type definition that has an adopts
+               clause, because it is more flexible to defer this check to actual
+               adoption time. Indeed, the type parameters have been instantiated,
+               local mode assumptions are available, so the check may succeed here
+               whereas it would have failed if performed at type definition time. *)
+            if not (FactInference.is_exclusive env clause) then
               raise_error env (NonExclusiveAdoptee clause);
             (* The clause is known. Just take the required permission out of the
              * permissions for x. *)
@@ -1194,7 +1137,6 @@ and check_bindings
             match pat, expr with
             | POpen p, (EBigLambdas _ | ELambda _) ->
                 let t = type_for_function_def expr in
-                (* [add] takes care of simplifying the function type *)
                 Permissions.add env p t
             | _ ->
                 raise_error env RecursiveOnlyForFunctions
@@ -1213,7 +1155,6 @@ and check_bindings
       let env = unify_pattern env pat var in
       env) env patterns expressions
     in
-    Log.debug "OK\n%!";
     env, subst_kit
 ;;
 
@@ -1223,17 +1164,6 @@ let check_declaration_group
     (toplevel_items: toplevel_item list): env * toplevel_item list * var list =
   let p, rec_flag, patexprs = defs in
   let env = locate env p in
-  let env, { vars; _ } = check_bindings env rec_flag patexprs in
-  (* List kept in reverse, the usual trick. *)
-  let vars = List.rev vars in
-  let subst_toplevel_items b =
-    MzList.fold_lefti (fun i b var ->
-      let b = tsubst_toplevel_items (TyOpen var) i b in
-      esubst_toplevel_items (EOpen var) i b) b vars
-  in
-  (* ...but it works! *)
-
-  (* NB: don't forget to return the list of vars in the same
-   * order as they came in. *)
-  env, subst_toplevel_items toplevel_items, (List.rev vars)
+  let env, { vars; subst_toplevel; _ } = check_bindings env rec_flag patexprs in
+  env, subst_toplevel toplevel_items, vars
 ;;

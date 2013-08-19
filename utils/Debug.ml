@@ -61,14 +61,8 @@ module Graph = struct
     let line, edges =
       match t with
       | TyConcrete { branch_datacon; branch_fields; _ } ->
-          let blocks, edges = MzList.split_map (fun f ->
-            let name, t =
-              match f with
-              | FieldValue (name, t) ->
-                  Field.print name, t
-              | _ ->
-                  Log.error "Need [collect]"
-            in
+          let blocks, edges = MzList.split_map (fun (name, t) ->
+            let name = Field.print name in
             gen env name t
           ) branch_fields in
           let blocks =

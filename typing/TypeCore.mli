@@ -23,16 +23,12 @@ open Kind
    type-checker. *)
 
 
-(** {1 Various useful modules} *)
-
-module DataconMap: MzMap.S with type key = Module.name * Datacon.name
-module Field: module type of Variable with type name = SurfaceSyntax.Field.name
-
 (* -------------------------------------------------------------------------- *)
 
 
 (** {1 The definition of types} *)
 
+module Field: module type of Variable with type name = SurfaceSyntax.Field.name
 
 (** {2 Auxiliary definitions} *)
 
@@ -71,9 +67,7 @@ type var
 (** {2 The type of types} *)
 
 (** A field in a data type *)
-type data_field_def =
-  | FieldValue of (Field.name * typ)
-  | FieldPermission of typ
+type data_field_def = Field.name * typ
 
 (** The type of types. *)
 and typ =
@@ -92,7 +86,7 @@ and typ =
 
     (** Structural types. *)
   | TyTuple of typ list
-  | TyConcrete of resolved_branch
+  | TyConcrete of branch
 
     (** Singleton types. *)
   | TySingleton of typ
@@ -111,38 +105,37 @@ and typ =
     (** Constraint *)
   | TyAnd of mode_constraint * typ
 
-(** Since data constructors are now properly scoped, they are resolved, that is,
- * they are either attached to a point, or a De Bruijn index, which will later
- * resolve to a point when we open the corresponding type definition. That way,
- * we can easily jump from a data constructor to the corresponding type
- * definition. *)
-and resolved_datacon = typ * Datacon.name
 
 and mode_constraint = Mode.mode * typ
 
-
-(** {2 Type definitions} *)
-
-and ('flavor, 'datacon) data_type_def_branch = {
-  branch_flavor: 'flavor; (** {!DataTypeFlavor.flavor} or unit *)
-  branch_datacon: 'datacon; (** {!Datacon.name} or resolved_datacon *)
+and branch = {
+  branch_flavor: DataTypeFlavor.flavor;
+  (* Since data constructors are now properly scoped, they are resolved, that
+   * is, they are either attached to a point, or a De Bruijn index, which will
+   * later resolve to a point when we open the corresponding type definition.
+   * That way, we can easily jump from a data constructor to the corresponding
+   * type definition.
+   *
+   * In a situation where we cannot reasonably have a resolved datacon, such as
+   * a data type _definition_, we use [TyUnknown] for the type. This disappears
+   * as soon as the type enters the environment. *)
+  branch_datacon: resolved_datacon;
   branch_fields: data_field_def list;
-    (** The type of the adoptees; initially it's bottom and then
-     * it gets instantiated to something less precise. *)
+  (* The type of the adoptees; initially it's bottom and then
+   * it gets instantiated to something less precise. *)
   branch_adopts: typ;
 }
 
-and resolved_branch =
-    (unit, resolved_datacon) data_type_def_branch
+and resolved_datacon = typ * Datacon.name
 
-type unresolved_branch =
-    (DataTypeFlavor.flavor, Datacon.name) data_type_def_branch
+
+(** {2 Type definitions} *)
 
 (** Our data constructors have the standard variance. *)
 type variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | Bivariant
 
 type type_def =
-  | Concrete of unresolved_branch list
+  | Concrete of typ list
   | Abstract
   | Abbrev of typ
 
@@ -159,6 +152,24 @@ type data_type_group = {
   group_recursive: SurfaceSyntax.rec_flag;
   group_items: data_type list;
 }
+
+
+(* -------------------------------------------------------------------------- *)
+
+(** {1 Various useful modules} *)
+
+module DataconMap: MzMap.S with type key = Module.name * Datacon.name
+
+(** This module provides a clean way to map a variable to any given piece of
+ * data. Beware, however, that this module only works with rigid variables (it's
+ * unclear what it should do for flexible variables), so it's up to the client
+ * to properly run {!is_flexible} beforehand. *)
+module VarMap: MzMap.S with type key = var
+
+(** This is an imperative version of [VarMap], in the form expected by [Fix]. *)
+module IVarMap: Fix.IMPERATIVE_MAPS with type key = var
+
+
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -324,6 +335,26 @@ val resolved_datacons_equal: env -> resolved_datacon -> resolved_datacon -> bool
 (* ---------------------------------------------------------------------------- *)
 
 
+(** {1 Data type definitions} *)
+
+(** The branches in data type definitions are now represented as types. If the
+ * branch contains permissions, there will be a [TyBar]. There may be other type
+ * constructors above the [TyConcrete]. Thus, we provide a set of wrappers to
+ * peek at / modify the [branch] found below other type constructors. *)
+
+(** Need to translate a branch definition [b] with nested permissions [ps] into
+ * a type? Use [construct_branch b ps]. *)
+val construct_branch: branch -> typ list -> typ
+
+(** Need to see the branch hidden beneath a type? Use this helper. *)
+val find_branch: typ -> branch
+
+(** Need to modify the branch hidden beneath a type? Use this helper. *)
+val touch_branch: typ -> (branch -> branch) -> typ
+
+(* ---------------------------------------------------------------------------- *)
+
+
 (** {1 Binding} *)
 
 (** Bind a rigid type variable. *)
@@ -352,8 +383,10 @@ val get_external_names: env -> (Module.name * Variable.name * kind * var) list
  * (default: [module_name env]) in [env]. *)
 val point_by_name: env -> ?mname:Module.name -> Variable.name -> var
 
-(* Note: there is no direct way of listing the data constructors exported by
-   a module. *)
+(** Produce a list of all external data constructor definitions, i.e.
+    all data constructors that are currently known but are defined
+    outside the current module. *)
+val get_external_datacons: env -> (Module.name * var * int * Datacon.name * DataTypeFlavor.flavor * Field.name list) list
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -362,7 +395,7 @@ val point_by_name: env -> ?mname:Module.name -> Variable.name -> var
 
 (** We provide a set of fold/map operations on variables defined in the
  * environment. Existential variables are not folded over, as they only serve as
- * placeholders; only rigid variables are consider when performing the various
+ * placeholders; only rigid variables are considered when performing the various
  * [fold] operations.
  *
  * Of course, we only fold over variables that have been opened in the current
@@ -374,11 +407,6 @@ val fold_definitions: env -> ('acc -> var -> type_def -> 'acc) -> 'acc -> 'acc
 (** Fold over all opened terms, providing the corresponding [var] and
  * permissions. *)
 val fold_terms: env -> ('acc -> var -> typ list -> 'acc) -> 'acc -> 'acc
-
-(** Produce a list of all external data constructor definitions, i.e.
-    all data constructors that are currently known but are defined
-    outside the current module. *)
-val get_external_datacons: env -> (Module.name * var * int * Datacon.name * Field.name list) list
 
 (** General fold operation. *)
 val fold: env -> ('acc -> var -> 'acc) -> 'acc -> 'acc
@@ -394,15 +422,6 @@ val map: env -> (var -> 'a) -> 'a list
 val is_marked: env -> var -> bool
 val mark: env -> var -> env
 val refresh_mark: env -> env
-
-(** This module provides a clean way to map a variable to any given piece of
- * data. Beware, however, that this module only works with rigid variables (it's
- * unclear what it should do for flexible variables), so it's up to the client
- * to properly run {!is_flexible} beforehand. *)
-module VarMap: MzMap.S with type key = var
-
-(** This is an imperative version of [VarMap], in the form expected by [Fix]. *)
-module IVarMap: Fix.IMPERATIVE_MAPS with type key = var
 
 (** {1 Visitors for the internal syntax of types} *)
 
@@ -433,7 +452,7 @@ class virtual ['env, 'result] visitor : object
   method virtual tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> 'result
   method virtual tyapp: 'env -> typ -> typ list -> 'result
   method virtual tytuple: 'env -> typ list -> 'result
-  method virtual tyconcrete: 'env -> resolved_branch -> 'result
+  method virtual tyconcrete: 'env -> branch -> 'result
   method virtual tysingleton: 'env -> typ -> 'result
   method virtual tyarrow: 'env -> typ -> typ -> 'result
   method virtual tybar: 'env -> typ -> typ -> 'result
@@ -458,7 +477,7 @@ class ['env] map : object
   method tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> typ
   method tyapp: 'env -> typ -> typ list -> typ
   method tytuple: 'env -> typ list -> typ
-  method tyconcrete: 'env -> resolved_branch -> typ
+  method tyconcrete: 'env -> branch -> typ
   method tysingleton: 'env -> typ -> typ
   method tyarrow: 'env -> typ -> typ -> typ
   method tybar: 'env -> typ -> typ -> typ
@@ -467,14 +486,12 @@ class ['env] map : object
   method tystar: 'env -> typ -> typ -> typ
   method tyand: 'env -> mode_constraint -> typ -> typ
 
-  (** An auxiliary method for transforming a resolved branch. *)
-  method resolved_branch: 'env -> resolved_branch -> resolved_branch
+  (** An auxiliary method for transforming a branch. *)
+  method branch: 'env -> branch -> branch
   (** An auxiliary method for transforming a resolved data constructor. *)
   method resolved_datacon: 'env -> resolved_datacon -> resolved_datacon
   (** An auxiliary method for transforming a field. *)
   method field: 'env -> data_field_def -> data_field_def
-  (** An auxiliary method for transforming an unresolved branch. *)
-  method unresolved_branch: 'env -> unresolved_branch -> unresolved_branch
   (** An auxiliary method for transforming a data type group. *)
   method data_type_group: 'env -> data_type_group -> data_type_group
 
@@ -494,7 +511,7 @@ class ['env] iter : object
   method tyq: 'env -> quantifier -> type_binding -> flavor -> typ -> unit
   method tyapp: 'env -> typ -> typ list -> unit
   method tytuple: 'env -> typ list -> unit
-  method tyconcrete: 'env -> resolved_branch -> unit
+  method tyconcrete: 'env -> branch -> unit
   method tysingleton: 'env -> typ -> unit
   method tyarrow: 'env -> typ -> typ -> unit
   method tybar: 'env -> typ -> typ -> unit
@@ -503,18 +520,25 @@ class ['env] iter : object
   method tystar: 'env -> typ -> typ -> unit
   method tyand: 'env -> mode_constraint -> typ -> unit
 
-  (** An auxiliary method for visiting a resolved branch. *)
-  method resolved_branch: 'env -> resolved_branch -> unit
+  (** An auxiliary method for visiting a branch. *)
+  method branch: 'env -> branch -> unit
   (** An auxiliary method for visiting a resolved data constructor. *)
   method resolved_datacon: 'env -> resolved_datacon -> unit
   (** An auxiliary method for visiting a field. *)
   method field: 'env -> data_field_def -> unit
-  (** An auxiliary method for visiting an unresolved branch. *)
-  method unresolved_branch: 'env -> unresolved_branch -> unit
   (** An auxiliary method for visiting a data type group. *)
   method data_type_group: 'env -> data_type_group -> unit
 
 end
+
+
+(* -------------------------------------------------------------------------- *)
+
+(** {1 Misc.} *)
+
+(** The bottom type. *)
+val ty_bottom : typ
+val is_non_bottom: typ -> typ option
 
 (**/**)
 
@@ -530,6 +554,3 @@ val internal_uniqvarid: env -> var -> int
 val internal_checklevel: env -> typ -> unit
 val internal_wasflexible: var -> bool
 
-(** The bottom type. *)
-val ty_bottom : typ
-val is_non_bottom: typ -> typ option

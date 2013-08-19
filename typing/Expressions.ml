@@ -17,7 +17,8 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(* This file contains our internal syntax for expressions. *)
+(* This file contains our internal syntax for expressions and data type groups,
+ * since the two are mutually recursive, because of local type definitions. *)
 
 open Kind
 open TypeCore
@@ -180,8 +181,25 @@ let tsubst_pat (t2: typ) (i: db_index) (p1: pattern): pattern =
 (* These definitions used to be in a separate module but since expressions can
  * now contain data type definitions, they have to come over here.
  *
- * BEWARE: everything from now on is mutually recursive.*)
+ * BEWARE: everything from now on is mutually recursive.
+ * *)
 
+let resolve_branch var branch =
+  { branch with branch_datacon = (TyOpen var, snd branch.branch_datacon) }
+;;
+
+let resolve_definition var def =
+  match def with
+  | Concrete branches ->
+      let branches = List.map (fun t ->
+        touch_branch t (fun b ->
+          resolve_branch var b
+        )
+      ) branches in
+      Concrete branches
+  | _ ->
+      def
+;;
 
 let rec bind_group_in: 'a. var list -> (typ -> int -> 'a -> 'a) -> 'a -> 'a =
   fun vars subst_func_for_thing thing ->
@@ -200,8 +218,9 @@ and bind_group_in_group (vars: var list) (group: data_type_group) =
 
 and bind_group_definitions (env: env) (vars: var list) (group: data_type_group): env =
   List.fold_left2 (fun env var data_type ->
+    let definition = resolve_definition var data_type.data_definition in
     (* Replace the corresponding definition in [env]. *)
-    set_definition env var data_type.data_definition data_type.data_variance
+    set_definition env var definition data_type.data_variance
   ) env vars group.group_items
 
 
@@ -604,8 +623,10 @@ type substitution_kit = {
   subst_type: typ -> typ;
   (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EOpen]s in an [expression]. *)
   subst_expr: expression -> expression;
-  (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EOpen]s in a [definitions]. *)
+  (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EOpen]s in [definitions]. *)
   subst_def: definitions -> definitions;
+  (* substitute [TyBound]s for [TyOpen]s, [EVar]s for [EOpen]s in [toplevel_items]. *)
+  subst_toplevel: toplevel_item list -> toplevel_item list;
   (* substitute [PVar]s for [POpen]s in a pattern *)
   subst_pat: pattern list -> pattern list;
   (* the vars, in left-to-right order *)
@@ -645,6 +666,11 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
       let t = tsubst_def (TyOpen var) i t in
       esubst_def (EOpen var) i t) t vars
   in
+  let subst_toplevel t =
+    MzList.fold_lefti (fun i t var ->
+      let t = tsubst_toplevel_items (TyOpen var) i t in
+      esubst_toplevel_items (EOpen var) i t) t vars
+  in
   (* Now keep the list in order. *)
   let vars = List.rev vars in
   let subst_pat patterns =
@@ -656,7 +682,7 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
     let patterns = List.rev patterns in
     patterns
   in
-  env, { subst_type; subst_expr; subst_def; subst_pat; vars = vars }
+  env, { subst_type; subst_expr; subst_def; subst_pat; subst_toplevel; vars }
 ;;
 
 let bind_vars (env: env) (bindings: SurfaceSyntax.type_binding list): env * substitution_kit =
@@ -890,7 +916,7 @@ module ExprPrinter = struct
     | EOwns (e1, e2) ->
         print_expr env e1 ^^ space ^^
         string "owns" ^^ space ^^
-       print_expr env e2
+        print_expr env e2
 
     | EFail ->
         string "fail"

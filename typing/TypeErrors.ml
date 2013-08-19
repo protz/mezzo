@@ -65,6 +65,7 @@ and raw_error =
   | LocalType
   | Instantiated of Variable.name * typ
   | PackWithExists
+  | SeveralWorkingFunctionTypes of var
 
 exception TypeCheckerError of error
 
@@ -179,13 +180,9 @@ and fold_type (env: env) (depth: int) (t: typ): env * typ =
 
 and fold_branch env depth branch =
   let env, fields =
-    List.fold_left (fun (env, fields) -> function
-      | FieldPermission p ->
-          let env, p = fold_type env depth p in
-          env, FieldPermission p :: fields
-      | FieldValue (n, t) ->
-          let env, t = fold_type env depth t in
-          env, FieldValue (n, t) :: fields
+    List.fold_left (fun (env, fields) (n, t) ->
+      let env, t = fold_type env depth t in
+      env, (n, t) :: fields
     ) (env, []) branch.branch_fields in
   let branch_fields = List.rev fields in
   let env, branch_adopts = fold_type env depth branch.branch_adopts in
@@ -295,7 +292,7 @@ let print_error buf (env, raw_error) =
       | None ->
           bprintf
             "%a has no suitable permission with field %a;\n\
-             the only permissions available for it are:\n%a"
+              the only permissions available for it are:\n%a"
             pname (env, var)
             Field.p f
             ppermission_list (env, var)
@@ -439,6 +436,10 @@ let print_error buf (env, raw_error) =
         ptype (env, t)
   | PackWithExists ->
       bprintf "You can only pack an existential"
+  | SeveralWorkingFunctionTypes p ->
+      bprintf "Several function types can be used for calling %a, \
+        picking an arbitrary one."
+        pnames (env, get_names env p)
 ;;
 
 let html_error error =
@@ -461,29 +462,31 @@ let html_error error =
 
 let internal_extracterror = snd;;
 
-let flags = Array.make 6 CError;;
+let flags = Array.make 7 CError;;
 
 (* When adding a new user-configurable error, there are *several* things to
-   update:
-     - you should make the array above bigger;
-     - you should update parsing/options.ml so that the default value is correct
-     for the new message;
-     - you should update testsuite.ml, the variables silent_warn_error and
-     pedantic_warn_error should be refreshed.
-*)
+ * update:
+ *   - you should make the array above bigger;
+ *   - you should update parsing/options.ml so that the default value is correct
+ *   for the new message;
+ *   - you should update testsuite.ml, the variables silent_warn_error and
+ *   pedantic_warn_error should be refreshed.
+ *)
 let errno_of_error = function
   | UncertainMerge _ ->
-     1
+      1
   | ResourceAllocationConflict _ ->
-     2
+      2
   | NoMultipleArguments ->
-     3
+      3
   | LocalType ->
-     4
+      4
   | Instantiated _ ->
-     5
+      5
+  | SeveralWorkingFunctionTypes _ ->
+      6
   | _ ->
-     0 
+      0 
 ;;
 
 let may_raise_error env raw_error =

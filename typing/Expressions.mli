@@ -35,8 +35,13 @@ open ExpressionsCore
 val bind_data_type_group_in_toplevel_items: env -> data_type_group -> toplevel_item list ->
       env * toplevel_item list * var list
 
+(** Used by the type-checker to process local type declarations. *)
 val bind_data_type_group_in_expr: env -> data_type_group -> expression ->
       env * expression * var list
+
+(** Use this to transform the branch from a [type_def] into something that's
+ * suitable for manipulation as a type. *)
+val resolve_branch: var -> branch -> branch
 
 (* TEMPORARY this whole thing seems to duplicate [KindCheck] *)
 
@@ -76,6 +81,7 @@ val tsubst_toplevel_items :
   typ ->
   db_index -> toplevel_item list -> toplevel_item list
 
+
 (** {2 Substitution functions for expressions.} *)
 
 val tsubst_expr: typ -> int -> expression -> expression
@@ -96,6 +102,7 @@ type substitution_kit = {
   subst_type : typ -> typ;
   subst_expr : expression -> expression;
   subst_def : definitions -> definitions;
+  subst_toplevel: toplevel_item list -> toplevel_item list;
   subst_pat : pattern list -> pattern list;
   vars : var list;
 }

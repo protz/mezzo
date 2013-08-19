@@ -166,11 +166,8 @@ and resugar_resolved_branch env points soup branch =
   (* Done. *)
   S.TyConcrete ((dref, fields), clause)
 
-and resugar_field env points soup = function
-  | FieldValue (f, ty) ->
-      S.FieldValue (f, resugar env points soup ty)
-  | FieldPermission p ->
-      S.FieldPermission (reset env p)
+and resugar_field env points soup (f, ty) =
+  S.FieldValue (f, resugar env points soup ty)
 
 and reset_mode_constraint env (mode, ty) =
   mode, reset env ty

@@ -59,7 +59,7 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
 
     | DataTypeGroup group :: items ->
         let env, items, _ = Expressions.bind_data_type_group_in_toplevel_items env group items in
-       (* TEMPORARY why don't we bind the data constructors here? *)
+        (* TEMPORARY why don't we bind the data constructors here? *)
         import_items env items
 
     | ValueDefinitions _ :: _ ->
@@ -147,7 +147,7 @@ let check
           KindCheck.bind_nonlocal tsenv (name, kind, KindCheck.find_nonlocal_variable exports name)
 	in
         let tsenv, translated_definitions =
-         TransSurface.translate_data_type_group (List.fold_left special_bind) tsenv group
+          TransSurface.translate_data_type_group (List.fold_left special_bind) tsenv group
         in
 
         (* Check that the translated definitions from the interface and the known
@@ -164,7 +164,7 @@ let check
             _
           } = data_type in
 
-         let point = KindCheck.find_nonlocal_variable exports name in
+          let point = KindCheck.find_nonlocal_variable exports name in
           (* Variables marked with ' belong to the implementation. *)
 
 
@@ -217,33 +217,21 @@ let check
                * haven't run [FactInference.analyze_types] on the *signature* so
                * the information in [fact] is just meaningless. *)
 
-              List.iter2 (fun branch branch' ->
+              List.iter2 (fun t t' ->
+                (* Resolve the data constructor from the interface, so that we
+                 * can leverage [equal] to do all the comparison work for us. *)
+                let t = T.touch_branch t (fun b ->
+                  Expressions.resolve_branch point b
+                ) in
 
-              if not (DataTypeFlavor.equal branch.T.branch_flavor branch'.T.branch_flavor) then
-                  error_out "flavors";
-
-                if not (T.equal env branch.T.branch_adopts branch'.T.branch_adopts) then
-                  error_out "clauses";
-
-                if not (Datacon.equal branch.T.branch_datacon branch'.T.branch_datacon) then
-                  error_out "datacons";
-
-                if not (List.length branch.T.branch_fields = List.length branch'.T.branch_fields) then
-                  error_out "different number of fields";
-
-                List.iter2 (fun field field' ->
-                  match field, field' with
-                  | T.FieldValue (fname, t), T.FieldValue (fname', t') ->
-                      if not (Variable.equal fname fname') then
-                        error_out "field names";
-                      if not (T.equal env t t') then
-                        error_out "field defs";
-                  | T.FieldPermission t, T.FieldPermission t' ->
-                      if not (T.equal env t t') then
-                        error_out "permission field";
-                  | _ ->
-                      error_out "field nature";
-                ) branch.T.branch_fields branch'.T.branch_fields;
+                if not (T.equal env t t') then begin
+                  let msg = MzString.bsprintf
+                    "different definitions between %a and %a"
+                    Types.TypePrinter.ptype (env, t)
+                    Types.TypePrinter.ptype (env, t')
+                  in
+                  error_out msg;
+                end;
               ) branches branches';
 
           | T.Abbrev t, T.Abbrev t' ->

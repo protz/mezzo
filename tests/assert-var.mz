@@ -1,5 +1,13 @@
 (* This code should be rejected because the .mz and .mzi files disagree.
    Instead, we obtain an internal error: [assert_var] failed (empty is not a var) *)
+
+(* jonathan: Actually, this code succeeds, because the function below returns
+ * the [a] of our choice, so we can subtype the function below, using
+ * η-expansion.
+ * Step 1: p * (| consumes p) -> a <= () -> a (function)
+ * Step 2: () -> a <= (x: = x) -> a (function, decompose, etc.)
+ * Step 3: instantiate a with "(| consumes p) -> a".
+ *)
 val cyclic [a, p : perm] (
   (| consumes p) -> a
 | consumes p

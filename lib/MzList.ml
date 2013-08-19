@@ -195,18 +195,21 @@ let take f l =
   in
   take [] l
 
-let find_opt f l =
-  let rec find = function
+let find_opti f l =
+  let rec find i = function
     | [] ->
         None
     | hd :: tl ->
-        match f hd with
+        match f i hd with
         | Some x ->
             Some x
         | None ->
-            find tl
+            find (i + 1) tl
   in
-  find l
+  find 0 l
+
+let find_opt f l =
+  find_opti (fun _ -> f) l
 
 let take_bool f l =
   match take (fun x -> if f x then Some () else None) l with

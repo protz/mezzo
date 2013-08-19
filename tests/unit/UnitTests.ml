@@ -30,6 +30,15 @@ let unit_tests = [
       internal_pflexlist env
       TypePrinter.ppermissions env
   end, None, Pass);
+
+  "occurs-check", (begin fun () ->
+    let env = empty_env in
+    let env, x = bind_flexible env (user "x" KType) in
+    let env =
+      Permissions.instantiate_flexible env x (TyTuple [TyOpen x; TyOpen x])
+    in
+    ignore env
+  end, Some (), Fail (fun _ -> true));
 ];;
 
 (* make tests/unit/UnitTests.byte *)

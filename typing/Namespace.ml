@@ -44,10 +44,10 @@ end) : Namespace with type name = I.name = struct
   let lookup_qualified (m : Module.name) (x : name) (env : 'a global_env) : 'a =
     lookup_local x (
       try
-       Module.Map.find m env.modules
+        Module.Map.find m env.modules
       with Not_found ->
-       (* Unknown module. *)
-       Log.error "Internal failure: unknown module: %s (while looking up %s::%s)" (Module.print m) (Module.print m) (I.print x)
+        (* Unknown module. *)
+        Log.error "Internal failure: unknown module: %s (while looking up %s::%s)" (Module.print m) (Module.print m) (I.print x)
     )
 
   let lookup_maybe_qualified (x : name SurfaceSyntax.maybe_qualified) (env : 'a global_env) : 'a =
@@ -75,10 +75,10 @@ end) : Namespace with type name = I.name = struct
     (* Look up the bindings for the module [m]. *)
     let menv =
       try
-       Module.Map.find m env.modules
+        Module.Map.find m env.modules
       with Not_found ->
-       (* If necessary, create an empty set of bindings for this module. *)
-       I.Map.empty
+        (* If necessary, create an empty set of bindings for this module. *)
+        I.Map.empty
     in
     (* Check that [m::x] is not defined already. *)
     Log.check (not (I.Map.mem x menv))
@@ -90,11 +90,10 @@ end) : Namespace with type name = I.name = struct
     (* Look up the unqualified name [x]. *)
     let a =
       try
-       lookup_unqualified x env
+        lookup_unqualified x env
       with Not_found ->
         (* This name is undefined. *)
-        Log.warn "Internal failure: undefined variable or data constructor: %s" (I.print x);
-       assert false
+        Log.error "Internal failure: undefined variable or data constructor: %s" (I.print x)
     in
     (* Add a binding to the same value for [m::x]. *)
     extend_qualified m x a env
@@ -103,11 +102,11 @@ end) : Namespace with type name = I.name = struct
     (* Check that this module is already defined. *)
     let menv : 'a local_env =
       try
-       Module.Map.find m env.modules
+        Module.Map.find m env.modules
       with Not_found ->
-       (* Undefined module. Thanks to our use of [freeze] above, this is
+        (* Undefined module. Thanks to our use of [freeze] above, this is
           an error. *)
-       Log.error "Internal failure: unknown module: %s (while evaluating \"open %s\")" (Module.print m) (Module.print m)
+        Log.error "Internal failure: unknown module: %s (while evaluating \"open %s\")" (Module.print m) (Module.print m)
     in
     (* For every name of the form [m::x], create a new local name of the
        form [x]. The name [m::x] remains defined, of course. *)
@@ -123,14 +122,14 @@ end) : Namespace with type name = I.name = struct
   let print_local_env (f : 'a -> document) (env : 'a local_env) : document =
     I.Map.fold (fun x a accu ->
       accu ^^ (
-       ((string (I.print x) ^^ colon) ^//^ f a) ^^ hardline
+        ((string (I.print x) ^^ colon) ^//^ f a) ^^ hardline
       )
     ) env empty
 
   let print_module_env (f : 'a -> document) (env : 'a Module.Map.t) : document =
     Module.Map.fold (fun x a accu ->
       accu ^^ (
-       ((string (Module.print x) ^^ colon) ^//^ f a) ^^ hardline
+        ((string (Module.print x) ^^ colon) ^//^ f a) ^^ hardline
       )
     ) env empty
 

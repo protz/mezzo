@@ -25,6 +25,7 @@ open TypeCore
 open Types
 open TestUtils
 open TypeErrors
+open DataTypeFlavor
 
 
 let check env point t =
@@ -42,11 +43,11 @@ let point_by_name env ?mname name =
 exception KnownFailure
 
 let silent_warn_error =
-  "@1..5"
+  "-1..6"
 ;;
 
 let pedantic_warn_error =
-  "+1..4@5"
+  "@1..4+5..6"
 ;;
 
 let simple_test ?(warn_error=silent_warn_error) ?known_failure outcome = fun do_it ->
@@ -368,7 +369,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge1.mz", fun do_it ->
     let env = do_it () in
     let v1 = point_by_name env "v1" in
-    check env v1 (concrete (dc env "t" "T") []));
+    check env v1 (concrete Immutable (dc env "t" "T") []));
 
   ("merge2.mz", fun do_it ->
     let env = do_it () in
@@ -378,13 +379,13 @@ let tests: (string * ((unit -> env) -> unit)) list = [
         ty_equals v2,
         TyStar (
           TyAnchoredPermission (TyOpen v2,
-           concrete
+           concrete Immutable
               (dc env "u" "U")
-              [FieldValue (Field.register "left", TySingleton (TyBound 0));
-               FieldValue (Field.register "right", TySingleton (TyBound 0))]),
+              [(Field.register "left", TySingleton (TyBound 0));
+               (Field.register "right", TySingleton (TyBound 0))]),
           TyAnchoredPermission (
             TyBound 0,
-           concrete (dc env "t" "T") []
+           concrete Mutable (dc env "t" "T") []
           )
         )
       ))
@@ -400,17 +401,17 @@ let tests: (string * ((unit -> env) -> unit)) list = [
           ty_equals v3,
           fold_star [
             TyAnchoredPermission (TyOpen v3,
-              concrete (dc env "u" "U")
-                [FieldValue (Field.register "left", TySingleton (TyBound 0));
-                 FieldValue (Field.register "right", TySingleton (TyBound 1))]
+              concrete Immutable (dc env "u" "U")
+                [(Field.register "left", TySingleton (TyBound 0));
+                 (Field.register "right", TySingleton (TyBound 1))]
             );
             TyAnchoredPermission (
               TyBound 0,
-              concrete (dc env "t" "T") []
+              concrete Immutable (dc env "t" "T") []
             );
             TyAnchoredPermission (
               TyBound 1,
-              concrete (dc env "t" "T") []
+              concrete Immutable (dc env "t" "T") []
             );
           ]
         )))
@@ -556,7 +557,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     if List.exists (FactInference.is_exclusive env) perms then
       failwith "The permission on [x] should've been consumed";
     let perms = get_permissions env s1 in
-    if not (List.exists ((=) (TyApp (t, [concrete (dc env "t" "A") []]))) perms) then
+    if not (List.exists ((=) (TyApp (t, [concrete Mutable (dc env "t" "A") []]))) perms) then
       failwith "The right permission was not extracted for [s1].";
   );
 
@@ -927,6 +928,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("facts10.mz", fail);
   ("facts11.mz", pass_known_failure);
   ("facts12.mz", pass_known_failure);
+  ("facts13.mz", pass);
   ("data-term.mz", pass_known_failure);
   ("fact-term.mz", fail_known_failure);
 
@@ -934,6 +936,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("local-type2.mz", pass_known_failure);
   ("local-type3.mz", pass_known_failure);
   ("local-type4.mz", pass);
+  ("local-type5.mz", pass_known_failure);
   ("tyapp.mz", pass);
   ("tyand00.mz", kfail);
   ("tyand01.mz", pass);
@@ -960,7 +963,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("tree-removal.mz", pass);
   ("pattern-sharing.mz", fail);
   ("gadt.mz", pass);
-  ("gadt-bug.mz", fail_known_failure);
+  ("gadt-bug.mz", fail);
   ("abbrev-1.mz", pass);
   ("abbrev-2.mz", pass);
   ("abbrev-3.mz", pass);
@@ -1001,7 +1004,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("strange.mz", fail);
   ("localtype1.mz", pass);
   ("localtype2.mz", pass);
-  ("localtype3.mz", pass_known_failure);
+  ("localtype3.mz", pass);
   ("covariantlock.mz", pass);
   ("pack-assert.mz", pass);
   ("oneshot-test.mz", fail);
@@ -1010,19 +1013,19 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("tree-coroutine.mz", pass);
   ("concurrentsort.mz", pass);
   ("derived_locks.mz", pass);
-  ("rich-bool1.mz", pass_known_failure);
+  ("rich-bool1.mz", pass);
   ("frame-wand.mz", pass);
   ("iteration.mz", pass);
   ("fpiterator-focused.mz", pass); (* very costly, sorry *)
   ("flexible-point.mz", pass);
   ("old_iterator.mz", pass);
-  ("assert-exists.mz", pass_known_failure);
-  ("assert-var.mz", fail_known_failure);
+  ("assert-exists.mz", pass);
+  ("assert-var.mz", pass);
   ("internal_choice.mz", pass);
   ("server.mz", pass);
   ("array-borrow-1.mz", pass);
   ("array-borrow-2.mz", fail);
-  ("booltrue.mz", pass_known_failure);
+  ("booltrue.mz", pass);
   ("woref.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to
@@ -1031,7 +1034,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("landin-variant.mz", fun _ -> raise KnownFailure);
   ("cyclic-list.mz", fun _ -> raise KnownFailure);
   ("cyclic-list2.mz", fun _ -> raise KnownFailure);
-  ("diverge.mz", fun _ -> raise KnownFailure);
+  ("diverge.mz", fail);
 ];;
 
 let mz_files_in_directory (dir : string) : string list =

@@ -58,6 +58,10 @@ type datacon_info = {
   datacon_index: int;
   (* A map of field names to field indices. *)
   datacon_fields: int Field.Map.t;
+  (* Its flavor (i.e. is it mutable or immutable). Currently the surface syntax
+   * only allows us to define mutability per-datatype: we use the same value for
+   * all branches. *)
+  datacon_flavor: DataTypeFlavor.flavor;
 }
 
 (* ---------------------------------------------------------------------------- *)
@@ -393,8 +397,8 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TyAnchoredPermission _ ->
       (* Type of kind PERM, where a type of kind TERM was expected. In
         principle, this should not happen, except during kind checking,
-         where it could happen if the type is ill-kinded. We must return
-         silently, and an error will be signaled by the kind checking
+        where it could happen if the type is ill-kinded. We must return
+        silently, and an error will be signaled by the kind checking
         algorithm. *)
       PAny
 

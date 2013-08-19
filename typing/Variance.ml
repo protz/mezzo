@@ -126,17 +126,14 @@ let variance env var_for_ith valuation b t =
         List.fold_left lub Bivariant vs
 
     | TyConcrete branch ->
-        let vs = List.map (function
-          | FieldValue (_, t) ->
-              var t
-          | FieldPermission p ->
-              var p
-        ) branch.branch_fields in
+        let vs = List.map (fun (_, t) -> var t) branch.branch_fields in
         let vs = var branch.branch_adopts :: vs in
         List.fold_left lub Bivariant vs
 
-    | TySingleton _ ->
-        Bivariant
+    | TySingleton t ->
+        (* The parameter whose variance we're computing may be at kind term,
+         * meaning it may appear in t! *)
+        var t
 
     | TyArrow (t1, t2) ->
         lub ~~(var t1) (var t2)
@@ -145,14 +142,15 @@ let variance env var_for_ith valuation b t =
     | TyStar (t1, t2) ->
         lub (var t1) (var t2)
 
-    | TyAnchoredPermission (_, t2) ->
-        var t2
+    | TyAnchoredPermission (t1, t2) ->
+        (* Same remark as for the [TySingleton] case. *)
+        lub (var t1) (var t2)
 
     | TyAnd ((_, t), u) ->
-       (* [t] is in invariant position, [u] is in covariant position. *)
-       lub
-         (dot Invariant (var t))
-         (var u)
+        (* [t] is in invariant position, [u] is in covariant position. *)
+        lub
+          (dot Invariant (var t))
+          (var u)
   in
   var t
 ;;
@@ -194,9 +192,6 @@ let analyze_data_types env vars =
           let env, vars, branches =
             bind_datacon_parameters env kind branches
           in
-          let branches = List.map (fun branch ->
-            TyConcrete (resolve_branch var branch)
-          ) branches in
           env, (var, (vars, branches)) :: acc
     ) (original_env, []) vars
   in

@@ -36,8 +36,7 @@ type field = SurfaceSyntax.field
 type pattern =
     PVar of Variable.name * location
   | PTuple of pattern list
-  | PConstruct of resolved_datacon *
-      (Field.name * pattern) list
+  | PConstruct of resolved_datacon * (Field.name * pattern) list
   | POpen of var
   | PAs of pattern * pattern
   | PAny
