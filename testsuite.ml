@@ -970,7 +970,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("abbrev-4.mz", pass);
   ("existential-witness.mz", pass);
   ("residual.mz", pass);
-  ("quantifier-bug.mz", fail_known_failure);
+  ("quantifier-bug.mz", kfail);
   ("eta.mz", pass);
   ("array-1.mz", pass);
   ("array-2.mz", fail);
@@ -1027,6 +1027,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("array-borrow-2.mz", fail);
   ("booltrue.mz", pass);
   ("woref.mz", pass);
+  ("exclusiveperm.mz", kfail);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)

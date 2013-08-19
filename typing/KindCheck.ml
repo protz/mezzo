@@ -148,7 +148,7 @@ type error =
   | FictionalEVar of (* variable: *) Variable.name maybe_qualified
   | Mismatch of (* expected: *) kind * (* inferred: *) kind
   | ArityMismatch of (* expected: *) int * (* provided: *) int
-  | ModeConstraintMismatch of (* provided: *) kind
+  | ModeConstraintMismatch of (* provided: *) kind * (* expected: *) string
   | IllegalConsumes
   | BadHypothesisInFact
   | BadConclusionInFact of (* data type constructor: *) Variable.name * (* parameters: *) Variable.name list
@@ -210,10 +210,11 @@ let print_error env error buf () =
         "This type expects %d parameter%s, but is applied to %d argument%s."
         expected (MzPprint.plural expected)
        provided (MzPprint.plural provided)
-  | ModeConstraintMismatch inferred ->
+  | ModeConstraintMismatch (inferred, expected) ->
       bprintf
-       "This type has kind %s, whereas a type of kind type or perm was expected."
+       "This type has kind %s, whereas a type of kind %s was expected."
         (print inferred)
+        expected
   | IllegalConsumes ->
       bprintf
         "The consumes keyword is allowed only in the left-hand side of an arrow."
@@ -815,13 +816,16 @@ and check_exact_fields env (dref : datacon_reference) (fields : data_field_def l
     ))
 
 (* A mode constraint bears on a type or permission. *)
-and check_mode_constraint env (_, ty) =
-  match infer_reset env ty with
-  | KType
-  | KPerm ->
+and check_mode_constraint env (m, ty) =
+  let inferred = infer_reset env ty in
+  match inferred with
+  | KType ->
       ()
-  | inferred ->
-      raise_error env (ModeConstraintMismatch inferred)
+  | KPerm ->
+      if Mode.equal m Mode.ModeExclusive then
+        raise_error env (ModeConstraintMismatch (inferred, "type"))
+  | _ ->
+      raise_error env (ModeConstraintMismatch (inferred, "type or perm"))
 
 (* ---------------------------------------------------------------------------- *)
 
