@@ -278,13 +278,6 @@ and type_descr = {
 and term_descr = {
   (* A list of available permissions for that identifier. *)
   permissions: permissions;
-
-  (* A ghost variable has been introduced, say, through [x : term], and does
-   * not represent something we can compile.
-   *
-   * TEMPORARY: as of 2012/07/12 this information is not accurate and one should
-   * not rely on it. *)
-  ghost: bool;
 }
 
 (* This is not pretty, but we need some of these functions for debugging, and
@@ -472,8 +465,8 @@ let get_permissions (env: env) (var: var): permissions =
 
 let set_permissions (env: env) (var: var) (permissions: typ list): env =
   update_extra_descr env var (function
-    | DTerm term ->
-        DTerm { term with permissions }
+    | DTerm _ ->
+        DTerm { permissions }
     | _ ->
         Log.error "Not a term"
   )
@@ -482,8 +475,8 @@ let set_permissions (env: env) (var: var) (permissions: typ list): env =
 let reset_permissions (env: env) (var: var): env =
   let point = assert_point env var in
   update_extra_descr env var (function
-    | DTerm term ->
-        DTerm { term with permissions = initial_permissions_for_point point }
+    | DTerm _ ->
+        DTerm { permissions = initial_permissions_for_point point }
     | _ ->
         Log.error "Not a term"
   )
@@ -1229,7 +1222,7 @@ let bind_rigid env (name, kind, location) =
   let extra_descr =
     match kind with
     | KTerm ->
-        DTerm { permissions = initial_permissions_for_point point; ghost = false }
+        DTerm { permissions = initial_permissions_for_point point }
     | _ ->
         DNone
   in
