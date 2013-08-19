@@ -126,6 +126,8 @@ and data_field_def = Field.name * typ
 
 type type_def =
   | Concrete of typ list
+  (* This is a sum of branches, which have a very specific form. There is a
+   * [TyConcrete] that may be wrapped with non-structural types. *)
   | Abstract
   | Abbrev of typ
 
