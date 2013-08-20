@@ -125,6 +125,9 @@ module P = struct
       string "variety = " ^^ string (print_variety variety)
     ) env.variables
 
+  let penv buf env =
+    pdoc buf ((fun () -> print_env env), ())
+
   (* Printing a comma-separated list of field names. *)
 
   let print_field field =
@@ -137,6 +140,8 @@ module P = struct
     pdoc buf (print_fields, fields)
 
 end
+
+let p = P.penv
 
 (* ---------------------------------------------------------------------------- *)
 

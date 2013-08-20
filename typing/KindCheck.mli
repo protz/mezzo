@@ -163,3 +163,8 @@ val check_implementation: 'v env -> implementation -> unit
     well-kinded. *)
 val check_interface: 'v env -> interface -> unit
 
+(* ---------------------------------------------------------------------------- *)
+
+(* Debugging functions. *)
+
+val p: Buffer.t -> 'a env -> unit
