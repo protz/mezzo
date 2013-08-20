@@ -223,6 +223,9 @@ val find_and_instantiate_branch : env -> var -> Datacon.name -> typ list -> typ
 
 (** {2 Various getters} *)
 
+(** [find_type_by_name env mname x] find the variable "mname::x". *)
+val find_type_by_name : env -> string -> string -> typ
+
 val get_location : env -> var -> location
 val get_adopts_clause : env -> var -> typ
 val get_arity : env -> var -> int
@@ -232,7 +235,6 @@ val get_kind_for_type : env -> typ -> kind
 val variance : env -> var -> int -> variance
 
 val fresh_auto_name : string -> name
-val find_type_by_name : env -> ?mname:string -> string -> typ
 val make_datacon_letters :
   env ->
   kind ->
@@ -252,8 +254,6 @@ module TypePrinter :
       env -> name list -> MzPprint.document
     val pnames : Buffer.t -> env * name list -> unit
     val pname : Buffer.t -> env * var -> unit
-    val print_exports : env * Module.name -> PPrintEngine.document
-    val pexports : Buffer.t -> env * Module.name -> unit
     val print_quantified :
       env ->
       string ->

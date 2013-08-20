@@ -314,40 +314,16 @@ let empty module_name = {
   loc = dummy_loc;
 }
 
-(* A so-called initial environment can be constructed by populating an empty
-   environment with qualified names of variables and data constructors. They
-   represent names that have been defined in a module other than the current
-   module. *)
-
-(* TEMPORARY this approach seems inelegant and should ideally be abandoned in
-   the future *)
-
-let initial
-  (module_name : Module.name)
-  (names : (Module.name * Variable.name * kind * 'v) list)
-  (datacons : (Module.name * 'v * int * Datacon.name * DataTypeFlavor.flavor * Field.name list) list)
-: 'v env =
-
-  let variables =
-    List.fold_left (fun accu (m, x, kind, v) ->
-      V.extend_qualified m x (NonLocal v, kind, Real) accu
-    ) V.empty names
-
-  and datacons =
-    List.fold_left (fun accu (m, var, i, dc, f, fields) ->
-      let info = mkdatacon_info dc i f fields in
-      D.extend_qualified m dc (NonLocal var, info) accu
-    ) D.empty datacons
-  in
-
-  { (empty module_name) with variables; datacons }
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Extracting information out of an environment. *)
 
 let module_name env =
   env.module_name
+
+let enter_module env module_name =
+  Log.debug "[enter_module] %a %a" Module.p module_name p env;
+  { env with module_name }
 
 let location env =
   env.loc

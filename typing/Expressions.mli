@@ -75,20 +75,9 @@ val p_unit : pattern
 val eunloc : expression -> expression
 
 
-(** {2 Substitution functions for types.} *)
-
-val tsubst_toplevel_items :
-  typ ->
-  db_index -> toplevel_item list -> toplevel_item list
-
-
 (** {2 Substitution functions for expressions.} *)
 
 val tsubst_expr: typ -> int -> expression -> expression
-
-val esubst_toplevel_items :
-  expression -> db_index -> toplevel_item list -> toplevel_item list
-
 
 (* -------------------------------------------------------------------------- *)
 

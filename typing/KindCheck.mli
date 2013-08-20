@@ -58,16 +58,6 @@ val implication_only_on_arrow: 'v env -> 'a
 (** An empty environment. *)
 val empty: Module.name -> 'v env
 
-(** A so-called initial environment can be constructed by populating an empty
-    environment with qualified names of variables and data constructors. They
-    represent names that have been defined in a module other than the current
-    module. *)
-val initial:
-  Module.name ->
-  (Module.name * Variable.name * kind * 'v) list ->
-  (Module.name * 'v * int * Datacon.name * DataTypeFlavor.flavor * Field.name list) list ->
-  'v env
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Extracting information out of an environment. *)
@@ -107,6 +97,10 @@ val resolve_datacon: 'v env -> datacon_reference -> 'v var * Datacon.name * Data
 
 (** [locate env loc] updates [env] with the location [loc]. *)
 val locate: 'v env -> location -> 'v env
+
+(** [enter_module env m] resets [env] so that it is ready to translate another
+ * unit (interface or implementation) named [m]. *)
+val enter_module: 'v env -> Module.name -> 'v env
 
 (** [extend env bindings] iterates over the list [bindings], from left to
     right, and for each binding of the form [(x, kind, loc)], it extends

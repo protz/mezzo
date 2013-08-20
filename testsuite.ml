@@ -37,7 +37,13 @@ let check env point t =
 ;;
 
 let point_by_name env ?mname name =
-  point_by_name env ?mname (Variable.register name)
+  let mname = Option.map_none (module_name env) mname in
+  point_by_name env mname (Variable.register name)
+;;
+
+let find_type_by_name env ?mname name =
+  let mname = Option.map_none (module_name env |> Module.print) mname in
+  find_type_by_name env mname name
 ;;
 
 exception KnownFailure

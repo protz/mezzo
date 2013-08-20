@@ -165,22 +165,16 @@ let find_and_lex_implementation : Module.name -> SurfaceSyntax.implementation =
 
 (* Check a module against its interface. Not related to importing an interface
  * or anything. *)
-let check_interface env signature delta =
-  KindCheck.check_interface (KindCheckGlue.initial env) signature;
-  (* It may very well be that [Interfaces.check] subsumes what
-   * [KindCheck.check_interface] does. *)
-  Interfaces.check env signature delta
+let check_interface env signature exports =
+  KindCheck.check_interface (TypeCore.kenv env) signature;
+  Interfaces.check env signature exports
 ;;
 
 
 let import_dependencies_in_scope env deps =
   List.fold_left (fun env mname ->
     let iface = find_and_lex_interface mname in
-    let env = Interfaces.import_interface env mname iface in
-    Log.debug "Imported %a, got names %a"
-      Module.p mname
-      Types.TypePrinter.pexports (env, mname);
-    env
+    Interfaces.import_interface env mname iface
   ) env deps
 ;;
 
@@ -210,67 +204,58 @@ let check_implementation
     Module.p mname;
   let env = TypeCore.empty_env in
   let env = import_dependencies_in_scope env deps in
-  let env = TypeCore.set_module_name env mname in
-
-  (* Build a kind-checking environment out of this type environment. We could
-     bypass this if we had a version of [import_dependencies_in_scope] that
-     constructed a kind-checking environment... TEMPORARY *)
-  let kenv = KindCheckGlue.initial env in
+  let env = TypeCore.enter_module env mname in
 
   (* First pass of kind-checking; it checks for unbound variables and variables
-   * with the wrong kind. *)
-  KindCheck.check_implementation kenv program;
+   * with the wrong kind. Use [env.kenv] that contains all dependencies. *)
+  KindCheck.check_implementation (TypeCore.kenv env) program;
 
-  (* We need to translate the program down to the internal syntax. *)
-  let program = TransSurface.translate_implementation kenv program in
+  (* We need to translate the program down to the internal syntax. The freshly
+   * returned kind environment allows us to understand what names are exported
+   * by the module. We don't store it in [env] (our type environment),
+   * otherwise, the module could refer to itself! *)
+  let exports, program = TransSurface.translate_implementation (TypeCore.kenv env) program in
 
   (* [type_check env unit] type-checks the compilation unit [unit] within the
      environment [env], which describes the previous compilation units. It
-     returns a pair of an extended environment (the old and new bindings) and
-     a list of the newly defined variables only. The former is a *type*
+     returns an extended environment (the old and new bindings). This is a *type*
      environment (it describes the permissions at the end, for every variable
-     in scope) while the latter SHOULD BE a *kind* environment (it maps the newly
-     defined variables to a point). TEMPORARY DataTypeGroup.bind_data_type_group
-     and TypeChecker.check_declaration_group should be modified so as to extend
-     a kind environment, instead of returning a list of vars *)
-  let type_check env program =
-    let rec type_check env program varss =
-      match program with
-      | DataTypeGroup group :: blocks ->
-          Log.debug ~level:2 "\n%s***%s Processing data type group:\n%a"
-            Bash.colors.Bash.yellow Bash.colors.Bash.default
-            KindPrinter.pgroup (env, group);
+     in scope). *)
+  let rec type_check env program =
+    match program with
+    | DataTypeGroup group :: blocks ->
+        Log.debug ~level:2 "\n%s***%s Processing data type group:\n%a"
+          Bash.colors.Bash.yellow Bash.colors.Bash.default
+          KindPrinter.pgroup (env, group);
 
-          (* The binders in the data type group will be opened in the rest of the
-           * blocks. Also performs the actual binding in the data type group, as
-           * well as the variance and fact inference. *)
-          let env, blocks, vars =
-            Expressions.bind_data_type_group_in_toplevel_items env group blocks
-          in
-          (* Move on to the rest of the blocks. *)
-          type_check env blocks (vars @ varss)
-      | ValueDefinitions decls :: blocks ->
-          Log.debug ~level:2 "\n%s***%s Processing declarations:\n%a"
-            Bash.colors.Bash.yellow Bash.colors.Bash.default
-            Expressions.ExprPrinter.pdefinitions (env, decls);
+        (* The binders in the data type group will be opened in the rest of the
+         * blocks. Also performs the actual binding in the data type group, as
+         * well as the variance and fact inference. *)
+        let env, blocks, _ =
+          Expressions.bind_data_type_group_in_toplevel_items env group blocks
+        in
+        (* Move on to the rest of the blocks. *)
+        type_check env blocks
+    | ValueDefinitions decls :: blocks ->
+        Log.debug ~level:2 "\n%s***%s Processing declarations:\n%a"
+          Bash.colors.Bash.yellow Bash.colors.Bash.default
+          Expressions.ExprPrinter.pdefinitions (env, decls);
 
-          (* Perform the actual checking. The binders in the declaration group
-           * will be opened in [blocks] as well. *)
-          let env, blocks, vars = TypeChecker.check_declaration_group env decls blocks in
-          (* Move on to the rest of the blocks. *)
-          type_check env blocks (vars @ varss)
-      | _ :: _ ->
-          Log.error "The parser should forbid this"
-      | [] ->
-          (* Print some extra debugging information. *)
-          Log.debug ~level:2 "\n%s***%s Done type-checking:\n%a"
-            Bash.colors.Bash.yellow Bash.colors.Bash.default
-            MzPprint.pdoc
-            (KindPrinter.print_kinds_and_facts, env);
+        (* Perform the actual checking. The binders in the declaration group
+         * will be opened in [blocks] as well. *)
+        let env, blocks, _ = TypeChecker.check_declaration_group env decls blocks in
+        (* Move on to the rest of the blocks. *)
+        type_check env blocks
+    | _ :: _ ->
+        Log.error "The parser should forbid this"
+    | [] ->
+        (* Print some extra debugging information. *)
+        Log.debug ~level:2 "\n%s***%s Done type-checking:\n%a"
+          Bash.colors.Bash.yellow Bash.colors.Bash.default
+          MzPprint.pdoc
+          (KindPrinter.print_kinds_and_facts, env);
 
-          env, varss
-    in
-    type_check env program []
+        env
   in
 
   (* Type-check the implementation. *)
@@ -279,10 +264,8 @@ let check_implementation
     Bash.colors.Bash.yellow Bash.colors.Bash.default
     Module.p mname
     Types.TypePrinter.penv env;
-  let env, delta = type_check env program in
-  (* [env] is the state of the world at the end of this module, and [delta]
-     tells us what (internal) values this module wishes to export and under
-     what (external) names. *)
+  let env = type_check env program in
+  (* [env] is the state of the world at the end of this module. *)
 
   (* And type-check the implementation against its own signature, if any. *)
   Log.debug ~level:2 "\n%s***%s Matching %a against its signature"
@@ -291,36 +274,12 @@ let check_implementation
 
   match interface with
   | Some interface ->
-
-      (* Convert the list of variables [delta] to a kind environment.
-         TEMPORARY ugly, of course. Somewhat analogous to [KindCheck.initial]. *)
-      let delta =
-        List.fold_right (fun p delta ->
-          let k = TypeCore.get_kind env p in
-          List.fold_left (fun delta name ->
-            match name with
-            | TypeCore.User (mname, x) when Module.equal mname (TypeCore.module_name env) ->
-                KindCheck.bind_nonlocal delta (x, k, p)
-            | _ ->
-               (* Either an auto-generated name, or a name coming from another
-                * module. Think about a top-level definition such as:
-                *   let x = m::y
-                * we just drop the name "y" here. *)
-               delta
-          ) delta (TypeCore.get_names env p)
-        ) delta (KindCheck.empty (TypeCore.module_name env))
-      in
-      (* TEMPORARY [delta] says nothing about datacons, and that is fishy.
-         The data constructor that is exported could be other than the one
-         that is in scope at the end of the module? -- yes, see
-         weird-datacons-shadowing. *)
-
       (* If the function types are not syntactically equal, the decision
        * procedure for comparing those two types introduces internal names
        * that end polluting the resulting environment! So we only use that
        * "polluted" environment to perform interface-checking, we don't
        * actually return it to the driver, say, for printing. *)
-      check_interface env interface delta
+      check_interface env interface exports
   | None ->
       env
 

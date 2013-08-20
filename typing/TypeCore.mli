@@ -191,14 +191,20 @@ val location: env -> location
 (** Get the current module name. *)
 val module_name: env -> Module.name
 
-(** Set the current module name. *)
-val set_module_name: env -> Module.name -> env
+(** Enter another toplevel unit (implementation, interface). *)
+val enter_module: env -> Module.name -> env
 
 (** Is the current environment inconsistent? *)
 val is_inconsistent: env -> bool
 
 (** Mark the environment as being inconsistent. *)
 val mark_inconsistent: env -> env
+
+(** An environment contains a kind-checking environment that contains mapping
+ * for all the current module's _dependencies_. *)
+val modify_kenv: env -> (var KindCheck.env -> (var KindCheck.env -> (env -> 'a) -> 'a) -> 'a) -> 'a
+
+val kenv: env -> var KindCheck.env
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -371,17 +377,9 @@ val bind_flexible_before: env -> type_binding -> var -> env * var
 
 (** {1 Exports} *)
 
-(** [get_exports env mname] lists the names exported by module [mname] in [env].
- * [mname] can be either the current module name, or some other module name. *)
-val get_exports: env -> Module.name -> (Variable.name * kind * var) list
-
-(** [get_external_names env] lists the qualified names exported by all modules
-    other than the current module. *)
-val get_external_names: env -> (Module.name * Variable.name * kind * var) list
-
 (** [point_by_name env ?mname x] finds name [x] as exported by module [mname]
  * (default: [module_name env]) in [env]. *)
-val point_by_name: env -> ?mname:Module.name -> Variable.name -> var
+val point_by_name: env -> Module.name -> Variable.name -> var
 
 (** Produce a list of all external data constructor definitions, i.e.
     all data constructors that are currently known but are defined

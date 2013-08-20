@@ -91,6 +91,7 @@ let trivial_world env = {
    corresponds to the current number of parameters. *)
 
 let rec infer (w : world) (ty : typ) : Fact.fact =
+  Log.debug ~level:10 "[infer] %a" TypePrinter.ptype (w.env, ty);
   let ty = modulo_flex w.env ty in
   match ty with
 
@@ -480,6 +481,7 @@ let analyze_data_types (env : env) (variables : var list) : env =
 (* Accessors. *)
 
 let has_mode (m : mode) (env : env) (ty : typ) : bool =
+  Log.debug ~level:10 "[has_mode] %a" TypePrinter.ptype (env, ty);
   let fact = infer (trivial_world env) ty in
   let ok =
     match ModeMap.find m fact with

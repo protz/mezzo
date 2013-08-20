@@ -209,9 +209,6 @@ type env = {
    * inconsistencies when we're lucky. *)
   inconsistent: bool;
 
-  (* The name of the current unit. *)
-  module_name: Module.name;
-
   (* This is a list of abstract permissions available in the environment. It can
    * either be a type application, i.e. "p x", where "p" is abstract, or a type
    * variable. They're not attached to any point in particular, so we keep a
@@ -227,6 +224,19 @@ type env = {
 
   (* The list of flexible bindings. *)
   flexible: flex_descr IntMap.t;
+
+  (* A [KindCheck.env]. The module we're currently type-checking depends on
+   * other modules. The [Driver] module took care of processing our
+   * dependencies' interfaces, meaning that we have, in [state], variables that
+   * stand for the exports of other modules. We thus need a way to map a
+   * qualified name, e.g. "list::find", to a [binding] in [state]. This is the
+   * purpose of this kind-checking environment. Please note that the
+   * kind-checking environment contains mapping for variables from _other_
+   * modules, and nothing related to the _current_ module. *)
+  kenv: var KindCheck.env;
+
+  (* The name of the current unit is now to be found as
+   * [kenv.KindCheck.module_name]. *)
 }
 
 and flex_descr = {
@@ -296,11 +306,11 @@ let empty_env = {
   mark = Mark.create ();
   location = Lexing.dummy_pos, Lexing.dummy_pos;
   inconsistent = false;
-  module_name = Module.register "<none>";
   floating_permissions = [];
   last_binding = Rigid;
   current_level = 0;
   flexible = IntMap.empty;
+  kenv = KindCheck.empty (Module.register "<none>");
 }
 
 let locate env location =
@@ -313,9 +323,19 @@ let is_inconsistent { inconsistent; _ } = inconsistent;;
 
 let mark_inconsistent env = { env with inconsistent = true };;
 
-let module_name { module_name; _ } = module_name;;
+let module_name { kenv; _ } = KindCheck.(module_name kenv);;
 
-let set_module_name env module_name = { env with module_name };;
+let modify_kenv env f =
+  f env.kenv (fun kenv k ->
+    k { env with kenv }
+  )
+;;
+
+let kenv { kenv; _ } = kenv;;
+
+let enter_module env module_name = {
+  env with kenv = KindCheck.enter_module env.kenv module_name;
+};;
 
 let find env p =
   PersistentUnionFind.find p env.state
@@ -1285,7 +1305,7 @@ let bind_flexible_before env binding v =
 
 (* Iterating on rigid variables. *)
 
-let internal_fold env f acc =
+let _internal_fold env f acc =
   PersistentUnionFind.fold f acc env.state
 ;;
 
@@ -1311,6 +1331,10 @@ let fold_definitions env f acc =
 let map env f =
   fold env (fun acc var -> f var :: acc) []
 ;;
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Interface-related functions. *)
 
 (** Produce a list of all external data constructor definitions, i.e.
     all data constructors that are currently known but are defined
@@ -1342,54 +1366,12 @@ let get_external_datacons env : (Module.name * var * int * Datacon.name * DataTy
         acc
   ) []
 
-(* ---------------------------------------------------------------------------- *)
-
-(* Interface-related functions. *)
-
-(* Get all the names from module [mname] found in [env]. *)
-let get_exports env mname =
-  internal_fold env (fun acc point ({ names; kind; _ }, _) ->
-    List.fold_left (fun acc name ->
-      match name with
-      | User (m, x) when Module.equal m mname ->
-          (x, kind, VRigid point) :: acc
-      | _ ->
-          acc
-    ) acc names
-  ) []
-
-(* Get all the names NOT from the current module found in [env].
-
-   TEMPORARY: this function has several bugs^Wshortcomings:
-   - a function with type "val m::f: (x: int, y: int) -> ...", when called, will
-     bind names "x" and "y" as belonging to "m", meaning they will be returned
-     by this function;
-   - existentially-quantified names from other modules, when opened repeatedly,
-     share the same name, so they get exported twice...
-*)
-let get_external_names env =
-  let mname = module_name env in
-  internal_fold env (fun acc point ({ names; kind; _ }, _) ->
-    List.fold_left (fun acc name ->
-      match name with
-      | User (m, x) when not (Module.equal m mname) ->
-          (m, x, kind, VRigid point) :: acc
-      | _ ->
-          acc
-    ) acc names
-  ) []
-
-let point_by_name (env: env) ?(mname: Module.name option) (name: Variable.name): var =
-  let mname = Option.map_none env.module_name mname in
-  let module T = struct exception Found of point end in
-  try
-    (* TEMPORARY this looks really slow to me... *)
-    internal_fold env (fun () point ({ names; _ }, _binding) ->
-      if List.exists (names_equal (User (mname, name))) names then
-        raise (T.Found point)) ();
-    raise Not_found
-  with T.Found point ->
-    VRigid point
+let point_by_name (env: env) (mname: Module.name) (name: Variable.name): var =
+  let open KindCheck in
+  let open SurfaceSyntax in
+  match find_variable env.kenv (Qualified (mname, name)) with
+  | Local _ -> assert false
+  | NonLocal p -> p
 ;;
 
 (* ---------------------------------------------------------------------------- *)

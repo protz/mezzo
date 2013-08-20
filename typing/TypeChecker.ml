@@ -469,8 +469,8 @@ let refine_perms_in_place_for_pattern env var pat =
 let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * var =
 
   (* lazy because we need to typecheck the core modules too! *)
-  let t_int = lazy (find_type_by_name env ~mname:"int" "int")
-  and t_bool = lazy (find_type_by_name env ~mname:"bool" "bool") in
+  let t_int = lazy (find_type_by_name env "int" "int")
+  and t_bool = lazy (find_type_by_name env "bool" "bool") in
 
   (* [return t] creates a new var with type [t] available for it, and returns
    * the environment as well as the var *)

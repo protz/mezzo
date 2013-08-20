@@ -31,10 +31,12 @@ module T = TypeCore
  * lexes it, parses it, and returns a desugared version of it, ready for
  * importing into some environment. *)
 let build_interface (env: TypeCore.env) (mname: Module.name) (iface: S.interface): T.env * E.interface =
-  let env = TypeCore.set_module_name env mname in
-  let kenv = KindCheckGlue.initial env in
-  KindCheck.check_interface kenv iface;
-  env, TransSurface.translate_interface kenv iface
+  let env = TypeCore.enter_module env mname in
+  T.modify_kenv env (fun kenv k ->
+    KindCheck.check_interface kenv iface;
+    let kenv, iface = TransSurface.translate_interface kenv iface in
+    k kenv (fun env -> env, iface)
+  )
 ;;
 
 (* Used by [Driver], to import the points from a desugared interface into
@@ -50,11 +52,11 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
     | ValueDeclaration (name, typ) :: items ->
         (* XXX the location information is probably wildly inaccurate *)
         let binding = User (module_name env, name), KTerm, location env in
-        let env, p = bind_rigid env binding in
+        let env, { Expressions.subst_toplevel; vars; _ } = Expressions.bind_evars env [ binding ] in
+        let p = match vars with [ p ] -> p | _ -> assert false in
         (* [add] takes care of simplifying any function type. *)
         let env = Permissions.add env p typ in
-        let items = Expressions.tsubst_toplevel_items (TyOpen p) 0 items in
-        let items = Expressions.esubst_toplevel_items (EOpen p) 0 items in
+        let items = subst_toplevel items in
         import_items env items
 
     | DataTypeGroup group :: items ->
@@ -260,5 +262,5 @@ let check
         env
   in
 
-  check env (KindCheckGlue.initial env) signature
+  check env (TypeCore.kenv env) signature
 ;;
