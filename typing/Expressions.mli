@@ -94,6 +94,7 @@ type substitution_kit = {
   subst_toplevel: toplevel_item list -> toplevel_item list;
   subst_pat : pattern list -> pattern list;
   vars : var list;
+  names: Variable.name list;
 }
 
 (** Bind a set of term variables (let-bindings). *)

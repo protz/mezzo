@@ -323,7 +323,12 @@ let module_name env =
 
 let enter_module env module_name =
   Log.debug "[enter_module] %a %a" Module.p module_name p env;
-  { env with module_name }
+  { env with
+    level = 0;
+    module_name;
+    variables = V.clear_unqualified env.variables;
+    datacons = D.clear_unqualified env.datacons;
+  }
 
 let location env =
   env.loc
@@ -450,6 +455,10 @@ let extend_check variety env xs =
 (* [bind_datacon env x data] binds the unqualified data constructor [x]. *)
 let bind_datacon env x (data : 'v var * datacon_info) : 'v env =
   { env with datacons = D.extend_unqualified x data env.datacons }
+
+let bind_external_name (env: 'v env) (m: Module.name) (x: Variable.name) (v: 'v): 'v env =
+  let binding = NonLocal v, KTerm, Real in
+  { env with variables = V.extend_qualified m x binding env.variables }
 
 let dissolve env m =
   (* Unqualify the variables and data constructors qualified with [m]. *)

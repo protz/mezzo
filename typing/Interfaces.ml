@@ -32,11 +32,9 @@ module T = TypeCore
  * importing into some environment. *)
 let build_interface (env: TypeCore.env) (mname: Module.name) (iface: S.interface): T.env * E.interface =
   let env = TypeCore.enter_module env mname in
-  T.modify_kenv env (fun kenv k ->
-    KindCheck.check_interface kenv iface;
-    let kenv, iface = TransSurface.translate_interface kenv iface in
-    k kenv (fun env -> env, iface)
-  )
+  let kenv = TypeCore.kenv env in
+  KindCheck.check_interface kenv iface;
+  env, TransSurface.translate_interface kenv iface
 ;;
 
 (* Used by [Driver], to import the points from a desugared interface into
@@ -54,7 +52,14 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
         let binding = User (module_name env, name), KTerm, location env in
         let env, { Expressions.subst_toplevel; vars; _ } = Expressions.bind_evars env [ binding ] in
         let p = match vars with [ p ] -> p | _ -> assert false in
-        (* [add] takes care of simplifying any function type. *)
+
+        (* First, remember that we now have a qualified name pointing to [p]. *)
+        let env = T.modify_kenv env (fun kenv k ->
+          let kenv = KindCheck.bind_external_name kenv (TypeCore.module_name env) name p in
+          k kenv (fun env -> env)
+        ) in
+
+        (* Then, [add] takes care of simplifying any function type. *)
         let env = Permissions.add env p typ in
         let items = subst_toplevel items in
         import_items env items
@@ -82,19 +87,17 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
    the core language. *)
 
 (* Check that [env] respect the [signature] which is that of module [mname]. We
- * will want to check that [env] respects its own signature, but also that of
- * the modules it exports, i.e. that it leaves them intact.
+ * will want to check that [env] respects its own signature.
  *
- * Why does this function return an environment? Well, when we're type-checking
- * a module against its own signature, we need to return the environment
- * afterwards, because we may have consumed permissions from other modules, and
- * [Driver] will want to check that for us (by eventually calling us again with
- * another [mname]). *)
+ * Why does this function return an environment? To print the final signature, I
+ * guess... *)
 let check
   (env: T.env)
   (signature: S.toplevel_item list)
-  (exports: KindCheckGlue.env)
 : T.env =
+
+  (* All exported variables are unqualified, non-local variables. *)
+  let exports = TypeCore.kenv env in
 
   (* As [check] processes one toplevel declaration after another, it first adds
    * the name into the translation environment (i.e. after processing [val foo @ τ],
@@ -262,5 +265,12 @@ let check
         env
   in
 
-  check env (TypeCore.kenv env) signature
+  (* We need to build the interface in a "clean" kind-checking environment where
+   * the names from the *implementation* are not available. Currently, [env]
+   * contains a kind-checking environment where names from the *implementation*
+   * are non-local, unqualified variables. We need to zap these, and this is
+   * precisely what [enter_module] does. *)
+  let tsenv = TypeCore.kenv (TypeCore.enter_module env (TypeCore.module_name env)) in
+
+  check env tsenv signature
 ;;

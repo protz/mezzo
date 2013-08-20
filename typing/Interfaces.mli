@@ -31,7 +31,6 @@
 val check:
   TypeCore.env ->
   SurfaceSyntax.interface ->
-  KindCheckGlue.env ->
   TypeCore.env
 
 (** Import a given module into scope. *)

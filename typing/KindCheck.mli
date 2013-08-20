@@ -17,7 +17,7 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(* This module implements a well-kindedness check for the types of the surface
+(** This module implements a well-kindedness check for the types of the surface
    language. It also offers the necessary building blocks for resolving names
    (i.e. determining which definition each variable and data constructor refers
    to) and translating types and expressions down to the internal syntax. *)
@@ -27,14 +27,13 @@ open SurfaceSyntax
 
 (* ---------------------------------------------------------------------------- *)
 
-(* An environment maintains a mapping of external variable names to internal
+(** An environment maintains a mapping of external variable names to internal
    objects, represented by the type [var]. A [var] is either a local name,
    represented as de Bruijn index, or a non-local name, represented in some
    other way. Typically, when checking a compilation unit, the names defined
    within this compilation unit are translated to local names, whereas the
    names defined in other units that this unit depends on are translated to
    non-local names. *)
-
 type 'v var =
        Local of int
   | NonLocal of 'v
@@ -43,7 +42,7 @@ type 'v env
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Errors. *)
+(** {1 Errors.} *)
 
 (** A [KindError] exception carries a function that displays an error message. *)
 exception KindError of (Buffer.t -> unit -> unit)
@@ -53,14 +52,14 @@ val implication_only_on_arrow: 'v env -> 'a
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Building environments. *)
+(** {1 Building environments.} *)
 
 (** An empty environment. *)
 val empty: Module.name -> 'v env
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Extracting information out of an environment. *)
+(** {1 Extracting information out of an environment.} *)
 
 (** [module_name env] is the name of the current module. *)
 val module_name: 'v env -> Module.name
@@ -93,7 +92,7 @@ val resolve_datacon: 'v env -> datacon_reference -> 'v var * Datacon.name * Data
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Extending an environment. *)
+(** {1 Extending an environment.} *)
 
 (** [locate env loc] updates [env] with the location [loc]. *)
 val locate: 'v env -> location -> 'v env
@@ -128,8 +127,18 @@ val bind_data_group_datacons: 'v env -> data_type_def list -> 'v env
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Functions for obtaining the bindings introduced by a pattern or by a type
-   (interpreted as a pattern). *)
+(** {1 Extending an environment with external names.} *)
+
+(** These functions are used when constructing an interface. We need to add
+ * additional bindings in the Kind-Checking environment. *)
+
+val bind_external_name: 'v env -> Module.name -> Variable.name -> 'v -> 'v env
+(* TODO val bind_external_datacon: 'v env -> Module.name -> Datacon.name -> 'v -> 'v env *)
+
+(* ---------------------------------------------------------------------------- *)
+
+(** {1 Functions for obtaining the bindings introduced by a pattern or by a type
+   (interpreted as a pattern).} *)
 
 (** [bv p] returns the names bound by the pattern [p], in left-to-right order.
     The order matters -- the de Bruijn numbering convention relies on it. *)

@@ -54,19 +54,19 @@ let map_tapp f = function
  * binding with index [i] in the returned list has De Bruijn index [i] in the
  * bound term. *)
 let rec collect_pattern acc = function
-| PVar (name, p) ->
-    (name, KTerm, p) :: acc
-| PTuple patterns ->
-    List.fold_left collect_pattern acc patterns
-| PConstruct (_, fields) ->
-    let patterns = snd (List.split fields) in
-    List.fold_left collect_pattern acc patterns
-| POpen _ ->
-    assert false
-| PAs (p1, p2) ->
-    List.fold_left collect_pattern acc [p1; p2]
-| PAny ->
-    acc
+  | PVar (name, p) ->
+      (name, KTerm, p) :: acc
+  | PTuple patterns ->
+      List.fold_left collect_pattern acc patterns
+  | PConstruct (_, fields) ->
+      let patterns = snd (List.split fields) in
+      List.fold_left collect_pattern acc patterns
+  | POpen _ ->
+      assert false
+  | PAs (p1, p2) ->
+      List.fold_left collect_pattern acc [p1; p2]
+  | PAny ->
+      acc
 
 let collect_pattern (p: pattern) : (Variable.name * kind * location) list =
   (* Return the names in reading order, i.e. left-to-right. *)
@@ -631,6 +631,8 @@ type substitution_kit = {
   subst_pat: pattern list -> pattern list;
   (* the vars, in left-to-right order *)
   vars: var list;
+  (* the names, in left-to-right order *)
+  names: Variable.name list;
 }
 
 (* [eunloc e] removes any [ELocated] located in front of [e]. *)
@@ -647,11 +649,12 @@ let rec eunloc = function
  * reading order. *)
 let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit =
   (* List kept in reverse, the usual trick *)
-  let env, vars =
-    List.fold_left (fun (env, vars) binding ->
+  let env, vars, names =
+    List.fold_left (fun (env, vars, names) binding ->
       let env, var = bind_rigid env binding in
-      env, var :: vars
-    ) (env, []) bindings
+      let name = match binding with User (_, x), _, _ -> x | _ -> assert false in
+      env, var :: vars, name :: names
+    ) (env, [], []) bindings
   in
   let subst_type t =
     MzList.fold_lefti (fun i t var -> tsubst (TyOpen var) i t) t vars
@@ -673,6 +676,7 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
   in
   (* Now keep the list in order. *)
   let vars = List.rev vars in
+  let names = List.rev names in
   let subst_pat patterns =
     let vars, patterns = List.fold_left (fun (vars, pats) pat ->
       let pat, vars = psubst pat vars in
@@ -682,7 +686,7 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
     let patterns = List.rev patterns in
     patterns
   in
-  env, { subst_type; subst_expr; subst_def; subst_pat; subst_toplevel; vars }
+  env, { subst_type; subst_expr; subst_def; subst_pat; subst_toplevel; vars; names }
 ;;
 
 let bind_vars (env: env) (bindings: SurfaceSyntax.type_binding list): env * substitution_kit =

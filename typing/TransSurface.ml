@@ -880,22 +880,22 @@ let translate_item env item =
 let rec translate_items env = function
   | item :: items ->
       let env, item = translate_item env item in
-      let env, items = translate_items env items in
-      env, Option.to_list item @ items
+      let items = translate_items env items in
+      Option.to_list item @ items
   | [] ->
-      env, []
+      []
 ;;
 
 (* [translate_implementation implementation] returns an
  * [Expressions.implementation], i.e. a desugared version of the entire
  * program. *)
-let translate_implementation (env: env) (program: toplevel_item list): env * E.implementation =
+let translate_implementation (env: env) (program: toplevel_item list): E.implementation =
   Log.debug ~level:10 "[translate_implementation]\n%a" KindCheck.p env;
   translate_items env program
 
 (* [translate_interface] is used by the Driver, before importing an interface
  * into scope. *)
-let translate_interface (env: env) (program: toplevel_item list): env * E.interface =
+let translate_interface (env: env) (program: toplevel_item list): E.interface =
   Log.debug ~level:10 "[translate_interface]\n%a" KindCheck.p env;
   translate_items env program
 

@@ -1161,9 +1161,9 @@ and check_bindings
 let check_declaration_group
     (env: env)
     (defs: definitions)
-    (toplevel_items: toplevel_item list): env * toplevel_item list * var list =
+    (toplevel_items: toplevel_item list): env * toplevel_item list * (Variable.name * var) list =
   let p, rec_flag, patexprs = defs in
   let env = locate env p in
-  let env, { vars; subst_toplevel; _ } = check_bindings env rec_flag patexprs in
-  env, subst_toplevel toplevel_items, vars
+  let env, { names; vars; subst_toplevel; _ } = check_bindings env rec_flag patexprs in
+  env, subst_toplevel toplevel_items, List.combine names vars
 ;;

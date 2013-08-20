@@ -165,9 +165,9 @@ let find_and_lex_implementation : Module.name -> SurfaceSyntax.implementation =
 
 (* Check a module against its interface. Not related to importing an interface
  * or anything. *)
-let check_interface env signature exports =
+let check_interface env signature =
   KindCheck.check_interface (TypeCore.kenv env) signature;
-  Interfaces.check env signature exports
+  Interfaces.check env signature
 ;;
 
 
@@ -214,7 +214,7 @@ let check_implementation
    * returned kind environment allows us to understand what names are exported
    * by the module. We don't store it in [env] (our type environment),
    * otherwise, the module could refer to itself! *)
-  let exports, program = TransSurface.translate_implementation (TypeCore.kenv env) program in
+  let program = TransSurface.translate_implementation (TypeCore.kenv env) program in
 
   (* [type_check env unit] type-checks the compilation unit [unit] within the
      environment [env], which describes the previous compilation units. It
@@ -243,7 +243,16 @@ let check_implementation
 
         (* Perform the actual checking. The binders in the declaration group
          * will be opened in [blocks] as well. *)
-        let env, blocks, _ = TypeChecker.check_declaration_group env decls blocks in
+        let env, blocks, exports = TypeChecker.check_declaration_group env decls blocks in
+
+        (* Record the exports. The exports are *not* qualified. *)
+        let env = TypeCore.modify_kenv env (fun kenv k ->
+          let kenv = List.fold_left (fun kenv (name, var) ->
+            KindCheck.bind_nonlocal kenv (name, Kind.KTerm, var)
+          ) kenv exports in
+          k kenv (fun env -> env)
+        ) in
+
         (* Move on to the rest of the blocks. *)
         type_check env blocks
     | _ :: _ ->
@@ -279,7 +288,7 @@ let check_implementation
        * that end polluting the resulting environment! So we only use that
        * "polluted" environment to perform interface-checking, we don't
        * actually return it to the driver, say, for printing. *)
-      check_interface env interface exports
+      check_interface env interface
   | None ->
       env
 
