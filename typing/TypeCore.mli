@@ -377,14 +377,8 @@ val bind_flexible_before: env -> type_binding -> var -> env * var
 
 (** {1 Exports} *)
 
-(** [point_by_name env ?mname x] finds name [x] as exported by module [mname]
- * (default: [module_name env]) in [env]. *)
+(** [point_by_name env mname x] finds name [x] as exported by module [mname]. *)
 val point_by_name: env -> Module.name -> Variable.name -> var
-
-(** Produce a list of all external data constructor definitions, i.e.
-    all data constructors that are currently known but are defined
-    outside the current module. *)
-val get_external_datacons: env -> (Module.name * var * int * Datacon.name * DataTypeFlavor.flavor * Field.name list) list
 
 (* ---------------------------------------------------------------------------- *)
 

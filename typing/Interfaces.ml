@@ -38,7 +38,8 @@ let build_interface (env: TypeCore.env) (mname: Module.name) (iface: S.interface
 ;;
 
 (* Used by [Driver], to import the points from a desugared interface into
- * another one, prefixed by the module they belong to, namely [mname]. *)
+ * another one, prefixed by the module they belong to, namely [mname].
+ * XXX why do we need [mname] when we have [TypeCore.module_name env]? *)
 let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.env =
   Log.debug "Massive import, %a" Module.p mname;
   let env, iface = build_interface env mname iface in
@@ -55,7 +56,7 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
 
         (* First, remember that we now have a qualified name pointing to [p]. *)
         let env = T.modify_kenv env (fun kenv k ->
-          let kenv = KindCheck.bind_external_name kenv (TypeCore.module_name env) name p in
+          let kenv = KindCheck.bind_external_name kenv mname name p in
           k kenv (fun env -> env)
         ) in
 
@@ -65,8 +66,14 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
         import_items env items
 
     | DataTypeGroup group :: items ->
-        let env, items, _ = Expressions.bind_data_type_group_in_toplevel_items env group items in
-        (* TEMPORARY why don't we bind the data constructors here? *)
+        let env, items, _, dc_exports = Expressions.bind_data_type_group_in_toplevel_items env group items in
+        let env = T.modify_kenv env (fun kenv k ->
+          let kenv = List.fold_left (fun kenv (var, dc, dc_info) ->
+            KindCheck.bind_external_datacon kenv mname dc dc_info var
+          ) kenv dc_exports in
+          k kenv (fun env -> env)
+        ) in
+
         import_items env items
 
     | ValueDefinitions _ :: _ ->

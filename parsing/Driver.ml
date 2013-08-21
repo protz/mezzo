@@ -231,9 +231,17 @@ let check_implementation
         (* The binders in the data type group will be opened in the rest of the
          * blocks. Also performs the actual binding in the data type group, as
          * well as the variance and fact inference. *)
-        let env, blocks, _ =
+        let env, blocks, _, dc_exports =
           Expressions.bind_data_type_group_in_toplevel_items env group blocks
         in
+
+        let env = TypeCore.modify_kenv env (fun kenv k ->
+          let kenv = List.fold_left (fun kenv (var, dc, dc_info) ->
+            KindCheck.bind_external_datacon kenv mname dc dc_info var
+          ) kenv dc_exports in
+          k kenv (fun env -> env)
+        ) in
+
         (* Move on to the rest of the blocks. *)
         type_check env blocks
     | ValueDefinitions decls :: blocks ->

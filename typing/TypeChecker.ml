@@ -568,7 +568,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       env, x
 
   | ELocalType (group, e) ->
-      let env, e, _ = bind_data_type_group_in_expr env group e in
+      let env, e, _, _ = bind_data_type_group_in_expr env group e in
       check_expression env e
 
   (* We assume that [EBigLambdas] is allowed only above [ELambda]. This

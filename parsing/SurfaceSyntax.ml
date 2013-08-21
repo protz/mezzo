@@ -66,6 +66,21 @@ type datacon_info = {
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Provided we have the name of a data constructor, its index, and the ordered
+   list of its fields, we can create a [datacon_info] record. *)
+
+let mkdatacon_info dc i f fields = {
+  datacon_name = Datacon.print dc;
+  datacon_arity = List.length fields;
+  datacon_index = i;
+  datacon_flavor = f;
+  datacon_fields =
+    let open Field.Map in
+    MzList.fold_lefti (fun i accu f -> add f i accu) empty fields;
+}
+
+(* ---------------------------------------------------------------------------- *)
+
 (* A name can be either unqualified, [x], or qualified with a module name,
    [m::x]. This holds for variables (of arbitrary kind: term, type, etc.)
    and for data constructors. *)

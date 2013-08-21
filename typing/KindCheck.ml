@@ -289,21 +289,6 @@ let implication_only_on_arrow env =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Provided we have the name of a data constructor, its index, and the ordered
-   list of its fields, we can create a [datacon_info] record. *)
-
-let mkdatacon_info dc i f fields = {
-  datacon_name = Datacon.print dc;
-  datacon_arity = List.length fields;
-  datacon_index = i;
-  datacon_flavor = f;
-  datacon_fields =
-    let open Field.Map in
-    MzList.fold_lefti (fun i accu f -> add f i accu) empty fields;
-}
-
-(* ---------------------------------------------------------------------------- *)
-
 (* An empty environment. *)
 
 let empty module_name = {

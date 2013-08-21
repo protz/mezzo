@@ -1336,36 +1336,6 @@ let map env f =
 
 (* Interface-related functions. *)
 
-(** Produce a list of all external data constructor definitions, i.e.
-    all data constructors that are currently known but are defined
-    outside the current module. *)
-let get_external_datacons env : (Module.name * var * int * Datacon.name * DataTypeFlavor.flavor * Field.name list) list =
-  fold_definitions env (fun acc var definition ->
-    let names = get_names env var in
-    (* We're only interested in things that signatures exported with their
-     * corresponding definitions. *)
-    match definition with
-    | Concrete def ->
-        (* Find the module name which this definition comes from. Yes, there's
-         * no better way to do that. *)
-        let mname = MzList.find_opt (function User (mname, _) -> Some mname | _ -> None) names in
-        let mname = Option.extract mname in
-        (* Ignore this definition if it is associated with the current module. *)
-        if Module.equal mname (module_name env) then
-          acc
-        else
-          (* Iterate over the branches of this definition. *)
-          MzList.fold_lefti (fun i acc t ->
-            let branch = find_branch t in
-            let dc = snd branch.branch_datacon
-            and f = branch.branch_flavor
-            and fields = List.map fst branch.branch_fields in
-            (mname, var, i, dc, f, fields) :: acc
-          ) acc def
-    | _ ->
-        acc
-  ) []
-
 let point_by_name (env: env) (mname: Module.name) (name: Variable.name): var =
   let open KindCheck in
   let open SurfaceSyntax in

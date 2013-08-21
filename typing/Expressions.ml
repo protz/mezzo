@@ -245,8 +245,28 @@ and bind_group_in_toplevel_items (vars: var list) (toplevel_items: toplevel_item
   bind_group_in vars tsubst_toplevel_items toplevel_items
 
 
+and extract_datacons (vars: var list) (group: data_type_group): (var * Datacon.name * SurfaceSyntax.datacon_info) list =
+  List.fold_left2 (fun acc var data_type ->
+    match data_type.data_definition with
+    | Concrete def ->
+        (* Iterate over the branches of this definition. *)
+        MzList.fold_lefti (fun i acc t ->
+          let branch = find_branch t in
+          let dc = snd branch.branch_datacon in
+          let f = branch.branch_flavor in
+          let fields = List.map fst branch.branch_fields in
+          (var, dc, SurfaceSyntax.mkdatacon_info dc i f fields) :: acc
+        ) acc def
+    | _ ->
+        acc
+  ) [] vars group.group_items
+
+
+
 and bind_data_type_group_in:
-  'a. env -> data_type_group -> (var list -> 'a -> 'a) -> 'a -> env * 'a * var list =
+  'a. env -> data_type_group -> (var list -> 'a -> 'a) -> 'a ->
+    env * 'a * var list * (var * Datacon.name * SurfaceSyntax.datacon_info) list
+  =
   fun env group bind_group_in_thing thing ->
 
   (* First, allocate vars for all the data types. *)
@@ -267,20 +287,20 @@ and bind_data_type_group_in:
   (* Open references to these data types in the rest of the program. *)
   let thing = bind_group_in_thing vars thing in
   (* We're done. *)
-  env, thing, vars
+  env, thing, vars, extract_datacons vars group
 
 
 and bind_data_type_group_in_expr
     (env: env)
     (group: data_type_group)
-    (expr: expression): env * expression * var list =
+    (expr: expression): env * expression * var list * (var * Datacon.name * SurfaceSyntax.datacon_info) list =
   bind_data_type_group_in env group bind_group_in_expr expr
 
 
 and bind_data_type_group_in_toplevel_items
     (env: env)
     (group: data_type_group)
-    (toplevel_items: toplevel_item list): env * toplevel_item list * var list =
+    (toplevel_items: toplevel_item list): env * toplevel_item list * var list * (var * Datacon.name * SurfaceSyntax.datacon_info) list =
   bind_data_type_group_in env group bind_group_in_toplevel_items toplevel_items
 
 
@@ -818,7 +838,7 @@ module ExprPrinter = struct
         string "in" ^^ break 1 ^^ print_expr env e
 
     | ELocalType (group, e) ->
-        let env, e, _ = bind_data_type_group_in_expr env group e in
+        let env, e, _, _ = bind_data_type_group_in_expr env group e in
         string "let" ^^ space ^^ string "[some data type group]" ^^ space ^^
         string "in" ^^ break 1 ^^ print_expr env e
 
