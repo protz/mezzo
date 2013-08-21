@@ -994,16 +994,6 @@ let same env v1 v2 =
       false
 ;;
 
-let names_equal n1 n2 =
-  match n1, n2 with
-  | Auto n1, Auto n2 when Variable.equal n1 n2 ->
-      true
-  | User (m1, n1), User (m2, n2) when Variable.equal n1 n2 && Module.equal m1 m2 ->
-      true
-  | _ ->
-      false
-;;
-
 (* Merge while keeping the descriptor of the leftmost argument. *)
 let merge_left_p2p env p2 p1 =
  (* All this work is just to make sure we keep the names, positions... from
@@ -1015,7 +1005,6 @@ let merge_left_p2p env p2 p1 =
   let { names = names'; locations = locations'; _ }, _b2 =
     PersistentUnionFind.find p2 state
   in
-  let names' = List.filter (fun x -> not (List.exists (names_equal x) names)) names' in
   let names = names @ names' in
   let locations' = List.filter (fun x -> not (List.exists ((=) x) locations)) locations' in
   let locations = locations @ locations' in
