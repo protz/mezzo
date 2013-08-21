@@ -133,7 +133,7 @@ val bind_data_group_datacons: 'v env -> data_type_def list -> 'v env
  * additional bindings in the Kind-Checking environment. *)
 
 val bind_external_name: 'v env -> Module.name -> Variable.name -> 'v -> 'v env
-(* TODO val bind_external_datacon: 'v env -> Module.name -> Datacon.name -> 'v -> 'v env *)
+val bind_external_datacon: 'v env -> Module.name -> Datacon.name -> datacon_info -> 'v -> 'v env
 
 (* ---------------------------------------------------------------------------- *)
 

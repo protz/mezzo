@@ -455,6 +455,16 @@ let bind_external_name (env: 'v env) (m: Module.name) (x: Variable.name) (v: 'v)
   let binding = NonLocal v, KTerm, Real in
   { env with variables = V.extend_qualified m x binding env.variables }
 
+let bind_external_datacon
+  (env: 'v env)
+  (m: Module.name)
+  (d: Datacon.name)
+  (info: datacon_info)
+  (v: 'v): 'v env
+=
+  let binding = NonLocal v, info in
+  { env with datacons = D.extend_qualified m d binding env.datacons }
+
 let dissolve env m =
   (* Unqualify the variables and data constructors qualified with [m]. *)
   (* The call to [freeze] is just a way of avoiding the failure
