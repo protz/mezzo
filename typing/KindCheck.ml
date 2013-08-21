@@ -323,12 +323,7 @@ let module_name env =
 
 let enter_module env module_name =
   Log.debug "[enter_module] %a %a" Module.p module_name p env;
-  { env with
-    level = 0;
-    module_name;
-    variables = V.clear_unqualified env.variables;
-    datacons = D.clear_unqualified env.datacons;
-  }
+  { env with level = 0; module_name; }
 
 let location env =
   env.loc

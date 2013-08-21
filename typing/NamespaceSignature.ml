@@ -20,9 +20,6 @@ module type Namespace = sig
   (** Extending the environment with an unqualified name. *)
   val extend_unqualified: name -> 'a -> 'a global_env -> 'a global_env
 
-  (** Clear unqualified names from the environment. *)
-  val clear_unqualified: 'a global_env -> 'a global_env
-
   (** Looking up a qualified name. May raise [Not_found]. *)
   val lookup_qualified: Module.name -> name -> 'a global_env -> 'a
 

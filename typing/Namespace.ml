@@ -41,9 +41,6 @@ end) : Namespace with type name = I.name = struct
   let extend_unqualified (x : name) (a : 'a) (env : 'a global_env) : 'a global_env =
     { env with current = extend_local x a env.current }
 
-  let clear_unqualified (env : 'a global_env) : 'a global_env =
-    { env with current = I.Map.empty }
-
   let lookup_qualified (m : Module.name) (x : name) (env : 'a global_env) : 'a =
     lookup_local x (
       try
