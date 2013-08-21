@@ -343,18 +343,6 @@ let find_and_instantiate_branch
   instantiate_type branch args
 ;;
 
-(* Misc. *)
-
-(** This function is actually fairly ugly. This is a temporary solution so that
-    [TypeChecker] as well as the test files can refer to type constructors
-    defined in the file (e.g. int), for type-checking arithmetic expressions, for
-    instance... *)
-let find_type_by_name env mname name =
-  let name = Variable.register name in
-  let mname = Module.register mname in
-  TyOpen (point_by_name env mname name)
-;;
-
 let is_tyapp = function
   | TyOpen p ->
       Some (p, [])

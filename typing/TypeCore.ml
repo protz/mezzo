@@ -1336,10 +1336,18 @@ let map env f =
 
 (* Interface-related functions. *)
 
-let point_by_name (env: env) (mname: Module.name) (name: Variable.name): var =
+let find_qualified_var (env: env) (mname: Module.name) (name: Variable.name): var =
   let open KindCheck in
   let open SurfaceSyntax in
   match find_variable env.kenv (Qualified (mname, name)) with
+  | Local _ -> assert false
+  | NonLocal p -> p
+;;
+
+let find_unqualified_var (env: env) (name: Variable.name): var =
+  let open KindCheck in
+  let open SurfaceSyntax in
+  match find_variable env.kenv (Unqualified name) with
   | Local _ -> assert false
   | NonLocal p -> p
 ;;

@@ -86,7 +86,7 @@ let empty =
 ;;
 
 let dc env x y =
-  TyOpen (point_by_name env (module_name env) (Variable.register x)), Datacon.register y
+  TyOpen (find_unqualified_var env (Variable.register x)), Datacon.register y
 ;;
 
 (* This is right-associative, so you can write [list int @-> int @-> tuple []] *)

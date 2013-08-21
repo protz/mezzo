@@ -377,8 +377,14 @@ val bind_flexible_before: env -> type_binding -> var -> env * var
 
 (** {1 Exports} *)
 
-(** [point_by_name env mname x] finds name [x] as exported by module [mname]. *)
-val point_by_name: env -> Module.name -> Variable.name -> var
+(** [find_qualified_var env mname x] finds name [x] as exported by module
+ * [mname]. Use this to reach values exported by _interfaces_ which the current
+ * program depends on. *)
+val find_qualified_var: env -> Module.name -> Variable.name -> var
+
+(** [find_unqualified_var env x] finds the name [x] as exported by the current
+ * module. Use it after type-checking an _implementation_. *)
+val find_unqualified_var: env -> Variable.name -> var
 
 (* ---------------------------------------------------------------------------- *)
 

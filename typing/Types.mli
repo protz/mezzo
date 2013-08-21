@@ -223,9 +223,6 @@ val find_and_instantiate_branch : env -> var -> Datacon.name -> typ list -> typ
 
 (** {2 Various getters} *)
 
-(** [find_type_by_name env mname x] find the variable "mname::x". *)
-val find_type_by_name : env -> string -> string -> typ
-
 val get_location : env -> var -> location
 val get_adopts_clause : env -> var -> typ
 val get_arity : env -> var -> int
