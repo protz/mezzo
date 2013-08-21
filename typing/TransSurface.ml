@@ -32,11 +32,12 @@
 open Kind
 open SurfaceSyntax
 open KindCheck
-open KindCheckGlue
 open Utils
 
 module T = TypeCore
 module E = ExpressionsCore
+
+type env = T.var KindCheck.env
 
 (* -------------------------------------------------------------------------- *)
 

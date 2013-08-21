@@ -20,7 +20,8 @@
 (** Translating the surface syntax down into the core language syntax. *)
 
 open SurfaceSyntax
-open KindCheckGlue
+
+type env = TypeCore.var KindCheck.env
 
 (** [translate_type_reset] translates a type. *)
 val translate_type_reset: env -> typ -> TypeCore.typ

@@ -26,6 +26,7 @@ open Types
 open TestUtils
 open TypeErrors
 open DataTypeFlavor
+open Exports
 
 (* --------------------------------------------------------------------------*)
 

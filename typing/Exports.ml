@@ -19,8 +19,6 @@
 
 module T = TypeCore
 
-type env = TypeCore.var KindCheck.env
-
 type value_exports = (Variable.name * T.var) list
 type datacon_exports = (T.var * Datacon.name * SurfaceSyntax.datacon_info) list
 
@@ -81,3 +79,25 @@ let bind_interface_types
     ) kenv dc_exports in
     k kenv (fun env -> env)
   )
+
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Interface-related functions. *)
+
+let find_qualified_var (env: T.env) (mname: Module.name) (name: Variable.name): T.var =
+  let open KindCheck in
+  let open SurfaceSyntax in
+  match find_variable (T.kenv env) (Qualified (mname, name)) with
+  | Local _ -> assert false
+  | NonLocal p -> p
+;;
+
+let find_unqualified_var (env: T.env) (name: Variable.name): T.var =
+  let open KindCheck in
+  let open SurfaceSyntax in
+  match find_variable (T.kenv env) (Unqualified name) with
+  | Local _ -> assert false
+  | NonLocal p -> p
+;;
+

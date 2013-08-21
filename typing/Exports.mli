@@ -41,22 +41,41 @@
  * environment only contains [NonLocal] bindings, either qualified or
  * unqualified. *)
 
-
-(** This is the type of a high-level environment. *)
-type env = TypeCore.var KindCheck.env
-
 type value_exports = (Variable.name * TypeCore.var) list
+
 type datacon_exports = (TypeCore.var * Datacon.name * SurfaceSyntax.datacon_info) list
 
+(** Record exported values in an implementation. This creates non-local,
+ * unqualified bindings. One can reach these bindings using
+ * [find_unqualified_var], for instance when printing a signature, or in the
+ * test-suite, when poking at a specific variable. *)
 val bind_implementation_values:
   TypeCore.env -> value_exports ->
     TypeCore.env
+
+(** Record exported types and data constructors in an implementation. *)
 val bind_implementation_types:
   TypeCore.env -> TypeCore.data_type_group -> TypeCore.var list -> datacon_exports ->
     TypeCore.env
+
+(** Record exported values from an interface. This creates non-local, qualified
+ * bindings. One can reach these bindings using [find_qualified_var] at any
+ * time. Such bindings will be used by the kind-checking, translation and
+ * type-checking phases. *)
 val bind_interface_value:
   TypeCore.env -> Module.name -> Variable.name -> TypeCore.var ->
     TypeCore.env
+
+(** Record exported types and data constructors from an interface. *)
 val bind_interface_types:
   TypeCore.env -> Module.name -> TypeCore.data_type_group -> TypeCore.var list -> datacon_exports ->
     TypeCore.env
+
+(** [find_qualified_var env mname x] finds name [x] as exported by module
+ * [mname]. Use this to reach values exported by _interfaces_ which the current
+ * program depends on. *)
+val find_qualified_var: TypeCore.env -> Module.name -> Variable.name -> TypeCore.var
+
+(** [find_unqualified_var env x] finds the name [x] as exported by the current
+ * module. Use it after type-checking an _implementation_. *)
+val find_unqualified_var: TypeCore.env -> Variable.name -> TypeCore.var

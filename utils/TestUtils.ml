@@ -19,6 +19,7 @@
 
 open TypeCore
 open Types
+open Exports
 
 (* This is shared between [testsuite.ml] and [UnitTests.ml] *)
 type outcome =

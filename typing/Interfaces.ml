@@ -103,7 +103,7 @@ let check
    * [foo] is known to point to a point in [env] in [tsenv]). Second, in
    * order to check [val foo @ τ], it removes [τ] from the list of available
    * permissions for [foo] in [env], which depletes as we go. *)
-  let rec check (env: T.env) (tsenv: KindCheckGlue.env) (toplevel_items: S.toplevel_item list) =
+  let rec check (env: T.env) (tsenv: TransSurface.env) (toplevel_items: S.toplevel_item list) =
     match toplevel_items with
     | S.OpenDirective mname :: toplevel_items ->
         let tsenv = KindCheck.dissolve tsenv mname in

@@ -471,7 +471,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   let find_qualified_type m x =
     (* lazy because we need to typecheck the core modules too! *)
     lazy begin
-      let x = find_qualified_var env (Module.register m) (Variable.register x) in
+      let x = Exports.find_qualified_var env (Module.register m) (Variable.register x) in
       TyOpen x
     end
   in
