@@ -233,12 +233,7 @@ let check_implementation
         let env, blocks, exports = TypeChecker.check_declaration_group env decls blocks in
 
         (* Record the exports. The exports are *not* qualified. *)
-        let env = TypeCore.modify_kenv env (fun kenv k ->
-          let kenv = List.fold_left (fun kenv (name, var) ->
-            KindCheck.bind_nonlocal kenv (name, Kind.KTerm, var)
-          ) kenv exports in
-          k kenv (fun env -> env)
-        ) in
+        let env = Exports.bind_implementation_values env exports in
 
         (* Move on to the rest of the blocks. *)
         type_check env blocks
@@ -254,20 +249,9 @@ let check_implementation
         let env, blocks, vars, dc_exports =
           Expressions.bind_data_type_group_in_toplevel_items env group blocks
         in
-        let names = List.map
-          (fun { TypeCore.data_name; data_kind; _ } -> data_name, data_kind)
-          group.TypeCore.group_items
-        in
 
-        let env = TypeCore.modify_kenv env (fun kenv k ->
-          let kenv = List.fold_left2 (fun kenv (name, kind) var ->
-            KindCheck.bind_nonlocal kenv (name, kind, var)
-          ) kenv names vars in
-          let kenv = List.fold_left (fun kenv (var, dc, dc_info) ->
-            KindCheck.bind_nonlocal_datacon kenv dc dc_info var
-          ) kenv dc_exports in
-          k kenv (fun env -> env)
-        ) in
+        (* This implementation now exports types and data constructors. *)
+        let env = Exports.bind_implementation_types env group vars dc_exports in
 
         (* Move on to the rest of the blocks. *)
         type_check env blocks

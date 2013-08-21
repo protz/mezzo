@@ -27,9 +27,9 @@ module T = TypeCore
 
 (* ---------------------------------------------------------------------------- *)
 
-(* [build_interface env mname] finds the right interface file for [mname], and
- * lexes it, parses it, and returns a desugared version of it, ready for
- * importing into some environment. *)
+(* [build_interface env mname iface] desugars the interface [iface] belonging to
+ * module [mname]. It returns an environment along with a desugared interface,
+ * both suitable for [import_interface]. *)
 let build_interface (env: TypeCore.env) (mname: Module.name) (iface: S.interface): T.env * E.interface =
   let env = TypeCore.enter_module env mname in
   let kenv = TypeCore.kenv env in
@@ -37,27 +37,22 @@ let build_interface (env: TypeCore.env) (mname: Module.name) (iface: S.interface
   env, TransSurface.translate_interface kenv iface
 ;;
 
-(* Used by [Driver], to import the points from a desugared interface into
- * another one, prefixed by the module they belong to, namely [mname]. *)
+(* Used by [Driver]. See the .mli! *)
 let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.env =
   Log.debug "Massive import, %a" Module.p mname;
   let env, iface = build_interface env mname iface in
 
   let open TypeCore in
   let open ExpressionsCore in
-  (* We demand that [env] have the right module name. *)
   let rec import_items env = function
     | ValueDeclaration (name, typ) :: items ->
-        (* XXX the location information is probably wildly inaccurate *)
+        (* Bind the variable. *)
         let binding = User (mname, name), KTerm, location env in
         let env, { Expressions.subst_toplevel; vars; _ } = Expressions.bind_evars env [ binding ] in
         let p = match vars with [ p ] -> p | _ -> assert false in
 
         (* First, remember that we now have a qualified name pointing to [p]. *)
-        let env = T.modify_kenv env (fun kenv k ->
-          let kenv = KindCheck.bind_external_name kenv mname name KTerm p in
-          k kenv (fun env -> env)
-        ) in
+        let env = Exports.bind_interface_value env mname name p in
 
         (* Then, [add] takes care of simplifying any function type. *)
         let env = Permissions.add env p typ in
@@ -66,17 +61,10 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
 
     | DataTypeGroup group :: items ->
         let env, items, vars, dc_exports = Expressions.bind_data_type_group_in_toplevel_items env group items in
-        let names = List.map (fun { data_name; data_kind; _ } -> data_name, data_kind) group.group_items in
 
-        let env = T.modify_kenv env (fun kenv k ->
-          let kenv = List.fold_left2 (fun kenv (name, kind) var ->
-            KindCheck.bind_external_name kenv mname name kind var
-          ) kenv names vars in
-          let kenv = List.fold_left (fun kenv (var, dc, dc_info) ->
-            KindCheck.bind_external_datacon kenv mname dc dc_info var
-          ) kenv dc_exports in
-          k kenv (fun env -> env)
-        ) in
+        (* Also remember that we now have a qualified name for the types, and
+         * that we can qualify the data constructors as well. *)
+        let env = Exports.bind_interface_types env mname group vars dc_exports in
 
         import_items env items
 
