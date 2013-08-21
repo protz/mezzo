@@ -90,6 +90,10 @@ val find_nonlocal_variable: 'v env -> Variable.name -> 'v
     data constructor, and its flavor. *)
 val resolve_datacon: 'v env -> datacon_reference -> 'v var * Datacon.name * DataTypeFlavor.flavor
 
+(** [get_exports env] returns the list of names that are exported by [env].
+ * Calling this function only makes sense after type-checking took place. *)
+val get_exports: 'v env -> (Variable.name * 'v) list
+
 (* ---------------------------------------------------------------------------- *)
 
 (** {1 Extending an environment.} *)
@@ -153,7 +157,7 @@ val names: typ -> type_binding list
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Kind-checking functions. *)
+(** {1 Kind-checking functions.} *)
 
 (** [infer_reset env ty] returns the kind of the type [ty]. *)
 val infer_reset: 'v env -> typ -> kind
@@ -170,6 +174,6 @@ val check_interface: 'v env -> interface -> unit
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Debugging functions. *)
+(** {1 Debugging functions.} *)
 
 val p: Buffer.t -> 'a env -> unit

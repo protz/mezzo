@@ -369,6 +369,8 @@ let resolve_datacon env (dref : datacon_reference) : 'v var * Datacon.name * Dat
      the unqualified name and the flavor of the data constructor. *)
   v, unqualify datacon, info.datacon_flavor
 
+
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Checking for duplicate definitions. *)
@@ -1200,4 +1202,8 @@ let find_nonlocal_variable env x =
 
 let extend env bindings =
   extend Fictional env bindings
+
+let get_exports env =
+  let names = V.unqualified_names env.variables in
+  List.map (fun name -> name, find_nonlocal_variable env name) names
 

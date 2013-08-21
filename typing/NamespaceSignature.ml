@@ -41,6 +41,9 @@ module type Namespace = sig
   (** Remove all unqualified names. *)
   val zap: 'a global_env -> 'a global_env
 
+  (** Get all the unqualified names. *)
+  val unqualified_names: 'a global_env -> name list
+
   open PPrint
 
   (** Pretty-printing an environment. *)

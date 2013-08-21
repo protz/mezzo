@@ -115,6 +115,9 @@ end) : Namespace with type name = I.name = struct
   let zap (env : 'a global_env) : 'a global_env =
     { env with current = I.Map.empty }
 
+  let unqualified_names (env: 'a global_env) =
+    I.Map.Domain.elements (I.Map.domain env.current)
+
   (* Pretty-printers; for debugging. *)
 
   open MzPprint

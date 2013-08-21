@@ -393,63 +393,30 @@ let run { html_errors; backtraces } f =
  * file, but it will give a somehow readable version of all the names that have
  * been defined in the environment as well as the type available for them. *)
 let print_signature (buf: Buffer.t) (env: TypeCore.env): unit =
-  flush stdout;
-  flush stderr;
   let open TypeCore in
-  let compare_locs loc1 loc2 =
-    Lexing.(compare loc1.pos_cnum loc2.pos_cnum)
-  in
-  let perms = fold_terms env (fun acc var permissions ->
-    let locations = get_locations env var in
-    let locations = List.sort (fun (loc1, _) (loc2, _) -> compare_locs loc1 loc2) locations in
-    let location = fst (List.hd locations) in
-    List.map (fun x -> var, location, x) permissions :: acc
-  ) [] in
-  let perms = List.flatten perms in
-  let perms = List.filter (fun (var, _, perm) ->
-    match perm with
-    | TyUnknown ->
-        false
-    | TySingleton (TyOpen var') when same env var var' ->
-        false
-    | _ ->
-        true
-  ) perms in
-  let perms = List.sort (fun (_, loc1, _) (_, loc2, _) -> compare_locs loc1 loc2) perms in
-  List.iter (fun (var, _, t) ->
-    let open Types.TypePrinter in
-    let open MzPprint in
-    try
-      let name = List.find (function
-        | User (m, x) ->
-            Module.equal m (module_name env) &&
-            (Variable.print x).[0] <> '/'
-        | Auto _ ->
-            false
-      ) (get_names env var) in
-      let t =
-        match TypeErrors.fold_type env t with
-        | Some t ->
-            t
-        | None ->
-            Log.warn "Badly printed type, sorry about that!";
-            t
+  let open Kind in
+  let exports = KindCheck.get_exports (TypeCore.kenv env) in
+  List.iter (fun (name, var) ->
+    if get_kind env var = KTerm then
+      let perms = get_permissions env var in
+      let perms =
+        List.filter (function TyUnknown | TySingleton _ -> false | _ -> true) perms
       in
-      pdoc buf ((fun () ->
-        let t =
-          if true (* TEMPORARY *) then 
-            print_type env t
-          else
-            SurfaceSyntaxPrinter.print (Resugar.resugar env t)
-        in
-        string "val" ^^ space ^^
-        print_var env name ^^ space ^^ at ^^ space ^^ (nest 2 t) ^^
-        break 1
-      ), ())
-
-    with Not_found ->
-      ()
-  ) perms
+      List.iter (fun t ->
+        let open MzPprint in
+        (* First try to fold the type (e.g. turn "(=x, =y)" into "(int, int)"). *)
+        let t = Option.map_none t (TypeErrors.fold_type env t) in
+        (* And then try to convert it to the surface syntax. *)
+        let t = SurfaceSyntaxPrinter.print (Resugar.resugar env t) in
+        (* Print it! *)
+        pdoc buf ((fun () ->
+          string "val" ^^ space ^^
+          string (Variable.print name) ^^
+          space ^^ at ^^ space ^^ (nest 2 t) ^^
+          break 1
+        ), ())
+      ) perms
+  ) exports
 ;;
 
 (* -------------------------------------------------------------------------- *)
