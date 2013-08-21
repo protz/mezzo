@@ -672,7 +672,7 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
   let env, vars, names =
     List.fold_left (fun (env, vars, names) binding ->
       let env, var = bind_rigid env binding in
-      let name = match binding with User (_, x), _, _ -> x | _ -> assert false in
+      let name = match binding with User (_, x), _, _ -> x | _ -> Variable.register "::invalid::" in
       env, var :: vars, name :: names
     ) (env, [], []) bindings
   in
