@@ -171,7 +171,6 @@ let check
           let point = KindCheck.find_nonlocal_variable exports name in
           (* Variables marked with ' belong to the implementation. *)
 
-
           let open TypeErrors in
           let error_out reason =
             raise_error env (DataTypeMismatchInSignature (name, reason))
@@ -240,11 +239,7 @@ let check
 
           | T.Abbrev t, T.Abbrev t' ->
               (* We must export exactly the same abbreviation for the
-               * signature to match. We may want to be smarter, e.g. allow
-               * subtyping by using [Permissions.sub] instead of [T.equal] but
-               * these types contain bound variables (we haven't bound the type
-               * parameters), and [Permissions] does not know how to deal with
-               * that yet). *)
+               * signature to match. *)
               if not (T.equal env t t') then
                 error_out "abbreviations not compatible";
 
