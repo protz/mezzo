@@ -436,8 +436,11 @@ let extend_check variety env xs =
 let bind_datacon env x (data : 'v var * datacon_info) : 'v env =
   { env with datacons = D.extend_unqualified x data env.datacons }
 
-let bind_external_name (env: 'v env) (m: Module.name) (x: Variable.name) (v: 'v): 'v env =
-  let binding = NonLocal v, KTerm, Real in
+let bind_nonlocal_datacon env x dc_info v =
+  bind_datacon env x (NonLocal v, dc_info)
+
+let bind_external_name (env: 'v env) (m: Module.name) (x: Variable.name) (k: kind) (v: 'v): 'v env =
+  let binding = NonLocal v, k, Real in
   { env with variables = V.extend_qualified m x binding env.variables }
 
 let bind_external_datacon

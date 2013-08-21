@@ -223,27 +223,6 @@ let check_implementation
      in scope). *)
   let rec type_check env program =
     match program with
-    | DataTypeGroup group :: blocks ->
-        Log.debug ~level:2 "\n%s***%s Processing data type group:\n%a"
-          Bash.colors.Bash.yellow Bash.colors.Bash.default
-          KindPrinter.pgroup (env, group);
-
-        (* The binders in the data type group will be opened in the rest of the
-         * blocks. Also performs the actual binding in the data type group, as
-         * well as the variance and fact inference. *)
-        let env, blocks, _, dc_exports =
-          Expressions.bind_data_type_group_in_toplevel_items env group blocks
-        in
-
-        let env = TypeCore.modify_kenv env (fun kenv k ->
-          let kenv = List.fold_left (fun kenv (var, dc, dc_info) ->
-            KindCheck.bind_external_datacon kenv mname dc dc_info var
-          ) kenv dc_exports in
-          k kenv (fun env -> env)
-        ) in
-
-        (* Move on to the rest of the blocks. *)
-        type_check env blocks
     | ValueDefinitions decls :: blocks ->
         Log.debug ~level:2 "\n%s***%s Processing declarations:\n%a"
           Bash.colors.Bash.yellow Bash.colors.Bash.default
@@ -263,8 +242,39 @@ let check_implementation
 
         (* Move on to the rest of the blocks. *)
         type_check env blocks
+
+    | DataTypeGroup group :: blocks ->
+        Log.debug ~level:2 "\n%s***%s Processing data type group:\n%a"
+          Bash.colors.Bash.yellow Bash.colors.Bash.default
+          KindPrinter.pgroup (env, group);
+
+        (* The binders in the data type group will be opened in the rest of the
+         * blocks. Also performs the actual binding in the data type group, as
+         * well as the variance and fact inference. *)
+        let env, blocks, vars, dc_exports =
+          Expressions.bind_data_type_group_in_toplevel_items env group blocks
+        in
+        let names = List.map
+          (fun { TypeCore.data_name; data_kind; _ } -> data_name, data_kind)
+          group.TypeCore.group_items
+        in
+
+        let env = TypeCore.modify_kenv env (fun kenv k ->
+          let kenv = List.fold_left2 (fun kenv (name, kind) var ->
+            KindCheck.bind_nonlocal kenv (name, kind, var)
+          ) kenv names vars in
+          let kenv = List.fold_left (fun kenv (var, dc, dc_info) ->
+            KindCheck.bind_nonlocal_datacon kenv dc dc_info var
+          ) kenv dc_exports in
+          k kenv (fun env -> env)
+        ) in
+
+        (* Move on to the rest of the blocks. *)
+        type_check env blocks
+
     | _ :: _ ->
         Log.error "The parser should forbid this"
+
     | [] ->
         (* Print some extra debugging information. *)
         Log.debug ~level:2 "\n%s***%s Done type-checking:\n%a"

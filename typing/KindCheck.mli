@@ -125,6 +125,8 @@ val bindings_data_group_types: data_type_def list -> type_binding list
     environment has been extended with bindings for the types. *)
 val bind_data_group_datacons: 'v env -> data_type_def list -> 'v env
 
+val bind_nonlocal_datacon: 'v env -> Datacon.name -> datacon_info -> 'v -> 'v env
+
 (* ---------------------------------------------------------------------------- *)
 
 (** {1 Extending an environment with external names.} *)
@@ -132,7 +134,7 @@ val bind_data_group_datacons: 'v env -> data_type_def list -> 'v env
 (** These functions are used when constructing an interface. We need to add
  * additional bindings in the Kind-Checking environment. *)
 
-val bind_external_name: 'v env -> Module.name -> Variable.name -> 'v -> 'v env
+val bind_external_name: 'v env -> Module.name -> Variable.name -> kind -> 'v -> 'v env
 val bind_external_datacon: 'v env -> Module.name -> Datacon.name -> datacon_info -> 'v -> 'v env
 
 (* ---------------------------------------------------------------------------- *)

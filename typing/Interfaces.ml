@@ -56,7 +56,7 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
 
         (* First, remember that we now have a qualified name pointing to [p]. *)
         let env = T.modify_kenv env (fun kenv k ->
-          let kenv = KindCheck.bind_external_name kenv mname name p in
+          let kenv = KindCheck.bind_external_name kenv mname name KTerm p in
           k kenv (fun env -> env)
         ) in
 
@@ -66,8 +66,13 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
         import_items env items
 
     | DataTypeGroup group :: items ->
-        let env, items, _, dc_exports = Expressions.bind_data_type_group_in_toplevel_items env group items in
+        let env, items, vars, dc_exports = Expressions.bind_data_type_group_in_toplevel_items env group items in
+        let names = List.map (fun { data_name; data_kind; _ } -> data_name, data_kind) group.group_items in
+
         let env = T.modify_kenv env (fun kenv k ->
+          let kenv = List.fold_left2 (fun kenv (name, kind) var ->
+            KindCheck.bind_external_name kenv mname name kind var
+          ) kenv names vars in
           let kenv = List.fold_left (fun kenv (var, dc, dc_info) ->
             KindCheck.bind_external_datacon kenv mname dc dc_info var
           ) kenv dc_exports in
