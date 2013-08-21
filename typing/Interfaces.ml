@@ -38,8 +38,7 @@ let build_interface (env: TypeCore.env) (mname: Module.name) (iface: S.interface
 ;;
 
 (* Used by [Driver], to import the points from a desugared interface into
- * another one, prefixed by the module they belong to, namely [mname].
- * XXX why do we need [mname] when we have [TypeCore.module_name env]? *)
+ * another one, prefixed by the module they belong to, namely [mname]. *)
 let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.env =
   Log.debug "Massive import, %a" Module.p mname;
   let env, iface = build_interface env mname iface in
@@ -50,7 +49,7 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
   let rec import_items env = function
     | ValueDeclaration (name, typ) :: items ->
         (* XXX the location information is probably wildly inaccurate *)
-        let binding = User (module_name env, name), KTerm, location env in
+        let binding = User (mname, name), KTerm, location env in
         let env, { Expressions.subst_toplevel; vars; _ } = Expressions.bind_evars env [ binding ] in
         let p = match vars with [ p ] -> p | _ -> assert false in
 

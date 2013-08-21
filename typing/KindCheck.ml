@@ -307,8 +307,15 @@ let module_name env =
   env.module_name
 
 let enter_module env module_name =
-  Log.debug "[enter_module] %a %a" Module.p module_name p env;
-  { env with level = 0; module_name; }
+  (* The call to [zap] is important, because when type-checking a module against
+   * its interface, we need a way to forget all the current definitions /
+   * variables so that we can re-introduce them one by one. *)
+  { env with
+    level = 0;
+    module_name;
+    variables = V.zap env.variables;
+    datacons = D.zap env.datacons;
+  }
 
 let location env =
   env.loc
