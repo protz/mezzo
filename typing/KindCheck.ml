@@ -380,10 +380,10 @@ let check_for_duplicate_bindings env (xs : type_binding list) : type_binding lis
     (fun (x, _, loc) -> bound_twice "variable" Variable.print { env with loc } x)
 
 (* TEMPORARY this function also does not produce a good error location *)
-let check_for_duplicate_datacons env (branches: (Datacon.name * 'a) list) : unit =
+let check_for_duplicate_datacons env (branches: (Datacon.name * 'a * 'b) list) : unit =
   ignore (
-    MzList.exit_if_duplicates Datacon.compare fst branches
-      (fun (x, _) -> bound_twice "data constructor" Datacon.print env x)
+    MzList.exit_if_duplicates Datacon.compare (fun (x, _, _) -> x) branches
+      (fun (x, _, _) -> bound_twice "data constructor" Datacon.print env x)
   )
 
 let check_for_duplicate_fields env fields : unit =
@@ -550,7 +550,7 @@ let bind_data_group_datacons env (group : data_type_def list) : 'v env =
     | Concrete (f, branches, _) ->
         let (x, _, _), _ = def.lhs in
         let v = find_var env (Unqualified x) in
-        MzList.fold_lefti (fun i env (dc, fields) ->
+        MzList.fold_lefti (fun i env (dc, _bindings, fields) ->
           let fields = MzList.map_some (function
             | FieldValue (f, _) -> Some f
             | FieldPermission _ -> None
@@ -849,7 +849,9 @@ let check_field_reset env (field : data_field_def) =
   | FieldPermission ty ->
       check_reset env ty KPerm
 
-let check_unresolved_branch env (_, fields) =
+let check_unresolved_branch env (_, bindings, fields) =
+  (* Introduce the names bound above the pattern. *)
+  let env = extend_check Fictional env bindings in
   (* Check that no field name appears twice. *)
   check_for_duplicate_fields env fields;
   (* Check that every field is well-kinded. *)

@@ -350,12 +350,14 @@ val resolved_datacons_equal: env -> resolved_datacon -> resolved_datacon -> bool
 
 (** Need to translate a branch definition [b] with nested permissions [ps] into
  * a type? Use [construct_branch b ps]. *)
-val construct_branch: branch -> typ list -> typ
+val construct_branch: type_binding list -> branch -> typ list -> typ
 
-(** Need to see the branch hidden beneath a type? Use this helper. *)
+(** Need to see the branch hidden beneath a type? Use this helper. This will
+ * _not_ open quantifiers. *)
 val find_branch: typ -> branch
 
-(** Need to modify the branch hidden beneath a type? Use this helper. *)
+(** Need to modify the branch hidden beneath a type? Use this helper. This will
+ * _not_ open quantifiers. *)
 val touch_branch: typ -> (branch -> branch) -> typ
 
 (* ---------------------------------------------------------------------------- *)

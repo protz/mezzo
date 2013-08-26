@@ -1042,6 +1042,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("booltrue.mz", pass);
   ("woref.mz", pass);
   ("exclusiveperm.mz", kfail);
+  ("datacon1.mz", pass);
+  ("datacon2.mz", pass);
+  ("datacon3.mz", pass);
+  ("datacon4.mz", kfail);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)

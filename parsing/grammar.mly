@@ -546,8 +546,13 @@ data_type_def_branch_content:
     { dfs }
 
 %inline data_type_def_branch:
+  bs = existential_quantifiers?
   dfs = generic_bare_datacon_application(data_type_def_branch_content)
-    { dfs }
+    { 
+      let dc, fields = dfs in
+      let bs = Option.map_none [] bs in
+      dc, bs, fields
+    }
 
 %inline data_type_def_lhs:
   x = variable ys = atomic_type_binding_with_variance*

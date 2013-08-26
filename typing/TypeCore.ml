@@ -153,11 +153,16 @@ type data_type_group = {
 let fold_star perms =
   MzList.reduce (fun acc x -> TyStar (acc, x)) perms
 
-let construct_branch (branch: branch) (ps: typ list): typ =
-  if List.length ps > 0 then
-    TyBar (TyConcrete branch, fold_star ps)
-  else
-    TyConcrete branch
+let construct_branch (names: type_binding list) (branch: branch) (ps: typ list): typ =
+  let t = 
+    if List.length ps > 0 then
+      TyBar (TyConcrete branch, fold_star ps)
+    else
+      TyConcrete branch
+  in
+  List.fold_right (fun binding t ->
+    TyQ (Exists, binding, UserIntroduced, t)
+  ) names t
 
 let rec find_branch (t: typ): branch =
   match t with
@@ -165,6 +170,8 @@ let rec find_branch (t: typ): branch =
       find_branch t
   | TyConcrete b ->
       b
+  | TyQ (Exists, _, UserIntroduced, t) ->
+      find_branch t
   | _ ->
       assert false
 
@@ -174,6 +181,8 @@ let rec touch_branch (t: typ) (f: branch -> branch): typ =
       TyBar (touch_branch t f, ps)
   | TyConcrete b ->
       TyConcrete (f b)
+  | TyQ (Exists, binding, UserIntroduced, t) ->
+      TyQ (Exists, binding, UserIntroduced, touch_branch t f)
   | _ ->
       assert false
 

@@ -156,7 +156,7 @@ type typ =
 and mode_constraint = Mode.mode * typ
 
 and data_type_def_branch =
-    Datacon.name * data_field_def list
+    Datacon.name * type_binding list * data_field_def list
 
 and data_field_def =
   | FieldValue of Field.name * typ

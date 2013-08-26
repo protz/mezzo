@@ -136,7 +136,7 @@ let rec translate_type env (ty : typ) : T.typ * T.typ * kind =
         branch1 with
         T.branch_fields = fields2
       } in
-      T.construct_branch branch1 perms1, T.construct_branch branch2 perms2, KType
+      T.construct_branch [] branch1 perms1, T.construct_branch [] branch2 perms2, KType
 
   | TySingleton ty ->
       let ty, _ = translate_type_reset env ty in
@@ -296,9 +296,10 @@ let rec translate_data_type_def_branch
     (env: env)
     (flavor: DataTypeFlavor.flavor)
     (adopts: typ option)
-    (branch: Datacon.name * data_field_def list)
+    (branch: Datacon.name * type_binding list * data_field_def list)
   : T.typ =
-  let datacon, fields = branch in
+  let datacon, bindings, fields = branch in
+  let env = extend env bindings in
   let branch = {
     T.branch_flavor = flavor;
     (* [Expressions.bind_group_definition] will take care of putting the right
@@ -310,7 +311,8 @@ let rec translate_data_type_def_branch
     T.branch_adopts = translate_adopts env adopts
   } in
   let perms = translate_field_defs_perms env fields in
-  T.construct_branch branch perms
+  let bindings = List.map (name_user env) bindings in
+  T.construct_branch bindings branch perms
 
 and translate_adopts env (adopts : typ option) =
   match adopts with
