@@ -1,21 +1,55 @@
-(* TEMPORARY these built-in operations are currently not implemented! *)
-
 abstract lock (p: perm)
 fact duplicable (lock p)
 
-abstract locked
+(* A lock is currently implemented as a mutable Boolean block.
+   Of course, this implementation is safe only in a sequential
+   setting, and will have to be modified if/when Mezzo receives
+   a concurrent execution scheme. *)
 
-val new: [p: perm] (| consumes p) -> lock p =
-  builtin __mz_lock_new
+(* Encoding the invariant that [p] is available when the lock
+   is free is of course non-essential, but allows saving a few
+   type casts. *)
 
-val acquire:     [p: perm] (l: lock p) -> (| p * l @ locked) =
-  builtin __mz_lock_acquire
+data mutable private_lock (p : perm) =
+ | Free {| p }
+ | Taken
 
-val try_acquire: [p: perm] (l: lock p) -> rich_bool empty (p * l @ locked) =
-  builtin __mz_lock_try_acquire
+(* Defining [locked] as a synonym for [Taken] is again non-essential
+   and allows saving a few type casts. *)
 
-val release: [p: perm] (l: lock p | consumes (p * l @ locked)) -> () =
-  builtin __mz_lock_release
+alias locked =
+    Taken
+
+(* Creation. *)
+
+val new [p: perm] (| consumes p) : lock p =
+  let l : private_lock p = Free in
+  (* This unsafe type cast causes the permission [l @ lock p] to appear. *)
+  magic::magic l
+
+(* To acquire a lock, we check that it is currently [Free], and
+   change it to [Taken]. *)
+
+val try_acquire [p: perm] (l: lock p) : rich_bool empty (p * l @ locked) =
+  (* This unsafe type cast causes the permission [l @ private_lock p] to appear. *)
+  let () : (| l @ private_lock p) = magic::magic () in
+  (* This allows us to inspect the lock. *)
+  match l with
+  | Free ->
+      tag of l <- Taken;
+      True
+  | Taken ->
+      False
+  end
+
+val acquire [p: perm] (l: lock p) : (| p * l @ locked) =
+  if not (try_acquire l) then fail
+
+val release [p: perm] (l: lock p | consumes (p * l @ locked)) : () =
+  (* The lock is known to be [Taken]. Change its tag back to [Free]. *)
+  tag of l <- Free
+
+(* [borrow] is a well-parenthesized [acquire/release] pair. *)
 
 val borrow [p: perm, q: perm, b] (
   l: lock p,
