@@ -559,7 +559,7 @@ data_type_def_branch_content:
     { (* A little hack: we don't know the kind yet, so we abstract over it. *)
       fun kind ->
         (x, kind, ($startpos(x), $endpos(x))),
-	ys
+        ys
     }
 
 %inline data_type_def_rhs:

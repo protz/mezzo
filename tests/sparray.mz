@@ -39,7 +39,7 @@ val rec reroot [a] (consumes spa: sparray a):
       ()
   | RUndo { descendant; offset; element } ->
       (* Flatten the descendant, which ensures the existence of the field
-	 [!descendant.storage]. *)
+         [!descendant.storage]. *)
       reroot descendant;
       (* Apply the diff to the obtained contents. *)
       array::set (!descendant.storage, offset, element);

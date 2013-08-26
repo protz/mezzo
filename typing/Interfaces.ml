@@ -149,7 +149,7 @@ let check
           the existing points in [env]. *)
         let special_bind tsenv (name, kind, _loc) =
           KindCheck.bind_nonlocal tsenv (name, kind, KindCheck.find_nonlocal_variable exports name)
-	in
+        in
         let tsenv, translated_definitions =
           TransSurface.translate_data_type_group (List.fold_left special_bind) tsenv group
         in

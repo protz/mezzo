@@ -83,9 +83,9 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
     E.var (
       match v with
       | Internal _ ->
-	  v
+          v
       | External x ->
-	  try Internal (N.Map.find x phi + delta) with Not_found -> v
+          try Internal (N.Map.find x phi + delta) with Not_found -> v
     )
 
   (* -------------------------------------------------------------------------- *)
@@ -152,9 +152,9 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
       (* At variable occurrences, apply [f]. *)
       (f delta)
       (* At abstractions, apply [transform_closed_pat], using [delta + p.gap]
-	 as the updated value of [delta] for those expressions that lie within
-	 the scope of the pattern. The value of [delta] remains unchanged for
-	 those expressions that lie outside the scope of the pattern. *)
+         as the updated value of [delta] for those expressions that lie within
+         the scope of the pattern. The value of [delta] remains unchanged for
+         those expressions that lie outside the scope of the pattern. *)
       (fun p -> transform_closed_pat (delta + p.gap) delta f p)
       e
 
@@ -162,10 +162,10 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
     let pat = p.pat in
     let pat' =
       P.map
-	(* At bound variable occurrences, do nothing. *)
+        (* At bound variable occurrences, do nothing. *)
         (fun i -> i)
-	(* At sub-expressions, apply [transform_expr] with a suitable
-	   value of [delta]. *)
+        (* At sub-expressions, apply [transform_expr] with a suitable
+           value of [delta]. *)
         (transform_expr inner f)
         (transform_expr outer f)
         pat
@@ -213,13 +213,13 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
     let phi =
       P.fold
         (fun x phi ->
-	  (* We allow non-linear patterns, so if a name has already been
-	     encountered, we skip it without generating a new index. *)
+          (* We allow non-linear patterns, so if a name has already been
+             encountered, we skip it without generating a new index. *)
           if N.Map.mem x phi then
-	    phi
+            phi
           else begin
-	    let i = !n in n := i + 1; N.Map.add x i phi
-	  end)
+            let i = !n in n := i + 1; N.Map.add x i phi
+          end)
         (fun _ phi -> phi)
         (fun _ phi -> phi)
         p
@@ -236,12 +236,12 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
     let phi, gap = bv p in
     let pat =
       P.map
-	(* A name in binding position is replaced with the corresponding
-	   de Bruijn index. *)
+        (* A name in binding position is replaced with the corresponding
+           de Bruijn index. *)
         (fun x -> N.Map.find x phi)
-	(* The closing [phi] is applied to an inner expression. *)
+        (* The closing [phi] is applied to an inner expression. *)
         (close_expr phi)
-	(* An outer expression is unaffected. *)
+        (* An outer expression is unaffected. *)
         (fun e -> e)
         p
     in
@@ -349,9 +349,9 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
       (* At binding occurrences, apply the inner opening. *)
       (RandomAccessList.apply inner)
       (* By using [expose_expr], we push the opening substitution only
-	 one level down. This ensures that a traversal will have linear
-	 complexity (up to a logarithmic factor, which is the cost of
-	 lookup in a random access list). *)
+         one level down. This ensures that a traversal will have linear
+         complexity (up to a logarithmic factor, which is the cost of
+         lookup in a random access list). *)
       (expose_expr inner)
       (expose_expr outer)
       p.pat
@@ -378,9 +378,9 @@ module Make (N : NAME) (P : PATTERN) (E : EXPRESSION) = struct
       p
     else
       (* Apply the suspended opening all the way to the leaves. Note
-	 that the pattern [p] itself remains closed, so its bound
+         that the pattern [p] itself remains closed, so its bound
          variables are not affected by the renaming, which is shifted
-	 up by [p.gap]. *)
+         up by [p.gap]. *)
       let pat' =
         P.map
           (fun i -> i)

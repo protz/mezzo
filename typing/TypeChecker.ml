@@ -588,8 +588,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   | EBigLambdas (vars, e) ->
 
       (* Build the desired polymorphic function type. Note that we build
-	 this type without opening or closing any quantifiers. This is the
-	 trick. *)
+         this type without opening or closing any quantifiers. This is the
+         trick. *)
       let desired = type_for_function_def expr in
       
       (* Enter the big Lambdas. *)

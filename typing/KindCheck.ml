@@ -186,8 +186,8 @@ let print_error env error buf () =
         namespace x
   | FictionalEVar x ->
       bprintf
-	"The variable %s is fictional and cannot appear in an expression."
-	(print_maybe_qualified Variable.print x)
+        "The variable %s is fictional and cannot appear in an expression."
+        (print_maybe_qualified Variable.print x)
   | Mismatch (expected, inferred) ->
       let il, ir = Kind.as_arrow inferred in
       let xl, xr = Kind.as_arrow expected in
@@ -649,12 +649,12 @@ let rec check env s (ty : typ) (expected : kind) : unit =
 
   | TyConsumes ty ->
       if s = ConsumesAllowed then
-	(* Note that we disallow nested [consumes] annotations. We could
-	   allow them, as they are harmless, but they are also useless,
-	   so it seems better to warn the user against them. *)
-	check env ConsumesDisallowed ty expected
+        (* Note that we disallow nested [consumes] annotations. We could
+           allow them, as they are harmless, but they are also useless,
+           so it seems better to warn the user against them. *)
+        check env ConsumesDisallowed ty expected
       else
-	raise_error env IllegalConsumes
+        raise_error env IllegalConsumes
 
   (* The general case. *)
 
@@ -671,9 +671,9 @@ and infer env s (ty : typ) : kind =
 
   | TyConsumes ty ->
       if s = ConsumesAllowed then
-	infer env ConsumesDisallowed ty
+        infer env ConsumesDisallowed ty
       else
-	raise_error env IllegalConsumes
+        raise_error env IllegalConsumes
 
   | TyTuple tys ->
       List.iter (fun ty -> check env s ty KType) tys;
@@ -697,7 +697,7 @@ and infer env s (ty : typ) : kind =
         the [datacon_info] record with this information?) and check
         that its flavor is [Mutable]. Not required for soundness,
         but seems reasonable. Try to share code with the checking
-	of unresolved branches? *)
+        of unresolved branches? *)
       (* Resolve this data constructor reference. *)
       let _, _, _ = resolve_datacon env dref in
       (* Check that no field is provided twice, and check the type
@@ -873,9 +873,9 @@ let check_data_type_def env (def: data_type_def) =
       List.iter (check_unresolved_branch env) branches;
       (* Check the adopts clause. *)
       Option.iter (fun ty ->
-	check_reset env ty KType;
+        check_reset env ty KType;
         (* If there is an adopts clause, then the data type must be
-	   marked mutable. *)
+           marked mutable. *)
         if not (DataTypeFlavor.can_adopt flavor) then
           raise_error env (AdopterNotExclusive name)
       ) clause
@@ -991,7 +991,7 @@ and check_expression env (expr : expression) : unit =
       (* [x] must have variety [Real]. This is the only place where
          varieties matter. *)
       if find_variety env x <> Real then
-	raise_error env (FictionalEVar x)
+        raise_error env (FictionalEVar x)
 
   | EBuiltin _ ->
       ()
@@ -1011,7 +1011,7 @@ and check_expression env (expr : expression) : unit =
       (* The variables bound by capital-Lambda are fictional. *)
       let env = extend_check Fictional env bindings in
       (* The variables bound by little-lambda are real. The argument type
-	 [arg] is interpreted here as a pattern. The scope of these
+         [arg] is interpreted here as a pattern. The scope of these
          variables extends to the function body and result type. *)
       let env = reset Real env arg in
       check env ConsumesAllowed arg KType;
@@ -1020,19 +1020,19 @@ and check_expression env (expr : expression) : unit =
 
   | EAssign (e1, _, e2) ->
       (* The field name is ignored. The type-checker will later ensure
-	 that this field exists and can be accessed. *)
+         that this field exists and can be accessed. *)
       check_expression env e1;
       check_expression env e2
 
   | EAssignTag (e1, dref, _) ->
       (* Resolve this data constructor reference, and fail if this data
-	 constructor is unknown. *)
+         constructor is unknown. *)
       let _ = resolve_datacon env dref in
       check_expression env e1
 
   | EAccess (e, _) ->
       (* The field name is ignored. The type-checker will later ensure
-	 that this field exists and can be accessed. *)
+         that this field exists and can be accessed. *)
       check_expression env e
 
   | EAssert p ->
@@ -1059,7 +1059,7 @@ and check_expression env (expr : expression) : unit =
 
   | EConstruct (dref, field_exprs) ->
       (* Resolve this data constructor reference, and fail if this data
-	 constructor is unknown. *)
+         constructor is unknown. *)
       let _ = resolve_datacon env dref in
       List.iter (fun (_, e) -> check_expression env e) field_exprs
 
@@ -1156,11 +1156,11 @@ let check_interface env (interface : interface) : unit =
       | DataTypeGroup (_, _, data_type_group) ->
           bindings_data_group_types data_type_group
       | ValueDeclaration (binding, _) ->
-	  [ binding ]
+          [ binding ]
       | OpenDirective _ ->
-	  []
+          []
       | ValueDefinitions _ ->
-	  assert false
+          assert false
     ) interface
   ) in
 
@@ -1193,9 +1193,9 @@ let find_nonlocal_variable env x =
       V.lookup_unqualified x env.variables
     with
     | Local _, _, _ ->
-	assert false
+        assert false
     | NonLocal v, _, _ ->
-	v
+        v
   ) with Not_found ->
     raise_error env (MissingExport x)
 

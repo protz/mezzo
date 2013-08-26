@@ -846,10 +846,10 @@ module ExprPrinter = struct
     | EBigLambdas (xs, e) ->
         let env, { subst_expr; _ } = bind_evars env (List.map fst xs) in
         let e = subst_expr e in
-	brackets (
-	  separate_map (comma ^^ space) (print_ebinder env) xs
-	) ^^ space ^^
-	print_expr env e
+        brackets (
+          separate_map (comma ^^ space) (print_ebinder env) xs
+        ) ^^ space ^^
+        print_expr env e
 
     (* fun [a] (x: τ): τ -> e *)
     | ELambda (arg, return_type, body) ->
