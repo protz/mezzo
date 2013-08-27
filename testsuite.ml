@@ -639,39 +639,18 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   (* Adoption. *)
 
-  ("adopts1.mz",
-    pass);
-
-  ("adopts2.mz",
-    simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
-
+  ("adopts1.mz", pass);
+  ("adopts2.mz", simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
   ("adopts3.mz", kfail);
-
-  ("adopts4.mz",
-    simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
-
-  ("adopts5.mz",
-    pass);
-
-  ("adopts6.mz",
-    pass);
-
-  ("adopts7.mz",
-    pass);
-
-  ("adopts8.mz",
-    simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
-
-  ("adopts9.mz",
-    pass);
-
-  ("adopts10.mz",
-    simple_test (Fail (function NotMergingClauses _ -> true | _ -> false)));
-
-  ("adopts11.mz", pass_known_failure);
-  ("adopts12.mz",
-    pass);
-
+  ("adopts4.mz", simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
+  ("adopts5.mz", pass);
+  ("adopts6.mz", pass);
+  ("adopts7.mz", pass);
+  ("adopts8.mz", simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
+  ("adopts9.mz", pass);
+  ("adopts10.mz", simple_test (Fail (function NotMergingClauses _ -> true | _ -> false)));
+  ("adopts11.mz", pass);
+  ("adopts12.mz", pass);
   ("adopts13.mz", fail);
   ("adopts14.mz", fail);
   ("adopts15.mz", pass);
@@ -775,6 +754,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("union-find-nesting.mz", pass);
   ("union-find-dynamic.mz", pass);
+
+  (* Modules *)
 
   ("modules/simple.mz", pass);
 

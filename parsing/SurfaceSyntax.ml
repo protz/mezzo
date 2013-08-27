@@ -440,7 +440,7 @@ let destruct_unqualified = function
   | Unqualified x ->
       x
   | Qualified _ ->
-      assert false
+      Log.error "bad usage for [destruct_unqualified]"
 
 let unqualify = function
   | Qualified (_, d)

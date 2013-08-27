@@ -1,7 +1,7 @@
 data mutable xlist a = XCons { head: a; tail: xlist a } | XNil
 data mutable listmaster a = Listmaster adopts xlist a
 
-val f [a] (elt: a): listmaster a =
+val f [a] (consumes elt: a): listmaster a =
   let x = Listmaster in
   let (y: listmaster a) =
     if True then begin
