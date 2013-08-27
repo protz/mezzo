@@ -232,7 +232,7 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
       if xs <> [] then
         may_raise_error env (SeveralWorkingFunctionTypes f);
       List.iter (fun (name, var) ->
-        may_raise_error env (Instantiated (name, TyOpen var))
+        may_raise_error env' (Instantiated (name, TyOpen var))
       ) vars;
 
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
