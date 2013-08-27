@@ -1,0 +1,5 @@
+val v =
+  let f (x: int): int = x + 1 in
+  assert (f @ (y: int) -> int);
+  assert (f @ (consumes int) -> int);
+  f 1

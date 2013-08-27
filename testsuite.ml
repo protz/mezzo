@@ -61,7 +61,7 @@ let silent_warn_error =
 ;;
 
 let pedantic_warn_error =
-  "@1..4+5..6"
+  "@1..4+5@6"
 ;;
 
 let simple_test ?(warn_error=silent_warn_error) ?known_failure outcome = fun do_it ->
@@ -277,6 +277,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     pass);
   ("assign.mz",
     pass);
+
+  ("multiplearrows.mz",
+    simple_test ~warn_error:pedantic_warn_error (Fail (fun _ -> true)));
 
   ("wrong_type_annotation.mz",
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
