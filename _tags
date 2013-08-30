@@ -14,7 +14,7 @@ true: debug, \
   package(yojson), package(menhirLib), package(ulex), package(pprint), \
   package(fix)
 
-not <testsuite.*>: use_unix
+not <testsuite.*> and not <myocamlbuild*>: use_unix
 
 <testsuite.*>: package(functory)
 
