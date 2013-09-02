@@ -2,7 +2,7 @@
 
 OCAMLBUILD := ocamlbuild -use-ocamlfind -cflags "-g" -lflags "-g" -classic-display
 OCAMLFIND  := ocamlfind
-TO_BUILD   := MezzoLib.cma MezzoLib.cmxa
+TO_BUILD   := MezzoLib.cma MezzoLib.cmxa MezzoLib.cmxs
 
 all:
 	$(OCAMLBUILD) $(TO_BUILD)
