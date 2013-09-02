@@ -1144,7 +1144,7 @@ let acknowledge ((file, _), ()) (result, output) =
 
 (* [run] runs a bunch of tests in parallel. *)
 let run worker tests : unit =
-  Functory.Cores.set_number_of_cores 4;
+  Functory.Cores.set_number_of_cores (Utils.get_number_of_cores ());
   Functory.Cores.compute
     ~worker
     ~master:acknowledge
