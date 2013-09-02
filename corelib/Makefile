@@ -12,7 +12,7 @@ all:
 install: all
 	$(OCAMLFIND) install mezzocorelib META \
 		$(patsubst %,_build/%,$(TO_BUILD)) \
-		_build/*.a _build/*.cmx _build/*.cmi _build/*.mzi
+		$(shell find _build \( -iname '*.a' -or -iname '*.cmx' -or -iname '*.cmi' -or -iname '*.mzi' \) -and -not -iname 'myocamlbuild.*')
 
 uninstall:
 	$(OCAMLFIND) remove mezzocorelib || true
