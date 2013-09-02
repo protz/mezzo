@@ -5,18 +5,13 @@
 # - We generate .annot files and .cmt files.
 # - We use the following ocamlfind packages: yojson, menhirlib, ulex, pprint
 
-# - We normally need use_unix, but testsuite.* needs package(functory) instead
-#   (for some reason, functory seems to include unix)
-
+# - We don't use [use_unix] because it plays badly with ocamlfind and leads to
+#   the infamous "unix.cma is linked twice" problem.
 true: debug, \
   use_menhir, use_ocamlbuild, use_str, \
   annot, bin_annot, strict_sequence, \
   package(yojson), package(menhirLib), package(ulex), package(pprint), \
-  package(fix)
-
-not <testsuite.*> and not <myocamlbuild*>: use_unix
-
-<testsuite.*>: package(functory)
+  package(fix), package(unix), package(functory)
 
 # Enable the "nazi warnings". A few files really trigger too many warnings: the
 # generated parser and lexer files, as well as the imported [patricia.ml].
