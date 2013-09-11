@@ -11,23 +11,24 @@ open hashtable (* table, create, find, add *)
 (* The simple memoizing combinator. *)
 
 (* A lock is used to protect the hash table and to allow its use in a
-   duplicable object (the memoized function). *)
+   duplicable object (the memoized function). The lock also protects
+   the permission [s]. *)
 
 val memoize
   [a, b, s : perm]
   duplicable a => duplicable b =>
-  (hash: a -> int, eq: (a, a) -> bool, f: (a | s) -> b)
-  : (a | s) -> b =
+  (hash: a -> int, eq: (a, a) -> bool, f: (a | s) -> b | consumes s)
+  : a -> b =
 
   (* Create the internal hash table. *)
   let t = create (11, hash, eq) in
   (* Create a lock which (at runtime) prevents re-entrant calls
      into the memoized function and (at type-checking time) allows
      us to hide the existence of the hash table. *)
-  let l : lock (t @ table a b) = new () in
+  let l : lock (t @ table a b * s) = new () in
 
   (* Now, construct the memoized function. *)
-  fun (x: a | s) : b =
+  fun (x: a) : b =
     (* Acquire the lock. This yields the permission [t @ table a b]. *)
     acquire l;
     (* Find [y] in the table, if it is there already, or compute [y]
@@ -35,12 +36,12 @@ val memoize
     let y =
       match find (x, t) with
       | Some { contents = y } ->
-         y
+          y
       | None ->
           let y = f x in
           assert l @ locked;
-         add (x, y, t);
-         y
+          add (x, y, t);
+          y
       end
     in
     (* Release the lock. This consumes [t @ table a b]. *)
@@ -64,7 +65,11 @@ val fix
   (
     hash: a -> int,
     eq: (a, a) -> bool,
-    f: [p : perm] ((a | p) -> b, a | p) -> b
+    f: [p : perm] (
+      (a | p) -> b,
+      a
+    | p
+    ) -> b
   ) 
   : a -> b =
 

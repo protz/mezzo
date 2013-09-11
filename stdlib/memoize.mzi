@@ -17,8 +17,8 @@
 val memoize:
   [a, b, s : perm]
   duplicable a => duplicable b =>
-  (hash: a -> int, eq: (a, a) -> bool, f: (a | s) -> b) ->
-  (a | s) -> b
+  (hash: a -> int, eq: (a, a) -> bool, f: (a | s) -> b | consumes s) ->
+  a -> b
 
 (* Now, a memoizing fixpoint combinator. Here, the argument [f] is not a
    closed function, but an open recursive function, i.e., it is parameterized
