@@ -5,6 +5,10 @@
    would be required if we wish to guarantee that [f] is invoked at most once
    for every input. TEMPORARY *)
 
+(* TEMPORARY maybe we could memoize the function without hiding its state
+   at all (so the memoized function would need t @ table a b * s) and then
+   use hide::hide separately. *)
+
 open lock (* new, acquire, release *)
 open hashtable (* table, create, find, add *)
 

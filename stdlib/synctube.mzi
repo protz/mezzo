@@ -18,3 +18,5 @@ val setup: [a] (consumes c: inert) -> (| c @ outlet a * c @ inlet a)
 val send: [a] (consumes c: outlet a, consumes a) -> (| c @ inert)
 val receive: [a] (consumes inlet a) -> a
 
+(* TEMPORARY one could also transmit a permission the other way, during the ack *)
+
