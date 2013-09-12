@@ -63,3 +63,26 @@ val traverse (consumes g : graph unknown) : graph int =
   (* Return the new graph. *)
   newGraph
 
+
+(* Assumes all the nodes in the graph are set to [false]. *)
+val traverse (g: graph bool): () =
+  let rec visit (n: dynamic | g @ graph bool): () =
+    take n from g;
+    if n.payload then
+      (* The node has been visited already *)
+      give n to g
+    else begin
+      (* The node has not been visited yet. *)
+      let children = n.children in
+      (* Mark it as visited. *)
+      n.payload <- true;
+      (* We keep a copy of [children] (list dynamic is duplicable). *)
+      give n to g;
+      (* Recursively visit the children. *)
+      list::iter (children, visit)
+    end
+  in
+
+  (* Visit each of the roots. *)
+  iter (g.roots, visit)
+
