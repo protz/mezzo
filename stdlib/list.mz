@@ -187,33 +187,29 @@ val append [a] (consumes xs: list a, consumes ys: list a) : list a =
    destination-passing-style. *)
 
 (* LIST_TAILREC_AUX_APPEND *)
-val rec appendAux [a] (
-   consumes dst: xcons a,
-   consumes xs: list a,
-   consumes ys: list a)
+val rec appendAux [a] (consumes (dst: xcons a, xs: list a, ys: list a))
 : (| dst @ list a)
   =
-  if xs then begin
-    let dst' = XCons { head = xs.head; tail = () } in
-    freeze (dst, dst');
-    appendAux (dst', xs.tail, ys)
+  match xs with
+  | Cons ->
+      let dst' = XCons { head = xs.head; tail = () } in
+      freeze (dst, dst');
+      appendAux (dst', xs.tail, ys)
+  | Nil ->
+      freeze (dst, ys)
   end
-  else
-    freeze (dst, ys)
 (* LIST_TAILREC_AUX_APPEND *)
 
 (* LIST_TAILREC_APPEND *)
-val append [a] (
-  consumes xs: list a,
-  consumes ys: list a
-) : list a =
-  if xs then begin
-    let dst = XCons { head = xs.head; tail = () } in
-    appendAux (dst, xs.tail, ys);
-    dst
+val append [a] (consumes (xs: list a, ys: list a)) : list a =
+  match xs with
+  | Cons ->
+      let dst = XCons { head = xs.head; tail = () } in
+      appendAux (dst, xs.tail, ys);
+      dst
+  | Nil ->
+      ys
   end
-  else
-    ys
 (* LIST_TAILREC_APPEND *)
 
 (* -------------------------------------------------------------------------- *)
