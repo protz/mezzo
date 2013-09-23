@@ -1,0 +1,28 @@
+open lock
+
+(* An abbreviation for a pair of an object [x] of a priori unknown type
+   and a lock [l] that protects the permission [x @ a]. *)
+
+alias protected a =
+  (x: unknown, lock (x @ a))
+
+(* Construction. *)
+
+val create [a] (consumes x: a) : protected a =
+  let l : lock (x @ a) = new() in
+  x, l
+
+(* A higher-order function that uses an object of type [protected a]. The
+   client function [f] obtains access to [x @ a], and must preserve it. *)
+
+val access [a, b, pre: perm] (
+  p: protected a,
+  f: (a | consumes pre) -> b
+| consumes pre
+) : b =
+  let x, l = p in
+  acquire l;
+  let y = f x in
+  release l;
+  y
+
