@@ -8,11 +8,7 @@
 
 (* The function [f] may have a side effect, represented by [s]. This must be
    used with caution: it often does not make sense to memoize a function that
-   has a side effect. Furthermore, when it does make sense, one might prefer
-   to hide the side effect before applying [memoize], so [memoize] is applied
-   to a function that does not require a permission. The parameter [s] is
-   useful only when memoizing a function that has an intentionally non-hidden
-   side effect. *)
+   has a side effect. *)
 
 val memoize:
   [a, b, s : perm]
