@@ -14,24 +14,24 @@ data list a =
    initialized. Such a cell is mutable, and can be frozen (turned
    into an immutable list cell) via a tag update instruction. *)
 
-(* CELL_DEF *)
-data mutable cell a =
-  | Cell { head: a; tail: () }
-(* CELL_DEF *)
+(* XLIST_DEF *)
+data mutable xlist a =
+  | XNil
+  | XCons { head: a; tail: () }
+
+alias xcons a =
+    XCons { head: a; tail: () }
+(* XLIST_DEF *)
 
 (* The following function writes [xs] into [c.tail] and declares
    that [c] is now immutable. *)
 
 (* Note: in order to ensure that the tag update instruction does
-   nothing at runtime and can be erased, we need [Cons] and [Cell]
-   to translate to the same tag number. This could be achieved by
-   adding a new tag to the definition of the type [cell]. However
-   that would force us to change the type [cell a] to the more
-   verbose type [Cell { head: a; tail: () }] in several function
-   headers. Maybe we will do that when we have type abbreviations.
-   TEMPORARY *)
+   nothing at runtime and can be erased, we need [XCons] and [Cons]
+   to translate to the same tag number. This explains why we define
+   a tag [XNil], even though we never use it. *)
 
-val freeze [a] (consumes c: cell a, xs: unknown) : (| c @ Cons { head: a; tail = xs }) =
+val freeze [a] (consumes c: xcons a, xs: unknown) : (| c @ Cons { head: a; tail = xs }) =
   c.tail <- xs;
   tag of c <- Cons
 
@@ -128,13 +128,13 @@ val rec splitAt [a] (k: int, consumes xs: list a) : (list a, list a) =
 
 (* This is a tail-recursive, destination-passing-style version of splitAt. *)
 
-val rec splitAtAux [a] (k: int, consumes xs: list a, consumes c: cell a) : (list a | c @ list a) =
+val rec splitAtAux [a] (k: int, consumes xs: list a, consumes c: xcons a) : (list a | c @ list a) =
   if k = 0 then begin
     freeze (c, Nil);
     xs
   end
   else if xs then begin
-    let d = Cell { head = xs.head; tail = () } in
+    let d = XCons { head = xs.head; tail = () } in
     freeze (c, d);
     splitAtAux (k - 1, xs.tail, d)
   end
@@ -144,7 +144,7 @@ val splitAt [a] (k: int, consumes xs: list a) : (list a, list a) =
   if k = 0 then
     Nil, xs
   else if xs then begin
-    let ys = Cell { head = xs.head; tail = () } in
+    let ys = XCons { head = xs.head; tail = () } in
     let zs = splitAtAux (k - 1, xs.tail, ys) in
     ys, zs
   end
@@ -188,13 +188,13 @@ val append [a] (consumes xs: list a, consumes ys: list a) : list a =
 
 (* LIST_TAILREC_AUX_APPEND *)
 val rec appendAux [a] (
-   consumes dst: cell a,
+   consumes dst: xcons a,
    consumes xs: list a,
    consumes ys: list a)
 : (| dst @ list a)
   =
   if xs then begin
-    let dst' = Cell { head = xs.head; tail = () } in
+    let dst' = XCons { head = xs.head; tail = () } in
     freeze (dst, dst');
     appendAux (dst', xs.tail, ys)
   end
@@ -208,7 +208,7 @@ val append [a] (
   consumes ys: list a
 ) : list a =
   if xs then begin
-    let dst = Cell { head = xs.head; tail = () } in
+    let dst = XCons { head = xs.head; tail = () } in
     appendAux (dst, xs.tail, ys);
     dst
   end
