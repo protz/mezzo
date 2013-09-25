@@ -1,0 +1,45 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/tests/list-length-variant.mz.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Constant { color: #e5786d; }
+.Number { color: #e5786d; }
+.Type { color: #cae682; }
+.PreProc { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Keyword">open</span> <span class="PreProc">core</span>
+<span class="lnr"> 2 </span><span class="Keyword">open</span> <span class="PreProc">pervasives</span>
+<span class="lnr"> 3 </span><span class="Keyword">open</span> <span class="PreProc">list</span>
+<span class="lnr"> 4 </span>
+<span class="lnr"> 5 </span><span class="Keyword">val</span> length <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>xs : <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr"> 6 </span>  <span class="Keyword">let</span> c <span class="Keyword">=</span> newref <span class="Number">0</span> <span class="Keyword">in</span>
+<span class="lnr"> 7 </span>  <span class="Keyword">let</span> count <span class="Keyword">(</span>x: a <span class="Keyword">|</span> c @ ref <span class="Type">int</span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 8 </span>    c <span class="Keyword">:=</span> <span class="Keyword">!</span>c + <span class="Number">1</span>
+<span class="lnr"> 9 </span>  <span class="Keyword">in</span>
+<span class="lnr">10 </span>  iter <span class="Keyword">(</span>count, xs<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">11 </span>  <span class="Keyword">!</span>c
+<span class="lnr">12 </span>
+<span class="lnr">13 </span><span class="Keyword">val</span> length <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>xs : <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">14 </span>  <span class="Keyword">let</span> count <span class="Keyword">(</span>n: <span class="Type">int</span>, x : a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">15 </span>    n + <span class="Number">1</span>
+<span class="lnr">16 </span>  <span class="Keyword">in</span>
+<span class="lnr">17 </span>  fold_left <span class="Keyword">(</span>count, <span class="Number">0</span>, xs<span class="Keyword">)</span>
+<span class="lnr">18 </span>
+</pre>
+</body>
+</html>

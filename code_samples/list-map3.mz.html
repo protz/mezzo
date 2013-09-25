@@ -1,0 +1,73 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/tests/list-map3.mz.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Number { color: #e5786d; }
+.Constant { color: #e5786d; }
+.Type { color: #cae682; }
+.Comment { color: #99968b; font-style: italic; }
+.PreProc { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Keyword">open</span> <span class="PreProc">core</span>
+<span class="lnr"> 2 </span><span class="Keyword">open</span> <span class="PreProc">pervasives</span>
+<span class="lnr"> 3 </span><span class="Keyword">open</span> <span class="PreProc">list</span>
+<span class="lnr"> 4 </span>
+<span class="lnr"> 5 </span><span class="Comment">(* Section 4.1.4 of the tutorial, &quot;List map&quot; *)</span>
+<span class="lnr"> 6 </span>
+<span class="lnr"> 7 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> map <span class="Keyword">[</span>a1, a2, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 8 </span>    f: <span class="Keyword">(consumes</span> x: a1 <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>b <span class="Keyword">|</span> x @ a2<span class="Keyword">)</span>,
+<span class="lnr"> 9 </span>    <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a1 <span class="Keyword">|</span> p<span class="Keyword">)</span>: <span class="Keyword">(</span><span class="Type">list</span> b <span class="Keyword">|</span> xs @ <span class="Type">list</span> a2<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">10 </span>  <span class="Keyword">match</span> xs <span class="Keyword">with</span>
+<span class="lnr">11 </span>  <span class="Keyword">|</span> <span class="Constant">Nil</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">12 </span>      <span class="Constant">Nil</span>
+<span class="lnr">13 </span>  <span class="Keyword">|</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head<span class="Keyword">;</span> tail <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">14 </span>      <span class="Keyword">let</span> v <span class="Keyword">=</span> f head <span class="Keyword">in</span>
+<span class="lnr">15 </span>      <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> v<span class="Keyword">;</span> tail <span class="Keyword">=</span> map <span class="Keyword">(</span>f, tail<span class="Keyword">)</span> <span class="Keyword">}</span>
+<span class="lnr">16 </span>  <span class="Keyword">end</span>
+<span class="lnr">17 </span>
+<span class="lnr">18 </span><span class="Keyword">val</span> usage_test: <span class="Type">list</span> <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">19 </span>  <span class="Keyword">let</span> l <span class="Keyword">=</span> cons <span class="Keyword">(</span><span class="Number">1</span>, cons <span class="Keyword">(</span><span class="Number">2</span>, cons <span class="Keyword">(</span><span class="Number">3</span>, nil<span class="Keyword">)))</span> <span class="Keyword">in</span>
+<span class="lnr">20 </span>  <span class="Keyword">let</span> x <span class="Keyword">=</span> newref <span class="Number">0</span> <span class="Keyword">in</span>
+<span class="lnr">21 </span>  <span class="Keyword">let</span> f <span class="Keyword">=</span> <span class="Keyword">fun</span> <span class="Keyword">(</span>y: <span class="Type">int</span> <span class="Keyword">|</span> x @ ref <span class="Type">int</span><span class="Keyword">)</span>: <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">22 </span>    x <span class="Keyword">:=</span> <span class="Keyword">!</span>x + <span class="Number">1</span><span class="Keyword">;</span>
+<span class="lnr">23 </span>    y <span class="Keyword">*</span> y
+<span class="lnr">24 </span>  <span class="Keyword">in</span>
+<span class="lnr">25 </span>  <span class="Keyword">let</span> l <span class="Keyword">=</span> map <span class="Keyword">[</span>p <span class="Keyword">=</span> <span class="Keyword">(</span>x @ ref <span class="Type">int</span><span class="Keyword">)]</span> <span class="Keyword">(</span>f, l<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">26 </span>  l
+<span class="lnr">27 </span>
+<span class="lnr">28 </span><span class="Keyword">val</span> usage_test2 <span class="Keyword">=</span>
+<span class="lnr">29 </span>  <span class="Comment">(* [make(i, f)] creates a list of [i] elements by calling [f] on [i] *)</span>
+<span class="lnr">30 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> make <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>i: <span class="Type">int</span>, f: <span class="Type">int</span> <span class="Keyword">-&gt;</span> a<span class="Keyword">)</span>: <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">31 </span>    <span class="Keyword">if</span> i <span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span>
+<span class="lnr">32 </span>      nil
+<span class="lnr">33 </span>    <span class="Keyword">else</span>
+<span class="lnr">34 </span>      cons <span class="Keyword">(</span>f i, make <span class="Keyword">(</span>i - <span class="Number">1</span>, f<span class="Keyword">))</span>
+<span class="lnr">35 </span>  <span class="Keyword">in</span>
+<span class="lnr">36 </span>  <span class="Keyword">let</span> l <span class="Keyword">=</span> make <span class="Keyword">(</span><span class="Number">10</span>, <span class="Keyword">(fun</span> <span class="Keyword">(</span>x: <span class="Type">int</span><span class="Keyword">)</span>: ref <span class="Type">int</span> <span class="Keyword">=</span> newref x<span class="Keyword">))</span> <span class="Keyword">in</span>
+<span class="lnr">37 </span>  <span class="Keyword">let</span> count <span class="Keyword">=</span> newref <span class="Number">0</span> <span class="Keyword">in</span>
+<span class="lnr">38 </span>  <span class="Comment">(* [f] does something super fancy *)</span>
+<span class="lnr">39 </span>  <span class="Keyword">let</span> f <span class="Keyword">=</span> <span class="Keyword">fun</span> <span class="Keyword">(consumes</span> y: ref <span class="Type">int</span> <span class="Keyword">|</span> count @ ref <span class="Type">int</span><span class="Keyword">)</span>:
+<span class="lnr">40 </span>    <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> y @ ref <span class="Keyword">(</span><span class="Type">int</span>, <span class="Type">int</span><span class="Keyword">))</span> <span class="Keyword">=</span>
+<span class="lnr">41 </span>      <span class="Keyword">let</span> v <span class="Keyword">=</span> <span class="Keyword">!</span>y <span class="Keyword">in</span>
+<span class="lnr">42 </span>      y <span class="Keyword">:=</span> <span class="Keyword">(</span>v, v<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">43 </span>      v
+<span class="lnr">44 </span>  <span class="Keyword">in</span>
+<span class="lnr">45 </span>  map <span class="Keyword">[</span>ref <span class="Type">int</span>, ref <span class="Keyword">(</span><span class="Type">int</span>, <span class="Type">int</span><span class="Keyword">)</span>, <span class="Type">int</span>, <span class="Keyword">(</span>count @ ref <span class="Type">int</span><span class="Keyword">)]</span> <span class="Keyword">(</span>f, l<span class="Keyword">)</span>
+</pre>
+</body>
+</html>

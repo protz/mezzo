@@ -1,0 +1,107 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/wref.mz.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Constant { color: #e5786d; }
+.Comment { color: #99968b; font-style: italic; }
+.PreProc { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Keyword">open</span> <span class="PreProc">lock</span>
+<span class="lnr"> 2 </span>
+<span class="lnr"> 3 </span><span class="Comment">(* A weak reference is a pair of a strong reference [r] and a lock</span>
+<span class="lnr"> 4 </span><span class="Comment">   that protects the permission [r @ ref a]. *)</span>
+<span class="lnr"> 5 </span>
+<span class="lnr"> 6 </span><span class="Comment">(* TEMPORARY a type abbreviation would be more convenient here *)</span>
+<span class="lnr"> 7 </span>
+<span class="lnr"> 8 </span><span class="Keyword">data</span> wref a <span class="Keyword">=</span>
+<span class="lnr"> 9 </span>  <span class="Constant">WRef</span> <span class="Keyword">{</span> contents: <span class="Keyword">(</span>r: <span class="Keyword">unknown</span>, lock <span class="Keyword">(</span>r @ ref a<span class="Keyword">))</span> <span class="Keyword">}</span>
+<span class="lnr">10 </span>
+<span class="lnr">11 </span><span class="Comment">(* Allocation. *)</span>
+<span class="lnr">12 </span>
+<span class="lnr">13 </span><span class="Keyword">val</span> new <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> x: a<span class="Keyword">)</span> : wref a <span class="Keyword">=</span>
+<span class="lnr">14 </span>  <span class="Keyword">let</span> r <span class="Keyword">=</span> newref x <span class="Keyword">in</span>
+<span class="lnr">15 </span>  <span class="Keyword">let</span> l : lock <span class="Keyword">(</span>r @ ref a<span class="Keyword">)</span> <span class="Keyword">=</span> new <span class="Constant">()</span> <span class="Keyword">in</span>
+<span class="lnr">16 </span>  <span class="Constant">WRef</span> <span class="Keyword">{</span> contents <span class="Keyword">=</span> <span class="Keyword">(</span>r, l<span class="Keyword">)</span> <span class="Keyword">}</span>
+<span class="lnr">17 </span>
+<span class="lnr">18 </span><span class="Comment">(* Atomic swap. *)</span>
+<span class="lnr">19 </span>
+<span class="lnr">20 </span><span class="Keyword">val</span> swap <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>r: wref a, <span class="Keyword">consumes</span> y: a<span class="Keyword">)</span> : a <span class="Keyword">=</span>
+<span class="lnr">21 </span>  <span class="Keyword">let</span> r, l <span class="Keyword">=</span> r.contents <span class="Keyword">in</span>
+<span class="lnr">22 </span>  acquire l<span class="Keyword">;</span>
+<span class="lnr">23 </span>  <span class="Keyword">let</span> x <span class="Keyword">=</span> r.contents <span class="Keyword">in</span>
+<span class="lnr">24 </span>  r.contents <span class="Keyword">&lt;-</span> y<span class="Keyword">;</span>
+<span class="lnr">25 </span>  release l<span class="Keyword">;</span>
+<span class="lnr">26 </span>  x
+<span class="lnr">27 </span>
+<span class="lnr">28 </span><span class="Comment">(* Get. *)</span>
+<span class="lnr">29 </span>
+<span class="lnr">30 </span><span class="Comment">(* One might be tempted to believe that a critical section is not</span>
+<span class="lnr">31 </span><span class="Comment">   needed here, since a single read (or write) instruction is atomic</span>
+<span class="lnr">32 </span><span class="Comment">   anyway. However, removing the acquire/release instructions here</span>
+<span class="lnr">33 </span><span class="Comment">   would be unsound (and ill-typed, of course). For instance, an</span>
+<span class="lnr">34 </span><span class="Comment">   attempt to [get] while an [update] is in progress would be</span>
+<span class="lnr">35 </span><span class="Comment">   dangerous. Thanks to the lock, such an attempt will block until</span>
+<span class="lnr">36 </span><span class="Comment">   [update] is finished. *)</span>
+<span class="lnr">37 </span>
+<span class="lnr">38 </span><span class="Keyword">val</span> get <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>r: wref a<span class="Keyword">)</span> : a <span class="Keyword">=</span>
+<span class="lnr">39 </span>  <span class="Keyword">let</span> r, l <span class="Keyword">=</span> r.contents <span class="Keyword">in</span>
+<span class="lnr">40 </span>  acquire l<span class="Keyword">;</span>
+<span class="lnr">41 </span>  <span class="Keyword">let</span> x <span class="Keyword">=</span> r.contents <span class="Keyword">in</span>
+<span class="lnr">42 </span>  release l<span class="Keyword">;</span>
+<span class="lnr">43 </span>  x
+<span class="lnr">44 </span>
+<span class="lnr">45 </span><span class="Comment">(* Set. *)</span>
+<span class="lnr">46 </span>
+<span class="lnr">47 </span><span class="Keyword">val</span> set <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>r: wref a, <span class="Keyword">consumes</span> y: a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">48 </span>  <span class="Keyword">let</span> r, l <span class="Keyword">=</span> r.contents <span class="Keyword">in</span>
+<span class="lnr">49 </span>  acquire l<span class="Keyword">;</span>
+<span class="lnr">50 </span>  r.contents <span class="Keyword">&lt;-</span> y<span class="Keyword">;</span>
+<span class="lnr">51 </span>  release l
+<span class="lnr">52 </span>
+<span class="lnr">53 </span><span class="Comment">(* Update. *)</span>
+<span class="lnr">54 </span>
+<span class="lnr">55 </span><span class="Keyword">val</span> update <span class="Keyword">[</span>a, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>r: wref a, f: <span class="Keyword">(consumes</span> <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">))</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>a, b<span class="Keyword">)</span> <span class="Keyword">|</span> <span class="Keyword">consumes</span> p<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr">56 </span>  <span class="Keyword">let</span> r, l <span class="Keyword">=</span> r.contents <span class="Keyword">in</span>
+<span class="lnr">57 </span>  acquire l<span class="Keyword">;</span>
+<span class="lnr">58 </span>  <span class="Keyword">let</span> x <span class="Keyword">=</span> r.contents <span class="Keyword">in</span>
+<span class="lnr">59 </span>  <span class="Keyword">let</span> y, result <span class="Keyword">=</span> f x <span class="Keyword">in</span>
+<span class="lnr">60 </span>  <span class="Comment">(* The test [if x != y] is not required. It may or may not save time.</span>
+<span class="lnr">61 </span><span class="Comment">     Anyway, it is interesting that the code is well-typed in its presence.</span>
+<span class="lnr">62 </span><span class="Comment">     In the branch where [x == y], this equality is used to transform the</span>
+<span class="lnr">63 </span><span class="Comment">     permission [y @ a] into [x @ a]. (I think!) *)</span>
+<span class="lnr">64 </span>  <span class="Keyword">if</span> x <span class="Keyword">!=</span> y <span class="Keyword">then</span>
+<span class="lnr">65 </span>    r.contents <span class="Keyword">&lt;-</span> y<span class="Keyword">;</span>
+<span class="lnr">66 </span>  release l<span class="Keyword">;</span>
+<span class="lnr">67 </span>  result
+<span class="lnr">68 </span>
+<span class="lnr">69 </span><span class="Keyword">val</span> borrow <span class="Keyword">[</span>a, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>r: wref a, f: <span class="Keyword">(</span>a <span class="Keyword">|</span> <span class="Keyword">consumes</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b <span class="Keyword">|</span> <span class="Keyword">consumes</span> p<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr">70 </span>  <span class="Keyword">let</span> r, l <span class="Keyword">=</span> r.contents <span class="Keyword">in</span>
+<span class="lnr">71 </span>  acquire l<span class="Keyword">;</span>
+<span class="lnr">72 </span>  <span class="Keyword">let</span> x <span class="Keyword">=</span> r.contents <span class="Keyword">in</span>
+<span class="lnr">73 </span>  <span class="Keyword">let</span> result <span class="Keyword">=</span> f x <span class="Keyword">in</span>
+<span class="lnr">74 </span>  release l<span class="Keyword">;</span>
+<span class="lnr">75 </span>  result
+<span class="lnr">76 </span>
+<span class="lnr">77 </span><span class="Comment">(*</span>
+<span class="lnr">78 </span><span class="Comment">Local Variables:</span>
+<span class="lnr">79 </span><span class="Comment">compile-command: &quot;../mezzo wref.mz&quot;</span>
+<span class="lnr">80 </span><span class="Comment">End:</span>
+<span class="lnr">81 </span><span class="Comment">*)</span>
+</pre>
+</body>
+</html>

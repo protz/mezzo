@@ -1,0 +1,102 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/queue.mzi.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Type { color: #cae682; }
+.Constant { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Comment">(* The type of FIFO queues. *)</span>
+<span class="lnr"> 2 </span>
+<span class="lnr"> 3 </span><span class="Keyword">abstract</span> fifo +<span class="Keyword">(</span>a : <span class="Keyword">type)</span> : <span class="Keyword">type</span>
+<span class="lnr"> 4 </span><span class="Keyword">fact</span> <span class="Keyword">exclusive</span> <span class="Keyword">(</span>fifo a<span class="Keyword">)</span>
+<span class="lnr"> 5 </span>
+<span class="lnr"> 6 </span><span class="Comment">(* Elements are normally inserted at the end of the queue, and retrieved</span>
+<span class="lnr"> 7 </span><span class="Comment">   at the beginning. However, insertion at the beginning of the queue is</span>
+<span class="lnr"> 8 </span><span class="Comment">   also supported. *)</span>
+<span class="lnr"> 9 </span>
+<span class="lnr">10 </span><span class="Comment">(* [create()] creates a new, empty queue. *)</span>
+<span class="lnr">11 </span><span class="Keyword">val</span> create: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Constant">()</span> <span class="Keyword">-&gt;</span> fifo a
+<span class="lnr">12 </span>
+<span class="lnr">13 </span><span class="Comment">(* [insert (x, q)] inserts the element [x] at the end of the queue [q]. The</span>
+<span class="lnr">14 </span><span class="Comment">   queue claims the ownership of the element. *)</span>
+<span class="lnr">15 </span><span class="Keyword">val</span> insert: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> a, fifo a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">16 </span>
+<span class="lnr">17 </span><span class="Comment">(* [retrieve q] extracts the element found at the beginning of the queue [q],</span>
+<span class="lnr">18 </span><span class="Comment">   if there is one. The caller recovers the ownership of the element. *)</span>
+<span class="lnr">19 </span><span class="Keyword">val</span> retrieve: <span class="Keyword">[</span>a<span class="Keyword">]</span> fifo a <span class="Keyword">-&gt;</span> <span class="Type">option</span> a
+<span class="lnr">20 </span>
+<span class="lnr">21 </span><span class="Comment">(* [peek q] returns the element found at the beginning of the queue [q],</span>
+<span class="lnr">22 </span><span class="Comment">   if there is one. The element remains in the queue. This function is</span>
+<span class="lnr">23 </span><span class="Comment">   available only if the elements are duplicable. *)</span>
+<span class="lnr">24 </span><span class="Keyword">val</span> peek: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> fifo a <span class="Keyword">-&gt;</span> <span class="Type">option</span> a
+<span class="lnr">25 </span>
+<span class="lnr">26 </span><span class="Comment">(* [length q] returns the number of elements in the queue [q]. *)</span>
+<span class="lnr">27 </span><span class="Keyword">val</span> length: <span class="Keyword">[</span>a<span class="Keyword">]</span> fifo a <span class="Keyword">-&gt;</span> <span class="Type">int</span>
+<span class="lnr">28 </span>
+<span class="lnr">29 </span><span class="Comment">(* [clear q] empties the queue [q]. *)</span>
+<span class="lnr">30 </span><span class="Keyword">val</span> clear: <span class="Keyword">[</span>a<span class="Keyword">]</span> fifo a <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">31 </span>
+<span class="lnr">32 </span><span class="Comment">(* [insert_at_head (x, q)] inserts the element [x] at the beginning of the</span>
+<span class="lnr">33 </span><span class="Comment">   queue [q]. *)</span>
+<span class="lnr">34 </span><span class="Keyword">val</span> insert_at_head: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> a, fifo a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">35 </span>
+<span class="lnr">36 </span><span class="Comment">(* [rotate q] moves the first element of [q] to the end of the queue. If [q]</span>
+<span class="lnr">37 </span><span class="Comment">   is empty, [rotate] has no effect. *)</span>
+<span class="lnr">38 </span><span class="Keyword">val</span> rotate: <span class="Keyword">[</span>a<span class="Keyword">]</span> fifo a <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">39 </span>
+<span class="lnr">40 </span><span class="Comment">(* [fold] applies the function [f], in turn, to every element of [q].</span>
+<span class="lnr">41 </span><span class="Comment">   An accumulator is threaded through the iteration. *)</span>
+<span class="lnr">42 </span><span class="Keyword">val</span> fold : <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">43 </span>  q: fifo a,
+<span class="lnr">44 </span>  <span class="Keyword">consumes</span> accu: b,
+<span class="lnr">45 </span>  f: <span class="Keyword">(</span>a, <span class="Keyword">consumes</span> b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">46 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">47 </span>
+<span class="lnr">48 </span><span class="Comment">(* [iter] applies the function [f], in turn, to every element of [q]. *)</span>
+<span class="lnr">49 </span><span class="Keyword">val</span> iter : <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">50 </span>  q: fifo a,
+<span class="lnr">51 </span>  f: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">52 </span><span class="Keyword">|</span> p
+<span class="lnr">53 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">54 </span>
+<span class="lnr">55 </span><span class="Comment">(* [map (q, f)] is a new queue obtained by applying [f] to every element of</span>
+<span class="lnr">56 </span><span class="Comment">   the queue [q]. *)</span>
+<span class="lnr">57 </span><span class="Keyword">val</span> map: <span class="Keyword">[</span>a, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">58 </span>  q: fifo a,
+<span class="lnr">59 </span>  f: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">60 </span><span class="Keyword">|</span> p
+<span class="lnr">61 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> fifo b
+<span class="lnr">62 </span>
+<span class="lnr">63 </span><span class="Comment">(* [copy q] is a new queue whose elements are the elements of [q]. *)</span>
+<span class="lnr">64 </span><span class="Keyword">val</span> copy  : <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> fifo a <span class="Keyword">-&gt;</span> fifo a
+<span class="lnr">65 </span>
+<span class="lnr">66 </span><span class="Comment">(* [work (q, f)] extracts an element [x] out of the queue [q] and</span>
+<span class="lnr">67 </span><span class="Comment">   executes [f x]. The function [f] has access to the queue, and may</span>
+<span class="lnr">68 </span><span class="Comment">   insert new elements into it. This process is repeated until the</span>
+<span class="lnr">69 </span><span class="Comment">   queue becomes empty. *)</span>
+<span class="lnr">70 </span><span class="Keyword">val</span> work : <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>q: fifo a, f: <span class="Keyword">(</span>a <span class="Keyword">|</span> q @ fifo a <span class="Keyword">*</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span> <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">71 </span>
+<span class="lnr">72 </span><span class="Comment">(*</span>
+<span class="lnr">73 </span><span class="Comment">  Local Variables:</span>
+<span class="lnr">74 </span><span class="Comment">  compile-command: &quot;../mezzo queue.mzi&quot;</span>
+<span class="lnr">75 </span><span class="Comment">  End:</span>
+<span class="lnr">76 </span><span class="Comment">*)</span>
+</pre>
+</body>
+</html>

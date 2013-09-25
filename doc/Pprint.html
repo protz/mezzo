@@ -1,0 +1,163 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="InfiniteArray.html">
+<link rel="next" href="Driver.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="GSet" rel="Chapter" href="GSet.html">
+<link title="Patricia" rel="Chapter" href="Patricia.html">
+<link title="GMap" rel="Chapter" href="GMap.html">
+<link title="Fix" rel="Chapter" href="Fix.html">
+<link title="Log" rel="Chapter" href="Log.html">
+<link title="Hml_String" rel="Chapter" href="Hml_String.html">
+<link title="Hml_Map" rel="Chapter" href="Hml_Map.html">
+<link title="Hml_List" rel="Chapter" href="Hml_List.html">
+<link title="Option" rel="Chapter" href="Option.html">
+<link title="Bash" rel="Chapter" href="Bash.html">
+<link title="InfiniteArray" rel="Chapter" href="InfiniteArray.html">
+<link title="Pprint" rel="Chapter" href="Pprint.html">
+<link title="Driver" rel="Chapter" href="Driver.html">
+<link title="Hashcons" rel="Chapter" href="Hashcons.html">
+<link title="Grammar" rel="Chapter" href="Grammar.html">
+<link title="Identifier" rel="Chapter" href="Identifier.html">
+<link title="Lexer" rel="Chapter" href="Lexer.html">
+<link title="Ulex" rel="Chapter" href="Ulex.html">
+<link title="Utf8" rel="Chapter" href="Utf8.html">
+<link title="Ulexing" rel="Chapter" href="Ulexing.html">
+<link title="PersistentRef" rel="Chapter" href="PersistentRef.html">
+<link title="Permissions" rel="Chapter" href="Permissions.html">
+<link title="Mark" rel="Chapter" href="Mark.html">
+<link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
+<link title="FactInference" rel="Chapter" href="FactInference.html">
+<link title="Utils" rel="Chapter" href="Utils.html"><link title="Basic combinators for building documents." rel="Section" href="#4_Basiccombinatorsforbuildingdocuments">
+<link title="Low-level combinators for alignment and indentation." rel="Section" href="#4_Lowlevelcombinatorsforalignmentandindentation">
+<link title="High-level combinators for building documents." rel="Section" href="#4_Highlevelcombinatorsforbuildingdocuments">
+<link title="Renderers to output channels and to memory buffers." rel="Section" href="#4_Rendererstooutputchannelsandtomemorybuffers">
+<title>Pprint</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="InfiniteArray.html" title="InfiniteArray">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Driver.html" title="Driver">Next</a>
+</div>
+<h1>Module <a href="type_Pprint.html">Pprint</a></h1>
+<pre><span class="keyword">module</span> Pprint: <code class="code">sig</code> <a href="Pprint.html">..</a> <code class="code">end</code></pre><div class="info">
+Pprint is an adaptation of Daan Leijen's <code class="code">PPrint</code> library, which itself is
+   based on the ideas developed by Philip Wadler in ``A Prettier Printer''.<br>
+</div>
+<hr width="100%">
+<br>
+<h4 id="4_Basiccombinatorsforbuildingdocuments">Basic combinators for building documents.</h4><br>
+<pre><span id="TYPEdocument"><span class="keyword">type</span> <code class="type"></code>document</span> </pre>
+
+<pre><span id="VALempty"><span class="keyword">val</span> empty</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALhardline"><span class="keyword">val</span> hardline</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALchar"><span class="keyword">val</span> char</span> : <code class="type">char -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALsubstring"><span class="keyword">val</span> substring</span> : <code class="type">string -> int -> int -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALfancysubstring"><span class="keyword">val</span> fancysubstring</span> : <code class="type">string -> int -> int -> int -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALtext"><span class="keyword">val</span> text</span> : <code class="type">string -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALblank"><span class="keyword">val</span> blank</span> : <code class="type">int -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VAL(^^)"><span class="keyword">val</span> (^^)</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALnest"><span class="keyword">val</span> nest</span> : <code class="type">int -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALcolumn"><span class="keyword">val</span> column</span> : <code class="type">(int -> <a href="Pprint.html#TYPEdocument">document</a>) -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALnesting"><span class="keyword">val</span> nesting</span> : <code class="type">(int -> <a href="Pprint.html#TYPEdocument">document</a>) -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALgroup"><span class="keyword">val</span> group</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALifflat"><span class="keyword">val</span> ifflat</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><br>
+<h4 id="4_Lowlevelcombinatorsforalignmentandindentation">Low-level combinators for alignment and indentation.</h4><br>
+<pre><span id="VALalign"><span class="keyword">val</span> align</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALhang"><span class="keyword">val</span> hang</span> : <code class="type">int -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALindent"><span class="keyword">val</span> indent</span> : <code class="type">int -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><br>
+<h4 id="4_Highlevelcombinatorsforbuildingdocuments">High-level combinators for building documents.</h4><br>
+<pre><span id="VALbreak"><span class="keyword">val</span> break</span> : <code class="type">int -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">break n</code> Puts <code class="code">n</code> spaces in flat mode and a new line otherwise.
+   Equivalent to: <code class="code">ifflat (String.make n ' ') hardline</code><br>
+</div>
+<pre><span id="VALbreak0"><span class="keyword">val</span> break0</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">break0</code> equivalent to <code class="code">break 0</code><br>
+</div>
+<pre><span id="VALbreak1"><span class="keyword">val</span> break1</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">break1</code> equivalent to <code class="code">break 1</code><br>
+</div>
+<pre><span id="VALstring"><span class="keyword">val</span> string</span> : <code class="type">string -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALfancystring"><span class="keyword">val</span> fancystring</span> : <code class="type">string -> int -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALfancy"><span class="keyword">val</span> fancy</span> : <code class="type">(string -> int) -> string -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALwords"><span class="keyword">val</span> words</span> : <code class="type">string -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALlparen"><span class="keyword">val</span> lparen</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALrparen"><span class="keyword">val</span> rparen</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALlangle"><span class="keyword">val</span> langle</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALrangle"><span class="keyword">val</span> rangle</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALlbrace"><span class="keyword">val</span> lbrace</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALrbrace"><span class="keyword">val</span> rbrace</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALlbracket"><span class="keyword">val</span> lbracket</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALrbracket"><span class="keyword">val</span> rbracket</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALsquote"><span class="keyword">val</span> squote</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALdquote"><span class="keyword">val</span> dquote</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALbquote"><span class="keyword">val</span> bquote</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALsemi"><span class="keyword">val</span> semi</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALcolon"><span class="keyword">val</span> colon</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALcomma"><span class="keyword">val</span> comma</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALspace"><span class="keyword">val</span> space</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALdot"><span class="keyword">val</span> dot</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALsharp"><span class="keyword">val</span> sharp</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALbackslash"><span class="keyword">val</span> backslash</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALequals"><span class="keyword">val</span> equals</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALqmark"><span class="keyword">val</span> qmark</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALtilde"><span class="keyword">val</span> tilde</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALat"><span class="keyword">val</span> at</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALpercent"><span class="keyword">val</span> percent</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALdollar"><span class="keyword">val</span> dollar</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALcaret"><span class="keyword">val</span> caret</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALampersand"><span class="keyword">val</span> ampersand</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALstar"><span class="keyword">val</span> star</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALplus"><span class="keyword">val</span> plus</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALminus"><span class="keyword">val</span> minus</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALunderscore"><span class="keyword">val</span> underscore</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALbang"><span class="keyword">val</span> bang</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALbar"><span class="keyword">val</span> bar</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALsquotes"><span class="keyword">val</span> squotes</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALdquotes"><span class="keyword">val</span> dquotes</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALbquotes"><span class="keyword">val</span> bquotes</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALbraces"><span class="keyword">val</span> braces</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALparens"><span class="keyword">val</span> parens</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALangles"><span class="keyword">val</span> angles</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALbrackets"><span class="keyword">val</span> brackets</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALfold"><span class="keyword">val</span> fold</span> : <code class="type">(<a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a>) -><br>       <a href="Pprint.html#TYPEdocument">document</a> list -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALfold1"><span class="keyword">val</span> fold1</span> : <code class="type">(<a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a>) -><br>       <a href="Pprint.html#TYPEdocument">document</a> list -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALfold1map"><span class="keyword">val</span> fold1map</span> : <code class="type">(<a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a>) -><br>       ('a -> <a href="Pprint.html#TYPEdocument">document</a>) -> 'a list -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALsepmap"><span class="keyword">val</span> sepmap</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a> -> ('a -> <a href="Pprint.html#TYPEdocument">document</a>) -> 'a list -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALoptional"><span class="keyword">val</span> optional</span> : <code class="type">('a -> <a href="Pprint.html#TYPEdocument">document</a>) -> 'a option -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALprefix"><span class="keyword">val</span> prefix</span> : <code class="type">string -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">prefix left right</code>
+      Flat layout: <code class="code">left</code> <code class="code">right</code>
+      Otherwise:   <code class="code">left</code>
+                     <code class="code">right</code><br>
+</div>
+<pre><span id="VALinfix"><span class="keyword">val</span> infix</span> : <code class="type">string -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">infix middle left right</code>
+      Flat layout: <code class="code">left</code> <code class="code">middle</code> <code class="code">right</code>
+      Otherwise:   <code class="code">left</code> <code class="code">middle</code>
+                     <code class="code">right</code><br>
+</div>
+<pre><span id="VALinfix_com"><span class="keyword">val</span> infix_com</span> : <code class="type">string -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">infix_com middle left right</code>
+      Flat layout: <code class="code">left</code><code class="code">middle</code> <code class="code">right</code>
+      Otherwise:   <code class="code">left</code><code class="code">middle</code>
+                     <code class="code">right</code><br>
+</div>
+<pre><span id="VALinfix_dot"><span class="keyword">val</span> infix_dot</span> : <code class="type">string -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">infix_dot middle left right</code>
+      Flat layout: <code class="code">left</code><code class="code">middle</code><code class="code">right</code>
+      Otherwise: <code class="code">left</code><code class="code">middle</code>
+                    <code class="code">right</code><br>
+</div>
+<pre><span id="VALsurround"><span class="keyword">val</span> surround</span> : <code class="type">int -><br>       <a href="Pprint.html#TYPEdocument">document</a> -><br>       <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">surround nesting break open_doc contents close_doc</code><br>
+</div>
+<pre><span id="VALsurround1"><span class="keyword">val</span> surround1</span> : <code class="type">string -> <a href="Pprint.html#TYPEdocument">document</a> -> string -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">surround1 open_txt contents close_txt</code>
+     Flat:      <code class="code">open_txt</code><code class="code">contents</code><code class="code">close_txt</code>
+     Otherwise: <code class="code">open_txt</code>
+                 <code class="code">contents</code>
+                <code class="code">close_txt</code><br>
+</div>
+<pre><span id="VALsurround2"><span class="keyword">val</span> surround2</span> : <code class="type">string -> <a href="Pprint.html#TYPEdocument">document</a> -> string -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">surround2 open_txt contents close_txt</code>
+     Flat:      <code class="code">open_txt</code> <code class="code">contents</code> <code class="code">close_txt</code>
+     Otherwise: <code class="code">open_txt</code>
+                  <code class="code">contents</code>
+                <code class="code">close_txt</code><br>
+</div>
+<pre><span id="VALsoft_surround"><span class="keyword">val</span> soft_surround</span> : <code class="type">int -><br>       <a href="Pprint.html#TYPEdocument">document</a> -><br>       <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">soft_surround nesting break open_doc contents close_doc</code><br>
+</div>
+<pre><span id="VALseq"><span class="keyword">val</span> seq</span> : <code class="type">int -><br>       <a href="Pprint.html#TYPEdocument">document</a> -><br>       <a href="Pprint.html#TYPEdocument">document</a> -><br>       <a href="Pprint.html#TYPEdocument">document</a> -><br>       <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a> list -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">seq indent break empty_seq open_seq sep_seq close_seq contents</code><br>
+</div>
+<pre><span id="VALseq1"><span class="keyword">val</span> seq1</span> : <code class="type">string -> string -> string -> <a href="Pprint.html#TYPEdocument">document</a> list -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">seq1 open_seq sep_seq close_seq contents</code>
+     Flat layout: <code class="code">open_seq</code><code class="code">contents</code><code class="code">sep_seq</code>...<code class="code">sep_seq</code><code class="code">contents</code><code class="code">close_seq</code>
+     Otherwise:   <code class="code">open_seq</code>
+                   <code class="code">contents</code><code class="code">sep_seq</code>...<code class="code">sep_seq</code><code class="code">contents</code>
+                  <code class="code">close_seq</code><br>
+</div>
+<pre><span id="VALseq2"><span class="keyword">val</span> seq2</span> : <code class="type">string -> string -> string -> <a href="Pprint.html#TYPEdocument">document</a> list -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">seq2 open_seq sep_seq close_seq contents</code>
+     Flat layout: <code class="code">open_seq</code> <code class="code">contents</code><code class="code">sep_seq</code>...<code class="code">sep_seq</code><code class="code">contents</code> <code class="code">close_seq</code>
+     Otherwise:   <code class="code">open_seq</code>
+                    <code class="code">contents</code><code class="code">sep_seq</code>...<code class="code">sep_seq</code><code class="code">contents</code>
+                  <code class="code">close_seq</code><br>
+</div>
+<pre><span id="VALgroup1"><span class="keyword">val</span> group1</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">group1 d</code> equivalent to <code class="code">group (nest 1 d)</code><br>
+</div>
+<pre><span id="VALgroup2"><span class="keyword">val</span> group2</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a> -> <a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<code class="code">group2 d</code> equivalent to <code class="code">group (nest 2 d)</code><br>
+</div>
+<pre><span class="keyword">module</span> <a href="Pprint.Operators.html">Operators</a>: <code class="code">sig</code> <a href="Pprint.Operators.html">..</a> <code class="code">end</code></pre><br>
+A signature for document renderers.<br>
+<pre><span class="keyword">module type</span> <a href="Pprint.RENDERER.html">RENDERER</a> = <code class="code">sig</code> <a href="Pprint.RENDERER.html">..</a> <code class="code">end</code></pre><br>
+<h4 id="4_Rendererstooutputchannelsandtomemorybuffers">Renderers to output channels and to memory buffers.</h4><br>
+<pre><span class="keyword">module</span> <a href="Pprint.Channel.html">Channel</a>: <code class="type"><a href="Pprint.RENDERER.html">RENDERER</a></code><code class="type">  with type channel = out_channel</code></pre><pre><span class="keyword">module</span> <a href="Pprint.PpBuffer.html">PpBuffer</a>: <code class="type"><a href="Pprint.RENDERER.html">RENDERER</a></code><code class="type">  with type channel = Buffer.t</code></pre><pre><span class="keyword">module</span> <a href="Pprint.Formatter.html">Formatter</a>: <code class="type"><a href="Pprint.RENDERER.html">RENDERER</a></code><code class="type">  with type channel = Format.formatter</code></pre><pre><span id="TYPEconstructor"><span class="keyword">type</span> <code class="type"></code>constructor</span> = <code class="type">string</code> </pre>
+
+<pre><span id="TYPEtype_name"><span class="keyword">type</span> <code class="type"></code>type_name</span> = <code class="type">string</code> </pre>
+
+<pre><span id="TYPErecord_field"><span class="keyword">type</span> <code class="type"></code>record_field</span> = <code class="type">string</code> </pre>
+
+<pre><span id="TYPEtag"><span class="keyword">type</span> <code class="type"></code>tag</span> = <code class="type">int</code> </pre>
+
+<br>
+A signature for value representations.
+   This is compatible with the associated Camlp4 generator:
+     Camlp4RepresentationGenerator<br>
+<pre><span class="keyword">module type</span> <a href="Pprint.REPRESENTATION.html">REPRESENTATION</a> = <code class="code">sig</code> <a href="Pprint.REPRESENTATION.html">..</a> <code class="code">end</code></pre><br>
+A signature for source printers.<br>
+<pre><span class="keyword">module type</span> <a href="Pprint.DOCUMENT_REPRESENTATION.html">DOCUMENT_REPRESENTATION</a> = <code class="type"><a href="Pprint.REPRESENTATION.html">REPRESENTATION</a></code><code class="type">  with type representation = document</code></pre><pre><span class="keyword">module</span> <a href="Pprint.ML.html">ML</a>: <code class="type"><a href="Pprint.DOCUMENT_REPRESENTATION.html">DOCUMENT_REPRESENTATION</a></code><code class="type"> </code></pre><pre><span id="VALline"><span class="keyword">val</span> line</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><div class="info">
+<h4 id="4_Deprecated">Deprecated</h4><br>
+</div>
+<pre><span id="VALlinebreak"><span class="keyword">val</span> linebreak</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALsoftline"><span class="keyword">val</span> softline</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre><pre><span id="VALsoftbreak"><span class="keyword">val</span> softbreak</span> : <code class="type"><a href="Pprint.html#TYPEdocument">document</a></code></pre></body></html>

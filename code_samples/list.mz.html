@@ -1,0 +1,673 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/list.mz.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Number { color: #e5786d; }
+.Constant { color: #e5786d; }
+.Type { color: #cae682; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr">  1 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">  2 </span>
+<span class="lnr">  3 </span><span class="Comment">(* The standard definition of immutable lists. *)</span>
+<span class="lnr">  4 </span>
+<span class="lnr">  5 </span><span class="Keyword">data</span> <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">  6 </span>  <span class="Keyword">|</span> <span class="Constant">Nil</span>
+<span class="lnr">  7 </span>  <span class="Keyword">|</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head: a<span class="Keyword">;</span> tail: <span class="Type">list</span> a <span class="Keyword">}</span>
+<span class="lnr">  8 </span>
+<span class="lnr">  9 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 10 </span>
+<span class="lnr"> 11 </span><span class="Comment">(* A definition for a list cell whose [tail] field has not yet been</span>
+<span class="lnr"> 12 </span><span class="Comment">   initialized. Such a cell is mutable, and can be frozen (turned</span>
+<span class="lnr"> 13 </span><span class="Comment">   into an immutable list cell) via a tag update instruction. *)</span>
+<span class="lnr"> 14 </span>
+<span class="lnr"> 15 </span><span class="Keyword">mutable</span> <span class="Keyword">data</span> cell a <span class="Keyword">=</span>
+<span class="lnr"> 16 </span>  <span class="Keyword">|</span> <span class="Constant">Cell</span> <span class="Keyword">{</span> head: a<span class="Keyword">;</span> tail: <span class="Constant">()</span> <span class="Keyword">}</span>
+<span class="lnr"> 17 </span>
+<span class="lnr"> 18 </span><span class="Comment">(* The following function writes [xs] into [c.tail] and declares</span>
+<span class="lnr"> 19 </span><span class="Comment">   that [c] is now immutable. *)</span>
+<span class="lnr"> 20 </span>
+<span class="lnr"> 21 </span><span class="Comment">(* Note: in order to ensure that the tag update instruction does</span>
+<span class="lnr"> 22 </span><span class="Comment">   nothing at runtime and can be erased, we need [Cons] and [Cell]</span>
+<span class="lnr"> 23 </span><span class="Comment">   to translate to the same tag number. This could be achieved by</span>
+<span class="lnr"> 24 </span><span class="Comment">   adding a new tag to the definition of the type [cell]. However</span>
+<span class="lnr"> 25 </span><span class="Comment">   that would force us to change the type [cell a] to the more</span>
+<span class="lnr"> 26 </span><span class="Comment">   verbose type [Cell { head: a; tail: () }] in several function</span>
+<span class="lnr"> 27 </span><span class="Comment">   headers. Maybe we will do that when we have type abbreviations.</span>
+<span class="lnr"> 28 </span><span class="Comment">   TEMPORARY *)</span>
+<span class="lnr"> 29 </span>
+<span class="lnr"> 30 </span><span class="Keyword">val</span> freeze <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> c: cell a, xs: <span class="Keyword">unknown)</span> : <span class="Keyword">(</span><span class="Keyword">|</span> c @ <span class="Constant">Cons</span> <span class="Keyword">{</span> head: a<span class="Keyword">;</span> tail <span class="Keyword">=</span> xs <span class="Keyword">})</span> <span class="Keyword">=</span>
+<span class="lnr"> 31 </span>  c.tail <span class="Keyword">&lt;-</span> xs<span class="Keyword">;</span>
+<span class="lnr"> 32 </span>  <span class="Keyword">tag</span> <span class="Keyword">of</span> c <span class="Keyword">&lt;-</span> <span class="Constant">Cons</span>
+<span class="lnr"> 33 </span>
+<span class="lnr"> 34 </span><span class="Comment">(* The type assigned to [freeze] faithfully reflects its behavior.</span>
+<span class="lnr"> 35 </span><span class="Comment">   We could think of a more readable type:</span>
+<span class="lnr"> 36 </span><span class="Comment">   val freeze [a] (consumes c: cell a, xs: list a) : (| c @ list a)</span>
+<span class="lnr"> 37 </span><span class="Comment">   This type is also valid, but is strictly less general, and it turns</span>
+<span class="lnr"> 38 </span><span class="Comment">   out that the extra generality is needed: when [xs] is written into</span>
+<span class="lnr"> 39 </span><span class="Comment">   [c.tail], [xs] is usually not yet a list. *)</span>
+<span class="lnr"> 40 </span>
+<span class="lnr"> 41 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 42 </span>
+<span class="lnr"> 43 </span><span class="Comment">(* Short-hands for constructing lists. *)</span>
+<span class="lnr"> 44 </span>
+<span class="lnr"> 45 </span><span class="Keyword">val</span> nil <span class="Keyword">=</span>
+<span class="lnr"> 46 </span>  <span class="Constant">Nil</span>
+<span class="lnr"> 47 </span>
+<span class="lnr"> 48 </span><span class="Keyword">val</span> cons <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> x: a, <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr"> 49 </span>  <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x<span class="Keyword">;</span> tail <span class="Keyword">=</span> xs <span class="Keyword">}</span>
+<span class="lnr"> 50 </span>
+<span class="lnr"> 51 </span><span class="Keyword">val</span> two <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> x1: a, <span class="Keyword">consumes</span> x2: a<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr"> 52 </span>  <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x1<span class="Keyword">;</span> tail <span class="Keyword">=</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x2<span class="Keyword">;</span> tail <span class="Keyword">=</span> <span class="Constant">Nil</span> <span class="Keyword">}}</span>
+<span class="lnr"> 53 </span>
+<span class="lnr"> 54 </span><span class="Keyword">val</span> three <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> x1: a, <span class="Keyword">consumes</span> x2: a, <span class="Keyword">consumes</span> x3: a<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr"> 55 </span>  <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x1<span class="Keyword">;</span> tail <span class="Keyword">=</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x2<span class="Keyword">;</span> tail <span class="Keyword">=</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x3<span class="Keyword">;</span> tail <span class="Keyword">=</span> <span class="Constant">Nil</span> <span class="Keyword">}}}</span>
+<span class="lnr"> 56 </span>
+<span class="lnr"> 57 </span><span class="Keyword">val</span> init <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>n : <span class="Type">int</span>, f : <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr"> 58 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> loop <span class="Keyword">(</span>i : <span class="Type">int</span> <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr"> 59 </span>    <span class="Keyword">if</span> i <span class="Keyword">=</span> n <span class="Keyword">then</span>
+<span class="lnr"> 60 </span>      <span class="Constant">Nil</span>
+<span class="lnr"> 61 </span>    <span class="Keyword">else</span>
+<span class="lnr"> 62 </span>      <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> f i<span class="Keyword">;</span> tail <span class="Keyword">=</span> loop <span class="Keyword">(</span>i + <span class="Number">1</span><span class="Keyword">)</span> <span class="Keyword">}</span>
+<span class="lnr"> 63 </span>  <span class="Keyword">in</span>
+<span class="lnr"> 64 </span>  loop <span class="Number">0</span>
+<span class="lnr"> 65 </span>
+<span class="lnr"> 66 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 67 </span>
+<span class="lnr"> 68 </span><span class="Comment">(* List length. *)</span>
+<span class="lnr"> 69 </span>
+<span class="lnr"> 70 </span><span class="Comment">(* I am sure that not everybody will like this use of [if xs then ...]. I find</span>
+<span class="lnr"> 71 </span><span class="Comment">   it cute. Note that the access to [xs.tail] is safe! *)</span>
+<span class="lnr"> 72 </span>
+<span class="lnr"> 73 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> length_aux <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>accu: <span class="Type">int</span>, xs: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr"> 74 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span> length_aux <span class="Keyword">(</span>accu + <span class="Number">1</span>, xs.tail<span class="Keyword">)</span> <span class="Keyword">else</span> accu
+<span class="lnr"> 75 </span>
+<span class="lnr"> 76 </span><span class="Keyword">val</span> length <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>xs: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr"> 77 </span>  length_aux <span class="Keyword">(</span><span class="Number">0</span>, xs<span class="Keyword">)</span>
+<span class="lnr"> 78 </span>
+<span class="lnr"> 79 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 80 </span>
+<span class="lnr"> 81 </span><span class="Comment">(* List head and tail. *)</span>
+<span class="lnr"> 82 </span>
+<span class="lnr"> 83 </span><span class="Comment">(* These functions are likely to be of little use, but at least they are safe,</span>
+<span class="lnr"> 84 </span><span class="Comment">   unlike their ocaml counterparts. *)</span>
+<span class="lnr"> 85 </span>
+<span class="lnr"> 86 </span><span class="Keyword">val</span> hd <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> xs: <span class="Constant">Cons</span> <span class="Keyword">{</span> head: a<span class="Keyword">;</span> tail: <span class="Keyword">unknown</span> <span class="Keyword">})</span> : a <span class="Keyword">=</span>
+<span class="lnr"> 87 </span>  xs.head
+<span class="lnr"> 88 </span>
+<span class="lnr"> 89 </span><span class="Keyword">val</span> tl <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> xs: <span class="Constant">Cons</span> <span class="Keyword">{</span> head: <span class="Keyword">unknown</span><span class="Keyword">;</span> tail: <span class="Type">list</span> a <span class="Keyword">})</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr"> 90 </span>  xs.tail
+<span class="lnr"> 91 </span>
+<span class="lnr"> 92 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 93 </span>
+<span class="lnr"> 94 </span><span class="Comment">(* Indexing operations. *)</span>
+<span class="lnr"> 95 </span>
+<span class="lnr"> 96 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> nth_aux <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> xs: <span class="Type">list</span> a, n: <span class="Type">int</span><span class="Keyword">)</span> : a <span class="Keyword">=</span>
+<span class="lnr"> 97 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span>
+<span class="lnr"> 98 </span>    <span class="Keyword">if</span> n <span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span> xs.head <span class="Keyword">else</span> nth_aux <span class="Keyword">(</span>xs.tail, n - <span class="Number">1</span><span class="Keyword">)</span>
+<span class="lnr"> 99 </span>  <span class="Keyword">else</span>
+<span class="lnr">100 </span>    <span class="Keyword">fail</span>
+<span class="lnr">101 </span>
+<span class="lnr">102 </span><span class="Keyword">val</span> nth <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> xs: <span class="Type">list</span> a, n: <span class="Type">int</span><span class="Keyword">)</span> : a <span class="Keyword">=</span>
+<span class="lnr">103 </span>  <span class="Keyword">if</span> n <span class="Keyword">&lt;</span> <span class="Number">0</span> <span class="Keyword">then</span> <span class="Keyword">fail</span> <span class="Keyword">else</span> nth_aux <span class="Keyword">(</span>xs, n<span class="Keyword">)</span>
+<span class="lnr">104 </span>
+<span class="lnr">105 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> chop <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>k: <span class="Type">int</span>, <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">106 </span>  <span class="Keyword">if</span> k <span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span> xs
+<span class="lnr">107 </span>  <span class="Keyword">else</span> <span class="Keyword">if</span> xs <span class="Keyword">then</span> chop <span class="Keyword">(</span>k - <span class="Number">1</span>, xs.tail<span class="Keyword">)</span>
+<span class="lnr">108 </span>  <span class="Keyword">else</span> <span class="Keyword">fail</span>
+<span class="lnr">109 </span>
+<span class="lnr">110 </span><span class="Comment">(* This conventional, non-tail-recursive version of splitAt is here as a</span>
+<span class="lnr">111 </span><span class="Comment">   test of the type-checker. *)</span>
+<span class="lnr">112 </span>
+<span class="lnr">113 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> splitAt <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>k: <span class="Type">int</span>, <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Keyword">(</span><span class="Type">list</span> a, <span class="Type">list</span> a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">114 </span>  <span class="Keyword">if</span> k <span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span>
+<span class="lnr">115 </span>    <span class="Constant">Nil</span>, xs
+<span class="lnr">116 </span>  <span class="Keyword">else</span> <span class="Keyword">if</span> xs <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">117 </span>    <span class="Keyword">let</span> prefix, suffix <span class="Keyword">=</span> splitAt <span class="Keyword">(</span>k - <span class="Number">1</span>, xs.tail<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">118 </span>    <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> xs.head<span class="Keyword">;</span> tail <span class="Keyword">=</span> prefix <span class="Keyword">}</span>, suffix
+<span class="lnr">119 </span>  <span class="Keyword">end</span>
+<span class="lnr">120 </span>  <span class="Keyword">else</span> <span class="Keyword">fail</span>
+<span class="lnr">121 </span>
+<span class="lnr">122 </span><span class="Comment">(* This is a tail-recursive, destination-passing-style version of splitAt. *)</span>
+<span class="lnr">123 </span>
+<span class="lnr">124 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> splitAtAux <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>k: <span class="Type">int</span>, <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a, <span class="Keyword">consumes</span> c: cell a<span class="Keyword">)</span> : <span class="Keyword">(</span><span class="Type">list</span> a <span class="Keyword">|</span> c @ <span class="Type">list</span> a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">125 </span>  <span class="Keyword">if</span> k <span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">126 </span>    freeze <span class="Keyword">(</span>c, <span class="Constant">Nil</span><span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">127 </span>    xs
+<span class="lnr">128 </span>  <span class="Keyword">end</span>
+<span class="lnr">129 </span>  <span class="Keyword">else</span> <span class="Keyword">if</span> xs <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">130 </span>    <span class="Keyword">let</span> d <span class="Keyword">=</span> <span class="Constant">Cell</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> xs.head<span class="Keyword">;</span> tail <span class="Keyword">=</span> <span class="Constant">()</span> <span class="Keyword">}</span> <span class="Keyword">in</span>
+<span class="lnr">131 </span>    freeze <span class="Keyword">(</span>c, d<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">132 </span>    splitAtAux <span class="Keyword">(</span>k - <span class="Number">1</span>, xs.tail, d<span class="Keyword">)</span>
+<span class="lnr">133 </span>  <span class="Keyword">end</span>
+<span class="lnr">134 </span>  <span class="Keyword">else</span> <span class="Keyword">fail</span>
+<span class="lnr">135 </span>
+<span class="lnr">136 </span><span class="Keyword">val</span> splitAt <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>k: <span class="Type">int</span>, <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Keyword">(</span><span class="Type">list</span> a, <span class="Type">list</span> a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">137 </span>  <span class="Keyword">if</span> k <span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span>
+<span class="lnr">138 </span>    <span class="Constant">Nil</span>, xs
+<span class="lnr">139 </span>  <span class="Keyword">else</span> <span class="Keyword">if</span> xs <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">140 </span>    <span class="Keyword">let</span> ys <span class="Keyword">=</span> <span class="Constant">Cell</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> xs.head<span class="Keyword">;</span> tail <span class="Keyword">=</span> <span class="Constant">()</span> <span class="Keyword">}</span> <span class="Keyword">in</span>
+<span class="lnr">141 </span>    <span class="Keyword">let</span> zs <span class="Keyword">=</span> splitAtAux <span class="Keyword">(</span>k - <span class="Number">1</span>, xs.tail, ys<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">142 </span>    ys, zs
+<span class="lnr">143 </span>  <span class="Keyword">end</span>
+<span class="lnr">144 </span>  <span class="Keyword">else</span> <span class="Keyword">fail</span>
+<span class="lnr">145 </span>  <span class="Comment">(* TEMPORARY maybe it would be nice to also offer a version of splitAt</span>
+<span class="lnr">146 </span><span class="Comment">     that does not fail when [length xs] is smaller than [k] *)</span>
+<span class="lnr">147 </span>
+<span class="lnr">148 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">149 </span>
+<span class="lnr">150 </span><span class="Comment">(* List concatenation and reversal. *)</span>
+<span class="lnr">151 </span>
+<span class="lnr">152 </span><span class="Comment">(* A non-tail-recursive version of [append]. *)</span>
+<span class="lnr">153 </span>
+<span class="lnr">154 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> append <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> xs: <span class="Type">list</span> a, <span class="Keyword">consumes</span> ys: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">155 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span>
+<span class="lnr">156 </span>    <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> xs.head<span class="Keyword">;</span> tail <span class="Keyword">=</span> append <span class="Keyword">(</span>xs.tail, ys<span class="Keyword">)</span> <span class="Keyword">}</span>
+<span class="lnr">157 </span>  <span class="Keyword">else</span>
+<span class="lnr">158 </span>    ys
+<span class="lnr">159 </span>
+<span class="lnr">160 </span><span class="Comment">(* A tail-recursive version of [append], which uses auxiliary storage. *)</span>
+<span class="lnr">161 </span>
+<span class="lnr">162 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> rev_append <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> xs: <span class="Type">list</span> a, <span class="Keyword">consumes</span> ys: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">163 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span>
+<span class="lnr">164 </span>    rev_append <span class="Keyword">(</span>xs.tail, <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> xs.head<span class="Keyword">;</span> tail <span class="Keyword">=</span> ys <span class="Keyword">})</span>
+<span class="lnr">165 </span>  <span class="Keyword">else</span>
+<span class="lnr">166 </span>    ys
+<span class="lnr">167 </span>
+<span class="lnr">168 </span><span class="Keyword">val</span> rev <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> xs: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">169 </span>  rev_append <span class="Keyword">(</span>xs, <span class="Constant">Nil</span><span class="Keyword">)</span>
+<span class="lnr">170 </span>
+<span class="lnr">171 </span><span class="Keyword">val</span> append <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> xs: <span class="Type">list</span> a, <span class="Keyword">consumes</span> ys: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">172 </span>  rev_append <span class="Keyword">(</span>rev xs, ys<span class="Keyword">)</span>
+<span class="lnr">173 </span>
+<span class="lnr">174 </span><span class="Comment">(* A tail-recursive version of [append], using no auxiliary storage, in</span>
+<span class="lnr">175 </span><span class="Comment">   destination-passing-style. *)</span>
+<span class="lnr">176 </span>
+<span class="lnr">177 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> appendAux <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">178 </span>   <span class="Keyword">consumes</span> dst: cell a,
+<span class="lnr">179 </span>   <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a,
+<span class="lnr">180 </span>   <span class="Keyword">consumes</span> ys: <span class="Type">list</span> a<span class="Keyword">)</span>
+<span class="lnr">181 </span>: <span class="Keyword">(</span><span class="Keyword">|</span> dst @ <span class="Type">list</span> a<span class="Keyword">)</span>
+<span class="lnr">182 </span>  <span class="Keyword">=</span>
+<span class="lnr">183 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">184 </span>    <span class="Keyword">let</span> dst' <span class="Keyword">=</span> <span class="Constant">Cell</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> xs.head<span class="Keyword">;</span> tail <span class="Keyword">=</span> <span class="Constant">()</span> <span class="Keyword">}</span> <span class="Keyword">in</span>
+<span class="lnr">185 </span>    freeze <span class="Keyword">(</span>dst, dst'<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">186 </span>    appendAux <span class="Keyword">(</span>dst', xs.tail, ys<span class="Keyword">)</span>
+<span class="lnr">187 </span>  <span class="Keyword">end</span>
+<span class="lnr">188 </span>  <span class="Keyword">else</span>
+<span class="lnr">189 </span>    freeze <span class="Keyword">(</span>dst, ys<span class="Keyword">)</span>
+<span class="lnr">190 </span>
+<span class="lnr">191 </span><span class="Keyword">val</span> append <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> xs: <span class="Type">list</span> a, <span class="Keyword">consumes</span> ys: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">192 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">193 </span>    <span class="Keyword">let</span> dst <span class="Keyword">=</span> <span class="Constant">Cell</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> xs.head<span class="Keyword">;</span> tail <span class="Keyword">=</span> <span class="Constant">()</span> <span class="Keyword">}</span> <span class="Keyword">in</span>
+<span class="lnr">194 </span>    appendAux <span class="Keyword">(</span>dst, xs.tail, ys<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">195 </span>    dst
+<span class="lnr">196 </span>  <span class="Keyword">end</span>
+<span class="lnr">197 </span>  <span class="Keyword">else</span>
+<span class="lnr">198 </span>    ys
+<span class="lnr">199 </span>
+<span class="lnr">200 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">201 </span>
+<span class="lnr">202 </span><span class="Comment">(* Flattening a list of lists. *)</span>
+<span class="lnr">203 </span>
+<span class="lnr">204 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> flatten <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> xss : <span class="Type">list</span> <span class="Keyword">(</span><span class="Type">list</span> a<span class="Keyword">))</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">205 </span>  <span class="Keyword">if</span> xss <span class="Keyword">then</span>
+<span class="lnr">206 </span>    append <span class="Keyword">(</span>xss.head, flatten xss.tail<span class="Keyword">)</span>
+<span class="lnr">207 </span>  <span class="Keyword">else</span>
+<span class="lnr">208 </span>    <span class="Constant">Nil</span>
+<span class="lnr">209 </span>
+<span class="lnr">210 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">211 </span>
+<span class="lnr">212 </span><span class="Comment">(* Map. *)</span>
+<span class="lnr">213 </span>
+<span class="lnr">214 </span><span class="Comment">(* The following type does allow the function [f] to perform a strong update</span>
+<span class="lnr">215 </span><span class="Comment">   on the argument list, whose type changes from [list a1] to [list a2]. A</span>
+<span class="lnr">216 </span><span class="Comment">   new list of type [list b] is produced. *)</span>
+<span class="lnr">217 </span>
+<span class="lnr">218 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> map <span class="Keyword">[</span>a1, a2, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">219 </span>      <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a1,
+<span class="lnr">220 </span>  f: <span class="Keyword">(consumes</span>  x:      a1 <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>     b <span class="Keyword">|</span>  x @      a2<span class="Keyword">)</span>
+<span class="lnr">221 </span>                           <span class="Keyword">|</span> p<span class="Keyword">)</span>  : <span class="Keyword">(</span><span class="Type">list</span> b <span class="Keyword">|</span> xs @ <span class="Type">list</span> a2<span class="Keyword">)</span>
+<span class="lnr">222 </span><span class="Keyword">=</span>
+<span class="lnr">223 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span>
+<span class="lnr">224 </span>    <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> f xs.head<span class="Keyword">;</span> tail <span class="Keyword">=</span> map <span class="Keyword">(</span>xs.tail, f<span class="Keyword">)</span> <span class="Keyword">}</span>
+<span class="lnr">225 </span>  <span class="Keyword">else</span>
+<span class="lnr">226 </span>    <span class="Constant">Nil</span>
+<span class="lnr">227 </span>
+<span class="lnr">228 </span><span class="Keyword">val</span> rev_map <span class="Keyword">[</span>a1, a2, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">229 </span>      <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a1,
+<span class="lnr">230 </span>  f: <span class="Keyword">(consumes</span>  x:      a1 <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>     b <span class="Keyword">|</span>  x @      a2<span class="Keyword">)</span>
+<span class="lnr">231 </span>                           <span class="Keyword">|</span> p<span class="Keyword">)</span>  : <span class="Keyword">(</span><span class="Type">list</span> b <span class="Keyword">|</span> xs @ <span class="Type">list</span> a2<span class="Keyword">)</span>
+<span class="lnr">232 </span><span class="Keyword">=</span>
+<span class="lnr">233 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> rev_map_aux <span class="Keyword">(consumes</span> accu: <span class="Type">list</span> b, <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a1 <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Keyword">(</span><span class="Type">list</span> b <span class="Keyword">|</span> xs @ <span class="Type">list</span> a2<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">234 </span>    <span class="Keyword">if</span> xs <span class="Keyword">then</span>
+<span class="lnr">235 </span>      rev_map_aux <span class="Keyword">(</span><span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> f xs.head<span class="Keyword">;</span> tail <span class="Keyword">=</span> accu <span class="Keyword">}</span>, xs.tail<span class="Keyword">)</span>
+<span class="lnr">236 </span>    <span class="Keyword">else</span>
+<span class="lnr">237 </span>      accu
+<span class="lnr">238 </span>  <span class="Keyword">in</span>
+<span class="lnr">239 </span>  rev_map_aux <span class="Keyword">(</span><span class="Constant">Nil</span>, xs<span class="Keyword">)</span>
+<span class="lnr">240 </span>
+<span class="lnr">241 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">242 </span>
+<span class="lnr">243 </span><span class="Comment">(* Iteration. *)</span>
+<span class="lnr">244 </span>
+<span class="lnr">245 </span><span class="Comment">(* The following type allows the function [f] to perform a strong update</span>
+<span class="lnr">246 </span><span class="Comment">   on the argument list, whose type changes from [list a1] to [list a2].</span>
+<span class="lnr">247 </span><span class="Comment">   It also allows [f] to have a side effect at [p]. *)</span>
+<span class="lnr">248 </span>
+<span class="lnr">249 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> iter <span class="Keyword">[</span>a1, a2, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">250 </span>  <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a1,
+<span class="lnr">251 </span>  f: <span class="Keyword">(consumes</span> x:  a1 <span class="Keyword">|</span> p<span class="Keyword">)</span>
+<span class="lnr">252 </span>         <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Keyword">|</span> x @ a2<span class="Keyword">)</span>
+<span class="lnr">253 </span><span class="Keyword">|</span> p
+<span class="lnr">254 </span><span class="Keyword">)</span>    : <span class="Keyword">(</span><span class="Keyword">|</span> xs @ <span class="Type">list</span> a2<span class="Keyword">)</span>
+<span class="lnr">255 </span><span class="Keyword">=</span>
+<span class="lnr">256 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">257 </span>    f xs.head<span class="Keyword">;</span>
+<span class="lnr">258 </span>    iter <span class="Keyword">(</span>xs.tail, f<span class="Keyword">)</span>
+<span class="lnr">259 </span>  <span class="Keyword">end</span>
+<span class="lnr">260 </span>
+<span class="lnr">261 </span><span class="Comment">(* The following function should not be useful to the client, who can just</span>
+<span class="lnr">262 </span><span class="Comment">   use [iter], but it is a good test of the type-checker. *)</span>
+<span class="lnr">263 </span>
+<span class="lnr">264 </span><span class="Keyword">val</span> simpler_iter <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>xs: <span class="Type">list</span> a, f: a <span class="Keyword">-&gt;</span> <span class="Constant">()</span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">265 </span>  iter <span class="Keyword">(</span>xs, f<span class="Keyword">)</span>
+<span class="lnr">266 </span>
+<span class="lnr">267 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">268 </span>
+<span class="lnr">269 </span><span class="Comment">(* Fold. *)</span>
+<span class="lnr">270 </span>
+<span class="lnr">271 </span><span class="Comment">(* The following type allows the function [f] to perform a strong update</span>
+<span class="lnr">272 </span><span class="Comment">   on the argument list, whose type changes from [list a1] to [list a2]. An</span>
+<span class="lnr">273 </span><span class="Comment">   accumulator of type [b] is maintained. *)</span>
+<span class="lnr">274 </span>
+<span class="lnr">275 </span><span class="Comment">(* It is not necessary to explicitly thread a permission [p], because the</span>
+<span class="lnr">276 </span><span class="Comment">   type [b] already serves this purpose. *)</span>
+<span class="lnr">277 </span>
+<span class="lnr">278 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> fold_left <span class="Keyword">[</span>a1, a2, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">279 </span>  f: <span class="Keyword">(consumes</span>       b, <span class="Keyword">consumes</span>  x:      a1<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>b <span class="Keyword">|</span>  x @      a2<span class="Keyword">)</span>,
+<span class="lnr">280 </span>      <span class="Keyword">consumes</span> accu: b, <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a1<span class="Keyword">)</span>  : <span class="Keyword">(</span>b <span class="Keyword">|</span> xs @ <span class="Type">list</span> a2<span class="Keyword">)</span>
+<span class="lnr">281 </span><span class="Keyword">=</span>
+<span class="lnr">282 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span>
+<span class="lnr">283 </span>    fold_left <span class="Keyword">(</span>f, f <span class="Keyword">(</span>accu, xs.head<span class="Keyword">)</span>, xs.tail<span class="Keyword">)</span>
+<span class="lnr">284 </span>  <span class="Keyword">else</span>
+<span class="lnr">285 </span>    accu
+<span class="lnr">286 </span>
+<span class="lnr">287 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> fold_right <span class="Keyword">[</span>a1, a2, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">288 </span>  f: <span class="Keyword">(consumes</span>  x:      a1, <span class="Keyword">consumes</span>       b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>b <span class="Keyword">|</span>  x @      a2<span class="Keyword">)</span>,
+<span class="lnr">289 </span>      <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a1, <span class="Keyword">consumes</span> accu: b<span class="Keyword">)</span>  : <span class="Keyword">(</span>b <span class="Keyword">|</span> xs @ <span class="Type">list</span> a2<span class="Keyword">)</span>
+<span class="lnr">290 </span><span class="Keyword">=</span>
+<span class="lnr">291 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span>
+<span class="lnr">292 </span>    f <span class="Keyword">(</span>xs.head, fold_right <span class="Keyword">(</span>f, xs.tail, accu<span class="Keyword">))</span>
+<span class="lnr">293 </span>  <span class="Keyword">else</span>
+<span class="lnr">294 </span>    accu
+<span class="lnr">295 </span>
+<span class="lnr">296 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">297 </span>
+<span class="lnr">298 </span><span class="Comment">(* Various flavors of list search. *)</span>
+<span class="lnr">299 </span>
+<span class="lnr">300 </span><span class="Comment">(* Note that these are not instances of [fold], because we need to bail out</span>
+<span class="lnr">301 </span><span class="Comment">   early when the search is successful. *)</span>
+<span class="lnr">302 </span>
+<span class="lnr">303 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> for_all <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>ok: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>, xs: <span class="Type">list</span> a <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr">304 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span>
+<span class="lnr">305 </span>    <span class="Keyword">if</span> ok xs.head <span class="Keyword">then</span> for_all <span class="Keyword">(</span>ok, xs.tail<span class="Keyword">)</span> <span class="Keyword">else</span> <span class="Constant">False</span>
+<span class="lnr">306 </span>  <span class="Keyword">else</span>
+<span class="lnr">307 </span>    <span class="Constant">True</span>
+<span class="lnr">308 </span>
+<span class="lnr">309 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> rich_for_all
+<span class="lnr">310 </span>  <span class="Keyword">[</span>a, p : <span class="Keyword">perm</span>, q : <span class="Keyword">perm]</span> <span class="Keyword">(</span>ok: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> rich_bool q <span class="Keyword">empty</span>, xs: <span class="Type">list</span> a <span class="Keyword">|</span> p<span class="Keyword">)</span> : rich_bool q <span class="Keyword">empty</span> <span class="Keyword">=</span>
+<span class="lnr">311 </span>  <span class="Keyword">match</span> xs <span class="Keyword">with</span>
+<span class="lnr">312 </span>  <span class="Keyword">|</span> <span class="Constant">Nil</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">313 </span>      <span class="Constant">RichTrue</span>
+<span class="lnr">314 </span>  <span class="Keyword">|</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head<span class="Keyword">;</span> tail <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">315 </span>      conjunction <span class="Keyword">(</span>
+<span class="lnr">316 </span>        ok head,
+<span class="lnr">317 </span>        <span class="Keyword">fun</span> <span class="Keyword">(</span><span class="Keyword">|</span> p <span class="Keyword">*</span> tail @ <span class="Type">list</span> a<span class="Keyword">)</span> : rich_bool q <span class="Keyword">empty</span> <span class="Keyword">=</span>
+<span class="lnr">318 </span>          rich_for_all <span class="Keyword">(</span>ok, tail<span class="Keyword">)</span>
+<span class="lnr">319 </span>      <span class="Keyword">)</span>
+<span class="lnr">320 </span>  <span class="Keyword">end</span>
+<span class="lnr">321 </span>
+<span class="lnr">322 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> rich_for_all_with_inlined_conjunction
+<span class="lnr">323 </span>  <span class="Keyword">[</span>a, p : <span class="Keyword">perm</span>, q : <span class="Keyword">perm]</span> <span class="Keyword">(</span>ok: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> rich_bool q <span class="Keyword">empty</span>, xs: <span class="Type">list</span> a <span class="Keyword">|</span> p<span class="Keyword">)</span> : rich_bool q <span class="Keyword">empty</span> <span class="Keyword">=</span>
+<span class="lnr">324 </span>  <span class="Keyword">match</span> xs <span class="Keyword">with</span>
+<span class="lnr">325 </span>  <span class="Keyword">|</span> <span class="Constant">Nil</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">326 </span>      <span class="Constant">RichTrue</span>
+<span class="lnr">327 </span>  <span class="Keyword">|</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head<span class="Keyword">;</span> tail <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">328 </span>      ok head <span class="Keyword">&amp;&amp;</span> rich_for_all_with_inlined_conjunction <span class="Keyword">(</span>ok, tail<span class="Keyword">)</span>
+<span class="lnr">329 </span>  <span class="Keyword">end</span>
+<span class="lnr">330 </span>
+<span class="lnr">331 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> exists <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>ok: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>, xs: <span class="Type">list</span> a <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr">332 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span>
+<span class="lnr">333 </span>    <span class="Keyword">if</span> ok xs.head <span class="Keyword">then</span> <span class="Constant">True</span> <span class="Keyword">else</span> exists <span class="Keyword">(</span>ok, xs.tail<span class="Keyword">)</span>
+<span class="lnr">334 </span>  <span class="Keyword">else</span>
+<span class="lnr">335 </span>    <span class="Constant">False</span>
+<span class="lnr">336 </span>
+<span class="lnr">337 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> rich_exists_with_inlined_disjunction
+<span class="lnr">338 </span>  <span class="Keyword">[</span>a, p : <span class="Keyword">perm</span>, q : <span class="Keyword">perm]</span> <span class="Keyword">(</span>ok: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> rich_bool <span class="Keyword">empty</span> q, xs: <span class="Type">list</span> a <span class="Keyword">|</span> p<span class="Keyword">)</span> : rich_bool <span class="Keyword">empty</span> q <span class="Keyword">=</span>
+<span class="lnr">339 </span>  <span class="Keyword">match</span> xs <span class="Keyword">with</span>
+<span class="lnr">340 </span>  <span class="Keyword">|</span> <span class="Constant">Nil</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">341 </span>      <span class="Constant">RichFalse</span>
+<span class="lnr">342 </span>  <span class="Keyword">|</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head<span class="Keyword">;</span> tail <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">343 </span>      ok head <span class="Keyword">||</span> rich_exists_with_inlined_disjunction <span class="Keyword">(</span>ok, tail<span class="Keyword">)</span>
+<span class="lnr">344 </span>  <span class="Keyword">end</span>
+<span class="lnr">345 </span>
+<span class="lnr">346 </span><span class="Comment">(* The function [find] cannot raise an exception, as it does in OCaml.</span>
+<span class="lnr">347 </span><span class="Comment">   Instead, it returns a sub-list, which either is empty or begins with</span>
+<span class="lnr">348 </span><span class="Comment">   the desired element. This is more general than returning an option,</span>
+<span class="lnr">349 </span><span class="Comment">   since it allows repeated searches, and is more efficient, since it</span>
+<span class="lnr">350 </span><span class="Comment">   does not require memory allocation! *)</span>
+<span class="lnr">351 </span>
+<span class="lnr">352 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> find <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>ok: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>, <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">353 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span>
+<span class="lnr">354 </span>    <span class="Keyword">if</span> ok xs.head <span class="Keyword">then</span> xs <span class="Keyword">else</span> find <span class="Keyword">(</span>ok, xs.tail<span class="Keyword">)</span>
+<span class="lnr">355 </span>  <span class="Keyword">else</span>
+<span class="lnr">356 </span>    xs
+<span class="lnr">357 </span>
+<span class="lnr">358 </span><span class="Comment">(* The call [remove (ok, xs)] produces the list [xs], deprived of the first</span>
+<span class="lnr">359 </span><span class="Comment">   element that satisfies the predicate [ok], if there is one. *)</span>
+<span class="lnr">360 </span>
+<span class="lnr">361 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> remove <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>ok : <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>, <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">362 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span>
+<span class="lnr">363 </span>    <span class="Keyword">if</span> ok xs.head <span class="Keyword">then</span> xs.tail <span class="Keyword">else</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> xs.head<span class="Keyword">;</span> tail <span class="Keyword">=</span> remove <span class="Keyword">(</span>ok, xs.tail<span class="Keyword">)</span> <span class="Keyword">}</span>
+<span class="lnr">364 </span>  <span class="Keyword">else</span>
+<span class="lnr">365 </span>    xs
+<span class="lnr">366 </span>
+<span class="lnr">367 </span><span class="Comment">(* The function [mem] is parameterized with a notion of equality. It is just a</span>
+<span class="lnr">368 </span><span class="Comment">   variant of [find] that does not require the function [equal] to be</span>
+<span class="lnr">369 </span><span class="Comment">   partially applied to [x] ahead of time. *)</span>
+<span class="lnr">370 </span>
+<span class="lnr">371 </span><span class="Keyword">val</span> mem <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>equal: <span class="Keyword">(</span>a, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>, x: a, <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">372 </span>  <span class="Keyword">let</span> ok <span class="Keyword">(</span>y : a <span class="Keyword">|</span> x @ a <span class="Keyword">*</span> p<span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr">373 </span>    equal <span class="Keyword">(</span>x, y<span class="Keyword">)</span>
+<span class="lnr">374 </span>  <span class="Keyword">in</span>
+<span class="lnr">375 </span>  find <span class="Keyword">(</span>ok, xs<span class="Keyword">)</span>
+<span class="lnr">376 </span>
+<span class="lnr">377 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> mem <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>equal: <span class="Keyword">(</span>a, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>, x: a, <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">378 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span>
+<span class="lnr">379 </span>    <span class="Keyword">if</span> equal <span class="Keyword">(</span>x, xs.head<span class="Keyword">)</span> <span class="Keyword">then</span> xs <span class="Keyword">else</span> mem <span class="Keyword">(</span>equal, x, xs.tail<span class="Keyword">)</span>
+<span class="lnr">380 </span>  <span class="Keyword">else</span>
+<span class="lnr">381 </span>    <span class="Constant">Nil</span>
+<span class="lnr">382 </span>
+<span class="lnr">383 </span><span class="Comment">(* [assoc] is a version of [find]. It is specialized with a notion of equality</span>
+<span class="lnr">384 </span><span class="Comment">   of key-value pairs as equality of keys. *)</span>
+<span class="lnr">385 </span>
+<span class="lnr">386 </span><span class="Keyword">val</span> assoc <span class="Keyword">[</span>a, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>equal: <span class="Keyword">(</span>a, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>, x: a, <span class="Keyword">consumes</span> xs: <span class="Type">list</span> <span class="Keyword">(</span>a, b<span class="Keyword">)</span> <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Type">list</span> <span class="Keyword">(</span>a, b<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">387 </span>  <span class="Keyword">let</span> ok <span class="Keyword">(</span>y: a, <span class="Keyword">_</span>: b <span class="Keyword">|</span> x @ a <span class="Keyword">*</span> p<span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr">388 </span>    equal <span class="Keyword">(</span>x, y<span class="Keyword">)</span>
+<span class="lnr">389 </span>  <span class="Keyword">in</span>
+<span class="lnr">390 </span>  find <span class="Keyword">[(</span>a, b<span class="Keyword">)</span>, <span class="Keyword">(</span>x @ a <span class="Keyword">*</span> p<span class="Keyword">)]</span> <span class="Keyword">(</span>ok, xs<span class="Keyword">)</span>
+<span class="lnr">391 </span>
+<span class="lnr">392 </span><span class="Comment">(* TEMPORARY</span>
+<span class="lnr">393 </span><span class="Comment">   mem   should be called find_equal</span>
+<span class="lnr">394 </span><span class="Comment">   assoc should be called find_equal_key</span>
+<span class="lnr">395 </span><span class="Comment">   remove could be specialized in the same ways as find *)</span>
+<span class="lnr">396 </span>
+<span class="lnr">397 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">398 </span>
+<span class="lnr">399 </span><span class="Comment">(* Filtering. *)</span>
+<span class="lnr">400 </span>
+<span class="lnr">401 </span><span class="Keyword">val</span> filter <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(consumes</span> xs: <span class="Type">list</span> a, ok: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span> <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">402 </span>  <span class="Keyword">let</span> f <span class="Keyword">(consumes</span> accu: <span class="Type">list</span> a, <span class="Keyword">consumes</span> x: a <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">403 </span>    <span class="Keyword">if</span> ok x <span class="Keyword">then</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x<span class="Keyword">;</span> tail <span class="Keyword">=</span> accu <span class="Keyword">}</span> <span class="Keyword">else</span> accu
+<span class="lnr">404 </span>  <span class="Keyword">in</span>
+<span class="lnr">405 </span>  rev <span class="Keyword">(</span>fold_left <span class="Keyword">[</span>a, <span class="Keyword">unknown</span>, <span class="Keyword">(</span><span class="Type">list</span> a <span class="Keyword">|</span> p<span class="Keyword">)]</span> <span class="Keyword">(</span>f, <span class="Constant">Nil</span>, xs<span class="Keyword">))</span>
+<span class="lnr">406 </span>
+<span class="lnr">407 </span><span class="Keyword">val</span> partition <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>p: a <span class="Keyword">-&gt;</span> <span class="Type">bool</span>, <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Keyword">(</span><span class="Type">list</span> a, <span class="Type">list</span> a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">408 </span>  <span class="Keyword">let</span> f <span class="Keyword">(consumes</span> <span class="Keyword">(</span>yes: <span class="Type">list</span> a, no: <span class="Type">list</span> a<span class="Keyword">)</span>, <span class="Keyword">consumes</span> x: a<span class="Keyword">)</span> : <span class="Keyword">(</span><span class="Type">list</span> a, <span class="Type">list</span> a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">409 </span>    <span class="Keyword">if</span> p x <span class="Keyword">then</span>
+<span class="lnr">410 </span>      <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x<span class="Keyword">;</span> tail <span class="Keyword">=</span> yes <span class="Keyword">}</span>, no
+<span class="lnr">411 </span>    <span class="Keyword">else</span>
+<span class="lnr">412 </span>      yes, <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x<span class="Keyword">;</span> tail <span class="Keyword">=</span> no <span class="Keyword">}</span>
+<span class="lnr">413 </span>  <span class="Keyword">in</span>
+<span class="lnr">414 </span>  <span class="Keyword">let</span> <span class="Keyword">(</span>yes, no<span class="Keyword">)</span> <span class="Keyword">=</span> fold_left <span class="Keyword">[</span>a, <span class="Keyword">unknown</span>, <span class="Keyword">(</span><span class="Type">list</span> a, <span class="Type">list</span> a<span class="Keyword">)]</span> <span class="Keyword">(</span>f, <span class="Keyword">(</span><span class="Constant">Nil</span>, <span class="Constant">Nil</span><span class="Keyword">)</span>, xs<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">415 </span>  rev yes, rev no
+<span class="lnr">416 </span>
+<span class="lnr">417 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">418 </span>
+<span class="lnr">419 </span><span class="Comment">(* Lists of pairs. *)</span>
+<span class="lnr">420 </span>
+<span class="lnr">421 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> split <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(consumes</span> xys : <span class="Type">list</span> <span class="Keyword">(</span>a, b<span class="Keyword">))</span> : <span class="Keyword">(</span><span class="Type">list</span> a, <span class="Type">list</span> b<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">422 </span>  <span class="Keyword">if</span> xys <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">423 </span>    <span class="Keyword">let</span> x, y <span class="Keyword">=</span> xys.head <span class="Keyword">in</span>
+<span class="lnr">424 </span>    <span class="Keyword">let</span> xs, ys <span class="Keyword">=</span> split xys.tail <span class="Keyword">in</span>
+<span class="lnr">425 </span>    <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x<span class="Keyword">;</span> tail <span class="Keyword">=</span> xs <span class="Keyword">}</span>,
+<span class="lnr">426 </span>    <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> y<span class="Keyword">;</span> tail <span class="Keyword">=</span> ys <span class="Keyword">}</span>
+<span class="lnr">427 </span>  <span class="Keyword">end</span>
+<span class="lnr">428 </span>  <span class="Keyword">else</span>
+<span class="lnr">429 </span>    <span class="Constant">Nil</span>,
+<span class="lnr">430 </span>    <span class="Constant">Nil</span>
+<span class="lnr">431 </span>
+<span class="lnr">432 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> combine <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(consumes</span> xs: <span class="Type">list</span> a, <span class="Keyword">consumes</span> ys: <span class="Type">list</span> b<span class="Keyword">)</span> : <span class="Type">list</span> <span class="Keyword">(</span>a, b<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">433 </span>  <span class="Keyword">match</span> xs, ys <span class="Keyword">with</span>
+<span class="lnr">434 </span>  <span class="Keyword">|</span> <span class="Constant">Cons</span>, <span class="Constant">Cons</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">435 </span>      <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> <span class="Keyword">(</span>xs.head, ys.head<span class="Keyword">)</span><span class="Keyword">;</span> tail <span class="Keyword">=</span> combine <span class="Keyword">(</span>xs.tail, ys.tail<span class="Keyword">)</span> <span class="Keyword">}</span>
+<span class="lnr">436 </span>  <span class="Keyword">|</span> <span class="Constant">Nil</span>, <span class="Constant">Nil</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">437 </span>      <span class="Constant">Nil</span>
+<span class="lnr">438 </span>  <span class="Keyword">|</span> <span class="Constant">Nil</span>, <span class="Constant">Cons</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">439 </span>      <span class="Constant">Nil</span>
+<span class="lnr">440 </span>  <span class="Keyword">|</span> <span class="Constant">Cons</span>, <span class="Constant">Nil</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">441 </span>      <span class="Constant">Nil</span>
+<span class="lnr">442 </span>  <span class="Keyword">end</span>
+<span class="lnr">443 </span>
+<span class="lnr">444 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">445 </span>
+<span class="lnr">446 </span><span class="Comment">(* This auxiliary function is used by [sort]. It peforms a dynamic test</span>
+<span class="lnr">447 </span><span class="Comment">   of duplicability in order to choose between two ways of splitting a</span>
+<span class="lnr">448 </span><span class="Comment">   list, one of which causes the list elements to apparently become</span>
+<span class="lnr">449 </span><span class="Comment">   shared. *)</span>
+<span class="lnr">450 </span>
+<span class="lnr">451 </span><span class="Comment">(* While porting [sort] from OCaml's standard library, we encountered an</span>
+<span class="lnr">452 </span><span class="Comment">   ownership problem. OCaml's code uses a trick, which is to *not* truncate</span>
+<span class="lnr">453 </span><span class="Comment">   the list in the first recursive call. In other words, the first recursive</span>
+<span class="lnr">454 </span><span class="Comment">   instance of [sort] is passed the entire list, but has permission to use</span>
+<span class="lnr">455 </span><span class="Comment">   only the [n1] first elements of it. Mezzo's type system cannot express this</span>
+<span class="lnr">456 </span><span class="Comment">   subtlety. As a result, it seems that we have to either restrict the code to</span>
+<span class="lnr">457 </span><span class="Comment">   the case where the type [a] is duplicable, or truncate the list that is</span>
+<span class="lnr">458 </span><span class="Comment">   passed to the first recursive call (at a cost). In fact, we can encapsulate</span>
+<span class="lnr">459 </span><span class="Comment">   both versions of the code into a single [sort] function, which takes an</span>
+<span class="lnr">460 </span><span class="Comment">   argument of [duplicability a], and performs the choice at runtime,</span>
+<span class="lnr">461 </span><span class="Comment">   depending on the type [a]. This is perhaps not great, but it shows that we</span>
+<span class="lnr">462 </span><span class="Comment">   do have a few tricks up our sleeve. *)</span>
+<span class="lnr">463 </span>
+<span class="lnr">464 </span><span class="Keyword">val</span> splitAtOrShareAndChop <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">465 </span>  dupa: <span class="Constant">reflection::</span>duplicability a,
+<span class="lnr">466 </span>  k: <span class="Type">int</span>,
+<span class="lnr">467 </span>  <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a
+<span class="lnr">468 </span><span class="Keyword">)</span> : <span class="Keyword">(</span><span class="Type">list</span> a, <span class="Type">list</span> a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">469 </span>  <span class="Keyword">if</span> dupa <span class="Keyword">then</span>
+<span class="lnr">470 </span>    <span class="Comment">(* If the list elements are duplicable, then we can follow the OCaml</span>
+<span class="lnr">471 </span><span class="Comment">       version of the code, and keep the first list unchanged. It is too</span>
+<span class="lnr">472 </span><span class="Comment">       long, but the extra elements will never be accessed. *)</span>
+<span class="lnr">473 </span>    xs, chop <span class="Keyword">(</span>k, xs<span class="Keyword">)</span>
+<span class="lnr">474 </span>  <span class="Keyword">else</span>
+<span class="lnr">475 </span>    <span class="Comment">(* Otherwise, we have to use [splitAt], which is less efficient (the</span>
+<span class="lnr">476 </span><span class="Comment">       first part of the list spine is copied) but obviously does not</span>
+<span class="lnr">477 </span><span class="Comment">       cause the list elements to become shared. Our type system is not</span>
+<span class="lnr">478 </span><span class="Comment">       expressive enough to understand that ``we own only the first [k]</span>
+<span class="lnr">479 </span><span class="Comment">       elements of this list''. *)</span>
+<span class="lnr">480 </span>    splitAt <span class="Keyword">(</span>k, xs<span class="Keyword">)</span>
+<span class="lnr">481 </span>
+<span class="lnr">482 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">483 </span>
+<span class="lnr">484 </span><span class="Comment">(* Merging and sorting. *)</span>
+<span class="lnr">485 </span>
+<span class="lnr">486 </span><span class="Comment">(* Note: [merge] is not tail-recursive, and is not used by [sort],</span>
+<span class="lnr">487 </span><span class="Comment">   which has its own [rev_merge]. *)</span>
+<span class="lnr">488 </span>
+<span class="lnr">489 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> merge <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">490 </span>  cmp: <span class="Keyword">(</span>a, a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr">491 </span>  <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a,
+<span class="lnr">492 </span>  <span class="Keyword">consumes</span> ys: <span class="Type">list</span> a
+<span class="lnr">493 </span><span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">494 </span>  <span class="Keyword">match</span> xs, ys <span class="Keyword">with</span>
+<span class="lnr">495 </span>  <span class="Keyword">|</span> <span class="Constant">Nil</span>, <span class="Keyword">_</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">496 </span>      ys
+<span class="lnr">497 </span>  <span class="Keyword">|</span> <span class="Keyword">_</span>, <span class="Constant">Nil</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">498 </span>      xs
+<span class="lnr">499 </span>  <span class="Keyword">|</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x <span class="Keyword">}</span>, <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> y <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">500 </span>      <span class="Keyword">if</span> cmp <span class="Keyword">(</span>x, y<span class="Keyword">)</span> <span class="Keyword">&lt;</span><span class="Keyword">=</span> <span class="Number">0</span>
+<span class="lnr">501 </span>      <span class="Keyword">then</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x<span class="Keyword">;</span> tail <span class="Keyword">=</span> merge <span class="Keyword">(</span>cmp, xs.tail, ys<span class="Keyword">)</span> <span class="Keyword">}</span>
+<span class="lnr">502 </span>      <span class="Keyword">else</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> y<span class="Keyword">;</span> tail <span class="Keyword">=</span> merge <span class="Keyword">(</span>cmp, xs, ys.tail<span class="Keyword">)</span> <span class="Keyword">}</span>
+<span class="lnr">503 </span>  <span class="Keyword">end</span>
+<span class="lnr">504 </span>
+<span class="lnr">505 </span><span class="Keyword">val</span> sort <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">506 </span>  dupa: <span class="Constant">reflection::</span>duplicability a,
+<span class="lnr">507 </span>  cmp: <span class="Keyword">(</span>a, a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr">508 </span>  <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a
+<span class="lnr">509 </span><span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">510 </span>  <span class="Comment">(* Wrap the comparison function [cmp] so as to take an extra</span>
+<span class="lnr">511 </span><span class="Comment">     argument, [sense], which takes the value -1 or 1 and allows</span>
+<span class="lnr">512 </span><span class="Comment">     reversing the ordering if desired. *)</span>
+<span class="lnr">513 </span>  <span class="Keyword">let</span> cmp <span class="Keyword">(</span>sense: <span class="Type">int</span>, x: a, y: a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">514 </span>    sense <span class="Keyword">*</span> cmp <span class="Keyword">(</span>x, y<span class="Keyword">)</span>
+<span class="lnr">515 </span>  <span class="Keyword">in</span>
+<span class="lnr">516 </span>  <span class="Comment">(* [rev_merge (sense, xs, ys, accu)] merges the lists [xs] and [ys]</span>
+<span class="lnr">517 </span><span class="Comment">     and concatenates the reverse of the resulting list in front of</span>
+<span class="lnr">518 </span><span class="Comment">     [accu]. The ordering is dictated by [sense]. *)</span>
+<span class="lnr">519 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> rev_merge <span class="Keyword">(</span>sense: <span class="Type">int</span>, <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a, <span class="Keyword">consumes</span> ys: <span class="Type">list</span> a, <span class="Keyword">consumes</span> accu: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">520 </span>    <span class="Keyword">if</span> xs <span class="Keyword">then</span>
+<span class="lnr">521 </span>      <span class="Keyword">if</span> ys <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">522 </span>        <span class="Keyword">let</span> x <span class="Keyword">=</span> xs.head
+<span class="lnr">523 </span>        <span class="Keyword">and</span> y <span class="Keyword">=</span> ys.head <span class="Keyword">in</span>
+<span class="lnr">524 </span>        <span class="Keyword">if</span> cmp <span class="Keyword">(</span>sense, x, y<span class="Keyword">)</span> <span class="Keyword">&lt;</span><span class="Keyword">=</span> <span class="Number">0</span>
+<span class="lnr">525 </span>        <span class="Keyword">then</span> rev_merge <span class="Keyword">(</span>sense, xs.tail, ys, <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x<span class="Keyword">;</span> tail <span class="Keyword">=</span> accu <span class="Keyword">})</span>
+<span class="lnr">526 </span>        <span class="Keyword">else</span> rev_merge <span class="Keyword">(</span>sense, xs, ys.tail, <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> y<span class="Keyword">;</span> tail <span class="Keyword">=</span> accu <span class="Keyword">})</span>
+<span class="lnr">527 </span>      <span class="Keyword">end</span>
+<span class="lnr">528 </span>      <span class="Keyword">else</span>
+<span class="lnr">529 </span>        rev_append <span class="Keyword">(</span>xs, accu<span class="Keyword">)</span>
+<span class="lnr">530 </span>    <span class="Keyword">else</span>
+<span class="lnr">531 </span>      rev_append <span class="Keyword">(</span>ys, accu<span class="Keyword">)</span>
+<span class="lnr">532 </span>  <span class="Keyword">in</span>
+<span class="lnr">533 </span>  <span class="Comment">(* This is the main sorting function. The integer [n] is always at</span>
+<span class="lnr">534 </span><span class="Comment">     least [2], and is less than or equal to the length of [xs]. Again,</span>
+<span class="lnr">535 </span><span class="Comment">     the ordering is dictated by [sense]. *)</span>
+<span class="lnr">536 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> sort <span class="Keyword">(</span>sense: <span class="Type">int</span>, n: <span class="Type">int</span>, <span class="Keyword">consumes</span> xs: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">537 </span>    <span class="Comment">(* Leaf cases. *)</span>
+<span class="lnr">538 </span>    <span class="Keyword">if</span> n <span class="Keyword">=</span> <span class="Number">2</span> <span class="Keyword">then</span>
+<span class="lnr">539 </span>      <span class="Keyword">match</span> xs <span class="Keyword">with</span>
+<span class="lnr">540 </span>      <span class="Keyword">|</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x1<span class="Keyword">;</span> tail <span class="Keyword">=</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x2<span class="Keyword">;</span> tail <span class="Keyword">=</span> any <span class="Keyword">}}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">541 </span>          <span class="Keyword">if</span> cmp <span class="Keyword">(</span>sense, x1, x2<span class="Keyword">)</span> <span class="Keyword">&lt;</span><span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span> two <span class="Keyword">(</span>x1, x2<span class="Keyword">)</span> <span class="Keyword">else</span> two <span class="Keyword">(</span>x2, x1<span class="Keyword">)</span>
+<span class="lnr">542 </span>      <span class="Keyword">|</span> <span class="Keyword">_</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">543 </span>          <span class="Keyword">fail</span> <span class="Comment">(* impossible *)</span>
+<span class="lnr">544 </span>      <span class="Keyword">end</span>
+<span class="lnr">545 </span>    <span class="Keyword">else</span> <span class="Keyword">if</span> n <span class="Keyword">=</span> <span class="Number">3</span> <span class="Keyword">then</span>
+<span class="lnr">546 </span>      <span class="Keyword">match</span> xs <span class="Keyword">with</span>
+<span class="lnr">547 </span>      <span class="Keyword">|</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x1<span class="Keyword">;</span> tail <span class="Keyword">=</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x2<span class="Keyword">;</span> tail <span class="Keyword">=</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> x3<span class="Keyword">;</span> tail <span class="Keyword">=</span> any <span class="Keyword">}}}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">548 </span>          <span class="Keyword">if</span> cmp <span class="Keyword">(</span>sense, x1, x2<span class="Keyword">)</span> <span class="Keyword">&lt;</span><span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">549 </span>            <span class="Keyword">if</span> cmp <span class="Keyword">(</span>sense, x2, x3<span class="Keyword">)</span> <span class="Keyword">&lt;</span><span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span> three <span class="Keyword">(</span>x1, x2, x3<span class="Keyword">)</span>
+<span class="lnr">550 </span>            <span class="Keyword">else</span> <span class="Keyword">if</span> cmp <span class="Keyword">(</span>sense, x1, x3<span class="Keyword">)</span> <span class="Keyword">&lt;</span><span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span> three <span class="Keyword">(</span>x1, x3, x2<span class="Keyword">)</span>
+<span class="lnr">551 </span>            <span class="Keyword">else</span> three <span class="Keyword">(</span>x3, x1, x2<span class="Keyword">)</span>
+<span class="lnr">552 </span>          <span class="Keyword">end</span> <span class="Keyword">else</span> <span class="Keyword">begin</span>
+<span class="lnr">553 </span>            <span class="Keyword">if</span> cmp <span class="Keyword">(</span>sense, x1, x3<span class="Keyword">)</span> <span class="Keyword">&lt;</span><span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span> three <span class="Keyword">(</span>x2, x1, x3<span class="Keyword">)</span>
+<span class="lnr">554 </span>            <span class="Keyword">else</span> <span class="Keyword">if</span> cmp <span class="Keyword">(</span>sense, x2, x3<span class="Keyword">)</span> <span class="Keyword">&lt;</span><span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span> three <span class="Keyword">(</span>x2, x3, x1<span class="Keyword">)</span>
+<span class="lnr">555 </span>            <span class="Keyword">else</span> three <span class="Keyword">(</span>x3, x2, x1<span class="Keyword">)</span>
+<span class="lnr">556 </span>          <span class="Keyword">end</span>
+<span class="lnr">557 </span>      <span class="Keyword">|</span> <span class="Keyword">_</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">558 </span>          <span class="Keyword">fail</span> <span class="Comment">(* impossible *)</span>
+<span class="lnr">559 </span>      <span class="Keyword">end</span>
+<span class="lnr">560 </span>    <span class="Comment">(* The general case. *)</span>
+<span class="lnr">561 </span>    <span class="Keyword">else</span> <span class="Keyword">begin</span>
+<span class="lnr">562 </span>      <span class="Keyword">let</span> n1 <span class="Keyword">=</span> n / <span class="Number">2</span> <span class="Keyword">in</span>
+<span class="lnr">563 </span>      <span class="Keyword">let</span> n2 <span class="Keyword">=</span> n - n1 <span class="Keyword">in</span>
+<span class="lnr">564 </span>      <span class="Keyword">let</span> xs1, xs2 <span class="Keyword">=</span> splitAtOrShareAndChop <span class="Keyword">(</span>dupa, n1, xs<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">565 </span>      <span class="Keyword">let</span> xs1 <span class="Keyword">=</span> sort <span class="Keyword">(</span>-sense, n1, xs1<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">566 </span>      <span class="Keyword">let</span> xs2 <span class="Keyword">=</span> sort <span class="Keyword">(</span>-sense, n2, xs2<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">567 </span>      rev_merge <span class="Keyword">(</span>-sense, xs1, xs2, <span class="Constant">Nil</span><span class="Keyword">)</span>
+<span class="lnr">568 </span>    <span class="Keyword">end</span>
+<span class="lnr">569 </span>  <span class="Keyword">in</span>
+<span class="lnr">570 </span>  <span class="Keyword">let</span> n <span class="Keyword">=</span> length xs <span class="Keyword">in</span>
+<span class="lnr">571 </span>  <span class="Keyword">if</span> n <span class="Keyword">&lt;</span> <span class="Number">2</span> <span class="Keyword">then</span> xs <span class="Keyword">else</span> sort <span class="Keyword">(</span><span class="Number">1</span>, n, xs<span class="Keyword">)</span>
+<span class="lnr">572 </span>
+<span class="lnr">573 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">574 </span>
+<span class="lnr">575 </span><span class="Comment">(* Comparison. *)</span>
+<span class="lnr">576 </span>
+<span class="lnr">577 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> equal <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>eq: <span class="Keyword">(</span>a, b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>, xs: <span class="Type">list</span> a, ys: <span class="Type">list</span> b<span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr">578 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span>
+<span class="lnr">579 </span>    <span class="Keyword">if</span> ys <span class="Keyword">then</span>
+<span class="lnr">580 </span>      <span class="Keyword">if</span> eq <span class="Keyword">(</span>xs.head, ys.head<span class="Keyword">)</span> <span class="Keyword">then</span>
+<span class="lnr">581 </span>        equal <span class="Keyword">(</span>eq, xs.tail, ys.tail<span class="Keyword">)</span>
+<span class="lnr">582 </span>      <span class="Keyword">else</span>
+<span class="lnr">583 </span>        <span class="Constant">False</span>
+<span class="lnr">584 </span>    <span class="Keyword">else</span>
+<span class="lnr">585 </span>      <span class="Constant">False</span>
+<span class="lnr">586 </span>  <span class="Keyword">else</span>
+<span class="lnr">587 </span>    <span class="Keyword">if</span> ys <span class="Keyword">then</span>
+<span class="lnr">588 </span>      <span class="Constant">False</span>
+<span class="lnr">589 </span>    <span class="Keyword">else</span>
+<span class="lnr">590 </span>      <span class="Constant">True</span>
+<span class="lnr">591 </span>
+<span class="lnr">592 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> compare <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>cmp: <span class="Keyword">(</span>a, b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>, xs: <span class="Type">list</span> a, ys: <span class="Type">list</span> b<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">593 </span>  <span class="Keyword">if</span> xs <span class="Keyword">then</span>
+<span class="lnr">594 </span>    <span class="Keyword">if</span> ys <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">595 </span>      <span class="Keyword">let</span> c <span class="Keyword">=</span> cmp <span class="Keyword">(</span>xs.head, ys.head<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">596 </span>      <span class="Keyword">if</span> c <span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span>
+<span class="lnr">597 </span>        compare <span class="Keyword">(</span>cmp, xs.tail, ys.tail<span class="Keyword">)</span>
+<span class="lnr">598 </span>      <span class="Keyword">else</span>
+<span class="lnr">599 </span>        c
+<span class="lnr">600 </span>    <span class="Keyword">end</span>
+<span class="lnr">601 </span>    <span class="Keyword">else</span>
+<span class="lnr">602 </span>      <span class="Number">1</span>
+<span class="lnr">603 </span>  <span class="Keyword">else</span>
+<span class="lnr">604 </span>    <span class="Keyword">if</span> ys <span class="Keyword">then</span>
+<span class="lnr">605 </span>      -<span class="Number">1</span>
+<span class="lnr">606 </span>    <span class="Keyword">else</span>
+<span class="lnr">607 </span>      <span class="Number">0</span>
+<span class="lnr">608 </span>
+<span class="lnr">609 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">610 </span>
+<span class="lnr">611 </span><span class="Comment">(* Conversions between arrays and lists. *)</span>
+<span class="lnr">612 </span>
+<span class="lnr">613 </span><span class="Comment">(* Converting an array (segment) to a list. *)</span>
+<span class="lnr">614 </span>
+<span class="lnr">615 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> segment2list <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>x: <span class="Type">array</span> a, i: <span class="Type">int</span>, j: <span class="Type">int</span>, <span class="Keyword">consumes</span> accu: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">616 </span>  <span class="Keyword">if</span> i <span class="Keyword">&lt;</span> j <span class="Keyword">then</span>
+<span class="lnr">617 </span>    segment2list <span class="Keyword">(</span>x, i, j - <span class="Number">1</span>, <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> <span class="Type">array</span><span class="Keyword">::</span>get <span class="Keyword">(</span>x, j - <span class="Number">1</span><span class="Keyword">)</span><span class="Keyword">;</span> tail <span class="Keyword">=</span> accu <span class="Keyword">})</span>
+<span class="lnr">618 </span>  <span class="Keyword">else</span>
+<span class="lnr">619 </span>    accu
+<span class="lnr">620 </span>
+<span class="lnr">621 </span><span class="Keyword">val</span> array2list <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>x: <span class="Type">array</span> a<span class="Keyword">)</span> : <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">622 </span>  segment2list <span class="Keyword">(</span>x, <span class="Number">0</span>, <span class="Type">array</span><span class="Keyword">::</span>length x, <span class="Constant">Nil</span><span class="Keyword">)</span>
+<span class="lnr">623 </span>
+<span class="lnr">624 </span><span class="Comment">(* TEMPORARY using [array::transform], we could offer a variant of [array2list]</span>
+<span class="lnr">625 </span><span class="Comment">   where the ownership of the elements is transferred from the array to the list *)</span>
+<span class="lnr">626 </span>
+<span class="lnr">627 </span><span class="Comment">(* Converting a list to an array. *)</span>
+<span class="lnr">628 </span>
+<span class="lnr">629 </span><span class="Keyword">val</span> list2array <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> xs: <span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">array</span> a <span class="Keyword">=</span>
+<span class="lnr">630 </span>  <span class="Keyword">let</span> n <span class="Keyword">=</span> length xs <span class="Keyword">in</span>
+<span class="lnr">631 </span>  <span class="Keyword">let</span> r <span class="Keyword">=</span> newref xs <span class="Keyword">in</span>
+<span class="lnr">632 </span>  <span class="Type">array</span><span class="Keyword">::</span>init <span class="Keyword">(</span><span class="Constant">Up</span>, n, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span> <span class="Keyword">|</span> r @ ref <span class="Keyword">(</span><span class="Type">list</span> a<span class="Keyword">))</span> : a <span class="Keyword">=</span>
+<span class="lnr">633 </span>    <span class="Keyword">match</span> <span class="Keyword">!</span>r <span class="Keyword">with</span>
+<span class="lnr">634 </span>    <span class="Keyword">|</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head<span class="Keyword">;</span> tail <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">635 </span>        r <span class="Keyword">:=</span> tail<span class="Keyword">;</span>
+<span class="lnr">636 </span>        head
+<span class="lnr">637 </span>    <span class="Keyword">|</span> <span class="Constant">Nil</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">638 </span>        <span class="Keyword">fail</span> <span class="Comment">(* impossible *)</span>
+<span class="lnr">639 </span>    <span class="Keyword">end</span>
+<span class="lnr">640 </span>  <span class="Keyword">)</span>
+<span class="lnr">641 </span>
+<span class="lnr">642 </span><span class="Comment">(*</span>
+<span class="lnr">643 </span><span class="Comment">Local Variables:</span>
+<span class="lnr">644 </span><span class="Comment">compile-command: &quot;../mezzo list.mz&quot;</span>
+<span class="lnr">645 </span><span class="Comment">End:</span>
+<span class="lnr">646 </span><span class="Comment">*)</span>
+</pre>
+</body>
+</html>

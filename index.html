@@ -1,0 +1,270 @@
+<!doctype html>
+<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en"> <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  <title>The Mezzo programming language</title>
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <!-- CSS concatenated and minified via ant build script-->
+  <link rel="stylesheet" href="css/style.css">
+  <link href='http://fonts.googleapis.com/css?family=Pacifico' rel='stylesheet' type='text/css'>
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <!-- end CSS-->
+
+</head>
+
+<body>
+
+  <div id="container">
+    <header>
+      <h1>The Mezzo programming language</h1>
+    </header>
+    <div id="main" role="main">
+      <section>
+        <h2>What is Mezzo?</h2>
+        <p class="sidenote">
+          (Description shamelessly stolen from a paper abstract).
+        </p>
+        <p>
+          We present the design of <span class="mezzo">Mezzo</span>, a
+          programming language in the ML tradition, which places strong emphasis
+          on the control of aliasing and access to mutable memory. A balance
+          between simplicity and expressiveness is achieved by marrying a static
+          discipline of permissions and a dynamic mechanism of adoption and
+          abandon.
+        </p>
+        <h3>More information about Mezzo</h3>
+        <p>
+          <span class="mezzo">Mezzo</span> is designed by <a
+            href="http://gallium.inria.fr/~fpottier/">François Pottier</a> and
+          <a href="http://www.xulforum.org">Jonathan Protzenko</a>. The language
+          has been <a href="#downloads">formalized</a> using the Coq proof
+          assistant. We currently have a <a href="#downloads">prototype
+          implementation</a> of a type-checker. We have several papers,
+          abstracts and presentations that describe the language. Since the
+          language is always in flux, it is best to refer to the most recent
+          publication.
+        </p>
+        <h2>Some reading</h2>
+        <h3>Papers</h3>
+        <p>
+          We currently have two papers that are relevant to the current state of
+          the <span class="mezzo">Mezzo</span> project. The first one is about
+          the Coq formalization, and the second one is about the language from a
+          more general perspective.
+        </p>
+        <p>
+          <ul>
+            <li>François Pottier.
+              <strong>Type soundness for Core Mezzo.</strong>
+              Unpublished, January 2013.
+              [&nbsp;<a href="http://pauillac.inria.fr/~fpottier/biblio/pottier_bib.html#pottier-core-mezzo-13">bib</a>&nbsp;| 
+              <a href="http://gallium.inria.fr/~fpottier/publis/fpottier-core-mezzo.pdf">PDF</a>&nbsp;| 
+              <a href="http://pauillac.inria.fr/~fpottier/biblio/pottier_abstracts.html#pottier-core-mezzo-13">abstract</a>&nbsp;]
+            </li>
+            <li>François Pottier and Jonathan Protzenko.
+              <strong>Programming with permissions in Mezzo.</strong>
+              ICFP'13. <span style="font-weight: bold; text-decoration: underline">Long version updated May 2013</span>.
+              [&nbsp;<a href="http://pauillac.inria.fr/~fpottier/biblio/pottier_bib.html#pottier-protzenko-13">bib</a>
+              | <a href="http://pauillac.inria.fr/~fpottier/biblio/pottier_abstracts.html#pottier-protzenko-13">abstract</a>
+              | <a href="http://gallium.inria.fr/~fpottier/publis/pottier-protzenko-mezzo.pdf">PDF</a>
+              | <a href="http://gallium.inria.fr/~fpottier/publis/mezzo-icfp2013-long.pdf">PDF (long)</a>&nbsp;]
+            </li>
+            <!--<li>François Pottier and Jonathan Protzenko.
+              <strong>Programming with permissions in Mezzo.</strong>
+              Unpublished, October 2012.
+              [&nbsp;<a href="http://pauillac.inria.fr/~fpottier/biblio/pottier_bib.html#pottier-protzenko-12">bib</a> |
+                <a href="http://gallium.inria.fr/~fpottier/publis/pottier-protzenko-mezzo.pdf">PDF</a>&nbsp;]
+            </li>
+            <li>François Pottier and Jonathan Protzenko.
+             <strong>Programming with permissions: the Mezzo language (extended abstract)</strong>.
+             ML Workshop, Sep 2012.
+             [&nbsp;<a href="http://www.xulforum.org/papers/extended-abstract.pdf">PDF</a>&nbsp;]
+            </li>
+            <li>François Pottier and Jonathan Protzenko.
+             <strong>An introduction to Mezzo</strong> («&nbsp;the
+             tutorial&nbsp;»).
+             Unpublished draft, Sep 2012.
+             [&nbsp;<a href="http://gallium.inria.fr/~fpottier/biblio/pottier_bib.html#mezzo-draft-tutorial">bib</a>&nbsp;| 
+             <a href="http://gallium.inria.fr/~fpottier/publis/mezzo-tutorial.pdf">PDF</a>&nbsp;]
+             </li>-->
+          </ul>
+        </p>
+        <h3>Blog posts</h3>
+        <p>
+          We have a blog at Gallium, and there are a few blog posts there about
+          the <span class="mezzo">Mezzo</span> programming language.
+        </p>
+        <p>
+          <ul>
+            <li>Jonathan Protzenko. <strong>An introduction to Mezzo.</strong>
+              [&nbsp;<a href="http://gallium.inria.fr/blog/introduction-to-mezzo/">HTML</a>&nbsp;]
+            </li>
+            <li>Jonathan Protzenko. <strong>An introduction to Mezzo, continued.</strong>
+              [&nbsp;<a
+                href="http://gallium.inria.fr/blog/introduction-to-mezzo-2/">HTML</a>&nbsp;]
+            </li>
+          </ul>
+        </p>
+         <h3>Talks</h3>
+        <p>
+          The talks feature some detailed examples which are type-checked
+          step-by-step, listing the set of available permissions at each step.
+        </p>
+        <p>
+          <ul>
+            <li>Jonathan Protzenko. <strong>The implementation of
+              Mezzo</strong>. IFL'13.
+              [&nbsp;<a href="http://www.xulforum.org/papers/talk-ifl.pdf">PDF</a>&nbsp;]
+            </li>
+            <li>Jonathan Protzenko. <strong>Why design a new programming
+              language?</strong>. FSFMA'13.
+              [&nbsp;<a href="http://www.xulforum.org/papers/talk-fsfma.pdf">PDF</a>&nbsp;]
+            </li>
+            <li>Jonathan Protzenko. <strong>An introduction to Mezzo
+                (short)</strong>. ML Workshop, Sep 2012.
+              [&nbsp;<a href="http://www.xulforum.org/papers/mezzo-talk-ml-workshop.pdf">PDF</a>
+              | <a href="http://www.youtube.com/watch?v=CF353ql7AGY">YouTube</a>&nbsp;]
+            </li>
+            <li>Jonathan Protzenko. <strong>An introduction to Mezzo</strong>
+              [&nbsp;<a href="http://www.xulforum.org/papers/mezzo-talk.pdf">PDF</a>&nbsp;]
+            </li>
+          </ul>
+        </p>
+        <h2 id="downloads">Downloads</h2>
+        <p>
+          <ul>
+            <li>The <a
+              href="http://gallium.inria.fr/~fpottier/mezzo/mezzo.tar.gz">latest
+              version of the Coq proof</a>.</li>
+            <li>The source code of the Mezzo prototype type-checker is available
+              on<a href="https://github.com/protz/mezzo">GitHub</a>. Requires
+              OCaml 4.00+, as well as the following tools/libraries: Menhir,
+              MenhirLib, Yojson, Ulex, PPrint.  Has been tested on Unix
+              environments only. We recommend <a
+              href="http://opam.ocamlpro.com">OPAM</a> to easily install all the
+              dependencies as well as a recent OCaml compiler.</li>
+            <li><a href="doc/">Generated documentation</a> for the prototype's
+              source code, including the scary dependency graph between modules.
+              The documentation is fairly incomplete, since most <tt>.mli</tt>
+              files are missing, but the source code does have comments.</li>
+          </ul>
+        </p>
+        <h2>Demos</h2>
+        <h3>Sample programs</h3>
+         <p>
+           We showcase here some programs written using <span
+           class="mezzo">Mezzo</span>. More code samples are available in the
+           prototype's source code, in the <tt>corelib</tt>, <tt>stdlib</tt> and
+           <tt>tests</tt> directories.
+          <ul>
+            <li>The <code>list</code> module
+               (<a href="code_samples/list.mz.html">implementation</a>,
+               <a href="code_samples/list.mzi.html">interface</a>)
+               provides operations on lists.
+            </li>
+            <li>The <code>bucket</code> module
+               (<a href="code_samples/bucket.mz.html">implementation</a>,
+               <a href="code_samples/bucket.mzi.html">interface</a>)
+               provides mutable lists of key-value pairs. It is used mainly by
+               the <code>hashtable</code> module.
+            </li>
+            <li>The <code>hashtable</code> module
+               (<a href="code_samples/hashtable.mz.html">implementation</a>,
+               <a href="code_samples/hashtable.mzi.html">interface</a>)
+               defines hash tables.
+            </li>
+            <li>The <code>mutableTreeMap</code> module
+               (<a href="code_samples/mutableTreeMap.mz.html">implementation</a>,
+               <a href="code_samples/mutableTreeMap.mzi.html">interface</a>)
+               defines mutable tree maps using inspiration from the OCaml
+               <code>Map</code> module.
+            </li>
+            <li>The <code>queue</code> module
+              (<a href="code_samples/queue.mz.html">implementation</a>,
+              <a href="code_samples/queue.mzi.html">interface</a>)
+                defines a FIFO queue using adoption/abandon. It's an extended
+                version of the module shown in papers and during talks.
+            </li>
+             <li>The <code>vector</code> module
+              (<a href="code_samples/vector.mz.html">implementation</a>,
+              <a href="code_samples/vector.mzi.html">interface</a>)
+                provides resizable arrays.
+            </li>
+             <li>The <code>lazy</code> module
+              (<a href="code_samples/lazy.mz.html">implementation</a>,
+              <a href="code_samples/lazy.mzi.html">interface</a>)
+                provides a way to deal with thunks, i.e. suspensions.
+            </li>
+             <li>The <code>memoize</code> module
+              (<a href="code_samples/memoize.mz.html">implementation</a>,
+              <a href="code_samples/memoize.mzi.html">interface</a>).
+                provides a library for memoizing the calls to a function using a
+                hashtable internally.
+            </li>
+             <li>The <code>persistentarray</code> module
+              (<a href="code_samples/persistentarray.mz.html">implementation</a>,
+              <a href="code_samples/persistentarray.mzi.html">interface</a>).
+            </li>
+             <li>The <code>bfs</code> module
+              (<a href="code_samples/bfs.mz.html">implementation</a>,
+              <a href="code_samples/bfs.mzi.html">interface</a>)
+                provides a generic interface for breadth-first traversal of
+                graphs.
+            </li>
+             <li>The <code>dfs</code> module
+              (<a href="code_samples/dfs.mz.html">implementation</a>,
+              <a href="code_samples/dfs.mzi.html">interface</a>).
+            </li>
+            <li>The <code>nest</code> module
+              (<a href="code_samples/nest.mzi.html">interface</a>)
+                axiomatizes Boyland's nesting.
+            </li>
+            <li>The <code>lock</code> module
+              (<a href="code_samples/lock.mzi.html">interface</a>)
+                shows our axiomatization of classical locks.
+            </li>
+            <li>The <code>wref</code> module
+              (<a href="code_samples/wref.mz.html">implementation</a>,
+              <a href="code_samples/wref.mzi.html">interface</a>)
+                shows how to obtain “weak” references (ML-style) by using a lock
+                to protect the invariant.
+            </li>
+            <!--<li>The <code><++></code> module
+              (<a href="code_samples/<++>.mz.html">implementation</a>,
+              <a href="code_samples/<++>.mzi.html">interface</a>)
+                <++>
+            </li>-->
+          </ul>
+        </p>
+        <h3>Graphical error messages with graphs</h3>
+        <p>
+          The type-checker has a feature where it can dump a graphical
+          representation of its state to help understand a type error, or
+          understand how a merge conflict was resolved. We provide a <a
+            href="viewer/">gallery</a> of such dumps. <strong>Warning:</strong>
+          works only on recent Firefox versions (I'm using ECMAScript 6
+          features).
+        </p>
+      </section>
+    </div>
+    <footer>
+
+    </footer>
+  </div> <!--! end of #container -->
+
+  <!--[if lt IE 7 ]>
+    <script src="//ajax.googleapis.com/ajax/libs/chrome-frame/1.0.3/CFInstall.min.js"></script>
+    <script>window.attachEvent('onload',function(){CFInstall.check({mode:'overlay'})})</script>
+  <![endif]-->
+  
+</body>
+</html>

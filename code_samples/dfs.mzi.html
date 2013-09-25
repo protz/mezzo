@@ -1,0 +1,102 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/dfs.mzi.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Type { color: #cae682; }
+.Comment { color: #99968b; font-style: italic; }
+.PreProc { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Keyword">open</span> <span class="PreProc">list</span>
+<span class="lnr"> 2 </span><span class="Keyword">open</span> <span class="PreProc">pool</span>
+<span class="lnr"> 3 </span>
+<span class="lnr"> 4 </span><span class="Comment">(* A depth-first preorder traversal of a graph. *)</span>
+<span class="lnr"> 5 </span>
+<span class="lnr"> 6 </span><span class="Comment">(* The code is polymorphic in the type of the graph nodes. Furthermore,</span>
+<span class="lnr"> 7 </span><span class="Comment">   the code allows the type of a node to change as the node is visited.</span>
+<span class="lnr"> 8 </span><span class="Comment">   The unvisited nodes have type [unvisited], while the visited nodes</span>
+<span class="lnr"> 9 </span><span class="Comment">   have type [visited]. Both of these types are assumed to be exclusive. *)</span>
+<span class="lnr">10 </span>
+<span class="lnr">11 </span><span class="Comment">(* We assume that all nodes are initially adopted by the object [nodes],</span>
+<span class="lnr">12 </span><span class="Comment">   which has type [pool unvisited]. When a node is visited, it is taken</span>
+<span class="lnr">13 </span><span class="Comment">   away from this pool; its type changes from [unvisited] to [visited];</span>
+<span class="lnr">14 </span><span class="Comment">   and it is then adopted by a new pool, which has type [pool visited].</span>
+<span class="lnr">15 </span><span class="Comment">   At the end of the traversal, the original pool contains the unreachable</span>
+<span class="lnr">16 </span><span class="Comment">   nodes, while the new pool contains the reachable nodes. *)</span>
+<span class="lnr">17 </span>
+<span class="lnr">18 </span><span class="Comment">(* We require a list [roots] of the root nodes for the traversal. We also</span>
+<span class="lnr">19 </span><span class="Comment">   require a function [visit], which changes the state of its node argument</span>
+<span class="lnr">20 </span><span class="Comment">   from [unvisited] to [visited], and returns a list of this node's</span>
+<span class="lnr">21 </span><span class="Comment">   successors. *)</span>
+<span class="lnr">22 </span>
+<span class="lnr">23 </span><span class="Comment">(* The function [visit] may require a permission [p]. We echo this</span>
+<span class="lnr">24 </span><span class="Comment">   requirement. *)</span>
+<span class="lnr">25 </span>
+<span class="lnr">26 </span><span class="Keyword">val</span> preorder:
+<span class="lnr">27 </span>  <span class="Keyword">[</span>unvisited, visited, p : <span class="Keyword">perm]</span>
+<span class="lnr">28 </span>  <span class="Keyword">exclusive</span> visited <span class="Keyword">=</span><span class="Keyword">&gt;</span>
+<span class="lnr">29 </span>  <span class="Keyword">(</span>
+<span class="lnr">30 </span>    <span class="Comment">(* A pool of all nodes. *)</span>
+<span class="lnr">31 </span>    nodes: pool unvisited,
+<span class="lnr">32 </span>    <span class="Comment">(* A list of the root nodes. *)</span>
+<span class="lnr">33 </span>    roots: <span class="Type">list</span> <span class="Keyword">dynamic</span>,
+<span class="lnr">34 </span>    <span class="Comment">(* A function that visits a node, changing its state from</span>
+<span class="lnr">35 </span><span class="Comment">       [unvisited] to [visited], and returns its successors. *)</span>
+<span class="lnr">36 </span>    visit: <span class="Keyword">(consumes</span> node: unvisited <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Type">list</span> <span class="Keyword">dynamic</span> <span class="Keyword">|</span> node @ visited<span class="Keyword">)</span>
+<span class="lnr">37 </span>    <span class="Comment">(* The permission [p] required by [visit]. *)</span>
+<span class="lnr">38 </span>    <span class="Keyword">|</span> p
+<span class="lnr">39 </span>  <span class="Keyword">)</span>
+<span class="lnr">40 </span>    <span class="Comment">(* We return a new pool of the visited nodes. *)</span>
+<span class="lnr">41 </span>    <span class="Keyword">-&gt;</span> pool visited
+<span class="lnr">42 </span>
+<span class="lnr">43 </span><span class="Comment">(* A more general traversal function, which allows a pre- and a post-action,</span>
+<span class="lnr">44 </span><span class="Comment">   and optionally detects a cycle in the graph. *)</span>
+<span class="lnr">45 </span>
+<span class="lnr">46 </span><span class="Comment">(* Because the pre- and post-action are distinguished, there are three node</span>
+<span class="lnr">47 </span><span class="Comment">   states: [unvisited], [visiting], and [visited]. *)</span>
+<span class="lnr">48 </span>
+<span class="lnr">49 </span><span class="Keyword">val</span> prepostorder:
+<span class="lnr">50 </span>  <span class="Keyword">[</span>unvisited, visiting, visited, p : <span class="Keyword">perm]</span>
+<span class="lnr">51 </span>  <span class="Keyword">exclusive</span> visited <span class="Keyword">=</span><span class="Keyword">&gt;</span>
+<span class="lnr">52 </span>  <span class="Keyword">(</span>
+<span class="lnr">53 </span>    <span class="Comment">(* A pool of all nodes. *)</span>
+<span class="lnr">54 </span>    nodes: pool unvisited,
+<span class="lnr">55 </span>    <span class="Comment">(* A list of the root nodes. *)</span>
+<span class="lnr">56 </span>    roots: <span class="Type">list</span> <span class="Keyword">dynamic</span>,
+<span class="lnr">57 </span>    <span class="Comment">(* A flag that indicates whether we should abort when a cycle is</span>
+<span class="lnr">58 </span><span class="Comment">       detected. *)</span>
+<span class="lnr">59 </span>    detect: <span class="Type">bool</span>,
+<span class="lnr">60 </span>    <span class="Comment">(* A function that changes the state of a node from [unvisited]</span>
+<span class="lnr">61 </span><span class="Comment">       to [visiting] and returns its successors. *)</span>
+<span class="lnr">62 </span>    pre: <span class="Keyword">(consumes</span> node: unvisited <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Type">list</span> <span class="Keyword">dynamic</span> <span class="Keyword">|</span> node @ visiting<span class="Keyword">)</span>,
+<span class="lnr">63 </span>    <span class="Comment">(* A function that changes the state of a node from [visiting]</span>
+<span class="lnr">64 </span><span class="Comment">       to [visited]. *)</span>
+<span class="lnr">65 </span>    post: <span class="Keyword">(consumes</span> node: visiting <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Keyword">|</span> node @ visited<span class="Keyword">)</span>
+<span class="lnr">66 </span>    <span class="Comment">(* The permission [p] required by [pre] and [post]. *)</span>
+<span class="lnr">67 </span>    <span class="Keyword">|</span> p
+<span class="lnr">68 </span>  <span class="Keyword">)</span>
+<span class="lnr">69 </span><span class="Keyword">-&gt;</span><span class="Keyword">(</span>
+<span class="lnr">70 </span>  <span class="Comment">(* A new pool of the visited nodes. *)</span>
+<span class="lnr">71 </span>  pool visited,
+<span class="lnr">72 </span>  <span class="Comment">(* An option that indicates: 1. whether a cycle was detected and 2. if so,</span>
+<span class="lnr">73 </span><span class="Comment">     the list of nodes that were in the state [visiting] when the cycle was</span>
+<span class="lnr">74 </span><span class="Comment">     detected. These nodes form a path in the graph that ends in a cycle. *)</span>
+<span class="lnr">75 </span>  <span class="Type">option</span> <span class="Keyword">(</span><span class="Type">list</span> visiting<span class="Keyword">)</span>
+<span class="lnr">76 </span><span class="Keyword">)</span>
+</pre>
+</body>
+</html>

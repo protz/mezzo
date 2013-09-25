@@ -1,0 +1,186 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/dfs.mz.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Constant { color: #e5786d; }
+.Type { color: #cae682; }
+.Comment { color: #99968b; font-style: italic; }
+.PreProc { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr">  1 </span><span class="Keyword">open</span> <span class="PreProc">list</span>
+<span class="lnr">  2 </span><span class="Keyword">open</span> <span class="PreProc">pool</span>
+<span class="lnr">  3 </span>
+<span class="lnr">  4 </span><span class="Comment">(* In this approach, we do not need each node to carry a Boolean mark.</span>
+<span class="lnr">  5 </span><span class="Comment">   Instead, we use the hidden [adopter] field for this purpose. If a node is</span>
+<span class="lnr">  6 </span><span class="Comment">   currently adopted by the old pool, then it has not been visited yet. If it</span>
+<span class="lnr">  7 </span><span class="Comment">   is adopted by the new pool, then it has been visited. This technique</span>
+<span class="lnr">  8 </span><span class="Comment">   presents several advantages with respect to a more naïve approach based on</span>
+<span class="lnr">  9 </span><span class="Comment">   Boolean marks: 1- it re-uses the space taken up by the [adopter] field; 2-</span>
+<span class="lnr"> 10 </span><span class="Comment">   it does not a priori require the marks to be re-initialized after (or</span>
+<span class="lnr"> 11 </span><span class="Comment">   before) each traversal; 3- it allows a strong update, i.e. the nodes that</span>
+<span class="lnr"> 12 </span><span class="Comment">   have been visited do not have the same type as the nodes that have not yet</span>
+<span class="lnr"> 13 </span><span class="Comment">   been visited. *)</span>
+<span class="lnr"> 14 </span>
+<span class="lnr"> 15 </span><span class="Keyword">val</span> preorder
+<span class="lnr"> 16 </span>  <span class="Keyword">[</span>unvisited, visited, p : <span class="Keyword">perm]</span>
+<span class="lnr"> 17 </span>  <span class="Keyword">exclusive</span> visited <span class="Keyword">=</span><span class="Keyword">&gt;</span>
+<span class="lnr"> 18 </span>  <span class="Keyword">(</span>
+<span class="lnr"> 19 </span>    <span class="Comment">(* A pool of all nodes. *)</span>
+<span class="lnr"> 20 </span>    nodes: pool unvisited,
+<span class="lnr"> 21 </span>    <span class="Comment">(* A list of the root nodes. *)</span>
+<span class="lnr"> 22 </span>    roots: <span class="Type">list</span> <span class="Keyword">dynamic</span>,
+<span class="lnr"> 23 </span>    <span class="Comment">(* A function that visits a node, changing its state from</span>
+<span class="lnr"> 24 </span><span class="Comment">       [unvisited] to [visited], and returns its successors. *)</span>
+<span class="lnr"> 25 </span>    visit: <span class="Keyword">(consumes</span> node: unvisited <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Type">list</span> <span class="Keyword">dynamic</span> <span class="Keyword">|</span> node @ visited<span class="Keyword">)</span>
+<span class="lnr"> 26 </span>    <span class="Comment">(* The permission [p] required by [visit]. *)</span>
+<span class="lnr"> 27 </span>    <span class="Keyword">|</span> p
+<span class="lnr"> 28 </span>  <span class="Keyword">)</span>
+<span class="lnr"> 29 </span>    <span class="Comment">(* We return a new pool of the visited nodes. *)</span>
+<span class="lnr"> 30 </span>    : pool visited
+<span class="lnr"> 31 </span>  <span class="Keyword">=</span>
+<span class="lnr"> 32 </span>
+<span class="lnr"> 33 </span>  <span class="Comment">(* Create a new pool that adopts the visited nodes. *)</span>
+<span class="lnr"> 34 </span>  <span class="Keyword">let</span> reached <span class="Keyword">=</span> <span class="Constant">Pool</span> <span class="Keyword">in</span>
+<span class="lnr"> 35 </span>
+<span class="lnr"> 36 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> dfs <span class="Keyword">(</span>node: <span class="Keyword">dynamic</span> <span class="Keyword">|</span>
+<span class="lnr"> 37 </span>    nodes @ pool unvisited <span class="Keyword">*</span>
+<span class="lnr"> 38 </span>    reached @ pool visited <span class="Keyword">*</span>
+<span class="lnr"> 39 </span>    p
+<span class="lnr"> 40 </span>  <span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 41 </span>    <span class="Comment">(* Perform a dynamic ownership test. *)</span>
+<span class="lnr"> 42 </span>    <span class="Keyword">if</span> nodes <span class="Keyword">owns</span> node <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr"> 43 </span>      <span class="Comment">(* This node has not been visited yet. *)</span>
+<span class="lnr"> 44 </span>      <span class="Keyword">take</span> node <span class="Keyword">from</span> nodes<span class="Keyword">;</span>
+<span class="lnr"> 45 </span>      <span class="Comment">(* Visit it, and obtain a list of its successors. *)</span>
+<span class="lnr"> 46 </span>      <span class="Keyword">let</span> successors <span class="Keyword">=</span> visit node <span class="Keyword">in</span>
+<span class="lnr"> 47 </span>      <span class="Comment">(* Mark this node visited by placing it in the new pool. *)</span>
+<span class="lnr"> 48 </span>      <span class="Keyword">give</span> node <span class="Keyword">to</span> reached<span class="Keyword">;</span>
+<span class="lnr"> 49 </span>      <span class="Comment">(* Examine the successors. *)</span>
+<span class="lnr"> 50 </span>      iter <span class="Keyword">(</span>successors, dfs<span class="Keyword">)</span>
+<span class="lnr"> 51 </span>    <span class="Keyword">end</span>
+<span class="lnr"> 52 </span>  <span class="Keyword">in</span>
+<span class="lnr"> 53 </span>
+<span class="lnr"> 54 </span>  <span class="Comment">(* Examine each of the roots. *)</span>
+<span class="lnr"> 55 </span>  iter <span class="Keyword">(</span>roots, dfs<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 56 </span>
+<span class="lnr"> 57 </span>  <span class="Comment">(* Return the new pool. *)</span>
+<span class="lnr"> 58 </span>  reached
+<span class="lnr"> 59 </span>
+<span class="lnr"> 60 </span><span class="Comment">(* For a postorder traversal, our requirements must be slightly different.</span>
+<span class="lnr"> 61 </span><span class="Comment">   The action of marking a node as discovered and the action of visiting</span>
+<span class="lnr"> 62 </span><span class="Comment">   the node are performed at distinct instants in time. As a result, we</span>
+<span class="lnr"> 63 </span><span class="Comment">   need three node states instead of two. *)</span>
+<span class="lnr"> 64 </span>
+<span class="lnr"> 65 </span><span class="Keyword">val</span> prepostorder
+<span class="lnr"> 66 </span>  <span class="Keyword">[</span>unvisited, visiting, visited, p : <span class="Keyword">perm]</span>
+<span class="lnr"> 67 </span>  <span class="Keyword">exclusive</span> visited <span class="Keyword">=</span><span class="Keyword">&gt;</span>
+<span class="lnr"> 68 </span>  <span class="Keyword">(</span>
+<span class="lnr"> 69 </span>    <span class="Comment">(* A pool of all nodes. *)</span>
+<span class="lnr"> 70 </span>    nodes: pool unvisited,
+<span class="lnr"> 71 </span>    <span class="Comment">(* A list of the root nodes. *)</span>
+<span class="lnr"> 72 </span>    roots: <span class="Type">list</span> <span class="Keyword">dynamic</span>,
+<span class="lnr"> 73 </span>    <span class="Comment">(* A flag that indicates whether we should abort when a cycle is</span>
+<span class="lnr"> 74 </span><span class="Comment">       detected. *)</span>
+<span class="lnr"> 75 </span>    detect: <span class="Type">bool</span>,
+<span class="lnr"> 76 </span>    <span class="Comment">(* A function that changes the state of a node from [unvisited]</span>
+<span class="lnr"> 77 </span><span class="Comment">       to [visiting] and returns its successors. *)</span>
+<span class="lnr"> 78 </span>    pre: <span class="Keyword">(consumes</span> node: unvisited <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Type">list</span> <span class="Keyword">dynamic</span> <span class="Keyword">|</span> node @ visiting<span class="Keyword">)</span>,
+<span class="lnr"> 79 </span>    <span class="Comment">(* A function that changes the state of a node from [visiting]</span>
+<span class="lnr"> 80 </span><span class="Comment">       to [visited]. *)</span>
+<span class="lnr"> 81 </span>    post: <span class="Keyword">(consumes</span> node: visiting <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Keyword">|</span> node @ visited<span class="Keyword">)</span>
+<span class="lnr"> 82 </span>    <span class="Comment">(* The permission [p] required by [pre] and [post]. *)</span>
+<span class="lnr"> 83 </span>    <span class="Keyword">|</span> p
+<span class="lnr"> 84 </span>  <span class="Keyword">)</span>
+<span class="lnr"> 85 </span>: <span class="Keyword">(</span>
+<span class="lnr"> 86 </span>  <span class="Comment">(* A new pool of the visited nodes. *)</span>
+<span class="lnr"> 87 </span>  pool visited,
+<span class="lnr"> 88 </span>  <span class="Comment">(* An option that indicates: 1. whether a cycle was detected and 2. if so,</span>
+<span class="lnr"> 89 </span><span class="Comment">     the list of nodes that were in the state [visiting] when the cycle was</span>
+<span class="lnr"> 90 </span><span class="Comment">     detected. These nodes form a path in the graph that ends in a cycle. *)</span>
+<span class="lnr"> 91 </span>  <span class="Type">option</span> <span class="Keyword">(</span><span class="Type">list</span> visiting<span class="Keyword">)</span>
+<span class="lnr"> 92 </span><span class="Keyword">)</span>
+<span class="lnr"> 93 </span>  <span class="Keyword">=</span>
+<span class="lnr"> 94 </span>
+<span class="lnr"> 95 </span>  <span class="Comment">(* One might think that we need two new pools, which adopt the</span>
+<span class="lnr"> 96 </span><span class="Comment">     nodes in the [visiting] and [visited] states. Actually, we</span>
+<span class="lnr"> 97 </span><span class="Comment">     only need one pool, which adopts [visited] nodes. The nodes</span>
+<span class="lnr"> 98 </span><span class="Comment">     in the [visiting] state can simply be framed out. In short,</span>
+<span class="lnr"> 99 </span><span class="Comment">     the [null] adopter pointer serves as the mark for these nodes. *)</span>
+<span class="lnr">100 </span>  <span class="Keyword">let</span> completed <span class="Keyword">=</span> <span class="Constant">Pool</span> <span class="Keyword">in</span>
+<span class="lnr">101 </span>
+<span class="lnr">102 </span>  <span class="Comment">(* This reference is used when we have detected a cycle and are</span>
+<span class="lnr">103 </span><span class="Comment">     building a list on the way back. *)</span>
+<span class="lnr">104 </span>  <span class="Keyword">let</span> path <span class="Keyword">=</span> newref nil <span class="Keyword">in</span>
+<span class="lnr">105 </span>
+<span class="lnr">106 </span>  <span class="Comment">(* The Boolean value returned by [dfs] is [true] if everything</span>
+<span class="lnr">107 </span><span class="Comment">     went well and [false] is a cycle was detected. *)</span>
+<span class="lnr">108 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> dfs <span class="Keyword">(</span>node: <span class="Keyword">dynamic</span> <span class="Keyword">|</span>
+<span class="lnr">109 </span>    nodes @ pool unvisited <span class="Keyword">*</span>
+<span class="lnr">110 </span>    completed @ pool visited <span class="Keyword">*</span>
+<span class="lnr">111 </span>    path @ ref <span class="Keyword">(</span><span class="Type">list</span> visiting<span class="Keyword">)</span> <span class="Keyword">*</span>
+<span class="lnr">112 </span>    p
+<span class="lnr">113 </span>  <span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr">114 </span>    <span class="Comment">(* Perform a dynamic ownership test. *)</span>
+<span class="lnr">115 </span>    <span class="Keyword">if</span> nodes <span class="Keyword">owns</span> node <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">116 </span>      <span class="Comment">(* This node has not been reached yet. *)</span>
+<span class="lnr">117 </span>      <span class="Keyword">take</span> node <span class="Keyword">from</span> nodes<span class="Keyword">;</span>
+<span class="lnr">118 </span>      <span class="Comment">(* Change its state to [visiting] and obtain its successors. *)</span>
+<span class="lnr">119 </span>      <span class="Keyword">let</span> successors <span class="Keyword">=</span> pre node <span class="Keyword">in</span>
+<span class="lnr">120 </span>      <span class="Comment">(* At this point, the node is not a member of any of the two pools. We</span>
+<span class="lnr">121 </span><span class="Comment">         own it. Examine its successors, stopping the loop early if a cycle</span>
+<span class="lnr">122 </span><span class="Comment">         is detected. *)</span>
+<span class="lnr">123 </span>      <span class="Keyword">let</span> ok <span class="Keyword">=</span> for_all <span class="Keyword">(</span>dfs, successors<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">124 </span>      <span class="Comment">(* After the recursive call, we still own this node, so we</span>
+<span class="lnr">125 </span><span class="Comment">         know that its state has not changed: it is still [visiting]. *)</span>
+<span class="lnr">126 </span>      <span class="Keyword">if</span> ok <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">127 </span>        <span class="Comment">(* Change its state to [visited]. *)</span>
+<span class="lnr">128 </span>        post node<span class="Keyword">;</span>
+<span class="lnr">129 </span>        <span class="Comment">(* We can now place this node in the final pool. *)</span>
+<span class="lnr">130 </span>        <span class="Keyword">give</span> node <span class="Keyword">to</span> completed
+<span class="lnr">131 </span>      <span class="Keyword">end</span>
+<span class="lnr">132 </span>      <span class="Keyword">else</span>
+<span class="lnr">133 </span>        <span class="Comment">(* If a cycle was detected during the recursive call, push</span>
+<span class="lnr">134 </span><span class="Comment">           this node onto the path. *)</span>
+<span class="lnr">135 </span>        path <span class="Keyword">:=</span> cons <span class="Keyword">(</span>node, <span class="Keyword">!</span>path<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">136 </span>      <span class="Comment">(* In either case, propagate the result. *)</span>
+<span class="lnr">137 </span>      ok
+<span class="lnr">138 </span>    <span class="Keyword">end</span>
+<span class="lnr">139 </span>    <span class="Keyword">else</span> <span class="Keyword">if</span> completed <span class="Keyword">owns</span> node <span class="Keyword">then</span>
+<span class="lnr">140 </span>      <span class="Comment">(* There is nothing to do. *)</span>
+<span class="lnr">141 </span>      <span class="Constant">true</span>
+<span class="lnr">142 </span>    <span class="Keyword">else</span>
+<span class="lnr">143 </span>      <span class="Comment">(* There is a cycle. *)</span>
+<span class="lnr">144 </span>      <span class="Keyword">not</span> detect
+<span class="lnr">145 </span>  <span class="Keyword">in</span>
+<span class="lnr">146 </span>
+<span class="lnr">147 </span>  <span class="Comment">(* Examine each of the roots. *)</span>
+<span class="lnr">148 </span>  <span class="Keyword">let</span> ok <span class="Keyword">=</span> for_all <span class="Keyword">(</span>dfs, roots<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">149 </span>
+<span class="lnr">150 </span>  <span class="Comment">(* Return a pair of the new pool and (if a cycle was detected)</span>
+<span class="lnr">151 </span><span class="Comment">     the path that was constructed. *)</span>
+<span class="lnr">152 </span>  <span class="Keyword">let</span> outcome : <span class="Type">option</span> <span class="Keyword">(</span><span class="Type">list</span> visiting<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">153 </span>    <span class="Keyword">if</span> ok <span class="Keyword">then</span> none <span class="Keyword">else</span> some <span class="Keyword">!</span>path
+<span class="lnr">154 </span>  <span class="Keyword">in</span>
+<span class="lnr">155 </span>  completed, outcome
+<span class="lnr">156 </span>
+<span class="lnr">157 </span><span class="Comment">(* TEMPORARY getting rid of the type annotation on [outcome]</span>
+<span class="lnr">158 </span><span class="Comment">   would be nice. *)</span>
+<span class="lnr">159 </span>
+</pre>
+</body>
+</html>

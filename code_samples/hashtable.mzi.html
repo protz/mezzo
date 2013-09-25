@@ -1,0 +1,125 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/hashtable.mzi.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Constant { color: #e5786d; }
+.Type { color: #cae682; }
+.Comment { color: #99968b; font-style: italic; }
+.Keyword { color: #8ac6f2; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Keyword">abstract</span> table k +a
+<span class="lnr"> 2 </span><span class="Keyword">fact</span> <span class="Keyword">exclusive</span> <span class="Keyword">(</span>table k a<span class="Keyword">)</span>
+<span class="lnr"> 3 </span>
+<span class="lnr"> 4 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 5 </span>
+<span class="lnr"> 6 </span><span class="Comment">(* Creation. *)</span>
+<span class="lnr"> 7 </span>
+<span class="lnr"> 8 </span><span class="Keyword">val</span> create : <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 9 </span>  capacity: <span class="Type">int</span>,
+<span class="lnr">10 </span>  hash: k <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr">11 </span>  equal: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>
+<span class="lnr">12 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> table k a
+<span class="lnr">13 </span>
+<span class="lnr">14 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">15 </span>
+<span class="lnr">16 </span><span class="Comment">(* Clearing. *)</span>
+<span class="lnr">17 </span>
+<span class="lnr">18 </span><span class="Keyword">val</span> clear : <span class="Keyword">[</span>k, a<span class="Keyword">]</span> table k a <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">19 </span><span class="Keyword">val</span> reset : <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>table k a, capacity: <span class="Type">int</span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">20 </span>
+<span class="lnr">21 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">22 </span>
+<span class="lnr">23 </span><span class="Comment">(* Insertion. *)</span>
+<span class="lnr">24 </span>
+<span class="lnr">25 </span><span class="Keyword">val</span> add : <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> k, <span class="Keyword">consumes</span> a, table k a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">26 </span>
+<span class="lnr">27 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">28 </span>
+<span class="lnr">29 </span><span class="Comment">(* Merging. *)</span>
+<span class="lnr">30 </span>
+<span class="lnr">31 </span><span class="Comment">(* [merge (t1, t2)] does not require the two tables to use the same notions</span>
+<span class="lnr">32 </span><span class="Comment">   of equality of hashing. It is equivalent to successively inserting each</span>
+<span class="lnr">33 </span><span class="Comment">   element of [t1] into [t2]. *)</span>
+<span class="lnr">34 </span>
+<span class="lnr">35 </span><span class="Keyword">val</span> merge: <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> table k a, table k a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">36 </span>
+<span class="lnr">37 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">38 </span>
+<span class="lnr">39 </span><span class="Comment">(* Removal. *)</span>
+<span class="lnr">40 </span>
+<span class="lnr">41 </span><span class="Keyword">val</span> remove : <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>x: k, t: table k a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">option</span> a
+<span class="lnr">42 </span>
+<span class="lnr">43 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">44 </span>
+<span class="lnr">45 </span><span class="Comment">(* Lookup. *)</span>
+<span class="lnr">46 </span>
+<span class="lnr">47 </span><span class="Keyword">val</span> mem : <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>x: k, t: table k a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>
+<span class="lnr">48 </span>
+<span class="lnr">49 </span><span class="Keyword">val</span> find     : <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>x: k, t: table k a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">option</span> a
+<span class="lnr">50 </span><span class="Keyword">val</span> find_all : <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>x: k, t: table k a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> a
+<span class="lnr">51 </span>
+<span class="lnr">52 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">53 </span>
+<span class="lnr">54 </span><span class="Comment">(* Update. *)</span>
+<span class="lnr">55 </span>
+<span class="lnr">56 </span><span class="Comment">(* [update (t, x, f)] looks for the key [x] in the table [t]. It calls the</span>
+<span class="lnr">57 </span><span class="Comment">   user-supplied function [f] exactly once, and passes it either the value [v]</span>
+<span class="lnr">58 </span><span class="Comment">   that is associated with the key [x], or nothing, if the key [x] does not</span>
+<span class="lnr">59 </span><span class="Comment">   appear in the table. The function [f] returns either a new value, or</span>
+<span class="lnr">60 </span><span class="Comment">   nothing. In the former case, the new value replaces the value [v]. In the</span>
+<span class="lnr">61 </span><span class="Comment">   latter case, the key [x] is removed (if it was there at all). *)</span>
+<span class="lnr">62 </span>
+<span class="lnr">63 </span><span class="Keyword">val</span> update : <span class="Keyword">[</span>k, a, pre : <span class="Keyword">perm</span>, post : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">64 </span>  t: table k a,
+<span class="lnr">65 </span>  <span class="Keyword">consumes</span> x: k,
+<span class="lnr">66 </span>  f: <span class="Keyword">(consumes</span> <span class="Keyword">(</span><span class="Type">option</span> a <span class="Keyword">|</span> pre<span class="Keyword">))</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Type">option</span> a <span class="Keyword">|</span> post<span class="Keyword">)</span>
+<span class="lnr">67 </span>  <span class="Keyword">|</span> <span class="Keyword">consumes</span> pre
+<span class="lnr">68 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Keyword">|</span> post<span class="Keyword">)</span>
+<span class="lnr">69 </span>
+<span class="lnr">70 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">71 </span>
+<span class="lnr">72 </span><span class="Comment">(* Iteration. *)</span>
+<span class="lnr">73 </span>
+<span class="lnr">74 </span><span class="Keyword">val</span> fold : <span class="Keyword">[</span>k, a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">75 </span>  t: table k a,
+<span class="lnr">76 </span>  <span class="Keyword">consumes</span> seed: b,
+<span class="lnr">77 </span>  f: <span class="Keyword">(</span>k, a, <span class="Keyword">consumes</span> b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">78 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">79 </span>
+<span class="lnr">80 </span><span class="Keyword">val</span> iter : <span class="Keyword">[</span>k, a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">81 </span>  t: table k a,
+<span class="lnr">82 </span>  f: <span class="Keyword">(</span>k, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">83 </span>  <span class="Keyword">|</span> p
+<span class="lnr">84 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">85 </span>
+<span class="lnr">86 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">87 </span>
+<span class="lnr">88 </span><span class="Comment">(* Statistics. *)</span>
+<span class="lnr">89 </span>
+<span class="lnr">90 </span><span class="Keyword">val</span> cardinal : <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>t: table k a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>
+<span class="lnr">91 </span>
+<span class="lnr">92 </span><span class="Keyword">data</span> statistics <span class="Keyword">=</span> <span class="Constant">Statistics</span> <span class="Keyword">{</span>
+<span class="lnr">93 </span>  num_bindings: <span class="Type">int</span><span class="Keyword">;</span>
+<span class="lnr">94 </span>  num_buckets: <span class="Type">int</span><span class="Keyword">;</span>
+<span class="lnr">95 </span>  max_bucket_length: <span class="Type">int</span><span class="Keyword">;</span>
+<span class="lnr">96 </span>  bucket_histogram: <span class="Type">array</span> <span class="Type">int</span>
+<span class="lnr">97 </span><span class="Keyword">}</span>
+<span class="lnr">98 </span>
+<span class="lnr">99 </span><span class="Keyword">val</span> stats : <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>t: table k a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> statistics
+</pre>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/memoize.mz.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Constant { color: #e5786d; }
+.Number { color: #e5786d; }
+.Type { color: #cae682; }
+.PreProc { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr">  1 </span><span class="Comment">(* For the moment, we hold the lock while the client function [f] is busy. In</span>
+<span class="lnr">  2 </span><span class="Comment">   a concurrent implementation, we might wish to hold the lock only during a</span>
+<span class="lnr">  3 </span><span class="Comment">   short period. We could release the lock before invoking [f], and acquire it</span>
+<span class="lnr">  4 </span><span class="Comment">   again when [f] is done (suggestion by Guillaume Melquiond). Some thought</span>
+<span class="lnr">  5 </span><span class="Comment">   would be required if we wish to guarantee that [f] is invoked at most once</span>
+<span class="lnr">  6 </span><span class="Comment">   for every input. TEMPORARY *)</span>
+<span class="lnr">  7 </span>
+<span class="lnr">  8 </span><span class="Keyword">open</span> <span class="PreProc">lock</span> <span class="Comment">(* new, acquire, release *)</span>
+<span class="lnr">  9 </span><span class="Keyword">open</span> <span class="PreProc">hashtable</span> <span class="Comment">(* table, create, find, add *)</span>
+<span class="lnr"> 10 </span>
+<span class="lnr"> 11 </span><span class="Comment">(* The simple memoizing combinator. *)</span>
+<span class="lnr"> 12 </span>
+<span class="lnr"> 13 </span><span class="Comment">(* A lock is used to protect the hash table and to allow its use in a</span>
+<span class="lnr"> 14 </span><span class="Comment">   duplicable object (the memoized function). *)</span>
+<span class="lnr"> 15 </span>
+<span class="lnr"> 16 </span><span class="Keyword">val</span> memoize
+<span class="lnr"> 17 </span>  <span class="Keyword">[</span>a, b, s : <span class="Keyword">perm]</span>
+<span class="lnr"> 18 </span>  <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">duplicable</span> b <span class="Keyword">=</span><span class="Keyword">&gt;</span>
+<span class="lnr"> 19 </span>  <span class="Keyword">(</span>hash: a <span class="Keyword">-&gt;</span> <span class="Type">int</span>, eq: <span class="Keyword">(</span>a, a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>, f: <span class="Keyword">(</span>a <span class="Keyword">|</span> s<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b<span class="Keyword">)</span>
+<span class="lnr"> 20 </span>  : <span class="Keyword">(</span>a <span class="Keyword">|</span> s<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b <span class="Keyword">=</span>
+<span class="lnr"> 21 </span>
+<span class="lnr"> 22 </span>  <span class="Comment">(* Create the internal hash table. *)</span>
+<span class="lnr"> 23 </span>  <span class="Keyword">let</span> t <span class="Keyword">=</span> create <span class="Keyword">(</span><span class="Number">11</span>, hash, eq<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 24 </span>  <span class="Comment">(* Create a lock which (at runtime) prevents re-entrant calls</span>
+<span class="lnr"> 25 </span><span class="Comment">     into the memoized function and (at type-checking time) allows</span>
+<span class="lnr"> 26 </span><span class="Comment">     us to hide the existence of the hash table. *)</span>
+<span class="lnr"> 27 </span>  <span class="Keyword">let</span> l : lock <span class="Keyword">(</span>t @ table a b<span class="Keyword">)</span> <span class="Keyword">=</span> new <span class="Constant">()</span> <span class="Keyword">in</span>
+<span class="lnr"> 28 </span>
+<span class="lnr"> 29 </span>  <span class="Comment">(* Now, construct the memoized function. *)</span>
+<span class="lnr"> 30 </span>  <span class="Keyword">fun</span> <span class="Keyword">(</span>x: a <span class="Keyword">|</span> s<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr"> 31 </span>    <span class="Comment">(* Acquire the lock. This yields the permission [t @ table a b]. *)</span>
+<span class="lnr"> 32 </span>    acquire l<span class="Keyword">;</span>
+<span class="lnr"> 33 </span>    <span class="Comment">(* Find [y] in the table, if it is there already, or compute [y]</span>
+<span class="lnr"> 34 </span><span class="Comment">       and store it in the table for potential later re-use. *)</span>
+<span class="lnr"> 35 </span>    <span class="Keyword">let</span> y <span class="Keyword">=</span>
+<span class="lnr"> 36 </span>      <span class="Keyword">match</span> find <span class="Keyword">(</span>x, t<span class="Keyword">)</span> <span class="Keyword">with</span>
+<span class="lnr"> 37 </span>      <span class="Keyword">|</span> <span class="Constant">Some</span> <span class="Keyword">{</span> contents <span class="Keyword">=</span> y <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 38 </span>          y
+<span class="lnr"> 39 </span>      <span class="Keyword">|</span> <span class="Constant">None</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 40 </span>          <span class="Keyword">let</span> y <span class="Keyword">=</span> f x <span class="Keyword">in</span>
+<span class="lnr"> 41 </span>          <span class="Keyword">assert</span> held l<span class="Keyword">;</span>
+<span class="lnr"> 42 </span>          add <span class="Keyword">(</span>x, y, t<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 43 </span>          y
+<span class="lnr"> 44 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 45 </span>    <span class="Keyword">in</span>
+<span class="lnr"> 46 </span>    <span class="Comment">(* Release the lock. This consumes [t @ table a b]. *)</span>
+<span class="lnr"> 47 </span>    release l<span class="Keyword">;</span>
+<span class="lnr"> 48 </span>    <span class="Comment">(* Return [y]. *)</span>
+<span class="lnr"> 49 </span>    y
+<span class="lnr"> 50 </span>
+<span class="lnr"> 51 </span><span class="Comment">(* The recursive memoizing combinator. *)</span>
+<span class="lnr"> 52 </span>
+<span class="lnr"> 53 </span><span class="Comment">(* A technician would say that, by requiring [f] to be polymorphic in [p], we</span>
+<span class="lnr"> 54 </span><span class="Comment">   are manually building in an application of the second-order frame rule.</span>
+<span class="lnr"> 55 </span><span class="Comment">   This allows us to pass the permission [t @ table a b], disguised as an</span>
+<span class="lnr"> 56 </span><span class="Comment">   abstract permission [p], to the function [f], which itself passes it on to</span>
+<span class="lnr"> 57 </span><span class="Comment">   [self]. This allows us not to release and re-acquire the lock at every</span>
+<span class="lnr"> 58 </span><span class="Comment">   recursive invocation. Incidentally, it guarantees that [f] cannot store</span>
+<span class="lnr"> 59 </span><span class="Comment">   [self] and invoke it at a later time. *)</span>
+<span class="lnr"> 60 </span>
+<span class="lnr"> 61 </span><span class="Keyword">val</span> fix
+<span class="lnr"> 62 </span>  <span class="Keyword">[</span>a, b<span class="Keyword">]</span>
+<span class="lnr"> 63 </span>  <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">duplicable</span> b <span class="Keyword">=</span><span class="Keyword">&gt;</span>
+<span class="lnr"> 64 </span>  <span class="Keyword">(</span>
+<span class="lnr"> 65 </span>    hash: a <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr"> 66 </span>    eq: <span class="Keyword">(</span>a, a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>,
+<span class="lnr"> 67 </span>    f: <span class="Keyword">[</span>p : <span class="Keyword">perm]</span> <span class="Keyword">((</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr"> 68 </span>  <span class="Keyword">)</span>
+<span class="lnr"> 69 </span>  : a <span class="Keyword">-&gt;</span> b <span class="Keyword">=</span>
+<span class="lnr"> 70 </span>
+<span class="lnr"> 71 </span>  <span class="Comment">(* Create the internal hash table and lock. *)</span>
+<span class="lnr"> 72 </span>  <span class="Keyword">let</span> t <span class="Keyword">=</span> create <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span><span class="Number">11</span>, hash, eq<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 73 </span>  <span class="Keyword">let</span> l : lock <span class="Keyword">(</span>t @ table a b<span class="Keyword">)</span> <span class="Keyword">=</span> new <span class="Constant">()</span> <span class="Keyword">in</span>
+<span class="lnr"> 74 </span>
+<span class="lnr"> 75 </span>  <span class="Comment">(* For the sake of efficiency, we prefer not to release and re-acquire</span>
+<span class="lnr"> 76 </span><span class="Comment">     the lock at every recursive invocation. Thus, the recursive function</span>
+<span class="lnr"> 77 </span><span class="Comment">     that we define below assumes that the lock is held -- hence, the</span>
+<span class="lnr"> 78 </span><span class="Comment">     table is available. *)</span>
+<span class="lnr"> 79 </span>
+<span class="lnr"> 80 </span>  <span class="Comment">(* Construct the recursive function. *)</span>
+<span class="lnr"> 81 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> memoized <span class="Keyword">(</span>x: a <span class="Keyword">|</span> t @ table a b<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr"> 82 </span>    <span class="Keyword">match</span> find <span class="Keyword">(</span>x, t<span class="Keyword">)</span> <span class="Keyword">with</span>
+<span class="lnr"> 83 </span>    <span class="Keyword">|</span> <span class="Constant">Some</span> <span class="Keyword">{</span> contents <span class="Keyword">=</span> y <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 84 </span>        y
+<span class="lnr"> 85 </span>    <span class="Keyword">|</span> <span class="Constant">None</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 86 </span>        <span class="Keyword">let</span> y <span class="Keyword">=</span> f <span class="Keyword">(</span>memoized, x<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 87 </span>        add <span class="Keyword">(</span>x, y, t<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 88 </span>        y
+<span class="lnr"> 89 </span>    <span class="Keyword">end</span>
+<span class="lnr"> 90 </span>  <span class="Keyword">in</span>
+<span class="lnr"> 91 </span>
+<span class="lnr"> 92 </span>  <span class="Comment">(* Now, construct the final memoized function. *)</span>
+<span class="lnr"> 93 </span>  <span class="Keyword">fun</span> <span class="Keyword">(</span>x: a<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr"> 94 </span>    <span class="Comment">(* Acquire the lock. This yields the permission [t @ table a b]. *)</span>
+<span class="lnr"> 95 </span>    acquire l<span class="Keyword">;</span>
+<span class="lnr"> 96 </span>    <span class="Comment">(* Invoke the recursive computation. *)</span>
+<span class="lnr"> 97 </span>    <span class="Keyword">let</span> y <span class="Keyword">=</span> memoized x <span class="Keyword">in</span>
+<span class="lnr"> 98 </span>    <span class="Comment">(* Release the lock. This consumes [t @ table a b]. *)</span>
+<span class="lnr"> 99 </span>    release l<span class="Keyword">;</span>
+<span class="lnr">100 </span>    <span class="Comment">(* Return [y]. *)</span>
+<span class="lnr">101 </span>    y
+<span class="lnr">102 </span>
+<span class="lnr">103 </span><span class="Comment">(* TEMPORARY once the bug is fixed, we might wish [fix] to have type</span>
+<span class="lnr">104 </span>
+<span class="lnr">105 </span><span class="Comment">val fix</span>
+<span class="lnr">106 </span><span class="Comment">  [a, b, s : perm]</span>
+<span class="lnr">107 </span><span class="Comment">  duplicable a =&gt; duplicable b =&gt;</span>
+<span class="lnr">108 </span><span class="Comment">  (</span>
+<span class="lnr">109 </span><span class="Comment">    hash: a -&gt; int,</span>
+<span class="lnr">110 </span><span class="Comment">    eq: (a, a) -&gt; bool,</span>
+<span class="lnr">111 </span><span class="Comment">    f: [p : perm] ((a | p * s) -&gt; b, a | p * s) -&gt; b</span>
+<span class="lnr">112 </span><span class="Comment">  ) </span>
+<span class="lnr">113 </span><span class="Comment">  : (a | s) -&gt; b =</span>
+<span class="lnr">114 </span>
+<span class="lnr">115 </span><span class="Comment">This requires adding *s to memoized,</span>
+<span class="lnr">116 </span><span class="Comment">adding |s to the final anonymous function. *)</span>
+<span class="lnr">117 </span>
+<span class="lnr">118 </span><span class="Comment">(*</span>
+<span class="lnr">119 </span><span class="Comment">Local Variables:</span>
+<span class="lnr">120 </span><span class="Comment">compile-command: &quot;../mezzo memoize.mz&quot;</span>
+<span class="lnr">121 </span><span class="Comment">End:</span>
+<span class="lnr">122 </span><span class="Comment">*)</span>
+</pre>
+</body>
+</html>

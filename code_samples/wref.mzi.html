@@ -1,0 +1,71 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/wref.mzi.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Constant { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Comment">(* A weak reference is a duplicable mutable container, whose content</span>
+<span class="lnr"> 2 </span><span class="Comment">   type is fixed at creation time (i.e., it does not allow strong</span>
+<span class="lnr"> 3 </span><span class="Comment">   updates). In other words, it is an ML reference. *)</span>
+<span class="lnr"> 4 </span>
+<span class="lnr"> 5 </span><span class="Comment">(* Because a weak reference is duplicable, multiple threads may</span>
+<span class="lnr"> 6 </span><span class="Comment">   simultaneously attempt to access (read or write) the reference.</span>
+<span class="lnr"> 7 </span><span class="Comment">   Technically, this does not constitute a race condition, because</span>
+<span class="lnr"> 8 </span><span class="Comment">   a lock is used internally to protect the reference. *)</span>
+<span class="lnr"> 9 </span>
+<span class="lnr">10 </span><span class="Keyword">abstract</span> wref a
+<span class="lnr">11 </span><span class="Keyword">fact</span> <span class="Keyword">duplicable</span> <span class="Keyword">(</span>wref a<span class="Keyword">)</span>
+<span class="lnr">12 </span>
+<span class="lnr">13 </span><span class="Comment">(* Allocation. *)</span>
+<span class="lnr">14 </span>
+<span class="lnr">15 </span><span class="Keyword">val</span> new: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> wref a
+<span class="lnr">16 </span>
+<span class="lnr">17 </span><span class="Comment">(* Atomic swap. *)</span>
+<span class="lnr">18 </span>
+<span class="lnr">19 </span><span class="Keyword">val</span> swap: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>wref a, <span class="Keyword">consumes</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a
+<span class="lnr">20 </span>
+<span class="lnr">21 </span><span class="Comment">(* Get. *)</span>
+<span class="lnr">22 </span>
+<span class="lnr">23 </span><span class="Keyword">val</span> get: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> wref a <span class="Keyword">-&gt;</span> a
+<span class="lnr">24 </span>
+<span class="lnr">25 </span><span class="Comment">(* Set. *)</span>
+<span class="lnr">26 </span>
+<span class="lnr">27 </span><span class="Keyword">val</span> set: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>wref a, <span class="Keyword">consumes</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">28 </span>
+<span class="lnr">29 </span><span class="Comment">(* [update] can be viewed as a version of [swap] where the new value</span>
+<span class="lnr">30 </span><span class="Comment">   is computed in terms of the previous value. The lock remains taken</span>
+<span class="lnr">31 </span><span class="Comment">   while the computation is in progress, so [update] must be used with</span>
+<span class="lnr">32 </span><span class="Comment">   care. *)</span>
+<span class="lnr">33 </span>
+<span class="lnr">34 </span><span class="Keyword">val</span> update: <span class="Keyword">[</span>a, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">35 </span>  r: wref a,
+<span class="lnr">36 </span>  f: <span class="Keyword">(consumes</span> <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">))</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>a, b<span class="Keyword">)</span>
+<span class="lnr">37 </span><span class="Keyword">|</span> <span class="Keyword">consumes</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">38 </span>
+<span class="lnr">39 </span><span class="Comment">(* [borrow] can be viewed as a degenerate version of [update] where</span>
+<span class="lnr">40 </span><span class="Comment">   the function [f] temporarily has access to the content of the</span>
+<span class="lnr">41 </span><span class="Comment">   reference [r], but cannot modify it. *)</span>
+<span class="lnr">42 </span>
+<span class="lnr">43 </span><span class="Keyword">val</span> borrow: <span class="Keyword">[</span>a, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">44 </span>  r: wref a,
+<span class="lnr">45 </span>  f: <span class="Keyword">(</span>a <span class="Keyword">|</span> <span class="Keyword">consumes</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">46 </span><span class="Keyword">|</span> <span class="Keyword">consumes</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+</pre>
+</body>
+</html>

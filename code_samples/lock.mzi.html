@@ -1,0 +1,67 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>~/Code/mezzo/src/stdlib/lock.mzi.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Constant { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Comment">(* A lock protects a permission [p], which usually is not duplicable.</span>
+<span class="lnr"> 2 </span><span class="Comment">   The lock itself is duplicable, so multiple threads may simultaneously</span>
+<span class="lnr"> 3 </span><span class="Comment">   attempt to acquire it. *)</span>
+<span class="lnr"> 4 </span>
+<span class="lnr"> 5 </span><span class="Keyword">abstract</span> lock <span class="Keyword">(</span>p: <span class="Keyword">perm)</span>
+<span class="lnr"> 6 </span><span class="Keyword">fact</span> <span class="Keyword">duplicable</span> <span class="Keyword">(</span>lock p<span class="Keyword">)</span>
+<span class="lnr"> 7 </span>
+<span class="lnr"> 8 </span><span class="Comment">(* The permission [held l], where [l] is a lock, is a witness that the</span>
+<span class="lnr"> 9 </span><span class="Comment">   lock [l] is held. This permission is not duplicable. This allows</span>
+<span class="lnr">10 </span><span class="Comment">   the type system to prevent calling [release l] unless the lock [l]</span>
+<span class="lnr">11 </span><span class="Comment">   is held. *)</span>
+<span class="lnr">12 </span>
+<span class="lnr">13 </span><span class="Keyword">abstract</span> held <span class="Keyword">(</span>l: <span class="Keyword">term)</span>: <span class="Keyword">perm</span>
+<span class="lnr">14 </span>
+<span class="lnr">15 </span><span class="Comment">(* Creation. *)</span>
+<span class="lnr">16 </span>
+<span class="lnr">17 </span><span class="Comment">(* The invariant [p] is fixed at creation time. *)</span>
+<span class="lnr">18 </span>
+<span class="lnr">19 </span><span class="Comment">(* When the lock is created, it is available; for this reason, [new]</span>
+<span class="lnr">20 </span><span class="Comment">   consumes the permission [p]. One could offer a variant of [new]</span>
+<span class="lnr">21 </span><span class="Comment">   where the lock is initially held; this variant would not require</span>
+<span class="lnr">22 </span><span class="Comment">   [p], and would produce [held l]. *)</span>
+<span class="lnr">23 </span>
+<span class="lnr">24 </span><span class="Keyword">val</span> new: <span class="Keyword">[</span>p: <span class="Keyword">perm]</span> <span class="Keyword">(</span><span class="Keyword">|</span> <span class="Keyword">consumes</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> lock p
+<span class="lnr">25 </span>
+<span class="lnr">26 </span><span class="Comment">(* Acquisition. *)</span>
+<span class="lnr">27 </span>
+<span class="lnr">28 </span><span class="Keyword">val</span> acquire:     <span class="Keyword">[</span>p: <span class="Keyword">perm]</span> <span class="Keyword">(</span>l: lock p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Keyword">|</span> p <span class="Keyword">*</span> held l<span class="Keyword">)</span>
+<span class="lnr">29 </span><span class="Keyword">val</span> try_acquire: <span class="Keyword">[</span>p: <span class="Keyword">perm]</span> <span class="Keyword">(</span>l: lock p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> rich_bool <span class="Keyword">empty</span> <span class="Keyword">(</span>p <span class="Keyword">*</span> held l<span class="Keyword">)</span>
+<span class="lnr">30 </span>
+<span class="lnr">31 </span><span class="Comment">(* Release. *)</span>
+<span class="lnr">32 </span>
+<span class="lnr">33 </span><span class="Keyword">val</span> release: <span class="Keyword">[</span>p: <span class="Keyword">perm]</span> <span class="Keyword">(</span>l: lock p <span class="Keyword">|</span> <span class="Keyword">consumes</span> <span class="Keyword">(</span>p <span class="Keyword">*</span> held l<span class="Keyword">))</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">34 </span>
+<span class="lnr">35 </span><span class="Comment">(* A well-balanced acquire/release pair. *)</span>
+<span class="lnr">36 </span>
+<span class="lnr">37 </span><span class="Keyword">val</span> borrow: <span class="Keyword">[</span>p: <span class="Keyword">perm</span>, q: <span class="Keyword">perm</span>, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">38 </span>  l: lock p,
+<span class="lnr">39 </span>  f: <span class="Keyword">(</span><span class="Keyword">|</span> p <span class="Keyword">*</span> <span class="Keyword">consumes</span> q<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">40 </span><span class="Keyword">|</span> <span class="Keyword">consumes</span> q
+<span class="lnr">41 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">42 </span>
+</pre>
+</body>
+</html>

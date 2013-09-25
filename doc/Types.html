@@ -1,0 +1,329 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="ocamlstyle.css" type="text/css">
+<meta content="text/html; charset=utf8" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="Resugar.html">
+<link rel="next" href="Hoist.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of class methods" rel=Appendix href="index_methods.html">
+<link title="Index of classes" rel=Appendix href="index_classes.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Configure" rel="Chapter" href="Configure.html">
+<link title="Mezzo" rel="Chapter" href="Mezzo.html">
+<link title="MzString" rel="Chapter" href="MzString.html">
+<link title="Option" rel="Chapter" href="Option.html">
+<link title="InfiniteArray" rel="Chapter" href="InfiniteArray.html">
+<link title="PersistentRef" rel="Chapter" href="PersistentRef.html">
+<link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
+<link title="GSet" rel="Chapter" href="GSet.html">
+<link title="Bash" rel="Chapter" href="Bash.html">
+<link title="Patricia" rel="Chapter" href="Patricia.html">
+<link title="LazyList" rel="Chapter" href="LazyList.html">
+<link title="MzMap" rel="Chapter" href="MzMap.html">
+<link title="Log" rel="Chapter" href="Log.html">
+<link title="MzList" rel="Chapter" href="MzList.html">
+<link title="GMap" rel="Chapter" href="GMap.html">
+<link title="Either" rel="Chapter" href="Either.html">
+<link title="SurfaceSyntaxPrinter" rel="Chapter" href="SurfaceSyntaxPrinter.html">
+<link title="Driver" rel="Chapter" href="Driver.html">
+<link title="Hashcons" rel="Chapter" href="Hashcons.html">
+<link title="Lexer" rel="Chapter" href="Lexer.html">
+<link title="Grammar" rel="Chapter" href="Grammar.html">
+<link title="Kind" rel="Chapter" href="Kind.html">
+<link title="Identifier" rel="Chapter" href="Identifier.html">
+<link title="Interpreter" rel="Chapter" href="Interpreter.html">
+<link title="Compile" rel="Chapter" href="Compile.html">
+<link title="UntypedMezzo2UntypedOCaml" rel="Chapter" href="UntypedMezzo2UntypedOCaml.html">
+<link title="Mezzo2UntypedMezzo" rel="Chapter" href="Mezzo2UntypedMezzo.html">
+<link title="UntypedOCamlPrinter" rel="Chapter" href="UntypedOCamlPrinter.html">
+<link title="OCamlKeywords" rel="Chapter" href="OCamlKeywords.html">
+<link title="Exports" rel="Chapter" href="Exports.html">
+<link title="FactInference" rel="Chapter" href="FactInference.html">
+<link title="Mode" rel="Chapter" href="Mode.html">
+<link title="Expressions" rel="Chapter" href="Expressions.html">
+<link title="Resugar" rel="Chapter" href="Resugar.html">
+<link title="Types" rel="Chapter" href="Types.html">
+<link title="Hoist" rel="Chapter" href="Hoist.html">
+<link title="KindPrinter" rel="Chapter" href="KindPrinter.html">
+<link title="DerivationPrinter" rel="Chapter" href="DerivationPrinter.html">
+<link title="Variance" rel="Chapter" href="Variance.html">
+<link title="KindCheck" rel="Chapter" href="KindCheck.html">
+<link title="Permissions" rel="Chapter" href="Permissions.html">
+<link title="TypeCore" rel="Chapter" href="TypeCore.html">
+<link title="TypeChecker" rel="Chapter" href="TypeChecker.html">
+<link title="Mark" rel="Chapter" href="Mark.html">
+<link title="TypeErrors" rel="Chapter" href="TypeErrors.html">
+<link title="DeBruijn" rel="Chapter" href="DeBruijn.html">
+<link title="TransSurface" rel="Chapter" href="TransSurface.html">
+<link title="Interfaces" rel="Chapter" href="Interfaces.html">
+<link title="ExpressionsCore" rel="Chapter" href="ExpressionsCore.html">
+<link title="Modules" rel="Chapter" href="Modules.html">
+<link title="Fact" rel="Chapter" href="Fact.html">
+<link title="Namespace" rel="Chapter" href="Namespace.html">
+<link title="Derivations" rel="Chapter" href="Derivations.html">
+<link title="Merge" rel="Chapter" href="Merge.html">
+<link title="Utils" rel="Chapter" href="Utils.html"><link title="Convenient combinators." rel="Section" href="#1_Convenientcombinators">
+<link title="Normalizing types." rel="Section" href="#1_Normalizingtypes">
+<link title="Branches." rel="Section" href="#1_Branches">
+<link title="Manipulating types." rel="Section" href="#1_Manipulatingtypes">
+<link title="Type traversals" rel="Section" href="#1_Typetraversals">
+<link title="Binding and instantiating" rel="Section" href="#1_Bindingandinstantiating">
+<link title="Miscellaneous" rel="Section" href="#1_Miscellaneous">
+<link title="Dealing with triples." rel="Subsection" href="#2_Dealingwithtriples">
+<link title="Operators" rel="Subsection" href="#2_Operators">
+<link title="Building types." rel="Subsection" href="#2_Buildingtypes">
+<link title="Inspecting" rel="Subsection" href="#2_Inspecting">
+<link title="Folding and flattening" rel="Subsection" href="#2_Foldingandflattening">
+<link title="Binding types" rel="Subsection" href="#2_Bindingtypes">
+<link title="Instantiation" rel="Subsection" href="#2_Instantiation">
+<link title="Various getters" rel="Subsection" href="#2_Variousgetters">
+<title>Types</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="Resugar.html" title="Resugar">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Hoist.html" title="Hoist">Next</a>
+</div>
+<h1>Module <a href="type_Types.html">Types</a></h1>
+
+<pre><span class="keyword">module</span> Types: <code class="code">sig</code> <a href="Types.html">..</a> <code class="code">end</code></pre><div class="info module top">
+This module provides a variety of functions for dealing with types, mostly
+ built on top of <a href="DeBruijn.html"><code class="code">DeBruijn</code></a> and <a href="TypeCore.html"><code class="code">TypeCore</code></a>.<br>
+</div>
+<hr width="100%">
+<br>
+<h1 id="1_Convenientcombinators">Convenient combinators.</h1><br>
+<br>
+<h2 id="2_Dealingwithtriples">Dealing with triples.</h2><br>
+
+<pre><span id="VALfst3"><span class="keyword">val</span> fst3</span> : <code class="type">'a * 'b * 'c -> 'a</code></pre>
+<pre><span id="VALsnd3"><span class="keyword">val</span> snd3</span> : <code class="type">'a * 'b * 'c -> 'b</code></pre>
+<pre><span id="VALthd3"><span class="keyword">val</span> thd3</span> : <code class="type">'a * 'b * 'c -> 'c</code></pre><br>
+<h2 id="2_Operators">Operators</h2><br>
+
+<pre><span id="VAL(!!)"><span class="keyword">val</span> (!!)</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEvar">TypeCore.var</a></code></pre><div class="info ">
+Asserts that this type is actually a <code class="code">TyOpen</code>.<br>
+</div>
+
+<pre><span id="VAL(!!=)"><span class="keyword">val</span> (!!=)</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEvar">TypeCore.var</a></code></pre><div class="info ">
+Asserts that this type is actually a <code class="code">TySingleton (TyOpen ...)</code>.<br>
+</div>
+
+<pre><span id="VAL( !* )"><span class="keyword">val</span> ( !* )</span> : <code class="type">'a Lazy.t -> 'a</code></pre><div class="info ">
+This is <code class="code">Lazy.force</code>.<br>
+</div>
+
+<pre><span id="VAL(>>=)"><span class="keyword">val</span> (&gt;&gt;=)</span> : <code class="type">'a option -> ('a -> 'b option) -> 'b option</code></pre><div class="info ">
+<code class="code">bind</code> for the option monad.<br>
+</div>
+
+<pre><span id="VAL(|||)"><span class="keyword">val</span> (|||)</span> : <code class="type">'a option -> 'a option -> 'a option</code></pre><div class="info ">
+<code class="code">either</code> operator for the option monad<br>
+</div>
+
+<pre><span id="VAL(^=>)"><span class="keyword">val</span> (^=&gt;)</span> : <code class="type">bool -> bool -> bool</code></pre><div class="info ">
+The standard implication connector, with the right associativity.<br>
+</div>
+
+<pre><span id="VAL(|>)"><span class="keyword">val</span> (|&gt;)</span> : <code class="type">'a -> ('a -> 'b) -> 'b</code></pre><div class="info ">
+The pipe operator.<br>
+</div>
+<br>
+<h1 id="1_Normalizingtypes">Normalizing types.</h1><br>
+<br>
+These functions, when combined with <a href="TypeCore.html#VALmodulo_flex"><code class="code">TypeCore.modulo_flex</code></a>, allow one to
+ manipulate a "canonical" representation of a type, where permissions have
+ been stripped out and unfoldings have been performed. One will still want to
+ use <code class="code">Permissions.open_all_rigid_in</code>, though.<br>
+
+<pre><span id="VALexpand_if_one_branch"><span class="keyword">val</span> expand_if_one_branch</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></pre><div class="info ">
+<code class="code">expand_if_one_branch env t</code> expands <code class="code">t</code> when <code class="code">t</code> is either a type
+ abbreviation, or a data type with one branch.<br>
+</div>
+
+<pre><span id="VALcollect"><span class="keyword">val</span> collect</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> * <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> list</code></pre><div class="info ">
+<code class="code">collect t</code> syntactically separates <code class="code">t</code> into a structural part and a
+ permission part, i.e. it extracts all the permissions hidden inside <code class="code">t</code> and
+ returns them as a separate list.<br>
+</div>
+<br>
+<h1 id="1_Branches">Branches.</h1><br>
+<br>
+Data types have branches. A branch has a _parent_ data type. <code class="code">branch</code> is the
+ type that represents an actual branch under a <code class="code">TyConcrete</code>; a branch in a
+ data type definition can be any type, most functions return a <code class="code">typ</code>.<br>
+
+<pre><span id="VALbranches_for_branch"><span class="keyword">val</span> branches_for_branch</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEbranch">TypeCore.branch</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> list</code></pre><div class="info ">
+Given a <code class="code">branch</code>, get all the other branches of the parent type.<br>
+</div>
+
+<pre><span id="VALbranches_for_datacon"><span class="keyword">val</span> branches_for_datacon</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEresolved_datacon">TypeCore.resolved_datacon</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> list</code></pre><div class="info ">
+Given a <code class="code">resolved_datacon</code>, get all the other branches of the parent type.<br>
+</div>
+
+<pre><span id="VALbranch_for_datacon"><span class="keyword">val</span> branch_for_datacon</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEresolved_datacon">TypeCore.resolved_datacon</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></pre><div class="info ">
+Given a <code class="code">resolved_datacon</code>, get the corresponding branch.<br>
+</div>
+
+<pre><span id="VALfields_for_datacon"><span class="keyword">val</span> fields_for_datacon</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEresolved_datacon">TypeCore.resolved_datacon</a> -> TypeCore.Field.name list</code></pre><div class="info ">
+Given a <code class="code">resolved_datacon</code>, get all its fields.<br>
+</div>
+
+<pre><span id="VALflavor_for_datacon"><span class="keyword">val</span> flavor_for_datacon</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEresolved_datacon">TypeCore.resolved_datacon</a> -> DataTypeFlavor.flavor</code></pre><div class="info ">
+Given a <code class="code">resolved_datacon</code>, get its flavor.<br>
+</div>
+<br>
+<h1 id="1_Manipulatingtypes">Manipulating types.</h1><br>
+<br>
+<h2 id="2_Buildingtypes">Building types.</h2><br>
+<br>
+We provide a set of wrappers to easily build types. These often perform
+ extra checks.<br>
+
+<pre><span id="VALty_unit"><span class="keyword">val</span> ty_unit</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></pre><div class="info ">
+Shortcut for the empty tuple <code class="code">TyTuple []</code>.<br>
+</div>
+
+<pre><span id="VALty_tuple"><span class="keyword">val</span> ty_tuple</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> list -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></pre><div class="info ">
+A tuple.<br>
+</div>
+
+<pre><span id="VAL(@->)"><span class="keyword">val</span> (@-&gt;)</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></pre><div class="info ">
+An arrow. The operator has the right associativity.<br>
+</div>
+
+<pre><span id="VALty_bar"><span class="keyword">val</span> ty_bar</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></pre><div class="info ">
+<code class="code">ty_bar t1 t2</code> is <code class="code">TyBar (t1, t2)</code> is <code class="code">t2</code> is not <code class="code">TyEmpty</code>, <code class="code">t1</code> otherwise.<br>
+</div>
+
+<pre><span id="VALty_app"><span class="keyword">val</span> ty_app</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> list -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></pre><div class="info ">
+<code class="code">ty_app t ts</code> is <code class="code">TyApp (t, ts)</code> if <code class="code">List.length ts &gt; 0</code>, <code class="code">t</code> otherwise.<br>
+</div>
+
+<pre><span id="VALty_equals"><span class="keyword">val</span> ty_equals</span> : <code class="type"><a href="TypeCore.html#TYPEvar">TypeCore.var</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></pre><div class="info ">
+Shortcut for <code class="code">TySingleton (TyOpen _)</code>.<br>
+</div>
+
+<pre><span id="VALty_open"><span class="keyword">val</span> ty_open</span> : <code class="type"><a href="TypeCore.html#TYPEvar">TypeCore.var</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></pre><div class="info ">
+A open variable.<br>
+</div>
+<br>
+<h2 id="2_Inspecting">Inspecting</h2><br>
+<br>
+We provide a set of wrappers to inspect types.<br>
+
+<pre><span id="VALis_tyapp"><span class="keyword">val</span> is_tyapp</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> (<a href="TypeCore.html#TYPEvar">TypeCore.var</a> * <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> list) option</code></pre><div class="info ">
+Works with either <code class="code">TyOpen</code> or <code class="code">TyApp</code>.<br>
+</div>
+
+<pre><span id="VALis_star"><span class="keyword">val</span> is_star</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> bool</code></pre><div class="info ">
+Calls <code class="code">modulo_flex</code> and <code class="code">expand_if_one_branch</code> before determining whether
+ it's a <code class="code">TyStar</code> or not.<br>
+</div>
+
+<pre><span id="VALis_concrete"><span class="keyword">val</span> is_concrete</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> bool</code></pre><div class="info ">
+Is this a concrete type?<br>
+</div>
+
+<pre><span id="VALassert_concrete"><span class="keyword">val</span> assert_concrete</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEbranch">TypeCore.branch</a></code></pre><div class="info ">
+If you know this is a concrete type, extract the <code class="code">branch</code>.<br>
+</div>
+
+<pre><span id="VALis_tyopen"><span class="keyword">val</span> is_tyopen</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> bool</code></pre><div class="info ">
+Is this an open variable?<br>
+</div>
+
+<pre><span id="VALis_abbrev"><span class="keyword">val</span> is_abbrev</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEvar">TypeCore.var</a> -> bool</code></pre><div class="info ">
+Determines whether a variable corresponds to a type abbreviation definition.<br>
+</div>
+
+<pre><span id="VALis_term"><span class="keyword">val</span> is_term</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEvar">TypeCore.var</a> -> bool</code></pre><div class="info ">
+Has this variable kind <code class="code">term</code>?<br>
+</div>
+
+<pre><span id="VALis_perm"><span class="keyword">val</span> is_perm</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEvar">TypeCore.var</a> -> bool</code></pre><div class="info ">
+Has this variable kind <code class="code">perm</code>?<br>
+</div>
+
+<pre><span id="VALis_type"><span class="keyword">val</span> is_type</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEvar">TypeCore.var</a> -> bool</code></pre><div class="info ">
+Has this variable kind <code class="code">type</code>?<br>
+</div>
+
+<pre><span id="VALis_user"><span class="keyword">val</span> is_user</span> : <code class="type"><a href="TypeCore.html#TYPEname">TypeCore.name</a> -> bool</code></pre><div class="info ">
+Is this name user-provided?<br>
+</div>
+<br>
+<h2 id="2_Foldingandflattening">Folding and flattening</h2><br>
+
+<pre><span id="VALflatten_star"><span class="keyword">val</span> flatten_star</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> list</code></pre><div class="info ">
+Transform a <code class="code">TyStar</code> into a flat list of permissions. This function performs
+ quite a bit of work to make sure there are no nested permissions: it calls
+ <code class="code">modulo_flex</code> and <code class="code">expand_if_one_branch</code> and extract all permissions nested
+ in <code class="code">t</code> when it encounters <code class="code">x @ t</code>.<br>
+</div>
+
+<pre><span id="VALfold_star"><span class="keyword">val</span> fold_star</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> list -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></pre><div class="info ">
+This function has a special case to make sure it doesn't introduce useless
+ <code class="code">TyEmpty</code>s.<br>
+</div>
+
+<pre><span id="VALfold_forall"><span class="keyword">val</span> fold_forall</span> : <code class="type">(<a href="TypeCore.html#TYPEtype_binding">TypeCore.type_binding</a> * <a href="TypeCore.html#TYPEflavor">TypeCore.flavor</a>) list -><br>       <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></pre><div class="info ">
+Fold a type under a series of universal bindings.<br>
+</div>
+
+<pre><span id="VALfold_exists"><span class="keyword">val</span> fold_exists</span> : <code class="type">(<a href="TypeCore.html#TYPEtype_binding">TypeCore.type_binding</a> * <a href="TypeCore.html#TYPEflavor">TypeCore.flavor</a>) list -><br>       <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></pre><div class="info ">
+Fold a type under a series of existential bindings.<br>
+</div>
+<br>
+<h1 id="1_Typetraversals">Type traversals</h1><br>
+
+<pre><span id="VALmark_reachable"><span class="keyword">val</span> mark_reachable</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEenv">TypeCore.env</a></code></pre><div class="info ">
+Mark all type variables reachable from a type, including via the
+    ambient permissions.<br>
+</div>
+<br>
+<h1 id="1_Bindingandinstantiating">Binding and instantiating</h1><br>
+<br>
+<h2 id="2_Bindingtypes">Binding types</h2><br>
+
+<pre><span id="VALbind_datacon_parameters"><span class="keyword">val</span> bind_datacon_parameters</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -><br>       <a href="Kind.html#TYPEkind">Kind.kind</a> -><br>       <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> list -> <a href="TypeCore.html#TYPEenv">TypeCore.env</a> * <a href="TypeCore.html#TYPEvar">TypeCore.var</a> list * <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> list</code></pre><div class="info ">
+<code class="code">bind_datacon_parameters env k ts</code> takes the kind of the parent data type
+ <code class="code">k</code>, its branches <code class="code">ts</code>, and introduces open variables that stand for the data
+ type's parameters in all the branches.<br>
+</div>
+<br>
+<h2 id="2_Instantiation">Instantiation</h2><br>
+
+<pre><span id="VALinstantiate_type"><span class="keyword">val</span> instantiate_type</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> list -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></pre><div class="info ">
+<code class="code">instantiate_type t ts</code> substitutes the givens types <code class="code">t0, ..., tn</code> for
+ <code class="code">TyBound 0, ... TyBound n</code> in <code class="code">t</code>.<br>
+</div>
+
+<pre><span id="VALfind_and_instantiate_branch"><span class="keyword">val</span> find_and_instantiate_branch</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -><br>       <a href="TypeCore.html#TYPEvar">TypeCore.var</a> -> Datacon.name -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> list -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></pre><div class="info ">
+Find the branch and substitute the data type's parameters in it.<br>
+</div>
+<br>
+<h1 id="1_Miscellaneous">Miscellaneous</h1><br>
+<br>
+<h2 id="2_Variousgetters">Various getters</h2><br>
+
+<pre><span id="VALget_location"><span class="keyword">val</span> get_location</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEvar">TypeCore.var</a> -> <a href="TypeCore.html#TYPElocation">TypeCore.location</a></code></pre>
+<pre><span id="VALget_adopts_clause"><span class="keyword">val</span> get_adopts_clause</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEvar">TypeCore.var</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></pre>
+<pre><span id="VALget_arity"><span class="keyword">val</span> get_arity</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEvar">TypeCore.var</a> -> int</code></pre>
+<pre><span id="VALget_kind_for_type"><span class="keyword">val</span> get_kind_for_type</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="Kind.html#TYPEkind">Kind.kind</a></code></pre>
+<pre><span id="VALvariance"><span class="keyword">val</span> variance</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="TypeCore.html#TYPEvar">TypeCore.var</a> -> int -> <a href="TypeCore.html#TYPEvariance">TypeCore.variance</a></code></pre><div class="info ">
+Get the variance of the i-th parameter of a data type.<br>
+</div>
+
+<pre><span id="VALfresh_auto_name"><span class="keyword">val</span> fresh_auto_name</span> : <code class="type">string -> <a href="TypeCore.html#TYPEname">TypeCore.name</a></code></pre>
+<pre><span id="VALmake_datacon_letters"><span class="keyword">val</span> make_datacon_letters</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -> <a href="Kind.html#TYPEkind">Kind.kind</a> -> bool -> <a href="TypeCore.html#TYPEenv">TypeCore.env</a> * <a href="TypeCore.html#TYPEvar">TypeCore.var</a> list</code></pre>
+<pre><span class="keyword">module</span> <a href="Types.TypePrinter.html">TypePrinter</a>: <code class="code">sig</code> <a href="Types.TypePrinter.html">..</a> <code class="code">end</code></pre><div class="info">
+Our not-so-pretty printer for types.
+</div>
+</body></html>

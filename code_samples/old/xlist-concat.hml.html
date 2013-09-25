@@ -1,0 +1,37 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/tests/xlist-concat.hml.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="ocaml">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Error { color: #ffffff; background-color: #ff0000; }
+.Constant { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Keyword">mutable</span> data xlist a <span class="Keyword">=</span>
+<span class="lnr"> 2 </span>  <span class="Keyword">|</span> <span class="Constant">XCons</span> <span class="Keyword">{</span> head: a<span class="Keyword">;</span> tail: xlist a <span class="Keyword">}</span>
+<span class="lnr"> 3 </span>  <span class="Keyword">|</span> <span class="Constant">XNil</span>
+<span class="lnr"> 4 </span>
+<span class="lnr"> 5 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> concat <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>consumes xs: xlist a, consumes ys: xlist a<span class="Keyword">)</span>: xlist a <span class="Keyword">=</span>
+<span class="lnr"> 6 </span>  <span class="Keyword">match</span> xs <span class="Keyword">with</span>
+<span class="lnr"> 7 </span>  <span class="Keyword">|</span> <span class="Constant">XNil</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 8 </span>      ys
+<span class="lnr"> 9 </span>  <span class="Keyword">|</span> <span class="Constant">XCons</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">10 </span>      xs.tail <span class="Keyword">&lt;-</span> concat <span class="Keyword">(</span>xs.tail, ys<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">11 </span>      xs
+<span class="lnr">12 </span>  <span class="Error">end</span>
+</pre>
+</body>
+</html>

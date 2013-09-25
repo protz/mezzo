@@ -1,0 +1,215 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/queue.mz.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Number { color: #e5786d; }
+.Type { color: #cae682; }
+.Constant { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr">  1 </span><span class="Comment">(* A FIFO queue implementation, adapted from OCaml's queue.ml. *)</span>
+<span class="lnr">  2 </span>
+<span class="lnr">  3 </span><span class="Keyword">mutable</span> <span class="Keyword">data</span> cell a <span class="Keyword">=</span>
+<span class="lnr">  4 </span>  <span class="Constant">Cell</span> <span class="Keyword">{</span> value: a<span class="Keyword">;</span> next: <span class="Keyword">dynamic</span> <span class="Keyword">}</span>
+<span class="lnr">  5 </span>
+<span class="lnr">  6 </span><span class="Comment">(* The FIFO structure is implemented as a cyclic list. The</span>
+<span class="lnr">  7 </span><span class="Comment">   [fifo] object contains a pointer to the last element of</span>
+<span class="lnr">  8 </span><span class="Comment">   the queue, as well as the length of the queue. The length</span>
+<span class="lnr">  9 </span><span class="Comment">   information is used in the OCaml version to test whether</span>
+<span class="lnr"> 10 </span><span class="Comment">   the queue is empty. Here, the tag, [Empty] or [NonEmpty],</span>
+<span class="lnr"> 11 </span><span class="Comment">   provides this information. The [tail] pointer is present</span>
+<span class="lnr"> 12 </span><span class="Comment">   only when the queue is nonempty. *)</span>
+<span class="lnr"> 13 </span>
+<span class="lnr"> 14 </span><span class="Keyword">mutable</span> <span class="Keyword">data</span> fifo a <span class="Keyword">=</span>
+<span class="lnr"> 15 </span>  <span class="Constant">Empty</span>    <span class="Keyword">{</span> length: <span class="Type">int</span><span class="Keyword">;</span> tail: <span class="Constant">()</span>      <span class="Keyword">}</span>
+<span class="lnr"> 16 </span><span class="Keyword">|</span> <span class="Constant">NonEmpty</span> <span class="Keyword">{</span> length: <span class="Type">int</span><span class="Keyword">;</span> tail: <span class="Keyword">dynamic</span> <span class="Keyword">}</span>
+<span class="lnr"> 17 </span><span class="Keyword">adopts</span> cell a
+<span class="lnr"> 18 </span>
+<span class="lnr"> 19 </span><span class="Keyword">val</span> create <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Constant">()</span> : fifo a <span class="Keyword">=</span>
+<span class="lnr"> 20 </span>  <span class="Constant">Empty</span> <span class="Keyword">{</span> length <span class="Keyword">=</span> <span class="Number">0</span><span class="Keyword">;</span> tail <span class="Keyword">=</span> <span class="Constant">()</span> <span class="Keyword">}</span>
+<span class="lnr"> 21 </span>
+<span class="lnr"> 22 </span><span class="Keyword">val</span> internal_insert <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> x: a, q: fifo a, insertAtEnd: <span class="Type">bool</span><span class="Keyword">)</span>: <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 23 </span>  <span class="Keyword">let</span> c <span class="Keyword">=</span> <span class="Constant">Cell</span> <span class="Keyword">{</span>
+<span class="lnr"> 24 </span>    value <span class="Keyword">=</span> x<span class="Keyword">;</span> next <span class="Keyword">=</span> <span class="Constant">()</span>
+<span class="lnr"> 25 </span>  <span class="Keyword">}</span> <span class="Keyword">in</span>
+<span class="lnr"> 26 </span>  <span class="Keyword">match</span> q <span class="Keyword">with</span>
+<span class="lnr"> 27 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 28 </span>      c.next <span class="Keyword">&lt;-</span> c<span class="Keyword">;</span>
+<span class="lnr"> 29 </span>      <span class="Keyword">give</span> c <span class="Keyword">to</span> q<span class="Keyword">;</span>
+<span class="lnr"> 30 </span>      <span class="Keyword">tag</span> <span class="Keyword">of</span> q <span class="Keyword">&lt;-</span> <span class="Constant">NonEmpty</span><span class="Keyword">;</span>
+<span class="lnr"> 31 </span>      q.length <span class="Keyword">&lt;-</span> <span class="Number">1</span><span class="Keyword">;</span>
+<span class="lnr"> 32 </span>      q.tail <span class="Keyword">&lt;-</span> c
+<span class="lnr"> 33 </span>  <span class="Keyword">|</span> <span class="Constant">NonEmpty</span> <span class="Keyword">{</span> tail <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 34 </span>      <span class="Keyword">taking</span> tail <span class="Keyword">from</span> q <span class="Keyword">begin</span>
+<span class="lnr"> 35 </span>        c.next <span class="Keyword">&lt;-</span> tail.next<span class="Keyword">;</span>
+<span class="lnr"> 36 </span>        tail.next <span class="Keyword">&lt;-</span> c<span class="Keyword">;</span>
+<span class="lnr"> 37 </span>      <span class="Keyword">end</span><span class="Keyword">;</span>
+<span class="lnr"> 38 </span>      <span class="Keyword">give</span> c <span class="Keyword">to</span> q<span class="Keyword">;</span>
+<span class="lnr"> 39 </span>      q.length <span class="Keyword">&lt;-</span> q.length + <span class="Number">1</span><span class="Keyword">;</span>
+<span class="lnr"> 40 </span>      <span class="Comment">(* We have just inserted the cell [c] at the beginning of the</span>
+<span class="lnr"> 41 </span><span class="Comment">         queue. If the caller would like [c] to be inserted at the</span>
+<span class="lnr"> 42 </span><span class="Comment">         end of the queue, advance the [tail] pointer. *)</span>
+<span class="lnr"> 43 </span>      <span class="Keyword">if</span> insertAtEnd <span class="Keyword">then</span>
+<span class="lnr"> 44 </span>        q.tail <span class="Keyword">&lt;-</span> c
+<span class="lnr"> 45 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 46 </span>
+<span class="lnr"> 47 </span><span class="Keyword">val</span> insert <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> x: a, q: fifo a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 48 </span>  internal_insert <span class="Keyword">(</span>x, q, <span class="Constant">true</span><span class="Keyword">)</span>
+<span class="lnr"> 49 </span>
+<span class="lnr"> 50 </span><span class="Keyword">val</span> insert_at_head <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> x: a, q: fifo a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 51 </span>  internal_insert <span class="Keyword">(</span>x, q, <span class="Constant">false</span><span class="Keyword">)</span>
+<span class="lnr"> 52 </span>
+<span class="lnr"> 53 </span><span class="Keyword">val</span> retrieve <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>q: fifo a<span class="Keyword">)</span> : <span class="Type">option</span> a <span class="Keyword">=</span>
+<span class="lnr"> 54 </span>  <span class="Keyword">match</span> q <span class="Keyword">with</span>
+<span class="lnr"> 55 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 56 </span>      <span class="Constant">None</span>
+<span class="lnr"> 57 </span>  <span class="Keyword">|</span> <span class="Constant">NonEmpty</span> <span class="Keyword">{</span> tail <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 58 </span>      <span class="Keyword">take</span> tail <span class="Keyword">from</span> q<span class="Keyword">;</span>
+<span class="lnr"> 59 </span>      <span class="Keyword">let</span> head <span class="Keyword">=</span> tail.next <span class="Keyword">in</span>
+<span class="lnr"> 60 </span>      <span class="Keyword">if</span> head <span class="Keyword">==</span> tail <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr"> 61 </span>        <span class="Keyword">tag</span> <span class="Keyword">of</span> q <span class="Keyword">&lt;-</span> <span class="Constant">Empty</span><span class="Keyword">;</span>
+<span class="lnr"> 62 </span>        q.length <span class="Keyword">&lt;-</span> <span class="Number">0</span><span class="Keyword">;</span>
+<span class="lnr"> 63 </span>        q.tail <span class="Keyword">&lt;-</span> <span class="Constant">()</span>
+<span class="lnr"> 64 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 65 </span>      <span class="Keyword">else</span> <span class="Keyword">begin</span>
+<span class="lnr"> 66 </span>        q.length <span class="Keyword">&lt;-</span> q.length - <span class="Number">1</span><span class="Keyword">;</span>
+<span class="lnr"> 67 </span>        <span class="Keyword">take</span> head <span class="Keyword">from</span> q<span class="Keyword">;</span>
+<span class="lnr"> 68 </span>        tail.next <span class="Keyword">&lt;-</span> head.next<span class="Keyword">;</span>
+<span class="lnr"> 69 </span>        <span class="Keyword">give</span> tail <span class="Keyword">to</span> q
+<span class="lnr"> 70 </span>      <span class="Keyword">end</span><span class="Keyword">;</span>
+<span class="lnr"> 71 </span>      <span class="Comment">(* At this point, we own the [head] cell. Note that this annotation</span>
+<span class="lnr"> 72 </span><span class="Comment">         is not required. *)</span>
+<span class="lnr"> 73 </span>      <span class="Keyword">assert</span> head @ cell a<span class="Keyword">;</span>
+<span class="lnr"> 74 </span>      <span class="Comment">(* The head cell must not be given back to the queue. We need to assert</span>
+<span class="lnr"> 75 </span><span class="Comment">         the ownership of [head.value], whose type is not duplicable. *)</span>
+<span class="lnr"> 76 </span>      some head.value
+<span class="lnr"> 77 </span> <span class="Keyword">end</span>
+<span class="lnr"> 78 </span>
+<span class="lnr"> 79 </span><span class="Keyword">val</span> peek <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>q: fifo a<span class="Keyword">)</span> : <span class="Type">option</span> a <span class="Keyword">=</span>
+<span class="lnr"> 80 </span>  <span class="Keyword">match</span> q <span class="Keyword">with</span>
+<span class="lnr"> 81 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 82 </span>      none
+<span class="lnr"> 83 </span>  <span class="Keyword">|</span> <span class="Constant">NonEmpty</span> <span class="Keyword">{</span> tail <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 84 </span>      <span class="Keyword">let</span> head <span class="Keyword">=</span>
+<span class="lnr"> 85 </span>        <span class="Keyword">taking</span> tail <span class="Keyword">from</span> q <span class="Keyword">begin</span>
+<span class="lnr"> 86 </span>          tail.next
+<span class="lnr"> 87 </span>        <span class="Keyword">end</span>
+<span class="lnr"> 88 </span>      <span class="Keyword">in</span>
+<span class="lnr"> 89 </span>      <span class="Keyword">taking</span> head <span class="Keyword">from</span> q <span class="Keyword">begin</span>
+<span class="lnr"> 90 </span>        some head.value
+<span class="lnr"> 91 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 92 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 93 </span>
+<span class="lnr"> 94 </span><span class="Keyword">val</span> length <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>q: fifo a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr"> 95 </span>  <span class="Keyword">match</span> q <span class="Keyword">with</span>
+<span class="lnr"> 96 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span> <span class="Number">0</span>
+<span class="lnr"> 97 </span>  <span class="Keyword">|</span> <span class="Constant">NonEmpty</span> <span class="Keyword">-&gt;</span> q.length
+<span class="lnr"> 98 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 99 </span>
+<span class="lnr">100 </span><span class="Comment">(* The function [clear] doesn't type-check without the [match]</span>
+<span class="lnr">101 </span><span class="Comment">   construct. Mezzo does not allow setting an object's tag</span>
+<span class="lnr">102 </span><span class="Comment">   unless its current tag is known. *)</span>
+<span class="lnr">103 </span>
+<span class="lnr">104 </span><span class="Keyword">val</span> clear <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>q: fifo a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">105 </span>  <span class="Keyword">match</span> q <span class="Keyword">with</span>
+<span class="lnr">106 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">107 </span>  <span class="Keyword">|</span> <span class="Constant">NonEmpty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">108 </span>      <span class="Keyword">tag</span> <span class="Keyword">of</span> q <span class="Keyword">&lt;-</span> <span class="Constant">Empty</span><span class="Keyword">;</span>
+<span class="lnr">109 </span>      q.length <span class="Keyword">&lt;-</span> <span class="Number">0</span><span class="Keyword">;</span>
+<span class="lnr">110 </span>      q.tail   <span class="Keyword">&lt;-</span> <span class="Constant">()</span>
+<span class="lnr">111 </span>  <span class="Keyword">end</span>
+<span class="lnr">112 </span>
+<span class="lnr">113 </span><span class="Keyword">val</span> rotate <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>q: fifo a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">114 </span>  <span class="Keyword">match</span> q <span class="Keyword">with</span>
+<span class="lnr">115 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">116 </span>      <span class="Constant">()</span>
+<span class="lnr">117 </span>  <span class="Keyword">|</span> <span class="Constant">NonEmpty</span> <span class="Keyword">{</span> tail <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">118 </span>      <span class="Comment">(* Advance the tail pointer. *)</span>
+<span class="lnr">119 </span>      <span class="Keyword">taking</span> tail <span class="Keyword">from</span> q <span class="Keyword">begin</span>
+<span class="lnr">120 </span>        q.tail <span class="Keyword">&lt;-</span> tail.next
+<span class="lnr">121 </span>      <span class="Keyword">end</span>
+<span class="lnr">122 </span>  <span class="Keyword">end</span>
+<span class="lnr">123 </span>
+<span class="lnr">124 </span><span class="Comment">(* In contrast with [list::fold], the function [queue::fold] cannot perform</span>
+<span class="lnr">125 </span><span class="Comment">   a strong update on the queue elements. The queue [q] adopts elements of</span>
+<span class="lnr">126 </span><span class="Comment">   type [cell a], and this cannot be changed. Thus, [queue::fold] must require</span>
+<span class="lnr">127 </span><span class="Comment">   its argument [f] to preserve the type [a] of the list element. *)</span>
+<span class="lnr">128 </span>
+<span class="lnr">129 </span><span class="Keyword">val</span> fold <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">130 </span>  q: fifo a,
+<span class="lnr">131 </span>  <span class="Keyword">consumes</span> accu: b,
+<span class="lnr">132 </span>  f: <span class="Keyword">(</span>a, <span class="Keyword">consumes</span> b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">133 </span><span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr">134 </span>  <span class="Keyword">match</span> q <span class="Keyword">with</span>
+<span class="lnr">135 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">136 </span>      accu
+<span class="lnr">137 </span>  <span class="Keyword">|</span> <span class="Constant">NonEmpty</span> <span class="Keyword">{</span> tail <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">138 </span>      <span class="Keyword">let</span> <span class="Keyword">rec</span> fold <span class="Keyword">(consumes</span> accu: b, c: <span class="Keyword">dynamic</span> <span class="Keyword">|</span> q @ fifo a<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr">139 </span>        <span class="Keyword">take</span> c <span class="Keyword">from</span> q<span class="Keyword">;</span>
+<span class="lnr">140 </span>        <span class="Keyword">let</span> <span class="Constant">Cell</span> <span class="Keyword">{</span> next<span class="Keyword">;</span> value <span class="Keyword">}</span> <span class="Keyword">=</span> c <span class="Keyword">in</span>
+<span class="lnr">141 </span>        <span class="Keyword">let</span> accu <span class="Keyword">=</span> f <span class="Keyword">(</span>value, accu<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">142 </span>        <span class="Keyword">give</span> c <span class="Keyword">to</span> q<span class="Keyword">;</span>
+<span class="lnr">143 </span>        <span class="Keyword">if</span> tail <span class="Keyword">==</span> c <span class="Keyword">then</span>
+<span class="lnr">144 </span>          accu
+<span class="lnr">145 </span>        <span class="Keyword">else</span>
+<span class="lnr">146 </span>          fold <span class="Keyword">(</span>accu, next<span class="Keyword">)</span>
+<span class="lnr">147 </span>      <span class="Keyword">in</span>
+<span class="lnr">148 </span>      <span class="Comment">(* Obtain the address of the first cell. *)</span>
+<span class="lnr">149 </span>      <span class="Keyword">let</span> head <span class="Keyword">=</span> <span class="Keyword">taking</span> tail <span class="Keyword">from</span> q <span class="Keyword">begin</span> tail.next <span class="Keyword">end</span> <span class="Keyword">in</span>
+<span class="lnr">150 </span>      <span class="Comment">(* We're ready to launch the recursion. *)</span>
+<span class="lnr">151 </span>      fold <span class="Keyword">(</span>accu, head<span class="Keyword">)</span>
+<span class="lnr">152 </span>  <span class="Keyword">end</span>
+<span class="lnr">153 </span>
+<span class="lnr">154 </span><span class="Keyword">val</span> iter <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">155 </span>  q: fifo a,
+<span class="lnr">156 </span>  f: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">157 </span><span class="Keyword">|</span> p
+<span class="lnr">158 </span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">159 </span>  fold <span class="Keyword">[</span>a, <span class="Keyword">(</span><span class="Keyword">|</span> p<span class="Keyword">)]</span> <span class="Keyword">(</span>q, <span class="Constant">()</span>, <span class="Keyword">fun</span> <span class="Keyword">(</span>x:a, <span class="Keyword">(</span><span class="Keyword">|</span> p<span class="Keyword">))</span> : <span class="Constant">()</span> <span class="Keyword">=</span> f x<span class="Keyword">)</span>
+<span class="lnr">160 </span>
+<span class="lnr">161 </span><span class="Keyword">val</span> map <span class="Keyword">[</span>a, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">162 </span>  q: fifo a,
+<span class="lnr">163 </span>  f: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">164 </span><span class="Keyword">|</span> p
+<span class="lnr">165 </span><span class="Keyword">)</span> : fifo b <span class="Keyword">=</span>
+<span class="lnr">166 </span>  <span class="Keyword">let</span> q' : fifo b <span class="Keyword">=</span> create <span class="Constant">()</span> <span class="Keyword">in</span>
+<span class="lnr">167 </span>  iter <span class="Keyword">(</span>q, <span class="Keyword">fun</span> <span class="Keyword">(</span>x: a <span class="Keyword">|</span> q' @ fifo b <span class="Keyword">*</span> p<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">168 </span>    insert <span class="Keyword">(</span>f x, q'<span class="Keyword">)</span>
+<span class="lnr">169 </span>  <span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">170 </span>  q'
+<span class="lnr">171 </span>
+<span class="lnr">172 </span><span class="Keyword">val</span> copy <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>q: fifo a<span class="Keyword">)</span>: fifo a <span class="Keyword">=</span>
+<span class="lnr">173 </span>  map <span class="Keyword">(</span>q, <span class="Keyword">fun</span> <span class="Keyword">(</span>x: a<span class="Keyword">)</span> : a <span class="Keyword">=</span> x<span class="Keyword">)</span>
+<span class="lnr">174 </span>
+<span class="lnr">175 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> work <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>q: fifo a, f: <span class="Keyword">(</span>a <span class="Keyword">|</span> q @ fifo a <span class="Keyword">*</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span> <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">176 </span>  <span class="Keyword">match</span> retrieve q <span class="Keyword">with</span>
+<span class="lnr">177 </span>  <span class="Keyword">|</span> <span class="Constant">None</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">178 </span>      <span class="Constant">()</span>
+<span class="lnr">179 </span>  <span class="Keyword">|</span> <span class="Constant">Some</span> <span class="Keyword">{</span> contents <span class="Keyword">=</span> x <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">180 </span>      f x<span class="Keyword">;</span>
+<span class="lnr">181 </span>      work <span class="Keyword">(</span>q, f<span class="Keyword">)</span>
+<span class="lnr">182 </span>  <span class="Keyword">end</span>
+<span class="lnr">183 </span>
+<span class="lnr">184 </span><span class="Comment">(*</span>
+<span class="lnr">185 </span><span class="Comment">Local Variables:</span>
+<span class="lnr">186 </span><span class="Comment">compile-command: &quot;../mezzo queue.mz&quot;</span>
+<span class="lnr">187 </span><span class="Comment">End:</span>
+<span class="lnr">188 </span><span class="Comment">*)</span>
+</pre>
+</body>
+</html>

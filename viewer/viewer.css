@@ -1,0 +1,138 @@
+body {
+  font-family: sans-serif;
+  background-color: white;
+}
+
+svg * {
+  font-family: monospace;
+  font-size: 8pt;
+}
+
+#heading {
+  margin-bottom: 20px;
+  font-family: Impact, sanis-serif;
+  font-size: 200%;
+  font-variant: small-caps;
+}
+
+#filename {
+  text-decoration: underline;
+}
+
+#main {
+  box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  width: 100%;
+  display: box;
+  display: -moz-box;
+}
+
+#detailsWrapper {
+  -moz-box-flex: 1;
+}
+
+#syntax {
+  position: relative;
+}
+
+#source > div {
+  display: inline-block;
+  vertical-align: top;
+}
+
+#linenos {
+  border-right: 1px solid #666;
+  padding-right: 5px;
+  margin-right: 5px;
+  color: #666;
+}
+
+.locationBlock {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.locationSection {
+  background-color: #F08A8A;
+}
+
+#details {
+  vertical-align: top;
+  margin-left: 3em;
+  font-size: 10pt;
+}
+
+.node {
+  cursor: pointer;
+}
+
+.graph {
+  display: inline-block;
+  vertical-align: top;
+  text-align: left;
+  margin-right: 1em;
+  padding: 1em;
+  -moz-transform-origin: top left;
+}
+
+#commands {
+  position: absolute;
+  top: 1em;
+  right: 1em;
+}
+
+a.button {
+  display: inline-block;
+  background-color: #7fbf4d;
+  background-image: -moz-linear-gradient(top, #7fbf4d, #63a62f);
+  background-image: linear-gradient(top, #7fbf4d, #63a62f);
+  border: 1px solid #63a62f;
+  border-bottom: 1px solid #5b992b;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 0 #96ca6d;
+  color: #fff;
+  font: bold 11px "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Geneva, Verdana, sans-serif;
+  line-height: 1;
+  padding: 7px 0 8px 0;
+  text-align: center;
+  text-shadow: 0 -1px 0 #4c9021;
+  width: 100px;
+}
+
+a.button:hover {
+  background-color: #76b347;
+  background-image: -moz-linear-gradient(top, #76b347, #5e9e2e);
+  background-image: linear-gradient(top, #76b347, #5e9e2e);
+  box-shadow: inset 0 1px 0 0 #8dbf67;
+  cursor: pointer;
+}
+
+a.button:active {
+  border: 1px solid #5b992b;
+  border-bottom: 1px solid #538c27;
+  box-shadow: inset 0 0 8px 4px #548c29, 0 1px 0 0 #eeeeee;
+}
+
+#graph, #subgraphs {
+  text-align: center;
+}
+
+p.label, p.label2 {
+  margin-bottom: .1em;
+  font-weight: bold;
+  font-size: 120%;
+  text-shadow: 0px 2px 3px rgb(102, 102, 102);
+}
+
+p.label2 {
+  margin-left: -.8em;
+  font-size: 100%;
+}
+
+.popup {
+  border-radius: 5px;
+  border: 5px solid rgba(0, 0, 0, .2);
+  padding: 3px;
+  background-color: white;
+}

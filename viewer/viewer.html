@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Interactive viewer</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="viewer.css" type="text/css" media="screen" />
+  <link rel="stylesheet" href="pygmentize.css" type="text/css" media="screen" />
+  <script src="jquery-1.7.2.min.js" type="application/javascript"></script>
+  <script src="lib.js" type="application/javascript;version=1.8"></script>
+  <script src="viewer.js" type="application/javascript;version=1.8"></script>
+</head>
+
+<body>
+
+  <div id="heading">
+    Explaining <span id="type"></span> from <span id="filename"></span>.
+  </div>
+
+  <div id="commands">
+    <a href="#" id="zoom_out" class="button">Zoom out</a>
+    <a href="#" id="zoom_in" class="button">Zoom in</a>
+    <a href="index.html" class="button">Back to index</a>
+  </div>
+
+  <div id="errors">
+  </div>
+
+  <div id="main">
+    <div>
+      <p class="label">Source code</p>
+      <div id="source">
+        <div id="linenos">
+          <pre></pre>
+        </div>
+        <div id="syntax">
+        </div>
+      </div>
+    </div>
+    <div id="detailsWrapper">
+      <p class="label">Inspect</p>
+      <div id="details">
+      </div>
+    </div>
+  </div>
+
+  <div id="subgraphs">
+  </div>
+  <div id="graph">
+    <div style="text-align: center; font-size: 50px">↓</div>
+  </div>
+
+</body>
+</html>
+

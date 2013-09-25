@@ -1,0 +1,49 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/persistentarray.mzi.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Type { color: #cae682; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Comment">(* Persistent arrays. *)</span>
+<span class="lnr"> 2 </span>
+<span class="lnr"> 3 </span><span class="Comment">(* A persistent array presents itself as an immutable (hence, duplicable)</span>
+<span class="lnr"> 4 </span><span class="Comment">   array of duplicable elements. It can be read and updated; an update</span>
+<span class="lnr"> 5 </span><span class="Comment">   produces a new persistent array without altering the original one. *)</span>
+<span class="lnr"> 6 </span>
+<span class="lnr"> 7 </span><span class="Comment">(* The implementation is based on a single mutable array, difference lists,</span>
+<span class="lnr"> 8 </span><span class="Comment">   and a single lock, but these details do not appear in the interface. *)</span>
+<span class="lnr"> 9 </span>
+<span class="lnr">10 </span><span class="Keyword">abstract</span> parray a
+<span class="lnr">11 </span><span class="Keyword">fact</span> <span class="Keyword">duplicable</span> <span class="Keyword">(</span>parray a<span class="Keyword">)</span>
+<span class="lnr">12 </span>
+<span class="lnr">13 </span><span class="Comment">(* Creation. *)</span>
+<span class="lnr">14 </span>
+<span class="lnr">15 </span><span class="Keyword">val</span> create: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span><span class="Type">int</span>, a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> parray a
+<span class="lnr">16 </span>
+<span class="lnr">17 </span><span class="Comment">(* Reading. *)</span>
+<span class="lnr">18 </span>
+<span class="lnr">19 </span><span class="Keyword">val</span> get: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>parray a, <span class="Type">int</span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a
+<span class="lnr">20 </span>
+<span class="lnr">21 </span><span class="Comment">(* Writing. *)</span>
+<span class="lnr">22 </span>
+<span class="lnr">23 </span><span class="Keyword">val</span> set: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>parray a, <span class="Type">int</span>, a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> parray a
+<span class="lnr">24 </span>
+</pre>
+</body>
+</html>

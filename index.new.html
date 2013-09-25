@@ -1,0 +1,232 @@
+<!doctype html>
+<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en"> <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  <title>The Mezzo programming language</title>
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <!-- CSS concatenated and minified via ant build script-->
+  <link rel="stylesheet" href="css/style.css">
+  <link href='http://fonts.googleapis.com/css?family=Pacifico' rel='stylesheet' type='text/css'>
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <!-- end CSS-->
+
+</head>
+
+<body>
+
+  <div id="container">
+    <header>
+      <h1>The Mezzo programming language</h1>
+    </header>
+    <div id="main" role="main">
+      <section>
+        <h2>What is Mezzo?</h2>
+        <p class="sidenote">
+          (Description shamelessly stolen from a paper abstract).
+        </p>
+        <p>
+          We present the design of <span class="mezzo">Mezzo</span>, a
+          programming language in the ML tradition, which places strong emphasis
+          on the control of aliasing and access to mutable memory. A balance
+          between simplicity and expressiveness is achieved by marrying a static
+          discipline of permissions and a dynamic mechanism of adoption and
+          abandon.
+        </p>
+        <h3>More information about Mezzo</h3>
+        <p>
+          <span class="mezzo">Mezzo</span> is designed by <a
+            href="http://gallium.inria.fr/~fpottier/">François Pottier</a> and
+          <a href="http://www.xulforum.org">Jonathan Protzenko</a>. The language
+          has been <a href="#downloads">formalized</a> using the Coq proof
+          assistant. We currently have a <a href="#downloads">prototype
+          implementation</a> of a type-checker. We have several papers,
+          abstracts and presentations that describe the language. Since the
+          language is always in flux, it is best to refer to the most recent
+          publication.
+        </p>
+        <h2>Some reading</h2>
+        <h3>Papers</h3>
+        <p>
+          We have a tutorial paper that thoroughly describes the concepts in the
+          language. The extended abstract only gives a very quick and
+          superficial introduction to the language.
+        </p>
+        <p>
+          <ul>
+            <li>François Pottier and Jonathan Protzenko. <strong>Programming with
+              permissions in Mezzo.</strong> Submitted for publication, October
+            2012.
+            [&nbsp;<a href="http://pauillac.inria.fr/~fpottier/biblio/pottier_bib.html#pottier-protzenko-12">bib</a> |
+              <a href="http://gallium.inria.fr/~fpottier/publis/pottier-protzenko-mezzo.pdf">PDF</a>&nbsp;]
+            <li>François Pottier and Jonathan Protzenko.
+             <strong>Programming with permissions: the Mezzo language
+               (extended abstract)</strong>.
+             ML Workshop, Sep 2012.
+            [&nbsp;<a href="http://www.xulforum.org/papers/extended-abstract.pdf">PDF</a>&nbsp;]
+            </li>
+            <li>François Pottier and Jonathan Protzenko.
+             <strong>An introduction to Mezzo</strong>.
+             Unpublished draft, Sep 2012.
+            [&nbsp;<a href="http://gallium.inria.fr/~fpottier/biblio/pottier_bib.html#mezzo-draft-tutorial">bib</a>&nbsp;| 
+            <a href="http://gallium.inria.fr/~fpottier/publis/mezzo-tutorial.pdf">PDF</a>&nbsp;]
+            </li>
+          </ul>
+        </p>
+        <h3>Talks</h3>
+        <p>
+          The talks feature some detailed examples which are type-checked
+          step-by-step, listing the set of available permissions at each step.
+        </p>
+        <p>
+          <ul>
+            <li>Jonathan Protzenko. <strong>An introduction to Mezzo
+                (short)</strong>. ML Workshop, Sep 2012.
+              [&nbsp;<a href="http://www.xulforum.org/papers/mezzo-talk-ml-workshop.pdf">PDF</a>&nbsp;]
+            </li>
+            <li>Jonathan Protzenko. <strong>An introduction to Mezzo</strong>
+              [&nbsp;<a href="http://www.xulforum.org/papers/mezzo-talk.pdf">PDF</a>&nbsp;]
+            </li>
+          </ul>
+        </p>
+        <p><span class="mezzo">Mezzo</span> has been presented in the following
+        locations. If you wish to host a Mezzo presentation in your research
+        team, <a href="mailto:jonathan.protzenko@inria.fr">contact us!</a>.
+        </p>
+        <p style="text-align: center">
+        <iframe style="margin: 0 auto" width="640" height="480" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://maps.google.com/maps/ms?msa=0&amp;msid=209133769460940795422.0004ce05ca8c04f90cc16&amp;ie=UTF8&amp;t=m&amp;ll=43.197167,-41.835937&amp;spn=60.79232,112.5&amp;z=3&amp;output=embed"></iframe><br /><small>View <a href="https://maps.google.com/maps/ms?msa=0&amp;msid=209133769460940795422.0004ce05ca8c04f90cc16&amp;ie=UTF8&amp;t=m&amp;ll=43.197167,-41.835937&amp;spn=60.79232,112.5&amp;z=3&amp;source=embed" style="color:#0000FF;text-align:left">Mezzo presentations</a> in a larger map</small>
+        </p>
+        <h2 id="downloads">Downloads</h2>
+        <p>
+          <ul>
+            <li>The <a
+              href="http://gallium.inria.fr/~fpottier/mezzo/mezzo.tar.gz">latest
+              version of the Coq proof</a>.</li>
+            <li>The <a href="proto/mezzo-latest.tar.bz2">latest snapshot of the
+              prototype source code</a>. Requires OCaml 4.00+, as
+              well as the following tools/libraries: Menhir, MenhirLib, Yojson.
+              Has been tested on Unix environments only. We recommend <a
+                href="http://opam.ocamlpro.com">OPAM</a> to easily install all
+              the dependencies as well as a recent OCaml compiler.</li>
+              <li><a href="doc/">Generated documentation</a> for the prototype's
+              source code, including the scary dependency graph between modules.
+              The documentation is fairly incomplete, since most <tt>.mli</tt>
+              files are missing, but the source code does have comments.</li>
+          </ul>
+        </p>
+        <h2>Demos</h2>
+        <h3>Sample programs</h3>
+        <p>
+          Here are a few selected programs that our prototype successfully
+          type-checks.
+          <ul>
+            <li><tt><a href="code_samples/list-id.hml.html">list-id.hml</a></tt>,
+              a variant of the identity function on lists</li>
+            <li><tt><a href="code_samples/list-length.hml.html">list-length.hml</a></tt>,
+              computes the length of a list</li>
+            <li><tt><a href="code_samples/list-concat.hml.html">list-concat.hml</a></tt>,
+              concatenates two lists by creating a copy of the first list; in
+              the absence of any hypothesis on the type of the elements in the
+              list, the second list is consumed when appended to the original
+              one</li>
+            <li><tt><a href="code_samples/list-concat-dup.hml.html">list-concat-dup.hml</a></tt>,
+              however, when assuming elements are duplicable, it is now possible
+              to duplicate the permission for the second list, thus not
+              requiring a consumes annotation; this version is actually more
+              restrictive than the one above, because in the case where
+              <tt>a</tt> is duplicable, the caller will automatically save a
+              copy of the permission on <tt>list a</tt>, and the consumes
+              annotation will be harmless</li>
+            <li><tt><a href="code_samples/list-map0.hml.html">list-map0.hml</a></tt>,
+              the tutorial paper has several versions of <tt>map</tt>; this one
+              is the easiest one</li>
+            <li><tt><a href="code_samples/list-map1.hml.html">list-map1.hml</a></tt>,
+              this one is a little bit more general, because we leave it up to
+              the caller to duplicate the permission on <tt>x</tt> and
+              <tt>xs</tt> should <tt>a</tt> happen to be duplicable</li>
+            <li><tt><a href="code_samples/list-map2.hml.html">list-map2.hml</a></tt>,
+              this one is even more general, since <tt>f</tt> may (or may not)
+              return a new permission for its argument - when it returns no
+              permission, we get back the previous version of <tt>map</tt></li>
+            <li><tt><a href="code_samples/list-map4.hml.html">list-map4.hml</a></tt>,
+              this version of <tt>map</tt> is written in a destination-passing
+              style, and could possibly be tail-recursive by the compiler if it
+              is smart enough to figure out that one tag assignment is a no-op</li>
+            <li><tt><a href="code_samples/list-rev.hml.html">list-rev.hml</a></tt>,
+              list reversal, uses an intermediate function, consumes (of course)
+              its argument; just like other samples, we could write a variant of
+              it that does not consume its argument but instead requires that
+              the type variable <tt>a</tt> be duplicable; however, this version
+              is more general, since in the case where <tt>a</tt> is duplicable,
+              the caller will automatically save a copy of the original
+              <tt>list a</tt> permission</li>
+            <li><tt><a href="code_samples/list-find.hml.html">list-find.hml</a></tt>,
+              since this function returns both the original list intact, and a
+              pointer to one of the list's elements, we need to require that the
+              type of the elements be duplicable;</li>
+            <li><tt><a href="code_samples/xlist-copy.hml.html">xlist-copy.hml</a></tt>,
+              mutable list copy: we need the elements in the list to be
+              duplicable, since after the copy, they are pointed to by both the
+              old list and the new list</li>
+            <li><tt><a href="code_samples/xlist-concat.hml.html">xlist-concat.hml</a></tt>,
+              in-place concatenation (melding) of two mutable lists</li>
+            <li><tt><a href="code_samples/xlist-concat1.hml.html">xlist-concat1.hml</a></tt>,
+              tail-recursive version of mutable list melding</li>
+            <li><tt><a href="code_samples/xlist-concat2.hml.html">xlist-concat2.hml</a></tt>,
+              tail-recursive <strong>immutable</strong> list concatenation,
+              using a temporary mutable list in a destination-passing style</li>
+            <li><tt><a href="code_samples/tree_size.hml.html">tree_size.hml</a></tt>,
+              compute the size of a tree and annotate nodes by the size of their
+              sub-trees at the same time; this program demoes a sort of
+              typestate protocol</li>
+            <li><tt><a href="code_samples/in_place_traversal.hml.html">in_place_traversal.hml</a></tt>,
+              in-place traversal of a (mutable) tree using link reversal; there
+              is one dynamic check in the end: we have another version that gets
+              rid of it but that relies on features of the language not
+              implemented yet</li>
+            <li><tt><a href="code_samples/bag_lifo.hml.html">bag_lifo.hml</a></tt>,
+              implementation of bags using a last-in, first-out version, which
+              only requires simple lists</li>
+            <li><tt><a href="code_samples/bag_fifo.hml.html">bag_fifo.hml</a></tt>,
+              the running example in most of our presentations: it uses a
+              dynamic discipline of adoption/abandon to implement a complex
+              aliasing pattern that involves sharing on mutable cells in the
+              fifo</li>
+            <li><tt><a href="code_samples/pervasives.hml.html">pervasives.hml</a></tt>,
+              some of the examples above rely on definitions that can be found
+              in this file: the standard arithmetic operators, as well as
+              references, lists, options, etc. are defined in this file (most of
+              the samples above are self-contained, though)</li>
+          </ul>
+        </p>
+        <h3>Graphical error messages with graphs</h3>
+        <p>
+          The type-checker has a feature where it can dump a graphical
+          representation of its state to help understand a type error, or
+          understand how a merge conflict was resolved. We provide a <a
+            href="viewer/">gallery</a> of such dumps. <strong>Warning:</strong>
+          works only on recent Firefox versions (I'm using ECMAScript 6
+          features).
+        </p>
+      </section>
+    </div>
+    <footer>
+
+    </footer>
+  </div> <!--! end of #container -->
+
+  <!--[if lt IE 7 ]>
+    <script src="//ajax.googleapis.com/ajax/libs/chrome-frame/1.0.3/CFInstall.min.js"></script>
+    <script>window.attachEvent('onload',function(){CFInstall.check({mode:'overlay'})})</script>
+  <![endif]-->
+  
+</body>
+</html>

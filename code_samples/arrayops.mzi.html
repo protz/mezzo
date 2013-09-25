@@ -1,0 +1,198 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/arrayops.mzi.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Constant { color: #e5786d; }
+.Type { color: #cae682; }
+.Comment { color: #99968b; font-style: italic; }
+.PreProc { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr">  1 </span><span class="Keyword">open</span> <span class="PreProc">array</span>
+<span class="lnr">  2 </span>
+<span class="lnr">  3 </span><span class="Comment">(* Operations on arrays. *)</span>
+<span class="lnr">  4 </span>
+<span class="lnr">  5 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">  6 </span>
+<span class="lnr">  7 </span><span class="Comment">(* Generic loops over a segment of an array. *)</span>
+<span class="lnr">  8 </span>
+<span class="lnr">  9 </span><span class="Comment">(* We use semi-open intervals of the form [i, j). That is, the index [i] is</span>
+<span class="lnr"> 10 </span><span class="Comment">   part of the interval, and the index [j] is not part of it. The interval</span>
+<span class="lnr"> 11 </span><span class="Comment">   is non-empty if and only if [i &lt; j] holds. *)</span>
+<span class="lnr"> 12 </span>
+<span class="lnr"> 13 </span><span class="Keyword">val</span> fold_segment_up   : <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 14 </span>  i: <span class="Type">int</span>, j: <span class="Type">int</span>, <span class="Keyword">consumes</span> accu: a,
+<span class="lnr"> 15 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, <span class="Keyword">consumes</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a
+<span class="lnr"> 16 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a
+<span class="lnr"> 17 </span>
+<span class="lnr"> 18 </span><span class="Keyword">val</span> fold_segment_down : <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 19 </span>  i: <span class="Type">int</span>, j: <span class="Type">int</span>, <span class="Keyword">consumes</span> accu: a,
+<span class="lnr"> 20 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, <span class="Keyword">consumes</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a
+<span class="lnr"> 21 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a
+<span class="lnr"> 22 </span>
+<span class="lnr"> 23 </span><span class="Keyword">val</span> iter_segment_up   : <span class="Keyword">[</span>p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 24 </span>  i: <span class="Type">int</span>, j: <span class="Type">int</span>,
+<span class="lnr"> 25 </span>  f: <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 26 </span>  <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 27 </span>
+<span class="lnr"> 28 </span><span class="Keyword">val</span> iter_segment_down : <span class="Keyword">[</span>p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 29 </span>  i: <span class="Type">int</span>, j: <span class="Type">int</span>,
+<span class="lnr"> 30 </span>  f: <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 31 </span>  <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 32 </span>
+<span class="lnr"> 33 </span><span class="Comment">(* Generic loops over an entire array. *)</span>
+<span class="lnr"> 34 </span>
+<span class="lnr"> 35 </span><span class="Keyword">val</span> fold_array_up   : <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 36 </span>  x: <span class="Type">array</span> a, <span class="Keyword">consumes</span> seed: b,
+<span class="lnr"> 37 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, <span class="Keyword">consumes</span> b <span class="Keyword">|</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr"> 38 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr"> 39 </span>
+<span class="lnr"> 40 </span><span class="Keyword">val</span> fold_array_down : <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 41 </span>  x: <span class="Type">array</span> a, <span class="Keyword">consumes</span> seed: b,
+<span class="lnr"> 42 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, <span class="Keyword">consumes</span> b <span class="Keyword">|</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr"> 43 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr"> 44 </span>
+<span class="lnr"> 45 </span><span class="Keyword">val</span> iter_array_up   : <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 46 </span>  x: <span class="Type">array</span> a,
+<span class="lnr"> 47 </span>  f: <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> x @ <span class="Type">array</span> a <span class="Keyword">*</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 48 </span>  <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 49 </span>
+<span class="lnr"> 50 </span><span class="Keyword">val</span> iter_array_down : <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 51 </span>  x: <span class="Type">array</span> a,
+<span class="lnr"> 52 </span>  f: <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> x @ <span class="Type">array</span> a <span class="Keyword">*</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 53 </span>  <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 54 </span>
+<span class="lnr"> 55 </span><span class="Comment">(* A variant of the above loops, where [f] receives not only an index [i],</span>
+<span class="lnr"> 56 </span><span class="Comment">   but also the corresponding array element. *)</span>
+<span class="lnr"> 57 </span>
+<span class="lnr"> 58 </span><span class="Comment">(* Because the type [a] is not assumed duplicable, getting hold of the</span>
+<span class="lnr"> 59 </span><span class="Comment">   element temporarily invalidates the array, which implies that [f]</span>
+<span class="lnr"> 60 </span><span class="Comment">   cannot receive the permission [x @ array a]. This is unfortunate.</span>
+<span class="lnr"> 61 </span><span class="Comment">   We could offer a variant of this function where [a] is assumed</span>
+<span class="lnr"> 62 </span><span class="Comment">   duplicable and [f] receives this permission. (This also suggests</span>
+<span class="lnr"> 63 </span><span class="Comment">   that conditional permissions, of the form (duplicable a =&gt; p),</span>
+<span class="lnr"> 64 </span><span class="Comment">   might be useful! TEMPORARY *)</span>
+<span class="lnr"> 65 </span>
+<span class="lnr"> 66 </span><span class="Keyword">val</span> foldi_up   : <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 67 </span>  x: <span class="Type">array</span> a,
+<span class="lnr"> 68 </span>  <span class="Keyword">consumes</span> seed: b,
+<span class="lnr"> 69 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, a, <span class="Keyword">consumes</span> accu: b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr"> 70 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr"> 71 </span>
+<span class="lnr"> 72 </span><span class="Keyword">val</span> foldi_down : <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 73 </span>  x: <span class="Type">array</span> a,
+<span class="lnr"> 74 </span>  <span class="Keyword">consumes</span> seed: b,
+<span class="lnr"> 75 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, a, <span class="Keyword">consumes</span> accu: b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr"> 76 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr"> 77 </span>
+<span class="lnr"> 78 </span><span class="Keyword">val</span> iteri_up   : <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 79 </span>  x: <span class="Type">array</span> a,
+<span class="lnr"> 80 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 81 </span>  <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 82 </span>
+<span class="lnr"> 83 </span><span class="Keyword">val</span> iteri_down : <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 84 </span>  x: <span class="Type">array</span> a,
+<span class="lnr"> 85 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 86 </span>  <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 87 </span>
+<span class="lnr"> 88 </span><span class="Comment">(* A degenerate variant of the above loops, where the function [f] has</span>
+<span class="lnr"> 89 </span><span class="Comment">   access to the element, but not the index [i] or the array [x]. *)</span>
+<span class="lnr"> 90 </span>
+<span class="lnr"> 91 </span><span class="Keyword">val</span> fold_up   : <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 92 </span>  x: <span class="Type">array</span> a,
+<span class="lnr"> 93 </span>  <span class="Keyword">consumes</span> seed: b,
+<span class="lnr"> 94 </span>  f: <span class="Keyword">(</span>a, <span class="Keyword">consumes</span> accu: b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr"> 95 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr"> 96 </span>
+<span class="lnr"> 97 </span><span class="Keyword">val</span> fold_down : <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 98 </span>  x: <span class="Type">array</span> a,
+<span class="lnr"> 99 </span>  <span class="Keyword">consumes</span> seed: b,
+<span class="lnr">100 </span>  f: <span class="Keyword">(</span>a, <span class="Keyword">consumes</span> accu: b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">101 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">102 </span>
+<span class="lnr">103 </span><span class="Keyword">val</span> iter_up   : <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">104 </span>  x: <span class="Type">array</span> a,
+<span class="lnr">105 </span>  f: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">106 </span>  <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">107 </span>
+<span class="lnr">108 </span><span class="Keyword">val</span> iter_down : <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">109 </span>  x: <span class="Type">array</span> a,
+<span class="lnr">110 </span>  f: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">111 </span>  <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">112 </span>
+<span class="lnr">113 </span><span class="Comment">(* TEMPORARY it would be interesting to offer a loop form where [f] consumes</span>
+<span class="lnr">114 </span><span class="Comment">   the element, and the loop consumes the entire array. *)</span>
+<span class="lnr">115 </span>
+<span class="lnr">116 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">117 </span>
+<span class="lnr">118 </span><span class="Comment">(* Creating an empty array. *)</span>
+<span class="lnr">119 </span>
+<span class="lnr">120 </span><span class="Keyword">val</span> zero : <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Constant">()</span> <span class="Keyword">-&gt;</span> <span class="Type">array</span> a
+<span class="lnr">121 </span>
+<span class="lnr">122 </span><span class="Comment">(* Resetting an entire array. *)</span>
+<span class="lnr">123 </span>
+<span class="lnr">124 </span><span class="Keyword">val</span> reset : <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">125 </span>  x: <span class="Type">array</span> a,
+<span class="lnr">126 </span>  f: <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a
+<span class="lnr">127 </span>  <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">128 </span>
+<span class="lnr">129 </span><span class="Comment">(* Copying an entire array. *)</span>
+<span class="lnr">130 </span>
+<span class="lnr">131 </span><span class="Keyword">val</span> copy : <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Type">array</span> a <span class="Keyword">-&gt;</span> <span class="Type">array</span> a
+<span class="lnr">132 </span>
+<span class="lnr">133 </span><span class="Keyword">val</span> map : <span class="Keyword">[</span>a, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">134 </span>  x: <span class="Type">array</span> a,
+<span class="lnr">135 </span>  f: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">136 </span>  <span class="Keyword">|</span> p
+<span class="lnr">137 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">array</span> b
+<span class="lnr">138 </span>
+<span class="lnr">139 </span><span class="Keyword">val</span> mapi : <span class="Keyword">[</span>a, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">140 </span>  x: <span class="Type">array</span> a,
+<span class="lnr">141 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">142 </span>  <span class="Keyword">|</span> p
+<span class="lnr">143 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">array</span> b
+<span class="lnr">144 </span>
+<span class="lnr">145 </span><span class="Comment">(* Filling a segment with a value. *)</span>
+<span class="lnr">146 </span>
+<span class="lnr">147 </span><span class="Comment">(* TEMPORARY duplicable a =&gt;</span>
+<span class="lnr">148 </span><span class="Comment">val fill_segment : [a] (x: array a, i: int,   j: int, v: a) -&gt; ()</span>
+<span class="lnr">149 </span><span class="Comment">val fill         : [a] (x: array a, i: int, len: int, v: a) -&gt; ()</span>
+<span class="lnr">150 </span><span class="Comment">val fill_array   : [a] (x: array a, v: a) -&gt; ()</span>
+<span class="lnr">151 </span><span class="Comment">*)</span>
+<span class="lnr">152 </span>
+<span class="lnr">153 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">154 </span>
+<span class="lnr">155 </span><span class="Comment">(* Conversions between arrays and lists. *)</span>
+<span class="lnr">156 </span>
+<span class="lnr">157 </span><span class="Comment">(* TEMPORARY</span>
+<span class="lnr">158 </span><span class="Comment">val array2list : [a] duplicable a =&gt; array a -&gt; list::list a</span>
+<span class="lnr">159 </span><span class="Comment">val list2array : [a] duplicable a =&gt; list::list a -&gt; array a</span>
+<span class="lnr">160 </span><span class="Comment">*)</span>
+<span class="lnr">161 </span>
+<span class="lnr">162 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">163 </span>
+<span class="lnr">164 </span><span class="Comment">(* Sorting. *)</span>
+<span class="lnr">165 </span>
+<span class="lnr">166 </span><span class="Comment">(* TEMPORARY</span>
+<span class="lnr">167 </span><span class="Comment">val sort : [a, p : perm] duplicable a =&gt; (</span>
+<span class="lnr">168 </span><span class="Comment">  cmp: (a, a | p) -&gt; int,</span>
+<span class="lnr">169 </span><span class="Comment">  x: array a</span>
+<span class="lnr">170 </span><span class="Comment">  | p) -&gt; ()</span>
+<span class="lnr">171 </span><span class="Comment">*)</span>
+</pre>
+</body>
+</html>

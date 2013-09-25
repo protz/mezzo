@@ -1,0 +1,149 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/mutableTreeMap.mzi.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Constant { color: #e5786d; }
+.Type { color: #cae682; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr">  1 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">  2 </span>
+<span class="lnr">  3 </span><span class="Comment">(* [treeMap k c a] is an abstract type for association maps with keys of type</span>
+<span class="lnr">  4 </span><span class="Comment">   [k] and values of type [a]. Entries are internally ordered using the key</span>
+<span class="lnr">  5 </span><span class="Comment">   ordering [cmp]. *)</span>
+<span class="lnr">  6 </span>
+<span class="lnr">  7 </span><span class="Keyword">abstract</span> treeMap k <span class="Keyword">(</span>cmp: <span class="Keyword">term)</span> +a
+<span class="lnr">  8 </span>
+<span class="lnr">  9 </span><span class="Comment">(* [treeMap k c a] is an exclusive type. That is, a map has a unique owner. *)</span>
+<span class="lnr"> 10 </span>
+<span class="lnr"> 11 </span><span class="Keyword">fact</span> <span class="Keyword">exclusive</span> <span class="Keyword">(</span>treeMap k cmp a<span class="Keyword">)</span>
+<span class="lnr"> 12 </span>
+<span class="lnr"> 13 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 14 </span>
+<span class="lnr"> 15 </span><span class="Comment">(* Operations on maps. *)</span>
+<span class="lnr"> 16 </span>
+<span class="lnr"> 17 </span><span class="Keyword">val</span> create : <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>cmp: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> treeMap k cmp a
+<span class="lnr"> 18 </span>
+<span class="lnr"> 19 </span><span class="Keyword">val</span> singleton : <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>cmp: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>, <span class="Keyword">consumes</span> k, <span class="Keyword">consumes</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> treeMap k cmp a
+<span class="lnr"> 20 </span>
+<span class="lnr"> 21 </span><span class="Keyword">val</span> cardinal : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a<span class="Keyword">]</span> treeMap k cmp a <span class="Keyword">-&gt;</span> <span class="Type">int</span>
+<span class="lnr"> 22 </span>
+<span class="lnr"> 23 </span><span class="Keyword">val</span> is_empty : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a<span class="Keyword">]</span> treeMap k cmp a <span class="Keyword">-&gt;</span> <span class="Type">bool</span>
+<span class="lnr"> 24 </span>
+<span class="lnr"> 25 </span><span class="Keyword">val</span> add : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> k, <span class="Keyword">consumes</span> a, treeMap k cmp a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 26 </span>
+<span class="lnr"> 27 </span><span class="Keyword">val</span> find : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>k, treeMap k cmp a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">option</span> a
+<span class="lnr"> 28 </span>
+<span class="lnr"> 29 </span><span class="Keyword">val</span> update : <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a, preserved : <span class="Keyword">perm</span>, consumed : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 30 </span>  x: k,
+<span class="lnr"> 31 </span>  m: treeMap k c a,
+<span class="lnr"> 32 </span>  f: <span class="Keyword">(consumes</span> a <span class="Keyword">|</span> preserved <span class="Keyword">*</span> <span class="Keyword">consumes</span> consumed<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a
+<span class="lnr"> 33 </span><span class="Keyword">|</span> preserved <span class="Keyword">*</span> <span class="Keyword">consumes</span> consumed
+<span class="lnr"> 34 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 35 </span>
+<span class="lnr"> 36 </span><span class="Keyword">val</span> mem : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(</span>k, treeMap k cmp a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>
+<span class="lnr"> 37 </span>
+<span class="lnr"> 38 </span><span class="Keyword">val</span> min_binding : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> treeMap k cmp a <span class="Keyword">-&gt;</span> <span class="Type">option</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span>
+<span class="lnr"> 39 </span><span class="Keyword">val</span> max_binding : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> treeMap k cmp a <span class="Keyword">-&gt;</span> <span class="Type">option</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span>
+<span class="lnr"> 40 </span>
+<span class="lnr"> 41 </span><span class="Keyword">val</span> extract_min_binding : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a<span class="Keyword">]</span> treeMap k cmp a <span class="Keyword">-&gt;</span> <span class="Type">option</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span>
+<span class="lnr"> 42 </span><span class="Keyword">val</span> extract_max_binding : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a<span class="Keyword">]</span> treeMap k cmp a <span class="Keyword">-&gt;</span> <span class="Type">option</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span>
+<span class="lnr"> 43 </span>
+<span class="lnr"> 44 </span><span class="Keyword">val</span> remove : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(</span>k, treeMap k cmp a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">option</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span>
+<span class="lnr"> 45 </span>
+<span class="lnr"> 46 </span><span class="Keyword">val</span> iter : <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 47 </span>  m: treeMap k c a,
+<span class="lnr"> 48 </span>  f: <span class="Keyword">(</span>k, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>
+<span class="lnr"> 49 </span>  <span class="Keyword">|</span> p
+<span class="lnr"> 50 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>
+<span class="lnr"> 51 </span>
+<span class="lnr"> 52 </span><span class="Keyword">val</span> for_all :
+<span class="lnr"> 53 </span>  <span class="Keyword">=</span>iter
+<span class="lnr"> 54 </span>
+<span class="lnr"> 55 </span><span class="Comment">(* TEMPORARY add sugar for this declaration? *)</span>
+<span class="lnr"> 56 </span>
+<span class="lnr"> 57 </span><span class="Keyword">val</span> exists : <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 58 </span>  m: treeMap k c a,
+<span class="lnr"> 59 </span>  f: <span class="Keyword">(</span>k, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>
+<span class="lnr"> 60 </span>  <span class="Keyword">|</span> p
+<span class="lnr"> 61 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>
+<span class="lnr"> 62 </span>
+<span class="lnr"> 63 </span><span class="Keyword">val</span> map: <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a1, a2, b, p : <span class="Keyword">perm]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>
+<span class="lnr"> 64 </span>  <span class="Keyword">consumes</span> m: treeMap k c a1,
+<span class="lnr"> 65 </span>  f: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> d: a1 <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>b <span class="Keyword">|</span> d @ a2<span class="Keyword">)</span>
+<span class="lnr"> 66 </span>  <span class="Keyword">|</span> p
+<span class="lnr"> 67 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>treeMap k c b <span class="Keyword">|</span> m @ treeMap k c a2<span class="Keyword">)</span>
+<span class="lnr"> 68 </span>
+<span class="lnr"> 69 </span><span class="Keyword">val</span> copy: <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a, b<span class="Keyword">]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>m: treeMap k c a, f: a <span class="Keyword">-&gt;</span> b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> treeMap k c b
+<span class="lnr"> 70 </span>
+<span class="lnr"> 71 </span><span class="Keyword">val</span> fold_ascending : <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a1, a2, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 72 </span>  <span class="Keyword">consumes</span> m: treeMap k c a1,
+<span class="lnr"> 73 </span>  <span class="Keyword">consumes</span> accu: b,
+<span class="lnr"> 74 </span>  f: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> d: a1, <span class="Keyword">consumes</span> accu: b <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>b <span class="Keyword">|</span> d @ a2<span class="Keyword">)</span>
+<span class="lnr"> 75 </span>  <span class="Keyword">|</span> p
+<span class="lnr"> 76 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>b <span class="Keyword">|</span> m @ treeMap k c a2<span class="Keyword">)</span>
+<span class="lnr"> 77 </span>
+<span class="lnr"> 78 </span><span class="Keyword">val</span> fold_descending : <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a1, a2, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 79 </span>  <span class="Keyword">consumes</span> m: treeMap k c a1,
+<span class="lnr"> 80 </span>  <span class="Keyword">consumes</span> accu: b,
+<span class="lnr"> 81 </span>  f: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> d: a1, <span class="Keyword">consumes</span> accu: b <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>b <span class="Keyword">|</span> d @ a2<span class="Keyword">)</span>
+<span class="lnr"> 82 </span>  <span class="Keyword">|</span> p
+<span class="lnr"> 83 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>b <span class="Keyword">|</span> m @ treeMap k c a2<span class="Keyword">)</span>
+<span class="lnr"> 84 </span>
+<span class="lnr"> 85 </span><span class="Keyword">val</span> fold :
+<span class="lnr"> 86 </span>  <span class="Keyword">=</span>fold_ascending
+<span class="lnr"> 87 </span>
+<span class="lnr"> 88 </span><span class="Keyword">val</span> merge : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a, b, c<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 89 </span>  <span class="Keyword">consumes</span> treeMap k cmp a,
+<span class="lnr"> 90 </span>  <span class="Keyword">consumes</span> treeMap k cmp b,
+<span class="lnr"> 91 </span>  f: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> <span class="Type">option</span> a, <span class="Keyword">consumes</span> <span class="Type">option</span> b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">option</span> c
+<span class="lnr"> 92 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> treeMap k cmp c
+<span class="lnr"> 93 </span>
+<span class="lnr"> 94 </span><span class="Keyword">val</span> split : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 95 </span>  k,
+<span class="lnr"> 96 </span>  <span class="Keyword">consumes</span> treeMap k cmp a
+<span class="lnr"> 97 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>treeMap k cmp a, <span class="Type">option</span> a, treeMap k cmp a<span class="Keyword">)</span>
+<span class="lnr"> 98 </span>
+<span class="lnr"> 99 </span><span class="Keyword">val</span> filter : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">100 </span>  <span class="Keyword">consumes</span> treeMap k cmp a,
+<span class="lnr">101 </span>  p: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">option</span> b
+<span class="lnr">102 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> treeMap k cmp b
+<span class="lnr">103 </span>
+<span class="lnr">104 </span><span class="Keyword">val</span> partition : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a, b, c<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">105 </span>  <span class="Keyword">consumes</span> treeMap k cmp a,
+<span class="lnr">106 </span>  p: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">choice::</span>choice b c
+<span class="lnr">107 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>treeMap k cmp b, treeMap k cmp c<span class="Keyword">)</span>
+<span class="lnr">108 </span>
+<span class="lnr">109 </span><span class="Keyword">val</span> compare : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">110 </span>  <span class="Keyword">(</span>a, a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr">111 </span>  treeMap k cmp a,
+<span class="lnr">112 </span>  treeMap k cmp a
+<span class="lnr">113 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>
+<span class="lnr">114 </span>
+<span class="lnr">115 </span><span class="Keyword">val</span> equal : <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">116 </span>  <span class="Keyword">(</span>a, a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr">117 </span>  treeMap k cmp a,
+<span class="lnr">118 </span>  treeMap k cmp a
+<span class="lnr">119 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>
+<span class="lnr">120 </span>
+<span class="lnr">121 </span><span class="Keyword">val</span> bindings : <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>
+<span class="lnr">122 </span>  m: treeMap k c a
+<span class="lnr">123 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span>
+</pre>
+</body>
+</html>

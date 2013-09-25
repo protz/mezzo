@@ -1,0 +1,361 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="ocamlstyle.css" type="text/css">
+<meta content="text/html; charset=utf8" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of class methods" rel=Appendix href="index_methods.html">
+<link title="Index of classes" rel=Appendix href="index_classes.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Configure" rel="Chapter" href="Configure.html">
+<link title="Mezzo" rel="Chapter" href="Mezzo.html">
+<link title="MzString" rel="Chapter" href="MzString.html">
+<link title="Option" rel="Chapter" href="Option.html">
+<link title="InfiniteArray" rel="Chapter" href="InfiniteArray.html">
+<link title="PersistentRef" rel="Chapter" href="PersistentRef.html">
+<link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
+<link title="GSet" rel="Chapter" href="GSet.html">
+<link title="Bash" rel="Chapter" href="Bash.html">
+<link title="Patricia" rel="Chapter" href="Patricia.html">
+<link title="LazyList" rel="Chapter" href="LazyList.html">
+<link title="MzMap" rel="Chapter" href="MzMap.html">
+<link title="Log" rel="Chapter" href="Log.html">
+<link title="MzList" rel="Chapter" href="MzList.html">
+<link title="GMap" rel="Chapter" href="GMap.html">
+<link title="Either" rel="Chapter" href="Either.html">
+<link title="SurfaceSyntaxPrinter" rel="Chapter" href="SurfaceSyntaxPrinter.html">
+<link title="Driver" rel="Chapter" href="Driver.html">
+<link title="Hashcons" rel="Chapter" href="Hashcons.html">
+<link title="Lexer" rel="Chapter" href="Lexer.html">
+<link title="Grammar" rel="Chapter" href="Grammar.html">
+<link title="Kind" rel="Chapter" href="Kind.html">
+<link title="Identifier" rel="Chapter" href="Identifier.html">
+<link title="Interpreter" rel="Chapter" href="Interpreter.html">
+<link title="Compile" rel="Chapter" href="Compile.html">
+<link title="UntypedMezzo2UntypedOCaml" rel="Chapter" href="UntypedMezzo2UntypedOCaml.html">
+<link title="Mezzo2UntypedMezzo" rel="Chapter" href="Mezzo2UntypedMezzo.html">
+<link title="UntypedOCamlPrinter" rel="Chapter" href="UntypedOCamlPrinter.html">
+<link title="OCamlKeywords" rel="Chapter" href="OCamlKeywords.html">
+<link title="Exports" rel="Chapter" href="Exports.html">
+<link title="FactInference" rel="Chapter" href="FactInference.html">
+<link title="Mode" rel="Chapter" href="Mode.html">
+<link title="Expressions" rel="Chapter" href="Expressions.html">
+<link title="Resugar" rel="Chapter" href="Resugar.html">
+<link title="Types" rel="Chapter" href="Types.html">
+<link title="Hoist" rel="Chapter" href="Hoist.html">
+<link title="KindPrinter" rel="Chapter" href="KindPrinter.html">
+<link title="DerivationPrinter" rel="Chapter" href="DerivationPrinter.html">
+<link title="Variance" rel="Chapter" href="Variance.html">
+<link title="KindCheck" rel="Chapter" href="KindCheck.html">
+<link title="Permissions" rel="Chapter" href="Permissions.html">
+<link title="TypeCore" rel="Chapter" href="TypeCore.html">
+<link title="TypeChecker" rel="Chapter" href="TypeChecker.html">
+<link title="Mark" rel="Chapter" href="Mark.html">
+<link title="TypeErrors" rel="Chapter" href="TypeErrors.html">
+<link title="DeBruijn" rel="Chapter" href="DeBruijn.html">
+<link title="TransSurface" rel="Chapter" href="TransSurface.html">
+<link title="Interfaces" rel="Chapter" href="Interfaces.html">
+<link title="ExpressionsCore" rel="Chapter" href="ExpressionsCore.html">
+<link title="Modules" rel="Chapter" href="Modules.html">
+<link title="Fact" rel="Chapter" href="Fact.html">
+<link title="Namespace" rel="Chapter" href="Namespace.html">
+<link title="Derivations" rel="Chapter" href="Derivations.html">
+<link title="Merge" rel="Chapter" href="Merge.html">
+<link title="Utils" rel="Chapter" href="Utils.html"><title></title>
+</head>
+<body>
+<h1></h1>
+<h1 id="1_Mezzo">Mezzo</h1>
+<p>
+
+Mezzo is a dialect of ML with effects control and a fine-grained type system.
+<p>
+
+<h3 id="3_Mainmodules">Main modules</h3>
+<br>
+<table class="indextable">
+<tr><td class="module"><a href="Mezzo.html">Mezzo</a></td><td><div class="info">
+This is the entry point of the program.
+</div>
+</td></tr>
+<tr><td class="module"><a href="Driver.html">Driver</a></td><td><div class="info">
+This module sets up a lexer and a parser to create an AST.
+</div>
+</td></tr>
+</table>
+
+<p>
+
+<h2 id="2_Typecheckermodules">Type-checker modules</h2>
+<p>
+
+<h3 id="3_Definitionsoftypesandbinders">Definitions of types and binders</h3>
+<br>
+<table class="indextable">
+<tr><td class="module"><a href="TypeCore.html">TypeCore</a></td><td><div class="info">
+This module defines the syntax of types, as manipulated by the
+   type-checker.
+</div>
+</td></tr>
+<tr><td class="module"><a href="DeBruijn.html">DeBruijn</a></td><td><div class="info">
+Dealing with binders.
+</div>
+</td></tr>
+<tr><td class="module"><a href="Types.html">Types</a></td><td><div class="info">
+This module provides a variety of functions for dealing with types, mostly
+ built on top of <a href="DeBruijn.html"><code class="code">DeBruijn</code></a> and <a href="TypeCore.html"><code class="code">TypeCore</code></a>.
+</div>
+</td></tr>
+<tr><td class="module"><a href="ExpressionsCore.html">ExpressionsCore</a></td><td><div class="info">
+This module defines the syntax of expressions.
+</div>
+</td></tr>
+<tr><td class="module"><a href="Expressions.html">Expressions</a></td><td><div class="info">
+This module defines substitution functions and binding functions on
+ expressions as well as data type groups.
+</div>
+</td></tr>
+</table>
+
+<p>
+
+<h3 id="3_Highleveltypecheckingmodules">High-level type-checking modules</h3>
+<br>
+<table class="indextable">
+<tr><td class="module"><a href="Merge.html">Merge</a></td><td><div class="info">
+This module implements the merge operation.
+</div>
+</td></tr>
+<tr><td class="module"><a href="Permissions.html">Permissions</a></td><td><div class="info">
+This module provides permission manipulation functions.
+</div>
+</td></tr>
+<tr><td class="module"><a href="TypeChecker.html">TypeChecker</a></td><td><div class="info">
+This is the top of the pyramid: the module that actually performs
+ type-checking.
+</div>
+</td></tr>
+</table>
+
+<p>
+
+<h3 id="3_Handlingtypeerrors">Handling type errors</h3>
+<br>
+<table class="indextable">
+<tr><td class="module"><a href="Derivations.html">Derivations</a></td><td><div class="info">
+This file provides a representation of typing derivations, built by
+ <code class="code">Permissions</code>.
+</div>
+</td></tr>
+<tr><td class="module"><a href="TypeErrors.html">TypeErrors</a></td><td><div class="info">
+Everything you ever dreamed of for reporting errors.
+</div>
+</td></tr>
+<tr><td class="module"><a href="DerivationPrinter.html">DerivationPrinter</a></td><td><div class="info">
+This module provide a convenient way to print a typing derivation into a
+ (supposedly) human-readable form.
+</div>
+</td></tr>
+</table>
+
+<p>
+
+<h2 id="2_Variousanalysesperformedbythetypechecker">Various analyses performed by the type-checker</h2>
+<p>
+
+<h3 id="3_Factanalysis">Fact analysis</h3>
+<br>
+<table class="indextable">
+<tr><td class="module">DataTypeFlavor</td><td></td></tr>
+<tr><td class="module"><a href="Mode.html">Mode</a></td><td><div class="info">
+The four modes.
+</div>
+</td></tr>
+<tr><td class="module"><a href="Fact.html">Fact</a></td><td><div class="info">
+Conjunction of hypotheses.
+</div>
+</td></tr>
+<tr><td class="module"><a href="FactInference.html">FactInference</a></td><td><div class="info">
+This module analyzes data type declarations to synthesize facts about
+    data types.
+</div>
+</td></tr>
+</table>
+
+<p>
+
+<h3 id="3_Otheranalyses">Other analyses</h3>
+<br>
+<table class="indextable">
+<tr><td class="module"><a href="Variance.html">Variance</a></td><td><div class="info">
+This module is entirely devoted to computing the variance of type parameters
+ in data types.
+</div>
+</td></tr>
+</table>
+
+<p>
+
+<h2 id="2_Othertypecheckingoperations">Other type-checking operations</h2>
+<p>
+
+<h3 id="3_Dealingwithmodulesandinterfaces">Dealing with modules and interfaces</h3>
+<br>
+<table class="indextable">
+<tr><td class="module"><a href="Modules.html">Modules</a></td><td><div class="info">
+Find the dependencies of a module.
+</div>
+</td></tr>
+<tr><td class="module"><a href="Interfaces.html">Interfaces</a></td><td><div class="info">
+Treatment of interfaces.
+</div>
+</td></tr>
+<tr><td class="module"><a href="Exports.html">Exports</a></td><td><div class="info">
+Handling the names exported by interfaces and implementations.
+</div>
+</td></tr>
+</table>
+
+<p>
+
+<h3 id="3_Manipulatingtypesandexpressions">Manipulating types and expressions</h3>
+<br>
+<table class="indextable">
+<tr><td class="module"><a href="Hoist.html">Hoist</a></td><td></td></tr>
+</table>
+
+<p>
+
+<h2 id="2_Fromtheexternalsyntaxdowntotheinternalsyntax">From the external syntax down to the internal syntax</h2>
+<p>
+
+<h3 id="3_Parsingandlexing">Parsing and lexing</h3>
+<br>
+<table class="indextable">
+<tr><td class="module">SurfaceSyntax</td><td></td></tr>
+<tr><td class="module"><a href="Grammar.html">Grammar</a></td><td></td></tr>
+<tr><td class="module"><a href="Lexer.html">Lexer</a></td><td><div class="info">
+The lexer for Mezzo.
+</div>
+</td></tr>
+<tr><td class="module">ParserUtils</td><td></td></tr>
+<tr><td class="module"><a href="Resugar.html">Resugar</a></td><td><div class="info">
+This function converts an internal name to a possibly-qualified name
+    in the surface syntax.
+</div>
+</td></tr>
+</table>
+
+<p>
+
+<h3 id="3_Frontendmodules">Front-end modules</h3>
+<br>
+<table class="indextable">
+<tr><td class="module"><a href="KindCheck.html">KindCheck</a></td><td><div class="info">
+This module implements a well-kindedness check for the types of the surface
+   language.
+</div>
+</td></tr>
+<tr><td class="module"><a href="TransSurface.html">TransSurface</a></td><td><div class="info">
+Translating the surface syntax down into the core language syntax.
+</div>
+</td></tr>
+</table>
+
+<p>
+
+<h2 id="2_Misc">Misc</h2>
+<p>
+
+<h3 id="3_ThedatastructuresofMezzo">The data structures of Mezzo</h3>
+<br>
+<table class="indextable">
+<tr><td class="module"><a href="Identifier.html">Identifier</a></td><td><div class="info">
+This functor creates a fresh abstract type of names.
+</div>
+</td></tr>
+<tr><td class="module"><a href="Mark.html">Mark</a></td><td></td></tr>
+<tr><td class="module"><a href="Hashcons.html">Hashcons</a></td><td><div class="info">
+A simple Hashconsing facility.
+</div>
+</td></tr>
+<tr><td class="module"><a href="GMap.html">GMap</a></td><td><div class="info">
+</div>
+</td></tr>
+<tr><td class="module"><a href="GSet.html">GSet</a></td><td><div class="info">
+This is a stripped down version of <code class="code">GSet</code> that describes both <code class="code">Patricia</code>
+   and <code class="code">CompressedBitSet</code>.
+</div>
+</td></tr>
+<tr><td class="module"><a href="Patricia.html">Patricia</a></td><td><div class="info">
+This is an implementation of Patricia trees, following Chris Okasaki's paper at the 1998 ML Workshop in Baltimore.
+</div>
+</td></tr>
+<tr><td class="module"><a href="InfiniteArray.html">InfiniteArray</a></td><td><div class="info">
+This module implements infinite arrays.
+</div>
+</td></tr>
+<tr><td class="module"><a href="PersistentUnionFind.html">PersistentUnionFind</a></td><td><div class="info">
+A persistent version of the classic union-find algorithm.
+</div>
+</td></tr>
+<tr><td class="module"><a href="PersistentRef.html">PersistentRef</a></td><td><div class="info">
+This module implements a persistent store: in other words, it
+   is a purely functional implementation of references, with an
+   explicit store.
+</div>
+</td></tr>
+</table>
+
+<p>
+
+<h3 id="3_TheMezzostandardlibrary">The Mezzo standard library</h3>
+<br>
+<table class="indextable">
+<tr><td class="module"><a href="Bash.html">Bash</a></td><td><div class="info">
+Provides wrappers for some bash fancy printing, mainly boxes and colors.
+</div>
+</td></tr>
+<tr><td class="module"><a href="MzList.html">MzList</a></td><td><div class="info">
+A bunch of useful functions for lists.
+</div>
+</td></tr>
+<tr><td class="module"><a href="MzMap.html">MzMap</a></td><td><div class="info">
+Various missing functions from the <code class="code">Map</code> module.
+</div>
+</td></tr>
+<tr><td class="module"><a href="MzString.html">MzString</a></td><td><div class="info">
+Various string utilities.
+</div>
+</td></tr>
+<tr><td class="module">MzPprint</td><td></td></tr>
+<tr><td class="module"><a href="Option.html">Option</a></td><td><div class="info">
+No "J" prefix for this module since OCaml's standard library does not have
+    an <code class="code">Option</code> module.
+</div>
+</td></tr>
+<tr><td class="module"><a href="Log.html">Log</a></td><td><div class="info">
+This module provides error reporting functions for Mezzo.
+</div>
+</td></tr>
+</table>
+
+<p>
+
+<h3 id="3_Misc">Misc</h3>
+<br>
+<table class="indextable">
+<tr><td class="module">Debug</td><td></td></tr>
+<tr><td class="module">TestUtils</td><td></td></tr>
+<tr><td class="module"><a href="Utils.html">Utils</a></td><td></td></tr>
+</table>
+
+<p>
+
+<h1 id="1_Dependencygraph">Dependency graph</h1><br>
+<p align="center"><object type="image/svg+xml" data="graph.svg"></object></p></body>
+</html>

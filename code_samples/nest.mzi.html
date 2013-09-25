@@ -1,0 +1,63 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/corelib/nest.mzi.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Comment">(* Boyland's nesting is available in Mezzo, thanks to the following primitive</span>
+<span class="lnr"> 2 </span><span class="Comment">   types and operations. *)</span>
+<span class="lnr"> 3 </span>
+<span class="lnr"> 4 </span><span class="Comment">(* A nesting witness, [nests x p], is a duplicable permission, which guarantees</span>
+<span class="lnr"> 5 </span><span class="Comment">   that an exclusive permission for [x] implies the permission [p]. Because</span>
+<span class="lnr"> 6 </span><span class="Comment">   nesting is monotonic (it cannot be undone), a nesting witness is duplicable. *)</span>
+<span class="lnr"> 7 </span>
+<span class="lnr"> 8 </span><span class="Keyword">abstract</span> nests <span class="Keyword">(</span>x : <span class="Keyword">term)</span> <span class="Keyword">(</span>p : <span class="Keyword">perm)</span> : <span class="Keyword">perm</span>
+<span class="lnr"> 9 </span><span class="Keyword">fact</span> <span class="Keyword">duplicable</span> <span class="Keyword">(</span>nests x p<span class="Keyword">)</span>
+<span class="lnr">10 </span>
+<span class="lnr">11 </span><span class="Comment">(* Nesting consumes the permission [p] and produces a nesting witness [nests x p].</span>
+<span class="lnr">12 </span><span class="Comment">   The instruction [nest [p] x] is somewhat analogous to an adoption instruction,</span>
+<span class="lnr">13 </span><span class="Comment">   [give p to x]. The permission [p] becomes implicitly associated with the address</span>
+<span class="lnr">14 </span><span class="Comment">   [x]. *)</span>
+<span class="lnr">15 </span>
+<span class="lnr">16 </span><span class="Keyword">val</span> nest: <span class="Keyword">[</span>p : <span class="Keyword">perm</span>, a<span class="Keyword">]</span> <span class="Keyword">exclusive</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>x: a <span class="Keyword">|</span> <span class="Keyword">consumes</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Keyword">|</span> nests x p<span class="Keyword">)</span>
+<span class="lnr">17 </span>
+<span class="lnr">18 </span><span class="Comment">(* A punched type [punched a p] is used to keep track of the fact that a nested</span>
+<span class="lnr">19 </span><span class="Comment">   permission [p] has been temporarily recovered by focusing on [x]. This type</span>
+<span class="lnr">20 </span><span class="Comment">   is not duplicable. It cannot be considered exclusive either; this prevents</span>
+<span class="lnr">21 </span><span class="Comment">   double focusing. *)</span>
+<span class="lnr">22 </span>
+<span class="lnr">23 </span><span class="Keyword">abstract</span> punched <span class="Keyword">(</span>a : <span class="Keyword">type)</span> <span class="Keyword">(</span>p : <span class="Keyword">perm)</span> : <span class="Keyword">type</span>
+<span class="lnr">24 </span>
+<span class="lnr">25 </span><span class="Comment">(* Focusing allows temporarily recovering a permission [p] that was nested in [x].</span>
+<span class="lnr">26 </span><span class="Comment">   It requires an exclusive permission for [x], as well a nesting witness. It</span>
+<span class="lnr">27 </span><span class="Comment">   produces a punched permission for [x]. The syntax is [focus [p] x], or</span>
+<span class="lnr">28 </span><span class="Comment">   perhaps just [focus x]. *)</span>
+<span class="lnr">29 </span>
+<span class="lnr">30 </span><span class="Keyword">val</span> focus: <span class="Keyword">[</span>p : <span class="Keyword">perm</span>, a<span class="Keyword">]</span> <span class="Keyword">exclusive</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(consumes</span> x: a <span class="Keyword">|</span> nests x p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Keyword">|</span> x @ punched a p <span class="Keyword">*</span> p<span class="Keyword">)</span>
+<span class="lnr">31 </span>
+<span class="lnr">32 </span><span class="Comment">(* Defocusing is the reverse operation. The syntax is [defocus x]. *)</span>
+<span class="lnr">33 </span>
+<span class="lnr">34 </span><span class="Keyword">val</span> defocus: <span class="Keyword">[</span>p : <span class="Keyword">perm</span>, a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> <span class="Keyword">(</span>x: punched a p <span class="Keyword">|</span> p<span class="Keyword">))</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Keyword">|</span> x @ a<span class="Keyword">)</span>
+<span class="lnr">35 </span>
+<span class="lnr">36 </span><span class="Comment">(* Nesting is permitted also while a region is punched. *)</span>
+<span class="lnr">37 </span>
+<span class="lnr">38 </span><span class="Keyword">val</span> nest_punched: <span class="Keyword">[</span>p : <span class="Keyword">perm</span>, a, q : <span class="Keyword">perm]</span> <span class="Keyword">(</span>x: punched a q <span class="Keyword">|</span> <span class="Keyword">consumes</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Keyword">|</span> nests x p<span class="Keyword">)</span>
+<span class="lnr">39 </span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/tests/list-rev.hml.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="ocaml">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Error { color: #ffffff; background-color: #ff0000; }
+.Constant { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+.Type { color: #cae682; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span>data <span class="Type">list</span> a <span class="Keyword">=</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head: a<span class="Keyword">;</span> tail: <span class="Type">list</span> a <span class="Keyword">}</span> <span class="Keyword">|</span> <span class="Constant">Nil</span>
+<span class="lnr"> 2 </span>
+<span class="lnr"> 3 </span><span class="Keyword">val</span> rev <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>consumes l: <span class="Type">list</span> a<span class="Keyword">)</span>: <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr"> 4 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> rev1 <span class="Keyword">(</span>consumes acc: <span class="Type">list</span> a, consumes tl: <span class="Type">list</span> a<span class="Keyword">)</span>: <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr"> 5 </span>    <span class="Keyword">match</span> tl <span class="Keyword">with</span>
+<span class="lnr"> 6 </span>    <span class="Keyword">|</span> <span class="Constant">Nil</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 7 </span>        acc
+<span class="lnr"> 8 </span>    <span class="Keyword">|</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head<span class="Keyword">;</span> tail <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 9 </span>        rev1 <span class="Keyword">(</span><span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> head<span class="Keyword">;</span> tail <span class="Keyword">=</span> acc <span class="Keyword">}</span>, tail<span class="Keyword">)</span>
+<span class="lnr">10 </span>    <span class="Error">end</span>
+<span class="lnr">11 </span>  <span class="Keyword">in</span>
+<span class="lnr">12 </span>  rev1 <span class="Keyword">(</span><span class="Constant">Nil</span>, l<span class="Keyword">)</span>
+</pre>
+</body>
+</html>

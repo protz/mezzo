@@ -1,0 +1,38 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/tests/multiple_fields_and_permissions.hml.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="ocaml">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Type { color: #cae682; }
+.Constant { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Comment">(* Parsing: multiple fields with a common type. *)</span>
+<span class="lnr"> 2 </span>
+<span class="lnr"> 3 </span><span class="Keyword">mutable</span> data bag a <span class="Keyword">=</span>
+<span class="lnr"> 4 </span>      <span class="Constant">Empty</span> <span class="Keyword">{</span> head, tail: <span class="Constant">()</span><span class="Keyword">;</span>      cardinal: <span class="Type">int</span> <span class="Keyword">}</span>
+<span class="lnr"> 5 </span> <span class="Keyword">|</span> <span class="Constant">NonEmpty</span> <span class="Keyword">{</span> head, tail: dynamic<span class="Keyword">;</span> cardinal: <span class="Type">int</span> <span class="Keyword">}</span>
+<span class="lnr"> 6 </span>
+<span class="lnr"> 7 </span><span class="Comment">(* Parsing: fields with sugar for a singleton type;</span>
+<span class="lnr"> 8 </span><span class="Comment">            fields followed with a permission. *)</span>
+<span class="lnr"> 9 </span>
+<span class="lnr">10 </span>data meaningless <span class="Keyword">(</span>x <span class="Keyword">::</span> <span class="Constant">TERM</span><span class="Keyword">)</span> <span class="Keyword">(</span>y <span class="Keyword">::</span> <span class="Constant">TERM</span><span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">11 </span>  <span class="Keyword">|</span> <span class="Constant">M</span> <span class="Keyword">{</span> foo <span class="Keyword">=</span> x<span class="Keyword">;</span> bar <span class="Keyword">=</span> y <span class="Keyword">|</span> x <span class="Keyword">=</span> y <span class="Keyword">}</span>
+<span class="lnr">12 </span>
+</pre>
+</body>
+</html>

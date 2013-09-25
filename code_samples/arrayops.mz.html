@@ -1,0 +1,457 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/arrayops.mz.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Constant { color: #e5786d; }
+.Number { color: #e5786d; }
+.Type { color: #cae682; }
+.Comment { color: #99968b; font-style: italic; }
+.PreProc { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr">  1 </span><span class="Keyword">open</span> <span class="PreProc">array</span>
+<span class="lnr">  2 </span>
+<span class="lnr">  3 </span><span class="Comment">(* Operations on arrays. *)</span>
+<span class="lnr">  4 </span>
+<span class="lnr">  5 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">  6 </span>
+<span class="lnr">  7 </span><span class="Comment">(* Generic loops over a segment of an array. *)</span>
+<span class="lnr">  8 </span>
+<span class="lnr">  9 </span><span class="Comment">(* We use semi-open intervals of the form [i, j). That is, the index [i] is</span>
+<span class="lnr"> 10 </span><span class="Comment">   part of the interval, and the index [j] is not part of it. The interval</span>
+<span class="lnr"> 11 </span><span class="Comment">   is non-empty if and only if [i &lt; j] holds. *)</span>
+<span class="lnr"> 12 </span>
+<span class="lnr"> 13 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> fold_segment_up <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 14 </span>  i: <span class="Type">int</span>, j: <span class="Type">int</span>, <span class="Keyword">consumes</span> accu: a,
+<span class="lnr"> 15 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, <span class="Keyword">consumes</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a
+<span class="lnr"> 16 </span><span class="Keyword">)</span> : a <span class="Keyword">=</span>
+<span class="lnr"> 17 </span>  <span class="Keyword">if</span> i <span class="Keyword">&lt;</span> j <span class="Keyword">then</span>
+<span class="lnr"> 18 </span>    fold_segment_up <span class="Keyword">(</span>i + <span class="Number">1</span>, j, f <span class="Keyword">(</span>i, accu<span class="Keyword">)</span>, f<span class="Keyword">)</span>
+<span class="lnr"> 19 </span>  <span class="Keyword">else</span>
+<span class="lnr"> 20 </span>    accu
+<span class="lnr"> 21 </span>
+<span class="lnr"> 22 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> fold_segment_down <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 23 </span>  i: <span class="Type">int</span>, j: <span class="Type">int</span>, <span class="Keyword">consumes</span> accu: a,
+<span class="lnr"> 24 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, <span class="Keyword">consumes</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a
+<span class="lnr"> 25 </span><span class="Keyword">)</span> : a <span class="Keyword">=</span>
+<span class="lnr"> 26 </span>  <span class="Keyword">if</span> i <span class="Keyword">&lt;</span> j <span class="Keyword">then</span>
+<span class="lnr"> 27 </span>    fold_segment_down <span class="Keyword">(</span>i, j - <span class="Number">1</span>, f <span class="Keyword">(</span>j - <span class="Number">1</span>, accu<span class="Keyword">)</span>, f<span class="Keyword">)</span>
+<span class="lnr"> 28 </span>  <span class="Keyword">else</span>
+<span class="lnr"> 29 </span>    accu
+<span class="lnr"> 30 </span>
+<span class="lnr"> 31 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> iter_segment_up <span class="Keyword">[</span>p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 32 </span>  i: <span class="Type">int</span>, j: <span class="Type">int</span>,
+<span class="lnr"> 33 </span>  f: <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 34 </span>  <span class="Keyword">|</span> p
+<span class="lnr"> 35 </span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 36 </span>  <span class="Keyword">if</span> i <span class="Keyword">&lt;</span> j <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr"> 37 </span>    f<span class="Keyword">(</span>i<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 38 </span>    iter_segment_up <span class="Keyword">(</span>i + <span class="Number">1</span>, j, f<span class="Keyword">)</span>
+<span class="lnr"> 39 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 40 </span>
+<span class="lnr"> 41 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> iter_segment_down <span class="Keyword">[</span>p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 42 </span>  i: <span class="Type">int</span>, j: <span class="Type">int</span>,
+<span class="lnr"> 43 </span>  f: <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 44 </span>  <span class="Keyword">|</span> p
+<span class="lnr"> 45 </span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 46 </span>  <span class="Keyword">if</span> i <span class="Keyword">&lt;</span> j <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr"> 47 </span>    f<span class="Keyword">(</span>j - <span class="Number">1</span><span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 48 </span>    iter_segment_down <span class="Keyword">(</span>i, j - <span class="Number">1</span>, f<span class="Keyword">)</span>
+<span class="lnr"> 49 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 50 </span>
+<span class="lnr"> 51 </span><span class="Comment">(* Generic loops over an entire array. *)</span>
+<span class="lnr"> 52 </span>
+<span class="lnr"> 53 </span><span class="Keyword">val</span> fold_array_up <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 54 </span>  x: <span class="Type">array</span> a, <span class="Keyword">consumes</span> seed: b,
+<span class="lnr"> 55 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, <span class="Keyword">consumes</span> b <span class="Keyword">|</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr"> 56 </span><span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr"> 57 </span>  fold_segment_up <span class="Keyword">[</span>a <span class="Keyword">=</span> <span class="Keyword">(</span>b <span class="Keyword">|</span> x @ <span class="Type">array</span> a<span class="Keyword">)]</span> <span class="Keyword">(</span><span class="Number">0</span>, length x, seed, f<span class="Keyword">)</span>
+<span class="lnr"> 58 </span>  <span class="Comment">(* WISH could we get rid of this type application? *)</span>
+<span class="lnr"> 59 </span>
+<span class="lnr"> 60 </span><span class="Keyword">val</span> fold_array_down <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 61 </span>  x: <span class="Type">array</span> a, <span class="Keyword">consumes</span> seed: b,
+<span class="lnr"> 62 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, <span class="Keyword">consumes</span> b <span class="Keyword">|</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr"> 63 </span><span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr"> 64 </span>  fold_segment_down <span class="Keyword">[</span>a <span class="Keyword">=</span> <span class="Keyword">(</span>b <span class="Keyword">|</span> x @ <span class="Type">array</span> a<span class="Keyword">)]</span> <span class="Keyword">(</span><span class="Number">0</span>, length x, seed, f<span class="Keyword">)</span>
+<span class="lnr"> 65 </span>  <span class="Comment">(* WISH could we get rid of this type application? *)</span>
+<span class="lnr"> 66 </span>
+<span class="lnr"> 67 </span><span class="Keyword">val</span> iter_array_up <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 68 </span>  x: <span class="Type">array</span> a,
+<span class="lnr"> 69 </span>  f: <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> x @ <span class="Type">array</span> a <span class="Keyword">*</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 70 </span>  <span class="Keyword">|</span> p
+<span class="lnr"> 71 </span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 72 </span>  iter_segment_up <span class="Keyword">(</span><span class="Number">0</span>, length x, f<span class="Keyword">)</span>
+<span class="lnr"> 73 </span>
+<span class="lnr"> 74 </span><span class="Keyword">val</span> iter_array_down <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 75 </span>  x: <span class="Type">array</span> a,
+<span class="lnr"> 76 </span>  f: <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> x @ <span class="Type">array</span> a <span class="Keyword">*</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr"> 77 </span>  <span class="Keyword">|</span> p
+<span class="lnr"> 78 </span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 79 </span>  iter_segment_down <span class="Keyword">[</span> <span class="Keyword">(</span>x @ <span class="Type">array</span> a <span class="Keyword">*</span> p<span class="Keyword">)</span> <span class="Keyword">]</span> <span class="Keyword">(</span><span class="Number">0</span>, length x, f<span class="Keyword">)</span>
+<span class="lnr"> 80 </span>
+<span class="lnr"> 81 </span><span class="Comment">(* A variant of the above loops, where [f] receives not only an index [i],</span>
+<span class="lnr"> 82 </span><span class="Comment">   but also the corresponding array element. *)</span>
+<span class="lnr"> 83 </span>
+<span class="lnr"> 84 </span><span class="Keyword">val</span> foldi_up <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 85 </span>  x: <span class="Type">array</span> a, <span class="Keyword">consumes</span> seed: b,
+<span class="lnr"> 86 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, a, <span class="Keyword">consumes</span> accu: b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr"> 87 </span><span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr"> 88 </span>  fold_array_up <span class="Keyword">(</span>x, seed, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span>, <span class="Keyword">consumes</span> accu: b <span class="Keyword">|</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr"> 89 </span>    consult <span class="Keyword">(</span>x, i, <span class="Keyword">fun</span> <span class="Keyword">(</span>v: a <span class="Keyword">|</span> <span class="Keyword">consumes</span> accu @ b<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr"> 90 </span>      f <span class="Keyword">(</span>i, v, accu<span class="Keyword">)</span>
+<span class="lnr"> 91 </span>    <span class="Keyword">)</span>
+<span class="lnr"> 92 </span>  <span class="Keyword">)</span>
+<span class="lnr"> 93 </span>
+<span class="lnr"> 94 </span><span class="Keyword">val</span> foldi_down <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 95 </span>  x: <span class="Type">array</span> a, <span class="Keyword">consumes</span> seed: b,
+<span class="lnr"> 96 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, a, <span class="Keyword">consumes</span> accu: b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr"> 97 </span><span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr"> 98 </span>  fold_array_down <span class="Keyword">(</span>x, seed, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span>, <span class="Keyword">consumes</span> accu: b <span class="Keyword">|</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr"> 99 </span>    consult <span class="Keyword">(</span>x, i, <span class="Keyword">fun</span> <span class="Keyword">(</span>v: a <span class="Keyword">|</span> <span class="Keyword">consumes</span> accu @ b<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr">100 </span>      f <span class="Keyword">(</span>i, v, accu<span class="Keyword">)</span>
+<span class="lnr">101 </span>    <span class="Keyword">)</span>
+<span class="lnr">102 </span>  <span class="Keyword">)</span>
+<span class="lnr">103 </span>
+<span class="lnr">104 </span><span class="Keyword">val</span> iteri_up <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">105 </span>  x: <span class="Type">array</span> a,
+<span class="lnr">106 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">107 </span>  <span class="Keyword">|</span> p
+<span class="lnr">108 </span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">109 </span>  iter_array_up <span class="Keyword">(</span>x, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span> <span class="Keyword">|</span> x @ <span class="Type">array</span> a <span class="Keyword">*</span> p<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">110 </span>    consult <span class="Keyword">[</span>pre <span class="Keyword">=</span> p, b <span class="Keyword">=</span> <span class="Keyword">(</span><span class="Keyword">|</span> p<span class="Keyword">)]</span> <span class="Keyword">(</span>x, i, <span class="Keyword">fun</span> <span class="Keyword">(</span>v: a <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">111 </span>      <span class="Comment">(* WISH could we get rid of this type application? *)</span>
+<span class="lnr">112 </span>      f <span class="Keyword">(</span>i, v<span class="Keyword">)</span>
+<span class="lnr">113 </span>    <span class="Keyword">)</span>
+<span class="lnr">114 </span>  <span class="Keyword">)</span>
+<span class="lnr">115 </span>
+<span class="lnr">116 </span><span class="Keyword">val</span> iteri_down <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">117 </span>  x: <span class="Type">array</span> a,
+<span class="lnr">118 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">119 </span>  <span class="Keyword">|</span> p
+<span class="lnr">120 </span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">121 </span>  iter_array_down <span class="Keyword">(</span>x, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span> <span class="Keyword">|</span> x @ <span class="Type">array</span> a <span class="Keyword">*</span> p<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">122 </span>    consult <span class="Keyword">[</span>pre <span class="Keyword">=</span> p, b <span class="Keyword">=</span> <span class="Keyword">(</span><span class="Keyword">|</span> p<span class="Keyword">)]</span> <span class="Keyword">(</span>x, i, <span class="Keyword">fun</span> <span class="Keyword">(</span>v: a <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">123 </span>      <span class="Comment">(* WISH could we get rid of this type application? *)</span>
+<span class="lnr">124 </span>      f <span class="Keyword">(</span>i, v<span class="Keyword">)</span>
+<span class="lnr">125 </span>    <span class="Keyword">)</span>
+<span class="lnr">126 </span>  <span class="Keyword">)</span>
+<span class="lnr">127 </span>
+<span class="lnr">128 </span><span class="Comment">(* A degenerate variant of the above loops, where the function [f] has</span>
+<span class="lnr">129 </span><span class="Comment">   access to the element, but not the index [i] or to the array [x]. *)</span>
+<span class="lnr">130 </span>
+<span class="lnr">131 </span><span class="Keyword">val</span> fold_up <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">132 </span>  x: <span class="Type">array</span> a,
+<span class="lnr">133 </span>  <span class="Keyword">consumes</span> seed: b,
+<span class="lnr">134 </span>  f: <span class="Keyword">(</span>a, <span class="Keyword">consumes</span> accu: b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">135 </span><span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr">136 </span>  fold_array_up <span class="Keyword">(</span>x, seed, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span>, <span class="Keyword">consumes</span> accu: b <span class="Keyword">|</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr">137 </span>    f <span class="Keyword">(</span>get <span class="Keyword">(</span>x, i<span class="Keyword">)</span>, accu<span class="Keyword">)</span>
+<span class="lnr">138 </span>  <span class="Keyword">)</span>
+<span class="lnr">139 </span>
+<span class="lnr">140 </span><span class="Keyword">val</span> fold_down <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">141 </span>  x: <span class="Type">array</span> a,
+<span class="lnr">142 </span>  <span class="Keyword">consumes</span> seed: b,
+<span class="lnr">143 </span>  f: <span class="Keyword">(</span>a, <span class="Keyword">consumes</span> accu: b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">144 </span><span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr">145 </span>  fold_array_down <span class="Keyword">(</span>x, seed, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span>, <span class="Keyword">consumes</span> accu: b <span class="Keyword">|</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr">146 </span>    f <span class="Keyword">(</span>get <span class="Keyword">(</span>x, i<span class="Keyword">)</span>, accu<span class="Keyword">)</span>
+<span class="lnr">147 </span>  <span class="Keyword">)</span>
+<span class="lnr">148 </span>
+<span class="lnr">149 </span><span class="Keyword">val</span> iter_up <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">150 </span>  x: <span class="Type">array</span> a,
+<span class="lnr">151 </span>  f: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">152 </span>  <span class="Keyword">|</span> p
+<span class="lnr">153 </span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">154 </span>  iter_array_up <span class="Keyword">(</span>x, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span> <span class="Keyword">|</span> x @ <span class="Type">array</span> a <span class="Keyword">*</span> p<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">155 </span>    consult <span class="Keyword">[</span>pre <span class="Keyword">=</span> p, b <span class="Keyword">=</span> <span class="Keyword">(</span><span class="Keyword">|</span> p<span class="Keyword">)]</span> <span class="Keyword">(</span>x, i, <span class="Keyword">fun</span> <span class="Keyword">(</span>v: a <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">156 </span>      <span class="Comment">(* WISH could we get rid of this type application? *)</span>
+<span class="lnr">157 </span>      f v
+<span class="lnr">158 </span>    <span class="Keyword">)</span>
+<span class="lnr">159 </span>  <span class="Keyword">)</span>
+<span class="lnr">160 </span>
+<span class="lnr">161 </span><span class="Keyword">val</span> iter_down <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">162 </span>  x: <span class="Type">array</span> a,
+<span class="lnr">163 </span>  f: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">164 </span>  <span class="Keyword">|</span> p
+<span class="lnr">165 </span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">166 </span>  iter_array_down <span class="Keyword">(</span>x, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span> <span class="Keyword">|</span> x @ <span class="Type">array</span> a <span class="Keyword">*</span> p<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">167 </span>    consult <span class="Keyword">[</span>pre <span class="Keyword">=</span> p, b <span class="Keyword">=</span> <span class="Keyword">(</span><span class="Keyword">|</span> p<span class="Keyword">)]</span> <span class="Keyword">(</span>x, i, <span class="Keyword">fun</span> <span class="Keyword">(</span>v: a <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">168 </span>      <span class="Comment">(* WISH could we get rid of this type application? *)</span>
+<span class="lnr">169 </span>      f v
+<span class="lnr">170 </span>    <span class="Keyword">)</span>
+<span class="lnr">171 </span>  <span class="Keyword">)</span>
+<span class="lnr">172 </span>
+<span class="lnr">173 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">174 </span>
+<span class="lnr">175 </span><span class="Comment">(* Creating an empty array. *)</span>
+<span class="lnr">176 </span>
+<span class="lnr">177 </span><span class="Keyword">val</span> zero <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Constant">()</span> : <span class="Type">array</span> a <span class="Keyword">=</span>
+<span class="lnr">178 </span>  init <span class="Keyword">(</span><span class="Number">0</span>, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span><span class="Keyword">)</span> : a <span class="Keyword">=</span> <span class="Keyword">fail</span> <span class="Comment">(* impossible *)</span><span class="Keyword">)</span>
+<span class="lnr">179 </span>
+<span class="lnr">180 </span><span class="Comment">(* Resetting an entire array. *)</span>
+<span class="lnr">181 </span><span class="Comment">(* TEMPORARY could define [reset_segment] and view [reset] as a special case? *)</span>
+<span class="lnr">182 </span>
+<span class="lnr">183 </span><span class="Keyword">val</span> reset <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">184 </span>  x: <span class="Type">array</span> a,
+<span class="lnr">185 </span>  f: <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a
+<span class="lnr">186 </span>  <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">187 </span>  iter_array_up <span class="Keyword">(</span>x, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span> <span class="Keyword">|</span> x @ <span class="Type">array</span> a <span class="Keyword">*</span> p<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">188 </span>    set <span class="Keyword">(</span>x, i, f i<span class="Keyword">)</span>
+<span class="lnr">189 </span>  <span class="Keyword">)</span>
+<span class="lnr">190 </span>
+<span class="lnr">191 </span><span class="Comment">(* Copying an entire array. *)</span>
+<span class="lnr">192 </span><span class="Comment">(* TEMPORARY will require duplicable a *)</span>
+<span class="lnr">193 </span><span class="Keyword">val</span> copy <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>x: <span class="Type">array</span> a<span class="Keyword">)</span> : <span class="Type">array</span> a <span class="Keyword">=</span>
+<span class="lnr">194 </span>  sub <span class="Keyword">(</span>x, <span class="Number">0</span>, length x<span class="Keyword">)</span>
+<span class="lnr">195 </span>
+<span class="lnr">196 </span><span class="Keyword">val</span> map <span class="Keyword">[</span>a, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">197 </span>  x: <span class="Type">array</span> a,
+<span class="lnr">198 </span>  f: <span class="Keyword">(</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">199 </span>  <span class="Keyword">|</span> p
+<span class="lnr">200 </span><span class="Keyword">)</span> : <span class="Type">array</span> b <span class="Keyword">=</span>
+<span class="lnr">201 </span>  <span class="Comment">(* It seems to work when [p] is not there and [x @ array a] must be guessed, but not</span>
+<span class="lnr">202 </span><span class="Comment">     in the more complex situation where [x @ array a * p] must be guessed. *)</span>
+<span class="lnr">203 </span>  init <span class="Keyword">(</span>length x, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span> <span class="Keyword">|</span> x @ <span class="Type">array</span> a <span class="Keyword">*</span> p<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr">204 </span>    f <span class="Keyword">(</span>get <span class="Keyword">(</span>x, i<span class="Keyword">))</span>
+<span class="lnr">205 </span>  <span class="Keyword">)</span>
+<span class="lnr">206 </span>
+<span class="lnr">207 </span><span class="Keyword">val</span> mapi <span class="Keyword">[</span>a, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">208 </span>  x: <span class="Type">array</span> a,
+<span class="lnr">209 </span>  f: <span class="Keyword">(</span><span class="Type">int</span>, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">210 </span>  <span class="Keyword">|</span> p
+<span class="lnr">211 </span><span class="Keyword">)</span> : <span class="Type">array</span> b <span class="Keyword">=</span>
+<span class="lnr">212 </span>  init <span class="Keyword">(</span>length x, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span> <span class="Keyword">|</span> x @ <span class="Type">array</span> a <span class="Keyword">*</span> p<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr">213 </span>    f <span class="Keyword">(</span>i, get <span class="Keyword">(</span>x, i<span class="Keyword">))</span>
+<span class="lnr">214 </span>  <span class="Keyword">)</span>
+<span class="lnr">215 </span>
+<span class="lnr">216 </span><span class="Comment">(* Filling a segment with a value. *)</span>
+<span class="lnr">217 </span>
+<span class="lnr">218 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> fill_segment <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>x: <span class="Type">array</span> a, i: <span class="Type">int</span>, j: <span class="Type">int</span>, v: a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">219 </span>  <span class="Keyword">if</span> i <span class="Keyword">&lt;</span> j <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">220 </span>    set <span class="Keyword">(</span>x, i, v<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">221 </span>    fill_segment <span class="Keyword">(</span>x, i + <span class="Number">1</span>, j, v<span class="Keyword">)</span>
+<span class="lnr">222 </span>  <span class="Keyword">end</span>
+<span class="lnr">223 </span>
+<span class="lnr">224 </span><span class="Keyword">val</span> fill <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>x: <span class="Type">array</span> a, i: <span class="Type">int</span>, len: <span class="Type">int</span>, v: a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">225 </span>  fill_segment <span class="Keyword">(</span>x, i, i + len, v<span class="Keyword">)</span>
+<span class="lnr">226 </span>
+<span class="lnr">227 </span><span class="Keyword">val</span> fill_array <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>x: <span class="Type">array</span> a, v: a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">228 </span>  fill_segment <span class="Keyword">(</span>x, <span class="Number">0</span>, length x, v<span class="Keyword">)</span>
+<span class="lnr">229 </span>
+<span class="lnr">230 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">231 </span>
+<span class="lnr">232 </span><span class="Comment">(* Conversions between arrays and lists. *)</span>
+<span class="lnr">233 </span>
+<span class="lnr">234 </span><span class="Comment">(* Converting an array (segment) to a list. *)</span>
+<span class="lnr">235 </span>
+<span class="lnr">236 </span><span class="Comment">(* BUG (known, I suppose): the names Cons and Nil should not be understood</span>
+<span class="lnr">237 </span><span class="Comment">   since I have not opened the list module. *)</span>
+<span class="lnr">238 </span>
+<span class="lnr">239 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> segment2list <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>x: <span class="Type">array</span> a, i: <span class="Type">int</span>, j: <span class="Type">int</span>, <span class="Keyword">consumes</span> accu: <span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">240 </span>  <span class="Keyword">if</span> i <span class="Keyword">&lt;</span> j <span class="Keyword">then</span>
+<span class="lnr">241 </span>    segment2list <span class="Keyword">(</span>x, i, j - <span class="Number">1</span>, <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> get <span class="Keyword">(</span>x, j - <span class="Number">1</span><span class="Keyword">)</span><span class="Keyword">;</span> tail <span class="Keyword">=</span> accu <span class="Keyword">})</span>
+<span class="lnr">242 </span>  <span class="Keyword">else</span>
+<span class="lnr">243 </span>    accu
+<span class="lnr">244 </span>
+<span class="lnr">245 </span><span class="Keyword">val</span> array2list <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>x: <span class="Type">array</span> a<span class="Keyword">)</span> : <span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">246 </span>  segment2list <span class="Keyword">(</span>x, <span class="Number">0</span>, length x, <span class="Constant">Nil</span><span class="Keyword">)</span>
+<span class="lnr">247 </span>
+<span class="lnr">248 </span><span class="Comment">(* Converting a list to an array. *)</span>
+<span class="lnr">249 </span>
+<span class="lnr">250 </span><span class="Comment">(* This less elegant and less compact version is defined directly. Due to its</span>
+<span class="lnr">251 </span><span class="Comment">   use of [create], it is restricted to a duplicable element type. I keep only</span>
+<span class="lnr">252 </span><span class="Comment">   as a test of the type-checker. *)</span>
+<span class="lnr">253 </span>
+<span class="lnr">254 </span><span class="Keyword">val</span> list2array <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>xs: <span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">array</span> a <span class="Keyword">=</span>
+<span class="lnr">255 </span>  <span class="Keyword">match</span> xs <span class="Keyword">with</span>
+<span class="lnr">256 </span>  <span class="Keyword">|</span> <span class="Constant">Nil</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">257 </span>      zero <span class="Constant">()</span>
+<span class="lnr">258 </span>  <span class="Keyword">|</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head<span class="Keyword">;</span> tail <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">259 </span>      <span class="Keyword">let</span> x <span class="Keyword">=</span> create <span class="Keyword">(</span><span class="Number">1</span> + <span class="Type">list</span><span class="Keyword">::</span>length tail, head<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">260 </span>      <span class="Keyword">let</span> <span class="Keyword">rec</span> fill <span class="Keyword">(</span>i: <span class="Type">int</span>, xs: <span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> a <span class="Keyword">|</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> : <span class="Keyword">=</span>x <span class="Keyword">=</span>
+<span class="lnr">261 </span>        <span class="Keyword">match</span> xs <span class="Keyword">with</span>
+<span class="lnr">262 </span>        <span class="Keyword">|</span> <span class="Constant">Nil</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">263 </span>            x
+<span class="lnr">264 </span>        <span class="Keyword">|</span> <span class="Constant">Cons</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">265 </span>            set <span class="Keyword">(</span>x, i, xs.head<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">266 </span>            fill <span class="Keyword">(</span>i + <span class="Number">1</span>, xs.tail<span class="Keyword">)</span>
+<span class="lnr">267 </span>        <span class="Keyword">end</span>
+<span class="lnr">268 </span>      <span class="Keyword">in</span>
+<span class="lnr">269 </span>      fill <span class="Keyword">(</span><span class="Number">1</span>, tail<span class="Keyword">)</span>
+<span class="lnr">270 </span>  <span class="Keyword">end</span>
+<span class="lnr">271 </span>
+<span class="lnr">272 </span><span class="Comment">(* This elegant and compact version is defined in terms of [init]. *)</span>
+<span class="lnr">273 </span>
+<span class="lnr">274 </span><span class="Keyword">val</span> list2array <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> xs: <span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> a<span class="Keyword">)</span> : <span class="Type">array</span> a <span class="Keyword">=</span>
+<span class="lnr">275 </span>  <span class="Keyword">let</span> n <span class="Keyword">=</span> <span class="Type">list</span><span class="Keyword">::</span>length xs <span class="Keyword">in</span>
+<span class="lnr">276 </span>  <span class="Keyword">let</span> r <span class="Keyword">=</span> newref xs <span class="Keyword">in</span>
+<span class="lnr">277 </span>  init <span class="Keyword">(</span>n, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span> <span class="Keyword">|</span> r @ ref <span class="Keyword">(</span><span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> a<span class="Keyword">))</span> : a <span class="Keyword">=</span>
+<span class="lnr">278 </span>    <span class="Keyword">match</span> <span class="Keyword">!</span>r <span class="Keyword">with</span>
+<span class="lnr">279 </span>    <span class="Keyword">|</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head<span class="Keyword">;</span> tail <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">280 </span>        r <span class="Keyword">:=</span> tail<span class="Keyword">;</span>
+<span class="lnr">281 </span>        head
+<span class="lnr">282 </span>    <span class="Keyword">|</span> <span class="Constant">Nil</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">283 </span>        <span class="Keyword">fail</span> <span class="Comment">(* impossible *)</span>
+<span class="lnr">284 </span>    <span class="Keyword">end</span>
+<span class="lnr">285 </span>  <span class="Keyword">)</span>
+<span class="lnr">286 </span><span class="Comment">(* BUG -- well, not quite but almost: if I omit the &quot;consumes&quot; annotation</span>
+<span class="lnr">287 </span><span class="Comment">   above, I get an error whose location is the line &quot;let r = newref xs&quot;</span>
+<span class="lnr">288 </span><span class="Comment">   whereas the error is really at the very end of the function, where a</span>
+<span class="lnr">289 </span><span class="Comment">   permission [xs @ list a] is missing. *)</span>
+<span class="lnr">290 </span>
+<span class="lnr">291 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">292 </span>
+<span class="lnr">293 </span><span class="Comment">(* Sorting. *)</span>
+<span class="lnr">294 </span>
+<span class="lnr">295 </span><span class="Comment">(* This is a port of OCaml's ternary heap sort. *)</span>
+<span class="lnr">296 </span>
+<span class="lnr">297 </span><span class="Comment">(* The three children of the node [i] are [i31], [i31+1], and [i31+2], where</span>
+<span class="lnr">298 </span><span class="Comment">   [i31] stands for [i*3+1]. *)</span>
+<span class="lnr">299 </span>
+<span class="lnr">300 </span><span class="Keyword">val</span> sort <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>
+<span class="lnr">301 </span>  cmp: <span class="Keyword">(</span>a, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr">302 </span>  x: <span class="Type">array</span> a
+<span class="lnr">303 </span>  <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">304 </span>
+<span class="lnr">305 </span>  <span class="Comment">(* In all of the auxiliary functions that follow, [l] is the length of the</span>
+<span class="lnr">306 </span><span class="Comment">     array [x]. *)</span>
+<span class="lnr">307 </span>
+<span class="lnr">308 </span>  <span class="Comment">(* The function [maxson] tells which of the children of the node [i] has</span>
+<span class="lnr">309 </span><span class="Comment">     the greatest value. This node may have zero, one, two, or three children.</span>
+<span class="lnr">310 </span><span class="Comment">     If there is at least one child, then the call returns the index of the</span>
+<span class="lnr">311 </span><span class="Comment">     maximum child to the [normal] continuation. If there is zero child, then</span>
+<span class="lnr">312 </span><span class="Comment">     the call returns the index [i] to the [bottom] continuation. This is a</span>
+<span class="lnr">313 </span><span class="Comment">     double-barreled CPS encoding of the original OCaml code, which uses an</span>
+<span class="lnr">314 </span><span class="Comment">     exception to signal that we have hit the bottom. *)</span>
+<span class="lnr">315 </span>
+<span class="lnr">316 </span>  <span class="Comment">(* The [consumes] annotation on the three occurrences of [x @ array a] below</span>
+<span class="lnr">317 </span><span class="Comment">     seems to be optional. I believe that it should in principle be present.</span>
+<span class="lnr">318 </span><span class="Comment">     By omitting this annotation, we would be committing to preserving this</span>
+<span class="lnr">319 </span><span class="Comment">     permission, so we would be fixing a more specific type for [maxson]. In</span>
+<span class="lnr">320 </span><span class="Comment">     essence, we would be specializing the answer type [b] to a type of the</span>
+<span class="lnr">321 </span><span class="Comment">     form [b | x @ array a]. *)</span>
+<span class="lnr">322 </span>
+<span class="lnr">323 </span>  <span class="Keyword">let</span> maxson <span class="Keyword">[</span>b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">324 </span>    l: <span class="Type">int</span>, i: <span class="Type">int</span>,
+<span class="lnr">325 </span>    bottom: <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> <span class="Keyword">consumes</span> <span class="Keyword">(</span>p <span class="Keyword">*</span> x @ <span class="Type">array</span> a<span class="Keyword">))</span> <span class="Keyword">-&gt;</span> b,
+<span class="lnr">326 </span>    normal: <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> <span class="Keyword">consumes</span> <span class="Keyword">(</span>p <span class="Keyword">*</span> x @ <span class="Type">array</span> a<span class="Keyword">))</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">327 </span>                 <span class="Keyword">|</span> <span class="Keyword">consumes</span> <span class="Keyword">(</span>p <span class="Keyword">*</span> x @ <span class="Type">array</span> a<span class="Keyword">))</span>  : b <span class="Keyword">=</span>
+<span class="lnr">328 </span>    <span class="Keyword">let</span> i31 <span class="Keyword">=</span> i+i+i+<span class="Number">1</span> <span class="Keyword">in</span>
+<span class="lnr">329 </span>    <span class="Keyword">if</span> i31+<span class="Number">2</span> <span class="Keyword">&lt;</span> l <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">330 </span>      <span class="Comment">(* If there are three children, find which one has the maximum value. *)</span>
+<span class="lnr">331 </span>      <span class="Keyword">let</span> max <span class="Keyword">=</span> newref i31 <span class="Keyword">in</span>
+<span class="lnr">332 </span>      <span class="Keyword">if</span> cmp <span class="Keyword">(</span>get <span class="Keyword">(</span>x, i31<span class="Keyword">)</span>,  get <span class="Keyword">(</span>x, i31+<span class="Number">1</span><span class="Keyword">))</span> <span class="Keyword">&lt;</span> <span class="Number">0</span> <span class="Keyword">then</span> max <span class="Keyword">:=</span> i31+<span class="Number">1</span><span class="Keyword">;</span>
+<span class="lnr">333 </span>      <span class="Keyword">if</span> cmp <span class="Keyword">(</span>get <span class="Keyword">(</span>x, <span class="Keyword">!</span>max<span class="Keyword">)</span>, get <span class="Keyword">(</span>x, i31+<span class="Number">2</span><span class="Keyword">))</span> <span class="Keyword">&lt;</span> <span class="Number">0</span> <span class="Keyword">then</span> max <span class="Keyword">:=</span> i31+<span class="Number">2</span><span class="Keyword">;</span>
+<span class="lnr">334 </span>      normal <span class="Keyword">!</span>max
+<span class="lnr">335 </span>    <span class="Keyword">end</span>
+<span class="lnr">336 </span>    <span class="Keyword">else</span> <span class="Keyword">if</span> i31+<span class="Number">1</span> <span class="Keyword">&lt;</span> l <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">337 </span>      <span class="Comment">(* If there are just two children, find which one has the maximum value. *)</span>
+<span class="lnr">338 </span>      <span class="Keyword">let</span> max <span class="Keyword">=</span> <span class="Keyword">if</span> cmp <span class="Keyword">(</span>get <span class="Keyword">(</span>x, i31<span class="Keyword">)</span>, get <span class="Keyword">(</span>x, i31+<span class="Number">1</span><span class="Keyword">))</span> <span class="Keyword">&lt;</span> <span class="Number">0</span> <span class="Keyword">then</span> i31+<span class="Number">1</span> <span class="Keyword">else</span> i31 <span class="Keyword">in</span>
+<span class="lnr">339 </span>      normal max
+<span class="lnr">340 </span>    <span class="Keyword">end</span>
+<span class="lnr">341 </span>    <span class="Keyword">else</span> <span class="Keyword">if</span> i31 <span class="Keyword">&lt;</span> l <span class="Keyword">then</span>
+<span class="lnr">342 </span>      <span class="Comment">(* If there is just one child, return it. *)</span>
+<span class="lnr">343 </span>      normal i31
+<span class="lnr">344 </span>    <span class="Keyword">else</span>
+<span class="lnr">345 </span>      <span class="Comment">(* If there are no children, we have hit the bottom. Return [i]</span>
+<span class="lnr">346 </span><span class="Comment">         via the exceptional continuation. *)</span>
+<span class="lnr">347 </span>      bottom i
+<span class="lnr">348 </span>  <span class="Keyword">in</span>
+<span class="lnr">349 </span>
+<span class="lnr">350 </span>  <span class="Comment">(* The function [trickledown] trickles the element [e] down node [i].</span>
+<span class="lnr">351 </span><span class="Comment">     The normal continuation is specialized to an empty continuation. *)</span>
+<span class="lnr">352 </span>
+<span class="lnr">353 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> trickledown <span class="Keyword">(</span>
+<span class="lnr">354 </span>    l: <span class="Type">int</span>, i: <span class="Type">int</span>, e: a,
+<span class="lnr">355 </span>    bottom: <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> p <span class="Keyword">*</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">356 </span>    <span class="Keyword">|</span> p <span class="Keyword">*</span> x @ <span class="Type">array</span> a
+<span class="lnr">357 </span>  <span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">358 </span>    maxson <span class="Comment">(* [b = (| p * x @ array a)] *)</span> <span class="Keyword">(</span>l, i, bottom, <span class="Keyword">fun</span> <span class="Keyword">(</span>j: <span class="Type">int</span> <span class="Keyword">|</span> p <span class="Keyword">*</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">359 </span>      <span class="Comment">(* [j] is the maximum son of [i]. If the element [e] is ? than the</span>
+<span class="lnr">360 </span><span class="Comment">         element found at [j], then send it down, otherwise write [e] into</span>
+<span class="lnr">361 </span><span class="Comment">         node [i]. *)</span>
+<span class="lnr">362 </span>      <span class="Keyword">if</span> cmp <span class="Keyword">(</span>get <span class="Keyword">(</span>x, j<span class="Keyword">)</span>, e<span class="Keyword">)</span> <span class="Keyword">&gt;</span> <span class="Number">0</span> <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">363 </span>        set <span class="Keyword">(</span>x, i, get <span class="Keyword">(</span>x, j<span class="Keyword">))</span><span class="Keyword">;</span>
+<span class="lnr">364 </span>        trickledown <span class="Keyword">(</span>l, j, e, bottom<span class="Keyword">)</span>
+<span class="lnr">365 </span>      <span class="Keyword">end</span>
+<span class="lnr">366 </span>      <span class="Keyword">else</span>
+<span class="lnr">367 </span>        set <span class="Keyword">(</span>x, i, e<span class="Keyword">)</span>
+<span class="lnr">368 </span>    <span class="Keyword">)</span>
+<span class="lnr">369 </span>  <span class="Keyword">in</span>
+<span class="lnr">370 </span>
+<span class="lnr">371 </span>  <span class="Comment">(* The function [trickle] provides [trickledown] with a bottom continuation</span>
+<span class="lnr">372 </span><span class="Comment">     that writes [e] into the childless node.  *)</span>
+<span class="lnr">373 </span>
+<span class="lnr">374 </span>  <span class="Keyword">let</span> trickle <span class="Keyword">(</span>l: <span class="Type">int</span>, i: <span class="Type">int</span>, e: a <span class="Keyword">|</span> p <span class="Keyword">*</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">375 </span>    trickledown <span class="Keyword">(</span>l, i, e, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span> <span class="Keyword">|</span> p <span class="Keyword">*</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">376 </span>      set <span class="Keyword">(</span>x, i, e<span class="Keyword">)</span>
+<span class="lnr">377 </span>    <span class="Keyword">)</span>
+<span class="lnr">378 </span>  <span class="Keyword">in</span>
+<span class="lnr">379 </span>
+<span class="lnr">380 </span>  <span class="Comment">(* The function [bubbledown] is analogous to [trickledown], but inserts a</span>
+<span class="lnr">381 </span><span class="Comment">     a hole, rather than an element. It never terminates normally, i.e. it</span>
+<span class="lnr">382 </span><span class="Comment">     always reaches a point where [maxson] invokes its bottom continuation.</span>
+<span class="lnr">383 </span><span class="Comment">     For this reason, we can supply an identity continuation to [maxson]. *)</span>
+<span class="lnr">384 </span>
+<span class="lnr">385 </span>  <span class="Keyword">let</span> identity <span class="Keyword">(</span>i: <span class="Type">int</span> <span class="Keyword">|</span> p <span class="Keyword">*</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">386 </span>    i
+<span class="lnr">387 </span>  <span class="Keyword">in</span>
+<span class="lnr">388 </span>
+<span class="lnr">389 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> bubbledown <span class="Keyword">(</span>
+<span class="lnr">390 </span>    l: <span class="Type">int</span>, i: <span class="Type">int</span>
+<span class="lnr">391 </span>    <span class="Keyword">|</span> p <span class="Keyword">*</span> x @ <span class="Type">array</span> a
+<span class="lnr">392 </span>  <span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">393 </span>    maxson <span class="Comment">(* [b = (int | p * x @ array a)] *)</span> <span class="Keyword">(</span>l, i, identity, <span class="Keyword">fun</span> <span class="Keyword">(</span>j: <span class="Type">int</span> <span class="Keyword">|</span> p <span class="Keyword">*</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">394 </span>      set <span class="Keyword">(</span>x, i, get <span class="Keyword">(</span>x, j<span class="Keyword">))</span><span class="Keyword">;</span>
+<span class="lnr">395 </span>      bubbledown <span class="Keyword">(</span>l, j<span class="Keyword">)</span>
+<span class="lnr">396 </span>    <span class="Keyword">)</span>
+<span class="lnr">397 </span>  <span class="Keyword">in</span>
+<span class="lnr">398 </span>
+<span class="lnr">399 </span>  <span class="Comment">(* Trickle up... *)</span>
+<span class="lnr">400 </span>
+<span class="lnr">401 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> trickleup <span class="Keyword">(</span>i: <span class="Type">int</span>, e: a <span class="Keyword">|</span> p <span class="Keyword">*</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">402 </span>    <span class="Keyword">let</span> father <span class="Keyword">=</span> <span class="Keyword">(</span>i - <span class="Number">1</span><span class="Keyword">)</span> / <span class="Number">3</span> <span class="Keyword">in</span>
+<span class="lnr">403 </span>    <span class="Keyword">if</span> cmp <span class="Keyword">(</span>get <span class="Keyword">(</span>x, father<span class="Keyword">)</span>, e<span class="Keyword">)</span> <span class="Keyword">&lt;</span> <span class="Number">0</span> <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">404 </span>      set <span class="Keyword">(</span>x, i, get <span class="Keyword">(</span>x, father<span class="Keyword">))</span><span class="Keyword">;</span>
+<span class="lnr">405 </span>      <span class="Keyword">if</span> father <span class="Keyword">&gt;</span> <span class="Number">0</span> <span class="Keyword">then</span> trickleup <span class="Keyword">(</span>father, e<span class="Keyword">)</span> <span class="Keyword">else</span> set <span class="Keyword">(</span>x, <span class="Number">0</span>, e<span class="Keyword">)</span>
+<span class="lnr">406 </span>    <span class="Keyword">end</span>
+<span class="lnr">407 </span>    <span class="Keyword">else</span>
+<span class="lnr">408 </span>      set <span class="Keyword">(</span>x, i, e<span class="Keyword">)</span>
+<span class="lnr">409 </span>  <span class="Keyword">in</span>
+<span class="lnr">410 </span>
+<span class="lnr">411 </span>  <span class="Comment">(* The main algorithm. *)</span>
+<span class="lnr">412 </span>
+<span class="lnr">413 </span>  <span class="Keyword">let</span> l <span class="Keyword">=</span> length x <span class="Keyword">in</span>
+<span class="lnr">414 </span>  iter_segment_down <span class="Keyword">(</span><span class="Number">0</span>, <span class="Keyword">(</span>l + <span class="Number">1</span><span class="Keyword">)</span> / <span class="Number">3</span>, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span> <span class="Keyword">|</span> p <span class="Keyword">*</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">415 </span>    trickle <span class="Keyword">(</span>l, i, get <span class="Keyword">(</span>x, i<span class="Keyword">))</span>
+<span class="lnr">416 </span>  <span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">417 </span>  iter_segment_down <span class="Keyword">(</span><span class="Number">2</span>, l, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span> <span class="Keyword">|</span> p <span class="Keyword">*</span> x @ <span class="Type">array</span> a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">418 </span>    <span class="Keyword">let</span> e <span class="Keyword">=</span> get <span class="Keyword">(</span>x, i<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">419 </span>    set <span class="Keyword">(</span>x, i, get <span class="Keyword">(</span>x, <span class="Number">0</span><span class="Keyword">))</span><span class="Keyword">;</span>
+<span class="lnr">420 </span>    trickleup <span class="Keyword">(</span>bubbledown <span class="Keyword">(</span>i, <span class="Number">0</span><span class="Keyword">)</span>, e<span class="Keyword">)</span>
+<span class="lnr">421 </span>  <span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">422 </span>  <span class="Keyword">if</span> l <span class="Keyword">&gt;</span> <span class="Number">1</span> <span class="Keyword">then</span>
+<span class="lnr">423 </span>    swap <span class="Keyword">(</span>x, <span class="Number">0</span>, <span class="Number">1</span><span class="Keyword">)</span>
+<span class="lnr">424 </span>
+<span class="lnr">425 </span><span class="Comment">(*</span>
+<span class="lnr">426 </span><span class="Comment">Local Variables:</span>
+<span class="lnr">427 </span><span class="Comment">compile-command: &quot;../mezzo arrayops.mz&quot;</span>
+<span class="lnr">428 </span><span class="Comment">End:</span>
+<span class="lnr">429 </span><span class="Comment">*)</span>
+</pre>
+</body>
+</html>

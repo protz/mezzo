@@ -1,0 +1,61 @@
+{1 Mezzo}
+
+Mezzo is a dialect of ML with effects control and a fine-grained type system.
+
+{3 Main modules}
+{!modules: Mezzo Driver}
+
+
+{2 Type-checker modules}
+
+{3 Definitions of types and binders}
+{!modules: TypeCore DeBruijn Types ExpressionsCore Expressions}
+
+{3 High-level type-checking modules}
+{!modules: Merge Permissions TypeChecker}
+
+{3 Handling type errors}
+{!modules: Derivations TypeErrors DerivationPrinter}
+
+
+{2 Various analyses performed by the type-checker}
+
+{3 Fact analysis}
+{!modules: DataTypeFlavor Mode Fact FactInference}
+
+{3 Other analyses}
+{!modules: Variance}
+
+
+{2 Other type-checking operations}
+
+{3 Dealing with modules and interfaces}
+{!modules: Modules Interfaces Exports}
+
+{3 Manipulating types and expressions}
+{!modules: Hoist}
+
+
+{2 From the external syntax down to the internal syntax}
+
+{3 Parsing and lexing}
+{!modules: SurfaceSyntax Grammar Lexer ParserUtils Resugar}
+
+{3 Front-end modules}
+{!modules: KindCheck TransSurface}
+
+
+{2 Misc}
+
+{3 The data structures of Mezzo}
+{!modules: Identifier Mark Hashcons GMap GSet Patricia InfiniteArray
+  PersistentUnionFind PersistentRef
+}
+
+{3 The Mezzo standard library}
+{!modules: Bash MzList MzMap MzString MzPprint Option Log}
+
+{3 Misc}
+{!modules: Debug TestUtils Utils}
+
+{1 Dependency graph}

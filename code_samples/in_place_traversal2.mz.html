@@ -1,0 +1,120 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/tests/in_place_traversal2.mz.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Todo { color: #8f8f8f; background-color: #ffff00; font-style: italic; }
+.Constant { color: #e5786d; }
+.Comment { color: #99968b; font-style: italic; }
+.PreProc { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Keyword">open</span> <span class="PreProc">core</span>
+<span class="lnr"> 2 </span><span class="Comment">(* In-place traversal of a tree, after Sobel and Friedman (1998), continued. *)</span>
+<span class="lnr"> 3 </span>
+<span class="lnr"> 4 </span><span class="Comment">(* Now, let's fix the above limitation. In order to overcome this</span>
+<span class="lnr"> 5 </span><span class="Comment">   problem, &quot;all we need&quot; is types indexed with objects and dependent</span>
+<span class="lnr"> 6 </span><span class="Comment">   function types. *)</span>
+<span class="lnr"> 7 </span>
+<span class="lnr"> 8 </span><span class="Comment">(* A continuation is a path that leads from a certain point in the</span>
+<span class="lnr"> 9 </span><span class="Comment">   tree, the hole, back up to the root of the tree. We index the</span>
+<span class="lnr">10 </span><span class="Comment">   type of continuations with both of these objects, so the type</span>
+<span class="lnr">11 </span><span class="Comment">   of continuations takes the general form [path hole root], which</span>
+<span class="lnr">12 </span><span class="Comment">   means path from hole to root. *)</span>
+<span class="lnr">13 </span>
+<span class="lnr">14 </span><span class="Comment">(* In the case of the empty path, [KInitial], the parameters</span>
+<span class="lnr">15 </span><span class="Comment">   [hole] and [root] must be equal. We require this by making the</span>
+<span class="lnr">16 </span><span class="Comment">   equation [hole == root] a &quot;field&quot; of [KInitial]. This is just like</span>
+<span class="lnr">17 </span><span class="Comment">   a GADT. *)</span>
+<span class="lnr">18 </span>
+<span class="lnr">19 </span><span class="Comment">(* A nonempty path, [KLeft] or [KRight], is a path from [hole] to</span>
+<span class="lnr">20 </span><span class="Comment">   [root] provided that the rest of the path ([father]) is a path</span>
+<span class="lnr">21 </span><span class="Comment">   from [this] object to [root]. (Here, I assume that the keyword</span>
+<span class="lnr">22 </span><span class="Comment">   &quot;this&quot; is implicitly bound to &quot;this object&quot;.) This definition</span>
+<span class="lnr">23 </span><span class="Comment">   requires some thought, I suppose. It is surprising because the</span>
+<span class="lnr">24 </span><span class="Comment">   parameter [hole] does not appear in it: it is unconstrained. This</span>
+<span class="lnr">25 </span><span class="Comment">   is because one can stick any tree into the hole of a zipper. *)</span>
+<span class="lnr">26 </span>
+<span class="lnr">27 </span><span class="Comment">(* One can sum up the meaning of the type [path hole root] by saying:</span>
+<span class="lnr">28 </span><span class="Comment">   if this is an empty path, then [hole == root]; otherwise, [hole]</span>
+<span class="lnr">29 </span><span class="Comment">   is arbitrary and [root] is the address of the root node of this</span>
+<span class="lnr">30 </span><span class="Comment">   nonempty path. *)</span>
+<span class="lnr">31 </span>
+<span class="lnr">32 </span><span class="Keyword">mutable</span> <span class="Keyword">data</span> path hole root <span class="Keyword">=</span>
+<span class="lnr">33 </span>  <span class="Keyword">|</span> <span class="Constant">KInitial</span> <span class="Keyword">{</span> hole <span class="Keyword">==</span> root <span class="Keyword">}</span>
+<span class="lnr">34 </span>  <span class="Keyword">|</span> <span class="Constant">KLeft</span> <span class="Keyword">{</span> father: path this root<span class="Keyword">;</span> right: tree <span class="Keyword">}</span>
+<span class="lnr">35 </span>  <span class="Keyword">|</span> <span class="Constant">KRight</span> <span class="Keyword">{</span> left: tree<span class="Keyword">;</span> father: path this root <span class="Keyword">}</span>
+<span class="lnr">36 </span>
+<span class="lnr">37 </span><span class="Comment">(* The code of the functions [traverse] and [continue] is entirely</span>
+<span class="lnr">38 </span><span class="Comment">   identical to the first versions of these functions above. Only</span>
+<span class="lnr">39 </span><span class="Comment">   the types change. The signature of these functions say, give me</span>
+<span class="lnr">40 </span><span class="Comment">   a (sub)tree [t] and a path from [t] back to the [root], and</span>
+<span class="lnr">41 </span><span class="Comment">   eventually I will return a permission to the entire tree at</span>
+<span class="lnr">42 </span><span class="Comment">   [root]. No dynamic check is required in this version of the</span>
+<span class="lnr">43 </span><span class="Comment">   code. Note that this signature is dependent: the type of [k]</span>
+<span class="lnr">44 </span><span class="Comment">   mentions [t]. Also, this signature is universally quantified</span>
+<span class="lnr">45 </span><span class="Comment">   over [root]. *)</span>
+<span class="lnr">46 </span>
+<span class="lnr">47 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> traverse <span class="Keyword">(consumes</span> t: tree, <span class="Keyword">consumes</span> k: path t root<span class="Keyword">)</span>: <span class="Keyword">(</span><span class="Keyword">|</span> root @ tree<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">48 </span>  <span class="Comment">(* t: tree, k: path t root *)</span>
+<span class="lnr">49 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr">50 </span>  <span class="Keyword">|</span> <span class="Constant">TEmpty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">51 </span>      continue <span class="Keyword">(</span>k, t<span class="Keyword">)</span>
+<span class="lnr">52 </span>  <span class="Keyword">|</span> <span class="Constant">TNode</span> <span class="Keyword">{</span> left<span class="Keyword">;</span> right <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">53 </span>      <span class="Comment">(* t: TNode { left = left, right = right }, left, right: tree, k: path t root *)</span>
+<span class="lnr">54 </span>      t <span class="Keyword">&lt;-</span> <span class="Constant">KLeft</span> <span class="Keyword">{</span> father <span class="Keyword">=</span> k<span class="Keyword">;</span> right <span class="Keyword">=</span> right <span class="Keyword">}</span><span class="Keyword">;</span>
+<span class="lnr">55 </span>      <span class="Comment">(* t: KLeft { father = k, right = right }, left, right: tree, k: path t root *)</span>
+<span class="lnr">56 </span>      <span class="Comment">(* t: path left root, left: tree *)</span>
+<span class="lnr">57 </span>      traverse <span class="Keyword">(</span>t, left<span class="Keyword">)</span>
+<span class="lnr">58 </span>
+<span class="lnr">59 </span><span class="Keyword">and</span> continue <span class="Keyword">(consumes</span> k: path t root, <span class="Keyword">consumes</span> t: tree<span class="Keyword">)</span> : <span class="Keyword">(</span><span class="Keyword">|</span> root @ tree<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">60 </span>  <span class="Comment">(* t: tree, k: path t root *)</span>
+<span class="lnr">61 </span>  <span class="Keyword">match</span> k <span class="Keyword">with</span>
+<span class="lnr">62 </span>  <span class="Keyword">|</span> <span class="Constant">KInitial</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">63 </span>      <span class="Comment">(* The equation [t == root] appears in this branch. *)</span>
+<span class="lnr">64 </span>      <span class="Comment">(* t: tree, k: KInitial {}, t == root *)</span>
+<span class="lnr">65 </span>      <span class="Comment">(* root: tree *)</span>
+<span class="lnr">66 </span>      t
+<span class="lnr">67 </span>  <span class="Keyword">|</span> <span class="Constant">KLeft</span> <span class="Keyword">{</span> father<span class="Keyword">;</span> right <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">68 </span>      <span class="Comment">(* k: KLeft { father = father; right = right }, father: path k root, right: tree, t: tree *)</span>
+<span class="lnr">69 </span>      k <span class="Keyword">&lt;-</span> <span class="Constant">KRight</span> <span class="Keyword">{</span> left <span class="Keyword">=</span> t<span class="Keyword">;</span> father <span class="Keyword">=</span> father <span class="Keyword">}</span><span class="Keyword">;</span>
+<span class="lnr">70 </span>      <span class="Comment">(* k: KRight { left = t; father = father }, father: path k root, right: tree, t: tree *)</span>
+<span class="lnr">71 </span>      <span class="Comment">(* k: path right root, right: tree *)</span>
+<span class="lnr">72 </span>      traverse <span class="Keyword">(</span>right, k<span class="Keyword">)</span>
+<span class="lnr">73 </span>  <span class="Keyword">|</span> <span class="Constant">KRight</span> <span class="Keyword">{</span> left<span class="Keyword">;</span> father <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">74 </span>      <span class="Comment">(* k: KRight { left = left; father = father }, left: tree, father: path k root, t: tree *)</span>
+<span class="lnr">75 </span>      k <span class="Keyword">&lt;-</span> <span class="Constant">TNode</span> <span class="Keyword">{</span> left <span class="Keyword">=</span> left<span class="Keyword">;</span> right <span class="Keyword">=</span> t <span class="Keyword">}</span><span class="Keyword">;</span>
+<span class="lnr">76 </span>      <span class="Comment">(* k: TNode { left = left; right = t }, left: tree, father: path k root, t: tree *)</span>
+<span class="lnr">77 </span>      <span class="Comment">(* k: tree, father: path k root *)</span>
+<span class="lnr">78 </span>      continue <span class="Keyword">(</span>father, k<span class="Keyword">)</span>
+<span class="lnr">79 </span>
+<span class="lnr">80 </span><span class="Keyword">let</span> traverse <span class="Keyword">(</span>t: tree<span class="Keyword">)</span>: <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">81 </span>  <span class="Comment">(* t: tree *)</span>
+<span class="lnr">82 </span>  <span class="Comment">(* Call the above version of [traverse] with an initial continuation. *)</span>
+<span class="lnr">83 </span>  <span class="Keyword">let</span> k <span class="Keyword">=</span> new <span class="Constant">KInitial</span> <span class="Keyword">{}</span> <span class="Keyword">in</span>
+<span class="lnr">84 </span>  <span class="Comment">(* t: tree, k: KInitial {} *)</span>
+<span class="lnr">85 </span>  <span class="Comment">(* The equation [t == t] is checked here. *)</span>
+<span class="lnr">86 </span>  <span class="Comment">(* t: tree, k: path t t *)</span>
+<span class="lnr">87 </span>  traverse <span class="Keyword">(</span>t, k<span class="Keyword">)</span>
+<span class="lnr">88 </span>  <span class="Comment">(* t: tree *)</span>
+<span class="lnr">89 </span>
+<span class="lnr">90 </span><span class="Comment">(* </span><span class="Todo">TODO</span><span class="Comment">: tree copy instead of just tree traversal *)</span>
+<span class="lnr">91 </span><span class="Comment">(* </span><span class="Todo">TODO</span><span class="Comment">: graph traversal instead of just tree traversal *)</span>
+<span class="lnr">92 </span><span class="Comment">(* </span><span class="Todo">TODO</span><span class="Comment">: combine the two and do a graph copy *)</span>
+<span class="lnr">93 </span>
+</pre>
+</body>
+</html>

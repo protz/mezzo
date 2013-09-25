@@ -1,0 +1,98 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/tests/pervasives.hml.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="ocaml">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Constant { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+.Type { color: #cae682; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Comment">(* Arithmetic *)</span>
+<span class="lnr"> 2 </span>
+<span class="lnr"> 3 </span>abstract <span class="Type">int</span>
+<span class="lnr"> 4 </span>fact duplicable <span class="Type">int</span>
+<span class="lnr"> 5 </span>
+<span class="lnr"> 6 </span><span class="Comment">(* Standard types *)</span>
+<span class="lnr"> 7 </span>
+<span class="lnr"> 8 </span>data <span class="Type">bool</span> <span class="Keyword">=</span> <span class="Constant">True</span> <span class="Keyword">|</span> <span class="Constant">False</span>
+<span class="lnr"> 9 </span>
+<span class="lnr">10 </span>data <span class="Type">option</span> a <span class="Keyword">=</span> <span class="Constant">Some</span> <span class="Keyword">{</span> contents: a <span class="Keyword">}</span> <span class="Keyword">|</span> <span class="Constant">None</span>
+<span class="lnr">11 </span>
+<span class="lnr">12 </span><span class="Keyword">mutable</span> data ref a <span class="Keyword">=</span> <span class="Constant">Ref</span> <span class="Keyword">{</span>
+<span class="lnr">13 </span>  contents: a<span class="Keyword">;</span>
+<span class="lnr">14 </span><span class="Keyword">}</span>
+<span class="lnr">15 </span>
+<span class="lnr">16 </span><span class="Comment">(* The physical equality check (==) defined below returns, in case of success, a</span>
+<span class="lnr">17 </span><span class="Comment"> * permission revealing that the two identifiers are equal. *)</span>
+<span class="lnr">18 </span>
+<span class="lnr">19 </span>data phys_equal <span class="Keyword">(</span>x <span class="Keyword">::</span> <span class="Constant">TERM</span><span class="Keyword">)</span> <span class="Keyword">(</span>y <span class="Keyword">::</span> <span class="Constant">TERM</span><span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">20 </span>  <span class="Keyword">|</span> <span class="Constant">Equals</span> <span class="Keyword">{</span> <span class="Keyword">|</span> x <span class="Keyword">=</span> y <span class="Keyword">}</span>
+<span class="lnr">21 </span>  <span class="Keyword">|</span> <span class="Constant">NotEquals</span>
+<span class="lnr">22 </span>
+<span class="lnr">23 </span><span class="Comment">(* Lists *)</span>
+<span class="lnr">24 </span>
+<span class="lnr">25 </span><span class="Keyword">mutable</span> data xlist a <span class="Keyword">=</span>
+<span class="lnr">26 </span>  <span class="Keyword">|</span> <span class="Constant">XCons</span> <span class="Keyword">{</span> xhead: a<span class="Keyword">;</span> xtail: xlist a <span class="Keyword">}</span>
+<span class="lnr">27 </span>  <span class="Keyword">|</span> <span class="Constant">XNil</span>
+<span class="lnr">28 </span>
+<span class="lnr">29 </span>data <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">30 </span>  <span class="Keyword">|</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head: a<span class="Keyword">;</span> tail: <span class="Type">list</span> a <span class="Keyword">}</span>
+<span class="lnr">31 </span>  <span class="Keyword">|</span> <span class="Constant">Nil</span>
+<span class="lnr">32 </span>
+<span class="lnr">33 </span><span class="Comment">(* Arithmetic *)</span>
+<span class="lnr">34 </span>
+<span class="lnr">35 </span><span class="Keyword">val</span> <span class="Keyword">(</span> <span class="Keyword">*</span> <span class="Keyword">)</span> <span class="Keyword">(</span>x: <span class="Type">int</span>, y: <span class="Type">int</span><span class="Keyword">)</span>: <span class="Type">int</span> <span class="Keyword">=</span> fail
+<span class="lnr">36 </span><span class="Keyword">val</span> <span class="Keyword">(</span> - <span class="Keyword">)</span> <span class="Keyword">(</span>x: <span class="Type">int</span>, y: <span class="Type">int</span><span class="Keyword">)</span>: <span class="Type">int</span> <span class="Keyword">=</span> fail
+<span class="lnr">37 </span><span class="Keyword">val</span> <span class="Keyword">(</span> / <span class="Keyword">)</span> <span class="Keyword">(</span>x: <span class="Type">int</span>, y: <span class="Type">int</span><span class="Keyword">)</span>: <span class="Type">int</span> <span class="Keyword">=</span> fail
+<span class="lnr">38 </span><span class="Keyword">val</span> <span class="Keyword">(</span> + <span class="Keyword">)</span> <span class="Keyword">(</span>x: <span class="Type">int</span>, y: <span class="Type">int</span><span class="Keyword">)</span>: <span class="Type">int</span> <span class="Keyword">=</span> fail
+<span class="lnr">39 </span>
+<span class="lnr">40 </span><span class="Comment">(* Standard types *)</span>
+<span class="lnr">41 </span>
+<span class="lnr">42 </span><span class="Keyword">val</span> none <span class="Keyword">=</span>
+<span class="lnr">43 </span>  <span class="Constant">None</span>
+<span class="lnr">44 </span>
+<span class="lnr">45 </span><span class="Keyword">val</span> some <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>consumes x: a<span class="Keyword">)</span>: <span class="Type">option</span> a <span class="Keyword">=</span>
+<span class="lnr">46 </span>  <span class="Constant">Some</span> <span class="Keyword">{</span> contents <span class="Keyword">=</span> x <span class="Keyword">}</span>
+<span class="lnr">47 </span>
+<span class="lnr">48 </span><span class="Keyword">val</span> <span class="Constant">true</span> <span class="Keyword">=</span> <span class="Constant">True</span>
+<span class="lnr">49 </span><span class="Keyword">val</span> <span class="Constant">false</span> <span class="Keyword">=</span> <span class="Constant">False</span>
+<span class="lnr">50 </span>
+<span class="lnr">51 </span><span class="Comment">(* Physical equality test. *)</span>
+<span class="lnr">52 </span>
+<span class="lnr">53 </span><span class="Keyword">val</span> <span class="Keyword">(</span> <span class="Keyword">==</span> <span class="Keyword">)</span> <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>x: a, y: b<span class="Keyword">)</span>: phys_equal x y <span class="Keyword">=</span> fail
+<span class="lnr">54 </span>
+<span class="lnr">55 </span><span class="Comment">(* References *)</span>
+<span class="lnr">56 </span>
+<span class="lnr">57 </span><span class="Keyword">val</span> newref <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>consumes x: a<span class="Keyword">)</span>: ref a <span class="Keyword">=</span>
+<span class="lnr">58 </span>  <span class="Constant">Ref</span> <span class="Keyword">{</span> contents <span class="Keyword">=</span> x <span class="Keyword">}</span>
+<span class="lnr">59 </span>
+<span class="lnr">60 </span><span class="Keyword">val</span> <span class="Keyword">(</span><span class="Keyword">!</span><span class="Keyword">)</span> <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>consumes x: ref a<span class="Keyword">)</span>: <span class="Keyword">(</span>a <span class="Keyword">|</span> x @ ref unknown<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">61 </span>  x.contents
+<span class="lnr">62 </span>
+<span class="lnr">63 </span><span class="Keyword">val</span> <span class="Keyword">(</span><span class="Keyword">:=</span><span class="Keyword">)</span> <span class="Keyword">[</span>a, b<span class="Keyword">]</span> <span class="Keyword">(</span>consumes x: ref a, consumes c: b<span class="Keyword">)</span>: <span class="Keyword">(</span> <span class="Keyword">|</span> x @ ref b<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">64 </span>  x.contents <span class="Keyword">&lt;-</span> c
+<span class="lnr">65 </span>
+<span class="lnr">66 </span><span class="Comment">(* Lists *)</span>
+<span class="lnr">67 </span>
+<span class="lnr">68 </span><span class="Keyword">val</span> <span class="Keyword">(</span>nil: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Type">list</span> a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">69 </span>  <span class="Constant">Nil</span>
+<span class="lnr">70 </span>
+<span class="lnr">71 </span><span class="Keyword">val</span> cons <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>consumes hd: a, consumes tl: <span class="Type">list</span> a<span class="Keyword">)</span>: <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">72 </span>  <span class="Constant">Cons</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> hd<span class="Keyword">;</span> tail <span class="Keyword">=</span> tl <span class="Keyword">}</span>
+</pre>
+</body>
+</html>

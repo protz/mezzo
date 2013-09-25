@@ -1,0 +1,778 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="ocamlstyle.css" type="text/css">
+<meta content="text/html; charset=utf8" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="Permissions.html">
+<link rel="next" href="TypeChecker.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of class methods" rel=Appendix href="index_methods.html">
+<link title="Index of classes" rel=Appendix href="index_classes.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Configure" rel="Chapter" href="Configure.html">
+<link title="Mezzo" rel="Chapter" href="Mezzo.html">
+<link title="MzString" rel="Chapter" href="MzString.html">
+<link title="Option" rel="Chapter" href="Option.html">
+<link title="InfiniteArray" rel="Chapter" href="InfiniteArray.html">
+<link title="PersistentRef" rel="Chapter" href="PersistentRef.html">
+<link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
+<link title="GSet" rel="Chapter" href="GSet.html">
+<link title="Bash" rel="Chapter" href="Bash.html">
+<link title="Patricia" rel="Chapter" href="Patricia.html">
+<link title="LazyList" rel="Chapter" href="LazyList.html">
+<link title="MzMap" rel="Chapter" href="MzMap.html">
+<link title="Log" rel="Chapter" href="Log.html">
+<link title="MzList" rel="Chapter" href="MzList.html">
+<link title="GMap" rel="Chapter" href="GMap.html">
+<link title="Either" rel="Chapter" href="Either.html">
+<link title="SurfaceSyntaxPrinter" rel="Chapter" href="SurfaceSyntaxPrinter.html">
+<link title="Driver" rel="Chapter" href="Driver.html">
+<link title="Hashcons" rel="Chapter" href="Hashcons.html">
+<link title="Lexer" rel="Chapter" href="Lexer.html">
+<link title="Grammar" rel="Chapter" href="Grammar.html">
+<link title="Kind" rel="Chapter" href="Kind.html">
+<link title="Identifier" rel="Chapter" href="Identifier.html">
+<link title="Interpreter" rel="Chapter" href="Interpreter.html">
+<link title="Compile" rel="Chapter" href="Compile.html">
+<link title="UntypedMezzo2UntypedOCaml" rel="Chapter" href="UntypedMezzo2UntypedOCaml.html">
+<link title="Mezzo2UntypedMezzo" rel="Chapter" href="Mezzo2UntypedMezzo.html">
+<link title="UntypedOCamlPrinter" rel="Chapter" href="UntypedOCamlPrinter.html">
+<link title="OCamlKeywords" rel="Chapter" href="OCamlKeywords.html">
+<link title="Exports" rel="Chapter" href="Exports.html">
+<link title="FactInference" rel="Chapter" href="FactInference.html">
+<link title="Mode" rel="Chapter" href="Mode.html">
+<link title="Expressions" rel="Chapter" href="Expressions.html">
+<link title="Resugar" rel="Chapter" href="Resugar.html">
+<link title="Types" rel="Chapter" href="Types.html">
+<link title="Hoist" rel="Chapter" href="Hoist.html">
+<link title="KindPrinter" rel="Chapter" href="KindPrinter.html">
+<link title="DerivationPrinter" rel="Chapter" href="DerivationPrinter.html">
+<link title="Variance" rel="Chapter" href="Variance.html">
+<link title="KindCheck" rel="Chapter" href="KindCheck.html">
+<link title="Permissions" rel="Chapter" href="Permissions.html">
+<link title="TypeCore" rel="Chapter" href="TypeCore.html">
+<link title="TypeChecker" rel="Chapter" href="TypeChecker.html">
+<link title="Mark" rel="Chapter" href="Mark.html">
+<link title="TypeErrors" rel="Chapter" href="TypeErrors.html">
+<link title="DeBruijn" rel="Chapter" href="DeBruijn.html">
+<link title="TransSurface" rel="Chapter" href="TransSurface.html">
+<link title="Interfaces" rel="Chapter" href="Interfaces.html">
+<link title="ExpressionsCore" rel="Chapter" href="ExpressionsCore.html">
+<link title="Modules" rel="Chapter" href="Modules.html">
+<link title="Fact" rel="Chapter" href="Fact.html">
+<link title="Namespace" rel="Chapter" href="Namespace.html">
+<link title="Derivations" rel="Chapter" href="Derivations.html">
+<link title="Merge" rel="Chapter" href="Merge.html">
+<link title="Utils" rel="Chapter" href="Utils.html"><link title="The definition of types" rel="Section" href="#1_Thedefinitionoftypes">
+<link title="Various useful modules" rel="Section" href="#1_Varioususefulmodules">
+<link title="Program-wide environment" rel="Section" href="#1_Programwideenvironment">
+<link title="Flexible variables" rel="Section" href="#1_Flexiblevariables">
+<link title="Playing with variables" rel="Section" href="#1_Playingwithvariables">
+<link title="Fun with sub-environments" rel="Section" href="#1_Funwithsubenvironments">
+<link title="Data type definitions" rel="Section" href="#1_Datatypedefinitions">
+<link title="Binding" rel="Section" href="#1_Binding">
+<link title="Iterating on the bindings" rel="Section" href="#1_Iteratingonthebindings">
+<link title="Marks" rel="Section" href="#1_Marks">
+<link title="Visitors for the internal syntax of types" rel="Section" href="#1_Visitorsfortheinternalsyntaxoftypes">
+<link title="Misc." rel="Section" href="#1_Misc">
+<link title="Auxiliary definitions" rel="Subsection" href="#2_Auxiliarydefinitions">
+<link title="The type of types" rel="Subsection" href="#2_Thetypeoftypes">
+<link title="Type definitions" rel="Subsection" href="#2_Typedefinitions">
+<link title="Low-level operations" rel="Subsection" href="#2_Lowleveloperations">
+<link title="Low-level variable manipulation functions." rel="Subsection" href="#2_Lowlevelvariablemanipulationfunctions">
+<link title="Low-level permissions manipulation functions." rel="Subsection" href="#2_Lowlevelpermissionsmanipulationfunctions">
+<link title="Low-level setters" rel="Subsection" href="#2_Lowlevelsetters">
+<title>TypeCore</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="Permissions.html" title="Permissions">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="TypeChecker.html" title="TypeChecker">Next</a>
+</div>
+<h1>Module <a href="type_TypeCore.html">TypeCore</a></h1>
+
+<pre><span class="keyword">module</span> TypeCore: <code class="code">sig</code> <a href="TypeCore.html">..</a> <code class="code">end</code></pre><div class="info module top">
+This module defines the syntax of types, as manipulated by the
+   type-checker.<br>
+</div>
+<hr width="100%">
+<br>
+This module defines the syntax of types, as manipulated by the
+   type-checker.<br>
+<br>
+<h1 id="1_Thedefinitionoftypes">The definition of types</h1><br>
+
+<pre><span class="keyword">module</span> <a href="TypeCore.Field.html">Field</a>: <code class="type">module type of Variable</code><code class="type">  with type name = SurfaceSyntax.Field.name</code></pre><br>
+<h2 id="2_Auxiliarydefinitions">Auxiliary definitions</h2><br>
+
+<pre><code><span id="TYPEname"><span class="keyword">type</span> <code class="type"></code>name</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTname.User"><span class="constructor">User</span></span> <span class="keyword">of</span> <code class="type">Module.name * Variable.name</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTname.Auto"><span class="constructor">Auto</span></span> <span class="keyword">of</span> <code class="type">Variable.name</code></code></td>
+
+</tr></table>
+
+<div class="info ">
+The type of user-generated or auto-generated names.<br>
+</div>
+
+
+<pre><span id="TYPElocation"><span class="keyword">type</span> <code class="type"></code>location</span> = <code class="type">Lexing.position * Lexing.position</code> </pre>
+<div class="info ">
+Our locations are made up of ranges.<br>
+</div>
+
+
+<pre><code><span id="TYPEquantifier"><span class="keyword">type</span> <code class="type"></code>quantifier</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTquantifier.Forall"><span class="constructor">Forall</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTquantifier.Exists"><span class="constructor">Exists</span></span></code></td>
+
+</tr></table>
+
+<div class="info ">
+A quantifier is universal or existential.<br>
+</div>
+
+
+<pre><span id="TYPEtype_binding"><span class="keyword">type</span> <code class="type"></code>type_binding</span> = <code class="type"><a href="TypeCore.html#TYPEname">name</a> * <a href="Kind.html#TYPEkind">Kind.kind</a> * <a href="TypeCore.html#TYPElocation">location</a></code> </pre>
+<div class="info ">
+A type binding defines a type variable bound in a type.<br>
+</div>
+
+
+<pre><span id="TYPEflavor"><span class="keyword">type</span> <code class="type"></code>flavor</span> = <code class="type">SurfaceSyntax.binding_flavor</code> = </pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTflavor.UserIntroduced"><span class="constructor">UserIntroduced</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTflavor.AutoIntroduced"><span class="constructor">AutoIntroduced</span></span></code></td>
+
+</tr></table>
+
+<div class="info ">
+A type binding can be either user-provided, through a universal
+ quantification for instance, or auto-generated, by the desugaring pass for
+ instance.<br>
+</div>
+
+
+<pre><span id="TYPEdb_index"><span class="keyword">type</span> <code class="type"></code>db_index</span> = <code class="type">int</code> </pre>
+<div class="info ">
+In the surface syntax, variables are named. Here, variables are
+   represented as de Bruijn indices. We keep a variable name at each
+   binding site as a pretty-printing hint.<br>
+</div>
+
+
+<pre><span id="TYPEvar"><span class="keyword">type</span> <code class="type"></code>var</span> </pre>
+<div class="info ">
+We adopt a locally nameless style; therefore, variables can be opened.
+ This is the type of open variales; it's abstract, because we provide a set
+ of wrappers and want to prevent mistakes in client code.<br>
+</div>
+
+<br>
+<h2 id="2_Thetypeoftypes">The type of types</h2><br>
+
+<pre><span id="TYPEdata_field_def"><span class="keyword">type</span> <code class="type"></code>data_field_def</span> = <code class="type">Field.name * <a href="TypeCore.html#TYPEtyp">typ</a></code> </pre>
+<div class="info ">
+A field in a data type<br>
+</div>
+
+
+<pre><code><span id="TYPEtyp"><span class="keyword">type</span> <code class="type"></code>typ</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtyp.TyUnknown"><span class="constructor">TyUnknown</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtyp.TyDynamic"><span class="constructor">TyDynamic</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtyp.TyBound"><span class="constructor">TyBound</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEdb_index">db_index</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtyp.TyOpen"><span class="constructor">TyOpen</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEvar">var</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtyp.TyQ"><span class="constructor">TyQ</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEquantifier">quantifier</a> * <a href="TypeCore.html#TYPEtype_binding">type_binding</a> * <a href="TypeCore.html#TYPEflavor">flavor</a> * <a href="TypeCore.html#TYPEtyp">typ</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtyp.TyApp"><span class="constructor">TyApp</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEtyp">typ</a> * <a href="TypeCore.html#TYPEtyp">typ</a> list</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtyp.TyTuple"><span class="constructor">TyTuple</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEtyp">typ</a> list</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtyp.TyConcrete"><span class="constructor">TyConcrete</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEbranch">branch</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtyp.TySingleton"><span class="constructor">TySingleton</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEtyp">typ</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtyp.TyArrow"><span class="constructor">TyArrow</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEtyp">typ</a> * <a href="TypeCore.html#TYPEtyp">typ</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtyp.TyBar"><span class="constructor">TyBar</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEtyp">typ</a> * <a href="TypeCore.html#TYPEtyp">typ</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtyp.TyAnchoredPermission"><span class="constructor">TyAnchoredPermission</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEtyp">typ</a> * <a href="TypeCore.html#TYPEtyp">typ</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtyp.TyEmpty"><span class="constructor">TyEmpty</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtyp.TyStar"><span class="constructor">TyStar</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEtyp">typ</a> * <a href="TypeCore.html#TYPEtyp">typ</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtyp.TyAnd"><span class="constructor">TyAnd</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEmode_constraint">mode_constraint</a> * <a href="TypeCore.html#TYPEtyp">typ</a></code></code></td>
+
+</tr></table>
+
+<div class="info ">
+The type of types.<br>
+</div>
+
+
+<pre><span id="TYPEmode_constraint"><span class="keyword">type</span> <code class="type"></code>mode_constraint</span> = <code class="type"><a href="Mode.html#TYPEmode">Mode.mode</a> * <a href="TypeCore.html#TYPEtyp">typ</a></code> </pre>
+
+
+<pre><code><span id="TYPEbranch"><span class="keyword">type</span> <code class="type"></code>branch</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbranch.branch_flavor">branch_flavor</span>&nbsp;: <code class="type">DataTypeFlavor.flavor</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbranch.branch_datacon">branch_datacon</span>&nbsp;: <code class="type"><a href="TypeCore.html#TYPEresolved_datacon">resolved_datacon</a></code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbranch.branch_fields">branch_fields</span>&nbsp;: <code class="type"><a href="TypeCore.html#TYPEdata_field_def">data_field_def</a> list</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbranch.branch_adopts">branch_adopts</span>&nbsp;: <code class="type"><a href="TypeCore.html#TYPEtyp">typ</a></code>;</code></td>
+
+</tr></table>
+}
+
+
+
+<pre><span id="TYPEresolved_datacon"><span class="keyword">type</span> <code class="type"></code>resolved_datacon</span> = <code class="type"><a href="TypeCore.html#TYPEtyp">typ</a> * Datacon.name</code> </pre>
+
+<br>
+<h2 id="2_Typedefinitions">Type definitions</h2><br>
+
+<pre><span id="TYPEvariance"><span class="keyword">type</span> <code class="type"></code>variance</span> = <code class="type">SurfaceSyntax.variance</code> = </pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTvariance.Invariant"><span class="constructor">Invariant</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTvariance.Covariant"><span class="constructor">Covariant</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTvariance.Contravariant"><span class="constructor">Contravariant</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTvariance.Bivariant"><span class="constructor">Bivariant</span></span></code></td>
+
+</tr></table>
+
+<div class="info ">
+Our data constructors have the standard variance.<br>
+</div>
+
+
+<pre><code><span id="TYPEtype_def"><span class="keyword">type</span> <code class="type"></code>type_def</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtype_def.Concrete"><span class="constructor">Concrete</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEtyp">typ</a> list</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtype_def.Abstract"><span class="constructor">Abstract</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtype_def.Abbrev"><span class="constructor">Abbrev</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEtyp">typ</a></code></code></td>
+
+</tr></table>
+
+
+
+<pre><code><span id="TYPEdata_type"><span class="keyword">type</span> <code class="type"></code>data_type</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTdata_type.data_name">data_name</span>&nbsp;: <code class="type">Variable.name</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTdata_type.data_location">data_location</span>&nbsp;: <code class="type"><a href="TypeCore.html#TYPElocation">location</a></code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTdata_type.data_definition">data_definition</span>&nbsp;: <code class="type"><a href="TypeCore.html#TYPEtype_def">type_def</a></code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTdata_type.data_variance">data_variance</span>&nbsp;: <code class="type"><a href="TypeCore.html#TYPEvariance">variance</a> list</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTdata_type.data_fact">data_fact</span>&nbsp;: <code class="type"><a href="Fact.html#TYPEfact">Fact.fact</a></code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTdata_type.data_kind">data_kind</span>&nbsp;: <code class="type"><a href="Kind.html#TYPEkind">Kind.kind</a></code>;</code></td>
+
+</tr></table>
+}
+
+
+
+<pre><code><span id="TYPEdata_type_group"><span class="keyword">type</span> <code class="type"></code>data_type_group</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTdata_type_group.group_recursive">group_recursive</span>&nbsp;: <code class="type">SurfaceSyntax.rec_flag</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTdata_type_group.group_items">group_items</span>&nbsp;: <code class="type"><a href="TypeCore.html#TYPEdata_type">data_type</a> list</code>;</code></td>
+
+</tr></table>
+}
+
+
+<br>
+<h1 id="1_Varioususefulmodules">Various useful modules</h1><br>
+
+<pre><span class="keyword">module</span> <a href="TypeCore.DataconMap.html">DataconMap</a>: <code class="type"><a href="MzMap.S.html">MzMap.S</a></code><code class="type">  with type key = Module.name * Datacon.name</code></pre>
+<pre><span class="keyword">module</span> <a href="TypeCore.VarMap.html">VarMap</a>: <code class="type"><a href="MzMap.S.html">MzMap.S</a></code><code class="type">  with type key = var</code></pre><div class="info">
+This module provides a clean way to map a variable to any given piece of
+ data.
+</div>
+
+<pre><span class="keyword">module</span> <a href="TypeCore.IVarMap.html">IVarMap</a>: <code class="type">Fix.IMPERATIVE_MAPS</code><code class="type">  with type key = var</code></pre><div class="info">
+This is an imperative version of <code class="code">VarMap</code>, in the form expected by <code class="code">Fix</code>.
+</div>
+<br>
+<h1 id="1_Programwideenvironment">Program-wide environment</h1><br>
+
+<pre><span id="TYPEenv"><span class="keyword">type</span> <code class="type"></code>env</span> </pre>
+<div class="info ">
+This is the environment that we use throughout Mezzo.<br>
+</div>
+
+
+<pre><span id="VALempty_env"><span class="keyword">val</span> empty_env</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a></code></pre><div class="info ">
+The empty environment.<br>
+</div>
+
+<pre><span id="VALlocate"><span class="keyword">val</span> locate</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPElocation">location</a> -> <a href="TypeCore.html#TYPEenv">env</a></code></pre><div class="info ">
+Refresh the location of an environment.<br>
+</div>
+
+<pre><span id="VALlocation"><span class="keyword">val</span> location</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPElocation">location</a></code></pre><div class="info ">
+Get the current location in the environment.<br>
+</div>
+
+<pre><span id="VALmodule_name"><span class="keyword">val</span> module_name</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> Module.name</code></pre><div class="info ">
+Get the current module name.<br>
+</div>
+
+<pre><span id="VALenter_module"><span class="keyword">val</span> enter_module</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> Module.name -> <a href="TypeCore.html#TYPEenv">env</a></code></pre><div class="info ">
+Enter another toplevel unit (implementation, interface).<br>
+</div>
+
+<pre><span id="VALis_inconsistent"><span class="keyword">val</span> is_inconsistent</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> bool</code></pre><div class="info ">
+Is the current environment inconsistent?<br>
+</div>
+
+<pre><span id="VALmark_inconsistent"><span class="keyword">val</span> mark_inconsistent</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEenv">env</a></code></pre><div class="info ">
+Mark the environment as being inconsistent.<br>
+</div>
+
+<pre><span id="VALmodify_kenv"><span class="keyword">val</span> modify_kenv</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -><br>       (<a href="TypeCore.html#TYPEvar">var</a> <a href="KindCheck.html#TYPEenv">KindCheck.env</a> -><br>        (<a href="TypeCore.html#TYPEvar">var</a> <a href="KindCheck.html#TYPEenv">KindCheck.env</a> -> (<a href="TypeCore.html#TYPEenv">env</a> -> 'a) -> 'a) -> 'a) -><br>       'a</code></pre><div class="info ">
+An environment contains a kind-checking environment that contains mapping
+ for all the current module's _dependencies_.<br>
+</div>
+
+<pre><span id="VALkenv"><span class="keyword">val</span> kenv</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> <a href="KindCheck.html#TYPEenv">KindCheck.env</a></code></pre><br>
+<h1 id="1_Flexiblevariables">Flexible variables</h1><br>
+<br>
+A client of this module, in order to properly deal with flexible variables,
+ must use the wrappers below.<br>
+
+<pre><span id="VALis_flexible"><span class="keyword">val</span> is_flexible</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> bool</code></pre><div class="info ">
+Is this variable a flexible type variable or not?<br>
+</div>
+
+<pre><span id="VALis_rigid"><span class="keyword">val</span> is_rigid</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> bool</code></pre>
+<pre><span id="VALmodulo_flex"><span class="keyword">val</span> modulo_flex</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEtyp">typ</a> -> <a href="TypeCore.html#TYPEtyp">typ</a></code></pre><div class="info ">
+Make sure we're dealing with the real representation of a variable. Any
+ function wishing to examine either a type or a variable should call this
+ function; then, whenever they encounter a <code class="code">TyOpen</code>, they need not worry
+ about it having a structure (because it won't). <code class="code">modulo_flex env ty</code>
+ raises <code class="code">UnboundPoint</code> if it finds a flexible variable that does not
+ exist in <code class="code">env</code>. This behavior is exploited by advanced users...<br>
+</div>
+<br>
+<h2 id="2_Lowleveloperations">Low-level operations</h2><br>
+
+<pre><span id="VALimport_flex_instanciations_raw"><span class="keyword">val</span> import_flex_instanciations_raw</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEenv">env</a></code></pre><div class="info ">
+<code class="code">import_flex_instanciations env sub_env</code> brings into <code class="code">env</code> all the flexible
+ variable instanciations that happened in <code class="code">sub_env</code> without modifying the rest
+ of <code class="code">env</code>. This is a low-level operation, and you're better off using
+ <code class="code">Permissions.import_flex_instanciations</code>.<br>
+</div>
+
+<pre><span id="VALinstantiate_flexible_raw"><span class="keyword">val</span> instantiate_flexible_raw</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEtyp">typ</a> -> <a href="TypeCore.html#TYPEenv">env</a> option</code></pre><div class="info ">
+<code class="code">instantiate_raw env var t</code> tries to instantiate the flexible variable <code class="code">var</code>
+ with <code class="code">t</code>. However, because of various reasons (e.g. levels) this
+ instantiation may or may not be possible directly. There are extra steps
+ needed (e.g. reanchoring) to properly perform this operation, so please use
+ <code class="code">Permissions.instantiate_flexible</code> instead.<br>
+</div>
+
+<pre><span id="VALsame"><span class="keyword">val</span> same</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> bool</code></pre><div class="info ">
+Are these two variables the same? This is a low-level operation and you
+ probably want to use <code class="code">equal</code> instead.<br>
+</div>
+
+<pre><span id="VALmerge_left"><span class="keyword">val</span> merge_left</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEenv">env</a> option</code></pre><div class="info ">
+Merge two variables while keeping the information about the left one. You
+ must make sure that both variables have been run through <code class="code">modulo_flex_v</code>
+ first. This is a low-level operation and you probably want to use
+ <a href="Permissions.html#VALunify"><code class="code">Permissions.unify</code></a> instead.<br>
+</div>
+
+<pre><span id="VALget_floating_permissions"><span class="keyword">val</span> get_floating_permissions</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEtyp">typ</a> list</code></pre><div class="info ">
+Get the list of permissions that are floating in this environment.<br>
+</div>
+
+<pre><span id="VALset_floating_permissions"><span class="keyword">val</span> set_floating_permissions</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEtyp">typ</a> list -> <a href="TypeCore.html#TYPEenv">env</a></code></pre><div class="info ">
+Set the list of permissions that are floating in this environment.<br>
+</div>
+<br>
+<h1 id="1_Playingwithvariables">Playing with variables</h1><br>
+
+<pre><span id="VALget_names"><span class="keyword">val</span> get_names</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEname">name</a> list</code></pre><div class="info ">
+Get the names associated to a variable.<br>
+</div>
+
+<pre><span id="VALget_name"><span class="keyword">val</span> get_name</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEname">name</a></code></pre>
+<pre><span id="VALget_kind"><span class="keyword">val</span> get_kind</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="Kind.html#TYPEkind">Kind.kind</a></code></pre><div class="info ">
+Get the kind of any given variable.<br>
+</div>
+
+<pre><span id="VALget_fact"><span class="keyword">val</span> get_fact</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="Fact.html#TYPEfact">Fact.fact</a></code></pre><div class="info ">
+Get a fact<br>
+</div>
+
+<pre><span id="VALget_locations"><span class="keyword">val</span> get_locations</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPElocation">location</a> list</code></pre><div class="info ">
+Get the locations<br>
+</div>
+
+<pre><span id="VALget_definition"><span class="keyword">val</span> get_definition</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEtype_def">type_def</a> option</code></pre><div class="info ">
+Get the definition, if any.<br>
+</div>
+
+<pre><span id="VALget_variance"><span class="keyword">val</span> get_variance</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEvariance">variance</a> list</code></pre><div class="info ">
+Get the variance, asserting that this variable is that of a type definition.<br>
+</div>
+<br>
+<h2 id="2_Lowlevelvariablemanipulationfunctions">Low-level variable manipulation functions.</h2><br>
+
+<pre><span id="VALadd_location"><span class="keyword">val</span> add_location</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPElocation">location</a> -> <a href="TypeCore.html#TYPEenv">env</a></code></pre><br>
+<h2 id="2_Lowlevelpermissionsmanipulationfunctions">Low-level permissions manipulation functions.</h2><br>
+<br>
+If you're considering playing with the list of permissions available for a
+ given variable, you should consider using <a href="Permissions.html#VALadd"><code class="code">Permissions.add</code></a> and
+ <a href="Permissions.html#VALsub"><code class="code">Permissions.sub</code></a> instead of these low-level, potentially dangerous
+ functions.<br>
+
+<pre><span id="VALget_permissions"><span class="keyword">val</span> get_permissions</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEtyp">typ</a> list</code></pre><div class="info ">
+Get the permissions of a term variable.<br>
+</div>
+
+<pre><span id="VALset_permissions"><span class="keyword">val</span> set_permissions</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEtyp">typ</a> list -> <a href="TypeCore.html#TYPEenv">env</a></code></pre><div class="info ">
+Set the permissions of a term variable.<br>
+</div>
+
+<pre><span id="VALreset_permissions"><span class="keyword">val</span> reset_permissions</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEenv">env</a></code></pre><div class="info ">
+Reset the permissions of a term variable.<br>
+</div>
+<br>
+<h2 id="2_Lowlevelsetters">Low-level setters</h2><br>
+<br>
+These functions should only be used during the very first few stages of
+ type-checking.<br>
+
+<pre><span id="VALset_fact"><span class="keyword">val</span> set_fact</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="Fact.html#TYPEfact">Fact.fact</a> -> <a href="TypeCore.html#TYPEenv">env</a></code></pre><div class="info ">
+Set a fact<br>
+</div>
+
+<pre><span id="VALset_definition"><span class="keyword">val</span> set_definition</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -><br>       <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEtype_def">type_def</a> -> <a href="TypeCore.html#TYPEvariance">variance</a> list -> <a href="TypeCore.html#TYPEenv">env</a></code></pre><div class="info ">
+Set a definition. This asserts that there was no definition before.<br>
+</div>
+
+<pre><span id="VALupdate_definition"><span class="keyword">val</span> update_definition</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -><br>       <a href="TypeCore.html#TYPEvar">var</a> -> (<a href="TypeCore.html#TYPEtype_def">type_def</a> -> <a href="TypeCore.html#TYPEtype_def">type_def</a>) -> <a href="TypeCore.html#TYPEenv">env</a></code></pre><div class="info ">
+Update a definition. This asserts that there used to be a definition before.<br>
+</div>
+
+<pre><span id="VALupdate_variance"><span class="keyword">val</span> update_variance</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -><br>       <a href="TypeCore.html#TYPEvar">var</a> -><br>       (<a href="TypeCore.html#TYPEvariance">variance</a> list -> <a href="TypeCore.html#TYPEvariance">variance</a> list) -> <a href="TypeCore.html#TYPEenv">env</a></code></pre><div class="info ">
+Update variance.<br>
+</div>
+<br>
+<h1 id="1_Funwithsubenvironments">Fun with sub-environments</h1><br>
+
+<pre><span id="EXCEPTIONUnboundPoint"><span class="keyword">exception</span> UnboundPoint</span></pre>
+
+<pre><span id="VALclean"><span class="keyword">val</span> clean</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEtyp">typ</a> -> <a href="TypeCore.html#TYPEtyp">typ</a></code></pre><div class="info ">
+<code class="code">clean env sub_env t</code> tries to clean up <code class="code">t</code>, found in <code class="code">sub_env</code>, so that it
+ makes sense in <code class="code">env</code>, and throws <code class="code">UnboundPoint</code> otherwise<br>
+</div>
+
+<pre><span id="VALequal"><span class="keyword">val</span> equal</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEtyp">typ</a> -> <a href="TypeCore.html#TYPEtyp">typ</a> -> bool</code></pre><div class="info ">
+<code class="code">equal env t1 t2</code> tells whether <code class="code">t1</code> and <code class="code">t2</code> can be determined to be equal
+ in environment <code class="code">env</code>; it raises <code class="code">UnboundPoint</code> is any of these two types
+ doesn't make sense in <code class="code">env</code>.<br>
+</div>
+
+<pre><span id="VALresolved_datacons_equal"><span class="keyword">val</span> resolved_datacons_equal</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -><br>       <a href="TypeCore.html#TYPEresolved_datacon">resolved_datacon</a> -> <a href="TypeCore.html#TYPEresolved_datacon">resolved_datacon</a> -> bool</code></pre><div class="info ">
+Equality function on resolved data constructors.<br>
+</div>
+<br>
+<h1 id="1_Datatypedefinitions">Data type definitions</h1><br>
+<br>
+The branches in data type definitions are now represented as types. If the
+ branch contains permissions, there will be a <code class="code">TyBar</code>. There may be other type
+ constructors above the <code class="code">TyConcrete</code>. Thus, we provide a set of wrappers to
+ peek at / modify the <code class="code">branch</code> found below other type constructors.<br>
+
+<pre><span id="VALconstruct_branch"><span class="keyword">val</span> construct_branch</span> : <code class="type"><a href="TypeCore.html#TYPEtype_binding">type_binding</a> list -><br>       <a href="TypeCore.html#TYPEbranch">branch</a> -> <a href="TypeCore.html#TYPEtyp">typ</a> list -> <a href="TypeCore.html#TYPEtyp">typ</a></code></pre><div class="info ">
+Need to translate a branch definition <code class="code">b</code> with nested permissions <code class="code">ps</code> into
+ a type? Use <code class="code">construct_branch b ps</code>.<br>
+</div>
+
+<pre><span id="VALfind_branch"><span class="keyword">val</span> find_branch</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">typ</a> -> <a href="TypeCore.html#TYPEbranch">branch</a></code></pre><div class="info ">
+Need to see the branch hidden beneath a type? Use this helper. This will
+ _not_ open quantifiers.<br>
+</div>
+
+<pre><span id="VALtouch_branch"><span class="keyword">val</span> touch_branch</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">typ</a> -> (<a href="TypeCore.html#TYPEbranch">branch</a> -> <a href="TypeCore.html#TYPEbranch">branch</a>) -> <a href="TypeCore.html#TYPEtyp">typ</a></code></pre><div class="info ">
+Need to modify the branch hidden beneath a type? Use this helper. This will
+ _not_ open quantifiers.<br>
+</div>
+<br>
+<h1 id="1_Binding">Binding</h1><br>
+
+<pre><span id="VALbind_rigid"><span class="keyword">val</span> bind_rigid</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEtype_binding">type_binding</a> -> <a href="TypeCore.html#TYPEenv">env</a> * <a href="TypeCore.html#TYPEvar">var</a></code></pre><div class="info ">
+Bind a rigid type variable.<br>
+</div>
+
+<pre><span id="VALbind_flexible"><span class="keyword">val</span> bind_flexible</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEtype_binding">type_binding</a> -> <a href="TypeCore.html#TYPEenv">env</a> * <a href="TypeCore.html#TYPEvar">var</a></code></pre><div class="info ">
+Bind a flexible type variable.<br>
+</div>
+
+<pre><span id="VALbind_flexible_before"><span class="keyword">val</span> bind_flexible_before</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -><br>       <a href="TypeCore.html#TYPEtype_binding">type_binding</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEenv">env</a> * <a href="TypeCore.html#TYPEvar">var</a></code></pre><div class="info ">
+Bind a flexible type variables before another one.<br>
+</div>
+<br>
+<h1 id="1_Iteratingonthebindings">Iterating on the bindings</h1><br>
+<br>
+We provide a set of fold/map operations on variables defined in the
+ environment. Existential variables are not folded over, as they only serve as
+ placeholders; only rigid variables are considered when performing the various
+ <code class="code">fold</code> operations.
+<p>
+
+ Of course, we only fold over variables that have been opened in the current
+ environment.<br>
+
+<pre><span id="VALfold_definitions"><span class="keyword">val</span> fold_definitions</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -><br>       ('acc -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEtype_def">type_def</a> -> 'acc) -> 'acc -> 'acc</code></pre><div class="info ">
+Fold over all opened type definitions.<br>
+</div>
+
+<pre><span id="VALfold_terms"><span class="keyword">val</span> fold_terms</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -><br>       ('acc -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEtyp">typ</a> list -> 'acc) -> 'acc -> 'acc</code></pre><div class="info ">
+Fold over all opened terms, providing the corresponding <code class="code">var</code> and
+ permissions.<br>
+</div>
+
+<pre><span id="VALfold"><span class="keyword">val</span> fold</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> ('acc -> <a href="TypeCore.html#TYPEvar">var</a> -> 'acc) -> 'acc -> 'acc</code></pre><div class="info ">
+General fold operation.<br>
+</div>
+
+<pre><span id="VALmap"><span class="keyword">val</span> map</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> (<a href="TypeCore.html#TYPEvar">var</a> -> 'a) -> 'a list</code></pre><div class="info ">
+General map operation.<br>
+</div>
+<br>
+<h1 id="1_Marks">Marks</h1><br>
+
+<pre><span id="VALis_marked"><span class="keyword">val</span> is_marked</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> bool</code></pre>
+<pre><span id="VALmark"><span class="keyword">val</span> mark</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEvar">var</a> -> <a href="TypeCore.html#TYPEenv">env</a></code></pre>
+<pre><span id="VALrefresh_mark"><span class="keyword">val</span> refresh_mark</span> : <code class="type"><a href="TypeCore.html#TYPEenv">env</a> -> <a href="TypeCore.html#TYPEenv">env</a></code></pre><br>
+<h1 id="1_Visitorsfortheinternalsyntaxoftypes">Visitors for the internal syntax of types</h1><br>
+<br>
+A generic visitor.<br>
+
+<pre><span name="TYPEvisitor"><span class="keyword">class</span> <span class="keyword">virtual</span> <code class="type">[['env, 'result]]</code> <a href="TypeCore.visitor-c.html">visitor</a></span> : <code class="type"></code><code class="code">object</code> <a href="TypeCore.visitor-c.html">..</a> <code class="code">end</code></pre><br>
+A <code class="code">map</code> specialization of the visitor.<br>
+
+<pre><span name="TYPEmap"><span class="keyword">class</span> <code class="type">['env]</code> <a href="TypeCore.map-c.html">map</a></span> : <code class="type"></code><code class="code">object</code> <a href="TypeCore.map-c.html">..</a> <code class="code">end</code></pre><br>
+An <code class="code">iter</code> specialization of the visitor.<br>
+
+<pre><span name="TYPEiter"><span class="keyword">class</span> <code class="type">['env]</code> <a href="TypeCore.iter-c.html">iter</a></span> : <code class="type"></code><code class="code">object</code> <a href="TypeCore.iter-c.html">..</a> <code class="code">end</code></pre><br>
+<h1 id="1_Misc">Misc.</h1><br>
+
+<pre><span id="VALty_bottom"><span class="keyword">val</span> ty_bottom</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">typ</a></code></pre><div class="info ">
+The bottom type.<br>
+</div>
+
+<pre><span id="VALis_non_bottom"><span class="keyword">val</span> is_non_bottom</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">typ</a> -> <a href="TypeCore.html#TYPEtyp">typ</a> option</code></pre></body></html>

@@ -1,0 +1,417 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="ocamlstyle.css" type="text/css">
+<meta content="text/html; charset=utf8" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="Interfaces.html">
+<link rel="next" href="Modules.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of class methods" rel=Appendix href="index_methods.html">
+<link title="Index of classes" rel=Appendix href="index_classes.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Configure" rel="Chapter" href="Configure.html">
+<link title="Mezzo" rel="Chapter" href="Mezzo.html">
+<link title="MzString" rel="Chapter" href="MzString.html">
+<link title="Option" rel="Chapter" href="Option.html">
+<link title="InfiniteArray" rel="Chapter" href="InfiniteArray.html">
+<link title="PersistentRef" rel="Chapter" href="PersistentRef.html">
+<link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
+<link title="GSet" rel="Chapter" href="GSet.html">
+<link title="Bash" rel="Chapter" href="Bash.html">
+<link title="Patricia" rel="Chapter" href="Patricia.html">
+<link title="LazyList" rel="Chapter" href="LazyList.html">
+<link title="MzMap" rel="Chapter" href="MzMap.html">
+<link title="Log" rel="Chapter" href="Log.html">
+<link title="MzList" rel="Chapter" href="MzList.html">
+<link title="GMap" rel="Chapter" href="GMap.html">
+<link title="Either" rel="Chapter" href="Either.html">
+<link title="SurfaceSyntaxPrinter" rel="Chapter" href="SurfaceSyntaxPrinter.html">
+<link title="Driver" rel="Chapter" href="Driver.html">
+<link title="Hashcons" rel="Chapter" href="Hashcons.html">
+<link title="Lexer" rel="Chapter" href="Lexer.html">
+<link title="Grammar" rel="Chapter" href="Grammar.html">
+<link title="Kind" rel="Chapter" href="Kind.html">
+<link title="Identifier" rel="Chapter" href="Identifier.html">
+<link title="Interpreter" rel="Chapter" href="Interpreter.html">
+<link title="Compile" rel="Chapter" href="Compile.html">
+<link title="UntypedMezzo2UntypedOCaml" rel="Chapter" href="UntypedMezzo2UntypedOCaml.html">
+<link title="Mezzo2UntypedMezzo" rel="Chapter" href="Mezzo2UntypedMezzo.html">
+<link title="UntypedOCamlPrinter" rel="Chapter" href="UntypedOCamlPrinter.html">
+<link title="OCamlKeywords" rel="Chapter" href="OCamlKeywords.html">
+<link title="Exports" rel="Chapter" href="Exports.html">
+<link title="FactInference" rel="Chapter" href="FactInference.html">
+<link title="Mode" rel="Chapter" href="Mode.html">
+<link title="Expressions" rel="Chapter" href="Expressions.html">
+<link title="Resugar" rel="Chapter" href="Resugar.html">
+<link title="Types" rel="Chapter" href="Types.html">
+<link title="Hoist" rel="Chapter" href="Hoist.html">
+<link title="KindPrinter" rel="Chapter" href="KindPrinter.html">
+<link title="DerivationPrinter" rel="Chapter" href="DerivationPrinter.html">
+<link title="Variance" rel="Chapter" href="Variance.html">
+<link title="KindCheck" rel="Chapter" href="KindCheck.html">
+<link title="Permissions" rel="Chapter" href="Permissions.html">
+<link title="TypeCore" rel="Chapter" href="TypeCore.html">
+<link title="TypeChecker" rel="Chapter" href="TypeChecker.html">
+<link title="Mark" rel="Chapter" href="Mark.html">
+<link title="TypeErrors" rel="Chapter" href="TypeErrors.html">
+<link title="DeBruijn" rel="Chapter" href="DeBruijn.html">
+<link title="TransSurface" rel="Chapter" href="TransSurface.html">
+<link title="Interfaces" rel="Chapter" href="Interfaces.html">
+<link title="ExpressionsCore" rel="Chapter" href="ExpressionsCore.html">
+<link title="Modules" rel="Chapter" href="Modules.html">
+<link title="Fact" rel="Chapter" href="Fact.html">
+<link title="Namespace" rel="Chapter" href="Namespace.html">
+<link title="Derivations" rel="Chapter" href="Derivations.html">
+<link title="Merge" rel="Chapter" href="Merge.html">
+<link title="Utils" rel="Chapter" href="Utils.html"><link title="The definition of expressions" rel="Section" href="#1_Thedefinitionofexpressions">
+<title>ExpressionsCore</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="Interfaces.html" title="Interfaces">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Modules.html" title="Modules">Next</a>
+</div>
+<h1>Module <a href="type_ExpressionsCore.html">ExpressionsCore</a></h1>
+
+<pre><span class="keyword">module</span> ExpressionsCore: <code class="code">sig</code> <a href="ExpressionsCore.html">..</a> <code class="code">end</code></pre><div class="info module top">
+This module defines the syntax of expressions.<br>
+</div>
+<hr width="100%">
+<br>
+<h1 id="1_Thedefinitionofexpressions">The definition of expressions</h1><br>
+
+<pre><span id="TYPEtag_update_info"><span class="keyword">type</span> <code class="type"></code>tag_update_info</span> = <code class="type">SurfaceSyntax.tag_update_info</code> </pre>
+
+
+<pre><span id="TYPEfield"><span class="keyword">type</span> <code class="type"></code>field</span> = <code class="type">SurfaceSyntax.field</code> </pre>
+
+
+<pre><code><span id="TYPEpattern"><span class="keyword">type</span> <code class="type"></code>pattern</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpattern.PVar"><span class="constructor">PVar</span></span> <span class="keyword">of</span> <code class="type">Variable.name * <a href="TypeCore.html#TYPElocation">TypeCore.location</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpattern.PTuple"><span class="constructor">PTuple</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEpattern">pattern</a> list</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpattern.PConstruct"><span class="constructor">PConstruct</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEresolved_datacon">TypeCore.resolved_datacon</a><br>        * (TypeCore.Field.name * <a href="ExpressionsCore.html#TYPEpattern">pattern</a>) list</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpattern.POpen"><span class="constructor">POpen</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEvar">TypeCore.var</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpattern.PAs"><span class="constructor">PAs</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEpattern">pattern</a> * <a href="ExpressionsCore.html#TYPEpattern">pattern</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpattern.PAny"><span class="constructor">PAny</span></span></code></td>
+
+</tr></table>
+
+<div class="info ">
+The type of patterns. We don't have type annotations anymore, they have been
+ transformed into type annotations onto the corresponding expression, i.e.
+ <code class="code">EConstraint</code> nodes.<br>
+</div>
+
+
+<pre><span id="TYPErec_flag"><span class="keyword">type</span> <code class="type"></code>rec_flag</span> = <code class="type">SurfaceSyntax.rec_flag</code> = </pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTrec_flag.Nonrecursive"><span class="constructor">Nonrecursive</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTrec_flag.Recursive"><span class="constructor">Recursive</span></span></code></td>
+
+</tr></table>
+
+
+
+<pre><code><span id="TYPEexpression"><span class="keyword">type</span> <code class="type"></code>expression</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EConstraint"><span class="constructor">EConstraint</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEexpression">expression</a> * <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EVar"><span class="constructor">EVar</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEdb_index">TypeCore.db_index</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EOpen"><span class="constructor">EOpen</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEvar">TypeCore.var</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EBuiltin"><span class="constructor">EBuiltin</span></span> <span class="keyword">of</span> <code class="type">string</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.ELet"><span class="constructor">ELet</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPErec_flag">rec_flag</a> * <a href="ExpressionsCore.html#TYPEpatexpr">patexpr</a> list<br>        * <a href="ExpressionsCore.html#TYPEexpression">expression</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.ELetFlex"><span class="constructor">ELetFlex</span></span> <span class="keyword">of</span> <code class="type">(<a href="TypeCore.html#TYPEtype_binding">TypeCore.type_binding</a> * <a href="TypeCore.html#TYPEflavor">TypeCore.flavor</a>) * <a href="ExpressionsCore.html#TYPEexpression">expression</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.ELocalType"><span class="constructor">ELocalType</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEdata_type_group">TypeCore.data_type_group</a> * <a href="ExpressionsCore.html#TYPEexpression">expression</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EBigLambdas"><span class="constructor">EBigLambdas</span></span> <span class="keyword">of</span> <code class="type">(<a href="TypeCore.html#TYPEtype_binding">TypeCore.type_binding</a> * <a href="TypeCore.html#TYPEflavor">TypeCore.flavor</a>) list * <a href="ExpressionsCore.html#TYPEexpression">expression</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.ELambda"><span class="constructor">ELambda</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> * <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> * <a href="ExpressionsCore.html#TYPEexpression">expression</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EAssign"><span class="constructor">EAssign</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEexpression">expression</a> * <a href="ExpressionsCore.html#TYPEfield">field</a><br>        * <a href="ExpressionsCore.html#TYPEexpression">expression</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EAssignTag"><span class="constructor">EAssignTag</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEexpression">expression</a> * <a href="TypeCore.html#TYPEresolved_datacon">TypeCore.resolved_datacon</a><br>        * <a href="ExpressionsCore.html#TYPEtag_update_info">tag_update_info</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EAccess"><span class="constructor">EAccess</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEexpression">expression</a> * <a href="ExpressionsCore.html#TYPEfield">field</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EAssert"><span class="constructor">EAssert</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EPack"><span class="constructor">EPack</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> * <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EApply"><span class="constructor">EApply</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEexpression">expression</a> * <a href="ExpressionsCore.html#TYPEexpression">expression</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.ETApply"><span class="constructor">ETApply</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEexpression">expression</a> * <a href="ExpressionsCore.html#TYPEtapp">tapp</a> * <a href="Kind.html#TYPEkind">Kind.kind</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EMatch"><span class="constructor">EMatch</span></span> <span class="keyword">of</span> <code class="type">bool * <a href="ExpressionsCore.html#TYPEexpression">expression</a> * <a href="ExpressionsCore.html#TYPEpatexpr">patexpr</a> list</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.ETuple"><span class="constructor">ETuple</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEexpression">expression</a> list</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EConstruct"><span class="constructor">EConstruct</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEresolved_datacon">TypeCore.resolved_datacon</a><br>        * (TypeCore.Field.name * <a href="ExpressionsCore.html#TYPEexpression">expression</a>) list</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EIfThenElse"><span class="constructor">EIfThenElse</span></span> <span class="keyword">of</span> <code class="type">bool * <a href="ExpressionsCore.html#TYPEexpression">expression</a> * <a href="ExpressionsCore.html#TYPEexpression">expression</a><br>        * <a href="ExpressionsCore.html#TYPEexpression">expression</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.ELocated"><span class="constructor">ELocated</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEexpression">expression</a> * <a href="TypeCore.html#TYPElocation">TypeCore.location</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EInt"><span class="constructor">EInt</span></span> <span class="keyword">of</span> <code class="type">int</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EExplained"><span class="constructor">EExplained</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEexpression">expression</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EGive"><span class="constructor">EGive</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEexpression">expression</a> * <a href="ExpressionsCore.html#TYPEexpression">expression</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.ETake"><span class="constructor">ETake</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEexpression">expression</a> * <a href="ExpressionsCore.html#TYPEexpression">expression</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EOwns"><span class="constructor">EOwns</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEexpression">expression</a> * <a href="ExpressionsCore.html#TYPEexpression">expression</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.EFail"><span class="constructor">EFail</span></span></code></td>
+
+</tr></table>
+
+<div class="info ">
+This is not very different from <code class="code">SurfaceSyntax.expression</code>. Some nodes such
+ as <code class="code">ESequence</code> have been removed.<br>
+</div>
+
+
+<pre><code><span id="TYPEtapp"><span class="keyword">type</span> <code class="type"></code>tapp</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtapp.Ordered"><span class="constructor">Ordered</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtapp.Named"><span class="constructor">Named</span></span> <span class="keyword">of</span> <code class="type">Variable.name * <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code></code></td>
+
+</tr></table>
+
+
+
+<pre><span id="TYPEpatexpr"><span class="keyword">type</span> <code class="type"></code>patexpr</span> = <code class="type"><a href="ExpressionsCore.html#TYPEpattern">pattern</a> * <a href="ExpressionsCore.html#TYPEexpression">expression</a></code> </pre>
+
+
+<pre><span id="TYPEdefinitions"><span class="keyword">type</span> <code class="type"></code>definitions</span> = <code class="type"><a href="TypeCore.html#TYPElocation">TypeCore.location</a> * <a href="ExpressionsCore.html#TYPErec_flag">rec_flag</a> *<br>       (<a href="ExpressionsCore.html#TYPEpattern">pattern</a> * <a href="ExpressionsCore.html#TYPEexpression">expression</a>) list</code> </pre>
+
+
+<pre><span id="TYPEsig_item"><span class="keyword">type</span> <code class="type"></code>sig_item</span> = <code class="type">Variable.name * <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code> </pre>
+
+
+<pre><code><span id="TYPEtoplevel_item"><span class="keyword">type</span> <code class="type"></code>toplevel_item</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtoplevel_item.DataTypeGroup"><span class="constructor">DataTypeGroup</span></span> <span class="keyword">of</span> <code class="type"><a href="TypeCore.html#TYPEdata_type_group">TypeCore.data_type_group</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtoplevel_item.ValueDefinitions"><span class="constructor">ValueDefinitions</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEdefinitions">definitions</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtoplevel_item.ValueDeclaration"><span class="constructor">ValueDeclaration</span></span> <span class="keyword">of</span> <code class="type"><a href="ExpressionsCore.html#TYPEsig_item">sig_item</a></code></code></td>
+
+</tr></table>
+
+
+
+<pre><span id="TYPEimplementation"><span class="keyword">type</span> <code class="type"></code>implementation</span> = <code class="type"><a href="ExpressionsCore.html#TYPEtoplevel_item">toplevel_item</a> list</code> </pre>
+
+
+<pre><span id="TYPEinterface"><span class="keyword">type</span> <code class="type"></code>interface</span> = <code class="type"><a href="ExpressionsCore.html#TYPEtoplevel_item">toplevel_item</a> list</code> </pre>
+
+</body></html>

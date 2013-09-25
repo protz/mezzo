@@ -1,0 +1,156 @@
+<html><head>
+<link rel="stylesheet" href="ocamlstyle.css" type="text/css">
+<meta content="text/html; charset=utf8" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of class methods" rel=Appendix href="index_methods.html">
+<link title="Index of classes" rel=Appendix href="index_classes.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Configure" rel="Chapter" href="Configure.html">
+<link title="Mezzo" rel="Chapter" href="Mezzo.html">
+<link title="MzString" rel="Chapter" href="MzString.html">
+<link title="Option" rel="Chapter" href="Option.html">
+<link title="InfiniteArray" rel="Chapter" href="InfiniteArray.html">
+<link title="PersistentRef" rel="Chapter" href="PersistentRef.html">
+<link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
+<link title="GSet" rel="Chapter" href="GSet.html">
+<link title="Bash" rel="Chapter" href="Bash.html">
+<link title="Patricia" rel="Chapter" href="Patricia.html">
+<link title="LazyList" rel="Chapter" href="LazyList.html">
+<link title="MzMap" rel="Chapter" href="MzMap.html">
+<link title="Log" rel="Chapter" href="Log.html">
+<link title="MzList" rel="Chapter" href="MzList.html">
+<link title="GMap" rel="Chapter" href="GMap.html">
+<link title="Either" rel="Chapter" href="Either.html">
+<link title="SurfaceSyntaxPrinter" rel="Chapter" href="SurfaceSyntaxPrinter.html">
+<link title="Driver" rel="Chapter" href="Driver.html">
+<link title="Hashcons" rel="Chapter" href="Hashcons.html">
+<link title="Lexer" rel="Chapter" href="Lexer.html">
+<link title="Grammar" rel="Chapter" href="Grammar.html">
+<link title="Kind" rel="Chapter" href="Kind.html">
+<link title="Identifier" rel="Chapter" href="Identifier.html">
+<link title="Interpreter" rel="Chapter" href="Interpreter.html">
+<link title="Compile" rel="Chapter" href="Compile.html">
+<link title="UntypedMezzo2UntypedOCaml" rel="Chapter" href="UntypedMezzo2UntypedOCaml.html">
+<link title="Mezzo2UntypedMezzo" rel="Chapter" href="Mezzo2UntypedMezzo.html">
+<link title="UntypedOCamlPrinter" rel="Chapter" href="UntypedOCamlPrinter.html">
+<link title="OCamlKeywords" rel="Chapter" href="OCamlKeywords.html">
+<link title="Exports" rel="Chapter" href="Exports.html">
+<link title="FactInference" rel="Chapter" href="FactInference.html">
+<link title="Mode" rel="Chapter" href="Mode.html">
+<link title="Expressions" rel="Chapter" href="Expressions.html">
+<link title="Resugar" rel="Chapter" href="Resugar.html">
+<link title="Types" rel="Chapter" href="Types.html">
+<link title="Hoist" rel="Chapter" href="Hoist.html">
+<link title="KindPrinter" rel="Chapter" href="KindPrinter.html">
+<link title="DerivationPrinter" rel="Chapter" href="DerivationPrinter.html">
+<link title="Variance" rel="Chapter" href="Variance.html">
+<link title="KindCheck" rel="Chapter" href="KindCheck.html">
+<link title="Permissions" rel="Chapter" href="Permissions.html">
+<link title="TypeCore" rel="Chapter" href="TypeCore.html">
+<link title="TypeChecker" rel="Chapter" href="TypeChecker.html">
+<link title="Mark" rel="Chapter" href="Mark.html">
+<link title="TypeErrors" rel="Chapter" href="TypeErrors.html">
+<link title="DeBruijn" rel="Chapter" href="DeBruijn.html">
+<link title="TransSurface" rel="Chapter" href="TransSurface.html">
+<link title="Interfaces" rel="Chapter" href="Interfaces.html">
+<link title="ExpressionsCore" rel="Chapter" href="ExpressionsCore.html">
+<link title="Modules" rel="Chapter" href="Modules.html">
+<link title="Fact" rel="Chapter" href="Fact.html">
+<link title="Namespace" rel="Chapter" href="Namespace.html">
+<link title="Derivations" rel="Chapter" href="Derivations.html">
+<link title="Merge" rel="Chapter" href="Merge.html">
+<link title="Utils" rel="Chapter" href="Utils.html"><title>Expressions</title>
+</head>
+<body>
+<code class="code"><span class="keyword">sig</span><br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;bind_data_type_group_in_toplevel_items&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.data_type_group&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">ExpressionsCore</span>.toplevel_item&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;*&nbsp;<span class="constructor">ExpressionsCore</span>.toplevel_item&nbsp;list&nbsp;*&nbsp;<span class="constructor">TypeCore</span>.var&nbsp;list&nbsp;*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">TypeCore</span>.var&nbsp;*&nbsp;<span class="constructor">Datacon</span>.name&nbsp;*&nbsp;<span class="constructor">SurfaceSyntax</span>.datacon_info)&nbsp;list<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;bind_data_type_group_in_expr&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.data_type_group&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">ExpressionsCore</span>.expression&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;*&nbsp;<span class="constructor">ExpressionsCore</span>.expression&nbsp;*&nbsp;<span class="constructor">TypeCore</span>.var&nbsp;list&nbsp;*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">TypeCore</span>.var&nbsp;*&nbsp;<span class="constructor">Datacon</span>.name&nbsp;*&nbsp;<span class="constructor">SurfaceSyntax</span>.datacon_info)&nbsp;list<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;resolve_branch&nbsp;:&nbsp;<span class="constructor">TypeCore</span>.var&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">TypeCore</span>.branch&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">TypeCore</span>.branch<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;e_unit&nbsp;:&nbsp;<span class="constructor">ExpressionsCore</span>.expression<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;p_unit&nbsp;:&nbsp;<span class="constructor">ExpressionsCore</span>.pattern<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;eunloc&nbsp;:&nbsp;<span class="constructor">ExpressionsCore</span>.expression&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">ExpressionsCore</span>.expression<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tsubst_expr&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.typ&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">ExpressionsCore</span>.expression&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">ExpressionsCore</span>.expression<br>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;substitution_kit&nbsp;=&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;subst_type&nbsp;:&nbsp;<span class="constructor">TypeCore</span>.typ&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">TypeCore</span>.typ;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;subst_expr&nbsp;:&nbsp;<span class="constructor">ExpressionsCore</span>.expression&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">ExpressionsCore</span>.expression;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;subst_def&nbsp;:&nbsp;<span class="constructor">ExpressionsCore</span>.definitions&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">ExpressionsCore</span>.definitions;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;subst_toplevel&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">ExpressionsCore</span>.toplevel_item&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">ExpressionsCore</span>.toplevel_item&nbsp;list;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;subst_pat&nbsp;:&nbsp;<span class="constructor">ExpressionsCore</span>.pattern&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">ExpressionsCore</span>.pattern&nbsp;list;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;vars&nbsp;:&nbsp;<span class="constructor">TypeCore</span>.var&nbsp;list;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;names&nbsp;:&nbsp;<span class="constructor">Variable</span>.name&nbsp;list;<br>
+&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;bind_evars&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.type_binding&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;*&nbsp;<span class="constructor">Expressions</span>.substitution_kit<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;bind_vars&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">SurfaceSyntax</span>.type_binding&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;*&nbsp;<span class="constructor">Expressions</span>.substitution_kit<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;bind_patexprs&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">ExpressionsCore</span>.rec_flag&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">ExpressionsCore</span>.pattern&nbsp;*&nbsp;<span class="constructor">ExpressionsCore</span>.expression)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">ExpressionsCore</span>.pattern&nbsp;*&nbsp;<span class="constructor">ExpressionsCore</span>.expression)&nbsp;list&nbsp;*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Expressions</span>.substitution_kit<br>
+&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">ExprPrinter</span>&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;print_maybe_qualified_datacon&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Datacon</span>.name&nbsp;<span class="constructor">SurfaceSyntax</span>.maybe_qualified&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">MzPprint</span>.document<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pmaybe_qualified_datacon&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Buffer</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Datacon</span>.name&nbsp;<span class="constructor">SurfaceSyntax</span>.maybe_qualified&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;print_datacon_reference&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">SurfaceSyntax</span>.datacon_reference&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">MzPprint</span>.document<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;print_patexpr&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">ExpressionsCore</span>.pattern&nbsp;*&nbsp;<span class="constructor">ExpressionsCore</span>.expression&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">MzPprint</span>.document<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;print_patexprs&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">ExpressionsCore</span>.pattern&nbsp;*&nbsp;<span class="constructor">ExpressionsCore</span>.expression)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">MzPprint</span>.document<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;print_pat&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">ExpressionsCore</span>.pattern&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">MzPprint</span>.document<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;print_tapp&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">ExpressionsCore</span>.tapp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">MzPprint</span>.document<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;print_expr&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">ExpressionsCore</span>.expression&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">MzPprint</span>.document<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;print_rec_flag&nbsp;:&nbsp;<span class="constructor">ExpressionsCore</span>.rec_flag&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">MzPprint</span>.document<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;print_ebinder&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.type_binding&nbsp;*&nbsp;<span class="constructor">TypeCore</span>.flavor&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">MzPprint</span>.document<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;print_binder&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Variable</span>.name&nbsp;*&nbsp;<span class="constructor">Kind</span>.kind&nbsp;*&nbsp;<span class="constructor">TypeCore</span>.location)&nbsp;*&nbsp;<span class="constructor">TypeCore</span>.flavor&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">MzPprint</span>.document<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;print_definitions&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">ExpressionsCore</span>.definitions&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">MzPprint</span>.document<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;print_sig_item&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Variable</span>.name&nbsp;*&nbsp;<span class="constructor">TypeCore</span>.typ&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">MzPprint</span>.document<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;psigitem&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Buffer</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;*&nbsp;(<span class="constructor">Variable</span>.name&nbsp;*&nbsp;<span class="constructor">TypeCore</span>.typ)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pdefinitions&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Buffer</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;*&nbsp;<span class="constructor">ExpressionsCore</span>.definitions&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pexpr&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Buffer</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;*&nbsp;<span class="constructor">ExpressionsCore</span>.expression&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;ppat&nbsp;:&nbsp;<span class="constructor">Buffer</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">TypeCore</span>.env&nbsp;*&nbsp;<span class="constructor">ExpressionsCore</span>.pattern&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
+<span class="keyword">end</span></code></body></html>

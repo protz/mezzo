@@ -1,0 +1,263 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/persistentarray.mz.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Type { color: #cae682; }
+.Constant { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr">  1 </span><span class="Comment">(* Persistent arrays in the style of Filliâtre. *)</span>
+<span class="lnr">  2 </span>
+<span class="lnr">  3 </span><span class="Comment">(* ---------------------------------------------------------------------------- *)</span>
+<span class="lnr">  4 </span>
+<span class="lnr">  5 </span><span class="Comment">(* A persistent array is duplicable, but has mutable internal state.</span>
+<span class="lnr">  6 </span><span class="Comment">   Furthermore, this state is shared: whenever a new version of the</span>
+<span class="lnr">  7 </span><span class="Comment">   array is created, the new version shares much of its state with</span>
+<span class="lnr">  8 </span><span class="Comment">   the previous version. Thus, internally, there exist a region of</span>
+<span class="lnr">  9 </span><span class="Comment">   points, which together form the representation of several persistent</span>
+<span class="lnr"> 10 </span><span class="Comment">   arrays. *)</span>
+<span class="lnr"> 11 </span>
+<span class="lnr"> 12 </span><span class="Keyword">data</span> parray a <span class="Keyword">=</span>
+<span class="lnr"> 13 </span>  <span class="Constant">PArray</span> <span class="Keyword">{</span>
+<span class="lnr"> 14 </span>    <span class="Comment">(* The region which this persistent array is part of. *)</span>
+<span class="lnr"> 15 </span>    region: <span class="Constant">wref::</span>wref <span class="Keyword">(</span>region a<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 16 </span>    <span class="Comment">(* The point in the region which represents this persistent array. *)</span>
+<span class="lnr"> 17 </span>    point: <span class="Keyword">dynamic</span> <span class="Comment">(* point a, owned by region *)</span>
+<span class="lnr"> 18 </span>  <span class="Keyword">}</span>
+<span class="lnr"> 19 </span>
+<span class="lnr"> 20 </span><span class="Comment">(* A region serves as an adopter for a set of points. *)</span>
+<span class="lnr"> 21 </span>
+<span class="lnr"> 22 </span><span class="Keyword">mutable</span> <span class="Keyword">data</span> region a <span class="Keyword">=</span>
+<span class="lnr"> 23 </span>  <span class="Constant">Region</span> <span class="Keyword">adopts</span> point a
+<span class="lnr"> 24 </span>
+<span class="lnr"> 25 </span><span class="Comment">(* A point is either flat -- a primitive array -- or a pair of a pointer to</span>
+<span class="lnr"> 26 </span><span class="Comment">   another point (in the same region) and an undo instruction. We use three</span>
+<span class="lnr"> 27 </span><span class="Comment">   fields in either case, so as to allow tag updates in either direction. *)</span>
+<span class="lnr"> 28 </span>
+<span class="lnr"> 29 </span><span class="Keyword">mutable</span> <span class="Keyword">data</span> point a <span class="Keyword">=</span>
+<span class="lnr"> 30 </span><span class="Keyword">|</span> <span class="Constant">PFlat</span> <span class="Keyword">{</span> contents: <span class="Type">array</span> a<span class="Keyword">;</span> unused1: <span class="Constant">()</span><span class="Keyword">;</span> unused2: <span class="Constant">()</span> <span class="Keyword">}</span>
+<span class="lnr"> 31 </span><span class="Keyword">|</span> <span class="Constant">PUndo</span> <span class="Keyword">{</span> previous: <span class="Keyword">dynamic</span><span class="Keyword">;</span> offset: <span class="Type">int</span><span class="Keyword">;</span> element:  a <span class="Keyword">}</span>
+<span class="lnr"> 32 </span>
+<span class="lnr"> 33 </span><span class="Comment">(* One shortcoming of this encoding of persistent arrays is that we are</span>
+<span class="lnr"> 34 </span><span class="Comment">   not able to prove that [parray a] is covariant with respect to [a]. *)</span>
+<span class="lnr"> 35 </span>
+<span class="lnr"> 36 </span><span class="Comment">(* ---------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 37 </span>
+<span class="lnr"> 38 </span><span class="Comment">(* Creation of a new persistent array. *)</span>
+<span class="lnr"> 39 </span>
+<span class="lnr"> 40 </span><span class="Keyword">val</span> create <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>n: <span class="Type">int</span>, x: a<span class="Keyword">)</span> : parray a <span class="Keyword">=</span>
+<span class="lnr"> 41 </span>  <span class="Keyword">let</span> t <span class="Keyword">=</span> <span class="Type">array</span><span class="Keyword">::</span>create <span class="Keyword">(</span>n, x<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 42 </span>  <span class="Keyword">let</span> p <span class="Keyword">=</span> <span class="Constant">PFlat</span> <span class="Keyword">{</span> contents <span class="Keyword">=</span> t<span class="Keyword">;</span> unused1 <span class="Keyword">=</span> <span class="Constant">()</span><span class="Keyword">;</span> unused2 <span class="Keyword">=</span> <span class="Constant">()</span> <span class="Keyword">}</span> <span class="Keyword">in</span>
+<span class="lnr"> 43 </span>  <span class="Keyword">let</span> r : region a <span class="Keyword">=</span> <span class="Constant">Region</span> <span class="Keyword">in</span>
+<span class="lnr"> 44 </span>  <span class="Keyword">give</span> p <span class="Keyword">to</span> r<span class="Keyword">;</span>
+<span class="lnr"> 45 </span>  <span class="Constant">PArray</span> <span class="Keyword">{</span> region <span class="Keyword">=</span> <span class="Constant">wref::</span>new r<span class="Keyword">;</span> point <span class="Keyword">=</span> p <span class="Keyword">}</span>
+<span class="lnr"> 46 </span>
+<span class="lnr"> 47 </span><span class="Comment">(* ---------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 48 </span>
+<span class="lnr"> 49 </span><span class="Comment">(* Bringing a point to a flat form. This is where the trickery lies. *)</span>
+<span class="lnr"> 50 </span>
+<span class="lnr"> 51 </span><span class="Comment">(* TEMPORARY the call from [revert_link] to [revert] is not a tail call:</span>
+<span class="lnr"> 52 </span><span class="Comment">   we effectively use the stack to reverse the list. In principle, we</span>
+<span class="lnr"> 53 </span><span class="Comment">   should be able to work in constant space. I guess we would need to</span>
+<span class="lnr"> 54 </span><span class="Comment">   use a ref cell to hold the head of the reversed list. Do this after</span>
+<span class="lnr"> 55 </span><span class="Comment">   we have set up a test suite for this module. *)</span>
+<span class="lnr"> 56 </span>
+<span class="lnr"> 57 </span><span class="Comment">(* [revert (r, p)] requires a region [r] and a point [p], which is a member of</span>
+<span class="lnr"> 58 </span><span class="Comment">   [r]. It takes [p] away from [r] and returns the underlying array in a state</span>
+<span class="lnr"> 59 </span><span class="Comment">   that corresponds to [p]. The point [p] itself is left in a temporary state</span>
+<span class="lnr"> 60 </span><span class="Comment">   where its tag is [PUndo] and its fields are uninitialized. *)</span>
+<span class="lnr"> 61 </span>
+<span class="lnr"> 62 </span><span class="Comment">(* This convention about the final state of [p] is adopted so as to avoid</span>
+<span class="lnr"> 63 </span><span class="Comment">   excessive writing. If the convention was that [p] should be left in a</span>
+<span class="lnr"> 64 </span><span class="Comment">   [PFlat] state, with correctly initialized fields, then every point along</span>
+<span class="lnr"> 65 </span><span class="Comment">   the chain would be overwritten twice: once from [PUndo] to [PFlat], and</span>
+<span class="lnr"> 66 </span><span class="Comment">   once from [PFlat] to [PUndo] in the other direction. We save a factor of</span>
+<span class="lnr"> 67 </span><span class="Comment">   two (rough estimate!) in memory traffic. *)</span>
+<span class="lnr"> 68 </span>
+<span class="lnr"> 69 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> revert <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span>
+<span class="lnr"> 70 </span>  <span class="Keyword">(</span>r: region a, p: <span class="Keyword">dynamic)</span>
+<span class="lnr"> 71 </span>: <span class="Keyword">(</span><span class="Type">array</span> a <span class="Keyword">|</span> p @ <span class="Constant">PUndo</span> <span class="Keyword">{</span> previous: <span class="Keyword">unknown</span><span class="Keyword">;</span> offset: <span class="Keyword">unknown</span><span class="Keyword">;</span> element: <span class="Keyword">unknown</span> <span class="Keyword">})</span>
+<span class="lnr"> 72 </span><span class="Keyword">=</span>
+<span class="lnr"> 73 </span>  <span class="Comment">(* Take [p] out of the region [r]. *)</span>
+<span class="lnr"> 74 </span>  <span class="Keyword">take</span> p <span class="Keyword">from</span> r<span class="Keyword">;</span>
+<span class="lnr"> 75 </span>  <span class="Keyword">match</span> p <span class="Keyword">with</span>
+<span class="lnr"> 76 </span>  <span class="Keyword">|</span> <span class="Constant">PFlat</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 77 </span>      <span class="Comment">(* This is the end of the line. Steal the underlying array,</span>
+<span class="lnr"> 78 </span><span class="Comment">         and change the tag of [p] to [PUndo]. *)</span>
+<span class="lnr"> 79 </span>      <span class="Keyword">let</span> t <span class="Keyword">=</span> p.contents <span class="Keyword">in</span>
+<span class="lnr"> 80 </span>      <span class="Keyword">tag</span> <span class="Keyword">of</span> p <span class="Keyword">&lt;-</span> <span class="Constant">PUndo</span><span class="Keyword">;</span>
+<span class="lnr"> 81 </span>      t
+<span class="lnr"> 82 </span>  <span class="Keyword">|</span> <span class="Constant">PUndo</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 83 </span>      <span class="Comment">(* Continue below. *)</span>
+<span class="lnr"> 84 </span>      revert_link <span class="Keyword">(</span>r, p<span class="Keyword">)</span>
+<span class="lnr"> 85 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 86 </span>
+<span class="lnr"> 87 </span><span class="Comment">(* The auxiliary function [revert_link (r, p)] performs the same task</span>
+<span class="lnr"> 88 </span><span class="Comment">   as [revert (r, p)], but assumes that [p] has already been taken</span>
+<span class="lnr"> 89 </span><span class="Comment">   away from [r] and is a valid [PUndo] point. We isolate this function</span>
+<span class="lnr"> 90 </span><span class="Comment">   so as to avoid code duplication: it has two call sites. *)</span>
+<span class="lnr"> 91 </span>
+<span class="lnr"> 92 </span><span class="Keyword">and</span> revert_link <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span>
+<span class="lnr"> 93 </span>  <span class="Keyword">(</span>r: region a, <span class="Keyword">consumes</span> p: <span class="Constant">PUndo</span> <span class="Keyword">{</span> previous: <span class="Keyword">dynamic</span><span class="Keyword">;</span> offset: <span class="Type">int</span><span class="Keyword">;</span> element: a <span class="Keyword">})</span>
+<span class="lnr"> 94 </span>: <span class="Keyword">(</span><span class="Type">array</span> a <span class="Keyword">|</span> p @ <span class="Constant">PUndo</span> <span class="Keyword">{</span> previous: <span class="Keyword">unknown</span><span class="Keyword">;</span> offset: <span class="Keyword">unknown</span><span class="Keyword">;</span> element: <span class="Keyword">unknown</span> <span class="Keyword">})</span>
+<span class="lnr"> 95 </span><span class="Keyword">=</span>
+<span class="lnr"> 96 </span>  <span class="Keyword">let</span> previous <span class="Keyword">=</span> p.previous <span class="Keyword">in</span>
+<span class="lnr"> 97 </span>  <span class="Comment">(* Make a recursive call on [previous]. Because the [previous]</span>
+<span class="lnr"> 98 </span><span class="Comment">     pointers cannot form a cycle, there is no need to give [p]</span>
+<span class="lnr"> 99 </span><span class="Comment">     back to the region before making this recursive call. *)</span>
+<span class="lnr">100 </span>  <span class="Keyword">let</span> t <span class="Keyword">=</span> revert <span class="Keyword">(</span>r, previous<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">101 </span>  <span class="Comment">(* Read the field [p.offset] now, after the recursive call, because</span>
+<span class="lnr">102 </span><span class="Comment">     if we read it as part of the pattern matching construct above,</span>
+<span class="lnr">103 </span><span class="Comment">     then the compiler might not be smart enough to figure out that</span>
+<span class="lnr">104 </span><span class="Comment">     the read can be delayed. Same concern about [p.element]. *)</span>
+<span class="lnr">105 </span>  <span class="Keyword">let</span> i <span class="Keyword">=</span> p.offset <span class="Keyword">in</span>
+<span class="lnr">106 </span>  <span class="Comment">(* Update the representation of [previous] so that it becomes</span>
+<span class="lnr">107 </span><span class="Comment">     a valid point again. Its tag remains [PUndo], but its</span>
+<span class="lnr">108 </span><span class="Comment">     [previous] field now points in the other direction. *)</span>
+<span class="lnr">109 </span>  previous.previous <span class="Keyword">&lt;-</span> p<span class="Keyword">;</span>
+<span class="lnr">110 </span>  previous.offset <span class="Keyword">&lt;-</span> i<span class="Keyword">;</span>
+<span class="lnr">111 </span>  previous.element <span class="Keyword">&lt;-</span> <span class="Type">array</span><span class="Keyword">::</span>get <span class="Keyword">(</span>t, i<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">112 </span>  <span class="Comment">(* We are now done with [previous]. *)</span>
+<span class="lnr">113 </span>  <span class="Keyword">give</span> previous <span class="Keyword">to</span> r<span class="Keyword">;</span>
+<span class="lnr">114 </span>  <span class="Comment">(* Update the underlying array. *)</span>
+<span class="lnr">115 </span>  <span class="Type">array</span><span class="Keyword">::</span>set <span class="Keyword">(</span>t, i, p.element<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">116 </span>  <span class="Comment">(* The point [p] is now in the desired state: its tag is [PUndo]</span>
+<span class="lnr">117 </span><span class="Comment">     and its fields contain bogus values. *)</span>
+<span class="lnr">118 </span>  t
+<span class="lnr">119 </span>
+<span class="lnr">120 </span><span class="Comment">(* This non-recursive wrapper function also requires a region [r] and</span>
+<span class="lnr">121 </span><span class="Comment">   a point [p]. It also takes [p] away from [r]. It returns the point</span>
+<span class="lnr">122 </span><span class="Comment">   [p] in a valid [PFlat] state. *)</span>
+<span class="lnr">123 </span>
+<span class="lnr">124 </span><span class="Comment">(* By convention, the value [t] returned by [reroot] is [p.contents].</span>
+<span class="lnr">125 </span><span class="Comment">   This is not essential, but is convenient, and allows us to write</span>
+<span class="lnr">126 </span><span class="Comment">   a cool return type that involves explicit sharing. *)</span>
+<span class="lnr">127 </span>
+<span class="lnr">128 </span><span class="Keyword">val</span> reroot <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>r: region a, p: <span class="Keyword">dynamic)</span>
+<span class="lnr">129 </span>  : <span class="Keyword">(</span>t: <span class="Type">array</span> a <span class="Keyword">|</span> p @ <span class="Constant">PFlat</span> <span class="Keyword">{</span> contents <span class="Keyword">=</span> t<span class="Keyword">;</span> unused1: <span class="Constant">()</span><span class="Keyword">;</span> unused2: <span class="Constant">()</span> <span class="Keyword">})</span>
+<span class="lnr">130 </span><span class="Keyword">=</span>
+<span class="lnr">131 </span>
+<span class="lnr">132 </span>  <span class="Keyword">take</span> p <span class="Keyword">from</span> r<span class="Keyword">;</span>
+<span class="lnr">133 </span>  <span class="Keyword">match</span> p <span class="Keyword">with</span>
+<span class="lnr">134 </span>  <span class="Keyword">|</span> <span class="Constant">PFlat</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">135 </span>      <span class="Comment">(* If [p] is already flat, there is nothing to do. *)</span>
+<span class="lnr">136 </span>      p.contents
+<span class="lnr">137 </span>  <span class="Keyword">|</span> <span class="Constant">PUndo</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">138 </span>      <span class="Keyword">let</span> t <span class="Keyword">=</span> revert_link <span class="Keyword">(</span>r, p<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">139 </span>      <span class="Comment">(* [p] is now in an uninitialized state. Re-initialize it. *)</span>
+<span class="lnr">140 </span>      <span class="Keyword">tag</span> <span class="Keyword">of</span> p <span class="Keyword">&lt;-</span> <span class="Constant">PFlat</span><span class="Keyword">;</span>
+<span class="lnr">141 </span>      p.contents <span class="Keyword">&lt;-</span> t<span class="Keyword">;</span>
+<span class="lnr">142 </span>      p.unused1 <span class="Keyword">&lt;-</span> <span class="Constant">()</span><span class="Keyword">;</span>
+<span class="lnr">143 </span>      p.unused2 <span class="Keyword">&lt;-</span> <span class="Constant">()</span><span class="Keyword">;</span>
+<span class="lnr">144 </span>      t
+<span class="lnr">145 </span>  <span class="Keyword">end</span>
+<span class="lnr">146 </span>
+<span class="lnr">147 </span><span class="Comment">(* ---------------------------------------------------------------------------- *)</span>
+<span class="lnr">148 </span>
+<span class="lnr">149 </span><span class="Comment">(* Temporary access to the underlying array. *)</span>
+<span class="lnr">150 </span>
+<span class="lnr">151 </span><span class="Comment">(* TEMPORARY [borrow] is dangerous, because [f] is given read/write</span>
+<span class="lnr">152 </span><span class="Comment">   access to the underlying array, which it must promise not to modify.</span>
+<span class="lnr">153 </span><span class="Comment">   Thus, we do not publish it. If we had a [const] modifier, we would</span>
+<span class="lnr">154 </span><span class="Comment">   be able to publish it. *)</span>
+<span class="lnr">155 </span>
+<span class="lnr">156 </span><span class="Keyword">val</span> borrow <span class="Keyword">[</span>a, b, p : <span class="Keyword">perm]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>
+<span class="lnr">157 </span>  pa: parray a,
+<span class="lnr">158 </span>  f: <span class="Keyword">(</span><span class="Type">array</span> a <span class="Keyword">|</span> <span class="Keyword">consumes</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">159 </span><span class="Keyword">|</span> <span class="Keyword">consumes</span> p
+<span class="lnr">160 </span><span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr">161 </span>  <span class="Comment">(* Acquire the lock, so as to get access to the region [r]. *)</span>
+<span class="lnr">162 </span>  <span class="Constant">wref::</span>borrow <span class="Keyword">(</span>pa.region, <span class="Keyword">fun</span> <span class="Keyword">(</span>r : region a <span class="Keyword">|</span> <span class="Keyword">consumes</span> p<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr">163 </span>    <span class="Comment">(* Re-root the persistent array at [p]. *)</span>
+<span class="lnr">164 </span>    <span class="Keyword">let</span> p <span class="Keyword">=</span> pa.point <span class="Keyword">in</span>
+<span class="lnr">165 </span>    <span class="Keyword">let</span> t <span class="Keyword">=</span> reroot <span class="Keyword">(</span>r, p<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">166 </span>    <span class="Comment">(* [p] is now flat. Pass the underlying array to [f]. *)</span>
+<span class="lnr">167 </span>    <span class="Keyword">let</span> result <span class="Keyword">=</span> f t <span class="Keyword">in</span>
+<span class="lnr">168 </span>    <span class="Comment">(* Give [p] back to [r]. *)</span>
+<span class="lnr">169 </span>    <span class="Keyword">give</span> p <span class="Keyword">to</span> r<span class="Keyword">;</span>
+<span class="lnr">170 </span>    <span class="Comment">(* Done. *)</span>
+<span class="lnr">171 </span>    result
+<span class="lnr">172 </span>  <span class="Keyword">)</span>
+<span class="lnr">173 </span>
+<span class="lnr">174 </span><span class="Comment">(* ---------------------------------------------------------------------------- *)</span>
+<span class="lnr">175 </span>
+<span class="lnr">176 </span><span class="Comment">(* Read access. *)</span>
+<span class="lnr">177 </span>
+<span class="lnr">178 </span><span class="Keyword">val</span> get <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>pa: parray a, i: <span class="Type">int</span><span class="Keyword">)</span> : a <span class="Keyword">=</span>
+<span class="lnr">179 </span>  borrow <span class="Keyword">(</span>pa, <span class="Keyword">fun</span> <span class="Keyword">(</span>t: <span class="Type">array</span> a<span class="Keyword">)</span> : a <span class="Keyword">=</span>
+<span class="lnr">180 </span>    <span class="Type">array</span><span class="Keyword">::</span>get <span class="Keyword">(</span>t, i<span class="Keyword">)</span>
+<span class="lnr">181 </span>  <span class="Keyword">)</span>
+<span class="lnr">182 </span>
+<span class="lnr">183 </span><span class="Comment">(* ---------------------------------------------------------------------------- *)</span>
+<span class="lnr">184 </span>
+<span class="lnr">185 </span><span class="Comment">(* Write access. *)</span>
+<span class="lnr">186 </span>
+<span class="lnr">187 </span><span class="Comment">(* [set] cannot be defined in terms of [borrow], because it needs access not</span>
+<span class="lnr">188 </span><span class="Comment">   only to the underlying array [t], but also to the point [p]. We could</span>
+<span class="lnr">189 </span><span class="Comment">   define a slightly more general version of [borrow] that provides us with</span>
+<span class="lnr">190 </span><span class="Comment">   [t] and [p]. We will see. *)</span>
+<span class="lnr">191 </span>
+<span class="lnr">192 </span><span class="Keyword">val</span> set <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>pa: parray a, i: <span class="Type">int</span>, v: a<span class="Keyword">)</span> : parray a <span class="Keyword">=</span>
+<span class="lnr">193 </span>  <span class="Comment">(* Acquire the lock, so as to get access to the region [r]. *)</span>
+<span class="lnr">194 </span>  <span class="Constant">wref::</span>borrow <span class="Keyword">(</span>pa.region, <span class="Keyword">fun</span> <span class="Keyword">(</span>r : region a<span class="Keyword">)</span> : parray a <span class="Keyword">=</span>
+<span class="lnr">195 </span>    <span class="Comment">(* Re-root the persistent array at [p]. *)</span>
+<span class="lnr">196 </span>    <span class="Keyword">let</span> p <span class="Keyword">=</span> pa.point <span class="Keyword">in</span>
+<span class="lnr">197 </span>    <span class="Keyword">let</span> t <span class="Keyword">=</span> reroot <span class="Keyword">(</span>r, p<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">198 </span>    <span class="Comment">(* [p] is now flat. Access the underlying array [t], and update [p]. *)</span>
+<span class="lnr">199 </span>    <span class="Keyword">tag</span> <span class="Keyword">of</span> p <span class="Keyword">&lt;-</span> <span class="Constant">PUndo</span><span class="Keyword">;</span>
+<span class="lnr">200 </span>    p.offset <span class="Keyword">&lt;-</span> i<span class="Keyword">;</span>
+<span class="lnr">201 </span>    p.element <span class="Keyword">&lt;-</span> <span class="Type">array</span><span class="Keyword">::</span>get <span class="Keyword">(</span>t, i<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">202 </span>    <span class="Comment">(* Update the underlying array. *)</span>
+<span class="lnr">203 </span>    <span class="Type">array</span><span class="Keyword">::</span>set <span class="Keyword">(</span>t, i, v<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">204 </span>    <span class="Comment">(* Create a new point [q]. *)</span>
+<span class="lnr">205 </span>    <span class="Keyword">let</span> q <span class="Keyword">=</span> <span class="Constant">PFlat</span> <span class="Keyword">{</span> contents <span class="Keyword">=</span> t<span class="Keyword">;</span> unused1 <span class="Keyword">=</span> <span class="Constant">()</span><span class="Keyword">;</span> unused2 <span class="Keyword">=</span> <span class="Constant">()</span> <span class="Keyword">}</span> <span class="Keyword">in</span>
+<span class="lnr">206 </span>    <span class="Keyword">give</span> q <span class="Keyword">to</span> r<span class="Keyword">;</span>
+<span class="lnr">207 </span>    <span class="Comment">(* Finish updating [p], and give it back. *)</span>
+<span class="lnr">208 </span>    p.previous <span class="Keyword">&lt;-</span> q<span class="Keyword">;</span>
+<span class="lnr">209 </span>    <span class="Keyword">give</span> p <span class="Keyword">to</span> r<span class="Keyword">;</span>
+<span class="lnr">210 </span>    <span class="Comment">(* Wrap the resulting point as a new persistent array. *)</span>
+<span class="lnr">211 </span>    <span class="Constant">PArray</span> <span class="Keyword">{</span> region <span class="Keyword">=</span> pa.region<span class="Keyword">;</span> point <span class="Keyword">=</span> q <span class="Keyword">}</span>
+<span class="lnr">212 </span>  <span class="Keyword">)</span>
+<span class="lnr">213 </span>
+<span class="lnr">214 </span><span class="Comment">(* This organization might seem somewhat inefficient, because a persistent</span>
+<span class="lnr">215 </span><span class="Comment">   array involves both a lock (which is implicit in the weak reference) and</span>
+<span class="lnr">216 </span><span class="Comment">   an adopter (the region, which is protected by the lock). Hence, there are</span>
+<span class="lnr">217 </span><span class="Comment">   two barriers at runtime: we must first acquire the lock, then take the</span>
+<span class="lnr">218 </span><span class="Comment">   desired points from the region. That said, we acquire the lock just once,</span>
+<span class="lnr">219 </span><span class="Comment">   and then can take as many points as we like, while paying just one dynamic</span>
+<span class="lnr">220 </span><span class="Comment">   check per point. One might wonder whether we could work with just one lock</span>
+<span class="lnr">221 </span><span class="Comment">   and no region at all. Each point would contain a pointer to a lock, so</span>
+<span class="lnr">222 </span><span class="Comment">   whenever we wish to follow a link from a point to another point, we would</span>
+<span class="lnr">223 </span><span class="Comment">   check at runtime that the lock associated with the new point is the lock</span>
+<span class="lnr">224 </span><span class="Comment">   that we already hold, and deduce that we can safely access this point.</span>
+<span class="lnr">225 </span><span class="Comment">   This variant might be correct, but it is unclear at present how it would</span>
+<span class="lnr">226 </span><span class="Comment">   be type-checked. The use of adoption and abandon may seem costly, but it</span>
+<span class="lnr">227 </span><span class="Comment">   also serves to protect us from ``taking'' a single point twice. It is</span>
+<span class="lnr">228 </span><span class="Comment">   unclear how a purely lock-based idiom would achieve this: when we reach</span>
+<span class="lnr">229 </span><span class="Comment">   a new point, we have no way of testing whether we have already claimed</span>
+<span class="lnr">230 </span><span class="Comment">   the ownership of this point. Anyway, this deserves further research! *)</span>
+<span class="lnr">231 </span>
+<span class="lnr">232 </span>
+<span class="lnr">233 </span><span class="Comment">(*</span>
+<span class="lnr">234 </span><span class="Comment">Local Variables:</span>
+<span class="lnr">235 </span><span class="Comment">compile-command: &quot;../mezzo persistentarray.mz&quot;</span>
+<span class="lnr">236 </span><span class="Comment">End:</span>
+<span class="lnr">237 </span><span class="Comment">*)</span>
+</pre>
+</body>
+</html>

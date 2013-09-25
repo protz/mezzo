@@ -1,0 +1,131 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/lazy.mz.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Constant { color: #e5786d; }
+.Comment { color: #99968b; font-style: italic; }
+.PreProc { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr">  1 </span><span class="Keyword">open</span> <span class="PreProc">wref</span>
+<span class="lnr">  2 </span>
+<span class="lnr">  3 </span><span class="Comment">(* The identity function. We use a permission of the form [id @ b -&gt; a]</span>
+<span class="lnr">  4 </span><span class="Comment">   to encode the fact that [b] is a subtype of [a], and we use the</span>
+<span class="lnr">  5 </span><span class="Comment">   function application [id x] when we wish to exploit this fact.</span>
+<span class="lnr">  6 </span><span class="Comment">   This is a clumsy encoding, but it provides a proof-of-concept. *)</span>
+<span class="lnr">  7 </span>
+<span class="lnr">  8 </span><span class="Comment">(* No consumes keyword is required here, because we are dealing with</span>
+<span class="lnr">  9 </span><span class="Comment">   duplicable types. *)</span>
+<span class="lnr"> 10 </span>
+<span class="lnr"> 11 </span><span class="Keyword">val</span> id <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> x: a<span class="Keyword">)</span> : a <span class="Keyword">=</span>
+<span class="lnr"> 12 </span>  x
+<span class="lnr"> 13 </span>
+<span class="lnr"> 14 </span><span class="Comment">(* A suspension is either evaluated already or still suspended.</span>
+<span class="lnr"> 15 </span><span class="Comment">   In the former case, it contains just a result, of type [a].</span>
+<span class="lnr"> 16 </span><span class="Comment">   In the latter case, it contains the function [f] that was</span>
+<span class="lnr"> 17 </span><span class="Comment">   passed to [create], together with the permission [p] that</span>
+<span class="lnr"> 18 </span><span class="Comment">   [f] needs. This permission is existentially quantified. In</span>
+<span class="lnr"> 19 </span><span class="Comment">   other words, [f] is a one-shot function. *)</span>
+<span class="lnr"> 20 </span>
+<span class="lnr"> 21 </span><span class="Keyword">data</span> state a <span class="Keyword">=</span>
+<span class="lnr"> 22 </span>  <span class="Keyword">|</span> <span class="Constant">Evaluated</span> <span class="Keyword">{</span> result: a <span class="Keyword">}</span>
+<span class="lnr"> 23 </span>  <span class="Keyword">|</span> <span class="Constant">Suspended</span> <span class="Keyword">{</span> computation: <span class="Keyword">{</span>p: <span class="Keyword">perm}</span> <span class="Keyword">((</span><span class="Keyword">|</span><span class="Keyword">consumes</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">}</span>
+<span class="lnr"> 24 </span>
+<span class="lnr"> 25 </span><span class="Comment">(* The state of a suspension is stored in a weak reference. The</span>
+<span class="lnr"> 26 </span><span class="Comment">   lock (which is part of the weak reference) ensures that the</span>
+<span class="lnr"> 27 </span><span class="Comment">   state of the suspension remains consistent even in the face</span>
+<span class="lnr"> 28 </span><span class="Comment">   of concurrent accesses. It also allows us to implement waiting</span>
+<span class="lnr"> 29 </span><span class="Comment">   until a result becomes available. *)</span>
+<span class="lnr"> 30 </span>
+<span class="lnr"> 31 </span><span class="Comment">(* The existential quantification over [b], which is a subtype of</span>
+<span class="lnr"> 32 </span><span class="Comment">   [a], is used to make [thunk] covariant in its parameter [a]. *)</span>
+<span class="lnr"> 33 </span>
+<span class="lnr"> 34 </span><span class="Comment">(* We might wish to store the information [duplicable a] as part</span>
+<span class="lnr"> 35 </span><span class="Comment">   of the definition of [thunk a]. This would allow us to remove</span>
+<span class="lnr"> 36 </span><span class="Comment">   the assumption [duplicable a =&gt; ...] in the type of [force].</span>
+<span class="lnr"> 37 </span><span class="Comment">   However, if we do that, [thunk] is no longer covariant in [a]!</span>
+<span class="lnr"> 38 </span><span class="Comment">   Subtle. But, actually, the constraint [id @ b -&gt; a] encodes</span>
+<span class="lnr"> 39 </span><span class="Comment">   the fact that [b] is duplicable! So we can get rid of this</span>
+<span class="lnr"> 40 </span><span class="Comment">   assumption in the type of [force]. *)</span>
+<span class="lnr"> 41 </span>
+<span class="lnr"> 42 </span><span class="Keyword">data</span> thunk +a <span class="Keyword">=</span>
+<span class="lnr"> 43 </span>  <span class="Keyword">|</span> <span class="Constant">Thunk</span> <span class="Keyword">{</span> thunk: <span class="Keyword">{</span>b<span class="Keyword">}</span> <span class="Keyword">(</span>wref <span class="Keyword">(</span>state b<span class="Keyword">)</span> <span class="Keyword">|</span> id @ b <span class="Keyword">-&gt;</span> a<span class="Keyword">)</span> <span class="Keyword">}</span>
+<span class="lnr"> 44 </span>
+<span class="lnr"> 45 </span><span class="Comment">(* TEMPORARY we need a type abbreviation here! *)</span>
+<span class="lnr"> 46 </span>
+<span class="lnr"> 47 </span><span class="Comment">(* Creation. *)</span>
+<span class="lnr"> 48 </span>
+<span class="lnr"> 49 </span><span class="Comment">(* The constraint [duplicable a] is required at construction time</span>
+<span class="lnr"> 50 </span><span class="Comment">   in order to construct a witness of [id @ a -&gt; a]. *)</span>
+<span class="lnr"> 51 </span>
+<span class="lnr"> 52 </span><span class="Keyword">val</span> create <span class="Keyword">[</span>a, p : <span class="Keyword">perm]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>
+<span class="lnr"> 53 </span>  f: <span class="Keyword">(</span><span class="Keyword">|</span><span class="Keyword">consumes</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a
+<span class="lnr"> 54 </span><span class="Keyword">|</span> <span class="Keyword">consumes</span> p
+<span class="lnr"> 55 </span><span class="Keyword">)</span> : thunk a <span class="Keyword">=</span>
+<span class="lnr"> 56 </span>  <span class="Keyword">let</span> s : state a <span class="Keyword">=</span> <span class="Constant">Suspended</span> <span class="Keyword">{</span> computation <span class="Keyword">=</span> f <span class="Keyword">}</span> <span class="Keyword">in</span>
+<span class="lnr"> 57 </span>  <span class="Constant">Thunk</span> <span class="Keyword">{</span> thunk <span class="Keyword">=</span> new <span class="Keyword">[</span>state a<span class="Keyword">]</span> s <span class="Keyword">}</span>
+<span class="lnr"> 58 </span>
+<span class="lnr"> 59 </span><span class="Comment">(* A custom unpacking function. This is another shortcoming of the</span>
+<span class="lnr"> 60 </span><span class="Comment">   system; if we had a generic mechanism for naming the variable</span>
+<span class="lnr"> 61 </span><span class="Comment">   that is introduced when an existential is unpacked, we would</span>
+<span class="lnr"> 62 </span><span class="Comment">   not need this. *)</span>
+<span class="lnr"> 63 </span>
+<span class="lnr"> 64 </span><span class="Keyword">val</span> unpack <span class="Keyword">[</span>a, c<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 65 </span>  x: <span class="Keyword">{</span>b<span class="Keyword">}</span> <span class="Keyword">(</span>wref <span class="Keyword">(</span>state b<span class="Keyword">)</span> <span class="Keyword">|</span> id @ b <span class="Keyword">-&gt;</span> a<span class="Keyword">)</span>,
+<span class="lnr"> 66 </span>  f: <span class="Keyword">[</span>b<span class="Keyword">]</span> <span class="Keyword">(</span>wref <span class="Keyword">(</span>state b<span class="Keyword">)</span> <span class="Keyword">|</span> id @ b <span class="Keyword">-&gt;</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> c
+<span class="lnr"> 67 </span><span class="Keyword">)</span> : c <span class="Keyword">=</span>
+<span class="lnr"> 68 </span>  f x
+<span class="lnr"> 69 </span>
+<span class="lnr"> 70 </span><span class="Comment">(* Evaluation. *)</span>
+<span class="lnr"> 71 </span>
+<span class="lnr"> 72 </span><span class="Comment">(* Using [wref::update] means that we hold the lock while the call to</span>
+<span class="lnr"> 73 </span><span class="Comment">   [s.computation] is in progress. As a result, if two calls to [force]</span>
+<span class="lnr"> 74 </span><span class="Comment">   occur concurrently, the second call will block until the first call</span>
+<span class="lnr"> 75 </span><span class="Comment">   is finished and has produced a result. This is the desired behavior. *)</span>
+<span class="lnr"> 76 </span>
+<span class="lnr"> 77 </span><span class="Comment">(* We do not need to explicitly require [duplicable a] because the</span>
+<span class="lnr"> 78 </span><span class="Comment">   constraint [id @ b -&gt; a] actually encodes the fact that [b] is</span>
+<span class="lnr"> 79 </span><span class="Comment">   duplicable! Subtle. *)</span>
+<span class="lnr"> 80 </span>
+<span class="lnr"> 81 </span><span class="Keyword">val</span> force <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>t: thunk a<span class="Keyword">)</span> : a <span class="Keyword">=</span>
+<span class="lnr"> 82 </span>  <span class="Comment">(* Unpack the existential, and let [b] stand for the witness. *)</span>
+<span class="lnr"> 83 </span>  unpack <span class="Keyword">(</span>t.thunk, <span class="Keyword">fun</span> <span class="Keyword">[</span>b<span class="Keyword">]</span> <span class="Keyword">(</span>x: wref <span class="Keyword">(</span>state b<span class="Keyword">)</span> <span class="Keyword">|</span> id @ b <span class="Keyword">-&gt;</span> a<span class="Keyword">)</span> : a <span class="Keyword">=</span>
+<span class="lnr"> 84 </span>    <span class="Comment">(* We get access to [t.thunk], under the name [x], at type</span>
+<span class="lnr"> 85 </span><span class="Comment">       [wref (state b)], where [b] is an unknown subtype of [a],</span>
+<span class="lnr"> 86 </span><span class="Comment">       as witnessed by the permission [id @ b -&gt; a]. *)</span>
+<span class="lnr"> 87 </span>    update <span class="Keyword">(</span>x, <span class="Keyword">fun</span> <span class="Keyword">(consumes</span> s: state b<span class="Keyword">)</span> : <span class="Keyword">(</span>state b, a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr"> 88 </span>      <span class="Comment">(* We will now possibly update [x], by writing a new value</span>
+<span class="lnr"> 89 </span><span class="Comment">         of type [state b] into it, and return a result of type</span>
+<span class="lnr"> 90 </span><span class="Comment">         [b], which, by applying [id], we coerce to type [a]. *)</span>
+<span class="lnr"> 91 </span>      <span class="Keyword">match</span> s <span class="Keyword">with</span>
+<span class="lnr"> 92 </span>      <span class="Keyword">|</span> <span class="Constant">Evaluated</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 93 </span>          s, <span class="Keyword">(</span>id s.result<span class="Keyword">)</span>
+<span class="lnr"> 94 </span>      <span class="Keyword">|</span> <span class="Constant">Suspended</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 95 </span>          <span class="Keyword">let</span> result : b <span class="Keyword">=</span> s.computation<span class="Constant">()</span> <span class="Keyword">in</span>
+<span class="lnr"> 96 </span>          <span class="Constant">Evaluated</span> <span class="Keyword">{</span> result <span class="Keyword">=</span> result <span class="Keyword">}</span>, id result
+<span class="lnr"> 97 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 98 </span>    <span class="Keyword">)</span>
+<span class="lnr"> 99 </span>  <span class="Keyword">)</span>
+<span class="lnr">100 </span>
+<span class="lnr">101 </span><span class="Comment">(*</span>
+<span class="lnr">102 </span><span class="Comment">Local Variables:</span>
+<span class="lnr">103 </span><span class="Comment">compile-command: &quot;../mezzo lazy.mz&quot;</span>
+<span class="lnr">104 </span><span class="Comment">End:</span>
+<span class="lnr">105 </span><span class="Comment">*)</span>
+</pre>
+</body>
+</html>

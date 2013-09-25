@@ -1,0 +1,226 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="ocamlstyle.css" type="text/css">
+<meta content="text/html; charset=utf8" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="Mode.html">
+<link rel="next" href="Resugar.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of class methods" rel=Appendix href="index_methods.html">
+<link title="Index of classes" rel=Appendix href="index_classes.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Configure" rel="Chapter" href="Configure.html">
+<link title="Mezzo" rel="Chapter" href="Mezzo.html">
+<link title="MzString" rel="Chapter" href="MzString.html">
+<link title="Option" rel="Chapter" href="Option.html">
+<link title="InfiniteArray" rel="Chapter" href="InfiniteArray.html">
+<link title="PersistentRef" rel="Chapter" href="PersistentRef.html">
+<link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
+<link title="GSet" rel="Chapter" href="GSet.html">
+<link title="Bash" rel="Chapter" href="Bash.html">
+<link title="Patricia" rel="Chapter" href="Patricia.html">
+<link title="LazyList" rel="Chapter" href="LazyList.html">
+<link title="MzMap" rel="Chapter" href="MzMap.html">
+<link title="Log" rel="Chapter" href="Log.html">
+<link title="MzList" rel="Chapter" href="MzList.html">
+<link title="GMap" rel="Chapter" href="GMap.html">
+<link title="Either" rel="Chapter" href="Either.html">
+<link title="SurfaceSyntaxPrinter" rel="Chapter" href="SurfaceSyntaxPrinter.html">
+<link title="Driver" rel="Chapter" href="Driver.html">
+<link title="Hashcons" rel="Chapter" href="Hashcons.html">
+<link title="Lexer" rel="Chapter" href="Lexer.html">
+<link title="Grammar" rel="Chapter" href="Grammar.html">
+<link title="Kind" rel="Chapter" href="Kind.html">
+<link title="Identifier" rel="Chapter" href="Identifier.html">
+<link title="Interpreter" rel="Chapter" href="Interpreter.html">
+<link title="Compile" rel="Chapter" href="Compile.html">
+<link title="UntypedMezzo2UntypedOCaml" rel="Chapter" href="UntypedMezzo2UntypedOCaml.html">
+<link title="Mezzo2UntypedMezzo" rel="Chapter" href="Mezzo2UntypedMezzo.html">
+<link title="UntypedOCamlPrinter" rel="Chapter" href="UntypedOCamlPrinter.html">
+<link title="OCamlKeywords" rel="Chapter" href="OCamlKeywords.html">
+<link title="Exports" rel="Chapter" href="Exports.html">
+<link title="FactInference" rel="Chapter" href="FactInference.html">
+<link title="Mode" rel="Chapter" href="Mode.html">
+<link title="Expressions" rel="Chapter" href="Expressions.html">
+<link title="Resugar" rel="Chapter" href="Resugar.html">
+<link title="Types" rel="Chapter" href="Types.html">
+<link title="Hoist" rel="Chapter" href="Hoist.html">
+<link title="KindPrinter" rel="Chapter" href="KindPrinter.html">
+<link title="DerivationPrinter" rel="Chapter" href="DerivationPrinter.html">
+<link title="Variance" rel="Chapter" href="Variance.html">
+<link title="KindCheck" rel="Chapter" href="KindCheck.html">
+<link title="Permissions" rel="Chapter" href="Permissions.html">
+<link title="TypeCore" rel="Chapter" href="TypeCore.html">
+<link title="TypeChecker" rel="Chapter" href="TypeChecker.html">
+<link title="Mark" rel="Chapter" href="Mark.html">
+<link title="TypeErrors" rel="Chapter" href="TypeErrors.html">
+<link title="DeBruijn" rel="Chapter" href="DeBruijn.html">
+<link title="TransSurface" rel="Chapter" href="TransSurface.html">
+<link title="Interfaces" rel="Chapter" href="Interfaces.html">
+<link title="ExpressionsCore" rel="Chapter" href="ExpressionsCore.html">
+<link title="Modules" rel="Chapter" href="Modules.html">
+<link title="Fact" rel="Chapter" href="Fact.html">
+<link title="Namespace" rel="Chapter" href="Namespace.html">
+<link title="Derivations" rel="Chapter" href="Derivations.html">
+<link title="Merge" rel="Chapter" href="Merge.html">
+<link title="Utils" rel="Chapter" href="Utils.html"><link title="Data type groups" rel="Section" href="#1_Datatypegroups">
+<link title="Substitution functions" rel="Section" href="#1_Substitutionfunctions">
+<link title="Binding functions" rel="Section" href="#1_Bindingfunctions">
+<link title="Convenience helpers" rel="Subsection" href="#2_Conveniencehelpers">
+<link title="Substitution functions for expressions." rel="Subsection" href="#2_Substitutionfunctionsforexpressions">
+<title>Expressions</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="Mode.html" title="Mode">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Resugar.html" title="Resugar">Next</a>
+</div>
+<h1>Module <a href="type_Expressions.html">Expressions</a></h1>
+
+<pre><span class="keyword">module</span> Expressions: <code class="code">sig</code> <a href="Expressions.html">..</a> <code class="code">end</code></pre><div class="info module top">
+This module defines substitution functions and binding functions on
+ expressions as well as data type groups.<br>
+</div>
+<hr width="100%">
+<br>
+<h1 id="1_Datatypegroups">Data type groups</h1><br>
+
+<pre><span id="VALbind_data_type_group_in_toplevel_items"><span class="keyword">val</span> bind_data_type_group_in_toplevel_items</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -><br>       <a href="TypeCore.html#TYPEdata_type_group">TypeCore.data_type_group</a> -><br>       <a href="ExpressionsCore.html#TYPEtoplevel_item">ExpressionsCore.toplevel_item</a> list -><br>       <a href="TypeCore.html#TYPEenv">TypeCore.env</a> * <a href="ExpressionsCore.html#TYPEtoplevel_item">ExpressionsCore.toplevel_item</a> list * <a href="TypeCore.html#TYPEvar">TypeCore.var</a> list *<br>       (<a href="TypeCore.html#TYPEvar">TypeCore.var</a> * Datacon.name * SurfaceSyntax.datacon_info) list</code></pre><div class="info ">
+This function processes a <code class="code">data_type_group</code>, and opens the corresponding
+ binders in the <code class="code">toplevel_item</code>s that follow. The resulting <code class="code">toplevel_item</code>s
+ are returned, as well as the list of <code class="code">var</code>s that have been bound.<br>
+</div>
+
+<pre><span id="VALbind_data_type_group_in_expr"><span class="keyword">val</span> bind_data_type_group_in_expr</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -><br>       <a href="TypeCore.html#TYPEdata_type_group">TypeCore.data_type_group</a> -><br>       <a href="ExpressionsCore.html#TYPEexpression">ExpressionsCore.expression</a> -><br>       <a href="TypeCore.html#TYPEenv">TypeCore.env</a> * <a href="ExpressionsCore.html#TYPEexpression">ExpressionsCore.expression</a> * <a href="TypeCore.html#TYPEvar">TypeCore.var</a> list *<br>       (<a href="TypeCore.html#TYPEvar">TypeCore.var</a> * Datacon.name * SurfaceSyntax.datacon_info) list</code></pre><div class="info ">
+Used by the type-checker to process local type declarations.<br>
+</div>
+
+<pre><span id="VALresolve_branch"><span class="keyword">val</span> resolve_branch</span> : <code class="type"><a href="TypeCore.html#TYPEvar">TypeCore.var</a> -> <a href="TypeCore.html#TYPEbranch">TypeCore.branch</a> -> <a href="TypeCore.html#TYPEbranch">TypeCore.branch</a></code></pre><div class="info ">
+Use this to transform the branch from a <code class="code">type_def</code> into something that's
+ suitable for manipulation as a type.<br>
+</div>
+<br>
+<h1 id="1_Substitutionfunctions">Substitution functions</h1><br>
+<br>
+Of course, we have many more substitution functions, since now all the
+ substitution functions for types have to be extended to expressions and
+ patterns. The naming convention is as follows:<ul>
+<li><code class="code">tsubst_X</code> substitutes a type for an index in an <code class="code">X</code></li>
+<li><code class="code">esubst_X</code> substitutes an expression for an index in an <code class="code">X</code></li>
+<li><code class="code">tpsubst_X</code> substitutes a var for a type in an <code class="code">X</code></li>
+</ul>
+
+ Because most of the things are done through the "substitution kit" (see
+ below), most of the variants for substitution functions are *not* exposed to
+ the client code.<br>
+<br>
+<h2 id="2_Conveniencehelpers">Convenience helpers</h2><br>
+
+<pre><span id="VALe_unit"><span class="keyword">val</span> e_unit</span> : <code class="type"><a href="ExpressionsCore.html#TYPEexpression">ExpressionsCore.expression</a></code></pre><div class="info ">
+The <code class="code">()</code> (unit) expression.<br>
+</div>
+
+<pre><span id="VALp_unit"><span class="keyword">val</span> p_unit</span> : <code class="type"><a href="ExpressionsCore.html#TYPEpattern">ExpressionsCore.pattern</a></code></pre><div class="info ">
+The <code class="code">()</code> (unit) pattern.<br>
+</div>
+
+<pre><span id="VALeunloc"><span class="keyword">val</span> eunloc</span> : <code class="type"><a href="ExpressionsCore.html#TYPEexpression">ExpressionsCore.expression</a> -> <a href="ExpressionsCore.html#TYPEexpression">ExpressionsCore.expression</a></code></pre><div class="info ">
+Remove any <code class="code">ELocated</code> node in front of an expression.<br>
+</div>
+<br>
+<h2 id="2_Substitutionfunctionsforexpressions">Substitution functions for expressions.</h2><br>
+
+<pre><span id="VALtsubst_expr"><span class="keyword">val</span> tsubst_expr</span> : <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -><br>       int -> <a href="ExpressionsCore.html#TYPEexpression">ExpressionsCore.expression</a> -> <a href="ExpressionsCore.html#TYPEexpression">ExpressionsCore.expression</a></code></pre><br>
+<h1 id="1_Bindingfunctions">Binding functions</h1><br>
+
+<pre><code><span id="TYPEsubstitution_kit"><span class="keyword">type</span> <code class="type"></code>substitution_kit</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTsubstitution_kit.subst_type">subst_type</span>&nbsp;: <code class="type"><a href="TypeCore.html#TYPEtyp">TypeCore.typ</a> -> <a href="TypeCore.html#TYPEtyp">TypeCore.typ</a></code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTsubstitution_kit.subst_expr">subst_expr</span>&nbsp;: <code class="type"><a href="ExpressionsCore.html#TYPEexpression">ExpressionsCore.expression</a> -> <a href="ExpressionsCore.html#TYPEexpression">ExpressionsCore.expression</a></code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTsubstitution_kit.subst_def">subst_def</span>&nbsp;: <code class="type"><a href="ExpressionsCore.html#TYPEdefinitions">ExpressionsCore.definitions</a> -> <a href="ExpressionsCore.html#TYPEdefinitions">ExpressionsCore.definitions</a></code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTsubstitution_kit.subst_toplevel">subst_toplevel</span>&nbsp;: <code class="type"><a href="ExpressionsCore.html#TYPEtoplevel_item">ExpressionsCore.toplevel_item</a> list -> <a href="ExpressionsCore.html#TYPEtoplevel_item">ExpressionsCore.toplevel_item</a> list</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTsubstitution_kit.subst_pat">subst_pat</span>&nbsp;: <code class="type"><a href="ExpressionsCore.html#TYPEpattern">ExpressionsCore.pattern</a> list -> <a href="ExpressionsCore.html#TYPEpattern">ExpressionsCore.pattern</a> list</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTsubstitution_kit.vars">vars</span>&nbsp;: <code class="type"><a href="TypeCore.html#TYPEvar">TypeCore.var</a> list</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTsubstitution_kit.names">names</span>&nbsp;: <code class="type">Variable.name list</code>;</code></td>
+
+</tr></table>
+}
+
+<div class="info ">
+To tame the combinatorial explosion, the binding functions in this module
+ return a substitution kit. That is to say, once you've bound type vars or
+ term vars, you're given a set of functions that you can apply on whatever you
+ need to open the binders. You are also given the list of (open) variables.<br>
+</div>
+
+
+<pre><span id="VALbind_evars"><span class="keyword">val</span> bind_evars</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -><br>       <a href="TypeCore.html#TYPEtype_binding">TypeCore.type_binding</a> list -> <a href="TypeCore.html#TYPEenv">TypeCore.env</a> * <a href="Expressions.html#TYPEsubstitution_kit">substitution_kit</a></code></pre><div class="info ">
+Bind a set of term variables (let-bindings).<br>
+</div>
+
+<pre><span id="VALbind_vars"><span class="keyword">val</span> bind_vars</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -><br>       SurfaceSyntax.type_binding list -><br>       <a href="TypeCore.html#TYPEenv">TypeCore.env</a> * <a href="Expressions.html#TYPEsubstitution_kit">substitution_kit</a></code></pre><div class="info ">
+Bind a set of type variables (Λ-bindings).<br>
+</div>
+
+<pre><span id="VALbind_patexprs"><span class="keyword">val</span> bind_patexprs</span> : <code class="type"><a href="TypeCore.html#TYPEenv">TypeCore.env</a> -><br>       <a href="ExpressionsCore.html#TYPErec_flag">ExpressionsCore.rec_flag</a> -><br>       (<a href="ExpressionsCore.html#TYPEpattern">ExpressionsCore.pattern</a> * <a href="ExpressionsCore.html#TYPEexpression">ExpressionsCore.expression</a>) list -><br>       <a href="TypeCore.html#TYPEenv">TypeCore.env</a> * (<a href="ExpressionsCore.html#TYPEpattern">ExpressionsCore.pattern</a> * <a href="ExpressionsCore.html#TYPEexpression">ExpressionsCore.expression</a>) list *<br>       <a href="Expressions.html#TYPEsubstitution_kit">substitution_kit</a></code></pre><div class="info ">
+Bind a set of multiple bindings (<code class="code">and</code> keyword). The bindings may be
+ mutually recursive. There is also a set of expressions on the right-hand-side
+ of each <code class="code">=</code> sign. The variables will also be opened there, and this function
+ takes care of doing it properly depending on whether these are recursive
+ bindings or not. 
+<p>
+
+ It is then up to the client code to open these variables in the body of the
+ multiple bindings. Consider for instance "let rec x = e1 and y = e2 in e"; this
+ function will correctly open "x" and "y" in "e1" and "e2" but you must use the
+ substitution kit to open "x" and "y" in "e".<br>
+</div>
+
+<pre><span class="keyword">module</span> <a href="Expressions.ExprPrinter.html">ExprPrinter</a>: <code class="code">sig</code> <a href="Expressions.ExprPrinter.html">..</a> <code class="code">end</code></pre><div class="info">
+Our not-so-pretty printer for expressions.
+</div>
+</body></html>

@@ -1,0 +1,268 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="ocamlstyle.css" type="text/css">
+<meta content="text/html; charset=utf8" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="Variance.html">
+<link rel="next" href="Permissions.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of class methods" rel=Appendix href="index_methods.html">
+<link title="Index of classes" rel=Appendix href="index_classes.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Configure" rel="Chapter" href="Configure.html">
+<link title="Mezzo" rel="Chapter" href="Mezzo.html">
+<link title="MzString" rel="Chapter" href="MzString.html">
+<link title="Option" rel="Chapter" href="Option.html">
+<link title="InfiniteArray" rel="Chapter" href="InfiniteArray.html">
+<link title="PersistentRef" rel="Chapter" href="PersistentRef.html">
+<link title="PersistentUnionFind" rel="Chapter" href="PersistentUnionFind.html">
+<link title="GSet" rel="Chapter" href="GSet.html">
+<link title="Bash" rel="Chapter" href="Bash.html">
+<link title="Patricia" rel="Chapter" href="Patricia.html">
+<link title="LazyList" rel="Chapter" href="LazyList.html">
+<link title="MzMap" rel="Chapter" href="MzMap.html">
+<link title="Log" rel="Chapter" href="Log.html">
+<link title="MzList" rel="Chapter" href="MzList.html">
+<link title="GMap" rel="Chapter" href="GMap.html">
+<link title="Either" rel="Chapter" href="Either.html">
+<link title="SurfaceSyntaxPrinter" rel="Chapter" href="SurfaceSyntaxPrinter.html">
+<link title="Driver" rel="Chapter" href="Driver.html">
+<link title="Hashcons" rel="Chapter" href="Hashcons.html">
+<link title="Lexer" rel="Chapter" href="Lexer.html">
+<link title="Grammar" rel="Chapter" href="Grammar.html">
+<link title="Kind" rel="Chapter" href="Kind.html">
+<link title="Identifier" rel="Chapter" href="Identifier.html">
+<link title="Interpreter" rel="Chapter" href="Interpreter.html">
+<link title="Compile" rel="Chapter" href="Compile.html">
+<link title="UntypedMezzo2UntypedOCaml" rel="Chapter" href="UntypedMezzo2UntypedOCaml.html">
+<link title="Mezzo2UntypedMezzo" rel="Chapter" href="Mezzo2UntypedMezzo.html">
+<link title="UntypedOCamlPrinter" rel="Chapter" href="UntypedOCamlPrinter.html">
+<link title="OCamlKeywords" rel="Chapter" href="OCamlKeywords.html">
+<link title="Exports" rel="Chapter" href="Exports.html">
+<link title="FactInference" rel="Chapter" href="FactInference.html">
+<link title="Mode" rel="Chapter" href="Mode.html">
+<link title="Expressions" rel="Chapter" href="Expressions.html">
+<link title="Resugar" rel="Chapter" href="Resugar.html">
+<link title="Types" rel="Chapter" href="Types.html">
+<link title="Hoist" rel="Chapter" href="Hoist.html">
+<link title="KindPrinter" rel="Chapter" href="KindPrinter.html">
+<link title="DerivationPrinter" rel="Chapter" href="DerivationPrinter.html">
+<link title="Variance" rel="Chapter" href="Variance.html">
+<link title="KindCheck" rel="Chapter" href="KindCheck.html">
+<link title="Permissions" rel="Chapter" href="Permissions.html">
+<link title="TypeCore" rel="Chapter" href="TypeCore.html">
+<link title="TypeChecker" rel="Chapter" href="TypeChecker.html">
+<link title="Mark" rel="Chapter" href="Mark.html">
+<link title="TypeErrors" rel="Chapter" href="TypeErrors.html">
+<link title="DeBruijn" rel="Chapter" href="DeBruijn.html">
+<link title="TransSurface" rel="Chapter" href="TransSurface.html">
+<link title="Interfaces" rel="Chapter" href="Interfaces.html">
+<link title="ExpressionsCore" rel="Chapter" href="ExpressionsCore.html">
+<link title="Modules" rel="Chapter" href="Modules.html">
+<link title="Fact" rel="Chapter" href="Fact.html">
+<link title="Namespace" rel="Chapter" href="Namespace.html">
+<link title="Derivations" rel="Chapter" href="Derivations.html">
+<link title="Merge" rel="Chapter" href="Merge.html">
+<link title="Utils" rel="Chapter" href="Utils.html"><link title="Errors." rel="Section" href="#1_Errors">
+<link title="Building environments." rel="Section" href="#1_Buildingenvironments">
+<link title="Extracting information out of an environment." rel="Section" href="#1_Extractinginformationoutofanenvironment">
+<link title="Extending an environment." rel="Section" href="#1_Extendinganenvironment">
+<link title="Extending an environment with external names." rel="Section" href="#1_Extendinganenvironmentwithexternalnames">
+<link title="Functions for obtaining the bindings introduced by a pattern or by a type
+   (interpreted as a pattern)." rel="Section" href="#1_Functionsforobtainingthebindingsintroducedbyapatternorbyatypeinterpretedasapattern">
+<link title="Kind-checking functions." rel="Section" href="#1_Kindcheckingfunctions">
+<link title="Debugging functions." rel="Section" href="#1_Debuggingfunctions">
+<title>KindCheck</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="Variance.html" title="Variance">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Permissions.html" title="Permissions">Next</a>
+</div>
+<h1>Module <a href="type_KindCheck.html">KindCheck</a></h1>
+
+<pre><span class="keyword">module</span> KindCheck: <code class="code">sig</code> <a href="KindCheck.html">..</a> <code class="code">end</code></pre><div class="info module top">
+This module implements a well-kindedness check for the types of the surface
+   language. It also offers the necessary building blocks for resolving names
+   (i.e. determining which definition each variable and data constructor refers
+   to) and translating types and expressions down to the internal syntax.<br>
+</div>
+<hr width="100%">
+
+<pre><code><span id="TYPEvar"><span class="keyword">type</span> <code class="type">'v</code> var</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTvar.Local"><span class="constructor">Local</span></span> <span class="keyword">of</span> <code class="type">int</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTvar.NonLocal"><span class="constructor">NonLocal</span></span> <span class="keyword">of</span> <code class="type">'v</code></code></td>
+
+</tr></table>
+
+<div class="info ">
+An environment maintains a mapping of external variable names to internal
+   objects, represented by the type <code class="code">var</code>. A <code class="code">var</code> is either a local name,
+   represented as de Bruijn index, or a non-local name, represented in some
+   other way. Typically, when checking a compilation unit, the names defined
+   within this compilation unit are translated to local names, whereas the
+   names defined in other units that this unit depends on are translated to
+   non-local names.<br>
+</div>
+
+
+<pre><span id="TYPEenv"><span class="keyword">type</span> <code class="type">'v</code> env</span> </pre>
+
+<br>
+<h1 id="1_Errors">Errors.</h1><br>
+
+<pre><span id="EXCEPTIONKindError"><span class="keyword">exception</span> KindError</span> <span class="keyword">of</span> <code class="type">(Buffer.t -> unit -> unit)</code></pre>
+<div class="info ">
+A <code class="code">KindError</code> exception carries a function that displays an error message.<br>
+</div>
+
+<pre><span id="VALimplication_only_on_arrow"><span class="keyword">val</span> implication_only_on_arrow</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -> 'a</code></pre><div class="info ">
+This error is detected during the translation towards the internal syntax.<br>
+</div>
+<br>
+<h1 id="1_Buildingenvironments">Building environments.</h1><br>
+
+<pre><span id="VALempty"><span class="keyword">val</span> empty</span> : <code class="type">Module.name -> 'v <a href="KindCheck.html#TYPEenv">env</a></code></pre><div class="info ">
+An empty environment.<br>
+</div>
+<br>
+<h1 id="1_Extractinginformationoutofanenvironment">Extracting information out of an environment.</h1><br>
+
+<pre><span id="VALmodule_name"><span class="keyword">val</span> module_name</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -> Module.name</code></pre><div class="info ">
+<code class="code">module_name env</code> is the name of the current module.<br>
+</div>
+
+<pre><span id="VALlocation"><span class="keyword">val</span> location</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -> SurfaceSyntax.location</code></pre><div class="info ">
+<code class="code">location env</code> is the current location in the source code.<br>
+</div>
+
+<pre><span id="VALfind_variable"><span class="keyword">val</span> find_variable</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -><br>       Variable.name SurfaceSyntax.maybe_qualified -> 'v <a href="KindCheck.html#TYPEvar">var</a></code></pre><div class="info ">
+<code class="code">find_variable env x</code> looks up the possibly-qualified variable <code class="code">x</code>
+    in the environment <code class="code">env</code>.<br>
+</div>
+
+<pre><span id="VALfind_kind"><span class="keyword">val</span> find_kind</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -> Variable.name SurfaceSyntax.maybe_qualified -> <a href="Kind.html#TYPEkind">Kind.kind</a></code></pre><div class="info ">
+<code class="code">find_kind env x</code> returns the kind of the possibly-qualified
+    variable <code class="code">x</code>.<br>
+</div>
+
+<pre><span id="VALfind_nonlocal_variable"><span class="keyword">val</span> find_nonlocal_variable</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -> Variable.name -> 'v</code></pre><div class="info ">
+<code class="code">find_nonlocal_variable env x</code> looks up the unqualified variable <code class="code">x</code>
+    in the environment <code class="code">env</code>. The result is expected to be a <code class="code">NonLocal</code>
+    variable, and this injection is stripped off. If the variable is not
+    found, the error message indicates that <code class="code">x</code> is not defined in an
+    implementation file, whereas its existence is advertised in the
+    corresponding interface file.<br>
+</div>
+
+<pre><span id="VALresolve_datacon"><span class="keyword">val</span> resolve_datacon</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -><br>       SurfaceSyntax.datacon_reference -><br>       'v <a href="KindCheck.html#TYPEvar">var</a> * Datacon.name * DataTypeFlavor.flavor</code></pre><div class="info ">
+<code class="code">resolve_datacon env dref</code> looks up the possibly-qualified data constructor
+    <code class="code">dref.datacon_unresolved</code> in the environment <code class="code">env</code>. It updates <code class="code">dref</code> in
+    place with a <code class="code">datacon_info</code> component. It returns a triple of the type with
+    which this data constructor is associated, the unqualified name of this
+    data constructor, and its flavor.<br>
+</div>
+
+<pre><span id="VALget_exports"><span class="keyword">val</span> get_exports</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -> (Variable.name * 'v) list</code></pre><div class="info ">
+<code class="code">get_exports env</code> returns the list of names that are exported by <code class="code">env</code>.
+ Calling this function only makes sense after type-checking took place.<br>
+</div>
+<br>
+<h1 id="1_Extendinganenvironment">Extending an environment.</h1><br>
+
+<pre><span id="VALlocate"><span class="keyword">val</span> locate</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -> SurfaceSyntax.location -> 'v <a href="KindCheck.html#TYPEenv">env</a></code></pre><div class="info ">
+<code class="code">locate env loc</code> updates <code class="code">env</code> with the location <code class="code">loc</code>.<br>
+</div>
+
+<pre><span id="VALenter_module"><span class="keyword">val</span> enter_module</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -> Module.name -> 'v <a href="KindCheck.html#TYPEenv">env</a></code></pre><div class="info ">
+<code class="code">enter_module env m</code> resets <code class="code">env</code> so that it is ready to translate another
+ unit (interface or implementation) named <code class="code">m</code>.<br>
+</div>
+
+<pre><span id="VALextend"><span class="keyword">val</span> extend</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -> SurfaceSyntax.type_binding list -> 'v <a href="KindCheck.html#TYPEenv">env</a></code></pre><div class="info ">
+<code class="code">extend env bindings</code> iterates over the list <code class="code">bindings</code>, from left to
+    right, and for each binding of the form <code class="code">(x, kind, loc)</code>, it extends
+    the environment by binding the unqualified variable <code class="code">x</code> to a new local
+    name whose kind is <code class="code">kind</code>.<br>
+</div>
+
+<pre><span id="VALbind_nonlocal"><span class="keyword">val</span> bind_nonlocal</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -> Variable.name * <a href="Kind.html#TYPEkind">Kind.kind</a> * 'v -> 'v <a href="KindCheck.html#TYPEenv">env</a></code></pre><div class="info ">
+<code class="code">bind_nonlocal env (x, kind, v)</code> binds the unqualified variable <code class="code">x</code> to the
+    non-local name <code class="code">v</code>, whose kind is <code class="code">kind</code>.<br>
+</div>
+
+<pre><span id="VALdissolve"><span class="keyword">val</span> dissolve</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -> Module.name -> 'v <a href="KindCheck.html#TYPEenv">env</a></code></pre><div class="info ">
+<code class="code">dissolve env m</code> has the effect of introducing a new binding of <code class="code">x</code>
+    for every existing binding of <code class="code">m::x</code>. This concerns both variables and
+    data constructors.<br>
+</div>
+
+<pre><span id="VALbindings_data_group_types"><span class="keyword">val</span> bindings_data_group_types</span> : <code class="type">SurfaceSyntax.data_type_def list -> SurfaceSyntax.type_binding list</code></pre><div class="info ">
+<code class="code">bindings_data_group_types group</code> returns a list of bindings for the types
+    of the data group.<br>
+</div>
+
+<pre><span id="VALbind_data_group_datacons"><span class="keyword">val</span> bind_data_group_datacons</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -> SurfaceSyntax.data_type_def list -> 'v <a href="KindCheck.html#TYPEenv">env</a></code></pre><div class="info ">
+<code class="code">bind_data_group_datacons env group</code> extends the environment with bindings
+    for the data constructors of the data group. It must be called after the
+    environment has been extended with bindings for the types.<br>
+</div>
+
+<pre><span id="VALbind_nonlocal_datacon"><span class="keyword">val</span> bind_nonlocal_datacon</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -><br>       Datacon.name -> SurfaceSyntax.datacon_info -> 'v -> 'v <a href="KindCheck.html#TYPEenv">env</a></code></pre><br>
+<h1 id="1_Extendinganenvironmentwithexternalnames">Extending an environment with external names.</h1><br>
+<br>
+These functions are used when constructing an interface. We need to add
+ additional bindings in the Kind-Checking environment.<br>
+
+<pre><span id="VALbind_external_name"><span class="keyword">val</span> bind_external_name</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -><br>       Module.name -> Variable.name -> <a href="Kind.html#TYPEkind">Kind.kind</a> -> 'v -> 'v <a href="KindCheck.html#TYPEenv">env</a></code></pre>
+<pre><span id="VALbind_external_datacon"><span class="keyword">val</span> bind_external_datacon</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -><br>       Module.name -><br>       Datacon.name -> SurfaceSyntax.datacon_info -> 'v -> 'v <a href="KindCheck.html#TYPEenv">env</a></code></pre><br>
+<h1 id="1_Functionsforobtainingthebindingsintroducedbyapatternorbyatypeinterpretedasapattern">Functions for obtaining the bindings introduced by a pattern or by a type
+   (interpreted as a pattern).</h1><br>
+
+<pre><span id="VALbv"><span class="keyword">val</span> bv</span> : <code class="type">SurfaceSyntax.pattern -> SurfaceSyntax.type_binding list</code></pre><div class="info ">
+<code class="code">bv p</code> returns the names bound by the pattern <code class="code">p</code>, in left-to-right order.
+    The order matters -- the de Bruijn numbering convention relies on it.<br>
+</div>
+
+<pre><span id="VALnames"><span class="keyword">val</span> names</span> : <code class="type">SurfaceSyntax.typ -> SurfaceSyntax.type_binding list</code></pre><div class="info ">
+<code class="code">names ty</code> returns a list of the names introduced by the type <code class="code">ty</code>, via
+    <code class="code">TyNameIntro</code> forms. The list is returned in left-to-right order, as
+    above. <code class="code">names</code> is in fact implemented via a call to <code class="code">bv</code>.<br>
+</div>
+<br>
+<h1 id="1_Kindcheckingfunctions">Kind-checking functions.</h1><br>
+
+<pre><span id="VALinfer_reset"><span class="keyword">val</span> infer_reset</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -> SurfaceSyntax.typ -> <a href="Kind.html#TYPEkind">Kind.kind</a></code></pre><div class="info ">
+<code class="code">infer_reset env ty</code> returns the kind of the type <code class="code">ty</code>.<br>
+</div>
+
+<pre><span id="VALcheck_implementation"><span class="keyword">val</span> check_implementation</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -> SurfaceSyntax.implementation -> unit</code></pre><div class="info ">
+<code class="code">check_implementation env i</code> checks that the implementation file <code class="code">i</code> is
+    well-formed, i.e. all names are properly bound and all types are
+    well-kinded.<br>
+</div>
+
+<pre><span id="VALcheck_interface"><span class="keyword">val</span> check_interface</span> : <code class="type">'v <a href="KindCheck.html#TYPEenv">env</a> -> SurfaceSyntax.interface -> unit</code></pre><div class="info ">
+<code class="code">check_implementation env i</code> checks that the interface file <code class="code">i</code> is
+    well-formed, i.e. all names are properly bound and all types are
+    well-kinded.<br>
+</div>
+<br>
+<h1 id="1_Debuggingfunctions">Debugging functions.</h1><br>
+
+<pre><span id="VALp"><span class="keyword">val</span> p</span> : <code class="type">Buffer.t -> 'a <a href="KindCheck.html#TYPEenv">env</a> -> unit</code></pre></body></html>

@@ -1,0 +1,203 @@
+* {
+  font-family: "DejaVu Sans", "Helvetica", sans;
+  font-size: 11pt;
+}
+
+a:visited, a:link, a {
+  color: #6895c3;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #2F4459;
+  text-decoration: none;
+}
+
+a:active {
+  text-decoration: underline;
+}
+
+.keyword {
+  font-weight: bold; color: Red
+}
+
+.keywordsign {
+  color: #C04600
+}
+
+.superscript {
+  font-size: 4
+}
+
+.subscript {
+  font-size: 4
+}
+
+.comment {
+  color: Green
+}
+
+.constructor {
+  color: Blue
+}
+
+.type {
+  color: #5C6585
+}
+
+.string {
+  color: Maroon
+}
+
+.warning {
+  color: Red; font-weight: bold
+}
+
+.info {
+  margin-left: 3em; margin-right: 3em
+}
+
+.param_info {
+  margin-top: 4px; margin-left: 3em; margin-right: 3em
+}
+
+.code {
+  color: #465F91;
+}
+
+h1 {
+  font-size: 2rem; text-align: center;
+}
+
+h2 {
+  font-size: 1.6rem;
+  font-weight: normal;
+  border: 1px solid #dadada;
+  color: #101010;
+  background: #eee;
+  margin: 25px 0px 10px 0px;
+  padding: 4px;
+}
+
+h3 {
+  font-size: 1.4rem;
+  color: #016699;
+  font-weight: bold;
+  padding: 15px 0 0 0ex;
+  margin: 5px 0 0 0;
+}
+
+h4 {
+  font-size: 1.2rem;
+  color: #016699;
+  padding: 15px 0 0 0ex;
+  margin: 5px 0 0 0;
+}
+
+h5, h6, div.h7, div.h8, div.h9 {
+  font-size: 20pt;
+  border: 1px solid #000000;
+  margin-top: 5px;
+  margin-bottom: 2px;
+  text-align: center;
+  padding: 2px;
+}
+
+h5 {
+  background-color: #90FDFF;
+}
+
+h6 {
+  background-color: #016699;
+  color: white;
+}
+
+div.h7 {
+  background-color: #E0FFFF;
+}
+
+div.h8 {
+  background-color: #F0FFFF;
+}
+
+div.h9 {
+  background-color: #FFFFFF;
+}
+
+.typetable, .indextable, .paramstable {
+  border-style: hidden;
+}
+
+.paramstable {
+  padding: 5pt 5pt;
+}
+
+tr {
+  background-color: white;
+}
+
+td.typefieldcomment {
+  background-color: #FFFFFF;
+  font-size: smaller;
+}
+
+pre {
+  margin-bottom: 4px;
+}
+
+div.sig_block {
+  margin-left: 2em;
+}
+
+hr {
+  height: 1px;
+  color: #016699;
+  background-color: #016699;
+  border-width: 0;
+}
+
+h1, h1 a:link, h1 a:visited, h1 a {
+  color: #016699;
+  font-size: 2rem;
+}
+
+.navbar {
+  float: left;
+}
+
+.navbar a, .navbar a:link, .navbar a:visited {
+  color: #016699;
+  font-weight: bold;
+  font-size: 80%;
+}
+
+.keyword {
+  color: #c13939;
+}
+
+.constructor {
+  color: #3c8f7e;
+}
+
+pre, code, pre *, code * {
+  font-size: .9rem;
+}
+
+pre, code {
+  font-family: "DejaVu Sans Mono", "Bitstream Vera Mono", "Courrier New", monospace;
+  white-space: normal;
+  font-weight: bold;
+}
+
+.type br {
+  display: none;
+}
+
+.info {
+  margin-left: 1em;
+}
+
+object {
+  width: 100%;
+  max-width: 1200px;
+}

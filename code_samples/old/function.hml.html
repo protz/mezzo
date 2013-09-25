@@ -1,0 +1,42 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/tests/function.hml.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="ocaml">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Constant { color: #e5786d; }
+.Number { color: #e5786d; }
+.Type { color: #cae682; }
+.Keyword { color: #8ac6f2; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Keyword">val</span> inc <span class="Keyword">(</span>x: <span class="Type">int</span><span class="Keyword">)</span>: <span class="Type">int</span> <span class="Keyword">=</span> x + <span class="Number">1</span>
+<span class="lnr"> 2 </span>
+<span class="lnr"> 3 </span><span class="Keyword">val</span> y <span class="Keyword">=</span> inc <span class="Number">2</span>
+<span class="lnr"> 4 </span>
+<span class="lnr"> 5 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> f <span class="Keyword">(</span>x: <span class="Type">int</span><span class="Keyword">)</span>: <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr"> 6 </span>  f <span class="Keyword">(</span>inc x<span class="Keyword">)</span>
+<span class="lnr"> 7 </span>
+<span class="lnr"> 8 </span><span class="Keyword">val</span> count <span class="Keyword">=</span> newref <span class="Number">0</span>
+<span class="lnr"> 9 </span>
+<span class="lnr">10 </span><span class="Keyword">val</span> counter <span class="Keyword">(</span><span class="Keyword">|</span> count @ ref <span class="Type">int</span><span class="Keyword">)</span>: <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">11 </span>  <span class="Keyword">let</span> x <span class="Keyword">=</span> <span class="Keyword">!</span>count <span class="Keyword">in</span>
+<span class="lnr">12 </span>  count <span class="Keyword">:=</span> x + <span class="Number">1</span><span class="Keyword">;</span>
+<span class="lnr">13 </span>  x
+<span class="lnr">14 </span>
+<span class="lnr">15 </span><span class="Keyword">val</span> foobar <span class="Keyword">=</span>
+<span class="lnr">16 </span>  <span class="Keyword">(</span>counter <span class="Constant">()</span>, counter <span class="Constant">()</span><span class="Keyword">)</span>
+</pre>
+</body>
+</html>

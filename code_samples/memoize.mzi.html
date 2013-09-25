@@ -1,0 +1,69 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/memoize.mzi.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Type { color: #cae682; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Comment">(* [memoize (hash, eq, f)] builds a memoizing version of the function [f],</span>
+<span class="lnr"> 2 </span><span class="Comment">   using an internal hash table based on the provided hash and equality</span>
+<span class="lnr"> 3 </span><span class="Comment">   functions. *)</span>
+<span class="lnr"> 4 </span>
+<span class="lnr"> 5 </span><span class="Comment">(* If [f] has type [a -&gt; b], the types [a] and [b] must be duplicable,</span>
+<span class="lnr"> 6 </span><span class="Comment">   because arguments and results will be stored in the internal hash</span>
+<span class="lnr"> 7 </span><span class="Comment">   table. *)</span>
+<span class="lnr"> 8 </span>
+<span class="lnr"> 9 </span><span class="Comment">(* The function [f] may have a side effect, represented by [s]. This must be</span>
+<span class="lnr">10 </span><span class="Comment">   used with caution: it often does not make sense to memoize a function that</span>
+<span class="lnr">11 </span><span class="Comment">   has a side effect. Furthermore, when it does make sense, one might prefer</span>
+<span class="lnr">12 </span><span class="Comment">   to hide the side effect before applying [memoize], so [memoize] is applied</span>
+<span class="lnr">13 </span><span class="Comment">   to a function that does not require a permission. The parameter [s] is</span>
+<span class="lnr">14 </span><span class="Comment">   useful only when memoizing a function that has an intentionally non-hidden</span>
+<span class="lnr">15 </span><span class="Comment">   side effect. *)</span>
+<span class="lnr">16 </span>
+<span class="lnr">17 </span><span class="Keyword">val</span> memoize:
+<span class="lnr">18 </span>  <span class="Keyword">[</span>a, b, s : <span class="Keyword">perm]</span>
+<span class="lnr">19 </span>  <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">duplicable</span> b <span class="Keyword">=</span><span class="Keyword">&gt;</span>
+<span class="lnr">20 </span>  <span class="Keyword">(</span>hash: a <span class="Keyword">-&gt;</span> <span class="Type">int</span>, eq: <span class="Keyword">(</span>a, a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>, f: <span class="Keyword">(</span>a <span class="Keyword">|</span> s<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">21 </span>  <span class="Keyword">(</span>a <span class="Keyword">|</span> s<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">22 </span>
+<span class="lnr">23 </span><span class="Comment">(* Now, a memoizing fixpoint combinator. Here, the argument [f] is not a</span>
+<span class="lnr">24 </span><span class="Comment">   closed function, but an open recursive function, i.e., it is parameterized</span>
+<span class="lnr">25 </span><span class="Comment">   over [self]. So, [f] should have type [(self: a -&gt; b, x: a) -&gt; y: b]. *)</span>
+<span class="lnr">26 </span>
+<span class="lnr">27 </span><span class="Comment">(* Actually, we require [f] to have a slightly more general type, which is</span>
+<span class="lnr">28 </span><span class="Comment">   parametric in an unknown permission [p]. Thus, we tell our client that</span>
+<span class="lnr">29 </span><span class="Comment">   [self] may have a side effect, and that (of course) we expect the</span>
+<span class="lnr">30 </span><span class="Comment">   application of [f] to [self] to have the same side effect. Incidentally,</span>
+<span class="lnr">31 </span><span class="Comment">   note that this type prevents [f] from storing [self] and re-using after</span>
+<span class="lnr">32 </span><span class="Comment">   [f] has returned! So, we are telling [f], ``you can use [self] now if</span>
+<span class="lnr">33 </span><span class="Comment">   you wish, but you are not allowed to use it later''. *)</span>
+<span class="lnr">34 </span>
+<span class="lnr">35 </span><span class="Keyword">val</span> fix:
+<span class="lnr">36 </span>  <span class="Keyword">[</span>a, b<span class="Keyword">]</span>
+<span class="lnr">37 </span>  <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">duplicable</span> b <span class="Keyword">=</span><span class="Keyword">&gt;</span>
+<span class="lnr">38 </span>  <span class="Keyword">(</span>
+<span class="lnr">39 </span>    hash: a <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr">40 </span>    eq: <span class="Keyword">(</span>a, a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>,
+<span class="lnr">41 </span>    f: <span class="Keyword">[</span>p : <span class="Keyword">perm]</span> <span class="Keyword">((</span>a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">42 </span>  <span class="Keyword">)</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">43 </span>  a <span class="Keyword">-&gt;</span> b
+<span class="lnr">44 </span>
+</pre>
+</body>
+</html>

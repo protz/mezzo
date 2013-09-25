@@ -1,0 +1,1352 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/mutableTreeMap.mz.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.PreProc { color: #e5786d; }
+.Number { color: #e5786d; }
+.Constant { color: #e5786d; }
+.Type { color: #cae682; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr">   1 </span><span class="Comment">(* This module implements association maps using height-balanced trees.</span>
+<span class="lnr">   2 </span><span class="Comment">   The code is modeled after OCaml's [Map] library, but has been modified</span>
+<span class="lnr">   3 </span><span class="Comment">   to allow trees to be modified in place. *)</span>
+<span class="lnr">   4 </span>
+<span class="lnr">   5 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">   6 </span>
+<span class="lnr">   7 </span><span class="Comment">(* Some stuff that should be moved to another file. *)</span> <span class="Comment">(* TEMPORARY *)</span>
+<span class="lnr">   8 </span>
+<span class="lnr">   9 </span><span class="Keyword">val</span> max <span class="Keyword">(</span>x: <span class="Type">int</span>, y: <span class="Type">int</span><span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">  10 </span>  <span class="Keyword">if</span> x <span class="Keyword">&gt;</span><span class="Keyword">=</span> y <span class="Keyword">then</span> x <span class="Keyword">else</span> y
+<span class="lnr">  11 </span>
+<span class="lnr">  12 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">  13 </span>
+<span class="lnr">  14 </span><span class="Comment">(* A tree is either empty or a binary node. Besides its children, a binary</span>
+<span class="lnr">  15 </span><span class="Comment">   node contains a key, a value, and its height. *)</span>
+<span class="lnr">  16 </span>
+<span class="lnr">  17 </span><span class="Keyword">mutable</span> <span class="Keyword">data</span> tree k a <span class="Keyword">=</span>
+<span class="lnr">  18 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span>
+<span class="lnr">  19 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">{</span> left: tree k a<span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: tree k a<span class="Keyword">;</span> height: <span class="Type">int</span> <span class="Keyword">}</span>
+<span class="lnr">  20 </span>
+<span class="lnr">  21 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">  22 </span>
+<span class="lnr">  23 </span><span class="Comment">(* Cardinal. *)</span>
+<span class="lnr">  24 </span>
+<span class="lnr">  25 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> cardinal <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>t: tree k a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">  26 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr">  27 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">  28 </span>      <span class="Number">0</span>
+<span class="lnr">  29 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">  30 </span>      cardinal t.left + <span class="Number">1</span> + cardinal t.right
+<span class="lnr">  31 </span>  <span class="Keyword">end</span>
+<span class="lnr">  32 </span>
+<span class="lnr">  33 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">  34 </span>
+<span class="lnr">  35 </span><span class="Comment">(* The following (private) function reads the height information that is</span>
+<span class="lnr">  36 </span><span class="Comment">   stored in a node. It does not recompute anything. *)</span>
+<span class="lnr">  37 </span>
+<span class="lnr">  38 </span><span class="Keyword">val</span> height <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>t: tree k a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">  39 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr">  40 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span> <span class="Number">0</span>
+<span class="lnr">  41 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span>  <span class="Keyword">-&gt;</span> t.height
+<span class="lnr">  42 </span>  <span class="Keyword">end</span>
+<span class="lnr">  43 </span>
+<span class="lnr">  44 </span><span class="Comment">(* The following (private) function updates the height information that is</span>
+<span class="lnr">  45 </span><span class="Comment">   stored in a node, based on the height of its children. *)</span>
+<span class="lnr">  46 </span>
+<span class="lnr">  47 </span><span class="Keyword">val</span> update_height <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">  48 </span>  <span class="Keyword">consumes</span> t : <span class="Constant">Node</span> <span class="Keyword">{</span> left: tree k a<span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: tree k a<span class="Keyword">;</span> height: <span class="Keyword">unknown</span> <span class="Keyword">}</span>
+<span class="lnr">  49 </span><span class="Keyword">)</span> : <span class="Keyword">(</span> <span class="Keyword">|</span>    t @ <span class="Constant">Node</span> <span class="Keyword">{</span> left: tree k a<span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: tree k a<span class="Keyword">;</span> height: <span class="Type">int</span>     <span class="Keyword">})</span> <span class="Keyword">=</span>
+<span class="lnr">  50 </span>  t.height <span class="Keyword">&lt;-</span> max <span class="Keyword">(</span>height t.left, height t.right<span class="Keyword">)</span> + <span class="Number">1</span>
+<span class="lnr">  51 </span>
+<span class="lnr">  52 </span><span class="Comment">(* The following (private) function re-organizes a tree, if required, by</span>
+<span class="lnr">  53 </span><span class="Comment">   performing a rotation at the root. The left and right sub-trees are</span>
+<span class="lnr">  54 </span><span class="Comment">   expected to have almost equal heights. The address of the new tree root</span>
+<span class="lnr">  55 </span><span class="Comment">   is returned. *)</span>
+<span class="lnr">  56 </span>
+<span class="lnr">  57 </span><span class="Keyword">val</span> bal <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">  58 </span>  <span class="Keyword">consumes</span> t: <span class="Constant">Node</span> <span class="Keyword">{</span> left: tree k a<span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: tree k a<span class="Keyword">;</span> height: <span class="Keyword">unknown</span> <span class="Keyword">}</span>
+<span class="lnr">  59 </span><span class="Keyword">)</span> : tree k a <span class="Keyword">=</span>
+<span class="lnr">  60 </span>
+<span class="lnr">  61 </span>  <span class="Comment">(* Extract the two sub-trees and their heights. *)</span>
+<span class="lnr">  62 </span>  <span class="Keyword">let</span> <span class="Constant">Node</span> <span class="Keyword">{</span> left <span class="Keyword">=</span> l<span class="Keyword">;</span> right <span class="Keyword">=</span> r <span class="Keyword">}</span> <span class="Keyword">=</span> t <span class="Keyword">in</span>
+<span class="lnr">  63 </span>  <span class="Keyword">let</span> hl <span class="Keyword">=</span> height l
+<span class="lnr">  64 </span>  <span class="Keyword">and</span> hr <span class="Keyword">=</span> height r <span class="Keyword">in</span>
+<span class="lnr">  65 </span>
+<span class="lnr">  66 </span>  <span class="Comment">(* Determine whether the tree is unbalanced and needs to be repaired. *)</span>
+<span class="lnr">  67 </span>
+<span class="lnr">  68 </span>  <span class="Comment">(* Situation 1: the left sub-tree is too big. *)</span>
+<span class="lnr">  69 </span>  <span class="Keyword">if</span> hl <span class="Keyword">&gt;</span> hr + <span class="Number">2</span> <span class="Keyword">then</span> <span class="Keyword">match</span> l <span class="Keyword">with</span>
+<span class="lnr">  70 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span> <span class="Keyword">fail</span> <span class="Comment">(* impossible! *)</span>
+<span class="lnr">  71 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">{</span> left <span class="Keyword">=</span> ll<span class="Keyword">;</span> right <span class="Keyword">=</span> lr <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">  72 </span>      <span class="Keyword">if</span> height ll <span class="Keyword">&gt;</span><span class="Keyword">=</span> height lr <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">  73 </span>        <span class="Comment">(* The left node becomes the root node. *)</span>
+<span class="lnr">  74 </span>        <span class="Comment">(* The root node becomes the right child. *)</span>
+<span class="lnr">  75 </span>        t.left <span class="Keyword">&lt;-</span> lr<span class="Keyword">;</span>
+<span class="lnr">  76 </span>        update_height t<span class="Keyword">;</span>
+<span class="lnr">  77 </span>        l.right <span class="Keyword">&lt;-</span> t<span class="Keyword">;</span>
+<span class="lnr">  78 </span>        update_height l<span class="Keyword">;</span>
+<span class="lnr">  79 </span>        l
+<span class="lnr">  80 </span>      <span class="Keyword">end</span>
+<span class="lnr">  81 </span>      <span class="Keyword">else</span> <span class="Keyword">match</span> lr <span class="Keyword">with</span>
+<span class="lnr">  82 </span>      <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span> <span class="Keyword">fail</span> <span class="Comment">(* impossible! *)</span>
+<span class="lnr">  83 </span>      <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">{</span> left <span class="Keyword">=</span> lrl<span class="Keyword">;</span> right <span class="Keyword">=</span> lrr <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">  84 </span>          <span class="Comment">(* The node [lr] becomes the root node. *)</span>
+<span class="lnr">  85 </span>          <span class="Comment">(* The root node becomes the right child. *)</span>
+<span class="lnr">  86 </span>          <span class="Comment">(* The left node remains the left child. *)</span>
+<span class="lnr">  87 </span>          l.right <span class="Keyword">&lt;-</span> lrl<span class="Keyword">;</span>
+<span class="lnr">  88 </span>          update_height l<span class="Keyword">;</span>
+<span class="lnr">  89 </span>          t.left <span class="Keyword">&lt;-</span> lrr<span class="Keyword">;</span>
+<span class="lnr">  90 </span>          update_height t<span class="Keyword">;</span>
+<span class="lnr">  91 </span>          lr.left <span class="Keyword">&lt;-</span> l<span class="Keyword">;</span>
+<span class="lnr">  92 </span>          lr.right <span class="Keyword">&lt;-</span> t<span class="Keyword">;</span>
+<span class="lnr">  93 </span>          update_height lr<span class="Keyword">;</span>
+<span class="lnr">  94 </span>          lr
+<span class="lnr">  95 </span>      <span class="Keyword">end</span>
+<span class="lnr">  96 </span>  <span class="Keyword">end</span>
+<span class="lnr">  97 </span>
+<span class="lnr">  98 </span>  <span class="Comment">(* Situation 2: the right sub-tree is too big. *)</span>
+<span class="lnr">  99 </span>  <span class="Keyword">else</span> <span class="Keyword">if</span> hr <span class="Keyword">&gt;</span> hl + <span class="Number">2</span> <span class="Keyword">then</span> <span class="Keyword">match</span> r <span class="Keyword">with</span>
+<span class="lnr"> 100 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span> <span class="Keyword">fail</span> <span class="Comment">(* impossible! *)</span>
+<span class="lnr"> 101 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">{</span> left <span class="Keyword">=</span> rl<span class="Keyword">;</span> right <span class="Keyword">=</span> rr <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 102 </span>      <span class="Keyword">if</span> height rr <span class="Keyword">&gt;</span><span class="Keyword">=</span> height rl <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr"> 103 </span>        <span class="Comment">(* The right node becomes the root node. *)</span>
+<span class="lnr"> 104 </span>        <span class="Comment">(* The root node becomes the left child. *)</span>
+<span class="lnr"> 105 </span>        t.right <span class="Keyword">&lt;-</span> rl<span class="Keyword">;</span>
+<span class="lnr"> 106 </span>        update_height t<span class="Keyword">;</span>
+<span class="lnr"> 107 </span>        r.left <span class="Keyword">&lt;-</span> t<span class="Keyword">;</span>
+<span class="lnr"> 108 </span>        update_height r<span class="Keyword">;</span>
+<span class="lnr"> 109 </span>        r
+<span class="lnr"> 110 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 111 </span>      <span class="Keyword">else</span> <span class="Keyword">match</span> rl <span class="Keyword">with</span>
+<span class="lnr"> 112 </span>      <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span> <span class="Keyword">fail</span> <span class="Comment">(* impossible! *)</span>
+<span class="lnr"> 113 </span>      <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">{</span> left <span class="Keyword">=</span> rll<span class="Keyword">;</span> right <span class="Keyword">=</span> rlr <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 114 </span>          <span class="Comment">(* The node [rl] becomes the root node. *)</span>
+<span class="lnr"> 115 </span>          <span class="Comment">(* The root node becomes the left child. *)</span>
+<span class="lnr"> 116 </span>          <span class="Comment">(* The right node remains the right child. *)</span>
+<span class="lnr"> 117 </span>          t.right <span class="Keyword">&lt;-</span> rll<span class="Keyword">;</span>
+<span class="lnr"> 118 </span>          update_height t<span class="Keyword">;</span>
+<span class="lnr"> 119 </span>          r.left <span class="Keyword">&lt;-</span> rlr<span class="Keyword">;</span>
+<span class="lnr"> 120 </span>          update_height r<span class="Keyword">;</span>
+<span class="lnr"> 121 </span>          rl.left <span class="Keyword">&lt;-</span> t<span class="Keyword">;</span>
+<span class="lnr"> 122 </span>          rl.right <span class="Keyword">&lt;-</span> r<span class="Keyword">;</span>
+<span class="lnr"> 123 </span>          update_height rl<span class="Keyword">;</span>
+<span class="lnr"> 124 </span>          rl
+<span class="lnr"> 125 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 126 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 127 </span>
+<span class="lnr"> 128 </span>  <span class="Comment">(* Last situation: the tree is not unbalanced. *)</span>
+<span class="lnr"> 129 </span>  <span class="Comment">(* Just update its height field. [t] remains the root. *)</span>
+<span class="lnr"> 130 </span>  <span class="Keyword">else</span> <span class="Keyword">begin</span>
+<span class="lnr"> 131 </span>    t.height <span class="Keyword">&lt;-</span> max <span class="Keyword">(</span>hl, hr<span class="Keyword">)</span> + <span class="Number">1</span><span class="Keyword">;</span>
+<span class="lnr"> 132 </span>    t
+<span class="lnr"> 133 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 134 </span>
+<span class="lnr"> 135 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 136 </span>
+<span class="lnr"> 137 </span><span class="Comment">(* Creating an empty tree. *)</span>
+<span class="lnr"> 138 </span>
+<span class="lnr"> 139 </span><span class="Keyword">val</span> create <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Constant">()</span> : tree k a <span class="Keyword">=</span>
+<span class="lnr"> 140 </span>  <span class="Constant">Empty</span>
+<span class="lnr"> 141 </span>
+<span class="lnr"> 142 </span><span class="Comment">(* Creating a singleton tree. *)</span>
+<span class="lnr"> 143 </span>
+<span class="lnr"> 144 </span><span class="Keyword">val</span> singleton <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> <span class="Keyword">(</span>x: k, d: a<span class="Keyword">))</span> : tree k a <span class="Keyword">=</span>
+<span class="lnr"> 145 </span>  <span class="Constant">Node</span> <span class="Keyword">{</span> left <span class="Keyword">=</span> <span class="Constant">Empty</span><span class="Keyword">;</span> key <span class="Keyword">=</span> x<span class="Keyword">;</span> value <span class="Keyword">=</span> d<span class="Keyword">;</span> right <span class="Keyword">=</span> <span class="Constant">Empty</span><span class="Keyword">;</span> height <span class="Keyword">=</span> <span class="Number">1</span> <span class="Keyword">}</span>
+<span class="lnr"> 146 </span>
+<span class="lnr"> 147 </span><span class="Comment">(* Testing whether a tree is empty. *)</span>
+<span class="lnr"> 148 </span>
+<span class="lnr"> 149 </span><span class="Keyword">val</span> is_empty <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>t : tree k a<span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr"> 150 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 151 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span> <span class="Constant">True</span>
+<span class="lnr"> 152 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span>  <span class="Keyword">-&gt;</span> <span class="Constant">False</span>
+<span class="lnr"> 153 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 154 </span>
+<span class="lnr"> 155 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 156 </span>
+<span class="lnr"> 157 </span><span class="Comment">(* Insertion. *)</span>
+<span class="lnr"> 158 </span>
+<span class="lnr"> 159 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> add <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 160 </span>  cmp: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr"> 161 </span>  <span class="Keyword">consumes</span> x: k,
+<span class="lnr"> 162 </span>  <span class="Keyword">consumes</span> d: a,
+<span class="lnr"> 163 </span>  <span class="Keyword">consumes</span> t: tree k a
+<span class="lnr"> 164 </span><span class="Keyword">)</span> : tree k a <span class="Keyword">=</span>
+<span class="lnr"> 165 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 166 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 167 </span>      <span class="Comment">(* Create a singleton tree. *)</span>
+<span class="lnr"> 168 </span>      <span class="Constant">Node</span> <span class="Keyword">{</span> left <span class="Keyword">=</span> t<span class="Keyword">;</span> key <span class="Keyword">=</span> x<span class="Keyword">;</span> value <span class="Keyword">=</span> d<span class="Keyword">;</span> right <span class="Keyword">=</span> <span class="Constant">Empty</span><span class="Keyword">;</span> height <span class="Keyword">=</span> <span class="Number">1</span> <span class="Keyword">}</span>
+<span class="lnr"> 169 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 170 </span>      <span class="Keyword">let</span> c <span class="Keyword">=</span> cmp <span class="Keyword">(</span>x, t.key<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 171 </span>      <span class="Keyword">if</span> c <span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr"> 172 </span>        <span class="Comment">(* The key already exists; overwrite the previous data *)</span>
+<span class="lnr"> 173 </span>        t.value <span class="Keyword">&lt;-</span> d<span class="Keyword">;</span>
+<span class="lnr"> 174 </span>        t
+<span class="lnr"> 175 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 176 </span>      <span class="Keyword">else</span> <span class="Keyword">if</span> c <span class="Keyword">&lt;</span> <span class="Number">0</span> <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr"> 177 </span>        t.left <span class="Keyword">&lt;-</span> add <span class="Keyword">(</span>cmp, x, d, t.left<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 178 </span>        bal t
+<span class="lnr"> 179 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 180 </span>      <span class="Keyword">else</span> <span class="Keyword">begin</span>
+<span class="lnr"> 181 </span>        t.right <span class="Keyword">&lt;-</span> add <span class="Keyword">(</span>cmp, x, d, t.right<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 182 </span>        bal t
+<span class="lnr"> 183 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 184 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 185 </span>
+<span class="lnr"> 186 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 187 </span>
+<span class="lnr"> 188 </span><span class="Comment">(* Lookup. *)</span>
+<span class="lnr"> 189 </span>
+<span class="lnr"> 190 </span><span class="Comment">(* It seems that the function [find] must require [duplicable a].</span>
+<span class="lnr"> 191 </span><span class="Comment">   Indeed, without this hypothesis, we would be forced to consume</span>
+<span class="lnr"> 192 </span><span class="Comment">   the argument tree [t], which does not seem reasonable. *)</span>
+<span class="lnr"> 193 </span>
+<span class="lnr"> 194 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> find <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>
+<span class="lnr"> 195 </span>  cmp: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr"> 196 </span>  x: k,
+<span class="lnr"> 197 </span>  t: tree k a
+<span class="lnr"> 198 </span><span class="Keyword">)</span> : <span class="Type">option</span> a <span class="Keyword">=</span>
+<span class="lnr"> 199 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 200 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 201 </span>      none
+<span class="lnr"> 202 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 203 </span>      <span class="Keyword">let</span> c <span class="Keyword">=</span> cmp <span class="Keyword">(</span>x, t.key<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 204 </span>      <span class="Keyword">if</span> c <span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span> some t.value
+<span class="lnr"> 205 </span>      <span class="Comment">(* It is interesting to note that we cannot write the more compact code:</span>
+<span class="lnr"> 206 </span><span class="Comment">         find (cmp, x, (if c &lt; 0 then t.left else t.right))</span>
+<span class="lnr"> 207 </span><span class="Comment">         Indeed, the type-checker is unable to figure out the desired type of</span>
+<span class="lnr"> 208 </span><span class="Comment">         the conditional sub-expression; it reports a resource allocation</span>
+<span class="lnr"> 209 </span><span class="Comment">         conflict. In fact, if we wanted to explicitly declare this type,</span>
+<span class="lnr"> 210 </span><span class="Comment">         I believe that we would need a magic wand: this sub-expression</span>
+<span class="lnr"> 211 </span><span class="Comment">         produces a result [s] together with the permissions [s @ tree k a]</span>
+<span class="lnr"> 212 </span><span class="Comment">         and [s @ tree k a -* t @ tree k a]. *)</span>
+<span class="lnr"> 213 </span>      <span class="Keyword">else</span> <span class="Keyword">if</span> c <span class="Keyword">&lt;</span> <span class="Number">0</span> <span class="Keyword">then</span> find <span class="Keyword">(</span>cmp, x, t.left<span class="Keyword">)</span>
+<span class="lnr"> 214 </span>      <span class="Keyword">else</span> find <span class="Keyword">(</span>cmp, x, t.right<span class="Keyword">)</span>
+<span class="lnr"> 215 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 216 </span>
+<span class="lnr"> 217 </span><span class="Comment">(* The above [find] function requires [a] to be duplicable. Another approach</span>
+<span class="lnr"> 218 </span><span class="Comment">   is to parameterize [find] with a [copy] function that is able to copy an</span>
+<span class="lnr"> 219 </span><span class="Comment">   element of type [a]. In fact, an even more general idea is to offer an</span>
+<span class="lnr"> 220 </span><span class="Comment">   [update] function that allows the caller to access the value found at the</span>
+<span class="lnr"> 221 </span><span class="Comment">   key [x] within a lexically-delimited scope, and then to surrender it (or</span>
+<span class="lnr"> 222 </span><span class="Comment">   a new version of it). *)</span>
+<span class="lnr"> 223 </span>
+<span class="lnr"> 224 </span><span class="Comment">(* Because the key [x] may be absent, the function [f] is called either never</span>
+<span class="lnr"> 225 </span><span class="Comment">   or just once. Our use of a [preserved/consumed] permission pair allows</span>
+<span class="lnr"> 226 </span><span class="Comment">   reflecting this. A [pre/post] permission pair would be more precise, but</span>
+<span class="lnr"> 227 </span><span class="Comment">   can be used only when it is known that [f] will be called exactly once. *)</span>
+<span class="lnr"> 228 </span>
+<span class="lnr"> 229 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> update
+<span class="lnr"> 230 </span>  <span class="Keyword">[</span>k, a, preserved : <span class="Keyword">perm</span>, consumed : <span class="Keyword">perm]</span>
+<span class="lnr"> 231 </span>  <span class="Keyword">(</span>cmp: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr"> 232 </span>    x: k, t: tree k a,
+<span class="lnr"> 233 </span>    f: <span class="Keyword">(consumes</span> a <span class="Keyword">|</span> preserved <span class="Keyword">*</span> <span class="Keyword">consumes</span> consumed<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a
+<span class="lnr"> 234 </span>      <span class="Keyword">|</span> preserved <span class="Keyword">*</span> <span class="Keyword">consumes</span> consumed
+<span class="lnr"> 235 </span>  <span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 236 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 237 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 238 </span>      <span class="Constant">()</span>
+<span class="lnr"> 239 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 240 </span>      <span class="Keyword">let</span> c <span class="Keyword">=</span> cmp <span class="Keyword">(</span>x, t.key<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 241 </span>      <span class="Keyword">if</span> c <span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span>
+<span class="lnr"> 242 </span>        t.value <span class="Keyword">&lt;-</span> f t.value
+<span class="lnr"> 243 </span>      <span class="Keyword">else</span> <span class="Keyword">if</span> c <span class="Keyword">&lt;</span> <span class="Number">0</span> <span class="Keyword">then</span>
+<span class="lnr"> 244 </span>        update <span class="Keyword">[</span>k, a, preserved, consumed<span class="Keyword">]</span> <span class="Keyword">(</span>cmp, x, t.left, f<span class="Keyword">)</span>
+<span class="lnr"> 245 </span>        <span class="Comment">(* WISH: get rid of the above type application *)</span>
+<span class="lnr"> 246 </span>      <span class="Keyword">else</span>
+<span class="lnr"> 247 </span>        update <span class="Keyword">[</span>k, a, preserved, consumed<span class="Keyword">]</span> <span class="Keyword">(</span>cmp, x, t.right, f<span class="Keyword">)</span>
+<span class="lnr"> 248 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 249 </span>
+<span class="lnr"> 250 </span><span class="Comment">(* The following two functions (currently not exported) show that versions</span>
+<span class="lnr"> 251 </span><span class="Comment">   of [find] can be implemented in terms of [update]. *)</span>
+<span class="lnr"> 252 </span>
+<span class="lnr"> 253 </span><span class="Keyword">val</span> find_and_copy <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 254 </span>  copy: a <span class="Keyword">-&gt;</span> a,
+<span class="lnr"> 255 </span>  cmp: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr"> 256 </span>  x: k,
+<span class="lnr"> 257 </span>  t: tree k a
+<span class="lnr"> 258 </span><span class="Keyword">)</span> : <span class="Type">option</span> a <span class="Keyword">=</span>
+<span class="lnr"> 259 </span>  <span class="Keyword">let</span> r <span class="Keyword">=</span> newref none <span class="Keyword">in</span>
+<span class="lnr"> 260 </span>  update <span class="Keyword">[</span>k, a, <span class="Keyword">(</span>r @ ref <span class="Keyword">(</span><span class="Type">option</span> a<span class="Keyword">))</span>, <span class="Keyword">empty]</span> <span class="Keyword">(</span>cmp, x, t, <span class="Keyword">fun</span> <span class="Keyword">(consumes</span> x: a <span class="Keyword">|</span> r @ ref <span class="Keyword">(</span><span class="Type">option</span> a<span class="Keyword">))</span> : a <span class="Keyword">=</span>
+<span class="lnr"> 261 </span>    r <span class="Keyword">:=</span> some <span class="Keyword">(</span>copy x<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 262 </span>    x
+<span class="lnr"> 263 </span>  <span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 264 </span>  <span class="Keyword">!</span>r
+<span class="lnr"> 265 </span>
+<span class="lnr"> 266 </span><span class="Keyword">val</span> find_variant <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>
+<span class="lnr"> 267 </span>  cmp: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr"> 268 </span>  x: k,
+<span class="lnr"> 269 </span>  t: tree k a
+<span class="lnr"> 270 </span><span class="Keyword">)</span> : <span class="Type">option</span> a <span class="Keyword">=</span>
+<span class="lnr"> 271 </span>  <span class="Keyword">let</span> id <span class="Keyword">(</span>x: a<span class="Keyword">)</span> : a <span class="Keyword">=</span> x <span class="Keyword">in</span>
+<span class="lnr"> 272 </span>  find_and_copy <span class="Keyword">(</span>id, cmp, x, t<span class="Keyword">)</span>
+<span class="lnr"> 273 </span>
+<span class="lnr"> 274 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> mem <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>cmp: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>, x: k, t: tree k a<span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr"> 275 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 276 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 277 </span>      <span class="Constant">False</span>
+<span class="lnr"> 278 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 279 </span>      <span class="Keyword">let</span> c <span class="Keyword">=</span> cmp <span class="Keyword">(</span>x, t.key<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 280 </span>      <span class="Keyword">if</span> c <span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span>
+<span class="lnr"> 281 </span>        <span class="Constant">True</span>
+<span class="lnr"> 282 </span>      <span class="Keyword">else</span> <span class="Keyword">if</span> c <span class="Keyword">&lt;</span> <span class="Number">0</span> <span class="Keyword">then</span>
+<span class="lnr"> 283 </span>        mem <span class="Keyword">(</span>cmp, x, t.left<span class="Keyword">)</span>
+<span class="lnr"> 284 </span>      <span class="Keyword">else</span>
+<span class="lnr"> 285 </span>        mem <span class="Keyword">(</span>cmp, x, t.right<span class="Keyword">)</span>
+<span class="lnr"> 286 </span> <span class="Keyword">end</span>
+<span class="lnr"> 287 </span>
+<span class="lnr"> 288 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 289 </span>
+<span class="lnr"> 290 </span><span class="Comment">(* Minimum and maximum elements. *)</span>
+<span class="lnr"> 291 </span>
+<span class="lnr"> 292 </span><span class="Comment">(* Because [min_binding] returns a binding but does not remove it from the</span>
+<span class="lnr"> 293 </span><span class="Comment">   tree, it is restricted to duplicable keys and values. *)</span>
+<span class="lnr"> 294 </span>
+<span class="lnr"> 295 </span><span class="Comment">(* [min_binding] is defined first for non-empty trees, then extended to empty</span>
+<span class="lnr"> 296 </span><span class="Comment">   trees. *)</span>
+<span class="lnr"> 297 </span>
+<span class="lnr"> 298 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> min_binding
+<span class="lnr"> 299 </span>  <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span>
+<span class="lnr"> 300 </span>  <span class="Keyword">(</span>t : <span class="Constant">Node</span> <span class="Keyword">{</span> left: tree k a<span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: tree k a<span class="Keyword">;</span> height: <span class="Type">int</span> <span class="Keyword">})</span>
+<span class="lnr"> 301 </span>  : <span class="Keyword">(</span>k, a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr"> 302 </span>  <span class="Keyword">match</span> t.left <span class="Keyword">with</span>
+<span class="lnr"> 303 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 304 </span>      t.key, t.value
+<span class="lnr"> 305 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 306 </span>      min_binding t.left
+<span class="lnr"> 307 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 308 </span>
+<span class="lnr"> 309 </span><span class="Keyword">val</span> min_binding
+<span class="lnr"> 310 </span>  <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span>
+<span class="lnr"> 311 </span>  <span class="Keyword">(</span>t : tree k a<span class="Keyword">)</span>
+<span class="lnr"> 312 </span>  : <span class="Type">option</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr"> 313 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 314 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 315 </span>      none
+<span class="lnr"> 316 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 317 </span>      some <span class="Keyword">(</span>min_binding t<span class="Keyword">)</span>
+<span class="lnr"> 318 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 319 </span>
+<span class="lnr"> 320 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> max_binding
+<span class="lnr"> 321 </span>  <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span>
+<span class="lnr"> 322 </span>  <span class="Keyword">(</span>t : <span class="Constant">Node</span> <span class="Keyword">{</span> left: tree k a<span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: tree k a<span class="Keyword">;</span> height: <span class="Type">int</span> <span class="Keyword">})</span>
+<span class="lnr"> 323 </span>  : <span class="Keyword">(</span>k, a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr"> 324 </span>  <span class="Keyword">match</span> t.right <span class="Keyword">with</span>
+<span class="lnr"> 325 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 326 </span>      t.key, t.value
+<span class="lnr"> 327 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 328 </span>      max_binding t.right
+<span class="lnr"> 329 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 330 </span>
+<span class="lnr"> 331 </span><span class="Keyword">val</span> max_binding
+<span class="lnr"> 332 </span>  <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span>
+<span class="lnr"> 333 </span>  <span class="Keyword">(</span>t : tree k a<span class="Keyword">)</span>
+<span class="lnr"> 334 </span>  : <span class="Type">option</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr"> 335 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 336 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 337 </span>      none
+<span class="lnr"> 338 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 339 </span>      some <span class="Keyword">(</span>max_binding t<span class="Keyword">)</span>
+<span class="lnr"> 340 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 341 </span>
+<span class="lnr"> 342 </span><span class="Comment">(* [extract_min_binding] extracts the node that contains the minimum key.</span>
+<span class="lnr"> 343 </span><span class="Comment">   It returns both this node (which can be re-used) and the remaining,</span>
+<span class="lnr"> 344 </span><span class="Comment">   re-organized tree. By convention, instead of returning a pair, we</span>
+<span class="lnr"> 345 </span><span class="Comment">   return a single node, which contains the minimum key, and whose</span>
+<span class="lnr"> 346 </span><span class="Comment">   right child is the remaining tree. *)</span>
+<span class="lnr"> 347 </span>
+<span class="lnr"> 348 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> extract_min_binding
+<span class="lnr"> 349 </span>  <span class="Keyword">[</span>k, a<span class="Keyword">]</span>
+<span class="lnr"> 350 </span>  <span class="Keyword">(consumes</span> t : <span class="Constant">Node</span> <span class="Keyword">{</span> left: tree k a<span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: tree k a<span class="Keyword">;</span> height: <span class="Type">int</span> <span class="Keyword">})</span>
+<span class="lnr"> 351 </span>  :             <span class="Constant">Node</span> <span class="Keyword">{</span> left:    <span class="Constant">Empty</span><span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: tree k a<span class="Keyword">;</span> height: <span class="Type">int</span> <span class="Keyword">}</span>
+<span class="lnr"> 352 </span>  <span class="Keyword">=</span>
+<span class="lnr"> 353 </span>  <span class="Keyword">match</span> t.left <span class="Keyword">with</span>
+<span class="lnr"> 354 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 355 </span>      <span class="Comment">(* The desired node is [t], and the sub-tree [t.right] is what remains. *)</span>
+<span class="lnr"> 356 </span>      t
+<span class="lnr"> 357 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 358 </span>      <span class="Comment">(* Extract the minimum node out of the left sub-tree. *)</span>
+<span class="lnr"> 359 </span>      <span class="Keyword">let</span> node <span class="Keyword">=</span> extract_min_binding t.left <span class="Keyword">in</span>
+<span class="lnr"> 360 </span>      <span class="Comment">(* Update in place the left sub-tree. *)</span>
+<span class="lnr"> 361 </span>      t.left <span class="Keyword">&lt;-</span> node.right<span class="Keyword">;</span>
+<span class="lnr"> 362 </span>      <span class="Comment">(* Perform a rotation at the root if required, and return. *)</span>
+<span class="lnr"> 363 </span>      node.right <span class="Keyword">&lt;-</span> bal t<span class="Keyword">;</span>
+<span class="lnr"> 364 </span>      node
+<span class="lnr"> 365 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 366 </span>
+<span class="lnr"> 367 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> extract_max_binding
+<span class="lnr"> 368 </span>  <span class="Keyword">[</span>k, a<span class="Keyword">]</span>
+<span class="lnr"> 369 </span>  <span class="Keyword">(consumes</span> t : <span class="Constant">Node</span> <span class="Keyword">{</span> left: tree k a<span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: tree k a<span class="Keyword">;</span> height: <span class="Type">int</span> <span class="Keyword">})</span>
+<span class="lnr"> 370 </span>  :             <span class="Constant">Node</span> <span class="Keyword">{</span> left: tree k a<span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right:    <span class="Constant">Empty</span><span class="Keyword">;</span> height: <span class="Type">int</span> <span class="Keyword">}</span>
+<span class="lnr"> 371 </span>  <span class="Keyword">=</span>
+<span class="lnr"> 372 </span>  <span class="Keyword">match</span> t.right <span class="Keyword">with</span>
+<span class="lnr"> 373 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 374 </span>      t
+<span class="lnr"> 375 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 376 </span>      <span class="Keyword">let</span> node <span class="Keyword">=</span> extract_max_binding t.right <span class="Keyword">in</span>
+<span class="lnr"> 377 </span>      t.right <span class="Keyword">&lt;-</span> node.left<span class="Keyword">;</span>
+<span class="lnr"> 378 </span>      node.left <span class="Keyword">&lt;-</span> bal t<span class="Keyword">;</span>
+<span class="lnr"> 379 </span>      node
+<span class="lnr"> 380 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 381 </span>
+<span class="lnr"> 382 </span><span class="Comment">(* The private function [add_min_binding] takes a tree node whose only</span>
+<span class="lnr"> 383 </span><span class="Comment">   relevant fields are [key] and [value]. The [left] field is supposed</span>
+<span class="lnr"> 384 </span><span class="Comment">   to contain [Empty]. The [right] and [height] fields are irrelevant.</span>
+<span class="lnr"> 385 </span><span class="Comment">   This node is inserted into the tree [t], where it is expected to</span>
+<span class="lnr"> 386 </span><span class="Comment">   become the new minimum node. *)</span>
+<span class="lnr"> 387 </span>
+<span class="lnr"> 388 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> add_min_binding <span class="Keyword">[</span>k, a<span class="Keyword">]</span>
+<span class="lnr"> 389 </span>  <span class="Keyword">(consumes</span> node: <span class="Constant">Node</span> <span class="Keyword">{</span> left: <span class="Constant">Empty</span><span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: <span class="Keyword">unknown</span><span class="Keyword">;</span> height: <span class="Keyword">unknown</span> <span class="Keyword">}</span>,
+<span class="lnr"> 390 </span>   <span class="Keyword">consumes</span> t: tree k a<span class="Keyword">)</span> : tree k a <span class="Keyword">=</span>
+<span class="lnr"> 391 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 392 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 393 </span>      <span class="Comment">(* Turn [node] into a singleton tree. *)</span>
+<span class="lnr"> 394 </span>      node.right <span class="Keyword">&lt;-</span> t<span class="Keyword">;</span> <span class="Comment">(* re-use the memory block at [t], which is [Empty] *)</span>
+<span class="lnr"> 395 </span>      node.height <span class="Keyword">&lt;-</span> <span class="Number">1</span><span class="Keyword">;</span>
+<span class="lnr"> 396 </span>      node
+<span class="lnr"> 397 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 398 </span>      t.left <span class="Keyword">&lt;-</span> add_min_binding <span class="Keyword">(</span>node, t.left<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 399 </span>      bal t
+<span class="lnr"> 400 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 401 </span>
+<span class="lnr"> 402 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> add_max_binding <span class="Keyword">[</span>k, a<span class="Keyword">]</span>
+<span class="lnr"> 403 </span>  <span class="Keyword">(consumes</span> node: <span class="Constant">Node</span> <span class="Keyword">{</span> left: <span class="Keyword">unknown</span><span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: <span class="Constant">Empty</span><span class="Keyword">;</span> height: <span class="Keyword">unknown</span> <span class="Keyword">}</span>,
+<span class="lnr"> 404 </span>   <span class="Keyword">consumes</span> t: tree k a<span class="Keyword">)</span> : tree k a <span class="Keyword">=</span>
+<span class="lnr"> 405 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 406 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 407 </span>      <span class="Comment">(* Turn [node] into a singleton tree. *)</span>
+<span class="lnr"> 408 </span>      node.left <span class="Keyword">&lt;-</span> t<span class="Keyword">;</span> <span class="Comment">(* re-use the memory block at [t], which is [Empty] *)</span>
+<span class="lnr"> 409 </span>      node.height <span class="Keyword">&lt;-</span> <span class="Number">1</span><span class="Keyword">;</span>
+<span class="lnr"> 410 </span>      node
+<span class="lnr"> 411 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 412 </span>      t.right <span class="Keyword">&lt;-</span> add_max_binding <span class="Keyword">(</span>node, t.right<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 413 </span>      bal t
+<span class="lnr"> 414 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 415 </span>
+<span class="lnr"> 416 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 417 </span>
+<span class="lnr"> 418 </span><span class="Comment">(* Removal. *)</span>
+<span class="lnr"> 419 </span>
+<span class="lnr"> 420 </span><span class="Comment">(* The private function [merge] combines two trees that have almost equal</span>
+<span class="lnr"> 421 </span><span class="Comment">   heights. *)</span>
+<span class="lnr"> 422 </span>
+<span class="lnr"> 423 </span><span class="Keyword">val</span> merge <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> t1: tree k a, <span class="Keyword">consumes</span> t2: tree k a<span class="Keyword">)</span> : tree k a <span class="Keyword">=</span>
+<span class="lnr"> 424 </span>  <span class="Keyword">match</span> t1, t2 <span class="Keyword">with</span>
+<span class="lnr"> 425 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span>, t <span class="Keyword">-&gt;</span> t
+<span class="lnr"> 426 </span>  <span class="Keyword">|</span> t, <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span> t
+<span class="lnr"> 427 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span>, <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 428 </span>      <span class="Comment">(* Extract the minimum node out of [t2]... *)</span>
+<span class="lnr"> 429 </span>      <span class="Keyword">let</span> root <span class="Keyword">=</span> extract_min_binding t2 <span class="Keyword">in</span>
+<span class="lnr"> 430 </span>      <span class="Comment">(* And re-use this node to become the new root. *)</span>
+<span class="lnr"> 431 </span>      root.left <span class="Keyword">&lt;-</span> t1<span class="Keyword">;</span>
+<span class="lnr"> 432 </span>      bal root
+<span class="lnr"> 433 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 434 </span>
+<span class="lnr"> 435 </span><span class="Comment">(* Compared with OCaml's [remove], our [remove] function combines [find]</span>
+<span class="lnr"> 436 </span><span class="Comment">   and [remove]. The binding that was removed is returned via a reference,</span>
+<span class="lnr"> 437 </span><span class="Comment">   whereas the new tree is returned as a function result. *)</span>
+<span class="lnr"> 438 </span>
+<span class="lnr"> 439 </span><span class="Comment">(* [dst] is an out-parameter, just like in C, except here, we get a type</span>
+<span class="lnr"> 440 </span><span class="Comment">   error if we forget to write it! *)</span>
+<span class="lnr"> 441 </span>
+<span class="lnr"> 442 </span><span class="Comment">(* TEMPORARY we could avoid writes and calls to [bal] when nothing is</span>
+<span class="lnr"> 443 </span><span class="Comment">   removed *)</span>
+<span class="lnr"> 444 </span>
+<span class="lnr"> 445 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> remove <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 446 </span>  cmp: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr"> 447 </span>  x: k,
+<span class="lnr"> 448 </span>  <span class="Keyword">consumes</span> t: tree k a,
+<span class="lnr"> 449 </span>  <span class="Keyword">consumes</span> dst: ref <span class="Keyword">unknown</span>
+<span class="lnr"> 450 </span><span class="Keyword">)</span> : <span class="Keyword">(</span>tree k a <span class="Keyword">|</span> dst @ ref <span class="Keyword">(</span><span class="Type">option</span> <span class="Keyword">(</span>k, a<span class="Keyword">)))</span>
+<span class="lnr"> 451 </span>  <span class="Keyword">=</span>
+<span class="lnr"> 452 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 453 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 454 </span>      dst <span class="Keyword">:=</span> none<span class="Keyword">;</span>
+<span class="lnr"> 455 </span>      t
+<span class="lnr"> 456 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 457 </span>      <span class="Keyword">let</span> c <span class="Keyword">=</span> cmp <span class="Keyword">(</span>x, t.key<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 458 </span>      <span class="Keyword">if</span> c <span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr"> 459 </span>        dst <span class="Keyword">:=</span> some <span class="Keyword">[(</span>k, a<span class="Keyword">)]</span> <span class="Keyword">(</span>t.key, t.value<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 460 </span>        merge <span class="Keyword">(</span>t.left, t.right<span class="Keyword">)</span>
+<span class="lnr"> 461 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 462 </span>      <span class="Keyword">else</span> <span class="Keyword">if</span> c <span class="Keyword">&lt;</span> <span class="Number">0</span> <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr"> 463 </span>        t.left <span class="Keyword">&lt;-</span> remove <span class="Keyword">(</span>cmp, x, t.left, dst<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 464 </span>        bal t
+<span class="lnr"> 465 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 466 </span>      <span class="Keyword">else</span> <span class="Keyword">begin</span>
+<span class="lnr"> 467 </span>        t.right <span class="Keyword">&lt;-</span> remove <span class="Keyword">(</span>cmp, x, t.right, dst<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 468 </span>        bal t
+<span class="lnr"> 469 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 470 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 471 </span>
+<span class="lnr"> 472 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 473 </span>
+<span class="lnr"> 474 </span><span class="Comment">(* Iteration. *)</span>
+<span class="lnr"> 475 </span>
+<span class="lnr"> 476 </span><span class="Comment">(* Compared with OCaml's [iter], our [iter] function is generalized</span>
+<span class="lnr"> 477 </span><span class="Comment">   to allow early termination. The client function, [f], is allowed</span>
+<span class="lnr"> 478 </span><span class="Comment">   to return a Boolean flag, which indicates whether iteration should</span>
+<span class="lnr"> 479 </span><span class="Comment">   continue. The function [iter] itself returns a Boolean outcome</span>
+<span class="lnr"> 480 </span><span class="Comment">   which indicates whether iteration was performed all the way to the</span>
+<span class="lnr"> 481 </span><span class="Comment">   end. *)</span>
+<span class="lnr"> 482 </span>
+<span class="lnr"> 483 </span><span class="Comment">(* This feature implies that the type of the collection elements cannot</span>
+<span class="lnr"> 484 </span><span class="Comment">   be modified. Our version of [fold] (below) makes the converse choices:</span>
+<span class="lnr"> 485 </span><span class="Comment">   early termination is not possible, but the type of the elements can be</span>
+<span class="lnr"> 486 </span><span class="Comment">   changed from [a1] to [a2]. *)</span>
+<span class="lnr"> 487 </span>
+<span class="lnr"> 488 </span><span class="Comment">(* In fact, our [iter] is exactly OCaml's [for_all]. (Except that the</span>
+<span class="lnr"> 489 </span><span class="Comment">   evaluation order is not the same; OCaml's [iter] guarantees that</span>
+<span class="lnr"> 490 </span><span class="Comment">   the keys are visited in increasing order, where OCaml's [for_all]</span>
+<span class="lnr"> 491 </span><span class="Comment">   does not.) Funny -- I never explicitly thought of [for_all] as a</span>
+<span class="lnr"> 492 </span><span class="Comment">   version of [iter] that has an early termination feature. *)</span>
+<span class="lnr"> 493 </span>
+<span class="lnr"> 494 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> iter <span class="Keyword">[</span>k, a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 495 </span>  f: <span class="Keyword">(</span>k,    a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>,
+<span class="lnr"> 496 </span>  t: tree k a <span class="Keyword">|</span> p<span class="Keyword">)</span>  : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr"> 497 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 498 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 499 </span>      <span class="Constant">True</span>
+<span class="lnr"> 500 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 501 </span>      iter <span class="Keyword">(</span>f, t.left<span class="Keyword">)</span> <span class="Keyword">&amp;&amp;</span> f <span class="Keyword">(</span>t.key, t.value<span class="Keyword">)</span> <span class="Keyword">&amp;&amp;</span> iter <span class="Keyword">(</span>f, t.right<span class="Keyword">)</span>
+<span class="lnr"> 502 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 503 </span>
+<span class="lnr"> 504 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 505 </span>
+<span class="lnr"> 506 </span><span class="Comment">(* Map. *)</span>
+<span class="lnr"> 507 </span>
+<span class="lnr"> 508 </span><span class="Comment">(* Our [map] is modeled after OCaml's [mapi]. One could in fact offer</span>
+<span class="lnr"> 509 </span><span class="Comment">   even more generality by allowing keys to be copied/translated, as</span>
+<span class="lnr"> 510 </span><span class="Comment">   long as the key ordering is preserved. *)</span>
+<span class="lnr"> 511 </span>
+<span class="lnr"> 512 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> map <span class="Keyword">[</span>k, a1, a2, b, p : <span class="Keyword">perm]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>
+<span class="lnr"> 513 </span>  f: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> d: a1 <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>       b <span class="Keyword">|</span> d @        a2<span class="Keyword">)</span>,
+<span class="lnr"> 514 </span>  <span class="Keyword">consumes</span> t: tree k a1 <span class="Keyword">|</span> p<span class="Keyword">)</span>  : <span class="Keyword">(</span>tree k b <span class="Keyword">|</span> t @ tree k a2<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr"> 515 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 516 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 517 </span>      <span class="Constant">Empty</span>
+<span class="lnr"> 518 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 519 </span>      <span class="Constant">Node</span> <span class="Keyword">{</span>
+<span class="lnr"> 520 </span>        left <span class="Keyword">=</span> map <span class="Keyword">(</span>f, t.left<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 521 </span>        key <span class="Keyword">=</span> t.key<span class="Keyword">;</span>
+<span class="lnr"> 522 </span>        value <span class="Keyword">=</span> f <span class="Keyword">(</span>t.key, t.value<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 523 </span>        right <span class="Keyword">=</span> map <span class="Keyword">(</span>f, t.right<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 524 </span>        height <span class="Keyword">=</span> t.height
+<span class="lnr"> 525 </span>      <span class="Keyword">}</span>
+<span class="lnr"> 526 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 527 </span>
+<span class="lnr"> 528 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 529 </span>
+<span class="lnr"> 530 </span><span class="Comment">(* Fold. *)</span>
+<span class="lnr"> 531 </span>
+<span class="lnr"> 532 </span><span class="Comment">(* The two [fold] functions have the same type, but differ in the order</span>
+<span class="lnr"> 533 </span><span class="Comment">   in which the tree is visited. *)</span>
+<span class="lnr"> 534 </span>
+<span class="lnr"> 535 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> fold_ascending <span class="Keyword">[</span>k, a1, a2, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 536 </span>  f: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> d:        a1, <span class="Keyword">consumes</span> accu: b <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>b <span class="Keyword">|</span> d @        a2<span class="Keyword">)</span>,
+<span class="lnr"> 537 </span>         <span class="Keyword">consumes</span> t: tree k a1, <span class="Keyword">consumes</span> accu: b <span class="Keyword">|</span> p<span class="Keyword">)</span>  : <span class="Keyword">(</span>b <span class="Keyword">|</span> t @ tree k a2<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr"> 538 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 539 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 540 </span>      accu
+<span class="lnr"> 541 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 542 </span>      <span class="Keyword">let</span> accu <span class="Keyword">=</span> fold_ascending <span class="Keyword">(</span>f, t.left, accu<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 543 </span>      <span class="Keyword">let</span> accu <span class="Keyword">=</span> f <span class="Keyword">(</span>t.key, t.value, accu<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 544 </span>      <span class="Keyword">let</span> accu <span class="Keyword">=</span> fold_ascending <span class="Keyword">(</span>f, t.right, accu<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 545 </span>      accu
+<span class="lnr"> 546 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 547 </span>
+<span class="lnr"> 548 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> fold_descending <span class="Keyword">[</span>k, a1, a2, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 549 </span>  f: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> d:        a1, <span class="Keyword">consumes</span> accu: b <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>b <span class="Keyword">|</span> d @        a2<span class="Keyword">)</span>,
+<span class="lnr"> 550 </span>         <span class="Keyword">consumes</span> t: tree k a1, <span class="Keyword">consumes</span> accu: b <span class="Keyword">|</span> p<span class="Keyword">)</span>  : <span class="Keyword">(</span>b <span class="Keyword">|</span> t @ tree k a2<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr"> 551 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 552 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 553 </span>      accu
+<span class="lnr"> 554 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 555 </span>      <span class="Keyword">let</span> accu <span class="Keyword">=</span> fold_descending <span class="Keyword">(</span>f, t.right, accu<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 556 </span>      <span class="Keyword">let</span> accu <span class="Keyword">=</span> f <span class="Keyword">(</span>t.key, t.value, accu<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 557 </span>      <span class="Keyword">let</span> accu <span class="Keyword">=</span> fold_descending <span class="Keyword">(</span>f, t.left, accu<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 558 </span>      accu
+<span class="lnr"> 559 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 560 </span>
+<span class="lnr"> 561 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 562 </span>
+<span class="lnr"> 563 </span><span class="Comment">(* The private function [join] has the same specification as [bal], except</span>
+<span class="lnr"> 564 </span><span class="Comment">   the left and right sub-trees may have arbitrary heights. *)</span>
+<span class="lnr"> 565 </span>
+<span class="lnr"> 566 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> join <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 567 </span>  <span class="Keyword">consumes</span> t: <span class="Constant">Node</span> <span class="Keyword">{</span> left: tree k a<span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: tree k a<span class="Keyword">;</span> height: <span class="Keyword">unknown</span> <span class="Keyword">}</span>
+<span class="lnr"> 568 </span><span class="Keyword">)</span> : tree k a <span class="Keyword">=</span>
+<span class="lnr"> 569 </span>  <span class="Keyword">let</span> left, right <span class="Keyword">=</span> t.left, t.right <span class="Keyword">in</span>
+<span class="lnr"> 570 </span>  <span class="Keyword">match</span> t.left, t.right <span class="Keyword">with</span>
+<span class="lnr"> 571 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span>, <span class="Keyword">_</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 572 </span>      add_min_binding <span class="Keyword">(</span>t, right<span class="Keyword">)</span>
+<span class="lnr"> 573 </span>  <span class="Keyword">|</span> <span class="Keyword">_</span>, <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 574 </span>      add_max_binding <span class="Keyword">(</span>t, left<span class="Keyword">)</span>
+<span class="lnr"> 575 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span>, <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 576 </span>      <span class="Keyword">if</span> left.height <span class="Keyword">&gt;</span> right.height + <span class="Number">2</span> <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr"> 577 </span>        <span class="Comment">(* The left node becomes the root. *)</span>
+<span class="lnr"> 578 </span>        <span class="Comment">(* The root node becomes the right child. *)</span>
+<span class="lnr"> 579 </span>        t.left <span class="Keyword">&lt;-</span> left.right<span class="Keyword">;</span>
+<span class="lnr"> 580 </span>        left.right <span class="Keyword">&lt;-</span> join t<span class="Keyword">;</span>
+<span class="lnr"> 581 </span>        bal left
+<span class="lnr"> 582 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 583 </span>      <span class="Keyword">else</span> <span class="Keyword">if</span> right.height <span class="Keyword">&gt;</span> left.height + <span class="Number">2</span> <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr"> 584 </span>        t.right <span class="Keyword">&lt;-</span> right.left<span class="Keyword">;</span>
+<span class="lnr"> 585 </span>        right.left <span class="Keyword">&lt;-</span> join t<span class="Keyword">;</span>
+<span class="lnr"> 586 </span>        bal right
+<span class="lnr"> 587 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 588 </span>      <span class="Keyword">else</span> <span class="Keyword">begin</span>
+<span class="lnr"> 589 </span>        update_height t<span class="Keyword">;</span>
+<span class="lnr"> 590 </span>        t
+<span class="lnr"> 591 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 592 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 593 </span>
+<span class="lnr"> 594 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 595 </span>
+<span class="lnr"> 596 </span><span class="Comment">(* The private function [concat] concatenates two trees of arbitrary heights.</span>
+<span class="lnr"> 597 </span><span class="Comment">   It is identical to [merge], except it calls [join] instead of [bal]. *)</span>
+<span class="lnr"> 598 </span>
+<span class="lnr"> 599 </span><span class="Keyword">val</span> concat <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> t1: tree k a, <span class="Keyword">consumes</span> t2: tree k a<span class="Keyword">)</span> : tree k a <span class="Keyword">=</span>
+<span class="lnr"> 600 </span>  <span class="Keyword">match</span> t1, t2 <span class="Keyword">with</span>
+<span class="lnr"> 601 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span>, t <span class="Keyword">-&gt;</span> t
+<span class="lnr"> 602 </span>  <span class="Keyword">|</span> t, <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span> t
+<span class="lnr"> 603 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span>, <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 604 </span>      <span class="Keyword">let</span> root <span class="Keyword">=</span> extract_min_binding t2 <span class="Keyword">in</span>
+<span class="lnr"> 605 </span>      root.left <span class="Keyword">&lt;-</span> t1<span class="Keyword">;</span>
+<span class="lnr"> 606 </span>      join root
+<span class="lnr"> 607 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 608 </span>
+<span class="lnr"> 609 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 610 </span>
+<span class="lnr"> 611 </span><span class="Comment">(* The private function [split] splits at a certain key. It returns a tree</span>
+<span class="lnr"> 612 </span><span class="Comment">   whose root node may or may not contain a value: note that the field</span>
+<span class="lnr"> 613 </span><span class="Comment">   [value] has type [option a] in the result type. This allows us to almost</span>
+<span class="lnr"> 614 </span><span class="Comment">   completely avoid memory allocation (and it is a natural thing to do anyway). *)</span>
+<span class="lnr"> 615 </span>
+<span class="lnr"> 616 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> split <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>cmp: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>, x: k, <span class="Keyword">consumes</span> t: tree k a<span class="Keyword">)</span>
+<span class="lnr"> 617 </span>  : <span class="Constant">Node</span> <span class="Keyword">{</span> left: tree k a<span class="Keyword">;</span> key: <span class="Keyword">unknown</span><span class="Keyword">;</span> value: <span class="Type">option</span> a<span class="Keyword">;</span> right: tree k a<span class="Keyword">;</span> height: <span class="Keyword">unknown</span> <span class="Keyword">}</span> <span class="Keyword">=</span>
+<span class="lnr"> 618 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 619 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 620 </span>      <span class="Comment">(* Allocate a new node, containing no value, and whose sub-trees are empty. *)</span>
+<span class="lnr"> 621 </span>      <span class="Constant">Node</span> <span class="Keyword">{</span> left <span class="Keyword">=</span> <span class="Constant">Empty</span><span class="Keyword">;</span> key <span class="Keyword">=</span> <span class="Constant">()</span><span class="Keyword">;</span> value <span class="Keyword">=</span> none<span class="Keyword">;</span> right <span class="Keyword">=</span> t<span class="Keyword">;</span> height <span class="Keyword">=</span> <span class="Constant">()</span> <span class="Keyword">}</span>
+<span class="lnr"> 622 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 623 </span>      <span class="Keyword">let</span> c <span class="Keyword">=</span> cmp <span class="Keyword">(</span>x, t.key<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 624 </span>      <span class="Keyword">if</span> c <span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr"> 625 </span>        <span class="Comment">(* We found the desired key. *)</span>
+<span class="lnr"> 626 </span>        t.value <span class="Keyword">&lt;-</span> some t.value<span class="Keyword">;</span> <span class="Comment">(* ah ha! look at this, feeble ML programmers *)</span>
+<span class="lnr"> 627 </span>        t
+<span class="lnr"> 628 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 629 </span>      <span class="Keyword">else</span> <span class="Keyword">if</span> c <span class="Keyword">&lt;</span> <span class="Number">0</span> <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr"> 630 </span>        <span class="Keyword">let</span> root <span class="Keyword">=</span> split <span class="Keyword">(</span>cmp, x, t.left<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 631 </span>        t.left <span class="Keyword">&lt;-</span> root.right<span class="Keyword">;</span>
+<span class="lnr"> 632 </span>        root.right <span class="Keyword">&lt;-</span> join t<span class="Keyword">;</span>
+<span class="lnr"> 633 </span>        root
+<span class="lnr"> 634 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 635 </span>      <span class="Keyword">else</span> <span class="Keyword">begin</span>
+<span class="lnr"> 636 </span>        <span class="Keyword">let</span> root <span class="Keyword">=</span> split <span class="Keyword">(</span>cmp, x, t.right<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 637 </span>        t.right <span class="Keyword">&lt;-</span> root.left<span class="Keyword">;</span>
+<span class="lnr"> 638 </span>        root.left <span class="Keyword">&lt;-</span> join t<span class="Keyword">;</span>
+<span class="lnr"> 639 </span>        root
+<span class="lnr"> 640 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 641 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 642 </span>
+<span class="lnr"> 643 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 644 </span>
+<span class="lnr"> 645 </span><span class="Comment">(* The private function [concat_or_join] accepts a tree whose root node may or</span>
+<span class="lnr"> 646 </span><span class="Comment">   may not contain a value, and turns it intro a tree, using either [join] or</span>
+<span class="lnr"> 647 </span><span class="Comment">   [concat]. Thus, the left and right sub-trees are allowed to have arbitrary</span>
+<span class="lnr"> 648 </span><span class="Comment">   heights. *)</span>
+<span class="lnr"> 649 </span>
+<span class="lnr"> 650 </span><span class="Keyword">val</span> concat_or_join <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> t: <span class="Constant">Node</span> <span class="Keyword">{</span> left: tree k a<span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: <span class="Type">option</span> a<span class="Keyword">;</span> right: tree k a<span class="Keyword">;</span> height: <span class="Keyword">unknown</span> <span class="Keyword">})</span> : tree k a <span class="Keyword">=</span>
+<span class="lnr"> 651 </span>  <span class="Keyword">match</span> t.value <span class="Keyword">with</span>
+<span class="lnr"> 652 </span>  <span class="Keyword">|</span> <span class="Constant">Some</span> <span class="Keyword">{</span> contents <span class="Keyword">=</span> d <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 653 </span>      t.value <span class="Keyword">&lt;-</span> d<span class="Keyword">;</span>
+<span class="lnr"> 654 </span>      join t
+<span class="lnr"> 655 </span>  <span class="Keyword">|</span> <span class="Constant">None</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 656 </span>      concat <span class="Keyword">(</span>t.left, t.right<span class="Keyword">)</span>
+<span class="lnr"> 657 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 658 </span>
+<span class="lnr"> 659 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 660 </span>
+<span class="lnr"> 661 </span><span class="Comment">(* Merging. *)</span>
+<span class="lnr"> 662 </span>
+<span class="lnr"> 663 </span><span class="Comment">(* This function has the same specification as its OCaml counterpart. *)</span>
+<span class="lnr"> 664 </span>
+<span class="lnr"> 665 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> merge <span class="Keyword">[</span>k, a, b, c<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 666 </span>  cmp: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr"> 667 </span>  f: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> <span class="Type">option</span> a, <span class="Keyword">consumes</span> <span class="Type">option</span> b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">option</span> c,
+<span class="lnr"> 668 </span>  <span class="Keyword">consumes</span> s1: tree k a,
+<span class="lnr"> 669 </span>  <span class="Keyword">consumes</span> s2: tree k b
+<span class="lnr"> 670 </span><span class="Keyword">)</span> : tree k c <span class="Keyword">=</span>
+<span class="lnr"> 671 </span>  <span class="Keyword">match</span> s1, s2 <span class="Keyword">with</span>
+<span class="lnr"> 672 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span>, <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 673 </span>      s1
+<span class="lnr"> 674 </span>  <span class="Keyword">|</span> <span class="Keyword">_</span>, <span class="Keyword">_</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 675 </span>      <span class="Keyword">if</span> height s1 <span class="Keyword">&gt;</span><span class="Keyword">=</span> height s2 <span class="Keyword">then</span>
+<span class="lnr"> 676 </span>        <span class="Keyword">match</span> s1 <span class="Keyword">with</span>
+<span class="lnr"> 677 </span>        <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 678 </span>            <span class="Keyword">let</span> root2 <span class="Keyword">=</span> split <span class="Keyword">(</span>cmp, s1.key, s2<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 679 </span>            root2.left <span class="Keyword">&lt;-</span> merge <span class="Keyword">(</span>cmp, f, s1.left, root2.left<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 680 </span>            root2.key <span class="Keyword">&lt;-</span> s1.key<span class="Keyword">;</span>
+<span class="lnr"> 681 </span>            root2.value <span class="Keyword">&lt;-</span> f <span class="Keyword">(</span>s1.key, some s1.value, root2.value<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 682 </span>            root2.right <span class="Keyword">&lt;-</span> merge <span class="Keyword">(</span>cmp, f, s1.right, root2.right<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 683 </span>            concat_or_join root2
+<span class="lnr"> 684 </span>        <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 685 </span>            <span class="Keyword">fail</span> <span class="Comment">(* impossible *)</span>
+<span class="lnr"> 686 </span>        <span class="Keyword">end</span>
+<span class="lnr"> 687 </span>      <span class="Keyword">else</span>
+<span class="lnr"> 688 </span>        <span class="Keyword">match</span> s2 <span class="Keyword">with</span>
+<span class="lnr"> 689 </span>        <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 690 </span>            <span class="Keyword">let</span> root1 <span class="Keyword">=</span> split <span class="Keyword">(</span>cmp, s2.key, s1<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 691 </span>            root1.left <span class="Keyword">&lt;-</span> merge <span class="Keyword">(</span>cmp, f, root1.left, s2.left<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 692 </span>            root1.key <span class="Keyword">&lt;-</span> s2.key<span class="Keyword">;</span>
+<span class="lnr"> 693 </span>            root1.value <span class="Keyword">&lt;-</span> f <span class="Keyword">(</span>s2.key, root1.value, some s2.value<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 694 </span>            root1.right <span class="Keyword">&lt;-</span> merge <span class="Keyword">(</span>cmp, f, root1.right, s2.right<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 695 </span>            concat_or_join root1
+<span class="lnr"> 696 </span>        <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 697 </span>            <span class="Keyword">fail</span> <span class="Comment">(* impossible *)</span>
+<span class="lnr"> 698 </span>        <span class="Keyword">end</span>
+<span class="lnr"> 699 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 700 </span>
+<span class="lnr"> 701 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 702 </span>
+<span class="lnr"> 703 </span><span class="Comment">(* Compared to OCaml's [filter], our [filter] is more general. Instead of</span>
+<span class="lnr"> 704 </span><span class="Comment">   returning a Boolean value, the function [p] returns an option. This</span>
+<span class="lnr"> 705 </span><span class="Comment">   allows us not only to drop certain entries, but also to modify the</span>
+<span class="lnr"> 706 </span><span class="Comment">   existing entries, and possibly to change their type. *)</span>
+<span class="lnr"> 707 </span>
+<span class="lnr"> 708 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> filter <span class="Keyword">[</span>k, a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 709 </span>  p: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">option</span> b,
+<span class="lnr"> 710 </span>  <span class="Keyword">consumes</span> t: tree k a
+<span class="lnr"> 711 </span><span class="Keyword">)</span> : tree k b <span class="Keyword">=</span>
+<span class="lnr"> 712 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 713 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 714 </span>      t
+<span class="lnr"> 715 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 716 </span>      t.left <span class="Keyword">&lt;-</span> filter <span class="Keyword">(</span>p, t.left<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 717 </span>      t.value <span class="Keyword">&lt;-</span> p <span class="Keyword">(</span>t.key, t.value<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 718 </span>      t.right <span class="Keyword">&lt;-</span> filter <span class="Keyword">(</span>p, t.right<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 719 </span>      concat_or_join t
+<span class="lnr"> 720 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 721 </span>
+<span class="lnr"> 722 </span><span class="Comment">(* The function [partition] is generalized in a similar manner. Instead</span>
+<span class="lnr"> 723 </span><span class="Comment">   of returning a Boolean value, it returns a choice. *)</span>
+<span class="lnr"> 724 </span>
+<span class="lnr"> 725 </span><span class="Keyword">open</span> <span class="PreProc">choice</span> <span class="Comment">(* TEMPORARY *)</span>
+<span class="lnr"> 726 </span>
+<span class="lnr"> 727 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> partition <span class="Keyword">[</span>k, a, b, c<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 728 </span>  p: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> choice b c,
+<span class="lnr"> 729 </span>  <span class="Keyword">consumes</span> t: tree k a
+<span class="lnr"> 730 </span><span class="Keyword">)</span> : <span class="Keyword">(</span>tree k b, tree k c<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr"> 731 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr"> 732 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 733 </span>      t, <span class="Constant">Empty</span>
+<span class="lnr"> 734 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 735 </span>      <span class="Keyword">let</span> ll, lr <span class="Keyword">=</span> partition <span class="Keyword">(</span>p, t.left<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 736 </span>      <span class="Keyword">let</span> choice <span class="Keyword">=</span> p <span class="Keyword">(</span>t.key, t.value<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 737 </span>      <span class="Keyword">let</span> rl, rr <span class="Keyword">=</span> partition <span class="Keyword">(</span>p, t.right<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 738 </span>      <span class="Keyword">match</span> choice <span class="Keyword">with</span>
+<span class="lnr"> 739 </span>      <span class="Keyword">|</span> <span class="Constant">Left</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 740 </span>          t.left <span class="Keyword">&lt;-</span> ll<span class="Keyword">;</span>
+<span class="lnr"> 741 </span>          t.value <span class="Keyword">&lt;-</span> choice.contents<span class="Keyword">;</span>
+<span class="lnr"> 742 </span>          t.right <span class="Keyword">&lt;-</span> rl<span class="Keyword">;</span>
+<span class="lnr"> 743 </span>          join t, concat <span class="Keyword">(</span>lr, rr<span class="Keyword">)</span>
+<span class="lnr"> 744 </span>      <span class="Keyword">|</span> <span class="Constant">Right</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 745 </span>          t.left <span class="Keyword">&lt;-</span> lr<span class="Keyword">;</span>
+<span class="lnr"> 746 </span>          t.value <span class="Keyword">&lt;-</span> choice.contents<span class="Keyword">;</span>
+<span class="lnr"> 747 </span>          t.right <span class="Keyword">&lt;-</span> rr<span class="Keyword">;</span>
+<span class="lnr"> 748 </span>          concat <span class="Keyword">(</span>ll, rl<span class="Keyword">)</span>, join t
+<span class="lnr"> 749 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 750 </span>      <span class="Comment">(* TEMPORARY why do I get a warning about this merge? isn't the expected type</span>
+<span class="lnr"> 751 </span><span class="Comment">         propagated all the way down? *)</span>
+<span class="lnr"> 752 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 753 </span>
+<span class="lnr"> 754 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 755 </span>
+<span class="lnr"> 756 </span><span class="Comment">(* Iterators. *)</span>
+<span class="lnr"> 757 </span>
+<span class="lnr"> 758 </span><span class="Comment">(* OCaml's [Map] library uses iterators in order to implement the comparison</span>
+<span class="lnr"> 759 </span><span class="Comment">   of two trees. It implements an iterator as a list of trees. Unfortunately,</span>
+<span class="lnr"> 760 </span><span class="Comment">   as of now, ordinary tree iterators are difficult to express in Mezzo,</span>
+<span class="lnr"> 761 </span><span class="Comment">   because it is hard to explain how/why the ownership of the tree cells (and</span>
+<span class="lnr"> 762 </span><span class="Comment">   keys, and values) is returned from the iterator to the tree once iteration</span>
+<span class="lnr"> 763 </span><span class="Comment">   is complete. *)</span>
+<span class="lnr"> 764 </span>
+<span class="lnr"> 765 </span><span class="Comment">(* Mutable zippers allow building a form of tree iterators that have the key</span>
+<span class="lnr"> 766 </span><span class="Comment">   feature that the memory footprint of the iterator is exactly the memory</span>
+<span class="lnr"> 767 </span><span class="Comment">   footprint of the original tree. Hence, keeping track of ownership is simpler</span>
+<span class="lnr"> 768 </span><span class="Comment">   in this approach. *)</span>
+<span class="lnr"> 769 </span>
+<span class="lnr"> 770 </span><span class="Keyword">mutable</span> <span class="Keyword">data</span> zipper k a <span class="Keyword">=</span>
+<span class="lnr"> 771 </span>  <span class="Keyword">|</span> <span class="Constant">ZEmpty</span>
+<span class="lnr"> 772 </span>  <span class="Keyword">|</span> <span class="Constant">ZLeft</span>  <span class="Keyword">{</span> father: zipper k a<span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: tree k a<span class="Keyword">;</span>    height: <span class="Type">int</span> <span class="Keyword">}</span>
+<span class="lnr"> 773 </span>  <span class="Keyword">|</span> <span class="Constant">ZRight</span> <span class="Keyword">{</span> left: tree k a<span class="Keyword">;</span>     key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> father: zipper k a<span class="Keyword">;</span> height: <span class="Type">int</span> <span class="Keyword">}</span>
+<span class="lnr"> 774 </span>
+<span class="lnr"> 775 </span><span class="Comment">(* In this approach, an iterator is a pair of a zipper and a tree, together</span>
+<span class="lnr"> 776 </span><span class="Comment">   with a tag that indicates whether we are arriving at this node, currently</span>
+<span class="lnr"> 777 </span><span class="Comment">   paused at this node, or leaving this node. Furthermore, an iterator can</span>
+<span class="lnr"> 778 </span><span class="Comment">   be paused only at a binary node -- never at an empty node. *)</span>
+<span class="lnr"> 779 </span>
+<span class="lnr"> 780 </span><span class="Keyword">mutable</span> <span class="Keyword">data</span> iterator k a <span class="Keyword">=</span>
+<span class="lnr"> 781 </span>  <span class="Keyword">|</span> <span class="Constant">IArriving</span> <span class="Keyword">{</span> context: zipper k a<span class="Keyword">;</span> focus: tree k a <span class="Keyword">}</span>
+<span class="lnr"> 782 </span>  <span class="Keyword">|</span> <span class="Constant">IAt</span>       <span class="Keyword">{</span> context: zipper k a<span class="Keyword">;</span> focus: <span class="Constant">Node</span> <span class="Keyword">{</span> left: tree k a<span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: tree k a<span class="Keyword">;</span> height: <span class="Type">int</span> <span class="Keyword">}}</span>
+<span class="lnr"> 783 </span>  <span class="Keyword">|</span> <span class="Constant">ILeaving</span>  <span class="Keyword">{</span> context: zipper k a<span class="Keyword">;</span> focus: tree k a <span class="Keyword">}</span>
+<span class="lnr"> 784 </span>
+<span class="lnr"> 785 </span><span class="Comment">(* The function [advance] advances an iterator until either it reaches a new</span>
+<span class="lnr"> 786 </span><span class="Comment">   element (in which case the iterator is left in state [IAt]) or there are no</span>
+<span class="lnr"> 787 </span><span class="Comment">   more elements (in which case the iterator is left in state [ILeaving], with</span>
+<span class="lnr"> 788 </span><span class="Comment">   an [Empty] tree). Initially, the iterator can be in any state; if it is</span>
+<span class="lnr"> 789 </span><span class="Comment">   initially in state [IAt], then it will advance to the next element. *)</span>
+<span class="lnr"> 790 </span>
+<span class="lnr"> 791 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> advance <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>i: iterator k a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 792 </span>  <span class="Keyword">match</span> i <span class="Keyword">with</span>
+<span class="lnr"> 793 </span>  <span class="Keyword">|</span> <span class="Constant">IArriving</span> <span class="Keyword">{</span> context <span class="Keyword">=</span> z<span class="Keyword">;</span> focus <span class="Keyword">=</span> f <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 794 </span>      <span class="Keyword">match</span> f <span class="Keyword">with</span>
+<span class="lnr"> 795 </span>      <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 796 </span>          <span class="Comment">(* Skip empty nodes. *)</span>
+<span class="lnr"> 797 </span>          <span class="Keyword">tag</span> <span class="Keyword">of</span> i <span class="Keyword">&lt;-</span> <span class="Constant">ILeaving</span><span class="Keyword">;</span>
+<span class="lnr"> 798 </span>          advance i
+<span class="lnr"> 799 </span>      <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">{</span> left <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 800 </span>          <span class="Comment">(* When arriving at a node, descend immediately into the left child. *)</span>
+<span class="lnr"> 801 </span>          <span class="Keyword">tag</span> <span class="Keyword">of</span> f <span class="Keyword">&lt;-</span> <span class="Constant">ZLeft</span><span class="Keyword">;</span>
+<span class="lnr"> 802 </span>          f.father <span class="Keyword">&lt;-</span> z<span class="Keyword">;</span>
+<span class="lnr"> 803 </span>          <span class="Comment">(* [f] is now a zipper! *)</span>
+<span class="lnr"> 804 </span>          i.context <span class="Keyword">&lt;-</span> f<span class="Keyword">;</span>
+<span class="lnr"> 805 </span>          i.focus <span class="Keyword">&lt;-</span> left<span class="Keyword">;</span>
+<span class="lnr"> 806 </span>          advance i
+<span class="lnr"> 807 </span>        <span class="Keyword">end</span>
+<span class="lnr"> 808 </span>  <span class="Keyword">|</span> <span class="Constant">IAt</span> <span class="Keyword">{</span> context <span class="Keyword">=</span> z<span class="Keyword">;</span> focus <span class="Keyword">=</span> f <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 809 </span>      <span class="Keyword">let</span> right <span class="Keyword">=</span> f.right <span class="Keyword">in</span>
+<span class="lnr"> 810 </span>      <span class="Comment">(* After handling a node, descend into its right child. *)</span>
+<span class="lnr"> 811 </span>      <span class="Keyword">tag</span> <span class="Keyword">of</span> f <span class="Keyword">&lt;-</span> <span class="Constant">ZRight</span><span class="Keyword">;</span>
+<span class="lnr"> 812 </span>      f.father <span class="Keyword">&lt;-</span> z<span class="Keyword">;</span>
+<span class="lnr"> 813 </span>      <span class="Comment">(* [f] is now a zipper! *)</span>
+<span class="lnr"> 814 </span>      <span class="Keyword">tag</span> <span class="Keyword">of</span> i <span class="Keyword">&lt;-</span> <span class="Constant">IArriving</span><span class="Keyword">;</span>
+<span class="lnr"> 815 </span>      i.context <span class="Keyword">&lt;-</span> f<span class="Keyword">;</span>
+<span class="lnr"> 816 </span>      i.focus <span class="Keyword">&lt;-</span> right<span class="Keyword">;</span>
+<span class="lnr"> 817 </span>      advance i
+<span class="lnr"> 818 </span>  <span class="Keyword">|</span> <span class="Constant">ILeaving</span> <span class="Keyword">{</span> context <span class="Keyword">=</span> z<span class="Keyword">;</span> focus <span class="Keyword">=</span> f <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 819 </span>      <span class="Keyword">match</span> z <span class="Keyword">with</span>
+<span class="lnr"> 820 </span>      <span class="Keyword">|</span> <span class="Constant">ZEmpty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 821 </span>          <span class="Comment">(* We are finished. *)</span>
+<span class="lnr"> 822 </span>          <span class="Constant">()</span>
+<span class="lnr"> 823 </span>      <span class="Keyword">|</span> <span class="Constant">ZLeft</span> <span class="Keyword">{</span> father <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 824 </span>          <span class="Keyword">tag</span> <span class="Keyword">of</span> z <span class="Keyword">&lt;-</span> <span class="Constant">Node</span><span class="Keyword">;</span>
+<span class="lnr"> 825 </span>          z.left <span class="Keyword">&lt;-</span> f<span class="Keyword">;</span>
+<span class="lnr"> 826 </span>          <span class="Comment">(* [z] is now a tree! *)</span>
+<span class="lnr"> 827 </span>          <span class="Comment">(* After exiting a left child, pause at its father. *)</span>
+<span class="lnr"> 828 </span>          <span class="Keyword">tag</span> <span class="Keyword">of</span> i <span class="Keyword">&lt;-</span> <span class="Constant">IAt</span><span class="Keyword">;</span>
+<span class="lnr"> 829 </span>          i.context <span class="Keyword">&lt;-</span> father<span class="Keyword">;</span>
+<span class="lnr"> 830 </span>          i.focus <span class="Keyword">&lt;-</span> z
+<span class="lnr"> 831 </span>      <span class="Keyword">|</span> <span class="Constant">ZRight</span> <span class="Keyword">{</span> father <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 832 </span>          <span class="Keyword">tag</span> <span class="Keyword">of</span> z <span class="Keyword">&lt;-</span> <span class="Constant">Node</span><span class="Keyword">;</span>
+<span class="lnr"> 833 </span>          z.right <span class="Keyword">&lt;-</span> f<span class="Keyword">;</span>
+<span class="lnr"> 834 </span>          <span class="Comment">(* [z] is now a tree! *)</span>
+<span class="lnr"> 835 </span>          <span class="Comment">(* After exiting a right child, continue in ascending mode. *)</span>
+<span class="lnr"> 836 </span>          i.context <span class="Keyword">&lt;-</span> father<span class="Keyword">;</span>
+<span class="lnr"> 837 </span>          i.focus <span class="Keyword">&lt;-</span> z<span class="Keyword">;</span>
+<span class="lnr"> 838 </span>          advance i
+<span class="lnr"> 839 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 840 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 841 </span>
+<span class="lnr"> 842 </span><span class="Comment">(* Our iterators are unsatisfactory in that [advance] returns an internal</span>
+<span class="lnr"> 843 </span><span class="Comment">   representation of the iterator, instead of a nicely packaged pair of an</span>
+<span class="lnr"> 844 </span><span class="Comment">   element and a new iterator. For the time being, this is ok, because we are</span>
+<span class="lnr"> 845 </span><span class="Comment">   using the iterators only internally. TEMPORARY *)</span>
+<span class="lnr"> 846 </span>
+<span class="lnr"> 847 </span><span class="Comment">(* [iterate] turns a tree into a fresh iterator. *)</span>
+<span class="lnr"> 848 </span>
+<span class="lnr"> 849 </span><span class="Keyword">val</span> iterate <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> t: tree k a<span class="Keyword">)</span> : iterator k a <span class="Keyword">=</span>
+<span class="lnr"> 850 </span>  <span class="Keyword">let</span> i <span class="Keyword">=</span> <span class="Constant">IArriving</span> <span class="Keyword">{</span> context <span class="Keyword">=</span> <span class="Constant">ZEmpty</span><span class="Keyword">;</span> focus <span class="Keyword">=</span> t <span class="Keyword">}</span> <span class="Keyword">in</span>
+<span class="lnr"> 851 </span>  advance i<span class="Keyword">;</span>
+<span class="lnr"> 852 </span>  i
+<span class="lnr"> 853 </span>
+<span class="lnr"> 854 </span><span class="Comment">(* [stop] turns an iterator back into a complete tree. *)</span>
+<span class="lnr"> 855 </span>
+<span class="lnr"> 856 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> stop <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> i: iterator k a<span class="Keyword">)</span> : tree k a <span class="Keyword">=</span>
+<span class="lnr"> 857 </span>  <span class="Keyword">match</span> i <span class="Keyword">with</span>
+<span class="lnr"> 858 </span>  <span class="Keyword">|</span> <span class="Constant">IAt</span> <span class="Keyword">{</span> context <span class="Keyword">=</span> z<span class="Keyword">;</span> focus <span class="Keyword">=</span> f <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 859 </span>      <span class="Keyword">match</span> z <span class="Keyword">with</span>
+<span class="lnr"> 860 </span>      <span class="Keyword">|</span> <span class="Constant">ZEmpty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 861 </span>          f
+<span class="lnr"> 862 </span>      <span class="Keyword">|</span> <span class="Constant">ZLeft</span> <span class="Keyword">{</span> father <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 863 </span>          <span class="Keyword">tag</span> <span class="Keyword">of</span> z <span class="Keyword">&lt;-</span> <span class="Constant">Node</span><span class="Keyword">;</span>
+<span class="lnr"> 864 </span>          z.left <span class="Keyword">&lt;-</span> f<span class="Keyword">;</span>
+<span class="lnr"> 865 </span>          <span class="Comment">(* [z] is now a tree! *)</span>
+<span class="lnr"> 866 </span>          i.context <span class="Keyword">&lt;-</span> father<span class="Keyword">;</span>
+<span class="lnr"> 867 </span>          i.focus <span class="Keyword">&lt;-</span> z<span class="Keyword">;</span>
+<span class="lnr"> 868 </span>          stop i
+<span class="lnr"> 869 </span>      <span class="Keyword">|</span> <span class="Constant">ZRight</span> <span class="Keyword">{</span> father <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 870 </span>          <span class="Keyword">tag</span> <span class="Keyword">of</span> z <span class="Keyword">&lt;-</span> <span class="Constant">Node</span><span class="Keyword">;</span>
+<span class="lnr"> 871 </span>          z.right <span class="Keyword">&lt;-</span> f<span class="Keyword">;</span>
+<span class="lnr"> 872 </span>          <span class="Comment">(* [z] is now a tree! *)</span>
+<span class="lnr"> 873 </span>          i.context <span class="Keyword">&lt;-</span> father<span class="Keyword">;</span>
+<span class="lnr"> 874 </span>          i.focus <span class="Keyword">&lt;-</span> z<span class="Keyword">;</span>
+<span class="lnr"> 875 </span>          stop i
+<span class="lnr"> 876 </span>      <span class="Keyword">end</span>
+<span class="lnr"> 877 </span>  <span class="Keyword">|</span> <span class="Constant">ILeaving</span> <span class="Keyword">{</span> context <span class="Keyword">=</span> <span class="Constant">ZEmpty</span><span class="Keyword">;</span> focus <span class="Keyword">=</span> f <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 878 </span>      f
+<span class="lnr"> 879 </span>  <span class="Keyword">|</span> <span class="Keyword">_</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 880 </span>      <span class="Keyword">fail</span> <span class="Comment">(* impossible, if iterator has been properly [advance]d *)</span>
+<span class="lnr"> 881 </span>  <span class="Keyword">end</span>
+<span class="lnr"> 882 </span>
+<span class="lnr"> 883 </span><span class="Comment">(* [recover] stops the iterator [i] and dynamically checks that the resulting</span>
+<span class="lnr"> 884 </span><span class="Comment">   tree is equal to the argument [t]. This dynamic check is required for the</span>
+<span class="lnr"> 885 </span><span class="Comment">   moment. Assigning more precise types to our iterators might allow us to</span>
+<span class="lnr"> 886 </span><span class="Comment">   avoid it. TEMPORARY *)</span>
+<span class="lnr"> 887 </span>
+<span class="lnr"> 888 </span><span class="Keyword">val</span> recover <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> i: iterator k a, t: <span class="Keyword">unknown)</span> : <span class="Keyword">(</span><span class="Keyword">|</span> t @ tree k a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr"> 889 </span>  <span class="Keyword">let</span> u <span class="Keyword">=</span> stop i <span class="Keyword">in</span>
+<span class="lnr"> 890 </span>  <span class="Keyword">if</span> t <span class="Keyword">==</span> u <span class="Keyword">then</span>
+<span class="lnr"> 891 </span>    <span class="Constant">()</span>
+<span class="lnr"> 892 </span>  <span class="Keyword">else</span>
+<span class="lnr"> 893 </span>    <span class="Keyword">fail</span>
+<span class="lnr"> 894 </span>
+<span class="lnr"> 895 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 896 </span>
+<span class="lnr"> 897 </span><span class="Comment">(* We use an iterator to implement the comparison of two trees. *)</span>
+<span class="lnr"> 898 </span>
+<span class="lnr"> 899 </span><span class="Keyword">val</span> compare <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 900 </span>  cmpk: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr"> 901 </span>  cmpa: <span class="Keyword">(</span>a, a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr"> 902 </span>  m1: tree k a,
+<span class="lnr"> 903 </span>  m2: tree k a
+<span class="lnr"> 904 </span><span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr"> 905 </span>
+<span class="lnr"> 906 </span>  <span class="Comment">(* Create an iterator for each of the trees. *)</span>
+<span class="lnr"> 907 </span>  <span class="Keyword">let</span> i1 <span class="Keyword">=</span> iterate m1
+<span class="lnr"> 908 </span>  <span class="Keyword">and</span> i2 <span class="Keyword">=</span> iterate m2 <span class="Keyword">in</span>
+<span class="lnr"> 909 </span>
+<span class="lnr"> 910 </span>  <span class="Comment">(* Loop. *)</span>
+<span class="lnr"> 911 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> loop <span class="Keyword">(</span><span class="Keyword">|</span> i1 @ iterator k a <span class="Keyword">*</span> i2 @ iterator k a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr"> 912 </span>    <span class="Keyword">match</span> i1, i2 <span class="Keyword">with</span>
+<span class="lnr"> 913 </span>    <span class="Keyword">|</span> <span class="Constant">IAt</span> <span class="Keyword">{</span> focus <span class="Keyword">=</span> m1 <span class="Keyword">}</span>, <span class="Constant">IAt</span> <span class="Keyword">{</span> focus <span class="Keyword">=</span> m2 <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 914 </span>        <span class="Keyword">let</span> c <span class="Keyword">=</span> cmpk <span class="Keyword">(</span>m1.key, m2.key<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 915 </span>        <span class="Keyword">if</span> c <span class="Keyword">&lt;&gt;</span> <span class="Number">0</span> <span class="Keyword">then</span> c <span class="Keyword">else</span> <span class="Keyword">begin</span>
+<span class="lnr"> 916 </span>          <span class="Keyword">let</span> c <span class="Keyword">=</span> cmpa <span class="Keyword">(</span>m1.value, m2.value<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 917 </span>          <span class="Keyword">if</span> c <span class="Keyword">&lt;&gt;</span> <span class="Number">0</span> <span class="Keyword">then</span> c <span class="Keyword">else</span> <span class="Keyword">begin</span>
+<span class="lnr"> 918 </span>            advance i1<span class="Keyword">;</span>
+<span class="lnr"> 919 </span>            advance i2<span class="Keyword">;</span>
+<span class="lnr"> 920 </span>            loop<span class="Constant">()</span>
+<span class="lnr"> 921 </span>          <span class="Keyword">end</span>
+<span class="lnr"> 922 </span>        <span class="Keyword">end</span>
+<span class="lnr"> 923 </span>    <span class="Keyword">|</span> <span class="Constant">IAt</span>, <span class="Keyword">_</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 924 </span>        <span class="Comment">(* The sequence [i1] is longer. *)</span>
+<span class="lnr"> 925 </span>        <span class="Number">1</span>
+<span class="lnr"> 926 </span>    <span class="Keyword">|</span> <span class="Keyword">_</span>, <span class="Constant">IAt</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 927 </span>        <span class="Comment">(* The sequence [i2] is longer. *)</span>
+<span class="lnr"> 928 </span>        -<span class="Number">1</span>
+<span class="lnr"> 929 </span>    <span class="Keyword">|</span> <span class="Keyword">_</span>, <span class="Keyword">_</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 930 </span>        <span class="Comment">(* The comparison suceeded, all the way. *)</span>
+<span class="lnr"> 931 </span>        <span class="Number">0</span>
+<span class="lnr"> 932 </span>    <span class="Keyword">end</span>
+<span class="lnr"> 933 </span>
+<span class="lnr"> 934 </span>  <span class="Keyword">in</span>
+<span class="lnr"> 935 </span>  <span class="Keyword">let</span> c : <span class="Type">int</span> <span class="Keyword">=</span> loop<span class="Constant">()</span> <span class="Keyword">in</span>
+<span class="lnr"> 936 </span>  <span class="Comment">(* Stop the iterators and recover the permissions for the trees. *)</span>
+<span class="lnr"> 937 </span>  recover <span class="Keyword">(</span>i1, m1<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 938 </span>  recover <span class="Keyword">(</span>i2, m2<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 939 </span>  c
+<span class="lnr"> 940 </span>  <span class="Comment">(* BUG well, not a bug, but a feature wish: if I omit the calls to</span>
+<span class="lnr"> 941 </span><span class="Comment">     recover above, I get a good error message, but with a completely</span>
+<span class="lnr"> 942 </span><span class="Comment">     useless location (the entire function body). Since we are</span>
+<span class="lnr"> 943 </span><span class="Comment">     propagating expected types down, couldn't we signal the error</span>
+<span class="lnr"> 944 </span><span class="Comment">     message at the sub-expression &quot;c&quot; (final line), instead of at</span>
+<span class="lnr"> 945 </span><span class="Comment">     the level of the entire function? *)</span>
+<span class="lnr"> 946 </span>
+<span class="lnr"> 947 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 948 </span>
+<span class="lnr"> 949 </span><span class="Comment">(* As a test of the type-checker, we re-implement [iter] using iterators. *)</span>
+<span class="lnr"> 950 </span>
+<span class="lnr"> 951 </span><span class="Keyword">val</span> iter_variant <span class="Keyword">[</span>k, a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr"> 952 </span>  f: <span class="Keyword">(</span>k,           a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>,
+<span class="lnr"> 953 </span>         t: tree k a <span class="Keyword">|</span> p<span class="Keyword">)</span>  : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr"> 954 </span>
+<span class="lnr"> 955 </span>  <span class="Comment">(* Create an iterator. *)</span>
+<span class="lnr"> 956 </span>  <span class="Keyword">let</span> i <span class="Keyword">=</span> iterate t <span class="Keyword">in</span>
+<span class="lnr"> 957 </span>  <span class="Comment">(* Loop. *)</span>
+<span class="lnr"> 958 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> loop <span class="Keyword">(</span><span class="Keyword">|</span> i @ iterator k a <span class="Keyword">*</span> p<span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr"> 959 </span>    <span class="Keyword">match</span> i <span class="Keyword">with</span>
+<span class="lnr"> 960 </span>    <span class="Keyword">|</span> <span class="Constant">IAt</span> <span class="Keyword">{</span> focus <span class="Keyword">=</span> m <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 961 </span>        f <span class="Keyword">(</span>m.key, m.value<span class="Keyword">)</span> <span class="Keyword">&amp;&amp;</span> loop<span class="Constant">()</span>
+<span class="lnr"> 962 </span>    <span class="Keyword">|</span> <span class="Keyword">_</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 963 </span>        <span class="Constant">True</span>
+<span class="lnr"> 964 </span>    <span class="Keyword">end</span>
+<span class="lnr"> 965 </span>  <span class="Keyword">in</span>
+<span class="lnr"> 966 </span>  <span class="Comment">(* Stop the iterator and recover the permission for the tree. *)</span>
+<span class="lnr"> 967 </span>  <span class="Keyword">let</span> outcome : <span class="Type">bool</span> <span class="Keyword">=</span> loop<span class="Constant">()</span> <span class="Keyword">in</span>
+<span class="lnr"> 968 </span>  recover <span class="Keyword">(</span>i, t<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 969 </span>  outcome
+<span class="lnr"> 970 </span>
+<span class="lnr"> 971 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 972 </span>
+<span class="lnr"> 973 </span><span class="Comment">(* Iterators in another style. *)</span>
+<span class="lnr"> 974 </span>
+<span class="lnr"> 975 </span><span class="Comment">(* A bandit is a binary tree node that has no left child. *)</span>
+<span class="lnr"> 976 </span>
+<span class="lnr"> 977 </span><span class="Comment">(* The following type describes a list of bandits. *)</span>
+<span class="lnr"> 978 </span>
+<span class="lnr"> 979 </span><span class="Comment">(* TEMPORARY because we don't have type abbreviations, we redefine this type</span>
+<span class="lnr"> 980 </span><span class="Comment">   instead of using an abbreviation for a list of bandits. *)</span>
+<span class="lnr"> 981 </span>
+<span class="lnr"> 982 </span><span class="Keyword">data</span> bandits k a <span class="Keyword">=</span>
+<span class="lnr"> 983 </span>  <span class="Keyword">|</span> <span class="Constant">End</span>
+<span class="lnr"> 984 </span>  <span class="Keyword">|</span> <span class="Constant">More</span> <span class="Keyword">{</span>
+<span class="lnr"> 985 </span>      head: <span class="Constant">Node</span> <span class="Keyword">{</span> left: <span class="Keyword">dynamic</span><span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: tree k a<span class="Keyword">;</span> height: <span class="Type">int</span> <span class="Keyword">}</span><span class="Keyword">;</span>
+<span class="lnr"> 986 </span>      tail: bandits k a
+<span class="lnr"> 987 </span>    <span class="Keyword">}</span>
+<span class="lnr"> 988 </span>
+<span class="lnr"> 989 </span><span class="Comment">(* An enumeration is basically a reference to a list of bandits. Furthermore,</span>
+<span class="lnr"> 990 </span><span class="Comment">   an enumeration object is able to adopt the tree nodes that have already</span>
+<span class="lnr"> 991 </span><span class="Comment">   been visited. The nodes that are adopted are isolated, i.e. they do not</span>
+<span class="lnr"> 992 </span><span class="Comment">   own their children; this forces us (unfortunately) to redefine a new type</span>
+<span class="lnr"> 993 </span><span class="Comment">   of tree nodes that do not own their children. *)</span>
+<span class="lnr"> 994 </span>
+<span class="lnr"> 995 </span><span class="Comment">(* TEMPORARY perhaps we could plan ahead and parameterize the type of tree</span>
+<span class="lnr"> 996 </span><span class="Comment">   nodes with the type of their children before tying the recursive knot?</span>
+<span class="lnr"> 997 </span><span class="Comment">   but that would require a recursive type abbreviation, I am afraid *)</span>
+<span class="lnr"> 998 </span>
+<span class="lnr"> 999 </span><span class="Keyword">mutable</span> <span class="Keyword">data</span> enumeration k a <span class="Keyword">=</span>
+<span class="lnr">1000 </span>  <span class="Constant">Enum</span> <span class="Keyword">{</span> bandits: bandits k a <span class="Keyword">}</span> <span class="Keyword">adopts</span> visited k a
+<span class="lnr">1001 </span>
+<span class="lnr">1002 </span><span class="Keyword">mutable</span> <span class="Keyword">data</span> visited k a <span class="Keyword">=</span>
+<span class="lnr">1003 </span>  <span class="Keyword">|</span> <span class="Constant">VisitedEmpty</span>
+<span class="lnr">1004 </span>  <span class="Keyword">|</span> <span class="Constant">VisitedNode</span> <span class="Keyword">{</span> left: <span class="Keyword">dynamic</span><span class="Keyword">;</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> right: <span class="Keyword">dynamic</span><span class="Keyword">;</span> height: <span class="Type">int</span> <span class="Keyword">}</span>
+<span class="lnr">1005 </span>
+<span class="lnr">1006 </span><span class="Comment">(* This smart constructor [cons]es a tree in front of a list of bandits. The</span>
+<span class="lnr">1007 </span><span class="Comment">   left spine of the tree is walked down all the way, so that the nodes that</span>
+<span class="lnr">1008 </span><span class="Comment">   are effectively insert into the list are bandits. *)</span>
+<span class="lnr">1009 </span>
+<span class="lnr">1010 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> cons_bandits <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> t: tree k a, e: enumeration k a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">1011 </span>  <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr">1012 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1013 </span>      <span class="Keyword">tag</span> <span class="Keyword">of</span> t <span class="Keyword">&lt;-</span> <span class="Constant">VisitedEmpty</span><span class="Keyword">;</span> <span class="Comment">(* this is a no-op *)</span>
+<span class="lnr">1014 </span>      <span class="Keyword">give</span> t <span class="Keyword">to</span> e
+<span class="lnr">1015 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1016 </span>      e.bandits <span class="Keyword">&lt;-</span> <span class="Constant">More</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> t<span class="Keyword">;</span> tail <span class="Keyword">=</span> e.bandits <span class="Keyword">}</span><span class="Keyword">;</span>
+<span class="lnr">1017 </span>      cons_bandits <span class="Keyword">(</span>t.left, e<span class="Keyword">)</span>
+<span class="lnr">1018 </span>  <span class="Keyword">end</span>
+<span class="lnr">1019 </span>
+<span class="lnr">1020 </span><span class="Keyword">val</span> new_enum <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> t: tree k a<span class="Keyword">)</span> : enumeration k a <span class="Keyword">=</span>
+<span class="lnr">1021 </span>  <span class="Keyword">let</span> e <span class="Keyword">=</span> <span class="Constant">Enum</span> <span class="Keyword">{</span> bandits <span class="Keyword">=</span> <span class="Constant">End</span> <span class="Keyword">}</span> <span class="Keyword">in</span>
+<span class="lnr">1022 </span>  cons_bandits <span class="Keyword">(</span>t, e<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">1023 </span>  e
+<span class="lnr">1024 </span>
+<span class="lnr">1025 </span><span class="Keyword">val</span> consume_enum <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>e: enumeration k a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">1026 </span>  <span class="Keyword">match</span> e.bandits <span class="Keyword">with</span>
+<span class="lnr">1027 </span>  <span class="Keyword">|</span> <span class="Constant">More</span> <span class="Keyword">{</span> head<span class="Keyword">;</span> tail <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1028 </span>      e.bandits <span class="Keyword">&lt;-</span> tail<span class="Keyword">;</span>
+<span class="lnr">1029 </span>      cons_bandits <span class="Keyword">(</span>head.right, e<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">1030 </span>      <span class="Keyword">tag</span> <span class="Keyword">of</span> head <span class="Keyword">&lt;-</span> <span class="Constant">VisitedNode</span><span class="Keyword">;</span> <span class="Comment">(* this is a no-op *)</span>
+<span class="lnr">1031 </span>      <span class="Keyword">give</span> head <span class="Keyword">to</span> e
+<span class="lnr">1032 </span>  <span class="Keyword">|</span> <span class="Constant">End</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1033 </span>      <span class="Keyword">fail</span>
+<span class="lnr">1034 </span>      <span class="Comment">(* We could eliminate this case if we declared that initially [e] has type</span>
+<span class="lnr">1035 </span><span class="Comment">         Enum { bandits: More { ... } }. But this type would be hugely verbose,</span>
+<span class="lnr">1036 </span><span class="Comment">         plus we would then have to add a [consumes] annotation and write the</span>
+<span class="lnr">1037 </span><span class="Comment">         post-condition [e @ enumeration k a]. Abandoned. *)</span>
+<span class="lnr">1038 </span>  <span class="Keyword">end</span>
+<span class="lnr">1039 </span>
+<span class="lnr">1040 </span><span class="Comment">(* The following function reconstructs the ownership of the original tree after</span>
+<span class="lnr">1041 </span><span class="Comment">   the enumeration has stopped. We are in a situation where the tree nodes that</span>
+<span class="lnr">1042 </span><span class="Comment">   have already been visited have been adopted by the enumeration object, whereas</span>
+<span class="lnr">1043 </span><span class="Comment">   the tree nodes that have not yet been visited are listed, *in order*, as part</span>
+<span class="lnr">1044 </span><span class="Comment">   of the list [e.bandits]. A dynamic ownership test is used to distinguish these</span>
+<span class="lnr">1045 </span><span class="Comment">   two situations. Yes, this is quite crazy, and I am not even sure that it works. *)</span>
+<span class="lnr">1046 </span>
+<span class="lnr">1047 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> reconstruct <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>t: <span class="Keyword">dynamic</span>, e: enumeration k a<span class="Keyword">)</span> : <span class="Keyword">(</span><span class="Keyword">|</span> t @ tree k a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">1048 </span>  <span class="Keyword">if</span> e <span class="Keyword">owns</span> t <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">1049 </span>    <span class="Keyword">take</span> t <span class="Keyword">from</span> e<span class="Keyword">;</span>
+<span class="lnr">1050 </span>    <span class="Keyword">match</span> t <span class="Keyword">with</span>
+<span class="lnr">1051 </span>    <span class="Keyword">|</span> <span class="Constant">VisitedEmpty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1052 </span>        <span class="Keyword">tag</span> <span class="Keyword">of</span> t <span class="Keyword">&lt;-</span> <span class="Constant">Empty</span> <span class="Comment">(* this is a no-op *)</span>
+<span class="lnr">1053 </span>    <span class="Keyword">|</span> <span class="Constant">VisitedNode</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1054 </span>        <span class="Keyword">tag</span> <span class="Keyword">of</span> t <span class="Keyword">&lt;-</span> <span class="Constant">Node</span><span class="Keyword">;</span> <span class="Comment">(* this is a no-op *)</span>
+<span class="lnr">1055 </span>        reconstruct <span class="Keyword">(</span>t.left, e<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">1056 </span>        reconstruct <span class="Keyword">(</span>t.right, e<span class="Keyword">)</span>
+<span class="lnr">1057 </span>    <span class="Keyword">end</span>
+<span class="lnr">1058 </span>  <span class="Keyword">end</span>
+<span class="lnr">1059 </span>  <span class="Keyword">else</span>
+<span class="lnr">1060 </span>    <span class="Keyword">match</span> e.bandits <span class="Keyword">with</span>
+<span class="lnr">1061 </span>    <span class="Keyword">|</span> <span class="Constant">End</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1062 </span>        <span class="Keyword">fail</span> <span class="Comment">(* impossible *)</span>
+<span class="lnr">1063 </span>    <span class="Keyword">|</span> <span class="Constant">More</span> <span class="Keyword">{</span> head<span class="Keyword">;</span> tail <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1064 </span>        <span class="Keyword">if</span> head <span class="Keyword">==</span> t <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">1065 </span>          <span class="Comment">(* At this point, [t] is a bandit, a tree node that does not own</span>
+<span class="lnr">1066 </span><span class="Comment">             its left child. We need to reconstruct this left child in order</span>
+<span class="lnr">1067 </span><span class="Comment">             to obtain [t @ tree k a]. *)</span>
+<span class="lnr">1068 </span>          e.bandits <span class="Keyword">&lt;-</span> tail<span class="Keyword">;</span>
+<span class="lnr">1069 </span>          reconstruct <span class="Keyword">(</span>t.left, e<span class="Keyword">)</span>
+<span class="lnr">1070 </span>        <span class="Keyword">end</span>
+<span class="lnr">1071 </span>        <span class="Keyword">else</span>
+<span class="lnr">1072 </span>          <span class="Keyword">fail</span> <span class="Comment">(* impossible *)</span>
+<span class="lnr">1073 </span>          <span class="Comment">(* TEMPORARY I need to think more about the order of the non-visited</span>
+<span class="lnr">1074 </span><span class="Comment">             trees in e.bandits; I am afraid they will *not* appear in the</span>
+<span class="lnr">1075 </span><span class="Comment">             desired order, so the test [head == t] *WILL* FAIL! *)</span>
+<span class="lnr">1076 </span>    <span class="Keyword">end</span>
+<span class="lnr">1077 </span>
+<span class="lnr">1078 </span><span class="Comment">(* We use an enumeration to implement the comparison of two trees. *)</span>
+<span class="lnr">1079 </span>
+<span class="lnr">1080 </span><span class="Keyword">val</span> compare_variant <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">1081 </span>  cmpk: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr">1082 </span>  cmpa: <span class="Keyword">(</span>a, a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr">1083 </span>  <span class="Keyword">consumes</span> m1: tree k a,
+<span class="lnr">1084 </span>  <span class="Keyword">consumes</span> m2: tree k a
+<span class="lnr">1085 </span><span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">1086 </span>
+<span class="lnr">1087 </span>  <span class="Comment">(* Create an enumeration for each of the trees. *)</span>
+<span class="lnr">1088 </span>  <span class="Keyword">let</span> e1 <span class="Keyword">=</span> new_enum m1
+<span class="lnr">1089 </span>  <span class="Keyword">and</span> e2 <span class="Keyword">=</span> new_enum m2 <span class="Keyword">in</span>
+<span class="lnr">1090 </span>
+<span class="lnr">1091 </span>  <span class="Comment">(* Loop. *)</span>
+<span class="lnr">1092 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> loop <span class="Keyword">(</span><span class="Keyword">|</span> e1 @ enumeration k a <span class="Keyword">*</span> e2 @ enumeration k a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">1093 </span>    <span class="Keyword">match</span> e1.bandits, e2.bandits <span class="Keyword">with</span>
+<span class="lnr">1094 </span>    <span class="Keyword">|</span> <span class="Constant">More</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> m1 <span class="Keyword">}</span>, <span class="Constant">More</span> <span class="Keyword">{</span> head <span class="Keyword">=</span> m2 <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1095 </span>        <span class="Keyword">let</span> c <span class="Keyword">=</span> cmpk <span class="Keyword">(</span>m1.key, m2.key<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">1096 </span>        <span class="Keyword">if</span> c <span class="Keyword">&lt;&gt;</span> <span class="Number">0</span> <span class="Keyword">then</span> c <span class="Keyword">else</span> <span class="Keyword">begin</span>
+<span class="lnr">1097 </span>          <span class="Keyword">let</span> c <span class="Keyword">=</span> cmpa <span class="Keyword">(</span>m1.value, m2.value<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">1098 </span>          <span class="Keyword">if</span> c <span class="Keyword">&lt;&gt;</span> <span class="Number">0</span> <span class="Keyword">then</span> c <span class="Keyword">else</span> <span class="Keyword">begin</span>
+<span class="lnr">1099 </span>            consume_enum e1<span class="Keyword">;</span>
+<span class="lnr">1100 </span>            consume_enum e2<span class="Keyword">;</span>
+<span class="lnr">1101 </span>            loop<span class="Constant">()</span>
+<span class="lnr">1102 </span>          <span class="Keyword">end</span>
+<span class="lnr">1103 </span>        <span class="Keyword">end</span>
+<span class="lnr">1104 </span>    <span class="Keyword">|</span> <span class="Constant">More</span>, <span class="Constant">End</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1105 </span>        <span class="Comment">(* The sequence [i1] is longer. *)</span>
+<span class="lnr">1106 </span>        <span class="Number">1</span>
+<span class="lnr">1107 </span>    <span class="Keyword">|</span> <span class="Constant">End</span>, <span class="Constant">More</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1108 </span>        <span class="Comment">(* The sequence [i2] is longer. *)</span>
+<span class="lnr">1109 </span>        -<span class="Number">1</span>
+<span class="lnr">1110 </span>    <span class="Keyword">|</span> <span class="Constant">End</span>, <span class="Constant">End</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1111 </span>        <span class="Comment">(* The comparison suceeded, all the way. *)</span>
+<span class="lnr">1112 </span>        <span class="Number">0</span>
+<span class="lnr">1113 </span>    <span class="Keyword">end</span>
+<span class="lnr">1114 </span>
+<span class="lnr">1115 </span>  <span class="Keyword">in</span>
+<span class="lnr">1116 </span>  loop<span class="Constant">()</span>
+<span class="lnr">1117 </span>
+<span class="lnr">1118 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">1119 </span>
+<span class="lnr">1120 </span><span class="Comment">(* Conversion of a tree to a list. *)</span>
+<span class="lnr">1121 </span>
+<span class="lnr">1122 </span><span class="Keyword">val</span> bindings <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>t: tree k a<span class="Keyword">)</span> : <span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">1123 </span>  <span class="Keyword">let</span> f <span class="Keyword">(</span>x: k, v: a, accu: <span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> <span class="Keyword">(</span>k, a<span class="Keyword">))</span> : <span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">1124 </span>    <span class="Type">list</span><span class="Keyword">::</span>cons <span class="Keyword">[(</span>k, a<span class="Keyword">)]</span> <span class="Keyword">((</span>x, v<span class="Keyword">)</span>, accu<span class="Keyword">)</span>
+<span class="lnr">1125 </span>  <span class="Keyword">in</span>
+<span class="lnr">1126 </span>  fold_descending <span class="Keyword">(</span>f, t, <span class="Type">list</span><span class="Keyword">::</span>nil<span class="Keyword">)</span>
+<span class="lnr">1127 </span>
+<span class="lnr">1128 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">1129 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">1130 </span>
+<span class="lnr">1131 </span><span class="Comment">(* We now wrap the type [tree] in another type, [treeMap], which the client</span>
+<span class="lnr">1132 </span><span class="Comment">   will work with. There are two reasons for doing so. One is that this allows</span>
+<span class="lnr">1133 </span><span class="Comment">   some functions, such as [add], to return unit instead of returning a new</span>
+<span class="lnr">1134 </span><span class="Comment">   data structure. The other is that this allows us to store the comparison</span>
+<span class="lnr">1135 </span><span class="Comment">   function. *)</span>
+<span class="lnr">1136 </span>
+<span class="lnr">1137 </span><span class="Keyword">mutable</span> <span class="Keyword">data</span> treeMap k <span class="Keyword">(</span>c : <span class="Keyword">term)</span> a <span class="Keyword">=</span>
+<span class="lnr">1138 </span>  <span class="Constant">TreeMap</span> <span class="Keyword">{</span> tree: tree k a<span class="Keyword">;</span> cmp: <span class="Keyword">=</span>c <span class="Keyword">|</span> c @ <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span> <span class="Keyword">}</span>
+<span class="lnr">1139 </span>
+<span class="lnr">1140 </span><span class="Keyword">val</span> cardinal <span class="Keyword">[</span>k, c : <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(</span>m: treeMap k c a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">1141 </span>  cardinal m.tree
+<span class="lnr">1142 </span>
+<span class="lnr">1143 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">1144 </span>
+<span class="lnr">1145 </span><span class="Comment">(* Creating an empty map requires supplying a comparison function [cmp],</span>
+<span class="lnr">1146 </span><span class="Comment">   which is stored within the new data structure. *)</span>
+<span class="lnr">1147 </span>
+<span class="lnr">1148 </span><span class="Keyword">val</span> create <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>cmp: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span><span class="Keyword">)</span> : treeMap k cmp a <span class="Keyword">=</span>
+<span class="lnr">1149 </span>  <span class="Constant">TreeMap</span> <span class="Keyword">{</span> tree <span class="Keyword">=</span> create<span class="Constant">()</span><span class="Keyword">;</span> cmp <span class="Keyword">}</span>
+<span class="lnr">1150 </span>
+<span class="lnr">1151 </span><span class="Keyword">val</span> singleton <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>cmp: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>, <span class="Keyword">consumes</span> x: k, <span class="Keyword">consumes</span> d: a<span class="Keyword">)</span>: treeMap k cmp a <span class="Keyword">=</span>
+<span class="lnr">1152 </span>  <span class="Constant">TreeMap</span> <span class="Keyword">{</span> tree <span class="Keyword">=</span> singleton <span class="Keyword">(</span>x, d<span class="Keyword">)</span><span class="Keyword">;</span> cmp <span class="Keyword">}</span>
+<span class="lnr">1153 </span>
+<span class="lnr">1154 </span><span class="Keyword">val</span> is_empty <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(</span>m : treeMap k c a<span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr">1155 </span>  is_empty m.tree
+<span class="lnr">1156 </span>
+<span class="lnr">1157 </span><span class="Keyword">val</span> add <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">1158 </span>  <span class="Keyword">consumes</span> x: k,
+<span class="lnr">1159 </span>  <span class="Keyword">consumes</span> d: a,
+<span class="lnr">1160 </span>  m: treeMap k c a
+<span class="lnr">1161 </span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">1162 </span>  m.tree <span class="Keyword">&lt;-</span> add <span class="Keyword">(</span>m.cmp, x, d, m.tree<span class="Keyword">)</span>
+<span class="lnr">1163 </span>
+<span class="lnr">1164 </span><span class="Keyword">val</span> find <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>
+<span class="lnr">1165 </span>  x: k,
+<span class="lnr">1166 </span>  m: treeMap k c a
+<span class="lnr">1167 </span><span class="Keyword">)</span> : <span class="Type">option</span> a <span class="Keyword">=</span>
+<span class="lnr">1168 </span>  find <span class="Keyword">(</span>m.cmp, x, m.tree<span class="Keyword">)</span>
+<span class="lnr">1169 </span>
+<span class="lnr">1170 </span><span class="Keyword">val</span> update <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a, preserved : <span class="Keyword">perm</span>, consumed : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">1171 </span>  x: k,
+<span class="lnr">1172 </span>  m: treeMap k c a,
+<span class="lnr">1173 </span>  f: <span class="Keyword">(consumes</span> a <span class="Keyword">|</span> preserved <span class="Keyword">*</span> <span class="Keyword">consumes</span> consumed<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a
+<span class="lnr">1174 </span><span class="Keyword">|</span> preserved <span class="Keyword">*</span> <span class="Keyword">consumes</span> consumed
+<span class="lnr">1175 </span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">1176 </span>  update <span class="Keyword">[</span>k, a, preserved, consumed<span class="Keyword">]</span> <span class="Keyword">(</span>m.cmp, x, m.tree, f<span class="Keyword">)</span>
+<span class="lnr">1177 </span>
+<span class="lnr">1178 </span><span class="Keyword">val</span> mem <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(</span>x: k, m: treeMap k c a<span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr">1179 </span>  mem <span class="Keyword">(</span>m.cmp, x, m.tree<span class="Keyword">)</span>
+<span class="lnr">1180 </span>
+<span class="lnr">1181 </span><span class="Keyword">val</span> min_binding <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>m : treeMap k c a<span class="Keyword">)</span> : <span class="Type">option</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">1182 </span>  min_binding m.tree
+<span class="lnr">1183 </span>
+<span class="lnr">1184 </span><span class="Keyword">val</span> max_binding <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>m : treeMap k c a<span class="Keyword">)</span> : <span class="Type">option</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">1185 </span>  max_binding m.tree
+<span class="lnr">1186 </span>
+<span class="lnr">1187 </span><span class="Keyword">val</span> extract_min_binding <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(</span>m: treeMap k c a<span class="Keyword">)</span> : <span class="Type">option</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">1188 </span>  <span class="Keyword">match</span> m.tree <span class="Keyword">with</span>
+<span class="lnr">1189 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1190 </span>      none
+<span class="lnr">1191 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1192 </span>      <span class="Keyword">let</span> node <span class="Keyword">=</span> extract_min_binding m.tree <span class="Keyword">in</span>
+<span class="lnr">1193 </span>      m.tree <span class="Keyword">&lt;-</span> node.right<span class="Keyword">;</span>
+<span class="lnr">1194 </span>      some <span class="Keyword">[(</span>k, a<span class="Keyword">)]</span> <span class="Keyword">(</span>node.key, node.value<span class="Keyword">)</span>
+<span class="lnr">1195 </span>  <span class="Keyword">end</span>
+<span class="lnr">1196 </span>
+<span class="lnr">1197 </span><span class="Keyword">val</span> extract_max_binding <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(</span>m: treeMap k c a<span class="Keyword">)</span> : <span class="Type">option</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">1198 </span>  <span class="Keyword">match</span> m.tree <span class="Keyword">with</span>
+<span class="lnr">1199 </span>  <span class="Keyword">|</span> <span class="Constant">Empty</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1200 </span>      none
+<span class="lnr">1201 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">1202 </span>      <span class="Keyword">let</span> node <span class="Keyword">=</span> extract_max_binding m.tree <span class="Keyword">in</span>
+<span class="lnr">1203 </span>      m.tree <span class="Keyword">&lt;-</span> node.left<span class="Keyword">;</span>
+<span class="lnr">1204 </span>      some <span class="Keyword">[(</span>k, a<span class="Keyword">)]</span> <span class="Keyword">(</span>node.key, node.value<span class="Keyword">)</span>
+<span class="lnr">1205 </span>  <span class="Keyword">end</span>
+<span class="lnr">1206 </span>
+<span class="lnr">1207 </span><span class="Keyword">val</span> remove <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(</span>x: k, m: treeMap k c a<span class="Keyword">)</span> : <span class="Type">option</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">1208 </span>  <span class="Keyword">let</span> dst <span class="Keyword">=</span> newref <span class="Constant">()</span> <span class="Keyword">in</span>
+<span class="lnr">1209 </span>  m.tree <span class="Keyword">&lt;-</span> remove <span class="Keyword">(</span>m.cmp, x, m.tree, dst<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">1210 </span>  <span class="Keyword">!</span>dst
+<span class="lnr">1211 </span>
+<span class="lnr">1212 </span><span class="Keyword">val</span> iter <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">1213 </span>  m: treeMap k c a,
+<span class="lnr">1214 </span>  f: <span class="Keyword">(</span>k, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>
+<span class="lnr">1215 </span>  <span class="Keyword">|</span> p
+<span class="lnr">1216 </span><span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr">1217 </span>  iter <span class="Keyword">(</span>f, m.tree<span class="Keyword">)</span>
+<span class="lnr">1218 </span>
+<span class="lnr">1219 </span><span class="Keyword">val</span> for_all <span class="Keyword">=</span>
+<span class="lnr">1220 </span>  iter
+<span class="lnr">1221 </span>
+<span class="lnr">1222 </span><span class="Comment">(* [exists] could be implemented directly, but an implementation in</span>
+<span class="lnr">1223 </span><span class="Comment">   terms of [for_all] is preferred, as a test of the type-checker. *)</span>
+<span class="lnr">1224 </span>
+<span class="lnr">1225 </span><span class="Keyword">val</span> exists <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">1226 </span>  m: treeMap k c a,
+<span class="lnr">1227 </span>  f: <span class="Keyword">(</span>k, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>
+<span class="lnr">1228 </span> <span class="Keyword">|</span> p
+<span class="lnr">1229 </span><span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr">1230 </span>  <span class="Keyword">not</span> <span class="Keyword">(</span>for_all <span class="Keyword">(</span>m, <span class="Keyword">fun</span> <span class="Keyword">(</span>key: k, value: a <span class="Keyword">|</span> p<span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr">1231 </span>    <span class="Keyword">not</span> <span class="Keyword">(</span>f <span class="Keyword">(</span>key, value<span class="Keyword">))</span>
+<span class="lnr">1232 </span>  <span class="Keyword">))</span>
+<span class="lnr">1233 </span>
+<span class="lnr">1234 </span><span class="Keyword">val</span> map <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a1, a2, b, p : <span class="Keyword">perm]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>
+<span class="lnr">1235 </span>  <span class="Keyword">consumes</span> m: treeMap k c a1,
+<span class="lnr">1236 </span>  f: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> d: a1 <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>b <span class="Keyword">|</span> d @ a2<span class="Keyword">)</span>
+<span class="lnr">1237 </span>  <span class="Keyword">|</span> p
+<span class="lnr">1238 </span><span class="Keyword">)</span> : <span class="Keyword">(</span>treeMap k c b <span class="Keyword">|</span> m @ treeMap k c a2<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">1239 </span>  <span class="Constant">TreeMap</span> <span class="Keyword">{</span> tree <span class="Keyword">=</span> map <span class="Keyword">(</span>f, m.tree<span class="Keyword">)</span><span class="Keyword">;</span> cmp <span class="Keyword">=</span> m.cmp <span class="Keyword">}</span>
+<span class="lnr">1240 </span>
+<span class="lnr">1241 </span><span class="Comment">(* [copy] could be defined directly, but is here defined as a special case of [map]. *)</span>
+<span class="lnr">1242 </span>
+<span class="lnr">1243 </span><span class="Keyword">val</span> copy <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a, b<span class="Keyword">]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>m: treeMap k c a, f: a <span class="Keyword">-&gt;</span> b<span class="Keyword">)</span> : treeMap k c b <span class="Keyword">=</span>
+<span class="lnr">1244 </span>  map <span class="Keyword">(</span>m, <span class="Keyword">fun</span> <span class="Keyword">(</span>x: k, d: a<span class="Keyword">)</span> : b <span class="Keyword">=</span> f d<span class="Keyword">)</span>
+<span class="lnr">1245 </span>
+<span class="lnr">1246 </span><span class="Keyword">val</span> fold_ascending <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a1, a2, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">1247 </span>  <span class="Keyword">consumes</span> m: treeMap k c a1,
+<span class="lnr">1248 </span>  <span class="Keyword">consumes</span> accu: b,
+<span class="lnr">1249 </span>  f: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> d: a1, <span class="Keyword">consumes</span> accu: b <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>b <span class="Keyword">|</span> d @ a2<span class="Keyword">)</span>
+<span class="lnr">1250 </span>  <span class="Keyword">|</span> p
+<span class="lnr">1251 </span><span class="Keyword">)</span> : <span class="Keyword">(</span>b <span class="Keyword">|</span> m @ treeMap k c a2<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">1252 </span>  fold_ascending <span class="Keyword">(</span>f, m.tree, accu<span class="Keyword">)</span>
+<span class="lnr">1253 </span>
+<span class="lnr">1254 </span><span class="Keyword">val</span> fold_descending <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a1, a2, b, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">1255 </span>  <span class="Keyword">consumes</span> m: treeMap k c a1,
+<span class="lnr">1256 </span>  <span class="Keyword">consumes</span> accu: b,
+<span class="lnr">1257 </span>  f: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> d: a1, <span class="Keyword">consumes</span> accu: b <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>b <span class="Keyword">|</span> d @ a2<span class="Keyword">)</span>
+<span class="lnr">1258 </span>  <span class="Keyword">|</span> p
+<span class="lnr">1259 </span><span class="Keyword">)</span> : <span class="Keyword">(</span>b <span class="Keyword">|</span> m @ treeMap k c a2<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">1260 </span>  fold_descending <span class="Keyword">(</span>f, m.tree, accu<span class="Keyword">)</span>
+<span class="lnr">1261 </span>
+<span class="lnr">1262 </span><span class="Keyword">val</span> fold <span class="Keyword">=</span>
+<span class="lnr">1263 </span>  fold_ascending
+<span class="lnr">1264 </span>
+<span class="lnr">1265 </span><span class="Keyword">val</span> merge <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a, b, c<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">1266 </span>  <span class="Keyword">consumes</span> m1: treeMap k cmp a,
+<span class="lnr">1267 </span>  <span class="Keyword">consumes</span> m2: treeMap k cmp b,
+<span class="lnr">1268 </span>  f: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> <span class="Type">option</span> a, <span class="Keyword">consumes</span> <span class="Type">option</span> b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">option</span> c
+<span class="lnr">1269 </span><span class="Keyword">)</span> : treeMap k cmp c <span class="Keyword">=</span>
+<span class="lnr">1270 </span>  m1.tree <span class="Keyword">&lt;-</span> merge <span class="Keyword">(</span>m1.cmp, f, m1.tree, m2.tree<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">1271 </span>  m1
+<span class="lnr">1272 </span>
+<span class="lnr">1273 </span><span class="Keyword">val</span> split <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">1274 </span>  x: k,
+<span class="lnr">1275 </span>  <span class="Keyword">consumes</span> m: treeMap k c a
+<span class="lnr">1276 </span><span class="Keyword">)</span> : <span class="Keyword">(</span>treeMap k c a, <span class="Type">option</span> a, treeMap k c a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">1277 </span>  <span class="Keyword">let</span> root <span class="Keyword">=</span> split <span class="Keyword">(</span>m.cmp, x, m.tree<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">1278 </span>  m.tree <span class="Keyword">&lt;-</span> root.left<span class="Keyword">;</span>
+<span class="lnr">1279 </span>  m, root.value, <span class="Constant">TreeMap</span> <span class="Keyword">{</span> tree <span class="Keyword">=</span> root.right<span class="Keyword">;</span> cmp <span class="Keyword">=</span> m.cmp <span class="Keyword">}</span>
+<span class="lnr">1280 </span>
+<span class="lnr">1281 </span><span class="Keyword">val</span> filter <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">1282 </span>  <span class="Keyword">consumes</span> m: treeMap k c a,
+<span class="lnr">1283 </span>  p: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">option</span> b
+<span class="lnr">1284 </span><span class="Keyword">)</span> : treeMap k c b <span class="Keyword">=</span>
+<span class="lnr">1285 </span>  m.tree <span class="Keyword">&lt;-</span> filter <span class="Keyword">(</span>p, m.tree<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">1286 </span>  m
+<span class="lnr">1287 </span>
+<span class="lnr">1288 </span><span class="Keyword">val</span> partition <span class="Keyword">[</span>k, cmp: <span class="Keyword">term</span>, a, b, c<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">1289 </span>  <span class="Keyword">consumes</span> m: treeMap k cmp a,
+<span class="lnr">1290 </span>  p: <span class="Keyword">(</span>k, <span class="Keyword">consumes</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> choice b c
+<span class="lnr">1291 </span><span class="Keyword">)</span> : <span class="Keyword">(</span>treeMap k cmp b, treeMap k cmp c<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">1292 </span>  <span class="Keyword">let</span> left, right <span class="Keyword">=</span> partition <span class="Keyword">(</span>p, m.tree<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">1293 </span>  m.tree <span class="Keyword">&lt;-</span> left<span class="Keyword">;</span>
+<span class="lnr">1294 </span>  m, <span class="Constant">TreeMap</span> <span class="Keyword">{</span> tree <span class="Keyword">=</span> right<span class="Keyword">;</span> cmp <span class="Keyword">=</span> m.cmp <span class="Keyword">}</span>
+<span class="lnr">1295 </span>
+<span class="lnr">1296 </span><span class="Comment">(* We might wish to make [compare] a unary function</span>
+<span class="lnr">1297 </span><span class="Comment">   of [cmp] to a binary function of [(m1, m2)]. *)</span>
+<span class="lnr">1298 </span>
+<span class="lnr">1299 </span><span class="Keyword">val</span> compare <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">1300 </span>  cmp: <span class="Keyword">(</span>a, a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr">1301 </span>  m1: treeMap k c a,
+<span class="lnr">1302 </span>  m2: treeMap k c a
+<span class="lnr">1303 </span><span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">1304 </span>  compare <span class="Keyword">(</span>m1.cmp, cmp, m1.tree, m2.tree<span class="Keyword">)</span>
+<span class="lnr">1305 </span>
+<span class="lnr">1306 </span><span class="Keyword">val</span> equal <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">1307 </span>  cmp: <span class="Keyword">(</span>a, a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span>,
+<span class="lnr">1308 </span>  m1: treeMap k c a,
+<span class="lnr">1309 </span>  m2: treeMap k c a
+<span class="lnr">1310 </span><span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr">1311 </span>  compare <span class="Keyword">(</span>cmp, m1, m2<span class="Keyword">)</span> <span class="Keyword">=</span> <span class="Number">0</span>
+<span class="lnr">1312 </span>
+<span class="lnr">1313 </span><span class="Keyword">val</span> bindings <span class="Keyword">[</span>k, c: <span class="Keyword">term</span>, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> k <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>
+<span class="lnr">1314 </span>  m: treeMap k c a
+<span class="lnr">1315 </span><span class="Keyword">)</span> : <span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> <span class="Keyword">(</span>k, a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">1316 </span>  bindings m.tree
+<span class="lnr">1317 </span>
+<span class="lnr">1318 </span><span class="Comment">(* TEMPORARY compare .mzi file with map.mli *)</span>
+<span class="lnr">1319 </span>
+<span class="lnr">1320 </span><span class="Comment">(*</span>
+<span class="lnr">1321 </span><span class="Comment">Local Variables:</span>
+<span class="lnr">1322 </span><span class="Comment">compile-command: &quot;../mezzo mutableTreeMap.mz&quot;</span>
+<span class="lnr">1323 </span><span class="Comment">End:</span>
+<span class="lnr">1324 </span><span class="Comment">*)</span>
+</pre>
+</body>
+</html>

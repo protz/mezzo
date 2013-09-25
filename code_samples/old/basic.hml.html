@@ -1,0 +1,118 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/tests/basic.hml.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="ocaml">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Type { color: #cae682; }
+.Constant { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Comment">(* This is just a sample file. Try changing menhir to menhir --trace in the</span>
+<span class="lnr"> 2 </span><span class="Comment"> * Makefile to see the tokens being accepted and/or rejected. *)</span>
+<span class="lnr"> 3 </span>data t a <span class="Keyword">=</span>
+<span class="lnr"> 4 </span>  <span class="Keyword">|</span> <span class="Constant">Foo</span>
+<span class="lnr"> 5 </span>  <span class="Keyword">|</span> <span class="Constant">Bar</span> <span class="Keyword">{</span>
+<span class="lnr"> 6 </span>    baz: a<span class="Keyword">;</span>
+<span class="lnr"> 7 </span>  <span class="Keyword">}</span>
+<span class="lnr"> 8 </span>
+<span class="lnr"> 9 </span>data tree a <span class="Keyword">=</span>
+<span class="lnr">10 </span>  <span class="Keyword">|</span> <span class="Constant">Leaf</span>
+<span class="lnr">11 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">{</span>
+<span class="lnr">12 </span>      datum: a<span class="Keyword">;</span>
+<span class="lnr">13 </span>      left: tree a<span class="Keyword">;</span>
+<span class="lnr">14 </span>      right: tree a
+<span class="lnr">15 </span>    <span class="Keyword">}</span>
+<span class="lnr">16 </span>
+<span class="lnr">17 </span>data ty <span class="Keyword">=</span> <span class="Constant">DummyType</span>
+<span class="lnr">18 </span>
+<span class="lnr">19 </span>data typechecker <span class="Keyword">=</span>
+<span class="lnr">20 </span>  <span class="Constant">TC</span> <span class="Keyword">{</span> typechecker: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>consumes t: tree a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>ty <span class="Keyword">|</span> t @ tree ty<span class="Keyword">)</span> <span class="Keyword">}</span>
+<span class="lnr">21 </span>
+<span class="lnr">22 </span>data <span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">23 </span>  <span class="Keyword">|</span> <span class="Constant">Cons</span> <span class="Keyword">{</span> head: a<span class="Keyword">;</span> tail: <span class="Type">list</span> a <span class="Keyword">}</span>
+<span class="lnr">24 </span>  <span class="Keyword">|</span> <span class="Constant">Nil</span>
+<span class="lnr">25 </span>
+<span class="lnr">26 </span>abstract <span class="Type">int</span>
+<span class="lnr">27 </span>fact duplicable <span class="Keyword">(</span><span class="Type">int</span><span class="Keyword">)</span>
+<span class="lnr">28 </span>
+<span class="lnr">29 </span>data <span class="Type">bool</span> <span class="Keyword">=</span> <span class="Constant">False</span> <span class="Keyword">|</span> <span class="Constant">True</span>
+<span class="lnr">30 </span>
+<span class="lnr">31 </span>data listops <span class="Keyword">=</span>
+<span class="lnr">32 </span>  <span class="Constant">ListOps</span> <span class="Keyword">{</span>
+<span class="lnr">33 </span>    length: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>x: <span class="Type">list</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span><span class="Keyword">;</span>
+<span class="lnr">34 </span>    length: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>consumes xs: <span class="Type">list</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>result: <span class="Type">int</span> <span class="Keyword">|</span> xs @ <span class="Type">list</span> a<span class="Keyword">)</span><span class="Keyword">;</span> <span class="Comment">(* more explicit form *)</span>
+<span class="lnr">35 </span>    length: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>consumes xs: unknown <span class="Keyword">|</span> consumes xs @ <span class="Type">list</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">36 </span>                <span class="Keyword">(</span>result: <span class="Type">int</span> <span class="Keyword">|</span> xs @ <span class="Type">list</span> a<span class="Keyword">)</span><span class="Keyword">;</span> <span class="Comment">(* even more explicit form *)</span>
+<span class="lnr">37 </span>    find: <span class="Keyword">[</span>key, a<span class="Keyword">]</span> <span class="Comment">(* duplicable a =&gt; *)</span> <span class="Keyword">(</span><span class="Type">list</span> <span class="Keyword">(</span>key, a<span class="Keyword">)</span>, <span class="Keyword">(</span>key, key<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>, key<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> a<span class="Keyword">;</span>
+<span class="lnr">38 </span>    concat: <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>consumes l1: <span class="Type">list</span> a, consumes l2: <span class="Type">list</span> a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>l3: <span class="Type">list</span> a<span class="Keyword">)</span>
+<span class="lnr">39 </span>  <span class="Keyword">}</span>
+<span class="lnr">40 </span>
+<span class="lnr">41 </span><span class="Keyword">mutable</span> data foo a b c <span class="Keyword">=</span>
+<span class="lnr">42 </span>  <span class="Constant">Foo</span> <span class="Keyword">{</span>
+<span class="lnr">43 </span>    bar: a<span class="Keyword">;</span>
+<span class="lnr">44 </span>    baz: baz b c a<span class="Keyword">;</span>
+<span class="lnr">45 </span>  <span class="Keyword">}</span>
+<span class="lnr">46 </span>
+<span class="lnr">47 </span>data baz a b c <span class="Keyword">=</span>
+<span class="lnr">48 </span>  <span class="Constant">Baz</span> <span class="Keyword">{</span>
+<span class="lnr">49 </span>    foo: foo a b c<span class="Keyword">;</span>
+<span class="lnr">50 </span>  <span class="Keyword">}</span>
+<span class="lnr">51 </span>
+<span class="lnr">52 </span>data v α <span class="Keyword">=</span> <span class="Constant">V</span> <span class="Keyword">{</span>
+<span class="lnr">53 </span>  foo: u α<span class="Keyword">;</span>
+<span class="lnr">54 </span><span class="Keyword">}</span>
+<span class="lnr">55 </span>
+<span class="lnr">56 </span>data u α <span class="Keyword">=</span> <span class="Constant">U</span> <span class="Keyword">{</span>
+<span class="lnr">57 </span>  bar: α<span class="Keyword">;</span>
+<span class="lnr">58 </span>  baz: v α<span class="Keyword">;</span>
+<span class="lnr">59 </span><span class="Keyword">}</span>
+<span class="lnr">60 </span>
+<span class="lnr">61 </span><span class="Comment">(* The example discussed on the board. Takes three rounds to get to the</span>
+<span class="lnr">62 </span><span class="Comment"> * fixpoint. *)</span>
+<span class="lnr">63 </span>data t1 a b <span class="Keyword">=</span> <span class="Constant">T1</span> <span class="Keyword">{</span>
+<span class="lnr">64 </span>  foo: t2 a b<span class="Keyword">;</span>
+<span class="lnr">65 </span><span class="Keyword">}</span>
+<span class="lnr">66 </span>
+<span class="lnr">67 </span>data t2 a b <span class="Keyword">=</span> <span class="Constant">T2</span> <span class="Keyword">{</span>
+<span class="lnr">68 </span>  bar: t1 <span class="Keyword">(</span>a, b<span class="Keyword">)</span> b<span class="Keyword">;</span>
+<span class="lnr">69 </span>  baz: a<span class="Keyword">;</span>
+<span class="lnr">70 </span><span class="Keyword">}</span>
+<span class="lnr">71 </span>
+<span class="lnr">72 </span><span class="Comment">(* Only b and d should be constrained. *)</span>
+<span class="lnr">73 </span>data odd a b c d <span class="Keyword">=</span> <span class="Constant">S</span> <span class="Keyword">{</span> foo: b<span class="Keyword">;</span> bar: d <span class="Keyword">}</span>
+<span class="lnr">74 </span>
+<span class="lnr">75 </span><span class="Comment">(* [list_of_refs] should be affine *)</span>
+<span class="lnr">76 </span><span class="Keyword">mutable</span> data ref a <span class="Keyword">=</span> <span class="Constant">Ref</span> <span class="Keyword">{</span> contents: a <span class="Keyword">}</span>
+<span class="lnr">77 </span>data list_refs a <span class="Keyword">=</span> <span class="Constant">L</span> <span class="Keyword">{</span> <span class="Type">list</span>: <span class="Type">list</span> <span class="Keyword">(</span>ref a<span class="Keyword">)</span> <span class="Keyword">}</span>
+<span class="lnr">78 </span>
+<span class="lnr">79 </span><span class="Comment">(* data not_well_kinded container a = N { contents: container a; } *)</span>
+<span class="lnr">80 </span>
+<span class="lnr">81 </span>data should_be_dup a <span class="Keyword">=</span> <span class="Constant">D</span> <span class="Keyword">{</span>
+<span class="lnr">82 </span>  foo: <span class="Constant">Nil</span><span class="Keyword">;</span>
+<span class="lnr">83 </span>  bar: a<span class="Keyword">;</span>
+<span class="lnr">84 </span>  foo: <span class="Constant">Cons</span> <span class="Keyword">{</span> head: a<span class="Keyword">;</span> tail: <span class="Type">list</span> a <span class="Keyword">}</span><span class="Keyword">;</span>
+<span class="lnr">85 </span><span class="Keyword">}</span>
+<span class="lnr">86 </span>
+<span class="lnr">87 </span>data should_be_aff a <span class="Keyword">=</span> <span class="Constant">A</span> <span class="Keyword">{</span>
+<span class="lnr">88 </span>  foo: <span class="Constant">Cons</span> <span class="Keyword">{</span> head: ref a<span class="Keyword">;</span> tail: <span class="Type">list</span> <span class="Keyword">(</span>ref a<span class="Keyword">)</span> <span class="Keyword">}</span><span class="Keyword">;</span>
+<span class="lnr">89 </span><span class="Keyword">}</span>
+<span class="lnr">90 </span>
+<span class="lnr">91 </span><span class="Keyword">mutable</span> data noparams <span class="Keyword">=</span> <span class="Constant">NoParams</span>
+<span class="lnr">92 </span>data aff <span class="Keyword">=</span> <span class="Constant">Whatever</span> <span class="Keyword">{</span> whatever: noparams<span class="Keyword">;</span> <span class="Keyword">}</span>
+</pre>
+</body>
+</html>

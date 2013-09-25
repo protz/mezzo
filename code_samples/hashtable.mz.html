@@ -1,0 +1,394 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/hashtable.mz.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Number { color: #e5786d; }
+.Type { color: #cae682; }
+.Constant { color: #e5786d; }
+.Comment { color: #99968b; font-style: italic; }
+.PreProc { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr">  1 </span><span class="Keyword">open</span> <span class="PreProc">bucket</span>
+<span class="lnr">  2 </span><span class="Comment">(* TEMPORARY ultimately, might wish not to open bucket *)</span>
+<span class="lnr">  3 </span>
+<span class="lnr">  4 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">  5 </span>
+<span class="lnr">  6 </span><span class="Comment">(* The definition of a hash table. *)</span>
+<span class="lnr">  7 </span>
+<span class="lnr">  8 </span><span class="Keyword">mutable</span> <span class="Keyword">data</span> table k a <span class="Keyword">=</span>
+<span class="lnr">  9 </span>  <span class="Constant">Table</span> <span class="Keyword">{</span>
+<span class="lnr"> 10 </span>    <span class="Comment">(* The table's current number of elements. *)</span>
+<span class="lnr"> 11 </span>    cardinal: <span class="Type">int</span><span class="Keyword">;</span>
+<span class="lnr"> 12 </span>    <span class="Comment">(* The bucket array, whose length is always a power of 2. *)</span>
+<span class="lnr"> 13 </span>    buckets: <span class="Type">array</span> <span class="Keyword">(</span>bucket k a<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr"> 14 </span>    <span class="Comment">(* The hash function. *)</span>
+<span class="lnr"> 15 </span>    hash: k <span class="Keyword">-&gt;</span> <span class="Type">int</span><span class="Keyword">;</span>
+<span class="lnr"> 16 </span>    <span class="Comment">(* The equality function. *)</span>
+<span class="lnr"> 17 </span>    equal: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>
+<span class="lnr"> 18 </span>  <span class="Keyword">}</span>
+<span class="lnr"> 19 </span>
+<span class="lnr"> 20 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 21 </span>
+<span class="lnr"> 22 </span><span class="Comment">(* Creation. *)</span>
+<span class="lnr"> 23 </span>
+<span class="lnr"> 24 </span><span class="Comment">(* [create_buckets] rounds up its [capacity] argument to the nearest power of</span>
+<span class="lnr"> 25 </span><span class="Comment">   2 above [n], then allocates a new bucket array. *)</span>
+<span class="lnr"> 26 </span>
+<span class="lnr"> 27 </span><span class="Keyword">val</span> create_buckets <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>capacity: <span class="Type">int</span><span class="Keyword">)</span> : <span class="Type">array</span> <span class="Keyword">(</span>bucket k a<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr"> 28 </span>  <span class="Type">array</span><span class="Keyword">::</span>init <span class="Keyword">(</span><span class="Constant">Up</span>, <span class="Type">array</span><span class="Keyword">::</span>above <span class="Keyword">(</span><span class="Number">16</span>, capacity<span class="Keyword">)</span>, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span><span class="Keyword">)</span> : bucket k a <span class="Keyword">=</span> <span class="Constant">BNil</span><span class="Keyword">)</span>
+<span class="lnr"> 29 </span>
+<span class="lnr"> 30 </span><span class="Comment">(* Creation. *)</span>
+<span class="lnr"> 31 </span>
+<span class="lnr"> 32 </span><span class="Keyword">val</span> create <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>capacity: <span class="Type">int</span>, hash: k <span class="Keyword">-&gt;</span> <span class="Type">int</span>, equal: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span><span class="Keyword">)</span> : table k a <span class="Keyword">=</span>
+<span class="lnr"> 33 </span>  <span class="Constant">Table</span> <span class="Keyword">{</span>
+<span class="lnr"> 34 </span>    cardinal <span class="Keyword">=</span> <span class="Number">0</span><span class="Keyword">;</span>
+<span class="lnr"> 35 </span>    buckets <span class="Keyword">=</span> create_buckets capacity<span class="Keyword">;</span>
+<span class="lnr"> 36 </span>    hash <span class="Keyword">=</span> hash<span class="Keyword">;</span>
+<span class="lnr"> 37 </span>    equal <span class="Keyword">=</span> equal
+<span class="lnr"> 38 </span>  <span class="Keyword">}</span>
+<span class="lnr"> 39 </span>
+<span class="lnr"> 40 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 41 </span>
+<span class="lnr"> 42 </span><span class="Comment">(* Internal functions. *)</span>
+<span class="lnr"> 43 </span>
+<span class="lnr"> 44 </span><span class="Comment">(* [key_index] computes the array index that corresponds to the key [x]. *)</span>
+<span class="lnr"> 45 </span>
+<span class="lnr"> 46 </span><span class="Comment">(* The type assigned to [key_index] is much more complex than I would like:</span>
+<span class="lnr"> 47 </span><span class="Comment">   we have been forced to expand the permission [t @ table k a] and assign</span>
+<span class="lnr"> 48 </span><span class="Comment">   the name [buckets] to the value contained in the [buckets] field of [t].</span>
+<span class="lnr"> 49 </span><span class="Comment">   This allows us to express the fact that [t.buckets] is *not* modified by</span>
+<span class="lnr"> 50 </span><span class="Comment">   [key_index]. This fact, in turn, is required in order to type-check some</span>
+<span class="lnr"> 51 </span><span class="Comment">   clients. If we wrote just [t @ table k a], we would know that [t] remains</span>
+<span class="lnr"> 52 </span><span class="Comment">   a table, but we would not know that [t.buckets] is unmodified, so a client</span>
+<span class="lnr"> 53 </span><span class="Comment">   that reads [t.buckets] *before* invoking [key_index] and uses this value</span>
+<span class="lnr"> 54 </span><span class="Comment">   *after* invoking [key_index] would be ill-typed. *)</span>
+<span class="lnr"> 55 </span>
+<span class="lnr"> 56 </span><span class="Comment">(* TEMPORARY a &quot;const&quot; permission would be useful here *)</span>
+<span class="lnr"> 57 </span>
+<span class="lnr"> 58 </span><span class="Keyword">val</span> key_index <span class="Keyword">[</span>k, a, buckets : <span class="Keyword">term]</span> <span class="Keyword">(</span>
+<span class="lnr"> 59 </span>  t: <span class="Constant">Table</span> <span class="Keyword">{</span> cardinal: <span class="Type">int</span><span class="Keyword">;</span> buckets <span class="Keyword">=</span> buckets<span class="Keyword">;</span> hash: k <span class="Keyword">-&gt;</span> <span class="Type">int</span><span class="Keyword">;</span> equal: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span> <span class="Keyword">}</span>,
+<span class="lnr"> 60 </span>  x: k
+<span class="lnr"> 61 </span>  <span class="Keyword">|</span> buckets @ <span class="Type">array</span> <span class="Keyword">(</span>bucket k a<span class="Keyword">)</span>
+<span class="lnr"> 62 </span><span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr"> 63 </span>  t.hash x &amp; <span class="Keyword">(</span><span class="Type">array</span><span class="Keyword">::</span>length t.buckets - <span class="Number">1</span><span class="Keyword">)</span>
+<span class="lnr"> 64 </span>
+<span class="lnr"> 65 </span><span class="Comment">(* [push] inserts a detached entry, which contains a valid key-value pair,</span>
+<span class="lnr"> 66 </span><span class="Comment">   into the table [t]. *)</span>
+<span class="lnr"> 67 </span>
+<span class="lnr"> 68 </span><span class="Keyword">val</span> push <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr"> 69 </span>  t: table k a,
+<span class="lnr"> 70 </span>  <span class="Keyword">consumes</span> entry: <span class="Constant">BCons</span> <span class="Keyword">{</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> tail: <span class="Keyword">unknown</span> <span class="Keyword">}</span>
+<span class="lnr"> 71 </span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 72 </span>  <span class="Keyword">let</span> i <span class="Keyword">=</span> key_index <span class="Keyword">(</span>t, entry.key<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr"> 73 </span>  <span class="Type">array</span><span class="Keyword">::</span>update <span class="Keyword">(</span>t.buckets, i,
+<span class="lnr"> 74 </span>    <span class="Keyword">fun</span> <span class="Keyword">(consumes</span> b: bucket k a <span class="Keyword">|</span> <span class="Keyword">consumes</span> entry @ <span class="Constant">BCons</span> <span class="Keyword">{</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> tail: <span class="Keyword">unknown</span> <span class="Keyword">})</span> : bucket k a <span class="Keyword">=</span>
+<span class="lnr"> 75 </span>      entry.tail <span class="Keyword">&lt;-</span> b<span class="Keyword">;</span>
+<span class="lnr"> 76 </span>      entry
+<span class="lnr"> 77 </span>  <span class="Keyword">)</span>
+<span class="lnr"> 78 </span>
+<span class="lnr"> 79 </span><span class="Comment">(* [push_bucket t (_, b)] inserts the whole bucket [b] (that is, a list of</span>
+<span class="lnr"> 80 </span><span class="Comment">   entries), which contain valid key-value pairs, into the table [t]. For</span>
+<span class="lnr"> 81 </span><span class="Comment">   convenience, this function is curried. *)</span>
+<span class="lnr"> 82 </span>
+<span class="lnr"> 83 </span><span class="Comment">(* TEMPORARY a more lightweight/intuitive syntax for currying would be welcome! *)</span>
+<span class="lnr"> 84 </span>
+<span class="lnr"> 85 </span><span class="Keyword">val</span> push_bucket <span class="Keyword">[</span>k, a<span class="Keyword">]</span>
+<span class="lnr"> 86 </span>  <span class="Keyword">(</span>t: <span class="Keyword">unknown)</span> :
+<span class="lnr"> 87 </span>  <span class="Keyword">(</span><span class="Type">int</span>, <span class="Keyword">consumes</span> bucket k a <span class="Keyword">|</span> t @ table k a<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 88 </span>  <span class="Keyword">fun</span> <span class="Keyword">(</span><span class="Keyword">_</span>: <span class="Type">int</span>, <span class="Keyword">consumes</span> b: bucket k a <span class="Keyword">|</span> t @ table k a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 89 </span>    iter_bucket_down <span class="Keyword">(</span>b, <span class="Keyword">fun</span> <span class="Keyword">(consumes</span> entry: <span class="Constant">BCons</span> <span class="Keyword">{</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> tail: <span class="Keyword">unknown</span> <span class="Keyword">}</span> <span class="Keyword">|</span> t @ table k a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 90 </span>      push <span class="Keyword">(</span>t, entry<span class="Keyword">)</span>
+<span class="lnr"> 91 </span>    <span class="Keyword">)</span>
+<span class="lnr"> 92 </span>
+<span class="lnr"> 93 </span><span class="Comment">(* [resize] doubles the size of the hash table. A new buckets array is allocated.</span>
+<span class="lnr"> 94 </span><span class="Comment">   The existing entries are re-used: they are not re-allocated. *)</span>
+<span class="lnr"> 95 </span>
+<span class="lnr"> 96 </span><span class="Keyword">val</span> resize <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>t: table k a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr"> 97 </span>  <span class="Keyword">let</span> old_buckets <span class="Keyword">=</span> t.buckets <span class="Keyword">in</span>
+<span class="lnr"> 98 </span>  <span class="Keyword">let</span> new_size <span class="Keyword">=</span> <span class="Type">array</span><span class="Keyword">::</span>length old_buckets <span class="Keyword">*</span> <span class="Number">2</span> <span class="Keyword">in</span>
+<span class="lnr"> 99 </span>  <span class="Keyword">if</span> new_size <span class="Keyword">&lt;</span> <span class="Type">array</span><span class="Keyword">::</span>max_length <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">100 </span>    <span class="Comment">(* Update [t.buckets] immediately, so that [key_index] sees the new</span>
+<span class="lnr">101 </span><span class="Comment">       bucket count. *)</span>
+<span class="lnr">102 </span>    t.buckets <span class="Keyword">&lt;-</span> <span class="Type">array</span><span class="Keyword">::</span>init <span class="Keyword">(</span><span class="Constant">Up</span>, new_size, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span><span class="Keyword">)</span> : bucket k a <span class="Keyword">=</span> <span class="Constant">BNil</span><span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">103 </span>    <span class="Comment">(* The array [old_buckets] is consumed by the following loop. This allows</span>
+<span class="lnr">104 </span><span class="Comment">       us to grab the entries that we find in it and move them (without copy)</span>
+<span class="lnr">105 </span><span class="Comment">       to the new array [t.buckets]. *)</span>
+<span class="lnr">106 </span>    <span class="Type">array</span><span class="Keyword">::</span>transform <span class="Keyword">(</span><span class="Constant">Up</span>, old_buckets, push_bucket t<span class="Keyword">)</span>
+<span class="lnr">107 </span>  <span class="Keyword">end</span>
+<span class="lnr">108 </span>
+<span class="lnr">109 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">110 </span>
+<span class="lnr">111 </span><span class="Comment">(* Merging one table into another. *)</span>
+<span class="lnr">112 </span>
+<span class="lnr">113 </span><span class="Keyword">val</span> merge <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> t1: table k a, t2: table k a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">114 </span>  <span class="Comment">(* Update the cardinal of [t2]. *)</span>
+<span class="lnr">115 </span>  t2.cardinal <span class="Keyword">&lt;-</span> t2.cardinal + t1.cardinal<span class="Keyword">;</span>
+<span class="lnr">116 </span>  <span class="Comment">(* Add the entries of [t1] are added into [t2], without any memory</span>
+<span class="lnr">117 </span><span class="Comment">     allocation. *)</span>
+<span class="lnr">118 </span>  <span class="Type">array</span><span class="Keyword">::</span>transform <span class="Keyword">(</span><span class="Constant">Up</span>, t1.buckets, push_bucket t2<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">119 </span>  <span class="Comment">(* Now, [t2] may need to be resized, possibly multiple times. It</span>
+<span class="lnr">120 </span><span class="Comment">     would be preferable to resize [t2] just once, and to do it up</span>
+<span class="lnr">121 </span><span class="Comment">     front, before transferring [t1] into [t2]. TEMPORARY *)</span>
+<span class="lnr">122 </span>  <span class="Keyword">let</span> <span class="Keyword">rec</span> loop <span class="Keyword">(</span><span class="Keyword">|</span> t2 @ table k a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">123 </span>    <span class="Keyword">if</span> t2.cardinal <span class="Keyword">&gt;</span> <span class="Number">2</span> <span class="Keyword">*</span> <span class="Type">array</span><span class="Keyword">::</span>length t2.buckets <span class="Keyword">then</span> <span class="Keyword">begin</span>
+<span class="lnr">124 </span>      resize t2<span class="Keyword">;</span>
+<span class="lnr">125 </span>      loop<span class="Constant">()</span>
+<span class="lnr">126 </span>    <span class="Keyword">end</span>
+<span class="lnr">127 </span>  <span class="Keyword">in</span>
+<span class="lnr">128 </span>  loop<span class="Constant">()</span>
+<span class="lnr">129 </span>
+<span class="lnr">130 </span><span class="Comment">(* TEMPORARY we could return a permission for t1 as an empty table. *)</span>
+<span class="lnr">131 </span>
+<span class="lnr">132 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">133 </span>
+<span class="lnr">134 </span><span class="Comment">(* Clearing. *)</span>
+<span class="lnr">135 </span>
+<span class="lnr">136 </span><span class="Keyword">val</span> clear <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>t: table k a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">137 </span>  t.cardinal <span class="Keyword">&lt;-</span> <span class="Number">0</span><span class="Keyword">;</span>
+<span class="lnr">138 </span>  <span class="Type">array</span><span class="Keyword">::</span>transform <span class="Keyword">(</span><span class="Constant">Up</span>, t.buckets, <span class="Keyword">fun</span> <span class="Keyword">(</span>i: <span class="Type">int</span>, <span class="Keyword">_</span>: bucket k a<span class="Keyword">)</span> : bucket k a <span class="Keyword">=</span> <span class="Constant">BNil</span><span class="Keyword">)</span>
+<span class="lnr">139 </span>
+<span class="lnr">140 </span><span class="Keyword">val</span> reset <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>t: table k a, capacity: <span class="Type">int</span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">141 </span>  t.cardinal <span class="Keyword">&lt;-</span> <span class="Number">0</span><span class="Keyword">;</span>
+<span class="lnr">142 </span>  t.buckets <span class="Keyword">&lt;-</span> create_buckets capacity
+<span class="lnr">143 </span>
+<span class="lnr">144 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">145 </span>
+<span class="lnr">146 </span><span class="Comment">(* Insertion. *)</span>
+<span class="lnr">147 </span>
+<span class="lnr">148 </span><span class="Keyword">val</span> add <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(consumes</span> x: k, <span class="Keyword">consumes</span> v: a, t: table k a<span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">149 </span>  push <span class="Keyword">(</span>t, <span class="Constant">BCons</span> <span class="Keyword">{</span> key <span class="Keyword">=</span> x<span class="Keyword">;</span> value <span class="Keyword">=</span> v<span class="Keyword">;</span> tail <span class="Keyword">=</span> <span class="Constant">()</span> <span class="Keyword">})</span><span class="Keyword">;</span>
+<span class="lnr">150 </span>  t.cardinal <span class="Keyword">&lt;-</span> t.cardinal + <span class="Number">1</span><span class="Keyword">;</span>
+<span class="lnr">151 </span>  <span class="Keyword">if</span> t.cardinal <span class="Keyword">&gt;</span> <span class="Number">2</span> <span class="Keyword">*</span> <span class="Type">array</span><span class="Keyword">::</span>length t.buckets <span class="Keyword">then</span>
+<span class="lnr">152 </span>    resize t
+<span class="lnr">153 </span>
+<span class="lnr">154 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">155 </span>
+<span class="lnr">156 </span><span class="Comment">(* Removal. *)</span>
+<span class="lnr">157 </span>
+<span class="lnr">158 </span><span class="Comment">(* In an earlier version of this code, instead of using an auxiliary reference</span>
+<span class="lnr">159 </span><span class="Comment">   cell [r], we updated [t.cardinal] directly inside the function</span>
+<span class="lnr">160 </span><span class="Comment">   [ok]. Type-checking this version of the code was more tricky, because [ok]</span>
+<span class="lnr">161 </span><span class="Comment">   needed read/write access to [t.cardinal] at a moment when the ownership of</span>
+<span class="lnr">162 </span><span class="Comment">   [t.buckets] had been taken away from [t] by [array::update]. This forced</span>
+<span class="lnr">163 </span><span class="Comment">   [ok] to request (and preserve) a precise description of [t], so that the</span>
+<span class="lnr">164 </span><span class="Comment">   type system could tell that [ok] did not modify the field [t.buckets]. *)</span>
+<span class="lnr">165 </span>
+<span class="lnr">166 </span><span class="Keyword">val</span> remove <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>x: k, t: table k a<span class="Keyword">)</span> : <span class="Type">option</span> a <span class="Keyword">=</span>
+<span class="lnr">167 </span>
+<span class="lnr">168 </span>  <span class="Keyword">let</span> equal <span class="Keyword">=</span> t.equal <span class="Keyword">in</span>
+<span class="lnr">169 </span>
+<span class="lnr">170 </span>  <span class="Comment">(* Define an [ok] predicate that can be passed to [bucket::remove]. *)</span>
+<span class="lnr">171 </span>  <span class="Keyword">let</span> ok <span class="Keyword">(</span>key: k <span class="Keyword">|</span> x @ k<span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr">172 </span>    equal <span class="Keyword">(</span>key, x<span class="Keyword">)</span>
+<span class="lnr">173 </span>  <span class="Keyword">in</span>
+<span class="lnr">174 </span>
+<span class="lnr">175 </span>  <span class="Comment">(* Allocate a reference to store the second result of [bucket::remove]. *)</span>
+<span class="lnr">176 </span>  <span class="Keyword">let</span> r <span class="Keyword">=</span> newref none <span class="Keyword">in</span>
+<span class="lnr">177 </span>
+<span class="lnr">178 </span>  <span class="Comment">(* Partially apply [bucket::remove] to [ok]. Arrange for the second</span>
+<span class="lnr">179 </span><span class="Comment">     result of [bucket::remove] to be stored in [r], so [remove] returns</span>
+<span class="lnr">180 </span><span class="Comment">     just one result and is a suitable argument for [array::update]. *)</span>
+<span class="lnr">181 </span>  <span class="Keyword">let</span> remove <span class="Keyword">(consumes</span> b: bucket k a <span class="Keyword">|</span> x @ k <span class="Keyword">*</span> r @ ref <span class="Keyword">(</span><span class="Type">option</span> a<span class="Keyword">))</span> : bucket k a <span class="Keyword">=</span>
+<span class="lnr">182 </span>    <span class="Keyword">let</span> b, v <span class="Keyword">=</span> <span class="Constant">bucket::</span>remove <span class="Keyword">(</span>b, ok<span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">183 </span>    r <span class="Keyword">:=</span> v<span class="Keyword">;</span>
+<span class="lnr">184 </span>    b
+<span class="lnr">185 </span>  <span class="Keyword">in</span>
+<span class="lnr">186 </span>
+<span class="lnr">187 </span>  <span class="Comment">(* Apply [remove] at the desired array index. *)</span>
+<span class="lnr">188 </span>  <span class="Type">array</span><span class="Keyword">::</span>update
+<span class="lnr">189 </span>    <span class="Keyword">[</span>post <span class="Keyword">=</span> <span class="Keyword">(</span>x @ k <span class="Keyword">*</span> r @ ref <span class="Keyword">(</span><span class="Type">option</span> a<span class="Keyword">))]</span> <span class="Comment">(* WISH get rid of this *)</span>
+<span class="lnr">190 </span>    <span class="Keyword">(</span>t.buckets, key_index <span class="Keyword">(</span>t, x<span class="Keyword">)</span>, remove<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">191 </span>
+<span class="lnr">192 </span>  <span class="Comment">(* If the desired entry has been found and removed, update the table's</span>
+<span class="lnr">193 </span><span class="Comment">     cardinal. Then, return the value that was removed. *)</span>
+<span class="lnr">194 </span>  <span class="Keyword">if</span> <span class="Keyword">!</span>r <span class="Keyword">then</span>
+<span class="lnr">195 </span>    t.cardinal <span class="Keyword">&lt;-</span> t.cardinal - <span class="Number">1</span><span class="Keyword">;</span>
+<span class="lnr">196 </span>  <span class="Keyword">!</span>r
+<span class="lnr">197 </span>
+<span class="lnr">198 </span><span class="Comment">(* TEMPORARY we need also [remove_all]? does ocaml offer it? *)</span>
+<span class="lnr">199 </span>
+<span class="lnr">200 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">201 </span>
+<span class="lnr">202 </span><span class="Comment">(* Lookup. *)</span>
+<span class="lnr">203 </span>
+<span class="lnr">204 </span><span class="Keyword">val</span> mem <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>x: k, t: table k a<span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr">205 </span>  <span class="Keyword">let</span> equal <span class="Keyword">=</span> t.equal <span class="Keyword">in</span>
+<span class="lnr">206 </span>  <span class="Type">array</span><span class="Keyword">::</span>consult
+<span class="lnr">207 </span>    <span class="Keyword">[</span>b <span class="Keyword">=</span> <span class="Keyword">(</span><span class="Type">bool</span> <span class="Keyword">|</span> x @ k<span class="Keyword">)]</span>
+<span class="lnr">208 </span>    <span class="Comment">(* WISH could we get rid of this type application? *)</span>
+<span class="lnr">209 </span>    <span class="Keyword">(</span>t.buckets, key_index <span class="Keyword">(</span>t, x<span class="Keyword">)</span>, <span class="Keyword">fun</span> <span class="Keyword">(</span>b: bucket k a <span class="Keyword">|</span> x @ k<span class="Keyword">)</span> : <span class="Type">bool</span> <span class="Keyword">=</span>
+<span class="lnr">210 </span>      <span class="Constant">bucket::</span>mem <span class="Keyword">(</span>equal, x, b<span class="Keyword">)</span>
+<span class="lnr">211 </span>    <span class="Keyword">)</span>
+<span class="lnr">212 </span>
+<span class="lnr">213 </span><span class="Comment">(* We first define an internal version of [find] which locates the appropriate</span>
+<span class="lnr">214 </span><span class="Comment">   bucket and passes it to a function [f]. *)</span>
+<span class="lnr">215 </span>
+<span class="lnr">216 </span><span class="Keyword">val</span> internal_find <span class="Keyword">[</span>k, a, answer<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>
+<span class="lnr">217 </span>  f: <span class="Keyword">(</span>bucket k a <span class="Keyword">|</span> x @ k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> answer,
+<span class="lnr">218 </span>  x: k,
+<span class="lnr">219 </span>  t: table k a
+<span class="lnr">220 </span><span class="Keyword">)</span> : answer <span class="Keyword">=</span>
+<span class="lnr">221 </span>  <span class="Comment">(* We use [array::consult] instead of [array::get] because [k] is not</span>
+<span class="lnr">222 </span><span class="Comment">     duplicable. *)</span>
+<span class="lnr">223 </span>  <span class="Type">array</span><span class="Keyword">::</span>consult
+<span class="lnr">224 </span>    <span class="Keyword">[</span>pre <span class="Keyword">=</span> <span class="Keyword">(</span>x @ k<span class="Keyword">)</span>, b <span class="Keyword">=</span> <span class="Keyword">(</span>answer <span class="Keyword">|</span> x @ k<span class="Keyword">)]</span> <span class="Comment">(* WISH get rid of this *)</span>
+<span class="lnr">225 </span>    <span class="Keyword">(</span>t.buckets, key_index <span class="Keyword">(</span>t, x<span class="Keyword">)</span>, f<span class="Keyword">)</span>
+<span class="lnr">226 </span>
+<span class="lnr">227 </span><span class="Comment">(* By instantiating [f] with a function that stops at the first match,</span>
+<span class="lnr">228 </span><span class="Comment">   we obtain [find]. *)</span>
+<span class="lnr">229 </span>
+<span class="lnr">230 </span><span class="Keyword">val</span> find <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>x: k, t: table k a<span class="Keyword">)</span> : <span class="Type">option</span> a <span class="Keyword">=</span>
+<span class="lnr">231 </span>  <span class="Keyword">let</span> equal <span class="Keyword">=</span> t.equal <span class="Keyword">in</span>
+<span class="lnr">232 </span>  <span class="Keyword">let</span> f <span class="Keyword">(</span>b: bucket k a <span class="Keyword">|</span> x @ k<span class="Keyword">)</span> : <span class="Type">option</span> a <span class="Keyword">=</span>
+<span class="lnr">233 </span>    <span class="Constant">bucket::</span>assoc <span class="Keyword">(</span>equal, x, b<span class="Keyword">)</span>
+<span class="lnr">234 </span>  <span class="Keyword">in</span>
+<span class="lnr">235 </span>  internal_find <span class="Keyword">(</span>f, x, t<span class="Keyword">)</span>
+<span class="lnr">236 </span>
+<span class="lnr">237 </span><span class="Comment">(* By instantiating [f] with a function that searches for all matches,</span>
+<span class="lnr">238 </span><span class="Comment">   we obtain [find_all]. *)</span>
+<span class="lnr">239 </span>
+<span class="lnr">240 </span><span class="Keyword">val</span> find_all <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>x: k, t: table k a<span class="Keyword">)</span> : <span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">241 </span>  <span class="Keyword">let</span> equal <span class="Keyword">=</span> t.equal <span class="Keyword">in</span>
+<span class="lnr">242 </span>  <span class="Keyword">let</span> f <span class="Keyword">(</span>b: bucket k a <span class="Keyword">|</span> x @ k<span class="Keyword">)</span> : <span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> a <span class="Keyword">=</span>
+<span class="lnr">243 </span>    <span class="Constant">bucket::</span>assoc_all <span class="Keyword">(</span>equal, x, b<span class="Keyword">)</span>
+<span class="lnr">244 </span>  <span class="Keyword">in</span>
+<span class="lnr">245 </span>  internal_find <span class="Keyword">(</span>f, x, t<span class="Keyword">)</span>
+<span class="lnr">246 </span>
+<span class="lnr">247 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">248 </span>
+<span class="lnr">249 </span><span class="Comment">(* Update. *)</span>
+<span class="lnr">250 </span>
+<span class="lnr">251 </span><span class="Comment">(* [update (t, x, f)] looks for the key [x] in the table [t]. It calls the</span>
+<span class="lnr">252 </span><span class="Comment">   user-supplied function [f] exactly once, and passes it either the value [v]</span>
+<span class="lnr">253 </span><span class="Comment">   that is associated with the key [x], or nothing, if the key [x] does not</span>
+<span class="lnr">254 </span><span class="Comment">   appear in the table. The function [f] returns either a new value, or</span>
+<span class="lnr">255 </span><span class="Comment">   nothing. In the former case, the new value replaces the value [v]. In the</span>
+<span class="lnr">256 </span><span class="Comment">   latter case, the key [x] is removed (if it was there at all). *)</span>
+<span class="lnr">257 </span>
+<span class="lnr">258 </span><span class="Keyword">val</span> option_cardinal <span class="Keyword">[</span>a<span class="Keyword">]</span> <span class="Keyword">(</span>o: <span class="Type">option</span> a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">259 </span>  <span class="Keyword">match</span> o <span class="Keyword">with</span>
+<span class="lnr">260 </span>  <span class="Keyword">|</span> <span class="Constant">None</span> <span class="Keyword">-&gt;</span> <span class="Number">0</span>
+<span class="lnr">261 </span>  <span class="Keyword">|</span> <span class="Constant">Some</span> <span class="Keyword">-&gt;</span> <span class="Number">1</span>
+<span class="lnr">262 </span>  <span class="Keyword">end</span>
+<span class="lnr">263 </span>
+<span class="lnr">264 </span><span class="Keyword">val</span> update <span class="Keyword">[</span>k, a, pre : <span class="Keyword">perm</span>, post : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">265 </span>  t: table k a,
+<span class="lnr">266 </span>  <span class="Keyword">consumes</span> x: k,
+<span class="lnr">267 </span>  f: <span class="Keyword">(consumes</span> <span class="Keyword">(</span><span class="Type">option</span> a <span class="Keyword">|</span> pre<span class="Keyword">))</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Type">option</span> a <span class="Keyword">|</span> post<span class="Keyword">)</span>
+<span class="lnr">268 </span>  <span class="Keyword">|</span> <span class="Keyword">consumes</span> pre
+<span class="lnr">269 </span><span class="Keyword">)</span> : <span class="Keyword">(</span><span class="Keyword">|</span> post<span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">270 </span>
+<span class="lnr">271 </span>  <span class="Comment">(* Wrap [f] so as to record the increase or decrease in the table's cardinal. *)</span>
+<span class="lnr">272 </span>  <span class="Keyword">let</span> delta <span class="Keyword">=</span> newref <span class="Constant">()</span> <span class="Keyword">in</span>
+<span class="lnr">273 </span>  <span class="Keyword">let</span> f <span class="Keyword">(consumes</span> ov: <span class="Type">option</span> a <span class="Keyword">|</span> <span class="Keyword">consumes</span> <span class="Keyword">(</span>pre <span class="Keyword">*</span> delta @ ref <span class="Constant">()</span><span class="Keyword">))</span> :
+<span class="lnr">274 </span>        <span class="Keyword">(</span><span class="Type">option</span> a <span class="Keyword">|</span> post <span class="Keyword">*</span> delta @ ref <span class="Type">int</span><span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">275 </span>    <span class="Keyword">let</span> decrease <span class="Keyword">=</span> option_cardinal ov <span class="Keyword">in</span>
+<span class="lnr">276 </span>    <span class="Keyword">let</span> ov <span class="Keyword">=</span> f ov <span class="Keyword">in</span>
+<span class="lnr">277 </span>    <span class="Keyword">let</span> increase <span class="Keyword">=</span> option_cardinal ov <span class="Keyword">in</span>
+<span class="lnr">278 </span>    delta <span class="Keyword">:=</span> increase - decrease<span class="Keyword">;</span>
+<span class="lnr">279 </span>    ov
+<span class="lnr">280 </span>  <span class="Keyword">in</span>
+<span class="lnr">281 </span>
+<span class="lnr">282 </span>  <span class="Comment">(* Adapt [bucket::update]. *)</span>
+<span class="lnr">283 </span>  <span class="Keyword">let</span> equal <span class="Keyword">=</span> t.equal <span class="Keyword">in</span>
+<span class="lnr">284 </span>  <span class="Keyword">let</span> update <span class="Keyword">(consumes</span> b: bucket k a <span class="Keyword">|</span> <span class="Keyword">consumes</span> <span class="Keyword">(</span>x @ k <span class="Keyword">*</span> pre <span class="Keyword">*</span> delta @ ref <span class="Constant">()</span><span class="Keyword">))</span> : <span class="Keyword">(</span>bucket k a <span class="Keyword">|</span> post <span class="Keyword">*</span> delta @ ref <span class="Type">int</span><span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr">285 </span>    <span class="Constant">bucket::</span>update <span class="Keyword">[</span>post <span class="Keyword">=</span> <span class="Keyword">(</span>post <span class="Keyword">*</span> delta @ ref <span class="Type">int</span><span class="Keyword">)]</span> <span class="Keyword">(</span>equal, b, x, f<span class="Keyword">)</span>
+<span class="lnr">286 </span>    <span class="Comment">(* WISH could we get rid of this type application? without it, I get an error *)</span>
+<span class="lnr">287 </span>  <span class="Keyword">in</span>
+<span class="lnr">288 </span>
+<span class="lnr">289 </span>  <span class="Comment">(* Call [array::update]. *)</span>
+<span class="lnr">290 </span>  <span class="Type">array</span><span class="Keyword">::</span>update <span class="Keyword">[</span>post <span class="Keyword">=</span> <span class="Keyword">(</span>post <span class="Keyword">*</span> delta @ ref <span class="Type">int</span><span class="Keyword">)]</span>
+<span class="lnr">291 </span>    <span class="Keyword">(</span>t.buckets, key_index <span class="Keyword">(</span>t, x<span class="Keyword">)</span>, update<span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">292 </span>    <span class="Comment">(* WISH could we get rid of this type application?</span>
+<span class="lnr">293 </span><span class="Comment">       without it, the call to array::update succeeds</span>
+<span class="lnr">294 </span><span class="Comment">       but we lose the permission for [delta] and the cardinal update (below) fails *)</span>
+<span class="lnr">295 </span>
+<span class="lnr">296 </span>  <span class="Comment">(* Update the table's cardinal. *)</span>
+<span class="lnr">297 </span>  t.cardinal <span class="Keyword">&lt;-</span> t.cardinal + <span class="Keyword">!</span>delta
+<span class="lnr">298 </span>
+<span class="lnr">299 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">300 </span>
+<span class="lnr">301 </span><span class="Comment">(* Iteration. *)</span>
+<span class="lnr">302 </span>
+<span class="lnr">303 </span><span class="Comment">(* For simplicity, we assign [fold] a type that does not allow performing a</span>
+<span class="lnr">304 </span><span class="Comment">   strong update on the keys or values. If we used a primitive operation on</span>
+<span class="lnr">305 </span><span class="Comment">   arrays that allows performing a strong update on an array, then we could</span>
+<span class="lnr">306 </span><span class="Comment">   do better. TEMPORARY *)</span>
+<span class="lnr">307 </span>
+<span class="lnr">308 </span><span class="Keyword">val</span> fold <span class="Keyword">[</span>k, a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">309 </span>  t: table k a,
+<span class="lnr">310 </span>  <span class="Keyword">consumes</span> seed: b,
+<span class="lnr">311 </span>  f: <span class="Keyword">(</span>k, a, <span class="Keyword">consumes</span> b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">312 </span><span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr">313 </span>  <span class="Type">array</span><span class="Keyword">::</span>fold <span class="Keyword">(</span><span class="Constant">Up</span>, t.buckets, seed, <span class="Keyword">fun</span> <span class="Keyword">(</span>bck: bucket k a, <span class="Keyword">consumes</span> accu: b<span class="Keyword">)</span> : b <span class="Keyword">=</span>
+<span class="lnr">314 </span>    <span class="Constant">bucket::</span>fold <span class="Keyword">(</span>bck, accu, f<span class="Keyword">)</span>
+<span class="lnr">315 </span>  <span class="Keyword">)</span>
+<span class="lnr">316 </span>
+<span class="lnr">317 </span><span class="Keyword">val</span> iter <span class="Keyword">[</span>k, a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">318 </span>  t: table k a,
+<span class="lnr">319 </span>  f: <span class="Keyword">(</span>k, a <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">320 </span>  <span class="Keyword">|</span> p
+<span class="lnr">321 </span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">322 </span>  fold <span class="Keyword">[</span>b<span class="Keyword">=</span><span class="Keyword">(</span><span class="Keyword">|</span> p<span class="Keyword">)]</span> <span class="Keyword">(</span>t, <span class="Constant">()</span>, <span class="Keyword">fun</span> <span class="Keyword">(</span>x: k, v: a, <span class="Keyword">(</span><span class="Keyword">|</span> p<span class="Keyword">))</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">323 </span>    f <span class="Keyword">(</span>x, v<span class="Keyword">)</span>
+<span class="lnr">324 </span>  <span class="Keyword">)</span>
+<span class="lnr">325 </span>  <span class="Comment">(* WISH could we get rid of this type application? *)</span>
+<span class="lnr">326 </span>
+<span class="lnr">327 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">328 </span>
+<span class="lnr">329 </span><span class="Comment">(* Statistics. *)</span>
+<span class="lnr">330 </span>
+<span class="lnr">331 </span><span class="Keyword">val</span> cardinal <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>t: table k a<span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">332 </span>  t.cardinal
+<span class="lnr">333 </span>
+<span class="lnr">334 </span><span class="Keyword">data</span> statistics <span class="Keyword">=</span> <span class="Constant">Statistics</span> <span class="Keyword">{</span>
+<span class="lnr">335 </span>  num_bindings: <span class="Type">int</span><span class="Keyword">;</span>
+<span class="lnr">336 </span>  num_buckets: <span class="Type">int</span><span class="Keyword">;</span>
+<span class="lnr">337 </span>  max_bucket_length: <span class="Type">int</span><span class="Keyword">;</span>
+<span class="lnr">338 </span>  bucket_histogram: <span class="Type">array</span> <span class="Type">int</span>
+<span class="lnr">339 </span><span class="Keyword">}</span>
+<span class="lnr">340 </span>
+<span class="lnr">341 </span><span class="Keyword">val</span> stats <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>t: table k a<span class="Keyword">)</span> : statistics <span class="Keyword">=</span>
+<span class="lnr">342 </span>  <span class="Comment">(* Compute the maximum bucket length. *)</span>
+<span class="lnr">343 </span>  <span class="Keyword">let</span> mbl <span class="Keyword">=</span>
+<span class="lnr">344 </span>    <span class="Type">array</span><span class="Keyword">::</span>fold <span class="Keyword">(</span><span class="Constant">Up</span>, t.buckets, <span class="Number">0</span>, <span class="Keyword">fun</span> <span class="Keyword">(</span>b: bucket k a, accu: <span class="Type">int</span><span class="Keyword">)</span> : <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr">345 </span>      max <span class="Keyword">(</span><span class="Constant">bucket::</span>length b, accu<span class="Keyword">)</span>
+<span class="lnr">346 </span>    <span class="Keyword">)</span>
+<span class="lnr">347 </span>  <span class="Keyword">in</span>
+<span class="lnr">348 </span>  <span class="Comment">(* Build a histogram, which maps bucket lengths to bucket counts. *)</span>
+<span class="lnr">349 </span>  <span class="Keyword">let</span> histo <span class="Keyword">=</span> <span class="Type">array</span><span class="Keyword">::</span>create <span class="Keyword">(</span>mbl + <span class="Number">1</span>, <span class="Number">0</span><span class="Keyword">)</span> <span class="Keyword">in</span>
+<span class="lnr">350 </span>  <span class="Type">array</span><span class="Keyword">::</span>iter <span class="Keyword">(</span><span class="Constant">Up</span>, t.buckets, <span class="Keyword">fun</span> <span class="Keyword">(</span>b: bucket k a <span class="Keyword">|</span> histo @ <span class="Type">array</span> <span class="Type">int</span><span class="Keyword">)</span> : <span class="Constant">()</span> <span class="Keyword">=</span>
+<span class="lnr">351 </span>    <span class="Keyword">let</span> l <span class="Keyword">=</span> <span class="Constant">bucket::</span>length b <span class="Keyword">in</span>
+<span class="lnr">352 </span>    <span class="Type">array</span><span class="Keyword">::</span>set <span class="Keyword">(</span>histo, l, <span class="Type">array</span><span class="Keyword">::</span>get <span class="Keyword">(</span>histo, l<span class="Keyword">)</span> + <span class="Number">1</span><span class="Keyword">)</span>
+<span class="lnr">353 </span>  <span class="Keyword">)</span><span class="Keyword">;</span>
+<span class="lnr">354 </span>  <span class="Comment">(* Return a statistics record. *)</span>
+<span class="lnr">355 </span>  <span class="Constant">Statistics</span> <span class="Keyword">{</span>
+<span class="lnr">356 </span>    num_bindings <span class="Keyword">=</span> t.cardinal<span class="Keyword">;</span>
+<span class="lnr">357 </span>    num_buckets  <span class="Keyword">=</span> <span class="Type">array</span><span class="Keyword">::</span>length t.buckets<span class="Keyword">;</span>
+<span class="lnr">358 </span>    max_bucket_length <span class="Keyword">=</span> mbl<span class="Keyword">;</span>
+<span class="lnr">359 </span>    bucket_histogram <span class="Keyword">=</span> histo
+<span class="lnr">360 </span>  <span class="Keyword">}</span>
+<span class="lnr">361 </span>
+<span class="lnr">362 </span><span class="Comment">(*</span>
+<span class="lnr">363 </span><span class="Comment">  Local Variables:</span>
+<span class="lnr">364 </span><span class="Comment">  compile-command: &quot;../mezzo hashtable.mz&quot;</span>
+<span class="lnr">365 </span><span class="Comment">  End:</span>
+<span class="lnr">366 </span><span class="Comment">*)</span>
+</pre>
+</body>
+</html>

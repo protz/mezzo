@@ -1,0 +1,42 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/tests/tree_size.hml.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="ocaml">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Error { color: #ffffff; background-color: #ff0000; }
+.Number { color: #e5786d; }
+.Type { color: #cae682; }
+.Constant { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Keyword">mutable</span> data tree a <span class="Keyword">=</span>
+<span class="lnr"> 2 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">{</span> left: tree a<span class="Keyword">;</span> right: tree a<span class="Keyword">;</span> size: a <span class="Keyword">}</span>
+<span class="lnr"> 3 </span>  <span class="Keyword">|</span> <span class="Constant">Leaf</span>
+<span class="lnr"> 4 </span>
+<span class="lnr"> 5 </span><span class="Keyword">val</span> <span class="Keyword">rec</span> tree_size <span class="Keyword">(</span>consumes x: tree unknown<span class="Keyword">)</span>: <span class="Keyword">(</span><span class="Type">int</span> <span class="Keyword">|</span> x @ tree <span class="Type">int</span><span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr"> 6 </span>  <span class="Keyword">match</span> explain x <span class="Keyword">with</span>
+<span class="lnr"> 7 </span>  <span class="Keyword">|</span> <span class="Constant">Leaf</span> <span class="Keyword">-&gt;</span>
+<span class="lnr"> 8 </span>      <span class="Number">1</span>
+<span class="lnr"> 9 </span>  <span class="Keyword">|</span> <span class="Constant">Node</span> <span class="Keyword">{</span> left<span class="Keyword">;</span> right <span class="Keyword">}</span> <span class="Keyword">-&gt;</span>
+<span class="lnr">10 </span>      <span class="Keyword">let</span> l <span class="Keyword">=</span> tree_size left <span class="Keyword">in</span>
+<span class="lnr">11 </span>      <span class="Keyword">let</span> r <span class="Keyword">=</span> tree_size right <span class="Keyword">in</span>
+<span class="lnr">12 </span>      <span class="Keyword">let</span> total <span class="Keyword">=</span> l + r + <span class="Number">1</span> <span class="Keyword">in</span>
+<span class="lnr">13 </span>      x.size <span class="Keyword">&lt;-</span> total<span class="Keyword">;</span>
+<span class="lnr">14 </span>      total
+<span class="lnr">15 </span>  <span class="Error">end</span>
+</pre>
+</body>
+</html>

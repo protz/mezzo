@@ -1,0 +1,47 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/tests/counter.hml.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="ocaml">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Number { color: #e5786d; }
+.Type { color: #cae682; }
+.Constant { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Comment">(* Idéalement, on aimerait:</span>
+<span class="lnr"> 2 </span><span class="Comment">    val make_counter (): ∃(t::★). (r: t, get: (| r @ t) -&gt; int) =</span>
+<span class="lnr"> 3 </span><span class="Comment">  pour avoir un minimum d'abstraction.</span>
+<span class="lnr"> 4 </span><span class="Comment">*)</span>
+<span class="lnr"> 5 </span><span class="Keyword">val</span> make_counter <span class="Constant">()</span>: <span class="Keyword">(</span>r: ref <span class="Type">int</span>, get: <span class="Keyword">(</span><span class="Keyword">|</span> r @ ref <span class="Type">int</span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">int</span><span class="Keyword">)</span> <span class="Keyword">=</span>
+<span class="lnr"> 6 </span>  <span class="Keyword">let</span> r <span class="Keyword">=</span> <span class="Constant">Ref</span> <span class="Keyword">{</span> contents <span class="Keyword">=</span> <span class="Number">0</span> <span class="Keyword">}</span> <span class="Keyword">in</span>
+<span class="lnr"> 7 </span>  <span class="Keyword">let</span> f <span class="Keyword">=</span> <span class="Keyword">fun</span> <span class="Keyword">(</span><span class="Keyword">|</span> r @ ref <span class="Type">int</span><span class="Keyword">)</span>: <span class="Type">int</span> <span class="Keyword">=</span>
+<span class="lnr"> 8 </span>    <span class="Keyword">let</span> v <span class="Keyword">=</span> r.contents <span class="Keyword">in</span>
+<span class="lnr"> 9 </span>    r.contents <span class="Keyword">&lt;-</span> v + <span class="Number">1</span><span class="Keyword">;</span>
+<span class="lnr">10 </span>    v
+<span class="lnr">11 </span>  <span class="Keyword">in</span>
+<span class="lnr">12 </span>  <span class="Keyword">(</span>r, f<span class="Keyword">)</span>
+<span class="lnr">13 </span>
+<span class="lnr">14 </span><span class="Keyword">val</span> test <span class="Keyword">=</span>
+<span class="lnr">15 </span>  <span class="Comment">(* Ce qui est intéressant c'est qu'il n'est pas nécessaire de passer [r] à [f]</span>
+<span class="lnr">16 </span><span class="Comment">   * lors de l'appel, la permission est inférée automatiquement. *)</span>
+<span class="lnr">17 </span>  <span class="Keyword">let</span> <span class="Keyword">(</span>r, f<span class="Keyword">)</span> <span class="Keyword">=</span> make_counter <span class="Constant">()</span> <span class="Keyword">in</span>
+<span class="lnr">18 </span>  <span class="Keyword">let</span> v <span class="Keyword">=</span> f <span class="Constant">()</span> <span class="Keyword">in</span>
+<span class="lnr">19 </span>  v + v
+<span class="lnr">20 </span>
+</pre>
+</body>
+</html>

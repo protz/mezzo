@@ -1,0 +1,119 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>/home/jonathan/Code/mezzo/src/stdlib/bucket.mzi.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v10">
+<meta name="syntax" content="mezzo">
+<meta name="settings" content="number_lines,use_css,expand_tabs">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+body { font-family: monospace; color: #f6f3e8; background-color: #242424; }
+.lnr { color: #857b6f; background-color: #000000; }
+.Type { color: #cae682; }
+.Constant { color: #e5786d; }
+.Keyword { color: #8ac6f2; }
+.Comment { color: #99968b; font-style: italic; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr"> 1 </span><span class="Comment">(* This module is used by the [hashtable] module, but could also be useful</span>
+<span class="lnr"> 2 </span><span class="Comment">   per se. It offers mutable lists of key-value pairs. *)</span>
+<span class="lnr"> 3 </span>
+<span class="lnr"> 4 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr"> 5 </span>
+<span class="lnr"> 6 </span><span class="Comment">(* A bucket is a mutable list of entries. Each entry holds a key and a value. *)</span>
+<span class="lnr"> 7 </span>
+<span class="lnr"> 8 </span><span class="Keyword">mutable</span> <span class="Keyword">data</span> bucket k a <span class="Keyword">=</span>
+<span class="lnr"> 9 </span>  <span class="Keyword">|</span> <span class="Constant">BNil</span>
+<span class="lnr">10 </span>  <span class="Keyword">|</span> <span class="Constant">BCons</span> <span class="Keyword">{</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> tail: bucket k a <span class="Keyword">}</span>
+<span class="lnr">11 </span>
+<span class="lnr">12 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">13 </span>
+<span class="lnr">14 </span><span class="Comment">(* Search. *)</span>
+<span class="lnr">15 </span>
+<span class="lnr">16 </span><span class="Keyword">val</span> mem : <span class="Keyword">[</span>k, a<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">17 </span>  equal: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>,
+<span class="lnr">18 </span>  x: k,
+<span class="lnr">19 </span>  b: bucket k a
+<span class="lnr">20 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>
+<span class="lnr">21 </span>
+<span class="lnr">22 </span><span class="Keyword">val</span> assoc: <span class="Keyword">[</span>k, a, p : <span class="Keyword">perm]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>
+<span class="lnr">23 </span>  equal: <span class="Keyword">(</span>k, k <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>,
+<span class="lnr">24 </span>  x: k,
+<span class="lnr">25 </span>  b: bucket k a
+<span class="lnr">26 </span>  <span class="Keyword">|</span> p
+<span class="lnr">27 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">option</span> a
+<span class="lnr">28 </span>
+<span class="lnr">29 </span><span class="Keyword">val</span> assoc_all: <span class="Keyword">[</span>k, a, p : <span class="Keyword">perm]</span> <span class="Keyword">duplicable</span> a <span class="Keyword">=</span><span class="Keyword">&gt;</span> <span class="Keyword">(</span>
+<span class="lnr">30 </span>  equal: <span class="Keyword">(</span>k, k <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>,
+<span class="lnr">31 </span>  x: k,
+<span class="lnr">32 </span>  b: bucket k a
+<span class="lnr">33 </span>  <span class="Keyword">|</span> p
+<span class="lnr">34 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">list</span><span class="Keyword">::</span><span class="Type">list</span> a
+<span class="lnr">35 </span>
+<span class="lnr">36 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">37 </span>
+<span class="lnr">38 </span><span class="Comment">(* Removal and update. *)</span>
+<span class="lnr">39 </span>
+<span class="lnr">40 </span><span class="Comment">(* [remove (b, ok)] looks for the first cell whose key satisfies the predicate</span>
+<span class="lnr">41 </span><span class="Comment">   [ok] and (if it finds one) removes it. It returns a pair of the new list</span>
+<span class="lnr">42 </span><span class="Comment">   head and the value that was found, if one was found. *)</span>
+<span class="lnr">43 </span>
+<span class="lnr">44 </span><span class="Keyword">val</span> remove : <span class="Keyword">[</span>k, a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">45 </span>  <span class="Keyword">consumes</span> b: bucket k a,
+<span class="lnr">46 </span>  ok: <span class="Keyword">(</span>k <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>
+<span class="lnr">47 </span>  <span class="Keyword">|</span> p
+<span class="lnr">48 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>bucket k a, <span class="Type">option</span> a<span class="Keyword">)</span>
+<span class="lnr">49 </span>
+<span class="lnr">50 </span><span class="Comment">(* [update (equal, b, x, f)] looks for an entry whose key is [equal] to [x]</span>
+<span class="lnr">51 </span><span class="Comment">   in the bucket [b]. It calls the user-supplied function [f] exactly once,</span>
+<span class="lnr">52 </span><span class="Comment">   and passes it either the value [v] that is associated with the key [x],</span>
+<span class="lnr">53 </span><span class="Comment">   or nothing, if the key [x] does not appear in the bucket. The function</span>
+<span class="lnr">54 </span><span class="Comment">   [f] returns either a new value, or nothing. In the former case, the new</span>
+<span class="lnr">55 </span><span class="Comment">   value replaces the value [v]. In the latter case, the key [x] is removed</span>
+<span class="lnr">56 </span><span class="Comment">   (if it was there at all). An updated bucket is returned. *)</span>
+<span class="lnr">57 </span>
+<span class="lnr">58 </span><span class="Keyword">val</span> update : <span class="Keyword">[</span>k, a, pre : <span class="Keyword">perm</span>, post : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">59 </span>  equal: <span class="Keyword">(</span>k, k<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Type">bool</span>,
+<span class="lnr">60 </span>  <span class="Keyword">consumes</span> b: bucket k a,
+<span class="lnr">61 </span>  <span class="Keyword">consumes</span> x: k,
+<span class="lnr">62 </span>  f: <span class="Keyword">(consumes</span> <span class="Keyword">(</span><span class="Type">option</span> a <span class="Keyword">|</span> pre<span class="Keyword">))</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span><span class="Type">option</span> a <span class="Keyword">|</span> post<span class="Keyword">)</span>
+<span class="lnr">63 </span>  <span class="Keyword">|</span> <span class="Keyword">consumes</span> pre
+<span class="lnr">64 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Keyword">(</span>bucket k a <span class="Keyword">|</span> post<span class="Keyword">)</span>
+<span class="lnr">65 </span>
+<span class="lnr">66 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">67 </span>
+<span class="lnr">68 </span><span class="Comment">(* Iteration. *)</span>
+<span class="lnr">69 </span>
+<span class="lnr">70 </span><span class="Comment">(* Non-destructive iteration over the elements of a bucket. *)</span>
+<span class="lnr">71 </span>
+<span class="lnr">72 </span><span class="Keyword">val</span> fold : <span class="Keyword">[</span>k, a, b<span class="Keyword">]</span> <span class="Keyword">(</span>
+<span class="lnr">73 </span>  bucket k a,
+<span class="lnr">74 </span>  <span class="Keyword">consumes</span> b,
+<span class="lnr">75 </span>  f: <span class="Keyword">(</span>k, a, <span class="Keyword">consumes</span> b<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">76 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> b
+<span class="lnr">77 </span>
+<span class="lnr">78 </span><span class="Comment">(* Destructive iteration over the cells of a bucket. Each cell is presented in</span>
+<span class="lnr">79 </span><span class="Comment">   turn to the function [f]. Note that the cells that are presented to [f] are</span>
+<span class="lnr">80 </span><span class="Comment">   detached, i.e., their [tail] field is garbage. *)</span>
+<span class="lnr">81 </span>
+<span class="lnr">82 </span><span class="Keyword">val</span> iter_bucket_down : <span class="Keyword">[</span>k, a, p : <span class="Keyword">perm]</span> <span class="Keyword">(</span>
+<span class="lnr">83 </span>  <span class="Keyword">consumes</span> b: bucket k a,
+<span class="lnr">84 </span>  f: <span class="Keyword">(consumes</span> b: <span class="Constant">BCons</span> <span class="Keyword">{</span> key: k<span class="Keyword">;</span> value: a<span class="Keyword">;</span> tail: <span class="Keyword">unknown</span> <span class="Keyword">}</span> <span class="Keyword">|</span> p<span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">85 </span>  <span class="Keyword">|</span> p
+<span class="lnr">86 </span><span class="Keyword">)</span> <span class="Keyword">-&gt;</span> <span class="Constant">()</span>
+<span class="lnr">87 </span>
+<span class="lnr">88 </span><span class="Comment">(* -------------------------------------------------------------------------- *)</span>
+<span class="lnr">89 </span>
+<span class="lnr">90 </span><span class="Comment">(* Length. *)</span>
+<span class="lnr">91 </span>
+<span class="lnr">92 </span><span class="Keyword">val</span> length: <span class="Keyword">[</span>k, a<span class="Keyword">]</span> bucket k a <span class="Keyword">-&gt;</span> <span class="Type">int</span>
+<span class="lnr">93 </span>
+</pre>
+</body>
+</html>
