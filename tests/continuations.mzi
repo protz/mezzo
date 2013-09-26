@@ -1,1 +1,30 @@
-../../papers/hope2013/continuations.mzi
+(* A one-shot choice between two continuations. *)
+
+(* CONTINUATIONS *)
+alias continuations (pre : perm) b1 b2 =
+  { ammo : perm } (
+    failure: (| consumes (ammo * pre)) -> b1,
+    success: (| consumes (ammo * pre)) -> b2
+  | ammo
+  )
+(* CONTINUATIONS *)
+
+(* We also offer an abstract version of this type, in an attempt to work
+   around the problems with auto-pack/unpack. *)
+
+abstract kontinuations (pre : perm) b1 b2
+
+(* Introduction. *)
+
+val kont: [pre : perm, b1, b2, ammo : perm] (
+  stop: (| consumes (ammo * pre)) -> b1,
+  done: (| consumes (ammo * pre)) -> b2
+  | consumes ammo
+) -> kontinuations pre b1 b2
+
+(* Elimination. *)
+
+val unkont: [pre : perm, b1, b2]
+  (consumes kontinuations pre b1 b2) ->
+  continuations pre b1 b2
+

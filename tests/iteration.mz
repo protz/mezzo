@@ -1,1 +1,643 @@
-../../papers/hope2013/iteration.mz
+(* Code for the HOPE 2013 submission. Ideally, this file should be
+   self-contained: no references to external modules. *)
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Lists. *)
+
+data list a =
+  Nil
+| Cons { head: a; tail: list a }
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Trees. *)
+
+(* TREE_DEF *)
+data mutable tree a =
+  Leaf
+| Node { left: tree a; elem: a; right: tree a }
+(* TREE_DEF *)
+
+val rec size [a] (t: tree a) : int =
+  match t with
+  | Leaf ->
+      0
+  | Node ->
+      size t.left + 1 + size t.right
+ end
+
+val rec iter [a, p : perm] (
+  f: (    a | p) -> bool,
+  t: tree a | p)  : bool =
+  match t with
+  | Leaf ->
+      true
+  | Node ->
+      iter (f, t.left) && f t.elem && iter (f, t.right)
+  end
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Idioms. *)
+
+data either a b =
+  | Left  { contents: a }
+  | Right { contents: b }
+
+alias wand (pre: perm) (post: perm) =
+  {ammo: perm} (
+    (| consumes (pre * ammo)) -> (| post)
+  | ammo)
+
+alias focused a (post: perm) =
+  (x: a, release: wand (x @ a) post)
+
+(* ------------------------------------------------------------------------------ *)
+
+(* ADT-style tree iterators *)
+
+(* TREE_ITERATOR_DEF *)
+alias tree_iterator a (post: perm) =
+  ref (focused (list (tree a)) post)
+(* TREE_ITERATOR_DEF *)
+
+val new [a] (consumes t: tree a): tree_iterator a (t @ tree a) =
+  newref (
+    Cons { head = t; tail = Nil },
+    fun () : () = ()
+  )
+
+val rec next [a, post: perm]
+  (consumes it: tree_iterator a post):
+  either (focused a (it @ tree_iterator a post)) (| post) =
+  
+  let stack, release = !it in
+
+  (* [stack] is the list of sub-trees that remain to be explored. *)
+  (* assert stack @ list (tree a); *)
+  (* [release] is the magic wand that abandons the stack and yields
+     the ownership of the entire tree. *)
+  (* assert release @ wand (stack @ list (tree a)) post; *)
+
+  match stack with
+  | Nil ->
+      (* The stack is empty. We are done. The iterator auto-stops. *)
+      release ();
+      Right { contents = () }
+
+  | Cons { head = t; tail = ts } ->
+      (* The stack is non-empty. *)
+      match t with
+      | Leaf ->
+          (* The head tree is empty. Pop it off. *)
+          it := (ts, release);
+          (* Persuade the type-checker takes us from the new stack
+             to the old stack and (hence) to [post]. *)
+          let flex p: perm in
+          pack release @ wand (ts @ list (tree a)) post
+          witness p * stack @ Cons { head: Leaf; tail = ts };
+          (* Continue. *)
+          next it
+
+      | Node { left; elem; right } ->
+          (* The head tree has a root node. Split this node and push its
+             sub-trees onto the stack. *)
+          let stack = Cons { head = left; tail = Cons { head = right; tail = ts }} in
+          it := (stack, release);
+
+          (* Now, we must construct a new magic wand, which packs some of our current
+             permissions, and ensures that once the client gives [elem @ a] back to us,
+             we can produce [it @ tree_iterator a post]. *)
+          let flex p: perm in
+          let surrender (|
+            consumes (
+              left @ tree a *
+              elem @ a *
+              right @ tree a *
+              t @ Node { left; elem; right } * 
+              ts @ list (tree a) *
+              it @ Ref { contents: (=stack, =release) } *
+              p
+            )
+          ): (| it @ tree_iterator a post) =
+            
+            (* We know that the new [stack] is [left :: right :: ts], because this is
+               a duplicable fact. Similarly, we know that the old [stack] was [t :: ts].
+               Thus, if we own the new [stack] as a list of trees, and if own the node [t]
+               and its element, then we can reconstruct that we own the old [stack] as a
+               list of trees, and from there, apply [release] -- at its previous type --
+               in order to obtain [post]. This justifies the following new view of
+               [release]. *)
+
+            pack release @ wand (stack @ list (tree a)) post
+            witness
+              elem @ a *
+              t @ Node { left; elem; right } *
+              p;
+
+            (* This assertion is superfluous. It says that, once the client surrenders
+               [elem @ a], we again have a well-formed new [stack] and that [release]
+               allows us to abandon this stack and obtain [post]. *)
+            assert
+              stack @ list (tree a) *
+              release @ wand (stack @ list (tree a)) post;
+            ()
+          in
+
+          (* This assertion is superfluous. *)
+          assert surrender @ wand (elem @ a) (it @ tree_iterator a post);
+
+          Left { contents = (elem, surrender) }
+     end
+  end
+
+val stop [a, post: perm]
+  (consumes it: tree_iterator a post):
+  (| post) =
+  let _, release = !it in
+  release()
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Generic OO-style iterators *)
+
+data iterator_s (s: perm) a (post: perm) =
+  Iterator {
+    next: (| consumes s) -> either (focused a s)
+                                   (| post);
+    stop: (| consumes s) -> (| post)
+| s }
+
+alias iterator a (post: perm) =
+  {s: perm} iterator_s s a post
+
+(* Wrapping an ADT-style iterator into a generic (OO-style) iterator. *)
+
+val wrap [a, i, post: perm] (
+  consumes it: i,
+  next: (consumes it: i) -> either (focused a (it @ i)) (| post),
+  stop: (consumes it: i) -> (| post)
+): iterator a post =
+  
+  (* A convenient abbreviation. *)
+  let alias s: perm = it @ i in
+
+  (* Perform the application of the ADT functions to the iterator [i],
+     so as to obtain an object whose internal state is inaccessible. *)
+  Iterator {
+    next = (fun (| consumes s): either (focused a s) (| post) = next it);
+    stop = (fun (| consumes s): (| post) = stop it)
+  }
+
+val new_tree_iterator [a] (consumes t: tree a): iterator a (t @ tree a) =
+  let alias post: perm = t @ tree a in
+  wrap [a, (tree_iterator a post), post]
+    (new t, next [a, post], stop [a, post])
+
+(* Conversely, one can wrap an OO-style iterator as an ADT. (This does
+   not seem very useful.) The operation [wrap] (above) serves as a
+   constructor. The [next] and [stop] functions are as follows. *)
+
+val generic_next [a, post: perm]
+  (consumes it: iterator a post):
+  either (focused a (it @ iterator a post)) (| post) =
+  it.next()
+
+val generic_stop [a, post: perm]
+  (consumes it: iterator a post):
+  (| post) =
+  it.stop()
+
+(* ------------------------------------------------------------------------------ *)
+
+(* A [filter] function on generic iterators. *)
+
+val filter_variant [a, p: perm, post: perm] (
+  consumes it: iterator a post,
+  f: (a | p) -> bool
+| consumes p) : iterator a (p * post)
+=
+  (* An abbreviation for the internal state of the new iterator.
+     It contains the underlying iterator and the permission [p],
+     which represents the internal state of [f]. Here, the
+     underlying iterator is a packed state, but one could also
+     keep it in an unpacked state (see below). *)
+  let alias s : perm = p * it @ iterator a post in
+
+  let rec next (| consumes s) : either (focused a s) (| post * p) =
+
+    (* A name for the (unpacked) internal state of the underlying iterator. *)
+    let flex underlying: perm in
+
+    let e = it.next() in
+    match e with
+    | Right ->
+        (* The underlying iterator is finished. We are finished as well. *)
+        e
+    | Left { contents = (x, surrender) } ->
+        (* The underlying iterator produces [x], together with a magic
+           wand [surrender], which we must use to signal that we are done
+           with [x]. *)
+        if f x then begin
+          (* We would like to keep [x]. *)
+          let flex q: perm in
+          (* The following two assertions seem to be required. *)
+          assert q * surrender @ (| consumes (q * x @ a)) -> (| underlying);
+          assert surrender @ wand (p * x @ a) (p * underlying);
+          e
+        end
+        else begin
+          (* We would like to skip [x]. Signal that we are done with it,
+             and look for the next element. *)
+          surrender();
+          next()
+        end
+    end 
+  in
+
+  (* One may wish to write just [let stop = it.stop in ...]. However,
+     this seems to be a case where eta-expansion is necessary. I am
+     not sure why, though. This may have to do with the fact that
+     we have several types for [it] (packed and unpacked) and if
+     the type-checker makes the wrong choice, it ends up trying to
+     prove that the *unpacked* function [it.stop] can be applied
+     to the *packed* precondition [it @ iterator a post]. TEMPORARY
+     (to be discussed)
+     
+  let stop = it.stop in
+  assert stop @ (| consumes it @ iterator a post) -> (| post);
+  assert stop @ (| consumes (p * it @ iterator a post)) -> (| post * p);
+  assert stop @ (| consumes s) -> (| post * p);
+
+  *)
+
+  let stop (| consumes s): (| post * p) =
+    it.stop ()
+  in
+
+  Iterator { next; stop }
+
+val filter [a, p: perm, post: perm] (
+  consumes it: iterator a post,
+  f: (a | p) -> bool
+| consumes p) : iterator a (p * post)
+=
+
+  (* A name for the (unpacked) internal state of the underlying iterator. *)
+  let flex underlying: perm in
+  assert it @ iterator_s underlying a post;
+
+  (* An abbreviation for the internal state of the new iterator.
+     It contains the underlying iterator and the permission [p],
+     which represents the internal state of [f]. The underlying
+     iterator is in an unpacked state. *)
+  let alias s : perm = p * underlying in
+
+  let rec next (| consumes s) : either (focused a s) (| post * p) =
+    let e = it.next() in
+    match e with
+    | Right ->
+        (* The underlying iterator is finished. We are finished as well. *)
+        e
+    | Left { contents = (x, surrender) } ->
+        (* The underlying iterator produces [x], together with a magic
+           wand [surrender], which we must use to signal that we are done
+           with [x]. *)
+        if f x then begin
+          (* We would like to keep [x]. *)
+          assert p * surrender @ wand (p * x @ a) (p * underlying);
+          (* The second assertion is superfluous, but explains what is going on. *)
+          assert surrender @ wand (x @ a) (p * underlying);
+          e
+        end
+        else begin
+          (* We would like to skip [x]. Signal that we are done with it,
+             and look for the next element. *)
+          surrender();
+          next()
+        end
+    end 
+  in
+
+  Iterator { next; stop = it.stop }
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Printing all elements of a generic iterator. *)
+
+val rec print_elements [a, post : perm] (
+  consumes it: iterator a post
+) : (| post) =
+  match it.next() with
+  | Left { contents = (x, surrender) } ->
+      print x;
+      surrender();
+      print_elements it
+  | Right ->
+      ()
+  end
+
+(* ------------------------------------------------------------------------------ *)
+
+open continuations
+
+(* Higher-order tree iteration in CPS style. *)
+
+val rec cps_iter [a, s : perm, b1, b2] (
+  consumes t: (tree a | s),
+  f: (
+    consumes x: (a | s),
+    consumes kontinuations (x @ (a | s)) b1 b2
+  ) -> b2,
+  consumes k: kontinuations (t @ (tree a | s)) b1 b2
+) : b2 =
+  (* Name our two continuations. *)
+  let stop, done = unkont k in
+  (* Name the ammunition required by these continuations. *)
+  let flex ammo : perm in
+  assert stop @ (| consumes (ammo * t @ (tree a | s))) -> b1;
+  match t with
+  | Leaf ->
+      (* The tree is empty. We are done. *)
+      done()
+  | Node ->
+      (* The tree is non-empty. *)
+
+      (* Here is what we know, and will keep during the following
+         CPS-encoded sequence. *)
+      let alias everything : perm =
+        t @ Node { left: tree a; elem: a; right: tree a } * s * ammo
+      in
+
+      let rec continue0 (| consumes everything) : b2 =
+        (* We must first descend into the left-hand side. *)
+        let left = t.left in
+        cps_iter (left, f, kont [
+          (* Note that this [pre] and this [ammo] combine to yield [everything]. *)
+          pre = (left @ (tree a | s)),
+          ammo = (ammo * t @ Node { left; elem: a; right: tree a })
+        ] (stop, continue1))
+
+      and continue1 (| consumes everything) : b2 =
+        (* Next, we must invoke [f]. *)
+        let elem = t.elem in
+        f (elem, kont [
+          (* Note that this [pre] and this [ammo] combine to yield [everything]. *)
+          pre = (elem @ (a | s)),
+          ammo = (ammo * t @ Node { left: tree a; elem; right: tree a })
+        ] (stop, continue2))
+
+      and continue2 (| consumes everything) : b2 =
+        (* Last, we must descend into the right-hand side. *)
+        let right = t.right in
+        cps_iter (right, f, kont [
+          (* Note that this [pre] and this [ammo] combine to yield [everything]. *)
+          pre = (right @ (tree a | s)),
+          ammo = (ammo * t @ Node { left: tree a; elem: a; right })
+        ] (stop, done))
+      in
+
+      continue0()
+
+ end
+
+(* ------------------------------------------------------------------------------ *)
+
+(* An abbreviation for the type of an iteration function in the style
+   of [cps_iter], i.e., higher-order, CPS. There is no collection argument;
+   the iteration function is already partially applied to the collection
+   (or perhaps there is no collection at all, as in the case of an iterator
+   over an interval of the integers). *)
+
+alias cps_iter_t a (post : perm) =
+  [s : perm, b1, b2] (
+    f: (
+      consumes x: (a | s),
+      consumes kontinuations (x @ (a | s)) b1 b2
+    ) -> b2,
+    consumes k: kontinuations (post * s) b1 b2
+  | consumes (post * s)
+  ) -> b2
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Turning a [cps_iter_t] into an [iterator]. *)
+
+(* We begin with a type abbreviation for a pair of an element [x] of type [a]
+   and a pair of continuations that require [x @ (a | s)]. This is analagous
+   in spirit to the type [focused]. *)
+
+alias capsule a (s : perm) b1 b2 =
+  (x: a, kontinuations (x @ (a | s)) b1 b2)
+
+(* Define the internal state of the iterator. *)
+
+(* This state is mutable, and the iterator is either unstarted or
+   started, so at first I thought I would define this type as an
+   abbreviation for [ref (either ...)], but then I noticed that
+   this type is recursive, so it must be an algebraic data type.
+   Furthermore, I discovered that we need a third case, [Scratch],
+   because the iterator's state is void while [cps_iter] is running. *)
+
+data mutable scratch =
+  | Scratch { c: () }
+
+data mutable cps_iterator_state (self : term) a (post : perm) =
+  | NotYetStarted { c: () | post }
+  | Paused {
+      c: capsule a (self @ scratch)
+        (| post)
+        (either (focused a (self @ cps_iterator_state self a post)) (| post))
+    }
+
+val new_iterator_via_cps [a, post: perm] (
+  cps_iter: cps_iter_t a post
+| consumes post
+) : iterator a post =
+
+  (* Allocate the internal state of our iterator. *)
+  let self = NotYetStarted { c = () } in
+
+  (* Define a number of useful type abbreviations. *)
+  let alias s : perm = self @ cps_iterator_state self a post in
+  let alias ss : perm = self @ scratch in
+  let alias b1 = (| post) in
+  let alias b2 = either (focused a s) (| post) in
+
+  (* The client function that we pass to [cps_iter]. *)
+  let yield (
+    consumes x: (a | ss),
+    consumes k: kontinuations (x @ (a | ss)) b1 b2
+  ) : b2 =
+    (* Capture the current element and the continuations. *)
+    tag of self <- Paused;
+    self.c <- (x, k);
+    (* We have [s]. Now, focus [x: a] out of it. *)
+    let surrender (| consumes (x @ a * self @ Paused { c: (=x, kontinuations (x @ (a | ss)) b1 b2) })) : (| s) = () in
+    (* Return [x] to the client, together with a magic wand that turns [x @ a]
+       back into [s]. *)
+    Left { contents = (x, surrender) }
+  in
+
+  (* The failure continuation that we pass to [cps_iter]. *)
+  let aborted  (| consumes (post * ss)) : b1 = ()
+  
+  (* The normal continuation that we pass to [cps_iter]. *)
+  and finished (| consumes (post * ss)) : b2 = Right { contents = () } in
+
+  (* The iterator's [next] method. *)
+  let next (| consumes s) : b2 =
+    match self with
+    | NotYetStarted ->
+        (* Write the tag [Scratch] into the iterator so as to note
+           that the iterator no longer owns [post]. *)
+        tag of self <- Scratch;
+        (* Start the whole process by invoking [cps_iter]. *)
+        cps_iter [ss, b1, b2] (yield, kont [
+          (* TEMPORARY why do I need to give the full annotation? *)
+          pre = (post * ss),
+          b1, b2,
+          ammo = empty
+        ] (aborted, finished))
+    | Paused { c = (x, k) } ->
+        (* Invoke the stored normal continuation. This continuation
+           needs [s], so we must write [Scratch] into the iterator. *)
+        tag of self <- Scratch;
+        self.c <- ();
+        let (_, continue) = unkont [(x @ (a | ss)), b1, b2] k in
+          (* TEMPORARY why do I need to annotate this type application?
+             in an invariant context, instantiating a flexible variable
+             should be easy! *)
+        continue()
+    end
+  
+  (* The iterator's [stop] method. *)
+  and stop (| consumes s) : b1 =
+    match self with
+    | NotYetStarted ->
+        (* Nothing to do. We got [post]. *)
+        ()
+    | Paused { c = (x, k) } ->
+        (* Invoke the stored failure continuation. *)
+        tag of self <- Scratch;
+        self.c <- ();
+        let (stop, _) = unkont [(x @ (a | ss)), b1, b2] k in
+        stop()
+    end
+  in
+
+  (* Package the methods together with the permission [s]. *)
+  Iterator { next; stop }
+
+val new_tree_iterator_via_cps [a] (consumes t: tree a) : iterator a (t @ tree a) =
+  let alias post : perm = t @ tree a in
+  (* This is a just a partial application of [cps_iter] to [t]! Heavy! *)
+  let cps_iter [s : perm, b1, b2] (
+    f: (
+      consumes x: (a | s),
+      consumes kontinuations (x @ (a | s)) b1 b2
+    ) -> b2,
+    consumes k: kontinuations (post * s) b1 b2
+  | consumes (post * s)
+  ) : b2 =
+    cps_iter(t, f, k)
+  in
+  (* Phew. *)
+  new_iterator_via_cps (cps_iter)
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Turning a [cps_iter_t] back to direct style. *)
+
+val normal_iter_out_of_cps_iter [a, post: perm, p: perm] (
+  cps_iter: cps_iter_t a post,
+  f: (    a | p) -> bool
+| post
+| p
+) : bool =
+
+  (* A couple abbreviations. *)
+  let alias b1 = (bool | post | p) in
+  let alias b2 = (bool | post | p) in
+
+  (* The client function that we pass to [cps_iter]. *)
+  let cps_f (
+    consumes x: (a | p),
+    consumes k: kontinuations (x @ (a | p)) b1 b2
+  ) : b2 =
+    let (stop, continue) = unkont [(x @ (a | p)), b1, b2] k in
+    if f x then
+      continue()
+    else
+      stop()
+  in
+
+  (* The failure continuation that we pass to [cps_iter]. *)
+  let aborted  (| consumes (post * p)) : b1 = false
+  
+  (* The normal continuation that we pass to [cps_iter]. *)
+  and finished (| consumes (post * p)) : b2 = true in
+
+  (* Go! *)
+  cps_iter [p, b1, b2] (cps_f, kont [
+    pre = (post * p),
+    b1, b2,
+    ammo = empty
+  ] (aborted, finished))
+
+val new_normal_iter_via_cps [a, p: perm] (
+  t: tree a,
+  f: (a | p) -> bool
+| p
+) : bool =
+  let alias post : perm = t @ tree a in
+  (* This is a just a partial application of [cps_iter] to [t]! Heavy! *)
+  let cps_iter [s : perm, b1, b2] (
+    f: (
+      consumes x: (a | s),
+      consumes kontinuations (x @ (a | s)) b1 b2
+    ) -> b2,
+    consumes k: kontinuations (post * s) b1 b2
+  | consumes (post * s)
+  ) : b2 =
+    cps_iter(t, f, k)
+  in
+  (* Phew. *)
+  normal_iter_out_of_cps_iter (cps_iter, f)
+
+(* ------------------------------------------------------------------------------ *)
+
+(* Testing. *)
+
+val singleton (elem: int) : tree int =
+  Node { left = Leaf; elem; right = Leaf }
+
+val () =
+  let t = Node {
+    left = singleton 1;
+    elem = 2;
+    right = singleton 3
+  } in
+  assert t @ tree int;
+  let it = new_tree_iterator t in
+  print_elements [int, (t @ tree int)] it;
+    (* prints 2 1 3, because the hand-written iterator is prefix *)
+  assert t @ tree int;
+  let it = new_tree_iterator_via_cps t in
+  print_elements [int, (t @ tree int)] it;
+    (* prints 1 2 3, because the CPS iterator is infix *)
+  assert t @ tree int;
+  (* prints 1 2, because the CPS iterator is infix and we stop at 2 *)
+  let (_ : bool) = new_normal_iter_via_cps (t, fun (x: int) : bool =
+    print x;
+    x < 2
+  ) in
+  assert t @ tree int;
+  ()
+
+(*
+  Local Variables:
+  compile-command: "$HOME/dev/mezzo/src/mezzo iteration.mz"
+  End:
+*)
