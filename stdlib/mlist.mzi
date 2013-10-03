@@ -2,9 +2,9 @@
 
 (* The algebraic data type of mutable lists. *)
 
-data mutable mlist a =
+data mlist a =
   | MNil
-  | MCons { head: a; tail: mlist a }
+  | mutable MCons { head: a; tail: mlist a }
 
 (* -------------------------------------------------------------------------- *)
 

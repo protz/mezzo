@@ -2,4 +2,4 @@ open mlist
 data mutable generic_adopter a =
   A
 adopts mlist a
-(* ok, because mlist is exclusive *)
+(* not ok, because mlist is not exclusive *)

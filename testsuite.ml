@@ -656,11 +656,12 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("adopts12.mz", pass);
   ("adopts13.mz", fail);
   ("adopts14.mz", fail);
-  ("adopts15.mz", pass);
+  ("adopts15.mz", fail);
   ("adopts16.mz", pass);
   ("adopts17.mz", pass);
   ("adopts18.mz", pass);
   ("adopts19.mz", pass);
+  ("adopts20.mz", pass);
 
   (* Bigger examples. *)
 

@@ -1,0 +1,5 @@
+open mlist
+data mutable generic_adopter a =
+  A
+adopts MCons { head: a; tail: mlist a }
+(* not ok, because MCons { ... } is exclusive *)

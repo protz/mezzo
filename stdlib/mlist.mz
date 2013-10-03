@@ -12,21 +12,22 @@
 
 (* The algebraic data type of mutable lists. *)
 
-(* MLIST_DEF *)
-data mutable mlist a =
-  | MNil
-  | MCons { head: a; tail: mlist a }
-(* MLIST_DEF *)
+(* We declare the data constructor [MCons] mutable, which means that an [MCons]
+   cell is uniquely owned and that its [head] and [tail] fields can be mutated.
+   On the other hand, we declare the data constructor [MNil] immutable. This
+   means that [MNil] objects can be shared. *)
 
-(* Many operations on mutable lists work ``in place'', that is, without
-   allocating new [MCons] cells. Unfortunately, these operations sometimes
-   allocate a new [MNil] object. These objects cannot be shared, because they
-   are considered exclusive. If we had a null pointer, we would use it in the
-   definition of mutable lists instead of [MNil], and we would be able to work
-   without any memory allocation. Another option would be to consider [MCons]
-   as mutable/exclusive and [MNil] as immutable/duplicable. This would allow
-   the expression [MNil] to be compiled down to code that does not perform a
-   memory allocation. These problems are left for future exploration. *)
+(* TEMPORARY once we implement [slim], the system will have the property that
+   immutable objects do *not* have an adopter field, and as a result, [MNil]
+   will not be heap-allocated. It will be essentially identical to the [null]
+   pointer in Java, except it is not polymorphic (it does not belong to all
+   types, only to the type [mlist]). *)
+
+(* MLIST_DEF *)
+data mlist a =
+  | MNil
+  | mutable MCons { head: a; tail: mlist a }
+(* MLIST_DEF *)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -64,7 +65,6 @@ val append [a] (consumes xs: mlist a,
   end
 (* MLIST_APPEND*)
 
-
 (* -------------------------------------------------------------------------- *)
 
 (* In-place reversal. *)
@@ -79,7 +79,7 @@ val rec rev_append [a] (consumes xs: mlist a, consumes ys: mlist a) : mlist a =
   end
 
 val rev [a] (consumes xs: mlist a) : mlist a =
-  rev_append (xs, MNil) (* memory allocation *)
+  rev_append (xs, MNil)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -91,7 +91,7 @@ val rec splitAtAux [a] (
   consumes c: MCons { head: a; tail = xs }
 ) : (mlist a | c @ mlist a) =
   if k = 0 then begin
-    c.tail <- MNil; (* memory allocation *)
+    c.tail <- MNil;
     xs
   end
   else if xs then
@@ -101,7 +101,7 @@ val rec splitAtAux [a] (
 
 val splitAt [a] (k: int, consumes xs: mlist a) : (mlist a, mlist a) =
   if k = 0 then
-    MNil, (* memory allocation *)
+    MNil,
     xs
   else if xs then begin
     let ys = splitAtAux (k - 1, xs.tail, xs) in
@@ -205,7 +205,7 @@ val sort [a] (
       let xs1, xs2 = splitAt (n1, xs) in
       let xs1 = sort (-sense, n1, xs1) in
       let xs2 = sort (-sense, n2, xs2) in
-      rev_merge (-sense, xs1, xs2, MNil) (* memory allocation *)
+      rev_merge (-sense, xs1, xs2, MNil)
     end
   in
   let n = length xs in
