@@ -162,6 +162,7 @@ type error =
   | FieldMismatch of Datacon.name * Field.name list (* missing fields *) * Field.name list (* extra fields *)
   | ImplicationOnlyOnArrow
   | MissingExport of Variable.name
+  | TwiceMutable of (* data constructor: *) Datacon.name
 
 (* The [KindError] exception. *)
 
@@ -266,6 +267,11 @@ let print_error env error buf () =
   | MissingExport x ->
       bprintf "The variable %a is advertised in the interface,\nbut is not defined in the implementation."
         Variable.p x
+  | TwiceMutable dc ->
+      bprintf
+        "This type is declared mutable, so there is no need to declare\n\
+         the data constructor %s mutable."
+        (Datacon.print dc)
   end;
   if Log.debug_level () > 4 then begin
     Printf.bprintf buf "\n";
@@ -380,10 +386,10 @@ let check_for_duplicate_bindings env (xs : type_binding list) : type_binding lis
     (fun (x, _, loc) -> bound_twice "variable" Variable.print { env with loc } x)
 
 (* TEMPORARY this function also does not produce a good error location *)
-let check_for_duplicate_datacons env (branches: (Datacon.name * 'a * 'b) list) : unit =
+let check_for_duplicate_datacons env (branches: (_ * Datacon.name * _ * _) list) : unit =
   ignore (
-    MzList.exit_if_duplicates Datacon.compare (fun (x, _, _) -> x) branches
-      (fun (x, _, _) -> bound_twice "data constructor" Datacon.print env x)
+    MzList.exit_if_duplicates Datacon.compare (fun (_, x, _, _) -> x) branches
+      (fun (_, x, _, _) -> bound_twice "data constructor" Datacon.print env x)
   )
 
 let check_for_duplicate_fields env fields : unit =
@@ -550,7 +556,7 @@ let bind_data_group_datacons env (group : data_type_def list) : 'v env =
     | Concrete (f, branches, _) ->
         let (x, _, _), _ = def.lhs in
         let v = find_var env (Unqualified x) in
-        MzList.fold_lefti (fun i env (dc, _bindings, fields) ->
+        MzList.fold_lefti (fun i env (_flavor, dc, _bindings, fields) ->
           let fields = MzList.map_some (function
             | FieldValue (f, _) -> Some f
             | FieldPermission _ -> None
@@ -849,13 +855,21 @@ let check_field_reset env (field : data_field_def) =
   | FieldPermission ty ->
       check_reset env ty KPerm
 
-let check_unresolved_branch env (_, bindings, fields) =
+let check_unresolved_branch env global_flavor (branch_flavor, dc, bindings, fields) =
   (* Introduce the names bound above the pattern. *)
   let env = extend_check Fictional env bindings in
   (* Check that no field name appears twice. *)
   check_for_duplicate_fields env fields;
   (* Check that every field is well-kinded. *)
-  List.iter (check_field_reset env) fields
+  List.iter (check_field_reset env) fields;
+  (* If the whole data type is declared [mutable], then the branch
+     should not be declared [mutable]. That would be redundant, and
+     a hint of a possible confusion. *)
+  ignore (
+    DataTypeFlavor.join global_flavor branch_flavor (fun () ->
+      raise_error env (TwiceMutable dc)
+    )
+  )
 
 (* Checking a type definition. For abstract types, we just check that the
    fact is well-formed. For concrete types, we check that the branches are
@@ -870,7 +884,7 @@ let check_data_type_def env (def: data_type_def) =
       let env = extend Fictional env bindings in
       (* Check the branches. *)
       (* TEMPORARY provide a per-branch location? *)
-      List.iter (check_unresolved_branch env) branches;
+      List.iter (check_unresolved_branch env flavor) branches;
       (* Check the adopts clause. *)
       Option.iter (fun ty ->
         check_reset env ty KType;

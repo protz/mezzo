@@ -171,8 +171,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     ) fields in
     MzList.flatten_map collect_type ts
 
-  and collect_data_type_def_branch: 'a 'b. 'a * 'b * data_field_def list -> Module.name list =
-  fun (_, _, fields)  ->
+  and collect_data_type_def_branch (_, _, _, fields) =
     collect_concrete_branch ((), fields)
 
   and collect_maybe_qualified: 'a. 'a maybe_qualified -> Module.name list =

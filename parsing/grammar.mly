@@ -541,17 +541,28 @@ data_type_def_branch_content:
    where, within the braces, we have the above content. This is also
    the syntax of structural permissions. *)
 
+(* The [mutable] keyword may appear either in front of the algebraic
+   data type definition, in which case it concerns all branches, or
+   in front of a branch, in which case it concerns this branch only. *)
+
+%inline data_type_flavor:
+| (* nothing *)
+    { DataTypeFlavor.Immutable }
+| MUTABLE
+    { DataTypeFlavor.Mutable }
+
 %inline data_type_branch:
   dfs = generic_datacon_application(data_type_def_branch_content)
     { dfs }
 
 %inline data_type_def_branch:
-  bs = existential_quantifiers?
+  flavor = data_type_flavor
+  bs = existential_quantifiers? (* TEMPORARY allow more *)
   dfs = generic_bare_datacon_application(data_type_def_branch_content)
     { 
       let dc, fields = dfs in
       let bs = Option.map_none [] bs in
-      dc, bs, fields
+      flavor, dc, bs, fields
     }
 
 %inline data_type_def_lhs:
@@ -565,12 +576,6 @@ data_type_def_branch_content:
 %inline data_type_def_rhs:
   bs = separated_or_preceded_list(BAR, data_type_def_branch)
     { bs }
-
-%inline data_type_flavor:
-| (* nothing *)
-    { DataTypeFlavor.Immutable }
-| MUTABLE
-    { DataTypeFlavor.Mutable }
 
 %inline optional_kind_annotation:
 | (* nothing *)

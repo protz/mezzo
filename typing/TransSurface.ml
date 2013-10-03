@@ -294,14 +294,16 @@ and translate_implication env (cs : mode_constraint list) = function
 
 let rec translate_data_type_def_branch
     (env: env)
-    (flavor: DataTypeFlavor.flavor)
+    (global_flavor: DataTypeFlavor.flavor)
     (adopts: typ option)
-    (branch: Datacon.name * type_binding list * data_field_def list)
+    (branch: data_type_def_branch)
   : T.typ =
-  let datacon, bindings, fields = branch in
+  let branch_flavor, datacon, bindings, fields = branch in
   let env = extend env bindings in
   let branch = {
-    T.branch_flavor = flavor;
+    T.branch_flavor =
+      DataTypeFlavor.join global_flavor branch_flavor
+        (fun () -> assert false) (* cannot happen *);
     (* [Expressions.bind_group_definition] will take care of putting the right
      * value. We perform eager resolving: as soon we've opened the binder for
      * the data type, all its branches contain a reference to it. So for now,

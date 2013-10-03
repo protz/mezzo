@@ -155,12 +155,9 @@ type typ =
 
 and mode_constraint = Mode.mode * typ
 
-and data_type_def_branch =
-    Datacon.name * type_binding list * data_field_def list
-
 and data_field_def =
   | FieldValue of Field.name * typ
-  | FieldPermission of typ
+  | FieldPermission of typ (* TEMPORARY kill this! *)
 
 and adopts_clause =
     typ option
@@ -180,6 +177,9 @@ type data_type_def_lhs =
 
 type single_fact = 
   | Fact of mode_constraint list * mode_constraint
+
+type data_type_def_branch =
+    DataTypeFlavor.flavor * Datacon.name * type_binding list * data_field_def list
 
 type data_type_def_rhs =
   | Concrete of DataTypeFlavor.flavor * data_type_def_branch list * adopts_clause

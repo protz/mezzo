@@ -819,10 +819,11 @@ and eval_recursive_equation ((new_env, closures) as accu) (p, e) =
 
 (* Evaluating a concrete data type definition. *)
 
-let evaluate_data_type_def (env : env) (f: DataTypeFlavor.flavor) (branches : data_type_def_branch list) : env =
+let evaluate_data_type_def
+    (env : env) (global_flavor: DataTypeFlavor.flavor) (branches : data_type_def_branch list) : env =
   snd (
     (* For each data constructor, *)
-    List.fold_left (fun (index, env) (datacon, _bindings, defs) ->
+    List.fold_left (fun (index, env) (branch_flavor, datacon, _bindings, defs) ->
       (* Compute the number of fields, and create a mapping of field names
         to field indices. *)
       let arity, fields =
@@ -839,7 +840,9 @@ let evaluate_data_type_def (env : env) (f: DataTypeFlavor.flavor) (branches : da
         datacon_arity = arity;
         datacon_index = index;
         datacon_fields = fields;
-        datacon_flavor = f;
+        datacon_flavor =
+	  DataTypeFlavor.join global_flavor branch_flavor
+	    (fun () -> assert false) (* cannot happen *);
       } in
       (* Extend the environment with it. *)
       index + 1,
@@ -911,7 +914,7 @@ let export_interface_item (m : Module.name) (env : env) (item : toplevel_item) :
         match def.rhs with
         | Concrete (_, branches, _) ->
            (* For each data constructor, *)
-           List.fold_left (fun env (datacon, _, _) ->
+           List.fold_left (fun env (_, datacon, _, _) ->
              (* Export this data constructor. *)
               { env with datacons = D.qualify m datacon env.datacons }
            ) env branches
