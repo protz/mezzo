@@ -276,8 +276,6 @@ let complete fact =
 open MzPprint
 
 let print (param : parameter -> document) (head : document) fact =
-  (* TEMPORARY if the fact is "affine", then nothing is printed --
-     maybe we should something about that *)
   (* Decide which implications must be printed. *)
   let implications =
     ModeMap.fold (fun m hyp accu ->
@@ -293,14 +291,18 @@ let print (param : parameter -> document) (head : document) fact =
             (hs, m) :: accu
     ) fact []
   in
-  (* Print each implication. *)
-  separate_map hardline (fun (hs, m) ->
-    let hs = canonicalize hs in
-    concat_map (fun (i, m) ->
-      string (Mode.print m) ^/^ (param i) ^/^ dblarrow
-    ) (ParameterMap.bindings hs) ^^
-    string (Mode.print m) ^/^ head
-  ) implications
+  (* Print each implication. If there is none, print just "affine". *)
+  match implications with
+  | [] ->
+      string "affine"
+  | _ ->
+      separate_map hardline (fun (hs, m) ->
+	let hs = canonicalize hs in
+	concat_map (fun (i, m) ->
+	  string (Mode.print m) ^/^ (param i) ^/^ dblarrow
+	) (ParameterMap.bindings hs) ^^
+	string (Mode.print m) ^/^ head
+      ) implications
 
 let internal_print =
   print PPrintOCaml.int empty
