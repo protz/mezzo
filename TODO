@@ -1,0 +1,11 @@
+DataTypeFlavor.join is called in too many different places;
+ideally, it should be called in just two (KindCheck, TransSurface)
+
+SurfaceSyntax.mkdatacon_info is called several times (three?) per
+datacon: this seems abnormal. 
+
+Test that an MCons can be adopted and an MNil cannot.
+
+Implement [slim]. Make sure that duplicable objects do not have an adopter
+field. Update the comment in [mlist.mz].
+
