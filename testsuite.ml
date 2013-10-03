@@ -930,6 +930,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("facts14.mz", pass);
   ("facts15.mz", fail);
   ("facts16.mz", fail);
+  ("facts17.mz", fail);
+  ("facts18.mz", fail);
   ("data-term.mz", pass_known_failure);
   ("fact-term.mz", fail_known_failure);
 
