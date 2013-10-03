@@ -944,6 +944,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("tyand05.mz", fail);
   ("tyand06.mz", fail);
   ("incorrect-fields.mz", kfail);
+  ("twice-mutable.mz", kfail);
   ("name-intro.mz", pass);
   ("name-intro2.mz", pass);
   ("name-intro3.mz", pass_known_failure);
