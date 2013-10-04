@@ -1,3 +1,5 @@
+Make Empty immutable in mutableTreeMap.mz. Understand the bug.
+
 DataTypeFlavor.join is called in too many different places;
 ideally, it should be called in just two (KindCheck, TransSurface)
 

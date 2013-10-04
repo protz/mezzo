@@ -778,7 +778,7 @@ val rec next [k, a, post: perm]
       | Empty ->
           (* The head tree is empty. Pop it off. *)
           it := (ts, release);
-          (* Persuade the type-checker takes us from the new stack
+          (* Persuade the type-checker that [release] takes us from the new stack
              to the old stack and (hence) to [post]. *)
           let flex p: perm in
           pack release @ osf::wand (ts @ list::list (tree k a)) post
@@ -826,6 +826,9 @@ val rec next [k, a, post: perm]
               value @ a *
               t @ Node { left; key; value; right; height } *
               p;
+
+	    assert ts @ list::list (tree k a); (* TEMPORARY BUG
+              this assertion fails if [Empty] is made immutable *)
 
             (* This assertion is superfluous. It says that, once the client surrenders
                [key @ k * value @ a], we again have a well-formed new [stack] and that
