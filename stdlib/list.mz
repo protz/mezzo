@@ -398,6 +398,15 @@ val rec mem [a, p : perm] (equal: (a, a | p) -> bool, x: a, consumes xs: list a 
   else
     Nil
 
+(* Consuming the list can be problematic when it is not duplicable. Here is a
+   variant that does not consume the list and only returns a Boolean value. *)
+
+val rec member [a, p : perm] (
+  equal: (a, a | p) -> bool,
+  x: a, xs: list a
+| p) : bool =
+  if xs then equal(x, xs.head) || member(equal, x, xs.tail) else false
+
 (* [assoc] is a version of [find]. It is specialized with a notion of equality
    of key-value pairs as equality of keys. *)
 

@@ -46,6 +46,23 @@ val length [a] (xs: mlist a) : int =
 
 (* -------------------------------------------------------------------------- *)
 
+(* Search. *)
+
+val rec mem [a, p : perm] (
+  equal: (a, a | p) -> bool,
+  x: a,
+  xs: mlist a
+| p
+) : bool =
+  match xs with
+  | MNil ->
+      false
+  | MCons { head; tail } ->
+      equal (x, head) || mem (equal, x, tail)
+  end
+
+(* -------------------------------------------------------------------------- *)
+
 (* In-place concatenation. *)
 
 (* MLIST_APPEND*)
@@ -210,6 +227,25 @@ val sort [a] (
   in
   let n = length xs in
   if n < 2 then xs else sort (1, n, xs)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Freezing. *)
+
+(* This could be a ghost function. For the moment, it is represented as a
+   normal function, but does nothing at runtime. *)
+
+val rec freeze [a] (consumes xs: mlist a) : (| xs @ list::list a) =
+  match xs with
+  | MNil ->
+      (* tag of xs <- list::Nil; *)
+      magic::magic [b = (| xs @ list::Nil)] ()
+      (* TEMPORARY we must cheat, because the type system currently does
+	 not allow us to convert between MNil and Nil. It could. *)
+  | MCons ->
+      tag of xs <- list::Cons;
+      freeze xs.tail
+  end
 
 (* -------------------------------------------------------------------------- *)
 

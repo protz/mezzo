@@ -14,6 +14,17 @@ val length: [a] mlist a -> int
 
 (* -------------------------------------------------------------------------- *)
 
+(* Search. *)
+
+val mem: [a, p : perm] (
+  equal: (a, a | p) -> bool,
+  x: a,
+  xs: mlist a
+| p
+) -> bool
+
+(* -------------------------------------------------------------------------- *)
+
 (* In-place reversal. *)
 
 val rev_append: [a] (consumes mlist a, consumes mlist a) -> mlist a
@@ -39,6 +50,12 @@ val sort: [a] (
   cmp: (a, a) -> int,
   consumes mlist a
 ) -> mlist a
+
+(* -------------------------------------------------------------------------- *)
+
+(* Freezing. *)
+
+val freeze: [a] (consumes xs: mlist a) -> (| xs @ list::list a)
 
 (* -------------------------------------------------------------------------- *)
 

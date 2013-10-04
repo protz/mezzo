@@ -1,0 +1,73 @@
+(* Snapshotable lists. *)
+
+open list
+open mlist
+
+(* I am using lists instead of trees because (I believe) it does not make any
+   difference and I happen to already have implementations of immutable lists
+   and mutable lists at hand. *)
+
+(* The following type contains both immutable snapshots and mutable lists.
+   The two definitions that follow are subtypes. *)
+
+data snapshot_or_slist a =
+|         SListImmutable { root: list a }
+| mutable SListMutable   { root: mlist a }
+
+alias snapshot a =
+  SListImmutable { root: list a }
+
+alias slist a =
+  SListMutable { root: mlist a }
+
+(* [create] produces a mutable list. *)
+
+val create [a] () : slist a =
+  SListMutable { root = MNil }
+
+(* Insertion is permitted only on mutable lists. *)
+
+val insert [a] (consumes x: a, xs: slist a) : () =
+  xs.root <- MCons { head = x; tail = xs.root }
+
+(* The membership test accepts both snapshots and mutable lists. *)
+
+(* If invoked with an argument of type [snapshot a], [mem] will preserve
+   this information, because it is duplicable. [mem] can also be invoked
+   with an argument [xs] of type [slist a], but in this case, after the
+   call, we will only have [xs @ snapshot_or_slist a]. Some information
+   is lost. We cannot express the fact that [SListMutable] is preserved
+   by a call to [mem]. An intersection type would apparently be required. *)
+
+val mem [a, p : perm] (
+  equal: (a, a | p) -> bool,
+  x: a,
+  xs: snapshot_or_slist a
+| p) : bool =
+  match xs with
+  | SListImmutable ->
+      list::member(equal, x, xs.root)
+  | SListMutable ->
+      mlist::mem(equal, x, xs.root)
+  end
+
+(* Creation of a snapshot. (We could prevent taking a snapshot of a
+   snapshot, but there is no reason to do so.) Note that taking a
+   snapshot requires the elements to be duplicable. *)
+
+val snapshot [a] duplicable a => (xs: snapshot_or_slist a) : snapshot a =
+  match xs with
+  | SListImmutable ->
+      xs
+  | SListMutable ->
+      (* Instead of copying the list, we make it immutable. *)
+      mlist::freeze xs.root;
+      tag of xs <- SListImmutable;
+      xs
+  end
+
+(*
+Local Variables:
+compile-command: "../mezzo snapshot.mz"
+End:
+*)
