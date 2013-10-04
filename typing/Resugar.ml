@@ -138,8 +138,7 @@ and resugar_arrow env points ty =
       let ty1 = resugar env points soup ty1 in
       (* This may be too naive. *)
       assert (VarMap.is_empty !points);
-      (* TEMPORARY construct TyBar for the remaining soup elements *)
-      assert (VarMap.is_empty !soup);
+      let ty1 = spill_soup env !soup ty1 in
       (* Since every point has been named via a name introduction
         form, there is no need to create explicit universal
         quantifiers. Translate the codomain and build an arrow. *)
