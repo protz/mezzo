@@ -5,9 +5,9 @@
 
 (* A bucket is a mutable list of entries. Each entry holds a key and a value. *)
 
-data mutable bucket k a =
+data bucket k a =
   | BNil
-  | BCons { key: k; value: a; tail: bucket k a }
+  | mutable BCons { key: k; value: a; tail: bucket k a }
 
 (* -------------------------------------------------------------------------- *)
 
