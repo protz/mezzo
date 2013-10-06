@@ -1,0 +1,8 @@
+alias stash (p: perm) =
+  (| p)
+
+val frame [p: perm] (| consumes p): stash p =
+  ()
+
+val release [p: perm] (consumes (stash p)): (| p) =
+  ()

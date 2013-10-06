@@ -820,6 +820,9 @@ val rec next [k, a, post: perm]
                in order to obtain [post]. This justifies the following new view of
                [release]. *)
 
+            let alias precious: perm = ts @ list::list (tree k a) in
+            let s: stash::stash precious = stash::frame () in
+
             pack release @ wand (stack @ list::list (tree k a)) post
             witness
               key @ k *
@@ -827,8 +830,8 @@ val rec next [k, a, post: perm]
               t @ Node { left; key; value; right; height } *
               p;
 
-	    assert ts @ list::list (tree k a); (* TEMPORARY BUG
-              this assertion fails if [Empty] is made immutable *)
+            stash::release s;
+            assert precious;
 
             (* This assertion is superfluous. It says that, once the client surrenders
                [key @ k * value @ a], we again have a well-formed new [stack] and that

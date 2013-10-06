@@ -1,0 +1,8 @@
+(* This module allows one to store a permission "somewhere" so that the
+ * type-checker won't try to use when performing let-flex inference. Ideally,
+ * this should have no effect at run-time, but unfortunately, it does. *)
+
+abstract stash (p: perm)
+
+val frame: [p: perm] (| consumes p) -> stash p
+val release: [p: perm] (consumes (stash p)) -> (|p)
