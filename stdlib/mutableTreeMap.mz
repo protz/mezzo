@@ -820,8 +820,12 @@ val rec next [k, a, post: perm]
                in order to obtain [post]. This justifies the following new view of
                [release]. *)
 
-            let alias precious: perm = ts @ list::list (tree k a) in
-            let s: stash::stash precious = stash::frame () in
+            (* The use of [stash/unstash] is a way of helping the type-checker find
+               the appropriate value of the flexible variable [p]. It would be more
+               elegant if we could find a less fragile way of telling the type-checker
+               what we mean by [p]. *)
+
+            stash::stash [(ts @ list::list (tree k a))] ();
 
             pack release @ wand (stack @ list::list (tree k a)) post
             witness
@@ -830,8 +834,7 @@ val rec next [k, a, post: perm]
               t @ Node { left; key; value; right; height } *
               p;
 
-            stash::release s;
-            assert precious;
+            stash::unstash();
 
             (* This assertion is superfluous. It says that, once the client surrenders
                [key @ k * value @ a], we again have a well-formed new [stack] and that

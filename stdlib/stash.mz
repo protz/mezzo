@@ -1,8 +1,7 @@
-alias stash (p: perm) =
-  (| p)
+alias stashed (p: perm) : perm = p
 
-val frame [p: perm] (| consumes p): stash p =
+val stash [p: perm] (| consumes p) : (| stashed p) =
   ()
 
-val release [p: perm] (consumes (stash p)): (| p) =
+val unstash [p: perm] (| consumes stashed p) : (| p) =
   ()
