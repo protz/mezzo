@@ -1,0 +1,148 @@
+(* A library version of the adoption / abandon mechanism. *)
+
+open list
+open either
+
+(* An adopter is just a list of pointers to its children. The [give_] and
+ * [take_] operations implement the transfer of ownership. *)
+alias adopter_ t = ref (list t)
+
+(* In this view, any object can be tested for ownership, meaning that anything
+ * can be adopted. The type of an adoptee is thus unknown, that is, the top
+ * type. *)
+alias dynamic_ = unknown
+
+(* Creating a new adopter just means allocating a new reference. *)
+val new_ [t] (): adopter_ t =
+  newref nil
+
+(* Giving an element merely amounts to putting it in the list. *)
+val give_ [t] (parent: adopter_ t, child: (consumes t)): (| child @ dynamic_) =
+  parent := cons (child, !parent)
+
+(* Taking an element. *)
+val take_ [t] (
+  parent: adopter_ t,
+  child: dynamic_
+): rich_bool empty (child @ t) =
+
+  (* We just search the list for an element that is equal (physically) to
+   * [child]. It's tail-recursive, and it's a zipper. *)
+  let rec search (
+    consumes prev: list t,
+    consumes l: list t
+  ): either (list t | child @ t) (list t) =
+
+    match l with
+    | Cons { head; tail } ->
+        if head == child then
+          (* The head of the list is [child]! The type-checker automatically
+           * adds "head = child" into the environment, meaning that now we have
+           * "child @ t". We just return (left case) the remaining elements.
+           * Thanks to the return type annotation, the type-checker figures
+           * out automatically that it pack the "child @ t" permission in the
+           * "Left" case. *)
+          left (rev_append (prev, tail))
+        else
+          (* The head of the list is not [child]. Keep searching. *)
+          search (cons (head, prev), tail)
+    | Nil ->
+        (* We haven't found [child]. Return (right case). *)
+        right (rev prev)
+    end
+
+  in
+
+  (* In both cases, we need to put back the remaining elements in the adopter. *)
+  match search (nil, !parent) with
+  | Left { contents } ->
+      parent := contents;
+      true
+  | Right { contents } ->
+      parent := contents;
+      false
+  end
+
+(* This slightly more sophisticated version does not use a zipper, meaning that
+ * the search procedure is not tail-recursive. It is capable, however, of ruling
+ * out the case where the element is found twice in the list, statically. *)
+val take2_ [t] exclusive t => (
+  parent: adopter_ t,
+  child: dynamic_
+): rich_bool empty (child @ t) =
+
+  (* Well, well... let's use this as a pretext to try out local type
+   * definitions. *)
+  let data outcome =
+    | Found { contents: list t | child @ t }
+    | Not_found { contents: list t }
+  in
+
+  (* Our search procedure takes a list, and returns the list of remaining
+   * elements along with a permission found for the child, or just returns the
+   * original list. *)
+  let rec search (
+    consumes l: list t
+  ): outcome =
+
+    (* Are there any elements left? *)
+    match l with
+    | Cons { head; tail } ->
+
+        (* There's an element in the list. See if it's the one we're looking
+         * for, that is, [child]. *)
+
+        if head == child then begin
+          (* We've found the element! *)
+          assert child @ t;
+          match search tail with
+          | Found ->
+              (* We've found it a second time! This is impossible! The
+               * type-checker knows that the environment is inconsistent, so
+               * we're able to return a dummy value. We could probably have a
+               * construct called [impossible], or maybe have the type-checker
+               * mark a branch as impossible, so that the compiler could take
+               * advantage of it. Right now it doesn't. *)
+              assert child @ t * child @ t;
+              ()
+          | Not_found { contents } ->
+              (* We haven't found it again, phew! Just say that [child] has been
+               * found, and that whatever remains is [contents]. *)
+              Found { contents }
+          end
+        end else begin
+          (* We haven't found the element! Call ourselves recursively on [tail];
+           * in both cases, we want to leave [head] in the list of whatever
+           * remains. *)
+          match search tail with
+          | Found { contents } ->
+              Found { contents = cons (head, contents) }
+          | Not_found { contents } ->
+              Not_found { contents = cons (head, contents) }
+          end
+        end
+
+    | Nil ->
+        (* Nothing in the list. It's a [Not_found], with an empty remainder. *)
+        Not_found { contents = nil }
+    end
+
+  in
+
+  (* The type annotation here seems necessary, while it shouldn't be, since we
+   * have the return type of the function... *)
+  let x: rich_bool empty (child @ t) =
+    match search !parent with
+    | Found { contents } ->
+        (* In both cases, we have to put back the list of children into the
+         * adopter, before returning true or false. *)
+        parent := contents;
+        true
+    | Not_found { contents } ->
+        parent := contents;
+        false
+    end
+  in
+
+  x
+

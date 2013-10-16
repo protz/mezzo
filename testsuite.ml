@@ -1037,10 +1037,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("datacon2.mz", pass);
   ("datacon3.mz", pass);
   ("datacon4.mz", kfail);
-  ("shortest.mz", pass); (* TEMPORARY this test seems to pass when running "make test",
-                            but actually causes a failure while printing the inferred
-                            permissions. *)
+  ("shortest.mz", pass);
   ("snapshot.mz", pass);
+  ("adoptslib.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)

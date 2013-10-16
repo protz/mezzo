@@ -1,0 +1,27 @@
+(* A library version of the adoption / abandon mechanism. *)
+
+abstract adopter_ t
+abstract dynamic_
+fact duplicable dynamic_
+
+(* This library requires the user to allocate a new adopter for elements of a
+ * given type. *)
+val new_: [t] () -> adopter_ t
+
+(* When giving, the user gives up his ownership of "child @ t", and gets "child
+ * @ dynamic" instead. *)
+val give_: [t] (parent: adopter_ t, child: (consumes t)) -> (| child @ dynamic_)
+
+(* When taking, the user tests "parent" for ownership of "child". This operation
+ * may fail, meaning that it's a boolean that's returned. In case the operation
+ * succeeds, the user learns "child @ t". *)
+val take_: [t] (parent: adopter_ t, child: dynamic_) -> rich_bool empty (child @ t)
+
+(* Interestingly enough, this library allows you to adopt duplicable elements.
+ * If the library were to require that "t" be exclusive, then a better
+ * implementation of "take" could be written, that internally proves that the
+ * element cannot be adopted twice. *)
+val take2_: [t] exclusive t => (
+  parent: adopter_ t,
+  child: dynamic_
+) -> rich_bool empty (child @ t)
