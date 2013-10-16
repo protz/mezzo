@@ -441,6 +441,22 @@ val partition [a] (p: a -> bool, consumes xs: list a) : (list a, list a) =
   let (yes, no) = fold_left [a, unknown, (list a, list a)] (f, (Nil, Nil), xs) in
   rev yes, rev no
 
+(* Not tail-recursive. Should probably be. *)
+val rec rich_partition [a, p: perm, q: perm] (
+  consumes l: list a,
+  test: a -> rich_bool p q
+): (list (a | p), list (a | q)) =
+  match l with
+  | Nil ->
+      (nil, nil)
+  | Cons { head; tail } ->
+      let ps, qs = rich_partition (tail, test) in
+      if test head then
+        ps, Cons { head; tail = qs }
+      else
+        Cons { head; tail = ps }, qs
+  end
+
 (* -------------------------------------------------------------------------- *)
 
 (* Iterator. *)

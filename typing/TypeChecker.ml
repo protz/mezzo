@@ -505,7 +505,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* We used to be smart and merge type annotations but not a single test
        * file used this (dubious) feature, so it was removed. *)
       let annot = match annot with
-        | Some t' -> raise_error env (ConflictingTypeAnnotations (t, t'))
+        | Some t' ->
+            if not (equal env t t') then
+              raise_error env (ConflictingTypeAnnotations (t, t'))
+            else
+              t
         | None -> t
       in
       let env, p = check_expression env ?hint ~annot e in
@@ -901,11 +905,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   | EInt _ ->
       return env !*t_int
 
-  | ELocated (e, new_pos) ->
-      let old_pos = location env in
-      let env = locate env new_pos in
+  | ELocated (e, pos) ->
+      let env = locate env pos in
       let env, p = check_expression env ?hint ?annot e in
-      locate env old_pos, p
+      locate env pos, p
 
   | EIfThenElse (explain, e1, e2, e3) ->
       let hint_1 = add_hint hint "if" in

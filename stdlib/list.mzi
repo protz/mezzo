@@ -114,6 +114,11 @@ val assoc   : [a, b, p : perm] (
 
 val filter    : [a, p : perm] (consumes xs: list a, ok: (a | p) -> bool | p) -> list a
 val partition : [a] (p: a -> bool, consumes xs: list a) -> (list a, list a)
+val rich_partition :
+  [a, p: perm, q: perm] (
+    consumes list a,
+    test: a -> rich_bool p q
+  ) -> (list (a | p), list (a | q))
 
 (* -------------------------------------------------------------------------- *)
 
