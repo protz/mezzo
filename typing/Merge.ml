@@ -215,8 +215,9 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
   let make_base_envs ?annot () =
 
-    Log.debug ~level:3 "\n--------- START MERGE @ %a ----------\n\n%a\n\n"
+    Log.debug ~level:3 "\n--------- START MERGE @ %a (annot: %b) ----------\n\n%a\n\n"
       Lexer.p (location top)
+      (annot <> None)
       MzPprint.pdoc (TypePrinter.print_permissions, top);
 
     let is_external var =

@@ -131,18 +131,14 @@ val take2_ [t] exclusive t => (
 
   (* The type annotation here seems necessary, while it shouldn't be, since we
    * have the return type of the function... *)
-  let x: rich_bool empty (child @ t) =
-    match search !parent with
-    | Found { contents } ->
-        (* In both cases, we have to put back the list of children into the
-         * adopter, before returning true or false. *)
-        parent := contents;
-        true
-    | Not_found { contents } ->
-        parent := contents;
-        false
-    end
-  in
-
-  x
+  match search !parent with
+  | Found { contents } ->
+      (* In both cases, we have to put back the list of children into the
+       * adopter, before returning true or false. *)
+      parent := contents;
+      true
+  | Not_found { contents } ->
+      parent := contents;
+      false
+  end
 
