@@ -7,9 +7,9 @@
 (* A tree is either empty or a binary node. Besides its children, a binary
    node contains a key, a value, and its height. *)
 
-data mutable tree k a =
+data tree k a =
   | Empty
-  | Node { left: tree k a; key: k; value: a; right: tree k a; height: int }
+  | mutable Node { left: tree k a; key: k; value: a; right: tree k a; height: int }
 
 (* -------------------------------------------------------------------------- *)
 

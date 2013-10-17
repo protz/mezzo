@@ -192,7 +192,7 @@ val wrap [a, i, post: perm] (
 
 val new_tree_iterator [a] (consumes t: tree a): iterator a (t @ tree a) =
   let alias post: perm = t @ tree a in
-  wrap [a, (tree_iterator a post), post]
+  wrap (* [a, (tree_iterator a post), post] *)
     (new t, next [a, post], stop [a, post])
 
 (* Conversely, one can wrap an OO-style iterator as an ADT. (This does
