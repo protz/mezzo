@@ -68,7 +68,8 @@ let _ =
   (* First enable the default warn-error string. *)
   TypeErrors.parse_warn_error !Options.warn_error;
   (* Then refine that based on the user's preferences. *)
-  TypeErrors.parse_warn_error !arg_warn_error;
+  if !arg_warn_error <> "" then
+    TypeErrors.parse_warn_error !arg_warn_error;
   let opts =
     let open Driver in
     { html_errors = !arg_html_errors; backtraces = not !arg_backtraces }
