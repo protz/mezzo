@@ -1,0 +1,82 @@
+body {
+  width: 800px;
+  font-family: sans-serif;
+  margin: 0 auto;
+  padding: 0 20px 0 80px;
+}
+
+pre.sourceCode, code {
+  background-color: #eee;
+}
+
+code:not(.sourceCode) {
+  padding: 2px 4px;
+  color: rgb(164, 0, 0);
+  background-color: rgb(247, 247, 249);
+  border: 1px solid rgb(225, 225, 232);
+  line-height: 1.8em;
+}
+
+
+.controls {
+  text-align: center;
+}
+
+a {
+  text-decoration: none;
+  color: #888;
+  display: inline-block;
+}
+
+a:hover {
+  text-decoration: underline;
+  color: #666;
+}
+
+.boxes {
+  width: 100%;
+  margin-bottom: 1em;
+  text-align: center;
+}
+
+.box {
+  text-align: left;
+  width: 395px;
+  display: inline-block;
+  height: 8em;
+  border: 1px solid black;
+  vertical-align: top;
+  background-color: white;
+  border-radius: 5px;
+}
+
+.box ul {
+  margin: 0;
+}
+
+.title {
+  padding: 5px;
+  font-weight: bold;
+}
+
+.controls a {
+  font-weight: bold;
+  font-size: 300%;
+  color: #75507b;
+}
+
+.controls a:hover {
+  color: #5c2566;
+  text-decoration: none;
+}
+
+.caption {
+  text-align: center;
+  font-style: italic;
+  margin: 0;
+}
+
+.figure {
+  border: 1px solid black;
+  padding: 2em;
+}

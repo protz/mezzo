@@ -1,0 +1,32 @@
+.mezzoAnimate {
+  position: relative;
+}
+
+.mezzoOverlay, .mezzoCode {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.mezzoOverlay {
+  right: 0;
+}
+
+.mezzoArrow {
+  width: 79px;
+  height: 49px;
+  background-image: url(arrow.png);
+  background-repeat: no-repeat;
+  position: absolute;
+  left: -79px;
+  bottom: -25px;
+}
+
+.mezzoFill {
+  width: 100%;
+}
+
+pre {
+  margin: 0;
+  padding: 0;
+}

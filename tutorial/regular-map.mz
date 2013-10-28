@@ -1,0 +1,11 @@
+open list
+
+val rec map [a, b] (f: (consumes a -> b), consumes xs: list a): list b =
+  match xs with
+  | Cons { head = h; tail = t } ->
+      let h' = f h in
+      let t' = map (f, t) in
+      Cons { head = h'; tail = t' }
+  | Nil ->
+      xs
+  end

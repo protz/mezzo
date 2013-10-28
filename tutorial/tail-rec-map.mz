@@ -1,0 +1,38 @@
+(* This file implements a destination-passing style, tail-recursive
+ * version of [List.map] for immutable lists. It uses a temporary mutable cell
+ * that is later on "frozen" when it's ready. *)
+
+data list a = Cons { head: a; tail: list a } | Nil
+
+data mutable cell a = Cell { head: a; tail: () }
+
+(* This is the recursion loop, which turns [c0], an unfinished, mutable list
+cell, into a well-formed, immutable list. *)
+val rec map1 [a, b] (
+          f: (consumes a) -> b,
+          consumes c0: cell b,
+          consumes xs: list a
+        ): (| c0 @ list b)
+      =
+  match xs with
+  | Nil ->
+      c0.tail <- xs;
+      tag of c0 <- Cons
+  | Cons { head = h; tail = t } ->
+      let h' = f h in
+      let c1 = Cell { head = h'; tail = () } in
+      c0.tail <- c1;
+      tag of c0 <- Cons;
+      map1 (f, c1, t)
+  end
+
+(* We need to unroll the recursion to take into account empty lists. *)
+val map [a, b] (f: a -> b, consumes xs: list a): list b =
+  match xs with
+  | Nil ->
+      xs
+  | Cons { head; tail } ->
+      let c = Cell { head = f head; tail = () } in
+      map1 (f, c, tail);
+      c
+  end
