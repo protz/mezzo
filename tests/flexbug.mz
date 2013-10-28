@@ -1,0 +1,7 @@
+open channel
+
+val _ =
+  let c = new () in
+  let f1 (): (| c @ channel int) = assert c @ channel int in
+  let f2 (): (| c @ channel bool) = assert c @ channel bool in
+  f1 (); f2 (); assert c @ channel int * c @ channel bool
