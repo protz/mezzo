@@ -325,6 +325,9 @@ raw_atomic_type:
 (* The top permission. A neutral element for permission conjunction. *)
 | EMPTY
     { TyEmpty }
+(* The wildcard, which allows a limited form of type inference for functions. *)
+| UNDERSCORE
+    { TyWildcard }
 (* Term variable, type variable, permission variable, abstract type, or concrete type. *)
 | x = maybe_qualified_type_variable
     { x }

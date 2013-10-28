@@ -137,6 +137,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | TyUnknown
     | TyDynamic
     | TyEmpty
+    | TyWildcard
         -> []
     | TySingleton t1
     | TyNameIntro (_, t1)

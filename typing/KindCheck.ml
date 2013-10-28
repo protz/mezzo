@@ -778,6 +778,9 @@ and infer env s (ty : typ) : kind =
       check env s ty KType;
       KType
 
+  | TyWildcard ->
+      KType
+
 and infer_reset env ty =
   infer (reset Fictional env ty) ConsumesDisallowed ty
 

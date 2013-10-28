@@ -152,6 +152,7 @@ type typ =
   | TyBar of typ * typ
   | TyAnd of mode_constraint * typ
   | TyImply of mode_constraint * typ
+  | TyWildcard
 
 and mode_constraint = Mode.mode * typ
 
@@ -402,6 +403,7 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TySingleton _
   | TyDynamic
   | TyApp _
+  | TyWildcard
   | TyVar _ ->
       PAny
 

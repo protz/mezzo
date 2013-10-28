@@ -1,0 +1,2 @@
+val f (_: list::list _): _ =
+  1

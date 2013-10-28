@@ -197,6 +197,9 @@ let rec translate_type env (ty : typ) : T.typ * T.typ * kind =
   | TyImply (c, ty) ->
       translate_implication env [c] ty
 
+  | TyWildcard ->
+      Log.error "Illegal wildcard (FIXME: turn this into a real error message)"
+
 and translate_arrow_type env domain codomain =
   (* Bind a fresh variable to stand for the root of the function
      argument. Bind the names introduced in the left-hand side. *)
@@ -574,6 +577,73 @@ let map_tapp f = function
       E.Named (x, f t)
 ;;
 
+(* This function takes a type that may contain wildcards, and replaces them with
+ * De Bruijn references; it returns the list (in reverse) of kinds for the
+ * corresponding flexible variable bindings. It is therefore important that the
+ * type not contain any open binders... *)
+let rec extrude_wildcards env (t: typ): typ * type_binding list =
+  match t with
+  | TyLocated (t, loc) ->
+      let t, bindings = extrude_wildcards (locate env loc) t in
+      TyLocated (t, loc), bindings
+  | TyTuple ts ->
+      let ts, bindings = List.fold_left (fun (ts, bindingss) t ->
+        let t, bindings = extrude_wildcards env t in
+        t :: ts, bindings :: bindingss
+      ) ([], []) ts in
+      let ts = List.rev ts in
+      TyTuple ts, List.concat bindings
+  | TyEmpty
+  | TyDynamic
+  | TyVar _
+  | TySingleton _
+  | TyApp _
+  | TyArrow _
+  | TyForall _
+  | TyExists _
+  | TyUnknown ->
+      t, []
+  | TyConcrete ((datacon, fields), clause) ->
+      let fields, bindings = List.fold_left (fun (fields, bindingss) field ->
+        match field with
+        | FieldValue (name, t) ->
+            let t, bindings = extrude_wildcards env t in
+            FieldValue (name, t) :: fields, bindings :: bindingss
+        | FieldPermission t ->
+            let t, bindings = extrude_wildcards env t in
+            FieldPermission t :: fields, bindings :: bindingss
+      ) ([], []) fields in
+      let fields = List.rev fields in
+      TyConcrete ((datacon, fields), clause), List.concat bindings
+  | TyAnchoredPermission (x, t) ->
+      let t, bindings = extrude_wildcards env t in
+      TyAnchoredPermission (x, t), bindings
+  | TyStar (p, q) ->
+      let p, bindings_p = extrude_wildcards env p in
+      let q, bindings_q = extrude_wildcards env q in
+      TyStar (p, q), bindings_q @ bindings_p
+  | TyNameIntro (name, t) ->
+      let t, bindings = extrude_wildcards env t in
+      TyNameIntro (name, t), bindings
+  | TyConsumes t ->
+      let t, bindings = extrude_wildcards env t in
+      TyConsumes t, bindings
+  | TyBar (t, p) ->
+      let p, bindings_p = extrude_wildcards env p in
+      let t, bindings_t = extrude_wildcards env t in
+      TyBar (t, p), bindings_t @ bindings_p
+  | TyAnd (c, t) ->
+      let t, bindings = extrude_wildcards env t in
+      TyAnd (c, t), bindings
+  | TyImply (c, t) ->
+      let t, bindings = extrude_wildcards env t in
+      TyImply (c, t), bindings
+  | TyWildcard ->
+      let name = fresh_var "/_" in
+      let binding = name, KType, location env in
+      TyVar (Unqualified name), [binding]
+;;
+
 let rec translate_expr (env: env) (expr: expression): E.expression =
   match expr with
   | EConstraint (e, t) ->
@@ -608,6 +678,12 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       E.ELocalType (group, e)
 
   | EFun (vars, arg, return_type, body) ->
+
+      (* Extrude wildcards before opening the binders. *)
+      let arg, flex_bindings = extrude_wildcards env arg in 
+      let return_type, flex_bindings' = extrude_wildcards env return_type in
+      let flex_bindings = flex_bindings @ flex_bindings' in
+      let env = extend env flex_bindings in
 
       (* Introduce all universal bindings. *)
       let env = extend env vars in
@@ -646,7 +722,12 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let universal_bindings = List.map (fun binding -> name_auto binding, AutoIntroduced) universal_bindings in
 
       (* Build big Lambdas. *)
-      E.EBigLambdas (vars @ universal_bindings, body)
+      let expr = E.EBigLambdas (vars @ universal_bindings, body) in
+
+      (* Wrap around let-flex's *)
+      List.fold_right (fun binding expr ->
+        E.ELetFlex ((name_auto binding, AutoIntroduced), expr)
+      ) flex_bindings expr
 
   | EAssign (e1, f, e2) ->
       let e1 = translate_expr env e1 in

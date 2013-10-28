@@ -1,0 +1,5 @@
+val f =
+  let f (x: _, y: _): _ =
+    x + y
+  in
+  f

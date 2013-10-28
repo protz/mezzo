@@ -571,8 +571,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
        * instantiation. *)
       let name =
         match binding with
+        | (Auto n, _, _), _
         | (User (_, n), _, _), _ -> n
-        | _ -> assert false
       in
       may_raise_error env (Instantiated (name, t0));
       env, x
@@ -632,6 +632,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       | Left (_, d) ->
           Log.debug ~level:8 "%a" DerivationPrinter.pderivation d;
           (* Return the desired arrow type. *)
+          let env = Permissions.import_flex_instanciations env sub_env in
           return env (TyArrow (arg, return_type))
       | Right d ->
           raise_error sub_env (ExpectedType (return_type, p, d))
