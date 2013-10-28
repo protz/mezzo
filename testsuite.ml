@@ -1042,7 +1042,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("adoptslib.mz", pass);
   ("wildcard1.mz", pass);
   ("wildcard2.mz", pass);
-  ("flexbug.mz", fail_known_failure);
+  ("flexbug.mz", fail);
   ("flexbug2.mz", fail_known_failure);
 
   (* The tests below are intentionally not run as they cause the type-checker to
