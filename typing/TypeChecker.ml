@@ -629,7 +629,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let sub_env, p = check_expression sub_env ~annot:return_type body in
 
       begin match Permissions.sub sub_env p return_type with
-      | Left (_, d) ->
+      | Left (sub_env, d) ->
           Log.debug ~level:8 "%a" DerivationPrinter.pderivation d;
           (* Return the desired arrow type. *)
           let env = Permissions.import_flex_instanciations env sub_env in

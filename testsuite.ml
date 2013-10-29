@@ -1043,7 +1043,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("wildcard1.mz", pass);
   ("wildcard2.mz", pass);
   ("flexbug.mz", fail);
-  ("flexbug2.mz", fail_known_failure);
+  ("flexbug2.mz", fail);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)
