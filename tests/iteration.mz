@@ -103,13 +103,15 @@ val rec next [a, post: perm]
       | Node { left; elem; right } ->
           (* The head tree has a root node. Split this node and push its
              sub-trees onto the stack. *)
-          let stack = Cons { head = left; tail = Cons { head = right; tail = ts }} in
-          it := (stack, release);
+          let stack' = Cons { head = left; tail = Cons { head = right; tail = ts }} in
+          it := (stack', release);
 
           (* Now, we must construct a new magic wand, which packs some of our current
              permissions, and ensures that once the client gives [elem @ a] back to us,
              we can produce [it @ tree_iterator a post]. *)
-          let flex p: perm in
+          let flex ammo: perm in
+          assert release @ (| consumes (stack @ list (tree a) * ammo)) -> (| post);
+
           let surrender (|
             consumes (
               left @ tree a *
@@ -117,31 +119,39 @@ val rec next [a, post: perm]
               right @ tree a *
               t @ Node { left; elem; right } * 
               ts @ list (tree a) *
-              it @ Ref { contents: (=stack, =release) } *
-              p
+              it @ Ref { contents: (=stack', =release) } *
+              ammo
             )
           ): (| it @ tree_iterator a post) =
             
-            (* We know that the new [stack] is [left :: right :: ts], because this is
+            (* We know that the new [stack'] is [left :: right :: ts], because this is
                a duplicable fact. Similarly, we know that the old [stack] was [t :: ts].
-               Thus, if we own the new [stack] as a list of trees, and if own the node [t]
+               Thus, if we own the new [stack'] as a list of trees, and if own the node [t]
                and its element, then we can reconstruct that we own the old [stack] as a
                list of trees, and from there, apply [release] -- at its previous type --
                in order to obtain [post]. This justifies the following new view of
                [release]. *)
 
-            pack release @ wand (stack @ list (tree a)) post
+            pack release @ wand (stack' @ list (tree a)) post
             witness
-              elem @ a *
+              stack' @ Cons { head = left; tail: Cons { head = right; tail = ts }} *
+              (* The conjunction of the permission above with [stack' @ list (tree a)] gives:
+               * - left @ tree a
+               * - right @ tree a
+               * - ts @ list tree a
+               * These three + the three permissions below give [stack @ list (tree a)].
+               *)
+              stack @ Cons { head = t; tail = ts } *
               t @ Node { left; elem; right } *
-              p;
+              elem @ a *
+              ammo;
 
             (* This assertion is superfluous. It says that, once the client surrenders
-               [elem @ a], we again have a well-formed new [stack] and that [release]
-               allows us to abandon this stack and obtain [post]. *)
+               [elem @ a], we again have a well-formed new [stack'] and that [release]
+               allows us to abandon this stack' and obtain [post]. *)
             assert
-              stack @ list (tree a) *
-              release @ wand (stack @ list (tree a)) post;
+              stack' @ list (tree a) *
+              release @ wand (stack' @ list (tree a)) post;
             ()
           in
 
