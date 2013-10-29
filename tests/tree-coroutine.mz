@@ -48,9 +48,9 @@ val count [a] (pipe: channel a, ack: channel bool) : () =
 val test [a] duplicable a => (t: tree a) : bool =
   let pipe, ack = new(), new() in
   thread::spawn (fun () : () =
-    count (pipe, ack)
+    count [a] (pipe, ack)
   );
-  iter [a] (t, pipe, ack)
+  iter (t, pipe, ack)
     (* Interesting example of a type application that is required. *)
 
 (* ------------------------------------------------------------------------------ *)
