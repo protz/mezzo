@@ -110,6 +110,7 @@ val rec next [a, post: perm]
              permissions, and ensures that once the client gives [elem @ a] back to us,
              we can produce [it @ tree_iterator a post]. *)
           let flex ammo: perm in
+          (* This assertion is superfluous. *)
           assert release @ (| consumes (stack @ list (tree a) * ammo)) -> (| post);
 
           let surrender (|
@@ -134,6 +135,7 @@ val rec next [a, post: perm]
 
             pack release @ wand (stack' @ list (tree a)) post
             witness
+              (* This permission is superfluous. It's duplicable. *)
               stack' @ Cons { head = left; tail: Cons { head = right; tail = ts }} *
               (* The conjunction of the permission above with [stack' @ list (tree a)] gives:
                * - left @ tree a
@@ -141,6 +143,7 @@ val rec next [a, post: perm]
                * - ts @ list tree a
                * These three + the three permissions below give [stack @ list (tree a)].
                *)
+              (* This permission is superfluous. It's duplicable. *)
               stack @ Cons { head = t; tail = ts } *
               t @ Node { left; elem; right } *
               elem @ a *

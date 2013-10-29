@@ -825,7 +825,7 @@ val rec next [k, a, post: perm]
                elegant if we could find a less fragile way of telling the type-checker
                what we mean by [p]. *)
 
-            stash::stash [(ts @ list::list (tree k a))] ();
+            (* stash::stash [(ts @ list::list (tree k a))] (); *)
 
             pack release @ wand (stack @ list::list (tree k a)) post
             witness
@@ -834,7 +834,7 @@ val rec next [k, a, post: perm]
               t @ Node { left; key; value; right; height } *
               p;
 
-            stash::unstash();
+            (* stash::unstash(); *)
 
             (* This assertion is superfluous. It says that, once the client surrenders
                [key @ k * value @ a], we again have a well-formed new [stack] and that
