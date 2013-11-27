@@ -892,12 +892,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         qed
       end
 
-  | TyQ (Exists, binding, _, t1), _ ->
-      try_proof_root "Exists-L" begin
-        let env, t1, _ = bind_rigid_in_type env binding t1 in
-        sub_type env t1 t2 >>=
-        qed
-      end
+  | TyQ (Exists, _binding, _, _t1), _ ->
+      assert false
 
 
   (** Lower priority for binding flexible = existential quantifiers. *)
