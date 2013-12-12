@@ -1086,15 +1086,22 @@ let internal_pflexlist buf env =
 
 
 let import_flex_instanciations_raw env sub_env =
-  Log.debug ~level:6 "env: %a" internal_pflexlist env;
-  Log.debug ~level:6 "sub_env: %a" internal_pflexlist sub_env;
-
   let max_level = IntMap.fold (fun _ { original_level; _ } acc ->
     max original_level acc
   ) env.flexible (-1) in
   let flexible = IntMap.filter (fun _ { original_level; _ } ->
     original_level <= max_level
   ) sub_env.flexible in
+
+  Log.debug ~level:6 "env (max_level = %d): %a" max_level internal_pflexlist env;
+  Log.debug ~level:6 "sub_env: %a" internal_pflexlist sub_env;
+  Log.debug ~level:6 "kept %d flexible" (IntMap.cardinal flexible);
+  Log.check (IntMap.cardinal flexible >= IntMap.cardinal env.flexible)
+    "we are dropping some flexible variables!";
+
+  (* And put them into [env], which is now equipped with everything it needs. *)
+  let env = { env with flexible } in
+
   (* This is to eliminate roundtrips. The following scenario can happen.
    * level(α) = 1
    * level(β) = 2
@@ -1113,13 +1120,8 @@ let import_flex_instanciations_raw env sub_env =
         descr
   ) flexible in
 
-  Log.check (IntMap.cardinal flexible >= IntMap.cardinal env.flexible)
-    "We are dropping some flexible variables!";
-
-  (* And put them into [env], which is now equipped with everything it needs. *)
+  (* Put the cleaned up versions in [env]. *)
   let env = { env with flexible } in
-
-  Log.debug ~level:6 "Kept %d flexible" (IntMap.cardinal flexible);
 
   (* The only dangerous case is when [max_level = l], and sub_env contains a
    * flexible at level [l] instantiated to a rigid that does not exist in
