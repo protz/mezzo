@@ -100,6 +100,7 @@ val find    : [a, p : perm] ((a | p) -> bool, consumes list a | p) -> list a
 val remove  : [a, p : perm] ((a | p) -> bool, consumes list a | p) -> list a
 
 val mem     : [a, p : perm] (equal: (a, a | p) -> bool, x: a, consumes xs: list a | p) -> list a
+val member  : [a, p : perm] (equal: (a, a | p) -> bool, x: a, xs: list a | p) -> bool
 
 val assoc   : [a, b, p : perm] (
   equal: (a, a | p) -> bool,
@@ -113,6 +114,11 @@ val assoc   : [a, b, p : perm] (
 
 val filter    : [a, p : perm] (consumes xs: list a, ok: (a | p) -> bool | p) -> list a
 val partition : [a] (p: a -> bool, consumes xs: list a) -> (list a, list a)
+val rich_partition :
+  [a, p: perm, q: perm] (
+    consumes list a,
+    test: a -> rich_bool p q
+  ) -> (list (a | p), list (a | q))
 
 (* -------------------------------------------------------------------------- *)
 

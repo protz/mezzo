@@ -1,8 +1,9 @@
 
 data t a = A | B { b: a }
 
+val x = 2
+
 val v13 =
-  let x = 2 in
   if explain True then
     if True then A else B { b = x }
   else

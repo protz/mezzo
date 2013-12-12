@@ -33,11 +33,11 @@ open ExpressionsCore
  * binders in the {!toplevel_item}s that follow. The resulting {!toplevel_item}s
  * are returned, as well as the list of {!var}s that have been bound. *)
 val bind_data_type_group_in_toplevel_items: env -> data_type_group -> toplevel_item list ->
-      env * toplevel_item list * var list
+      env * toplevel_item list * var list * (var * Datacon.name * SurfaceSyntax.datacon_info) list
 
 (** Used by the type-checker to process local type declarations. *)
 val bind_data_type_group_in_expr: env -> data_type_group -> expression ->
-      env * expression * var list
+      env * expression * var list * (var * Datacon.name * SurfaceSyntax.datacon_info) list
 
 (** Use this to transform the branch from a [type_def] into something that's
  * suitable for manipulation as a type. *)
@@ -75,20 +75,9 @@ val p_unit : pattern
 val eunloc : expression -> expression
 
 
-(** {2 Substitution functions for types.} *)
-
-val tsubst_toplevel_items :
-  typ ->
-  db_index -> toplevel_item list -> toplevel_item list
-
-
 (** {2 Substitution functions for expressions.} *)
 
 val tsubst_expr: typ -> int -> expression -> expression
-
-val esubst_toplevel_items :
-  expression -> db_index -> toplevel_item list -> toplevel_item list
-
 
 (* -------------------------------------------------------------------------- *)
 
@@ -105,6 +94,7 @@ type substitution_kit = {
   subst_toplevel: toplevel_item list -> toplevel_item list;
   subst_pat : pattern list -> pattern list;
   vars : var list;
+  names: Variable.name list;
 }
 
 (** Bind a set of term variables (let-bindings). *)

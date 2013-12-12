@@ -1,0 +1,4 @@
+data mutable foo =
+  A
+| mutable B
+

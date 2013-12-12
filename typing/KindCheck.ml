@@ -125,6 +125,9 @@ module P = struct
       string "variety = " ^^ string (print_variety variety)
     ) env.variables
 
+  let penv buf env =
+    pdoc buf ((fun () -> print_env env), ())
+
   (* Printing a comma-separated list of field names. *)
 
   let print_field field =
@@ -138,6 +141,8 @@ module P = struct
 
 end
 
+let p = P.penv
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Errors. *)
@@ -148,7 +153,7 @@ type error =
   | FictionalEVar of (* variable: *) Variable.name maybe_qualified
   | Mismatch of (* expected: *) kind * (* inferred: *) kind
   | ArityMismatch of (* expected: *) int * (* provided: *) int
-  | ModeConstraintMismatch of (* provided: *) kind
+  | ModeConstraintMismatch of (* provided: *) kind * (* expected: *) string
   | IllegalConsumes
   | BadHypothesisInFact
   | BadConclusionInFact of (* data type constructor: *) Variable.name * (* parameters: *) Variable.name list
@@ -157,6 +162,7 @@ type error =
   | FieldMismatch of Datacon.name * Field.name list (* missing fields *) * Field.name list (* extra fields *)
   | ImplicationOnlyOnArrow
   | MissingExport of Variable.name
+  | TwiceMutable of (* data constructor: *) Datacon.name
 
 (* The [KindError] exception. *)
 
@@ -181,8 +187,8 @@ let print_error env error buf () =
         namespace x
   | FictionalEVar x ->
       bprintf
-	"The variable %s is fictional and cannot appear in an expression."
-	(print_maybe_qualified Variable.print x)
+        "The variable %s is fictional and cannot appear in an expression."
+        (print_maybe_qualified Variable.print x)
   | Mismatch (expected, inferred) ->
       let il, ir = Kind.as_arrow inferred in
       let xl, xr = Kind.as_arrow expected in
@@ -210,10 +216,11 @@ let print_error env error buf () =
         "This type expects %d parameter%s, but is applied to %d argument%s."
         expected (MzPprint.plural expected)
        provided (MzPprint.plural provided)
-  | ModeConstraintMismatch inferred ->
+  | ModeConstraintMismatch (inferred, expected) ->
       bprintf
-       "This type has kind %s, whereas a type of kind type or perm was expected."
+       "This type has kind %s, whereas a type of kind %s was expected."
         (print inferred)
+        expected
   | IllegalConsumes ->
       bprintf
         "The consumes keyword is allowed only in the left-hand side of an arrow."
@@ -260,6 +267,11 @@ let print_error env error buf () =
   | MissingExport x ->
       bprintf "The variable %a is advertised in the interface,\nbut is not defined in the implementation."
         Variable.p x
+  | TwiceMutable dc ->
+      bprintf
+        "This type is declared mutable, so there is no need to declare\n\
+         the data constructor %s mutable."
+        (Datacon.print dc)
   end;
   if Log.debug_level () > 4 then begin
     Printf.bprintf buf "\n";
@@ -283,21 +295,6 @@ let implication_only_on_arrow env =
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Provided we have the name of a data constructor, its index, and the ordered
-   list of its fields, we can create a [datacon_info] record. *)
-
-let mkdatacon_info dc i f fields = {
-  datacon_name = Datacon.print dc;
-  datacon_arity = List.length fields;
-  datacon_index = i;
-  datacon_flavor = f;
-  datacon_fields =
-    let open Field.Map in
-    MzList.fold_lefti (fun i accu f -> add f i accu) empty fields;
-}
-
-(* ---------------------------------------------------------------------------- *)
-
 (* An empty environment. *)
 
 let empty module_name = {
@@ -308,40 +305,23 @@ let empty module_name = {
   loc = dummy_loc;
 }
 
-(* A so-called initial environment can be constructed by populating an empty
-   environment with qualified names of variables and data constructors. They
-   represent names that have been defined in a module other than the current
-   module. *)
-
-(* TEMPORARY this approach seems inelegant and should ideally be abandoned in
-   the future *)
-
-let initial
-  (module_name : Module.name)
-  (names : (Module.name * Variable.name * kind * 'v) list)
-  (datacons : (Module.name * 'v * int * Datacon.name * DataTypeFlavor.flavor * Field.name list) list)
-: 'v env =
-
-  let variables =
-    List.fold_left (fun accu (m, x, kind, v) ->
-      V.extend_qualified m x (NonLocal v, kind, Real) accu
-    ) V.empty names
-
-  and datacons =
-    List.fold_left (fun accu (m, var, i, dc, f, fields) ->
-      let info = mkdatacon_info dc i f fields in
-      D.extend_qualified m dc (NonLocal var, info) accu
-    ) D.empty datacons
-  in
-
-  { (empty module_name) with variables; datacons }
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Extracting information out of an environment. *)
 
 let module_name env =
   env.module_name
+
+let enter_module env module_name =
+  (* The call to [zap] is important, because when type-checking a module against
+   * its interface, we need a way to forget all the current definitions /
+   * variables so that we can re-introduce them one by one. *)
+  { env with
+    level = 0;
+    module_name;
+    variables = V.zap env.variables;
+    datacons = D.zap env.datacons;
+  }
 
 let location env =
   env.loc
@@ -395,6 +375,8 @@ let resolve_datacon env (dref : datacon_reference) : 'v var * Datacon.name * Dat
      the unqualified name and the flavor of the data constructor. *)
   v, unqualify datacon, info.datacon_flavor
 
+
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Checking for duplicate definitions. *)
@@ -404,10 +386,10 @@ let check_for_duplicate_bindings env (xs : type_binding list) : type_binding lis
     (fun (x, _, loc) -> bound_twice "variable" Variable.print { env with loc } x)
 
 (* TEMPORARY this function also does not produce a good error location *)
-let check_for_duplicate_datacons env (branches: (Datacon.name * 'a) list) : unit =
+let check_for_duplicate_datacons env (branches: (_ * Datacon.name * _ * _) list) : unit =
   ignore (
-    MzList.exit_if_duplicates Datacon.compare fst branches
-      (fun (x, _) -> bound_twice "data constructor" Datacon.print env x)
+    MzList.exit_if_duplicates Datacon.compare (fun (_, x, _, _) -> x) branches
+      (fun (_, x, _, _) -> bound_twice "data constructor" Datacon.print env x)
   )
 
 let check_for_duplicate_fields env fields : unit =
@@ -468,6 +450,23 @@ let extend_check variety env xs =
 (* [bind_datacon env x data] binds the unqualified data constructor [x]. *)
 let bind_datacon env x (data : 'v var * datacon_info) : 'v env =
   { env with datacons = D.extend_unqualified x data env.datacons }
+
+let bind_nonlocal_datacon env x dc_info v =
+  bind_datacon env x (NonLocal v, dc_info)
+
+let bind_external_name (env: 'v env) (m: Module.name) (x: Variable.name) (k: kind) (v: 'v): 'v env =
+  let binding = NonLocal v, k, Real in
+  { env with variables = V.extend_qualified m x binding env.variables }
+
+let bind_external_datacon
+  (env: 'v env)
+  (m: Module.name)
+  (d: Datacon.name)
+  (info: datacon_info)
+  (v: 'v): 'v env
+=
+  let binding = NonLocal v, info in
+  { env with datacons = D.extend_qualified m d binding env.datacons }
 
 let dissolve env m =
   (* Unqualify the variables and data constructors qualified with [m]. *)
@@ -554,15 +553,23 @@ let bindings_data_group_types (group : data_type_def list) : type_binding list =
 let bind_data_group_datacons env (group : data_type_def list) : 'v env =
   List.fold_left (fun env def ->
     match def.rhs with
-    | Concrete (f, branches, _) ->
+    | Concrete (global_flavor, branches, _) ->
         let (x, _, _), _ = def.lhs in
         let v = find_var env (Unqualified x) in
-        MzList.fold_lefti (fun i env (dc, fields) ->
+        MzList.fold_lefti (fun i env (branch_flavor, dc, _bindings, fields) ->
           let fields = MzList.map_some (function
             | FieldValue (f, _) -> Some f
             | FieldPermission _ -> None
           ) fields in
-          bind_datacon env dc (v, mkdatacon_info dc i f fields)
+	  (* If the whole data type is declared [mutable], then the branch
+	     should not be declared [mutable]. That would be redundant, and
+	     a hint of a possible confusion. *)
+	  let flavor =
+	    DataTypeFlavor.join global_flavor branch_flavor (fun () ->
+	      raise_error env (TwiceMutable dc)
+	    )
+	  in
+          bind_datacon env dc (v, mkdatacon_info dc i flavor fields)
         ) env branches
     | Abbrev _
     | Abstract _ ->
@@ -656,12 +663,12 @@ let rec check env s (ty : typ) (expected : kind) : unit =
 
   | TyConsumes ty ->
       if s = ConsumesAllowed then
-	(* Note that we disallow nested [consumes] annotations. We could
-	   allow them, as they are harmless, but they are also useless,
-	   so it seems better to warn the user against them. *)
-	check env ConsumesDisallowed ty expected
+        (* Note that we disallow nested [consumes] annotations. We could
+           allow them, as they are harmless, but they are also useless,
+           so it seems better to warn the user against them. *)
+        check env ConsumesDisallowed ty expected
       else
-	raise_error env IllegalConsumes
+        raise_error env IllegalConsumes
 
   (* The general case. *)
 
@@ -678,9 +685,9 @@ and infer env s (ty : typ) : kind =
 
   | TyConsumes ty ->
       if s = ConsumesAllowed then
-	infer env ConsumesDisallowed ty
+        infer env ConsumesDisallowed ty
       else
-	raise_error env IllegalConsumes
+        raise_error env IllegalConsumes
 
   | TyTuple tys ->
       List.iter (fun ty -> check env s ty KType) tys;
@@ -704,7 +711,7 @@ and infer env s (ty : typ) : kind =
         the [datacon_info] record with this information?) and check
         that its flavor is [Mutable]. Not required for soundness,
         but seems reasonable. Try to share code with the checking
-	of unresolved branches? *)
+        of unresolved branches? *)
       (* Resolve this data constructor reference. *)
       let _, _, _ = resolve_datacon env dref in
       (* Check that no field is provided twice, and check the type
@@ -771,6 +778,9 @@ and infer env s (ty : typ) : kind =
       check env s ty KType;
       KType
 
+  | TyWildcard ->
+      KType
+
 and infer_reset env ty =
   infer (reset Fictional env ty) ConsumesDisallowed ty
 
@@ -815,13 +825,16 @@ and check_exact_fields env (dref : datacon_reference) (fields : data_field_def l
     ))
 
 (* A mode constraint bears on a type or permission. *)
-and check_mode_constraint env (_, ty) =
-  match infer_reset env ty with
-  | KType
-  | KPerm ->
+and check_mode_constraint env (m, ty) =
+  let inferred = infer_reset env ty in
+  match inferred with
+  | KType ->
       ()
-  | inferred ->
-      raise_error env (ModeConstraintMismatch inferred)
+  | KPerm ->
+      if Mode.equal m Mode.ModeExclusive then
+        raise_error env (ModeConstraintMismatch (inferred, "type"))
+  | _ ->
+      raise_error env (ModeConstraintMismatch (inferred, "type or perm"))
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -853,7 +866,9 @@ let check_field_reset env (field : data_field_def) =
   | FieldPermission ty ->
       check_reset env ty KPerm
 
-let check_unresolved_branch env (_, fields) =
+let check_unresolved_branch env (_branch_flavor, _dc, bindings, fields) =
+  (* Introduce the names bound above the pattern. *)
+  let env = extend_check Fictional env bindings in
   (* Check that no field name appears twice. *)
   check_for_duplicate_fields env fields;
   (* Check that every field is well-kinded. *)
@@ -875,9 +890,9 @@ let check_data_type_def env (def: data_type_def) =
       List.iter (check_unresolved_branch env) branches;
       (* Check the adopts clause. *)
       Option.iter (fun ty ->
-	check_reset env ty KType;
+        check_reset env ty KType;
         (* If there is an adopts clause, then the data type must be
-	   marked mutable. *)
+           marked mutable. *)
         if not (DataTypeFlavor.can_adopt flavor) then
           raise_error env (AdopterNotExclusive name)
       ) clause
@@ -993,7 +1008,7 @@ and check_expression env (expr : expression) : unit =
       (* [x] must have variety [Real]. This is the only place where
          varieties matter. *)
       if find_variety env x <> Real then
-	raise_error env (FictionalEVar x)
+        raise_error env (FictionalEVar x)
 
   | EBuiltin _ ->
       ()
@@ -1013,7 +1028,7 @@ and check_expression env (expr : expression) : unit =
       (* The variables bound by capital-Lambda are fictional. *)
       let env = extend_check Fictional env bindings in
       (* The variables bound by little-lambda are real. The argument type
-	 [arg] is interpreted here as a pattern. The scope of these
+         [arg] is interpreted here as a pattern. The scope of these
          variables extends to the function body and result type. *)
       let env = reset Real env arg in
       check env ConsumesAllowed arg KType;
@@ -1022,19 +1037,19 @@ and check_expression env (expr : expression) : unit =
 
   | EAssign (e1, _, e2) ->
       (* The field name is ignored. The type-checker will later ensure
-	 that this field exists and can be accessed. *)
+         that this field exists and can be accessed. *)
       check_expression env e1;
       check_expression env e2
 
   | EAssignTag (e1, dref, _) ->
       (* Resolve this data constructor reference, and fail if this data
-	 constructor is unknown. *)
+         constructor is unknown. *)
       let _ = resolve_datacon env dref in
       check_expression env e1
 
   | EAccess (e, _) ->
       (* The field name is ignored. The type-checker will later ensure
-	 that this field exists and can be accessed. *)
+         that this field exists and can be accessed. *)
       check_expression env e
 
   | EAssert p ->
@@ -1061,7 +1076,7 @@ and check_expression env (expr : expression) : unit =
 
   | EConstruct (dref, field_exprs) ->
       (* Resolve this data constructor reference, and fail if this data
-	 constructor is unknown. *)
+         constructor is unknown. *)
       let _ = resolve_datacon env dref in
       List.iter (fun (_, e) -> check_expression env e) field_exprs
 
@@ -1158,11 +1173,11 @@ let check_interface env (interface : interface) : unit =
       | DataTypeGroup (_, _, data_type_group) ->
           bindings_data_group_types data_type_group
       | ValueDeclaration (binding, _) ->
-	  [ binding ]
+          [ binding ]
       | OpenDirective _ ->
-	  []
+          []
       | ValueDefinitions _ ->
-	  assert false
+          assert false
     ) interface
   ) in
 
@@ -1195,9 +1210,9 @@ let find_nonlocal_variable env x =
       V.lookup_unqualified x env.variables
     with
     | Local _, _, _ ->
-	assert false
+        assert false
     | NonLocal v, _, _ ->
-	v
+        v
   ) with Not_found ->
     raise_error env (MissingExport x)
 
@@ -1206,4 +1221,8 @@ let find_nonlocal_variable env x =
 
 let extend env bindings =
   extend Fictional env bindings
+
+let get_exports env =
+  let names = V.unqualified_names env.variables in
+  List.map (fun name -> name, find_nonlocal_variable env name) names
 

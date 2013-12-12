@@ -1,0 +1,12 @@
+(* Write-once references. *)
+
+abstract uninitialised
+
+val create: () -> uninitialised
+
+abstract initialised a
+fact duplicable (initialised a)
+
+val write: [a] duplicable a => (consumes p: uninitialised, consumes a) -> (| p @ initialised a)
+
+val read: [a] initialised a -> a

@@ -10,8 +10,11 @@ alias bool = rich_bool empty empty
 
 (* Constants. *)
 
-val false : bool
-val true : bool
+(* We put concrete types here. Having "false @ bool" makes it impossible to
+ * derive "false @ bool * p <= false @ rich_bool p empty", which is sometimes
+ * convenient. *)
+val false : False
+val true : True
 
 (* Negation. *)
 

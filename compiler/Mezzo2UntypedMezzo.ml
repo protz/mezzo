@@ -282,7 +282,7 @@ let transl_data_field_def = function
   | FieldPermission _ ->
       []
 
-let transl_data_type_def_branch (d, fields) =
+let transl_data_type_def_branch (_, d, _, fields) =
   d, adopter_field :: List.flatten (List.map transl_data_field_def fields)
 
 let transl_data_type_branches branches =

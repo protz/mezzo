@@ -1,1 +1,116 @@
-../../papers/hope2013/iteration.mzi
+(* Code for the HOPE 2013 submission. Ideally, this file should be
+   self-contained: no references to external modules. *)
+
+(* Trees. *)
+
+data mutable tree a =
+  Leaf
+| Node { left: tree a; elem: a; right: tree a }
+
+(* SIZE *)
+val size: [a] tree a -> int
+(* SIZE *)
+
+(* HOITER *)
+val iter: [a, s: perm]
+ (f: (    a | s) -> bool,
+  t: tree a | s) -> bool
+(* HOITER *)
+
+(* Idioms. *)
+
+data either a b =
+  | Left  { contents: a }
+  | Right { contents: b }
+
+(* WAND *)
+alias wand (pre: perm) (post: perm) =
+  {ammo: perm} (
+    (| consumes (pre * ammo)) -> (| post)
+  | ammo)
+(* WAND *)
+
+(* FOCUSED *)
+alias focused a (post: perm) =
+  (x: a, release: wand (x @ a) post)
+(* FOCUSED *)
+
+(* ADT-style tree iterators *)
+
+(* TREE_ITERATOR_TYPE *)
+abstract tree_iterator a (post: perm)
+(* TREE_ITERATOR_TYPE *)
+fact exclusive (tree_iterator a post)
+(* TREE_ITERATOR_NEW *)
+val new: [a]
+  (consumes t: tree a) ->
+  tree_iterator a (t @ tree a)
+(* TREE_ITERATOR_NEW *)
+(* TREE_ITERATOR_NEXT *)
+val next: [a, post: perm]
+  (consumes it: tree_iterator a post) ->
+  either (focused a (it @ tree_iterator a post))
+         (| post)
+(* TREE_ITERATOR_NEXT *)
+(* TREE_ITERATOR_STOP *)
+val stop: [a, post: perm]
+  (consumes it: tree_iterator a post) -> (| post)
+(* TREE_ITERATOR_STOP *)
+
+(* Generic OO-style iterators *)
+
+(* OO_ITERATOR_DEF *)
+data iterator_s (s: perm) a (post: perm) =
+  Iterator {
+    next: (| consumes s) -> either (focused a s)
+                                   (| post);
+    stop: (| consumes s) -> (| post)
+  | s }
+
+alias iterator a (post: perm) =
+  {s: perm} iterator_s s a post
+(* OO_ITERATOR_DEF *)
+
+(* Wrapping an ADT-style iterator into a generic (OO-style) iterator. *)
+
+(* WRAP *)
+val wrap: [a, i, post: perm] (
+  consumes it: i,
+  next: (consumes it: i) ->
+    either (focused a (it @ i)) (| post),
+  stop: (consumes it: i) ->     (| post)
+) -> iterator a post
+(* WRAP *)
+
+(* NEW_TREE_ITERATOR *)
+val new_tree_iterator: [a]
+  (consumes t: tree a) -> iterator a (t @ tree a)
+(* NEW_TREE_ITERATOR *)
+
+(* A filter function for generic iterators. *)
+
+(* FILTER *)
+val filter: [a, p: perm, post: perm] (
+  consumes it: iterator a post,
+  f: (a | p) -> bool
+| consumes p) -> iterator a (p * post)
+(* FILTER *)
+
+(* Higher-order iteration in CPS style. *)
+
+open continuations
+
+(* In order to hide the difference between [continuations] and
+   [kontinuations], the fragment below has been manually copied
+   into the paper. Keep it in sync if you make any change. *)
+(* CPS_ITER *)
+val cps_iter: [a, s : perm, b1, b2] (
+  consumes t: (tree a | s),
+  f: (
+    consumes x: (a | s),
+    consumes kontinuations (x @ (a | s)) b1 b2
+  ) -> b2,
+  consumes kontinuations (t @ (tree a | s)) b1 b2
+) -> b2
+(* CPS_ITER *)
+

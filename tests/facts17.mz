@@ -1,0 +1,17 @@
+(* Facts for algebraic data types where [mutable] is used per-branch. *)
+
+val d [a] duplicable a => () : () =
+  ()
+
+val x [a] exclusive a => () : () =
+  ()
+
+data mlist a =
+  | MNil
+  | mutable MCons { head: a; tail: mlist a }
+
+(* This should fail. *)
+
+val () =
+  x [mlist int] ()
+

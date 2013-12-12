@@ -1,0 +1,6 @@
+data t =
+  | {x: term} A { x: =x; y: =x }
+
+val v: t =
+  let x = () in
+  A { x; y = x }

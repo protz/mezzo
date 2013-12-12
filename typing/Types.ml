@@ -343,18 +343,6 @@ let find_and_instantiate_branch
   instantiate_type branch args
 ;;
 
-(* Misc. *)
-
-(** This function is actually fairly ugly. This is a temporary solution so that
-    [TypeChecker] as well as the test files can refer to type constructors
-    defined in the file (e.g. int), for type-checking arithmetic expressions, for
-    instance... *)
-let find_type_by_name env ?mname name =
-  let name = Variable.register name in
-  let mname = Option.map Module.register mname in
-  TyOpen (point_by_name env ?mname name)
-;;
-
 let is_tyapp = function
   | TyOpen p ->
       Some (p, [])
@@ -644,15 +632,6 @@ module TypePrinter = struct
 
   let pname buf (env, point) =
     pdoc buf ((fun () -> print_point env point), ())
-  ;;
-
-  let print_exports (env, mname) =
-    let exports = List.map (fun x -> utf8string (Variable.print (fst3 x))) (get_exports env mname) in
-    separate (string ", ") exports
-  ;;
-
-  let pexports buf env =
-    pdoc buf (print_exports, env)
   ;;
 
   internal_pnames := pnames;;

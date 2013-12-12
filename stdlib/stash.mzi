@@ -1,0 +1,10 @@
+(* This module allows one to make a permission opaque. This can be used, for
+   instance, to prevent the type-checker from expanding this permission and
+   from using it (or its components) during let-flex inference. *)
+
+abstract stashed (p : perm) : perm
+
+val stash: [p: perm] (| consumes p) -> (| stashed p)
+
+val unstash: [p: perm] (| consumes stashed p) -> (| p)
+

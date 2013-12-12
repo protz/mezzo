@@ -5,9 +5,9 @@
 
 (* A bucket is a mutable list of entries. Each entry holds a key and a value. *)
 
-data mutable bucket k a =
+data bucket k a =
   | BNil
-  | BCons { key: k; value: a; tail: bucket k a }
+  | mutable BCons { key: k; value: a; tail: bucket k a }
 
 (* -------------------------------------------------------------------------- *)
 
@@ -22,8 +22,7 @@ val rec mem [k, a] (
   | BNil ->
       false
   | BCons { key; tail } ->
-      (* TEMPORARY could use || *)
-      if equal (x, key) then true else mem (equal, x, tail)
+      equal (x, key) || mem (equal, x, tail)
   end
 
 val rec assoc [k, a, p : perm] duplicable a => (

@@ -26,7 +26,25 @@ open Types
 open TestUtils
 open TypeErrors
 open DataTypeFlavor
+open Exports
 
+(* --------------------------------------------------------------------------*)
+
+(* Some wrappers. *)
+
+let find_qualified_var env m x =
+  find_qualified_var env (Module.register m) (Variable.register x)
+
+let find_unqualified_var env x =
+  find_unqualified_var env (Variable.register x)
+
+let find_qualified_type env m x =
+  ty_open (find_qualified_var env m x)
+
+let find_unqualified_type env x =
+  ty_open (find_unqualified_var env x)
+
+(* --------------------------------------------------------------------------*)
 
 let check env point t =
   match Permissions.sub env point t with
@@ -36,10 +54,6 @@ let check env point t =
       raise_error env (ExpectedType (t, point, d))
 ;;
 
-let point_by_name env ?mname name =
-  point_by_name env ?mname (Variable.register name)
-;;
-
 exception KnownFailure
 
 let silent_warn_error =
@@ -47,7 +61,7 @@ let silent_warn_error =
 ;;
 
 let pedantic_warn_error =
-  "@1..4+5..6"
+  "@1..4+5@6"
 ;;
 
 let simple_test ?(warn_error=silent_warn_error) ?known_failure outcome = fun do_it ->
@@ -216,9 +230,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("arithmetic.mz", fun do_it ->
     let env = do_it () in
-    let int = find_type_by_name env ~mname:"int" "int" in
-    let foo = point_by_name env "foo" in
-    let bar = point_by_name env "bar" in
+    let int = find_qualified_type env "int" "int" in
+    let foo = find_unqualified_var env "foo" in
+    let bar = find_unqualified_var env "bar" in
     check env foo int;
     check env bar int);
 
@@ -264,6 +278,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("assign.mz",
     pass);
 
+  ("multiplearrows.mz",
+    simple_test ~warn_error:pedantic_warn_error (Fail (fun _ -> true)));
+
   ("wrong_type_annotation.mz",
     simple_test (Fail (function ExpectedType _ -> true | _ -> false)));
 
@@ -281,8 +298,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("function.mz", fun do_it ->
     let env = do_it () in
-    let int = find_type_by_name env ~mname:"int" "int" in
-    let foobar = point_by_name env "foobar" in
+    let int = find_qualified_type env "int" "int" in
+    let foobar = find_unqualified_var env "foobar" in
     check env foobar (tuple [int; int]));
 
   ("stupid_match.mz",
@@ -302,8 +319,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("variance.mz", fun do_it ->
     let env = do_it () in
     let check_variance n vs =
-      let t = find_type_by_name env n in
-      if not (get_variance env !!t = vs) then
+      let t = find_unqualified_var env n in
+      if not (get_variance env t = vs) then
         failwith "Variances don't match"
     in
     let co = Covariant and contra = Contravariant and bi = Bivariant and inv = Invariant in
@@ -368,12 +385,12 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("merge1.mz", fun do_it ->
     let env = do_it () in
-    let v1 = point_by_name env "v1" in
+    let v1 = find_unqualified_var env "v1" in
     check env v1 (concrete Immutable (dc env "t" "T") []));
 
   ("merge2.mz", fun do_it ->
     let env = do_it () in
-    let v2 = point_by_name env "v2" in
+    let v2 = find_unqualified_var env "v2" in
     let t = TyQ (Exists, dummy_binding KTerm, UserIntroduced,
       TyBar (
         ty_equals v2,
@@ -394,7 +411,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("merge3.mz", fun do_it ->
     let env = do_it () in
-    let v3 = point_by_name env "v3" in
+    let v3 = find_unqualified_var env "v3" in
     let t = TyQ (Exists, dummy_binding KTerm, UserIntroduced,
       TyQ (Exists, dummy_binding KTerm, UserIntroduced,
         TyBar (
@@ -420,17 +437,17 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("merge4.mz", fun do_it ->
     let env = do_it () in
-    let v4 = point_by_name env "v4" in
-    let w = find_type_by_name env "w" in
-    let int = find_type_by_name env ~mname:"int" "int" in
+    let v4 = find_unqualified_var env "v4" in
+    let w = find_unqualified_type env "w" in
+    let int = find_qualified_type env "int" "int" in
     let t = TyApp (w, [int]) in
     check env v4 t);
 
   ("merge5.mz", fun do_it ->
     let env = do_it () in
-    let v5 = point_by_name env "v5" in
-    let v = find_type_by_name env "v" in
-    let int = find_type_by_name env ~mname:"int" "int" in
+    let v5 = find_unqualified_var env "v5" in
+    let v = find_unqualified_type env "v" in
+    let int = find_qualified_type env "int" "int" in
     let t = TyApp (v, [int; int]) in
     check env v5 t);
 
@@ -440,8 +457,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("merge8.mz", fun do_it ->
     let env = do_it () in
-    let v8 = point_by_name env "v8" in
-    let v = find_type_by_name env "v" in
+    let v8 = find_unqualified_var env "v8" in
+    let v = find_unqualified_type env "v" in
     let t = TyQ (Forall, dummy_binding KType, UserIntroduced,
         TyApp (v, [TyBound 0; TyBound 0])
       )
@@ -450,32 +467,32 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("merge9.mz", fun do_it ->
     let env = do_it () in
-    let v9 = point_by_name env "v9" in
-    let ref = find_type_by_name env "ref" in
-    let int = find_type_by_name env ~mname:"int" "int" in
+    let v9 = find_unqualified_var env "v9" in
+    let ref = find_unqualified_type env "ref" in
+    let int = find_qualified_type env "int" "int" in
     let t = TyApp (ref, [int]) in
     check env v9 t);
 
   ("merge10.mz", fun do_it ->
     let env = do_it () in
-    let v10 = point_by_name env "v10" in
-    let foo = find_type_by_name env "foo" in
-    let t = find_type_by_name env "t" in
+    let v10 = find_unqualified_var env "v10" in
+    let foo = find_unqualified_type env "foo" in
+    let t = find_unqualified_type env "t" in
     let t = TyApp (foo, [t]) in
     check env v10 t);
 
   ("merge11.mz", fun do_it ->
     let env = do_it () in
-    let v11 = point_by_name env "v11" in
-    let ref = find_type_by_name env "ref" in
-    let int = find_type_by_name env ~mname:"int" "int" in
+    let v11 = find_unqualified_var env "v11" in
+    let ref = find_unqualified_type env "ref" in
+    let int = find_qualified_type env "int" "int" in
     let t = TyApp (ref, [TyApp (ref, [int])]) in
     check env v11 t);
 
   ("merge12.mz", fun do_it ->
     let env = do_it () in
-    let v12 = point_by_name env "v12" in
-    let int = find_type_by_name env ~mname:"int" "int" in
+    let v12 = find_unqualified_var env "v12" in
+    let int = find_qualified_type env "int" "int" in
     (* Urgh, have to input internal syntax to check function types... maybe we
      * should write surface syntax here and have it simplified by the desugar
      * procedure? ... *)
@@ -489,19 +506,19 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("merge13.mz", fun do_it ->
     let env = do_it () in
-    let v13 = point_by_name env "v13" in
-    let x = point_by_name env "x" in
-    let int = find_type_by_name env ~mname:"int" "int" in
-    let t = find_type_by_name env "t" in
+    let v13 = find_unqualified_var env "v13" in
+    let x = find_unqualified_var env "x" in
+    let int = find_qualified_type env "int" "int" in
+    let t = find_unqualified_type env "t" in
     let t = TyApp (t, [int]) in
     check env v13 t;
     check env x int);
 
   ("merge14.mz", fun do_it ->
     let env = do_it () in
-    let v14 = point_by_name env "v14" in
-    let int = find_type_by_name env ~mname:"int" "int" in
-    let t = find_type_by_name env "t" in
+    let v14 = find_unqualified_var env "v14" in
+    let int = find_qualified_type env "int" "int" in
+    let t = find_unqualified_type env "t" in
     (* Look at how fancy we used to be when we had singleton-subtyping! *)
     (* let t = TyQ (Exists, dummy_binding KTerm, UserIntroduced, TyBar (
       TyApp (t, [TySingleton (TyBound 0)]),
@@ -546,9 +563,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("singleton1.mz", fun do_it ->
     let env = do_it () in
-    let x = point_by_name env "x" in
-    let s1 = point_by_name env "s1" in
-    let t = find_type_by_name env "t" in
+    let x = find_unqualified_var env "x" in
+    let s1 = find_unqualified_var env "s1" in
+    let t = find_unqualified_type env "t" in
     (* We have to perform a syntactic comparison here, otherwise [check] which
      * uses [sub] under the hood might implicitly perform the
      * singleton-subtyping-rule -- this would defeat the whole purpose of the
@@ -625,53 +642,33 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   (* Adoption. *)
 
-  ("adopts1.mz",
-    pass);
-
-  ("adopts2.mz",
-    simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
-
+  ("adopts1.mz", pass);
+  ("adopts2.mz", simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
   ("adopts3.mz", kfail);
-
-  ("adopts4.mz",
-    simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
-
-  ("adopts5.mz",
-    pass);
-
-  ("adopts6.mz",
-    pass);
-
-  ("adopts7.mz",
-    pass);
-
-  ("adopts8.mz",
-    simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
-
-  ("adopts9.mz",
-    pass);
-
-  ("adopts10.mz",
-    simple_test (Fail (function NotMergingClauses _ -> true | _ -> false)));
-
-  ("adopts11.mz", pass_known_failure);
-  ("adopts12.mz",
-    pass);
-
+  ("adopts4.mz", simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
+  ("adopts5.mz", pass);
+  ("adopts6.mz", pass);
+  ("adopts7.mz", pass);
+  ("adopts8.mz", simple_test (Fail (function NonExclusiveAdoptee _ -> true | _ -> false)));
+  ("adopts9.mz", pass);
+  ("adopts10.mz", simple_test (Fail (function NotMergingClauses _ -> true | _ -> false)));
+  ("adopts11.mz", pass);
+  ("adopts12.mz", pass);
   ("adopts13.mz", fail);
   ("adopts14.mz", fail);
-  ("adopts15.mz", pass);
+  ("adopts15.mz", fail);
   ("adopts16.mz", pass);
   ("adopts17.mz", pass);
   ("adopts18.mz", pass);
   ("adopts19.mz", pass);
+  ("adopts20.mz", pass);
 
   (* Bigger examples. *)
 
   ("list-length.mz", fun do_it ->
     let env = do_it () in
-    let int = find_type_by_name env ~mname:"int" "int" in
-    let zero = point_by_name env "zero" in
+    let int = find_qualified_type env "int" "int" in
+    let zero = find_unqualified_var env "zero" in
     check env zero int);
 
   ("list-length-variant.mz", pass);
@@ -761,6 +758,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   ("union-find-nesting.mz", pass);
   ("union-find-dynamic.mz", pass);
+
+  (* Modules *)
 
   ("modules/simple.mz", pass);
 
@@ -929,6 +928,11 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("facts11.mz", pass_known_failure);
   ("facts12.mz", pass_known_failure);
   ("facts13.mz", pass);
+  ("facts14.mz", pass);
+  ("facts15.mz", fail);
+  ("facts16.mz", fail);
+  ("facts17.mz", fail);
+  ("facts18.mz", fail);
   ("data-term.mz", pass_known_failure);
   ("fact-term.mz", fail_known_failure);
 
@@ -946,6 +950,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("tyand05.mz", fail);
   ("tyand06.mz", fail);
   ("incorrect-fields.mz", kfail);
+  ("twice-mutable.mz", kfail);
   ("name-intro.mz", pass);
   ("name-intro2.mz", pass);
   ("name-intro3.mz", pass_known_failure);
@@ -970,7 +975,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("abbrev-4.mz", pass);
   ("existential-witness.mz", pass);
   ("residual.mz", pass);
-  ("quantifier-bug.mz", fail_known_failure);
+  ("quantifier-bug.mz", kfail);
   ("eta.mz", pass);
   ("array-1.mz", pass);
   ("array-2.mz", fail);
@@ -1004,7 +1009,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("strange.mz", fail);
   ("localtype1.mz", pass);
   ("localtype2.mz", pass);
-  ("localtype3.mz", pass_known_failure);
+  ("localtype3.mz", pass);
   ("covariantlock.mz", pass);
   ("pack-assert.mz", pass);
   ("oneshot-test.mz", fail);
@@ -1026,6 +1031,20 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("array-borrow-1.mz", pass);
   ("array-borrow-2.mz", fail);
   ("booltrue.mz", pass);
+  ("woref.mz", pass);
+  ("exclusiveperm.mz", kfail);
+  ("datacon1.mz", pass);
+  ("datacon2.mz", pass);
+  ("datacon3.mz", pass);
+  ("datacon4.mz", kfail);
+  ("shortest.mz", pass);
+  ("snapshot.mz", pass);
+  ("adoptslib.mz", pass);
+  ("wildcard1.mz", pass);
+  ("wildcard2.mz", pass);
+  ("flexbug.mz", fail);
+  ("flexbug2.mz", fail);
+  ("cons.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)
@@ -1137,7 +1156,7 @@ let acknowledge ((file, _), ()) (result, output) =
 
 (* [run] runs a bunch of tests in parallel. *)
 let run worker tests : unit =
-  Functory.Cores.set_number_of_cores 4;
+  Functory.Cores.set_number_of_cores (Utils.get_number_of_cores ());
   Functory.Cores.compute
     ~worker
     ~master:acknowledge

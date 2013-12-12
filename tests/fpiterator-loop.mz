@@ -44,18 +44,18 @@ val next
       let flex p : perm in
       assert p * head @ a * tail @ list::list a * convertible (p * tail @ list::list a * head @ a) post;
       (* Here, we could assert it @ list_iterator a post;
-	 but by doing so, we would abstract away head @ a,
-	 and would no longer be able to hand it off to the
-	 client. Instead, we must keep head @ a, and build
+         but by doing so, we would abstract away head @ a,
+         and would no longer be able to hand it off to the
+         client. Instead, we must keep head @ a, and build
          an argument that proves that, once the client gives
-	 it back to us, we will be able to construct it @ ... *)
+         it back to us, we will be able to construct it @ ... *)
       (* TEMPORARY BUG? this causes a loop *)
       assert convert @
            (| consumes (it @ Ref { contents = tail } * p * head @ a * tail @ list::list a * convertible (p * tail @ list::list a * head @ a) post))
-	-> (| it @ list_iterator a post);
+        -> (| it @ list_iterator a post);
       let c (| consumes (it @ Ref { contents = tail } * p * head @ a * tail @ list::list a * convertible (p * tail @ list::list a * head @ a) post))
-	  : (| it @ list_iterator a post) =
-	()
+          : (| it @ list_iterator a post) =
+        ()
       in
       pack { p : perm } (p * c @ (| consumes (p * head @ a)) -> (| it @ list_iterator a post))
       witness it @ Ref { contents = tail } * p * tail @ list::list a * convertible (p * tail @ list::list a * head @ a) post;

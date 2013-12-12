@@ -232,7 +232,6 @@ val get_kind_for_type : env -> typ -> kind
 val variance : env -> var -> int -> variance
 
 val fresh_auto_name : string -> name
-val find_type_by_name : env -> ?mname:string -> string -> typ
 val make_datacon_letters :
   env ->
   kind ->
@@ -252,8 +251,6 @@ module TypePrinter :
       env -> name list -> MzPprint.document
     val pnames : Buffer.t -> env * name list -> unit
     val pname : Buffer.t -> env * var -> unit
-    val print_exports : env * Module.name -> PPrintEngine.document
-    val pexports : Buffer.t -> env * Module.name -> unit
     val print_quantified :
       env ->
       string ->

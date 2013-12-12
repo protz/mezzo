@@ -191,14 +191,20 @@ val location: env -> location
 (** Get the current module name. *)
 val module_name: env -> Module.name
 
-(** Set the current module name. *)
-val set_module_name: env -> Module.name -> env
+(** Enter another toplevel unit (implementation, interface). *)
+val enter_module: env -> Module.name -> env
 
 (** Is the current environment inconsistent? *)
 val is_inconsistent: env -> bool
 
 (** Mark the environment as being inconsistent. *)
 val mark_inconsistent: env -> env
+
+(** An environment contains a kind-checking environment that contains mapping
+ * for all the current module's _dependencies_. *)
+val modify_kenv: env -> (var KindCheck.env -> (var KindCheck.env -> (env -> 'a) -> 'a) -> 'a) -> 'a
+
+val kenv: env -> var KindCheck.env
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -344,12 +350,14 @@ val resolved_datacons_equal: env -> resolved_datacon -> resolved_datacon -> bool
 
 (** Need to translate a branch definition [b] with nested permissions [ps] into
  * a type? Use [construct_branch b ps]. *)
-val construct_branch: branch -> typ list -> typ
+val construct_branch: type_binding list -> branch -> typ list -> typ
 
-(** Need to see the branch hidden beneath a type? Use this helper. *)
+(** Need to see the branch hidden beneath a type? Use this helper. This will
+ * _not_ open quantifiers. *)
 val find_branch: typ -> branch
 
-(** Need to modify the branch hidden beneath a type? Use this helper. *)
+(** Need to modify the branch hidden beneath a type? Use this helper. This will
+ * _not_ open quantifiers. *)
 val touch_branch: typ -> (branch -> branch) -> typ
 
 (* ---------------------------------------------------------------------------- *)
@@ -365,28 +373,6 @@ val bind_flexible: env -> type_binding -> env * var
 
 (** Bind a flexible type variables before another one. *)
 val bind_flexible_before: env -> type_binding -> var -> env * var
-
-(* ---------------------------------------------------------------------------- *)
-
-
-(** {1 Exports} *)
-
-(** [get_exports env mname] lists the names exported by module [mname] in [env].
- * [mname] can be either the current module name, or some other module name. *)
-val get_exports: env -> Module.name -> (Variable.name * kind * var) list
-
-(** [get_external_names env] lists the qualified names exported by all modules
-    other than the current module. *)
-val get_external_names: env -> (Module.name * Variable.name * kind * var) list
-
-(** [point_by_name env ?mname x] finds name [x] as exported by module [mname]
- * (default: [module_name env]) in [env]. *)
-val point_by_name: env -> ?mname:Module.name -> Variable.name -> var
-
-(** Produce a list of all external data constructor definitions, i.e.
-    all data constructors that are currently known but are defined
-    outside the current module. *)
-val get_external_datacons: env -> (Module.name * var * int * Datacon.name * DataTypeFlavor.flavor * Field.name list) list
 
 (* ---------------------------------------------------------------------------- *)
 

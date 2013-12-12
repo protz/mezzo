@@ -7,9 +7,9 @@
 (* A tree is either empty or a binary node. Besides its children, a binary
    node contains a key, a value, and its height. *)
 
-data mutable tree k a =
+data tree k a =
   | Empty
-  | Node { left: tree k a; key: k; value: a; right: tree k a; height: int }
+  | mutable Node { left: tree k a; key: k; value: a; right: tree k a; height: int }
 
 (* -------------------------------------------------------------------------- *)
 
@@ -778,7 +778,7 @@ val rec next [k, a, post: perm]
       | Empty ->
           (* The head tree is empty. Pop it off. *)
           it := (ts, release);
-          (* Persuade the type-checker takes us from the new stack
+          (* Persuade the type-checker that [release] takes us from the new stack
              to the old stack and (hence) to [post]. *)
           let flex p: perm in
           pack release @ osf::wand (ts @ list::list (tree k a)) post
@@ -820,12 +820,21 @@ val rec next [k, a, post: perm]
                in order to obtain [post]. This justifies the following new view of
                [release]. *)
 
+            (* The use of [stash/unstash] is a way of helping the type-checker find
+               the appropriate value of the flexible variable [p]. It would be more
+               elegant if we could find a less fragile way of telling the type-checker
+               what we mean by [p]. *)
+
+            (* stash::stash [(ts @ list::list (tree k a))] (); *)
+
             pack release @ wand (stack @ list::list (tree k a)) post
             witness
               key @ k *
               value @ a *
               t @ Node { left; key; value; right; height } *
               p;
+
+            (* stash::unstash(); *)
 
             (* This assertion is superfluous. It says that, once the client surrenders
                [key @ k * value @ a], we again have a well-formed new [stack] and that

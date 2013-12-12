@@ -126,6 +126,8 @@ and data_field_def = Field.name * typ
 
 type type_def =
   | Concrete of typ list
+  (* This is a sum of branches, which have a very specific form. There is a
+   * [TyConcrete] that may be wrapped with non-structural types. *)
   | Abstract
   | Abbrev of typ
 
@@ -151,11 +153,16 @@ type data_type_group = {
 let fold_star perms =
   MzList.reduce (fun acc x -> TyStar (acc, x)) perms
 
-let construct_branch (branch: branch) (ps: typ list): typ =
-  if List.length ps > 0 then
-    TyBar (TyConcrete branch, fold_star ps)
-  else
-    TyConcrete branch
+let construct_branch (names: type_binding list) (branch: branch) (ps: typ list): typ =
+  let t = 
+    if List.length ps > 0 then
+      TyBar (TyConcrete branch, fold_star ps)
+    else
+      TyConcrete branch
+  in
+  List.fold_right (fun binding t ->
+    TyQ (Exists, binding, UserIntroduced, t)
+  ) names t
 
 let rec find_branch (t: typ): branch =
   match t with
@@ -163,6 +170,8 @@ let rec find_branch (t: typ): branch =
       find_branch t
   | TyConcrete b ->
       b
+  | TyQ (Exists, _, UserIntroduced, t) ->
+      find_branch t
   | _ ->
       assert false
 
@@ -172,6 +181,8 @@ let rec touch_branch (t: typ) (f: branch -> branch): typ =
       TyBar (touch_branch t f, ps)
   | TyConcrete b ->
       TyConcrete (f b)
+  | TyQ (Exists, binding, UserIntroduced, t) ->
+      TyQ (Exists, binding, UserIntroduced, touch_branch t f)
   | _ ->
       assert false
 
@@ -207,9 +218,6 @@ type env = {
    * inconsistencies when we're lucky. *)
   inconsistent: bool;
 
-  (* The name of the current unit. *)
-  module_name: Module.name;
-
   (* This is a list of abstract permissions available in the environment. It can
    * either be a type application, i.e. "p x", where "p" is abstract, or a type
    * variable. They're not attached to any point in particular, so we keep a
@@ -225,6 +233,19 @@ type env = {
 
   (* The list of flexible bindings. *)
   flexible: flex_descr IntMap.t;
+
+  (* A [KindCheck.env]. The module we're currently type-checking depends on
+   * other modules. The [Driver] module took care of processing our
+   * dependencies' interfaces, meaning that we have, in [state], variables that
+   * stand for the exports of other modules. We thus need a way to map a
+   * qualified name, e.g. "list::find", to a [binding] in [state]. This is the
+   * purpose of this kind-checking environment. Please note that the
+   * kind-checking environment contains mapping for variables from _other_
+   * modules, and nothing related to the _current_ module. *)
+  kenv: var KindCheck.env;
+
+  (* The name of the current unit is now to be found as
+   * [kenv.KindCheck.module_name]. *)
 }
 
 and flex_descr = {
@@ -278,13 +299,6 @@ and type_descr = {
 and term_descr = {
   (* A list of available permissions for that identifier. *)
   permissions: permissions;
-
-  (* A ghost variable has been introduced, say, through [x : term], and does
-   * not represent something we can compile.
-   *
-   * TEMPORARY: as of 2012/07/12 this information is not accurate and one should
-   * not rely on it. *)
-  ghost: bool;
 }
 
 (* This is not pretty, but we need some of these functions for debugging, and
@@ -301,11 +315,11 @@ let empty_env = {
   mark = Mark.create ();
   location = Lexing.dummy_pos, Lexing.dummy_pos;
   inconsistent = false;
-  module_name = Module.register "<none>";
   floating_permissions = [];
   last_binding = Rigid;
   current_level = 0;
   flexible = IntMap.empty;
+  kenv = KindCheck.empty (Module.register "<none>");
 }
 
 let locate env location =
@@ -318,9 +332,19 @@ let is_inconsistent { inconsistent; _ } = inconsistent;;
 
 let mark_inconsistent env = { env with inconsistent = true };;
 
-let module_name { module_name; _ } = module_name;;
+let module_name { kenv; _ } = KindCheck.(module_name kenv);;
 
-let set_module_name env module_name = { env with module_name };;
+let modify_kenv env f =
+  f env.kenv (fun kenv k ->
+    k { env with kenv }
+  )
+;;
+
+let kenv { kenv; _ } = kenv;;
+
+let enter_module env module_name = {
+  env with kenv = KindCheck.enter_module env.kenv module_name;
+};;
 
 let find env p =
   PersistentUnionFind.find p env.state
@@ -472,8 +496,8 @@ let get_permissions (env: env) (var: var): permissions =
 
 let set_permissions (env: env) (var: var) (permissions: typ list): env =
   update_extra_descr env var (function
-    | DTerm term ->
-        DTerm { term with permissions }
+    | DTerm _ ->
+        DTerm { permissions }
     | _ ->
         Log.error "Not a term"
   )
@@ -482,8 +506,8 @@ let set_permissions (env: env) (var: var) (permissions: typ list): env =
 let reset_permissions (env: env) (var: var): env =
   let point = assert_point env var in
   update_extra_descr env var (function
-    | DTerm term ->
-        DTerm { term with permissions = initial_permissions_for_point point }
+    | DTerm _ ->
+        DTerm { permissions = initial_permissions_for_point point }
     | _ ->
         Log.error "Not a term"
   )
@@ -979,16 +1003,6 @@ let same env v1 v2 =
       false
 ;;
 
-let names_equal n1 n2 =
-  match n1, n2 with
-  | Auto n1, Auto n2 when Variable.equal n1 n2 ->
-      true
-  | User (m1, n1), User (m2, n2) when Variable.equal n1 n2 && Module.equal m1 m2 ->
-      true
-  | _ ->
-      false
-;;
-
 (* Merge while keeping the descriptor of the leftmost argument. *)
 let merge_left_p2p env p2 p1 =
  (* All this work is just to make sure we keep the names, positions... from
@@ -1000,7 +1014,6 @@ let merge_left_p2p env p2 p1 =
   let { names = names'; locations = locations'; _ }, _b2 =
     PersistentUnionFind.find p2 state
   in
-  let names' = List.filter (fun x -> not (List.exists (names_equal x) names)) names' in
   let names = names @ names' in
   let locations' = List.filter (fun x -> not (List.exists ((=) x) locations)) locations' in
   let locations = locations @ locations' in
@@ -1229,7 +1242,7 @@ let bind_rigid env (name, kind, location) =
   let extra_descr =
     match kind with
     | KTerm ->
-        DTerm { permissions = initial_permissions_for_point point; ghost = false }
+        DTerm { permissions = initial_permissions_for_point point }
     | _ ->
         DNone
   in
@@ -1290,7 +1303,7 @@ let bind_flexible_before env binding v =
 
 (* Iterating on rigid variables. *)
 
-let internal_fold env f acc =
+let _internal_fold env f acc =
   PersistentUnionFind.fold f acc env.state
 ;;
 
@@ -1315,86 +1328,6 @@ let fold_definitions env f acc =
 
 let map env f =
   fold env (fun acc var -> f var :: acc) []
-;;
-
-(** Produce a list of all external data constructor definitions, i.e.
-    all data constructors that are currently known but are defined
-    outside the current module. *)
-let get_external_datacons env : (Module.name * var * int * Datacon.name * DataTypeFlavor.flavor * Field.name list) list =
-  fold_definitions env (fun acc var definition ->
-    let names = get_names env var in
-    (* We're only interested in things that signatures exported with their
-     * corresponding definitions. *)
-    match definition with
-    | Concrete def ->
-        (* Find the module name which this definition comes from. Yes, there's
-         * no better way to do that. *)
-        let mname = MzList.find_opt (function User (mname, _) -> Some mname | _ -> None) names in
-        let mname = Option.extract mname in
-        (* Ignore this definition if it is associated with the current module. *)
-        if Module.equal mname (module_name env) then
-          acc
-        else
-          (* Iterate over the branches of this definition. *)
-          MzList.fold_lefti (fun i acc t ->
-            let branch = find_branch t in
-            let dc = snd branch.branch_datacon
-            and f = branch.branch_flavor
-            and fields = List.map fst branch.branch_fields in
-            (mname, var, i, dc, f, fields) :: acc
-          ) acc def
-    | _ ->
-        acc
-  ) []
-
-(* ---------------------------------------------------------------------------- *)
-
-(* Interface-related functions. *)
-
-(* Get all the names from module [mname] found in [env]. *)
-let get_exports env mname =
-  internal_fold env (fun acc point ({ names; kind; _ }, _) ->
-    List.fold_left (fun acc name ->
-      match name with
-      | User (m, x) when Module.equal m mname ->
-          (x, kind, VRigid point) :: acc
-      | _ ->
-          acc
-    ) acc names
-  ) []
-
-(* Get all the names NOT from the current module found in [env].
-
-   TEMPORARY: this function has several bugs^Wshortcomings:
-   - a function with type "val m::f: (x: int, y: int) -> ...", when called, will
-     bind names "x" and "y" as belonging to "m", meaning they will be returned
-     by this function;
-   - existentially-quantified names from other modules, when opened repeatedly,
-     share the same name, so they get exported twice...
-*)
-let get_external_names env =
-  let mname = module_name env in
-  internal_fold env (fun acc point ({ names; kind; _ }, _) ->
-    List.fold_left (fun acc name ->
-      match name with
-      | User (m, x) when not (Module.equal m mname) ->
-          (m, x, kind, VRigid point) :: acc
-      | _ ->
-          acc
-    ) acc names
-  ) []
-
-let point_by_name (env: env) ?(mname: Module.name option) (name: Variable.name): var =
-  let mname = Option.map_none env.module_name mname in
-  let module T = struct exception Found of point end in
-  try
-    (* TEMPORARY this looks really slow to me... *)
-    internal_fold env (fun () point ({ names; _ }, _binding) ->
-      if List.exists (names_equal (User (mname, name))) names then
-        raise (T.Found point)) ();
-    raise Not_found
-  with T.Found point ->
-    VRigid point
 ;;
 
 (* ---------------------------------------------------------------------------- *)

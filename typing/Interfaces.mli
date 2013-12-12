@@ -17,22 +17,27 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** Check a module against an interface / import an interface into scope. *)
+(** Treatment of interfaces. *)
 
-(** Because this is a tricky operation, the [check] function needs access to
- *  the internal representation of the type-checked file (this is a
- * {!TypeCore.env}), the external representation of the interface (this is a
- * {!SurfaceSyntax.interface}), and the variables exported by the
- * implementation (this is a {!KindCheckGlue.env}).
+(** The first operation related to interfaces consists in importing a given
+ * interface into an environment. This can be achieved by calling
+ * [import_interface env mname iface], which will import the surface syntax
+ * interface [iface], belonging to module [mname], into [env]. Obtaining the
+ * surface syntax interface is the job of the driver.
  *
- * This is not only about checking that a module satisfies its interface, but
- * also about checking that a module does not alter other interfaces. The
- * implementation has more comments along with the code. *)
+ * This will perform several tasks. First, value definitions and data type
+ * definitions will be bound in [env]. Second, the inner kind-checking
+ * environment of [env] will be extended with bindings of the form "mname::x" to
+ * stand for the variables "x" exported by module "mname". *)
+val import_interface : TypeCore.env -> Module.name -> SurfaceSyntax.interface -> TypeCore.env
+
+(** The second operation related to interfaces consists in checking that an
+ * implementation satisfies a given interface. For that purpose, one can cell
+ * [check env iface]. We expect [env] to be in a specific form, which is
+ * attained by [Driver] after a call to [type_check]: the kinding environment of
+ * [env] must contain non-local, non-qualified names that represent the names
+ * exported by the implementation. *)
 val check:
   TypeCore.env ->
   SurfaceSyntax.interface ->
-  KindCheckGlue.env ->
   TypeCore.env
-
-(** Import a given module into scope. *)
-val import_interface : TypeCore.env -> Module.name -> SurfaceSyntax.interface -> TypeCore.env

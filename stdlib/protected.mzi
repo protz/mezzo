@@ -1,0 +1,19 @@
+(* The type [protected a] represents an object of type [a] that is
+   protected by a lock, so that it can be freely shared. *)
+
+abstract protected a
+fact duplicable (protected a)
+
+(* Construction. *)
+
+val create: [a] (consumes a) -> protected a
+
+(* A higher-order function that uses an object of type [protected a]. The
+   client function [f] obtains access to [x @ a], and must preserve it. *)
+
+val access: [a, b, pre: perm] (
+  p: protected a,
+  f: (a | consumes pre) -> b
+| consumes pre
+) -> b
+

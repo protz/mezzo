@@ -31,6 +31,7 @@ let _ =
   let arg_trace = ref "" in
   let arg_html_errors = ref false in
   let arg_mode = ref Typecheck in
+  let arg_warn_error = ref "" in
   let usage = "Mezzo: a next-generation version of ML\n\
     Usage: " ^ Sys.argv.(0) ^ " [OPTIONS] FILE\n"
   in
@@ -44,7 +45,7 @@ let _ =
     "-html-errors", Arg.Unit (fun () ->
         arg_html_errors := true;
         arg_trace := "html"), " Use a browser to display errors";
-    "-warn-error", Arg.Set_string Options.warn_error, " Decide which errors are fatal / warnings / silent. Same syntax as OCaml.";
+    "-warn-error", Arg.Set_string arg_warn_error, " Decide which errors are fatal / warnings / silent. Same syntax as OCaml.";
     "-I", Arg.String Driver.add_include_dir, " <dir>  Add <dir> to the list of \
       include directories";
     "-noautoinclude", Arg.Set Options.no_auto_include, "  Don't automatically \
@@ -64,7 +65,11 @@ let _ =
   end;
   Log.enable_debug !arg_debug;
   Debug.enable_trace !arg_trace;
+  (* First enable the default warn-error string. *)
   TypeErrors.parse_warn_error !Options.warn_error;
+  (* Then refine that based on the user's preferences. *)
+  if !arg_warn_error <> "" then
+    TypeErrors.parse_warn_error !arg_warn_error;
   let opts =
     let open Driver in
     { html_errors = !arg_html_errors; backtraces = not !arg_backtraces }
@@ -79,11 +84,13 @@ let _ =
       let env =
         Driver.run opts (fun () -> Driver.process !Options.filename)
       in
-      if Log.debug_level () <= 0 then
-       MzString.bprintf "%a" Driver.print_signature env
-      else
-       Log.debug ~level:0 "\n%a"
-         MzPprint.pdoc (Types.TypePrinter.print_permissions, env)
+      if !arg_mode = Typecheck then begin
+        if Log.debug_level () <= 0 then
+            MzString.bprintf "%a" Driver.print_signature env
+        else
+          Log.debug ~level:0 "\n%a"
+           MzPprint.pdoc (Types.TypePrinter.print_permissions, env)
+      end
   | Interpret ->
       Driver.run opts (fun () -> Driver.interpret !Options.filename)
 ;;

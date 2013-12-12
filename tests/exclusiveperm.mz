@@ -1,0 +1,3 @@
+(* "exclusive" cannot bear on a permission. *)
+alias foo =
+  [p : perm] exclusive p => (int | p) -> int

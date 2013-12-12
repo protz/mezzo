@@ -1,0 +1,7 @@
+alias stashed (p: perm) : perm = p
+
+val stash [p: perm] (| consumes p) : (| stashed p) =
+  ()
+
+val unstash [p: perm] (| consumes stashed p) : (| p) =
+  ()

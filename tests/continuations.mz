@@ -1,1 +1,52 @@
-../../papers/hope2013/continuations.mz
+(* A one-shot choice between two continuations. *)
+
+(* We specialize things slightly by assuming that the two continuations have
+   the same precondition and that they take no argument. *)
+
+alias continuations (pre : perm) b1 b2 =
+  { ammo : perm } (
+    failure: (| consumes (ammo * pre)) -> b1,
+    success: (| consumes (ammo * pre)) -> b2
+  | ammo
+  )
+
+alias kontinuations (pre : perm) b1 b2 =
+  continuations pre b1 b2
+
+(* Introduction. *)
+
+val kont [pre : perm, b1, b2, ammo : perm] (
+  stop: (| consumes (ammo * pre)) -> b1,
+  done: (| consumes (ammo * pre)) -> b2
+  | consumes ammo
+) : continuations pre b1 b2 =
+  stop, done
+
+(* Elimination. *)
+
+val unkont [pre : perm, b1, b2] (
+  consumes k: kontinuations pre b1 b2
+) : continuations pre b1 b2 =
+  k
+
+(* Left and right apply functions. *)
+
+val left [pre : perm, b1, b2] (
+  consumes k: continuations pre b1 b2
+| consumes pre
+) : b1 =
+  let (k1, _) = k in
+  k1()
+
+val right [pre : perm, b1, b2] (
+  consumes k: continuations pre b1 b2
+| consumes pre
+) : b2 =
+  let (_, k2) = k in
+  k2()
+
+(*
+  Local Variables:
+  compile-command: "$HOME/dev/mezzo/src/mezzo continuations.mz"
+  End:
+*)

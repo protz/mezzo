@@ -32,11 +32,12 @@
 open Kind
 open SurfaceSyntax
 open KindCheck
-open KindCheckGlue
 open Utils
 
 module T = TypeCore
 module E = ExpressionsCore
+
+type env = T.var KindCheck.env
 
 (* -------------------------------------------------------------------------- *)
 
@@ -135,7 +136,7 @@ let rec translate_type env (ty : typ) : T.typ * T.typ * kind =
         branch1 with
         T.branch_fields = fields2
       } in
-      T.construct_branch branch1 perms1, T.construct_branch branch2 perms2, KType
+      T.construct_branch [] branch1 perms1, T.construct_branch [] branch2 perms2, KType
 
   | TySingleton ty ->
       let ty, _ = translate_type_reset env ty in
@@ -195,6 +196,9 @@ let rec translate_type env (ty : typ) : T.typ * T.typ * kind =
 
   | TyImply (c, ty) ->
       translate_implication env [c] ty
+
+  | TyWildcard ->
+      Log.error "Illegal wildcard (FIXME: turn this into a real error message)"
 
 and translate_arrow_type env domain codomain =
   (* Bind a fresh variable to stand for the root of the function
@@ -293,13 +297,16 @@ and translate_implication env (cs : mode_constraint list) = function
 
 let rec translate_data_type_def_branch
     (env: env)
-    (flavor: DataTypeFlavor.flavor)
+    (global_flavor: DataTypeFlavor.flavor)
     (adopts: typ option)
-    (branch: Datacon.name * data_field_def list)
+    (branch: data_type_def_branch)
   : T.typ =
-  let datacon, fields = branch in
+  let branch_flavor, datacon, bindings, fields = branch in
+  let env = extend env bindings in
   let branch = {
-    T.branch_flavor = flavor;
+    T.branch_flavor =
+      DataTypeFlavor.join global_flavor branch_flavor
+        (fun () -> assert false) (* cannot happen *);
     (* [Expressions.bind_group_definition] will take care of putting the right
      * value. We perform eager resolving: as soon we've opened the binder for
      * the data type, all its branches contain a reference to it. So for now,
@@ -309,7 +316,8 @@ let rec translate_data_type_def_branch
     T.branch_adopts = translate_adopts env adopts
   } in
   let perms = translate_field_defs_perms env fields in
-  T.construct_branch branch perms
+  let bindings = List.map (name_user env) bindings in
+  T.construct_branch bindings branch perms
 
 and translate_adopts env (adopts : typ option) =
   match adopts with
@@ -569,6 +577,73 @@ let map_tapp f = function
       E.Named (x, f t)
 ;;
 
+(* This function takes a type that may contain wildcards, and replaces them with
+ * De Bruijn references; it returns the list (in reverse) of kinds for the
+ * corresponding flexible variable bindings. It is therefore important that the
+ * type not contain any open binders... *)
+let rec extrude_wildcards env (t: typ): typ * type_binding list =
+  match t with
+  | TyLocated (t, loc) ->
+      let t, bindings = extrude_wildcards (locate env loc) t in
+      TyLocated (t, loc), bindings
+  | TyTuple ts ->
+      let ts, bindings = List.fold_left (fun (ts, bindingss) t ->
+        let t, bindings = extrude_wildcards env t in
+        t :: ts, bindings :: bindingss
+      ) ([], []) ts in
+      let ts = List.rev ts in
+      TyTuple ts, List.concat bindings
+  | TyEmpty
+  | TyDynamic
+  | TyVar _
+  | TySingleton _
+  | TyApp _
+  | TyArrow _
+  | TyForall _
+  | TyExists _
+  | TyUnknown ->
+      t, []
+  | TyConcrete ((datacon, fields), clause) ->
+      let fields, bindings = List.fold_left (fun (fields, bindingss) field ->
+        match field with
+        | FieldValue (name, t) ->
+            let t, bindings = extrude_wildcards env t in
+            FieldValue (name, t) :: fields, bindings :: bindingss
+        | FieldPermission t ->
+            let t, bindings = extrude_wildcards env t in
+            FieldPermission t :: fields, bindings :: bindingss
+      ) ([], []) fields in
+      let fields = List.rev fields in
+      TyConcrete ((datacon, fields), clause), List.concat bindings
+  | TyAnchoredPermission (x, t) ->
+      let t, bindings = extrude_wildcards env t in
+      TyAnchoredPermission (x, t), bindings
+  | TyStar (p, q) ->
+      let p, bindings_p = extrude_wildcards env p in
+      let q, bindings_q = extrude_wildcards env q in
+      TyStar (p, q), bindings_q @ bindings_p
+  | TyNameIntro (name, t) ->
+      let t, bindings = extrude_wildcards env t in
+      TyNameIntro (name, t), bindings
+  | TyConsumes t ->
+      let t, bindings = extrude_wildcards env t in
+      TyConsumes t, bindings
+  | TyBar (t, p) ->
+      let p, bindings_p = extrude_wildcards env p in
+      let t, bindings_t = extrude_wildcards env t in
+      TyBar (t, p), bindings_t @ bindings_p
+  | TyAnd (c, t) ->
+      let t, bindings = extrude_wildcards env t in
+      TyAnd (c, t), bindings
+  | TyImply (c, t) ->
+      let t, bindings = extrude_wildcards env t in
+      TyImply (c, t), bindings
+  | TyWildcard ->
+      let name = fresh_var "/_" in
+      let binding = name, KType, location env in
+      TyVar (Unqualified name), [binding]
+;;
+
 let rec translate_expr (env: env) (expr: expression): E.expression =
   match expr with
   | EConstraint (e, t) ->
@@ -603,6 +678,12 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       E.ELocalType (group, e)
 
   | EFun (vars, arg, return_type, body) ->
+
+      (* Extrude wildcards before opening the binders. *)
+      let arg, flex_bindings = extrude_wildcards env arg in 
+      let return_type, flex_bindings' = extrude_wildcards env return_type in
+      let flex_bindings = flex_bindings @ flex_bindings' in
+      let env = extend env flex_bindings in
 
       (* Introduce all universal bindings. *)
       let env = extend env vars in
@@ -641,7 +722,12 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
       let universal_bindings = List.map (fun binding -> name_auto binding, AutoIntroduced) universal_bindings in
 
       (* Build big Lambdas. *)
-      E.EBigLambdas (vars @ universal_bindings, body)
+      let expr = E.EBigLambdas (vars @ universal_bindings, body) in
+
+      (* Wrap around let-flex's *)
+      List.fold_right (fun binding expr ->
+        E.ELetFlex ((name_auto binding, AutoIntroduced), expr)
+      ) flex_bindings expr
 
   | EAssign (e1, f, e2) ->
       let e1 = translate_expr env e1 in
@@ -890,11 +976,13 @@ let rec translate_items env = function
  * [Expressions.implementation], i.e. a desugared version of the entire
  * program. *)
 let translate_implementation (env: env) (program: toplevel_item list): E.implementation =
+  Log.debug ~level:10 "[translate_implementation]\n%a" KindCheck.p env;
   translate_items env program
 
 (* [translate_interface] is used by the Driver, before importing an interface
  * into scope. *)
 let translate_interface (env: env) (program: toplevel_item list): E.interface =
+  Log.debug ~level:10 "[translate_interface]\n%a" KindCheck.p env;
   translate_items env program
 
 let translate_type_reset = translate_type_reset_no_kind

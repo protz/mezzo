@@ -22,3 +22,6 @@ val f (x : u) : int =
 (* I would suggest forbidding duplicate data constructor
    definitions in .mz files. *)
 
+(* jp: I don't really agree, OCaml has the exact same behavior, and I believe
+ * it's sometimes useful to shadow existing data constructors, as long as the data
+ * constructor appears just once in the interface. *)

@@ -1,0 +1,7 @@
+(* This causes an Assert_failure in [SurfaceSyntax.destruct_unqualified]. *)
+
+val f =
+  newref
+
+(* The same problem occurs if I explicitly write [ref::newref]. *)
+

@@ -53,11 +53,11 @@ val next
       (* This assert is superfluous. *)
       assert p * head @ a * tail @ list::list a * convertible rewind (p * tail @ list::list a * head @ a) post;
       (* Here, we could assert it @ list_iterator a post;
-	 but by doing so, we would abstract away head @ a,
-	 and would no longer be able to hand it off to the
-	 client. Instead, we must keep head @ a, and build
+         but by doing so, we would abstract away head @ a,
+         and would no longer be able to hand it off to the
+         client. Instead, we must keep head @ a, and build
          an argument that proves that, once the client gives
-	 it back to us, we will be able to construct it @ ... *)
+         it back to us, we will be able to construct it @ ... *)
 
       pack osconvertible surrender (head @ a) (it @ list_iterator a post)
       witness it @ Ref { contents = tail } * p * tail @ list::list a * convertible rewind (p * tail @ list::list a * head @ a) post;
@@ -144,14 +144,14 @@ val filter [a, p: perm, post: perm] (
       right ()
     | Left { contents = x } ->
       if f x then (
-	let flex q: perm in
-	assert (x @ a * surrender @ (| consumes (q * x @ a)) -> (| it_st));
-	assert (x @ a * surrender @ (| consumes (p * q * x @ a)) -> (| it_st * p));
+        let flex q: perm in
+        assert (x @ a * surrender @ (| consumes (q * x @ a)) -> (| it_st));
+        assert (x @ a * surrender @ (| consumes (p * q * x @ a)) -> (| it_st * p));
 
-	left x
+        left x
       ) else (
-	surrender ();
-	next ()
+        surrender ();
+        next ()
       )
     end 
   in

@@ -12,9 +12,9 @@ let rec subst fx fp ty =
       let ty' = fx x in
       begin match ty' with
       | TyVar x' when magic (==) x x' ->
-	  magic ty
+          magic ty
       | _ ->
-	  ty'
+          ty'
       end
   | TyAtom ->
       TyAtom
@@ -22,15 +22,15 @@ let rec subst fx fp ty =
       let ty1' = subst fx fp ty1 in 
       let ty2' = subst fx fp ty2 in
       if magic (==) ty1 ty1' && magic (==) ty2 ty2' then
-	magic ty
+        magic ty
       else
-	TyArrow (ty1', ty2')
+        TyArrow (ty1', ty2')
   | TyQ p ->
       let p' = fp p in
       if magic (==) p p' then
-	magic ty
+        magic ty
       else
-	TyQ p'
+        TyQ p'
 
 let var x =
   TyVar x

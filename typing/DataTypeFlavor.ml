@@ -44,3 +44,19 @@ let can_be_written = function
   | Immutable ->
       false
 
+(* The [mutable] keyword may appear either in front of the algebraic
+   data type definition, in which case it concerns all branches, or
+   in front of a branch, in which case it concerns this branch only.
+   We do not allow it to appear twice. The following helper function
+   combines the two annotations. *)
+
+let join flavor1 flavor2 fail =
+  match flavor1, flavor2 with
+  | Mutable, Mutable ->
+      fail()
+  | Mutable, Immutable
+  | Immutable, Mutable ->
+      Mutable
+  | Immutable, Immutable ->
+      Immutable
+

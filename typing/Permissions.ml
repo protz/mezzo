@@ -524,7 +524,26 @@ and add (env: env) (var: var) (t: typ): env =
               ) env branch.branch_fields branch'.branch_fields
             end
         | None ->
-            add_type env var t
+            (* This implements the rule "x @ list a * x @ Cons { head = h; tail = t }" implies
+             * "x @ Cons { head: a; tail: list a } ∗ x @ Cons { ... }". *)
+            match
+              let t, _ = branch.branch_datacon in
+              MzList.take_bool (function
+                | TyApp (t', _) when same env !!t !!t' ->
+                    true
+                | _ ->
+                    false
+              ) original_perms
+            with
+            | Some (remaining_perms, tapp) ->
+                let env = set_permissions env var remaining_perms in
+                let env = add_type env var t in
+                (* This basically triggers the rule for cons vs. app which is
+                 * implemented a few lines below. *)
+                add env var tapp
+            | None ->
+                (* Default case, nothing smart to do. *)
+                add_type env var t
         end
 
     (* This implements the rule "x @ (=y, =z) * x @ (=y', =z') implies y = y' and z * = z'" *)

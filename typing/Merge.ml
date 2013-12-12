@@ -215,8 +215,9 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
   let make_base_envs ?annot () =
 
-    Log.debug ~level:3 "\n--------- START MERGE @ %a ----------\n\n%a\n\n"
+    Log.debug ~level:3 "\n--------- START MERGE @ %a (annot: %b) ----------\n\n%a\n\n"
       Lexer.p (location top)
+      (annot <> None)
       MzPprint.pdoc (TypePrinter.print_permissions, top);
 
     let is_external var =
@@ -504,6 +505,12 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
     let left_perm = modulo_flex left_env left_perm in 
     let right_perm = modulo_flex right_env right_perm in 
 
+    let is_local_left left_p =
+      not (is_valid dest_env left_env (TyOpen left_p))
+    and is_local_right right_p =
+      not (is_valid dest_env right_env (TyOpen right_p))
+    in
+
     (* Because the order is important, we try various "strategies" that attempt
      * to solve this merge problem. A strategy just returns an option: if it
      * didn't work, we just try the next strategy. If all strategies fail, this
@@ -574,8 +581,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                    * and after calling that function in one of the
                    * sub-environments, we opened [t] in the local environment. *)
                   let is_local_type =
-                    not (is_valid dest_env left_env (TyOpen left_p)) ||
-                    not (is_valid dest_env right_env (TyOpen right_p))
+                    is_local_left left_p || is_local_right right_p
                   in
                   if is_local_type then begin
                     let open TypeErrors in
@@ -599,7 +605,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
                 (* This must be a top-level type and [left_p] must be valid in the
                  * destination environment. *)
-                Log.check (is_type dest_env dest_p) "A flexible variable must refer \
+                Log.check (not (is_local_left left_p) && is_type dest_env dest_p) "A flexible variable must refer \
                   to a type defined in the top-level scope, we don't know how to treat \
                   flexible variables with kind other than type yet.";
 
@@ -624,7 +630,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                 let dest_p = right_p in
 
                 (* See above *)
-                Log.check (is_type dest_env dest_p) "A flexible variable must refer \
+                Log.check (not (is_local_right right_p) && is_type dest_env dest_p) "A flexible variable must refer \
                   to a type defined in the top-level scope, we don't know how to treat \
                   flexible variables with kind other than type yet.";
 
@@ -688,107 +694,113 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             and t_right: var = !!(fst datacon_r) in
             let dest_var = Option.extract dest_var in
 
-            (* The procedure here is a little bit complicated. We first start by
-             * the case where the data constructors are equal (e.g. [Cons] vs
-             * [Cons]), then we treat the case where the data constructors
-             * belong to the same type (e.g. [Cons] vs [Nil]). *)
+            (* We would need to check that the definitions match and merge local
+             * definitions into a common definition. I am *SO* not doing that.
+             * *)
+            if not (is_local_left t_left) && not (is_local_right t_right) then begin
 
-            if resolved_datacons_equal dest_env datacon_l datacon_r then
-              (* The constructors are equal, so we can start by merging the
-               * fields one-by-one. We assume the fields to be in expanded form,
-               * so we can always call [bind_merge]. *)
-              let dest_env, dest_fields =
-                List.fold_left2 (fun (dest_env, dest_fields) (name_l, left_t) (name_r, right_t) ->
-                  Log.check (Field.equal name_l name_r) "Not in order?";
-                  let dest_env, dest_p = bind_merge dest_env !!=left_t !!=right_t in
-                  dest_env, (name_l, ty_equals dest_p) :: dest_fields
-                ) (dest_env, []) branch_l.branch_fields branch_r.branch_fields
-              in
+              (* The procedure here is a little bit complicated. We first start by
+               * the case where the data constructors are equal (e.g. [Cons] vs
+               * [Cons]), then we treat the case where the data constructors
+               * belong to the same type (e.g. [Cons] vs [Nil]). *)
+              if resolved_datacons_equal dest_env datacon_l datacon_r then
+                (* The constructors are equal, so we can start by merging the
+                 * fields one-by-one. We assume the fields to be in expanded form,
+                 * so we can always call [bind_merge]. *)
+                let dest_env, dest_fields =
+                  List.fold_left2 (fun (dest_env, dest_fields) (name_l, left_t) (name_r, right_t) ->
+                    Log.check (Field.equal name_l name_r) "Not in order?";
+                    let dest_env, dest_p = bind_merge dest_env !!=left_t !!=right_t in
+                    dest_env, (name_l, ty_equals dest_p) :: dest_fields
+                  ) (dest_env, []) branch_l.branch_fields branch_r.branch_fields
+                in
 
-              (* Please note that we're building a type "A { fᵢ = xᵢ }" which
-               * may contradict a pre-existing type "A { fᵢ = yᵢ }" for
-               * [dest_var] obtained through a type annotation. That's fine,
-               * though, because the [Permissions] module will use its special
-               * rule to assume "xᵢ = yᵢ". *)
-              let dest_fields = List.rev dest_fields in
+                (* Please note that we're building a type "A { fᵢ = xᵢ }" which
+                 * may contradict a pre-existing type "A { fᵢ = yᵢ }" for
+                 * [dest_var] obtained through a type annotation. That's fine,
+                 * though, because the [Permissions] module will use its special
+                 * rule to assume "xᵢ = yᵢ". *)
+                let dest_fields = List.rev dest_fields in
 
-              (* Finally, we need to merge the "adopts" clause on the structural
-               * types. *)
-              let r = 
-                let open TypeErrors in
-                let clause_l = branch_l.branch_adopts
-                and clause_r = branch_r.branch_adopts in
-                try
-                  let clause_l = clean top left_env clause_l in
-                  let clause_r = clean top right_env clause_r in
-                  (* We don't want to be smart here, because:
-                   * i) the clause is not in expanded form (no singletons
-                   *    everywhere) and the whole [Merge] module makes that
-                   *    assumption, so recursively calling [merge_type] would be
-                   *    dangerous. I don't understand what
-                   *    [merge_type_with_unfolding] would mean in that case
-                   *    either (we'd have to re-fold permissions with a [TyBar]?).
-                   * ii) it's a good practice to annotate such a tricky case. *)
-                  if not (equal top clause_l clause_r) then
-                    raise_error top (NotMergingClauses (left_env, left_perm, clause_l, right_env, right_perm, clause_r))
-                  else
-                    (* Recursively merge the clause (covariant). *)
-                    merge_type (left_env, clause_l) (right_env, clause_r) dest_env
-                with UnboundPoint ->
-                  raise_error top (NotMergingClauses (left_env, left_perm, clause_l, right_env, right_perm, clause_r))
-              in
-              r >>= fun (left_env, right_env, dest_env, clause) ->
-              let branch = { branch_l with
-                branch_fields = dest_fields;
-                branch_adopts = clause;
-              } in
-              Some (left_env, right_env, dest_env, TyConcrete branch)
-
-
-            else if same dest_env t_left t_right then begin
-              (* Same nominal type (e.g. [Nil] vs [Cons]). The procedure here is a
-               * little bit more complicated. We need to take the nominal type (e.g.
-               * [list]), and apply it to [a] flexible on both sides, allocate [a]
-               * in [dest_env] and add the relevant triples in [known_triples].
-               * Then, perform [Nil - list a] and [Cons - list a]. Then recursively
-               * merge the variables pairwise, and if it's still flexible,
-               * generalize (or maybe not?).
-               *)
-              let t_dest = t_left in
-
-              (* Ok, if the user already told us how to fold this type, then
-               * don't bother doing the work at all. Otherwise, complain. *)
-              if has_nominal_type_annotation dest_env dest_var t_dest then begin
-                None
-              end else begin
-                if get_arity dest_env t_dest > 0 then begin
+                (* Finally, we need to merge the "adopts" clause on the structural
+                 * types. *)
+                let r = 
                   let open TypeErrors in
-                  let error = UncertainMerge dest_var in
-                  may_raise_error dest_env error
-                end;
-
-                Log.debug ~level:4 "[cons_vs_cons] left";
-                let left_env, t_app_left =
-                  build_flexible_type_application (left_env, left_perm) (dest_env, t_dest)
+                  let clause_l = branch_l.branch_adopts
+                  and clause_r = branch_r.branch_adopts in
+                  try
+                    let clause_l = clean top left_env clause_l in
+                    let clause_r = clean top right_env clause_r in
+                    (* We don't want to be smart here, because:
+                     * i) the clause is not in expanded form (no singletons
+                     *    everywhere) and the whole [Merge] module makes that
+                     *    assumption, so recursively calling [merge_type] would be
+                     *    dangerous. I don't understand what
+                     *    [merge_type_with_unfolding] would mean in that case
+                     *    either (we'd have to re-fold permissions with a [TyBar]?).
+                     * ii) it's a good practice to annotate such a tricky case. *)
+                    if not (equal top clause_l clause_r) then
+                      raise_error top (NotMergingClauses (left_env, left_perm, clause_l, right_env, right_perm, clause_r))
+                    else
+                      (* Recursively merge the clause (covariant). *)
+                      merge_type (left_env, clause_l) (right_env, clause_r) dest_env
+                  with UnboundPoint ->
+                    raise_error top (NotMergingClauses (left_env, left_perm, clause_l, right_env, right_perm, clause_r))
                 in
-                Log.debug ~level:4 "[cons_vs_cons] right";
-                let right_env, t_app_right =
-                  build_flexible_type_application (right_env, right_perm) (dest_env, t_dest)
-                in
+                r >>= fun (left_env, right_env, dest_env, clause) ->
+                let branch = { branch_l with
+                  branch_fields = dest_fields;
+                  branch_adopts = clause;
+                } in
+                Some (left_env, right_env, dest_env, TyConcrete branch)
 
-                (* Did the subtractions succeed? *)
-                left_env >>= fun left_env ->
-                right_env >>= fun right_env ->
 
-                Log.debug ~level:3 "[cons_vs_cons] subtractions performed, got: %a vs %a"
-                  TypePrinter.ptype (left_env, t_app_left)
-                  TypePrinter.ptype (right_env, t_app_right);
+              else if same dest_env t_left t_right then begin
+                (* Same nominal type (e.g. [Nil] vs [Cons]). The procedure here is a
+                 * little bit more complicated. We need to take the nominal type (e.g.
+                 * [list]), and apply it to [a] flexible on both sides, allocate [a]
+                 * in [dest_env] and add the relevant triples in [known_triples].
+                 * Then, perform [Nil - list a] and [Cons - list a]. Then recursively
+                 * merge the variables pairwise, and if it's still flexible,
+                 * generalize (or maybe not?).
+                 *)
+                let t_dest = t_left in
 
-                let r = merge_type (left_env, t_app_left) (right_env, t_app_right) ~dest_var dest_env in
-                r >>= fun (left_env, right_env, dest_env, dest_perm) ->
-                Some (left_env, right_env, dest_env, dest_perm)
-              end
+                (* Ok, if the user already told us how to fold this type, then
+                 * don't bother doing the work at all. Otherwise, complain. *)
+                if has_nominal_type_annotation dest_env dest_var t_dest then begin
+                  None
+                end else begin
+                  if get_arity dest_env t_dest > 0 then begin
+                    let open TypeErrors in
+                    let error = UncertainMerge dest_var in
+                    may_raise_error dest_env error
+                  end;
 
+                  Log.debug ~level:4 "[cons_vs_cons] left";
+                  let left_env, t_app_left =
+                    build_flexible_type_application (left_env, left_perm) (dest_env, t_dest)
+                  in
+                  Log.debug ~level:4 "[cons_vs_cons] right";
+                  let right_env, t_app_right =
+                    build_flexible_type_application (right_env, right_perm) (dest_env, t_dest)
+                  in
+
+                  (* Did the subtractions succeed? *)
+                  left_env >>= fun left_env ->
+                  right_env >>= fun right_env ->
+
+                  Log.debug ~level:3 "[cons_vs_cons] subtractions performed, got: %a vs %a"
+                    TypePrinter.ptype (left_env, t_app_left)
+                    TypePrinter.ptype (right_env, t_app_right);
+
+                  let r = merge_type (left_env, t_app_left) (right_env, t_app_right) ~dest_var dest_env in
+                  r >>= fun (left_env, right_env, dest_env, dest_perm) ->
+                  Some (left_env, right_env, dest_env, dest_perm)
+                end
+
+              end else
+                None
             end else
               None
 
@@ -815,12 +827,15 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             let t_left = !!(fst datacon_l) in
             let t_dest = t_left in
 
-            let left_env, t_app_left =
-              build_flexible_type_application (left_env, left_perm) (dest_env, t_dest)
-            in
+            if not (is_local_left t_left) then
+              let left_env, t_app_left =
+                build_flexible_type_application (left_env, left_perm) (dest_env, t_dest)
+              in
 
-            left_env >>= fun left_env ->
-            merge_type (left_env, t_app_left) (right_env, right_perm) ?dest_var dest_env
+              left_env >>= fun left_env ->
+              merge_type (left_env, t_app_left) (right_env, right_perm) ?dest_var dest_env
+            else
+              None
 
 
         | _, TyConcrete branch_r ->
@@ -828,16 +843,20 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             let t_right = !!(fst datacon_r) in
             let t_dest = t_right in
 
-            let right_env, t_app_right =
-              build_flexible_type_application (right_env, right_perm) (dest_env, t_dest)
-            in
+            if not (is_local_right t_right) then
+              let right_env, t_app_right =
+                build_flexible_type_application (right_env, right_perm) (dest_env, t_dest)
+              in
 
-            right_env >>= fun right_env ->
-            merge_type (left_env, left_perm) (right_env, t_app_right) ?dest_var dest_env
+              right_env >>= fun right_env ->
+              merge_type (left_env, left_perm) (right_env, t_app_right) ?dest_var dest_env
+            else
+              None
 
 
         | TyApp (consl, argsl), TyApp (consr, argsr)
-            when get_kind left_env !!consl = get_kind right_env !!consr ->
+          when get_kind left_env !!consl = get_kind right_env !!consr
+          && not (is_local_left !!consl) && not (is_local_right !!consr) ->
             (* Merge the constructors. This should be a no-op, unless they're
              * distinct, in which case we stop here. *)
             let r = merge_type (left_env, consl) (right_env, consr) ?dest_var dest_env in

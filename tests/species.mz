@@ -55,11 +55,11 @@ val rec splits [a, p : perm] (
       f (Nil, Nil)
   | Cons { head = x } ->
       (* Enumerate all ways of splitting [xs.tail], and for each such way,
-	 call [f] twice, once with [x] added to the left sub-list, once
-	 with [x] added to the right sub-list. *)
+         call [f] twice, once with [x] added to the left sub-list, once
+         with [x] added to the right sub-list. *)
       splits (xs.tail, fun (left: list a, right: list a | x @ a * p) : () =
-	f (Cons { head = x; tail = left }, right);
-	f (left, Cons { head = x; tail = right });
+        f (Cons { head = x; tail = left }, right);
+        f (left, Cons { head = x; tail = right });
       )
   end
 

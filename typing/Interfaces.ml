@@ -27,39 +27,45 @@ module T = TypeCore
 
 (* ---------------------------------------------------------------------------- *)
 
-(* [build_interface env mname] finds the right interface file for [mname], and
- * lexes it, parses it, and returns a desugared version of it, ready for
- * importing into some environment. *)
+(* [build_interface env mname iface] desugars the interface [iface] belonging to
+ * module [mname]. It returns an environment along with a desugared interface,
+ * both suitable for [import_interface]. *)
 let build_interface (env: TypeCore.env) (mname: Module.name) (iface: S.interface): T.env * E.interface =
-  let env = TypeCore.set_module_name env mname in
-  let kenv = KindCheckGlue.initial env in
+  let env = TypeCore.enter_module env mname in
+  let kenv = TypeCore.kenv env in
   KindCheck.check_interface kenv iface;
   env, TransSurface.translate_interface kenv iface
 ;;
 
-(* Used by [Driver], to import the points from a desugared interface into
- * another one, prefixed by the module they belong to, namely [mname]. *)
+(* Used by [Driver]. See the .mli! *)
 let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.env =
   Log.debug "Massive import, %a" Module.p mname;
   let env, iface = build_interface env mname iface in
 
   let open TypeCore in
   let open ExpressionsCore in
-  (* We demand that [env] have the right module name. *)
   let rec import_items env = function
     | ValueDeclaration (name, typ) :: items ->
-        (* XXX the location information is probably wildly inaccurate *)
-        let binding = User (module_name env, name), KTerm, location env in
-        let env, p = bind_rigid env binding in
-        (* [add] takes care of simplifying any function type. *)
+        (* Bind the variable. *)
+        let binding = User (mname, name), KTerm, location env in
+        let env, { Expressions.subst_toplevel; vars; _ } = Expressions.bind_evars env [ binding ] in
+        let p = match vars with [ p ] -> p | _ -> assert false in
+
+        (* First, remember that we now have a qualified name pointing to [p]. *)
+        let env = Exports.bind_interface_value env mname name p in
+
+        (* Then, [add] takes care of simplifying any function type. *)
         let env = Permissions.add env p typ in
-        let items = Expressions.tsubst_toplevel_items (TyOpen p) 0 items in
-        let items = Expressions.esubst_toplevel_items (EOpen p) 0 items in
+        let items = subst_toplevel items in
         import_items env items
 
     | DataTypeGroup group :: items ->
-        let env, items, _ = Expressions.bind_data_type_group_in_toplevel_items env group items in
-        (* TEMPORARY why don't we bind the data constructors here? *)
+        let env, items, vars, dc_exports = Expressions.bind_data_type_group_in_toplevel_items env group items in
+
+        (* Also remember that we now have a qualified name for the types, and
+         * that we can qualify the data constructors as well. *)
+        let env = Exports.bind_interface_types env mname group vars dc_exports in
+
         import_items env items
 
     | ValueDefinitions _ :: _ ->
@@ -80,26 +86,24 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
    the core language. *)
 
 (* Check that [env] respect the [signature] which is that of module [mname]. We
- * will want to check that [env] respects its own signature, but also that of
- * the modules it exports, i.e. that it leaves them intact.
+ * will want to check that [env] respects its own signature.
  *
- * Why does this function return an environment? Well, when we're type-checking
- * a module against its own signature, we need to return the environment
- * afterwards, because we may have consumed permissions from other modules, and
- * [Driver] will want to check that for us (by eventually calling us again with
- * another [mname]). *)
+ * Why does this function return an environment? To print the final signature, I
+ * guess... *)
 let check
   (env: T.env)
   (signature: S.toplevel_item list)
-  (exports: KindCheckGlue.env)
 : T.env =
+
+  (* All exported variables are unqualified, non-local variables. *)
+  let exports = TypeCore.kenv env in
 
   (* As [check] processes one toplevel declaration after another, it first adds
    * the name into the translation environment (i.e. after processing [val foo @ τ],
    * [foo] is known to point to a point in [env] in [tsenv]). Second, in
    * order to check [val foo @ τ], it removes [τ] from the list of available
    * permissions for [foo] in [env], which depletes as we go. *)
-  let rec check (env: T.env) (tsenv: KindCheckGlue.env) (toplevel_items: S.toplevel_item list) =
+  let rec check (env: T.env) (tsenv: TransSurface.env) (toplevel_items: S.toplevel_item list) =
     match toplevel_items with
     | S.OpenDirective mname :: toplevel_items ->
         let tsenv = KindCheck.dissolve tsenv mname in
@@ -145,7 +149,7 @@ let check
           the existing points in [env]. *)
         let special_bind tsenv (name, kind, _loc) =
           KindCheck.bind_nonlocal tsenv (name, kind, KindCheck.find_nonlocal_variable exports name)
-	in
+        in
         let tsenv, translated_definitions =
           TransSurface.translate_data_type_group (List.fold_left special_bind) tsenv group
         in
@@ -166,7 +170,6 @@ let check
 
           let point = KindCheck.find_nonlocal_variable exports name in
           (* Variables marked with ' belong to the implementation. *)
-
 
           let open TypeErrors in
           let error_out reason =
@@ -236,11 +239,7 @@ let check
 
           | T.Abbrev t, T.Abbrev t' ->
               (* We must export exactly the same abbreviation for the
-               * signature to match. We may want to be smarter, e.g. allow
-               * subtyping by using [Permissions.sub] instead of [T.equal] but
-               * these types contain bound variables (we haven't bound the type
-               * parameters), and [Permissions] does not know how to deal with
-               * that yet). *)
+               * signature to match. *)
               if not (T.equal env t t') then
                 error_out "abbreviations not compatible";
 
@@ -260,5 +259,12 @@ let check
         env
   in
 
-  check env (KindCheckGlue.initial env) signature
+  (* We need to build the interface in a "clean" kind-checking environment where
+   * the names from the *implementation* are not available. Currently, [env]
+   * contains a kind-checking environment where names from the *implementation*
+   * are non-local, unqualified variables. We need to zap these, and this is
+   * precisely what [enter_module] does. *)
+  let tsenv = TypeCore.kenv (TypeCore.enter_module env (TypeCore.module_name env)) in
+
+  check env tsenv signature
 ;;

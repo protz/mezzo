@@ -1,0 +1,11 @@
+data list a =
+  | Nil
+  | Cons { head: a; tail: list a }
+
+
+val g [a] (consumes x: list a, h1: unknown, h2: unknown, t: unknown |
+       x @ Cons { head = h1; tail: Cons { head = h2; tail =t }}): () =
+   assert h1 @ a;
+   assert h2 @ a;
+   assert t @ list a;
+   ()

@@ -17,7 +17,7 @@ val rec map1 [a, b] (
   match xs with
   | Nil ->
       (* c0 @ Cell { head: b; tail: () } *)
-      c0.tail <- Nil;
+      c0.tail <- xs;
       (* c0 @ Cell { head: b; tail: Nil } *)
       tag of c0 <- Cons
       (* c0 @ Cons { head: b; tail: Nil } *)

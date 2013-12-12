@@ -54,19 +54,19 @@ let map_tapp f = function
  * binding with index [i] in the returned list has De Bruijn index [i] in the
  * bound term. *)
 let rec collect_pattern acc = function
-| PVar (name, p) ->
-    (name, KTerm, p) :: acc
-| PTuple patterns ->
-    List.fold_left collect_pattern acc patterns
-| PConstruct (_, fields) ->
-    let patterns = snd (List.split fields) in
-    List.fold_left collect_pattern acc patterns
-| POpen _ ->
-    assert false
-| PAs (p1, p2) ->
-    List.fold_left collect_pattern acc [p1; p2]
-| PAny ->
-    acc
+  | PVar (name, p) ->
+      (name, KTerm, p) :: acc
+  | PTuple patterns ->
+      List.fold_left collect_pattern acc patterns
+  | PConstruct (_, fields) ->
+      let patterns = snd (List.split fields) in
+      List.fold_left collect_pattern acc patterns
+  | POpen _ ->
+      assert false
+  | PAs (p1, p2) ->
+      List.fold_left collect_pattern acc [p1; p2]
+  | PAny ->
+      acc
 
 let collect_pattern (p: pattern) : (Variable.name * kind * location) list =
   (* Return the names in reading order, i.e. left-to-right. *)
@@ -245,8 +245,28 @@ and bind_group_in_toplevel_items (vars: var list) (toplevel_items: toplevel_item
   bind_group_in vars tsubst_toplevel_items toplevel_items
 
 
+and extract_datacons (vars: var list) (group: data_type_group): (var * Datacon.name * SurfaceSyntax.datacon_info) list =
+  List.fold_left2 (fun acc var data_type ->
+    match data_type.data_definition with
+    | Concrete def ->
+        (* Iterate over the branches of this definition. *)
+        MzList.fold_lefti (fun i acc t ->
+          let branch = find_branch t in
+          let dc = snd branch.branch_datacon in
+          let f = branch.branch_flavor in
+          let fields = List.map fst branch.branch_fields in
+          (var, dc, SurfaceSyntax.mkdatacon_info dc i f fields) :: acc
+        ) acc def
+    | _ ->
+        acc
+  ) [] vars group.group_items
+
+
+
 and bind_data_type_group_in:
-  'a. env -> data_type_group -> (var list -> 'a -> 'a) -> 'a -> env * 'a * var list =
+  'a. env -> data_type_group -> (var list -> 'a -> 'a) -> 'a ->
+    env * 'a * var list * (var * Datacon.name * SurfaceSyntax.datacon_info) list
+  =
   fun env group bind_group_in_thing thing ->
 
   (* First, allocate vars for all the data types. *)
@@ -267,20 +287,20 @@ and bind_data_type_group_in:
   (* Open references to these data types in the rest of the program. *)
   let thing = bind_group_in_thing vars thing in
   (* We're done. *)
-  env, thing, vars
+  env, thing, vars, extract_datacons vars group
 
 
 and bind_data_type_group_in_expr
     (env: env)
     (group: data_type_group)
-    (expr: expression): env * expression * var list =
+    (expr: expression): env * expression * var list * (var * Datacon.name * SurfaceSyntax.datacon_info) list =
   bind_data_type_group_in env group bind_group_in_expr expr
 
 
 and bind_data_type_group_in_toplevel_items
     (env: env)
     (group: data_type_group)
-    (toplevel_items: toplevel_item list): env * toplevel_item list * var list =
+    (toplevel_items: toplevel_item list): env * toplevel_item list * var list * (var * Datacon.name * SurfaceSyntax.datacon_info) list =
   bind_data_type_group_in env group bind_group_in_toplevel_items toplevel_items
 
 
@@ -631,6 +651,8 @@ type substitution_kit = {
   subst_pat: pattern list -> pattern list;
   (* the vars, in left-to-right order *)
   vars: var list;
+  (* the names, in left-to-right order *)
+  names: Variable.name list;
 }
 
 (* [eunloc e] removes any [ELocated] located in front of [e]. *)
@@ -647,11 +669,12 @@ let rec eunloc = function
  * reading order. *)
 let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit =
   (* List kept in reverse, the usual trick *)
-  let env, vars =
-    List.fold_left (fun (env, vars) binding ->
+  let env, vars, names =
+    List.fold_left (fun (env, vars, names) binding ->
       let env, var = bind_rigid env binding in
-      env, var :: vars
-    ) (env, []) bindings
+      let name = match binding with User (_, x), _, _ -> x | _ -> Variable.register "::invalid::" in
+      env, var :: vars, name :: names
+    ) (env, [], []) bindings
   in
   let subst_type t =
     MzList.fold_lefti (fun i t var -> tsubst (TyOpen var) i t) t vars
@@ -673,6 +696,7 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
   in
   (* Now keep the list in order. *)
   let vars = List.rev vars in
+  let names = List.rev names in
   let subst_pat patterns =
     let vars, patterns = List.fold_left (fun (vars, pats) pat ->
       let pat, vars = psubst pat vars in
@@ -682,7 +706,7 @@ let bind_evars (env: env) (bindings: type_binding list): env * substitution_kit 
     let patterns = List.rev patterns in
     patterns
   in
-  env, { subst_type; subst_expr; subst_def; subst_pat; subst_toplevel; vars }
+  env, { subst_type; subst_expr; subst_def; subst_pat; subst_toplevel; vars; names }
 ;;
 
 let bind_vars (env: env) (bindings: SurfaceSyntax.type_binding list): env * substitution_kit =
@@ -814,7 +838,7 @@ module ExprPrinter = struct
         string "in" ^^ break 1 ^^ print_expr env e
 
     | ELocalType (group, e) ->
-        let env, e, _ = bind_data_type_group_in_expr env group e in
+        let env, e, _, _ = bind_data_type_group_in_expr env group e in
         string "let" ^^ space ^^ string "[some data type group]" ^^ space ^^
         string "in" ^^ break 1 ^^ print_expr env e
 
@@ -822,10 +846,10 @@ module ExprPrinter = struct
     | EBigLambdas (xs, e) ->
         let env, { subst_expr; _ } = bind_evars env (List.map fst xs) in
         let e = subst_expr e in
-	brackets (
-	  separate_map (comma ^^ space) (print_ebinder env) xs
-	) ^^ space ^^
-	print_expr env e
+        brackets (
+          separate_map (comma ^^ space) (print_ebinder env) xs
+        ) ^^ space ^^
+        print_expr env e
 
     (* fun [a] (x: τ): τ -> e *)
     | ELambda (arg, return_type, body) ->

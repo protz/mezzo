@@ -1,0 +1,9 @@
+data mutable t a =
+  | {u, x: term, y: term } B { x; y: =y | x @ a * y @ u }
+
+data mutable s a =
+  | {u, x: term, y: term } A { x: =x; y: =y | x @ a * y @ u }
+
+val f [a] (consumes x: t a): s a =
+  tag of x <- A;
+  x

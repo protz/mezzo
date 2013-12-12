@@ -14,11 +14,11 @@ val rec map [a, b] (xs: list a, f : a -> b) : list b =
         head == head' && tail == tail'
       in
       if e1 then begin
-	assert head = head'; (* BUG? why is this equality not known? *)
-	assert tail = tail';
-	xs
+        assert head = head'; (* BUG? why is this equality not known? *)
+        assert tail = tail';
+        xs
       end
       else
-	Cons { head = head'; tail = tail' }
+        Cons { head = head'; tail = tail' }
   end
 

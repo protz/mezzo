@@ -30,3 +30,5 @@ val ptag: Buffer.t -> 'a -> unit
 val same_absolute_path: string -> string -> bool
 
 val file_get_contents: string -> string
+
+val get_number_of_cores: unit -> int

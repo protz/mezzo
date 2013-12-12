@@ -1,6 +1,7 @@
 
 data mutable t a = A | B { b: a }
 
+val x = A
+
 val s1 =
-  let x = A in
   if explain True then A else B { b = x }

@@ -325,6 +325,9 @@ raw_atomic_type:
 (* The top permission. A neutral element for permission conjunction. *)
 | EMPTY
     { TyEmpty }
+(* The wildcard, which allows a limited form of type inference for functions. *)
+| UNDERSCORE
+    { TyWildcard }
 (* Term variable, type variable, permission variable, abstract type, or concrete type. *)
 | x = maybe_qualified_type_variable
     { x }
@@ -541,31 +544,41 @@ data_type_def_branch_content:
    where, within the braces, we have the above content. This is also
    the syntax of structural permissions. *)
 
-%inline data_type_branch:
-  dfs = generic_datacon_application(data_type_def_branch_content)
-    { dfs }
-
-%inline data_type_def_branch:
-  dfs = generic_bare_datacon_application(data_type_def_branch_content)
-    { dfs }
-
-%inline data_type_def_lhs:
-  x = variable ys = atomic_type_binding_with_variance*
-    { (* A little hack: we don't know the kind yet, so we abstract over it. *)
-      fun kind ->
-        (x, kind, ($startpos(x), $endpos(x))),
-	ys
-    }
-
-%inline data_type_def_rhs:
-  bs = separated_or_preceded_list(BAR, data_type_def_branch)
-    { bs }
+(* The [mutable] keyword may appear either in front of the algebraic
+   data type definition, in which case it concerns all branches, or
+   in front of a branch, in which case it concerns this branch only. *)
 
 %inline data_type_flavor:
 | (* nothing *)
     { DataTypeFlavor.Immutable }
 | MUTABLE
     { DataTypeFlavor.Mutable }
+
+%inline data_type_branch:
+  dfs = generic_datacon_application(data_type_def_branch_content)
+    { dfs }
+
+%inline data_type_def_branch:
+  flavor = data_type_flavor
+  bs = existential_quantifiers? (* TEMPORARY allow more *)
+  dfs = generic_bare_datacon_application(data_type_def_branch_content)
+    { 
+      let dc, fields = dfs in
+      let bs = Option.map_none [] bs in
+      flavor, dc, bs, fields
+    }
+
+%inline data_type_def_lhs:
+  x = variable ys = atomic_type_binding_with_variance*
+    { (* A little hack: we don't know the kind yet, so we abstract over it. *)
+      fun kind ->
+        (x, kind, ($startpos(x), $endpos(x))),
+        ys
+    }
+
+%inline data_type_def_rhs:
+  bs = separated_or_preceded_list(BAR, data_type_def_branch)
+    { bs }
 
 %inline optional_kind_annotation:
 | (* nothing *)

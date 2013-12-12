@@ -1,4 +1,4 @@
-.PHONY: all clean test graph doc index release report coverage count doc
+.PHONY: all clean test graph doc index release report coverage count doc doc-export
 
 # Default values for auxiliary tools.
 # Can be overridden by Makefile.local (not under version control).
@@ -56,7 +56,7 @@ tags: all
 #%.mz: mezzo.byte FORCE
 #	OCAMLRUNPARAM=b ./mezzo.byte -I tests -nofancypants $@ -debug 5 2>&1 | tail -n 80
 %.mz: all
-	OCAMLRUNPARAM=b ./mezzo.native -I tests -nofancypants -debug 5 $@ 2>&1 | tail -n 80
+	OCAMLRUNPARAM=b ./mezzo.native -I tests $@ 2>&1 | tail -n 200
 
 FORCE:
 
@@ -100,6 +100,10 @@ doc: graph
 	  $(shell $(FIND) _build -maxdepth 2 -iname '*.mli')
 	sed -i 's/<\/body>/<p align="center"><object type="image\/svg+xml" data="graph.svg"><\/object><\/p><\/body>/' ../misc/doc/index.html
 	cp -f misc/graph.svg ../misc/doc/graph.svg
+
+doc-export:
+	rm -rf ~/public_html/mezzo-lang/doc/
+	cp -R ../misc/doc ~/public_html/mezzo-lang/
 
 count:
 	sloccount parsing typing utils viewer lib mezzo.ml

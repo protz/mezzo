@@ -2,15 +2,26 @@
 
 (* The algebraic data type of mutable lists. *)
 
-data mutable mlist a =
+data mlist a =
   | MNil
-  | MCons { head: a; tail: mlist a }
+  | mutable MCons { head: a; tail: mlist a }
 
 (* -------------------------------------------------------------------------- *)
 
 (* Length. *)
 
 val length: [a] mlist a -> int
+
+(* -------------------------------------------------------------------------- *)
+
+(* Search. *)
+
+val mem: [a, p : perm] (
+  equal: (a, a | p) -> bool,
+  x: a,
+  xs: mlist a
+| p
+) -> bool
 
 (* -------------------------------------------------------------------------- *)
 
@@ -39,6 +50,12 @@ val sort: [a] (
   cmp: (a, a) -> int,
   consumes mlist a
 ) -> mlist a
+
+(* -------------------------------------------------------------------------- *)
+
+(* Freezing. *)
+
+val freeze: [a] (consumes xs: mlist a) -> (| xs @ list::list a)
 
 (* -------------------------------------------------------------------------- *)
 

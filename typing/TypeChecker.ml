@@ -232,7 +232,7 @@ let check_function_call (env: env) ?(annot: typ option) (f: var) (x: var): env *
       if xs <> [] then
         may_raise_error env (SeveralWorkingFunctionTypes f);
       List.iter (fun (name, var) ->
-        may_raise_error env (Instantiated (name, TyOpen var))
+        may_raise_error env' (Instantiated (name, TyOpen var))
       ) vars;
 
       Log.debug ~level:5 "[check_function_call] subtraction succeeded \\o/";
@@ -468,9 +468,15 @@ let refine_perms_in_place_for_pattern env var pat =
 
 let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * var =
 
-  (* lazy because we need to typecheck the core modules too! *)
-  let t_int = lazy (find_type_by_name env ~mname:"int" "int")
-  and t_bool = lazy (find_type_by_name env ~mname:"bool" "bool") in
+  let find_qualified_type m x =
+    (* lazy because we need to typecheck the core modules too! *)
+    lazy begin
+      let x = Exports.find_qualified_var env (Module.register m) (Variable.register x) in
+      TyOpen x
+    end
+  in
+  let t_int = find_qualified_type "int" "int" in
+  let t_bool = find_qualified_type "bool" "bool" in
 
   (* [return t] creates a new var with type [t] available for it, and returns
    * the environment as well as the var *)
@@ -499,7 +505,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       (* We used to be smart and merge type annotations but not a single test
        * file used this (dubious) feature, so it was removed. *)
       let annot = match annot with
-        | Some t' -> raise_error env (ConflictingTypeAnnotations (t, t'))
+        | Some t' ->
+            if not (equal env t t') then
+              raise_error env (ConflictingTypeAnnotations (t, t'))
+            else
+              t
         | None -> t
       in
       let env, p = check_expression env ?hint ~annot e in
@@ -561,15 +571,15 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
        * instantiation. *)
       let name =
         match binding with
+        | (Auto n, _, _), _
         | (User (_, n), _, _), _ -> n
-        | _ -> assert false
       in
       may_raise_error env (Instantiated (name, t0));
       env, x
 
   | ELocalType (group, e) ->
-      let env, e, _ = bind_data_type_group_in_expr env group e in
-      check_expression env e
+      let env, e, _, _ = bind_data_type_group_in_expr env group e in
+      check_expression env ?annot e
 
   (* We assume that [EBigLambdas] is allowed only above [ELambda]. This
      allows us to cheat when handling [EBigLambda]. Instead of introducing a
@@ -582,8 +592,8 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   | EBigLambdas (vars, e) ->
 
       (* Build the desired polymorphic function type. Note that we build
-	 this type without opening or closing any quantifiers. This is the
-	 trick. *)
+         this type without opening or closing any quantifiers. This is the
+         trick. *)
       let desired = type_for_function_def expr in
       
       (* Enter the big Lambdas. *)
@@ -619,9 +629,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let sub_env, p = check_expression sub_env ~annot:return_type body in
 
       begin match Permissions.sub sub_env p return_type with
-      | Left (_, d) ->
+      | Left (sub_env, d) ->
           Log.debug ~level:8 "%a" DerivationPrinter.pderivation d;
           (* Return the desired arrow type. *)
+          let env = Permissions.import_flex_instanciations env sub_env in
           return env (TyArrow (arg, return_type))
       | Right d ->
           raise_error sub_env (ExpectedType (return_type, p, d))
@@ -895,11 +906,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   | EInt _ ->
       return env !*t_int
 
-  | ELocated (e, new_pos) ->
-      let old_pos = location env in
-      let env = locate env new_pos in
+  | ELocated (e, pos) ->
+      let env = locate env pos in
       let env, p = check_expression env ?hint ?annot e in
-      locate env old_pos, p
+      locate env pos, p
 
   | EIfThenElse (explain, e1, e2, e3) ->
       let hint_1 = add_hint hint "if" in
@@ -1161,9 +1171,9 @@ and check_bindings
 let check_declaration_group
     (env: env)
     (defs: definitions)
-    (toplevel_items: toplevel_item list): env * toplevel_item list * var list =
+    (toplevel_items: toplevel_item list): env * toplevel_item list * (Variable.name * var) list =
   let p, rec_flag, patexprs = defs in
   let env = locate env p in
-  let env, { vars; subst_toplevel; _ } = check_bindings env rec_flag patexprs in
-  env, subst_toplevel toplevel_items, vars
+  let env, { names; vars; subst_toplevel; _ } = check_bindings env rec_flag patexprs in
+  env, subst_toplevel toplevel_items, List.combine names vars
 ;;

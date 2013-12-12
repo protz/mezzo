@@ -66,6 +66,21 @@ type datacon_info = {
 
 (* ---------------------------------------------------------------------------- *)
 
+(* Provided we have the name of a data constructor, its index, and the ordered
+   list of its fields, we can create a [datacon_info] record. *)
+
+let mkdatacon_info dc i f fields = {
+  datacon_name = Datacon.print dc;
+  datacon_arity = List.length fields;
+  datacon_index = i;
+  datacon_flavor = f;
+  datacon_fields =
+    let open Field.Map in
+    MzList.fold_lefti (fun i accu f -> add f i accu) empty fields;
+}
+
+(* ---------------------------------------------------------------------------- *)
+
 (* A name can be either unqualified, [x], or qualified with a module name,
    [m::x]. This holds for variables (of arbitrary kind: term, type, etc.)
    and for data constructors. *)
@@ -137,15 +152,13 @@ type typ =
   | TyBar of typ * typ
   | TyAnd of mode_constraint * typ
   | TyImply of mode_constraint * typ
+  | TyWildcard
 
 and mode_constraint = Mode.mode * typ
 
-and data_type_def_branch =
-    Datacon.name * data_field_def list
-
 and data_field_def =
   | FieldValue of Field.name * typ
-  | FieldPermission of typ
+  | FieldPermission of typ (* TEMPORARY kill this! *)
 
 and adopts_clause =
     typ option
@@ -165,6 +178,9 @@ type data_type_def_lhs =
 
 type single_fact = 
   | Fact of mode_constraint list * mode_constraint
+
+type data_type_def_branch =
+    DataTypeFlavor.flavor * Datacon.name * type_binding list * data_field_def list
 
 type data_type_def_rhs =
   | Concrete of DataTypeFlavor.flavor * data_type_def_branch list * adopts_clause
@@ -387,6 +403,7 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TySingleton _
   | TyDynamic
   | TyApp _
+  | TyWildcard
   | TyVar _ ->
       PAny
 
@@ -425,7 +442,7 @@ let destruct_unqualified = function
   | Unqualified x ->
       x
   | Qualified _ ->
-      assert false
+      Log.error "bad usage for [destruct_unqualified]"
 
 let unqualify = function
   | Qualified (_, d)

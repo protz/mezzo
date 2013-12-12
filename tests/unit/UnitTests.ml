@@ -39,6 +39,12 @@ let unit_tests = [
     in
     ignore env
   end, Some (), Fail (fun _ -> true));
+
+  "shortest", (begin fun () ->
+    let env = Driver.process "tests/shortest.mz" in
+    let buf = Buffer.create 2048 in
+    Driver.print_signature buf env
+  end, Some (), Pass);
 ];;
 
 (* make tests/unit/UnitTests.byte *)
