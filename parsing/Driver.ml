@@ -75,8 +75,11 @@ let mkprefix path =
       chop [] l
     in
     let me_in_core_directory =
-         Utils.same_absolute_path  corelib_dir              my_dir
-      || Utils.same_absolute_path (corelib_dir ^ "/_build") my_dir
+      Utils.same_absolute_path corelib_dir my_dir ||
+      let corelib_build_dir =
+        Filename.concat (Filename.concat Configure.root_dir "_build") "corelib"
+      in
+      Utils.same_absolute_path corelib_build_dir my_dir
     in
     Log.debug "In core directory? %b" me_in_core_directory;
     let modules =

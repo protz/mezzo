@@ -127,27 +127,27 @@ let rec atomic_expression (e : expression) : document =
       )
   | EWhile (e1, e2) ->
       group (
-  surround 2 1
-    (string "while")
-    (expression e1)
-    (string "do")
-  ^^
-  nest 2 (break 1 ^^ expression e2)
-  ^^
-  break 1 ^^ string "done"
+        surround 2 1
+          (string "while")
+          (expression e1)
+          (string "do")
+        ^^
+        nest 2 (break 1 ^^ expression e2)
+        ^^
+        break 1 ^^ string "done"
       )
   | EFor (x, e1, f, e2, e) ->
       group (
-  surround 2 1
-    (string "for")
-    (((string x ^^ space ^^ equals) ^//^
-       expression e1 ^^ space ^^ for_flag f) ^/^
-       expression e2)
-    (string "do")
-  ^^
-  nest 2 (break 1 ^^ expression e)
-  ^^
-  break 1 ^^ string "done"
+        surround 2 1
+          (string "for")
+          (((string x ^^ space ^^ equals) ^//^
+             expression e1 ^^ space ^^ for_flag f) ^/^
+             expression e2)
+          (string "do")
+        ^^
+        nest 2 (break 1 ^^ expression e)
+        ^^
+        break 1 ^^ string "done"
       )
   | _ ->
       group (parens (expression e))
@@ -252,7 +252,7 @@ and branch (n : int) p e =
 
 and equations eqs =
   separate_map
-    (string "and" ^^ break 1)
+    (break 1 ^^ string "and" ^^ break 1)
     equation
     eqs
 
