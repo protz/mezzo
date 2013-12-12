@@ -933,6 +933,9 @@ let clean (top : env) (sub : env) : typ -> typ =
 (* Instantiate a flexible variable with a given type. *)
 let instantiate_flexible_raw (env: env) (v: var) (t: typ): env option =
   Log.check (is_flexible env v) "[instantiate_flex] wants flexible";
+
+  (* I feel like we may want this:
+  let t = modulo_flex env t in *)
   
   (* Rework [t] so that this instantiation is legal. *)
   let l = (get_var_descr env v).level in
@@ -1065,7 +1068,7 @@ let merge_left env v1 v2 =
 (* ---------------------------------------------------------------------------- *)
 
 let internal_pflex buf (env, i, f) =
-  Printf.bprintf buf "Flexible #%d is " i;
+  Printf.bprintf buf "Flexible #%d (original level=%d) is " i f.original_level;
   match f.structure with
   | Instantiated t ->
       Printf.bprintf buf "instantiated with %a\n"
@@ -1092,6 +1095,23 @@ let import_flex_instanciations_raw env sub_env =
   let flexible = IntMap.filter (fun _ { original_level; _ } ->
     original_level <= max_level
   ) sub_env.flexible in
+  (* This is to eliminate roundtrips. The following scenario can happen.
+   * level(α) = 1
+   * level(β) = 2
+   * β instantiates to τ (level = 1)
+   * unify α β ; checking: level(α) = 1, level(β) = level(τ) = 1
+   * result: α → β → τ
+   * cutoff at 1
+   * α → !! ☠ !!
+   *)
+  let flexible = IntMap.map (fun descr ->
+    match descr.structure with
+    | Instantiated t ->
+        let t = clean env sub_env t in
+        { descr with structure = Instantiated t }
+    | NotInstantiated _ ->
+        descr
+  ) flexible in
 
   Log.check (IntMap.cardinal flexible >= IntMap.cardinal env.flexible)
     "We are dropping some flexible variables!";
