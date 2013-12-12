@@ -671,7 +671,7 @@ and add_type (env: env) (p: var) (t: typ): env =
 (** [sub env var t] tries to extract [t] from the available permissions for
     [var] and returns, if successful, the resulting environment. This is one of
     the two "sub" entry points that this module exports.*)
-and sub (env: env) (var: var) ?no_singleton (t: typ): result =
+and sub (env: env) (var: var) (t: typ): result =
   Log.check (is_term env var) "You can only subtract permissions from a var \
     that represents a program identifier.";
 
@@ -716,13 +716,6 @@ and sub (env: env) (var: var) ?no_singleton (t: typ): result =
       in
       let sort x y = sort x - sort y in
       let permissions = List.sort sort permissions in
-      let permissions =
-        if Option.unit_bool no_singleton then
-          List.filter (function TySingleton _ -> false | _ -> true) permissions
-        else
-          permissions
-      in
-
 
       try_several
         env
@@ -1159,7 +1152,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
   | TySingleton t1, t2 when not (Option.unit_bool no_singleton) ->
       let var = !!t1 in
       try_proof_root "Singleton-Fold" begin
-        sub env var ~no_singleton:() t2 >>=
+        sub env var t2 >>=
         qed
       end
 
