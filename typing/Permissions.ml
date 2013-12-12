@@ -447,7 +447,9 @@ and add (env: env) (var: var) (t: typ): env =
   let t = modulo_flex env t in
   let t = expand_if_one_branch env t in
 
-  if is_flexible env var then begin
+  if is_flexible env var && not (is_singleton env t) then begin
+    (* The case where [t] is a singleton is treated further down, and we know
+     * how to take it into account. *)
     Log.debug ~level:1 "Notice: not adding %a to %a because its \
       left-hand side is flexible"
       TypePrinter.ptype (env, TyOpen var)
@@ -479,7 +481,7 @@ and add (env: env) (var: var) (t: typ): env =
     in
 
     begin match t with
-    | TySingleton (TyOpen p) when not (same env var p) ->
+    | TySingleton (TyOpen p) ->
         Log.debug ~level:4 "%s]%s (singleton)" Bash.colors.Bash.red Bash.colors.Bash.default;
         unify env var p
 
