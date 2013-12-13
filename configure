@@ -6,6 +6,8 @@ if [ ! which ocamlfind > /dev/null 2>&1 ]; then
   exit 255
 fi
 
+echo "found ocamlfind, good"
+
 libdir=$(pwd)
 srcdir=$(pwd)
 install=true
@@ -33,5 +35,24 @@ echo "let src_dir = \"$srcdir\";;" >> configure.ml
 
 echo "LIBDIR = \"$libdir\"" >> Makefile.config
 echo "SRCDIR = \"$srcdir\"" >> Makefile.config
+
+echo "libdir is $libdir"
+echo "srcdir is $srcdir"
+
+# Detect the GNU utilities
+function gnudetect () {
+  name=$(echo $1 | tr '[:lower:]' '[:upper:]')
+  if which g$1 > /dev/null 2>&1 ; then
+    echo "$1 found as g$1"
+    echo "$name := g$1" >> Makefile.config
+  else
+    echo "$1 found as $1"
+    echo "$name := $1" >> Makefile.config
+  fi
+}
+
+gnudetect "sed"
+gnudetect "find"
+gnudetect "time"
 
 echo "... configure done."

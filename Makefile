@@ -3,11 +3,8 @@
 # If the file doesn't exist, there's a rule for generating it.
 include Makefile.config
 
-# Default values for auxiliary tools.
-# Can be overridden by Makefile.local (not under version control).
-FIND       := find
-SED        := sed
-TIME       := time
+# Autodetected values for auxiliary tools can be overridden by Makefile.local
+# (not under version control).
 -include Makefile.local
 
 # We have either the code of the type-checker, or the code of the run-time
@@ -43,7 +40,8 @@ all: configure.ml parsing/Keywords.ml vim/syntax/mezzo.vim
 	ln -sf $(TESTSUITE).native $(TESTSUITE)
 
 configure.ml Makefile.config: configure
-	# The Mezzo executable needs to know where it lives.
+	# If the user hasn't run ./configure already, we're assuming a local
+	# setup where Mezzo isn't meant to be installed.
 	./configure --local
 
 parsing/Keywords.ml: parsing/Keywords parsing/KeywordGenerator.ml
