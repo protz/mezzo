@@ -17,55 +17,49 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** Some customizations: a custom "my_warnings" tag. *)
+(** Compiling mz files to ml files, mzi files to mli files. *)
 
 open Ocamlbuild_plugin;;
 open Command;;
-
-dispatch begin function
-| After_rules ->
-    flag ["ocaml"; "compile"; "my_warnings"]
-      (S[A "-w"; A "@1..3@8..12@14..21@23..39"]);
-| _ -> ()
-end;;
-
-
-(** Compiling mz files to ml files, mzi files to mli files. *)
 
 (* As a special case, we check whether there is a [mezzo] executable
    in the current directory [.]. This is useful when building the
    core library and standard library. Otherwise, we assume/hope that
    [mezzo] is in the PATH. *)
 
-let mezzo () =
-  if Sys.file_exists "./mezzo" then
-    A (Sys.getcwd() ^ "/mezzo")
-  else if Sys.file_exists "./mezzo.native" then
-    A (Sys.getcwd() ^ "/mezzo.native")
-  else
-    A "mezzo"
+let init ~boot () =
+  let mezzo =
+    if Sys.file_exists "./mezzo" then
+      A (Sys.getcwd() ^ "/mezzo")
+    else if Sys.file_exists "./mezzo.native" then
+      A (Sys.getcwd() ^ "/mezzo.native")
+    else begin
+      (* If we're booting, we should've found the mezzo executable in the
+       * current working directory. *)
+      assert (not boot);
+      A "mezzo"
+    end
+  in
 
-(* This command invokes the Mezzo compiler. *)
+  (* This command invokes the Mezzo compiler. *)
 
-let compile env builder =
-  Cmd (S [
-    mezzo ();
-    A "-boot";
-    A "-c";
-    P (env "%(path)%(filename).mz");
-    Sh ">/dev/null"; (* TEMPORARY we have to suppress Mezzo's verbose output *)
-  ])
+  let compile env builder =
+    Cmd (S [
+      mezzo;
+      if boot then A "-boot" else N;
+      A "-c";
+      P (env "%(path)%(filename).mz");
+      Sh ">/dev/null"; (* TEMPORARY we have to suppress Mezzo's verbose output *)
+    ])
+  in
 
-(* The following two rules tell how to compile [Mezzo] files. If we have
-   both [.mz] and [.mzi] files, then we produce both [.ml] and [.mli]
-   files. If we have just an [.mz] file, then we produce just an [.ml]
-   file. *)
+  (* The following two rules tell how to compile [Mezzo] files. If we have
+     both [.mz] and [.mzi] files, then we produce both [.ml] and [.mli]
+     files. If we have just an [.mz] file, then we produce just an [.ml]
+     file. *)
 
-(* TEMPORARY not sure that ocamlbuild understands these overlapping rules; test! *)
+  (* TEMPORARY not sure that ocamlbuild understands these overlapping rules; test! *)
 
-
-
-let () =
   rule
     "mezzo-mz-mzi" (* the name of the rule, which should be unique *)
     ~deps:[
@@ -75,9 +69,8 @@ let () =
       "%(path:<**/>)mz%(filename:<*> and not <*.*>).ml";
       "%(path:<**/>)mz%(filename:<*> and not <*.*>).mli"
     ] (* the target files *)
-    compile
+    compile;
 
-let () =
   rule
     "mezzo-mz" (* the name of the rule, which should be unique *)
     ~deps:[
@@ -86,11 +79,10 @@ let () =
     ~prods:[
       "%(path:<**/>)mz%(filename:<*> and not <*.*>).ml";
     ] (* the target files *)
-    compile
+    compile;
 
-(* Options for the OCaml compiler. *)
+  (* Options for the OCaml compiler. *)
 
-let () =
   dispatch (function
     | After_rules ->
         (* Disable the warning about statements that never return. *)
@@ -100,4 +92,5 @@ let () =
         flag ["ocaml"; "link"; "mezzo"] (S[A "-nopervasives"; A "-nostdlib"]);
     | _ ->
         ()
-  )
+  );
+

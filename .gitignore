@@ -11,3 +11,4 @@ coverage*.out
 configure.ml
 callgrind.out.*
 tmp/*
+myocamlbuild.ml
