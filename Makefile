@@ -11,16 +11,16 @@ TIME       := time
 OCAMLBUILD := ocamlbuild -j 0 -use-ocamlfind -use-menhir \
   -menhir "menhir --explain --infer -la 1 --table" \
   -classic-display
-OCAMLFIND  := $(OCAMLFIND)
+OCAMLFIND  := ocamlfind
 INCLUDE    := -Is typing,parsing,lib,utils,fix,interpreter,compiler,mezzolib,corelib,stdlib,tests/unit
 MAIN       := mezzo
 TESTSUITE  := testsuite
 BUILDDIRS   = -I _build $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
 MY_DIRS    := lib parsing typing utils interpreter compiler tests/unit
 PACKAGES   := -package menhirLib,ocamlbuild,yojson,ulex,pprint,fix
-LIBS  	   := MezzoLib.cma MezzoLib.cmxa \
-	      MezzoCoreLib.cma MezzoCoreLib.cmxa \
-	      MezzoStdLib.cma MezzoStdLib.cmxa
+LIBS  	   := mezzolib/MezzoLib.cma mezzolib/MezzoLib.cmxa \
+	      corelib/MezzoCoreLib.cma corelib/MezzoCoreLib.cmxa \
+	      stdlib/MezzoStdLib.cma stdlib/MezzoStdLib.cmxa
 TARGETS	   := $(MAIN).native $(TESTSUITE).native $(LIBS)
 
 all: configure.ml parsing/Keywords.ml vim/syntax/mezzo.vim
@@ -48,12 +48,14 @@ clean:
 test: all
 	OCAMLRUNPARAM=b $(TIME) --format="Elapsed time (wall-clock): %E" ./testsuite
 
-install:
+install: all
 	$(OCAMLFIND) install mezzo META \
 	  $(patsubst %,_build/%,$(LIBS)) \
 	  $(shell find _build/corelib/ \
 	  	-iname '*.a' -or -iname '*.cmi' -or -iname '*.cmx') \
 	  $(shell find _build/stdlib/ \
+	  	-iname '*.a' -or -iname '*.cmi' -or -iname '*.cmx') \
+	  $(shell find _build/mezzolib/ \
 	  	-iname '*.a' -or -iname '*.cmi' -or -iname '*.cmx')
 
 
