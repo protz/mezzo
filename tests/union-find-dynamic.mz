@@ -1,7 +1,3 @@
-open nest
-
-(** A version of a mutable union-find done using nesting. *)
-
 (** We need a top-level element that will hold the ownership for all the
  * elements of the union-find. *)
 data mutable state a = 

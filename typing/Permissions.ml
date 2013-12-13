@@ -447,7 +447,9 @@ and add (env: env) (var: var) (t: typ): env =
   let t = modulo_flex env t in
   let t = expand_if_one_branch env t in
 
-  if is_flexible env var then begin
+  if is_flexible env var && not (is_singleton env t) then begin
+    (* The case where [t] is a singleton is treated further down, and we know
+     * how to take it into account. *)
     Log.debug ~level:1 "Notice: not adding %a to %a because its \
       left-hand side is flexible"
       TypePrinter.ptype (env, TyOpen var)
@@ -479,7 +481,7 @@ and add (env: env) (var: var) (t: typ): env =
     in
 
     begin match t with
-    | TySingleton (TyOpen p) when not (same env var p) ->
+    | TySingleton (TyOpen p) ->
         Log.debug ~level:4 "%s]%s (singleton)" Bash.colors.Bash.red Bash.colors.Bash.default;
         unify env var p
 
@@ -669,7 +671,7 @@ and add_type (env: env) (p: var) (t: typ): env =
 (** [sub env var t] tries to extract [t] from the available permissions for
     [var] and returns, if successful, the resulting environment. This is one of
     the two "sub" entry points that this module exports.*)
-and sub (env: env) (var: var) ?no_singleton (t: typ): result =
+and sub (env: env) (var: var) (t: typ): result =
   Log.check (is_term env var) "You can only subtract permissions from a var \
     that represents a program identifier.";
 
@@ -714,13 +716,6 @@ and sub (env: env) (var: var) ?no_singleton (t: typ): result =
       in
       let sort x y = sort x - sort y in
       let permissions = List.sort sort permissions in
-      let permissions =
-        if Option.unit_bool no_singleton then
-          List.filter (function TySingleton _ -> false | _ -> true) permissions
-        else
-          permissions
-      in
-
 
       try_several
         env
@@ -1153,7 +1148,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
   | TySingleton t1, t2 when not (Option.unit_bool no_singleton) ->
       let var = !!t1 in
       try_proof_root "Singleton-Fold" begin
-        sub env var ~no_singleton:() t2 >>=
+        sub env var t2 >>=
         qed
       end
 
