@@ -11,15 +11,21 @@ TIME       := time
 OCAMLBUILD := ocamlbuild -j 0 -use-ocamlfind -use-menhir \
   -menhir "menhir --explain --infer -la 1 --table" \
   -classic-display
-INCLUDE    := -Is typing,parsing,lib,utils,fix,interpreter,compiler,mezzolib,tests/unit
+OCAMLFIND  := ocamlfind
+INCLUDE    := -Is typing,parsing,lib,utils,fix,interpreter,compiler,mezzolib,corelib,stdlib,tests/unit
 MAIN       := mezzo
 TESTSUITE  := testsuite
 BUILDDIRS   = -I _build $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
 MY_DIRS    := lib parsing typing utils interpreter compiler tests/unit
 PACKAGES   := -package menhirLib,ocamlbuild,yojson,ulex,pprint,fix
+LIBS  	   := mezzolib/MezzoLib.cma mezzolib/MezzoLib.cmxa \
+	      corelib/MezzoCoreLib.cma corelib/MezzoCoreLib.cmxa \
+	      stdlib/MezzoStdLib.cma stdlib/MezzoStdLib.cmxa
+TARGETS	   := $(MAIN).native $(TESTSUITE).native $(LIBS)
 
 all: configure.ml parsing/Keywords.ml vim/syntax/mezzo.vim
-	$(OCAMLBUILD) $(INCLUDE) $(MAIN).native $(TESTSUITE).native
+	$(MAKE) -C stdlib/
+	$(OCAMLBUILD) $(INCLUDE) $(TARGETS)
 	ln -sf $(MAIN).native $(MAIN)
 	ln -sf $(TESTSUITE).native $(TESTSUITE)
 
@@ -42,6 +48,21 @@ clean:
 test: all
 	OCAMLRUNPARAM=b $(TIME) --format="Elapsed time (wall-clock): %E" ./testsuite
 
+install: all
+	$(OCAMLFIND) install mezzo META \
+	  $(patsubst %,_build/%,$(LIBS)) \
+	  $(shell find _build/corelib/ \
+	  	-iname '*.a' -or -iname '*.cmi' -or -iname '*.cmx') \
+	  $(shell find _build/stdlib/ \
+	  	-iname '*.a' -or -iname '*.cmi' -or -iname '*.cmx') \
+	  $(shell find _build/mezzolib/ \
+	  	-iname '*.a' -or -iname '*.cmi' -or -iname '*.cmx')
+
+
+################################################################################
+
+### Less-important build rules, mostly for the ease of us developers.
+
 # Re-generate the TAGS file
 tags: all
 	otags $(shell $(FIND) $(MY_DIRS) \( -iname '*.ml' -or -iname '*.mli' \) -and -not -iname 'Lexer.ml')
@@ -62,7 +83,7 @@ FORCE:
 
 # For printing the signature of an .ml file
 %.mli: all
-	ocamlfind ocamlc $(PACKAGES) -i $(BUILDDIRS) $*.ml
+	$(OCAMLFIND) ocamlc $(PACKAGES) -i $(BUILDDIRS) $*.ml
 
 # The index of all the nifty visualizations we've built so far
 index:
@@ -79,7 +100,7 @@ coverage:
 	BISECT_FILE=coverage ./testsuite
 
 graph: all
-	-ocamlfind ocamldoc -dot $(BUILDDIRS)\
+	-$(OCAMLFIND) ocamldoc -dot $(BUILDDIRS)\
 	  $(PACKAGES)\
 	  -o graph.dot\
 	  $(shell $(FIND) typing/ -iname '*.ml' -or -iname '*.mli')\
@@ -91,7 +112,7 @@ graph: all
 	rm -f graph.dot
 
 doc: graph
-	-ocamlfind ocamldoc -stars -html $(BUILDDIRS) \
+	-$(OCAMLFIND) ocamldoc -stars -html $(BUILDDIRS) \
 	  $(PACKAGES)\
 	  -package stdlib -d ../misc/doc \
 	  -intro ../misc/doc/main \

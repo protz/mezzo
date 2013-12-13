@@ -75,6 +75,14 @@ let extract_field_index (f : field) : int =
    same way at the OCaml level and at the Mezzo level, so we can print it exactly
    as it appeared in the Mezzo program. *) (* TEMPORARY think about this *)
 
+let print_maybe_qualified f = function
+  | Unqualified x ->
+      identifier (f x)
+  | Qualified (m, x) ->
+      Printf.sprintf "%s.%s"
+        (translate_module_name m)
+        (identifier (f x))
+
 let print_datacon_reference dref =
   print_maybe_qualified Datacon.print dref.datacon_unresolved
 
@@ -202,14 +210,8 @@ and complete i arity ips =
 
 let rec transl (e : expression) : O.expression =
   match e with
-  | EVar (Unqualified x) ->
-      O.EVar (identifier (Variable.print x))
-  | EVar (Qualified (m, x)) ->
-      O.EVar (
-       Printf.sprintf "%s.%s"
-         (translate_module_name m)
-         (identifier (Variable.print x))
-      )
+  | EVar x ->
+      O.EVar (print_maybe_qualified Variable.print x)
   | EBuiltin b ->
       (* The builtin operations are defined in the OCaml library module
         [MezzoLib]. *)

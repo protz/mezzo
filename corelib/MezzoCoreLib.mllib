@@ -8,3 +8,7 @@ mzprint
 mzautoarray
 mzarray
 mzpool
+mztube
+mzlock
+mznest
+mzthread
