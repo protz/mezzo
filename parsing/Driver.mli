@@ -24,6 +24,7 @@ type run_options = {
   backtraces: bool;
 }
 
+(** Last directory included has higher precedence. *)
 val add_include_dir: string -> unit
 
 (** [process] doesn't catch exceptions. This is useful for tests that want to

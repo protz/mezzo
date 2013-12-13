@@ -1,4 +1,5 @@
 Makefile.local
+Makefile.config
 _build
 mezzo
 test

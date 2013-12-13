@@ -1,4 +1,7 @@
-.PHONY: all clean test graph doc index release report coverage count doc doc-export
+.PHONY: all clean test graph doc index release report coverage count doc doc-export install uninstall
+
+# If the file doesn't exist, there's a rule for generating it.
+include Makefile.config
 
 # Default values for auxiliary tools.
 # Can be overridden by Makefile.local (not under version control).
@@ -7,30 +10,41 @@ SED        := sed
 TIME       := time
 -include Makefile.local
 
-# Use --trace with menhir to debug.
-OCAMLBUILD := ocamlbuild -j 0 -use-ocamlfind -use-menhir \
-  -menhir "menhir --explain --infer -la 1 --table" \
-  -classic-display
+# We have either the code of the type-checker, or the code of the run-time
+# support library.
+ML_DIRS    := lib parsing typing utils interpreter compiler tests/unit
+MZ_DIRS    := mezzolib corelib stdlib
+
+# The executables that we need to build Mezzo.
+OCAMLBUILD := ocamlbuild -j 4 -use-ocamlfind -use-menhir \
+	      -menhir "menhir --explain --infer -la 1 --table" \
+	      -classic-display \
+	      $(addprefix -I ,$(ML_DIRS)) \
+	      $(addprefix -I ,$(MZ_DIRS))
 OCAMLFIND  := ocamlfind
-INCLUDE    := -Is typing,parsing,lib,utils,fix,interpreter,compiler,mezzolib,corelib,stdlib,tests/unit
+
+# We're building two programs: the mezzo compiler and the test suite.
 MAIN       := mezzo
 TESTSUITE  := testsuite
-BUILDDIRS   = -I _build $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
-MY_DIRS    := lib parsing typing utils interpreter compiler tests/unit
-PACKAGES   := -package menhirLib,ocamlbuild,yojson,ulex,pprint,fix
+# We're also building libraries for the run-time support of Mezzo prorams.
 LIBS  	   := mezzolib/MezzoLib.cma mezzolib/MezzoLib.cmxa \
 	      corelib/MezzoCoreLib.cma corelib/MezzoCoreLib.cmxa \
 	      stdlib/MezzoStdLib.cma stdlib/MezzoStdLib.cmxa
+# These are our targets.
 TARGETS	   := $(MAIN).native $(TESTSUITE).native $(LIBS)
 
 all: configure.ml parsing/Keywords.ml vim/syntax/mezzo.vim
+	# This re-generates the list of modules that go into MezzoStdLib
 	$(MAKE) -C stdlib/
-	$(OCAMLBUILD) $(INCLUDE) $(TARGETS)
+	# This is the big call that builds everything.
+	$(OCAMLBUILD) $(TARGETS)
+	# For convenience, two symbolic links.
 	ln -sf $(MAIN).native $(MAIN)
 	ln -sf $(TESTSUITE).native $(TESTSUITE)
 
-configure.ml: configure
-	./configure
+configure.ml Makefile.config: configure
+	# The Mezzo executable needs to know where it lives.
+	./configure --local
 
 parsing/Keywords.ml: parsing/Keywords parsing/KeywordGenerator.ml
 	ocaml parsing/KeywordGenerator.ml < $< > $@
@@ -42,7 +56,7 @@ vim/syntax/mezzo.vim: parsing/Keywords parsing/KeywordGenerator.ml
 	ocaml parsing/KeywordGenerator.ml -vim $@.raw < $< > $@
 
 clean:
-	rm -f *~ $(MAIN) $(MAIN).native $(TESTSUITE) $(TESTSUITE).native
+	rm -f *~ $(MAIN) $(MAIN).native $(TESTSUITE) $(TESTSUITE).native configure.ml Makefile.config
 	$(OCAMLBUILD) -clean
 
 test: all
@@ -68,9 +82,12 @@ uninstall:
 
 ### Less-important build rules, mostly for the ease of us developers.
 
+BUILDDIRS   = -I _build $(shell $(FIND) _build -maxdepth 1 -type d -printf "-I _build/%f ")
+PACKAGES   := -package menhirLib,ocamlbuild,yojson,ulex,pprint,fix
+
 # Re-generate the TAGS file
 tags: all
-	otags $(shell $(FIND) $(MY_DIRS) \( -iname '*.ml' -or -iname '*.mli' \) -and -not -iname 'Lexer.ml')
+	otags $(shell $(FIND) $(ML_DIRS) \( -iname '*.ml' -or -iname '*.mli' \) -and -not -iname 'Lexer.ml')
 
 # When you need to build a small program linking with all the libraries (to
 # write a test for a very specific function, for instance).

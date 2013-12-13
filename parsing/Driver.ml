@@ -54,8 +54,15 @@ let mkprefix path =
   if !Options.no_auto_include && path = !Options.filename then
     []
   else
-    let corelib_dir =
-      Filename.concat Configure.root_dir "corelib"
+    (* So it's the [lib_dir] that we want here, unless we're in the process of
+     * pre-compiling the Mezzo core library, meaning that [lib_dir] isn't ready. *)
+    let corelib_dir, corelib_build_dir =
+      if !Options.boot then
+        Filename.concat Configure.src_dir "corelib",
+        Filename.concat (Filename.concat Configure.src_dir "_build") "corelib"
+      else
+        Filename.concat Configure.lib_dir "corelib",
+        ""
     in
     let autoload_path = Filename.concat corelib_dir "autoload" in
     let autoload_modules = MzString.split (Utils.file_get_contents autoload_path) '\n' in
@@ -76,9 +83,6 @@ let mkprefix path =
     in
     let me_in_core_directory =
       Utils.same_absolute_path corelib_dir my_dir ||
-      let corelib_build_dir =
-        Filename.concat (Filename.concat Configure.root_dir "_build") "corelib"
-      in
       Utils.same_absolute_path corelib_build_dir my_dir
     in
     Log.debug "In core directory? %b" me_in_core_directory;

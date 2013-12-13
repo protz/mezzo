@@ -50,6 +50,8 @@ let _ =
       include directories";
     "-noautoinclude", Arg.Set Options.no_auto_include, "  Don't automatically \
       open the corelib modules";
+    "-boot", Arg.Set Options.boot, "  Used only when compiling the Mezzo \
+      core and standard library";
     "-c", Arg.Unit (fun () -> arg_mode := TypecheckAndCompile), "type-check and compile";
     "-i", Arg.Unit (fun () -> arg_mode := Interpret), "do not type-check; interpret";
     "-t", Arg.Unit (fun () -> arg_mode := Typecheck), "just type-check (default)";
@@ -74,8 +76,10 @@ let _ =
     let open Driver in
     { html_errors = !arg_html_errors; backtraces = not !arg_backtraces }
   in
-  Driver.add_include_dir (Filename.concat Configure.root_dir "corelib");
-  Driver.add_include_dir (Filename.concat Configure.root_dir "stdlib");
+  Driver.add_include_dir (Filename.concat Configure.lib_dir "corelib");
+  Driver.add_include_dir (Filename.concat Configure.lib_dir "stdlib");
+  Driver.add_include_dir (Filename.concat Configure.src_dir "corelib");
+  Driver.add_include_dir (Filename.concat Configure.src_dir "stdlib");
   Driver.add_include_dir (Filename.dirname !Options.filename);
   match !arg_mode with
   | Typecheck

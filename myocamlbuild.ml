@@ -50,6 +50,7 @@ let mezzo () =
 let compile env builder =
   Cmd (S [
     mezzo ();
+    A "-boot";
     A "-c";
     P (env "%(path)%(filename).mz");
     Sh ">/dev/null"; (* TEMPORARY we have to suppress Mezzo's verbose output *)
