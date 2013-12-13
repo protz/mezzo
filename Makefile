@@ -51,12 +51,17 @@ test: all
 install: all
 	$(OCAMLFIND) install mezzo META \
 	  $(patsubst %,_build/%,$(LIBS)) \
-	  $(shell find _build/corelib/ \
+	  $(shell $(FIND) _build/corelib/ \
 	  	-iname '*.a' -or -iname '*.cmi' -or -iname '*.cmx') \
-	  $(shell find _build/stdlib/ \
+	  $(shell $(FIND) _build/stdlib/ \
 	  	-iname '*.a' -or -iname '*.cmi' -or -iname '*.cmx') \
-	  $(shell find _build/mezzolib/ \
-	  	-iname '*.a' -or -iname '*.cmi' -or -iname '*.cmx')
+	  $(shell $(FIND) _build/mezzolib/ \
+	  	-iname '*.a' -or -iname '*.cmi' -or -iname '*.cmx') \
+	  $(shell $(FIND) _build/corelib/ -iname '*.mzi') \
+	  $(shell $(FIND) _build/stdlib/ -iname '*.mzi')
+
+uninstall:
+	$(OCAMLFIND) remove mezzo
 
 
 ################################################################################
