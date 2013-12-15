@@ -29,13 +29,10 @@ open Command;;
 
 let init ~boot () =
   let mezzo =
-    if Sys.file_exists "./mezzo" then
-      A (Sys.getcwd() ^ "/mezzo")
-    else if Sys.file_exists "./mezzo.native" then
-      A (Sys.getcwd() ^ "/mezzo.native")
-    else begin
+    if boot then
+      A (Sys.getcwd() ^ "/_build/mezzo.native")
+    else
       A "mezzo"
-    end
   in
 
   (* This command invokes the Mezzo compiler. *)
