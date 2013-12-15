@@ -80,7 +80,8 @@ install: all
 	  $(shell $(FIND) _build/mezzolib/ \
 	  	-iname '*.a' -or -iname '*.cmi' -or -iname '*.cmx') \
 	  $(shell $(FIND) _build/corelib/ -iname '*.mzi') \
-	  $(shell $(FIND) _build/stdlib/ -iname '*.mzi')
+	  $(shell $(FIND) _build/stdlib/ -iname '*.mzi') \
+	  corelib/autoload
 
 uninstall:
 	$(OCAMLFIND) remove mezzo

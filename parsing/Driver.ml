@@ -61,7 +61,8 @@ let mkprefix path =
         Filename.concat Configure.src_dir "corelib",
         Filename.concat (Filename.concat Configure.src_dir "_build") "corelib"
       else
-        Filename.concat Configure.lib_dir "corelib",
+        (* ocamlfind requires us to have a flat directory structure, d'oh... *)
+        Configure.lib_dir,
         ""
     in
     let autoload_path = Filename.concat corelib_dir "autoload" in
@@ -81,6 +82,10 @@ let mkprefix path =
       in
       chop [] l
     in
+    (* So. In the case of a packaged mezzo, me_in_core_directory will return
+     * true even for stdlib modules, because findlib mandates a flat directory
+     * structure ($@#!!), however, it's mostly harmless, since [chop] will just
+     * run through the whole list without finding a match. *)
     let me_in_core_directory =
       Utils.same_absolute_path corelib_dir my_dir ||
       Utils.same_absolute_path corelib_build_dir my_dir
