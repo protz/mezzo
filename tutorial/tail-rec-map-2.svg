@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="iso-8859-1" standalone="no"?> 
+<?xml-stylesheet href="img1.css" type="text/css"?> 
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="213.81517pt" height="41.74269pt" viewBox="-14.63289 -26.56561 213.81517 41.74269 "> 
+<g transform="translate(0, 15.17708 ) scale(1,-1) translate(0,26.56561 )"> 
+   <g> 
+ <g stroke="rgb(0.0%,0.0%,0.0%)"> 
+ <g fill="rgb(0.0%,0.0%,0.0%)"> 
+ <g stroke-width="0.4pt"> 
+ <g> 
+ </g> 
+ <g> 
+ <g stroke-width="1.6pt"> 
+ <g> 
+ <g stroke="rgb(76.8631%,62.74567%,0.0%)"> 
+ <g fill="rgb(98.82507%,91.3742%,30.97992%)"> 
+ <g> 
+ </g> 
+ <g> 
+ <g stroke="rgb(76.8631%,62.74567%,0.0%)"> 
+ <g fill="rgb(98.82507%,91.3742%,30.97992%)"> 
+ <path d=" M  -13.83289 -14.37708 h  27.66577 v  28.75415 h  -27.66577 Z M  13.83289 0.0 L  -13.83289 0.0  " /> 
+ </g> 
+ </g> 
+ </g> 
+ <g> 
+ <g transform="matrix(1.0,0.0,0.0,1.0,-10.49991,4.13298)"> 
+ <g fill="rgb(76.8631%,62.74567%,0.0%)"> 
+ <text style="stroke:none" transform="scale(1,-1) translate(10.49991,0)" text-anchor="middle"  font-size="10"> 
+<tspan font-family="cmtt" font-size="10">head</tspan></text> 
+</g> 
+ </g> 
+ </g> 
+ <g> 
+ <g transform="matrix(1.0,0.0,0.0,1.0,-10.49991,-10.2441)"> 
+ <g fill="rgb(76.8631%,62.74567%,0.0%)"> 
+ <text style="stroke:none" transform="scale(1,-1) translate(10.49991,0)" text-anchor="middle"  font-size="10"> 
+<tspan font-family="cmtt" font-size="10">tail</tspan></text> 
+</g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ <g> 
+ <g> 
+ <g transform="matrix(1.0,0.0,0.0,1.0,4.13298,-23.23264)"> 
+ <g fill="rgb(0.0%,0.0%,0.0%)"> 
+ <text style="stroke:none" transform="scale(1,-1) translate(10.49991,0)" text-anchor="middle"  font-size="10"> 
+<tspan font-family="cmtt" font-size="10">Cons</tspan></text> 
+</g> 
+ </g> 
+ </g> 
+ </g> 
+ <g> 
+ <g stroke="rgb(76.8631%,62.74567%,0.0%)"> 
+ <g fill="rgb(98.82507%,91.3742%,30.97992%)"> 
+ <g> 
+ </g> 
+ <g> 
+ <g stroke="rgb(76.8631%,62.74567%,0.0%)"> 
+ <g fill="rgb(98.82507%,91.3742%,30.97992%)"> 
+ <path d=" M  43.07262 -14.37708 h  27.66577 v  28.75415 h  -27.66577 Z M  70.73839 0.0 L  43.07262 0.0  " /> 
+ </g> 
+ </g> 
+ </g> 
+ <g> 
+ <g transform="matrix(1.0,0.0,0.0,1.0,46.4056,4.13298)"> 
+ <g fill="rgb(76.8631%,62.74567%,0.0%)"> 
+ <text style="stroke:none" transform="scale(1,-1) translate(10.49991,0)" text-anchor="middle"  font-size="10"> 
+<tspan font-family="cmtt" font-size="10">head</tspan></text> 
+</g> 
+ </g> 
+ </g> 
+ <g> 
+ <g transform="matrix(1.0,0.0,0.0,1.0,46.4056,-10.2441)"> 
+ <g fill="rgb(76.8631%,62.74567%,0.0%)"> 
+ <text style="stroke:none" transform="scale(1,-1) translate(10.49991,0)" text-anchor="middle"  font-size="10"> 
+<tspan font-family="cmtt" font-size="10">tail</tspan></text> 
+</g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ <path d=" M  14.63289 -7.18854 C  26.7825 -7.18854 30.123 7.18854 41.0626 7.18854  " style="fill:none"/> 
+ <g> 
+ <g transform="matrix(1.0,0.0,0.0,1.0,41.0626,7.18854)"> 
+ <g> 
+ <g stroke-width="1.28pt"> 
+ <g stroke-dasharray="none" stroke-dashoffset="0.0pt"> 
+ <g stroke-linecap="round"> 
+ <g stroke-linejoin="round"> 
+ <path d=" M  -2.27998 3.03998 C  -2.08998 1.89998 0.0 0.18999 0.56999 0.0 C  0.0 -0.18999 -2.08998 -1.89998 -2.27998 -3.03998  " style="fill:none"/> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ <g> 
+ <g> 
+ <g transform="matrix(1.0,0.0,0.0,1.0,61.03848,-23.23264)"> 
+ <g fill="rgb(0.0%,0.0%,0.0%)"> 
+ <text style="stroke:none" transform="scale(1,-1) translate(10.49991,0)" text-anchor="middle"  font-size="10"> 
+<tspan font-family="cmtt" font-size="10">Cons</tspan></text> 
+</g> 
+ </g> 
+ </g> 
+ </g> 
+ <g> 
+ <g stroke="rgb(76.8631%,62.74567%,0.0%)"> 
+ <g fill="rgb(98.82507%,91.3742%,30.97992%)"> 
+ <g> 
+ </g> 
+ <g> 
+ <g stroke="rgb(76.8631%,62.74567%,0.0%)"> 
+ <g fill="rgb(98.82507%,91.3742%,30.97992%)"> 
+ <path d=" M  99.97812 -14.37708 h  27.66577 v  28.75415 h  -27.66577 Z M  127.64389 0.0 L  99.97812 0.0  " /> 
+ </g> 
+ </g> 
+ </g> 
+ <g> 
+ <g transform="matrix(1.0,0.0,0.0,1.0,103.3111,4.13298)"> 
+ <g fill="rgb(76.8631%,62.74567%,0.0%)"> 
+ <text style="stroke:none" transform="scale(1,-1) translate(10.49991,0)" text-anchor="middle"  font-size="10"> 
+<tspan font-family="cmtt" font-size="10">head</tspan></text> 
+</g> 
+ </g> 
+ </g> 
+ <g> 
+ <g transform="matrix(1.0,0.0,0.0,1.0,103.3111,-10.2441)"> 
+ <g fill="rgb(76.8631%,62.74567%,0.0%)"> 
+ <text style="stroke:none" transform="scale(1,-1) translate(10.49991,0)" text-anchor="middle"  font-size="10"> 
+<tspan font-family="cmtt" font-size="10">tail</tspan></text> 
+</g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ <path d=" M  71.53839 -7.18854 C  83.688 -7.18854 87.0285 7.18854 97.96811 7.18854  " style="fill:none"/> 
+ <g> 
+ <g transform="matrix(1.0,0.0,0.0,1.0,97.96811,7.18854)"> 
+ <g> 
+ <g stroke-width="1.28pt"> 
+ <g stroke-dasharray="none" stroke-dashoffset="0.0pt"> 
+ <g stroke-linecap="round"> 
+ <g stroke-linejoin="round"> 
+ <path d=" M  -2.27998 3.03998 C  -2.08998 1.89998 0.0 0.18999 0.56999 0.0 C  0.0 -0.18999 -2.08998 -1.89998 -2.27998 -3.03998  " style="fill:none"/> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ <g> 
+ <g> 
+ <g transform="matrix(1.0,0.0,0.0,1.0,117.94398,-23.23264)"> 
+ <g fill="rgb(0.0%,0.0%,0.0%)"> 
+ <text style="stroke:none" transform="scale(1,-1) translate(10.49991,0)" text-anchor="middle"  font-size="10"> 
+<tspan font-family="cmtt" font-size="10">Cons</tspan></text> 
+</g> 
+ </g> 
+ </g> 
+ </g> 
+ <g> 
+ <g stroke="rgb(12.54883%,29.02069%,52.94037%)"> 
+ <g fill="rgb(44.70673%,62.35352%,81.17676%)"> 
+ <g> 
+ </g> 
+ <g> 
+ <g stroke="rgb(12.54883%,29.02069%,52.94037%)"> 
+ <g fill="rgb(44.70673%,62.35352%,81.17676%)"> 
+ <path d=" M  156.88362 -14.37708 h  27.66577 v  28.75415 h  -27.66577 Z M  184.5494 0.0 L  156.88362 0.0  " /> 
+ </g> 
+ </g> 
+ </g> 
+ <g> 
+ <g transform="matrix(1.0,0.0,0.0,1.0,160.2166,4.13298)"> 
+ <g fill="rgb(12.54883%,29.02069%,52.94037%)"> 
+ <text style="stroke:none" transform="scale(1,-1) translate(10.49991,0)" text-anchor="middle"  font-size="10"> 
+<tspan font-family="cmtt" font-size="10">head</tspan></text> 
+</g> 
+ </g> 
+ </g> 
+ <g> 
+ <g transform="matrix(1.0,0.0,0.0,1.0,160.2166,-10.2441)"> 
+ <g fill="rgb(12.54883%,29.02069%,52.94037%)"> 
+ <text style="stroke:none" transform="scale(1,-1) translate(10.49991,0)" text-anchor="middle"  font-size="10"> 
+<tspan font-family="cmtt" font-size="10">tail</tspan></text> 
+</g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ <path d=" M  128.4439 -7.18854 C  140.5935 -7.18854 143.934 7.18854 154.87361 7.18854  " style="fill:none"/> 
+ <g> 
+ <g transform="matrix(1.0,0.0,0.0,1.0,154.87361,7.18854)"> 
+ <g> 
+ <g stroke-width="1.28pt"> 
+ <g stroke-dasharray="none" stroke-dashoffset="0.0pt"> 
+ <g stroke-linecap="round"> 
+ <g stroke-linejoin="round"> 
+ <path d=" M  -2.27998 3.03998 C  -2.08998 1.89998 0.0 0.18999 0.56999 0.0 C  0.0 -0.18999 -2.08998 -1.89998 -2.27998 -3.03998  " style="fill:none"/> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ <g> 
+ <g> 
+ <g transform="matrix(1.0,0.0,0.0,1.0,174.84949,-23.23264)"> 
+ <g fill="rgb(0.0%,0.0%,0.0%)"> 
+ <text style="stroke:none" transform="scale(1,-1) translate(10.49991,0)" text-anchor="middle"  font-size="10"> 
+<tspan font-family="cmtt" font-size="10">Cell</tspan></text> 
+</g> 
+ </g> 
+ </g> 
+ </g> 
+ <g> 
+ <g stroke="rgb(12.54883%,29.02069%,52.94037%)"> 
+ <g fill="rgb(12.54883%,29.02069%,52.94037%)"> 
+ <path d=" M  156.88362 -14.37708 L  184.5494 -0.8  " style="fill:none"/> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ </g> 
+ 
+                                         </g> 
+</svg> 
