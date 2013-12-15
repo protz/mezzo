@@ -26,7 +26,8 @@ TESTSUITE  := testsuite
 # We're also building libraries for the run-time support of Mezzo prorams.
 LIBS  	   := mezzolib/MezzoLib.cma mezzolib/MezzoLib.cmxa \
 	      corelib/MezzoCoreLib.cma corelib/MezzoCoreLib.cmxa \
-	      stdlib/MezzoStdLib.cma stdlib/MezzoStdLib.cmxa
+	      stdlib/MezzoStdLib.cma stdlib/MezzoStdLib.cmxa \
+	      ocamlbuild/ocamlbuild_mezzo.cma ocamlbuild/ocamlbuild_mezzo.cmxa
 # These are our targets.
 TARGETS	   := $(MAIN).native $(TESTSUITE).native $(LIBS)
 
@@ -70,6 +71,8 @@ test: all
 install: all
 	$(OCAMLFIND) install mezzo META \
 	  $(patsubst %,_build/%,$(LIBS)) \
+	  $(shell $(FIND) _build/ocamlbuild/ \
+	  	-iname '*.a' -or -iname '*.cmi' -or -iname '*.cmx') \
 	  $(shell $(FIND) _build/corelib/ \
 	  	-iname '*.a' -or -iname '*.cmi' -or -iname '*.cmx') \
 	  $(shell $(FIND) _build/stdlib/ \

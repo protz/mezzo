@@ -21,3 +21,10 @@ package "stdlib" (
   archive(byte) = "MezzoStdLib.cma"
   archive(native) = "MezzoStdLib.cmxa"
 )
+
+package "build" (
+  requires = "mezzo"
+  description = "The Mezzo Ocamlbuild plugin"
+  archive(byte) = "ocamlbuild_mezzo.cma"
+  archive(native) = "ocamlbuild_mezzo.cmxa"
+)
