@@ -5,10 +5,11 @@
   <meta http-equiv="Content-Style-Type" content="text/css" />
   <meta name="generator" content="pandoc" />
   <title></title>
+  <style type="text/css">code{white-space: pre;}</style>
   <style type="text/css">
 table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
   margin: 0; padding: 0; vertical-align: baseline; border: none; }
-table.sourceCode { width: 100%; background-color: #f8f8f8; }
+table.sourceCode { width: 100%; line-height: 100%; background-color: #f8f8f8; }
 td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
 td.sourceCode { padding-left: 5px; }
 pre, code { background-color: #f8f8f8; }
@@ -61,10 +62,7 @@ code > span.er { font-weight: bold; }
 <li><a href="#my-first-permission"><span class="toc-section-number">2.2.1</span> My first permission</a></li>
 <li><a href="#permissions-for-controlling-effects"><span class="toc-section-number">2.2.2</span> Permissions for controlling effects</a></li>
 <li><a href="#permissions-for-tracking-ownership"><span class="toc-section-number">2.2.3</span> Permissions for tracking ownership</a></li>
-<li><a href="#permissions-for-tracking-aliasing"><span class="toc-section-number">2.2.4</span> Permissions for tracking aliasing</a><ul>
-<li><a href="#must-alias"><span class="toc-section-number">2.2.4.1</span> Must-alias</a></li>
-<li><a href="#must-not-alias"><span class="toc-section-number">2.2.4.2</span> Must-not-alias</a></li>
-</ul></li>
+<li><a href="#permissions-for-tracking-aliasing"><span class="toc-section-number">2.2.4</span> Permissions for tracking aliasing</a></li>
 </ul></li>
 </ul></li>
 <li><a href="#a-first-example"><span class="toc-section-number">3</span> A first example</a><ul>
@@ -96,10 +94,7 @@ code > span.er { font-weight: bold; }
 <li><a href="#binding-rules"><span class="toc-section-number">5.3.1</span> Binding rules</a></li>
 <li><a href="#variance"><span class="toc-section-number">5.3.2</span> Variance</a></li>
 <li><a href="#axiomatized-types"><span class="toc-section-number">5.3.3</span> Axiomatized types</a></li>
-<li><a href="#local-type-definitions"><span class="toc-section-number">5.3.4</span> Local type definitions</a><ul>
-<li><a href="#local-alias-definitions"><span class="toc-section-number">5.3.4.1</span> Local alias definitions</a></li>
-<li><a href="#local-data-type-definitions"><span class="toc-section-number">5.3.4.2</span> Local data type definitions</a></li>
-</ul></li>
+<li><a href="#local-type-definitions"><span class="toc-section-number">5.3.4</span> Local type definitions</a></li>
 <li><a href="#per-branch-mutability"><span class="toc-section-number">5.3.5</span> Per-branch mutability</a></li>
 </ul></li>
 </ul></li>
@@ -149,20 +144,11 @@ code > span.er { font-weight: bold; }
 <li><a href="#the-mezzo-standard-library"><span class="toc-section-number">14</span> The Mezzo standard library</a></li>
 </ul>
 </div>
-<h1 id="getting-and-using-mezzo"><a href="#TOC"><span class="header-section-number">1</span> Getting and using Mezzo</a></h1>
-<h2 id="installation"><a href="#TOC"><span class="header-section-number">1.1</span> Installation</a></h2>
-<p>Mezzo is only available in source form; there are no pre-compiled binaries available yet. The source code of Mezzo is available <a href="http://gallium.inria.fr/~protzenk/mezzo-lang/">online</a>.</p>
-<p>Mezzo requires a few ocamlfind packages in order to work properly. We recommend using <a href="http://opam.ocamlpro.com/">opam</a>. Please make sure the following packages are installed: <code>yojson</code>, <code>ulex</code>, <code>functory</code>, <code>pprint</code>, <code>fix</code>, <code>menhir</code>.</p>
-<p>Once the prerequisites are complete, download the <a href="http://pauillac.inria.fr/~protzenk/mezzo-lang/proto/mezzo-latest.tar.bz2">latest snapshot</a> of Mezzo, and extract it.</p>
-<pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="kw">tar</span> xjvf mezzo-latest.tar.bz2
-$ <span class="kw">cd</span> mezzo-*</code></pre>
-<p>Then, compile Mezzo with:</p>
-<pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="kw">make</span></code></pre>
-<p>To make sure that Mezzo has been compiled properly, you can run:</p>
-<pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="kw">make</span> <span class="kw">test</span></code></pre>
-<p>For the moment, there is no way to install Mezzo into a system-wide location. In the meanwhile, you can add the Mezzo directory to your <code>PATH</code> environment variable.</p>
-<h2 id="the-mezzo-binary"><a href="#TOC"><span class="header-section-number">1.2</span> The <code>mezzo</code> binary</a></h2>
-<h3 id="type-checking-a-program"><a href="#TOC"><span class="header-section-number">1.2.1</span> Type-checking a program</a></h3>
+<h1 id="getting-and-using-mezzo"><a href="#getting-and-using-mezzo"><span class="header-section-number">1</span> Getting and using Mezzo</a></h1>
+<h2 id="installation"><a href="#installation"><span class="header-section-number">1.1</span> Installation</a></h2>
+<p>Mezzo is now available via <a href="http://opam.ocamlpro.com">OPAM</a>. To install Mezzo, just run <code>opam install mezzo</code>.</p>
+<h2 id="the-mezzo-binary"><a href="#the-mezzo-binary"><span class="header-section-number">1.2</span> The <code>mezzo</code> binary</a></h2>
+<h3 id="type-checking-a-program"><a href="#type-checking-a-program"><span class="header-section-number">1.2.1</span> Type-checking a program</a></h3>
 <p>Mezzo files end with <code>.mz</code>. Open your favorite editor, and edit <code>ex1.mz</code>. Put the following contents into the file:</p>
 <div class="highlight"><pre><span class="k">val</span> <span class="n">x</span> <span class="o">=</span> <span class="mi">1</span>
 
@@ -181,9 +167,9 @@ $ <span class="kw">cd</span> mezzo-*</code></pre>
 <p>The syntax of Mezzo is reminiscent of ML, which we assume the reader is familiar with. We will introduce syntax on-the-fly, presenting the language constructs as we make progress through this tutorial. Top-level values are introduced using the <code>val</code> keyword; intermediate definitions are introduced using the usual <code>let</code> keyword.</p>
 <p>By default, <code>mezzo</code> type-checks the program, then prints the type of the top-level values. Here, <code>mezzo</code> judiciously type-checked <code>x</code> as being an integer. More precisely, <code>x</code> has the <code>int</code> type, from the <code>int</code> module.</p>
 <p>In Mezzo, names are qualified using <code>::</code>. By writing <code>m::x</code>, you refer to the name <code>x</code> from module <code>m</code>. The <code>int</code> module is bundled with Mezzo; it is found in the <code>corelib</code> directory, and exports the <code>int</code> type as well as arithmetic operators.</p>
-<h3 id="interpreting-a-program"><a href="#TOC"><span class="header-section-number">1.2.2</span> Interpreting a program</a></h3>
+<h3 id="interpreting-a-program"><a href="#interpreting-a-program"><span class="header-section-number">1.2.2</span> Interpreting a program</a></h3>
 <p>Mezzo programs can be interpreted, using the built-in interpreter. Interpreting a program is as simple as passing a <code>-i</code> argument (&quot;interpret&quot;) to the <code>mezzo</code> binary.</p>
-<pre class="sourceCode bash"><code class="sourceCode bash">$ mezzo -i ex1.mz</code></pre>
+<pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="kw">mezzo</span> -i ex1.mz</code></pre>
 <p>The output will be:</p>
 <div class="highlight"><pre><span class="mi">1</span>
 </pre></div>
@@ -191,38 +177,31 @@ $ <span class="kw">cd</span> mezzo-*</code></pre>
 
 
 
-<h3 id="compiling-a-program"><a href="#TOC"><span class="header-section-number">1.2.3</span> Compiling a program</a></h3>
+<h3 id="compiling-a-program"><a href="#compiling-a-program"><span class="header-section-number">1.2.3</span> Compiling a program</a></h3>
 <p>Compiling a Mezzo program is done by &quot;translating&quot; it into an OCaml program<sup><a href="#fn1" class="footnoteRef" id="fnref1">1</a></sup>.</p>
-<p>Programs translated from Mezzo to OCaml rely on a runtime support library. It can be installed by running the following set of commands. These commands will build and install an <code>ocamlfind</code> package called <code>mezzolib</code>.</p>
-<pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="kw">cd</span> mezzolib
-$ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="kw">make</span> <span class="kw">install</span></code></pre>
-<p>Mezzo comes with a set of pre-defined modules for arrays, atomic variables, references, etc. called the &quot;core library&quot;. We should translate these first, so that further translated programs can reference and use the functions exported by the core library. This can be achieved via the following set of commands, which will install a new <code>ocamlfind</code> package called <code>mezzocorelib</code>, which packages together all the core modules into a big OCaml library.</p>
-<pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="kw">cd</span> corelib
-$ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="kw">make</span> <span class="kw">install</span></code></pre>
-<p>Back to our original example, we must first translate it. This is done by passing the <code>-c</code> argument (&quot;compile&quot;) to the <code>mezzo</code> binary.</p>
-<pre class="sourceCode bash"><code class="sourceCode bash">$ mezzo -c ex1.mz</code></pre>
+<p>This is done by passing the <code>-c</code> argument (&quot;compile&quot;) to the <code>mezzo</code> binary.</p>
+<pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="kw">mezzo</span> -c ex1.mz</code></pre>
 <p>This creates <code>mzex1.ml</code>, the translated version of <code>ex1.mz</code>. We now need to compile <code>mzex1.ml</code>.</p>
-<pre class="sourceCode bash"><code class="sourceCode bash">$ ocamlbuild -use-ocamlfind -package mezzolib -package mezzocorelib mzex1.byte</code></pre>
+<p>Mezzo programs need to be linked with the mezzo runtime library. The runtime library of mezzo is distributed as an ocamlfind package called <code>mezzo.rtlib</code>. Our program also uses the &quot;print&quot; function, which is bundled in the Mezzo core library. The Mezzo core library is distributed with mezzo, and is available as <code>mezzo.corelib</code>. Similarly, the standard library is available as <code>mezzo.stdlib</code>. These two packages are made up of Mezzo modules which have been translated to OCaml, compiled, and packaged as libraries.</p>
+<p>Running <code>ls $(ocamlfind query mezzo)</code> reveals the existence of a whole variety of files. First of all, there are the interface files (<code>.mzi</code>) for all the modules in the core and standard libraries. These interface files are useful for the Mezzo type-checker when type-checking your own modules. These interface files are also useful for the user, to check which functions are available. We do not distribute the <code>.mz</code> sources: these modules have been translated and compiled already; they are packaged into the various <code>.cma</code> and <code>.cmxa</code> files. For each <code>.mzi</code>, we also distribute the correponsding <code>.cmi</code> and <code>.cmx</code> files, which is are required for linking against them. Finally, there's the runtime support library.</p>
+<p>We can compile our original example using:</p>
+<pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="kw">ocamlbuild</span> -use-ocamlfind -package mezzo.rtlib \
+    <span class="kw">-package</span> mezzo.corelib mzex1.byte</code></pre>
 <p>Barring any errors, the resulting program can be launched.</p>
-<pre class="sourceCode bash"><code class="sourceCode bash">$ ./mzex1.byte</code></pre>
+<pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="kw">./mzex1.byte</span></code></pre>
 <p>Unsurprisingly, the output is:</p>
-<pre class="sourceCode bash"><code class="sourceCode bash">1</code></pre>
-<h3 id="using-ocamlbuild-with-.mz-files"><a href="#TOC"><span class="header-section-number">1.2.4</span> Using ocamlbuild with .mz files</a></h3>
-<div class="todo">
-
-<p><strong>TODO</strong></p>
-<ul>
-<li>create a big ocamlfind package with: the core library, the standard library, the runtime library, our ocamlbuild plugin (compiler-libs or even lablgtk2 do that)</li>
-<li>create a target install in mezzo's <code>Makefile</code></li>
-<li>explain how to leverage the new -plugin-tag feature of the latest ocamlbuild to allow the user to just write, in their <code>myocamlbuild.ml</code></li>
-</ul>
-<pre class="sourceCode ocaml"><code class="sourceCode ocaml">MezzoOcamlbuildPlugin<span class="kw">.</span>init ()</code></pre>
-<ul>
-<li>and while we're at it, provide a sample project with a ready-made <code>Makefile</code> and <code>myocamlbuild.ml</code></li>
-</ul>
-</div>
-
-<h3 id="interfacing-ocaml-with-mezzo"><a href="#TOC"><span class="header-section-number">1.2.5</span> Interfacing OCaml with Mezzo</a></h3>
+<pre class="sourceCode bash"><code class="sourceCode bash"><span class="kw">1</span></code></pre>
+<h3 id="using-ocamlbuild-with-.mz-files"><a href="#using-ocamlbuild-with-.mz-files"><span class="header-section-number">1.2.4</span> Using ocamlbuild with .mz files</a></h3>
+<p>One may want to automate all these steps. We provide a <a href="https://github.com/protz/mezzo-sample-project/">sample project</a>.</p>
+<p>One thing that we didn't mention is the <code>mezzo.build</code> package. It provides a set of rules that enable ocamlbuild to generate <code>.ml</code> from <code>.mz</code> files by calling <code>mezzo -c</code>, thus automating the whole process. This rule is only triggered if the file is tagged with the <code>mezzo</code> OCamlbuild tag.</p>
+<p>In order to use these rules, you can add the <code>-plugin-tag package(mezzo.build)</code> option to your <code>ocamlbuild</code> invocation. This is a fairly recent feature that requires OCaml 4.01.0. It makes sure that when compiling your <code>myocamlbuild.ml</code> file, the <code>mezzo.build</code> package will be available. Then, you can use:</p>
+<pre class="sourceCode ocaml"><code class="sourceCode ocaml">  Ocamlbuild_mezzo<span class="kw">.</span>init ~boot:false ();;</code></pre>
+<p>in your <code>myocamlbuild.ml</code> file. This will enable the standard Mezzo compilation rules. Finally, you need to tag the files with the <code>mezzo</code> tag to enable to <code>.mz -&gt; .ml</code> rule, which can be done using the following <code>_tags</code> file:</p>
+<pre><code>&lt;**/mz*&gt;: package(mezzo.rtlib), package(mezzo.corelib), \
+    package(mezzo.stdlib)</code></pre>
+<p>This line also activates the runtime-library, as well as the core and the standard libraries of Mezzo.</p>
+<p>All this is taken care of in the sample project above. Please do clone it!</p>
+<h3 id="interfacing-ocaml-with-mezzo"><a href="#interfacing-ocaml-with-mezzo"><span class="header-section-number">1.2.5</span> Interfacing OCaml with Mezzo</a></h3>
 <div class="todo">
 
 <p><strong>TODO</strong></p>
@@ -233,9 +212,9 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 </div>
 
 
-<h1 id="the-philosophy-of-mezzo"><a href="#TOC"><span class="header-section-number">2</span> The philosophy of Mezzo</a></h1>
+<h1 id="the-philosophy-of-mezzo"><a href="#the-philosophy-of-mezzo"><span class="header-section-number">2</span> The philosophy of Mezzo</a></h1>
 <p>The type system is central in the design of Mezzo. It is novel, sometimes complex, and certainly does require some effort to fully understand. We thus devote a section to the type system itself, before showing how to write programs in the language.</p>
-<h2 id="founding-principles-reasoning-about-state"><a href="#TOC"><span class="header-section-number">2.1</span> Founding principles: reasoning about state</a></h2>
+<h2 id="founding-principles-reasoning-about-state"><a href="#founding-principles-reasoning-about-state"><span class="header-section-number">2.1</span> Founding principles: reasoning about state</a></h2>
 <p>Mezzo is a language that helps the programmer reason about <em>state</em>. State is a pervasive notion in computer programs. Consider the following pseudo-code:</p>
 <pre class="sourceCode cpp"><code class="sourceCode cpp"><span class="dt">int</span> main () {
   <span class="dt">int</span>* x = <span class="kw">new</span> <span class="dt">int</span>;
@@ -263,9 +242,9 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 <p>Aliasing is closely related to the problem of ownership. If one part of the program sees <code>x</code> as a &quot;valid integer&quot;, then tracking state changes for <code>x</code> only makes sense if no other part of the program sees <code>x</code>. Thus, we should be able to say that we &quot;<em>own</em>&quot; <code>x</code>.</p>
 <p>Mezzo blends in several concepts from the literature; it incorporates mechanisms that speak about <em>aliasing</em> and <em>ownership</em>, so as to obtain a type system that is able to deal with <em>state</em>.</p>
 <p>In this section, we used examples in a C-like language. Mezzo is a language that draws inspiration from ML; it has first-class functions, pattern matching, and a garbage-collector. The syntax of Mezzo is thus very similar to that of ML, and we will forget about C-like snippets in the remainder of this tutorial.</p>
-<h2 id="turning-this-into-a-type-system-an-informal-presentation-of-permissions"><a href="#TOC"><span class="header-section-number">2.2</span> Turning this into a type system: an informal presentation of permissions</a></h2>
+<h2 id="turning-this-into-a-type-system-an-informal-presentation-of-permissions"><a href="#turning-this-into-a-type-system-an-informal-presentation-of-permissions"><span class="header-section-number">2.2</span> Turning this into a type system: an informal presentation of permissions</a></h2>
 <p>We introduce the foundational notion of Mezzo, permissions, through an informal presentation of the type system. We anticipate on the <a href="#overview-of-types">following section</a>, which will exhaustively introduce all the constructs in the type system of Mezzo.</p>
-<h3 id="my-first-permission"><a href="#TOC"><span class="header-section-number">2.2.1</span> My first permission</a></h3>
+<h3 id="my-first-permission"><a href="#my-first-permission"><span class="header-section-number">2.2.1</span> My first permission</a></h3>
 <p>In a traditional, strongly-typed programming language, such as ML, one may say that &quot;<code>x</code> has type <code>ref int</code>&quot;, which is the type of integer references. This implies, in particular, that the type of <code>x</code> is valid for the rest of <code>x</code>'s scope. Conversely, in Mezzo, <code>x</code> may &quot;have type&quot; <code>ref int</code>, but it may also have, later on, type <code>ref string</code>. Thus, we need to come up with a new way to talk about &quot;the&quot; type of a variable.</p>
 <p>We talk about types using <em>permissions</em>. A permission is written <code>x @ t</code>, where <code>x</code> is a program variable, and <code>t</code> is a type. One may think of a permission as an access token that grants its owner the right to use <code>x</code> as a variable of type <code>t</code>. Permissions are transient: this permission may disappear, to be replaced by <code>x @ u</code> at a later program point.</p>
 <p>Obtaining a fresh permission is easy. Writing <code>let x = 1 in ...</code> makes <code>x @ int</code> available in the continuation <code>...</code>.</p>
@@ -281,7 +260,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>The permission <code>val x @ int::int</code> that the type-checker outputs is the conjunction that remains after program execution.</p>
-<h3 id="permissions-for-controlling-effects"><a href="#TOC"><span class="header-section-number">2.2.2</span> Permissions for controlling effects</a></h3>
+<h3 id="permissions-for-controlling-effects"><a href="#permissions-for-controlling-effects"><span class="header-section-number">2.2.2</span> Permissions for controlling effects</a></h3>
 <p>In the case of function, permissions describe the <em>assumptions</em> that a function makes on its arguments, and the <em>guarantees</em> that it provides on its return value. In other words, permissions describe the pre- and post-conditions of functions. Let us consider the following function signature.</p>
 <div class="highlight"><pre><span class="k">val</span> <span class="n">length</span><span class="o">:</span> <span class="o">[</span><span class="n">a</span><span class="o">,</span> <span class="n">b</span><span class="o">]</span> <span class="o">(</span><span class="n">x</span><span class="o">:</span> <span class="n">list</span> <span class="n">a</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">int</span>
 </pre></div>
@@ -316,14 +295,14 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>The variable <code>x</code> went from <code>mpair a b</code> to <code>mpair b a</code>. This is a <em>type-changing update</em>, which the permission mechanism accurately describes.</p>
-<h3 id="permissions-for-tracking-ownership"><a href="#TOC"><span class="header-section-number">2.2.3</span> Permissions for tracking ownership</a></h3>
+<h3 id="permissions-for-tracking-ownership"><a href="#permissions-for-tracking-ownership"><span class="header-section-number">2.2.3</span> Permissions for tracking ownership</a></h3>
 <p>For the example above to be sound, no one else must own a copy of <code>x @ mpair a b</code>, since this information would be invalidated by the call to <code>mswap</code>. The type system of Mezzo guarantees that permissions that denote mutable data, such as <code>x @ mpair a b</code> are uniquely-owned. We say that these permissions are exclusive. In practice, this means that it is impossible to obtain another copy of <code>x @ mpair a b</code>.</p>
 <p>Conversely, the <code>val x @ int::int</code> permission that we saw earlier denotes immutable, permanent knowledge. It is therefore safe to share that information with &quot;others&quot; (other parts of the program, other threads), and we say that this permission is duplicable. In other words, one can obtain as many copies of it as desired.</p>
 <p>As we will see <a href="#defining-new-types">later on</a>, both Mezzo and the user can always tell whether a permission is exclusive or duplicable. This is done by looking up the definition of <code>t</code> in <code>x @ t</code>.</p>
 <p>We just saw read-write, uniquely-owned permissions (&quot;exclusive&quot;) and read-only, shared permissions (&quot;duplicable&quot;). Permissions which are neither exclusive or duplicable are said to be affine. Affine permissions are a strict superset of exclusive and duplicable permissions.</p>
-<h3 id="permissions-for-tracking-aliasing"><a href="#TOC"><span class="header-section-number">2.2.4</span> Permissions for tracking aliasing</a></h3>
+<h3 id="permissions-for-tracking-aliasing"><a href="#permissions-for-tracking-aliasing"><span class="header-section-number">2.2.4</span> Permissions for tracking aliasing</a></h3>
 <p>Permissions can express two kinds of aliasing information: <em>must-alias</em> constraints, and <em>must-not-alias</em> constraints.</p>
-<h4 id="must-alias"><a href="#TOC"><span class="header-section-number">2.2.4.1</span> Must-alias</a></h4>
+<h4 id="must-alias"><a href="#must-alias"><span class="header-section-number">2.2.4.1</span> Must-alias</a></h4>
 <p>Consider the following code snippet:</p>
 <div class="highlight"><pre><span class="k">val</span> <span class="n">_</span> <span class="o">=</span>
   <span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">newref</span> <span class="mi">3</span> <span class="k">in</span>
@@ -348,7 +327,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>Since we have an <em>expanded form</em> for <code>x</code>, type-checking the let-binding merely amounts to adding <code>y = l * z = r</code> into the current conjunction: we don't have to reason about whether the references are owned by <code>x</code> or by <code>y</code> and <code>z</code> individually.</p>
-<h4 id="must-not-alias"><a href="#TOC"><span class="header-section-number">2.2.4.2</span> Must-not-alias</a></h4>
+<h4 id="must-not-alias"><a href="#must-not-alias"><span class="header-section-number">2.2.4.2</span> Must-not-alias</a></h4>
 <p>Permissions also implicitly contain must-not-alias information. This stems from the unique owner policy. Having, for instance, a conjunction such as <code>y @ ref int * z @ ref int</code> tells you that <code>y</code> and <code>z</code> <em>must be distinct</em>; otherwise, it would violate the unique owner guarantee of Mezzo. This is a <em>must-not-alias</em> constraint. Similarly, having <code>y @ ref int * z @ int</code> also guarantees that <code>y</code> and <code>z</code> are distinct.</p>
 <p>Not all conjunctions are informative: having, for instance, <code>y @ int * z @ int</code> doesn't tell anything. The two variables may or may not be aliases. This is due to the fact that <code>int</code> is a duplicable type.</p>
 <div class="highlight"><pre><span class="k">val</span> <span class="n">_</span> <span class="o">=</span>
@@ -361,7 +340,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 <p>The assertion above would fail with a reference to an integer.</p>
 <p>As a side note, some conjunctions embed a very strong meaning. A conjunction such as <code>x @ ref int * x @ ref int</code> violates the unique owner policy of Mezzo. This is impossible! Therefore, execution can never reach such a program point. The conjunction denotes <em>dead code</em>, that is, code that is never run.</p>
-<h1 id="a-first-example"><a href="#TOC"><span class="header-section-number">3</span> A first example</a></h1>
+<h1 id="a-first-example"><a href="#a-first-example"><span class="header-section-number">3</span> A first example</a></h1>
 <p>Before giving a thorough presentation of the type system of Mezzo, we illustrate type-checking on two simple examples. The <code>map</code> function will be our running example: we first write a trivial implementation, and show how to perform type-checking in Mezzo. We then write a tail-recursive version of <code>map</code>, something which cannot be done in ML. We show how the type system of Mezzo allows us to type-check it.</p>
 <p>This section anticipates a little bit on the syntax of both types an expressions. These will be described in the following sections.</p>
 <p>The way one would write the <code>map</code> function in, say, OCaml, is as follows:</p>
@@ -371,7 +350,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
       f hd :: map f tl
   | [] -&gt;
       []</code></pre>
-<h2 id="type-checking-the-classical-map-function"><a href="#TOC"><span class="header-section-number">3.1</span> Type-checking the classical map function</a></h2>
+<h2 id="type-checking-the-classical-map-function"><a href="#type-checking-the-classical-map-function"><span class="header-section-number">3.1</span> Type-checking the classical map function</a></h2>
 <p>One can write the same simple function in Mezzo. Note the <code>consumes</code> annotation that <a href="#controlling-duplication">leaves it up</a> to the caller to duplicate the permission on the list, if possible.</p>
 <div class="highlight"><pre><span class="k">open</span> <span class="n">list</span>
 
@@ -392,14 +371,14 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 <div class="demo">
 <a class="fancybox fancybox.iframe" href="regular-map.interactive.html"> See the interactive version of the example above </a>
 </div>
-
+      
 
 <p>Let us see how this function is type-checked. In the snippet above, comments denote the currently available conjunction, as well as the reasoning steps that the type-checker performs. Comments omit the permission for <code>f</code> which remains available all throughout the body of <code>map</code>.</p>
 <p>Initially, when execution enters the function body, <code>xs @ list a * f @ (consumes a) -&gt; b</code> is available. Matching on <code>xs</code> <em>refines</em> the permission for <code>xs</code> into a <em>structural</em> one.</p>
 <p>In the first branch, we learn that <code>xs</code> is a <code>Cons</code> cell: the permission for <code>xs</code> is updated in place to reflect this. Moreover, the type-checker introduces names for the fields of <code>xs</code>: it <em>expands</em> the structural permission. This is, <a href="#must-alias">as we saw</a>, a must-alias constraint.</p>
 <p>Calling <code>f</code> consumes the permission for <code>h</code> and gives a new one for <code>h'</code>. Similarly, calling <code>map</code> consumes the permission for <code>t</code> and produces a fresh permission for <code>t'</code>. Finally, we return: we call <code>ret</code> the return value of the function. The permission for <code>ret</code> is, again, a structural one, since we know it is a <code>Cons</code> block. The type-checker performs various rewritings and <em>foldings</em> to finally obtain <code>ret @ list b</code>, which satisfies the declared return type for <code>map</code>.</p>
 <p>In the second branch, we just learn that <code>xs</code> is a <code>Nil</code> branch; returning <code>xs</code> actually creates a new equation, which the type-checker uses to rewrite the current conjunction, so as to make <code>ret @ Nil</code> appear. It turns out that <code>Nil</code> can also be seen as a value of type <code>list b</code>, and the type-checker is aware of that fact.</p>
-<h2 id="type-checking-the-improved-map-function"><a href="#TOC"><span class="header-section-number">3.2</span> Type-checking the improved map function</a></h2>
+<h2 id="type-checking-the-improved-map-function"><a href="#type-checking-the-improved-map-function"><span class="header-section-number">3.2</span> Type-checking the improved map function</a></h2>
 <p>The function above has to wait for the recursive call to <code>map</code> to complete before constructing the mapped list. Therefore, it uses linear stack space: it is not tail-recursive. There is, however, one way to write this function in a tail-recursive style, called destination-passing style.</p>
 <div class="figure">
 <img src="tail-rec-map-1.svg" alt="The last cell (blue) of the list is mutable" /><p class="caption">The last cell (blue) of the list is mutable</p>
@@ -459,7 +438,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 <div class="demo">
 <a class="fancybox fancybox.iframe" href="tail-rec-map.interactive.html"> See the interactive version of the example above </a>
 </div>
-
+      
 
 <p>The data type of lists is recalled. We define the <code>cell</code> type that represents an unfinished, mutable list cell.</p>
 <p>The heart of the algorithm is <code>map1</code>, a recursive function that implements the main loop. This function transforms <code>c0</code>, an unfinished, mutable list cell, into the head of a well-formed, immutable list. Just like the standard definition of <code>map</code>, it consumes the original, to-be-mapped list.</p>
@@ -469,9 +448,9 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 <p>At this stage, <code>c0</code> is not yet a valid <code>list b</code>: its tail points to an unfinished <code>cell</code>, namely <code>c1</code>. We call <code>map1</code> recursively on <code>c1</code>. Per the semantics of <code>map1</code>, <code>c1</code> is now a <code>list b</code>, which allows us to deduce that <code>c0</code> also is a <code>list b</code>.</p>
 <p>It is interesting to note that while the execution of the code is tail-recursive, the reasoning is not: an extra reasoning step takes place <em>after</em> the recursive call to <code>map1</code>, and is needed to justify why <code>c0</code> <em>has become</em> a well-formed list.</p>
 <p>We provide an interactive feature where you can see the permissions evolving in real-time, as the execution progresses through the example. This should (hopefully) help illustrate the way permissions work on a concrete example.</p>
-<h1 id="overview-of-types"><a href="#TOC"><span class="header-section-number">4</span> Overview of types</a></h1>
+<h1 id="overview-of-types"><a href="#overview-of-types"><span class="header-section-number">4</span> Overview of types</a></h1>
 <p>We now present the whole zoology of types in Mezzo. This allows us to provide a reference before going into further discussion; this also allows us to talk about our syntactic conventions for function types in greater detail.</p>
-<h2 id="kinds"><a href="#TOC"><span class="header-section-number">4.1</span> Kinds</a></h2>
+<h2 id="kinds"><a href="#kinds"><span class="header-section-number">4.1</span> Kinds</a></h2>
 <p>Before going any further, we need to mention that types have <em>kinds</em>. Kinds classify types into three categories. A type is either:</p>
 <ul>
 <li>a program variable, such as <code>x</code>, at kind <strong>term</strong></li>
@@ -479,7 +458,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 <li>a regular type, such as <code>int -&gt; int</code>, or <code>ref int</code>, at kind <strong>type</strong></li>
 </ul>
 <p>We sometimes mention the well-kindedness judgement informally in the <a href="#syntax-of-types">syntax of types</a>.</p>
-<h2 id="syntax-of-types"><a href="#TOC"><span class="header-section-number">4.2</span> Syntax of types</a></h2>
+<h2 id="syntax-of-types"><a href="#syntax-of-types"><span class="header-section-number">4.2</span> Syntax of types</a></h2>
 <dl>
 <dt>Structural types</dt>
 <dd><p>Structural types talk about the <em>structure</em> of a memory location. Structural types are either <strong>tuples types</strong> of the form <code>(t1, ..., tn)</code>, or <strong>constructor types</strong> of the form <code>A { f1: t1 ...; fn: tn }</code>.</p>
@@ -507,9 +486,9 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 <dd><p>Is it sometimes convenient to use <code>unknown</code>, the top type at kind <strong>type</strong>.</p>
 </dd>
 </dl>
-<h2 id="function-types"><a href="#TOC"><span class="header-section-number">4.3</span> Function types</a></h2>
+<h2 id="function-types"><a href="#function-types"><span class="header-section-number">4.3</span> Function types</a></h2>
 <p>Function types benefit from special syntactic conventions, which makes expressing their pre- and post-conditions easier. We thus devote an entire section to function types. Function types have kind <strong>type</strong>.</p>
-<h3 id="consumes-keyword"><a href="#TOC"><span class="header-section-number">4.3.1</span> Consumes keyword</a></h3>
+<h3 id="consumes-keyword"><a href="#consumes-keyword"><span class="header-section-number">4.3.1</span> Consumes keyword</a></h3>
 <p>A basic function type is of the form <code>t -&gt; u</code>. For instance, here is the signature of the <code>list::length</code> function, which we saw <a href="#permissions-for-controlling-effects">earlier</a>.</p>
 <div class="highlight"><pre><span class="k">val</span> <span class="n">length</span><span class="o">:</span> <span class="o">[</span><span class="n">a</span><span class="o">]</span> <span class="o">(</span><span class="n">list</span> <span class="n">a</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">int</span>
 </pre></div>
@@ -539,7 +518,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 <p>Intuitively, all the parts of the argument that are not marked as consumes are preserved through the function call.</p>
 <p>Formally, the <code>consumes</code> keyword is interpreted as follows. If the function has type <code>t -&gt; u</code>, then we take <code>t1</code> to be <code>t</code> where <code>consumes v</code> is replaced by <code>v</code>. We also take <code>t2</code> to be <code>t</code> where <code>consumes v</code> is replaced by <code>unknown</code> or <code>empty</code>. We then understand the function type to mean <code>(root: t1) -&gt; (u | root @ t2)</code>. That is, the function preserves the sub-parts of <code>t</code> that are <em>not</em> consumed.</p>
-<h3 id="name-introduction"><a href="#TOC"><span class="header-section-number">4.3.2</span> Name introduction</a></h3>
+<h3 id="name-introduction"><a href="#name-introduction"><span class="header-section-number">4.3.2</span> Name introduction</a></h3>
 <p>Names can be introduced in function types using the <em>name introduction construct</em>. It is of the form <code>x: t</code>.</p>
 <p>Any name introduced in the <strong>domain</strong> of a function type is available in the domain and the codomain. For instance, in the example below, both <code>t</code> and <code>u</code> may refer to <code>x</code>.</p>
 <div class="highlight"><pre><span class="k">val</span> <span class="n">f</span><span class="o">:</span> <span class="o">(</span><span class="n">x</span><span class="o">:</span> <span class="n">int</span><span class="o">,</span> <span class="n">t</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">u</span>
@@ -576,7 +555,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>Name introduction constructs may also appear in <a href="#binding-rules">data types</a> and type annotations.</p>
-<h3 id="currying-and-capture-advanced"><a href="#TOC"><span class="header-section-number">4.3.3</span> Currying and capture (advanced)</a></h3>
+<h3 id="currying-and-capture-advanced"><a href="#currying-and-capture-advanced"><span class="header-section-number">4.3.3</span> Currying and capture (advanced)</a></h3>
 <p>Please note that the function type above for <code>concat</code> use a <em>tuple</em> for its argument, instead of being a curried function. We strongly encourage users to write functions that take tuples. Indeed, function types are <a href="#determining-duplicability">duplicable</a>, meaning that they can't close over (capture) non-duplicable data. Thus, if one were to write the <code>concat</code> function above in a curried style, they would need the following signature:</p>
 <div class="highlight"><pre><span class="k">val</span> <span class="n">concat</span><span class="o">:</span> <span class="o">[</span><span class="n">a</span><span class="o">]</span> <span class="o">(</span><span class="n">xs</span><span class="o">:</span> <span class="n">list</span> <span class="n">a</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">(</span>
   <span class="k">consumes</span> <span class="o">(</span><span class="n">list</span> <span class="n">a</span> <span class="o">|</span> <span class="n">xs</span> <span class="o">@</span> <span class="n">list</span> <span class="n">a</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="n">list</span> <span class="n">a</span><span class="o">)</span>
@@ -587,9 +566,9 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 <p>We <a href="#name-introduction">name</a> the first list <code>xs</code>. The function type above expresses the fact that applying the function to its first argument will actually <em>not</em> modify or consume <code>xs</code>; rather, all the action will happen when applying the second argument. Thus, when calling the function on its second argument, the permission for the first argument is required for the function call to succeed.</p>
 <p>Writing curried function types is difficult, and the resulting types generate extra work for the type-checker, so currying shouldn't be used unless absolutely necessary.</p>
-<h2 id="controlling-duplication"><a href="#TOC"><span class="header-section-number">4.4</span> Controlling duplication</a></h2>
+<h2 id="controlling-duplication"><a href="#controlling-duplication"><span class="header-section-number">4.4</span> Controlling duplication</a></h2>
 <p>It is important, when reasoning about ownership, to understand whether a permission is duplicable or not.</p>
-<h3 id="to-consume-or-not-to-consume"><a href="#TOC"><span class="header-section-number">4.4.1</span> To consume or not to consume?</a></h3>
+<h3 id="to-consume-or-not-to-consume"><a href="#to-consume-or-not-to-consume"><span class="header-section-number">4.4.1</span> To consume or not to consume?</a></h3>
 <p>Back to the concat example, from the point of view of the caller, permissions evolve as follows.</p>
 <div class="highlight"><pre>  <span class="c">(* xs @ list a * ys @ list a *)</span>
   <span class="k">let</span> <span class="n">zs</span> <span class="o">=</span> <span class="n">concat</span> <span class="o">(</span><span class="n">xs</span><span class="o">,</span> <span class="n">ys</span><span class="o">)</span>
@@ -616,7 +595,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>This is call-site polymorphism over the duplicability of the argument. Thus, when writing a function type in Mezzo, it is generally advisable to consume your arguments; this puts no extra burden on the caller, and allows them to save a copy of the permission if they have the ability to do so.</p>
-<h3 id="determining-duplicability"><a href="#TOC"><span class="header-section-number">4.4.2</span> Determining duplicability</a></h3>
+<h3 id="determining-duplicability"><a href="#determining-duplicability"><span class="header-section-number">4.4.2</span> Determining duplicability</a></h3>
 <p>Here is an informal set of rules to help you determine whether a type is duplicable or not.</p>
 <ul>
 <li><code>=x</code> is duplicable, as it is just a pointer that contains not ownership information.</li>
@@ -634,11 +613,11 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 <li>Function types <code>t -&gt; u</code> are always duplicable.</li>
 </ul>
 <p>Immutable data types are not mentioned in the list above. They get a special treatment that requires a fixpoint computation. For instance, Mezzo knows that <code>list a</code> is duplicable as long as <code>a</code> itself is duplicable. We omit the details.</p>
-<h1 id="writing-type-definitions"><a href="#TOC"><span class="header-section-number">5</span> Writing type definitions</a></h1>
+<h1 id="writing-type-definitions"><a href="#writing-type-definitions"><span class="header-section-number">5</span> Writing type definitions</a></h1>
 <p>Since Mezzo is such a strongly typed language, we devote an entire section on how types are defined in Mezzo.</p>
-<h2 id="data-types"><a href="#TOC"><span class="header-section-number">5.1</span> Data types</a></h2>
+<h2 id="data-types"><a href="#data-types"><span class="header-section-number">5.1</span> Data types</a></h2>
 <p>Data type definition may appear at any top-level position in a <code>.mz</code> file.</p>
-<h3 id="definition"><a href="#TOC"><span class="header-section-number">5.1.1</span> Definition</a></h3>
+<h3 id="definition"><a href="#definition"><span class="header-section-number">5.1.1</span> Definition</a></h3>
 <p>Let us start with lists, the classical example of a data type.</p>
 <div class="highlight"><pre><span class="k">data</span> <span class="n">list</span> <span class="n">a</span> <span class="o">=</span>
   <span class="o">|</span> <span class="nc">Nil</span>
@@ -649,7 +628,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 <p>Data type definitions are introduced by the <code>data</code> keyword; <em>branches</em> are separated using a vertical pipe <code>|</code>. Each branch has a <em>tag</em>, in our case, <code>Nil</code> or <code>Cons</code>, along with a number of fields, listed between braces <code>{ ... }</code>. In the case where there are no fields, the <code>{ ... }</code> may be omitted.</p>
 <p>Defining the <code>list</code> data type allows one to write types such as <code>x @ list int</code>; it also allows one to write two new <em>concrete</em> types. Concrete types describe the in-heap structure of a block; after defining <code>list</code>, one can write <code>x @ Cons { head: ...; tail: ... }</code> to express the fact that <code>x</code> is a memory block of size 3, with a <code>Cons</code> tag, and two fields <code>head</code> and <code>tail</code>. Similarly, after defining the <code>list</code> type, writing <code>x @ Nil</code> also becomes possible.</p>
-<h3 id="mutability"><a href="#TOC"><span class="header-section-number">5.1.2</span> Mutability</a></h3>
+<h3 id="mutability"><a href="#mutability"><span class="header-section-number">5.1.2</span> Mutability</a></h3>
 <p>Unless specified, a data type is considered to be immutable. One can define mutable data types using the <code>mutable</code> keyword. Here is the definition of <em>mutable</em> lists.</p>
 <div class="highlight"><pre><span class="k">data</span> <span class="k">mutable</span> <span class="n">mlist</span> <span class="n">a</span> <span class="o">=</span>
   <span class="o">|</span> <span class="nc">MNil</span>
@@ -659,7 +638,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>Field names can be shared between data types, but constructors shadow each other. We thus use <code>MNil</code> and <code>MCons</code> to make sure one can still talk about <code>Nil</code> and <code>Cons</code>, which belong to <code>list</code>.</p>
-<h3 id="recursion"><a href="#TOC"><span class="header-section-number">5.1.3</span> Recursion</a></h3>
+<h3 id="recursion"><a href="#recursion"><span class="header-section-number">5.1.3</span> Recursion</a></h3>
 <p>Data types are recursive by default. There is currently no option to make a data-type non-recursive. Data types in Mezzo are inductive.</p>
 <p>Mutually recursive data types can be defined using the <code>and</code> keyword. Here is a (slightly artificial) example.</p>
 <div class="highlight"><pre><span class="k">data</span> <span class="n">tree</span> <span class="n">a</span> <span class="o">=</span> <span class="nc">Tree</span> <span class="o">{</span> <span class="n">size</span><span class="o">:</span> <span class="n">int</span><span class="o">;</span> <span class="n">node</span><span class="o">:</span> <span class="n">node</span> <span class="n">a</span> <span class="o">}</span>
@@ -668,7 +647,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 
-<h3 id="parameterizing-data-type-definitions-packing-permissions"><a href="#TOC"><span class="header-section-number">5.1.4</span> Parameterizing data type definitions, packing permissions</a></h3>
+<h3 id="parameterizing-data-type-definitions-packing-permissions"><a href="#parameterizing-data-type-definitions-packing-permissions"><span class="header-section-number">5.1.4</span> Parameterizing data type definitions, packing permissions</a></h3>
 <p>The <code>list</code> example admits a parameter. Parameters take a kind annotation. When omitted, the kind defaults to <code>type</code>.</p>
 <div class="highlight"><pre><span class="k">data</span> <span class="k">mutable</span> <span class="n">treeMap</span> <span class="n">k</span> <span class="o">(</span><span class="n">c</span> <span class="o">:</span> <span class="k">term</span><span class="o">)</span> <span class="n">a</span> <span class="o">=</span>
   <span class="nc">TreeMap</span> <span class="o">{</span> <span class="n">tree</span><span class="o">:</span> <span class="n">tree</span> <span class="n">k</span> <span class="n">a</span><span class="o">;</span> <span class="n">cmp</span><span class="o">:</span> <span class="o">=</span><span class="n">c</span> <span class="o">|</span> <span class="n">c</span> <span class="o">@</span> <span class="o">(</span><span class="n">k</span><span class="o">,</span> <span class="n">k</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">int</span> <span class="o">}</span>
@@ -687,7 +666,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 
-<h2 id="type-abbreviations"><a href="#TOC"><span class="header-section-number">5.2</span> Type abbreviations</a></h2>
+<h2 id="type-abbreviations"><a href="#type-abbreviations"><span class="header-section-number">5.2</span> Type abbreviations</a></h2>
 <p>Since we've defined the <code>list</code> data type, we can now write types of the form <code>Cons { head: a; tail: list a }</code>. This is tedious, though. Fortunately, we can define a type abbreviation.</p>
 <div class="highlight"><pre><span class="k">alias</span> <span class="n">cons</span> <span class="n">a</span> <span class="o">=</span> <span class="nc">Cons</span> <span class="o">{</span> <span class="n">head</span><span class="o">:</span> <span class="n">a</span><span class="o">;</span> <span class="n">tail</span><span class="o">:</span> <span class="n">list</span> <span class="n">a</span> <span class="o">}</span>
 </pre></div>
@@ -701,9 +680,9 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 
-<h2 id="advanced-topics"><a href="#TOC"><span class="header-section-number">5.3</span> Advanced topics</a></h2>
+<h2 id="advanced-topics"><a href="#advanced-topics"><span class="header-section-number">5.3</span> Advanced topics</a></h2>
 <p>The sections above contain enough information to work define types in Mezzo. We present a few extra features of type definitions; these contain quite a few forward references, so a casual reader may want to skip these upon a first reading of the tutorial. Most of the code snippets from this section are taken from Mezzo's standard library.</p>
-<h3 id="binding-rules"><a href="#TOC"><span class="header-section-number">5.3.1</span> Binding rules</a></h3>
+<h3 id="binding-rules"><a href="#binding-rules"><span class="header-section-number">5.3.1</span> Binding rules</a></h3>
 <p>Both data type branches and type abbreviations can be prefixed with a succession of <a href="#syntax-of-types">existential bindings</a>.</p>
 <div class="highlight"><pre><span class="k">alias</span> <span class="n">channel</span> <span class="n">a</span> <span class="o">=</span>
   <span class="o">{</span><span class="n">q</span><span class="o">:</span> <span class="k">term</span><span class="o">}</span> <span class="o">(=</span><span class="n">q</span><span class="o">,</span> <span class="n">l</span><span class="o">:</span> <span class="n">lock</span> <span class="o">(</span><span class="n">q</span> <span class="o">@</span> <span class="n">fifo</span> <span class="n">a</span><span class="o">),</span> <span class="n">condition</span> <span class="n">l</span><span class="o">)</span>
@@ -718,7 +697,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 
-<h3 id="variance"><a href="#TOC"><span class="header-section-number">5.3.2</span> Variance</a></h3>
+<h3 id="variance"><a href="#variance"><span class="header-section-number">5.3.2</span> Variance</a></h3>
 <p>Both data types and type abbreviations accept variance annotations for their type parameters. Consistently with OCaml, we use <code>+</code> for covariance, <code>-</code> for contravariance. Mezzo automatically computes variance using the definition; annotations in implementations serve as an assertion that the type has the expected variance. Variances annotations mostly appear when defining <a href="#the-mezzo-module-system">interfaces</a>.</p>
 <div class="highlight"><pre><span class="k">data</span> <span class="k">mutable</span> <span class="n">fifo</span> <span class="o">+(</span><span class="n">a</span><span class="o">:</span> <span class="k">type</span><span class="o">)</span> <span class="o">=</span>
   <span class="nc">Empty</span>    <span class="o">{</span> <span class="n">length</span><span class="o">:</span> <span class="n">int</span><span class="o">;</span> <span class="n">tail</span><span class="o">:</span> <span class="o">()</span>      <span class="o">}</span>
@@ -728,7 +707,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 
-<h3 id="axiomatized-types"><a href="#TOC"><span class="header-section-number">5.3.3</span> Axiomatized types</a></h3>
+<h3 id="axiomatized-types"><a href="#axiomatized-types"><span class="header-section-number">5.3.3</span> Axiomatized types</a></h3>
 <p>Mezzo makes it possible to define abstract types. This is useful to axiomatize predicates.</p>
 <div class="highlight"><pre><span class="k">abstract</span> <span class="n">nests</span> <span class="o">(</span><span class="n">x</span> <span class="o">:</span> <span class="k">term</span><span class="o">)</span> <span class="o">(</span><span class="n">p</span> <span class="o">:</span> <span class="k">perm</span><span class="o">)</span> <span class="o">:</span> <span class="k">perm</span>
 <span class="k">fact</span> <span class="k">duplicable</span> <span class="o">(</span><span class="n">nests</span> <span class="n">x</span> <span class="n">p</span><span class="o">)</span>
@@ -737,8 +716,8 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>Just like type abbreviations, abstract types take a return kind annotation. They also take an optional <a href="#facts">fact</a>.</p>
-<h3 id="local-type-definitions"><a href="#TOC"><span class="header-section-number">5.3.4</span> Local type definitions</a></h3>
-<h4 id="local-alias-definitions"><a href="#TOC"><span class="header-section-number">5.3.4.1</span> Local alias definitions</a></h4>
+<h3 id="local-type-definitions"><a href="#local-type-definitions"><span class="header-section-number">5.3.4</span> Local type definitions</a></h3>
+<h4 id="local-alias-definitions"><a href="#local-alias-definitions"><span class="header-section-number">5.3.4.1</span> Local alias definitions</a></h4>
 <p>Types can be locally defined via a <code>let</code>-binding. Note the <code>let alias</code> in the snippet below.</p>
 <div class="highlight"><pre><span class="k">val</span> <span class="n">new_generic_iterator</span> <span class="o">[</span><span class="n">a</span><span class="o">]</span> <span class="o">(</span><span class="k">consumes</span> <span class="n">l</span><span class="o">:</span> <span class="n">list</span> <span class="n">a</span><span class="o">):</span>
   <span class="n">iterator</span><span class="o">::</span><span class="n">iterator</span> <span class="n">a</span> <span class="o">(</span><span class="n">l</span> <span class="o">@</span> <span class="n">list</span> <span class="n">a</span><span class="o">)</span> <span class="o">=</span>
@@ -751,7 +730,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>This is useful for advanced code that requires a lot of type annotations; defining a local alias avoids repeating the same type too many times.</p>
-<h4 id="local-data-type-definitions"><a href="#TOC"><span class="header-section-number">5.3.4.2</span> Local data type definitions</a></h4>
+<h4 id="local-data-type-definitions"><a href="#local-data-type-definitions"><span class="header-section-number">5.3.4.2</span> Local data type definitions</a></h4>
 <p>It is actually possible to define local data types.</p>
 <div class="highlight"><pre><span class="k">alias</span> <span class="n">adopter_</span> <span class="n">t</span> <span class="o">=</span> <span class="n">ref</span> <span class="o">(</span><span class="n">list</span> <span class="n">t</span><span class="o">)</span>
 <span class="k">alias</span> <span class="n">dynamic_</span> <span class="o">=</span> <span class="k">unknown</span>
@@ -801,7 +780,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>In that case, the type-checker will just keep <code>x @ unknown</code>.</p>
-<h3 id="per-branch-mutability"><a href="#TOC"><span class="header-section-number">5.3.5</span> Per-branch mutability</a></h3>
+<h3 id="per-branch-mutability"><a href="#per-branch-mutability"><span class="header-section-number">5.3.5</span> Per-branch mutability</a></h3>
 <p>Instead of putting the <code>mutable</code> keyword in front of the data type, one can be more precise.</p>
 <div class="highlight"><pre><span class="k">data</span> <span class="n">tree</span> <span class="n">k</span> <span class="n">a</span> <span class="o">=</span>
   <span class="o">|</span> <span class="nc">Empty</span>
@@ -811,8 +790,8 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>This refines the &quot;is duplicable&quot; check for the constructor types of <code>tree</code>, and also limits assignments to the <code>Node</code> case.</p>
-<h1 id="writing-expressions-programs"><a href="#TOC"><span class="header-section-number">6</span> Writing expressions (programs)</a></h1>
-<h2 id="top-level-definitions"><a href="#TOC"><span class="header-section-number">6.1</span> Top-level definitions</a></h2>
+<h1 id="writing-expressions-programs"><a href="#writing-expressions-programs"><span class="header-section-number">6</span> Writing expressions (programs)</a></h1>
+<h2 id="top-level-definitions"><a href="#top-level-definitions"><span class="header-section-number">6.1</span> Top-level definitions</a></h2>
 <p>A <code>.mz</code> file is made up of an succession of top-level definition. Top-level definitions can be either one of:</p>
 <ul>
 <li>type definitions, see <a href="#writing-type-definitions">previously</a>,</li>
@@ -820,7 +799,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 <li>function definitions,</li>
 <li>an open directive, see <a href="#the-mezzo-module-system">modules</a>.</li>
 </ul>
-<h3 id="value-definitions"><a href="#TOC"><span class="header-section-number">6.1.1</span> Value definitions</a></h3>
+<h3 id="value-definitions"><a href="#value-definitions"><span class="header-section-number">6.1.1</span> Value definitions</a></h3>
 <p>Value definitions are introduced by the keyword <code>val</code>, followed by a pattern.</p>
 <div class="highlight"><pre><span class="k">val</span> <span class="n">x</span><span class="o">,</span> <span class="n">y</span> <span class="o">=</span> <span class="mi">1</span><span class="o">,</span> <span class="mi">2</span>
 </pre></div>
@@ -828,7 +807,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>Value definitions do not require type annotations.</p>
-<h3 id="function-definitions"><a href="#TOC"><span class="header-section-number">6.1.2</span> Function definitions</a></h3>
+<h3 id="function-definitions"><a href="#function-definitions"><span class="header-section-number">6.1.2</span> Function definitions</a></h3>
 <p>A function definition is introduced by the <code>val</code> keyword, followed by the function name. Function types are always annotated, meaning that if the function is polymorphic, universal quantifiers should be explicitly specified. The type of the argument is mandatory, as well as the return type of the function. The general form of a function definition is thus:</p>
 <pre class="sourceCode ocaml"><code class="sourceCode ocaml"><span class="kw">val</span> f quantifiers? arg_type: return_type =
   function_body</code></pre>
@@ -848,7 +827,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 
-<h2 id="patterns"><a href="#TOC"><span class="header-section-number">6.2</span> Patterns</a></h2>
+<h2 id="patterns"><a href="#patterns"><span class="header-section-number">6.2</span> Patterns</a></h2>
 <p>Pattern are either one of:</p>
 <ul>
 <li>a tuple pattern <code>(p1, ..., pn)</code></li>
@@ -858,8 +837,8 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 <li>a wildcard <code>_</code></li>
 </ul>
 <p>Mezzo features punning, meaning that a constructor pattern <code>A { f1; ...; fn }</code> will be understood as <code>A { f1 = f1; ...; fn = fn }</code>.</p>
-<h2 id="manipulating-concrete-types-assigning-reading-matching"><a href="#TOC"><span class="header-section-number">6.3</span> Manipulating concrete types: assigning, reading, matching</a></h2>
-<h3 id="matching"><a href="#TOC"><span class="header-section-number">6.3.1</span> Matching</a></h3>
+<h2 id="manipulating-concrete-types-assigning-reading-matching"><a href="#manipulating-concrete-types-assigning-reading-matching"><span class="header-section-number">6.3</span> Manipulating concrete types: assigning, reading, matching</a></h2>
+<h3 id="matching"><a href="#matching"><span class="header-section-number">6.3.1</span> Matching</a></h3>
 <p>Matches in Mezzo are terminated by an <code>end</code> keyword. We do not (yet) provide special facilities for matching on lists, meaning that the user has to write:</p>
 <div class="highlight"><pre><span class="c">(* x @ list a *)</span>
 <span class="k">match</span> <span class="n">x</span> <span class="k">with</span>
@@ -875,7 +854,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>The example above uses <em>punning</em>. Matching refines permissions in-place, meaning that in the branch of a <code>match</code> expression, the permission for the expression being match is refined to a more precise one that uses a constructor type. Once a constructor permission is available for <code>x</code>, one may attempt to read and write fields from <code>x</code>.</p>
-<h3 id="reading"><a href="#TOC"><span class="header-section-number">6.3.2</span> Reading</a></h3>
+<h3 id="reading"><a href="#reading"><span class="header-section-number">6.3.2</span> Reading</a></h3>
 <p>One can read the field <code>f</code> of variable <code>x</code> by writing <code>f.x</code>. This is well-typed if a permission <code>x @ A { ...; f: t; ... }</code> is available in the environment. The type-checker always expands structural permissions, meaning that reading always consists in adding a new equation into the environment.</p>
 <div class="highlight"><pre><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nc">Cons</span> <span class="o">{</span> <span class="n">head</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span> <span class="n">tail</span> <span class="o">=</span> <span class="nc">Nil</span> <span class="o">}</span> <span class="k">in</span>
 <span class="c">(* x @ Cons { head = h; tail = t } * h @ int * t @ Nil *)</span>
@@ -886,7 +865,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 
-<h3 id="assigning"><a href="#TOC"><span class="header-section-number">6.3.3</span> Assigning</a></h3>
+<h3 id="assigning"><a href="#assigning"><span class="header-section-number">6.3.3</span> Assigning</a></h3>
 <p>A constructor <code>B</code> is said to be mutable if the data type <a href="#mutability">is mutable</a> or if the branch it belongs to is <a href="#per-branch-mutability">declared as mutable</a>.</p>
 <p>One can assign an expression <code>e</code> to the field <code>f</code> of variable <code>x</code> by writing <code>f.x &lt;- e</code>. This is well-typed if a permission <code>x @ B { ...; f: t; ... }</code> is available and if constructor <code>B</code> is mutable. In a similar fashion to reading, performing an assignment changes the singleton type for the field of a constructor permission, meaning we preserve the invariant that all types are in expanded form.</p>
 <div class="highlight"><pre><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nc">MCons</span> <span class="o">{</span> <span class="n">head</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span> <span class="n">tail</span> <span class="o">=</span> <span class="nc">Nil</span> <span class="o">}</span> <span class="k">in</span>
@@ -909,7 +888,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>In the example above, <code>c0</code> is a <code>Cell</code> that is initialized in a gradual fashion: initially, the <code>tail</code> field is not ready. It contains a dummy value: the unit <code>()</code> type. Then, we selectively initialize the <code>tail</code> field of <code>c0</code>, meaning that we are then free to turn it into a <code>Cons</code> cell.</p>
-<h3 id="intermediate-states"><a href="#TOC"><span class="header-section-number">6.3.4</span> Intermediate states</a></h3>
+<h3 id="intermediate-states"><a href="#intermediate-states"><span class="header-section-number">6.3.4</span> Intermediate states</a></h3>
 <p>In the examples above, we use constructor types that represent the precise layout of a memory block. These constructor types do not necessarily correspond to a projection of a nominal type. That is, one can write:</p>
 <div class="highlight"><pre><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nc">Cons</span> <span class="o">{</span> <span class="n">head</span> <span class="o">=</span> <span class="o">();</span> <span class="n">tail</span> <span class="o">=</span> <span class="o">()</span> <span class="o">}</span> <span class="k">in</span>
 <span class="c">(* x @ Cons { head: (); tail: () } *)</span>
@@ -919,8 +898,8 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>The permission for <code>x</code> is a perfectly legit one: it represents a memory block of size three. However, it can't be turned into any sort of valid list. One can think of these intermediary states as temporarily broken invariants that are restored when matching a type annotation of the form <code>list a</code>. The type annotation could stem, as an example, from the return type of a function.</p>
-<h2 id="control-flow"><a href="#TOC"><span class="header-section-number">6.4</span> Control-flow</a></h2>
-<h3 id="conditionals"><a href="#TOC"><span class="header-section-number">6.4.1</span> Conditionals</a></h3>
+<h2 id="control-flow"><a href="#control-flow"><span class="header-section-number">6.4</span> Control-flow</a></h2>
+<h3 id="conditionals"><a href="#conditionals"><span class="header-section-number">6.4.1</span> Conditionals</a></h3>
 <p>Mezzo provides <code>if-then-else</code> expressions. Unlike OCaml, we do not allow the following form:</p>
 <pre class="sourceCode ocaml"><code class="sourceCode ocaml"><span class="kw">if</span> e <span class="kw">then</span>
   <span class="kw">let</span> y = ... <span class="kw">in</span>
@@ -928,7 +907,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 <span class="kw">else</span>
   ...</code></pre>
 <p>In that situation, we require you to use the <code>begin</code> and <code>end</code> keywords for the contents of the <code>then</code>-branch.</p>
-<h3 id="loops"><a href="#TOC"><span class="header-section-number">6.4.2</span> Loops</a></h3>
+<h3 id="loops"><a href="#loops"><span class="header-section-number">6.4.2</span> Loops</a></h3>
 <p>Mezzo provides <code>for</code> and <code>while</code>-based loops. The syntax is as follows:</p>
 <div class="highlight"><pre>  <span class="k">preserving</span> <span class="n">p</span> <span class="k">while</span> <span class="n">e</span> <span class="k">do</span> <span class="n">e</span><span class="o">;</span>
   <span class="k">preserving</span> <span class="n">p</span> <span class="k">for</span> <span class="n">x</span> <span class="o">=</span> <span class="n">e</span> <span class="k">to</span><span class="err">/</span><span class="k">downto</span><span class="err">/</span><span class="k">below</span><span class="err">/</span><span class="k">above</span> <span class="n">e</span> <span class="k">do</span> <span class="n">e</span><span class="o">;</span>
@@ -962,7 +941,7 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>In general, loops are less powerful than recursive functions. The usual style in Mezzo consists in using recursive functions wherever possible.</p>
-<h2 id="closures"><a href="#TOC"><span class="header-section-number">6.5</span> Closures</a></h2>
+<h2 id="closures"><a href="#closures"><span class="header-section-number">6.5</span> Closures</a></h2>
 <p>A closure may be introduced either using an anonymous function;</p>
 <div class="highlight"><pre><span class="k">let</span> <span class="n">f</span> <span class="o">=</span> <span class="k">fun</span> <span class="o">(</span><span class="n">x</span><span class="o">:</span> <span class="n">int</span><span class="o">):</span> <span class="n">int</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="n">x</span> <span class="k">in</span>
 <span class="o">...</span>
@@ -991,11 +970,11 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>The <code>bump_x</code> function above would, in OCaml, be a function from unit <code>()</code> to unit. Here, we need to specify that the function requires an extra permission in order to run; we take advantage of the special syntactic sugar for <code>(() | P)</code> in order to write a concise function signature. Please note that since the <code>consumes</code> keyword is not used, the permission is understood to be preserved by the function, meaning that we can call it several times.</p>
-<h2 id="type-annotations"><a href="#TOC"><span class="header-section-number">6.6</span> Type annotations</a></h2>
+<h2 id="type-annotations"><a href="#type-annotations"><span class="header-section-number">6.6</span> Type annotations</a></h2>
 <p>Any sub-expression can be annotated using the <code>:</code> colon operator. We do not support nested type annotations, that is, if there already is a type provided by the context, we won't allow you to re-annotate under it.</p>
-<h2 id="assertions-and-failures"><a href="#TOC"><span class="header-section-number">6.7</span> Assertions and failures</a></h2>
+<h2 id="assertions-and-failures"><a href="#assertions-and-failures"><span class="header-section-number">6.7</span> Assertions and failures</a></h2>
 <p>Any program can fail at run-time by using the special <code>fail</code> instruction. The programmer can assert the existence of a given permission <code>p</code> by writing <code>assert p</code>.</p>
-<h2 id="polymorphic-function-calls"><a href="#TOC"><span class="header-section-number">6.8</span> Polymorphic function calls</a></h2>
+<h2 id="polymorphic-function-calls"><a href="#polymorphic-function-calls"><span class="header-section-number">6.8</span> Polymorphic function calls</a></h2>
 <p>In the presence of a polymorphic function call, the Mezzo type-checker will try to guess (infer) the value of the polymorphic variable.</p>
 <div class="highlight"><pre><span class="k">open</span> <span class="n">list</span>
 
@@ -1007,11 +986,11 @@ $ <span class="kw">make</span> <span class="kw">&amp;&amp;</span> <span class="k
 
 
 <p>The program above, when run with <code>-warn-error +5</code> will give:</p>
-<div class="highlight"><pre><span class="nc">File</span> <span class="s2">&quot;/tmp/snippet3103d0.mz&quot;</span><span class="o">,</span> <span class="n">line</span> <span class="mi">5</span><span class="o">,</span> <span class="n">characters</span> <span class="mi">15</span><span class="o">-</span><span class="mi">28</span><span class="o">:</span>
+<div class="highlight"><pre><span class="nc">File</span> <span class="s2">&quot;/tmp/snippetf74d11.mz&quot;</span><span class="o">,</span> <span class="n">line</span> <span class="mi">5</span><span class="o">,</span> <span class="n">characters</span> <span class="mi">15</span><span class="o">-</span><span class="mi">28</span><span class="o">:</span>
 <span class="nc">We</span> <span class="n">instantiated</span> <span class="n">a</span> <span class="k">as</span> <span class="o">(</span><span class="n">inst</span><span class="err">→</span><span class="o">((</span><span class="n">inst</span><span class="err">→</span><span class="n">int</span><span class="o">::</span><span class="n">int</span><span class="o">),</span> <span class="o">(</span><span class="n">inst</span><span class="err">→</span><span class="n">int</span><span class="o">::</span><span class="n">int</span><span class="o">)))</span>
-<span class="nc">File</span> <span class="s2">&quot;/tmp/snippet3103d0.mz&quot;</span><span class="o">,</span> <span class="n">line</span> <span class="mi">6</span><span class="o">,</span> <span class="n">characters</span> <span class="mi">16</span><span class="o">-</span><span class="mi">17</span><span class="o">:</span>
+<span class="nc">File</span> <span class="s2">&quot;/tmp/snippetf74d11.mz&quot;</span><span class="o">,</span> <span class="n">line</span> <span class="mi">6</span><span class="o">,</span> <span class="n">characters</span> <span class="mi">16</span><span class="o">-</span><span class="mi">17</span><span class="o">:</span>
 <span class="nc">We</span> <span class="n">instantiated</span> <span class="n">a</span> <span class="k">as</span> <span class="o">(</span><span class="n">inst</span><span class="err">→</span><span class="o">((</span><span class="n">inst</span><span class="err">→</span><span class="n">int</span><span class="o">::</span><span class="n">int</span><span class="o">),</span> <span class="o">(</span><span class="n">inst</span><span class="err">→</span><span class="n">int</span><span class="o">::</span><span class="n">int</span><span class="o">)))</span>
-<span class="nc">File</span> <span class="s2">&quot;/tmp/snippet3103d0.mz&quot;</span><span class="o">,</span> <span class="n">line</span> <span class="mi">6</span><span class="o">,</span> <span class="n">characters</span> <span class="mi">8</span><span class="o">-</span><span class="mi">18</span><span class="o">:</span>
+<span class="nc">File</span> <span class="s2">&quot;/tmp/snippetf74d11.mz&quot;</span><span class="o">,</span> <span class="n">line</span> <span class="mi">6</span><span class="o">,</span> <span class="n">characters</span> <span class="mi">8</span><span class="o">-</span><span class="mi">18</span><span class="o">:</span>
 <span class="nc">We</span> <span class="n">instantiated</span> <span class="n">a</span> <span class="k">as</span> <span class="o">(</span><span class="n">inst</span><span class="err">→</span><span class="n">int</span><span class="o">::</span><span class="n">int</span><span class="o">)</span>
 </pre></div>
 
@@ -1059,7 +1038,7 @@ val x =
 -->
 
 <p>The syntax of type applications is either <code>[t1, t2, ...]</code> to instantiate type parameters in the order they were declared. An alternative syntax is available, for convenience: if one wishes to instantiate only the type variable named <code>a</code>, then one can write <code>[a: t]</code>.</p>
-<h2 id="playing-with-existentials-advanced"><a href="#TOC"><span class="header-section-number">6.9</span> Playing with existentials (advanced)</a></h2>
+<h2 id="playing-with-existentials-advanced"><a href="#playing-with-existentials-advanced"><span class="header-section-number">6.9</span> Playing with existentials (advanced)</a></h2>
 <p>Existential types are automatically unpacked when added into the context. This means there is no way to refer to &quot;the&quot; existential, as it doesn't have a name.</p>
 <div class="highlight"><pre><span class="k">val</span> <span class="n">f</span> <span class="o">():</span> <span class="o">{</span><span class="n">t</span><span class="o">,</span> <span class="n">u</span><span class="o">}</span> <span class="o">(</span><span class="n">t</span><span class="o">,</span> <span class="n">u</span><span class="o">)</span> <span class="o">=</span>
   <span class="mi">1</span><span class="o">,</span> <span class="mi">2</span>
@@ -1076,7 +1055,7 @@ val x =
 
 
 <p>... then types <code>t</code> and <code>u</code> are automatically existentially-quantified and the user has no way to refer to them. This can be fixed by using <code>let flex</code>.</p>
-<h3 id="binding-a-flexible-variable"><a href="#TOC"><span class="header-section-number">6.9.1</span> Binding a flexible variable</a></h3>
+<h3 id="binding-a-flexible-variable"><a href="#binding-a-flexible-variable"><span class="header-section-number">6.9.1</span> Binding a flexible variable</a></h3>
 <p>The <code>let flex</code> construct introduces a new unification variable that will be instantiated as needed.</p>
 <div class="highlight"><pre><span class="k">val</span> <span class="n">f</span> <span class="o">():</span> <span class="o">{</span><span class="n">t</span><span class="o">,</span> <span class="n">u</span><span class="o">}</span> <span class="o">(</span><span class="n">t</span><span class="o">,</span> <span class="n">u</span><span class="o">)</span> <span class="o">=</span>
   <span class="mi">1</span><span class="o">,</span> <span class="mi">2</span>
@@ -1094,20 +1073,16 @@ val x =
 
 <p>In the example above, one binds fresh type variables <code>t'</code> and <code>u'</code>; they could serve for anything, but we require them to satisfy <code>x @ t'</code> and <code>y @ u'</code> respectively. This means that they have no choice<sup><a href="#fn2" class="footnoteRef" id="fnref2">2</a></sup> but to instantiate into the existentially-quantified, anonymous variables <code>t</code> and <code>u</code> introduced by the call to <code>f</code>. This henceforth gives us a name that allows us to refer to these variables.</p>
 The instantiation choices can be printed out using the <code>-warn-error +5</code> command-line argument:
-<div class="highlight"><pre><span class="nc">File</span> <span class="s2">&quot;/tmp/snippet5853fe.mz&quot;</span><span class="o">,</span> <span class="n">line</span> <span class="mi">11</span><span class="o">,</span> <span class="n">characters</span> <span class="mi">2</span><span class="o">-</span><span class="mi">15</span><span class="o">:</span>
+<div class="highlight"><pre><span class="nc">File</span> <span class="s2">&quot;/tmp/snippetc78aa2.mz&quot;</span><span class="o">,</span> <span class="n">line</span> <span class="mi">11</span><span class="o">,</span> <span class="n">characters</span> <span class="mi">2</span><span class="o">-</span><span class="mi">15</span><span class="o">:</span>
 <span class="nc">We</span> <span class="n">instantiated</span> <span class="n">u&#39;</span> <span class="k">as</span> <span class="o">(</span><span class="n">inst</span><span class="err">→</span><span class="n">u</span><span class="o">)</span>
-<span class="nc">File</span> <span class="s2">&quot;/tmp/snippet5853fe.mz&quot;</span><span class="o">,</span> <span class="n">line</span> <span class="mi">9</span><span class="o">,</span> <span class="n">char</span> <span class="mi">2</span> <span class="k">to</span> <span class="n">line</span> <span class="mi">11</span><span class="o">,</span> <span class="n">char</span> <span class="mi">15</span><span class="o">:</span>
+<span class="nc">File</span> <span class="s2">&quot;/tmp/snippetc78aa2.mz&quot;</span><span class="o">,</span> <span class="n">line</span> <span class="mi">9</span><span class="o">,</span> <span class="n">char</span> <span class="mi">2</span> <span class="k">to</span> <span class="n">line</span> <span class="mi">11</span><span class="o">,</span> <span class="n">char</span> <span class="mi">15</span><span class="o">:</span>
 <span class="nc">We</span> <span class="n">instantiated</span> <span class="n">t&#39;</span> <span class="k">as</span> <span class="o">(</span><span class="n">inst</span><span class="err">→</span><span class="n">t</span><span class="o">)</span>
 <span class="k">val</span> <span class="n">f</span> <span class="o">@</span> <span class="o">(</span><span class="k">consumes</span> <span class="err">/</span><span class="n">root33</span><span class="o">:</span> <span class="o">())</span> <span class="o">-&gt;</span> <span class="o">({</span><span class="n">t</span><span class="o">}</span> <span class="o">{</span><span class="n">u</span><span class="o">}</span> <span class="o">(</span><span class="n">t</span><span class="o">,</span> <span class="n">u</span><span class="o">)</span> <span class="o">|</span> <span class="err">/</span><span class="n">root33</span> <span class="o">@</span> <span class="o">())</span>
 </pre></div>
 
 
 
-
-
-
-
-<h3 id="packing-an-existential"><a href="#TOC"><span class="header-section-number">6.9.2</span> Packing an existential</a></h3>
+<h3 id="packing-an-existential"><a href="#packing-an-existential"><span class="header-section-number">6.9.2</span> Packing an existential</a></h3>
 <p>If one wants to perform the converse operation, that is, turning a regular type into an existentially-quantified one, one can use the <code>pack</code> instruction.</p>
 <div class="highlight"><pre><span class="k">alias</span> <span class="n">extpair</span> <span class="o">=</span> <span class="o">{</span><span class="n">t</span><span class="o">}</span> <span class="o">(</span><span class="n">t</span><span class="o">,</span> <span class="n">t</span><span class="o">)</span>
 
@@ -1120,8 +1095,8 @@ The instantiation choices can be printed out using the <code>-warn-error +5</cod
 
 
 
-<h1 id="error-messages"><a href="#TOC"><span class="header-section-number">7</span> Error messages</a></h1>
-<h2 id="controlling-error-messages"><a href="#TOC"><span class="header-section-number">7.1</span> Controlling error messages</a></h2>
+<h1 id="error-messages"><a href="#error-messages"><span class="header-section-number">7</span> Error messages</a></h1>
+<h2 id="controlling-error-messages"><a href="#controlling-error-messages"><span class="header-section-number">7.1</span> Controlling error messages</a></h2>
 <p>Error messages can be tamed using the <code>-warn-error</code> command-line flag. It follows the OCaml convention: it is a sequence of warning specifiers.</p>
 <ul>
 <li><code>+num</code> enables warning number <code>num</code></li>
@@ -1140,12 +1115,12 @@ The instantiation choices can be printed out using the <code>-warn-error +5</cod
 <li><code>5</code> (disabled by default) <em>instantiation</em>, prints out the value of an flexible variable when instantiated; the location is the scope of the variable,</li>
 <li><code>6</code> (enabled by default) <em>multiple function types</em>, triggered when several permissions are available for the same function <em>and</em> a function call would work with several of them: the type-checker makes an arbitrary decision then.</li>
 </ul>
-<h2 id="making-sense-out-of-error-messages"><a href="#TOC"><span class="header-section-number">7.2</span> Making sense out of error messages</a></h2>
+<h2 id="making-sense-out-of-error-messages"><a href="#making-sense-out-of-error-messages"><span class="header-section-number">7.2</span> Making sense out of error messages</a></h2>
 <p>Error messages are possibly the main weakness of Mezzo. First of all, the Mezzo type-checker is not complete. That is, an error could mean two things: either that your code is ill-typed, or that the inference of the Mezzo type-checker failed. Fortunately, the latter case is rare, and by the time you write such examples, you'll probably be in touch with us. In this section, we focus on error messages that happen when the programmer makes a mistake.</p>
 <p>Let's see what happens if we call an uncurried function in a curried style.</p>
-<div class="highlight"><pre><span class="nc">File</span> <span class="s2">&quot;/tmp/snippet12df48.mz&quot;</span><span class="o">,</span> <span class="n">line</span> <span class="mi">6</span><span class="o">,</span> <span class="n">characters</span> <span class="mi">2</span><span class="o">-</span><span class="mi">7</span><span class="o">:</span>
+<div class="highlight"><pre><span class="nc">File</span> <span class="s2">&quot;/tmp/snippetc57b2f.mz&quot;</span><span class="o">,</span> <span class="n">line</span> <span class="mi">6</span><span class="o">,</span> <span class="n">characters</span> <span class="mi">2</span><span class="o">-</span><span class="mi">7</span><span class="o">:</span>
 <span class="nc">Functions</span> <span class="k">take</span> <span class="n">only</span> <span class="n">one</span> <span class="o">(</span><span class="n">tuple</span><span class="o">)</span> <span class="n">argument</span>
-<span class="nc">File</span> <span class="s2">&quot;/tmp/snippet12df48.mz&quot;</span><span class="o">,</span> <span class="n">line</span> <span class="mi">6</span><span class="o">,</span> <span class="n">characters</span> <span class="mi">4</span><span class="o">-</span><span class="mi">5</span><span class="o">:</span>
+<span class="nc">File</span> <span class="s2">&quot;/tmp/snippetc57b2f.mz&quot;</span><span class="o">,</span> <span class="n">line</span> <span class="mi">6</span><span class="o">,</span> <span class="n">characters</span> <span class="mi">4</span><span class="o">-</span><span class="mi">5</span><span class="o">:</span>
 <span class="nc">Could</span> <span class="n">not</span> <span class="n">extract</span> <span class="k">from</span> <span class="n">this</span> <span class="n">subexpression</span> <span class="o">(</span><span class="n">named</span> <span class="err">/</span><span class="n">x_50</span><span class="o">)</span> <span class="n">the</span> <span class="n">following</span> <span class="k">type</span><span class="o">:</span>
 <span class="o">(=</span><span class="err">/</span><span class="n">root33</span><span class="o">*</span> <span class="o">|</span> <span class="err">/</span><span class="n">root33</span><span class="o">*</span> <span class="o">@</span> <span class="o">((=</span><span class="n">x</span><span class="o">*</span> <span class="o">|</span> <span class="n">x</span><span class="o">*</span> <span class="o">@</span> <span class="n">int</span><span class="o">::</span><span class="n">int</span><span class="o">),</span> <span class="o">(=</span><span class="n">y</span><span class="o">*</span> <span class="o">|</span> <span class="n">y</span><span class="o">*</span> <span class="o">@</span> <span class="n">int</span><span class="o">::</span><span class="n">int</span><span class="o">)))</span>
 <span class="n">some</span> <span class="n">explanations</span> <span class="n">follow</span><span class="o">:</span>
@@ -1254,7 +1229,7 @@ A fragment of this type (namely, the domain of the arrow) appears in the first f
 
 
 <p>Several permissions indeed were available for <code>/x_50</code>: <code>/x_50 @ unknown</code>, <code>/x_50 @ =x_50</code>, as well as <code>/x_50 @ int</code>. None of them allows the type-checker to deduce that <code>/x_50</code> is a tuple.</p>
-<h1 id="more-examples"><a href="#TOC"><span class="header-section-number">8</span> More examples</a></h1>
+<h1 id="more-examples"><a href="#more-examples"><span class="header-section-number">8</span> More examples</a></h1>
 <div class="todo">
 <p><strong>TODO</strong></p>
 <ul>
@@ -1266,16 +1241,16 @@ A fragment of this type (namely, the domain of the arrow) appears in the first f
 
 </li>
 </ul>
-<h1 id="adoption-and-abandon"><a href="#TOC"><span class="header-section-number">9</span> Adoption and abandon</a></h1>
+<h1 id="adoption-and-abandon"><a href="#adoption-and-abandon"><span class="header-section-number">9</span> Adoption and abandon</a></h1>
 <div class="todo">
 <p><strong>TODO</strong></p>
 Re-use some example, say, the FIFO.
 </div>
 
 
-<h1 id="the-mezzo-module-system"><a href="#TOC"><span class="header-section-number">10</span> The Mezzo module system</a></h1>
+<h1 id="the-mezzo-module-system"><a href="#the-mezzo-module-system"><span class="header-section-number">10</span> The Mezzo module system</a></h1>
 <p>Mezzo is equipped with a primitive module system. A module is comprised of an implementation (a <code>.mz</code> file) and a mandatory interface (a <code>.mzi</code> file).</p>
-<h2 id="exporting-items"><a href="#TOC"><span class="header-section-number">10.1</span> Exporting items</a></h2>
+<h2 id="exporting-items"><a href="#exporting-items"><span class="header-section-number">10.1</span> Exporting items</a></h2>
 <p>A signature is made of a succession of items, namely:</p>
 <ul>
 <li>a duplicable value definition, of the form <code>val x: t</code>, or</li>
@@ -1308,7 +1283,7 @@ Re-use some example, say, the FIFO.
 
 
 
-<h2 id="facts-variance"><a href="#TOC"><span class="header-section-number">10.2</span> Facts, variance</a></h2>
+<h2 id="facts-variance"><a href="#facts-variance"><span class="header-section-number">10.2</span> Facts, variance</a></h2>
 <p>As mentioned earlier, we may want to reveal <em>facts</em> about data types. For instance, we may want to reveal that <code>treeMap</code> is exclusive, or that <code>list a</code> is duplicable as long as <code>a</code> is duplicable. This can be done using the <em>fact</em> mechanism.</p>
 <div class="highlight"><pre><span class="k">fact</span> <span class="k">exclusive</span> <span class="o">(</span><span class="n">treeMap</span> <span class="n">k</span> <span class="n">cmp</span> <span class="n">a</span><span class="o">)</span>
 </pre></div>
@@ -1316,17 +1291,17 @@ Re-use some example, say, the FIFO.
 
 
 <p>Variance annotations can be specified just like we did <a href="#variance">earlier</a>.</p>
-<h2 id="referring-to-things-defined-in-other-modules"><a href="#TOC"><span class="header-section-number">10.3</span> Referring to things defined in other modules</a></h2>
+<h2 id="referring-to-things-defined-in-other-modules"><a href="#referring-to-things-defined-in-other-modules"><span class="header-section-number">10.3</span> Referring to things defined in other modules</a></h2>
 <p>One can refer to a type, value, or constructor defined in another module using <code>m::t</code>, <code>m::x</code> or <code>m::A</code>. One can import all the items defined by module <code>m</code> using <code>open m</code>, a top-level directive.</p>
 <p>Unlike OCaml, module names exactly follow the case of the corresponding file.</p>
-<h2 id="restrictions-digression"><a href="#TOC"><span class="header-section-number">10.4</span> Restrictions (digression)</a></h2>
+<h2 id="restrictions-digression"><a href="#restrictions-digression"><span class="header-section-number">10.4</span> Restrictions (digression)</a></h2>
 <p>Interfaces are mandatory. Because of the expressiveness of Mezzo, using strong updates, one may end up with an implementation whose interface cannot be represented using the interface language (e.g. mutual recursion between a value and a type). We feel like extending the interface language to account for that would be a poor design choice; moreover, writing code that prints the inferred signature while detecting non-representable signatures is non-trivial. We thus went for the easy route and require an interface to be present.</p>
 <p>Exporting non-duplicable values is tricky. For instance, if the module dependency graph is as follows:</p>
-<pre class="sourceCode bash"><code class="sourceCode bash">    M
-   / <span class="kw">\</span>
-  N   O
-   <span class="dt">\ </span>/
-    P</code></pre>
+<pre class="sourceCode bash"><code class="sourceCode bash">    <span class="kw">M</span>
+   <span class="kw">/</span> \
+  <span class="kw">N</span>   O
+   <span class="kw">\ /</span>
+    <span class="kw">P</span></code></pre>
 <p>Let us now imagine the following contents:</p>
 <div class="highlight"><pre><span class="c">(* m.mzi *)</span>
 <span class="k">val</span> <span class="n">r</span><span class="o">:</span> <span class="n">ref</span> <span class="n">int</span>
@@ -1352,29 +1327,29 @@ Re-use some example, say, the FIFO.
 
 <p>Depending on the linking order, this program may or may not run into a segmentation fault! Thus, we must require that if module <code>n</code> imports module <code>m</code>, then <code>n</code> must not <em>alter the signature</em> of <code>m</code>.</p>
 <p>We used to have this check in place, but it turns out that exporting non-duplicable values is never used in practice. We thus removed it.</p>
-<h1 id="interaction-between-mezzo-and-ocaml"><a href="#TOC"><span class="header-section-number">11</span> Interaction between Mezzo and OCaml</a></h1>
+<h1 id="interaction-between-mezzo-and-ocaml"><a href="#interaction-between-mezzo-and-ocaml"><span class="header-section-number">11</span> Interaction between Mezzo and OCaml</a></h1>
 <div class="todo">
 <p><strong>TODO</strong></p>
 Interacting through the MezzoLib. Runtime representation of Mezzo (time to implement slim / fat)?
 </div>
 
 
-<h1 id="writing-idiomatic-mezzo-code"><a href="#TOC"><span class="header-section-number">12</span> Writing idiomatic Mezzo code</a></h1>
-<h2 id="to-consume-or-not-to-consume-1"><a href="#TOC"><span class="header-section-number">12.1</span> To consume or not to consume?</a></h2>
-<h2 id="encouraging-memory-re-use"><a href="#TOC"><span class="header-section-number">12.2</span> Encouraging memory re-use</a></h2>
+<h1 id="writing-idiomatic-mezzo-code"><a href="#writing-idiomatic-mezzo-code"><span class="header-section-number">12</span> Writing idiomatic Mezzo code</a></h1>
+<h2 id="to-consume-or-not-to-consume-1"><a href="#to-consume-or-not-to-consume-1"><span class="header-section-number">12.1</span> To consume or not to consume?</a></h2>
+<h2 id="encouraging-memory-re-use"><a href="#encouraging-memory-re-use"><span class="header-section-number">12.2</span> Encouraging memory re-use</a></h2>
 <div class="todo">
 <p><strong>TODO</strong></p>
 In-place zipper example
 </div>
 
 
-<h1 id="advanced-topics-1"><a href="#TOC"><span class="header-section-number">13</span> Advanced topics</a></h1>
+<h1 id="advanced-topics-1"><a href="#advanced-topics-1"><span class="header-section-number">13</span> Advanced topics</a></h1>
 <div class="todo">
 <p><strong>TODO</strong></p>
 existentials (using them, packing them, the auto-unpack feature), let flex, point to articles, etc. Also, mode constraints. Variance, how a -&gt; unit is not covariant (because of the surface syntax hacks). Interaction between OCaml and Mezzo (the restrictions). Declaring environments as inconsistent. Annotation propagation. When to annotate? Merges.
 </div>
 
-<h1 id="the-mezzo-standard-library"><a href="#TOC"><span class="header-section-number">14</span> The Mezzo standard library</a></h1>
+<h1 id="the-mezzo-standard-library"><a href="#the-mezzo-standard-library"><span class="header-section-number">14</span> The Mezzo standard library</a></h1>
 <div class="todo">
 <p><strong>TODO</strong></p>
 Nesting (use the union-find example). Channels. Locks. Weak references. Etc. etc.
