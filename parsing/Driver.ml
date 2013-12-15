@@ -57,7 +57,7 @@ let mkprefix path =
     (* So it's the [lib_dir] that we want here, unless we're in the process of
      * pre-compiling the Mezzo core library, meaning that [lib_dir] isn't ready. *)
     let corelib_dir, corelib_build_dir =
-      if !Options.boot then
+      if !Options.boot || Configure.local then
         Filename.concat Configure.src_dir "corelib",
         Filename.concat (Filename.concat Configure.src_dir "_build") "corelib"
       else

@@ -67,20 +67,29 @@ let _ =
   end;
   Log.enable_debug !arg_debug;
   Debug.enable_trace !arg_trace;
+
   (* First enable the default warn-error string. *)
   TypeErrors.parse_warn_error !Options.warn_error;
+
   (* Then refine that based on the user's preferences. *)
   if !arg_warn_error <> "" then
     TypeErrors.parse_warn_error !arg_warn_error;
+
   let opts =
     let open Driver in
     { html_errors = !arg_html_errors; backtraces = not !arg_backtraces }
   in
-  Driver.add_include_dir (Filename.concat Configure.lib_dir "corelib");
-  Driver.add_include_dir (Filename.concat Configure.lib_dir "stdlib");
-  Driver.add_include_dir (Filename.concat Configure.src_dir "corelib");
-  Driver.add_include_dir (Filename.concat Configure.src_dir "stdlib");
+
+  (* In the local mode, corelib ana stdlib are to be found in the source
+   * directory. If packaged, then everything's flat in the libdir. *)
+  if !Options.boot || Configure.local then begin
+    Driver.add_include_dir (Filename.concat Configure.src_dir "corelib");
+    Driver.add_include_dir (Filename.concat Configure.src_dir "stdlib");
+  end else begin
+    Driver.add_include_dir Configure.lib_dir;
+  end;
   Driver.add_include_dir (Filename.dirname !Options.filename);
+
   match !arg_mode with
   | Typecheck
   | TypecheckAndCompile ->
