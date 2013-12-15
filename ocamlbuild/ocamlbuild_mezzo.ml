@@ -34,9 +34,6 @@ let init ~boot () =
     else if Sys.file_exists "./mezzo.native" then
       A (Sys.getcwd() ^ "/mezzo.native")
     else begin
-      (* If we're booting, we should've found the mezzo executable in the
-       * current working directory. *)
-      assert (not boot);
       A "mezzo"
     end
   in
