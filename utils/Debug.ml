@@ -201,7 +201,6 @@ module Html = struct
       let names = get_names env var in
       let locations = get_locations env var in
       let kind = get_kind env var in
-      let open TypePrinter in
       let names = `List (List.map (function
         | User (_, v) -> `List [`String "user"; `String (Variable.print v)]
         | Auto v -> `List [`String "auto"; `String (Variable.print v)]

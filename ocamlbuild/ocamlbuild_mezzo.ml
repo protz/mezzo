@@ -27,64 +27,65 @@ open Command;;
    core library and standard library. Otherwise, we assume/hope that
    [mezzo] is in the PATH. *)
 
-let init ~boot () =
-  let mezzo =
-    if boot then
-      A (Sys.getcwd() ^ "/_build/mezzo.native")
-    else
-      A "mezzo"
-  in
+let apply_rules_and_flags ~boot event =
+  match event with
+  | After_rules ->
+      let mezzo =
+        if boot then
+          A (Sys.getcwd() ^ "/_build/mezzo.native")
+        else
+          A "mezzo"
+      in
 
-  (* This command invokes the Mezzo compiler. *)
+      (* This command invokes the Mezzo compiler. *)
 
-  let compile env builder =
-    Cmd (S [
-      mezzo;
-      if boot then A "-boot" else N;
-      A "-c";
-      P (env "%(path)%(filename).mz");
-      Sh ">/dev/null"; (* TEMPORARY we have to suppress Mezzo's verbose output *)
-    ])
-  in
+      let compile env _builder =
+        Cmd (S [
+          mezzo;
+          if boot then A "-boot" else N;
+          A "-c";
+          P (env "%(path)%(filename).mz");
+          Sh ">/dev/null"; (* TEMPORARY we have to suppress Mezzo's verbose output *)
+        ])
+      in
 
-  (* The following two rules tell how to compile [Mezzo] files. If we have
-     both [.mz] and [.mzi] files, then we produce both [.ml] and [.mli]
-     files. If we have just an [.mz] file, then we produce just an [.ml]
-     file. *)
+      (* The following two rules tell how to compile [Mezzo] files. If we have
+         both [.mz] and [.mzi] files, then we produce both [.ml] and [.mli]
+         files. If we have just an [.mz] file, then we produce just an [.ml]
+         file. *)
 
-  (* TEMPORARY not sure that ocamlbuild understands these overlapping rules; test! *)
+      (* TEMPORARY not sure that ocamlbuild understands these overlapping rules; test! *)
 
-  rule
-    "mezzo-mz-mzi" (* the name of the rule, which should be unique *)
-    ~deps:[
-      "%(path)%(filename).mz";"%(path)%(filename).mzi"
-    ](* the source files *)
-    ~prods:[
-      "%(path:<**/>)mz%(filename:<*> and not <*.*>).ml";
-      "%(path:<**/>)mz%(filename:<*> and not <*.*>).mli"
-    ] (* the target files *)
-    compile;
+      rule
+        "mezzo-mz-mzi" (* the name of the rule, which should be unique *)
+        ~deps:[
+          "%(path)%(filename).mz";"%(path)%(filename).mzi"
+        ](* the source files *)
+        ~prods:[
+          "%(path:<**/>)mz%(filename:<*> and not <*.*>).ml";
+          "%(path:<**/>)mz%(filename:<*> and not <*.*>).mli"
+        ] (* the target files *)
+        compile;
 
-  rule
-    "mezzo-mz" (* the name of the rule, which should be unique *)
-    ~deps:[
-      "%(path)%(filename).mz"
-    ](* the source files *)
-    ~prods:[
-      "%(path:<**/>)mz%(filename:<*> and not <*.*>).ml";
-    ] (* the target files *)
-    compile;
+      rule
+        "mezzo-mz" (* the name of the rule, which should be unique *)
+        ~deps:[
+          "%(path)%(filename).mz"
+        ](* the source files *)
+        ~prods:[
+          "%(path:<**/>)mz%(filename:<*> and not <*.*>).ml";
+        ] (* the target files *)
+        compile;
 
-  (* Options for the OCaml compiler. *)
+      (* Options for the OCaml compiler. *)
 
-  dispatch (function
-    | After_rules ->
-        (* Disable the warning about statements that never return. *)
-        flag ["ocaml"; "compile"; "mezzo"] (S[A "-w"; A "-21"]);
-        (* Do not load the ocaml core library or the standard library. *)
-        flag ["ocaml"; "compile"; "mezzo"] (S[A "-nopervasives"; A "-nostdlib"]);
-        flag ["ocaml"; "link"; "mezzo"] (S[A "-nopervasives"; A "-nostdlib"]);
-    | _ ->
-        ()
-  );
+      (* Disable the warning about statements that never return. *)
+      flag ["ocaml"; "compile"; "mezzo"] (S[A "-w"; A "-21"]);
+      (* Do not load the ocaml core library or the standard library. *)
+      flag ["ocaml"; "compile"; "mezzo"] (S[A "-nopervasives"; A "-nostdlib"]);
+      flag ["ocaml"; "link"; "mezzo"] (S[A "-nopervasives"; A "-nostdlib"]);
+
+  | _ ->
+      ()
+;;
 
