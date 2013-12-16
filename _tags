@@ -11,9 +11,8 @@ not (<corelib/*> or <stdlib/*>): debug, \
   menhir, \
   annot, bin_annot, strict_sequence, \
   package(yojson), package(menhirLib), package(ulex), package(pprint), \
-  package(fix), package(unix), package(functory)
-
-not <**/*.cmxa> and not (<corelib/*> or <stdlib/*>): use_str, use_ocamlbuild
+  package(fix), package(unix), package(functory), package(str), package(ocamlbuild), \
+  package(unix)
 
 # Enable the "nazi warnings". A few files really trigger too many warnings: the
 # generated parser and lexer files, as well as the imported [patricia.ml].
