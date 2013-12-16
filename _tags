@@ -8,7 +8,7 @@
 # - We don't use [use_unix] because it plays badly with ocamlfind and leads to
 #   the infamous "unix.cma is linked twice" problem.
 not (<corelib/*> or <stdlib/*>): debug, \
-  use_menhir, \
+  menhir, \
   annot, bin_annot, strict_sequence, \
   package(yojson), package(menhirLib), package(ulex), package(pprint), \
   package(fix), package(unix), package(functory)
