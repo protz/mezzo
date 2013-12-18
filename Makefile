@@ -1,7 +1,7 @@
 .PHONY: all clean test graph doc index release report coverage count doc doc-export install uninstall
 
 # If the file doesn't exist, there's a rule for generating it.
-include Makefile.config
+-include Makefile.config
 
 # Autodetected values for auxiliary tools can be overridden by Makefile.local
 # (not under version control).
@@ -145,9 +145,10 @@ graph: all
 	rm -f graph.dot
 
 doc: graph
-	-$(OCAMLFIND) ocamldoc -stars -html $(BUILDDIRS) \
-	  $(PACKAGES)\
-	  -package stdlib -d ../misc/doc \
+	-$(OCAMLFIND) ocamldoc $(PACKAGES) \
+	  $(BUILDDIRS) \
+	  -stars -html \
+	  -d ../misc/doc \
 	  -intro ../misc/doc/main \
 	  -charset utf8 -css-style ocamlstyle.css\
 	  configure.ml mezzo.ml\
